@@ -111,6 +111,25 @@ export type EntityType<
 > = IEntityStaticType<StaticTypes> & (new (...args: never[]) => Instance);
 
 /**
+ * 实体实例类型
+ *
+ * 从 {@link EntityType} 里取出 `new` 出来的实例形状。
+ *
+ * @typeParam T - 实体类型（构造函数侧）
+ *
+ * @remarks
+ * **不要**用内置的 `InstanceType<T>` 代替本类型。`InstanceType` 的约束是
+ * `abstract new (...args: any) => any`，而 {@link EntityType} 的构造签名是有意写死的
+ * `new (...args: never[])`——逆变位上 `any` 不可赋给 `never`，约束不满足，
+ * 于是条件类型落到 `: any` 兜底分支：**`InstanceType<EntityType>` 恒等于 `any`**。
+ *
+ * `any` 不会报错，只会静默吞掉它之后的所有类型检查，所以这个塌陷从编译输出上完全看不出来；
+ * 唯一的迹象是 `.d.ts` 里冒出来的 `any`。本类型把 `never[]` 原样写进自己的条件分支，
+ * 因而能正确推断出 `R`。
+ */
+export type EntityInstanceType<T extends EntityType> = T extends new (...args: never[]) => infer R ? R : never;
+
+/**
  * 实体数据类型
  *
  * 通用的键值对数据对象 —— 仅用于 {@link Rule} / `RuleGroup` 等不限定

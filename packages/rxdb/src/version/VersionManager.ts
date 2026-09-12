@@ -652,7 +652,7 @@ export class VersionManager {
    * // 检查每项结果
    * for (const item of result.results) {
    *   if (item.success) {
-   *     console.log(`${item.repository.entity}: 已拉取 ${item.result.pull?.pulled || 0} 条`);
+   *     console.log(`${item.repository.entity}: 已拉取 ${item.result?.pullResult.pulled ?? 0} 条`);
    *   } else {
    *     console.error(`${item.repository.entity}: ${item.error.message}`);
    *   }

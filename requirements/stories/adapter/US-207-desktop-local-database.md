@@ -171,7 +171,7 @@ E1～E7 已全部落地：`packages/rxdb-adapter-desktop` 与 `@aiao/rxdb-adapte
 它也**不是**发布 1.0 前的可选整理——`@aiao/rxdb-adapter-desktop@0.0.25` 已在 registry 上，
 拖到有真实用户之后再改名，成本从「改 21 个引用点」变成「改用户代码」。
 
-### 已落定的决策：`ADAPTER_NAME` 分裂（2026-08-17）
+### 已落定的决策：`ADAPTER_NAME` 分裂
 
 `desktop-adapter.interface.ts` 的 `ADAPTER_NAME = 'desktop'` 是用户写进
 `rxdb.config.sync.local.adapter` 的运行时字符串，不是内部常量；`RxDBAdapterDesktop` 今天靠

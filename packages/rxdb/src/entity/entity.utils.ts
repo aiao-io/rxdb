@@ -7,7 +7,7 @@ import { isFunction } from '@aiao/utils';
 import { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityStatus } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
-import { EntityData, EntityType } from './entity.interface.js';
+import { EntityData, EntityInstanceType, EntityType } from './entity.interface.js';
 import { PropertyType } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
 
@@ -243,10 +243,12 @@ export const getNeedSaveEntities = <T extends EntityType>(entities: InstanceType
  * @returns 需要删除的实体数组（只包含 local=true 的）
  */
 export const getNeedRemoveEntities = <T extends EntityType>(entities: InstanceType<T>[]) => {
-  const entitySet = new Set<InstanceType<T>>();
+  // 收集到的是**关系另一侧**的实体（多对多的 Junction），类型与根实体 `T` 无关。
+  // 从前写 `Set<InstanceType<T>>` 只是看着精确：它恒等于 `Set<any>`，把这处错配一并吞了。
+  const entitySet = new Set<EntityInstanceType<EntityType>>();
 
   // 递归查找单个实体的需要删除的关联实体
-  const _deep_find_entity = (entity: InstanceType<T>) => {
+  const _deep_find_entity = (entity: EntityInstanceType<EntityType>) => {
     const status = getEntityStatus(entity);
     const foundEntities = status.getNeedRemoveEntities();
     foundEntities.forEach(e => {
@@ -266,7 +268,8 @@ export const getNeedRemoveEntities = <T extends EntityType>(entities: InstanceTy
 
 interface EntityMutationsOptions<T extends EntityType = EntityType> {
   need_save_entities: InstanceType<T>[];
-  need_remove_entities: InstanceType<T>[];
+  // 与 {@link getNeedRemoveEntities} 同源：装的是关系另一侧的 Junction，不是根实体 `T`。
+  need_remove_entities: EntityInstanceType<EntityType>[];
 }
 
 /**
@@ -300,7 +303,11 @@ export const getEntityMutations = <T extends EntityType = EntityType>(
   for (const entity of need_remove_entities) {
     const status = getEntityStatus(entity);
     if (status.local) {
-      addToGroup(need_delete_entities_map, entity.constructor as T, entity);
+      // 删除桶装的是**关系另一侧**的实体（Junction），构造器与根实体 `T` 无关——所以 key 一直要断言成 `T`。
+      // 值也是同一回事：`RxDBMutationsMap.remove` 现在写着 `Set<InstanceType<T>>`，只因为
+      // `InstanceType<EntityType>` 恒等于 `any`，才把这处错配一路吞到了适配器层。
+      // 把 `remove` 的元素类型改对要连带改动全部适配器的 `mutations()` 实现，不在本轮范围内。
+      addToGroup(need_delete_entities_map, entity.constructor as T, entity as InstanceType<T>);
     }
   }
 

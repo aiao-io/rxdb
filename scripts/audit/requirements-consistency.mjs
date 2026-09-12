@@ -58,18 +58,45 @@ export const SUMMARY_ROWS = [
 
 export const REQUIRED_FRONTMATTER = ['id', 'title', 'status', 'priority', 'epic', 'created', 'updated', 'tags'];
 
-/** CONVENTIONS「过程留档的去向」点名的叙述词。命中只告警。 */
+/**
+ * CONVENTIONS「过程留档的去向」点名的叙述词。命中只告警。
+ *
+ * @remarks
+ * 后五条针对同一种病：把**过程**写进正文。`（已修）` / `（未修）` 是按时间轴记账，
+ * 读者要自己算「现在到底是什么状态」；带日期的三级标题把一次 PR 的切片留成了永久章节；
+ * `历史快照` 明说了这段已被别处取代，却仍占着正文。
+ * 最后一条是 `\d+ 文件 \d+ 条` 这类裸测试计数——它天然会烂（实测 US-905 里三处互不相同），
+ * 正确写法是给出复现命令而不是数字，见 CONVENTIONS「结论必须写出复验方式」。
+ */
 export const NARRATIVE_PATTERNS = [
   ['已于 X 日', /已于\s*\d{4}-\d{2}-\d{2}|已于\s*\d{1,2}-\d{1,2}/g],
   ['删除线', /~~[^~\n]+~~/g],
   ['原判定', /原判定/g],
   ['落地偏差', /落地偏差/g],
   ['第 N 轮复核', /第\s*[一二三四五六七八九十\d]+\s*轮复核/g],
-  ['后续变更', /后续变更/g]
+  ['后续变更', /后续变更/g],
+  ['已修 / 未修', /（\s*\**\s*(?:已修|未修)[^）\n]*）/g],
+  [
+    '历史快照',
+    // 只在「给一段内容贴标签」时才算：自指的章节说明、标题、加粗。裸写的「历史快照」是
+    // undo/redo 的领域名词（`HistoryManager` 的物化视图），把它一并报出来，这张告警表就
+    // 永远清不到零——而清不到零的表，读者会整张忽略。
+    /(?:本节|本段|以下|下面|上面|前文|这一?[段节])[^\n。]{0,20}历史快照|^#{1,6}[^\n]*历史快照|\*\*[^*\n]*历史快照[^*\n]*\*\*|被[^\n。]{0,20}整节取代/gm
+  ],
+  ['带日期的标题', /^#{2,6} .*\d{4}-\d{2}-\d{2}.*$/gm],
+  ['裸测试计数', /\d+\s*文件\s*\d+\s*条|（原\s*\d+\s*\/\s*\d+）/g]
 ];
 
-/** 叙述词扫描不看的路径：约定本身、评审记录（那是记录不是需求）、模板。 */
-const NARRATIVE_EXEMPT = /(^|\/)(CONVENTIONS\.md|reviews\/|.*\.template\.md)/;
+/**
+ * 叙述词扫描不看的路径：约定本身、评审记录与 code scanning 跟踪（那些是**记录**不是需求）、模板。
+ *
+ * @remarks
+ * `code-scanning/` 自述「工作集，不是档案库」：按批次归档、每批带报出与关闭日期，那正是它的
+ * 正文体裁。同 `reviews/`——记录类文档里，日期和批次编号是内容，不是该烧掉的过程叙述。
+ *
+ * 注意这份名单同时被 {@link checkAnchorEvidence} 用来跳过锚点校验。
+ */
+const NARRATIVE_EXEMPT = /(^|\/)(CONVENTIONS\.md|reviews\/|code-scanning\/|.*\.template\.md)/;
 
 /**
  * 解析文件头部的 YAML frontmatter。只认本仓库用到的扁平 `key: value` 与 `key: [a, b]`（含被 prettier 折到下一行的值），
@@ -291,7 +318,99 @@ export function checkEpics(epics, stories) {
 }
 
 /**
- * 相对链接与行号锚点。只看 `](...)` 形式，跳过 http(s) / mailto / 纯 `#` 锚点。
+ * 把围栏代码块与行内代码的**内容**换成等长空格（换行保留）。
+ *
+ * @remarks
+ * Markdown 里代码跨度中的 `](x)` 是字面文本，不是链接。评审文逐字引用坏锚点的形状时
+ * （`requirements/reviews/` 里那句 `` `- [:234](…#L234) …` ``），链接检查会把引文里的
+ * `…` 当成死链报出来——门禁红的是被批评的样例本身，不是仓库里真有断链。
+ * 留等长空格而不是整段删掉，是为了让掩码后的匹配位置仍与原文对得上。
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function maskCode(text) {
+  const blank = s => s.replace(/[^\n]/g, ' ');
+  // 行内代码：开合反引号串长度必须相等，所以两侧都要断言不是更长串的一截
+  return maskFences(text)
+    .split('\n')
+    .map(line =>
+      line.replace(/(?<!`)(`+)(?!`)([^\n]*?)(?<!`)\1(?!`)/g, (_m, ticks, body) => `${ticks}${blank(body)}${ticks}`)
+    )
+    .join('\n');
+}
+
+/**
+ * 只清围栏代码块，**保留行内代码的内容**。
+ *
+ * @remarks
+ * 标题里的行内代码是标题文本的一部分：`` ### `fetchMetadata`：对 core 的发射契约 `` 的 slug 是
+ * `fetchmetadata对-core-的发射契约`。拿 {@link maskCode} 去找标题会把它抹成空白，
+ * 于是每一个合法的锚点都被判成死链。
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function maskFences(text) {
+  const blank = s => s.replace(/[^\n]/g, ' ');
+  /** @type {string | undefined} */
+  let fence;
+  return text
+    .split('\n')
+    .map(line => {
+      const marker = FENCE_OPEN.exec(line);
+      if (fence !== undefined) {
+        if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = undefined;
+        return blank(line);
+      }
+      if (marker) {
+        fence = marker[1];
+        return blank(line);
+      }
+      return line;
+    })
+    .join('\n');
+}
+
+/**
+ * 按 GitHub 的标题 slug 规则把标题文本转成锚点。
+ *
+ * @remarks
+ * 规则只有三步：**转小写 → 删掉标点与符号（原地留空位，不合并）→ 空白转连字符**。
+ * 第二步是坑：`（tracked / untracked）` 里三个标点都删掉之后，`/` 两侧的空格**各自**变成
+ * 一个连字符，于是 slug 里是**双**连字符 `域tracked--untracked`。少写一个，链接静默失效。
+ * 全角括号、emoji 与半角标点同等对待（`\p{P}` / `\p{S}`），CJK 文字保留；`-` 与 `_` 不删。
+ *
+ * @param {string} heading 标题原文（不含 `#` 前缀）
+ * @returns {string}
+ */
+export function headingSlug(heading) {
+  return heading
+    .replace(/\[([^\]\n]*)\]\([^)\n]*\)/g, '$1')
+    .toLowerCase()
+    .replace(/[\p{P}\p{S}]/gu, c => (c === '-' || c === '_' ? c : ''))
+    .trim()
+    .replace(/\s/g, '-');
+}
+
+/**
+ * @param {string} text markdown 全文
+ * @returns {Set<string>} 文中全部 ATX 标题的 slug
+ */
+function headingSlugs(text) {
+  const slugs = new Set();
+  for (const m of maskFences(text).matchAll(/^#{1,6}\s+(.+?)\s*$/gm)) slugs.add(headingSlug(m[1]));
+  return slugs;
+}
+
+/**
+ * 相对链接、行号锚点与标题锚点。只看 `](...)` 形式，跳过 http(s) / mailto，
+ * 以及代码块 / 行内代码里的同形文本（见 {@link maskCode}）。
+ *
+ * @remarks
+ * 标题锚点此前完全没查过——{@link headingSlug} 说的那个双连字符坑实测在
+ * `US-306` 里踩中过一次。文件内锚点（`](#...)`）同等校验：正文重构删掉一节之后，
+ * 指向它的内链会静默变成"跳转到页首"，比死链更难发现。
  *
  * @param {string} root
  * @returns {Promise<string[]>}
@@ -299,6 +418,7 @@ export function checkEpics(epics, stories) {
 export async function checkLinks(root) {
   const offenders = [];
   const lineCountCache = new Map();
+  const slugCache = new Map();
   const lineCount = async file => {
     if (!lineCountCache.has(file)) {
       const text = await readFile(file, 'utf8');
@@ -306,13 +426,24 @@ export async function checkLinks(root) {
     }
     return lineCountCache.get(file);
   };
+  const slugsOf = async file => {
+    if (!slugCache.has(file)) slugCache.set(file, headingSlugs(await readFile(file, 'utf8')));
+    return slugCache.get(file);
+  };
   for (const file of await collectMarkdown(path.join(root, 'requirements'))) {
     if (file.endsWith('.template.md')) continue;
-    const text = await readFile(file, 'utf8');
+    const text = maskCode(await readFile(file, 'utf8'));
     const rel = path.relative(root, file);
     for (const m of text.matchAll(/\]\(([^)\s]+?)(#[^)\s]*)?\)/g)) {
       const target = m[1];
-      if (/^(https?:|mailto:|#)/.test(target) || target.startsWith('<')) continue;
+      if (/^(https?:|mailto:)/.test(target) || target.startsWith('<')) continue;
+      // `](#foo)` 形式：非贪婪的 m[1] 会把整段吃进去，m[2] 落空——文件内锚点按本文件校验
+      if (target.startsWith('#')) {
+        const slug = decodeURI(target).slice(1);
+        if (slug !== '' && !(await slugsOf(file)).has(slug))
+          offenders.push(`${rel}: 标题锚点 #${slug} 在本文件里没有对应标题`);
+        continue;
+      }
       const resolved = path.resolve(path.dirname(file), decodeURI(target));
       let info;
       try {
@@ -321,15 +452,243 @@ export async function checkLinks(root) {
         offenders.push(`${rel}: 链接目标不存在 → ${target}`);
         continue;
       }
-      const anchor = /^#L(\d+)(?:-L(\d+))?$/.exec(m[2] ?? '');
-      if (anchor && info.isFile()) {
+      if (!info.isFile() || m[2] === undefined) continue;
+      const anchor = /^#L(\d+)(?:-L(\d+))?$/.exec(m[2]);
+      if (anchor) {
         const last = Number(anchor[2] ?? anchor[1]);
         const total = await lineCount(resolved);
         if (last > total) offenders.push(`${rel}: 行号锚点 ${target}${m[2]} 超出文件行数 ${total}`);
+      } else if (resolved.endsWith('.md')) {
+        const slug = decodeURI(m[2]).slice(1);
+        if (slug !== '' && !(await slugsOf(resolved)).has(slug))
+          offenders.push(`${rel}: 标题锚点 #${slug} 在 ${target} 里没有对应标题`);
       }
     }
   }
   return offenders;
+}
+
+/** 不能当证据的通用词：语言关键字与随处可见的标识符。 */
+const EVIDENCE_STOPWORDS = new Set(
+  [
+    'this',
+    'true',
+    'false',
+    'null',
+    'void',
+    'type',
+    'const',
+    'await',
+    'async',
+    'return',
+    'import',
+    'export',
+    'from',
+    'function',
+    'class',
+    'interface',
+    'extends',
+    'implements',
+    'public',
+    'private',
+    'protected',
+    'readonly',
+    'static',
+    'then',
+    'catch',
+    'throw',
+    'case',
+    'break',
+    'default',
+    'super',
+    'yield',
+    'undefined',
+    'number',
+    'string',
+    'boolean',
+    'object',
+    'promise',
+    'never',
+    'unknown'
+  ].map(w => w.toLowerCase())
+);
+
+/**
+ * 从一段正文里取出可以当证据的符号名。
+ *
+ * @remarks
+ * **整条 markdown 链接先丢掉**——链接文字里的 `[RxDB.ts:432-434]` 与 URL 里的路径都含目标文件名，
+ * 留着它们的话，任何指向 `RxDB.ts` 的锚点都会因为 `RxDB` 三个字母"自证"成立。
+ * 四字以下与语言关键字同样排除：`init` 之流在任何文件里都命中，没有判别力。
+ *
+ * @param {string} text
+ * @returns {Set<string>}
+ */
+export function evidenceSymbols(text) {
+  const stripped = text
+    // 链接文字本身就是一段反引号符号名（`` [`runIsolated`](a.ts#L39) ``）——这是优先级 1 的正体，留下
+    .replace(/\[\s*`([^`\n]+)`\s*\]\([^)\n]*\)/g, ' $1 ')
+    // 其余链接整条丢弃：`[:234](…/plugin.ts#L234)` 的路径不能给自己作证
+    .replace(/\[[^\]\n]*\]\([^)\n]*\)/g, ' ')
+    .replace(/\*\*|~~/g, ' ');
+  const out = new Set();
+  for (const m of stripped.matchAll(/[A-Za-z_$][\w$]*/g)) {
+    if (m[0].length < 4 || EVIDENCE_STOPWORDS.has(m[0].toLowerCase())) continue;
+    out.add(m[0]);
+  }
+  return out;
+}
+
+/**
+ * 从「符号名作链接文字」的链接里取出**被断言存在**的那个名字，取不到返回 null。
+ *
+ * @remarks
+ * 这是 CONVENTIONS 优先级 1 的正体 ``[`symbolName`](path/to/file.ts)``：链接文字声称这个符号
+ * 就在这个文件里，归属**无歧义**——不像散在证据单元里的符号，可能分属同段点名的好几个文件。
+ *
+ * 三类不是断言，不校验：`@aiao/rxdb` 这种包名（指向包内某个文件只是导航）、含 `/` 的路径、
+ * 太短的词。带参签名 `mergeChanges(a, b?)` 取函数名；`Class#member` / `Class.method()` 取末段
+ * ——私有名 `#priv` 走子串匹配照样命中。
+ *
+ * @param {string} text 反引号里的链接文字
+ * @returns {string | null}
+ */
+export function symbolClaim(text) {
+  if (text.startsWith('@') || text.includes('/')) return null;
+  const core = text
+    .replace(/\s*\(.*$/, '')
+    .split(/[#.\s]+/)
+    .filter(Boolean)
+    .pop();
+  return core && core.length >= 3 ? core : null;
+}
+
+/** 另起一个「证据单元」的行首：列表项、有序项、标题、表格行。 */
+const EVIDENCE_BOUNDARY = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |\| )/;
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+
+/**
+ * 取锚点所在的「证据单元」：同一个段落 / 同一个列表项的全部行，外加紧随其后
+ * （允许隔至多两个空行）的整个围栏代码块。
+ *
+ * @remarks
+ * 边界必须切在列表项上。prettier 把长行折到下一行，符号名常常和锚点分处两行，所以不能只看本行；
+ * 但要是无脑取上下各一行，密集的条目列表里**相邻条目的符号会互相串味**——上一条的 `Widget`
+ * 会让下一条那个根本没有证据的裸行号看起来有证据。
+ *
+ * @param {string[]} lines
+ * @param {number} index 锚点所在行下标
+ * @returns {string}
+ */
+function evidenceContext(lines, index) {
+  let start = index;
+  while (start > 0 && !EVIDENCE_BOUNDARY.test(lines[start]) && lines[start - 1].trim() !== '') {
+    start -= 1;
+    if (EVIDENCE_BOUNDARY.test(lines[start])) break;
+  }
+  let end = index;
+  while (
+    end + 1 < lines.length &&
+    lines[end + 1].trim() !== '' &&
+    !EVIDENCE_BOUNDARY.test(lines[end + 1]) &&
+    !FENCE_OPEN.test(lines[end + 1])
+  ) {
+    end += 1;
+  }
+  const parts = lines.slice(start, end + 1);
+  let j = end + 1;
+  while (j < lines.length && lines[j].trim() === '' && j - end <= 2) j += 1;
+  const fence = FENCE_OPEN.exec(lines[j] ?? '');
+  if (fence) {
+    const close = new RegExp(`^ {0,3}\\${fence[1][0]}{${fence[1].length},}`);
+    for (j += 1; j < lines.length && !close.test(lines[j]); j += 1) parts.push(lines[j]);
+  }
+  return parts.join('\n');
+}
+
+/**
+ * 行号锚点的**证据**校验——CONVENTIONS 证据锚点优先级表（符号名 > 短代码引用 > 行号「不单用」）的机器版。
+ *
+ * @remarks
+ * 既有的 `checkLinks` 只查「行号超出文件总行数」，于是上游插入几行、锚点漂到别的代码上时它全绿；
+ * 上游**删**了代码反而更"安全"。真正的代价 CONVENTIONS 已经写明：不是链接坏了，
+ * 是读者停止复验、转而信任叙述。这里按判别力分两级：
+ *
+ * - **阻断**：伴随符号一个都不在目标文件里 → 断言引用的东西已经不在那儿了，是假断言；
+ * - **告警**：符号在文件里但不在所引区间内（纯行号漂移），或压根没有伴随符号（行号单用）。
+ *
+ * 另外单查一类：`[`符号`](路径)` 这种「符号名作链接文字」的形式（见 {@link symbolClaim}）。
+ * 它没有 `#L`，从前整个不在覆盖内——而 CONVENTIONS 恰恰把它定为**首选**写法，等于推荐大家
+ * 写门禁看不见的锚点。它的归属无歧义，所以缺席直接判阻断。
+ *
+ * 只看指向源码的锚点；`.md` 之间的 `#L` 引用不在此列。
+ *
+ * @param {string} root
+ * @returns {Promise<{offenders: string[], warnings: string[]}>}
+ */
+export async function checkAnchorEvidence(root) {
+  const offenders = [];
+  const warnings = [];
+  const sourceCache = new Map();
+  const sourceOf = async file => {
+    if (!sourceCache.has(file)) {
+      const text = await readFile(file, 'utf8');
+      sourceCache.set(file, { text, lines: text.split('\n') });
+    }
+    return sourceCache.get(file);
+  };
+  for (const file of await collectMarkdown(path.join(root, 'requirements'))) {
+    if (file.endsWith('.template.md') || NARRATIVE_EXEMPT.test(path.relative(root, file))) continue;
+    const raw = await readFile(file, 'utf8');
+    const rel = path.relative(root, file);
+    const lines = raw.split('\n');
+    const masked = maskCode(raw).split('\n');
+    // 这条检查要读链接**文字**，而 maskCode 会把行内代码的内容抹空——只能清围栏，保住反引号里的符号名。
+    for (const [index, line] of maskFences(raw).split('\n').entries()) {
+      for (const m of line.matchAll(/\[\s*`([^`\n]+)`\s*\]\(([^)\s]+?)\)/g)) {
+        const symbol = symbolClaim(m[1]);
+        const target = m[2].split('#')[0];
+        if (!symbol || /^(https?:|mailto:)/.test(target) || target.endsWith('.md')) continue;
+        let source;
+        try {
+          source = await sourceOf(path.resolve(path.dirname(file), decodeURI(target)));
+        } catch {
+          continue; // 目标不存在由 checkLinks 报
+        }
+        if (!source.text.includes(symbol)) offenders.push(`${rel}:${index + 1}: \`${m[1]}\` 在 ${target} 里不存在`);
+      }
+    }
+    for (const [index, line] of masked.entries()) {
+      for (const m of line.matchAll(/\]\(([^)\s]+?)(#L(\d+)(?:-L(\d+))?)\)/g)) {
+        const target = m[1];
+        if (/^(https?:|mailto:)/.test(target) || target.endsWith('.md')) continue;
+        const resolved = path.resolve(path.dirname(file), decodeURI(target));
+        let source;
+        try {
+          source = await sourceOf(resolved);
+        } catch {
+          continue; // 目标不存在由 checkLinks 报
+        }
+        const symbols = evidenceSymbols(evidenceContext(lines, index));
+        const where = `${rel}:${index + 1}: ${target}${m[2]}`;
+        if (symbols.size === 0) {
+          warnings.push(`${where} 没有伴随的符号名或代码引用（CONVENTIONS 优先级 3：行号不单用）`);
+          continue;
+        }
+        const present = [...symbols].filter(s => source.text.includes(s));
+        if (present.length === 0) {
+          offenders.push(`${where} 的伴随符号 ${[...symbols].join(' / ')} 在 ${target} 里不存在`);
+          continue;
+        }
+        const range = source.lines.slice(Number(m[3]) - 1, Number(m[4] ?? m[3])).join('\n');
+        if (!present.some(s => range.includes(s)))
+          warnings.push(
+            `${where} 所引区间不含 ${present.slice(0, 4).join(' / ')}${present.length > 4 ? ' 等' : ''}，行号已漂`
+          );
+      }
+    }
+  }
+  return { offenders, warnings };
 }
 
 /**
@@ -352,7 +711,7 @@ export async function scanNarrative(root) {
 
 /**
  * @param {{root: string, update?: boolean}} options
- * @returns {Promise<{offenders: string[], warnings: string[], counts: Record<string, number>}>}
+ * @returns {Promise<{offenders: string[], warnings: {narrative: string[], evidence: string[]}, counts: Record<string, number>}>}
  */
 export async function run({ root, update = false }) {
   const stories = await collectStories(root);
@@ -366,16 +725,23 @@ export async function run({ root, update = false }) {
     await writeFile(readmePath, updateReadme(await readFile(readmePath, 'utf8'), counts));
   }
 
+  const evidence = await checkAnchorEvidence(root);
   const offenders = [
     ...checkFrontmatter(stories, new Set(epics.map(e => e.id))),
     ...checkStatusOverview(await readFile(overviewPath, 'utf8'), stories),
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),
     ...checkEpics(epics, stories),
-    ...(await checkLinks(root))
+    ...(await checkLinks(root)),
+    ...evidence.offenders
   ];
-  const warnings = (await scanNarrative(root)).map(
-    ({ rel, hits }) => `${rel}: ${hits.map(([label, n]) => `${label}×${n}`).join('，')}`
-  );
+  // 两类告警**分开**返回：叙述词是「按文件」计的，锚点漂移是「按处」计的，
+  // 合成一个数组就只能挑一个单位去播报，另一类必然被念错。
+  const warnings = {
+    narrative: (await scanNarrative(root)).map(
+      ({ rel, hits }) => `${rel}: ${hits.map(([label, n]) => `${label}×${n}`).join('，')}`
+    ),
+    evidence: evidence.warnings
+  };
   return { offenders, warnings, counts };
 }
 
@@ -384,9 +750,13 @@ const main = async () => {
   const { offenders, warnings, counts } = await run({ root: process.cwd(), update });
   const summary = `${counts.Done} Done / ${counts['In Progress']} In Progress / ${counts['In Review']} In Review / ${counts.Backlog} Backlog / ${counts.Blocked} Blocked，合计 ${counts.total}`;
 
-  if (warnings.length) {
-    console.warn(`⚠️  ${warnings.length} 个文件含 CONVENTIONS 不允许进正文的过程叙述（不阻塞，逐条烧掉）：`);
-    for (const w of warnings) console.warn(`   ${w}`);
+  if (warnings.narrative.length) {
+    console.warn(`⚠️  ${warnings.narrative.length} 个文件含 CONVENTIONS 不允许进正文的过程叙述（不阻塞，逐条烧掉）：`);
+    for (const w of warnings.narrative) console.warn(`   ${w}`);
+  }
+  if (warnings.evidence.length) {
+    console.warn(`⚠️  ${warnings.evidence.length} 处行号锚点已漂或单用（不阻塞，逐条烧掉）：`);
+    for (const w of warnings.evidence) console.warn(`   ${w}`);
   }
   if (offenders.length) {
     console.error(`❌ requirements 派生视图与 YAML 不一致（${offenders.length} 处）：`);

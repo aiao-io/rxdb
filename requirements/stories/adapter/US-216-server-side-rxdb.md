@@ -53,12 +53,12 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 ### 病灶三：「后端不能初始化 RxDB」这个前提并不存在
 
 核心包 [@aiao/rxdb](../../../packages/rxdb/package.json) 的依赖只有 `rxjs` / `uuid` / `type-fest` / `@aiao/utils`，
-零 DOM 依赖；查询面全部是 Observable——`Repository.find()` 返回 `Observable<InstanceType<T>[]>`
-（[Repository.ts:251](../../../packages/rxdb/src/repository/Repository.ts#L251)），
-`findOne` / `findByCursor` / `count` / `get(id)` 同构。存储侧，`RxDBAdapterPGlite` 自己的 vitest 套件就在 Node
-环境里初始化（[test-menu.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/test-menu.spec.ts)，
-`store: 'memory'`）；`PGliteClient.shouldUsePGliteWorker` 只在 `dataDir` 以 `opfs-ahp://` 开头时才要求 Worker
-（[PGliteClient.ts:74](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts#L74)），Node 下主线程直跑。
+零 DOM 依赖；查询面全部是 Observable——[`Repository.find()`](../../../packages/rxdb/src/repository/Repository.ts)
+返回 `Observable<InstanceType<T>[]>`，`findOne` / `findByCursor` / `count` / `get(id)` 同构。存储侧，
+`RxDBAdapterPGlite` 自己的 vitest 套件就在 Node 环境里初始化
+（[test-menu.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/test-menu.spec.ts)，`store: 'memory'`）；
+[`shouldUsePGliteWorker()`](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts) 只在 `dataDir`
+以 `opfs-ahp://` 开头时才要求 Worker，Node 下主线程直跑。
 
 真正挡路的只有一处：**同步策略焊死在实体装饰器上**。`getSyncConfig` 的实现是
 `return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/version/sync-type-utils.ts#L30)）——
@@ -205,7 +205,7 @@ seed 路径改用适配器层写入（如 `mergeChanges` / 行契约路径），
 本故事不复活它们——复活的前提是状态化后端 + 鉴权耦合进通知路径，属于协议演进故事，不在本故事范围。
 
 广播接在 `ENTITY_LOCAL_*` 事件上有一个结构收益：core 的 `dispatchEvent` 把事务内的实体事件缓冲到
-`TRANSACTION_COMMIT` 才派发（`open.events.push(event)`，[RxDB.ts:816-825](../../../packages/rxdb/src/RxDB.ts#L816-L825)），
+`TRANSACTION_COMMIT` 才派发（[`dispatchEvent`](../../../packages/rxdb/src/RxDB.ts) 里的 `open.events.push(event)`），
 「写入落库之后广播」这条协议语义由核心机制保证，不靠端点调用点再判一次。
 
 代价照旧且已承认：实体粒度广播会放大重拉流量（一次写入让每个活查询多跑一趟远端），

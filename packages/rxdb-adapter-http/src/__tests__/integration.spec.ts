@@ -263,6 +263,11 @@ const createLocalAdapter = (initial: Row[] = []) => {
     disconnect: vi.fn(() => Promise.resolve()),
     isTableExisted: vi.fn(() => Promise.resolve(false)),
     createTables: vi.fn(() => Promise.resolve()),
+    // 它占的是 `sync.local` 槽位，就得能跑完 `connect()` 的本地引导。两个都照
+    // `RxDBAdapterLocalBase` 的默认实现取 no-op：这个替身既不持久化系统 schema、也没有引导窗。
+    // 从前 core 用 `?.()` 调它们，缺着也能跑绿——那条静默路径已换成显式判定。
+    migrateSystemSchema: vi.fn(() => Promise.resolve()),
+    completeBootstrap: vi.fn(),
     mutations: vi.fn(() => Promise.resolve([])),
     getRepository,
     // 真适配器在这里排队并开事务；替身同步执行，本文件没有并发窗口要验。

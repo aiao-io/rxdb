@@ -15,9 +15,10 @@
 | -------------------------------- | ----------------------------------- | ------------------- |
 | `README.md`                      | 本说明与状态约定                    | —                   |
 | `review.template.md`             | 新建 review 记录的模板              | —                   |
-| `next-11-rxdb-package-review.md` | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策 |
+| `next-11-rxdb-package-review.md` | next-11 分支 `packages/rxdb` 包评审 | 5 块 + 1 条规格决策 |
 
-> 最近一次全量复核：2026-09-09（`next-1123-branch-review.md`、`next-0831-branch-review.md` 与 `next-11-rxdb-adapter-tauri-review.md` 全部处理完毕，已删除）。
+> 最近一次全量复核：2026-09-11（`requirements-incomplete-stories-review.md` 八块全部处理完毕，已删除；
+> 更早的 `next-1123-branch-review.md`、`next-0831-branch-review.md` 与 `next-11-rxdb-adapter-tauri-review.md` 同）。
 
 ## 状态约定
 

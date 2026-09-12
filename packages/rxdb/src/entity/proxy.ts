@@ -18,7 +18,7 @@
 import { isEqual, isSymbol } from '@aiao/utils';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { ENTITY_MANAGER } from '../rxdb.private.js';
-import { EntityType, RxDBEntityId } from './entity.interface.js';
+import { EntityInstanceType, EntityType, RxDBEntityId } from './entity.interface.js';
 import { PropertyType, RelationKind } from './metadata-options.interface.js';
 
 /**
@@ -35,19 +35,21 @@ interface IdentityCacheOwner {
 /**
  * 创建实体代理对象
  */
-export const createEntityProxy = <T extends EntityType>(entity: InstanceType<T>): T => {
+export const createEntityProxy = <T extends EntityType>(entity: EntityInstanceType<T>): EntityInstanceType<T> => {
   const state = getEntityStatus(entity);
   const metadata = getEntityMetadata(entity.constructor as EntityType);
   let pendingCheck = false;
 
-  const handler: ProxyHandler<InstanceType<T>> = {
+  const handler: ProxyHandler<EntityInstanceType<T>> = {
     /**
      * 拦截属性设置操作
      * 当属性值发生变化时，同步记录变更属性键，并安排异步检查
      * 同时根据 metadata 配置进行类型转换
      */
     set: (target, prop, value, receiver) => {
-      const currentValue = target[prop];
+      // 从前 `target` 是 `any`（`InstanceType<EntityType>` 的塌陷），随便索引都不报错。
+      // 现在它是真类型了，动态 key 索引必须显式断言——与下面读 ENTITY_MANAGER 槽位同一手法。
+      const currentValue = (target as Record<string | symbol, unknown>)[prop];
       const isBinaryReassignment =
         typeof prop === 'string' &&
         metadata.propertyMap.get(prop)?.type === PropertyType.binary &&
@@ -57,7 +59,7 @@ export const createEntityProxy = <T extends EntityType>(entity: InstanceType<T>)
       if (!isBinaryReassignment && isEqual(currentValue, value)) return true;
       if (isSymbol(prop) === false) {
         // 同步记录变更属性，用于优化 patch 计算
-        state.markChanged(prop as keyof InstanceType<T>);
+        state.markChanged(prop as keyof EntityInstanceType<T>);
         state.modified = true;
         if (!pendingCheck) {
           pendingCheck = true;

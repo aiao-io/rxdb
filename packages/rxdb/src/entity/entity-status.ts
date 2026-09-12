@@ -4,7 +4,7 @@ import { RxDB } from '../RxDB.js';
 import { getEntityStatus } from '../rxdb-utils.js';
 import { getRxDBEntityIdentityKey } from '../system/change-codec.js';
 import { EntityPatch, IEntityStatus } from './entity-status.interface.js';
-import { EntityType } from './entity.interface.js';
+import { EntityInstanceType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey } from './entity.utils.js';
 import { EntityRelationMetadata } from './metadata-options.interface.js';
 import { EntityRelationCache, RelationObservableEntry } from './relation-cache.js';
@@ -527,8 +527,8 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    *
    * @returns 待删除的 Junction 实体数组
    */
-  getNeedRemoveEntities() {
-    const entities: InstanceType<EntityType>[] = [];
+  getNeedRemoveEntities(): EntityInstanceType<EntityType>[] {
+    const entities: EntityInstanceType<EntityType>[] = [];
     for (const junctionEntity of this.#relations.getRemovableJunctions()) {
       if (getEntityStatus(junctionEntity).local) {
         entities.push(junctionEntity);

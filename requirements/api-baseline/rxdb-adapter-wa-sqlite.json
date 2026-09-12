@@ -39,7 +39,7 @@
       },
       {
         "name": "RxDBAdapterSqliteBase",
-        "kind": "both"
+        "kind": "type"
       },
       {
         "name": "RxDBAdapterSqliteError",

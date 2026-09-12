@@ -69,7 +69,7 @@ INVEST 检查清单:
 - `EntityFieldConfig` / `extractEntityFields()` / `extractSystemFields()` / `validateEntityFieldValue()` 输出**逐字节不变**，仅加 `@deprecated` 注释（D5、D11）
 - 新增 `validateFieldValue()`：`stringArray` 分支与 format 校验（D11）；`FieldValidationError` additive 扩展；该纯函数不接入 repository 写路径
 - 生成器透传新语义元数据（`format` / `enum` / `options`）：三者都是 JSON-safe 纯数据，现有 `transitionMetadata()` 管线即可承载，不改管线结构
-- 把 `rxdb-client-generator` 内部私有的 `validateEntityMetadata`（[RxDBClientGenerator.ts:143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143)）改名，避让 core 新增的同名公开导出（阶段 A，无公开 API 影响）
+- 把 `rxdb-client-generator` 内部私有的 `validateEntityMetadata` 改名为 [`assertGeneratedEntityBindings`](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts)，避让 core 新增的同名公开导出（阶段 A，无公开 API 影响）
 - 三框架只复用 core 的 DTO 类型与 `parseEntityFieldsDescriptor()`，并从 `@aiao/rxdb-test` 导入同一份契约 fixture，不增加专属语义 API
 - 更新 `requirements/api-baseline/rxdb.json`
 
@@ -189,11 +189,10 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 - `PropertyType` 继续作为存储和运行时判别联合；`url`、`richText` 等不新增物理列映射。
 - `format` 使用判别对象（`{ kind, ...options }`），避免把 `currency`、`timezone`、`contentType` 等配置散落成互相冲突的可选字段。
 - **仓库里有两个同名的 `transitionMetadata`，不要混淆**：`@aiao/rxdb` 的 `entity/metadata-transition.ts` 把 `EntityMetadataOptions` 合并成 `EntityMetadata`（装饰器求值时跑，见 D3）；`rxdb-client-generator` 的 `core/RxDBClientGenerator.utils.ts:460` 把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。本故事只在前者的产物上做校验；后者的管线归 [US-018](./US-018-generator-default-serialization.md)，这里只借它搬运 `format` / `enum` / `options` 三项 JSON-safe 数据。
-- **`validateEntityMetadata` 这个名字今天已经被占用**：`rxdb-client-generator` 里有一个同名私有箭头函数
-  （[RxDBClientGenerator.ts:143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143)，
-  校验绑定标识符与 namespace，调用点在 L173 / L305）。它不导出，与 core 新增的公开导出不冲突编译，
-  但同名不同义会让「哪个校验器报的错」这类问题在两个包之间反复误判。阶段 A 顺手把私有的那个改名
-  （建议 `assertGeneratedEntityBindings`），无公开 API 影响，不需要 api-baseline 变更。
+- **`validateEntityMetadata` 是 core 独占的名字**：`rxdb-client-generator` 里校验绑定标识符与 namespace
+  的那个私有箭头函数叫 [`assertGeneratedEntityBindings`](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts)。
+  它不导出，与 core 的公开导出本就不冲突编译；两边不同名，是为了「哪个校验器报的错」不在两个包之间
+  反复误判。改名无公开 API 影响，不需要 api-baseline 变更。
 - 生成器与 DTO 是两层契约：生成器源 metadata 保留支持的常量 `default`（US-018 定义其语义与失败条件），DTO 则一律不输出任何 `default`（D10）。两层的边界不因 US-018 的进度而移动。
 - `parseEntityFieldsDescriptor()` 是 DTO 的唯一严格反序列化入口；它在解析时再次检查 `dtoVersion`、字段判别联合、JSON-safe 值、稳定顺序和关系 `valueType`。未知键必须规范化删除，已知键不得用类型断言、静默删除或默认值猜测来修复。
 - DTO 生成顺序固定为 `propertyMap`（含系统字段）、`computedPropertyMap`、`relationMap`；关系使用逻辑 `writeField` 与 `mutation` 描述写入意图，绝不把数据库 `columnName` 或值 wire codec 混入 DTO。
@@ -227,20 +226,20 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 按交付阶段归属，避免三个阶段同时改同一个文件：
 
-| 文件                                                             | 阶段  | 内容                                                                                                                                                                     |
-| ---------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `packages/rxdb/src/entity/metadata-options.interface.ts`         | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                                                                        |
-| `packages/rxdb/src/entity/metadata-validate.ts`（新增）          | A     | `validateEntityMetadata` 与规则表                                                                                                                                        |
-| `packages/rxdb/src/entity/format-rules.ts`（新增）               | C     | format 必填键表、`percentage` 固有值域、step 容差的内部唯一真相源；三处消费者共用，**不从包入口导出**（同 `json-safe.ts`）                                               |
-| `packages/rxdb/src/entity/entity-manager.ts`                     | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                                                                      |
-| `packages/rxdb/src/entity/entity-field.utils.ts`                 | B     | DTO、parser、`EntityRelationResolutionError`、版本常量；既有导出冻结 + `@deprecated`                                                                                     |
-| `packages/rxdb/src/entity/entity-value.utils.ts`                 | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                                                                               |
-| `packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts` | A     | 私有 `validateEntityMetadata` 改名（[L143](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L143) 及 L173 / L305 调用点），避让 core 同名公开导出 |
-| `packages/rxdb-client-generator/src/`                            | C     | 透传 `format` / `enum` / `options`（AC#34）。**不改** `transitionMetadata()` 的管线结构——那属于 [US-018](./US-018-generator-default-serialization.md)                    |
-| `packages/rxdb-test/src/cross-framework-fixtures/`               | C     | 新增 `entity-fields-descriptor.ts` 并从既有 `index.ts` 导出，由 `@aiao/rxdb-test` 根入口共享                                                                             |
-| `packages/rxdb-{angular,react,vue}/`                             | C     | 用 pnpm workspace 命令添加 `@aiao/rxdb-test` devDependency，复用同一组 DTO fixture 做契约回归                                                                            |
-| `pnpm-lock.yaml`                                                 | C     | 记录三框架测试依赖的 workspace 链接，不手改依赖图                                                                                                                        |
-| `requirements/api-baseline/rxdb.json`                            | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                                                                         |
+| 文件                                                             | 阶段  | 内容                                                                                                                                                                                      |
+| ---------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb/src/entity/metadata-options.interface.ts`         | A     | `format` 判别联合、逐属性窄类型 `format?`、`StringArrayProperty.enum` / `options`                                                                                                         |
+| `packages/rxdb/src/entity/metadata-validate.ts`（新增）          | A     | `validateEntityMetadata` 与规则表                                                                                                                                                         |
+| `packages/rxdb/src/entity/format-rules.ts`（新增）               | C     | format 必填键表、`percentage` 固有值域、step 容差的内部唯一真相源；三处消费者共用，**不从包入口导出**（同 `json-safe.ts`）                                                                |
+| `packages/rxdb/src/entity/entity-manager.ts`                     | A     | `init()` 跨实体聚合校验并抛错（D3）                                                                                                                                                       |
+| `packages/rxdb/src/entity/entity-field.utils.ts`                 | B     | DTO、parser、`EntityRelationResolutionError`、版本常量；既有导出冻结 + `@deprecated`                                                                                                      |
+| `packages/rxdb/src/entity/entity-value.utils.ts`                 | C     | `validateFieldValue()`；旧 `validateEntityFieldValue` 冻结 + `@deprecated`                                                                                                                |
+| `packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts` | A     | 私有 `validateEntityMetadata` 改名为 [`assertGeneratedEntityBindings`](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts)（连同两处调用点），避让 core 同名公开导出 |
+| `packages/rxdb-client-generator/src/`                            | C     | 透传 `format` / `enum` / `options`（AC#34）。**不改** `transitionMetadata()` 的管线结构——那属于 [US-018](./US-018-generator-default-serialization.md)                                     |
+| `packages/rxdb-test/src/cross-framework-fixtures/`               | C     | 新增 `entity-fields-descriptor.ts` 并从既有 `index.ts` 导出，由 `@aiao/rxdb-test` 根入口共享                                                                                              |
+| `packages/rxdb-{angular,react,vue}/`                             | C     | 用 pnpm workspace 命令添加 `@aiao/rxdb-test` devDependency，复用同一组 DTO fixture 做契约回归                                                                                             |
+| `pnpm-lock.yaml`                                                 | C     | 记录三框架测试依赖的 workspace 链接，不手改依赖图                                                                                                                                         |
+| `requirements/api-baseline/rxdb.json`                            | A/B/C | 每个阶段各自追加，不集中一次改完                                                                                                                                                          |
 
 ## References
 

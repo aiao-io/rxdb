@@ -5,6 +5,9 @@
  */
 export * from './entity/entity-base.js';
 export * from './entity/entity-field.utils.js';
+// 只转类型不转类：`getEntityStatus()` 的返回值就是它，用户接得到就得能具名。
+// 构造器是 EntityManager 的内部装配，不进公开 API。
+export type { EntityStatus } from './entity/entity-status.js';
 export * from './entity/entity-value.utils.js';
 export * from './entity/entity.decorator.js';
 export * from './entity/entity.interface.js';
@@ -46,6 +49,8 @@ export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';
 export * from './repository/QueryCacheRepository.js';
 export type { RefreshMatchRules, RepositoryQueryExtensions } from './repository/QueryManager.interface.js';
+// 同上，只转类型：`Repository.queryManager` 的声明类型。
+export type { QueryManager } from './repository/QueryManager.js';
 export * from './repository/QueryTask.js';
 export * from './repository/relation-query.interface.js';
 export * from './repository/repository.interface.js';
@@ -57,8 +62,11 @@ export * from './rxdb-adapter.js';
 export * from './rxdb-events.js';
 export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
+// `addEventListener` 的形参、`RxDBOptions` 的公开别名、`mergeOperations` 的字段类型 ——
+// 三者都出现在用户拿得到的签名上。整文件不转桶，其余成员仍是内部约定。
 export * from './rxdb.interface.js';
 export * from './RxDB.js';
+export type { EventListener, MergeQueryTaskOptions, RxDBConfig } from './rxdb.types.js';
 export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';
@@ -69,6 +77,7 @@ export {
   RXDB_CHANGE_SCHEMA_VERSION,
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
   UnsupportedRxDBChangeVersionError,
+  UnsupportedRxDBEntityIdentityVersionError,
   decodeRxDBChangeEntityId,
   decodeRxDBChangePatch,
   decodeRxDBEntityIdentity,
@@ -91,14 +100,22 @@ export type { CheckRepositoryUpdatesResult } from './version/check-repository-up
 // 级联调度契约里进公开 API 的只有这两项 —— 抛给调用方的结构化错误，
 // 以及错误消息用的仓库键渲染。资格判定谓词是 pull / push 两条路径的共享内部实现。
 export { RxDBDependencyFailedError, repositoryKey } from './version/cascade-contract.js';
+// `VersionManager.bulkSync()` 的形参与返回值。
+export type { BulkSyncOptions, BulkSyncResult } from './version/bulk-sync.js';
 export * from './version/cleanup-expired.js';
 export * from './version/compact-changes.js';
 export * from './version/conflict.js';
+// `VersionManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
+export type { DependencyGraph } from './version/dependency-graph.js';
+// `getRepositorySyncStatus()` 的返回值（函数本身已由下方 sync-branches 之外的桶转出）。
+export type { RepositorySyncStatus } from './version/get-repository-sync-status.js';
 export * from './version/LWWConflictResolver.js';
 // 作用域 undo/redo 撞上跨作用域事务时抛给调用方的结构化错误。
 // 选择谓词（isChangeInScope 等）是 HistoryManager 的内部实现，不进公开 API。
 export { RxDBCrossScopeTransactionError } from './version/scope-selection.js';
 export * from './version/sync-branches.js';
 export * from './version/sync-type-utils.js';
+// 只转类型不转类：`RxDB.versionManager` 的声明类型。实例由 RxDB 装配，用户不自己 new。
 export * from './version/VersionManager.interface.js';
+export type { VersionManager } from './version/VersionManager.js';
 export * from './version/VersionManager.utils.js';

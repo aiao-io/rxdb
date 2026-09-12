@@ -130,6 +130,10 @@ async function createHarness(): Promise<TestHarness> {
     version: vi.fn(async () => 'test'),
     isTableExisted: vi.fn(async () => false),
     createTables: vi.fn(async () => true),
+    // 本替身注册成 local 适配器，就得能跑完 connect() 的本地引导。
+    // 口径同 `RxDBAdapterLocalBase` 的默认实现（两者都是 no-op）。
+    migrateSystemSchema: vi.fn(async () => undefined),
+    completeBootstrap: vi.fn(() => undefined),
     transaction: vi.fn(async (run: () => Promise<unknown>) => run()),
     getRepository: vi.fn((EntityClass: EntityType) => {
       if (EntityClass === RxDBBranch) return branchRepository;

@@ -88,6 +88,49 @@ export class RxDBQueryCacheCapabilityError extends RxDBError {
 }
 
 /**
+ * 被配置为 `sync.local` 的适配器跑不了系统引导 —— 缺 `RxDB.connect()` 本地分支要调的成员。
+ *
+ * @remarks
+ * 继承 `RxDBAdapterLocalBase` 的适配器永远走不到这条错误：`migrateSystemSchema()` 与
+ * `completeBootstrap()` 在基类上是**有实现的具体方法**，子类不写也继承得到。
+ * 它只服务于不继承基类的自定义适配器对象 —— 那里没有编译期约束。
+ *
+ * 之所以抛而不是跳过：这两步做的是**系统表升级与引导窗收尾**。此前 `connect()` 用
+ * `?.()` 调它们，缺失时静默略过，`connect()` 照常 resolve；故障要等到第一次读写才以
+ * 「列不存在」之类的面目出现，离根因隔着整个引导流程。
+ *
+ * `reconcileEntityIndexes` 不在校验之列 —— 它在基类上就是**可选**成员（`?:`），
+ * 缺席是契约允许的形态，不是缺陷。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.connect('local');
+ * } catch (error) {
+ *   if (error instanceof RxDBLocalAdapterCapabilityError) {
+ *     console.error(`${error.adapterName} is missing: ${error.missing.join(', ')}`);
+ *   }
+ * }
+ * ```
+ */
+export class RxDBLocalAdapterCapabilityError extends RxDBError {
+  constructor(
+    /** 配置里 `sync.local.adapter` 的名字 */
+    readonly adapterName: string,
+    /** 缺失的成员名，按声明顺序 */
+    readonly missing: readonly string[]
+  ) {
+    super(
+      `The local adapter '${adapterName}' cannot run the system bootstrap: ` +
+        `missing ${missing.join(', ')}. ` +
+        `Extend RxDBAdapterLocalBase, or implement these members.`
+    );
+    this.name = 'RxDBLocalAdapterCapabilityError';
+    Object.setPrototypeOf(this, RxDBLocalAdapterCapabilityError.prototype);
+  }
+}
+
+/**
  * 一次批量修改混入了 QueryCache 实体与版本化（Full / Filter）实体。
  *
  * @remarks

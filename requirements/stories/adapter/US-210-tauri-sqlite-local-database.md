@@ -185,7 +185,7 @@ demo 重写一遍——AC#2/#3 承诺的「与其它后端行为一致」于是�
 Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US-207-desktop-local-database.md#包边界重整)。
 
 **`ADAPTER_NAME` 分裂已落定**（决策、命名惯例与七处连带改动见
-[US-207「已落定的决策」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂2026-08-17)）：
+[US-207「已落定的决策」](./US-207-desktop-local-database.md#已落定的决策adapter_name-分裂)）：
 本故事的适配器名为 **`sqlite-tauri`**，构造选项 `runtime: 'tauri'` 随之删除。
 本节不另起一套命名，改名与 US-207 E3 同批执行——两个包共用一次破坏性变更，
 分两次做等于让用户改两遍代码。

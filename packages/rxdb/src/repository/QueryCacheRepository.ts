@@ -357,7 +357,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    *
    * @example
    * ```typescript
-   * repo.find({ where: { combinator: 'and', rules: [{ field: 'status', operator: 'eq', value: 'active' }] } })
+   * repo.find({ where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'active' }] } })
    *   .subscribe();
    *
    * // SWR 模式

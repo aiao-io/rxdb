@@ -39,7 +39,7 @@ import {
   trackPluginInstall,
   unregisterRepository
 } from './rxdb.plugin-lifecycle.js';
-import { isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
+import { assertLocalAdapterCapabilities, isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
 import {
   emitEvent,
   handleTransactionBegin,
@@ -367,9 +367,8 @@ export class RxDB {
     if (adapter === undefined) {
       throw new Error(`[RxDB] local adapter '${adapterName}' is not connected; await connect('${adapterName}') first`);
     }
-    // 「配置为 local 的适配器实现了 RxDBAdapterLocalBase」是配置层的约定，运行时无从校验：
-    // 该基类的成员（migrateSystemSchema / completeBootstrap …）全是可选的，没有可判别的形状。
-    // 与 {@link RxDB.localAdapter$} 和 `connect()` 的 local 分支同一套信任模型，不额外加检查。
+    // 这里不重复判定：能进 #connected_adapter_instances 就说明 `connect()` 的 local 分支
+    // 已经过了 assertLocalAdapterCapabilities，缺成员的适配器在那一步就抛掉了。
     return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
   }
 
@@ -694,14 +693,14 @@ export class RxDB {
       // 建表与迁移是重活，且要写一条可能已被 disconnect() 关掉的连接，先拦一道。
       this.#assert_connect_alive(adapterName, epoch);
       if (isLocalAdapter(adapterName, this.#config)) {
-        // 在 local 分支内统一收口一次 cast，避免分散 3 处 `as unknown as`
-        const localAdapter = adapter as unknown as RxDBAdapterLocalBase;
+        // 在 local 分支入口一次性判定，判定过了后面全部直调 —— 见 assertLocalAdapterCapabilities。
+        const localAdapter = assertLocalAdapterCapabilities(adapterName, adapter);
         // 初始化
         const existed = await adapter.isTableExisted(RxDBMigration);
         if (existed) {
           // 已存在表结构，执行升级流程
-          await localAdapter.migrateSystemSchema?.();
-          localAdapter.completeBootstrap?.();
+          await localAdapter.migrateSystemSchema();
+          localAdapter.completeBootstrap();
           await runMigrations(this.#config.migrations, localAdapter, this.entityManager);
           await this.#ensureEntityTables(localAdapter);
         } else {
@@ -713,8 +712,8 @@ export class RxDB {
             branch,
             ...createMigrationWatermarks(this.#config.migrations, this.entityManager)
           ]);
-          await localAdapter.migrateSystemSchema?.();
-          localAdapter.completeBootstrap?.();
+          await localAdapter.migrateSystemSchema();
+          localAdapter.completeBootstrap();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
       }

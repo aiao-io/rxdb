@@ -52,7 +52,11 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
           entity = super.getEntityRef(id)!;
           if (forcedUpdate) super.updateEntity(entity, entityData);
         } else {
-          entity = this.createEntityRef(entityData);
+          // `RepositoryBase.createEntityRef` 现在如实返回实例类型（从前是塌陷成 `any` 的
+          // `InstanceType<T>`）。本包这条链上的 `InstanceType<T>` 还没跟着改——改它会一路
+          // 推到 `IRepository` 的返回类型，属于 `EntityType` 形状本身的问题，不在本轮范围内。
+          // 这个断言就是那条边界：上游已经说真话了，下游还没有。
+          entity = this.createEntityRef(entityData) as InstanceType<T>;
         }
         const state = getEntityStatus(entity);
         state.local = true;

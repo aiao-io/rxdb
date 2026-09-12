@@ -15,7 +15,13 @@ import { RxDBError } from '../RxDBError.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
 import { EntityStatus } from './entity-status.js';
-import { EntityStaticType, EntityType, EntityUpdateData, RxDBEntityId } from './entity.interface.js';
+import {
+  EntityInstanceType,
+  EntityStaticType,
+  EntityType,
+  EntityUpdateData,
+  RxDBEntityId
+} from './entity.interface.js';
 import {
   getEntityMutations,
   getNeedRemoveEntities,
@@ -606,7 +612,7 @@ export class EntityManager {
    * @param [status] - 可选的实体状态配置
    * @returns 初始化后的代理实体实例
    */
-  #init_entity<T extends EntityType>(entity: InstanceType<T>, status?: EntityStatusOptions<T>) {
+  #init_entity<T extends EntityType>(entity: EntityInstanceType<T>, status?: EntityStatusOptions<T>) {
     setSafeObjectKey(entity, ENTITY_MANAGER, this);
     const newStatus = new EntityStatus(this.rxdb, { target: entity, ...status });
     setSafeObjectWritableKey(entity, STATUS, newStatus);

@@ -1,5 +1,6 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_ADAPTER_NAME, RxDBAdapterElectron } from '@aiao/rxdb-adapter-electron';
+import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { DevToolsCapability, DevToolsMutationPolicy } from '@aiao/rxdb-devtools';
 import {
   createDevToolsDesktopSettingsProvider,
@@ -13,7 +14,10 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
-import { createDevToolsStorageSnapshotPorts } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
+import {
+  createDevToolsStorageSnapshotPorts,
+  type DevToolsStorageSnapshotPorts
+} from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -53,6 +57,77 @@ function devToolsRuntimeConfig(): { capabilities?: DevToolsCapability; mutationP
  * 与 Tauri demo 的同名常量取值一致：两个 demo 的磁盘布局对得上，差别才真的只剩宿主。
  */
 export const DESKTOP_STORAGE_ROOT_DIR = 'files';
+
+/** {@link createDesktopDevToolsProviders} 的入参。 */
+export interface DesktopDevToolsProvidersOptions {
+  /**
+   * 取文件存储服务；**延迟调用**。
+   *
+   * @remarks
+   * 传函数而不是实例：`rxdb.storage` 要等 `connect()` 才挂上，而 connector 在 `init()` 时
+   * 就已经装配好了。这里先读一次存起来的话，快照拿到的是一个还没连上的 storage。
+   */
+  readonly getStorage: () => DevToolsStorageSnapshotPorts['storage'];
+  /**
+   * 与 host 通信的传输层；**只用于测试**。
+   *
+   * @remarks
+   * 与 Tauri 那边相反：Electron 的生产路径必须走 preload 暴露的那一个桥接对象（省略即是），
+   * 显式传入等于让 renderer 自带一条不受 `contextBridge` 约束的通道。
+   */
+  readonly transport?: DesktopHostTransport;
+}
+
+/**
+ * 装配 Electron 桌面端的 DevTools provider 端口（US-904 阶段 D）。
+ *
+ * @param options - 延迟取 storage 的入口，以及测试用的 transport
+ * @returns 可直接交给 `getDevToolsConnector({ providers })` 的端口集
+ *
+ * @remarks
+ * 与 Tauri 侧（`apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts`）同构：`files` 走 US-504
+ * 的桌面 host（`kind: 'native-files'`），`settings` 是 `sqlite` 语义，三个领域的 descriptor
+ * 都显示 `runtime: 'electron'`。文件系统与 storage 插件共用同一个 `rootDir`，看到的才是同一批文件。
+ *
+ * **`pagehide → dispose()` 两端都要接**（US-908 AC#2）。主窗口**刷新**既不触发 Rust 的
+ * `WindowEvent::Destroyed`，也不触发 Electron 的 `webContents` `'destroyed'` —— 后者只在窗口
+ * 真的销毁时来，而刷新用的是同一个 `WebContents`。于是 `main.ts` 挂在那上面的 `releaseTarget`
+ * 一次都不会跑，每刷一次泄一条 host 文件会话：连同它的挂起写入与它持有的路径锁，
+ * 而一把没放掉的独占锁会让后来者的 `lockAcquire` 永远等下去。`dispose()` 幂等。
+ *
+ * 单独导出是为了可测：装配点在 `default` 里要先建一个真 RxDB 才够得着，而这里要验的
+ * 「刷新时释放会话」与 RxDB 无关。
+ */
+export const createDesktopDevToolsProviders = (options: DesktopDevToolsProvidersOptions) => {
+  const filesystem = createDevToolsDesktopFilesystem({
+    // 与 storage 插件同一个常量：两边看到的必须是同一批文件，而不是同名的两个目录。
+    rootDir: DESKTOP_STORAGE_ROOT_DIR,
+    ...(options.transport === undefined ? {} : { transport: options.transport })
+  });
+
+  // AC#48：诊断快照物化来源。`rxdb.storage`（`RxdbFileStorage`）要等 `connect()` 才挂上，
+  // 而 connector 在 `init()` 时就已经装配——所以来源**延迟到 capture 那一刻**才读 storage，
+  // 并复用它自己的 `runExclusive`（storage 全局独占锁）+ `listAllMetas` + `changeEpoch`，
+  // 保证 metadata 与已提交文件两半落在同一个时点。
+  const snapshot: DevToolsSnapshotSource = {
+    capture: signal =>
+      createDevToolsNativeSnapshotSource(
+        createDevToolsStorageSnapshotPorts({ storage: options.getStorage(), filesystem })
+      ).capture(signal)
+  };
+
+  globalThis.addEventListener('pagehide', () => filesystem.dispose(), { once: true });
+
+  return {
+    nativeFiles: {
+      filesystem,
+      maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
+      snapshot: { clock: createSystemClock(), source: snapshot }
+    },
+    settings: createDevToolsDesktopSettingsProvider('electron'),
+    runtime: 'electron' as const
+  };
+};
 
 /**
  * 构建本 app 的 RxDB 单例（主进程持有的应用作用域 SQLite 文件，无远端同步）。
@@ -112,37 +187,15 @@ export default () => {
 
   rxdb.init();
 
-  // US-904 阶段 D：把页内 connector 接到原生后端。`files` 走桌面 host（native-files），
-  // `settings` 是 Electron `sqlite` 语义，`database` 的 descriptor 显示为 `electron`。
-  // 文件系统与 storage 插件共用同一个 `rootDir`，看到的才是同一批文件。
-  const devtoolsFilesystem = createDevToolsDesktopFilesystem({ rootDir: DESKTOP_STORAGE_ROOT_DIR });
-
-  // AC#48：诊断快照物化来源。`rxdb.storage`（`RxdbFileStorage`）要等 `connect()` 才挂上，
-  // 而 connector 在 `init()` 时就已经装配——所以来源**延迟到 capture 那一刻**才读 storage，
-  // 并复用它自己的 `runExclusive`（storage 全局独占锁）+ `listAllMetas` + `changeEpoch`，
-  // 保证 metadata 与已提交文件两半落在同一个时点。
-  const snapshotSource: DevToolsSnapshotSource = {
-    capture: signal =>
-      createDevToolsNativeSnapshotSource(
-        createDevToolsStorageSnapshotPorts({ storage: rxdb.storage, filesystem: devtoolsFilesystem })
-      ).capture(signal)
-  };
-
   const devtools = getDevToolsConnector({
     // 本次运行的授权配置由主进程经启动参数带进来（见 `ipc-contract.ts` 的
     // `DevToolsRuntimeConfig`）。**不给默认值兜底**：没有这份配置就整段展开为空，
     // 由 `@aiao/rxdb-devtools` 的库默认档接管。编一份「看起来是配置的默认值」出来，
     // 意味着漏配的那次运行拿到的是某个人当初觉得合理的权限，而不是本次运行想要的权限。
     ...devToolsRuntimeConfig(),
-    providers: {
-      nativeFiles: {
-        filesystem: devtoolsFilesystem,
-        maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
-        snapshot: { clock: createSystemClock(), source: snapshotSource }
-      },
-      settings: createDevToolsDesktopSettingsProvider('electron'),
-      runtime: 'electron'
-    }
+    // US-904 阶段 D：把页内 connector 接到原生后端。`files` 走桌面 host（native-files），
+    // `settings` 是 Electron `sqlite` 语义，`database` 的 descriptor 显示为 `electron`。
+    providers: createDesktopDevToolsProviders({ getStorage: () => rxdb.storage })
   });
   devtools.init(rxdb, getEntityMetadata);
 

@@ -13,9 +13,10 @@
  */
 
 import { EntityManager } from './entity/entity-manager.js';
-import { RxDBAdapterName } from './rxdb-adapter.js';
+import { RxDBAdapterLocalBase, RxDBAdapterName } from './rxdb-adapter.js';
 import { RxDBEvent, TRANSACTION_BEGIN, TRANSACTION_COMMIT, TRANSACTION_ROLLBACK } from './rxdb-events.js';
 import { RxDBOptions } from './rxdb.interface.js';
+import { RxDBLocalAdapterCapabilityError } from './RxDBError.js';
 
 const rxdbSymbol = (name: string) => Symbol.for(`@aiao/rxdb/${name}`);
 
@@ -75,6 +76,40 @@ export const ENTITY_TYPE: unique symbol = rxdbSymbol('ɵEntityType') as never;
  */
 export const isLocalAdapter = (adapterName: RxDBAdapterName, options: RxDBOptions) =>
   options.sync.local?.adapter === adapterName;
+
+/**
+ * `RxDB.connect()` 本地分支**直接调用**、且基类保证存在的成员。
+ *
+ * @remarks
+ * `reconcileEntityIndexes` 不在列内：它在 {@link RxDBAdapterLocalBase} 上声明为可选（`?:`），
+ * 缺席是契约允许的形态。`createTables` / `isTableExisted` 是 `abstract`，缺了会自然抛
+ * `TypeError`，但那条消息读不出「哪个适配器缺哪个方法」，所以一并纳入。
+ */
+const LOCAL_BOOTSTRAP_MEMBERS = ['migrateSystemSchema', 'completeBootstrap', 'createTables'] as const;
+
+/**
+ * 校验一个被配置为 `sync.local` 的适配器能跑完系统引导，不能则抛。
+ *
+ * @param adapterName - 配置里 `sync.local.adapter` 的名字，用于错误消息
+ * @param adapter - 已 `connect()` 的适配器实例
+ * @returns 同一个实例，收窄为 {@link RxDBAdapterLocalBase}
+ * @throws {@link RxDBLocalAdapterCapabilityError} 缺任一必需成员
+ *
+ * @remarks
+ * 「配置为 local 的适配器实现了本地基类」此前只是配置层的约定，`connect()` 用一句
+ * `as unknown as RxDBAdapterLocalBase` 认领，再用 `?.()` 兜住可能不存在的方法 ——
+ * 于是非基类适配器**静默跳过系统迁移与引导收尾**。这里把那句强转换成一次显式判定：
+ * 通过则后续直调，不通过则带着适配器名与缺失成员名抛出。
+ */
+export const assertLocalAdapterCapabilities = (adapterName: RxDBAdapterName, adapter: object): RxDBAdapterLocalBase => {
+  const missing = LOCAL_BOOTSTRAP_MEMBERS.filter(
+    member => typeof (adapter as Record<string, unknown>)[member] !== 'function'
+  );
+  if (missing.length > 0) {
+    throw new RxDBLocalAdapterCapabilityError(String(adapterName), missing);
+  }
+  return adapter as RxDBAdapterLocalBase;
+};
 
 /**
  * 事务事件类型集合

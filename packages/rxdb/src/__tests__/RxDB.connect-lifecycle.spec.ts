@@ -551,4 +551,36 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
 
     await disposeDatabase(database);
   });
+
+  it('rejects a local adapter that cannot run the system bootstrap instead of skipping it', async () => {
+    const database = createDatabase();
+    const base = createMockAdapter(database);
+    // 不继承 `RxDBAdapterLocalBase` 的自定义适配器对象：基类的默认实现在原型链上被遮成
+    // `undefined`。`connect()` 里那句 `as unknown as RxDBAdapterLocalBase` 是无校验的，
+    // 从前配上 `?.()` 的后果是**静默跳过系统迁移与引导收尾**，不报错也不告警。
+    const ducked = Object.assign(Object.create(base) as typeof base, {
+      migrateSystemSchema: undefined,
+      completeBootstrap: undefined
+    });
+    database.adapter('local', () => ducked as never);
+    database.init();
+
+    await expect(database.connect('local')).rejects.toThrow(
+      /local adapter 'local'.*migrateSystemSchema, completeBootstrap/s
+    );
+
+    await disposeDatabase(database);
+  });
+
+  it('keeps reconcileEntityIndexes optional: the contract marks it so, absence is not a defect', async () => {
+    const database = createDatabase();
+    const adapter = createMockAdapter(database);
+    expect(adapter.reconcileEntityIndexes, '基类把它声明成可选，替身不实现是合法形态').toBeUndefined();
+    database.adapter('local', () => adapter);
+    database.init();
+
+    await expect(database.connect('local')).resolves.toBe(adapter);
+
+    await disposeDatabase(database);
+  });
 });

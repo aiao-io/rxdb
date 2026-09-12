@@ -143,28 +143,25 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 | #8       | `packages/rxdb-adapter-tauri/conformance/storage-disk-full.spec.ts`（2 例）—— 真把盘写满，不是 mock：macOS 用 `hdiutil attach ram://` + `diskutil eraseVolume` 挂一个小容量**虚拟卷**，Linux 用 tmpfs，Windows 无免权限路径故平台跳过（沿用 `reports_an_unwritable_storage_root_as_permission_denied` 的 unix-only 先例）。往卷里灌超过容量的字节，四条一起断：抛 `StorageBackendError` 且 `code === 'disk_full'`、`detail` 只含相对路径（AC#4 不回归）、目标文件**不存在**（原子提交只在 `rename` 之后可见）、父目录下没有遗留 `.{write_id}.rxdb-tmp`（漏临时文件是真实缺陷，应该在这里红，而不是等磁盘某天被塞满）。无写权限那一半仍由 `file/mod.rs` 的 `reports_an_unwritable_storage_root_as_permission_denied`（`chmod 0o555` 真封目录）覆盖；补偿语义（meta 与文件不脱钩）由 US-504 `desktop-failure.spec.ts` 在服务层覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | #6 #7 ⚠️ | `apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts`（4 例）+ 渲染端 `apps/dev-rxdb-tauri/src/app/webview-probe.ts`（8 条单测）。探针必须跑在**真实打包 webview** 里：`download()` 与 `fetch()` 都是 renderer 侧路径，压根不经 host，stdio 宿主进程测不到。它**绝不触发原生保存对话框** —— 对话框会挂到 60 s 看门狗，失败形态与真实渲染挂死无法区分，所以锁的是 `download()` 的**分支选择器**（`showSaveFilePicker` / `<a download>` / blob URL 至少一条可用，`storage.service.ts` 的分支前提不落空），不是对话框本身。`fetch()` 这半的正面证据是**同源** `storage.fetch(${origin}/index.html)` 缓存进原生文件后逐字节核回；两条跨源路由（带 / 不带 `Access-Control-Allow-Origin`）照发，用来记录事实：本机两者给出**同一个** `StorageOfflineError` 且本地服务**零命中** —— 拦截发生在 CSP（`tauri.conf.json` 的 `connect-src 'self' ipc: http://ipc.localhost`），请求根本没出渲染进程，与 CORS 无关。为一条断言去放宽产品 CSP 是拿真实安全边界换绿灯，没做；AC#6 允许「被锁定**或有可判别错误**」，这正是后者。AC#7 随同一份 spec 落进 `release-desktop.yml` `tauri-smoke` 的三 OS 矩阵（`desktop-smoke` 的 `include` 自动拾取，不新增 job —— 新增 job 得同步改 `gate` 的 `needs`，没必要）。**保留原因**（2026-08-31 已收窄）：`EXPECTED_BY_PLATFORM` **三行都已回填**——`darwin` 本机核过，`linux` / `win32` 按 PR #48 的三 OS 首跑真实输出回填。缺行时用例会带着可直接粘贴的字面量抛错，所以首跑红一次是锁定过程本身，不是失败。现在保留的只是「还没有一次三 OS 全绿的跑」，见「剩余一步」 |
 
-门禁（2026-08-29 收尾后本机实测，括号内为 2026-08-18 迁包时记录的旧值）：`cargo test`
-**154 条**（crate 131 + demo 23，其中文件宿主 `file/` 占 41 条 = `locks.rs` 11 +
-`mod.rs` 19 + `protocol.rs` 11；旧值 147 = 131 + 16，demo 侧 +7 全在 `selfcheck.rs`，
-是报告 schema v2 与第三个环境变量的校验用例）、`cargo clippy` 零警告、
-`test-conformance` **12 文件 609 条**（旧值 10 文件 605 条；+2 文件即
-`storage-large-file` / `storage-disk-full`）、`dev-rxdb-tauri` 单测 **17 文件 118 条**
-（旧值 14 文件 94 条）、`dev-rxdb-tauri-e2e:desktop-smoke` **3 文件 8 条**、
-`rxdb-plugin-storage` node **9 文件 215 条**（旧值 214 条）、`rxdb-adapter-tauri`
-（原 `rxdb-adapter-desktop`，US-207 E3 拆包后更名）lint/test/build 全绿。
+门禁按**复现命令**记，不记条数——条数天然会烂（这段从前记的三组数字，写下当天之后就没有一组对得上），
+而命令永远指向今天的真相：
 
-> 迁包那次的数字变动与「迁包」本身无关：`#[test]` 总数在迁包前（`39dba16`）与迁包后
-> 都是 **147**，一条不多一条不少；增长来自 US-207／US-210 期间补的用例，迁包只搬位置。
->
-> **上面的门禁数字是 2026-08-29 收尾那一刻的快照，不要按今天重跑的数字对账**：`dev-rxdb-tauri` 单测已涨到
-> **21 文件 213 条**、`desktop-smoke` 已涨到 **4 文件**，增量全部来自
-> [US-905](../future/US-905-tauri-native-devtools.md) 阶段 1 补的 devtools transport / conformance /
-> release 隔离用例，与本故事无关。本故事自己的用例一条未动。
->
-> 另外 `desktop-smoke` 现在带一个 globalSetup（`warm-up.ts`），它**不产生断言**，
-> 所以用例条数不受影响，见「剩余一步」。
+| 门禁                | 复现命令                                                                        |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Rust 宿主 + demo    | `pnpm nx run-many -t cargo-test -p rxdb-adapter-tauri,dev-rxdb-tauri`           |
+| Rust lint（零警告） | `pnpm nx run-many -t cargo-clippy -p rxdb-adapter-tauri,dev-rxdb-tauri`         |
+| 一致性套件          | `pnpm nx test-conformance rxdb-adapter-tauri`                                   |
+| renderer 单测       | `pnpm nx test dev-rxdb-tauri`                                                   |
+| 打包产物 e2e        | `pnpm nx desktop-smoke dev-rxdb-tauri-e2e`                                      |
+| 存储插件与适配器    | `pnpm nx run-many -t lint test build -p rxdb-plugin-storage,rxdb-adapter-tauri` |
 
-### 最后一步（已完成，2026-09-01）
+文件宿主的 Rust 用例落在 `rust/src/file/` 的 `locks.rs` / `mod.rs` / `protocol.rs` 三个文件里。
+`rxdb-adapter-tauri` 即原 `rxdb-adapter-desktop`，US-207 E3 拆包后更名。
+
+> `desktop-smoke` 带一个 globalSetup（`warm-up.ts`），它**不产生断言**，只把 Windows 首次拉起产物的
+> 一次性冷启动成本付在断言之外，见下节。
+
+### 三 OS 矩阵与 `EXPECTED_BY_PLATFORM`
 
 **回填已做完，只差一次跑绿。** 2026-08-31 的 PR [aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48)
 真实触发了 `release-desktop.yml`，`tauri-smoke` 的三 OS 矩阵跑到了
@@ -202,7 +199,7 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 字节即抛 `StorageBackendError('name_too_long')`，不做哈希截断（截断不可逆，会打断
 `copyDirectory` / `listEntries` 的物理名 → 逻辑路径回推）。
 
-## 随 Tauri 包化搬迁（已完成，2026-08-18）
+## 随 Tauri 包化搬迁
 
 本故事的 Rust 文件宿主与两条一致性 spec 原先都在 `apps/dev-rxdb-tauri/` 里，已跟着
 [US-210「Tauri 包化」](../adapter/US-210-tauri-sqlite-local-database.md#tauri-包化)
@@ -210,7 +207,7 @@ project + 三平台打包矩阵）已由 US-210 建好（其 AC#1 / #9 同日关
 `rust/src/file/`，一致性 spec 落 `conformance/`；renderer 侧受
 [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)
 的改名影响，该半边已随 E1～E5 落地。搬迁**没改本故事任何一条 AC 的语义**——
-`#[test]` 总数迁包前后都是 147，两条一致性 spec 的断言一个字未动，
+`#[test]` 总数迁包前后一条不差，两条一致性 spec 的断言一个字未动，
 S3／S4 两处口径按下表改完，S5 因 US-210 定形为**普通 crate**而无需改。
 
 | #     | 任务                                                                                                                                           | 完成判据                                                                                                                                                                                                                                                                                                                                                                       |

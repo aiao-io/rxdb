@@ -115,6 +115,10 @@ export interface DevToolsTransferTable {
   /**
    * 处理一帧 `TRANSFER_CANCEL`。
    *
+   * @remarks
+   * 与 {@link DevToolsTransferTable.complete} 一样先等写队列排空，否则「临时产物已清理完」
+   * 这句承诺是假的：清理会跑在一个尚未打开的句柄上。
+   *
    * @param payload - 只含 `transferId` 的载荷。
    * @returns 结算（临时产物已清理完），或对未知/已终结的 ID 拒绝。
    */
@@ -213,6 +217,12 @@ class DevToolsTransferTableImpl implements DevToolsTransferTable {
   }
 
   async cancel(payload: DevToolsTransferIdPayload): Promise<DevToolsTransferResult> {
+    // 与 `complete()` 同款的排空，理由却不同：那边怕 commit 出短文件，这边怕清理扫空。
+    // 在途 `write` 此刻可能正停在 `openWrite` 上，句柄还没兑现——抢在它前面结算，
+    // `discard()` 就什么都删不掉，而那次 write 随后才把临时产物创建出来（US-908 AC#1）。
+    await this.#entries.get(payload.transferId)?.writes;
+
+    // 排队期间这条传输可能已经因为写失败或超时终结，重新取一次才作数。
     const entry = this.#entries.get(payload.transferId);
     if (entry === undefined) return rejected('transfer_closed');
 
