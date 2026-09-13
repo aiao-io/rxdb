@@ -163,7 +163,7 @@
    `feat(...)` / `fix(...)`（否则 bump 量为零，发不出版本），且**不得改动** `RXDB_SYSTEM_SCHEMA_VERSION` /
    `RXDB_CHANGE_CODEC_VERSION`。
    ⚠️ **这一条门禁守不住，别指望它**：`kind=bridge` 只校验 `systemSchemaUpgrade` / `changeCodecUpgrade`
-   两个布尔位（[check-migration-release-gate.mjs:247](../scripts/check-migration-release-gate.mjs#L247)），
+   两个布尔位（[check-migration-release-gate.mjs:256](../scripts/check-migration-release-gate.mjs#L256)），
    **从不读源码常量**；桥接发布时 `bridge.tag` 是 `null`，新增的 `bridgeTagVersionConstants` 钩子也走不到。
    悄悄抬了常量却把布尔位留成 `false`，门禁照样全绿。唯一防线是硬前提 1 那两条 `git log -S` 人工复测。
    门禁的祖先判定是
