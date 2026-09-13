@@ -1231,9 +1231,9 @@ mod tests {
     ///
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）；
     /// v8 加的是它的跨重启三条（AC#9 / AC#15）；v9 加的是字节往返九条（AC#10）；
-    /// v10 加的是阶段 1 收尾的十六格（AC#2 / #6 / #7）。
+    /// v10 加的是阶段 1 收尾的十六格（AC#2 / #6 / #7）；v11 加的是 branch 探针三条（AC#9）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 10);
+        assert_eq!(REPORT_SCHEMA_VERSION, 11);
     }
 }

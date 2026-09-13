@@ -801,6 +801,15 @@
     const queryLimitZero = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 0 }));
     const queryLimitHuge = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 1001 }));
     const queryLimitFraction = codeOf(await request('database', 'query', { entityName: LAUNCH_ENTITY, limit: 1.5 }));
+    // branch 探针（AC#9 的 branch 半边）：列分支 + 切到当前已激活分支。`switch-branch`
+    // 对「已在该分支」是 no-op 成功（versionManager 语义），所以这两步零副作用。
+    const branches = await request('database', 'get-branches', {});
+    const branchRows = branches.outcome === 'ok' && branches.result ? branches.result.branches || [] : [];
+    const activeBranch = branchRows.find(function (row) {
+      return row && row.activated === true;
+    });
+    // 找不到激活分支时直接报原码——探针的失败就是读分支那一步的失败，不另造一个新码。
+    const branchSwitch = activeBranch ? await request('database', 'switch-branch', { id: activeBranch.id }) : branches;
     // 事件面：订阅真实事件源一次；EVENT 帧计数由 onFrame 累着，判据落在订阅码上（R2）。
     const events = await request('database', 'events', {});
     const settingsExport = await request('settings', 'export', { path: 'db/main.sqlite' });
@@ -856,6 +865,9 @@
       queryLimitZero: queryLimitZero,
       queryLimitHuge: queryLimitHuge,
       queryLimitFraction: queryLimitFraction,
+      branchesList: codeOf(branches),
+      branchCount: branches.outcome === 'ok' ? branchRows.length : -1,
+      branchSwitch: codeOf(branchSwitch),
       eventsSubscribe: codeOf(events),
       eventFrames: eventFrames,
       snapshotFirstPage: snapshot.snapshotFirstPage,
