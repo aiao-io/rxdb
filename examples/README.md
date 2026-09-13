@@ -12,18 +12,17 @@
   每个示例自带 `pnpm-workspace.yaml`（`packages: ['.']`）与独立 `pnpm-lock.yaml`，声明自身为 workspace 根；
 - 本目录下**没有任何 `project.json`**，因此 `nx affected` / `pnpm test-all` 都扫不到它们。
   注意别被重名误导：`pnpm nx show projects` 里的 `angular-todo` 指的是 [modules/angular-todo](../modules/angular-todo/)，
-  与 [examples/angular-todo](./angular-todo/) 无关；`taro-react-todo` 则完全不在 nx 图里；
+  与 [examples/angular-todo](./angular-todo/) 无关；
 - 它们依赖**已发布到 npm** 的 `@aiao/*` 版本，而不是仓库源码，所以仓库内的改动不会自动反映到示例里。
 
-这样做是为了让 Taro 4 / 独立 Angular CLI 这类与 Nx 图不共存的工具链保持可用。
+这样做是为了让独立 Angular CLI 这类与 Nx 图不共存的工具链保持可用。
 代价是：示例可能滞后于仓库源码，验证责任在改动者。
 
 ## 示例清单
 
-| 目录                                  | 技术栈                      | 验证内容                                                    | 手工验证命令                                         |
-| :------------------------------------ | :-------------------------- | :---------------------------------------------------------- | :--------------------------------------------------- |
-| [angular-todo](./angular-todo/)       | Angular 21 + wa-sqlite      | 本地 SQLite、响应式查询、批量写入、撤销/重做、OPFS/IDB 切换 | `pnpm install && pnpm build && pnpm test`            |
-| [taro-react-todo](./taro-react-todo/) | Taro 4 + React + 微信小程序 | `@aiao/rxdb-adapter-miniprogram` 在微信逻辑层的持久化链路   | `pnpm install && pnpm typecheck && pnpm build:weapp` |
+| 目录                            | 技术栈                 | 验证内容                                                    | 手工验证命令                              |
+| :------------------------------ | :--------------------- | :---------------------------------------------------------- | :---------------------------------------- |
+| [angular-todo](./angular-todo/) | Angular 21 + wa-sqlite | 本地 SQLite、响应式查询、批量写入、撤销/重做、OPFS/IDB 切换 | `pnpm install && pnpm build && pnpm test` |
 
 每个示例都是独立 pnpm workspace，**不要在仓库根安装它们**：
 
@@ -32,12 +31,13 @@ cd examples/<示例目录>
 pnpm install
 ```
 
-### taro-react-todo 的额外说明
+## 已迁出：Taro 微信小程序示例
 
-`taro-react-todo` 是 [US-209](../requirements/stories/adapter/US-209-miniprogram-adapter.md) 的**手工验证入口**，
-不是受支持的产品级示例。`@aiao/rxdb-adapter-miniprogram` 本身标记为实验性且**仅支持微信小程序逻辑层**，
-因此虽然 Taro 脚手架保留了 `build:alipay` / `build:tt` / `build:qq` 等多端命令，
-**只有 `build:weapp` 这条路径经过验证**。能力边界见
+原 `examples/taro-react-todo/` 已迁入 [apps/dev-rxdb-miniprogram](../apps/dev-rxdb-miniprogram/)，
+成为纳入 Nx 图的常规应用：依赖走 `workspace:*` 直连仓库源码，`lint` / `typecheck` / `build`
+三个 target 都进 CI。也就是说它**不再**属于本目录「手工验证、不受门禁保护」的范畴。
+
+`@aiao/rxdb-adapter-miniprogram` 仍标记为实验性且**仅支持微信小程序逻辑层**，
+`build:weapp` 之外的多端命令未经验证；能力边界见
 [兼容性矩阵](../website/docs/compatibility.md#aiaorxdb-adapter-miniprogram-的能力边界)。
-
-完整验证需要用微信开发者工具打开 `dist/`，Node 侧的 `pnpm typecheck` 只能覆盖类型层。
+CI 覆盖到构建产物为止，**真机行为仍需用微信开发者工具打开 `dist/` 手工确认**。

@@ -42,7 +42,7 @@
 > | `sqlite` / `sqliteai`   | `fts5`        | ✅ supported  | 同上，由 `Oo1ClientBase` 覆盖                                                                         |
 > | `pglite`                | `pg-tsvector` | ✅ supported  | US-703 交付                                                                                           |
 > | `wa-sqlite`             | `fts5`        | ⚠️ unverified | npm 预编译 wasm 未编入 FTS5 模块；补齐要 `-DSQLITE_ENABLE_FTS5` 重编译，属构建管线变更（US-703 AC#8） |
-> | `wa-sqlite-miniprogram` | `fts5`        | ⚠️ unverified | 小程序宿主能否提供 FTS5 与自定义函数注册须真机实测，本轮无环境                                        |
+> | `wa-sqlite-miniprogram` | `fts5`        | ⚠️ unverified | wasm 已编入 FTS5（`@subframe7536/sqlite-wasm`），但真机与 bigram 注册未实测                           |
 >
 > `unverified` 与未登记的 adapter 一样在 `createRxDatabase` 阶段抛 `SearchUnsupportedAdapterError`
 > （不降级、不挂载 `.search`），区别只在错误里带不带可判别 `reason`。桌面宿主
@@ -74,6 +74,6 @@
 ## 已知的需求覆盖缺口
 
 - **非微信小程序平台仍无实现**（支付宝 / 抖音 / 百度 / QQ）。Taro 示例保留了多端 `build:*`，适配器构造函数却只认 `wx` + `WXWebAssembly`。缺口由 [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 认领（Backlog，三阶段：先抽宿主契约再按可行性门禁放行）；阶段没关之前文档仍写「仅微信」。
-- **小程序运行时的搜索能力仍无故事覆盖**。`wa-sqlite-miniprogram` 已在 [backend-registry.ts](../packages/rxdb-plugin-search/src/backend/backend-registry.ts) 登记为 `unverified`（登记 ≠ 放行，仍抛 `SearchUnsupportedAdapterError`），但小程序宿主能否加载 FTS5 并注册 `rxdb_fts_bigram` 须真机实测，不在 US-209 范围内，也无故事认领。
-- **两个 `unverified` 后端待转正**，均为环境/构建管线问题而非设计缺口：`wa-sqlite` 要用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm（npm 预编译产物未编入 FTS5，见 [US-703](stories/future/US-703-pglite-full-text-search.md) AC#8）；`wa-sqlite-miniprogram` 同上一条。SQLite FTS5（[US-702](stories/future/US-702-full-text-search.md)）与 PGlite `pg-tsvector`（US-703，Done 2026-08-31）本身均已交付，引擎侧不再有能力不对称。
+- **小程序运行时的搜索能力仍无故事覆盖**。`wa-sqlite-miniprogram` 已在 [backend-registry.ts](../packages/rxdb-plugin-search/src/backend/backend-registry.ts) 登记为 `unverified`（登记 ≠ 放行，仍抛 `SearchUnsupportedAdapterError`）。2026-09-12 起 glue + wasm 改用 `@subframe7536/sqlite-wasm`（`ENABLE_FTS5` 编译），[fts5.integration.spec.ts](../packages/rxdb-adapter-miniprogram/src/__tests__/fts5.integration.spec.ts) 在 Node 里对真 wasm + 微信 VFS 存根验证了 `CREATE VIRTUAL TABLE ... USING fts5` 与 `rxdb_fts_bigram` 注册。**剩下的缺口是真机实测与 registry 放行**——不在 US-209 范围内，也无故事认领。
+- **两个 `unverified` 后端待转正**，均为环境/构建管线问题而非设计缺口：`wa-sqlite`（浏览器）要用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm（npm 预编译产物未编入 FTS5，见 [US-703](stories/future/US-703-pglite-full-text-search.md) AC#8）；`wa-sqlite-miniprogram` 的 wasm 已换成编入 FTS5 的构建，只差真机实测（见上一条）。SQLite FTS5（[US-702](stories/future/US-702-full-text-search.md)）与 PGlite `pg-tsvector`（US-703，Done 2026-08-31）本身均已交付，引擎侧不再有能力不对称。
 - **PGlite 的 QueryCache 行契约存在同族缺口**：`upsert_many_sql.ts` 未检查缺非空列（sqlite-core 侧已由 [US-022](stories/core/US-022-querycache-remote-row-contract.md) 的 `assertQueryCacheRowContract` 守护），由 [US-024](stories/core/US-024-pglite-querycache-row-contract.md) 认领（Backlog）。

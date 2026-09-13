@@ -27,11 +27,6 @@
   "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
-    "./assets/wa-sqlite.cjs": {
-      "types": "./assets/wa-sqlite.cjs.d.ts",
-      "default": "./assets/wa-sqlite.cjs"
-    },
-    "./assets/wa-sqlite.wasm": "./assets/wa-sqlite.wasm",
     "./runtime": {
       "@aiao/source": "./src/runtime.ts",
       "types": "./dist/runtime.d.ts",
@@ -47,7 +42,6 @@
   },
   "files": [
     "dist",
-    "assets",
     "src",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
@@ -67,6 +61,7 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@subframe7536/sqlite-wasm": "1.3.1",
     "@ungap/structured-clone": "1.4.0",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   }

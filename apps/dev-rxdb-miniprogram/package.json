@@ -1,8 +1,8 @@
 {
-  "name": "taro-react-todo",
+  "name": "dev-rxdb-miniprogram",
   "version": "1.0.0",
   "private": true,
-  "description": "taro-react-todo",
+  "description": "@aiao/rxdb-adapter-miniprogram 的 Taro + React 微信小程序演示",
   "templateInfo": {
     "name": "default",
     "typescript": true,
@@ -37,9 +37,10 @@
   ],
   "author": "",
   "dependencies": {
-    "@aiao/rxdb": "^0.0.24",
-    "@aiao/rxdb-adapter-miniprogram": "^0.0.24",
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-miniprogram": "workspace:*",
     "@babel/runtime": "^7.24.4",
+    "@subframe7536/sqlite-wasm": "1.3.1",
     "@tarojs/components": "4.2.1",
     "@tarojs/helper": "4.2.1",
     "@tarojs/plugin-framework-react": "4.2.1",
@@ -55,16 +56,15 @@
     "@tarojs/runtime": "4.2.1",
     "@tarojs/shared": "4.2.1",
     "@tarojs/taro": "4.2.1",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.4",
+    "@babel/plugin-proposal-decorators": "7.29.7",
     "@babel/plugin-transform-class-properties": "7.25.9",
     "@babel/plugin-transform-private-methods": "7.29.7",
     "@babel/preset-react": "^7.24.1",
-    "@commitlint/cli": "^19.8.1",
-    "@commitlint/config-conventional": "^19.8.1",
     "@tarojs/cli": "4.2.1",
     "@tarojs/plugin-generator": "4.2.1",
     "@tarojs/vite-runner": "4.2.1",
@@ -73,19 +73,10 @@
     "@types/react": "^18.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "babel-preset-taro": "4.2.1",
-    "eslint": "^8.57.0",
-    "eslint-config-taro": "4.2.1",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-hooks": "^4.4.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.2",
     "postcss": "^8.5.6",
     "react-refresh": "^0.14.0",
     "sass": "^1.75.0",
-    "stylelint": "^16.4.0",
-    "stylelint-config-standard": "^38.0.0",
     "terser": "^5.30.4",
-    "typescript": "^5.4.5",
     "vite": "^4.2.0"
   }
 }

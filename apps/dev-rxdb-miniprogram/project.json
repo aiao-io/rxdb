@@ -1,0 +1,39 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// lint": "Taro 的依赖树被 auto-install-peers 塞进一个 eslint 8.41（@eslint-community/eslint-utils 的 peer），它的 .bin 会盖住根上的 eslint 10，flat config 直接找不到。所以显式走根二进制，而不是 @nx/eslint/plugin 推断出的裸 `eslint .`。",
+  "// serve": "微信小程序没有 dev server：`serve` 就是 watch 构建，产物仍在 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）即可热更。watch 模式下 NODE_ENV=development，@tarojs/plugin-framework-react 才会挂上 @vitejs/plugin-react，它把 `@babel/plugin-proposal-decorators` 以字符串形式交给 babel，由 babel 从 app 根解析——所以那个插件必须显式列进本项目 devDependencies，光靠 babel-preset-taro 的传递依赖在 pnpm 下解析不到。",
+  "// targets": "to see all targets run: nx show project dev-rxdb-miniprogram --web",
+  "name": "dev-rxdb-miniprogram",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-miniprogram/src",
+  "tags": ["react-app", "miniprogram-app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ./node_modules/@tarojs/cli/bin/taro build --type weapp"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ./node_modules/@tarojs/cli/bin/taro build --type weapp --watch"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ../../node_modules/eslint/bin/eslint.js ."
+      }
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    }
+  }
+}

@@ -46,8 +46,8 @@ import { auditAssetWhitelistScope, resolveScanEntries } from './subpath-inventor
  *   没有该条件的子路径入口一律硬失败，不从 `import`/`types` 反推，也不降级为「零导出」。
  * - 跨包引用用 `tsconfig.base.json` 的 paths 解析（而非 node_modules），保证本地与 CI
  *   提取结果一致；无法解析的导出符号直接报错，不降级猜测种类。
- * - 无导出表面的资产入口（wasm / CJS）按 `ASSET_SUBPATHS` 白名单显式跳过，
- *   其内容由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护。
+ * - 无导出表面的资产入口（wasm / CJS）按 `ASSET_SUBPATHS` 白名单显式跳过 —— 这类入口
+ *   的内容由供应链审计脚本另行守护，不在 API 表面的职责范围内。
  * - 通过 TS 编译器解析 `export *` / re-export，得到入口真实可见的导出集合。
  * - 只记录名称与种类（type/value/both），不做完整签名快照 —— 目标是捕获「导出被
  *   增删或改变种类」这类信号，触发人工审查，而非替代类型契约测试。
@@ -64,17 +64,19 @@ const EXCLUDED = new Set(['rxdb-test']);
 
 /**
  * **无导出表面**的资产入口白名单 —— 这些 `exports` 子路径指向二进制 / CJS 文件，
- * 没有 TS 源可解析，因此显式跳过表面扫描，改由
- * `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 固定守护其内容。
+ * 没有 TS 源可解析，因此显式跳过表面扫描，其内容改由供应链审计脚本守护。
  *
  * 白名单是**收窄**的：其余子路径入口一律必须声明 `@aiao/source` 并进基线，
  * 新增一个既不在白名单、又没有源入口声明的子路径 → 门禁红（见 `resolveScanEntries()`）。
  * 反向也守：白名单登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
  *
+ * 目前为空：`rxdb-adapter-miniprogram` 原先随包分发的 wa-sqlite glue + wasm 已改为
+ * 直接依赖 `@subframe7536/sqlite-wasm`，资产不再经本仓库的 `exports` 暴露。
+ *
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  * @type {Map<string, string[]>}
  */
-const ASSET_SUBPATHS = new Map([['rxdb-adapter-miniprogram', ['./assets/wa-sqlite.cjs', './assets/wa-sqlite.wasm']]]);
+const ASSET_SUBPATHS = new Map();
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';
 
@@ -302,9 +304,7 @@ function main() {
     const srcDir = join(packagesDir, pkg, 'src');
     skippedAssetEntries += skippedAssets.length;
     for (const subpath of skippedAssets) {
-      console.log(
-        `⏭️  ${pkg}${subpath.slice(1)}: 资产入口，无导出表面（内容由 wa-sqlite-integrity.mjs 的 SHA-256 守护）`
-      );
+      console.log(`⏭️  ${pkg}${subpath.slice(1)}: 资产入口，无导出表面（内容由供应链审计守护）`);
     }
 
     const current = {};

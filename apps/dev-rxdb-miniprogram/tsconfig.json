@@ -24,5 +24,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./types", "./config"]
+  "include": ["./src", "./types", "./config"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-miniprogram"
+    },
+    {
+      "path": "../../packages/rxdb"
+    }
+  ]
 }

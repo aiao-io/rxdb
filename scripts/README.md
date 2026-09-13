@@ -70,7 +70,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：
   1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
-  3. 对 `packages/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 和 `.wasm` 校验固定 SHA-256；`.cjs` 额外拒绝 CR（`0x0d`），避免 Windows `core.autocrlf=true` 把 LF 改成 CRLF 后被误报成供应链哈希漂移（CI 实测：`0315bd7a…` → `2c7bf32a…`）。换行固定在仓库根 [`.gitattributes`](../.gitattributes)；
+  3. 断言 `packages/rxdb-adapter-miniprogram` 的 `dependencies['@subframe7536/sqlite-wasm']`（编入 FTS5 的 glue + wasm）是**精确版本**而非 `^`/`~`，在 `pnpm-lock.yaml` 里核对该版本的 SHA-512 integrity，并检查 [`subframe-glue.ts`](../packages/rxdb-adapter-miniprogram/src/subframe-glue.ts) import 的 glue 文件名与该版本配对。glue 只在 `./dist/*` 暴露且文件名带内容哈希，一次小版本升级就会让 import 指向不存在的文件——所以版本号与文件名必须成对更新，否则只能到运行时才炸；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。
 - **何时手动跑**：升级 `wa-sqlite` 后想确认全仓 manifest 与 lockfile 一致；怀疑本地 tarball 被中间人替换；CI 上 `wa-sqlite supply-chain pin OK` 失败时定位。
 
@@ -361,9 +361,10 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - 子路径缺该条件、或条件指向的文件不存在 → `--check` 与 `--update` **两种模式都硬失败**，
     不降级为「零导出」。原因是：静默跳过会让「整个入口被删」显示成「表面无变化」，
     而 `--update` 带着解析不了的入口写基线，等于把一个公开入口从快照里悄悄抹掉。
-  - 唯一豁免是 `ASSET_SUBPATHS`（当前仅 `rxdb-adapter-miniprogram` 的两个 `./assets/*`）：
-    二进制 / CJS 文件没有导出表面可扫，内容由 `audit/wa-sqlite-integrity.mjs` 的 SHA-256 守护。
+  - 唯一豁免是 `ASSET_SUBPATHS`：二进制 / CJS 文件没有导出表面可扫，内容交由供应链审计守护。
     白名单**双向核对**——登记了包里已不存在的入口、或登记的包已退出扫描范围，同样红。
+    **当前为空**：原先唯一的使用者 `rxdb-adapter-miniprogram` 的两个 `./assets/*` 已随 glue + wasm
+    改用 `@subframe7536/sqlite-wasm` 而撤销，机制保留给将来真需要发二进制子路径的包。
   - 入口清单的解析逻辑在 `audit/subpath-inventory.mjs`，由 `subpath-inventory.spec.mjs` 固定。
 - **何时手动跑**：新增/删除/重命名一个公开导出、调整类型/值性质（type-only ↔ value）、
   给包加一个子路径 `exports`（记得同时补 `@aiao/source`）、合并 PR 前最后一次本地校验。

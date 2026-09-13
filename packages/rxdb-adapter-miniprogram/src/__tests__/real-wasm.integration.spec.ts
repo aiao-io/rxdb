@@ -1,19 +1,11 @@
 import { accessSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createWaSqliteMiniProgramClient } from '../create-client.js';
-import type {
-  MiniProgramFileSystemManager,
-  MiniProgramWasmRuntime,
-  MiniProgramWechatApi,
-  WaSqliteModuleFactory
-} from '../mini-program.interface.js';
+import type { MiniProgramFileSystemManager, MiniProgramWechatApi } from '../mini-program.interface.js';
+import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
-const require = createRequire(import.meta.url);
-const moduleFactory = require('../../assets/wa-sqlite.cjs') as WaSqliteModuleFactory;
-const wasmBytes = Uint8Array.from(readFileSync(new URL('../../assets/wa-sqlite.wasm', import.meta.url)));
 const roots: string[] = [];
 
 class NodeFileSystem implements MiniProgramFileSystemManager {
@@ -37,13 +29,6 @@ class NodeFileSystem implements MiniProgramFileSystemManager {
     writeFileSync(path, new Uint8Array(data));
   }
 }
-
-const wasmRuntime: MiniProgramWasmRuntime = {
-  async instantiate(_path, imports) {
-    const result = await WebAssembly.instantiate(wasmBytes, imports);
-    return { instance: result.instance, module: result.module };
-  }
-};
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { force: true, recursive: true });
