@@ -381,13 +381,14 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
     });
 
     /**
-     * AC#9 的 branch 半边：`get-branches` 列出唯一激活分支，`switch-branch` 切到它自己
-     * 是 no-op 成功。boot 只播 `main` 一个分支，所以计数钉 1。
+     * AC#9 的 branch 半边：`get-branches` 列出唯一激活分支；`switch-branch` 的所需档位是
+     * `full`（会改变持久状态），只读档的 mutationPolicy 不是 `allow`，于是被按写操作拒掉——
+     * 与「操作没声明」同一个码（AC#13 的刻意不可区分）。走通的那半边由授权档用例钉着。
      */
-    it('get-branches 列出唯一激活分支，switch-branch 到它自己答 ok', () => {
+    it('get-branches 列出唯一激活分支，switch-branch 被只读档按写操作拒掉', () => {
       expect(native()?.branchesList).toBe('ok');
       expect(native()?.branchCount).toBe(1);
-      expect(native()?.branchSwitch).toBe('ok');
+      expect(native()?.branchSwitch).toBe('provider_unsupported');
     });
 
     /**
@@ -570,6 +571,17 @@ describe('开了写入授权的那一跑（US-905 阶段 2）', () => {
   it('非法 base64 的 chunk 被拒，目标文件没有落盘', () => {
     expect(nativeOf(run).invalidChunk, wire(run)).toBe('payload_encoding_invalid');
     expect(existsSync(join(storageRoot, INVALID_FILE)), '非法 chunk 的目标文件落盘了').toBe(false);
+  });
+
+  it('授权档下 switch-branch 走通真实 provider（AC#9 的 branch 半边）', () => {
+    const native = nativeOf(run);
+
+    // `switch-branch` 所需档位是 `full`：只读档被 mutationPolicy 拒（见只读那组用例），
+    // 授权档下才真正切到 provider。切的目标是当前已激活分支——`versionManager` 的语义是
+    // no-op 成功，所以这里答 `ok` 而不改变任何持久状态。
+    expect(native.branchesList, wire(run)).toBe('ok');
+    expect(native.branchCount).toBe(1);
+    expect(native.branchSwitch).toBe('ok');
   });
 
   it('只读那一跑的其余结论在这一跑同样成立', () => {
