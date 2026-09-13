@@ -442,10 +442,24 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            if matches!(event, tauri::RunEvent::Exit) {
+        .run(|app, event| match event {
+            // `request_exit(code)` 的退出码在 tao 的桌面后端上到不了操作系统：wry 收到请求后
+            // 只把控制流设成**无码**的 `Exit`，而 tao 的 `run()` 是 `-> !` —— 循环结束时它
+            // 自己 `process::exit(0)`，永远不会回到本函数（macOS 上已实测确认）。
+            // Tauri 文档里「循环结束后再 process::exit」的写法在桌面端因此走不到。
+            // 程序化退出（自检结算）在这里就地结算：先把 `RunEvent::Exit` 上挂着的收尾做完
+            // （WAL checkpoint、交还文件句柄，US-210 AC#8），再带着码退出。
+            tauri::RunEvent::ExitRequested { code, .. } => {
+                if let Some(code) = code {
+                    app.state::<DesktopHost>().close_all();
+                    std::process::exit(code);
+                }
+            }
+            // 用户关窗（code=None）走原路：Exit 事件上收尾，进程以 0 退出。
+            tauri::RunEvent::Exit => {
                 app.state::<DesktopHost>().close_all();
             }
+            _ => {}
         });
 }
 

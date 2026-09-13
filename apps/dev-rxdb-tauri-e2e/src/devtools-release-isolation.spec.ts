@@ -36,6 +36,32 @@ const readCapability = (name: string): { windows: readonly string[]; permissions
 /** 读 `src-tauri/src/lib.rs` 原文。 */
 const libRs = (): string => readFileSync(join(SRC_TAURI, 'src', 'lib.rs'), 'utf8');
 
+/** 该行是否是一条非注释行、且带着 `#[cfg(dev)]` 属性。 */
+const hasCfgDev = (line: string): boolean => !line.trim().startsWith('//') && line.includes('#[cfg(dev)]');
+
+/**
+ * 该处提及是否**没有被 cfg 守**。
+ *
+ * 从提及行往回走：先撞上 `#[cfg(dev)]`（同一 item 体内的局部 cfg，如 `setup` 里的
+ * `let devtools_config` 与插件 match 块首）即被守；撞上函数定义行则看它头上有没有 cfg
+ * （`open_devtools_window` 整体被守、其体内的提及离块首 cfg 不止几行）；撞上顶格
+ * 闭括号（当前 item 的边界）即无守。注释行一概跳过——注释里引用的 `#[cfg(dev)]`
+ * 字样不是属性。
+ */
+const isUnguarded = (lines: readonly string[], index: number): boolean => {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const prior = lines[cursor];
+    if (prior.trim().startsWith('//')) continue;
+    if (hasCfgDev(prior)) return false;
+    if (/^\s*fn\s/.test(prior)) {
+      const attribute = cursor > 0 ? lines[cursor - 1] : undefined;
+      return attribute === undefined || !hasCfgDev(attribute);
+    }
+    if (/^}/.test(prior)) return true;
+  }
+  return true;
+};
+
 describe('US-905 devtools 的 release 隔离（结构证据）', () => {
   it('default capability 只授 main 窗口，不授 rxdb-devtools', () => {
     const capability = readCapability('default.json');
@@ -80,22 +106,42 @@ describe('US-905 devtools 的 release 隔离（结构证据）', () => {
     // 要么把一段读 `DEV_RXDB_DEVTOOLS*` 的代码连同那个全局键一起发给用户。
     expect(/#\[cfg\(dev\)\]\s+mod devtools_config;/.test(lib)).toBe(true);
     expect(/#\[cfg\(dev\)\]\s+let devtools_config = devtools_config::plan_or_exit\(\);/.test(lib)).toBe(true);
-    expect(/#\[cfg\(dev\)\]\s+let builder = match devtools_config/.test(lib)).toBe(true);
+    expect(/#\[cfg\(dev\)\]\s+let builder = match &devtools_config/.test(lib)).toBe(true);
 
     // 判据的另一半：不能**另有**一条没带 cfg 的路径提到这个模块。上面三条只说明
     // 「这三处带了 cfg」，挡不住第四处；而第四处正是 release 把整段代码带进产物的形态。
     //
-    // 判定按「每一处提及的前 3 行内必须出现 #[cfg(dev)]」——插件注册那两行
-    // （`Some(config) => …` / `None => builder`）在 match 块里，紧跟着块首那个 cfg。
+    // 判定用 isUnguarded 往回扫：插件注册那两行（`Some(config) => …` / `None => builder`）
+    // 在 match 块里，往回先撞到块首那个 cfg；`open_devtools_window` 调用点的实参行离
+    // cfg 有四行（fn 名跨多行），函数体内的提及离块首 cfg 更远——都靠「撞上函数定义
+    // 行时看它头上有没有 cfg」兜住，而不是数行号。
     const lines = lib.split('\n');
-    const unguarded = lines.filter((line, index) => {
-      if (!line.includes('devtools_config') || line.trim().startsWith('//')) return false;
-      return !lines.slice(Math.max(0, index - 3), index).some(prior => prior.includes('#[cfg(dev)]'));
-    });
+    const unguarded = lines.filter(
+      (line, index) => line.includes('devtools_config') && !line.trim().startsWith('//') && isUnguarded(lines, index)
+    );
     expect(unguarded).toEqual([]);
 
     // 全局键只存在于 `devtools_config.rs`（本身整个 #[cfg(dev)]），不该泄进接线文件。
     expect(lib).not.toContain('__aiaoRxdbDevToolsConfig__');
+  });
+
+  it('档位三开关只定义在 devtools_config.rs，驱动档位键不进接线文件（阶段 1 收尾）', () => {
+    const lib = libRs();
+    const config = readFileSync(join(SRC_TAURI, 'src', 'devtools_config.rs'), 'utf8');
+    const envNames = [
+      'DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE',
+      'DEV_RXDB_DEVTOOLS_SNAPSHOT_SCENARIO',
+      'DEV_RXDB_DEVTOOLS_FORCE_VFS'
+    ];
+    // 三个档位开关都定义在被整体 #[cfg(dev)] 的 devtools_config 模块里……
+    for (const name of envNames) expect(config).toContain(name);
+    // ……而接线文件里一处都不能出现：读 env 的代码只准住在那一个模块里，
+    // lib.rs 上的任何出现都是「release 也在读档位开关」的形态。
+    for (const name of envNames) expect(lib).not.toContain(name);
+    // 驱动档位键同样只存在于 devtools_config.rs（`driver_init_script` 生成的注入脚本读它）；
+    // 驱动脚本里读键的那一行随 `include_str!` 走，那条路已有 #[cfg(dev)] 用例锁着。
+    expect(config).toContain('__aiaoRxdbDevToolsDriverConfig__');
+    expect(lib).not.toContain('__aiaoRxdbDevToolsDriverConfig__');
   });
 
   it('devtools 入口只在 dev 窗口加载，不进主 app 的单入口构建', () => {

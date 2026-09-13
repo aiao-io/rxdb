@@ -26,6 +26,7 @@ import type {
   DevToolsProviderRuntime
 } from '../provider/descriptor.js';
 import { DEVTOOLS_PROVIDER_DOMAINS, DEVTOOLS_PROVIDER_OPERATIONS } from '../provider/descriptor.js';
+import { parseLogicalPath } from '../provider/logical-path.js';
 import type { DevToolsSnapshotPorts, DevToolsSnapshotStore } from '../provider/snapshot.js';
 import { createDevToolsSnapshotStore, dispatchSnapshotRequest } from '../provider/snapshot.js';
 import type {
@@ -288,9 +289,11 @@ function createFilesHandlers(
       return read(() => ({ path, size }));
     },
     // 字节不经返回值：它们只能走 chunk sink，这样「整文件不得驻留内存」是结构性的。
+    // 路径校验与 native-files 用**同一份** `parseLogicalPath`：它是安全边界，fake 上放过的
+    // 越界路径会在 conformance 上表现为同一份断言只在真实档红。
     upload: params => {
       const path = readString(params, 'path');
-      if (path === undefined) return fail('invalid_path');
+      if (path === undefined || parseLogicalPath(path) === undefined) return fail('invalid_path');
       return ok({ accepted: path });
     },
     'create-directory': params => {

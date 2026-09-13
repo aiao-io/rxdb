@@ -113,7 +113,7 @@ const boot = async (env: Readonly<Record<string, string>>, tag: string): Promise
  *
  * @returns 当前 run 的取用器；只有 beforeAll 成功过才会被 it 调到
  */
-const describeBoot = (env: Readonly<Record<string, string>>, tag: string): (() => Booted) => {
+const describeBoot = (env: Readonly<Record<string, string>>, tag: string): (() => SelfCheckRun) => {
   let state: Booted | undefined;
   beforeAll(async () => {
     state = await boot(env, tag);
@@ -127,7 +127,7 @@ const describeBoot = (env: Readonly<Record<string, string>>, tag: string): (() =
   });
   return () => {
     if (state === undefined) throw new Error(`boot(${tag}) 没完成——beforeAll 该把它填上`);
-    return state;
+    return state.run;
   };
 };
 

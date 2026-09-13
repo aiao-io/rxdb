@@ -145,6 +145,35 @@ describe('fake provider behaviour', () => {
   });
 });
 
+describe('fake files.upload', () => {
+  const upload = (params: Record<string, unknown>) => createFakeProviders().provider('files').invoke('upload', params);
+
+  it('MUST accept a well-formed logical path', async () => {
+    const result = await upload({
+      transferId: 'trf-1',
+      path: '/drv-bytes.bin',
+      name: 'drv-bytes.bin',
+      size: 700
+    });
+
+    expect(result).toEqual({ outcome: 'ok', result: { accepted: '/drv-bytes.bin' } });
+  });
+
+  // 与 native-files 的 upload 同一份边界：路径校验是安全边界，fake 上放过 `..`，
+  // conformance 上就会表现为同一份断言在真实档被拒、在 fake 档通过。
+  it('MUST reject an escaping path with invalid_path', async () => {
+    const result = await upload({ transferId: 'trf-1', path: '..', name: 'drv-bytes.bin', size: 700 });
+
+    expect(result).toEqual({ outcome: 'failed', error: { code: 'invalid_path', retryable: false } });
+  });
+
+  it('MUST reject a segment that escapes through a backslash', async () => {
+    const result = await upload({ transferId: 'trf-1', path: 'a\\..\\b', name: 'b', size: 1 });
+
+    expect(result).toEqual({ outcome: 'failed', error: { code: 'invalid_path', retryable: false } });
+  });
+});
+
 describe('fake chunk sink', () => {
   it('MUST commit only through commit and leave no temporary artifact', async () => {
     const set = createFakeProviders();

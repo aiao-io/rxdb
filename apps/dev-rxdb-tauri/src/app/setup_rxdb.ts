@@ -65,10 +65,13 @@ export const localBackends = (
     // 浏览器预览（`nx serve dev-rxdb-tauri`）里 `invoke` 无处可调，所以不能只留桌面一条路。
     // 这一条永远可用，因此它同时是「表里至少有一个可用候选」的保证 ——
     // 换句话说本 demo 不会走到 `RxDBLocalBackendUnavailableError`。
+    //
+    // `create` 把强制档原样交给建库模块：只让 wa-sqlite 候选胜出而不传档，建库会静默退回
+    // 能力探测（WKWebView 没有真 OPFS，三档全落 IDB），AC#6 的实测就失效了。
     adapter: WA_SQLITE_ADAPTER_NAME,
     dbName: WEB_PREVIEW_DB_NAME,
     isAvailable: () => true,
-    create: async () => (await import('./setup_rxdb_wa-sqlite')).default()
+    create: async () => (await import('./setup_rxdb_wa-sqlite')).default(forceVfs)
   }
 ];
 

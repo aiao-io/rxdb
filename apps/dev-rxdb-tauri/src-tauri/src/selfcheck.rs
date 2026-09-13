@@ -24,6 +24,7 @@
 //! [`CONFIG_EXIT_CODE`]，且发生在建窗之前。理由与 `bin/rxdb_host_stdio.rs` 里
 //! 「缺参数就退出」同源。
 
+use std::collections::HashMap;
 use std::env::VarError;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -65,8 +66,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）。
-pub const REPORT_SCHEMA_VERSION: u32 = 9;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）；v10 加阶段 1 收尾的十六格（`descriptorKinds` / `descriptorRuntimes`、snapshot 走查五格、safe-integer 探针三格、`uploadHugeSize` / `invalidChunk`、`eventsSubscribe` / `eventFrames`、`databaseInspect` / `downloadByteCount`，AC#2 / #6 / #7）。
+pub const REPORT_SCHEMA_VERSION: u32 = 10;
 
 /// 环境变量配错时的退出码。
 ///
@@ -314,6 +315,59 @@ pub struct DevToolsNativeProbe {
     /// 报告写出之后再没有任何一条通往 provider 的路。
     #[serde(default)]
     pub temp_residue: Option<i64>,
+    /// HANDSHAKE 帧里按域报的 provider kind（database/files/settings）。
+    ///
+    /// 驱动从协商帧的 `capabilities.descriptors` 里取，不另开通道。真实档是
+    /// `rxdb` / `native-files` / `sqlite`；fake 档断言镜像这份能力面；VFS 强制档下
+    /// `files` / `settings` 换成 `opfs` 或 `idb`（idb 下 `files` 缺席——不宣告是现状行为）。
+    #[serde(default)]
+    pub descriptor_kinds: Option<HashMap<String, String>>,
+    /// 同上，按域报的 runtime；真实档三个域都是 `tauri`。
+    #[serde(default)]
+    pub descriptor_runtimes: Option<HashMap<String, String>>,
+    /// snapshot 走查首页的结果码；真实档与 fake `ok` 档为 `ok`。
+    #[serde(default)]
+    pub snapshot_first_page: Option<String>,
+    /// 翻页到 complete 的结果码。
+    #[serde(default)]
+    pub snapshot_complete: Option<String>,
+    /// 走查读到的记录总数；`-1` 表示没走到那一步。
+    #[serde(default)]
+    pub snapshot_records: Option<i64>,
+    /// 双开之后旧 cursor 翻页的结果码；必须被按 `snapshot_expired` 拒掉。
+    #[serde(default)]
+    pub snapshot_expired: Option<String>,
+    /// 越界 pageSize（0）的结果码；`invalid_message`。
+    #[serde(default)]
+    pub snapshot_invalid_page_size: Option<String>,
+    /// `database.query` 配 `limit: 0` 的结果码；`invalid_path`。
+    #[serde(default)]
+    pub query_limit_zero: Option<String>,
+    /// `database.query` 配 `limit: 1001` 的结果码；`invalid_path`。
+    #[serde(default)]
+    pub query_limit_huge: Option<String>,
+    /// `database.query` 配非整数 limit 的结果码；`invalid_path`。
+    #[serde(default)]
+    pub query_limit_fraction: Option<String>,
+    /// 声明尺寸 2^53 的上传在 wire 上的结果码；`transfer_size_exceeded`。
+    #[serde(default)]
+    pub upload_huge_size: Option<String>,
+    /// 非法 base64 chunk 的结果码；`payload_encoding_invalid`。
+    #[serde(default)]
+    pub invalid_chunk: Option<String>,
+    /// `events` 订阅的结果码；真实档与 fake 档都是 `ok`。
+    #[serde(default)]
+    pub events_subscribe: Option<String>,
+    /// 订阅期间收到的 `EVENT` 帧数。
+    #[serde(default)]
+    pub event_frames: Option<i64>,
+    /// `database.inspect` 的结果码；只有 fake 档有——注入的是 Rust 侧 `NotConnected` 的
+    /// 映射码 `provider_unavailable`，证明 fake 集合上的错误也走共享映射。
+    #[serde(default)]
+    pub database_inspect: Option<String>,
+    /// 下载播种文件读回的字节数；fake 档为 700，真实档由 `download_bytes` 覆盖。
+    #[serde(default)]
+    pub download_byte_count: Option<i64>,
     /// 驱动自身失败时的原因；正常跑完为 `None`。
     #[serde(default)]
     pub failure: Option<String>,
@@ -1052,6 +1106,30 @@ mod tests {
                         cancelled_upload: Some("ok".to_string()),
                         cancelled_file: Some("resource_not_found".to_string()),
                         temp_residue: Some(0),
+                        descriptor_kinds: Some(HashMap::from([
+                            ("database".to_string(), "rxdb".to_string()),
+                            ("files".to_string(), "native-files".to_string()),
+                            ("settings".to_string(), "sqlite".to_string()),
+                        ])),
+                        descriptor_runtimes: Some(HashMap::from([
+                            ("database".to_string(), "tauri".to_string()),
+                            ("files".to_string(), "tauri".to_string()),
+                            ("settings".to_string(), "tauri".to_string()),
+                        ])),
+                        snapshot_first_page: Some("ok".to_string()),
+                        snapshot_complete: Some("ok".to_string()),
+                        snapshot_records: Some(120),
+                        snapshot_expired: Some("snapshot_expired".to_string()),
+                        snapshot_invalid_page_size: Some("invalid_message".to_string()),
+                        query_limit_zero: Some("invalid_path".to_string()),
+                        query_limit_huge: Some("invalid_path".to_string()),
+                        query_limit_fraction: Some("invalid_path".to_string()),
+                        upload_huge_size: Some("transfer_size_exceeded".to_string()),
+                        invalid_chunk: Some("payload_encoding_invalid".to_string()),
+                        events_subscribe: Some("ok".to_string()),
+                        event_frames: Some(2),
+                        database_inspect: Some("provider_unavailable".to_string()),
+                        download_byte_count: Some(700),
                         failure: None,
                     }),
                 }),
@@ -1064,6 +1142,46 @@ mod tests {
 
         let written: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&plan.report_path).unwrap()).unwrap();
+        // `native` 单独成值再嵌回去：37 格的嵌套字面量放进整份 json! 里会顶到宏的递归上限。
+        let native = serde_json::json!({
+            "sessionSeen": true,
+            "filesList": "ok",
+            "filesEntryCount": 0,
+            "keptDirSeen": false,
+            "databaseQuery": "ok",
+            "launchRowCount": 2,
+            "settingsExport": "export_unsupported",
+            "settingsClear": "provider_unsupported",
+            "forgedSession": "session_invalid",
+            "createDirectory": "ok",
+            "deleteEntry": "ok",
+            "uploadBytes": "ok",
+            "uploadChunks": 3,
+            "downloadBytes": "ok",
+            "bytesMatch": true,
+            "emptyUpload": "ok",
+            "escapedUpload": "invalid_path",
+            "cancelledUpload": "ok",
+            "cancelledFile": "resource_not_found",
+            "tempResidue": 0,
+            "descriptorKinds": { "database": "rxdb", "files": "native-files", "settings": "sqlite" },
+            "descriptorRuntimes": { "database": "tauri", "files": "tauri", "settings": "tauri" },
+            "snapshotFirstPage": "ok",
+            "snapshotComplete": "ok",
+            "snapshotRecords": 120,
+            "snapshotExpired": "snapshot_expired",
+            "snapshotInvalidPageSize": "invalid_message",
+            "queryLimitZero": "invalid_path",
+            "queryLimitHuge": "invalid_path",
+            "queryLimitFraction": "invalid_path",
+            "uploadHugeSize": "transfer_size_exceeded",
+            "invalidChunk": "payload_encoding_invalid",
+            "eventsSubscribe": "ok",
+            "eventFrames": 2,
+            "databaseInspect": "provider_unavailable",
+            "downloadByteCount": 700,
+            "failure": null
+        });
         assert_eq!(
             written,
             serde_json::json!({
@@ -1078,29 +1196,7 @@ mod tests {
                     "sessionIds": ["a5f7c4ce-6f6f-4a6e-8f0e-2a0c9a2f5d31"],
                     "handshakeCompleted": true,
                     "relayRejected": 1,
-                    "native": {
-                        "sessionSeen": true,
-                        "filesList": "ok",
-                        "filesEntryCount": 0,
-                        "keptDirSeen": false,
-                        "databaseQuery": "ok",
-                        "launchRowCount": 2,
-                        "settingsExport": "export_unsupported",
-                        "settingsClear": "provider_unsupported",
-                        "forgedSession": "session_invalid",
-                        "createDirectory": "ok",
-                        "deleteEntry": "ok",
-                        "uploadBytes": "ok",
-                        "uploadChunks": 3,
-                        "downloadBytes": "ok",
-                        "bytesMatch": true,
-                        "emptyUpload": "ok",
-                        "escapedUpload": "invalid_path",
-                        "cancelledUpload": "ok",
-                        "cancelledFile": "resource_not_found",
-                        "tempResidue": 0,
-                        "failure": null
-                    }
+                    "native": native
                 },
                 "windowLabels": ["main", "rxdb-devtools"],
                 "appDataDir": "/tmp/root",
@@ -1119,9 +1215,10 @@ mod tests {
     /// 于是断言读到 `undefined` 而不是「版本对不上」。
     ///
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）；
-    /// v8 加的是它的跨重启三条（AC#9 / AC#15）；v9 加的是字节往返九条（AC#10）。
+    /// v8 加的是它的跨重启三条（AC#9 / AC#15）；v9 加的是字节往返九条（AC#10）；
+    /// v10 加的是阶段 1 收尾的十六格（AC#2 / #6 / #7）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 9);
+        assert_eq!(REPORT_SCHEMA_VERSION, 10);
     }
 }

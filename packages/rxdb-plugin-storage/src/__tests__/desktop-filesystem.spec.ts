@@ -429,6 +429,75 @@ describe('createDesktopStorageFilesystem', () => {
         filesystem.lockBackend?.request('same', { ifAvailable: true }, async () => 'ok')
       ).rejects.toMatchObject({ code: 'backend_unavailable' });
     });
+
+    it('带未中止 signal 的请求照常执行', async () => {
+      // 快照来源（`DevToolsSnapshotStore`）每次物化都带着一个新鲜的 signal；
+      // 没有中止发生时它必须完全等价于不带 signal 的请求。
+      const controller = new AbortController();
+      await expect(
+        filesystem.lockBackend?.request('same', { signal: controller.signal }, async () => 'ok')
+      ).resolves.toBe('ok');
+    });
+
+    it('signal 已中止时以 signal.reason 拒绝，且不请求 host 锁', async () => {
+      const sent: string[] = [];
+      const recording: DesktopHostTransport = {
+        request: payload => {
+          sent.push(payload.kind);
+          return host.handle(payload);
+        },
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: recording })('files', CONTEXT);
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(backend.lockBackend?.request('same', { signal: controller.signal }, async () => 'ok')).rejects.toBe(
+        controller.signal.reason
+      );
+      expect(sent, '已中止的请求连队都不该排').not.toContain('file.lockAcquire');
+      backend.dispose();
+    });
+
+    it('等锁期间中止：授予到达后立即释放，回调不执行', async () => {
+      // 闸门只拦**第一把**锁——被中止的那把；后面的独占请求必须真实走到 host，
+      // 否则「授予即释放」只测了释放那一半，测不到「锁已经还给 host、后续请求立即获授」。
+      let grant: ((value: unknown) => void) | undefined;
+      let acquirePayload: unknown;
+      let gated = true;
+      const gatedTransport: DesktopHostTransport = {
+        request: payload => {
+          if (payload.kind === 'file.lockAcquire' && gated) {
+            gated = false;
+            acquirePayload = payload;
+            return new Promise(resolve => {
+              grant = resolve;
+            });
+          }
+          return host.handle(payload);
+        },
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: gatedTransport })('files', CONTEXT);
+      const controller = new AbortController();
+      let ran = false;
+      const pending = backend.lockBackend?.request('same', { signal: controller.signal }, async () => {
+        ran = true;
+      });
+
+      // 等 acquire 确实挂进闸门再中止：这样 abort 落在「等锁期间」，而不是请求还没发出去。
+      await vi.waitFor(() => expect(grant).toBeDefined());
+      controller.abort();
+      // 授予终于到达：host 判它该拿锁，后端按 Web Locks 语义立即还回去，回调一步都不进。
+      const response = await host.handle(acquirePayload as Parameters<DesktopHostTransport['request']>[0]);
+      grant?.(response);
+
+      await expect(pending).rejects.toBe(controller.signal.reason);
+      expect(ran, '被中止的请求不得再执行临界区').toBe(false);
+      // 授予即释放：锁已经还给 host，后面的独占请求立即获授，而不是排队枯等。
+      await expect(backend.lockBackend?.request('same', async () => 'ok')).resolves.toBe('ok');
+      backend.dispose();
+    });
   });
 
   describe('生命周期', () => {

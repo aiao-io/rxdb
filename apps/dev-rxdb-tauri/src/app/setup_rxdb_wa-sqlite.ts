@@ -2,7 +2,7 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { getDevToolsConnector, resolveBrowserOpfsRoot } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
-import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { createWaSqliteDevToolsPorts } from '../devtools/tauri-vfs-providers';
@@ -37,7 +37,7 @@ import { resolveWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backen
  * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
  * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
-export default (forced?: DevToolsForcedVfs) => {
+export default async (forced?: DevToolsForcedVfs) => {
   const wasmBase = new URL('wa-sqlite/', document.baseURI).href;
 
   // 后端判定**只做一次**：适配器工厂开的库和 devtools 宣告的能力必须来自同一个结论。
@@ -68,9 +68,31 @@ export default (forced?: DevToolsForcedVfs) => {
   // 想让人看见的恰恰是「同一个页面、同一套 API，换掉的只是文件落在哪」。
   // 这里刻意不显式写 rootDir：桌面路径那个常量是给 Rust 侧的物理布局用的，
   // 搬到这条 OPFS 路径上只会多出一处需要同步、却没有任何东西去核对的配置。
+  //
+  // US-905 AC#6：强制档是让本模块出现在真 Tauri 窗口里的唯一原因，而 WKWebView 没有
+  // `createWritable` —— 插件默认的 OPFS 后端写不进去，storage 探针会以同一句
+  // `r.createWritable is not a function` 把三个档位全部打成 failed，且错误长得一模一样。
+  // Tauri 宿主下 storage 因此改走 **worker 写通道**：读与目录操作仍委托插件默认 OPFS 后端
+  // （文件与 metadata 留在同一个 WebView 存储域里，AC#9 的备份域不裂开），只有 openWrite
+  // 拆到 worker 用 `createSyncAccessHandle` 写 —— WKWebView 的 worker 里有它、页面上没有。
+  // 桌面 filesystem 在这里用不了：AC#9 的守卫会拒绝 wa-sqlite 适配器配原生文件后端
+  // （`adapter_mismatch`），那正是「metadata 在浏览器、文件在原生目录」的错配。
+  // 经**动态** import 接入：静态 import 会把 worker 装配拖进浏览器预览 bundle（US-207 E11）。
+  let storageOptions: RxDBStoragePluginOptions | undefined;
+  if (isTauriRuntime(globalThis)) {
+    const { createOpfsWorkerFilesystem } = await import('./opfs-worker-filesystem');
+    storageOptions = {
+      // 强制档的文件域按档分根：opfs / idb 两档的 metadata 各在各自的库里，文件却共享
+      // 同一个 WebView 存储域 —— 同根下前档留下的探针文件会让后档的首次上传报
+      // 「文件已存在」。unavailable 档开不起库、写不到文件，也照分根，三档不搞特例。
+      rootDir: forced === undefined ? 'files' : `files-${forced}`,
+      filesystem: createOpfsWorkerFilesystem()
+    };
+  }
+
   rxdb
     .use(rxDBPluginGraph)
-    .use(rxDBPluginStorage)
+    .use(rxDBPluginStorage, storageOptions)
     .adapter('wa-sqlite', async db => {
       let options: WaSqliteOptions;
       const backend = await resolveBackend();
@@ -119,17 +141,25 @@ export default (forced?: DevToolsForcedVfs) => {
   // `init()` 里同步跑的 `getEntityMetadata`）——那恰好就会产生这条日志本想避免的
   // 无人认领 rejection。
   void resolveBackend()
-    .then(backend => {
+    .then(async backend => {
+      const isTauri = isTauriRuntime(globalThis);
       // runtime 按真实宿主上报：普通预览是浏览器，强制档下的 Tauri 窗口必须是 'tauri' ——
       // AC#6 的 wire 观察判据（runtime: tauri + settings 按 VFS 宣告）就靠这个字段。
-      const ports = createWaSqliteDevToolsPorts(
-        backend,
-        resolveBrowserOpfsRoot(),
-        isTauriRuntime(globalThis) ? 'tauri' : 'browser'
-      );
+      const ports = createWaSqliteDevToolsPorts(backend, resolveBrowserOpfsRoot(), isTauri ? 'tauri' : 'browser');
       // 后端不可用时本地库根本开不起来，没有可调试的对象，不建 connector。
       if (ports === undefined) return;
-      getDevToolsConnector({ providers: ports }).init(rxdb, getEntityMetadata);
+      if (!isTauri) {
+        getDevToolsConnector({ providers: ports }).init(rxdb, getEntityMetadata);
+        return;
+      }
+      // Tauri 宿主下 connector 必须挂上中继传输，否则面板窗口发来的 HELLO 到不了这里，
+      // 握手永不完成（桌面那条路在装配时显式传入同一份传输）。动态 import：静态 import
+      // 会把 Tauri connector 客户端拖进浏览器预览 bundle（US-207 E11）。
+      const { createTauriConnectorTransport } = await import('../devtools/tauri-connector-transport');
+      getDevToolsConnector({ providers: ports, transport: createTauriConnectorTransport() }).init(
+        rxdb,
+        getEntityMetadata
+      );
     })
     .catch((error: unknown) => console.error('wa-sqlite devtools attach failed', error));
 
