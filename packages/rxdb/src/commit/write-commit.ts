@@ -190,14 +190,15 @@ const columnOf = (metadata: EntityMetadata, field: CommitBranchRefColumn): strin
 /**
  * 拼出推进 HEAD 的那一条 CAS。
  *
+ * @param tableRef - 本后端的物理表引用，由 `executor.tableRef()` 解析
  * @param input - 本次提交的入参，提供 CAS 的四个条件
  * @param commitId - 新 commit 的 id，写进 `headCommitId`
  * @returns 单条 UPDATE 语句，全字面量、无占位符
  */
-const buildAdvanceHeadCas = (input: WriteCommitInput, commitId: string): string => {
+const buildAdvanceHeadCas = (tableRef: string, input: WriteCommitInput, commitId: string): string => {
   const metadata = getEntityMetadata(CommitBranchRef);
   return [
-    `UPDATE ${quoteSqlIdentifier(metadata.tableName)}`,
+    `UPDATE ${tableRef}`,
     `SET ${columnOf(metadata, 'headCommitId')} = ${sqlStringLiteral(commitId)},`,
     `${columnOf(metadata, 'headRevision')} = ${sqlIntegerLiteral(input.expectedHeadRevision + 1)}`,
     `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(input.branchId)}`,
@@ -246,8 +247,11 @@ const resolveCommitMessage = (input: WriteCommitInput): string =>
  * 深拷贝一个 patch。
  *
  * @remarks
- * 必须是 `structuredClone` 而不是 JSON 往返：加密列在捕获阶段留下的是裸
- * `Uint8Array`，JSON 往返会把它变成 `{"0":222,…}`——密文就此损坏且无人报错。
+ * 必须是 `structuredClone` 而不是 JSON 往返：**拷贝这一步不该顺手改形状**。到这里 patch
+ * 已经是落库形态（加密列是字符串信封，未加密的 binary / bigint 被 change-codec 包成
+ * `{$rxdbChangeValue:{…}}`，见 T041 的 `commit-codec.ts`），JSON 往返对它是恒等的；但万一
+ * 上游漏出一个裸 `Uint8Array`，JSON 往返会就地把它整形成 `{"0":222,…}`，指纹与落库值对上、
+ * 内容却已损坏，谁都不报错。`structuredClone` 原样搬运，这种值会一路留到守卫那里被判损坏。
  *
  * 必须拷贝而不是共享引用：提交后清理工作树条目会顺手改掉**已经不可变的历史**
  * （data-model.md §2.4）。
@@ -331,6 +335,15 @@ export const buildCommitRows = (entityManager: EntityManager, input: BuildCommit
  *
  * **唯一约束的捕获只夹在 commit 那一条 INSERT 上。** 包住整段写入会把用户实体里一条无关的
  * 唯一约束错误读成「这次是重放」，于是丢掉一次真实提交且无任何报错。
+ *
+ * **重放的比对指纹按已落库那个节点的父链重算，不能拿此刻的 `ref.headCommitId` 重建一份行去比。**
+ * 上一次提交成功后 HEAD 已经前进到了那个 commit 自身，按此刻的 ref 重建拿到的父链是
+ * `[它自己]`，而存着的是 `[它的父]`——于是一次货真价实的重放会被判成内容不符直接抛错，
+ * 幂等恰好在唯一需要它的那条路径上失效。用 `existing.parentIds` 重算与 `commit-graph-guard.ts`
+ * 的守卫同口径：指纹只是「这个节点自身记下的内容」的函数，不随调用时刻的 HEAD 漂移。
+ *
+ * **建行排在幂等查重之后。** 命中重放时本次的行一行都用不上：既不落库，又因上一条的理由
+ * 算不出可用的比对指纹；提前建只是白白 `structuredClone` 一遍全部 patch。
  */
 export const writeCommit = async (
   executor: TransactionExecutor,
@@ -344,25 +357,34 @@ export const writeCommit = async (
     branchGeneration: input.branchGeneration,
     operationId: input.operationId
   });
+  const message = resolveCommitMessage(input);
+
+  const existing = await findCommitByOperationId(executor, operationId);
+  if (existing) {
+    const incoming = computeCommitContentFingerprint({
+      kind: input.kind,
+      parentIds: existing.parentIds,
+      message,
+      author: input.author,
+      units: input.units
+    });
+    if (existing.contentFingerprint !== incoming) {
+      throw new CommitOperationMismatchError(operationId, existing.contentFingerprint, incoming);
+    }
+    return { status: 'reused', commit: existing };
+  }
+
   const rows = buildCommitRows(entityManager, {
     id: uuid(),
     kind: input.kind,
     parentIds: ref.headCommitId === null ? [] : [ref.headCommitId],
-    message: resolveCommitMessage(input),
+    message,
     author: input.author,
     operationId,
     units: input.units
   });
 
-  const existing = await findCommitByOperationId(executor, operationId);
-  if (existing) {
-    if (existing.contentFingerprint !== rows.commit.contentFingerprint) {
-      throw new CommitOperationMismatchError(operationId, existing.contentFingerprint, rows.commit.contentFingerprint);
-    }
-    return { status: 'reused', commit: existing };
-  }
-
-  const cas = await executor.query(buildAdvanceHeadCas(input, rows.commit.id));
+  const cas = await executor.query(buildAdvanceHeadCas(executor.tableRef(CommitBranchRef), input, rows.commit.id));
   if (cas.rowsAffected === 0) {
     return { status: 'head_revision_conflict', expectedHeadRevision: input.expectedHeadRevision };
   }

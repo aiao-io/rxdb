@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type { EntityType } from '../../entity/entity.interface.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
+import { fakeTableRef } from './fake-table-ref.js';
 
 /**
  * 能提供仓库的东西 —— 通常就是被测用例里的 mock 适配器。
@@ -47,6 +48,7 @@ export const createTransactionExecutorStub = (host: RepositoryHost): Transaction
     state: 'active',
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
     mutations: vi.fn(async () => []),
+    tableRef: fakeTableRef,
     saveMany: vi.fn(async (entities: unknown[]) => {
       await host.saveMany?.(entities as never[]);
       return entities;

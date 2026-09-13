@@ -59,6 +59,24 @@ export interface TransactionExecutor {
   query(sql: string, params?: readonly unknown[]): Promise<RawQueryResult>;
 
   /**
+   * 把实体解析成本后端的**物理表引用**，已按方言加好引号，可直接拼进 SQL。
+   *
+   * @param EntityType - 实体类型
+   * @returns 可直接插入 SQL 的表引用
+   *
+   * @remarks
+   * `metadata.tableName` 是**逻辑**表名，不是任何后端的物理表名：PGlite 把 `namespace`
+   * 建成 schema（`"rxdb"."rxdb_commit_capability"`），SQLite 家族把它拼成表名前缀
+   * （`"rxdb$rxdb_commit_capability"`）。拿 `tableName` 直接拼 SQL 在**两边都**找不到表。
+   *
+   * 命名规则属于适配器，不属于本包 —— 所以由 executor 回答，而不是在 `packages/rxdb`
+   * 里按后端分叉再抄一份。只服务 `system/sql-literal.ts` 说的那一类语句（单条、无占位符
+   * 的 CAS）；普通读写走 {@link getRepository} / {@link mutations}，那里的表名由适配器
+   * 自己解析，调用方不需要知道物理命名。
+   */
+  tableRef(EntityType: EntityType): string;
+
+  /**
    * 在本事务内执行实体变更。
    *
    * @param options - 批量变更集合

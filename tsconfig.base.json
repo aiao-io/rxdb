@@ -26,6 +26,7 @@
       "@aiao/code-editor-react": ["./packages/code-editor-react/src/index.ts"],
       "@aiao/code-editor-vue": ["./packages/code-editor-vue/src/index.ts"],
       "@aiao/rxdb": ["./packages/rxdb/src/index.ts"],
+      "@aiao/rxdb/testing": ["./packages/rxdb/src/working-tree/testing/index.ts"],
       "@aiao/rxdb-devtools": ["./packages/rxdb-devtools/src/index.ts"],
       "@aiao/rxdb-devtools/testing": ["./packages/rxdb-devtools/src/testing.ts"],
       "@aiao/rxdb-adapter-electron": ["./packages/rxdb-adapter-electron/src/index.ts"],

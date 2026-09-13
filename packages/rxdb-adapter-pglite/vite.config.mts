@@ -28,6 +28,8 @@ export default defineConfig(() => {
       conditions: sourceConditions,
       alias: {
         '@aiao/rxdb-adapter-encrypted': path.resolve(workspaceRoot, 'packages/rxdb-adapter-encrypted/src/index.ts'),
+        // 子路径必须排在 `@aiao/rxdb` 兜底项之前，理由同下面 `@aiao/rxdb-test` 那条注释。
+        '@aiao/rxdb/testing': path.resolve(workspaceRoot, 'packages/rxdb/src/working-tree/testing/index.ts'),
         '@aiao/rxdb': path.resolve(workspaceRoot, 'packages/rxdb/src/index.ts'),
         '@aiao/utils': path.resolve(workspaceRoot, 'packages/utils/src/index.ts'),
         '@aiao/rxdb-test/encrypted': path.resolve(workspaceRoot, 'packages/rxdb-test/src/encrypted/index.ts'),

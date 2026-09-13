@@ -9,15 +9,243 @@
  * US-305 的 commit 图与迁移断言**并入本套件**，不另起第三个套件名——第三个名字会让
  * 「哪套是权威」重新变成开放问题。
  *
- * **当前是占位实现**：占位形态的理由同 `./capture.suite.ts`。用例本体分批在
- * Phase 3（US-305）、Phase 5（阶段 B）、Phase 7（US-307）、Phase 8（US-308）填入。
+ * **本次（T042）填入的是 §2.1 / §2.2 / §2.5**；§2.3 / §2.4（两类 CAS 分开断言、commit
+ * 原子性）在 US-306 阶段 B（T085）填，§2.6 在 US-307（T108）填，§2.7 在 US-308（T122）填。
+ *
+ * **§2.2 有两条断言不在这里，是有理由的，不是遗漏。**「注入任一分支初始化失败 →
+ * `RXDB_SYSTEM_SCHEMA_VERSION` 停在 3」与「未启用的数据库行为与未安装本特性逐字节一致
+ * （FR-046）」说的都是**启用之前**的状态，而 {@link WorkingTreeConformanceSuiteContext}
+ * 契约上交还的是一个**已启用**的库。要在这里断言它们，只能先把库改回未启用态——那测的
+ * 就不再是适配器行为，而是套件自己伪造出来的中间态。两条分别落在
+ * `src/__tests__/system/working-tree-schema-migration.spec.ts` 与
+ * `src/__tests__/commit/legacy-compat.spec.ts`，本套件不重复。
+ *
+ * **每条用例一个全新数据库。** 契约 §0 明说工厂每次返回全新实例，套件内共享实例会让上一条
+ * 用例的残留变成下一条的隐藏前置；本套件里「注入一条父链成环的分支」这种用例更是会把库
+ * 弄脏到不能复用。契约里没有 teardown 钩子，所以代价（6 个后端 × 十余条用例各建一次库）
+ * 只能接受，不能靠共享实例省掉。
  *
  * @module @aiao/rxdb/testing
  */
 
-import { describe, it } from 'vitest';
+import { firstValueFrom } from 'rxjs';
+import { beforeEach, describe, expect, it } from 'vitest';
 
+import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
+import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
+import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import {
+  assertCommitGraphIntact,
+  CommitGraphCorruptedError,
+  markBranchCorrupted
+} from '../../commit/commit-graph-guard.js';
+import { Commit } from '../../commit/commit.entity.js';
+import { BranchNotMaterializableError } from '../../commit/enable-migration.js';
+import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/list-commits.js';
+import type { WriteCommitOutcome } from '../../commit/write-commit.js';
+import { writeCommit } from '../../commit/write-commit.js';
+import { getEntityMetadata, uuid } from '../../rxdb-utils.js';
+import type { RxDB } from '../../RxDB.js';
+import { RxDBBranch } from '../../system/branch.js';
+import { RxDBChange } from '../../system/change.js';
+import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
+import { WorkingTreeState } from '../working-tree-state.entity.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
+
+/**
+ * 一个损坏守卫的调用入口。
+ *
+ * @remarks
+ * §2.5 要求 `commit()` / `restore()` / switch-to **三条入口各自**给出同一个结论。写成
+ * 一张表而不是三段复制的断言，是因为三段复制里漏掉一条不会有任何编译错误——那一条
+ * 入口就此裸奔。T085（`commit()`）/ T108（`restore()`）/ T122（switch-to）各自往这张表里
+ * 加一行，下面那四条断言自动覆盖到新入口。
+ *
+ * 今天表里只有一行：三条入口共用的那份守卫本身（T038）。它不是占位——`assertCommitGraphIntact()`
+ * 就是三条入口各自要调的那个符号，先把它的行为钉死，后加的入口只需证明「确实调了它」。
+ */
+interface CommitCorruptionEntryPoint {
+  /** 入口名，进 `it` 标题，让失败输出能直接定位到是哪条入口 */
+  readonly name: string;
+
+  /** 在调用方自己的写事务内跑这条入口；命中损坏时必须拒绝 */
+  readonly invoke: (executor: TransactionExecutor, branchId: string) => Promise<void>;
+}
+
+/** 见 {@link CommitCorruptionEntryPoint}。 */
+const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
+  { name: 'assertCommitGraphIntact（三条入口共用的那一份）', invoke: assertCommitGraphIntact }
+];
+
+/** 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。 */
+const withTransaction = async <T>(database: RxDB, run: (executor: TransactionExecutor) => Promise<T>): Promise<T> => {
+  const adapter = await firstValueFrom(database.localAdapter$);
+  return adapter.transaction(async executor => run(executor));
+};
+
+/**
+ * 断言这个 promise 被拒绝，并把拒因原样交出来。
+ *
+ * @remarks
+ * 不用 `rejects.toThrow(...)`：那条断言只看得到错误文案，而本套件要断言的是**判别位**
+ * （`reason` / `code` / 构造器）。文案是会被改的，判别位不是。
+ */
+const captureRejection = async (promise: Promise<unknown>): Promise<unknown> =>
+  promise.then(
+    resolved => {
+      throw new Error(`期望这次调用被拒绝，实际返回了 ${String(resolved)}`);
+    },
+    (caught: unknown) => caught
+  );
+
+/** 把一行 commit 摊成一个可比较的串；`createdAt` 一并进来，时间被改写也算改动。 */
+const commitSignatureOf = (row: Commit): string =>
+  JSON.stringify({
+    parentIds: row.parentIds,
+    firstParentId: row.firstParentId,
+    kind: row.kind,
+    message: row.message,
+    author: row.author,
+    operationId: row.operationId,
+    changeSetCount: row.changeSetCount,
+    contentFingerprint: row.contentFingerprint,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt)
+  });
+
+/** 读 `rxdb_commit` 全表，**不按可达性收窄**：只追加是对全表说的，孤儿行也不许被改。 */
+const readAllCommits = async (executor: TransactionExecutor): Promise<Commit[]> =>
+  executor.getRepository(Commit).find({ where: { combinator: 'and', rules: [] } });
+
+/** 全表快照：commit id → 内容签名。 */
+const snapshotCommits = async (executor: TransactionExecutor): Promise<Map<string, string>> => {
+  const rows = await readAllCommits(executor);
+  return new Map(rows.map(row => [row.id, commitSignatureOf(row)]));
+};
+
+/**
+ * 断言两份快照之间只发生过追加。
+ *
+ * @remarks
+ * 一次比较同时盖住 UPDATE（签名变了）与 DELETE（新快照里取不到）：分成两条断言写，
+ * 「行没了」会先被「签名不等」报出来，成因反而看不清。
+ */
+const expectAppendOnly = (before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>): void => {
+  const changed = [...before.keys()].filter(id => after.get(id) !== before.get(id));
+  expect(changed, '既有 commit 行被 UPDATE 或 DELETE 了').toEqual([]);
+};
+
+/** 造一个变更单元；同一条用例里要复用的那份必须建一次、传两遍（指纹依赖 `unitId`）。 */
+const buildUnit = (overrides: Partial<CommitChangeUnitContent> = {}): CommitChangeUnitContent => ({
+  unitId: uuid(),
+  transactionId: null,
+  namespace: 'conformance',
+  entity: 'Note',
+  entityId: 'note-1',
+  operation: 'update',
+  patch: { title: '改后' },
+  inversePatch: { title: '改前' },
+  origin: 'local',
+  ...overrides
+});
+
+/** 读当前激活分支的 id。 */
+const readActiveBranchId = async (database: RxDB): Promise<string> =>
+  withTransaction(database, async executor => {
+    const branches = await executor.getRepository(RxDBBranch).find({ where: { combinator: 'and', rules: [] } });
+    // `activated` 在 JS 侧过滤而不是下推进 WHERE：布尔字面量在六个后端上写法不一，
+    // 下推等于让套件自己长出后端分支。
+    const active = branches.find(branch => branch.activated);
+    if (!active) throw new Error('这个库没有激活分支，套件的全部前置都无从谈起');
+    return active.id;
+  });
+
+/** 各开一个事务提交一次；`operationId` 与 `units` 由调用方给，重放时原样再传一遍。 */
+const commitOnce = async (
+  database: RxDB,
+  options: { branchId: string; operationId: string; message: string; units: readonly CommitChangeUnitContent[] }
+): Promise<WriteCommitOutcome> =>
+  withTransaction(database, async executor => {
+    const ref = await readCommitBranchRef(executor, options.branchId);
+    return writeCommit(executor, database.entityManager, {
+      branchId: options.branchId,
+      branchGeneration: ref.generation,
+      expectedHeadRevision: ref.headRevision,
+      kind: 'normal',
+      message: options.message,
+      author: 'conformance-suite',
+      operationId: options.operationId,
+      units: options.units
+    });
+  });
+
+/** 取一次成功提交的 commit；拿到别的出口就直接炸，免得后续断言在 `undefined` 上继续。 */
+const expectCommitted = (outcome: WriteCommitOutcome): Commit => {
+  if (outcome.status !== 'committed') throw new Error(`期望本次提交落库，实际出口是 ${outcome.status}`);
+  return outcome.commit;
+};
+
+/**
+ * 注入一条父链自环的本地分支。
+ *
+ * @returns 注入分支的 id
+ *
+ * @remarks
+ * 用**自环**而不是悬挂 `parentId`：`RxDBBranch` 声明了 `parent` 这条 MANY_TO_ONE 自关联，
+ * 悬挂指针在会把它落成数据库级外键的后端上压根插不进去，于是这条用例在一部分后端上测的
+ * 是「插入失败」而不是「迁移全有或全无」。自环只需一条 INSERT，任何时刻外键都指向一条
+ * 存在的行，而 `find_branch_path_to_root()` 第一步就判出环。
+ */
+const injectCyclicBranch = async (database: RxDB): Promise<string> => {
+  const branchId = `conformance-cycle-${uuid()}`;
+  await withTransaction(database, async executor => {
+    const branch = database.entityManager.instantiate(RxDBBranch);
+    branch.id = branchId;
+    branch.parentId = branchId;
+    branch.activated = false;
+    branch.local = true;
+    branch.remote = false;
+    branch.fromChangeId = null;
+    await executor.saveMany([branch]);
+  });
+  return branchId;
+};
+
+/** 往 `rxdb_change` 里塞一行旧变更，让「删光它」这条断言不是空转。 */
+const seedLegacyChange = async (database: RxDB, branchId: string): Promise<void> => {
+  await withTransaction(database, async executor => {
+    const change = database.entityManager.instantiate(RxDBChange);
+    change.id = 900001;
+    change.branchId = branchId;
+    change.type = 'UPDATE';
+    change.namespace = 'conformance';
+    change.entity = 'Note';
+    change.entityId = 'note-1';
+    await executor.saveMany([change]);
+  });
+};
+
+/** 删光 `rxdb_change`，返回删掉的行数。 */
+const deleteAllChanges = async (database: RxDB): Promise<number> =>
+  withTransaction(database, async executor => {
+    const repository = executor.getRepository(RxDBChange);
+    const rows = await repository.find({ where: { combinator: 'and', rules: [] } });
+    for (const row of rows) await repository.remove(row);
+    return rows.length;
+  });
+
+/** 把一次 `getCommitDetail()` 摊成可直接 `toEqual` 的形状。 */
+const detailShapeOf = (changeSets: readonly CommitChangeSet[]): unknown[] =>
+  changeSets.map(row => ({
+    sequence: row.sequence,
+    unitId: row.unitId,
+    namespace: row.namespace,
+    entity: row.entity,
+    entityId: row.entityId,
+    operation: row.operation,
+    patch: row.patch,
+    inversePatch: row.inversePatch,
+    origin: row.origin
+  }));
 
 /**
  * 注册提交侧一致性用例。
@@ -28,8 +256,355 @@ import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
  */
 export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanceSuiteContext): void => {
   describe(`[${context.name}] 提交图与工作树提交一致性`, () => {
-    it('占位：用例本体在 US-305 / US-306 阶段 B / US-307 / US-308 各自阶段填入', () => {
-      throw new Error('workingTreeCommitConformanceSuite: not implemented');
+    let database: RxDB;
+
+    beforeEach(async () => {
+      database = await context.createDatabase();
+    });
+
+    describe('§2.1 commit 图与 HEAD（US-305）', () => {
+      it('提交只追加：既有 commit 行一个字节都不动', async () => {
+        const branchId = await readActiveBranchId(database);
+        const before = await withTransaction(database, snapshotCommits);
+
+        await commitOnce(database, {
+          branchId,
+          operationId: uuid(),
+          message: '第一次提交',
+          units: [buildUnit()]
+        });
+
+        const after = await withTransaction(database, snapshotCommits);
+        expectAppendOnly(before, after);
+        expect(after.size).toBe(before.size + 1);
+      });
+
+      it('同一个 operationId 重复提交幂等命中现有节点，不产生第二个', async () => {
+        const branchId = await readActiveBranchId(database);
+        const operationId = uuid();
+        // 单元必须是**同一份**：`unitId` 进内容指纹，重建一份等于换了内容，
+        // 那时该报的是 CommitOperationMismatchError，测的就不是幂等了。
+        const units = [buildUnit()];
+        const first = expectCommitted(
+          await commitOnce(database, { branchId, operationId, message: '可重放的提交', units })
+        );
+        const before = await withTransaction(database, snapshotCommits);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+
+        const replay = await commitOnce(database, { branchId, operationId, message: '可重放的提交', units });
+
+        const after = await withTransaction(database, snapshotCommits);
+        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        expect({ status: replay.status, id: replay.status === 'reused' ? replay.commit.id : null }).toEqual({
+          status: 'reused',
+          id: first.id
+        });
+        expect(after.size).toBe(before.size);
+        // 重放推进 HEAD 的话，同一次提交就被算成了两次修订，别的 Tab 手里的
+        // workingTreeRevision 会因为一次什么都没做的重试而集体失效。
+        expect(refAfter.headRevision).toBe(refBefore.headRevision);
+      });
+
+      it('重启：另开一个事务冷读，HEAD 与整条父链逐字不变', async () => {
+        const branchId = await readActiveBranchId(database);
+        const first = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '第一次', units: [buildUnit()] })
+        );
+        const second = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '第二次', units: [buildUnit()] })
+        );
+
+        // 冷读：与写入不共享事务，也不共享任何进程内缓存——这正是「刷新一下页面」
+        // 在持久层这一侧唯一能被观测到的东西。
+        const cold = await withTransaction(database, async executor => ({
+          ref: await readCommitBranchRef(executor, branchId),
+          history: await listCommits(executor, { branchId })
+        }));
+
+        expect(cold.ref.headCommitId).toBe(second.id);
+        expect(cold.history.map(commit => commit.id).slice(0, 2)).toEqual([second.id, first.id]);
+        expect(cold.history[0].parentIds).toEqual([first.id]);
+      });
+
+      it('崩溃：事务体抛出之后零残留，HEAD 不动', async () => {
+        const branchId = await readActiveBranchId(database);
+        const before = await withTransaction(database, snapshotCommits);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+
+        const crash = withTransaction(database, async executor => {
+          const ref = await readCommitBranchRef(executor, branchId);
+          await writeCommit(executor, database.entityManager, {
+            branchId,
+            branchGeneration: ref.generation,
+            expectedHeadRevision: ref.headRevision,
+            kind: 'normal',
+            message: '写到一半就崩',
+            author: 'conformance-suite',
+            operationId: uuid(),
+            units: [buildUnit()]
+          });
+          throw new Error('模拟崩溃');
+        });
+        await expect(crash).rejects.toThrow('模拟崩溃');
+
+        const after = await withTransaction(database, snapshotCommits);
+        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        // 半个 commit 比没有 commit 糟得多：HEAD 指向一个没有 ChangeSet 的节点时，
+        // 守卫会把整条分支判成损坏，而用户只是关了一次标签页。
+        expect([...after.keys()]).toEqual([...before.keys()]);
+        expect({ head: refAfter.headCommitId, revision: refAfter.headRevision }).toEqual({
+          head: refBefore.headCommitId,
+          revision: refBefore.headRevision
+        });
+      });
+
+      it('删光 rxdb_change 之后，历史仍然完整可重放', async () => {
+        const branchId = await readActiveBranchId(database);
+        await seedLegacyChange(database, branchId);
+        const units = [buildUnit(), buildUnit({ entityId: 'note-2', operation: 'insert', inversePatch: null })];
+        const commit = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '带两个单元', units })
+        );
+        const before = await withTransaction(database, executor => getCommitDetail(executor, commit.id));
+
+        const deleted = await deleteAllChanges(database);
+
+        const after = await withTransaction(database, executor => getCommitDetail(executor, commit.id));
+        const history = await withTransaction(database, executor => listCommits(executor, { branchId }));
+        expect(deleted).toBeGreaterThan(0);
+        // CommitChangeSet 自带完整恢复数据（data-model.md §2.4）：change 行会被
+        // 「删分支级联 / 压缩合并 / 回滚标记 / 失效标记」四条既有路径清掉，
+        // 历史若挂在它上面，用户会在某次清理之后发现旧提交恢复不回来了。
+        expect(detailShapeOf(after.changeSets)).toEqual(detailShapeOf(before.changeSets));
+        expect(history.map(row => row.id)).toContain(commit.id);
+        await expect(
+          withTransaction(database, executor => assertCommitGraphIntact(executor, branchId))
+        ).resolves.toBeUndefined();
+      });
+
+      it('CommitChangeSet 结构上不引用 rxdb_change（静态断言）', () => {
+        const metadata = getEntityMetadata(CommitChangeSet);
+        const changeEntityName = getEntityMetadata(RxDBChange).name;
+        const propertyNames = metadata.properties.map(property => property.name);
+
+        // 上一条用例只能证明「今天这个库里删掉 change 行没事」；引用一旦被加回来，
+        // 那条用例要等到某个后端真的级联删除时才红。结构断言当场就红。
+        expect(propertyNames).toContain('patch');
+        expect(propertyNames).toContain('inversePatch');
+        expect(metadata.relations.map(relation => relation.mappedEntity)).not.toContain(changeEntityName);
+        expect(propertyNames.filter(name => /change(id)?$/i.test(name))).toEqual([]);
+      });
+
+      it('firstParentId 恒等于 parentIds[0] ?? null', async () => {
+        const branchId = await readActiveBranchId(database);
+        await commitOnce(database, { branchId, operationId: uuid(), message: '第一次', units: [buildUnit()] });
+        await commitOnce(database, { branchId, operationId: uuid(), message: '第二次', units: [buildUnit()] });
+
+        const rows = await withTransaction(database, readAllCommits);
+
+        // 冗余列就是第二份真相的温床：它一旦漂移，走索引的祖先遍历与走 parentIds 的
+        // 损坏判定会对同一个库给出两条不同的历史。
+        const drifted = rows.filter(row => row.firstParentId !== (row.parentIds[0] ?? null));
+        expect(drifted.map(row => row.id)).toEqual([]);
+      });
+    });
+
+    describe('§2.2 一次性启用迁移（US-305）', () => {
+      it('每个既存分支都有 ref / state 初始行，且 generation 互不相同', async () => {
+        const rows = await withTransaction(database, async executor => ({
+          branches: await executor.getRepository(RxDBBranch).find({ where: { combinator: 'and', rules: [] } }),
+          refs: await executor.getRepository(CommitBranchRef).find({ where: { combinator: 'and', rules: [] } }),
+          states: await executor.getRepository(WorkingTreeState).find({ where: { combinator: 'and', rules: [] } })
+        }));
+
+        const branchIds = [...rows.branches.map(branch => branch.id)].sort();
+        expect([...rows.refs.map(ref => ref.id)].sort()).toEqual(branchIds);
+        expect([...rows.states.map(state => state.id)].sort()).toEqual(branchIds);
+        // generation 撞号 = 幂等键撞号：删掉分支再建同名分支之后，新分支的第一次提交
+        // 会被判成旧分支那次提交的重放，直接返回旧节点。
+        expect(new Set(rows.refs.map(ref => ref.generation)).size).toBe(rows.refs.length);
+      });
+
+      it('enable() 之后每条本地分支都有一个 baseline 根节点', async () => {
+        const branchId = await readActiveBranchId(database);
+
+        const cold = await withTransaction(database, async executor => ({
+          ref: await readCommitBranchRef(executor, branchId),
+          history: await listCommits(executor, { branchId })
+        }));
+
+        // 「为每个分支补根」被写成「为激活分支补根」时，单分支库上两种写法完全一致，
+        // 要到用户切到第二条分支那天才炸：那时库已经 enabled，而那条分支的 ref 还是
+        // 空 HEAD，commit() 会往一个没有根的分支上挂节点。
+        expect(cold.ref.headCommitId).not.toBeNull();
+        expect(cold.history.map(commit => commit.kind)).toContain('baseline');
+      });
+
+      it('重复 enable() 幂等：不产生第二个根，HEAD 不动', async () => {
+        const branchId = await readActiveBranchId(database);
+        const before = await withTransaction(database, snapshotCommits);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+
+        await database.workingTree.enable();
+
+        const after = await withTransaction(database, snapshotCommits);
+        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        expectAppendOnly(before, after);
+        expect(after.size).toBe(before.size);
+        expect({ head: refAfter.headCommitId, revision: refAfter.headRevision }).toEqual({
+          head: refBefore.headCommitId,
+          revision: refBefore.headRevision
+        });
+      });
+
+      it('全有或全无：任一分支不可物化时整体回滚，健康分支零变化', async () => {
+        const branchId = await readActiveBranchId(database);
+        const cyclicBranchId = await injectCyclicBranch(database);
+        const before = await withTransaction(database, snapshotCommits);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+
+        const error = await captureRejection(database.workingTree.enable());
+
+        const after = await withTransaction(database, snapshotCommits);
+        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        expect(error).toBeInstanceOf(BranchNotMaterializableError);
+        expect((error as BranchNotMaterializableError).branchId).toBe(cyclicBranchId);
+        expect((error as BranchNotMaterializableError).reason).toBe('corrupt_branch_history');
+        // 逐分支边判边写的形态会在第三条分支上炸掉时留下前两条的 baseline，
+        // 重试时它们被当成「已初始化」跳过，库永久停在半启用且没有任何报错。
+        expect([...after.keys()]).toEqual([...before.keys()]);
+        expect({ head: refAfter.headCommitId, revision: refAfter.headRevision }).toEqual({
+          head: refBefore.headCommitId,
+          revision: refBefore.headRevision
+        });
+      });
+    });
+
+    describe('§2.5 损坏守卫（三入口同一份）', () => {
+      for (const entryPoint of CORRUPTION_ENTRY_POINTS) {
+        it(`${entryPoint.name}：健康分支放行`, async () => {
+          const branchId = await readActiveBranchId(database);
+          await commitOnce(database, {
+            branchId,
+            operationId: uuid(),
+            message: '健康的一次提交',
+            units: [buildUnit()]
+          });
+
+          await expect(
+            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+          ).resolves.toBeUndefined();
+        });
+
+        it(`${entryPoint.name}：HEAD 被篡改时拒绝，且不改指针、不删记录`, async () => {
+          const branchId = await readActiveBranchId(database);
+          const head = expectCommitted(
+            await commitOnce(database, { branchId, operationId: uuid(), message: '会被篡改', units: [buildUnit()] })
+          );
+          await withTransaction(database, async executor => {
+            const rows = await readAllCommits(executor);
+            const target = rows.find(row => row.id === head.id);
+            if (!target) throw new Error('刚写下的 HEAD 读不回来');
+            await executor.getRepository(Commit).update(target, { contentFingerprint: 'tampered-fingerprint' });
+          });
+          const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+          const before = await withTransaction(database, snapshotCommits);
+
+          const error = await captureRejection(
+            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+          );
+
+          const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+          const after = await withTransaction(database, snapshotCommits);
+          expect(error).toBeInstanceOf(CommitGraphCorruptedError);
+          expect((error as CommitGraphCorruptedError).reason).toBe('fingerprint_mismatch');
+          // fail-closed：回退到上一个校验通过的 commit、或清空历史，都能让界面继续转，
+          // 代价是用户的数据在他不知情的时候被换掉了。
+          expect({ head: refAfter.headCommitId, status: refAfter.status }).toEqual({
+            head: refBefore.headCommitId,
+            status: refBefore.status
+          });
+          expect([...after.keys()]).toEqual([...before.keys()]);
+        });
+
+        it(`${entryPoint.name}：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处`, async () => {
+          const branchId = await readActiveBranchId(database);
+          const head = expectCommitted(
+            await commitOnce(database, {
+              branchId,
+              operationId: uuid(),
+              message: '标记之前的提交',
+              units: [buildUnit()]
+            })
+          );
+          // 标记走的是**另一个**事务：写在命中损坏那个事务里会跟着回滚一起消失，
+          // 用户看到操作失败、库里却什么记录都没留。
+          await withTransaction(database, executor =>
+            markBranchCorrupted(executor, new CommitGraphCorruptedError(branchId, head.id, 'fingerprint_mismatch'))
+          );
+
+          const error = await captureRejection(
+            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+          );
+
+          const ref = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+          expect((error as CommitGraphCorruptedError).reason).toBe('branch_marked_corrupted');
+          expect({ head: ref.headCommitId, status: ref.status }).toEqual({
+            head: head.id,
+            status: 'corrupted_read_only'
+          });
+        });
+
+        it(`${entryPoint.name}：孤立损坏只被隔离，不影响健康分支`, async () => {
+          const branchId = await readActiveBranchId(database);
+          await commitOnce(database, {
+            branchId,
+            operationId: uuid(),
+            message: '健康的一次提交',
+            units: [buildUnit()]
+          });
+          await withTransaction(database, async executor => {
+            const orphan = database.entityManager.instantiate(Commit);
+            orphan.id = uuid();
+            orphan.parentIds = [];
+            orphan.firstParentId = null;
+            orphan.kind = 'normal';
+            orphan.message = '谁都够不到的坏记录';
+            orphan.author = 'conformance-suite';
+            orphan.operationId = uuid();
+            orphan.changeSetCount = 7;
+            orphan.contentFingerprint = 'orphan-broken-fingerprint';
+            await executor.saveMany([orphan]);
+          });
+
+          // 表里有一条坏记录 ≠ 这个分支坏了。CAS 输掉的那次提交、被删分支留下的节点，
+          // 行都还在却没有任何 ref 指向它们；把它们算进去，一条谁都够不到的坏记录
+          // 会让整个库停摆，而它对任何一次重放都没有影响。
+          await expect(
+            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+          ).resolves.toBeUndefined();
+        });
+      }
+
+      it('不依赖重放的读取不受影响：损坏分支上 listCommits / getCommitDetail 照常返回', async () => {
+        const branchId = await readActiveBranchId(database);
+        const head = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '标记之前的提交', units: [buildUnit()] })
+        );
+        await withTransaction(database, executor =>
+          markBranchCorrupted(executor, new CommitGraphCorruptedError(branchId, head.id, 'fingerprint_mismatch'))
+        );
+
+        const read = await withTransaction(database, async executor => ({
+          history: await listCommits(executor, { branchId }),
+          detail: await getCommitDetail(executor, head.id)
+        }));
+
+        // 诊断导出与当前投影读取是排查这次损坏**唯一**的入口。让它们跟着一起拒绝，
+        // 等于告诉用户「你的库坏了，而且不许看」。
+        expect(read.history.map(commit => commit.id)).toContain(head.id);
+        expect(read.detail.changeSets).toHaveLength(1);
+      });
     });
   });
 };

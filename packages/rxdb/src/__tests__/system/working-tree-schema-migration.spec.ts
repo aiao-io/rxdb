@@ -45,6 +45,7 @@ import { createSystemMigrations } from '../../system/migrations/index.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
+import { fakeTableRef } from '../fixtures/fake-table-ref.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 /** 只为拿一个真的 {@link EntityManager}——迁移要靠它 `instantiate()` 出初始行。 */
@@ -92,6 +93,7 @@ function createExecutorProbe(
     id: 'probe-executor',
     state: 'active',
     query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+    tableRef: fakeTableRef,
     mutations: vi.fn(async () => []),
     getRepository: () => repository,
     saveMany: saveMany as TransactionExecutor['saveMany'],

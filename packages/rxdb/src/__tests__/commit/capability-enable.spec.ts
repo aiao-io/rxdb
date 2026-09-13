@@ -53,6 +53,7 @@ import { RxDB } from '../../RxDB.js';
 import { RXDB_CHANGE_CODEC_VERSION } from '../../system/change-codec.js';
 import { UnsupportedRxDBSystemVersionError } from '../../system/migration.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
+import { fakeTableRef } from '../fixtures/fake-table-ref.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 /** 只为拿一个真的 {@link EntityManager}——能力行要靠它 `instantiate()` 出来。 */
@@ -125,6 +126,7 @@ function createCapabilityProbe(row: CommitCapabilityState | null): CapabilityPro
       row.enabledAt = new Date(enabledAt);
       return { rowsAffected: 1, rows: [], columns: [] };
     }),
+    tableRef: fakeTableRef,
     mutations: vi.fn(async () => []),
     getRepository: () => repository,
     saveMany: vi.fn(async entities => entities) as TransactionExecutor['saveMany'],

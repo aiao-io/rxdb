@@ -149,6 +149,52 @@ node --test scripts/check-migration-release-gate.spec.mjs
 - 性能：普通 PR 只卡**归一化 ratio ≤ 冻结 median 的 110%**；绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上作为发布门禁；`commit` **不套用 100 ms**。profile 不匹配 → `benchmark_environment_mismatch`，**不得**当成性能回归。
 - 发布门禁脚本已实现且 39/39 单测绿，**MUST NOT 重写**；只在真实 tag 与真实清单上复验。
 
+### T045 执行记录：FR-030 迁移发布门禁复验（2026-09-13）
+
+**跑过的四条命令与真实结果**：
+
+```bash
+node --test scripts/check-migration-release-gate.spec.mjs
+# → tests 39 / pass 39 / fail 0
+
+node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.25
+# → Migration release gate passed for bridge 0.0.25.   (exit 0)
+```
+
+**仓库实况**（钩子读的就是这些，不是假设）：仓库里只有 `v0.0.24` 与 `v0.0.25` 两个 tag；`v0.0.24` 是 HEAD
+的祖先，`v0.0.25` **不是**（squash 之后脱离主线）；`packages/rxdb/package.json` 的版本是 `0.0.25`；HEAD 的
+系统常量现为 `{ systemSchema: 4, changeCodec: 1 }`，`v0.0.24` 上是 `{ 3, 1 }`。
+
+签入的 `requirements/migration-release.json` 是 `kind: "bridge"` 且 `bridge.tag: null`，所以上面那次通过
+**根本走不到** migration 分支的四条 git 钩子。为了让「`bridge.tag` 是祖先」「`bridge.version` 严格新于
+`LAST_INELIGIBLE_BRIDGE_VERSION`」两条结论**被真正执行而不是被推断**，另外在 `/tmp` 下造了三份一次性
+migration 清单跑门禁——**不入库、不打 tag、不改脚本、不触发任何发布动作**：
+
+| 探针 | 清单要点                                                                                    | 门禁输出                                                                                                                                  |
+| ---- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | `bridge.tag = v0.0.24`（真祖先），`systemSchemaUpgrade: true` / `changeCodecUpgrade: false` | **只剩一条**错误：`bridge.version must be newer than 0.0.25`                                                                              |
+| B    | `bridge.tag = v0.0.25`（非祖先）                                                            | 多出 `bridge.tag v0.0.25 is not an ancestor of the release commit`                                                                        |
+| C    | 与 A 同 tag，但两个升级位对调                                                               | `system schema version changed from 3 (bridge.tag v0.0.24) to 4`、`change codec version did not advance past bridge.tag v0.0.24 (1 -> 1)` |
+
+**四条结论**：
+
+1. **祖先钩子是活的，且有判别力**：同一份门禁对 A 不报、对 B 报，说明它真的跑了
+   `git merge-base --is-ancestor`，不是恒真的橡皮图章。
+2. **版本常量钩子确实从 tag 上读源码**：C 报出的 `3 -> 4` 与 `1 -> 1` 是从 `v0.0.24` 与工作树两侧读出来的
+   真值。因此 A 在这条轴上的沉默是**真通过**，不是钩子没跑——没有这个反向对照，A 的「只剩一条错误」
+   证明不了任何东西。
+3. **`LAST_INELIGIBLE_BRIDGE_VERSION = '0.0.25'` 的严格下限，是 A 里唯一的拦截点**：存在性 / 祖先性 /
+   协议面 / 版本常量四条 tag 钩子加 `oldBundlePolicy` 全部放行，门禁仍然红。这正是 epic-006 发布门禁 1
+   「且不是 v0.0.25」的可执行形式。
+4. **migration 分支的正向通过路径今天无法用真实 tag 走通**，而且这是设计如此：下限要求 `bridge.version`
+   严格大于 `0.0.25`，仓库里不存在这样的 tag，造一个等于伪造发布锚点。该路径由 39 条注入钩子的单测覆盖——
+   这也正是那些钩子被做成可注入的原因。
+
+**一处随时间漂移、但不构成改脚本理由的事实**：脚本 `LAST_INELIGIBLE_BRIDGE_VERSION` 的 TSDoc 写于
+系统 schema 还是 3 的时候，称 `v0.0.24` / `v0.0.25` 的常量「与今天的 HEAD 完全相同」；3 → 4 的迁移落地后
+HEAD 已是 `{4, 1}`，那句话的**前提**不再成立。**结论不变**：探针 A 证明一个如实声明升级的 migration 清单
+照样能过完四条 tag 钩子，挡住它的仍然只有这个下限。本任务**MUST NOT 重写该脚本**，此处只记录，不改动。
+
 ## 6. 发布
 
 **npm release 由维护者手动控制**，不是本特性的任务链的一环，也不是开工前置。本 quickstart 不提供发布命令。

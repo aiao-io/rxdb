@@ -81,6 +81,20 @@ export class BranchNotMaterializableError extends RxDBError {
   }
 }
 
+/**
+ * `enable()` 这一次逻辑操作的固定 id。
+ *
+ * @remarks
+ * 是常量而不是每次现取一个 `uuid()`：幂等的全部依据就是「重试带同一个 id」。每次换新 id
+ * 的话，{@link writeCommit} 那道幂等键防线在本路径上恒不命中，只剩 ref 的 `headCommitId`
+ * 非空一道判据——而那一道恰好在「baseline 已落库、CAS 却还没把 HEAD 推过去」这种半截
+ * 现场上答错。常量让两道判据各自独立成立。
+ *
+ * 全部分支共用同一个值是安全的，理由见 {@link RunEnableMigrationOptions.operationId}。
+ * 不是 uuid 形状也没关系：它只是 `deriveCommitOperationId` 的输入，落库的是那个函数折出来的 uuid。
+ */
+export const ENABLE_MIGRATION_OPERATION_ID = 'rxdb.commit.enable-migration.v1';
+
 /** {@link runEnableMigration} 的入参。 */
 export interface RunEnableMigrationOptions {
   /**

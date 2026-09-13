@@ -36,6 +36,7 @@ import { RxDB } from '../../RxDB.js';
 import type { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
+import { fakeTableRef } from './fake-table-ref.js';
 import { TEST_ENTITIES } from './test-entities.js';
 
 /**
@@ -160,6 +161,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
       id: 'mock-executor',
       state: 'active',
       query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+      tableRef: fakeTableRef,
       mutations: options => this.mutations(options as RxDBMutationsMap<EntityType>),
       getRepository: EntityType => this.getRepository(EntityType),
       saveMany: entities => this.saveMany(entities),

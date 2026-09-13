@@ -13,4 +13,5 @@
  * v1 **没有暂存区**：这里不存在 index / staging / 部分提交的任何形态。
  * 详见 `specs/001-working-tree-commits/spec.md` 硬裁决 1–2。
  */
+export * from './commit-codec.js';
 export * from './commit-error-codes.js';

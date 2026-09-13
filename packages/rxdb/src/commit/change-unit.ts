@@ -29,10 +29,18 @@
  * 近似会给出一个确定但无意义的摘要——两份不同的内容拿到同一个指纹，而它们本来在落库
  * 那一步就会失败或变形。
  *
- * `Uint8Array` 是唯一一处**不**与 JSON 往返同形的值：加密列的密文由 codec 有意留成裸字节
- * （见 `system/change-codec.ts` 的 `encodeRxDBChangePatch`），此处按字节入摘要而不是按
- * `JSON.stringify` 出来的 `{"0":222,…}`。**T038 / T041 的前提**：守卫重算前必须把行经
- * 同一份 codec 解回裸字节，否则加密列的 commit 会被判成损坏。
+ * `Uint8Array` 走独立分支（按字节入摘要，而不是 `JSON.stringify` 出来的 `{"0":222,…}`），
+ * 但**在 v1 的 commit 管线里它一个都不该出现**：加密列的落库形态是字符串信封
+ * （`v|alg|kid|iv|ct|tag`；`rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts` 的读端对
+ * 非字符串直接抛 `malformed_envelope`），未加密的 `binary` / `bigint` 列则被
+ * `system/change-codec.ts` 包成 `{$rxdbChangeValue:{…, value: <hex>}}`——两者都与 JSON
+ * 往返同形。该分支因此只是**防御**：真有裸字节混进来时给出一个与 JSON 形态不同的指纹，
+ * 让守卫报「损坏」，而不是悄悄收下一份落库后会变样的内容。拦在更前面的是 T041 的
+ * `commit-codec.ts` › `assertCommitUnitsEncryptedAtRest()`——它必须跑在算指纹之前。
+ *
+ * **T038 / T041 的口径**：写端与守卫重算端看的是**同一份落库形态**，守卫重算前
+ * **不得**先解码（`commit-graph-guard.ts` › `toUnitContent` 就是照着落库行直接取值）。
+ * 先解再算，加密列的 commit 反而会对不上。
  *
  * ## 两个摘要域互不相交
  *

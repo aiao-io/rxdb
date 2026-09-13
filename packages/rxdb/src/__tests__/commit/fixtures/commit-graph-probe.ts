@@ -19,6 +19,7 @@ import type { RuleGroup } from '../../../repository/query.interface.js';
 import type { IRepository } from '../../../repository/repository.interface.js';
 import { getEntityMetadata } from '../../../rxdb-utils.js';
 import type { TransactionExecutor } from '../../../transaction/transaction-executor.interface.js';
+import { fakeTableRef } from '../../fixtures/fake-table-ref.js';
 
 interface ProbeRule {
   field: string;
@@ -115,6 +116,7 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
       statements.push(sql);
       return { ...rawQueryResult, rows: [], columns: [] };
     }),
+    tableRef: fakeTableRef,
     mutations: vi.fn(async () => []),
     getRepository: <T extends EntityType>(EntityClass: T): IRepository<T> => {
       const { name } = getEntityMetadata(EntityClass);

@@ -18,6 +18,10 @@
         "kind": "type"
       },
       {
+        "name": "assertCommitUnitsEncryptedAtRest",
+        "kind": "value"
+      },
+      {
         "name": "assertSupportedRxDBSystemVersions",
         "kind": "value"
       },
@@ -86,8 +90,32 @@
         "kind": "value"
       },
       {
+        "name": "CommitChangeSetRow",
+        "kind": "type"
+      },
+      {
+        "name": "CommitEncryptedAtRestError",
+        "kind": "both"
+      },
+      {
+        "name": "CommitEncryptedAtRestReason",
+        "kind": "type"
+      },
+      {
+        "name": "CommitEncryptedAtRestRecognizer",
+        "kind": "type"
+      },
+      {
         "name": "CommitErrorCode",
         "kind": "both"
+      },
+      {
+        "name": "CommitPatchCodecContext",
+        "kind": "type"
+      },
+      {
+        "name": "CommitPatchColumn",
+        "kind": "type"
       },
       {
         "name": "compactChanges",
@@ -144,6 +172,14 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "decodeCommitChangeSetUnit",
+        "kind": "value"
+      },
+      {
+        "name": "decodeCommitChangeSetUnits",
+        "kind": "value"
       },
       {
         "name": "decodeRxDBChangeEntityId",

@@ -30,6 +30,7 @@
 
 import { firstValueFrom, isObservable } from 'rxjs';
 import { describe, expect, it } from 'vitest';
+import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -40,6 +41,7 @@ import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import { RxDB } from '../../RxDB.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { RXDB_CHANGE_CODEC_VERSION } from '../../system/change-codec.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import { WorkingTreeCapabilityDisabledError, WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
@@ -74,9 +76,17 @@ interface Scene {
 }
 
 /**
- * 造一个只有能力行这一张表的场景。
+ * 造一个「`0004` 建表迁移已经跑完」的场景。
  *
  * @param capability - `null` 表示 `0004` 迁移没写入能力行；否则按给定启用态建行
+ *
+ * @remarks
+ * 除能力行外还塞了一条激活的本地分支与它的空 ref：`enable()` 在翻完能力位之后要在同一个
+ * 事务里跑一次性启用迁移（`runEnableMigration`），而那一步以「库里有激活分支」为起点。
+ * 只塞能力行的话，本文件全部用例都会先撞上「这个库没有激活分支」——一个与门禁无关的成因。
+ *
+ * 分支只塞**一条**：本文件测的是门禁，多分支下「为每个分支补根」的那些判据归
+ * `enable-migration.spec.ts`，两处各测一遍只会让同一条实现有两个互不同步的判据。
  */
 function createScene(capability: { enabled: boolean } | null): Scene {
   const database = new RxDB({
@@ -101,6 +111,26 @@ function createScene(capability: { enabled: boolean } | null): Scene {
     row.enabledAt = capability.enabled ? new Date('2026-01-01T00:00:00.000Z') : null;
     probe.seed(CommitCapabilityState, [row]);
   }
+
+  const branch = database.entityManager.instantiate(RxDBBranch);
+  branch.id = 'main';
+  branch.activated = true;
+  branch.local = true;
+  branch.remote = false;
+  branch.parentId = null;
+  branch.fromChangeId = null;
+  probe.seed(RxDBBranch, [branch]);
+
+  const ref = database.entityManager.instantiate(CommitBranchRef);
+  ref.id = branch.id;
+  ref.branchId = branch.id;
+  ref.generation = 1;
+  ref.headCommitId = null;
+  ref.headRevision = 0;
+  ref.status = 'ok';
+  ref.corruptedAt = null;
+  probe.seed(CommitBranchRef, [ref]);
+
   adapter.transaction.mockImplementation(async fun => fun(probe.executor));
 
   return { database, adapter, manager: new ProbeWorkingTreeManager(database), probe };

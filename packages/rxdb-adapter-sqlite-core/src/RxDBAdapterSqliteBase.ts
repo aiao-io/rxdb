@@ -1186,8 +1186,18 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           console.error('[rxdb-adapter-sqlite-core] TRANSACTION_ROLLBACK listener threw:', listenerError);
         }
       }
-      const message = error instanceof Error ? error.message : 'Transaction Error';
-      throw new RxDBAdapterSqliteError(message, { cause: error });
+      // 事务体的错误**原样**冒泡。包装成 RxDBAdapterSqliteError 只保下文案，原型、`code`
+      // 与 stack 一并丢掉：调用方再也 `instanceof` 不到自己抛的领域错误，只能拿字符串匹配
+      // 错误消息。而 PGlite 那一端是原样抛的——同一段业务代码在两个后端上要走不同的 catch
+      // 分支，这正是 workingTreeCommitConformanceSuite 存在的理由。
+      //
+      // 驱动层的 SQL 错误不靠这里补类型：executeHelper 在 client 层就已经包成了
+      // RxDBAdapterSqliteError，再包一层只是把 cause 链拉长。
+      //
+      // 非 Error 拒绝（`Promise.reject('...')`）仍归一成 Error：调用方至少要拿到一个有
+      // message、有 stack 的东西，而不是一个裸字符串。
+      if (error instanceof Error) throw error;
+      throw new RxDBAdapterSqliteError('Transaction Error', { cause: error });
     } finally {
       // executor 必须自持状态并在这里翻成终态：逃逸出事务体后再使用它要能立刻抛错，
       // 而不是静默落到一个已提交/已回滚的连接上继续写。

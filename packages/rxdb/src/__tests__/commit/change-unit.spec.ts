@@ -144,7 +144,11 @@ describe('拼接是单射的 —— 摘要不是把字段接起来', () => {
   });
 });
 
-describe('加密列的字节原样进摘要（FR-038）', () => {
+// 裸 `Uint8Array` 不是任何一列的落库形态：加密列落库是字符串信封，未加密的 binary / bigint
+// 被 change-codec 包成 `{$rxdbChangeValue:{…}}`（T041 已钉死，见 commit-codec.ts）。
+// 这一组锁的是**防御分支**——真有裸字节混进来时，指纹必须与它的 JSON 形态、与等长字符串
+// 都不同，好让守卫报损坏，而不是收下一份落库后会变样的内容。
+describe('裸 Uint8Array 走独立分支：防御，不是加密列的落库形态', () => {
   it('按字节区分，不按 JSON 形状', () => {
     const first = fingerprintOf({ patch: { secret: Uint8Array.of(1, 2, 3) } });
     const second = fingerprintOf({ patch: { secret: Uint8Array.of(1, 2, 4) } });

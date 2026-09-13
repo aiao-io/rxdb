@@ -23,6 +23,7 @@ import {
   readCommitCapability
 } from '../commit/commit-capability.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
+import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
@@ -86,12 +87,26 @@ export class WorkingTreeManager {
    * 启用这个数据库的提交能力（幂等）。
    *
    * @returns 启用后的能力状态
+   * @throws {@link BranchNotMaterializableError} 任一本地分支沿 `rxdb_change` 链物化不了时
    *
    * @remarks
-   * 幂等与并发仲裁全部由 `enableCommitCapability()` 的单条 CAS 负责，这里只负责开事务。
+   * 「启用」是两件事，而且**必须在同一个事务里**：翻能力位，以及给每条本地分支补上根节点
+   * （FR-021/049）。拆成两个事务的话，中间崩一次就停在「已启用、但分支没有根」——此后每次
+   * `commit()` 都往一个无根分支上挂节点，而库自称一切正常。迁移抛错时整笔回滚，能力位一并
+   * 退回未启用，于是重试面对的还是同一个起点。
+   *
+   * **迁移每次都跑，不是只跑在 CAS 命中的那一次。** 能力位的 CAS 只在 `false → true` 那一次
+   * 命中（幂等与并发仲裁都由它负责），但 `enable()` 的语义是「把库收敛到已启用该有的形状」，
+   * 而不是「翻一次位」：库启用之后才出现的本地分支——旧版本客户端建的、或上一次因某条分支
+   * 损坏而整体回滚的——只能靠再调一次 `enable()` 补根。真跑过一遍之后重复调用是幂等的，
+   * 全部分支都落进 `alreadyInitializedBranchIds`，一条语句都不发。
    */
   async enable(): Promise<CommitCapabilityInfo> {
-    return this.#runInTransaction(executor => enableCommitCapability(executor));
+    return this.#runInTransaction(async executor => {
+      const info = await enableCommitCapability(executor);
+      await runEnableMigration(executor, this.#rxdb.entityManager, { operationId: ENABLE_MIGRATION_OPERATION_ID });
+      return info;
+    });
   }
 
   /**

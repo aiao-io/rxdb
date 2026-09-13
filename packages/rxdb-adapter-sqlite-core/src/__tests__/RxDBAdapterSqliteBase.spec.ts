@@ -742,7 +742,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const error = await adapter.transaction(callback, false).catch((cause: unknown) => cause);
 
-      expect(error).toMatchObject({ message: setupFailure.message, cause: setupFailure });
+      expect(error).toBe(setupFailure);
       expect(callback).not.toHaveBeenCalled();
       expect(transactionActive).toBe(false);
       expect(transactionSqls(client)).toHaveLength(2);
@@ -773,8 +773,7 @@ describe('RxDBAdapterSqliteBase', () => {
       await expect(adapter.transaction(async () => 'next', false)).resolves.toBe('next');
 
       const sqls = transactionSqls(client);
-      expect.soft(error).toBeInstanceOf(RxDBAdapterSqliteError);
-      expect.soft(error).toMatchObject({ message: beginFailure.message, cause: beginFailure });
+      expect.soft(error).toBe(beginFailure);
       expect.soft(rxdb.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'TRANSACTION_ROLLBACK' }));
       expect.soft(sqls[0]).toContain('BEGIN');
       expect.soft(sqls).toContain('UPDATE after_begin_listener_failure');
@@ -813,7 +812,7 @@ describe('RxDBAdapterSqliteBase', () => {
         const event = new EntityLocalCreatedEvent([]);
         rxdb.dispatchEvent(event);
 
-        expect(error).toMatchObject({ message: beginFailure.message, cause: beginFailure });
+        expect(error).toBe(beginFailure);
         expect(entityListener).toHaveBeenCalledWith(event);
         // 只断言**事务 SQL**：BEGIN listener 抛在派发 BEGIN 那一步，事务的任何语句都不该落库。
         // 不能断言 `executedSqls(client)` 整体为空 —— 版本管理的活分支查询
@@ -878,7 +877,7 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(sqls.at(-1)).toContain('COMMIT');
     });
 
-    it('事务函数抛错时执行 ROLLBACK 并包装为适配器错误', async () => {
+    it('事务函数抛错时执行 ROLLBACK 并原样抛出事务体的错误', async () => {
       const client = createClient();
       const rxdb = createRxdbMock();
       const adapter = new TestAdapter(rxdb, () => client);
@@ -890,8 +889,7 @@ describe('RxDBAdapterSqliteBase', () => {
         })
         .catch((err: unknown) => err);
 
-      expect(error).toBeInstanceOf(RxDBAdapterSqliteError);
-      expect(error).toMatchObject({ message: 'inner boom', cause: failure });
+      expect(error).toBe(failure);
       expect(executedSqls(client)).toContain('ROLLBACK');
       expect(rxdb.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'TRANSACTION_ROLLBACK' }));
     });
@@ -953,7 +951,7 @@ describe('RxDBAdapterSqliteBase', () => {
         })
         .catch((err: unknown) => err);
 
-      expect(error).toMatchObject({ message: transactionFailure.message, cause: transactionFailure });
+      expect(error).toBe(transactionFailure);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ROLLBACK failed'), expect.any(Error));
       expect(client.disconnect).toHaveBeenCalledTimes(1);
       await expect(adapter.query('SELECT after rollback failure')).rejects.toThrow('Adapter is disconnected');
@@ -996,6 +994,33 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(adapter.createClientCalls).toBe(1);
       expect(executedSqls(client)).not.toContain('SELECT queued after rollback failure');
       errorSpy.mockRestore();
+    });
+
+    it('事务体抛出的领域错误应该原样冒泡，保留类与判别位', async () => {
+      class BranchNotMaterializableError extends Error {
+        readonly code = 'branch_not_materializable';
+        readonly reason = 'branch_marked_corrupted';
+        constructor() {
+          super('Branch cannot be materialized');
+          this.name = 'BranchNotMaterializableError';
+          Object.setPrototypeOf(this, BranchNotMaterializableError.prototype);
+        }
+      }
+      const domainFailure = new BranchNotMaterializableError();
+      const client = createClient();
+      const adapter = new TestAdapter(createRxdbMock(), () => client);
+
+      const error = await adapter
+        .transaction(async () => {
+          throw domainFailure;
+        }, false)
+        .catch((err: unknown) => err);
+
+      // 包装成 RxDBAdapterSqliteError 会同时抹掉原型与 code/reason：调用方只剩文案可匹配，
+      // 而 PGlite 那一端是原样冒泡的——同一段业务代码在两个后端上要走不同的 catch 分支。
+      expect(error).toBe(domainFailure);
+      expect(error).toBeInstanceOf(BranchNotMaterializableError);
+      expect((error as BranchNotMaterializableError).code).toBe('branch_not_materializable');
     });
 
     it('非 Error 拒绝时使用默认事务错误消息', async () => {

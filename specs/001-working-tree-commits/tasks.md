@@ -118,11 +118,11 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T038 [US1] 实现**共享损坏守卫** `assertCommitGraphIntact()` 于 `packages/rxdb/src/commit/commit-graph-guard.ts`：区分孤立损坏与可达损坏，供 commit / restore / switch-to 在各自写事务内调用；US-306 阶段 B、US-307、US-308 **复用同一份**，不得各写一份（FR-051、R10）
 - [x] T039 [US1] 实现一次性启用迁移于 `packages/rxdb/src/commit/enable-migration.ts`：逐分支生成 baseline、保留旧 change、失败可重试；「可完整物化」判定**复用既有分支物化路径**（沿 `RxDBChange` 链无缺口走到分支 tip），**MUST NOT** 另写第二套重放引擎（FR-021/049、R11）
 - [x] T040 [US1] 实现 active 分支基数约束与连接时校验于 `packages/rxdb/src/commit/active-branch-guard.ts`，含 `ambiguous_active_branch` 全量回滚路径（FR-048）
-- [ ] T041 [US1] 把 commit / ChangeSet / baseline 的加密列接到既有 at-rest 契约上于 `packages/rxdb/src/commit/commit-codec.ts`：持久化路径**不得**先解密再把明文写进新系统表（FR-038）
-- [ ] T042 [US1] 实现 `workingTreeCommitConformanceSuite` 的 US-305 部分于 `packages/rxdb/src/working-tree/testing/working-tree-commit.suite.ts`：覆盖 conformance-suites.md §2.1（commit 图与 HEAD）、§2.2（一次性启用迁移）、§2.5（损坏守卫三入口同一份）
-- [ ] T043 [US1] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-commit-conformance.spec.ts`，复用各包既有 factory（如 `packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts`、`packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-factory.ts`）调用 T042 的套件——「导出了但没人跑」等于没覆盖
-- [ ] T044 [US1] 在 `scripts/audit/` 增加 `working-tree-suite-callsites.mjs` 与其 `.spec.mjs`：校验 6 个 v1 适配器包**各自**都有两套套件的调用点，缺一即门禁失败（conformance-suites.md §0、SC-006）
-- [ ] T045 [US1] **复验（不重写）** FR-030 迁移发布门禁：跑 `node --test scripts/check-migration-release-gate.spec.mjs` 确认 39/39 绿，并用真实 tag 与真实 bridge manifest 跑一次 `node scripts/check-migration-release-gate.mjs`，把 `bridge.tag` 是祖先、`bridge.version` 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION` 的结论记进 `specs/001-working-tree-commits/quickstart.md` §5 的执行记录。**MUST NOT 修改该脚本**；**不触发任何发布动作**
+- [x] T041 [US1] 把 commit / ChangeSet / baseline 的加密列接到既有 at-rest 契约上于 `packages/rxdb/src/commit/commit-codec.ts`：持久化路径**不得**先解密再把明文写进新系统表（FR-038）
+- [x] T042 [US1] 实现 `workingTreeCommitConformanceSuite` 的 US-305 部分于 `packages/rxdb/src/working-tree/testing/working-tree-commit.suite.ts`：覆盖 conformance-suites.md §2.1（commit 图与 HEAD）、§2.2（一次性启用迁移）、§2.5（损坏守卫三入口同一份）
+- [x] T043 [US1] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-commit-conformance.spec.ts`，复用各包既有 factory（如 `packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts`、`packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-factory.ts`）调用 T042 的套件——「导出了但没人跑」等于没覆盖
+- [x] T044 [US1] 在 `scripts/audit/` 增加 `working-tree-suite-callsites.mjs` 与其 `.spec.mjs`：校验 6 个 v1 适配器包**各自**都有两套套件的调用点，缺一即门禁失败（conformance-suites.md §0、SC-006）
+- [x] T045 [US1] **复验（不重写）** FR-030 迁移发布门禁：跑 `node --test scripts/check-migration-release-gate.spec.mjs` 确认 39/39 绿，并用真实 tag 与真实 bridge manifest 跑一次 `node scripts/check-migration-release-gate.mjs`，把 `bridge.tag` 是祖先、`bridge.version` 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION` 的结论记进 `specs/001-working-tree-commits/quickstart.md` §5 的执行记录。**MUST NOT 修改该脚本**；**不触发任何发布动作**
 
 **Checkpoint**: US-305 独立可交付。提交图与 HEAD 跨重启可恢复，损坏 fail-closed，6 后端提交套件（US-305 部分）全绿。**这是 MVP。**
 
@@ -138,11 +138,11 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 ### Tests for User Story 2 阶段 A（先红）
 
-- [ ] T046 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/capture-mount-points.spec.ts`：4 个挂载点各自成组——`transaction`（rxdb-adapter.ts:134）、**本地** `mergeChanges`（:200）、`switchBranch`（:182）、`upsertMany`/`deleteByIds`（:239/:255）；断言**远端** `mergeChanges` 重载（:322）**不在**表内，重载按签名而非函数名区分（adapter-contract.md §1）
-- [ ] T047 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/cold-replay.spec.ts`：冷重放不变量作为「捕获是否完备」的**唯一**判据，不靠计数相等（conformance-suites.md §1.1、SC-009）
-- [ ] T048 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/write-entry-matrix.spec.ts`：spec.md「写入口语义矩阵」**每一行**至少一条用例，含「只更新 `remoteId` / 同步水位 / 审计时间 → 不创建单元、不递增 revision」与「`cleanupExpired()` 过期删除 → 落 `origin='remote_sync'` DELETE 单元并递增 revision」（FR-046、conformance-suites.md §1.2）
-- [ ] T049 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/observable-gate.spec.ts`：`upsertMany()` / `deleteByIds()` 返回 `Observable<void>`，门禁必须在**返回 Observable 之前同步拒绝**，断言调用方从不订阅时业务表同样零变化（adapter-contract.md §1.1）
-- [ ] T050 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：5 步判定每步一组用例；第 4 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
+- [x] T046 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/capture-mount-points.spec.ts`：4 个挂载点各自成组——`transaction`（rxdb-adapter.ts:134）、**本地** `mergeChanges`（:200）、`switchBranch`（:182）、`upsertMany`/`deleteByIds`（:239/:255）；断言**远端** `mergeChanges` 重载（:322）**不在**表内，重载按签名而非函数名区分（adapter-contract.md §1）
+- [x] T047 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/cold-replay.spec.ts`：冷重放不变量作为「捕获是否完备」的**唯一**判据，不靠计数相等（conformance-suites.md §1.1、SC-009）
+- [x] T048 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/write-entry-matrix.spec.ts`：spec.md「写入口语义矩阵」**每一行**至少一条用例，含「只更新 `remoteId` / 同步水位 / 审计时间 → 不创建单元、不递增 revision」与「`cleanupExpired()` 过期删除 → 落 `origin='remote_sync'` DELETE 单元并递增 revision」（FR-046、conformance-suites.md §1.2）
+- [x] T049 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/observable-gate.spec.ts`：`upsertMany()` / `deleteByIds()` 返回 `Observable<void>`，门禁必须在**返回 Observable 之前同步拒绝**，断言调用方从不订阅时业务表同样零变化（adapter-contract.md §1.1）
+- [x] T050 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：5 步判定每步一组用例；第 4 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
 - [ ] T051 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/untracked-domain.spec.ts`：三类 untracked 各一组 + 「清单外的实体默认 tracked」；tracked 与 untracked 混进同一事务抛 `mixed_versioned_cache_transaction` 且**整事务回滚**；`origin='remote_sync'` **不是** untracked；untracked 是静态属性（conformance-suites.md §1.4）
 - [ ] T052 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/entry-fold.spec.ts`：同一实体多次写入的折叠规则——patch 取最新、**inversePatch 取首次捕获值**、INSERT+DELETE 相抵、origin 取最新、**不做值级归零**；`entryCount` 与实际条目数的不变量断言（data-model.md §2.7）
 - [ ] T053 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/crud-transaction.spec.ts`：每次普通 CRUD 在同事务内校验 active branch token、写业务实体、写/合并完整 `WorkingTreeEntry`、递增 `workingTreeRevision`；任一步失败全部回滚；**禁止**只靠内存 dirty set 重建（FR-039）

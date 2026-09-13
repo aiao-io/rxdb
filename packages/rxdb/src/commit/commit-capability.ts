@@ -82,6 +82,7 @@ const columnOf = (metadata: EntityMetadata, field: keyof CommitCapabilityState):
 /**
  * 拼一条启用 CAS。
  *
+ * @param tableRef - 本后端的物理表引用，由 `executor.tableRef()` 解析
  * @param enabledAt - 本次调用想写入的启用时刻
  * @returns 单条 `UPDATE … SET … WHERE …`
  *
@@ -94,10 +95,10 @@ const columnOf = (metadata: EntityMetadata, field: keyof CommitCapabilityState):
  * 顺手写回去，在版本没变的那天完全看不出来，要到某个新客户端把旧库的版本行悄悄改成
  * 新版本时才炸，那时 fail-closed 已经失效了。
  */
-const buildEnableCas = (enabledAt: Date): string => {
+const buildEnableCas = (tableRef: string, enabledAt: Date): string => {
   const metadata = getEntityMetadata(CommitCapabilityState);
   return [
-    `UPDATE ${quoteSqlIdentifier(metadata.tableName)}`,
+    `UPDATE ${tableRef}`,
     `SET ${columnOf(metadata, 'enabled')} = ${sqlBooleanLiteral(true)},`,
     `${columnOf(metadata, 'enabledAt')} = ${sqlTimestampLiteral(enabledAt)}`,
     `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(COMMIT_CAPABILITY_STATE_ID)}`,
@@ -188,7 +189,7 @@ export const enableCommitCapability = async (executor: TransactionExecutor): Pro
   assertSupportedCommitCapability(current);
 
   const enabledAt = new Date();
-  const { rowsAffected } = await executor.query(buildEnableCas(enabledAt));
+  const { rowsAffected } = await executor.query(buildEnableCas(executor.tableRef(CommitCapabilityState), enabledAt));
   if (rowsAffected > 0) return { ...current, enabled: true, enabledAt };
 
   const stored = await readCommitCapability(executor);
