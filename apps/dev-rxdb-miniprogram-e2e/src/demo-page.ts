@@ -50,13 +50,6 @@ export class DemoPage {
     private readonly miniProgram: MiniProgram
   ) {}
 
-  /** 当前 `phase` 徽标的文案（初始化中 / 数据库已连接 / 运行时不满足要求 / 初始化失败）。 */
-  async phaseText(): Promise<string> {
-    const badge = await this.page.$('.phase');
-    if (!badge) throw new Error('没找到 phase 徽标，页面可能没渲染出来');
-    return (await badge.text()).trim();
-  }
-
   /** 顶部「状态」栏的文案，失败时它承载具体原因。 */
   async operationText(): Promise<string> {
     return this.summaryValue('summary-operation', '状态栏');
