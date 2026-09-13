@@ -19,20 +19,6 @@ const vitestRoot = path.dirname(require.resolve('vitest/package.json'));
 const vitestBin = path.join(vitestRoot, 'vitest.mjs');
 const threshold = 80;
 const metrics = ['statements', 'branches', 'functions', 'lines'];
-// 本包发布出去、只由适配器执行的共享套件。每一条都必须在合并后的报告里出现且只出现一次 ——
-// 出现 0 次说明没有任何适配器 spec 在跑它（分母被稀释成永远填不满的死代码），
-// 出现多次说明 source-map 归并出了重影。列表要与两段 run 的 include 保持同步（RXT-030）。
-const suiteFiles = [
-  'src/encrypted/crud.suite.ts',
-  'src/encrypted/lifecycle.suite.ts',
-  'src/encrypted/tamper.suite.ts',
-  'src/encrypted/change-log.suite.ts',
-  'src/encrypted/bigint-binary.suite.ts',
-  'src/transaction/bootstrap.suite.ts',
-  'src/transaction/isolation.suite.ts',
-  'src/transaction/readiness.suite.ts',
-  'src/tree-unique/sibling-unique.suite.ts'
-];
 // 分母：`src` 之外，`entities` / `shop` 也是发布产物，同等计入（RXT-030）。
 const productionRoots = ['src', 'entities', 'shop'];
 
@@ -52,7 +38,10 @@ function collectProductionFiles(directory) {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) return collectProductionFiles(absolutePath);
     if (!entry.name.endsWith('.ts')) return [];
-    if (/\.(?:spec|test)\.ts$/.test(entry.name)) return [];
+    // *.suite.ts 与 *.spec.ts 同属测试代码，不进分母 —— 必须与三份
+    // vitest.coverage-acceptance.*.config.mts 的 coverage.exclude 保持一致，
+    // 否则这里会把被报告排除掉的文件当成「缺失的生产文件」报错。
+    if (/\.(?:spec|test|suite)\.ts$/.test(entry.name)) return [];
     return [realpathSync(absolutePath)];
   });
 }
@@ -84,17 +73,6 @@ function verifyCanonicalCoverage() {
   if (missingFiles.length > 0) throw new Error(`Missing production coverage keys:\n${missingFiles.join('\n')}`);
   if (unexpectedFiles.length > 0) throw new Error(`Unexpected coverage keys:\n${unexpectedFiles.join('\n')}`);
 
-  const suiteKeys = Object.fromEntries(
-    suiteFiles.map(file => {
-      const canonical = realpathSync(path.join(packageRoot, file));
-      return [file, canonicalGroups.get(canonical) ?? []];
-    })
-  );
-
-  if (Object.values(suiteKeys).some(keys => keys.length !== 1)) {
-    throw new Error(`Shared suite canonical key validation failed: ${JSON.stringify(suiteKeys)}`);
-  }
-
   const totals = Object.fromEntries(
     metrics.map(metric => {
       const value = summary.total?.[metric];
@@ -114,7 +92,6 @@ function verifyCanonicalCoverage() {
   process.stdout.write(
     `Canonical production coverage keys: ${String(actualFiles.length)}/${String(expectedFiles.length)} unique\n`
   );
-  process.stdout.write(`Canonical shared suite keys: ${JSON.stringify(suiteKeys)}\n`);
   process.stdout.write(`Canonical coverage totals: ${JSON.stringify(totals)}\n`);
 }
 

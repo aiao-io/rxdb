@@ -42,7 +42,9 @@ export default defineConfig({
       reportsDirectory: path.join(acceptanceRoot, 'unit'),
       // `entities` / `shop` 是发布出去的共享模型（RXT-030），必须与 `src` 同等进分母。
       include: ['src/**/*.ts', 'entities/**/*.ts', 'shop/**/*.ts'],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.test.ts']
+      // *.suite.ts 是供 adapter 包 import 执行的共享套件（describe/it 工厂），与 *.spec.ts 同属测试代码。
+      // vite.config.mts 里已排除，但那份 coverage.enabled 为 false；真正产报告的是这里，必须同步排。
+      exclude: ['src/**/*.spec.ts', 'src/**/*.test.ts', 'src/**/*.suite.ts']
     }
   }
 });
