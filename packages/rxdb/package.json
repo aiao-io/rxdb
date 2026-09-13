@@ -32,6 +32,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "@aiao/source": "./src/working-tree/testing/index.ts",
+      "types": "./dist/working-tree/testing/index.d.ts",
+      "import": "./dist/working-tree/testing/index.js",
+      "default": "./dist/working-tree/testing/index.js"
     }
   },
   "files": [
@@ -56,5 +62,16 @@
     "rxjs": "^7.8.2",
     "type-fest": "^5.9.0",
     "uuid": "^14.0.2"
+  },
+  "peerDependencies": {
+    "vitest": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
   }
 }

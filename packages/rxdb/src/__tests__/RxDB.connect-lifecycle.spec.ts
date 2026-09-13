@@ -8,6 +8,7 @@ import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { SyncStateHub } from '../sync-state.js';
 import { RxDBMigration } from '../system/migration.js';
+import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../system/migrations/0004-working-tree-commits.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 type DatabaseOverrides = {
@@ -180,13 +181,20 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
 
     expect(adapterFactory).toHaveBeenCalledTimes(1);
     expect(vi.mocked(adapter.connect)).toHaveBeenCalledTimes(2);
-    expect(repository.find).toHaveBeenCalledTimes(2);
+    // 每次 connect 读两次已执行集合：系统迁移与接入方迁移是两条独立的 runMigrations，
+    // 中间隔着 migrateSystemSchema() / completeBootstrap()，不能合并成一次读。
+    expect(repository.find).toHaveBeenCalledTimes(4);
     expect(alreadyApplied).not.toHaveBeenCalled();
     expect(retryMigration).toHaveBeenCalledTimes(2);
     // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
     // `created` 是内存数组，回滚不到它，所以两次尝试各留下一条。真库上只会剩最后一条。
     // 关键契约是：只有 z-retry 认领了执行权，已执行的 a-applied 一次都没碰。
-    expect(created.map(record => record.name)).toEqual(['z-retry', 'z-retry']);
+    expect(created.map(record => record.name)).toEqual([
+      WORKING_TREE_COMMITS_MIGRATION_NAME,
+      'z-retry',
+      WORKING_TREE_COMMITS_MIGRATION_NAME,
+      'z-retry'
+    ]);
     expect(vi.mocked(adapter.createTables)).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith('Migration failed: z-retry', migrationFailure);
   });

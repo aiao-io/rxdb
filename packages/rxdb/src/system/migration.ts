@@ -18,8 +18,17 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  *
  * @remarks
  * 2：`rxdb_migration."name"` 加唯一索引。
+ * 4：epic-006 的 10 张工作树 / 提交图表（见 `migrations/0004-working-tree-commits.ts`）。
+ *
+ * **改这个常量是一次单向操作**：bump 之后旧版本客户端打开该库会按
+ * {@link UnsupportedRxDBSystemVersionError} 拒绝。这不是新增的危险面（2→3 同样如此），
+ * 但每次 bump 都必须进发布说明。
+ *
+ * 常量停在旧值不会让任何一处编译失败——水位线是模板字符串拼出来的，会安静地跟着停住，
+ * 既有库于是永远进不了升级路径。`__tests__/system/working-tree-schema-migration.spec.ts`
+ * 把它钉死就是为了这个。
  */
-export const RXDB_SYSTEM_SCHEMA_VERSION = 3 as const;
+export const RXDB_SYSTEM_SCHEMA_VERSION = 4 as const;
 export const RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX = '__rxdb_system_schema__:' as const;
 export const RXDB_CHANGE_CODEC_WATERMARK_PREFIX = '__rxdb_change_codec__:' as const;
 
@@ -32,7 +41,16 @@ export interface RxDBSystemVersionState {
   codecVersion: number;
 }
 
-type RxDBSystemVersionKind = 'system schema' | 'change codec';
+/**
+ * 版本不匹配时报给用户的「哪个号」。
+ *
+ * @remarks
+ * 四个号各自独立演进，因此不能合成一句「版本不兼容」：用户拿到的错误必须能直接回答
+ * 「我该升客户端还是该跑迁移」。`system schema` 有迁移阶梯，落后可补；
+ * `commit protocol` / `commit graph schema` 在 v1 没有任何阶梯（见
+ * `commit/commit-capability.ts` 的严格相等比对）。
+ */
+type RxDBSystemVersionKind = 'system schema' | 'change codec' | 'commit protocol' | 'commit graph schema';
 
 export class UnsupportedRxDBSystemVersionError extends Error {
   override readonly name = 'UnsupportedRxDBSystemVersionError';

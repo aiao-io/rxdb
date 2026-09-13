@@ -15,9 +15,9 @@ import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
-import { RxDBChange } from '../../system/change.js';
 import { RxDBMigration } from '../../system/migration.js';
-import { RxDBSync } from '../../system/sync.js';
+import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../../system/migrations/0004-working-tree-commits.js';
+import { SYSTEM_ENTITIES } from '../../system/system-entities.js';
 
 interface CreateTablesCall {
   entityTypes: EntityType[];
@@ -110,6 +110,32 @@ class TestLocalAdapter implements IRxDBAdapter {
     this.transactionCalls += 1;
     return (await fun()) as Awaited<ReturnType<T>>;
   }
+
+  /**
+   * 引导期事务：系统迁移（`0004-working-tree-commits`）在既有库上每次启动都要跑，
+   * 走的就是这一条。
+   *
+   * @remarks
+   * 不复用 {@link TestLocalAdapter.transaction} 的计数 —— `transactionCalls` 是
+   * 「补建缺表没有开用户事务」那条断言的依据，把引导期的事务并进去会让它恒为非零。
+   * executor 的仓库/写入一律转回适配器自身，与 {@link MockLocalAdapter} 同口径。
+   */
+  async bootstrapTransaction<T extends (executor: unknown) => Promise<unknown>>(
+    fun: T
+  ): Promise<Awaited<ReturnType<T>>> {
+    const executor = {
+      id: 'schema-manager-registration-bootstrap',
+      state: 'active',
+      query: async () => ({ rowsAffected: 0, rows: [], columns: [] }),
+      mutations: async () => [],
+      getRepository: () => createRepository(),
+      saveMany: async (entities: InstanceType<EntityType>[]) => entities,
+      removeMany: async (entities: InstanceType<EntityType>[]) => entities,
+      mergeChanges: async () => undefined,
+      run: (inner: (nested: unknown) => Promise<unknown>) => inner(executor)
+    };
+    return (await fun(executor)) as Awaited<ReturnType<T>>;
+  }
 }
 
 const databases = new Set<RxDB>();
@@ -158,12 +184,19 @@ describe('SchemaManager 建表与实体注册冲突检测', () => {
 
     await expect(database.connect(adapter.name)).resolves.toBe(adapter);
 
-    expect(database.config.entities).toEqual([RxDBBranch, RxDBChange, RxDBMigration, RxDBSync]);
+    // 断言「注入的就是 SYSTEM_ENTITIES 这一份清单」，不再手抄类名：手抄的那份每加一张
+    // 系统表就得改一次，改漏了断言仍然为真，等于没有门禁。
+    expect(database.config.entities).toEqual([...SYSTEM_ENTITIES]);
     expect(adapter.createTablesCalls).toHaveLength(1);
     expect(adapter.createTablesCalls[0].entityTypes).toEqual(database.config.entities);
-    expect(adapter.createTablesCalls[0].entities).toHaveLength(1);
+    // 首装随建表一次写入的初始行：主分支 + epic-006 的四行状态 + 系统迁移水位线。
+    // 这里只钉住「第一行是激活的 main 分支」与「一次写完」，各行字段由
+    // `__tests__/system/working-tree-schema-migration.spec.ts` 负责。
     expect(adapter.createTablesCalls[0].entities[0]).toBeInstanceOf(RxDBBranch);
     expect(adapter.createTablesCalls[0].entities[0]).toMatchObject({ activated: true, id: 'main' });
+    expect(adapter.createTablesCalls[0].entities.filter(entity => entity instanceof RxDBMigration)).toEqual([
+      expect.objectContaining({ name: WORKING_TREE_COMMITS_MIGRATION_NAME })
+    ]);
   });
 
   it('adds only missing tables when an existing schema has no migrations', async () => {

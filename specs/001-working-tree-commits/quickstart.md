@@ -1,233 +1,154 @@
-# Quickstart: 本地工作树与提交历史 — 验证指南
+# Quickstart: 验证「本地工作树与提交历史」
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Contracts**: [contracts/](./contracts/)
 
-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Date**: 2026-08-15
+本文件是**验证指南**，不是实现指南。每个场景给出：怎么跑、看什么、绿的判据是什么。实现细节属于 `tasks.md` 与实现阶段。
 
-本文件是**验证/运行指南**，不含实现代码。按交付顺序逐段执行，每段给出前置条件、命令与预期判据。实现细节归 `tasks.md` 与实现阶段。
+> 旧 quickstart.md 里的 `stage` / `unstage` / 部分提交流程**全部作废**——v1 没有暂存区。
 
----
-
-## 阶段 0：bridge tag 前置门禁（阻塞项）
-
-本特性必然把 `RXDB_SYSTEM_SCHEMA_VERSION` 从 3 递增到 4，迁移发布门禁会直接挡住。**必须先做完这一步**（[R-015](./research.md#r-015-bridge-tag-前置条件)）。
+## 0. 前置
 
 ```bash
-pnpm check-migration-release-gate
+# Node 26 是硬性前置：不切 PATH 时 preinstall 直接失败
+node -v          # 必须 v26+
+pnpm -v          # 必须 10+
+pnpm install
 ```
 
-**当前预期**：失败。[`requirements/migration-release.json`](../../requirements/migration-release.json) 的 `bridge.tag` 与 `bridge.version` 都是 `null`。
+三个心智模型先对齐，否则场景全看不懂：
 
-**通过判据**：产出一个**新的非迁移 bridge tag**、更新该 JSON 后，`git merge-base --is-ancestor <bridge-tag> <release-commit>` 成立且上述命令退出码为 0。
+| 层                 | 是什么                    | 存哪                 |
+| ------------------ | ------------------------- | -------------------- |
+| 草稿缓存           | 编辑器未保存 buffer       | 插件独立 IndexedDB   |
+| **工作树**         | working directory         | **主库业务表当前值** |
+| **提交**           | commit                    | 主库 commit 图       |
+| ~~index / 暂存区~~ | **v1 没有对照物，被裁掉** | —                    |
 
-**门禁必须读真实 git 状态**（不得以桩化祖先关系「验证」自己）。三种失败态都要能被挡住：
+`entity.save()` ≈ Ctrl+S，**不等于** commit。保存后的内容对**全部查询立即可见**。
 
-| 场景                                                            | 期望 |
-| --------------------------------------------------------------- | ---- |
-| `bridge.tag = null`                                             | 失败 |
-| `bridge.tag` 指向陈旧发布（如 `v0.0.25`，早于本次 schema 变更） | 失败 |
-| tag 存在但 `git merge-base --is-ancestor` 不成立                | 失败 |
-
-**禁止**：重打、移动或伪造已发布标签；禁止把 `oldBundlePolicy.enforced` 关掉绕过。
-
----
-
-## 阶段 1：提交图与启用迁移（US1）
-
-### 1.1 未启用路径必须零差异
+## 1. 单元与集成（每个阶段的主验证手段）
 
 ```bash
-pnpm nx test rxdb -- --testNamePattern="commit capability|未启用"
+# TDD 循环：先红后绿
+pnpm nx test rxdb --watch
+
+# 核心包一轮
+pnpm nx run-many -t lint test build --projects=tag:js-lib
 ```
 
-**判据**：未启用数据库中新增系统表数量 = **0**（SC-008、INV-10）；未启用库的行为与升级前逐项一致。
+**看什么**：新增用例先红再绿。`nx build` 报绿**不代表**类型无误——类型要单独看 `typecheck`。
 
-### 1.2 提交图不变式
+## 2. 6 后端 × 2 套件（SC-006）
 
 ```bash
-pnpm nx test rxdb -- --testNamePattern="commit graph|baseline|idempotency"
+pnpm nx run-many -t test --projects=rxdb-adapter-pglite,rxdb-adapter-wa-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-electron
 ```
 
-**判据**：
+**绿的判据**：6 个包各自都实际调用了 `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite`（导出了但没人跑 = 没覆盖）。套件内容见 [contracts/conformance-suites.md](./contracts/conformance-suites.md)。
 
-- 每分支恰好一条基线提交（INV-2）
-- `headCommitId` 可达 `baselineCommitId`（INV-3）
-- 直写两行 `activated = TRUE` 被**数据库约束**拒绝（INV-1）
-- 同幂等键同内容返回原提交且 HEAD 不推进；同键不同内容 → `idempotency_key_reused`（INV-7）
-- 空提交被拒
+## 3. 场景验证
 
-### 1.3 跨后端
+### 3.1 启用与零行为差异（US-305 / FR-046）
 
-```bash
-pnpm nx run-many -t test --projects=tag:adapter
-```
+1. 打开一个**未启用**提交能力的既有数据库，跑既有回归。
+2. **期望**：行为与未安装本特性逐字节一致；`workingTree` 上除 `enable()` / `isEnabled()` 外一律 `commit_capability_disabled`。
+3. 调 `enable()`，再调一次。
+4. **期望**：第二次**幂等命中**，不报错、不重置版本；每个既存分支都有 ref / state 初始行，`generation` 互不相同。
 
-**判据**：6 个后端全部执行 `workingTreeCommitConformanceSuite` 的 **G-1..G-17** 组并通过。任一后端缺席 = 未完成（SC-003）。
+### 3.2 捕获完备性 —— 冷重放不变量（US-306 阶段 A / SC-009）
 
----
+1. 依次做：普通 CRUD、显式事务、`mergeBranch()`、undo / redo、`pull()`、`pullRepository()`、`cleanupExpired()`。
+2. 清空进程内缓存，用 `HEAD + WorkingTreeEntry` 重放。
+3. **期望**：重放出的净状态**逐字段等于**业务表当前值。计数相等**不算**通过。
+4. **期望**：`cleanupExpired()` 的过期删除落 `origin='remote_sync'` 的 DELETE 单元——远端同步**会**弄脏工作树，不按来源豁免。
 
-## 阶段 2：工作树捕获（US2）
+### 3.3 status / diff 只有一条轴（US-306 阶段 B）
 
-### 2.1 写入口捕获与意图分派
+1. 改几条实体，`status()` 再 `diff()`。
+2. **期望**：`diff()` **没有**第二个 range 参数；输出只描述 `HEAD ↔ 工作树`。
+3. **期望**：`status().byOrigin` 同时展示 `local` 与 `remote_sync`。
 
-```bash
-pnpm nx test rxdb -- --testNamePattern="write intent|capture"
-node scripts/audit/write-intent-drift.mjs
-```
+### 3.4 提交是全量的（硬裁决 1）
 
-**判据**：
+1. 工作树里有 5 个未提交单元，`commit('msg')`。
+2. **期望**：5 个**全部**进同一个 commit；`commit()` 上**没有** selection 入参；提交后工作树条目为 0、`entryCount` 为 0。
+3. 想隔离一条工作线？用分支：`createBranch()` → 改 → `mergeBranch()` 或 `removeBranch()`。
 
-- 11 个受信调用点逐个触发，条目「产生 / 不产生」与登记表逐项一致（[adapter-contract §4](./contracts/adapter-contract.md#4-写入口受信登记)）
-- 漂移扫描：未登记调用点数量 = **0**（SC-004）；登记了但已不存在的条目数量 = **0**
-- 扫描排除 `dist/` 与测试文件，且能区分 `mergeChanges` 的本地/远端两个重载
+### 3.5 `CommitConflict` 是返回值（SC-008，必须有这条用例）
 
-### 2.2 事务原子性与冷重放
+1. Tab A：`status()` 拿到 `workingTreeRevision`。
+2. Tab B：`save()` 改一条实体。
+3. Tab A：带着第 1 步的 revision `commit()`。
+4. **期望**：返回 `{ ok: false, conflict: { kind: 'working_tree_revision', … } }`——**不是**静默提交、**不是**抛异常、**不是**自动重试。
+5. **期望**：`status().conflicted` **仍为 false**——它只由未结束的 restore session 派生，`CommitConflict` 不入库。
+6. 恢复动作就是重新 `status()` → 复核 → 重新 `commit()`。
 
-```bash
-pnpm nx run-many -t test --projects=tag:adapter -- --testNamePattern="workingTreeCapture"
-```
+### 3.6 restore 不动历史（US-307）
 
-**判据**：
+1. `restore({ commitId: '<HEAD~1>' })`。
+2. **期望**：内容作为**新的未提交变更**回到工作树；HEAD **没有移动**；历史**没有改写**；公开面上**不存在** `checkout()` 或 detached HEAD。
+3. **期望**：`status().conflicted` 在会话存续期间为 true，会话 `committed` 后回到 false。
 
-- 事务回滚后业务数据与工作树条目**同时不存在**，半状态率 = **0**（SC-002）
-- 任意操作序列后，「HEAD 链 + 条目按 `sequence` 重放」逐字段等于当前业务数据（INV-4）
-- `SyncType.QueryCache` 实体在 **11 张新表**中出现次数 = **0**（INV-9）
-- 同事务混写 → `mixed_versioned_cache_transaction` + 整事务回滚
+### 3.7 raw 写被挡在执行前（SC-010 / adapter 契约）
 
-### 2.3 加密
+1. 用 `rawQuery` 直接 UPDATE 一张版本化业务实体表。
+2. **期望**：抛 `commit_capability_mismatch`，且**业务表零变化**（执行前拒绝，不是写完回滚）。
+3. 换成只改 `remoteId` / 同步水位 / 审计时间。
+4. **期望**：放行，且**不创建单元、不递增 revision**。
+5. 调 `upsertMany()` 写版本化实体。
+6. **期望**：**返回 Observable 之前**同步拒绝——不订阅也必须已经拒绝。
+7. **边界**：绕过 adapter 的外部数据库句柄**拦不住**，v1 不承诺拦得住。
 
-```bash
-pnpm nx test rxdb-adapter-encrypted -- --testNamePattern="working tree|commit"
-```
+### 3.8 崩溃恢复（SC-007）
 
-**判据**：启用加密时 5 个落盘位置的明文哨兵命中数 = **0**（SC-009、INV-8）。
+1. 在「写完 changeSet 之后、CAS 之前」注入崩溃。
+2. **期望**：恢复后**要么全有要么全无**；不出现半个 commit、半个事务或半清空的工作树；`entryCount` 与实际行数一致。
 
----
+### 3.9 损坏 fail-closed（SC-013）
 
-## 阶段 3：缓存区与提交状态机（US3）
+1. 损坏 HEAD 可达的某个祖先节点。
+2. **期望**：该分支进入 `corrupted_read_only`；`commit()` / `restore()` / switch-to **三条入口各自**返回 `commit_graph_corrupted`，**不改指针、不删记录**。
+3. **期望**：不依赖重放的当前投影读取、诊断导出、以及「切离」该分支**照常可用**；其他分支不受影响。
 
-```bash
-pnpm nx run-many -t test --projects=tag:adapter -- --testNamePattern="workingTreeCommit"
-```
+### 3.10 分支 ABA（US-308）
 
-**判据**（对应 [conformance-suites §3.2](./contracts/conformance-suites.md#32-缓存区与状态机us3)）：
+1. 记下分支 `b` 的 `(branchId, headRevision)`。
+2. `removeBranch('b')`，再 `createBranch('b')`。
+3. 用第 1 步的值做 CAS。
+4. **期望**：**失败**——`generation` 不复用。
 
-- `closure ⊇ requested` 且如实回传；跨事务父子依赖被自动扩展
-- 任意 stage/unstage 序列后缓存区**自包含**（INV-5）
-- 无法形成合法闭包 → `index_dependency_cycle` 且缓存区**零变化**
-- 相同输入多次 stage 产生逐位相同的 `sequence`
-- 并发提交恰好 **1** 个成功（SC-005）
-- 语义无操作时三个 revision 变化量均为 **0**（SC-007）
-- 提交后未暂存残量按新 HEAD 重新基线化，冷重放仍成立
-- `activationRevision` 不匹配 → `stale_active_branch`
-
-**确定性要求**：全程无 `setTimeout`、无真实时序依赖。崩溃用事务回调内确定性注入错误 + `disconnect()`/`connect()`；并发用同进程双实例同物理库的确定性交错。
-
----
-
-## 阶段 4：三框架交互面与性能门禁（US4）
-
-### 4.1 对称门禁
-
-```bash
-node scripts/audit/tri-framework-check.mjs
-pnpm nx run-many -t lint test --projects=tag:js-lib
-```
-
-**判据**：跨端缺失导出数量 = **0**（SC-010）。任一共享类型或 `useWorkingTree()` 只在一到两端导出 → **整个故事失败**，不得把单端实现记为 Done。
-
-### 4.2 三端等价行为
+## 4. 三框架对称（阶段 C 收口）
 
 ```bash
 pnpm nx run-many -t test --projects=rxdb-angular,rxdb-react,rxdb-vue
+pnpm nx serve dev-rxdb-angular   # 手动看 loading / empty / error
 ```
 
-**判据**：同一 fixture 下三端返回相同状态、依赖闭包、commit 摘要与错误 code。
+**绿的判据**：[contracts/tri-framework-api.md](./contracts/tri-framework-api.md) §3 的清单**三端齐全**，任一端缺一项 = 阶段 C 未完成。a11y 走 Playwright，WCAG 2.1 AA。
 
-### 4.3 E2E 与 a11y
-
-```bash
-pnpm nx run-many -t e2e --projects=dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e
-```
-
-**判据**：`status → stage → refresh → commit` 主流程 + 失败/empty 路径通过；仅键盘可完成全流程；焦点顺序与可见性、名称与状态公告达到 WCAG 2.1 AA；最长实体名与错误文本在窄视口下不溢出、不遮挡、不改变固定工具栏尺寸。
-
-### 4.4 性能门禁
+## 5. 门禁
 
 ```bash
+# 覆盖率（单一真相源，不另设阈值）
+node scripts/audit/coverage-check.mjs
+
+# 公开面 / 命名门禁（SC-014）
+node scripts/audit/api-surface.mjs
+
+# 性能
 pnpm nx run benchmarks:bench-working-tree
-```
 
-**前置**：`benchmarks/reports/working-tree-reference.json` 已签入。
-
-**判据**（[benchmark-report.md §5](./contracts/benchmark-report.md#5-三态门禁)）：
-
-- 归一化 ratio ≤ reference median 的 **110%**
-- `runnerProfileHash` 匹配时追加绝对判据 p95 ≤ **100 ms**
-- 不匹配时产出 `benchmark_environment_mismatch` 并**跳过**绝对判据 —— 不得放宽为通过（SC-012）
-- **失败后禁止重算基线转绿**
-
----
-
-## 阶段 5：恢复会话（US5）与分支隔离（US6）
-
-两者相互独立，可并行。持久层部分可与阶段 4 并行；三框架与 benchmark 部分必须在阶段 4 之后。
-
-```bash
-pnpm nx run-many -t test --projects=tag:adapter -- --testNamePattern="restore|branch isolation"
-pnpm nx run benchmarks:bench-working-tree     # 含 US5 追加的 restore 场景
+# 迁移发布门禁（FR-030）—— 只复验，不重写
+node --test scripts/check-migration-release-gate.spec.mjs
 ```
 
 **判据**：
 
-- 恢复**不移动 HEAD、不产生提交**：只落未暂存条目与会话行；暂存闭包后走普通 `commit()`，新提交以原 HEAD 为父，会话同事务转 `committed`（FR-042）
-- 历史提交行逐字段未被改写（FR-043）
-- 完整差异为空 → `{ kind: 'noop' }`，三个 revision 变化量均为 0（FR-046）
-- CAS 非对称：初次恢复失败 → 不建会话并全量回滚；已有会话的提交/丢弃失败 → 保留会话并派生 `conflicted`（FR-045）
-- 中途崩溃 → 据 `appliedUnitCount` 续做或整体回滚，两种终态都无半状态
-- 路径级 schema 预检：返回**首个**不兼容提交 id + 重放方向 + 双方 manifest，`incompatible_schema` 且零写入（FR-044）
-- 分支 A 的工作树/缓存区在分支 B 上完全不可见（FR-050）
-- **`switchBranch(branchId)` 单参调用仍编译，且默认仍是无条件切换**——脏工作树不阻断（FR-048）
-- `requireClean: true` 显式传入时才校验；非 clean → `working_tree_not_clean`，恢复建议与真实成因一致
-- 切换成功只递增 `activationRevision`，两个分支的另外两个 revision 变化量均为 0（FR-049）
-- 未物化目标分支 → `branch_not_materialized`
-- 并发切换恰好 1 个成功
-- `createBranch` 派生 `branch_baseline` 且新分支工作树为空；`removeBranch` 后孤儿条目数 = 0 且提交行未被删除（FR-051）
-- `restore` p95 ≤ **1 s**（已登记的宪法 IV 例外）
+- 覆盖率：`rxdb` / `rxdb-angular` / `rxdb-react` / `rxdb-vue` 四指标 ≥ 90%，其余包 ≥ 80%。
+- 命名：核心新增导出全部 `Commit*` / `WorkingTree*`；无 `Index*`；三框架包无 `Workspace*`、不复用 `SwitchBranchOptions`；`useWorkingTree()` 合规。
+- 性能：普通 PR 只卡**归一化 ratio ≤ 冻结 median 的 110%**；绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上作为发布门禁；`commit` **不套用 100 ms**。profile 不匹配 → `benchmark_environment_mismatch`，**不得**当成性能回归。
+- 发布门禁脚本已实现且 39/39 单测绿，**MUST NOT 重写**；只在真实 tag 与真实清单上复验。
 
----
+## 6. 发布
 
-## 全量门禁
-
-```bash
-pnpm test-all
-pnpm audit:api-surface
-pnpm audit:coverage
-pnpm check-migration-release-gate
-```
-
-**判据**：
-
-- 零 ESLint 警告、TS strict 通过、嵌套 ≤ 3 层
-- `packages/rxdb` 覆盖率 ≥ **90%**，其余包 ≥ **80%**
-- 每个新公开导出都有 TSDoc
-- API 基线变更已在 `requirements/api-baseline/` 中显式更新并说明
-- 迁移发布门禁通过
-
----
-
-## 命名纪律自查
-
-| 项             | 要求                                                                                                                               |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 新增公开导出   | **禁止** `Workspace*` 前缀（已被 `@aiao/rxdb-plugin-workspace` 占用）                                                              |
-| 切换分支选项   | 公开新类型固定为 `WorkingTreeSwitchBranchOptions`；**不得**复用既有内部 `SwitchBranchOptions`                                      |
-| 切换分支默认值 | 既有入口默认行为**保持不变**（无条件切换、单参签名继续编译）；clean 检查只作为显式 `requireClean` 提供；无 `onDirty` / `carryOver` |
-| 内部意图字段   | `SwitchBranchOptions.intent` 是内部适配器契约扩展，不进公开 API 基线                                                               |
-| 两个枚举不合并 | 内部 `RxDBWriteIntent`（9 值）与持久 `WorkingTreeEntry.origin`（5 值）是不同概念，**不得**合并                                     |
+**npm release 由维护者手动控制**，不是本特性的任务链的一环，也不是开工前置。本 quickstart 不提供发布命令。

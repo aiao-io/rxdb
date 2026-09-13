@@ -1,95 +1,64 @@
-# Contract: 三框架对称 API
+# Contract: 三框架对称
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+**Feature**: [../spec.md](../spec.md) | **Core API**: [./core-api.md](./core-api.md)
 
-**Feature**: [spec.md](../spec.md) | **Core API**: [core-api.md](./core-api.md) | **Date**: 2026-08-15
+宪法第三条：**三框架功能等价强制，单端缺失 = 未完成**。本文件冻结对称的判据。
 
-冻结 `@aiao/rxdb-angular`、`@aiao/rxdb-react`、`@aiao/rxdb-vue` 三端必须**同名、同签名、同返回键**的工作树交互面（US4 / US-306 阶段 C）。三端只做透传与呈现，**不得自带业务分支逻辑**。
+## 0. 适用范围（按故事，不是全特性）
 
----
+| 交付单元          | 是否要求三端入口 | 说明                                                       |
+| ----------------- | ---------------- | ---------------------------------------------------------- |
+| US-305            | ❌               | 无 UI 的核心底座：只要求核心公开类型、TSDoc、类型契约测试  |
+| US-306 阶段 A / B | ❌               | 同上                                                       |
+| **US-306 阶段 C** | ✅               | 三端入口在此收口                                           |
+| **US-307**        | ✅               | 核心持久层可与阶段 C 并行，**三端入口必须排在阶段 C 之后** |
+| **US-308**        | ✅               | 同上                                                       |
 
-## 1. 共享类型透传
+## 1. 对称的判据
 
-三端 MUST 从 `@aiao/rxdb` 透传同一组类型，不得各自重定义：
+**同名 + 同语义 + 同错误码**；运行时形状按各框架既有约定。对称不等于形状全等——强行让 Angular 返回 React 的 hook 形状，或让 Vue 返回裸 `Observable`，都是把「一致」做成了「别扭」。
 
-`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeSelection`、`WorkingTreeStageResult`、`WorkingTreeCommandError`、`CommitOptions`、`CommitConflict`
+| 概念       | Angular 22                                | React 19                              | Vue 3.5                               |
+| ---------- | ----------------------------------------- | ------------------------------------- | ------------------------------------- |
+| 工作树入口 | 可注入服务 `WorkingTreeService`           | `useWorkingTree()`                    | `useWorkingTree()`                    |
+| 响应式状态 | `Signal<WorkingTreeStatus>` / `status$`   | 返回对象上的 state 字段（随渲染更新） | `Ref<WorkingTreeStatus>` / `computed` |
+| 命令       | 方法返回 `Promise`                        | 返回对象上的方法，`Promise`           | 返回对象上的方法，`Promise`           |
+| 错误       | 抛同一组错误码；`CommitConflict` 走返回值 | 同左                                  | 同左                                  |
 
-定义见 [core-api.md](./core-api.md)；`CommitConflict` 见 [§8.5](./core-api.md#85-冲突描述类型)——它是从操作、对象与 expected/actual revision 派生的纯结构，三端**原样透传**，不得在框架层重算或补字段。
+三端**共享同一份**核心类型（`WorkingTreeStatus` / `CommitResult` / `CommitConflict` / `WorkingTreeDiff`…），从 `@aiao/rxdb` 再导出，**不各自重定义**。重定义会让三份类型独立漂移，而漂移只在用户那里暴露。
 
----
+## 2. 命名规则：框架包只适用负向规则
 
-## 2. `useWorkingTree()` 返回键（v1 基线键集）
+| 规则                                                    | 框架包                                |
+| ------------------------------------------------------- | ------------------------------------- |
+| 新增导出必须是 `Commit*` / `WorkingTree*` 前缀          | ❌ 不适用（正向规则只管核心共享契约） |
+| **无 `Workspace*` 新增导出**                            | ✅ 适用                               |
+| **无 `Index*` 新增导出**                                | ✅ 适用                               |
+| **不复用 `SwitchBranchOptions`**                        | ✅ 适用                               |
+| 不复活 `stagedChange` / `unstageChange` / `stagedCount` | ✅ 适用                               |
 
-| 键                                  | 语义                                                                  | 容器差异                                                                  |
-| ----------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `status`                            | 当前持久状态；含 `clean`/`modified`/`staged`/`restoring`/`conflicted` | Angular `Signal` / React 快照 / Vue `Ref`                                 |
-| `diff`                              | HEAD↔工作树 与 HEAD↔缓存区 的当前差异                                 | 同上                                                                      |
-| `refresh`                           | 主动读取最新 revision                                                 | 函数，三端同签名                                                          |
-| `stage` / `unstage`                 | 返回**实际依赖闭包**                                                  | 函数                                                                      |
-| `clearIndex` / `discardWorkingTree` | 明确范围的清理命令                                                    | 函数                                                                      |
-| `commit`                            | `message` + `CommitOptions` 提交                                      | 函数                                                                      |
-| `commandState`                      | 当前命令的 `idle`/`loading`/`success`/`error` 与类型化错误            | 复用既有 [`useAction`](../../../packages/rxdb-vue/src/use-action.ts) 形态 |
+因此 **`useWorkingTree()` 合规**：它是小写 `use*` 开头的运行时入口，沿用仓库既有约定，不受正向前缀规则约束（SC-014 原文已写明）。
 
-**容器差异（Signal / state / Ref）是唯一允许的差异**。导出名、参数、返回键、错误 code、empty/loading/success/error 判定与恢复建议必须逐项对称。**不得让某一端额外拥有业务能力。**
+## 3. 必须三端齐全的能力清单（阶段 C 收口）
 
----
+`isEnabled()` / `enable()`、`status()` 及其响应式形式、`diff()`、`commit()`、`discard()`、`listCommits()`、`restore()`、`restoreSession()`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`。
 
-## 3. 扩展点协议（本故事冻结「怎么加」，不冻结键的全集）
+**任一端缺一项 = 阶段 C 未完成**，不接受「先上两端，第三端下个迭代补」。
 
-上表是 **v1 基线键集**，不是最终全集。后续故事按同一协议向 `useWorkingTree()` **追加**键，不得另立入口：
+## 4. UX 一致性义务
 
-| 追加者                | 新增键                    | 约束                                                                                                   |
-| --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| US5（恢复会话）       | `restore`、`restoreState` | 复用同一 `commandState` 形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，**不得改语义** |
-| US6（分支隔离与冲突） | 分支切换与冲突提示入口    | 同上；**不得**在某一端把切换做成组件内部逻辑                                                           |
+| 状态    | 要求                                                                          |
+| ------- | ----------------------------------------------------------------------------- |
+| loading | 三端都要有可观测的进行中状态；`commit()` / `restore()` 期间不得静默           |
+| empty   | 有 empty 语义的命令（`status` 无未提交变更、`listCommits` 无历史）三端一致    |
+| error   | 同一错误码在三端呈现同一语义；`CommitConflict` 是**可重试的返回值**，不是崩溃 |
+| a11y    | WCAG 2.1 AA；键盘可达、焦点可见、状态变化对读屏可感知                         |
 
-追加 MUST 满足：三端同名同签名同返回键、共享类型仍从 `@aiao/rxdb` 透传、`tri-framework-check` 与 a11y 门禁对新键同样生效（**缺一端整故事失败**）。追加者 MUST NOT 重定义已冻结键的语义；确需变更时改本契约并同步三端。
+**不给无 empty 语义的命令伪造 empty**：`commit()` 没有「空成功」，未提交变更为零时它是一次明确的 no-op 结果，不是空列表。
 
----
+## 5. 验收
 
-## 4. 对称门禁
-
-`scripts/audit/tri-framework-check.mjs`（[R-014](../research.md#r-014-三框架对称门禁的实现)）：
-
-- 比对三个 `packages/rxdb-{angular,react,vue}/src/index.ts` 的导出名集合。
-- 比对从 `@aiao/rxdb` 透传的共享类型集合。
-- 三端不完全一致 → 失败。判据：**跨端缺失导出数量 = 0**（SC-010）。
-
-行为层对称由三端等价组件测试 + Playwright 跨框架 E2E 验证，共享同一份 `@aiao/rxdb-test/cross-framework-fixtures` 种子，沿用既有 [`search-parity`](../../../packages/rxdb-test/src/cross-framework-fixtures/search-parity.ts) 的落地形态。
-
----
-
-## 5. 可访问性契约（WCAG 2.1 AA）
-
-| 项             | 要求                                                               |
-| -------------- | ------------------------------------------------------------------ |
-| 键盘可达       | 浏览 diff、选择单元、stage、clearIndex、commit 全流程仅键盘可完成  |
-| 焦点           | 焦点顺序符合视觉顺序；焦点可见                                     |
-| 名称与角色     | 每个可操作元素有可被辅助技术读出的名称                             |
-| 状态公告       | `loading` / `success` / `error` / `empty` 状态变化被公告           |
-| empty 真实性   | 查询无 diff 时公告 `empty` 与 `clean`；命令**不得伪造** `empty`    |
-| 长文本与窄视口 | 最长实体名与错误文本在窄视口下不溢出、不遮挡、不改变固定工具栏尺寸 |
-
----
-
-## 6. 错误呈现契约
-
-三端呈现的错误 MUST 包含三要素（FR-039）：
-
-1. **操作** —— 哪个命令失败（stage / commit / restore / switchBranch …）
-2. **对象** —— 涉及的实体或提交
-3. **恢复建议** —— 可执行的下一步
-
-错误 code 全集与恢复建议方向见 [core-api.md §9](./core-api.md#9-错误契约)。三端的 code 必须逐字相同。
-
----
-
-## 7. 演示应用
-
-`apps/dev-rxdb-{angular,react,vue}/` 各提供对称演示页，覆盖 `status → stage → refresh → commit` 主流程，以及失败、empty、键盘与屏幕阅读器名称。E2E 记录首次可见状态耗时，但**浏览器 OPFS/IDB 不承诺相同绝对数字**（仅 Node + PGlite 的 benchmark 作门禁，见 [benchmark-report.md](./benchmark-report.md)）。
+- 三端各自的 `*.spec.ts` 覆盖第 3 节清单的每一项。
+- 覆盖率按 `scripts/audit/coverage-check.mjs`：`rxdb-angular` / `rxdb-react` / `rxdb-vue` 四指标 ≥ 90%。
+- a11y 走 Playwright。
+- 公开面差异由 `scripts/audit/api-surface.mjs` 与 `requirements/api-baseline/rxdb-{angular,react,vue}.json` 比对。

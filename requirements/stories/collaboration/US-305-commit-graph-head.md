@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-09-06
+updated: 2026-09-12
 tags: [collaboration, commit, head, persistence, migration]
 inherited_acs:
   - from: US-306
@@ -47,7 +47,7 @@ INVEST 检查清单:
 | Git 概念               | RxDB 中的含义                                          | 持久化要求                          |
 | ---------------------- | ------------------------------------------------------ | ----------------------------------- |
 | `HEAD`                 | 当前激活分支的 `CommitBranchRef.headCommitId` 派生值   | 不持久化第二份独立指针              |
-| 分支引用（branch ref） | 分支名到 head commit 的唯一映射；沿用现有分支能力      | 与 commit 更新原子一致并带 revision |
+| 分支引用（branch ref） | 分支 ID 到 head commit 的唯一映射；沿用现有分支能力    | 与 commit 更新原子一致并带 revision |
 | commit                 | 带父节点、消息、作者和变更集合的不可变版本节点         | 创建后不可改；刷新后可查询          |
 | ChangeSet              | commit 的变更单元集合，按实体/事务分组，保留可恢复信息 | 与 commit 同一提交屏障内可见        |
 
@@ -62,13 +62,22 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 交付阶段与边界
 
-| 阶段 | 交付                                                                                                                          | 直接前置                                              | 验收区段                | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------- | ---- |
-| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | 桥接发布（FR-030 的 bridge tag 已在 `main` 祖先链上） | User Story 1 场景 1～8  | ⬜   |
-| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                | User Story 2 场景 1～14 | ⬜   |
+| 阶段 | 交付                                                                                                                          | 直接前置                                                                                                               | 验收区段                | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ⬜   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | ⬜   |
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
+- 上述前置目前**未满足**：`specs/001-working-tree-commits/data-model.md` 仍登记 `RxDBIndexState` / `RxDBIndexEntry`，
+  `quickstart.md` 仍含 `index_dependency_cycle`，都是本 epic 已废弃的暂存区概念。规格重生成完成前不得开工，
+  否则实现会照着已作废的数据模型落地。**这是本故事唯一的开工前置。**
+- **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
+  [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
+  [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
+  只有 `kind=migration` 的**发布**会被门禁挡住；阶段 A / 阶段 B 的编码、测试与合入都不等它。
+  阶段 B 的 FR-030 实现只读 manifest，**不得把任何具体 tag 名或版本号写死进代码**，
+  因此「tag 此刻还不存在」对实现与测试都不构成阻塞（用 fixture manifest 覆盖各分支即可）。
 - 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
 - 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 
@@ -97,7 +106,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 - status / diff / commit / discard 的用户操作面 —— 属 [US-306](./US-306-working-tree-commits.md)
 - 历史恢复会话 —— 属 [US-307](./US-307-restore-session.md)
-- 分支切换入口、冲突诊断和三端提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 head revision CAS 在本故事完成
+- 分支切换入口、冲突诊断和三端提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；公开类型 `CommitConflict`
+  的定义与 api-baseline 登记属 [US-306 阶段 B](./US-306-working-tree-commits.md)。底层 head revision CAS 在本故事完成，
+  其失败在阶段 A 只返回内部稳定错误码 `commit_head_revision_conflict`，由 US-306 阶段 B 包装成公开 `CommitConflict`
 - 远程 push/pull、rebase、cherry-pick、任意历史改写
 - 基于时间或大小的 commit 自动清理策略
 - Workspace IndexedDB 草稿的读取、搬迁或隔离；草稿不属于 SQL/PGlite 迁移事务
@@ -119,9 +130,15 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 3. **Given** 应用在持久化写入中途崩溃，**When** 下次打开应用，**Then** 只能看到上一次完整一致的状态，不出现半个 commit 或半个事务。
 4. **Given** 变更单元集合为空，**When** 创建 commit，**Then** 操作被拒绝，不产生空节点，HEAD 不变。
 5. **Given** commit message 为空或只含空白，**When** 创建 commit，**Then** 操作被拒绝并保留调用前状态。
-6. **Given** 两个 writer 从相同 `headRevision` 开始提交，**When** 先后尝试推进同一分支，**Then** 只有一个 CAS 成功；失败方不产生可见 commit，并收到包含 expected/actual revision 的稳定冲突错误。
-7. **Given** commit 已在数据库提交但响应在返回前丢失，**When** 调用方用相同 `operationId`、message、author 和提交内容重试，**Then** 返回第一次创建的同一 commit，不推进第二次 HEAD；同一 branch generation 内复用 `operationId` 却携带不同 payload 时返回 `idempotency_key_reused`。
+6. **Given** 两个 writer 从相同 `headRevision` 开始提交，**When** 先后尝试推进同一分支，**Then** 只有一个 CAS 成功；失败方不产生可见 commit，并收到包含 expected/actual revision 的稳定冲突错误 `commit_head_revision_conflict`。
+7. **Given** commit 已在数据库提交但响应在返回前丢失，**When** 调用方用相同 `operationId`、message、author 和提交内容重试，**Then** 返回第一次创建的同一 commit，不推进第二次 HEAD；同一 branch generation 内复用 `operationId` 却携带不同 payload 时返回 `idempotency_key_reused`。**幂等命中的判定先于 `headRevision` CAS**：重试请求携带的 expected revision 已因第一次提交而过期时，仍返回原 commit，不得退化成场景 6 的 `commit_head_revision_conflict`。
 8. **Given** 普通 commit 缺少 `authorId` 或 `operationId`，**When** 用户提交，**Then** 在写事务前拒绝；不得从空值、设备名或 writer ID 伪造作者。
+9. **Given** 一个事务内同时产生 NEW、UPDATE、DELETE 变更，**When** 创建 commit，**Then** ChangeSet 中每条变更单元都带实体身份、操作类型、基线版本与当前版本指纹，且该事务不被拆进两个 commit（FR-003）。
+10. **Given** 数据库已启用 commit 能力，**When** 调用既有 `RxDBChange` 查询、undo、redo 与 `restoreEntity()`，**Then** 返回结果与过滤规则同启用前完全一致，启用本身不改变任何旧 API 的可观察行为（FR-018）。
+11. **Given** 已 commit 后又执行 undo 并刷新页面，**When** 重新打开应用，**Then** 会话级 redo 栈允许为空，但 commit 图、父链与分支 HEAD 必须完整可查询（FR-019）。
+12. **Given** 实体含 `encrypted: true` 字段，**When** 创建**普通** commit，**Then** commit 与 ChangeSet 的持久化 dump 中只出现 versioned envelope，明文哨兵零命中，摘要与错误文本不含明文；解锁后 `show()` 返回正确值（FR-038，与 AC US2-10 的 baseline 侧互补）。
+13. **Given** 分支 B 从分支 A 创建且此后无新提交，**When** 调用 `log({ branchId: 'B' })`，**Then** 返回沿 B 的 `CommitBranchRef` 父链可达的全部节点（含 `originBranchId = 'A'` 的继承历史），不被 `originBranchId` 过滤截断（FR-012）。
+14. **Given** 一个分支被删除后以同名重建，**When** 用旧分支生命周期里用过的 `operationId` 提交，**Then** 因 branch generation 不同而按新提交处理，不命中旧幂等键、不返回旧 commit（FR-036）。
 
 ### User Story 2 - 已有数据库首次启用（Priority: P1）
 
@@ -135,18 +152,20 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 1. **Given** 数据库已有数据但无 commit 图，**When** 首次显式启用，**Then** 为每个能仅凭本地主库与旧 `RxDBChange` 完整物化的分支生成一个 `kind=baseline` 的初始 commit；baseline 不伪造用户作者和消息，既有 `RxDBChange` 仍可供历史/undo 使用。
 2. **Given** 首次初始化已完成，**When** 再次启动应用，**Then** 迁移幂等，不重复建立基线。
-3. **Given** 迁移中途失败，**When** 重试，**Then** 从可验证的一致点继续，不产生重复基线或孤立 commit。
+3. **Given** 迁移中途失败，**When** 重试，**Then** 不留下部分启用状态：迁移是单个数据库事务，失败即整体回滚，重试是整体重跑；baseline ID 与 commit ID 的确定性生成（见「提交规则」）保证重跑幂等，不产生重复基线或孤立 commit。
 4. **Given** 不可达的孤立 commit 损坏，**When** 启动，**Then** 隔离原始记录并保留其他可验证 commit；**Given** 损坏节点是某个 branch ref 的 HEAD 或可达祖先，**Then** 该分支进入 `corrupted_read_only`，保留原 ref，不自动改指针、不删除记录、不允许 commit/restore/switch-to，并返回首个损坏节点与修复建议。其他健康分支仍可使用，禁止静默回退到空库或内存模式。
-5. **Given** 数据库已有 A/B 多个分支且指向不同状态，**When** 首次启用完成后依次切换分支，**Then** 每个 `CommitBranchRef` 指向代表该分支原 tip 的 baseline，当前激活分支与业务实体状态不因迁移改变。
+5. **Given** 数据库已有 A/B 多个分支且指向不同状态，**When** 首次启用完成后用**既有** `VersionManager.switchBranch()` 依次切换分支（本故事不改切换入口），**Then** 每个 `CommitBranchRef` 指向代表该分支原 tip 的 baseline，当前激活分支与业务实体状态不因迁移改变。
 6. **Given** Workspace 插件仍有 NEW 草稿，**When** 首次启用 commit 能力，**Then** baseline 不包含也不删除草稿；草稿 `save()` 后才以普通 INSERT 出现在工作树。
 7. **Given** 应用未显式启用 commit 能力，**When** 打开旧数据库，**Then** 不创建 commit 系统表、不生成 baseline，现有 CRUD、branch、undo/redo 行为不变。
 8. **Given** 既有数据库或某个已证明完整物化的本地分支没有任何业务实体，**When** 首次启用，**Then** 允许创建确定性的空 `kind=baseline` 根节点；metadata-only 远端分支不适用该例外，该例外也不得放宽普通 commit 的非空要求。
 9. **Given** 数据库已由一个 realm 启用 commit 能力，**When** 另一个 realm 以未启用或不兼容协议连接并尝试写入，**Then** 在业务写入前返回 `commit_capability_mismatch` 或进入调用方明确请求的只读模式，实体表、工作树与 revision 零变化。
 10. **Given** 实体含 `encrypted: true` 字段，**When** 建立 baseline 或普通 commit，**Then** commit 与 ChangeSet 持久化 dump 中只出现 versioned envelope，明文哨兵零命中；解锁后 `show()` 仍返回正确值。
 11. **Given** `syncBranches()` 已建立 `local=false, remote=true` 但本地没有完整实体状态的分支，**When** 首次启用，**Then** 不为它伪造空 baseline 或 branch ref；健康本地分支照常迁移，该远端分支由 US-308 首次成功物化时原子建立 `kind=branch_baseline`。
-12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个。
+12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个——现有 `resolve_current_branch()` 的 `limit: 1` 静默取首行行为 MUST NOT 被迁移路径复用。
 13. **Given** 数据库首次启用 commit 能力，**When** 迁移事务提交，**Then** 存在唯一一行 `WorkingTreeActivationState` 且 `activationRevision = 0`，重启后可读、值不变，且其中不含第二份 active branch ID；**Given** 应用未显式启用 commit 能力，**Then** 该表不被创建。
 14. **Given** `requirements/migration-release.json` 当前为 `bridge.tag = null` / `bridge.version = null`，且历史 bridge 发布 `v0.0.25` 的 tagged commit 因 squash 已不在发布主线上（`git merge-base --is-ancestor v0.0.25 HEAD` 为 false），**When** 本故事的 system schema 迁移发布进入门禁，**Then** 门禁必须失败，直到发布主线上产出一个新的**非迁移** bridge 版本并把它的真实 tag 写入 `bridge.tag`；该 tag 必须满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 且不得是 `v0.0.25`。**Then** 补齐后重跑门禁通过，且全程不重打、移动或伪造任何已发布 tag。
+15. **Given** 某个 `local=true` 分支的历史无法完整物化（所需 `RxDBChange` 已被 `cleanupExpired()` 删除、被压缩，或链上存在无法配平的 `revertChangeId`），**When** 首次启用，**Then** 迁移以稳定错误 `branch_not_materializable` 整体失败并回滚，错误指名该分支与首个断链位置；不得为它伪造 baseline、不得跳过该分支继续迁移其余分支（FR-049）。
+16. **Given** 数据库已启用 commit 能力，**When** 任一 writer 连接，**Then** 连接握手校验 `RxDBBranch.activated = true` 至少存在一行，缺失时以 `ambiguous_active_branch` 同族的稳定错误拒绝连接而非静默激活；至多一行由系统 schema 约束保证，绕过该约束的写入被数据库层拒绝（FR-048）。
 
 ## 功能需求
 
@@ -169,16 +188,29 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   `v0.0.25` 虽是历史 bridge 发布，但当前主线经 squash 后不再包含其 tagged commit，MUST NOT 作为本故事的迁移锚点；
   不得重打、移动或伪造已发布 tag。若发布主线没有有效 bridge ancestor，必须先从该主线发布新的非迁移 bridge 版本，
   再开始本故事的 system schema 迁移发布。
+  **锚点合法性不止于「是祖先」**：`v0.0.24` 及更早的 tag 也是祖先、也含系统迁移面的四个文件，却早于工作树桥接改造。
+  因此 `bridge.version` MUST 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`，且 bridge tag 上的
+  `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` MUST 与本次发布的升级位吻合
+  （声明升级则严格更旧，未声明升级则完全相等）。这两条判据**已在
+  [check-migration-release-gate.mjs](../../../scripts/check-migration-release-gate.mjs) 中实现并有单测**，
+  本故事 MUST NOT 重写该脚本，只负责在真实 tag 与真实清单上复验。
 - **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
 - **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
 - **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
 - **FR-048**：commit 能力启用后 MUST 保证 `RxDBBranch.activated` 恰好一行是 true。首次迁移零 active 时沿用既有 main 恢复语义；多 active 时返回 `ambiguous_active_branch` 并全量回滚。系统 schema MUST 约束至多一个 active，每次连接 MUST 验证至少一个。
-- **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败。
+- **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败并返回 `branch_not_materializable`。
+  「可完整物化」的判定 MUST 复用既有分支物化路径（`switch_branch_actions()` / `find_switch_branch_step()`，见
+  [`switch-branch-actions.ts`](../../../packages/rxdb/src/version/switch-branch-actions.ts)）：能从当前主库状态沿
+  `RxDBChange` 链无缺口地走到该分支 tip 即可物化；`cleanupExpired()` 已删除的 change、压缩掉的区间或无法配平的
+  `revertChangeId` 都构成断链。MUST NOT 为迁移另写第二套重放引擎。
+- **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
+  本故事 MUST 把该判定实现为**共享 guard**，供 commit / restore / switch-to 在各自写事务内调用；
+  [US-306 阶段 B](./US-306-working-tree-commits.md)、[US-307](./US-307-restore-session.md)、
+  [US-308](./US-308-branch-isolation-conflict.md) MUST 复用它，不得各写一份损坏判定。
 - **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision`
   初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责
   建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 [US-308](./US-308-branch-isolation-conflict.md)，
   写路径的 token 校验归 [US-306 阶段 A](./US-306-working-tree-commits.md)。未启用 commit 能力的数据库 MUST NOT 创建该表。
-- **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
 
 ## 关键实体
 
@@ -190,6 +222,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 > 命名遵守 [epic-006](../../epics/epic-006-working-tree-commits.md) 的术语表：新导出一律 `Commit*` 前缀，
 > **不得**使用 `Workspace*`——该前缀已被 `@aiao/rxdb-plugin-workspace` 的草稿缓存占用。
+> 另注意现有 `TransactionCommitEvent` / `SwitchBranchCommitEvent` / `MergeBranchCommitEvent`
+> （[`rxdb-events.ts`](../../../packages/rxdb/src/rxdb-events.ts)）里的 "Commit" 指**事务提交**，与本故事的 git commit 无关：
+> 新导出只用 `Commit*` **前缀**形式，MUST NOT 新增 `*CommitEvent` 形状的名字，避免两种语义在同一命名空间里混淆。
 
 ## 设计展开
 
@@ -206,6 +241,10 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   `UPDATE branch_ref ... WHERE headRevision = expected`，受影响行数不为 1 时整个提交失败。
 - `operationId` 的唯一记录与 commit/ChangeSet/branch ref 同事务写入。数据库提交后响应丢失不属于“提交失败”；
   调用方只能以相同 operation ID 重试并取回原结果。
+- 写事务内的判定顺序固定为「先查幂等键，命中即返回原 commit；未命中才做 `headRevision` CAS」。
+  调用方捕获式重试携带的 expected revision 必然已过期，若先判 CAS 就会把幂等重试误报成冲突（AC US1-6 / US1-7）。
+- `log({ branchId })` 的父链可达性查询不得退化为全图扫描：plan 阶段必须冻结一种可达性索引
+  （链深/序号字段或等价结构），并给出随 commit 数增长的复杂度口径。
 - baseline ID 由数据库、分支、迁移 ID 与 schema/codec manifest 确定性生成；branch baseline 额外绑定来源类型和 `fromChangeId` 或 remote materialization fingerprint。空状态也可生成系统根节点，重复操作必须命中同一 ID。
 - 历史节点永不通过「把旧节点改成当前」实现变更；需要可追踪的动作时必须再创建一个新 commit。
 
@@ -215,7 +254,12 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - commit 能力在从未启用的数据库上显式启用；未启用时不建立系统表、不生成 baseline，也不改变既有 API 行为。
 - 数据库一旦启用，后续 writer 不得通过省略配置回到裸写模式；同版本 realm 的配置分歧与旧 bundle 都必须在首笔业务写入前被拒绝或显式只读。
 - 首次启用时按每个本地可完整物化分支的原 tip 建立 baseline 和 `CommitBranchRef`，并记录迁移版本；迁移前后的激活分支与当前业务实体状态一致，重复启动幂等。metadata-only 远端分支保持无 ref，不能把未知远端内容解释为空 tip。
+- 首次启用迁移是**单个数据库事务**：要么完整启用，要么完全没启用，不存在「部分分支已建 baseline」的中间态；重试即整体重跑。
+  该事务的规模与既有分支数、`RxDBChange` 条数线性相关，plan 阶段必须给出在 6 个 v1 后端上的实测耗时上界；
+  若某后端超出可接受范围，改为可续跑分段迁移属于 plan 阶段的显式决策变更，需回写本故事而不是实现时静默偏离。
 - 启用事务先收敛 active 分支基数：零 active 沿用 `main` 恢复语义，多 active 直接失败；成功后用数据库约束维持至多一个 active，并在连接时验证至少一个。
+  现有 [`resolve_current_branch()`](../../../packages/rxdb/src/version/resolve-current-branch.ts) 以 `limit: 1` 取首个
+  `activated=true`，多 active 时静默选一行；迁移与连接握手 MUST 自己统计基数，不得复用该静默行为（AC US2-12 / US2-16）。
 - 启动图校验不得“修复”不可变历史。可达链损坏时保留原 ref 和原始行，把分支标记为派生的只读损坏态；显式历史修复工具不在本 Epic 范围。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。
 - migration release 不能按版本号猜 bridge。候选 tag 必须同时满足：manifest 声明 `kind=bridge`、包版本与 tag 一致、
@@ -237,10 +281,19 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 迁移幂等性、空/非空多分支 baseline、metadata-only 远端分支延迟建 ref、零/多 active、未启用零副作用、启用状态混用拒绝、Workspace 草稿隔离与损坏记录隔离必须有独立 fixture。
 - `WorkingTreeActivationState` 需独立 fixture：启用后单行存在且 `activationRevision = 0`、重启可读、未启用时表不存在（FR-052 / AC US2-13）。
 - 损坏 fixture 必须分别覆盖不可达孤立节点、HEAD 损坏和中间祖先损坏；后两者断言 ref 不被改写、健康分支可用且损坏分支所有重放写入口稳定 fail-closed。
-- 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中。
-- 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、或不满足
-  `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；只有真实祖先 tag 才放行。
-  用例读真实 git 仓库状态，不 mock 祖先判定。
+- 支持字段加密的后端必须扫描 commit/ChangeSet/baseline 原始持久化 dump，断言明文哨兵零命中；扫描范围同时覆盖
+  **普通 commit**（AC US1-12）与 baseline（AC US2-10）。
+- 旧 API 兼容需独立 fixture：启用前后对同一批 `RxDBChange` 查询、undo/redo、`restoreEntity()` 断言结果一致（AC US1-10），
+  并单独断言刷新后 redo 栈可空而 commit 图/HEAD 必须完整（AC US1-11）。
+- 继承历史需独立 fixture：B 从 A 分出后 `log({ branchId: 'B' })` 返回 `originBranchId = 'A'` 的可达祖先（AC US1-13）；
+  同名重建分支的 generation 隔离需断言旧 `operationId` 不命中（AC US1-14）。
+- 无法物化的本地分支需独立 fixture：分别构造 change 被 `cleanupExpired()` 清理、区间被压缩、链上有 `revertChangeId`
+  三种断链，断言迁移整体回滚并返回 `branch_not_materializable` 且指名断链位置（AC US2-15）。
+- 连接握手基数校验需独立 fixture：零 active 拒绝连接、多 active 被 schema 约束拒绝（AC US2-16）。
+- 桥接血统门禁需独立用例（FR-030 / AC US2-14）：`bridge.tag` 为 `null`、为 `v0.0.25`、为 `v0.0.24`
+  （祖先但早于桥接改造）、或不满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 时门禁均失败；
+  另需两条版本常量反例——bridge tag 上的 schema/codec 版本未随声明的升级位推进、以及升级位写成 `false`
+  但版本实际变了。只有真实祖先 tag + 版本常量吻合才放行。用例读真实 git 仓库状态，不 mock 祖先判定。
 - 本故事是无 UI 的核心底座，不适用三框架对称与 UI a11y，但必须满足
   [epic-006 横切约束 1](../../epics/epic-006-working-tree-commits.md#横切约束按故事适用不单独成故事) 的另一半：
   全部新增公开类型与入口带 TSDoc（`Commit*` / `WorkingTree*` 命名、参数、抛错与 revision 语义），
@@ -250,13 +303,15 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 实现文件（计划阶段待确认）
 
-| 路径                                   | 阶段 | 用途                                                 |
-| -------------------------------------- | ---- | ---------------------------------------------------- |
-| `packages/rxdb/src/version/`           | A    | commit 图、HEAD 与分支引用                           |
-| `packages/rxdb/src/system/`            | A    | commit 元数据表                                      |
-| `packages/rxdb/src/system/`            | B    | 首次启用迁移、baseline、`WorkingTreeActivationState` |
-| `packages/rxdb/src/__tests__/version/` | A/B  | 核心回归套件                                         |
-| `requirements/api-baseline/rxdb.json`  | A/B  | 新增公开类型登记                                     |
+| 路径                                    | 阶段 | 用途                                                   |
+| --------------------------------------- | ---- | ------------------------------------------------------ |
+| `packages/rxdb/src/version/`            | A    | commit 图、HEAD 与分支引用                             |
+| `packages/rxdb/src/system/`             | A    | commit 元数据表                                        |
+| `packages/rxdb/src/system/`             | B    | 首次启用迁移、baseline、`WorkingTreeActivationState`   |
+| `packages/rxdb/src/system/migration.ts` | B    | `RXDB_SYSTEM_SCHEMA_VERSION` 抬升与迁移登记            |
+| `requirements/migration-release.json`   | B    | `kind=migration`、bridge 锚点与 `oldBundlePolicy` 回填 |
+| `packages/rxdb/src/__tests__/version/`  | A/B  | 核心回归套件                                           |
+| `requirements/api-baseline/rxdb.json`   | A/B  | 新增公开类型登记                                       |
 
 ## 依赖与参考
 

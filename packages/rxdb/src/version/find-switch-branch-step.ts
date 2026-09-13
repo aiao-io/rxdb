@@ -73,6 +73,55 @@ export interface FindBranchPathOptions {
  */
 const forkPointOf = (branch: RxDBBranch): number => branch.fromChangeId ?? 0;
 
+/**
+ * 沿 `parentId` 从一条分支走到它所在树的根，返回途经的全部分支（含自己，根在最后）。
+ *
+ * 断链（`parentId` 指不到分支）与成环都是**持久化完整性错误**：调用方传进来的分支集合
+ * 是全量无过滤查询的结果，不存在「父分支被过滤掉了」这种正常情况。
+ * 曾经这两种情况都是 `break` —— 相当于把坏数据当成「已经到根」，继续算出一条通往
+ * 并不存在的根的完整 action 序列，调用方照单全收地写库，半条路径被应用而没有任何报错。
+ * 切分支失败远好过静默切错，因此这里必须终止且不产生任何 action。
+ *
+ * 从 {@link find_switch_branch_step} 的闭包里提出来成为模块级导出，是因为
+ * 「父链自不自洽」这一问的答案必须**全局只有一个**：`enable-migration.ts` 的
+ * 「分支可否完整物化」判定用的就是它（research.md R11）。留在闭包里够不着，
+ * 调用方只能另写一套遍历，于是迁移期与运行期会对同一个库给出两种答案。
+ *
+ * 它**够不到** {@link find_switch_branch_step} 的两处提前返回：变更 id 相同（含两边
+ * 都没有变更、都落在根上）时那个函数直接返回空步骤，根本走不到这里。所以要检查父链
+ * 完整性的调用方必须**自己**调它一次，不能指望 `find_switch_branch_step` 顺带检查。
+ *
+ * @param branch - 起点分支
+ * @param branchMap - 分支 id → 分支；必须是全量集合
+ * @returns 从 `branch` 到根的路径，`branch` 在第 0 位
+ * @throws {@link RxDBError} 父链成环或指向不存在的分支时
+ */
+export const find_branch_path_to_root = (
+  branch: RxDBBranch,
+  branchMap: ReadonlyMap<string, RxDBBranch>
+): RxDBBranch[] => {
+  const path: RxDBBranch[] = [branch];
+  const visited = new Set<string>([branch.id]);
+  let current = branch;
+  while (current.parentId) {
+    if (visited.has(current.parentId)) {
+      throw new RxDBError(
+        `Branch history is corrupt: cycle detected at branch '${current.id}' (parentId '${current.parentId}' already visited)`
+      );
+    }
+    const parent = branchMap.get(current.parentId);
+    if (!parent) {
+      throw new RxDBError(
+        `Branch history is corrupt: branch '${current.id}' references missing parent '${current.parentId}'`
+      );
+    }
+    visited.add(parent.id);
+    path.push(parent);
+    current = parent;
+  }
+  return path;
+};
+
 export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchBranchStep[] => {
   const { branches, currentBranch, nextBranch } = options;
 
@@ -103,39 +152,9 @@ export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchB
     branchMap.set(branch.id, branch);
   }
 
-  // 获取从某个分支到根的路径
-  //
-  // 断链（parentId 指不到分支）与成环都是**持久化完整性错误**：调用方传进来的 `branches`
-  // 是全量无过滤查询的结果，不存在「父分支被过滤掉了」这种正常情况。
-  // 曾经这两种情况都是 `break` —— 相当于把坏数据当成「已经到根」，继续算出一条通往
-  // 并不存在的根的完整 action 序列，调用方照单全收地写库，半条路径被应用而没有任何报错。
-  // 切分支失败远好过静默切错，因此这里必须终止且不产生任何 action。
-  const getPathToRoot = (branch: RxDBBranch): RxDBBranch[] => {
-    const path: RxDBBranch[] = [branch];
-    const visited = new Set<string>([branch.id]);
-    let current = branch;
-    while (current.parentId) {
-      if (visited.has(current.parentId)) {
-        throw new RxDBError(
-          `Branch history is corrupt: cycle detected at branch '${current.id}' (parentId '${current.parentId}' already visited)`
-        );
-      }
-      const parent = branchMap.get(current.parentId);
-      if (!parent) {
-        throw new RxDBError(
-          `Branch history is corrupt: branch '${current.id}' references missing parent '${current.parentId}'`
-        );
-      }
-      visited.add(parent.id);
-      path.push(parent);
-      current = parent;
-    }
-    return path;
-  };
-
   // 获取当前分支和目标分支到根的路径
-  const currentPath = getPathToRoot(currentBranch);
-  const nextPath = getPathToRoot(nextBranch);
+  const currentPath = find_branch_path_to_root(currentBranch, branchMap);
+  const nextPath = find_branch_path_to_root(nextBranch, branchMap);
 
   // 找到最近的共同祖先
   let commonAncestor: RxDBBranch | null = null;

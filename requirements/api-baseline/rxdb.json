@@ -82,6 +82,14 @@
         "kind": "type"
       },
       {
+        "name": "COMMIT_ERROR_CODES",
+        "kind": "value"
+      },
+      {
+        "name": "CommitErrorCode",
+        "kind": "both"
+      },
+      {
         "name": "compactChanges",
         "kind": "value"
       },
@@ -118,6 +126,10 @@
         "kind": "type"
       },
       {
+        "name": "createWorkingTreeActivationRow",
+        "kind": "value"
+      },
+      {
         "name": "CurrencyFormat",
         "kind": "type"
       },
@@ -143,6 +155,10 @@
       },
       {
         "name": "decodeRxDBEntityIdentity",
+        "kind": "value"
+      },
+      {
+        "name": "decodeWorkingTreePatch",
         "kind": "value"
       },
       {
@@ -183,6 +199,10 @@
       },
       {
         "name": "encodeRxDBEntityIdentity",
+        "kind": "value"
+      },
+      {
+        "name": "encodeWorkingTreePatch",
         "kind": "value"
       },
       {
@@ -642,6 +662,10 @@
         "kind": "value"
       },
       {
+        "name": "isCommitErrorCode",
+        "kind": "value"
+      },
+      {
         "name": "isCrossTabEvent",
         "kind": "value"
       },
@@ -998,6 +1022,10 @@
         "kind": "type"
       },
       {
+        "name": "readWorkingTreeActivationState",
+        "kind": "value"
+      },
+      {
         "name": "RefreshMatchRules",
         "kind": "type"
       },
@@ -1252,6 +1280,10 @@
       {
         "name": "RxDBChange",
         "kind": "both"
+      },
+      {
+        "name": "RxDBChangeEntityMetadataResolver",
+        "kind": "type"
       },
       {
         "name": "RxDBChangeInitData",
@@ -1710,6 +1742,10 @@
         "kind": "value"
       },
       {
+        "name": "UnknownWorkingTreePatchEntityError",
+        "kind": "both"
+      },
+      {
         "name": "UnsupportedRxDBChangeVersionError",
         "kind": "both"
       },
@@ -1759,6 +1795,40 @@
       },
       {
         "name": "VersionManager",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeActivationInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCapabilityDisabledError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeManager",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreePatchCodecContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatchTarget",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "workingTreeCaptureConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "workingTreeCommitConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "WorkingTreeConformanceSuiteContext",
         "kind": "type"
       }
     ]

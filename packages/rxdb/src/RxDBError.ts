@@ -1,3 +1,5 @@
+import { CommitErrorCode } from './commit/commit-error-codes.js';
+
 export class RxDBError extends Error {
   constructor(message: string) {
     super(message);
@@ -137,12 +139,14 @@ export class RxDBLocalAdapterCapabilityError extends RxDBError {
  * 两者的写语义不可调和：版本化实体写本地并进 changelog，QueryCache 实体先写远端再落可丢弃缓存。
  * 同批执行只会得到「一半进了变更历史、一半没有」，因此在入口拒绝，由调用方分批。
  *
- * `code` 是本仓库唯一用错误码而非 `name` 判别的错误：该字符串由
- * `US-306 FR-046` 指定，跨故事复用，不得改名。
+ * `code` 而非 `name` 是本类的判别位：该字符串由 `US-306 FR-046` 指定，跨故事复用，
+ * 不得改名。它现在是 epic-006 七个提交错误码之一，常量的唯一真相在
+ * [commit-error-codes.ts](./commit/commit-error-codes.ts)——本类先于那个模块存在，
+ * 因此是**取用**而不是定义。其余各包的新错误仍按「类名主判别」，不要照抄本类。
  */
 export class RxDBMixedVersionedCacheTransactionError extends RxDBError {
-  /** US-306 FR-046 指定的稳定错误码 */
-  readonly code = 'mixed_versioned_cache_transaction';
+  /** US-306 FR-046 指定的稳定错误码，取自 {@link CommitErrorCode} */
+  readonly code = CommitErrorCode.mixed_versioned_cache_transaction;
 
   constructor(
     /** 本批中走 QueryCache 的实体名 */

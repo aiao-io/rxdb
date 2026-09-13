@@ -85,7 +85,8 @@ export {
   encodeRxDBChangePatch,
   encodeRxDBEntityIdentity,
   getRxDBEntityIdentityKey,
-  parseRxDBEntityIdentityKey
+  parseRxDBEntityIdentityKey,
+  type RxDBChangeEntityMetadataResolver
 } from './system/change-codec.js';
 export * from './system/change.js';
 export * from './system/migration.js';
@@ -118,4 +119,10 @@ export * from './version/sync-type-utils.js';
 // 只转类型不转类：`RxDB.versionManager` 的声明类型。实例由 RxDB 装配，用户不自己 new。
 export * from './version/VersionManager.interface.js';
 export type { VersionManager } from './version/VersionManager.js';
+// 提交能力的稳定错误码。跨 US-305/306/307/308 与六个适配器共享判别位，
+// 散着写字面量的代价不是编译错误，是某处拼写漂了之后另一端的 catch 安静地不再命中。
+export * from './commit/index.js';
+// 工作树 / 提交变更集两列 patch 的 codec 绑定。捕获发生在各适配器的写原语上，
+// 所以这一对必须出现在公开面上——否则 6 个适配器只能各自 import 深路径或自己抄一份。
 export * from './version/VersionManager.utils.js';
+export * from './working-tree/index.js';

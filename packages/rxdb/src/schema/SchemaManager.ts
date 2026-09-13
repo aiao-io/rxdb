@@ -14,7 +14,6 @@ import { EntityMetadata } from '../entity/metadata.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
-import { RxDBBranch } from '../system/branch.js';
 import { SYSTEM_ENTITIES } from '../system/system-entities.js';
 
 /**
@@ -55,10 +54,28 @@ export class SchemaManager {
 
   constructor(protected readonly rxdb: RxDB) {}
 
+  /**
+   * 注册全部实体元数据，并把缺失的系统表补进 `config.entities`。
+   *
+   * @remarks
+   * 补表是**逐张判定**的，不拿任何一张当「注入过了」的哨兵。
+   * 此前这里写的是 `if (!entities.includes(RxDBBranch)) entities.push(...SYSTEM_ENTITIES)`，
+   * 而 `RxDBBranch` / `RxDBChange` / `RxDBMigration` / `RxDBSync` 四张表都从 `src/index.ts`
+   * 公开导出 —— 接入方只要在自己的 `entities` 里写了其中的 `RxDBBranch`（要给它加关系、
+   * 要在 devtools 里单独注册，都会这么写），整批系统表就一张都不会补进来。
+   *
+   * 在 epic-006 之前这个后果还藏得住：会写 `RxDBBranch` 的人通常四张一起写，缺的那部分
+   * 恰好是空集。现在 {@link SYSTEM_ENTITIES} 是 14 张，其中 10 张**不对外导出**，接入方
+   * 没有任何写法能把它们列全，于是必然缺表 —— 症状是首次 `commit()` 时
+   * `entityManager.instantiate(CommitBranchRef)` 抛 `need init rxdb`，一条读不出主语的错。
+   *
+   * 逐张判定同时保住了原来那个哨兵真正在解决的问题：`entities` 是 `config` 上那个**可变
+   * 数组本身**，`init()` 在 disconnect → reconnect 时会重跑，无条件 push 会让它无限增长。
+   */
   init() {
     const { entities } = this.rxdb.config;
-    if (!entities.includes(RxDBBranch)) {
-      entities.push(...SYSTEM_ENTITIES);
+    for (const EntityClass of SYSTEM_ENTITIES) {
+      if (!entities.includes(EntityClass)) entities.push(EntityClass);
     }
     // 计算缓存所有实体定义
     new Set(entities).forEach(entity => {

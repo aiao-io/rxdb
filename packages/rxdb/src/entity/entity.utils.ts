@@ -118,18 +118,43 @@ export const setSafeObjectKeyLazyInitOnce = <V>(object: object, key: string | sy
 };
 
 /**
+ * `date` 属性的数据库端默认值哨兵。
+ *
+ * @remarks
+ * 它**不是**一个 JS 值，是建表语句里的一段表达式：PGlite 建表器把它译成 `DEFAULT now()`，
+ * SQLite 建表器译成 `strftime`。语义是「这一列的时间由数据库时钟给」，
+ * 提交历史的 `createdAt` 正是靠它才不会把客户端时钟漂移写进不可变历史（FR-010）。
+ *
+ * 字面量在六个适配器的建表器里各有一份，这里不与它们共享常量：那要么让
+ * `@aiao/rxdb` 反向依赖适配器，要么新开一个只装一个字符串的公开导出。
+ */
+const DATABASE_SIDE_TIMESTAMP_DEFAULT = 'CURRENT_TIMESTAMP';
+
+/**
  * 给实体实例填充默认值
  * 根据元数据中定义的默认值，为实体的未赋值属性设置默认值
  *
  * @template T - 实体类型
  * @param metadata - 实体元数据
  * @param entity - 实体实例
+ *
+ * @remarks
+ * {@link DATABASE_SIDE_TIMESTAMP_DEFAULT} 被跳过，该属性保持未赋值。这不是优化，是正确性：
+ * 把这个字符串填进 `date` 属性，它会一路原样走到 INSERT ——
+ * PGlite 报 `22007 invalid input syntax for type timestamp with time zone`，
+ * `RxDB.connect()` 在建表阶段就炸；SQLite 是动态类型，照单收下这段文本，
+ * 读回来 `new Date('CURRENT_TIMESTAMP')` 是 Invalid Date → `null`，一声不响地丢掉时间戳。
+ *
+ * 跳过之后该属性不出现在 INSERT 列清单里（两个适配器的 `normalizeCreateEntity` 都按
+ * `key in entity` 取列），由建表时写下的 DB 端默认值补上；SQLite 的**批量** INSERT 是唯一的
+ * 例外，它固定写全列、绕过了 DB DEFAULT，所以 `inserts_sql` 自己把哨兵解析成真实时间戳——
+ * 那段代码此前是死的（它只在列缺省时才跑，而本函数总是先把字符串填满）。三条路径都已就位。
  */
 export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata, entity: InstanceType<T>) => {
   const data: Record<string, unknown> = {};
   let need = false;
   metadata.defaultValueProperties.forEach(property => {
-    if (entity[property.name] === undefined) {
+    if (property.default !== DATABASE_SIDE_TIMESTAMP_DEFAULT && entity[property.name] === undefined) {
       need = true;
       const value = isFunction(property.default) ? property.default() : property.default;
       if (property.type === PropertyType.bigint && typeof value !== 'bigint') {

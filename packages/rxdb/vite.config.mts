@@ -54,10 +54,14 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      // 也可以是字典或多个入口数组。
-      entry: 'src/index.ts',
+      // 多入口：`./testing` 是独立子路径导出，必须单独成产物。
+      // 它承载两套工作树 conformance 套件，最终会 `import 'vitest'`——
+      // 并进主入口等于让运行时入口背上测试框架。
+      // package.json 的 `./testing` 指向 dist/working-tree/testing/index.js，
+      // 漏登记这一条就是死链（scripts/audit/subpath-build-entries.mjs 守这条）。
+      entry: { index: 'src/index.ts', 'working-tree/testing/index': 'src/working-tree/testing/index.ts' },
       name: '@aiao/rxdb',
-      fileName: 'index',
+      fileName: (_format: string, entryName: string) => `${entryName}.js`,
       // 改成你需要支持的格式。
       // 别忘了同步更新 package.json。
       formats: ['es' as const]
@@ -65,8 +69,8 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // 不打进库里的外部依赖。
-      external: ['@aiao/utils', 'rxjs', 'type-fest', 'uuid']
+      // 不打进库里的外部依赖。`vitest` 只被 `./testing` 入口引用，按 peerDependency 外置。
+      external: ['@aiao/utils', 'rxjs', 'type-fest', 'uuid', 'vitest']
     }
   },
   test: {

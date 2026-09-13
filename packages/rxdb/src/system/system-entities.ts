@@ -1,21 +1,52 @@
+import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
+import { CommitCapabilityState } from '../commit/commit-capability-state.entity.js';
+import { CommitChangeSet } from '../commit/commit-change-set.entity.js';
+import { Commit } from '../commit/commit.entity.js';
 import type { EntityType } from '../entity/entity.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
+import { WorkingTreeActivationState } from '../working-tree/working-tree-activation-state.entity.js';
+import { WorkingTreeEntry } from '../working-tree/working-tree-entry.entity.js';
+import { WorkingTreeMaterializationPage } from '../working-tree/working-tree-materialization-page.entity.js';
+import { WorkingTreeMaterializationStage } from '../working-tree/working-tree-materialization-stage.entity.js';
+import { WorkingTreeRestoreSession } from '../working-tree/working-tree-restore-session.entity.js';
+import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import { RxDBMigration } from './migration.js';
 import { RxDBSync } from './sync.js';
 
 /**
- * RxDB 自己注入的四张系统表
+ * RxDB 自己注入的系统表
  *
  * @remarks
  * 由 {@link SchemaManager.init} 无条件补进 `config.entities`，接入方既不声明也不感知。
- * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`。
+ * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`；`CommitChangeSet` 引用 `Commit`；
+ * `CommitBranchRef` / `WorkingTreeState` / `WorkingTreeEntry` / `WorkingTreeRestoreSession`
+ * 引用 `RxDBBranch`；`WorkingTreeMaterializationPage` 引用 `WorkingTreeMaterializationStage`。
  *
- * 清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍四个类名，
+ * 后十张是 epic-006「本地工作树与提交历史」的持久层，追加顺序即
+ * [data-model.md](../../../../specs/001-working-tree-commits/data-model.md) §1 的 1→10。
+ * 它们**不从 `src/index.ts` 导出**——公开面是 `Commit*` / `WorkingTree*` 的 DTO 与命令契约。
+ *
+ * 清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，
  * 抄漏一个的代价不是编译错误而是运行期的错判。
  */
-export const SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+export const SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSync,
+  CommitCapabilityState,
+  WorkingTreeActivationState,
+  Commit,
+  CommitChangeSet,
+  CommitBranchRef,
+  WorkingTreeState,
+  WorkingTreeEntry,
+  WorkingTreeRestoreSession,
+  WorkingTreeMaterializationStage,
+  WorkingTreeMaterializationPage
+];
 
 /**
  * 系统表的身份集合，形如 `rxdb:RxDBBranch`
