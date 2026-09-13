@@ -20,6 +20,8 @@ import { isAdapterShutdownError } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
+import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
+import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
 import { buildLastPushedMap, filterUndoableHistories } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';
@@ -514,6 +516,13 @@ export class HistoryManager {
         });
 
         const currentBranch = await this.rxdb.versionManager.getCurrentBranch();
+        // 作废 redo 栈同样只重写投影（行 4）。这里与下面 undo-redo-apply 调的是同一个原语，
+        // 两者的结论相反，区别只在这条声明里。
+        declareTrustedWrite(adapter, {
+          file: 'HistoryManager.ts',
+          symbol: 'invalidateRedoStack',
+          intent: TrustedWriteIntent.redo_invalidation
+        });
         await adapter.switchBranch({
           branchId: currentBranch.id,
           actions

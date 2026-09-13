@@ -100,13 +100,24 @@ export class WorkingTreeManager {
    * 而不是「翻一次位」：库启用之后才出现的本地分支——旧版本客户端建的、或上一次因某条分支
    * 损坏而整体回滚的——只能靠再调一次 `enable()` 补根。真跑过一遍之后重复调用是幂等的，
    * 全部分支都落进 `alreadyInitializedBranchIds`，一条语句都不发。
+   *
+   * **捕获运行时装在事务提交之后。** 装在事务里的话，捕获会立刻开始拦截这同一个事务余下的
+   * 写——而 `runEnableMigration()` 往分支上补的根节点正是在那里面写的，于是「启用」这件事
+   * 自己会被记成一批未提交变更。装在提交之后，本进程从下一次写开始捕获；这一笔启用本身
+   * 属于 HEAD，不属于工作树。
+   *
+   * 迁移抛错时整笔回滚、能力位退回未启用，此时 `transaction()` 直接向上抛，装载那一行
+   * 走不到——不会留下「没启用却在捕获」的形状。
    */
   async enable(): Promise<CommitCapabilityInfo> {
-    return this.#runInTransaction(async executor => {
-      const info = await enableCommitCapability(executor);
+    const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
+    const info = await adapter.transaction(async executor => {
+      const enabled = await enableCommitCapability(executor);
       await runEnableMigration(executor, this.#rxdb.entityManager, { operationId: ENABLE_MIGRATION_OPERATION_ID });
-      return info;
+      return enabled;
     });
+    this.#rxdb.installWorkingTreeCapture(adapter);
+    return info;
   }
 
   /**

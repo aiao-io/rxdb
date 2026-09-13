@@ -2,7 +2,7 @@
  * @fileoverview 跨故事共享的提交错误码（contracts/core-api.md §7）
  *
  * @remarks
- * epic-006 的八个稳定错误码集中在这里，因为它们**跨故事**：US-305 的迁移、
+ * epic-006 的九个稳定错误码集中在这里，因为它们**跨故事**：US-305 的迁移、
  * US-306 的写入口门禁、US-307 的恢复、US-308 的分支物化各自会抛其中几条，
  * 而判别这些码的调用方分散在六个适配器与三个框架绑定里。散着写字面量的代价不是
  * 编译错误，是某一处拼写漂了之后，另一端的 `catch` 分支安静地不再命中。
@@ -21,8 +21,9 @@
  * **`CommitConflict` 不在这里**：core-api.md §7 明确它是**返回值不是异常**。CAS 失败时
  * 命令返回一个诊断值，不抛、也不落第二张会与真实 revision 漂移的冲突表（FR-035）。
  *
- * **`stale_active_branch` 尚未登记**：它由 US-308 的 activation 维度定义（FR-020）。
- * 落地时应追加到本模块并补测试，**不要**在写路径里直接写字面量——那正是本模块要消除的形态。
+ * **`stale_active_branch` 于 US-306 阶段 A 登记**：它由 US-308 的 activation 维度定义（FR-020），
+ * 但 FR-039 把「校验实体/realm 捕获的 active branch token」排进了普通 CRUD 的四步，于是这条最热的
+ * 写路径先用上它。按本模块的原则登记在此，而不是在写路径里写字面量。
  */
 
 /**
@@ -107,6 +108,23 @@ export const CommitErrorCode = {
   no_active_branch: 'no_active_branch',
 
   /**
+   * 写入时发现调用方手里的 active branch token 已经过期。
+   *
+   * @remarks
+   * token 是 `{ branchId, activationRevision }`，在**读取 / 实例化实体时**由调用方 realm 捕获；
+   * 另一个 realm 期间切换了分支，这一笔写入就带着旧 token 落到写路径上（FR-020、spec.md 场景 5）。
+   *
+   * 校验的是**捕获到的那个 token**。在事务里重新读一次 active 分支再把旧实体归过去，是明令禁止的
+   * 形态：那样永远不会失败，代价是用户在 `feature-x` 上编辑的实体被写进 `main`，而且没有任何提示。
+   * 同理，MUST NOT 只靠 `BroadcastChannel` 或内存状态承担这条正确性——两者都不跨进程重启。
+   *
+   * 拒绝发生在**业务写入之前**，业务表零变化。与
+   * {@link CommitErrorCode.no_active_branch} 的分工：那条是「一行 active 都没有」，本条是
+   * 「有 active，但不是你以为的那一个」。
+   */
+  stale_active_branch: 'stale_active_branch',
+
+  /**
    * 首次启用迁移时，某个**本地**分支无法沿 `RxDBChange` 链无缺口物化。
    *
    * @remarks
@@ -174,7 +192,7 @@ const COMMIT_ERROR_CODE_SET: ReadonlySet<string> = new Set<string>(COMMIT_ERROR_
  *
  * @remarks
  * 收窄到 {@link CommitErrorCode}，让调用方能在 `switch` 里拿到穷尽性检查。
- * 未登记的字符串（如尚未落地的 `stale_active_branch`）与非字符串一律为 `false`。
+ * 未登记的字符串（如 `commit_conflict`——它是返回值不是异常）与非字符串一律为 `false`。
  *
  * @example
  * ```ts

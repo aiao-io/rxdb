@@ -8,6 +8,8 @@ import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
 import type { RxDBChangeRuleGroup, RxDBSyncOrderByField, RxDBSyncRuleGroup } from '../system/types.js';
+import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
+import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
 import { buildLastPushedMap } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import type { ActiveUndoSession, UndoBoundary } from './history-undo-session.types.js';
@@ -163,6 +165,12 @@ export async function applyUndoRedoHistories(
     if (operation === 'undo') {
       if (undoSession === undefined || !host.isUndoSessionCurrent(undoSession)) return;
     }
+    // undo/redo 是用户可感知的编辑，矩阵行 6 要求它**产生**单元（origin='undo_redo'）。
+    declareTrustedWrite(adapter, {
+      file: 'undo-redo-apply.ts',
+      symbol: 'applyUndoRedoHistories',
+      intent: TrustedWriteIntent.undo_redo
+    });
     await adapter.switchBranch({
       branchId: currentBranch.id,
       actions

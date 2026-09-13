@@ -61,6 +61,7 @@ import { RxDBSync } from './system/sync.js';
 import { isSystemEntity, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
+import { createWorkingTreeCaptureRuntime } from './working-tree/capture-hook.js';
 import { WorkingTreeManager } from './working-tree/working-tree-facade.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -748,7 +749,10 @@ export class RxDB {
           localAdapter.completeBootstrap();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
-        if (existed) await this.#assertActiveBranchCardinality(localAdapter);
+        if (existed) {
+          await this.#assertActiveBranchCardinality(localAdapter);
+          await this.#installWorkingTreeCaptureIfEnabled(localAdapter);
+        }
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
       // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。
@@ -963,6 +967,27 @@ export class RxDB {
     // 本次事件，持续新增还会让派发不终止。
     const listeners = Array.from(this.#listener(event.type as keyof RxDBEventMap));
     runIsolated(listeners, listener => listener.call(this, event));
+  }
+
+  /**
+   * 给一个本地适配器装上工作树捕获运行时。
+   *
+   * @param adapter - 目标本地适配器
+   *
+   * @remarks
+   * **不在这里判能力位。** 两个调用方对「已启用」的把握来源不同：`connect()` 是刚读过能力行，
+   * `workingTree.enable()` 是刚把它翻成真且事务已提交。把判定塞进来就得让后者在自己刚写完的
+   * 事务外面再读一次同一行，而那次读与它自己的写之间隔着一个别人可以插队的窗口。
+   *
+   * 幂等由 {@link RxDBAdapterLocalBase.setWorkingTreeCaptureHook} 负责：重复调用先卸后装，
+   * 不会叠成两层转发。
+   *
+   * @internal
+   */
+  installWorkingTreeCapture(adapter: RxDBAdapterLocalBase): void {
+    adapter.setWorkingTreeCaptureHook(
+      createWorkingTreeCaptureRuntime(this.entityManager, this.#config.entities, this.#config.sync)
+    );
   }
 
   /**
@@ -1291,6 +1316,29 @@ export class RxDB {
       if (!(await isCommitCapabilityEnabled(executor))) return;
       await assertSingleActiveBranch(executor);
     }, false);
+  }
+
+  /**
+   * 引导末尾：能力位为真时才装捕获。
+   *
+   * @param adapter - 刚引导完的本地适配器
+   *
+   * @remarks
+   * 未启用的库上一次都不装，于是四个写原语连一层转发都没有——FR-046 要求的「零行为差异」
+   * 在这种形状下是结构性的，不依赖运行时每次写都去问一句能力位。
+   *
+   * **只在既有库上跑**，理由与 {@link RxDB.#assertActiveBranchCardinality} 同源：新库的能力行
+   * 是同一次 `createTables` 刚写下的 `enabled = false`（FR-046「建表本身不改变任何业务行为」），
+   * 读它必然得到假。无条件读的代价不只是多一次事务：新库的首装是一次 `createTables` 就落地的
+   * 原子提交，多开一个事务会把那条不变量本身破掉。
+   *
+   * 装在 active 分支基数校验**之后**：捕获一旦装上，校验那次 `bootstrapTransaction` 就多绕
+   * 一层拦截——它一行都不写，绕一层只是白费，出错时还多一层要排除的嫌疑。
+   */
+  async #installWorkingTreeCaptureIfEnabled(adapter: RxDBAdapterLocalBase): Promise<void> {
+    const enabled = await adapter.bootstrapTransaction(executor => isCommitCapabilityEnabled(executor), false);
+    if (!enabled) return;
+    this.installWorkingTreeCapture(adapter);
   }
 
   /**

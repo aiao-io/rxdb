@@ -17,6 +17,8 @@ import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
 import type { RemoteChange } from '../system/system.interface.js';
+import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
+import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
 import { LWWConflictResolver } from './LWWConflictResolver.js';
 import type { PullResult } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
@@ -370,6 +372,13 @@ async function pullBatchOnce(
         const applyCount = countActions(applyActions);
         if (applyCount > 0) {
           // disableTriggers=true 确保不生成本地 RxDBChange 记录
+          // disableTriggers=true 压掉的是变更日志行，不是工作树单元：FR-046 要求拉取
+          // 照样落一个 origin='remote_sync' 的单元，所以挂载点 2 从 actions 派生，不看日志。
+          declareTrustedWrite(executor, {
+            file: 'pull-batch.ts',
+            symbol: 'pullBatchOnce',
+            intent: TrustedWriteIntent.remote_sync
+          });
           await executor.mergeChanges(applyActions, undefined, true);
           totalApplied += applyCount;
         }

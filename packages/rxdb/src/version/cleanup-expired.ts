@@ -20,6 +20,8 @@ interface RxDBChangeRepositorySource {
 import { RxDBError } from '../RxDBError.js';
 import { getRxDBChangeEntityIdQueryValues, getRxDBEntityIdentityKey } from '../system/change-codec.js';
 import { RxDBChange } from '../system/change.js';
+import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
+import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
 import { getSyncType } from './sync-type-utils.js';
 import type { SwitchVersionActions } from './VersionManager.interface.js';
 import type { VersionManager } from './VersionManager.js';
@@ -198,6 +200,12 @@ export async function cleanupExpired(
       }
       const actions: SwitchVersionActions = { deletes, updates: new Map(), inserts: new Map() };
       // 使用 mergeChanges + disableTriggers 删除，避免生成 RxDBChange 记录
+      // 过期清理走 cleanup_expired 入口：删的是本地缓存副本，不是用户删的数据。
+      declareTrustedWrite(executor, {
+        file: 'cleanup-expired.ts',
+        symbol: 'cleanupExpired',
+        intent: TrustedWriteIntent.remote_sync
+      });
       await executor.mergeChanges(actions, undefined, true);
     }
 

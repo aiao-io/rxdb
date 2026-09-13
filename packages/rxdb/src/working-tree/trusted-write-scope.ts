@@ -1,0 +1,98 @@
+/**
+ * @fileoverview 受信调用点的写意图声明通道（adapter-contract.md §3）。
+ *
+ * @remarks
+ * 挂载点拿到的只有「有人在调 `switchBranch`」，拿不到「谁在调、为了什么」。而矩阵的行 4 与行 6
+ * 结论相反——同一个 `switchBranch`，分支物化必须**不**产生单元，undo/redo 必须产生。缺了这条
+ * 通道，两者在挂载点上不可区分，只能二选一地错一半。
+ *
+ * **声明挂在作用域对象上，不挂在模块级全局变量上。** 全局变量在两次并发写之间会串台：
+ * A 声明了 `remote_sync`、还没走到写原语，B 声明了 `undo_redo`，于是 A 的写被记成 B 的意图。
+ * 作用域对象天然把声明隔离在一次写里——适配器级原语（`switchBranch` / `adapter.mergeChanges`）
+ * 以**适配器实例**为作用域，事务内原语（`executor.mergeChanges`）以**该事务的 executor**
+ * 为作用域，两者都是「这一次写」的天然身份。
+ *
+ * **取用即清除**（{@link takeDeclaredWrite}）：声明只对紧随其后的那一次写有效。留着不清的话，
+ * 下一次没声明的写会悄悄继承上一次的身份，而那正是 fail-closed 要拒绝的情形。
+ */
+
+import { RxDBError } from '../RxDBError.js';
+import type { TrustedWriteIntent } from './trusted-write-intent.js';
+import { TRUSTED_CALLSITE_REGISTRY, trustedCallsiteKey } from './trusted-write-intent.js';
+import type { WriteEntrance } from './write-entry-matrix.js';
+
+/**
+ * 一次受信写的自报身份
+ *
+ * @remarks
+ * 三段与 {@link trustedCallsiteKey} 逐字对应，因为它就是拿来查登记表的。让调用点直接报
+ * `entrance` 反而更糟：登记表与调用点各存一份入口，改一处漏一处时没有任何东西会报错。
+ */
+export interface TrustedWriteDeclaration {
+  /** 相对 `packages/rxdb/src/version/` 的文件名 */
+  readonly file: string;
+
+  /** 发起这次写的最内层具名函数 */
+  readonly symbol: string;
+
+  /** 调用点自报的意图 */
+  readonly intent: TrustedWriteIntent;
+}
+
+/** 已解析出入口的声明；{@link takeDeclaredWrite} 的返回形态。 */
+export interface ResolvedTrustedWrite extends TrustedWriteDeclaration {
+  /** 该登记行在写入口语义矩阵里的行 */
+  readonly entrance: WriteEntrance;
+}
+
+/**
+ * 作用域对象：适配器实例或事务执行器。
+ *
+ * @remarks
+ * 故意宽到 `object`：核心包不该为了一个 WeakMap 的键去 import 适配器类型，那会把
+ * `rxdb-adapter.ts → working-tree → rxdb-adapter.ts` 的环从「类型擦除后消失」变成真环。
+ */
+export type TrustedWriteScope = object;
+
+/** 登记表的入口索引；键与 {@link trustedCallsiteKey} 同构。 */
+const ENTRANCE_BY_KEY: ReadonlyMap<string, WriteEntrance> = new Map(
+  TRUSTED_CALLSITE_REGISTRY.map(callsite => [trustedCallsiteKey(callsite), callsite.entrance])
+);
+
+/** 每个作用域至多一条待取用的声明。 */
+const DECLARED = new WeakMap<TrustedWriteScope, ResolvedTrustedWrite>();
+
+/**
+ * 声明紧接着这一次写的意图
+ *
+ * @param scope - 适配器实例（适配器级原语）或事务执行器（事务内原语）
+ * @param declaration - 与登记表同一行的三段身份
+ * @throws {@link RxDBError} 三段身份不在 {@link TRUSTED_CALLSITE_REGISTRY} 里时
+ *
+ * @remarks
+ * 未登记的身份**抛错而不是按未知入口放行**：放行的话，新增一个批量重写调用点只需要随手编一个
+ * 文件名就能绕开漂移扫描，而扫描正是 SC-010 的全部内容。抛错则让「新增调用点」与「更新登记表」
+ * 必须同一次提交完成。
+ */
+export function declareTrustedWrite(scope: TrustedWriteScope, declaration: TrustedWriteDeclaration): void {
+  const entrance = ENTRANCE_BY_KEY.get(trustedCallsiteKey(declaration));
+  if (!entrance) {
+    throw new RxDBError(
+      `未登记的受信写调用点 ${declaration.file}·${declaration.symbol}·${declaration.intent}：` +
+        '先把它加进 TRUSTED_CALLSITE_REGISTRY（adapter-contract.md §3），再声明意图。'
+    );
+  }
+  DECLARED.set(scope, { ...declaration, entrance });
+}
+
+/**
+ * 取出并清除这个作用域上的声明
+ *
+ * @param scope - 声明时用的同一个作用域对象
+ * @returns 已解析入口的声明；没有声明时为 `undefined`
+ */
+export function takeDeclaredWrite(scope: TrustedWriteScope): ResolvedTrustedWrite | undefined {
+  const declared = DECLARED.get(scope);
+  if (declared) DECLARED.delete(scope);
+  return declared;
+}

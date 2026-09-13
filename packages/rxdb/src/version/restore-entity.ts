@@ -9,6 +9,8 @@ import { EntityType } from '../entity/entity.interface.js';
 import { RestoreEntityOptions } from '../rxdb-adapter.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
+import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
+import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import type { VersionManager } from './VersionManager.js';
 
@@ -78,6 +80,12 @@ export async function restore_entity<T extends EntityType>(
   // 远端永远停在「已删除」，本地与远端静默分叉。
   // 改走 mergeChanges(actions, undefined, false)：与 merge_branch 的 squash 出口同路，
   // disableTriggers=false 让数据库触发器照常记账。
+  // 恢复是重算领域状态，不是一次新的用户编辑。
+  declareTrustedWrite(adapter, {
+    file: 'restore-entity.ts',
+    symbol: 'restore_entity',
+    intent: TrustedWriteIntent.restore_entity
+  });
   await adapter.mergeChanges(actions, undefined, false);
 
   const repo = adapter.getRepository(EntityType);

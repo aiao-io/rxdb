@@ -202,6 +202,7 @@ interface VersionManager {
 | `commit_graph_corrupted`            | `commit()` / `restore()` / switch-to 命中可达损坏              |
 | `ambiguous_active_branch`           | `RxDBBranch.activated` 有多行为真（FR-048）                    |
 | `no_active_branch`                  | 运行期一行 active 分支都没有（FR-048 的另一侧）                |
+| `stale_active_branch`               | 写入时调用方捕获的 active branch token 已过期（FR-020）        |
 | `branch_not_materializable`         | 启用迁移中某本地分支无法沿变更链无缺口物化（FR-049）           |
 | `branch_not_materialized`           | metadata-only 远端分支首次切换时物化依据不足（FR-044）         |
 | `mixed_versioned_cache_transaction` | tracked 与 untracked 混进同一事务单元                          |

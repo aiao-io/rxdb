@@ -3,6 +3,7 @@ import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
+  gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
   getRxDBSystemVersionState,
@@ -732,14 +733,32 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.runInTransaction(executor => (executor as SqliteTransactionExecutor).execute(sql, bindings), false);
   }
 
+  /**
+   * 原始 SQL。
+   *
+   * @remarks
+   * **judgment 由核心包出，这里只负责接上**（adapter-contract.md §2）。`rawQuery?()` 在
+   * `IRxDBAdapter` 上是可选方法，核心包没法像四个捕获挂载点那样替适配器包住它，于是这一句
+   * `gateRawWrite` 是本类唯一要写对的地方。判定本身一个字都不在这里重写——六份实现里只要有一份
+   * 把词法归一化写松，整条防线就有洞，而那个洞不会在任何一个后端自己的测试里现形。
+   *
+   * 这一句覆盖 **5 个 v1 适配器**（wa-sqlite / sqlite-wasm / sqlite / sqliteai / electron）：
+   * 它们都继承本类且都不覆写 `rawQuery`。在五个子类里各写一遍是 T064「不各写一份」明确排除的
+   * 形态；哪天某个子类真的覆写了 `rawQuery`，它就得自己接上，这一点由 T068 的 6 个一致性调用点兜住。
+   *
+   * 门禁包在**整个方法体**外面，两条生命周期分支都在里面：拒绝发生在语句下发之前，连事务都不会开，
+   * 业务表零变化——不是写完再回滚。引导窗内捕获运行时还没装上，判定第 1 步放行，行为与接入前逐字一致。
+   */
   public async rawQuery(sql: string, params?: unknown[]) {
-    // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
-    // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
-    // 引导完成后仍走 transaction，保证正式写入等表就绪。
-    if (this.#lifecycle_state === 'bootstrap') {
-      return this.bootstrapTransaction(executor => executor.query(sql, params), false);
-    }
-    return this.transaction(executor => executor.query(sql, params), false);
+    return gateRawWrite(sql, this.workingTreeRawWriteContext, () => {
+      // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
+      // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
+      // 引导完成后仍走 transaction，保证正式写入等表就绪。
+      if (this.#lifecycle_state === 'bootstrap') {
+        return this.bootstrapTransaction(executor => executor.query(sql, params), false);
+      }
+      return this.transaction(executor => executor.query(sql, params), false);
+    });
   }
 
   // transaction() 与 query() 共用 #queue（并发度 1）串行通道。真实适配器入口总是重新入队，
@@ -790,7 +809,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 真实适配器入口总是新开事务；executor 门面会把事务内的 `runInTransaction()` 映射为
    * `executor.run()`，复用当前事务且不重新入队。
    */
-  public async runInTransaction<T extends TransactionFun>(
+  public override async runInTransaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {

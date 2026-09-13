@@ -146,22 +146,22 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T051 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/untracked-domain.spec.ts`：三类 untracked 各一组 + 「清单外的实体默认 tracked」；tracked 与 untracked 混进同一事务抛 `mixed_versioned_cache_transaction` 且**整事务回滚**；`origin='remote_sync'` **不是** untracked；untracked 是静态属性（conformance-suites.md §1.4）
 - [x] T052 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/entry-fold.spec.ts`：同一实体多次写入的折叠规则——patch 取最新、**inversePatch 取首次捕获值**、INSERT+DELETE 相抵、origin 取最新、**不做值级归零**；`entryCount` 与实际条目数的不变量断言（data-model.md §2.7）
 - [x] T053 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/crud-transaction.spec.ts`：每次普通 CRUD 在同事务内校验 active branch token、写业务实体、写/合并完整 `WorkingTreeEntry`、递增 `workingTreeRevision`；任一步失败全部回滚；**禁止**只靠内存 dirty set 重建（FR-039）
-- [ ] T054 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/entry-encryption.spec.ts`：`WorkingTreeEntry` 延续字段加密 at-rest；解锁后读取可返回明文业务值，但持久化 dump / 错误 / 摘要无明文（FR-045）
-- [ ] T055 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/trusted-callsite-registry.spec.ts`：登记表 9 行与真实代码一致；漂移扫描能报出「调用 `upsertMany` 但目标实体不是 QueryCache」的新增调用点；扫描排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`（SC-010、adapter-contract.md §3）
+- [x] T054 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/entry-encryption.spec.ts`：`WorkingTreeEntry` 延续字段加密 at-rest；解锁后读取可返回明文业务值，但持久化 dump / 错误 / 摘要无明文（FR-045）
+- [x] T055 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/trusted-callsite-registry.spec.ts`：登记表 9 行与真实代码一致；漂移扫描能报出「调用 `upsertMany` 但目标实体不是 QueryCache」的新增调用点；扫描排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`（SC-010、adapter-contract.md §3）
 
 ### Implementation for User Story 2 阶段 A
 
-- [ ] T056 [US2] 实现**单一份**版本化域清单于 `packages/rxdb/src/working-tree/versioned-domain.ts`：「版本化业务实体表」与「untracked 字段域」两个集合与 spec.md「版本化域」同源，**不得另建第二份**；QueryCache 实体完整排除（adapter-contract.md §2 实现约束）
-- [ ] T057 [US2] 实现工作树条目写入与折叠于 `packages/rxdb/src/working-tree/write-entry.ts`，按 T052 的折叠规则，并同事务维护 `entryCount`（data-model.md §2.7）
-- [ ] T058 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `transaction()`（:134）挂载捕获：提供原子边界，整事务共享同一 `unitId`（adapter-contract.md §1 挂载点 1）
-- [ ] T059 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的**本地** `mergeChanges(actions, localChanges?, disableTriggers?)`（:200）挂载捕获，按签名与远端重载（:322）区分；`disableTriggers` 为真时**仍**写 `origin='remote_sync'` 单元且不形成 push echo（FR-046、挂载点 2）
-- [ ] T060 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `switchBranch(options)`（:182）挂载捕获：分支物化与 redo 失效**不产生**单元，undo/redo **产生**单元（挂载点 3）
-- [ ] T061 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `upsertMany()`（:239）与 `deleteByIds()`（:255）显式挂门禁，并在**返回 Observable 之前同步拒绝**；入参是整行而非列集，故对版本化实体一律落第 4 步（挂载点 4、adapter-contract.md §1.1）
-- [ ] T062 [US2] 实现**共享的** 5 步 bypass 判定于 `packages/rxdb/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 4 步的保守口径处理）（R4、adapter-contract.md §2）
-- [ ] T063 [US2] 从 `packages/rxdb/src/index.ts` 导出 T062 的判定入口（`Commit*` / `WorkingTree*` 前缀），供适配器调用；`rawQuery?()` 在 `packages/rxdb/src/rxdb-adapter.ts:94` 是**可选方法**，判定不得假设它普遍存在
-- [ ] T064 [US2] 在 6 个 v1 适配器各自的 `rawQuery` 实现中调用 T062 的共享判定（`packages/rxdb-adapter-pglite/src/`、`-wa-sqlite/src/`、`-sqlite-wasm/src/`、`-sqlite/src/`、`-sqliteai/src/`、`-electron/src/`）——**一份判定，六处调用**，不各写一份；没有 `rawQuery` 的适配器不因此获得豁免，其 `upsertMany` / `deleteByIds` 仍受 T061 约束
-- [ ] T065 [US2] 给 9 个受信调用点加显式意图枚举（内部契约，**不进**公开 api-baseline）：`packages/rxdb/src/version/` 下的 `VersionManager.ts·switchBranch`、`restore-entity.ts·restore_entity`、`HistoryManager.ts·invalidateRedoStack`、`undo-redo-apply.ts·applyUndoRedoHistories`、`merge-branch.ts·merge_branch`（逐条与压缩**各一行**）、`pull-batch.ts·pullBatchOnce`、`pull-repository.ts·pullSingleRepository`、`cleanup-expired.ts·cleanupExpired`（adapter-contract.md §3）
-- [ ] T066 [US2] 在 `scripts/audit/` 增加 `working-tree-callsite-drift.mjs` 与其 `.spec.mjs`：登记键 = 文件 + 符号 + 意图（符号取最内层具名函数，不是委托门面，不用行号）；未携带意图标记的批量重写一律按未知入口拒绝（R5、SC-010）
+- [x] T056 [US2] 实现**单一份**版本化域清单于 `packages/rxdb/src/working-tree/versioned-domain.ts`：「版本化业务实体表」与「untracked 字段域」两个集合与 spec.md「版本化域」同源，**不得另建第二份**；QueryCache 实体完整排除（adapter-contract.md §2 实现约束）
+- [x] T057 [US2] 实现工作树条目写入与折叠于 `packages/rxdb/src/working-tree/write-entry.ts`，按 T052 的折叠规则，并同事务维护 `entryCount`（data-model.md §2.7）
+- [x] T058 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `transaction()`（:134）挂载捕获：提供原子边界，整事务共享同一 `unitId`（adapter-contract.md §1 挂载点 1）
+- [x] T059 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的**本地** `mergeChanges(actions, localChanges?, disableTriggers?)`（:200）挂载捕获，按签名与远端重载（:322）区分；`disableTriggers` 为真时**仍**写 `origin='remote_sync'` 单元且不形成 push echo（FR-046、挂载点 2）
+- [x] T060 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `switchBranch(options)`（:182）挂载捕获：分支物化与 redo 失效**不产生**单元，undo/redo **产生**单元（挂载点 3）
+- [x] T061 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `upsertMany()`（:239）与 `deleteByIds()`（:255）显式挂门禁，并在**返回 Observable 之前同步拒绝**；入参是整行而非列集，故对版本化实体一律落第 4 步（挂载点 4、adapter-contract.md §1.1）
+- [x] T062 [US2] 实现**共享的** 5 步 bypass 判定于 `packages/rxdb/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 4 步的保守口径处理）（R4、adapter-contract.md §2）
+- [x] T063 [US2] 从 `packages/rxdb/src/index.ts` 导出 T062 的判定入口（`Commit*` / `WorkingTree*` 前缀），供适配器调用；`rawQuery?()` 在 `packages/rxdb/src/rxdb-adapter.ts:94` 是**可选方法**，判定不得假设它普遍存在
+- [x] T064 [US2] 在 6 个 v1 适配器各自的 `rawQuery` 实现中调用 T062 的共享判定（`packages/rxdb-adapter-pglite/src/`、`-wa-sqlite/src/`、`-sqlite-wasm/src/`、`-sqlite/src/`、`-sqliteai/src/`、`-electron/src/`）——**一份判定，六处调用**，不各写一份；没有 `rawQuery` 的适配器不因此获得豁免，其 `upsertMany` / `deleteByIds` 仍受 T061 约束
+- [x] T065 [US2] 给 9 个受信调用点加显式意图枚举（内部契约，**不进**公开 api-baseline）：`packages/rxdb/src/version/` 下的 `VersionManager.ts·switchBranch`、`restore-entity.ts·restore_entity`、`HistoryManager.ts·invalidateRedoStack`、`undo-redo-apply.ts·applyUndoRedoHistories`、`merge-branch.ts·merge_branch`（逐条与压缩**各一行**）、`pull-batch.ts·pullBatchOnce`、`pull-repository.ts·pullSingleRepository`、`cleanup-expired.ts·cleanupExpired`（adapter-contract.md §3）
+- [x] T066 [US2] 在 `scripts/audit/` 增加 `working-tree-callsite-drift.mjs` 与其 `.spec.mjs`：登记键 = 文件 + 符号 + 意图（符号取最内层具名函数，不是委托门面，不用行号）；未携带意图标记的批量重写一律按未知入口拒绝（R5、SC-010）
 - [ ] T067 [US2] 实现 `workingTreeCaptureConformanceSuite` 于 `packages/rxdb/src/working-tree/testing/working-tree-capture.suite.ts`：覆盖 conformance-suites.md §1.1–§1.5 全部小节，每组末尾都跑冷重放不变量
 - [ ] T068 [US2] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-capture-conformance.spec.ts`，复用各包既有 factory 调用 T067 的套件（T044 的门禁会校验这 6 个调用点存在）
 

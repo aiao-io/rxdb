@@ -3,12 +3,18 @@
  *
  * @remarks
  * 它**不是**内存数据库，而且刻意不长成数据库：`find()` 只认
- * `{ combinator: 'and', rules: [{ field, operator: '=' | 'in' | 'notNull', value }] }`
- * 这一小撮形状，遇到别的**直接抛**。
+ * `{ combinator: 'and' | 'or', rules: [...] }` 里这一小撮算子——
+ * `'=' | '!=' | 'in' | 'notIn' | 'null' | 'notNull' | '>'`，外加 `orderBy` / `limit`，
+ * 遇到别的**直接抛**。
  *
  * 「只支持一点点、其余抛错」是这个替身能被信任的全部理由。若改成「不认识就返回全部」
  * 或「不认识就返回空」，实现里一条写错的 where 会安静地拿到一个看起来合理的结果集，
  * 测试照常绿——那时这个替身就成了第三份真相，而且是骗人的那份。
+ *
+ * `>` 与 `orderBy` 是被捕获运行时逼出来的，两者都不是「顺手加的」：`readChangesAfter()`
+ * 的水位线条件用 `>`，而 `readChangeWatermark()` 是 `ORDER BY id DESC LIMIT 1`——
+ * 不实现排序的话它会安静地返回插入序的第一行，于是水位线永远停在最早那条，
+ * 捕获把先前的历史一并认领，而用例全程是绿的。
  *
  * 真实 SQL 行为由 `workingTreeCommitConformanceSuite`（T042/T043）在六个后端上验证。
  */
@@ -49,6 +55,11 @@ const matchesRule = (row: Record<string, unknown>, rule: ProbeRule): boolean => 
       return actual === null || actual === undefined;
     case 'notNull':
       return actual !== null && actual !== undefined;
+    // 水位线增量（`capture-hook.ts` 的 readChangesAfter）只用得上 `>`，所以这里也只加 `>`。
+    // 顺手把六个比较运算符补全的话，替身就开始支持实现并不会发出的查询形状，
+    // 而「支持的每一种形状都有人真的在用」正是它敢被信任的前提。
+    case '>':
+      return typeof actual === 'number' && typeof rule.value === 'number' && actual > rule.value;
     default:
       throw new Error(`commit-graph-probe: unsupported operator '${rule.operator}' on field '${rule.field}'`);
   }
@@ -60,6 +71,33 @@ const matches = (row: Record<string, unknown>, node: ProbeGroup | ProbeRule): bo
   return node.combinator === 'and' ?
       node.rules.every(child => matches(row, child))
     : node.rules.some(child => matches(row, child));
+};
+
+/** `orderBy` 的一项；替身只按单列比大小，多列排序没有调用方要求过。 */
+interface OrderBySpec {
+  field: string;
+  sort?: 'asc' | 'desc';
+}
+
+/**
+ * 按 `orderBy` 排一遍命中行
+ *
+ * @remarks
+ * 不排的话，`ORDER BY id DESC LIMIT 1` 会退化成「取插入顺序的第一行」——而
+ * `readChangeWatermark()` 正是靠这个形状取最大 change id。替身返回一个**看起来合理的**
+ * 旧水位线时，捕获会把水位线之前的历史变更一并当成本次事务的产物，测试照常绿。
+ */
+const sortRows = <T>(rows: readonly T[], orderBy: readonly OrderBySpec[] | undefined): T[] => {
+  const first = orderBy?.[0];
+  if (!first) return [...rows];
+  const direction = first.sort === 'desc' ? -1 : 1;
+  return [...rows].sort((left, right) => {
+    const a = (left as Record<string, unknown>)[first.field];
+    const b = (right as Record<string, unknown>)[first.field];
+    if (a === b) return 0;
+    if (typeof a === 'number' && typeof b === 'number') return (a - b) * direction;
+    return String(a).localeCompare(String(b)) * direction;
+  });
 };
 
 /** 一次 `find()` 的原样记录，供断言「查了哪张表、用了什么条件」。 */
@@ -127,7 +165,8 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
           const hits = rows.filter(row =>
             matches(row as Record<string, unknown>, options.where as unknown as ProbeGroup)
           );
-          return hits.slice(0, options.limit ?? hits.length) as InstanceType<T>[];
+          const ordered = sortRows(hits, options.orderBy as OrderBySpec[] | undefined);
+          return ordered.slice(0, options.limit ?? ordered.length) as InstanceType<T>[];
         }),
         count: vi.fn(async options => {
           finds.push({ entity: name, where: options.where as RuleGroup });

@@ -18,6 +18,10 @@
         "kind": "type"
       },
       {
+        "name": "ActiveBranchToken",
+        "kind": "type"
+      },
+      {
         "name": "AdapterFactory",
         "kind": "type"
       },
@@ -32,6 +36,10 @@
       {
         "name": "AmbiguousActiveBranchError",
         "kind": "both"
+      },
+      {
+        "name": "assertColdReplayInvariant",
+        "kind": "value"
       },
       {
         "name": "assertCommitUnitsEncryptedAtRest",
@@ -74,6 +82,10 @@
         "kind": "type"
       },
       {
+        "name": "buildVersionedDomain",
+        "kind": "value"
+      },
+      {
         "name": "BulkSyncOptions",
         "kind": "type"
       },
@@ -82,8 +94,48 @@
         "kind": "type"
       },
       {
+        "name": "BulkWriteGateRequest",
+        "kind": "type"
+      },
+      {
+        "name": "BulkWriteOperation",
+        "kind": "type"
+      },
+      {
+        "name": "CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
+        "name": "captureChanges",
+        "kind": "value"
+      },
+      {
+        "name": "captureCrudWrite",
+        "kind": "value"
+      },
+      {
+        "name": "CapturedWrite",
+        "kind": "type"
+      },
+      {
+        "name": "CaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "CaptureMountPointOrdinal",
+        "kind": "type"
+      },
+      {
+        "name": "ChangeCaptureSource",
+        "kind": "type"
+      },
+      {
         "name": "CheckRepositoryUpdatesResult",
         "kind": "type"
+      },
+      {
+        "name": "classifyWriteEntrance",
+        "kind": "value"
       },
       {
         "name": "cleanupExpired",
@@ -99,6 +151,30 @@
       },
       {
         "name": "CodeFormat",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayInvariantInput",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayMismatch",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "ColdReplayRow",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplaySnapshot",
         "kind": "type"
       },
       {
@@ -178,6 +254,14 @@
         "kind": "value"
       },
       {
+        "name": "createWorkingTreeCapturePort",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCaptureRuntime",
+        "kind": "value"
+      },
+      {
         "name": "createWorkingTreeCommitsInitialRows",
         "kind": "value"
       },
@@ -196,6 +280,10 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "declareTrustedWrite",
+        "kind": "value"
       },
       {
         "name": "decodeCommitChangeSetUnit",
@@ -231,6 +319,10 @@
       },
       {
         "name": "deterministicStringify",
+        "kind": "value"
+      },
+      {
+        "name": "diffColdReplay",
         "kind": "value"
       },
       {
@@ -582,11 +674,31 @@
         "kind": "type"
       },
       {
+        "name": "fingerprintOf",
+        "kind": "value"
+      },
+      {
+        "name": "FoldOutcome",
+        "kind": "type"
+      },
+      {
+        "name": "foldWorkingTreeEntry",
+        "kind": "value"
+      },
+      {
         "name": "formatEntityFieldValue",
         "kind": "value"
       },
       {
         "name": "formatMetadataViolations",
+        "kind": "value"
+      },
+      {
+        "name": "gateBulkWrite",
+        "kind": "value"
+      },
+      {
+        "name": "gateRawWrite",
         "kind": "value"
       },
       {
@@ -682,11 +794,19 @@
         "kind": "type"
       },
       {
+        "name": "installWorkingTreeCapture",
+        "kind": "value"
+      },
+      {
         "name": "IntegerProperty",
         "kind": "type"
       },
       {
         "name": "IntegerRules",
+        "kind": "type"
+      },
+      {
+        "name": "InterceptedBulkWrite",
         "kind": "type"
       },
       {
@@ -719,6 +839,10 @@
       },
       {
         "name": "isAdapterShutdownError",
+        "kind": "value"
+      },
+      {
+        "name": "isCaptureMountPoint",
         "kind": "value"
       },
       {
@@ -786,6 +910,10 @@
         "kind": "type"
       },
       {
+        "name": "judgeRawWrite",
+        "kind": "value"
+      },
+      {
         "name": "KeyValue",
         "kind": "type"
       },
@@ -846,6 +974,10 @@
         "kind": "type"
       },
       {
+        "name": "MergeChangesNext",
+        "kind": "type"
+      },
+      {
         "name": "MergeQueryTaskOptions",
         "kind": "type"
       },
@@ -860,6 +992,10 @@
       {
         "name": "MigrationType",
         "kind": "type"
+      },
+      {
+        "name": "MixedVersionedCacheTransactionError",
+        "kind": "both"
       },
       {
         "name": "MultilineTextFormat",
@@ -888,6 +1024,10 @@
       {
         "name": "NoActiveBranchError",
         "kind": "both"
+      },
+      {
+        "name": "NoCaptureReason",
+        "kind": "type"
       },
       {
         "name": "normalizeUpdateEntity",
@@ -968,6 +1108,10 @@
       {
         "name": "PrimaryAdapterKind",
         "kind": "type"
+      },
+      {
+        "name": "producesWorkingTreeEntry",
+        "kind": "value"
       },
       {
         "name": "PropertyType",
@@ -1074,6 +1218,22 @@
         "kind": "type"
       },
       {
+        "name": "RawWriteAllowReason",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteContext",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteJudgment",
+        "kind": "type"
+      },
+      {
+        "name": "RawWritePrimitives",
+        "kind": "type"
+      },
+      {
         "name": "ReachabilityEventTarget",
         "kind": "type"
       },
@@ -1084,6 +1244,10 @@
       {
         "name": "ReachabilityOptions",
         "kind": "type"
+      },
+      {
+        "name": "readActiveBranchToken",
+        "kind": "value"
       },
       {
         "name": "readWorkingTreeActivationState",
@@ -1166,6 +1330,10 @@
         "kind": "type"
       },
       {
+        "name": "replayWorkingTree",
+        "kind": "value"
+      },
+      {
         "name": "Repository",
         "kind": "both"
       },
@@ -1235,6 +1403,10 @@
       },
       {
         "name": "RepositorySyncType",
+        "kind": "type"
+      },
+      {
+        "name": "ResolvedTrustedWrite",
         "kind": "type"
       },
       {
@@ -1570,6 +1742,10 @@
         "kind": "type"
       },
       {
+        "name": "StaleActiveBranchError",
+        "kind": "both"
+      },
+      {
         "name": "StringArrayProperty",
         "kind": "type"
       },
@@ -1734,6 +1910,14 @@
         "kind": "value"
       },
       {
+        "name": "takeDeclaredWrite",
+        "kind": "value"
+      },
+      {
+        "name": "toCapturedWrite",
+        "kind": "value"
+      },
+      {
         "name": "TRANSACTION_BEGIN",
         "kind": "value"
       },
@@ -1802,11 +1986,43 @@
         "kind": "type"
       },
       {
+        "name": "TRUSTED_CALLSITE_REGISTRY",
+        "kind": "value"
+      },
+      {
+        "name": "TrustedCallsite",
+        "kind": "type"
+      },
+      {
+        "name": "trustedCallsiteKey",
+        "kind": "value"
+      },
+      {
+        "name": "TrustedWriteDeclaration",
+        "kind": "type"
+      },
+      {
+        "name": "TrustedWriteIntent",
+        "kind": "both"
+      },
+      {
+        "name": "TrustedWritePrimitive",
+        "kind": "type"
+      },
+      {
+        "name": "TrustedWriteScope",
+        "kind": "type"
+      },
+      {
         "name": "tryGetEntityMetadata",
         "kind": "value"
       },
       {
         "name": "tryGetEntityStatus",
+        "kind": "value"
+      },
+      {
+        "name": "uninstallWorkingTreeCapture",
         "kind": "value"
       },
       {
@@ -1824,6 +2040,10 @@
       {
         "name": "UnsupportedRxDBSystemVersionError",
         "kind": "both"
+      },
+      {
+        "name": "UNTRACKED_BOOKKEEPING_FIELDS",
+        "kind": "value"
       },
       {
         "name": "UrlFormat",
@@ -1862,6 +2082,26 @@
         "kind": "value"
       },
       {
+        "name": "VersionedDomain",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedDomainEntityInput",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedDomainView",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedEntityClass",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedTransactionGuard",
+        "kind": "type"
+      },
+      {
         "name": "VersionManager",
         "kind": "type"
       },
@@ -1874,8 +2114,48 @@
         "kind": "both"
       },
       {
+        "name": "WorkingTreeCaptureHook",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCapturePort",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureRuntime",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeCaptureRuntimeOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryKey",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryOperation",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryRow",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeManager",
         "kind": "both"
+      },
+      {
+        "name": "WorkingTreePatch",
+        "kind": "type"
       },
       {
         "name": "WorkingTreePatchCodecContext",
@@ -1883,6 +2163,58 @@
       },
       {
         "name": "WorkingTreePatchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeReplayCorruptionError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeWriteHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeWriteRejectedError",
+        "kind": "both"
+      },
+      {
+        "name": "WRITE_ENTRANCES",
+        "kind": "value"
+      },
+      {
+        "name": "WRITE_TARGET_CLASSES",
+        "kind": "value"
+      },
+      {
+        "name": "WriteColumns",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntrance",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntranceDecision",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntranceRequest",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntryOrigin",
+        "kind": "type"
+      },
+      {
+        "name": "WriteOperation",
+        "kind": "type"
+      },
+      {
+        "name": "WritePrimitiveSignature",
+        "kind": "type"
+      },
+      {
+        "name": "WriteTargetClass",
         "kind": "type"
       }
     ],
