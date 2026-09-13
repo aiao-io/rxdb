@@ -1,4 +1,4 @@
-import { getEntityMetadata, type EntityMetadata, type RxDB } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityMetadata, type EntityPropertyMetadata, type RxDB } from '@aiao/rxdb';
 import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 
 /**
@@ -9,6 +9,15 @@ import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.
  * 拿到的只有实体名和远端行，物理表名、schema、主键列名全部要从 metadata 推出来。
  */
 export interface QueryCacheTarget {
+  /**
+   * `QueryCacheRepository` 传入的**原始**实体名，含可能的 `namespace:` 限定前缀。
+   *
+   * @remarks
+   * 诊断消息一律用它而不是 `metadata.name`：读者要拿这个名字回去比对自己的同步配置，
+   * 而 `metadata.name` 已经把限定前缀丢了 —— 同名实体配在多个 namespace 下时，
+   * 报出来的名字会指不回任何一处配置。
+   */
+  entityName: string;
   /** 命中的实体元数据 */
   metadata: EntityMetadata;
   /** 完全限定且已转义的表名，如 `"shop"."qc_shop_items"` */
@@ -60,6 +69,7 @@ export const resolveQueryCacheTarget = (rxdb: RxDB, entityName: string): QueryCa
 
   const metadata = [...matches.values()][0];
   return {
+    entityName,
     metadata,
     tableName: getTableNameByMetadata(metadata),
     idColumn: resolvePrimaryColumn(metadata, entityName)
@@ -83,22 +93,38 @@ export const resolveUpdatedAtColumn = (target: QueryCacheTarget): string => {
   const property = target.metadata.propertyMap.get('updatedAt');
   if (!property) {
     throw new RxdbAdapterPGliteError(
-      `QueryCache: entity "${target.metadata.name}" has no "updatedAt" property; cannot compare freshness`
+      `QueryCache: entity "${target.entityName}" has no "updatedAt" property; cannot compare freshness`
     );
   }
   return property.columnName;
 };
 
 /**
- * 取主键的物理列名：优先 `primary === true` 的属性，其次名为 `id` 的属性。
+ * 取主键属性：优先 `primary === true` 的那一条，其次名为 `id` 的那一条。
  *
  * @remarks
  * `primary` 不在 `EntityPropertyMetadata` 的公开类型上，用 `Reflect.get` 读取 ——
  * 与 `pglite.utils.ts` 的 `transformForeignKey` 同一写法。
+ *
+ * 不抛错的那一半单独导出，是为了让 `query_cache_row_contract.ts` 取 id 时用**同一条**
+ * 判定：契约只把 id 拿来放进诊断消息，没有 fail-fast 的立场（它要报的是别的东西），
+ * 但两处各写一份「主键是哪个属性」必然分叉 —— 主键属性不叫 `id` 时，诊断消息会把
+ * 一行明明带着主键的行报成「无 id」。
+ *
+ * @param metadata - 实体元数据
+ * @returns 主键属性；实体既没有 `primary` 标记也没有 `id` 属性时为 `undefined`
+ */
+export const queryCachePrimaryProperty = (metadata: EntityMetadata): EntityPropertyMetadata | undefined =>
+  [...metadata.propertyMap.values()].find(property => Reflect.get(property, 'primary') === true) ??
+  metadata.propertyMap.get('id');
+
+/**
+ * 取主键的物理列名。
+ *
+ * @throws {RxdbAdapterPGliteError} 实体没有主键属性
  */
 const resolvePrimaryColumn = (metadata: EntityMetadata, entityName: string): string => {
-  const primary = [...metadata.propertyMap.values()].find(property => Reflect.get(property, 'primary') === true);
-  const property = primary ?? metadata.propertyMap.get('id');
+  const property = queryCachePrimaryProperty(metadata);
   if (!property) {
     throw new RxdbAdapterPGliteError(`QueryCache: entity "${entityName}" has no primary property`);
   }

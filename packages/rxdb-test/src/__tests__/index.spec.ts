@@ -43,12 +43,20 @@ describe('@aiao/rxdb-test public contract', () => {
     expect(treeUniqueApi.TreeMenu).toBeTypeOf('function');
   });
 
+  it('loads the query-cache-contract source entrypoint', async () => {
+    const contractApi = await import('../query-cache-contract/index.js');
+    expect(contractApi.runQueryCacheRowContractSuite).toBeTypeOf('function');
+    expect(contractApi.QcContractRecipe).toBeTypeOf('function');
+    expect(contractApi.QcContractMember).toBeTypeOf('function');
+  });
+
   it('publishes only the declared runtime subpaths', () => {
     expect(Object.keys(packageJson.exports).sort()).toEqual([
       '.',
       './encrypted',
       './entities',
       './package.json',
+      './query-cache-contract',
       './shop',
       './transaction',
       './tree-unique'

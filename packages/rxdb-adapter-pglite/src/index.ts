@@ -21,6 +21,13 @@ export * from './pglite.interface.js';
 export * from './pglite.utils.js';
 export { RxdbAdapterPGliteError } from './pglite.utils.js';
 export * from './PGliteClient.js';
+// QueryCache 的行契约：远端后端的实现者要能 `instanceof` 出「远端给的数据不对」这一类
+// 失败（修法在后端，重试多少次都不会变），并能在写协议实现前先算出「这个实体要带哪些列」。
+export {
+  RxDBQueryCacheRowContractError,
+  assertQueryCacheRowContract,
+  requiredQueryCacheColumns
+} from './query-cache/query_cache_row_contract.js';
 export * from './RxDBAdapterPGlite.js';
 export * from './sql_dialect.js';
 export { create_tables_sql, create_tables_statements } from './table/create_tables_sql.js';

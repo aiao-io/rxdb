@@ -33,6 +33,10 @@ export default defineConfig(() => {
         '@aiao/rxdb-test/encrypted': path.resolve(workspaceRoot, 'packages/rxdb-test/src/encrypted/index.ts'),
         '@aiao/rxdb-test/entities': path.resolve(workspaceRoot, 'packages/rxdb-test/entities/index.ts'),
         '@aiao/rxdb-test/graph': path.resolve(workspaceRoot, 'packages/rxdb-test/graph/index.ts'),
+        '@aiao/rxdb-test/query-cache-contract': path.resolve(
+          workspaceRoot,
+          'packages/rxdb-test/src/query-cache-contract/index.ts'
+        ),
         '@aiao/rxdb-test/shop': path.resolve(workspaceRoot, 'packages/rxdb-test/shop/index.ts'),
         '@aiao/rxdb-test/system': path.resolve(workspaceRoot, 'packages/rxdb-test/system/index.ts'),
         '@aiao/rxdb-test/transaction': path.resolve(workspaceRoot, 'packages/rxdb-test/src/transaction/index.ts'),
