@@ -38,13 +38,13 @@ export interface OpfsFileHandleLike {
  * `FileSystemSyncAccessHandle` 的结构化子集。
  *
  * @remarks
- * `flush` 允许同步返回：TS 6.0 的 lib.dom 里它是 `void`，而部分实现返回 Promise ——
- * 分派处一律 `await`，两种形态等价。
+ * `flush` 与 `close` 允许同步返回：TS 6.0 的 lib.dom 里它们是 `void`，而部分实现返回
+ * Promise —— 分派处一律 `await`，两种形态等价。
  */
 export interface OpfsSyncHandleLike {
   write(data: Uint8Array): void;
   flush(): void | Promise<void>;
-  close(): Promise<void>;
+  close(): void | Promise<void>;
   truncate(size: number): void;
 }
 
