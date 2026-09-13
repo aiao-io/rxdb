@@ -449,11 +449,11 @@ pub fn run() {
             // Tauri 文档里「循环结束后再 process::exit」的写法在桌面端因此走不到。
             // 程序化退出（自检结算）在这里就地结算：先把 `RunEvent::Exit` 上挂着的收尾做完
             // （WAL checkpoint、交还文件句柄，US-210 AC#8），再带着码退出。
-            tauri::RunEvent::ExitRequested { code, .. } => {
-                if let Some(code) = code {
-                    app.state::<DesktopHost>().close_all();
-                    std::process::exit(code);
-                }
+            tauri::RunEvent::ExitRequested {
+                code: Some(code), ..
+            } => {
+                app.state::<DesktopHost>().close_all();
+                std::process::exit(code);
             }
             // 用户关窗（code=None）走原路：Exit 事件上收尾，进程以 0 退出。
             tauri::RunEvent::Exit => {
