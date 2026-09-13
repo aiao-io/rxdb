@@ -9,6 +9,7 @@ import {
   checkEpics,
   checkLinks,
   checkReadme,
+  checkRoadmap,
   checkStatusOverview,
   collectEpics,
   collectStories,
@@ -20,6 +21,7 @@ import {
   run,
   scanNarrative,
   updateReadme,
+  updateRoadmap,
   updateStatusOverview
 } from './requirements-consistency.mjs';
 
@@ -46,8 +48,23 @@ const overview = (done, wip, review, backlog, total, emojis) => `# 状态概览
 ${emojis.map(([e, id]) => `- ${e} [${id} 标题](stories/core/${id}-x.md)`).join('\n')}
 `;
 
-/** 搭一个最小仓库：三条 story、一个 epic、一份 overview、一份 README、一个被链接的源码文件。 */
-async function scaffold(dir, { epicStatus = 'In Progress', emojis, readme = '[2/3 已交付]' } = {}) {
+const roadmap = (open, wip, review, backlog, ids = ['US-003']) => `# 排期与约束
+
+## 完成计划
+
+仓库还剩 **${open} 条**未关闭故事（${wip} In Progress + ${review} In Review + ${backlog} Backlog，
+口径同 [status-overview](status-overview.md)）。
+
+### 批次 1
+
+${ids.map(id => `- [${id}](stories/core/${id}-x.md)`).join('\n')}
+`;
+
+/** 搭一个最小仓库：三条 story、一个 epic、一份 overview、一份 roadmap、一份 README、一个被链接的源码文件。 */
+async function scaffold(
+  dir,
+  { epicStatus = 'In Progress', emojis, readme = '[2/3 已交付]', roadmapText = roadmap(1, 0, 0, 1) } = {}
+) {
   await mkdir(path.join(dir, 'requirements/stories/core'), { recursive: true });
   await mkdir(path.join(dir, 'requirements/epics'), { recursive: true });
   await mkdir(path.join(dir, 'packages/x/src'), { recursive: true });
@@ -73,6 +90,7 @@ async function scaffold(dir, { epicStatus = 'In Progress', emojis, readme = '[2/
       ]
     )
   );
+  await writeFile(path.join(dir, 'requirements/roadmap.md'), roadmapText);
   await writeFile(path.join(dir, 'README.md'), `# x\n\n当前交付状态 ${readme}\n`);
   await writeFile(path.join(dir, 'packages/x/src/a.ts'), 'a\nb\nc\n');
 }
@@ -111,7 +129,7 @@ test('汇总表数字、标题条数、README 的 N/M 与 YAML 不符时被抓�
 });
 
 test('--update 只改数字不动列宽，改完能过 check', async () => {
-  await scaffold(dir, { readme: '[0/0 已交付]' });
+  await scaffold(dir, { readme: '[0/0 已交付]', roadmapText: roadmap(9, 4, 3, 2) });
   const overviewPath = path.join(dir, 'requirements/status-overview.md');
   const broken = (await readFile(overviewPath, 'utf8'))
     .replace('| 2    |', '| 7    |')
@@ -122,8 +140,35 @@ test('--update 只改数字不动列宽，改完能过 check', async () => {
   const fixed = await readFile(overviewPath, 'utf8');
   assert.match(fixed, /\| ✅ Done {8}\| 2 {4}\|/);
   assert.match(fixed, /## 进行中（0 条）/);
+  // roadmap 的未关闭计数与 overview 走同一条回写路径，漏了它 --update 之后 check 仍然红。
+  assert.match(
+    await readFile(path.join(dir, 'requirements/roadmap.md'), 'utf8'),
+    /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/
+  );
   assert.equal(updateReadme('x [0/0 已交付] y', countStatuses(await collectStories(dir))), 'x [2/3 已交付] y');
   assert.equal(updateStatusOverview('| **合计**       | 63   |', { total: 7 }), '| **合计**       | 7    |');
+  assert.match(
+    updateRoadmap(roadmap(9, 4, 3, 2), { total: 3, Done: 2, 'In Progress': 0, 'In Review': 0, Backlog: 1 }),
+    /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/
+  );
+});
+
+test('roadmap 的未关闭分项、以及「每条未关闭故事都排过期」都被校验', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  assert.deepEqual(checkRoadmap(roadmap(1, 0, 0, 1), stories), []);
+  assert.match(
+    checkRoadmap('# 排期与约束\n\n## 完成计划\n\n还有一些没做完。\n', stories).join('\n'),
+    /找不到「仓库还剩/
+  );
+
+  const offenders = checkRoadmap(roadmap(2, 1, 0, 1, ['US-001']), stories);
+  assert.match(offenders.join('\n'), /「未关闭合计」写 2，YAML 推导为 1/);
+  assert.match(offenders.join('\n'), /「In Progress」写 1，YAML 推导为 0/);
+  // 排期里压根没提的未关闭故事：frontmatter、索引、epic 反链可以全对，它照样没人认领。
+  assert.match(offenders.join('\n'), /US-003（Backlog）未关闭，却没有排进任何批次/);
+  // Done 的故事不必出现在排期里
+  assert.equal(offenders.filter(o => o.includes('US-002')).length, 0, JSON.stringify(offenders));
 });
 
 test('索引里状态符号与 YAML 不一致、或漏了故事，都被抓出', async () => {
