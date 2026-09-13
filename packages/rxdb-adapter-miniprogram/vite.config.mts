@@ -49,7 +49,12 @@ export default defineConfig(() => ({
         '@aiao/rxdb-adapter-sqlite-core',
         '@aiao/rxdb-adapter-wa-sqlite',
         '@aiao/rxdb-adapter-wa-sqlite/client',
-        'wa-sqlite'
+        'wa-sqlite',
+        // Emscripten glue 必须保持外部依赖：它内部有 `new URL('wa-sqlite.wasm', import.meta.url)`，
+        // 一旦打进 dist，vite 就把它当资产引用，把 727 KB 的 wasm 以 base64 内联进产物
+        // （dist 凭空多出约 1 MB 死代码，小程序主包直接超限）。留在外部则由宿主应用自行
+        // 定位 wasm —— adapter 本来就显式传 `locateFile`，那条分支永远走不到。
+        /^@subframe7536\/sqlite-wasm(\/|$)/
       ]
     }
   },

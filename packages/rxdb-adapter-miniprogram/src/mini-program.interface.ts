@@ -43,15 +43,20 @@ export interface MiniProgramWasmRuntime {
   ): Promise<MiniProgramWasmInstance | { readonly instance: MiniProgramWasmInstance; readonly module?: unknown }>;
 }
 
-/** wa-sqlite Emscripten 模块中由 adapter 与 VFS 直接使用的字段。 */
+/**
+ * wa-sqlite Emscripten 模块中由 adapter 与 VFS 直接使用的字段。
+ *
+ * 只声明所有目标构建都导出的最小集合：`@subframe7536/sqlite-wasm` 的 glue 只把
+ * `HEAPU8` / `HEAP32` 挂到模块对象上（两者都会在内存增长时被重新赋值），
+ * `HEAPU32` / `HEAPF64` 仅存在于 glue 闭包内部，只能经 `setValue` 访问。
+ */
 export interface WaSqliteEmscriptenModule {
   readonly HEAP32: Int32Array;
-  readonly HEAPF64: Float64Array;
   readonly HEAPU8: Uint8Array<ArrayBuffer>;
-  readonly HEAPU32: Uint32Array;
   _sqlite3_next_stmt(database: number, statement: number): number;
   UTF8ToString(pointer: number): string;
   stringToUTF8(value: string, pointer: number, maximumBytes: number): void;
+  setValue(pointer: number, value: number, type: 'double'): void;
 }
 
 /** Emscripten 自定义实例化回调。 */
@@ -65,7 +70,7 @@ export interface WaSqliteModuleFactoryOptions {
   printErr(message: string): void;
 }
 
-/** 从包内 `assets/wa-sqlite.cjs` 加载的模块工厂。 */
+/** wa-sqlite Emscripten glue 导出的模块工厂，由 `loadSubframeModuleFactory()` 提供。 */
 export type WaSqliteModuleFactory = (
   options: WaSqliteModuleFactoryOptions
 ) => Promise<WaSqliteEmscriptenModule> | WaSqliteEmscriptenModule;
@@ -80,7 +85,7 @@ export type WaSqliteMiniProgramRepositoryConstructor<T extends RepositoryBase<An
 
 /** 微信小程序版 wa-sqlite adapter 配置。 */
 export interface WaSqliteMiniProgramOptions extends IRxDBAdapterOptions {
-  /** 由 `assets/wa-sqlite.cjs` 导出的同步 wa-sqlite 模块工厂。 */
+  /** 同步 wa-sqlite 模块工厂，取自 `loadSubframeModuleFactory()`。 */
   moduleFactory: WaSqliteModuleFactory;
   /** 微信小程序全局 `wx`。显式注入，避免把平台全局藏进库内部。 */
   wechat: MiniProgramWechatApi;

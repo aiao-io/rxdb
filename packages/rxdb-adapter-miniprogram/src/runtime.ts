@@ -4,6 +4,7 @@ export type {
   MiniProgramWechatApi
 } from './mini-program.interface.js';
 export {
+  DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE,
   MAX_MINI_PROGRAM_RANDOM_POOL_SIZE,
   fillMiniProgramRandomValues,
   getMiniProgramRuntimeSources,

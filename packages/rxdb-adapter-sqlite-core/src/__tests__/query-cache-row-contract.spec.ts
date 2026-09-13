@@ -1,4 +1,5 @@
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, transitionMetadata } from '@aiao/rxdb';
+import { runQueryCacheRowContractSuite } from '@aiao/rxdb-test/query-cache-contract';
 import { describe, expect, it } from 'vitest';
 import {
   assertQueryCacheRowContract,
@@ -297,4 +298,16 @@ describe('assertQueryCacheRowContract —— 边界', () => {
     // 省略必须写出来 —— 静默截断会让人以为只有列出的这几行有问题
     expect(message).toMatch(/另有\s*4\s*行/);
   });
+});
+
+// US-024：PGlite 补齐同族契约后，两个后端跑**同一份**套件，锁住「换个本地行缓存后端
+// 不用重学一套诊断」—— 哪些列可以省略、错误 `name`、消息骨架、整批拒绝。
+// 上面那些用例不因此作废：它们锁的是本后端 DDL 独有的判据（uuid 主键的
+// `DEFAULT (lower(hex(randomblob(16))))`、`SET NULL` 列不发 NOT NULL、批内异构），
+// 那三条恰恰是**不**跨后端成立的。
+runQueryCacheRowContractSuite({
+  name: 'sqlite-core',
+  requiredQueryCacheColumns,
+  assertQueryCacheRowContract,
+  ErrorClass: RxDBQueryCacheRowContractError
 });

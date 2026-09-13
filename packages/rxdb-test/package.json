@@ -46,6 +46,11 @@
       "import": "./dist/encrypted/index.js",
       "default": "./dist/encrypted/index.js"
     },
+    "./query-cache-contract": {
+      "types": "./dist/query-cache-contract/index.d.ts",
+      "import": "./dist/query-cache-contract/index.js",
+      "default": "./dist/query-cache-contract/index.js"
+    },
     "./tree-unique": {
       "types": "./dist/tree-unique/index.d.ts",
       "import": "./dist/tree-unique/index.js",
