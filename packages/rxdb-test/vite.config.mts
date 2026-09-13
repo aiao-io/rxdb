@@ -66,6 +66,7 @@ export default defineConfig(({ command }) => ({
         index: 'src/index.ts',
         'encrypted/index': 'src/encrypted/index.ts',
         'transaction/index': 'src/transaction/index.ts',
+        'query-cache-contract/index': 'src/query-cache-contract/index.ts',
         'tree-unique/index': 'src/tree-unique/index.ts'
       },
       name: '@aiao/rxdb-test',

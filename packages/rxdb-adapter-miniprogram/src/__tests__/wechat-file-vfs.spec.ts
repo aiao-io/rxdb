@@ -42,15 +42,17 @@ class MemoryFileSystem implements MiniProgramFileSystemManager {
 
 function createModule(names: Map<number, string>): WaSqliteEmscriptenModule {
   const buffer = new ArrayBuffer(4096);
+  const heapF64 = new Float64Array(buffer);
   return {
     HEAP32: new Int32Array(buffer),
-    HEAPF64: new Float64Array(buffer),
     HEAPU8: new Uint8Array(buffer),
-    HEAPU32: new Uint32Array(buffer),
     _sqlite3_next_stmt: () => 0,
     UTF8ToString: pointer => names.get(pointer) ?? '',
     stringToUTF8: (value, pointer) => {
       names.set(pointer, value);
+    },
+    setValue: (pointer, value) => {
+      heapF64[pointer >> 3] = value;
     }
   };
 }

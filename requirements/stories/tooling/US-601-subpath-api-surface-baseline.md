@@ -111,6 +111,17 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
   多出 `@aiao/source` 键即红。断言里补了键与注释，它们真正守的性质（运行时条件仍落在
   可执行 dist 产物上）原样保留。
 
+### 交付后变更
+
+- **2026-09-12：`ASSET_SUBPATHS` 白名单已空。** AC#5 与技术笔记里那两个
+  `rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}` 入口随 glue + wasm 改用
+  `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 SHA-512，见
+  [wa-sqlite-integrity.mjs](../../../scripts/audit/wa-sqlite-integrity.mjs)）一并删除，
+  资产不再经本仓库 `exports` 暴露，因此 AC#5 所述的「SHA-256 守护」去向已不成立。
+  **白名单机制本身保留**：它是通用的、有独立 fixture 单测（`asset-entry` 假包）覆盖，
+  留给将来真需要发二进制子路径的包；空白名单同样受双向核对约束。
+  当前口径为 **30 个公开包、53 个公开入口全部进基线，跳过 0 个资产入口**。
+
 ## 技术笔记
 
 ### 源入口声明散在三处，且没有一处是全的

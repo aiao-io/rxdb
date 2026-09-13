@@ -36,6 +36,121 @@ jobs:
           # moderate 及以下仍会出现在下面的 PR 摘要里，只是不阻塞。
           fail-on-severity: high
 
+          # 例外：GHSA-mp2f-45pm-3cg9（decompress@4.2.1，critical，解压路径穿越）
+          #
+          # 开这个口子不是因为它不严重，而是因为它**没有依赖侧的修法**：
+          #   - decompress 最高版本就是 4.2.1，上游已无人维护，补丁不会再有；
+          #   - 维护分支 @xhmikosr/decompress 从 v5 起是 ESM-only，而引入它的
+          #     download@7.1.0 是 CJS `require('decompress')`，alias 过去直接炸；
+          #   - download@8.0.0（latest）依然写着 `decompress: ^4.2.1`，升上游无用。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/cli@4.2.1（已是 latest）
+          #        └─ download-git-repo@3.0.2 → download@7.1.0 → decompress@4.2.1
+          #
+          # 唯一加载点是 @tarojs/cli 的 dist/create/fetchTemplate.js，即 `taro new`
+          # 拉脚手架模板时解压 tarball。CI 不跑 `taro new`，`taro build` 不经过这条路，
+          # 它也不进任何 publish 产物 —— 触发前提是开发者本地手动解一个不可信的模板包。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/cli 换掉 download-git-repo；
+          #   - decompress 出现 4.2.1 以上的修复版本。
+
+          # 例外：GHSA-8jmw-wjr8-2x66 / CVE-2022-25900（git-clone@0.1.0，high，命令注入）
+          #
+          # 同一条链上的第二个洞，同样没有依赖侧的修法，而且比上一条更彻底 ——
+          # 上游直接把它判成了 won't fix：
+          #   - 通告的 vulnerable range 是 `<= 0.2.0`，first_patched_version 为 null，
+          #     等于「所有已发布版本」（npm 上只有 0.0.1 ~ 0.2.0，最后一次发布停在
+          #     2021-09），override 到任何版本都不改变结论；
+          #   - 通告里挂着的那个「修复」提交 fd33045，实际只往 README 加了一段
+          #     「args 只接受可信输入」的警告，一行代码都没动，也从未发版。
+          #
+          # 而这条链上真实可达面为零：注入点是 `opts.args` / `opts.git` —— 它们被原样
+          # 拼进 `git` 的参数表；repo 参数本身在 0.1.0 和 0.2.0 里都已经有 `--` 隔断，
+          # 通告 PoC 里的 `--upload-pack=` 走不通。而调用方 download-git-repo@3.0.2
+          # 只传 `{ checkout, shallow }`，两个注入项一个都没传 —— 装进来的 0.1.0 甚至
+          # 还没有 `args` 这个选项（它是 0.2.0 才加的）。
+          #
+          # 引入链与上一条完全相同，全程 dev-only，加载点也还是 `taro new`：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/cli@4.2.1 → download-git-repo@3.0.2 → git-clone@0.1.0
+          #
+          # 复查条件：@tarojs/cli 换掉 download-git-repo —— 届时这两条例外一起删。
+          # 例外：GHSA-pfq8-rq6v-vf5m / CVE-2022-37620（html-minifier@4.0.0，high，ReDoS）
+          #
+          # 第三个洞，同样没有依赖侧的修法：
+          #   - 通告的 vulnerable range 是 `<= 4.0.0`，first_patched_version 为 null，
+          #     而 4.0.0 就是 npm 上的 latest —— 发布于 2019-04，此后再没出过新版，
+          #     override 到任何版本都不改变结论；
+          #   - 唯一还在维护的替代品 html-minifier-terser 不是 drop-in：它从 v6 起
+          #     `minify()` 返回 Promise，而下面那个调用点是同步赋值 —— alias 过去
+          #     会把 `[object Promise]` 原样写进模板产物，是比这个漏洞更确定的故障。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/vite-runner@4.2.1（已是 latest；4.2.2-beta 仍写着 ^4.0.0）
+          #        └─ html-minifier@4.0.0
+          #
+          # 可达面同样为零：唯一加载点是 dist/mini/emit.js 的 generateTemplateFile()，
+          # 整段被 `taroConfig.minifyXML?.collapseWhitespace` 门住，而本仓库 config/ 下
+          # 从没打开过 minifyXML，那行 `require('html-minifier')` 不会执行。即便打开，
+          # 喂进去的也是本仓库自己的模板产物 —— 编译期的可信输入，不存在攻击者可控的 HTML。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/vite-runner 换成 html-minifier-terser；
+          #   - html-minifier 出现 4.0.0 以上的修复版本。
+          # 例外：GHSA-c27g-q93r-2cwf / CVE-2024-52011（vite@4.5.14，high，Windows 命令注入）
+          #
+          # 第四个洞，第一个不出在 Taro 自己的依赖上，而出在它锁死的 vite 大版本上：
+          #   - 通告对 vite 的判定是 `<= 5.4.8`，first_patched_version 是 5.4.9 ——
+          #     4.x 分支没有修复版，而 4.5.14 已是 4.x 的最后一版；
+          #   - 真正的补丁在 launch-editor@2.9.0，但 vite 4 是把它**内联进 dist** 的
+          #     （dist/node/chunks/dep-827b23df.js 里连 launchEditorMiddleware 一起打平），
+          #     它不是一条依赖边，override 够不着；
+          #   - 升 vite 也无路：@tarojs/vite-runner@4.2.1（已是 latest）的 peer 写死
+          #     `vite: ^4`，同链上的 @vitejs/plugin-legacy@4.1.1 也是 ^4。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency vite@^4.2.0）
+          #     └─ @tarojs/vite-runner@4.2.1（peer vite ^4）
+          #
+          # 可达面：注入点是 vite **dev server** 中间件栈里无条件挂载的
+          # `/__open-in-editor`，且只在内联 launch-editor 的 `process.platform === 'win32'`
+          # 分支上（那里 spawn 走 shell）。而本仓库的两个 nx target（build / serve）都是
+          # `taro build --type weapp`，走 vite-runner 的 index.mini.js —— 那里只有
+          # `vite.build()`，从不 createServer()；唯一的 createServer 在 index.h5.js，
+          # 被 `isProd` 的 else 分支门住。ci-windows.yml 的 `run-many -t build` 在
+          # Windows runner 上跑的同样是这条 build 路径。要碰到它，得开发者本地手跑
+          # app 里的 `dev:h5`（没有对应 nx target），还得是在 Windows 上，再被诱导让
+          # 浏览器朝 localhost 发一个构造过的请求。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/vite-runner 放开 vite ^5.4.9 以上；
+          #   - vite 4.x 出现回补 launch-editor 2.9.0 的版本。
+
+          # 例外：GHSA-fx2h-pf6j-xcff / CVE-2026-53571（vite@4.5.14，high，fs.deny 绕过）
+          #
+          # 同一个 vite 4.5.14 上的第二个洞，卡点也一样：
+          #   - 通告的几条范围分别修在 6.4.3 / 7.3.5 / 8.0.16，覆盖 4.x 的那条写的是
+          #     `<= 6.4.2 -> 6.4.3` —— 4.x 分支同样没有修复版；
+          #   - 工作区自己的 vite 是 8.x（^8.2.2，已在 8.0.16 之上），不在命中范围内。
+          #     被点名的只有 Taro 那棵子树里被 peer `^4` 锁住的 4.5.14，而它升不动。
+          #
+          # 引入链与可达面与上一条完全相同：`server.fs.deny` 只对 dev server 生效，
+          # 绕过手法又是 Windows 专属的备用路径写法（alternate path），而本仓库的
+          # nx target 与 CI 走的都是 `vite.build()`，根本没有 fs.deny 这个概念。
+          #
+          # 复查条件：与上一条相同 —— @tarojs/vite-runner 放开 vite ^6.4.3 以上时一并删除。
+
+          # 不在这里放行的：GHSA-rc47-6667-2j5j（http-cache-semantics <4.1.1 的 ReDoS）。
+          # 它同样来自 `taro new` 那条链（download@7 → got@8 → cacheable-request@2），
+          # 但和上面几条不同，它**有依赖侧的修法** —— 4.1.1 就是修复版。已在根
+          # package.json 用 `cacheable-request@2>http-cache-semantics: ^4.1.1` 收掉，
+          # 不占例外名额。例外只留给真正没有修复版的洞。
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
+
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
           # 何况 fork 来的 PR 拿到的 GITHUB_TOKEN 本来就是只读的，评论也发不出去。

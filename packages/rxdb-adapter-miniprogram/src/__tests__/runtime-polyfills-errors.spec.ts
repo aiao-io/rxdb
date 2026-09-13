@@ -5,6 +5,7 @@ import type {
   MiniProgramWechatApi
 } from '../mini-program.interface.js';
 import {
+  DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE,
   MAX_MINI_PROGRAM_RANDOM_POOL_SIZE,
   fillMiniProgramRandomValues,
   getMiniProgramRuntimeSources,
@@ -42,7 +43,7 @@ describe('randomPoolSize 校验', () => {
     expect(wechat.getRandomValues).not.toHaveBeenCalled();
   });
 
-  it('缺省时按上限申请整池', async () => {
+  it('缺省时只申请默认池大小，不在启动时拉满上限', async () => {
     vi.stubGlobal('crypto', undefined);
     const getRandomValues = vi.fn((options: MiniProgramRandomValuesOptions) => {
       options.success?.({ randomValues: new ArrayBuffer(options.length) });
@@ -50,8 +51,9 @@ describe('randomPoolSize 校验', () => {
 
     await prepareMiniProgramRuntime(createWechat(getRandomValues));
 
+    expect(DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE).toBeLessThan(MAX_MINI_PROGRAM_RANDOM_POOL_SIZE);
     expect(getRandomValues).toHaveBeenCalledWith(
-      expect.objectContaining({ length: MAX_MINI_PROGRAM_RANDOM_POOL_SIZE })
+      expect.objectContaining({ length: DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE })
     );
   });
 });
@@ -155,6 +157,107 @@ describe('同步随机源', () => {
     const target = new Uint8Array(4);
     expect(fillMiniProgramRandomValues(target)).toBe(target);
     expect([...target]).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('随机池补给', () => {
+  /** 第 n 次申请返回的池整片填 n，消费出来的字节就能反查是哪一池供的。 */
+  function createMarkedPools(): MiniProgramWechatApi['getRandomValues'] & { mock: unknown } {
+    let generation = 0;
+    return vi.fn((options: MiniProgramRandomValuesOptions) => {
+      generation += 1;
+      const marker = generation;
+      options.success?.({ randomValues: Uint8Array.from({ length: options.length }, () => marker).buffer });
+    });
+  }
+
+  it('剩余量跌到水位线以下时后台补池，首池耗尽后无缝续上', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const getRandomValues = createMarkedPools();
+    await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 16 });
+
+    const fromFirstPool = new Uint8Array(12);
+    globalThis.crypto.getRandomValues(fromFirstPool);
+    expect([...fromFirstPool]).toEqual(Array.from({ length: 12 }, () => 1));
+
+    await vi.waitFor(() => expect(getRandomValues).toHaveBeenCalledTimes(2));
+
+    // 首池只剩 4 字节，这次要 8 字节——旧池丢掉、换上备池，全程不抛错
+    const fromSecondPool = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(fromSecondPool);
+    expect([...fromSecondPool]).toEqual(Array.from({ length: 8 }, () => 2));
+  });
+
+  it('补池在途时不重复向微信申请', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const pending: (() => void)[] = [];
+    const getRandomValues = vi.fn((options: MiniProgramRandomValuesOptions) => {
+      const deliver = (): void => options.success?.({ randomValues: new ArrayBuffer(options.length) });
+      if (getRandomValues.mock.calls.length === 1) deliver();
+      else pending.push(deliver);
+    });
+    await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 16 });
+
+    globalThis.crypto.getRandomValues(new Uint8Array(12));
+    globalThis.crypto.getRandomValues(new Uint8Array(2));
+    globalThis.crypto.getRandomValues(new Uint8Array(2));
+
+    expect(getRandomValues).toHaveBeenCalledTimes(2);
+    expect(pending).toHaveLength(1);
+  });
+
+  it('补池失败时不降级：耗尽照样抛错，并把微信的失败原因挂在 cause 上', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const getRandomValues = vi.fn((options: MiniProgramRandomValuesOptions) => {
+      if (getRandomValues.mock.calls.length === 1) {
+        options.success?.({ randomValues: new ArrayBuffer(options.length) });
+        return;
+      }
+      options.fail?.({ errMsg: 'getRandomValues:fail bridge down' });
+    });
+    await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 16 });
+
+    globalThis.crypto.getRandomValues(new Uint8Array(12));
+    await vi.waitFor(() => expect(getRandomValues).toHaveBeenCalledTimes(2));
+
+    let thrown: unknown;
+    try {
+      globalThis.crypto.getRandomValues(new Uint8Array(8));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toContain('安全随机池已耗尽');
+    expect((thrown as Error).cause).toMatchObject({
+      message: 'wx.getRandomValues 失败: getRandomValues:fail bridge down'
+    });
+  });
+
+  it('备池装不下本次请求时抛错，而不是返回填了一半的零字节', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const getRandomValues = createMarkedPools();
+    await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 4 });
+
+    globalThis.crypto.getRandomValues(new Uint8Array(4));
+    await vi.waitFor(() => expect(getRandomValues).toHaveBeenCalledTimes(2));
+
+    expect(() => globalThis.crypto.getRandomValues(new Uint8Array(8))).toThrow('安全随机池已耗尽');
+  });
+
+  it('发出去的字节立即从池里擦除，未使用部分原样保留', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const source = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
+    await prepareMiniProgramRuntime(
+      createWechat(options => options.success?.({ randomValues: source.buffer })),
+      { randomPoolSize: 16 }
+    );
+
+    const target = new Uint8Array(4);
+    globalThis.crypto.getRandomValues(target);
+
+    expect([...target]).toEqual([1, 2, 3, 4]);
+    expect([...source.subarray(0, 4)]).toEqual([0, 0, 0, 0]);
+    expect([...source.subarray(4, 8)]).toEqual([5, 6, 7, 8]);
   });
 });
 

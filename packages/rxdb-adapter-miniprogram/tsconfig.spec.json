@@ -17,7 +17,8 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/__tests__/subframe-wasm-factory.ts"
   ],
   "references": [
     {
