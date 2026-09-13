@@ -8,8 +8,9 @@
  */
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
+import { RxDBQueryCacheRowContractError } from '../../query-cache/query_cache_row_contract.js';
 import { generateDbName } from '../test-utils.js';
 
 const PASSPHRASE = 'pgl-012-passphrase';
@@ -192,27 +193,28 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
     });
   });
 
-  describe('无可更新列', () => {
-    it('只有 id 的行失败原因必须是缺必填列，而不是 SQL 语法错误', async () => {
+  describe('远端行的列契约（US-024）', () => {
+    it('AC#1 缺必填列时抛契约错误而不是 PG 的 not-null，且已有行分毫不动', async () => {
       const id = crypto.randomUUID();
       await firstValueFrom(
         adapter.upsertMany('QcArticle', [{ id, title: '原值', viewCount: 3, createdAt: now(), updatedAt: now() }])
       );
 
+      // 只带 id：`title` / `createdAt` / `updatedAt` 都是本地表上 NOT NULL 且无 SQL 默认值的列
       const error = await firstValueFrom(adapter.upsertMany('QcArticle', [{ id }])).then(
         () => null,
         (reason: unknown) => reason as Error
       );
 
-      // 旧实现拼出空的 `DO UPDATE SET `，PG 报 42601 `syntax error at end of input`。
-      // 现在语句本身合法（`DO NOTHING`），失败原因换成 23502：EntityBase 的
-      // createdAt/updatedAt 非空，而 PG 的 NOT NULL 检查发生在冲突判定**之前**，
-      // 所以这类表上 DO NOTHING 分支运行期必然到不了 —— 它的价值是让 SQL 合法，
-      // 把错误归因到真正的原因（行缺必填列）而不是伪装成语法错误。
-      // 子句本身由 upsert-many-sql.spec.ts 直接断言。
-      expect(error).not.toBeNull();
-      expect(error?.message).not.toMatch(/syntax error/);
-      expect(error?.message).toMatch(/null value|not-null/);
+      // 病灶：以前这里是 PG 的 23502 `null value in column "createdAt" of relation
+      // "qc_articles" violates not-null constraint` —— 表名是加了 schema 的**本地**表名、
+      // 列名在**远端**的 schema 里根本不存在、调用栈落在适配器内部而不是那次 find()。
+      // 三重误导，读者第一反应是「本地表建错了」。现在换成点名实体与缺失列的契约错误。
+      expect(error).toBeInstanceOf(RxDBQueryCacheRowContractError);
+      expect(error?.message).not.toMatch(/null value|not-null|syntax error/);
+      expect(error?.message).toContain('QcArticle');
+      expect(error?.message).toContain('createdAt');
+      expect(error?.message).toContain('title');
 
       const result = await adapter.internalQuery<Record<string, unknown>>(
         `SELECT "article_title", "view_count" FROM "public"."qc_articles" WHERE id = $1`,
@@ -222,13 +224,51 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
       expect(result.rows[0].article_title).toBe('原值');
       expect(result.rows[0].view_count).toBe(3);
     });
+
+    it('AC#2 同批一行完整、一行缺列时整批不落地，连事务都不开', async () => {
+      const [complete, broken] = [crypto.randomUUID(), crypto.randomUUID()];
+      // 校验必须发生在 `transaction()` **之前**：否则「一行都没有落地」只是靠回滚兑现的，
+      // 而数据库已经为一个注定失败的批次开过一次事务。钉住这个接缝，
+      // 把「诊断在写之前给出」变成可自证的断言而不是注释里的承诺。
+      const transactionSpy = vi.spyOn(adapter, 'transaction');
+
+      try {
+        const error = await firstValueFrom(
+          adapter.upsertMany('QcArticle', [
+            { id: complete, title: '完整的一行', createdAt: now(), updatedAt: now() },
+            { id: broken, title: '缺 updatedAt 的一行', createdAt: now() }
+          ])
+        ).then(
+          () => null,
+          (reason: unknown) => reason as Error
+        );
+
+        expect(error).toBeInstanceOf(RxDBQueryCacheRowContractError);
+        expect(error?.message).toContain('本批 2 行中 1 行不合格');
+        expect(error?.message).toContain('一行都没有落地');
+        expect(error?.message).toContain(broken);
+        expect(transactionSpy).not.toHaveBeenCalled();
+      } finally {
+        transactionSpy.mockRestore();
+      }
+
+      const result = await adapter.internalQuery<Record<string, unknown>>(
+        `SELECT id FROM "public"."qc_articles" WHERE id = ANY($1)`,
+        [[complete, broken]]
+      );
+      // 完整的那一行也不在库里 —— 部分成功比整批失败更难查
+      expect(result.rows).toHaveLength(0);
+    });
   });
 
   describe('未知键 fail-fast', () => {
     it('未知键必须在生成 SQL 之前被拒绝，并指名该键', async () => {
       const id = crypto.randomUUID();
       const error = await firstValueFrom(
-        adapter.upsertMany('QcArticle', [{ id, notAPropertyAtAll: 1, createdAt: now() }])
+        // 先带齐必填列：否则列契约（US-024）会在键名白名单之前抛错，这条用例就测不到未知键
+        adapter.upsertMany('QcArticle', [
+          { id, title: '未知键', notAPropertyAtAll: 1, createdAt: now(), updatedAt: now() }
+        ])
       ).then(
         () => null,
         (reason: unknown) => reason as Error
@@ -251,7 +291,11 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
       const id = crypto.randomUUID();
       const injected = `x") VALUES ('pwned') --`;
       await expect(
-        firstValueFrom(adapter.upsertMany('QcArticle', [{ id, [injected]: 1, createdAt: now() }]))
+        firstValueFrom(
+          adapter.upsertMany('QcArticle', [
+            { id, title: '注入形状', [injected]: 1, createdAt: now(), updatedAt: now() }
+          ])
+        )
       ).rejects.toThrow(/QcArticle/);
 
       const result = await adapter.internalQuery<Record<string, unknown>>(
