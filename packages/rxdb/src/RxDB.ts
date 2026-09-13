@@ -59,6 +59,7 @@ import { RxDBSync } from './system/sync.js';
 import { isSystemEntity, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
+import { WorkingTreeManager } from './working-tree/working-tree-facade.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
 /**
@@ -333,6 +334,18 @@ export class RxDB {
   public readonly versionManager!: VersionManager;
 
   /**
+   * 工作树与提交历史的入口（epic-006，契约见 specs/001-working-tree-commits/contracts/core-api.md §1）。
+   *
+   * @remarks
+   * **恒存在**，与这个数据库是否启用提交能力无关：有没有这个入口是**进程内库版本**的属性，
+   * 能不能用才是**这个数据库**的属性。做成可选属性会让全部调用点长出 `?.`，而
+   * `database.workingTree?.commit(msg)` 在未启用的库上静默求值为 `undefined` ——
+   * 用户点了提交、什么也没发生、也没有错误。未启用时除 `enable()` / `isEnabled()` 外
+   * 一律以 `commit_capability_disabled` 拒绝，不是返回空结果。
+   */
+  public readonly workingTree!: WorkingTreeManager;
+
+  /**
    * 同步状态汇聚面：网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负。
    *
    * @remarks
@@ -415,6 +428,7 @@ export class RxDB {
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     this.versionManager = new VersionManager(this);
+    this.workingTree = new WorkingTreeManager(this);
     this.syncState = new SyncStateHub({
       online$: this.reachability.online$,
       // 每次连接纪元交替都重新解析这个 getter。`#shutdown()` 里的 versionManager.destroy()

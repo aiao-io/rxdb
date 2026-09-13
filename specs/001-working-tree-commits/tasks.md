@@ -96,28 +96,28 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 ### Tests for User Story 1（先红）
 
-- [ ] T022 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/capability-enable.spec.ts`：启用是一次 CAS（`WHERE id='default' AND enabled=false`），重复启用命中 0 行即幂等不报错、不重置版本；启用后三个版本字段只读；版本不匹配走既有 `UnsupportedRxDBSystemVersionError` 语义 fail-closed（FR-037）
-- [ ] T023 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-graph.spec.ts`：commit 元数据、父链、`changeSetCount`、`contentFingerprint` 可持久化并跨重启恢复；`firstParentId === parentIds[0] ?? null` 的不变量断言（冗余列不得成为第二份真相）（FR-002/003/027）
-- [ ] T024 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-cas-idempotency.spec.ts`：同事务内以 expected `headRevision` 条件更新 ref；CAS 失败时 commit、ChangeSet、ref 三者全部不可见；相同 `operationId` 重试返回原 commit，字段不同则稳定报错不覆盖；同名重建分支用新 `generation` 不碰撞旧幂等键（FR-029/036）
-- [ ] T025 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-empty-and-baseline.spec.ts`：普通 commit 要求 trim 后非空 message + `authorId` + `operationId`，无变更单元时失败且不产生空节点；`kind=baseline | branch_baseline` 是唯一的无作者/无消息且允许空 ChangeSet 的系统根节点（FR-008/009）
-- [ ] T026 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/enable-migration.spec.ts`：为每个本地可完整物化分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态、失败可重试；Workspace 草稿不参与；metadata-only 远端分支不创建 baseline / ref（FR-021/049）
-- [ ] T027 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/active-branch-cardinality.spec.ts`：启用后 `RxDBBranch.activated` 恰好一行为真；零 active 沿用既有 main 恢复语义；多 active 返回 `ambiguous_active_branch` 并全量回滚；每次连接验证至少一个（FR-048）
-- [ ] T028 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/corruption-guard.spec.ts`：从每个 branch ref 遍历完整可达父链；孤立损坏只隔离记录、其他分支照常可用；HEAD 或可达祖先损坏时分支进入 `corrupted_read_only`，不自动回退到较早 commit / 空工作树 / 内存模式（FR-022/051、SC-013）
-- [ ] T029 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-encryption.spec.ts`：commit / ChangeSet / baseline 持久化 dump 的明文哨兵零命中；错误、日志与摘要不含加密字段值（FR-038、SC-011）
-- [ ] T030 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/legacy-compat.spec.ts`：启用 commit 能力后 `RxDBChange`、undo/redo 与 `restoreEntity` 的既有行为逐条不变；durable commit 历史与会话级 redo 栈区分清楚——刷新后 redo 可清空，commit 与 HEAD 不清空（FR-018/019）
+- [x] T022 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/capability-enable.spec.ts`：启用是一次 CAS（`WHERE id='default' AND enabled=false`），重复启用命中 0 行即幂等不报错、不重置版本；启用后三个版本字段只读；版本不匹配走既有 `UnsupportedRxDBSystemVersionError` 语义 fail-closed（FR-037）
+- [x] T023 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-graph.spec.ts`：commit 元数据、父链、`changeSetCount`、`contentFingerprint` 可持久化并跨重启恢复；`firstParentId === parentIds[0] ?? null` 的不变量断言（冗余列不得成为第二份真相）（FR-002/003/027）
+- [x] T024 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-cas-idempotency.spec.ts`：同事务内以 expected `headRevision` 条件更新 ref；CAS 失败时 commit、ChangeSet、ref 三者全部不可见；相同 `operationId` 重试返回原 commit，字段不同则稳定报错不覆盖；同名重建分支用新 `generation` 不碰撞旧幂等键（FR-029/036）
+- [x] T025 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-empty-and-baseline.spec.ts`：普通 commit 要求 trim 后非空 message + `authorId` + `operationId`，无变更单元时失败且不产生空节点；`kind=baseline | branch_baseline` 是唯一的无作者/无消息且允许空 ChangeSet 的系统根节点（FR-008/009）
+- [x] T026 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/enable-migration.spec.ts`：为每个本地可完整物化分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态、失败可重试；Workspace 草稿不参与；metadata-only 远端分支不创建 baseline / ref（FR-021/049）
+- [x] T027 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/active-branch-cardinality.spec.ts`：启用后 `RxDBBranch.activated` 恰好一行为真；零 active 沿用既有 main 恢复语义；多 active 返回 `ambiguous_active_branch` 并全量回滚；每次连接验证至少一个（FR-048）
+- [x] T028 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/corruption-guard.spec.ts`：从每个 branch ref 遍历完整可达父链；孤立损坏只隔离记录、其他分支照常可用；HEAD 或可达祖先损坏时分支进入 `corrupted_read_only`，不自动回退到较早 commit / 空工作树 / 内存模式（FR-022/051、SC-013）
+- [x] T029 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/commit-encryption.spec.ts`：commit / ChangeSet / baseline 持久化 dump 的明文哨兵零命中；错误、日志与摘要不含加密字段值（FR-038、SC-011）
+- [x] T030 [P] [US1] 写红测试 `packages/rxdb/src/__tests__/commit/legacy-compat.spec.ts`：启用 commit 能力后 `RxDBChange`、undo/redo 与 `restoreEntity` 的既有行为逐条不变；durable commit 历史与会话级 redo 栈区分清楚——刷新后 redo 可清空，commit 与 HEAD 不清空（FR-018/019）
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] 实现能力启用与版本协商于 `packages/rxdb/src/commit/commit-capability.ts`：`isEnabled()` / `enable()`、单行 CAS、连接时版本比对 fail-closed（FR-037，契约见 contracts/core-api.md §2）
-- [ ] T032 [US1] 实现 `RxDB.workingTree` 入口于 `packages/rxdb/src/working-tree/working-tree-facade.ts`：入口**恒存在**，未启用时每个方法以 `commit_capability_disabled` 拒绝（不是 `undefined`，契约见 contracts/core-api.md §1）
-- [ ] T033 [US1] 实现 `WorkingTreeActivationState` 的建行、初始化 `activationRevision = 0` 与连接时读取于 `packages/rxdb/src/working-tree/activation-state.ts`；**不得**复制第二份 active branch ID（当前分支仍由 `RxDBBranch.activated` 表示）；递增语义留给 US-308（FR-052）
-- [ ] T034 [US1] 实现变更单元模型与指纹于 `packages/rxdb/src/commit/change-unit.ts`：NEW / UPDATE / DELETE 与完整事务表示为可比较单元，各自保留实体身份、操作类型、基线版本与当前版本指纹（FR-003）
-- [ ] T035 [US1] 实现 commit 写入路径于 `packages/rxdb/src/commit/write-commit.ts`：单原子操作内写 ChangeSet、父 commit、数据库时间、摘要与新 HEAD；CAS 失败全量回滚（FR-008/010/029）
-- [ ] T036 [US1] 实现幂等约束于 `packages/rxdb/src/commit/commit-idempotency.ts`：唯一键 = database + immutable branch generation + `operationId`；复用 `packages/rxdb/src/system/migration.ts` 的 `isUniqueConstraintViolation()`，**只钉在你自己发出的那一条 INSERT 上**（其 TSDoc 已明确这一点）（FR-036）
-- [ ] T037 [US1] 实现历史查询于 `packages/rxdb/src/commit/list-commits.ts`：按 branch ref 父链可达性、实体与数据库时间过滤，返回单 commit 的变更详情与父节点关系；`originBranchId` 只用于审计，不得用于截断继承历史（FR-012）
-- [ ] T038 [US1] 实现**共享损坏守卫** `assertCommitGraphIntact()` 于 `packages/rxdb/src/commit/commit-graph-guard.ts`：区分孤立损坏与可达损坏，供 commit / restore / switch-to 在各自写事务内调用；US-306 阶段 B、US-307、US-308 **复用同一份**，不得各写一份（FR-051、R10）
-- [ ] T039 [US1] 实现一次性启用迁移于 `packages/rxdb/src/commit/enable-migration.ts`：逐分支生成 baseline、保留旧 change、失败可重试；「可完整物化」判定**复用既有分支物化路径**（沿 `RxDBChange` 链无缺口走到分支 tip），**MUST NOT** 另写第二套重放引擎（FR-021/049、R11）
-- [ ] T040 [US1] 实现 active 分支基数约束与连接时校验于 `packages/rxdb/src/commit/active-branch-guard.ts`，含 `ambiguous_active_branch` 全量回滚路径（FR-048）
+- [x] T031 [US1] 实现能力启用与版本协商于 `packages/rxdb/src/commit/commit-capability.ts`：`isEnabled()` / `enable()`、单行 CAS、连接时版本比对 fail-closed（FR-037，契约见 contracts/core-api.md §2）
+- [x] T032 [US1] 实现 `RxDB.workingTree` 入口于 `packages/rxdb/src/working-tree/working-tree-facade.ts`：入口**恒存在**，未启用时每个方法以 `commit_capability_disabled` 拒绝（不是 `undefined`，契约见 contracts/core-api.md §1）
+- [x] T033 [US1] 实现 `WorkingTreeActivationState` 的建行、初始化 `activationRevision = 0` 与连接时读取于 `packages/rxdb/src/working-tree/activation-state.ts`；**不得**复制第二份 active branch ID（当前分支仍由 `RxDBBranch.activated` 表示）；递增语义留给 US-308（FR-052）
+- [x] T034 [US1] 实现变更单元模型与指纹于 `packages/rxdb/src/commit/change-unit.ts`：NEW / UPDATE / DELETE 与完整事务表示为可比较单元，各自保留实体身份、操作类型、基线版本与当前版本指纹（FR-003）
+- [x] T035 [US1] 实现 commit 写入路径于 `packages/rxdb/src/commit/write-commit.ts`：单原子操作内写 ChangeSet、父 commit、数据库时间、摘要与新 HEAD；CAS 失败全量回滚（FR-008/010/029）
+- [x] T036 [US1] 实现幂等约束于 `packages/rxdb/src/commit/commit-idempotency.ts`：唯一键 = database + immutable branch generation + `operationId`；复用 `packages/rxdb/src/system/migration.ts` 的 `isUniqueConstraintViolation()`，**只钉在你自己发出的那一条 INSERT 上**（其 TSDoc 已明确这一点）（FR-036）
+- [x] T037 [US1] 实现历史查询于 `packages/rxdb/src/commit/list-commits.ts`：按 branch ref 父链可达性、实体与数据库时间过滤，返回单 commit 的变更详情与父节点关系；`originBranchId` 只用于审计，不得用于截断继承历史（FR-012）
+- [x] T038 [US1] 实现**共享损坏守卫** `assertCommitGraphIntact()` 于 `packages/rxdb/src/commit/commit-graph-guard.ts`：区分孤立损坏与可达损坏，供 commit / restore / switch-to 在各自写事务内调用；US-306 阶段 B、US-307、US-308 **复用同一份**，不得各写一份（FR-051、R10）
+- [x] T039 [US1] 实现一次性启用迁移于 `packages/rxdb/src/commit/enable-migration.ts`：逐分支生成 baseline、保留旧 change、失败可重试；「可完整物化」判定**复用既有分支物化路径**（沿 `RxDBChange` 链无缺口走到分支 tip），**MUST NOT** 另写第二套重放引擎（FR-021/049、R11）
+- [x] T040 [US1] 实现 active 分支基数约束与连接时校验于 `packages/rxdb/src/commit/active-branch-guard.ts`，含 `ambiguous_active_branch` 全量回滚路径（FR-048）
 - [ ] T041 [US1] 把 commit / ChangeSet / baseline 的加密列接到既有 at-rest 契约上于 `packages/rxdb/src/commit/commit-codec.ts`：持久化路径**不得**先解密再把明文写进新系统表（FR-038）
 - [ ] T042 [US1] 实现 `workingTreeCommitConformanceSuite` 的 US-305 部分于 `packages/rxdb/src/working-tree/testing/working-tree-commit.suite.ts`：覆盖 conformance-suites.md §2.1（commit 图与 HEAD）、§2.2（一次性启用迁移）、§2.5（损坏守卫三入口同一份）
 - [ ] T043 [US1] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-commit-conformance.spec.ts`，复用各包既有 factory（如 `packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts`、`packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-factory.ts`）调用 T042 的套件——「导出了但没人跑」等于没覆盖

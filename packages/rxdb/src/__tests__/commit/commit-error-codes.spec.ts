@@ -7,7 +7,7 @@
  *
  * 一份只有常量的模块值不值得写测试？这里值得，理由是三条**编译期抓不到**的漂移：
  *
- * 1. **码集会被悄悄扩张**。七个码分属四个故事，后续任何一个故事都可能顺手加一个
+ * 1. **码集会被悄悄扩张**。八个码分属四个故事，后续任何一个故事都可能顺手加一个
  *    契约里没有的码。加了照样编译、照样跑绿，只有在别人对着 core-api.md §7 做审计时
  *    才会发现契约与实现对不上。把清单钉死，加码的人必须同时改测试与契约。
  * 2. **值会与键漂开**。这些字符串会进日志、进错误上报、进跨 realm 的判别分支，
@@ -22,12 +22,13 @@ import { COMMIT_ERROR_CODES, CommitErrorCode, isCommitErrorCode } from '../../co
 import { RxDBMixedVersionedCacheTransactionError } from '../../RxDBError.js';
 
 describe('提交错误码', () => {
-  it('码集恰好是契约 core-api.md §7 与 FR 点名的七条，不多不少', () => {
+  it('码集恰好是契约 core-api.md §7 与 FR 点名的八条，不多不少', () => {
     expect([...COMMIT_ERROR_CODES]).toEqual([
       'commit_capability_disabled',
       'commit_capability_mismatch',
       'commit_graph_corrupted',
       'ambiguous_active_branch',
+      'no_active_branch',
       'branch_not_materializable',
       'branch_not_materialized',
       'mixed_versioned_cache_transaction'
@@ -51,7 +52,7 @@ describe('提交错误码', () => {
     expect(isCommitErrorCode('benchmark_environment_mismatch')).toBe(false);
   });
 
-  it('isCommitErrorCode 认全部七条，拒未登记字符串与非字符串', () => {
+  it('isCommitErrorCode 认全部八条，拒未登记字符串与非字符串', () => {
     for (const code of COMMIT_ERROR_CODES) {
       expect(isCommitErrorCode(code)).toBe(true);
     }

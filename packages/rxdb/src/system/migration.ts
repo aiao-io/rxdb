@@ -41,7 +41,16 @@ export interface RxDBSystemVersionState {
   codecVersion: number;
 }
 
-type RxDBSystemVersionKind = 'system schema' | 'change codec';
+/**
+ * 版本不匹配时报给用户的「哪个号」。
+ *
+ * @remarks
+ * 四个号各自独立演进，因此不能合成一句「版本不兼容」：用户拿到的错误必须能直接回答
+ * 「我该升客户端还是该跑迁移」。`system schema` 有迁移阶梯，落后可补；
+ * `commit protocol` / `commit graph schema` 在 v1 没有任何阶梯（见
+ * `commit/commit-capability.ts` 的严格相等比对）。
+ */
+type RxDBSystemVersionKind = 'system schema' | 'change codec' | 'commit protocol' | 'commit graph schema';
 
 export class UnsupportedRxDBSystemVersionError extends Error {
   override readonly name = 'UnsupportedRxDBSystemVersionError';

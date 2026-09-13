@@ -126,6 +126,10 @@
         "kind": "type"
       },
       {
+        "name": "createWorkingTreeActivationRow",
+        "kind": "value"
+      },
+      {
         "name": "CurrencyFormat",
         "kind": "type"
       },
@@ -1018,6 +1022,10 @@
         "kind": "type"
       },
       {
+        "name": "readWorkingTreeActivationState",
+        "kind": "value"
+      },
+      {
         "name": "RefreshMatchRules",
         "kind": "type"
       },
@@ -1788,6 +1796,18 @@
       {
         "name": "VersionManager",
         "kind": "type"
+      },
+      {
+        "name": "WorkingTreeActivationInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCapabilityDisabledError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeManager",
+        "kind": "both"
       },
       {
         "name": "WorkingTreePatchCodecContext",

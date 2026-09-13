@@ -10,4 +10,6 @@
  * v1 只有**一条 diff 轴**：`HEAD ↔ 工作树`。没有 `HEAD ↔ index` 的第二条轴，
  * 因为没有 index。详见 `specs/001-working-tree-commits/spec.md` 硬裁决 2。
  */
+export * from './activation-state.js';
+export * from './working-tree-facade.js';
 export * from './working-tree-patch-codec.js';

@@ -34,11 +34,33 @@ describe('entity.utils', () => {
     readonly!: string;
   }
 
+  /**
+   * 只为 `'CURRENT_TIMESTAMP'` 哨兵而立的实体。
+   *
+   * 不往 {@link TestEntity} 上加一列，是因为本文件里另有十几处断言按它现有的列集写死；
+   * 为一条与它们无关的规则改动共用夹具，红起来的会是别人的用例。
+   */
+  @Entity({
+    name: 'TimestampSentinelEntity',
+    properties: [
+      { name: 'title', type: PropertyType.string },
+      { name: 'capturedAt', type: PropertyType.date, default: 'CURRENT_TIMESTAMP', readonly: true },
+      { name: 'startAt', type: PropertyType.date, default: () => new Date(0) }
+    ]
+  })
+  class TimestampSentinelEntity extends EntityBase {
+    title!: string;
+    // 列名特意不叫 createdAt：那个名字在 EntityBase 上已有声明，重复声明会撞 TS2612/TS4114，
+    // 而哨兵这条规则与它是不是审计字段无关。
+    capturedAt!: Date;
+    startAt!: Date;
+  }
+
   beforeAll(async () => {
     // 初始化 RxDB 用于注册实体
     const rxdb = new RxDB({
       dbName: 'entity-utils-test',
-      entities: [TestEntity],
+      entities: [TestEntity, TimestampSentinelEntity],
       sync: {
         local: {
           adapter: 'sqlite'
@@ -294,6 +316,38 @@ describe('entity.utils', () => {
       fillDefaultValue(metadata, entity);
 
       expect(entity.count).toBe(10);
+    });
+
+    it("'CURRENT_TIMESTAMP' 是数据库端哨兵，不得写进实例", () => {
+      // 它不是一个 JS 值，是建表语句里的一段表达式：PGlite 建表器把它译成 `DEFAULT now()`，
+      // SQLite 建表器译成 strftime。把这个字符串填进 date 属性，等于让一个 Date 列在内存里
+      // 装着字符串 'CURRENT_TIMESTAMP'，然后原样送进 INSERT：
+      //   - PGlite 直接报 22007 invalid input syntax for type timestamp with time zone，
+      //     `RxDB.connect()` 在建表阶段就炸，整个后端不可用；
+      //   - SQLite 是动态类型，照单收下这段文本，读回来 `new Date('CURRENT_TIMESTAMP')`
+      //     是 Invalid Date → null，一声不响地丢掉时间戳。
+      // 后者才是更坏的一种，所以这条规则必须钉在这一层，而不是让六个适配器各自去认哨兵。
+      const metadata = getEntityMetadata(TimestampSentinelEntity);
+      const entity = new TimestampSentinelEntity();
+
+      fillDefaultValue(metadata, entity);
+
+      // 断言的是**值**为 `undefined`，不是键不存在：`useDefineForClassFields`（target es2025 下默认开启）
+      // 把 `capturedAt!: Date` 这行声明本身装成一个值为 `undefined` 的自有属性，键必然在。
+      // 适配器侧认的也正是这个值——PGlite 单条 insert 把 `undefined` 的列整个滤掉、批量 insert
+      // 写字面量 `DEFAULT`，两条路都落到建表时那句 `DEFAULT now()` 上。
+      expect(entity.capturedAt).toBeUndefined();
+      expect(Object.values(entity)).not.toContain('CURRENT_TIMESTAMP');
+    });
+
+    it('哨兵被跳过时，同一实体上的其它默认值照常填充', () => {
+      // 防「一刀切掉整个 defaultValueProperties 循环」式的修法。
+      const metadata = getEntityMetadata(TimestampSentinelEntity);
+      const entity = new TimestampSentinelEntity();
+
+      fillDefaultValue(metadata, entity);
+
+      expect(entity.startAt).toEqual(new Date(0));
     });
   });
 

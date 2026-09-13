@@ -77,6 +77,7 @@
 | `id`                 | `string`  | primary                               | commit id                                 |
 | `parentIds`          | `json`    | not null                              | 父链数组；根 commit 为 `[]`，merge 可多父 |
 | `firstParentId`      | `string`  | nullable, indexed                     | 首父冗余列，供祖先遍历走索引              |
+| `kind`               | `string`  | not null, readonly, **无默认值**      | `normal` / `baseline` / `branch_baseline` |
 | `message`            | `string`  | not null                              |                                           |
 | `author`             | `string`  | nullable                              |                                           |
 | `createdAt`          | `date`    | default `CURRENT_TIMESTAMP`, readonly |                                           |
@@ -86,6 +87,7 @@
 
 - **只追加，永不 UPDATE / DELETE**。
 - 幂等靠 `operationId` 唯一索引 + 既有 `isUniqueConstraintViolation()`（`migration.ts`）判别：撞约束 = 同一次提交重放，读回现有节点返回，**不新建**。该谓词必须**贴在这一条 INSERT 上**，不得在事务外层泛用（`migration.ts` 注释已写明误用代价）。
+- `kind` 落成独立列，**不从「`author` 为空」反推**：反推把 `baseline` 与 `branch_baseline` 压成同一种，而 FR-044 的物化屏障要求能单独认出后者；更要命的是它让「作者恰好没记上的普通 commit」与系统根节点不可区分，于是 FR-009 的空 ChangeSet 门禁对前者一并失效。**无默认值**同理：默认成 `normal` 会让漏赋值的系统根节点静默变成普通 commit，正好绕开该门禁。
 - 祖先可达性沿 `parentIds` 向上走，方向与 FR-022 的损坏判定一致，因此**不建 edge 表**。
 - `firstParentId` 是 `parentIds[0]` 的冗余列，只为让祖先遍历走索引。冗余列就是第二份真相的温床，因此配一条不变量断言（`firstParentId === parentIds[0] ?? null`）进 conformance 套件。
 

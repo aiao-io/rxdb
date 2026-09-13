@@ -179,4 +179,38 @@ describe('insert_sql (PGlite)', () => {
     expect(result.sql).not.toContain("'; DROP TABLE");
     expect(result.params).toContain("'; DROP TABLE users; --");
   });
+
+  it('值为 undefined 的属性整列不写，交给建表时的 DB 端默认值', async () => {
+    // 实体实例上「没赋值」长什么样：`updatedAt!: Date` 这行字段声明本身就会装出一个
+    // 值为 `undefined` 的自有属性（target es2025 默认开启 useDefineForClassFields），
+    // 所以 `key in entity` 恒真——判定只能看值。写成 NULL 的后果是 DEFAULT now() 永远不生效，
+    // 而 `rxdb_working_tree_state.updatedAt` 这类 NOT NULL + DEFAULT 的列会直接 23502 建库失败。
+    const metadata = createMetadata([
+      ['id', PropertyType.uuid],
+      ['name', PropertyType.string],
+      ['updatedAt', PropertyType.date]
+    ]);
+
+    const entity = { id: 'test-id', name: 'Test Name', updatedAt: undefined };
+    const result = await generate_entity_insert_sql(metadata, entity);
+
+    expect(result.sql).not.toContain('"updatedAt"');
+    expect(result.columns).not.toContain('updatedAt');
+    expect(result.params).not.toContain(null);
+  });
+
+  it('显式写 null 仍然照写，不与 undefined 混为一谈', async () => {
+    // 「没给值」和「就是要清空」是两件事，只有后者该压过 DB 端默认值。
+    const metadata = createMetadata([
+      ['id', PropertyType.uuid],
+      ['name', PropertyType.string],
+      ['updatedAt', PropertyType.date]
+    ]);
+
+    const entity = { id: 'test-id', name: 'Test Name', updatedAt: null };
+    const result = await generate_entity_insert_sql(metadata, entity);
+
+    expect(result.columns).toContain('updatedAt');
+    expect(result.params).toContain(null);
+  });
 });

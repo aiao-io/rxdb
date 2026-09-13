@@ -8,6 +8,21 @@ import { Entity } from '../entity/entity.decorator.js';
 import { PropertyType } from '../entity/metadata-options.interface.js';
 
 /**
+ * 提交节点的种类
+ *
+ * @remarks
+ * `normal` 之外的两种是**系统根节点**：`baseline` 由一次性启用迁移为每个本地可完整物化分支生成
+ * （FR-021/049），`branch_baseline` 由 `createBranch(branchId, fromChangeId)` 与 metadata-only
+ * 远端分支的首次物化生成（FR-017/044）。两者是 FR-008/009 的**唯一例外**——只有它们允许
+ * 无用户作者、无用户消息且 ChangeSet 为空。
+ *
+ * 种类必须是独立一列，不能从「`author` 为空」反推：那把两种根节点压成同一种，
+ * 而 FR-044 的物化屏障要求能单独认出 `branch_baseline`；更要命的是它让「作者恰好没记上的
+ * 普通 commit」与系统根节点不可区分，于是空 ChangeSet 的门禁对前者也失效。
+ */
+export type CommitKind = 'normal' | 'baseline' | 'branch_baseline';
+
+/**
  * 不可变提交节点
  *
  * @remarks
@@ -36,6 +51,11 @@ import { PropertyType } from '../entity/metadata-options.interface.js';
       name: 'firstParentId',
       type: PropertyType.string,
       nullable: true
+    },
+    {
+      name: 'kind',
+      type: PropertyType.string,
+      readonly: true
     },
     {
       name: 'message',
@@ -97,7 +117,20 @@ export class Commit {
   firstParentId!: string | null;
 
   /**
+   * 提交种类
+   *
+   * @remarks
+   * **无默认值**是有意的：默认成 `normal` 会让漏赋值的系统根节点静默变成普通 commit，
+   * 而那正好绕开 FR-009 的空 ChangeSet 门禁。每个写入方必须自己说出种类。
+   */
+  kind!: CommitKind;
+
+  /**
    * 提交信息
+   *
+   * @remarks
+   * 普通 commit 要求 trim 后非空且由调用方提供；两种系统根节点写系统生成的固定文案
+   * （列本身 not null，没有「无消息」这种物理状态）。
    */
   message!: string;
 

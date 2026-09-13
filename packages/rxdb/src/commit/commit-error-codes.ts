@@ -2,7 +2,7 @@
  * @fileoverview 跨故事共享的提交错误码（contracts/core-api.md §7）
  *
  * @remarks
- * epic-006 的七个稳定错误码集中在这里，因为它们**跨故事**：US-305 的迁移、
+ * epic-006 的八个稳定错误码集中在这里，因为它们**跨故事**：US-305 的迁移、
  * US-306 的写入口门禁、US-307 的恢复、US-308 的分支物化各自会抛其中几条，
  * 而判别这些码的调用方分散在六个适配器与三个框架绑定里。散着写字面量的代价不是
  * 编译错误，是某一处拼写漂了之后，另一端的 `catch` 分支安静地不再命中。
@@ -75,16 +75,36 @@ export const CommitErrorCode = {
   commit_graph_corrupted: 'commit_graph_corrupted',
 
   /**
-   * 首次启用迁移时发现 `RxDBBranch.activated` 有多行为真。
+   * 发现 `RxDBBranch.activated` 有多行为真。
    *
    * @remarks
-   * 整条迁移回滚，**不按查询顺序猜一个**（FR-048）。零行 active 不走本码：那沿用既有
-   * `resolve_current_branch` 语义（优先激活 `main`，没有则创建）。
+   * 首次启用迁移命中即整条迁移回滚，**不按查询顺序猜一个**（FR-048）。「按顺序取第一条」
+   * 不是容错而是掷骰子：两行 active 时，用户的未提交条目挂在哪条分支上没有答案，
+   * 而猜错的那一半会被当成「另一条分支的历史」写进提交图。
+   *
+   * 零行 active 不走本码，走 {@link CommitErrorCode.no_active_branch}。
    *
    * `activationRevision` 只防并发切换，**替代不了**这条基数不变量：它能告诉你「切换过了」，
    * 不能告诉你「现在有两个 active」。
    */
   ambiguous_active_branch: 'ambiguous_active_branch',
+
+  /**
+   * 运行期发现一行 active 分支都没有。
+   *
+   * @remarks
+   * 与 {@link CommitErrorCode.ambiguous_active_branch} 是同一条基数不变量的两侧，但只有
+   * 这一侧非它不可：「至多一个」由 `rxdb_branch.activeKey` 的唯一约束在 schema 层拦住，
+   * 「至少一个」是一张**空表**也满足的条件，任何列约束都表达不了。
+   *
+   * 只有**运行期**入口抛本码。迁移期不抛：那一侧沿用既有 `resolve_current_branch` 语义
+   * 修复（优先激活 `main`，没有则创建）。两者的差别不是严格程度，是时点——迁移是唯一
+   * 一个「库里还没有 active 分支」属于正常状态的时刻。
+   *
+   * 运行期 MUST NOT 顺手修复：「有 `main` 就当没事」会把用户从 `feature-x` 静默挪到
+   * `main`，未提交条目还挂在 `feature-x` 上，界面却显示一个干净的空工作树。
+   */
+  no_active_branch: 'no_active_branch',
 
   /**
    * 首次启用迁移时，某个**本地**分支无法沿 `RxDBChange` 链无缺口物化。

@@ -36,6 +36,7 @@ import {
   COMMIT_PROTOCOL_VERSION,
   CommitCapabilityState
 } from '../../commit/commit-capability-state.entity.js';
+import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import {
   assertSupportedCommitCapability,
   enableCommitCapability,
@@ -181,6 +182,8 @@ describe('提交能力启用（FR-037）', () => {
     await enableCommitCapability(executor);
 
     const setClause = setClauseOf(statements[0]);
+    // 启用时刻与 enabled 同处一条语句，才谈得上「命中 0 行 = 不覆盖」。
+    expect(setClause).toContain('enabledat');
     expect(setClause).not.toContain('protocolversion');
     expect(setClause).not.toContain('schemaversion');
     expect(setClause).not.toContain('codecversion');
@@ -234,15 +237,15 @@ describe('提交能力启用（FR-037）', () => {
   });
 
   it('版本不匹配时 fail-closed，且一条语句都不发', async () => {
-    const mismatches = [
-      ['protocolVersion', COMMIT_PROTOCOL_VERSION + 1],
-      ['schemaVersion', COMMIT_GRAPH_SCHEMA_VERSION + 1],
-      ['codecVersion', RXDB_CHANGE_CODEC_VERSION + 1]
-    ] as const;
+    const mismatches: readonly (readonly [string, Partial<CommitCapabilityState>])[] = [
+      ['protocolVersion', { protocolVersion: COMMIT_PROTOCOL_VERSION + 1 }],
+      ['schemaVersion', { schemaVersion: COMMIT_GRAPH_SCHEMA_VERSION + 1 }],
+      ['codecVersion', { codecVersion: RXDB_CHANGE_CODEC_VERSION + 1 }]
+    ];
 
-    for (const [field, stored] of mismatches) {
+    for (const [field, overrides] of mismatches) {
       const entityManager = createEntityManager();
-      const row = createCapabilityRow(entityManager, { [field]: stored });
+      const row = createCapabilityRow(entityManager, overrides);
       const { executor, statements, patches } = createCapabilityProbe(row);
 
       await expect(enableCommitCapability(executor)).rejects.toThrow(UnsupportedRxDBSystemVersionError);
@@ -300,7 +303,7 @@ describe('提交能力启用（FR-037）', () => {
   });
 
   it('assertSupportedCommitCapability 逐字段比对，三个号各自独立', () => {
-    const base = {
+    const base: CommitCapabilityInfo = {
       enabled: true,
       protocolVersion: COMMIT_PROTOCOL_VERSION,
       schemaVersion: COMMIT_GRAPH_SCHEMA_VERSION,
@@ -309,10 +312,13 @@ describe('提交能力启用（FR-037）', () => {
     };
 
     expect(() => assertSupportedCommitCapability(base)).not.toThrow();
-    for (const field of ['protocolVersion', 'schemaVersion', 'codecVersion'] as const) {
-      expect(() => assertSupportedCommitCapability({ ...base, [field]: base[field] + 1 })).toThrow(
-        UnsupportedRxDBSystemVersionError
-      );
+    const mismatched: readonly CommitCapabilityInfo[] = [
+      { ...base, protocolVersion: base.protocolVersion + 1 },
+      { ...base, schemaVersion: base.schemaVersion + 1 },
+      { ...base, codecVersion: base.codecVersion + 1 }
+    ];
+    for (const info of mismatched) {
+      expect(() => assertSupportedCommitCapability(info)).toThrow(UnsupportedRxDBSystemVersionError);
     }
   });
 });

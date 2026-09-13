@@ -462,14 +462,24 @@ export const transformEntityValueToSql = async (
 
 /**
  * 规范化创建实体的字段（过滤可写字段）
+ *
+ * @remarks
+ * 判定看的是**值不为 `undefined`**，不是 `key in entity`：`target: es2025` 下
+ * `useDefineForClassFields` 默认开启，`updatedAt!: Date` 这行字段声明本身就会在实例上装出一个
+ * 值为 `undefined` 的自有属性，键恒在。按键判定等于把「没赋值」也写进 INSERT，
+ * 而 {@link transformValueJsToPGlite} 把 `undefined` 归一成 `null`——建表时那句 `DEFAULT now()`
+ * 于是永远不生效，`rxdb_working_tree_state.updatedAt` 这类 NOT NULL + DEFAULT 的列直接 23502。
+ *
+ * 显式的 `null` 照常写：「没给值」与「就是要清空」是两件事，只有后者该压过 DB 端默认值。
  */
 export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
 
   // 处理属性
   for (const [key, property] of metadata.propertyMap) {
-    if (key in entity) {
-      result[property.columnName] = Reflect.get(entity, key);
+    const value = Reflect.get(entity, key);
+    if (value !== undefined) {
+      result[property.columnName] = value;
     }
   }
 
@@ -478,8 +488,9 @@ export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object):
   const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
   for (let i = 0; i < foreignKeyNames.length; i++) {
     const key = foreignKeyNames[i];
-    if (key in entity) {
-      result[foreignKeyColumnNames[i]] = Reflect.get(entity, key);
+    const value = Reflect.get(entity, key);
+    if (value !== undefined) {
+      result[foreignKeyColumnNames[i]] = value;
     }
   }
 

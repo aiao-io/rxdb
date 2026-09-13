@@ -17,10 +17,7 @@ import type { EntityManager } from '../../entity/entity-manager.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
-import {
-  WORKING_TREE_ACTIVATION_STATE_ID,
-  WorkingTreeActivationState
-} from '../../working-tree/working-tree-activation-state.entity.js';
+import { createWorkingTreeActivationRow } from '../../working-tree/activation-state.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { RxDBBranch } from '../branch.js';
 import { RXDB_CHANGE_CODEC_VERSION } from '../change-codec.js';
@@ -80,12 +77,9 @@ export function createWorkingTreeCommitsInitialRows(
     rows.push(state);
   }
 
-  const activation = entityManager.instantiate(WorkingTreeActivationState);
-  activation.id = WORKING_TREE_ACTIVATION_STATE_ID;
-  activation.activationRevision = 0;
+  // 建行只此一处（`working-tree/activation-state.ts`）：新库与既有库共用同一份初始值。
   // 已发放到 N，下一次 create branch 从 N+1 起。写 0 会让新分支复用既有分支的代际（ABA）。
-  activation.branchGenerationSeq = branchGenerationSeq;
-  rows.push(activation);
+  rows.push(createWorkingTreeActivationRow(entityManager, branchGenerationSeq));
 
   const capability = entityManager.instantiate(CommitCapabilityState);
   capability.id = COMMIT_CAPABILITY_STATE_ID;
