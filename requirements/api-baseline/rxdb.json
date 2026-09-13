@@ -10,6 +10,14 @@
         "kind": "type"
       },
       {
+        "name": "ACTIVE_BRANCH_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "ActiveBranchEntityHost",
+        "kind": "type"
+      },
+      {
         "name": "AdapterFactory",
         "kind": "type"
       },
@@ -18,7 +26,19 @@
         "kind": "type"
       },
       {
+        "name": "allocateBranchGeneration",
+        "kind": "value"
+      },
+      {
+        "name": "AmbiguousActiveBranchError",
+        "kind": "both"
+      },
+      {
         "name": "assertCommitUnitsEncryptedAtRest",
+        "kind": "value"
+      },
+      {
+        "name": "assertSingleActiveBranch",
         "kind": "value"
       },
       {
@@ -155,6 +175,10 @@
       },
       {
         "name": "createWorkingTreeActivationRow",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCommitsInitialRows",
         "kind": "value"
       },
       {
@@ -862,6 +886,10 @@
         "kind": "both"
       },
       {
+        "name": "NoActiveBranchError",
+        "kind": "both"
+      },
+      {
         "name": "normalizeUpdateEntity",
         "kind": "value"
       },
@@ -1208,6 +1236,10 @@
       {
         "name": "RepositorySyncType",
         "kind": "type"
+      },
+      {
+        "name": "resolveSingleActiveBranch",
+        "kind": "value"
       },
       {
         "name": "RestoreEntityOptions",
