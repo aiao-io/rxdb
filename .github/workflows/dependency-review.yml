@@ -56,7 +56,29 @@ jobs:
           # 复查条件（满足任一就删掉这条例外重跑）：
           #   - @tarojs/cli 换掉 download-git-repo；
           #   - decompress 出现 4.2.1 以上的修复版本。
-          allow-ghsas: GHSA-mp2f-45pm-3cg9
+
+          # 例外：GHSA-8jmw-wjr8-2x66 / CVE-2022-25900（git-clone@0.1.0，high，命令注入）
+          #
+          # 同一条链上的第二个洞，同样没有依赖侧的修法，而且比上一条更彻底 ——
+          # 上游直接把它判成了 won't fix：
+          #   - 通告的 vulnerable range 是 `<= 0.2.0`，first_patched_version 为 null，
+          #     等于「所有已发布版本」（npm 上只有 0.0.1 ~ 0.2.0，最后一次发布停在
+          #     2021-09），override 到任何版本都不改变结论；
+          #   - 通告里挂着的那个「修复」提交 fd33045，实际只往 README 加了一段
+          #     「args 只接受可信输入」的警告，一行代码都没动，也从未发版。
+          #
+          # 而这条链上真实可达面为零：注入点是 `opts.args` / `opts.git` —— 它们被原样
+          # 拼进 `git` 的参数表；repo 参数本身在 0.1.0 和 0.2.0 里都已经有 `--` 隔断，
+          # 通告 PoC 里的 `--upload-pack=` 走不通。而调用方 download-git-repo@3.0.2
+          # 只传 `{ checkout, shallow }`，两个注入项一个都没传 —— 装进来的 0.1.0 甚至
+          # 还没有 `args` 这个选项（它是 0.2.0 才加的）。
+          #
+          # 引入链与上一条完全相同，全程 dev-only，加载点也还是 `taro new`：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/cli@4.2.1 → download-git-repo@3.0.2 → git-clone@0.1.0
+          #
+          # 复查条件：@tarojs/cli 换掉 download-git-repo —— 届时这两条例外一起删。
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66
 
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
