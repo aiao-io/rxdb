@@ -133,22 +133,24 @@ US-210 SQLite host / US-505 native file host
 
 | #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                        | 状态 |
 | --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ⚠️   |
-| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ⚠️   |
-| 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ⬜   |
-| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ⚠️   |
-| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ⚠️   |
-| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ⚠️   |
-| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ⚠️   |
-| 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire     | ⬜   |
+| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ✅   |
+| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ✅   |
+| 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ✅   |
+| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ✅   |
+| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ✅   |
+| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ✅   |
+| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ✅   |
+| 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire     | ✅   |
 | 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行  | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 交付状态
 
-AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 已开工但一条未关
-（七条 ⚠️、#11 与 #16 仍 ⬜）。
+AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 八条 ✅（#9～#16），
+AC#17 留 ⚠️——它要的三平台实测按故事自约只在 release 分支/tag 的 CI 上跑，特性分支没有 win32/linux
+证据可产；release 隔离半边已在本分支钉住（见下），三平台实测由 release CI 回填，是**门禁位置**
+而不是代码进度。
 
 阶段 1 收尾补上了原先三条 ⚠️ 的证据，全部落在打包产物上的真实双窗口走查：
 
@@ -169,6 +171,28 @@ AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段�
   `listen` 跨窗口投递上复跑 safe-integer guard、decoded-byte 限额、非法 base64、snapshot 分页 / 越界 /
   expired 双开、事件订阅与 EVENT 帧计数、transfer 乱序/取消/资源释放。判据、fixture、错误码表沿用
   `packages/rxdb-devtools` 的共享 suite，不新增平台错误码、编码或 fallback。
+
+阶段 2 收尾补上的是**真实 host** 半边证据，全部经真实 wire（面板 → IPC → Rust 中继 → native host）：
+
+- **AC#9**（query/events 之外补 branch 走查）：`devtools_driver.js` 的 `runReal()` 增加
+  `database.get-branches` 与 `database.switch-branch` 两步——后者切到当前已激活分支，
+  `versionManager.switchBranch` 对同分支是 no-op 成功，探针零副作用。没开写入授权时 switch-branch
+  被 mutation policy 按写操作拒（`provider_unsupported`，与「未声明」同码——AC#13 的刻意不可区分），
+  授权档下走通答 `ok`；报告探针面 v10→v11（`branchesList` / `branchCount` / `branchSwitch`）。
+- **AC#10 / #12 / #13 / #14 / #15**：真实 host 的字节往返、settings 两码、伪造 session、建删目录、
+  取消无半写、逃逸、2^53、非法 base64、跨重启比对等已在 `devtools-window-transport.spec.ts` 全部落位，
+  随本次收尾全绿复核；US-908 已关的两条缺陷（`TRANSFER_CANCEL` 排空在途写入、
+  `pagehide → filesystem.dispose()`）正是 AC#14 资源释放的最后两道坑。
+- **AC#11**（1001+ 快照走查）：`devtools-window-transport.spec.ts` 新增真实存储根播种 1001 个小文件的
+  进程级走查——首页 ok → 翻页至 complete → 记录数 ≥ 1001（默认页大小 100 意味着至少 11 页），
+  双开 expired 与越界 pageSize 同码复核；播种不经 wire、不撞 `.rxdb-tmp` 过滤与 32 MiB 字节上限。
+- **AC#16**（conformance 架构对齐）：Tauri 半边与 Electron 同构——`tauri-conformance.spec.ts` 以薄
+  transport 驱动 + 共享 fake 端点跑同一套 control-plane / data-plane suite，「真实 host 半边」由
+  `devtools-window-transport.spec.ts` 的 wire 走查承担。这是 US-904/906 已关过的架构形态；不把整套
+  conformance 断言搬到真实窗口复跑（故事 Out-of-Scope 明确不做）。
+- **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；macOS 之外的
+  win32/linux 实测留在 release 分支/tag 的 CI 回填（故事自约「高成本打包 smoke 只在 release 分支或
+  tag 运行」）。
 
 三档开关（provider 源 / snapshot 场景 / VFS 强制）与驱动档位键全部 `#[cfg(dev)]` 编进 dev 二进制，
 release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三档 env 名只出现在 `devtools_config.rs`
@@ -222,8 +246,9 @@ release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三�
 
 - `apps/dev-rxdb-tauri/src/` — 共享 panel bootstrap、Tauri transport adapter、provider 注册与开发入口
 - `apps/dev-rxdb-tauri/src-tauri/` — label/sender 绑定的窗口、消息桥、受限 Rust host 接线与 dev-only capability
-- `packages/rxdb-adapter-tauri/src/` — Tauri SQLite 只读诊断 provider
-- `packages/rxdb-plugin-storage/src/` — Tauri native files 调试 provider
+- `packages/rxdb-devtools/src/rxdb/` — 数据库域 provider：`devtools.init(rxdb, getEntityMetadata)` 直连应用 RxDB 实例
+  （调试窗口不打开数据库；`rxdb-adapter-tauri` 刻意零 DevTools 导出，SQLite 只由 Rust host 打开）
+- `packages/rxdb-plugin-storage/src/` — Tauri native files 调试 provider（含 snapshot 走查链）
 - `apps/dev-rxdb-tauri-e2e/` — 共享 project，由 US-210 / US-905 先开工者创建一次；本故事拥有窗口、
   transport、release 隔离、native provider、重启、安全边界与三平台 specs
 - `requirements/api-baseline/` — 只有新增公开入口时同步
