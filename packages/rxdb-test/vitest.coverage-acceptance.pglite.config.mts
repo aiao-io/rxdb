@@ -123,7 +123,12 @@ export default defineConfig({
         path.join(packageRoot, 'entities/**/*.ts'),
         path.join(packageRoot, 'shop/**/*.ts')
       ],
-      exclude: [path.join(packageRoot, 'src/**/*.spec.ts'), path.join(packageRoot, 'src/**/*.test.ts')]
+      // *.suite.ts 是共享测试套件（describe/it 工厂），与 *.spec.ts 同属测试代码，不进分母。
+      exclude: [
+        path.join(packageRoot, 'src/**/*.spec.ts'),
+        path.join(packageRoot, 'src/**/*.test.ts'),
+        path.join(packageRoot, 'src/**/*.suite.ts')
+      ]
     }
   }
 });
