@@ -88,8 +88,9 @@ export default defineConfig({
     browser: {
       enabled: false
     },
-    // 一条套件进分母，就必须有一条对应的 consumer spec 在这个列表里，否则分母被稀释。
-    // 这份清单要与 `scripts/run-coverage-acceptance.mjs` 的 `suiteFiles` 保持同步。
+    // 套件本身不进分母（`*.suite.ts` 已被 coverage.exclude 排掉），但套件驱动的
+    // `src/encrypted` / `src/transaction` / `src/tree-unique` 产品代码进。少一条 consumer spec，
+    // 对应那片产品代码就只剩本包 unit run 跑不到的死代码，整体覆盖率被稀释（RXT-030）。
     include: [
       'src/__tests__/encrypted-crud.spec.ts',
       'src/__tests__/encrypted-lifecycle.spec.ts',
