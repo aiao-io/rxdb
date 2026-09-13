@@ -48,7 +48,15 @@ import { WorkingTreeWriteRejectedError } from '../../working-tree/write-entry-ma
  */
 const domain = (): VersionedDomainView => ({
   versionedTables: new Set(['post', 'comment']),
-  untrackedFields: new Set(['remote_id', 'updated_at', 'synced_at'])
+  // 按表取而不是一个全表通用集合：簿记字段（`remote_id` 等）确实全域通用，但派生索引列是
+  // 插件**在某张业务表上**登记的（spec.md「版本化域」第三类）。压成一个集合的话，`post` 上
+  // 登记的 `title_norm` 会连带让 `comment` 的同名列获得豁免。
+  untrackedFieldsOf: (table: string) =>
+    new Set(
+      table === 'post' ?
+        ['remote_id', 'updated_at', 'synced_at', 'title_norm']
+      : ['remote_id', 'updated_at', 'synced_at']
+    )
 });
 
 const context = (init: Partial<RawWriteContext> = {}): RawWriteContext => ({
@@ -207,9 +215,16 @@ describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', 
   });
 
   it('域是注入的：同一条语句换一份 untracked 域就换一个结论', () => {
-    const narrowed: VersionedDomainView = { versionedTables: new Set(['post']), untrackedFields: new Set() };
+    const narrowed: VersionedDomainView = { versionedTables: new Set(['post']), untrackedFieldsOf: () => new Set() };
     expect(allowanceFor("UPDATE post SET remote_id = 'r1'").reason).toBe('untracked_only');
     expect(judgeRawWrite("UPDATE post SET remote_id = 'r1'", context({ domain: narrowed })).kind).toBe('reject');
+  });
+
+  it('untracked 字段域按表取：`post` 上登记的派生索引列不豁免 `comment`', () => {
+    // 判定必须拿**被写的那张表**去问域。用任意一张表去问（或先并成一个集合）都会让登记在别处的
+    // 列名在这里获得豁免——而豁免列表是插件可以往里加东西的。
+    expect(allowanceFor("UPDATE post SET title_norm = 'x'").reason).toBe('untracked_only');
+    expect(rejectionFor("UPDATE comment SET title_norm = 'x'").step).toBe(4);
   });
 });
 
@@ -326,12 +341,12 @@ describe('挂载壳与纯判定是同一份规则', () => {
 
   it('判定是纯的：判两次结果相同，且不动传进来的域', () => {
     const ctx = context();
-    const sizeBefore = [ctx.domain.versionedTables.size, ctx.domain.untrackedFields.size];
+    const sizeBefore = [ctx.domain.versionedTables.size, ctx.domain.untrackedFieldsOf('post').size];
 
     const first = judgeRawWrite("UPDATE post SET remote_id = 'r1'", ctx);
     const second = judgeRawWrite("UPDATE post SET remote_id = 'r1'", ctx);
 
     expect(first).toEqual(second);
-    expect([ctx.domain.versionedTables.size, ctx.domain.untrackedFields.size]).toEqual(sizeBefore);
+    expect([ctx.domain.versionedTables.size, ctx.domain.untrackedFieldsOf('post').size]).toEqual(sizeBefore);
   });
 });
