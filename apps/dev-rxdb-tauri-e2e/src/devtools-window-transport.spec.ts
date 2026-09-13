@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -710,4 +719,56 @@ describe('跨重启的 wire 比对（US-905 阶段 2，AC#15）', () => {
       rmSync(workspace, { force: true, recursive: true });
     }
   }, 420_000);
+});
+
+/**
+ * AC#11 的真实 host 半边：1001+ 个文件在真实存储根上走完整套分页。
+ *
+ * @remarks
+ * 播种不经 wire——e2e 自己的手直接往**物理**存储根（`dataDir/rxdb-files/files`）写 1001 个
+ * 小文件，应用起库之后驱动经真实 provider 走查快照。判据是「首页 ok → 翻页到 complete →
+ * 记录数 ≥ 1001」：默认页大小 100，1001 条意味着**至少 11 页**，任何「只走第一页」或
+ * 「数到第一页长度就停下」的实现在这里都会差 901 条。
+ *
+ * 文件名 `seed-NNNN` 刻意不带点：`isDesktopHostTemporaryName` 只匹配「点 + UUID + .rxdb-tmp」，
+ * 无后缀名不在其列；1001 条 × 几十字节远低于 32 MiB 字节上限与 100_000 记录上限，
+ * 不会误触 `snapshot_too_large`。
+ */
+describe('真实存储根播种 1001+ 文件的快照走查（US-905 阶段 2 AC#11）', () => {
+  let frontend: { close: () => Promise<void> };
+  let workspace: string;
+  let run: SelfCheckRun;
+
+  beforeAll(async () => {
+    frontend = await serveFrontend();
+    workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-1001-'));
+    const dataDir = join(workspace, 'app-data');
+    const storageRoot = join(dataDir, 'rxdb-files', 'files');
+    mkdirSync(storageRoot, { recursive: true });
+    for (let index = 0; index < 1001; index += 1) {
+      writeFileSync(join(storageRoot, `seed-${String(index).padStart(4, '0')}`), `seed ${index}\n`);
+    }
+
+    run = await runSelfCheck({
+      dataDir,
+      reportPath: join(workspace, 'selfcheck-1001.json'),
+      devtoolsProbe: true,
+      profile: 'debug'
+    });
+    expect(run.report.status, because(run)).toBe('ok');
+  }, 240_000);
+
+  afterAll(async () => {
+    await frontend.close();
+    rmSync(workspace, { force: true, recursive: true });
+  });
+
+  it('1001+ 个文件走完整套分页，全套结论码成立', () => {
+    const native = nativeOf(run);
+    expect(native.snapshotFirstPage, wire(run)).toBe('ok');
+    expect(native.snapshotComplete).toBe('ok');
+    expect(native.snapshotRecords ?? -1).toBeGreaterThanOrEqual(1001);
+    expect(native.snapshotExpired).toBe('snapshot_expired');
+    expect(native.snapshotInvalidPageSize).toBe('invalid_message');
+  });
 });
