@@ -250,6 +250,7 @@
       "smol-toml": "^1.8.0",
       "qs": "^6.16.0",
       "serialize-javascript": "^7.1.1",
+      "adm-zip": "^0.6.1",
       "swiper": "^12.1.2",
       "sharp": "^0.35.4",
       "js-yaml@4": "^4.3.2",
@@ -258,6 +259,7 @@
       "postman-collection>uuid": "^11.1.1",
       "dev-rxdb-miniprogram>react": "^18.3.1",
       "dev-rxdb-miniprogram>react-dom": "^18.3.1",
+      "@tarojs/plugin-doctor>glob": "^10.5.0",
       "@jimp/core>mkdirp": "^0.5.6",
       "@jimp/core>phin": "^3.7.1",
       "@jimp/jpeg>jpeg-js": "^0.4.4"

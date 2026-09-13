@@ -34,11 +34,14 @@ test.describe('运行时引导', () => {
   });
 
   test('SQLite 版本号能读出来，证明 wa-sqlite WASM 真的实例化了', async ({ demoPage }) => {
-    const summaries = await demoPage.capabilities();
-    expect(summaries.find(item => item.name === 'WXWebAssembly.instantiate')?.status).not.toBe('缺失');
-
-    const version = await demoPage.phaseText();
-    expect(version).toBe('数据库已连接');
+    // 只断言版本号，别的都是恒真：能力表只能证明 `WXWebAssembly.instantiate` 这个函数存在，
+    // 证明不了它被调通；phase 徽标由 fixture 的 `waitUntilReady()` 保证，断言它就是断言恒真；
+    // 「没有能力缺失」上面第一条用例已经用更强的形式覆盖了。
+    //
+    // 这个值来自 `adapter.version()` 的 `SELECT sqlite_version()`，是整条链路
+    // （WASM 实例化 → VFS 挂载 → SQL 真的执行）唯一的可观测证据。页面初值是「等待连接」，
+    // 所以形状断言同时也挡住了「没连上但页面没红」这种半死状态。
+    expect(await demoPage.sqliteVersion()).toMatch(/^3\.\d+\.\d+$/);
   });
 
   test('Todo CRUD 自检与断开重连验证都通过', async ({ demoPage }) => {

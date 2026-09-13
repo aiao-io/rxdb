@@ -59,10 +59,18 @@ export class DemoPage {
 
   /** 顶部「状态」栏的文案，失败时它承载具体原因。 */
   async operationText(): Promise<string> {
-    const values = await this.page.$$('.summary-version .summary-value');
-    const [value] = values as readonly MiniProgramElement[];
-    if (!value) throw new Error('没找到状态栏');
-    return (await value.text()).trim();
+    return this.summaryValue('summary-operation', '状态栏');
+  }
+
+  /**
+   * 顶部「SQLite」栏的版本号，来自 `adapter.version()` 的 `SELECT sqlite_version()`。
+   *
+   * 这是「WASM 真的实例化过」唯一的可观测证据：能力表只能说 `WXWebAssembly.instantiate`
+   * 这个函数存在，说不了它被调通；`phaseText()` 由 `waitUntilReady()` 保证，断言它恒真。
+   * 连不上时页面停在初值「等待连接」，所以对形状断言就能把半死状态一起挡住。
+   */
+  async sqliteVersion(): Promise<string> {
+    return this.summaryValue('summary-sqlite', 'SQLite 版本栏');
   }
 
   /**
@@ -172,6 +180,19 @@ export class DemoPage {
    */
   evaluate<A extends readonly unknown[], R>(fn: (...args: A) => R, ...args: A): Promise<R> {
     return this.miniProgram.evaluate(fn, ...args) as Promise<R>;
+  }
+
+  /**
+   * 摘要区某一项的值。
+   *
+   * 两项的值都叫 `.summary-value`，靠外层项的类名区分而不是靠 `$$` 的下标：
+   * 摘要区将来插一项，下标会静默指向别的东西，断言照样绿。
+   */
+  private async summaryValue(itemClass: string, label: string): Promise<string> {
+    const values = await this.page.$$(`.${itemClass} .summary-value`);
+    const [value] = values as readonly MiniProgramElement[];
+    if (!value) throw new Error(`没找到${label}`);
+    return (await value.text()).trim();
   }
 
   private async readFailedPhase(): Promise<string | undefined> {

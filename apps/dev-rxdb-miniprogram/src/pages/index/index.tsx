@@ -192,11 +192,11 @@ export default function Index() {
       </View>
 
       <View className='runtime-summary'>
-        <View className='summary-item'>
+        <View className='summary-item summary-sqlite'>
           <Text className='summary-label'>SQLite</Text>
           <Text className='summary-value'>{sqliteVersion}</Text>
         </View>
-        <View className='summary-item summary-version'>
+        <View className='summary-item summary-operation'>
           <Text className='summary-label'>状态</Text>
           <Text className='summary-value'>{operation}</Text>
         </View>
