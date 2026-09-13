@@ -32,6 +32,7 @@ overrides:
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
+  cacheable-request@2>http-cache-semantics: ^4.1.1
 
 patchedDependencies:
   typescript@6.0.3:
@@ -12775,9 +12776,6 @@ packages:
 
   htmlparser2@8.0.2:
     resolution: {integrity: sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==}
-
-  http-cache-semantics@3.8.1:
-    resolution: {integrity: sha512-5ai2iksyV8ZXmnZhHH4rWPoxxistEexSi5936zIQ1bnNTW5VnA85B6P/VpXiRM017IgRvb2kKo1a//y+0wSp3w==}
 
   http-cache-semantics@4.2.0:
     resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
@@ -29558,7 +29556,7 @@ snapshots:
     dependencies:
       clone-response: 1.0.2
       get-stream: 3.0.0
-      http-cache-semantics: 3.8.1
+      http-cache-semantics: 4.2.0
       keyv: 3.0.0
       lowercase-keys: 1.0.0
       normalize-url: 2.0.1
@@ -32785,8 +32783,6 @@ snapshots:
       domhandler: 5.0.3
       domutils: 3.2.2
       entities: 4.5.0
-
-  http-cache-semantics@3.8.1: {}
 
   http-cache-semantics@4.2.0: {}
 

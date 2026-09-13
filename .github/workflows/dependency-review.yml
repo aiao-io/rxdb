@@ -101,7 +101,55 @@ jobs:
           # 复查条件（满足任一就删掉这条例外重跑）：
           #   - @tarojs/vite-runner 换成 html-minifier-terser；
           #   - html-minifier 出现 4.0.0 以上的修复版本。
-          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m
+          # 例外：GHSA-c27g-q93r-2cwf / CVE-2024-52011（vite@4.5.14，high，Windows 命令注入）
+          #
+          # 第四个洞，第一个不出在 Taro 自己的依赖上，而出在它锁死的 vite 大版本上：
+          #   - 通告对 vite 的判定是 `<= 5.4.8`，first_patched_version 是 5.4.9 ——
+          #     4.x 分支没有修复版，而 4.5.14 已是 4.x 的最后一版；
+          #   - 真正的补丁在 launch-editor@2.9.0，但 vite 4 是把它**内联进 dist** 的
+          #     （dist/node/chunks/dep-827b23df.js 里连 launchEditorMiddleware 一起打平），
+          #     它不是一条依赖边，override 够不着；
+          #   - 升 vite 也无路：@tarojs/vite-runner@4.2.1（已是 latest）的 peer 写死
+          #     `vite: ^4`，同链上的 @vitejs/plugin-legacy@4.1.1 也是 ^4。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency vite@^4.2.0）
+          #     └─ @tarojs/vite-runner@4.2.1（peer vite ^4）
+          #
+          # 可达面：注入点是 vite **dev server** 中间件栈里无条件挂载的
+          # `/__open-in-editor`，且只在内联 launch-editor 的 `process.platform === 'win32'`
+          # 分支上（那里 spawn 走 shell）。而本仓库的两个 nx target（build / serve）都是
+          # `taro build --type weapp`，走 vite-runner 的 index.mini.js —— 那里只有
+          # `vite.build()`，从不 createServer()；唯一的 createServer 在 index.h5.js，
+          # 被 `isProd` 的 else 分支门住。ci-windows.yml 的 `run-many -t build` 在
+          # Windows runner 上跑的同样是这条 build 路径。要碰到它，得开发者本地手跑
+          # app 里的 `dev:h5`（没有对应 nx target），还得是在 Windows 上，再被诱导让
+          # 浏览器朝 localhost 发一个构造过的请求。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/vite-runner 放开 vite ^5.4.9 以上；
+          #   - vite 4.x 出现回补 launch-editor 2.9.0 的版本。
+
+          # 例外：GHSA-fx2h-pf6j-xcff / CVE-2026-53571（vite@4.5.14，high，fs.deny 绕过）
+          #
+          # 同一个 vite 4.5.14 上的第二个洞，卡点也一样：
+          #   - 通告的几条范围分别修在 6.4.3 / 7.3.5 / 8.0.16，覆盖 4.x 的那条写的是
+          #     `<= 6.4.2 -> 6.4.3` —— 4.x 分支同样没有修复版；
+          #   - 工作区自己的 vite 是 8.x（^8.2.2，已在 8.0.16 之上），不在命中范围内。
+          #     被点名的只有 Taro 那棵子树里被 peer `^4` 锁住的 4.5.14，而它升不动。
+          #
+          # 引入链与可达面与上一条完全相同：`server.fs.deny` 只对 dev server 生效，
+          # 绕过手法又是 Windows 专属的备用路径写法（alternate path），而本仓库的
+          # nx target 与 CI 走的都是 `vite.build()`，根本没有 fs.deny 这个概念。
+          #
+          # 复查条件：与上一条相同 —— @tarojs/vite-runner 放开 vite ^6.4.3 以上时一并删除。
+
+          # 不在这里放行的：GHSA-rc47-6667-2j5j（http-cache-semantics <4.1.1 的 ReDoS）。
+          # 它同样来自 `taro new` 那条链（download@7 → got@8 → cacheable-request@2），
+          # 但和上面几条不同，它**有依赖侧的修法** —— 4.1.1 就是修复版。已在根
+          # package.json 用 `cacheable-request@2>http-cache-semantics: ^4.1.1` 收掉，
+          # 不占例外名额。例外只留给真正没有修复版的洞。
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
 
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
