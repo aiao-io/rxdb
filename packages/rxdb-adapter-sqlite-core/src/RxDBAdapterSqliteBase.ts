@@ -171,18 +171,28 @@ const query_cache_column_names = (
  * 第二个静默丢弃。库里于是留下一个「写入成功」的错值，没有任何信号（PGlite 侧同款判据在
  * `upsert_many_sql.ts` 的 `assertSingleSpellingPerColumn`，消息骨架一致）。
  *
- * 判据只看 `data[0]` 的键：列清单就是从它来的，且契约的第 2 条（批内列集一致）已保证
- * 同批每行键集相同 —— 这里再遍历全批等于把上游的判据抄一遍。
+ * 逐行判，不只判 `data[0]`。列清单确实取自首行，且契约的批内一致判据今天也保证了
+ * 同批每行键集相同 —— 但那是**另一个文件里**的一条不变量，靠它就等于把本函数的正确性
+ * 押在上游判据的措辞上。全批遍历是 O(行数 × 键数)，与紧接着的写入同量级。
  *
  * 不做「取其一」的兜底（铁律「无 fallback 兜底」）：挑哪个都是猜，猜错的那次会以
  * 「写入成功」的形态留在缓存里。
  *
  * @param entityName - 实体名，用于诊断消息
- * @param row - 远端行（取 `data[0]`）
+ * @param rows - 本批全部远端行
  * @param columnNames - {@link query_cache_column_names} 的写法 → 物理列名表
- * @throws {RxDBAdapterSqliteError} 同一个物理列被两种写法同时占用
+ * @throws {RxDBAdapterSqliteError} 某一行里同一个物理列被两种写法同时占用
  */
 const assert_single_spelling_per_column = (
+  entityName: string,
+  rows: readonly object[],
+  columnNames: ReadonlyMap<string, string>
+): void => {
+  for (const row of rows) assert_row_single_spelling(entityName, row, columnNames);
+};
+
+/** {@link assert_single_spelling_per_column} 的单行判定。 */
+const assert_row_single_spelling = (
   entityName: string,
   row: object,
   columnNames: ReadonlyMap<string, string>
@@ -778,7 +788,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
       const target = this.#resolveQueryCacheTarget(entityName);
       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
-      assert_single_spelling_per_column(entityName, data[0] as object, target.columnNames);
+      assert_single_spelling_per_column(entityName, data as object[], target.columnNames);
       // 契约显式放行「行以物理列名为键」（`#writeQueryCacheRows` 的 columnNames 映射正为此存在），
       // 所以取 id 不能只认 JS 属性名：认错了拿到的是字符串 "undefined"，两次回读全落空，
       // 于是**写进去了但一个事件都不发** —— 库是新值、界面停在旧值，正是下面那段注释要防的静默写。

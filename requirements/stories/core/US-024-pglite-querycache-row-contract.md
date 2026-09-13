@@ -127,14 +127,34 @@ PG 侧新判据把 `default === null` 排除在豁免之外（`hasUsableDefault`
 把能落的行拒掉比不判还糟。
 
 这一条在 **sqlite-core 侧同样存在**，且两侧**同改**：留一侧窄一格，就等于保留本故事要消灭的那种
-「同一行在两个本地后端得到不同结论」。修法是 `queryCacheRelationAliases` + `hasRelationAlias`
-两个小函数，两个包各一份，跨后端套件加一条用例（`ownerId` 写法算带齐）锁住两侧一致。
+「同一行在两个本地后端得到不同结论」。修法是 `queryCacheForeignKeyColumns`（关系名 / 外键别名 /
+物理列名三种写法 → 物理列的映射表，与落地路径归一键名用的是同一张表）+ 模块私有的
+`foreignKeyColumnsInRow`（从本行的键集反查它认领了哪些物理列），两个包各一份，跨后端套件加一条
+用例（`ownerId` 写法算带齐）锁住两侧一致。
+
+### 6. 必填列判的是**值**，不只是**键**
+
+初版只判「行里有没有这个键」，于是 `{ createdAt: null }` 一路放行，再被 `null value in column
+"createdAt" … violates not-null constraint` 拒掉——而这正是契约存在的那条错误。远端列可空、
+join 落空时 `select('*')` 返回的就是这个形状，不是边角情况。
+
+两条路径都以同一条 NOT NULL 收场，因此两种空值一视同仁：`null` 会被 `row[column] ?? null` 原样
+绑进参数；`undefined` 会被 `groupByColumnSet` 从列清单里滤掉，INSERT 干脆不提这一列。
+
+> **裁决**：判据拆成两栏而非合成一句「缺 X」——「没带这一列」要让远端把列发出来，「带了键但值为空」
+> 要查远端为什么给 null，修法不同。契约**不**在本地补值（铁律「无 fallback 兜底」）：本地补出来的
+> `createdAt` 是「本机什么时候拉的」，各设备各不相同。sqlite-core 侧**同改**，共享套件钉死两栏措辞。
 
 ## 技术笔记
 
 - 判定的输入是 `EntityMetadata` 的 `propertyMap` + `relationMap` + 行的键集，不需要 pglite 特有信息；
-  `relationMap?` / `propertyMap?` 都按可选读，与同目录 `resolveQueryCacheTarget` 同口径——这条路径
-  也会收到只带部分字段的 metadata 替身。
+  两者都按**必有**读（`metadata.propertyMap.forEach` / `metadata.relationMap.values()`）——它们在
+  `EntityMetadata` 上是必填字段，按可选读只会把「传进来的根本不是 metadata」这类错误吞成「零必填列、
+  全部放行」，与本契约的 fail-fast 立场相反。
+- 诊断消息里的 id 取自 `query_cache_target.ts` 导出的 `queryCachePrimaryProperty`，与
+  `resolveQueryCacheTarget` 算 `idColumn` 用的是**同一条**判定（先找 `primary === true`，
+  退到名为 `id` 的属性）。契约这一侧不抛错——它要报的是别的东西——但两处各写一份「主键是哪个属性」
+  必然分叉：主键属性不叫 `id` 时，一行明明带着主键会在消息里被报成「无 id」。
 - 校验放在 `this.transaction(...)` **之外**：`RxDBAdapterPGlite.upsertMany` 原先把
   `resolveQueryCacheTarget` 与 `buildQueryCacheUpsertStatements` 都放在事务回调里，那样「一行都没落地」
   只是靠回滚兑现的，数据库已经为一个注定失败的批次开过一次事务。两者上提出事务后，AC#2 用

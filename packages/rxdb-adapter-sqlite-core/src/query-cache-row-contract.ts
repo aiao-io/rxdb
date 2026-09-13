@@ -117,17 +117,84 @@ export const queryCacheForeignKeyColumns = (metadata: EntityMetadata): ReadonlyM
   return columns;
 };
 
-/** 一行的键落进了哪些物理外键列。 */
+/**
+ * 一行的键各自落进哪个物理外键列：物理列名 → 本行用的那个键。
+ *
+ * @remarks
+ * 返回的是**键**而不只是「占了没占」：契约还要顺着这个键回去读值 ——
+ * 带了 `ownerId: null` 与根本没带 `ownerId`，在 NOT NULL 列上是同一个结局
+ * （见 {@link classifyRequiredColumns}）。
+ */
 const foreignKeyColumnsInRow = (
   keys: Iterable<string>,
   spellings: ReadonlyMap<string, string>
-): ReadonlySet<string> => {
-  const claimed = new Set<string>();
+): ReadonlyMap<string, string> => {
+  const claimed = new Map<string, string>();
   for (const key of keys) {
     const column = spellings.get(key);
-    if (column !== undefined) claimed.add(column);
+    if (column !== undefined) claimed.set(column, key);
   }
   return claimed;
+};
+
+/**
+ * 这一行用哪个键给了这个必填列；三种写法一个都没有时为 `undefined`。
+ *
+ * @param keys - 行的键集
+ * @param claims - 物理外键列 → 本行用的键（{@link foreignKeyColumnsInRow}）
+ * @param name - 属性名或关系名
+ * @param column - 该列的物理列名
+ */
+const presentKeyOf = (
+  keys: ReadonlySet<string>,
+  claims: ReadonlyMap<string, string>,
+  name: string,
+  column: string
+): string | undefined => {
+  if (keys.has(name)) return name;
+  if (keys.has(column)) return column;
+  return claims.get(column);
+};
+
+/** 一行在必填列上的两种不合格形态。 */
+interface RequiredColumnFaults {
+  /** 三种写法一个都没带 */
+  missing: string[];
+  /** 带了键，但值是 `null` / `undefined` */
+  empty: string[];
+}
+
+/**
+ * 逐个必填列判「这一行能不能把一个非空值送进这一列」。
+ *
+ * @remarks
+ * 判**值**而不只是判键在不在：`{ createdAt: null }` 与 `{ createdAt: undefined }` 都会
+ * 带着键通过「有没有这一列」的检查，再被 SQLite 以
+ * `NOT NULL constraint failed: public$recipes.createdAt` 拒掉 —— 正是本契约存在的
+ * 那条错误。`#writeQueryCacheRows` 把两种一视同仁地绑成 NULL，因此两种都在这里拦。
+ *
+ * 也**不**把 `null` 换成本地默认值（铁律「无 fallback 兜底」）：理由与缺列时一致。
+ *
+ * @param row - 远端行
+ * @param keys - 行的键集（调用方已算过，不重复构造）
+ * @param required - 必填列表（{@link requiredQueryCacheColumns}）
+ * @param claims - 物理外键列 → 本行用的键（{@link foreignKeyColumnsInRow}）
+ */
+const classifyRequiredColumns = (
+  row: object,
+  keys: ReadonlySet<string>,
+  required: ReadonlyMap<string, string>,
+  claims: ReadonlyMap<string, string>
+): RequiredColumnFaults => {
+  const record = row as Record<string, unknown>;
+  const missing: string[] = [];
+  const empty: string[] = [];
+  for (const [name, column] of required) {
+    const key = presentKeyOf(keys, claims, name, column);
+    if (key === undefined) missing.push(name);
+    else if (record[key] === null || record[key] === undefined) empty.push(name);
+  }
+  return { missing, empty };
 };
 
 /**
@@ -159,8 +226,10 @@ interface RowViolation {
   index: number;
   /** 行自带的 id，用于在远端日志里对号入座 */
   id: unknown;
-  /** 缺的非空列 */
+  /** 一个写法都没带的非空列 */
   missingRequired: string[];
+  /** 带了键但值为 `null` / `undefined` 的非空列 */
+  emptyRequired: string[];
   /** 同批其他行带了、本行没有的键 */
   missingBatch: string[];
 }
@@ -169,13 +238,17 @@ interface RowViolation {
  * 落地前校验远端行的列集，不合契约就 fail-fast。
  *
  * @remarks
- * 两条判据，成因不同、修法也不同，因此消息里分开写：
+ * 三条判据，成因不同、修法也不同，因此消息里分开写：
  *
  * 1. **缺非空列** —— 本地表建成 NOT NULL 且无 SQL 默认值，写下去必被 SQLite 拒。
  *    今天的表现是一条 `NOT NULL constraint failed: public$recipes.createdAt`：表名是加了
  *    命名空间前缀的**本地**表名、列名在**远端**的 schema 里根本不存在、调用栈落在适配器内部
  *    而不是那次 `find()` —— 三重误导，读者第一反应是「本地表建错了」。
- * 2. **批内异构** —— `upsertMany` 的列清单取自 `data[0]`，后续行按同一批键取值。缺哪个键
+ * 2. **非空列带了键但值是空** —— `{ createdAt: null }` 会带着键通过第 1 条，再被数据库以
+ *    **同一条** NOT NULL 报错拒掉。远端那一列可空、或 `select` 带了没命中的 join 时，
+ *    `select('*')` 返回的正是这个形状，不是理论形态。修法与第 1 条不同（要去查远端为什么
+ *    这一列是 null），因此单列一栏。
+ * 3. **批内异构** —— `upsertMany` 的列清单取自 `data[0]`，后续行按同一批键取值。缺哪个键
  *    就绑 `undefined`，落到 SQLite 上是 NULL：可空列会被**静默清空**，连报错都没有。
  *
  * 判在落地前，而不是捕获 SQLite 错误再翻译：翻译要匹配驱动的字符串，而
@@ -187,7 +260,7 @@ interface RowViolation {
  *
  * @param entityName - `QueryCacheRepository` 传入的逻辑实体名，原样进错误消息
  * @param rows - 待落地的远端行
- * @param metadata - 实体元数据；查不到时跳过第 1 条判据（本地表的非空列集无从算起），第 2 条照旧
+ * @param metadata - 实体元数据；查不到时跳过前两条判据（本地表的非空列集无从算起），第 3 条照旧
  * @throws {RxDBQueryCacheRowContractError} 存在不满足契约的行
  */
 export const assertQueryCacheRowContract = (
@@ -208,28 +281,45 @@ export const assertQueryCacheRowContract = (
     // 每个必填列都放行 JS 属性名与物理列名两种键；外键列再多认一种别名 `teamId`，
     // 三种写法共用 {@link queryCacheForeignKeyColumns} 这张表 —— 与落地路径翻译列名时
     // 用的是同一张。契约窄一格就会拒掉原本能落的行。
-    const claimedColumns = foreignKeyColumnsInRow(keys, spellings);
-    const missingRequired = [...required]
-      .filter(([name, column]) => !keys.has(name) && !keys.has(column) && !claimedColumns.has(column))
-      .map(([name]) => name);
+    const claims = foreignKeyColumnsInRow(keys, spellings);
+    const { missing, empty } = classifyRequiredColumns(rows[index], keys, required, claims);
     // 已经按「缺非空列」报过的，不在异构那一栏里重复出现
     const missingBatch = [...batchKeys].filter(
-      key => !keys.has(key) && !missingRequired.some(name => name === key || required.get(name) === key)
+      key => !keys.has(key) && !missing.some(name => name === key || required.get(name) === key)
     );
-    if (missingRequired.length === 0 && missingBatch.length === 0) return;
+    if (missing.length === 0 && empty.length === 0 && missingBatch.length === 0) return;
     // 走 readQueryCacheRowId：只认 `row['id']` 的话，自定义主键列的行在错误消息里一律报「无 id」，
     // 而这条消息的全部用处就是让人拿 id 去远端日志里对号入座
-    violations.push({ index, id: readQueryCacheRowId(rows[index], idColumn), missingRequired, missingBatch });
+    violations.push({
+      index,
+      id: readQueryCacheRowId(rows[index], idColumn),
+      missingRequired: missing,
+      emptyRequired: empty,
+      missingBatch
+    });
   });
 
   if (violations.length === 0) return;
   throw new RxDBQueryCacheRowContractError(buildMessage(entityName, rows.length, violations));
 };
 
+/**
+ * 拼一行的诊断。
+ *
+ * @remarks
+ * 「没带这一列」与「带了但值是空」分两栏写：前者的修法是让远端把列发出来，
+ * 后者的修法是去查远端为什么这一列是 null（列在远端可空、或 join 没命中），
+ * 合成一句「缺 X」会把后者引到错误的方向上。措辞与 pglite 侧逐字对齐。
+ */
 const describeRow = (violation: RowViolation): string => {
   const reasons: string[] = [];
   if (violation.missingRequired.length > 0) {
     reasons.push(`缺 ${violation.missingRequired.join(' / ')} —— 本地表把它建成 NOT NULL 且无 SQL 默认值`);
+  }
+  if (violation.emptyRequired.length > 0) {
+    reasons.push(
+      `${violation.emptyRequired.join(' / ')} 的值为空 —— 本地表把它建成 NOT NULL 且无 SQL 默认值，带了键也落不进去`
+    );
   }
   if (violation.missingBatch.length > 0) {
     reasons.push(`缺 ${violation.missingBatch.join(' / ')} —— 同批其他行带了这个键，本行会被绑成 undefined 写成 NULL`);
@@ -248,7 +338,7 @@ const buildMessage = (entityName: string, total: number, violations: readonly Ro
       `本批 ${total} 行中 ${violations.length} 行不合格，**一行都没有落地**。`,
     ...listed,
     ...tail,
-    `远端行必须带齐本地表的全部非空列，含 EntityBase 的 createdAt / updatedAt。`,
+    `远端行必须带齐本地表的全部非空列并给出非空值，含 EntityBase 的 createdAt / updatedAt。`,
     `实体上的 default 只在仓储写入路径生效，QueryCache 的落地是绕开仓储的裸 SQL，不经过它；` +
       `这里也不会就地补一个 —— 补出来的是本机拉取的时刻而非记录创建的时刻，跨设备拉同一行会得到不同的值。`,
     `契约与示例见 website/docs/collaboration/sync.md 的 QueryCache 一节。`

@@ -1,4 +1,4 @@
-import { getEntityMetadata, type EntityMetadata, type RxDB } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityMetadata, type EntityPropertyMetadata, type RxDB } from '@aiao/rxdb';
 import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 
 /**
@@ -100,15 +100,31 @@ export const resolveUpdatedAtColumn = (target: QueryCacheTarget): string => {
 };
 
 /**
- * 取主键的物理列名：优先 `primary === true` 的属性，其次名为 `id` 的属性。
+ * 取主键属性：优先 `primary === true` 的那一条，其次名为 `id` 的那一条。
  *
  * @remarks
  * `primary` 不在 `EntityPropertyMetadata` 的公开类型上，用 `Reflect.get` 读取 ——
  * 与 `pglite.utils.ts` 的 `transformForeignKey` 同一写法。
+ *
+ * 不抛错的那一半单独导出，是为了让 `query_cache_row_contract.ts` 取 id 时用**同一条**
+ * 判定：契约只把 id 拿来放进诊断消息，没有 fail-fast 的立场（它要报的是别的东西），
+ * 但两处各写一份「主键是哪个属性」必然分叉 —— 主键属性不叫 `id` 时，诊断消息会把
+ * 一行明明带着主键的行报成「无 id」。
+ *
+ * @param metadata - 实体元数据
+ * @returns 主键属性；实体既没有 `primary` 标记也没有 `id` 属性时为 `undefined`
+ */
+export const queryCachePrimaryProperty = (metadata: EntityMetadata): EntityPropertyMetadata | undefined =>
+  [...metadata.propertyMap.values()].find(property => Reflect.get(property, 'primary') === true) ??
+  metadata.propertyMap.get('id');
+
+/**
+ * 取主键的物理列名。
+ *
+ * @throws {RxdbAdapterPGliteError} 实体没有主键属性
  */
 const resolvePrimaryColumn = (metadata: EntityMetadata, entityName: string): string => {
-  const primary = [...metadata.propertyMap.values()].find(property => Reflect.get(property, 'primary') === true);
-  const property = primary ?? metadata.propertyMap.get('id');
+  const property = queryCachePrimaryProperty(metadata);
   if (!property) {
     throw new RxdbAdapterPGliteError(`QueryCache: entity "${entityName}" has no primary property`);
   }

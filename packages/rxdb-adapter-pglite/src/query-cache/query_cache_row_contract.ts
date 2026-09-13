@@ -16,12 +16,19 @@
  * 又推回驱动错误里 —— 正是本契约要消灭的东西。US-022 的技术笔记已裁过同一条：
  * 判据要按 PostgreSQL 的 DDL 规则重写而非照抄。
  *
+ * 两处分歧的性质不同：uuid 主键那处两边 DDL 本来就不同（PostgreSQL 没有等价于
+ * `randomblob(16)` 的列默认值写法）；`SET NULL` 那处是 `_create_table_relations_sql`
+ * 的**已知缺陷** —— 同一列上 `NOT NULL` 与 `ON DELETE SET NULL` 自相矛盾，删父行必然失败。
+ * 本模块如实反映**今天**的 DDL，不在这里替它纠偏；那处建表修好后这一格会变成豁免，
+ * 是向宽松方向收敛，不会弄红既有的远端实现。
+ *
  * 共享的是**契约语义与消息骨架**，由 `@aiao/rxdb-test/query-cache-contract` 的
  * 跨后端套件钉死；两条分歧各自在本包的用例里锁。
  */
 import { PropertyType, RelationKind, type EntityMetadata, type EntityPropertyMetadata } from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { queryCachePrimaryProperty } from './query_cache_target.js';
 
 /**
  * QueryCache 拉取落地时，远端行不满足本地表列契约。
@@ -98,7 +105,8 @@ const hasUsableDefault = (defaultValue: unknown, type: EntityPropertyMetadata['t
  * - `relation.nullable` → DDL 不发 `NOT NULL`，豁免；
  * - **`SET NULL` 不豁免**：`_create_table_relations_sql` 只看 `relation.nullable`，
  *   非空关系列即使带 `ON DELETE SET NULL` 也照发 `NOT NULL`（sqlite 侧有 `mustBeNullable`
- *   把它降级为可空）。**这是两个后端的第二处分歧。**
+ *   把它降级为可空）。**这是两个后端的第二处分歧**，且是本后端建表的已知缺陷而非设计差异
+ *   —— 见本文件 `@fileoverview`。
  * - 字面量 `default` 只对 `MANY_TO_ONE` 豁免 —— DDL 的 `DEFAULT` 子句嵌在
  *   `kind === MANY_TO_ONE` 里，`ONE_TO_ONE` 的默认值一个字都不进建表语句。
  *
@@ -165,17 +173,87 @@ export const queryCacheForeignKeyColumns = (metadata: EntityMetadata): ReadonlyM
   return columns;
 };
 
-/** 一行的键落进了哪些物理外键列。 */
+/**
+ * 一行的键各自落进哪个物理外键列：物理列名 → 本行用的那个键。
+ *
+ * @remarks
+ * 返回的是**键**而不只是「占了没占」：契约还要顺着这个键回去读值 ——
+ * 带了 `ownerId: null` 与根本没带 `ownerId`，在 NOT NULL 列上是同一个结局
+ * （见 {@link classifyRequiredColumns}）。
+ */
 const foreignKeyColumnsInRow = (
   keys: Iterable<string>,
   spellings: ReadonlyMap<string, string>
-): ReadonlySet<string> => {
-  const claimed = new Set<string>();
+): ReadonlyMap<string, string> => {
+  const claimed = new Map<string, string>();
   for (const key of keys) {
     const column = spellings.get(key);
-    if (column !== undefined) claimed.add(column);
+    if (column !== undefined) claimed.set(column, key);
   }
   return claimed;
+};
+
+/**
+ * 这一行用哪个键给了这个必填列；三种写法一个都没有时为 `undefined`。
+ *
+ * @param keys - 行的键集
+ * @param claims - 物理外键列 → 本行用的键（{@link foreignKeyColumnsInRow}）
+ * @param name - 属性名或关系名
+ * @param column - 该列的物理列名
+ */
+const presentKeyOf = (
+  keys: ReadonlySet<string>,
+  claims: ReadonlyMap<string, string>,
+  name: string,
+  column: string
+): string | undefined => {
+  if (keys.has(name)) return name;
+  if (keys.has(column)) return column;
+  return claims.get(column);
+};
+
+/** 一行在必填列上的两种不合格形态。 */
+interface RequiredColumnFaults {
+  /** 三种写法一个都没带 */
+  missing: string[];
+  /** 带了键，但值是 `null` / `undefined` */
+  empty: string[];
+}
+
+/**
+ * 逐个必填列判「这一行能不能把一个非空值送进这一列」。
+ *
+ * @remarks
+ * 判**值**而不只是判键在不在：`{ createdAt: null }` 与 `{ createdAt: undefined }` 都会
+ * 带着键通过「有没有这一列」的检查，再被 PostgreSQL 以
+ * `null value in column "createdAt" … violates not-null constraint` 拒掉 ——
+ * 正是本契约存在的那条错误。两条落地路径各走一半：`null` 被
+ * `upsert_many_sql.ts` 的 `row[column] ?? null` 原样绑进参数，`undefined` 被
+ * `groupByColumnSet` 从列清单里滤掉，于是 INSERT 干脆不提这一列。两种都以
+ * NOT NULL 失败收场，因此两种都在这里拦。
+ *
+ * 也**不**把 `null` 换成本地默认值（铁律「无 fallback 兜底」）：理由与缺列时一致。
+ *
+ * @param row - 远端行
+ * @param keys - 行的键集（调用方已算过，不重复构造）
+ * @param required - 必填列表（{@link requiredQueryCacheColumns}）
+ * @param claims - 物理外键列 → 本行用的键（{@link foreignKeyColumnsInRow}）
+ */
+const classifyRequiredColumns = (
+  row: object,
+  keys: ReadonlySet<string>,
+  required: ReadonlyMap<string, string>,
+  claims: ReadonlyMap<string, string>
+): RequiredColumnFaults => {
+  const record = row as Record<string, unknown>;
+  const missing: string[] = [];
+  const empty: string[] = [];
+  for (const [name, column] of required) {
+    const key = presentKeyOf(keys, claims, name, column);
+    if (key === undefined) missing.push(name);
+    else if (record[key] === null || record[key] === undefined) empty.push(name);
+  }
+  return { missing, empty };
 };
 
 /**
@@ -183,16 +261,21 @@ const foreignKeyColumnsInRow = (
  *
  * @remarks
  * 契约对**每一个**必填列都放行 JS 属性名与物理列名两种键，因此取 id 也必须两种都认；
- * 只认 `row['id']` 的写法在自定义主键列下静默拿到 `undefined`，而这个值的全部用处
+ * 只认一种的写法在自定义主键下静默拿到 `undefined`，而这个值的全部用处
  * 就是让人拿它去远端日志里对号入座。
  *
+ * 两个名字都由 {@link queryCachePrimaryProperty} 给出 —— 与
+ * `resolveQueryCacheTarget` 算 `idColumn` 用的是同一个函数。各算各的会分叉：
+ * 主键属性不叫 `id` 时（`@Entity` 允许），这里会把一行明明带着主键的行报成「无 id」。
+ *
  * @param row - 远端行
+ * @param idName - 主键的 JS 属性名
  * @param idColumn - 主键的物理列名
  * @returns 行上的主键值；两种键都没有时为 `undefined`
  */
-const readQueryCacheRowId = (row: object, idColumn: string): unknown => {
+const readQueryCacheRowId = (row: object, idName: string, idColumn: string): unknown => {
   const record = row as Record<string, unknown>;
-  return record['id'] ?? record[idColumn];
+  return record[idName] ?? record[idColumn];
 };
 
 /** 错误消息里最多逐行列举几行；超出部分只报数量，不静默丢弃。 */
@@ -203,16 +286,32 @@ interface RowViolation {
   index: number;
   /** 行自带的 id，用于在远端日志里对号入座 */
   id: unknown;
-  /** 缺的非空列 */
+  /** 一个写法都没带的非空列 */
   missingRequired: string[];
+  /** 带了键但值为 `null` / `undefined` 的非空列 */
+  emptyRequired: string[];
 }
 
+/**
+ * 拼一行的诊断。
+ *
+ * @remarks
+ * 「没带这一列」与「带了但值是空」分两栏写：前者的修法是让远端把列发出来，
+ * 后者的修法是去查远端为什么这一列是 null（列在远端可空、或 join 没命中），
+ * 合成一句「缺 X」会把后者引到错误的方向上。措辞与 sqlite-core 侧逐字对齐。
+ */
 const describeRow = (violation: RowViolation): string => {
+  const reasons: string[] = [];
+  if (violation.missingRequired.length > 0) {
+    reasons.push(`缺 ${violation.missingRequired.join(' / ')} —— 本地表把它建成 NOT NULL 且无 SQL 默认值`);
+  }
+  if (violation.emptyRequired.length > 0) {
+    reasons.push(
+      `${violation.emptyRequired.join(' / ')} 的值为空 —— 本地表把它建成 NOT NULL 且无 SQL 默认值，带了键也落不进去`
+    );
+  }
   const id = violation.id === undefined ? '无 id' : `id=${JSON.stringify(String(violation.id))}`;
-  return (
-    `  · 第 ${violation.index + 1} 行（${id}）` +
-    `缺 ${violation.missingRequired.join(' / ')} —— 本地表把它建成 NOT NULL 且无 SQL 默认值`
-  );
+  return `  · 第 ${violation.index + 1} 行（${id}）${reasons.join('；')}`;
 };
 
 /**
@@ -233,7 +332,7 @@ const buildMessage = (entityName: string, total: number, violations: readonly Ro
       `本批 ${total} 行中 ${violations.length} 行不合格，**一行都没有落地**。`,
     ...listed,
     ...tail,
-    `远端行必须带齐本地表的全部非空列，含 EntityBase 的 createdAt / updatedAt。`,
+    `远端行必须带齐本地表的全部非空列并给出非空值，含 EntityBase 的 createdAt / updatedAt。`,
     `实体上的 default 只在仓储写入路径生效，QueryCache 的落地是绕开仓储的裸 SQL，不经过它；` +
       `这里也不会就地补一个 —— 补出来的是本机拉取的时刻而非记录创建的时刻，跨设备拉同一行会得到不同的值。`,
     `契约与示例见 website/docs/collaboration/sync.md 的 QueryCache 一节。`
@@ -244,11 +343,15 @@ const buildMessage = (entityName: string, total: number, violations: readonly Ro
  * 落地前校验远端行的列集，不合契约就 fail-fast。
  *
  * @remarks
- * 只判**一条**：缺了本地表上 NOT NULL 且无 SQL 默认值的列，写下去必被 PostgreSQL 拒。
- * 今天的表现是一条 `null value in column "created_at" of relation "qc_recipes" violates
- * not-null constraint`：表名是加了 schema 的**本地**表名、列名在**远端**的 schema 里根本
- * 不存在、调用栈落在适配器内部而不是那次 `find()` —— 三重误导，读者第一反应是
- * 「本地表建错了」。
+ * 只判**一条**：本地表上 NOT NULL 且无 SQL 默认值的列，这一行送不进一个非空值 ——
+ * 要么三种写法一个都没带，要么带了键而值是 `null` / `undefined`。两种都写下去必被
+ * PostgreSQL 拒，今天的表现是同一条 `null value in column "created_at" of relation
+ * "qc_recipes" violates not-null constraint`：表名是加了 schema 的**本地**表名、列名在
+ * **远端**的 schema 里根本不存在、调用栈落在适配器内部而不是那次 `find()` ——
+ * 三重误导，读者第一反应是「本地表建错了」。
+ *
+ * 「带了键但值是空」不是理论形态：远端那一列可空、或 `select` 带了没命中的 join 时，
+ * `select('*')` 返回的就是 `{ createdAt: null }`。只判键在不在会把它整批放行。
  *
  * **不判**批内异构。sqlite-core 侧那条判据的成因是它的列清单取自 `data[0]`，后续行按同一批
  * 键取值、缺哪个就绑 `undefined` 写成 NULL（可空列被静默清空）。PGlite 走
@@ -277,7 +380,9 @@ export const assertQueryCacheRowContract = (
 
   const required = requiredQueryCacheColumns(metadata);
   if (required.size === 0) return;
-  const idColumn = metadata.propertyMap.get('id')?.columnName ?? 'id';
+  const primary = queryCachePrimaryProperty(metadata);
+  const idName = primary?.name ?? 'id';
+  const idColumn = primary?.columnName ?? 'id';
   const spellings = queryCacheForeignKeyColumns(metadata);
 
   const violations: RowViolation[] = [];
@@ -287,12 +392,15 @@ export const assertQueryCacheRowContract = (
     // （`RxDBAdapterSupabase.findByIds` 走 `select('*')`）；外键列再多认一种别名 `teamId`。
     // 三种写法共用 {@link queryCacheForeignKeyColumns} 这张表，与落地路径归一键名时
     // 用的是同一张 —— 契约窄一格就会拒掉原本能落的行。
-    const claimedColumns = foreignKeyColumnsInRow(keys, spellings);
-    const missingRequired = [...required]
-      .filter(([name, column]) => !keys.has(name) && !keys.has(column) && !claimedColumns.has(column))
-      .map(([name]) => name);
-    if (missingRequired.length === 0) return;
-    violations.push({ index, id: readQueryCacheRowId(row, idColumn), missingRequired });
+    const claims = foreignKeyColumnsInRow(keys, spellings);
+    const { missing, empty } = classifyRequiredColumns(row, keys, required, claims);
+    if (missing.length === 0 && empty.length === 0) return;
+    violations.push({
+      index,
+      id: readQueryCacheRowId(row, idName, idColumn),
+      missingRequired: missing,
+      emptyRequired: empty
+    });
   });
 
   if (violations.length === 0) return;

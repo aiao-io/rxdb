@@ -335,9 +335,14 @@ const rows = await repo.find({
 
 ### 远端行的列契约
 
-**`findByIds` 返回的每一行，必须带齐本地表的全部非空列** —— 包括 `EntityBase` 声明的
-`createdAt` / `updatedAt`。这条约束对所有 QueryCache 远端成立（HTTP、Supabase、自研服务），
+**`findByIds` 返回的每一行，必须带齐本地表的全部非空列，并给出非空值** —— 包括 `EntityBase`
+声明的 `createdAt` / `updatedAt`。这条约束对所有 QueryCache 远端成立（HTTP、Supabase、自研服务），
 因为它来自**落地路径**而不是某个协议。
+
+「带齐」判的是**值**而不只是键：`{ createdAt: null }` 与整个不写 `createdAt` 一样会被拒。
+远端那一列可空、或 join 落空时，`select('*')` 返回的正是前一种形状。两者最终都撞同一条
+`NOT NULL`——`null` 原样绑进参数，`undefined` 则让 INSERT 干脆不提这一列——因此契约一视同仁，
+只是在消息里分成两栏：「没带这一列」要让远端把列发出来，「带了键但值为空」要查远端为什么给 `null`。
 
 原因是 `upsertMany` 是绕开仓储的裸 SQL 写：
 
@@ -364,15 +369,22 @@ QueryCache 的拉取落地不经过仓储，于是远端不带这一列 → INSE
 #### 两处按后端不同
 
 判据算的是「**本地后端的建表 DDL** 会把哪些列建成 NOT NULL 且拿不到默认值」，
-而两个后端的建表规则在两处确有分歧——**不是实现没对齐，是 DDL 本来就不同**：
+而两个后端的建表规则在两处结论不同：
 
 | 情形                                                              | SQLite family（wa-sqlite / sqlite-wasm / sqliteai / desktop） | PGlite                                               |
 | ----------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
 | `uuid`（以及 `string` / `bigint`）主键                            | **可省**：建表发 `DEFAULT (lower(hex(randomblob(16))))`       | **必带**：建表只发 `"id" uuid PRIMARY KEY`，无默认值 |
 | 关系列 `onDelete` / `onUpdate` 为 `SET NULL` 且 `nullable: false` | **可省**：DDL 把这种列降级为可空，不发 `NOT NULL`             | **必带**：DDL 只看 `nullable`，照发 `NOT NULL`       |
 
-换句话说，**给 PGlite 用的远端必须自带主键值**。想写一份两个后端通吃的远端实现，按 PGlite
+第一行是**两边 DDL 本来就不同**：SQLite 给非 integer 主键塞得进一个随机默认值，PostgreSQL 这一侧
+没有等价写法。**给 PGlite 用的远端必须自带主键值**；想写一份两个后端通吃的远端实现，按 PGlite
 这一列来（它是两者中更严的那一侧）。
+
+第二行不一样——它是 **PGlite 建表的一个已知缺陷，不是设计上的后端差异**。同一张表上
+`NOT NULL` 与 `ON DELETE SET NULL` 自相矛盾：父行被删时 PostgreSQL 要把这一列置空，而列上的
+`NOT NULL` 又不许，删父行必然失败。SQLite 侧把这种列降级为可空正是为了避开它。契约的职责是
+**如实反映本后端当前的 DDL**，不是替它纠偏，所以这一列今天照发 `NOT NULL`、契约也就照要——
+但这一格会随 PGlite 建表修好而变成「可省」，届时向宽松方向收敛，不会弄红既有的远端实现。
 
 #### 键名的三种写法
 

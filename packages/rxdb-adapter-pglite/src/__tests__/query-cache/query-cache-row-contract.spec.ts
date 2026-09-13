@@ -206,6 +206,31 @@ describe('PGL-013 assertQueryCacheRowContract —— PG 专属判据', () => {
     expect(message).toContain('缺 title');
   });
 
+  it('主键属性不叫 id 时，消息里仍报得出主键值', () => {
+    // 取 id 走 `queryCachePrimaryProperty` —— 与 `resolveQueryCacheTarget` 算 idColumn 用的是
+    // 同一条判定。各算各的（一边扫 `primary === true`，一边只认 `propertyMap.get('id')`）会让
+    // 这一行明明带着主键，却在诊断消息里被报成「无 id」。
+    const named = transitionMetadata({
+      name: 'QcPgNamedPk',
+      namespace: 'test',
+      properties: [
+        { name: 'uid', type: PropertyType.uuid, primary: true, columnName: 'article_uid' },
+        { name: 'title', type: PropertyType.string }
+      ]
+    });
+
+    let message = '';
+    try {
+      assertQueryCacheRowContract('QcPgNamedPk', [{ uid: 'a1' }], named);
+      expect.unreachable('应当抛出契约错误');
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain('id="a1"');
+    expect(message).toContain('缺 title');
+  });
+
   it('契约错误仍是本适配器的错误 —— 既有 catch (RxdbAdapterPGliteError) 不会漏掉它', () => {
     // 两个后端各有自己的契约错误类（pglite 不依赖 sqlite-core），因此它必须继续落在
     // **本包**的错误族里；跨后端识别靠 `name`，由共享套件钉死。

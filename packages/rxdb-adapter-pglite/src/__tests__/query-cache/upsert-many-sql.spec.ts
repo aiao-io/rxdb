@@ -9,6 +9,7 @@
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, type EntityType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { getTableNameByMetadata } from '../../pglite.utils.js';
+import { RxDBQueryCacheRowContractError } from '../../query-cache/query_cache_row_contract.js';
 import type { QueryCacheTarget } from '../../query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from '../../query-cache/upsert_many_sql.js';
 
@@ -70,7 +71,15 @@ const baseColumns = {
 
 const targetOf = (EntityClass: EntityType): QueryCacheTarget => {
   const metadata = getEntityMetadata(EntityClass);
-  return { entityName: metadata.name, metadata, tableName: getTableNameByMetadata(metadata), idColumn: 'id' };
+  return {
+    // 填**限定名**而不是 `metadata.name`：`entityName` 这个字段存在的全部理由，就是
+    // `QueryCacheRepository` 传进来的名字可能带 `namespace:` 前缀而 `metadata.name` 把它丢了。
+    // 单测里也填 `metadata.name`，那个前缀就永远走不到任何一条断言上。
+    entityName: `${metadata.namespace || 'public'}:${metadata.name}`,
+    metadata,
+    tableName: getTableNameByMetadata(metadata),
+    idColumn: 'id'
+  };
 };
 
 describe('PGL-012 buildQueryCacheUpsertStatements', () => {
@@ -142,6 +151,28 @@ describe('PGL-012 buildQueryCacheUpsertStatements', () => {
         { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1', bogus: 1 }
       ])
     ).rejects.toThrow(/QcUnitMember[\s\S]*bogus|bogus[\s\S]*QcUnitMember/);
+  });
+
+  it.each([null, undefined])('必填列的值是 %s 时一条语句都不生成', async value => {
+    // `null` 会被 `row[column] ?? null` 原样绑进参数，`undefined` 会被 `groupByColumnSet`
+    // 从列清单里滤掉、INSERT 干脆不提这一列 —— 两条路径都以
+    // `null value in column "createdAt" … violates not-null constraint` 收场，
+    // 正是列契约存在的那条错误。判在生成语句之前。
+    await expect(
+      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+        { ...baseColumns, createdAt: value, id: 'm1', nickName: '阿花', teamId: 't1' }
+      ])
+    ).rejects.toThrow(RxDBQueryCacheRowContractError);
+  });
+
+  it('诊断消息报的是 QueryCache 传入的限定名，不是 metadata.name', async () => {
+    // 读者要拿这个名字回去比对自己的同步配置；`metadata.name` 已经把 `namespace:` 前缀丢了，
+    // 同名实体配在多个 namespace 下时，报出来的名字指不回任何一处配置。
+    await expect(
+      buildQueryCacheUpsertStatements(targetOf(QcUnitMember), [
+        { ...baseColumns, id: 'm1', nickName: '阿花', teamId: 't1', bogus: 1 }
+      ])
+    ).rejects.toThrow(/"public:QcUnitMember"/);
   });
 
   it('注入形状的键不会被拼进 SQL', async () => {

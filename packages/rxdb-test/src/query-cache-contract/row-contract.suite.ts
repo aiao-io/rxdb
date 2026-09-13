@@ -196,12 +196,57 @@ export function runQueryCacheRowContractSuite(impl: QueryCacheRowContractImpl): 
             'QueryCache 落地被拒：实体 "QcContractRecipe" 的远端行不满足本地表的列契约，' +
               '本批 1 行中 1 行不合格，**一行都没有落地**。',
             '  · 第 1 行（id="r1"）缺 createdAt —— 本地表把它建成 NOT NULL 且无 SQL 默认值',
-            '远端行必须带齐本地表的全部非空列，含 EntityBase 的 createdAt / updatedAt。',
+            '远端行必须带齐本地表的全部非空列并给出非空值，含 EntityBase 的 createdAt / updatedAt。',
             '实体上的 default 只在仓储写入路径生效，QueryCache 的落地是绕开仓储的裸 SQL，不经过它；' +
               '这里也不会就地补一个 —— 补出来的是本机拉取的时刻而非记录创建的时刻，跨设备拉同一行会得到不同的值。',
             '契约与示例见 website/docs/collaboration/sync.md 的 QueryCache 一节。'
           ].join('\n')
         );
+      });
+
+      it.each([null, undefined])('必填列带了键但值是 %s 时同样被拒 —— 数据库报的是同一条 NOT NULL', value => {
+        // 只判「键在不在」的契约会整批放行这一行，再由数据库抛出
+        // `null value in column "createdAt" … violates not-null constraint` /
+        // `NOT NULL constraint failed: …` —— 正是本契约存在的那条错误。
+        // 远端那一列可空、或 `select` 带了没命中的 join 时，`select('*')` 返回的就是这个形状。
+        const row = { ...fullRecipeRow('r1'), createdAt: value };
+
+        expect(() => assertQueryCacheRowContract('QcContractRecipe', [row], metadata)).toThrow(ErrorClass);
+      });
+
+      it('外键列带了键但值是 null 时被拒 —— 三种写法一视同仁', () => {
+        const memberMetadata = getEntityMetadata(QcContractMember);
+        const rows = [
+          {
+            id: 'mb1',
+            nickName: '外键为空',
+            ownerId: null,
+            createdAt: '2026-08-01T00:00:00.000Z',
+            updatedAt: '2026-08-02T00:00:00.000Z'
+          }
+        ];
+
+        expect(() => assertQueryCacheRowContract('QcContractMember', rows, memberMetadata)).toThrow(ErrorClass);
+      });
+
+      it('「值为空」与「没带这一列」在消息里分两栏 —— 两者的修法不同', () => {
+        // 合成一句「缺 createdAt」会把读者引到「让远端把列发出来」这个方向上，
+        // 而这一行明明带了 createdAt，要查的是远端为什么给了 null。
+        // 标注成 `Record<string, unknown>`：对象字面量里展开 `Record` 不会把索引签名带过来，
+        // 推断出的类型只剩 `{ createdAt: null }`，`delete row['title']` 就没法索引了。
+        const row: Record<string, unknown> = { ...fullRecipeRow('r1'), createdAt: null };
+        delete row['title'];
+
+        let message = '';
+        try {
+          assertQueryCacheRowContract('QcContractRecipe', [row], metadata);
+          expect.unreachable('应当抛出契约错误');
+        } catch (error) {
+          message = (error as Error).message;
+        }
+
+        expect(message).toContain('缺 title —— 本地表把它建成 NOT NULL 且无 SQL 默认值');
+        expect(message).toContain('createdAt 的值为空 —— 本地表把它建成 NOT NULL 且无 SQL 默认值，带了键也落不进去');
       });
 
       it('缺多列时一次全部列出，不是报一个改一个', () => {
