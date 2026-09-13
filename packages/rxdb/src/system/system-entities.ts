@@ -25,7 +25,7 @@ import { RxDBSync } from './sync.js';
  * 引用 `RxDBBranch`；`WorkingTreeMaterializationPage` 引用 `WorkingTreeMaterializationStage`。
  *
  * 后十张是 epic-006「本地工作树与提交历史」的持久层，追加顺序即
- * [data-model.md](../../../../specs/001-working-tree-commits/data-model.md) §1 的 1→10。
+ * `specs/001-working-tree-commits/data-model.md` §1 的 1→10。
  * 它们**不从 `src/index.ts` 导出**——公开面是 `Commit*` / `WorkingTree*` 的 DTO 与命令契约。
  *
  * 清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，
