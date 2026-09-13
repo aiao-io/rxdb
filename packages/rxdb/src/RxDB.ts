@@ -1,6 +1,7 @@
 import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
-import { ACTIVE_BRANCH_KEY } from './commit/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, assertSingleActiveBranch } from './commit/active-branch-guard.js';
+import { isCommitCapabilityEnabled } from './commit/commit-capability.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
@@ -747,6 +748,7 @@ export class RxDB {
           localAdapter.completeBootstrap();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+        if (existed) await this.#assertActiveBranchCardinality(localAdapter);
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
       // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。
@@ -1262,6 +1264,36 @@ export class RxDB {
   }
 
   /**
+   * 校验 active 分支的基数：恰好一行（FR-048 的运行期那一半）。
+   *
+   * @param adapter - 本地适配器，引导链路刚跑完的那一个
+   * @throws {@link NoActiveBranchError} 一行 active 都没有时
+   * @throws {@link AmbiguousActiveBranchError} 有多行时
+   *
+   * @remarks
+   * schema 只拦得住「至多一个」（`RxDBBranch.activeKey` 那条可空唯一列）。「至少一个」是
+   * 一张**空表**也满足的条件，任何列约束都表达不了，只能在连接时判一次——理由与两个入口的
+   * 分工见 `commit/active-branch-guard.ts` 的 fileoverview。
+   *
+   * **以提交能力已启用为前提。** 未启用的库整套提交/工作树语义都是短路的（FR-037），
+   * 拿一个它还没进入的不变量把它挡在连接之外，等于让升级本身变成一次破坏性变更。
+   *
+   * **只在既有库上跑**：新库唯一那行 active `main` 是同一次 `createTables` 刚写下的，
+   * 它连同能力行（`enabled = false`）都由本进程当场构造，校验必然为真。调用方那句
+   * `if (existed)` 因此不是优化，而是「校验的是别人留下的状态」这一语义本身。
+   *
+   * 走 {@link RxDBAdapterLocalBase.bootstrapTransaction} 而不是 `transaction`：整条引导链路
+   * 都用前者，换成后者就得依赖「`completeBootstrap()` 确实已经把就绪门打开了」这个跨行推理。
+   * `transactionLog` 传 `false` —— 这里一行都不写。
+   */
+  async #assertActiveBranchCardinality(adapter: RxDBAdapterLocalBase): Promise<void> {
+    await adapter.bootstrapTransaction(async executor => {
+      if (!(await isCommitCapabilityEnabled(executor))) return;
+      await assertSingleActiveBranch(executor);
+    }, false);
+  }
+
+  /**
    * 在既有库上补建缺失的**系统**表。
    *
    * @param adapter - 本地适配器
@@ -1271,7 +1303,10 @@ export class RxDB {
    * 系统迁移要往这些表里写初始行，因此它们必须在系统迁移之前就位；而接入方实体表
    * 保持原有时机（接入方迁移之后），提前建会改变接入方迁移看到的库状态。
    *
-   * 建表语句自带 `IF NOT EXISTS`，这里的 `isTableExisted` 只为省掉整批无谓的 DDL。
+   * 这里的 `isTableExisted` 是**承重的**，不是省 DDL 的优化：两个后端的 `CREATE TABLE` 都**没有**
+   * `IF NOT EXISTS`（`sqlite-core/src/table/create_table_sql.ts`、`pglite/src/table/create_table_sql.ts`
+   * 都是裸 `CREATE TABLE`；该子句只出现在建索引那一句上）。把一张已存在的表送进 `createTables()`
+   * 会直接报错，于是整条 `connect()` 在既有库上炸掉。
    */
   async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
@@ -1295,10 +1330,10 @@ export class RxDB {
    *
    * @remarks
    * `config.entities` 里混着 {@link SchemaManager.init} 注入的系统表，而它们已在
-   * {@link RxDB.#ensureSystemTables} 建过了。不摘出去不会建错表（DDL 自带
-   * `IF NOT EXISTS`），但会让同一批系统表在一次 connect 里被**两次**送进
-   * `createTables()` —— 适配器无从分辨这是补建还是重复下发，实现里任何按调用次数
-   * 计费的动作（索引重建、日志、迁移钩子）都会跟着跑第二遍。
+   * {@link RxDB.#ensureSystemTables} 建过了。挡住它们的其实是上一行那次 `isTableExisted`
+   * ——刚建完的表查出来就是存在的——但那是一个**跨方法的巧合**：它依赖「系统表先建」这一执行
+   * 顺序，而这里显式摘出去不依赖任何顺序。差别在 `CREATE TABLE` 没有 `IF NOT EXISTS`
+   * （见 {@link RxDB.#ensureSystemTables}）：一旦顺序被调换，重复下发就不是多跑一趟，是直接报错。
    */
   async #ensureEntityTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];

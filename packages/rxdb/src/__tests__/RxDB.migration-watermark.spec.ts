@@ -10,7 +10,7 @@ import { RxDBMigration } from '../system/migration.js';
 import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../system/migrations/0004-working-tree-commits.js';
 import { WorkingTreeActivationState } from '../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
-import { createMockAdapter, type MockLocalAdapter } from './fixtures/test-db-setup.js';
+import { createMockAdapter, type MockLocalAdapter, stubAdapterRepository } from './fixtures/test-db-setup.js';
 
 const databases = new Set<RxDB>();
 let databaseSequence = 0;
@@ -74,7 +74,7 @@ describe('迁移水位线', () => {
       update: vi.fn(),
       remove: vi.fn()
     };
-    adapter.getRepository.mockReturnValue(migrationRepository as never);
+    stubAdapterRepository(adapter, migrationRepository);
 
     await first.connect('local');
 
@@ -90,7 +90,7 @@ describe('迁移水位线', () => {
     // 存储是同一份，所以复用 migrationRepository —— 它的 find() 会回放首装写下的水位线。
     const { database: second, adapter: secondAdapter } = createDatabase(migrations);
     secondAdapter.isTableExisted.mockResolvedValue(true);
-    secondAdapter.getRepository.mockReturnValue(migrationRepository as never);
+    stubAdapterRepository(secondAdapter, migrationRepository);
     second.init();
 
     await second.connect('local');
@@ -116,7 +116,9 @@ describe('实体索引收敛时序', () => {
       order.push('reconcile');
     });
     adapter.isTableExisted.mockResolvedValue(true);
-    const defaultRepository = adapter.getRepository(RxDBMigration as never);
+    // 取**实现**而不是取一次调用结果：默认桩按实体分流（能力行有自己那份），
+    // 拿单次结果当兜底会把 `CommitCapabilityState` 也换成通用桩，握手就读不到那一行了。
+    const defaultGetRepository = adapter.getRepository.getMockImplementation();
     adapter.getRepository.mockImplementation((EntityType: unknown) =>
       EntityType === RxDBMigration ?
         ({
@@ -126,7 +128,7 @@ describe('实体索引收敛时序', () => {
           update: vi.fn(),
           remove: vi.fn()
         } as never)
-      : defaultRepository
+      : (defaultGetRepository?.(EntityType as never) as never)
     );
     database.init();
 
@@ -153,7 +155,7 @@ describe('首装原子提交（RXD-051）', () => {
       tablesPersisted = true;
       return true;
     });
-    adapter.getRepository.mockReturnValue({
+    stubAdapterRepository(adapter, {
       find: vi.fn(async () => []),
       count: vi.fn(async () => 0),
       create: vi.fn(async () => {
@@ -161,7 +163,7 @@ describe('首装原子提交（RXD-051）', () => {
       }),
       update: vi.fn(),
       remove: vi.fn()
-    } as never);
+    });
 
     await expect(first.connect('local')).rejects.toThrow('watermark write failed');
 
@@ -264,9 +266,9 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     });
     // 只替换 RxDBMigration 的仓库。全量替换会让引导期的其它读（RxDBSync / RxDBBranch）
     // 也消耗 find 的 mockResolvedValueOnce 序列，执行权竞争的重放脚本会错位。
-    const defaultRepository = adapter.getRepository(RxDBMigration as never);
+    const defaultGetRepository = adapter.getRepository.getMockImplementation();
     adapter.getRepository.mockImplementation((EntityType: unknown) => {
-      if (EntityType !== RxDBMigration) return defaultRepository as never;
+      if (EntityType !== RxDBMigration) return defaultGetRepository?.(EntityType as never) as never;
       return (applicationPhase ? migrationRepository : systemMigrationRepository) as never;
     });
     database.init();

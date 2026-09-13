@@ -146,7 +146,8 @@ const DATABASE_SIDE_TIMESTAMP_DEFAULT = 'CURRENT_TIMESTAMP';
  * 读回来 `new Date('CURRENT_TIMESTAMP')` 是 Invalid Date → `null`，一声不响地丢掉时间戳。
  *
  * 跳过之后该属性不出现在 INSERT 列清单里（两个适配器的 `normalizeCreateEntity` 都按
- * `key in entity` 取列），由建表时写下的 DB 端默认值补上；SQLite 的**批量** INSERT 是唯一的
+ * `value !== undefined` 取列：`useDefineForClassFields` 下键是恒在的，按键判定会把未赋值也
+ * 写进列清单，DB 端默认值于是永远不生效），由建表时写下的 DB 端默认值补上；SQLite 的**批量** INSERT 是唯一的
  * 例外，它固定写全列、绕过了 DB DEFAULT，所以 `inserts_sql` 自己把哨兵解析成真实时间戳——
  * 那段代码此前是死的（它只在列缺省时才跑，而本函数总是先把字符串填满）。三条路径都已就位。
  */

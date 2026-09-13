@@ -90,9 +90,11 @@ export function createWorkingTreeCommitsInitialRows(
  * 省掉这个形参，代价是六个后端的占位符方言（`$1` 与 `?`）要在这里分叉，那才是真正会腐烂的地方。
  *
  * **表不在这里建**。10 张表已登记进 `SYSTEM_ENTITIES`，由 `createTables()`（新库）与
- * `RxDB.connect()` 的系统表补建（既有库）以 `IF NOT EXISTS` 建出，六个后端各自的建表器负责方言。
- * 本迁移只写 §8 第 2–3 步的初始行，并且**必须**排在水位线写下 `__rxdb_system_schema__:4`
- * **之前**——顺序反了，这里一失败就会留下「标成 v4、初始行却没写」的库：旧客户端被
+ * `RxDB.connect()` 的系统表补建（既有库）建出，六个后端各自的建表器负责方言。两个后端的
+ * `CREATE TABLE` 都**没有** `IF NOT EXISTS`，挡重复下发的是 `#ensureSystemTables` 里那次
+ * `isTableExisted` 探测（见该方法的 `@remarks`）。
+ * 本迁移只写 §8 第 2–3 步的初始行，并且**必须**排在水位线写下 `RXDB_SYSTEM_SCHEMA_WATERMARK`（`system/migration.ts`）
+ * **之前**——顺序反了，这里一失败就会留下「标成当前版本、初始行却没写」的库：旧客户端被
  * `UnsupportedRxDBSystemVersionError` 拒之门外，新能力也没拿到。
  *
  * **全有或全无**：整段只发一次 `saveMany`，任何一行失败都让错误穿出 `up()`。

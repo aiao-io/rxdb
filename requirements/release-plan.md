@@ -79,6 +79,22 @@
    与 codec 那条的对应命令**均为空**。启动线 A 前按同样两条命令复测一次即可——只要它们仍为空，
    清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
 
+   **`next-0912` 上已经不成立了（2026-09-13）**：该分支把 `RXDB_SYSTEM_SCHEMA_VERSION` 抬到了
+   **5**（3 → 4 是 epic-006 的 10 张工作树/提交图表；4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，
+   FR-048 的「至多一个 active」那一半）。两次都是**单向操作**：标成 5 的库再打开于旧客户端会按
+   `UnsupportedRxDBSystemVersionError` 拒绝——不是新增的危险面（2 → 3 同样如此），但**必须进发布说明**。
+   两条实际后果：
+
+   - **`next-0912` 合入 `main` 之后，它不能充当桥接版本**（见本条第一段：`kind=bridge` 撞上
+     `systemSchemaUpgrade=true` 会被门禁直接拒）。桥接锚点必须从一条不动这两个常量的路径上先发出去，
+     这次 schema 升级排在其**之后**，清单切 `kind=migration`。
+   - 复测那两条 `git log -S` 命令时，区间一旦覆盖本次合入就**不再为空**；届时清单里的
+     `systemSchemaUpgrade` 必须置 `true`，而不是沿用上面那句「保持 `false`」。
+
+   4 → 5 单独拎出来记一笔的理由：`activeKey` 是在 v4 水位线**之后**才进 schema 的，而版本号是升级路径
+   唯一的触发条件、列本身不是——已被标成 4 的库（开发机上的那批）不 bump 就永远补不出这一列。
+   它是**补记**，不是新增能力；v4 从未发布，代价只是一个数字。
+
 2. **版本号是算出来的，不是选的**。`conventionalCommits: true`，`nx.json` 只自定义了 `cleanup` /
    `__INVALID__` 两个类型（均 `semverBump: none`），其余走 nx 23.2.1 的
    `DEFAULT_CONVENTIONAL_COMMITS_CONFIG`：**只有 `feat:` → minor、`fix:` → patch，

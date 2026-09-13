@@ -1,5 +1,7 @@
 import type { EntityMetadata, EntityType, IRepository, IRxDBAdapter } from '@aiao/rxdb';
 import {
+  ACTIVE_BRANCH_KEY,
+  AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
   getEntityMetadata,
   getEntityMutations,
@@ -73,7 +75,8 @@ import {
   isSqlResultEmpty,
   isTableExistedSql,
   quote_sql_identifier,
-  RxDBAdapterSqliteError
+  RxDBAdapterSqliteError,
+  rxDBColumnTypeToSqliteType
 } from './sqlite-core.utils.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
@@ -86,6 +89,101 @@ import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
+
+/** 零 active 时的恢复目标；与 `commit/active-branch-guard.ts` 用的是同一个名字。 */
+const MAIN_BRANCH_ID = 'main';
+
+/**
+ * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
+ *
+ * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
+ * 否则同一个库换个后端打开就是另一套约束。顺序同样是**先建索引、后回填**：
+ * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
+ * 但两端走不同顺序等于给自己留两条要分别验证的路径。
+ *
+ * 探列在 SQLite 这边是**必需的而非优化**：`ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，
+ * 重复执行会直接报错。
+ *
+ * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ *
+ * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
+ * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。把同一个值
+ * 原样写回去仍然是一次 UPDATE，会沿变更派发链路冒出一条谁都没做过的 `RxDBBranch` 更新，
+ * 而且没有任何东西会报错。
+ *
+ * **零 active 且库里连 `main` 行都没有时，这里什么都不建。** 迁移 0004 的不变量是「新库与
+ * 升级库逐字段相同」——一个分支行必须连带 `rxdb_commit_branch_ref` 与 `rxdb_working_tree_state`
+ * 两行（见 `commit/branch-commit-rows.ts`），而这里是裸 SQL，造不出那两行。凭空插一行
+ * `main` 等于亲手制造一个原本不存在的不一致；这种库交给实体层的 `resolve_current_branch`
+ * 去建，它走的是能连带写全的那条路。空表本身不违反「至多一个」，索引照建不误。
+ */
+const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> => {
+  const branchMetadata = getEntityMetadata(RxDBBranch);
+  const branchTableName = get_table_name_by_metadata(branchMetadata);
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return;
+
+  const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
+  if (!activeKeyProperty) {
+    throw new RxDBAdapterSqliteError('RxDBBranch metadata is missing the "activeKey" property.');
+  }
+  const branchTable = quote_sql_identifier(branchTableName);
+  const activeKeyColumn = quote_sql_identifier(activeKeyProperty.columnName);
+
+  const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
+    branchTableName,
+    activeKeyProperty.columnName
+  ]);
+  if (!columnResult.results.some(result => result.rows.length > 0)) {
+    // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
+    // 不会有编译错误，只会让两条路径悄悄分叉。
+    await client.execute(
+      `ALTER TABLE ${branchTable} ADD COLUMN ${activeKeyColumn} ${rxDBColumnTypeToSqliteType(activeKeyProperty)}`
+    );
+  }
+
+  const activeResult = await client.execute(`SELECT "id" FROM ${branchTable} WHERE "activated" = 1 ORDER BY "id"`);
+  const activeBranchIds = activeResult.results.flatMap(result => result.rows).map(row => String(row[0]));
+  if (activeBranchIds.length > 1) throw new AmbiguousActiveBranchError(activeBranchIds);
+
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
+      getTableColumnIndexName(branchMetadata, activeKeyProperty)
+    )} ON ${branchTable}(${activeKeyColumn})`
+  );
+
+  const activeBranchId = activeBranchIds[0];
+  // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
+  // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
+  // A 仍在清空范围内，索引照样不会瞬时自撞。
+  await client.execute(
+    `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
+     WHERE ${activeKeyColumn} IS NOT NULL AND "id" != ?`,
+    [activeBranchId ?? MAIN_BRANCH_ID]
+  );
+
+  if (activeBranchId !== undefined) {
+    // `IS NOT` 在 SQLite 里是 null 安全的比较，列为 NULL 时照样成立。
+    await client.execute(
+      `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NOT ?`,
+      [ACTIVE_BRANCH_KEY, activeBranchId, ACTIVE_BRANCH_KEY]
+    );
+    return;
+  }
+  // 零 active 这一支不需要守卫：`activated` 此刻必然为假（否则不会走到这里），这条 UPDATE
+  // 一定是真变更。
+  await client.execute(`UPDATE ${branchTable} SET "activated" = 1, ${activeKeyColumn} = ? WHERE "id" = ?`, [
+    ACTIVE_BRANCH_KEY,
+    MAIN_BRANCH_ID
+  ]);
+};
 
 /**
  * 事务回调。
@@ -540,6 +638,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
               getTableColumnIndexName(migrationMetadata, nameProperty)
             )} ON ${migrationTable}("name")`
           );
+
+          await ensureBranchActiveKey(client);
 
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(

@@ -19,6 +19,11 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * @remarks
  * 2：`rxdb_migration."name"` 加唯一索引。
  * 4：epic-006 的 10 张工作树 / 提交图表（见 `migrations/0004-working-tree-commits.ts`）。
+ * 5：`rxdb_branch.activeKey` 可空唯一列（FR-048 的「至多一个 active」那一半）。
+ *
+ * 5 是**补记**而不是新增能力：该列在 v4 水位线之后才进 `system/branch.ts`，于是已经被标成 4 的
+ * 库（开发机上的那批）再也不会走进升级路径——版本号是升级路径唯一的触发条件，列本身不是。
+ * 不 bump 就只能留下「除了那批库之外都正确」的洞。
  *
  * **改这个常量是一次单向操作**：bump 之后旧版本客户端打开该库会按
  * {@link UnsupportedRxDBSystemVersionError} 拒绝。这不是新增的危险面（2→3 同样如此），
@@ -28,7 +33,7 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 既有库于是永远进不了升级路径。`__tests__/system/working-tree-schema-migration.spec.ts`
  * 把它钉死就是为了这个。
  */
-export const RXDB_SYSTEM_SCHEMA_VERSION = 4 as const;
+export const RXDB_SYSTEM_SCHEMA_VERSION = 5 as const;
 export const RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX = '__rxdb_system_schema__:' as const;
 export const RXDB_CHANGE_CODEC_WATERMARK_PREFIX = '__rxdb_change_codec__:' as const;
 

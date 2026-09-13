@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
@@ -18,19 +19,34 @@ import { RxDBBranch } from '../../system/branch.js';
 import { RxDBMigration } from '../../system/migration.js';
 import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../../system/migrations/0004-working-tree-commits.js';
 import { SYSTEM_ENTITIES } from '../../system/system-entities.js';
+import { createCapabilityStateRow } from '../fixtures/test-db-setup.js';
 
 interface CreateTablesCall {
   entityTypes: EntityType[];
   entities: InstanceType<EntityType>[];
 }
 
-const createRepository = <T extends EntityType>(): IRepository<T> => ({
-  find: async () => [],
-  count: async () => 0,
+const createRepository = <T extends EntityType>(rows: InstanceType<T>[] = []): IRepository<T> => ({
+  find: async () => rows,
+  count: async () => rows.length,
   create: async entity => entity,
   update: async entity => entity,
   remove: async entity => entity
 });
+
+/**
+ * 按实体分流：只有能力行那张表是有内容的，其余一律空。
+ *
+ * @remarks
+ * `connect()` 的 active 分支握手先读这一行，而它**读不到时抛错、不是返回空**
+ * （`commit/commit-capability.ts` 的 `MISSING_CAPABILITY_ROW`）。全表皆空的替身会让
+ * 本文件每条走既有库路径的用例挂在一个与建表/注册冲突毫无关系的地方。
+ * 发的是**未启用**那一行，于是握手在门口就返回——本文件不测 FR-048。
+ */
+const repositoryFor = <T extends EntityType>(EntityType: unknown): IRepository<T> =>
+  EntityType === CommitCapabilityState ?
+    (createRepository([createCapabilityStateRow()] as InstanceType<T>[]) as IRepository<T>)
+  : createRepository<T>();
 
 class TestLocalAdapter implements IRxDBAdapter {
   readonly #connectErrors: Error[];
@@ -80,8 +96,8 @@ class TestLocalAdapter implements IRxDBAdapter {
     return '1.0.0';
   }
 
-  getRepository<T extends EntityType, RT extends IRepository<T> = IRepository<T>>(): RT {
-    return createRepository<T>() as RT;
+  getRepository<T extends EntityType, RT extends IRepository<T> = IRepository<T>>(EntityType: T): RT {
+    return repositoryFor<T>(EntityType) as RT;
   }
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
@@ -128,7 +144,7 @@ class TestLocalAdapter implements IRxDBAdapter {
       state: 'active',
       query: async () => ({ rowsAffected: 0, rows: [], columns: [] }),
       mutations: async () => [],
-      getRepository: () => createRepository(),
+      getRepository: (EntityType: unknown) => repositoryFor(EntityType),
       saveMany: async (entities: InstanceType<EntityType>[]) => entities,
       removeMany: async (entities: InstanceType<EntityType>[]) => entities,
       mergeChanges: async () => undefined,

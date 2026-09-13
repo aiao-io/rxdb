@@ -1,4 +1,6 @@
 import {
+  ACTIVE_BRANCH_KEY,
+  AmbiguousActiveBranchError,
   encodeRxDBChangeEntityId,
   Entity,
   EntityBase,
@@ -86,6 +88,79 @@ const getWatermarks = async (adapter: RxDBAdapterPGlite): Promise<Array<{ id: nu
     WHERE "name" LIKE '\\_\\_rxdb\\_%' ESCAPE '\\'
     ORDER BY "id"
   `);
+  return result.rows;
+};
+
+/**
+ * 造一张 v4 形态的 `rxdb_branch`：有 `activated`，没有 `activeKey`，也没有那条唯一索引。
+ *
+ * @param adapter - 目标适配器
+ * @param branches - 要写进去的分支行
+ *
+ * @remarks
+ * 不复用 `create_table_sql`：那条路径产出的是**当前**形态，用它建表就等于让被测的升级
+ * 步骤面对一张已经升级过的表，测什么都是绿的。
+ */
+const createLegacyBranchTable = async (
+  adapter: RxDBAdapterPGlite,
+  branches: ReadonlyArray<{ id: string; activated: boolean }>
+): Promise<void> => {
+  await adapter.internalQuery(`
+    CREATE TABLE "rxdb"."rxdb_branch" (
+      "id" varchar PRIMARY KEY,
+      "activated" boolean NOT NULL DEFAULT false,
+      "fromChangeId" integer,
+      "local" boolean NOT NULL DEFAULT true,
+      "remote" boolean NOT NULL DEFAULT false,
+      "createdAt" timestamptz,
+      "updatedAt" timestamptz
+    )
+  `);
+  for (const branch of branches) {
+    await adapter.internalQuery(`INSERT INTO "rxdb"."rxdb_branch" ("id", "activated") VALUES ($1::text, $2::boolean)`, [
+      branch.id,
+      branch.activated
+    ]);
+  }
+};
+
+const getBranchColumns = async (adapter: RxDBAdapterPGlite): Promise<string[]> => {
+  const result = await adapter.internalQuery<{ column_name: string }>(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'rxdb' AND table_name = 'rxdb_branch'
+    ORDER BY column_name
+  `);
+  return result.rows.map(row => row.column_name);
+};
+
+const getBranchIndexes = async (adapter: RxDBAdapterPGlite): Promise<string[]> => {
+  const result = await adapter.internalQuery<{ indexname: string }>(`
+    SELECT indexname FROM pg_indexes
+    WHERE schemaname = 'rxdb' AND tablename = 'rxdb_branch'
+    ORDER BY indexname
+  `);
+  return result.rows.map(row => row.indexname);
+};
+
+const getBranchRows = async (
+  adapter: RxDBAdapterPGlite
+): Promise<Array<{ id: string; activated: boolean; activeKey: string | null }>> => {
+  const result = await adapter.internalQuery<{ id: string; activated: boolean; activeKey: string | null }>(
+    `SELECT "id", "activated", "activeKey" FROM "rxdb"."rxdb_branch" ORDER BY "id"`
+  );
+  return result.rows;
+};
+
+/**
+ * 每行的 `xmin`——Postgres 里写它的那个事务号。行被重写过它就变，没被重写它就不变。
+ *
+ * @param adapter - 目标适配器
+ * @returns 按 `id` 排序的 `id` → `xmin` 列表
+ */
+const getBranchRowVersions = async (adapter: RxDBAdapterPGlite): Promise<Array<{ id: string; xmin: string }>> => {
+  const result = await adapter.internalQuery<{ id: string; xmin: string }>(
+    `SELECT "id", "xmin"::text AS "xmin" FROM "rxdb"."rxdb_branch" ORDER BY "id"`
+  );
   return result.rows;
 };
 
@@ -372,6 +447,97 @@ describe('PGlite system schema migration', () => {
     );
     const matchingChange = change.rows.find(row => row.transactionId === transactionId);
     expect(matchingChange).toEqual({ branchId, transactionId });
+  });
+
+  // FR-048 的「至多一个 active」那一半架在 `rxdb_branch.activeKey` 的可空唯一列上。该列是在
+  // v4 水位线**之后**才进 schema 的，而既有库的升级路径只按表粒度补建、从不看列——不在这里补，
+  // 那批库的约束就永远缺席，且不报任何错。
+  it('给既有库补 activeKey 列与唯一索引，并回填当前 active 分支', async () => {
+    const adapter = await createLegacyDatabase();
+    await createLegacyBranchTable(adapter, [
+      { id: 'main', activated: false },
+      { id: 'feature-x', activated: true }
+    ]);
+
+    await adapter.migrateSystemSchema();
+
+    expect(await getBranchColumns(adapter)).toContain('activeKey');
+    expect(await getBranchIndexes(adapter)).toContain('idx_rxdb_rxdb_branch_activeKey');
+    expect(await getBranchRows(adapter)).toEqual([
+      { id: 'feature-x', activated: true, activeKey: ACTIVE_BRANCH_KEY },
+      { id: 'main', activated: false, activeKey: null }
+    ]);
+
+    // 索引得真的在管事。只断言它存在的话，建到别的列上（比如 `activated`）照样能过，
+    // 而那样的索引对「两行 active」毫无阻挡。
+    await expect(
+      adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'main'`, [
+        ACTIVE_BRANCH_KEY
+      ])
+    ).rejects.toThrow();
+  });
+
+  it('零 active 的既有库把 main 激活并写上哨兵值', async () => {
+    const adapter = await createLegacyDatabase();
+    await createLegacyBranchTable(adapter, [
+      { id: 'main', activated: false },
+      { id: 'feature-x', activated: false }
+    ]);
+
+    await adapter.migrateSystemSchema();
+
+    expect(await getBranchRows(adapter)).toEqual([
+      { id: 'feature-x', activated: false, activeKey: null },
+      { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+    ]);
+  });
+
+  it('多 active 的既有库整体回滚，不猜一个留下', async () => {
+    const adapter = await createLegacyDatabase();
+    await createLegacyBranchTable(adapter, [
+      { id: 'feature-x', activated: true },
+      { id: 'main', activated: true }
+    ]);
+
+    await expect(adapter.migrateSystemSchema()).rejects.toBeInstanceOf(AmbiguousActiveBranchError);
+
+    // 「整体回滚」要连**同一次迁移里的其它步骤**一起验，只看列没加回来是不够的：
+    // entityId 的 ALTER 排在补列之前，它留在库里就说明这次升级其实是半截的。
+    expect(await getBranchColumns(adapter)).not.toContain('activeKey');
+    expect(await getBranchIndexes(adapter)).not.toContain('idx_rxdb_rxdb_branch_activeKey');
+    expect(await getWatermarks(adapter)).toEqual([]);
+    expect(await getEntityIdColumnType(adapter)).toBe('uuid');
+  });
+
+  // 这一步在**每一次** `migrateSystemSchema()` 上都会跑，新库也不例外：水位线是本方法最后
+  // 才写的，所以第一次 connect() 同样走完整条升级路径。回填因此必须幂等到**一行都不写**，
+  // 而不只是「写回同一个值」——`rxdb_branch` 挂着 NOTIFY 触发器，白写一遍就会异步派发出一条
+  // `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件，落进调用方的事件流里（清库后的下一个用例、
+  // 或者业务侧的 `ENTITY_LOCAL_UPDATE_EVENT` 订阅），且没有任何东西会报错。
+  it('库已是目标形态时一行都不写', async () => {
+    const adapter = await createLegacyDatabase();
+    await createLegacyBranchTable(adapter, [
+      { id: 'main', activated: true },
+      { id: 'feature-x', activated: false }
+    ]);
+    // 手工补到「当前形态」：列、唯一索引、哨兵值都已就位，只差水位线——这正是新库第一次
+    // 走到这里时的样子。
+    await adapter.internalQuery(`ALTER TABLE "rxdb"."rxdb_branch" ADD COLUMN "activeKey" varchar`);
+    await adapter.internalQuery(
+      `CREATE UNIQUE INDEX "idx_rxdb_rxdb_branch_activeKey" ON "rxdb"."rxdb_branch" ("activeKey" bpchar_ops)`
+    );
+    await adapter.internalQuery(`UPDATE "rxdb"."rxdb_branch" SET "activeKey" = $1::text WHERE "id" = 'main'`, [
+      ACTIVE_BRANCH_KEY
+    ]);
+    const versionsBefore = await getBranchRowVersions(adapter);
+
+    await adapter.migrateSystemSchema();
+
+    expect(await getBranchRowVersions(adapter)).toEqual(versionsBefore);
+    expect(await getBranchRows(adapter)).toEqual([
+      { id: 'feature-x', activated: false, activeKey: null },
+      { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
+    ]);
   });
 
   it('高版本水位在 ALTER 或业务写入前 fail-fast', async () => {

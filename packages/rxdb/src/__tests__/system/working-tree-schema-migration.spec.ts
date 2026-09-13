@@ -1,5 +1,5 @@
 /**
- * @fileoverview T006 红测试：系统 schema 3 → 4 的单条迁移。
+ * @fileoverview T006 红测试：系统 schema 3 → 4 的单条迁移，以及版本水位线本身。
  *
  * @remarks
  * 契约见 `specs/001-working-tree-commits/data-model.md` §8。
@@ -10,10 +10,12 @@
  *
  * 为什么这三组断言值得写：
  *
- * 1. **水位常量**。`RXDB_SYSTEM_SCHEMA_WATERMARK` 是模板字符串拼出来的，改 `3` 为 `4`
- *    之后它自动跟着变——正因为自动，**忘记改**也一样自动：整份代码没有任何一处会因为
- *    常量停在 3 而编译失败，而停在 3 的后果是既有库永远不会进入升级路径，10 张表永远
- *    建不出来，且没有任何报错。
+ * 1. **水位常量**。`RXDB_SYSTEM_SCHEMA_WATERMARK` 是模板字符串拼出来的，bump 之后它自动
+ *    跟着变——正因为自动，**忘记改**也一样自动：整份代码没有任何一处会因为常量停在旧值而
+ *    编译失败，而停住的后果是既有库永远不会进入升级路径，且没有任何报错。3 → 4 停住是
+ *    10 张表永远建不出来；4 → **5** 停住是 `rxdb_branch.activeKey` 那一列永远补不出来
+ *    （FR-048 的「至多一个 active」半边，升级动作在两个本地后端的 `migrateSystemSchema()`
+ *    里，不在本迁移内）。所以这条断言钉的是**当前值**，不是某一次 bump。
  * 2. **每分支初始行**。§8 第 2 步要求为**每个已存在分支**各写一行 2.5 与一行 2.6。
  *    只给当前激活分支写是最自然的写法，也是最难发现的错误：单分支库上两种写法行为完全
  *    一致，要到用户切到第二个分支才炸。
@@ -118,10 +120,10 @@ function pick<T>(saved: InstanceType<EntityType>[], EntityClass: new () => T): T
   return saved.filter((entity): entity is T => entity instanceof EntityClass);
 }
 
-describe('系统 schema 3 → 4 迁移', () => {
-  it('版本常量与水位线停在 4', () => {
-    expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(4);
-    expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}4`);
+describe('系统 schema 迁移与版本水位线', () => {
+  it('版本常量与水位线停在 5', () => {
+    expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(5);
+    expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}5`);
   });
 
   it('系统迁移清单只含本条迁移，且名字与文件名一致', () => {

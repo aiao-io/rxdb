@@ -86,7 +86,8 @@
 | `contentFingerprint` | `string`  | not null                              | FR-022 图校验的节点指纹                   |
 
 - **只追加，永不 UPDATE / DELETE**。
-- 幂等靠 `operationId` 唯一索引 + 既有 `isUniqueConstraintViolation()`（`migration.ts`）判别：撞约束 = 同一次提交重放，读回现有节点返回，**不新建**。该谓词必须**贴在这一条 INSERT 上**，不得在事务外层泛用（`migration.ts` 注释已写明误用代价）。
+- 幂等靠 `operationId` 唯一索引 + **推进 HEAD 之前**那次按 `operationId` 的探测：命中即同一次提交重放，读回现有节点返回（`reused`），**不新建**。
+- **CAS 命中之后再撞唯一约束不降级成返回值，一律抛出**，交给调用方的事务整体回滚。降级会让事务照常提交，而 HEAD 已被 CAS 推到一个从未落库的 commit id 上——下一次图校验报 `missing_commit`，分支被 latch 成 `corrupted_read_only`；且那次「读回获胜者」的 SELECT 跑在已被失败 INSERT 中止的事务里，在 PostgreSQL 上必然 `25P02`。CAS 成功本身已排除并发赢家：赢家要写入同一个 `operationId`，必先经自己的 CAS 把 `headRevision` 推到 `expected + 1`，我们的 CAS 就会先返回 0 行。
 - `kind` 落成独立列，**不从「`author` 为空」反推**：反推把 `baseline` 与 `branch_baseline` 压成同一种，而 FR-044 的物化屏障要求能单独认出后者；更要命的是它让「作者恰好没记上的普通 commit」与系统根节点不可区分，于是 FR-009 的空 ChangeSet 门禁对前者一并失效。**无默认值**同理：默认成 `normal` 会让漏赋值的系统根节点静默变成普通 commit，正好绕开该门禁。
 - 祖先可达性沿 `parentIds` 向上走，方向与 FR-022 的损坏判定一致，因此**不建 edge 表**。
 - `firstParentId` 是 `parentIds[0]` 的冗余列，只为让祖先遍历走索引。冗余列就是第二份真相的温床，因此配一条不变量断言（`firstParentId === parentIds[0] ?? null`）进 conformance 套件。
@@ -202,6 +203,20 @@
 
 判定这两条是否被违反的可执行门禁：`rxdb_commit_change_set` 与 `rxdb_working_tree_entry` 的 `relations` 数组中**不得出现** `mappedEntity: 'RxDBChange'`。这是一条静态断言，进 conformance 套件。
 
+### 3.1 FR-048「恰好一个 active 分支」→ 物理落点
+
+拆成两半，因为**没有任何一半能单独成立**（实现与本节一致，见 `packages/rxdb/src/commit/active-branch-guard.ts` 的 fileoverview）：
+
+| 半边         | 物理落点                                                                                                          |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **至多一个** | `rxdb_branch` 新增 `activeKey`（`string`, nullable, **unique**）；active 那行写哨兵 `'*active*'`，其余一律 `NULL` |
+| **至少一个** | 运行期两个入口：连接握手 `assertSingleActiveBranch()`、首次启用迁移 `resolveSingleActiveBranch()`                 |
+
+- 选**可空唯一列**而不是部分唯一索引（`... ON rxdb_branch(activated) WHERE activated = TRUE`）：`NULL` 不参与唯一比较这一条在 PostgreSQL 与全部 SQLite 绑定上语义一致，不需要各后端写方言化的部分索引——与 2.8 `rxdb_working_tree_restore_session.activeKey` 同一手法。
+- 「至少一个」**表达不成列约束**：零 active 是一张**空表**也满足的条件。
+- **双写不变式**：每一处写 `activated` 的地方都必须同时写 `activeKey`。两个本地后端的 `switch_branch` 是裸 SQL，且必须拆成**两条** UPDATE（先熄灭旧行、再点亮新行）——唯一索引逐行立即检查，把同一个哨兵值在一条语句里从 A 行搬到 B 行会按行处理顺序瞬时冲突。
+- 连接握手**以提交能力已启用为前提**（FR-048 的措辞是「启用后 MUST 保证」），且只校验**既有库**：新库那行 `main` 是同一次建表刚写下的。
+
 ## 4. 编解码与加密边界
 
 - 2.4 / 2.7 的 `patch` / `inversePatch` **复用** `change-codec.ts` 的同一份 encode / decode，不写第二份编解码器。
@@ -254,6 +269,22 @@
 4. `RXDB_SYSTEM_SCHEMA_VERSION` 3 → **4**，水位写 `__rxdb_system_schema__:4`。
 
 **全有或全无**：任一分支初始化不成功，整条迁移回滚，数据库停在 v3。
+
+### 8.1 系统 schema 4 → 5：`rxdb_branch.activeKey` 的就地升级
+
+§3.1 的列是在 v4 水位线**之后**才进 `system/branch.ts` 的，而版本号是升级路径唯一的触发条件、列本身不是——已被标成 4 的库因此再也不会走进升级路径。所以 4 → **5** 是一次**补记**而非新增能力，不 bump 就只能留下「除了那批库之外都正确」的洞。
+
+该升级不在 §8 的那条迁移里，而在两个本地后端的 `migrateSystemSchema()` 内（与 RXD-036 给 `rxdb_migration."name"` 补唯一索引同一形状：先收敛数据、再建索引），版本门内、写水位线之前，按序：
+
+1. **探列**：PGlite 查 `information_schema.columns`；SQLite 查 `pragma_table_info`。SQLite 的 `ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，探测是必需的、不是优化。
+2. **加列**：`ALTER TABLE rxdb_branch ADD COLUMN "activeKey" <列类型>`。列类型走与建表同一个 helper；`unique: true` 在两端都编译成**独立的** `CREATE UNIQUE INDEX`，所以加裸列 + 单独建索引与新库形状一致。
+3. **基数仲裁**（必须在建索引之前，否则索引直接建失败并卡死整个升级）：`SELECT id ... WHERE activated`，**多于一行即抛 `AmbiguousActiveBranchError` 整体回滚，不猜**（FR-048 的硬要求）。
+4. **建索引**：`CREATE UNIQUE INDEX IF NOT EXISTS <getTableColumnIndexName(...)> ON rxdb_branch("activeKey")`，索引名复用同一个 helper，与新库同名。
+5. **回填**：先把全表 `activeKey` 清成 `NULL`，再给那一行 active 写哨兵；零 active 时沿用既有 main 恢复语义（`UPDATE ... SET activated = TRUE, activeKey = '*active*' WHERE id = 'main'`）。
+
+**零 active 且连 `main` 行都不存在时不 raw-INSERT 分支行**：一行分支要配套 2.5 / 2.6 的初始行才算完整（§8 步骤 2 的不变量是「新库与升级库逐字段相同」），而适配器裸 SQL 产不出它们。空分支表在 schema 层不违反任何约束，由实体层的 `resolve_current_branch` 在其后补齐——它本来就负责双写这两列。
+
+**同样是单向的**：标成 5 的库打不开于旧客户端，须进发布说明。
 
 **已知影响，不掩饰**：bump 之后旧版本客户端打开该库会按既有 `UnsupportedRxDBSystemVersionError` 拒绝。这不是本特性新增的危险面——2→3 同样如此——但必须写进发布说明。建表本身不改变任何业务行为：`enabled = false` 时全部捕获与门禁短路，满足 FR-046。
 

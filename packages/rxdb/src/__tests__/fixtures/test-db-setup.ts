@@ -21,6 +21,12 @@
 
 import { type Observable, of } from 'rxjs';
 import { type Mock, vi } from 'vitest';
+import {
+  COMMIT_CAPABILITY_STATE_ID,
+  COMMIT_GRAPH_SCHEMA_VERSION,
+  COMMIT_PROTOCOL_VERSION,
+  CommitCapabilityState
+} from '../../commit/commit-capability-state.entity.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
@@ -33,6 +39,7 @@ import {
 } from '../../rxdb-adapter.js';
 import type { RxDBOptions } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
+import { RXDB_CHANGE_CODEC_VERSION } from '../../system/change-codec.js';
 import type { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
@@ -46,15 +53,59 @@ import { TEST_ENTITIES } from './test-entities.js';
  * 类型是**真的** {@link IRepository}，不是 `as never` 糊出来的：该接口只有五个成员，
  * 全部实现的成本几乎为零，而换来的是「仓库接口一旦加成员，这里立刻编译失败」。
  */
-function createStubRepository(): IRepository<EntityType> {
+function createStubRepository(rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
   return {
-    find: vi.fn(async () => []),
-    count: vi.fn(async () => 0),
+    find: vi.fn(async () => rows),
+    count: vi.fn(async () => rows.length),
     create: vi.fn(async entity => entity),
     update: vi.fn(async entity => entity),
     remove: vi.fn(async entity => entity)
   };
 }
+
+/**
+ * 未启用的能力行——`connect()` 的 active 分支握手要先读它。
+ *
+ * @remarks
+ * 这是「只保留形状、不保留存储」的唯一例外，理由是**缺这一行不等于空结果，而是一个错误**：
+ * `readCommitCapability` 在读不到时抛 `RxDBError`，于是替身若照常返回 `[]`，每一条走
+ * 本地引导的用例都会在握手那一步炸掉——炸的还是一个与被测行为毫无关系的原因。
+ *
+ * 真库里这一行由 `createWorkingTreeCommitsInitialRows` 随建表写入，`enabled` 同样是
+ * `false`（FR-046：建表不改变任何行为）。要验证启用态握手的用例自己把它换掉。
+ *
+ * 写成**对象字面量**而不是 `new CommitCapabilityState()`：装饰器给实体装了一对访问器，
+ * 它们在读写时要解析 `EntityManager`，而这一行是在适配器的字段初始化里造的——
+ * 那时 `rxdb.init()` 还没跑，构造出来的实例一碰就抛「needs an initialized RxDB」。
+ * 字面量不经过访问器，而返回类型仍是实体本身，字段少一个照样编译失败。
+ */
+export const createCapabilityStateRow = (): CommitCapabilityState => ({
+  id: COMMIT_CAPABILITY_STATE_ID,
+  enabled: false,
+  protocolVersion: COMMIT_PROTOCOL_VERSION,
+  schemaVersion: COMMIT_GRAPH_SCHEMA_VERSION,
+  codecVersion: RXDB_CHANGE_CODEC_VERSION,
+  enabledAt: null
+});
+
+/**
+ * 只替换**能力行以外**的实体仓库。
+ *
+ * @param adapter - 要打桩的替身
+ * @param repository - 用例自己那份仓库，交给除 {@link CommitCapabilityState} 外的全部实体
+ *
+ * @remarks
+ * `getRepository` 是通用入口，用例惯用的 `mockReturnValue(x)` 会把**每一个**实体都换成 `x`，
+ * 其中包括 `connect()` 的 active 分支握手要读的那一行能力状态——而它读不到时不是拿到空结果，
+ * 是抛错（见 {@link createCapabilityStateRow}），于是用例会挂在一个与被测行为无关的地方。
+ * 用例真正想换的从来只是自己那张表。
+ */
+export const stubAdapterRepository = (adapter: MockLocalAdapter, repository: unknown): void => {
+  const defaultGetRepository = adapter.getRepository.getMockImplementation();
+  adapter.getRepository.mockImplementation(EntityType =>
+    EntityType === CommitCapabilityState ? (defaultGetRepository?.(EntityType) as never) : (repository as never)
+  );
+};
 
 /**
  * unit 层用的本地适配器替身。
@@ -88,6 +139,9 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    * 「只替换一个」的写法退化成「每次都换」。
    */
   readonly #repository = createStubRepository();
+
+  /** 能力行专用仓库；理由见 {@link createCapabilityStateRow}。 */
+  readonly #capabilityRepository = createStubRepository([createCapabilityStateRow()]);
 
   name = 'mock';
 
@@ -146,7 +200,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    * 不是拿它盖住某个缺失的成员 —— 与被删掉的 `as unknown as IRxDBAdapter` 完全是两回事。
    */
   getRepository: IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>> = vi.fn(
-    () => this.#repository
+    EntityType => (EntityType === CommitCapabilityState ? this.#capabilityRepository : this.#repository)
   ) as IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>>;
 
   /**
