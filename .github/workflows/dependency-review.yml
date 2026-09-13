@@ -78,7 +78,30 @@ jobs:
           #     └─ @tarojs/cli@4.2.1 → download-git-repo@3.0.2 → git-clone@0.1.0
           #
           # 复查条件：@tarojs/cli 换掉 download-git-repo —— 届时这两条例外一起删。
-          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66
+          # 例外：GHSA-pfq8-rq6v-vf5m / CVE-2022-37620（html-minifier@4.0.0，high，ReDoS）
+          #
+          # 第三个洞，同样没有依赖侧的修法：
+          #   - 通告的 vulnerable range 是 `<= 4.0.0`，first_patched_version 为 null，
+          #     而 4.0.0 就是 npm 上的 latest —— 发布于 2019-04，此后再没出过新版，
+          #     override 到任何版本都不改变结论；
+          #   - 唯一还在维护的替代品 html-minifier-terser 不是 drop-in：它从 v6 起
+          #     `minify()` 返回 Promise，而下面那个调用点是同步赋值 —— alias 过去
+          #     会把 `[object Promise]` 原样写进模板产物，是比这个漏洞更确定的故障。
+          #
+          # 引入链，全程 dev-only：
+          #   apps/dev-rxdb-miniprogram（devDependency）
+          #     └─ @tarojs/vite-runner@4.2.1（已是 latest；4.2.2-beta 仍写着 ^4.0.0）
+          #        └─ html-minifier@4.0.0
+          #
+          # 可达面同样为零：唯一加载点是 dist/mini/emit.js 的 generateTemplateFile()，
+          # 整段被 `taroConfig.minifyXML?.collapseWhitespace` 门住，而本仓库 config/ 下
+          # 从没打开过 minifyXML，那行 `require('html-minifier')` 不会执行。即便打开，
+          # 喂进去的也是本仓库自己的模板产物 —— 编译期的可信输入，不存在攻击者可控的 HTML。
+          #
+          # 复查条件（满足任一就删掉这条例外重跑）：
+          #   - @tarojs/vite-runner 换成 html-minifier-terser；
+          #   - html-minifier 出现 4.0.0 以上的修复版本。
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m
 
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——
