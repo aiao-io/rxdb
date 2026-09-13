@@ -146,6 +146,9 @@ export async function syncBranches(vm: VersionManager): Promise<SyncBranchesResu
       await branchRepository.create({
         id: remote.id,
         activated: false,
+        // 显式写 NULL 而不是留空：两列必须同进同出（`system/branch.ts`）。
+        // 留空在两个后端上**眼下**也落成 NULL，但那是默认值的巧合，不是这一行的意图。
+        activeKey: null,
         local: false,
         remote: true,
         fromChangeId,

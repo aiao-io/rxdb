@@ -116,6 +116,10 @@ const commitSignatureOf = (row: Commit): string =>
 const readAllCommits = async (executor: TransactionExecutor): Promise<Commit[]> =>
   executor.getRepository(Commit).find({ where: { combinator: 'and', rules: [] } });
 
+/** 读 `rxdb_commit_branch_ref` 全表。 */
+const readAllRefs = async (executor: TransactionExecutor): Promise<CommitBranchRef[]> =>
+  executor.getRepository(CommitBranchRef).find({ where: { combinator: 'and', rules: [] } });
+
 /** 全表快照：commit id → 内容签名。 */
 const snapshotCommits = async (executor: TransactionExecutor): Promise<Map<string, string>> => {
   const rows = await readAllCommits(executor);
@@ -455,6 +459,40 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           head: refBefore.headCommitId,
           revision: refBefore.headRevision
         });
+      });
+
+      it('enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号', async () => {
+        const refsBefore = await withTransaction(database, readAllRefs);
+
+        await database.versionManager.createBranch('feature-fresh');
+
+        const refsAfter = await withTransaction(database, readAllRefs);
+        const states = await withTransaction(database, async executor =>
+          executor.getRepository(WorkingTreeState).find({ where: { combinator: 'and', rules: [] } })
+        );
+        const fresh = refsAfter.find(ref => ref.id === 'feature-fresh');
+        // 只写 rxdb_branch 一行的话，这条分支在 readCommitBranchRef() 上一读就抛——
+        // 下一次 enable() 整体回滚，而 facade 承诺的「补根」对它永远失效。
+        expect({ branchId: fresh?.branchId, head: fresh?.headCommitId, revision: fresh?.headRevision }).toEqual({
+          branchId: 'feature-fresh',
+          head: null,
+          revision: 0
+        });
+        expect(states.map(state => state.id)).toContain('feature-fresh');
+        // 代际取自单调源而非分支数：删过分支之后「数一数加一」会复用旧号（ABA）。
+        expect(refsBefore.map(ref => ref.generation)).not.toContain(fresh?.generation);
+      });
+
+      it('新建分支后再 enable() 一次，新分支拿到自己的 baseline', async () => {
+        await database.versionManager.createBranch('feature-fresh');
+
+        await database.workingTree.enable();
+
+        const history = await withTransaction(database, executor =>
+          listCommits(executor, { branchId: 'feature-fresh' })
+        );
+        // 这正是 `working-tree-facade.ts` 对用户的承诺：漏掉根的分支，再调一次 enable() 就能补上。
+        expect(history.map(commit => commit.kind)).toEqual(['baseline']);
       });
 
       it('全有或全无：任一分支不可物化时整体回滚，健康分支零变化', async () => {

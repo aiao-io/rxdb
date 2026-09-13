@@ -22,9 +22,13 @@
  *    复用同一批 id。真正的键是 `generation + operationId`——`generation` 全局单调不复用
  *    （data-model.md §2.2），所以它同时把 database 与 branch 两维都盖住了。
  *    裸 `operationId` 会让新分支的第一次提交被误判成旧分支那次提交的重放，直接返回旧节点。
- * 4. **唯一约束的捕获会被写成包住整段的 try/catch**。`isUniqueConstraintViolation()` 的 TSDoc
- *    已经写明它只说「这是唯一约束冲突」，说不了「冲突的是哪张表」。包大了，用户实体里一条
- *    无关的唯一约束错误会被读成「这次提交是重放」，于是**丢掉一次真实提交**且无任何报错。
+ * 4. **CAS 成功之后的写失败会被「降级」成返回值**。CAS 已经把 `headCommitId` 推到了本次的新 id，
+ *    此时再把 INSERT 的失败读成「这次是重放」并正常返回，事务就会照常提交——HEAD 停在一个
+ *    从未落库的 commit 上（幽灵 HEAD），下一次 `assertCommitGraphIntact()` 把分支 latch 成
+ *    `corrupted_read_only`。CAS 之后只有一个诚实的出口：抛错，让调用方的事务整体回滚。
+ *    连带地，那条「读回赢家」的恢复 SELECT 也不该存在：它跑在一条失败语句之后，
+ *    Postgres/PGlite 上事务已进入 aborted 状态，后续语句一律 `25P02`
+ *    （`system/migration-runner.ts` 的 TSDoc 早就写明了这条语义）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -283,23 +287,46 @@ describe('提交幂等（FR-036）', () => {
     expect(probe.rowsOf(Commit)).toHaveLength(2);
   });
 
-  it('INSERT 撞唯一约束时读回获胜的那个 commit（并发重放的兜底）', async () => {
+  it('CAS 成功后 INSERT 撞唯一约束 —— 原样抛出，不留下幽灵 HEAD', async () => {
     const entityManager = createEntityManager();
     const input = createWriteInput();
-    let winner: Commit | null = null;
+    const failure = new Error('UNIQUE constraint failed: rxdb_commit.operationId');
     const probe = createCommitGraphProbe({
       rowsAffected: 1,
       saveMany: async () => {
-        // 模拟「本次查过之后、写之前」另一个 writer 抢先提交完成。
-        winner ??= seedExistingCommit(probe, entityManager, input);
+        // 就算「赢家」真的读得回来也不许降级：HEAD 已经指向我们这次的新 id，
+        // 返回赢家等于让事务带着一个指向不存在 commit 的 ref 提交。
+        seedExistingCommit(probe, entityManager, input);
+        throw failure;
+      }
+    });
+    seedRef(probe, entityManager);
+
+    // CAS 命中意味着 headRevision 仍等于 expected。任何写下同一 operationId 的并发赢家，
+    // 必然也已用自己的 CAS 把 headRevision 推到了 expected+1，我们的 CAS 就会先返回 0 行。
+    // 所以「CAS 成功 + operationId 冲突」不可达；真发生了就是库态自相矛盾，只能整体回滚。
+    await expect(writeCommit(probe.executor, entityManager, input)).rejects.toThrow(failure);
+    // 已经发过 CAS（HEAD 推进了）而本次的 commit 没落库 —— 任何 resolve 都会让外层事务提交。
+    expect(probe.statements).toHaveLength(1);
+    expect(probe.rowsOf(Commit).map(row => (row as Commit).id)).toEqual(['commit-existing']);
+  });
+
+  it('写失败之后不再补发任何恢复 SELECT（PGlite 的 aborted 事务里它必然二次报错）', async () => {
+    const entityManager = createEntityManager();
+    const probe = createCommitGraphProbe({
+      rowsAffected: 1,
+      saveMany: async () => {
         throw new Error('UNIQUE constraint failed: rxdb_commit.operationId');
       }
     });
     seedRef(probe, entityManager);
 
-    const outcome = await writeCommit(probe.executor, entityManager, input);
+    await expect(writeCommit(probe.executor, entityManager, createWriteInput())).rejects.toThrow();
 
-    expect(outcome).toEqual({ status: 'reused', commit: winner });
+    // 只允许 CAS 之前那两次读：ref 一次、幂等探测一次。第三次读发生在一条失败语句之后，
+    // Postgres/PGlite 上事务已 aborted，那条 SELECT 会把原始错误换成一条 25P02，
+    // 真正的失败原因就此丢失。
+    expect(probe.finds.map(call => call.entity)).toEqual(['CommitBranchRef', 'Commit']);
   });
 
   it('非唯一约束的写失败原样上抛，不被当成重放吞掉', async () => {

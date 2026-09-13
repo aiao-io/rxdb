@@ -1,43 +1,83 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
+import type { EntityManager } from '../../entity/entity-manager.js';
 import type { EntityType } from '../../entity/entity.interface.js';
+import { SyncType } from '../../entity/metadata-options.interface.js';
+import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
 import { RxDBBranch } from '../../system/branch.js';
 import type { LocalRxDBChangeRepository } from '../../system/types.local.js';
 import { create_branch, get_current_branch_last_change } from '../../version/create-branch.js';
 import { VersionManager } from '../../version/VersionManager.js';
+import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
+import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
+import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createTransactionStub } from '../fixtures/transaction-executor-stub.js';
 
 type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
 type SyncConfigStub = { remote?: { adapter: string } };
 
+function createEntityManager(): EntityManager {
+  const database = new RxDB({
+    dbName: `rxdb-create-branch-${Math.random().toString(36).slice(2)}`,
+    entities: [],
+    sync: { local: { adapter: 'local' }, type: SyncType.None }
+  });
+  database.adapter('local', db => createMockAdapter(db));
+  database.init();
+  return database.entityManager;
+}
+
 describe('create_branch', () => {
   let mockVersion: VersionManager;
-  let mockBranchRepository: FindRepositoryMock;
+  let mockBranchRepository: FindRepositoryMock & { create: ReturnType<typeof vi.fn> };
   let mockChangeRepository: FindRepositoryMock;
+  let mockActivationRepository: FindRepositoryMock & { update: ReturnType<typeof vi.fn> };
+  let activationRow: WorkingTreeActivationState;
+  let savedRows: object[];
+  let entityManager: EntityManager;
   let syncConfig: SyncConfigStub;
   let getRemoteRepositoriesMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     syncConfig = {};
     getRemoteRepositoriesMock = vi.fn();
+    entityManager = createEntityManager();
+    savedRows = [];
 
     mockBranchRepository = {
-      find: vi.fn()
+      find: vi.fn(),
+      create: vi.fn(async (entity: object) => entity)
     };
 
     mockChangeRepository = {
       find: vi.fn()
     };
 
+    activationRow = entityManager.instantiate(WorkingTreeActivationState);
+    activationRow.id = 'singleton';
+    activationRow.activationRevision = 0;
+    activationRow.branchGenerationSeq = 3;
+    mockActivationRepository = {
+      find: vi.fn(async () => [activationRow]),
+      update: vi.fn(async (entity: object, patch: object) => Object.assign(entity, patch))
+    };
+
     // 「查重 → 解析分叉点 → 写入」整段搬进了事务，事务内的仓库由 executor 给。
     // 打桩把它转发回同一组 mock，因此下面各用例断言的可观测行为不变。
     const transaction = createTransactionStub({
-      getRepository: (EntityType: EntityType) =>
-        (EntityType as unknown) === RxDBBranch ? mockBranchRepository : mockChangeRepository
+      getRepository: (EntityType: EntityType) => {
+        if ((EntityType as unknown) === RxDBBranch) return mockBranchRepository;
+        if ((EntityType as unknown) === WorkingTreeActivationState) return mockActivationRepository;
+        return mockChangeRepository;
+      },
+      saveMany: (entities: never[]) => {
+        savedRows.push(...(entities as object[]));
+      }
     });
 
     mockVersion = {
-      rxdb: { config: { sync: syncConfig } },
+      rxdb: { config: { sync: syncConfig }, entityManager },
       getLocalRepositories: vi.fn().mockResolvedValue({
         branchRepository: mockBranchRepository,
         changeRepository: mockChangeRepository,
@@ -99,6 +139,83 @@ describe('create_branch', () => {
 
     await expect(create_branch(mockVersion, 'feature', 999)).rejects.toThrow(RxDBError);
     await expect(create_branch(mockVersion, 'feature', 999)).rejects.toThrow('Change ID (999) not found');
+  });
+
+  /** 让 create_branch 走到「真的建出分支」那一步：源分支是已激活的 main。 */
+  function seedSourceBranch(): void {
+    const main = entityManager.instantiate(RxDBBranch);
+    main.id = 'main';
+    main.activated = true;
+    main.local = true;
+    main.remote = false;
+    mockBranchRepository.find
+      .mockResolvedValueOnce([]) // 事务外快速查重
+      .mockResolvedValueOnce([]) // 事务内查重
+      .mockResolvedValueOnce([main]); // resolve_current_branch 取激活分支
+    mockChangeRepository.find.mockResolvedValue([]);
+  }
+
+  it('新分支同时落下 CommitBranchRef 与 WorkingTreeState', async () => {
+    seedSourceBranch();
+
+    await create_branch(mockVersion, 'feature-x');
+
+    // 只写 rxdb_branch 一行，enable() 里的 readCommitBranchRef 就会在这条分支上抛错，
+    // 整条一次性初始化迁移回滚——而 facade 承诺的「再调一次 enable() 补根」永远失效。
+    const ref = savedRows.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
+    const state = savedRows.find(row => row instanceof WorkingTreeState) as WorkingTreeState | undefined;
+    expect({
+      refId: ref?.id,
+      branchId: ref?.branchId,
+      headCommitId: ref?.headCommitId,
+      headRevision: ref?.headRevision,
+      status: ref?.status,
+      corruptedAt: ref?.corruptedAt
+    }).toEqual({
+      refId: 'feature-x',
+      branchId: 'feature-x',
+      headCommitId: null,
+      headRevision: 0,
+      status: 'ok',
+      corruptedAt: null
+    });
+    expect({
+      stateId: state?.id,
+      branchId: state?.branchId,
+      baseHeadCommitId: state?.baseHeadCommitId,
+      workingTreeRevision: state?.workingTreeRevision,
+      entryCount: state?.entryCount
+    }).toEqual({
+      stateId: 'feature-x',
+      branchId: 'feature-x',
+      baseHeadCommitId: null,
+      workingTreeRevision: 0,
+      entryCount: 0
+    });
+  });
+
+  it('代际取自 branchGenerationSeq + 1，并写回单调源', async () => {
+    seedSourceBranch();
+
+    await create_branch(mockVersion, 'feature-x');
+
+    // 代际必须全局单调不复用：复用会让持旧 (branchId, headRevision) 的调用方误中新分支（ABA），
+    // 而幂等键正是拿它盖住 database 与 branch 两维的。
+    const ref = savedRows.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
+    expect(ref?.generation).toBe(4);
+    expect(mockActivationRepository.update).toHaveBeenCalledWith(activationRow, { branchGenerationSeq: 4 });
+  });
+
+  it('新分支的 activeKey 显式写成 null', async () => {
+    seedSourceBranch();
+
+    const branch = await create_branch(mockVersion, 'feature-x');
+
+    // 冗余列漏写一处，那一行就绕过了唯一约束——schema 那一半的保护正好在这种漏写上失效。
+    expect({ activated: branch.activated, activeKey: branch.activeKey }).toEqual({
+      activated: false,
+      activeKey: null
+    });
   });
 });
 

@@ -21,24 +21,36 @@ const tableResult = (rows: [string, string][]): SqliteSuccessResult => ({
  */
 const createCleanupAdapter = (tables: [string, string][]) => {
   const executedSql: string[] = [];
+  const savedRows: { id: string }[] = [];
   const adapter = {
     rxdb: {
       config: { entities: [] },
-      entityManager: { cleanAllCache: vi.fn() },
+      // `instantiate` 返回裸对象：真实实体类的构造器带 `need init rxdb` 门禁，
+      // 而建库初始行工厂只往返回值上赋字段，不依赖实体行为。
+      entityManager: { cleanAllCache: vi.fn(), instantiate: () => ({}) },
       versionManager: { resetSessionState: vi.fn() }
     } as unknown as RxDB,
     encryptionContext: { resolveEntityMetadata: undefined },
     cleanAllCache: vi.fn(),
     query: vi.fn().mockResolvedValue(emptyResult()),
-    transaction: async <T>(callback: (tx: { execute: (sql: string) => Promise<SqliteSuccessResult> }) => Promise<T>) =>
+    transaction: async <T>(
+      callback: (tx: {
+        execute: (sql: string) => Promise<SqliteSuccessResult>;
+        saveMany: (rows: { id: string }[]) => Promise<{ id: string }[]>;
+      }) => Promise<T>
+    ) =>
       await callback({
         execute: async (sql: string) => {
           executedSql.push(sql.trim());
           return sql.includes('sqlite_master') ? tableResult(tables) : emptyResult();
+        },
+        saveMany: async (rows: { id: string }[]) => {
+          savedRows.push(...rows);
+          return rows;
         }
       })
   } as unknown as RxDBAdapterSqliteBase;
-  return { adapter, executedSql };
+  return { adapter, executedSql, savedRows };
 };
 
 describe('cleanup_db', () => {
@@ -52,6 +64,17 @@ describe('cleanup_db', () => {
 
     expect(executedSql).toContain('DELETE FROM "public$todos";');
     expect(executedSql).toContain('DELETE FROM "rxdb$rxdb_change";');
+  });
+
+  // 清库要回到的是**新库形态**。只补 `rxdb_branch` 会留下一个新库不可能出现的半成品：
+  // 下一次 `createBranch()` 在发放分支代际时读不到激活态单例行而直接抛错。
+  it('把建库初始行一并补回：只补 rxdb_branch 的库不是新库', async () => {
+    const { adapter, savedRows } = createCleanupAdapter([['public$todos', 'CREATE TABLE "public$todos" (...)']]);
+
+    await cleanup_db(adapter);
+
+    // 激活态与提交能力两行单例，外加 main 的 ref / 工作树状态两行。
+    expect(savedRows.map(row => row.id).sort()).toEqual(['default', 'default', 'main', 'main']);
   });
 
   // SQLite 的内部表不属于「测试数据」。尤其是 `sqlite_sequence`：`rxdb$rxdb_change.id` 是

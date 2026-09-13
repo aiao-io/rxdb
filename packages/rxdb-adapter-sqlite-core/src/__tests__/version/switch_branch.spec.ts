@@ -86,15 +86,53 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
   return { adapter, calls, dispatched };
 };
 
+/** 从整段切换 SQL 里挑出打在分支表上的 UPDATE 语句，按出现顺序返回。 */
+const branchUpdatesOf = (sql: string): string[] =>
+  sql
+    .split(';')
+    .map(statement => statement.trim())
+    .filter(statement => statement.startsWith('UPDATE') && statement.includes('rxdb_branch'));
+
 describe('generateSwitchBranchSql', () => {
   it('应为开启日志的实体重建触发器并更新 activated 标记', () => {
     const { adapter } = createSwitchAdapter();
     const sql = generateSwitchBranchSql(adapter, 'feature-1');
 
     expect(sql).toContain('"public$todos_insert"');
-    expect(sql).toContain(`WHEN id = 'feature-1' THEN 1`);
-    expect(sql).toContain(`WHERE id = 'feature-1' OR activated = 1`);
     expect(sql).toContain('RETURNING rowid as __rowid,*');
+  });
+
+  // 熄灭旧行与点亮新行必须是**两条**语句。挤进一条 `SET activated = CASE ... END` 里，
+  // `activeKey` 就要在同一条语句内从 A 行搬到 B 行——可空唯一索引是逐行立即检查的
+  // （`SET CONSTRAINTS ALL DEFERRED` 对普通唯一索引无效），按行处理顺序会瞬时撞上自己。
+  it('拆成熄灭 + 点亮两条 UPDATE，且 activated 与 activeKey 同进同出', () => {
+    const { adapter } = createSwitchAdapter({ entities: [] });
+    const sql = generateSwitchBranchSql(adapter, 'feature-1');
+    const [deactivate, activate, ...rest] = branchUpdatesOf(sql);
+
+    expect(rest).toEqual([]);
+    // 先熄灭：哨兵键必须在被别人写入之前先让出来。
+    expect(deactivate).toContain('activated = 0');
+    expect(deactivate).toContain('activeKey = NULL');
+    expect(deactivate).toContain(`WHERE activated = 1 AND id != 'feature-1'`);
+    expect(activate).toContain('activated = 1');
+    expect(activate).toContain(`activeKey = '*active*'`);
+    expect(activate).toContain(`WHERE id = 'feature-1'`);
+    // 两条都要 RETURNING：少一条，那一侧的行就不进事件派发，undo/redo 消费者看不到它翻转过。
+    expect(deactivate).toContain('RETURNING rowid as __rowid,*');
+    expect(activate).toContain('RETURNING rowid as __rowid,*');
+  });
+
+  // `updatedAt` 只在**真正翻转**的行上推进，是既有语义（两处 inversePatch 依赖它）。
+  // 熄灭那条的 WHERE 已经把「没翻转的行」排除干净，所以它无条件推进；
+  // 点亮那条会扫到「本来就是当前分支」的行，必须留着条件。
+  it('updatedAt 只在真正翻转的行上推进', () => {
+    const { adapter } = createSwitchAdapter({ entities: [] });
+    const [deactivate, activate] = branchUpdatesOf(generateSwitchBranchSql(adapter, 'feature-1'));
+
+    expect(deactivate).toContain('updatedAt = CURRENT_TIMESTAMP');
+    expect(deactivate).not.toContain('CASE');
+    expect(activate).toContain('updatedAt = CASE WHEN activated = 0 THEN CURRENT_TIMESTAMP ELSE updatedAt END');
   });
 
   it('log: false 的实体不应生成触发器', () => {
@@ -109,7 +147,8 @@ describe('generateSwitchBranchSql', () => {
     const { adapter } = createSwitchAdapter({ entities: [] });
     const sql = generateSwitchBranchSql(adapter, "br'1");
 
-    expect(sql).toContain(`WHEN id = 'br''1' THEN 1`);
+    expect(sql).toContain(`WHERE id = 'br''1'`);
+    expect(sql).toContain(`id != 'br''1'`);
   });
 
   it('触发器生成失败时应抛出，不允许部分表静默失去历史', () => {

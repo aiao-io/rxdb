@@ -2,10 +2,14 @@
  * @fileoverview 激活态单行的建行、初始化与读取（FR-052，data-model.md §2.2）。
  *
  * @remarks
- * 本模块只做三件事：造出那一行、把 `activationRevision` 初始化为 0、把它读回来。
- * **递增语义不在这里**——switch branch 成功后的 `+1` 归 US-308（`activation-cas.ts`），
- * 写路径的 token 校验归 US-306 阶段 A。把递增顺手写在这里的话，两个故事会各自
- * 持有一份「怎么算下一个 revision」，而 CAS 的全部意义就是只有一份。
+ * 本模块管这一行的建行、读取，以及 `branchGenerationSeq` 的发放。
+ * **`activationRevision` 的递增不在这里**——switch branch 成功后的 `+1` 归 US-308
+ * （`activation-cas.ts`），写路径的 token 校验归 US-306 阶段 A。把递增顺手写在这里的话，
+ * 两个故事会各自持有一份「怎么算下一个 revision」，而 CAS 的全部意义就是只有一份。
+ *
+ * `branchGenerationSeq` 则相反：§2.2 的口径就是「create branch 时 +1 并取用」，
+ * 发放点只有一个（{@link allocateBranchGeneration}），所以它留在这一行的属主模块里。
+ * 让 `create_branch` 自己读出来加一再写回，等于把单调性的保证摊给每一个调用方。
  *
  * **没有第二份 active branch ID。** 当前分支的唯一真相仍是 `rxdb_branch.activated`
  * （`system/branch.ts`）。往这张表上再挂一个 `activeBranchId` 看起来非常合理——
@@ -110,4 +114,35 @@ export const readWorkingTreeActivationState = async (
   });
   if (!row) throw new RxDBError(MISSING_ACTIVATION_ROW);
   return { activationRevision: row.activationRevision, branchGenerationSeq: row.branchGenerationSeq };
+};
+
+/**
+ * 发放下一个分支代际：`branchGenerationSeq + 1`，并把新值写回单调源。
+ *
+ * @param executor - **调用方那个写事务**的执行器；发放与新分支落库必须同属一个事务
+ * @returns 本次发放的代际号，首次发放为 1
+ * @throws {@link RxDBError} 激活态行缺失时
+ *
+ * @remarks
+ * 「取号」与「写回」不可分开：分成两步会让两个并发的 create branch 拿到同一个号，
+ * 而代际的全部意义就是**永不复用**——复用之后，持旧 `(branchId, headRevision)` 的调用方
+ * 会误中同名重建的新分支（ABA），提交幂等键也就同时失效（`commit-idempotency.ts`）。
+ * 本地写队列并发度为 1，同事务内的读—改—写因此是原子的。
+ *
+ * 缺行**抛错**，不补行：理由同 {@link readWorkingTreeActivationState}——补出来的
+ * `branchGenerationSeq = 0` 会让这条新分支与既有分支撞号。
+ */
+export const allocateBranchGeneration = async (executor: TransactionExecutor): Promise<number> => {
+  const repository = executor.getRepository(WorkingTreeActivationState);
+  const [row] = await repository.find({
+    where: {
+      combinator: 'and',
+      rules: [{ field: 'id', operator: '=', value: WORKING_TREE_ACTIVATION_STATE_ID }]
+    },
+    limit: 1
+  });
+  if (!row) throw new RxDBError(MISSING_ACTIVATION_ROW);
+  const generation = row.branchGenerationSeq + 1;
+  await repository.update(row, { branchGenerationSeq: generation });
+  return generation;
 };

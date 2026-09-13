@@ -1,5 +1,6 @@
 import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
+import { ACTIVE_BRANCH_KEY } from './commit/active-branch-guard.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
@@ -732,6 +733,9 @@ export class RxDB {
           const branch = this.entityManager.instantiate(RxDBBranch);
           branch.id = 'main';
           branch.activated = true;
+          // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
+          // 漏写这一处，新库的 main 从第一天起就不受「至多一个 active」约束，且不报任何错。
+          branch.activeKey = ACTIVE_BRANCH_KEY;
           await localAdapter.createTables(this.#config.entities, [
             branch,
             // 新库不跑系统迁移：初始行随建表一次写入，链里的名字直接写成已执行水位。

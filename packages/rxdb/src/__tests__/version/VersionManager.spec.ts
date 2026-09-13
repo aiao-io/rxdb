@@ -1,5 +1,6 @@
 import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ACTIVE_BRANCH_KEY } from '../../commit/active-branch-guard.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType } from '../../entity/metadata-options.interface.js';
@@ -418,6 +419,7 @@ describe('VersionManager', () => {
         expect.objectContaining({
           id: 'main',
           activated: true,
+          activeKey: ACTIVE_BRANCH_KEY,
           local: true,
           remote: false
         })
@@ -443,7 +445,12 @@ describe('VersionManager', () => {
 
       expect(branch).toBe(mainBranch);
       expect(mainBranch.activated).toBe(true);
-      expect(mockBranchRepository.update).toHaveBeenCalledWith(mainBranch, { activated: true });
+      // 两列同进同出：`activeKey` 的可空唯一列只管得住非 NULL 的行，漏写它
+      // 就等于让这一行退出「至多一个 active」的管辖，而且不报任何错。
+      expect(mockBranchRepository.update).toHaveBeenCalledWith(mainBranch, {
+        activated: true,
+        activeKey: ACTIVE_BRANCH_KEY
+      });
       expect(mockBranchRepository.create).not.toHaveBeenCalled();
     });
 

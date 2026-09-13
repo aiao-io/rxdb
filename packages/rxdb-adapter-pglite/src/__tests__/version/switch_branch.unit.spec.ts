@@ -78,7 +78,41 @@ describe('switch_branch pure unit edges', () => {
     );
     expect(sql).toContain('b-log-false');
     expect(sql).toContain('UPDATE');
-    expect(sql.split('---STATEMENT_SEPARATOR---').length).toBe(1);
+    // 没有触发器时剩下的就是分支表那两条 UPDATE —— 熄灭旧行、点亮新行。
+    expect(sql.split('---STATEMENT_SEPARATOR---').length).toBe(2);
+  });
+
+  // 熄灭旧行与点亮新行必须是**两条**语句。挤进一条 `SET activated = CASE ... END` 里，
+  // `activeKey` 就要在同一条语句内从 A 行搬到 B 行——可空唯一索引是逐行立即检查的
+  // （`SET CONSTRAINTS ALL DEFERRED` 对普通唯一索引无效），按行处理顺序会瞬时撞上自己。
+  it('generateSwitchBranchSql 拆成熄灭 + 点亮两条，且 activated 与 activeKey 同进同出', () => {
+    const sql = generateSwitchBranchSql(makeAdapter() as never, 'feature-1');
+    const [deactivate, activate, ...rest] = sql.split('---STATEMENT_SEPARATOR---').map(part => part.trim());
+
+    expect(rest).toEqual([]);
+    // 先熄灭：哨兵键必须在被别人写入之前先让出来。
+    expect(deactivate).toContain('activated = FALSE');
+    expect(deactivate).toContain('"activeKey" = NULL');
+    expect(deactivate).toContain(`WHERE activated = TRUE AND id != 'feature-1'`);
+    expect(activate).toContain('activated = TRUE');
+    expect(activate).toContain(`"activeKey" = '*active*'`);
+    expect(activate).toContain(`WHERE id = 'feature-1'`);
+    // 两条都要 RETURNING：少一条，那一侧的行就不进事件派发，undo/redo 消费者看不到它翻转过。
+    expect(deactivate).toContain('RETURNING *');
+    expect(activate).toContain('RETURNING *');
+  });
+
+  // `updatedAt` 只在**真正翻转**的行上推进，是既有语义（两处 inversePatch 依赖它）。
+  // 熄灭那条的 WHERE 已经把「没翻转的行」排除干净，所以它无条件推进；
+  // 点亮那条会扫到「本来就是当前分支」的行，必须留着条件。
+  it('generateSwitchBranchSql 的 updatedAt 只在真正翻转的行上推进', () => {
+    const [deactivate, activate] = generateSwitchBranchSql(makeAdapter() as never, 'feature-1')
+      .split('---STATEMENT_SEPARATOR---')
+      .map(part => part.trim());
+
+    expect(deactivate).toContain('"updatedAt" = NOW()');
+    expect(deactivate).not.toContain('CASE');
+    expect(activate).toContain('"updatedAt" = CASE WHEN activated = FALSE THEN NOW() ELSE "updatedAt" END');
   });
 
   it('generateSwitchBranchSql propagates trigger generation failures', () => {

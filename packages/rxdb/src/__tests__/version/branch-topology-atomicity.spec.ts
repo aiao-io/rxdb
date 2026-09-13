@@ -11,6 +11,7 @@ import { create_branch } from '../../version/create-branch.js';
 import { remove_branch } from '../../version/remove-branch.js';
 import { syncBranches } from '../../version/sync-branches.js';
 import { VersionManager } from '../../version/VersionManager.js';
+import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 
 /**
  * RXD-059 + RXD-037 —— 分支拓扑写入的原子性。
@@ -35,6 +36,12 @@ interface BranchRow {
   local?: boolean;
   remote?: boolean;
   fromChangeId?: number | null;
+}
+
+interface ActivationRow {
+  id: string;
+  activationRevision: number;
+  branchGenerationSeq: number;
 }
 
 interface ChangeRow {
@@ -84,6 +91,8 @@ class FakeLocalDatabase {
 
   readonly branches: BranchRow[] = [];
   readonly changes: ChangeRow[] = [];
+  /** 分支代际单调源那一行；`create_branch` 会在自己的事务里取号并写回。 */
+  readonly activation: ActivationRow[] = [{ id: 'default', activationRevision: 0, branchGenerationSeq: 0 }];
   /** 经队列的调用轨迹，用来看清交错顺序。 */
   readonly queued: string[] = [];
   transactionCount = 0;
@@ -145,6 +154,7 @@ class FakeLocalDatabase {
       getRepository: (EntityType: EntityType) => {
         if ((EntityType as unknown) === RxDBBranch) return this.#branchRepository(true);
         if ((EntityType as unknown) === RxDBChange) return this.#changeRepository(true);
+        if ((EntityType as unknown) === WorkingTreeActivationState) return this.#activationRepository();
         throw new RxDBError(`假 executor 没有 ${String(EntityType)} 的仓库`);
       },
       removeMany: (rows: unknown[]) => Promise.resolve(this.#delete(rows)),
@@ -174,6 +184,16 @@ class FakeLocalDatabase {
       remove: (row: BranchRow) => this.#run(direct, 'branch.remove', () => this.#delete([row])[0])
     };
     return repository as unknown as IRepository<typeof RxDBBranch>;
+  }
+
+  /** 只在事务内出现，因此不过队列、也不参与绊线判定。 */
+  #activationRepository(): IRepository<typeof WorkingTreeActivationState> {
+    const repository = {
+      find: (query: FindQuery) =>
+        Promise.resolve(select(this.activation as unknown as Record<string, unknown>[], query)),
+      update: (row: ActivationRow, patch: Partial<ActivationRow>) => Promise.resolve(Object.assign(row, patch))
+    };
+    return repository as unknown as IRepository<typeof WorkingTreeActivationState>;
   }
 
   #changeRepository(direct: boolean): IRepository<typeof RxDBChange> {

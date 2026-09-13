@@ -41,8 +41,9 @@ import type { TransactionExecutor } from '../transaction/transaction-executor.in
 import type { SwitchBranchStep } from '../version/find-switch-branch-step.js';
 import { find_branch_path_to_root, find_switch_branch_step } from '../version/find-switch-branch-step.js';
 import { get_branch_max_change } from '../version/switch-branch-actions.js';
+import { resolveSingleActiveBranch } from './active-branch-guard.js';
+import { ensureBranchCommitRows } from './branch-commit-rows.js';
 import { CommitErrorCode } from './commit-error-codes.js';
-import { readCommitBranchRef } from './list-commits.js';
 import { writeCommit } from './write-commit.js';
 
 /** 一条本地分支物化不了的成因。 */
@@ -243,6 +244,11 @@ const assertBranchReplayable = async (context: MaterializationContext, branch: R
  * 走 {@link writeCommit} 而不是另写一条「迁移专用」的 UPDATE：HEAD 只能有一条推进路径，
  * 第二条路上的 CAS 条件（`generation` / `status`）会被悄悄放宽，而放宽之后没有任何测试会红。
  *
+ * ref 缺行走 {@link ensureBranchCommitRows} **补出来**，不抛错：旧版本的 `createBranch()`
+ * 只写了 `rxdb_branch` 一行，这些分支上一读就抛会让整条一次性初始化迁移永久回滚——
+ * 而 `working-tree-facade.ts` 承诺的「再调一次 `enable()` 补根」正是为这种情况准备的。
+ * 补建只对**本地**分支发生（`localBranches` 已经滤掉远端）。
+ *
  * 「已经有根」有两种表现，两种都不能造出第二个根：ref 的 `headCommitId` 非空是显式的一种；
  * 另一种由 `writeCommit` 自己的幂等键命中，返回 `reused`——重复 `enable()` 走的就是它。
  */
@@ -256,7 +262,7 @@ const writeBaselines = async (
   const alreadyInitializedBranchIds: string[] = [];
 
   for (const branch of localBranches) {
-    const ref = await readCommitBranchRef(executor, branch.id);
+    const ref = await ensureBranchCommitRows(executor, entityManager, branch.id);
     if (ref.headCommitId !== null) {
       alreadyInitializedBranchIds.push(branch.id);
       continue;
@@ -292,9 +298,16 @@ const writeBaselines = async (
  * @param options - 见 {@link RunEnableMigrationOptions}
  * @returns 见 {@link EnableMigrationResult}
  * @throws {@link BranchNotMaterializableError} 任一本地分支物化不了时——此时一行都没写
- * @throws {@link RxDBError} 库里没有激活分支，或 HEAD CAS 落空时
+ * @throws {@link AmbiguousActiveBranchError} 库里有多行 active 分支时——此时一行都没写
+ * @throws {@link RxDBError} HEAD CAS 落空时
  *
  * @remarks
+ * **replay 的起点走 {@link resolveSingleActiveBranch}，不自己 `find(b => b.activated)`。**
+ * 取首行在单 active 的库上永远正确，两行 active 时则是按后端的行顺序猜一个——猜错的那一半
+ * 会被当成另一条分支的历史写进提交图，而用户看不到任何异常（FR-048）。零 active 反过来是
+ * **本时点唯一正常**的情况，由守卫恢复到 `main`：首次启用迁移是唯一一个「库里还没有 active
+ * 分支」不算故障的时刻。守卫可能新建 `main`，所以分支清单必须在它之后再读。
+ *
  * 三趟，顺序不可换：先把全部本地分支的父链验一遍，再把全部本地分支的变更链验一遍，
  * 最后才开始写。把判定和写入揉进同一个循环，第三条分支炸掉时前两条的 baseline 已经落库。
  *
@@ -307,14 +320,8 @@ export const runEnableMigration = async (
   entityManager: EntityManager,
   options: RunEnableMigrationOptions
 ): Promise<EnableMigrationResult> => {
+  const activeBranch = await resolveSingleActiveBranch(executor, { entityManager });
   const branches = await readAllBranches(executor);
-  const activeBranch = branches.find(branch => branch.activated);
-  if (!activeBranch) {
-    throw new RxDBError(
-      'Cannot initialize the commit graph: no branch is activated. ' +
-        'Materializability is judged by replaying from the current database state, which needs a starting point.'
-    );
-  }
 
   const localBranches = branches.filter(branch => branch.local);
   const skippedBranchIds = branches.filter(branch => !branch.local).map(branch => branch.id);

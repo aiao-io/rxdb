@@ -27,9 +27,13 @@
  * 5. **旧数据会被顺手清理**。FR-021 要求保留旧 change 记录、保持激活分支与业务实体状态。
  *    「既然有了 commit 历史，旧 change 就是冗余」是很自然的念头，但 undo/redo 与
  *    `restoreEntity` 仍然靠它（FR-018/019），删掉等于把既有能力换成新能力。
+ * 6. **replay 的起点会被写成「第一行 activated 的分支」**。`find()` 取首行在单 active 的库上
+ *    永远正确，两行 active 时则是**按后端的行顺序猜一个**——猜错的那一半会被当成另一条
+ *    分支的历史写进提交图，而用户看不到任何异常。FR-048 要求这里整体回滚，不猜。
  */
 
 import { describe, expect, it } from 'vitest';
+import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError } from '../../commit/active-branch-guard.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
@@ -43,6 +47,11 @@ import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { SYSTEM_ENTITIES } from '../../system/system-entities.js';
+import {
+  WORKING_TREE_ACTIVATION_STATE_ID,
+  WorkingTreeActivationState
+} from '../../working-tree/working-tree-activation-state.entity.js';
+import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
 
@@ -92,6 +101,7 @@ function createScene(branchSpecs: readonly BranchSpec[], changeIds: readonly num
     const branch = entityManager.instantiate(RxDBBranch);
     branch.id = spec.id;
     branch.activated = spec.activated ?? false;
+    branch.activeKey = branch.activated ? ACTIVE_BRANCH_KEY : null;
     branch.local = spec.local ?? true;
     branch.remote = spec.remote ?? false;
     branch.parentId = spec.parentId ?? null;
@@ -121,6 +131,13 @@ function createScene(branchSpecs: readonly BranchSpec[], changeIds: readonly num
     return ref;
   });
   probe.seed(CommitBranchRef, refs);
+
+  // 「0004 已经跑完」的一部分：代际单调源已发放到 N，缺 ref 的分支要从 N+1 续号。
+  const activation = entityManager.instantiate(WorkingTreeActivationState);
+  activation.id = WORKING_TREE_ACTIVATION_STATE_ID;
+  activation.activationRevision = 0;
+  activation.branchGenerationSeq = refs.length;
+  probe.seed(WorkingTreeActivationState, [activation]);
 
   return {
     probe,
@@ -345,5 +362,115 @@ describe('全有或全无，且失败可重试（FR-049）', () => {
     expect(again.baselineCommitIds.size).toBe(0);
     expect(scene.probe.rowsOf(Commit)).toHaveLength(2);
     expect(scene.probe.statements).toEqual([]);
+  });
+});
+
+describe('replay 起点由 active 基数决定，不猜（FR-048）', () => {
+  it('两行 active 时整体回滚，且错误点名这两条分支', async () => {
+    const scene = createScene([
+      { id: 'main', activated: true },
+      { id: 'feature-1', activated: true }
+    ]);
+
+    // `branches.find(b => b.activated)` 会安静地取首行：起点猜错的那一半，
+    // 会被当成另一条分支的历史写进提交图。
+    await expect(run(scene)).rejects.toBeInstanceOf(AmbiguousActiveBranchError);
+    await expect(run(scene)).rejects.toMatchObject({
+      code: CommitErrorCode.ambiguous_active_branch,
+      branchIds: ['feature-1', 'main']
+    });
+  });
+
+  it('两行 active 时一行都没写', async () => {
+    const scene = createScene([
+      { id: 'main', activated: true },
+      { id: 'feature-1', activated: true }
+    ]);
+
+    await run(scene).catch(() => undefined);
+
+    expect(scene.probe.rowsOf(Commit)).toEqual([]);
+    expect(scene.probe.statements).toEqual([]);
+  });
+
+  it('零 active 且库里有 main 时激活它，并同步写 activeKey', async () => {
+    const scene = createScene([{ id: 'main' }, { id: 'feature-1' }]);
+
+    const result = await run(scene);
+
+    // 首次启用迁移是唯一一个「还没有 active 分支」属于正常状态的时刻（FR-048）。
+    const main = scene.branches.find(branch => branch.id === 'main');
+    expect({ activated: main?.activated, activeKey: main?.activeKey }).toEqual({
+      activated: true,
+      activeKey: ACTIVE_BRANCH_KEY
+    });
+    expect([...result.baselineCommitIds.keys()].sort()).toEqual(['feature-1', 'main']);
+  });
+
+  it('零 active 且库里没有 main 时新建一条并激活', async () => {
+    const scene = createScene([{ id: 'feature-1' }]);
+
+    await run(scene);
+
+    const created = (scene.probe.rowsOf(RxDBBranch) as RxDBBranch[]).find(branch => branch.id === 'main');
+    // 恢复目标必须确定：挑现成的 feature-1 比建 main「聪明」，但那是替用户做一次分支切换。
+    expect({ activated: created?.activated, activeKey: created?.activeKey, local: created?.local }).toEqual({
+      activated: true,
+      activeKey: ACTIVE_BRANCH_KEY,
+      local: true
+    });
+  });
+});
+
+describe('缺 ref 的本地分支由 enable() 补出来（旧版 createBranch 留下的库）', () => {
+  /** 摘掉某条分支的 ref 行：旧版 `createBranch()` 只写了 `rxdb_branch` 一行，库就长这样。 */
+  function dropRef(scene: Scene, branchId: string): void {
+    const refs = scene.probe.rowsOf(CommitBranchRef);
+    refs.splice(
+      refs.findIndex(row => (row as CommitBranchRef).id === branchId),
+      1
+    );
+  }
+
+  it('补齐 ref 与 WorkingTreeState，并照常拿到 baseline', async () => {
+    const scene = createScene([{ id: 'main', activated: true }, { id: 'feature-1' }]);
+    dropRef(scene, 'feature-1');
+
+    const result = await run(scene);
+
+    // 读到就抛的话，整条一次性初始化迁移在这类库上永久回滚——而 facade 承诺的
+    // 「再调一次 enable() 补根」正是为这种情况准备的。
+    const ref = (scene.probe.rowsOf(CommitBranchRef) as CommitBranchRef[]).find(row => row.id === 'feature-1');
+    const state = (scene.probe.rowsOf(WorkingTreeState) as WorkingTreeState[]).find(row => row.id === 'feature-1');
+    expect({ refBranchId: ref?.branchId, stateBranchId: state?.branchId }).toEqual({
+      refBranchId: 'feature-1',
+      stateBranchId: 'feature-1'
+    });
+    expect([...result.baselineCommitIds.keys()].sort()).toEqual(['feature-1', 'main']);
+  });
+
+  it('补出来的代际续单调源，不复用既有号', async () => {
+    const scene = createScene([{ id: 'main', activated: true }, { id: 'feature-1' }]);
+    dropRef(scene, 'feature-1');
+
+    await run(scene);
+
+    // 随手填一个既有代际，持旧 (branchId, headRevision) 的调用方就会误中这条分支（ABA）。
+    const ref = (scene.probe.rowsOf(CommitBranchRef) as CommitBranchRef[]).find(row => row.id === 'feature-1');
+    const [activation] = scene.probe.rowsOf(WorkingTreeActivationState) as WorkingTreeActivationState[];
+    expect({ generation: ref?.generation, seq: activation.branchGenerationSeq }).toEqual({ generation: 3, seq: 3 });
+  });
+
+  it('远端分支缺 ref 时不补', async () => {
+    const scene = createScene([
+      { id: 'main', activated: true },
+      { id: 'remote-1', local: false, remote: true }
+    ]);
+    dropRef(scene, 'remote-1');
+
+    await run(scene);
+
+    // 本地凭空补一行出来，等于宣称「这条远端分支在本地有一个空 HEAD」（FR-049）。
+    expect((scene.probe.rowsOf(CommitBranchRef) as CommitBranchRef[]).map(row => row.id)).toEqual(['main']);
   });
 });

@@ -90,6 +90,11 @@ export {
 } from './system/change-codec.js';
 export * from './system/change.js';
 export * from './system/migration.js';
+// 建库初始行工厂。`createTables()` 写下的那一批行是「新库形态」的一部分，而清库重置
+// （适配器 testing 入口的 `cleanup_db`、消费者自己的 e2e 夹具）要回到的正是这个形态。
+// 不转出去，各家只能自己抄一份 INSERT —— schema 一动，这些库就停在一个新库不可能出现的
+// 半成品形态上，症状还要到下一次 `createBranch()` 才显形。
+export { createWorkingTreeCommitsInitialRows } from './system/migrations/index.js';
 export * from './system/sync.js';
 export * from './system/system-entities.js';
 export * from './system/system.interface.js';

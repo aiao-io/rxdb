@@ -1,7 +1,9 @@
+import { createBranchCommitRows } from '../commit/branch-commit-rows.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from '../system/types.local.js';
+import { allocateBranchGeneration } from '../working-tree/activation-state.js';
 import { resolve_current_branch } from './resolve-current-branch.js';
 import { VersionManager } from './VersionManager.js';
 
@@ -19,6 +21,11 @@ import { VersionManager } from './VersionManager.js';
  *
  * 远端 `branchExists` 那一趟**留在事务外**：它是网络往返，放进事务会让并发度 1 的
  * 写队列被一次 RTT 堵住。它本来也只是尽力而为的预检，真正的互斥由本地主键约束兜底。
+ *
+ * **一条分支是三行，不是一行。** `rxdb_branch` 之外还有它的 `CommitBranchRef` 与
+ * `WorkingTreeState`（`commit/branch-commit-rows.ts`）。只写第一行的话，
+ * `enable()` 的 `writeBaselines` 会在这条分支上读不到 ref 而整体回滚——而这三行同属
+ * 一个事务，正是为了不让「建了分支却没有提交视图」这种半成品状态存在。
  */
 export const create_branch = async (version: VersionManager, branchId: string, fromChangeId?: number) => {
   const { branchRepository: queuedBranchRepository, adapter } = await version.getLocalRepositories();
@@ -104,11 +111,19 @@ export const create_branch = async (version: VersionManager, branchId: string, f
     const branch = version.rxdb.entityManager.instantiate(RxDBBranch);
     branch.id = branchId;
     branch.activated = false;
+    // 冗余列与 `activated` 必须同写（`system/branch.ts` 的唯一索引就架在它上面）。
+    // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
+    branch.activeKey = null;
     branch.local = true;
     branch.remote = false;
     branch.fromChangeId = fromChange?.id ?? null;
     branch.parentId = fromBranch.id;
     await branchRepository.create(branch);
+
+    // 代际从单调源发放，不是「当前分支数 + 1」：删过分支之后后者会复用旧号，
+    // 持旧 `(branchId, headRevision)` 的调用方就会误中同名重建的新分支（ABA）。
+    const generation = await allocateBranchGeneration(executor);
+    await executor.saveMany(createBranchCommitRows(version.rxdb.entityManager, branchId, generation));
     return branch;
   });
 

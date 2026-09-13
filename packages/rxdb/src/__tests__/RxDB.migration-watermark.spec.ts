@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ACTIVE_BRANCH_KEY } from '../commit/active-branch-guard.js';
 import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../commit/commit-capability-state.entity.js';
 import { SyncType } from '../entity/metadata-options.interface.js';
@@ -203,7 +204,11 @@ describe('首装原子提交（RXD-051）', () => {
       'RxDBMigration',
       'RxDBMigration'
     ]);
-    expect(initialEntities[0]).toEqual(expect.objectContaining({ id: 'main', activated: true }));
+    // `activeKey` 与 `activated` 必须同写：可空唯一列只管得住非 NULL 的行，漏写这一处
+    // 就等于让新库的 main 从第一天起不受「至多一个 active」约束，且不报任何错。
+    expect(initialEntities[0]).toEqual(
+      expect.objectContaining({ id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY })
+    );
     expect(initialEntities.slice(-2)).toEqual([
       expect.objectContaining({ name: WORKING_TREE_COMMITS_MIGRATION_NAME, executedAt: expect.any(Date) }),
       expect.objectContaining({ name: 'init-schema', executedAt: expect.any(Date) })

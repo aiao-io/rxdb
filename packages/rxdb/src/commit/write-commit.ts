@@ -33,8 +33,7 @@ import { CommitChangeSet } from './commit-change-set.entity.js';
 import {
   CommitOperationMismatchError,
   deriveCommitOperationId,
-  findCommitByOperationId,
-  resolveUniqueViolationWinner
+  findCommitByOperationId
 } from './commit-idempotency.js';
 import type { CommitKind } from './commit.entity.js';
 import { Commit } from './commit.entity.js';
@@ -333,8 +332,17 @@ export const buildCommitRows = (entityManager: EntityManager, input: BuildCommit
  * 它与 `expectedHeadRevision` 可以互相矛盾，而 CAS 只认后者，于是父链会指向一个与本次
  * 修订无关的节点。
  *
- * **唯一约束的捕获只夹在 commit 那一条 INSERT 上。** 包住整段写入会把用户实体里一条无关的
- * 唯一约束错误读成「这次是重放」，于是丢掉一次真实提交且无任何报错。
+ * **CAS 命中之后的任何写失败都原样抛出，不降级成返回值。** CAS 成功意味着 `headRevision` 仍
+ * 等于 `expectedHeadRevision`，且这一格修订已经归本次调用所有——`headCommitId` 此刻就指着
+ * `rows.commit.id`。把随后的 INSERT 失败读成「这次是重放」并正常返回，事务会照常提交，
+ * 于是 ref 指向一个从未落库的 commit；下一次 `assertCommitGraphIntact()` 报 `missing_commit`，
+ * 分支被 latch 成 `corrupted_read_only`。并发重放由 CAS **之前**那次
+ * {@link findCommitByOperationId} 探测承担：真正的并发赢家必然也已用自己的 CAS 把
+ * `headRevision` 推到了 `expected + 1`，我们的 CAS 会先返回 0 行。
+ *
+ * 同理，这里也不做「读回赢家」的恢复查询：它跑在一条失败语句之后，Postgres/PGlite 上事务
+ * 已进入 aborted 状态，后续语句一律报 `25P02`（见 `system/migration-runner.ts` 的 TSDoc），
+ * 结果是把真正的失败原因换成一条无关的错误。
  *
  * **重放的比对指纹按已落库那个节点的父链重算，不能拿此刻的 `ref.headCommitId` 重建一份行去比。**
  * 上一次提交成功后 HEAD 已经前进到了那个 commit 自身，按此刻的 ref 重建拿到的父链是
@@ -389,11 +397,9 @@ export const writeCommit = async (
     return { status: 'head_revision_conflict', expectedHeadRevision: input.expectedHeadRevision };
   }
 
-  try {
-    await executor.saveMany([rows.commit]);
-  } catch (cause) {
-    return { status: 'reused', commit: await resolveUniqueViolationWinner(executor, operationId, cause) };
-  }
+  // CAS 命中之后写失败一律抛出，交给调用方的事务整体回滚。降级成返回值会让事务照常提交，
+  // 而 ref 已经指向本次那个从未落库的 commit id——幽灵 HEAD，见本文件 TSDoc。
+  await executor.saveMany([rows.commit]);
   if (rows.changeSets.length > 0) await executor.saveMany([...rows.changeSets]);
 
   return { status: 'committed', commit: rows.commit, changeSets: rows.changeSets };

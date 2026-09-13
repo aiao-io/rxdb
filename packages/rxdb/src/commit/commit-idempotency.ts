@@ -12,15 +12,15 @@
  * 六个后端里至少 PGlite 会在写入时校验字面量形状。拼接串在 SQLite 系后端上能存下去、
  * 在 PGlite 上直接报错，那是最难查的一类「只有某个后端红」。
  *
- * **唯一约束的捕获范围。** `isUniqueConstraintViolation()` 的 TSDoc 已写明它只回答
- * 「这是不是唯一约束冲突」，回答不了「冲突的是哪张表」。所以本模块只提供
- * {@link resolveUniqueViolationWinner}，由调用方**紧贴自己发出的那一条 INSERT** 使用；
- * 包住整段写入的 try/catch 会把用户实体里一条无关的唯一约束错误读成「这次是重放」，
- * 于是丢掉一次真实提交且无任何报错。
+ * **重放只在写之前探测，写失败一律上抛。** 本模块因此只提供 {@link findCommitByOperationId}，
+ * 不提供任何「INSERT 撞唯一约束就读回赢家」的恢复入口。两个理由：
+ * `isUniqueConstraintViolation()` 的 TSDoc 已写明它只回答「这是不是唯一约束冲突」、
+ * 回答不了「冲突的是哪张表」，于是用户实体里一条无关的唯一约束错误会被读成「这次是重放」，
+ * 丢掉一次真实提交且无任何报错；而在 `writeCommit` 那条路径上，恢复查询还得跑在一条
+ * 已失败的语句之后——Postgres/PGlite 的事务此时已 aborted，它只会换回一条 `25P02`。
  */
 
 import { RxDBError } from '../RxDBError.js';
-import { isUniqueConstraintViolation } from '../system/migration.js';
 import { sha256Hex } from '../system/sha256.js';
 import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
 import { Commit } from './commit.entity.js';
@@ -135,30 +135,3 @@ export class CommitOperationMismatchError extends RxDBError {
     Object.setPrototypeOf(this, CommitOperationMismatchError.prototype);
   }
 }
-
-/**
- * INSERT 撞唯一约束时读回获胜的那个 commit。
- *
- * @param executor - 当前事务执行器
- * @param operationId - {@link deriveCommitOperationId} 的结果
- * @param cause - 那条 INSERT 抛出的原始错误
- * @returns 并发赢家写下的 commit
- * @throws 原始 `cause`——当它不是唯一约束冲突，或冲突了却读不回赢家时
- *
- * @remarks
- * **只能紧贴自己发出的那一条 INSERT 调用。** 包住整段写入等于把用户实体里任意一条
- * 唯一约束错误读成「这次提交是重放」，于是丢掉一次真实提交且无任何报错。
- *
- * 「冲突了却读不回赢家」不降级：那说明冲突来自**别的**唯一约束，把它当成重放会返回一个
- * 与本次内容无关的 commit。原样上抛是唯一诚实的处理。
- */
-export const resolveUniqueViolationWinner = async (
-  executor: TransactionExecutor,
-  operationId: string,
-  cause: unknown
-): Promise<Commit> => {
-  if (!isUniqueConstraintViolation(cause)) throw cause;
-  const winner = await findCommitByOperationId(executor, operationId);
-  if (!winner) throw cause;
-  return winner;
-};

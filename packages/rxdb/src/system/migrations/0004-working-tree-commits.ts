@@ -6,7 +6,7 @@
  * 10 张表的初始行分散成多条迁移，就没有任何一处能保证「要么全有要么全无」。
  */
 
-import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
+import { createBranchCommitRows } from '../../commit/branch-commit-rows.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -18,7 +18,6 @@ import type { EntityType } from '../../entity/entity.interface.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import { createWorkingTreeActivationRow } from '../../working-tree/activation-state.js';
-import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { RxDBBranch } from '../branch.js';
 import { RXDB_CHANGE_CODEC_VERSION } from '../change-codec.js';
 
@@ -57,24 +56,9 @@ export function createWorkingTreeCommitsInitialRows(
   // 要到用户切到第二个分支才炸，那时已经没有迁移窗口可以补。
   for (const branchId of branchIds) {
     branchGenerationSeq += 1;
-
-    const ref = entityManager.instantiate(CommitBranchRef);
-    ref.id = branchId;
-    ref.branchId = branchId;
-    ref.generation = branchGenerationSeq;
-    ref.headCommitId = null;
-    ref.headRevision = 0;
-    ref.status = 'ok';
-    ref.corruptedAt = null;
-    rows.push(ref);
-
-    const state = entityManager.instantiate(WorkingTreeState);
-    state.id = branchId;
-    state.branchId = branchId;
-    state.baseHeadCommitId = null;
-    state.workingTreeRevision = 0;
-    state.entryCount = 0;
-    rows.push(state);
+    // 逐字段与运行期 `createBranch()` 共用（`commit/branch-commit-rows.ts`）：
+    // 各写一份的话，「建出来的分支」与「升上来的分支」会从第一天起就是两种分支。
+    rows.push(...createBranchCommitRows(entityManager, branchId, branchGenerationSeq));
   }
 
   // 建行只此一处（`working-tree/activation-state.ts`）：新库与既有库共用同一份初始值。

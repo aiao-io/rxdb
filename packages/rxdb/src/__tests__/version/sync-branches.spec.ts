@@ -146,6 +146,12 @@ describe('syncBranches', () => {
     expect(mockChangeRepository.find).not.toHaveBeenCalled();
     expect(result.created).toBe(1);
     expect(mockBranchRepository.create).toHaveBeenCalledWith(expect.objectContaining({ fromChangeId: null }));
+    // 非 active 的行必须**显式**写 `activeKey: null`。留空字段在两个后端上都会落成
+    // NULL，看起来一样——直到有人给这一列加默认值或改写入路径。写不写 `activated`
+    // 与写不写 `activeKey` 必须是同一个决定，否则「同进同出」只是一句注释。
+    expect(mockBranchRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ activated: false, activeKey: null })
+    );
   });
 
   it('should update remote flag for existing local branches', async () => {

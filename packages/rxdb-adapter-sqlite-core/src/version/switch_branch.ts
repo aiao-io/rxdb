@@ -1,4 +1,5 @@
 import {
+  ACTIVE_BRANCH_KEY,
   EntityLocalUpdatedEvent,
   EntityMetadata,
   getEntityMetadata,
@@ -52,18 +53,32 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId
 
   const branchIdSql = get_sql_value(branchId);
 
+  const activeKeySql = get_sql_value(ACTIVE_BRANCH_KEY);
+
+  // 熄灭旧行与点亮新行是**两条**语句，不是一条 `SET activated = CASE ... END`。
+  // `activeKey` 的唯一索引是逐行立即检查的（SQLite 没有可延迟的普通唯一索引），
+  // 在同一条语句里把哨兵值从 A 行搬到 B 行，会按行处理顺序瞬时撞上自己。
+  // 先熄灭再点亮，哨兵值在任何一个时刻都只被一行持有。
+  //
+  // `updatedAt` 只在**真正翻转**的行上推进这一既有语义保持不变（两处 inversePatch 依赖它）：
+  // 熄灭那条的 WHERE 已经把没翻转的行排除干净，所以无条件推进；点亮那条会扫到
+  // 「本来就是当前分支」的行，条件必须留着。
+  //
+  // 两条都带 RETURNING：少一条，那一侧翻转过的行就不进事件派发。
   sql += `
     UPDATE ${quote_sql_identifier(tableName)}
     SET
-      activated = CASE
-        WHEN id = ${branchIdSql} THEN 1
-        ELSE 0
-      END,
-      updatedAt = CASE
-        WHEN (id = ${branchIdSql} AND activated = 0) OR (id != ${branchIdSql} AND activated = 1) THEN CURRENT_TIMESTAMP
-        ELSE updatedAt
-      END
-    WHERE id = ${branchIdSql} OR activated = 1
+      activated = 0,
+      activeKey = NULL,
+      updatedAt = CURRENT_TIMESTAMP
+    WHERE activated = 1 AND id != ${branchIdSql}
+    RETURNING rowid as ${ROWID},*;
+    UPDATE ${quote_sql_identifier(tableName)}
+    SET
+      activated = 1,
+      activeKey = ${activeKeySql},
+      updatedAt = CASE WHEN activated = 0 THEN CURRENT_TIMESTAMP ELSE updatedAt END
+    WHERE id = ${branchIdSql}
     RETURNING rowid as ${ROWID},*;
     `;
 
