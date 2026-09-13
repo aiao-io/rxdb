@@ -2,7 +2,11 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 
 import devConfig from './dev';
 import prodConfig from './prod';
-import { rxdbBuildTargetVitePlugin, rxdbPackagesVitePlugin } from './rxdb-packages-vite-plugin';
+import {
+  rxdbBuildTargetVitePlugin,
+  rxdbPackagesVitePlugin,
+  subframeSqliteWasmVitePlugin
+} from './rxdb-packages-vite-plugin';
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async merge => {
@@ -23,7 +27,8 @@ export default defineConfig<'vite'>(async merge => {
     copy: {
       patterns: [
         {
-          from: '../../packages/rxdb-adapter-miniprogram/assets/wa-sqlite.wasm',
+          // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
+          from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
           to: 'dist/wa-sqlite/wa-sqlite.wasm'
         }
       ],
@@ -32,7 +37,7 @@ export default defineConfig<'vite'>(async merge => {
     framework: 'react',
     compiler: {
       type: 'vite',
-      vitePlugins: [rxdbPackagesVitePlugin(), rxdbBuildTargetVitePlugin()]
+      vitePlugins: [rxdbPackagesVitePlugin(), subframeSqliteWasmVitePlugin(), rxdbBuildTargetVitePlugin()]
     },
     mini: {
       postcss: {

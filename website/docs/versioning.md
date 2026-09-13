@@ -57,11 +57,14 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
    都按破坏性处理，与主入口用同一套分级。
 4. 确属预期的变更需：更新基线快照、在 PR 标注是否 breaking、必要时补迁移说明。
 
-:::note 唯一不扫描的是资产入口
+:::note `exports` 里的每个子路径入口都在基线里
 
-`@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.cjs` 与 `.../wa-sqlite.wasm` 指向二进制 / CJS 文件，
-没有导出表面可扫，改由 `scripts/audit/wa-sqlite-integrity.mjs` 的 SHA-256 校验守护内容。
-除此之外，`exports` 里声明的每个子路径入口都在基线里。
+目前没有例外：`@aiao/rxdb-adapter-miniprogram` 原先随包分发的 wa-sqlite glue 与 wasm
+（`./assets/*`）已改为直接依赖 `@subframe7536/sqlite-wasm`，不再经本仓库的 `exports` 暴露。
+
+`api-surface.mjs` 仍保留一份资产入口白名单（`ASSET_SUBPATHS`），留给将来真需要发二进制子路径的包：
+这类入口没有导出表面可扫，只能显式跳过、内容交由供应链审计守护。白名单当前为空，且双向核对——
+登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
 
 :::
 

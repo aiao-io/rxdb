@@ -51,20 +51,20 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                         | 操作                                              | 预期结果                                                                                                        | 状态 |
-| --- | ------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 小程序运行时缺少 `BigInt` / `WXWebAssembly` 等   | 调用 `assertMiniProgramRuntimeCapabilities()`     | 抛出列出全部缺失能力名的错误，不进入连接流程                                                                    | ✅   |
-| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数 | 由 `wx.getRandomValues` 预取的池供给；池耗尽时抛错，**任何情况下都不降级**到 `Math.random`                      | ✅   |
-| 3   | 已注册微信文件 VFS                               | 对同一数据库文件发起第二个连接                    | 抛出「微信文件 VFS 不支持同一数据库的并发连接」，而不是静默共享句柄                                             | ✅   |
-| 4   | 微信 Babel 环境                                  | 注册 `update_hook` / `create_function` 等同步回调 | 回调经 `getPrototypeOf → null` 的 Proxy 包装，不被误判为 `AsyncFunction`                                        | ✅   |
-| 5   | 打包产物含 `wa-sqlite.wasm`                      | 运行 `node scripts/audit/wa-sqlite-integrity.mjs` | `.cjs` 与 `.wasm` 的 SHA-256 与固定值一致                                                                       | ✅   |
-| 6   | CI 测试分道配置                                  | 运行 `pnpm nx test rxdb-adapter-miniprogram`      | 12 个 spec / 92 个用例全绿，且该项目在 `scripts/ci/plan-test-lanes.mjs` 中有明确分道                            | ✅   |
-| 7   | `scripts/audit/coverage-baseline.json`           | 运行 `node scripts/audit/coverage-check.mjs`      | 本包在 baseline 中留有趋势基准（硬门槛 80% 本就生效，与登记无关）                                               | ✅   |
-| 8   | `exports` 中的 `./runtime` 子路径                | 运行 `node scripts/audit/api-surface.mjs`         | `./runtime` 的 11 个导出（5 值 + 6 类型）在脚本清单与策略文档中记录为**导出表面已知不覆盖**，清单本身受门禁核对 | ✅   |
-| 9   | `website/docs/compatibility.md`                  | 查阅包表格与运行时/存储表格                       | 出现 `@aiao/rxdb-adapter-miniprogram` 行，并标注实验性、仅微信、单连接、无崩溃恢复保证                          | ✅   |
-| 10  | 根 `README.md` 第 87 行与第 152 行               | 阅读小程序相关表述                                | 不再声称支持 Alipay；与包 README「仅支持微信小程序逻辑层」一致                                                  | ✅   |
-| 11  | `packages/rxdb-adapter-miniprogram/src/index.ts` | 阅读文件头                                        | 只有一个 `@packageDocumentation` 块                                                                             | ✅   |
-| 12  | `examples/taro-react-todo/`                      | 查阅其在仓库中的定位说明                          | 要么纳入某条可执行校验（至少 `typecheck`），要么在 examples README 中显式声明「不在 CI 覆盖范围、需手工验证」   | ✅   |
+| #   | 前置条件                                         | 操作                                                                    | 预期结果                                                                                                                                                | 状态 |
+| --- | ------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 小程序运行时缺少 `BigInt` / `WXWebAssembly` 等   | 调用 `assertMiniProgramRuntimeCapabilities()`                           | 抛出列出全部缺失能力名的错误，不进入连接流程                                                                                                            | ✅   |
+| 2   | 运行时无原生 `crypto.getRandomValues`            | 调用 `prepareMiniProgramRuntime(wx)` 后消耗随机数                       | 由 `wx.getRandomValues` 预取的池供给，见底前后台补给；补给失败且余量耗尽时抛错，**任何情况下都不降级**到 `Math.random`                                  | ✅   |
+| 3   | 已注册微信文件 VFS                               | 对同一数据库文件发起第二个连接                                          | 抛出「微信文件 VFS 不支持同一数据库的并发连接」，而不是静默共享句柄                                                                                     | ✅   |
+| 4   | 微信 Babel 环境                                  | 注册 `update_hook` / `create_function` 等同步回调                       | 回调经 `getPrototypeOf → null` 的 Proxy 包装，不被误判为 `AsyncFunction`                                                                                | ✅   |
+| 5   | 打包产物含 `wa-sqlite.wasm`                      | 运行 `node scripts/audit/wa-sqlite-integrity.mjs`                       | `.cjs` 与 `.wasm` 的 SHA-256 与固定值一致                                                                                                               | ✅   |
+| 6   | CI 测试分道配置                                  | 运行 `pnpm nx test rxdb-adapter-miniprogram`                            | 12 个 spec / 92 个用例全绿，且该项目在 `scripts/ci/plan-test-lanes.mjs` 中有明确分道                                                                    | ✅   |
+| 7   | `scripts/audit/coverage-baseline.json`           | 运行 `node scripts/audit/coverage-check.mjs`                            | 本包在 baseline 中留有趋势基准（硬门槛 80% 本就生效，与登记无关）                                                                                       | ✅   |
+| 8   | `exports` 中的 `./runtime` 子路径                | 运行 `node scripts/audit/api-surface.mjs`                               | `./runtime` 的 11 个导出（5 值 + 6 类型）在脚本清单与策略文档中记录为**导出表面已知不覆盖**，清单本身受门禁核对                                         | ✅   |
+| 9   | `website/docs/compatibility.md`                  | 查阅包表格与运行时/存储表格                                             | 出现 `@aiao/rxdb-adapter-miniprogram` 行，并标注实验性、仅微信、单连接、无崩溃恢复保证                                                                  | ✅   |
+| 10  | 根 `README.md` 第 87 行与第 152 行               | 阅读小程序相关表述                                                      | 不再声称支持 Alipay；与包 README「仅支持微信小程序逻辑层」一致                                                                                          | ✅   |
+| 11  | `packages/rxdb-adapter-miniprogram/src/index.ts` | 阅读文件头                                                              | 只有一个 `@packageDocumentation` 块                                                                                                                     | ✅   |
+| 12  | `apps/dev-rxdb-miniprogram/`                     | 运行 `pnpm nx run-many -t lint typecheck build -p dev-rxdb-miniprogram` | 要么纳入某条可执行校验（至少 `typecheck`），要么在 examples README 中显式声明「不在 CI 覆盖范围、需手工验证」——2026-09-12 起走前者，三个 target 全进 CI | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -76,9 +76,11 @@ INVEST 检查清单:
   `wx.getFileSystemManager` / `wx.env.USER_DATA_PATH` / `BigInt` / `crypto.getRandomValues` / `structuredClone` /
   `TextEncoder` / `TextDecoder` / `performance.now` / `queueMicrotask`），缺失即 fail-fast。
 - **随机源**：`runtime-polyfills.ts` 用 `RUNTIME_SOURCE_MARKER` 标记每个 polyfill 的来源
-  （`missing` / `native` / `polyfill` / `wechat`）。原生可用时短路，否则预取上限
-  `MAX_MINI_PROGRAM_RANDOM_POOL_SIZE = 1_048_576` 字节的池。这条「宁可抛错也不降级」的设计
-  是本适配器与普通 polyfill 的核心差异，改动前需重新评审。
+  （`missing` / `native` / `polyfill` / `wechat`）。原生可用时短路，否则预取
+  `DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE = 65_536` 字节的池（上限仍是 `wx.getRandomValues`
+  的单次限额 `MAX_MINI_PROGRAM_RANDOM_POOL_SIZE = 1_048_576`），剩余量跌到 25% 时单飞补给下一池，
+  已发出的字节立即擦除。这条「宁可抛错也不降级」的设计是本适配器与普通 polyfill 的核心差异，
+  改动前需重新评审。
 - **文件 VFS**：`wechat-file-vfs.ts` 把整库缓冲在内存，经 `writeFileSync` 落盘。
   `xLock` / `xUnlock` 是 no-op，`xShmMap` / `xShmLock` 返回 `SQLITE_IOERR`——
   并发安全**由模块级 `ACTIVE_DATABASES` 集合在 JS 层强制单连接**来保证，不是由 SQLite 锁保证。
@@ -112,17 +114,120 @@ INVEST 检查清单:
   「`@aiao/rxdb-adapter-miniprogram` 的能力边界」专节（平台/并发/日志模式/崩溃恢复/数据量/随机源/全文搜索
   逐项列出），并把原「浏览器能力 × 适配器」表扩为「运行时能力 × 适配器」以容纳非浏览器运行时。
   根 `README.md` 两处「微信 / Alipay」改为「仅微信、实验性」。
-- **AC#12 examples 定位声明**：根 `pnpm-workspace.yaml:6` 含 `- '!examples/*'`，
-  `pnpm nx show projects` 里没有 taro 项目，因此 `examples/taro-react-todo/` 完全在 CI 之外。
-  这是有意的（Taro 4 工具链与 Nx 图不共存），新增的 [examples/README.md](../../../examples/README.md)
-  把这点写死：排除机制、后果（示例可能滞后于源码）、每个示例的手工验证命令，
-  以及「Taro 脚手架虽保留 `build:alipay` 等多端命令，但只有 `build:weapp` 经过验证」。
+- **AC#12 examples 定位声明**：交付时选的是「显式声明不在 CI」这条分支——根 `pnpm-workspace.yaml:6`
+  含 `- '!examples/*'`，`pnpm nx show projects` 里没有 taro 项目，因此 `examples/taro-react-todo/`
+  完全在 CI 之外；[examples/README.md](../../../examples/README.md) 把排除机制、后果（示例可能滞后于
+  源码）、每个示例的手工验证命令，以及「Taro 脚手架虽保留 `build:alipay` 等多端命令，但只有
+  `build:weapp` 经过验证」逐条写死。→ **2026-09-12 改走另一条分支**，其前提「Taro 4 工具链与 Nx 图
+  不共存」已被实测推翻（见下方交付后变更）。
+
+### 交付后变更
+
+- **2026-09-12：随包分发的 wa-sqlite glue + wasm 改为依赖 `@subframe7536/sqlite-wasm`。**
+  `packages/rxdb-adapter-miniprogram/assets/` 下的 3 个文件已删除，AC#5 所述的
+  「`.cjs` 与 `.wasm` 的 SHA-256 与固定值一致」不再是守护方式——
+  [wa-sqlite-integrity.mjs](../../../scripts/audit/wa-sqlite-integrity.mjs) 改为钉
+  **精确版本 + `pnpm-lock.yaml` 里的 SHA-512 integrity + glue 内容哈希文件名与版本配对**
+  （glue 只在 `./dist/*` 暴露且文件名带内容哈希，`^` 一次小版本升级就会让 import 指向不存在的文件）。
+  AC#5 的性质（打包产物里的 SQLite 二进制来源被钉死、`pnpm install` 前硬失败）不变。
+  同时 AC#8 清单里那两个 `./assets/*` 入口随之撤销，资产白名单现为空（见
+  [US-601 交付后变更](../tooling/US-601-subpath-api-surface-baseline.md#交付后变更)）。
+- **附带效果：FTS5 现已编入 wasm。** 新依赖用 `ENABLE_FTS5` 构建，
+  `src/__tests__/fts5.integration.spec.ts` 在 Node 里对真 wasm + 微信 VFS 存根验证了
+  `CREATE VIRTUAL TABLE ... USING fts5` 与 `rxdb_fts_bigram` 注册。
+  但**真机未测、`rxdb-plugin-search` 的 registry 仍为 `unverified`**，
+  小程序侧搜索能力依然无故事认领（见 [capability-matrix.md](../../capability-matrix.md) 的缺口清单，
+  以及 [US-211](US-211-multi-miniprogram-platforms.md) 把该能力列为 Out of Scope）。
+- **2026-09-12：demo 从 `examples/taro-react-todo/` 迁入 `apps/dev-rxdb-miniprogram/`，完整纳入 Nx。**
+  这推翻了上方 AC#12 技术笔记的前提——「Taro 4 工具链与 Nx 图不共存」。实测 4 处版本冲突都能共存：
+  - **react 19 vs 18**：pnpm 的作用域 override（`dev-rxdb-miniprogram>react`）让这一子树停在 18.3.1，
+    根仍是 19.3.0。代价是全局 override 会连 subtree 里的 peer 区间一起改写，凭空造出 5 条
+    `unmet peer react@^19.2.8: found 18.3.1`，需配 `pnpm.peerDependencyRules.allowedVersions` 压掉
+    （已用最小工程 A/B 验证：去掉该块警告复现，加上即消失）；
+  - **TS 6 vs 5.4**：删掉 app 本地的 `typescript`，改用根上打过补丁的 6.0.3。app 在 6.0.3 与 5.9.3 下
+    `tsc --noEmit` 都零输出，没有需要留 5.x 的理由；
+  - **eslint 10 vs 8**：`auto-install-peers` 会把一个 eslint 8.41（`@eslint-community/eslint-utils`
+    的 peer）塞进 app 的 `.bin` 盖住根上的 10，而 8 不认 flat config。所以 `lint` target 不用
+    `@nx/eslint/plugin` 推断出的裸 `eslint .`，显式跑根二进制，理由记在 `project.json` 的
+    `"// lint"` 键里；换到根 eslint 10 后新暴露出一处 `prefer-const`（`src/rxdb-demo.ts` 的
+    `firstValue`：同步 observable 在 `subscribe()` 返回前就 `next`，句柄只能后赋值），
+    改成 `const handle = {}` 容器而非放宽规则；
+  - **vite 8 vs 4**：不处理。app 保留自己的 vite 4.5.14（`@tarojs/vite-runner@4.2.1` 的 peer），
+    与根上的 8 天然隔离。
+
+  同时依赖从 `^0.0.24` 改为 `workspace:*`——此前示例验证的是**已发布版本**，源码改动不会反映过来，
+  这个缺口现在按构造消失了。`scripts/ci/plan-test-lanes.mjs` **未动**：分道只挑有 `test` target 的
+  项目，本 app 没有测试，CI 通过 `nx show projects --withTarget` 动态选型自然捞到它。
+  Node 侧到此为止只能覆盖到构建产物（已核对 `dist/wa-sqlite/wa-sqlite.wasm` 为 727646 字节、
+  与 `node_modules` 内逐字节一致、`dist/` 里无 `import.meta` 也无 base64 内联），**真机仍未测**。
+
+  接入后补上 `serve`（`continuous: true`，即 `taro build --type weapp --watch`；小程序没有 dev
+  server，热更靠微信开发者工具盯 `dist/`）。这条路径顺手暴露出一个**迁移前就存在、但从没人踩到**的
+  缺陷：`@tarojs/plugin-framework-react` 把 `@babel/plugin-proposal-decorators` 以**字符串**形式
+  塞进 `@vitejs/plugin-react` 的 `babel.plugins`，babel 于是从 app 根解析它，而 pnpm 只链声明过的
+  依赖——包没在 app 的 `devDependencies` 里，watch 构建就在 `src/app.ts` 上炸
+  `Cannot find package '@babel/plugin-proposal-decorators'`。生产构建不挂 `@vitejs/plugin-react`，
+  所以一直是绿的。修法与同目录已有的 `@babel/plugin-transform-class-properties` 一致：显式钉进
+  `devDependencies`（`7.29.7`）。dev 产物同样零 `import.meta`（只有 `vendors.js.map` 里留着，
+  sourcemap 不执行）。
+
+- **2026-09-12：补上 e2e 自动化，`apps/dev-rxdb-miniprogram-e2e/`（16 条，已在开发者工具上全绿）。**
+  用 `miniprogram-automator@0.12.1` 驱动微信开发者工具，覆盖运行时引导（6）、安全随机池（3）、
+  Todo CRUD（4）、跨启动持久化（3）。选型前先验过这个 2023 年的包还能不能用：`ws@6.2.6` 握手与
+  分帧 JSON 往返正常，`connect()` 里 `SDKVersion >= 2.7.3` 的门槛放得过本项目的 `libVersion 3.17.1`，
+  Node 24 / 26 都通过；`npm audit` 的 10 条（3 critical）全部落在 `jimp → mkdirp → minimist` 与
+  `jpeg-js`，唯一可达的消费者是 `util.decodeQrCode` / `printQrCode`，只被 `MiniProgram.remote()` 用到——
+  不在 `launch()` / `connect()` 这条路径上。**结论：可用。**
+
+  两条与「不写死清单」机制相关的坑，改这套东西之前要先知道：
+  - `@nx/playwright/plugin` 只要看到 `playwright.config.ts` 就会推断出 `e2e` / `e2e-ci`，
+    而 `ci-template.yml` 正是用 `nx show projects --withTarget=e2e` 组矩阵、runner 全是
+    `ubuntu-latest`。GUI 版开发者工具只有 macOS / Windows，被推断进去就等于往 CI 里塞一条必然红的 job。
+    所以 `nx.json` 把本项目从该插件排除，target 显式叫 `e2e-devtools`（两处缺一不可：只改名不排除是无效的）。
+  - 因此它**不进 CI，也不进 `pnpm test-all`**，是一条显式本地门禁：`pnpm nx e2e-devtools dev-rxdb-miniprogram-e2e`。
+    前置条件是在工具 GUI 里打开「设置 → 安全设置 → 服务端口」——这个开关没有终端通路，
+    CLI 的 `y` 确认是弹在工具窗口内的对话框，管道和 pty 都喂不进去。
+
+  **这没有关掉上方的「真机仍未测」。** 开发者工具是模拟器，逻辑层跑在 NW.js 的 V8 上，
+  而真机 iOS 侧是 JavaScriptCore；WASM、文件系统配额、`wx.getRandomValues` 的时延特性都可能不同。
+  缺口从「完全没有自动化验证」变成了「模拟器上有一套可随时重跑的验证」，真机那一段仍然空着。
+
+- **2026-09-13：把这套 e2e 跑稳的过程里挖出三个真缺陷，都是修实现而不是让测试绕路。**
+  前两个是应用侧的生命周期竞态，真机上「退出页面 → 立刻重进」同样会撞到，不是测试专属：
+  - `openMiniProgramRxdbDemo()` 不等上一个页面实例放开数据库就去建连接。`useUnload` 只能
+    fire-and-forget（Taro 生命周期不收 Promise），`reLaunch` 也不保证旧页面 `onUnload` 跑完
+    才轮到新页面 `onLoad`，于是撞上「微信文件 VFS 不支持同一数据库的并发连接」。
+    修法：`rxdb-demo.ts` 模块级串起 `activeDemo` / `pendingDispose`，引导前先 `releaseActiveDemo()`。
+  - `dispose()` 撞上在飞的 `verifyReconnect()`。后者中途会 disconnect 再 connect，那次
+    `connect()` 会排在 `disconnectAll()` 之后醒来，把实例重新登记进 `ACTIVE_DATABASES`，
+    下一次引导必红。修法：`pendingReconnect` + `closeAfterPendingWork()`，先等验证收场再断开。
+  - 第三个在 e2e 侧：worker fixture 无条件调 `miniProgram.close()`。它关的是**开发者工具里的
+    小程序实例**而不是 WebSocket——`connect()` 模式下等于替开发者把窗口收了，下一次运行接到
+    一个正在关闭的实例，红成「Connection closed」。修法：`OpenedMiniProgram.owned`，只关自己拉起的。
+
+  另有两处是测试自己的断言不成立，已连同理由写进 TSDoc，免得后人重新推一遍：
+  - 「跨启动持久化」原本删落盘目录来复位。目录在连接活着时由 VFS 缓冲着，此刻删它，
+    `sqlite3_close` 的脏页回写会把整个库原样刷回来，探针「复活」。这是 VFS 的正确行为，
+    错的是测试。改走页面上的「重置数据」，即应用自己的 DELETE（为此给 demo 补了 `resetDemoData()`，
+    Todo 与探针一起删——留着探针这条检查就恒为「通过」，永远验不出下一次启动有没有真读回来）。
+  - 「跨池轮换」原本只留一次 WebSocket 往返给异步补给。池在 25% 水位才预约补给，赌桥接比
+    WebSocket 快；赌输就抛「已耗尽」，而那是铁律「宁可抛错也不降级」下的正确行为，不该记成缺陷。
+    改为批次之间显式让位 `REFILL_GRACE_MS = 250`。
+
+  稳定性证据：裸 playwright 连跑 6 轮均 `16 passed`，`nx run dev-rxdb-miniprogram-e2e:e2e-devtools` 全绿。
+
+- **2026-09-13：`miniprogram-automator` 那 10 条 `npm audit` 用三条定向 `pnpm.overrides` 灭掉**
+  （`@jimp/core>mkdirp: ^0.5.6`、`@jimp/core>phin: ^3.7.1`、`@jimp/jpeg>jpeg-js: ^0.4.4`），
+  因为 GitHub 的 `dependency-review` 是按 lockfile 判的，不看「这条路径可不可达」。
+  作用面已核对：lock 里只有 `mkdirp@0.5.1`（连带 `minimist@0.0.8`）、`phin@2.9.3`、`jpeg-js@0.3.7`
+  这四个 key 被换掉，其余增量全是 `phin` 的可选 peer `debug` 引出的 snapshot 变体分裂，
+  没有任何 @jimp 子树之外的包发生版本变化。
 
 ## 实现文件
 
 - `packages/rxdb-adapter-miniprogram/` — 微信小程序 wa-sqlite 适配器
 - `packages/rxdb-adapter-miniprogram/src/runtime.ts` — `/runtime` 子路径入口（随机源引导）
-- `examples/taro-react-todo/` — Taro + React 手工验证 demo（不在 CI 覆盖范围）
+- `apps/dev-rxdb-miniprogram/` — Taro + React 微信小程序 demo（Nx 项目，`lint` / `typecheck` / `build` 进 CI）
 - `scripts/audit/wa-sqlite-integrity.mjs` — wasm/cjs 资产 SHA-256 固定
 - `scripts/audit/coverage-baseline.json` — AC#7 覆盖率趋势基准
 - `scripts/audit/api-surface.mjs` — AC#8 `KNOWN_UNCOVERED_SUBPATHS` 子路径清单（真相源）
@@ -131,7 +236,11 @@ INVEST 检查清单:
 - `website/docs/versioning.md` — AC#8 对外警示块（子路径不受基线保护）
 - `website/docs/compatibility.md` — AC#9 能力矩阵与边界专节
 - `README.md` — AC#10 表述修正
-- `examples/README.md` — AC#12 「不在 CI 覆盖范围」声明
+- `apps/dev-rxdb-miniprogram/project.json` + `eslint.config.mjs` — AC#12 的 Nx 接入（`build` / `lint` 显式 target）
+- `apps/dev-rxdb-miniprogram-e2e/` — 开发者工具 e2e 套件（`e2e-devtools` target，不进 CI）
+- `nx.json` — `@nx/playwright/plugin` 的 `exclude`，阻止上面这个项目被推断出 `e2e` 而进 Linux 矩阵
+- `package.json` — `pnpm.overrides` 三条定向提升，消掉 `miniprogram-automator` 拖进来的 CVE（`dependency-review` 按 lockfile 判）
+- `examples/README.md` — 本目录「不在 CI 覆盖范围」声明，并记录 Taro demo 已迁出
 
 ## References
 

@@ -160,6 +160,18 @@ export default function Index() {
     setTitle('');
   }, [runTodoOperation, title]);
 
+  const resetDemoData = useCallback(() => {
+    void runTodoOperation(demo => demo.resetDemoData(), '演示数据已清空');
+    // 探针刚被删掉，卡片上那条结论已经过期——照实改回待重启，别留着上一轮的「通过」。
+    setChecks(current =>
+      current.map(check =>
+        check.name === '跨启动持久化' ?
+          { ...check, status: 'pending' as const, detail: '已清空探针；重新启动后重新验证' }
+        : check
+      )
+    );
+  }, [runTodoOperation]);
+
   const runManualVerification = useCallback(() => {
     const demo = demoRef.current;
     if (!demo || busy) return;
@@ -180,11 +192,11 @@ export default function Index() {
       </View>
 
       <View className='runtime-summary'>
-        <View className='summary-item'>
+        <View className='summary-item summary-sqlite'>
           <Text className='summary-label'>SQLite</Text>
           <Text className='summary-value'>{sqliteVersion}</Text>
         </View>
-        <View className='summary-item summary-version'>
+        <View className='summary-item summary-operation'>
           <Text className='summary-label'>状态</Text>
           <Text className='summary-value'>{operation}</Text>
         </View>
@@ -212,6 +224,14 @@ export default function Index() {
       <View className='section checks-section'>
         <View className='section-heading'>
           <Text className='section-title'>验证状态</Text>
+          <Button
+            className='verify-button reset-button'
+            size='mini'
+            disabled={phase !== 'ready' || busy}
+            onClick={resetDemoData}
+          >
+            重置数据
+          </Button>
           <Button
             className='verify-button'
             size='mini'
