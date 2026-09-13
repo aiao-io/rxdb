@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { createWorkingTreeCommitsInitialRows, type EntityType } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, createWorkingTreeCommitsInitialRows, type EntityType } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -173,8 +173,11 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
     await adapter.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
   }
 
+  // `activeKey` 与 `activated` 同进同出：下面刻意不跑 switch 的那条激活 UPDATE，
+  // 所以这条 INSERT 是本函数里唯一一处把 main 置为 active 的地方，哨兵值只能由它写。
+  // 漏写的话清库之后的 main 就退出「至多一个 active」的唯一约束管辖，且不报任何错。
   await adapter.query(
-    `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"fromChangeId",local,remote) VALUES ('main',TRUE,NULL,TRUE,FALSE)`
+    `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"activeKey","fromChangeId",local,remote) VALUES ('main',TRUE,'${ACTIVE_BRANCH_KEY}',NULL,TRUE,FALSE)`
   );
 
   // TRUNCATE 也清掉了工作树/提交侧的单例与 main 的伴生行，而新库里这些行是有的

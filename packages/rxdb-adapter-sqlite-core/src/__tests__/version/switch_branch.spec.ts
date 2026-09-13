@@ -34,8 +34,10 @@ interface ExecutedCall {
 }
 
 interface SwitchAdapterOptions {
-  /** 分支切换 UPDATE 语句返回的行 */
+  /** 「点亮目标分支」那条 UPDATE 返回的行 */
   branchRows?: SQLiteCompatibleType[][];
+  /** 「熄灭旧 active 行」那条 UPDATE 返回的行 */
+  deactivateRows?: SQLiteCompatibleType[][];
   /** 分支切换 UPDATE 语句返回 undefined（覆盖 branchSwitchResult 缺失分支） */
   branchResultUndefined?: boolean;
   /** SQL 包含该片段时抛错 */
@@ -55,11 +57,12 @@ const createSwitchAdapter = (options: SwitchAdapterOptions = {}) => {
       if (options.failOn && sql.includes(options.failOn)) {
         throw new Error('boom');
       }
-      if (sql.includes('rxdb_branch')) {
+      // 熄灭与点亮是两条独立的 execute，桩要分别作答：两条都回同一批行的话，
+      // 「两侧的行都进事件派发」这一点就成了桩的巧合，而不是被测代码的行为。
+      if (sql.includes('UPDATE "rxdb$rxdb_branch"')) {
         if (options.branchResultUndefined) return undefined as unknown as SqliteSuccessResult;
-        return successResult(sql, options.branchRows?.length ?? 0, [
-          { columns: branchColumns, rows: options.branchRows ?? [] }
-        ]);
+        const rows = (sql.includes('activeKey = NULL') ? options.deactivateRows : options.branchRows) ?? [];
+        return successResult(sql, rows.length, [{ columns: branchColumns, rows }]);
       }
       if (sql.trimStart().startsWith('SELECT')) {
         return successResult(sql, 1, [
@@ -195,6 +198,28 @@ describe('switch_branch', () => {
     expect(events[0].recordAt).toEqual(new Date('2026-01-02T00:00:00.000Z'));
     expect(events[1].recordAt).toEqual(new Date('2026-01-01T00:00:00.000Z'));
     expect(events[2].recordAt).toBeInstanceOf(Date);
+  });
+
+  // 两条 `RETURNING` 必须**逐条**执行。拼成一段交给一次 `execute()` 时，oo1 的 `db.exec()`
+  // 只收第一条有结果列的语句的行，点亮目标分支那条的行会被静默丢掉——SQL 照常生效，
+  // 只有缓存里的目标分支实体停在 `activated = false`，没有任何报错。
+  it('熄灭与点亮两条 UPDATE 的行都要进事件派发', async () => {
+    const { adapter, calls, dispatched } = createSwitchAdapter({
+      entities: [],
+      deactivateRows: [[2, 'main', 0, 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z']],
+      branchRows: [[1, 'feature', 1, 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z']]
+    });
+
+    await switch_branch(adapter, { branchId: 'feature' });
+
+    const branchCalls = calls.filter(call => call.sql.includes('UPDATE "rxdb$rxdb_branch"'));
+    expect(branchCalls).toHaveLength(2);
+    expect(branchCalls[0].sql).toContain('activeKey = NULL');
+    expect(branchCalls[1].sql).toContain(`activeKey = '*active*'`);
+
+    expect(dispatched).toHaveLength(1);
+    const events = (dispatched[0] as { entities: RxDBEntityLocalUpdatedEventData[] }).entities;
+    expect(events.map(event => event.id)).toEqual(['main', 'feature']);
   });
 
   it('分支切换语句无结果时不应派发事件', async () => {
