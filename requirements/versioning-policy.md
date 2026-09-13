@@ -56,10 +56,13 @@
 `--update` 若带着解析不了的入口继续写基线，等于把一个公开入口静默从快照里删掉。
 源入口写错路径同样硬失败，不降级为「零导出」——否则整个入口被删会被记成「表面无变化」。
 
-> **唯一的例外：无导出表面的资产入口。** `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}`
-> 是二进制 / CJS 文件，没有 TS 源可解析，登记在 [api-surface.mjs](../scripts/audit/api-surface.mjs) 的
-> `ASSET_SUBPATHS` 白名单里显式跳过，内容改由 [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)
-> 的 SHA-256 固定守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
+> **唯一的例外：无导出表面的资产入口。** 二进制 / CJS 子路径没有 TS 源可解析，只能登记在
+> [api-surface.mjs](../scripts/audit/api-surface.mjs) 的 `ASSET_SUBPATHS` 白名单里显式跳过，
+> 内容交由供应链审计守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
+>
+> **该白名单当前为空。** 唯一的使用者 `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}`
+> 已随 glue + wasm 改用 `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 integrity，见
+> [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）而撤销，机制保留给将来的包。
 >
 > `@aiao/rxdb-test` 的 5 个子路径不在此列——整包已排除，非产品 API。
 > 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md)。
