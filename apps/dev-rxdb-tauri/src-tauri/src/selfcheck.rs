@@ -66,8 +66,8 @@ pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）；v10 加阶段 1 收尾的十六格（`descriptorKinds` / `descriptorRuntimes`、snapshot 走查五格、safe-integer 探针三格、`uploadHugeSize` / `invalidChunk`、`eventsSubscribe` / `eventFrames`、`databaseInspect` / `downloadByteCount`，AC#2 / #6 / #7）。
-pub const REPORT_SCHEMA_VERSION: u32 = 10;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）；v10 加阶段 1 收尾的十六格（`descriptorKinds` / `descriptorRuntimes`、snapshot 走查五格、safe-integer 探针三格、`uploadHugeSize` / `invalidChunk`、`eventsSubscribe` / `eventFrames`、`databaseInspect` / `downloadByteCount`，AC#2 / #6 / #7）；v11 加 branch 探针三条（`branchesList` / `branchCount` / `branchSwitch`，AC#9）。
+pub const REPORT_SCHEMA_VERSION: u32 = 11;
 
 /// 环境变量配错时的退出码。
 ///
@@ -349,6 +349,15 @@ pub struct DevToolsNativeProbe {
     /// `database.query` 配非整数 limit 的结果码；`invalid_path`。
     #[serde(default)]
     pub query_limit_fraction: Option<String>,
+    /// `database.get-branches` 的结果码（AC#9 的 branch 半边）。
+    #[serde(default)]
+    pub branches_list: Option<String>,
+    /// 读到的分支数；`-1` 表示没走到那一步。
+    #[serde(default)]
+    pub branch_count: Option<i64>,
+    /// 切到当前已激活分支的结果码；no-op 也必须答 `ok`。
+    #[serde(default)]
+    pub branch_switch: Option<String>,
     /// 声明尺寸 2^53 的上传在 wire 上的结果码；`transfer_size_exceeded`。
     #[serde(default)]
     pub upload_huge_size: Option<String>,
@@ -1124,6 +1133,9 @@ mod tests {
                         query_limit_zero: Some("invalid_path".to_string()),
                         query_limit_huge: Some("invalid_path".to_string()),
                         query_limit_fraction: Some("invalid_path".to_string()),
+                        branches_list: Some("ok".to_string()),
+                        branch_count: Some(1),
+                        branch_switch: Some("ok".to_string()),
                         upload_huge_size: Some("transfer_size_exceeded".to_string()),
                         invalid_chunk: Some("payload_encoding_invalid".to_string()),
                         events_subscribe: Some("ok".to_string()),
@@ -1174,6 +1186,9 @@ mod tests {
             "queryLimitZero": "invalid_path",
             "queryLimitHuge": "invalid_path",
             "queryLimitFraction": "invalid_path",
+            "branchesList": "ok",
+            "branchCount": 1,
+            "branchSwitch": "ok",
             "uploadHugeSize": "transfer_size_exceeded",
             "invalidChunk": "payload_encoding_invalid",
             "eventsSubscribe": "ok",

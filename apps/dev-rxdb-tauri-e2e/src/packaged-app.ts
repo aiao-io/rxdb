@@ -47,7 +47,7 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 10;
+export const REPORT_SCHEMA_VERSION = 11;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -298,6 +298,12 @@ export interface DevToolsNativeProbe {
   readonly queryLimitHuge?: string;
   /** `database.query` 配非整数 limit 的结果码；`invalid_path`。 */
   readonly queryLimitFraction?: string;
+  /** `database.get-branches` 的结果码（AC#9 的 branch 半边）。 */
+  readonly branchesList?: string;
+  /** 读到的分支数；`-1` 表示这次没读到结果。 */
+  readonly branchCount?: number;
+  /** 切到当前已激活分支的结果码；no-op 也必须答 `ok`。 */
+  readonly branchSwitch?: string;
   /** 声明尺寸 2^53 的上传在 wire 上的结果码；`transfer_size_exceeded`。 */
   readonly uploadHugeSize?: string;
   /** 非法 base64 chunk 的结果码；`payload_encoding_invalid`。 */

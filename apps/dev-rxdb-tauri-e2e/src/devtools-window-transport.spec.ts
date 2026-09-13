@@ -372,6 +372,16 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
     });
 
     /**
+     * AC#9 的 branch 半边：`get-branches` 列出唯一激活分支，`switch-branch` 切到它自己
+     * 是 no-op 成功。boot 只播 `main` 一个分支，所以计数钉 1。
+     */
+    it('get-branches 列出唯一激活分支，switch-branch 到它自己答 ok', () => {
+      expect(native()?.branchesList).toBe('ok');
+      expect(native()?.branchCount).toBe(1);
+      expect(native()?.branchSwitch).toBe('ok');
+    });
+
+    /**
      * `events` 订阅在真实链路上成功，且启动期的事件确实经帧送到了面板。
      *
      * @remarks
