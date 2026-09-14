@@ -131,8 +131,21 @@ const describeBoot = (env: Readonly<Record<string, string>>, tag: string): (() =
   };
 };
 
-/** 把失败报告里的原因带进断言消息。 */
-const because = (run: SelfCheckRun): string => run.report.message ?? '(报告里没有原因)';
+/**
+ * 把失败报告里的原因与进程两股输出一起带进断言消息。
+ *
+ * @remarks
+ * 看门狗超时的报告只有一句「renderer 从没上报」：挂在哪一步只有 renderer 自己知道，而它
+ * 的 console 输出经 Tauri dev 构建转发到应用 stderr（worker 的 console 也在内）。断言失败
+ * 时把两股输出带出来，才能把「worker 入口没跑到」与「入口跑了但后续挂起」分开。
+ */
+const because = (run: SelfCheckRun): string => {
+  const cap = (name: string, stream: string): string =>
+    stream.trim() ? `${name}：\n${stream.trim().slice(0, 2000)}` : '';
+  return [run.report.message ?? '(报告里没有原因)', cap('stderr', run.stderr), cap('stdout', run.stdout)]
+    .filter(line => line.length > 0)
+    .join('\n');
+};
 
 /** 把整份 DevTools 探针结果带进断言消息（理由见 devtools-window-transport.spec.ts 的 `wire`）。 */
 const wire = (run: SelfCheckRun): string => `devtools=${JSON.stringify(run.report.devtools)}\n${because(run)}`;

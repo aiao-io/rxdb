@@ -61,3 +61,21 @@ export function resolveWaSqliteBackend(
   if (forced !== undefined) return Promise.resolve(resolveForcedBackend(forced));
   return opfsAvailable().then(opfs => selectWaSqliteBackend(opfs, sharedWorkerAvailable));
 }
+
+/** IDBBatchAtomicVFS 的 worker 传输形态。 */
+export type WaSqliteIdbTransport = 'dedicated' | 'shared';
+
+/**
+ * 为 IDBBatchAtomicVFS 选 worker 传输（US-905 AC#6 强制档）。
+ *
+ * 强制档恒为 dedicated：强制档是单窗口的实测脚手架，共享语义没有意义，且三平台首跑实测里
+ * idb 档在 win32 上挂在 SharedWorker 传输、60s 看门狗报 timedOut（平台事实表由那次回填，
+ * 见 devtools-provider-gear.spec.ts）——强制档不需要承担生产路径的传输风险。
+ * 未强制（浏览器无 OPFS 回落到 IDB 的生产路径）保留 SharedWorker，让多标签页共享同一条连接。
+ *
+ * @param forced - 注入的强制档（`DEV_RXDB_DEVTOOLS_FORCE_VFS`）
+ * @returns 传输形态；纯映射不探测，与 {@link resolveForcedBackend} 同一取舍
+ */
+export function resolveWaSqliteIdbTransport(forced: DevToolsForcedVfs | undefined): WaSqliteIdbTransport {
+  return forced === undefined ? 'shared' : 'dedicated';
+}

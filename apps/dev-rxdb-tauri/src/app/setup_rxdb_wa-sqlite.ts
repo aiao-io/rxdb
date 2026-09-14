@@ -10,7 +10,7 @@ import { WEB_PREVIEW_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 import type { DevToolsForcedVfs } from './devtools-runtime-config';
 import { isTauriRuntime } from './services/tauri-environment';
-import { resolveWaSqliteBackend, type WaSqliteBackend } from './wa-sqlite-backend';
+import { resolveWaSqliteBackend, resolveWaSqliteIdbTransport, type WaSqliteBackend } from './wa-sqlite-backend';
 
 /**
  * 构建本 app 的 RxDB 单例（纯本地 wa-sqlite，无远端同步）。
@@ -111,24 +111,42 @@ export default async (forced?: DevToolsForcedVfs) => {
           wasmPath: `${wasmBase}wa-sqlite.wasm`
         };
       } else if (backend === 'IDBBatchAtomicVFS') {
-        // 强制档跳过能力探测（见 resolveForcedBackend 的 TSDoc），但 `new SharedWorker` 需要
-        // 一次**存在性**检查：WKWebView 没有 SharedWorker，缺它时这里是一条裸
-        // ReferenceError，而那条专门写好的诊断只有 unavailable 档能到——AC#6 三态走查里
-        // idb 档的意义就是给出可读的 VFS 诊断，不是让错误形态取决于平台。
-        if (typeof SharedWorker !== 'function') {
+        // 传输形态按是否强制档分叉（见 resolveWaSqliteIdbTransport 的 TSDoc）：强制档是
+        // 单窗口实测脚手架，走与 opfs 档同形态的 dedicated Worker；生产路径保留
+        // SharedWorker 让多标签页共享同一条连接。
+        const transport = resolveWaSqliteIdbTransport(forced);
+        // 强制档跳过能力探测（见 resolveForcedBackend 的 TSDoc），但生产路径的
+        // `new SharedWorker` 需要一次**存在性**检查：WKWebView 没有 SharedWorker，缺它时
+        // 这里是一条裸 ReferenceError，而那条专门写好的诊断只有 unavailable 档能到——
+        // AC#6 三态走查里 idb 档的意义就是给出可读的 VFS 诊断，不是让错误形态取决于平台。
+        if (transport === 'shared' && typeof SharedWorker !== 'function') {
           throw new Error('wa-sqlite requires OPFS or SharedWorker support');
         }
-        options = {
-          vfs: backend,
-          sharedWorker: true,
-          // 与 dedicated 档同一份入口脚本：入口自己判定上下文角色（见 wa-sqlite.worker.ts 头注）。
-          sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite.worker', import.meta.url), {
-            type: 'module',
-            name: 'rxdb-wa-sqlite-shared-worker'
-          }),
-          workerOwnership: 'client',
-          wasmPath: `${wasmBase}wa-sqlite-async.wasm`
-        };
+        // 与 dedicated 档同一份入口脚本：入口自己判定上下文角色（见 wa-sqlite.worker.ts 头注）。
+        // 传输不同但客户端的初始化链完全相同——IDB 与 Web Locks 在两种 worker 上下文里都可用，
+        // IDBBatchAtomicVFS 的多连接共享靠 Web Locks 而不是 SharedWorker 本身。
+        options =
+          transport === 'shared' ?
+            {
+              vfs: backend,
+              sharedWorker: true,
+              sharedWorkerInstance: new SharedWorker(new URL('./wa-sqlite.worker', import.meta.url), {
+                type: 'module',
+                name: 'rxdb-wa-sqlite-shared-worker'
+              }),
+              workerOwnership: 'client',
+              wasmPath: `${wasmBase}wa-sqlite-async.wasm`
+            }
+          : {
+              vfs: backend,
+              worker: true,
+              workerInstance: new Worker(new URL('./wa-sqlite.worker', import.meta.url), {
+                type: 'module',
+                name: 'rxdb-wa-sqlite-idb-worker'
+              }),
+              workerOwnership: 'client',
+              wasmPath: `${wasmBase}wa-sqlite-async.wasm`
+            };
       } else {
         throw new Error('wa-sqlite requires OPFS or SharedWorker support');
       }

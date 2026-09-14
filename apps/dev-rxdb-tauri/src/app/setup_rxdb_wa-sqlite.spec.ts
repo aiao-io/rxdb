@@ -65,13 +65,18 @@ describe('US-905 强制 VFS 档的 wa-sqlite 接线', () => {
     expect(source).toMatch(/forced === undefined \? 'files' : `files-\$\{forced\}`/);
   });
 
-  it('强制 idb 档在无 SharedWorker 的宿主上给出与 unavailable 同一条诊断', () => {
-    // 强制档跳过能力探测（resolveForcedBackend 的 TSDoc），但 `new SharedWorker` 需要一次
-    // 存在性检查：WKWebView 没有 SharedWorker，缺它时 idb 档是一条裸 ReferenceError，而
-    // 那条专门写好的诊断只有 unavailable 档能到——AC#6 三态走查里 idb 档的意义就是
-    // 给出可读的 VFS 诊断，不是让错误形态取决于平台。
+  it('强制 idb 档走 dedicated Worker；SharedWorker 存在性检查只守生产路径', () => {
+    // 强制档是单窗口的实测脚手架，共享语义没有意义；三平台首跑实测里 idb 档在 win32 上
+    // 挂在 SharedWorker 传输、60s 看门狗报 timedOut（AC#6 平台事实表由那次回填），
+    // 强制档因此改走与 opfs 档同形态的 dedicated Worker。生产路径（浏览器无 OPFS 回落到
+    // IDB）保留 SharedWorker 让多标签页共享同一条连接——`new SharedWorker` 需要存在性检查：
+    // WKWebView 没有它时缺检查就是一条裸 ReferenceError，而那条专门写好的诊断只有
+    // unavailable 档能到（AC#6 三态走查里 idb 档的意义就是给出可读的 VFS 诊断，
+    // 不是让错误形态取决于平台）。
     const source = stripTsComments(read('setup_rxdb_wa-sqlite.ts'));
-    expect(source).toContain("typeof SharedWorker !== 'function'");
+    expect(source).toContain('resolveWaSqliteIdbTransport(forced)');
+    expect(source).toMatch(/transport === 'shared' && typeof SharedWorker !== 'function'/);
     expect(source).toMatch(/throw new Error\('wa-sqlite requires OPFS or SharedWorker support'\)/);
+    expect(source).toContain("name: 'rxdb-wa-sqlite-idb-worker'");
   });
 });

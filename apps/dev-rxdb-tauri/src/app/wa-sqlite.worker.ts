@@ -16,6 +16,12 @@ import { resolveWaSqliteWorkerRole } from './wa-sqlite-worker-role';
  */
 const client = new WaSqliteClient();
 
+// 入口诊断：worker 起不来的故障形态是「页面侧握手永不到答、自检 60s 看门狗 timedOut」，
+// 报告里说不出是脚本没开始还是角色判错。这一行经 WebView 控制台转发到应用 stderr
+// （e2e 侧把两股输出带进断言消息），至少能把「入口都没跑到」与「入口跑了但后续挂起」
+// 分开——三平台首跑里 win32 的 idb 档就是靠它分辨 SharedWorker 传输的挂点。
+console.error(`[wa-sqlite.worker] entry ${resolveWaSqliteWorkerRole(globalThis)}`);
+
 if (resolveWaSqliteWorkerRole(globalThis) === 'shared') {
   // shared 上下文：每个连接端口各 expose 一次；client 是同一单例，多次 expose 不复制状态。
   const scope = self as unknown as SharedWorkerGlobalScope;

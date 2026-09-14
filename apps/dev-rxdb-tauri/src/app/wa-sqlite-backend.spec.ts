@@ -1,4 +1,9 @@
-import { resolveForcedBackend, resolveWaSqliteBackend, selectWaSqliteBackend } from './wa-sqlite-backend';
+import {
+  resolveForcedBackend,
+  resolveWaSqliteBackend,
+  resolveWaSqliteIdbTransport,
+  selectWaSqliteBackend
+} from './wa-sqlite-backend';
 
 describe('selectWaSqliteBackend', () => {
   it.each([
@@ -41,5 +46,22 @@ describe('resolveWaSqliteBackend', () => {
     await expect(resolveWaSqliteBackend(undefined, async () => true, false)).resolves.toBe('OPFSCoopSyncVFS');
     await expect(resolveWaSqliteBackend(undefined, async () => false, true)).resolves.toBe('IDBBatchAtomicVFS');
     await expect(resolveWaSqliteBackend(undefined, async () => false, false)).resolves.toBe('unavailable');
+  });
+});
+
+/**
+ * IDB 的传输选择与后端选择是两条独立的决策：强制档是单窗口的实测脚手架，共享语义没有
+ * 意义，因此恒为 dedicated；生产路径（浏览器无 OPFS 回落到 IDB）保留 SharedWorker 以让
+ * 多标签页共享同一条连接。
+ */
+describe('resolveWaSqliteIdbTransport', () => {
+  it('强制档恒为 dedicated，不管强制的是哪个档', () => {
+    expect(resolveWaSqliteIdbTransport('opfs')).toBe('dedicated');
+    expect(resolveWaSqliteIdbTransport('idb')).toBe('dedicated');
+    expect(resolveWaSqliteIdbTransport('unavailable')).toBe('dedicated');
+  });
+
+  it('未强制时保留 SharedWorker', () => {
+    expect(resolveWaSqliteIdbTransport(undefined)).toBe('shared');
   });
 });
