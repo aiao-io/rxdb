@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-09-13
+updated: 2026-09-14
 tags: [tooling, devtools, desktop, tauri, transport, sqlite, filesystem, security]
 ---
 
@@ -131,26 +131,26 @@ US-210 SQLite host / US-505 native file host
 
 ### 阶段 2：真实原生 provider（AC#9～#17）
 
-| #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                        | 状态 |
-| --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                            | ✅   |
-| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                    | ✅   |
-| 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致 | ✅   |
-| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录  | ✅   |
-| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容             | ✅   |
-| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                            | ✅   |
-| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                   | ✅   |
-| 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire     | ✅   |
-| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap，高成本打包 smoke 只在 release 分支或 tag 运行  | ⚠️   |
+| #   | 前置条件                                                   | 操作                                                   | 预期结果                                                                                                                                          | 状态 |
+| --- | ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 9   | 应用通过 US-210 使用应用作用域 SQLite                      | 查询实体、逐类派发事件并切换 branch                    | 数据、全部 `RXDB_EVENT_TYPES` 和 branch 与主窗口一致；调试窗口不打开数据库、不创建 OPFS/IDB fallback                                              | ✅   |
+| 10  | 应用通过 US-505 使用 native files 并显式允许 mutation      | 浏览并执行正常/零字节/边界大小上传下载、新建目录、删除 | 只操作插件根，字节一致；UI 仅用 `runtime: tauri` 显示来源；全程流式，失败/取消/超时无半写文件或孤儿 metadata                                      | ✅   |
+| 11  | 1001 条以上 metadata/files、两类缺失和在途上传             | 读取完整诊断 snapshot                                  | 从请求进入起算的共享 deadline（US-904 阶段 B）覆盖等锁/物化/重试；不漏尾页或误报临时状态；busy/too-large/expired 与共享错误一致                   | ✅   |
+| 12  | 打开 Settings                                              | 尝试数据库下载和未声明的清理                           | 下载禁用且强制命令返回 `export_unsupported`；未声明能力返回 `provider_unsupported`，不读取 SQLite/WAL、OPFS/IDB 或其他应用目录                    | ✅   |
+| 13  | 错误窗口/旧 session，或合法窗口在授权组合下伪造操作        | 通过真实 transport 发送                                | 各层拒绝错误身份；未授权 provider 调用为 0，未 opt-in mutation 不执行；响应不含路径、SQL 绑定值、加密字段或文件内容                               | ✅   |
+| 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                                              | ✅   |
+| 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                                     | ✅   |
+| 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire                       | ✅   |
+| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap；打包 smoke 随 release 发布、手动 dispatch 与桌面链路相关 PR 触发 | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 交付状态
 
 AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 八条 ✅（#9～#16），
-AC#17 留 ⚠️——它要的三平台实测按故事自约只在 release 分支/tag 的 CI 上跑，特性分支没有 win32/linux
-证据可产；release 隔离半边已在本分支钉住（见下），三平台实测由 release CI 回填，是**门禁位置**
-而不是代码进度。
+AC#17 留 ⚠️——三平台实测的调度已从「只在 release 分支/tag」改为「release 发布 + 手动 dispatch +
+桌面链路相关 PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；承载本次改动的 PR 即会
+触发三平台 smoke，win32/linux 证据由该运行回填，是**门禁位置**而不是代码进度。
 
 阶段 1 收尾补上了原先三条 ⚠️ 的证据，全部落在打包产物上的真实双窗口走查：
 
@@ -190,9 +190,9 @@ AC#17 留 ⚠️——它要的三平台实测按故事自约只在 release 分�
   transport 驱动 + 共享 fake 端点跑同一套 control-plane / data-plane suite，「真实 host 半边」由
   `devtools-window-transport.spec.ts` 的 wire 走查承担。这是 US-904/906 已关过的架构形态；不把整套
   conformance 断言搬到真实窗口复跑（故事 Out-of-Scope 明确不做）。
-- **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；macOS 之外的
-  win32/linux 实测留在 release 分支/tag 的 CI 回填（故事自约「高成本打包 smoke 只在 release 分支或
-  tag 运行」）。
+- **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；win32/linux
+  实测的调度改为桌面相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路），
+  由承载本次改动的 PR 首次回填三平台证据。
 
 三档开关（provider 源 / snapshot 场景 / VFS 强制）与驱动档位键全部 `#[cfg(dev)]` 编进 dev 二进制，
 release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三档 env 名只出现在 `devtools_config.rs`

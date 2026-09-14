@@ -145,12 +145,12 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 >
 > `apps/dev-rxdb-tauri-e2e` 已建（本故事创建；US-905 将来要加的 specs 落在同一个 project 里）。
 > 它的 target 叫 **`desktop-smoke` 而不是 `e2e`**：`ci-template.yml` 用
-> `nx show projects --withTarget=e2e` 自动组矩阵，叫 `e2e` 就会自动进 PR 门禁的 ubuntu 跑道，
-> 而这条 AC 明写不进 PR 门禁。`test` / `test-browser` / `build` / `cargo-test` 同理都要避开；
+> `nx show projects --withTarget=e2e` 自动组矩阵，叫 `e2e` 就会自动进 PR 门禁的 **ubuntu 单 OS**
+> 跑道，而这套 smoke 要的是三 OS 矩阵。`test` / `test-browser` / `build` / `cargo-test` 同理都要避开；
 > vitest 配置也因此叫 `vitest.smoke.mts`（`@nx/vitest` 的发现 glob 只认 `vitest.config.*`）。
 > 三平台矩阵挂在
-> [US-207 阶段 2](./US-207-desktop-local-database.md#交付阶段) 的 `release-desktop.yml`
-> （release 触发）上，与 Electron 侧共用一次触发。
+> [US-207 阶段 2](./US-207-desktop-local-database.md#交付阶段) 的 `release-desktop.yml` 上
+> （release 发布触发；2026-09-14 起桌面链路相关 PR 也触发），与 Electron 侧共用一次触发。
 
 ## 交付阶段
 

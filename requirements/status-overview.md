@@ -24,7 +24,7 @@
 
 | Story | 还剩什么 |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----|
-| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) | 阶段 1 八条、阶段 2 八条（AC#9～#16）已 ✅；**AC#17 留 ⚠️**：三平台实测按故事自约只在 release 分支/tag 的 CI 上跑，特性分支没有 win32/linux 证据可产——release 隔离半边已由 `devtools-release-isolation.spec.ts` 钉住，是门禁位置不是代码进度。读出但不在本故事修的两条缺陷见 [US-908](stories/future/US-908-devtools-transfer-session-defects.md) |
+| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) | 阶段 1 八条、阶段 2 八条（AC#9～#16）已 ✅；**AC#17 留 ⚠️**：三平台实测调度改为 release 发布 + 手动 dispatch + 桌面链路相关 PR 都跑（`release-desktop.yml` PR paths 已扩），win32/linux 证据由承载该改动的 PR 首次回填——release 隔离半边已由 `devtools-release-isolation.spec.ts` 钉住，是门禁位置不是代码进度。读出但不在本故事修的两条缺陷见 [US-908](stories/future/US-908-devtools-transfer-session-defects.md) |
 
 ## 待评审（1 条）
 
@@ -72,7 +72,7 @@
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#34/#38/#39/#42 的人工浏览器回归拆到 US-907
 - ⬜ [US-907 DevTools 面板迁移后的人工回归](stories/future/US-907-devtools-manual-regression.md) — 承接 US-904 四条（Chrome）+ US-906 AC#2 的人工半边（Electron dev 流程），共五条只能由人做的 AC，不改代码
-- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）与阶段 2（AC#9～#16）共十六条 ✅；**AC#17 留 ⚠️**：三平台实测是 release 分支/tag CI 的门禁（故事自约），特性分支无法产出 win32/linux 证据，release 隔离半边已钉。前置 US-210 + US-505 均已 Done
+- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）与阶段 2（AC#9～#16）共十六条 ✅；**AC#17 留 ⚠️**：三平台实测调度改为 release 发布 + 手动 dispatch + 桌面链路相关 PR 都跑（`release-desktop.yml` PR paths 已扩），win32/linux 证据由承载该改动的 PR 首次回填，release 隔离半边已钉。前置 US-210 + US-505 均已 Done
 - ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）转 US-907
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 

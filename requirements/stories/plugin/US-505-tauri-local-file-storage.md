@@ -101,7 +101,7 @@ US-207 → US-210 相同：Electron 侧前置已齐备、可即刻排期；Tauri
 > 被测试固定，而不是假设与 Chromium 一致。
 >
 > AC#7 复用 US-210 已建立的 `apps/dev-rxdb-tauri-e2e`（`desktop-smoke` target）与三平台打包矩阵；打包
-> smoke test 成本高，只在 release 分支或 tag 触发，不进 PR 门禁。
+> smoke test 随 release 发布、手动 dispatch 与桌面链路相关 PR 触发（`release-desktop.yml` 的 PR paths）。
 
 ## 交付状态
 
