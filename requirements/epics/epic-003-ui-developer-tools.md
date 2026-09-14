@@ -17,7 +17,7 @@ owner: jimmy
 - [x] 代码编辑器组件（跨 3 端）
 - [x] 浏览器 DevTools 面板（连接器 + Chrome 扩展）
 - [x] Electron 原生本地存储 DevTools 调试
-- [ ] Tauri 原生本地存储 DevTools 调试
+- [x] Tauri 原生本地存储 DevTools 调试
 
 ## 故事
 

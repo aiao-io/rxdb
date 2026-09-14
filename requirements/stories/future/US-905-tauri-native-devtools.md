@@ -1,7 +1,7 @@
 ---
 id: US-905
 title: Tauri DevTools 调试窗口、transport 与原生存储集成
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
@@ -141,16 +141,22 @@ US-210 SQLite host / US-505 native file host
 | 14  | session 有订阅、迟到响应、snapshot 和未完成传输            | 关闭/刷新窗口或退出应用                                | 订阅、请求、snapshot、传输、临时文件和 host session 全释放；重开拒绝旧身份与迟到数据                                                              | ✅   |
 | 15  | 真实临时应用目录、US-210 SQLite 与 US-505 files            | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 panel/双 WebView/transport/Rust/host，不用 fake 替代                                                     | ✅   |
 | 16  | Tauri provider 接入 US-904 阶段 B conformance 与共享 panel | 运行共享 provider 与 panel 回归                        | 控制面、safe integer、base64、descriptor、分页、授权、错误和 session 重建通过；不等待 Electron，也不复制组件、状态机或 wire                       | ✅   |
-| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap；打包 smoke 随 release 发布、手动 dispatch 与桌面链路相关 PR 触发 | ⚠️   |
+| 17  | macOS、Windows、Linux desktop dev/release 构建             | 打开/关闭调试窗口并检查产物                            | 三平台完成加载、握手、session 释放；release 无调试 capability/command/bootstrap；打包 smoke 随 release 发布、手动 dispatch 与桌面链路相关 PR 触发 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 交付状态
 
-AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 八条 ✅（#9～#16），
-AC#17 留 ⚠️——三平台实测的调度已从「只在 release 分支/tag」改为「release 发布 + 手动 dispatch +
-桌面链路相关 PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；承载本次改动的 PR 即会
-触发三平台 smoke，win32/linux 证据由该运行回填，是**门禁位置**而不是代码进度。
+AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 九条全 ✅（#9～#17）。
+AC#17 三平台实测的调度已从「只在 release 分支/tag」改为「release 发布 + 手动 dispatch + 桌面链路相关
+PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；三平台证据由 PR #58 的
+[Release Desktop run 34854848883](https://github.com/aiao-io/rxdb/actions/runs/34854848883) 回填——
+ubuntu / macOS / Windows 的 packaging smoke 与 devtools smoke 全绿，desktop-gate 通过。
+win32 的回填过程修掉一处真实缺陷：首跑里 idb 档在 Windows 上挂到 60s 看门狗报 `timedOut`（既不是
+ok 也不是诚实失败），挂点是模块 SharedWorker 传输——WebView2 上 worker 脚本不开始。强制档因此改走
+与 opfs 档同形态的 dedicated Worker（`resolveWaSqliteIdbTransport`，生产路径保留 SharedWorker 让
+多标签页共享同一条连接），win32 的 idb 档随即按冻结真值 `ok` 通过。linux 的 idb 真值按首跑回填
+`failed`（WebKitGTK 页面上下文没有 `navigator.storage`，见 gear spec 的平台事实表）。
 
 阶段 1 收尾补上了原先三条 ⚠️ 的证据，全部落在打包产物上的真实双窗口走查：
 
@@ -191,8 +197,9 @@ AC#17 留 ⚠️——三平台实测的调度已从「只在 release 分支/tag
   `devtools-window-transport.spec.ts` 的 wire 走查承担。这是 US-904/906 已关过的架构形态；不把整套
   conformance 断言搬到真实窗口复跑（故事 Out-of-Scope 明确不做）。
 - **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；win32/linux
-  实测的调度改为桌面相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路），
-  由承载本次改动的 PR 首次回填三平台证据。
+  实测的调度改为桌面相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路）。
+  首跑暴露出 win32 的 idb 档 SharedWorker 传输挂起，强制档改走 dedicated Worker 修复后，
+  三平台 smoke 全绿（run 34854848883），本 AC 关闭。
 
 三档开关（provider 源 / snapshot 场景 / VFS 强制）与驱动档位键全部 `#[cfg(dev)]` 编进 dev 二进制，
 release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三档 env 名只出现在 `devtools_config.rs`
