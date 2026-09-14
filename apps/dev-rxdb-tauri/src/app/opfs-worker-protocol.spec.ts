@@ -468,9 +468,10 @@ describe('createWorkerOpenWrite', () => {
 
       const pendingWrite = writer.write(new Uint8Array([1]));
       await vi.waitFor(() => expect(port.posted).toHaveLength(2));
+      // 断言先挂上再走表：拒绝发生在计时器推进期间，晚挂的处理器会被 Vitest 记为未处理拒绝。
+      const timeoutSettlement = expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
       await vi.advanceTimersByTimeAsync(OPFS_WORKER_REQUEST_TIMEOUT_MS);
-
-      await expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
+      await timeoutSettlement;
     } finally {
       vi.useRealTimers();
     }
@@ -486,9 +487,10 @@ describe('createWorkerOpenWrite', () => {
       await vi.waitFor(() => expect(port.posted).toHaveLength(2));
       // dispose 路径：terminate 不触发 error 事件，也没有任何响应会来。
       port.terminate();
+      // 断言先挂上再走表：拒绝发生在计时器推进期间，晚挂的处理器会被 Vitest 记为未处理拒绝。
+      const timeoutSettlement = expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
       await vi.advanceTimersByTimeAsync(OPFS_WORKER_REQUEST_TIMEOUT_MS);
-
-      await expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
+      await timeoutSettlement;
     } finally {
       vi.useRealTimers();
     }
