@@ -10,24 +10,40 @@
  * @remarks
  * 全部分派语义在 `handleWorkerOp` 里（可单测），本文件薄到不能再薄；`navigator.storage`
  * 的访问也留在这里，让分派逻辑不依赖 worker 全局。
+ *
+ * **每一条请求都必须结算**：async onmessage 的拒绝只会变成 unhandledrejection，不触发
+ * Worker 的 error 事件——页面侧 `port.onError` 收不到，那条请求会永远等一个到不了的
+ * 响应。所以根解析失败时也回同 id 的失败响应，而不是让异常逃出 handler。
  */
 
 import type { OpfsDirectoryHandleLike, OpfsSyncHandleLike, OpfsWorkerRequest } from './opfs-worker-protocol';
-import { handleWorkerOp } from './opfs-worker-protocol';
+import { failureResponse, handleWorkerOp } from './opfs-worker-protocol';
 
 const handles = new Map<number, OpfsSyncHandleLike>();
 
 /** OPFS 根只需解析一次：句柄在 worker 生命周期内稳定，重复解析只会多一次 IPC。 */
 let root: Promise<OpfsDirectoryHandleLike> | undefined;
-const getRoot = (): Promise<OpfsDirectoryHandleLike> => (root ??= navigator.storage.getDirectory());
+const getRoot = (): Promise<OpfsDirectoryHandleLike> => {
+  root ??= navigator.storage.getDirectory().catch(error => {
+    // 失败不缓存：缓存住一个 rejected promise 会让每次后续请求重放同一次失败，
+    // OPFS 恢复后写通道也不会自愈。下一次请求重新解析即可。
+    root = undefined;
+    throw error;
+  });
+  return root;
+};
 
 self.onmessage = async (event: MessageEvent) => {
-  // 信任边界：消息必须来自创建本 worker 的窗口（同一安全源）。worker 句柄目前模块私有，
-  // 跨源窗口拿不到引用，但这条线把「将来端口被分享 / 页面被嵌入宿主」的余量提前封死 ——
-  // 静默丢弃而不是回错误响应，不给不信任的发送方当探针。
-  if (event.origin !== self.location.origin) {
-    return;
-  }
   const request = event.data as OpfsWorkerRequest;
-  self.postMessage(await handleWorkerOp(request, await getRoot(), handles));
+  try {
+    // 信任边界：消息必须来自创建本 worker 的窗口（同一安全源）。worker 句柄目前模块私有，
+    // 跨源窗口拿不到引用，但这条线把「将来端口被分享 / 页面被嵌入宿主」的余量提前封死 ——
+    // 静默丢弃而不是回错误响应，不给不信任的发送方当探针。
+    if (event.origin !== self.location.origin) {
+      return;
+    }
+    self.postMessage(await handleWorkerOp(request, await getRoot(), handles));
+  } catch (error) {
+    self.postMessage(failureResponse(request.id, error));
+  }
 };

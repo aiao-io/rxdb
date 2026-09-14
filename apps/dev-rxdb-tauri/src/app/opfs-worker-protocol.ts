@@ -97,6 +97,12 @@ let nextHandleId = 0;
  * 解析方式与 storage 插件默认 OPFS 后端的 `getRootHandle` / `getFileHandle` 一致：
  * 父目录段用 `{ create: true }` 逐级创建，最后一段开文件 —— 两边因此指向同一物理位置，
  * 页面侧 base 读得到 worker 写进去的内容。
+ *
+ * 打开后截断为 0，对齐 base 后端 `createWritable()` 的默认语义（`keepExistingData:
+ * false`）：文件已存在时，不截断会让一次更短的覆写留下旧尾字节——例如把 512 字节的
+ * 备份还原进 4096 字节的库文件，读出来是 512 字节有效内容加 3584 字节旧页。截断不可用
+ * （老实现没有 `truncate`）时整个 open 失败并释放句柄，交服务层补偿，绝不带着旧尾字节
+ * 继续写。
  */
 export const resolveSyncHandle = async (
   root: OpfsDirectoryHandleLike,
@@ -112,7 +118,23 @@ export const resolveSyncHandle = async (
   }
 
   const file = await directory.getFileHandle(segments[segments.length - 1], { create: true });
-  return file.createSyncAccessHandle();
+  const handle = await file.createSyncAccessHandle();
+  try {
+    handle.truncate(0);
+  } catch (error) {
+    await closeQuietly(handle);
+    throw error;
+  }
+  return handle;
+};
+
+/** 尽力关闭句柄：清理路径上关闭失败不得盖住真正的错误。 */
+const closeQuietly = async (handle: OpfsSyncHandleLike): Promise<void> => {
+  try {
+    await handle.close();
+  } catch {
+    // 句柄已不可用：这里没有可做的补救，唯一职责是别把清理失败抛给调用方。
+  }
 };
 
 /**
@@ -123,7 +145,7 @@ export const resolveSyncHandle = async (
  * `Error`（happy-dom 就是），且经消息通道还原的错误本来就不是实例 ——
  * 与 storage 包 `isStorageNotFoundError` 的结构化判定同一理由。
  */
-const failure = (id: number, error: unknown): OpfsWorkerResponse => {
+export const failureResponse = (id: number, error: unknown): OpfsWorkerResponse => {
   if (error instanceof Error) {
     return { id, ok: false, error: { name: error.name, message: error.message } };
   }
@@ -140,6 +162,33 @@ const failure = (id: number, error: unknown): OpfsWorkerResponse => {
     };
   }
   return { id, ok: false, error: { name: 'Error', message: String(error) } };
+};
+
+/**
+ * 提交关闭句柄：flush 先于 close；flush 失败不能挡住 close 释放句柄。
+ *
+ * @param handle - 要提交的句柄
+ * @returns 提交过程中的首个错误（flush 优先于 close），成功时为 `undefined`
+ *
+ * @remarks
+ * 与 abort 分支的「分两段 try」同一条理由：flush 失败（配额、文件被移除）时句柄必须
+ * 照样关闭——OPFS 同文件只允许一个 sync handle，泄漏会让后续所有 `createSyncAccessHandle`
+ * 都抛 `NoModificationAllowedError`，直到 worker 终止。flush 失败只说明内容没有持久化，
+ * 那件事由服务层的快照补偿负责。
+ */
+const commitClose = async (handle: OpfsSyncHandleLike): Promise<unknown> => {
+  let commitError: unknown;
+  try {
+    await handle.flush();
+  } catch (error) {
+    commitError = error;
+  }
+  try {
+    await handle.close();
+  } catch (error) {
+    commitError ??= error;
+  }
+  return commitError;
 };
 
 /**
@@ -163,7 +212,7 @@ export const handleWorkerOp = async (
   switch (request.kind) {
     case 'open': {
       if (!Array.isArray(request.segments)) {
-        return failure(request.id, new Error('storage worker open requires path segments'));
+        return failureResponse(request.id, new Error('storage worker open requires path segments'));
       }
       try {
         const handle = await resolveSyncHandle(root, request.segments);
@@ -171,32 +220,32 @@ export const handleWorkerOp = async (
         handles.set(handleId, handle);
         return { id: request.id, ok: true, handleId };
       } catch (error) {
-        return failure(request.id, error);
+        return failureResponse(request.id, error);
       }
     }
     case 'write': {
       const handle = handles.get(request.handleId);
       if (handle === undefined || !(request.data instanceof ArrayBuffer)) {
-        return failure(request.id, new Error(`storage worker write on missing handle ${request.handleId}`));
+        return failureResponse(request.id, new Error(`storage worker write on missing handle ${request.handleId}`));
       }
       try {
         handle.write(new Uint8Array(request.data));
         return { id: request.id, ok: true };
       } catch (error) {
-        return failure(request.id, error);
+        return failureResponse(request.id, error);
       }
     }
     case 'close': {
       const handle = handles.get(request.handleId);
       if (handle === undefined) {
-        return failure(request.id, new Error(`storage worker close on missing handle ${request.handleId}`));
+        return failureResponse(request.id, new Error(`storage worker close on missing handle ${request.handleId}`));
       }
       try {
-        await handle.flush();
-        await handle.close();
+        const commitError = await commitClose(handle);
+        if (commitError !== undefined) {
+          return failureResponse(request.id, commitError);
+        }
         return { id: request.id, ok: true };
-      } catch (error) {
-        return failure(request.id, error);
       } finally {
         // 提交失败后句柄不再可用：半写内容由服务层的快照补偿负责还原或删除。
         handles.delete(request.handleId);

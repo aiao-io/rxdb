@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,11 +15,23 @@ import { describe, expect, it } from 'vitest';
  *   但那命中的是 renderer 侧的字符串，不是 Rust 侧的 command 注册。用二进制字符串当判据
  *   会把「renderer 还留着一句会失败的调用」误报成「专用 command 还在」。
  * - 真正决定「release 是否注册这条 command」的是 Rust 侧的 `#[cfg(dev)]`：它在
- *   `custom-protocol`（release）构建里把函数与 `generate_handler!` 的臂一起抹掉。这一事实
- *   只能从源码静态地证，且由 `cargo check --features tauri/custom-protocol` 在 PR 门禁里复验。
+ *   `custom-protocol`（release）构建里把函数与 `generate_handler!` 的臂一起抹掉。
  *
- * 因此本文件是纯静态检查，不 spawn 打包产物——它跟真实 Tauri build 环境解耦，任何 runner
- * 上都能跑。真实窗口开/关/重开、双 WebView 握手与 session 释放属于阶段 2 / AC#17 的 smoke，
+ * 各断言分两族：
+ *
+ * - **结构断言**：capability 文件、`#[cfg(dev)]` 的位置、env 变量名与全局键不泄进接线
+ *   文件——这些是编译检查表达不了的性质（`cargo check` 拦不住「capability 授给了谁」，
+ *   也拦不住字符串泄漏），只能静态断言。
+ * - **编译断言**：「没有未守卫的 `devtools_config` 引用」这条曾经靠回扫 `#[cfg(dev)]` 的
+ *   启发式静态判，后来实测它在 `pub fn run()` 上 0/8 漏报（`^\s*fn\s` 匹配不到 `pub fn`，
+ *   而函数体内更早的局部 cfg 会被先撞上）。这条性质只能由编译器给出：`mod devtools_config`
+ *   本身是 `#[cfg(dev)]`，任何未守卫引用在 `custom-protocol` 语义下就是编译错误。
+ *   所以本文件 spawn 一次 `cargo check --features tauri/custom-protocol`（`cfg(dev)` 由
+ *   tauri 依赖的 build script 按该 feature 取反给出，见 `tauri-package-dev` 的注释），
+ *   把「我们相信守卫都在」变成「不加守卫就编不出 release」。跑这条需要 Rust 工具链——
+ *   desktop-smoke 的 dependsOn（tauri-package-release）本就保证它在。
+ *
+ * 真实窗口开/关/重开、双 WebView 握手与 session 释放属于阶段 2 / AC#17 的 smoke，
  * 不在这里。
  *
  * @module apps/dev-rxdb-tauri-e2e/devtools-release-isolation
@@ -35,32 +48,6 @@ const readCapability = (name: string): { windows: readonly string[]; permissions
 
 /** 读 `src-tauri/src/lib.rs` 原文。 */
 const libRs = (): string => readFileSync(join(SRC_TAURI, 'src', 'lib.rs'), 'utf8');
-
-/** 该行是否是一条非注释行、且带着 `#[cfg(dev)]` 属性。 */
-const hasCfgDev = (line: string): boolean => !line.trim().startsWith('//') && line.includes('#[cfg(dev)]');
-
-/**
- * 该处提及是否**没有被 cfg 守**。
- *
- * 从提及行往回走：先撞上 `#[cfg(dev)]`（同一 item 体内的局部 cfg，如 `setup` 里的
- * `let devtools_config` 与插件 match 块首）即被守；撞上函数定义行则看它头上有没有 cfg
- * （`open_devtools_window` 整体被守、其体内的提及离块首 cfg 不止几行）；撞上顶格
- * 闭括号（当前 item 的边界）即无守。注释行一概跳过——注释里引用的 `#[cfg(dev)]`
- * 字样不是属性。
- */
-const isUnguarded = (lines: readonly string[], index: number): boolean => {
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    const prior = lines[cursor];
-    if (prior.trim().startsWith('//')) continue;
-    if (hasCfgDev(prior)) return false;
-    if (/^\s*fn\s/.test(prior)) {
-      const attribute = cursor > 0 ? lines[cursor - 1] : undefined;
-      return attribute === undefined || !hasCfgDev(attribute);
-    }
-    if (/^}/.test(prior)) return true;
-  }
-  return true;
-};
 
 describe('US-905 devtools 的 release 隔离（结构证据）', () => {
   it('default capability 只授 main 窗口，不授 rxdb-devtools', () => {
@@ -108,22 +95,27 @@ describe('US-905 devtools 的 release 隔离（结构证据）', () => {
     expect(/#\[cfg\(dev\)\]\s+let devtools_config = devtools_config::plan_or_exit\(\);/.test(lib)).toBe(true);
     expect(/#\[cfg\(dev\)\]\s+let builder = match &devtools_config/.test(lib)).toBe(true);
 
-    // 判据的另一半：不能**另有**一条没带 cfg 的路径提到这个模块。上面三条只说明
-    // 「这三处带了 cfg」，挡不住第四处；而第四处正是 release 把整段代码带进产物的形态。
-    //
-    // 判定用 isUnguarded 往回扫：插件注册那两行（`Some(config) => …` / `None => builder`）
-    // 在 match 块里，往回先撞到块首那个 cfg；`open_devtools_window` 调用点的实参行离
-    // cfg 有四行（fn 名跨多行），函数体内的提及离块首 cfg 更远——都靠「撞上函数定义
-    // 行时看它头上有没有 cfg」兜住，而不是数行号。
-    const lines = lib.split('\n');
-    const unguarded = lines.filter(
-      (line, index) => line.includes('devtools_config') && !line.trim().startsWith('//') && isUnguarded(lines, index)
-    );
-    expect(unguarded).toEqual([]);
+    // 判据的另一半——「不能**另有**一条没带 cfg 的路径提到这个模块」——由编译断言承担
+    // （见下方 cargo check 用例）：mod devtools_config 本身是 #[cfg(dev)]，未守卫引用在
+    // custom-protocol 语义下编不过。这里曾用回扫启发式静态判，实测 0/8 漏报。
 
     // 全局键只存在于 `devtools_config.rs`（本身整个 #[cfg(dev)]），不该泄进接线文件。
     expect(lib).not.toContain('__aiaoRxdbDevToolsConfig__');
   });
+
+  it('没有未守卫的 devtools_config 引用：custom-protocol 语义下 cargo check 编得过（编译断言）', () => {
+    // `cfg(dev)` 由 tauri 依赖的 build script 按 `custom-protocol` feature 取反给出
+    // （见 dev-rxdb-tauri:tauri-package-dev 的注释）。devtools_config 模块整体是
+    // #[cfg(dev)]，release 语义下任何未守卫引用都会让这次 check 以编译错误收场。
+    // desktop-smoke 的 dependsOn（tauri-package-release）保证 target 目录是热的，
+    // 这里只是同 feature 下的一次 check 增量。
+    const result = spawnSync('cargo', ['check', '--locked', '--features', 'tauri/custom-protocol'], {
+      cwd: SRC_TAURI,
+      encoding: 'utf8',
+      timeout: 300_000
+    });
+    expect(result.status, result.error?.message ?? result.stderr).toBe(0);
+  }, 360_000);
 
   it('档位三开关只定义在 devtools_config.rs，驱动档位键不进接线文件（阶段 1 收尾）', () => {
     const lib = libRs();

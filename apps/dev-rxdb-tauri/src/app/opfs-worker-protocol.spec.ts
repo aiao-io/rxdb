@@ -23,16 +23,23 @@ class FakeSyncHandle implements OpfsSyncHandleLike {
   readonly calls: string[] = [];
   readonly truncateCalls: number[] = [];
 
+  constructor(
+    private readonly flushError?: unknown,
+    private readonly closeError?: unknown
+  ) {}
+
   write(data: Uint8Array): void {
     this.chunks.push(data);
   }
 
   async flush(): Promise<void> {
     this.calls.push('flush');
+    if (this.flushError !== undefined) throw this.flushError;
   }
 
   async close(): Promise<void> {
     this.calls.push('close');
+    if (this.closeError !== undefined) throw this.closeError;
   }
 
   truncate(size: number): void {
@@ -46,6 +53,17 @@ class FakeFileHandle implements OpfsFileHandleLike {
 
   createSyncAccessHandle(): Promise<OpfsSyncHandleLike> {
     return Promise.resolve(this.syncHandle);
+  }
+}
+
+/** 交付一个指定 sync handle 的文件替身：测试把失败句柄放进 OPFS 树。 */
+class FixedFileHandle extends FakeFileHandle {
+  constructor(private readonly handle: FakeSyncHandle) {
+    super();
+  }
+
+  override createSyncAccessHandle(): Promise<OpfsSyncHandleLike> {
+    return Promise.resolve(this.handle);
   }
 }
 
@@ -158,6 +176,29 @@ describe('resolveSyncHandle', () => {
   it('空段列表抛错而不是创建空名字句柄', async () => {
     await expect(resolveSyncHandle(new FakeDirectoryHandle(), [])).rejects.toThrow();
   });
+
+  it('open 后截断为 0：与 base 后端 createWritable 的默认语义对齐', async () => {
+    const root = new FakeDirectoryHandle();
+
+    const handle = await resolveSyncHandle(root, ['a.txt']);
+
+    expect(handle).toBeInstanceOf(FakeSyncHandle);
+    expect((handle as FakeSyncHandle).truncateCalls).toEqual([0]);
+  });
+
+  it('truncate 不可用时 open 失败并释放句柄，绝不带着旧尾字节继续写', async () => {
+    const root = new FakeDirectoryHandle();
+    const failing = new FakeSyncHandle(undefined, undefined);
+    failing.truncate = (): void => {
+      failing.truncateCalls.push(0);
+      throw new DOMException('truncate not implemented', 'NotSupportedError');
+    };
+    root.children.set('a.txt', new FixedFileHandle(failing));
+
+    await expect(resolveSyncHandle(root, ['a.txt'])).rejects.toMatchObject({ name: 'NotSupportedError' });
+    // 打开失败的句柄必须已释放：泄漏会让同文件后续 createSyncAccessHandle 永久 NoModificationAllowedError。
+    expect(failing.calls).toContain('close');
+  });
 });
 
 describe('handleWorkerOp', () => {
@@ -196,7 +237,8 @@ describe('handleWorkerOp', () => {
     const aborted = await handleWorkerOp({ id: 2, kind: 'abort', handleId }, root, handles);
 
     expect(aborted).toEqual({ id: 2, ok: true });
-    expect(handle.truncateCalls).toEqual([0]);
+    // 两次截断：open 对齐 base 后端语义的那一次，加上 abort 自己这一次。
+    expect(handle.truncateCalls).toEqual([0, 0]);
     expect(handle.calls).toEqual(['close']);
     expect(handles.has(handleId)).toBe(false);
 
@@ -241,6 +283,58 @@ describe('handleWorkerOp', () => {
 
     expect(opened.ok).toBe(false);
     expect(opened.error).toEqual({ name: 'QuotaExceededError', message: 'storage quota exceeded' });
+  });
+
+  it('close 时 flush 失败仍关闭句柄、句柄出表，并报出 flush 错误', async () => {
+    const handles = new Map<number, OpfsSyncHandleLike>();
+    const root = new FakeDirectoryHandle();
+    const failing = new FakeSyncHandle(new DOMException('disk full', 'QuotaExceededError'));
+    root.children.set('a.txt', new FixedFileHandle(failing));
+    const opened = await handleWorkerOp({ id: 0, kind: 'open', segments: ['a.txt'] }, root, handles);
+    const handleId = opened.handleId as number;
+
+    const closed = await handleWorkerOp({ id: 1, kind: 'close', handleId }, root, handles);
+
+    expect(closed.ok).toBe(false);
+    expect(closed.error).toEqual({ name: 'QuotaExceededError', message: 'disk full' });
+    // flush 失败不能挡住 close 释放句柄：独占句柄泄漏会让同文件后续 open 永久 NoModificationAllowedError。
+    expect(failing.calls).toEqual(['flush', 'close']);
+    expect(handles.has(handleId)).toBe(false);
+  });
+
+  it('flush 成功但 close 失败时报 close 错误，句柄同样出表', async () => {
+    const handles = new Map<number, OpfsSyncHandleLike>();
+    const root = new FakeDirectoryHandle();
+    const failing = new FakeSyncHandle(undefined, new DOMException('handle gone', 'InvalidStateError'));
+    root.children.set('a.txt', new FixedFileHandle(failing));
+    const opened = await handleWorkerOp({ id: 0, kind: 'open', segments: ['a.txt'] }, root, handles);
+    const handleId = opened.handleId as number;
+
+    const closed = await handleWorkerOp({ id: 1, kind: 'close', handleId }, root, handles);
+
+    expect(closed.ok).toBe(false);
+    expect(closed.error?.name).toBe('InvalidStateError');
+    expect(failing.calls).toEqual(['flush', 'close']);
+    expect(handles.has(handleId)).toBe(false);
+  });
+
+  it('flush 与 close 都失败时报 flush 错误（耐久性失败优先）', async () => {
+    const handles = new Map<number, OpfsSyncHandleLike>();
+    const root = new FakeDirectoryHandle();
+    const failing = new FakeSyncHandle(
+      new DOMException('disk full', 'QuotaExceededError'),
+      new DOMException('handle gone', 'InvalidStateError')
+    );
+    root.children.set('a.txt', new FixedFileHandle(failing));
+    const opened = await handleWorkerOp({ id: 0, kind: 'open', segments: ['a.txt'] }, root, handles);
+    const handleId = opened.handleId as number;
+
+    const closed = await handleWorkerOp({ id: 1, kind: 'close', handleId }, root, handles);
+
+    expect(closed.ok).toBe(false);
+    expect(closed.error?.name).toBe('QuotaExceededError');
+    expect(failing.calls).toEqual(['flush', 'close']);
+    expect(handles.has(handleId)).toBe(false);
   });
 });
 
