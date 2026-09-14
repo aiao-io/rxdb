@@ -1,9 +1,17 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { createServer, type Server } from 'node:http';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { serveFrontend } from './frontend-server';
 import { runSelfCheck, type DevToolsNativeProbe, type SelfCheckRun } from './packaged-app';
 
 /**
@@ -72,6 +80,9 @@ const EMPTY_FILE = 'drv-empty.bin';
 /** 取消用例的目标名，与驱动的 `CANCELLED_FILE` 一致；它永远不该出现在盘上。 */
 const CANCELLED_FILE = 'drv-cancelled.bin';
 
+/** 非法 base64 chunk 探针的目标名，与驱动的 `INVALID_FILE` 一致；它永远不该出现在盘上。 */
+const INVALID_FILE = 'drv-invalid.bin';
+
 /**
  * 往返载荷，与驱动的 `payloadBytes()` 逐字节相同。
  *
@@ -86,80 +97,6 @@ const payloadBytes = (): Buffer => {
   for (let index = 0; index < bytes.length; index += 1) bytes[index] = (index * 31 + 7) & 0xff;
   return bytes;
 };
-
-/** `tauri.conf.json` 的 `devUrl` 写死的端口。 */
-const DEV_URL_PORT = 1420;
-
-/** 前端产物目录，与 `dev-rxdb-tauri` 的 build outputPath 一致。 */
-const FRONTEND_DIST = resolve(import.meta.dirname, '..', '..', '..', 'dist', 'apps', 'dev-rxdb-tauri', 'browser');
-
-/** 最小 MIME 表；够本 demo 的产物用。 */
-const MIME: Readonly<Record<string, string>> = Object.freeze({
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.wasm': 'application/wasm',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2'
-});
-
-/**
- * 在 1420 上服务前端产物。
- *
- * @returns 关闭手柄
- * @throws 端口被占用时抛出，并说清该去关掉什么
- *
- * @remarks
- * 目录穿越用 `startsWith(FRONTEND_DIST)` 挡住：这是个跑在开发机上的临时服务，
- * 但让它能读产物目录之外的文件没有任何好处。
- *
- * 找不到的路径回退到 `index.html`（面板与应用都是 hash 路由的 SPA），
- * 但**只对不带扩展名的路径**回退：给一个 404 的 `.js` 返回 HTML，
- * 表征会是一句与真因毫无关系的语法错误。
- */
-async function serveFrontend(): Promise<{ close: () => Promise<void> }> {
-  const server: Server = createServer((request, response) => {
-    const path = (request.url ?? '/').split('?')[0];
-    const wanted = resolve(FRONTEND_DIST, `.${path === '/' ? '/index.html' : path}`);
-    const target = wanted.startsWith(FRONTEND_DIST) ? wanted : FRONTEND_DIST;
-    void readFile(target)
-      .catch(async error => {
-        if (extname(target) !== '') throw error;
-        return readFile(join(FRONTEND_DIST, 'index.html'));
-      })
-      .then(body => {
-        response.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' }).end(body);
-      })
-      .catch(() => response.writeHead(404).end());
-  });
-
-  await new Promise<void>((settle, fail) => {
-    server.on('error', error => {
-      fail(
-        new Error(
-          [
-            `无法在 ${String(DEV_URL_PORT)} 上启动前端服务：${String(error)}`,
-            '这个端口是 tauri.conf.json 的 devUrl 写死的，换不了。',
-            '多半是有一个 `nx serve dev-rxdb-tauri` 还开着——先关掉它再跑。'
-          ].join('\n')
-        )
-      );
-    });
-    server.listen(DEV_URL_PORT, '127.0.0.1', () => settle());
-  });
-
-  return {
-    close: () =>
-      new Promise<void>((settle, fail) => {
-        server.close(error => (error ? fail(error) : settle()));
-      })
-  };
-}
 
 /** UUID v4，与 `v2/ids.ts` 生成的形状一致。 */
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -398,6 +335,73 @@ describe('dev 产物里的两个真实 WebView（US-905 阶段 1 AC#1 / AC#2）'
       // 对照组就在上面那条 `files.list`：**同一个操作、同一份参数**，唯一的差别是 session。
       expect(native()?.filesList).toBe('ok');
     });
+
+    /**
+     * AC#2 的 fake 档镜像参照系：HANDSHAKE 帧里 descriptors 在真实链路上就是三个域、
+     * 三个真实 kind、runtime 一律 `tauri`。
+     *
+     * @remarks
+     * 驱动从调试窗口收到的 HANDSHAKE 帧里取这份 payload（协商时 connector 把它带在
+     * `capabilities.descriptors` 里），不另开通道。fake 档断言的「镜像这份能力面」，
+     * 像长什么样只能以真实档为凭——这一条就是那个凭。
+     */
+    it('握手帧里的 descriptors 是三个真实域，runtime 全是 tauri', () => {
+      expect(native()?.descriptorKinds).toEqual({ database: 'rxdb', files: 'native-files', settings: 'sqlite' });
+      expect(native()?.descriptorRuntimes).toEqual({ database: 'tauri', files: 'tauri', settings: 'tauri' });
+    });
+
+    /**
+     * AC#2 的 snapshot 走查在真实链路上成立：首页 → 翻页到 complete → 双开后旧 cursor
+     * 失效 → 越界 pageSize 被 guard 拒掉。
+     *
+     * @remarks
+     * 判据只取结果码与计数（AC#13）：`snapshotRecords` 是本进程存储根里的真实文件数，
+     * 具体数字取决于机器状态，因此只断「走到了 complete 且数出了一个非负数」。
+     */
+    it('snapshot 走查在真实链路上给出全套结论码', () => {
+      expect(native()?.snapshotFirstPage).toBe('ok');
+      expect(native()?.snapshotComplete).toBe('ok');
+      expect(native()?.snapshotRecords ?? -1).toBeGreaterThanOrEqual(0);
+      expect(native()?.snapshotExpired).toBe('snapshot_expired');
+      expect(native()?.snapshotInvalidPageSize).toBe('invalid_message');
+    });
+
+    /**
+     * safe-integer 探针：`database.query` 的三个越界 limit 都被 guard 拒掉。
+     *
+     * @remarks
+     * 三个值共享 `MAX_QUERY_LIMIT` guard，但「0」「超过上限」「不是整数」是三种**不同形态**
+     * 的越界，漏掉哪一种都说明边界判断有一格是空的。fake 档走同一份共享分派，
+     * 这里钉住的是真实 provider 在 wire 上的三个码。
+     */
+    it('query 的三个越界 limit 都被 guard 拒掉', () => {
+      expect(native()?.queryLimitZero).toBe('invalid_path');
+      expect(native()?.queryLimitHuge).toBe('invalid_path');
+      expect(native()?.queryLimitFraction).toBe('invalid_path');
+    });
+
+    /**
+     * AC#9 的 branch 半边：`get-branches` 列出唯一激活分支；`switch-branch` 的所需档位是
+     * `full`（会改变持久状态），只读档的 mutationPolicy 不是 `allow`，于是被按写操作拒掉——
+     * 与「操作没声明」同一个码（AC#13 的刻意不可区分）。走通的那半边由授权档用例钉着。
+     */
+    it('get-branches 列出唯一激活分支，switch-branch 被只读档按写操作拒掉', () => {
+      expect(native()?.branchesList).toBe('ok');
+      expect(native()?.branchCount).toBe(1);
+      expect(native()?.branchSwitch).toBe('provider_unsupported');
+    });
+
+    /**
+     * `events` 订阅在真实链路上成功，且启动期的事件确实经帧送到了面板。
+     *
+     * @remarks
+     * 订阅 code 是承重判据；`eventFrames` 只断「字段在且计数非负」——事件到达的时机
+     * 取决于应用写库的次序，钉死具体帧数只会换来一条间歇红（计划 R2）。
+     */
+    it('events 订阅成功，eventFrames 计数存在且非负', () => {
+      expect(native()?.eventsSubscribe).toBe('ok');
+      expect(native()?.eventFrames ?? -1).toBeGreaterThanOrEqual(0);
+    });
   });
 });
 
@@ -541,6 +545,43 @@ describe('开了写入授权的那一跑（US-905 阶段 2）', () => {
     // 与写入授权无关：这一跑开着 `full` + `allow`，拒绝只可能来自路径校验本身。
     expect(nativeOf(run).escapedUpload, wire(run)).toBe('invalid_path');
     expect(existsSync(join(storageRoot, '..', BYTES_FILE)), '字节落到了插件根之外').toBe(false);
+  });
+
+  /**
+   * safe-integer 探针的尺寸半边：2^53 字节的上传在 wire 上就被尺寸上限拒掉。
+   *
+   * @remarks
+   * 2^53 是 JS 里不再能安全表示整数的分界，也是安全数判据的天然取值；传的只是一个
+   * **声明尺寸**，不是真的 2^53 字节。拒它的是 native provider 的尺寸 guard
+   * （`transfer_size_exceeded`）——这一码与 query 侧的 `invalid_path` 分属两条 guard，
+   * 各自断一次。
+   */
+  it('2^53 字节的上传被尺寸上限挡下', () => {
+    expect(nativeOf(run).uploadHugeSize, wire(run)).toBe('transfer_size_exceeded');
+  });
+
+  /**
+   * 非法 base64 的 chunk 被整帧拒掉，且目标文件一个字节都没落盘。
+   *
+   * @remarks
+   * 驱动在字节往返**之前**用一份非法 base64 载荷开了一次上传并主动取消：判据要的是
+   * `payload_encoding_invalid` 这个码——它只可能来自 wire 解码层。盘上那条是 e2e 自己
+   * 看的第二来源：半写文件或静默吞帧都过不了它。
+   */
+  it('非法 base64 的 chunk 被拒，目标文件没有落盘', () => {
+    expect(nativeOf(run).invalidChunk, wire(run)).toBe('payload_encoding_invalid');
+    expect(existsSync(join(storageRoot, INVALID_FILE)), '非法 chunk 的目标文件落盘了').toBe(false);
+  });
+
+  it('授权档下 switch-branch 走通真实 provider（AC#9 的 branch 半边）', () => {
+    const native = nativeOf(run);
+
+    // `switch-branch` 所需档位是 `full`：只读档被 mutationPolicy 拒（见只读那组用例），
+    // 授权档下才真正切到 provider。切的目标是当前已激活分支——`versionManager` 的语义是
+    // no-op 成功，所以这里答 `ok` 而不改变任何持久状态。
+    expect(native.branchesList, wire(run)).toBe('ok');
+    expect(native.branchCount).toBe(1);
+    expect(native.branchSwitch).toBe('ok');
   });
 
   it('只读那一跑的其余结论在这一跑同样成立', () => {
@@ -690,4 +731,60 @@ describe('跨重启的 wire 比对（US-905 阶段 2，AC#15）', () => {
       rmSync(workspace, { force: true, recursive: true });
     }
   }, 420_000);
+});
+
+/**
+ * AC#11 的真实 host 半边：1001+ 个文件在真实存储根上走完整套分页。
+ *
+ * @remarks
+ * 播种不经 wire——e2e 自己的手直接往**物理**存储根（`dataDir/rxdb-files/files`）写 1001 个
+ * 小文件，应用起库之后驱动经真实 provider 走查快照。判据是「首页 ok → 翻页到 complete →
+ * 记录数 ≥ 1001」：默认页大小 100，1001 条意味着**至少 11 页**，任何「只走第一页」或
+ * 「数到第一页长度就停下」的实现在这里都会差 901 条。
+ *
+ * 文件名 `seed-NNNN` 刻意不带点：`isDesktopHostTemporaryName` 只匹配「点 + UUID + .rxdb-tmp」，
+ * 无后缀名不在其列；1001 条 × 几十字节远低于 32 MiB 字节上限与 100_000 记录上限，
+ * 不会误触 `snapshot_too_large`。
+ */
+describe('真实存储根播种 1001+ 文件的快照走查（US-905 阶段 2 AC#11）', () => {
+  let frontend: { close: () => Promise<void> } | undefined;
+  let workspace: string | undefined;
+  let run: SelfCheckRun | undefined;
+
+  beforeAll(async () => {
+    frontend = await serveFrontend();
+    workspace = mkdtempSync(join(realpathSync(tmpdir()), 'rxdb-tauri-1001-'));
+    const dataDir = join(workspace, 'app-data');
+    const storageRoot = join(dataDir, 'rxdb-files', 'files');
+    mkdirSync(storageRoot, { recursive: true });
+    for (let index = 0; index < 1001; index += 1) {
+      writeFileSync(join(storageRoot, `seed-${String(index).padStart(4, '0')}`), `seed ${index}\n`);
+    }
+
+    run = await runSelfCheck({
+      dataDir,
+      reportPath: join(workspace, 'selfcheck-1001.json'),
+      devtoolsProbe: true,
+      profile: 'debug'
+    });
+    expect(run.report.status, because(run)).toBe('ok');
+  }, 240_000);
+
+  afterAll(async () => {
+    // beforeAll 失败（端口冲突等）时 frontend 还没填上：与兄弟文件（devtools-provider-gear）
+    // 的 state 守卫同一条理由，无条件收尾只会以 TypeError 添一层噪音、盖住真正的失败原因。
+    if (frontend === undefined || workspace === undefined) return;
+    await frontend.close();
+    rmSync(workspace, { force: true, recursive: true });
+  });
+
+  it('1001+ 个文件走完整套分页，全套结论码成立', () => {
+    if (run === undefined) throw new Error('beforeAll 该把 run 填上');
+    const native = nativeOf(run);
+    expect(native.snapshotFirstPage, wire(run)).toBe('ok');
+    expect(native.snapshotComplete).toBe('ok');
+    expect(native.snapshotRecords ?? -1).toBeGreaterThanOrEqual(1001);
+    expect(native.snapshotExpired).toBe('snapshot_expired');
+    expect(native.snapshotInvalidPageSize).toBe('invalid_message');
+  });
 });

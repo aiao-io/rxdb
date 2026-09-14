@@ -1127,6 +1127,28 @@
         "name": "sessionIdOf",
         "kind": "value"
       }
+    ],
+    "./testing-providers": [
+      {
+        "name": "createFakeProviders",
+        "kind": "value"
+      },
+      {
+        "name": "DevToolsFakePlatformFailure",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderKinds",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderOptions",
+        "kind": "type"
+      },
+      {
+        "name": "DevToolsFakeProviderSet",
+        "kind": "type"
+      }
     ]
   }
 }

@@ -380,17 +380,30 @@ describe('snapshot epoch retries and deadline', () => {
     expect(store.active).toBe(false);
   });
 
-  it('MUST release the in-flight ledger when the source throws instead of returning', async () => {
+  it('MUST settle a persistently throwing capture as snapshot_busy and release the ledger', async () => {
     // 平台实现只要在等锁时抛一个 DOMException，就能让在途账本永远留在那里——
     // 此后每一次 open() 都答 snapshot_busy，而那份「忙」背后并没有任何在途工作，
     // 也没有任何东西会来解除它：整个 session 的快照能力就此报废。
+    // 抛出本身也必须按契约结算：重试耗尽后收敛成 snapshot_busy，而不是把异常逃出
+    // open() 丢给上层——上层只能把它压平成 operation_failed，丢掉具体的码。
     const boom: Responder = () => Promise.reject(new Error('lock manager exploded'));
-    const { clock, store } = setup(boom, captured(makeRecords(1)));
+    const { clock, store } = setup(boom);
 
-    await expect(store.open()).rejects.toThrow('lock manager exploded');
+    expect(await store.open()).toEqual({
+      outcome: 'rejected',
+      error: { code: 'snapshot_busy', retryable: true }
+    });
     // 15 秒 deadline 也一并收回，否则它会在 15 秒后去中断一份早已不存在的物化。
     expect(clock.pendingTimers()).toBe(0);
+  });
 
+  it('MUST retry a throwing capture and recover when the next attempt succeeds', async () => {
+    const boom: Responder = () => Promise.reject(new Error('lock manager exploded'));
+    const { store } = setup(boom, captured(makeRecords(1)));
+
+    // 第一次尝试抛错，重试拿到结果：一次瞬时平台失败不消耗整个 session 的快照能力。
+    expect(expectPage(await store.open()).records).toHaveLength(1);
+    // 账本已随 finally 收回：下一次 open 照常物化，而不是撞上假 busy。
     expect(expectPage(await store.open()).records).toHaveLength(1);
   });
 });

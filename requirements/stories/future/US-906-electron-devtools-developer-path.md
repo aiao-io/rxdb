@@ -60,14 +60,14 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                                    | 操作                                                              | 预期结果                                                                                                                                                                          | 状态 |
-| --- | ----------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources` | ✅   |
-| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代（人按文档手跑一遍的确认 ↗ US-907 AC#5）   | ✅   |
-| 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                          | ✅   |
-| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                            | ✅   |
-| 5   | 仓库文档                                                    | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                                       | ✅   |
-| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）       | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                                             | ✅   |
+| #   | 前置条件                                                    | 操作                                                              | 预期结果                                                                                                                                                                                      | 状态 |
+| --- | ----------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 工作区已安装依赖                                            | 跑 dev-only 扩展构建变体                                          | 产物 manifest 含 `host_permissions: ['http://localhost/*']`；且默认 `nx build rxdb-devtools-extension` 的 manifest 仍**无** `host_permissions`、**无** `web_accessible_resources`             | ✅   |
+| 2   | AC#1 的变体已构建；`nx serve dev-rxdb-electron` 已起在 4120 | 按文档启动 `nx dev dev-rxdb-electron`，打开 DevTools 的 RxDB 面板 | 面板进入 `granted`、四段 relay 握手完成，Database 页读到真实实体行；证据全程经过真实 extension/renderer/preload/main/host，无 mock 替代（人按文档手跑一遍的确认已移出承诺范围，见下方证据链） | ✅   |
+| 3   | AC#1 的变体已存在                                           | 跑 `nx e2e dev-rxdb-electron-e2e`                                 | `devtools-restart-persistence.spec.ts` 不再在测试内改写 manifest（`devtoolsExtensionCopy()` 收敛为指向 dev 变体或删除），全套 e2e 仍全绿                                                      | ✅   |
+| 4   | 跑打包产物（`app://` 入口），DevTools 打开 RxDB 面板        | 观察面板                                                          | 面板说明**原因**（当前页面协议不在扩展可注入的 scheme 集内），而非只给结论；状态仍为 `unsupported`，`permissionPatternForUrl('app://…')` 仍返回 `null`                                        | ✅   |
+| 5   | 仓库文档                                                    | 读 `apps/rxdb-devtools-extension/README.md`                       | 写明桌面端调试的唯一成立形态、四个 env 开关的含义，以及打包态为什么不行（上面两条实测约束）                                                                                                   | ✅   |
+| 6   | production 模式（不设 `DEV_RXDB_DEVTOOLS*` 任何 env）       | 启动打包产物                                                      | 一个扩展都不加载，产物内无扩展源码与加载路径（`devtools-extension-loading.spec.ts` 现有断言不得回退）                                                                                         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -105,8 +105,8 @@ extension/renderer/preload/main/host 全程无替身，Database 页读到真实 
 AC#2 判据里的每一项都在这条链上得证。
 
 判据之外还剩一件事：**照着 README 手跑一遍，人能不能走通**。它验的是文档而非代码，
-和 [US-907](./US-907-devtools-manual-regression.md) 已有的四条同源同性质，
-在那里作 AC#5。用脚本代跑就把被验对象换掉了，所以它不该留在本故事里等一次「有空再看一眼」。
+用脚本代跑就把被验对象换掉了——已**移出承诺范围**：项目处于早期，v2 迁移的行为中性由
+自动化证据承担；未来收尾需要人工回归时另立故事。
 
 ### 两条实测得出的开发流程约束（都不在原故事里）
 

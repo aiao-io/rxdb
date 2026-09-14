@@ -1,9 +1,15 @@
 import { TAURI_ADAPTER_NAME as PACKAGE_TAURI_ADAPTER_NAME } from '@aiao/rxdb-adapter-tauri';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { vi } from 'vitest';
 import { DESKTOP_DEMO_DB_NAME, WEB_PREVIEW_DB_NAME } from './db-names';
+import { DEVTOOLS_RUNTIME_CONFIG_KEY } from './devtools-runtime-config';
 import { RxDBLocalBackendTableError, selectLocalBackend } from './local-backend';
-import { localBackends, TAURI_ADAPTER_NAME, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
+import { localBackends, resolveLocalBackend, TAURI_ADAPTER_NAME, WA_SQLITE_ADAPTER_NAME } from './setup_rxdb';
+
+// 下面「强制档传参」一组要验证 `create` thunk 把 forceVfs 交给建库模块：建库模块本身
+// 要开真 worker，单测跑不动，所以整份替掉，只钉传参。其余用例不 import 这个模块，不受影响。
+vi.mock('./setup_rxdb_wa-sqlite', () => ({ default: vi.fn(() => Promise.resolve({})) }));
 
 /** 读同目录下的源文件；下面几条静态门禁都靠它。 */
 const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
@@ -62,6 +68,66 @@ describe('localBackends', () => {
 
     expect(new Set(dbNames).size).toBe(dbNames.length);
     expect(() => selectLocalBackend(localBackends({}))).not.toThrow(RxDBLocalBackendTableError);
+  });
+});
+
+/**
+ * US-905 AC#6 的三态实测要跑在打包窗口里，靠的是 `DEV_RXDB_DEVTOOLS_FORCE_VFS` 强制档：
+ * 强制档生效时 wa-sqlite 候选必须在 Tauri 窗口里也胜出，桌面候选让路。
+ *
+ * @remarks
+ * 强制档经 `resolveLocalBackend` 从注入配置读入候选表；候选表本身仍是纯的 ——
+ * 力传参，所以下面能直接组合 `localBackends` 与 `selectLocalBackend` 跑到两条分支。
+ */
+describe('US-905 强制 VFS 档的候选选择', () => {
+  it('forced 档下 Tauri 窗口也选 wa-sqlite（桌面候选让路）', () => {
+    for (const forceVfs of ['opfs', 'idb', 'unavailable'] as const) {
+      const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }, forceVfs));
+      expect(backend.adapter, forceVfs).toBe(WA_SQLITE_ADAPTER_NAME);
+      expect(backend.dbName).toBe(WEB_PREVIEW_DB_NAME);
+    }
+  });
+
+  it('未强制时桌面候选在 Tauri 窗口保持优先', () => {
+    const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }));
+    expect(backend.adapter).toBe(TAURI_ADAPTER_NAME);
+  });
+
+  it('resolveLocalBackend 把注入的强制档接进候选表', () => {
+    (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY] = Object.freeze({ forceVfs: 'idb' });
+    try {
+      // 本文件只有这一条走 resolveLocalBackend：它的模块级记忆没有第二个读者。
+      expect(resolveLocalBackend({ __TAURI_INTERNALS__: {} }).adapter).toBe(WA_SQLITE_ADAPTER_NAME);
+    } finally {
+      delete (globalThis as Record<string, unknown>)[DEVTOOLS_RUNTIME_CONFIG_KEY];
+    }
+  });
+});
+
+/**
+ * 候选表选对只是前半段：`create` thunk 还必须把强制档**原样**交给 wa-sqlite 建库模块。
+ *
+ * @remarks
+ * 只钉候选、不钉传参的话，强制档会停在候选表里 —— 打包窗口里三个档位全部静默退化成
+ * 能力探测（WKWebView 没有真 OPFS，三档都会落到 IDB），实测就成了「测了等于没测」，
+ * 而且症状只在 e2e 里以「三个档位结论一模一样」的形态暴露。建库模块本身开真 worker，
+ * 单测跑不动，所以这里用 `vi.mock` 整份替掉，只验证 `default(forceVfs)` 收到什么。
+ */
+describe('US-905 强制 VFS 档的建库传参', () => {
+  it('create 把强制档原样传给 wa-sqlite 建库模块', async () => {
+    const { default: createWaSqlite } = await import('./setup_rxdb_wa-sqlite');
+    for (const forceVfs of ['opfs', 'idb', 'unavailable'] as const) {
+      const backend = selectLocalBackend(localBackends({ __TAURI_INTERNALS__: {} }, forceVfs));
+      await backend.create();
+      expect(createWaSqlite, forceVfs).toHaveBeenCalledWith(forceVfs);
+    }
+  });
+
+  it('未强制时以 undefined 调用，保持「不传档」的语义', async () => {
+    const { default: createWaSqlite } = await import('./setup_rxdb_wa-sqlite');
+    const backend = selectLocalBackend(localBackends({}));
+    await backend.create();
+    expect(createWaSqlite).toHaveBeenCalledWith(undefined);
   });
 });
 

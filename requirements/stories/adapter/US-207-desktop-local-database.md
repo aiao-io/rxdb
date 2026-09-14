@@ -110,7 +110,7 @@ INVEST 检查清单:
 3. host 入口真能开库、建表、写入、读回、关闭，应答一律经 renderer 入口导出的
    `assertDesktopHostResponse` 解包——于是这条往返同时证明两个入口的协议是配套的。
 
-该 job **不进 PR 门禁**（要 `pnpm pack` 再装进临时项目，耗时与 PR 上每次都跑的收益不成比例）；
+该 job 随 `release-desktop.yml` 的触发面走（release 发布 / 手动 dispatch / 桌面链路相关 PR）；
 它也是那条 workflow 里唯一**不上矩阵**的 job（`pnpm pack` → 临时消费者 → 双模式 typecheck → host
 真开库往返，没有一步与 OS 有关）。脚本用 `process.cwd()` 当 workspace 根，**必须从仓库根目录调用**。
 拆包后这三条要在**两个**包上各跑一遍（E7），脚本用 `TARGETS` 表参数化包名，不复制第二份。

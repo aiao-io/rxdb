@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DevToolsConnector } from '../connector.js';
 import { createDevToolsDesktopSettingsProvider } from '../native/settings-provider.js';
+import type { DevToolsProviderDescriptor, DevToolsProviderDomain } from '../provider/descriptor.js';
+import type { DevToolsChunkSink, DevToolsChunkSource, DevToolsProvider } from '../provider/types.js';
+import { createFakeProviders } from '../testing/fake-providers.js';
 import { createMessage, RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import { DEVTOOLS_PROTOCOL_VERSION_V2 } from '../v2/constants.js';
+import type { DevToolsProviderRegistry } from '../v2/endpoint.js';
 import type { DevToolsV2Envelope, DevToolsV2MessageType } from '../v2/wire.js';
 import { createDevToolsV2Message, isDevToolsV2Message } from '../v2/wire.js';
 import type { FakeOpfsRoot } from './browser/fake-opfs.js';
@@ -341,6 +345,35 @@ describe('DevToolsConnector v2 negotiation', () => {
       expect(framesOf('EVENT')[0]?.payload).toMatchObject({ eventType: 'ENTITY_LOCAL_CREATE' });
     });
 
+    it('MUST dispose the previous registry when a session close restarts negotiation', async () => {
+      const rxdb = initWithDatabase();
+      connect();
+      // 触发 database.events：database provider 此刻才在 RxDB 实例上挂监听。
+      deliver(
+        createDevToolsV2Message(
+          'REQUEST',
+          { requestId: 'r1', domain: 'database', operation: 'events', params: {} },
+          { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      await until(() => listenerCount(rxdb) > 0);
+      const before = listenerCount(rxdb);
+
+      // 会话关闭 → #restartNegotiation 换新端点与新 registry：旧 registry 的 dispose 不
+      // 调用的话，每次开关 devtools 窗口都累积一组 RxDB 监听与一个未释放的快照仓库。
+      // v1 事件流与 v2 会话无关、也不该被拆，所以断言的是**差值**而不是总数归零。
+      deliver(
+        createDevToolsV2Message('DISCONNECT', null, {
+          sessionId: sessionId(),
+          sequence: 4,
+          timestamp: TIMESTAMP,
+          direction: 'panel-to-connector'
+        })
+      );
+
+      expect(listenerCount(rxdb)).toBeLessThan(before);
+    });
+
     it('MUST stop pushing events after disconnect', async () => {
       const rxdb = initWithDatabase();
       connect();
@@ -352,6 +385,121 @@ describe('DevToolsConnector v2 negotiation', () => {
       // 拆了端点却留着 RxDB 监听，实例就再也回收不掉。
       expect(framesOf('EVENT')).toHaveLength(0);
       expect(listenerCount(rxdb)).toBe(0);
+    });
+  });
+
+  describe('provider registry 整体注入', () => {
+    function initWithRegistry(): ReturnType<typeof createFakeProviders> {
+      const registry = createFakeProviders({
+        runtime: 'tauri',
+        kinds: { database: 'rxdb', files: 'opfs', settings: 'sqlite' }
+      });
+      connector = new DevToolsConnector({
+        capabilities: 'readonly',
+        providers: { providerRegistry: registry }
+      });
+      const addEventSpy = vi.spyOn(window, 'addEventListener');
+      // 不给读取函数：自动装配路径会因此不宣告 `database`，注入路径却照样有——
+      // 恰好证明 descriptors 来自 registry，而不是任何一条装配逻辑。
+      connector.init(createMockRxDB());
+      const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+      if (registered === undefined) throw new Error('connector never registered a message listener');
+      handler = registered[1] as (event: MessageEvent) => void;
+      return registry;
+    }
+
+    it('MUST declare exactly the injected descriptors, database included', () => {
+      const registry = initWithRegistry();
+      deliver(
+        createDevToolsV2Message(
+          'PROTOCOL_HELLO',
+          { supportedVersions: [DEVTOOLS_PROTOCOL_VERSION_V2, 1] },
+          { sessionId: null, sequence: 1, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+
+      const descriptors = framesOf('HANDSHAKE')[0]?.payload.capabilities.descriptors;
+      // 原样透传，顺序也不改：端点拿到的就是注入的那份数组。
+      expect(descriptors).toEqual(registry.descriptors);
+    });
+
+    it('MUST answer data-plane requests through the injected registry', async () => {
+      initWithRegistry();
+      connect();
+      deliver(
+        createDevToolsV2Message(
+          'REQUEST',
+          { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+          { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // fake `database.inspect` 答的是它自己的合成数据——请求走的是注入的 provider。
+      expect(framesOf('RESPONSE')[0]?.payload).toMatchObject({
+        requestId: 'r1',
+        result: { collections: ['todos'], documents: 2 }
+      });
+    });
+
+    it('MUST survive disconnect without a registry dispose', () => {
+      initWithRegistry();
+      connect();
+
+      expect(() => connector.disconnect()).not.toThrow();
+    });
+
+    it('MUST keep prototype methods when the injected registry is a class instance', async () => {
+      // 逃生口是 DevToolsProviderRegistry 接口，宿主传 class 实例完全合法。对象展开只拷
+      // 自有可枚举属性，原型上的 provider / chunk 方法会整组消失，首个 REQUEST 被压成
+      // 笼统的 operation_failed —— 面板看不出是注入时被掏空了。
+      class ClassBasedRegistry implements DevToolsProviderRegistry {
+        private readonly inner = createFakeProviders({
+          runtime: 'tauri',
+          kinds: { database: 'rxdb', files: 'opfs', settings: 'sqlite' }
+        });
+
+        get descriptors(): readonly DevToolsProviderDescriptor[] {
+          return this.inner.descriptors;
+        }
+
+        provider(domain: DevToolsProviderDomain): DevToolsProvider {
+          return this.inner.provider(domain);
+        }
+
+        createChunkSink(name: string): DevToolsChunkSink {
+          return this.inner.createChunkSink(name);
+        }
+
+        createChunkSource(requestId: string): DevToolsChunkSource | undefined {
+          return this.inner.createChunkSource(requestId);
+        }
+      }
+
+      connector = new DevToolsConnector({
+        capabilities: 'readonly',
+        providers: { providerRegistry: new ClassBasedRegistry() }
+      });
+      const addEventSpy = vi.spyOn(window, 'addEventListener');
+      connector.init(createMockRxDB());
+      const registered = addEventSpy.mock.calls.find(call => call[0] === 'message');
+      if (registered === undefined) throw new Error('connector never registered a message listener');
+      handler = registered[1] as (event: MessageEvent) => void;
+
+      connect();
+      deliver(
+        createDevToolsV2Message(
+          'REQUEST',
+          { requestId: 'r1', domain: 'database', operation: 'inspect', params: {} },
+          { sessionId: sessionId(), sequence: 3, timestamp: TIMESTAMP, direction: 'panel-to-connector' }
+        )
+      );
+      await until(() => framesOf('RESPONSE').length > 0);
+
+      expect(framesOf('RESPONSE')[0]?.payload).toMatchObject({
+        requestId: 'r1',
+        result: { collections: ['todos'], documents: 2 }
+      });
     });
   });
 
