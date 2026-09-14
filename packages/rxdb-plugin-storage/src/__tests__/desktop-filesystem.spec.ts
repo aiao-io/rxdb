@@ -498,6 +498,52 @@ describe('createDesktopStorageFilesystem', () => {
       await expect(backend.lockBackend?.request('same', async () => 'ok')).resolves.toBe('ok');
       backend.dispose();
     });
+
+    it('session 建立失败时中止监听器照常摘除，不留泄漏', async () => {
+      // 监听器挂在 await session() 之前，摘除却只在 acquire 的 finally 里：session 拒绝
+      // （host 未就绪）时它会一直留在 signal 上。{once:true} 只在触发时移除，摘除必须
+      // 覆盖失败路径。
+      const deadSession: DesktopHostTransport = {
+        request: payload =>
+          payload.kind === 'file.open' ? Promise.reject(new Error('host not ready')) : host.handle(payload),
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: deadSession })('files', CONTEXT);
+      const controller = new AbortController();
+      const removeSpy = vi.spyOn(controller.signal, 'removeEventListener');
+
+      await expect(
+        backend.lockBackend?.request('same', { signal: controller.signal }, async () => 'ok')
+      ).rejects.toThrow('host not ready');
+      expect(removeSpy).toHaveBeenCalledWith('abort', expect.any(Function));
+      backend.dispose();
+    });
+
+    it('已中止且 acquire 传输失败时按契约拒绝 signal.reason，而不是传输错误', async () => {
+      let rejectAcquire: ((error: unknown) => void) | undefined;
+      const failingTransport: DesktopHostTransport = {
+        request: payload => {
+          if (payload.kind === 'file.lockAcquire') {
+            return new Promise((_resolve, reject) => {
+              rejectAcquire = reject;
+            });
+          }
+          return host.handle(payload);
+        },
+        subscribe: () => () => undefined
+      };
+      const backend = createDesktopStorageFilesystem({ transport: failingTransport })('files', CONTEXT);
+      const controller = new AbortController();
+      const pending = backend.lockBackend?.request('same', { signal: controller.signal }, async () => 'ok');
+
+      await vi.waitFor(() => expect(rejectAcquire).toBeDefined());
+      controller.abort();
+      // send 自己拒绝会绕过 if (aborted) 分支：调用方拿到的必须是契约规定的 signal.reason。
+      rejectAcquire?.(new Error('transport gone'));
+
+      await expect(pending).rejects.toBe(controller.signal.reason);
+      backend.dispose();
+    });
   });
 
   describe('生命周期', () => {

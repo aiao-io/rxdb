@@ -135,37 +135,35 @@ where
     if !PROVIDER_SOURCES.contains(&provider_source.as_str()) {
         return Err(format!("{PROVIDER_SOURCE_ENV} must be one of real / fake, got {provider_source:?}"));
     }
-    let snapshot_scenario = read(SNAPSHOT_SCENARIO_ENV).unwrap_or_else(|| "ok".to_string());
+    let snapshot_scenario_raw = read(SNAPSHOT_SCENARIO_ENV);
+    let snapshot_scenario = snapshot_scenario_raw.clone().unwrap_or_else(|| "ok".to_string());
     if !SNAPSHOT_SCENARIOS.contains(&snapshot_scenario.as_str()) {
         return Err(format!(
             "{SNAPSHOT_SCENARIO_ENV} must be one of ok / busy / expired / too_large, got {snapshot_scenario:?}"
         ));
     }
-    if read(SNAPSHOT_SCENARIO_ENV).is_some() && provider_source != "fake" {
+    if snapshot_scenario_raw.is_some() && provider_source != "fake" {
         return Err(format!(
             "{SNAPSHOT_SCENARIO_ENV} only applies to a fake provider source, got source {provider_source:?}"
         ));
     }
-    let force_vfs = read(FORCE_VFS_ENV);
-    match force_vfs.as_deref() {
-        None => Ok(Some(DevToolsRuntimeConfig {
-            capability,
-            mutation_policy: mutation_policy.to_string(),
-            provider_source,
-            snapshot_scenario,
-            force_vfs: None,
-        })),
-        Some(vfs) if FORCE_VFS_VALUES.contains(&vfs) && provider_source == "real" => Ok(Some(DevToolsRuntimeConfig {
-            capability,
-            mutation_policy: mutation_policy.to_string(),
-            provider_source,
-            snapshot_scenario,
-            force_vfs: Some(vfs.to_string()),
-        })),
-        Some(other) => Err(format!(
-            "{FORCE_VFS_ENV} must be one of opfs / idb / unavailable and only applies to a real provider source, got {other:?}"
-        )),
-    }
+    let force_vfs_raw = read(FORCE_VFS_ENV);
+    let force_vfs = match force_vfs_raw.as_deref() {
+        None => None,
+        Some(vfs) if FORCE_VFS_VALUES.contains(&vfs) && provider_source == "real" => Some(vfs.to_string()),
+        Some(other) => {
+            return Err(format!(
+                "{FORCE_VFS_ENV} must be one of opfs / idb / unavailable and only applies to a real provider source, got {other:?}"
+            ))
+        }
+    };
+    Ok(Some(DevToolsRuntimeConfig {
+        capability,
+        mutation_policy: mutation_policy.to_string(),
+        provider_source,
+        snapshot_scenario,
+        force_vfs,
+    }))
 }
 
 /// 单测用的最小构造；生产路径全部走 `plan_from_env`，那里逐字段校验，不用这份默认档。
@@ -215,15 +213,25 @@ pub fn init_script(config: &DevToolsRuntimeConfig, main_window_label: &str) -> S
 /// 插件（调试窗口是 `WebviewWindowBuilder` 直接建的），由 `lib.rs` 的
 /// `open_devtools_window` 排在 wire 驱动**之前**挂上同一个 builder 链。
 ///
+/// **只发档位字段**（provider 源 / snapshot 场景 / VFS 强制）：capability 与 mutation
+/// policy 是页面授权，与 [`init_script`] 的 TSDoc 同一条理由，没有理由出现在没有
+/// connector 的调试窗口里。
+///
 /// @param config - 已校验的运行档。
 /// @param devtools_label - 唯一该收到这份档位的窗口。
 /// @returns 注入脚本源码。
 pub fn driver_init_script(config: &DevToolsRuntimeConfig, devtools_label: &str) -> String {
-    guarded_script(config, devtools_label, DRIVER_CONFIG_GLOBAL_KEY)
+    // serde_json 值与原结构体共用同一套 camelCase 序列化规则，形状不会漂移。
+    let tier_config = serde_json::json!({
+        "providerSource": config.provider_source,
+        "snapshotScenario": config.snapshot_scenario,
+        "forceVfs": config.force_vfs
+    });
+    guarded_script(&tier_config, devtools_label, DRIVER_CONFIG_GLOBAL_KEY)
 }
 
-/// 两份注入脚本的共同形状；global key 是唯一区别。
-fn guarded_script(config: &DevToolsRuntimeConfig, target_label: &str, global_key: &str) -> String {
+/// 两份注入脚本的共同形状；global key 是唯一区别。载荷只要可序列化。
+fn guarded_script<T: serde::Serialize>(config: &T, target_label: &str, global_key: &str) -> String {
     // 三个值都由 serde 产出：label 与 key 同样进的是 JS 源码，同样不能拼。
     let payload = serde_json::to_string(config).expect("devtools config is plain data");
     let label = serde_json::to_string(target_label).expect("window label is a string");
@@ -314,7 +322,14 @@ mod tests {
         let script = init_script(&config("readonly".to_string(), "allow"), "main");
 
         assert!(script.contains(r#"currentWebview?.label !== "main""#), "{script}");
-        assert!(script.contains(r#"{"capability":"readonly","mutationPolicy":"allow""#), "{script}");
+        // 整份 payload 逐字节钉住（含结尾闭括号与三个档位字段）：序列化形状是页内
+        // `devToolsRuntimeConfig()` 的契约另一半，多一个字段、少一个闭括号都要在这里红。
+        assert!(
+            script.contains(
+                r#"{"capability":"readonly","mutationPolicy":"allow","providerSource":"real","snapshotScenario":"ok","forceVfs":null}"#
+            ),
+            "{script}"
+        );
         // 键名是跨语言契约的另一半（`setup_rxdb_desktop.ts` 的 `devToolsRuntimeConfig`）。
         assert!(script.contains(CONFIG_GLOBAL_KEY), "{script}");
     }
@@ -384,6 +399,10 @@ mod tests {
 
         assert!(script.contains(r#"currentWebview?.label !== "rxdb-devtools""#), "{script}");
         assert!(script.contains(r#""providerSource":"fake","snapshotScenario":"busy""#), "{script}");
+        // 页面授权（capability / mutation policy）没有理由出现在调试窗口里：
+        // 驱动只拿档位字段，授权字段连字节都不该进这扇窗。
+        assert!(!script.contains("capability"), "{script}");
+        assert!(!script.contains("mutationPolicy"), "{script}");
         // 档位键与授权键是两把：驱动在调试窗口里读档位，主窗口读授权，同名会互相污染。
         assert!(script.contains(DRIVER_CONFIG_GLOBAL_KEY), "{script}");
         assert!(!script.contains(CONFIG_GLOBAL_KEY), "{script}");

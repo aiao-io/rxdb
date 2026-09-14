@@ -111,6 +111,13 @@ export default async (forced?: DevToolsForcedVfs) => {
           wasmPath: `${wasmBase}wa-sqlite.wasm`
         };
       } else if (backend === 'IDBBatchAtomicVFS') {
+        // 强制档跳过能力探测（见 resolveForcedBackend 的 TSDoc），但 `new SharedWorker` 需要
+        // 一次**存在性**检查：WKWebView 没有 SharedWorker，缺它时这里是一条裸
+        // ReferenceError，而那条专门写好的诊断只有 unavailable 档能到——AC#6 三态走查里
+        // idb 档的意义就是给出可读的 VFS 诊断，不是让错误形态取决于平台。
+        if (typeof SharedWorker !== 'function') {
+          throw new Error('wa-sqlite requires OPFS or SharedWorker support');
+        }
         options = {
           vfs: backend,
           sharedWorker: true,

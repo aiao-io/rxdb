@@ -121,6 +121,23 @@ describe('fake-provider-gear snapshot 场景', () => {
     if (result.outcome === 'failed') expect(result.error.code).toBe('snapshot_expired');
   });
 
+  it('expired：首页交付后 idle 立即到期，同 cursor 的下一次翻页答 snapshot_expired（不必双开）', async () => {
+    // 这一档与 ok 的差别全在时钟：cursor idle 一挂上就到期。没有它的话，expired 与 ok
+    // 在 wire 上逐字节相同，那一档的 env 值、Rust 校验和一整次 e2e 启动什么都没验到。
+    const gear = createFakeProviderGear('expired');
+
+    const first = await listSnapshot(gear, { snapshot: { pageSize: 100 } });
+    expect(first.records).toHaveLength(100);
+    // 让 0 ms idle 计时器到期：快照在交付首页后随即被释放。
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const result = await gear.provider('files').invoke('list', {
+      snapshot: { cursor: { snapshotId: first.snapshotId, offset: first.offset + 100 } }
+    });
+    expect(result.outcome).toBe('failed');
+    if (result.outcome === 'failed') expect(result.error.code).toBe('snapshot_expired');
+  });
+
   it('参数形状探针：畸形 spec 答 invalid_path，越界 pageSize 答 invalid_message', async () => {
     const gear = createFakeProviderGear('ok');
 

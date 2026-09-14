@@ -267,7 +267,8 @@ class DesktopLockBackend implements Pick<LockManager, 'request'> {
 
     // host 的 acquire 无法中途取消：中止落在等锁期间时，仍要等授予到达再**立即释放**——
     // 提前拒绝的话，那份留在 host 队列里的请求最终被授予时无人释放，就是一次锁泄漏。
-    // 监听器因此挂在 acquire 之前（覆盖 session 建立与排队全程），acquire 落定即摘除。
+    // 监听器因此挂在 acquire 之前（覆盖 session 建立与排队全程），acquire 落定即摘除；
+    // 摘除放在同一段 finally 里，session 建立失败也一并覆盖——{once:true} 只在触发时移除。
     let aborted = false;
     const onAbort = (): void => {
       aborted = true;
@@ -275,23 +276,39 @@ class DesktopLockBackend implements Pick<LockManager, 'request'> {
     signal?.addEventListener('abort', onAbort, { once: true });
 
     const mode: DesktopHostFileLockMode = options.mode === 'shared' ? 'shared' : 'exclusive';
-    const sessionId = await this.session();
-    const acquired = await (async () => {
+    const acquire = async (): Promise<{ sessionId: string; response: FileResponseOf<'file.lockAcquire'> }> => {
       try {
-        return await this.send({ kind: 'file.lockAcquire', sessionId, name, mode });
+        const sessionId = await this.session();
+        const response = await this.send({ kind: 'file.lockAcquire', sessionId, name, mode });
+        return { sessionId, response };
       } finally {
         signal?.removeEventListener('abort', onAbort);
       }
-    })();
+    };
+    let acquired: Awaited<ReturnType<typeof acquire>>;
+    try {
+      acquired = await acquire();
+    } catch (error) {
+      // send 自己拒绝（传输错误）会绕过下面的 if (aborted) 分支：中止契约要求以
+      // signal.reason 拒绝，传输错误不得盖住它。
+      if (aborted) {
+        throw (signal as AbortSignal).reason;
+      }
+      throw error;
+    }
     if (aborted) {
       // 释放失败吞掉：已经在中止路径上，再抛会盖住调用方真正要看的 `signal.reason`。
-      await this.send({ kind: 'file.lockRelease', sessionId, lockId: acquired.result.lockId }).catch(() => undefined);
+      await this.send({
+        kind: 'file.lockRelease',
+        sessionId: acquired.sessionId,
+        lockId: acquired.response.result.lockId
+      }).catch(() => undefined);
       // `signal` 必非 undefined：监听器只在它存在时挂上，`aborted` 只能由它置位。
       throw (signal as AbortSignal).reason;
     }
 
     const release = (): Promise<unknown> =>
-      this.send({ kind: 'file.lockRelease', sessionId, lockId: acquired.result.lockId });
+      this.send({ kind: 'file.lockRelease', sessionId: acquired.sessionId, lockId: acquired.response.result.lockId });
 
     let value: T;
     try {

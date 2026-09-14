@@ -280,7 +280,7 @@ function createFilesHandlers(
     },
     download: params => {
       const path = readString(params, 'path');
-      if (path === undefined) return fail('invalid_path');
+      if (path === undefined || parseLogicalPath(path) === undefined) return fail('invalid_path');
       const size = state.files.get(path);
       if (size === undefined) return fail('resource_not_found');
       // 带 requestId 即「请把字节推上 wire」；不带即沿用阶段 C2 的源侧交付。
@@ -298,7 +298,7 @@ function createFilesHandlers(
     },
     'create-directory': params => {
       const path = readString(params, 'path');
-      if (path === undefined) return fail('invalid_path');
+      if (path === undefined || parseLogicalPath(path) === undefined) return fail('invalid_path');
       if (state.directories.has(path)) return fail('resource_conflict');
       return read(() => {
         state.directories.add(path);
@@ -307,7 +307,7 @@ function createFilesHandlers(
     },
     delete: params => {
       const path = readString(params, 'path');
-      if (path === undefined) return fail('invalid_path');
+      if (path === undefined || parseLogicalPath(path) === undefined) return fail('invalid_path');
       if (!state.files.has(path)) return fail('resource_not_found');
       return read(() => {
         state.files.delete(path);

@@ -174,6 +174,27 @@ describe('fake files.upload', () => {
   });
 });
 
+describe('fake files 路径校验（download / create-directory / delete）', () => {
+  const invoke = (operation: string, params: Record<string, unknown>) =>
+    createFakeProviders().provider('files').invoke(operation, params);
+
+  // 与 upload 同一条边界：`parseLogicalPath` 是安全边界，fake 上放过越界路径，
+  // conformance 上就会表现为同一份断言只在真实档红。
+  for (const operation of ['download', 'create-directory', 'delete'] as const) {
+    it(`MUST reject an escaping path with invalid_path (${operation})`, async () => {
+      const result = await invoke(operation, { path: '..' });
+
+      expect(result).toEqual({ outcome: 'failed', error: { code: 'invalid_path', retryable: false } });
+    });
+
+    it(`MUST reject a segment that escapes through a backslash (${operation})`, async () => {
+      const result = await invoke(operation, { path: 'a\\..\\b' });
+
+      expect(result).toEqual({ outcome: 'failed', error: { code: 'invalid_path', retryable: false } });
+    });
+  }
+});
+
 describe('fake chunk sink', () => {
   it('MUST commit only through commit and leave no temporary artifact', async () => {
     const set = createFakeProviders();

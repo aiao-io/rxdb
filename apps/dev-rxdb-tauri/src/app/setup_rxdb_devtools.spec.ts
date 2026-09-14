@@ -12,12 +12,19 @@
  */
 import { DESKTOP_HOST_PROTOCOL_VERSION, type DesktopHostTransport } from '@aiao/rxdb-adapter-tauri';
 import { createConnectorProviders } from '@aiao/rxdb-devtools';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDesktopDevToolsProviders,
   DESKTOP_STORAGE_ROOT_DIR,
   resolveDevToolsProviders
 } from './setup_rxdb_desktop';
+
+const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
+
+const stripTsComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[^'"`\n]*?\/\/.*$/gm, '');
 
 /** 记录请求种类的假宿主；只答 devtools 文件系统会发的那几种。 */
 const createRecordingTransport = (): { kinds: string[]; transport: DesktopHostTransport } => {
@@ -120,9 +127,9 @@ describe('resolveDevToolsProviders（US-905 AC#2 fake 档装配分叉）', () =>
     throw new Error('real providers MUST NOT be assembled under the fake tier');
   };
 
-  it('fake 档返回整份 gear registry，真实端口不装配', () => {
+  it('fake 档返回整份 gear registry，真实端口不装配', async () => {
     const real = vi.fn(neverCalled);
-    const resolved = resolveDevToolsProviders('fake', 'ok', real);
+    const resolved = await resolveDevToolsProviders('fake', 'ok', real);
 
     expect(real).not.toHaveBeenCalled();
     expect(resolved).toHaveProperty('providerRegistry');
@@ -135,20 +142,31 @@ describe('resolveDevToolsProviders（US-905 AC#2 fake 档装配分叉）', () =>
     }
   });
 
-  it('fake 档缺场景时按 Rust 侧默认 ok', () => {
+  it('fake 档缺场景时按 Rust 侧默认 ok', async () => {
     // Rust 的 plan_from_env 恒填 snapshotScenario（默认 ok），页侧同值兜的是类型上的
     // undefined —— 不是运行时改道。
-    const resolved = resolveDevToolsProviders('fake', undefined, neverCalled);
+    const resolved = await resolveDevToolsProviders('fake', undefined, neverCalled);
     expect(resolved).toHaveProperty('providerRegistry');
   });
 
-  it('real 档与未配源档（release 形态）都走真实装配', () => {
+  it('real 档与未配源档（release 形态）都走真实装配', async () => {
     const { transport } = createRecordingTransport();
     const ports = createDesktopDevToolsProviders({ transport, getStorage: neverCalledStorage });
     const real = vi.fn(() => ports);
 
-    expect(resolveDevToolsProviders('real', 'ok', real)).toBe(ports);
-    expect(resolveDevToolsProviders(undefined, undefined, real)).toBe(ports);
+    expect(await resolveDevToolsProviders('real', 'ok', real)).toBe(ports);
+    expect(await resolveDevToolsProviders(undefined, undefined, real)).toBe(ports);
     expect(real).toHaveBeenCalledTimes(2);
+  });
+
+  it('fake 装配经动态 import：fake provider 集合不进 release 桌面 chunk', async () => {
+    // 静态 import 的话，打包器消不掉运行时分支，release 包里带着整份 fake provider 集合
+    // （settings.clear 答 ok、三领域宣称 1 GiB 限额、files handler 不校验路径），任何能在
+    // bootstrap 前跑脚本的东西设一个全局就拿到这套宽松面——#[cfg(dev)] 只剥 Rust 侧。
+    // 桌面 chunk 本身是惰性的，静态 import 不会把 fake gear 拉进首屏，但它仍随 release
+    // 分发，那正是这条门禁要挡的发布卫生问题。
+    const source = stripTsComments(read('setup_rxdb_desktop.ts'));
+    expect(source).toContain("await import('./fake-provider-gear')");
+    expect(source).not.toMatch(/^import .*fake-provider-gear/m);
   });
 });

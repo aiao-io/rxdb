@@ -14,9 +14,10 @@
  *    驱动走查时报告的是**映射码**，证明 fake 集合上的错误也走共享映射，不是编一个码了事。
  * 3. **播种三个文件**：`/db.sqlite` 与 `/notes/a.md` 供 list 断言，`/drv-bytes.bin`（700 字节）
  *    供三块上传与按 `requestId` 下载——700 不是整块大小，块序错乱时断言必然红。
- * 4. **snapshot 源按场景给**（ok / busy / expired / too_large）：状态机本体是共享包的
- *    `DevToolsSnapshotStore`，这里只换物化来源，busy / too_large / expired 的判定逻辑
- *    与真实档是同一份代码。
+ * 4. **snapshot 源与时钟按场景给**（ok / busy / expired / too_large）：状态机本体是共享包的
+ *    `DevToolsSnapshotStore`，这里只换物化来源——busy 恒 invalidated、too_large 超上限；
+ *    expired 换的是**时钟**：cursor idle 一挂上就到期，首页交付后快照立即释放，同 cursor
+ *    的下一次翻页答 `snapshot_expired`，不必像真实档那样双开。
  *
  * AC#13 的回显禁令在这里同样生效：驱动只报结果码与计数，本模块不向报告回传路径、
  * 记录、快照 ID 或字节内容。
@@ -24,7 +25,9 @@
 import {
   DEVTOOLS_MAX_SNAPSHOT_RECORDS,
   DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
+  DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS,
   createSystemClock,
+  type DevToolsClock,
   type DevToolsSnapshotCaptureResult,
   type DevToolsSnapshotRecord,
   type DevToolsSnapshotSource
@@ -67,6 +70,27 @@ const createScenarioSource = (scenario: DevToolsSnapshotScenario): DevToolsSnaps
 };
 
 /**
+ * 按场景给快照仓库的时钟。
+ *
+ * @remarks
+ * expired 场景缩短 cursor idle：物化照常交付首页，idle 计时器一挂上就到期，快照随即被
+ * 释放——同 cursor 的下一次翻页拿到 `snapshot_expired`，不必像真实档那样双开。计时器按
+ * 时长区分（idle 60 s / deadline 15 s，两值互异）：deadline 必须照常走，它提前到期会把
+ * open() 打成 `snapshot_busy`，档位就串了。这是 fake 装配面的模拟语义，store 本体不动。
+ */
+const createScenarioClock = (scenario: DevToolsSnapshotScenario): DevToolsClock => {
+  if (scenario !== 'expired') return createSystemClock();
+  return {
+    now: () => Date.now(),
+    setTimeout: (handler, delayMs) => {
+      const delay = delayMs === DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS ? 0 : delayMs;
+      const timer = setTimeout(handler, delay);
+      return () => clearTimeout(timer);
+    }
+  };
+};
+
+/**
  * 装配 fake 档的 provider registry。
  *
  * @param scenario - 本次运行的 snapshot 场景档（ok / busy / expired / too_large）
@@ -82,6 +106,6 @@ export function createFakeProviderGear(scenario: DevToolsSnapshotScenario): DevT
       'database.inspect': { origin: 'rust', error: { kind: 'NotConnected' } }
     },
     files: { '/db.sqlite': 4096, '/notes/a.md': 12, '/drv-bytes.bin': 700 },
-    snapshot: { clock: createSystemClock(), source: createScenarioSource(scenario) }
+    snapshot: { clock: createScenarioClock(scenario), source: createScenarioSource(scenario) }
   });
 }

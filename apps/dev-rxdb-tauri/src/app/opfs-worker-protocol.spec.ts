@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createWorkerOpenWrite,
   handleWorkerOp,
+  OPFS_WORKER_REQUEST_TIMEOUT_MS,
   resolveSyncHandle,
   type OpfsDirectoryHandleLike,
   type OpfsFileHandleLike,
@@ -118,9 +119,12 @@ class FakePort implements OpfsWorkerPort {
   private readonly messageListeners: ((event: MessageEvent) => void)[] = [];
   private readonly errorListeners: ((event: ErrorEvent) => void)[] = [];
   readonly posted: { message: OpfsWorkerRequest; transfer?: Transferable[] }[] = [];
+  /** 置为非 undefined 时，下一次 postMessage 同步抛出该值（模拟 DataCloneError）。 */
+  throwOnPost: unknown = undefined;
   terminated = 0;
 
   postMessage(message: unknown, transfer?: Transferable[]): void {
+    if (this.throwOnPost !== undefined) throw this.throwOnPost;
     this.posted.push({ message: message as OpfsWorkerRequest, transfer });
   }
 
@@ -359,7 +363,7 @@ describe('createWorkerOpenWrite', () => {
     await expect(writerPromise).rejects.toMatchObject({ name: 'QuotaExceededError', message: 'quota' });
   });
 
-  it('write 以 transfer 搬运完整 ArrayBuffer，视图按精确区间切片', async () => {
+  it('write 以 transfer 搬运协议自己的 ArrayBuffer 副本，调用方视图不被 detach', async () => {
     const port = new FakePort();
     const { writer } = await openWriter(port);
 
@@ -368,8 +372,13 @@ describe('createWorkerOpenWrite', () => {
     // write 的分片搬运在 `await toArrayBuffer` 之后投递：断言前先等消息落到端口上。
     await vi.waitFor(() => expect(port.posted).toHaveLength(2));
     const posted = port.posted[1];
-    expect(posted.message).toEqual({ id: 1, kind: 'write', handleId: 7, data: data.buffer });
-    expect(posted.transfer).toEqual([data.buffer]);
+    const postedData = (posted.message as { data: ArrayBuffer }).data;
+    expect([...new Uint8Array(postedData)]).toEqual([1, 2, 3]);
+    // 进 transfer 列表的必须是通道自己的副本：把调用方的 buffer 交出去会随 transfer
+    // 被 detach（视图 byteLength 归 0），所有权语义与下面的子视图分支不一致。
+    expect(postedData).not.toBe(data.buffer);
+    expect(posted.transfer).toEqual([postedData]);
+    expect(data.byteLength).toBe(3);
     port.deliver({ id: 1, ok: true });
     await pendingWrite;
 
@@ -448,6 +457,57 @@ describe('createWorkerOpenWrite', () => {
     port.deliver({ id: 99, ok: true, handleId: 1 });
     port.deliver({ id: 1, ok: true });
 
+    await expect(pendingWrite).resolves.toBeUndefined();
+  });
+
+  it('worker 无响应时挂起请求在时限后以超时失败结算，而不是永远等', async () => {
+    vi.useFakeTimers();
+    try {
+      const port = new FakePort();
+      const { writer } = await openWriter(port);
+
+      const pendingWrite = writer.write(new Uint8Array([1]));
+      await vi.waitFor(() => expect(port.posted).toHaveLength(2));
+      await vi.advanceTimersByTimeAsync(OPFS_WORKER_REQUEST_TIMEOUT_MS);
+
+      await expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('terminate 后在途写请求不再永久挂死：时限后失败结算', async () => {
+    vi.useFakeTimers();
+    try {
+      const port = new FakePort();
+      const { writer } = await openWriter(port);
+
+      const pendingWrite = writer.write(new Uint8Array([1]));
+      await vi.waitFor(() => expect(port.posted).toHaveLength(2));
+      // dispose 路径：terminate 不触发 error 事件，也没有任何响应会来。
+      port.terminate();
+      await vi.advanceTimersByTimeAsync(OPFS_WORKER_REQUEST_TIMEOUT_MS);
+
+      await expect(pendingWrite).rejects.toMatchObject({ name: 'OpfsWorkerTimeout' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('postMessage 同步抛错时请求以结构化失败结算，且不留下死条目挡住同 id 响应', async () => {
+    const port = new FakePort();
+    const { writer } = await openWriter(port);
+
+    const cloneError = new DOMException('payload could not be cloned', 'DataCloneError');
+    port.throwOnPost = cloneError;
+    await expect(writer.write(new Uint8Array([1]))).rejects.toMatchObject({ name: 'DataCloneError' });
+
+    // 通道恢复后照常可用：那次失败占用的 id 已出表，迟到响应不会串到新请求上。
+    // posted 只多一条：失败的投递在 push 之前就抛了，不存在半条消息。
+    port.throwOnPost = undefined;
+    const pendingWrite = writer.write(new Uint8Array([2]));
+    await vi.waitFor(() => expect(port.posted).toHaveLength(2));
+    port.deliver({ id: 2, ok: true });
     await expect(pendingWrite).resolves.toBeUndefined();
   });
 });

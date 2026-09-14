@@ -258,8 +258,16 @@ class DevToolsSnapshotStoreImpl implements DevToolsSnapshotStore {
 
     try {
       for (let attempt = 0; attempt <= DEVTOOLS_MAX_SNAPSHOT_EPOCH_RETRIES; attempt += 1) {
-        const raced = await Promise.race([this.#ports.source.capture(pending.controller.signal), interrupted]);
-
+        let raced: DevToolsSnapshotCaptureResult;
+        try {
+          raced = await Promise.race([this.#ports.source.capture(pending.controller.signal), interrupted]);
+        } catch {
+          // 平台抛出（等锁时抛一个 DOMException 就够了）：当作一次拿不到结果的尝试，
+          // 走与 invalidated 相同的重试，重试耗尽后收敛成 snapshot_busy（见循环尾）。
+          // 异常绝不能逃出 open()：契约要求返回错误联合值，逃出去只会被上层压平成
+          // operation_failed，丢掉这里还能给出的具体码。
+          continue;
+        }
         if (pending.interruption !== undefined) return this.#settle(pending.interruption);
         if (raced.outcome === 'captured') return this.#materialize(raced.records, pageSize);
         // epoch 变了：换新身份从头再来，绝不拼接两个时点的数据。

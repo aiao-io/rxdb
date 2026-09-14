@@ -70,6 +70,10 @@ export interface OpfsWorkerCloseRequest {
   readonly handleId: number;
 }
 
+/**
+ * 页侧投递给 worker 的请求联合：open 携带段列表，write 携带随消息转移的分片，
+ * close / abort 只凭 handleId 定位句柄。
+ */
 export type OpfsWorkerRequest = OpfsWorkerOpenRequest | OpfsWorkerWriteRequest | OpfsWorkerCloseRequest;
 
 /** 与请求 id 一一对应的响应；`ok: true` 时 open 响应附上新分配的 `handleId`。 */
@@ -300,17 +304,32 @@ const errorFrom = (error: { readonly name: string; readonly message: string } | 
   return thrown;
 };
 
-/** 把分片折成可转移的 ArrayBuffer：Blob 读入；视图按精确区间切片，绝不搬运多余字节。 */
+/**
+ * 把分片折成可转移的 ArrayBuffer：Blob 读入；视图按精确区间切片，绝不搬运多余字节。
+ *
+ * @remarks
+ * 整视图同样切片：把调用方的 buffer 原样交出去会让它随 transfer 被 detach，调用方视图的
+ * `byteLength` 归 0——所有权不能越过 write 边界。副本属于通道，进 transfer 列表的是
+ * 通道自己的内存，调用方的视图始终可用。
+ */
 const toArrayBuffer = async (chunk: Blob | Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> => {
   if (chunk instanceof Uint8Array) {
     const { buffer, byteOffset, byteLength } = chunk;
-    if (byteOffset === 0 && byteLength === buffer.byteLength) {
-      return buffer;
-    }
     return buffer.slice(byteOffset, byteOffset + byteLength);
   }
   return chunk.arrayBuffer();
 };
+
+/**
+ * 单条请求的结算上限。
+ *
+ * @remarks
+ * worker 被 terminate、消息反序列化失败（messageerror）、或脚本死亡时都不会有响应到来，
+ * 而 `terminate()` 不触发 error 事件——挂起请求没有这个时限就会永远等一个到不了的响应
+ * （dispose 时正在写的调用方就是死锁）。写入本身是毫秒级的同步句柄动作，60 秒只兜
+ * 「通道已经死了」这一种形态，不误伤慢盘。
+ */
+export const OPFS_WORKER_REQUEST_TIMEOUT_MS = 60_000;
 
 /**
  * 打开一条页 → worker 的写入通道。
@@ -323,6 +342,10 @@ const toArrayBuffer = async (chunk: Blob | Uint8Array<ArrayBuffer>): Promise<Arr
  * 直接忽略。worker 一旦报 error（崩溃或脚本失败），挂起请求全部拒绝，之后的请求
  * 立即失败 —— 不再向死 worker 投递，否则 abort 会永远等一个到不了的响应。
  *
+ * 每一条挂起请求都带 {@link OPFS_WORKER_REQUEST_TIMEOUT_MS} 的结算上限：terminate 与
+ * messageerror 都不触发 error 事件，没有时限的请求在 dispose 时就是死锁。postMessage
+ * 自身同步抛错（DataCloneError）也当场以结构化失败结算，不留下死条目。
+ *
  * abort 吞掉一切失败（含 worker 已死）：它与 {@link StorageFileWriter.abort} 一样
  * 只在错误处理路径上被调用，二次抛错会盖住真正的失败原因。
  */
@@ -331,24 +354,31 @@ export const createWorkerOpenWrite = (
 ): ((segments: readonly string[]) => Promise<StorageFileWriter>) => {
   let nextRequestId = 0;
   let crashed = false;
-  const pending = new Map<number, (response: OpfsWorkerResponse) => void>();
+  const pending = new Map<
+    number,
+    { resolve: (response: OpfsWorkerResponse) => void; timer: ReturnType<typeof setTimeout> }
+  >();
 
-  port.onMessage(event => {
-    const response = event.data as OpfsWorkerResponse;
-    const resolve = pending.get(response.id);
-    if (resolve === undefined) {
+  /** 结算一条挂起请求并收回它的时限计时器；不认识 id 的响应在这里被静默忽略。 */
+  const settle = (id: number, response: OpfsWorkerResponse): void => {
+    const entry = pending.get(id);
+    if (entry === undefined) {
       return;
     }
-    pending.delete(response.id);
-    resolve(response);
+    clearTimeout(entry.timer);
+    pending.delete(id);
+    entry.resolve(response);
+  };
+
+  port.onMessage(event => {
+    settle((event.data as OpfsWorkerResponse).id, event.data as OpfsWorkerResponse);
   });
 
   port.onError(event => {
     crashed = true;
-    for (const resolve of pending.values()) {
-      resolve({ id: -1, ok: false, error: { name: 'OpfsWorkerError', message: event.message } });
+    for (const id of [...pending.keys()]) {
+      settle(id, { id: -1, ok: false, error: { name: 'OpfsWorkerError', message: event.message } });
     }
-    pending.clear();
   });
 
   const request = (payload: OpfsWorkerRequestPayload, transfer?: Transferable[]): Promise<OpfsWorkerResponse> => {
@@ -361,8 +391,21 @@ export const createWorkerOpenWrite = (
     }
     return new Promise(resolve => {
       const id = nextRequestId++;
-      pending.set(id, resolve);
-      port.postMessage({ id, ...payload }, transfer);
+      const timer = setTimeout(() => {
+        settle(id, {
+          id,
+          ok: false,
+          error: { name: 'OpfsWorkerTimeout', message: 'storage worker did not respond in time' }
+        });
+      }, OPFS_WORKER_REQUEST_TIMEOUT_MS);
+      pending.set(id, { resolve, timer });
+      try {
+        port.postMessage({ id, ...payload }, transfer);
+      } catch (error) {
+        // 同步抛错（DataCloneError 等）也按通道的错误模型结算：调用方拿到结构化失败，
+        // 挂起表里不留死条目。
+        settle(id, failureResponse(id, error));
+      }
     });
   };
 

@@ -64,4 +64,14 @@ describe('US-905 强制 VFS 档的 wa-sqlite 接线', () => {
     const source = stripTsComments(read('setup_rxdb_wa-sqlite.ts'));
     expect(source).toMatch(/forced === undefined \? 'files' : `files-\$\{forced\}`/);
   });
+
+  it('强制 idb 档在无 SharedWorker 的宿主上给出与 unavailable 同一条诊断', () => {
+    // 强制档跳过能力探测（resolveForcedBackend 的 TSDoc），但 `new SharedWorker` 需要一次
+    // 存在性检查：WKWebView 没有 SharedWorker，缺它时 idb 档是一条裸 ReferenceError，而
+    // 那条专门写好的诊断只有 unavailable 档能到——AC#6 三态走查里 idb 档的意义就是
+    // 给出可读的 VFS 诊断，不是让错误形态取决于平台。
+    const source = stripTsComments(read('setup_rxdb_wa-sqlite.ts'));
+    expect(source).toContain("typeof SharedWorker !== 'function'");
+    expect(source).toMatch(/throw new Error\('wa-sqlite requires OPFS or SharedWorker support'\)/);
+  });
 });

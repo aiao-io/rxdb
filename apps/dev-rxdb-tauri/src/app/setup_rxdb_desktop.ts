@@ -43,13 +43,13 @@ export const DESKTOP_STORAGE_ROOT_DIR = 'files';
 
 // 挂载键定义在零依赖的 devtools-runtime-config.ts：主 chunk 的 setup_rxdb.ts 也要读它，
 // 定义在这里会把 devtools 装配拽进 main.js。本模块 import 后用 re-export 保持既有 import 面不变。
+import type { DevToolsFakeProviderSet } from '@aiao/rxdb-devtools/testing-providers';
 import {
   DEVTOOLS_RUNTIME_CONFIG_KEY,
   type DevToolsForcedVfs,
   type DevToolsProviderSource,
   type DevToolsSnapshotScenario
 } from './devtools-runtime-config';
-import { createFakeProviderGear } from './fake-provider-gear';
 export { DEVTOOLS_RUNTIME_CONFIG_KEY };
 
 /**
@@ -103,17 +103,23 @@ export function devToolsRuntimeConfig(): {
  * 真实端口包在 thunk 里是刻意设计：装配它会建 host 文件会话、挂 pagehide 监听，
  * fake 档的本意是连 host 都不碰——五类操作全走假集合，驱动在 wire 上观察到的行为
  * 与真实档一致，但背后没有一次 IPC。
+ *
+ * fake 装配走**动态 import**：静态 import 的话，运行时分支打包器消不掉，release 包
+ * 会带着整份 fake provider 集合（settings.clear 答 ok、三领域宣称 1 GiB 限额、
+ * files handler 不校验路径）一起分发——`#[cfg(dev)]` 只剥 Rust 侧，JS 侧的分支
+ * 必须自己懒。
  */
-export const resolveDevToolsProviders = (
+export const resolveDevToolsProviders = async (
   providerSource: DevToolsProviderSource | undefined,
   snapshotScenario: DevToolsSnapshotScenario | undefined,
   real: () => ReturnType<typeof createDesktopDevToolsProviders>
-):
-  | { readonly providerRegistry: ReturnType<typeof createFakeProviderGear> }
-  | ReturnType<typeof createDesktopDevToolsProviders> => {
+): Promise<
+  { readonly providerRegistry: DevToolsFakeProviderSet } | ReturnType<typeof createDesktopDevToolsProviders>
+> => {
   if (providerSource === 'fake') {
     // Rust 的 plan_from_env 恒填 snapshotScenario（默认 ok），这里同值兜的是类型上的
     // undefined —— 不是运行时改道。
+    const { createFakeProviderGear } = await import('./fake-provider-gear');
     return { providerRegistry: createFakeProviderGear(snapshotScenario ?? 'ok') };
   }
   return real();
@@ -234,7 +240,7 @@ export const createDesktopDevToolsProviders = (options: DesktopDevToolsProviders
  * 模块级单例也一并去掉了：唯一的调用点是 `setup_rxdb.ts` 的 `localDatabase()`，
  * 那里已经把建库 Promise 记住了。两层缓存等于两个「哪个才是本 app 的实例」的答案。
  */
-export default () => {
+export default async () => {
   const rxdb = new RxDB({
     dbName: DESKTOP_DEMO_DB_NAME,
     context: { userId: 'userId' },
@@ -286,7 +292,7 @@ export default () => {
     ...devtoolsConfig,
     transport: createTauriConnectorTransport(),
     // storage 延迟取：`rxdb.storage` 要等 `connect()` 才挂上，而这里还在 `init()` 之后一步。
-    providers: resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
+    providers: await resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
       createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
     )
   });

@@ -747,9 +747,9 @@ describe('跨重启的 wire 比对（US-905 阶段 2，AC#15）', () => {
  * 不会误触 `snapshot_too_large`。
  */
 describe('真实存储根播种 1001+ 文件的快照走查（US-905 阶段 2 AC#11）', () => {
-  let frontend: { close: () => Promise<void> };
-  let workspace: string;
-  let run: SelfCheckRun;
+  let frontend: { close: () => Promise<void> } | undefined;
+  let workspace: string | undefined;
+  let run: SelfCheckRun | undefined;
 
   beforeAll(async () => {
     frontend = await serveFrontend();
@@ -771,11 +771,15 @@ describe('真实存储根播种 1001+ 文件的快照走查（US-905 阶段 2 AC
   }, 240_000);
 
   afterAll(async () => {
+    // beforeAll 失败（端口冲突等）时 frontend 还没填上：与兄弟文件（devtools-provider-gear）
+    // 的 state 守卫同一条理由，无条件收尾只会以 TypeError 添一层噪音、盖住真正的失败原因。
+    if (frontend === undefined || workspace === undefined) return;
     await frontend.close();
     rmSync(workspace, { force: true, recursive: true });
   });
 
   it('1001+ 个文件走完整套分页，全套结论码成立', () => {
+    if (run === undefined) throw new Error('beforeAll 该把 run 填上');
     const native = nativeOf(run);
     expect(native.snapshotFirstPage, wire(run)).toBe('ok');
     expect(native.snapshotComplete).toBe('ok');

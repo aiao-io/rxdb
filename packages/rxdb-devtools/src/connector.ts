@@ -392,6 +392,11 @@ export class DevToolsConnector {
   #restartNegotiation(): void {
     this.#endpoint?.dispose();
     this.#endpoint = null;
+    // 端点拆了不等于订阅拆了：v2 的 database provider 自己在实例上挂着监听（与
+    // disconnect() 同一条理由）。旧 registry 不 dispose 的话，每次开关 devtools 窗口
+    // 都累积一组 RxDB 监听与一个未释放的快照仓库。
+    this.#providers?.dispose();
+    this.#providers = null;
     this.#startNegotiation();
   }
 
@@ -672,7 +677,16 @@ export class DevToolsConnector {
           ...this.#databasePorts(),
           ...this.#options.providers
         })
-      : { ...registry, dispose: () => undefined };
+      : {
+          // 逐成员显式委托而不是对象展开：展开只拷自有可枚举属性，宿主传 class 实例时
+          // 原型上的 provider / createChunkSource / createChunkSink 整组消失，首个 REQUEST
+          // 会被压成笼统的 operation_failed。方法经原对象调用，this 绑定保持原样。
+          descriptors: registry.descriptors,
+          provider: domain => registry.provider(domain),
+          createChunkSink: name => registry.createChunkSink(name),
+          createChunkSource: requestId => registry.createChunkSource(requestId),
+          dispose: () => undefined
+        };
     const endpoint = createDevToolsConnectorEndpoint({
       send: (message: DevToolsConnectorNegotiationMessage) =>
         message === legacyHandshake ?
