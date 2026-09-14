@@ -74,6 +74,8 @@ packages/*/test-output
 packages/rxdb-model-angular/styles.css
 
 .env
+# 例外：这个 .env 是构建修复的一部分（关闭 Angular chunk 再优化，见文件内注释），必须入库
+!apps/dev-rxdb-tauri/.env
 
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md

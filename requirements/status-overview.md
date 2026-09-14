@@ -8,23 +8,21 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 58   |
-| 🚧 In Progress | 1    |
+| ✅ Done        | 59   |
+| 🚧 In Progress | 0    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 6    |
+| 📝 Backlog     | 5    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 66   |
+| **合计**       | 65   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（67 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（66 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（0 条）
 
-| Story                                                                            | 还剩什么                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) | **阶段 1 剩 AC#2 #6 #7**：#2 差「用共享 fake providers 把五类操作在两个真实窗口间跑一遍」（把整套 conformance 断言搬过去**明确不做**）；#6 需阶段 2 的真实 provider 或一个 dev-only 后端强制开关；#7 需把已有判据在真实 `invoke` 的跨窗口投递上复跑。#2 / #6 另压着一次 owner 边界决定：往产品 demo 里放多少 dev-only 脚手架。**阶段 2 已开工但一条 AC 未关**（AC#9/#10/#12/#13/#14/#15/#17 为 ⚠️、#11/#16 为 ⬜）——缺面板 DOM 驱动、1001 条 snapshot 的 wire 驱动、三平台实测的另两列。读出但不在本故事修的两条缺陷见 [US-908](stories/future/US-908-devtools-transfer-session-defects.md) |
+> 无。
 
 ## 待评审（1 条）
 
@@ -70,10 +68,9 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#34/#38/#39/#42 的人工浏览器回归拆到 US-907
-- ⬜ [US-907 DevTools 面板迁移后的人工回归](stories/future/US-907-devtools-manual-regression.md) — 承接 US-904 四条（Chrome）+ US-906 AC#2 的人工半边（Electron dev 流程），共五条只能由人做的 AC，不改代码
-- 🚧 [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1（AC#1～#8）**5 ✅ / 3 ⚠️**，⚠️ 的 #2 #6 #7 差的不是 harness，而是一次 owner 边界决定（往产品 demo 里放多少 dev-only 测试脚手架）或阶段 2 的真实 provider；阶段 2（AC#9～#17）**已开工但一条 AC 未关**。前置 US-210 + US-505 均已 Done
-- ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）转 US-907
+- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做，未来 v2 收尾另立故事）
+- ✅ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 八条与阶段 2 九条共十七条 AC 全 ✅；AC#17 三平台证据由 PR #58 最终 HEAD 的 Release Desktop run 34858162498 回填（ubuntu/macOS/Windows 的 packaging 与 devtools smoke 全绿）；win32 首跑里 idb 档的 SharedWorker 挂起修于 dedicated Worker 传输，linux idb 真值按首跑回填 `failed`
+- ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）已移出承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
 > US-401 / US-701 查询构建器系列不在本仓库范围内。

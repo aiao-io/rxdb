@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,11 +15,23 @@ import { describe, expect, it } from 'vitest';
  *   但那命中的是 renderer 侧的字符串，不是 Rust 侧的 command 注册。用二进制字符串当判据
  *   会把「renderer 还留着一句会失败的调用」误报成「专用 command 还在」。
  * - 真正决定「release 是否注册这条 command」的是 Rust 侧的 `#[cfg(dev)]`：它在
- *   `custom-protocol`（release）构建里把函数与 `generate_handler!` 的臂一起抹掉。这一事实
- *   只能从源码静态地证，且由 `cargo check --features tauri/custom-protocol` 在 PR 门禁里复验。
+ *   `custom-protocol`（release）构建里把函数与 `generate_handler!` 的臂一起抹掉。
  *
- * 因此本文件是纯静态检查，不 spawn 打包产物——它跟真实 Tauri build 环境解耦，任何 runner
- * 上都能跑。真实窗口开/关/重开、双 WebView 握手与 session 释放属于阶段 2 / AC#17 的 smoke，
+ * 各断言分两族：
+ *
+ * - **结构断言**：capability 文件、`#[cfg(dev)]` 的位置、env 变量名与全局键不泄进接线
+ *   文件——这些是编译检查表达不了的性质（`cargo check` 拦不住「capability 授给了谁」，
+ *   也拦不住字符串泄漏），只能静态断言。
+ * - **编译断言**：「没有未守卫的 `devtools_config` 引用」这条曾经靠回扫 `#[cfg(dev)]` 的
+ *   启发式静态判，后来实测它在 `pub fn run()` 上 0/8 漏报（`^\s*fn\s` 匹配不到 `pub fn`，
+ *   而函数体内更早的局部 cfg 会被先撞上）。这条性质只能由编译器给出：`mod devtools_config`
+ *   本身是 `#[cfg(dev)]`，任何未守卫引用在 `custom-protocol` 语义下就是编译错误。
+ *   所以本文件 spawn 一次 `cargo check --features tauri/custom-protocol`（`cfg(dev)` 由
+ *   tauri 依赖的 build script 按该 feature 取反给出，见 `tauri-package-dev` 的注释），
+ *   把「我们相信守卫都在」变成「不加守卫就编不出 release」。跑这条需要 Rust 工具链——
+ *   desktop-smoke 的 dependsOn（tauri-package-release）本就保证它在。
+ *
+ * 真实窗口开/关/重开、双 WebView 握手与 session 释放属于阶段 2 / AC#17 的 smoke，
  * 不在这里。
  *
  * @module apps/dev-rxdb-tauri-e2e/devtools-release-isolation
@@ -80,22 +93,47 @@ describe('US-905 devtools 的 release 隔离（结构证据）', () => {
     // 要么把一段读 `DEV_RXDB_DEVTOOLS*` 的代码连同那个全局键一起发给用户。
     expect(/#\[cfg\(dev\)\]\s+mod devtools_config;/.test(lib)).toBe(true);
     expect(/#\[cfg\(dev\)\]\s+let devtools_config = devtools_config::plan_or_exit\(\);/.test(lib)).toBe(true);
-    expect(/#\[cfg\(dev\)\]\s+let builder = match devtools_config/.test(lib)).toBe(true);
+    expect(/#\[cfg\(dev\)\]\s+let builder = match &devtools_config/.test(lib)).toBe(true);
 
-    // 判据的另一半：不能**另有**一条没带 cfg 的路径提到这个模块。上面三条只说明
-    // 「这三处带了 cfg」，挡不住第四处；而第四处正是 release 把整段代码带进产物的形态。
-    //
-    // 判定按「每一处提及的前 3 行内必须出现 #[cfg(dev)]」——插件注册那两行
-    // （`Some(config) => …` / `None => builder`）在 match 块里，紧跟着块首那个 cfg。
-    const lines = lib.split('\n');
-    const unguarded = lines.filter((line, index) => {
-      if (!line.includes('devtools_config') || line.trim().startsWith('//')) return false;
-      return !lines.slice(Math.max(0, index - 3), index).some(prior => prior.includes('#[cfg(dev)]'));
-    });
-    expect(unguarded).toEqual([]);
+    // 判据的另一半——「不能**另有**一条没带 cfg 的路径提到这个模块」——由编译断言承担
+    // （见下方 cargo check 用例）：mod devtools_config 本身是 #[cfg(dev)]，未守卫引用在
+    // custom-protocol 语义下编不过。这里曾用回扫启发式静态判，实测 0/8 漏报。
 
     // 全局键只存在于 `devtools_config.rs`（本身整个 #[cfg(dev)]），不该泄进接线文件。
     expect(lib).not.toContain('__aiaoRxdbDevToolsConfig__');
+  });
+
+  it('没有未守卫的 devtools_config 引用：custom-protocol 语义下 cargo check 编得过（编译断言）', () => {
+    // `cfg(dev)` 由 tauri 依赖的 build script 按 `custom-protocol` feature 取反给出
+    // （见 dev-rxdb-tauri:tauri-package-dev 的注释）。devtools_config 模块整体是
+    // #[cfg(dev)]，release 语义下任何未守卫引用都会让这次 check 以编译错误收场。
+    // desktop-smoke 的 dependsOn（tauri-package-release）保证 target 目录是热的，
+    // 这里只是同 feature 下的一次 check 增量。
+    const result = spawnSync('cargo', ['check', '--locked', '--features', 'tauri/custom-protocol'], {
+      cwd: SRC_TAURI,
+      encoding: 'utf8',
+      timeout: 300_000
+    });
+    expect(result.status, result.error?.message ?? result.stderr).toBe(0);
+  }, 360_000);
+
+  it('档位三开关只定义在 devtools_config.rs，驱动档位键不进接线文件（阶段 1 收尾）', () => {
+    const lib = libRs();
+    const config = readFileSync(join(SRC_TAURI, 'src', 'devtools_config.rs'), 'utf8');
+    const envNames = [
+      'DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE',
+      'DEV_RXDB_DEVTOOLS_SNAPSHOT_SCENARIO',
+      'DEV_RXDB_DEVTOOLS_FORCE_VFS'
+    ];
+    // 三个档位开关都定义在被整体 #[cfg(dev)] 的 devtools_config 模块里……
+    for (const name of envNames) expect(config).toContain(name);
+    // ……而接线文件里一处都不能出现：读 env 的代码只准住在那一个模块里，
+    // lib.rs 上的任何出现都是「release 也在读档位开关」的形态。
+    for (const name of envNames) expect(lib).not.toContain(name);
+    // 驱动档位键同样只存在于 devtools_config.rs（`driver_init_script` 生成的注入脚本读它）；
+    // 驱动脚本里读键的那一行随 `include_str!` 走，那条路已有 #[cfg(dev)] 用例锁着。
+    expect(config).toContain('__aiaoRxdbDevToolsDriverConfig__');
+    expect(lib).not.toContain('__aiaoRxdbDevToolsDriverConfig__');
   });
 
   it('devtools 入口只在 dev 窗口加载，不进主 app 的单入口构建', () => {

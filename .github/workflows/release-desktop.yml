@@ -9,34 +9,59 @@ name: Release Desktop
 #   3. `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri` 的发布 tarball
 #      可解析、可类型检查、可运行（US-207 的「三条发布性质」，E7 后两个包各跑一遍）
 #
+# 触发面（见 on:）：release published / workflow_dispatch / 改动桌面链路代码的 PR。
 # 为什么不并进 `pr.yml` / `main.yml`：三平台冷编译 Rust release + 解包 Electron
-# 发行包，墙钟以十分钟计，而这三条性质只在打包配置、`exports` 字段、入口切分或
-# 宿主协议变动时才可能退化 —— 那是发布必经的路口，不是每次 PR 都会路过的地方。
-# `ci-template.yml` 因此一个字都没改。
+# 发行包，墙钟以十分钟计 —— 这三条性质只在打包配置、`exports` 字段、入口切分或
+# 宿主协议变动时才可能退化，PR 侧就用 paths 过滤到桌面链路本身（两个桌面应用与
+# 各自 e2e、desktop adapter、DevTools 面板/protocol、storage plugin 与 workflow
+# 基建），无关 PR 一分墙钟都不交。仓库公开后 Actions 分钟免费，「省钱」不再是把
+# smoke 推迟到 release 的理由；PR 侧要省的是反馈延迟与 runner 队列，路径过滤省
+# 的就是这个。`ci-template.yml` 因此一个字都没改。
 #
-# ⚠️ 新增 job 必须同步加进 `gate` 的 `needs` 和断言列表，否则新门禁形同虚设。
+# ⚠️ 新增 job 必须同步加进 `desktop-gate` 的 `needs` 和断言列表，否则新门禁形同虚设。
 
 on:
   release:
     types: [published]
   workflow_dispatch:
-  # 只在**本 workflow 自身**被改动的 PR 上触发。
-  # 没有这一条的话，这份文件的第一次真实运行会发生在打 tag 之后 —— 发布当天才发现
-  # 语法写错、runner 上缺个系统库，是最不该省的那点时间。
+  # PR 侧跑整套桌面 smoke：paths 限到「会改桌面打包行为」的代码 —— 两个桌面应用、
+  # 各自 e2e project、desktop adapter、DevTools 面板/protocol、storage plugin、
+  # adapter 发布审计脚本与 workflow 自身基建。改动落在别处的 PR 不触发。
+  # 保留 workflow 自触发路径的原因不变：这份文件第一次真实运行若发生在打 tag 之后，
+  # 发布当天才发现语法写错、runner 上缺个系统库，是最不该省的那点时间。
   pull_request:
     paths:
       - '.github/workflows/release-desktop.yml'
       - '.github/actions/configure-apt/**'
       - '.github/actions/xvfb/**'
+      - 'apps/dev-rxdb-tauri/**'
+      - 'apps/dev-rxdb-tauri-e2e/**'
+      - 'apps/dev-rxdb-electron/**'
+      - 'apps/dev-rxdb-electron-e2e/**'
+      - 'apps/rxdb-devtools-extension/**'
+      - 'apps/rxdb-devtools-extension-e2e/**'
+      - 'packages/rxdb-adapter-desktop/**'
+      - 'packages/rxdb-adapter-tauri/**'
+      - 'packages/rxdb-adapter-electron/**'
+      - 'packages/rxdb-adapter-sqlite-core/**'
+      - 'packages/rxdb-adapter-encrypted/**'
+      - 'packages/rxdb-devtools/**'
+      - 'packages/rxdb-plugin-storage/**'
+      - 'modules/rxdb-devtools-panel/**'
+      - 'scripts/audit/desktop-adapter-consumer.mjs'
 
 permissions:
   contents: read
 
 concurrency:
   group: release-desktop-${{ github.event.release.tag_name || github.ref }}
-  # 刻意**不**取消在跑的运行。发布验证是稀有信号：取消掉就没有第二次机会，
-  # 而重新触发要么得重新发一次 release，要么得手动 dispatch。
-  cancel-in-progress: false
+  # PR 与 release 共用一条规则：同一 group 的新运行取消旧运行。
+  #  - PR：group 是 refs/pull/N/merge，新 push 取消本 PR 没跑完的旧矩阵 ——
+  #    三平台冷编译以十分钟计，连推压出的串行队列比取消更糟。
+  #  - release：group 是 tag 名，tag 不可变，一个 tag 只有一次发布 —— 取消规则
+  #    对发布事件实际上永远不生效，不必担心发布验证被取消。
+  #  - workflow_dispatch：同 ref 再触发即取代前一次，与手动重跑的直觉一致。
+  cancel-in-progress: true
 
 env:
   CI: true
@@ -168,7 +193,7 @@ jobs:
   #   `desktop-smoke` 一次跑完；
   # - US-905 AC#17（三平台开/关调试窗口、握手、session 释放）要的是同一套 Rust 工具链与
   #   WebKitGTK/Xvfb，只是换一份 dev 产物 —— 见下面那一步的注释。
-  # 新增 job 的代价是要同步改下面 `gate` 的 `needs` 与断言列表，换不来任何覆盖。
+  # 新增 job 的代价是要同步改下面 `desktop-gate` 的 `needs` 与断言列表，换不来任何覆盖。
   #
   # ⚠️ `desktop-webview-capability.spec.ts` 里的 `EXPECTED_BY_PLATFORM` 三列已回填
   # （darwin 本机核对；linux / win32 按这个 job 的真实输出回填）。缺列时用例会红，
@@ -258,7 +283,7 @@ jobs:
       # 前端产物由 Nx 经 `build-devtools → build` 顺带建出（面板经 build 的 assets 进
       # `browser/devtools/`），套件自己在 1420 上服务它。
       #
-      # 加**步**而不是加 job：新 job 必须同步改 `gate` 的 `needs` 与断言列表（本文件开头的
+      # 加**步**而不是加 job：新 job 必须同步改 `desktop-gate` 的 `needs` 与断言列表（本文件开头的
       # ⚠️），漏改就是一条形同虚设的门禁；而这一步要的 Rust 工具链、WebKitGTK 开发库、
       # Xvfb 与上面完全同一套，另起一个 job 等于把那份安装税在三个 runner 上再交一遍。
       #
@@ -302,9 +327,12 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # 分支保护 / 发布检查只需要挂这一个 status check。
+  # 不叫 `gate`：ci-template 的 PR 门禁里已有一个同名 job，GitHub 分支保护按检查名
+  # 匹配，同名之下任一通过都算数 —— tauri-smoke 红了会被 ci-template 的 gate 顶包。
+  # PR 侧想把它设成必过项，就挂 `desktop-gate` 这一个名字。
   # ---------------------------------------------------------------------------
-  gate:
-    name: gate
+  desktop-gate:
+    name: desktop-gate
     needs: [electron-smoke, tauri-smoke, adapter-consumer]
     if: always()
     runs-on: ubuntu-latest
