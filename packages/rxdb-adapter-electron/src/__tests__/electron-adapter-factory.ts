@@ -105,13 +105,17 @@ class QueryCountingElectronAdapter extends RxDBAdapterElectron {
 const encryptedQueryCounts = new WeakMap<object, () => number>();
 
 async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingElectronAdapter> {
-  const entities = ((options ?? {}) as { entities?: EntityType[] }).entities?.slice() ?? [];
+  const rawOptions = (options ?? {}) as { entities?: EntityType[]; remoteAdapter?: string };
+  const entities = rawOptions.entities?.slice() ?? [];
   const rxdb = new RxDB({
     dbName: uniqueDbName(),
     context: { userId: 'userId' },
     entities,
     sync: {
       local: { adapter: ADAPTER_NAME },
+      // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，
+      // 缺一侧 `EntityManager.init()` 直接抛。不传就整个不出现这个键，既有调用方零变化。
+      ...(rawOptions.remoteAdapter === undefined ? {} : { remote: { adapter: rawOptions.remoteAdapter } }),
       type: SyncType.None
     }
   });

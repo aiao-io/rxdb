@@ -62,6 +62,7 @@ import { isSystemEntity, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
 import { createWorkingTreeCaptureRuntime } from './working-tree/capture-hook.js';
+import type { WorkingTreeCaptureHook } from './working-tree/capture-interceptor.js';
 import { WorkingTreeManager } from './working-tree/working-tree-facade.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -413,6 +414,29 @@ export class RxDB {
 
   get config() {
     return this.#config;
+  }
+
+  /**
+   * 本库当前生效的工作树捕获钩子；未启用提交能力时为 `undefined`
+   *
+   * @remarks
+   * **这条路不抛。** 它服务的是核心包里那些拦不住、只能由调用点自己接门禁的写入口
+   * （`EntityManager.notifyExternalUpdate()` 是第一个，写入口语义矩阵行 11）。那些方法今天在
+   * 「没配本地适配器」和「还没连上」的实例上都能调，所以取钩子走**非抛**的
+   * {@link RxDB.#resolve_adapter_instance}，而不是 {@link RxDB.localAdapterSync}——后者在这两种
+   * 情形下各抛一次，接上门禁就等于给它们凭空加一个「未连接」异常，而 FR-046 要求未启用能力的库
+   * 行为逐字节不变。
+   *
+   * 钩子挂在**适配器实例**上（{@link RxDBAdapterLocalBase.workingTreeCaptureHook}），不在本类里
+   * 另存一份：`connect()` / `disconnect()` 会换掉实例，存一份就会在换代之后指着上一纪元的运行时。
+   *
+   * @internal
+   */
+  get workingTreeCaptureHook(): WorkingTreeCaptureHook | undefined {
+    const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
+    // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
+    // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
+    return (adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined)?.workingTreeCaptureHook;
   }
 
   /**

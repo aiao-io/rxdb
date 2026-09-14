@@ -90,7 +90,12 @@ export default defineConfig(() => ({
       provider: 'istanbul' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
-      exclude: ['src/__tests__/**'],
+      // `src/working-tree/testing/**` 与 `src/__tests__/**` 同类：都是测试代码，不是被测面。
+      // 区别只在它经 `./testing` 子路径发布出去，由 6 个适配器包的 conformance 调用点执行——
+      // 本包自己的 `test` 一行都跑不到（同一条理由让 coverage-check.mjs 整包排除了 `rxdb-test`）。
+      // 计进来量的不是引擎覆盖率，而是「这份套件在错误的包里跑没跑」，答案恒为否：
+      // 套件每长一节，functions 就掉一截（T067 写到一半时已把 96% 压到 88.69%）。
+      exclude: ['src/__tests__/**', 'src/working-tree/testing/**'],
       // 核心包 90% 门槛必须由 test target 自身强制，否则「覆盖率达标」只是报告里的数字，
       // 回归时掉到门槛以下不会让任何 Nx target 变红（RXD-043）
       thresholds: {

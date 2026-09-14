@@ -92,11 +92,11 @@ const entityManager = createEntityManager();
  *
  * @remarks
  * `Post` 是普通版本化实体，`ProductCache` 是 QueryCache——两者一起才能分辨
- * `#targetClassOf` 真的问了域，还是把「不是系统表就是版本化表」写死了。
+ * `targetClassOf` 真的问了域，还是把「不是系统表就是版本化表」写死了。
  */
 const DOMAIN = buildVersionedDomain([
-  { entityName: 'Post', tableName: 'post', syncType: SyncType.Full },
-  { entityName: 'ProductCache', tableName: 'productcache', syncType: SyncType.QueryCache }
+  { entityName: 'Post', namespace: 'public', tableName: 'post', syncType: SyncType.Full },
+  { entityName: 'ProductCache', namespace: 'public', tableName: 'productcache', syncType: SyncType.QueryCache }
 ]);
 
 /** 一条 `rxdb_change` 行的可变部分；其余列捕获用不上。 */
@@ -365,7 +365,7 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
 
   it('disableTriggers 为真、变更日志一行都没写，单元照样产生', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     declareTrustedWrite(stage.target, PULL_BATCH);
 
     const result = await stage.runtime.interceptMergeChanges(
@@ -384,7 +384,7 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
 
   it('业务写被发到本事务 executor 的门面上，不是适配器自己', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     declareTrustedWrite(stage.target, PULL_BATCH);
     const seenHosts: WorkingTreeWriteHost[] = [];
 
@@ -403,7 +403,7 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
 
   it('executor 交不出 adapter 门面时直接抛，不退回真实适配器', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     declareTrustedWrite(stage.target, PULL_BATCH);
     Object.assign(stage.probe.executor, { adapter: undefined });
 
@@ -414,7 +414,7 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
 
   it('三张 action 表按 insert / update / delete 全部展开', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     declareTrustedWrite(stage.target, PULL_BATCH);
 
     await stage.runtime.interceptMergeChanges(
@@ -459,7 +459,7 @@ describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
 
   it('绑了宿主但没声明意图时同样拒绝，业务分支一行都没切', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     let calls = 0;
 
     await expect(
@@ -476,7 +476,7 @@ describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
 
   it('undo/redo 声明 ⇒ 切完之后在后继事务里落成 origin=local 的单元', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     // 登记表 #4：`undo-redo-apply.ts·applyUndoRedoHistories·undo_redo` → `domain_recompute`。
     declareTrustedWrite(stage.target, {
       file: 'undo-redo-apply.ts',
@@ -499,7 +499,7 @@ describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
 
   it('分支物化声明 ⇒ 照常切，但不产生任何单元、不推 revision', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     // 登记表 #1：`VersionManager.ts·switchBranch·branch_materialization` → `projection_rewrite`。
     // 判成 reject 的话，切分支这件事本身会失败。
     declareTrustedWrite(stage.target, {
@@ -516,7 +516,7 @@ describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
 
   it('声明取用即清除：同一份声明不会被下一次未声明的调用继承', async () => {
     const stage = scene();
-    stage.runtime.bindMountTarget(stage.target, stage.target);
+    stage.runtime.bindMountTarget(stage.target);
     declareTrustedWrite(stage.target, {
       file: 'VersionManager.ts',
       symbol: 'switchBranch',

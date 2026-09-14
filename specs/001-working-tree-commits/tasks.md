@@ -162,8 +162,8 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T064 [US2] 在 6 个 v1 适配器各自的 `rawQuery` 实现中调用 T062 的共享判定（`packages/rxdb-adapter-pglite/src/`、`-wa-sqlite/src/`、`-sqlite-wasm/src/`、`-sqlite/src/`、`-sqliteai/src/`、`-electron/src/`）——**一份判定，六处调用**，不各写一份；没有 `rawQuery` 的适配器不因此获得豁免，其 `upsertMany` / `deleteByIds` 仍受 T061 约束
 - [x] T065 [US2] 给 9 个受信调用点加显式意图枚举（内部契约，**不进**公开 api-baseline）：`packages/rxdb/src/version/` 下的 `VersionManager.ts·switchBranch`、`restore-entity.ts·restore_entity`、`HistoryManager.ts·invalidateRedoStack`、`undo-redo-apply.ts·applyUndoRedoHistories`、`merge-branch.ts·merge_branch`（逐条与压缩**各一行**）、`pull-batch.ts·pullBatchOnce`、`pull-repository.ts·pullSingleRepository`、`cleanup-expired.ts·cleanupExpired`（adapter-contract.md §3）
 - [x] T066 [US2] 在 `scripts/audit/` 增加 `working-tree-callsite-drift.mjs` 与其 `.spec.mjs`：登记键 = 文件 + 符号 + 意图（符号取最内层具名函数，不是委托门面，不用行号）；未携带意图标记的批量重写一律按未知入口拒绝（R5、SC-010）
-- [ ] T067 [US2] 实现 `workingTreeCaptureConformanceSuite` 于 `packages/rxdb/src/working-tree/testing/working-tree-capture.suite.ts`：覆盖 conformance-suites.md §1.1–§1.5 全部小节，每组末尾都跑冷重放不变量
-- [ ] T068 [US2] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-capture-conformance.spec.ts`，复用各包既有 factory 调用 T067 的套件（T044 的门禁会校验这 6 个调用点存在）
+- [x] T067 [US2] 实现 `workingTreeCaptureConformanceSuite` 于 `packages/rxdb/src/working-tree/testing/working-tree-capture.suite.ts`：覆盖 conformance-suites.md §1.1–§1.5 全部小节，每组末尾都跑冷重放不变量
+- [x] T068 [US2] 在 6 个 v1 适配器包各建实际调用点 `src/__tests__/working-tree-capture-conformance.spec.ts`，复用各包既有 factory 调用 T067 的套件（T044 的门禁会校验这 6 个调用点存在）
 
 **Checkpoint**: 阶段 A 独立可验证。捕获完备（冷重放不变量全绿），raw / 批量写敞口被在执行前堵死，6 后端捕获套件全绿。
 

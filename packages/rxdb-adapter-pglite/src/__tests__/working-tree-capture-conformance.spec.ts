@@ -21,6 +21,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import {
   WORKING_TREE_CONFORMANCE_ENTITIES,
   WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
+  WORKING_TREE_CONFORMANCE_USER_ID,
   workingTreeCaptureConformanceSuite
 } from '@aiao/rxdb/testing';
 import { afterEach } from 'vitest';
@@ -39,6 +40,7 @@ workingTreeCaptureConformanceSuite({
   createDatabase: async () => {
     const database = new RxDB({
       dbName: `working-tree-capture-conformance-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
       entities: [...WORKING_TREE_CONFORMANCE_ENTITIES],
       sync: {
         local: { adapter: 'pglite' },

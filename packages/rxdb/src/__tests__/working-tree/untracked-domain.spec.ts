@@ -44,6 +44,7 @@ import {
 } from '../../working-tree/versioned-domain.js';
 
 const entity = (init: Partial<VersionedDomainEntityInput> & { entityName: string }): VersionedDomainEntityInput => ({
+  namespace: 'public',
   tableName: init.entityName.toLowerCase(),
   syncType: SyncType.Full,
   ...init

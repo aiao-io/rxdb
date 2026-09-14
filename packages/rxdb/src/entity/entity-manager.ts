@@ -12,6 +12,7 @@ import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { ENTITY_MANAGER, ENTITY_TYPE, PROXY, STATUS } from '../rxdb.private.js';
 import { RxDBError } from '../RxDBError.js';
+import { gateExternalNotify } from '../working-tree/external-notify-gate.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
 import { EntityStatus } from './entity-status.js';
@@ -512,6 +513,17 @@ export class EntityManager {
    * @param EntityType 实体类型
    * @param id 实体 ID
    * @param patch 变更的字段
+   * @throws {@link WorkingTreeWriteRejectedError} 已启用提交能力的库上、目标是版本化业务实体时；
+   *   此时一条事件都不会派发
+   *
+   * @remarks
+   * 写入口语义矩阵行 11：库外的那次改动不经任何捕获挂载点，业务表变了而工作树不会多出单元。
+   * 让它照常派发，下游 QueryCache 会照着 patch 改内存实体，于是工作树、业务表、内存三方各说各话。
+   * 判定与拒绝信息都在 {@link gateExternalNotify} 里，这里只负责把它接上。
+   *
+   * 取钩子走 {@link RxDB.workingTreeCaptureHook} 而不是 `localAdapterSync`：后者在「没配本地
+   * 适配器」与「还没连上」两种情形下抛错，而本方法今天在这两种库上都能调（它只派发事件）。
+   * 给它们凭空加一个「未连接」异常，就违反了 FR-046 的零行为差异。
    */
   notifyExternalUpdate<T extends EntityType>(
     EntityType: T,
@@ -530,7 +542,17 @@ export class EntityManager {
         recordAt: new Date()
       }
     ]);
-    this.rxdb.dispatchEvent(event);
+    const hook = this.rxdb.workingTreeCaptureHook;
+    // 没有钩子就是没启用提交能力：`capabilityEnabled: false` 让矩阵在第一步放行，
+    // 行为与接入前逐字一致。目标类别此时没人会看，给个合法值即可。
+    gateExternalNotify(
+      {
+        entityName: metadata.name,
+        targetClass: hook ? hook.targetClassOf(metadata.name, metadata.namespace) : 'versioned',
+        capabilityEnabled: hook !== undefined
+      },
+      () => this.rxdb.dispatchEvent(event)
+    );
   }
 
   /**

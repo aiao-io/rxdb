@@ -54,6 +54,7 @@ const domainStub = (): VersionedDomain => ({
  */
 const hookStub = (domain: VersionedDomain): WorkingTreeCaptureHook => ({
   domain,
+  targetClassOf: entityName => (domain.classifyEntity(entityName) === 'untracked' ? 'query_cache' : 'versioned'),
   bindMountTarget: () => undefined,
   interceptTransaction: (_host, next, fun, transactionLog) => next(fun, transactionLog),
   interceptMergeChanges: (host, next, actions, localChanges, disableTriggers) =>

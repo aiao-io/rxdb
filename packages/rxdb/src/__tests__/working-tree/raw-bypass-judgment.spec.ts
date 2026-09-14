@@ -31,6 +31,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
+import { SyncType } from '../../entity/metadata-options.interface.js';
 import {
   gateRawWrite,
   judgeRawWrite,
@@ -38,6 +39,7 @@ import {
   type VersionedDomainView
 } from '../../working-tree/raw-write-judgment.js';
 import { TrustedWriteIntent } from '../../working-tree/trusted-write-intent.js';
+import { buildVersionedDomain } from '../../working-tree/versioned-domain.js';
 import { WorkingTreeWriteRejectedError } from '../../working-tree/write-entry-matrix.js';
 
 /**
@@ -348,5 +350,143 @@ describe('挂载壳与纯判定是同一份规则', () => {
 
     expect(first).toEqual(second);
     expect([ctx.domain.versionedTables.size, ctx.domain.untrackedFieldsOf('post').size]).toEqual(sizeBefore);
+  });
+});
+
+describe('第 5 步 — untracked_only 要对着**生产域**成立', () => {
+  /**
+   * 用 `buildVersionedDomain()` 真的造一个域，而不是本文件顶部那份手写的 {@link domain}。
+   *
+   * @remarks
+   * 手写那份把 untracked 列名写成了 `remote_id` / `updated_at`——**恰好**与 `normalizeSql()`
+   * 抹平之后的 SQL 词元同形，于是子集判定成立、第 5 步绿。生产域给的却是
+   * `UNTRACKED_BOOKKEEPING_FIELDS`：`remoteId` / `createdAt` / `updatedAt`，驼峰。
+   *
+   * 两个平面的大小写口径不同不是笔误：实体平面的 `isUntrackedField()` **必须**大小写精确
+   * （`remoteId` 与 `remoteid` 在 JS 里是两个属性），而 SQL 平面已经被 `normalizeSql()` 整体
+   * 压成小写。判定把域原样递给 `hasNetChange()` 的精确字符串比对，两边就永远对不上——
+   * 于是第 5 步的 `untracked_only` 在**任何真实数据库上**都不可达，一条只改审计时间的
+   * 簿记写会被第 4 步拦成 `commit_capability_mismatch`。
+   *
+   * 这条缺陷躲过了本文件其余全部用例，只因为夹具恰好把域也写成了小写蛇形。
+   */
+  const productionDomain = (): VersionedDomainView =>
+    buildVersionedDomain([
+      { entityName: 'ConformanceNote', namespace: 'public', tableName: 'conformance_notes', syncType: SyncType.Full },
+      {
+        entityName: 'ConformanceCache',
+        namespace: 'public',
+        tableName: 'conformance_caches',
+        syncType: SyncType.QueryCache
+      }
+    ]);
+
+  const productionContext = (): RawWriteContext => ({ capabilityEnabled: true, domain: productionDomain() });
+
+  it('只改审计时间的 UPDATE 放行于第 5 步', () => {
+    expect(allowanceFor('UPDATE conformance_notes SET "updatedAt" = now()', productionContext())).toEqual({
+      kind: 'allow',
+      step: 5,
+      reason: 'untracked_only'
+    });
+  });
+
+  it('只改 remoteId 的 UPDATE 放行于第 5 步', () => {
+    expect(allowanceFor(`UPDATE conformance_notes SET "remoteId" = 'r-1'`, productionContext()).reason).toBe(
+      'untracked_only'
+    );
+  });
+
+  it('掺了一列业务字段就仍然落第 4 步', () => {
+    // 放宽大小写不能顺手放宽列集：多一列 `title` 就是净变化。
+    expect(rejectionFor(`UPDATE conformance_notes SET "updatedAt" = now(), title = 'x'`, productionContext())).toEqual({
+      kind: 'reject',
+      step: 4,
+      code: CommitErrorCode.commit_capability_mismatch,
+      tables: ['conformance_notes']
+    });
+  });
+
+  it('QueryCache 表落第 5 步的 out_of_domain', () => {
+    expect(allowanceFor(`UPDATE conformance_caches SET label = 'x'`, productionContext())).toEqual({
+      kind: 'allow',
+      step: 5,
+      reason: 'out_of_domain'
+    });
+  });
+});
+
+describe('物理表名 — SQLite 家族把 schema 折进名字里（`${namespace}$${tableName}`）', () => {
+  /**
+   * 两种物理表名形态，同一份逻辑表名。
+   *
+   * @remarks
+   * 6 个 v1 后端只有 PGlite 有真 schema，它的表引用是 `"public"."conformance_notes"`，
+   * 归一化之后带点号，`lastSegment()` 切一刀就回到逻辑表名。**另外 5 个 SQLite 家族后端没有
+   * schema**，`get_table_name()` 把命名空间折进名字本身：`public$conformance_notes`。它不带
+   * 点号，`lastSegment()` 原样返回，与 `versionedTables` 里的 `conformance_notes` 对不上——
+   * 于是落 `out_of_domain` 放行。
+   *
+   * 后果不是少拦一条边角语句，是 raw 门禁在 **5/6 的后端上整条失效**：在 wa-sqlite /
+   * sqlite-wasm / sqlite / sqliteai / electron 上，用户能用后端唯一能用的那个表名把版本化
+   * 业务表写穿，而捕获链一无所知，冷重放从此对不上。而这条缺陷躲过了本文件此前的全部用例，
+   * 只因为它们都用逻辑表名（`post`）或 PG 形态（`public.post`）提问——恰好是 1/6 的那个后端。
+   *
+   * 域这边登记**全部可寻址形态**，而不是让判定去猜分隔符：判定继续只做集合成员判定，
+   * 于是 `_fts_public$conformance_notes`（FTS 影子表，spec.md 明列的 `out_of_domain`）
+   * 不会因为「切一刀 `$`」被误伤。
+   */
+  const physicalDomain = (): VersionedDomainView =>
+    buildVersionedDomain([
+      { entityName: 'ConformanceNote', namespace: 'public', tableName: 'conformance_notes', syncType: SyncType.Full },
+      {
+        entityName: 'ConformanceCache',
+        namespace: 'public',
+        tableName: 'conformance_caches',
+        syncType: SyncType.QueryCache
+      }
+    ]);
+
+  const physicalContext = (): RawWriteContext => ({ capabilityEnabled: true, domain: physicalDomain() });
+
+  it('`public$conformance_notes` 与逻辑表名一样落第 4 步', () => {
+    expect(rejectionFor(`UPDATE public$conformance_notes SET title = 'x'`, physicalContext()).step).toBe(4);
+    expect(rejectionFor(`UPDATE "public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(4);
+    expect(rejectionFor(`DELETE FROM "public$conformance_notes"`, physicalContext()).step).toBe(4);
+    expect(rejectionFor(`INSERT INTO "public$conformance_notes" (id) VALUES ('x')`, physicalContext()).step).toBe(4);
+  });
+
+  it('附加库限定叠在物理表名上仍然落第 4 步', () => {
+    // SQLite `ATTACH` 之后的 `main."public$conformance_notes"`：点号与 `$` 同时出现。
+    expect(rejectionFor(`UPDATE main."public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(4);
+  });
+
+  it('物理表名上的 untracked 列集照样在第 5 步放行', () => {
+    // 别名要能被 `untrackedFieldsOf()` 认出来，否则列级豁免在 5 个后端上不可达——
+    // 一条只改审计时间的簿记写会被拦成 `commit_capability_mismatch`。
+    expect(allowanceFor(`UPDATE "public$conformance_notes" SET "updatedAt" = now()`, physicalContext())).toEqual({
+      kind: 'allow',
+      step: 5,
+      reason: 'untracked_only'
+    });
+  });
+
+  it('QueryCache 的物理表名仍然是域外', () => {
+    expect(allowanceFor(`UPDATE "public$conformance_caches" SET label = 'x'`, physicalContext()).reason).toBe(
+      'out_of_domain'
+    );
+  });
+
+  it('别名不会把 `$` 变成一把钝刀：FTS 影子表与同前缀表都不受影响', () => {
+    // `_fts_<物理表名>`（rxdb-plugin-search）按 `$` 切一刀正好得到 `conformance_notes`。
+    // 登记别名而不是切分隔符，正是为了让这条继续落 `out_of_domain`。
+    expect(allowanceFor(`INSERT INTO "_fts_public$conformance_notes" (rowid) VALUES (1)`, physicalContext())).toEqual({
+      kind: 'allow',
+      step: 5,
+      reason: 'out_of_domain'
+    });
+    expect(allowanceFor(`UPDATE "other$conformance_notes" SET title = 'x'`, physicalContext()).reason).toBe(
+      'out_of_domain'
+    );
   });
 });

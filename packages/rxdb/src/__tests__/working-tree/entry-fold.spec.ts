@@ -214,7 +214,10 @@ describe('规则 2 的反向 — DELETE 之后 INSERT 不是净无变化', () =>
     const updated = rowAfter(undefined, captured({ operation: 'update' }));
     const outcome = foldWorkingTreeEntry(updated, captured({ operation: 'delete', patch: null }));
 
-    expect(outcome.kind).toBe('update');
+    // 收窄而不是 `expect(outcome.kind).toBe('update')` 之后直接点 `.entry`：`remove` 那一支
+    // 根本没有 `entry`，断言语句自己收窄才能同时是类型证明和用例断言。
+    if (outcome.kind !== 'update') expect.unreachable(`期望折进已有单元，实际是 ${outcome.kind}`);
+
     expect(outcome.entry.operation).toBe('delete');
     expect(outcome.entry.inversePatch).toEqual({ title: HEAD_TITLE });
   });

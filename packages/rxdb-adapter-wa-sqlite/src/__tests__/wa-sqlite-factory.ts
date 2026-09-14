@@ -43,7 +43,7 @@ export const waSqliteFactory: AdapterFactory = {
  * 会在**类型检查**时炸，而不是等某条用例跑到那一行（RXT-024）。
  */
 async function createWaSqliteAdapter(options?: Record<string, unknown>) {
-  const rawOptions = (options ?? {}) as { entities?: EntityType[]; persistent?: boolean };
+  const rawOptions = (options ?? {}) as { entities?: EntityType[]; persistent?: boolean; remoteAdapter?: string };
   const entities = (rawOptions.entities ?? []).slice();
   const persistent = rawOptions.persistent === true;
   const dbName = `wa-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -54,6 +54,9 @@ async function createWaSqliteAdapter(options?: Record<string, unknown>) {
     entities,
     sync: {
       local: { adapter: 'wa-sqlite' },
+      // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，
+      // 缺一侧 `EntityManager.init()` 直接抛。不传就整个不出现这个键，既有调用方零变化。
+      ...(rawOptions.remoteAdapter === undefined ? {} : { remote: { adapter: rawOptions.remoteAdapter } }),
       type: SyncType.None
     }
   });

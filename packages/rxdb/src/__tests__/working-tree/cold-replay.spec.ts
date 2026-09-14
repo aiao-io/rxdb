@@ -407,7 +407,13 @@ describe('diffColdReplay — 「逐字段」的「逐」字', () => {
     const replayed: ColdReplaySnapshot = [noteRow('note-1', { id: 'note-1', title: 'a', body: 'b', pinned: false })];
     const actual: ColdReplaySnapshot = [noteRow('note-1', { id: 'note-1', title: 'A', body: 'B', pinned: false })];
 
-    expect(diffColdReplay(replayed, actual).map(mismatch => mismatch.field)).toEqual(['body', 'title']);
+    // `field` 只长在 `field_mismatch` 这一支上，所以按 kind 取：混进别的支时印出来的是那个 kind，
+    // 而不是一串 `undefined`——差异报告本身读不懂的话，这条用例就白写了。
+    const fields = diffColdReplay(replayed, actual).map(mismatch =>
+      mismatch.kind === 'field_mismatch' ? mismatch.field : mismatch.kind
+    );
+
+    expect(fields).toEqual(['body', 'title']);
   });
 });
 

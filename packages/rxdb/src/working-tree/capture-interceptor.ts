@@ -24,6 +24,7 @@ import type { SwitchBranchOptions, TransactionFun } from '../rxdb-adapter.js';
 import type { RxDBChange } from '../system/change.js';
 import type { SwitchVersionActions } from '../version/VersionManager.interface.js';
 import type { VersionedDomainView } from './versioned-domain.js';
+import type { WriteTargetClass } from './write-entry-matrix.js';
 
 /** 被拦截的批量写方法，与 {@link BulkWriteOperation} 同集合。 */
 export type InterceptedBulkWrite = 'upsert_many' | 'delete_by_ids';
@@ -120,6 +121,23 @@ export interface WorkingTreeCaptureHook {
    * raw 判定只按表名与列名工作，实体平面的 `classifyEntity` / 事务守卫是捕获自己的事。
    */
   readonly domain: VersionedDomainView;
+
+  /**
+   * 实体名 → 写入口语义矩阵里的目标类别
+   *
+   * @param entityName - 实体名
+   * @param namespace - 已知时直接用；`rxdb` 即系统表
+   * @returns `system` / `query_cache` / `versioned` 三者之一
+   *
+   * @remarks
+   * 与 {@link domain} 同一个理由暴露在钩子上：矩阵的**列**（目标类别）是判定的一半，而核心包里
+   * 有拦不住、只能由调用点自己接门禁的写入口——`notifyExternalUpdate()` 是第一个
+   * （写入口语义矩阵行 11）。那些调用点手上只有实体名，分类要么问这里，要么自己长一份
+   * 「不是系统表就是版本化表」的近似规则；后者第一次新增 QueryCache 实体就会静默拒错对象。
+   *
+   * 一个运行时只有一份分类器：挂载点 4 与捕获判定用的也是它。
+   */
+  targetClassOf(entityName: string, namespace?: string): WriteTargetClass;
 
   /**
    * 认领安装宿主与它那份未拦截原语；{@link installWorkingTreeCapture} 之后立刻调用一次

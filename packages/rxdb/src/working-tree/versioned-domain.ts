@@ -58,15 +58,25 @@ export type VersionedEntityClass = 'tracked' | 'untracked';
  * 构造版本化域所需的单个实体登记
  *
  * @remarks
- * 三个必填项分别对应判定的三个平面：`entityName` 是调用方在实体层问的名字，`tableName` 是
- * raw 判定在 SQL 里看到的名字，`syncType` 决定第一类 untracked。少任何一个都会逼下游自己去
- * 元数据里再查一次，而那正是「第二份清单」的开始。
+ * 四个必填项分别对应判定的三个平面：`entityName` 是调用方在实体层问的名字，`namespace` 与
+ * `tableName` 合起来是 raw 判定在 SQL 里看到的名字，`syncType` 决定第一类 untracked。
+ * 少任何一个都会逼下游自己去元数据里再查一次，而那正是「第二份清单」的开始。
  */
 export interface VersionedDomainEntityInput {
   /** 实体名（`@Entity({ name })`），大小写敏感 */
   readonly entityName: string;
 
-  /** 该实体的数据库表名；构造时统一归一化成小写 */
+  /**
+   * 该实体的命名空间（`@Entity({ namespace })`）
+   *
+   * @remarks
+   * 必填而不是省略时当 `'public'`：这一项决定 SQLite 家族上那个物理表名
+   * （`public$post`）登不登记得上，而漏登记的后果是**静默放行**。留个默认值的话，
+   * 下一个忘了传的调用方会拿到一个看起来正常、实际只保护 1/6 后端的域。
+   */
+  readonly namespace: string;
+
+  /** 该实体的逻辑表名（`@Entity({ tableName })`）；构造时统一归一化成小写 */
   readonly tableName: string;
 
   /** 该实体的同步策略；{@link SyncType.QueryCache} 即第一类 untracked */
@@ -92,10 +102,21 @@ export interface VersionedDomainEntityInput {
  */
 export interface VersionedDomainView {
   /**
-   * 全部 tracked 实体的表名集合，**小写、无引号、无 schema 限定**
+   * 全部 tracked 实体的**可寻址表名**集合，小写、无引号、无点号 schema 限定
    *
    * @remarks
    * 放实体名的话，`UPDATE post` 永远命不中 `Post`，整条 raw 防线静默失效。
+   *
+   * 每张表登记**两个**名字：逻辑表名（`post`）与 SQLite 家族的物理表名（`public$post`）。
+   * 两个都要，因为 6 个 v1 后端分两种物理形态——PGlite 有真 schema，表引用是
+   * `"public"."post"`，判定切掉点号限定之后回到 `post`；另外 5 个 SQLite 家族后端**没有**
+   * schema，命名空间被折进名字本身，而那是它们**唯一**能用的表名。只登记逻辑名的话，
+   * raw 门禁在 5/6 的后端上整条失效：用户用后端唯一可用的表名就能把版本化业务表写穿，
+   * 捕获链一无所知，冷重放从此对不上。
+   *
+   * 登记别名而不是让判定按 `$` 切一刀：`_fts_public$post`（rxdb-plugin-search 的影子表，
+   * spec.md 明列的域外目标）切完正好等于 `post`，于是一条本该放行的写开始报错。
+   * 判定那一侧继续只做集合成员判定，多一种物理形态就在**这里**多登记一个名字。
    */
   readonly versionedTables: ReadonlySet<string>;
 
@@ -196,10 +217,35 @@ export class MixedVersionedCacheTransactionError extends RxDBMixedVersionedCache
 /** 归一化表名：raw 判定对**语句**做词法归一，域这边只负责让自己的拼写唯一。 */
 const normalizeTable = (table: string): string => table.toLowerCase();
 
+/**
+ * SQLite 家族把命名空间折进表名时的分隔符（`get_table_name()`，rxdb-adapter-sqlite-core）
+ *
+ * @remarks
+ * 它不出现在任何**逻辑**表名里（逻辑表名来自 `@Entity({ tableName })`），所以拿它拼出来的
+ * 别名不会和别的逻辑表撞名。
+ */
+const NAMESPACE_SEPARATOR = '$';
+
+/**
+ * 一张表在 SQL 里可能被写成的全部名字（已归一化、已去点号限定）
+ *
+ * @param namespace - 实体命名空间
+ * @param tableName - 逻辑表名
+ * @returns 逻辑名与 SQLite 家族物理名
+ *
+ * @remarks
+ * PGlite 的 `"public"."post"` 不在这里登记：它带点号，raw 判定的 schema 限定剥离已经把它
+ * 还原成逻辑名了。这里补的是**剥不掉**的那一种。
+ */
+function addressableTableNames(namespace: string, tableName: string): readonly string[] {
+  const logical = normalizeTable(tableName);
+  return [logical, `${normalizeTable(namespace)}${NAMESPACE_SEPARATOR}${logical}`];
+}
+
 /** 构造期算好的每实体信息，三个判定函数共用，避免在判定里重复查两张表。 */
 interface EntityRecord {
   readonly entityClass: VersionedEntityClass;
-  readonly tableName: string;
+  readonly tableNames: readonly string[];
   readonly derivedIndexColumns: ReadonlySet<string>;
 }
 
@@ -207,18 +253,26 @@ interface EntityRecord {
 function toEntityRecord(input: VersionedDomainEntityInput): EntityRecord {
   return {
     entityClass: input.syncType === SyncType.QueryCache ? 'untracked' : 'tracked',
-    tableName: normalizeTable(input.tableName),
+    tableNames: addressableTableNames(input.namespace, input.tableName),
     derivedIndexColumns: new Set(input.derivedIndexColumns ?? [])
   };
 }
 
-/** 按表聚合派生索引列：同一张表可能由多条登记（或多个插件）各加一批。 */
+/**
+ * 按表聚合派生索引列：同一张表可能由多条登记（或多个插件）各加一批。
+ *
+ * @remarks
+ * 逐个别名都建一份索引，否则列级豁免只在逻辑表名上成立——SQLite 家族上一条只改审计时间的
+ * 簿记写会被第 4 步拦成 `commit_capability_mismatch`，而那是在**拦错了人**。
+ */
 function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>): ReadonlyMap<string, Set<string>> {
   const byTable = new Map<string, Set<string>>();
   for (const record of records.values()) {
-    const columns = byTable.get(record.tableName) ?? new Set<string>();
-    for (const column of record.derivedIndexColumns) columns.add(column);
-    byTable.set(record.tableName, columns);
+    for (const tableName of record.tableNames) {
+      const columns = byTable.get(tableName) ?? new Set<string>();
+      for (const column of record.derivedIndexColumns) columns.add(column);
+      byTable.set(tableName, columns);
+    }
   }
   return byTable;
 }
@@ -236,11 +290,17 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  * 表名在这里统一归一化成小写，于是「归一化」这件事在整条链上只有两处：域构造（对登记）
  * 与 raw 判定（对语句）。交给六个适配器各自归一化的话，它们只需要有一份写松，整条防线就有洞。
  *
+ * 每张 tracked 表登记**两个**可寻址名字（见 {@link VersionedDomainView.versionedTables}）：
+ * 逻辑名与 SQLite 家族的物理名。物理形态属于「同一张表叫什么」，归域管；让判定去猜分隔符
+ * 就等于把它挪进判定，而判定那一侧没有命名空间可比对，只能按前缀猜——猜宽了误伤 FTS 影子表，
+ * 猜窄了就是现在这个洞。
+ *
  * @example
  * ```ts
  * const domain = buildVersionedDomain([
- *   { entityName: 'Post', tableName: 'post', syncType: SyncType.Full, derivedIndexColumns: ['title_norm'] },
- *   { entityName: 'ProductCache', tableName: 'productcache', syncType: SyncType.QueryCache }
+ *   { entityName: 'Post', namespace: 'public', tableName: 'post', syncType: SyncType.Full,
+ *     derivedIndexColumns: ['title_norm'] },
+ *   { entityName: 'ProductCache', namespace: 'public', tableName: 'productcache', syncType: SyncType.QueryCache }
  * ]);
  *
  * domain.classifyEntity('Post');                    // 'tracked'
@@ -253,7 +313,7 @@ export function buildVersionedDomain(entities: readonly VersionedDomainEntityInp
   const records = new Map<string, EntityRecord>(entities.map(input => [input.entityName, toEntityRecord(input)]));
   const derivedByTable = collectDerivedColumnsByTable(records);
   const versionedTables = new Set(
-    [...records.values()].filter(record => record.entityClass === 'tracked').map(record => record.tableName)
+    [...records.values()].filter(record => record.entityClass === 'tracked').flatMap(record => record.tableNames)
   );
 
   const classifyEntity = (entityName: string): VersionedEntityClass =>

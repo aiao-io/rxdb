@@ -47,6 +47,23 @@ export const WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER = 'working-tree-conformance
 export const WORKING_TREE_CONFORMANCE_LOCAL_ADAPTER = 'working-tree-conformance-local';
 
 /**
+ * 调用点必须写进 `RxDBConfig.context.userId` 的审计主体。
+ *
+ * @remarks
+ * **不是可选装饰。** 适配器在生成 INSERT / UPDATE 语句时会用 `context.userId` 覆写
+ * `createdBy` / `updatedBy`（sqlite-core 的 `insert_sql` / `update_sql`，PGlite 同名文件），
+ * 而这两列按 `UNTRACKED_BOOKKEEPING_FIELDS` 的定义是 **tracked** 的——审计主体属于净变化。
+ * 于是「捕获到的 patch 有没有把适配器盖上去的那两列算进来」只有在 `userId` 非空时才成立为一道
+ * 判据；不设它的库里两列恒为 `null`，冷重放两边同时是 `null`，这一整类缺陷全程假绿。
+ *
+ * 取值与 5 个 SQLite 家族 factory 既有的 `context` 同字面量，纯为让六个后端的业务行长得一样；
+ * 套件本身不读这个值，只要求它非空（见 `workingTreeCaptureConformanceSuite` 的建库自检）。
+ *
+ * @public
+ */
+export const WORKING_TREE_CONFORMANCE_USER_ID = 'userId';
+
+/**
  * 受版本化管辖的业务实体：套件里绝大多数断言的被写对象。
  *
  * @remarks

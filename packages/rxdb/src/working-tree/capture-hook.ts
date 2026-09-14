@@ -292,9 +292,22 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     operation: InterceptedBulkWrite
   ): Observable<void> {
     return gateBulkWrite(
-      { entityName, operation, targetClass: this.#targetClassOf(entityName), capabilityEnabled: true },
+      { entityName, operation, targetClass: this.targetClassOf(entityName), capabilityEnabled: true },
       next
     );
+  }
+
+  /**
+   * @inheritDoc
+   *
+   * @remarks
+   * 全部系统实体都是 `namespace: 'rxdb'`，所以命名空间已知时一问即答；只有实体名的场合
+   * （挂载点 4）回落到系统实体名集合。两条路给出的是同一个答案，不是两份清单——集合本身就是
+   * 从 `SYSTEM_ENTITIES` 的元数据算出来的。
+   */
+  targetClassOf(entityName: string, namespace?: string): WriteTargetClass {
+    if (namespace === 'rxdb' || this.#systemEntityNames.has(entityName)) return 'system';
+    return this.#domain.classifyEntity(entityName) === 'untracked' ? 'query_cache' : 'versioned';
   }
 
   /**
@@ -376,29 +389,12 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     const columns = source.patch ? Object.keys(source.patch) : [];
     return classifyWriteEntrance({
       entrance,
-      targetClass: this.#targetClassOf(source.entity, source.namespace),
+      targetClass: this.targetClassOf(source.entity, source.namespace),
       operation: OPERATION_OF_TYPE[source.type],
       columns: source.patch ? { kind: 'columns', names: columns } : { kind: 'whole_row' },
       untrackedFields: columns.filter(name => this.#domain.isUntrackedField(source.entity, name)),
       capabilityEnabled: true
     });
-  }
-
-  /**
-   * 实体名 → 表类别
-   *
-   * @param entityName - 实体名
-   * @param namespace - 已知时直接用；`rxdb` 即系统表
-   * @returns 三类之一
-   *
-   * @remarks
-   * 全部系统实体都是 `namespace: 'rxdb'`，所以命名空间已知时一问即答；只有实体名的场合
-   * （挂载点 4）回落到系统实体名集合。两条路给出的是同一个答案，不是两份清单——集合本身就是
-   * 从 `SYSTEM_ENTITIES` 的元数据算出来的。
-   */
-  #targetClassOf(entityName: string, namespace?: string): WriteTargetClass {
-    if (namespace === 'rxdb' || this.#systemEntityNames.has(entityName)) return 'system';
-    return this.#domain.classifyEntity(entityName) === 'untracked' ? 'query_cache' : 'versioned';
   }
 }
 
@@ -445,7 +441,12 @@ export const createWorkingTreeCaptureRuntime = (
         const metadata = getEntityMetadata(EntityType);
         const sync = getEntitySync(EntityType, databaseSync);
         if (!sync) throw new RxDBError(`实体 ${metadata.name} 解析不出生效的同步配置，无法判定它是否版本化。`);
-        return { entityName: metadata.name, tableName: metadata.tableName, syncType: sync.type };
+        return {
+          entityName: metadata.name,
+          namespace: metadata.namespace,
+          tableName: metadata.tableName,
+          syncType: sync.type
+        };
       })
     ),
     systemEntityNames: SYSTEM_ENTITY_NAMES

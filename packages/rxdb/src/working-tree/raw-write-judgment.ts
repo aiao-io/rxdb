@@ -315,6 +315,15 @@ type StatementVerdict =
  * @remarks
  * 直接复用写入口语义矩阵的同一份判据（`entrance: 'raw_write'`）。raw 通道自己再写一遍
  * 「列集 ⊆ untracked 域」的话，两处口径迟早分家，而 raw 通道会成为那条更松的路。
+ *
+ * **列名在这里压成小写，因为语句那一侧已经被 {@link normalizeSql} 压过了。** 域给的是实体
+ * 属性名（`remoteId` / `createdAt` / `updatedAt`，驼峰），矩阵做的是精确字符串子集判定——
+ * 原样递过去的话 `remoteid` 永远不等于 `remoteId`，第 5 步的 `untracked_only` 在任何真实
+ * 数据库上都不可达，一条只改审计时间的簿记写会被第 4 步拦成 `commit_capability_mismatch`。
+ *
+ * 压小写只发生在**表 / 列平面**，域本身不动：实体平面的 `isUntrackedField()` 必须保持大小写
+ * 精确（`remoteId` 与 `remoteid` 在 JS 里是两个不同的属性）。归一化是判定对 SQL 做的事，
+ * 两个平面各归一到自己的刻度上，不是把域改成小写让两边"凑巧"相等。
  */
 function rejectsTable(
   table: string,
@@ -328,7 +337,7 @@ function rejectsTable(
       targetClass: 'versioned',
       operation,
       columns,
-      untrackedFields: [...domain.untrackedFieldsOf(table)],
+      untrackedFields: [...domain.untrackedFieldsOf(table)].map(field => field.toLowerCase()),
       capabilityEnabled: true
     }).kind === 'reject'
   );
@@ -385,7 +394,7 @@ function combine(verdicts: readonly StatementVerdict[]): RawWriteJudgment {
  *
  * @example
  * ```ts
- * judgeRawWrite("UPDATE post SET remote_id = 'r1'", { capabilityEnabled: true, domain });
+ * judgeRawWrite('UPDATE post SET "remoteId" = \'r1\'', { capabilityEnabled: true, domain });
  * // → { kind: 'allow', step: 5, reason: 'untracked_only' }
  * ```
  */

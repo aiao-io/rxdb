@@ -46,8 +46,14 @@ export const sqliteaiFactory: AdapterFactory = {
 };
 
 async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise<QueryCountingSqliteaiAdapter> {
-  const rawOptions = (options ?? {}) as SqliteaiOptions & { entities?: EntityType[]; persistent?: boolean };
-  const { entities: entitiesOption, persistent, ...adapterOptions } = rawOptions;
+  const rawOptions = (options ?? {}) as SqliteaiOptions & {
+    entities?: EntityType[];
+    persistent?: boolean;
+    remoteAdapter?: string;
+  };
+  // `remoteAdapter` 必须在这里解构出去，不能留在 `adapterOptions` 里：那个对象整个
+  // 展进 `SqliteaiOptions`，多带一个它不认识的键。
+  const { entities: entitiesOption, persistent, remoteAdapter, ...adapterOptions } = rawOptions;
   const entities = (entitiesOption ?? []).slice();
   const dbName = `sqliteai-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
@@ -56,6 +62,9 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
     entities,
     sync: {
       local: { adapter: 'sqliteai' },
+      // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，
+      // 缺一侧 `EntityManager.init()` 直接抛。不传就整个不出现这个键，既有调用方零变化。
+      ...(remoteAdapter === undefined ? {} : { remote: { adapter: remoteAdapter } }),
       type: SyncType.None
     }
   });

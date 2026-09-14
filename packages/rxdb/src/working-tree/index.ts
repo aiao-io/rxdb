@@ -24,6 +24,7 @@ export * from './capture-interceptor.js';
 export * from './capture-mount-points.js';
 export * from './capture-runtime.js';
 export * from './cold-replay.js';
+export * from './external-notify-gate.js';
 export * from './raw-write-judgment.js';
 export * from './trusted-write-intent.js';
 export * from './trusted-write-scope.js';
