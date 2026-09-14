@@ -1,6 +1,6 @@
 ---
 id: epic-003-ui-developer-tools
-status: In Progress
+status: Done
 startDate: 2025-07-01
 targetDate: 2026-12-01
 owner: jimmy
@@ -17,7 +17,7 @@ owner: jimmy
 - [x] 代码编辑器组件（跨 3 端）
 - [x] 浏览器 DevTools 面板（连接器 + Chrome 扩展）
 - [x] Electron 原生本地存储 DevTools 调试
-- [ ] Tauri 原生本地存储 DevTools 调试
+- [x] Tauri 原生本地存储 DevTools 调试
 
 ## 故事
 
@@ -31,6 +31,8 @@ owner: jimmy
   - 阶段 C DevTools 共享面板与 Chrome v2 迁移 — C1 可与阶段 B 并行
   - 阶段 D Electron 原生存储 DevTools 集成 — 仅阶段 A supported 时开工
 - [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D
-- [US-907 DevTools 面板迁移后的人工回归](../stories/future/US-907-devtools-manual-regression.md) (Low) — 从 US-904 拆出的四条人工 AC + US-906 AC#2 的人工半边，不改代码
 - [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](../stories/future/US-906-electron-devtools-developer-path.md) (Medium) — 承接 US-904 阶段 D 的实测结论，给桌面开发者一份可用的 dev 扩展产物与流程
 - [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](../stories/future/US-908-devtools-transfer-session-defects.md) (Medium) — US-905 阶段 2 读出但不在其范围内修的两条缺陷
+
+> 五条只能由人做的回归（US-904 AC#34/#38/#39/#42 四条真实 Chrome 回归 + US-906 AC#2 的人工半边）
+> 已**移出承诺范围**：项目处于早期，v2 迁移的行为中性由自动化证据承担；未来收尾需要时另立故事。

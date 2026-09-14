@@ -24,8 +24,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
-import { Entity } from '../../entity/entity.decorator.js';
 import { EntityManager } from '../../entity/entity-manager.js';
+import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import type { RxDBEvent } from '../../rxdb-events.js';
 import type { RxDB } from '../../RxDB.js';
@@ -70,7 +70,9 @@ const hookStub = (): WorkingTreeCaptureHook => {
   return {
     domain,
     targetClassOf: (entityName, namespace) =>
-      namespace === 'rxdb' ? 'system' : domain.classifyEntity(entityName) === 'untracked' ? 'query_cache' : 'versioned',
+      namespace === 'rxdb' ? 'system'
+      : domain.classifyEntity(entityName) === 'untracked' ? 'query_cache'
+      : 'versioned',
     bindMountTarget: () => undefined,
     interceptTransaction: (_host, next, fun, transactionLog) => next(fun, transactionLog),
     interceptMergeChanges: (host, next, actions, localChanges, disableTriggers) =>

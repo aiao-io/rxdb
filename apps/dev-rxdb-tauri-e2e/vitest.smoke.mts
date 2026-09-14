@@ -28,7 +28,9 @@ export default defineConfig({
     // 由 `vitest.devtools.mts` + `devtools-smoke` target 承载。留在这里的话，
     // 本套件会拿 release 二进制去跑它，失败形态是「窗口只有一个」——
     // 而那恰恰是 release 隔离**正确**的表现，读起来却像缺陷。
-    exclude: ['src/devtools-window-transport.spec.ts'],
+    // provider 档位走查同病：它按 debug profile 起二进制，在 release 链上要么
+    // 因 debug 产物不存在而红，要么误拿本机陈旧的 target/debug 跑出假绿。
+    exclude: ['src/devtools-window-transport.spec.ts', 'src/devtools-provider-gear.spec.ts'],
     reporters: ['default'],
     // 预热启动：把「本机第一次拉起产物」的一次性成本付在断言之外，理由见 src/warm-up.ts。
     // 它必须跑在全部 worker 之前 —— 只有 globalSetup 有这个位置。
