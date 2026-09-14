@@ -20,6 +20,10 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
+## 进行中（0 条）
+
+> 无。
+
 ## 待评审（1 条）
 
 | Story                                                                            | 收尾条件                                                                                                                                                                                  |
