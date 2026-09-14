@@ -17,7 +17,7 @@
 
 ## 完成计划
 
-仓库还剩 **9 条**未关闭故事（1 In Progress + 1 In Review + 7 Backlog，
+仓库还剩 **6 条**未关闭故事（0 In Progress + 1 In Review + 5 Backlog，
 口径与计数方式同 [status-overview 状态汇总](status-overview.md#状态汇总)）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；批次之间才是顺序。
 每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
