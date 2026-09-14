@@ -149,8 +149,8 @@ US-210 SQLite host / US-505 native file host
 
 AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 九条全 ✅（#9～#17）。
 AC#17 三平台实测的调度已从「只在 release 分支/tag」改为「release 发布 + 手动 dispatch + 桌面链路相关
-PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；三平台证据由 PR #58 的
-[Release Desktop run 34854848883](https://github.com/aiao-io/rxdb/actions/runs/34854848883) 回填——
+PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；三平台证据由 PR #58 最终 HEAD 的
+[Release Desktop run 34858162498](https://github.com/aiao-io/rxdb/actions/runs/34858162498) 回填——
 ubuntu / macOS / Windows 的 packaging smoke 与 devtools smoke 全绿，desktop-gate 通过。
 win32 的回填过程修掉一处真实缺陷：首跑里 idb 档在 Windows 上挂到 60s 看门狗报 `timedOut`（既不是
 ok 也不是诚实失败），挂点是模块 SharedWorker 传输——WebView2 上 worker 脚本不开始。强制档因此改走
@@ -199,7 +199,7 @@ ok 也不是诚实失败），挂点是模块 SharedWorker 传输——WebView2 
 - **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；win32/linux
   实测的调度改为桌面相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路）。
   首跑暴露出 win32 的 idb 档 SharedWorker 传输挂起，强制档改走 dedicated Worker 修复后，
-  三平台 smoke 全绿（run 34854848883），本 AC 关闭。
+  最终 HEAD 的全矩阵复验三平台 smoke 全绿（run 34858162498），本 AC 关闭。
 
 三档开关（provider 源 / snapshot 场景 / VFS 强制）与驱动档位键全部 `#[cfg(dev)]` 编进 dev 二进制，
 release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三档 env 名只出现在 `devtools_config.rs`
