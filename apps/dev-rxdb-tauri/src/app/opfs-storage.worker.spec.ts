@@ -102,6 +102,16 @@ describe('opfs-storage.worker 入口', () => {
       expect(getDirectory).not.toHaveBeenCalled();
       expect(self.postMessage).not.toHaveBeenCalled();
     });
+
+    it('WebKit 的空串 origin 按同源放行：WKWebView 不填 worker 消息的 origin', async () => {
+      const getDirectory = vi.fn().mockResolvedValue(emptyRoot);
+      const self = await loadWorker(getDirectory);
+
+      await dispatch(self, '', { id: 7, kind: 'open', segments: ['a.txt'] });
+
+      expect(getDirectory).toHaveBeenCalledTimes(1);
+      expect(lastResponse(self)).toMatchObject({ id: 7, ok: true });
+    });
   });
 
   describe('请求结算', () => {

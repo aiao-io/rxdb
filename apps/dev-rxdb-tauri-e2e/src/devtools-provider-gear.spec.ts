@@ -282,11 +282,16 @@ const EXPECTED_VFS_OPFS: Readonly<Partial<Record<NodeJS.Platform, VfsExpectation
   linux: { status: 'failed' }
 });
 
-/** idb 档的每平台预期；IndexedDB 是三家引擎都有的老能力，三列都预填 `ok`。 */
+/**
+ * idb 档的每平台预期；linux 已按 CI 三 OS 矩阵首跑回填 `failed`——WebKitGTK 的页面上下文
+ * 没有 `navigator.storage`，文件存储（读与目录操作委托插件默认 OPFS 后端）连 `list` 都
+ * 开不出来，storage 探针在数据库照常开起来之后诚实失败（`navigator.storage is not available`）。
+ * 那与「IndexedDB 三家引擎都有」无关：数据库 VFS 与文件存储是两条独立的能力线。
+ */
 const EXPECTED_VFS_IDB: Readonly<Partial<Record<NodeJS.Platform, VfsExpectation>>> = Object.freeze({
   darwin: { status: 'ok' },
   win32: { status: 'ok' },
-  linux: { status: 'ok' }
+  linux: { status: 'failed' }
 });
 
 /** 把本次实测值排成一段可直接粘进 {@link EXPECTED_VFS_OPFS} / {@link EXPECTED_VFS_IDB} 的字面量。 */

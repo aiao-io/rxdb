@@ -39,7 +39,11 @@ self.onmessage = async (event: MessageEvent) => {
     // 信任边界：消息必须来自创建本 worker 的窗口（同一安全源）。worker 句柄目前模块私有，
     // 跨源窗口拿不到引用，但这条线把「将来端口被分享 / 页面被嵌入宿主」的余量提前封死 ——
     // 静默丢弃而不是回错误响应，不给不信任的发送方当探针。
-    if (event.origin !== self.location.origin) {
+    //
+    // WebKit（WKWebView）不填 worker MessageEvent 的 origin（恒为空串，e2e 实测），
+    // 而 worker 句柄只有创建它的页面拿得到：空串按同源放行，非空按精确匹配判。
+    // 这不是把校验关掉 —— 填 origin 的引擎（Chromium / Firefox）上异源依旧被拒。
+    if (event.origin !== '' && event.origin !== self.location.origin) {
       return;
     }
     self.postMessage(await handleWorkerOp(request, await getRoot(), handles));
