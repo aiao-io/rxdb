@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-29
-updated: 2026-08-31
+updated: 2026-09-15
 tags: [adapter, http, server, node, pglite, shared-domain]
 ---
 
@@ -64,8 +64,8 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 `return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/version/sync-type-utils.ts#L30)）——
 实体级配置永远赢。前端 `Recipe` 类上写着 `SyncType.QueryCache + http/wa-sqlite`，后端要的是纯本地 pglite；
 把同一个类直接拿到后端，`init()` 会因缺 remote 适配器被 US-021 的 fail-fast 拒绝。
-让「同一个类」两端共用需要核心的实例级 sync 覆盖能力——**另立 core 故事，本故事不阻塞于它**；
-本故事先用「一份 schema 常量装饰出两个类」的路（D1），并在那条 core 故事落地后收敛为单类。
+让「同一个类」两端共用需要 [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md)。
+本故事采用「一份 schema 常量装饰出两个类」（D1），单类收敛由 US-026 承接，本故事不阻塞于它。
 
 ### 复验方式
 
@@ -97,7 +97,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 ### Out of Scope
 
-- **单实体类收敛**：依赖核心的实例级 sync 覆盖能力（另立 core 故事），本故事 A / B 不阻塞于它，见 References
+- **单实体类收敛**：由 [US-026](../core/US-026-instance-sync-override.md) 承接，本故事 A / B 不阻塞于它
 - **Full-sync / 离线写队列 / 冲突解决**：`RxDBAdapterHttp` v1 刻意不实现 changelog
   （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:477](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L477)），
   本故事不改变这条边界
@@ -336,4 +336,4 @@ demo 的变更通知开关就是留给这类实验的。
 - [http-protocol.md](../../../website/docs/adapters/http-protocol.md) — wire 契约，逐字不可变
 - [US-207 Electron 连接本地 SQLite 文件](../../../requirements/stories/adapter/US-207-desktop-local-database.md) — `NodeSqliteEngine` 的出处（node:sqlite + sqlite-core），Out of Scope 里纯 Node 抽包的前置
 - [NodeSqliteEngine](../../../packages/rxdb-adapter-electron/src/node-sqlite-engine.ts) — 文件路径落盘、同步接口、触发器驱动变更事件
-- 核心实例级 sync 覆盖能力——另立 core story（编号待定），本故事 D1 的收尾依赖它，A / B 不阻塞于它
+- [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md) — 承接 D1 的单类收敛，A / B 不阻塞于它

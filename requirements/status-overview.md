@@ -11,12 +11,12 @@
 | ✅ Done        | 59   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 6    |
+| 📝 Backlog     | 7    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 67   |
+| **合计**       | 68   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（67 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
@@ -97,7 +97,8 @@
 - ✅ [US-023 QueryCache 远端变更的失效上报口与实时同步](stories/core/US-023-querycache-remote-invalidation.md)
 - ✅ [US-215 条件请求被静默停用时给出可观测信号](stories/adapter/US-215-conditional-request-silence.md)
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
-- ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛依赖另立的 core sync 覆盖故事
+- ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
+- ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
 - 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 C 起前置 US-015 的 `plugin:*` 依赖解析。阶段 A（门面轴注册表类型化 + 网关原地作用域化）与阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）已交付，C～E 未开始
 

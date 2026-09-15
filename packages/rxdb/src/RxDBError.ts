@@ -213,3 +213,58 @@ export class NetworkOfflineError extends RxDBError {
     Object.setPrototypeOf(this, NetworkOfflineError.prototype);
   }
 }
+
+/**
+ * 插件依赖成环 —— 在**安装规划阶段**抛出（US-015 AC#16）。
+ *
+ * @remarks
+ * 环不能留到运行期发现：`inject` 的语义是「依赖就绪后才安装」，成环意味着环上每个插件都在
+ * 等下一个进入 `active`，谁都不会开工。那种形态在外部看是「插件静默不装」，与依赖缺失
+ * （AC#15）完全同形，却要用完全不同的办法修。因此在 `reconcile()` 之前就拒绝，
+ * 此时一个 `install()` 都还没跑过，不存在半装状态。
+ *
+ * `message` 给出**完整环路径**而不只是「检测到环」：N 个插件的依赖图靠人工重建的成本，
+ * 正是这条错误要替调用方省掉的。
+ */
+export class RxDBPluginDependencyCycleError extends RxDBError {
+  constructor(
+    /** 环路径上的插件名，首尾为同一个插件（如 `['a', 'b', 'a']`） */
+    readonly cycle: readonly string[]
+  ) {
+    super(
+      `Plugin dependency cycle detected: ${cycle.join(' → ')}. ` +
+        `Every plugin on the cycle waits for the next one to become active, so none of them installs. ` +
+        `Break the cycle by removing one of the 'inject' declarations.`
+    );
+    this.name = 'RxDBPluginDependencyCycleError';
+    Object.setPrototypeOf(this, RxDBPluginDependencyCycleError.prototype);
+  }
+}
+
+/**
+ * `plugin:*` 依赖指向了多个同名插件 —— 无法裁决该注入哪一个（US-015 AC#14 / D4）。
+ *
+ * @remarks
+ * 重名**本身**不是错误，宿主只 `console.warn` 一次：两个插件恰好取了同一个名字、
+ * 而谁都没被依赖时，报错只会把一个能正常跑的应用拦在门外。歧义只在该名字**真的被
+ * `inject`** 的那一刻成立——此时必须停下，因为「随便挑一个」会让依赖方在两次运行里
+ * 拿到不同的提供方，而且不报错。
+ *
+ * `candidates` 用构造来源（`constructor.name`）区分：候选的 `name` 按定义是相同的，
+ * 只报名字等于什么都没说。
+ */
+export class RxDBPluginAmbiguousDependencyError extends RxDBError {
+  constructor(
+    /** 触发歧义的依赖键（如 `'plugin:search'`） */
+    readonly dependency: string,
+    /** 全部同名候选的构造来源名 */
+    readonly candidates: readonly string[]
+  ) {
+    super(
+      `Dependency '${dependency}' is ambiguous: ${candidates.length} registered plugins share that name ` +
+        `(${candidates.join(', ')}). Rename one of them or drop the duplicate registration.`
+    );
+    this.name = 'RxDBPluginAmbiguousDependencyError';
+    Object.setPrototypeOf(this, RxDBPluginAmbiguousDependencyError.prototype);
+  }
+}
