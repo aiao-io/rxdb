@@ -25,13 +25,16 @@
   },
   "references": [
     {
+      "path": "../rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
       "path": "../rxdb/tsconfig.lib.json"
-    },
-    {
-      "path": "../rxdb-plugin-storage/tsconfig.lib.json"
     }
   ]
 }

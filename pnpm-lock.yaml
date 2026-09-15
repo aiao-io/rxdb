@@ -1406,6 +1406,9 @@ importers:
         specifier: workspace:*
         version: link:../rxdb-adapter-sqlite-core
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test

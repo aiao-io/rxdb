@@ -712,7 +712,9 @@ describe('RxDBAdapterSqliteBase', () => {
       const adapter = new TestAdapter(rxdb, () => client);
 
       await expect(adapter.transaction(async () => 'no-log', false)).resolves.toBe('no-log');
-      expect(rxdb.versionManager.getCurrentBranch).not.toHaveBeenCalled();
+      // 「没读分支」这件事只能看 SQL：C2 起序幕的分支读经 executor 直发
+      // （`versionManager.getCurrentBranch` 已不在这条路上，对它下断言等于什么都没验）。
+      expect(executedSqls(client).filter(sql => BRANCH_TABLE_PATTERN.test(sql))).toHaveLength(0);
       const sqls = transactionSqls(client);
       expect(sqls).toHaveLength(2);
       expect(sqls[0]).toContain('BEGIN;');
