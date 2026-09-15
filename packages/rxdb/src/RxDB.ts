@@ -6,6 +6,7 @@ import { SyncType } from './entity/metadata-options.interface.js';
 import { getEntitySync } from './entity/primary-adapter.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
+import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
 import {
   missingQueryCacheEngineError,
@@ -114,6 +115,16 @@ export class RxDB {
   #query_cache_engine: QueryCacheEngineFactory | undefined;
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
+
+  /**
+   * 插件名 → 同名候选（按 {@link RxDB.use} 顺序），`plugin:*` 依赖的唯一解析来源。
+   *
+   * @remarks
+   * 存**数组**而不是单值：重名本身不是错（D4），只有该名字真被 `plugin:*` 注入时才无从裁决，
+   * 那一刻要把全部候选列进错误里，使用者才知道是哪两个包撞了名。
+   * 名字索引整个留在宿主侧 —— 调度器按实例引用记账（INV-3），它不需要认识任何名字。
+   */
+  #plugin_by_name = new Map<string, IRxDBPlugin[]>();
 
   /**
    * 插件激活状态与安装 Promise 的唯一持有者。
@@ -610,25 +621,53 @@ export class RxDB {
    * 安装推迟到下一次 `init()`——本纪元正在退场，往里装的东西没有对称的拆卸入口。
    * 见 {@link RxDB.#shutting_down}。
    *
-   * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
-   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的
-   * 重复 `connect()`**：命中缓存那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件
-   * 失败就永远出不来（`use()` 同步返回 `this`，自己没有报错的出口）。
+   * **安装**失败不从这里出去：同步 `install()` 失败只 `console.error`，异步或同步失败都会记入
+   * 安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的重复 `connect()`**：命中缓存
+   * 那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件失败就永远出不来（`use()` 同步返回
+   * `this`，自己没有报错的出口）。
+   *
+   * **规划期**错误则相反，同步从这里抛：依赖成环（{@link RxDBPluginDependencyCycleError}）与
+   * 依赖歧义（{@link RxDBPluginAmbiguousDependencyError}）都在写进注册表**之前**判，抛出时本次
+   * 注册整个不发生。两者都是声明本身不自洽，等到 `connect()` 再报已经晚了 —— 而且调用方手里
+   * 并没有摘除插件的入口，让它落进注册表就等于永久毒化后面每一次 `init()`。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
    * @returns 返回 RxDB 实例，支持链式调用
+   * @throws {@link RxDBPluginDependencyCycleError} 加入本插件后依赖图成环
+   * @throws {@link RxDBPluginAmbiguousDependencyError} 某个被注入的插件名有多个候选
    */
   public use<Options = never>(plugin: Plugin<Options>, options?: Options) {
     if (this.#plugin_map.has(plugin)) {
       console.warn('plugin already installed');
-    } else {
-      const plugin_instance = plugin(this, options);
-      this.#plugin_map.set(plugin, plugin_instance);
-      // 装不装由 #install_one_plugin 自己判：本纪元已经退场时它是空操作。
-      this.#install_one_plugin(plugin_instance);
+      return this;
     }
+    const plugin_instance = plugin(this, options);
+    // 先校验后提交：校验用的是「现有注册表 + 本实例」，不通过就当这次 use() 没发生过
+    this.#assert_plugin_graph(plugin_instance);
+    this.#plugin_map.set(plugin, plugin_instance);
+    this.#index_plugin_name(plugin_instance);
+    // 装不装由 #install_one_plugin 自己判：本纪元已经退场时它是空操作。
+    this.#install_one_plugin(plugin_instance);
     return this;
+  }
+
+  /**
+   * 按名字取已注册的插件实例。
+   *
+   * @param name - 插件的 {@link IRxDBPlugin.name}
+   * @returns 同名候选全集的快照，按 {@link RxDB.use} 顺序；没有则为空数组
+   *
+   * @remarks
+   * 返回**数组**而不是单个实例：重名允许存在（D4），调用方要自己决定拿哪一个。插件工厂用它
+   * 做「我是不是已经装过了」的自检，比在数据库实例上挂自有属性再 `hasOwnProperty` 探测可靠 ——
+   * 那种门面属性是给使用者的，不是给探测用的，重命名门面就会把自检探空。
+   *
+   * 每次返回新数组：调用方往里推东西不会写回宿主索引。
+   */
+  public getPlugins(name: string): readonly IRxDBPlugin[] {
+    const candidates = this.#plugin_by_name.get(name);
+    return candidates === undefined ? [] : [...candidates];
   }
 
   /**
@@ -1071,6 +1110,49 @@ export class RxDB {
   }
 
   /**
+   * 规划期总闸：把候选实例并进现有注册表做一次依赖图校验。
+   *
+   * @param candidate - 本次 `use()` 新建的实例，尚未提交
+   * @throws {@link RxDBPluginDependencyCycleError} / {@link RxDBPluginAmbiguousDependencyError}
+   *
+   * @remarks
+   * 校验在**提交之前**，所以两类错误都不会留下半个注册。`use()` 是插件进入本实例的唯一入口，
+   * 因此这一道闸走完，`reconcile()` 看到的图就恒为无环且每个被注入的名字都唯一 —— 调度器和
+   * {@link RxDB.#resolve_dependency} 不必各自再防一遍。
+   */
+  #assert_plugin_graph(candidate: IRxDBPlugin): void {
+    const index = new Map<string, readonly IRxDBPlugin[]>(this.#plugin_by_name);
+    const existing = index.get(candidate.name);
+    index.set(candidate.name, existing === undefined ? [candidate] : [...existing, candidate]);
+    assertPluginDependencyGraph([...this.#plugin_map.values(), candidate], index);
+  }
+
+  /**
+   * 把实例按名字推进 {@link RxDB.#plugin_by_name}，重名时警告一次。
+   *
+   * @param instance - 已通过规划期校验的实例
+   *
+   * @remarks
+   * 警告挂在注册这一刻而不是每趟 reconcile：重名是注册态的性质，一次注册喊一次就够，
+   * 跟着扫描次数增长只会把日志淹掉（D4 / INV-5 的同一条口径）。
+   */
+  #index_plugin_name(instance: IRxDBPlugin): void {
+    const candidates = this.#plugin_by_name.get(instance.name);
+    if (candidates === undefined) {
+      this.#plugin_by_name.set(instance.name, [instance]);
+      return;
+    }
+    // 同一个实例经两个工厂引用登记（工厂自检命中后原样返回既有实例）算一个提供方，
+    // 不是两个候选：按引用去重，否则它会把自己变成一次假歧义。
+    if (candidates.includes(instance)) return;
+    candidates.push(instance);
+    console.warn(
+      `[RxDB] Duplicate plugin name '${instance.name}': ${candidates.length} plugins are registered under it. ` +
+        `Injecting 'plugin:${instance.name}' will fail until one of them is renamed.`
+    );
+  }
+
+  /**
    * 依赖键 → 当前实例引用（{@link PluginSchedulerHost.resolveDependency}）。
    *
    * @param dependency - 依赖键
@@ -1080,12 +1162,16 @@ export class RxDB {
    * 「就绪」= 引导链（迁移、建表、索引 reconcile）已经跑完，因为 {@link RxDB.#connected_adapter_instances}
    * 的唯一写入点就在引导之后。返回的是实例本身而不是名字：纪元按引用判定（US-015 INV-3）。
    *
-   * `plugin:*` 阶段 A 恒为未就绪 —— 声明它的插件会停在等待态并触发一次告警，而不是静默消失。
+   * `plugin:x` 的就绪判据是**提供方已进入 `active`**（D3），不是「有人以这个名字注册过」：
+   * 依赖方要用的是 `install()` 建起来的东西，注册只说明实例存在。名字解析不出候选时返回
+   * `undefined` —— 声明它的插件停在等待态并被点名一次，而不是静默消失（AC#15 / INV-5）。
    */
   #resolve_dependency(dependency: RxDBPluginDependency): object | undefined {
     if (dependency === 'adapter:local') return this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
     if (dependency === 'adapter:remote') return this.#resolve_adapter_instance(this.#config.sync.remote?.adapter);
-    return undefined;
+    const provider = resolveUniqueProvider(this.#plugin_by_name, dependency);
+    if (provider === undefined) return undefined;
+    return this.#scheduler.activationState(provider) === 'active' ? provider : undefined;
   }
 
   /** 按配置里声明的适配器名查已连接实例；未配置或未连接都返回 `undefined`。 */
@@ -1304,6 +1390,9 @@ export class RxDB {
       },
       get pluginMap() {
         return host.#plugin_map;
+      },
+      get pluginByName() {
+        return host.#plugin_by_name;
       },
       get scheduler() {
         return host.#scheduler;

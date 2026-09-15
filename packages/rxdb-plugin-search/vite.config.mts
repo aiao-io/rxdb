@@ -174,7 +174,21 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'json', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
-      exclude: ['src/__tests__/**', 'src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts', '**/dist/**']
+      exclude: ['src/__tests__/**', 'src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts', '**/dist/**'],
+      // 公开包门槛 80（核心四包是 90），见 scripts/audit/coverage-check.mjs。
+      // 只挂在 node 这一趟：browser 一趟只跑 `*.browser.spec.ts`，它自己的覆盖率天然够不着
+      // 80，合并要等 `merge-vitest-reports.mjs` 收尾之后才发生。合并后的总数由
+      // `pnpm audit:coverage` 把关，这里这份是 RXD-043 要的「让 Nx target 自己变红」的本地闸。
+      ...(isBrowserTest ?
+        {}
+      : {
+          thresholds: {
+            statements: 80,
+            branches: 80,
+            functions: 80,
+            lines: 80
+          }
+        })
     }
   }
 }));

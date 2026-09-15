@@ -22,13 +22,13 @@ describe('Adapter guard (T026 / US-703 AC#8)', () => {
   });
 
   it('plugin factory fail-fast at construction when adapter is unsupported', () => {
-    const fakeRxdb = { config: { sync: { local: { adapter: 'supabase' } } } } as never;
+    const fakeRxdb = { config: { sync: { local: { adapter: 'supabase' } } }, getPlugins: () => [] } as never;
     expect(() => rxDBPluginSearch(fakeRxdb, {})).toThrow(SearchUnsupportedAdapterError);
   });
 
   it('plugin factory succeeds for both backends', () => {
     for (const good of ['sqlite-wasm', 'pglite'] as const) {
-      const fakeRxdb = { config: { sync: { local: { adapter: good } } } } as never;
+      const fakeRxdb = { config: { sync: { local: { adapter: good } } }, getPlugins: () => [] } as never;
       expect(() => rxDBPluginSearch(fakeRxdb, {})).not.toThrow();
     }
   });

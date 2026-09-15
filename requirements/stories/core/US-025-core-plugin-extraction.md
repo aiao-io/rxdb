@@ -321,15 +321,16 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 
 ## 前置与阻塞
 
-### `plugin:*` 依赖解析今天不可用（阶段 C / D 的硬前置）
+### `plugin:*` 依赖解析（阶段 C / D 的前置，已具备）
 
-[`PluginDependencyScheduler`](../../../packages/rxdb/src/plugin/dependency-scheduler.ts) 的文档写明：
+sync 插件必须排在 history 插件之后——两者共用 changelog 水位。这条「插件依赖插件」的能力由
+[US-015](./US-015-plugin-inject-dependency.md) 阶段 B 提供，阶段 C / D 正是它的消费方。
 
-> 阶段 A 只解析 `adapter:*`。`plugin:*` 依赖在宿主侧恒为未就绪
-
-现存四个插件包无一声明过跨插件依赖（`rxdb-plugin-search` 的 `readonly inject = ['adapter:local'] as const`
-是唯一的 `inject` 用例）。而 sync 插件必须排在 history 插件之后——两者共用 changelog 水位。
-这条能力属于 [US-015](./US-015-plugin-inject-dependency.md) 的阶段 B，需先解锁。
+可用的形状：`inject: ['plugin:history']` 让 sync 插件等到 history 插件**装好**（不只是注册）
+才开始安装；释放走逆拓扑序，sync 先于 history 撤销；同层内仍是 `use()` 的逆序。依赖成环与名字
+歧义在 `use()` 同步抛 `RxDBPluginDependencyCycleError` / `RxDBPluginAmbiguousDependencyError`，
+不进半装状态。用法见[插件作者文档](../../../website/docs/plugins/authoring.md)，
+契约见 US-015 的 INV-1～7 与 D3 / D4。
 
 ### `RxDBBranch` 是树实体（阶段 E 的硬前置）
 

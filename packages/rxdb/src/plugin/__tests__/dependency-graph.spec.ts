@@ -6,7 +6,6 @@
  * 而「无 `plugin:*` 声明时拓扑序必须逐项等于插入序」这条 US-014 回归底线，
  * 更是只有把排序函数单独摆出来才钉得住。
  */
-import type { LifecycleScope } from '@aiao/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBPluginAmbiguousDependencyError, RxDBPluginDependencyCycleError } from '../../RxDBError.js';
 import type { IRxDBPlugin, RxDBPluginDependency } from '../../rxdb-plugin.js';
@@ -27,7 +26,7 @@ class GraphTestPlugin implements IRxDBPlugin {
     this.inject = inject;
   }
 
-  install(_scope: LifecycleScope): void {
+  install(): void {
     // 图层不关心安装体
   }
 }

@@ -1430,12 +1430,20 @@
         "kind": "both"
       },
       {
+        "name": "RxDBPluginAmbiguousDependencyError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBPluginBase",
         "kind": "both"
       },
       {
         "name": "RxDBPluginDependency",
         "kind": "type"
+      },
+      {
+        "name": "RxDBPluginDependencyCycleError",
+        "kind": "both"
       },
       {
         "name": "RxDBQueryCacheCapabilityError",

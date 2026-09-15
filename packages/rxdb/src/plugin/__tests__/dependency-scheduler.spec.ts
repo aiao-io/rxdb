@@ -40,20 +40,31 @@ interface FakeHost extends PluginSchedulerHost {
   readonly scopes: LifecycleScope[];
   /** `resolveDependency` 的累计调用次数 —— 扫描趟数的观测口 */
   resolveCalls: number;
+  /** 插件名 → 提供方实例，喂给 `plugin:*` 的解析 */
+  readonly providers: Map<string, IRxDBPlugin>;
+  /** 由 `beforeEach` 回填：`plugin:*` 的就绪判据要查提供方的激活状态 */
+  scheduler?: PluginDependencyScheduler;
 }
 
 function createHost(): FakeHost {
   const instances = new Map<RxDBPluginDependency, object>();
+  const providers = new Map<string, IRxDBPlugin>();
   const log: string[] = [];
   const scopes: LifecycleScope[] = [];
   const host: FakeHost = {
     instances,
+    providers,
     log,
     scopes,
     resolveCalls: 0,
     resolveDependency(dependency) {
       host.resolveCalls += 1;
-      return instances.get(dependency);
+      if (dependency === 'adapter:local' || dependency === 'adapter:remote') return instances.get(dependency);
+      // D3：`plugin:*` 的就绪是「提供方已进入 active」，不是「登记过」。判据放在宿主侧而不是
+      // 调度器里，与真 `RxDB` 一致——调度器不认识名字，只按实例引用记账（INV-3）。
+      const provider = providers.get(dependency.slice('plugin:'.length));
+      if (provider === undefined) return undefined;
+      return host.scheduler?.activationState(provider) === 'active' ? provider : undefined;
     },
     createScope(plugin) {
       const scope = new LifecycleScope(`plugin:${plugin.name}`);
@@ -112,8 +123,15 @@ let scheduler: PluginDependencyScheduler;
 beforeEach(() => {
   host = createHost();
   scheduler = new PluginDependencyScheduler(host);
+  host.scheduler = scheduler;
   vi.restoreAllMocks();
 });
+
+/** 登记插件并把它登进名字表，供 `plugin:*` 解析。 */
+function provide(plugin: TestPlugin): TestPlugin {
+  host.providers.set(plugin.name, plugin);
+  return plugin;
+}
 
 /** 登记 + 对齐 + 等静止，测试里最常用的三连。 */
 async function settleWith(...plugins: IRxDBPlugin[]): Promise<void> {
@@ -412,6 +430,116 @@ describe('并发（强制测试 1～4）', () => {
     expect(plugin.seenScopes).toHaveLength(3);
     expect(new Set(plugin.seenScopes).size).toBe(3);
     expect(plugin.seenScopes.every(scope => scope.state === 'disposed')).toBe(true);
+  });
+});
+
+describe('插件间依赖（阶段 B：AC#13）', () => {
+  it('提供方进入 active 之前依赖方不开工，之后被唤醒（D3 / INV-2）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const gate = deferred();
+    const search = provide(new TestPlugin('search', [LOCAL], () => gate.promise));
+    const consumer = new TestPlugin('consumer', ['plugin:search']);
+
+    for (const plugin of [search, consumer]) scheduler.register(plugin);
+    scheduler.reconcile();
+
+    // search 还挂在 install() 里 —— 「已登记」不算就绪，consumer 必须等
+    expect(scheduler.activationState(search)).toBe('installing');
+    expect(scheduler.activationState(consumer)).toBe('waiting');
+    expect(host.log).toEqual(['install:search']);
+
+    gate.resolve();
+    await scheduler.settle();
+
+    expect(scheduler.activationState(consumer)).toBe('active');
+    expect(host.log).toEqual(['install:search', 'install:consumer']);
+  });
+
+  it('依赖方的纪元身份就是提供方实例本身（INV-3）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const search = provide(new TestPlugin('search', [LOCAL]));
+    const consumer = new TestPlugin('consumer', ['plugin:search']);
+
+    await settleWith(search, consumer);
+
+    // search 因适配器换实例而重装 → consumer 的依赖引用没变，不该跟着重装第二遍以上
+    host.instances.set(LOCAL, { id: 'local-2' });
+    scheduler.reconcile();
+    await scheduler.settle();
+
+    expect(scheduler.activationState(consumer)).toBe('active');
+    expect(host.log).toEqual([
+      'install:search',
+      'install:consumer',
+      'release:consumer',
+      'release:search',
+      'install:search',
+      'install:consumer'
+    ]);
+  });
+
+  it('释放按逆拓扑序：依赖方先于提供方（INV-7）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const search = provide(new TestPlugin('search', [LOCAL]));
+    const consumer = new TestPlugin('consumer', ['plugin:search']);
+
+    await settleWith(search, consumer);
+    expect(host.log).toEqual(['install:search', 'install:consumer']);
+
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+    await scheduler.settle();
+
+    // 反过来（先 release:search）意味着 consumer 还活着的时候它依赖的东西已经没了
+    expect(host.log).toEqual(['install:search', 'install:consumer', 'release:consumer', 'release:search']);
+    expect(scheduler.activationState(consumer)).toBe('waiting');
+    expect(scheduler.activationState(search)).toBe('waiting');
+  });
+
+  it('三级链 a → b → c 的释放序为 a、b、c（递归到孙子）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const c = provide(new TestPlugin('c', [LOCAL]));
+    const b = provide(new TestPlugin('b', ['plugin:c']));
+    const a = new TestPlugin('a', ['plugin:b']);
+
+    await settleWith(c, b, a);
+    expect(host.log).toEqual(['install:c', 'install:b', 'install:a']);
+
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+    await scheduler.settle();
+
+    expect(host.log.slice(3)).toEqual(['release:a', 'release:b', 'release:c']);
+  });
+
+  it('依赖缺失的插件停在等待态，不产生作用域（AC#15 在调度器这一侧的形态）', async () => {
+    const lonely = new TestPlugin('lonely', ['plugin:nonexistent']);
+
+    await settleWith(lonely);
+
+    expect(scheduler.activationState(lonely)).toBe('waiting');
+    expect(scheduler.startedInstalls()).toHaveLength(0);
+    expect(host.scopes).toHaveLength(0);
+  });
+
+  it('active 落地时没有等待者就不复查 —— 不为「没人依赖我」白扫一趟', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    // 失败态的旁观者：它不是 waiting，因此不该把 active 边界的复查勾起来，
+    // 但每被扫一趟就多一次 resolveDependency —— 正好当扫描趟数的观测口
+    const broken = new TestPlugin('brokenPlugin', [LOCAL], () => Promise.reject(new Error('boom')));
+    await settleWith(broken);
+    expect(scheduler.activationState(broken)).toBe('failed');
+
+    const solo = new TestPlugin('soloPlugin', [LOCAL]);
+    scheduler.register(solo);
+    host.resolveCalls = 0;
+    scheduler.reconcile();
+    const afterFirstScan = host.resolveCalls;
+    await scheduler.settle();
+
+    expect(scheduler.activationState(solo)).toBe('active');
+    // +1 是 #applyInstallResult 的纪元校验；无条件复查会在这里多出整整一趟扫描
+    expect(host.resolveCalls).toBe(afterFirstScan + 1);
   });
 });
 
