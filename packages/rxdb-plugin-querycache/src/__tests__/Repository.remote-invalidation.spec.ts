@@ -38,7 +38,7 @@ import {
   QueryCacheSyncMemo
 } from '../query-cache-sync-memo.js';
 import { QueryCacheEngine } from '../QueryCacheEngine.js';
-import { emptyOutboxVersionManager, noPendingWrites } from './fixtures/pending-writes.js';
+import { noPendingWrites, systemRepositoryStub } from './fixtures/pending-writes.js';
 import { METADATA, STATUS } from './fixtures/private-symbols.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
@@ -153,7 +153,9 @@ const createLocalRepo = (stores: Stores) => ({
 
 const createLocalAdapter = (stores: Stores, localRepo: ReturnType<typeof createLocalRepo>) => ({
   name: 'local',
-  getRepository: vi.fn(() => localRepo),
+  // 系统表（分支 / rxdb_change / rxdb_sync）分流到只读替身：真实适配器本来就按
+  // 实体类给不同仓储，而 `pendingQueryCacheWriteIds` 自 US-025 阶段 C 起就从这里取。
+  getRepository: vi.fn((EntityType: unknown) => systemRepositoryStub(EntityType) ?? localRepo),
   getMetadataByIds: vi.fn(() => of(new Map<string, string>())),
   upsertMany: vi.fn((_entityName: string, rows: RecipeEntity[]) => {
     rows.forEach(entity => stores.local.set(entity.id, entity));
@@ -228,7 +230,6 @@ const setup = (
     removeEventListener,
     dispatchEvent,
     reachability: detachedReachability(),
-    versionManager: emptyOutboxVersionManager(),
     schemaManager: {
       getEntityType: vi.fn((entity: string, namespace: string) => ENTITY_REGISTRY[`${namespace}:${entity}`]),
       getEntityMetadata: vi.fn(() => undefined)

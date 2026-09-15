@@ -15,7 +15,7 @@ import {
 import { BehaviorSubject, delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
-import { emptyOutboxVersionManager } from './fixtures/pending-writes.js';
+import { systemRepositoryStub } from './fixtures/pending-writes.js';
 import { METADATA, STATUS } from './fixtures/private-symbols.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
@@ -137,7 +137,9 @@ const createLocalRepo = (rows: CachedEntity[]) => ({
 
 const createLocalAdapter = (localRepo: ReturnType<typeof createLocalRepo>) => ({
   name: 'local',
-  getRepository: vi.fn(() => localRepo),
+  // 系统表（分支 / rxdb_change / rxdb_sync）分流到只读替身：真实适配器本来就按
+  // 实体类给不同仓储，而 `pendingQueryCacheWriteIds` 自 US-025 阶段 C 起就从这里取。
+  getRepository: vi.fn((EntityType: unknown) => systemRepositoryStub(EntityType) ?? localRepo),
   // QueryCacheLocalAdapter 的三个必需 duck（均为 RxDBAdapterLocalBase 的 abstract）
   getMetadataByIds: vi.fn(() => of(new Map<string, string>())),
   upsertMany: vi.fn(() => of(undefined)),
@@ -188,7 +190,6 @@ const setup = (
     // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
     getQueryCacheEngine: () => new RxDBQueryCacheEngineFactory(),
     reachability: detachedReachability(),
-    versionManager: emptyOutboxVersionManager(),
     entityManager: { createEntityRef: vi.fn((_type: unknown, entity: CachedEntity) => entity) }
   } as unknown as RxDB;
 
