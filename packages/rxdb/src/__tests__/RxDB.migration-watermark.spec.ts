@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY } from '../system/active-branch-guard.js';
 import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../commit/commit-capability-state.entity.js';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
+import { ACTIVE_BRANCH_KEY } from '../system/active-branch-guard.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBMigration } from '../system/migration.js';
 import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../system/migrations/0004-working-tree-commits.js';

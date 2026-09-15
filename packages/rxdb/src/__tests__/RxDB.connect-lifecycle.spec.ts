@@ -1,6 +1,5 @@
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError, NoActiveBranchError } from '../system/active-branch-guard.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -15,6 +14,7 @@ import type { Plugin } from '../rxdb-plugin.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { SyncStateHub } from '../sync-state.js';
+import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError, NoActiveBranchError } from '../system/active-branch-guard.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RXDB_CHANGE_CODEC_VERSION } from '../system/change-codec.js';
 import { RxDBMigration } from '../system/migration.js';

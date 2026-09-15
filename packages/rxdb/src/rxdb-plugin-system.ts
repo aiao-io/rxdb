@@ -187,7 +187,9 @@ export interface RxDBSystemContribution {
 export function assertValidSystemContribution(contribution: RxDBSystemContribution, pluginName: string): void {
   const { capability, version, packageSpecifier } = contribution;
   if (!capability || capability.includes(':')) {
-    throw new Error(`[RxDB] 插件 "${pluginName}" 的系统贡献 capability 非法：必须非空且不含 ":"（当前 "${capability}"）`);
+    throw new Error(
+      `[RxDB] 插件 "${pluginName}" 的系统贡献 capability 非法：必须非空且不含 ":"（当前 "${capability}"）`
+    );
   }
   if (!Number.isSafeInteger(version) || version < 1) {
     throw new Error(`[RxDB] 插件 "${pluginName}" 的系统贡献 version 非法：必须是正整数（当前 ${String(version)}）`);

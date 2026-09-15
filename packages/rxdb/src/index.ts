@@ -47,9 +47,9 @@ export type { EntityMetadata } from './entity/metadata.interface.js';
 // 而 `@aiao/rxdb-plugin-working-tree` 的捕获要按同一条规则判「这张表是不是查询缓存」。
 // 包外另算一遍不会有编译错误，只会让核心与插件对同一个实体给出两种归属。
 export {
-  getEntitySync,
   RxDBMissingPrimaryAdapterError,
   RxDBMixedPrimaryAdapterError,
+  getEntitySync,
   type PrimaryAdapterKind
 } from './entity/primary-adapter.js';
 export * from './entity/tree-entity-base.js';
@@ -77,8 +77,8 @@ export * from './repository/tree-level.utils.js';
 export * from './repository/tree-repository.interface.js';
 export * from './rxdb-adapter.js';
 export * from './rxdb-events.js';
-export * from './rxdb-plugin.js';
 export * from './rxdb-plugin-system.js';
+export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
 // `addEventListener` 的形参、`RxDBOptions` 的公开别名、`mergeOperations` 的字段类型 ——
 // 三者都出现在用户拿得到的签名上。整文件不转桶，其余成员仍是内部约定。

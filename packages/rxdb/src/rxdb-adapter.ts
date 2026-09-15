@@ -1,4 +1,7 @@
 import type { Observable } from 'rxjs';
+import type { RawWritePrimitives, WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
+import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './capture/capture-interceptor.js';
+import type { RawWriteContext } from './capture/raw-write-gate.js';
 import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
 import type { RuleGroup } from './repository/query.interface.js';
@@ -8,9 +11,6 @@ import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import { SwitchVersionActions } from './version/VersionManager.interface.js';
-import type { RawWritePrimitives, WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
-import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './capture/capture-interceptor.js';
-import type { RawWriteContext } from './capture/raw-write-gate.js';
 
 export interface PullBatchRequest {
   namespace?: string;

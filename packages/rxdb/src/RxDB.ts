@@ -1,6 +1,6 @@
 import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
-import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
+import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
@@ -23,8 +23,8 @@ import {
   TRANSACTION_COMMIT,
   TRANSACTION_ROLLBACK
 } from './rxdb-events.js';
-import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { assertValidSystemContribution, type RxDBSystemContribution } from './rxdb-plugin-system.js';
+import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
@@ -52,8 +52,9 @@ import {
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import { SyncStateHub } from './sync-state.js';
-import { assertClaimedCapabilities } from './system/capability-watermark.js';
+import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
+import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
@@ -62,7 +63,6 @@ import { RxDBSync } from './system/sync.js';
 import { isSystemEntity, registerSystemEntities, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
-import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
 /**

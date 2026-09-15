@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import type { RxDB } from '../../RxDB.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import type { LocalRxDBBranchRepository } from '../../system/types.local.js';
 import { resolve_current_branch } from '../../version/resolve-current-branch.js';

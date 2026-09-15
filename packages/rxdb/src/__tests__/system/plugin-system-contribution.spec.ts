@@ -17,20 +17,20 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
-import type { Plugin } from '../../rxdb-plugin.js';
 import type { RxDBSystemContribution } from '../../rxdb-plugin-system.js';
+import type { Plugin } from '../../rxdb-plugin.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
 import { capabilityWatermarkName, UnclaimedRxDBCapabilityError } from '../../system/capability-watermark.js';
 import { RxDBMigration } from '../../system/migration.js';
 import { getSystemEntityNames, isSystemEntity, SYSTEM_ENTITIES } from '../../system/system-entities.js';
-import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { createCapabilityStateRow } from '../fixtures/test-db-setup.js';
 
 @Entity({

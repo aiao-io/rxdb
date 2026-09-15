@@ -1,12 +1,12 @@
 import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType } from '../../entity/metadata-options.interface.js';
 import { ENTITY_LOCAL_CREATE_EVENT, TRANSACTION_BEGIN, TRANSACTION_COMMIT } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBPartialSyncError } from '../../RxDBError.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
