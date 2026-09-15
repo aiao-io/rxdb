@@ -27,7 +27,6 @@ import type {
 import { Repository } from '../../repository/Repository.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMissingPluginError } from '../../RxDBError.js';
-import { emptyOutboxVersionManager } from '../fixtures/pending-writes.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
@@ -106,7 +105,6 @@ const emptyEngineSlotRxDB = (localAdapter: object): RxDB =>
     config: { sync: undefined },
     addEventListener: () => undefined,
     reachability: detachedReachability(),
-    versionManager: emptyOutboxVersionManager(),
     entityManager: { createEntityRef: (_type: unknown, entity: unknown) => entity },
     getQueryCacheEngine: () => undefined
   }) as unknown as RxDB;

@@ -13,8 +13,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import { RxDBTabsGateway } from '../gateway/RxDBTabsGateway.js';
+import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
-import { VersionManager } from '../version/VersionManager.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 const databases = new Set<RxDB>();
@@ -44,18 +44,32 @@ afterEach(async () => {
 });
 
 describe('网关随连接纪元作用域释放', () => {
-  it('A3 停机时网关经作用域逆序释放，排在 versionManager.destroy() 之前', async () => {
+  it('A3 网关由连接纪元作用域释放，且晚于每一个插件作用域', async () => {
     const database = createDatabase();
     const order: string[] = [];
     vi.spyOn(RxDBTabsGateway.prototype, 'destroy').mockImplementation(() => void order.push('gateway'));
-    vi.spyOn(VersionManager.prototype, 'destroy').mockImplementation(() => void order.push('versionManager'));
+    database.use(
+      (): IRxDBPlugin => ({
+        name: 'gatewayScopeProbe',
+        lifecycle: 'scoped',
+        install: scope => void scope.acquire(() => () => void order.push('plugin'), 'probe:marker')
+      })
+    );
 
     await database.connect('sqlite');
     await database.disconnectAll();
 
-    // 点名写法下网关排在最后（`#release_connection_scope()` → versionManager → gateway）；
-    // 登记进作用域后它是最晚登记的那一条，逆序释放让它第一个跑。
-    expect(order).toEqual(['gateway', 'versionManager']);
+    // `#shutdown()` 分两段：先 `#destroy_plugin()` 逐个释放插件作用域，再
+    // `#release_connection_scope()` 释放连接纪元作用域本身 —— 网关登记在后者里，
+    // 于是它**晚于**所有插件条目。这个先后不是巧合而是契约：插件的撤销动作可能还要经网关
+    // 广播一声（「本 tab 要走了」之类），网关先死的话那一声就发不出去，而且发不出去这件事
+    // 在日志里看不见。
+    //
+    // 参照物原本是 `versionManager.destroy()` —— 点名写法下它排在网关前面，用来证明网关
+    // 已经从点名代码挪进了作用域。US-025 阶段 C 把版本子系统搬进
+    // `@aiao/rxdb-plugin-history` 之后核心不再构造它，参照物换成一个作用域化插件探针：
+    // 它走的正是 `versionManager` 现在走的那条路（插件作用域），判据因此逐字等价。
+    expect(order).toEqual(['plugin', 'gateway']);
   });
 
   it('A3 网关销毁抛错不再中断停机：实例仍复位成可重新 init()', async () => {

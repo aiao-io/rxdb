@@ -22,9 +22,10 @@ import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../../repository/query-cache-outbox.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
+import type { RxDB } from '../../RxDB.js';
+import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
-import type { VersionManager } from '../../version/VersionManager.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 
 @Entity({
@@ -132,8 +133,20 @@ const setup = (options: SetupOptions = {}) => {
     update: vi.fn(async (entity: RxDBSync, patch: Partial<RxDBSync>) => Object.assign(entity, patch))
   };
 
+  // 「当前分支」现在由核心的 `getCurrentBranch(rxdb)` 解析，它走的是本地适配器上的
+  // `RxDBBranch` 仓储（US-025 C）。假件给一条已激活的 main，热路径一次 find 就返回，
+  // 不会掉进开事务的冷路径。
+  const branchRepo = {
+    find: vi.fn(async () => [{ id: BRANCH, activated: true }]),
+    update: vi.fn(async () => undefined)
+  };
+
   const localAdapter = {
-    getRepository: vi.fn((EntityType: unknown) => (EntityType === RxDBSync ? syncRepo : changeRepo)),
+    getRepository: vi.fn((EntityType: unknown) => {
+      if (EntityType === RxDBSync) return syncRepo;
+      if (EntityType === RxDBBranch) return branchRepo;
+      return changeRepo;
+    }),
     getMetadataByIds: vi.fn(() => of(new Map<string, string>())),
     upsertMany: vi.fn(() => of(undefined)),
     deleteByIds: vi.fn(() => of(undefined))
@@ -163,32 +176,21 @@ const setup = (options: SetupOptions = {}) => {
     return of(options.changeCount ?? 0);
   });
 
-  const vm = {
-    rxdb: {
-      config: { entities: [options.entityType ?? CachedRecipe], sync: undefined },
-      entityManager: {
-        instantiate: () => ({ enabled: true }) as RxDBSync,
-        getRepository: vi.fn(() => ({ count: countChanges }))
-      },
-      reachability,
-      // 取远端适配器的正路：直接给实例，不附带任何仓储。
-      remoteAdapter$: of(remoteAdapter)
+  const rxdb = {
+    config: { entities: [options.entityType ?? CachedRecipe], sync: undefined },
+    entityManager: {
+      instantiate: () => ({ enabled: true }) as RxDBSync,
+      getRepository: vi.fn(() => ({ count: countChanges }))
     },
-    getCurrentBranch: vi.fn(async () => ({ id: BRANCH })),
-    getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    // 照抄 `VersionManager.getRemoteRepositories` 的**急切**形状：它一进门就建
-    // changelog 的两个仓储，QueryCache 的远端一个都拿不出来，所以假件也必须在这里炸。
-    // 先前的假件把 adapter 直接递出来，把「重放绕道版本管理器」这条 bug 整个藏住了 ——
-    // 单测全绿，而 HTTP demo 里每一轮回推都死在第一行。
-    getRemoteRepositories: vi.fn(async () => ({
-      branchRepository: remoteAdapter.getRepository(),
-      changeRepository: remoteAdapter.getRepository(),
-      adapter: remoteAdapter
-    }))
-  } as unknown as VersionManager;
+    reachability,
+    localAdapter$: of(localAdapter),
+    // 取远端适配器的正路：直接给实例，不附带任何仓储。
+    remoteAdapter$: of(remoteAdapter)
+  } as unknown as RxDB;
 
   return {
-    vm,
+    rxdb,
+    branchRepo,
     changeRepo,
     changeQueries,
     countChanges,
@@ -202,7 +204,7 @@ const setup = (options: SetupOptions = {}) => {
 };
 
 const flush = (ctx: ReturnType<typeof setup>, entity = 'CachedRecipe') =>
-  flushQueryCacheOutbox(ctx.vm, NAMESPACE, entity);
+  flushQueryCacheOutbox(ctx.rxdb, NAMESPACE, entity);
 
 /** 从 change repo 拿到的那次查询里，把 and 规则摊平出来 */
 const rulesOf = (query: unknown): Array<{ field: string; operator: string; value: unknown }> =>
@@ -252,10 +254,11 @@ describe('flushQueryCacheOutbox', () => {
   });
 
   describe('取远端适配器', () => {
-    // QueryCache 的远端只有 REST 五件套。`getRemoteRepositories()` 除了给适配器，还会
-    // 顺手建一对 changelog 仓储 —— HTTP 适配器对此直接抛，于是整轮回推在发出第一个
+    // QueryCache 的远端只有 REST 五件套。`getRemoteSystemRepositories()` 除了给适配器，
+    // 还会顺手建一对 changelog 仓储 —— HTTP 适配器对此直接抛，于是整轮回推在发出第一个
     // 请求之前就死了：面板上只留一句「不支持 getRepository」，用户离线时写的东西
-    // 永远推不上去，而它跟出站重放要做的事没有半点关系。
+    // 永远推不上去，而它跟出站重放要做的事没有半点关系。假件的 `remoteAdapter.getRepository`
+    // 照抄那个拒绝，这条断言因此同时盯住「没绕道 changelog 仓储」这件事。
     it('不经 changelog 仓储那条入口', async () => {
       const ctx = setup({
         changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '红烧肉' } })]
@@ -263,7 +266,6 @@ describe('flushQueryCacheOutbox', () => {
 
       const result = await flush(ctx);
 
-      expect(ctx.vm.getRemoteRepositories).not.toHaveBeenCalled();
       expect(ctx.remoteAdapter.getRepository).not.toHaveBeenCalled();
       expect(result.replayed).toBe(1);
     });
@@ -686,7 +688,7 @@ describe('flushQueryCacheOutbox', () => {
     it('非 querycache 的仓库直接拒绝', async () => {
       const ctx = setup({ entityType: VersionedRecipe });
 
-      await expect(flushQueryCacheOutbox(ctx.vm, NAMESPACE, 'VersionedRecipe')).rejects.toThrow(/querycache/);
+      await expect(flushQueryCacheOutbox(ctx.rxdb, NAMESPACE, 'VersionedRecipe')).rejects.toThrow(/querycache/);
     });
 
     it('同步开关关掉时什么都不做', async () => {
@@ -723,7 +725,7 @@ describe('countQueryCacheOutbox', () => {
   it('返回 QueryCache 仓库当前分支上的待推行数', async () => {
     const ctx = setup({ changeCount: 3, sync: {} });
 
-    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(3);
+    await expect(countQueryCacheOutbox(ctx.rxdb)).resolves.toBe(3);
   });
 
   // 这一条盯的是 `SyncStateHub` 相加的前提：口径取的是 `push` 的补集，
@@ -731,14 +733,14 @@ describe('countQueryCacheOutbox', () => {
   it('没有 offlineWrite 且不可 push 的仓库时返回 0，且一次都不查', async () => {
     const ctx = setup({ changeCount: 9, entityType: VersionedRecipe });
 
-    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(0);
+    await expect(countQueryCacheOutbox(ctx.rxdb)).resolves.toBe(0);
     expect(ctx.countChanges).not.toHaveBeenCalled();
   });
 
   it('查询条件与 flush 取行口径一致：同分支、未回滚、未推送、水位线之后', async () => {
     const ctx = setup({ sync: { lastPushedChangeId: 7 } });
 
-    await countQueryCacheOutbox(ctx.vm);
+    await countQueryCacheOutbox(ctx.rxdb);
 
     expect(countRulesOf(ctx.countQueries[0])).toEqual([
       { field: 'branchId', operator: '=', value: BRANCH },
@@ -763,7 +765,7 @@ describe('countQueryCacheOutbox', () => {
   it('同步开关关掉的仓库不计入积压', async () => {
     const ctx = setup({ changeCount: 4, sync: { enabled: false } });
 
-    await expect(countQueryCacheOutbox(ctx.vm)).resolves.toBe(0);
+    await expect(countQueryCacheOutbox(ctx.rxdb)).resolves.toBe(0);
     expect(ctx.countChanges).not.toHaveBeenCalled();
   });
 });

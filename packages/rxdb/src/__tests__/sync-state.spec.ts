@@ -15,7 +15,10 @@ const createHub = (
     online$: new BehaviorSubject(overrides.online ?? true),
     pushableCount$: new BehaviorSubject(overrides.pushable ?? 0)
   };
-  const hub = new SyncStateHub(sources);
+  const hub = new SyncStateHub({ online$: sources.online$ });
+  // 待推数不再是构造参数：changelog 路径整个住在 `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），
+  // 由插件在安装时 `bindPushableCount()` 接上。这里照插件的做法接。
+  hub.bindPushableCount(sources.pushableCount$);
   if (overrides.outbox !== undefined) {
     hub.reportOutboxCount(overrides.outbox);
   }
@@ -177,7 +180,8 @@ describe('SyncStateHub', () => {
   it('上游还没发过值时给出零值快照', async () => {
     const online$ = new Subject<boolean>();
     const pushableCount$ = new Subject<number>();
-    const hub = new SyncStateHub({ online$, pushableCount$ });
+    const hub = new SyncStateHub({ online$ });
+    hub.bindPushableCount(pushableCount$);
 
     await expect(snapshot(hub)).resolves.toEqual({
       online: true,

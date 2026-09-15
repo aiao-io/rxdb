@@ -173,6 +173,9 @@
     },
     {
       "path": "./packages/rxdb-plugin-querycache"
+    },
+    {
+      "path": "./packages/rxdb-plugin-history"
     }
   ]
 }

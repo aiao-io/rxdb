@@ -213,7 +213,6 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 
 - 把上表判定为「拆」的子系统外移为独立包，经 `IRxDBPlugin` + `install(scope)` 安装
 - 门面轴注册表类型化（`RxDBRepositories` / `RxDBRepositoryName`）与网关原地作用域化（阶段 A）
-- 补齐 `plugin:*` 跨插件依赖解析（阶段 C / D 的前置，见「前置与阻塞」）
 - 系统表随插件注册：`RxDBBranch` / `RxDBChange` / `RxDBSync` 不再由 `SchemaManager.init()` 无条件注入
 - 三框架绑定与 DevTools 随之调整，保持 Angular / React / Vue API 对称
 - 每阶段更新 `requirements/api-baseline/` 基线与迁移文档
@@ -229,17 +228,19 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 
 ## 交付阶段
 
-| 阶段 | 交付                                                            | 直接前置                             | AC 区段 | 状态 |
-| ---- | --------------------------------------------------------------- | ------------------------------------ | ------- | ---- |
-| A    | 门面轴注册表类型化 + 网关原地作用域化（核心内整形，零代码迁出） | 无                                   | A1～A4  | ✅   |
-| B    | QueryCache 读路径外移                                           | 无                                   | B1～B5  | ✅   |
-| C    | 历史 / 撤销重做 / 分支外移                                      | `plugin:*` 依赖解析（US-015 阶段 B） | C1～C6  | ⬜   |
-| D    | 推拉同步 / 冲突 / 可达性 + QueryCache 写回出站外移              | 阶段 B + 阶段 C                      | D1～D6  | ⬜   |
-| E    | 树实体外移                                                      | 阶段 A + `RxDBBranch` 去树化         | E1～E4  | ⬜   |
+| 阶段 | 交付                                                            | 直接前置                                    | AC 区段 | 状态 |
+| ---- | --------------------------------------------------------------- | ------------------------------------------- | ------- | ---- |
+| A    | 门面轴注册表类型化 + 网关原地作用域化（核心内整形，零代码迁出） | 无                                          | A1～A4  | ✅   |
+| B    | QueryCache 读路径外移                                           | 无                                          | B1～B5  | ✅   |
+| C    | 历史 / 撤销重做 / 分支外移                                      | `plugin:*` 依赖解析（US-015 阶段 B 已交付） | C1～C6  | ⬜   |
+| D    | 推拉同步 / 冲突 / 可达性 + QueryCache 写回出站外移              | 阶段 B + 阶段 C                             | D1～D6  | ⬜   |
+| E    | 树实体外移                                                      | 阶段 A + `RxDBBranch` 去树化                | E1～E4  | ⬜   |
 
-阶段 A 与阶段 B 各自零前置、互不依赖，可并行；A 不搬任何运行时代码，是风险最低的起点。
+阶段 C 的前置齐备，是下一个可开工的阶段：它零代码前置于 A / B 之外，只等
+`plugin:*` 依赖解析，而那一件已由 US-015 阶段 B 交付。
 阶段 D 同时收两条前置：出站的提交动作要 sync 插件（阶段 C 之后），出站引用的
-`QueryCacheRemoteAdapter` 要 querycache 插件（阶段 B 之后）。
+`QueryCacheRemoteAdapter` 要 querycache 插件（阶段 B 已交付）。
+阶段 E 的前置不在本故事的任一阶段里——`RxDBBranch` 去树化是一段独立工作，见「前置与阻塞」。
 
 ## 验收标准
 

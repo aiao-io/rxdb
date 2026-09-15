@@ -42,7 +42,9 @@ export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
-export { isEntityMatchWhere, isRuleGroup } from './query/query-matching.utils.js';
+// 查询语义的两条判定原语。插件要自己模拟一个仓库（历史插件的集成测试、QueryCache 的
+// 本地读）时，`where` 过滤与 `orderBy` 排序必须与核心逐字同源 —— 各写一份就是漂移。
+export { calculateOrderBy, isEntityMatchWhere, isRuleGroup } from './query/query-matching.utils.js';
 export * from './repository/diff-metadata.js';
 export { isNetworkError } from './repository/network-error.js';
 export type {
@@ -52,6 +54,15 @@ export type {
   QueryCacheSessionContext
 } from './repository/query-cache-engine.interface.js';
 export * from './repository/query-cache.interface.js';
+// 出站队列的三个入口。QueryCache 的离线写与历史插件的推送资格判定都读它，
+// 因此队列本身留在核心（US-025 阶段 C）。
+export {
+  countQueryCacheOutbox,
+  flushQueryCacheOutbox,
+  pendingQueryCacheWriteIds,
+  type QueryCacheOutboxFailure,
+  type QueryCacheOutboxResult
+} from './repository/query-cache-outbox.js';
 export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';
 export type {
@@ -95,6 +106,7 @@ export {
   encodeRxDBChangeEntityId,
   encodeRxDBChangePatch,
   encodeRxDBEntityIdentity,
+  getRxDBChangeEntityIdQueryValues,
   getRxDBEntityIdentityKey,
   parseRxDBEntityIdentityKey
 } from './system/change-codec.js';
@@ -102,31 +114,31 @@ export * from './system/change.js';
 export * from './system/migration.js';
 export * from './system/sync.js';
 export * from './system/system-entities.js';
+export * from './system/system-repositories.js';
 export * from './system/system.interface.js';
 export * from './system/types.js';
+export * from './system/types.local.js';
+export * from './system/types.remote.js';
 export * from './transaction/transaction-executor.interface.js';
-// 只转类型不转 `checkRepositoryUpdates` 函数本身 ——
-// 它是 `VersionManager.checkRepositoryUpdates()` 的内部实现，不进公开 API。
-export type { CheckRepositoryUpdatesResult } from './version/check-repository-updates.js';
 // 级联调度契约里进公开 API 的只有这两项 —— 抛给调用方的结构化错误，
 // 以及错误消息用的仓库键渲染。资格判定谓词是 pull / push 两条路径的共享内部实现。
-export { RxDBDependencyFailedError, repositoryKey } from './version/cascade-contract.js';
-// `VersionManager.bulkSync()` 的形参与返回值。
-export type { BulkSyncOptions, BulkSyncResult } from './version/bulk-sync.js';
-export * from './version/cleanup-expired.js';
-export * from './version/compact-changes.js';
-export * from './version/conflict.js';
-// `VersionManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
-export type { DependencyGraph } from './version/dependency-graph.js';
-// `getRepositorySyncStatus()` 的返回值（函数本身已由下方 sync-branches 之外的桶转出）。
-export type { RepositorySyncStatus } from './version/get-repository-sync-status.js';
-export * from './version/LWWConflictResolver.js';
-// 作用域 undo/redo 撞上跨作用域事务时抛给调用方的结构化错误。
-// 选择谓词（isChangeInScope 等）是 HistoryManager 的内部实现，不进公开 API。
-export { RxDBCrossScopeTransactionError } from './version/scope-selection.js';
-export * from './version/sync-branches.js';
-export * from './version/sync-type-utils.js';
-// 只转类型不转类：`RxDB.versionManager` 的声明类型。实例由 RxDB 装配，用户不自己 new。
-export * from './version/VersionManager.interface.js';
-export type { VersionManager } from './version/VersionManager.js';
-export * from './version/VersionManager.utils.js';
+export { RxDBDependencyFailedError, repositoryKey } from './sync-contract/cascade-contract.js';
+// 推送资格的 where 规则构造：核心的 QueryCache 出站队列与历史插件的 push 用同一份，
+// 两边算出来的「哪些变更该推」必须逐字一致，所以它是契约而不是任一方的内部实现。
+export { buildPushableRepositoryRules } from './sync-contract/pushable-repository-rules.js';
+// 同步水位线（`RxDBSync`）的读写。核心按它判定 QueryCache 出站资格，
+// 历史插件按它记录推拉进度——同一张表、同一套解析，不能各写一份。
+export {
+  findCurrentSyncRecord,
+  getOrCreateSyncRecord,
+  resolvePullIneligibility,
+  resolvePushIneligibility
+} from './sync-contract/sync-record-utils.js';
+export * from './sync-contract/compact-changes.js';
+export * from './sync-contract/conflict.js';
+export * from './sync-contract/LWWConflictResolver.js';
+export * from './sync-contract/sync-type-utils.js';
+// 同步子系统的公开契约形状：推拉选项、结果与历史项。
+// 实现在 `@aiao/rxdb-plugin-history`，契约留在核心供适配器与 QueryCache 共用。
+export * from './sync-contract/VersionManager.interface.js';
+export * from './sync-contract/VersionManager.utils.js';

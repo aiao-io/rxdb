@@ -22,9 +22,9 @@
 
 ## 进行中（1 条）
 
-| Story                                                                              | 当前进度                                                                                                                                                         |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）与阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）已交付，A1～A4 / B1～B5 全 ✅；阶段 C～E 未开始 |
+| Story                                                                              | 当前进度                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）与阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）已交付，A1～A4 / B1～B5 全 ✅；阶段 C～E 未开始，其中 C 的 `plugin:*` 前置已由 [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B 交付，是下一个可开工阶段 |
 
 ## 待评审（0 条）
 
@@ -98,7 +98,7 @@
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
 - ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
-- 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 A（门面轴注册表类型化 + 网关原地作用域化）与阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）已交付，C～E 未开始
+- 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 A（门面轴注册表类型化 + 网关原地作用域化）与阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）已交付；C～E 未开始，C 的 `plugin:*` 前置已具备
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 

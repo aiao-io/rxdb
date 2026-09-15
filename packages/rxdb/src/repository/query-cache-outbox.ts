@@ -22,19 +22,20 @@
 import { firstValueFrom, type Observable } from 'rxjs';
 import type { EntityType } from '../entity/entity.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
+import type { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
+import { getCurrentBranch, getLocalSystemRepositories } from '../system/system-repositories.js';
 import type { RxDBChangeRuleGroup } from '../system/types.js';
-import { compactChanges } from '../version/compact-changes.js';
-import type { ConflictResolver } from '../version/conflict.js';
-import { LWWConflictResolver } from '../version/LWWConflictResolver.js';
-import { buildOfflineWriteRepositoryRules } from '../version/pushable-repository-rules.js';
-import { findCurrentSyncRecord, getOrCreateSyncRecord } from '../version/sync-record-utils.js';
-import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../version/sync-type-utils.js';
-import type { SwitchVersionActions, SwitchVersionChange } from '../version/VersionManager.interface.js';
-import type { VersionManager } from '../version/VersionManager.js';
-import { getRxDBChangeKey } from '../version/VersionManager.utils.js';
+import { compactChanges } from '../sync-contract/compact-changes.js';
+import type { ConflictResolver } from '../sync-contract/conflict.js';
+import { LWWConflictResolver } from '../sync-contract/LWWConflictResolver.js';
+import { buildOfflineWriteRepositoryRules } from '../sync-contract/pushable-repository-rules.js';
+import { findCurrentSyncRecord, getOrCreateSyncRecord } from '../sync-contract/sync-record-utils.js';
+import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../sync-contract/sync-type-utils.js';
+import type { SwitchVersionActions, SwitchVersionChange } from '../sync-contract/VersionManager.interface.js';
+import { getRxDBChangeKey } from '../sync-contract/VersionManager.utils.js';
 import { isNetworkError } from './network-error.js';
 import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
 import type { IRepository } from './repository.interface.js';
@@ -52,14 +53,27 @@ interface OutboxLocalAdapter {
   deleteByIds(entityName: string, ids: string[]): Observable<void>;
 }
 
-/** 一次重放失败 */
+/**
+ * 一次重放失败。
+ *
+ * @remarks
+ * 出现在 {@link QueryCacheOutboxResult.failures} 里：一轮重放**不因单行失败而中止**，
+ * 失败的行留在队列里等下一轮，成功的行照常推进水位线。
+ */
 export interface QueryCacheOutboxFailure {
   /** 失败的实体 id；整批性失败（例如元数据探测失败）时为 `null` */
   entityId: string | null;
+  /** 失败原因，原样透传，不包装 */
   error: Error;
 }
 
-/** 一轮出站重放的结果 */
+/**
+ * 一轮出站重放的结果，{@link flushQueryCacheOutbox} 的返回值。
+ *
+ * @remarks
+ * 四个净操作计数（`replayed` / `discarded` / `noop` 与 `failures.length`）互斥且穷尽：
+ * 压缩之后的每一个净操作恰好落进其中一类。`originalCount - compacted` 是净操作总数。
+ */
 export interface QueryCacheOutboxResult {
   /** 本轮处理的仓库 */
   repository: { namespace: string; entity: string };
@@ -165,20 +179,20 @@ const REPLAY_PHASES: readonly ReadonlySet<OutboxKind>[] = [
 ];
 
 /**
- * 正在进行中的 flush，按 `VersionManager` + 仓库分组。
+ * 正在进行中的 flush，按 `RxDB` 实例 + 仓库分组。
  *
  * @remarks
  * 恢复连接往往连着来好几个信号（`navigator` 的 `online` 事件、退避探测的第一次成功、
  * 用户手动重试），每个都起一轮 flush 会让同一批变更被并发重放两次 —— 第二轮读到的还是
- * 第一轮尚未推进的水位线。用 `WeakMap` 挂在 `VersionManager` 上，多实例互不串门，
+ * 第一轮尚未推进的水位线。用 `WeakMap` 挂在 `RxDB` 实例上，多实例互不串门，
  * 实例回收时这张表跟着走。
  */
-const inflight = new WeakMap<VersionManager, Map<string, Promise<QueryCacheOutboxResult>>>();
+const inflight = new WeakMap<RxDB, Map<string, Promise<QueryCacheOutboxResult>>>();
 
 /**
  * 把某个 QueryCache 仓库积压的离线改动重放回远端。
  *
- * @param vm - 版本管理器，用来取分支、本地/远端适配器与实体配置
+ * @param rxdb - RxDB 实例，用来取分支、本地/远端适配器与实体配置
  * @param namespace - 实体命名空间
  * @param entity - 实体名
  * @param options - 可选的冲突解决器；默认 {@link LWWConflictResolver}
@@ -196,20 +210,20 @@ const inflight = new WeakMap<VersionManager, Map<string, Promise<QueryCacheOutbo
  *
  * @example
  * ```ts
- * const result = await flushQueryCacheOutbox(rxdb.versionManager, 'public', 'Recipe');
+ * const result = await flushQueryCacheOutbox(rxdb, 'public', 'Recipe');
  * if (result.failures.length === 0) {
  *   console.log(`replayed ${result.replayed}, watermark → ${result.watermark}`);
  * }
  * ```
  */
 export function flushQueryCacheOutbox(
-  vm: VersionManager,
+  rxdb: RxDB,
   namespace: string,
   entity: string,
   options?: { conflictResolver?: ConflictResolver }
 ): Promise<QueryCacheOutboxResult> {
-  const byRepository = inflight.get(vm) ?? new Map<string, Promise<QueryCacheOutboxResult>>();
-  inflight.set(vm, byRepository);
+  const byRepository = inflight.get(rxdb) ?? new Map<string, Promise<QueryCacheOutboxResult>>();
+  inflight.set(rxdb, byRepository);
 
   const key = `${namespace}:${entity}`;
   const running = byRepository.get(key);
@@ -217,7 +231,7 @@ export function flushQueryCacheOutbox(
     return running;
   }
 
-  const started = runOutboxFlush(vm, namespace, entity, options?.conflictResolver ?? new LWWConflictResolver()).finally(
+  const started = runOutboxFlush(rxdb, namespace, entity, options?.conflictResolver ?? new LWWConflictResolver()).finally(
     () => {
       byRepository.delete(key);
     }
@@ -240,16 +254,15 @@ const emptyResult = (namespace: string, entity: string): QueryCacheOutboxResult 
 });
 
 async function runOutboxFlush(
-  vm: VersionManager,
+  rxdb: RxDB,
   namespace: string,
   entity: string,
   conflictResolver: ConflictResolver
 ): Promise<QueryCacheOutboxResult> {
-  const rxdb = vm.rxdb;
-  const syncType = resolveQueryCacheSyncType(vm, namespace, entity);
+  const syncType = resolveQueryCacheSyncType(rxdb, namespace, entity);
 
-  const branch = await vm.getCurrentBranch();
-  const { adapter } = await vm.getLocalRepositories();
+  const branch = await getCurrentBranch(rxdb);
+  const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
 
@@ -280,7 +293,7 @@ async function runOutboxFlush(
     return { ...base, compacted: pending.length, watermark: maxChangeId };
   }
 
-  // 取适配器走 `remoteAdapter$` 而不是 `vm.getRemoteRepositories()`：后者除了给适配器，
+  // 取适配器走 `remoteAdapter$` 而不是 `getRemoteSystemRepositories()`：后者除了给适配器，
   // 还会**急切**地建一对 changelog 仓储（`RxDBBranch` / `RxDBChange`），而这正是 QueryCache
   // 的远端明确不实现的东西 —— `RxDBAdapterHttp.getRepository()` 无条件抛。绕这一道会让
   // 整轮回推在发出第一个请求之前就死掉，本模块开头写明的「不复用 changelog 那条路」
@@ -294,9 +307,9 @@ async function runOutboxFlush(
     settled: new Set<OutboxEntry>()
   };
 
-  const metadata = await probeRemoteMetadata(remoteAdapter, entity, entries, vm, run);
+  const metadata = await probeRemoteMetadata(remoteAdapter, entity, entries, rxdb, run);
   if (metadata) {
-    await replayPhases(entries, metadata, { vm, entity, remoteAdapter, conflictResolver, run });
+    await replayPhases(entries, metadata, { rxdb, entity, remoteAdapter, conflictResolver, run });
   }
   await repairLocalCache(localAdapter, remoteAdapter, entity, run);
 
@@ -358,7 +371,7 @@ const toResult = (run: RunState): QueryCacheOutboxResult => ({
 /**
  * 数一遍所有 QueryCache 仓库在当前分支上还没推回远端的变更行。
  *
- * @param vm - 版本管理器
+ * @param rxdb - RxDB 实例
  * @returns 待重放的变更行数；没有这类仓库时为 0
  *
  * @remarks
@@ -369,16 +382,16 @@ const toResult = (run: RunState): QueryCacheOutboxResult => ({
  * 与 `HistoryManager.pushableCount$` **不重叠**：那一侧按 `capability.push` 取仓库，
  * 这一侧取它的补集，因此 {@link SyncStateHub} 把两个数直接相加是安全的。
  */
-export async function countQueryCacheOutbox(vm: VersionManager): Promise<number> {
-  const branch = await vm.getCurrentBranch();
-  const { adapter } = await vm.getLocalRepositories();
+export async function countQueryCacheOutbox(rxdb: RxDB): Promise<number> {
+  const branch = await getCurrentBranch(rxdb);
+  const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
 
   const repoSyncs = await localAdapter.getRepository(RxDBSync).find({
     where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] }
   });
 
-  const repoRules = buildOfflineWriteRepositoryRules(vm.rxdb.config.entities, vm.rxdb.config.sync, repoSyncs);
+  const repoRules = buildOfflineWriteRepositoryRules(rxdb.config.entities, rxdb.config.sync, repoSyncs);
   if (repoRules.length === 0) {
     return 0;
   }
@@ -387,7 +400,7 @@ export async function countQueryCacheOutbox(vm: VersionManager): Promise<number>
   // 这一条与 `updatePushableCount` 数的是同一批行、用的是同一套 repoRules 类型，
   // 换一个入口就得给规则加一层断言 —— 那是把两个计数口径的同源关系藏进 cast 里。
   return firstValueFrom(
-    vm.rxdb.entityManager.getRepository(RxDBChange).count({
+    rxdb.entityManager.getRepository(RxDBChange).count({
       where: {
         combinator: 'and',
         rules: [
@@ -404,7 +417,7 @@ export async function countQueryCacheOutbox(vm: VersionManager): Promise<number>
 /**
  * 取出某个 QueryCache 仓库当前**被出站队列占着**的实体 id。
  *
- * @param vm - 版本管理器
+ * @param rxdb - RxDB 实例
  * @param namespace - 命名空间
  * @param entity - 实体名
  * @returns 队列里还没推回远端的那些实体 id；队列为空时是空集
@@ -421,15 +434,15 @@ export async function countQueryCacheOutbox(vm: VersionManager): Promise<number>
  * 给一个还没同步过的仓库建记录会凭空多出一条水位线为 0 的同步状态。
  */
 export async function pendingQueryCacheWriteIds(
-  vm: VersionManager,
+  rxdb: RxDB,
   namespace: string,
   entity: string
 ): Promise<ReadonlySet<string>> {
-  const branch = await vm.getCurrentBranch();
-  const { adapter } = await vm.getLocalRepositories();
+  const branch = await getCurrentBranch(rxdb);
+  const { adapter } = await getLocalSystemRepositories(rxdb);
   const localAdapter = adapter as unknown as OutboxLocalAdapter;
 
-  const repoSync = await findCurrentSyncRecord(vm, namespace, entity);
+  const repoSync = await findCurrentSyncRecord(rxdb, namespace, entity);
   const pending = await queryOutboxChanges(
     localAdapter.getRepository(RxDBChange),
     namespace,
@@ -451,8 +464,8 @@ export async function pendingQueryCacheWriteIds(
  * 推进 `RxDBSync` 水位线）都会动到那个仓库**真正的**推送状态 —— 一次 Full 同步仓库的
  * 水位线被 REST 路径推过去，等于把它没推的变更全部标成已推。
  */
-function resolveQueryCacheSyncType(vm: VersionManager, namespace: string, entity: string): 'querycache' {
-  const EntityType = vm.rxdb.config.entities.find(candidate => {
+function resolveQueryCacheSyncType(rxdb: RxDB, namespace: string, entity: string): 'querycache' {
+  const EntityType = rxdb.config.entities.find(candidate => {
     const meta = getEntityMetadata(candidate);
     return meta.namespace === namespace && meta.name === entity;
   });
@@ -460,7 +473,7 @@ function resolveQueryCacheSyncType(vm: VersionManager, namespace: string, entity
     throw new RxDBError(`Entity not found for QueryCache outbox flush: ${namespace}/${entity}`);
   }
 
-  const syncType = getSyncType(getEntityMetadata(EntityType), vm.rxdb.config.sync);
+  const syncType = getSyncType(getEntityMetadata(EntityType), rxdb.config.sync);
   if (syncType !== 'querycache') {
     throw new RxDBError(
       `flushQueryCacheOutbox only handles syncType 'querycache'; ${namespace}/${entity} is '${syncType}'. ` +
@@ -580,7 +593,7 @@ async function probeRemoteMetadata(
   remoteAdapter: QueryCacheRemoteAdapter,
   entity: string,
   entries: OutboxEntry[],
-  vm: VersionManager,
+  rxdb: RxDB,
   run: RunState
 ): Promise<Map<string, string> | null> {
   const ids = entries.map(entry => entry.entityId);
@@ -595,17 +608,17 @@ async function probeRemoteMetadata(
       );
       for (const row of metadata) found.set(row.id, row.updatedAt);
     } catch (error) {
-      vm.rxdb.reachability.report(error);
+      rxdb.reachability.report(error);
       run.failures.push({ entityId: null, error: error instanceof Error ? error : new Error(String(error)) });
       return null;
     }
   }
-  vm.rxdb.reachability.report(null);
+  rxdb.reachability.report(null);
   return found;
 }
 
 interface ReplayContext {
-  vm: VersionManager;
+  rxdb: RxDB;
   entity: string;
   remoteAdapter: QueryCacheRemoteAdapter;
   conflictResolver: ConflictResolver;
@@ -755,7 +768,7 @@ function synthesizeRemoteChange(entry: OutboxEntry, remoteUpdatedAt: string): Rx
 
 /** 发一次远端写，并把结果上报给可达性监视器 */
 async function replayEntry(entry: OutboxEntry, verb: RemoteWriteVerb, context: ReplayContext): Promise<void> {
-  const { entity, remoteAdapter, run, vm } = context;
+  const { entity, remoteAdapter, run, rxdb } = context;
 
   const write = remoteWrite(remoteAdapter, entity, entry, verb);
   if (!write) {
@@ -768,10 +781,10 @@ async function replayEntry(entry: OutboxEntry, verb: RemoteWriteVerb, context: R
 
   try {
     await firstValueFrom(write);
-    vm.rxdb.reachability.report(null);
+    rxdb.reachability.report(null);
     run.replayed += 1;
   } catch (error) {
-    vm.rxdb.reachability.report(error);
+    rxdb.reachability.report(error);
     run.failures.push({ entityId: entry.entityId, error: error instanceof Error ? error : new Error(String(error)) });
   }
 }

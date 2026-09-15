@@ -537,7 +537,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       syncStaleTime: sync.local.syncStaleTime,
       reachability: this.rxdb.reachability,
       syncState: this.rxdb.syncState,
-      pendingWriteIds: () => pendingQueryCacheWriteIds(this.rxdb.versionManager, namespace, entityName)
+      pendingWriteIds: () => pendingQueryCacheWriteIds(this.rxdb, namespace, entityName)
     });
     this.#queryCacheSession = session;
     return session;

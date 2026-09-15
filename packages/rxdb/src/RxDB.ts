@@ -63,7 +63,6 @@ import { createMigrationWatermarks, runMigrations } from './system/migration-run
 import { RxDBMigration } from './system/migration.js';
 import { RxDBSync } from './system/sync.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
-import { VersionManager } from './version/VersionManager.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
 /**
@@ -240,7 +239,7 @@ export class RxDB {
    * 全局拆卸的时机必须按「已连接」判定，不能用 `#adapter_map.size`：后者统计的是「已实例化」，
    * 而 `localAdapter$` / `remoteAdapter$` 的订阅会经 {@link RxDB.getAdapter} 把从未 `connect()`
    * 的适配器也塞进去。用 map 大小判断时，唯一连接的适配器断开会被误判成「还有别的适配器在」，
-   * 插件、gateway 与 versionManager 就永远拆不掉。
+   * 插件与 gateway 就永远拆不掉。
    *
    * 只能经 {@link RxDB.#set_adapter_connected} 增删 —— 它负责同步推送
    * {@link RxDB.#adapter_connected_sub}，直接改这个 Set 会让订阅者读到陈旧值。
@@ -355,8 +354,6 @@ export class RxDB {
 
   public readonly entityManager!: EntityManager;
 
-  public readonly versionManager!: VersionManager;
-
   /**
    * 同步状态汇聚面：网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负。
    *
@@ -439,14 +436,10 @@ export class RxDB {
     };
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
-    this.versionManager = new VersionManager(this);
-    this.syncState = new SyncStateHub({
-      online$: this.reachability.online$,
-      // 每次连接纪元交替都重新解析这个 getter。`#shutdown()` 里的 versionManager.destroy()
-      // 连 historyManager 一起销毁，下一次 init() 建的是**另一个** BehaviorSubject ——
-      // 只在构造时读一次的话，重连之后面板会永远停在断连那一刻的数字。
-      pushableCount$: this.connected$.pipe(switchMap(() => this.versionManager.pushableCount$))
-    });
+    // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经
+    // `syncState.bindPushableCount()` 接上（US-025 阶段 C）：那条流的主人随连接纪元来去，
+    // 而本汇聚器跟随实例，构造期没有也不该有它。
+    this.syncState = new SyncStateHub({ online$: this.reachability.online$ });
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();
@@ -502,7 +495,6 @@ export class RxDB {
     try {
       this.schemaManager.init();
       this.entityManager.init();
-      this.versionManager.init();
       if (this.#config.multiInstance !== false) this.#init_gateway();
       this.#init_event();
     } catch (error) {
@@ -517,15 +509,13 @@ export class RxDB {
       // 与上一行同步成对：作用域没了而调度记录还停在 active，重新 init() 时调度器会认为
       // 「依赖纪元没变、插件还装着」而一个都不重装，拿到的是个从没重新登记过的空壳。
       this.#reset_plugin_scheduling();
-      // 这两个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它们不在连接作用域里，
-      // 漏掉就没有第二个人会拆。抛错点在 `versionManager.init()` 之后时，
-      // 它的 4 个事件监听器 + RxJS subscription 会留在原地，重试叠第二份
-      //（`init()` 没有幂等守卫，`#historyManagerDestroyed` 只挡二次 `destroy()`）。
+      // 这个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它不在连接作用域里，
+      // 漏掉就没有第二个人会拆。
       //
-      // 网关**不在这里点名**：它已登记进上面刚释放的连接作用域，且作为最晚登记的一条
-      // 由 `dispose()` 在第一个 await 让路之前同步拆掉——正是 `init()` 这条同步路径需要的时序。
-      // 两步都是同步的，`init()` 作为同步 API 不需要 await。
-      this.versionManager.destroy();
+      // 网关与 `versionManager`（现由 `@aiao/rxdb-plugin-history` 提供）**都不在这里点名**：
+      // 前者已登记进上面刚释放的连接作用域，且作为最晚登记的一条由 `dispose()` 在第一个
+      // await 让路之前同步拆掉——正是 `init()` 这条同步路径需要的时序；后者随插件作用域
+      // 一并释放，上面 `#release_connection_scope()` 已经覆盖。
       // Repository 身份缓存与实体类绑定：未 init 完就抛时是空操作，init 完之后抛才有东西可清。
       this.entityManager.destroy();
       throw error;
@@ -1181,7 +1171,7 @@ export class RxDB {
   }
 
   /**
-   * 全局拆卸：销毁插件、网关与 versionManager，并把实例复位到「可重新 init」的状态。
+   * 全局拆卸：销毁插件与网关，并把实例复位到「可重新 init」的状态。
    * 仅在所有适配器都已断开时调用。
    *
    * @remarks
@@ -1201,9 +1191,10 @@ export class RxDB {
     await this.#destroy_plugin();
     // 总闸：#destroy_plugin 漏掉的（安装失败后残留的子作用域等）在这里一并释放，
     // 并把字段置空 —— 下一次 init() 拿到的是全新的连接纪元作用域。
-    // 网关也在这条线上：它随连接纪元登记，作用域逆序释放让它先于 versionManager 拆掉。
+    // 网关在这条线上：它随连接纪元登记，作用域逆序释放保证它按登记的反序拆掉。
+    // 历史插件的 `versionManager` 走的是上一行的插件作用域，因此**先于**网关释放 ——
+    // 插件的撤销动作还能经网关广播，反过来就不行了。
     await this.#release_connection_scope();
-    this.versionManager.destroy();
     // 清空 Repository 身份缓存：不清的话，断线重连后 getRepository() 仍会永久复用
     // 断连前那批缓存实例，携带的是断连时刻的陈旧实体状态。
     this.entityManager.destroy();
@@ -1280,7 +1271,7 @@ export class RxDB {
       handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event)
     );
 
-    ['entityManager', 'schemaManager', 'versionManager'].forEach(key =>
+    ['entityManager', 'schemaManager'].forEach(key =>
       Object.defineProperty(this, key, {
         enumerable: false,
         configurable: false

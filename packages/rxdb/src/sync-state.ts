@@ -65,8 +65,6 @@ export interface SyncState {
 export interface SyncStateSources {
   /** 远端可达性，来自 `ReachabilityMonitor.online$` */
   online$: Observable<boolean>;
-  /** changelog 路径待推数，来自 `HistoryManager.pushableCount$` */
-  pushableCount$: Observable<number>;
 }
 
 /** 上游都没发过值时的读数 */
@@ -130,11 +128,6 @@ export class SyncStateHub {
     this.#subscriptions.add(
       sources.online$.subscribe(online => this.#upstream$.next({ ...this.#upstream$.value, online }))
     );
-    this.#subscriptions.add(
-      sources.pushableCount$.subscribe(pushableCount =>
-        this.#upstream$.next({ ...this.#upstream$.value, pushableCount })
-      )
-    );
 
     const derived$ = combineLatest([this.#upstream$, this.#syncing$, this.#lastError$, this.#lastConflict$]).pipe(
       map(([upstream, syncing, lastError, lastConflict]) => ({
@@ -147,6 +140,37 @@ export class SyncStateHub {
       distinctUntilChanged(sameState)
     );
     this.#subscriptions.add(derived$.subscribe(state => this.#state$.next(state)));
+  }
+
+  /**
+   * 接上 changelog 路径的待推数流，返回解绑函数
+   *
+   * @param source$ - 待推数流，通常是 `HistoryManager.pushableCount$`
+   * @returns 解绑函数：断订阅并把这一路的读数清零
+   *
+   * @remarks
+   * **不是构造参数**：changelog 路径整个住在 `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），
+   * 它的生命周期是**连接纪元**（`scoped` 插件在 `connect()` 时安装、断连时随作用域逆序释放），
+   * 而本汇聚器跟随实例、跨断连存活 —— 面板要在断连期间继续显示上一份读数。
+   * 两者寿命不同，只能由插件在安装时接上、在释放时解开。
+   *
+   * 解绑时**清零而不是保留最后一个数**：插件都拆了，那个数字背后已经没有任何东西在维护它；
+   * 留着会让「没装历史插件」和「装了但一条都没待推」在面板上长得一模一样。
+   * QueryCache 出站数走 {@link reportOutboxCount}，不受这里影响。
+   */
+  bindPushableCount(source$: Observable<number>): () => void {
+    const subscription = source$.subscribe(pushableCount =>
+      this.#upstream$.next({ ...this.#upstream$.value, pushableCount })
+    );
+    // 也挂进 `#subscriptions`：插件先于 hub 释放是常态，但反过来（hub 先 `destroy()`）
+    // 不能留一条还在往死 hub 里写数的订阅。解绑时再 `remove()` 摘掉，
+    // 否则反复重连会在父订阅里堆一串已死的子订阅。
+    this.#subscriptions.add(subscription);
+    return () => {
+      this.#subscriptions.remove(subscription);
+      subscription.unsubscribe();
+      this.#upstream$.next({ ...this.#upstream$.value, pushableCount: 0 });
+    };
   }
 
   /**

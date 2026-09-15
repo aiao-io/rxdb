@@ -9,7 +9,7 @@ import { RxDB } from './RxDB.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
-import { SwitchVersionActions } from './version/VersionManager.interface.js';
+import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 
 export interface PullBatchRequest {
   namespace?: string;
