@@ -1,4 +1,5 @@
 import { RxDB, RxDBBranch, RxDBChange, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -44,6 +45,7 @@ describe('版本切换 (switchVersion)', () => {
     );
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

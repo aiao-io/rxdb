@@ -228,7 +228,7 @@ export interface IsTableExistedHandler {
  * **命名方向要注意**：handler 字段一律带 `on` 前缀，而**适配器类上的方法名不带**。
  * `fetchMetadata` / `findByIds` 是 `RxDBAdapterRemoteBase` 的 abstract，必须同名；
  * `create` / `update` / `delete` 是 `QueryCacheRemoteAdapter` 的 optional duck，
- * `QueryCacheRepository` 先 `if (!this.remoteAdapter.create)` 特性探测再调用——
+ * `QueryCacheEngine` 先 `if (!this.remoteAdapter.create)` 特性探测再调用——
  * 把类方法也取成 `onCreate` 会让探测判 `false`，写入口静默退化成「不支持 create」，
  * 而配置里明明配了 handler。
  */

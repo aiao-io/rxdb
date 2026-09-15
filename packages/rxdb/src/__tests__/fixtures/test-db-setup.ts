@@ -33,9 +33,9 @@ import {
 } from '../../rxdb-adapter.js';
 import type { RxDBOptions } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
+import type { SwitchVersionActions } from '../../sync-contract/VersionManager.interface.js';
 import type { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
-import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
 import { TEST_ENTITIES } from './test-entities.js';
 
 /**

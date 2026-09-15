@@ -103,7 +103,7 @@ export class App implements OnInit {
    * 就换了个任务，必定发射。别人的写没有这一跳。
    *
    * `onSyncStats` 是核心里唯一「同步真的落地了」的回调，且**排在**孤儿清理与
-   * `findByIds` 回填之后（`QueryCacheRepository.#reconcile`），此刻去数本地就是准的。
+   * `findByIds` 回填之后（`QueryCacheEngine.#reconcile`），此刻去数本地就是准的。
    * 它不进任务缓存键（函数没有可靠的值身份），所以塞进 options 不会影响任务复用。
    */
   readonly #syncRounds = signal(0);

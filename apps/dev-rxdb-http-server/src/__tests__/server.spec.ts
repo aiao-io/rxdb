@@ -179,7 +179,8 @@ describe('写端点回执来自库，不是回显入参（AC#5）', () => {
    * 而客户端并不知道自己覆盖了谁。409 让重放侧看得见冲突。
    *
    * 正常重放走不到这里：出站队列发 `create` 之前会先 `fetchMetadata` 探一次远端，
-   * 远端已有同 id 就改发 `update`（`query-cache-outbox.ts` 的 `LOCAL_WINS_VERB`）。
+   * 远端已有同 id 就改发 `update`（`@aiao/rxdb-plugin-sync` 里 `query-cache-outbox.ts`
+   * 的 `LOCAL_WINS_VERB`）。
    */
   it('create 撞上已有 id 回 409，不覆盖已有行', async () => {
     await postJson('recipes', { id: 'dup', title: 'First', status: 'draft' });

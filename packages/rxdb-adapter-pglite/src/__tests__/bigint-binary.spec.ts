@@ -10,6 +10,7 @@ import {
   transitionMetadata,
   type FindOptions
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -378,6 +379,7 @@ describe.sequential('PGlite bigint/binary integration', () => {
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }
     });
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
     adapter = await rxdb.getAdapter('pglite');
   });

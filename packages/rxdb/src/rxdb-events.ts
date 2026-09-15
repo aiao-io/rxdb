@@ -1,6 +1,6 @@
 import { EntityStaticType, EntityType } from './entity/entity.interface.js';
-import { Conflict } from './version/conflict.js';
-import { PullResult, PushResult } from './version/VersionManager.interface.js';
+import { Conflict } from './sync-contract/conflict.js';
+import { PullResult, PushResult } from './sync-contract/VersionManager.interface.js';
 
 export const ENTITY_LOCAL_NEW_EVENT = 'ENTITY_LOCAL_NEW' as const;
 export const ENTITY_LOCAL_CREATE_EVENT = 'ENTITY_LOCAL_CREATE' as const;

@@ -1,5 +1,6 @@
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { createSqliteClient } from '../create_sqlite_client.js';
 import { RxDBAdapterWaSqlite } from '../RxDBAdapterSqlite.js';
@@ -69,6 +70,12 @@ async function createWaSqliteAdapter(options?: Record<string, unknown>) {
     });
     return countingAdapter;
   });
+
+  // 共享套件（undo/redo、版本分支、系统表迁移）直接读 `adapter.rxdb.versionManager`，
+  // 而历史子系统自 US-025 阶段 C 起住在插件里。`AdapterFactory` 的契约把「装好插件」
+  // 算成工厂的职责（见 `@aiao/rxdb-adapter-sqlite-core/testing`），所以登记在这里，
+  // 且必须早于下面的 `connect()` —— `connect()` 内部就会调 `init()`，届时插件才装上。
+  rxdb.use(rxDBPluginHistory);
 
   await rxdb.getAdapter('wa-sqlite');
   await rxdb.connect('wa-sqlite');

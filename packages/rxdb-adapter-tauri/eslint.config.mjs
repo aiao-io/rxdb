@@ -17,7 +17,13 @@ export default [
             // vitest 塞进本包 dependencies（那会让每个装本包的用户都拖一份测试框架）。
             '{projectRoot}/vitest.conformance.{js,ts,mjs,mts}'
           ],
-          ignoredDependencies: ['@aiao/rxdb-test']
+          // 两个都只被 `conformance/` 用，而 `conformance/` 不在 `files` 里（只发 dist + src），
+          // 装本包的用户永远拿不到这两条 import。
+          // `@aiao/rxdb-plugin-history`：US-025 阶段 C 之后加密契约套件读的
+          // `adapter.rxdb.versionManager` 随历史插件走，工厂得先 `use()` 它 —— 这是**套件**的
+          // 依赖，不是适配器的。真放进 dependencies，每个装 tauri 适配器的人都会被迫拖一份
+          // 历史插件，而适配器本身一行都没用到它。
+          ignoredDependencies: ['@aiao/rxdb-test', '@aiao/rxdb-plugin-history']
         }
       ]
     },

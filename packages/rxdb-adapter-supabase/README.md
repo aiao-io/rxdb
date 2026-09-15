@@ -71,6 +71,8 @@ pnpm add @aiao/rxdb-adapter-wa-sqlite
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from './entities/Todo';
 
 const rxdb = new RxDB({
@@ -83,6 +85,12 @@ const rxdb = new RxDB({
     type: SyncType.Full
   }
 });
+
+// 推拉同步住在 `@aiao/rxdb-plugin-sync`，它 `inject: ['plugin:history']`，两个都要装；
+// 不装的话 `rxdb.syncManager` 这个槽位根本不存在（core 不做 fallback 兜底）。
+// 必须早于 `connect()`——插件是在那一刻装上的。
+rxdb.use(rxDBPluginHistory);
+rxdb.use(rxDBPluginSync);
 
 // 注册本地适配器
 rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicVFS', async: true }));
@@ -124,14 +132,14 @@ const todos = await rxdb.repository(Todo).find({
 ### 3. 同步
 
 ```typescript
-await rxdb.versionManager.push(); // 推送本地变更到远程
-await rxdb.versionManager.pull(); // 拉取远程变更到本地
-await rxdb.versionManager.sync(); // 双向（pull + push）
+await rxdb.syncManager.push(); // 推送本地变更到远程
+await rxdb.syncManager.pull(); // 拉取远程变更到本地
+await rxdb.syncManager.sync(); // 双向（pull + push）
 
 // 也可按实体粒度同步
-await rxdb.versionManager.pushRepository('public', 'Todo');
-await rxdb.versionManager.pullRepository('public', 'Todo', { limit: 200 });
-await rxdb.versionManager.syncRepository('public', 'Todo');
+await rxdb.syncManager.pushRepository('public', 'Todo');
+await rxdb.syncManager.pullRepository('public', 'Todo', { limit: 200 });
+await rxdb.syncManager.syncRepository('public', 'Todo');
 ```
 
 ## 配置项（`SupabaseAdapterOptions`）

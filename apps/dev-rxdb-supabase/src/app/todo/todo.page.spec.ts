@@ -70,11 +70,16 @@ function renderTodoPage(
       removeMany: vi.fn(() => Promise.resolve()),
       saveMany: vi.fn(() => Promise.resolve())
     },
+    // 自 US-025 阶段 D 起推拉入口归 `@aiao/rxdb-plugin-sync`（`rxdb.syncManager`），
+    // 而撤销重做与两个待推/待拉计数仍是历史插件的（`rxdb.versionManager`）。
+    // 替身照着这条边界分成两半，页面读错哪一边都会当场红。
+    syncManager: {
+      pull,
+      push
+    },
     versionManager: {
       history: vi.fn(() => history),
-      pull,
       pullableCount$: of(1),
-      push,
       pushableCount$: of(1)
     }
   };

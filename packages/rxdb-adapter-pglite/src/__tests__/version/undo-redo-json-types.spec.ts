@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { TypeDemo } from '@aiao/rxdb-test/entities';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -31,6 +32,7 @@ describe('undo/redo - JSON 类型字段 (stringArray, numberArray, json, keyValu
     );
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

@@ -47,7 +47,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 产品选择：**远端权威 HTTP + 独立注册 sqlite 行缓存**。仓库的同步配置只有 `sync.local` 与 `sync.remote` 两个槽位（插件侧对应 `adapter:local` / `adapter:remote` 两个依赖 token），没有第三种 cache adapter。HTTP **不得内部拥有 sqlite**。search / graph / encryption 绑独立 local adapter——HTTP 若自己 new 一份 sqlite，插件会绑错库。
 
-**写缓存的是 core，不是本包。** 行缓存最终经 [`QueryCacheRepository`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 落到 `localAdapter.upsertMany()` / `deleteByIds()`——那两个方法是 [`RxDBAdapterLocalBase`](../../../packages/rxdb/src/rxdb-adapter.ts) 的 abstract 成员，本包（RemoteBase）身上**没有也不该有**。本包在 QueryCache 里的全部职责是 `fetchMetadata` / `findByIds` 两个 remote duck（见 [`query-cache-primary.ts`](../../../packages/rxdb/src/repository/query-cache-primary.ts) 的 `REMOTE_DUCKS`）加可选写入口。这条边界决定了 AC#19 的形状：本包能担保的是**结构隔离**，不是「调用时挑实体」。
+**写缓存的是 QueryCache 读引擎（`@aiao/rxdb-plugin-querycache`），不是本包。** 行缓存最终经 [`QueryCacheEngine`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 落到 `localAdapter.upsertMany()` / `deleteByIds()`——那两个方法是 [`RxDBAdapterLocalBase`](../../../packages/rxdb/src/rxdb-adapter.ts) 的 abstract 成员，本包（RemoteBase）身上**没有也不该有**。本包在 QueryCache 里的全部职责是 `fetchMetadata` / `findByIds` 两个 remote duck（见 [`query-cache-primary.ts`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的 `REMOTE_DUCKS`）加可选写入口。这条边界决定了 AC#19 的形状：本包能担保的是**结构隔离**，不是「调用时挑实体」。
 
 现有唯一远程适配器是 [US-203](./US-203-supabase-adapter.md)（Done）。本故事不改 US-203，不 inherit 其 AC#6。HTTP 复制 supabase 在 QueryCache 上已经付过学费的契约：翻页与分块。PostgREST `max-rows` 静默截断时，被截掉的 metadata id 会被当成「远端已删除」，变成假孤儿。HTTP 一样。
 
@@ -112,7 +112,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findByIds`**：`RxDBAdapterRemoteBase` 上已有同名 abstract 方法且签名不同（方法返回 `Observable<QueryCacheEntityMetadata[]>`，handler 返回下面那个请求描述），同一文件里并存会让 review 读错哪一层在翻页。建议 `onFetchMetadata` / `onFindByIds`。
 
-**写入口的命名方向相反，别顺手对称过去。** `create` / `update` / `delete` 在 `RxDBAdapterRemoteBase` 上**没有** abstract 对应物，它们是 [`QueryCacheRemoteAdapter`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 的 optional duck：`QueryCacheRepository` 先 `if (!this.remoteAdapter.create)` 特性探测，再调 `remoteAdapter.create(...)`。因此**适配器类上的方法名必须原样叫 `create` / `update` / `delete`**，只有 handler 字段加 `on` 前缀（`onCreate` / `onUpdate` / `onDelete`）。把类方法也取成 `onCreate` 会让特性探测判 `false`，写入口静默退化成 AC#4 的「不支持 create」——而配置里明明配了 handler。
+**写入口的命名方向相反，别顺手对称过去。** `create` / `update` / `delete` 在 `RxDBAdapterRemoteBase` 上**没有** abstract 对应物，它们是 [`QueryCacheRemoteAdapter`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 的 optional duck：`QueryCacheRepository` 先 `if (!this.remoteAdapter.create)` 特性探测，再调 `remoteAdapter.create(...)`。因此**适配器类上的方法名必须原样叫 `create` / `update` / `delete`**，只有 handler 字段加 `on` 前缀（`onCreate` / `onUpdate` / `onDelete`）。把类方法也取成 `onCreate` 会让特性探测判 `false`，写入口静默退化成 AC#4 的「不支持 create」——而配置里明明配了 handler。
 
 | 名字                                 | 层      | 依据                                                     |
 | ------------------------------------ | ------- | -------------------------------------------------------- |
@@ -159,7 +159,7 @@ handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findById
 
 ### `fetchMetadata`：对 core 的发射契约
 
-这条不是本包的偏好，是 core 的调用形态决定的硬约束。[`QueryCacheRepository`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 用 `forkJoin` 并联远端 metadata 与本地行：
+这条不是本包的偏好，是读引擎的调用形态决定的硬约束。[`QueryCacheEngine`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 用 `forkJoin` 并联远端 metadata 与本地行：
 
 ```ts
 forkJoin({
@@ -173,7 +173,7 @@ forkJoin({
 1. **只保留最后一次发射。** 翻页若实现成「每翻一页 `emit` 一次」——在 Observable 里是最自然的写法，判别式游标分页更是明着诱导——core 只看得到最后一页，前面所有页的 id 全部缺席，被判成远端已删除，即**大规模假孤儿**。这与 PostgREST `max-rows` 静默截断是同一症状、不同成因；本故事其余条款只防了后者。
 2. **要求上游 `complete`。** 不 complete 的 Observable 会让 `forkJoin` 永久挂起：查询既不返回也不报错，比返回错数据更难排查。阶段 B 的可选 SSE / invalidation（AC#29）最容易踩这条——**SSE 只能用于通知失效并触发下一次查询，不得让 `fetchMetadata` 变成长连接流**。
 
-**另一个调用点的语义正好相反，同样承重。** [`query-cache-primary.ts`](../../../packages/rxdb/src/repository/query-cache-primary.ts) 的 `#fetchMetadata` 用 `firstValueFrom`——**只取第一次发射**。逐页发射在 `forkJoin` 侧丢掉除末页外的全部元数据，在 `firstValueFrom` 侧则只看得到首页。两条理由不同，指向同一条结论，所以「单次发射」不是可以在某一侧优化掉的实现细节。
+**另一个调用点的语义正好相反，同样承重。** [`query-cache-primary.ts`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的 `#fetchMetadata` 用 `firstValueFrom`——**只取第一次发射**。逐页发射在 `forkJoin` 侧丢掉除末页外的全部元数据，在 `firstValueFrom` 侧则只看得到首页。两条理由不同，指向同一条结论，所以「单次发射」不是可以在某一侧优化掉的实现细节。
 
 因此本包的 `fetchMetadata` **MUST 把所有页拼成一次发射后 complete**（AC#23）。这条契约已冻结在 [`RxDBAdapterRemoteBase.fetchMetadata` 的 TSDoc](../../../packages/rxdb/src/rxdb-adapter.ts) 里（两个调用点都写明），supabase 侧已有回归测试；本包是照约实现，不是自行发明。顺带记一笔：supabase 满足这条属于结构巧合——`RxDBAdapterSupabase.fetchMetadata` 用 `from(promise)` 包 `select_all_pages`，`from(Promise)` 天然单发射 + complete——本包的翻页循环没有这层天然保护，必须显式拼接。
 
@@ -334,7 +334,7 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 | 8   | `findByIds` 的 id 列表 > `idChunkSize`                 | 增量 pull                                                                                                                                              | 分块请求并合并；语义同 supabase `#findByIdsInChunks`                                                                                                                                                                                                                                                                                                                                                                   | ✅   |
 | 9   | 某一块 reject；另一场景某一块返回少行                  | 增量 pull                                                                                                                                              | reject → 整体 reject，缺块**不得**静默当空；少行 → 合法，不重试不补空对象                                                                                                                                                                                                                                                                                                                                              | ✅   |
 | 10  | HTTP 适配器已连接                                      | 调用 `pullChanges` / `mergeChanges` / `getChangeCount`                                                                                                 | 抛 `HttpChangelogUnsupportedError`（**类名**判别，见[新错误的判别口径](#新错误的判别口径)）；返回空数组 / 0 **算失败**——那会让 Full-sync 以为远端没变更                                                                                                                                                                                                                                                                | ✅   |
-| 11  | 同上                                                   | 检查 `pullChangesBatch`                                                                                                                                | 不实现（调用点 [`pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts) 做特性探测，回落到同样 throw 的 `pullChanges`）；若实现则必须 throw，不得返回 `[]`                                                                                                                                                                                                                                                  | ✅   |
+| 11  | 同上                                                   | 检查 `pullChangesBatch`                                                                                                                                | 不实现（调用点 [`pull-batch.ts`](../../../packages/rxdb-plugin-sync/src/pull-batch.ts) 做特性探测，回落到同样 throw 的 `pullChanges`）；若实现则必须 throw，不得返回 `[]`                                                                                                                                                                                                                                              | ✅   |
 | 12  | 远端返回 HTTP 401                                      | QueryCache 读或写                                                                                                                                      | **本包 transport** 抛出的错误带数字 `status`，`isNetworkError` 判 `false`，**不**被 `offlineFallback` 吞成缓存命中。断言主体是适配器：handler 不发请求，因此这条可由本包契约测试冻结                                                                                                                                                                                                                                   | ✅   |
 | 13  | 网络断开（fetch reject）                               | 同上                                                                                                                                                   | **本包 transport** 抛 `NetworkOfflineError`（原始 `TypeError` 进 `originalError`），**不得**包进自定义类、**不得**带数字 `status`、**不得**原样上抛 `TypeError`（node/undici 的 `fetch failed` 不命中 core 正则，见[错误分类](#错误分类锚定-isnetworkerror)）；`isNetworkError` 判 `true`；`offlineFallback: true` 且有缓存时才降级（US-020 AC#16）。用例须在 **node 环境**跑（vitest 默认），不得只在浏览器消息上断言 | ✅   |
 | 14  | 远端 metadata 的 `updatedAt` 是 ISO 字符串             | `fetchMetadata`                                                                                                                                        | 透出为**规范化 `string`**（UTC `Z` + 3 位毫秒）；**不得**解成 `Date`。三条独立用例：① 已规范化的串原样透出；② 带时区偏移（如 `+08:00`）或缺毫秒的合法 ISO → canonicalize 后再交给 core，**不得**直接透传；③ 非法时间串 → 抛错不吞。理由见[技术笔记](#updatedat-必须是规范化-iso-字符串)                                                                                                                                | ✅   |
@@ -425,7 +425,7 @@ HTTP 包最容易复现的姿势就是「把响应过一遍实体解码再返回
 **「是合法 ISO 8601」不足以保证字典序等价于时间序。** 比较的两侧形态不同：
 
 - 远端侧：[`diffMetadata`](../../../packages/rxdb/src/repository/diff-metadata.ts) 直接 `remote.updatedAt > localUpdatedAt`，原样比字符串。
-- 本地侧：core 用 `toISOString()` 归一（[`QueryCacheRepository`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)），**恒为 UTC `Z` + 3 位毫秒**。
+- 本地侧：读引擎用 `toISOString()` 归一（[`QueryCacheEngine`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)），**恒为 UTC `Z` + 3 位毫秒**。
 
 于是远端返回 `2026-08-23T18:00:00+08:00`（= UTC 10:00，确实比本地的 `2026-08-23T10:30:00.000Z` 旧）时，字典序逐字符比到时位就得出 `18 > 10` —— 判 stale，无谓重拉。反向的例子会判 fresh，缓存卡死。偏移量、缺省毫秒、`+00:00` 代替 `Z`、多于 3 位的小数秒，四种都会破坏顺序。
 
@@ -463,7 +463,7 @@ core 已经把口径冻结在 [`isNetworkError`](../../../packages/rxdb/src/repo
 
 v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若返回空，Full/Filter 会以为远端无变更并覆盖本地认知。unsupported throw 是唯一诚实行为。
 
-`pullChangesBatch` 是 `RxDBAdapterRemoteBase` 上的 **optional** 成员，调用点 [`pull-batch.ts`](../../../packages/rxdb/src/version/pull-batch.ts) 做 `if (remoteAdapter.pullChangesBatch)` 特性探测。因此**不实现**才是符合约定的做法（自动回落到同样 throw 的 `pullChanges`）；真正的不变量是「不得返回空数组」，不是「必须实现成 throw」。
+`pullChangesBatch` 是 `RxDBAdapterRemoteBase` 上的 **optional** 成员，调用点 [`pull-batch.ts`](../../../packages/rxdb-plugin-sync/src/pull-batch.ts) 做 `if (remoteAdapter.pullChangesBatch)` 特性探测。因此**不实现**才是符合约定的做法（自动回落到同样 throw 的 `pullChanges`）；真正的不变量是「不得返回空数组」，不是「必须实现成 throw」。
 
 ### 新错误的判别口径
 
@@ -516,13 +516,13 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 #### AC#29 / #30 拿不到 owner：core 侧缺的是抽象，不是入口
 
-**AC#29（SSE / invalidation）——core 没有失效通知入口。** QueryCache 侧唯一的失效状态是 [`QueryCacheSyncMemo`](../../../packages/rxdb/src/repository/query-cache-sync-memo.ts)（US-020 D13），它的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 没有对外出口，实例也由 `Repository` 私有持有。查询重跑机制确实存在，但 [`QueryManager`](../../../packages/rxdb/src/repository/QueryManager.ts) 只监听 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件。
+**AC#29（SSE / invalidation）——core 没有失效通知入口。** QueryCache 侧唯一的失效状态是 [`QueryCacheSyncMemo`](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts)（US-020 D13），它的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 没有对外出口，实例也由 `Repository` 私有持有。查询重跑机制确实存在，但 [`QueryManager`](../../../packages/rxdb/src/repository/QueryManager.ts) 只监听 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件。
 
 `RxDB.dispatchEvent()` 是公开方法，所以适配器**在物理上**能派发那三个事件——但那是错的两次：一是拿「本地写发生了」冒充「远端变了」，二是它清不掉 `syncMemo`，于是被触发的那次重跑会在记忆窗口内命中 memo、跳过同步、读回同一份陈旧本地行。**「能派发」不等于「有入口」**，这正是 owner 判定要拦住的偷渡。
 
 真正需要的是一个 core 新抽象：远端适配器可调用的失效上报口，语义上清 memo 并触发重跑，且不伪装成本地写。设计它需要先决定粒度（整实体 / 按 `where` 指纹 / 按 id 集合）与订阅侧的重跑策略——都是 core 的题，不是本包的。
 
-**AC#30（eviction）——执行面被本故事自己禁止。** 删本地行只能经 `localAdapter.deleteByIds`，core 的 [`QueryCacheRepository#evictOrphans`](../../../packages/rxdb/src/repository/QueryCacheRepository.ts) 独占该路径；本包按 AC#19 连碰都不能碰。而 core 现在只有**孤儿**驱逐（远端已删），没有任何按容量 / 访问时间驱逐的概念，也不记访问元数据。所以这条既不能给本包，也不能在没有设计的情况下丢给 core。
+**AC#30（eviction）——执行面被本故事自己禁止。** 删本地行只能经 `localAdapter.deleteByIds`，core 的 [`QueryCacheRepository#evictOrphans`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 独占该路径；本包按 AC#19 连碰都不能碰。而 core 现在只有**孤儿**驱逐（远端已删），没有任何按容量 / 访问时间驱逐的概念，也不记访问元数据。所以这条既不能给本包，也不能在没有设计的情况下丢给 core。
 
 **为什么不建故事文件。** [CONVENTIONS 的「价值待证」](../../CONVENTIONS.md)判据是**病灶数 ≥ 抽象数**：两条各要新增一个 core 抽象，而今天都拿不出用户踩得到的症状——没有 SSE 只是没有实时性（下一次 `find()` 照常回远端校验），没有 eviction 只是行缓存随查询范围累积，都不产生错误结果。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件即可，不计入任何统计。解锁条件见该表。
 

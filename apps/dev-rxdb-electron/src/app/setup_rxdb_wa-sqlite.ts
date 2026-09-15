@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
@@ -57,6 +58,7 @@ export default () => {
   // 搬到这条 OPFS 路径上只会多出一处需要同步、却没有任何东西去核对的配置。
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .adapter('wa-sqlite', async db => {
       let opfsWorker: Worker | undefined;

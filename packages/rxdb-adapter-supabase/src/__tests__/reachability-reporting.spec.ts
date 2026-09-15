@@ -2,7 +2,8 @@
  * @fileoverview W9：Supabase 适配器的可达性上报
  *
  * core 侧的上报是适配器无关的，但只覆盖 QueryCache 的写与重放
- * （`query-cache-primary.ts#tryRemote`、`query-cache-outbox.ts`）。Supabase 真正的主场
+ * （`@aiao/rxdb-plugin-querycache` 的 `query-cache-primary.ts#tryRemote`、
+ * `@aiao/rxdb-plugin-sync` 的 `query-cache-outbox.ts`）。Supabase 真正的主场
  * 是版本管理同步（它有 changelog，HTTP 适配器没有），而那条路径上一次上报都没有：
  * `VersionManager.syncBranches()` 断网时抛 `NetworkOfflineError`，没人接，
  * 于是 `reachability` 永远停在「在线」，面板显示一堆待推变更却说网是通的。

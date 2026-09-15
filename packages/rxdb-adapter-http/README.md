@@ -69,6 +69,10 @@ QueryCache 需要两个适配器，本包只占 **remote** 那一个：
 | `remote` | `@aiao/rxdb-adapter-http`        | `fetchMetadata` / `findByIds` + 可选的 `create`/`update`/`delete` |
 | `local`  | 任一 SQLite 适配器（**你注册**） | 行缓存：`getMetadataByIds` / `upsertMany` / `deleteByIds`         |
 
+读引擎本身是第三样东西，也要你装：`SyncType.QueryCache` 的读路径住在
+`@aiao/rxdb-plugin-querycache`，不在核心包里（US-025 阶段 B）。漏装时 `connect()`
+会以 `RxDBMissingPluginError` 拒绝，不会静默退化成本地查询。
+
 本包**不持有也不创建**任何本地存储——不 `new` SQLite、不打开 OPFS / IndexedDB。
 `inject: ['adapter:local']` 的插件（搜索、图查询等）因此绑到你注册的 SQLite，不会绑到本包。
 
@@ -76,6 +80,7 @@ QueryCache 需要两个适配器，本包只占 **remote** 那一个：
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 
 const rxdb = new RxDB({
   dbName: 'catalog',
@@ -86,6 +91,9 @@ const rxdb = new RxDB({
     remote: { adapter: 'http' }
   }
 });
+
+// 传的是插件工厂函数本身，不要调用它
+rxdb.use(rxDBPluginQueryCache);
 
 rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db));
 rxdb.adapter(

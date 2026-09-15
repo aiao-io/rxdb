@@ -6,17 +6,12 @@ import type { EntityStatus } from '../../entity/entity-status.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { createEntityProxy } from '../../entity/proxy.js';
 import type {
-  BulkSyncOptions,
-  BulkSyncResult,
-  DependencyGraph,
   EventListener,
   ITreeRepository,
   MergeQueryTaskOptions,
   EntityStatus as PublicEntityStatus,
   QueryManager,
-  RepositorySyncStatus,
-  RxDBConfig,
-  VersionManager
+  RxDBConfig
 } from '../../index.js';
 import type { Rule, RuleGroup } from '../../repository/query.interface.js';
 import type { RepositoryBase } from '../../repository/RepositoryBase.js';
@@ -206,7 +201,7 @@ describe('public type compatibility', () => {
   });
 
   it('exposes every type reachable from a public signature', () => {
-    // 这些类型都出现在用户拿得到的签名上（`RxDB.versionManager`、`Repository.queryManager`、
+    // 这些类型都出现在用户拿得到的签名上（`Repository.queryManager`、
     // `getEntityStatus()` 的返回值、`addEventListener` 的形参……），却没进 index.ts 的桶。
     // 后果是用户接得到值、写不出类型：想声明一个变量去存它就没有名字可用，
     // 只能退回 `any` 或者自己抄一份结构。补导出是**加法**，不动任何既有符号。
@@ -219,11 +214,10 @@ describe('public type compatibility', () => {
     expectTypeOf<MergeQueryTaskOptions>().not.toBeNever();
     expectTypeOf<QueryManager<typeof ProxiedEntity>>().not.toBeNever();
     expectTypeOf<PublicEntityStatus<typeof ProxiedEntity>>().not.toBeNever();
-    expectTypeOf<BulkSyncOptions>().not.toBeNever();
-    expectTypeOf<BulkSyncResult>().not.toBeNever();
-    expectTypeOf<RepositorySyncStatus>().not.toBeNever();
-    expectTypeOf<DependencyGraph>().not.toBeNever();
-    expectTypeOf<VersionManager>().not.toBeNever();
+    // `VersionManager` 一族（`BulkSyncOptions` / `BulkSyncResult` / `RepositorySyncStatus` /
+    // `DependencyGraph` / `VersionManager` 自身）随实现搬去了 `@aiao/rxdb-plugin-history`
+    // （US-025 阶段 C），同一条可具名性由那边的
+    // `__tests__/contracts/public-type-compatibility.spec.ts` 接着守。
 
     // `TreeRepository` 类**不补**：评审把它与 `VersionManager` 并列，但用户经
     // `ITreeRepository`（已在桶里）就能具名，拿不到类本身不构成缺口。

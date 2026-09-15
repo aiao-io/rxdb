@@ -20,6 +20,12 @@
        * `entityManager` / `versionManager`。本套件断言的是中继与档位，不是查询结果，
        * 因此这里只实现事件面，其余成员保持存在但不被调用——被调用了就应该炸，
        * 那说明档位闸门漏了一条命令，正是 AC#41 要抓的东西。
+       *
+       * `versionManager` 这个会炸的 getter **不能删**：自 US-025 阶段 C 起它在
+       * `DevToolsRxDB` 上是可选的（分支能力随 `@aiao/rxdb-plugin-history` 走），
+       * 摘掉它连接器就走「宿主没装插件」那条常态路——只打一行 console.error 就咽下去。
+       * 于是闸门漏命令这件事从「当场炸」退化成「悄悄没反应」，AC#41 的判据也就没了。
+       * 这里模拟的是**装了插件但命令不该走到这儿**，比缺席严格。
        */
       function createFixtureRxDB() {
         const listeners = new Map();

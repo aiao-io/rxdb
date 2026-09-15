@@ -49,6 +49,7 @@ const buildFakeRxdb = (migrationRecords: { name: string }[] = []) => {
     config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
     // 插件按 `inject: ['adapter:local']` 拿实例：不再自己 connect / 等 adapterConnected$
     localAdapterSync: adapter,
+    getPlugins: vi.fn(() => []),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   };

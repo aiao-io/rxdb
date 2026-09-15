@@ -4,7 +4,7 @@
  * 断言全部经 **`EntityManager`** 而不是直接调 `primary-adapter.ts` 的纯函数：
  * 病灶 1 的形态就是「判定函数是对的，生产入口没接上」，只测纯函数无法证伪（AC#10）。
  */
-import { Observable, of } from 'rxjs';
+import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
@@ -175,44 +175,6 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
     await expect(ctx.rxdb.entityManager.saveMany([todo, note])).rejects.toThrow(RxDBMixedPrimaryAdapterError);
   });
 
-  // D3：纯 QueryCache 批次不得走 adapter.mutations() 直写——那条路写的是 local changelog
-  it('D3 纯 QueryCache 批次走 remote-then-local，不碰 adapter.mutations', async () => {
-    const one = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'a', id: uuid() }));
-    const two = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'b', id: uuid() }));
-
-    await ctx.rxdb.entityManager.saveMany([one, two]);
-
-    expect(ctx.local.mutations).not.toHaveBeenCalled();
-    expect(ctx.remote.mutations).not.toHaveBeenCalled();
-    expect(ctx.remote.create).toHaveBeenCalledTimes(2);
-    expect(ctx.local.upsertMany).toHaveBeenCalledTimes(2);
-  });
-
-  // D3：已落本地的实体走 update 分桶，同样是 remote-then-local
-  it('D3 纯 QueryCache 批量更新走 remote-then-local', async () => {
-    const one = dirtyEntity(
-      ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'a', id: uuid() }, { local: true })
-    );
-
-    await ctx.rxdb.entityManager.saveMany([one]);
-
-    expect(ctx.local.mutations).not.toHaveBeenCalled();
-    expect(ctx.remote.update).toHaveBeenCalledTimes(1);
-    expect(ctx.local.upsertMany).toHaveBeenCalledTimes(1);
-  });
-
-  // D3：批量删除同样走 QueryCacheRepository.delete
-  it('D3 纯 QueryCache 批量删除走 remote-then-local', async () => {
-    // 只有 `local: true` 的实体才进 remove 分桶：没落过库的实体没有可删的东西
-    const one = ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'a', id: uuid() }, { local: true });
-
-    await ctx.rxdb.entityManager.removeMany([one]);
-
-    expect(ctx.local.mutations).not.toHaveBeenCalled();
-    expect(ctx.remote.delete).toHaveBeenCalledTimes(1);
-    expect(ctx.local.deleteByIds).toHaveBeenCalledTimes(1);
-  });
-
   // AC#3：纯 Full 批次照旧走 adapter.mutations（一次事务写 local changelog），新预检不得改道
   it('AC#3 纯 Full 批次仍走 local adapter.mutations', async () => {
     const one = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(VersionedTodo, { title: 'a', id: uuid() }));
@@ -260,14 +222,6 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
   // AC#8：一条违规则一条都不绑定，不提供半套树 + 缓存
   it('AC#8 违规时同批其他实体也不绑定', () => {
     expect(() => createDatabase('TreeQueryCacheMixed', [CachedProduct, CachedMenu])).toThrow(/QueryCache/);
-  });
-
-  // AC#6：远端写失败照常上抛，不被预检吞掉
-  it('AC#6 预检通过后的远端失败原样上抛', async () => {
-    ctx.remote.create.mockReturnValueOnce(new Observable(subscriber => subscriber.error(new Error('remote down'))));
-    const one = dirtyEntity(ctx.rxdb.entityManager.createEntityRef(CachedProduct, { title: 'a', id: uuid() }));
-
-    await expect(ctx.rxdb.entityManager.saveMany([one])).rejects.toThrow('remote down');
   });
 });
 

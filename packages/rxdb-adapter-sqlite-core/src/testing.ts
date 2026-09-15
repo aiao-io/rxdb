@@ -10,6 +10,12 @@ export interface AdapterCleanupTarget {
 /**
  * 适配器工厂契约：屏蔽不同后端（wa-sqlite / sqliteai / ...）的构造差异，
  * 让共享测试套件用同一份代码跑通所有后端。
+ *
+ * @remarks
+ * `createAdapter()` 交出的实例**必须已装 `@aiao/rxdb-plugin-history`**：
+ * `undoRedoSuite` / `versionBranchSuite` / `systemSchemaMigrationSuite` 直接读
+ * `adapter.rxdb.versionManager`，而 `cleanup_db()` 每条用例后都要重置它的会话态。
+ * 历史 / 撤销重做 / 分支自 US-025 阶段 C 起不在核心里，工厂不 `use()` 就是没有。
  */
 export interface AdapterFactory {
   readonly name: string;

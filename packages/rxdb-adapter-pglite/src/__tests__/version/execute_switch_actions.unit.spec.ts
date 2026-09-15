@@ -43,6 +43,7 @@ import {
   type RxDBEntityId
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
+import { of } from 'rxjs';
 import { dispatch_switch_events, execute_switch_actions } from '../../version/execute_switch_actions.js';
 import type { SwitchVersionSqlResult } from '../../version/switch-result.interface.js';
 
@@ -98,8 +99,14 @@ describe('execute_switch_actions unit edges', () => {
     vi.clearAllMocks();
   });
 
+  /** `getCurrentBranch()` 热路径要的那一条：查 `activated = true` 即答 `main`。 */
+  const makeBranchRepository = () => ({
+    find: vi.fn(async () => [{ id: 'main', activated: true }])
+  });
+
   const makeAdapter = () => {
     const dispatchEvent = vi.fn();
+    const branchRepository = makeBranchRepository();
     const adapter = {
       transaction: vi.fn(async (fn: () => Promise<void>) => {
         await fn();
@@ -118,9 +125,10 @@ describe('execute_switch_actions unit edges', () => {
         fields: []
       })),
       rxdb: {
-        versionManager: {
-          getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
-        },
+        // 当前分支自 US-025 阶段 C 起由核心的 `getCurrentBranch(rxdb)` 解析，
+        // 它经 `localAdapter$` 取分支仓库再查 `activated = true`；
+        // 从前挂在 `versionManager.getCurrentBranch()` 上的替身已经拦不住这条路。
+        localAdapter$: of({ getRepository: () => branchRepository }),
         dispatchEvent
       },
       encryptionContext: undefined
@@ -140,7 +148,8 @@ describe('execute_switch_actions unit edges', () => {
     expect(adapter.runInTransaction).toHaveBeenCalledTimes(1);
     expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter);
     expect(adapter.query).toHaveBeenCalledWith('DROP TRIGGER...');
-    expect(adapter.rxdb.versionManager.getCurrentBranch).toHaveBeenCalled();
+    // 下面这条同时证明「分支读过了」与「读出来的是 main」——从前那条
+    // `versionManager.getCurrentBranch` 的调用断言严格弱于它，随替身一起撤掉。
     expect(generateSwitchBranchSqlMock).toHaveBeenCalledWith(adapter, 'main');
     expect(adapter.query).toHaveBeenCalledWith('CREATE TRIGGER...');
   });

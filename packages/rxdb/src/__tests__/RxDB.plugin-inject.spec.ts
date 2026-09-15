@@ -18,6 +18,7 @@ import { SyncType } from '../entity/metadata-options.interface.js';
 import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import type { IRxDBPlugin } from '../rxdb-plugin.js';
 import { RxDB } from '../RxDB.js';
+import { RxDBPluginAmbiguousDependencyError, RxDBPluginDependencyCycleError } from '../RxDBError.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 /** `createTables` 声明在本地适配器基类上，`IRxDBAdapter` 不含它；假适配器两边都实现了。 */
@@ -464,5 +465,216 @@ describe('localAdapterSync', () => {
     await database.disconnectAll();
 
     expect(() => database.localAdapterSync).toThrow('is not connected');
+  });
+});
+
+/**
+ * 同名不同类的两个插件：歧义错误按 `constructor.name` 列候选，对象字面量全都叫 `Object`，
+ * 区分不出来，所以这两条用例必须用具名类构造。
+ */
+class SearchAlpha implements IRxDBPlugin {
+  public readonly name = 'search';
+  public readonly lifecycle = 'scoped' as const;
+  public install(): void {
+    // 这两个类只当歧义候选用，不需要安装体
+  }
+}
+
+class SearchBeta implements IRxDBPlugin {
+  public readonly name = 'search';
+  public readonly lifecycle = 'scoped' as const;
+  public install(): void {
+    // 这两个类只当歧义候选用，不需要安装体
+  }
+}
+
+/** 往共享 `log` 里记安装与释放序的插件，用来断言拓扑序。 */
+function ordered(name: Uncapitalize<string>, inject: IRxDBPlugin['inject'], log: string[]): IRxDBPlugin {
+  return {
+    name,
+    inject,
+    lifecycle: 'scoped',
+    install: scope => {
+      log.push(`install:${name}`);
+      scope.acquire(() => () => void log.push(`release:${name}`), `${name}:entry`);
+    }
+  };
+}
+
+describe('AC#13 插件依赖插件：拓扑装、逆拓扑卸', () => {
+  it('提供方先装依赖方后装，拆卸时反过来 —— 与 use() 的登记序无关', async () => {
+    const { database } = createDatabase();
+    const log: string[] = [];
+    // 消费方**先**登记：装载序由依赖图决定，不是 US-014 的插入序
+    database.use(() => ordered('consumer', ['plugin:search'], log));
+    database.use(() => ordered('search', ['adapter:local'], log));
+
+    await database.connect('sqlite');
+
+    expect(log).toEqual(['install:search', 'install:consumer']);
+
+    await database.disconnectAll();
+
+    // INV-7：consumer 的撤销条目多半还在用 search 建起来的东西，search 先撤会让它们跑在废墟上
+    expect(log).toEqual(['install:search', 'install:consumer', 'release:consumer', 'release:search']);
+  });
+
+  it('提供方安装挂起期间，依赖方一步都不走 —— 就绪判据是 active，不是「已登记」', async () => {
+    const { database } = createDatabase();
+    const log: string[] = [];
+    let finishSearch: (() => void) | undefined;
+    database.use((): IRxDBPlugin => ({
+      name: 'search',
+      inject: ['adapter:local'],
+      lifecycle: 'scoped',
+      install: () => {
+        log.push('install:search');
+        return new Promise<void>(resolve => {
+          finishSearch = resolve;
+        });
+      }
+    }));
+    const consumer = probe('consumer', ['plugin:search']);
+    database.use(() => consumer);
+
+    const connecting = database.connect('sqlite');
+    await vi.waitFor(() => expect(finishSearch).toBeTypeOf('function'));
+
+    // search 的 install() 还没 resolve：D3 说这一刻它还不算就绪
+    expect(consumer.scopes).toHaveLength(0);
+
+    finishSearch?.();
+    await connecting;
+
+    expect(consumer.scopes).toHaveLength(1);
+    expect(log).toEqual(['install:search']);
+  });
+
+  it('三级链 a → b → c 的释放序是 a、b、c', async () => {
+    const { database } = createDatabase();
+    const log: string[] = [];
+    database.use(() => ordered('c', ['adapter:local'], log));
+    database.use(() => ordered('b', ['plugin:c'], log));
+    database.use(() => ordered('a', ['plugin:b'], log));
+
+    await database.connect('sqlite');
+    expect(log).toEqual(['install:c', 'install:b', 'install:a']);
+
+    await database.disconnectAll();
+
+    expect(log.slice(3)).toEqual(['release:a', 'release:b', 'release:c']);
+  });
+});
+
+describe('AC#14 重名与歧义', () => {
+  it('重名本身只 warn 一次：没人 inject 这个名字就不是错', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+
+    database.use(() => new SearchAlpha());
+    database.use(() => new SearchBeta());
+
+    const duplicates = warn.mock.calls.filter(([message]) => String(message).includes("plugin name 'search'"));
+    expect(duplicates).toHaveLength(1);
+  });
+
+  it('重名被 inject 时 use() 当场抛，并列出全部候选', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    database.use(() => new SearchAlpha());
+    database.use(() => new SearchBeta());
+
+    const consumer = probe('consumer', ['plugin:search']);
+
+    expect(() => database.use(() => consumer)).toThrow(RxDBPluginAmbiguousDependencyError);
+    // 两个候选都要点名，否则使用者只能靠猜去找是哪两个包重了名
+    expect(() => database.use(() => consumer)).toThrow(/SearchAlpha.*SearchBeta/);
+  });
+
+  it('第二个同名插件在**已有人 inject** 时也被拒，且不进索引', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    database.use(() => new SearchAlpha());
+    database.use(() => probe('consumer', ['plugin:search']));
+
+    const beta = new SearchBeta();
+    expect(() => database.use(() => beta)).toThrow(RxDBPluginAmbiguousDependencyError);
+
+    // 被拒的注册不留痕：否则一次失败的 use() 会让后面每一趟解析都撞上同一个歧义，
+    // 而调用方手里并没有摘除插件的入口
+    expect(database.getPlugins('search')).toEqual([expect.any(SearchAlpha)]);
+  });
+});
+
+describe('AC#15 依赖的插件名不存在', () => {
+  it('停在等待态、connect() 照常 resolve、点名一次', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    const orphan = probe('orphan', ['plugin:nonexistent']);
+    const free = probe('free', ['adapter:local']);
+    database.use(() => orphan);
+    database.use(() => free);
+
+    // 不设超时也不该挂起：未满足的插件从不进入安装等待集合（INV-4）
+    await database.connect('sqlite');
+
+    expect(orphan.scopes).toHaveLength(0);
+    expect(free.scopes).toHaveLength(1);
+    const warnings = warn.mock.calls.filter(([message]) => String(message).includes("Plugin 'orphan'"));
+    expect(warnings).toHaveLength(1);
+    expect(String(warnings[0][0])).toContain('plugin:nonexistent');
+  });
+});
+
+describe('AC#16 环检测', () => {
+  it('互相 inject 的两个插件在 use() 就被拒，并原样打出环路径', () => {
+    const { database } = createDatabase();
+    const a = probe('a', ['plugin:b']);
+    const b = probe('b', ['plugin:a']);
+
+    // 先登记的那个此刻还不成环（plugin:b 只是「不存在」），合法
+    database.use(() => a);
+
+    expect(() => database.use(() => b)).toThrow(RxDBPluginDependencyCycleError);
+    expect(() => database.use(() => b)).toThrow(/a → b → a/);
+  });
+
+  it('被拒之后没有任何插件进入半装状态', async () => {
+    const { database } = createDatabase();
+    const a = probe('a', ['plugin:b']);
+    const b = probe('b', ['plugin:a']);
+    database.use(() => a);
+    expect(() => database.use(() => b)).toThrow(RxDBPluginDependencyCycleError);
+
+    // 成环的那个没进 #plugin_map，剩下的 a 只是依赖缺失，照常停在等待态
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await database.connect('sqlite');
+
+    expect(a.scopes).toHaveLength(0);
+    expect(b.scopes).toHaveLength(0);
+  });
+});
+
+describe('AC#17 getPlugins', () => {
+  it('按 use() 顺序返回同名候选全集，没有就返回空数组', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    const alpha = new SearchAlpha();
+    const beta = new SearchBeta();
+    database.use(() => alpha);
+    database.use(() => beta);
+
+    expect(database.getPlugins('search')).toEqual([alpha, beta]);
+    expect(database.getPlugins('absent')).toEqual([]);
+  });
+
+  it('返回的是快照：往里推东西不会污染宿主索引', () => {
+    const { database } = createDatabase();
+    const alpha = new SearchAlpha();
+    database.use(() => alpha);
+
+    (database.getPlugins('search') as IRxDBPlugin[]).push(new SearchBeta());
+
+    expect(database.getPlugins('search')).toEqual([alpha]);
   });
 });

@@ -1,3 +1,11 @@
+// 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
+// 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
+// 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
+//
+// 写成 `import type {}` 而不是裸的副作用导入：本文件会被 `testing.ts` 的
+// `import.meta.glob` 连同各 suite 一起打进 `dist/testing.js`，裸导入就成了该入口
+// 的**运行时**依赖。这里要的只有类型声明，`import type` 在 emit 时整句擦除。
+import type {} from '@aiao/rxdb-plugin-history';
 import { expectObservableSequence } from '@aiao/rxdb-test';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
@@ -73,6 +81,8 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
     await tx.execute(sql);
   }, false);
 
+  // 会话态归 `@aiao/rxdb-plugin-history` 管。这里不做存在性判断：`AdapterFactory` 的契约
+  // 要求交出的实例已装该插件，没装就该在这一行炸掉，而不是把一批脏会话态悄悄带进下一条用例。
   adapter.rxdb.versionManager.resetSessionState();
   await Promise.resolve();
   await adapter.query('SELECT 1;');

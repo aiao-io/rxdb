@@ -26,6 +26,8 @@ owner: jimmy
 - [x] HTTP 协议文档的可执行验收：参考后端 + 真实 fetch 证明 `http-protocol.md` 可互通
 - [x] HTTP 协议的浏览器端到端 demo：Angular + 真 sqlite 后端 + 跨源，补齐 CORS 与 `RuleGroup → SQL` 两处空白
 - [x] QueryCache 的远端变更实时同步：core 失效上报口 + HTTP 可选变更通知通道，让别的客户端的写自己走到屏幕上
+- [ ] 本地数据库一致性备份与恢复：保留数据库完整状态，按 adapter 能力分阶段支持
+- [ ] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
 
 ## 故事
 
@@ -49,7 +51,10 @@ owner: jimmy
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
 - [US-023 QueryCache 远端变更的失效上报口与实时同步](../stories/core/US-023-querycache-remote-invalidation.md) — 出自 US-214：别的客户端改了数据，本客户端永不更新；三阶段（core 失效上报口 → HTTP 可选 SSE 通道 → demo 双页面收敛），**承接 US-212 AC#29**，失效粒度=整实体、通知不带行数据
 - [US-024 PGlite 侧 QueryCache 远端行的列契约](../stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边：`upsert_many_sql.ts` 落地前执行同一份列契约，缺列整批拒绝；判定函数首选抽到 `@aiao/rxdb`，不让 pglite 依赖 sqlite-core
-- [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变（US-213 套件 + e2e 17 条是验收主体）；单类收敛依赖另立的 core sync 覆盖故事
+- [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
+- [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
+- [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
+- [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析。**Epic 归属存疑**：属核心重构而非用户可见能力，承诺交付前宜另开 Epic
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 归本 Epic

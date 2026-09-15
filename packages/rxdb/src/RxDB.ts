@@ -2,9 +2,20 @@ import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
+import { SyncType } from './entity/metadata-options.interface.js';
+import { getEntitySync } from './entity/primary-adapter.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
+import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
+import {
+  missingQueryCacheEngineError,
+  type QueryCacheEngineFactory
+} from './repository/query-cache-engine.interface.js';
+import {
+  missingQueryCacheOutboxError,
+  type QueryCacheOutboxProvider
+} from './repository/query-cache-outbox.interface.js';
 import {
   AdapterFactory,
   IRxDBAdapter,
@@ -23,7 +34,7 @@ import {
   TRANSACTION_ROLLBACK
 } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
-import { uuid } from './rxdb-utils.js';
+import { getEntityMetadata, uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
   awaitPluginInstalls,
@@ -56,7 +67,6 @@ import { createMigrationWatermarks, runMigrations } from './system/migration-run
 import { RxDBMigration } from './system/migration.js';
 import { RxDBSync } from './system/sync.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
-import { VersionManager } from './version/VersionManager.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
 /**
@@ -90,14 +100,44 @@ export class RxDB {
    * @remarks
    * 与 `#shutting_down` 是两回事。停机窗口是可逆的——`#shutdown()` 把实例复位成
    * 「可重新 `init()`」，重连拿到的是一个新纪元。而 `destroy()` 释放的是**跟随实例**的
-   * 那部分资源（{@link RxDB.reachability} 挂在 `globalThis` 上的监听、
+   * 那部分资源（{@link RxDB.reachability} 的退避定时器与状态流、
    * {@link RxDB.syncState} 的上游订阅），它们没有第二次装配的入口，复位就等于交出空壳。
    */
   #destroyed = false;
 
   #repository_config_map = new Map<string, IRepositoryConfig>();
 
+  /**
+   * QueryCache 读引擎工厂 —— 由 `@aiao/rxdb-plugin-querycache` 经 {@link RxDB.queryCacheEngine} 填入。
+   *
+   * @remarks
+   * 与 {@link RxDB.#repository_config_map} 同为插件注册槽，但**不做成表**：策略轴的
+   * `SyncType` 是闭合联合（US-025 Out of Scope），这个槽的成员恒为 QueryCache 一个。
+   * 做成表只会凭空造出一个没人能往里加第二项的注册表。
+   */
+  #query_cache_engine: QueryCacheEngineFactory | undefined;
+
+  /**
+   * 查询出站队列提供者 —— 由 `@aiao/rxdb-plugin-sync` 经 {@link RxDB.queryCacheOutbox} 填入。
+   *
+   * @remarks
+   * 与 {@link RxDB.#query_cache_engine} 是同一条策略轴上的两半，不合并成一个槽：
+   * 读引擎与出站队列分属两个包，装了一个不蕴含装了另一个（只推不读、只读不写的
+   * 配置都是合法的应用形态），合并成一槽会逼着两个插件互相依赖。
+   */
+  #query_cache_outbox: QueryCacheOutboxProvider | undefined;
+
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
+
+  /**
+   * 插件名 → 同名候选（按 {@link RxDB.use} 顺序），`plugin:*` 依赖的唯一解析来源。
+   *
+   * @remarks
+   * 存**数组**而不是单值：重名本身不是错（D4），只有该名字真被 `plugin:*` 注入时才无从裁决，
+   * 那一刻要把全部候选列进错误里，使用者才知道是哪两个包撞了名。
+   * 名字索引整个留在宿主侧 —— 调度器按实例引用记账（INV-3），它不需要认识任何名字。
+   */
+  #plugin_by_name = new Map<string, IRxDBPlugin[]>();
 
   /**
    * 插件激活状态与安装 Promise 的唯一持有者。
@@ -213,7 +253,7 @@ export class RxDB {
    * 全局拆卸的时机必须按「已连接」判定，不能用 `#adapter_map.size`：后者统计的是「已实例化」，
    * 而 `localAdapter$` / `remoteAdapter$` 的订阅会经 {@link RxDB.getAdapter} 把从未 `connect()`
    * 的适配器也塞进去。用 map 大小判断时，唯一连接的适配器断开会被误判成「还有别的适配器在」，
-   * 插件、gateway 与 versionManager 就永远拆不掉。
+   * 插件与 gateway 就永远拆不掉。
    *
    * 只能经 {@link RxDB.#set_adapter_connected} 增删 —— 它负责同步推送
    * {@link RxDB.#adapter_connected_sub}，直接改这个 Set 会让订阅者读到陈旧值。
@@ -328,8 +368,6 @@ export class RxDB {
 
   public readonly entityManager!: EntityManager;
 
-  public readonly versionManager!: VersionManager;
-
   /**
    * 同步状态汇聚面：网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负。
    *
@@ -412,14 +450,10 @@ export class RxDB {
     };
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
-    this.versionManager = new VersionManager(this);
-    this.syncState = new SyncStateHub({
-      online$: this.reachability.online$,
-      // 每次连接纪元交替都重新解析这个 getter。`#shutdown()` 里的 versionManager.destroy()
-      // 连 historyManager 一起销毁，下一次 init() 建的是**另一个** BehaviorSubject ——
-      // 只在构造时读一次的话，重连之后面板会永远停在断连那一刻的数字。
-      pushableCount$: this.connected$.pipe(switchMap(() => this.versionManager.pushableCount$))
-    });
+    // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经
+    // `syncState.bindPushableCount()` 接上（US-025 阶段 C）：那条流的主人随连接纪元来去，
+    // 而本汇聚器跟随实例，构造期没有也不该有它。
+    this.syncState = new SyncStateHub({ online$: this.reachability.online$ });
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();
@@ -475,7 +509,6 @@ export class RxDB {
     try {
       this.schemaManager.init();
       this.entityManager.init();
-      this.versionManager.init();
       if (this.#config.multiInstance !== false) this.#init_gateway();
       this.#init_event();
     } catch (error) {
@@ -490,17 +523,13 @@ export class RxDB {
       // 与上一行同步成对：作用域没了而调度记录还停在 active，重新 init() 时调度器会认为
       // 「依赖纪元没变、插件还装着」而一个都不重装，拿到的是个从没重新登记过的空壳。
       this.#reset_plugin_scheduling();
-      // 三个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它们不在连接作用域里，
-      // 漏掉就没有第二个人会拆。抛错点在各自 init() 之后时具体泄漏什么：
-      // - `versionManager`：4 个事件监听器 + RxJS subscription 留在原地，重试叠第二份
-      //   （`init()` 没有幂等守卫，`#historyManagerDestroyed` 只挡二次 `destroy()`）；
-      // - `#gateway`：构造期就 `createBroadcastTopic()` + `new LeaderElection()`，通道早于
-      //   `init()` 打开；且 `#destroyed` 是终态，重试只能 new 第二个写进 `#gateway`，
-      //   旧实例从此无人引用也无人 `destroy()`——每失败一次泄漏一条 channel 加一套选举。
-      // 三步都是同步的，`init()` 作为同步 API 不需要 await。
-      this.versionManager.destroy();
-      this.#gateway?.destroy();
-      this.#gateway = undefined;
+      // 这个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它不在连接作用域里，
+      // 漏掉就没有第二个人会拆。
+      //
+      // 网关与 `versionManager`（现由 `@aiao/rxdb-plugin-history` 提供）**都不在这里点名**：
+      // 前者已登记进上面刚释放的连接作用域，且作为最晚登记的一条由 `dispose()` 在第一个
+      // await 让路之前同步拆掉——正是 `init()` 这条同步路径需要的时序；后者随插件作用域
+      // 一并释放，上面 `#release_connection_scope()` 已经覆盖。
       // Repository 身份缓存与实体类绑定：未 init 完就抛时是空操作，init 完之后抛才有东西可清。
       this.entityManager.destroy();
       throw error;
@@ -542,6 +571,71 @@ export class RxDB {
   }
 
   /**
+   * 注册 QueryCache 读引擎工厂
+   *
+   * @param factory - 引擎工厂，见 {@link QueryCacheEngineFactory}
+   * @param scope - 传入时，本次注册会随作用域释放而撤销；不传则永久有效
+   *
+   * @remarks
+   * 形状逐条对齐 {@link RxDB.repository}：撤销按**工厂对象身份**守卫（释放时槽里已换成
+   * 别人的工厂，说明有更晚的注册覆盖了本次，此时什么都不做），且**写槽这一步本身**放在
+   * `acquire()` 的 `setup` 里 —— 作用域已不是 `active` 时 `acquire()` 同步抛且不执行
+   * `setup`，注册于是也不发生，不会留下一条没人能撤销的孤儿登记。
+   *
+   * 与门面轴的 `repository()` 的区别只在被登记的东西：那一条决定 `getRepository(E)` 的
+   * 公开面，这一条只填 `SyncType.QueryCache` 的读实现，不改任何公开面。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+   *
+   * rxdb.use(rxDBPluginQueryCache);
+   * ```
+   */
+  public queryCacheEngine(factory: QueryCacheEngineFactory, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#query_cache_engine = factory;
+      return this;
+    }
+    scope.acquire(() => {
+      this.#query_cache_engine = factory;
+      return () => this.#unregister_query_cache_engine(factory);
+    }, 'rxdb:query-cache-engine');
+    return this;
+  }
+
+  /**
+   * 注册查询出站队列提供者
+   *
+   * @param provider - 出站队列提供者，见 {@link QueryCacheOutboxProvider}
+   * @param scope - 传入时，本次注册会随作用域释放而撤销；不传则永久有效
+   *
+   * @remarks
+   * 形状与 {@link RxDB.queryCacheEngine} 逐条相同（身份守卫撤销、写槽放在 `setup` 里）。
+   *
+   * 分成两个注册口而不是让 sync 插件把两样东西一起交上来：出站队列随 sync 插件走，
+   * 读引擎随 querycache 插件走，两个包各自登记各自的那一半，谁都不必认识对方。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+   *
+   * rxdb.use(rxDBPluginSync);
+   * ```
+   */
+  public queryCacheOutbox(provider: QueryCacheOutboxProvider, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#query_cache_outbox = provider;
+      return this;
+    }
+    scope.acquire(() => {
+      this.#query_cache_outbox = provider;
+      return () => this.#unregister_query_cache_outbox(provider);
+    }, 'rxdb:query-cache-outbox');
+    return this;
+  }
+
+  /**
    * 注册 adapter
    * @param adapterName - 适配器名称
    * @param adapter - 适配器工厂函数
@@ -562,25 +656,53 @@ export class RxDB {
    * 安装推迟到下一次 `init()`——本纪元正在退场，往里装的东西没有对称的拆卸入口。
    * 见 {@link RxDB.#shutting_down}。
    *
-   * 同步 `install()` 失败只 `console.error`，`use()` / `init()` 本身不抛。
-   * 异步或同步失败都会记入安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的
-   * 重复 `connect()`**：命中缓存那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件
-   * 失败就永远出不来（`use()` 同步返回 `this`，自己没有报错的出口）。
+   * **安装**失败不从这里出去：同步 `install()` 失败只 `console.error`，异步或同步失败都会记入
+   * 安装 Promise，由后续 `connect()` 传播 —— 包括**同一个适配器的重复 `connect()`**：命中缓存
+   * 那一路也会补跑一趟安装等待，否则连上之后 `use()` 的插件失败就永远出不来（`use()` 同步返回
+   * `this`，自己没有报错的出口）。
+   *
+   * **规划期**错误则相反，同步从这里抛：依赖成环（{@link RxDBPluginDependencyCycleError}）与
+   * 依赖歧义（{@link RxDBPluginAmbiguousDependencyError}）都在写进注册表**之前**判，抛出时本次
+   * 注册整个不发生。两者都是声明本身不自洽，等到 `connect()` 再报已经晚了 —— 而且调用方手里
+   * 并没有摘除插件的入口，让它落进注册表就等于永久毒化后面每一次 `init()`。
    *
    * @param plugin - 插件构造函数
    * @param options - 插件选项
    * @returns 返回 RxDB 实例，支持链式调用
+   * @throws {@link RxDBPluginDependencyCycleError} 加入本插件后依赖图成环
+   * @throws {@link RxDBPluginAmbiguousDependencyError} 某个被注入的插件名有多个候选
    */
   public use<Options = never>(plugin: Plugin<Options>, options?: Options) {
     if (this.#plugin_map.has(plugin)) {
       console.warn('plugin already installed');
-    } else {
-      const plugin_instance = plugin(this, options);
-      this.#plugin_map.set(plugin, plugin_instance);
-      // 装不装由 #install_one_plugin 自己判：本纪元已经退场时它是空操作。
-      this.#install_one_plugin(plugin_instance);
+      return this;
     }
+    const plugin_instance = plugin(this, options);
+    // 先校验后提交：校验用的是「现有注册表 + 本实例」，不通过就当这次 use() 没发生过
+    this.#assert_plugin_graph(plugin_instance);
+    this.#plugin_map.set(plugin, plugin_instance);
+    this.#index_plugin_name(plugin_instance);
+    // 装不装由 #install_one_plugin 自己判：本纪元已经退场时它是空操作。
+    this.#install_one_plugin(plugin_instance);
     return this;
+  }
+
+  /**
+   * 按名字取已注册的插件实例。
+   *
+   * @param name - 插件的 {@link IRxDBPlugin.name}
+   * @returns 同名候选全集的快照，按 {@link RxDB.use} 顺序；没有则为空数组
+   *
+   * @remarks
+   * 返回**数组**而不是单个实例：重名允许存在（D4），调用方要自己决定拿哪一个。插件工厂用它
+   * 做「我是不是已经装过了」的自检，比在数据库实例上挂自有属性再 `hasOwnProperty` 探测可靠 ——
+   * 那种门面属性是给使用者的，不是给探测用的，重命名门面就会把自检探空。
+   *
+   * 每次返回新数组：调用方往里推东西不会写回宿主索引。
+   */
+  public getPlugins(name: string): readonly IRxDBPlugin[] {
+    const candidates = this.#plugin_by_name.get(name);
+    return candidates === undefined ? [] : [...candidates];
   }
 
   /**
@@ -624,6 +746,32 @@ export class RxDB {
    */
   getRepositoryConfig(repositoryName: string): IRepositoryConfig | undefined {
     return this.#repository_config_map.get(repositoryName);
+  }
+
+  /**
+   * 取已注册的 QueryCache 读引擎工厂
+   *
+   * @returns 装了插件时是工厂本身，否则 `undefined`
+   *
+   * @remarks
+   * `undefined` 是有意暴露出来的：调用方要自己抛 {@link RxDBMissingPluginError}，
+   * 而不是在这里代抛 —— `connect()` 的启动护栏要点名**具体哪个实体**，这一层不知道。
+   */
+  getQueryCacheEngine(): QueryCacheEngineFactory | undefined {
+    return this.#query_cache_engine;
+  }
+
+  /**
+   * 取已注册的查询出站队列提供者
+   *
+   * @returns 装了插件时是提供者本身，否则 `undefined`
+   *
+   * @remarks
+   * 与 {@link RxDB.getQueryCacheEngine} 同理，`undefined` 交给调用方去抛
+   * {@link RxDBMissingPluginError} —— 点名哪个实体这一层不知道。
+   */
+  getQueryCacheOutbox(): QueryCacheOutboxProvider | undefined {
+    return this.#query_cache_outbox;
   }
 
   /**
@@ -728,6 +876,10 @@ export class RxDB {
       bootstrapDone();
       try {
         await this.#await_plugin_installs();
+        // 与上一行同一个 try：护栏抛出时，下面那段回滚（摘出已连接集合 + 让调度器释放
+        // 依赖它的插件）与插件安装失败走的是同一条路——连接已经建起来了，不能留着。
+        this.#assert_query_cache_engine();
+        this.#assert_query_cache_outbox();
       } catch (error) {
         // 本适配器的引导没有走完，不能留在已连接集合里。聚合信号只在真的一个都不剩时才落下，
         // 否则别的连着的适配器会被一起误报成断开。
@@ -850,9 +1002,10 @@ export class RxDB {
    * 走 `#shutdown()`，把实例复位成「可重新 `init()`」；而 {@link RxDB.reachability} 与
    * {@link RxDB.syncState} 按设计**不跟随连接纪元**——网络不会因为某个适配器断开而重置，
    * 面板也要在断连期间继续显示「离线、待推 N 条」。于是它们只能在这里释放：
-   * `reachability` 在字段初始化时就往 `globalThis` 挂了一对 `online` / `offline`，
-   * 没有终态出口的话，每个 `new RxDB()` 都往全局上净增一对，多实例 / HMR / 测试
-   * 按实例数线性累积。
+   * `reachability` 自己攥着退避定时器和两条长活的 subject；宿主上那对
+   * `online` / `offline` 监听自 US-025 D2 起改成按需挂（`watch()` 引用计数，
+   * 目前唯一的持有者是 `@aiao/rxdb-plugin-sync` 的作用域）。没有终态出口的话，
+   * 一个退避中的实例会把定时器连同自己一起吊住，多实例 / HMR / 测试按实例数线性累积。
    *
    * 幂等；不必先调 `disconnectAll()`，它自己会断干净。销毁后 `init()` 抛错、
    * `connect()` reject（见 {@link RxDB.init}），实例不可复用。
@@ -1007,6 +1160,49 @@ export class RxDB {
   }
 
   /**
+   * 规划期总闸：把候选实例并进现有注册表做一次依赖图校验。
+   *
+   * @param candidate - 本次 `use()` 新建的实例，尚未提交
+   * @throws {@link RxDBPluginDependencyCycleError} / {@link RxDBPluginAmbiguousDependencyError}
+   *
+   * @remarks
+   * 校验在**提交之前**，所以两类错误都不会留下半个注册。`use()` 是插件进入本实例的唯一入口，
+   * 因此这一道闸走完，`reconcile()` 看到的图就恒为无环且每个被注入的名字都唯一 —— 调度器和
+   * {@link RxDB.#resolve_dependency} 不必各自再防一遍。
+   */
+  #assert_plugin_graph(candidate: IRxDBPlugin): void {
+    const index = new Map<string, readonly IRxDBPlugin[]>(this.#plugin_by_name);
+    const existing = index.get(candidate.name);
+    index.set(candidate.name, existing === undefined ? [candidate] : [...existing, candidate]);
+    assertPluginDependencyGraph([...this.#plugin_map.values(), candidate], index);
+  }
+
+  /**
+   * 把实例按名字推进 {@link RxDB.#plugin_by_name}，重名时警告一次。
+   *
+   * @param instance - 已通过规划期校验的实例
+   *
+   * @remarks
+   * 警告挂在注册这一刻而不是每趟 reconcile：重名是注册态的性质，一次注册喊一次就够，
+   * 跟着扫描次数增长只会把日志淹掉（D4 / INV-5 的同一条口径）。
+   */
+  #index_plugin_name(instance: IRxDBPlugin): void {
+    const candidates = this.#plugin_by_name.get(instance.name);
+    if (candidates === undefined) {
+      this.#plugin_by_name.set(instance.name, [instance]);
+      return;
+    }
+    // 同一个实例经两个工厂引用登记（工厂自检命中后原样返回既有实例）算一个提供方，
+    // 不是两个候选：按引用去重，否则它会把自己变成一次假歧义。
+    if (candidates.includes(instance)) return;
+    candidates.push(instance);
+    console.warn(
+      `[RxDB] Duplicate plugin name '${instance.name}': ${candidates.length} plugins are registered under it. ` +
+        `Injecting 'plugin:${instance.name}' will fail until one of them is renamed.`
+    );
+  }
+
+  /**
    * 依赖键 → 当前实例引用（{@link PluginSchedulerHost.resolveDependency}）。
    *
    * @param dependency - 依赖键
@@ -1016,12 +1212,16 @@ export class RxDB {
    * 「就绪」= 引导链（迁移、建表、索引 reconcile）已经跑完，因为 {@link RxDB.#connected_adapter_instances}
    * 的唯一写入点就在引导之后。返回的是实例本身而不是名字：纪元按引用判定（US-015 INV-3）。
    *
-   * `plugin:*` 阶段 A 恒为未就绪 —— 声明它的插件会停在等待态并触发一次告警，而不是静默消失。
+   * `plugin:x` 的就绪判据是**提供方已进入 `active`**（D3），不是「有人以这个名字注册过」：
+   * 依赖方要用的是 `install()` 建起来的东西，注册只说明实例存在。名字解析不出候选时返回
+   * `undefined` —— 声明它的插件停在等待态并被点名一次，而不是静默消失（AC#15 / INV-5）。
    */
   #resolve_dependency(dependency: RxDBPluginDependency): object | undefined {
     if (dependency === 'adapter:local') return this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
     if (dependency === 'adapter:remote') return this.#resolve_adapter_instance(this.#config.sync.remote?.adapter);
-    return undefined;
+    const provider = resolveUniqueProvider(this.#plugin_by_name, dependency);
+    if (provider === undefined) return undefined;
+    return this.#scheduler.activationState(provider) === 'active' ? provider : undefined;
   }
 
   /** 按配置里声明的适配器名查已连接实例；未配置或未连接都返回 `undefined`。 */
@@ -1031,7 +1231,7 @@ export class RxDB {
   }
 
   /**
-   * 全局拆卸：销毁插件、网关与 versionManager，并把实例复位到「可重新 init」的状态。
+   * 全局拆卸：销毁插件与网关，并把实例复位到「可重新 init」的状态。
    * 仅在所有适配器都已断开时调用。
    *
    * @remarks
@@ -1051,10 +1251,10 @@ export class RxDB {
     await this.#destroy_plugin();
     // 总闸：#destroy_plugin 漏掉的（安装失败后残留的子作用域等）在这里一并释放，
     // 并把字段置空 —— 下一次 init() 拿到的是全新的连接纪元作用域。
+    // 网关在这条线上：它随连接纪元登记，作用域逆序释放保证它按登记的反序拆掉。
+    // 历史插件的 `versionManager` 走的是上一行的插件作用域，因此**先于**网关释放 ——
+    // 插件的撤销动作还能经网关广播，反过来就不行了。
     await this.#release_connection_scope();
-    this.versionManager.destroy();
-    this.#gateway?.destroy();
-    this.#gateway = undefined;
     // 清空 Repository 身份缓存：不清的话，断线重连后 getRepository() 仍会永久复用
     // 断连前那批缓存实例，携带的是断连时刻的陈旧实体状态。
     this.entityManager.destroy();
@@ -1074,17 +1274,42 @@ export class RxDB {
     this.#connected_sub.next(false);
   }
 
+  /**
+   * 构造跨 tab 网关并登记进当前连接纪元的作用域。
+   *
+   * @remarks
+   * 拆成**两次** `acquire()` 而不是一次包两步：网关在**构造期**就
+   * `createBroadcastTopic()` + `new LeaderElection()`，通道早于 `init()` 打开。
+   * 合成一次的话，`init()` 抛错时整条登记不进清单（本原语的既定语义），
+   * 那条已经打开的 channel 和那套选举就没有任何人拆得到。
+   *
+   * 第二次 `acquire()` 返回 `undefined`：`init()` 装的三个转发监听器由
+   * `gateway.destroy()` 一并摘除，也就是上一条登记的撤销动作，这里没有独立的逆操作。
+   */
   #init_gateway() {
-    this.#gateway = new RxDBTabsGateway({
-      dbName: this.#config.dbName,
-      clientId: this.#context.clientId!
-    });
+    const scope = this.#ensure_connection_scope();
 
-    this.#gateway.init(
-      event => this.dispatchEvent(event),
-      (type, listener) => this.addEventListener(type as keyof RxDBEventMap, listener),
-      (type, listener) => this.removeEventListener(type as keyof RxDBEventMap, listener)
-    );
+    scope.acquire(() => {
+      const instance = new RxDBTabsGateway({
+        dbName: this.#config.dbName,
+        clientId: this.#context.clientId!
+      });
+      this.#gateway = instance;
+      return () => {
+        instance.destroy();
+        // 只在自己还挂在字段上时才清：重连已写进新实例时，清空会把新纪元的网关抹掉。
+        if (this.#gateway === instance) this.#gateway = undefined;
+      };
+    }, 'rxdb:gateway');
+
+    scope.acquire(() => {
+      this.#gateway?.init(
+        event => this.dispatchEvent(event),
+        (type, listener) => this.addEventListener(type as keyof RxDBEventMap, listener),
+        (type, listener) => this.removeEventListener(type as keyof RxDBEventMap, listener)
+      );
+      return undefined;
+    }, 'rxdb:gateway:init');
   }
 
   /**
@@ -1106,7 +1331,7 @@ export class RxDB {
       handleTransactionRollback(this.#transaction_stack, this.#event_map, this, event)
     );
 
-    ['entityManager', 'schemaManager', 'versionManager'].forEach(key =>
+    ['entityManager', 'schemaManager'].forEach(key =>
       Object.defineProperty(this, key, {
         enumerable: false,
         configurable: false
@@ -1160,6 +1385,59 @@ export class RxDB {
     unregisterRepository(this.#pluginHost, repositoryName, config);
   }
 
+  /** 撤销 {@link RxDB.queryCacheEngine} 的一次注册，按工厂对象身份守卫。 */
+  #unregister_query_cache_engine(factory: QueryCacheEngineFactory): void {
+    if (this.#query_cache_engine !== factory) return;
+    this.#query_cache_engine = undefined;
+  }
+
+  /** 撤销 {@link RxDB.queryCacheOutbox} 的一次注册，按提供者对象身份守卫。 */
+  #unregister_query_cache_outbox(provider: QueryCacheOutboxProvider): void {
+    if (this.#query_cache_outbox !== provider) return;
+    this.#query_cache_outbox = undefined;
+  }
+
+  /**
+   * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有引擎可用。
+   *
+   * @throws {@link RxDBMissingPluginError} 有这样的实体而引擎槽是空的
+   *
+   * @remarks
+   * 放在 `#await_plugin_installs()` **之后**：插件正是在那一趟里调用
+   * {@link RxDB.queryCacheEngine} 的，早一步检查必然误报。
+   *
+   * 逐个实体扫而不是只判「有没有」，是为了让错误点名第一个受影响的实体 —— 「某处配置错了」
+   * 这种错误信息，与不报没有区别。
+   */
+  #assert_query_cache_engine(): void {
+    if (this.#query_cache_engine !== undefined) return;
+    for (const EntityType of this.#config.entities) {
+      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      throw missingQueryCacheEngineError(getEntityMetadata(EntityType).name);
+    }
+  }
+
+  /**
+   * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有出站队列可用。
+   *
+   * @throws {@link RxDBMissingPluginError} 有这样的实体而队列槽是空的
+   *
+   * @remarks
+   * 与 {@link RxDB.#assert_query_cache_engine} 同一时机、同一形状，分两个方法是因为
+   * 两个槽由不同的包填，缺哪个就该点名哪个包。合并成一条只会让缺 sync 插件的人
+   * 去装 querycache 插件。
+   *
+   * 不许「没装就当空集」：读引擎的对账拿待提交写把「远端没返回」和「本地离线写过」
+   * 区分开，空集会让每一条离线写都被当成孤儿删掉 —— 静默降级在这里等于丢用户数据。
+   */
+  #assert_query_cache_outbox(): void {
+    if (this.#query_cache_outbox !== undefined) return;
+    for (const EntityType of this.#config.entities) {
+      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      throw missingQueryCacheOutboxError(getEntityMetadata(EntityType).name);
+    }
+  }
+
   /** 表就绪后等待已经开工的插件安装。 */
   async #await_plugin_installs(): Promise<void> {
     return awaitPluginInstalls(this.#pluginHost);
@@ -1190,6 +1468,9 @@ export class RxDB {
       },
       get pluginMap() {
         return host.#plugin_map;
+      },
+      get pluginByName() {
+        return host.#plugin_by_name;
       },
       get scheduler() {
         return host.#scheduler;

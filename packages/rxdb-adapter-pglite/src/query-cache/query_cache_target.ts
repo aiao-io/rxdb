@@ -2,7 +2,7 @@ import { getEntityMetadata, type EntityMetadata, type EntityPropertyMetadata, ty
 import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 
 /**
- * `QueryCacheRepository` 传入的**逻辑实体名**解析出的物理定位信息。
+ * `QueryCacheEngine` 传入的**逻辑实体名**解析出的物理定位信息。
  *
  * @remarks
  * QueryCache 的三个批量方法（`getMetadataByIds` / `upsertMany` / `deleteByIds`）
@@ -10,7 +10,7 @@ import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.
  */
 export interface QueryCacheTarget {
   /**
-   * `QueryCacheRepository` 传入的**原始**实体名，含可能的 `namespace:` 限定前缀。
+   * `QueryCacheEngine` 传入的**原始**实体名，含可能的 `namespace:` 限定前缀。
    *
    * @remarks
    * 诊断消息一律用它而不是 `metadata.name`：读者要拿这个名字回去比对自己的同步配置，

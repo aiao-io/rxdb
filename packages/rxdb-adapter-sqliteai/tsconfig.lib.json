@@ -35,6 +35,9 @@
     },
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
     }
   ]
 }

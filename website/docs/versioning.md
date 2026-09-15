@@ -86,7 +86,7 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 - `@aiao/rxdb-adapter-miniprogram` 整包（仅微信逻辑层，不保证崩溃恢复）
 - `@aiao/rxdb-adapter-http` 的 `changeFeed` SSE 变更通知（缺省关闭）
 - `@aiao/rxdb-plugin-search` 在 `wa-sqlite` 与小程序上的全文搜索（`unverified`，当前直接抛 `SearchUnsupportedAdapterError`）
-- `@aiao/rxdb` 的 `QueryCacheRepository` 直接实例化（`@experimental`）
+- `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化（`@experimental`）
 
 其余公开入口进入 1.0 冻结范围。维护者视角的完整清单见仓库 `requirements/versioning-policy.md`。
 

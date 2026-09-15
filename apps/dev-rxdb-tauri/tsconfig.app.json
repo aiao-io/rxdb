@@ -34,16 +34,19 @@
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"

@@ -258,7 +258,7 @@ interface RowViolation {
  * 也**不**给缺列补本地默认值：补出来的 `createdAt` 是本机拉取的时刻而非记录创建的时刻，
  * 不同设备拉同一行会得到不同的值，且这个污染要到跨设备对比时才暴露。
  *
- * @param entityName - `QueryCacheRepository` 传入的逻辑实体名，原样进错误消息
+ * @param entityName - `QueryCacheEngine` 传入的逻辑实体名，原样进错误消息
  * @param rows - 待落地的远端行
  * @param metadata - 实体元数据；查不到时跳过前两条判据（本地表的非空列集无从算起），第 3 条照旧
  * @throws {RxDBQueryCacheRowContractError} 存在不满足契约的行

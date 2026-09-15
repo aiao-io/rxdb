@@ -1,8 +1,9 @@
 /**
  * @fileoverview QueryCache 新鲜度判定的时间戳比较
  *
- * 本模块**不进 barrel**：它是 {@link diffMetadata} 与 `QueryCacheRepository` 共用的内部工具，
- * 不属于公共 API 面。
+ * 本模块经 barrel 导出两条函数：留在核心的 {@link diffMetadata} 与搬进
+ * `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 都在用它，插件够得着才不必复制一份
+ * 时间戳比较（US-025 阶段 B）。
  */
 
 /**

@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_PGLITE_ADAPTER_NAME, RxDBAdapterElectronPGlite } from '@aiao/rxdb-adapter-electron/pglite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_PGLITE_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -58,6 +59,7 @@ export default () => {
   // 也不需要知道数据目录的物理路径（AC#5）。
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .adapter(
       ELECTRON_PGLITE_ADAPTER_NAME,
       async db => new RxDBAdapterElectronPGlite(db, { dataDirectoryName: DESKTOP_PGLITE_DATA_DIRECTORY })

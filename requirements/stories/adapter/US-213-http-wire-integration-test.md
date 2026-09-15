@@ -75,7 +75,7 @@ INVEST 检查清单:
 **根本开不出来**：公开的
 [`FindOptions`](../../../packages/rxdb/src/repository/query-options.interface.ts) 只声明 `localCacheFirst`
 与 `onSyncStats`，没有 `offlineFallback` 字段；
-[`QueryCachePrimaryRepository.find()`](../../../packages/rxdb/src/repository/query-cache-primary.ts)
+[`QueryCachePrimaryRepository.find()`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts)
 也只解构这三项传给 `#sync()`，运行时多塞的字段会被丢弃。真正的降级只存在于内部
 `QueryCacheRepository.#wrapWithOfflineFallback()`，由 `QueryCacheFindOptions.offlineFallback` 开启——
 直接 `new QueryCacheRepository()` 能测到它，但那不再是本故事承诺的「RxDB 全栈」路径。于是本故事只断言

@@ -117,6 +117,7 @@ describe('search plugin install ordering', () => {
         entities: [FakeArticle]
       },
       localAdapterSync: adapter,
+      getPlugins: vi.fn(() => []),
       connect,
       adapterConnected$,
       addEventListener: vi.fn(),
@@ -189,6 +190,7 @@ describe('search plugin install ordering', () => {
     const fakeRxdb = {
       config: { sync: { local: { adapter: 'sqlite-wasm' } }, entities: [FakeArticle] },
       localAdapterSync: adapter,
+      getPlugins: vi.fn(() => []),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn()
     } as unknown as RxDB;

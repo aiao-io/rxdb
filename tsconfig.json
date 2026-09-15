@@ -170,6 +170,15 @@
     },
     {
       "path": "./apps/dev-rxdb-miniprogram-e2e"
+    },
+    {
+      "path": "./packages/rxdb-plugin-querycache"
+    },
+    {
+      "path": "./packages/rxdb-plugin-history"
+    },
+    {
+      "path": "./packages/rxdb-plugin-sync"
     }
   ]
 }

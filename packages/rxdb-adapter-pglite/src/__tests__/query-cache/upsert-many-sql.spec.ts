@@ -73,7 +73,7 @@ const targetOf = (EntityClass: EntityType): QueryCacheTarget => {
   const metadata = getEntityMetadata(EntityClass);
   return {
     // 填**限定名**而不是 `metadata.name`：`entityName` 这个字段存在的全部理由，就是
-    // `QueryCacheRepository` 传进来的名字可能带 `namespace:` 前缀而 `metadata.name` 把它丢了。
+    // `QueryCacheEngine` 传进来的名字可能带 `namespace:` 前缀而 `metadata.name` 把它丢了。
     // 单测里也填 `metadata.name`，那个前缀就永远走不到任何一条断言上。
     entityName: `${metadata.namespace || 'public'}:${metadata.name}`,
     metadata,
