@@ -1,0 +1,66 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BulkSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BulkSyncResult",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRepositoryUpdatesResult",
+        "kind": "type"
+      },
+      {
+        "name": "cleanupExpired",
+        "kind": "value"
+      },
+      {
+        "name": "CleanupExpiredOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CleanupExpiredResult",
+        "kind": "type"
+      },
+      {
+        "name": "DependencyGraph",
+        "kind": "type"
+      },
+      {
+        "name": "RepositorySyncStatus",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBCrossScopeTransactionError",
+        "kind": "both"
+      },
+      {
+        "name": "rxDBPluginHistory",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginHistory",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBPluginHistoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "syncBranches",
+        "kind": "value"
+      },
+      {
+        "name": "SyncBranchesResult",
+        "kind": "type"
+      },
+      {
+        "name": "VersionManager",
+        "kind": "type"
+      }
+    ]
+  }
+}

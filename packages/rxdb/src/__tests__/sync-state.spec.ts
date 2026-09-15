@@ -1,6 +1,6 @@
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { take, toArray } from 'rxjs/operators';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SyncStateHub, type SyncState } from '../sync-state.js';
 
 type Sources = {
@@ -174,6 +174,56 @@ describe('SyncStateHub', () => {
     sources.pushableCount$.next(99);
 
     expect((await snapshot(hub)).pendingCount).toBe(1);
+  });
+
+  // 「重算待拉数」这条信号的两端在 US-025 阶段 C 之后各归各家：发信号的是远端适配器
+  // （`@aiao/rxdb-adapter-supabase` 的实时订阅恢复），干活的是 `@aiao/rxdb-plugin-history`。
+  // 两边都不许直接认识对方，所以中间这一跳必须由 hub 兜住，且未接线时是无操作而不是抛错。
+  describe('重算待拉数的请求跳板', () => {
+    it('没有插件接线时请求是无操作', () => {
+      const { hub } = createHub();
+
+      expect(() => hub.requestPullableRefresh()).not.toThrow();
+
+      hub.destroy();
+    });
+
+    it('接上之后每请求一次就执行一次', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      hub.bindPullableRefresh(refresh);
+
+      hub.requestPullableRefresh();
+      hub.requestPullableRefresh();
+
+      expect(refresh).toHaveBeenCalledTimes(2);
+      hub.destroy();
+    });
+
+    it('解绑之后不再执行', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      const unbind = hub.bindPullableRefresh(refresh);
+
+      unbind();
+      hub.requestPullableRefresh();
+
+      expect(refresh).not.toHaveBeenCalled();
+      hub.destroy();
+    });
+
+    // 插件先于 hub 释放是常态，但反过来也必须成立：已销毁的 hub 不能还有一条活订阅
+    // 往插件里打，那一侧的 `VersionManager` 此刻可能已经拆了。
+    it('destroy 之后不再执行', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      hub.bindPullableRefresh(refresh);
+
+      hub.destroy();
+      hub.requestPullableRefresh();
+
+      expect(refresh).not.toHaveBeenCalled();
+    });
   });
 
   // 上游是冷流时（非 BehaviorSubject），快照必须仍然可读

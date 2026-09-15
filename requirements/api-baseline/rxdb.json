@@ -50,28 +50,12 @@
         "kind": "type"
       },
       {
-        "name": "BulkSyncOptions",
-        "kind": "type"
-      },
-      {
-        "name": "BulkSyncResult",
-        "kind": "type"
-      },
-      {
-        "name": "CheckRepositoryUpdatesResult",
-        "kind": "type"
-      },
-      {
-        "name": "cleanupExpired",
+        "name": "buildPushableRepositoryRules",
         "kind": "value"
       },
       {
-        "name": "CleanupExpiredOptions",
-        "kind": "type"
-      },
-      {
-        "name": "CleanupExpiredResult",
-        "kind": "type"
+        "name": "calculateOrderBy",
+        "kind": "value"
       },
       {
         "name": "CodeFormat",
@@ -118,6 +102,10 @@
         "kind": "type"
       },
       {
+        "name": "countQueryCacheOutbox",
+        "kind": "value"
+      },
+      {
         "name": "CurrencyFormat",
         "kind": "type"
       },
@@ -144,10 +132,6 @@
       {
         "name": "decodeRxDBEntityIdentity",
         "kind": "value"
-      },
-      {
-        "name": "DependencyGraph",
-        "kind": "type"
       },
       {
         "name": "describeEntityFields",
@@ -486,6 +470,10 @@
         "kind": "type"
       },
       {
+        "name": "findCurrentSyncRecord",
+        "kind": "value"
+      },
+      {
         "name": "FindOneOptions",
         "kind": "type"
       },
@@ -502,11 +490,19 @@
         "kind": "type"
       },
       {
+        "name": "flushQueryCacheOutbox",
+        "kind": "value"
+      },
+      {
         "name": "formatEntityFieldValue",
         "kind": "value"
       },
       {
         "name": "formatMetadataViolations",
+        "kind": "value"
+      },
+      {
+        "name": "getCurrentBranch",
         "kind": "value"
       },
       {
@@ -530,11 +526,27 @@
         "kind": "value"
       },
       {
+        "name": "getLocalSystemRepositories",
+        "kind": "value"
+      },
+      {
         "name": "getNeedRemoveEntities",
         "kind": "value"
       },
       {
         "name": "getNeedSaveEntities",
+        "kind": "value"
+      },
+      {
+        "name": "getOrCreateSyncRecord",
+        "kind": "value"
+      },
+      {
+        "name": "getRemoteSystemRepositories",
+        "kind": "value"
+      },
+      {
+        "name": "getRxDBChangeEntityIdQueryValues",
         "kind": "value"
       },
       {
@@ -730,6 +742,14 @@
         "kind": "type"
       },
       {
+        "name": "LocalRxDBBranchRepository",
+        "kind": "type"
+      },
+      {
+        "name": "LocalRxDBChangeRepository",
+        "kind": "type"
+      },
+      {
         "name": "LWWConflictResolver",
         "kind": "both"
       },
@@ -874,6 +894,10 @@
         "kind": "value"
       },
       {
+        "name": "pendingQueryCacheWriteIds",
+        "kind": "value"
+      },
+      {
         "name": "PercentageFormat",
         "kind": "type"
       },
@@ -955,6 +979,14 @@
       },
       {
         "name": "QueryCacheLocalReader",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCacheOutboxFailure",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCacheOutboxResult",
         "kind": "type"
       },
       {
@@ -1102,6 +1134,14 @@
         "kind": "type"
       },
       {
+        "name": "RemoteRxDBBranchRepository",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteRxDBChangeRepository",
+        "kind": "type"
+      },
+      {
         "name": "Repository",
         "kind": "both"
       },
@@ -1162,16 +1202,24 @@
         "kind": "both"
       },
       {
-        "name": "RepositorySyncStatus",
-        "kind": "type"
-      },
-      {
         "name": "RepositorySyncSwitch",
         "kind": "type"
       },
       {
         "name": "RepositorySyncType",
         "kind": "type"
+      },
+      {
+        "name": "resolve_current_branch",
+        "kind": "value"
+      },
+      {
+        "name": "resolvePullIneligibility",
+        "kind": "value"
+      },
+      {
+        "name": "resolvePushIneligibility",
+        "kind": "value"
       },
       {
         "name": "RestoreEntityOptions",
@@ -1304,10 +1352,6 @@
       {
         "name": "RxDBContext",
         "kind": "type"
-      },
-      {
-        "name": "RxDBCrossScopeTransactionError",
-        "kind": "both"
       },
       {
         "name": "RxDBDependencyFailedError",
@@ -1598,14 +1642,6 @@
         "kind": "both"
       },
       {
-        "name": "syncBranches",
-        "kind": "value"
-      },
-      {
-        "name": "SyncBranchesResult",
-        "kind": "type"
-      },
-      {
         "name": "SyncCompleteEvent",
         "kind": "both"
       },
@@ -1804,10 +1840,6 @@
       {
         "name": "validateFieldValue",
         "kind": "value"
-      },
-      {
-        "name": "VersionManager",
-        "kind": "type"
       }
     ]
   }
