@@ -164,14 +164,6 @@
       {
         "name": "useSyncState",
         "kind": "value"
-      },
-      {
-        "name": "useWorkingTree",
-        "kind": "value"
-      },
-      {
-        "name": "WorkingTreeResource",
-        "kind": "type"
       }
     ]
   }

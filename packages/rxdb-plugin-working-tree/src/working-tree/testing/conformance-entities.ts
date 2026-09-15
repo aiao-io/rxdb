@@ -4,13 +4,13 @@
  * @remarks
  * 提交侧套件用 `entities: []` 就够了——它只碰系统表。捕获侧不行：「捕获是否完备」是关于
  * **业务写**的命题，没有业务实体就一条也断言不了。于是实体由套件自己给出，并经
- * `@aiao/rxdb/testing` 导出，6 个调用点原样注册同一份清单。
+ * `@aiao/rxdb-plugin-working-tree/testing` 导出，6 个调用点原样注册同一份清单。
  *
  * **实体定义不放进 `capture.suite.ts`**：那个文件顶层 `import 'vitest'`，而调用点要在
  * `RxDB` 配置里引用这两个类。同一个模块既是测试注册器又是实体来源，调用点就得先把
  * 套件模块整个求值一遍才能拿到类——实体声明因此单独成文件。
  *
- * @module @aiao/rxdb/testing
+ * @module @aiao/rxdb-plugin-working-tree/testing
  */
 
 import type { EntityType } from '@aiao/rxdb';

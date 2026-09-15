@@ -25,6 +25,7 @@ import {
 import { CommitChangeSet } from '../../../commit/commit-change-set.entity.js';
 import { Commit } from '../../../commit/commit.entity.js';
 import { buildCommitRows } from '../../../commit/write-commit.js';
+import { rxDBPluginWorkingTree } from '../../../plugin.js';
 import {
   WORKING_TREE_ACTIVATION_STATE_ID,
   WorkingTreeActivationState
@@ -125,6 +126,13 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   });
   const adapter = createMockAdapter(database);
   database.adapter('local', () => adapter);
+  // 十张系统表随 `@aiao/rxdb-plugin-working-tree` 走，核心的 `SYSTEM_ENTITIES` 里没有它们；
+  // `use()` 时核心才读插件的系统贡献并把这批实体登记进去。这一行漏了的话，下面
+  // `entityManager.instantiate(CommitCapabilityState)` 抛的是「need init rxdb」——
+  // 一条读不出主语的错，而九个用例文件全都经过这里。
+  //
+  // 必须在 `init()` **之前**：带系统贡献的插件晚于 `init()` 注册会被核心当场拒掉。
+  database.use(rxDBPluginWorkingTree);
   database.init();
 
   const probe = createCommitGraphProbe({ rowsAffected: options.rowsAffected ?? 1 });

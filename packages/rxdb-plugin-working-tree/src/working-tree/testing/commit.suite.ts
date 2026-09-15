@@ -18,20 +18,25 @@
  * 路径（比如直接 INSERT 一行 `WorkingTreeEntry`）会绕开 `bumpWorkingTreeRevision()` 那个
  * 读改写，而它正是「第二类 CAS」本身。
  *
- * **§2.2 有两条断言不在这里，是有理由的，不是遗漏。**「注入任一分支初始化失败 →
- * `RXDB_SYSTEM_SCHEMA_VERSION` 停在 3」与「未启用的数据库行为与未安装本特性逐字节一致
- * （FR-046）」说的都是**启用之前**的状态，而 {@link WorkingTreeConformanceSuiteContext}
- * 契约上交还的是一个**已启用**的库。要在这里断言它们，只能先把库改回未启用态——那测的
- * 就不再是适配器行为，而是套件自己伪造出来的中间态。两条分别落在
- * `src/__tests__/system/working-tree-schema-migration.spec.ts` 与
+ * **§2.2 有两条断言不在这里，是有理由的，不是遗漏。**「注入任一分支初始化失败 → 整条迁移
+ * 回滚」与「未启用的数据库行为与未安装本特性逐字节一致（FR-046）」说的都是**启用之前**的
+ * 状态，而 {@link WorkingTreeConformanceSuiteContext} 契约上交还的是一个**已启用**的库。
+ * 要在这里断言它们，只能先把库改回未启用态——那测的就不再是适配器行为，而是套件自己伪造
+ * 出来的中间态。两条分别落在 `src/__tests__/system/working-tree-commits-migration.spec.ts`
+ * （用例「任一分支初始化失败时错误穿出 `up()`，不被吞掉」）与
  * `src/__tests__/commit/legacy-compat.spec.ts`，本套件不重复。
+ *
+ * 契约 §2.2 把第一条的回滚判据写成「`RXDB_SYSTEM_SCHEMA_VERSION` 停在 3」，**那个号今天
+ * 已经不是判据**：抽包之后本包的迁移压根不动核心的系统 schema 号（它归核心，且已走到 6），
+ * 本包落没落地看的是 `__rxdb_capability__:workingTree:…` 那一行认领行。判据换了、断言没换——
+ * 回滚要证的始终是「认领行不留下」，只是它从核心的号变成了本包自己的行。
  *
  * **每条用例一个全新数据库。** 契约 §0 明说工厂每次返回全新实例，套件内共享实例会让上一条
  * 用例的残留变成下一条的隐藏前置；本套件里「注入一条父链成环的分支」这种用例更是会把库
  * 弄脏到不能复用。契约里没有 teardown 钩子，所以代价（6 个后端 × 十余条用例各建一次库）
  * 只能接受，不能靠共享实例省掉。
  *
- * @module @aiao/rxdb/testing
+ * @module @aiao/rxdb-plugin-working-tree/testing
  */
 
 import { firstValueFrom } from 'rxjs';

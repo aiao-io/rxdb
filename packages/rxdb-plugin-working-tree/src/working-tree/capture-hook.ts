@@ -209,6 +209,17 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     return this.#domain;
   }
 
+  /**
+   * 由 {@link createWorkingTreeCaptureRuntime} 构造；没启用提交能力的库上一次都不会被调到。
+   *
+   * @param options - 四项依赖，见 {@link WorkingTreeCaptureRuntimeOptions}
+   *
+   * @remarks
+   * 四项全部注入且构造后不可换：版本化域与系统表名集在这里定格，于是「这张表受不受保护」
+   * 在本运行时的整个生命周期里只有一个答案。构造器**不**碰挂载目标——`#target` 由
+   * {@link bindMountTarget} 在装到适配器上的那一刻才写入，因此同一个运行时可以先造出来、
+   * 再决定装到哪个适配器上。
+   */
   constructor(options: WorkingTreeCaptureRuntimeOptions) {
     this.#host = { entityManager: options.entityManager };
     this.#domain = options.domain;

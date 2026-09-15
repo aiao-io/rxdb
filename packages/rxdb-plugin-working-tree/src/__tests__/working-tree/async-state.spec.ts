@@ -133,6 +133,25 @@ describe('命令状态：loading / success / error，没有第四个出口（§4
     expect(states).toEqual([{ phase: 'loading' }, { phase: 'error', error: failure }]);
   });
 
+  // `error` 的声明类型是 `Error`，而 `throw` 的载荷在 JS 里可以是任意值。归一化不做的话，
+  // 一个 `throw 'timeout'` 会让状态里躺着一个字符串，而模板上的 `state.error.message`
+  // 求值成 `undefined` —— 类型说它一定在，运行期它不在，这是最难查的一类错位。
+  it('非 Error 的 throw 载荷被归一化成 Error，但继续抛的仍是原样的载荷', async () => {
+    const { emit, states } = sink<WorkingTreeCommandState<number>>();
+
+    // 抛字符串而不是抛对象：`String({})` 得到 `'[object Object]'`，那样的消息既证明不了
+    // 载荷进了消息，也证明不了没进。字符串载荷能把两件事一起钉住。
+    await expect(trackWorkingTreeCommand(emit, () => Promise.reject('timeout'))).rejects.toBe('timeout');
+
+    const [, failed] = states;
+    expect(failed.phase).toBe('error');
+    // 不是 `toEqual({ phase: 'error', error: new Error('timeout') })`：那条断言在
+    // `error` 是一个恰好有 `message` 的裸对象时照样绿，而 `instanceof` 这一位正是
+    // 三端模板与 `error instanceof CommitValidationError` 之类的分支依赖的东西。
+    expect(failed).toMatchObject({ phase: 'error', error: expect.any(Error) });
+    expect(failed.phase === 'error' && failed.error.message).toBe('timeout');
+  });
+
   // 零未提交变更不是「空」，是一次什么都没发生的提交，用户按了按钮必须听到回音。
   it('零未提交变更的 commit 落在 error 且带着 empty_commit，不是 empty 相位', async () => {
     const { emit, states } = sink<WorkingTreeCommandState<CommitResult>>();

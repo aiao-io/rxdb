@@ -17,11 +17,9 @@
  * 里，也不能出现在 `foreignKeys` 里（data-model.md §2.7：「无外键约束且只用于诊断」）。
  */
 
+import { getEntityMetadata, RxDBChange, type EntityType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
-import type { EntityType } from '../../entity/entity.interface.js';
-import { getEntityMetadata } from '../../rxdb-utils.js';
-import { RxDBChange } from '../../system/change.js';
 import { WorkingTreeEntry } from '../../working-tree/working-tree-entry.entity.js';
 
 const CHANGE_ENTITY_NAME = getEntityMetadata(RxDBChange).name;

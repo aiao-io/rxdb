@@ -1,21 +1,64 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import type { EntityManager } from '../../entity/entity-manager.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
+import type { RxDBBranchCreationContext, RxDBSystemContribution } from '../../rxdb-plugin-system.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
 import { RxDBBranch } from '../../system/branch.js';
 import type { LocalRxDBChangeRepository } from '../../system/types.local.js';
+import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import { create_branch, get_current_branch_last_change } from '../../version/create-branch.js';
 import { VersionManager } from '../../version/VersionManager.js';
-import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
-import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
-import { createTransactionStub } from '../fixtures/transaction-executor-stub.js';
+import { createTransactionExecutorStub } from '../fixtures/transaction-executor-stub.js';
 
 type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
 type SyncConfigStub = { remote?: { adapter: string } };
+
+/** 一次 `writeBranchRows` 调用被看见的样子。 */
+interface BranchRowsCall {
+  readonly branchId: string;
+  /** 本次调用拿到的执行器**是不是** `create_branch` 那个事务的执行器。 */
+  readonly executor: RxDBBranchCreationContext['executor'];
+  /** 调用发生时，本次事务已经写过多少行——用来判定「排在分支行之后」。 */
+  readonly branchRowsWrittenBefore: number;
+}
+
+/**
+ * 造一个只记账、不写行的系统贡献。
+ *
+ * @param capability - 能力名，用来在断言里区分多个贡献方；类型跟着契约走（首字母不得大写）
+ * @param calls - 共享的记账数组，按真实调用顺序追加
+ * @param impl - 覆盖 `writeBranchRows` 的行为（用于「贡献方抛错」那一支）
+ *
+ * @remarks
+ * 这里**不**用真实插件的贡献：本文件测的是核心 `create_branch` 那一侧的契约——
+ * 有没有调、拿到的是不是同一个执行器、排不排在分支行之后、抛错让不让它穿出去。
+ * 换成真插件，断言就会同时压在「插件写了什么行」上，于是插件改一个字段名，
+ * 核心的 spec 跟着红——而红的这一侧什么都不用改。行的内容由
+ * `@aiao/rxdb-plugin-working-tree` 自己的 spec 守。
+ */
+function createRecordingContribution(
+  capability: Uncapitalize<string>,
+  calls: BranchRowsCall[],
+  countCreatedBranches: () => number,
+  impl?: () => Promise<void>
+): RxDBSystemContribution {
+  return {
+    capability,
+    version: 1,
+    packageSpecifier: `@aiao/rxdb-plugin-${capability}`,
+    entities: [],
+    createInitialRows: () => [],
+    createMigrations: () => [],
+    bootstrapExisting: async () => undefined,
+    writeBranchRows: async (_entityManager, { executor, branchId }) => {
+      calls.push({ branchId, executor, branchRowsWrittenBefore: countCreatedBranches() });
+      await impl?.();
+    }
+  };
+}
 
 function createEntityManager(): EntityManager {
   const database = new RxDB({
@@ -32,18 +75,21 @@ describe('create_branch', () => {
   let mockVersion: VersionManager;
   let mockBranchRepository: FindRepositoryMock & { create: ReturnType<typeof vi.fn> };
   let mockChangeRepository: FindRepositoryMock;
-  let mockActivationRepository: FindRepositoryMock & { update: ReturnType<typeof vi.fn> };
-  let activationRow: WorkingTreeActivationState;
   let savedRows: object[];
   let entityManager: EntityManager;
   let syncConfig: SyncConfigStub;
   let getRemoteRepositoriesMock: ReturnType<typeof vi.fn>;
+  let branchRowsCalls: BranchRowsCall[];
+  let systemContributions: RxDBSystemContribution[];
+  let transactionExecutor: TransactionExecutor;
 
   beforeEach(() => {
     syncConfig = {};
     getRemoteRepositoriesMock = vi.fn();
     entityManager = createEntityManager();
     savedRows = [];
+    branchRowsCalls = [];
+    systemContributions = [];
 
     mockBranchRepository = {
       find: vi.fn(),
@@ -54,30 +100,26 @@ describe('create_branch', () => {
       find: vi.fn()
     };
 
-    activationRow = entityManager.instantiate(WorkingTreeActivationState);
-    activationRow.id = 'singleton';
-    activationRow.activationRevision = 0;
-    activationRow.branchGenerationSeq = 3;
-    mockActivationRepository = {
-      find: vi.fn(async () => [activationRow]),
-      update: vi.fn(async (entity: object, patch: object) => Object.assign(entity, patch))
-    };
-
     // 「查重 → 解析分叉点 → 写入」整段搬进了事务，事务内的仓库由 executor 给。
     // 打桩把它转发回同一组 mock，因此下面各用例断言的可观测行为不变。
-    const transaction = createTransactionStub({
+    //
+    // 不走 `createTransactionStub`：那个 helper 把 executor 造在自己肚子里，而本文件要
+    // **按引用**断言贡献方拿到的就是这一个（见下方「执行器同一性」那条）。自己造一份留住它。
+    transactionExecutor = createTransactionExecutorStub({
       getRepository: (EntityType: EntityType) => {
         if ((EntityType as unknown) === RxDBBranch) return mockBranchRepository;
-        if ((EntityType as unknown) === WorkingTreeActivationState) return mockActivationRepository;
         return mockChangeRepository;
       },
       saveMany: (entities: never[]) => {
         savedRows.push(...(entities as object[]));
       }
     });
+    const transaction = vi.fn(async (fun: (executor: TransactionExecutor) => Promise<unknown>) =>
+      fun(transactionExecutor)
+    );
 
     mockVersion = {
-      rxdb: { config: { sync: syncConfig }, entityManager },
+      rxdb: { config: { sync: syncConfig }, entityManager, systemContributions },
       getLocalRepositories: vi.fn().mockResolvedValue({
         branchRepository: mockBranchRepository,
         changeRepository: mockChangeRepository,
@@ -155,55 +197,60 @@ describe('create_branch', () => {
     mockChangeRepository.find.mockResolvedValue([]);
   }
 
-  it('新分支同时落下 CommitBranchRef 与 WorkingTreeState', async () => {
+  it('每个系统贡献都被调到一次，拿到的是本事务的执行器与刚写下的分支 id', async () => {
+    systemContributions.push(
+      createRecordingContribution('alpha', branchRowsCalls, () => mockBranchRepository.create.mock.calls.length),
+      createRecordingContribution('beta', branchRowsCalls, () => mockBranchRepository.create.mock.calls.length)
+    );
     seedSourceBranch();
 
     await create_branch(mockVersion, 'feature-x');
 
-    // 只写 rxdb_branch 一行，enable() 里的 readCommitBranchRef 就会在这条分支上抛错，
-    // 整条一次性初始化迁移回滚——而 facade 承诺的「再调一次 enable() 补根」永远失效。
-    const ref = savedRows.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
-    const state = savedRows.find(row => row instanceof WorkingTreeState) as WorkingTreeState | undefined;
-    expect({
-      refId: ref?.id,
-      branchId: ref?.branchId,
-      headCommitId: ref?.headCommitId,
-      headRevision: ref?.headRevision,
-      status: ref?.status,
-      corruptedAt: ref?.corruptedAt
-    }).toEqual({
-      refId: 'feature-x',
-      branchId: 'feature-x',
-      headCommitId: null,
-      headRevision: 0,
-      status: 'ok',
-      corruptedAt: null
-    });
-    expect({
-      stateId: state?.id,
-      branchId: state?.branchId,
-      baseHeadCommitId: state?.baseHeadCommitId,
-      workingTreeRevision: state?.workingTreeRevision,
-      entryCount: state?.entryCount
-    }).toEqual({
-      stateId: 'feature-x',
-      branchId: 'feature-x',
-      baseHeadCommitId: null,
-      workingTreeRevision: 0,
-      entryCount: 0
-    });
+    // 执行器同一性是这条断言的重点，不是「调到了」：贡献方若拿到的是绑在适配器上的那份仓库，
+    // 它的写入会排在本事务**之后**，于是「分支行与贡献行同生共死」这条不变量静默失效——
+    // 中间失败留下的是一条「分支在、贡献行不在」的分支，而它与一条正常的老分支形状上分辨不出来。
+    expect(
+      branchRowsCalls.map(call => ({ branchId: call.branchId, sameExecutor: call.executor === transactionExecutor }))
+    ).toEqual([
+      { branchId: 'feature-x', sameExecutor: true },
+      { branchId: 'feature-x', sameExecutor: true }
+    ]);
+    // 排在 `branchRepository.create(branch)` **之后**：贡献行按 branchId 引用分支行，
+    // 先写贡献行会在有外键的后端上当场违约，在没有外键的后端上则悄悄建成孤儿。
+    expect(branchRowsCalls.map(call => call.branchRowsWrittenBefore)).toEqual([1, 1]);
   });
 
-  it('代际取自 branchGenerationSeq + 1，并写回单调源', async () => {
+  it('贡献方抛错时整条 create_branch 抛出去，不被吞掉', async () => {
+    const failure = new Error('contribution refused');
+    systemContributions.push(
+      createRecordingContribution(
+        'alpha',
+        branchRowsCalls,
+        () => mockBranchRepository.create.mock.calls.length,
+        async () => {
+          throw failure;
+        }
+      ),
+      createRecordingContribution('beta', branchRowsCalls, () => mockBranchRepository.create.mock.calls.length)
+    );
     seedSourceBranch();
 
-    await create_branch(mockVersion, 'feature-x');
+    // 吞掉等于把一条半成品分支当成功返回。而且必须**当场**中断：
+    // 串行遍历时第一个贡献方抛错，后面的就不该再写自己那几行——那些行会随事务回滚，
+    // 但在没有真事务的后端上就是实打实的垃圾。
+    await expect(create_branch(mockVersion, 'feature-x')).rejects.toThrow(failure);
+    expect(branchRowsCalls.map(call => call.branchId)).toEqual(['feature-x']);
+  });
 
-    // 代际必须全局单调不复用：复用会让持旧 (branchId, headRevision) 的调用方误中新分支（ABA），
-    // 而幂等键正是拿它盖住 database 与 branch 两维的。
-    const ref = savedRows.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
-    expect(ref?.generation).toBe(4);
-    expect(mockActivationRepository.update).toHaveBeenCalledWith(activationRow, { branchGenerationSeq: 4 });
+  it('一个贡献方都没有时照常建出分支', async () => {
+    seedSourceBranch();
+
+    // 没装任何贡献系统能力的插件是**最常见**的库，不是边角情况：这条断言守的是
+    // 「遍历一个空数组」不会因为某天加进来的 `contributions[0]` 之类写法而炸。
+    const branch = await create_branch(mockVersion, 'feature-x');
+
+    expect(branch.id).toBe('feature-x');
+    expect(branchRowsCalls).toEqual([]);
   });
 
   it('新分支的 activeKey 显式写成 null', async () => {

@@ -4,6 +4,7 @@
  * 把「这个库启没启用、现在有多少未提交变更、改了什么、提交、丢弃、历史」六件事接成
  * Angular signal，供 local-first 应用直接绑到模板上
  */
+import { useRxDB } from '@aiao/rxdb-angular';
 import {
   createWorkingTreeCommands,
   WORKING_TREE_INITIAL_ASYNC_STATES,
@@ -20,9 +21,8 @@ import {
   type WorkingTreeDiscardResult,
   type WorkingTreeQueryState,
   type WorkingTreeStatus
-} from '@aiao/rxdb';
+} from '@aiao/rxdb-plugin-working-tree';
 import { computed, signal, Signal } from '@angular/core';
-import { useRxDB } from './rxdb.provider';
 
 /**
  * {@link useWorkingTree} 的返回值。
@@ -30,8 +30,8 @@ import { useRxDB } from './rxdb.provider';
  * @remarks
  * 七个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
  * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。七个方法的签名
- * 与核心 `WorkingTreeManager` 上的同名方法完全一致 —— 入参与返回值用的都是
- * `@aiao/rxdb` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
+ * 与插件包 `WorkingTreeManager` 上的同名方法完全一致 —— 入参与返回值用的都是
+ * `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
  * 三端等价实现：React `useWorkingTree()`（渲染快照）、Vue `useWorkingTree()`
  * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。

@@ -73,8 +73,26 @@ export interface WorkingTreePatchCodecContext {
  * （{@link TypeError}）分开处理：前者是注册表问题，后者是数据问题。
  */
 export class UnknownWorkingTreePatchEntityError extends Error {
+  /**
+   * 判别位，恒为 `'UnknownWorkingTreePatchEntityError'`
+   *
+   * @remarks
+   * 写成 `override readonly` 字段而不是在构造器里赋值：跨 realm 的一端（日志、上报）
+   * 接不到本进程的类，只能按名判别；`readonly` 让「名字会不会被后来的赋值改掉」
+   * 变成编译期问题而不是排查期问题。
+   */
   override readonly name = 'UnknownWorkingTreePatchEntityError';
 
+  /**
+   * 由编解码两侧各自的元数据查表失败处构造：本文件的 {@link encodeWorkingTreePatch}，
+   * 以及 `commit-codec.ts` 的 `assertCommitUnitsEncryptedAtRest`。
+   *
+   * @param target - 行上的 `namespace` / `entity` 两列
+   *
+   * @remarks
+   * `target` 只进文案、不留成自有属性：这两列是**表结构**而不是用户内容，留下来也只是
+   * 把已经在 message 里的东西再抄一份，而每多一个自有属性就多一条随诊断序列化外流的路。
+   */
   constructor(target: WorkingTreePatchTarget) {
     super(`Unknown RxDB working tree patch entity: ${target.namespace}.${target.entity}`);
   }

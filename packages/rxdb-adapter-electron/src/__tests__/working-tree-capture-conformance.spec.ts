@@ -2,7 +2,7 @@
  * @fileoverview Electron（node:sqlite host）后端的捕获侧一致性调用点（T068）。
  *
  * @remarks
- * 套件本体在 `@aiao/rxdb/testing`，六个 v1 后端各有一个这样的文件。**后端语义的断言一律不
+ * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件。**后端语义的断言一律不
  * 写在这里**：一旦某个后端在本地加一条「它自己的」断言，六份就开始各测各的，而这套套件存在
  * 的理由恰恰是「六个后端对同一组语义给出同一个答案」。
  *
@@ -36,11 +36,12 @@
 
 import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
   WORKING_TREE_CONFORMANCE_ENTITIES,
   WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
   workingTreeCaptureConformanceSuite
-} from '@aiao/rxdb/testing';
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterAll, afterEach, expect } from 'vitest';
 
 import {
@@ -69,6 +70,7 @@ workingTreeCaptureConformanceSuite({
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await electronAdapterFactory.createAdapter<AdapterCleanupTarget>({
       entities: [...WORKING_TREE_CONFORMANCE_ENTITIES],
+      plugins: [rxDBPluginWorkingTree],
       remoteAdapter: WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER
     });
     opened.push(adapter);

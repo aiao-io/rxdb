@@ -32,29 +32,26 @@
  *    only-append 永不回收。真复用了，删的那天没有任何报错，只是历史短了一截；
  *    而 FR-018 又禁止为了 commit 去改这些既有清理路径。于是「commit 不碰 change 表」
  *    必须是硬约束，从三个角度同时钉：表里没行、`saveMany` 没收到、语句里没提过表名。
- * 4. **给 redo 栈加持久化看起来像是在补功能，实际是在造第二份历史**。
- *    FR-019 要的是「刷新后 redo 可清空」——RedoStack 里那个 `BehaviorSubject` 每次
- *    `init()` 重建就是这条语义的全部实现机制，一旦有人给它加上 `load()` / `hydrate()`，
- *    这条语义当场消失，且与 commit 历史形成两份会互相矛盾的 durable 记录。
- *    反过来，commit 侧的表也不得沾染 redo 失效语义。两个方向写在同一个用例里，
- *    因为它们其实是同一条边界的两侧。
- * 5. **入口被「顺手整理」挪走**，是重构里最常见的兼容性破坏：方法还在、名字还在、
- *    只是换了个类或换了签名。这里只钉「还在原位、参数个数没变」，钉不了行为——
- *    见本段开头对分层的说明。
+ * 4. **commit 侧的表不得沾染 redo 失效语义**。FR-019 要的是两份历史分家：会话级的那份
+ *    刷新即清空，durable 的那份永不回收。给 commit 的表加上 `redoInvalidatedAt` 之类的列，
+ *    就是让 durable 的那份也开始表达「这段过去作废了」，于是同一段历史有了两个互相矛盾的说法。
+ *
+ * **同一条边界的另一侧在核心**：`packages/rxdb/src/__tests__/version/plugin-host-shape.spec.ts`
+ * 钉「RedoStack 天生为空、且没有任何持久化入口」，以及「undo/redo/restoreEntity 的既有入口
+ * 没有被挪走」。那些断言要的是 `RedoStack` / `HistoryManager` / `VersionManager` 的运行期
+ * 构造器与 prototype，而核心对这三个类**只转类型不转值**，这个包在包外拿不到。
+ * 抽包之后那一侧守的面反而更大：原来只在装了插件的语境下跑，现在对每个核心用户无条件跑。
  */
 
 import type { EntityManager, EntityPropertyMetadata, EntityType } from '@aiao/rxdb';
 import {
   getEntityMetadata,
-  HistoryManager,
   PropertyType,
-  RedoStack,
   RxDB,
   RXDB_CHANGE_CODEC_VERSION,
   RxDBBranch,
   RxDBChange,
-  SyncType,
-  VersionManager
+  SyncType
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import type { CommitChangeUnit } from '../../commit/change-unit.js';
@@ -71,6 +68,7 @@ import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
+import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
 
@@ -121,6 +119,9 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
+  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
+  database.use(rxDBPluginWorkingTree);
   database.init();
   return database.entityManager;
 }
@@ -276,24 +277,10 @@ describe('commit 不写 RxDBChange（FR-018）', () => {
 });
 
 describe('durable commit 历史与会话级 redo 栈正交（FR-019）', () => {
-  it('新建的 redo 栈是空的——这就是「刷新后 redo 可清空」的全部机制', () => {
-    // 每次 init() 重建 HistoryManager 即重建这个 BehaviorSubject；
-    // 它天生为空，所以刷新后 redo 自然清空，不需要额外的清理步骤。
-    expect(new RedoStack().value).toEqual([]);
-  });
-
-  it('RedoStack 没有任何持久化入口', () => {
-    // 加一个 load()/hydrate() 看起来像补功能，实际是在 commit 之外再造一份 durable
-    // 历史：两份记录会对同一段过去给出不同答案，而 FR-019 要的恰恰是它们分家。
-    expect(Object.getOwnPropertyNames(RedoStack.prototype).sort()).toEqual([
-      'clear',
-      'constructor',
-      'items$',
-      'push',
-      'remove',
-      'value'
-    ]);
-  });
+  // 这条语义的**另一半**——「redo 栈天生为空、且没有任何持久化入口」——在核心那边：
+  // `packages/rxdb/src/__tests__/version/plugin-host-shape.spec.ts`。`RedoStack` 与
+  // `HistoryManager` 核心只转类型不转值，这个包拿不到它们的构造器与 prototype。
+  // 两半合起来才是 FR-019：会话级的那份不许落盘，durable 的那份不许带失效语义。
 
   it('commit 侧的表不带 redo 失效语义，而 RxDBChange 仍然带着', () => {
     const redoInvalidationColumns = ['redoInvalidatedAt', 'revertChangedAt', 'revertChangeId'];
@@ -305,39 +292,5 @@ describe('durable commit 历史与会话级 redo 栈正交（FR-019）', () => {
     }
     // 反向对照：这三列必须仍在 change 表上，否则上一段是在空集合上空跑。
     expect(columnNamesOf(RxDBChange)).toEqual(expect.arrayContaining(redoInvalidationColumns));
-  });
-});
-
-describe('undo/redo/restoreEntity 的既有入口没有被挪走（FR-018）', () => {
-  it('HistoryManager 仍持有 undo/redo 的既有公共方法', () => {
-    // 只钉「还在原位」，钉不了行为：unit 层的 fake adapter 没有存储
-    // （见 fixtures/test-db-setup.ts），真实行为归 __tests__/version/*.spec.ts。
-    expect(Object.getOwnPropertyNames(HistoryManager.prototype)).toEqual(
-      expect.arrayContaining([
-        'history',
-        'pushToRedoStack',
-        'removeFromRedoStack',
-        'clearRedoStack',
-        'invalidateRedoStack',
-        'clearUndoHistory',
-        'clearAllUndoHistory',
-        'setUndoBranch',
-        'isExecutingUndoRedo'
-      ])
-    );
-  });
-
-  it('VersionManager.restoreEntity 仍在，且仍收 (entity, options) 两个参数', () => {
-    // 「顺手」给它加一个 commit 相关的第三参数并给默认值，签名看着兼容，
-    // 但调用方的 arity 假设与 spec 里的 mock 会同时错位。
-    const restoreEntity: unknown = VersionManager.prototype.restoreEntity;
-    expect(typeof restoreEntity).toBe('function');
-    expect((restoreEntity as (...args: unknown[]) => unknown).length).toBe(2);
-  });
-
-  it('VersionManager 仍从自己身上提供 history 与分支查询入口', () => {
-    expect(Object.getOwnPropertyNames(VersionManager.prototype)).toEqual(
-      expect.arrayContaining(['history', 'restoreEntity', 'getCurrentBranch'])
-    );
   });
 });

@@ -1,4 +1,4 @@
-import { ACTIVE_BRANCH_KEY, createWorkingTreeCommitsInitialRows } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
 import { expectObservableSequence } from '@aiao/rxdb-test';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
@@ -72,12 +72,14 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
     await tx.execute(
       `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`
     );
-    // 逐表 DELETE 也清掉了工作树/提交侧的单例与 main 的伴生行，而新库里这些行是有的
-    // （`createTables()` 随建表一次写入）。清库要回到的是**新库形态**，只补 `rxdb_branch`
-    // 会留下一个新库不可能出现的半成品：下一次 `createBranch()` 在发放分支代际时读不到
-    // 激活态行而直接抛错。行的形状只由 `createWorkingTreeCommitsInitialRows` 定义，
-    // 这里不另抄一份 INSERT——抄一份就等于再开一条会腐烂的建库路径。
-    await tx.saveMany(createWorkingTreeCommitsInitialRows(adapter.rxdb.entityManager, ['main']));
+    // 逐表 DELETE 同时清掉了工作树/提交侧的单例与 main 的伴生行，这里**不补**：抽包之后
+    // 那十张表只存在于 `use(rxDBPluginWorkingTree)` 过的库里，而 `cleanup_db` 的调用点
+    // （八套 shared suite）一个都没装插件。在没有那些表的库上调
+    // `createWorkingTreeCommitsInitialRows` 只会因为实体未注册当场抛错。
+    //
+    // 真让某个装了插件的库走到这里，症状是**响的**：清库后第一次 `createBranch()` 在发放
+    // 分支代际时读不到激活态行直接抛错。届时加一个由调用方传入初始行的入口，别在这里
+    // import 插件包——sqlite-core 连它的 devDependency 都没有。
     const sql = generateSwitchBranchSql(adapter, 'main');
     await tx.execute(sql);
   }, false);

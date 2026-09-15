@@ -7,7 +7,7 @@
  * 6 个适配器包各自要写两个调用点，形状一旦分叉，写调用点的人就得逐套件回忆参数名，
  * 而回忆错的代价是「套件导出了但没人跑」，那等于没覆盖。
  *
- * 类型名用 `WorkingTree*` 前缀而非裸 `SuiteContext`：本文件经 `@aiao/rxdb/testing`
+ * 类型名用 `WorkingTree*` 前缀而非裸 `SuiteContext`：本文件经 `@aiao/rxdb-plugin-working-tree/testing`
  * 子路径对外导出，受 spec.md 的命名裁决约束（新导出只用 `Commit*` / `WorkingTree*`
  * 前缀）。`*.suite.ts` 被命名门禁排除，本文件不是。
  */

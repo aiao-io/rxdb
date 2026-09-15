@@ -140,6 +140,15 @@ export type CommitChangeSetRow = Pick<
  * 「恰好八条，不多不少」，而本错误是写入前的入参校验，不是调用方需要分支处理的库状态。
  */
 export class CommitEncryptedAtRestError extends RxDBError {
+  /**
+   * 只由本文件的 `assertColumnEncryptedAtRest` 在逐列扫描时构造。
+   *
+   * @remarks
+   * 七项全部走参数属性，于是「错误的自有属性恰好是身份与位置、且只有身份与位置」这条不变量
+   * 在签名上就能核对完。想往错误里补上下文的人必须动这份签名，而不是在抛出点 `Object.assign`
+   * 一个字段上去——后者不产生任何编译错误，却足以让被拒的那个值（很可能正是明文）
+   * 随诊断序列化流出去，而不让它流出去正是本类存在的理由（见类注释）。
+   */
   constructor(
     /** 目标实体的命名空间 */
     readonly namespace: string,

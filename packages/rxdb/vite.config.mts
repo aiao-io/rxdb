@@ -54,12 +54,7 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      // 多入口：`./testing` 是独立子路径导出，必须单独成产物。
-      // 它承载两套工作树 conformance 套件，最终会 `import 'vitest'`——
-      // 并进主入口等于让运行时入口背上测试框架。
-      // package.json 的 `./testing` 指向 dist/working-tree/testing/index.js，
-      // 漏登记这一条就是死链（scripts/audit/subpath-build-entries.mjs 守这条）。
-      entry: { index: 'src/index.ts', 'working-tree/testing/index': 'src/working-tree/testing/index.ts' },
+      entry: { index: 'src/index.ts' },
       name: '@aiao/rxdb',
       fileName: (_format: string, entryName: string) => `${entryName}.js`,
       // 改成你需要支持的格式。
@@ -69,8 +64,9 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // 不打进库里的外部依赖。`vitest` 只被 `./testing` 入口引用，按 peerDependency 外置。
-      external: ['@aiao/utils', 'rxjs', 'type-fest', 'uuid', 'vitest']
+      // 不打进库里的外部依赖。`vitest` 不在其中：`./testing` 子路径随 epic-006 搬去了
+      // `@aiao/rxdb-plugin-working-tree`，核心自此没有任何**非** spec 文件引用它。
+      external: ['@aiao/utils', 'rxjs', 'type-fest', 'uuid']
     }
   },
   test: {
@@ -90,12 +86,10 @@ export default defineConfig(() => ({
       provider: 'istanbul' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
-      // `src/working-tree/testing/**` 与 `src/__tests__/**` 同类：都是测试代码，不是被测面。
-      // 区别只在它经 `./testing` 子路径发布出去，由 6 个适配器包的 conformance 调用点执行——
-      // 本包自己的 `test` 一行都跑不到（同一条理由让 coverage-check.mjs 整包排除了 `rxdb-test`）。
-      // 计进来量的不是引擎覆盖率，而是「这份套件在错误的包里跑没跑」，答案恒为否：
-      // 套件每长一节，functions 就掉一截（T067 写到一半时已把 96% 压到 88.69%）。
-      exclude: ['src/__tests__/**', 'src/working-tree/testing/**'],
+      // 一致性套件（原 `src/working-tree/testing/**`）已随 epic-006 搬进
+      // `@aiao/rxdb-plugin-working-tree`，那一条排除项跟着走了——它排除的目录在本包已不存在，
+      // 留着只会让下一个人以为核心还发着一个 `./testing` 子路径。
+      exclude: ['src/__tests__/**'],
       // 核心包 90% 门槛必须由 test target 自身强制，否则「覆盖率达标」只是报告里的数字，
       // 回归时掉到门槛以下不会让任何 Nx target 变红（RXD-043）
       thresholds: {

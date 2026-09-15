@@ -13,7 +13,7 @@
  * 拿新协议去写旧图。所以这里是**严格相等**。
  */
 
-import type { EntityMetadata, TransactionExecutor } from '@aiao/rxdb';
+import type { EntityMetadata, RxDBCapabilityVersionKind, TransactionExecutor } from '@aiao/rxdb';
 import {
   getEntityColumnName,
   getEntityMetadata,
@@ -25,6 +25,7 @@ import {
   sqlTimestampLiteral,
   UnsupportedRxDBSystemVersionError
 } from '@aiao/rxdb';
+import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -49,6 +50,24 @@ export interface CommitCapabilityInfo extends CommitCapabilityVersions {
   /** 启用时刻；未启用时为 `null` */
   readonly enabledAt: Date | null;
 }
+
+/**
+ * 两个**本能力自有**号的归因标签。
+ *
+ * @remarks
+ * 核心的 `RxDBSystemVersionKind` 只剩 `'system schema' | 'change codec'` 两支——提交概念随
+ * 本包抽走之后，核心不再替插件枚举号名。于是这两个号改成自报归属：报错渲染成
+ * `Unsupported RxDB workingTree commit protocol version: …`，用户一眼看得出该升哪个包。
+ */
+const COMMIT_PROTOCOL_KIND: RxDBCapabilityVersionKind = {
+  capability: WORKING_TREE_CAPABILITY,
+  kind: 'commit protocol'
+};
+
+const COMMIT_GRAPH_SCHEMA_KIND: RxDBCapabilityVersionKind = {
+  capability: WORKING_TREE_CAPABILITY,
+  kind: 'commit graph schema'
+};
 
 /**
  * 本进程支持的能力版本三元组。
@@ -161,11 +180,13 @@ export const isCommitCapabilityEnabled = async (executor: TransactionExecutor): 
 export const assertSupportedCommitCapability = (info: CommitCapabilityInfo): void => {
   const supported = SUPPORTED_COMMIT_CAPABILITY_VERSIONS;
   if (info.protocolVersion !== supported.protocolVersion) {
-    throw new UnsupportedRxDBSystemVersionError('commit protocol', info.protocolVersion, supported.protocolVersion);
+    throw new UnsupportedRxDBSystemVersionError(COMMIT_PROTOCOL_KIND, info.protocolVersion, supported.protocolVersion);
   }
   if (info.schemaVersion !== supported.schemaVersion) {
-    throw new UnsupportedRxDBSystemVersionError('commit graph schema', info.schemaVersion, supported.schemaVersion);
+    throw new UnsupportedRxDBSystemVersionError(COMMIT_GRAPH_SCHEMA_KIND, info.schemaVersion, supported.schemaVersion);
   }
+  // 第三个号是**核心的**（`RXDB_CHANGE_CODEC_VERSION`），所以报的是核心号名、不带能力归因：
+  // codec 对不上时该升的是 `@aiao/rxdb` 本身，指向本插件只会把人带偏。
   if (info.codecVersion !== supported.codecVersion) {
     throw new UnsupportedRxDBSystemVersionError('change codec', info.codecVersion, supported.codecVersion);
   }

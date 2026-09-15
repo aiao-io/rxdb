@@ -12,9 +12,11 @@
  * 1. **契约表格是从 markdown 现场解析出来的，不是抄进来的常量。** 抄一份进测试，改契约时只要顺手
  *    把测试里那份也改了就仍然全绿——被守住的从来只有「我抄得一致」，不是「登记表跟契约一致」。
  *    §3 那张表是六个适配器作者读的那一份，它变了就必须有人重新核对代码。
- * 2. **「产生工作树单元」列不比对登记表字段，比对 {@link producesWorkingTreeEntry} 的返回值。**
- *    登记表刻意不存这一列（见 `trusted-write-intent.ts` 的 `TrustedCallsite` 注释），因为它是矩阵
- *    的结论。测试要是去比对某个字段，等于逼着实现把这一列加回来，正好毁掉那条设计。
+ * 2. **「产生工作树单元」那一列不在这里比对，因为核心算不出它。** 登记表刻意不存这一列
+ *    （见 `trusted-write-intent.ts` 的 `TrustedCallsite` 注释）：它是捕获矩阵的结论，不是核心的事实。
+ *    算它要 `producesWorkingTreeEntry()`，而那个函数在 `@aiao/rxdb-plugin-working-tree` 里——核心
+ *    够不着，**也不该够得着**，为一个布尔值把捕获语义拉回核心正好毁掉抽包立起来的那条边界。
+ *    那一列的比对见下面「这张表由两个包分着守」。
  * 3. **9 行必须在真实代码里找得到，而且是「同一个键」找得到。** 只断言「文件里出现过这个符号名」
  *    是纸糊的：符号名在 TSDoc、在日志字符串、在调用处都会出现。这里要求的是一处形状完整的
  *    `declareTrustedWrite(scope, { file, symbol, intent })`，且 `scope` 的变量名就是写原语的宿主前缀
@@ -40,6 +42,14 @@
  * 9. **排除清单既断言在判定函数上，也断言在真正喂进扫描的文件清单上。** 只测判定函数，
  *    没人保证 glob 真按它过滤；只测 glob，判定函数就是一段装饰。两头都钉住，中间才没有缝。
  *
+ * **这张表由两个包分着守，切口就是第 2 条。** 登记表与 9 处真实声明都在核心，所以这份留在核心，
+ * 而且**必须**留在核心：它扫的是 `packages/rxdb/src/**`，从插件包里 `import.meta.glob` 够不着那棵树——
+ * 抽包之后它在插件里扫到的是插件自己的 52 个文件，9 行一行都找不到、8 处批量写一处都看不见，
+ * 于是整份门禁在「全红」和「全绿但什么都没看」之间二选一。结论列那一半在
+ * `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts`，
+ * 它从**同一份**契约原文里解析同一张表——两边各自解析而不是一边抄另一边，是为了让契约改动同时
+ * 落到两处，而不是落到一处、另一处照旧全绿。
+ *
  * **与 T066 的分工**：这份跑在 chromium 里，够得着 `TRUSTED_CALLSITE_REGISTRY` 这个 TS 值，
  * 但只看得见 `packages/rxdb/src`。`scripts/audit/working-tree-callsite-drift.mjs`（T066）跑在 node 里，
  * 看得见 `dist/`、`out-tsc/` 与另外三十个包，但读不到 TS 导出。两者互不覆盖，**别合并**。
@@ -49,15 +59,14 @@ import { describe, expect, it } from 'vitest';
 // 本包的测试跑在 chromium 里，没有 node:fs。要拿契约原文与真实源码做逐行核对，唯一的办法是
 // Vite 的 `?raw` / `import.meta.glob`——它们在构建期把内容内联成字符串。
 // eslint-disable-next-line @nx/enforce-module-boundaries -- specs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
+import ADAPTER_CONTRACT from '../../../../../specs/001-working-tree-commits/contracts/adapter-contract.md?raw';
 import {
   TRUSTED_CALLSITE_REGISTRY,
   trustedCallsiteKey,
   TrustedWriteIntent,
-  WRITE_ENTRANCES,
   type TrustedCallsite
-} from '@aiao/rxdb';
-import ADAPTER_CONTRACT from '../../../../../specs/001-working-tree-commits/contracts/adapter-contract.md?raw';
-import { producesWorkingTreeEntry } from '../../working-tree/trusted-callsite-capture.js';
+} from '../../trusted-write/trusted-write-intent.js';
+import { WRITE_ENTRANCES } from '../../trusted-write/write-entrance.js';
 
 // ---------------------------------------------------------------------------
 // 源码快照：`src/version/*.ts` 用于核对 9 行登记，`src/**` 用于批量写漂移扫描。
@@ -276,11 +285,15 @@ interface ContractRow {
   /** 存档行号 */
   readonly line: number;
 
-  /** 意图列的原文标签 */
+  /**
+   * 意图列的原文标签
+   *
+   * @remarks
+   * 第 7 列「产生工作树单元」**故意不解析**：核心算不出它（文件头第 2 条）。解析出来却没有断言
+   * 比对的字段比缺字段更坏——它看着像被守住了。那一列在插件侧的 `trusted-callsite-capture.spec.ts`
+   * 里解析并比对。
+   */
   readonly intentLabel: string;
-
-  /** 「产生工作树单元」列是不是 `**必须产生**` */
-  readonly producesEntry: boolean;
 }
 
 /** 取 markdown 里两个标题之间那一段；取不到就抛，不给静默的空串。 */
@@ -318,8 +331,7 @@ const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(ADAPTER_CONTRACT, '## 3.
     symbol: backticked(cells[2]),
     writePrimitive: backticked(cells[3]).replace(/\(.*\)$/, ''),
     line: Number(cells[4]),
-    intentLabel: cells[5],
-    producesEntry: cells[6] === '**必须产生**'
+    intentLabel: cells[5]
   }));
 
 /**
@@ -544,18 +556,6 @@ describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
     expect(TRUSTED_CALLSITE_REGISTRY.map(row => row.intent)).toEqual(fromContract);
   });
 
-  it('「产生工作树单元」列由矩阵算出，不从登记表字段里读', () => {
-    const computed = TRUSTED_CALLSITE_REGISTRY.map(row => producesWorkingTreeEntry(row));
-    expect(computed).toEqual(CONTRACT_ROWS.map(row => row.producesEntry));
-  });
-
-  it('不产生单元的恰好是 #1 分支物化与 #3 redo 失效', () => {
-    const notProducing = TRUSTED_CALLSITE_REGISTRY.filter(row => !producesWorkingTreeEntry(row)).map(
-      row => `${row.file}·${row.symbol}`
-    );
-    expect(notProducing).toEqual(['VersionManager.ts·switchBranch', 'HistoryManager.ts·invalidateRedoStack']);
-  });
-
   it('每一行的 entrance 都是矩阵认得的入口', () => {
     const unknown = TRUSTED_CALLSITE_REGISTRY.filter(row => !WRITE_ENTRANCES.includes(row.entrance));
     expect(unknown).toEqual([]);
@@ -748,7 +748,7 @@ describe('漂移扫描：批量写只许打 QueryCache', () => {
 
   it('字符串里的写法不算调用点', () => {
     const inString = "const hint = 'this.adapter.upsertMany(name, rows)';\n";
-    expect(scanBulkWriteDrift([{ path: 'working-tree/bulk-write-gate.ts', source: inString }])).toEqual([]);
+    expect(scanBulkWriteDrift([{ path: 'trusted-write/trusted-write-scope.ts', source: inString }])).toEqual([]);
   });
 
   it('接口成员与 abstract 声明不算调用点', () => {
@@ -785,13 +785,17 @@ describe('漂移扫描：批量写只许打 QueryCache', () => {
 
 describe('扫描排除（adapter-contract.md §3 末段）', () => {
   it('五类排除项都不进扫描', () => {
+    // `*.suite.ts` 与并排的 `*.spec.ts` 这两类今天在核心里一个实例都没有（一致性套件随
+    // epic-006 去了插件包，核心的 spec 一律在 `__tests__/` 下）。规则照留：排除集是
+    // adapter-contract.md §3 末段定死的五类，而下面那条负向 glob 仍然带着它们——
+    // 判定函数先把某一类放掉，等哪天核心重新有了这类文件，漏的是扫描而不是这条用例。
     const excluded = [
       'packages/rxdb/dist/repository/QueryCacheRepository.js',
       'packages/rxdb/out-tsc/vitest/repository/QueryCacheRepository.js',
-      'packages/rxdb/src/__tests__/working-tree/entry-fold.spec.ts',
-      'packages/rxdb/src/__tests__/working-tree/fixtures/probe.ts',
-      'packages/rxdb/src/working-tree/testing/commit.suite.ts',
-      'packages/rxdb/src/working-tree/write-entry.spec.ts'
+      'packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts',
+      'packages/rxdb/src/__tests__/fixtures/test-db-setup.ts',
+      'packages/rxdb/src/version/version.suite.ts',
+      'packages/rxdb/src/version/VersionManager.spec.ts'
     ];
     expect(excluded.filter(isScannedSourcePath)).toEqual([]);
   });
@@ -800,7 +804,7 @@ describe('扫描排除（adapter-contract.md §3 末段）', () => {
     const included = [
       'packages/rxdb/src/repository/QueryCacheRepository.ts',
       'packages/rxdb/src/version/VersionManager.ts',
-      'packages/rxdb/src/working-tree/bulk-write-gate.ts'
+      'packages/rxdb/src/trusted-write/trusted-write-scope.ts'
     ];
     expect(included.filter(isScannedSourcePath)).toEqual(included);
   });

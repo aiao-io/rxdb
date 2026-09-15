@@ -41,6 +41,7 @@ import {
 } from '../../commit/commit-capability-state.entity.js';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
+import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { WorkingTreeCapabilityDisabledError, WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
@@ -93,6 +94,10 @@ function createScene(capability: { enabled: boolean } | null): Scene {
   });
   const adapter = createMockAdapter(database);
   database.adapter('local', () => adapter);
+  // `use()` 必须排在 `init()` 之前：带系统贡献的插件晚于 `init()` 注册会被核心当场拒掉
+  // （贡献赶不上建表）。挂 `database.workingTree` 这件事本身发生在插件**构造器**里，
+  // 于是这一行同时给下面「多次读取是同一个实例」那条用例备好了入口。
+  database.use(rxDBPluginWorkingTree);
   database.init();
 
   // rowsAffected=1：`enable()` 这一支要能走到「CAS 命中」，否则 T031 会因为
@@ -145,12 +150,17 @@ async function rejectionOf(value: unknown): Promise<unknown> {
 }
 
 describe('workingTree 入口恒存在（contracts/core-api.md §1）', () => {
-  it('构造之后、init() 之前就已经在，且不是 undefined', () => {
+  it('use() 之后、init() 之前就已经在，且不是 undefined', () => {
     const database = new RxDB({
       dbName: `rxdb-working-tree-entry-${Math.random().toString(36).slice(2)}`,
       entities: [],
       sync: { local: { adapter: 'local' }, type: SyncType.None }
     });
+    // 抽包之后这条断言的起点从「构造之后」变成「`use()` 之后」，而契约没变：入口的存在与否
+    // 仍是**构建期**属性（装没装本包、有没有 `use()` 这一行），不是连接纪元的函数。
+    // 所以挂载留在插件**构造器**里——`use()` 同步求值插件工厂，入口当场就在；
+    // 挪进 `install()` 就会变成「`init()` 之后才有」，那才是真的把它降级成纪元属性。
+    database.use(rxDBPluginWorkingTree);
 
     // `readonly workingTree?: WorkingTreeManager` 的代价不是 `?.` 难看：
     // `database.workingTree?.commit(msg)` 在未启用的库上静默求值为 undefined，

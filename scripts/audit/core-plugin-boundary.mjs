@@ -46,42 +46,11 @@ export const SCAN_EXCLUDED_DIRS = Object.freeze(['__tests__', ...PLUGIN_DIRS]);
  * 每一条都要能被读成一句话：「这条依赖要到哪一步才拆得掉，为什么现在拆不掉」。
  * 登记一条的成本必须高于顺手拆掉它——否则这张表会变成绕过门禁的快捷方式。
  *
- * 阶段 1（核心内部重排）结束时这张表就是下面这个样子；阶段 2（建包搬迁）结束时它必须为空。
+ * 阶段 2（建包搬迁）已完成，这张表**现在是空的**，也应当一直是空的：核心不再 import
+ * `commit/` 与 `working-tree/` 里的任何东西。新登记一条的门槛因此比阶段 1 时更高——
+ * 它意味着核心又长回了一条对插件的依赖，绝大多数时候正确的动作是拆掉它而不是登记它。
  */
-export const PENDING_BOUNDARY_CROSSINGS = Object.freeze({
-  // —— 门面：`RxDB.workingTree` 与能力位，随门面一起走（阶段 2）——
-  'RxDB.ts·commit/commit-capability.js': '能力位读取；`workingTree` 门面搬走时一并走',
-  'RxDB.ts·working-tree/capture-hook.js': '捕获运行时的**实现**；核心只留 WorkingTreeCaptureRuntime 接口',
-  'RxDB.ts·working-tree/working-tree-facade.js': 'WorkingTreeManager 本体，插件的公开门面',
-
-  // —— 桶文件：抽包时整行删掉 ——
-  'index.ts·commit/index.js': '公开面再导出；抽包时整行删除',
-  'index.ts·working-tree/index.js': '公开面再导出；抽包时整行删除',
-
-  // —— 系统表登记：等 SYSTEM_ENTITIES 降级成核心 4 张（阶段 2）——
-  'system/system-entities.ts·commit/commit.entity.js': 'epic-006 十张系统表之一：提交节点',
-  'system/system-entities.ts·commit/commit-branch-ref.entity.js': 'epic-006 十张系统表之一：分支 HEAD 引用',
-  'system/system-entities.ts·commit/commit-change-set.entity.js': 'epic-006 十张系统表之一：提交变更集',
-  'system/system-entities.ts·commit/commit-capability-state.entity.js': 'epic-006 十张系统表之一：能力协商状态',
-  'system/system-entities.ts·working-tree/working-tree-entry.entity.js': 'epic-006 十张系统表之一：工作树条目',
-  'system/system-entities.ts·working-tree/working-tree-state.entity.js': 'epic-006 十张系统表之一：工作树状态',
-  'system/system-entities.ts·working-tree/working-tree-activation-state.entity.js':
-    'epic-006 十张系统表之一：分支激活代数',
-  'system/system-entities.ts·working-tree/working-tree-materialization-stage.entity.js':
-    'epic-006 十张系统表之一：物化暂存',
-  'system/system-entities.ts·working-tree/working-tree-materialization-page.entity.js':
-    'epic-006 十张系统表之一：物化分页游标',
-  'system/system-entities.ts·working-tree/working-tree-restore-session.entity.js': 'epic-006 十张系统表之一：恢复会话',
-
-  // —— 系统迁移：整条 0004 会变成插件的 createMigrations()（阶段 2）——
-  'system/migrations/0004-working-tree-commits.ts·commit/branch-commit-rows.js': '迁移里写 baseline 提交行',
-  'system/migrations/0004-working-tree-commits.ts·commit/commit-capability-state.entity.js': '迁移里写能力协商初始行',
-  'system/migrations/0004-working-tree-commits.ts·working-tree/activation-state.js': '迁移里写工作树初始 generation',
-
-  // —— 建分支：新分支要同时落提交图的 baseline 与工作树的 generation（阶段 2）——
-  'version/create-branch.ts·commit/branch-commit-rows.js': '建分支时写 baseline 提交；要等插件暴露建表后回调',
-  'version/create-branch.ts·working-tree/activation-state.js': '建分支时分配 generation；同上'
-});
+export const PENDING_BOUNDARY_CROSSINGS = Object.freeze({});
 
 /** 扫描到的一条跨界依赖。 */
 const crossingKeyOf = (fromFile, toModule) => `${fromFile}·${toModule}`;

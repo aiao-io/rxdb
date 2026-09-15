@@ -179,34 +179,6 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
   ) as IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>>;
 
   /**
-   * 给单个实体登记一份专用仓库。
-   *
-   * @param EntityType - 实体类
-   * @param rows - 该实体 `find()` 要返回的行；不传即空表
-   * @returns 登记进去的那份仓库，便于用例直接在它的 `find` / `create` 上断言
-   *
-   * @remarks
-   * 登记后即使用例再调 {@link stubAdapterRepository} 换掉其余实体的仓库，这一份仍然生效——
-   * 「引导要读的那一行」与「用例想观察的那张表」因此可以同时成立。
-   */
-  stubEntityRepository(EntityType: EntityType, rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
-    const repository = createStubRepository(rows);
-    this.#dedicatedRepositories.set(EntityType, repository);
-    return repository;
-  }
-
-  /**
-   * 已登记专用仓库的实体表，只读。
-   *
-   * @remarks
-   * 转出去是给 {@link stubAdapterRepository} 用的：它要在替换默认仓库时把这些绕过去，
-   * 而它是个自由函数，够不着私有字段。
-   */
-  get dedicatedRepositories(): ReadonlyMap<EntityType, IRepository<EntityType>> {
-    return this.#dedicatedRepositories;
-  }
-
-  /**
    * 事务替身：把回调放进一个最小 {@link TransactionExecutor} 里同步跑掉，不做任何隔离。
    *
    * @remarks
@@ -230,6 +202,34 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
     };
     return fun(executor);
   });
+
+  /**
+   * 已登记专用仓库的实体表，只读。
+   *
+   * @remarks
+   * 转出去是给 {@link stubAdapterRepository} 用的：它要在替换默认仓库时把这些绕过去，
+   * 而它是个自由函数，够不着私有字段。
+   */
+  get dedicatedRepositories(): ReadonlyMap<EntityType, IRepository<EntityType>> {
+    return this.#dedicatedRepositories;
+  }
+
+  /**
+   * 给单个实体登记一份专用仓库。
+   *
+   * @param EntityType - 实体类
+   * @param rows - 该实体 `find()` 要返回的行；不传即空表
+   * @returns 登记进去的那份仓库，便于用例直接在它的 `find` / `create` 上断言
+   *
+   * @remarks
+   * 登记后即使用例再调 {@link stubAdapterRepository} 换掉其余实体的仓库，这一份仍然生效——
+   * 「引导要读的那一行」与「用例想观察的那张表」因此可以同时成立。
+   */
+  stubEntityRepository(EntityType: EntityType, rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
+    const repository = createStubRepository(rows);
+    this.#dedicatedRepositories.set(EntityType, repository);
+    return repository;
+  }
 }
 
 /**

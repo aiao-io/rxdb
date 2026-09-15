@@ -17,7 +17,6 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
@@ -31,7 +30,6 @@ import { RxDB } from '../../RxDB.js';
 import { capabilityWatermarkName, UnclaimedRxDBCapabilityError } from '../../system/capability-watermark.js';
 import { RxDBMigration } from '../../system/migration.js';
 import { getSystemEntityNames, isSystemEntity, SYSTEM_ENTITIES } from '../../system/system-entities.js';
-import { createCapabilityStateRow } from '../fixtures/test-db-setup.js';
 
 @Entity({
   namespace: 'rxdb',
@@ -63,7 +61,14 @@ const probeContribution: RxDBSystemContribution = {
     row.branchId = context.branchIds[0];
     return [row];
   },
-  createMigrations: () => [probeMigration]
+  createMigrations: () => [probeMigration],
+  // 契约的五个成员都是必填，探针只用得上前三个——但后两个不能省：
+  // 宿主在 `connect()` 收尾处无条件遍历贡献调 `bootstrapExisting`，
+  // `create_branch` 结尾同样无条件调 `writeBranchRows`。缺一个不是「没有这项贡献」，
+  // 是当场 `TypeError: contribution.bootstrapExisting is not a function`。
+  // 这两个接缝本身由 `RxDB.connect-lifecycle.spec.ts` 与 `version/create-branch.spec.ts` 守。
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined
 };
 
 const probePlugin: Plugin = () => ({ name: 'probe', system: probeContribution, install: () => undefined });
@@ -171,9 +176,6 @@ class TestLocalAdapter implements IRxDBAdapter {
   }
 
   #repositoryFor<T extends EntityType>(EntityType: unknown): IRepository<T> {
-    if (EntityType === CommitCapabilityState) {
-      return createRepository([createCapabilityStateRow()] as InstanceType<T>[]) as IRepository<T>;
-    }
     if (EntityType === RxDBMigration) {
       const rows = this.migrationNames.map(name => ({ name })) as InstanceType<T>[];
       const repository = createRepository<T>(rows);

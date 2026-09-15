@@ -44,6 +44,7 @@ import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
+import { rxDBPluginWorkingTree } from '../../plugin.js';
 import type { WorkingTreePatchCodecContext } from '../../working-tree/working-tree-patch-codec.js';
 import { encodeWorkingTreePatch } from '../../working-tree/working-tree-patch-codec.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
@@ -97,6 +98,9 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
+  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
+  database.use(rxDBPluginWorkingTree);
   database.init();
   return database.entityManager;
 }

@@ -39,11 +39,14 @@ import { describe, expect, it } from 'vitest';
 import type { CommitChangeUnit } from '../../commit/change-unit.js';
 import { computeChangeUnitFingerprint, computeCommitContentFingerprint } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
+import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
-import { listCommits } from '../../commit/list-commits.js';
+import { getCommitDetail, listCommits } from '../../commit/list-commits.js';
 import type { BuildCommitRowsInput } from '../../commit/write-commit.js';
 import { buildCommitRows } from '../../commit/write-commit.js';
+import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import type { CommitGraphProbe } from './fixtures/commit-graph-probe.js';
 import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
 
 /** 只为拿一个真的 {@link EntityManager}——commit 行要靠它 `instantiate()` 出来。 */
@@ -54,6 +57,9 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
+  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
+  database.use(rxDBPluginWorkingTree);
   database.init();
   return database.entityManager;
 }
@@ -90,6 +96,99 @@ function createInput(overrides: Partial<BuildCommitRowsInput> = {}): BuildCommit
     ...overrides
   };
 }
+
+/**
+ * 把一条 `id → parentIds` 的链写进探针，并把 ref 指向 `head`。
+ *
+ * @param probe - 目标探针
+ * @param entityManager - 用来 `instantiate()` ref 行
+ * @param graph - 每项是 `[id, parentIds]`；`parentIds` 的第 0 个就是第一父
+ * @param head - ref 的 `headCommitId`，`null` 表示这个分支一次都没提交过
+ *
+ * @remarks
+ * 它只写 `Commit` 与 `CommitBranchRef` 两张表，**不写 `CommitChangeSet`**。可达性问的是
+ * 「沿父链走得到谁」，那是 commit 行之间的事；要变更集的用例自己用 {@link changeSetOf}
+ * 补，因为那些用例要的正是「同一条历史里只有某几个 commit 动过某个实体」这种不齐整的布景，
+ * 而顺手给每个 commit 都配一行只会让「筛掉了谁」无从分辨。
+ */
+const seedGraph = (
+  probe: CommitGraphProbe,
+  entityManager: EntityManager,
+  graph: readonly (readonly [string, readonly string[]])[],
+  head: string | null
+): void => {
+  probe.seed(
+    Commit,
+    graph.map(([id, parentIds]) => {
+      const { commit } = buildCommitRows(
+        entityManager,
+        createInput({ id, parentIds: [...parentIds], operationId: `op-${id}` })
+      );
+      return commit;
+    })
+  );
+  const ref = entityManager.instantiate(CommitBranchRef);
+  ref.id = 'main';
+  ref.branchId = 'main';
+  ref.generation = 1;
+  ref.headCommitId = head;
+  ref.headRevision = graph.length;
+  ref.status = 'ok';
+  ref.corruptedAt = null;
+  probe.seed(CommitBranchRef, [ref]);
+};
+
+/**
+ * 造一行 `CommitChangeSet`，用来说明「这次提交动过哪个实体」。
+ *
+ * @param entityManager - 用来 `instantiate()`
+ * @param commitId - 归属的 commit
+ * @param entity - 这一行落在哪个实体上
+ * @param sequence - 本行在该 commit 内的重放序号
+ *
+ * @remarks
+ * 不走 `buildCommitRows()`：那条路一次只能给一个 commit 造**整组**行，而这里要的恰恰是
+ * 逐行摆布——`id` 也因此写成可读的 `${commitId}-cs-${sequence}` 而不是 uuid，
+ * 断言失败时能一眼看出是哪个 commit 的第几行。
+ */
+const changeSetOf = (entityManager: EntityManager, commitId: string, entity: string, sequence = 0): CommitChangeSet => {
+  const row = entityManager.instantiate(CommitChangeSet);
+  row.id = `${commitId}-cs-${sequence}`;
+  row.commitId = commitId;
+  row.sequence = sequence;
+  row.unitId = `${commitId}-unit-${sequence}`;
+  row.transactionId = null;
+  row.namespace = 'app';
+  row.entity = entity;
+  row.entityId = `${entity.toLowerCase()}-1`;
+  row.operation = 'update';
+  row.patch = { title: 'after' };
+  row.inversePatch = { title: 'before' };
+  row.origin = 'local';
+  return row;
+};
+
+/**
+ * 给已落库的 commit 行补上「数据库时钟写的 `createdAt`」。
+ *
+ * @param probe - 目标探针；表里的每一行都必须在 `stamps` 里有值
+ * @param stamps - commit id → 时间戳
+ *
+ * @remarks
+ * `buildCommitRows()` 刻意不写 `createdAt`（时钟归数据库，见上面那条同名用例），所以探针里的行
+ * 拿到的是 `undefined`。而 `undefined < date` 与 `undefined > date` **同时为假**——时间窗过滤
+ * 会整体退化成「谁都放行」，于是一个把 `<` 写成 `>` 的实现在未补时钟的布景下照样全绿。
+ * 补进去的就是真实库里 `CURRENT_TIMESTAMP` 写的那一列。
+ *
+ * 漏一行直接抛：漏掉的那行会安静地留在上面那个退化态里，而退化态不会让任何断言变红。
+ */
+const stampClock = (probe: CommitGraphProbe, stamps: Readonly<Record<string, Date>>): void => {
+  for (const row of probe.rowsOf(Commit) as Commit[]) {
+    const stamp = stamps[row.id];
+    if (!stamp) throw new Error(`stampClock: commit '${row.id}' has no timestamp`);
+    row.createdAt = stamp;
+  }
+};
 
 describe('提交图（FR-002/003/027）', () => {
   describe('firstParentId 的不变量', () => {
@@ -286,34 +385,6 @@ describe('提交图（FR-002/003/027）', () => {
   });
 
   describe('listCommits 走可达性，不扫全表', () => {
-    /** 把一条 `id → parentIds` 的链写进探针，并把 ref 指向 `head`。 */
-    const seedGraph = (
-      probe: ReturnType<typeof createCommitGraphProbe>,
-      entityManager: EntityManager,
-      graph: readonly (readonly [string, readonly string[]])[],
-      head: string | null
-    ): void => {
-      probe.seed(
-        Commit,
-        graph.map(([id, parentIds]) => {
-          const { commit } = buildCommitRows(
-            entityManager,
-            createInput({ id, parentIds: [...parentIds], operationId: `op-${id}` })
-          );
-          return commit;
-        })
-      );
-      const ref = entityManager.instantiate(CommitBranchRef);
-      ref.id = 'main';
-      ref.branchId = 'main';
-      ref.generation = 1;
-      ref.headCommitId = head;
-      ref.headRevision = graph.length;
-      ref.status = 'ok';
-      ref.corruptedAt = null;
-      probe.seed(CommitBranchRef, [ref]);
-    };
-
     it('从 ref 的 head 沿父链回溯，最新在前', async () => {
       const entityManager = createEntityManager();
       const probe = createCommitGraphProbe();
@@ -436,6 +507,181 @@ describe('提交图（FR-002/003/027）', () => {
 
       // 历史列表是元数据视图。顺手 join 变更集会让 100 个 commit 的列表拉出上万行。
       expect(probe.finds.filter(call => call.entity === 'CommitChangeSet')).toEqual([]);
+    });
+  });
+
+  describe('listCommits 的后置过滤：先走完可达图，再筛（FR-012）', () => {
+    /** 三节点线性历史 `c1 → c2 → c3`；**只有最老的 `c1`** 动过 `Note`。 */
+    const seedChainWhereOnlyOldestTouchesNote = (probe: CommitGraphProbe, entityManager: EntityManager): void => {
+      seedGraph(
+        probe,
+        entityManager,
+        [
+          ['c1', []],
+          ['c2', ['c1']],
+          ['c3', ['c2']]
+        ],
+        'c3'
+      );
+      probe.seed(CommitChangeSet, [
+        changeSetOf(entityManager, 'c1', 'Note'),
+        changeSetOf(entityManager, 'c2', 'Recipe'),
+        changeSetOf(entityManager, 'c3', 'Recipe')
+      ]);
+    };
+
+    /** 同一条链，三个节点的库时钟依次落在这三天上。 */
+    const DAY_1 = new Date('2026-01-01T00:00:00.000Z');
+    const DAY_2 = new Date('2026-02-01T00:00:00.000Z');
+    const DAY_3 = new Date('2026-03-01T00:00:00.000Z');
+
+    it('entity 过滤发生在遍历之后 —— 不匹配的节点仍然要把父指针交出来', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedChainWhereOnlyOldestTouchesNote(probe, entityManager);
+
+      const commits = await listCommits(probe.executor, { branchId: 'main', entity: 'Note' });
+
+      // 把 entity 下推进取 commit 的 WHERE，`c3` / `c2` 根本不会被取回来，它们的父指针跟着
+      // 消失，于是 `c1` 不可达 —— 结果是 `[]`，长得像「这个实体从来没被改过」，而不像一个 bug。
+      expect(commits.map(commit => commit.id)).toEqual(['c1']);
+    });
+
+    it('有后置过滤时 limit 不参与提前收兵 —— 否则「前 N 个里恰好没有」会被报成「一个都没有」', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedChainWhereOnlyOldestTouchesNote(probe, entityManager);
+
+      const commits = await listCommits(probe.executor, { branchId: 'main', entity: 'Note', limit: 1 });
+
+      // 拿 limit 当遍历预算的话，收够 `c3` 就停了，筛完是空的。limit 只能作用在**筛完之后**。
+      expect(commits.map(commit => commit.id)).toEqual(['c1']);
+    });
+
+    it('没有任何节点动过那个实体时给空历史，而不是给全部', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedChainWhereOnlyOldestTouchesNote(probe, entityManager);
+
+      // 「一个都没匹配上」与「没写过滤条件」必须给出不同的答案；筛不动就整份放行是最常见的退化。
+      await expect(listCommits(probe.executor, { branchId: 'main', entity: 'Ingredient' })).resolves.toEqual([]);
+    });
+
+    it('since / until 都是闭区间 —— 边界上那一刻算在窗内', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(
+        probe,
+        entityManager,
+        [
+          ['c1', []],
+          ['c2', ['c1']],
+          ['c3', ['c2']]
+        ],
+        'c3'
+      );
+      stampClock(probe, { c1: DAY_1, c2: DAY_2, c3: DAY_3 });
+
+      const since = await listCommits(probe.executor, { branchId: 'main', since: DAY_2 });
+      const until = await listCommits(probe.executor, { branchId: 'main', until: DAY_2 });
+
+      // 边界取在 `c2` 上，两侧各问一次：开区间会把 `c2` 从**两边同时**挤掉，
+      // 而只问一侧的用例分不出「边界被排除」和「这一侧本来就没有」。
+      expect(since.map(commit => commit.id)).toEqual(['c3', 'c2']);
+      expect(until.map(commit => commit.id)).toEqual(['c2', 'c1']);
+    });
+
+    it('since 与 until 同时给时取交集，且不改变最新在前的顺序', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(
+        probe,
+        entityManager,
+        [
+          ['c1', []],
+          ['c2', ['c1']],
+          ['c3', ['c2']]
+        ],
+        'c3'
+      );
+      stampClock(probe, { c1: DAY_1, c2: DAY_2, c3: DAY_3 });
+
+      const commits = await listCommits(probe.executor, { branchId: 'main', since: DAY_2, until: DAY_2 });
+
+      expect(commits.map(commit => commit.id)).toEqual(['c2']);
+    });
+
+    it('时间窗先把结果筛空时，不再发那条按 commitId 的 in 查询', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedChainWhereOnlyOldestTouchesNote(probe, entityManager);
+      stampClock(probe, { c1: DAY_1, c2: DAY_2, c3: DAY_3 });
+
+      const commits = await listCommits(probe.executor, {
+        branchId: 'main',
+        entity: 'Note',
+        until: new Date('2025-12-31T00:00:00.000Z')
+      });
+
+      expect(commits).toEqual([]);
+      // 空 id 列表拼出来是 `IN ()`：那在几个后端上是**语法错误**而不是「零命中」，
+      // 于是一次本该返回空历史的正常查询会以一条 SQL 报错收场。
+      expect(probe.finds.filter(call => call.entity === 'CommitChangeSet')).toEqual([]);
+    });
+  });
+
+  describe('getCommitDetail（FR-012）', () => {
+    it('changeSets 在 JS 侧按 sequence 升序，不依赖后端的返回顺序', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(probe, entityManager, [['c1', []]], 'c1');
+      // 故意逆序塞进表里：不加 ORDER BY 时后端按什么顺序还行是它自己的事，实现不能指望它。
+      probe.seed(CommitChangeSet, [
+        changeSetOf(entityManager, 'c1', 'Recipe', 2),
+        changeSetOf(entityManager, 'c1', 'Note', 0),
+        changeSetOf(entityManager, 'c1', 'Ingredient', 1)
+      ]);
+
+      const detail = await getCommitDetail(probe.executor, 'c1');
+
+      // 顺序错了就是把「先删后建」重放成「先建后删」——重放完的数据看起来完整，只是内容是错的。
+      expect(detail.changeSets.map(row => row.sequence)).toEqual([0, 1, 2]);
+      expect(detail.changeSets.map(row => row.entity)).toEqual(['Note', 'Ingredient', 'Recipe']);
+    });
+
+    it('只带回本 commit 的变更集与它自己的父关系', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(
+        probe,
+        entityManager,
+        [
+          ['c1', []],
+          ['c2', ['c1']]
+        ],
+        'c2'
+      );
+      probe.seed(CommitChangeSet, [
+        changeSetOf(entityManager, 'c1', 'Note'),
+        changeSetOf(entityManager, 'c2', 'Recipe')
+      ]);
+
+      const detail = await getCommitDetail(probe.executor, 'c2');
+
+      expect(detail.commit.id).toBe('c2');
+      expect(detail.changeSets.map(row => row.id)).toEqual(['c2-cs-0']);
+      // `parentIds` 转自 commit 行本身，不是另查一遍关系表 —— 两处各读各的迟早会分叉。
+      expect(detail.parentIds).toEqual(['c1']);
+    });
+
+    it('commit 不存在时抛错并把 id 写进消息，不降级成空详情', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(probe, entityManager, [['c1', []]], 'c1');
+
+      // 返回一个 changeSets 为空的壳会让「这次提交什么都没改」与「这个 id 根本不存在」
+      // 在调用方眼里一模一样，而后者意味着调用方手里的 id 来路不明。
+      await expect(getCommitDetail(probe.executor, 'missing')).rejects.toThrow("Commit 'missing' does not exist.");
     });
   });
 });

@@ -52,6 +52,7 @@ import {
   readCommitCapability,
   SUPPORTED_COMMIT_CAPABILITY_VERSIONS
 } from '../../commit/commit-capability.js';
+import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { fakeTableRef } from '../fixtures/fake-table-ref.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
@@ -63,6 +64,9 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
+  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
+  database.use(rxDBPluginWorkingTree);
   database.init();
   return database.entityManager;
 }

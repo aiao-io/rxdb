@@ -1,25 +1,16 @@
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  COMMIT_CAPABILITY_STATE_ID,
-  COMMIT_GRAPH_SCHEMA_VERSION,
-  COMMIT_PROTOCOL_VERSION,
-  CommitCapabilityState
-} from '../commit/commit-capability-state.entity.js';
-import type { EntityType } from '../entity/entity.interface.js';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import { RxDBTabsGateway } from '../gateway/RxDBTabsGateway.js';
 import { ENTITY_LOCAL_CREATE_EVENT, EntityLocalCreatedEvent, type RxDBEvent } from '../rxdb-events.js';
+import type { RxDBSystemContribution } from '../rxdb-plugin-system.js';
 import type { Plugin } from '../rxdb-plugin.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { SyncStateHub } from '../sync-state.js';
-import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError, NoActiveBranchError } from '../system/active-branch-guard.js';
-import { RxDBBranch } from '../system/branch.js';
-import { RXDB_CHANGE_CODEC_VERSION } from '../system/change-codec.js';
+import { capabilityWatermarkName } from '../system/capability-watermark.js';
 import { RxDBMigration } from '../system/migration.js';
-import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../system/migrations/0004-working-tree-commits.js';
-import { createMockAdapter, type MockLocalAdapter } from './fixtures/test-db-setup.js';
+import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 type DatabaseOverrides = {
   context?: RxDBOptions['context'];
@@ -62,6 +53,49 @@ afterEach(async () => {
     vi.restoreAllMocks();
   }
 });
+
+/**
+ * 一个只为「让系统迁移链非空」而存在的假贡献方。
+ *
+ * @remarks
+ * 核心今天**自带零条系统迁移**——十张表随 `@aiao/rxdb-plugin-working-tree` 走了，
+ * `createSystemMigrations()` 对一个没装插件的库返回空数组。而 `runMigrations()` 开头
+ * 就是 `if (!migrations || migrations.length === 0) return;`：空链**一次读都不发**。
+ *
+ * 于是重试那条用例不能就这么把插件名删掉了事：系统那一次 `runMigrations` 会整个消失，
+ * `rxdb_migration` 的读次数从 6 掉到 4，而它要守的恰恰是「系统迁移与接入方迁移是**两条
+ * 独立的** `runMigrations`，中间隔着 `migrateSystemSchema()` / `completeBootstrap()`，
+ * 不能合并成一次读」。断言改成 4 不会报错，只会让这条用例从此不再看着那个接缝。
+ *
+ * 所以这里补一个本地假贡献，把系统链填成非空。它刻意**不带任何实体**：
+ * `entities: []` 让 `registerSystemEntities()` 无事可做，不会往模块级注册表里塞
+ * 一个只属于本文件的身份——那张表是进程全局的、追加式的，污染它会让同一次 vitest 里
+ * 别的用例对 `isSystemEntity()` 得到不同答案。
+ */
+const RETRY_PROBE_PACKAGE = '@example/rxdb-plugin-retry-probe';
+const RETRY_PROBE_MIGRATION_NAME = '0001-retry-probe';
+
+const retryProbeContribution: RxDBSystemContribution = {
+  capability: 'retryProbe',
+  version: 1,
+  packageSpecifier: RETRY_PROBE_PACKAGE,
+  entities: [],
+  createInitialRows: () => [],
+  createMigrations: () => [
+    { name: RETRY_PROBE_MIGRATION_NAME, up: async () => undefined, down: async () => undefined }
+  ],
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined
+};
+
+const retryProbePlugin: Plugin = () => ({
+  name: 'retryProbe',
+  system: retryProbeContribution,
+  install: () => undefined
+});
+
+/** 贡献方的能力认领行；它与迁移同链，因此也会被认领执行权。 */
+const RETRY_PROBE_CLAIM_ROW = capabilityWatermarkName(retryProbeContribution);
 
 describe('RxDB 连接、迁移与插件生命周期', () => {
   it('registers and retrieves repository configuration', () => {
@@ -154,6 +188,8 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     const adapterFactory = vi.fn(() => adapter);
     vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
     database.adapter('local', adapterFactory);
+    // 系统迁移链非空是这条用例的前置，不是背景装饰——理由见 `retryProbeContribution`。
+    database.use(retryProbePlugin);
     database.init();
 
     const appliedRecord = new RxDBMigration();
@@ -201,10 +237,13 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
     // `created` 是内存数组，回滚不到它，所以两次尝试各留下一条。真库上只会剩最后一条。
     // 关键契约是：只有 z-retry 认领了执行权，已执行的 a-applied 一次都没碰。
+    // 系统链两条（能力认领行按 localeCompare 排在迁移前面），接入方链一条。
     expect(created.map(record => record.name)).toEqual([
-      WORKING_TREE_COMMITS_MIGRATION_NAME,
+      RETRY_PROBE_CLAIM_ROW,
+      RETRY_PROBE_MIGRATION_NAME,
       'z-retry',
-      WORKING_TREE_COMMITS_MIGRATION_NAME,
+      RETRY_PROBE_CLAIM_ROW,
+      RETRY_PROBE_MIGRATION_NAME,
       'z-retry'
     ]);
     expect(vi.mocked(adapter.createTables)).not.toHaveBeenCalled();
@@ -602,121 +641,5 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     await expect(database.connect('local')).resolves.toBe(adapter);
 
     await disposeDatabase(database);
-  });
-  // FR-048 的运行期那一半：schema 只拦得住「至多一个」（`RxDBBranch.activeKey` 可空唯一列），
-  // 「至少一个」是空表也满足的条件，任何列约束都表达不了，只能在连接时判。
-  // 判定放在**提交能力已启用**之后：未启用的库不该被一个它还没进入的语义拦在门外。
-  describe('连接握手校验 active 分支基数（FR-048）', () => {
-    /**
-     * 已启用的能力行；fixture 默认发的那行是未启用的（见 `createCapabilityStateRow`）。
-     *
-     * @remarks
-     * 字面量而非 `new CommitCapabilityState()`，理由同 fixture：实体的访问器要解析
-     * `EntityManager`，在 `init()` 之前构造出的实例一碰就抛。
-     */
-    const createEnabledCapability = (): CommitCapabilityState => ({
-      id: COMMIT_CAPABILITY_STATE_ID,
-      enabled: true,
-      protocolVersion: COMMIT_PROTOCOL_VERSION,
-      schemaVersion: COMMIT_GRAPH_SCHEMA_VERSION,
-      codecVersion: RXDB_CHANGE_CODEC_VERSION,
-      enabledAt: new Date()
-    });
-
-    /**
-     * 造一行 active 分支。
-     *
-     * @remarks
-     * 多 active 那条用例里两行都带着同一个 `activeKey` —— 真库上它撞唯一索引，进不来；
-     * 而握手要覆盖的正是**索引补上之前**就已经两行 active 的既有库（见
-     * `system/active-branch-guard.ts` 的 fileoverview 末段）。替身没有索引，正好造得出这个现场。
-     */
-    const createActiveBranch = (id: string) =>
-      ({
-        id,
-        activated: true,
-        activeKey: ACTIVE_BRANCH_KEY,
-        local: true,
-        remote: false
-      }) satisfies Partial<RxDBBranch>;
-
-    /** 只替换点名实体的仓库，其余原样走 fixture 的默认桩。 */
-    const stubRepositories = (adapter: MockLocalAdapter, rows: ReadonlyMap<EntityType, object[]>): void => {
-      const defaultGetRepository = adapter.getRepository.getMockImplementation();
-      adapter.getRepository.mockImplementation(EntityType => {
-        const stubbed = rows.get(EntityType);
-        if (!stubbed) return defaultGetRepository?.(EntityType) as never;
-        return {
-          find: vi.fn(async () => stubbed),
-          count: vi.fn(async () => stubbed.length),
-          create: vi.fn(async (entity: object) => entity),
-          update: vi.fn(async (entity: object) => entity),
-          remove: vi.fn(async (entity: object) => entity)
-        } as never;
-      });
-    };
-
-    /**
-     * 造一个走**既有库**路径的实例。
-     *
-     * @remarks
-     * `isTableExisted` 必须为真：握手只校验既有库（见 `RxDB.#assertActiveBranchCardinality`）。
-     * 这不是为了绕开什么——「零 active」「两行 active」本来就只可能是别人留下的状态，
-     * 首装路径那一行 `main` 是同一次 `createTables` 刚写下的。
-     */
-    const createDatabaseWith = (rows: ReadonlyMap<EntityType, object[]>): RxDB => {
-      const database = createDatabase();
-      const adapter = createMockAdapter(database);
-      vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
-      stubRepositories(adapter, rows);
-      database.adapter('local', () => adapter);
-      database.init();
-      return database;
-    };
-
-    it('启用后零 active 分支的库连接被拒，而不是被静默挪到 main', async () => {
-      const database = createDatabaseWith(
-        new Map<EntityType, object[]>([
-          [CommitCapabilityState, [createEnabledCapability()]],
-          [RxDBBranch, []]
-        ])
-      );
-
-      await expect(database.connect('local')).rejects.toBeInstanceOf(NoActiveBranchError);
-    });
-
-    it('启用后多 active 分支的库连接被拒，不猜一个当当前分支', async () => {
-      const database = createDatabaseWith(
-        new Map<EntityType, object[]>([
-          [CommitCapabilityState, [createEnabledCapability()]],
-          [RxDBBranch, [createActiveBranch('feature-x'), createActiveBranch('main')]]
-        ])
-      );
-
-      await expect(database.connect('local')).rejects.toThrow(AmbiguousActiveBranchError);
-    });
-
-    it('启用后恰好一行 active 的库照常连上', async () => {
-      const database = createDatabaseWith(
-        new Map<EntityType, object[]>([
-          [CommitCapabilityState, [createEnabledCapability()]],
-          [RxDBBranch, [createActiveBranch('main')]]
-        ])
-      );
-
-      await expect(database.connect('local')).resolves.toBeDefined();
-
-      await disposeDatabase(database);
-    });
-
-    // 这一条才是「门」本身：未启用的库连一行分支都没有也得连得上，否则新不变量会把
-    // 所有还没启用提交能力的既有库挡在外面——FR-048 的措辞是「启用后 MUST 保证」。
-    it('未启用提交能力的库不被这个不变量拦住', async () => {
-      const database = createDatabaseWith(new Map<EntityType, object[]>([[RxDBBranch, []]]));
-
-      await expect(database.connect('local')).resolves.toBeDefined();
-
-      await disposeDatabase(database);
-    });
   });
 });

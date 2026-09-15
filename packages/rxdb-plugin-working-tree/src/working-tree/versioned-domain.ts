@@ -201,6 +201,14 @@ export interface VersionedDomain extends VersionedDomainView {
  * （throw ⇒ rollback），不由本类负责。
  */
 export class MixedVersionedCacheTransactionError extends RxDBMixedVersionedCacheTransactionError {
+  /**
+   * 只由 `createTransactionGuard()` 在**第二类实体刚出现**的那一刻构造。
+   *
+   * @remarks
+   * 两个参数取的是各自**先撞上的那一个**，不是全集（理由见 `createTransactionGuard`）。
+   * 转交父类时各自包成单元素数组：父类那两个数组的形状服务于「整批扫一遍再报」的批量路径，
+   * 而流式守卫这边根本没有全集可交。
+   */
   constructor(
     /** 本事务内先后撞上的 tracked 实体名 */
     readonly trackedEntityName: string,

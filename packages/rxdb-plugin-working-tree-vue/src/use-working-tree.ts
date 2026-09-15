@@ -14,9 +14,9 @@ import {
   type WorkingTreeDiscardResult,
   type WorkingTreeQueryState,
   type WorkingTreeStatus
-} from '@aiao/rxdb';
+} from '@aiao/rxdb-plugin-working-tree';
+import { useRxDB } from '@aiao/rxdb-vue';
 import { computed, shallowRef, type ComputedRef } from 'vue';
-import { useRxDB } from './rxdb-vue';
 
 /**
  * {@link useWorkingTree} 的返回值。
@@ -24,8 +24,8 @@ import { useRxDB } from './rxdb-vue';
  * @remarks
  * 七个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进
  * `ComputedRef`：成员可以安全解构，模板只读了 `statusState` 时，一次 `diff()` 的相位变化
- * 不会让它重新求值。七个方法的签名与核心 `WorkingTreeManager` 上的同名方法完全一致 ——
- * 入参与返回值用的都是 `@aiao/rxdb` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
+ * 不会让它重新求值。七个方法的签名与插件包 `WorkingTreeManager` 上的同名方法完全一致 ——
+ * 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、React `useWorkingTree()`
  * （渲染快照），字段名、方法名与语义完全一致，只是容器形态不同。
@@ -77,7 +77,7 @@ export interface WorkingTreeResource {
  * @example
  * ```vue
  * <script lang="ts" setup>
- * import { useWorkingTree } from '@aiao/rxdb-vue';
+ * import { useWorkingTree } from '@aiao/rxdb-plugin-working-tree-vue';
  *
  * const tree = useWorkingTree();
  * await tree.status();

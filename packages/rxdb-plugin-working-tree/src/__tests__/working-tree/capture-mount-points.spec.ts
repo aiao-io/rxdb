@@ -32,6 +32,7 @@ import { describe, expect, it } from 'vitest';
 // 本包的测试跑在 chromium 里，没有 node:fs。要拿到 `rxdb-adapter.ts` 的**源码文本**做漂移比对，
 // 唯一的办法是 Vite 的 `?raw`——它在构建期把文件内容内联成字符串，因此比对的是真实源码，
 // 而不是「我记得它长这样」。
+// eslint-disable-next-line @nx/enforce-module-boundaries -- 越过包边界读的正是被比对的那份核心源码本身
 import ADAPTER_SOURCE from '../../../../rxdb/src/rxdb-adapter.ts?raw';
 import {
   CAPTURE_MOUNT_POINTS,

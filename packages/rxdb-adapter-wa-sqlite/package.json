@@ -70,6 +70,7 @@
   },
   "devDependencies": {
     "@aiao/rxdb-test": "workspace:*",
-    "ms": "^2.1.3"
+    "ms": "^2.1.3",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*"
   }
 }

@@ -39,15 +39,16 @@
 
 import { createHash } from 'node:crypto';
 
-import type { CommitOptions, UUID, WorkingTreeCredentials } from '@aiao/rxdb';
+import type { UUID } from '@aiao/rxdb';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import type { CommitOptions, WorkingTreeCredentials } from '@aiao/rxdb-plugin-working-tree';
 import {
   ConformanceNote,
   WORKING_TREE_CONFORMANCE_ENTITIES,
   WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
   WORKING_TREE_CONFORMANCE_USER_ID
-} from '@aiao/rxdb/testing';
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { firstValueFrom } from 'rxjs';
 
 // ---------------------------------------------------------------------------
@@ -346,7 +347,7 @@ export const buildWorkingTreeFixturePlan = (): WorkingTreeFixturePlan => {
  * @returns 已 `connect()` 且 `workingTree.enable()` 过的实例
  *
  * @remarks
- * 实体清单、远端占位适配器名与 `context.userId` 全部复用 `@aiao/rxdb/testing` 那一份：
+ * 实体清单、远端占位适配器名与 `context.userId` 全部复用 `@aiao/rxdb-plugin-working-tree/testing` 那一份：
  * benchmark 自己再声明一套实体的话，测的就不是一致性套件跑过的那条路径了。
  *
  * 库名带时间戳与随机后缀——那是**标识**不是内容，不进 `contentHash`；同一次运行里连开两个

@@ -27,6 +27,7 @@ import {
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
+import { installWorkingTreeCapture } from './capture-install.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { commitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
 import { readWorkingTreeDiff, type WorkingTreeDiff, type WorkingTreeDiffOptions } from './diff.js';
@@ -54,6 +55,14 @@ export class WorkingTreeCapabilityDisabledError extends RxDBError {
   /** epic-006 指定的稳定错误码，取自 {@link CommitErrorCode} */
   readonly code = CommitErrorCode.commit_capability_disabled;
 
+  /**
+   * 由 `WorkingTreeManager` 受管成员统一走的那道门禁（`runEnabled()`）构造，不收参数。
+   *
+   * @remarks
+   * 不带「你调的是哪个成员」：出路对每个受管成员都是同一件事——先 `enable()`，
+   * 带上成员名只会让同一个失败长出十份文案，而定位所需的调用点本就在堆栈里。
+   * 判别位统一由 `name` 与 `code` 承担（见类注释）。
+   */
   constructor() {
     super(
       '这个数据库尚未启用提交能力：除 isEnabled() / enable() 之外的 workingTree 成员都不可用。' +
@@ -68,13 +77,29 @@ export class WorkingTreeCapabilityDisabledError extends RxDBError {
  * 工作树与提交历史的入口（契约见 contracts/core-api.md §1）。
  *
  * @remarks
- * 实例在 `RxDB` 构造时就建好，与库是否启用提交能力无关——「有没有这个入口」是
- * **进程内库版本**的属性，「能不能用」才是**这个数据库**的属性。两者混在一起的话，
- * 同一份代码在两个库上会长出不同的对象形状。
+ * 实例在 `use(rxDBPluginWorkingTree)` 的那一刻建好（插件构造器里），与库是否启用提交能力
+ * 无关——「有没有这个入口」是**进程内库版本**的属性，「能不能用」才是**这个数据库**的属性。
+ * 两者混在一起的话，同一份代码在两个库上会长出不同的对象形状。
+ *
+ * 抽包之后这条分工反而更硬：入口的存在与否变成「装没装 `@aiao/rxdb-plugin-working-tree`」，
+ * 仍是构建期属性，而没装该包时 `database.workingTree` 是**编译错误**而不是静默 `undefined`。
+ * 挂载因此必须留在插件构造器里，不能挪进 `install()`——后者跑在 `init()` 内部，会把入口
+ * 变成连接纪元的函数。
  */
 export class WorkingTreeManager {
   readonly #rxdb: RxDB;
 
+  /**
+   * 由插件构造器调用，一个 RxDB 实例一个。
+   *
+   * @param rxdb - 宿主实例；整个门面只持有它这一个引用
+   *
+   * @remarks
+   * 持整个 RxDB 而不是在这里就取出本地适配器：受管成员每次调用都要**当场**重新解析
+   * （`#runInTransaction` 每次都走一遍 `localAdapter$`），因为 `enable()` 与重连都会换掉
+   * 适配器实例。构造那一刻取一次存下来，等于把门面钉死在第一个连接纪元上，
+   * 症状是重连之后所有命令仍然写向已经废弃的那个适配器。
+   */
   constructor(rxdb: RxDB) {
     this.#rxdb = rxdb;
   }
@@ -125,7 +150,7 @@ export class WorkingTreeManager {
       await runEnableMigration(executor, this.#rxdb.entityManager, { operationId: ENABLE_MIGRATION_OPERATION_ID });
       return enabled;
     });
-    this.#rxdb.installWorkingTreeCapture(adapter);
+    installWorkingTreeCapture(this.#rxdb, adapter);
     return info;
   }
 

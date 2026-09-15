@@ -84,6 +84,13 @@ export interface WorkingTreeStatus {
  * `WorkingTreeReplayCorruptionError` 同类。判别位给 `name` 与三个事实字段。
  */
 export class WorkingTreeEntryCountMismatchError extends RxDBError {
+  /**
+   * 只由 {@link assertWorkingTreeEntryCountIntact} 构造；两个偏差方向都走这里。
+   *
+   * @remarks
+   * 三个参数都是**事实**而不是结论：不预先算差值，也不带方向标记——算了的话「正号表示哪边多」
+   * 就成了第四个要在读写两侧对齐的约定，而 `expected` / `actual` 摆在那里谁都不会读反。
+   */
   constructor(
     /** 出问题的分支 */
     readonly branchId: string,

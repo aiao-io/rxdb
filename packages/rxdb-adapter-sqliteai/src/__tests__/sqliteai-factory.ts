@@ -1,4 +1,4 @@
-import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { createSqliteClient } from '../create_sqlite_client.js';
@@ -49,11 +49,12 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
   const rawOptions = (options ?? {}) as SqliteaiOptions & {
     entities?: EntityType[];
     persistent?: boolean;
+    plugins?: readonly Plugin[];
     remoteAdapter?: string;
   };
-  // `remoteAdapter` 必须在这里解构出去，不能留在 `adapterOptions` 里：那个对象整个
+  // `remoteAdapter` 与 `plugins` 必须在这里解构出去，不能留在 `adapterOptions` 里：那个对象整个
   // 展进 `SqliteaiOptions`，多带一个它不认识的键。
-  const { entities: entitiesOption, persistent, remoteAdapter, ...adapterOptions } = rawOptions;
+  const { entities: entitiesOption, persistent, plugins = [], remoteAdapter, ...adapterOptions } = rawOptions;
   const entities = (entitiesOption ?? []).slice();
   const dbName = `sqliteai-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
@@ -88,6 +89,17 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
       });
       return countingAdapter;
     });
+    // 插件**由调用点传进来**，不在这里无条件装：本工厂被二十来个共享套件复用，
+    // 无条件装上工作树插件等于给每一个都多建 10 张系统表。默认空数组 ⇒ 既有调用方零变化。
+    //
+    // 也刻意不 import 插件包：`src/testing.ts` 用 `import.meta.glob` 把本文件挂在已发布的
+    // `./testing` 子路径上，这里静态 import 一个 devDependency
+    // （`@aiao/rxdb-plugin-working-tree`）就等于把它塞进那条发布链。收函数则只有 spec 认识它，
+    // 而 spec 不进发布物。
+    //
+    // 必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
+    // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+    for (const plugin of plugins) rxdb.use(plugin);
     await rxdb.getAdapter('sqliteai');
     await rxdb.connect('sqliteai');
     return countingAdapter!;

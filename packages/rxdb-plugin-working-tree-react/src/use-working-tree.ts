@@ -6,17 +6,17 @@ import {
   WORKING_TREE_INITIAL_ASYNC_STATES,
   type WorkingTreeAsyncStates,
   type WorkingTreeCommands
-} from '@aiao/rxdb';
+} from '@aiao/rxdb-plugin-working-tree';
+import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useRxDB } from './rxdb-react.js';
 
 /**
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
  *
  * @remarks
  * 七个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
- * 解构。七个方法的签名与核心 `WorkingTreeManager` 上的同名方法完全一致 —— 入参与返回值
- * 用的都是 `@aiao/rxdb` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
+ * 解构。七个方法的签名与插件包 `WorkingTreeManager` 上的同名方法完全一致 —— 入参与返回值
+ * 用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
  * 方法**引用稳定**（同一个库跨 render 复用同一组闭包），因此可以安全地放进 `useEffect`
  * / `useMemo` 的依赖数组；状态字段则随每一次相位变化产生新对象，这正是重渲染的触发源。

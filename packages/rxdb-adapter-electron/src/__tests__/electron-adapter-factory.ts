@@ -11,7 +11,7 @@
  * @module __tests__/electron-adapter-factory
  */
 
-import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -105,8 +105,13 @@ class QueryCountingElectronAdapter extends RxDBAdapterElectron {
 const encryptedQueryCounts = new WeakMap<object, () => number>();
 
 async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingElectronAdapter> {
-  const rawOptions = (options ?? {}) as { entities?: EntityType[]; remoteAdapter?: string };
+  const rawOptions = (options ?? {}) as {
+    entities?: EntityType[];
+    plugins?: readonly Plugin[];
+    remoteAdapter?: string;
+  };
   const entities = rawOptions.entities?.slice() ?? [];
+  const plugins = rawOptions.plugins ?? [];
   const rxdb = new RxDB({
     dbName: uniqueDbName(),
     context: { userId: 'userId' },
@@ -128,6 +133,12 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
     return adapter;
   });
 
+  // 插件**由调用点传进来**，不在这里无条件装：本工厂被共享套件反复复用，
+  // 无条件装上工作树插件等于给每一个都多建 10 张系统表。默认空数组 ⇒ 既有调用方零变化。
+  //
+  // 必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
+  // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+  for (const plugin of plugins) rxdb.use(plugin);
   await rxdb.getAdapter(ADAPTER_NAME);
   await rxdb.connect(ADAPTER_NAME);
   if (!adapter) throw new Error('desktop adapter factory did not create an adapter');

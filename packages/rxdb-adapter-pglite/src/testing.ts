@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { ACTIVE_BRANCH_KEY, createWorkingTreeCommitsInitialRows, type EntityType } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, type EntityType } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -180,18 +180,15 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
     `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"activeKey","fromChangeId",local,remote) VALUES ('main',TRUE,'${ACTIVE_BRANCH_KEY}',NULL,TRUE,FALSE)`
   );
 
-  // TRUNCATE 也清掉了工作树/提交侧的单例与 main 的伴生行，而新库里这些行是有的
-  // （`createTables()` 随建表一次写入）。清库要回到的是**新库形态**，只补 `rxdb_branch`
-  // 会留下一个新库不可能出现的半成品：下一次 `createBranch()` 在发放分支代际时读不到
-  // 激活态行而直接抛错。行的形状只由 `createWorkingTreeCommitsInitialRows` 定义，
-  // 这里不另抄一份 INSERT——抄一份就等于再开一条会腐烂的建库路径。
+  // TRUNCATE 同时清掉了工作树/提交侧的单例与 main 的伴生行，这里**不补**：抽包之后那十张表
+  // 只存在于 `use(rxDBPluginWorkingTree)` 过的库里，而 `cleanup_db` 的调用点一个都没装插件
+  // （装了的只有两个一致性 spec，它们各自建库、不走清库）。在没有那些表的库上调
+  // `createWorkingTreeCommitsInitialRows` 只会因为实体未注册当场抛错。
   //
-  // 放在重挂触发器**之前**：`saveMany` 会写实体行，触发器在位时那几行会各自发一次 NOTIFY，
-  // 异步派发进下一个用例的监听窗口。`transactionLog = false` 同理，清理不该进变更日志。
-  await adapter.transaction(
-    executor => executor.saveMany(createWorkingTreeCommitsInitialRows(adapter.rxdb.entityManager, ['main'])),
-    false
-  );
+  // 真让某个装了插件的库走到这里，症状是**响的**：清库后第一次 `createBranch()` 在发放分支
+  // 代际时读不到激活态行直接抛错。届时该做的是给 `cleanup_db` 加一个由调用方传入初始行的
+  // 入口，**而不是**在本文件 import 插件包——`src/testing.ts` 是已发布的 `./testing` 子路径，
+  // 而 `@aiao/rxdb-plugin-working-tree` 只是 devDependency，静态 import 等于把它塞进发布链。
 
   // 只重挂触发器，不再顺带跑 switch 的那条分支激活 UPDATE：上一行的 INSERT 已经把
   // main 置为 activated=TRUE，那条 UPDATE 在取值上是空操作，却会触发行级 NOTIFY，

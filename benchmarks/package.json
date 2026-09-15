@@ -19,6 +19,7 @@
     "@aiao/rxdb-adapter-sqliteai": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
     "@modules/wujie": "workspace:*",

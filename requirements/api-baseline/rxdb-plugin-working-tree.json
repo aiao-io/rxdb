@@ -1,0 +1,612 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "ActiveBranchToken",
+        "kind": "type"
+      },
+      {
+        "name": "allocateBranchGeneration",
+        "kind": "value"
+      },
+      {
+        "name": "applyRawWriteJudgment",
+        "kind": "value"
+      },
+      {
+        "name": "assertColdReplayInvariant",
+        "kind": "value"
+      },
+      {
+        "name": "assertCommitUnitsEncryptedAtRest",
+        "kind": "value"
+      },
+      {
+        "name": "assertWorkingTreeEntryCountIntact",
+        "kind": "value"
+      },
+      {
+        "name": "buildVersionedDomain",
+        "kind": "value"
+      },
+      {
+        "name": "BulkWriteGateRequest",
+        "kind": "type"
+      },
+      {
+        "name": "BulkWriteOperation",
+        "kind": "type"
+      },
+      {
+        "name": "CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
+        "name": "captureChanges",
+        "kind": "value"
+      },
+      {
+        "name": "captureCrudWrite",
+        "kind": "value"
+      },
+      {
+        "name": "CapturedWrite",
+        "kind": "type"
+      },
+      {
+        "name": "CaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "CaptureMountPointOrdinal",
+        "kind": "type"
+      },
+      {
+        "name": "ChangeCaptureSource",
+        "kind": "type"
+      },
+      {
+        "name": "classifyWriteEntrance",
+        "kind": "value"
+      },
+      {
+        "name": "ColdReplayIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayInvariantInput",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayMismatch",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplayMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "ColdReplayRow",
+        "kind": "type"
+      },
+      {
+        "name": "ColdReplaySnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "COMMIT_ERROR_CODES",
+        "kind": "value"
+      },
+      {
+        "name": "CommitCapabilityInfo",
+        "kind": "type"
+      },
+      {
+        "name": "CommitCapabilityVersions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeSetRow",
+        "kind": "type"
+      },
+      {
+        "name": "CommitConflict",
+        "kind": "type"
+      },
+      {
+        "name": "CommitConflictKind",
+        "kind": "type"
+      },
+      {
+        "name": "CommitEncryptedAtRestError",
+        "kind": "both"
+      },
+      {
+        "name": "CommitEncryptedAtRestReason",
+        "kind": "type"
+      },
+      {
+        "name": "CommitEncryptedAtRestRecognizer",
+        "kind": "type"
+      },
+      {
+        "name": "CommitErrorCode",
+        "kind": "both"
+      },
+      {
+        "name": "CommitKind",
+        "kind": "type"
+      },
+      {
+        "name": "CommitLogEntry",
+        "kind": "type"
+      },
+      {
+        "name": "CommitLogOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitLogPage",
+        "kind": "type"
+      },
+      {
+        "name": "CommitOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitPatchCodecContext",
+        "kind": "type"
+      },
+      {
+        "name": "CommitPatchColumn",
+        "kind": "type"
+      },
+      {
+        "name": "CommitResult",
+        "kind": "type"
+      },
+      {
+        "name": "CommitValidationError",
+        "kind": "both"
+      },
+      {
+        "name": "CommitValidationReason",
+        "kind": "type"
+      },
+      {
+        "name": "commitWorkingTree",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeActivationRow",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCapturePort",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCaptureRuntime",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCommands",
+        "kind": "value"
+      },
+      {
+        "name": "createWorkingTreeCommitsInitialRows",
+        "kind": "value"
+      },
+      {
+        "name": "decodeCommitChangeSetUnit",
+        "kind": "value"
+      },
+      {
+        "name": "decodeCommitChangeSetUnits",
+        "kind": "value"
+      },
+      {
+        "name": "decodeWorkingTreePatch",
+        "kind": "value"
+      },
+      {
+        "name": "diffColdReplay",
+        "kind": "value"
+      },
+      {
+        "name": "discardWorkingTree",
+        "kind": "value"
+      },
+      {
+        "name": "encodeWorkingTreePatch",
+        "kind": "value"
+      },
+      {
+        "name": "ExternalNotifyGateRequest",
+        "kind": "type"
+      },
+      {
+        "name": "findCommitConflict",
+        "kind": "value"
+      },
+      {
+        "name": "fingerprintOf",
+        "kind": "value"
+      },
+      {
+        "name": "FoldOutcome",
+        "kind": "type"
+      },
+      {
+        "name": "foldWorkingTreeEntry",
+        "kind": "value"
+      },
+      {
+        "name": "gateBulkWrite",
+        "kind": "value"
+      },
+      {
+        "name": "gateExternalNotify",
+        "kind": "value"
+      },
+      {
+        "name": "isCaptureMountPoint",
+        "kind": "value"
+      },
+      {
+        "name": "isCommitErrorCode",
+        "kind": "value"
+      },
+      {
+        "name": "isCommitLogPageEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isWorkingTreeDiffEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isWorkingTreeStatusEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "judgeRawWrite",
+        "kind": "value"
+      },
+      {
+        "name": "MixedVersionedCacheTransactionError",
+        "kind": "both"
+      },
+      {
+        "name": "NoCaptureReason",
+        "kind": "type"
+      },
+      {
+        "name": "producesWorkingTreeEntry",
+        "kind": "value"
+      },
+      {
+        "name": "RawWriteAllowReason",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteJudgment",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteJudgmentContext",
+        "kind": "type"
+      },
+      {
+        "name": "readActiveBranchToken",
+        "kind": "value"
+      },
+      {
+        "name": "readCommitLogPage",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeActivationState",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeDiff",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeStateRow",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeStatus",
+        "kind": "value"
+      },
+      {
+        "name": "replayWorkingTree",
+        "kind": "value"
+      },
+      {
+        "name": "rxDBPluginWorkingTree",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginWorkingTree",
+        "kind": "both"
+      },
+      {
+        "name": "StaleActiveBranchError",
+        "kind": "both"
+      },
+      {
+        "name": "toCapturedWrite",
+        "kind": "value"
+      },
+      {
+        "name": "trackWorkingTreeCommand",
+        "kind": "value"
+      },
+      {
+        "name": "trackWorkingTreeQuery",
+        "kind": "value"
+      },
+      {
+        "name": "UnknownWorkingTreePatchEntityError",
+        "kind": "both"
+      },
+      {
+        "name": "UNTRACKED_BOOKKEEPING_FIELDS",
+        "kind": "value"
+      },
+      {
+        "name": "VersionedDomain",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedDomainEntityInput",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedDomainView",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedEntityClass",
+        "kind": "type"
+      },
+      {
+        "name": "VersionedTransactionGuard",
+        "kind": "type"
+      },
+      {
+        "name": "WORKING_TREE_CAPABILITY_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_INITIAL_ASYNC_STATES",
+        "kind": "value"
+      },
+      {
+        "name": "WorkingTreeActivationInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeAsyncStates",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCapabilityDisabledError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeCaptureHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCapturePort",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureRuntime",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeCaptureRuntimeOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCommands",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCommandState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCredentials",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiff",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffGranularity",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffTransaction",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiscardOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiscardResult",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEmptyState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryCountMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeEntryKey",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryOperation",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryRow",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeErrorState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeIdleState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeLoadingState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeManager",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeOriginBreakdown",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatch",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatchCodecContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreePatchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeQueryState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeReplayCorruptionError",
+        "kind": "both"
+      },
+      {
+        "name": "WorkingTreeRevisionSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeStatePatch",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeStateSink",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeStatus",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeSuccessState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeWriteRejectedError",
+        "kind": "both"
+      },
+      {
+        "name": "WRITE_TARGET_CLASSES",
+        "kind": "value"
+      },
+      {
+        "name": "WriteColumns",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntranceDecision",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntranceRequest",
+        "kind": "type"
+      },
+      {
+        "name": "WriteEntryOrigin",
+        "kind": "type"
+      },
+      {
+        "name": "WriteOperation",
+        "kind": "type"
+      },
+      {
+        "name": "WritePrimitiveSignature",
+        "kind": "type"
+      },
+      {
+        "name": "WriteTargetClass",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "ConformanceCache",
+        "kind": "both"
+      },
+      {
+        "name": "ConformanceNote",
+        "kind": "both"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_LOCAL_ADAPTER",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_USER_ID",
+        "kind": "value"
+      },
+      {
+        "name": "workingTreeCaptureConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "workingTreeCommitConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "WorkingTreeConformanceSuiteContext",
+        "kind": "type"
+      }
+    ]
+  }
+}

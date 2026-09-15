@@ -18,22 +18,36 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  *
  * @remarks
  * 2：`rxdb_migration."name"` 加唯一索引。
- * 4：epic-006 的 10 张工作树 / 提交图表（见 `migrations/0004-working-tree-commits.ts`）。
+ * 4：epic-006 的 10 张工作树 / 提交图表（当时长在核心）。
  * 5：`rxdb_branch.activeKey` 可空唯一列（FR-048 的「至多一个 active」那一半）。
+ * 6：`activeKey` 就位，且 v4 那十张表**不再归核心管**——它们随
+ * `@aiao/rxdb-plugin-working-tree` 走，认领与否改由能力水位裁决（见 `system/capability-watermark.ts`）。
  *
  * 5 是**补记**而不是新增能力：该列在 v4 水位线之后才进 `system/branch.ts`，于是已经被标成 4 的
  * 库（开发机上的那批）再也不会走进升级路径——版本号是升级路径唯一的触发条件，列本身不是。
  * 不 bump 就只能留下「除了那批库之外都正确」的洞。
+ *
+ * 6 **不带任何 DDL**，它只是把边界挪了位置。两个适配器的 `migrateSystemSchema()` 是一整块
+ * 幂等修复、只由 `isCurrentRxDBSystemVersion()` 把门，于是停在 4 的库补出 `activeKey`、
+ * 停在 5 的库空转一趟，两者都被重新标成 6，适配器一行都不用改。**不复用 4 或 5 改语义**：
+ * 水位号是升级路径唯一的触发条件，把 4 重新定义成别的意思会让已经标成 4 的那批库被静默误读，
+ * 而误读不产生任何编译错误。
+ *
+ * 有一种库它**接不住**，要写进发布说明：抽包**之前**就启用过提交能力的库停在 4/5，十张表
+ * 带着真实数据物理还在，却没有能力水位行（那是抽包之后才有的形态）。于是新客户端即便不装插件
+ * 也照常打开它，写入不再经过捕获——`capability-watermark.ts` 的守卫只认得水位行，够不到这一种。
+ * 不为它单开迁移是因为这批库只存在于开发机上：epic-006 从未发布过。
  *
  * **改这个常量是一次单向操作**：bump 之后旧版本客户端打开该库会按
  * {@link UnsupportedRxDBSystemVersionError} 拒绝。这不是新增的危险面（2→3 同样如此），
  * 但每次 bump 都必须进发布说明。
  *
  * 常量停在旧值不会让任何一处编译失败——水位线是模板字符串拼出来的，会安静地跟着停住，
- * 既有库于是永远进不了升级路径。`__tests__/system/working-tree-schema-migration.spec.ts`
- * 把它钉死就是为了这个。
+ * 既有库于是永远进不了升级路径。`__tests__/system/migration.spec.ts` 的「系统 schema 版本常量
+ * 与水位行停在当前值」把它钉死就是为了这个——那是同一节里唯一写死版本号的一条，
+ * 不要顺手改成取常量。
  */
-export const RXDB_SYSTEM_SCHEMA_VERSION = 5 as const;
+export const RXDB_SYSTEM_SCHEMA_VERSION = 6 as const;
 export const RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX = '__rxdb_system_schema__:' as const;
 export const RXDB_CHANGE_CODEC_WATERMARK_PREFIX = '__rxdb_change_codec__:' as const;
 
@@ -47,21 +61,49 @@ export interface RxDBSystemVersionState {
 }
 
 /**
- * 版本不匹配时报给用户的「哪个号」。
+ * 版本不匹配时报给用户的「哪个号」——**核心自己的**两个。
  *
  * @remarks
- * 四个号各自独立演进，因此不能合成一句「版本不兼容」：用户拿到的错误必须能直接回答
- * 「我该升客户端还是该跑迁移」。`system schema` 有迁移阶梯，落后可补；
- * `commit protocol` / `commit graph schema` 在 v1 没有任何阶梯（见
- * `commit/commit-capability.ts` 的严格相等比对）。
+ * 两个号各自独立演进，因此不能合成一句「版本不兼容」：用户拿到的错误必须能直接回答
+ * 「我该升客户端还是该跑迁移」。`system schema` 有迁移阶梯，落后可补；`change codec` 没有。
+ *
+ * 这里曾经还有 `'commit protocol' | 'commit graph schema'` 两支，随 epic-006 抽包一并移出：
+ * 核心不再认识提交概念，把它们留在一个封闭联合里等于核心替插件枚举号名。插件自己的号改走
+ * {@link RxDBCapabilityVersionKind}。
  */
-type RxDBSystemVersionKind = 'system schema' | 'change codec' | 'commit protocol' | 'commit graph schema';
+export type RxDBSystemVersionKind = 'system schema' | 'change codec';
+
+/**
+ * 版本不匹配时报给用户的「哪个号」——**插件能力自己的**。
+ *
+ * @remarks
+ * 能力版本号由贡献它的插件定义，核心数不清也不该数：第三方插件同样要能报出可读的版本不匹配，
+ * 而它的号名核心不可能预先枚举。于是这里不枚举号名，只多要一样东西——**归属哪个能力**。
+ *
+ * 要它是因为号名单独拿出来没有归属：用户同时装着几个插件时，一句「commit protocol 版本不对」
+ * 指不回该升哪个包。带上能力名就和 `capability-watermark.ts` 里 `RxDBCapabilityClaim` 的归因、
+ * 以及「未认领能力守卫」报的那个名字对上了，三处口径一致。
+ */
+export interface RxDBCapabilityVersionKind {
+  /** 能力名，与贡献它的插件的 `IRxDBPlugin.name` 同值 */
+  readonly capability: string;
+
+  /** 该能力内部的号名，如 `'commit protocol'`；原样渲染进错误消息 */
+  readonly kind: string;
+}
 
 export class UnsupportedRxDBSystemVersionError extends Error {
   override readonly name = 'UnsupportedRxDBSystemVersionError';
 
-  constructor(kind: RxDBSystemVersionKind, actualVersion: unknown, supportedVersion: number) {
-    super(`Unsupported RxDB ${kind} version: stored=${String(actualVersion)}, supported=${String(supportedVersion)}`);
+  constructor(
+    kind: RxDBSystemVersionKind | RxDBCapabilityVersionKind,
+    actualVersion: unknown,
+    supportedVersion: number
+  ) {
+    // 核心两个号的消息**逐字节不变**（`migration.spec.ts` 按 `stringContaining` 认它们）；
+    // 能力号多渲染一个能力名前缀，这样「升哪个包」不用再猜。
+    const label = typeof kind === 'string' ? kind : `${kind.capability} ${kind.kind}`;
+    super(`Unsupported RxDB ${label} version: stored=${String(actualVersion)}, supported=${String(supportedVersion)}`);
   }
 }
 

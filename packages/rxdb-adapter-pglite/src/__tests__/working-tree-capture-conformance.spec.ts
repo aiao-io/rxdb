@@ -2,7 +2,7 @@
  * @fileoverview PGlite 后端的捕获侧一致性调用点（T068）。
  *
  * @remarks
- * 套件本体在 `@aiao/rxdb/testing`，六个 v1 后端各有一个这样的文件，理由与提交侧调用点
+ * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件，理由与提交侧调用点
  * （`working-tree-commit-conformance.spec.ts`）完全相同：**断言一律不写在这里**，本文件
  * 只造一个已启用的库并在用例之间把它关掉。
  *
@@ -18,12 +18,13 @@
  */
 
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
   WORKING_TREE_CONFORMANCE_ENTITIES,
   WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
   WORKING_TREE_CONFORMANCE_USER_ID,
   workingTreeCaptureConformanceSuite
-} from '@aiao/rxdb/testing';
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -49,6 +50,9 @@ workingTreeCaptureConformanceSuite({
       }
     });
     database.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+    // 必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
+    // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+    database.use(rxDBPluginWorkingTree);
     opened.push(database);
     await database.connect('pglite');
     await database.workingTree.enable();

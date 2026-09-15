@@ -49,11 +49,22 @@ export type WriteOperation = 'insert' | 'update' | 'delete';
  */
 export type WriteColumns =
   /** 整行被替换：批量写原语与 upsert 的形态，**永远**不是 untracked 子集 */
-  | { readonly kind: 'whole_row' }
+  | {
+      /** 判别位：整行替换 */
+      readonly kind: 'whole_row';
+    }
   /** 解析不出被写列：按「不是 untracked 子集」处理（fail-closed） */
-  | { readonly kind: 'unknown' }
+  | {
+      /** 判别位：被写列解析不出 */
+      readonly kind: 'unknown';
+    }
   /** 明确的被写列名集合；空数组即语义 no-op */
-  | { readonly kind: 'columns'; readonly names: readonly string[] };
+  | {
+      /** 判别位：被写列已知 */
+      readonly kind: 'columns';
+      /** 被写的列名；空数组即语义 no-op，与 `whole_row` 的结论相反 */
+      readonly names: readonly string[];
+    };
 
 /**
  * 交给 {@link classifyWriteEntrance} 的一次写
@@ -160,6 +171,17 @@ export class WorkingTreeWriteRejectedError extends RxDBError {
   /** 被写的实体名；raw 通道上解析不出实体时为 `undefined` */
   readonly entityName: string | undefined;
 
+  /**
+   * 由五个拒绝点构造：四个挂载点各自的门，加上 raw 通道的判定。
+   *
+   * @param rejection - 拒绝现场：被拦的入口、解析得到的实体名（raw 通道上可能解析不出）、
+   *   以及已经拼好的文案
+   *
+   * @remarks
+   * 收一个对象而不是三个位置参数：三者里有两个是字符串，位置参数下把 `entityName` 与
+   * `message` 写反不会有编译错误，只会让日志里的实体名变成一整句话，而这个错误的用途
+   * 恰恰就是让日志能回答「谁在裸写版本化表」。
+   */
   constructor(rejection: { readonly entrance: WriteEntrance; readonly entityName?: string; readonly message: string }) {
     super(rejection.message);
     this.entrance = rejection.entrance;

@@ -33,7 +33,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** 两套套件的公共入口；调用点必须从这里导入，不得深路径直连套件文件。 */
-export const SUITE_ENTRY = '@aiao/rxdb/testing';
+export const SUITE_ENTRY = '@aiao/rxdb-plugin-working-tree/testing';
 
 /** conformance-suites.md §0 的两套套件，没有第三套。 */
 export const CONFORMANCE_SUITE_NAMES = Object.freeze([
@@ -52,7 +52,7 @@ export const V1_ADAPTER_PACKAGES = Object.freeze([
 ]);
 
 /** 两套套件的导出处，供 {@link findMissingSuiteExports} 核对改名。 */
-export const TESTING_ENTRY_FILE = 'rxdb/src/working-tree/testing/index.ts';
+export const TESTING_ENTRY_FILE = 'rxdb-plugin-working-tree/src/working-tree/testing/index.ts';
 
 /** `/` 出现在这些字符之后时是正则开头，不是除号。 */
 const REGEX_AFTER_PUNCTUATION = new Set([

@@ -23,7 +23,7 @@
  * **每条用例一个全新数据库**，理由与提交侧套件相同：契约里没有 teardown 钩子，共享实例会让
  * 上一条用例的残留变成下一条的隐藏前置。
  *
- * @module @aiao/rxdb/testing
+ * @module @aiao/rxdb-plugin-working-tree/testing
  */
 
 import { firstValueFrom } from 'rxjs';

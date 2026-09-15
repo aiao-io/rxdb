@@ -79,6 +79,14 @@ export type CommitValidationReason =
  * 就等于把加密列的明文抄进日志（FR-038）。
  */
 export class CommitValidationError extends RxDBError {
+  /**
+   * 只由本文件的 `assertValidCommitInput` 构造，且**早于**任何读写。
+   *
+   * @remarks
+   * 收的是「哪条约束」与「哪类提交」两个枚举，而不是违规的那个入参——这就是类注释那条
+   * 「不带任何入参值」在签名上的落点：两个参数的取值域都是有限字面量集合，
+   * 于是把整个错误对象序列化也带不出用户内容。
+   */
   constructor(
     /** 可判别的拒绝原因 */
     readonly reason: CommitValidationReason,

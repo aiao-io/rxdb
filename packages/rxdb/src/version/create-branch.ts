@@ -20,10 +20,11 @@ import { VersionManager } from './VersionManager.js';
  * 远端 `branchExists` 那一趟**留在事务外**：它是网络往返，放进事务会让并发度 1 的
  * 写队列被一次 RTT 堵住。它本来也只是尽力而为的预检，真正的互斥由本地主键约束兜底。
  *
- * **一条分支是三行，不是一行。** `rxdb_branch` 之外还有它的 `CommitBranchRef` 与
- * `WorkingTreeState`（`commit/branch-commit-rows.ts`）。只写第一行的话，
- * `enable()` 的 `writeBaselines` 会在这条分支上读不到 ref 而整体回滚——而这三行同属
- * 一个事务，正是为了不让「建了分支却没有提交视图」这种半成品状态存在。
+ * **一条分支未必只有一行。** 贡献系统能力的插件可以在同一个事务里追写自己那几行
+ * （{@link RxDBSystemContribution.writeBranchRows}）——装了 `@aiao/rxdb-plugin-working-tree`
+ * 时是 `CommitBranchRef` 与 `WorkingTreeState` 两行。同属一个事务，正是为了不让
+ * 「建了分支却没有对应视图」这种半成品状态存在：那样一条分支与一条正常的老分支
+ * 在形状上分辨不出来，只会在下一次用到它时抛一句读不出主语的错。
  */
 export const create_branch = async (version: VersionManager, branchId: string, fromChangeId?: number) => {
   const { branchRepository: queuedBranchRepository, adapter } = await version.getLocalRepositories();

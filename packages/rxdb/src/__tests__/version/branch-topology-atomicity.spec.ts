@@ -11,7 +11,6 @@ import { create_branch } from '../../version/create-branch.js';
 import { remove_branch } from '../../version/remove-branch.js';
 import { syncBranches } from '../../version/sync-branches.js';
 import { VersionManager } from '../../version/VersionManager.js';
-import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 
 /**
  * RXD-059 + RXD-037 —— 分支拓扑写入的原子性。
@@ -36,12 +35,6 @@ interface BranchRow {
   local?: boolean;
   remote?: boolean;
   fromChangeId?: number | null;
-}
-
-interface ActivationRow {
-  id: string;
-  activationRevision: number;
-  branchGenerationSeq: number;
 }
 
 interface ChangeRow {
@@ -91,8 +84,6 @@ class FakeLocalDatabase {
 
   readonly branches: BranchRow[] = [];
   readonly changes: ChangeRow[] = [];
-  /** 分支代际单调源那一行；`create_branch` 会在自己的事务里取号并写回。 */
-  readonly activation: ActivationRow[] = [{ id: 'default', activationRevision: 0, branchGenerationSeq: 0 }];
   /** 经队列的调用轨迹，用来看清交错顺序。 */
   readonly queued: string[] = [];
   transactionCount = 0;
@@ -154,7 +145,6 @@ class FakeLocalDatabase {
       getRepository: (EntityType: EntityType) => {
         if ((EntityType as unknown) === RxDBBranch) return this.#branchRepository(true);
         if ((EntityType as unknown) === RxDBChange) return this.#changeRepository(true);
-        if ((EntityType as unknown) === WorkingTreeActivationState) return this.#activationRepository();
         throw new RxDBError(`假 executor 没有 ${String(EntityType)} 的仓库`);
       },
       removeMany: (rows: unknown[]) => Promise.resolve(this.#delete(rows)),
@@ -184,16 +174,6 @@ class FakeLocalDatabase {
       remove: (row: BranchRow) => this.#run(direct, 'branch.remove', () => this.#delete([row])[0])
     };
     return repository as unknown as IRepository<typeof RxDBBranch>;
-  }
-
-  /** 只在事务内出现，因此不过队列、也不参与绊线判定。 */
-  #activationRepository(): IRepository<typeof WorkingTreeActivationState> {
-    const repository = {
-      find: (query: FindQuery) =>
-        Promise.resolve(select(this.activation as unknown as Record<string, unknown>[], query)),
-      update: (row: ActivationRow, patch: Partial<ActivationRow>) => Promise.resolve(Object.assign(row, patch))
-    };
-    return repository as unknown as IRepository<typeof WorkingTreeActivationState>;
   }
 
   #changeRepository(direct: boolean): IRepository<typeof RxDBChange> {
@@ -286,6 +266,11 @@ const createVersionManager = (db: FakeLocalDatabase, remoteBranches?: BranchRow[
     connected$: NEVER,
     addEventListener: () => () => undefined,
     removeEventListener: () => undefined,
+    // `create_branch` 结尾会遍历它、给每个贡献方一次在**同一个事务**里追写自己那几行的机会。
+    // 本文件测的是分支拓扑写入的原子性，与贡献方写什么无关，所以给空数组——
+    // 但必须给：缺这个成员不是「没有贡献」，是 `for...of undefined` 当场抛 TypeError。
+    // 贡献方拿到的执行器是不是本事务的、抛错会不会穿出去，由 `create-branch.spec.ts` 守。
+    systemContributions: [],
     entityManager: {
       // `new VersionManager()` 会连带构造 `HistoryManager`，后者在构造函数里就订阅了
       // 当前分支流。这里给的是**响应式**仓库（`findOne` / `findAll`），与本文件测的

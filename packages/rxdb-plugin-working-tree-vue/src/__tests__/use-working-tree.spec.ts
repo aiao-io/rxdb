@@ -1,11 +1,11 @@
 /**
- * `useWorkingTree` —— Angular 侧（T086）。
+ * `useWorkingTree` —— Vue 侧（T088）。
  *
  * @remarks
- * 与 `packages/rxdb-react/src/__tests__/use-working-tree.spec.tsx`、
- * `packages/rxdb-vue/src/__tests__/use-working-tree.spec.ts` **逐条对齐**：同名方法、同名
+ * 与 `packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts`、
+ * `packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx` **逐条对齐**：同名方法、同名
  * 状态字段、同一组相位、同一份「哪些结果算 empty」的答案、无 provider 时同样抛错。
- * 只有容器形态不同 —— Angular 是 `Signal`，React 是渲染快照，Vue 是 `ComputedRef`。
+ * 只有容器形态不同 —— Vue 是 `ComputedRef`，Angular 是 `Signal`，React 是渲染快照。
  *
  * 断言打在**真的** `createWorkingTreeCommands` 接出来的状态机上，桩只桩到
  * `RxDB.workingTree` 那一层：这一层要证明的是「界面看到的相位对不对」，而不是
@@ -18,23 +18,23 @@
  * Dependencies 明写这两个任务排在 Phase 6 之后。末尾的清单守卫把这件事写成断言而不是注释：
  * 哪一项现在该在、哪一项现在不该在，都由 `deliveredIn` 一列说了算，补齐时必须回来改它。
  */
+import type { RxDB } from '@aiao/rxdb';
 import {
   CommitValidationError,
   type CommitCapabilityInfo,
   type CommitLogPage,
   type CommitResult,
-  type RxDB,
   type WorkingTreeCredentials,
   type WorkingTreeDiff,
   type WorkingTreeDiscardResult,
   type WorkingTreeManager,
   type WorkingTreeStatus
-} from '@aiao/rxdb';
-import { provideZonelessChangeDetection } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { provideRxDB } from '../rxdb.provider';
+} from '@aiao/rxdb-plugin-working-tree';
+import { mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
 import { useWorkingTree, type WorkingTreeResource } from '../use-working-tree';
+import { createRxDBProviderHarness } from './rxdb-provider-harness';
+import { createSetupHarness } from './setup-harness';
 
 /** 手控的 promise：不控住它，`loading` 在第一个 await 之前就已经翻过去了。 */
 const deferred = <T>() => {
@@ -112,7 +112,7 @@ const CREDENTIALS = {
 } satisfies WorkingTreeCredentials;
 
 /** 桩到 `RxDB.workingTree` 那一层；再往下是核心自己的事，不在本端重测。 */
-const createFixture = () => {
+const createStub = () => {
   const workingTree = {
     isEnabled: vi.fn<() => Promise<boolean>>(),
     enable: vi.fn<() => Promise<CommitCapabilityInfo>>(),
@@ -123,17 +123,29 @@ const createFixture = () => {
     discard: vi.fn<() => Promise<WorkingTreeDiscardResult>>()
   };
   workingTree.status.mockResolvedValue(statusWith(0));
-  const rxdb = { workingTree: workingTree as unknown as WorkingTreeManager } as unknown as RxDB;
+  return workingTree;
+};
 
-  TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRxDB(rxdb)] });
-  const tree = TestBed.runInInjectionContext(() => useWorkingTree());
-  return { workingTree, tree };
+/** 在 provider 子树的 setup 里调用 hook，把返回值取出来供断言 */
+const mountWithProvider = (rxdb: RxDB): WorkingTreeResource => {
+  let tree!: WorkingTreeResource;
+  mount(
+    createRxDBProviderHarness(
+      rxdb,
+      createSetupHarness(() => (tree = useWorkingTree()))
+    )
+  );
+  return tree;
+};
+
+const createFixture = () => {
+  const workingTree = createStub();
+  const rxdb = { workingTree: workingTree as unknown as WorkingTreeManager } as unknown as RxDB;
+  return { workingTree, tree: mountWithProvider(rxdb) };
 };
 
 /** 让已经 resolve 的微任务跑完；不做真实计时。 */
 const flush = () => Promise.resolve().then(() => undefined);
-
-afterEach(() => TestBed.resetTestingModule());
 
 describe('useWorkingTree：初始状态', () => {
   // 挂上去就去读库，会让每个用到这个入口的组件在挂载时各发一轮查询，
@@ -142,13 +154,13 @@ describe('useWorkingTree：初始状态', () => {
     const { workingTree, tree } = createFixture();
 
     expect([
-      tree.isEnabledState().phase,
-      tree.enableState().phase,
-      tree.statusState().phase,
-      tree.diffState().phase,
-      tree.listCommitsState().phase,
-      tree.commitState().phase,
-      tree.discardState().phase
+      tree.isEnabledState.value.phase,
+      tree.enableState.value.phase,
+      tree.statusState.value.phase,
+      tree.diffState.value.phase,
+      tree.listCommitsState.value.phase,
+      tree.commitState.value.phase,
+      tree.discardState.value.phase
     ]).toEqual(['idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
     expect(workingTree.status).not.toHaveBeenCalled();
     expect(workingTree.isEnabled).not.toHaveBeenCalled();
@@ -162,11 +174,11 @@ describe('useWorkingTree：loading 可观测（§4）', () => {
     workingTree.isEnabled.mockReturnValue(pending.promise);
 
     const running = tree.isEnabled();
-    expect(tree.isEnabledState().phase).toBe('loading');
+    expect(tree.isEnabledState.value.phase).toBe('loading');
 
     pending.resolve(true);
     await running;
-    expect(tree.isEnabledState()).toEqual({ phase: 'success', value: true });
+    expect(tree.isEnabledState.value).toEqual({ phase: 'success', value: true });
   });
 
   it('提交期间不静默：commitState 先进 loading', async () => {
@@ -175,11 +187,11 @@ describe('useWorkingTree：loading 可观测（§4）', () => {
     workingTree.commit.mockReturnValue(pending.promise);
 
     const running = tree.commit('第一次提交', { ...CREDENTIALS, authorId: 'alice', operationId: 'op-1' });
-    expect(tree.commitState().phase).toBe('loading');
+    expect(tree.commitState.value.phase).toBe('loading');
 
     pending.resolve({ ok: true, commitId: 'commit-1', changeSetCount: 2, headRevision: 3 });
     await running;
-    expect(tree.commitState().phase).toBe('success');
+    expect(tree.commitState.value.phase).toBe('success');
   });
 });
 
@@ -190,7 +202,7 @@ describe('useWorkingTree：查询的 empty 相位（§4）', () => {
 
     await tree.status();
 
-    expect(tree.statusState()).toEqual({ phase: 'empty', value: statusWith(0) });
+    expect(tree.statusState.value).toEqual({ phase: 'empty', value: statusWith(0) });
   });
 
   it('有未提交变更时 status 落在 success', async () => {
@@ -199,18 +211,18 @@ describe('useWorkingTree：查询的 empty 相位（§4）', () => {
 
     await tree.status();
 
-    expect(tree.statusState().phase).toBe('success');
+    expect(tree.statusState.value.phase).toBe('success');
   });
 
   it('零条目的 diff 落在 empty，有条目落在 success', async () => {
     const { workingTree, tree } = createFixture();
     workingTree.diff.mockResolvedValue(diffWith(0));
     await tree.diff();
-    expect(tree.diffState().phase).toBe('empty');
+    expect(tree.diffState.value.phase).toBe('empty');
 
     workingTree.diff.mockResolvedValue(diffWith(2));
     await tree.diff();
-    expect(tree.diffState().phase).toBe('success');
+    expect(tree.diffState.value.phase).toBe('success');
   });
 
   it('没有历史的 listCommits 落在 empty', async () => {
@@ -219,7 +231,7 @@ describe('useWorkingTree：查询的 empty 相位（§4）', () => {
 
     await tree.listCommits();
 
-    expect(tree.listCommitsState()).toEqual({ phase: 'empty', value: logWith(0) });
+    expect(tree.listCommitsState.value).toEqual({ phase: 'empty', value: logWith(0) });
   });
 });
 
@@ -234,7 +246,7 @@ describe('useWorkingTree：不给无 empty 语义的命令伪造 empty（§4）'
       failure
     );
 
-    const phases: readonly string[] = [tree.commitState().phase];
+    const phases: readonly string[] = [tree.commitState.value.phase];
     expect(phases).toEqual(['error']);
     expect(phases).not.toContain('empty');
   });
@@ -245,7 +257,7 @@ describe('useWorkingTree：不给无 empty 语义的命令伪造 empty（§4）'
 
     await tree.discard(CREDENTIALS);
 
-    expect(tree.discardState()).toEqual({
+    expect(tree.discardState.value).toEqual({
       phase: 'success',
       value: { ok: true, discardedCount: 0, workingTreeRevision: 3 }
     });
@@ -263,7 +275,7 @@ describe('useWorkingTree：不给无 empty 语义的命令伪造 empty（§4）'
     const result = await tree.commit('并发提交', { ...CREDENTIALS, authorId: 'alice', operationId: 'op-3' });
 
     expect(result).toBe(conflicted);
-    expect(tree.commitState()).toEqual({ phase: 'success', value: conflicted });
+    expect(tree.commitState.value).toEqual({ phase: 'success', value: conflicted });
   });
 });
 
@@ -273,14 +285,14 @@ describe('useWorkingTree：改动之后 status 自己跟上', () => {
     const { workingTree, tree } = createFixture();
     workingTree.status.mockResolvedValue(statusWith(3));
     await tree.status();
-    expect(tree.statusState().phase).toBe('success');
+    expect(tree.statusState.value.phase).toBe('success');
 
     workingTree.commit.mockResolvedValue({ ok: true, commitId: 'c-1', changeSetCount: 3, headRevision: 3 });
     workingTree.status.mockResolvedValue(statusWith(0));
     await tree.commit('提交', { ...CREDENTIALS, authorId: 'alice', operationId: 'op-4' });
     await flush();
 
-    expect(tree.statusState().phase).toBe('empty');
+    expect(tree.statusState.value.phase).toBe('empty');
   });
 
   it('一次成功的 discard 之后重读 status', async () => {
@@ -292,7 +304,7 @@ describe('useWorkingTree：改动之后 status 自己跟上', () => {
     await flush();
 
     expect(workingTree.status).toHaveBeenCalledTimes(1);
-    expect(tree.statusState().phase).toBe('empty');
+    expect(tree.statusState.value.phase).toBe('empty');
   });
 
   // 提交本身成功了，就不该因为顺带的那次重读失败而在调用方那里变成失败。
@@ -304,8 +316,8 @@ describe('useWorkingTree：改动之后 status 自己跟上', () => {
     await expect(
       tree.commit('提交', { ...CREDENTIALS, authorId: 'alice', operationId: 'op-5' })
     ).resolves.toMatchObject({ ok: true });
-    expect(tree.statusState().phase).toBe('error');
-    expect(tree.commitState().phase).toBe('success');
+    expect(tree.statusState.value.phase).toBe('error');
+    expect(tree.commitState.value.phase).toBe('success');
   });
 });
 
@@ -313,9 +325,7 @@ describe('useWorkingTree：没有 provider', () => {
   // 没有库就没有工作树可言。返回一份「一切干净」的默认值会把「入口没接上」
   // 伪装成「没有未提交变更」，恰好是最需要出声的时候不出声。
   it('抛错，不返回伪造的干净态', () => {
-    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
-
-    expect(() => TestBed.runInInjectionContext(() => useWorkingTree())).toThrow();
+    expect(() => mount(createSetupHarness(() => useWorkingTree()))).toThrow(/RxDB instance not found/);
   });
 });
 
@@ -370,6 +380,6 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     const resource: WorkingTreeResource = tree;
 
     expect(status.branchId).toBe('main');
-    expect(resource.statusState().phase).toBe('success');
+    expect(resource.statusState.value.phase).toBe('success');
   });
 });

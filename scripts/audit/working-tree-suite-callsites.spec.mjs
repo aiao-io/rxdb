@@ -162,11 +162,11 @@ test('别名导入按别名找调用', () => {
   assert.equal(describeRejection(inspection), null);
 });
 
-test('绕过 @aiao/rxdb/testing 入口的深路径导入不算调用点', () => {
-  const source = `import { ${COMMIT_SUITE} } from '../../../rxdb/src/working-tree/testing/commit.suite.js';\n\n${COMMIT_SUITE}({});\n`;
+test('绕过 @aiao/rxdb-plugin-working-tree/testing 入口的深路径导入不算调用点', () => {
+  const source = `import { ${COMMIT_SUITE} } from '../../../rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.js';\n\n${COMMIT_SUITE}({});\n`;
   const inspection = inspectSource(source, COMMIT_SUITE);
 
-  assert.equal(inspection.importedFrom, '../../../rxdb/src/working-tree/testing/commit.suite.js');
+  assert.equal(inspection.importedFrom, '../../../rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.js');
   assert.match(describeRejection(inspection), new RegExp(SUITE_ENTRY.replace('/', '\\/')));
 });
 
