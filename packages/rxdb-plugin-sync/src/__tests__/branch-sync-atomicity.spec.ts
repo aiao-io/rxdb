@@ -16,8 +16,8 @@
  * - **事务回滚**：没有回滚，「部分提交」这个缺陷会退化成「反正行都还在」。
  */
 
-import { type EntityType, type IRepository, type RxDB, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
 import type { TransactionExecutor } from '@aiao/rxdb';
+import { type EntityType, type IRepository, type RxDB, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { syncBranches } from '../sync-branches.js';
@@ -121,8 +121,7 @@ class FakeLocalDatabase {
 
   #changeRepository(): IRepository<typeof RxDBChange> {
     const repository = {
-      find: (query: FindQuery) =>
-        Promise.resolve(select(this.changes as unknown as Record<string, unknown>[], query))
+      find: (query: FindQuery) => Promise.resolve(select(this.changes as unknown as Record<string, unknown>[], query))
     };
     return repository as unknown as IRepository<typeof RxDBChange>;
   }
