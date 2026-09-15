@@ -712,7 +712,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   localRxDBChange() {
-    return this.getRepository(RxDBChange) as SqliteTreeRepository<typeof RxDBChange>;
+    return this.getRepository(RxDBChange) as SqliteRepository<typeof RxDBChange>;
   }
 
   async getRxDBChangeSequence() {
