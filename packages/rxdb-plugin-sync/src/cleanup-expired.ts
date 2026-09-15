@@ -26,7 +26,7 @@ interface RxDBChangeRepositorySource {
   getRepository(EntityType: typeof RxDBChange): { find(options: never): Promise<unknown> };
 }
 
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 /**
  * 过期数据清理选项
@@ -66,7 +66,7 @@ export interface CleanupExpiredResult {
  * 注意: 删除操作不会记录到 RxDBChange，因此不会同步到远程
  * 这适用于"只保留最近 N 天数据"的场景
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param namespace - 命名空间
  * @param entityName - 实体名
  * @param options - 清理选项
@@ -75,7 +75,7 @@ export interface CleanupExpiredResult {
  * @example
  * ```ts
  * const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
- * const { removed } = await cleanupExpired(vm, 'public', 'Order', {
+ * const { removed } = await cleanupExpired(sm, 'public', 'Order', {
  *   filter: {
  *     combinator: 'and',
  *     rules: [{ field: 'updatedAt', operator: '>=', value: thirtyDaysAgo }]
@@ -85,13 +85,13 @@ export interface CleanupExpiredResult {
  * ```
  */
 export async function cleanupExpired(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entityName: string,
   options?: CleanupExpiredOptions
 ): Promise<CleanupExpiredResult> {
-  const rxdb = vm.rxdb;
-  const { adapter: localAdapter } = await vm.getLocalRepositories();
+  const rxdb = sm.rxdb;
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
 
   // 验证实体存在
   const EntityType = rxdb.config.entities.find(e => {

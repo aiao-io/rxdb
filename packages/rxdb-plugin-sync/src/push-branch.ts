@@ -1,5 +1,5 @@
 import { toRemoteFromChangeId } from './branch-change-id.js';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 export interface PushBranchResult {
   synced: number;
@@ -21,19 +21,19 @@ export interface PushBranchResult {
  * 2. 不修改远程分支的 activated 属性（由 SQL 函数保证）
  * 3. `fromChangeId` 翻译成远端 id 后再上行（见 {@link toRemoteFromChangeId}）
  */
-export async function pushBranch(vm: VersionManager): Promise<PushBranchResult> {
-  const branch = await vm.getCurrentBranch();
+export async function pushBranch(sm: SyncManager): Promise<PushBranchResult> {
+  const branch = await sm.getCurrentBranch();
   if (!branch || branch.id === 'main') {
     return { synced: 0, skipped: branch ? ['main'] : [], forkPointPending: false };
   }
 
-  const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
 
   if (!remoteAdapter.pushBranches) {
     return { synced: 0, skipped: [], forkPointPending: false };
   }
 
-  const { branchRepository, changeRepository } = await vm.getLocalRepositories();
+  const { branchRepository, changeRepository } = await sm.getLocalRepositories();
 
   // 本地 change id 对远端毫无意义，必须翻译成 remoteId 再上行。
   // 分叉点还没推上去时只能发 null（远端此刻确实不知道这个分叉点），并把这件事报给调用方。

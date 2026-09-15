@@ -9,7 +9,7 @@ import {
   RxDBPartialSyncError,
   type SyncProgress
 } from '@aiao/rxdb';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 import {
   partialRepositoryProgressOf,
   pullRepository,
@@ -163,7 +163,7 @@ function rewrapPushFailure(
 /**
  * 同步一个仓库（先拉取再推送）
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 同步选项
@@ -172,29 +172,29 @@ function rewrapPushFailure(
  * @example
  * ```ts
  * // 同步 Todo 仓库（pull + push）
- * const result = await syncRepository(vm, 'public', 'Todo');
+ * const result = await syncRepository(sm, 'public', 'Todo');
  *
  * // 使用自定义选项同步
- * const result = await syncRepository(vm, 'public', 'Todo', {
+ * const result = await syncRepository(sm, 'public', 'Todo', {
  *   pull: { limit: 500, fetchAll: true },
  *   push: { batchSize: 100 }
  * });
  * ```
  */
 export async function syncRepository(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options?: SyncRepositoryOptions
 ): Promise<SyncRepositoryResult> {
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
 
   // 触发开始事件
   const includeRelated = options?.pull?.includeRelated ?? options?.push?.includeRelated ?? true;
   rxdb.dispatchEvent(new RepositorySyncBeginEvent('sync', namespace, entity, includeRelated));
 
   try {
-    const result = await _syncRepositoryImpl(vm, namespace, entity, options);
+    const result = await _syncRepositoryImpl(sm, namespace, entity, options);
 
     // 触发完成事件
     // 两个子结果在 SyncRepositoryResult 上都是必填：跳过的方向由 emptyPullResult /
@@ -223,13 +223,13 @@ export async function syncRepository(
  * syncRepository 的内部实现
  */
 async function _syncRepositoryImpl(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options?: SyncRepositoryOptions
 ): Promise<SyncRepositoryResult> {
   // 验证仓库是否存在
-  const EntityType = vm.rxdb.config.entities.find(e => {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
@@ -241,7 +241,7 @@ async function _syncRepositoryImpl(
   const metadata = getEntityMetadata(EntityType);
 
   // 检查同步类型（支持全局配置回退）
-  const syncType = getSyncType(metadata, vm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
   if (syncType === 'none') {
     throw new RxDBError(
       `Cannot sync repository ${namespace}:${entity}: syncType is 'none'. ` +
@@ -262,7 +262,7 @@ async function _syncRepositoryImpl(
 
   if (shouldPull) {
     try {
-      pullResult = await pullRepository(vm, namespace, entity, options?.pull);
+      pullResult = await pullRepository(sm, namespace, entity, options?.pull);
     } catch (error) {
       throw rewrapPullFailure(error, namespace, entity);
     }
@@ -283,7 +283,7 @@ async function _syncRepositoryImpl(
 
   if (shouldPush) {
     try {
-      pushResult = await pushRepository(vm, namespace, entity, options?.push);
+      pushResult = await pushRepository(sm, namespace, entity, options?.push);
     } catch (error) {
       // pull 已落库的进度、push 已发到远端的进度，都不能因为这次抛错就消失
       throw rewrapPushFailure(error, pullResult, namespace, entity);

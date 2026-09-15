@@ -32,7 +32,7 @@ import {
   RxDBSync,
   type SyncFailure
 } from '@aiao/rxdb';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
@@ -113,7 +113,7 @@ const DEFAULT_PULL_REPOSITORY_OPTIONS: Required<Omit<PullRepositoryOptions, 'fil
 /**
  * 为单个仓库拉取变更
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 拉取选项
@@ -122,30 +122,30 @@ const DEFAULT_PULL_REPOSITORY_OPTIONS: Required<Omit<PullRepositoryOptions, 'fil
  * @example
  * ```ts
  * // 在不进行级联的情况下拉取 Todo 仓库
- * const result = await pullRepository(vm, 'public', 'Todo', {
+ * const result = await pullRepository(sm, 'public', 'Todo', {
  *   includeRelated: false
  * });
  *
  * // 拉取 Todo 及其所有依赖项（如 User）
- * const result = await pullRepository(vm, 'public', 'Todo', {
+ * const result = await pullRepository(sm, 'public', 'Todo', {
  *   includeRelated: true
  * });
  * ```
  */
 export async function pullRepository(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options?: PullRepositoryOptions
 ): Promise<PullRepositoryResult> {
   const opts = { ...DEFAULT_PULL_REPOSITORY_OPTIONS, ...options };
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
 
   // 触发开始事件
   rxdb.dispatchEvent(new RepositorySyncBeginEvent('pull', namespace, entity, opts.includeRelated));
 
   try {
-    const result = await _pullRepositoryImpl(vm, namespace, entity, opts);
+    const result = await _pullRepositoryImpl(sm, namespace, entity, opts);
 
     // 触发完成事件
     rxdb.dispatchEvent(
@@ -169,13 +169,13 @@ export async function pullRepository(
  * pullRepository 的内部实现
  */
 async function _pullRepositoryImpl(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   opts: typeof DEFAULT_PULL_REPOSITORY_OPTIONS
 ): Promise<PullRepositoryResult> {
   // 验证仓库是否存在
-  const EntityType = vm.rxdb.config.entities.find(e => {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
@@ -190,8 +190,8 @@ async function _pullRepositoryImpl(
   // 避免两条路径各写一份而漂移。
   // 同一处叠加 `RxDBSync.enabled` —— 显式点名单个仓库时抛错而非静默跳过，
   // 与 syncType 不合格时的行为一致；批量枚举路径（pullBatch）才是跳过。
-  const syncType = getSyncType(metadata, vm.rxdb.config.sync);
-  const ineligible = await resolvePullIneligibility(vm.rxdb, namespace, entity, syncType);
+  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const ineligible = await resolvePullIneligibility(sm.rxdb, namespace, entity, syncType);
 
   if (ineligible) {
     throw new RxDBError(`Cannot pull repository ${namespace}:${entity}: ${ineligible}.`);
@@ -226,11 +226,11 @@ async function _pullRepositoryImpl(
 
   // 处理级联拉取
   if (opts.includeRelated) {
-    return await pullWithCascade(vm, namespace, entity, optsWithFilter);
+    return await pullWithCascade(sm, namespace, entity, optsWithFilter);
   }
 
   // 单仓库拉取（传递 filter）
-  return await pullSingleRepository(vm, namespace, entity, optsWithFilter);
+  return await pullSingleRepository(sm, namespace, entity, optsWithFilter);
 }
 
 /**
@@ -239,18 +239,18 @@ async function _pullRepositoryImpl(
  * @internal
  */
 async function pullWithCascade(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options: typeof DEFAULT_PULL_REPOSITORY_OPTIONS
 ): Promise<PullRepositoryResult> {
   // 构建依赖图
-  const entities = vm.rxdb.config.entities.map(e => getEntityMetadata(e));
+  const entities = sm.rxdb.config.entities.map(e => getEntityMetadata(e));
   const graph = buildDependencyGraph(entities);
 
   // 预构建 entityMap 避免循环内重复查找
-  const entityMap = new Map<string, (typeof vm.rxdb.config.entities)[number]>(
-    vm.rxdb.config.entities.map(e => {
+  const entityMap = new Map<string, (typeof sm.rxdb.config.entities)[number]>(
+    sm.rxdb.config.entities.map(e => {
       const m = getEntityMetadata(e);
       return [`${m.namespace}:${m.name}`, e];
     })
@@ -296,7 +296,7 @@ async function pullWithCascade(
   const failedRepos = new Map<string, Error>();
 
   for (const repo of orderedRepos) {
-    const result = await pullCascadeNode(vm, graph, entityMap, repo, options, failedRepos);
+    const result = await pullCascadeNode(sm, graph, entityMap, repo, options, failedRepos);
     results.push(result);
 
     // 按策略跳过（`skipped` 且 `success`）不算失败：既不进失败清单，也不阻断下游
@@ -319,7 +319,7 @@ async function pullWithCascade(
 
   // 级联里依赖仓的落库与实体改写同样是本次 pull 的成果。
   // 目标仓自己 applied=0 不代表整次调用没写过东西 —— 两个信号必须跨全部仓库取并集，
-  // 否则调用方（VersionManager）会漏清 undo 历史、或误判「什么都没发生」。
+  // 否则调用方（SyncManager）会漏清 undo 历史、或误判「什么都没发生」。
   for (const related of targetResult.relatedResults) {
     targetResult.persistedProgress ||= related.persistedProgress;
     targetResult.historyInvalidated ||= related.historyInvalidated;
@@ -348,7 +348,7 @@ async function pullWithCascade(
  * @internal
  */
 async function pullCascadeNode(
-  vm: VersionManager,
+  sm: SyncManager,
   graph: DependencyGraph,
   entityMap: ReadonlyMap<string, EntityType>,
   repo: RepositoryIdentifier,
@@ -378,18 +378,18 @@ async function pullCascadeNode(
   }
 
   const repoMetadata = getEntityMetadata(EntityType);
-  const repoSyncType = getSyncType(repoMetadata, vm.rxdb.config.sync);
+  const repoSyncType = getSyncType(repoMetadata, sm.rxdb.config.sync);
 
   // 级联节点必须走和单仓路径同一份资格校验，否则 `local` / `none`
   // 的依赖仓会被拿去问远端要数据，绕过它自己声明的同步策略
   // 关联仓被单独关掉时同样跳过 —— 级联不是绕开开关的后门
-  const ineligible = await resolvePullIneligibility(vm.rxdb, repo.namespace, repo.entity, repoSyncType);
+  const ineligible = await resolvePullIneligibility(sm.rxdb, repo.namespace, repo.entity, repoSyncType);
   if (ineligible) {
     return { ...emptyRepositoryProgress(), repository: repo, success: true, skipped: ineligible };
   }
 
   try {
-    const result = await pullSingleRepository(vm, repo.namespace, repo.entity, {
+    const result = await pullSingleRepository(sm, repo.namespace, repo.entity, {
       ...options,
       // T039: 为每个实体独立提取 filter
       filter: resolveCascadeFilter(repoKey, repoMetadata, repoSyncType, options.filter),
@@ -468,12 +468,12 @@ function resolveCascadeFilter(
  * @internal
  */
 async function pullSingleRepository(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options: typeof DEFAULT_PULL_REPOSITORY_OPTIONS
 ): Promise<PullRepositoryResult> {
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
 
   // 验证远端适配器
   const remoteAdapterName = rxdb.config.sync?.remote?.adapter;
@@ -481,23 +481,23 @@ async function pullSingleRepository(
     throw new RxDBError('Remote adapter not configured.');
   }
 
-  const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
-  const { adapter: localAdapter } = await vm.getLocalRepositories();
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
 
   // 获取当前分支。水位线记录仍按当前分支存（`${ns}:${entity}:${branch.id}`），
   // 但拉取范围要覆盖整条祖先链 —— 两者是不同的东西，不能混为一谈。
-  const branch = await vm.getCurrentBranch();
-  const branchIds = await getAncestorBranchIds(vm, branch.id);
+  const branch = await sm.getCurrentBranch();
+  const branchIds = await getAncestorBranchIds(sm, branch.id);
 
   // 获取或创建 RxDBSync 记录
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
 
-  const EntityType = vm.rxdb.config.entities.find(e => {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
   const metadata = getEntityMetadata(EntityType!);
-  const syncType = getSyncType(metadata, vm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
 
   let repoSync = await getOrCreateSyncRecord(
     repoSyncRepo,

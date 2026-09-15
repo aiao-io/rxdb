@@ -33,9 +33,9 @@ import {
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
-import type { PushInFlightSession } from './push-inflight.js';
+import type { PushInFlightSession } from '@aiao/rxdb-plugin-history';
 import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 /**
  * 推送仓库选项
  */
@@ -136,7 +136,7 @@ function throwPushFailure(result: PushRepositoryResult): never {
 /**
  * 为单个仓库推送变更
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 推送选项
@@ -145,18 +145,18 @@ function throwPushFailure(result: PushRepositoryResult): never {
  * @example
  * ```ts
  * // 在不进行级联的情况下推送 Todo 仓库
- * const result = await pushRepository(vm, 'public', 'Todo', {
+ * const result = await pushRepository(sm, 'public', 'Todo', {
  *   includeRelated: false
  * });
  *
  * // 推送 Todo 以及所有依赖它的实体（如 Comment）
- * const result = await pushRepository(vm, 'public', 'Todo', {
+ * const result = await pushRepository(sm, 'public', 'Todo', {
  *   includeRelated: true
  * });
  * ```
  */
 export async function pushRepository(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options?: PushRepositoryOptions
@@ -166,18 +166,18 @@ export async function pushRepository(
     includeRelated:
       options?.includeRelated === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.includeRelated : options.includeRelated
   };
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
 
   // 触发开始事件
   rxdb.dispatchEvent(new RepositorySyncBeginEvent('push', namespace, entity, opts.includeRelated));
 
   // 本轮 push 认领的「在飞」区间；undo 据此把还在往返途中的变更当成已推。
   // 从哪条路径提前返回都会经下面那个 finally，认领不会泄漏。
-  const inFlight = vm.pushInFlight.session();
+  const inFlight = sm.pushInFlight.session();
 
   try {
     assertBatchSize(opts.batchSize);
-    const result = await _pushRepositoryImpl(vm, namespace, entity, opts, inFlight);
+    const result = await _pushRepositoryImpl(sm, namespace, entity, opts, inFlight);
 
     // 触发完成事件
     rxdb.dispatchEvent(
@@ -202,14 +202,14 @@ export async function pushRepository(
  * pushRepository 的内部实现
  */
 async function _pushRepositoryImpl(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   opts: Required<PushRepositoryOptions>,
   inFlight: PushInFlightSession
 ): Promise<PushRepositoryResult> {
   // 验证仓库是否存在
-  const EntityType = vm.rxdb.config.entities.find(e => {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
@@ -224,10 +224,10 @@ async function _pushRepositoryImpl(
   // 避免两条路径各写一份而漂移。
   // 同一处叠加 `RxDBSync.enabled`（此前推送路径从不读它）
   const ineligible = await resolvePushIneligibility(
-    vm.rxdb,
+    sm.rxdb,
     namespace,
     entity,
-    getSyncType(metadata, vm.rxdb.config.sync)
+    getSyncType(metadata, sm.rxdb.config.sync)
   );
 
   if (ineligible) {
@@ -236,11 +236,11 @@ async function _pushRepositoryImpl(
 
   // 处理级联推送
   if (opts.includeRelated) {
-    return await pushWithCascade(vm, namespace, entity, opts, inFlight);
+    return await pushWithCascade(sm, namespace, entity, opts, inFlight);
   }
 
   // 单仓库推送
-  return await pushSingleRepository(vm, namespace, entity, opts, inFlight);
+  return await pushSingleRepository(sm, namespace, entity, opts, inFlight);
 }
 
 /**
@@ -259,14 +259,14 @@ async function _pushRepositoryImpl(
  * @internal
  */
 async function pushWithCascade(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options: Required<PushRepositoryOptions>,
   inFlight: PushInFlightSession
 ): Promise<PushRepositoryResult> {
   // 构建依赖图
-  const entities = vm.rxdb.config.entities.map(e => getEntityMetadata(e));
+  const entities = sm.rxdb.config.entities.map(e => getEntityMetadata(e));
   const graph = buildDependencyGraph(entities);
 
   // 查找目标仓库及其依赖项
@@ -302,7 +302,7 @@ async function pushWithCascade(
 
   for (const phase of PUSH_PHASES) {
     for (const repo of orderRepos(phase.action)) {
-      await runCascadePhase(vm, graph, repo, phase, options, nodes, failedRepos, inFlight);
+      await runCascadePhase(sm, graph, repo, phase, options, nodes, failedRepos, inFlight);
     }
   }
 
@@ -363,7 +363,7 @@ interface CascadeNode {
  * @internal
  */
 async function runCascadePhase(
-  vm: VersionManager,
+  sm: SyncManager,
   graph: DependencyGraph,
   repo: RepositoryIdentifier,
   phase: PushPhase,
@@ -401,14 +401,14 @@ async function runCascadePhase(
   if (!node.plan) {
     // 级联节点必须走和单仓路径同一份资格校验，否则 `remote` / `local` / `none`
     // 的关联仓会被无差别推去远端
-    const ineligible = await cascadeNodeIneligibility(vm, repo);
+    const ineligible = await cascadeNodeIneligibility(sm, repo);
     if (ineligible) {
       node.result = { ...emptyPushProgress(), repository: repo, success: true, skipped: ineligible };
       return;
     }
 
     try {
-      const planned = await planRepositoryPush(vm, repo.namespace, repo.entity, inFlight);
+      const planned = await planRepositoryPush(sm, repo.namespace, repo.entity, inFlight);
       if ('emptyResult' in planned) {
         node.result = { ...planned.emptyResult, success: planned.emptyResult.success ?? true };
         return;
@@ -442,8 +442,8 @@ async function runCascadePhase(
  *
  * @internal
  */
-async function cascadeNodeIneligibility(vm: VersionManager, repo: RepositoryIdentifier): Promise<string | undefined> {
-  const EntityType = vm.rxdb.config.entities.find(e => {
+async function cascadeNodeIneligibility(sm: SyncManager, repo: RepositoryIdentifier): Promise<string | undefined> {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === repo.namespace && meta.name === repo.entity;
   });
@@ -455,10 +455,10 @@ async function cascadeNodeIneligibility(vm: VersionManager, repo: RepositoryIden
 
   // 关联仓被单独关掉时同样跳过 —— 级联不是绕开开关的后门
   return resolvePushIneligibility(
-    vm.rxdb,
+    sm.rxdb,
     repo.namespace,
     repo.entity,
-    getSyncType(getEntityMetadata(EntityType), vm.rxdb.config.sync)
+    getSyncType(getEntityMetadata(EntityType), sm.rxdb.config.sync)
   );
 }
 
@@ -651,7 +651,7 @@ interface RepositoryPushPlan {
   readonly entries: CompactedPushEntry[];
   readonly localChanges: RxDBChange[];
   readonly repoSync: RxDBSync;
-  readonly localAdapter: Awaited<ReturnType<VersionManager['getLocalRepositories']>>['adapter'];
+  readonly localAdapter: Awaited<ReturnType<SyncManager['getLocalRepositories']>>['adapter'];
   readonly remoteAdapter: RxDBAdapterRemoteBase;
   readonly branchId: string;
   readonly originalCount: number;
@@ -673,12 +673,12 @@ interface RepositoryPushPlan {
  * @internal
  */
 async function planRepositoryPush(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   inFlight: PushInFlightSession
 ): Promise<RepositoryPushPlan | { emptyResult: PushRepositoryResult }> {
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
 
   // 验证远端适配器
   const remoteAdapterName = rxdb.config.sync?.remote?.adapter;
@@ -686,21 +686,21 @@ async function planRepositoryPush(
     throw new RxDBError('Remote adapter not configured.');
   }
 
-  await vm.getRemoteRepositories(); // 确保远端已配置
-  const { adapter: localAdapter } = await vm.getLocalRepositories();
+  await sm.getRemoteRepositories(); // 确保远端已配置
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
 
   // 获取当前分支
-  const branch = await vm.getCurrentBranch();
+  const branch = await sm.getCurrentBranch();
 
   // 获取或创建 RxDBSync 记录
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
 
-  const EntityType = vm.rxdb.config.entities.find(e => {
+  const EntityType = sm.rxdb.config.entities.find(e => {
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
   const metadata = getEntityMetadata(EntityType!);
-  const syncType = getSyncType(metadata, vm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
 
   const repoSync = await getOrCreateSyncRecord(
     repoSyncRepo,
@@ -716,7 +716,7 @@ async function planRepositoryPush(
   const lastPushedChangeId: number | null = repoSync.lastPushedChangeId;
 
   // 获取祖先分支列表（包含自身），查询所有祖先分支的未推送变更
-  const branchIds = await getAncestorBranchIds(vm, branch.id);
+  const branchIds = await getAncestorBranchIds(sm, branch.id);
 
   const changeRepo = localAdapter.getRepository(RxDBChange);
 
@@ -801,7 +801,7 @@ async function planRepositoryPush(
   }
 
   // 获取远端适配器
-  const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
 
   // 认领必须在**返回计划之前**：调用方拿到计划的下一步就是往远端发，
   // 认领晚一拍就等于把那一拍重新暴露给 undo。
@@ -939,13 +939,13 @@ async function commitRepositoryPush(plan: RepositoryPushPlan): Promise<PushRepos
  * @internal
  */
 async function pushSingleRepository(
-  vm: VersionManager,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   options: Required<PushRepositoryOptions>,
   inFlight: PushInFlightSession
 ): Promise<PushRepositoryResult> {
-  const planned = await planRepositoryPush(vm, namespace, entity, inFlight);
+  const planned = await planRepositoryPush(sm, namespace, entity, inFlight);
   if ('emptyResult' in planned) return planned.emptyResult;
 
   await pushPlanEntries(planned, ALL_ACTION_KINDS, options.batchSize);

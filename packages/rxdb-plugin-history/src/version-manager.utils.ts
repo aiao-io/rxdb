@@ -1,11 +1,13 @@
 /**
  * @fileoverview 版本管理器的纯函数工具集
  *
- * 从 {@link VersionManager} 抽出的无状态辅助函数，供同步/撤销流程复用。
+ * 从 {@link VersionManager} 抽出的无状态辅助函数，供变更事件处理流程复用。
+ *
+ * @remarks
+ * 同步侧那两个（`hasSyncedData` / `partialResultOf`）随 US-025 阶段 D 去了
+ * `@aiao/rxdb-plugin-sync` 的 `sync-manager.utils.ts`：它们的形参是
+ * `SyncRepositoryResult`，留在这里会让历史包反向依赖同步包。
  */
-
-import { RxDBPartialSyncError } from '@aiao/rxdb';
-import type { SyncRepositoryResult } from './sync-repository.js';
 
 const getPositiveSafeInteger = (value: unknown): number | null =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
@@ -39,17 +41,3 @@ export const getEarliestRecordAt = (changes: readonly { recordAt?: unknown }[]):
   }
   return earliest;
 };
-
-/** 一次仓库同步是否改写了本地实体数据（undo 历史边界因此失效） */
-export const hasSyncedData = (result: SyncRepositoryResult | undefined): boolean =>
-  result?.historyInvalidated === true || (result?.pushResult?.pushed ?? 0) > 0;
-
-/**
- * 取出失败项里携带的部分进度。
- *
- * @remarks
- * 仓库在失败前可能已经提交了部分结果，它只存在于 {@link RxDBPartialSyncError.result}。
- * 忽略它会让「远端数据已落库但 undo 边界没推进」的状态逃过检查。
- */
-export const partialResultOf = (error: Error | undefined): SyncRepositoryResult | undefined =>
-  error instanceof RxDBPartialSyncError ? (error.result as SyncRepositoryResult) : undefined;

@@ -1,16 +1,16 @@
 import { RxDBBranch } from '@aiao/rxdb';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 /**
  * 获取当前分支及其所有祖先分支的 ID 列表
  *
  * @returns [currentBranch, parent, grandparent, ...] 例如 ['dev', 'main']
  */
-export async function getAncestorBranchIds(vm: VersionManager, branchId: string): Promise<string[]> {
+export async function getAncestorBranchIds(sm: SyncManager, branchId: string): Promise<string[]> {
   const branchIds = [branchId];
   if (branchId === 'main') return branchIds;
 
-  const { adapter } = await vm.getLocalRepositories();
+  const { adapter } = await sm.getLocalRepositories();
   const branchRepository = adapter.getRepository(RxDBBranch);
 
   let currentId = branchId;

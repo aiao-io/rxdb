@@ -176,6 +176,9 @@
     },
     {
       "path": "./packages/rxdb-plugin-history"
+    },
+    {
+      "path": "./packages/rxdb-plugin-sync"
     }
   ]
 }

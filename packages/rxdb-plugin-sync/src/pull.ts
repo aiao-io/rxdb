@@ -16,7 +16,7 @@ import {
 import { BulkSyncOptions } from './bulk-sync.js';
 import { pullBatch } from './pull-batch.js';
 import { pullRepository } from './pull-repository.js';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 /**
  * Pull 功能实现
@@ -26,12 +26,12 @@ import type { VersionManager } from './VersionManager.js';
  * 默认使用 pullBatch 单次 HTTP 请求拉取所有实体的变更。
  * 当指定 repositoryFilter 时，降级为 bulkSync 逐实体拉取。
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param options - Pull 选项
  * @returns Pull 结果
  */
-export async function pull(vm: VersionManager, options?: PullOptions): Promise<PullResult> {
-  const rxdb = vm.rxdb;
+export async function pull(sm: SyncManager, options?: PullOptions): Promise<PullResult> {
+  const rxdb = sm.rxdb;
 
   // 验证远程适配器配置
   const remoteAdapterName = rxdb.config.sync?.remote?.adapter;
@@ -47,7 +47,7 @@ export async function pull(vm: VersionManager, options?: PullOptions): Promise<P
 
     if (!options?.repositoryFilter?.length) {
       // 无过滤时使用批量拉取（单次 HTTP 请求）
-      pullResult = await pullBatch(vm, {
+      pullResult = await pullBatch(sm, {
         limit: options?.limit,
         fetchAll: options?.fetchAll,
         conflictResolver: options?.conflictResolver
@@ -56,10 +56,10 @@ export async function pull(vm: VersionManager, options?: PullOptions): Promise<P
       // 拼不进一次批量请求）。不补这一趟，pull() 就会对 filter 仓库一条不拉却报告
       // `hasMore:false, failures:[]` —— isCompletePull 判真、pullableCount 归零，
       // 用户看到的是「已全部同步」。
-      await pullFilterRepositories(vm, options, pullResult);
+      await pullFilterRepositories(sm, options, pullResult);
     } else {
       // 指定仓库过滤时降级为逐仓库拉取
-      pullResult = await pullWithBulkSync(vm, options);
+      pullResult = await pullWithBulkSync(sm, options);
     }
 
     // 触发同步完成事件
@@ -76,7 +76,7 @@ export async function pull(vm: VersionManager, options?: PullOptions): Promise<P
 /**
  * 补拉 `syncType === 'filter'` 的仓库，并把结果并进批量拉取的聚合里。
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param options - 调用方传给 `pull()` 的选项，`limit` / `fetchAll` 原样透传
  * @param aggregated - `pullBatch` 的结果，**就地**累加
  *
@@ -84,20 +84,20 @@ export async function pull(vm: VersionManager, options?: PullOptions): Promise<P
  * `includeRelated: false`：批量那一趟已经覆盖了所有非 filter 仓库，再级联一次只会重复拉取。
  * 单个仓库失败不中断其余仓库，失败结构化进 `failures` —— 与 `pullWithBulkSync` 同口径。
  */
-async function pullFilterRepositories(vm: VersionManager, options: PullOptions | undefined, aggregated: PullResult) {
-  const rxdb = vm.rxdb;
+async function pullFilterRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
+  const rxdb = sm.rxdb;
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.config.sync);
     if (syncType !== 'filter' || !getSyncCapability(syncType).pull) continue;
 
-    const repoSync = await findCurrentSyncRecord(vm.rxdb, metadata.namespace, metadata.name);
+    const repoSync = await findCurrentSyncRecord(sm.rxdb, metadata.namespace, metadata.name);
     if (!isRepositorySyncEnabled(repoSync)) continue;
 
     let result: PullRepositoryResult;
     try {
-      result = await pullRepository(vm, metadata.namespace, metadata.name, {
+      result = await pullRepository(sm, metadata.namespace, metadata.name, {
         limit: options?.limit,
         fetchAll: options?.fetchAll,
         conflictResolver: options?.conflictResolver,
@@ -136,7 +136,7 @@ function accumulatePullProgress(aggregated: PullResult, result: PullRepositoryRe
 /**
  * 降级方案：使用 bulkSync 逐仓库拉取（用于指定 repositoryFilter 的场景）
  */
-async function pullWithBulkSync(vm: VersionManager, options: PullOptions): Promise<PullResult> {
+async function pullWithBulkSync(sm: SyncManager, options: PullOptions): Promise<PullResult> {
   const bulkOptions: BulkSyncOptions = {
     operation: 'pull',
     repositories: options.repositoryFilter?.map(item => {
@@ -149,7 +149,7 @@ async function pullWithBulkSync(vm: VersionManager, options: PullOptions): Promi
     pull: { limit: options.limit, fetchAll: options.fetchAll, conflictResolver: options.conflictResolver }
   };
 
-  const bulkResult = await vm.bulkSync(bulkOptions);
+  const bulkResult = await sm.bulkSync(bulkOptions);
 
   const aggregated: PullResult = {
     pulled: 0,

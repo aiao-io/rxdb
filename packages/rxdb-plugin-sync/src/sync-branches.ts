@@ -1,6 +1,6 @@
 import { type IRepository, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
 import { toLocalFromChangeId } from './branch-change-id.js';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 export interface SyncBranchesResult {
   created: number;
@@ -94,8 +94,8 @@ function sortBranchesParentFirst<T extends RemoteBranchRow>(remoteBranches: T[],
  * 事务体内只能用 `executor` 作用域的仓库。绑在适配器上的那一份走并发度 1 的写队列，
  * 在事务体内调用会排到自己这个事务后面 —— 直接死锁。
  */
-export async function syncBranches(vm: VersionManager): Promise<SyncBranchesResult> {
-  const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
+export async function syncBranches(sm: SyncManager): Promise<SyncBranchesResult> {
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
 
   if (!remoteAdapter.pullBranches) {
     return { created: 0, updated: 0, total: 0, skipped: [] };
@@ -106,7 +106,7 @@ export async function syncBranches(vm: VersionManager): Promise<SyncBranchesResu
     return { created: 0, updated: 0, total: 0, skipped: [] };
   }
 
-  const { adapter } = await vm.getLocalRepositories();
+  const { adapter } = await sm.getLocalRepositories();
 
   return adapter.transaction(async executor => {
     const branchRepository = executor.getRepository(RxDBBranch) as unknown as IRepository<typeof RxDBBranch>;

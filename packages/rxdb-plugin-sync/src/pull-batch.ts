@@ -28,7 +28,7 @@ import {
   RxDBPartialSyncError,
   RxDBSync
 } from '@aiao/rxdb';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
@@ -61,16 +61,16 @@ const MAX_FETCH_ALL_ROUNDS = 1000;
 /**
  * 批量拉取所有实体的变更。
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param options.limit - 每个实体单轮的最大变更数，默认 1000
  * @param options.fetchAll - 为真时循环拉取直到远端排空；默认只拉一轮并用 `hasMore` 告知还有剩余
  * @returns 各轮累加后的拉取结果
  */
 export async function pullBatch(
-  vm: VersionManager,
+  sm: SyncManager,
   options?: { limit?: number; fetchAll?: boolean; conflictResolver?: ConflictResolver }
 ): Promise<PullResult> {
-  if (options?.fetchAll !== true) return await pullBatchOnce(vm, options?.limit, options?.conflictResolver);
+  if (options?.fetchAll !== true) return await pullBatchOnce(sm, options?.limit, options?.conflictResolver);
 
   const total: PullResult = {
     pulled: 0,
@@ -99,7 +99,7 @@ export async function pullBatch(
   for (let round = 0; round < MAX_FETCH_ALL_ROUNDS; round++) {
     let result: PullResult;
     try {
-      result = await pullBatchOnce(vm, options.limit, options.conflictResolver);
+      result = await pullBatchOnce(sm, options.limit, options.conflictResolver);
     } catch (error) {
       // 前几轮已经落库且水位线已推进，裸抛原始错误会让调用方以为什么都没发生。
       // 把已完成部分的统计连同原始错误一起交出去；本轮内部的部分进度由
@@ -144,11 +144,11 @@ function toPartialSyncError(error: unknown, accumulated: PullResult): unknown {
  * 批量拉取所有实体的变更（单次 HTTP 请求）
  */
 async function pullBatchOnce(
-  vm: VersionManager,
+  sm: SyncManager,
   limitOption?: number,
   conflictResolverOption?: ConflictResolver
 ): Promise<PullResult> {
-  const rxdb = vm.rxdb;
+  const rxdb = sm.rxdb;
   const limit = limitOption ?? 1000;
 
   const remoteAdapterName = rxdb.config.sync?.remote?.adapter;
@@ -156,13 +156,13 @@ async function pullBatchOnce(
     throw new RxDBError('Remote adapter not configured.');
   }
 
-  const { adapter: remoteAdapter } = await vm.getRemoteRepositories();
-  const { adapter: localAdapter } = await vm.getLocalRepositories();
-  const branch = await vm.getCurrentBranch();
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
+  const branch = await sm.getCurrentBranch();
   const branchId = branch.id;
 
   // 获取祖先分支列表（包含自身）
-  const branchIds = await getAncestorBranchIds(vm, branchId);
+  const branchIds = await getAncestorBranchIds(sm, branchId);
 
   // 1. 收集所有可同步实体的水位线
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);

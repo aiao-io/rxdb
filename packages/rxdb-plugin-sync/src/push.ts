@@ -9,7 +9,7 @@ import {
 } from '@aiao/rxdb';
 import { BulkSyncOptions } from './bulk-sync.js';
 import { pushBranch } from './push-branch.js';
-import type { VersionManager } from './VersionManager.js';
+import type { SyncManager } from './SyncManager.js';
 
 /**
  * Push 功能实现
@@ -17,12 +17,12 @@ import type { VersionManager } from './VersionManager.js';
  * 将本地未同步的变更推送到远程
  * 先同步分支数据，再使用 bulkSync 批量推送所有 repositories
  *
- * @param vm - VersionManager 实例
+ * @param sm - SyncManager 实例
  * @param options - Push 选项
  * @returns Push 结果
  */
-export async function push(vm: VersionManager, options?: PushOptions): Promise<PushResult> {
-  const rxdb = vm.rxdb;
+export async function push(sm: SyncManager, options?: PushOptions): Promise<PushResult> {
+  const rxdb = sm.rxdb;
 
   // 验证远程适配器配置
   const remoteAdapterName = rxdb.config.sync?.remote?.adapter;
@@ -35,7 +35,7 @@ export async function push(vm: VersionManager, options?: PushOptions): Promise<P
 
   try {
     // 先同步分支数据到远程（确保远程有该分支后再推送实体数据）
-    const branchPush = await pushBranch(vm);
+    const branchPush = await pushBranch(sm);
 
     // 使用 bulkSync 批量推送
     const bulkOptions: BulkSyncOptions = {
@@ -49,7 +49,7 @@ export async function push(vm: VersionManager, options?: PushOptions): Promise<P
       ...(options?.batchSize === undefined ? {} : { push: { batchSize: options.batchSize } })
     };
 
-    const bulkResult = await vm.bulkSync(bulkOptions);
+    const bulkResult = await sm.bulkSync(bulkOptions);
 
     // 汇总结果
     const pushResult: PushResult = {
@@ -89,7 +89,7 @@ export async function push(vm: VersionManager, options?: PushOptions): Promise<P
     // 分叉点在本轮推送前还没有 remoteId 时，上一步只能带 null 上行。
     // 实体变更推完后分叉点已拿到 remoteId，补推一次把远端那一行补全。
     if (branchPush.forkPointPending && pushResult.pushed > 0) {
-      await pushBranch(vm);
+      await pushBranch(sm);
     }
 
     // 触发同步完成事件
