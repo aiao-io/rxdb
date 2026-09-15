@@ -17,7 +17,7 @@ import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pullRepository } from '../pull-repository.js';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
 import { emptyPushInFlight } from './fixtures/push-inflight.js';
 import { User } from './fixtures/test-entities.js';
@@ -134,7 +134,7 @@ function createProtocolHarness() {
   const saveMany = vi.fn(async (changes: RxDBChange[]) => changes);
   const localMergeChanges = vi.fn<LocalMergeChanges>(async () => undefined);
   // 当前分支的解析自 US-025 阶段 C 起由核心经 `rxdb.localAdapter$` 查 `activated = true`，
-  // 不再走 `VersionManager.getCurrentBranch()` —— 所以本地适配器得答得出分支表。
+  // 不再走 `SyncManager.getCurrentBranch()` —— 所以本地适配器得答得出分支表。
   const branchRepository = createBranchRepositoryStub();
   const localGetRepository = vi.fn((EntityType: unknown) => {
     if (EntityType === RxDBSync) return syncRepository;
@@ -223,7 +223,7 @@ function createProtocolHarness() {
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
     pushInFlight: emptyPushInFlight()
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   const localCreate = (name: string): RxDBChange => {
     const id = nextLocalId++;

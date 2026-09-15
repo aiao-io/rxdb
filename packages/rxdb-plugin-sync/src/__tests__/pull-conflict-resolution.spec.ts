@@ -16,7 +16,7 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pullBatch } from '../pull-batch.js';
 import { pullRepository } from '../pull-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -156,7 +156,7 @@ function createRemoteChange(entityId: string, createdAt: string, id = 100): Remo
   };
 }
 
-function createVersionManager(remoteChanges: RemoteChange[], localChanges: RxDBChange[]) {
+function createSyncManager(remoteChanges: RemoteChange[], localChanges: RxDBChange[]) {
   const syncRecords: RxDBSync[] = [createSyncRecord()];
   const syncRepo = createRepository(syncRecords);
   const changeRepo = createRepository(localChanges);
@@ -209,14 +209,14 @@ function createVersionManager(remoteChanges: RemoteChange[], localChanges: RxDBC
       context: { clientId: 'local-client' },
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return {
     vm,
@@ -239,7 +239,7 @@ describe('pull conflict resolution', () => {
   it('pullRepository should keep remote changes when remote is newer', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 101);
-    const { vm, mergeChanges, dispatchEvent } = createVersionManager([remoteChange], [localChange]);
+    const { vm, mergeChanges, dispatchEvent } = createSyncManager([remoteChange], [localChange]);
 
     const result = await pullRepository(vm, 'public', 'PullConflictUser', {
       includeRelated: false,
@@ -267,7 +267,7 @@ describe('pull conflict resolution', () => {
     const localChange = createLocalChange(entityId, sameTime);
     const remoteChange = createRemoteChange(entityId, sameTime, 105);
     remoteChange.clientId = 'remote-client';
-    const { vm, mergeChanges } = createVersionManager([remoteChange], [localChange]);
+    const { vm, mergeChanges } = createSyncManager([remoteChange], [localChange]);
 
     const result = await pullRepository(vm, 'public', 'PullConflictUser', {
       includeRelated: false,
@@ -283,7 +283,7 @@ describe('pull conflict resolution', () => {
   it('pullRepository should keep local changes when resolver returns KEEP_LOCAL', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:02:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 102);
-    const { vm, mergeChanges } = createVersionManager([remoteChange], [localChange]);
+    const { vm, mergeChanges } = createSyncManager([remoteChange], [localChange]);
 
     const customResolver: ConflictResolver = {
       resolve: vi.fn(async () => ({ type: 'KEEP_LOCAL' as const }))
@@ -304,7 +304,7 @@ describe('pull conflict resolution', () => {
   it('pullRepository should surface deferred conflicts without advancing the watermark', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 103);
-    const { vm, syncRecords, mergeChanges, dispatchEvent } = createVersionManager([remoteChange], [localChange]);
+    const { vm, syncRecords, mergeChanges, dispatchEvent } = createSyncManager([remoteChange], [localChange]);
 
     const customResolver: ConflictResolver = {
       resolve: vi.fn(async () => ({ type: 'DEFER' as const }))
@@ -334,7 +334,7 @@ describe('pull conflict resolution', () => {
   it('pullRepository should reject MERGE like DEFER and discard the merged payload', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 105);
-    const { vm, syncRecords, mergeChanges, dispatchEvent } = createVersionManager([remoteChange], [localChange]);
+    const { vm, syncRecords, mergeChanges, dispatchEvent } = createSyncManager([remoteChange], [localChange]);
 
     const mergedPayload = { name: 'merged-by-user' };
     const customResolver: ConflictResolver = {
@@ -359,7 +359,7 @@ describe('pull conflict resolution', () => {
   it('pullBatch should apply the default LWW resolver', async () => {
     const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
     const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 104);
-    const { vm, mergeChanges } = createVersionManager([remoteChange], [localChange]);
+    const { vm, mergeChanges } = createSyncManager([remoteChange], [localChange]);
 
     const result = await pullBatch(vm, { limit: 100, fetchAll: false });
 
@@ -379,7 +379,7 @@ describe('pull conflict resolution', () => {
       clientId: 'local-client',
       localId: null
     };
-    const { vm, mergeChanges, dispatchEvent } = createVersionManager([remoteChange], []);
+    const { vm, mergeChanges, dispatchEvent } = createSyncManager([remoteChange], []);
 
     const result = await pullRepository(vm, 'public', 'PullConflictUser', {
       includeRelated: false,
@@ -399,7 +399,7 @@ describe('pull conflict resolution', () => {
       clientId: 'local-client',
       localId: null
     };
-    const { vm, mergeChanges } = createVersionManager([remoteChange], []);
+    const { vm, mergeChanges } = createSyncManager([remoteChange], []);
 
     const result = await pullBatch(vm, { limit: 100, fetchAll: false });
 
@@ -415,7 +415,7 @@ describe('pull conflict resolution', () => {
       clientId: 'local-client',
       localId: localChange.id
     };
-    const { vm, mergeChanges } = createVersionManager([remoteChange], [localChange]);
+    const { vm, mergeChanges } = createSyncManager([remoteChange], [localChange]);
 
     const result = await pullRepository(vm, 'public', 'PullConflictUser', {
       includeRelated: false,

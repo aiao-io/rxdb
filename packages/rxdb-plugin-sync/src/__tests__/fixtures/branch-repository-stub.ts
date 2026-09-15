@@ -4,7 +4,7 @@
  *
  * US-025 阶段 C 之后，推拉的资格判定走核心的 `resolvePullIneligibility(rxdb, …)` /
  * `resolvePushIneligibility(rxdb, …)`，它们经 `getCurrentBranch(rxdb)` 真的去查一次
- * `activated = true` —— 替身再挂在 `VersionManager.getCurrentBranch()` 上已经拦不住了。
+ * `activated = true` —— 替身再挂在 `SyncManager.getCurrentBranch()` 上已经拦不住了。
  *
  * 热路径必须答得出来：查不到激活分支时 `getCurrentBranch` 会掉进冷路径，开一次事务
  * 并在事务内 `update` / `create`，而各用例的适配器替身普遍没有这两个方法。

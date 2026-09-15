@@ -1,16 +1,18 @@
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError } from '@aiao/rxdb';
+/**
+ * @fileoverview VersionManager 对协作模块的编排契约
+ *
+ * US-025 阶段 D 之前这份文件还管着推拉同步的编排。同步搬进 `@aiao/rxdb-plugin-sync`
+ * 之后那半边跟着走（见该包的 `SyncManager.orchestration.spec.ts`），这里只剩本包自己
+ * 的三件事：生命周期、本地事件过滤、分支编排。
+ */
+
+import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VersionManager } from '../VersionManager.js';
 
 type DetachedOperation = () => Promise<unknown>;
 type EventListener = (event: unknown) => void;
-type SubscriptionStub = { unsubscribe: () => void };
-
-type ListenerSetup = {
-  subscriptions: SubscriptionStub[];
-  removers: Array<() => void>;
-};
 
 const doubles = vi.hoisted(() => ({
   history: {
@@ -23,9 +25,6 @@ const doubles = vi.hoisted(() => ({
     clearUndoHistory: vi.fn<() => void>(),
     clearAllUndoHistory: vi.fn<() => void>(),
     resetPullableCount: vi.fn<() => void>(),
-    beginPullableSettlement: vi.fn<() => number>(),
-    reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
-    settlePullableCount: vi.fn<(token: number, settlement: { complete: boolean; pulled: number }) => void>(),
     clearRedoStack: vi.fn<() => void>(),
     setUndoBranch: vi.fn<(branchId: string) => void>(),
     syncing: vi.fn<(operation: DetachedOperation) => void>(),
@@ -33,27 +32,15 @@ const doubles = vi.hoisted(() => ({
     pushableCount$: { kind: 'pushable' },
     pullableCount$: { kind: 'pullable' }
   },
-  syncListeners: {
-    setup: vi.fn<(manager: unknown, historyManager: unknown) => ListenerSetup>(),
-    isIgnorableError: vi.fn<(error: unknown) => boolean>()
+  detachedError: {
+    isIgnorable: vi.fn<(error: unknown) => boolean>()
   },
   delegates: {
-    bulkSync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    checkRepositoryUpdates: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    cleanupExpired: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     createBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    getAllRepositorySyncStatus: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    getRepositorySyncStatus: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     mergeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    pullRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    pull: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    pushRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    push: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     removeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     getSwitchVersionActions: vi.fn<(...args: unknown[]) => unknown>(),
-    switchBranchActions: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    syncBranches: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>()
+    switchBranchActions: vi.fn<(...args: unknown[]) => Promise<unknown>>()
   }
 }));
 
@@ -95,18 +82,6 @@ vi.mock('../HistoryManager.js', () => ({
       doubles.history.resetPullableCount();
     }
 
-    beginPullableSettlement(): number {
-      return doubles.history.beginPullableSettlement();
-    }
-
-    reconcilePullableCount(token: number, count: number): void {
-      doubles.history.reconcilePullableCount(token, count);
-    }
-
-    settlePullableCount(token: number, settlement: { complete: boolean; pulled: number }): void {
-      doubles.history.settlePullableCount(token, settlement);
-    }
-
     clearRedoStack(): void {
       doubles.history.clearRedoStack();
     }
@@ -126,35 +101,17 @@ vi.mock('../HistoryManager.js', () => ({
   }
 }));
 
-vi.mock('../sync-listeners.js', () => ({
-  isIgnorableDetachedVersionEventError: doubles.syncListeners.isIgnorableError,
-  setupVersionSyncListeners: doubles.syncListeners.setup
+vi.mock('../detached-event-error.js', () => ({
+  isIgnorableDetachedVersionEventError: doubles.detachedError.isIgnorable
 }));
 
-vi.mock('../bulk-sync.js', () => ({ bulkSync: doubles.delegates.bulkSync }));
-vi.mock('../check-repository-updates.js', () => ({
-  checkRepositoryUpdates: doubles.delegates.checkRepositoryUpdates
-}));
-vi.mock('../cleanup-expired.js', () => ({ cleanupExpired: doubles.delegates.cleanupExpired }));
 vi.mock('../create-branch.js', () => ({ create_branch: doubles.delegates.createBranch }));
-vi.mock('../get-all-repository-sync-status.js', () => ({
-  getAllRepositorySyncStatus: doubles.delegates.getAllRepositorySyncStatus
-}));
-vi.mock('../get-repository-sync-status.js', () => ({
-  getRepositorySyncStatus: doubles.delegates.getRepositorySyncStatus
-}));
 vi.mock('../merge-branch.js', () => ({ merge_branch: doubles.delegates.mergeBranch }));
-vi.mock('../pull-repository.js', () => ({ pullRepository: doubles.delegates.pullRepository }));
-vi.mock('../pull.js', () => ({ pull: doubles.delegates.pull }));
-vi.mock('../push-repository.js', () => ({ pushRepository: doubles.delegates.pushRepository }));
-vi.mock('../push.js', () => ({ push: doubles.delegates.push }));
 vi.mock('../remove-branch.js', () => ({ remove_branch: doubles.delegates.removeBranch }));
 vi.mock('../switch-branch-actions.js', () => ({
   get_switch_version_actions: doubles.delegates.getSwitchVersionActions,
   switch_branch_actions: doubles.delegates.switchBranchActions
 }));
-vi.mock('../sync-branches.js', () => ({ syncBranches: doubles.delegates.syncBranches }));
-vi.mock('../sync-repository.js', () => ({ syncRepository: doubles.delegates.syncRepository }));
 
 type RepositoryStub = {
   find: ReturnType<typeof vi.fn>;
@@ -189,7 +146,7 @@ function createRepository(): RepositoryStub {
   };
 }
 
-function createHarness(entities: unknown[] = []): Harness {
+function createHarness(): Harness {
   const addEventListener = vi.fn<(type: string, listener: EventListener) => void>();
   const removeEventListener = vi.fn<(type: string, listener: EventListener) => void>();
   const dispatchEvent = vi.fn<(event: { type: string }) => boolean>().mockReturnValue(true);
@@ -211,7 +168,7 @@ function createHarness(entities: unknown[] = []): Harness {
   };
   const rxdb = {
     config: {
-      entities,
+      entities: [],
       sync: {
         local: { adapter: 'local' },
         remote: { adapter: 'remote' }
@@ -249,29 +206,6 @@ function getLocalCreateListener(addEventListener: Harness['addEventListener']): 
   return registration[1];
 }
 
-function createPullResult(pulled: number) {
-  return {
-    pulled,
-    compacted: 0,
-    applied: pulled,
-    hasMore: false,
-    conflictsResolved: 0,
-    conflictsDeferred: 0,
-    persistedProgress: pulled > 0,
-    historyInvalidated: pulled > 0,
-    failures: []
-  };
-}
-
-function createPushResult(pushed: number) {
-  return {
-    pushed,
-    failed: 0,
-    compacted: 0,
-    originalCount: pushed
-  };
-}
-
 async function flushDetachedTask(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
@@ -282,10 +216,8 @@ beforeEach(() => {
   doubles.history.instances.length = 0;
   doubles.history.invalidateRedoStack.mockResolvedValue(undefined);
   doubles.history.isExecutingUndoRedo.mockReturnValue(false);
-  doubles.history.beginPullableSettlement.mockReturnValue(7);
   doubles.history.history.mockReturnValue({ type: 'database' });
-  doubles.syncListeners.setup.mockReturnValue({ subscriptions: [], removers: [] });
-  doubles.syncListeners.isIgnorableError.mockReturnValue(false);
+  doubles.detachedError.isIgnorable.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -293,32 +225,32 @@ afterEach(() => {
 });
 
 describe('VersionManager 对协作模块的编排契约', () => {
+  // 阶段 D 之后 `init()` 只登记本包自己的事件监听：远端事件那几条随同步插件走了。
+  // 断言逐条列出注册与注销的配对，是因为「装了没拆」在真实环境里表现为换库之后
+  // 旧实例还在收事件，而它不会让任何一条现有用例变红。
   it('initializes listeners and releases every lifecycle resource on destroy', () => {
     const harness = createHarness();
-    const removeCreate = vi.fn();
-    const removeUpdate = vi.fn();
-    const unsubscribeConnected = vi.fn();
-    const unsubscribeStatus = vi.fn();
-    doubles.syncListeners.setup.mockReturnValue({
-      subscriptions: [{ unsubscribe: unsubscribeConnected }, { unsubscribe: unsubscribeStatus }],
-      removers: [removeCreate, removeUpdate]
-    });
 
     harness.manager.init();
 
     expect(doubles.history.constructed).toHaveBeenCalledWith(harness.rxdb);
-    expect(doubles.syncListeners.setup).toHaveBeenCalledWith(harness.manager, doubles.history.instances[0]);
     expect(harness.addEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_CREATE_EVENT, expect.any(Function));
 
     const localListener = getLocalCreateListener(harness.addEventListener);
+    const registeredTypes = harness.addEventListener.mock.calls.map(([type]) => type);
     harness.manager.destroy();
 
     expect(doubles.history.destroy).toHaveBeenCalledOnce();
     expect(harness.removeEventListener).toHaveBeenCalledWith(ENTITY_LOCAL_CREATE_EVENT, localListener);
-    expect(removeCreate).toHaveBeenCalledOnce();
-    expect(removeUpdate).toHaveBeenCalledOnce();
-    expect(unsubscribeConnected).toHaveBeenCalledOnce();
-    expect(unsubscribeStatus).toHaveBeenCalledOnce();
+    expect(harness.removeEventListener.mock.calls.map(([type]) => type)).toEqual(registeredTypes);
+  });
+
+  // 同步桥是两包之间唯一的耦合面，而 `pushInFlight` 必须与 undo 侧读的是同一个实例
+  // —— 桥上换成另一个登记处，push 认领的区间 undo 就永远读不到。
+  it('exposes a sync bridge that shares the push-in-flight registry', () => {
+    const { manager } = createHarness();
+
+    expect(manager.syncBridge.pushInFlight).toBe(manager.pushInFlight);
   });
 
   it('resets session state and exposes HistoryManager count streams', () => {
@@ -369,7 +301,7 @@ describe('VersionManager 对协作模块的编排契约', () => {
     const realError = new Error('storage failed');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     doubles.history.invalidateRedoStack.mockRejectedValueOnce(shutdownError).mockRejectedValueOnce(realError);
-    doubles.syncListeners.isIgnorableError.mockImplementation(error => error === shutdownError);
+    doubles.detachedError.isIgnorable.mockImplementation(error => error === shutdownError);
     manager.init();
     const listener = getLocalCreateListener(addEventListener);
 
@@ -377,311 +309,23 @@ describe('VersionManager 对协作模块的编排契约', () => {
     listener({ entities: [{ namespace: 'rxdb', entity: 'RxDBChange', id: 2 }] });
     await flushDetachedTask();
 
-    expect(doubles.syncListeners.isIgnorableError).toHaveBeenCalledWith(shutdownError);
-    expect(doubles.syncListeners.isIgnorableError).toHaveBeenCalledWith(realError);
+    expect(doubles.detachedError.isIgnorable).toHaveBeenCalledWith(shutdownError);
+    expect(doubles.detachedError.isIgnorable).toHaveBeenCalledWith(realError);
     expect(errorSpy).toHaveBeenCalledOnce();
     expect(errorSpy).toHaveBeenCalledWith('[VersionManager] invalidateRedoStack failed:', realError);
   });
 
-  it('delegates branch, cleanup, status, and bulk operations with exact arguments', async () => {
+  it('delegates branch operations with exact arguments', async () => {
     const harness = createHarness();
     const branch = { id: 'feature' };
-    const branchSyncResult = { created: 1, updated: 0 };
-    const cleanupResult = { removed: 2, removedIds: ['1', '2'] };
-    const updateResult = { hasUpdates: true, updateCount: 3, latestChangeId: 9, lastPulledChangeId: 6 };
-    const status = { namespace: 'public', entity: 'Todo' };
-    const statuses = [status];
-    const bulkResult = { succeeded: 1, failed: 0, results: [], durationMs: 5 };
     doubles.delegates.createBranch.mockResolvedValue(branch);
     doubles.delegates.removeBranch.mockResolvedValue(undefined);
-    doubles.delegates.syncBranches.mockResolvedValue(branchSyncResult);
-    doubles.delegates.cleanupExpired.mockResolvedValue(cleanupResult);
-    doubles.delegates.checkRepositoryUpdates.mockResolvedValue(updateResult);
-    doubles.delegates.getRepositorySyncStatus.mockResolvedValue(status);
-    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue(statuses);
-    doubles.delegates.bulkSync.mockResolvedValue(bulkResult);
 
     await expect(harness.manager.createBranch('feature', 17)).resolves.toBe(branch);
     await expect(harness.manager.removeBranch('obsolete')).resolves.toBeUndefined();
-    await expect(harness.manager.syncBranches()).resolves.toBe(branchSyncResult);
-    await expect(harness.manager.cleanupExpired('public', 'Todo', { dryRun: true })).resolves.toBe(cleanupResult);
-    await expect(harness.manager.checkRepositoryUpdates('public', 'Todo')).resolves.toBe(updateResult);
-    await expect(harness.manager.getRepositorySyncStatus('public', 'Todo')).resolves.toBe(status);
-    await expect(harness.manager.getAllRepositorySyncStatus({ enabled: true })).resolves.toBe(statuses);
-    await expect(
-      harness.manager.bulkSync({
-        operation: 'pull',
-        repositories: [{ namespace: 'public', entity: 'Todo' }],
-        concurrent: true,
-        concurrency: 2
-      })
-    ).resolves.toBe(bulkResult);
 
     expect(doubles.delegates.createBranch).toHaveBeenCalledWith(harness.manager, 'feature', 17);
     expect(doubles.delegates.removeBranch).toHaveBeenCalledWith(harness.manager, 'obsolete');
-    expect(doubles.delegates.syncBranches).toHaveBeenCalledWith(harness.manager);
-    expect(doubles.delegates.cleanupExpired).toHaveBeenCalledWith(harness.manager, 'public', 'Todo', { dryRun: true });
-    expect(doubles.delegates.checkRepositoryUpdates).toHaveBeenCalledWith(harness.rxdb, 'public', 'Todo');
-    expect(doubles.delegates.getRepositorySyncStatus).toHaveBeenCalledWith(harness.rxdb, 'public', 'Todo');
-    expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledWith(harness.rxdb, { enabled: true });
-    expect(doubles.delegates.bulkSync).toHaveBeenCalledWith(harness.rxdb, {
-      operation: 'pull',
-      repositories: [{ namespace: 'public', entity: 'Todo' }],
-      concurrent: true,
-      concurrency: 2
-    });
-  });
-
-  it('refreshes pullable count from enabled repository watermarks', async () => {
-    const harness = createHarness();
-    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([
-      { enabled: true, pullableCount: 3 },
-      { enabled: false, pullableCount: 40 },
-      { enabled: true, pullableCount: 4 }
-    ]);
-
-    await expect(harness.manager.refreshPullableCount()).resolves.toBe(7);
-
-    expect(doubles.history.beginPullableSettlement).toHaveBeenCalledOnce();
-    expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledWith(harness.rxdb);
-    expect(doubles.history.reconcilePullableCount).toHaveBeenCalledWith(7, 7);
-  });
-
-  it('wraps pull in the syncing guard and settles pull state', async () => {
-    const { manager } = createHarness();
-    const changed = createPullResult(2);
-    doubles.delegates.pull.mockResolvedValueOnce(changed).mockResolvedValueOnce(createPullResult(0));
-
-    await expect(manager.pull({ limit: 25, fetchAll: true })).resolves.toBe(changed);
-
-    expect(doubles.history.syncing).toHaveBeenCalledOnce();
-    expect(doubles.delegates.pull).toHaveBeenCalledWith(manager, { limit: 25, fetchAll: true });
-    // RXD-034：令牌必须在 pull **之前**取，否则拉取期间到达的远端事件无从察觉
-    expect(doubles.history.beginPullableSettlement.mock.invocationCallOrder[0]).toBeLessThan(
-      doubles.delegates.pull.mock.invocationCallOrder[0]
-    );
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: true, pulled: 2 });
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-
-    await manager.pull();
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledTimes(2);
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-  });
-
-  // RXD-034：分页 / 逐仓 / 有失败的 pull 只处理了一部分，全局归零等于谎报「已经拉干净了」
-  it.each([
-    ['paged', { limit: 10 }, { hasMore: true }],
-    ['repository-filtered', { repositoryFilter: ['public:Todo'] }, {}],
-    ['partially failed', undefined, { failures: [{ error: new Error('remote down') }] }]
-  ])('settles a %s pull as incomplete', async (_label, options, resultOverrides) => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockResolvedValue({ ...createPullResult(2), ...resultOverrides });
-
-    await manager.pull(options);
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: false, pulled: 2 });
-    expect(doubles.history.resetPullableCount).not.toHaveBeenCalled();
-  });
-
-  it('still settles the pullable count when pull throws', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockRejectedValue(new Error('pull exploded'));
-
-    await expect(manager.pull()).rejects.toThrow('pull exploded');
-
-    // 拉失败说明一条都没结算掉，但令牌得收回来，否则下一次 pull 会一直被判成「有并发事件」
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: false, pulled: 0 });
-  });
-
-  // 部分成功以异常形式抛出，但 `error.result` 里那部分是真的落库了 —— 得照实扣掉
-  it('settles the already-applied portion of a partial pull failure', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockRejectedValue(
-      new RxDBPartialSyncError(createPullResult(4), new Error('second repository failed'))
-    );
-
-    await expect(manager.pull({ repositoryFilter: ['public:Todo', 'public:Tag'] })).rejects.toBeInstanceOf(
-      RxDBPartialSyncError
-    );
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: false, pulled: 4 });
-  });
-
-  // RXD-031：`pulled > 0` 只说明「从远端取回了变更」，压缩全抵消时本地实体数据没有任何变化。
-  // 拿它当历史边界失效的判据，会把用户当前 session 的 undo 栈白白清空。
-  it('does not clear undo history when a pull changed no local entity data', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockResolvedValue({
-      pulled: 5,
-      compacted: 5,
-      applied: 0,
-      hasMore: false,
-      conflictsResolved: 0,
-      conflictsDeferred: 0,
-      persistedProgress: true,
-      historyInvalidated: false,
-      failures: []
-    });
-
-    await manager.pull();
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: true, pulled: 5 });
-    expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
-  });
-
-  it('wraps push in the syncing guard and clears history only after changes', async () => {
-    const { manager } = createHarness();
-    const changed = createPushResult(3);
-    doubles.delegates.push.mockResolvedValueOnce(changed).mockResolvedValueOnce(createPushResult(0));
-
-    await expect(manager.push({ batchSize: 10 })).resolves.toBe(changed);
-
-    expect(doubles.delegates.push).toHaveBeenCalledWith(manager, { batchSize: 10 });
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-
-    await manager.push();
-
-    expect(doubles.history.syncing).toHaveBeenCalledTimes(2);
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-  });
-
-  it('runs sync as pull then push and preserves rejection semantics', async () => {
-    const { manager } = createHarness();
-    const pullResult = createPullResult(0);
-    const pushResult = createPushResult(1);
-    doubles.delegates.pull.mockResolvedValueOnce(pullResult);
-    doubles.delegates.push.mockResolvedValueOnce(pushResult);
-
-    await expect(manager.sync({ pull: { limit: 7 }, push: { batchSize: 4 } })).resolves.toEqual({
-      pullResult,
-      pushResult
-    });
-
-    expect(doubles.delegates.pull).toHaveBeenCalledWith(manager, { limit: 7 });
-    expect(doubles.delegates.push).toHaveBeenCalledWith(manager, { batchSize: 4 });
-    expect(doubles.delegates.pull.mock.invocationCallOrder[0]).toBeLessThan(
-      doubles.delegates.push.mock.invocationCallOrder[0]
-    );
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-
-    const failure = new Error('pull failed');
-    doubles.delegates.pull.mockRejectedValueOnce(failure);
-
-    await expect(manager.sync()).rejects.toBe(failure);
-    expect(doubles.delegates.push).toHaveBeenCalledOnce();
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledOnce();
-  });
-
-  it('does not clear history after a zero-change full sync', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockResolvedValue(createPullResult(0));
-    doubles.delegates.push.mockResolvedValue(createPushResult(0));
-
-    await manager.sync();
-
-    expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
-  });
-
-  // RXD-034：`sync()` 内部就是一次 pull，却从来不结算 pullable 计数 ——
-  // 「同步完了远端待拉还是 5」这个 bug 只在走 sync 的路径上出现，与 pull() 的口径互相矛盾。
-  it('settles the pullable count on the sync path too', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockResolvedValue(createPullResult(3));
-    doubles.delegates.push.mockResolvedValue(createPushResult(0));
-
-    await manager.sync({ pull: { repositoryFilter: ['public:Todo'] } });
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: false, pulled: 3 });
-  });
-
-  it('settles the pullable count when the sync path pull throws', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pull.mockRejectedValue(new Error('sync pull exploded'));
-
-    await expect(manager.sync()).rejects.toThrow('sync pull exploded');
-
-    expect(doubles.history.settlePullableCount).toHaveBeenCalledWith(7, { complete: false, pulled: 0 });
-  });
-
-  it('wraps repository sync methods and applies their history rules', async () => {
-    const { manager } = createHarness();
-    const pullResult = {
-      repository: { namespace: 'public', entity: 'Todo' },
-      pulled: 2,
-      persistedProgress: true,
-      historyInvalidated: true
-    };
-    const pushResult = { repository: { namespace: 'public', entity: 'Todo' }, pushed: 1 };
-    const syncResult = {
-      pullResult: {
-        repository: { namespace: 'public', entity: 'Todo' },
-        pulled: 0,
-        persistedProgress: false,
-        historyInvalidated: false
-      },
-      pushResult: { repository: { namespace: 'public', entity: 'Todo' }, pushed: 1 }
-    };
-    doubles.delegates.pullRepository.mockResolvedValue(pullResult);
-    doubles.delegates.pushRepository.mockResolvedValue(pushResult);
-    doubles.delegates.syncRepository.mockResolvedValue(syncResult);
-
-    await expect(manager.pullRepository('public', 'Todo', { limit: 20, includeRelated: false })).resolves.toBe(
-      pullResult
-    );
-    await expect(manager.pushRepository('public', 'Todo', { batchSize: 5, includeRelated: false })).resolves.toBe(
-      pushResult
-    );
-    await expect(
-      manager.syncRepository('public', 'Todo', {
-        direction: 'sync',
-        pull: { limit: 10 },
-        push: { batchSize: 2 }
-      })
-    ).resolves.toBe(syncResult);
-
-    expect(doubles.delegates.pullRepository).toHaveBeenCalledWith(manager, 'public', 'Todo', {
-      limit: 20,
-      includeRelated: false
-    });
-    expect(doubles.delegates.pushRepository).toHaveBeenCalledWith(manager, 'public', 'Todo', {
-      batchSize: 5,
-      includeRelated: false
-    });
-    expect(doubles.delegates.syncRepository).toHaveBeenCalledWith(manager, 'public', 'Todo', {
-      direction: 'sync',
-      pull: { limit: 10 },
-      push: { batchSize: 2 }
-    });
-    expect(doubles.history.syncing).toHaveBeenCalledTimes(3);
-    expect(doubles.history.clearUndoHistory).toHaveBeenCalledTimes(3);
-  });
-
-  it('does not clear history for zero-change repository operations', async () => {
-    const { manager } = createHarness();
-    doubles.delegates.pullRepository.mockResolvedValue({ pulled: 0 });
-    doubles.delegates.pushRepository.mockResolvedValue({ pushed: 0 });
-    doubles.delegates.syncRepository.mockResolvedValue({
-      pullResult: { pulled: 0 },
-      pushResult: { pushed: 0 }
-    });
-
-    await manager.pullRepository('public', 'Todo');
-    await manager.pushRepository('public', 'Todo');
-    await manager.syncRepository('public', 'Todo');
-
-    expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
-  });
-
-  // 依赖图与拓扑排序是纯函数，替身只会把「真的排出这个顺序了吗」换成「真的调了这个函数吗」。
-  // 这里跑真实现，断言排出来的图与顺序本身。
-  it('从已注册实体算出真实依赖图与拉取顺序', () => {
-    const { manager } = createHarness([RxDBBranch]);
-
-    const graph = manager.getRepositoryDependencyGraph();
-    expect(graph.has('rxdb:RxDBBranch')).toBe(true);
-
-    expect(manager.getRepositorySyncOrder('pull')).toEqual([{ namespace: 'rxdb', entity: 'RxDBBranch' }]);
   });
 
   it('returns local and remote system repositories from their adapter streams', async () => {

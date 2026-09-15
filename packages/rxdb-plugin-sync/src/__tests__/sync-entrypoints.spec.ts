@@ -15,7 +15,7 @@ import { pushBranch } from '../push-branch.js';
 import type { PushRepositoryResult } from '../push-repository.js';
 import { push } from '../push.js';
 import type { SyncRepositoryResult } from '../sync-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 
 vi.mock('../pull-batch.js', () => ({ pullBatch: vi.fn() }));
 vi.mock('../push-branch.js', () => ({ pushBranch: vi.fn() }));
@@ -75,7 +75,7 @@ function createHarness(adapter?: string, entities: unknown[] = []) {
     dispatchEvent
   } as unknown as RxDB;
   const bulkSync = vi.fn();
-  const vm = { rxdb, bulkSync } as unknown as VersionManager;
+  const vm = { rxdb, bulkSync } as unknown as SyncManager;
   return { bulkSync, dispatchEvent, vm };
 }
 

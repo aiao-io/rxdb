@@ -39,5 +39,8 @@ export type { VersionManager } from './VersionManager.js';
 // 见 `sync-history-bridge.ts` 的文件头。应用代码不该引用它们。
 // ---------------------------------------------------------------------------
 export { isIgnorableDetachedVersionEventError } from './detached-event-error.js';
-export type { PushInFlightRegistry, PushInFlightSession } from './push-inflight.js';
+// 登记处是**类**导出而非类型导出：同步插件的 push 用例要 `new` 一个真的出来
+// （替身会把要验的东西验掉），而两包之间只有 `dist` 一条路，没有深路径可走。
+export { PushInFlightRegistry } from './push-inflight.js';
+export type { PushInFlightSession } from './push-inflight.js';
 export type { SyncHistoryBridge } from './sync-history-bridge.js';

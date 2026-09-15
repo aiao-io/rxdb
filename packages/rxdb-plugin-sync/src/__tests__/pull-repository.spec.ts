@@ -24,7 +24,7 @@ import {
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { pullRepository, type PullRepositoryResult } from '../pull-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 const FULL_SYNC: SyncOptions = {
@@ -343,14 +343,14 @@ function createHarness(options: HarnessOptions = {}) {
       context: { clientId: options.clientId ?? 'local-client' },
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: options.currentBranchId ?? 'main' }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return {
     vm,
@@ -675,7 +675,7 @@ describe('pullRepository', () => {
   });
 
   // RXD-031 D：跨多轮 fetchAll 时第一轮已真实落库（事务已提交），第二轮失败不能裸抛，
-  // 否则调用方（VersionManager.pullRepository）以为「什么都没发生」而清除 undo 边界
+  // 否则调用方（SyncManager.pullRepository）以为「什么都没发生」而清除 undo 边界
   it('fetchAll 多轮拉取中第二轮失败时，抛出携带已提交轮次进度的 RxDBPartialSyncError', async () => {
     const syncRecord = createSyncRecord('PullSliceItem');
     let mergeCallCount = 0;

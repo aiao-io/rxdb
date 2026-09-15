@@ -21,7 +21,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pullBatch } from '../pull-batch.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 const FULL_SYNC: SyncOptions = {
@@ -341,7 +341,7 @@ function createHarness(options: HarnessOptions) {
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: branchId }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return {
     vm,
@@ -693,7 +693,7 @@ describe('pullBatch 生产路径', () => {
   });
 
   /**
-   * `pull({ fetchAll: true })` 是文档化的公开 API（VersionManager.ts 的 @example），
+   * `pull({ fetchAll: true })` 是文档化的公开 API（SyncManager.ts 的 @example），
    * pull.ts 也把它透传进了 pullBatch —— 但 pullBatch 从来没读过这个字段，
    * 调用方以为拉全了，实际只拉了一批。
    */

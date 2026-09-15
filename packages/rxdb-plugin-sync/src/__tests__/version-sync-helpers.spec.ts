@@ -2,21 +2,21 @@ import { getOrCreateSyncRecord, type IRepository, type RxDBBranch, RxDBSync } fr
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getAncestorBranchIds } from '../branch-utils.js';
 import { pushBranch } from '../push-branch.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createTestDB } from './fixtures/test-db-setup.js';
 
-const createBranchManager = (find: ReturnType<typeof vi.fn>): VersionManager => {
+const createBranchManager = (find: ReturnType<typeof vi.fn>): SyncManager => {
   const branchRepository = { find };
   const adapter = { getRepository: vi.fn(() => branchRepository) };
   return {
     getLocalRepositories: vi.fn(async () => ({ adapter }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 };
 
 describe('branch-utils', () => {
   it('returns main without opening the local adapter', async () => {
     const getLocalRepositories = vi.fn();
-    const vm = { getLocalRepositories } as unknown as VersionManager;
+    const vm = { getLocalRepositories } as unknown as SyncManager;
 
     await expect(getAncestorBranchIds(vm, 'main')).resolves.toEqual(['main']);
     expect(getLocalRepositories).not.toHaveBeenCalled();
@@ -72,7 +72,7 @@ const createPushManager = (
     getCurrentBranch: vi.fn(async () => branch),
     getLocalRepositories,
     getRemoteRepositories
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { vm, branchRepository, changeRepository, getLocalRepositories, getRemoteRepositories };
 };

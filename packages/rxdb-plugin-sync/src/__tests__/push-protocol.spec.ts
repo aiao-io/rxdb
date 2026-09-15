@@ -13,7 +13,7 @@ import {
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { pushRepository } from '../push-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
 import { emptyPushInFlight } from './fixtures/push-inflight.js';
 import { User } from './fixtures/test-entities.js';
@@ -82,7 +82,7 @@ function matchesRules(change: RxDBChange, rules: QueryRule[]): boolean {
   });
 }
 
-function createVersionManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdapterStub) {
+function createSyncManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdapterStub) {
   const syncRecord = createSyncRecord();
   const syncRepo = {
     find: vi.fn(async () => [syncRecord]),
@@ -131,7 +131,7 @@ function createVersionManager(localChanges: RxDBChange[], remoteAdapter: RemoteA
       context: { clientId: 'local-client' },
       dispatchEvent: vi.fn(),
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
       remoteAdapter$: of(remoteAdapter)
     },
@@ -139,7 +139,7 @@ function createVersionManager(localChanges: RxDBChange[], remoteAdapter: RemoteA
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
     pushInFlight: emptyPushInFlight()
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { vm, saveMany, syncRecord };
 }
@@ -155,7 +155,7 @@ describe('pushRepository sync protocol', () => {
         { localId: 2, remoteId: 102 }
       ]
     }));
-    const { vm, saveMany, syncRecord } = createVersionManager([insert, update], { mergeChanges });
+    const { vm, saveMany, syncRecord } = createSyncManager([insert, update], { mergeChanges });
 
     const result = await pushRepository(vm, 'public', 'User', { includeRelated: false });
 
@@ -188,7 +188,7 @@ describe('pushRepository sync protocol', () => {
         changeIdMapping: sourceChanges.map(change => ({ localId: change.id, remoteId: 100 + change.id }))
       };
     });
-    const { vm, syncRecord } = createVersionManager(changes, { mergeChanges });
+    const { vm, syncRecord } = createSyncManager(changes, { mergeChanges });
 
     const result = await pushRepository(vm, 'public', 'User', { batchSize: 2, includeRelated: false });
 

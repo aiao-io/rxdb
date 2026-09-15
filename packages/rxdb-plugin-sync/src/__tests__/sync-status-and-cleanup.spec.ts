@@ -18,7 +18,7 @@ import { checkRepositoryUpdates } from '../check-repository-updates.js';
 import { cleanupExpired } from '../cleanup-expired.js';
 import { getAllRepositorySyncStatus } from '../get-all-repository-sync-status.js';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -166,7 +166,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       entities: options.entities,
       sync: options.globalSync
     },
-    versionManager: {
+    syncManager: {
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories
@@ -229,7 +229,7 @@ function createCleanupHarness(options: CleanupHarnessOptions = {}) {
       }
     },
     getLocalRepositories
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { Entity, find, getRepository, mergeChanges, transaction, vm };
 }

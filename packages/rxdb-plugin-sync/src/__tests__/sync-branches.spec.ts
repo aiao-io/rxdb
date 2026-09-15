@@ -1,7 +1,7 @@
 import { RxDBChange } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syncBranches } from '../sync-branches.js';
-import { VersionManager } from '../VersionManager.js';
+import { SyncManager } from '../SyncManager.js';
 
 type BranchRepositoryMock = {
   find: ReturnType<typeof vi.fn>;
@@ -21,7 +21,7 @@ type RemoteAdapterMock = { pullBranches?: ReturnType<typeof vi.fn> };
 const LOCAL_MAIN = { id: 'main', remote: true };
 
 describe('syncBranches', () => {
-  let mockVersion: VersionManager;
+  let mockVersion: SyncManager;
   let mockBranchRepository: BranchRepositoryMock;
   let mockChangeRepository: ChangeRepositoryMock;
   let mockRemoteAdapter: RemoteAdapterMock;
@@ -65,7 +65,7 @@ describe('syncBranches', () => {
       getRemoteRepositories: vi.fn().mockResolvedValue({
         adapter: mockRemoteAdapter
       })
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
   });
 
   it('should return empty result if pullBranches not implemented', async () => {

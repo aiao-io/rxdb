@@ -24,9 +24,9 @@ import {
 } from '@aiao/rxdb';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { HistoryManager } from '../HistoryManager.js';
-import { isIgnorableDetachedVersionEventError, setupVersionSyncListeners } from '../sync-listeners.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
+import { setupSyncListeners } from '../sync-listeners.js';
+import type { SyncManager } from '../SyncManager.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
 // 出站重放本身有自己的用例（核心的 `repository/query-cache-outbox.spec.ts`）。这里只关心
@@ -93,7 +93,7 @@ class CachedNote extends EntityBase {
   title!: string;
 }
 
-/** Full 仓库：由用户显式调 `versionManager.push()` 负责，自动轮次一概不碰 */
+/** Full 仓库：由用户显式调 `syncManager.push()` 负责，自动轮次一概不碰 */
 @Entity({
   name: 'VersionedTodo',
   properties: [{ name: 'title', type: PropertyType.string }],
@@ -167,7 +167,7 @@ type SyncListenerHarness = {
   push: ReturnType<typeof vi.fn<Push>>;
   reachability: ReachabilityMonitor;
   removeEventListener: ReturnType<typeof vi.fn<(type: RemoteEventType, handler: RemoteEventHandler) => void>>;
-  result: ReturnType<typeof setupVersionSyncListeners>;
+  result: ReturnType<typeof setupSyncListeners>;
   syncBranches: ReturnType<typeof vi.fn<SyncBranches>>;
   syncState: SyncStateHub;
 };
@@ -267,14 +267,16 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
     addEventListener,
     removeEventListener
   };
-  const versionManager = {
+  // 历史侧只借一张窄接口（US-025 阶段 D 的 `SyncHistoryBridge`），远端事件链路上被用到的
+  // 只有累加待拉数这一项，其余成员这条链一次都不碰 —— 补齐它们只会让替身看起来比契约还宽。
+  const syncManager = {
     rxdb,
     syncBranches,
     push,
-    getCurrentBranch
-  } as unknown as VersionManager;
-  const historyManager = { incrementPullableCount } as unknown as HistoryManager;
-  const result = setupVersionSyncListeners(versionManager, historyManager);
+    getCurrentBranch,
+    history: { incrementPullableCount } as unknown as SyncHistoryBridge
+  } as unknown as SyncManager;
+  const result = setupSyncListeners(syncManager);
 
   const harness: SyncListenerHarness = {
     addEventListener,
@@ -320,24 +322,7 @@ afterEach(() => {
   countOutbox.mockImplementation(() => Promise.resolve(0));
 });
 
-describe('isIgnorableDetachedVersionEventError', () => {
-  const cases: ReadonlyArray<readonly [string, unknown, boolean]> = [
-    ['errno 44', { errno: 44 }, true],
-    ['AbortError', { name: 'AbortError' }, true],
-    ['adapter shutdown', new Error('database is closed'), true],
-    ['ordinary error', new Error('query failed'), false],
-    ['null', null, false],
-    ['primitive', 44, false]
-  ];
-
-  for (const [name, error, expected] of cases) {
-    it(`classifies ${name}`, () => {
-      expect(isIgnorableDetachedVersionEventError(error)).toBe(expected);
-    });
-  }
-});
-
-describe('setupVersionSyncListeners connected lifecycle', () => {
+describe('setupSyncListeners connected lifecycle', () => {
   it('syncs only after a configured remote adapter becomes connected', () => {
     const harness = createHarness({ connected: false });
 
@@ -383,7 +368,7 @@ describe('setupVersionSyncListeners connected lifecycle', () => {
   });
 });
 
-describe('setupVersionSyncListeners 联网回推', () => {
+describe('setupSyncListeners 联网回推', () => {
   /** 断网：`report` 认定网络故障后 `online` 立刻翻 false，并排上退避节拍 */
   const goOffline = (reachability: ReachabilityMonitor): void => {
     reachability.report(new TypeError('Failed to fetch'));
@@ -517,7 +502,7 @@ describe('setupVersionSyncListeners 联网回推', () => {
 
   // 上一条用例给的 `entities` 是手写清单，而真实的库里 `SchemaManager.init()` 还会补进
   // 四张系统表。它们不带自己的 `sync`，于是跟随库级配置，`getSyncType` 会照着库级口径
-  // 把这四张本地簿记表也判成用户仓库。系统表的同步由 VersionManager 直接安排，
+  // 把这四张本地簿记表也判成用户仓库。系统表的同步由 SyncManager 直接安排，
   // 混进 REST 重放名单等于对着没有 REST 端点的簿记表反复重放。
   it('注入的系统实体不进 flush 名单', async () => {
     createHarness({
@@ -628,7 +613,7 @@ describe('setupVersionSyncListeners 联网回推', () => {
   });
 });
 
-describe('setupVersionSyncListeners 同步状态上报', () => {
+describe('setupSyncListeners 同步状态上报', () => {
   it('一轮回推期间 syncing 为真，跑完落回假', async () => {
     let release: (() => void) | undefined;
     flushOutbox.mockImplementation(
@@ -723,7 +708,7 @@ describe('setupVersionSyncListeners 同步状态上报', () => {
   });
 });
 
-describe('setupVersionSyncListeners remote events', () => {
+describe('setupSyncListeners remote events', () => {
   for (const eventCase of REMOTE_EVENT_CASES) {
     it(`counts current and branchless entities for ${eventCase.eventName}`, async () => {
       const harness = createHarness();
@@ -786,12 +771,12 @@ describe('setupVersionSyncListeners remote events', () => {
       await settleDetachedTasks();
 
       expect(consoleError).toHaveBeenCalledOnce();
-      expect(consoleError).toHaveBeenCalledWith(`[VersionManager] ${eventCase.label} failed:`, error);
+      expect(consoleError).toHaveBeenCalledWith(`[SyncManager] ${eventCase.label} failed:`, error);
     });
   }
 });
 
-describe('setupVersionSyncListeners cleanup lifecycle', () => {
+describe('setupSyncListeners cleanup lifecycle', () => {
   it('removes the exact remote handlers and unsubscribes connected sync', async () => {
     const harness = createHarness({ connected: false });
     const registeredListeners = harness.addEventListener.mock.calls;

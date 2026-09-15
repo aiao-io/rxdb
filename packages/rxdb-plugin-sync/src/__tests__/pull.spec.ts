@@ -1,7 +1,7 @@
 import { type PullResult, RxDB, RxDBError, RxDBPartialSyncError, SyncCompleteEvent, SyncErrorEvent } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pull } from '../pull.js';
-import { VersionManager } from '../VersionManager.js';
+import { SyncManager } from '../SyncManager.js';
 
 describe('pull', () => {
   it('should handle string repositoryFilter (backward compatibility)', async () => {
@@ -14,7 +14,7 @@ describe('pull', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await pull(mockVm, { repositoryFilter: ['Todo', 'User'] });
 
@@ -38,7 +38,7 @@ describe('pull', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await pull(mockVm, {
       repositoryFilter: [
@@ -67,7 +67,7 @@ describe('pull', () => {
     const mockVm = {
       rxdb: mockRxDB,
       bulkSync: mockBulkSync
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await pull(mockVm, {
       repositoryFilter: ['Todo', { namespace: 'custom', entity: 'Settings' }]
@@ -91,7 +91,7 @@ describe('pull', () => {
     } as unknown as RxDB;
 
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     await pull(mockVm, { repositoryFilter: ['Todo'], limit: 50, fetchAll: true });
 
@@ -131,7 +131,7 @@ describe('pull', () => {
         }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     const thrown: unknown = await pull(mockVm, { repositoryFilter: ['User', 'Todo'] }).catch(error => error);
 
@@ -154,7 +154,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({
       results: [{ repository: { namespace: 'public', entity: 'Todo' }, success: false, error: repoError }]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     await expect(pull(mockVm, { repositoryFilter: ['Todo'] })).rejects.toBe(repoError);
   });
@@ -214,7 +214,7 @@ describe('pull', () => {
         { repository: postRepo, success: false, error: postError }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['User', 'Todo', 'Post'] }).catch(
       error => error as unknown
@@ -250,7 +250,7 @@ describe('pull', () => {
         { repository: postRepo, success: false, error: postError }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['Todo', 'Post'] }).catch(
       error => error as unknown
@@ -277,7 +277,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({
       results: [{ repository: todoRepo, success: false }]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as VersionManager;
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['Todo'] }).catch(error => error as unknown)) as RxDBError;
 

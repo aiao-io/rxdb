@@ -142,7 +142,7 @@ function createAllStatusHarness() {
       entities: ALL_ENTITIES,
       sync: FULL_SYNC
     },
-    versionManager: {
+    syncManager: {
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
       getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
       getRemoteRepositories: vi.fn(async () => ({ adapter: { getChangeCount } }))

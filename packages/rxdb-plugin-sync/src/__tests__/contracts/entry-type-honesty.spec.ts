@@ -8,7 +8,7 @@ import type { CheckRepositoryUpdatesResult } from '../../index.js';
  *
  * `CheckRepositoryUpdatesResult` 原本在仓库里**存在两份不同形状**：核心 `index.ts` 导出的是
  * `VersionManager.interface.ts` 里那份漂移过的（`updateCount` / `latestChangeId` /
- * `lastPulledChangeId`），而 `VersionManager.checkRepositoryUpdates()` 实际返回的是
+ * `lastPulledChangeId`），而 `SyncManager.checkRepositoryUpdates()` 实际返回的是
  * `check-repository-updates.ts` 里那份（`repository` / `pendingCount` / `remoteLatestChangeId` /
  * `localLastPullRemoteChangeId`）。两份**没有一个字段重名对得上**（除了 `hasUpdates`），
  * 消费方照导出的类型解构会全拿到 `undefined`。

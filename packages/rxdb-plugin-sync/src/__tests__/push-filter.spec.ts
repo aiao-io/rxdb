@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { push } from '../push.js';
-import { VersionManager } from '../VersionManager.js';
+import { SyncManager } from '../SyncManager.js';
 
 describe('push', () => {
   it('should handle string repositoryFilter (backward compatibility)', async () => {
@@ -19,7 +19,7 @@ describe('push', () => {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
       }
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await push(mockVm, { repositoryFilter: ['Todo', 'User'] });
 
@@ -48,7 +48,7 @@ describe('push', () => {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
       }
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await push(mockVm, {
       repositoryFilter: [
@@ -82,7 +82,7 @@ describe('push', () => {
         syncing: vi.fn(fn => fn()),
         clearUndoHistory: vi.fn()
       }
-    } as unknown as VersionManager;
+    } as unknown as SyncManager;
 
     await push(mockVm, {
       repositoryFilter: ['Todo', { namespace: 'custom', entity: 'Settings' }]

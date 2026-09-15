@@ -13,7 +13,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { cleanupExpired } from '../cleanup-expired.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -82,7 +82,7 @@ const createHarness = (options: CleanupHarnessOptions = {}) => {
       }
     },
     getLocalRepositories
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return {
     Entity,

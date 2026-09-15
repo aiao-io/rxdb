@@ -19,7 +19,7 @@ import {
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult } from '../../pull-repository.js';
-import type { VersionManager } from '../../VersionManager.js';
+import type { SyncManager } from '../../SyncManager.js';
 import { createBranchRepositoryStub } from '../fixtures/branch-repository-stub.js';
 
 const FULL_SYNC: SyncOptions = {
@@ -277,14 +277,14 @@ function createHarness(options: HarnessOptions = {}) {
       context: { clientId: 'contract-client' },
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
       remoteAdapter$: of(remoteAdapter)
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { vm, pullChanges, mergeChanges, syncRecords, syncRepository, dispatchEvent };
 }
@@ -292,7 +292,7 @@ function createHarness(options: HarnessOptions = {}) {
 describe('pullRepository contract', () => {
   it('导出的真实函数满足公开签名并按默认选项返回完整结果', async () => {
     const api: (
-      vm: VersionManager,
+      vm: SyncManager,
       namespace: string,
       entity: string,
       options?: PullRepositoryOptions

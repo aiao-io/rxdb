@@ -15,7 +15,7 @@ import {
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from '../../push-repository.js';
-import type { VersionManager } from '../../VersionManager.js';
+import type { SyncManager } from '../../SyncManager.js';
 import { createBranchRepositoryStub } from '../fixtures/branch-repository-stub.js';
 import { emptyPushInFlight } from '../fixtures/push-inflight.js';
 import { User } from '../fixtures/test-entities.js';
@@ -70,13 +70,13 @@ function createValidationHarness(options: ValidationHarnessOptions = {}) {
       context: { clientId: 'contract-client' },
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter)
     },
     getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
     pushInFlight: emptyPushInFlight(),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter }))
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { dispatchEvent, vm };
 }
@@ -131,7 +131,7 @@ function createEmptyPushHarness() {
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
     pushInFlight: emptyPushInFlight()
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { dispatchEvent, remoteAdapter, vm };
 }
@@ -139,7 +139,7 @@ function createEmptyPushHarness() {
 describe('pushRepository contract', () => {
   it('导出的真实函数符合公开签名', () => {
     const callable: (
-      vm: VersionManager,
+      vm: SyncManager,
       namespace: string,
       entity: string,
       options?: PushRepositoryOptions

@@ -22,7 +22,6 @@ import { of } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { bulkSync, type BulkSyncOptions, getRepositoriesToSync } from '../bulk-sync.js';
 import type { RepositoryIdentifier } from '../dependency-graph.js';
-import { HistoryManager } from '../HistoryManager.js';
 import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
 import { createTestDB } from './fixtures/test-db-setup.js';
@@ -196,7 +195,7 @@ describe('bulkSync', () => {
     const peakInFlight = async (options: BulkSyncOptions): Promise<number> => {
       let inFlight = 0;
       let peak = 0;
-      vi.mocked(syncRepository).mockImplementation(async (_versionManager, namespace, entity) => {
+      vi.mocked(syncRepository).mockImplementation(async (_syncManager, namespace, entity) => {
         inFlight += 1;
         peak = Math.max(peak, inFlight);
         try {
@@ -245,10 +244,13 @@ describe('bulkSync', () => {
       vi.restoreAllMocks();
     });
 
-    it('公开的 versionManager.bulkSync() 应该走 historyManager.syncing()，而不是绕过它', async () => {
-      const syncingSpy = vi.spyOn(HistoryManager.prototype, 'syncing');
+    // US-025 阶段 D 之前这里监视的是 `HistoryManager.prototype.syncing`。历史管理器留在
+    // `@aiao/rxdb-plugin-history` 且不对外导出类，本包能碰到的只有那张窄接口 —— 监视桥上的
+    // `syncing` 反而更贴契约：要守的是「公开入口经过了同步 guard」，不是「它 new 了哪个类」。
+    it('公开的 syncManager.bulkSync() 应该走 history.syncing()，而不是绕过它', async () => {
+      const syncingSpy = vi.spyOn(rxdb.syncManager.history, 'syncing');
 
-      await rxdb.versionManager.bulkSync();
+      await rxdb.syncManager.bulkSync();
 
       expect(syncingSpy).toHaveBeenCalled();
     });
@@ -290,7 +292,7 @@ describe('getRepositoriesToSync 资格判定（RXD-029）', () => {
     });
 
     // 资格判定（`RxDBSync.enabled`）自 US-025 阶段 C 起由核心解析系统表，
-    // 读的是 `rxdb.localAdapter$` 而不是 `rxdb.versionManager` —— 后者已经不在核心上了。
+    // 读的是 `rxdb.localAdapter$` 而不是 `rxdb.syncManager` —— 后者已经不在核心上了。
     const branchRepository = createBranchRepositoryStub();
     const localAdapter = {
       getRepository: (EntityClass: unknown) => (EntityClass === RxDBBranch ? branchRepository : { find })

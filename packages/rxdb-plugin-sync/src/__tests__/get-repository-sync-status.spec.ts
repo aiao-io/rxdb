@@ -143,7 +143,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       entities: options.entities,
       sync: options.globalSync ?? FULL_SYNC
     },
-    versionManager: {
+    syncManager: {
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories

@@ -25,9 +25,9 @@ import {
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PushInFlightRegistry } from '../push-inflight.js';
+import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { Post, User } from './fixtures/test-entities.js';
 
 type ChangeFindOptions = Parameters<IRepository<typeof RxDBChange>['find']>[0];
@@ -264,7 +264,7 @@ function createHarness(options: HarnessOptions = {}) {
       context: { clientId: 'test-client' },
       dispatchEvent,
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
-      // 不是 `VersionManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
+      // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
       remoteAdapter$: of(remoteAdapter)
     },
@@ -272,7 +272,7 @@ function createHarness(options: HarnessOptions = {}) {
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getCurrentBranch: vi.fn(async () => currentBranch),
     pushInFlight
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return {
     vm,

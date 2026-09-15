@@ -10,17 +10,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PullRepositoryResult } from '../pull-repository.js';
 import type { PushRepositoryResult } from '../push-repository.js';
 import { syncRepository } from '../sync-repository.js';
-import type { VersionManager } from '../VersionManager.js';
+import type { SyncManager } from '../SyncManager.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
 type PullRepository = (
-  vm: VersionManager,
+  vm: SyncManager,
   namespace: string,
   entity: string,
   options?: object
 ) => Promise<PullRepositoryResult>;
 type PushRepository = (
-  vm: VersionManager,
+  vm: SyncManager,
   namespace: string,
   entity: string,
   options?: object
@@ -85,7 +85,7 @@ const createPushResult = (): PushRepositoryResult => ({
   failures: []
 });
 
-const createVersionManager = (entities: EntityType[] = [SyncEntity]) => {
+const createSyncManager = (entities: EntityType[] = [SyncEntity]) => {
   const dispatchEvent =
     vi.fn<(event: RepositorySyncBeginEvent | RepositorySyncCompleteEvent | RepositorySyncErrorEvent) => void>();
   const vm = {
@@ -93,7 +93,7 @@ const createVersionManager = (entities: EntityType[] = [SyncEntity]) => {
       config: { entities },
       dispatchEvent
     }
-  } as unknown as VersionManager;
+  } as unknown as SyncManager;
 
   return { dispatchEvent, vm };
 };
@@ -107,7 +107,7 @@ describe('syncRepository runtime boundaries', () => {
   });
 
   it('rejects an unknown repository and emits the matching error event', async () => {
-    const { dispatchEvent, vm } = createVersionManager([]);
+    const { dispatchEvent, vm } = createSyncManager([]);
 
     await expect(syncRepository(vm, 'public', 'Missing')).rejects.toThrow('Entity not found: public:Missing');
 
@@ -123,7 +123,7 @@ describe('syncRepository runtime boundaries', () => {
   // 公开契约把它写成「只在本地」。但 shouldPush 把 'local' 算成可推，
   // 于是私有本地数据会进入推送队列，对外泄露。没有 remote adapter 时推送本就无意义。
   it('never pushes a local-only repository', async () => {
-    const { vm } = createVersionManager();
+    const { vm } = createSyncManager();
     mocks.getSyncType.mockReturnValue('local');
 
     const result = await syncRepository(vm, 'public', 'SyncEntity');
@@ -133,7 +133,7 @@ describe('syncRepository runtime boundaries', () => {
   });
 
   it('never pushes a local-only repository even when direction is explicitly push', async () => {
-    const { vm } = createVersionManager();
+    const { vm } = createSyncManager();
     mocks.getSyncType.mockReturnValue('local');
 
     const result = await syncRepository(vm, 'public', 'SyncEntity', { direction: 'push' });
@@ -143,7 +143,7 @@ describe('syncRepository runtime boundaries', () => {
   });
 
   it.each(['full', 'filter'] as const)('still pushes %s repositories', async syncType => {
-    const { vm } = createVersionManager();
+    const { vm } = createSyncManager();
     mocks.getSyncType.mockReturnValue(syncType);
 
     await syncRepository(vm, 'public', 'SyncEntity');
@@ -152,7 +152,7 @@ describe('syncRepository runtime boundaries', () => {
   });
 
   it('rejects repositories whose effective sync type is none', async () => {
-    const { dispatchEvent, vm } = createVersionManager();
+    const { dispatchEvent, vm } = createSyncManager();
     mocks.getSyncType.mockReturnValue('none');
 
     await expect(syncRepository(vm, 'public', 'SyncEntity')).rejects.toThrow("syncType is 'none'");
@@ -166,7 +166,7 @@ describe('syncRepository runtime boundaries', () => {
   // emptyPushResult 交出零值占位 —— 所以这里断言的是「原样透传 + compacted 取两侧之和」，
   // 而不是从前那种「适配器少给字段就当 0」的兜底。少给字段是类型错误，不该由运行时消化。
   it('runs both directions for full sync and forwards both adapter results verbatim', async () => {
-    const { dispatchEvent, vm } = createVersionManager();
+    const { dispatchEvent, vm } = createSyncManager();
     const pullResult = createPullResult();
     const pushResult = createPushResult();
     mocks.pullRepository.mockResolvedValue(pullResult);
@@ -201,7 +201,7 @@ describe('syncRepository runtime boundaries', () => {
   });
 
   it('runs both directions for filter sync', async () => {
-    const { vm } = createVersionManager();
+    const { vm } = createSyncManager();
     mocks.getSyncType.mockReturnValue('filter');
 
     await syncRepository(vm, 'public', 'SyncEntity', { direction: 'sync' });
