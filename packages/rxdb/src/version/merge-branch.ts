@@ -1,6 +1,6 @@
 import { RxDBError } from '../RxDBError.js';
-import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
-import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
+import { TrustedWriteIntent } from '../trusted-write/trusted-write-intent.js';
+import { declareTrustedWrite } from '../trusted-write/trusted-write-scope.js';
 import { MergeBranchOptions, MergeBranchResult, SwitchVersionActions } from './VersionManager.interface.js';
 import { VersionManager } from './VersionManager.js';
 import { getRxDBChangeKey } from './VersionManager.utils.js';

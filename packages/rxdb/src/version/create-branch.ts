@@ -1,9 +1,7 @@
-import { createBranchCommitRows } from '../commit/branch-commit-rows.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from '../system/types.local.js';
-import { allocateBranchGeneration } from '../working-tree/activation-state.js';
 import { resolve_current_branch } from './resolve-current-branch.js';
 import { VersionManager } from './VersionManager.js';
 
@@ -120,10 +118,15 @@ export const create_branch = async (version: VersionManager, branchId: string, f
     branch.parentId = fromBranch.id;
     await branchRepository.create(branch);
 
-    // 代际从单调源发放，不是「当前分支数 + 1」：删过分支之后后者会复用旧号，
-    // 持旧 `(branchId, headRevision)` 的调用方就会误中同名重建的新分支（ABA）。
-    const generation = await allocateBranchGeneration(executor);
-    await executor.saveMany(createBranchCommitRows(version.rxdb.entityManager, branchId, generation));
+    // 贡献方的分支级行写在**这一个**事务里，不另开一个：分支行与贡献行分处两个事务的话，
+    // 中间失败留下的是一条「分支在、贡献行不在」的记录，而这种半条分支与一条正常的老分支
+    // 在形状上分辨不出来。抛错就让整条 `create_branch` 回滚，这是对的。
+    //
+    // 串行而非 `Promise.all`：`executor` 是一条并发度为 1 的队列，并行发起只会让
+    // 写入顺序取决于各贡献方内部 await 的排布，出问题时复现不出来。
+    for (const contribution of version.rxdb.systemContributions) {
+      await contribution.writeBranchRows(version.rxdb.entityManager, { executor, branchId });
+    }
     return branch;
   });
 

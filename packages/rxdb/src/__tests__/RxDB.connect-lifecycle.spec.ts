@@ -1,6 +1,6 @@
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError, NoActiveBranchError } from '../commit/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, AmbiguousActiveBranchError, NoActiveBranchError } from '../system/active-branch-guard.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -191,9 +191,11 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
 
     expect(adapterFactory).toHaveBeenCalledTimes(1);
     expect(vi.mocked(adapter.connect)).toHaveBeenCalledTimes(2);
-    // 每次 connect 读两次已执行集合：系统迁移与接入方迁移是两条独立的 runMigrations，
-    // 中间隔着 migrateSystemSchema() / completeBootstrap()，不能合并成一次读。
-    expect(repository.find).toHaveBeenCalledTimes(4);
+    // 每次 connect 读三次 rxdb_migration。后两次是两条独立的 runMigrations（系统迁移与接入方
+    // 迁移中间隔着 migrateSystemSchema() / completeBootstrap()，不能合并成一次读）；第一次是
+    // 「未认领能力守卫」——它要在**任何写之前**判定这个库该不该由本进程打开，因此宁可多读一次，
+    // 也不把它折进 runMigrations 里换成「靠行文顺序维持」的保证。
+    expect(repository.find).toHaveBeenCalledTimes(6);
     expect(alreadyApplied).not.toHaveBeenCalled();
     expect(retryMigration).toHaveBeenCalledTimes(2);
     // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
@@ -627,7 +629,7 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
      * @remarks
      * 多 active 那条用例里两行都带着同一个 `activeKey` —— 真库上它撞唯一索引，进不来；
      * 而握手要覆盖的正是**索引补上之前**就已经两行 active 的既有库（见
-     * `commit/active-branch-guard.ts` 的 fileoverview 末段）。替身没有索引，正好造得出这个现场。
+     * `system/active-branch-guard.ts` 的 fileoverview 末段）。替身没有索引，正好造得出这个现场。
      */
     const createActiveBranch = (id: string) =>
       ({

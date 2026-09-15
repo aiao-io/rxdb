@@ -9,8 +9,8 @@ import { EntityType } from '../entity/entity.interface.js';
 import { RestoreEntityOptions } from '../rxdb-adapter.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError } from '../RxDBError.js';
-import { TrustedWriteIntent } from '../working-tree/trusted-write-intent.js';
-import { declareTrustedWrite } from '../working-tree/trusted-write-scope.js';
+import { TrustedWriteIntent } from '../trusted-write/trusted-write-intent.js';
+import { declareTrustedWrite } from '../trusted-write/trusted-write-scope.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import type { VersionManager } from './VersionManager.js';
 

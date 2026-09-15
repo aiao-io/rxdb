@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY } from '../commit/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY } from '../system/active-branch-guard.js';
 import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../commit/commit-capability-state.entity.js';
 import { SyncType } from '../entity/metadata-options.interface.js';

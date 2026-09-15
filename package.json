@@ -31,6 +31,7 @@
     "audit:lazy-backend": "node scripts/audit/desktop-lazy-backend.mjs",
     "audit:suite-callsites": "node scripts/audit/working-tree-suite-callsites.mjs",
     "audit:callsite-drift": "node scripts/audit/working-tree-callsite-drift.mjs",
+    "audit:core-boundary": "node scripts/audit/core-plugin-boundary.mjs",
     "audit:requirements": "node scripts/audit/requirements-consistency.mjs --check",
     "audit:requirements:update": "node scripts/audit/requirements-consistency.mjs --update",
     "check-migration-release-gate": "node scripts/check-migration-release-gate.mjs --check",

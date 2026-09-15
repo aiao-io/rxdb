@@ -1,4 +1,4 @@
-import { ACTIVE_BRANCH_KEY } from '../commit/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY } from '../system/active-branch-guard.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBBranch } from '../system/branch.js';
 import type { LocalRxDBBranchRepository } from '../system/types.local.js';

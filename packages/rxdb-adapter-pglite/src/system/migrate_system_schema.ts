@@ -40,7 +40,7 @@ export interface SystemSchemaMigrationHost {
   getClient(): Promise<IPGliteClient>;
 }
 
-/** 零 active 时的恢复目标；与 `commit/active-branch-guard.ts` 用的是同一个名字。 */
+/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
 const MAIN_BRANCH_ID = 'main';
 
 /**

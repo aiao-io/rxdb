@@ -4,14 +4,13 @@ import type { QueryCacheEntityMetadata } from './entity/metadata-options.interfa
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import { RxDB } from './RxDB.js';
-import { RxDBError } from './RxDBError.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 import { SwitchVersionActions } from './version/VersionManager.interface.js';
-import type { RawWritePrimitives, WorkingTreeCaptureHook } from './working-tree/capture-interceptor.js';
-import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './working-tree/capture-interceptor.js';
-import type { RawWriteContext } from './working-tree/raw-write-judgment.js';
+import type { RawWritePrimitives, WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
+import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './capture/capture-interceptor.js';
+import type { RawWriteContext } from './capture/raw-write-gate.js';
 
 export interface PullBatchRequest {
   namespace?: string;
@@ -125,19 +124,14 @@ export interface RestoreEntityOptions {
  * 提交能力未启用时的 raw 写判定上下文
  *
  * @remarks
- * `domain` 是个**抛异常的 getter**，不是空集合。5 步判定的第 1 步在读 `domain` 之前就返回，
- * 所以正确实现下这个成员永远不会被求值；给空集合的话，「能力未启用」与「一张版本化表都没有」
- * 在判定眼里完全一样——第 1 步哪天被挪到第 4 步之后，整条 raw 防线会静默放行而不是报错。
+ * 这一支**结构上没有 `gate` 成员**（见 {@link RawWriteContext}），于是「能力位判断被挪到分派
+ * 之后」在类型上就不成立。旧实现靠的是一个读 `domain` 即抛的取值器加一条「第 1 步一定排在它
+ * 前面」的人工约定——约定写在注释里，而注释不参与编译。
  *
  * 单例而不是每次新建：它不持有任何 per-adapter 状态，而共享一个实例能让「同一个未启用形态」
  * 在测试里可直接比对。
  */
-const CAPABILITY_DISABLED_RAW_WRITE_CONTEXT: RawWriteContext = {
-  capabilityEnabled: false,
-  get domain(): never {
-    throw new RxDBError('提交能力未启用时不应读取版本化域：raw 写判定的第 1 步应当已经放行。');
-  }
-};
+const CAPABILITY_DISABLED_RAW_WRITE_CONTEXT: RawWriteContext = Object.freeze({ capabilityEnabled: false });
 
 /**
  * 数据库适配器基类（本地）
@@ -168,15 +162,19 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * （`RxDB.connect()` 读到真、或 `workingTree.enable()` 刚翻开）。再存一份就是第二份真相，
    * 而两份不同步的后果是单向的——门禁以为没开，raw 写全部放行。
    *
-   * 域原样交出运行时手上那一份，不拷贝：域是「哪些表受保护」的单一清单，拷一份出来之后，
-   * 插件后续登记的派生索引列只会落进其中一份，raw 通道与捕获会对同一张表给出不同结论。
+   * 交出去的是**判定入口本身**，不是判定要看的那些东西（域、列集、受信意图）。核心因此不必
+   * 复述捕获认什么，也就不存在「拷了一份域出来、插件后续登记的派生索引列只落进其中一份」这类
+   * 双份清单——判定自始至终在运行时手上那一份上跑。
    *
    * @internal
    */
   get workingTreeRawWriteContext(): RawWriteContext {
     const hook = this.#workingTreeCaptureHook;
     if (!hook) return CAPABILITY_DISABLED_RAW_WRITE_CONTEXT;
-    return { capabilityEnabled: true, domain: hook.domain };
+    return {
+      capabilityEnabled: true,
+      gate: <T>(sql: string, execute: () => Promise<T> | T): Promise<T> => hook.gateRawWrite(sql, execute)
+    };
   }
 
   /**

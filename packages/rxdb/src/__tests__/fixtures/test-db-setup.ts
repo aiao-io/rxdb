@@ -21,12 +21,6 @@
 
 import { type Observable, of } from 'rxjs';
 import { type Mock, vi } from 'vitest';
-import {
-  COMMIT_CAPABILITY_STATE_ID,
-  COMMIT_GRAPH_SCHEMA_VERSION,
-  COMMIT_PROTOCOL_VERSION,
-  CommitCapabilityState
-} from '../../commit/commit-capability-state.entity.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
@@ -39,7 +33,6 @@ import {
 } from '../../rxdb-adapter.js';
 import type { RxDBOptions } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
-import { RXDB_CHANGE_CODEC_VERSION } from '../../system/change-codec.js';
 import type { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
@@ -64,47 +57,21 @@ function createStubRepository(rows: InstanceType<EntityType>[] = []): IRepositor
 }
 
 /**
- * 未启用的能力行——`connect()` 的 active 分支握手要先读它。
- *
- * @remarks
- * 这是「只保留形状、不保留存储」的唯一例外，理由是**缺这一行不等于空结果，而是一个错误**：
- * `readCommitCapability` 在读不到时抛 `RxDBError`，于是替身若照常返回 `[]`，每一条走
- * 本地引导的用例都会在握手那一步炸掉——炸的还是一个与被测行为毫无关系的原因。
- *
- * 真库里这一行由 `createWorkingTreeCommitsInitialRows` 随建表写入，`enabled` 同样是
- * `false`（FR-046：建表不改变任何行为）。要验证启用态握手的用例自己把它换掉。
- *
- * 写成**对象字面量**而不是 `new CommitCapabilityState()`：装饰器给实体装了一对访问器，
- * 它们在读写时要解析 `EntityManager`，而这一行是在适配器的字段初始化里造的——
- * 那时 `rxdb.init()` 还没跑，构造出来的实例一碰就抛「needs an initialized RxDB」。
- * 字面量不经过访问器，而返回类型仍是实体本身，字段少一个照样编译失败。
- */
-export const createCapabilityStateRow = (): CommitCapabilityState => ({
-  id: COMMIT_CAPABILITY_STATE_ID,
-  enabled: false,
-  protocolVersion: COMMIT_PROTOCOL_VERSION,
-  schemaVersion: COMMIT_GRAPH_SCHEMA_VERSION,
-  codecVersion: RXDB_CHANGE_CODEC_VERSION,
-  enabledAt: null
-});
-
-/**
- * 只替换**能力行以外**的实体仓库。
+ * 替换**未登记专用仓库的那些**实体的仓库。
  *
  * @param adapter - 要打桩的替身
- * @param repository - 用例自己那份仓库，交给除 {@link CommitCapabilityState} 外的全部实体
+ * @param repository - 用例自己那份仓库
  *
  * @remarks
  * `getRepository` 是通用入口，用例惯用的 `mockReturnValue(x)` 会把**每一个**实体都换成 `x`，
- * 其中包括 `connect()` 的 active 分支握手要读的那一行能力状态——而它读不到时不是拿到空结果，
- * 是抛错（见 {@link createCapabilityStateRow}），于是用例会挂在一个与被测行为无关的地方。
- * 用例真正想换的从来只是自己那张表。
+ * 连同用例自己先前经 {@link MockLocalAdapter.stubEntityRepository} 登记的那些一起盖掉。
+ * 而那些行往往是「读不到不等于空结果，而是一个错误」的引导行（贡献系统能力的插件几乎都有
+ * 一行这样的状态行），于是用例会挂在一个与被测行为毫无关系的地方。用例真正想换的从来只是
+ * 自己那张表。
  */
 export const stubAdapterRepository = (adapter: MockLocalAdapter, repository: unknown): void => {
-  const defaultGetRepository = adapter.getRepository.getMockImplementation();
-  adapter.getRepository.mockImplementation(EntityType =>
-    EntityType === CommitCapabilityState ? (defaultGetRepository?.(EntityType) as never) : (repository as never)
-  );
+  const dedicated = adapter.dedicatedRepositories;
+  adapter.getRepository.mockImplementation(EntityType => (dedicated.get(EntityType) ?? repository) as never);
 };
 
 /**
@@ -140,8 +107,16 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    */
   readonly #repository = createStubRepository();
 
-  /** 能力行专用仓库；理由见 {@link createCapabilityStateRow}。 */
-  readonly #capabilityRepository = createStubRepository([createCapabilityStateRow()]);
+  /**
+   * 按实体登记的专用仓库；未登记的实体一律拿 `#repository`。
+   *
+   * @remarks
+   * 存在的理由是**有些行读不到不等于空结果，而是一个错误**：贡献系统能力的插件在引导时
+   * 要读自己那一行状态行，读不到就抛。核心这一侧不认识任何具体的那种行——谁需要谁在
+   * `beforeEach` 里 {@link MockLocalAdapter.stubEntityRepository} 登记一份，本文件就不必
+   * 为了一个插件的实体去 import 那个插件。
+   */
+  readonly #dedicatedRepositories = new Map<EntityType, IRepository<EntityType>>();
 
   name = 'mock';
 
@@ -200,8 +175,36 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    * 不是拿它盖住某个缺失的成员 —— 与被删掉的 `as unknown as IRxDBAdapter` 完全是两回事。
    */
   getRepository: IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>> = vi.fn(
-    EntityType => (EntityType === CommitCapabilityState ? this.#capabilityRepository : this.#repository)
+    EntityType => this.#dedicatedRepositories.get(EntityType) ?? this.#repository
   ) as IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>>;
+
+  /**
+   * 给单个实体登记一份专用仓库。
+   *
+   * @param EntityType - 实体类
+   * @param rows - 该实体 `find()` 要返回的行；不传即空表
+   * @returns 登记进去的那份仓库，便于用例直接在它的 `find` / `create` 上断言
+   *
+   * @remarks
+   * 登记后即使用例再调 {@link stubAdapterRepository} 换掉其余实体的仓库，这一份仍然生效——
+   * 「引导要读的那一行」与「用例想观察的那张表」因此可以同时成立。
+   */
+  stubEntityRepository(EntityType: EntityType, rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
+    const repository = createStubRepository(rows);
+    this.#dedicatedRepositories.set(EntityType, repository);
+    return repository;
+  }
+
+  /**
+   * 已登记专用仓库的实体表，只读。
+   *
+   * @remarks
+   * 转出去是给 {@link stubAdapterRepository} 用的：它要在替换默认仓库时把这些绕过去，
+   * 而它是个自由函数，够不着私有字段。
+   */
+  get dedicatedRepositories(): ReadonlyMap<EntityType, IRepository<EntityType>> {
+    return this.#dedicatedRepositories;
+  }
 
   /**
    * 事务替身：把回调放进一个最小 {@link TransactionExecutor} 里同步跑掉，不做任何隔离。

@@ -1,6 +1,6 @@
 import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ACTIVE_BRANCH_KEY } from '../../commit/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType } from '../../entity/metadata-options.interface.js';

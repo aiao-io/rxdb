@@ -46,7 +46,7 @@ import { pathToFileURL } from 'node:url';
 import { blankStringLiterals, stripComments } from './working-tree-suite-callsites.mjs';
 
 /** 登记表与意图枚举的源文件，供 {@link parseRegistry} 词法解析。 */
-export const REGISTRY_SOURCE_FILE = 'rxdb/src/working-tree/trusted-write-intent.ts';
+export const REGISTRY_SOURCE_FILE = 'rxdb/src/trusted-write/trusted-write-intent.ts';
 
 /** 受信写原语的宿主变量名。9 处真实声明的作用域实参只有这两个名字。 */
 export const TRUSTED_PRIMITIVE_SCOPES = Object.freeze(['adapter', 'executor']);

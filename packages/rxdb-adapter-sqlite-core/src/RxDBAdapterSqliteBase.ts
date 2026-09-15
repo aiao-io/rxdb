@@ -91,7 +91,7 @@ import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
-/** 零 active 时的恢复目标；与 `commit/active-branch-guard.ts` 用的是同一个名字。 */
+/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
 const MAIN_BRANCH_ID = 'main';
 
 /**

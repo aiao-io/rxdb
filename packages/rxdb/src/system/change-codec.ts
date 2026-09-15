@@ -205,7 +205,7 @@ type ChangeSpecialPropertyType = typeof PropertyType.bigint | typeof PropertyTyp
  * 没有它（多对多中间表只声明本侧外键是典型场景）。这时列的真实类型写在**对端**
  * 的 `id` 上，不反查就会把一个 `bigint` 外键当普通值直接落 JSON。
  *
- * 具名导出是为了让 `working-tree/working-tree-patch-codec.ts` 与各适配器的
+ * 具名导出是为了让 `@aiao/rxdb-plugin-working-tree` 的工作树 patch codec 与各适配器的
  * `encryptionContext.resolveEntityMetadata` 引用**同一个**类型，而不是各自声明一份
  * 结构相同的匿名签名——结构相同的类型改起来不会互相报错，改漂了也没人知道。
  */

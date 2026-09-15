@@ -51,14 +51,6 @@ export interface FindBranchPathOptions {
 }
 
 /**
- * 计算出树的两个节点之间的切换路径
- * 规则如下:
- *  1, 如果两个树节点有共同的祖先节点,则路径为从当前节点到共同祖先节点,再到目标节点
- *  2, 如果没有共同祖先节点,则路径为从当前节点到根节点,再到目标节点
- *  3, 需要计算出路径内每个节点需要变更过程，也就是 fromChangeId -> toChangeId
- *  4, 由于 changeId 在不同分支的变化都是是递增的, 所以如果逆向还原数据那么 fromChangeId 会大于 toChangeId, 正向应用数据则相反
- */
-/**
  * 读取分支的分叉点变更 id。
  *
  * `fromChangeId === null` 的含义是**分叉于根**（这条分支不是从某条变更上长出来的）。
@@ -122,6 +114,25 @@ export const find_branch_path_to_root = (
   return path;
 };
 
+/**
+ * 算出树上两个节点之间的切换路径
+ *
+ * @param options - 起点分支、目标分支、两侧当前变更 id，以及**全量**分支集合
+ * @returns 按执行顺序排好的步骤；两侧停在同一个变更 id 时为空数组
+ * @throws {@link RxDBError} 父链成环或指向不存在的分支时（经 {@link find_branch_path_to_root}）
+ *
+ * @remarks
+ * 规则四条：
+ *
+ * 1. 两个节点有共同祖先时，路径是「当前节点 → 共同祖先 → 目标节点」
+ * 2. 没有共同祖先时，路径是「当前节点 → 根 → 目标节点」
+ * 3. 路径里每个节点都要算出自己那一段的变更区间，即 `fromChangeId → toChangeId`
+ * 4. `changeId` 在每条分支上都递增，所以**逆向还原**的那些步骤 `fromChangeId > toChangeId`，
+ *    正向应用的则相反——方向由这两个数的大小关系表达，步骤上没有第二个方向字段
+ *
+ * 有两处**提前返回**会跳过父链遍历——变更 id 相同时返回空步骤，同分支不同变更 id 时返回
+ * 单步——因此本函数不是父链完整性的检查点，理由见 {@link find_branch_path_to_root}。
+ */
 export const find_switch_branch_step = (options: FindBranchPathOptions): SwitchBranchStep[] => {
   const { branches, currentBranch, nextBranch } = options;
 
