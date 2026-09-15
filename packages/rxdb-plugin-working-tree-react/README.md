@@ -53,7 +53,7 @@ export function CommitBar() {
 ## 三端对称
 
 Angular [`@aiao/rxdb-plugin-working-tree-angular`](../rxdb-plugin-working-tree-angular) /
-React [`@aiao/rxdb-plugin-working-tree-react`](../rxdb-plugin-working-tree-react) /
+React `@aiao/rxdb-plugin-working-tree-react`（本包） /
 Vue [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue) 的
 `useWorkingTree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
 三个包各自的 spec 结尾都带一段 `tri-framework-api.md §3 清单守卫`，任一端加减成员都会红。

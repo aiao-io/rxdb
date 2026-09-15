@@ -56,7 +56,7 @@ export class CommitBar {
 
 ## 三端对称
 
-Angular [`@aiao/rxdb-plugin-working-tree-angular`](../rxdb-plugin-working-tree-angular) /
+Angular `@aiao/rxdb-plugin-working-tree-angular`（本包） /
 React [`@aiao/rxdb-plugin-working-tree-react`](../rxdb-plugin-working-tree-react) /
 Vue [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue) 的
 `useWorkingTree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。

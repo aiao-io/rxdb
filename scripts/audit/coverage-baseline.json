@@ -152,10 +152,10 @@
       "lines": 100
     },
     "rxdb-plugin-working-tree-react": {
-      "statements": 90,
+      "statements": 100,
       "branches": 100,
       "functions": 100,
-      "lines": 87
+      "lines": 100
     },
     "rxdb-plugin-working-tree-vue": {
       "statements": 100,
