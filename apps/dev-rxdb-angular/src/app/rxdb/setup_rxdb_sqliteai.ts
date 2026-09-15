@@ -2,6 +2,7 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqliteai, type SqliteaiOptions } from '@aiao/rxdb-adapter-sqliteai';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { ENTITIES } from '@aiao/rxdb-test/entities';
@@ -32,6 +33,7 @@ export default () => {
   });
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .use(rxDBPluginWorkspace)
     .adapter('sqliteai', async db => {

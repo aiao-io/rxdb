@@ -8,6 +8,7 @@
  */
 import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
@@ -137,6 +138,11 @@ describe('Repository-Level Sync Integration', () => {
           supabaseKey: SUPABASE_KEY
         })
     );
+
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
+    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
+    rxdb.use(rxDBPluginHistory);
 
     // 连接本地 SQLite（会自动创建所有表）
     await rxdb.connect('wa-sqlite');

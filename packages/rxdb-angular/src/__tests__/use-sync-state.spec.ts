@@ -20,7 +20,7 @@ import { provideRxDB } from '../rxdb.provider';
 import { useSyncState } from '../use-sync-state';
 
 const createFixture = () => {
-  const hub = new SyncStateHub({ online$: new BehaviorSubject(true), pushableCount$: new BehaviorSubject(0) });
+  const hub = new SyncStateHub({ online$: new BehaviorSubject(true) });
   const teardown = vi.fn();
   const state$ = new Observable<SyncState>(subscriber => {
     const inner = hub.state$.subscribe(subscriber);

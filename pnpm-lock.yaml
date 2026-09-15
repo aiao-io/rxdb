@@ -560,6 +560,9 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
@@ -729,6 +732,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-plugin-search':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-search
@@ -802,6 +808,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-plugin-search':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-search
@@ -1387,6 +1396,9 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       '@aiao/rxdb-plugin-querycache':
         specifier: workspace:*
         version: link:../rxdb-plugin-querycache

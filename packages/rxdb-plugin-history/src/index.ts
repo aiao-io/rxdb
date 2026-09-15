@@ -17,7 +17,8 @@
  * rxdb.use(rxDBPluginHistory);
  * await rxdb.connect();
  *
- * await rxdb.versionManager.undo();
+ * // 撤销重做走作用域 API：无参 = 整库，传实体类 = 该仓储，传实例 = 该行
+ * await rxdb.versionManager.history().undo();
  * ```
  */
 export * from './plugin.js';

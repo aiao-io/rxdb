@@ -1,5 +1,9 @@
 import { getEntityStatus, RxDB } from '@aiao/rxdb';
+// 本页的撤销/重做读 `rxdb.versionManager`，而历史子系统自 US-025 阶段 C 起住在这个插件里。
+// 本模块**不**装插件 —— 它拿的是宿主注入的 `RxDB`，装插件是宿主 `setup_rxdb_*.ts` 的活；
+// 这里只借 `declare module '@aiao/rxdb'` 的类型声明，`import type` 在 emit 时整句擦除。
 import { useAction, useFindAll } from '@aiao/rxdb-angular';
+import type {} from '@aiao/rxdb-plugin-history';
 import { Todo, TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';

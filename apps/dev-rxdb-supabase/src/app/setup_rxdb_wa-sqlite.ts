@@ -1,6 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { getOrCreateUserId, readSupabaseConfig, resolveDatabaseName } from './runtime-config';
@@ -31,6 +32,7 @@ export default () => {
   });
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .adapter('supabase', async db => {
       const config = readSupabaseConfig(import.meta.env);
       const { RxDBAdapterSupabase } = await import('@aiao/rxdb-adapter-supabase');

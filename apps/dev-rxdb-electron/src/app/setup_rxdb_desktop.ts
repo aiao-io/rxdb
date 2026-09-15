@@ -11,6 +11,7 @@ import {
   type DevToolsSnapshotSource
 } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
@@ -177,6 +178,7 @@ export default () => {
   // 不传 transport：桌面后端与适配器共用 preload 暴露的那一条通道，不新增 preload 方法。
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage, {
       rootDir: DESKTOP_STORAGE_ROOT_DIR,
       filesystem: createDesktopStorageFilesystem()
