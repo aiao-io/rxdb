@@ -58,6 +58,10 @@
         "kind": "value"
       },
       {
+        "name": "assertWorkingTreeEntryCountIntact",
+        "kind": "value"
+      },
+      {
         "name": "BigIntProperty",
         "kind": "type"
       },
@@ -190,6 +194,14 @@
         "kind": "type"
       },
       {
+        "name": "CommitConflict",
+        "kind": "type"
+      },
+      {
+        "name": "CommitConflictKind",
+        "kind": "type"
+      },
+      {
         "name": "CommitEncryptedAtRestError",
         "kind": "both"
       },
@@ -206,12 +218,24 @@
         "kind": "both"
       },
       {
+        "name": "CommitOptions",
+        "kind": "type"
+      },
+      {
         "name": "CommitPatchCodecContext",
         "kind": "type"
       },
       {
         "name": "CommitPatchColumn",
         "kind": "type"
+      },
+      {
+        "name": "CommitResult",
+        "kind": "type"
+      },
+      {
+        "name": "commitWorkingTree",
+        "kind": "value"
       },
       {
         "name": "compactChanges",
@@ -332,6 +356,10 @@
       {
         "name": "DiffResult",
         "kind": "type"
+      },
+      {
+        "name": "discardWorkingTree",
+        "kind": "value"
       },
       {
         "name": "DurationFormat",
@@ -590,6 +618,10 @@
         "kind": "type"
       },
       {
+        "name": "ExternalNotifyGateRequest",
+        "kind": "type"
+      },
+      {
         "name": "extractEntityFields",
         "kind": "value"
       },
@@ -658,6 +690,10 @@
         "kind": "type"
       },
       {
+        "name": "findCommitConflict",
+        "kind": "value"
+      },
+      {
         "name": "FindOneOptions",
         "kind": "type"
       },
@@ -695,6 +731,10 @@
       },
       {
         "name": "gateBulkWrite",
+        "kind": "value"
+      },
+      {
+        "name": "gateExternalNotify",
         "kind": "value"
       },
       {
@@ -1251,6 +1291,18 @@
       },
       {
         "name": "readWorkingTreeActivationState",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeDiff",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeStateRow",
+        "kind": "value"
+      },
+      {
+        "name": "readWorkingTreeStatus",
         "kind": "value"
       },
       {
@@ -2138,6 +2190,42 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeCredentials",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiff",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffGranularity",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiffTransaction",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiscardOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeDiscardResult",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeEntryCountMismatchError",
+        "kind": "both"
+      },
+      {
         "name": "WorkingTreeEntryKey",
         "kind": "type"
       },
@@ -2154,6 +2242,10 @@
         "kind": "both"
       },
       {
+        "name": "WorkingTreeOriginBreakdown",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreePatch",
         "kind": "type"
       },
@@ -2168,6 +2260,14 @@
       {
         "name": "WorkingTreeReplayCorruptionError",
         "kind": "both"
+      },
+      {
+        "name": "WorkingTreeRevisionSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeStatus",
+        "kind": "type"
       },
       {
         "name": "WorkingTreeWriteHost",
@@ -2219,6 +2319,30 @@
       }
     ],
     "./testing": [
+      {
+        "name": "ConformanceCache",
+        "kind": "both"
+      },
+      {
+        "name": "ConformanceNote",
+        "kind": "both"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_LOCAL_ADAPTER",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CONFORMANCE_USER_ID",
+        "kind": "value"
+      },
       {
         "name": "workingTreeCaptureConformanceSuite",
         "kind": "value"

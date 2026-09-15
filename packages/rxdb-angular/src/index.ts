@@ -13,3 +13,4 @@ export * from './use-infinite-scroll';
 export * from './use-persisted-state';
 export * from './use-state';
 export * from './use-sync-state';
+export * from './use-working-tree';

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 这里只有两件事：**入口恒存在**，以及**未启用即拒绝**。工作树的实际语义
- * （`status()` / `diff()` / `commit()` / `discard()` / `restore()`）由后续阶段挂上来，
+ * （`status()` / `diff()` / `commit()` / `discard()` / `listCommits()` / `restore()`）由后续阶段挂上来，
  * 它们一律经 {@link WorkingTreeManager.runEnabled} 进入，不自己开事务、不自己读能力行。
  *
  * 入口做成可选属性（`workingTree?: WorkingTreeManager`）省事得多，代价是全部调用点
@@ -23,10 +23,20 @@ import {
   readCommitCapability
 } from '../commit/commit-capability.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
+import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
+import { readActiveBranchToken } from './capture-runtime.js';
+import { commitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
+import { readWorkingTreeDiff, type WorkingTreeDiff, type WorkingTreeDiffOptions } from './diff.js';
+import {
+  discardWorkingTree,
+  type WorkingTreeDiscardOptions,
+  type WorkingTreeDiscardResult
+} from './discard-command.js';
+import { readWorkingTreeStatus, type WorkingTreeStatus } from './status.js';
 
 /**
  * 在未启用提交能力的数据库上调用了受管成员。
@@ -118,6 +128,104 @@ export class WorkingTreeManager {
     });
     this.#rxdb.installWorkingTreeCapture(adapter);
     return info;
+  }
+
+  /**
+   * 当前分支的工作树摘要（FR-004）。
+   *
+   * @returns 见 {@link WorkingTreeStatus}
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   *
+   * @remarks
+   * **零参**：摘要问的是「当前分支现在怎么样」，而「当前分支」由 active 分支唯一确定
+   * （FR-048）。开一个 `branchId` 入参等于允许调用方问别的分支，而那条分支的
+   * `workingTreeRevision` 拿回去既不能提交也不能丢弃——三个捕获位只对 active 分支有效。
+   */
+  async status(): Promise<WorkingTreeStatus> {
+    return this.runEnabled(executor => readWorkingTreeStatus(executor));
+  }
+
+  /**
+   * 当前分支相对 HEAD 的未提交改动（FR-005）。
+   *
+   * @param options - 粒度、实体过滤与分页；全部可选
+   * @returns 见 {@link WorkingTreeDiff}
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   *
+   * @remarks
+   * **只有一条 diff 轴：`HEAD ↔ 工作树`**（硬裁决 2）。没有 `from` / `to` / `ref` 入参——
+   * 那三个形参属于「比任意两个 ref」的模型，而 v1 没有 index，第二条轴无从谈起。
+   *
+   * 与 {@link status} 同样**不收 `branchId`**：读别的分支的未提交改动，拿回去既不能提交
+   * 也不能丢弃，三个捕获位只对 active 分支有效（FR-048）。
+   */
+  async diff(options: WorkingTreeDiffOptions = {}): Promise<WorkingTreeDiff> {
+    return this.runEnabled(async executor => {
+      const token = await readActiveBranchToken(executor);
+      return readWorkingTreeDiff(executor, token.branchId, options);
+    });
+  }
+
+  /**
+   * 把当前分支工作树里的**全部**未提交单元提交进历史（FR-041）。
+   *
+   * @param message - 提交消息
+   * @param options - 见 {@link CommitOptions}；三个捕获位与作者、操作 id 全部必填
+   * @returns 见 {@link CommitResult}；CAS 落败时是 `ok: false` 的**返回值**，不是异常
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   * @throws {@link CommitValidationError} 消息为空、或工作树是干净的（`empty_commit`）
+   *
+   * @remarks
+   * **恰好两个位置参数**：没有 selection 入参（硬裁决 1），也没有可选的第三参。
+   * 写 commit 与清空工作树在**同一个事务**里（FR-011、SC-007），而那个事务由
+   * {@link runEnabled} 开——命令体自己不开事务，否则门禁读到的启用态与写入就分属两笔。
+   */
+  async commit(message: string, options: CommitOptions): Promise<CommitResult> {
+    return this.runEnabled(executor => commitWorkingTree(executor, this.#rxdb.entityManager, message, options));
+  }
+
+  /**
+   * 把当前分支的工作树整体退回当前 HEAD（FR-016）。
+   *
+   * @param options - 见 {@link WorkingTreeDiscardOptions}；三个捕获位必填
+   * @returns 见 {@link WorkingTreeDiscardResult}；干净工作树上是 `discardedCount: 0` 的 no-op
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   *
+   * @remarks
+   * **恰好一个必填位置参数。** 做成可选的话，「缺省时由本次调用内部读取 revision」就成了
+   * 合法用法——内部读到的恒等于当前值，CAS 永远命中，FR-031 对 discard 的那半句当场失效。
+   *
+   * 参数本身**不在这里校验**：未启用的库该听到的是「去 enable()」，而不是
+   * 「expectedBranch 不能为空」——后者在这个库上根本无从谈起。
+   */
+  async discard(options: WorkingTreeDiscardOptions): Promise<WorkingTreeDiscardResult> {
+    return this.runEnabled(executor => discardWorkingTree(executor, options));
+  }
+
+  /**
+   * 当前分支从 HEAD 沿完整父链可达的提交历史（FR-012）。
+   *
+   * @param options - 条数上限、时间窗与实体过滤；全部可选
+   * @returns 见 {@link CommitLogPage}；一次都没提交过的库是 `entries` 为空的一页
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link RxDBError} 当前分支的 ref 行缺失时（`0004` 没跑完，不是空历史）
+   *
+   * @remarks
+   * 与 {@link status} / {@link diff} 同样**不收 `branchId`**：读的恒为当前 active 分支
+   * （FR-048）。别的分支的历史拿回去，既不能在它上面提交也不能丢弃，而「当前在哪条分支」
+   * 由 active 分支唯一确定——开一个入参等于允许调用方问一个它无法作用于的对象。
+   *
+   * 历史 ≠ `rxdb_commit` 全表：CAS 丢掉的提交与被删分支留下的节点，行都还在，但没有任何
+   * ref 指向它们。可达性遍历在 `commit/list-commits.ts`，翻译成公开条目在
+   * `commit/commit-log.ts`。
+   */
+  async listCommits(options: CommitLogOptions = {}): Promise<CommitLogPage> {
+    return this.runEnabled(async executor => {
+      const token = await readActiveBranchToken(executor);
+      return readCommitLogPage(executor, token.branchId, options);
+    });
   }
 
   /**

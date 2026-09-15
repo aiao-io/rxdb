@@ -24,10 +24,23 @@ export * from './capture-interceptor.js';
 export * from './capture-mount-points.js';
 export * from './capture-runtime.js';
 export * from './cold-replay.js';
+// 操作面（US-306 阶段 B）：status / diff / commit / discard 与它们的诊断类型。
+// `CommitConflict` 必须在公开面上：它是 commit / discard 的**返回值**，调用方不 import
+// 它就只能靠 `result.ok === false` 之后的鸭子类型读 kind——而那正是漂移的起点（T082）。
+// 三端入口共用的异步状态契约（US-306 阶段 C）：命令 loading/success/error，
+// 查询多一个 empty。放在核心而不是三个框架包里，是因为「commit 有没有空成功」这种问题
+// 一旦有三份答案，分歧只在用户那里暴露（tri-framework-api.md §1/§4）。
+export * from './async-state.js';
+export * from './commit-command.js';
+export * from './commit-conflict.js';
+export * from './diff.js';
+export * from './discard-command.js';
 export * from './external-notify-gate.js';
 export * from './raw-write-judgment.js';
+export * from './status.js';
 export * from './trusted-write-intent.js';
 export * from './trusted-write-scope.js';
 export * from './versioned-domain.js';
+export * from './working-tree-commands.js';
 export * from './write-entry-matrix.js';
 export * from './write-entry.js';

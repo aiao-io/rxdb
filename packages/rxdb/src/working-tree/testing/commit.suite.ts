@@ -9,8 +9,14 @@
  * US-305 的 commit 图与迁移断言**并入本套件**，不另起第三个套件名——第三个名字会让
  * 「哪套是权威」重新变成开放问题。
  *
- * **本次（T042）填入的是 §2.1 / §2.2 / §2.5**；§2.3 / §2.4（两类 CAS 分开断言、commit
- * 原子性）在 US-306 阶段 B（T085）填，§2.6 在 US-307（T108）填，§2.7 在 US-308（T122）填。
+ * **T042 填入 §2.1 / §2.2 / §2.5，T085 补上 §2.3 / §2.4**（两类 CAS 分开断言、commit
+ * 原子性），§2.6 在 US-307（T108）填，§2.7 在 US-308（T122）填。
+ *
+ * §2.3 / §2.4 要演的是「另一个 Tab 存了一下」与「高并发普通 CRUD」，而本套件的六个调用点
+ * 建库时**都不带业务实体**（T043 那六个 spec 的工厂一个 `entities` 都没传）。所以这两节
+ * 不走 `entity.save()`，走的是 `save()` 最终落到的那个原语 `captureChanges()`——换一条更浅的
+ * 路径（比如直接 INSERT 一行 `WorkingTreeEntry`）会绕开 `bumpWorkingTreeRevision()` 那个
+ * 读改写，而它正是「第二类 CAS」本身。
  *
  * **§2.2 有两条断言不在这里，是有理由的，不是遗漏。**「注入任一分支初始化失败 →
  * `RXDB_SYSTEM_SCHEMA_VERSION` 停在 3」与「未启用的数据库行为与未安装本特性逐字节一致
@@ -49,6 +55,14 @@ import type { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
+import type { ChangeCaptureSource } from '../capture-runtime.js';
+import { captureChanges, readActiveBranchToken } from '../capture-runtime.js';
+import type { CommitResult } from '../commit-command.js';
+import { commitWorkingTree } from '../commit-command.js';
+import type { WorkingTreeCredentials } from '../commit-conflict.js';
+import type { WorkingTreeStatus } from '../status.js';
+import { assertWorkingTreeEntryCountIntact, readWorkingTreeStatus } from '../status.js';
+import { WorkingTreeEntry } from '../working-tree-entry.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
@@ -69,13 +83,27 @@ interface CommitCorruptionEntryPoint {
   readonly name: string;
 
   /** 在调用方自己的写事务内跑这条入口；命中损坏时必须拒绝 */
-  readonly invoke: (executor: TransactionExecutor, branchId: string) => Promise<void>;
+  readonly invoke: (context: CommitCorruptionEntryContext) => Promise<void>;
 }
 
-/** 见 {@link CommitCorruptionEntryPoint}。 */
-const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
-  { name: 'assertCommitGraphIntact（三条入口共用的那一份）', invoke: assertCommitGraphIntact }
-];
+/**
+ * 跑一条损坏守卫入口要的全部上下文。
+ *
+ * @remarks
+ * 收成一个对象而不是三个位置形参：只用得上 `executor` 的那一行不必给 `database` 编一个
+ * 下划线形参，而 T108 / T122 往表里加行时也不用再改一次签名——签名每动一次，已经写好的
+ * 那几行都得跟着改，而「不用改已有的行」正是这张表存在的理由。
+ */
+interface CommitCorruptionEntryContext {
+  /** 本条用例的数据库；`commit()` 这类入口要从它取 `entityManager` */
+  readonly database: RxDB;
+
+  /** 调用方那个写事务的执行器 */
+  readonly executor: TransactionExecutor;
+
+  /** 目标分支 */
+  readonly branchId: string;
+}
 
 /** 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。 */
 const withTransaction = async <T>(database: RxDB, run: (executor: TransactionExecutor) => Promise<T>): Promise<T> => {
@@ -250,6 +278,155 @@ const detailShapeOf = (changeSets: readonly CommitChangeSet[]): unknown[] =>
     inversePatch: row.inversePatch,
     origin: row.origin
   }));
+
+/** §2.3 第二类 CAS 用例并发发出的普通写笔数；小到不至于把六个后端跑慢，大到能撞上竞态。 */
+const CONCURRENT_WRITES = 8;
+
+/** {@link crashOnClear} 注入的那次崩溃；用专门的类是为了让断言认判别位，而不是认文案。 */
+class InjectedCommitCrash extends Error {
+  constructor() {
+    super('注入：commit() 写完 changeSet、正要清空工作树时崩溃');
+    this.name = 'InjectedCommitCrash';
+    Object.setPrototypeOf(this, InjectedCommitCrash.prototype);
+  }
+}
+
+/**
+ * 把 executor 包一层，让 `commit()` 在「清空工作树」那一步崩掉。
+ *
+ * @param executor - 真实执行器
+ * @returns 除 `removeMany` 之外逐字转发的代理
+ *
+ * @remarks
+ * §2.4 要的注入点是「写完 changeSet **之后**」，而 `commit()` 在那之后做的第一件事就是
+ * `executor.removeMany()` 清条目（`working-tree/commit-command.ts` 的 `finishCommit`）。
+ * 让这一次调用抛，等于在四步的正中间断电。
+ *
+ * **不为此在生产代码里开一个「注入故障」的钩子**：那个钩子在真实构建里也会在，而它能做的事
+ * 正是这条用例要证明不会发生的事。也不退化成「自己调一遍 `writeCommit()` 再 throw」——
+ * 那样测的是事务本身会回滚，而不是 `commit()` 把四步放进了同一个事务：把清条目挪去另一个
+ * 事务的实现，在那种写法下照样全绿。
+ *
+ * 方法逐个 `bind(target)` 而不是把代理当 `receiver` 交回去：`Reflect.get(target, p, proxy)`
+ * 会让访问器与私有字段在代理这一侧解析，而六个后端的 executor 实现都带私有字段。
+ */
+const crashOnClear = (executor: TransactionExecutor): TransactionExecutor =>
+  new Proxy(executor, {
+    get: (target, property) => {
+      if (property === 'removeMany') return () => Promise.reject(new InjectedCommitCrash());
+      const value: unknown = Reflect.get(target, property);
+      return typeof value === 'function' ? (value as (...args: never[]) => unknown).bind(target) : value;
+    }
+  });
+
+/** 造一条待捕获的变更日志；内容不重要，能折成一个工作树单元就够。 */
+const changeOf = (entityId: string): ChangeCaptureSource => ({
+  id: null,
+  type: 'UPDATE',
+  transactionId: null,
+  namespace: 'conformance',
+  entity: 'Note',
+  entityId,
+  patch: { title: '改后' },
+  inversePatch: { title: '改前' }
+});
+
+/**
+ * 在调用方那个事务里走一次**普通业务写**的捕获路径。
+ *
+ * @param database - 本条用例的数据库，同时充当捕获宿主（它就带着 `entityManager`）
+ * @param executor - 调用方那个写事务的执行器
+ * @param entityId - 被写的实体主键；同一个 id 会被折叠进同一条条目
+ *
+ * @remarks
+ * 这是 `entity.save()` 最终落到的那个原语（fileoverview 里说的那条）。它会走
+ * `bumpWorkingTreeRevision()`——读当前值、`+1`、写回，全在本事务内，**不收任何期望值**。
+ * §2.3 的两条断言分别盯着这件事的两面：另一个事务走过它之后，捕获型凭据必须失效；
+ * 而它自己在并发下**不得**失败。
+ */
+const captureOneWrite = async (database: RxDB, executor: TransactionExecutor, entityId: string): Promise<void> => {
+  const token = await readActiveBranchToken(executor);
+  await captureChanges(executor, database, {
+    token,
+    unitId: uuid(),
+    origin: 'local',
+    changes: [changeOf(entityId)],
+    shouldCapture: () => true
+  });
+};
+
+/** 读一次工作树摘要，各开一个事务——这正是调用方捕获那三个位的那一次读。 */
+const readStatus = (database: RxDB): Promise<WorkingTreeStatus> => withTransaction(database, readWorkingTreeStatus);
+
+/** 把一次 `status()` 折成 `commit()` 要的三个捕获位。 */
+const credentialsOf = (status: WorkingTreeStatus): WorkingTreeCredentials => ({
+  expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+  expectedHeadRevision: status.headRevision,
+  expectedWorkingTreeRevision: status.workingTreeRevision
+});
+
+/** 拿一组捕获位提交一次；每次各开一个事务，与真实调用点同形。 */
+const commitWithCredentials = (
+  database: RxDB,
+  credentials: WorkingTreeCredentials,
+  message: string
+): Promise<CommitResult> =>
+  withTransaction(database, executor =>
+    commitWorkingTree(executor, database.entityManager, message, {
+      ...credentials,
+      authorId: 'conformance-suite',
+      operationId: uuid()
+    })
+  );
+
+/** 把一次 `commit()` 摊成可直接 `toEqual` 的形状；失败时冲突原样进输出，不塌成一个 `false`。 */
+const commitShapeOf = (result: CommitResult): unknown =>
+  result.ok ? { ok: true, changeSetCount: result.changeSetCount } : { ok: false, conflict: result.conflict };
+
+/** 数一遍某分支真实的未提交条目行；与 `entryCount` 冗余列对照用。 */
+const countEntries = (database: RxDB, branchId: string): Promise<number> =>
+  withTransaction(database, executor =>
+    executor.getRepository(WorkingTreeEntry).count({
+      where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branchId }] }
+    })
+  );
+
+/** 数一遍 `rxdb_commit_change_set` 全表行数。 */
+const countChangeSets = (database: RxDB): Promise<number> =>
+  withTransaction(database, executor =>
+    executor.getRepository(CommitChangeSet).count({ where: { combinator: 'and', rules: [] } })
+  );
+
+/** 把被拒的并发写摊成可读文案；`toEqual([])` 失败时打出来的就是它。 */
+const rejectionsOf = (settled: readonly PromiseSettledResult<unknown>[]): string[] =>
+  settled.filter(outcome => outcome.status === 'rejected').map(outcome => String(outcome.reason));
+
+/** 见 {@link CommitCorruptionEntryPoint}。 */
+const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
+  {
+    name: 'assertCommitGraphIntact（三条入口共用的那一份）',
+    invoke: ({ executor, branchId }) => assertCommitGraphIntact(executor, branchId)
+  },
+  {
+    name: 'commit()',
+    invoke: async ({ database, executor }) => {
+      // 先让工作树变脏：干净分支上 `commit()` 会撞 `empty_commit`，那时下面四条用例测的是
+      // 「空提交被拒」，损坏守卫一次都没跑到。捕获排在前面不影响结论——守卫是 `commit()`
+      // 的第一步，命中损坏时整个事务连这条捕获一起回滚。
+      await captureOneWrite(database, executor, `corruption-${uuid()}`);
+      // 这三个位刚在**同一个事务**里读出来，所以 CAS 必然命中。这不是 commit-conflict.ts
+      // 第 2 条批的那种写法（那说的是 `commit()` 自己去读），而是这张表要把变量压到
+      // 只剩「损坏与否」一个——CAS 本身由 §2.3 单独盯。
+      const status = await readWorkingTreeStatus(executor);
+      const result = await commitWorkingTree(executor, database.entityManager, '损坏守卫用例', {
+        ...credentialsOf(status),
+        authorId: 'conformance-suite',
+        operationId: uuid()
+      });
+      if (!result.ok) throw new Error(`期望这次提交跑到损坏守卫，实际先撞上 ${result.conflict.kind} 冲突`);
+    }
+  }
+];
 
 /**
  * 注册提交侧一致性用例。
@@ -518,6 +695,153 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
       });
     });
 
+    describe('§2.3 两类 CAS 分开（FR-031/FR-032、SC-008）', () => {
+      it('调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地', async () => {
+        const branchId = await readActiveBranchId(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-a'));
+        // 调用方捕获：界面拿到的就是这三个位，此后不再刷新。
+        const captured = await readStatus(database);
+        // 「另一连接 save()」：只动工作树、不动 HEAD——只比 headRevision 的实现在这里是绿的，
+        // 而用户提交的正是他没看过的那条变更（SC-008 点名的就是这一格）。
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-b'));
+        const before = await withTransaction(database, snapshotCommits);
+
+        const result = await commitWithCredentials(database, credentialsOf(captured), '拿着旧凭据提交');
+
+        const after = await withTransaction(database, snapshotCommits);
+        const status = await readStatus(database);
+        expect(commitShapeOf(result)).toEqual({
+          ok: false,
+          conflict: {
+            kind: 'working_tree_revision',
+            expected: captured.workingTreeRevision,
+            actual: captured.workingTreeRevision + 1,
+            branchId
+          }
+        });
+        // 被拒的提交要是推进了 headRevision，别的 Tab 手上的凭据会因为一次什么都没提交的
+        // 调用集体失效（commit-conflict.ts 第 3 条）。
+        expect([...after.keys()]).toEqual([...before.keys()]);
+        expect({ head: status.headRevision, entries: status.entryCount }).toEqual({
+          head: captured.headRevision,
+          entries: 2
+        });
+      });
+
+      it('冲突不入库：重读一次 status() 再提一次就过，中间没有「清除冲突」这一步', async () => {
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-a'));
+        const stale = await readStatus(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-b'));
+        const rejected = await commitWithCredentials(database, credentialsOf(stale), '拿着旧凭据提交');
+
+        const retried = await commitWithCredentials(database, credentialsOf(await readStatus(database)), '复核后重提');
+
+        const status = await readStatus(database);
+        expect(rejected.ok).toBe(false);
+        // 上一次的冲突要是被记进了某张表，这一次会带着它继续被拒——而库里没有任何 API
+        // 能清掉它（contracts/core-api.md §4.1）。两条变更一起进这一次提交：
+        // 没有暂存区，commit() 提交的就是当前工作树的全部（硬裁决 1）。
+        expect(commitShapeOf(retried)).toEqual({ ok: true, changeSetCount: 2 });
+        expect({ clean: status.clean, entries: status.entryCount }).toEqual({ clean: true, entries: 0 });
+      });
+
+      it('事务内读改写型：并发普通写一笔都不因并发失败（FR-032 回归）', async () => {
+        const branchId = await readActiveBranchId(database);
+        const before = await readStatus(database);
+
+        const settled = await Promise.allSettled(
+          Array.from({ length: CONCURRENT_WRITES }, (_ignored, index) =>
+            withTransaction(database, executor => captureOneWrite(database, executor, `note-concurrent-${index}`))
+          )
+        );
+
+        const after = await readStatus(database);
+        // 防回归：谁要是给普通 CRUD 也安上「调用方捕获 + 条件 UPDATE」，这批写里就会有一部分
+        // 因为 rowsAffected === 0 被拒——而普通写的调用方（一次 Ctrl+S）根本没有凭据可给，
+        // 它除了重试别无出路，重试又会撞上下一个并发者。FR-032 禁的就是这条路。
+        expect(rejectionsOf(settled), 'FR-032：普通 CRUD 不得因并发失败').toEqual([]);
+        expect({
+          entries: after.entryCount - before.entryCount,
+          revision: after.workingTreeRevision - before.workingTreeRevision
+        }).toEqual({ entries: CONCURRENT_WRITES, revision: CONCURRENT_WRITES });
+        // 每笔写各自读改写一次：丢掉其中任何一次的自增，冗余列就与行数对不上了。
+        await withTransaction(database, executor => assertWorkingTreeEntryCountIntact(executor, branchId));
+      });
+    });
+
+    describe('§2.4 commit 原子性（FR-011、SC-007）', () => {
+      it('写完 changeSet 之后崩溃：要么全有要么全无，工作树不会被清掉一半', async () => {
+        const branchId = await readActiveBranchId(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-a'));
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-b'));
+        const captured = await readStatus(database);
+        const before = await withTransaction(database, snapshotCommits);
+        const changeSetsBefore = await countChangeSets(database);
+
+        const error = await captureRejection(
+          withTransaction(database, executor =>
+            commitWorkingTree(crashOnClear(executor), database.entityManager, '写完 changeSet 就崩', {
+              ...credentialsOf(captured),
+              authorId: 'conformance-suite',
+              operationId: uuid()
+            })
+          )
+        );
+
+        const after = await withTransaction(database, snapshotCommits);
+        const status = await readStatus(database);
+        expect(error).toBeInstanceOf(InjectedCommitCrash);
+        // 「全无」是对四步一起说的：commit 行、changeSet 行、HEAD 指针、被清掉的条目，
+        // 少回滚哪一步都会留下一个有两份真相的库——最糟的一种是条目已清而历史没写，
+        // 那批变更就此永久消失（commit-command.ts 第 4 条）。
+        expect([...after.keys()]).toEqual([...before.keys()]);
+        expect(await countChangeSets(database)).toBe(changeSetsBefore);
+        expect({
+          head: status.headRevision,
+          revision: status.workingTreeRevision,
+          entries: status.entryCount,
+          rows: await countEntries(database, branchId)
+        }).toEqual({
+          head: captured.headRevision,
+          revision: captured.workingTreeRevision,
+          entries: 2,
+          rows: 2
+        });
+        await withTransaction(database, executor => assertWorkingTreeEntryCountIntact(executor, branchId));
+      });
+
+      it('entryCount 与实际行数在任何时刻一致：捕获后、被拒后、提交后各校一遍', async () => {
+        const branchId = await readActiveBranchId(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-a'));
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-b'));
+        const stale = await readStatus(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-c'));
+        await withTransaction(database, executor => assertWorkingTreeEntryCountIntact(executor, branchId));
+
+        // 被拒的那一次：三次比较全排在任何写入之前，所以它连冗余列都不该碰。
+        await commitWithCredentials(database, credentialsOf(stale), '拿着旧凭据提交');
+        await withTransaction(database, executor => assertWorkingTreeEntryCountIntact(executor, branchId));
+        expect(await countEntries(database, branchId)).toBe(3);
+
+        const committed = await commitWithCredentials(
+          database,
+          credentialsOf(await readStatus(database)),
+          '干净的提交'
+        );
+
+        const status = await readStatus(database);
+        expect(commitShapeOf(committed)).toEqual({ ok: true, changeSetCount: 3 });
+        // 「全有」的另一半：条目表真的空了，而不是只把计数改成 0——`status()` 的「干净」
+        // 全压在那一列上，两者一分岔，用户会看到一个报干净、提交起来却吐出三个单元的库。
+        expect({
+          entries: status.entryCount,
+          rows: await countEntries(database, branchId),
+          clean: status.clean
+        }).toEqual({ entries: 0, rows: 0, clean: true });
+        await withTransaction(database, executor => assertWorkingTreeEntryCountIntact(executor, branchId));
+      });
+    });
+
     describe('§2.5 损坏守卫（三入口同一份）', () => {
       for (const entryPoint of CORRUPTION_ENTRY_POINTS) {
         it(`${entryPoint.name}：健康分支放行`, async () => {
@@ -530,7 +854,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           });
 
           await expect(
-            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
           ).resolves.toBeUndefined();
         });
 
@@ -549,7 +873,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           const before = await withTransaction(database, snapshotCommits);
 
           const error = await captureRejection(
-            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
           );
 
           const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
@@ -582,7 +906,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           );
 
           const error = await captureRejection(
-            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
           );
 
           const ref = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
@@ -619,7 +943,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           // 行都还在却没有任何 ref 指向它们；把它们算进去，一条谁都够不到的坏记录
           // 会让整个库停摆，而它对任何一次重放都没有影响。
           await expect(
-            withTransaction(database, executor => entryPoint.invoke(executor, branchId))
+            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
           ).resolves.toBeUndefined();
         });
       }

@@ -40,6 +40,23 @@ interface ProbeGroup {
 
 const isGroup = (node: ProbeGroup | ProbeRule): node is ProbeGroup => 'combinator' in node;
 
+/**
+ * `'>'` 的两种真实操作数：水位线的数字与 diff keyset 游标的 uuid 字符串。
+ *
+ * @remarks
+ * 跨类型比较**直接抛**而不是返回 `false`：JS 会把 `'10' > 9` 悄悄算成 `true`，
+ * 让替身替一条写错的 where 兜住底。两边同类型才比，其余一律炸。
+ */
+const compareGreaterThan = (field: string, actual: unknown, expected: unknown): boolean => {
+  if (actual === null || actual === undefined) return false;
+  if (typeof expected === 'number' && typeof actual === 'number') return actual > expected;
+  if (typeof expected === 'string' && typeof actual === 'string') return actual > expected;
+  throw new Error(
+    `commit-graph-probe: '>' on field '${field}' compares ${typeof actual} with ${typeof expected}; ` +
+      'only number-with-number and string-with-string are supported'
+  );
+};
+
 const matchesRule = (row: Record<string, unknown>, rule: ProbeRule): boolean => {
   const actual = row[rule.field];
   switch (rule.operator) {
@@ -55,11 +72,11 @@ const matchesRule = (row: Record<string, unknown>, rule: ProbeRule): boolean => 
       return actual === null || actual === undefined;
     case 'notNull':
       return actual !== null && actual !== undefined;
-    // 水位线增量（`capture-hook.ts` 的 readChangesAfter）只用得上 `>`，所以这里也只加 `>`。
-    // 顺手把六个比较运算符补全的话，替身就开始支持实现并不会发出的查询形状，
-    // 而「支持的每一种形状都有人真的在用」正是它敢被信任的前提。
+    // 水位线增量（`capture-hook.ts` 的 readChangesAfter）与 diff 的 keyset 游标都只用得上
+    // `>`，所以这里也只加 `>`。顺手把六个比较运算符补全的话，替身就开始支持实现并不会
+    // 发出的查询形状，而「支持的每一种形状都有人真的在用」正是它敢被信任的前提。
     case '>':
-      return typeof actual === 'number' && typeof rule.value === 'number' && actual > rule.value;
+      return compareGreaterThan(rule.field, actual, rule.value);
     default:
       throw new Error(`commit-graph-probe: unsupported operator '${rule.operator}' on field '${rule.field}'`);
   }
@@ -193,7 +210,17 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
         }
         return entities;
       })) as TransactionExecutor['saveMany'],
-    removeMany: vi.fn(async entities => entities),
+    // 真的把行从表里摘掉。返回入参却不动表的桩会让「提交后工作树清空」这类断言
+    // 在实现根本没删干净时照样绿——批量删除是 commit / discard 的收尾动作，
+    // 这里说谎，整个阶段 B 的原子性用例就都是空转。
+    removeMany: vi.fn(async (entities: InstanceType<EntityType>[]) => {
+      for (const entity of entities) {
+        const rows = tableOf(entity.constructor as EntityType);
+        const index = rows.indexOf(entity as object);
+        if (index >= 0) rows.splice(index, 1);
+      }
+      return entities;
+    }) as TransactionExecutor['removeMany'],
     mergeChanges: vi.fn(async () => undefined),
     run: fn => fn(executor)
   };

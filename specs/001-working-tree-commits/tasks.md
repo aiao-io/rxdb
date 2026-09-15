@@ -179,26 +179,26 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 ### Tests for User Story 2 阶段 B（先红）
 
-- [ ] T069 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/status.spec.ts`：至少区分 clean / 有未提交变更 / 恢复中 / 冲突；普通命令 CAS 失败只返回一次性 `CommitConflict`，**不形成 durable conflicted**；`conflicted` 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建（FR-004）
-- [ ] T070 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/diff.spec.ts`：面向实体或完整事务的 diff，**只有 `HEAD ↔ 工作树` 一条轴**；断言不存在第二条轴的任何入口（FR-005）
-- [ ] T071 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-full-scope.spec.ts`：`commit()` 的签名**没有 selection 入参**（类型层断言），提交范围恒为当前分支工作树全部未提交单元；成功后**全部**已提交单元被清除、工作树回 clean、以新 commit 为基线，不存在残量与 rebase（FR-011/041、硬裁决 1）
-- [ ] T072 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-cas-captured.spec.ts`：commit 校验 active branch token + expected head + **调用方捕获的** expected `workingTreeRevision`，三者任一不匹配即全量回滚返回 `CommitConflict`；断言**不得**放宽为只校验 head；另含 SC-008 必备用例「另一个 Tab 在 status 与 commit 之间 `save()`」（FR-031）
-- [ ] T073 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/crud-not-captured-cas.spec.ts`：**普通 CRUD 使用事务内读改写型 CAS，不得使用调用方捕获型**——与 FR-032 冲突的回归测试（R3、conformance-suites.md §2.3）
-- [ ] T074 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/writer-identity-neutral.spec.ts`：工作树中的实体编辑不按 writer 身份分叉；跨 realm 与本 realm 平等成为同一份工作树的未提交变更；writer 身份不是提交正确性的必要条件（FR-032）
-- [ ] T075 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/discard.spec.ts`：`discardWorkingTree()` 把当前分支工作树整体回到当前 HEAD；已 clean 时是 no-op；同样校验 active token 与 expected working-tree revision（FR-016/031）
-- [ ] T076 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-atomicity.spec.ts`：commit 中途崩溃后恢复，**不出现**半个 commit、半个事务或半清空的工作树（FR-010、SC-007、conformance-suites.md §2.4）
-- [ ] T077 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-corruption-entry.spec.ts`：`commit()` 复用 US-305 的**同一份**守卫（T038），可达损坏时拒绝、保留原 ref、不删记录（FR-051、横切约束 6）
+- [x] T069 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/status.spec.ts`：至少区分 clean / 有未提交变更 / 恢复中 / 冲突；普通命令 CAS 失败只返回一次性 `CommitConflict`，**不形成 durable conflicted**；`conflicted` 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建（FR-004）
+- [x] T070 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/diff.spec.ts`：面向实体或完整事务的 diff，**只有 `HEAD ↔ 工作树` 一条轴**；断言不存在第二条轴的任何入口（FR-005）
+- [x] T071 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-full-scope.spec.ts`：`commit()` 的签名**没有 selection 入参**（类型层断言），提交范围恒为当前分支工作树全部未提交单元；成功后**全部**已提交单元被清除、工作树回 clean、以新 commit 为基线，不存在残量与 rebase（FR-011/041、硬裁决 1）
+- [x] T072 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-cas-captured.spec.ts`：commit 校验 active branch token + expected head + **调用方捕获的** expected `workingTreeRevision`，三者任一不匹配即全量回滚返回 `CommitConflict`；断言**不得**放宽为只校验 head；另含 SC-008 必备用例「另一个 Tab 在 status 与 commit 之间 `save()`」（FR-031）
+- [x] T073 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/crud-not-captured-cas.spec.ts`：**普通 CRUD 使用事务内读改写型 CAS，不得使用调用方捕获型**——与 FR-032 冲突的回归测试（R3、conformance-suites.md §2.3）
+- [x] T074 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/writer-identity-neutral.spec.ts`：工作树中的实体编辑不按 writer 身份分叉；跨 realm 与本 realm 平等成为同一份工作树的未提交变更；writer 身份不是提交正确性的必要条件（FR-032）
+- [x] T075 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/discard.spec.ts`：`discardWorkingTree()` 把当前分支工作树整体回到当前 HEAD；已 clean 时是 no-op；同样校验 active token 与 expected working-tree revision（FR-016/031）
+- [x] T076 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-atomicity.spec.ts`：commit 中途崩溃后恢复，**不出现**半个 commit、半个事务或半清空的工作树（FR-010、SC-007、conformance-suites.md §2.4）
+- [x] T077 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/commit-corruption-entry.spec.ts`：`commit()` 复用 US-305 的**同一份**守卫（T038），可达损坏时拒绝、保留原 ref、不删记录（FR-051、横切约束 6）
 
 ### Implementation for User Story 2 阶段 B
 
-- [ ] T078 [US2] 实现 `status()` 于 `packages/rxdb/src/working-tree/status.ts`，用 `WorkingTreeState.entryCount` 冗余列做常数时间摘要（SC-001 的预算依赖这一点），并配 `entryCount` 与实际条目数的不变量断言（data-model.md §2.6）
-- [ ] T079 [US2] 实现 `diff()` 于 `packages/rxdb/src/working-tree/diff.ts`：单轴 `HEAD ↔ 工作树`，支持实体与完整事务两种粒度（FR-005，接口见 contracts/core-api.md §3）
-- [ ] T080 [US2] 实现 `commit(message, options)` 于 `packages/rxdb/src/working-tree/commit-command.ts`：`CommitOptions` 必填 `authorId` / `operationId`，metadata 只放扩展审计字段，不得覆盖 parent / 时间 / 作者 / operation ID / schema-codec manifest / 变更数量；**签名中没有 selection 入参——这是 v1 硬裁决，不是签名未完成**（FR-041，契约见 contracts/core-api.md §4）
-- [ ] T081 [US2] 实现同事务清空全部已提交工作树单元于 `packages/rxdb/src/working-tree/commit-command.ts`（与 T080 同文件，接在写 commit 之后）：清空与写 commit 在**同一事务**，不得异步或延迟（FR-011、SC-007）
-- [ ] T082 [US2] 定义 `CommitConflict` 类型、补齐 TSDoc、登记进 `requirements/api-baseline/rxdb.json` 于 `packages/rxdb/src/working-tree/commit-conflict.ts`：从失败操作、对象 ID、expected/actual revision 与建议动作派生；**它是一次失败命令的类型化诊断值，不是持久状态**，不得建第二张可漂移的冲突表，**也不得自动重试**（FR-035 由首个使用者定义，contracts/core-api.md §4.1、data-model.md §7）
-- [ ] T083 [US2] 实现 `discardWorkingTree()` 于 `packages/rxdb/src/working-tree/discard-command.ts`（FR-016）
-- [ ] T084 [US2] 在 `commit()` 与 `discard()` 的写事务内调用 T038 的共享损坏守卫（`packages/rxdb/src/working-tree/commit-command.ts` / `discard-command.ts`），不另写判定（FR-051）
-- [ ] T085 [US2] 扩展 `packages/rxdb/src/working-tree/testing/working-tree-commit.suite.ts`：补 conformance-suites.md §2.3（两类 CAS 分开 + FR-032 回归）与 §2.4（commit 原子性），6 个适配器的既有调用点（T043）自动带上新用例
+- [x] T078 [US2] 实现 `status()` 于 `packages/rxdb/src/working-tree/status.ts`，用 `WorkingTreeState.entryCount` 冗余列做常数时间摘要（SC-001 的预算依赖这一点），并配 `entryCount` 与实际条目数的不变量断言（data-model.md §2.6）
+- [x] T079 [US2] 实现 `diff()` 于 `packages/rxdb/src/working-tree/diff.ts`：单轴 `HEAD ↔ 工作树`，支持实体与完整事务两种粒度（FR-005，接口见 contracts/core-api.md §3）
+- [x] T080 [US2] 实现 `commit(message, options)` 于 `packages/rxdb/src/working-tree/commit-command.ts`：`CommitOptions` 必填 `authorId` / `operationId`，metadata 只放扩展审计字段，不得覆盖 parent / 时间 / 作者 / operation ID / schema-codec manifest / 变更数量；**签名中没有 selection 入参——这是 v1 硬裁决，不是签名未完成**（FR-041，契约见 contracts/core-api.md §4）
+- [x] T081 [US2] 实现同事务清空全部已提交工作树单元于 `packages/rxdb/src/working-tree/commit-command.ts`（与 T080 同文件，接在写 commit 之后）：清空与写 commit 在**同一事务**，不得异步或延迟（FR-011、SC-007）
+- [x] T082 [US2] 定义 `CommitConflict` 类型、补齐 TSDoc、登记进 `requirements/api-baseline/rxdb.json` 于 `packages/rxdb/src/working-tree/commit-conflict.ts`：从失败操作、对象 ID、expected/actual revision 与建议动作派生；**它是一次失败命令的类型化诊断值，不是持久状态**，不得建第二张可漂移的冲突表，**也不得自动重试**（FR-035 由首个使用者定义，contracts/core-api.md §4.1、data-model.md §7）
+- [x] T083 [US2] 实现 `discardWorkingTree()` 于 `packages/rxdb/src/working-tree/discard-command.ts`（FR-016）
+- [x] T084 [US2] 在 `commit()` 与 `discard()` 的写事务内调用 T038 的共享损坏守卫（`packages/rxdb/src/working-tree/commit-command.ts` / `discard-command.ts`），不另写判定（FR-051）
+- [x] T085 [US2] 扩展 `packages/rxdb/src/working-tree/testing/working-tree-commit.suite.ts`：补 conformance-suites.md §2.3（两类 CAS 分开 + FR-032 回归）与 §2.4（commit 原子性），6 个适配器的既有调用点（T043）自动带上新用例
 
 **Checkpoint**: 阶段 B 独立可交付。status / diff / commit / discard 语义完整，跨 realm CAS 生效，6 后端两套套件全绿。
 
@@ -214,18 +214,18 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 ### Tests for User Story 2 阶段 C（先红）
 
-- [ ] T086 [P] [US2] 写红测试 `packages/rxdb-angular/src/__tests__/use-working-tree.spec.ts`：覆盖 tri-framework-api.md §3 清单每一项（`isEnabled`/`enable`、`status` 及响应式形式、`diff`、`commit`、`discard`、`listCommits`、`restore`、`restoreSession`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`）
-- [ ] T087 [P] [US2] 写红测试 `packages/rxdb-react/src/__tests__/use-working-tree.spec.ts`：同上清单
-- [ ] T088 [P] [US2] 写红测试 `packages/rxdb-vue/src/__tests__/use-working-tree.spec.ts`：同上清单
-- [ ] T089 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/async-state.spec.ts`：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；**不给无 empty 语义的命令伪造 empty**——`commit()` 没有「空成功」，零未提交变更时是明确的 no-op 结果（FR-023、tri-framework-api.md §4）
+- [x] T086 [P] [US2] 写红测试 `packages/rxdb-angular/src/__tests__/use-working-tree.spec.ts`：覆盖 tri-framework-api.md §3 清单每一项（`isEnabled`/`enable`、`status` 及响应式形式、`diff`、`commit`、`discard`、`listCommits`、`restore`、`restoreSession`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`）
+- [x] T087 [P] [US2] 写红测试 `packages/rxdb-react/src/__tests__/use-working-tree.spec.ts`：同上清单
+- [x] T088 [P] [US2] 写红测试 `packages/rxdb-vue/src/__tests__/use-working-tree.spec.ts`：同上清单
+- [x] T089 [P] [US2] 写红测试 `packages/rxdb/src/__tests__/working-tree/async-state.spec.ts`：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；**不给无 empty 语义的命令伪造 empty**——`commit()` 没有「空成功」，零未提交变更时是明确的 no-op 结果（FR-023、tri-framework-api.md §4）
 
 ### Implementation for User Story 2 阶段 C
 
-- [ ] T090 [US2] 实现 Angular 入口 `useWorkingTree()` 于 `packages/rxdb-angular/src/use-working-tree.ts` 并从 `packages/rxdb-angular/src/index.ts` 导出：运行期形态按框架惯例（signal / computed），共享核心类型**再导出不重定义**（tri-framework-api.md §1）
-- [ ] T091 [US2] 实现 React 入口 `useWorkingTree()` 于 `packages/rxdb-react/src/use-working-tree.ts` 并从 `packages/rxdb-react/src/index.ts` 导出
-- [ ] T092 [US2] 实现 Vue 入口 `useWorkingTree()` 于 `packages/rxdb-vue/src/use-working-tree.ts` 并从 `packages/rxdb-vue/src/index.ts` 导出
-- [ ] T093 [US2] 更新三份公开面基线 `requirements/api-baseline/rxdb-{angular,react,vue}.json`：三端无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`、`useWorkingTree()` 按负向规则合规（SC-014、tri-framework-api.md §2）
-- [ ] T094 [US2] 写固定 fixture 于 `benchmarks/working-tree-fixture.ts`：10,000 实体 / 100 commit / 每 commit 100 单元 / 当前工作树 100 未提交单元，并输出 `contentHash`（内容 hash，不是行数）（benchmark-report.md §1）
+- [x] T090 [US2] 实现 Angular 入口 `useWorkingTree()` 于 `packages/rxdb-angular/src/use-working-tree.ts` 并从 `packages/rxdb-angular/src/index.ts` 导出：运行期形态按框架惯例（signal / computed），共享核心类型**再导出不重定义**（tri-framework-api.md §1）
+- [x] T091 [US2] 实现 React 入口 `useWorkingTree()` 于 `packages/rxdb-react/src/use-working-tree.ts` 并从 `packages/rxdb-react/src/index.ts` 导出
+- [x] T092 [US2] 实现 Vue 入口 `useWorkingTree()` 于 `packages/rxdb-vue/src/use-working-tree.ts` 并从 `packages/rxdb-vue/src/index.ts` 导出
+- [x] T093 [US2] 更新三份公开面基线 `requirements/api-baseline/rxdb-{angular,react,vue}.json`：三端无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`、`useWorkingTree()` 按负向规则合规（SC-014、tri-framework-api.md §2）
+- [x] T094 [US2] 写固定 fixture 于 `benchmarks/working-tree-fixture.ts`：10,000 实体 / 100 commit / 每 commit 100 单元 / 当前工作树 100 未提交单元，并输出 `contentHash`（内容 hash，不是行数）（benchmark-report.md §1）
 - [ ] T095 [US2] 写 `benchmarks/working-tree.bench.ts`：Node + PGlite memory、WARMUP=5 / SAMPLES=50，测完整 status、完整 diff、一次提交 100 单元的 commit；每项配**同一次运行内**采样的 control CRUD（相同实体数量与事务边界），输出 p50/p95/max/ratio 与 `runnerProfileHash`，JSON 结构照 benchmark-report.md §2
 - [ ] T096 [US2] 在 `benchmarks/project.json` 增加 `bench-working-tree` target（照既有 `bench-encryption` / `bench-hot-path` 形态：`nx:run-commands` + `dependsOn: ["typecheck", "^build"]`）
 - [ ] T097 [US2] 冻结 reference 并落盘 `benchmarks/reports/working-tree-reference.json`：**10 次独立运行取 median ratio**，同批写入 `frozenAbsolute.commit`（commit 的绝对预算由首个绿色实现的中位数冻结，**不套用 status/diff 的 100 ms**——已批准的宪法例外，见 plan.md Complexity Tracking）；接上相对门禁（ratio ≤ reference median 的 110%，PR CI 的**唯一**硬门禁）。**reference 必须先于发布候选签入**；review 不接受该中位数时回到 plan.md 更新例外或改设计，**不得在失败后重算基线**

@@ -172,12 +172,24 @@ export interface WorkingTreeCaptureHost {
 /**
  * 取本分支的工作树状态行。
  *
+ * @param executor - 调用方那个事务的执行器
+ * @param branchId - 目标分支 id
+ * @returns 该分支的状态行
+ * @throws {@link RxDBError} 状态行缺失时
+ *
  * @remarks
  * 状态行主键与分支 id **逐字相同**（`commit/branch-commit-rows.ts`），所以这里按主键取而不是
  * 按外键列扫。缺行**抛错**，不补行：补出来的 `workingTreeRevision = 0` 会让另一个 Tab 手上的
  * CAS 依据凭空回到起点，而 commit 的并发仲裁全靠它。
+ *
+ * 导出而不是留在本模块内，是因为 `status()` / `commit()` / `discard()` 读的是**同一行**：
+ * 各自写一份「按主键取、缺行抛错」的话，某一处哪天改成「缺行当 0」，工作树 revision 就有了
+ * 两种读法，而 CAS 的并发仲裁正建立在全部调用方读到同一个值上。
  */
-const readStateRow = async (executor: TransactionExecutor, branchId: string): Promise<WorkingTreeState> => {
+export const readWorkingTreeStateRow = async (
+  executor: TransactionExecutor,
+  branchId: string
+): Promise<WorkingTreeState> => {
   const [row] = await executor.getRepository(WorkingTreeState).find({
     where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
     limit: 1
@@ -287,7 +299,7 @@ export const createWorkingTreeCapturePort = (
   },
 
   async bumpWorkingTreeRevision(entryCountDelta: number): Promise<number> {
-    const state = await readStateRow(executor, token.branchId);
+    const state = await readWorkingTreeStateRow(executor, token.branchId);
     const revision = state.workingTreeRevision + 1;
     await executor.getRepository(WorkingTreeState).update(state, {
       workingTreeRevision: revision,

@@ -18,4 +18,15 @@
 // 某一端拼错了不会有编译错误——只会让那一端的 active 行安静地退出唯一约束的管辖。
 export * from './active-branch-guard.js';
 export * from './commit-codec.js';
+// 提交历史的公开面（FR-012）。遍历本身（`list-commits.ts`）与 `Commit` 实体都留在包内：
+// 实体带着幂等键与节点指纹，两者都不承诺跨版本稳定，摆上公开面就会被当成内容判据。
 export * from './commit-error-codes.js';
+export * from './commit-log.js';
+// 能力三元组：`WorkingTreeManager.enable()` 的返回类型。只导出类型，读写能力行的四个
+// 函数留在包内——它们要求调用方自带事务执行器，而那是门面的职责，不是调用方的。
+export type { CommitCapabilityInfo, CommitCapabilityVersions } from './commit-capability.js';
+// 提交写路径的**校验失败**类型。写路径本身（`writeCommit` / `buildCommitRows`）留在包内，
+// 但它抛的这个错必须能被叫出名字：`commit()` 在干净工作树上抛 `empty_commit`，而三端入口
+// 要按 tri-framework-api.md §4「同一错误码在三端呈现同一语义」把它和「连接断了」分开呈现。
+// 只能靠 `message` 字符串匹配来区分的错，等于没有错误码。
+export { CommitValidationError, type CommitValidationReason } from './write-commit.js';
