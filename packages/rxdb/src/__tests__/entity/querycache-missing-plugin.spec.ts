@@ -1,9 +1,15 @@
 /**
- * 声明了 `SyncType.QueryCache` 却没装读引擎时的运行期护栏（US-025 阶段 B：B3）。
+ * 声明了 `SyncType.QueryCache` 却缺插件时的运行期护栏（US-025 阶段 B：B3 / 阶段 D：D3）。
  *
  * 阶段 B 把 QueryCache 读引擎搬进 `@aiao/rxdb-plugin-querycache`，`SyncType.QueryCache`
  * 这个枚举成员却必须留在核心 —— 策略轴闭合，`Repository` 构造里那处分支无从判定。
  * 于是核心多出一个指向「可能没装的插件」的取值，本文件盯的就是那个缺口。
+ *
+ * 阶段 D 之后缺口是**两个**：读引擎在 `@aiao/rxdb-plugin-querycache`，待提交写的查询
+ * （出站队列）在 `@aiao/rxdb-plugin-sync`。所以一个 `SyncType.QueryCache` 实体要两个插件
+ * 才跑得起来 —— 出站队列这一半尤其不能缺席也不能兜底成空集：读引擎对账
+ * （`planReconcile`）拿它把「远端没返回」和「本地离线写过」分开，空集会让每一条离线写
+ * 都被当成孤儿删掉。两个缺口各有各的护栏，下面两个 describe 分别盯一个。
  *
  * 判据有两条，缺一不可：
  *
@@ -24,6 +30,7 @@ import type {
   QueryCachePrimary,
   QueryCacheSession
 } from '../../repository/query-cache-engine.interface.js';
+import type { QueryCacheOutboxProvider } from '../../repository/query-cache-outbox.interface.js';
 import { Repository } from '../../repository/Repository.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMissingPluginError } from '../../RxDBError.js';
@@ -68,6 +75,17 @@ const createEngineFactoryStub = (): QueryCacheEngineFactory => ({
 });
 
 /**
+ * 最小出站队列桩：答「没有离线写占着」，同样不产生任何读行为。
+ *
+ * @remarks
+ * 真队列在 `@aiao/rxdb-plugin-sync` 里读 `rxdb_change` / `rxdb_sync` 两张系统表，核心包
+ * 同样不能 devDepend 它 —— 核心这一侧只证明槽位填上了护栏就放行。
+ */
+const createOutboxStub = (): QueryCacheOutboxProvider => ({
+  pendingWriteIds: () => Promise.resolve(new Set<string>())
+});
+
+/**
  * 库级 sync 必须带 remote —— `SyncType.QueryCache` 的元数据校验只认库级注册的远端适配器，
  * 少这一侧会先撞 `missingQueryCacheAdapter`，本文件要盯的护栏一次都轮不到。
  */
@@ -89,7 +107,10 @@ const createDatabase = (dbName: string): { rxdb: RxDB; local: () => MockLocalAda
 };
 
 /**
- * 引擎槽位为空、两条适配器流都正常发射的 `RxDB` 替身。
+ * 两个槽位可分别置空、两条适配器流都正常发射的 `RxDB` 替身。
+ *
+ * @param localAdapter - 本地适配器替身，用来盯「有没有偷偷退回本地读」
+ * @param slots - 想填上的槽；不填的那个就是空的
  *
  * @remarks
  * 专门用来盯**兜底**那一道：`connect()` 的启动护栏只在启动那一刻扫一遍，而插件是带作用域
@@ -98,7 +119,10 @@ const createDatabase = (dbName: string): { rxdb: RxDB; local: () => MockLocalAda
  * 走手搭替身而不是真库，是因为真库在 `connect()` 失败后不再发射适配器，读路径根本跑不起来，
  * 「订阅时抛」这件事在那条路上无从观察。
  */
-const emptyEngineSlotRxDB = (localAdapter: object): RxDB =>
+const slotStubRxDB = (
+  localAdapter: object,
+  slots: { engine?: QueryCacheEngineFactory; outbox?: QueryCacheOutboxProvider } = {}
+): RxDB =>
   ({
     localAdapter$: of(localAdapter),
     remoteAdapter$: of({ getRepository: () => ({}) }),
@@ -106,7 +130,8 @@ const emptyEngineSlotRxDB = (localAdapter: object): RxDB =>
     addEventListener: () => undefined,
     reachability: detachedReachability(),
     entityManager: { createEntityRef: (_type: unknown, entity: unknown) => entity },
-    getQueryCacheEngine: () => undefined
+    getQueryCacheEngine: () => slots.engine,
+    getQueryCacheOutbox: () => slots.outbox
   }) as unknown as RxDB;
 
 describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
@@ -131,7 +156,7 @@ describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
 
   it('兜底在读路径上：槽位空时首次订阅即抛，不退回本地仓储', async () => {
     const localAdapter = { getRepository: vi.fn(() => ({})) };
-    const repository = new Repository(emptyEngineSlotRxDB(localAdapter), CachedProduct);
+    const repository = new Repository(slotStubRxDB(localAdapter), CachedProduct);
 
     await expect(firstValueFrom(repository.findAll({ where: { combinator: 'and', rules: [] } }))).rejects.toThrow(
       RxDBMissingPluginError
@@ -140,15 +165,17 @@ describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
     expect(localAdapter.getRepository).not.toHaveBeenCalled();
   });
 
-  it('装上引擎后放行：同一份配置连得上，且护栏不波及非 QueryCache 实体', async () => {
+  it('两个槽都填上后放行：同一份配置连得上，且护栏不波及非 QueryCache 实体', async () => {
     const { rxdb } = createDatabase('querycache-missing-plugin-installed');
     rxdb.queryCacheEngine(createEngineFactoryStub());
+    // 出站队列是 D3 之后的第二个槽；只填引擎连不上，见下面那个 describe
+    rxdb.queryCacheOutbox(createOutboxStub());
 
     await expect(rxdb.connect('sqlite')).resolves.toBeDefined();
     expect(() => rxdb.entityManager.getRepository(PlainProduct)).not.toThrow();
   });
 
-  it('库里没有 QueryCache 实体时护栏静默：不装引擎照样连得上', async () => {
+  it('库里没有 QueryCache 实体时护栏静默：两个插件都不装照样连得上', async () => {
     const rxdb = new RxDB({
       dbName: 'querycache-missing-plugin-irrelevant',
       entities: [PlainProduct],
@@ -157,5 +184,42 @@ describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
     rxdb.adapter('sqlite', createMockAdapter);
 
     await expect(rxdb.connect('sqlite')).resolves.toBeDefined();
+  });
+});
+
+describe('US-025 D3：装了引擎却没装同步插件（查询出站队列）时的启动护栏', () => {
+  it('connect() 直接失败，错误点名缺的是队列而不是引擎', async () => {
+    const { rxdb } = createDatabase('querycache-missing-outbox-connect');
+    rxdb.queryCacheEngine(createEngineFactoryStub());
+
+    await expect(rxdb.connect('sqlite')).rejects.toThrow(RxDBMissingPluginError);
+    await expect(rxdb.connect('sqlite')).rejects.toThrow(/CachedProduct/);
+    await expect(rxdb.connect('sqlite')).rejects.toThrow(/@aiao\/rxdb-plugin-sync/);
+    // 这一条是重点：引擎**已经装了**，还报「no engine is installed」会把人指向装好的那一半，
+    // 于是照着错误提示做的每一步都不可能修好它。
+    await expect(rxdb.connect('sqlite')).rejects.toThrow(/no outbox queue is installed/);
+  });
+
+  it('不静默兜底成空集：护栏拦下之后本地读的 duck 一次都不亮', async () => {
+    const { rxdb, local } = createDatabase('querycache-missing-outbox-no-fallback');
+    rxdb.queryCacheEngine(createEngineFactoryStub());
+
+    await expect(rxdb.connect('sqlite')).rejects.toThrow(RxDBMissingPluginError);
+
+    const localAdapter = local();
+    expect(localAdapter).toBeDefined();
+    expect(localAdapter?.getMetadataByIds).not.toHaveBeenCalled();
+  });
+
+  it('兜底在读路径上：队列槽空时首次订阅即抛，不退回本地仓储', async () => {
+    const localAdapter = { getRepository: vi.fn(() => ({})) };
+    const rxdb = slotStubRxDB(localAdapter, { engine: createEngineFactoryStub() });
+    const repository = new Repository(rxdb, CachedProduct);
+
+    await expect(firstValueFrom(repository.findAll({ where: { combinator: 'and', rules: [] } }))).rejects.toThrow(
+      RxDBMissingPluginError
+    );
+    // 兜底成空集的实现会在这里若无其事地建出主仓储，然后把离线写过的行当成孤儿删掉
+    expect(localAdapter.getRepository).not.toHaveBeenCalled();
   });
 });

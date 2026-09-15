@@ -13,7 +13,9 @@
  */
 import type { IRxDBAdapter, QueryCacheEntityMetadata, RemoteChange, RuleGroup } from '@aiao/rxdb';
 import { Entity, EntityBase, getEntityStatus, PropertyType, RxDB, RxDBAdapterRemoteBase, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
 import { firstValueFrom, Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -187,6 +189,12 @@ const createDatabase = async (seed: ArticleRow[]) => {
   // 读引擎在 `@aiao/rxdb-plugin-querycache`（US-025 阶段 B）；本地这一侧仍是真 sqlite-wasm，
   // 断言的「find 原样交出本地 IRepository 的实例」一字未改。
   rxdb.use(rxDBPluginQueryCache);
+  // 读引擎只是一半：对账要拿「哪些 id 还被离线写占着」把「远端没返回」和「本地写过」分开，
+  // 那个出站队列自 US-025 阶段 D 起归 `@aiao/rxdb-plugin-sync`。核心对这一槽不兜底——
+  // 当空集等于把每条离线写当孤儿删掉，所以缺席时 `connect()` 直接抛。
+  // 历史插件是被同步插件 `inject` 进来的，本用例自己一行都没用到它。
+  rxdb.use(rxDBPluginHistory);
+  rxdb.use(rxDBPluginSync);
 
   let remote!: MemoryRemoteAdapter;
   rxdb.adapter(

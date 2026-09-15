@@ -1,7 +1,9 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { recordChangeFeedNotification, recordChangeFeedUnavailable } from './change-feed-diagnostics';
 import {
@@ -137,7 +139,16 @@ export default (): RxDB => {
     // QueryCache 的读引擎不在核心包里（US-025 阶段 B），随这个插件装：`Recipe` 声明了
     // `SyncType.QueryCache`，漏装的话 `connect()` 会当场抛 `RxDBMissingPluginError`，
     // 而不是静默退化成本地查询。
-    .use(rxDBPluginQueryCache);
+    .use(rxDBPluginQueryCache)
+    // 读引擎只是一半。对账要拿「哪些 id 还被离线写占着」把「远端没返回」和「本地写过」
+    // 分开，那个出站队列自 US-025 阶段 D 起归 `@aiao/rxdb-plugin-sync`；本 demo 的
+    // 本地优先写（D5）也靠它在回网时重放。核心对这一槽同样不做兜底——当空集等于
+    // 把每条离线写当孤儿删掉，所以缺席时 `connect()` 直接抛。
+    //
+    // 历史插件是被同步插件 `inject` 进来的：出站重放收尾要作废 undo 边界，那份状态
+    // 的主人在历史侧。本 demo 自己不开分支、不撤销重做，装它纯粹是为了满足这条依赖。
+    .use(rxDBPluginHistory)
+    .use(rxDBPluginSync);
 
   connectDevTools(rxdb);
 

@@ -2,35 +2,15 @@
   "entries": {
     ".": [
       {
-        "name": "BulkSyncOptions",
-        "kind": "type"
-      },
-      {
-        "name": "BulkSyncResult",
-        "kind": "type"
-      },
-      {
-        "name": "CheckRepositoryUpdatesResult",
-        "kind": "type"
-      },
-      {
-        "name": "cleanupExpired",
+        "name": "isIgnorableDetachedVersionEventError",
         "kind": "value"
       },
       {
-        "name": "CleanupExpiredOptions",
-        "kind": "type"
+        "name": "PushInFlightRegistry",
+        "kind": "both"
       },
       {
-        "name": "CleanupExpiredResult",
-        "kind": "type"
-      },
-      {
-        "name": "DependencyGraph",
-        "kind": "type"
-      },
-      {
-        "name": "RepositorySyncStatus",
+        "name": "PushInFlightSession",
         "kind": "type"
       },
       {
@@ -50,11 +30,7 @@
         "kind": "type"
       },
       {
-        "name": "syncBranches",
-        "kind": "value"
-      },
-      {
-        "name": "SyncBranchesResult",
+        "name": "SyncHistoryBridge",
         "kind": "type"
       },
       {

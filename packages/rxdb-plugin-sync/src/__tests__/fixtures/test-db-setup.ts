@@ -246,6 +246,11 @@ export async function createTestDB(options: TestDBOptions = {}): Promise<{
   rxdb.use(rxDBPluginHistory);
   rxdb.use(rxDBPluginSync);
   rxdb.init();
+  // `init()` 之后**还不能**读 `rxdb.syncManager`：同步插件声明了 `inject: ['plugin:history']`，
+  // 而历史插件的状态要等它自己的 `install()` 落地才转 `active`，同步插件的 `install()`
+  // 因此排在 `init()` 之后的微任务里。`connect()` 是这条链唯一的公开静止点——它内部
+  // `await` 调度器 settle，返回时本纪元该装的插件全部装完。
+  await rxdb.connect('sqlite');
 
   // 经 `rxdb.disconnectAll()` 拆，而不是直接叫 `adapter.disconnect()`：
   // 后者只关了连接，插件销毁、gateway、syncManager、全局监听器全部留在原地，
@@ -292,6 +297,9 @@ export async function createTestDBWithRemote(options: TestDBOptions = {}): Promi
   rxdb.use(rxDBPluginHistory);
   rxdb.use(rxDBPluginSync);
   rxdb.init();
+  // 同 `createTestDB()`：等本地适配器连上，插件安装才尘埃落定。远端不在这里连——
+  // 用例各自决定要不要连，提前连会把「离线起步」那一类场景测没了。
+  await rxdb.connect('sqlite');
 
   const cleanup = async (): Promise<void> => {
     await rxdb.disconnectAll();

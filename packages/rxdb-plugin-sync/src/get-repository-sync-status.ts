@@ -107,7 +107,7 @@ async function calculatePushableCount(
   branchId: string,
   lastPushedChangeId: number | null
 ): Promise<number> {
-  const { adapter: localAdapter } = await rxdb.versionManager.getLocalRepositories();
+  const { adapter: localAdapter } = await rxdb.syncManager.getLocalRepositories();
   const changeRepo = localAdapter.getRepository(RxDBChange);
 
   // 构建查询规则
@@ -184,11 +184,11 @@ export async function getRepositorySyncStatus(
   const syncCapability = getSyncCapability(syncType);
 
   // 2. 获取当前分支
-  const branch = await rxdb.versionManager.getCurrentBranch();
+  const branch = await rxdb.syncManager.getCurrentBranch();
   const branchId = branch.id;
 
   // 3. 查询 RxDBSync 记录
-  const { adapter: localAdapter } = await rxdb.versionManager.getLocalRepositories();
+  const { adapter: localAdapter } = await rxdb.syncManager.getLocalRepositories();
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const repoSyncId = `${namespace}:${entity}:${branchId}`;
 

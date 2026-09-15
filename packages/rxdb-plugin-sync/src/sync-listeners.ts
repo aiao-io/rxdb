@@ -1,5 +1,4 @@
 import {
-  countQueryCacheOutbox,
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
   ENTITY_REMOTE_UPDATE_EVENT,
@@ -7,7 +6,6 @@ import {
   EntityRemoteRemovedEvent,
   EntityRemoteUpdatedEvent,
   type EntityType,
-  flushQueryCacheOutbox,
   getEntityMetadata,
   getSyncCapability,
   getSyncType,
@@ -18,6 +16,7 @@ import {
 import { isIgnorableDetachedVersionEventError } from '@aiao/rxdb-plugin-history';
 import { combineLatest, merge, type Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
+import { countQueryCacheOutbox, flushQueryCacheOutbox } from './query-cache-outbox.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**

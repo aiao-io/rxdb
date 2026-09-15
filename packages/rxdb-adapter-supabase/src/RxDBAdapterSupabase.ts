@@ -912,10 +912,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 断线期间远端攒下的变更本地一条都没听见，重新订阅只保证「从现在起听得见」、不补历史，
    * 所以订阅一恢复就得回头按各仓库的水位线重数一遍。
    *
-   * 走 `syncState` 的跳板而不是直接调 `rxdb.versionManager.refreshPullableCount()`：
-   * 重数那段逻辑自 US-025 阶段 C 起住在 `@aiao/rxdb-plugin-history` 里，本适配器不认识它。
+   * 走 `syncState` 的跳板而不是直接调 `rxdb.syncManager.refreshPullableCount()`：
+   * 重数那段逻辑自 US-025 阶段 D 起住在 `@aiao/rxdb-plugin-sync` 里，本适配器不认识它。
    * 宿主没装那个插件时请求发进空里 —— 待拉数本就无人维护，这正是该有的行为。
-   * 即发即忘，错误处理归执行者自己（见插件的 `history:pullableRefresh`）。
+   * 即发即忘，错误处理归执行者自己（见插件的 `sync:pullableRefresh`）。
    */
   #refreshPullableCount(): void {
     this.rxdb.syncState.requestPullableRefresh();

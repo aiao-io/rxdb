@@ -24,7 +24,7 @@ export class RxDBError extends Error {
  * @example
  * ```typescript
  * try {
- *   await rxdb.versionManager.pull({ fetchAll: true });
+ *   await rxdb.syncManager.pull({ fetchAll: true });
  * } catch (error) {
  *   if (error instanceof RxDBPartialSyncError) {
  *     console.warn(`已应用 ${error.result.applied} 条后中断`, error.cause);
@@ -138,6 +138,11 @@ export class RxDBLocalAdapterCapabilityError extends RxDBError {
  * `SyncType.QueryCache` 这个取值留在核心（策略轴闭合，`Repository` 的分支要靠它判定）。
  * 缺口因此是结构性的：配置写得出来，实现可能不在。
  *
+ * 阶段 D 之后同一个实体有**两个**这样的缺口：读引擎在 querycache 插件，出站队列在
+ * `@aiao/rxdb-plugin-sync`。两处各抛各的，靠 {@link RxDBMissingPluginError.subject} 区分 ——
+ * 装了一个没装另一个的人，读到的必须是还缺哪一半，而不是一句对他已经不成立的
+ * 「引擎没装」。
+ *
  * 抛在 `connect()` 里而不是等到第一次 `find()`：配置错误要在启动时响。也**不降级为本地读**
  * —— 降级之后调用方看到的是「远端没有数据」，与 {@link RxDBQueryCacheCapabilityError}
  * 拒绝降级是同一条理由。
@@ -159,10 +164,16 @@ export class RxDBMissingPluginError extends RxDBError {
     /** 要安装的包名 */
     readonly packageName: string,
     /** 装上之后的注册写法 */
-    readonly registration: string
+    readonly registration: string,
+    /**
+     * 缺的那一半叫什么，嵌进 `no ${subject} is installed`。
+     *
+     * @defaultValue `'engine'`
+     */
+    readonly subject: string = 'engine'
   ) {
     super(
-      `Entity '${entity}' declares ${capability} but no engine is installed. ` +
+      `Entity '${entity}' declares ${capability} but no ${subject} is installed. ` +
         `Install '${packageName}' and register it via ${registration}.`
     );
     this.name = 'RxDBMissingPluginError';

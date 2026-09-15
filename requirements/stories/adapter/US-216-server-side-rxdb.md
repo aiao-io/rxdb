@@ -79,7 +79,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
   是 US-021 的验收行为，属既有结论引用。
 - wire 不变的总判据：本故事落地前后各跑一次 `dev-rxdb-http-server` 的 `server.spec.ts`（端点级契约，断言内容不变）
   与 `dev-rxdb-http-e2e`（17 条），差异必须为零。US-213 套件测的是适配器 vs 它自己的
-  `tests/reference-server.ts`（[wire-integration.spec.ts:47](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts#L47)
+  `tests/reference-server.ts`（[`startReferenceServer`](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts)
   的导入证实），本故事不触碰两者，只要求保持绿——它**不作**本后端的一致性证据。
 
 ## 范围边界

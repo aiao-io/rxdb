@@ -6,7 +6,8 @@
  *
  * 本模块只做汇聚，不做查询：数据源由 {@link SyncStateSources} 注入，
  * 真正的 DB 读取留在各自的归属模块里（可达性在 `network/reachability.ts`，
- * changelog 待推数在 `HistoryManager`，QueryCache 出站数在 `repository/query-cache-outbox.ts`）。
+ * changelog 待推数在 `@aiao/rxdb-plugin-history` 的 `HistoryManager`，QueryCache 出站数在
+ * `@aiao/rxdb-plugin-sync` 的 `query-cache-outbox.ts`）。
  * 这样这一层可以用普通 Subject 完整测出来，不必搭一整个 RxDB。
  */
 
@@ -195,7 +196,7 @@ export class SyncStateHub {
   /**
    * 接上「重算待拉数」的执行者，返回解绑函数
    *
-   * @param refresh - 执行重算的回调，通常是 `VersionManager.refreshPullableCount()` 的包装
+   * @param refresh - 执行重算的回调，通常是 `SyncManager.refreshPullableCount()` 的包装
    * @returns 解绑函数
    *
    * @remarks

@@ -12,6 +12,7 @@
 import { encodeRxDBChangeEntityId, RxDB, RxDBChange, RxDBSync, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
@@ -105,10 +106,12 @@ describe('Pull/Push 数据完整性测试', () => {
         })
     );
 
-    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
-    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
     // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
 
     await rxdb.connect('wa-sqlite');
     remoteAdapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
@@ -159,7 +162,7 @@ describe('Pull/Push 数据完整性测试', () => {
       todo.title = `${testPrefix}-push-verify-1`;
       await todo.save();
 
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 验证远程 RxDBChange 表
       const { data: remoteChanges } = await remoteAdapter.client
@@ -194,7 +197,7 @@ describe('Pull/Push 数据完整性测试', () => {
       todo.title = `${testPrefix}-push-lastid-1`;
       await todo.save();
 
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 使用直接 SQL 查询验证（绕过实体缓存）。
       const directResult = await localAdapter.internalQuery(
@@ -210,12 +213,12 @@ describe('Pull/Push 数据完整性测试', () => {
       const todo = new Todo();
       todo.title = `${testPrefix}-push-update-1`;
       await todo.save();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 更新并 push
       todo.title = `${testPrefix}-push-update-2`;
       await todo.save();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 验证远程有 UPDATE 类型的 change
       const { data: remoteChanges } = await remoteAdapter.client
@@ -233,7 +236,7 @@ describe('Pull/Push 数据完整性测试', () => {
       const todo = new Todo();
       todo.title = `${testPrefix}-push-delete-1`;
       await todo.save();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 验证远程有数据
       const { data: beforeDelete } = await remoteAdapter.client.from('todos').select('*').eq('id', todo.id);
@@ -241,7 +244,7 @@ describe('Pull/Push 数据完整性测试', () => {
 
       // 删除并 push
       await todo.remove();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 验证远程数据被删除
       const { data: afterDelete } = await remoteAdapter.client.from('todos').select('*').eq('id', todo.id);
@@ -264,7 +267,7 @@ describe('Pull/Push 数据完整性测试', () => {
     it('pull 后本地 RxDBChange 表不应该有从远程拉下来的记录', async () => {
       // 清理之前测试留下的本地 changes
       await cleanupLocalChanges();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 清理远程数据，确保测试隔离
       await cleanupRemoteData(remoteAdapter);
@@ -278,7 +281,7 @@ describe('Pull/Push 数据完整性测试', () => {
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // 拉取。
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
 
       // 验证本地 RxDBChange 表中不应该有这条记录
       const changeRepo = localAdapter.getRepository(RxDBChange);
@@ -306,7 +309,7 @@ describe('Pull/Push 数据完整性测试', () => {
     });
 
     it('pull 后 lastPullRemoteChangeId 应该更新', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const branch = await rxdb.versionManager.getCurrentBranch();
       const repoSyncId = `public:Todo:${branch.id}`;
@@ -323,7 +326,7 @@ describe('Pull/Push 数据完整性测试', () => {
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-pull-lastid-1` });
 
       // 拉取。
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
 
       // 使用直接 SQL 查询验证（绕过实体缓存）
       const updatedResult = await localAdapter.internalQuery(
@@ -338,14 +341,14 @@ describe('Pull/Push 数据完整性测试', () => {
       expect(updatedLastPullId).toBeGreaterThan(initialLastPullId);
     });
     it('pull 的数据应该正确应用到本地实体表', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 远程创建数据
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-pull-entity-1` });
 
       // 拉取。
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
 
       // 使用 localAdapter 直接查询
       const TodoRepo = localAdapter.getRepository(Todo);
@@ -368,14 +371,14 @@ describe('Pull/Push 数据完整性测试', () => {
     it('pull 来的数据不应该出现在本地 RxDBChange 表中', async () => {
       // 清理之前测试留下的本地 changes
       await cleanupLocalChanges();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 远程创建数据
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-remoteid-filter-1` });
 
       // 拉取。
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
 
       // 验证本地 RxDBChange 表中不应该有这条记录
       const changeRepo = localAdapter.getRepository(RxDBChange);
@@ -414,7 +417,7 @@ describe('Pull/Push 数据完整性测试', () => {
   // ========================================
   describe('变更压缩后的数据验证', () => {
     it('INSERT→UPDATE* 压缩实体写入并保留完整远程历史', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const todo = new Todo();
       todo.title = `${testPrefix}-compact-1`;
@@ -426,7 +429,7 @@ describe('Pull/Push 数据完整性测试', () => {
       todo.title = `${testPrefix}-compact-3`;
       await todo.save();
 
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.compacted).toBeGreaterThanOrEqual(2);
       expect(pushResult.pushed).toBe(1);
 
@@ -446,7 +449,7 @@ describe('Pull/Push 数据完整性测试', () => {
     });
 
     it('INSERT→DELETE 压缩后远程应该没有记录', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const todo = new Todo();
       todo.title = `${testPrefix}-compact-delete-1`;
@@ -454,7 +457,7 @@ describe('Pull/Push 数据完整性测试', () => {
 
       await todo.remove();
 
-      const result = await rxdb.versionManager.push();
+      const result = await rxdb.syncManager.push();
       expect(result.compacted).toBeGreaterThanOrEqual(2);
       expect(result.pushed).toBe(0);
 

@@ -17,28 +17,41 @@
  * 共用的是**队列与水位线**：出站行就是触发器已经在写的 `rxdb_change`，水位线就是
  * `RxDBSync.lastPushedChangeId`（`syncType` 的联合类型里本来就有 `'querycache'`）。
  * 不同的只有提交动作。
+ *
+ * **为什么在 sync 插件里**（US-025 阶段 D）：正因为共用那条水位线，它是 changelog 的
+ * 第二个消费者，与 push / pull 是同一类东西。按本次拆分的规则「搬走的是消费者，不是
+ * 原语」，`rxdb_change` / `RxDBSync` 两张表与它们的解析函数留在核心，读它们的这三个
+ * 入口随本包走。核心侧只剩 `QueryCacheOutboxProvider` 那一个接口 —— `Repository` 建
+ * QueryCache 会话时要问一次「谁还占着 id」，由 {@link pendingQueryCacheWriteIds} 应答。
  */
 
+import {
+  buildOfflineWriteRepositoryRules,
+  compactChanges,
+  type ConflictResolver,
+  type EntityType,
+  findCurrentSyncRecord,
+  getCurrentBranch,
+  getEntityMetadata,
+  getLocalSystemRepositories,
+  getOrCreateSyncRecord,
+  getRxDBChangeKey,
+  getSyncType,
+  type IRepository,
+  isNetworkError,
+  isRepositorySyncEnabled,
+  LWWConflictResolver,
+  type QueryCacheRemoteAdapter,
+  type RxDB,
+  RxDBChange,
+  type RxDBChangeRuleGroup,
+  RxDBError,
+  RxDBSync,
+  type SwitchVersionActions,
+  type SwitchVersionChange,
+  SYNC_DISABLED_REASON
+} from '@aiao/rxdb';
 import { firstValueFrom, type Observable } from 'rxjs';
-import type { EntityType } from '../entity/entity.interface.js';
-import { getEntityMetadata } from '../rxdb-utils.js';
-import type { RxDB } from '../RxDB.js';
-import { RxDBError } from '../RxDBError.js';
-import { compactChanges } from '../sync-contract/compact-changes.js';
-import type { ConflictResolver } from '../sync-contract/conflict.js';
-import { LWWConflictResolver } from '../sync-contract/LWWConflictResolver.js';
-import { buildOfflineWriteRepositoryRules } from '../sync-contract/pushable-repository-rules.js';
-import { findCurrentSyncRecord, getOrCreateSyncRecord } from '../sync-contract/sync-record-utils.js';
-import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../sync-contract/sync-type-utils.js';
-import type { SwitchVersionActions, SwitchVersionChange } from '../sync-contract/VersionManager.interface.js';
-import { getRxDBChangeKey } from '../sync-contract/VersionManager.utils.js';
-import { RxDBChange } from '../system/change.js';
-import { RxDBSync } from '../system/sync.js';
-import { getCurrentBranch, getLocalSystemRepositories } from '../system/system-repositories.js';
-import type { RxDBChangeRuleGroup } from '../system/types.js';
-import { isNetworkError } from './network-error.js';
-import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
-import type { IRepository } from './repository.interface.js';
 
 /** 压缩后每条净操作的类型 */
 type OutboxKind = 'INSERT' | 'UPDATE' | 'DELETE';
@@ -480,7 +493,7 @@ function resolveQueryCacheSyncType(rxdb: RxDB, namespace: string, entity: string
   if (syncType !== 'querycache') {
     throw new RxDBError(
       `flushQueryCacheOutbox only handles syncType 'querycache'; ${namespace}/${entity} is '${syncType}'. ` +
-        `Repositories with a changelog endpoint push through versionManager.push().`
+        `Repositories with a changelog endpoint push through syncManager.push().`
     );
   }
   return syncType;

@@ -9,6 +9,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -70,10 +71,12 @@ describe('同步测试 - SQLite + Supabase', () => {
         })
     );
 
-    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
-    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
     // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
 
     // 连接本地 SQLite
     await rxdb.connect('wa-sqlite');
@@ -159,7 +162,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       todo.title = `${testPrefix}-Push Test`;
       await todo.save();
 
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
 
       // 验证远程数据
@@ -178,7 +181,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       });
 
       // 本地 pull
-      const pullResult = await rxdb.versionManager.pull();
+      const pullResult = await rxdb.syncManager.pull();
       expect(pullResult.pulled).toBeGreaterThanOrEqual(1);
 
       // 验证本地能看到远程数据
@@ -202,7 +205,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       });
 
       // 本地 pull 获取数据
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
 
       // 本地修改
       const localTodo = await firstValueFrom(
@@ -230,7 +233,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       await updateRemoteData(conflictId, { title: `${testPrefix}-Remote Modified` });
 
       // 本地 pull（应该检测到远程变更）
-      const pullResult = await rxdb.versionManager.pull();
+      const pullResult = await rxdb.syncManager.pull();
       expect(pullResult).toBeDefined();
     });
   });
@@ -252,7 +255,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       }
 
       // 重连后 push
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
 
       // 应该推送变更
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
@@ -280,7 +283,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       await localTodo.save();
 
       // 调用 sync()
-      const syncResult = await rxdb.versionManager.sync();
+      const syncResult = await rxdb.syncManager.sync();
 
       expect(syncResult).toBeDefined();
       expect(syncResult).toHaveProperty('pullResult');
@@ -300,7 +303,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       const testPrefix7 = `${testPrefix}-compact`;
 
       // 先清空之前测试的 pending changes
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 创建 Todo
       const todo = new Todo();
@@ -311,7 +314,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       await todo.remove();
 
       // Push 应该压缩掉这两个变更
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
 
       // INSERT + DELETE = 压缩后应该为 0
       expect(pushResult.compacted).toBeGreaterThanOrEqual(2);
@@ -337,7 +340,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       await todo.save();
 
       // Push 应该压缩为单个 INSERT
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
 
       // 1 INSERT + 3 UPDATE = 4 原始，压缩后 = 1 INSERT
       expect(pushResult.compacted).toBeGreaterThanOrEqual(3);
@@ -357,14 +360,14 @@ describe('同步测试 - SQLite + Supabase', () => {
       const testPrefix9 = `${testPrefix}-undo`;
 
       // 清空之前的 pending changes，确保起始状态干净
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const history = rxdb.versionManager.history();
       const todo = new Todo();
       todo.title = `${testPrefix9}-Undo Test`;
       await todo.save();
 
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
 
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -383,7 +386,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       const testPrefix10 = `${testPrefix}-undo-new`;
 
       // 清空之前的 pending changes
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 获取 history API
       const history = rxdb.versionManager.history();
@@ -393,7 +396,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       const todo1 = new Todo();
       todo1.title = `${testPrefix10}-First`;
       await todo1.save();
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
 
       // 等待 push 完成和 branch 更新传播

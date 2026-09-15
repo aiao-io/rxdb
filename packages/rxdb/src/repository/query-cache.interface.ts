@@ -5,8 +5,9 @@
  * 留在核心：它们与 `RxDBAdapterRemoteBase` 的 `fetchMetadata` / `findByIds` 两个 abstract
  * 原语同一性质 —— 适配器要照着实现的形状。搬走的是消费者（引擎），不是原语。
  *
- * 另有两处核心内消费者：`query-cache-outbox.ts` 要 {@link QueryCachePendingWriteIds}，
- * `query-options.interface.ts` 要 {@link SyncStats}。
+ * 核心内仍有一处消费者：`query-options.interface.ts` 要 {@link SyncStats}。
+ * {@link QueryCachePendingWriteIds} 的实现自 US-025 阶段 D 起在 `@aiao/rxdb-plugin-sync`，
+ * 核心只在 `Repository` 建会话时经 `QueryCacheOutboxProvider` 转交一次。
  */
 
 import type { Observable } from 'rxjs';
@@ -169,7 +170,8 @@ export interface SyncStats {
  * @returns 还没推回远端的那些实体 id
  *
  * @remarks
- * 生产实现是 `pendingQueryCacheWriteIds`；它读的是 `rxdb_change`，与出站队列重放的
- * 取行条件同源。本类只认这个函数，不认版本管理器 —— 缓存仓储不该反向依赖同步子系统。
+ * 生产实现是 `@aiao/rxdb-plugin-sync` 的 `pendingQueryCacheWriteIds`；它读的是 `rxdb_change`，
+ * 与出站队列重放的取行条件同源。本类只认这个函数，不认同步插件 —— 缓存仓储不该反向
+ * 依赖同步子系统。
  */
 export type QueryCachePendingWriteIds = () => Promise<ReadonlySet<string>>;

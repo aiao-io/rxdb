@@ -13,7 +13,7 @@ import {
   type QueryCachePrimary,
   type QueryCacheSession
 } from './query-cache-engine.interface.js';
-import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
+import { missingQueryCacheOutboxError } from './query-cache-outbox.interface.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -509,7 +509,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param namespace - 实体命名空间，出站队列按它取行
    * @param entityName - 元数据里的实体名（打包压缩后 `EntityType.name` 不可靠）
    * @param sync - 已收窄到 QueryCache 的同步配置
-   * @throws {@link RxDBMissingPluginError} 引擎槽是空的
+   * @throws {@link RxDBMissingPluginError} 引擎槽或出站队列槽是空的
    *
    * @remarks
    * 这是 `connect()` 启动护栏之外的第二道：仓储是惰性建的，而插件可以在连上之后随
@@ -519,9 +519,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 而插件到 `connect()` 才安装 —— 构造期取引擎必然误报。会话建好即缓存到字段，
    * 适配器流后续每次发射都复用同一份记忆（记忆活不过一次 `find` 就没有意义）。
    *
-   * `pendingWriteIds` 由**本层**算好传进去（US-025 B5）：读引擎对 `version/` 保持零依赖，
-   * 写回出站队列留在核心。每轮同步现问一次、不缓存 —— 缓存一份快照就等于给「问完之后
-   * 排进来的写」开了个删除口子。
+   * `pendingWriteIds` 由**本层**转交（US-025 B5）：读引擎不认识出站队列，出站队列也不
+   * 认识读引擎，两边只在这一行相遇。队列实现自 US-025 阶段 D 起随 `@aiao/rxdb-plugin-sync`
+   * 走，因此这里取的是注册槽而不是值导入 —— 一个只读不写的应用不该因为声明了
+   * QueryCache 就把整条推送链拖进依赖图。每轮同步现问一次、不缓存 —— 缓存一份快照就
+   * 等于给「问完之后排进来的写」开了个删除口子。
    */
   #resolveQueryCacheSession(namespace: string, entityName: string, sync: QueryCacheSyncOptions): QueryCacheSession<T> {
     const existing = this.#queryCacheSession;
@@ -529,6 +531,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
 
     const factory = this.rxdb.getQueryCacheEngine();
     if (factory === undefined) throw missingQueryCacheEngineError(entityName);
+    const outbox = this.rxdb.getQueryCacheOutbox();
+    if (outbox === undefined) throw missingQueryCacheOutboxError(entityName);
 
     const session = factory.createSession<T>({
       EntityType: this.EntityType,
@@ -537,7 +541,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       syncStaleTime: sync.local.syncStaleTime,
       reachability: this.rxdb.reachability,
       syncState: this.rxdb.syncState,
-      pendingWriteIds: () => pendingQueryCacheWriteIds(this.rxdb, namespace, entityName)
+      pendingWriteIds: () => outbox.pendingWriteIds(namespace, entityName)
     });
     this.#queryCacheSession = session;
     return session;

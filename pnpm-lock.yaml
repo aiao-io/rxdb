@@ -1210,9 +1210,15 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       '@aiao/rxdb-plugin-querycache':
         specifier: workspace:*
         version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1349,6 +1355,9 @@ importers:
       '@aiao/rxdb-plugin-querycache':
         specifier: workspace:*
         version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1402,6 +1411,9 @@ importers:
       '@aiao/rxdb-plugin-querycache':
         specifier: workspace:*
         version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test

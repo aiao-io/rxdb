@@ -157,7 +157,7 @@ async function syncSingleRepository(
   error?: Error;
 }> {
   try {
-    const result = await syncRepository(rxdb.versionManager, repo.namespace, repo.entity, syncOptions);
+    const result = await syncRepository(rxdb.syncManager, repo.namespace, repo.entity, syncOptions);
 
     return {
       repository: repo,

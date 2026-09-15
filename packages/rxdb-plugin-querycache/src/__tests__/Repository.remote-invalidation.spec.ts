@@ -38,7 +38,7 @@ import {
   QueryCacheSyncMemo
 } from '../query-cache-sync-memo.js';
 import { QueryCacheEngine } from '../QueryCacheEngine.js';
-import { noPendingWrites, systemRepositoryStub } from './fixtures/pending-writes.js';
+import { noPendingWriteOutbox, noPendingWrites } from './fixtures/pending-writes.js';
 import { METADATA, STATUS } from './fixtures/private-symbols.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
@@ -153,9 +153,7 @@ const createLocalRepo = (stores: Stores) => ({
 
 const createLocalAdapter = (stores: Stores, localRepo: ReturnType<typeof createLocalRepo>) => ({
   name: 'local',
-  // 系统表（分支 / rxdb_change / rxdb_sync）分流到只读替身：真实适配器本来就按
-  // 实体类给不同仓储，而 `pendingQueryCacheWriteIds` 自 US-025 阶段 C 起就从这里取。
-  getRepository: vi.fn((EntityType: unknown) => systemRepositoryStub(EntityType) ?? localRepo),
+  getRepository: vi.fn(() => localRepo),
   getMetadataByIds: vi.fn(() => of(new Map<string, string>())),
   upsertMany: vi.fn((_entityName: string, rows: RecipeEntity[]) => {
     rows.forEach(entity => stores.local.set(entity.id, entity));
@@ -227,6 +225,10 @@ const setup = (
     // `rxdb.queryCacheEngine()` 填槽，手搭的 `rxdb` 替身得把这个槽补上。用真工厂而不是桩：
     // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
     getQueryCacheEngine: () => new RxDBQueryCacheEngineFactory(),
+    // 出站队列是第二个槽，自 US-025 阶段 D 起归 `@aiao/rxdb-plugin-sync`。这里用桩而不是
+    // 真实现：本包的用例验的是读引擎，队列只需答「没有离线写占着」——两个插件之间
+    // 本来就只有这一问一答，替身补的正是那一句。
+    getQueryCacheOutbox: () => noPendingWriteOutbox,
     removeEventListener,
     dispatchEvent,
     reachability: detachedReachability(),

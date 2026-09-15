@@ -14,19 +14,22 @@
  * 3. **远端不可达时立刻停手**，不把剩下的动作在一条已知断掉的连接上白跑一遍。
  */
 
+import {
+  Entity,
+  ENTITY_STATIC_TYPES,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType
+} from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EntityBase } from '../../entity/entity-base.js';
-import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
-import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../../repository/query-cache-outbox.js';
-import { getEntityMetadata } from '../../rxdb-utils.js';
-import type { RxDB } from '../../RxDB.js';
-import { RxDBBranch } from '../../system/branch.js';
-import { RxDBChange } from '../../system/change.js';
-import { RxDBSync } from '../../system/sync.js';
-import { detachedReachability } from '../fixtures/reachability.js';
+import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../query-cache-outbox.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 @Entity({
   name: 'CachedRecipe',

@@ -50,6 +50,10 @@
         "kind": "type"
       },
       {
+        "name": "buildOfflineWriteRepositoryRules",
+        "kind": "value"
+      },
+      {
         "name": "buildPushableRepositoryRules",
         "kind": "value"
       },
@@ -100,10 +104,6 @@
       {
         "name": "CountOptions",
         "kind": "type"
-      },
-      {
-        "name": "countQueryCacheOutbox",
-        "kind": "value"
       },
       {
         "name": "CurrencyFormat",
@@ -488,10 +488,6 @@
       {
         "name": "FindTreeOptions",
         "kind": "type"
-      },
-      {
-        "name": "flushQueryCacheOutbox",
-        "kind": "value"
       },
       {
         "name": "formatEntityFieldValue",
@@ -894,10 +890,6 @@
         "kind": "value"
       },
       {
-        "name": "pendingQueryCacheWriteIds",
-        "kind": "value"
-      },
-      {
         "name": "PercentageFormat",
         "kind": "type"
       },
@@ -982,11 +974,7 @@
         "kind": "type"
       },
       {
-        "name": "QueryCacheOutboxFailure",
-        "kind": "type"
-      },
-      {
-        "name": "QueryCacheOutboxResult",
+        "name": "QueryCacheOutboxProvider",
         "kind": "type"
       },
       {

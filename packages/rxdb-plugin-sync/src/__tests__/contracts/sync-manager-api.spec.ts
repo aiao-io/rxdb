@@ -9,9 +9,10 @@
  *
  * 这里两条都不抄：
  *
- * 1. **类型只从公开入口取。** by-name 导出的直接 `import from '@aiao/rxdb'` 或 `'../../index.js'`；
- *    `BulkSyncOptions` / `RepositorySyncStatus` 等没有 by-name 导出的，从
- *    `RxDB['syncManager']` 的方法签名反推——那正是消费者唯一能拿到它们的路径。
+ * 1. **类型只从公开入口取。** `import from '@aiao/rxdb'`（推拉的契约形状）或 `'../../index.js'`
+ *    （本包的桶）——那正是消费者手上的路径。反过来从 `RxDB['syncManager']` 的方法签名
+ *    `Parameters<...>` 反推是**不够**的：那样导出的类型换成另一份等价结构也照样绿，而用户
+ *    `import type { BulkSyncOptions }` 拿到的是桶里那一份。所以这里具名导入、再拿签名去比它。
  *    断言用 `expectTypeOf` / `@ts-expect-error`，vitest 运行时是 no-op，真正执行它们的是
  *    `tsc -p tsconfig.spec.json --noEmit`：签名再漂就是编译错误，不是绿灯。
  * 2. **行为断言穿真实 `RxDB` + 真实 `SyncManager`**（`createTestDB()`），不打桩任何一层。
@@ -24,7 +25,7 @@
 
 import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 // 公开入口现在是两个包：推拉的**契约形状**留在核心（适配器与 QueryCache 也照着它写），
-// `CheckRepositoryUpdatesResult` 这种只有历史子系统会返回的形状跟着实现进插件。
+// `CheckRepositoryUpdatesResult` 这种只有同步子系统会返回的形状跟着实现进插件。
 // 两边各取各的，正是消费者手上的路径。
 import type {
   PullRepositoryOptions,
@@ -36,19 +37,24 @@ import type {
   SyncRepositoryOptions,
   SyncRepositoryResult
 } from '@aiao/rxdb';
-import type { CheckRepositoryUpdatesResult } from '../../index.js';
+import type {
+  BulkSyncOptions,
+  BulkSyncResult,
+  CheckRepositoryUpdatesResult,
+  GetAllRepositorySyncStatusFilter,
+  RepositorySyncStatus
+} from '../../index.js';
 import { createTestDB } from '../fixtures/test-db-setup.js';
 
 type SyncManagerApi = RxDB['syncManager'];
 
-// `bulk-sync.ts` / `get-repository-sync-status.ts` / `get-all-repository-sync-status.ts`
-// 都没有从 `src/index.ts` 导出。消费者只能经 `rxdb.syncManager` 这条公开路径看到它们，
-// 所以这里也只从方法签名反推——反推得到的就是消费者手上的全部信息。
+// 这五个都从本包的桶具名导入（US-025 阶段 D 之前它们连同实现住在
+// `@aiao/rxdb-plugin-history`，`GetAllRepositorySyncStatusFilter` 那时还没进任何桶）。
+// 于是下面「入口签名」那一组不再是自证：左边是 `rxdb.syncManager` 上的真实方法类型，
+// 右边是用户 `import type` 能拿到的那一份，两边对不上就是编译错误。
 // （删掉的五个文件是反过来做的：自己抄一份，于是抄件和生产各活各的。）
-type BulkSyncOptions = NonNullable<Parameters<SyncManagerApi['bulkSync']>[0]>;
-type BulkSyncResult = Awaited<ReturnType<SyncManagerApi['bulkSync']>>;
-type RepositorySyncStatus = Awaited<ReturnType<SyncManagerApi['getRepositorySyncStatus']>>;
-type GetAllRepositorySyncStatusFilter = NonNullable<Parameters<SyncManagerApi['getAllRepositorySyncStatus']>[0]>;
+//
+// `SyncTypeValue` 仍然反推，因为它没有独立的类型名——它就是 `syncType` 字段的联合。
 type SyncTypeValue = RepositorySyncStatus['syncType'];
 
 // 下面三个 `as const` 数组同时被类型断言和运行时断言使用，这是本文件的关键接缝：
@@ -109,7 +115,7 @@ describe('SyncManager 仓库级同步 API 公开契约', () => {
       >();
     });
 
-    it('没有 by-name 导出的四个形状，成员仍然钉死（含它们对公开 RepositoryIdentifier 的引用）', () => {
+    it('四个形状的成员逐条钉死（含它们对公开 RepositoryIdentifier 的引用）', () => {
       expectTypeOf<(typeof STATUS_KEYS)[number]>().toEqualTypeOf<keyof RepositorySyncStatus>();
       expectTypeOf<RepositorySyncStatus['repository']>().toEqualTypeOf<RepositoryIdentifier>();
       expectTypeOf<RepositorySyncStatus['branchId']>().toEqualTypeOf<string>();

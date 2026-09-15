@@ -354,7 +354,7 @@ export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions): b
  * @remarks
  * 与 {@link needsPush} 是两个正交问题，别用其中一个替代另一个：`querycache` 在这里是
  * `true`、在 `needsPush` 是 `false`。回推驱动按这两个字段分派 ——
- * `push` 的走 `versionManager.push()`，`offlineWrite && !push` 的走 QueryCache 出站重放。
+ * `push` 的走 `syncManager.push()`，`offlineWrite && !push` 的走 QueryCache 出站重放。
  */
 export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
   return getSyncCapability(getSyncType(metadata, globalSync)).offlineWrite;

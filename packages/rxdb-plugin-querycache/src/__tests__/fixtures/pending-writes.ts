@@ -2,7 +2,7 @@
  * @fileoverview QueryCache 出站队列占用的测试替身
  */
 
-import { RxDBBranch, RxDBChange, RxDBSync, type QueryCachePendingWriteIds } from '@aiao/rxdb';
+import type { QueryCacheOutboxProvider, QueryCachePendingWriteIds } from '@aiao/rxdb';
 
 /**
  * 出站队列是空的：同步流程按「远端权威」照常处置每一行。
@@ -19,33 +19,16 @@ import { RxDBBranch, RxDBChange, RxDBSync, type QueryCachePendingWriteIds } from
 export const noPendingWrites: QueryCachePendingWriteIds = async () => new Set<string>();
 
 /**
- * 本地适配器上的**系统表**仓储替身：分支答一个激活的 `main`，另两张表答空。
+ * 同一个「队列空」，包成核心要的注册槽形状。
  *
  * @remarks
- * `pendingQueryCacheWriteIds` 要三样东西：当前分支、本地适配器上的 `rxdb_change` 仓储、
- * 同一仓库的 `RxDBSync` 水位线。手搭 `as unknown as RxDB` 的用例本来就没接版本子系统，
- * 这里把这三样一次补齐，让它们继续只验自己那件事。
+ * 手搭 `as unknown as RxDB` 的用例要补这个槽：`Repository` 建 QueryCache 会话前会先
+ * `getQueryCacheOutbox()`，空槽当场抛 `RxDBMissingPluginError`。
  *
- * 替身从前挂在 `VersionManager` 上（那时 `pendingQueryCacheWriteIds` 收的就是它）。
- * US-025 阶段 C 之后它收 `RxDB`，经 `getCurrentBranch(rxdb)` /
- * `getLocalSystemRepositories(rxdb)` 真的从 `localAdapter$` 上取仓储，
- * 替身只能落到适配器的 `getRepository()` 上——**按实体类分流**，
- * 否则系统表读会打到业务行仓储上，拿一批 `CachedEntity` 当分支用。
- *
- * 分支必须答得出来：查不到激活分支时 `getCurrentBranch` 会掉进冷路径，开一次事务
- * 再 `update` / `create`，而这里的适配器替身没有 `transaction`。
- *
- * 另两张表答空 —— 没有水位线、队列里没有行 —— 于是 `pendingQueryCacheWriteIds`
- * 返回空集，同步流程照「远端权威」跑，与搬迁之前逐字一致。
- *
- * 队列**非空**时的行为不在这里验，由 `query-cache-primary.offline-write.spec.ts`
- * 用显式的占用集合专门守着。
- *
- * @param EntityType - `getRepository()` 收到的实体类
- * @returns 系统表的只读替身；不是系统表则 `undefined`，交回调用方落到业务行仓储
+ * 替身**只答一个空集**，不再模拟 `rxdb_change` / `rxdb_sync` / `rxdb_branch` 三张系统表 ——
+ * US-025 阶段 D 把队列实现搬进了 `@aiao/rxdb-plugin-sync`，本包的读路径从此一行 changelog
+ * 代码都不再触及（阶段 C 时它还要经 `getCurrentBranch()` / `getLocalSystemRepositories()`
+ * 真的去读，那份系统表替身也随之作废）。这正是这道接缝要的效果：读引擎与出站队列
+ * 谁都不认识谁。
  */
-export const systemRepositoryStub = (EntityType: unknown): { find: () => Promise<unknown[]> } | undefined => {
-  if (EntityType === RxDBBranch) return { find: async () => [{ id: 'main', activated: true }] };
-  if (EntityType === RxDBChange || EntityType === RxDBSync) return { find: async () => [] };
-  return undefined;
-};
+export const noPendingWriteOutbox: QueryCacheOutboxProvider = { pendingWriteIds: noPendingWrites };

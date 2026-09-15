@@ -7,6 +7,7 @@
 
 import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
+import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
 import { SyncManager } from './SyncManager.js';
 
 /** 本插件当前不接受任何选项 */
@@ -26,7 +27,7 @@ export type RxDBPluginSyncOptions = object;
  *   而 {@link SyncManager.init} 挂的 `connected$` 自动回推订阅必须在第一次连接就位之前
  *   就已经订阅上，声明适配器依赖会把安装推到引导链之后，第一次连接的那一跳回推就丢了。
  *
- * 三处宿主改动都登记在 `scope` 上，断开连接时由宿主逆序释放：
+ * 五处宿主改动都登记在 `scope` 上，断开连接时由宿主逆序释放：
  *
  * 1. `rxdb.syncManager` 这个实例槽位 —— 释放时连同 `destroy()` 一起撤掉，不给下一个纪元
  *    留一个指向已拆事件总线的管理器；
@@ -34,6 +35,12 @@ export type RxDBPluginSyncOptions = object;
  *    `syncState.requestPullableRefresh()` 发信号，它不认识 {@link SyncManager}，接住这一跳
  *    是本插件的活（US-025 阶段 D 之前这条绑定在历史插件上，随 `refreshPullableCount` 一起
  *    搬过来）。没装插件时那个请求发进空里，正是「待拉数无人维护」的实情。
+ * 3. {@link RxDB.queryCacheOutbox} 这个出站队列槽 —— QueryCache 实体的读引擎要靠它把
+ *    「远端没返回」和「本地离线写过」区分开。这一条**没有**缺席形态：槽空着时核心在
+ *    `connect()` 就抛 `RxDBMissingPluginError`，因为「当空集」等于把每条离线写都当孤儿删掉。
+ * 4. 宿主的 `online` / `offline` 监听 —— `ReachabilityMonitor` 只在有人 `watch()` 时才往
+ *    `globalThis` 上挂，而这两个事件唯一的消费者是本包的同步监听器（`wakeup$` 驱动回推
+ *    重试）。不同步的库不该因为 `new RxDB()` 就永久多一对活过实例的监听器（US-025 D2）。
  */
 export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
@@ -54,6 +61,18 @@ export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
       });
       return () => void Reflect.deleteProperty(this.rxdb, 'syncManager');
     }, 'sync:slot');
+
+    // 只登记 `pendingWriteIds` 这一个问题。`flushQueryCacheOutbox` / `countQueryCacheOutbox`
+    // 的调用者（同步监听器、DevTools 面板）都在本包里，核心不必认识它们。
+    // 传 scope：断开连接时这条注册跟着一起撤销，不留一个指向已拆纪元的队列。
+    this.rxdb.queryCacheOutbox(
+      { pendingWriteIds: (namespace, entity) => pendingQueryCacheWriteIds(this.rxdb, namespace, entity) },
+      scope
+    );
+
+    // 可达性监听：`watch()` 自己返回撤销函数，正好是 `acquire` 要的 setup 形状。
+    // 引用计数在监视器一侧，所以同一个宿主上多装几个消费者也不会互相摘掉对方的监听。
+    scope.acquire(() => this.rxdb.reachability.watch(), 'sync:reachability');
 
     syncManager.init();
 

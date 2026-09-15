@@ -54,15 +54,10 @@ export type {
   QueryCacheSessionContext
 } from './repository/query-cache-engine.interface.js';
 export * from './repository/query-cache.interface.js';
-// 出站队列的三个入口。QueryCache 的离线写与历史插件的推送资格判定都读它，
-// 因此队列本身留在核心（US-025 阶段 C）。
-export {
-  countQueryCacheOutbox,
-  flushQueryCacheOutbox,
-  pendingQueryCacheWriteIds,
-  type QueryCacheOutboxFailure,
-  type QueryCacheOutboxResult
-} from './repository/query-cache-outbox.js';
+// 出站队列本身随 `@aiao/rxdb-plugin-sync` 走（US-025 阶段 D）：它是 changelog 的第二个
+// 消费者，与 push / pull 共用 `RxDBSync.lastPushedChangeId` 这一条水位线。核心留下的
+// 只有插件往里填的这个接口 —— `Repository` 建 QueryCache 会话时要问一次「谁还占着 id」。
+export type { QueryCacheOutboxProvider } from './repository/query-cache-outbox.interface.js';
 export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';
 export type {
@@ -123,9 +118,14 @@ export * from './transaction/transaction-executor.interface.js';
 // 级联调度契约里进公开 API 的只有这两项 —— 抛给调用方的结构化错误，
 // 以及错误消息用的仓库键渲染。资格判定谓词是 pull / push 两条路径的共享内部实现。
 export { RxDBDependencyFailedError, repositoryKey } from './sync-contract/cascade-contract.js';
-// 推送资格的 where 规则构造：核心的 QueryCache 出站队列与历史插件的 push 用同一份，
-// 两边算出来的「哪些变更该推」必须逐字一致，所以它是契约而不是任一方的内部实现。
-export { buildPushableRepositoryRules } from './sync-contract/pushable-repository-rules.js';
+// 两条 where 规则构造。推送资格给 push 与待推计数用，离线写资格给 QueryCache 出站队列用；
+// 判据 `push` 与 `offlineWrite && !push` 恰好互补，两侧计数相加不会重复计一行。
+// 两个消费者自 US-025 阶段 D 起都在 `@aiao/rxdb-plugin-sync` 里，而规则本身是**契约** ——
+// 「哪些变更该推」由核心的实体元数据决定，各写一份的那一刻就是漂移的那一刻。
+export {
+  buildOfflineWriteRepositoryRules,
+  buildPushableRepositoryRules
+} from './sync-contract/pushable-repository-rules.js';
 // 同步水位线（`RxDBSync`）的读写。核心按它判定 QueryCache 出站资格，
 // 历史插件按它记录推拉进度——同一张表、同一套解析，不能各写一份。
 export * from './sync-contract/compact-changes.js';

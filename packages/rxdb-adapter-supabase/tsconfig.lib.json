@@ -35,6 +35,9 @@
       "path": "../rxdb-plugin-history/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {

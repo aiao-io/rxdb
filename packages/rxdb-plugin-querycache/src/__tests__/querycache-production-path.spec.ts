@@ -28,6 +28,7 @@ import {
 import { delay, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
+import { noPendingWriteOutbox } from './fixtures/pending-writes.js';
 
 @Entity({
   name: 'CachedArticle',
@@ -87,34 +88,6 @@ const PUBLISHED: RuleGroup<CachedArticle> = {
 };
 
 /**
- * 系统实体（分支 / 同步状态 / 变更队列）的行仓储替身。
- *
- * @remarks
- * 与业务行仓储**分开**，因为业务那个的 `create/update/remove` 是 AC#20 的负向哨兵：
- * `getCurrentBranch()` 冷路径会建一条 `main` 分支，共用一个替身就会把那次引导写
- * 记在哨兵账上，把「这次写没落进版本化路径」错判成落了。
- *
- * 建出来的行留在内存里，所以 `main` 只建一次 —— 下一轮 `getCurrentBranch()` 走热路径。
- */
-const createSystemRepository = () => {
-  const rows: object[] = [];
-
-  return {
-    find: vi.fn(({ where, limit }: { where?: RuleGroup<never>; limit?: number }) => {
-      const matched = where === undefined ? [...rows] : rows.filter(row => isEntityMatchWhere(row as never, where));
-      return Promise.resolve(limit === undefined ? matched : matched.slice(0, limit));
-    }),
-    count: vi.fn(() => Promise.resolve(rows.length)),
-    create: vi.fn((entity: object) => {
-      rows.push(entity);
-      return Promise.resolve(entity);
-    }),
-    update: vi.fn((entity: object) => Promise.resolve(entity)),
-    remove: vi.fn((entity: object) => Promise.resolve(entity))
-  };
-};
-
-/**
  * 站在真实 sqlite 位置的本地适配器替身。
  *
  * @remarks
@@ -139,17 +112,17 @@ const createLocalAdapter = (initial: Row[] = []) => {
     remove: vi.fn((entity: Row) => Promise.resolve(entity))
   };
 
-  // 系统实体各自一个存储，互不串场
-  const systemRepositories = new Map<unknown, ReturnType<typeof createSystemRepository>>();
-  const systemRepository = (type: unknown): ReturnType<typeof createSystemRepository> => {
-    const existing = systemRepositories.get(type);
-    if (existing !== undefined) return existing;
-    const created = createSystemRepository();
-    systemRepositories.set(type, created);
-    return created;
+  // 业务实体之外一律炸。US-025 阶段 D 之前这里还挂着一套系统表替身，因为待提交写的查询
+  // 要经 `getCurrentBranch()` 真去读 `rxdb_branch`；那半边随出站队列搬进
+  // `@aiao/rxdb-plugin-sync` 之后，读引擎一行 changelog 代码都不再碰（本文件用
+  // `noPendingWriteOutbox` 顶上那一问一答）。改成炸而不是留个替身，是把「读引擎不认识
+  // 系统表」变成可证伪的断言 —— 偷偷回去读的实现会在这一行响，而不是被替身悄悄接住。
+  const getRepository = (type: unknown): object => {
+    if (type !== CachedArticle && type !== VersionedArticle) {
+      throw new Error(`QueryCache 读路径不该请求系统表仓储：${String((type as { name?: string }).name)}`);
+    }
+    return repository;
   };
-  const getRepository = (type: unknown): object =>
-    type === CachedArticle || type === VersionedArticle ? repository : systemRepository(type);
 
   const adapter = {
     name: 'sqlite',
@@ -226,7 +199,10 @@ const createDatabase = (dbName: string, localRows: Row[], remoteRows: Row[], rem
   rxdb.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
   // 读引擎搬进本包后不再由 `Repository` 直构造（US-025 B1）。这里直填槽位而不是
   // `rxdb.plugin(rxDBPluginQueryCache())`：本用例只跑到 `init()`，而插件安装排在 `connect()`。
+  // 出站队列是第二个槽，归 `@aiao/rxdb-plugin-sync`（US-025 阶段 D）——本用例不验离线写，
+  // 桩答空集即可。
   rxdb.queryCacheEngine(new RxDBQueryCacheEngineFactory());
+  rxdb.queryCacheOutbox(noPendingWriteOutbox);
   rxdb.init();
   // `Row` 是适配器口径的原始行（`updatedAt` 是 ISO 串），实体口径是 `Date`，两端在这里对接
   local.attach(

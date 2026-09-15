@@ -65,6 +65,7 @@
   "devDependencies": {
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "ms": "^2.1.3"
   },

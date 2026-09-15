@@ -9,6 +9,7 @@
 import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
@@ -139,10 +140,12 @@ describe('Repository-Level Sync Integration', () => {
         })
     );
 
-    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
-    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
     // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
 
     // 连接本地 SQLite（会自动创建所有表）
     await rxdb.connect('wa-sqlite');
@@ -181,7 +184,7 @@ describe('Repository-Level Sync Integration', () => {
       const remoteTodo = await createRemoteTodo('Remote Todo for Pull Test', false);
 
       // 2. 当前客户端调用 pullRepository
-      const result = await rxdb.versionManager.pullRepository('public', 'Todo');
+      const result = await rxdb.syncManager.pullRepository('public', 'Todo');
 
       // 3. 验证结果
       expect(result.repository.namespace).toBe('public');
@@ -200,7 +203,7 @@ describe('Repository-Level Sync Integration', () => {
       // 确保远程没有数据
       await cleanupRemoteData();
 
-      const result = await rxdb.versionManager.pullRepository('public', 'Todo');
+      const result = await rxdb.syncManager.pullRepository('public', 'Todo');
 
       expect(result.pulled).toBe(0);
       expect(result.applied).toBe(0);
@@ -218,7 +221,7 @@ describe('Repository-Level Sync Integration', () => {
       }
 
       // 只拉取 2 条
-      const result = await rxdb.versionManager.pullRepository('public', 'Todo', {
+      const result = await rxdb.syncManager.pullRepository('public', 'Todo', {
         limit: 2
       });
 
@@ -239,7 +242,7 @@ describe('Repository-Level Sync Integration', () => {
       await localTodo.save();
 
       // 2. 调用 pushRepository
-      const result = await rxdb.versionManager.pushRepository('public', 'Todo');
+      const result = await rxdb.syncManager.pushRepository('public', 'Todo');
 
       // 3. 验证结果
       expect(result.repository.namespace).toBe('public');
@@ -258,7 +261,7 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 确保没有待推送的变更
-      const result = await rxdb.versionManager.pushRepository('public', 'Todo');
+      const result = await rxdb.syncManager.pushRepository('public', 'Todo');
 
       expect(result.pushed).toBe(0);
       expect(result.failed).toBe(0);
@@ -279,7 +282,7 @@ describe('Repository-Level Sync Integration', () => {
       await todo.remove();
 
       // 推送
-      const result = await rxdb.versionManager.pushRepository('public', 'Todo');
+      const result = await rxdb.syncManager.pushRepository('public', 'Todo');
 
       // 应该没有推送（因为变更被压缩了）
       expect(result.originalCount).toBeGreaterThan(0); // 有原始变更
@@ -303,7 +306,7 @@ describe('Repository-Level Sync Integration', () => {
       await localTodo.save();
 
       // 3. 同步
-      const result = await rxdb.versionManager.syncRepository('public', 'Todo');
+      const result = await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 4. 验证 pull 结果
       expect(result.pullResult.pulled).toBeGreaterThan(0);
@@ -339,7 +342,7 @@ describe('Repository-Level Sync Integration', () => {
       rxdb.addEventListener('REPOSITORY_SYNC_BEGIN', syncListener);
 
       // 执行同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 清理监听器
       rxdb.removeEventListener('REPOSITORY_SYNC_BEGIN', syncListener);
@@ -358,7 +361,7 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 先拉取一次，建立 checkpoint
-      await rxdb.versionManager.pullRepository('public', 'Todo');
+      await rxdb.syncManager.pullRepository('public', 'Todo');
 
       // 在远程创建新数据（使用辅助函数同时创建 Todo 和 RxDBChange）
       await createRemoteTodo('New Todo 1', false);
@@ -366,7 +369,7 @@ describe('Repository-Level Sync Integration', () => {
       await createRemoteTodo('New Todo 3', false);
 
       // 检查更新
-      const result = await rxdb.versionManager.checkRepositoryUpdates('public', 'Todo');
+      const result = await rxdb.syncManager.checkRepositoryUpdates('public', 'Todo');
 
       expect(result.repository.namespace).toBe('public');
       expect(result.repository.entity).toBe('Todo');
@@ -381,10 +384,10 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 执行一次同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 查询状态
-      const status = await rxdb.versionManager.getRepositorySyncStatus('public', 'Todo');
+      const status = await rxdb.syncManager.getRepositorySyncStatus('public', 'Todo');
 
       expect(status.repository.namespace).toBe('public');
       expect(status.repository.entity).toBe('Todo');
@@ -398,7 +401,7 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 先同步一次
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 本地创建新数据
       const newTodo = new TodoSync();
@@ -410,7 +413,7 @@ describe('Repository-Level Sync Integration', () => {
       await createRemoteTodo('New Remote Todo', false);
 
       // 查询状态
-      const status = await rxdb.versionManager.getRepositorySyncStatus('public', 'Todo');
+      const status = await rxdb.syncManager.getRepositorySyncStatus('public', 'Todo');
 
       expect(status.pushableCount).toBeGreaterThan(0); // 有本地未推送的变更
       expect(status.pullableCount).toBeGreaterThan(0); // 有远程未拉取的变更
@@ -423,10 +426,10 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 执行同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 查询所有状态
-      const statuses = await rxdb.versionManager.getAllRepositorySyncStatus();
+      const statuses = await rxdb.syncManager.getAllRepositorySyncStatus();
 
       expect(Array.isArray(statuses)).toBe(true);
       expect(statuses.length).toBeGreaterThan(0);
@@ -440,9 +443,9 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupRemoteData();
       await cleanupLocalData();
 
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
-      const statuses = await rxdb.versionManager.getAllRepositorySyncStatus({
+      const statuses = await rxdb.syncManager.getAllRepositorySyncStatus({
         syncType: ['full']
       });
 
@@ -456,7 +459,7 @@ describe('Repository-Level Sync Integration', () => {
       await cleanupLocalData();
 
       // 执行同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       // 查询本地 RxDBSync 表
       const branch = await rxdb.versionManager.getCurrentBranch();
@@ -488,7 +491,7 @@ describe('Repository-Level Sync Integration', () => {
       const repoSyncRepo = localAdapter.getRepository(RxDBSync);
 
       // 第一次同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       const firstSyncResults = await repoSyncRepo.find({
         where: {
@@ -505,7 +508,7 @@ describe('Repository-Level Sync Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // 第二次同步
-      await rxdb.versionManager.syncRepository('public', 'Todo');
+      await rxdb.syncManager.syncRepository('public', 'Todo');
 
       const secondSyncResults = await repoSyncRepo.find({
         where: {
@@ -530,7 +533,7 @@ describe('Repository-Level Sync Integration', () => {
   describe('错误处理', () => {
     it('pullRepository 应该在远程连接失败时抛出错误', async () => {
       // 尝试从不存在的 namespace 拉取数据应该抛出错误
-      await expect(rxdb.versionManager.pullRepository('nonexistent', 'Todo')).rejects.toThrow();
+      await expect(rxdb.syncManager.pullRepository('nonexistent', 'Todo')).rejects.toThrow();
     });
   });
 });

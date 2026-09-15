@@ -13,6 +13,10 @@ import {
   type QueryCacheEngineFactory
 } from './repository/query-cache-engine.interface.js';
 import {
+  missingQueryCacheOutboxError,
+  type QueryCacheOutboxProvider
+} from './repository/query-cache-outbox.interface.js';
+import {
   AdapterFactory,
   IRxDBAdapter,
   RepositoryInstance,
@@ -96,7 +100,7 @@ export class RxDB {
    * @remarks
    * 与 `#shutting_down` 是两回事。停机窗口是可逆的——`#shutdown()` 把实例复位成
    * 「可重新 `init()`」，重连拿到的是一个新纪元。而 `destroy()` 释放的是**跟随实例**的
-   * 那部分资源（{@link RxDB.reachability} 挂在 `globalThis` 上的监听、
+   * 那部分资源（{@link RxDB.reachability} 的退避定时器与状态流、
    * {@link RxDB.syncState} 的上游订阅），它们没有第二次装配的入口，复位就等于交出空壳。
    */
   #destroyed = false;
@@ -112,6 +116,16 @@ export class RxDB {
    * 做成表只会凭空造出一个没人能往里加第二项的注册表。
    */
   #query_cache_engine: QueryCacheEngineFactory | undefined;
+
+  /**
+   * 查询出站队列提供者 —— 由 `@aiao/rxdb-plugin-sync` 经 {@link RxDB.queryCacheOutbox} 填入。
+   *
+   * @remarks
+   * 与 {@link RxDB.#query_cache_engine} 是同一条策略轴上的两半，不合并成一个槽：
+   * 读引擎与出站队列分属两个包，装了一个不蕴含装了另一个（只推不读、只读不写的
+   * 配置都是合法的应用形态），合并成一槽会逼着两个插件互相依赖。
+   */
+  #query_cache_outbox: QueryCacheOutboxProvider | undefined;
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
@@ -591,6 +605,37 @@ export class RxDB {
   }
 
   /**
+   * 注册查询出站队列提供者
+   *
+   * @param provider - 出站队列提供者，见 {@link QueryCacheOutboxProvider}
+   * @param scope - 传入时，本次注册会随作用域释放而撤销；不传则永久有效
+   *
+   * @remarks
+   * 形状与 {@link RxDB.queryCacheEngine} 逐条相同（身份守卫撤销、写槽放在 `setup` 里）。
+   *
+   * 分成两个注册口而不是让 sync 插件把两样东西一起交上来：出站队列随 sync 插件走，
+   * 读引擎随 querycache 插件走，两个包各自登记各自的那一半，谁都不必认识对方。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+   *
+   * rxdb.use(rxDBPluginSync);
+   * ```
+   */
+  public queryCacheOutbox(provider: QueryCacheOutboxProvider, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#query_cache_outbox = provider;
+      return this;
+    }
+    scope.acquire(() => {
+      this.#query_cache_outbox = provider;
+      return () => this.#unregister_query_cache_outbox(provider);
+    }, 'rxdb:query-cache-outbox');
+    return this;
+  }
+
+  /**
    * 注册 adapter
    * @param adapterName - 适配器名称
    * @param adapter - 适配器工厂函数
@@ -717,6 +762,19 @@ export class RxDB {
   }
 
   /**
+   * 取已注册的查询出站队列提供者
+   *
+   * @returns 装了插件时是提供者本身，否则 `undefined`
+   *
+   * @remarks
+   * 与 {@link RxDB.getQueryCacheEngine} 同理，`undefined` 交给调用方去抛
+   * {@link RxDBMissingPluginError} —— 点名哪个实体这一层不知道。
+   */
+  getQueryCacheOutbox(): QueryCacheOutboxProvider | undefined {
+    return this.#query_cache_outbox;
+  }
+
+  /**
    * 连接适配器
    * @param adapterName - 适配器名称
    * @returns 返回连接的适配器实例
@@ -821,6 +879,7 @@ export class RxDB {
         // 与上一行同一个 try：护栏抛出时，下面那段回滚（摘出已连接集合 + 让调度器释放
         // 依赖它的插件）与插件安装失败走的是同一条路——连接已经建起来了，不能留着。
         this.#assert_query_cache_engine();
+        this.#assert_query_cache_outbox();
       } catch (error) {
         // 本适配器的引导没有走完，不能留在已连接集合里。聚合信号只在真的一个都不剩时才落下，
         // 否则别的连着的适配器会被一起误报成断开。
@@ -943,9 +1002,10 @@ export class RxDB {
    * 走 `#shutdown()`，把实例复位成「可重新 `init()`」；而 {@link RxDB.reachability} 与
    * {@link RxDB.syncState} 按设计**不跟随连接纪元**——网络不会因为某个适配器断开而重置，
    * 面板也要在断连期间继续显示「离线、待推 N 条」。于是它们只能在这里释放：
-   * `reachability` 在字段初始化时就往 `globalThis` 挂了一对 `online` / `offline`，
-   * 没有终态出口的话，每个 `new RxDB()` 都往全局上净增一对，多实例 / HMR / 测试
-   * 按实例数线性累积。
+   * `reachability` 自己攥着退避定时器和两条长活的 subject；宿主上那对
+   * `online` / `offline` 监听自 US-025 D2 起改成按需挂（`watch()` 引用计数，
+   * 目前唯一的持有者是 `@aiao/rxdb-plugin-sync` 的作用域）。没有终态出口的话，
+   * 一个退避中的实例会把定时器连同自己一起吊住，多实例 / HMR / 测试按实例数线性累积。
    *
    * 幂等；不必先调 `disconnectAll()`，它自己会断干净。销毁后 `init()` 抛错、
    * `connect()` reject（见 {@link RxDB.init}），实例不可复用。
@@ -1331,6 +1391,12 @@ export class RxDB {
     this.#query_cache_engine = undefined;
   }
 
+  /** 撤销 {@link RxDB.queryCacheOutbox} 的一次注册，按提供者对象身份守卫。 */
+  #unregister_query_cache_outbox(provider: QueryCacheOutboxProvider): void {
+    if (this.#query_cache_outbox !== provider) return;
+    this.#query_cache_outbox = undefined;
+  }
+
   /**
    * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有引擎可用。
    *
@@ -1348,6 +1414,27 @@ export class RxDB {
     for (const EntityType of this.#config.entities) {
       if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
       throw missingQueryCacheEngineError(getEntityMetadata(EntityType).name);
+    }
+  }
+
+  /**
+   * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有出站队列可用。
+   *
+   * @throws {@link RxDBMissingPluginError} 有这样的实体而队列槽是空的
+   *
+   * @remarks
+   * 与 {@link RxDB.#assert_query_cache_engine} 同一时机、同一形状，分两个方法是因为
+   * 两个槽由不同的包填，缺哪个就该点名哪个包。合并成一条只会让缺 sync 插件的人
+   * 去装 querycache 插件。
+   *
+   * 不许「没装就当空集」：读引擎的对账拿待提交写把「远端没返回」和「本地离线写过」
+   * 区分开，空集会让每一条离线写都被当成孤儿删掉 —— 静默降级在这里等于丢用户数据。
+   */
+  #assert_query_cache_outbox(): void {
+    if (this.#query_cache_outbox !== undefined) return;
+    for (const EntityType of this.#config.entities) {
+      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      throw missingQueryCacheOutboxError(getEntityMetadata(EntityType).name);
     }
   }
 

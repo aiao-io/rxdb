@@ -15,6 +15,7 @@ import { Entity, ENTITY_STATIC_TYPES, EntityBase, PropertyType, RxDB, SyncType, 
 import { Observable, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
+import { noPendingWriteOutbox } from './fixtures/pending-writes.js';
 
 @Entity({
   name: 'CachedProduct',
@@ -109,8 +110,10 @@ const createDatabase = (dbName: string, entities: ConstructorParameters<typeof R
   rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
   // 直填槽位而不是 `rxdb.plugin(rxDBPluginQueryCache())`：本用例只跑到 `init()`，
-  // 而插件安装排在 `connect()`（US-025 B1）。
+  // 而插件安装排在 `connect()`（US-025 B1）。出站队列是第二个槽，归
+  // `@aiao/rxdb-plugin-sync`（US-025 阶段 D）——本用例不验离线写，桩答空集即可。
   rxdb.queryCacheEngine(new RxDBQueryCacheEngineFactory());
+  rxdb.queryCacheOutbox(noPendingWriteOutbox);
   rxdb.init();
   return { rxdb, local, remote };
 };

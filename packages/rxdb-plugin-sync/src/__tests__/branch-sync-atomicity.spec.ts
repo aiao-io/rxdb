@@ -112,7 +112,7 @@ class FakeLocalDatabase {
   #branchRepository(): IRepository<typeof RxDBBranch> {
     const repository = {
       find: (query: FindQuery) =>
-        Promise.resolve(select(this.branches as unknown as Record<string, unknown>[], query) as BranchRow[]),
+        Promise.resolve(select(this.branches as unknown as Record<string, unknown>[], query) as unknown as BranchRow[]),
       create: (row: BranchRow) => Promise.resolve(this.#insertBranch(row)),
       update: (row: BranchRow, patch: Partial<BranchRow>) => Promise.resolve(Object.assign(row, patch))
     };

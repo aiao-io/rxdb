@@ -6,6 +6,7 @@
 import { encodeRxDBChangeEntityId, RxDB, RxDBChange, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
@@ -69,10 +70,12 @@ describe('Pull remoteId 调试测试', () => {
         })
     );
 
-    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
-    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
     // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
 
     await rxdb.connect('wa-sqlite');
     remoteAdapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
@@ -95,7 +98,7 @@ describe('Pull remoteId 调试测试', () => {
     await changeRepo.find({ where: { combinator: 'and', rules: [] } });
 
     // 清空之前的变更
-    await rxdb.versionManager.push();
+    await rxdb.syncManager.push();
 
     // 1. 在远程创建数据
     const remoteId = crypto.randomUUID();
@@ -128,7 +131,7 @@ describe('Pull remoteId 调试测试', () => {
 
     if (error) throw error;
 
-    await rxdb.versionManager.pull();
+    await rxdb.syncManager.pull();
 
     // 3. 验证本地 RxDBChange 表中不应该有这条记录
     const localChanges = await changeRepo.find({
@@ -175,10 +178,10 @@ describe('Pull remoteId 调试测试', () => {
     todo.title = `${testPrefix}-push-then-pull`;
     await todo.save();
 
-    await rxdb.versionManager.push();
+    await rxdb.syncManager.push();
 
     // Pull - 不应该重复 pull 刚 push 的数据
-    await rxdb.versionManager.pull();
+    await rxdb.syncManager.pull();
 
     // 查询本地 RxDBChange
     const changeRepo = localAdapter.getRepository(RxDBChange);

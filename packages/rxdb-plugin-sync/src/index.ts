@@ -34,8 +34,20 @@ export type { CheckRepositoryUpdatesResult } from './check-repository-updates.js
 export * from './cleanup-expired.js';
 // `SyncManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
 export type { DependencyGraph } from './dependency-graph.js';
+// `SyncManager.getAllRepositorySyncStatus()` 的可选过滤器。
+export type { GetAllRepositorySyncStatusFilter } from './get-all-repository-sync-status.js';
 // `getRepositorySyncStatus()` 的返回值。
 export type { RepositorySyncStatus } from './get-repository-sync-status.js';
+// QueryCache 出站队列的三个入口（US-025 阶段 D 从核心搬来）。前两个供应用与 DevTools
+// 手动驱动一轮重放 / 读队列长度；`pendingQueryCacheWriteIds` 还兼作核心
+// `QueryCacheOutboxProvider` 的实现，由本包的插件在 `install()` 里登记进宿主。
+export {
+  countQueryCacheOutbox,
+  flushQueryCacheOutbox,
+  pendingQueryCacheWriteIds,
+  type QueryCacheOutboxFailure,
+  type QueryCacheOutboxResult
+} from './query-cache-outbox.js';
 export * from './sync-branches.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
 export type { SyncManager } from './SyncManager.js';

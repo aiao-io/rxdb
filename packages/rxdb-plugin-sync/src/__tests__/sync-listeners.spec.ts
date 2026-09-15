@@ -1,5 +1,4 @@
 import {
-  countQueryCacheOutbox,
   Entity,
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
@@ -9,9 +8,7 @@ import {
   EntityRemoteCreatedEvent,
   EntityRemoteRemovedEvent,
   EntityRemoteUpdatedEvent,
-  flushQueryCacheOutbox,
   PropertyType,
-  type QueryCacheOutboxResult,
   type ReachabilityMonitor,
   RxDBBranch,
   RxDBChange,
@@ -25,17 +22,18 @@ import {
 import type { SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { countQueryCacheOutbox, flushQueryCacheOutbox, type QueryCacheOutboxResult } from '../query-cache-outbox.js';
 import { setupSyncListeners } from '../sync-listeners.js';
 import type { SyncManager } from '../SyncManager.js';
 import { detachedReachability } from './fixtures/reachability.js';
 
-// 出站重放本身有自己的用例（核心的 `repository/query-cache-outbox.spec.ts`）。这里只关心
+// 出站重放本身有自己的用例（`query-cache-outbox.spec.ts`）。这里只关心
 // 「谁在什么时候调它、调了几次、拿哪几个仓库调」，所以这两个入口换成探针。
 //
-// 出站队列随 US-025 阶段 C 留在了核心，而 `sync-listeners.ts` 是从包根导入它的 ——
-// 于是替身只能挂在包根上：`vi.mock` 认的是**被测模块写下的说明符**，替一个本包里
-// 已经不存在的相对路径等于没替。其余成员必须原样透传，否则本文件用到的装饰器与
-// 系统实体（`@Entity` / `RxDBChange` / `SyncStateHub` …）会一并消失。
+// 出站队列随 US-025 阶段 D 搬进本包，于是替身也回到相对路径上 —— `vi.mock` 认的是
+// **被测模块写下的说明符**，而 `sync-listeners.ts` 现在写的就是 `./query-cache-outbox.js`。
+// 整模块替掉即可，本文件不用它的其余成员（阶段 D 之前它挂在包根上，替身得连同
+// `@Entity` / `RxDBChange` / `SyncStateHub` 一起透传，那份 passthrough 也随之作废）。
 // 用函数声明而不是 const：`vi.hoisted` 的回调会被提升到 import 之前执行，那时 const 还没初始化，
 // 而函数声明在模块实例化阶段就已就位。
 function makeOutboxResult(namespace: string, entity: string): QueryCacheOutboxResult {
@@ -59,8 +57,7 @@ const outboxMocks = vi.hoisted(() => ({
   countQueryCacheOutbox: vi.fn(() => Promise.resolve(0))
 }));
 
-vi.mock('@aiao/rxdb', async importOriginal => ({
-  ...(await importOriginal<typeof import('@aiao/rxdb')>()),
+vi.mock('../query-cache-outbox.js', () => ({
   countQueryCacheOutbox: outboxMocks.countQueryCacheOutbox,
   flushQueryCacheOutbox: outboxMocks.flushQueryCacheOutbox
 }));

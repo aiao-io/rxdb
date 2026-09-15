@@ -12,6 +12,7 @@
 import { RxDB, SyncType, uuid, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -105,10 +106,12 @@ describe('Push/Pull 边界行为测试', () => {
         })
     );
 
-    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()` / `pushableCount$`）
-    // 自 US-025 阶段 C 起随历史子系统住进 `@aiao/rxdb-plugin-history`。
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
     // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
     rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
 
     await rxdb.connect('wa-sqlite');
     remoteAdapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
@@ -135,7 +138,7 @@ describe('Push/Pull 边界行为测试', () => {
         todos.push(todo);
       }
 
-      const result = await rxdb.versionManager.push();
+      const result = await rxdb.syncManager.push();
       expect(result.pushed).toBeGreaterThanOrEqual(1);
 
       // 验证远程数据
@@ -146,7 +149,7 @@ describe('Push/Pull 边界行为测试', () => {
     });
 
     it('pull 多条数据应该全部成功', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 远程创建多条数据
       const remoteIds: UUID[] = [];
@@ -156,7 +159,7 @@ describe('Push/Pull 边界行为测试', () => {
         remoteIds.push(id);
       }
 
-      const result = await rxdb.versionManager.pull();
+      const result = await rxdb.syncManager.pull();
       expect(result.pulled).toBeGreaterThanOrEqual(5);
 
       // 验证本地数据
@@ -182,7 +185,7 @@ describe('Push/Pull 边界行为测试', () => {
       await todo2.save();
 
       // 快速连续 push（不等待第一个完成）
-      const results = await Promise.all([rxdb.versionManager.push(), rxdb.versionManager.push()]);
+      const results = await Promise.all([rxdb.syncManager.push(), rxdb.syncManager.push()]);
 
       // 至少有一个 push 应该成功推送数据
       const totalPushed = results.reduce((sum, r) => sum + r.pushed, 0);
@@ -196,7 +199,7 @@ describe('Push/Pull 边界行为测试', () => {
     });
 
     it('push 和 pull 交替执行应该正确处理', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 本地创建
       const localTodo = new Todo();
@@ -204,14 +207,14 @@ describe('Push/Pull 边界行为测试', () => {
       await localTodo.save();
 
       // 先 push 本地数据
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
 
       // push 之后再创建远程数据（这样远程 RxDBChange.id 会大于 lastPullRemoteChangeId）
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-interleave-remote` });
 
       // 然后 pull 远程数据
-      const pullResult = await rxdb.versionManager.pull();
+      const pullResult = await rxdb.syncManager.pull();
 
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
       expect(pullResult.pulled).toBeGreaterThanOrEqual(1);
@@ -240,7 +243,7 @@ describe('Push/Pull 边界行为测试', () => {
         await todo.save();
       }
 
-      const result = await rxdb.versionManager.push();
+      const result = await rxdb.syncManager.push();
       // TODO: 压缩优化 - 目前每次 save() 都生成新 change
       // INSERT + 9 UPDATE = 10 原始，理想情况应该压缩为 1 INSERT
       expect(result.originalCount).toBeGreaterThanOrEqual(10);
@@ -252,7 +255,7 @@ describe('Push/Pull 边界行为测试', () => {
     });
 
     it('创建→删除→重新创建同 ID 应该正确处理', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 使用固定 ID
       const fixedId = crypto.randomUUID();
@@ -267,7 +270,7 @@ describe('Push/Pull 边界行为测试', () => {
       await todo1.remove();
 
       // 由于 INSERT→DELETE 压缩为空，push 应该是 0
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBe(0);
     });
   });
@@ -277,7 +280,7 @@ describe('Push/Pull 边界行为测试', () => {
   // ========================================
   describe('pushableCount$ 精确性', () => {
     it('创建多条数据后 pushableCount$ 应该准确', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
       // push 推进 lastPushedChangeId，基线必须先归零再计增量
       await expectPushableCount(0);
 
@@ -293,7 +296,7 @@ describe('Push/Pull 边界行为测试', () => {
     });
 
     it('更新数据后 pushableCount$ 应该增加', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const todo = new Todo();
       todo.title = `${testPrefix}-count-update-1`;
@@ -308,7 +311,7 @@ describe('Push/Pull 边界行为测试', () => {
     });
 
     it('删除数据后 pushableCount$ 应该增加', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       const todo = new Todo();
       todo.title = `${testPrefix}-count-delete-1`;
@@ -334,7 +337,7 @@ describe('Push/Pull 边界行为测试', () => {
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-sync-remote` });
 
-      const result = await rxdb.versionManager.sync();
+      const result = await rxdb.syncManager.sync();
 
       expect(result.pullResult.pulled).toBeGreaterThanOrEqual(1);
       expect(result.pushResult.pushed).toBeGreaterThanOrEqual(1);

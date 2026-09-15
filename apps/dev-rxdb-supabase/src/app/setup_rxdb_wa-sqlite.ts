@@ -2,6 +2,7 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { getOrCreateUserId, readSupabaseConfig, resolveDatabaseName } from './runtime-config';
@@ -33,6 +34,9 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    // 推/拉同步（`syncManager.push()` / `pull()`）自 US-025 阶段 D 起单独成包；
+    // 它 `inject: ['plugin:history']`，所以两个都得装。
+    .use(rxDBPluginSync)
     .adapter('supabase', async db => {
       const config = readSupabaseConfig(import.meta.env);
       const { RxDBAdapterSupabase } = await import('@aiao/rxdb-adapter-supabase');
