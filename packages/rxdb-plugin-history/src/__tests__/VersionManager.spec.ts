@@ -3,11 +3,9 @@ import {
   ENTITY_LOCAL_CREATE_EVENT,
   EntityBase,
   PropertyType,
-  type PullResult,
   RxDB,
   RxDBBranch,
   RxDBChange,
-  RxDBPartialSyncError,
   RxDBSync,
   TRANSACTION_BEGIN,
   TRANSACTION_COMMIT
@@ -15,7 +13,6 @@ import {
 import { firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HistoryManager } from '../HistoryManager.js';
-import type { PullRepositoryResult } from '../pull-repository.js';
 import { VersionManager } from '../VersionManager.js';
 import { createTransactionStub } from './fixtures/transaction-executor-stub.js';
 
@@ -26,9 +23,7 @@ type VersionManagerHistoryManagerTestBridge = Pick<
   | 'clearRedoStack'
   | 'destroy'
   | 'history'
-  | 'syncing'
   | 'resetSyncCleared'
-  | 'resetPullableCount'
   | 'clearUndoHistory'
   | 'setUndoBranch'
   | 'undoSessionGeneration'
@@ -735,66 +730,6 @@ describe('VersionManager', () => {
     });
   });
 
-  describe('pull', () => {
-    beforeEach(() => {
-      vi.spyOn(historyManagerForTest, 'syncing').mockImplementation(async fn => fn());
-      vi.spyOn(historyManagerForTest, 'resetPullableCount').mockImplementation(() => {
-        //
-      });
-      vi.spyOn(historyManagerForTest, 'clearUndoHistory').mockImplementation(() => {
-        //
-      });
-    });
-
-    // RXD-031 D：repositoryFilter 逐仓拉取部分失败时，前面的仓库可能已经真实落库；
-    // undo 边界此前从未按已提交的部分推进
-    it('RxDBPartialSyncError 且 historyInvalidated 时清空 undo 历史并原样重新抛出', async () => {
-      const partialResult: PullResult = {
-        pulled: 5,
-        compacted: 0,
-        applied: 3,
-        hasMore: false,
-        conflictsResolved: 0,
-        conflictsDeferred: 0,
-        persistedProgress: true,
-        historyInvalidated: true,
-        failures: []
-      };
-      const partialError = new RxDBPartialSyncError<PullResult>(partialResult, new Error('repo pull failed'));
-      vi.spyOn(historyManagerForTest, 'syncing').mockRejectedValue(partialError);
-
-      await expect(versionManager.pull()).rejects.toBe(partialError);
-      expect(historyManagerForTest.clearUndoHistory).toHaveBeenCalledTimes(1);
-    });
-
-    it('RxDBPartialSyncError 但只推进了水位线（historyInvalidated=false）时不清空 undo 历史', async () => {
-      const emptyResult: PullResult = {
-        pulled: 2,
-        compacted: 2,
-        applied: 0,
-        hasMore: false,
-        conflictsResolved: 0,
-        conflictsDeferred: 0,
-        persistedProgress: true,
-        historyInvalidated: false,
-        failures: []
-      };
-      const partialError = new RxDBPartialSyncError<PullResult>(emptyResult, new Error('repo pull failed'));
-      vi.spyOn(historyManagerForTest, 'syncing').mockRejectedValue(partialError);
-
-      await expect(versionManager.pull()).rejects.toBe(partialError);
-      expect(historyManagerForTest.clearUndoHistory).not.toHaveBeenCalled();
-    });
-
-    it('普通错误（非 RxDBPartialSyncError）不清空 undo 历史', async () => {
-      const plainError = new Error('network down');
-      vi.spyOn(historyManagerForTest, 'syncing').mockRejectedValue(plainError);
-
-      await expect(versionManager.pull()).rejects.toBe(plainError);
-      expect(historyManagerForTest.clearUndoHistory).not.toHaveBeenCalled();
-    });
-  });
-
   // RXD-041：这两组原本是 `try { await ... } catch {} expect(true).toBe(true)` ——
   // 无论委托到哪、无论抛什么都绿。改成断言错误**原样冒泡**：既证明确实走进了
   // create_branch / remove_branch，也固定「包装层不吞异常」这条真实契约。
@@ -814,85 +749,6 @@ describe('VersionManager', () => {
       mockBranchRepository.find.mockRejectedValue(failure);
 
       await expect(versionManager.removeBranch('feature')).rejects.toBe(failure);
-    });
-  });
-
-  describe('Repository level sync', () => {
-    beforeEach(() => {
-      vi.spyOn(historyManagerForTest, 'syncing').mockImplementation(async fn => fn());
-      vi.spyOn(historyManagerForTest, 'clearUndoHistory').mockImplementation(() => {
-        //
-      });
-    });
-
-    // RXD-031 D：fetchAll 多轮拉取中途失败时，前面几轮的事务已经真实提交；
-    // undo 边界此前从未按已提交的部分推进
-    it('pullRepository 遇到 RxDBPartialSyncError 且 historyInvalidated 时清空 undo 历史并原样重新抛出', async () => {
-      const partialResult: PullRepositoryResult = {
-        repository: { namespace: 'public', entity: 'Todo' },
-        pulled: 4,
-        compacted: 0,
-        applied: 2,
-        hasMore: true,
-        conflictsResolved: 0,
-        conflictsDeferred: 0,
-        persistedProgress: true,
-        historyInvalidated: true,
-        failures: []
-      };
-      const partialError = new RxDBPartialSyncError<PullRepositoryResult>(partialResult, new Error('round 2 failed'));
-      vi.spyOn(historyManagerForTest, 'syncing').mockRejectedValue(partialError);
-
-      await expect(versionManager.pullRepository('public', 'Todo')).rejects.toBe(partialError);
-      expect(historyManagerForTest.clearUndoHistory).toHaveBeenCalledTimes(1);
-    });
-
-    it('pullRepository 遇到 RxDBPartialSyncError 但只推进了水位线时不清空 undo 历史', async () => {
-      const emptyResult: PullRepositoryResult = {
-        repository: { namespace: 'public', entity: 'Todo' },
-        pulled: 2,
-        compacted: 2,
-        applied: 0,
-        hasMore: true,
-        conflictsResolved: 0,
-        conflictsDeferred: 0,
-        persistedProgress: true,
-        historyInvalidated: false,
-        failures: []
-      };
-      const partialError = new RxDBPartialSyncError<PullRepositoryResult>(emptyResult, new Error('round 1 failed'));
-      vi.spyOn(historyManagerForTest, 'syncing').mockRejectedValue(partialError);
-
-      await expect(versionManager.pullRepository('public', 'Todo')).rejects.toBe(partialError);
-      expect(historyManagerForTest.clearUndoHistory).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Other methods', () => {
-    // RXD-068：`hasChanges` 只看成功项的 `item.result`。失败仓库自己已提交的部分进度
-    // 位于 `item.error.result`（RxDBPartialSyncError），被完全忽略 —— 远端数据已落库，
-    // 用户却仍能 undo 回同步前状态，重新制造本地/远端分叉。
-    it('失败仓库携带的 partial 进度也必须推进 undo 边界', async () => {
-      const clearSpy = vi.spyOn(historyManagerForTest, 'clearUndoHistory').mockImplementation(() => {
-        //
-      });
-      const partialError = new RxDBPartialSyncError(
-        {
-          pullResult: { pulled: 4, compacted: 0, applied: 4, hasMore: false },
-          persistedProgress: true,
-          historyInvalidated: true
-        },
-        new Error('second page failed')
-      );
-      vi.spyOn(historyManagerForTest, 'syncing').mockResolvedValue({
-        succeeded: 0,
-        failed: 1,
-        results: [{ repository: { namespace: 'public', entity: 'User' }, success: false, error: partialError }]
-      } as never);
-
-      await versionManager.bulkSync();
-
-      expect(clearSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

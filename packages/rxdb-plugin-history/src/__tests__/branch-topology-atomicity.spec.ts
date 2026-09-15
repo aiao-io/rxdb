@@ -11,7 +11,6 @@ import { NEVER, of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { create_branch } from '../create-branch.js';
 import { remove_branch } from '../remove-branch.js';
-import { syncBranches } from '../sync-branches.js';
 import { VersionManager } from '../VersionManager.js';
 
 /**
@@ -276,17 +275,13 @@ class FakeLocalDatabase {
   }
 }
 
-/**
- * @param remoteBranches - 给 `syncBranches` 用的远端分支数组，**按给定顺序原样交回**。
- *   顺序是这套用例的被测面之一，所以这里绝不排序。
- */
-const createVersionManager = (db: FakeLocalDatabase, remoteBranches?: BranchRow[]): VersionManager => {
+const createVersionManager = (db: FakeLocalDatabase): VersionManager => {
   const rxdb = {
     config: { sync: {} },
     connected$: NEVER,
     // `getCurrentBranch` 自 US-025 阶段 C 起是核心函数，从这条流上取本地适配器。
-    // 下面那两个 `getLocalRepositories` / `getRemoteRepositories` 覆写只管得到
-    // `create_branch` / `remove_branch` / `syncBranches`，管不到它。
+    // 下面那个 `getLocalRepositories` 覆写只管得到 `create_branch` / `remove_branch`，
+    // 管不到它。
     localAdapter$: of(db.adapter),
     addEventListener: () => () => undefined,
     removeEventListener: () => undefined,
@@ -312,10 +307,6 @@ const createVersionManager = (db: FakeLocalDatabase, remoteBranches?: BranchRow[
       changeRepository: db.changeRepository(),
       adapter: db.adapter
     } as unknown as Awaited<ReturnType<VersionManager['getLocalRepositories']>>);
-  version.getRemoteRepositories = () =>
-    Promise.resolve({
-      adapter: { pullBranches: () => Promise.resolve(remoteBranches ?? []) }
-    } as unknown as Awaited<ReturnType<VersionManager['getRemoteRepositories']>>);
   return version;
 };
 
@@ -429,94 +420,6 @@ describe('分支拓扑写入的原子性（RXD-059 / RXD-037）', () => {
 
       expect(branch.id).toBe('main');
       expect(db.transactionCount).toBe(0);
-    });
-  });
-
-  /**
-   * RXD-035 残留：远端分支落库既没有拓扑排序，也没有事务边界。
-   *
-   * `pullBranches()` 交回来的是一个**没有顺序保证**的数组 —— 远端按 `updatedAt`、
-   * 按主键、按任何它高兴的顺序返回都合法。而 `rxdb_branch.parentId` 是指向自己的外键，
-   * 子分支排在父分支前面时，逐条 create 的第一条就撞 FK。
-   *
-   * 两个子缺陷叠在一起才是完整的伤害面：
-   * - 无拓扑排序 → 子先父后必失败；
-   * - 无事务 → 失败前已 create 的分支留在库里，重试时又撞主键，同步就此卡死。
-   */
-  describe('syncBranches', () => {
-    it('远端按子先父后的顺序返回时，仍要全部落库且不留孤儿', async () => {
-      const db = new FakeLocalDatabase();
-      // 绊线：事务体内不得再碰绑在适配器上的仓库（并发度 1 会自锁）。
-      db.tripwire = true;
-      // 刻意倒序：孙 → 子 → 父。远端不保证顺序，被测代码必须自己排。
-      const version = createVersionManager(db, [
-        { id: 'grand', activated: false, parentId: 'child' },
-        { id: 'child', activated: false, parentId: 'root' },
-        { id: 'root', activated: false, parentId: null }
-      ]);
-
-      const result = await syncBranches(version);
-
-      expect(result).toMatchObject({ created: 3, updated: 0, total: 3 });
-      expect(db.branches.map(row => row.id).sort()).toEqual(['child', 'grand', 'root']);
-      expect(db.orphans()).toEqual([]);
-      // 三条 create 必须共处一个事务窗口：否则中途失败就是「部分提交」。
-      expect(db.transactionCount).toBe(1);
-    });
-
-    it('已存在的本地分支只标记 remote，不重复创建', async () => {
-      const db = new FakeLocalDatabase();
-      db.tripwire = true;
-      db.branches.push({ id: 'root', activated: true, parentId: null, local: true, remote: false });
-      const version = createVersionManager(db, [
-        { id: 'child', activated: false, parentId: 'root' },
-        { id: 'root', activated: false, parentId: null }
-      ]);
-
-      const result = await syncBranches(version);
-
-      expect(result).toMatchObject({ created: 1, updated: 1, total: 2 });
-      expect(db.branches.find(row => row.id === 'root')?.remote).toBe(true);
-      expect(db.branches.filter(row => row.id === 'root')).toHaveLength(1);
-      expect(db.orphans()).toEqual([]);
-    });
-
-    /**
-     * 原子性：远端数组里混进一条父分支查无此人的记录（远端删了父、子还挂着，
-     * 或者分页把父分支切到了下一页），整批必须原地回滚 —— 不能留下半批已提交的分支，
-     * 否则下次重试撞主键，同步永久卡死。
-     */
-    it('批中有一条外键无法满足时，本地分支表整体不变', async () => {
-      const db = new FakeLocalDatabase();
-      db.branches.push({ id: 'main', activated: true, parentId: null, local: true, remote: false });
-      const version = createVersionManager(db, [
-        { id: 'root', activated: false, parentId: null },
-        { id: 'child', activated: false, parentId: 'root' },
-        { id: 'lost', activated: false, parentId: 'never-existed' }
-      ]);
-
-      await expect(syncBranches(version)).rejects.toThrow(/missing parent/);
-
-      // 一条都不能留：`root` / `child` 在失败前本来是能建成功的。
-      expect(db.branches.map(row => row.id)).toEqual(['main']);
-      expect(db.orphans()).toEqual([]);
-    });
-
-    /**
-     * 成环与「父缺失」要能分开报 —— 两者的处置完全不同：父缺失通常是分页/删除的时序问题，
-     * 重试可能就好了；成环是远端数据本身坏了，重试多少次都一样。报错分不清就只能靠猜。
-     */
-    it('远端分支互相成环时整批放弃，且错因报成 cycle 而非 missing parent', async () => {
-      const db = new FakeLocalDatabase();
-      db.branches.push({ id: 'main', activated: true, parentId: null, local: true, remote: false });
-      const version = createVersionManager(db, [
-        { id: 'a', activated: false, parentId: 'b' },
-        { id: 'b', activated: false, parentId: 'a' }
-      ]);
-
-      await expect(syncBranches(version)).rejects.toThrow(/cycle/);
-
-      expect(db.branches.map(row => row.id)).toEqual(['main']);
     });
   });
 });
