@@ -295,6 +295,34 @@ describe('entity.utils', () => {
 
       expect(entity.count).toBe(10);
     });
+
+    // 时钟每次读都往前走 1ms：两个默认值各自 `new Date()` 时，createdAt 与 updatedAt
+    // 必然差 1ms —— 真实时钟下这只是偶发（跨毫秒边界才发）的 flake。
+    it('同一次填充里的时间戳共享同一个时刻，不随时钟前进而错开', () => {
+      const RealDate = Date;
+      let tick = 0;
+      class TickingDate extends RealDate {
+        constructor(...args: ConstructorParameters<typeof Date>) {
+          if (args.length === 0) super(RealDate.UTC(2026, 0, 1) + tick++);
+          else super(...args);
+        }
+      }
+      vi.stubGlobal('Date', TickingDate);
+      try {
+        const metadata = getEntityMetadata(TestEntity);
+        const entity = new TestEntity();
+        // 构造期已经填过一轮，这里手工验证填充函数本身。
+        const bare = Object.create(Object.getPrototypeOf(entity) as object) as TestEntity;
+        fillDefaultValue(metadata, bare);
+
+        expect(bare.createdAt).toBeInstanceOf(RealDate);
+        expect(bare.createdAt.getTime()).toBe(bare.updatedAt.getTime());
+        // 两个字段各自持有实例，不共享引用。
+        expect(bare.createdAt).not.toBe(bare.updatedAt);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   describe('fillInitValue', () => {

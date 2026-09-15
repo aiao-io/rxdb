@@ -117,6 +117,29 @@ export const setSafeObjectKeyLazyInitOnce = <V>(object: object, key: string | sy
   });
 };
 
+/** 当前 {@link fillDefaultValue} 调用共享的「现在」；不在填充期间为 `undefined`。 */
+let fillInstant: Date | undefined;
+
+/**
+ * 默认值函数里的「现在」。
+ *
+ * @remarks
+ * 同一次默认值填充里所有调用它的默认值拿到**同一个时刻**：`createdAt` 与 `updatedAt`
+ * 各自 `new Date()` 时，两次调用会跨过毫秒边界，新建行的两个时间戳就差 1ms，
+ * 「`updatedAt === createdAt` 即从未改过」这条不变量随机失效。
+ *
+ * 每次返回**新的** `Date` 实例（拷贝而非共享引用），两个字段不会互相别名。
+ * 不在填充期间调用就是普通的当前时刻——它本来就没有可共享的时刻作用域。
+ *
+ * @returns 当次填充的时刻，或调用当下的时刻。
+ *
+ * @example
+ * ```ts
+ * { name: 'createdAt', type: PropertyType.date, default: () => entityDefaultNow() }
+ * ```
+ */
+export const entityDefaultNow = (): Date => (fillInstant === undefined ? new Date() : new Date(fillInstant));
+
 /**
  * 给实体实例填充默认值
  * 根据元数据中定义的默认值，为实体的未赋值属性设置默认值
@@ -124,8 +147,30 @@ export const setSafeObjectKeyLazyInitOnce = <V>(object: object, key: string | sy
  * @template T - 实体类型
  * @param metadata - 实体元数据
  * @param entity - 实体实例
+ *
+ * @remarks
+ * 填充期间 {@link entityDefaultNow} 返回同一个时刻；填充是同步且不可重入的，
+ * 结束（含抛错）一律清掉这个时刻作用域。
  */
 export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata, entity: InstanceType<T>) => {
+  fillInstant = new Date();
+  try {
+    const data = collectDefaultValue(metadata, entity);
+    if (data) Object.assign(entity, data);
+  } finally {
+    fillInstant = undefined;
+  }
+};
+
+/**
+ * 算出 `entity` 上所有仍是 `undefined` 的缺省属性的值。
+ *
+ * @returns 待写入的键值对；没有任何属性需要填充时返回 `undefined`。
+ */
+const collectDefaultValue = <T extends EntityType>(
+  metadata: EntityMetadata,
+  entity: InstanceType<T>
+): Record<string, unknown> | undefined => {
   const data: Record<string, unknown> = {};
   let need = false;
   metadata.defaultValueProperties.forEach(property => {
@@ -141,7 +186,7 @@ export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata,
       data[property.name] = property.type === PropertyType.binary ? new Uint8Array(value as Uint8Array) : value;
     }
   });
-  if (need) Object.assign(entity, data);
+  return need ? data : undefined;
 };
 
 /**

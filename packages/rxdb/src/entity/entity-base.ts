@@ -28,6 +28,7 @@ import type {
 import { uuid } from '../rxdb-utils.js';
 import { Entity } from './entity.decorator.js';
 import { IEntity, RxDBEntityId, UUID } from './entity.interface.js';
+import { entityDefaultNow } from './entity.utils.js';
 import { EntityMetadataOptions, PropertyType } from './metadata-options.interface.js';
 
 /**
@@ -52,14 +53,15 @@ export const ENTITY_BASE_METADATA_OPTIONS: EntityMetadataOptions = {
       displayName: '创建时间',
       type: PropertyType.date,
       readonly: true,
-      default: () => new Date()
+      // 与 updatedAt 共享同一次填充的时刻：两次 `new Date()` 跨毫秒边界会让新建行差 1ms。
+      default: () => entityDefaultNow()
     },
     {
       name: 'updatedAt',
       displayName: '更新时间',
       type: PropertyType.date,
       readonly: true,
-      default: () => new Date()
+      default: () => entityDefaultNow()
     },
     {
       name: 'createdBy',
