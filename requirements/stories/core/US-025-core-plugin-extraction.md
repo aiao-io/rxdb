@@ -52,21 +52,78 @@ tags: [core, plugin, packaging]
 
 ## 候选子系统与判定
 
-行数为 `packages/rxdb/src` 下非测试代码，核心包合计 36,986 行。
+行数为「位置」列所列文件的 `wc -l`（排除 `__tests__/` 与 `*.spec.ts`），核心包合计 36,986 行。
+依赖边数由遍历 `packages/rxdb/src` 下全部非测试 `.ts` 的相对 `import` / `export … from` 规格得出，
+出边 = 该切片依赖的核心模块数，入边 = 依赖该切片的核心模块数。
 
-| 子系统                        | 位置                                                      | 行数  | 判定                 |
-| ----------------------------- | --------------------------------------------------------- | ----- | -------------------- |
-| QueryCache 远端权威缓存       | `repository/QueryCacheRepository.ts` + `query-cache-*.ts` | 2,532 | **拆**（阶段 A）     |
-| 跨 tab 网关                   | `gateway/`                                                | 416   | **拆**（阶段 A）     |
-| 历史 / 撤销重做 / 分支        | `version/HistoryManager.ts` 等                            | 3,525 | **拆**（阶段 B）     |
-| 推拉同步 / 冲突解决           | `version/push*.ts` `pull*.ts` `sync*.ts` `conflict.ts`    | 6,014 | **拆**（阶段 C）     |
-| 可达性 + 同步状态             | `network/reachability.ts` `sync-state.ts`                 | ~500  | 随阶段 C 一起走      |
-| 树实体                        | `entity/tree-entity*.ts` `repository/TreeRepository.ts`   | 1,510 | 阶段 D，**价值待证** |
-| 迁移执行器                    | `system/migration*.ts`                                    | 378   | 不拆，见下           |
-| 元数据校验                    | `entity/metadata-validate.ts`                             | 534   | 不拆，**价值待证**   |
-| 事务 / 实体 / Schema / 活查询 | `transaction/` `entity/` `schema/` `query/`               | 剩余  | **核心，不拆**       |
+| 子系统                        | 位置                                                                          | 行数   | 判定                             |
+| ----------------------------- | ----------------------------------------------------------------------------- | ------ | -------------------------------- |
+| QueryCache 读路径             | `repository/QueryCacheRepository.ts` `query-cache-primary.ts` `-sync-memo.ts` | 1,541  | **拆**（阶段 B）                 |
+| QueryCache 写回出站           | `repository/query-cache-outbox.ts`                                            | 837    | **拆**（阶段 D，随推拉同步）     |
+| 跨 tab 网关                   | `gateway/`                                                                    | 416    | **不拆**，原地作用域化（阶段 A） |
+| 历史 / 撤销重做 / 分支        | `version/HistoryManager.ts` 等                                                | ~3,525 | **拆**（阶段 C）                 |
+| 推拉同步 / 冲突解决           | `version/push*.ts` `pull*.ts` `sync*.ts` `conflict.ts`                        | 4,482  | **拆**（阶段 D）                 |
+| 可达性 + 同步状态             | `network/` `sync-state.ts`                                                    | 449    | 随阶段 D 一起走                  |
+| 树实体                        | `entity/tree-entity*.ts` `repository/TreeRepository.ts` + tree 工具           | 474    | 阶段 E，**价值待证**             |
+| 迁移执行器                    | `system/migration*.ts`                                                        | 378    | 不拆，见下                       |
+| 元数据校验                    | `entity/metadata-validate.ts`                                                 | 534    | 不拆，**价值待证**               |
+| 事务 / 实体 / Schema / 活查询 | `transaction/` `entity/` `schema/` `query/`                                   | 剩余   | **核心，不拆**                   |
 
-不拆的理由：
+### 为什么 QueryCache 必须切成两半
+
+把 `QueryCache*` 四个文件当一个单元看，它对核心其余部分有 **25 条出边**（其中 9 条进 `version/`）、
+**4 条入边**——而入边里有一条来自 `version/` 自己，
+[`sync-listeners.ts`](../../../packages/rxdb/src/version/sync-listeners.ts)：
+
+```ts
+import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
+```
+
+这是**双向环**：QueryCache 依赖版本子系统的水位线与冲突解决，版本子系统的同步监听又反过来驱动
+QueryCache 出站。环在，「QueryCache 先走、`version/` 后走」的阶段顺序就不成立。
+
+按读 / 写切开，环消失：
+
+| 切片     | 行数  | 出边 | 其中进 `version/` | 入边                                              |
+| -------- | ----- | ---- | ----------------- | ------------------------------------------------- |
+| 读路径   | 1,541 | 13   | **0**             | 4（含 `index.ts`）                                |
+| 写回出站 | 837   | 18   | **9**             | 2（`Repository.ts`、`version/sync-listeners.ts`） |
+
+出站本来就是 **changelog 的第二个消费者**，
+[`query-cache-outbox.ts`](../../../packages/rxdb/src/repository/query-cache-outbox.ts) 的文件头自己写明：
+
+> 共用的是**队列与水位线**：出站行就是触发器已经在写的 `rxdb_change`，水位线就是
+> `RxDBSync.lastPushedChangeId`（`syncType` 的联合类型里本来就有 `'querycache'`）。不同的只有提交动作。
+
+按本故事自己的规则「搬走的是消费者，不是原语」，它归阶段 D 的 sync 插件，和 push / pull 共用同一条水位线。
+
+### 不拆的理由
+
+- **跨 tab 网关**：416 行、占核心 1.1%，对外只有一条出边（`rxdb-events.ts`）一条入边（`RxDB.ts`）——
+  切面确实是候选表里最干净的，但**切开不减少任何依赖**：核心该引的一条不少。本故事用同一把尺子否掉了
+  378 行的迁移执行器（「去掉不到 1% 的包体」），网关过不了这把尺子。附带代价还有三笔：
+  `EventOrigin` 的 `'cross-tab'`、`isCrossTabEvent`、实体上的 `origin` 标记必须留在核心
+  （[`rxdb.transaction.ts`](../../../packages/rxdb/src/rxdb.transaction.ts) 与
+  [`VersionManager`](../../../packages/rxdb/src/version/VersionManager.ts) 在读）；
+  [`RxDB.firstConnectedAt`](../../../packages/rxdb/src/RxDB.ts) 的唯一消费者是
+  [`HistoryManager`](../../../packages/rxdb/src/version/HistoryManager.ts)——
+
+  ```ts
+  this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? this.#sessionStartedAt;
+  ```
+
+  网关一旦成包，这就是一条 tabs 插件 → history 插件的跨插件边，又多一处 `plugin:*` 依赖；
+  而 `multiInstance` 在源码里只有两个落点（`RxDB.ts` 的判定与 `rxdb.interface.ts` 的声明），
+  删掉它换来的不是净减少。网关真正值钱的那一条——症状 3 的拆卸对称——**不用成包就能拿到**：
+  [`RxDB.init()`](../../../packages/rxdb/src/RxDB.ts) 里连接作用域先于插件与网关建立，
+
+  ```ts
+  this.#ensure_connection_scope();
+  this.#install_plugin();
+  ```
+
+  `#init_gateway()` 排在其后，把网关的建立改成向该作用域 `acquire` 一条撤销条目，`#shutdown()`
+  就不必再点名它。这是阶段 A 的第二件事。
 
 - **迁移执行器**：378 行，且 `migrations` 已在 `LIVE_BEHAVIOUR_CONFIG_KEYS` 里；拆出去要
   新增一个包、一条依赖边与一份文档，去掉不到 1% 的包体。抽象数 > 病灶数。
@@ -76,12 +133,87 @@ tags: [core, plugin, packaging]
   （`getRxDBChangeSequence()`、`transaction()` 的 `localChanges` / `disableTriggers` 形参），
   sqlite-core 的 `WATCH_TABLES` 也直接列了 `rxdb$rxdb_change`。**搬走的是消费者，不是原语**。
 
+## 两条都叫 Repository 的扩展轴
+
+核心里有两条正交的扩展轴共用「Repository」这个词，判定表里的 QueryCache 归属与阶段 E 的树插件
+都卡在这上面，先把轴分清。
+
+**门面轴**决定 `getRepository(E)` 的**公开面**。入口是 `@Entity({ repository: 'X' })`，
+[`EntityManager.init()`](../../../packages/rxdb/src/entity/entity-manager.ts) 按名查表、查不到就拒绝注册：
+
+```ts
+throw new RxDBError(`Repository '${metadata.repository}' not found for entity '${metadata.name}'`);
+```
+
+成员是 `Repository` / `TreeRepository` / `GraphRepository`，各自 `extends Repository` 并追加静态入口：
+
+```ts
+protected static override _STATIC_METHODS = [...super._STATIC_METHODS, 'get', 'findOneOrFail', 'find', …];
+```
+
+注册要两侧各来一次——宿主侧 `RxDB.repository(name, config, scope)`
+（[`RxDBPluginGraph.install()`](../../../packages/rxdb-plugin-graph/src/plugin.ts) 是现成先例），
+适配器侧 `this.repository('TreeRepository', SqliteTreeRepository)`。
+
+**策略轴**决定 `Repository.primary$` 背后接哪个读写引擎，**不改公开面**。入口是 `@Entity({ sync: { type } })`，
+落点是 [`Repository`](../../../packages/rxdb/src/repository/Repository.ts) 构造里那一处分支：
+
+```ts
+if (this.sync?.type === SyncType.QueryCache) {
+```
+
+成员是 `full` / `filter` / `querycache` / `remote` / `local` / `none`，没有注册表，全部写死在核心。
+
+**`QueryCacheRepository` 在策略轴上，名字却取自门面轴。** 它不 `extends` 任何东西：
+
+```ts
+export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
+```
+
+不实现 `IRepository`、不进宿主的仓储配置表、`metadata.repository` 选不中它、没有 `_STATIC_METHODS`。
+[`query-cache-primary.ts`](../../../packages/rxdb/src/repository/query-cache-primary.ts) 的文件头把这条界线写死了：
+
+> `getRepository(E)` 的公开面由 `IRepository` 与 `Repository._STATIC_METHODS` 定死 —— 8 个静态入口、
+> Promise 返回、`remove(entity)`。`QueryCacheRepository` 三样都不同（2 个入口、Observable、`delete(ids)`）
+> ……因此 `Repository` 仍是门面，只把 `primary$` 换成本文件的实现。
+
+据此，阶段 B 随外移一并改名：`QueryCacheRepository` → `QueryCacheEngine`（策略轴引擎），
+`QueryCachePrimaryRepository` 保留原名——它确实 `implements IRepository`，站在门面轴上。
+未来新增的策略轴成员按 `*Engine` 命名，门面轴成员按 `*Repository` 命名，一个名字只属于一条轴。
+
+**门面轴今天只对插件半开。** 注册 API 已经通了（graph 插件在跑），但两处类型是硬编码的：
+
+```ts
+repository?: 'Repository' | 'TreeRepository' | string;
+```
+
+```ts
+export interface EntityMetadataFeatures {
+  [name: string]: unknown;
+  tree?: EntityMetadataTreeFeatures;
+}
+```
+
+`tree` 在核心接口上有具名字段，`graph` 只能落到索引签名——同为门面轴成员，一个是一等公民、一个是
+字符串。核心里已有现成解法，[`RxDBAdapters`](../../../packages/rxdb/src/rxdb-adapter.ts) 就是这么开的：
+
+```ts
+export interface RxDBAdapters {}
+export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
+```
+
+照抄成 `RxDBRepositories {}` + `RxDBRepositoryName`，把 `repository?` 换成后者，插件用
+`declare module` 把自己的成员合并进来。这是阶段 A 的第一件事：**不搬任何运行时代码**，
+却是阶段 E 把 `TreeRepository` 搬出核心的前置——`tree?` 那个具名字段要能跟着插件走，
+首先得有一条插件能往里写的路。
+
 ## 范围边界
 
 ### In Scope
 
 - 把上表判定为「拆」的子系统外移为独立包，经 `IRxDBPlugin` + `install(scope)` 安装
-- 补齐 `plugin:*` 跨插件依赖解析（阶段 B / C 的前置，见「前置与阻塞」）
+- 门面轴注册表类型化（`RxDBRepositories` / `RxDBRepositoryName`）与网关原地作用域化（阶段 A）
+- 补齐 `plugin:*` 跨插件依赖解析（阶段 C / D 的前置，见「前置与阻塞」）
 - 系统表随插件注册：`RxDBBranch` / `RxDBChange` / `RxDBSync` 不再由 `SchemaManager.init()` 无条件注入
 - 三框架绑定与 DevTools 随之调整，保持 Angular / React / Vue API 对称
 - 每阶段更新 `requirements/api-baseline/` 基线与迁移文档
@@ -89,25 +221,25 @@ tags: [core, plugin, packaging]
 ### Out of Scope
 
 - 改变任一子系统的**行为语义**——这是搬家，不是重写；行为变更另开故事
+- `gateway/` 外移为独立包（判定与理由见「不拆的理由」）
+- 把策略轴也开成注册表（`SyncType` / `SyncOptions` 仍闭合，见「必须留在核心」）
 - 适配器侧的 changelog 原语与 `*TreeRepository` 子类（留在适配器包内）
 - `packages/rxdb` 拆子路径导出（subpath）——本故事走独立包，不走 `exports` 分叉
 - 事务、实体、Schema、活查询合并引擎
 
 ## 交付阶段
 
-| 阶段 | 内容                         | 前置                | 状态 |
-| ---- | ---------------------------- | ------------------- | ---- |
-| A    | QueryCache 与跨 tab 网关外移 | 无                  | ⬜   |
-| B    | 历史 / 撤销重做 / 分支外移   | `plugin:*` 依赖解析 | ⬜   |
-| C    | 推拉同步 / 冲突 / 可达性外移 | 阶段 B              | ⬜   |
-| D    | 树实体外移                   | 阶段 A              | ⬜   |
+| 阶段 | 交付                                                            | 直接前置                             | AC 区段 | 状态 |
+| ---- | --------------------------------------------------------------- | ------------------------------------ | ------- | ---- |
+| A    | 门面轴注册表类型化 + 网关原地作用域化（核心内整形，零代码迁出） | 无                                   | A1～A4  | ⬜   |
+| B    | QueryCache 读路径外移                                           | 无                                   | B1～B5  | ⬜   |
+| C    | 历史 / 撤销重做 / 分支外移                                      | `plugin:*` 依赖解析（US-015 阶段 B） | C1～C6  | ⬜   |
+| D    | 推拉同步 / 冲突 / 可达性 + QueryCache 写回出站外移              | 阶段 B + 阶段 C                      | D1～D6  | ⬜   |
+| E    | 树实体外移                                                      | 阶段 A + `RxDBBranch` 去树化         | E1～E4  | ⬜   |
 
-阶段 A 两项各自独立、互不依赖，是先做它们的理由：
-
-- **QueryCache** 在 [`Repository`](../../../packages/rxdb/src/repository/Repository.ts) 构造里只有
-  **一个**分支点 `if (this.sync?.type === SyncType.QueryCache)`，切面天然收敛；
-- **网关**已经有 `multiInstance` 这条现成的开关语义，改成「装插件 = 开启」即可，
-  并顺带删掉一个配置项。
+阶段 A 与阶段 B 各自零前置、互不依赖，可并行；A 不搬任何运行时代码，是风险最低的起点。
+阶段 D 同时收两条前置：出站的提交动作要 sync 插件（阶段 C 之后），出站引用的
+`QueryCacheRemoteAdapter` 要 querycache 插件（阶段 B 之后）。
 
 ## 验收标准
 
@@ -115,46 +247,58 @@ tags: [core, plugin, packaging]
 
 ### 阶段 A
 
-| #   | 前置条件                             | 操作                                        | 预期结果                                                                  | 状态 |
-| --- | ------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------------- | ---- |
-| A1  | 应用只配 `SyncType.None` + local     | 构建产物并核对依赖图                        | `QueryCacheRepository` 与 `gateway/` 均不在图内                           | ⬜   |
-| A2  | 装 `rxdb-plugin-querycache`          | 实体声明 `SyncType.QueryCache`、`connect()` | 读写行为与外移前逐条一致（复用现有 US-020~024 测试，仅改 import）         | ⬜   |
-| A3  | 未装 querycache 插件                 | 实体声明 `SyncType.QueryCache`、`connect()` | 在 `connect()` 阶段抛出点名缺失插件的错误，不静默降级为本地读             | ⬜   |
-| A4  | 装 `rxdb-plugin-tabs`，两个 tab 打开 | 一侧写入                                    | 另一侧收到跨 tab 事件，`firstConnectedAt` 语义不变                        | ⬜   |
-| A5  | 未装 tabs 插件                       | `connect()`                                 | 单 realm 正常运行；`RxDBOptions.multiInstance` 已从公开契约移除           | ⬜   |
-| A6  | 阶段 A 完成                          | `disconnectAll()`                           | 两个插件的作用域条目全部逆序释放，`RxDB.#shutdown()` 不再逐个手工销毁它们 | ⬜   |
+| #   | 前置条件               | 操作                                       | 预期结果                                                                                          | 状态 |
+| --- | ---------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- | ---- |
+| A1  | 装 `rxdb-plugin-graph` | 在 `@Entity({ repository: … })` 处取补全   | 候选含插件经 `declare module` 注册的 `'GraphRepository'`；核心 `repository?` 不再硬编码字面量联合 | ⬜   |
+| A2  | 声明一个未注册的仓储名 | `init()`                                   | 仍按 `Repository '<name>' not found for entity '<entity>'` 抛错——类型放宽不得削弱运行期护栏       | ⬜   |
+| A3  | `multiInstance` 未关闭 | `disconnectAll()`                          | 网关经连接作用域逆序释放；`RxDB.#shutdown()` 里不再有点名 `#gateway` 的销毁代码                   | ⬜   |
+| A4  | 阶段 A 完成            | 核对 `requirements/api-baseline/rxdb.json` | 零运行时代码迁出核心；基线只新增 `RxDBRepositories` / `RxDBRepositoryName`，无删除项（非破坏性）  | ⬜   |
 
 ### 阶段 B
 
-| #   | 前置条件                           | 操作                       | 预期结果                                                                      | 状态 |
-| --- | ---------------------------------- | -------------------------- | ----------------------------------------------------------------------------- | ---- |
-| B1  | 插件 X 声明 `inject: ['plugin:y']` | `init()`                   | Y 进入 `active` 后 X 才安装；Y 缺席时 X 停在等待态并 warn，`connect()` 不挂起 | ⬜   |
-| B2  | 未装 history 插件                  | `connect()`                | `RxDBBranch` / `RxDBChange` 表不建，本地 CRUD 正常                            | ⬜   |
-| B3  | 装 history 插件                    | 写入后 `undo()` / `redo()` | 行为与外移前一致（复用 US-301 / US-302 / US-307 测试）                        | ⬜   |
-| B4  | 装 history 插件                    | 建分支、切分支、合并分支   | 行为与外移前一致（复用 US-305 / US-308 测试）                                 | ⬜   |
-| B5  | 未装 history 插件                  | 访问 `rxdb.versionManager` | 编译期即不可达；运行期读到 `undefined` 而非半截对象                           | ⬜   |
-| B6  | 三框架 demo                        | 撤销重做 UI 操作           | Angular / React / Vue 三端 API 与行为对称                                     | ⬜   |
+| #   | 前置条件                         | 操作                                        | 预期结果                                                                                        | 状态 |
+| --- | -------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---- |
+| B1  | 应用只配 `SyncType.None` + local | 构建产物并核对依赖图                        | `QueryCacheEngine` / `query-cache-primary` / `query-cache-sync-memo` 均不在图内                 | ⬜   |
+| B2  | 装 `rxdb-plugin-querycache`      | 实体声明 `SyncType.QueryCache`、`connect()` | 读路径行为与外移前逐条一致（复用 US-020～024 测试，仅改 import）                                | ⬜   |
+| B3  | 未装 querycache 插件             | 实体声明 `SyncType.QueryCache`、`connect()` | 在 `connect()` 阶段抛出点名缺失插件的错误，不静默降级为本地读                                   | ⬜   |
+| B4  | 装 querycache 插件               | 离线写入后重新联网                          | 出站仍由核心的 `query-cache-outbox.ts` 提交（阶段 B 不动写回路径），行为不变                    | ⬜   |
+| B5  | 阶段 B 完成                      | 核对插件包依赖                              | 插件包对 `version/` 零依赖（读路径 13 条出边无一进 `version/`）；`SyncType.QueryCache` 仍留核心 | ⬜   |
 
 ### 阶段 C
 
-| #   | 前置条件                                        | 操作                           | 预期结果                                                         | 状态 |
-| --- | ----------------------------------------------- | ------------------------------ | ---------------------------------------------------------------- | ---- |
-| C1  | 装 sync 插件（其 `inject` 含 `plugin:history`） | `push()` / `pull()` / `sync()` | 行为与外移前一致（复用现有 push/pull 契约测试）                  | ⬜   |
-| C2  | 未装 sync 插件、只配 local                      | `connect()`                    | `RxDBSync` 表不建；`reachability` 不往 `globalThis` 挂监听       | ⬜   |
-| C3  | 装 sync 插件                                    | 断网后恢复                     | 退避重放与 `syncState` 面板数字与外移前一致                      | ⬜   |
-| C4  | DevTools 连上应用                               | 打开同步 / 历史面板            | 插件缺席时面板明确显示「未安装」，不报错也不显示空数据冒充已安装 | ⬜   |
+| #   | 前置条件                           | 操作                       | 预期结果                                                                      | 状态 |
+| --- | ---------------------------------- | -------------------------- | ----------------------------------------------------------------------------- | ---- |
+| C1  | 插件 X 声明 `inject: ['plugin:y']` | `init()`                   | Y 进入 `active` 后 X 才安装；Y 缺席时 X 停在等待态并 warn，`connect()` 不挂起 | ⬜   |
+| C2  | 未装 history 插件                  | `connect()`                | `RxDBBranch` / `RxDBChange` 表不建，本地 CRUD 正常                            | ⬜   |
+| C3  | 装 history 插件                    | 写入后 `undo()` / `redo()` | 行为与外移前一致（复用 US-301 / US-302 / US-307 测试）                        | ⬜   |
+| C4  | 装 history 插件                    | 建分支、切分支、合并分支   | 行为与外移前一致（复用 US-305 / US-308 测试）                                 | ⬜   |
+| C5  | 未装 history 插件                  | 访问 `rxdb.versionManager` | 编译期即不可达；运行期读到 `undefined` 而非半截对象                           | ⬜   |
+| C6  | 三框架 demo                        | 撤销重做 UI 操作           | Angular / React / Vue 三端 API 与行为对称                                     | ⬜   |
 
 ### 阶段 D
 
-| #   | 前置条件                     | 操作                   | 预期结果                             | 状态 |
-| --- | ---------------------------- | ---------------------- | ------------------------------------ | ---- |
-| D1  | 装 tree 插件                 | `@TreeEntity` 增删改查 | 行为与外移前一致（复用 US-010 测试） | ⬜   |
-| D2  | 未装 tree 插件               | 声明 `@TreeEntity`     | 注册阶段抛错点名缺失插件             | ⬜   |
-| D3  | 各适配器的 `*TreeRepository` | 经插件注册路径装配     | 六个适配器均不需为此改公开 API       | ⬜   |
+| #   | 前置条件                                        | 操作                            | 预期结果                                                                                         | 状态 |
+| --- | ----------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
+| D1  | 装 sync 插件（其 `inject` 含 `plugin:history`） | `push()` / `pull()` / `sync()`  | 行为与外移前一致（复用现有 push/pull 契约测试）                                                  | ⬜   |
+| D2  | 未装 sync 插件、只配 local                      | `connect()`                     | `RxDBSync` 表不建；`reachability` 不往 `globalThis` 挂监听                                       | ⬜   |
+| D3  | 核心 `Repository`                               | 构造 QueryCache 主仓储          | 核心不再值导入 `pendingQueryCacheWriteIds`——待提交写的查询改由插件注入                           | ⬜   |
+| D4  | 装 sync 插件                                    | 断网后恢复                      | 退避重放与 `syncState` 面板数字与外移前一致                                                      | ⬜   |
+| D5  | 装 sync + querycache 插件                       | QueryCache 实体离线写、恢复联网 | `flushQueryCacheOutbox` 由 sync 插件驱动，水位线仍是 `RxDBSync.lastPushedChangeId`，与 push 共用 | ⬜   |
+| D6  | 装 sync、未装 querycache，无 QueryCache 实体    | `connect()`                     | 正常运行——两包间只有 `import type { QueryCacheRemoteAdapter }`，不产生 `inject` 运行期依赖       | ⬜   |
+
+### 阶段 E
+
+| #   | 前置条件                     | 操作                   | 预期结果                                                                         | 状态 |
+| --- | ---------------------------- | ---------------------- | -------------------------------------------------------------------------------- | ---- |
+| E1  | 装 tree 插件                 | `@TreeEntity` 增删改查 | 行为与外移前一致（复用 US-010 测试）                                             | ⬜   |
+| E2  | 未装 tree 插件               | 声明 `@TreeEntity`     | 注册阶段抛错点名缺失插件                                                         | ⬜   |
+| E3  | 各适配器的 `*TreeRepository` | 经插件注册路径装配     | 六个适配器均不需为此改公开 API                                                   | ⬜   |
+| E4  | 未装 tree 插件               | `connect()` 并建系统表 | `RxDBBranch` 建表成功——它已不是树实体；`EntityMetadataFeatures.tree?` 已随插件走 | ⬜   |
 
 ## 前置与阻塞
 
-**`plugin:*` 依赖解析今天不可用**，这是阶段 B / C 的硬前置。
+### `plugin:*` 依赖解析今天不可用（阶段 C / D 的硬前置）
+
 [`PluginDependencyScheduler`](../../../packages/rxdb/src/plugin/dependency-scheduler.ts) 的文档写明：
 
 > 阶段 A 只解析 `adapter:*`。`plugin:*` 依赖在宿主侧恒为未就绪
@@ -162,6 +306,23 @@ tags: [core, plugin, packaging]
 现存四个插件包无一声明过跨插件依赖（`rxdb-plugin-search` 的 `readonly inject = ['adapter:local'] as const`
 是唯一的 `inject` 用例）。而 sync 插件必须排在 history 插件之后——两者共用 changelog 水位。
 这条能力属于 [US-015](./US-015-plugin-inject-dependency.md) 的阶段 B，需先解锁。
+
+### `RxDBBranch` 是树实体（阶段 E 的硬前置）
+
+阶段 E 卡住的不是任何一个外移阶段，而是核心的系统表自己在用树能力——
+[`RxDBBranch`](../../../packages/rxdb/src/system/branch.ts) 挂的是 `@TreeEntity` 而不是 `@Entity`：
+
+```ts
+import { TreeEntity } from '../entity/tree-entity.decorator.js';
+```
+
+树实体一旦成插件，不装 tree 插件连分支表都建不起来；而分支属于阶段 C 的 history 插件，
+于是 history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增一条跨插件边。
+因此阶段 E 的真前置是**先把 `RxDBBranch` 去树化**（或让它随 history 插件走并自带树能力），
+这是一段独立工作，不在本故事的任一阶段里。树实体在核心的入边共 4 条
+（`entity-manager.ts`、`entity.interface.ts`、`index.ts`、`system/branch.ts`），
+其中只有 `system/branch.ts` 这条是阻塞性的，其余三条随插件注册路径即可解开。
+「价值待证」的标注不撤。
 
 ## 技术笔记
 
@@ -171,25 +332,56 @@ tags: [core, plugin, packaging]
   `freezeConfig()` 整棵跳过这两项，所以插件能在 `install(scope)` 里往 `rxdb.config.entities` 推类并登记撤销。
   `RxDBPluginStorage.install()` 的 `'storage:entity'` 条目就是现成先例。
 - **插件可注册仓储实现**：`RxDB.repository(name, config, scope)` 第三个形参接作用域。
-  `EntityManager` 今天注册 `TreeRepository` 走的正是这个 API，阶段 D 只是把调用方从
+  `EntityManager` 今天注册 `TreeRepository` 走的正是这个 API，阶段 E 只是把调用方从
   `EntityManager` 换成插件。
 - **安装时序**：`RxDB.init()` 里 `#install_plugin()` 排在 `schemaManager.init()` **之前**，
   所以插件推进去的实体赶得上建表。
 
-**必须留在原地的部分**：changelog 写入是适配器责任而非上层责任——`IRxDBAdapter.transaction()`
-的 `localChanges` / `disableTriggers` 形参、`getRxDBChangeSequence()`、以及 sqlite-core 的
-`WATCH_TABLES` 都已把 `RxDBChange` 写进适配器契约。本故事搬的是**消费者**（历史、撤销、分支、
-推拉、冲突解决），原语与表结构留在 `@aiao/rxdb` + 适配器。这条边界不划清，阶段 B 会演变成
-六个适配器的同步改造。
+**必须留在核心的部分**：
+
+- **changelog 原语**：写入是适配器责任而非上层责任——`IRxDBAdapter.transaction()`
+  的 `localChanges` / `disableTriggers` 形参、`getRxDBChangeSequence()`、以及 sqlite-core 的
+  `WATCH_TABLES` 都已把 `RxDBChange` 写进适配器契约。本故事搬的是**消费者**（历史、撤销、分支、
+  推拉、冲突解决、QueryCache 出站），原语与表结构留在 `@aiao/rxdb` + 适配器。这条边界不划清，
+  阶段 C 会演变成六个适配器的同步改造。
+- **`SyncType` 与 `SyncOptions` 闭合**：策略轴没有注册表，枚举成员与联合分支都写死在核心——
+
+  ```ts
+  export type SyncOptions = SyncFull | SyncFilter | SyncQueryCache | Remote | Local | SyncDisabled;
+  ```
+
+  阶段 B 搬走的是 QueryCache 的**实现**，`SyncType.QueryCache` 这个成员留下，否则 `Repository`
+  构造里那处分支无从判定。代价是核心保留一个指向「可能没装的插件」的枚举值——B3 那条运行期报错
+  就是为它准备的。
+
+- **五个 QueryCache 适配器原语**：`RxDBAdapterLocalBase` 上的 `getMetadataByIds` / `upsertMany` /
+  `deleteByIds` 与 `RxDBAdapterRemoteBase` 上的 `fetchMetadata` / `findByIds` 全是抽象成员——
+
+  ```ts
+  abstract fetchMetadata(entityName: string, query: RuleGroup<unknown>): Observable<QueryCacheEntityMetadata[]>;
+  ```
+
+  与 changelog 原语同一性质，属适配器契约。因此 B1「依赖图里没有 QueryCache」能过，但**六个适配器
+  仍要实现这五个方法**，适配器侧的包体不因阶段 B 变小。
+
+**归属待定（阶段 B 开工前要定）**：[`RxDBAdapterHttp`](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)
+v1 只服务一种同步类型——
+
+```ts
+readonly reason = 'v1 supports SyncType.QueryCache only'
+```
+
+它跟着 querycache 插件走、还是留在适配器序列里，以及 `packages/rxdb-test/src/query-cache-contract/`
+归谁维护，都还没有结论。
 
 **连带成本**（排期时不要漏）：
 
-- `requirements/api-baseline/rxdb.json` 单入口 `.` 当前 440 条导出，每个阶段都会动基线，
-  且按 [versioning-policy.md](../../versioning-policy.md) 属破坏性变更；
+- `requirements/api-baseline/rxdb.json` 单入口 `.` 当前 440 条导出，阶段 B 起每个阶段都会动基线，
+  且按 [versioning-policy.md](../../versioning-policy.md) 属破坏性变更（阶段 A 例外，只增不删）；
 - 三框架绑定今天**不直接**引用 `versionManager`（`rxdb-angular` / `rxdb-react` / `rxdb-vue`
-  的源码里零命中），这是好消息——但 `useSyncState` 绑 `rxdb.syncState`，阶段 C 要一并处理；
+  的源码里零命中），这是好消息——但 `useSyncState` 绑 `rxdb.syncState`，阶段 D 要一并处理；
 - `rxdb-devtools` 的 `connector.ts` 与 `rxdb/database-provider.ts` 直接读 `versionManager`，
-  阶段 B / C 必须同步改；
+  阶段 C / D 必须同步改；
 - demo 应用（`dev-rxdb-angular` / `dev-rxdb-supabase` / `dev-rxdb-electron` 的 branch-manager
   与 todo 页）直接调 `versionManager`，是改造的实际验收面。
 
@@ -200,23 +392,25 @@ tags: [core, plugin, packaging]
 
 ## 实现文件
 
-| 阶段 | 新增包                             | 迁出自                                                                      |
-| ---- | ---------------------------------- | --------------------------------------------------------------------------- |
-| A    | `packages/rxdb-plugin-querycache/` | `packages/rxdb/src/repository/QueryCache*.ts` `query-cache-*.ts`            |
-| A    | `packages/rxdb-plugin-tabs/`       | `packages/rxdb/src/gateway/`                                                |
-| B    | `packages/rxdb-plugin-history/`    | `packages/rxdb/src/version/`（历史 / 分支半区）                             |
-| C    | `packages/rxdb-plugin-sync/`       | `packages/rxdb/src/version/`（推拉半区）+ `network/` + `sync-state.ts`      |
-| D    | `packages/rxdb-plugin-tree/`       | `packages/rxdb/src/entity/tree-entity*.ts` + `repository/TreeRepository.ts` |
+| 阶段 | 新增包                             | 迁出自 / 就地改动                                                                                           |
+| ---- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| A    | 无                                 | 就地：`entity/entity-options.interface.ts`、`rxdb-adapter.ts`（注册表模板）、`RxDB.ts`（网关作用域化）      |
+| B    | `packages/rxdb-plugin-querycache/` | `packages/rxdb/src/repository/QueryCacheRepository.ts` `query-cache-primary.ts` `query-cache-sync-memo.ts`  |
+| C    | `packages/rxdb-plugin-history/`    | `packages/rxdb/src/version/`（历史 / 分支半区）                                                             |
+| D    | `packages/rxdb-plugin-sync/`       | `packages/rxdb/src/version/`（推拉半区）+ `network/` + `sync-state.ts` + `repository/query-cache-outbox.ts` |
+| E    | `packages/rxdb-plugin-tree/`       | `packages/rxdb/src/entity/tree-entity*.ts` + `repository/TreeRepository.ts` + tree 工具                     |
 
-受影响但不迁移：`packages/rxdb/src/RxDB.ts`、`packages/rxdb-devtools/`、三框架绑定包、
-`packages/rxdb-test/`、`apps/dev-rxdb-*`。
+受影响但不迁移：`packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/gateway/`、`packages/rxdb-devtools/`、
+三框架绑定包、`packages/rxdb-test/`、`apps/dev-rxdb-*`。
 
 ## References
 
 - [US-015 插件 inject 依赖](./US-015-plugin-inject-dependency.md) — `plugin:*` 解析的前置
 - [US-014 插件作用域契约](./US-014-plugin-scope-contract.md) — `install(scope)` 拆卸语义
-- [US-020 QueryCache 仓储](./US-020-querycache-repository.md) — 阶段 A 的行为基线
-- [US-301 版本控制](../collaboration/US-301-version-control.md) / [US-302 撤销重做](../collaboration/US-302-undo-redo.md) — 阶段 B 的行为基线
+- [US-020 QueryCache 仓储](./US-020-querycache-repository.md) — 阶段 B 的行为基线
+- [US-009 跨 tab 同步](./US-009-cross-tab-sync.md) — 网关的行为基线（阶段 A 只改拆卸路径）
+- [US-010 树实体](./US-010-tree-entity.md) — 阶段 E 的行为基线
+- [US-301 版本控制](../collaboration/US-301-version-control.md) / [US-302 撤销重做](../collaboration/US-302-undo-redo.md) — 阶段 C 的行为基线
 - [versioning-policy.md](../../versioning-policy.md) — 公开 API 破坏性变更流程
 
 ---
