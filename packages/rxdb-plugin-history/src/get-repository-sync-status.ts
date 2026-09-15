@@ -4,7 +4,20 @@
  * 提供查询单个仓库同步状态的功能，包含 syncType、pushableCount、pullableCount 以及最后同步时间戳等信息。
  */
 
-import { getEntityMetadata, getSyncCapability, getSyncType, isRepositorySyncEnabled, needsPull, needsPush, type RepositoryIdentifier, type RxDB, RxDBChange, type RxDBChangeRuleGroup, RxDBSync, type RxDBSyncRuleGroup } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getSyncCapability,
+  getSyncType,
+  isRepositorySyncEnabled,
+  needsPull,
+  needsPush,
+  type RepositoryIdentifier,
+  type RxDB,
+  RxDBChange,
+  type RxDBChangeRuleGroup,
+  RxDBSync,
+  type RxDBSyncRuleGroup
+} from '@aiao/rxdb';
 import { checkRepositoryUpdates } from './check-repository-updates.js';
 // 唯一定义收敛到 `VersionManager.interface.ts`。
 export type { RepositoryIdentifier };

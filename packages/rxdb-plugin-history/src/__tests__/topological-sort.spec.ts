@@ -2,8 +2,8 @@
  * @fileoverview 拓扑排序测试
  */
 
-import { describe, expect, it } from 'vitest';
 import { PropertyType, RelationKind } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import { buildDependencyGraph } from '../dependency-graph.js';
 import {
   filterAndSort,

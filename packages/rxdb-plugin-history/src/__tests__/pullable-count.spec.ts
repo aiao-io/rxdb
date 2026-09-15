@@ -10,9 +10,9 @@
  * 让两条调用路径共用同一份口径。
  */
 
+import type { PullOptions, PullResult } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { isCompletePull, settledPullableCount } from '../pullable-count.js';
-import type { PullOptions, PullResult } from '@aiao/rxdb';
 
 const pullResult = (overrides: Partial<PullResult> = {}): PullResult =>
   ({

@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, it } from 'vitest';
 import { Entity, EntityBase, type IRxDBAdapter, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import type { CheckRepositoryUpdatesResult } from '../../index.js';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { checkRepositoryUpdates } from '../../check-repository-updates.js';
+import type { CheckRepositoryUpdatesResult } from '../../index.js';
 
 /**
  * RXD-039 残留项的历史侧那一条：**包入口导出的类型名，指向的不是运行时真正的东西**。

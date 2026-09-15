@@ -24,10 +24,6 @@ import type { EntityType } from '../entity/entity.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
-import { RxDBChange } from '../system/change.js';
-import { RxDBSync } from '../system/sync.js';
-import { getCurrentBranch, getLocalSystemRepositories } from '../system/system-repositories.js';
-import type { RxDBChangeRuleGroup } from '../system/types.js';
 import { compactChanges } from '../sync-contract/compact-changes.js';
 import type { ConflictResolver } from '../sync-contract/conflict.js';
 import { LWWConflictResolver } from '../sync-contract/LWWConflictResolver.js';
@@ -36,6 +32,10 @@ import { findCurrentSyncRecord, getOrCreateSyncRecord } from '../sync-contract/s
 import { getSyncType, isRepositorySyncEnabled, SYNC_DISABLED_REASON } from '../sync-contract/sync-type-utils.js';
 import type { SwitchVersionActions, SwitchVersionChange } from '../sync-contract/VersionManager.interface.js';
 import { getRxDBChangeKey } from '../sync-contract/VersionManager.utils.js';
+import { RxDBChange } from '../system/change.js';
+import { RxDBSync } from '../system/sync.js';
+import { getCurrentBranch, getLocalSystemRepositories } from '../system/system-repositories.js';
+import type { RxDBChangeRuleGroup } from '../system/types.js';
 import { isNetworkError } from './network-error.js';
 import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
 import type { IRepository } from './repository.interface.js';
@@ -231,11 +231,14 @@ export function flushQueryCacheOutbox(
     return running;
   }
 
-  const started = runOutboxFlush(rxdb, namespace, entity, options?.conflictResolver ?? new LWWConflictResolver()).finally(
-    () => {
-      byRepository.delete(key);
-    }
-  );
+  const started = runOutboxFlush(
+    rxdb,
+    namespace,
+    entity,
+    options?.conflictResolver ?? new LWWConflictResolver()
+  ).finally(() => {
+    byRepository.delete(key);
+  });
   byRepository.set(key, started);
   return started;
 }

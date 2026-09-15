@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDB } from '@aiao/rxdb';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BulkSyncResult } from '../bulk-sync.js';
 import { createTestDBWithRemote } from './fixtures/test-db-setup.js';
 

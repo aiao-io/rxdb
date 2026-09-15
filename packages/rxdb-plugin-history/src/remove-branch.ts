@@ -1,4 +1,10 @@
-import { type LocalRxDBBranchRepository, type LocalRxDBChangeRepository, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
+import {
+  type LocalRxDBBranchRepository,
+  type LocalRxDBChangeRepository,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError
+} from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
 
 /**

@@ -48,13 +48,11 @@ describe('网关随连接纪元作用域释放', () => {
     const database = createDatabase();
     const order: string[] = [];
     vi.spyOn(RxDBTabsGateway.prototype, 'destroy').mockImplementation(() => void order.push('gateway'));
-    database.use(
-      (): IRxDBPlugin => ({
-        name: 'gatewayScopeProbe',
-        lifecycle: 'scoped',
-        install: scope => void scope.acquire(() => () => void order.push('plugin'), 'probe:marker')
-      })
-    );
+    database.use((): IRxDBPlugin => ({
+      name: 'gatewayScopeProbe',
+      lifecycle: 'scoped',
+      install: scope => void scope.acquire(() => () => void order.push('plugin'), 'probe:marker')
+    }));
 
     await database.connect('sqlite');
     await database.disconnectAll();

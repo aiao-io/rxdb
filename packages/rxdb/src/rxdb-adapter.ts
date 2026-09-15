@@ -6,10 +6,10 @@ import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
 import type { TreeRepository } from './repository/TreeRepository.js';
 import { RxDB } from './RxDB.js';
+import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
-import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 
 export interface PullBatchRequest {
   namespace?: string;

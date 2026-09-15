@@ -1,10 +1,17 @@
+import {
+  type EntityType,
+  RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
+  RepositorySyncErrorEvent,
+  type RepositorySyncType,
+  RxDBError
+} from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type EntityType, RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent, type RepositorySyncType, RxDBError } from '@aiao/rxdb';
-import { METADATA } from './fixtures/private-symbols.js';
 import type { PullRepositoryResult } from '../pull-repository.js';
 import type { PushRepositoryResult } from '../push-repository.js';
 import { syncRepository } from '../sync-repository.js';
 import type { VersionManager } from '../VersionManager.js';
+import { METADATA } from './fixtures/private-symbols.js';
 
 type PullRepository = (
   vm: VersionManager,

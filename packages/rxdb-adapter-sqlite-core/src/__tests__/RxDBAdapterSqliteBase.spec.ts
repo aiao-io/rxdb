@@ -205,7 +205,6 @@ const createRealRxdb = (dbName: string): RxDB => {
   rxdb.schemaManager.init();
   rxdb.entityManager.init();
   vi.spyOn(rxdb, 'connect').mockResolvedValue(undefined as never);
-  vi.spyOn(rxdb.versionManager, 'getCurrentBranch').mockResolvedValue({ id: 'main' } as unknown as RxDBBranch);
   return rxdb;
 };
 
@@ -798,7 +797,6 @@ describe('RxDBAdapterSqliteBase', () => {
       rxdb.addEventListener(TRANSACTION_ROLLBACK, rollbackListener);
       rxdb.init();
       vi.spyOn(rxdb, 'connect').mockResolvedValue(undefined as never);
-      vi.spyOn(rxdb.versionManager, 'getCurrentBranch').mockResolvedValue({ id: 'main' } as RxDBBranch);
       const entityListener = vi.fn();
       const beginFailure = new Error('real begin listener boom');
       const beginListener = () => {

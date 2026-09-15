@@ -13,9 +13,9 @@
  * 过滤谓词（remoteId / lastPushedChangeId / reverted）由 `filterUndoableHistories`
  * 负责，已在 `HistoryManager.scopes-and-undo.spec.ts` 覆盖，这里不重复。
  */
+import { type HistoryItem, type RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, type UUID } from '@aiao/rxdb';
 import { BehaviorSubject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type HistoryItem, type RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, type UUID } from '@aiao/rxdb';
 import { convertChangesToHistories } from '../history-item-builder.js';
 import { HistoryManager } from '../HistoryManager.js';
 import { emptyPushInFlight } from './fixtures/push-inflight.js';

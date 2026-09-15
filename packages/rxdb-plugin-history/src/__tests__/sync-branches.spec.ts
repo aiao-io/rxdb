@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBChange } from '@aiao/rxdb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syncBranches } from '../sync-branches.js';
 import { VersionManager } from '../VersionManager.js';
 

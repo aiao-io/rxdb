@@ -1,6 +1,23 @@
+import {
+  countQueryCacheOutbox,
+  ENTITY_REMOTE_CREATE_EVENT,
+  ENTITY_REMOTE_REMOVE_EVENT,
+  ENTITY_REMOTE_UPDATE_EVENT,
+  EntityRemoteCreatedEvent,
+  EntityRemoteRemovedEvent,
+  EntityRemoteUpdatedEvent,
+  type EntityType,
+  flushQueryCacheOutbox,
+  getEntityMetadata,
+  getSyncCapability,
+  getSyncType,
+  isAdapterShutdownError,
+  isSystemEntity,
+  type RepositoryIdentifier,
+  type SyncStateHub
+} from '@aiao/rxdb';
 import { combineLatest, merge, type Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
-import { countQueryCacheOutbox, ENTITY_REMOTE_CREATE_EVENT, ENTITY_REMOTE_REMOVE_EVENT, ENTITY_REMOTE_UPDATE_EVENT, EntityRemoteCreatedEvent, EntityRemoteRemovedEvent, EntityRemoteUpdatedEvent, type EntityType, flushQueryCacheOutbox, getEntityMetadata, getSyncCapability, getSyncType, isAdapterShutdownError, isSystemEntity, type RepositoryIdentifier, type SyncStateHub } from '@aiao/rxdb';
 import type { HistoryManager } from './HistoryManager.js';
 import type { VersionManager } from './VersionManager.js';
 

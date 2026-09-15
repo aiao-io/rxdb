@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getOrCreateSyncRecord, type IRepository, type RxDBBranch, RxDBSync } from '@aiao/rxdb';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getAncestorBranchIds } from '../branch-utils.js';
 import { pushBranch } from '../push-branch.js';
 import type { VersionManager } from '../VersionManager.js';

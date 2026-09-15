@@ -1,4 +1,12 @@
-import { PushOptions, PushResult, RxDBError, RxDBPartialSyncError, SyncBeginEvent, SyncCompleteEvent, SyncErrorEvent } from '@aiao/rxdb';
+import {
+  PushOptions,
+  PushResult,
+  RxDBError,
+  RxDBPartialSyncError,
+  SyncBeginEvent,
+  SyncCompleteEvent,
+  SyncErrorEvent
+} from '@aiao/rxdb';
 import { BulkSyncOptions } from './bulk-sync.js';
 import { pushBranch } from './push-branch.js';
 import type { VersionManager } from './VersionManager.js';

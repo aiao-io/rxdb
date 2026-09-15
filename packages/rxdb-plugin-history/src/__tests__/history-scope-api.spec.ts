@@ -9,8 +9,8 @@
 import { BehaviorSubject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createHistoryScopeApi, type HistoryScopeApiHost } from '../history-scope-api.js';
 import type { HistoryItem, HistoryScope } from '@aiao/rxdb';
+import { createHistoryScopeApi, type HistoryScopeApiHost } from '../history-scope-api.js';
 
 const createHost = () => {
   const histories$ = new BehaviorSubject<HistoryItem[]>([]);

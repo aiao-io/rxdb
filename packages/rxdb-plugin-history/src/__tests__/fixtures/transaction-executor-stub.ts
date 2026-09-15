@@ -1,6 +1,5 @@
+import type { EntityType, TransactionExecutor } from '@aiao/rxdb';
 import { vi } from 'vitest';
-import type { EntityType } from '@aiao/rxdb';
-import type { TransactionExecutor } from '@aiao/rxdb';
 
 /**
  * 能提供仓库的东西 —— 通常就是被测用例里的 mock 适配器。

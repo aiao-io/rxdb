@@ -1,15 +1,19 @@
+import type { EntityType, IRepository, RxDBEvent } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  PropertyType,
+  RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
+  RepositorySyncErrorEvent,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType,
+  type SyncOptions
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { RxDBBranch } from '@aiao/rxdb';
-import { EntityBase } from '@aiao/rxdb';
-import { Entity } from '@aiao/rxdb';
-import type { EntityType } from '@aiao/rxdb';
-import { PropertyType, SyncType, type SyncOptions } from '@aiao/rxdb';
-import type { IRepository } from '@aiao/rxdb';
-import type { RxDBEvent } from '@aiao/rxdb';
-import { RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent } from '@aiao/rxdb';
-import { RxDBChange } from '@aiao/rxdb';
-import { RxDBSync } from '@aiao/rxdb';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from '../../push-repository.js';
 import type { VersionManager } from '../../VersionManager.js';
 import { createBranchRepositoryStub } from '../fixtures/branch-repository-stub.js';

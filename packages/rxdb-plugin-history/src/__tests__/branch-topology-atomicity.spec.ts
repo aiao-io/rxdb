@@ -1,6 +1,14 @@
+import {
+  type EntityType,
+  type IRepository,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError,
+  type TransactionExecutor
+} from '@aiao/rxdb';
 import { NEVER, of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
-import { type EntityType, type IRepository, type RxDB, RxDBBranch, RxDBChange, RxDBError, type TransactionExecutor } from '@aiao/rxdb';
 import { create_branch } from '../create-branch.js';
 import { remove_branch } from '../remove-branch.js';
 import { syncBranches } from '../sync-branches.js';

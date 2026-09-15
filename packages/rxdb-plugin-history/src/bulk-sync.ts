@@ -4,7 +4,16 @@
  * 提供在单次操作中同步多个仓库的功能，支持顺序或并发执行模式。
  */
 
-import { findCurrentSyncRecord, getEntityMetadata, getSyncCapability, getSyncType, isRepositorySyncEnabled, type RxDB, RxDBError, RxDBPartialSyncError } from '@aiao/rxdb';
+import {
+  findCurrentSyncRecord,
+  getEntityMetadata,
+  getSyncCapability,
+  getSyncType,
+  isRepositorySyncEnabled,
+  type RxDB,
+  RxDBError,
+  RxDBPartialSyncError
+} from '@aiao/rxdb';
 import type { RepositoryIdentifier } from './dependency-graph.js';
 import type { PullRepositoryOptions } from './pull-repository.js';
 import type { PushRepositoryOptions } from './push-repository.js';

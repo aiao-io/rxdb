@@ -1,4 +1,11 @@
-import { EntityStaticType, getRxDBChangeKey, LocalRxDBChangeRepository, RxDBChange, RxDBError, SwitchVersionActions } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  getRxDBChangeKey,
+  LocalRxDBChangeRepository,
+  RxDBChange,
+  RxDBError,
+  SwitchVersionActions
+} from '@aiao/rxdb';
 import { find_switch_branch_step } from './find-switch-branch-step.js';
 import { VersionManager } from './VersionManager.js';
 /**

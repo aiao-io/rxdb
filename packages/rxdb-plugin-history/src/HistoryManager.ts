@@ -1,4 +1,15 @@
 import {
+  EntityType,
+  HistoryItem,
+  HistoryScope,
+  HistoryScopeAPI,
+  isAdapterShutdownError,
+  REPOSITORY_SYNC_COMPLETE_EVENT,
+  RxDB,
+  RxDBBranch,
+  RxDBChange
+} from '@aiao/rxdb';
+import {
   BehaviorSubject,
   catchError,
   combineLatest,
@@ -14,7 +25,6 @@ import {
   switchMap,
   takeUntil
 } from 'rxjs';
-import { EntityType, HistoryItem, HistoryScope, HistoryScopeAPI, isAdapterShutdownError, REPOSITORY_SYNC_COMPLETE_EVENT, RxDB, RxDBBranch, RxDBChange } from '@aiao/rxdb';
 import { buildLastPushedMap, filterUndoableHistories } from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import { createHistoryScopeApi, type HistoryScopeApiHost } from './history-scope-api.js';

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError } from '@aiao/rxdb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { merge_branch } from '../merge-branch.js';
 import { VersionManager } from '../VersionManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';

@@ -1,11 +1,25 @@
+import {
+  type EntityMetadata,
+  type EntityType,
+  getRxDBEntityIdentityKey,
+  type OperatorName,
+  type Rule,
+  type RuleGroup,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  type SwitchVersionActions,
+  type SyncOptions,
+  SyncType
+} from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type EntityMetadata, type EntityType, getRxDBEntityIdentityKey, type OperatorName, type Rule, type RuleGroup, type RxDB, RxDBBranch, RxDBChange, RxDBSync, type SwitchVersionActions, type SyncOptions, SyncType } from '@aiao/rxdb';
-import { METADATA } from './fixtures/private-symbols.js';
 import { checkRepositoryUpdates } from '../check-repository-updates.js';
 import { cleanupExpired } from '../cleanup-expired.js';
 import { getAllRepositorySyncStatus } from '../get-all-repository-sync-status.js';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
 import type { VersionManager } from '../VersionManager.js';
+import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 const LOCAL_ADAPTER_OPTIONS = { adapter: 'local' };

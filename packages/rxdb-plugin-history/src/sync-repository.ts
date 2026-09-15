@@ -1,4 +1,14 @@
-import { getEntityMetadata, getSyncCapability, getSyncType, RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent, RxDBError, RxDBPartialSyncError, type SyncProgress } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getSyncCapability,
+  getSyncType,
+  RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
+  RepositorySyncErrorEvent,
+  RxDBError,
+  RxDBPartialSyncError,
+  type SyncProgress
+} from '@aiao/rxdb';
 import type { VersionManager } from './VersionManager.js';
 import {
   partialRepositoryProgressOf,

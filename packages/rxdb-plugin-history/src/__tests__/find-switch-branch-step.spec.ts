@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { RxDBBranch } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import { find_switch_branch_step, SwitchBranchStep } from '../find-switch-branch-step.js';
 
 let data_index = 1;

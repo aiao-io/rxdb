@@ -5,7 +5,16 @@
 import { describe, expect, it } from 'vitest';
 import { type EntityMetadata } from '../../entity/metadata.interface.js';
 import { type SyncOptions, SyncType } from '../../entity/sync-options.interface.js';
-import { getSyncableRepositories, getSyncCapability, getSyncType, groupBySyncType, isNoSync, needsOfflineWrite, needsPull, needsPush } from '../../sync-contract/sync-type-utils.js';
+import {
+  getSyncableRepositories,
+  getSyncCapability,
+  getSyncType,
+  groupBySyncType,
+  isNoSync,
+  needsOfflineWrite,
+  needsPull,
+  needsPush
+} from '../../sync-contract/sync-type-utils.js';
 describe('sync-type-utils', () => {
   describe('getSyncType', () => {
     it('should return "none" for entity without sync config', () => {

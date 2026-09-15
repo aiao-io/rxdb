@@ -1,6 +1,6 @@
+import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, RxDBPartialSyncError } from '@aiao/rxdb';
 import { VersionManager } from '../VersionManager.js';
 
 type DetachedOperation = () => Promise<unknown>;

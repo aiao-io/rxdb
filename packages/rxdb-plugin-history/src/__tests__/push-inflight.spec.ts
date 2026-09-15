@@ -14,8 +14,8 @@
  * undo 把认领区间当成已推。
  */
 
-import { describe, expect, it } from 'vitest';
 import { type HistoryItem, type RxDBChange } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import { buildLastPushedMap, filterUndoableHistories } from '../history-filters.js';
 import { PushInFlightRegistry } from '../push-inflight.js';
 /** 只保留 `buildLastPushedMap` 真正读的三个字段 */

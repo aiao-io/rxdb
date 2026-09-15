@@ -128,15 +128,15 @@ export { RxDBDependencyFailedError, repositoryKey } from './sync-contract/cascad
 export { buildPushableRepositoryRules } from './sync-contract/pushable-repository-rules.js';
 // 同步水位线（`RxDBSync`）的读写。核心按它判定 QueryCache 出站资格，
 // 历史插件按它记录推拉进度——同一张表、同一套解析，不能各写一份。
+export * from './sync-contract/compact-changes.js';
+export * from './sync-contract/conflict.js';
+export * from './sync-contract/LWWConflictResolver.js';
 export {
   findCurrentSyncRecord,
   getOrCreateSyncRecord,
   resolvePullIneligibility,
   resolvePushIneligibility
 } from './sync-contract/sync-record-utils.js';
-export * from './sync-contract/compact-changes.js';
-export * from './sync-contract/conflict.js';
-export * from './sync-contract/LWWConflictResolver.js';
 export * from './sync-contract/sync-type-utils.js';
 // 同步子系统的公开契约形状：推拉选项、结果与历史项。
 // 实现在 `@aiao/rxdb-plugin-history`，契约留在核心供适配器与 QueryCache 共用。

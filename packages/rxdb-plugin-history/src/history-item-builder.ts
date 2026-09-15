@@ -1,5 +1,5 @@
-import { isNil } from '@aiao/utils';
 import { getRxDBEntityIdentityKey, HistoryItem, RxDBChange, UUID } from '@aiao/rxdb';
+import { isNil } from '@aiao/utils';
 /**
  * 生成历史项的描述文本
  *

@@ -1,24 +1,24 @@
-import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
-import { EntityBase } from '@aiao/rxdb';
-import { Entity } from '@aiao/rxdb';
-import type { EntityType } from '@aiao/rxdb';
-import { PropertyType, RelationKind, SyncType, type SyncOptions } from '@aiao/rxdb';
-import type { RuleGroup } from '@aiao/rxdb';
+import type { EntityType, RemoteChange, RuleGroup, SwitchVersionActions } from '@aiao/rxdb';
 import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  RelationKind,
   RepositorySyncBeginEvent,
   RepositorySyncCompleteEvent,
   RepositorySyncErrorEvent,
-  type RxDBEvent
+  RxDBBranch,
+  RxDBChange,
+  RxDBPartialSyncError,
+  RxDBSync,
+  SyncType,
+  type RxDBEvent,
+  type SyncOptions
 } from '@aiao/rxdb';
-import { getEntityMetadata } from '@aiao/rxdb';
-import { RxDBPartialSyncError } from '@aiao/rxdb';
-import { RxDBChange } from '@aiao/rxdb';
-import { RxDBSync } from '@aiao/rxdb';
-import type { RemoteChange } from '@aiao/rxdb';
+import { of } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
 import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult } from '../../pull-repository.js';
-import type { SwitchVersionActions } from '@aiao/rxdb';
-import { RxDBBranch } from '@aiao/rxdb';
 import type { VersionManager } from '../../VersionManager.js';
 import { createBranchRepositoryStub } from '../fixtures/branch-repository-stub.js';
 

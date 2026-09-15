@@ -10,7 +10,24 @@
  * - 支持祖先分支数据拉取
  */
 
-import { compactChanges, type ConflictResolver, getEntityMetadata, getOrCreateSyncRecord, getSyncCapability, getSyncType, isRepositorySyncEnabled, LWWConflictResolver, type PullBatchRequest, type PullResult, type RemoteChange, RxDBChange, RxDBError, type RxDBEvent, RxDBPartialSyncError, RxDBSync } from '@aiao/rxdb';
+import {
+  compactChanges,
+  type ConflictResolver,
+  getEntityMetadata,
+  getOrCreateSyncRecord,
+  getSyncCapability,
+  getSyncType,
+  isRepositorySyncEnabled,
+  LWWConflictResolver,
+  type PullBatchRequest,
+  type PullResult,
+  type RemoteChange,
+  RxDBChange,
+  RxDBError,
+  type RxDBEvent,
+  RxDBPartialSyncError,
+  RxDBSync
+} from '@aiao/rxdb';
 import type { VersionManager } from './VersionManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';

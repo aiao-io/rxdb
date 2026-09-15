@@ -1,8 +1,8 @@
 import type { EntityType } from '../entity/entity.interface.js';
 import type { IRepository } from '../repository/repository.interface.js';
 import type { RawQueryResult, RxDBMutationsMap } from '../rxdb-adapter.js';
-import type { RxDBChange } from '../system/change.js';
 import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
+import type { RxDBChange } from '../system/change.js';
 
 /**
  * 事务生命周期状态。

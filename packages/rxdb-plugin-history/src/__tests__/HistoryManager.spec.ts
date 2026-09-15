@@ -1,6 +1,6 @@
+import { HistoryItem, HistoryScope, RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, UUID } from '@aiao/rxdb';
 import { BehaviorSubject, config, filter, firstValueFrom, Observable, of, skip, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HistoryItem, HistoryScope, RxDB, RxDBBranch, RxDBChange, RxDBSync, SyncType, UUID } from '@aiao/rxdb';
 import {
   filterHistoriesByScope,
   filterUndoableHistories,

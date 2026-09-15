@@ -5,11 +5,7 @@
  * 覆盖基础 CRUD、关系、树形结构场景
  */
 
-import { EntityBase } from '@aiao/rxdb';
-import { Entity } from '@aiao/rxdb';
-import { PropertyType, RelationKind } from '@aiao/rxdb';
-import { TreeAdjacencyListEntityBase } from '@aiao/rxdb';
-import { TreeEntity } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
 
 /**
  * 用户实体 - 简单实体，用于基础 CRUD 和版本控制测试

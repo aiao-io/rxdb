@@ -1,10 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { getRxDBEntityIdentityKey, type RxDBChange, type UUID } from '@aiao/rxdb';
-import {
-  convertChangesToHistories,
-  createHistoryItem,
-  generateHistoryDescription
-} from '../history-item-builder.js';
+import { describe, expect, it } from 'vitest';
+import { convertChangesToHistories, createHistoryItem, generateHistoryDescription } from '../history-item-builder.js';
 
 const createChange = (overrides: Partial<RxDBChange> = {}): RxDBChange =>
   ({

@@ -25,23 +25,25 @@
  * mock 是为了快速验证纯逻辑，真行为在 adapter 包里已充分覆盖。
  */
 
-import { type Observable, of } from 'rxjs';
-import { type Mock, vi } from 'vitest';
-import type { EntityType } from '@aiao/rxdb';
-import { SyncType } from '@aiao/rxdb';
-import type { IRepository } from '@aiao/rxdb';
+import type {
+  EntityType,
+  IRepository,
+  RxDBChange,
+  RxDBOptions,
+  SwitchVersionActions,
+  TransactionExecutor
+} from '@aiao/rxdb';
 import {
   type IRxDBAdapter,
+  RxDB,
   RxDBAdapterLocalBase,
   type RxDBMutationsMap,
   type SwitchBranchOptions,
+  SyncType,
   type TransactionFun
 } from '@aiao/rxdb';
-import type { RxDBOptions } from '@aiao/rxdb';
-import { RxDB } from '@aiao/rxdb';
-import type { RxDBChange } from '@aiao/rxdb';
-import type { TransactionExecutor } from '@aiao/rxdb';
-import type { SwitchVersionActions } from '@aiao/rxdb';
+import { type Observable, of } from 'rxjs';
+import { type Mock, vi } from 'vitest';
 import { rxDBPluginHistory } from '../../plugin.js';
 import { TEST_ENTITIES } from './test-entities.js';
 

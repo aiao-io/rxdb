@@ -5,7 +5,33 @@
  * 支持通过依赖图分析的级联同步。
  */
 
-import { compactChanges, type EntityMetadata, type EntityType, getEntityMetadata, getOrCreateSyncRecord, getSyncType, LWWConflictResolver, type PullRepositoryOptions, type PullRepositoryResult, RemoteChange, type RepositoryIdentifier, repositoryKey, RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent, type RepositorySyncType, resolvePullIneligibility, type RuleGroup, RxDBChange, RxDBDependencyFailedError, RxDBError, type RxDBEvent, RxDBPartialSyncError, RxDBSync, type SyncFailure } from '@aiao/rxdb';
+import {
+  compactChanges,
+  type EntityMetadata,
+  type EntityType,
+  getEntityMetadata,
+  getOrCreateSyncRecord,
+  getSyncType,
+  LWWConflictResolver,
+  type PullRepositoryOptions,
+  type PullRepositoryResult,
+  RemoteChange,
+  type RepositoryIdentifier,
+  repositoryKey,
+  RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
+  RepositorySyncErrorEvent,
+  type RepositorySyncType,
+  resolvePullIneligibility,
+  type RuleGroup,
+  RxDBChange,
+  RxDBDependencyFailedError,
+  RxDBError,
+  type RxDBEvent,
+  RxDBPartialSyncError,
+  RxDBSync,
+  type SyncFailure
+} from '@aiao/rxdb';
 import type { VersionManager } from './VersionManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';

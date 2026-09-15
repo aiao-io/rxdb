@@ -1,5 +1,12 @@
+import {
+  EntityType,
+  getEntityMetadata,
+  type HistoryItem,
+  type HistoryScope,
+  type HistoryScopeAPI,
+  RxDBEntityId
+} from '@aiao/rxdb';
 import { firstValueFrom, map, Observable, shareReplay } from 'rxjs';
-import { EntityType, getEntityMetadata, type HistoryItem, type HistoryScope, type HistoryScopeAPI, RxDBEntityId } from '@aiao/rxdb';
 import { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './history-filters.js';
 import type { ActiveUndoSession, UndoBoundary, UndoSession } from './history-undo-session.types.js';
 /**

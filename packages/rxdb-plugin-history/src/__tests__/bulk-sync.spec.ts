@@ -6,10 +6,21 @@
  * 换成可控实现来量并发窗口，其余各组仍走真实实现。
  */
 
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  getSyncType,
+  PropertyType,
+  type RxDB,
+  RxDBBranch,
+  RxDBSync,
+  type SyncOptions,
+  SyncType
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { Entity, EntityBase, getEntityMetadata, getSyncType, PropertyType, type RxDB, RxDBBranch, RxDBSync, type SyncOptions, SyncType } from '@aiao/rxdb';
-import { bulkSync, getRepositoriesToSync, type BulkSyncOptions } from '../bulk-sync.js';
+import { bulkSync, type BulkSyncOptions, getRepositoriesToSync } from '../bulk-sync.js';
 import type { RepositoryIdentifier } from '../dependency-graph.js';
 import { HistoryManager } from '../HistoryManager.js';
 import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';

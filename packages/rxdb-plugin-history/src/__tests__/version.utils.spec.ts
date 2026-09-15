@@ -5,8 +5,8 @@
  * - remote_change_to_local 转换函数
  */
 
-import { describe, expect, it } from 'vitest';
 import type { RemoteChange } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import { remote_change_to_local } from '../version.utils.js';
 
 function makeRemoteChange(

@@ -1,5 +1,5 @@
-import { BehaviorSubject, Observable } from 'rxjs';
 import type { HistoryItem } from '@aiao/rxdb';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 /**
  * Redo 栈容量上限（会话内）

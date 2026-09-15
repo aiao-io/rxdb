@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getRxDBEntityIdentityKey, RxDBChange, RxDBError } from '@aiao/rxdb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get_switch_version_actions, switch_branch_actions } from '../switch-branch-actions.js';
 import { VersionManager } from '../VersionManager.js';
 

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { type HistoryItem, type HistoryScope, RxDBChange, type UUID } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import { convertChangesToHistories } from '../history-item-builder.js';
 import {
   historyTouchesScope,

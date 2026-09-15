@@ -1,7 +1,17 @@
+import {
+  type EntityMetadata,
+  type EntityType,
+  type IRepository,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  type SyncOptions,
+  SyncType
+} from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type EntityMetadata, type EntityType, type IRepository, type RxDB, RxDBBranch, RxDBChange, RxDBSync, type SyncOptions, SyncType } from '@aiao/rxdb';
-import { METADATA } from './fixtures/private-symbols.js';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
+import { METADATA } from './fixtures/private-symbols.js';
 
 interface QueryRule {
   field: string;

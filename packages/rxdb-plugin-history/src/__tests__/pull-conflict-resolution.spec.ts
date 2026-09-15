@@ -1,11 +1,24 @@
+import {
+  ConflictDetectedEvent,
+  ConflictPendingEvent,
+  type ConflictResolver,
+  Entity,
+  EntityBase,
+  LWWConflictResolver,
+  PropertyType,
+  type RemoteChange,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  SyncType
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConflictDetectedEvent, ConflictPendingEvent, type ConflictResolver, Entity, EntityBase, LWWConflictResolver, PropertyType, type RemoteChange, RxDBBranch, RxDBChange, RxDBSync, SyncType } from '@aiao/rxdb';
 import { pullBatch } from '../pull-batch.js';
 import { pullRepository } from '../pull-repository.js';
 import type { VersionManager } from '../VersionManager.js';
-import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
+import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 @Entity({
   name: 'PullConflictUser',

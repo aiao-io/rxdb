@@ -1,6 +1,6 @@
+import type { HistoryItem } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RedoStack } from '../redo-stack.js';
-import type { HistoryItem } from '@aiao/rxdb';
 
 const createItem = (fingerprint: string, entity: string): HistoryItem =>
   ({

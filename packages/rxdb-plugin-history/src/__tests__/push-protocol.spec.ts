@@ -1,6 +1,17 @@
+import {
+  type IRepository,
+  type IRxDBChange,
+  type RemoteMergeResult,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  type SwitchVersionActions,
+  SyncType,
+  type TransactionExecutor,
+  type TransactionExecutorFun
+} from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { type IRepository, type IRxDBChange, type RemoteMergeResult, RxDBBranch, RxDBChange, RxDBSync, type SwitchVersionActions, SyncType, type TransactionExecutor, type TransactionExecutorFun } from '@aiao/rxdb';
 import { pushRepository } from '../push-repository.js';
 import type { VersionManager } from '../VersionManager.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';

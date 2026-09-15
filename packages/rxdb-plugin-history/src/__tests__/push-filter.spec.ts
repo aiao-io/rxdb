@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { RxDB } from '@aiao/rxdb';
+import { describe, expect, it, vi } from 'vitest';
 import { push } from '../push.js';
 import { VersionManager } from '../VersionManager.js';
 

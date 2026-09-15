@@ -2,8 +2,8 @@
  * @fileoverview 依赖图测试
  */
 
-import { describe, expect, it } from 'vitest';
 import { PropertyType, RelationKind } from '@aiao/rxdb';
+import { describe, expect, it } from 'vitest';
 import {
   buildDependencyGraph,
   detectCycles,

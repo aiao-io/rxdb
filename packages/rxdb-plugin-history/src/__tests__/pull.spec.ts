@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { type PullResult, RxDB, RxDBError, RxDBPartialSyncError, SyncCompleteEvent, SyncErrorEvent } from '@aiao/rxdb';
+import { describe, expect, it, vi } from 'vitest';
 import { pull } from '../pull.js';
 import { VersionManager } from '../VersionManager.js';
 

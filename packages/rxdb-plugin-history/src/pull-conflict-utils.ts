@@ -1,4 +1,20 @@
-import { type Conflict, ConflictDetectedEvent, ConflictPendingEvent, type ConflictResolver, getRxDBChangeEntityIdQueryValues, getRxDBChangeKey, type IRepository, type RemoteChange, RxDBChange, type RxDBChangeRuleGroup, type RxDBEntityId, RxDBError, type RxDBEvent, type SwitchVersionActions, type SwitchVersionChange } from '@aiao/rxdb';
+import {
+  type Conflict,
+  ConflictDetectedEvent,
+  ConflictPendingEvent,
+  type ConflictResolver,
+  getRxDBChangeEntityIdQueryValues,
+  getRxDBChangeKey,
+  type IRepository,
+  type RemoteChange,
+  RxDBChange,
+  type RxDBChangeRuleGroup,
+  type RxDBEntityId,
+  RxDBError,
+  type RxDBEvent,
+  type SwitchVersionActions,
+  type SwitchVersionChange
+} from '@aiao/rxdb';
 export type ActionType = 'INSERT' | 'UPDATE' | 'DELETE';
 
 export interface ConflictActionEntry {

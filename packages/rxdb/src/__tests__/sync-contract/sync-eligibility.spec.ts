@@ -14,7 +14,16 @@ import { describe, expect, it } from 'vitest';
 import { type EntityMetadata } from '../../entity/metadata.interface.js';
 import { type SyncOptions, SyncType } from '../../entity/sync-options.interface.js';
 import { pullIneligibility, pushIneligibility } from '../../sync-contract/cascade-contract.js';
-import { getSyncCapability, isNoSync, isRepositorySyncEnabled, needsOfflineWrite, needsPull, needsPush, type RepositorySyncType, SYNC_DISABLED_REASON } from '../../sync-contract/sync-type-utils.js';
+import {
+  getSyncCapability,
+  isNoSync,
+  isRepositorySyncEnabled,
+  needsOfflineWrite,
+  needsPull,
+  needsPush,
+  type RepositorySyncType,
+  SYNC_DISABLED_REASON
+} from '../../sync-contract/sync-type-utils.js';
 const LOCAL = { adapter: 'sqlite' };
 const REMOTE = { adapter: 'supabase' };
 /** `SyncType.Filter` 的远端适配器必须带过滤器，否则「按条件同步」无从谈起 */

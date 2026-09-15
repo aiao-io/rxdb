@@ -5,12 +5,36 @@
  * 支持通过依赖图分析的级联同步。
  */
 
-import { compactChanges, getEntityMetadata, getOrCreateSyncRecord, getRxDBChangeKey, getSyncType, IRepository, type PushRepositoryResult, type RemoteMergeResult, repositoryKey, RepositorySyncBeginEvent, RepositorySyncCompleteEvent, RepositorySyncErrorEvent, resolvePushIneligibility, type RxDBAdapterRemoteBase, RxDBChange, RxDBChangeRuleGroup, RxDBDependencyFailedError, RxDBError, RxDBPartialSyncError, RxDBSync, type SwitchVersionActions, type SwitchVersionChange, type SyncFailure } from '@aiao/rxdb';
+import {
+  compactChanges,
+  getEntityMetadata,
+  getOrCreateSyncRecord,
+  getRxDBChangeKey,
+  getSyncType,
+  IRepository,
+  type PushRepositoryResult,
+  type RemoteMergeResult,
+  repositoryKey,
+  RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
+  RepositorySyncErrorEvent,
+  resolvePushIneligibility,
+  type RxDBAdapterRemoteBase,
+  RxDBChange,
+  RxDBChangeRuleGroup,
+  RxDBDependencyFailedError,
+  RxDBError,
+  RxDBPartialSyncError,
+  RxDBSync,
+  type SwitchVersionActions,
+  type SwitchVersionChange,
+  type SyncFailure
+} from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
 import type { PushInFlightSession } from './push-inflight.js';
-import { dependencyEdgeForAction, topologicalSortForAction, type SortActionKind } from './topological-sort.js';
+import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
 import type { VersionManager } from './VersionManager.js';
 /**
  * 推送仓库选项
@@ -199,7 +223,12 @@ async function _pushRepositoryImpl(
   // 检查同步类型（支持全局配置回退）。资格判定与级联路径共用 `resolvePushIneligibility`，
   // 避免两条路径各写一份而漂移。
   // 同一处叠加 `RxDBSync.enabled`（此前推送路径从不读它）
-  const ineligible = await resolvePushIneligibility(vm.rxdb, namespace, entity, getSyncType(metadata, vm.rxdb.config.sync));
+  const ineligible = await resolvePushIneligibility(
+    vm.rxdb,
+    namespace,
+    entity,
+    getSyncType(metadata, vm.rxdb.config.sync)
+  );
 
   if (ineligible) {
     throw new RxDBError(`Cannot push repository ${namespace}:${entity}: ${ineligible}.`);

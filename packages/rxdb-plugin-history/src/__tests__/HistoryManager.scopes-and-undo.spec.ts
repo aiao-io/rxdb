@@ -1,6 +1,23 @@
+import {
+  Entity,
+  EntityBase,
+  type EntityType,
+  getEntityMetadata,
+  getRxDBChangeKey,
+  type HistoryItem,
+  type HistoryScope,
+  PropertyType,
+  REPOSITORY_SYNC_COMPLETE_EVENT,
+  type RxDB,
+  RxDBBranch,
+  RxDBChange,
+  RxDBSync,
+  type SwitchVersionActions,
+  SyncType,
+  type UUID
+} from '@aiao/rxdb';
 import { BehaviorSubject, EMPTY, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Entity, EntityBase, type EntityType, getEntityMetadata, getRxDBChangeKey, type HistoryItem, type HistoryScope, PropertyType, REPOSITORY_SYNC_COMPLETE_EVENT, type RxDB, RxDBBranch, RxDBChange, RxDBSync, type SwitchVersionActions, SyncType, type UUID } from '@aiao/rxdb';
 import { convertChangesToHistories } from '../history-item-builder.js';
 import { filterUndoableHistories, HistoryManager } from '../HistoryManager.js';
 import { RxDBCrossScopeTransactionError } from '../scope-selection.js';

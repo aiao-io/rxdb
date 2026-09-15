@@ -1,8 +1,20 @@
+import {
+  type EntityMetadata,
+  type EntityType,
+  getRxDBEntityIdentityKey,
+  type OperatorName,
+  type RuleGroup,
+  RxDBChange,
+  type RxDBEntityId,
+  type SwitchVersionActions,
+  type SyncOptions,
+  SyncType,
+  type TransactionExecutor
+} from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
-import { type EntityMetadata, type EntityType, getRxDBEntityIdentityKey, type OperatorName, type RuleGroup, RxDBChange, type RxDBEntityId, type SwitchVersionActions, type SyncOptions, SyncType, type TransactionExecutor } from '@aiao/rxdb';
-import { METADATA } from './fixtures/private-symbols.js';
 import { cleanupExpired } from '../cleanup-expired.js';
 import type { VersionManager } from '../VersionManager.js';
+import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 interface CleanupRecord {

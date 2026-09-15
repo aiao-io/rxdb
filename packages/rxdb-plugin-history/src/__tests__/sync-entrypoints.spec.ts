@@ -1,5 +1,12 @@
+import {
+  type PullResult,
+  type RxDB,
+  RxDBPartialSyncError,
+  SyncBeginEvent,
+  SyncCompleteEvent,
+  SyncErrorEvent
+} from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type PullResult, type RxDB, RxDBPartialSyncError, SyncBeginEvent, SyncCompleteEvent, SyncErrorEvent } from '@aiao/rxdb';
 import type { BulkSyncResult } from '../bulk-sync.js';
 import { pullBatch } from '../pull-batch.js';
 import type { PullRepositoryResult } from '../pull-repository.js';

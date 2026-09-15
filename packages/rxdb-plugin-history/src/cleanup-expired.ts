@@ -5,7 +5,19 @@
  * 删除操作不会记录到 RxDBChange，因此不会同步到远程。
  */
 
-import { getEntityMetadata, getRxDBChangeEntityIdQueryValues, getRxDBEntityIdentityKey, getSyncType, type OperatorName, type Rule, type RuleGroup, RxDBChange, type RxDBEntityId, RxDBError, type SwitchVersionActions } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getRxDBChangeEntityIdQueryValues,
+  getRxDBEntityIdentityKey,
+  getSyncType,
+  type OperatorName,
+  type Rule,
+  type RuleGroup,
+  RxDBChange,
+  type RxDBEntityId,
+  RxDBError,
+  type SwitchVersionActions
+} from '@aiao/rxdb';
 /**
  * 仅要求「能拿到 RxDBChange 仓库并 find」的最小结构 —— 适配器与
  * {@link TransactionExecutor} 都满足。声明成两者的联合类型会因泛型方法不可调用而失败。
