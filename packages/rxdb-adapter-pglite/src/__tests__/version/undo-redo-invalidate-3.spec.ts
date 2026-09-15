@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -33,6 +34,7 @@ describe('undo/redo - redo 栈失效 3', () => {
         })
     );
     const rxdb = db;
+    db.use(rxDBPluginHistory);
     await db.connect('pglite');
 
     // 1. 创建 A

@@ -27,7 +27,10 @@ export type RxDBPluginHistoryOptions = object;
  * 1. `rxdb.versionManager` 这个实例槽位 —— 释放时连同 `destroy()` 一起撤掉，不给下一个
  *    纪元留一个指向已拆事件总线的管理器；
  * 2. {@link RxDB.syncState} 上的可推送计数订阅 —— 枢纽活得和实例一样长，计数却只在连接
- *    期间有意义，因此走 `bindPushableCount()` 拿一个解绑函数，而不是在构造枢纽时传进去。
+ *    期间有意义，因此走 `bindPushableCount()` 拿一个解绑函数，而不是在构造枢纽时传进去；
+ * 3. 同一枢纽上的「重算待拉数」跳板 —— 远端适配器在实时订阅恢复后按
+ *    `syncState.requestPullableRefresh()` 发信号，它不认识 {@link VersionManager}，
+ *    接住这一跳是本插件的活。没装插件时那个请求发进空里，正是「待拉数无人维护」的实情。
  */
 export class RxDBPluginHistory extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
@@ -52,6 +55,20 @@ export class RxDBPluginHistory extends RxDBPluginBase implements IRxDBPlugin {
     versionManager.init();
 
     scope.acquire(() => this.rxdb.syncState.bindPushableCount(versionManager.pushableCount$), 'history:pushableCount');
+
+    // 跳板约定「回调不得抛出」：这里即发即忘，没有调用方接得住错误，也没有位置重试。
+    // 重算失败只说明这一次的读数没刷新，下一次实时恢复还会再请求一次，不该炸掉
+    // 适配器的订阅恢复路径 —— 从前这段 try/catch 就住在适配器里，随消费者一起搬过来。
+    scope.acquire(
+      () =>
+        this.rxdb.syncState.bindPullableRefresh(() => {
+          void versionManager.refreshPullableCount().catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(`[RxDB History] 重算待拉数失败：${message}。`);
+          });
+        }),
+      'history:pullableRefresh'
+    );
   }
 }
 

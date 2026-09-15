@@ -17,6 +17,7 @@
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import { dumpPGliteUserTables, wrapEncryptedQueryShape } from '@aiao/rxdb-adapter-pglite/testing';
 import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import type { EncryptedAdapterFactory, EncryptedTestAdapter } from '@aiao/rxdb-test/encrypted';
 import type { Results } from '@electric-sql/pglite';
 import { PGlite } from '@electric-sql/pglite';
@@ -148,6 +149,12 @@ export async function createDesktopPgliteAdapter(
     adapter = new QueryCountingElectronPGliteAdapter(db, { transport: ensureHost().transport });
     return adapter;
   });
+
+  // 共享套件（undo/redo、版本分支、系统表迁移）直接读 `adapter.rxdb.versionManager`，
+  // 而历史子系统自 US-025 阶段 C 起住在插件里。`AdapterFactory` 的契约把「装好插件」
+  // 算成工厂的职责（见 `@aiao/rxdb-adapter-sqlite-core/testing`），所以登记在这里，
+  // 且必须早于下面的 `connect()` —— `connect()` 内部就会调 `init()`，届时插件才装上。
+  rxdb.use(rxDBPluginHistory);
 
   await rxdb.getAdapter(ADAPTER_NAME);
   await rxdb.connect(ADAPTER_NAME);

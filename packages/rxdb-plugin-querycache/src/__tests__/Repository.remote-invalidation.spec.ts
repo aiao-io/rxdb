@@ -553,7 +553,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         false,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        new SyncStateHub({ online$: of(true) }),
         noPendingWrites
       );
 
@@ -593,7 +593,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         true,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        new SyncStateHub({ online$: of(true) }),
         noPendingWrites
       );
 
@@ -629,7 +629,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
         true,
         syncMemo,
         detachedReachability(),
-        new SyncStateHub({ online$: of(true), pushableCount$: of(0) }),
+        new SyncStateHub({ online$: of(true) }),
         noPendingWrites
       );
 

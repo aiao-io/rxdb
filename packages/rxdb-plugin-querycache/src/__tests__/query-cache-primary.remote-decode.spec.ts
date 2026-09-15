@@ -85,7 +85,7 @@ const setup = () => {
     false,
     new QueryCacheSyncMemo(0),
     reachability,
-    new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) }),
+    new SyncStateHub({ online$: reachability.online$ }),
     noPendingWrites
   );
   return { primary, remoteAdapter };

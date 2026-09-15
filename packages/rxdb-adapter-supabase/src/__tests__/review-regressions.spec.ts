@@ -946,8 +946,9 @@ describe('supabase review regressions', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove realtime channel: leave failed'));
   });
 
+  // 观察点自 US-025 阶段 C 起换成 `syncState` 的跳板：重数那段逻辑搬进了
+  // `@aiao/rxdb-plugin-history`，适配器只负责发信号，不认识执行者。
   it('refreshes pullable count from persistent repository watermarks after subscribing', async () => {
-    const refreshPullableCount = vi.fn(async () => undefined);
     const handlers: Array<(status: string) => void> = [];
     const channelFactory = vi.fn(() => {
       const channel = {
@@ -965,15 +966,16 @@ describe('supabase review regressions', () => {
         rlsCheck: false
       }
     );
-    Object.assign(adapter.rxdb, { versionManager: { refreshPullableCount } });
+    const refresh = vi.fn();
+    adapter.rxdb.syncState.bindPullableRefresh(refresh);
 
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
-    await vi.waitFor(() => expect(refreshPullableCount).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   });
 
+  // 跳板是即发即忘的：执行者慢（这里干脆永不 settle）也不能把 `disconnect()` 拖住。
   it('does not let a pending pullable count refresh block disconnect', async () => {
-    const refreshPullableCount = vi.fn(() => new Promise<void>(() => undefined));
     const removeChannel = vi.fn(async () => undefined);
     const handlers: Array<(status: string) => void> = [];
     const channelFactory = vi.fn(() => {
@@ -992,11 +994,12 @@ describe('supabase review regressions', () => {
         rlsCheck: false
       }
     );
-    Object.assign(adapter.rxdb, { versionManager: { refreshPullableCount } });
+    const refresh = vi.fn(() => void new Promise<void>(() => undefined));
+    adapter.rxdb.syncState.bindPullableRefresh(refresh);
 
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
-    await vi.waitFor(() => expect(refreshPullableCount).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
 
     await expect(adapter.disconnect()).resolves.toBeUndefined();
     expect(removeChannel).toHaveBeenCalledOnce();

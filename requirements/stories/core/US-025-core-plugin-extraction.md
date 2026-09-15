@@ -73,7 +73,7 @@ tags: [core, plugin, packaging]
 
 把 `QueryCache*` 四个文件当一个单元看，它对核心其余部分有 **25 条出边**（其中 9 条进 `version/`）、
 **4 条入边**——而入边里有一条来自 `version/` 自己，
-[`sync-listeners.ts`](../../../packages/rxdb/src/version/sync-listeners.ts)：
+[`sync-listeners.ts`](../../../packages/rxdb-plugin-history/src/sync-listeners.ts)：
 
 ```ts
 import { countQueryCacheOutbox, flushQueryCacheOutbox } from '../repository/query-cache-outbox.js';
@@ -104,9 +104,9 @@ QueryCache 出站。环在，「QueryCache 先走、`version/` 后走」的阶�
   378 行的迁移执行器（「去掉不到 1% 的包体」），网关过不了这把尺子。附带代价还有三笔：
   `EventOrigin` 的 `'cross-tab'`、`isCrossTabEvent`、实体上的 `origin` 标记必须留在核心
   （[`rxdb.transaction.ts`](../../../packages/rxdb/src/rxdb.transaction.ts) 与
-  [`VersionManager`](../../../packages/rxdb/src/version/VersionManager.ts) 在读）；
+  [`VersionManager`](../../../packages/rxdb-plugin-history/src/VersionManager.ts) 在读）；
   [`RxDB.firstConnectedAt`](../../../packages/rxdb/src/RxDB.ts) 的唯一消费者是
-  [`HistoryManager`](../../../packages/rxdb/src/version/HistoryManager.ts)——
+  [`HistoryManager`](../../../packages/rxdb-plugin-history/src/HistoryManager.ts)——
 
   ```ts
   this.#firstConnectedAt = this.rxdb.firstConnectedAt ?? this.#sessionStartedAt;

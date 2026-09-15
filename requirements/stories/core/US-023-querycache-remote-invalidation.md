@@ -65,9 +65,9 @@ refetch(): void {
 ### 远端事件今天只喂一个角标
 
 `ENTITY_REMOTE_CREATE / UPDATE / REMOVE` 三个事件类是存在的，但全仓库唯一的消费者是
-[version/sync-listeners.ts](../../../packages/rxdb/src/version/sync-listeners.ts) 的 `makeRemoteHandler`，
+[version/sync-listeners.ts](../../../packages/rxdb-plugin-history/src/sync-listeners.ts) 的 `makeRemoteHandler`，
 它做的事只有一件：`historyManager.incrementPullableCount(count)`。而 `pullableCount$` 的自述是
-「远端还有多少条没拉下来」（[pullable-count.ts](../../../packages/rxdb/src/version/pullable-count.ts)）——
+「远端还有多少条没拉下来」（[pullable-count.ts](../../../packages/rxdb-plugin-history/src/pullable-count.ts)）——
 一个**给 UI 看的角标**，不触发任何查询。
 
 这条链在 supabase 上是通的：`handle_supabase_change` 收到 `postgres_changes` 后

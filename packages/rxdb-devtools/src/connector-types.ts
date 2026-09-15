@@ -21,15 +21,42 @@ import type { DevToolsProviderRegistry } from './v2/endpoint.js';
  */
 export type DevToolsRxDB = Pick<
   RxDB,
-  | 'addEventListener'
-  | 'removeEventListener'
-  | 'disconnectAll'
-  | 'getAdapter'
-  | 'version'
-  | 'config'
-  | 'entityManager'
-  | 'versionManager'
->;
+  'addEventListener' | 'removeEventListener' | 'disconnectAll' | 'getAdapter' | 'version' | 'config' | 'entityManager'
+> & {
+  /**
+   * 分支写操作的入口；宿主没装 `@aiao/rxdb-plugin-history` 时不存在。
+   *
+   * @remarks
+   * **可选是事实，不是宽容**：历史 / 分支子系统自 US-025 阶段 C 起住在
+   * `@aiao/rxdb-plugin-history` 里，由宿主自行 `use()`。没装就是没有分支能力，
+   * 面板必须据实报「不支持」，而不是把它谎报成「一个分支都没有」或静默吞掉命令。
+   */
+  readonly versionManager?: DevToolsVersionManager;
+};
+
+/**
+ * DevTools 实际调用的分支写操作子集。
+ *
+ * @remarks
+ * 这里**只能**手写而不能像 {@link DevToolsRxDB} 那样从上游 `Pick`：
+ * `VersionManager` 住在 `@aiao/rxdb-plugin-history` 里，而本包对它连 peerDependency
+ * 都不该有 —— 装不装历史插件是宿主的自由，devtools 不能替宿主决定安装拓扑。
+ *
+ * 手写带来的漂移风险由 `__tests__/rxdb-contract.spec.ts` 的编译期断言守住：
+ * 那里把真实 `VersionManager` 赋给本类型，上游改签名即编译失败。
+ *
+ * 返回值一律收成 `Promise<unknown>`：三个方法的真实返回类型并不一致
+ * （`createBranch` 回 `Promise<RxDBBranch>`，另两个回 `Promise<void>`），
+ * 而连接器只 `await`、不读返回值。
+ */
+export interface DevToolsVersionManager {
+  /** 切到指定分支。 */
+  switchBranch(branchId: string): Promise<unknown>;
+  /** 按名字建分支。 */
+  createBranch(name: string): Promise<unknown>;
+  /** 删除指定分支。 */
+  removeBranch(branchId: string): Promise<unknown>;
+}
 
 /**
  * DevTools 实际读取的实体元数据子集。

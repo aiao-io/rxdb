@@ -10,7 +10,7 @@
  * 这样这一层可以用普通 Subject 完整测出来，不必搭一整个 RxDB。
  */
 
-import { BehaviorSubject, combineLatest, type Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, combineLatest, type Observable, Subject, Subscription } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
 
 /**
@@ -114,6 +114,8 @@ export class SyncStateHub {
   readonly #lastError$ = new BehaviorSubject<Error | null>(null);
   readonly #lastConflict$ = new BehaviorSubject<SyncConflict | null>(null);
   readonly #state$ = new BehaviorSubject<SyncState>(INITIAL_STATE);
+  /** 「重算待拉数」的请求跳板；没人接线时发进空里，正是无插件时该有的行为 */
+  readonly #pullableRefresh$ = new Subject<void>();
   readonly #subscriptions = new Subscription();
 
   /** 汇总快照流；订阅即得当前值 */
@@ -170,6 +172,47 @@ export class SyncStateHub {
       this.#subscriptions.remove(subscription);
       subscription.unsubscribe();
       this.#upstream$.next({ ...this.#upstream$.value, pushableCount: 0 });
+    };
+  }
+
+  /**
+   * 请求重算待拉数
+   *
+   * @remarks
+   * 由**远端适配器**在实时订阅恢复后调用（`@aiao/rxdb-adapter-supabase` 的
+   * `SUBSCRIBED` 回调）：断线期间远端攒下的变更本地一条都没听见，重新订阅只保证
+   * 「从现在起听得见」，不补历史，所以必须回头按各仓库的水位线重数一遍。
+   *
+   * **只是个请求，不是执行**。真正重数的那段逻辑要读各仓库的同步记忆，整个住在
+   * `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），适配器不许认识它 —— 反过来也一样。
+   * 没装历史插件时这里是**无操作**：待拉数本来就无人维护，请求一个没有归宿的重算
+   * 不该让实时订阅的恢复路径炸掉。
+   */
+  requestPullableRefresh(): void {
+    this.#pullableRefresh$.next();
+  }
+
+  /**
+   * 接上「重算待拉数」的执行者，返回解绑函数
+   *
+   * @param refresh - 执行重算的回调，通常是 `VersionManager.refreshPullableCount()` 的包装
+   * @returns 解绑函数
+   *
+   * @remarks
+   * 与 {@link bindPushableCount} 同构、同理由：执行者跟随**连接纪元**（`scoped` 插件），
+   * 而本汇聚器跟随实例，只能由插件在安装时接上、在释放时解开。
+   *
+   * 回调**不得抛出、不得返回待处理的拒绝**：这里是即发即忘的信号跳板，
+   * 既没有调用方能接住错误，也没有位置能重试。错误处理归执行者自己。
+   */
+  bindPullableRefresh(refresh: () => void): () => void {
+    const subscription = this.#pullableRefresh$.subscribe(refresh);
+    // 与 `bindPushableCount` 同：挂进 `#subscriptions`，`destroy()` 先走一步时
+    // 不会留一条还在往已拆的插件里打的订阅。
+    this.#subscriptions.add(subscription);
+    return () => {
+      this.#subscriptions.remove(subscription);
+      subscription.unsubscribe();
     };
   }
 

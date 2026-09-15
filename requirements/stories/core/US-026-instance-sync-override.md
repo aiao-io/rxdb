@@ -29,7 +29,7 @@ INVEST 检查清单:
 
 ## 现状与证据
 
-1. [`getSyncConfig()`](../../../packages/rxdb/src/version/sync-type-utils.ts) 当前按实体声明优先解析：
+1. [`getSyncConfig()`](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts) 当前按实体声明优先解析：
 
    ```ts
    return metadata.sync || globalSync;

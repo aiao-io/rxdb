@@ -59,7 +59,15 @@ export interface MockRxDBShape {
     sync?: { local?: { adapter?: string } };
   };
   entityManager: { getRepository(entity: EntityType): MockRepository };
-  versionManager: {
+  /**
+   * 分支写操作入口；**可选**，与 {@link DevToolsRxDB.versionManager} 同调。
+   *
+   * @remarks
+   * 自 US-025 阶段 C 起它随 `@aiao/rxdb-plugin-history` 走，宿主没装就没有这个槽位。
+   * 夹具默认给一份能用的替身（绝大多数用例只关心命令有没有转发到位），
+   * 要测「没装插件」那条路时显式传 `{ versionManager: undefined }` 把它摘掉。
+   */
+  versionManager?: {
     switchBranch(value: string): Promise<void>;
     createBranch(value: string): Promise<unknown>;
     removeBranch(value: string): Promise<void>;

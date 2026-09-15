@@ -89,7 +89,7 @@ const setup = () => {
   const localAdapter = createLocalAdapter(localRepo);
   const remoteAdapter = createRemoteAdapter();
   const reachability = detachedReachability();
-  const syncState = new SyncStateHub({ online$: reachability.online$, pushableCount$: of(0) });
+  const syncState = new SyncStateHub({ online$: reachability.online$ });
   const syncMemo = new QueryCacheSyncMemo(0);
   /* 出站队列此刻占着哪些 id；生产路径读 `rxdb_change`，这里直接摆结果 */
   const pendingWriteIds = vi.fn(async (): Promise<ReadonlySet<string>> => new Set<string>());

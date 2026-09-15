@@ -61,7 +61,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 以 `opfs-ahp://` 开头时才要求 Worker，Node 下主线程直跑。
 
 真正挡路的只有一处：**同步策略焊死在实体装饰器上**。`getSyncConfig` 的实现是
-`return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/version/sync-type-utils.ts#L30)）——
+`return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts#L30)）——
 实体级配置永远赢。前端 `Recipe` 类上写着 `SyncType.QueryCache + http/wa-sqlite`，后端要的是纯本地 pglite；
 把同一个类直接拿到后端，`init()` 会因缺 remote 适配器被 US-021 的 fail-fast 拒绝。
 让「同一个类」两端共用需要 [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md)。
