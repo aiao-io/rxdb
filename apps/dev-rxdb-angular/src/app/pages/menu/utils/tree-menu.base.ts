@@ -185,6 +185,17 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     }
   }
 
+  /**
+   * 表单提交入口：按**实时**的 `selectedParentId` 分流。
+   *
+   * 模板里的 `@let parentId` 是变更检测时的快照。zoneless 下选中父节点后，
+   * 若在下一次变更检测落地前就提交（点"添加子菜单"后立刻键入并回车），
+   * 快照仍是 null，子菜单会被静默创建成根菜单。分流必须读 signal。
+   */
+  onFormSubmit(event: Event): Promise<void> {
+    return this.selectedParentId() === null ? this.addRootMenu(event) : this.addChildMenu(event);
+  }
+
   startEdit(event: Event, menu: TreeMenuInstance<C>): void {
     event.preventDefault();
     event.stopPropagation();

@@ -222,10 +222,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     const menu = this.createEntity();
     menu.title = title;
     menu.sortOrder = newSortOrder;
-    const parentMenu = this.menuResource.value().find(m => m.id === parentId);
-    if (parentMenu) {
-      menu.parentId = parentMenu.id;
-    }
+    menu.parentId = parentId;
 
     await menu.save();
     this.selectedParentId.set(null);
