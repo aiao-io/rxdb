@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-06
+updated: 2026-09-12
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
@@ -275,6 +275,10 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
   MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
   **MUST NOT 新增 `Index*` 前缀的导出**：该前缀随暂存区一并裁撤。
+- **阶段 B 的 `commit()` MUST 复用 [US-305 FR-051](./US-305-commit-graph-head.md) 提供的同一份 commit 图损坏守卫**
+  （见 [epic-006 横切约束 6](../../epics/epic-006-working-tree-commits.md)）：当前分支处于 `corrupted_read_only`
+  时以稳定的 `commit_graph_corrupted` 拒绝，不改 ref、不删记录、不写工作树；**MUST NOT 自写一份可达性判定**
+  ——两份判定漂移会让同一个损坏在 `commit()` 和 `log()` 上给出不同答案。
 - 阶段 C 不承接任何持久层 FR：状态机语义归阶段 B，写入口捕获归阶段 A；三端只做透传与呈现，不得自带业务分支逻辑。
 
 ## 关键实体
@@ -415,6 +419,8 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - 双 realm fixture 覆盖 commit 与 discard 的 CAS，**并必须包含 US2-AC12 的核心用例**：realm A 读 status →
   realm B `save()` → realm A commit，断言返回 `CommitConflict` 且 HEAD 与工作树零变化，刷新后重试成功。
 - 幂等 fixture 必须断言「不递增 revision」，而不只是「不报错」。
+- 损坏守卫 fixture：把当前分支构造成 `corrupted_read_only`（直接写坏可达祖先记录）后调用 `commit()`，
+  断言返回 `commit_graph_corrupted`、HEAD 与工作树零变化，且健康分支的 `commit()` 不受影响。
 - `WorkingTreeRestoreSession` 需独立 fixture：启用后表存在、可直接写入 session 行并派生 `status().conflicted`、
   session 删除后该状态消失；全程不依赖 US-307 的 `restore()` 入口。
 - API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误（含 `WorkingTreeStatus` / `WorkingTreeDiff` /

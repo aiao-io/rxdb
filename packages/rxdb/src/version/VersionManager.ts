@@ -21,6 +21,8 @@ import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from '../system/types.local.js';
 import { RemoteRxDBBranchRepository, RemoteRxDBChangeRepository } from '../system/types.remote.js';
+import { TrustedWriteIntent } from '../trusted-write/trusted-write-intent.js';
+import { declareTrustedWrite } from '../trusted-write/trusted-write-scope.js';
 import { bulkSync, type BulkSyncOptions, type BulkSyncResult } from './bulk-sync.js';
 import { checkRepositoryUpdates, type CheckRepositoryUpdatesResult } from './check-repository-updates.js';
 import { cleanupExpired, type CleanupExpiredOptions, type CleanupExpiredResult } from './cleanup-expired.js';
@@ -748,6 +750,14 @@ export class VersionManager {
       this.rxdb.dispatchEvent(new SwitchBranchBeginEvent(branchId));
       const { adapter } = await this.getLocalRepositories();
       const actions = await switch_branch_actions(this, branchId);
+      // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
+      // 不声明的话挂载点只看见「有人在调 switchBranch」，与 undo/redo（行 6，必须产生单元）
+      // 完全同形，切一次分支就会把整批物化写记成一批未提交变更。
+      declareTrustedWrite(adapter, {
+        file: 'VersionManager.ts',
+        symbol: 'switchBranch',
+        intent: TrustedWriteIntent.branch_materialization
+      });
       const result = await adapter.switchBranch({
         branchId: branchId,
         actions

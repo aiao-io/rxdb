@@ -1,4 +1,7 @@
 import type { Observable } from 'rxjs';
+import type { RawWritePrimitives, WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
+import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './capture/capture-interceptor.js';
+import type { RawWriteContext } from './capture/raw-write-gate.js';
 import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
 import type { RuleGroup } from './repository/query.interface.js';
@@ -118,9 +121,92 @@ export interface RestoreEntityOptions {
 }
 
 /**
+ * 提交能力未启用时的 raw 写判定上下文
+ *
+ * @remarks
+ * 这一支**结构上没有 `gate` 成员**（见 {@link RawWriteContext}），于是「能力位判断被挪到分派
+ * 之后」在类型上就不成立。旧实现靠的是一个读 `domain` 即抛的取值器加一条「第 1 步一定排在它
+ * 前面」的人工约定——约定写在注释里，而注释不参与编译。
+ *
+ * 单例而不是每次新建：它不持有任何 per-adapter 状态，而共享一个实例能让「同一个未启用形态」
+ * 在测试里可直接比对。
+ */
+const CAPABILITY_DISABLED_RAW_WRITE_CONTEXT: RawWriteContext = Object.freeze({ capabilityEnabled: false });
+
+/**
  * 数据库适配器基类（本地）
  */
 export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
+  #workingTreeCaptureHook: WorkingTreeCaptureHook | undefined;
+  #rawWritePrimitives: RawWritePrimitives | undefined;
+
+  /**
+   * 捕获运行时；未启用提交能力的库上恒为 `undefined`。
+   *
+   * @internal
+   */
+  get workingTreeCaptureHook(): WorkingTreeCaptureHook | undefined {
+    return this.#workingTreeCaptureHook;
+  }
+
+  /**
+   * 本适配器当前的 raw 写判定上下文（adapter-contract.md §2）
+   *
+   * @remarks
+   * `rawQuery?()` 是这张接口上的**可选方法**（见上方 `IRxDBAdapter`），核心包没法像四个挂载点
+   * 那样替适配器包住它——判定只能由各适配器自己的 `rawQuery` 实现调用 `gateRawWrite(sql, ctx, …)`。
+   * 那句调用要的 `ctx` 由这里交出来，于是六个适配器需要写对的只有「把它转给判定」这一句，
+   * 「能力位怎么算」「域从哪来」两个真正容易写歪的问题一次都不会落到它们头上。
+   *
+   * 能力位直接由**捕获运行时装没装上**决定，不另存一个布尔：运行时只在能力位为真时被装上
+   * （`RxDB.connect()` 读到真、或 `workingTree.enable()` 刚翻开）。再存一份就是第二份真相，
+   * 而两份不同步的后果是单向的——门禁以为没开，raw 写全部放行。
+   *
+   * 交出去的是**判定入口本身**，不是判定要看的那些东西（域、列集、受信意图）。核心因此不必
+   * 复述捕获认什么，也就不存在「拷了一份域出来、插件后续登记的派生索引列只落进其中一份」这类
+   * 双份清单——判定自始至终在运行时手上那一份上跑。
+   *
+   * @internal
+   */
+  get workingTreeRawWriteContext(): RawWriteContext {
+    const hook = this.#workingTreeCaptureHook;
+    if (!hook) return CAPABILITY_DISABLED_RAW_WRITE_CONTEXT;
+    return {
+      capabilityEnabled: true,
+      gate: <T>(sql: string, execute: () => Promise<T> | T): Promise<T> => hook.gateRawWrite(sql, execute)
+    };
+  }
+
+  /**
+   * 装上或卸下捕获运行时（adapter-contract.md §1 的四个挂载点）。
+   *
+   * @param hook - 接管四个挂载点的运行时；`undefined` 卸载
+   *
+   * @remarks
+   * 挂载装在**这里**而不是让六个适配器各自在自己的 `transaction()` 里插一句：少写一次、
+   * 写晚一次（在业务写之后才校验 token）都没有任何东西能发现，而那正是 §2「判定实现只有
+   * 一份」要排除的形态。
+   *
+   * 调用方是 `RxDB.connect()`（确认能力位为真之后）与 `workingTree.enable()`（翻位成功
+   * 之后）。未启用的库上一次都不会被调用，于是四个写原语连一层转发都没有。
+   *
+   * 幂等：已经装过就先卸下再装，不会叠成两层。
+   *
+   * @internal
+   */
+  setWorkingTreeCaptureHook(hook: WorkingTreeCaptureHook | undefined): void {
+    const raw = this.#rawWritePrimitives;
+    if (raw) {
+      uninstallWorkingTreeCapture(this, raw);
+      this.#rawWritePrimitives = undefined;
+    }
+    this.#workingTreeCaptureHook = hook;
+    if (!hook) return;
+    const installed = installWorkingTreeCapture(this, hook);
+    this.#rawWritePrimitives = installed;
+    hook.bindMountTarget(this, installed);
+  }
+
   /**
    * 在应用迁移或仓储运行前升级 RxDB 拥有的表。
    * 不需要持久化系统 schema 状态的 adapter 保持默认的 no-op 实现。
@@ -156,6 +242,27 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * @internal
    */
   bootstrapTransaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>> {
+    return this.transaction(fun, transactionLog);
+  }
+
+  /**
+   * 新开一个事务，**或者**复用调用方已经在的那个。
+   *
+   * @param fun - 事务工作，参数是本次事务的 executor
+   * @param transactionLog - 是否写事务日志
+   * @returns `fun` 的返回值
+   *
+   * @remarks
+   * 与 {@link transaction} 的差别不在这个方法体里，而在 `this` 是谁：真实适配器上两者同义，
+   * 都新开一个排队事务；而事务内的调用方拿到的是 executor 门面，门面把本方法特判成
+   * `executor.run()`——复用当前事务且**绝不重新入队**。SQLite family 与 PGlite 各自的覆写只是
+   * 在这一句前面加了断连 / 只读断言，语义与此处逐字相同。
+   *
+   * 捕获运行时要写工作树行就必须有一个 executor，而「该新开还是该复用」只有调用宿主知道。
+   * 直接调 `transaction()` 的话，事务内的那一半调用会去排队等一个自己正占着的槽位——表现为
+   * 永久挂起而不是报错。
+   */
+  runInTransaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>> {
     return this.transaction(fun, transactionLog);
   }
 

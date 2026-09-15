@@ -68,7 +68,7 @@
 | HTTP                    | `@aiao/rxdb-adapter-http`        | `http`                  | Remote | 远端权威 HTTP + **独立注册**的 sqlite 行缓存；v1 **只支持 `SyncType.QueryCache`**，`pullChanges`/`mergeChanges`/`getChangeCount` 一律 throw unsupported（不返回空数组/`0`）；`getRepository`/`saveMany`/`removeMany`/`mutations`/`rawQuery` 亦无实现；bigint / binary 字段在 `connect()` fail-fast | [US-212](stories/adapter/US-212-http-adapter.md)（已发 `stable`，两阶段全关）；SSE 变更通知由 [US-023](stories/core/US-023-querycache-remote-invalidation.md) 承接（`changeFeed` 缺省关闭）；行缓存 eviction 见 [roadmap「明确不排期」](roadmap.md#明确不排期) |
 
 > `encrypted` 包的 [index.ts](../packages/rxdb-adapter-encrypted/src/index.ts) 只导出 `Keyring` / `createKeyring` / 信封编解码 / 校验与错误类型，**没有任何 `IRxDBAdapter` 实现**；
-> [RxDBAdapterSqliteBase.ts:33](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L33) 与 [RxDBAdapterPGlite.ts:26](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L26) 直接 import 它，加密是**内建**能力而非外层包装。
+> [RxDBAdapterSqliteBase.ts:32](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L32) 与 [RxDBAdapterPGlite.ts:26](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L26) 直接 import 它，加密是**内建**能力而非外层包装。
 > 因此按适配器 `name` 判定能力时不存在「先解包」这一步（见 [epic-006 启用与存储边界](epics/epic-006-working-tree-commits.md)）。
 
 ## 已知的需求覆盖缺口

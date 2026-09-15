@@ -15,7 +15,6 @@ import {
 import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
-import { RxDBMigration } from '../../system/migration.js';
 import { RxDBSync } from '../../system/sync.js';
 import type { RxDBChangeOrderByField, RxDBChangeRuleGroup } from '../../system/types.js';
 import type { HistoryManager } from '../../version/HistoryManager.js';
@@ -79,7 +78,9 @@ function getLastUndoneChangeIds(harness: TestHarness): number[] {
 async function createHarness(): Promise<TestHarness> {
   const rxdb = new RxDB({
     dbName: `history-clear-race-${crypto.randomUUID()}`,
-    entities: [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
+    // 手写系统表清单在 epic-006 之后已经不可能写全（10 张不对外导出），
+    // 交给 `SchemaManager.init()` 注入；本文件只关心 RxDBChange 的读写口径。
+    entities: [],
     sync: {
       type: SyncType.None,
       local: { adapter: ADAPTER_NAME }
@@ -135,6 +136,10 @@ async function createHarness(): Promise<TestHarness> {
     migrateSystemSchema: vi.fn(async () => undefined),
     completeBootstrap: vi.fn(() => undefined),
     transaction: vi.fn(async (run: () => Promise<unknown>) => run()),
+    // 引导期事务。本替身走的是首装路径（`isTableExisted` 恒 false），实际不会被调用，
+    // 但它在 `assertLocalAdapterCapabilities` 的必需成员里 —— 缺了连 connect() 都进不去。
+    // 委托 `transaction` 即基类默认实现的口径：没有就绪门就不需要单独一条引导通道。
+    bootstrapTransaction: vi.fn(async (run: () => Promise<unknown>) => run()),
     getRepository: vi.fn((EntityClass: EntityType) => {
       if (EntityClass === RxDBBranch) return branchRepository;
       if (EntityClass === RxDBChange) return changeRepository;

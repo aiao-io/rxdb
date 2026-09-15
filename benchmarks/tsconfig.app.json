@@ -58,6 +58,9 @@
       "path": "../packages/rxdb-adapter-encrypted/tsconfig.lib.json"
     },
     {
+      "path": "../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
       "path": "../packages/rxdb-test/tsconfig.lib.json"
     },
     {

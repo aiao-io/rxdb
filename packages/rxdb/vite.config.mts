@@ -54,10 +54,9 @@ export default defineConfig(() => ({
       transformMixedEsModules: true
     },
     lib: {
-      // 也可以是字典或多个入口数组。
-      entry: 'src/index.ts',
+      entry: { index: 'src/index.ts' },
       name: '@aiao/rxdb',
-      fileName: 'index',
+      fileName: (_format: string, entryName: string) => `${entryName}.js`,
       // 改成你需要支持的格式。
       // 别忘了同步更新 package.json。
       formats: ['es' as const]
@@ -65,7 +64,8 @@ export default defineConfig(() => ({
     rolldownOptions: {
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
-      // 不打进库里的外部依赖。
+      // 不打进库里的外部依赖。`vitest` 不在其中：`./testing` 子路径随 epic-006 搬去了
+      // `@aiao/rxdb-plugin-working-tree`，核心自此没有任何**非** spec 文件引用它。
       external: ['@aiao/utils', 'rxjs', 'type-fest', 'uuid']
     }
   },
@@ -86,6 +86,9 @@ export default defineConfig(() => ({
       provider: 'istanbul' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
+      // 一致性套件（原 `src/working-tree/testing/**`）已随 epic-006 搬进
+      // `@aiao/rxdb-plugin-working-tree`，那一条排除项跟着走了——它排除的目录在本包已不存在，
+      // 留着只会让下一个人以为核心还发着一个 `./testing` 子路径。
       exclude: ['src/__tests__/**'],
       // 核心包 90% 门槛必须由 test target 自身强制，否则「覆盖率达标」只是报告里的数字，
       // 回归时掉到门槛以下不会让任何 Nx target 变红（RXD-043）

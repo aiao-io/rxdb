@@ -73,6 +73,9 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-test/tsconfig.lib.json"
     }
   ]

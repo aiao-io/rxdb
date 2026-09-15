@@ -36,6 +36,7 @@ import { RxDB } from '../../RxDB.js';
 import type { RxDBChange } from '../../system/change.js';
 import type { TransactionExecutor } from '../../transaction/transaction-executor.interface.js';
 import type { SwitchVersionActions } from '../../version/VersionManager.interface.js';
+import { fakeTableRef } from './fake-table-ref.js';
 import { TEST_ENTITIES } from './test-entities.js';
 
 /**
@@ -45,15 +46,33 @@ import { TEST_ENTITIES } from './test-entities.js';
  * 类型是**真的** {@link IRepository}，不是 `as never` 糊出来的：该接口只有五个成员，
  * 全部实现的成本几乎为零，而换来的是「仓库接口一旦加成员，这里立刻编译失败」。
  */
-function createStubRepository(): IRepository<EntityType> {
+function createStubRepository(rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
   return {
-    find: vi.fn(async () => []),
-    count: vi.fn(async () => 0),
+    find: vi.fn(async () => rows),
+    count: vi.fn(async () => rows.length),
     create: vi.fn(async entity => entity),
     update: vi.fn(async entity => entity),
     remove: vi.fn(async entity => entity)
   };
 }
+
+/**
+ * 替换**未登记专用仓库的那些**实体的仓库。
+ *
+ * @param adapter - 要打桩的替身
+ * @param repository - 用例自己那份仓库
+ *
+ * @remarks
+ * `getRepository` 是通用入口，用例惯用的 `mockReturnValue(x)` 会把**每一个**实体都换成 `x`，
+ * 连同用例自己先前经 {@link MockLocalAdapter.stubEntityRepository} 登记的那些一起盖掉。
+ * 而那些行往往是「读不到不等于空结果，而是一个错误」的引导行（贡献系统能力的插件几乎都有
+ * 一行这样的状态行），于是用例会挂在一个与被测行为毫无关系的地方。用例真正想换的从来只是
+ * 自己那张表。
+ */
+export const stubAdapterRepository = (adapter: MockLocalAdapter, repository: unknown): void => {
+  const dedicated = adapter.dedicatedRepositories;
+  adapter.getRepository.mockImplementation(EntityType => (dedicated.get(EntityType) ?? repository) as never);
+};
 
 /**
  * unit 层用的本地适配器替身。
@@ -87,6 +106,17 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    * 「只替换一个」的写法退化成「每次都换」。
    */
   readonly #repository = createStubRepository();
+
+  /**
+   * 按实体登记的专用仓库；未登记的实体一律拿 `#repository`。
+   *
+   * @remarks
+   * 存在的理由是**有些行读不到不等于空结果，而是一个错误**：贡献系统能力的插件在引导时
+   * 要读自己那一行状态行，读不到就抛。核心这一侧不认识任何具体的那种行——谁需要谁在
+   * `beforeEach` 里 {@link MockLocalAdapter.stubEntityRepository} 登记一份，本文件就不必
+   * 为了一个插件的实体去 import 那个插件。
+   */
+  readonly #dedicatedRepositories = new Map<EntityType, IRepository<EntityType>>();
 
   name = 'mock';
 
@@ -145,7 +175,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
    * 不是拿它盖住某个缺失的成员 —— 与被删掉的 `as unknown as IRxDBAdapter` 完全是两回事。
    */
   getRepository: IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>> = vi.fn(
-    () => this.#repository
+    EntityType => this.#dedicatedRepositories.get(EntityType) ?? this.#repository
   ) as IRxDBAdapter['getRepository'] & Mock<(EntityType: EntityType) => IRepository<EntityType>>;
 
   /**
@@ -160,6 +190,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
       id: 'mock-executor',
       state: 'active',
       query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+      tableRef: fakeTableRef,
       mutations: options => this.mutations(options as RxDBMutationsMap<EntityType>),
       getRepository: EntityType => this.getRepository(EntityType),
       saveMany: entities => this.saveMany(entities),
@@ -171,6 +202,34 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
     };
     return fun(executor);
   });
+
+  /**
+   * 已登记专用仓库的实体表，只读。
+   *
+   * @remarks
+   * 转出去是给 {@link stubAdapterRepository} 用的：它要在替换默认仓库时把这些绕过去，
+   * 而它是个自由函数，够不着私有字段。
+   */
+  get dedicatedRepositories(): ReadonlyMap<EntityType, IRepository<EntityType>> {
+    return this.#dedicatedRepositories;
+  }
+
+  /**
+   * 给单个实体登记一份专用仓库。
+   *
+   * @param EntityType - 实体类
+   * @param rows - 该实体 `find()` 要返回的行；不传即空表
+   * @returns 登记进去的那份仓库，便于用例直接在它的 `find` / `create` 上断言
+   *
+   * @remarks
+   * 登记后即使用例再调 {@link stubAdapterRepository} 换掉其余实体的仓库，这一份仍然生效——
+   * 「引导要读的那一行」与「用例想观察的那张表」因此可以同时成立。
+   */
+  stubEntityRepository(EntityType: EntityType, rows: InstanceType<EntityType>[] = []): IRepository<EntityType> {
+    const repository = createStubRepository(rows);
+    this.#dedicatedRepositories.set(EntityType, repository);
+    return repository;
+  }
 }
 
 /**

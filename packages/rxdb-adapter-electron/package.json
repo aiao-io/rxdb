@@ -88,6 +88,7 @@
   "devDependencies": {
     "@aiao/rxdb-adapter-pglite": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "@electric-sql/pglite": "^0.5.8"
+    "@electric-sql/pglite": "^0.5.8",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*"
   }
 }

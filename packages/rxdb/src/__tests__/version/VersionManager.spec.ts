@@ -6,6 +6,7 @@ import { PropertyType } from '../../entity/metadata-options.interface.js';
 import { ENTITY_LOCAL_CREATE_EVENT, TRANSACTION_BEGIN, TRANSACTION_COMMIT } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBPartialSyncError } from '../../RxDBError.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import { RxDBSync } from '../../system/sync.js';
@@ -418,6 +419,7 @@ describe('VersionManager', () => {
         expect.objectContaining({
           id: 'main',
           activated: true,
+          activeKey: ACTIVE_BRANCH_KEY,
           local: true,
           remote: false
         })
@@ -443,7 +445,12 @@ describe('VersionManager', () => {
 
       expect(branch).toBe(mainBranch);
       expect(mainBranch.activated).toBe(true);
-      expect(mockBranchRepository.update).toHaveBeenCalledWith(mainBranch, { activated: true });
+      // 两列同进同出：`activeKey` 的可空唯一列只管得住非 NULL 的行，漏写它
+      // 就等于让这一行退出「至多一个 active」的管辖，而且不报任何错。
+      expect(mockBranchRepository.update).toHaveBeenCalledWith(mainBranch, {
+        activated: true,
+        activeKey: ACTIVE_BRANCH_KEY
+      });
       expect(mockBranchRepository.create).not.toHaveBeenCalled();
     });
 

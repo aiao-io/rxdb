@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-06
+updated: 2026-09-12
 tags: [collaboration, branch, concurrency, conflict]
 inherited_acs:
   - from: US-306
@@ -87,6 +87,13 @@ US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的�
 3. 要把默认改成拒绝，必须走独立的破坏性变更故事，并按仓库的版本发布门禁处理，不在本 Epic 内夹带。
 4. 无条件切换不等于 reset：来源分支的工作树必须保留，目标分支有未提交状态时恢复自己的状态，
    只有目标分支从未产生未提交状态时才从 HEAD 物化。
+5. 「无条件」的唯一例外是**目标分支的 commit 图已损坏**：切到一个处于 `corrupted_read_only` 的分支
+   MUST 复用 [US-305 FR-051](./US-305-commit-graph-head.md) 的同一份守卫（见
+   [epic-006 横切约束 6](../../epics/epic-006-working-tree-commits.md)），以稳定的 `commit_graph_corrupted`
+   拒绝，来源分支保持 active、activation revision 不递增、当前投影零变化；从损坏分支**切离**不受影响。
+   这不违反第 1 条的兼容承诺：未启用提交能力、或 commit 图健康时行为与今天完全一致，该状态在启用前不存在。
+   该守卫与 `requireClean`、`branch_not_materialized` 是三道独立预检，MUST NOT 互相代替，
+   也 MUST NOT 自写第二份可达性判定。
 
 `requireClean` 的 clean 固定为：`WorkingTreeEntry` 为空、没有 active restore session，也没有
 由 durable restore session 派生的未解决 conflict。普通 CAS 失败返回一次性 `CommitConflict`，不会永久污染 clean；
@@ -175,6 +182,8 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
 - 必须有 `createBranch(branchId, fromChangeId?)`、`removeBranch()`、`syncBranches()` 的公开签名与既有行为回归；覆盖 dirty current state、历史 change、删分支状态清理、metadata-only 远端分支本地已有资料/durable staging 两条首次 baseline 路径，以及分页崩溃续传、网络失败、水位/scope 漂移、配额不足、预取不收敛时当前投影零变化。
 - 三端冲突提示的语义、错误分类与恢复建议必须一致，并有等价测试；a11y 断言覆盖 US2-AC7（键盘可达、焦点可见、冲突与错误状态公告，WCAG 2.1 AA）。
 - 必须有「pull → refresh → switch away/back → status/diff」的完整链路集成 fixture（US1-AC12），断言 `origin=remote_sync` 单元在往返后来源与内容不变；这是该链路唯一的收口点，US-306 只覆盖其刷新重放半边。
+- 损坏守卫用例：目标分支处于 `corrupted_read_only` 时 switch-to 断言返回 `commit_graph_corrupted`、
+  来源分支仍 active 且 activation revision 未递增；同一 fixture 断言从该损坏分支切离成功。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
 ## 实现文件（计划阶段待确认）

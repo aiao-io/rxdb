@@ -1,3 +1,19 @@
+/**
+ * @fileoverview 建表批次与实体注册冲突检测（宿主侧）。
+ *
+ * @remarks
+ * 本文件盯的是 `SchemaManager` 那份**登记簿**：谁进 `config.entities`、进几次、撞名时怎么拒。
+ * 其中「系统表」这一档已不再是一份静态清单——核心只自带四张，其余由插件经
+ * {@link registerSystemEntities} 追加。所以这里挂一个**假贡献方**（见 {@link probeContribution}），
+ * 让「登记簿是活视图」这件事在本文件里有一条非平凡的证据：没有它，
+ * `expect(config.entities).toEqual([...SYSTEM_ENTITIES])` 就是拿同一个数组和自己比，
+ * 贡献接线整条断掉也照样绿。
+ *
+ * 假的而不是真的，是因为核心**认不得**插件的类：epic-006 那十张表在 `@aiao/rxdb-plugin-working-tree`
+ * 里，它们各自长什么样由那个包自己的
+ * `src/__tests__/system/system-entity-registration.spec.ts` 守。
+ */
+
 import { afterEach, describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
@@ -11,26 +27,82 @@ import {
 import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { IRepository } from '../../repository/repository.interface.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
+import type { RxDBSystemContribution } from '../../rxdb-plugin-system.js';
+import type { Plugin } from '../../rxdb-plugin.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import type { MigrationType } from '../../rxdb.interface.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
-import { RxDBChange } from '../../system/change.js';
+import { capabilityWatermarkName } from '../../system/capability-watermark.js';
 import { RxDBMigration } from '../../system/migration.js';
-import { RxDBSync } from '../../system/sync.js';
+import { SYSTEM_ENTITIES } from '../../system/system-entities.js';
 
 interface CreateTablesCall {
   entityTypes: EntityType[];
   entities: InstanceType<EntityType>[];
 }
 
-const createRepository = <T extends EntityType>(): IRepository<T> => ({
-  find: async () => [],
-  count: async () => 0,
+const createRepository = <T extends EntityType>(rows: InstanceType<T>[] = []): IRepository<T> => ({
+  find: async () => rows,
+  count: async () => rows.length,
   create: async entity => entity,
   update: async entity => entity,
   remove: async entity => entity
 });
+
+/**
+ * 假贡献方的唯一一张系统表。
+ *
+ * @remarks
+ * 它存在的意义只有一个：让「系统表登记簿是活视图」在本文件里可证伪。核心自带的那四张
+ * 无论接线通不通都会在 `config.entities` 里，只有一张**不是核心写的**表能区分两种情况。
+ */
+@Entity({
+  namespace: 'rxdb',
+  name: 'SchemaRegistrationProbeState',
+  tableName: 'rxdb_schema_registration_probe_state',
+  log: false,
+  properties: [{ name: 'branchId', type: PropertyType.string }]
+})
+class SchemaRegistrationProbeState extends EntityBase {
+  branchId!: string;
+}
+
+const PROBE_PACKAGE = '@example/rxdb-plugin-schema-registration-probe';
+const PROBE_MIGRATION_NAME = '0001-schema-registration-probe';
+
+const probeContribution: RxDBSystemContribution = {
+  capability: 'schemaRegistrationProbe',
+  version: 1,
+  packageSpecifier: PROBE_PACKAGE,
+  entities: [SchemaRegistrationProbeState],
+  createInitialRows: (entityManager, context) => {
+    const row = entityManager.instantiate(SchemaRegistrationProbeState);
+    row.branchId = context.branchIds[0];
+    return [row];
+  },
+  createMigrations: () => [{ name: PROBE_MIGRATION_NAME, up: async () => undefined, down: async () => undefined }],
+  // 五个成员都是必填：宿主在 `connect()` 收尾与 `create_branch` 结尾是**无条件**遍历贡献去调
+  // 后两个的，本文件用不上也不能省，省掉不是「没有这项贡献」，是当场 TypeError。
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined
+};
+
+const probePlugin: Plugin = () => ({
+  name: 'schemaRegistrationProbe',
+  system: probeContribution,
+  install: () => undefined
+});
+
+/**
+ * 贡献方的能力认领行；由宿主自动追加在贡献方自己的迁移**之后**。
+ *
+ * @remarks
+ * 这里只钉住它**在不在**那一批水位线里。它和贡献自身迁移的相对次序在新库与既有库两条路上
+ * 并不相同（`createMigrationWatermarks()` 按序 map，`runMigrations()` 先 `localeCompare` 排序），
+ * 那件事归 `__tests__/RxDB.migration-watermark.spec.ts`。
+ */
+const PROBE_CLAIM_ROW = capabilityWatermarkName(probeContribution);
 
 class TestLocalAdapter implements IRxDBAdapter {
   readonly #connectErrors: Error[];
@@ -110,6 +182,31 @@ class TestLocalAdapter implements IRxDBAdapter {
     this.transactionCalls += 1;
     return (await fun()) as Awaited<ReturnType<T>>;
   }
+
+  /**
+   * 引导期事务：既有库上的「未认领能力守卫」那一次读，与随后贡献方的系统迁移，走的都是这一条。
+   *
+   * @remarks
+   * 不复用 {@link TestLocalAdapter.transaction} 的计数 —— `transactionCalls` 是
+   * 「补建缺表没有开用户事务」那条断言的依据，把引导期的事务并进去会让它恒为非零。
+   * executor 的仓库/写入一律转回适配器自身，与 {@link MockLocalAdapter} 同口径。
+   */
+  async bootstrapTransaction<T extends (executor: unknown) => Promise<unknown>>(
+    fun: T
+  ): Promise<Awaited<ReturnType<T>>> {
+    const executor = {
+      id: 'schema-manager-registration-bootstrap',
+      state: 'active',
+      query: async () => ({ rowsAffected: 0, rows: [], columns: [] }),
+      mutations: async () => [],
+      getRepository: () => createRepository(),
+      saveMany: async (entities: InstanceType<EntityType>[]) => entities,
+      removeMany: async (entities: InstanceType<EntityType>[]) => entities,
+      mergeChanges: async () => undefined,
+      run: (inner: (nested: unknown) => Promise<unknown>) => inner(executor)
+    };
+    return (await fun(executor)) as Awaited<ReturnType<T>>;
+  }
 }
 
 const databases = new Set<RxDB>();
@@ -127,6 +224,10 @@ const createDatabase = (entities: EntityType[], migrations?: MigrationType[]): R
     }
   });
   database.adapter('schema-manager-registration', () => new TestLocalAdapter());
+  // 必须在 `init()` 之前——贡献了系统能力的插件晚于 `init()` 才 `use()` 会被宿主当场拒绝。
+  // 全文件统一挂：登记簿是**模块级、只增不减**的，挂一半会让「哪些用例看得见这张表」
+  // 取决于用例执行顺序。
+  database.use(probePlugin);
   databases.add(database);
   return database;
 };
@@ -158,12 +259,30 @@ describe('SchemaManager 建表与实体注册冲突检测', () => {
 
     await expect(database.connect(adapter.name)).resolves.toBe(adapter);
 
-    expect(database.config.entities).toEqual([RxDBBranch, RxDBChange, RxDBMigration, RxDBSync]);
+    // 断言「注入的就是 SYSTEM_ENTITIES 这一份清单」，不再手抄类名：手抄的那份每加一张
+    // 系统表就得改一次，改漏了断言仍然为真，等于没有门禁。
+    expect(database.config.entities).toEqual([...SYSTEM_ENTITIES]);
+    // 上一条是拿登记簿和它自己比，贡献接线整条断掉也会绿。补这一条把它钉成非平凡的：
+    // 探针那张表进得了 `config.entities`，靠的是 `use()` → `registerSystemEntities()` →
+    // `SchemaManager.init()` 读活视图这一整条链，断在任一环这里都会红。
+    expect(database.config.entities).toContain(SchemaRegistrationProbeState);
     expect(adapter.createTablesCalls).toHaveLength(1);
     expect(adapter.createTablesCalls[0].entityTypes).toEqual(database.config.entities);
-    expect(adapter.createTablesCalls[0].entities).toHaveLength(1);
-    expect(adapter.createTablesCalls[0].entities[0]).toBeInstanceOf(RxDBBranch);
-    expect(adapter.createTablesCalls[0].entities[0]).toMatchObject({ activated: true, id: 'main' });
+    // 首装随建表一次写入的初始行：主分支 + 贡献方初始行 + 两条系统迁移水位线。
+    // 这里只钉住「一次写完、该在的都在」，次序与各行字段归
+    // `__tests__/RxDB.migration-watermark.spec.ts`。
+    const [firstEntity] = adapter.createTablesCalls[0].entities;
+    expect(firstEntity).toBeInstanceOf(RxDBBranch);
+    expect(firstEntity).toMatchObject({ activated: true, id: 'main' });
+    // 贡献方拿到的是**建表那一刻确实存在**的分支集合，不是一个空上下文：新库上恰好是 main。
+    expect(
+      adapter.createTablesCalls[0].entities.filter(entity => entity instanceof SchemaRegistrationProbeState)
+    ).toEqual([expect.objectContaining({ branchId: 'main' })]);
+    expect(
+      adapter.createTablesCalls[0].entities
+        .filter((entity): entity is RxDBMigration => entity instanceof RxDBMigration)
+        .map(record => record.name)
+    ).toEqual([PROBE_MIGRATION_NAME, PROBE_CLAIM_ROW]);
   });
 
   it('adds only missing tables when an existing schema has no migrations', async () => {

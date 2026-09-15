@@ -10,6 +10,8 @@
  *   - systemSchemaUpgrade / changeCodecUpgrade 布尔位；normal 与 bridge 一律禁止升级；
  *   - normal 不进入 bridge 链（bridge.tag / bridge.version 必须为 null）；
  *   - migration 必须指向已发布的 bridge tag，且协议兼容；
+ *   - bridge.version 必须严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`（早于该版本的 tag 不具备桥接语义）；
+ *   - bridge tag 上的系统 schema / change codec 版本常量必须与本次发布声明的升级位吻合；
  *   - migration 的 oldBundlePolicy 必须启用，且 strategy 取自受支持白名单
  *     （force-update / cache-invalidation / server-version / database-namespace）。
  *
@@ -38,6 +40,38 @@ const RELEASE_KINDS = ['normal', 'bridge', 'migration'];
 
 // 禁止升级系统 schema / change codec 的发布种类。
 const NON_MIGRATION_KINDS = new Set(['normal', 'bridge']);
+
+/**
+ * 可作为桥接锚点的版本下限（**严格大于**，等于也不行）。
+ *
+ * `0.0.25` 已脱离发布主线（squash 后不在任何 ancestry 上），而 `0.0.24` 及更早的 tag 虽然是祖先、
+ * 也确实含有系统迁移面的四个文件，却**早于工作树/提交图的桥接改造**——把它们填进 `bridge.tag`
+ * 能骗过全部四条 tag 钩子（存在性 / 祖先性 / 路径探测 / 版本常量吻合），却给出一个空的桥。
+ * 最后一条尤其指望不上：实测 `v0.0.24` 与 `v0.0.25` 的两个常量都是 `{3, 1}`，与今天的 HEAD 完全相同，
+ * 所以在 `systemSchemaUpgrade: false` 的发布里它对空桥恒真。**挡空桥的只有这个下限**，
+ * 它是 epic-006 发布门禁 1「且不是 v0.0.25」的可执行形式：任何真实的新桥接 tag 都必然大于它，
+ * 因此下限只挡错误、不挡正常发布。
+ */
+const LAST_INELIGIBLE_BRIDGE_VERSION = '0.0.25';
+
+// 系统版本常量的声明位置与取值口径；`bridgeTagVersionConstants` 钩子按同一口径从 tag 上读。
+export const SYSTEM_SCHEMA_VERSION_SOURCE = 'packages/rxdb/src/system/migration.ts';
+export const CHANGE_CODEC_VERSION_SOURCE = 'packages/rxdb/src/system/change-codec.ts';
+const SYSTEM_SCHEMA_VERSION_PATTERN = /export const RXDB_SYSTEM_SCHEMA_VERSION\s*=\s*(\d+)/;
+const CHANGE_CODEC_VERSION_PATTERN = /export const RXDB_CHANGE_CODEC_VERSION\s*=\s*(\d+)/;
+
+/**
+ * 从两份源码文本里解析系统版本常量。
+ * @param {string | null} schemaSource `migration.ts` 的内容
+ * @param {string | null} codecSource `change-codec.ts` 的内容
+ * @returns {{ systemSchemaVersion: number, changeCodecVersion: number } | null} 任一解析不出即 null
+ */
+export const parseVersionConstants = (schemaSource, codecSource) => {
+  const schema = typeof schemaSource === 'string' ? schemaSource.match(SYSTEM_SCHEMA_VERSION_PATTERN) : null;
+  const codec = typeof codecSource === 'string' ? codecSource.match(CHANGE_CODEC_VERSION_PATTERN) : null;
+  if (!schema || !codec) return null;
+  return { systemSchemaVersion: Number(schema[1]), changeCodecVersion: Number(codec[1]) };
+};
 
 // 旧 bundle 处置策略白名单：migration 发布必须从中选一项，未列出的值一律拒绝。
 const SUPPORTED_OLD_BUNDLE_STRATEGIES = new Set([
@@ -73,9 +107,50 @@ const compareVersions = (left, right) => {
 };
 
 /**
+ * bridge tag 与本次发布之间的版本常量一致性。
+ *
+ * 这条比 `bridgeTagSupportsProtocol` 强：后者只探测四个文件路径是否还在，证明不了那个 tag 真的是
+ * 「升级前的那一版」。声明了升级就必须严格更旧，没声明升级就必须完全相等——后半条同时挡住
+ * 「悄悄抬了 schema 却把升级位写成 false」这种会绕开 `oldBundlePolicy` 的形态。
+ *
+ * @param {string} tag bridge tag
+ * @param {{ systemSchemaVersion: number, changeCodecVersion: number } | null | undefined} bridgeConstants
+ * @param {{ systemSchemaVersion: number, changeCodecVersion: number }} releaseConstants
+ * @param {Record<string, unknown>} release 清单的 release 段
+ * @returns {string[]}
+ */
+const collectVersionConstantErrors = (tag, bridgeConstants, releaseConstants, release) => {
+  if (!bridgeConstants) {
+    return [
+      `bridge.tag ${tag} does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+    ];
+  }
+  const axes = [
+    ['systemSchemaUpgrade', 'systemSchemaVersion', 'system schema'],
+    ['changeCodecUpgrade', 'changeCodecVersion', 'change codec']
+  ];
+  const errors = [];
+  for (const [flag, field, label] of axes) {
+    const before = bridgeConstants[field];
+    const after = releaseConstants[field];
+    if (release[flag] === true && !(before < after)) {
+      errors.push(
+        `release.${flag} is true but ${label} version did not advance past bridge.tag ${tag} (${before} -> ${after})`
+      );
+    }
+    if (release[flag] === false && before !== after) {
+      errors.push(
+        `release.${flag} is false but ${label} version changed from ${before} (bridge.tag ${tag}) to ${after}`
+      );
+    }
+  }
+  return errors;
+};
+
+/**
  * Validate the checked-in release manifest without making network calls.
  * @param {unknown} manifest
- * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, releaseTag?: string, packageVersion?: string }} [options]
+ * @param {{ bridgeTagExists?: (tag: string) => boolean, bridgeTagIsAncestor?: (tag: string) => boolean, bridgeTagSupportsProtocol?: (tag: string) => boolean, bridgeTagVersionConstants?: (tag: string) => ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseVersionConstants?: ({ systemSchemaVersion: number, changeCodecVersion: number } | null), releaseTag?: string, packageVersion?: string }} [options]
  * @returns {string[]}
  */
 export const validateManifest = (manifest, options = {}) => {
@@ -119,6 +194,11 @@ export const validateManifest = (manifest, options = {}) => {
     ) {
       errors.push('bridge.version must be older than release.version');
     }
+    if (isSemver(bridge.version) && compareVersions(bridge.version, LAST_INELIGIBLE_BRIDGE_VERSION) <= 0) {
+      errors.push(
+        `bridge.version must be newer than ${LAST_INELIGIBLE_BRIDGE_VERSION}: anchors at or before it predate the working-tree bridging change`
+      );
+    }
     if (
       typeof bridge.tag === 'string' &&
       typeof bridge.version === 'string' &&
@@ -138,6 +218,17 @@ export const validateManifest = (manifest, options = {}) => {
       !options.bridgeTagSupportsProtocol(bridge.tag)
     ) {
       errors.push(`bridge.tag ${bridge.tag} does not contain the system migration surface`);
+    }
+    if (typeof bridge.tag === 'string' && options.bridgeTagVersionConstants) {
+      const releaseConstants = options.releaseVersionConstants;
+      const bridgeConstants = options.bridgeTagVersionConstants(bridge.tag);
+      errors.push(
+        ...(releaseConstants ?
+          collectVersionConstantErrors(bridge.tag, bridgeConstants, releaseConstants, release)
+        : [
+            `release does not declare readable system version constants in ${SYSTEM_SCHEMA_VERSION_SOURCE} / ${CHANGE_CODEC_VERSION_SOURCE}`
+          ])
+      );
     }
   } else if (release.kind === 'normal' && (bridge.tag !== null || bridge.version !== null)) {
     errors.push('normal releases must leave bridge.tag and bridge.version null');
@@ -190,6 +281,26 @@ const gitTagIsAncestor = tag => {
   }
 };
 
+/**
+ * 读取某个 tag 上的一份文件内容；tag 或文件不存在时返回 null。
+ * @param {string} tag
+ * @param {string} file 仓库相对路径
+ * @returns {string | null}
+ */
+const gitFileAtTag = (tag, file) => {
+  try {
+    return execFileSync('git', ['show', `${tag}^{commit}:${file}`], { encoding: 'utf8' });
+  } catch {
+    return null;
+  }
+};
+
+const gitTagVersionConstants = tag =>
+  parseVersionConstants(
+    gitFileAtTag(tag, SYSTEM_SCHEMA_VERSION_SOURCE),
+    gitFileAtTag(tag, CHANGE_CODEC_VERSION_SOURCE)
+  );
+
 const gitTagSupportsProtocol = tag => {
   const requiredFiles = [
     'packages/rxdb/src/RxDB.ts',
@@ -232,6 +343,20 @@ const loadManifest = async manifestPath => JSON.parse(await readFile(manifestPat
 const PACKAGE_JSON_PATH = fileURLToPath(new URL('../packages/rxdb/package.json', import.meta.url));
 const loadPackageVersion = async () => JSON.parse(await readFile(PACKAGE_JSON_PATH, 'utf8')).version;
 
+// 工作树（= 候选发布提交）上的系统版本常量；读不到时返回 null 交给纯函数报错，不静默跳过。
+const readRepoFile = async file => {
+  try {
+    return await readFile(fileURLToPath(new URL(`../${file}`, import.meta.url)), 'utf8');
+  } catch {
+    return null;
+  }
+};
+const loadReleaseVersionConstants = async () =>
+  parseVersionConstants(
+    await readRepoFile(SYSTEM_SCHEMA_VERSION_SOURCE),
+    await readRepoFile(CHANGE_CODEC_VERSION_SOURCE)
+  );
+
 const run = async () => {
   const args = process.argv.slice(2);
   if (!args.includes('--check')) {
@@ -245,6 +370,8 @@ const run = async () => {
     bridgeTagExists: gitTagExists,
     bridgeTagIsAncestor: gitTagIsAncestor,
     bridgeTagSupportsProtocol: gitTagSupportsProtocol,
+    bridgeTagVersionConstants: gitTagVersionConstants,
+    releaseVersionConstants: await loadReleaseVersionConstants(),
     releaseTag,
     packageVersion: await loadPackageVersion()
   });

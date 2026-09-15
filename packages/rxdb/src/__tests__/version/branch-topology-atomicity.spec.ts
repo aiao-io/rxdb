@@ -266,6 +266,11 @@ const createVersionManager = (db: FakeLocalDatabase, remoteBranches?: BranchRow[
     connected$: NEVER,
     addEventListener: () => () => undefined,
     removeEventListener: () => undefined,
+    // `create_branch` 结尾会遍历它、给每个贡献方一次在**同一个事务**里追写自己那几行的机会。
+    // 本文件测的是分支拓扑写入的原子性，与贡献方写什么无关，所以给空数组——
+    // 但必须给：缺这个成员不是「没有贡献」，是 `for...of undefined` 当场抛 TypeError。
+    // 贡献方拿到的执行器是不是本事务的、抛错会不会穿出去，由 `create-branch.spec.ts` 守。
+    systemContributions: [],
     entityManager: {
       // `new VersionManager()` 会连带构造 `HistoryManager`，后者在构造函数里就订阅了
       // 当前分支流。这里给的是**响应式**仓库（`findOne` / `findAll`），与本文件测的

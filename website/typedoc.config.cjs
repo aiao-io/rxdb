@@ -28,6 +28,10 @@ module.exports = {
     '../packages/rxdb-plugin-search-angular',
     '../packages/rxdb-plugin-search-react',
     '../packages/rxdb-plugin-search-vue',
+    '../packages/rxdb-plugin-working-tree',
+    '../packages/rxdb-plugin-working-tree-angular',
+    '../packages/rxdb-plugin-working-tree-react',
+    '../packages/rxdb-plugin-working-tree-vue',
     // 代码编辑器
     '../packages/code-editor',
     '../packages/code-editor-angular',
@@ -113,7 +117,11 @@ module.exports = {
   // 'list' 会让每个成员走标题渲染路径,从而享受 useCustomAnchors 生成的 {#anchor} 语法。
   enumMembersFormat: 'list',
   propertyMembersFormat: 'list', // 从 'table' 更改
-  typeDeclarationFormat: 'table',
+  // 同 enumMembersFormat：`as const` 对象（如 CommitErrorCode）的成员走类型声明渲染路径，
+  // 'table' 下每行锚点固定是裸 <a id="..."> 标签，不经 MDXComponents 映射，
+  // Docusaurus 的 collectAnchor 收不到它，指向这些成员的 {@link} 会被判成 broken anchor。
+  // 'list' 让每个成员走标题渲染路径，享受 useCustomAnchors 的 {#anchor} 语法。
+  typeDeclarationFormat: 'list',
   indexFormat: 'table',
 
   // ============================================

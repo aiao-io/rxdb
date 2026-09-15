@@ -10,6 +10,14 @@
         "kind": "type"
       },
       {
+        "name": "ACTIVE_BRANCH_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "ActiveBranchEntityHost",
+        "kind": "type"
+      },
+      {
         "name": "AdapterFactory",
         "kind": "type"
       },
@@ -18,11 +26,27 @@
         "kind": "type"
       },
       {
+        "name": "AmbiguousActiveBranchError",
+        "kind": "both"
+      },
+      {
+        "name": "assertClaimedCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "assertSingleActiveBranch",
+        "kind": "value"
+      },
+      {
         "name": "assertSupportedRxDBSystemVersions",
         "kind": "value"
       },
       {
         "name": "assertTreeLevel",
+        "kind": "value"
+      },
+      {
+        "name": "assertValidSystemContribution",
         "kind": "value"
       },
       {
@@ -50,12 +74,20 @@
         "kind": "type"
       },
       {
+        "name": "BranchChangeReader",
+        "kind": "type"
+      },
+      {
         "name": "BulkSyncOptions",
         "kind": "type"
       },
       {
         "name": "BulkSyncResult",
         "kind": "type"
+      },
+      {
+        "name": "capabilityWatermarkName",
+        "kind": "value"
       },
       {
         "name": "CheckRepositoryUpdatesResult",
@@ -132,6 +164,10 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "declareTrustedWrite",
+        "kind": "value"
       },
       {
         "name": "decodeRxDBChangeEntityId",
@@ -296,6 +332,10 @@
       {
         "name": "EntityLocalUpdatedEvent",
         "kind": "both"
+      },
+      {
+        "name": "EntityManager",
+        "kind": "type"
       },
       {
         "name": "EntityMetadata",
@@ -478,7 +518,19 @@
         "kind": "value"
       },
       {
+        "name": "find_branch_path_to_root",
+        "kind": "value"
+      },
+      {
+        "name": "find_switch_branch_step",
+        "kind": "value"
+      },
+      {
         "name": "FindAllOptions",
+        "kind": "type"
+      },
+      {
+        "name": "FindBranchPathOptions",
         "kind": "type"
       },
       {
@@ -510,6 +562,14 @@
         "kind": "value"
       },
       {
+        "name": "gateRawWrite",
+        "kind": "value"
+      },
+      {
+        "name": "get_branch_max_change",
+        "kind": "value"
+      },
+      {
         "name": "getEntityColumnName",
         "kind": "value"
       },
@@ -523,6 +583,10 @@
       },
       {
         "name": "getEntityStatus",
+        "kind": "value"
+      },
+      {
+        "name": "getEntitySync",
         "kind": "value"
       },
       {
@@ -566,6 +630,10 @@
         "kind": "value"
       },
       {
+        "name": "getSystemEntityNames",
+        "kind": "value"
+      },
+      {
         "name": "groupBySyncType",
         "kind": "value"
       },
@@ -602,11 +670,19 @@
         "kind": "type"
       },
       {
+        "name": "installWorkingTreeCapture",
+        "kind": "value"
+      },
+      {
         "name": "IntegerProperty",
         "kind": "type"
       },
       {
         "name": "IntegerRules",
+        "kind": "type"
+      },
+      {
+        "name": "InterceptedBulkWrite",
         "kind": "type"
       },
       {
@@ -726,6 +802,10 @@
         "kind": "both"
       },
       {
+        "name": "MalformedRxDBCapabilityWatermarkError",
+        "kind": "both"
+      },
+      {
         "name": "MERGE_BRANCH_BEGIN",
         "kind": "value"
       },
@@ -759,6 +839,10 @@
       },
       {
         "name": "MergeBranchResult",
+        "kind": "type"
+      },
+      {
+        "name": "MergeChangesNext",
         "kind": "type"
       },
       {
@@ -802,6 +886,10 @@
         "kind": "both"
       },
       {
+        "name": "NoActiveBranchError",
+        "kind": "both"
+      },
+      {
         "name": "normalizeUpdateEntity",
         "kind": "value"
       },
@@ -840,6 +928,10 @@
       {
         "name": "OrderBy",
         "kind": "type"
+      },
+      {
+        "name": "parseCapabilityWatermark",
+        "kind": "value"
       },
       {
         "name": "parseEntityFieldsDescriptor",
@@ -978,11 +1070,27 @@
         "kind": "type"
       },
       {
+        "name": "quoteSqlIdentifier",
+        "kind": "value"
+      },
+      {
         "name": "RatingFormat",
         "kind": "type"
       },
       {
         "name": "RawQueryResult",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteContext",
+        "kind": "type"
+      },
+      {
+        "name": "RawWriteGate",
+        "kind": "type"
+      },
+      {
+        "name": "RawWritePrimitives",
         "kind": "type"
       },
       {
@@ -1000,6 +1108,10 @@
       {
         "name": "RefreshMatchRules",
         "kind": "type"
+      },
+      {
+        "name": "registerSystemEntities",
+        "kind": "value"
       },
       {
         "name": "RelationBigIntRules",
@@ -1146,6 +1258,14 @@
         "kind": "type"
       },
       {
+        "name": "ResolvedTrustedWrite",
+        "kind": "type"
+      },
+      {
+        "name": "resolveSingleActiveBranch",
+        "kind": "value"
+      },
+      {
         "name": "RestoreEntityOptions",
         "kind": "type"
       },
@@ -1168,6 +1288,10 @@
       {
         "name": "RxDB",
         "kind": "both"
+      },
+      {
+        "name": "RXDB_CAPABILITY_WATERMARK_PREFIX",
+        "kind": "value"
       },
       {
         "name": "RXDB_CHANGE_CODEC_VERSION",
@@ -1230,6 +1354,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBBranchCreationContext",
+        "kind": "type"
+      },
+      {
         "name": "RxDBBranchInitData",
         "kind": "type"
       },
@@ -1250,8 +1378,20 @@
         "kind": "type"
       },
       {
+        "name": "RxDBCapabilityClaim",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBCapabilityVersionKind",
+        "kind": "type"
+      },
+      {
         "name": "RxDBChange",
         "kind": "both"
+      },
+      {
+        "name": "RxDBChangeEntityMetadataResolver",
+        "kind": "type"
       },
       {
         "name": "RxDBChangeInitData",
@@ -1434,8 +1574,24 @@
         "kind": "type"
       },
       {
+        "name": "RxDBSystemActivationContext",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBSystemBootstrapContext",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBSystemContribution",
+        "kind": "type"
+      },
+      {
         "name": "RxDBSystemMigrationLockError",
         "kind": "both"
+      },
+      {
+        "name": "RxDBSystemVersionKind",
+        "kind": "type"
       },
       {
         "name": "RxDBSystemVersionState",
@@ -1466,8 +1622,28 @@
         "kind": "value"
       },
       {
+        "name": "sha256Hex",
+        "kind": "value"
+      },
+      {
         "name": "SingleSelectFormat",
         "kind": "type"
+      },
+      {
+        "name": "sqlBooleanLiteral",
+        "kind": "value"
+      },
+      {
+        "name": "sqlIntegerLiteral",
+        "kind": "value"
+      },
+      {
+        "name": "sqlStringLiteral",
+        "kind": "value"
+      },
+      {
+        "name": "sqlTimestampLiteral",
+        "kind": "value"
       },
       {
         "name": "StringArrayProperty",
@@ -1516,6 +1692,10 @@
       {
         "name": "SwitchBranchRollbackEvent",
         "kind": "both"
+      },
+      {
+        "name": "SwitchBranchStep",
+        "kind": "type"
       },
       {
         "name": "SwitchVersionActions",
@@ -1634,6 +1814,10 @@
         "kind": "value"
       },
       {
+        "name": "takeDeclaredWrite",
+        "kind": "value"
+      },
+      {
         "name": "TRANSACTION_BEGIN",
         "kind": "value"
       },
@@ -1702,11 +1886,47 @@
         "kind": "type"
       },
       {
+        "name": "TRUSTED_CALLSITE_REGISTRY",
+        "kind": "value"
+      },
+      {
+        "name": "TrustedCallsite",
+        "kind": "type"
+      },
+      {
+        "name": "trustedCallsiteKey",
+        "kind": "value"
+      },
+      {
+        "name": "TrustedWriteDeclaration",
+        "kind": "type"
+      },
+      {
+        "name": "TrustedWriteIntent",
+        "kind": "both"
+      },
+      {
+        "name": "TrustedWritePrimitive",
+        "kind": "type"
+      },
+      {
+        "name": "TrustedWriteScope",
+        "kind": "type"
+      },
+      {
         "name": "tryGetEntityMetadata",
         "kind": "value"
       },
       {
         "name": "tryGetEntityStatus",
+        "kind": "value"
+      },
+      {
+        "name": "UnclaimedRxDBCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "uninstallWorkingTreeCapture",
         "kind": "value"
       },
       {
@@ -1759,6 +1979,26 @@
       },
       {
         "name": "VersionManager",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureHook",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeWriteHost",
+        "kind": "type"
+      },
+      {
+        "name": "WRITE_ENTRANCES",
+        "kind": "value"
+      },
+      {
+        "name": "WriteEntrance",
         "kind": "type"
       }
     ]

@@ -1,106 +1,103 @@
-# Contract: 性能基准与门禁
+# Contract: Benchmark 报告与性能门禁
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+**Feature**: [../spec.md](../spec.md) | **Plan**: [../plan.md](../plan.md)
 
-**Feature**: [spec.md](../spec.md) | **Research**: [research.md](../research.md) | **Date**: 2026-08-15
+本文件冻结 benchmark 产出的 **JSON 契约**与**两道门禁的判定规则**。数字本身不在这里——它们由首个绿色实现归档并冻结。
 
-US4（US-306 阶段 C）**拥有** `benchmarks:bench-working-tree` 这个 target 本身：fixture 构造、warmup/采样参数、`runnerProfileHash`、报告 JSON 结构与 reference 签入流程。US5 只向其中**追加 restore 采样场景**，不新建 target、不改报告结构、不重算已冻结的 reference。
+> 旧 benchmark-report.md 中针对缓存区操作（stage / unstage / `HEAD ↔ index` diff）的项目**全部作废**。
 
----
+## 0. 为什么不写裸墙钟数字
 
-## 1. Target
+不指定设备与存储后端（OPFS / IDB / wa-sqlite / PGlite 的差距是数量级）、不定义「响应」是 promise resolve 还是首次绘制、不给统计口径（p50 / p95 / max），在 CI 机器上做绝对墙钟断言**必然抖动**，而抖动的门禁最终会被关掉。因此采用**双门禁**。
 
-```bash
-pnpm nx run benchmarks:bench-working-tree
-```
+## 1. 基准环境与 fixture（固定，不可按需调整）
 
-新增于 [`benchmarks/project.json`](../../../benchmarks/project.json)，沿用既有 `bench-encryption` / `bench-hot-path` 的形态：`node --experimental-strip-types working-tree.bench.ts`，`dependsOn: ["typecheck", "^build"]`，`cwd: "benchmarks"`。
+| 项           | 值                                                                   |
+| ------------ | -------------------------------------------------------------------- |
+| 运行环境     | Node + PGlite **memory**                                             |
+| 「响应」定义 | **API promise resolve**（操作完成），不混入三框架首次绘制            |
+| 预热         | `WARMUP = 5`                                                         |
+| 采样         | `SAMPLES = 50`                                                       |
+| fixture      | **10,000 实体 / 100 commit（每 commit 100 单元）/ 100 个未提交单元** |
+| 恢复时机     | 每个 sample 前在**计时外**恢复同一 fixture                           |
 
----
+**fixture 内容与其 hash 必须写进 JSON**；只固定总行数不算固定 fixture——行数相同而内容分布不同会让 ratio 漂移几十个百分点，且看不出来。
 
-## 2. 固定 fixture
+Nx target：`benchmarks` 项目（`benchmarks/project.json`，sourceRoot `benchmarks/src`）下新增 `bench-working-tree`。
 
-| 参数             | 值                                               |
-| ---------------- | ------------------------------------------------ |
-| 运行环境         | Node + PGlite **memory**（不是浏览器、不是磁盘） |
-| 实体总数         | 10,000                                           |
-| 提交数           | 100                                              |
-| 每提交变更单元数 | 100                                              |
-| 未暂存条目数     | 100                                              |
-| 已暂存条目数     | 50                                               |
-| WARMUP           | 5                                                |
-| SAMPLES          | 50                                               |
+## 2. 报告 JSON 契约
 
-fixture 由确定性种子构造（无随机、无时钟依赖），其内容摘要写入报告的 `fixtureHash`。
-
----
-
-## 3. 采样场景
-
-| 场景                                                         | 归属     |
-| ------------------------------------------------------------ | -------- |
-| `status`                                                     | US4      |
-| 完整 `diff`                                                  | US4      |
-| 批量 `stage` 50 单元                                         | US4      |
-| `restore`（clean HEAD 恢复含 **100 个变更单元**的 `HEAD~1`） | US5 追加 |
-
-每个场景独立 warmup 5 次、采样 50 次。
-
----
-
-## 4. 报告 JSON 结构
-
-```json
+```jsonc
 {
-  "target": "bench-working-tree",
-  "fixture": { "entities": 10000, "commits": 100, ..., "fixtureHash": "<hash>" },
-  "runnerProfile": {
-    "nodeVersion": "...", "pgliteVersion": "...",
-    "os": "...", "arch": "...", "cpuModel": "...", "cpuCores": 0,
-    "totalMemoryBytes": 0, "runnerId": "...", "concurrency": 0
+  "schemaVersion": 1,
+  "fixture": {
+    "entities": 10000,
+    "commits": 100,
+    "unitsPerCommit": 100,
+    "uncommittedUnits": 100,
+    "contentHash": "<fixture 内容 hash，非仅行数>"
   },
-  "runnerProfileHash": "<stable digest of runnerProfile>",
-  "scenarios": [
-    { "name": "status", "p50": 0, "p95": 0, "controlRatio": 0, "normalizedRatio": 0 }
-  ]
+  "environment": {
+    "runtime": "node vX.Y.Z",
+    "os": "...",
+    "cpuModel": "...",
+    "logicalCores": 0,
+    "memoryBytes": 0,
+    "runnerId": "...",
+    "concurrency": 0,
+    "runnerProfileHash": "<由以上字段计算>"
+  },
+  "sampling": { "warmup": 5, "samples": 50 },
+  "measurements": [
+    {
+      "id": "status",
+      "p50": 0,
+      "p95": 0,
+      "max": 0,
+      "controlId": "control_crud",
+      "controlP95": 0,
+      "ratio": 0 // p95 / controlP95
+    }
+  ],
+  "reference": {
+    "commit": "<reference commit sha>",
+    "runs": 10,
+    "medianRatios": { "status": 0, "diff": 0, "commit": 0, "restore": 0 },
+    "frozenAbsolute": { "commit": 0 } // 见 §4
+  }
 }
 ```
 
-`runnerProfileHash` 是对上述 `runnerProfile` 全部字段归一化后的稳定摘要（[R-013](../research.md#r-013-benchmark-报告结构与-runnerprofilehash)）。
+**control 的定义**：每项被测操作对应一次 control CRUD，使用**相同实体数量与相同事务边界**。ratio = 被测 p95 ÷ 同次 control p95。control 与被测在**同一次运行内**采样，否则机器状态漂移会混进 ratio。
 
----
+## 3. 两道门禁
 
-## 5. 三态门禁
+### 3.1 相对门禁 —— 普通 PR CI 的**唯一**硬门禁
 
-参考报告：`benchmarks/reports/working-tree-reference.json`，MUST **先于**候选发布签入。
+- 候选版本各项 `ratio` **不得超过冻结 reference median 的 110%**。
+- reference：首个绿色实现归档 reference commit 的 **10 次独立运行**，取各项 median ratio。
+- **reference JSON 与阈值必须先于发布候选签入**。失败后重算基线 = 门禁自证其绿，禁止。
 
-| 条件                                                    | 结论                                                                          |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 归一化 ratio > reference median 的 **110%**             | **失败**                                                                      |
-| ratio 达标 **且** `runnerProfileHash` 与 reference 匹配 | 追加绝对判据：p95 ≤ **100 ms**（发布门禁）                                    |
-| ratio 达标 **但** `runnerProfileHash` 不匹配            | 产出 `benchmark_environment_mismatch`，**跳过**绝对判据 —— **不得放宽为通过** |
+### 3.2 绝对门禁 —— 仅发布，且仅在 profile 匹配的 runner 上
 
-**失败后禁止以重算基线的方式转绿**（FR-041）。判据 SC-012：环境不匹配时产出环境不匹配结论的比例为 **100%**，产出绿色发布结论的比例为 **0%**。
+| 测点      | 绝对 p95                                           | 依据   |
+| --------- | -------------------------------------------------- | ------ |
+| `status`  | ≤ **100 ms**                                       | SC-001 |
+| `diff`    | ≤ **100 ms**（无 scope 的完整 diff）               | SC-002 |
+| `restore` | ≤ **1 s**（从 clean HEAD 恢复 `HEAD~1`，100 单元） | SC-004 |
+| `commit`  | **不套用 100 ms** —— 见 §4                         | SC-003 |
 
----
+`runnerProfileHash` 与 reference 不一致时返回 **`benchmark_environment_mismatch`**，**不得伪装成性能回归**，也不得因此降级为通过。
 
-## 6. 与宪法 IV 的关系
+## 4. `commit` 的绝对预算（已批准的宪法例外）
 
-| 宪法预算            | 本特性对应                                    | 状态                                                                                                                                                                       |
-| ------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 查询 < 16 ms        | `status` / `diff` 的响应式读取                | 达标                                                                                                                                                                       |
-| 数据库操作 < 100 ms | `status` / `diff` / 批量 `stage` p95 ≤ 100 ms | 达标                                                                                                                                                                       |
-| 数据库操作 < 100 ms | **`restore` p95 ≤ 1 s**                       | **例外**（已在 [plan.md Complexity Tracking](../plan.md) 登记：批量操作，按 10,000 实体规模不可能落进 100 ms；备选「拆成可见中间态的多次提交」与「限制 10 单元」均已否决） |
-| 包体积 < 50 KB gz   | 新增核心子模块 + 三端 hook                    | 需在 US4 收尾时实测                                                                                                                                                        |
+`commit` **免除** constitution IV 的「DB op < 100 ms」。
 
----
+- **理由**：它要在单个事务内落盘 100 个单元、CAS 推进 branch ref、并清空 100 个工作树条目；100 ms 是为单次实体读写设定的预算，量级不同。
+- **替代预算**：由**首个绿色实现的 reference 中位数冻结**，与相对门禁**同批签入**，因此仍是硬数字，不是「不设限」。
+- **不适用范围**：`status` / `diff` / `restore` 照常受 §3.2 约束。
+- 完整论证与被拒绝的更简单方案见 [../plan.md](../plan.md) 的 Complexity Tracking。
 
-## 7. 浏览器侧
+## 5. 浏览器端（SC-005）
 
-三端 E2E 记录首次可见状态耗时，**仅作观测，不作门禁** —— 浏览器 OPFS/IDB 的绝对数字不跨环境承诺。
+浏览器 OPFS / IDB **不承诺**相同绝对数字。但三端 E2E **必须记录首次可见状态耗时**——防止核心 promise 很快返回而 UI 长时间无反馈。该指标**不进**本 JSON 的 `measurements`，单独归档。

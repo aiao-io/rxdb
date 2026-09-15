@@ -170,6 +170,18 @@
     },
     {
       "path": "./apps/dev-rxdb-miniprogram-e2e"
+    },
+    {
+      "path": "./packages/rxdb-plugin-working-tree"
+    },
+    {
+      "path": "./packages/rxdb-plugin-working-tree-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-working-tree-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-working-tree-vue"
     }
   ]
 }

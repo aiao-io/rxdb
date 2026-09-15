@@ -1,7 +1,6 @@
 import { EntityStaticType } from '../entity/entity.interface.js';
 import { RxDBError } from '../RxDBError.js';
 import { RxDBChange } from '../system/change.js';
-import { LocalRxDBChangeRepository } from '../system/types.local.js';
 import { find_switch_branch_step } from './find-switch-branch-step.js';
 import { SwitchVersionActions } from './VersionManager.interface.js';
 import { VersionManager } from './VersionManager.js';
@@ -221,7 +220,41 @@ export const get_switch_version_actions = (
   return actions;
 };
 
-const get_branch_max_change = async (changeRepository: LocalRxDBChangeRepository, branchId: string) => {
+/**
+ * 读一条分支 tip 所需要的最小仓库能力。
+ *
+ * @remarks
+ * 写成结构化的最小接口而不是直接用本地仓库类型，是为了让 {@link get_branch_max_change}
+ * 同时接得住事务执行器给出的 `IRepository<typeof RxDBChange>`——`enable-migration.ts`
+ * 跑在事务里，拿不到本地仓库。两边的 `find` 入参本就是同一个类型
+ * （`RxDBChangeStaticTypes['findOptions']`），所以这不是放宽，只是把已有的共同点写出来。
+ */
+export interface BranchChangeReader {
+  /**
+   * 按条件查变更
+   *
+   * @param options - 查询选项
+   * @returns 命中的变更行
+   */
+  find(options: EntityStaticType<typeof RxDBChange, 'findOptions'>): Promise<RxDBChange[]>;
+}
+
+/**
+ * 读一条分支当前的 tip：它自己那些未被回滚的变更里 id 最大的那条。
+ *
+ * @param changeRepository - 见 {@link BranchChangeReader}
+ * @param branchId - 分支 id
+ * @returns tip 变更行；该分支一条自有变更都没有时为 `undefined`（调用方据此退回分叉点）
+ *
+ * @remarks
+ * 导出是给 `enable-migration.ts` 复用的：「一条分支现在停在哪」这一问必须全局只有一个
+ * 答案（research.md R11）。迁移期另写一条同义查询，迟早会在「回滚标记算不算」
+ * 或「排序列是哪一个」上与切换路径分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支。
+ */
+export const get_branch_max_change = async (
+  changeRepository: BranchChangeReader,
+  branchId: string
+): Promise<RxDBChange | undefined> => {
   const changes = await changeRepository.find({
     where: {
       combinator: 'and',

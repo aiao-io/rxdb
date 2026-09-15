@@ -111,6 +111,43 @@ describe('SqliteRepository', () => {
     expect(adapter.getEntityByRowId(2n, Todo)).toBe(entities[1]);
   });
 
+  it('find 必须把命中缓存的干净实体刷新成库里的最新行', async () => {
+    const rxdb = createRxdb('sqlite-core-repo-find-refresh');
+    const adapter = new RepositoryTestAdapter(rxdb, async sql =>
+      todoRowsResult(sql, [[1, 'todo-1', 'after-raw-update', 1, ISO, ISO]])
+    );
+    const repository = new SqliteRepository(adapter, Todo);
+    const cached = createTodoRef(rxdb, 'todo-1', 'before-raw-update', true);
+
+    const [entity] = await repository.find({ where: { combinator: 'and', rules: [] } });
+
+    // SELECT 发出去了、行也回来了，但只要不把它合进缓存实体，读到的永远是进程启动那一刻的旧值。
+    // 任何绕过 ORM 的写（HEAD CAS、启用能力的 CAS）此后在本进程里都不可见 —— PGlite 那一端
+    // 每次读都回填，同一段代码两个后端两种结果。
+    expect(entity).toBe(cached);
+    expect(entity.title).toBe('after-raw-update');
+    expect(entity.completed).toBe(true);
+  });
+
+  it('find 回填不得吞掉未保存的本地编辑', async () => {
+    const rxdb = createRxdb('sqlite-core-repo-find-merge');
+    const adapter = new RepositoryTestAdapter(rxdb, async sql =>
+      todoRowsResult(sql, [[1, 'todo-1', 'external-title', 1, ISO, ISO]])
+    );
+    const repository = new SqliteRepository(adapter, Todo);
+    const cached = createTodoRef(rxdb, 'todo-1', 'baseline', true);
+    cached.title = 'user is typing';
+    expect(getEntityStatus(cached).modified).toBe(true);
+
+    const [entity] = await repository.find({ where: { combinator: 'and', rules: [] } });
+
+    // 刷新不能整行覆盖：那会把未保存的编辑写进基线、把 modified 归零，UI 看着没变，
+    // 下一次 save() 静默 no-op（entity-status.ts#applyExternal 的原话）。
+    expect(entity.title).toBe('user is typing');
+    expect(entity.completed).toBe(true);
+    expect(getEntityStatus(entity).modified).toBe(true);
+  });
+
   it('count 返回首行首列的数量', async () => {
     const rxdb = createRxdb('sqlite-core-repo-count');
     const adapter = new RepositoryTestAdapter(rxdb, async sql => ({

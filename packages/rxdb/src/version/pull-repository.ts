@@ -15,6 +15,8 @@ import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBSync } from '../system/sync.js';
 import { RemoteChange } from '../system/system.interface.js';
+import { TrustedWriteIntent } from '../trusted-write/trusted-write-intent.js';
+import { declareTrustedWrite } from '../trusted-write/trusted-write-scope.js';
 import { LWWConflictResolver } from './LWWConflictResolver.js';
 import type {
   PullRepositoryOptions,
@@ -633,6 +635,12 @@ async function pullSingleRepository(
           if (applyCount > 0) {
             // 先将实体变更应用到本地数据库（在更新 RxDBSync 之前）
             // disableTriggers=true 确保不生成本地 RxDBChange 记录
+            // 同 pull-batch：远端来的行进工作树，但不回流成一次可 push 的本地变更。
+            declareTrustedWrite(executor, {
+              file: 'pull-repository.ts',
+              symbol: 'pullSingleRepository',
+              intent: TrustedWriteIntent.remote_sync
+            });
             await executor.mergeChanges(applyActions, undefined, true);
             for (const supersession of localChangeSupersessions) {
               await markLocalChangesSuperseded(txChangeRepo, supersession.localChanges, supersession.remoteId);

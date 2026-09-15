@@ -19,6 +19,7 @@ import { getEntityObjectFromResult } from '../pglite.utils.js';
 import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import { remove_entity_ids_from_cache, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
+import { readCurrentBranchId } from './read_current_branch_id.js';
 import { SwitchVersionSqlItem, SwitchVersionSqlResult } from './switch-result.interface.js';
 import { generateSwitchBranchSql } from './switch_branch.js';
 
@@ -46,7 +47,6 @@ export async function execute_switch_actions(
   disableTriggers = false
 ): Promise<void> {
   void localChanges;
-  const branch = disableTriggers ? await adapter.rxdb.versionManager.getCurrentBranch() : undefined;
   // 用 runInTransaction 而非 transaction：调用方（如 merge_branch 的 normal 策略）
   // 可能已经开了事务把多次 mergeChanges 包起来，此时必须复用当前事务而不是再入队自锁。
   await adapter.runInTransaction(async executor => {
@@ -73,8 +73,10 @@ export async function execute_switch_actions(
       updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
     }
 
-    if (disableTriggers && branch) {
-      await executeSwitchStatements(sink, generateSwitchBranchSql(adapter, branch.id));
+    if (disableTriggers) {
+      // 分支 id 必须经**本事务**读（见 readCurrentBranchId）：走 versionManager.getCurrentBranch()
+      // 的话，外层已开着事务时那次读会重新入队，排在自己身后永久挂起。
+      await executeSwitchStatements(sink, generateSwitchBranchSql(adapter, await readCurrentBranchId(sink)));
     }
   }, false);
 

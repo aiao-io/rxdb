@@ -9,6 +9,7 @@ import type {
   SwitchVersionActions
 } from '@aiao/rxdb';
 import {
+  gateRawWrite,
   getEntityMetadata,
   getEntityStatus,
   RxDB,
@@ -599,7 +600,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /**
    * 真实适配器一律新开事务。「已在事务中就复用」由 executor 门面接管。
    */
-  async runInTransaction<T extends TransactionFun>(
+  override async runInTransaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
@@ -629,9 +630,22 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return this.#internal_query<T>(sql, params);
   }
 
-  /** 原始 SQL。 */
+  /**
+   * 原始 SQL。
+   *
+   * @remarks
+   * **judgment 由核心包出，这里只负责接上**（adapter-contract.md §2）。`rawQuery?()` 在
+   * `IRxDBAdapter` 上是可选方法，核心包没法像四个捕获挂载点那样替适配器包住它，于是这一句
+   * `gateRawWrite` 是本类唯一要写对的地方。判定本身一个字都不在这里重写——Postgres 与 SQLite
+   * 的方言差异只落在核心包的词法归一化层；在这里补一份「PG 版判定」就是 §2 禁止的第二份实现。
+   *
+   * 拒绝发生在语句下发之前，连事务都不会开，业务表零变化——不是写完再回滚；raw 通道上根本没有
+   * 事务可回滚，而那正是它存在的原因。未启用提交能力的库上判定第 1 步放行，行为与接入前逐字一致。
+   */
   public async rawQuery(sql: string, params?: unknown[]): Promise<RawQueryResult> {
-    return this.transaction(executor => executor.query(sql, params), false);
+    return gateRawWrite(sql, this.workingTreeRawWriteContext, () =>
+      this.transaction(executor => executor.query(sql, params), false)
+    );
   }
 
   /** PGlite live query。调用方负责 unsubscribe。 */

@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-06
+updated: 2026-09-12
 tags: [collaboration, restore, history, persistence, angular, react, vue]
 ---
 
@@ -127,6 +127,10 @@ INVEST 检查清单:
 - restore 先计算完整 diff；diff 为空直接返回 no-op。初次 restore 的任何 revision/activation CAS 失败也必须回滚，不能留下一个只记录“失败”的 session。
 - 历史节点永不通过「把旧节点改成当前」实现恢复；需要可追踪的恢复动作时，用户必须再创建一个新 commit。
 - 恢复会话必须与工作树数据在同一提交屏障内可恢复，否则刷新后会出现「数据是恢复后的、状态却显示 clean」的错配。
+- `restore()` / `restoreState()` MUST 复用 [US-305 FR-051](./US-305-commit-graph-head.md) 提供的同一份 commit 图
+  损坏守卫（见 [epic-006 横切约束 6](../../epics/epic-006-working-tree-commits.md)）：在**冻结路径之前**先判定，
+  命中可达损坏时以稳定的 `commit_graph_corrupted` 拒绝，不创建 session、不写工作树。它与下一条的 manifest
+  fail-fast 是两道独立预检，MUST NOT 合并成一个判定，也 MUST NOT 自写第二份可达性判定。
 - commit 只记录 schema fingerprint manifest / codec version 不等于可以跨版本恢复；实际物化路径上任一 manifest 不完全相等都必须在写事务前 fail-fast，不猜测字段映射、不跳过未知字段。
 
 ## 测试要求
@@ -137,6 +141,8 @@ INVEST 检查清单:
 - 三端各有等价测试，并用跨框架 E2E 验证 log → restore → refresh → commit 流程；另断言 no-op restore 之后工作树仍 clean、commit 被拒绝，以及「restore 后另一个 Tab `save()` 再 commit」返回 `CommitConflict`。
 - 三端 a11y 断言覆盖 US1-AC8：键盘可达、焦点可见、可访问名称与 `restoring` / `conflicted` / 错误状态公告，达到 WCAG 2.1 AA。
 - 恢复中断的回滚用例必须覆盖含外键依赖的多实体事务。
+- 损坏守卫用例：目标 commit 本身健康但路径上存在可达损坏时，`restore()` 断言返回 `commit_graph_corrupted`
+  且不创建 `WorkingTreeRestoreSession`；它与「目标不兼容」的 manifest fail-fast 各有独立用例，错误码不得混用。
 
 ## 实现文件（计划阶段待确认）
 

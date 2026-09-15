@@ -1,5 +1,6 @@
 import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
+import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
@@ -22,6 +23,7 @@ import {
   TRANSACTION_COMMIT,
   TRANSACTION_ROLLBACK
 } from './rxdb-events.js';
+import { assertValidSystemContribution, type RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
@@ -50,11 +52,15 @@ import {
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import { SyncStateHub } from './sync-state.js';
+import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
+import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
+import { createSystemMigrations } from './system/migrations/index.js';
 import { RxDBSync } from './system/sync.js';
+import { isSystemEntity, registerSystemEntities, SYSTEM_ENTITIES } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 import { VersionManager } from './version/VersionManager.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
@@ -98,6 +104,16 @@ export class RxDB {
   #repository_config_map = new Map<string, IRepositoryConfig>();
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
+
+  /**
+   * 已注册的系统贡献，按能力名去重。
+   *
+   * @remarks
+   * 同时是「未认领能力守卫」的认领集合：键就是能力名。因此它必须在**任何适配器动作之前**
+   * 填好——守卫要在既有库的第一次写之前跑，而贡献的表要跟新库的建表同批出来。
+   * 填充点是 {@link RxDB.use}，见那里的 fail-closed 判定。
+   */
+  #system_contributions = new Map<string, RxDBSystemContribution>();
 
   /**
    * 插件激活状态与安装 Promise 的唯一持有者。
@@ -398,6 +414,47 @@ export class RxDB {
   }
 
   /**
+   * 已登记的系统贡献，按注册顺序
+   *
+   * @remarks
+   * 给核心内部那些**不在 `connect()` 链路上**、却必须让贡献方插一脚的写入口用——今天只有
+   * `version/create-branch.ts`：它在自己的事务里建分支，而贡献方的分支级行必须写进**同一个**
+   * 事务（见 {@link RxDBSystemContribution.writeBranchRows}）。`connect()` 自己不走这个 getter，
+   * 它在局部变量里持有同一份快照。
+   *
+   * 返回数组而不是内部的 Map：调用方要的是「挨个过一遍」，拿到 Map 只会让它多知道一件
+   * 与它无关的事——贡献是按能力名去重的。
+   *
+   * @internal
+   */
+  get systemContributions(): readonly RxDBSystemContribution[] {
+    return [...this.#system_contributions.values()];
+  }
+
+  /**
+   * 本库当前生效的工作树捕获钩子；未启用提交能力时为 `undefined`
+   *
+   * @remarks
+   * **这条路不抛。** 它服务的是核心包里那些拦不住、只能由调用点自己接门禁的写入口
+   * （`EntityManager.notifyExternalUpdate()` 是第一个，写入口语义矩阵行 11）。那些方法今天在
+   * 「没配本地适配器」和「还没连上」的实例上都能调，所以取钩子走**非抛**的
+   * {@link RxDB.#resolve_adapter_instance}，而不是 {@link RxDB.localAdapterSync}——后者在这两种
+   * 情形下各抛一次，接上门禁就等于给它们凭空加一个「未连接」异常，而 FR-046 要求未启用能力的库
+   * 行为逐字节不变。
+   *
+   * 钩子挂在**适配器实例**上（{@link RxDBAdapterLocalBase.workingTreeCaptureHook}），不在本类里
+   * 另存一份：`connect()` / `disconnect()` 会换掉实例，存一份就会在换代之后指着上一纪元的运行时。
+   *
+   * @internal
+   */
+  get workingTreeCaptureHook(): WorkingTreeCaptureHook | undefined {
+    const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
+    // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
+    // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
+    return (adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined)?.workingTreeCaptureHook;
+  }
+
+  /**
    * @param options - RxDB 配置选项
    */
   constructor(options: RxDBOptions) {
@@ -576,6 +633,8 @@ export class RxDB {
       console.warn('plugin already installed');
     } else {
       const plugin_instance = plugin(this, options);
+      // 系统贡献要赶在建表之前登记，所以它在 #install_one_plugin **之前**读。
+      this.#register_system_contribution(plugin_instance);
       this.#plugin_map.set(plugin, plugin_instance);
       // 装不装由 #install_one_plugin 自己判：本纪元已经退场时它是空操作。
       this.#install_one_plugin(plugin_instance);
@@ -697,8 +756,21 @@ export class RxDB {
         const localAdapter = assertLocalAdapterCapabilities(adapterName, adapter);
         // 初始化
         const existed = await adapter.isTableExisted(RxDBMigration);
+        const contributions = [...this.#system_contributions.values()];
+        const systemMigrations = createSystemMigrations(this.entityManager, contributions);
         if (existed) {
-          // 已存在表结构，执行升级流程
+          // 守卫排在这一切之前，包括 #ensureSystemTables：它要回答的是「这个库该不该由本进程打开」，
+          // 而所有后续步骤都已经在写了。放到 runMigrations 里顺带做会省一次读事务，但那样守卫与
+          // 第一次写之间就只剩「同一个函数里靠前几行」这种靠读代码维持的保证。
+          await this.#assertClaimedCapabilities(localAdapter);
+          // 已存在表结构，执行升级流程。
+          //
+          // 系统表与系统迁移一律排在 migrateSystemSchema() **之前**：水位线一旦写下
+          // `__rxdb_system_schema__:N`，后面任何一步失败都会把库留在「标成 N、内容却没到位」
+          // 的状态——旧客户端被 UnsupportedRxDBSystemVersionError 拒之门外，新能力也没拿到。
+          // 反过来则是可重试的：水位线停在旧值，下次启动重跑整段（data-model.md §8「全有或全无」）。
+          await this.#ensureSystemTables(localAdapter);
+          await runMigrations(systemMigrations, localAdapter, this.entityManager);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
           await runMigrations(this.#config.migrations, localAdapter, this.entityManager);
@@ -708,14 +780,36 @@ export class RxDB {
           const branch = this.entityManager.instantiate(RxDBBranch);
           branch.id = 'main';
           branch.activated = true;
+          // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
+          // 漏写这一处，新库的 main 从第一天起就不受「至多一个 active」约束，且不报任何错。
+          branch.activeKey = ACTIVE_BRANCH_KEY;
           await localAdapter.createTables(this.#config.entities, [
             branch,
-            ...createMigrationWatermarks(this.#config.migrations, this.entityManager)
+            // 插件贡献的初始行必须挤进**这一次**调用：建表与初始行不同批的话，中间断电留下的是
+            // 一张「表在、行不在」的库，而空表与缺行的表在形态上完全一样，没有任何东西能事后分辨。
+            ...contributions.flatMap(contribution =>
+              contribution.createInitialRows(this.entityManager, { branchIds: [branch.id] })
+            ),
+            // 新库不跑系统迁移：初始行已在上一行随建表写入，链里的名字在这里直接写成已执行水位。
+            // 漏掉这批水位线，下次启动会在一张**已经初始化过**的库上重跑 up()，撞主键。
+            ...createMigrationWatermarks([...systemMigrations, ...(this.#config.migrations ?? [])], this.entityManager)
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+        if (existed) {
+          // 既有库才把贡献的能力接到这条连接上。新库不调：它的贡献行全是上面那次
+          // `createTables()` 刚由本进程写下的，取值当场就已知道，读回来问的是自己一行之前
+          // 写了什么；何况那次建表是一次原子提交，在它之外再开事务会破掉「表与初始行同批」。
+          //
+          // 位置排在 `#set_adapter_connected` **之前**且不可下移：置位同时是 `adapter:local`
+          // 的就绪判据，声明了该依赖的插件在它之后才被安装——挪到那之后就会留下一个
+          // 「别的插件已经在写、本能力还没接通」的窗口，而那批写入不留痕迹。
+          for (const contribution of contributions) {
+            await contribution.bootstrapExisting({ adapter: localAdapter });
+          }
+        }
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
       // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。
@@ -1230,10 +1324,115 @@ export class RxDB {
     return listeners as Set<EventListener<RxDBEventMap[T]>>;
   }
 
+  /**
+   * 登记插件的系统贡献。
+   *
+   * @param plugin - 刚由工厂造出来的插件实例
+   * @throws {@link Error} 插件在 `init()` 之后才注册，或能力名已被别的插件占了，或贡献形状非法
+   *
+   * @remarks
+   * **`init()` 之后注册带 `system` 的插件必须抛错。** 那时 `schemaManager.init()` 已经跑完，
+   * 贡献的实体再也进不了 `config.entities`——静默跳过留下的是一个「装了插件、表却没建」的库，
+   * 而它与「没装插件」在类型上完全一样，第一次用到时才炸，且错误指向的是取数那一行。
+   *
+   * 判据用 `#rxdb_initialized` 而不是「连上没有」：`init()` 是 `connect()` 的第一步，
+   * 挡在这里同时挡住了 `connect()` 之后，而且挡得更早、错误信息更接近成因。
+   *
+   * 能力名撞车同样抛错：两个插件都认领 `workingTree` 时，谁的表被建出来取决于 `use()` 的
+   * 顺序，而水位行里只会留下一个包名——守卫此后会把用户指向错误的包。
+   */
+  #register_system_contribution(plugin: IRxDBPlugin): void {
+    const contribution = plugin.system;
+    if (!contribution) return;
+    if (this.#rxdb_initialized) {
+      throw new Error(
+        `[RxDB] 插件 "${plugin.name}" 贡献了系统能力，必须在 connect() 之前 use()：` +
+          '系统表随建表一次建出，此刻已经来不及了'
+      );
+    }
+    assertValidSystemContribution(contribution, plugin.name);
+    const registered = this.#system_contributions.get(contribution.capability);
+    if (registered && registered !== contribution) {
+      throw new Error(
+        `[RxDB] 能力 "${contribution.capability}" 已由 ${registered.packageSpecifier} 认领，` +
+          `${contribution.packageSpecifier} 不能重复认领`
+      );
+    }
+    this.#system_contributions.set(contribution.capability, contribution);
+    // 系统表身份是**实体类**的属性，不是数据库的属性：`isSystemEntity()` 是个纯函数，
+    // 跨包调用点（如 http 适配器判定要不要把这张表推上远端）拿不到 RxDB 实例。
+    // 多认几个身份对没装插件的实例没有任何行为差异——它们的 config.entities 里根本没有这些类。
+    registerSystemEntities(contribution.entities);
+  }
+
+  /**
+   * 未认领能力守卫：这个库启用过的能力，本进程是不是都装齐了插件。
+   *
+   * @param adapter - 本地适配器
+   * @throws {@link UnclaimedRxDBCapabilityError} 库里有本进程没认领的能力时
+   *
+   * @remarks
+   * 防的事故没有编译期形态：装过插件的库被**没装**该插件的客户端打开，那些表照样在，
+   * 写原语却一层拦截都没有，于是用户编辑安静地绕过该能力的簿记。
+   *
+   * 自开一次引导期只读事务、不复用 `runMigrations()` 里那次读：省下的那次读换来的是
+   * 「守卫一定跑在第一次写之前」这条由**调用位置**保证、而不是由函数内部行文保证的性质。
+   */
+  async #assertClaimedCapabilities(adapter: RxDBAdapterLocalBase): Promise<void> {
+    const names = await adapter.bootstrapTransaction(async executor => {
+      const records = await executor.getRepository(RxDBMigration).find({ where: { combinator: 'and', rules: [] } });
+      return records.map(record => record.name);
+    }, false);
+    assertClaimedCapabilities(names, new Set(this.#system_contributions.keys()));
+  }
+
+  /**
+   * 在既有库上补建缺失的**系统**表。
+   *
+   * @param adapter - 本地适配器
+   *
+   * @remarks
+   * 与 {@link RxDB.#ensureEntityTables} 分开，不是为了少建几张表，而是为了时机：
+   * 系统迁移要往这些表里写初始行，因此它们必须在系统迁移之前就位；而接入方实体表
+   * 保持原有时机（接入方迁移之后），提前建会改变接入方迁移看到的库状态。
+   *
+   * 这里的 `isTableExisted` 是**承重的**，不是省 DDL 的优化：两个后端的 `CREATE TABLE` 都**没有**
+   * `IF NOT EXISTS`（`sqlite-core/src/table/create_table_sql.ts`、`pglite/src/table/create_table_sql.ts`
+   * 都是裸 `CREATE TABLE`；该子句只出现在建索引那一句上）。把一张已存在的表送进 `createTables()`
+   * 会直接报错，于是整条 `connect()` 在既有库上炸掉。
+   */
+  async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
+    const missingEntities: EntityType[] = [];
+
+    for (const entityType of SYSTEM_ENTITIES) {
+      const existed = await adapter.isTableExisted(entityType);
+      if (!existed) {
+        missingEntities.push(entityType);
+      }
+    }
+
+    if (missingEntities.length > 0) {
+      await adapter.createTables(missingEntities);
+    }
+  }
+
+  /**
+   * 在既有库上补建缺失的**接入方**实体表。
+   *
+   * @param adapter - 本地适配器
+   *
+   * @remarks
+   * `config.entities` 里混着 {@link SchemaManager.init} 注入的系统表，而它们已在
+   * {@link RxDB.#ensureSystemTables} 建过了。挡住它们的其实是上一行那次 `isTableExisted`
+   * ——刚建完的表查出来就是存在的——但那是一个**跨方法的巧合**：它依赖「系统表先建」这一执行
+   * 顺序，而这里显式摘出去不依赖任何顺序。差别在 `CREATE TABLE` 没有 `IF NOT EXISTS`
+   * （见 {@link RxDB.#ensureSystemTables}）：一旦顺序被调换，重复下发就不是多跑一趟，是直接报错。
+   */
   async #ensureEntityTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
 
     for (const entityType of this.#config.entities) {
+      if (isSystemEntity(entityType)) continue;
       const existed = await adapter.isTableExisted(entityType);
       if (!existed) {
         missingEntities.push(entityType);

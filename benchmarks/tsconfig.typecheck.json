@@ -1,5 +1,5 @@
 {
-  "// purpose": "Real type-check for the whole package (src + root *.bench.ts). Non-composite + noEmit so it can include cross-package source fixtures without the -b rootDir constraints. Used by the `typecheck` script.",
+  "// purpose": "Real type-check for the whole package (src + root *.ts). Non-composite + noEmit so it can include cross-package source fixtures without the -b rootDir constraints. Used by the `typecheck` script.",
   "compilerOptions": {
     "composite": false,
     "declaration": false,
@@ -13,5 +13,5 @@
     "types": ["node", "vite/client", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
   },
   "extends": "../tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx", "*.bench.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.ts"]
 }
