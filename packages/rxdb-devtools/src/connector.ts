@@ -28,12 +28,7 @@ import {
 } from './connector-runtime.js';
 import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
 import { createWindowConnectorTransport, type DevToolsConnectorTransport } from './connector-transport.js';
-import type {
-  DevToolsOptions,
-  DevToolsRxDB,
-  DevToolsVersionManager,
-  GetEntityMetadataFn
-} from './connector-types.js';
+import type { DevToolsOptions, DevToolsRxDB, DevToolsVersionManager, GetEntityMetadataFn } from './connector-types.js';
 import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
 import { serialize, serializeDevToolsValue } from './serializer.js';
