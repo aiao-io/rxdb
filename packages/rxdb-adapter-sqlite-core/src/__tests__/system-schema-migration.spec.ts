@@ -111,8 +111,7 @@ const createRxdb = (entities: EntityType[] = [Todo]): RxDB =>
     context: {},
     connect: vi.fn(async () => undefined),
     dispatchEvent: vi.fn(),
-    schemaManager: { getEntityMetadata: vi.fn(), getEntityTypeByTableName: vi.fn() },
-    versionManager: { getCurrentBranch: vi.fn(async () => ({ id: 'main' })) }
+    schemaManager: { getEntityMetadata: vi.fn(), getEntityTypeByTableName: vi.fn() }
   }) as unknown as RxDB;
 
 const adapters = new Set<MigrationTestAdapter>();

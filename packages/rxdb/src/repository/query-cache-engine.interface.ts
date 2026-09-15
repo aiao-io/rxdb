@@ -105,9 +105,10 @@ export interface QueryCacheSessionContext<T extends EntityType> {
    * 查询出站队列此刻占着哪些 id。
    *
    * @remarks
-   * 生产实现是核心的 `pendingQueryCacheWriteIds`，它读 `versionManager`。**由核心注入**
-   * 而不是让插件自己去问，是 B5 的全部内容：读路径插件对 `version/` 保持零依赖，
-   * 写回出站留在核心直到阶段 D。
+   * 生产实现是核心的 `pendingQueryCacheWriteIds`，它经 `localAdapter$` 读本地适配器上的
+   * `rxdb_change` / `rxdb_sync` 系统表（自 US-025 阶段 C 起不再经 `versionManager`）。
+   * **由核心注入**而不是让插件自己去问，是 B5 的全部内容：读路径插件对写回出站的实现
+   * 保持零依赖。
    */
   pendingWriteIds: QueryCachePendingWriteIds;
 }
