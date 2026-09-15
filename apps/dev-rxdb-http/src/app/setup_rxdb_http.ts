@@ -1,6 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { recordChangeFeedNotification, recordChangeFeedUnavailable } from './change-feed-diagnostics';
 import {
@@ -132,7 +133,11 @@ export default (): RxDB => {
         }
       );
       return new RxDBAdapterWaSqlite(db, options);
-    });
+    })
+    // QueryCache 的读引擎不在核心包里（US-025 阶段 B），随这个插件装：`Recipe` 声明了
+    // `SyncType.QueryCache`，漏装的话 `connect()` 会当场抛 `RxDBMissingPluginError`，
+    // 而不是静默退化成本地查询。
+    .use(rxDBPluginQueryCache);
 
   connectDevTools(rxdb);
 

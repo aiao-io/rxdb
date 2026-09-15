@@ -14,7 +14,7 @@ import {
   DEFAULT_QUERY_CACHE_SYNC_STALE_TIME,
   queryCacheFingerprint,
   QueryCacheSyncMemo
-} from '../../repository/query-cache-sync-memo.js';
+} from '../query-cache-sync-memo.js';
 
 const FP = 'fp';
 

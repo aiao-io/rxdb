@@ -18,7 +18,7 @@
  * 记忆的**归属**是 `Repository`，不是 `QueryCachePrimaryRepository`：后者随适配器流的每次
  * 发射重建（订阅归零再订阅也会重建），把记忆放在它身上等于每次 `find` 都是新记忆。
  */
-import { deterministicStringify } from '../rxdb-utils.js';
+import { deterministicStringify } from '@aiao/rxdb';
 
 /**
  * `syncStaleTime` 的缺省窗口（毫秒）。
@@ -44,7 +44,7 @@ export interface QueryCacheFingerprintInput {
  * @returns 确定性字符串，键顺序不同但语义相同的查询得到同一指纹
  *
  * @remarks
- * 与 `QueryCacheRepository` 的并发去重共用同一把尺（US-020 AC#13）：`where` 之外，
+ * 与 `QueryCacheEngine` 的并发去重共用同一把尺（US-020 AC#13）：`where` 之外，
  * `localCacheFirst` / `offlineFallback` 也进指纹 —— 同一个 `where` 走 SWR 与走标准模式
  * 是两条不同的读路径，互相复用会把模式判定悄悄抹掉。`limit` / `offset` / `orderBy`
  * **不进**指纹：它们下推本地 `IRepository`，不改变同步范围。

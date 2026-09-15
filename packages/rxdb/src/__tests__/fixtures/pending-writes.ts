@@ -14,8 +14,8 @@ import type { VersionManager } from '../../version/VersionManager.js';
  * 依赖队列非空」一眼可查 —— 队列**非空**时的行为由
  * `repository/query-cache-primary.offline-write.spec.ts` 专门守着。
  *
- * 类型走 barrel 而不是源码路径：`QueryCacheRepository` 的构造签名引用了它，
- * 那它就必须是公开导出的，这一行顺带把这件事钉住。
+ * 类型走 barrel 而不是源码路径：`QueryCacheSessionContext` 的 `pendingWriteIds` 字段引用了它，
+ * 那它就必须是公开导出的（插件包要按这个契约收参），这一行顺带把这件事钉住。
  */
 export const noPendingWrites: QueryCachePendingWriteIds = async () => new Set<string>();
 

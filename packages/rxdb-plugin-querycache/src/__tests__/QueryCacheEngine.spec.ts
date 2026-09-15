@@ -1,5 +1,5 @@
 /**
- * @fileoverview QueryCacheRepository 单元测试（QueryCache 同步策略）。
+ * @fileoverview QueryCacheEngine 单元测试（QueryCache 同步策略）。
  *
  * 测试 QueryCache 仓库实现：
  * - find() - 首次查询缓存流程
@@ -14,21 +14,20 @@
  * 三个 mock 各说各话的组合（本地元数据有 p1 但 findByIds 返回 p2）也就无从构造。
  */
 
-import { delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EntityBaseType } from '../../entity/entity.interface.js';
-import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
-import { isEntityMatchWhere } from '../../query/query-matching.utils.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
-import {
+import type {
+  EntityBaseType,
+  QueryCacheEntityMetadata,
   QueryCacheLocalAdapter,
   QueryCacheLocalReader,
   QueryCacheRemoteAdapter,
-  QueryCacheRepository,
+  RuleGroup,
   SyncStats
-} from '../../repository/QueryCacheRepository.js';
-import { NetworkOfflineError } from '../../RxDBError.js';
-import { noPendingWrites } from '../fixtures/pending-writes.js';
+} from '@aiao/rxdb';
+import { isEntityMatchWhere, NetworkOfflineError } from '@aiao/rxdb';
+import { delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryCacheEngine } from '../QueryCacheEngine.js';
+import { noPendingWrites } from './fixtures/pending-writes.js';
 
 /**
  * 用于测试的模拟类型。
@@ -65,7 +64,7 @@ function createLocalReader(initial: MockProduct[] = []) {
 }
 
 /**
- * 创建用于测试 QueryCacheRepository 的模拟适配器。
+ * 创建用于测试 QueryCacheEngine 的模拟适配器。
  */
 function createMockAdapters() {
   const remoteAdapter: QueryCacheRemoteAdapter = {
@@ -87,8 +86,8 @@ const buildRepo = (
   remoteAdapter: QueryCacheRemoteAdapter,
   localAdapter: QueryCacheLocalAdapter,
   localReader: ReturnType<typeof createLocalReader>
-): QueryCacheRepository<MockProductEntityType> =>
-  new QueryCacheRepository<MockProductEntityType>(
+): QueryCacheEngine<MockProductEntityType> =>
+  new QueryCacheEngine<MockProductEntityType>(
     'Product',
     remoteAdapter,
     localAdapter,
@@ -96,11 +95,11 @@ const buildRepo = (
     noPendingWrites
   );
 
-describe('QueryCacheRepository', () => {
+describe('QueryCacheEngine', () => {
   let remoteAdapter: QueryCacheRemoteAdapter;
   let localAdapter: QueryCacheLocalAdapter;
   let localReader: ReturnType<typeof createLocalReader>;
-  let repo: QueryCacheRepository<MockProductEntityType>;
+  let repo: QueryCacheEngine<MockProductEntityType>;
 
   /** 设定「本地现在有哪些行」 */
   const seedLocal = (rows: MockProduct[]): void => localReader.seed(rows);

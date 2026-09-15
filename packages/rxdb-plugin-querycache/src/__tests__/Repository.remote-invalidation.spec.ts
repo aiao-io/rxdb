@@ -8,35 +8,39 @@
  * 覆盖 AC#1–#8、#10、#26–#30；AC#9 在 `gateway/RxDBTabsGateway.spec.ts`，
  * AC#31 在 `@aiao/rxdb-devtools` 的 `connector-events.spec.ts`。
  */
+import type {
+  IEntity,
+  QueryCacheEntityMetadata,
+  QueryCacheLocalAdapter,
+  QueryCacheLocalReader,
+  QueryCacheRemoteAdapter,
+  RuleGroup,
+  RxDBEvent
+} from '@aiao/rxdb';
+import {
+  ENTITY_STATIC_TYPES,
+  RelationKind,
+  REMOTE_ENTITY_INVALIDATED_EVENT,
+  RemoteEntityInvalidatedEvent,
+  Repository,
+  RxDB,
+  SyncStateHub,
+  SyncType
+} from '@aiao/rxdb';
 import { BehaviorSubject, delay, Observable, of, Subscription, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { IEntity } from '../../entity/entity.interface.js';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
-import { SyncType } from '../../entity/metadata-options.interface.js';
-import { RelationKind } from '../../entity/relation-types.interface.js';
-import type { QueryCachePrimaryLocalAdapter } from '../../repository/query-cache-primary.js';
-import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
+import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
+import type { QueryCachePrimaryLocalAdapter } from '../query-cache-primary.js';
+import { createQueryCachePrimary } from '../query-cache-primary.js';
 import {
   DEFAULT_QUERY_CACHE_SYNC_STALE_TIME,
   queryCacheFingerprint,
   QueryCacheSyncMemo
-} from '../../repository/query-cache-sync-memo.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
-import type {
-  QueryCacheLocalAdapter,
-  QueryCacheLocalReader,
-  QueryCacheRemoteAdapter
-} from '../../repository/QueryCacheRepository.js';
-import { QueryCacheRepository } from '../../repository/QueryCacheRepository.js';
-import { Repository } from '../../repository/Repository.js';
-import type { RxDBEvent } from '../../rxdb-events.js';
-import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '../../rxdb-events.js';
-import { RxDB } from '../../RxDB.js';
-import { METADATA, STATUS } from '../../rxdb.private.js';
-import { SyncStateHub } from '../../sync-state.js';
-import { emptyOutboxVersionManager, noPendingWrites } from '../fixtures/pending-writes.js';
-import { detachedReachability } from '../fixtures/reachability.js';
+} from '../query-cache-sync-memo.js';
+import { QueryCacheEngine } from '../QueryCacheEngine.js';
+import { emptyOutboxVersionManager, noPendingWrites } from './fixtures/pending-writes.js';
+import { METADATA, STATUS } from './fixtures/private-symbols.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 class RecipeEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -47,7 +51,7 @@ class RecipeEntity {
 
 type RecipeEntityCtor = typeof RecipeEntity;
 
-/** AC#27 直接驱动 {@link QueryCacheRepository} 时用到的最小视图 */
+/** AC#27 直接驱动 {@link QueryCacheEngine} 时用到的最小视图 */
 interface InflightCache {
   find(options: { where: RuleGroup<RecipeEntity> }): Observable<RecipeEntity[]>;
   invalidateInflight(): void;
@@ -217,6 +221,10 @@ const setup = (
     remoteAdapter$,
     config: { sync: undefined },
     addEventListener,
+    // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经
+    // `rxdb.queryCacheEngine()` 填槽，手搭的 `rxdb` 替身得把这个槽补上。用真工厂而不是桩：
+    // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
+    getQueryCacheEngine: () => new RxDBQueryCacheEngineFactory(),
     removeEventListener,
     dispatchEvent,
     reachability: detachedReachability(),
@@ -679,7 +687,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       const remoteAdapter = createRemoteAdapter(stores, 5);
       // `RecipeEntity.updatedAt` 是 string，撑不起 `EntityBaseType`（那里要 `Date`），
       // 因此按默认泛型构造再窄回本用例真正用到的两个成员。
-      const cache = new QueryCacheRepository(
+      const cache = new QueryCacheEngine(
         'RecipeEntity',
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         localAdapter as unknown as QueryCacheLocalAdapter,
@@ -713,7 +721,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
       const localRepo = createLocalRepo(stores);
       const localAdapter = createLocalAdapter(stores, localRepo);
       const remoteAdapter = createRemoteAdapter(stores, 5);
-      const cache = new QueryCacheRepository(
+      const cache = new QueryCacheEngine(
         'RecipeEntity',
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         localAdapter as unknown as QueryCacheLocalAdapter,
@@ -764,7 +772,7 @@ describe('US-023 阶段 A：QueryCache 远端失效上报口', () => {
             })
         )
       };
-      const cache = new QueryCacheRepository(
+      const cache = new QueryCacheEngine(
         'RecipeEntity',
         remoteAdapter as unknown as QueryCacheRemoteAdapter,
         localAdapter as unknown as QueryCacheLocalAdapter,

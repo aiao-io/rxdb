@@ -333,7 +333,7 @@ describe('rxdb-utils', () => {
 
     /**
      * RXD-010：这个函数的输出被直接当作查询缓存 key（`QueryManager.createTask`）
-     * 和数据指纹（`QueryCacheRepository.#computeDataFingerprint`）用。
+     * 和数据指纹（`QueryCacheEngine.#computeDataFingerprint`）用。
      * 任何两个语义不同的输入映射到同一字符串，都等于把 A 查询的结果发给 B 查询。
      *
      * 原实现对所有 `JSON.stringify` 返回 `undefined` 的值（顶层 undefined、数组里的

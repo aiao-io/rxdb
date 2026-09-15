@@ -1,27 +1,26 @@
 /**
  * @fileoverview QueryCache 的缓存质量约束（US-020 阶段 B，AC#11 / #12 / #14 / #15 / #16）。
  *
- * 与 `QueryCacheRepository.spec.ts` 的分工：那份覆盖同步流程本身（拉什么、写什么），
+ * 与 `QueryCacheEngine.spec.ts` 的分工：那份覆盖同步流程本身（拉什么、写什么），
  * 这份覆盖「缓存不许骗人」的四件事 ——
  * 孤儿必须真删、本地读必须走 SQL 下推、没有「读不到就当没有」的降级、
  * 离线降级只吞网络错误。
  */
 
-import { firstValueFrom, of, throwError } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EntityBaseType } from '../../entity/entity.interface.js';
-import type { QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
-import { isEntityMatchWhere } from '../../query/query-matching.utils.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
-import {
+import type {
+  EntityBaseType,
+  QueryCacheEntityMetadata,
   QueryCacheLocalAdapter,
   QueryCacheLocalReader,
   QueryCacheRemoteAdapter,
-  QueryCacheRepository,
+  RuleGroup,
   SyncStats
-} from '../../repository/QueryCacheRepository.js';
-import { NetworkOfflineError } from '../../RxDBError.js';
-import { noPendingWrites } from '../fixtures/pending-writes.js';
+} from '@aiao/rxdb';
+import { isEntityMatchWhere, NetworkOfflineError } from '@aiao/rxdb';
+import { firstValueFrom, of, throwError } from 'rxjs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryCacheEngine } from '../QueryCacheEngine.js';
+import { noPendingWrites } from './fixtures/pending-writes.js';
 
 class Product {
   id!: string;
@@ -79,14 +78,14 @@ function createAdapters() {
   return { remoteAdapter, localAdapter };
 }
 
-describe('QueryCacheRepository 缓存质量（US-020 阶段 B）', () => {
+describe('QueryCacheEngine 缓存质量（US-020 阶段 B）', () => {
   let remoteAdapter: QueryCacheRemoteAdapter;
   let localAdapter: QueryCacheLocalAdapter;
   let localReader: ReturnType<typeof createLocalReader>;
 
-  const build = (rows: Product[]): QueryCacheRepository<ProductType> => {
+  const build = (rows: Product[]): QueryCacheEngine<ProductType> => {
     localReader = createLocalReader(rows);
-    return new QueryCacheRepository<ProductType>(
+    return new QueryCacheEngine<ProductType>(
       'Product',
       remoteAdapter,
       localAdapter,

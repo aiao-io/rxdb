@@ -56,6 +56,7 @@
       "@aiao/rxdb-client-generator": ["./packages/rxdb-client-generator/src/index.ts"],
       "@aiao/rxdb-plugin-graph": ["./packages/rxdb-plugin-graph/src/index.ts"],
       "@aiao/rxdb-plugin-graph/sqlite": ["./packages/rxdb-plugin-graph/src/sqlite.ts"],
+      "@aiao/rxdb-plugin-querycache": ["./packages/rxdb-plugin-querycache/src/index.ts"],
       "@aiao/rxdb-plugin-search": ["./packages/rxdb-plugin-search/src/index.ts"],
       "@aiao/rxdb-plugin-search-angular": ["./packages/rxdb-plugin-search-angular/src/index.ts"],
       "@aiao/rxdb-plugin-search-react": ["./packages/rxdb-plugin-search-react/src/index.ts"],

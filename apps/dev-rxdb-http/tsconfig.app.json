@@ -22,6 +22,9 @@
       "path": "../../packages/utils/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {

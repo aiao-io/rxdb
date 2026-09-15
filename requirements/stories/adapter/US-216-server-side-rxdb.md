@@ -79,7 +79,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
   是 US-021 的验收行为，属既有结论引用。
 - wire 不变的总判据：本故事落地前后各跑一次 `dev-rxdb-http-server` 的 `server.spec.ts`（端点级契约，断言内容不变）
   与 `dev-rxdb-http-e2e`（17 条），差异必须为零。US-213 套件测的是适配器 vs 它自己的
-  `tests/reference-server.ts`（[wire-integration.spec.ts:46](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts#L46)
+  `tests/reference-server.ts`（[wire-integration.spec.ts:47](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts#L47)
   的导入证实），本故事不触碰两者，只要求保持绿——它**不作**本后端的一致性证据。
 
 ## 范围边界
@@ -99,7 +99,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 - **单实体类收敛**：依赖核心的实例级 sync 覆盖能力（另立 core 故事），本故事 A / B 不阻塞于它，见 References
 - **Full-sync / 离线写队列 / 冲突解决**：`RxDBAdapterHttp` v1 刻意不实现 changelog
-  （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:469](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L469)），
+  （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:477](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L477)），
   本故事不改变这条边界
 - 真实身份认证与行级作用域：demo 保持假认证；D9 只记录真实后端的模式（租户过滤 AND 组合、写授权、
   每请求审计身份）。「每请求审计身份」若需要 core 的按操作/事务级 context 覆盖，另立 core story

@@ -326,7 +326,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 > 本地投影变化同类，因此复用同一条语义而不是新造第八种。它已在实现里跳过仍有未推送变更的候选，
 > 不会与本地未提交编辑打架。
 
-QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheRepository.ts](../../packages/rxdb/src/repository/QueryCacheRepository.ts)
+QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheRepository.ts](../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)
 的 upsert / delete 与 `#evictOrphans` 孤儿清理，以及 [query-cache-outbox.ts](../../packages/rxdb/src/repository/query-cache-outbox.ts)
 的离线出站重放（经 `localAdapter.upsertMany()` / `deleteByIds()` 回写本地行）。两者目标都是 QueryCache 实体，
 按 `sync.type` 判定放行；新增 QueryCache 写路径按同一条排除规则登记即可，**排除结论不变**。

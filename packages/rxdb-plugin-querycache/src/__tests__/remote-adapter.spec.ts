@@ -7,11 +7,9 @@
  * 顺序、类型三项全错，测试仍然全绿，因为它断言的是自己那份抄件。
  *
  * 现在：类型从公开入口 `../../index.js` 取并用 `expectTypeOf` / `@ts-expect-error` 固定
- * （由 `tsc -p tsconfig.spec.json --noEmit` 执行），行为断言穿真实 `QueryCacheRepository`。
+ * （由 `tsc -p tsconfig.spec.json --noEmit` 执行），行为断言穿真实 `QueryCacheEngine`。
  */
 
-import { firstValueFrom, Observable, of } from 'rxjs';
-import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type {
   EntityBaseType,
   QueryCacheEntityMetadata,
@@ -19,9 +17,11 @@ import type {
   QueryCacheLocalReader,
   QueryCacheRemoteAdapter,
   RuleGroup
-} from '../../index.js';
-import { QueryCacheRepository } from '../../index.js';
-import { noPendingWrites } from '../fixtures/pending-writes.js';
+} from '@aiao/rxdb';
+import { firstValueFrom, Observable, of } from 'rxjs';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { QueryCacheEngine } from '../QueryCacheEngine.js';
+import { noPendingWrites } from './fixtures/pending-writes.js';
 
 class Product {
   id!: string;
@@ -76,8 +76,8 @@ const buildRepository = (
   remoteAdapter: QueryCacheRemoteAdapter,
   localAdapter: QueryCacheLocalAdapter,
   localReader: QueryCacheLocalReader<Product> = createLocalReader().reader
-): QueryCacheRepository<ProductEntityType> =>
-  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader, noPendingWrites);
+): QueryCacheEngine<ProductEntityType> =>
+  new QueryCacheEngine<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader, noPendingWrites);
 
 describe('QueryCacheRemoteAdapter 公开契约', () => {
   describe('签名（由 tsconfig.spec.json --noEmit 强制，vitest 运行时是 no-op）', () => {
@@ -122,7 +122,7 @@ describe('QueryCacheRemoteAdapter 公开契约', () => {
     });
   });
 
-  describe('真实 QueryCacheRepository 的调用形态', () => {
+  describe('真实 QueryCacheEngine 的调用形态', () => {
     it('fetchMetadata 收到 (entityName, 原样的 RuleGroup)，而不是被拆开的裸对象', async () => {
       const local = createLocalAdapter();
       const remote = createRemoteAdapter();

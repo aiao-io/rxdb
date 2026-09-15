@@ -726,7 +726,7 @@ describe('changelog 与分支成员（AC#10、#11、#26）', () => {
 
 describe('写入口按 handler 存在与否特性探测（AC#4）', () => {
   it('未配 onCreate / onUpdate / onDelete 时三个 duck 不存在', () => {
-    // QueryCacheRepository 用 `if (!this.remoteAdapter.create)` 探测。定义成永远存在
+    // QueryCacheEngine 用 `if (!this.remoteAdapter.create)` 探测。定义成永远存在
     // 但内部 throw 的方法会让探测判 true，错误从「不支持 create」变成运行期意外
     const adapter = buildAdapter();
     expect(adapter.create).toBeUndefined();

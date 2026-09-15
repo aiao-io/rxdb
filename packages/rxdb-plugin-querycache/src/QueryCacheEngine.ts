@@ -1,5 +1,5 @@
 /**
- * @fileoverview QueryCacheRepository - QueryCache 同步策略仓库
+ * @fileoverview QueryCacheEngine - QueryCache 同步策略仓库
  *
  * 实现 QueryCache 同步策略，特点：
  * - 读操作：元数据优先，按需拉取（省流量）
@@ -24,166 +24,28 @@
  * ```
  */
 
+import {
+  deterministicStringify,
+  diffMetadata,
+  isNetworkError,
+  isRemoteNewer,
+  NetworkOfflineError,
+  type DiffResult,
+  type EntityBaseType,
+  type EntityStaticType,
+  type QueryCacheEntity,
+  type QueryCacheEntityMetadata,
+  type QueryCacheFindOptions,
+  type QueryCacheLocalAdapter,
+  type QueryCacheLocalReader,
+  type QueryCachePendingWriteIds,
+  type QueryCacheRemoteAdapter,
+  type RuleGroup,
+  type SyncStats
+} from '@aiao/rxdb';
 import { concat, defer, EMPTY, finalize, forkJoin, Observable, of, throwError } from 'rxjs';
 import { catchError, filter, map, shareReplay, switchMap } from 'rxjs/operators';
-import { EntityBaseType, EntityStaticType } from '../entity/entity.interface.js';
-import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
-import { deterministicStringify } from '../rxdb-utils.js';
-import { NetworkOfflineError } from '../RxDBError.js';
-import { diffMetadata, type DiffResult } from './diff-metadata.js';
-import { isNetworkError } from './network-error.js';
 import { queryCacheFingerprint } from './query-cache-sync-memo.js';
-import type { RuleGroup } from './query.interface.js';
-import { isRemoteNewer } from './updated-at.utils.js';
-
-/**
- * QueryCache 实体约束接口
- *
- * 所有使用 QueryCache 同步策略的实体必须包含这两个字段
- */
-export interface QueryCacheEntity {
-  /** 实体唯一标识 */
-  id: string;
-  /** 最后更新时间 (ISO 8601 格式) */
-  updatedAt: string;
-}
-
-/**
- * QueryCache 适配器接口（远程）
- */
-export interface QueryCacheRemoteAdapter {
-  /** 获取满足查询条件的实体元数据 */
-  fetchMetadata<TEntity>(entityName: string, query: RuleGroup<TEntity>): Observable<QueryCacheEntityMetadata[]>;
-  /** 按 ID 批量获取完整数据 */
-  findByIds<T>(entityName: string, ids: string[]): Observable<T[]>;
-  /** 创建实体（可选 - 写操作需要） */
-  create?<T>(entityName: string, data: T): Observable<T>;
-  /** 更新实体（可选 - 写操作需要） */
-  update?<T>(entityName: string, id: string, data: Partial<T>): Observable<T>;
-  /** 删除实体（可选 - 写操作需要） */
-  delete?(entityName: string, ids: string | string[]): Observable<void>;
-}
-
-/**
- * QueryCache 适配器接口（本地）
- */
-export interface QueryCacheLocalAdapter {
-  /** 获取指定 ID 的本地元数据 */
-  getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>>;
-  /** 批量写入/更新数据 */
-  upsertMany<T>(entityName: string, data: T[]): Observable<void>;
-  /** 批量删除数据 */
-  deleteByIds(entityName: string, ids: string[]): Observable<void>;
-  /**
-   * 按 ID 获取完整数据
-   *
-   * @deprecated 本地读已改走 {@link QueryCacheLocalReader}（US-020 D8）。
-   * 该 duck 不再被 `QueryCacheRepository` 调用：它返回的是裸行不是实体实例，
-   * 且「适配器没实现就当查不到」的降级会把缓存故障伪装成「远端没有数据」。
-   * 保留仅为不破坏已实现它的适配器，下一个大版本移除。
-   */
-  findByIds?<T>(entityName: string, ids: string[]): Observable<T[]>;
-  /**
-   * 获取所有本地缓存数据
-   *
-   * @deprecated 同 {@link QueryCacheLocalAdapter.findByIds}。SWR 的缓存首发现在由
-   * {@link QueryCacheLocalReader} 按 `where` 下推读取，不再「全表进内存再 JS 过滤」。
-   */
-  findAll?<T>(entityName: string): Observable<T[]>;
-}
-
-/**
- * QueryCache 读侧的本地出口（US-020 D8）。
- *
- * @typeParam T - 实体实例类型
- *
- * @remarks
- * 生产实现就是该实体的本地 `IRepository`：`where` 下推成 SQL、返回实体实例。
- * 之所以在这里收窄成只有 `find` 的一个接口，而不是直接依赖 `IRepository`：
- * 本类按 `entityName` 工作，拿不到实体类，`IRepository<T extends EntityType>` 的
- * 类型参数在这一层无从填写。
- *
- * 契约里没有「读不到」这个分支 —— 读失败必须上抛。缓存读静默降级成空集合，
- * 对调用方看起来与「远端确实没有数据」完全一样，是最难查的一类故障。
- */
-export interface QueryCacheLocalReader<T> {
-  /**
-   * 按查询条件读取本地行。
-   *
-   * @param options - 仅 `where`；`limit` / `offset` / `orderBy` 由上层门面负责
-   * @returns 匹配的实体实例
-   */
-  find(options: { where: RuleGroup<T> }): Promise<T[]>;
-}
-
-/**
- * 查询选项
- */
-export interface QueryCacheFindOptions<T extends EntityBaseType> {
-  /** 查询条件 */
-  where: RuleGroup<InstanceType<T>>;
-  /** 同步完成回调，用于获取性能统计信息 */
-  onSyncStats?: (stats: SyncStats) => void;
-  /**
-   * SWR 模式下**被吞掉的**远端校验失败的上报口。
-   *
-   * @remarks
-   * 缓存已经发射后，远端错误会被吞成 `EMPTY`（消费者已经拿到数据，再终结它的订阅没有意义）。
-   * 但「远端这次没校验成功」是内部记账必须知道的事实：不知道它，
-   * 「刚同步过」的记忆就会把一次失败的校验记成成功，整个窗口内不再重试。
-   * 本回调只上报，不改变流的行为。
-   */
-  onRemoteError?: (error: Error) => void;
-  /**
-   * 本地缓存优先模式 (Stale-While-Revalidate)
-   *
-   * 当设置为 true 时：
-   * 1. 立即返回本地缓存数据（如果存在）
-   * 2. 后台异步验证并更新
-   * 3. 如果数据有变化，发射更新后的数据
-   *
-   * @default false
-   */
-  localCacheFirst?: boolean;
-  /**
-   * 离线降级模式
-   *
-   * 当设置为 true 时：
-   * - 网络错误时返回本地缓存数据
-   * - 如果没有本地缓存，抛出 NetworkOfflineError
-   *
-   * @default false
-   */
-  offlineFallback?: boolean;
-}
-
-/**
- * 同步统计信息
- */
-export interface SyncStats {
-  /** 远程元数据数量 */
-  remoteCount: number;
-  /** 缺失数量（需要拉取） */
-  missingCount: number;
-  /** 过时数量（需要更新） */
-  staleCount: number;
-  /** 新鲜数量（无需同步） */
-  freshCount: number;
-  /** 孤儿数量（本地有远程无），已扣掉被出站队列占着、本轮没删的那些 */
-  orphanCount: number;
-  /**
-   * 因为还压在出站队列里而被本轮跳过的行数。
-   *
-   * @remarks
-   * 与 `missingCount` / `staleCount` / `orphanCount` 不重叠：那三个报的是**真的执行了**的
-   * 动作数，被跳过的行只算进这里。持续不归零说明出站队列推不动 —— 那才是要看的问题。
-   */
-  heldCount: number;
-  /** 实际拉取数量 */
-  pulledCount: number;
-  /** 耗时（毫秒） */
-  durationMs: number;
-}
 
 /**
  * 取一行的主键。
@@ -222,17 +84,6 @@ const rowUpdatedAt = (entity: unknown): string => {
  */
 const toOfflineError = (error: unknown): NetworkOfflineError =>
   error instanceof NetworkOfflineError ? error : new NetworkOfflineError(error as Error);
-
-/**
- * 查询出站队列此刻占着哪些实体 id。
- *
- * @returns 还没推回远端的那些实体 id
- *
- * @remarks
- * 生产实现是 `pendingQueryCacheWriteIds`；它读的是 `rxdb_change`，与出站队列重放的
- * 取行条件同源。本类只认这个函数，不认版本管理器 —— 缓存仓储不该反向依赖同步子系统。
- */
-export type QueryCachePendingWriteIds = () => Promise<ReadonlySet<string>>;
 
 /** 一轮 reconcile 摘掉出站队列占用之后，真正要执行的动作 */
 interface ReconcilePlan<R> {
@@ -281,7 +132,7 @@ function planReconcile<R>(diff: DiffResult, localRows: R[], pending: ReadonlySet
  *
  * @example
  * ```typescript
- * const repo = new QueryCacheRepository('Product', remoteAdapter, localAdapter, localReader, pendingWriteIds);
+ * const repo = new QueryCacheEngine('Product', remoteAdapter, localAdapter, localReader, pendingWriteIds);
  *
  * // 查询 - 自动增量同步
  * const products = await firstValueFrom(repo.find({ where: { combinator: 'and', rules: [] } }));
@@ -301,12 +152,12 @@ function planReconcile<R>(diff: DiffResult, localRows: R[], pending: ReadonlySet
  * @experimental 直接 `new` 本类不在 1.0 兼容承诺内；稳定面是 `SyncType.QueryCache` 经
  * {@link Repository} 的间接路径。层级口径见 `requirements/versioning-policy.md`「实验性层级」。
  */
-export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
+export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
   /** 并发查询去重缓存 - 使用查询指纹作为 key */
   #inflightQueries = new Map<string, Observable<InstanceType<T>[]>>();
 
   /**
-   * 作废代次，每次 {@link QueryCacheRepository.invalidateInflight} 递增（US-023 D13）。
+   * 作废代次，每次 {@link QueryCacheEngine.invalidateInflight} 递增（US-023 D13）。
    *
    * @remarks
    * 与 `QueryCacheSyncMemo.generation` 是**两个**计数器，不能合用：那一个还被本地写
@@ -423,7 +274,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 远端状态；让失效后的重跑复用它，重跑就等于没跑。
    *
    * 「不取消」只管到**结果**这一层：陈旧流照常把它那次的答案发给自己的订阅者，
-   * 但从此不再写本地缓存（{@link QueryCacheRepository.#isCurrent}）。缓存是共享的，
+   * 但从此不再写本地缓存（{@link QueryCacheEngine.#isCurrent}）。缓存是共享的，
    * 而那份答案按定义已经过期 —— 让它落地就会把重跑刚写进来的新行盖回旧值，
    * 且错误会一直留到 `syncStaleTime` 到期：重跑那次的 `remember` 是成功的，
    * 窗口内不会再有人去校验一遍。
@@ -760,7 +611,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
   /**
    * 本次同步是否仍属于当前代次。
    *
-   * @param generation - 同步开始前取到的 {@link QueryCacheRepository.#invalidationGeneration}
+   * @param generation - 同步开始前取到的 {@link QueryCacheEngine.#invalidationGeneration}
    *
    * @remarks
    * 判在**每次写之前**而不是同步开头：`findByIds` 还在飞的那段时间正是失效最可能落进来的
@@ -787,7 +638,7 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
    * 删或盖都是赌，赌输了是用户数据。
    *
    * 队列在写之前问、不在 `fetchMetadata` 之前问：远端往返这段时间正是离线写最可能落进来
-   * 的窗口，早问等于没问。判据与 {@link QueryCacheRepository.#isCurrent} 同理。
+   * 的窗口，早问等于没问。判据与 {@link QueryCacheEngine.#isCurrent} 同理。
    *
    * 残余竞态：问完队列到 `deleteByIds` 落地之间仍有一段异步窗口，那期间新排进队列的写
    * 会被本轮当成孤儿。收窄它需要把「读队列 + 写缓存」放进同一个本地事务，那是本地适配器

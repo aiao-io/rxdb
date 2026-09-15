@@ -10,21 +10,21 @@
  * 1. 类型一律从包公开入口 `../../index.js` 取，用 `expectTypeOf` + `@ts-expect-error` 固定签名。
  *    这些断言在 vitest 运行时是 no-op，真正执行它们的是 `tsc -p tsconfig.spec.json --noEmit`
  *    ——签名再漂就是编译错误，而不是绿灯。
- * 2. 行为断言穿过真实 `QueryCacheRepository`，证明适配器是按 `(entityName, ids)` 被调用的，
+ * 2. 行为断言穿过真实 `QueryCacheEngine`，证明适配器是按 `(entityName, ids)` 被调用的，
  *    而不是只证明「我自己写的 mock 满足我自己写的接口」。
  */
 
-import { firstValueFrom, map, Observable, of } from 'rxjs';
-import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type {
   EntityBaseType,
   QueryCacheEntityMetadata,
   QueryCacheLocalAdapter,
   QueryCacheLocalReader,
   QueryCacheRemoteAdapter
-} from '../../index.js';
-import { QueryCacheRepository } from '../../index.js';
-import { noPendingWrites } from '../fixtures/pending-writes.js';
+} from '@aiao/rxdb';
+import { firstValueFrom, map, Observable, of } from 'rxjs';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { QueryCacheEngine } from '../QueryCacheEngine.js';
+import { noPendingWrites } from './fixtures/pending-writes.js';
 
 class Product {
   id!: string;
@@ -87,8 +87,8 @@ const buildRepository = (
   remoteAdapter: QueryCacheRemoteAdapter,
   localAdapter: QueryCacheLocalAdapter,
   localReader: QueryCacheLocalReader<Product>
-): QueryCacheRepository<ProductEntityType> =>
-  new QueryCacheRepository<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader, noPendingWrites);
+): QueryCacheEngine<ProductEntityType> =>
+  new QueryCacheEngine<ProductEntityType>(ENTITY_NAME, remoteAdapter, localAdapter, localReader, noPendingWrites);
 
 describe('QueryCacheLocalAdapter 公开契约', () => {
   describe('签名（由 tsconfig.spec.json --noEmit 强制，vitest 运行时是 no-op）', () => {
@@ -140,7 +140,7 @@ describe('QueryCacheLocalAdapter 公开契约', () => {
     });
   });
 
-  describe('真实 QueryCacheRepository 的调用形态', () => {
+  describe('真实 QueryCacheEngine 的调用形态', () => {
     // `find` 自 US-020 D8 起不再问 `getMetadataByIds`（那样问不出孤儿），
     // 但 `findById` 仍用它做单 id 的新鲜度判断 —— 这也是该方法留在必需集里的唯一理由。
     it('getMetadataByIds 收到 (entityName, 单 id 数组)', async () => {

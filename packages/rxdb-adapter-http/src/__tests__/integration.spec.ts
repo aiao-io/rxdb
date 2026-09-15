@@ -14,6 +14,7 @@ import {
   type RuleGroup,
   type SyncOptions
 } from '@aiao/rxdb';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpUnsupportedOperationError } from '../errors.js';
@@ -319,6 +320,9 @@ const createDatabase = async (localRows: Row[] = []) => {
     entities: [HttpIntegrationRecipe, HttpIntegrationNote],
     sync: DATABASE_SYNC
   });
+  // QueryCache 的读引擎在 `@aiao/rxdb-plugin-querycache`（US-025 阶段 B）：`HttpIntegrationRecipe`
+  // 声明了 `SyncType.QueryCache`，不装插件的话 `connect()` 会当场以 `RxDBMissingPluginError` 拒绝。
+  rxdb.use(rxDBPluginQueryCache);
   const http = new RxDBAdapterHttp(rxdb, { baseUrl: BASE_URL, handlers });
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => supabase as unknown as IRxDBAdapter);

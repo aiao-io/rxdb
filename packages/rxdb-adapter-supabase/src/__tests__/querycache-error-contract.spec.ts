@@ -20,7 +20,6 @@ import {
   getEntityMetadata,
   isNetworkError,
   NetworkOfflineError,
-  QueryCacheRepository,
   type EntityType,
   type QueryCacheLocalAdapter,
   type QueryCacheLocalReader,
@@ -28,6 +27,7 @@ import {
   type RuleGroup,
   type RxDB
 } from '@aiao/rxdb';
+import { QueryCacheEngine } from '@aiao/rxdb-plugin-querycache';
 import { firstValueFrom, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { SupabaseDataError } from '../errors.js';
@@ -192,11 +192,12 @@ describe('RV-001 端到端 —— supabase 断网时 offlineFallback 真的命�
       find: () => Promise.resolve(cached)
     };
 
-    return new QueryCacheRepository(
+    return new QueryCacheEngine(
       'Cached',
       adapter as unknown as QueryCacheRemoteAdapter,
       localAdapter,
-      localReader as never
+      localReader as never,
+      async () => new Set<string>()
     );
   };
 

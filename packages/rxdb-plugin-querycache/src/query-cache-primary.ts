@@ -1,12 +1,12 @@
 /**
  * @packageDocumentation
- * QueryCache 的主仓储适配层 —— 把 {@link QueryCacheRepository} 的 Observable / 裸数据面
+ * QueryCache 的主仓储适配层 —— 把 {@link QueryCacheEngine} 的 Observable / 裸数据面
  * 转成 {@link IRepository} 的 Promise / 实体实例面。
  *
  * @remarks
  * 为什么是「适配」而不是「换实现」（US-020 D9）：`getRepository(E)` 的公开面由 `IRepository`
  * 与 `Repository._STATIC_METHODS` 定死 —— 8 个静态入口、Promise 返回、`remove(entity)`。
- * `QueryCacheRepository` 三样都不同（2 个入口、Observable、`delete(ids)`）。把它直接顶到
+ * `QueryCacheEngine` 三样都不同（2 个入口、Observable、`delete(ids)`）。把它直接顶到
  * `config.class` 上会让 `await Entity.create()` 拿到 Observable、静态入口凭空少 6 个。
  * 因此 `Repository` 仍是门面，只把 `primary$` 换成本文件的实现。
  *
@@ -15,27 +15,28 @@
  * 于是 `limit` / `offset` / `orderBy` 可以原样下推成 SQL —— 既拿到实体实例，
  * 又不必把整表读进内存做 JS 过滤。
  */
+import {
+  getEntityMetadata,
+  isNetworkError,
+  parseEntityRecordValues,
+  RxDBQueryCacheCapabilityError,
+  type EntityMetadata,
+  type EntityStaticType,
+  type EntityType,
+  type IRepository,
+  type QueryCacheEntityMetadata,
+  type QueryCacheLocalAdapter,
+  type QueryCacheLocalReader,
+  type QueryCachePendingWriteIds,
+  type QueryCacheRemoteAdapter,
+  type ReachabilityMonitor,
+  type RuleGroup,
+  type SyncStateHub,
+  type SyncStats
+} from '@aiao/rxdb';
 import { firstValueFrom, map, Observable } from 'rxjs';
-import { parseEntityRecordValues } from '../entity/entity-value.utils.js';
-import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
-import type { QueryCacheEntityMetadata } from '../entity/metadata-options.interface.js';
-import type { EntityMetadata } from '../entity/metadata.interface.js';
-import type { ReachabilityMonitor } from '../network/reachability.js';
-import { getEntityMetadata } from '../rxdb-utils.js';
-import { RxDBQueryCacheCapabilityError } from '../RxDBError.js';
-import type { SyncStateHub } from '../sync-state.js';
-import { isNetworkError } from './network-error.js';
+import { QueryCacheEngine } from './QueryCacheEngine.js';
 import { queryCacheFingerprint, QueryCacheSyncMemo } from './query-cache-sync-memo.js';
-import type { RuleGroup } from './query.interface.js';
-import type {
-  QueryCacheLocalAdapter,
-  QueryCacheLocalReader,
-  QueryCachePendingWriteIds,
-  QueryCacheRemoteAdapter,
-  SyncStats
-} from './QueryCacheRepository.js';
-import { QueryCacheRepository } from './QueryCacheRepository.js';
-import type { IRepository } from './repository.interface.js';
 
 /** 远端适配器必须提供的 QueryCache duck（`RxDBAdapterRemoteBase` 的 `abstract` 成员） */
 const REMOTE_DUCKS = ['fetchMetadata', 'findByIds'] as const;
@@ -48,8 +49,8 @@ export type QueryCachePrimaryLocalAdapter<T extends EntityType> = QueryCacheLoca
   getRepository(EntityType: T): IRepository<T>;
 };
 
-/** `QueryCacheRepository.find` 的入参 */
-type QueryCacheSyncOptions = Parameters<QueryCacheRepository['find']>[0];
+/** `QueryCacheEngine.find` 的入参 */
+type QueryCacheSyncOptions = Parameters<QueryCacheEngine['find']>[0];
 
 /**
  * `FindOptions` 里 QueryCache 关心的字段。
@@ -114,7 +115,7 @@ export function assertQueryCacheCapabilities(entity: string, localAdapter: objec
  * 适配器以外的任何状态 —— 断连重连后旧实例连同旧适配器一起被丢弃。
  */
 export class QueryCachePrimaryRepository<T extends EntityType> implements IRepository<T> {
-  readonly #cache: QueryCacheRepository;
+  readonly #cache: QueryCacheEngine;
 
   constructor(
     private readonly entityName: string,
@@ -135,9 +136,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
     pendingWriteIds: QueryCachePendingWriteIds
   ) {
     // 本地行仓储既是同步流程的读出口（US-020 D8），也是同步跑完后门面读结果的地方。
-    // `QueryCacheRepository` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
+    // `QueryCacheEngine` 按 `entityName` 工作、填不出 `IRepository` 的类型参数，
     // 因此在这一层收窄成只有 `find` 的读端口。
-    this.#cache = new QueryCacheRepository(
+    this.#cache = new QueryCacheEngine(
       entityName,
       remoteAdapter,
       localAdapter,
@@ -354,7 +355,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    * 这里保留订阅直到流自己结束：缓存先到就先返回，远端校验在后台跑完并落本地。
    *
    * 后台阶段的失败不上抛（Promise 已 settle）——缓存已经交付给调用方，
-   * `QueryCacheRepository` 本身也在缓存发射后把远端错误吞成 `EMPTY`。
+   * `QueryCacheEngine` 本身也在缓存发射后把远端错误吞成 `EMPTY`。
    * 缓存未发射时的失败照常 reject。
    *
    * `onValidated` 只在**整条流跑完且远端校验没报错**时调用，不能挂在 `next` 上：
@@ -363,7 +364,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
    * 永不重试远端，而缓存已经发射过，失败连异常都不会露头。被吞掉的远端失败
    * 靠 `onRemoteError` 上报（见 {@link QueryCacheFindOptions.onRemoteError}）。
    *
-   * @param options - 透传给 `QueryCacheRepository.find` 的同步选项
+   * @param options - 透传给 `QueryCacheEngine.find` 的同步选项
    * @param onValidated - 远端校验确实成功时调用；失败或流被打断都不调用
    */
   #runSync(options: QueryCacheSyncOptions, onValidated: () => void): Promise<void> {
@@ -396,7 +397,7 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
  * 取实体主键。
  *
  * @remarks
- * `QueryCacheRepository` 的写入口按 id 定位（`update(id, patch)` / `delete(ids)`），
+ * `QueryCacheEngine` 的写入口按 id 定位（`update(id, patch)` / `delete(ids)`），
  * 而 `IRepository` 传的是实体实例，这里做那一步转换。
  */
 const entityId = <T extends EntityType>(entity: InstanceType<T>): string => (entity as { id: string }).id;
@@ -441,5 +442,5 @@ export function createQueryCachePrimary<T extends EntityType>(
   );
 }
 
-/** `QueryCacheRepository.find` 的返回类型在本文件只用于等待同步完成 */
+/** `QueryCacheEngine.find` 的返回类型在本文件只用于等待同步完成 */
 export type QueryCacheSyncResult = Observable<unknown>;

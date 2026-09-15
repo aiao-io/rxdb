@@ -3,9 +3,9 @@
  * QueryCache 本地一侧的内存替身（US-213 AC#8）。
  *
  * @remarks
- * **只有 AC#8 需要它。** 其余 AC 都直驱适配器，快且断言直接；但 `idChunkSize` 分块
- * 只在 core 的 `QueryCacheRepository` 把**整份** id 列表交给 `findByIds` 时才显形——
- * 直驱构造不出那个场景，必须让真的 `RxDB` 跑一次完整的
+ * **只有 AC#8 需要它。** 其余 AC 都直驱适配器，快且断言直接；但 `idChunkSize` 分块只在读引擎
+ * （`@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine`）把**整份** id 列表交给 `findByIds`
+ * 时才显形——直驱构造不出那个场景，必须让真的 `RxDB` 跑一次完整的
  * `fetchMetadata → diffMetadata → findByIds → upsertMany`。
  *
  * 本文件是 `src/__tests__/integration.spec.ts` 里同名局部常量的**独立一份**，不是复用：

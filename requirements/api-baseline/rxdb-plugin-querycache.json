@@ -1,0 +1,58 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "assertQueryCacheCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryCachePrimary",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_QUERY_CACHE_SYNC_STALE_TIME",
+        "kind": "value"
+      },
+      {
+        "name": "QueryCacheEngine",
+        "kind": "both"
+      },
+      {
+        "name": "queryCacheFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "QueryCacheFingerprintInput",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCachePrimaryLocalAdapter",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCachePrimaryRepository",
+        "kind": "both"
+      },
+      {
+        "name": "QueryCacheSyncMemo",
+        "kind": "both"
+      },
+      {
+        "name": "QueryCacheSyncResult",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginQueryCache",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginQueryCache",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBQueryCacheEngineFactory",
+        "kind": "both"
+      }
+    ]
+  }
+}

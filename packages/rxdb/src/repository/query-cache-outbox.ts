@@ -3,9 +3,9 @@
  * QueryCache 的出站重放 —— 把离线期间攒下的本地改动按 REST 动词推回远端。
  *
  * @remarks
- * 这是 local-first 闭环的后半段。前半段是 `query-cache-primary.ts`：远端不可达时，写经
- * **实体仓储**落本地，触发器随之在 `rxdb_change` 里排出一条正常的出站行。本模块负责把
- * 那批行送回去。
+ * 这是 local-first 闭环的后半段。前半段是 `@aiao/rxdb-plugin-querycache` 的
+ * `query-cache-primary.ts`：远端不可达时，写经**实体仓储**落本地，触发器随之在
+ * `rxdb_change` 里排出一条正常的出站行。本模块负责把那批行送回去。
  *
  * **为什么不复用 `pushRepository`**：那条路的提交出口是 `remoteAdapter.mergeChanges()`，
  * 而 QueryCache 的远端契约是纯 REST（`create` / `update` / `delete` / `findByIds` /
@@ -36,7 +36,7 @@ import type { SwitchVersionActions, SwitchVersionChange } from '../version/Versi
 import type { VersionManager } from '../version/VersionManager.js';
 import { getRxDBChangeKey } from '../version/VersionManager.utils.js';
 import { isNetworkError } from './network-error.js';
-import type { QueryCacheRemoteAdapter } from './QueryCacheRepository.js';
+import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
 import type { IRepository } from './repository.interface.js';
 
 /** 压缩后每条净操作的类型 */

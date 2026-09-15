@@ -15,17 +15,13 @@
  * `getEntityObjectFromResult` 会按元数据解码。只有写路径是直连的。
  */
 
+import { Entity, ENTITY_STATIC_TYPES, EntityBase, PropertyType, SyncStateHub, SyncType } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { EntityBase } from '../../entity/entity-base.js';
-import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
-import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
-import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
-import { SyncStateHub } from '../../sync-state.js';
-import { noPendingWrites } from '../fixtures/pending-writes.js';
-import { detachedReachability } from '../fixtures/reachability.js';
+import { createQueryCachePrimary } from '../query-cache-primary.js';
+import { QueryCacheSyncMemo } from '../query-cache-sync-memo.js';
+import { noPendingWrites } from './fixtures/pending-writes.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 @Entity({
   name: 'DecodedRecipe',

@@ -25,6 +25,7 @@ import {
   type IRxDBAdapter,
   type RuleGroup
 } from '@aiao/rxdb';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -810,6 +811,9 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
       entities: [WireChunkRecipe],
       sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
     });
+    // 读引擎随 `@aiao/rxdb-plugin-querycache` 走（US-025 阶段 B）：AC#8 要的正是引擎把整份
+    // id 列表交给 `findByIds` 的那条路径，不装插件 `connect()` 会先以缺插件拒绝。
+    rxdb.use(rxDBPluginQueryCache);
     const http = new RxDBAdapterHttp(rxdb, {
       baseUrl: server.baseUrl,
       handlers: createRestHandlers({ resources: { [CHUNK_ENTITY]: RESOURCE } }),

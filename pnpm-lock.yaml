@@ -1198,6 +1198,9 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1319,6 +1322,9 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
     devDependencies:
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1363,6 +1369,9 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1490,6 +1499,18 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+
+  packages/rxdb-plugin-querycache:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
   packages/rxdb-plugin-search:
     dependencies:

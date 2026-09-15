@@ -654,6 +654,10 @@
         "kind": "value"
       },
       {
+        "name": "isEntityMatchWhere",
+        "kind": "value"
+      },
+      {
         "name": "isNetworkError",
         "kind": "value"
       },
@@ -664,6 +668,10 @@
       {
         "name": "ISortableTreeEntity",
         "kind": "type"
+      },
+      {
+        "name": "isRemoteNewer",
+        "kind": "value"
       },
       {
         "name": "isRepositorySyncEnabled",
@@ -862,6 +870,10 @@
         "kind": "value"
       },
       {
+        "name": "parseUpdatedAt",
+        "kind": "value"
+      },
+      {
         "name": "PercentageFormat",
         "kind": "type"
       },
@@ -922,6 +934,10 @@
         "kind": "type"
       },
       {
+        "name": "QueryCacheEngineFactory",
+        "kind": "type"
+      },
+      {
         "name": "QueryCacheEntity",
         "kind": "type"
       },
@@ -946,12 +962,20 @@
         "kind": "type"
       },
       {
+        "name": "QueryCachePrimary",
+        "kind": "type"
+      },
+      {
         "name": "QueryCacheRemoteAdapter",
         "kind": "type"
       },
       {
-        "name": "QueryCacheRepository",
-        "kind": "both"
+        "name": "QueryCacheSession",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCacheSessionContext",
+        "kind": "type"
       },
       {
         "name": "QueryManager",
@@ -968,6 +992,10 @@
       {
         "name": "queryNeedRefreshUpdate",
         "kind": "value"
+      },
+      {
+        "name": "QueryOptions",
+        "kind": "type"
       },
       {
         "name": "QueryTask",
@@ -1374,6 +1402,10 @@
         "kind": "type"
       },
       {
+        "name": "RxDBMissingPluginError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBMissingPrimaryAdapterError",
         "kind": "both"
       },
@@ -1408,6 +1440,14 @@
       {
         "name": "RxDBQueryCacheCapabilityError",
         "kind": "both"
+      },
+      {
+        "name": "RxDBRepositories",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBRepositoryName",
+        "kind": "type"
       },
       {
         "name": "RxDBScalar",

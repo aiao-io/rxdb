@@ -42,13 +42,23 @@ export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
 export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/need_refresh_update.js';
-export { isRuleGroup } from './query/query-matching.utils.js';
+export { isEntityMatchWhere, isRuleGroup } from './query/query-matching.utils.js';
 export * from './repository/diff-metadata.js';
 export { isNetworkError } from './repository/network-error.js';
+export type {
+  QueryCacheEngineFactory,
+  QueryCachePrimary,
+  QueryCacheSession,
+  QueryCacheSessionContext
+} from './repository/query-cache-engine.interface.js';
+export * from './repository/query-cache.interface.js';
 export * from './repository/query-options.interface.js';
 export * from './repository/query.interface.js';
-export * from './repository/QueryCacheRepository.js';
-export type { RefreshMatchRules, RepositoryQueryExtensions } from './repository/QueryManager.interface.js';
+export type {
+  QueryOptions,
+  RefreshMatchRules,
+  RepositoryQueryExtensions
+} from './repository/QueryManager.interface.js';
 // 同上，只转类型：`Repository.queryManager` 的声明类型。
 export type { QueryManager } from './repository/QueryManager.js';
 export * from './repository/QueryTask.js';
@@ -58,6 +68,7 @@ export * from './repository/Repository.js';
 export * from './repository/RepositoryBase.js';
 export * from './repository/tree-level.utils.js';
 export * from './repository/tree-repository.interface.js';
+export { isRemoteNewer, parseUpdatedAt } from './repository/updated-at.utils.js';
 export * from './rxdb-adapter.js';
 export * from './rxdb-events.js';
 export * from './rxdb-plugin.js';

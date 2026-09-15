@@ -85,6 +85,7 @@ export default defineConfig(() => ({
       '@aiao/rxdb-test/shop',
       '@aiao/rxdb',
       '@aiao/rxdb-adapter-sqlite-core',
+      '@aiao/rxdb-plugin-querycache',
       '@aiao/utils',
       'comlink',
       'rxjs',

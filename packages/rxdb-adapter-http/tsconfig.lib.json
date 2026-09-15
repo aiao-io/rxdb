@@ -26,6 +26,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-test/tsconfig.lib.json"
     },
     {

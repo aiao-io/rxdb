@@ -13,6 +13,7 @@
  */
 import type { IRxDBAdapter, QueryCacheEntityMetadata, RemoteChange, RuleGroup } from '@aiao/rxdb';
 import { Entity, EntityBase, getEntityStatus, PropertyType, RxDB, RxDBAdapterRemoteBase, SyncType } from '@aiao/rxdb';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
 import { firstValueFrom, Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -182,6 +183,10 @@ const createDatabase = async (seed: ArticleRow[]) => {
       remote: { adapter: 'memory-remote' }
     }
   });
+
+  // 读引擎在 `@aiao/rxdb-plugin-querycache`（US-025 阶段 B）；本地这一侧仍是真 sqlite-wasm，
+  // 断言的「find 原样交出本地 IRepository 的实例」一字未改。
+  rxdb.use(rxDBPluginQueryCache);
 
   let remote!: MemoryRemoteAdapter;
   rxdb.adapter(

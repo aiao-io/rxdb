@@ -74,6 +74,7 @@ export default defineConfig(() => ({
       '@aiao/rxdb-test/entities',
       '@aiao/rxdb',
       '@aiao/rxdb-adapter-wa-sqlite',
+      '@aiao/rxdb-plugin-querycache',
       '@aiao/utils',
       'comlink',
       'rxjs',

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 推翻 US-020 D5「不为 QueryCache 做乐观离线写」。写路径的分流口径与读路径
- * （`QueryCacheRepository.#wrapWithOfflineFallback`，US-020 AC#16）**逐字一致**：
+ * （`QueryCacheEngine.#wrapWithOfflineFallback`，US-020 AC#16）**逐字一致**：
  * 只有 {@link isNetworkError} 认定的网络故障才落本地，401 / 校验 / 业务错误原样上抛。
  *
  * 本地落盘必须经 `localRepository`（实体仓储）而不是 `localAdapter.upsertMany`：
@@ -11,17 +11,20 @@
  * 联网后没有任何东西可重放 —— 那是一次静默的数据丢失。
  */
 
+import type { ReachabilityMonitor } from '@aiao/rxdb';
+import {
+  Entity,
+  ENTITY_STATIC_TYPES,
+  NetworkOfflineError,
+  PropertyType,
+  SyncStateHub,
+  type QueryCacheEntityMetadata
+} from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { PropertyType, type QueryCacheEntityMetadata } from '../../entity/metadata-options.interface.js';
-import type { ReachabilityMonitor } from '../../network/reachability.js';
-import { createQueryCachePrimary } from '../../repository/query-cache-primary.js';
-import { QueryCacheSyncMemo } from '../../repository/query-cache-sync-memo.js';
-import { NetworkOfflineError } from '../../RxDBError.js';
-import { SyncStateHub } from '../../sync-state.js';
-import { detachedReachability } from '../fixtures/reachability.js';
+import { createQueryCachePrimary } from '../query-cache-primary.js';
+import { QueryCacheSyncMemo } from '../query-cache-sync-memo.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 /*
  * 只声明 `value` 一个属性，`updatedAt` 故意不进元数据。

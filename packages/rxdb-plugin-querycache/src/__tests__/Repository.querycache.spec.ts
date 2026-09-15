@@ -1,23 +1,23 @@
 /**
  * US-020 阶段 A —— QueryCache 接入统一 Repository。
  *
- * 这些用例全部经**统一 `Repository`** 断言，而不是直接 `new QueryCacheRepository`：
+ * 这些用例全部经**统一 `Repository`** 断言，而不是直接 `new QueryCacheEngine`：
  * 病灶 1 的核心正是「类是好的，生产路径打不到它」，只测类本身无法证伪。
  */
+import type { QueryOptions, RuleGroup, RxDB, SyncStats } from '@aiao/rxdb';
+import {
+  deterministicStringify,
+  ENTITY_STATIC_TYPES,
+  Repository,
+  RxDBQueryCacheCapabilityError,
+  SyncType
+} from '@aiao/rxdb';
 import { BehaviorSubject, delay, firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
-import { SyncType } from '../../entity/metadata-options.interface.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
-import type { SyncStats } from '../../repository/QueryCacheRepository.js';
-import type { QueryOptions } from '../../repository/QueryManager.interface.js';
-import { Repository } from '../../repository/Repository.js';
-import { deterministicStringify } from '../../rxdb-utils.js';
-import type { RxDB } from '../../RxDB.js';
-import { METADATA, STATUS } from '../../rxdb.private.js';
-import { RxDBQueryCacheCapabilityError } from '../../RxDBError.js';
-import { emptyOutboxVersionManager } from '../fixtures/pending-writes.js';
-import { detachedReachability } from '../fixtures/reachability.js';
+import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
+import { emptyOutboxVersionManager } from './fixtures/pending-writes.js';
+import { METADATA, STATUS } from './fixtures/private-symbols.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 class CachedEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -183,6 +183,10 @@ const setup = (
     remoteAdapter$,
     config: { sync: undefined },
     addEventListener: vi.fn(),
+    // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经
+    // `rxdb.queryCacheEngine()` 填槽，手搭的 `rxdb` 替身得把这个槽补上。用真工厂而不是桩：
+    // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
+    getQueryCacheEngine: () => new RxDBQueryCacheEngineFactory(),
     reachability: detachedReachability(),
     versionManager: emptyOutboxVersionManager(),
     entityManager: { createEntityRef: vi.fn((_type: unknown, entity: CachedEntity) => entity) }
@@ -372,7 +376,7 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await vi.waitFor(() => expect(plain.localAdapter.upsertMany).toHaveBeenCalledTimes(2));
   });
 
-  // AC#16 经统一 Repository 复验（US-214 发现）：`QueryCacheRepository` 早就实现了
+  // AC#16 经统一 Repository 复验（US-214 发现）：`QueryCacheEngine` 早就实现了
   // offlineFallback，但 `QueryCachePrimaryRepository.find` 只透传 where / localCacheFirst /
   // onSyncStats，这个字段在生产路径上被丢掉。症状与病灶 1 同型 ——「类是好的，
   // 生产路径打不到它」，所以断言必须经门面发起。

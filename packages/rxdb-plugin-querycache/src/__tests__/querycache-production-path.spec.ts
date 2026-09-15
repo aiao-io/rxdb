@@ -5,7 +5,7 @@
  * 这份盯两件别处证明不了的事 ——
  *
  * - **AC#18**：US-203 AC#6 与 US-006 AC#6 这两条已经 ✅ 的验收，在 `getRepository` 的生产
- *   路径上仍然成立。它们原先只在适配器单测 / `QueryCacheRepository` 类测里被证明过，
+ *   路径上仍然成立。它们原先只在适配器单测 / `QueryCacheEngine` 类测里被证明过，
  *   而病灶 1 的形态恰恰是「类是好的、生产路径打不到它」。此处按 `sqlite` + `supabase`
  *   两个注册名接线，经 `entityManager.getRepository()` 复现，不动那两个故事的 ✅。
  * - **AC#20**：缓存写与孤儿清理都是**可丢弃投影**上的操作，不得留下 Full 同步那种
@@ -14,16 +14,20 @@
  *   在真实适配器里走的是 `transaction(..., false)`（不记事务日志）。所以断言口径是：
  *   QueryCache 只碰后两个 duck，前两条路一次都不亮。
  */
+import type { IRxDBAdapter, RuleGroup } from '@aiao/rxdb';
+import {
+  Entity,
+  ENTITY_STATIC_TYPES,
+  EntityBase,
+  isEntityMatchWhere,
+  PropertyType,
+  RxDB,
+  SyncType,
+  type EntityUpdateData
+} from '@aiao/rxdb';
 import { delay, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EntityBase } from '../../entity/entity-base.js';
-import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES, type EntityUpdateData } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
-import { isEntityMatchWhere } from '../../query/query-matching.utils.js';
-import type { RuleGroup } from '../../repository/query.interface.js';
-import type { IRxDBAdapter } from '../../rxdb-adapter.js';
-import { RxDB } from '../../RxDB.js';
+import { RxDBQueryCacheEngineFactory } from '../query-cache-engine.factory.js';
 
 @Entity({
   name: 'CachedArticle',
@@ -220,6 +224,9 @@ const createDatabase = (dbName: string, localRows: Row[], remoteRows: Row[], rem
   });
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
+  // 读引擎搬进本包后不再由 `Repository` 直构造（US-025 B1）。这里直填槽位而不是
+  // `rxdb.plugin(rxDBPluginQueryCache())`：本用例只跑到 `init()`，而插件安装排在 `connect()`。
+  rxdb.queryCacheEngine(new RxDBQueryCacheEngineFactory());
   rxdb.init();
   // `Row` 是适配器口径的原始行（`updatedAt` 是 ISO 串），实体口径是 `Date`，两端在这里对接
   local.attach(

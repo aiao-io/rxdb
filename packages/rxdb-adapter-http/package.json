@@ -56,6 +56,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-test": "workspace:*"
   }
 }

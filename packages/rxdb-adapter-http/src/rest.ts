@@ -61,7 +61,7 @@ export interface RestHandlersOptions {
    * **给对象** = 用它；**给 `null`** = 不产出该 handler。
    *
    * `null` 是有意义的一档而不是冗余写法：写 duck 的「不支持」在 core 侧表现为**属性缺席**
-   * （`QueryCacheRepository` 用 `if (!this.remoteAdapter.create)` 特性探测），
+   * （`QueryCacheEngine` 用 `if (!this.remoteAdapter.create)` 特性探测），
    * 只读后端必须能把 `create` 关掉，否则 `repo.create()` 会发出一个注定 405 的请求，
    * 而不是 AC#4 那句清晰的「Remote adapter does not support create」。
    *

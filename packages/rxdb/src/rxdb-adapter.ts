@@ -3,6 +3,8 @@ import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
+import type { Repository } from './repository/Repository.js';
+import type { TreeRepository } from './repository/TreeRepository.js';
 import { RxDB } from './RxDB.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
@@ -361,7 +363,7 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    *
    * **1. 恰好发射一次全量结果，然后 `complete`。**
    * 分页实现要把所有页拼好再发一次，不能每页一发。原因是两个调用点的语义正好相反：
-   * - `QueryCacheRepository`（`#syncQuery` / `#syncAndReadLocal`）用 `forkJoin` —— 只保留**最后一次**
+   * - `QueryCacheEngine`（`#syncQuery` / `#syncAndReadLocal`）用 `forkJoin` —— 只保留**最后一次**
    *   发射，且**不 complete 就永远不产出**。逐页发射会静默丢掉除末页以外的全部元数据，
    *   进而把它们误判成 orphan 并从本地缓存中驱逐。
    * - `query-cache-primary` 的 `#fetchMetadata` 用 `firstValueFrom` —— 只取**第一次**发射。
@@ -463,3 +465,44 @@ export interface RxDBAdapters {}
  * 同时保留 {@link RxDBAdapters} 已注册键的自动补全 —— 直接写 `string` 会把补全全吃掉。
  */
 export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
+
+/**
+ * 已注册门面仓储的类型注册表
+ *
+ * @remarks
+ * 门面轴（`@Entity({ repository: 'X' })` → `getRepository(E)` 拿到什么）的名字表。
+ * 核心自带 `Repository` / `TreeRepository` 两项（由 `EntityManager` 的构造函数登记到运行期），
+ * 插件包用 `declare module '@aiao/rxdb'` 把自己的门面合并进来，与核心两项同为一等公民。
+ *
+ * 与 {@link RxDBAdapters} 同一套模板，同一个禁忌：**绝不能加索引签名**。
+ * 一旦加上，`keyof RxDBRepositories` 就塌成 `string`，所有 `declare module` 静默失效。
+ * 「名字可以是任意字符串」这件事由 {@link RxDBRepositoryName} 的 `(string & {})` 那一支承担。
+ *
+ * 值写成 `typeof X`（构造器类型）而非实例类型：三个门面的类型形参都无默认值，
+ * 实例类型在这里写不出来，而注册表要的本来就是「哪个类」。
+ *
+ * @example
+ * ```ts
+ * declare module '@aiao/rxdb' {
+ *   interface RxDBRepositories {
+ *     GraphRepository: typeof GraphRepository;
+ *   }
+ * }
+ * ```
+ */
+export interface RxDBRepositories {
+  Repository: typeof Repository;
+  TreeRepository: typeof TreeRepository;
+}
+
+/**
+ * 门面仓储名称
+ *
+ * @remarks
+ * `(string & {})` 那一支让未注册类型的门面名照样传得进 `@Entity({ repository })`，
+ * 同时保留 {@link RxDBRepositories} 已注册键的自动补全。
+ *
+ * 类型放宽**不代表**运行期放宽：名字没经 `RxDB.repository()` 登记过，
+ * `EntityManager.init()` 仍按 `Repository '<name>' not found for entity '<entity>'` 抛错。
+ */
+export type RxDBRepositoryName = keyof RxDBRepositories | (string & {});

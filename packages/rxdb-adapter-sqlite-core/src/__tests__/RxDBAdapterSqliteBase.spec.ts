@@ -1107,10 +1107,10 @@ describe('RxDBAdapterSqliteBase', () => {
   });
 
   // 本包所有物理表名都由 get_table_name(name, namespace) => `${namespace}$${name}` 生成，
-  // 而 QueryCacheRepository 传进来的是**逻辑实体名**（如 'Todo'）。此前三个方法把它直接当表名，
+  // 而 QueryCacheEngine 传进来的是**逻辑实体名**（如 'Todo'）。此前三个方法把它直接当表名，
   // 真机执行必然 `no such table: Todo`；updatedAt 也被硬编码为列名，自定义 columnName 的实体会再次失败。
   // 对照 PGlite 适配器同名方法，它走的是 schemaManager.getEntityMetadata → metadata.tableName。
-  // QueryCache 的 upsertMany / deleteByIds 是**真实数据写路径**（QueryCacheRepository 的
+  // QueryCache 的 upsertMany / deleteByIds 是**真实数据写路径**（QueryCacheEngine 的
   // create/update/delete/pull 全经此写本地缓存），由 RxJS Observable 驱动、落地时机不可控。
   // 它们原先走 internalQuery → 不入队、不看 #transaction_lock，而 #client() 是同一个连接，
   // 于是只要有 transaction() 在跑，这些写入就会被该事务的 ROLLBACK 一并回滚 ——

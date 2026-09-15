@@ -732,7 +732,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   // QueryCache 方法
   //
-  // 三个方法一律走 query() 而非 internalQuery()：它们是 QueryCacheRepository 的真实数据
+  // 三个方法一律走 query() 而非 internalQuery()：它们是 QueryCacheEngine 的真实数据
   // 读写路径，由 RxJS Observable 驱动、落地时机不可控。internalQuery 旁路队列并复用同一连接，
   // 落在事务窗口内会被该事务的 ROLLBACK 一并回滚，或反向污染尚未提交的事务。
   // query() 通过 #queue 串行化，事务体内则由 executor 门面直接使用当前连接。
@@ -1019,7 +1019,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    *
    * @remarks
    * 本包所有物理表名都由 `get_table_name(name, namespace) => \`${namespace}$${name}\`` 生成，
-   * 而 `QueryCacheRepository` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
+   * 而 `QueryCacheEngine` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
    * 真机执行必然 `no such table: Todo`。`updatedAt` 同理要经 `propertyMap` 映射，
    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
    *

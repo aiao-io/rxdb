@@ -311,6 +311,14 @@ const is_entity_match_rule_group_or_rule = (
 
 /**
  * 判断实体是否匹配规则组
+ *
+ * @remarks
+ * 与 SQL 侧 `WHERE` 求值同一套语义（空 `and` 组匹配全部、空 `or` 组同样匹配全部），
+ * 因此可以用它在内存里复算适配器本应下推给 SQL 的过滤条件。
+ *
+ * @param entity - 待判定的实体；`null` / `undefined`（INSERT 的 inversePatch、DELETE 的 patch）一律不匹配
+ * @param ruleGroup - 规则组
+ * @returns 命中返回 `true`
  */
 export const isEntityMatchWhere = <T>(entity: object | null | undefined, ruleGroup: RuleGroup<T>): boolean => {
   // INSERT 的 inversePatch 和 DELETE 的 patch 都是 null

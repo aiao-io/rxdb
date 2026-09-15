@@ -54,7 +54,7 @@ export class RxDBPartialSyncError<T = unknown> extends RxDBError {
  * 继承 `RxDBAdapterLocalBase` / `RxDBAdapterRemoteBase` 的适配器由 `abstract` 成员在**编译期**
  * 保证这些 duck 存在，永远走不到这条错误；它只服务于不继承 base 的自定义适配器对象。
  *
- * 之所以抛而不是降级：`QueryCacheRepository` 此前缺 duck 时返回空数组，
+ * 之所以抛而不是降级：`QueryCacheEngine` 此前缺 duck 时返回空数组，
  * 调用方看到的是「远端没有数据」而不是「本地读不出来」—— 缓存故障被伪装成业务结果。
  *
  * @example
@@ -127,6 +127,46 @@ export class RxDBLocalAdapterCapabilityError extends RxDBError {
     );
     this.name = 'RxDBLocalAdapterCapabilityError';
     Object.setPrototypeOf(this, RxDBLocalAdapterCapabilityError.prototype);
+  }
+}
+
+/**
+ * 声明了某个策略、却没装提供它的插件。
+ *
+ * @remarks
+ * US-025 阶段 B 把 QueryCache 读引擎搬进 `@aiao/rxdb-plugin-querycache`，但
+ * `SyncType.QueryCache` 这个取值留在核心（策略轴闭合，`Repository` 的分支要靠它判定）。
+ * 缺口因此是结构性的：配置写得出来，实现可能不在。
+ *
+ * 抛在 `connect()` 里而不是等到第一次 `find()`：配置错误要在启动时响。也**不降级为本地读**
+ * —— 降级之后调用方看到的是「远端没有数据」，与 {@link RxDBQueryCacheCapabilityError}
+ * 拒绝降级是同一条理由。
+ *
+ * @example
+ * ```typescript
+ * import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+ *
+ * rxdb.use(rxDBPluginQueryCache);
+ * await rxdb.connect('sqlite');
+ * ```
+ */
+export class RxDBMissingPluginError extends RxDBError {
+  constructor(
+    /** 触发这条错误的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 该实体声明的、需要插件支撑的能力 */
+    readonly capability: string,
+    /** 要安装的包名 */
+    readonly packageName: string,
+    /** 装上之后的注册写法 */
+    readonly registration: string
+  ) {
+    super(
+      `Entity '${entity}' declares ${capability} but no engine is installed. ` +
+        `Install '${packageName}' and register it via ${registration}.`
+    );
+    this.name = 'RxDBMissingPluginError';
+    Object.setPrototypeOf(this, RxDBMissingPluginError.prototype);
   }
 }
 

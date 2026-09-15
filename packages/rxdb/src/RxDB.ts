@@ -2,9 +2,15 @@ import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
+import { SyncType } from './entity/metadata-options.interface.js';
+import { getEntitySync } from './entity/primary-adapter.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
+import {
+  missingQueryCacheEngineError,
+  type QueryCacheEngineFactory
+} from './repository/query-cache-engine.interface.js';
 import {
   AdapterFactory,
   IRxDBAdapter,
@@ -23,7 +29,7 @@ import {
   TRANSACTION_ROLLBACK
 } from './rxdb-events.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
-import { uuid } from './rxdb-utils.js';
+import { getEntityMetadata, uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
   awaitPluginInstalls,
@@ -96,6 +102,16 @@ export class RxDB {
   #destroyed = false;
 
   #repository_config_map = new Map<string, IRepositoryConfig>();
+
+  /**
+   * QueryCache 读引擎工厂 —— 由 `@aiao/rxdb-plugin-querycache` 经 {@link RxDB.queryCacheEngine} 填入。
+   *
+   * @remarks
+   * 与 {@link RxDB.#repository_config_map} 同为插件注册槽，但**不做成表**：策略轴的
+   * `SyncType` 是闭合联合（US-025 Out of Scope），这个槽的成员恒为 QueryCache 一个。
+   * 做成表只会凭空造出一个没人能往里加第二项的注册表。
+   */
+  #query_cache_engine: QueryCacheEngineFactory | undefined;
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
@@ -490,17 +506,15 @@ export class RxDB {
       // 与上一行同步成对：作用域没了而调度记录还停在 active，重新 init() 时调度器会认为
       // 「依赖纪元没变、插件还装着」而一个都不重装，拿到的是个从没重新登记过的空壳。
       this.#reset_plugin_scheduling();
-      // 三个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它们不在连接作用域里，
-      // 漏掉就没有第二个人会拆。抛错点在各自 init() 之后时具体泄漏什么：
-      // - `versionManager`：4 个事件监听器 + RxJS subscription 留在原地，重试叠第二份
-      //   （`init()` 没有幂等守卫，`#historyManagerDestroyed` 只挡二次 `destroy()`）；
-      // - `#gateway`：构造期就 `createBroadcastTopic()` + `new LeaderElection()`，通道早于
-      //   `init()` 打开；且 `#destroyed` 是终态，重试只能 new 第二个写进 `#gateway`，
-      //   旧实例从此无人引用也无人 `destroy()`——每失败一次泄漏一条 channel 加一套选举。
-      // 三步都是同步的，`init()` 作为同步 API 不需要 await。
+      // 这两个管理器的资源释放与 {@link RxDB.#shutdown} 逐条对称——它们不在连接作用域里，
+      // 漏掉就没有第二个人会拆。抛错点在 `versionManager.init()` 之后时，
+      // 它的 4 个事件监听器 + RxJS subscription 会留在原地，重试叠第二份
+      //（`init()` 没有幂等守卫，`#historyManagerDestroyed` 只挡二次 `destroy()`）。
+      //
+      // 网关**不在这里点名**：它已登记进上面刚释放的连接作用域，且作为最晚登记的一条
+      // 由 `dispose()` 在第一个 await 让路之前同步拆掉——正是 `init()` 这条同步路径需要的时序。
+      // 两步都是同步的，`init()` 作为同步 API 不需要 await。
       this.versionManager.destroy();
-      this.#gateway?.destroy();
-      this.#gateway = undefined;
       // Repository 身份缓存与实体类绑定：未 init 完就抛时是空操作，init 完之后抛才有东西可清。
       this.entityManager.destroy();
       throw error;
@@ -538,6 +552,40 @@ export class RxDB {
       this.#repository_config_map.set(repositoryName, config);
       return () => this.#unregister_repository(repositoryName, config);
     }, `rxdb:repository:${repositoryName}`);
+    return this;
+  }
+
+  /**
+   * 注册 QueryCache 读引擎工厂
+   *
+   * @param factory - 引擎工厂，见 {@link QueryCacheEngineFactory}
+   * @param scope - 传入时，本次注册会随作用域释放而撤销；不传则永久有效
+   *
+   * @remarks
+   * 形状逐条对齐 {@link RxDB.repository}：撤销按**工厂对象身份**守卫（释放时槽里已换成
+   * 别人的工厂，说明有更晚的注册覆盖了本次，此时什么都不做），且**写槽这一步本身**放在
+   * `acquire()` 的 `setup` 里 —— 作用域已不是 `active` 时 `acquire()` 同步抛且不执行
+   * `setup`，注册于是也不发生，不会留下一条没人能撤销的孤儿登记。
+   *
+   * 与门面轴的 `repository()` 的区别只在被登记的东西：那一条决定 `getRepository(E)` 的
+   * 公开面，这一条只填 `SyncType.QueryCache` 的读实现，不改任何公开面。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+   *
+   * rxdb.use(rxDBPluginQueryCache);
+   * ```
+   */
+  public queryCacheEngine(factory: QueryCacheEngineFactory, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#query_cache_engine = factory;
+      return this;
+    }
+    scope.acquire(() => {
+      this.#query_cache_engine = factory;
+      return () => this.#unregister_query_cache_engine(factory);
+    }, 'rxdb:query-cache-engine');
     return this;
   }
 
@@ -624,6 +672,19 @@ export class RxDB {
    */
   getRepositoryConfig(repositoryName: string): IRepositoryConfig | undefined {
     return this.#repository_config_map.get(repositoryName);
+  }
+
+  /**
+   * 取已注册的 QueryCache 读引擎工厂
+   *
+   * @returns 装了插件时是工厂本身，否则 `undefined`
+   *
+   * @remarks
+   * `undefined` 是有意暴露出来的：调用方要自己抛 {@link RxDBMissingPluginError}，
+   * 而不是在这里代抛 —— `connect()` 的启动护栏要点名**具体哪个实体**，这一层不知道。
+   */
+  getQueryCacheEngine(): QueryCacheEngineFactory | undefined {
+    return this.#query_cache_engine;
   }
 
   /**
@@ -728,6 +789,9 @@ export class RxDB {
       bootstrapDone();
       try {
         await this.#await_plugin_installs();
+        // 与上一行同一个 try：护栏抛出时，下面那段回滚（摘出已连接集合 + 让调度器释放
+        // 依赖它的插件）与插件安装失败走的是同一条路——连接已经建起来了，不能留着。
+        this.#assert_query_cache_engine();
       } catch (error) {
         // 本适配器的引导没有走完，不能留在已连接集合里。聚合信号只在真的一个都不剩时才落下，
         // 否则别的连着的适配器会被一起误报成断开。
@@ -1051,10 +1115,9 @@ export class RxDB {
     await this.#destroy_plugin();
     // 总闸：#destroy_plugin 漏掉的（安装失败后残留的子作用域等）在这里一并释放，
     // 并把字段置空 —— 下一次 init() 拿到的是全新的连接纪元作用域。
+    // 网关也在这条线上：它随连接纪元登记，作用域逆序释放让它先于 versionManager 拆掉。
     await this.#release_connection_scope();
     this.versionManager.destroy();
-    this.#gateway?.destroy();
-    this.#gateway = undefined;
     // 清空 Repository 身份缓存：不清的话，断线重连后 getRepository() 仍会永久复用
     // 断连前那批缓存实例，携带的是断连时刻的陈旧实体状态。
     this.entityManager.destroy();
@@ -1074,17 +1137,42 @@ export class RxDB {
     this.#connected_sub.next(false);
   }
 
+  /**
+   * 构造跨 tab 网关并登记进当前连接纪元的作用域。
+   *
+   * @remarks
+   * 拆成**两次** `acquire()` 而不是一次包两步：网关在**构造期**就
+   * `createBroadcastTopic()` + `new LeaderElection()`，通道早于 `init()` 打开。
+   * 合成一次的话，`init()` 抛错时整条登记不进清单（本原语的既定语义），
+   * 那条已经打开的 channel 和那套选举就没有任何人拆得到。
+   *
+   * 第二次 `acquire()` 返回 `undefined`：`init()` 装的三个转发监听器由
+   * `gateway.destroy()` 一并摘除，也就是上一条登记的撤销动作，这里没有独立的逆操作。
+   */
   #init_gateway() {
-    this.#gateway = new RxDBTabsGateway({
-      dbName: this.#config.dbName,
-      clientId: this.#context.clientId!
-    });
+    const scope = this.#ensure_connection_scope();
 
-    this.#gateway.init(
-      event => this.dispatchEvent(event),
-      (type, listener) => this.addEventListener(type as keyof RxDBEventMap, listener),
-      (type, listener) => this.removeEventListener(type as keyof RxDBEventMap, listener)
-    );
+    scope.acquire(() => {
+      const instance = new RxDBTabsGateway({
+        dbName: this.#config.dbName,
+        clientId: this.#context.clientId!
+      });
+      this.#gateway = instance;
+      return () => {
+        instance.destroy();
+        // 只在自己还挂在字段上时才清：重连已写进新实例时，清空会把新纪元的网关抹掉。
+        if (this.#gateway === instance) this.#gateway = undefined;
+      };
+    }, 'rxdb:gateway');
+
+    scope.acquire(() => {
+      this.#gateway?.init(
+        event => this.dispatchEvent(event),
+        (type, listener) => this.addEventListener(type as keyof RxDBEventMap, listener),
+        (type, listener) => this.removeEventListener(type as keyof RxDBEventMap, listener)
+      );
+      return undefined;
+    }, 'rxdb:gateway:init');
   }
 
   /**
@@ -1158,6 +1246,32 @@ export class RxDB {
   /** 撤销 {@link RxDB.repository} 的一次注册，按配置对象身份守卫。 */
   #unregister_repository(repositoryName: string, config: IRepositoryConfig): void {
     unregisterRepository(this.#pluginHost, repositoryName, config);
+  }
+
+  /** 撤销 {@link RxDB.queryCacheEngine} 的一次注册，按工厂对象身份守卫。 */
+  #unregister_query_cache_engine(factory: QueryCacheEngineFactory): void {
+    if (this.#query_cache_engine !== factory) return;
+    this.#query_cache_engine = undefined;
+  }
+
+  /**
+   * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有引擎可用。
+   *
+   * @throws {@link RxDBMissingPluginError} 有这样的实体而引擎槽是空的
+   *
+   * @remarks
+   * 放在 `#await_plugin_installs()` **之后**：插件正是在那一趟里调用
+   * {@link RxDB.queryCacheEngine} 的，早一步检查必然误报。
+   *
+   * 逐个实体扫而不是只判「有没有」，是为了让错误点名第一个受影响的实体 —— 「某处配置错了」
+   * 这种错误信息，与不报没有区别。
+   */
+  #assert_query_cache_engine(): void {
+    if (this.#query_cache_engine !== undefined) return;
+    for (const EntityType of this.#config.entities) {
+      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      throw missingQueryCacheEngineError(getEntityMetadata(EntityType).name);
+    }
   }
 
   /** 表就绪后等待已经开工的插件安装。 */
