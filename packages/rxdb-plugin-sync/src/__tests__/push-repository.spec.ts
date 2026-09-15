@@ -23,9 +23,9 @@ import {
   type TransactionExecutorFun,
   type UUID
 } from '@aiao/rxdb';
+import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
 import type { SyncManager } from '../SyncManager.js';
 import { Post, User } from './fixtures/test-entities.js';

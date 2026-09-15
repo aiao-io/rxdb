@@ -1,4 +1,3 @@
-import { isIgnorableDetachedVersionEventError } from '@aiao/rxdb-plugin-history';
 import {
   countQueryCacheOutbox,
   ENTITY_REMOTE_CREATE_EVENT,
@@ -16,6 +15,7 @@ import {
   type RepositoryIdentifier,
   type SyncStateHub
 } from '@aiao/rxdb';
+import { isIgnorableDetachedVersionEventError } from '@aiao/rxdb-plugin-history';
 import { combineLatest, merge, type Observable, Subscription } from 'rxjs';
 import { distinctUntilChanged, exhaustMap, filter, map, withLatestFrom } from 'rxjs/operators';
 import type { SyncManager } from './SyncManager.js';

@@ -1,5 +1,4 @@
 import {
-  EntityType,
   getCurrentBranch,
   getEntityMetadata,
   getLocalSystemRepositories,
@@ -22,11 +21,11 @@ import { getAllRepositorySyncStatus, type GetAllRepositorySyncStatusFilter } fro
 import { getRepositorySyncStatus, type RepositorySyncStatus } from './get-repository-sync-status.js';
 import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult } from './pull-repository.js';
 import { pull } from './pull.js';
-import { push } from './push.js';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
-import { hasSyncedData, partialResultOf } from './sync-manager.utils.js';
+import { push } from './push.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
+import { hasSyncedData, partialResultOf } from './sync-manager.utils.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
 

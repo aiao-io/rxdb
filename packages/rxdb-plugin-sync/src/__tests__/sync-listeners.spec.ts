@@ -22,9 +22,9 @@ import {
   SyncStateHub,
   SyncType
 } from '@aiao/rxdb';
+import type { SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
 import { setupSyncListeners } from '../sync-listeners.js';
 import type { SyncManager } from '../SyncManager.js';
 import { detachedReachability } from './fixtures/reachability.js';

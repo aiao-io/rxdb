@@ -44,9 +44,9 @@ import {
   SyncType,
   type TransactionFun
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { type Mock, vi } from 'vitest';
-import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '../../plugin.js';
 import { TEST_ENTITIES } from './test-entities.js';
 

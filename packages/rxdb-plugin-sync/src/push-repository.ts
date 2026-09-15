@@ -30,12 +30,12 @@ import {
   type SwitchVersionChange,
   type SyncFailure
 } from '@aiao/rxdb';
+import type { PushInFlightSession } from '@aiao/rxdb-plugin-history';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
-import type { PushInFlightSession } from '@aiao/rxdb-plugin-history';
-import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
 import type { SyncManager } from './SyncManager.js';
+import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
 /**
  * 推送仓库选项
  */

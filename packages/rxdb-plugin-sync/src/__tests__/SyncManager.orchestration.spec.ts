@@ -542,4 +542,83 @@ describe('SyncManager 对协作模块的编排契约', () => {
     expect(harness.remoteAdapter.getRepository).toHaveBeenNthCalledWith(1, RxDBBranch);
     expect(harness.remoteAdapter.getRepository).toHaveBeenNthCalledWith(2, RxDBChange);
   });
+
+  describe('undo 边界与部分失败', () => {
+    // US-025 阶段 D 之前这组用例住在历史包的 `VersionManager.spec.ts` 里，跟着方法一起搬过来。
+    // 判据统一是 `historyInvalidated` 而非 `pulled`：拉回来的变更可能被压缩全部抵消，
+    // 那种情况下本地实体数据一个字节都没变，清空用户的 undo 栈没有任何依据。
+
+    it('部分失败但只推进了水位线时不动 undo 边界', async () => {
+      const { manager, history } = createHarness();
+      const untouched = { ...createPullResult(2), applied: 0, compacted: 2, historyInvalidated: false };
+      doubles.delegates.pull.mockRejectedValue(new RxDBPartialSyncError(untouched, new Error('repo pull failed')));
+
+      await expect(manager.pull()).rejects.toBeInstanceOf(RxDBPartialSyncError);
+
+      expect(history.settleAbortedPull).toHaveBeenCalledWith(7, 2);
+      expect(history.clearUndoHistory).not.toHaveBeenCalled();
+    });
+
+    it('普通错误既不结算已落库条数也不动 undo 边界', async () => {
+      const { manager, history } = createHarness();
+      const plainError = new Error('network down');
+      doubles.delegates.pull.mockRejectedValue(plainError);
+
+      await expect(manager.pull()).rejects.toBe(plainError);
+
+      expect(history.settleAbortedPull).toHaveBeenCalledWith(7, 0);
+      expect(history.clearUndoHistory).not.toHaveBeenCalled();
+    });
+
+    // RXD-031 D：fetchAll 多轮拉取中途失败时，前面几轮的事务已经真实提交
+    it.each([
+      ['改写了本地数据', true, 1],
+      ['只推进了水位线', false, 0]
+    ])('pullRepository 部分失败且%s时清空 %d 次 undo 历史', async (_label, historyInvalidated, expected) => {
+      const { manager, history } = createHarness();
+      const partial = {
+        repository: { namespace: 'public', entity: 'Todo' },
+        pulled: 4,
+        compacted: 0,
+        applied: historyInvalidated ? 2 : 0,
+        hasMore: true,
+        conflictsResolved: 0,
+        conflictsDeferred: 0,
+        persistedProgress: true,
+        historyInvalidated,
+        failures: []
+      };
+      const partialError = new RxDBPartialSyncError(partial, new Error('round 2 failed'));
+      doubles.delegates.pullRepository.mockRejectedValue(partialError);
+
+      await expect(manager.pullRepository('public', 'Todo')).rejects.toBe(partialError);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
+    });
+
+    // RXD-068：失败仓库在失败前可能已经提交了部分进度，它藏在 `item.error.result` 里。
+    // 只看 `item.result` 会漏掉这部分 —— 远端数据已落库，用户却仍能 undo 回同步前状态，
+    // 重新制造本地/远端分叉。
+    it('bulkSync 里失败仓库携带的 partial 进度也要推进 undo 边界', async () => {
+      const { manager, history } = createHarness();
+      const partialError = new RxDBPartialSyncError(
+        {
+          pullResult: { pulled: 4, compacted: 0, applied: 4, hasMore: false },
+          persistedProgress: true,
+          historyInvalidated: true
+        },
+        new Error('second page failed')
+      );
+      doubles.delegates.bulkSync.mockResolvedValue({
+        succeeded: 0,
+        failed: 1,
+        results: [{ repository: { namespace: 'public', entity: 'User' }, success: false, error: partialError }],
+        durationMs: 3
+      });
+
+      await manager.bulkSync();
+
+      expect(history.clearUndoHistory).toHaveBeenCalledOnce();
+    });
+  });
 });
