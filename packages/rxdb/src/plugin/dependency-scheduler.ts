@@ -69,6 +69,15 @@ interface PluginActivation {
   state: PluginActivationState;
   /** 本次安装绑定的依赖实例元组；未安装时为空 */
   deps: readonly object[];
+  /**
+   * 正在释放的那次安装所绑定的依赖元组，释放**真正落地**后才清空。
+   *
+   * 「谁依赖我」只能按依赖实例反查，而 `deps` 在进入 `disposing` 的那一刻就得清掉
+   * （它代表的是「当前这次安装绑着谁」，作用域都要撤了自然不再绑任何东西）。
+   * 两件事挤在一个字段上，仍在释放的依赖方就会从反向依赖图里消失，提供方于是
+   * 先于它失效（INV-7）。拆成两个字段，反查覆盖 `deps ∪ releasing`。
+   */
+  releasing: readonly object[];
   scope: LifecycleScope | undefined;
   /** `install()` 的返回值；`connect()` 靠它传播安装失败 */
   installPromise: Promise<void> | undefined;
@@ -139,6 +148,7 @@ export class PluginDependencyScheduler {
     this.#activations.set(plugin, {
       state: 'registered',
       deps: EMPTY_EPOCH,
+      releasing: EMPTY_EPOCH,
       scope: undefined,
       installPromise: undefined,
       inFlight: undefined,
@@ -279,6 +289,7 @@ export class PluginDependencyScheduler {
     for (const activation of this.#activations.values()) {
       activation.state = 'registered';
       activation.deps = EMPTY_EPOCH;
+      activation.releasing = EMPTY_EPOCH;
       activation.scope = undefined;
       activation.installPromise = undefined;
       activation.inFlight = undefined;
@@ -346,12 +357,14 @@ export class PluginDependencyScheduler {
     const scope = activation.scope;
     activation.state = 'disposing';
     activation.scope = undefined;
+    activation.releasing = activation.deps;
     activation.deps = EMPTY_EPOCH;
     activation.installPromise = undefined;
     this.#startTransition(activation, async () => {
       // 逆拓扑：依赖本插件的那些先释放完，本插件的作用域才撤（INV-7 / AC#13）
       await this.#releaseDependents(plugin);
       if (scope !== undefined) await this.#host.releaseScope(plugin, scope);
+      activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       // 释放期间依赖可能已经以新实例回来了，落地后必须重新对齐（AC#8）
       activation.recheck = true;
@@ -364,9 +377,11 @@ export class PluginDependencyScheduler {
    * @param target - 正在释放的插件实例
    *
    * @remarks
-   * 反查靠 `deps` 里的**实例引用**——`plugin:*` 解析出来的就是提供方实例本身（INV-3），
-   * 于是调度器不需要认识任何名字就能回答「谁依赖我」。递归必然终止：依赖成环在安装
-   * 规划阶段就被拒了（AC#16），图上不存在回边。
+   * 反查靠 `deps` 与 `releasing` 里的**实例引用**——`plugin:*` 解析出来的就是提供方实例
+   * 本身（INV-3），于是调度器不需要认识任何名字就能回答「谁依赖我」。两个字段都要看：
+   * 依赖方一旦进入 `disposing`，绑定关系就搬到了 `releasing`，只看 `deps` 会让它在作用域
+   * 真正撤掉之前从图上消失。递归必然终止：依赖成环在安装规划阶段就被拒了（AC#16），
+   * 图上不存在回边。
    *
    * 处于 `installing` 的依赖方**不自己释放，但一定要等**：那个作用域的唯一释放点是
    * {@link PluginDependencyScheduler.#applyInstallResult} 的纪元校验（本插件的 `disposing`
@@ -384,7 +399,7 @@ export class PluginDependencyScheduler {
     for (;;) {
       const pending: Promise<void>[] = [];
       for (const [plugin, activation] of this.#activations) {
-        if (!activation.deps.includes(target)) continue;
+        if (!activation.deps.includes(target) && !activation.releasing.includes(target)) continue;
         // 递归发生在 `#release` 内部：依赖方自己的依赖方更早被释放，孙子先于儿子
         if (activation.inFlight === undefined && activation.state === 'active') this.#release(plugin, activation);
         if (activation.inFlight !== undefined) pending.push(activation.inFlight);
@@ -446,9 +461,12 @@ export class PluginDependencyScheduler {
     if (!target.satisfied || !epochEquals(activation.deps, target.deps)) {
       activation.state = 'disposing';
       activation.scope = undefined;
+      // 与 `#release` 同一条理由：作用域还没撤完，反查就还得找得到本插件（INV-7）
+      activation.releasing = activation.deps;
       activation.deps = EMPTY_EPOCH;
       activation.installPromise = undefined;
       await this.#host.releaseScope(plugin, scope);
+      activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       activation.recheck = true;
       return;

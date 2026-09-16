@@ -22,10 +22,7 @@ test('SyncManager 上找不到名单里的方法 —— 名单已过期', () => 
   assert.ok(offenders.some(o => o.includes('SyncManager 上没有 syncRepository()')));
 });
 
-// 这一条正是 next-0915 评审里 collaboration/sync.md 的真实形态：
-// 文档写 `const vm = rxdb.versionManager` 之后全程调 `vm.syncRepository()`，
-// 单看调用行看不出问题 —— 所以判据取「同一文件里出现过 versionManager.<movedMethod>(」
-test('versionManager 上调用已搬走的同步方法被抓出来', () => {
+test('versionManager 上直接调用已搬走的同步方法被抓出来', () => {
   const text = [
     '# 同步',
     '',
@@ -57,6 +54,52 @@ test('普通代码块里的删除行照抓 —— 只有 diff 围栏才有豁免
   assert.ok(auditDoc('docs/x.md', text).some(o => o.includes('versionManager.push()')));
 });
 
+// 这才是 next-0915 评审里 collaboration/sync.md 在 merge-base 上的真实形态：
+// `const vm = rxdb.versionManager` 之后全程调 `vm.syncRepository()`，
+// 调用行里根本不出现 `versionManager.` —— 只看调用行的判据一条都抓不到
+test('别名调用：const vm = rxdb.versionManager 之后调 vm.syncRepository()', () => {
+  const text = [
+    '# 同步',
+    '',
+    '```ts',
+    'const vm = rxdb.versionManager;',
+    'await vm.syncRepository("public", "Todo");',
+    '```',
+    '',
+    '装 @aiao/rxdb-plugin-history 才有这个槽位。'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/sync.md', text), [
+    'docs/sync.md:5 -> vm.syncRepository() 走的是 versionManager，已移到 syncManager'
+  ]);
+});
+
+test('别名绑的是 syncManager 就不算 —— 那正是迁移之后的写法', () => {
+  const text = [
+    '```ts',
+    'const sync = rxdb.syncManager;',
+    'await sync.push();',
+    '```',
+    '@aiao/rxdb-plugin-sync'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/sync.md', text), []);
+});
+
+test('```diff 删除行里的别名绑定不登记 —— 那是「旧写法长这样」', () => {
+  const text = [
+    '```diff',
+    '-const vm = rxdb.versionManager;',
+    '-await vm.push();',
+    '+const sync = rxdb.syncManager;',
+    '+await sync.push();',
+    '```',
+    '@aiao/rxdb-plugin-history 与 @aiao/rxdb-plugin-sync'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/migration.md', text), []);
+});
+
 test('用到 versionManager 却不提 history 包', () => {
   const offenders = auditDoc('docs/branch.md', 'await rxdb.versionManager.createBranch("f1");');
 
@@ -82,15 +125,40 @@ test('用到 syncManager 却不提 sync 包', () => {
 test('QueryCache 示例只列一个包 —— 缺的 sync / history 被点名', () => {
   const text = ['pnpm add @aiao/rxdb-plugin-querycache', 'rxdb.use(rxDBPluginQueryCache);'].join('\n');
 
+  // 包名与 use() 是两条独立判据：这份示例两条都不满足，两条都要点名
   assert.deepEqual(auditDoc('docs/qc.md', text), [
-    'docs/qc.md -> QueryCache 示例缺包：@aiao/rxdb-plugin-sync、@aiao/rxdb-plugin-history'
+    'docs/qc.md -> QueryCache 示例缺包：@aiao/rxdb-plugin-sync、@aiao/rxdb-plugin-history',
+    'docs/qc.md -> QueryCache 示例缺 use()：rxDBPluginSync、rxDBPluginHistory'
   ]);
 });
 
-test('三个包齐全时放行', () => {
+// 列全包名 ≠ 装全插件：这正是 packages/rxdb-adapter-http/README.md 的真实形态
+test('QueryCache 示例包名列全了、却只 use() 了一个 —— 照抄仍然 connect() 失败', () => {
   const text = [
     'pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-querycache',
     'rxdb.use(rxDBPluginQueryCache);'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/qc.md', text), [
+    'docs/qc.md -> QueryCache 示例缺 use()：rxDBPluginSync、rxDBPluginHistory'
+  ]);
+});
+
+test('三个包装齐、也都 use() 了才放行', () => {
+  const text = [
+    'pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-querycache',
+    'rxdb.use(rxDBPluginHistory);',
+    'rxdb.use(rxDBPluginSync);',
+    'rxdb.use(rxDBPluginQueryCache);'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/qc.md', text), []);
+});
+
+test('只在正文提到工厂名、没有 use() 调用的文档不被牵连', () => {
+  const text = [
+    '本包导出 rxDBPluginQueryCache。',
+    '@aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-querycache'
   ].join('\n');
 
   assert.deepEqual(auditDoc('docs/qc.md', text), []);

@@ -140,6 +140,11 @@ async function settleWith(...plugins: IRxDBPlugin[]): Promise<void> {
   await scheduler.settle();
 }
 
+/** 排空微任务队列：断言「此刻还没轮到谁」时要先让在飞的转移跑到挂起点。 */
+async function flush(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 0));
+}
+
 describe('纪元身份（INV-3 / AC#6）', () => {
   it('AC#6 同名适配器换成新实例、中途从未变为空，仍算一次纪元变化', async () => {
     const first = { id: 'adapter-1' };
@@ -540,6 +545,78 @@ describe('插件间依赖（阶段 B：AC#13）', () => {
     expect(host.scopes.map(scope => scope.state)).toEqual(['disposed', 'disposed']);
     expect(scheduler.activationState(search)).toBe('waiting');
     expect(scheduler.activationState(consumer)).toBe('waiting');
+  });
+
+  it('依赖方先注册、拆卸又是异步的时候，提供方要等它释放完才撤（INV-7 的注册序形态）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const gate = deferred();
+    const provider = provide(new TestPlugin('provider', [LOCAL]));
+    // 两个插件都直连适配器：适配器一走，同一轮扫描里两个都要释放。
+    // consumer 先登记 —— 扫描按插入序走，它先进入 disposing，provider 随后才反查依赖方
+    const consumer = new TestPlugin('consumer', [LOCAL, 'plugin:provider'], scope => {
+      scope.acquire(() => () => gate.promise, 'gate');
+    });
+
+    scheduler.register(consumer);
+    scheduler.register(provider);
+    scheduler.reconcile();
+    await scheduler.settle();
+    expect(scheduler.activationState(consumer)).toBe('active');
+    expect(scheduler.activationState(provider)).toBe('active');
+
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+    await flush();
+
+    // consumer 的作用域卡在 gate 上。反查依据要是随 disposing 一起清空，
+    // provider 这一刻就看不见它，自己的作用域会先撤掉
+    expect(host.log).toEqual(['install:provider', 'install:consumer', 'release:consumer']);
+
+    gate.resolve();
+    await scheduler.settle();
+
+    expect(host.log).toEqual(['install:provider', 'install:consumer', 'release:consumer', 'release:provider']);
+    expect(host.scopes.map(scope => scope.state)).toEqual(['disposed', 'disposed']);
+  });
+
+  it('依赖方的作用域因纪元作废而释放时，提供方同样要等（INV-7 的作废纪元形态）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    host.instances.set(REMOTE, { id: 'remote' });
+    const installGate = deferred();
+    const disposeGate = deferred();
+    // provider 挂在另一条适配器上：它的失效要比 consumer 的安装落地更晚，
+    // 这样 consumer 的作用域才会由 `#applyInstallResult` 而不是 `#release` 来释放
+    const provider = provide(new TestPlugin('provider', [REMOTE]));
+    const consumer = new TestPlugin('consumer', [LOCAL, 'plugin:provider'], scope => {
+      scope.acquire(() => () => disposeGate.promise, 'gate');
+      return installGate.promise;
+    });
+
+    scheduler.register(consumer);
+    scheduler.register(provider);
+    scheduler.reconcile();
+    await flush();
+    expect(scheduler.activationState(consumer)).toBe('installing');
+
+    // 安装期间依赖没了：这次安装整个作废，作用域由纪元校验释放（AC#7）
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+    installGate.resolve();
+    await flush();
+    expect(scheduler.activationState(consumer)).toBe('disposing');
+
+    // consumer 还卡在 disposeGate 上时，provider 才轮到失效
+    host.instances.delete(REMOTE);
+    scheduler.reconcile();
+    await flush();
+
+    expect(host.log).toEqual(['install:provider', 'install:consumer', 'release:consumer']);
+
+    disposeGate.resolve();
+    await scheduler.settle();
+
+    expect(host.log).toEqual(['install:provider', 'install:consumer', 'release:consumer', 'release:provider']);
+    expect(host.scopes.map(scope => scope.state)).toEqual(['disposed', 'disposed']);
   });
 
   it('依赖缺失的插件停在等待态，不产生作用域（AC#15 在调度器这一侧的形态）', async () => {

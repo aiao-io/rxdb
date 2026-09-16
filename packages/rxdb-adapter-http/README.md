@@ -34,6 +34,8 @@ RxDB HTTP 适配器 — 让**你自己的 REST API** 充当 QueryCache 的远端
 pnpm add @aiao/rxdb @aiao/rxdb-adapter-http
 # 行缓存用的本地适配器（按需二选一）
 pnpm add @aiao/rxdb-adapter-wa-sqlite
+# QueryCache 读写整条路径横跨三个插件包，缺一个 connect() 就抛
+pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-querycache
 ```
 
 > peerDependencies：`@aiao/rxdb`、`rxjs` ^7.8。无运行时依赖，请求走全局 `fetch`。
@@ -69,9 +71,11 @@ QueryCache 需要两个适配器，本包只占 **remote** 那一个：
 | `remote` | `@aiao/rxdb-adapter-http`        | `fetchMetadata` / `findByIds` + 可选的 `create`/`update`/`delete` |
 | `local`  | 任一 SQLite 适配器（**你注册**） | 行缓存：`getMetadataByIds` / `upsertMany` / `deleteByIds`         |
 
-读引擎本身是第三样东西，也要你装：`SyncType.QueryCache` 的读路径住在
-`@aiao/rxdb-plugin-querycache`，不在核心包里（US-025 阶段 B）。漏装时 `connect()`
-会以 `RxDBMissingPluginError` 拒绝，不会静默退化成本地查询。
+读引擎本身是第三样东西，也要你装，而且不止一个包：`SyncType.QueryCache` 的读路径住在
+`@aiao/rxdb-plugin-querycache`，离线写出站住在 `@aiao/rxdb-plugin-sync`，后者又
+`inject: ['plugin:history']`——三个包缺一个，`connect()` 就以 `RxDBMissingPluginError`
+拒绝，不会静默退化成本地查询。对照表见
+[历史与同步拆包](../../website/docs/migration/history-sync-plugins.md)。
 
 本包**不持有也不创建**任何本地存储——不 `new` SQLite、不打开 OPFS / IndexedDB。
 `inject: ['adapter:local']` 的插件（搜索、图查询等）因此绑到你注册的 SQLite，不会绑到本包。
@@ -80,7 +84,9 @@ QueryCache 需要两个适配器，本包只占 **remote** 那一个：
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { createRestHandlers, RxDBAdapterHttp } from '@aiao/rxdb-adapter-http';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 
 const rxdb = new RxDB({
   dbName: 'catalog',
@@ -92,7 +98,9 @@ const rxdb = new RxDB({
   }
 });
 
-// 传的是插件工厂函数本身，不要调用它
+// 传的是插件工厂函数本身，不要调用它。注册顺序随意，先后由 `inject` 保证
+rxdb.use(rxDBPluginHistory);
+rxdb.use(rxDBPluginSync);
 rxdb.use(rxDBPluginQueryCache);
 
 rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db));
