@@ -31,7 +31,10 @@ await db.workingTree.enable(); // 既有库上是一次迁移，新库上是一�
 
 const status = await db.workingTree.status();
 const result = await db.workingTree.commit('保存', {
-  expectedBranchId: status.branchId,
+  expectedBranch: {
+    branchId: status.branchId,
+    activationRevision: status.activationRevision
+  },
   expectedHeadRevision: status.headRevision,
   expectedWorkingTreeRevision: status.workingTreeRevision,
   authorId: 'alice',

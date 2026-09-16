@@ -17,6 +17,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["nx", "serve", "dev-rxdb-vue"],
       "port": 4203
+    },
+    {
+      "name": "website-docs",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["website/scripts/preview-with-redirects.mjs", "--port", "3000"],
+      "port": 3000
     }
   ],
   "version": "0.0.1"

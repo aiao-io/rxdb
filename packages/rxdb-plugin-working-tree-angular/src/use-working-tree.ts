@@ -96,7 +96,10 @@ export interface WorkingTreeResource {
  *   async save(): Promise<void> {
  *     const status = await this.tree.status();
  *     const result = await this.tree.commit('保存', {
- *       expectedBranchId: status.branchId,
+ *       expectedBranch: {
+ *         branchId: status.branchId,
+ *         activationRevision: status.activationRevision
+ *       },
  *       expectedHeadRevision: status.headRevision,
  *       expectedWorkingTreeRevision: status.workingTreeRevision,
  *       authorId: 'alice',

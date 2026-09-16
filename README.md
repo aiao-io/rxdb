@@ -190,6 +190,10 @@ aiao/
 │   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
 │   ├── rxdb-plugin-search-react/    # React 搜索集成
 │   ├── rxdb-plugin-search-vue/      # Vue 搜索集成
+│   ├── rxdb-plugin-working-tree/    # 工作树与提交历史插件
+│   ├── rxdb-plugin-working-tree-angular/ # Angular 工作树集成
+│   ├── rxdb-plugin-working-tree-react/   # React 工作树集成
+│   ├── rxdb-plugin-working-tree-vue/     # Vue 工作树集成
 │   ├── rxdb-test/                   # 测试库与跨框架 fixture
 │   ├── code-editor/                 # 代码编辑器核心
 │   ├── code-editor-angular/         # Angular 编辑器集成

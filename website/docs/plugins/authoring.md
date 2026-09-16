@@ -34,6 +34,46 @@ export const rxDBPluginExample: Plugin = (db: RxDB) => new RxDBPluginExample(db)
 
 实现方不写形参不破坏契约——`install()` 与 `install(scope)` 同样满足接口。
 
+## 系统贡献（system）：建表之前的插件
+
+需要**自带系统表**或**参与核心建表**的插件，还要声明一个可选的 `system` 成员（`RxDBSystemContribution`）。宿主在 `use()` 里**同步**读它，因此这类插件必须排在 `connect()` 之前：
+
+```typescript
+export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
+  readonly lifecycle = 'scoped' as const;
+  readonly name = 'example';
+
+  /** 宿主在 use() 里同步读；连不连库都不影响这份声明的有效性 */
+  readonly system: RxDBSystemContribution = {
+    capability: 'example',
+    version: 1,
+    packageSpecifier: '@your-org/rxdb-plugin-example',
+    entities: [ExampleSystemTable],
+    createInitialRows: (_entityManager, _context) => [],
+    createMigrations: entityManager => [createExampleMigration(entityManager)]
+  };
+
+  install(): void {}
+}
+```
+
+| 字段                 | 说明                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `capability`         | 能力名；非空且不含 `:`。同时是水位行归因与版本不匹配报错用的名字                                       |
+| `version`            | 能力版本；核心拿它写水位行、不比对                                                                     |
+| `packageSpecifier`   | 包说明符（如 `@aiao/rxdb-plugin-working-tree`）；未认领守卫把它**原样报给用户**                        |
+| `entities`           | 系统表实体类；进核心的系统表身份集（`isSystemEntity()` 认得它们，跨包消费者不会当接入方数据）         |
+| `createInitialRows`  | 新库建表那一刻写入的初始行                                                                             |
+| `createMigrations`   | 既有库的引导迁移；与核心系统迁移并进**同一条链、同一张 `rxdb_migration`、同一把锁**，名字必须是 `NNNN-` 数字前缀 |
+| `bootstrapExisting`  | 可选；既有库连接时接通运行期（如装捕获）                                                               |
+| `writeBranchRows`    | 可选；每条新分支创建时贡献行                                                                           |
+
+宿主会把每个贡献加工成一条**能力水位行**（`__rxdb_capability__:<capability>:<version>:<packageSpecifier>`），新库随建表写入、既有库伪装成一条空转迁移写入。此后**没装该插件的客户端再打开这个库，核心拒绝连接**并报出 `packageSpecifier`——这道「未认领能力守卫」对第三方插件同样有效，包名是插件自己写进水位的，核心不需要认识它。
+
+`install()` 对这类插件往往是空的：入口在构造时挂、表与迁移经 `system` 由宿主在建表那一刻编排，两者都早于 `install()`。仍然声明 `lifecycle = 'scoped'`——它表示「不要调 `destroy()`」，与登记了几条无关。
+
+内置范例：`@aiao/rxdb-plugin-working-tree` 是当前唯一的系统贡献插件，见[工作树与提交历史插件](rxdb-plugin-working-tree/README.md)。
+
 ## 在作用域上登记
 
 `scope.acquire(setup, label)` 立即执行 `setup()`，把它返回的清理函数记进清单，并返回一个可提前撤销这一条的句柄。

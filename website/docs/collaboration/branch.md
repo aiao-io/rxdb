@@ -156,3 +156,4 @@ erDiagram
 
 - [同步策略](./sync.md) - 了解数据同步配置
 - [Undo/Redo](./undo-redo.md) - 撤销和重做功能
+- [工作树与提交历史](../plugins/rxdb-plugin-working-tree/README.md) - 未提交改动捕获与提交历史（`@aiao/rxdb-plugin-working-tree`）；带工作树语义的 `switchBranch` 属其后续阶段，尚未实现

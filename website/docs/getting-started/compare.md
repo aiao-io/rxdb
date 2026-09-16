@@ -11,7 +11,7 @@ npm 上的 [`rxdb`](https://rxdb.info) 是一个成熟的 NoSQL 文档数据库�
 | 关系         | 文档引用，`population` 手工展开                       | 1:1 / 1:N / N:1 / M:N 自动中间表，级联查询与变更                                                                                           |
 | 响应式       | RxJS Observable                                       | RxJS Observable → Angular Signals / React Hooks / Vue Composables，三端 API 对称                                                           |
 | 同步         | 自带 replication 协议 + 多种远端插件                  | 适配器层：Supabase、HTTP（远端权威 + 本地行缓存）、自定义 remote adapter                                                                   |
-| 版本与协作   | 无内建版本图                                          | Git 式分支 / 合并 / 撤销重做（epic-006 的工作树与提交历史在路线图上）                                                                      |
+| 版本与协作   | 无内建版本图                                          | Git 式分支 / 合并 / 撤销重做；工作树与提交历史由 [`@aiao/rxdb-plugin-working-tree`](../plugins/rxdb-plugin-working-tree/README.md) 提供（`restore` 与带工作树语义的切换分支尚在路线图上） |
 | 加密         | 加密插件                                              | 字段级 AES-GCM-256 内建于 SQLite / PGlite 适配器                                                                                           |
 | 许可与商业化 | 核心开源，部分插件为付费                              | 全部 MIT                                                                                                                                   |
 | 成熟度       | 多年生产使用                                          | 0.x，API 尚未冻结，见[版本策略](../versioning.md)                                                                                          |

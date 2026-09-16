@@ -25,7 +25,10 @@ export function CommitBar() {
   const save = async () => {
     const status = await tree.status();
     const result = await tree.commit('保存', {
-      expectedBranchId: status.branchId,
+      expectedBranch: {
+        branchId: status.branchId,
+        activationRevision: status.activationRevision
+      },
       expectedHeadRevision: status.headRevision,
       expectedWorkingTreeRevision: status.workingTreeRevision,
       authorId: 'alice',

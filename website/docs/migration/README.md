@@ -8,6 +8,7 @@
 - [Supabase 传输失败错误类型迁移](./supabase-network-errors.md)：连不上远端时改抛 core 的 `NetworkOfflineError`，请用 `isNetworkError` 判离线
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
+- [工作树拆包](./working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-working-tree`，能力守卫取代版本号锁
 - [插件升级与启用](./plugins.md)：启用/升级插件（如全文搜索）
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化
 - [生成器 `default` 语义迁移](./generator-default.md)：函数 `default` 从静默丢弃改为生成期报错，bigint / `Uint8Array` / `Date` 不再被改写
