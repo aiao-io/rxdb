@@ -16,7 +16,7 @@ import type { PGliteTransactionExecutor } from '../transaction/PGliteTransaction
  */
 export const read_current_branch_id = async (executor: PGliteTransactionExecutor): Promise<string> => {
   const metadata = getEntityMetadata(RxDBBranch);
-  const result = await executor.query<{ id: string }>(
+  const result = await executor.queryRaw<{ id: string }>(
     `SELECT "id" FROM ${getTableNameByMetadata(metadata)} WHERE "activated" IS TRUE LIMIT 1`
   );
   return result.rows[0]?.id ?? 'main';
