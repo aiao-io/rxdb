@@ -107,10 +107,29 @@ export class VersionManager {
     return this.historyManager.pullableCount$;
   }
 
+  /**
+   * @param rxdb - 宿主实例
+   *
+   * @remarks
+   * 构造即建 {@link HistoryManager}，而它在自己的构造器里就订阅了活跃分支流 ——
+   * 所以「造出来」本身已经是一次资源获取，调用方必须把 {@link VersionManager.destroy}
+   * 登记在作用域上，哪怕后面的 {@link VersionManager.init} 还没跑。
+   */
   constructor(public readonly rxdb: RxDB) {
     this.historyManager = new HistoryManager(this.rxdb);
   }
 
+  /**
+   * 挂上事务与本地写入的事件监听，开始记历史。
+   *
+   * @remarks
+   * 与 {@link VersionManager.destroy} 成对，可重入：上一轮 `destroy()` 过的
+   * `HistoryManager` 已经拆掉了订阅，这里重建一个而不是复用 —— 复用等于把新纪元的
+   * 变更喂给一条已 complete 的流。
+   *
+   * 不发任何适配器读写，因此可以（也必须）早于引导链跑：`HistoryManager` 的分支流
+   * 要赶在第一条 `rxdb_change` 事件之前订阅上，装晚了那一批变更就不进历史。
+   */
   init() {
     if (this.#historyManagerDestroyed) {
       this.historyManager = new HistoryManager(this.rxdb);
@@ -183,6 +202,13 @@ export class VersionManager {
     this.#event_removers.push(() => this.rxdb.removeEventListener(ENTITY_LOCAL_CREATE_EVENT, onLocalCreate));
   }
 
+  /**
+   * 摘掉全部事件监听与订阅，并销毁 {@link HistoryManager}。
+   *
+   * @remarks
+   * 幂等。事务深度与代次一并清零：拆卸可能发生在事务中途，留着计数会让下一个纪元
+   * 以为自己开局就在一笔未结的事务里。
+   */
   destroy() {
     if (this.#historyManagerDestroyed) return;
     this.#historyManagerDestroyed = true;
@@ -196,6 +222,13 @@ export class VersionManager {
     this.#transactionCleanupInitialized = false;
   }
 
+  /**
+   * 作废本连接积累的历史上下文：清空全部分支的 undo 会话与待拉计数。
+   *
+   * @remarks
+   * 供切库 / 重连这类「本地数据整体换了一份」的场景调用。清的是**全部**分支而不只是
+   * 当前分支 —— 换掉的是整个数据源，其它分支上那些 undo 条目指向的行同样已经不在了。
+   */
   resetSessionState() {
     // 整个连接的历史上下文都作废了，不只是当前分支
     this.historyManager.clearAllUndoHistory();
@@ -365,10 +398,28 @@ export class VersionManager {
     return restore_entity(this, entity, options);
   }
 
+  /**
+   * 取本地适配器上的系统表仓库。
+   *
+   * @returns `branchRepository` / `changeRepository` 与它们所属的本地适配器
+   *
+   * @remarks
+   * 每次都经 `localAdapter$` 重新解析，不缓存：适配器随连接纪元换，缓下来的那一份
+   * 会在重连之后指向已拆的旧实例。
+   */
   async getLocalRepositories() {
     return getLocalSystemRepositories(this.rxdb);
   }
 
+  /**
+   * 取远端适配器上的系统表仓库。
+   *
+   * @returns `branchRepository` / `changeRepository` 与它们所属的远端适配器
+   *
+   * @remarks
+   * 未配置远端时 `remoteAdapter$` 不发值，调用会一直挂着 —— 这是有意的：同步路径
+   * 本来就只在配了远端时才走，返回一个空壳只会把「没配远端」推迟到更深的地方才报。
+   */
   async getRemoteRepositories() {
     return getRemoteSystemRepositories(this.rxdb);
   }

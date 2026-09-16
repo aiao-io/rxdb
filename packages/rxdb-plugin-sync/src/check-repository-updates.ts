@@ -91,10 +91,13 @@ export async function checkRepositoryUpdates(
   }
 
   // 2. 获取 RxDBSync 记录
-  const branch = await rxdb.syncManager.getCurrentBranch();
+  // 槽位只解析这一次：断连会把 `rxdb.syncManager` 删掉，一次查询里重解析四回
+  // 等于给自己留四个 `undefined` 的窗口。
+  const sm = rxdb.syncManager;
+  const branch = await sm.getCurrentBranch();
   const branchId = branch.id;
 
-  const { adapter: localAdapter } = await rxdb.syncManager.getLocalRepositories();
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const repoSyncId = `${namespace}:${entity}:${branchId}`;
 
@@ -110,7 +113,7 @@ export async function checkRepositoryUpdates(
   const localLastPullRemoteChangeId = repoSync?.lastPullRemoteChangeId ?? null;
 
   // 3. 调用适配器的 getChangeCount() 查询远程变更数量
-  const { adapter: remoteAdapter } = await rxdb.syncManager.getRemoteRepositories();
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
   if (!remoteAdapter) {
     throw new Error('Remote adapter not configured');
   }
@@ -120,7 +123,7 @@ export async function checkRepositoryUpdates(
   // `getChangeCount` 的 branchId 是精确匹配，只传当前分支时父分支上的新变更一条都不计入，
   // 于是 `hasUpdates` 报 false、界面显示「已全部同步」，而 pull 其实还有东西要拉。
   // 此前只传裸实体名，同名实体跨 namespace 存在时会解析歧义
-  const branchIds = await getAncestorBranchIds(rxdb.syncManager, branchId);
+  const branchIds = await getAncestorBranchIds(sm, branchId);
   const perBranch = await Promise.all(
     branchIds.map(ancestorBranchId =>
       remoteAdapter.getChangeCount(sinceId, [`${namespace}:${metadata.name}`], ancestorBranchId)

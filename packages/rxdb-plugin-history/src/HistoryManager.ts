@@ -51,6 +51,20 @@ export { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './
 export { generateHistoryDescription } from './history-item-builder.js';
 
 /**
+ * 取一批变更号里的最小值。
+ *
+ * @param changeIds - 已筛过的合法变更号，非空
+ * @returns 其中的最小值
+ *
+ * @remarks
+ * 不写 `Math.min(...changeIds)`：展开传参的实参个数受引擎栈帧限制（V8 约 6.5 万），
+ * 而这里的入参是一次批量写事件的**全部**变更号 —— 一次十万行的 bulk insert 就能把它
+ * 压成 `RangeError`，落在一条与批量大小相关、小数据量下永远复现不了的路径上。
+ */
+const minChangeId = (changeIds: readonly number[]): number =>
+  changeIds.reduce((min, changeId) => (changeId < min ? changeId : min), Number.POSITIVE_INFINITY);
+
+/**
  * 历史记录管理器：变更历史、内存 redo 栈、多作用域 undo/redo API。
  *
  * 数据流：`RxDBChange[] → #all_changes$ → histories$ → undoHistories$ / redoHistories$`
@@ -422,7 +436,7 @@ export class HistoryManager {
     const validChangeIds = changeIds.filter(id => Number.isSafeInteger(id) && id > 0);
     if (event === undefined) {
       if (validChangeIds.length === 0) return;
-      const firstPostClearChangeId = Math.min(...validChangeIds);
+      const firstPostClearChangeId = minChangeId(validChangeIds);
       this.#setUndoSession({
         generation: session.generation,
         state: 'active',
@@ -442,7 +456,7 @@ export class HistoryManager {
       : event.generation === session.generation;
     if (!belongsToCurrentSession) return;
 
-    const firstPostClearChangeId = validChangeIds.length > 0 ? Math.min(...validChangeIds) : null;
+    const firstPostClearChangeId = validChangeIds.length > 0 ? minChangeId(validChangeIds) : null;
     const createdAfter =
       (
         firstPostClearChangeId === null &&

@@ -62,7 +62,7 @@ export function resolveUniqueProvider(
 /**
  * 按「提供方在前」排序全部插件，其余一律回落到插入序。
  *
- * @param plugins - 全部已登记的插件，按 `use()` 顺序
+ * @param plugins - 全部已登记的插件，按 `use()` 顺序；重复的实例按引用去重
  * @param index - 插件名索引
  * @returns 拓扑序；逆序即拆卸序
  * @throws {@link RxDBPluginDependencyCycleError} 依赖成环（AC#16）
@@ -87,9 +87,14 @@ export function resolveUniqueProvider(
  *
  * 依赖缺失的插件照常留在序列里：它虽然没装成，拆卸路径仍要走到它（legacy 插件的
  * `destroy()` 配对由调度器的 `everInstalled` 另行把关）。
+ *
+ * 入参先按引用去重：`#plugin_map` 以**工厂**为键，工厂自检命中后原样返回既有实例时，
+ * 同一个实例会占两个键、在 `values()` 里出现两次。副本既补不上「出队数 == 节点数」这个
+ * 差额（`emitted` 按引用记，同一实例只出队一次），又会让拆卸路径对同一个作用域走两遍——
+ * 于是一次纯粹的重复登记被报成 `search → search` 这样根本不存在的环。
  */
 export function topologicalPluginOrder(plugins: Iterable<IRxDBPlugin>, index: PluginNameIndex): readonly IRxDBPlugin[] {
-  const nodes = [...plugins];
+  const nodes = [...new Set(plugins)];
   const providers = resolveProviderEdges(nodes, index);
   const order = stablePluginOrder(nodes, providers);
   if (order.length !== nodes.length) throw cycleError(nodes, providers, new Set(order));

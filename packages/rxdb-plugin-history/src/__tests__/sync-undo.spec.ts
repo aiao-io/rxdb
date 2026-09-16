@@ -177,6 +177,27 @@ describe('同步之后的 undo 生命周期', () => {
     expect(restored.map(history => history.changeId)).toEqual([4]);
   });
 
+  it('一次批量写的全部变更号不压垮边界计算', async () => {
+    harness.changes$.next([createChange(3), createChange(2), createChange(1)]);
+    harness.connected$.next(true);
+    await nextEmission(emissions, 0);
+
+    const clearedAt = emissions.length;
+    harness.historyManager.clearUndoHistory();
+    expect(await nextEmission(emissions, clearedAt)).toEqual([]);
+
+    // 一次十万行的 bulk insert 就带来十万个变更号。`Math.min(...ids)` 的实参个数受引擎
+    // 栈帧限制（V8 约 6.5 万），压到这个量级直接抛 RangeError —— 一条与批量大小相关、
+    // 小数据量下永远复现不了的路径。
+    const bulkChangeIds = Array.from({ length: 200_000 }, (_, index) => index + 4);
+    const beforeBulk = emissions.length;
+    harness.changes$.next([createChange(4), createChange(3), createChange(2), createChange(1)]);
+    harness.historyManager.resetSyncCleared(bulkChangeIds);
+
+    const afterBulk = await nextEmission(emissions, beforeBulk);
+    expect(afterBulk.map(history => history.changeId)).toEqual([4]);
+  });
+
   it('不属于当前 clear session 的事件不得恢复 undo', async () => {
     harness.changes$.next([createChange(3), createChange(2), createChange(1)]);
     harness.connected$.next(true);

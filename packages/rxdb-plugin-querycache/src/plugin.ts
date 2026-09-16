@@ -9,7 +9,8 @@ import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { RxDBQueryCacheEngineFactory } from './query-cache-engine.factory.js';
 
-type RxDBPluginQueryCacheOptions = object;
+/** 本插件当前不接受任何选项 */
+export type RxDBPluginQueryCacheOptions = object;
 
 /**
  * QueryCache 读引擎插件。
@@ -34,4 +35,16 @@ export class RxDBPluginQueryCache extends RxDBPluginBase implements IRxDBPlugin 
 // 声明一个没人赋值的 `queryCache`，换来的是 `rxdb.queryCache.name` 编译通过、运行时炸在
 // `undefined` —— 类型说了一句实现不打算兑现的话。要拿实例走 `getPlugins('queryCache')`。
 
+/**
+ * QueryCache 读引擎插件工厂。
+ *
+ * @param db - 宿主实例
+ *
+ * @example
+ * ```ts
+ * import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+ *
+ * rxdb.use(rxDBPluginQueryCache);
+ * ```
+ */
 export const rxDBPluginQueryCache: Plugin<RxDBPluginQueryCacheOptions> = (db: RxDB) => new RxDBPluginQueryCache(db);

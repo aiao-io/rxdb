@@ -620,5 +620,66 @@ describe('SyncManager 对协作模块的编排契约', () => {
 
       expect(history.clearUndoHistory).toHaveBeenCalledOnce();
     });
+
+    // `pull()` / `pullRepository()` 早就补了这道 catch，`sync()` / `syncRepository()` 一直没有：
+    // 部分成功以异常形式抛出，方法直接返回错误、undo 边界原地不动，而远端数据已经落库。
+    it.each([
+      ['改写了本地数据', true, 1],
+      ['只推进了水位线', false, 0]
+    ])('sync 的 pull 阶段部分失败且%s时清空 %d 次 undo 历史', async (_label, historyInvalidated, expected) => {
+      const { manager, history } = createHarness();
+      const partial = { ...createPullResult(4), applied: historyInvalidated ? 4 : 0, historyInvalidated };
+      const partialError = new RxDBPartialSyncError(partial, new Error('round 2 failed'));
+      doubles.delegates.pull.mockRejectedValue(partialError);
+
+      await expect(manager.sync()).rejects.toBe(partialError);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
+    });
+
+    // pull 已经把远端变更合进来了，push 才抛错：进度不在异常里，而在那个再也出不来的 pullResult 上。
+    it('sync 的 pull 已合并、push 抛错时仍清空 undo 历史', async () => {
+      const { manager, history } = createHarness();
+      const pushFailure = new Error('push failed');
+      doubles.delegates.pull.mockResolvedValue(createPullResult(4));
+      doubles.delegates.push.mockRejectedValue(pushFailure);
+
+      await expect(manager.sync()).rejects.toBe(pushFailure);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledOnce();
+    });
+
+    it('sync 的 pull 一条没改、push 抛错时不动 undo 边界', async () => {
+      const { manager, history } = createHarness();
+      const pushFailure = new Error('push failed');
+      doubles.delegates.pull.mockResolvedValue(createPullResult(0));
+      doubles.delegates.push.mockRejectedValue(pushFailure);
+
+      await expect(manager.sync()).rejects.toBe(pushFailure);
+
+      expect(history.clearUndoHistory).not.toHaveBeenCalled();
+    });
+
+    // 仓库粒度的判据比 pull 多一条：push 已经上行的部分同样不可 undo，
+    // 此时 `historyInvalidated` 仍是 false，只有 `pushResult.pushed` 看得见。
+    it.each([
+      ['pull 改写了本地数据', true, 0, 1],
+      ['push 已经上行', false, 3, 1],
+      ['两段都只是空转', false, 0, 0]
+    ])('syncRepository 部分失败且%s时清空 %d 次 undo 历史', async (_label, historyInvalidated, pushed, expected) => {
+      const { manager, history } = createHarness();
+      const partial = {
+        pullResult: { ...createPullResult(4), applied: historyInvalidated ? 4 : 0, historyInvalidated },
+        pushResult: createPushResult(pushed),
+        persistedProgress: true,
+        historyInvalidated
+      };
+      const partialError = new RxDBPartialSyncError(partial, new Error('push batch 2 failed'));
+      doubles.delegates.syncRepository.mockRejectedValue(partialError);
+
+      await expect(manager.syncRepository('public', 'Todo')).rejects.toBe(partialError);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
+    });
   });
 });

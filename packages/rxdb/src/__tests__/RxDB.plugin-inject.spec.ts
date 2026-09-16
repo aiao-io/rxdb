@@ -622,6 +622,28 @@ describe('AC#14 重名与歧义', () => {
     // 而调用方手里并没有摘除插件的入口
     expect(database.getPlugins('search')).toEqual([expect.any(SearchAlpha)]);
   });
+
+  it('同一个实例经两个工厂登记只算一个候选 —— 图校验与索引用同一把尺子', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { database } = createDatabase();
+    const alpha = new SearchAlpha();
+    database.use(() => alpha);
+    database.use(() => probe('consumer', ['plugin:search']));
+
+    // 工厂自检命中后原样返回既有实例，两次 use() 拿到同一个 alpha：提供方还是一个，
+    // 重复登记不该把它变成自己的歧义对手
+    expect(() => database.use(() => alpha)).not.toThrow();
+    expect(database.getPlugins('search')).toEqual([alpha]);
+  });
+
+  it('重复登记同一个实例不冒充成环 —— 没人 inject 也一样', () => {
+    const { database } = createDatabase();
+    const alpha = new SearchAlpha();
+    database.use(() => alpha);
+
+    // Kahn 按「出队数 == 节点数」判环，节点表里多出来的那个副本永远补不上这个差额
+    expect(() => database.use(() => alpha)).not.toThrow();
+  });
 });
 
 describe('AC#15 依赖的插件名不存在', () => {

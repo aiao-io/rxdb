@@ -25,7 +25,7 @@ import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult }
 import { push } from './push.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
-import { hasSyncedData, partialResultOf } from './sync-manager.utils.js';
+import { hasSyncedData, partialResultOf, partialSyncInvalidatesHistory } from './sync-manager.utils.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
 
@@ -160,7 +160,7 @@ export class SyncManager {
       // 随后某个仓库失败会抛 RxDBPartialSyncError。此前这里直接 rethrow，
       // undo 边界从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容，
       // 与已落库的远端数据产生分叉。
-      if (error instanceof RxDBPartialSyncError && (error.result as PullResult).historyInvalidated) {
+      if (partialSyncInvalidatesHistory(error)) {
         this.history.clearUndoHistory();
       }
       throw error;
@@ -229,13 +229,27 @@ export class SyncManager {
    * ```
    */
   async sync(options?: { pull?: PullOptions; push?: PushOptions }): Promise<SyncResult> {
-    const result = await this.history.syncing(async () => {
-      // 先 pull 再 push
-      const pullResult = await this.#pullAndSettle(options?.pull);
-      const pushResult = await push(this, options?.push);
+    // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
+    // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
+    let settledPull: PullResult | undefined;
 
-      return { pullResult, pushResult };
-    });
+    let result: SyncResult;
+    try {
+      result = await this.history.syncing(async () => {
+        // 先 pull 再 push
+        settledPull = await this.#pullAndSettle(options?.pull);
+        const pushResult = await push(this, options?.push);
+
+        return { pullResult: settledPull, pushResult };
+      });
+    } catch (error) {
+      // 部分成功同样要推进 undo 边界，进度落在两处之一：pull 中途失败时挂在
+      // RxDBPartialSyncError.result 上，pull 已结算而 push 失败时只存在于 settledPull。
+      if (settledPull?.historyInvalidated === true || partialSyncInvalidatesHistory(error)) {
+        this.history.clearUndoHistory();
+      }
+      throw error;
+    }
 
     // 当 pull 改写了实体数据、或 push 有上行时，清空 undo/redo 历史
     // 因为已与远程合并，无法 undo 合并前的内容
@@ -281,7 +295,7 @@ export class SyncManager {
       // fetchAll 多轮拉取中途失败时，前面几轮的事务已经真实提交
       // 会抛 RxDBPartialSyncError 而非裸错误。此前这里直接 rethrow，undo 边界
       // 从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容。
-      if (error instanceof RxDBPartialSyncError && (error.result as PullRepositoryResult).historyInvalidated) {
+      if (partialSyncInvalidatesHistory(error)) {
         this.history.clearUndoHistory();
       }
       throw error;
@@ -362,7 +376,17 @@ export class SyncManager {
     entity: string,
     options?: SyncRepositoryOptions
   ): Promise<SyncRepositoryResult> {
-    const result = await this.history.syncing(() => syncRepository(this, namespace, entity, options));
+    let result: SyncRepositoryResult;
+    try {
+      result = await this.history.syncing(() => syncRepository(this, namespace, entity, options));
+    } catch (error) {
+      // 与 pullRepository 同口径：pull 落库或 push 上行之后失败，都会包成
+      // RxDBPartialSyncError 抛出，那部分数据已经与远端合并、undo 不回去了。
+      if (partialSyncInvalidatesHistory(error)) {
+        this.history.clearUndoHistory();
+      }
+      throw error;
+    }
 
     // 有数据变更时清空 undo/redo 历史
     if (result.pullResult.historyInvalidated || result.pushResult.pushed > 0) {

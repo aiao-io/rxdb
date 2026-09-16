@@ -1172,8 +1172,11 @@ export class RxDB {
    */
   #assert_plugin_graph(candidate: IRxDBPlugin): void {
     const index = new Map<string, readonly IRxDBPlugin[]>(this.#plugin_by_name);
-    const existing = index.get(candidate.name);
-    index.set(candidate.name, existing === undefined ? [candidate] : [...existing, candidate]);
+    const existing: readonly IRxDBPlugin[] = index.get(candidate.name) ?? [];
+    // 同一个实例经两个工厂登记（工厂自检命中后原样返回既有实例）算一个提供方，不是两个
+    // 候选 —— 与 {@link RxDB.#index_plugin_name} 同一把尺子。少了这一条，它会在名字下
+    // 跟自己撞成一次假歧义。节点表那半边的去重在 {@link topologicalPluginOrder} 里。
+    if (!existing.includes(candidate)) index.set(candidate.name, [...existing, candidate]);
     assertPluginDependencyGraph([...this.#plugin_map.values(), candidate], index);
   }
 

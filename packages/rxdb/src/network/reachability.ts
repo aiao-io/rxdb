@@ -172,6 +172,9 @@ export class ReachabilityMonitor {
    * 每次从 0 变 1 都**重读一次** `navigator.onLine`：挂监听的时机晚于构造（插件装在
    * `connect()` 里），这中间网线可能已经拔了，而拔掉那一刻没人在听。
    *
+   * 退避节拍与引用计数同生共死：撤到 0 停拍，回到 1 且此刻离线就接着排。节拍只对
+   * `wakeup$` 的订阅方有意义，没人听还自我续期只是白占宿主的定时器。
+   *
    * `destroy()` 之后调用是空操作，返回一个什么都不做的撤销函数。
    *
    * @example
@@ -183,16 +186,18 @@ export class ReachabilityMonitor {
   watch(): () => void {
     if (this.#destroyed) return () => undefined;
     this.#watchers += 1;
-    if (this.#watchers === 1) {
-      this.#read_navigator();
-      this.#attach();
-    }
+    if (this.#watchers === 1) this.#attach_first_watcher();
     let released = false;
     return () => {
       if (released || this.#destroyed) return;
       released = true;
       this.#watchers -= 1;
-      if (this.#watchers === 0) this.#detach();
+      if (this.#watchers > 0) return;
+      this.#detach();
+      // 节拍只发给 watch() 的订阅方。`#scheduleWakeup()` 的回调每轮都给自己排下一个，
+      // 撤空之后没人停它 —— 一台离线的监视器会按 `maxDelayMs` 永远空转，既吊着宿主的
+      // 事件循环，也把 `destroy()` 变成唯一的停机入口。
+      this.#clearTimer();
     };
   }
 
@@ -241,6 +246,15 @@ export class ReachabilityMonitor {
   /** `navigator.onLine === false` 是可信的「一定离线」；`true` 不可信为在线，不动状态 */
   #read_navigator(): void {
     if (this.#navigatorOnLine?.() === false) this.#setOnline(false);
+  }
+
+  /** 从 0 到 1：重读宿主状态、挂上监听，离线时把停掉的重试节拍接回来 */
+  #attach_first_watcher(): void {
+    this.#read_navigator();
+    this.#attach();
+    // 此刻状态可能早就是 `false`，而 `#setOnline()` 只在**翻转**时排节拍，翻不动。
+    // 于是节拍这一步得自己补，否则离线期间重新接上的订阅方再也等不到下一拍。
+    if (!this.#online$.value) this.#scheduleWakeup();
   }
 
   /** 挂上宿主监听；已挂或宿主没有事件源时什么都不做 */

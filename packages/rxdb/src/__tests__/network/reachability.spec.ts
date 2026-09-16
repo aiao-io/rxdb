@@ -262,6 +262,43 @@ describe('ReachabilityMonitor', () => {
         expect(monitor.online).toBe(false);
       });
 
+      // 节拍的唯一消费者就是 watch() 的订阅方。`#scheduleWakeup()` 的回调每轮都给自己
+      // 排下一个，撤空之后没人停它，一台离线的监视器就会按 maxDelayMs 永远空转下去 ——
+      // 既吊着宿主的事件循环，也把 destroy() 变成唯一的停机入口。
+      it('最后一位撤走时停掉重试节拍', () => {
+        withListeners({ baseDelayMs: 1000, maxDelayMs: 8000 });
+        const ticks: number[] = [];
+        monitor.wakeup$.subscribe(() => ticks.push(1));
+        const release = monitor.watch();
+
+        monitor.report(networkError());
+        vi.advanceTimersByTime(1000);
+        expect(ticks).toHaveLength(1);
+
+        release();
+        vi.advanceTimersByTime(60_000);
+
+        expect(ticks).toHaveLength(1);
+      });
+
+      // 停掉容易，接回来才是配套那一半：此刻状态早就是 false，`#read_navigator()` 只在
+      // 状态**翻转**时排节拍，翻不动 —— 少了这一步，离线期间重新接上的订阅方再也等不到节拍。
+      it('离线期间重新 watch() 接回节拍', () => {
+        withListeners({ baseDelayMs: 1000, maxDelayMs: 8000 });
+        const ticks: number[] = [];
+        monitor.wakeup$.subscribe(() => ticks.push(1));
+        const release = monitor.watch();
+        monitor.report(networkError());
+        release();
+        vi.advanceTimersByTime(60_000);
+
+        const beforeRewatch = ticks.length;
+        monitor.watch();
+        vi.advanceTimersByTime(60_000);
+
+        expect(ticks.length).toBeGreaterThan(beforeRewatch);
+      });
+
       it('destroy() 之后 watch() 是空操作', () => {
         const { listeners, add } = withListeners();
         monitor.destroy();

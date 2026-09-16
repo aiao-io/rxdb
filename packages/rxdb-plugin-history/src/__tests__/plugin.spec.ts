@@ -72,4 +72,20 @@ describe('rxDBPluginHistory 装配', () => {
     expect(destroy).toHaveBeenCalledOnce();
     expect(Reflect.has(rxdb, 'versionManager')).toBe(false);
   });
+
+  // `destroy()` 才是把订阅与监听摘下来的那一步。它跑之前槽位就没了的话，正卡在 await
+  // 中途的历史流恢复执行时读到的是 `undefined`，一次正常断开于是伪装成 TypeError
+  // 落进 `errors$` —— 拆卸顺序错了，两端的用例却都照样绿。
+  it('管理器 destroy() 期间槽位还在 —— 撤销序是获取序的逆序', async () => {
+    const rxdb = createDB();
+    const versionManager = rxdb.versionManager;
+    let slotVisibleDuringDestroy: boolean | undefined;
+    vi.spyOn(versionManager, 'destroy').mockImplementation(() => {
+      slotVisibleDuringDestroy = Reflect.has(rxdb, 'versionManager');
+    });
+
+    await rxdb.disconnectAll();
+
+    expect(slotVisibleDuringDestroy).toBe(true);
+  });
 });

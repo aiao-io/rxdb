@@ -19,6 +19,7 @@ import {
   type RxDBSyncRuleGroup
 } from '@aiao/rxdb';
 import { checkRepositoryUpdates } from './check-repository-updates.js';
+import type { SyncManager } from './SyncManager.js';
 // 唯一定义收敛到 `VersionManager.interface.ts`。
 export type { RepositoryIdentifier };
 
@@ -93,7 +94,7 @@ export interface RepositorySyncStatus {
  *   4. 未被撤销（revertChangeId 为 null）
  *   5. 比 lastPushedChangeId 新（如果存在）
  *
- * @param rxdb - RxDB 实例
+ * @param sm - 调用方持有的同步管理器实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param branchId - 当前分支 ID
@@ -101,13 +102,13 @@ export interface RepositorySyncStatus {
  * @returns 待推送的变更数量
  */
 async function calculatePushableCount(
-  rxdb: RxDB,
+  sm: SyncManager,
   namespace: string,
   entity: string,
   branchId: string,
   lastPushedChangeId: number | null
 ): Promise<number> {
-  const { adapter: localAdapter } = await rxdb.syncManager.getLocalRepositories();
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
   const changeRepo = localAdapter.getRepository(RxDBChange);
 
   // 构建查询规则
@@ -184,11 +185,14 @@ export async function getRepositorySyncStatus(
   const syncCapability = getSyncCapability(syncType);
 
   // 2. 获取当前分支
-  const branch = await rxdb.syncManager.getCurrentBranch();
+  // 槽位只解析这一次：`rxdb.syncManager` 由插件作用域挂着，断连即被删除，
+  // 一次查询里反复重解析等于给自己留三个 `undefined` 的窗口。
+  const sm = rxdb.syncManager;
+  const branch = await sm.getCurrentBranch();
   const branchId = branch.id;
 
   // 3. 查询 RxDBSync 记录
-  const { adapter: localAdapter } = await rxdb.syncManager.getLocalRepositories();
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const repoSyncId = `${namespace}:${entity}:${branchId}`;
 
@@ -207,13 +211,7 @@ export async function getRepositorySyncStatus(
 
   // 如果该实体需要推送，则计算 pushableCount（与 syncType 一致地传入全局 sync 回退）
   if (needsPush(metadata, rxdb.config.sync)) {
-    pushableCount = await calculatePushableCount(
-      rxdb,
-      namespace,
-      entity,
-      branchId,
-      repoSync?.lastPushedChangeId ?? null
-    );
+    pushableCount = await calculatePushableCount(sm, namespace, entity, branchId, repoSync?.lastPushedChangeId ?? null);
   }
 
   // 如果该实体需要拉取，则计算 pullableCount（与 syncType 一致地传入全局 sync 回退）
