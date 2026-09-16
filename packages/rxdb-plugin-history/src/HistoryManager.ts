@@ -516,11 +516,10 @@ export class HistoryManager {
           });
         });
 
-        const currentBranch = await this.rxdb.versionManager.getCurrentBranch();
-        await adapter.switchBranch({
-          branchId: currentBranch.id,
-          actions
-        });
+        // 不传 branchId：这里只想把 actions 套用在**当前**分支上。自己先查再传会留下一个
+        // 采样窗口——本方法是 detached 任务（变更通知还会被批处理 / 跨进程延迟），窗口内的一次
+        // 真实 switchBranch 会让这条调用把 activated 与全部触发器倒回旧分支。
+        await adapter.switchBranch({ actions });
 
         this.clearRedoStack();
       } catch (error) {

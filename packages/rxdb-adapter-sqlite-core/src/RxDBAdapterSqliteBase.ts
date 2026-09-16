@@ -81,6 +81,7 @@ import { generate_table_trigger_sql } from './table/trigger_sql.js';
 import { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from './transaction_sqlite_result.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
@@ -1051,37 +1052,6 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     };
   }
 
-  /**
-   * 读当前分支 id，供事务日志的 `switch_transaction_id` 使用。
-   *
-   * @remarks
-   * 语义对齐 `VersionManager.getCurrentBranch()`：先取 `activated` 的分支，没有则回退 `main`。
-   * 必须经 executor 读 —— 理由见调用点。
-   */
-  async #readCurrentBranchId(executor: SqliteTransactionExecutor): Promise<string> {
-    const metadata = getEntityMetadata(RxDBBranch);
-    const table = quote_sql_identifier(get_table_name_by_metadata(metadata));
-    const idColumn = quote_sql_identifier(metadata.propertyMap?.get('id')?.columnName ?? 'id');
-    const activatedColumn = quote_sql_identifier(metadata.propertyMap?.get('activated')?.columnName ?? 'activated');
-
-    // 直发 SQL 而不经仓库：仓库的 addQueryCache 要做实体水合（需要 entityManager），
-    // 而这里只要一个 id。少一层依赖，也让适配器单测不必搭出完整的 RxDB。
-    const readId = async (whereSql: string, params: SQLiteCompatibleType[]): Promise<string | undefined> => {
-      const result = await executor.query(`SELECT ${idColumn} FROM ${table} WHERE ${whereSql} LIMIT 1;`, params);
-      const columnIndex = Math.max(0, result.columns.indexOf(idColumn.replaceAll('"', '')));
-      const value = result.rows[0]?.[columnIndex];
-      return typeof value === 'string' ? value : undefined;
-    };
-
-    const activated = await readId(`${activatedColumn} = ?`, [1]);
-    if (activated !== undefined) return activated;
-
-    const main = await readId(`${idColumn} = ?`, ['main']);
-    if (main !== undefined) return main;
-
-    throw new RxDBAdapterSqliteError('currentBranch is undefined! Cannot start transaction with logging.');
-  }
-
   #initEncryption(): void {
     let hasEncryptedColumns = false;
     const entities = this.rxdb.config.entities ?? [];
@@ -1194,8 +1164,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         //
         // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
         // 走快路径的实际行为一致。
-        const currentBranchId = await this.#readCurrentBranchId(executor);
-        console.error('[TXBRANCH]', this.rxdb.config.dbName, currentBranchId);
+        const currentBranchId = await read_current_branch_id(executor);
         log_begin = switch_transaction_id(this, currentBranchId, transactionId);
         log_commit = switch_transaction_id(this, currentBranchId);
       }

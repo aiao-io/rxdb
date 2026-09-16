@@ -16,6 +16,7 @@ import type { PGliteTransactionExecutor } from '../transaction/PGliteTransaction
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { dispatch_switch_events } from './execute_switch_actions.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
+import { read_current_branch_id } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
 /**
@@ -111,18 +112,22 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
  * 切换到指定分支
  *
  * @param adapter - PGlite 适配器实例
- * @param options - 分支切换选项
+ * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
   const { branchId, actions } = options;
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   let branchSwitchResult: Results<Record<string, unknown>> | undefined;
+  let targetBranchId = branchId;
 
   try {
     // switch_branch 自管触发器和变更日志，跳过事务日志以免重复
     branchSwitchResult = await adapter.transaction(async executor => {
       const sink = (executor as PGliteTransactionExecutor).adapter;
+      // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
+      // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
+      targetBranchId ??= await read_current_branch_id(executor as PGliteTransactionExecutor);
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
       const removeAllTriggers = remove_all_triggers_sql(sink);
       if (removeAllTriggers) await executeSwitchStatements(sink, removeAllTriggers);
@@ -158,7 +163,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       }
 
       // 恢复 trigger 和更新分支状态必须与数据变更共用同一事务，失败时整体回滚。
-      return executeSwitchStatements(sink, generateSwitchBranchSql(adapter, branchId));
+      return executeSwitchStatements(sink, generateSwitchBranchSql(adapter, targetBranchId));
     }, false);
 
     const _dispatch_update_event = (metadata: EntityMetadata, result: RxDBBranch[]) => {
@@ -191,6 +196,10 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     const originalError = cause instanceof Error ? cause : new Error(message, { cause });
-    throw new RxdbAdapterPGliteError(`switch branch ${branchId} failed: ${message}`, undefined, originalError);
+    throw new RxdbAdapterPGliteError(
+      `switch branch ${targetBranchId ?? '<current>'} failed: ${message}`,
+      undefined,
+      originalError
+    );
   }
 };

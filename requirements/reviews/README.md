@@ -15,7 +15,7 @@
 | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------- |
 | `README.md`                                         | 本说明与状态约定                                                                     | —                   |
 | `review.template.md`                                | 新建 review 记录的模板                                                               | —                   |
-| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审                                     | 3 条 P1 + 2 条 P2   |
+| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（含第四轮全量评审）                 | 3 条 P1 + 11 条 P2  |
 | `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                  | 5 块 + 1 条规格决策 |
 | `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                            | Open                |
 | `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch` | Open                |

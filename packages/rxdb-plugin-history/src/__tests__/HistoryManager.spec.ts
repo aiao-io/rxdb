@@ -948,6 +948,45 @@ describe('HistoryManager - Class Methods', () => {
       expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
     });
 
+    // 回归：invalidateRedoStack 是 detached 任务（VersionManager 在 RxDBChange 创建事件上
+    // fire-and-forget 触发），变更通知本身还会被 16ms 批处理和 Tauri stdio 宿主跨进程延迟。
+    // 旧实现先 `getCurrentBranch()` 取 id 再传给 `switchBranch({branchId})`：两次 await 之间
+    // 若发生真正的分支切换，这条迟到的调用会把 activated 和全部触发器倒回旧分支，之后的写入
+    // 全被错标成旧分支。它要的语义只是「作用在当前分支」，所以不得自带 branchId。
+    it('不采样 branchId：只要求作用在当前分支，由适配器在事务内解析', async () => {
+      const items: HistoryItem[] = [
+        {
+          transactionId: null,
+          changeId: 1,
+          fingerprint: 'test',
+          changes: [
+            {
+              id: 1,
+              namespace: 'public',
+              entity: 'User',
+              entityId: 'user-1' as UUID,
+              type: 'INSERT'
+            } as unknown as RxDBChange
+          ],
+          type: 'INSERT',
+          count: 1,
+          createdAt: new Date(),
+          description: 'test',
+          namespace: 'public',
+          entity: 'User',
+          reverted: false,
+          redoInvalidated: false
+        }
+      ];
+      historyManager.pushToRedoStack(items);
+
+      await historyManager.invalidateRedoStack();
+
+      expect(mockSwitchBranch).toHaveBeenCalledTimes(1);
+      const options = mockSwitchBranch.mock.calls[0][0] as { branchId?: string };
+      expect(options.branchId).toBeUndefined();
+    });
+
     it('should handle errors gracefully', async () => {
       const items: HistoryItem[] = [
         {

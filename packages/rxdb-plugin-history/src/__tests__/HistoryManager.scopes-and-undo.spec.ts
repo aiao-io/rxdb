@@ -42,7 +42,7 @@ type QueryOptions = {
 
 type SwitchBranchInput = {
   actions: SwitchVersionActions;
-  branchId: string;
+  branchId?: string;
 };
 
 type Deferred<T> = {
@@ -501,7 +501,9 @@ describe('历史流、作用域与撤销重做执行', () => {
 
       expect(harness.switchBranch).toHaveBeenCalledTimes(1);
       const undoCall = harness.switchBranch.mock.calls[0][0] as SwitchBranchInput;
-      expect(undoCall.branchId).toBe('main');
+      // 回放只作用于当前分支，不自带 branchId —— 事务外采样会在并发切换时把 activated
+      // 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
+      expect(undoCall.branchId).toBeUndefined();
       expect(undoCall.actions.updateRxDBChangeSequence).toBe(103);
       expect(undoCall.actions.updates.get('rxdb:RxDBChange:3')?.patch).toEqual(
         expect.objectContaining({ revertChangeId: 101, revertChangedAt: expect.any(Date) })
@@ -572,14 +574,16 @@ describe('历史流、作用域与撤销重做执行', () => {
     it('cancels an undo that crosses the second generation check', async () => {
       const harness = createHarness({ firstConnectedAt });
       harness.changeFind.mockResolvedValue([createChange(1)]);
-      const currentBranch = deferred<RxDBBranch>();
-      harness.getCurrentBranch.mockReturnValue(currentBranch.promise);
+      // 悬停点取 getRxDBChangeSequence：它落在两次代次检查之间（回放本身不再查当前分支，
+      // 分支由适配器在切换事务内解析）。
+      const sequence = deferred<number>();
+      harness.getRxDBChangeSequence.mockReturnValue(sequence.promise);
 
       const undo = harness.historyManager.history().undo();
-      await vi.waitFor(() => expect(harness.getCurrentBranch).toHaveBeenCalled());
+      await vi.waitFor(() => expect(harness.getRxDBChangeSequence).toHaveBeenCalled());
       expect(harness.historyManager.isExecutingUndoRedo()).toBe(true);
       harness.historyManager.clearUndoHistory();
-      currentBranch.resolve(activeBranch);
+      sequence.resolve(100);
       await undo;
 
       expect(harness.switchBranch).not.toHaveBeenCalled();

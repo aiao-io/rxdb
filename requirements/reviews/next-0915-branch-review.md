@@ -473,3 +473,210 @@ Q -> B -> P -> A
 | `pnpm audit:docs-plugins`                                                                   | ✅ 扫描 120 个文件（原 76）                            |
 | `pnpm audit:api-surface`                                                                    | ✅ 33 个公开包、57 个公开入口与基线一致                |
 | `pnpm audit:requirements`                                                                   | ✅ 60 Done / 1 In Progress / 7 Backlog，合计 68        |
+
+---
+
+## 第四轮评审（2026-09-16）
+
+### 结论
+
+🔴 **暂不可合并**。第三轮的调度器与文档门禁修复经复核有效；本轮独立多角度评审（10 个发现方向 + 26 项对抗性验证 + 1 次补漏扫描）发现 **3 条 P1、11 条 P2**。最重的是三处已提交的调试遗留——其中 `switch_branch` 的调试代码会造成「分支已切换、却向调用方上报回滚」的数据库/UI 分歧——以及 `sync()`/`syncRepository()` 部分失败后不清 undo 历史，用户可撤销回远端已合并之前的状态。第三轮「🟡 可合并」的结论被本轮新发现覆盖。
+
+同时要记录一条正面结论：**拆包本身经逐行审计是忠实的**。被删除的 975 行核心 `VersionManager` 的 14 个 sync 入口、`resolve-current-branch`、被删测试的全部用例都在新包中重建；所有 import 路径解析通过、无循环包依赖、无残留的旧导出消费者；新包 lint 零警告。
+
+| 级别 | 问题                                                     | 影响                                                              |
+| ---- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| P1   | `sync()`/`syncRepository()` 部分同步失败后不清 undo 历史 | 用户可撤销回合并前状态，本地/远端数据分叉                         |
+| P1   | `switch_branch` / `[TXBRANCH]` 调试代码已提交            | 分支已切换却被上报回滚；每个默认事务打一行 error 日志             |
+| P1   | `.husky/pre-commit` 格式门禁被注释                       | 本分支每次提交跳过格式检查，首个信号变成 CI 红灯                  |
+| P2   | `#assert_plugin_graph` 不按实例去重                      | 同一实例经两个工厂引用注册报虚假歧义错误                          |
+| P2   | history 插件销毁时 slot 先删、`destroy()` 后跑           | 断连时 in-flight 的 undo/redo 任务解引用 `undefined` 抛 TypeError |
+| P2   | sync 批处理/状态查询经可删除槽位路由管理器               | 断连时批内剩余仓库全部 TypeError 失败                             |
+| P2   | reachability 离线退避定时器无限自续                      | 零订阅者仍每 ≤30s 唤醒；销毁后仍可重挂，泄漏定时器吊住实例        |
+| P2   | `Math.min(...validChangeIds)` 展开无界数组               | >约 6.5 万元素抛 RangeError，undo 会话恢复被静默跳过              |
+| P2   | `fillInstant` 模块级共享状态可重入                       | 非标配置下 `createdAt !== updatedAt` 不变量被破坏                 |
+| P2   | 新包公开导出缺 TSDoc                                     | 违反 CLAUDE.md 关键约束                                           |
+| P2   | querycache `export *` 冻结 10 个零消费实现符号           | 内部重构需走破坏性变更周期，纯未来税                              |
+| P2   | 两个 QueryCache 缺插件错误工厂逐字节重复                 | 诊断信息只改一半即过期                                            |
+| P2   | 三个新包逐字节复制 14 个测试 fixture                     | 核心契约变更时副本静默腐化                                        |
+| P2   | 文档门禁源码自检靠正则，`static`/修饰符前缀即失明        | 门禁静默漏检或误报红 CI（第三轮 #3 同一门禁的源码侧盲区）         |
+
+### 1. P1：`sync()` / `syncRepository()` 部分同步失败后不清 undo 历史
+
+[`SyncManager.pull()`](../../packages/rxdb-plugin-sync/src/SyncManager.ts#L158) 与
+`pullRepository()` 在 `RxDBPartialSyncError` 且 `historyInvalidated === true` 时都会
+`clearUndoHistory()` 再重抛；`bulkSync()` 经 `partialResultOf(item.error)` 覆盖同样情形。
+但 [`sync()`](../../packages/rxdb-plugin-sync/src/SyncManager.ts#L231) 与 `syncRepository()`
+没有 catch，`#pullAndSettle` 重抛后方法直接返回错误、undo 边界完好。
+
+**触发**：多仓库 `sync()`（无 repositoryFilter，多轮 fetchAll 中后轮失败）或 `syncRepository()`：
+前几个仓库已提交，后续失败 → 用户随后 `undo()` 能回到合并前状态，与远端已合并数据分叉。
+带 repositoryFilter 的 `sync()` 被内部 `bulkSync()` 的清理兜住，不在暴露面内。
+
+**修复**：两个方法各补与 `pull()`/`pullRepository()` 相同的 catch 块；测试目前只覆盖
+plain-error 拒绝（orchestration spec 364-370），需补「部分成功 + historyInvalidated」用例。
+
+### 2. P1：`switch_branch` 与 `[TXBRANCH]` 调试代码已提交
+
+[`switch_branch.ts:148`](../../packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts#L148)
+在 switch 事务提交**之后**的同一 try/catch 内跑两次 `rawQuery` + `console.error('[SWITCH]')`。
+调试查询一旦失败，`adapter.switchBranch` 在已提交后拒绝；调用方
+[`VersionManager`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L242) 未设置
+`switchCommitted`，随即派发 `SwitchBranchRollbackEvent` 并抛错——UI 认为已回滚，数据库实际
+已在新分支，后续写入落进新分支历史。
+
+[`RxDBAdapterSqliteBase.ts:1198`](../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L1198)
+的 `console.error('[TXBRANCH]', dbName, currentBranchId)` 位于事务前奏，`transactionLog`
+默认为 true，每个默认事务打一行含库名的 error 级日志，生产刷屏并掩盖真实错误。
+
+工作区已有未提交的 `__rxdbTrace` 替换（`git diff HEAD` 可见），说明正在处理，但 HEAD 仍含此代码；
+`shared-bigint-binary-entity.suite.ts` 的未提交 `[DEBUG]` 块同理，勿随修复提交。
+
+### 3. P1：`.husky/pre-commit` 格式门禁被注释
+
+分支把 `pnpm exec nx format:check --uncommitted` 注释掉，替换为 `echo 'pre-commit'`。
+本分支每次本地提交跳过格式检查，未格式化文件静默入库，首个信号变成 CI 的 `format:check`
+红灯。属调试遗留，合入前还原为 main 版本。
+
+### 4. P2：`#assert_plugin_graph` 不按实例去重
+
+[`RxDB.ts:1176`](../../packages/rxdb/src/RxDB.ts#L1176) 构建候选索引时无条件
+`[...existing, candidate]`，而 [`#index_plugin_name`](../../packages/rxdb/src/RxDB.ts#L1189)
+对同一场景按引用去重，其注释明言「算一个提供方，不是两个候选」。断言先于索引执行，去重永远
+来不及救场。
+
+**触发**：`db.use(rxDBPluginSearch)` 后再 `db.use(db => rxDBPluginSearch(db))`——工厂自检
+（`getPlugins('search')`）返回已注册实例 S，索引出现 `['search'] = [S, S]`；若已有声明
+`inject: ['plugin:search']` 的插件注册，`resolveUniqueProvider` 抛
+`RxDBPluginAmbiguousDependencyError`，同一个实例在错误信息里被列两次。
+
+**修复**：断言索引构建时按引用去重（与 `#index_plugin_name` 同规则），补「同实例双工厂引用」
+红测。
+
+### 5. P2：history 插件销毁时 slot 先删、`destroy()` 后跑
+
+[`plugin.ts:53`](../../packages/rxdb-plugin-history/src/plugin.ts#L53) 的 slot 删除器
+（`Reflect.deleteProperty(rxdb, 'versionManager')`）注册在 destroy 删除器**之后**，
+`LifecycleScope` 逆序执行 → 属性先被删除，`versionManager.destroy()` 才运行，中间还有 await
+间隙。in-flight 的 detached 任务（`invalidateRedoStack` 在
+[`HistoryManager.ts:505/519`](../../packages/rxdb-plugin-history/src/HistoryManager.ts#L505)
+读 `rxdb.versionManager.getLocalRepositories()`）或排队中的 `undo()`（`undo-redo-apply.ts:55/130/164`
+同样裸解引用）恢复后对 `undefined` 调方法抛 TypeError；`isIgnorableDetachedVersionEventError`
+不认其为 teardown 噪音，控制台报错、undo promise 被拒绝。main 上该字段是常驻属性，此竞态为
+本轮拆包新引入。
+
+**修复**：dispose 顺序改为先 `destroy()` 后删 slot；或让所有异步读取路径持有实例而非
+经槽位重解析（与第 6 条同根）。
+
+### 6. P2：sync 批处理/状态查询经可删除槽位路由管理器
+
+[`bulk-sync.ts:160`](../../packages/rxdb-plugin-sync/src/bulk-sync.ts#L160) 的
+`syncSingleRepository` 每轮经 `rxdb.syncManager` 槽位重解析管理器，而不是用调用方
+`SyncManager.bulkSync` 已持有的 `this`；[`get-repository-sync-status.ts:191`](../../packages/rxdb-plugin-sync/src/get-repository-sync-status.ts#L191)
+与 `check-repository-updates.ts:94/113` 同型。
+
+**触发**：`bulkSync()` 运行中最后一个适配器断开 → sync 插件 scope dispose 删除
+`rxdb.syncManager` → 下一轮解引用 `undefined`，剩余仓库以 TypeError 计入失败结果（唯一守卫是
+逐仓库 try/catch，把崩溃变成静默批失败）；状态查询同理抛未处理拒绝。
+
+**修复**：把持有的 `SyncManager` 实例沿 `executeSyncSequentially/Concurrently` 一路传下去，
+槽位只作入口解析。
+
+### 7. P2：reachability 离线退避定时器无限自续
+
+[`reachability.ts:296`](../../packages/rxdb/src/network/reachability.ts#L296) 的重挂条件只查
+`!this.#online$.value`，不查 `wakeup$` 订阅者数或 destroyed 标志。监视器刻意不随 `disconnectAll()`
+销毁（RxDB.ts:1001 注释），sync 插件 scope 释放其订阅后，离线监视器仍每 ≤30s 自续；`destroy()`
+与回调同 tick 时，回调在 completed subject 上静默 next 后重新 `#scheduleWakeup()`，destroy
+幂等早退，无人再清——泄漏的定时器吊住实例（HMR/测试/移动端耗电）。
+
+**修复**：`wakeup$` 订阅者按引用计数，归零即停表；回调与 `#scheduleWakeup` 加 destroyed 守卫。
+
+### 8. P2：`Math.min(...validChangeIds)` 展开无界数组
+
+[`HistoryManager.ts:425`](../../packages/rxdb-plugin-history/src/HistoryManager.ts#L425)
+把随变更批大小线性增长的数组展开为可变参数，>约 6.5 万元素抛 `RangeError`。异常逃出
+`ENTITY_LOCAL_CREATE_EVENT` 处理器（事件分发 fail-fast，`rxdb.transaction.ts:62`）：非事务路径
+被适配器吞掉但 undo 会话恢复被静默跳过；事务内写入则 commit drain 重抛、保存失败。
+
+**修复**：循环归约求最小值（445 行的第二处同样处理）。
+
+### 9. P2：`fillInstant` 模块级共享状态可重入
+
+[`entity.utils.ts:156`](../../packages/rxdb/src/entity/entity.utils.ts#L156) 把本次填充的
+「now」放在模块级变量，docstring 断言「填充同步且不可重入」但无强制。默认值工厂可同步 `new`
+另一个实体（`entity.decorator.ts:81` 会重入 `fillDefaultValue`），内层 finally 清掉
+`fillInstant`，外层剩余字段的 `entityDefaultNow()` 回退到新的时钟读取。标准 EntityBase 派生
+实体的 `createdAt`/`updatedAt` 因祖先先合并而连续执行、不受影响；覆盖 `id` 默认值或自定义日期
+默认值排序等非标配置下不变量可被破坏。**PLAUSIBLE**（机制确认，触发需非标配置）。
+
+**修复**：改成栈式（保存/恢复旧值）或把 instant 作为参数沿调用链传递。
+
+### 10. P2：新包公开导出缺 TSDoc
+
+[`rxdb-plugin-querycache/src/plugin.ts:37`](../../packages/rxdb-plugin-querycache/src/plugin.ts#L37)
+的 `rxDBPluginQueryCache` 无 TSDoc（前置注释块讲的是「无 declare module 增强」，空行隔开、不
+挂接导出）；[`VersionManager`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L114)
+的 `init()`/`destroy()`/`resetSessionState()`/`getLocalRepositories()`/`getRemoteRepositories()`
+五个公开方法同样裸奔。两者都已入 api-baseline，兄弟包 `SyncManager` 全部有文档。违反
+CLAUDE.md 关键约束「新包/新导出必须补齐 TSDoc」；现有 `docs-plugin-surface` 门禁只扫网站文档，
+无 lint/jsdoc 兜底。
+
+### 11. P2：querycache `export *` 冻结 10 个零消费实现符号
+
+[`index.ts:18`](../../packages/rxdb-plugin-querycache/src/index.ts#L18) 的 `export *` 把
+factory/primary/sync-memo/engine 的全部实现符号（`createQueryCachePrimary`、
+`QueryCacheSyncMemo`、`queryCacheFingerprint` 等）发布为公开 API——api-baseline 13 项中的
+10 项，包外零消费方（仅测试/演示引用了 `rxDBPluginQueryCache` 与 `@experimental` 的
+`QueryCacheEngine`）。按 `versioning-policy.md`「不在表内的公开入口默认进入 1.0 冻结范围」，
+未来内部重构需走破坏性变更周期。兄弟 history 插件刻意收窄为类型导出，querycache 应同样只导出
+插件工厂 + 类型，包内测试走相对路径。
+
+### 12. P2：两个 QueryCache 缺插件错误工厂逐字节重复
+
+[`query-cache-outbox.interface.ts:55`](../../packages/rxdb/src/repository/query-cache-outbox.interface.ts#L55)
+的 `missingQueryCacheOutboxError` 与 `query-cache-engine.interface.ts:147` 的
+`missingQueryCacheEngineError` 仅差包名与提示词；引擎侧注释自己承认「分开写两份，迟早会有一份
+不提包名」。各有两个内部调用点、均非公开 API，应收敛为 `RxDBError.ts` 中一个参数化工厂。
+
+### 13. P2：三个新包逐字节复制 14 个测试 fixture
+
+`test-entities.ts`（92 行）、`transaction-executor-stub.ts`（72 行）、`private-symbols.ts`（17
+行）、`reachability.ts`（24 行）等在 sync/history/querycache 间逐字节相同（`diff` 为 0），
+`test-db-setup.ts` 两个副本与核心 fixture 约九成相同。这些 fixture 探测核心私有符号，核心
+契约变更时需在 2-3 处同步更新，漏一处即静默腐化。`packages/rxdb-test` 已存在且目的就是共享
+fixture；`test-db-setup` 的分叉至少在文件内注明是有意的，逐字节相同的四个没有任何说明。
+
+### 14. P2：文档门禁源码自检靠正则，`static`/修饰符前缀即失明
+
+第三轮 #3 补的是门禁的**文档侧**判据；本轮的盲区在**源码自检侧**：
+[`docs-plugin-surface.mjs:79`](../../scripts/audit/docs-plugin-surface.mjs#L79) 的方法名正则
+`/^ {2}(?:async )?([a-zA-Z][\w]*)\s*[(&<]/gm` 不匹配 `static`/`public`/`private`/`readonly`
+前缀或换行签名，而 `VersionManager.ts` 已在用 `private`/`readonly` 前缀——哪天某个同步方法以
+`static` 形式搬回，名单自检要么静默漏检、要么误报「名单已过期」红掉 CI。该门禁已有两轮人类
+发现的绕过历史，都是靠再补正则条件修复；评审文档自己推荐过的 AST/结构化解析（round-2 记录
+第 376 行）仍未落地。
+
+### 被证伪的候选（无需处理，记录防复提）
+
+- **`firstValueFrom(remoteAdapter$)` 永久挂起 ×2**（`system-repositories.ts:96`、
+  `query-cache-outbox.ts:317`）：发射由配置驱动、与连接无关——`init()` 推送配置名，
+  `getAdapter` 无需连接即可解析实例，配置了就不会挂；未注册则立即拒绝而非挂起。
+- **`Repository.ts:38` 的 `Extract<SyncOptions, …>`**：联合成员本就全部私有，`Extract` 只依赖
+  判别字段，字段变化自动跟随、编译期响亮失败。
+- **`examples/angular-todo` 未迁移 `versionManager`**：示例解析到已发布的 0.0.24（仍含
+  `versionManager`），当前不报错；但属**潜在债务**——升级到 0.0.25 时会断，建议顺手按
+  `modules/angular-todo` 的修法补上。
+
+### 第四轮验证方法
+
+本轮与前几轮不同，是**独立全量评审**而非针对修复的复核：10 个发现方向（逐行 diff 扫描 /
+删除行为审计 / 跨文件追踪 / 语言陷阱 / 包装器正确性 / 复用 / 简化 / 效率 / 高度 / 规范符合性）
+并行产出 36 个候选，去重后 26 项逐一对抗性验证（CONFIRMED 14 / PLAUSIBLE 4 / REFUTED 8，
+另 2 项为 pre-existing 搬移代码），再经 1 次补漏扫描新增 2 条。所有断言均带源码行锚点；
+验证记录：新包 eslint 零警告、import 全解析、无循环包依赖、Angular/React/Vue 三框架变更对称、
+`git diff --check` 层面无空白告警。本轮未复跑全套测试；合并前请以 CI 全绿为准。
+
+**遗留说明**：状态查询串行 await、pushable 双重计数、`find().length` 应为 `count()` 三条效率
+问题均确认存在，但属 main 旧代码原样搬入（`git show main:` 逐行比对），不计入本轮问题清单，
+可另行立项。

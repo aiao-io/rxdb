@@ -23,6 +23,7 @@ import { generate_table_trigger_sql } from '../table/trigger_sql.js';
 import { transaction_sqlite_result } from '../transaction_sqlite_result.js';
 import { executeSqliteSelectStatements, executeSqliteStatements } from './execute-sql-statements.js';
 import { dispatch_switch_events } from './execute_switch_actions.js';
+import { read_current_branch_id } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
 /**
@@ -101,7 +102,7 @@ const _dispatch_branch_update_event = (
  * 重建触发器 + 更新 activated 标志，保证原子性；事件在提交成功后派发。
  *
  * @param adapter - SQLite 适配器
- * @param options - 包含目标 branchId 与可选的 SwitchVersionActions
+ * @param options - 包含可选的目标 branchId（省略即「留在当前激活分支」）与 SwitchVersionActions
  * @throws 任意事务内 SQL 错误（触发回滚）
  */
 export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: SwitchBranchOptions) => {
@@ -109,9 +110,13 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   let branchSwitchResult: SqliteSuccessResult | undefined;
+  let targetBranchId = branchId;
   try {
     // switch_branch 自己管理触发器和变更日志，因此跳过事务日志记录。
     await adapter.transaction(async tx => {
+      // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
+      // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
+      targetBranchId ??= await read_current_branch_id(tx);
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
       const remove_all_triggers = remove_all_triggers_sql(adapter);
       if (remove_all_triggers) {
@@ -142,25 +147,9 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
 
       // 触发器重建 + activated 更新纳入同一事务（SQLite 支持事务内 drop+create 触发器），
       // 避免“数据已提交但触发器缺失 / activated 未更新”的损坏中间态
-      branchSwitchResult = await tx.execute(generateSwitchBranchSql(adapter, branchId));
+      branchSwitchResult = await tx.execute(generateSwitchBranchSql(adapter, targetBranchId));
     }, false);
 
-    {
-      const dbg = await adapter.rawQuery(
-        `SELECT name, sql FROM sqlite_master WHERE type='trigger' AND name LIKE '%BigIntEntityContractParent_update'`
-      );
-      const branchRows = await adapter.rawQuery(`SELECT id, activated FROM "rxdb$rxdb_branch"`);
-      console.error(
-        '[SWITCH]',
-        adapter.rxdb.config.dbName,
-        '->',
-        branchId,
-        JSON.stringify({
-          trigger: JSON.stringify(dbg).includes(branchId),
-          branches: JSON.stringify(branchRows).slice(0, 400)
-        })
-      );
-    }
     // 提交成功后派发事件
     if (branchSwitchResult) {
       const result = await transaction_sqlite_result(adapter, RxDBBranch, branchSwitchResult, true);
@@ -171,6 +160,6 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       await dispatch_switch_events(adapter, switchAction);
     }
   } catch (error) {
-    throw new RxDBAdapterSqliteError(`switch branch ${branchId} failed`, { cause: error });
+    throw new RxDBAdapterSqliteError(`switch branch ${targetBranchId ?? '<current>'} failed`, { cause: error });
   }
 };

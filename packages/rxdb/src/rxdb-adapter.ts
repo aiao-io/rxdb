@@ -55,7 +55,16 @@ export interface RxDBMutationsMap<T extends EntityType = EntityType> {
 export type TransactionFun = (executor: TransactionExecutor) => Promise<unknown>;
 
 export interface SwitchBranchOptions {
-  branchId: string;
+  /**
+   * 目标分支 id。
+   *
+   * @remarks
+   * 省略表示「作用于当前激活分支」——由适配器在切换事务**内部**解析，激活分支保持不变。
+   * 历史子系统（redo 失效、undo/redo 回放）借本方法批量套用 {@link SwitchVersionActions}，
+   * 它们从不想改分支；若由调用方先查当前分支再传进来，两次 await 之间发生的真实切换会让这条
+   * 迟到的调用把 `activated` 与全部变更日志触发器倒回旧分支，之后的写入全被错标。
+   */
+  branchId?: string;
   actions: SwitchVersionActions;
 }
 

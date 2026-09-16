@@ -162,14 +162,12 @@ export async function applyUndoRedoHistories(
     }
 
     const { adapter } = await host.rxdb.versionManager.getLocalRepositories();
-    const currentBranch = await host.rxdb.versionManager.getCurrentBranch();
     if (operation === 'undo') {
       if (undoSession === undefined || !host.isUndoSessionCurrent(undoSession)) return;
     }
-    await adapter.switchBranch({
-      branchId: currentBranch.id,
-      actions
-    });
+    // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
+    // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
+    await adapter.switchBranch({ actions });
 
     host.pushableCountTrigger$.next(Date.now());
     host.setRevertStateWatermarks(changes, operation === 'undo', stateUpdatedAt);
