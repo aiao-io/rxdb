@@ -512,6 +512,36 @@ describe('插件间依赖（阶段 B：AC#13）', () => {
     expect(host.log.slice(3)).toEqual(['release:a', 'release:b', 'release:c']);
   });
 
+  it('依赖方还在 install() 里时，提供方必须等它释放完才撤（INV-7 的竞态形态）', async () => {
+    host.instances.set(LOCAL, { id: 'local' });
+    const gate = deferred();
+    const search = provide(new TestPlugin('search', [LOCAL]));
+    const consumer = new TestPlugin('consumer', ['plugin:search'], () => gate.promise);
+
+    await settleWith(search);
+    scheduler.register(consumer);
+    // `#startInstall` 同步落状态：这一行之后 consumer 一定挂在 gate 上
+    scheduler.reconcile();
+    expect(scheduler.activationState(consumer)).toBe('installing');
+
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+
+    // 竞态的要害在这一刻：跳过 installing 的依赖方，provider 的作用域此时就撤了，
+    // consumer 的安装尾段与 disposer 于是跑在一份已销毁的依赖上
+    expect(scheduler.activationState(search)).toBe('disposing');
+    expect(host.log).toEqual(['install:search', 'install:consumer']);
+
+    gate.resolve();
+    await scheduler.settle();
+
+    // 各释放一次，且依赖方在前
+    expect(host.log).toEqual(['install:search', 'install:consumer', 'release:consumer', 'release:search']);
+    expect(host.scopes.map(scope => scope.state)).toEqual(['disposed', 'disposed']);
+    expect(scheduler.activationState(search)).toBe('waiting');
+    expect(scheduler.activationState(consumer)).toBe('waiting');
+  });
+
   it('依赖缺失的插件停在等待态，不产生作用域（AC#15 在调度器这一侧的形态）', async () => {
     const lonely = new TestPlugin('lonely', ['plugin:nonexistent']);
 

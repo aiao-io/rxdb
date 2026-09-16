@@ -32,6 +32,25 @@ const createDatabase = (): RxDB => {
   });
 };
 
+describe('US-025 B1：本插件不在 RxDB 上挂实例槽位', () => {
+  it('装上之后 rxdb 也不多一个 queryCache 属性 —— 类型面与运行时面必须对齐', () => {
+    const rxdb = createDatabase();
+    rxDBPluginQueryCache(rxdb).install(new LifecycleScope('test-epoch'));
+
+    // 类型上也不该存在：曾经有过一条 `declare module` 增强，让这行编译通过、运行时拿 undefined。
+    // @ts-expect-error -- RxDB 上没有 queryCache，这条断言就是用来锁住「别再加回来」
+    expect(rxdb.queryCache).toBeUndefined();
+    expect(Object.hasOwn(rxdb, 'queryCache')).toBe(false);
+  });
+
+  it('要拿插件实例走 getPlugins()：注册表是唯一入口', () => {
+    const rxdb = createDatabase();
+    rxdb.use(rxDBPluginQueryCache);
+
+    expect(rxdb.getPlugins('queryCache')).toHaveLength(1);
+  });
+});
+
 describe('US-025 B1：QueryCache 引擎随插件作用域登记与撤销', () => {
   it('没装插件时槽位是空的：核心自己不填任何默认实现', () => {
     expect(createDatabase().getQueryCacheEngine()).toBeUndefined();

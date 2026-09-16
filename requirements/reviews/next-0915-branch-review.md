@@ -1,0 +1,304 @@
+# next-0915 分支对 main 评审
+
+- **评审日期**：2026-09-16
+- **评审分支**：`next-0915`
+- **对比基线**：`main` 的 merge-base `68b0ba97dd25fe158564ce194f6fea37fefc8bd1`
+- **变更规模**：434 个文件，`+13,758 / -4,449`
+- **主线改动**：把 QueryCache 读引擎、历史/分支、推拉同步从 `@aiao/rxdb` 拆成三个插件包
+- **结论**：🟢 5 条问题已全部修复（2026-09-16），见文末「修复记录」
+
+## 问题清单
+
+| 级别 | 问题                                              | 影响                                                  |
+| ---- | ------------------------------------------------- | ----------------------------------------------------- |
+| P1   | 异步安装中的插件依赖方会晚于提供方释放            | 安装尾段或 disposer 可能访问已经销毁的 provider       |
+| P1   | QueryCache 迁移指南漏掉 sync/history 两个必需插件 | 用户照官方步骤升级后，`connect()` 仍然必定失败        |
+| P1   | history/sync 拆包没有迁移指南，现有文档仍用旧 API | 既有用户升级后编译失败或在运行时拿到 `undefined`      |
+| P2   | QueryCache 声明不存在的 `rxdb.queryCache` 属性    | TypeScript 放行，运行时恒为 `undefined`               |
+| P2   | DFS 拓扑排序不保持同层插入序                      | 无依赖插件的拆卸相对顺序偏离 US-014/US-015 的明确契约 |
+
+---
+
+## 1. P1：异步安装中的依赖方会晚于提供方释放
+
+### 问题
+
+[`PluginDependencyScheduler.#releaseDependents`](../../packages/rxdb/src/plugin/dependency-scheduler.ts#L375)
+只处理同时满足以下条件的依赖方：
+
+```ts
+if (activation.state !== 'active' || activation.inFlight !== undefined) continue;
+```
+
+当 provider 的依赖在 consumer 异步 `install()` 期间失效时，时序如下：
+
+```text
+consumer: installing
+provider: active -> disposing
+  -> releaseDependents() 跳过 consumer
+  -> release provider scope
+consumer install settle
+  -> applyInstallResult() 发现 provider 已不满足
+  -> release consumer scope
+```
+
+provider 比 consumer 更早失效。consumer 的安装尾段或 disposer 如果使用 provider 建立的资源，
+就会运行在一份已经销毁的依赖上。
+
+这与 [US-015](../stories/core/US-015-plugin-inject-dependency.md) 的两条硬约束正面冲突：
+
+- 依赖在 `install()` 未 settle 时消失，要等待 install settle，再释放已登记的 scope；
+- 依赖方的 scope dispose 完成后，才允许依赖本身失效（INV-7）。
+
+现有测试只覆盖「provider 和 consumer 都已经 active」时的逆拓扑释放，
+[`dependency-scheduler.spec.ts`](../../packages/rxdb/src/plugin/__tests__/dependency-scheduler.spec.ts#L481)
+没有覆盖 consumer 仍在安装的竞态。
+
+### 根因
+
+实现把「避免同一个 scope 被释放两次」等同于「完全跳过 installing consumer」。
+但 `#applyInstallResult()` 能负责 consumer scope 的唯一释放，不代表 provider 可以不等这次释放完成。
+
+### 修复方案
+
+1. provider 释放时，把依赖它且仍在安装的 consumer transition 纳入等待集合；
+2. 等 consumer install settle，并由纪元校验释放 stale scope；
+3. consumer scope dispose 完成后，再释放 provider scope；
+4. 补强制竞态测试，断言日志严格为 `release:consumer`、`release:provider`，且两个 scope 各释放一次。
+
+---
+
+## 2. P1：QueryCache 迁移指南按步骤执行仍然失败
+
+### 问题
+
+[`querycache-plugin.md`](../../website/docs/migration/querycache-plugin.md#L9) 只要求安装并注册
+`@aiao/rxdb-plugin-querycache`：
+
+```bash
+pnpm add @aiao/rxdb-plugin-querycache
+```
+
+但 [`RxDB.connect()`](../../packages/rxdb/src/RxDB.ts#L878) 会连续检查两个槽：
+
+```ts
+this.#assert_query_cache_engine();
+this.#assert_query_cache_outbox();
+```
+
+三包的实际关系是：
+
+| 能力          | 提供方                   | 额外要求                      |
+| ------------- | ------------------------ | ----------------------------- |
+| QueryCache 读 | `rxdb-plugin-querycache` | 无                            |
+| 离线写出站    | `rxdb-plugin-sync`       | `inject: ['plugin:history']`  |
+| 同步历史桥    | `rxdb-plugin-history`    | sync 插件进入 active 的硬前置 |
+
+因此声明 `SyncType.QueryCache` 的应用必须安装并注册三个插件。只按当前指南操作，engine 护栏通过，
+outbox 护栏随后抛 `RxDBMissingPluginError`。
+
+同一页第 67 行声称「写回出站整条路径同样留在 core」，也已经被阶段 D 的实现推翻。
+[`rxdb-plugin-querycache/README.md`](../../packages/rxdb-plugin-querycache/README.md#L9) 重复了相同错误。
+
+### 根因
+
+迁移文档在 US-025 阶段 B 写成，当时出站确实还在 core；阶段 D 把出站搬进 sync 插件后，
+代码、测试和故事记录更新了，用户迁移入口没有同步更新。
+
+### 修复方案
+
+1. 安装命令列出 history、sync、querycache 三个包；
+2. 示例注册 `rxDBPluginHistory`、`rxDBPluginSync`、`rxDBPluginQueryCache`；
+3. 明确注册顺序随意，由 `inject` 保证 history 先于 sync；
+4. 删除「出站仍在 core」的说明；
+5. 同步修正插件 README 和相关适配器 README；
+6. 增加一条文档示例集成测试：按指南配置后 `connect()` 必须成功。
+
+---
+
+## 3. P1：history/sync 的破坏性迁移没有用户迁移路径
+
+### 问题
+
+本分支不再由 core 自动创建 `versionManager`。历史插件在连接纪元内挂载
+`rxdb.versionManager`，sync 插件另行挂载 [`rxdb.syncManager`](../../packages/rxdb-plugin-sync/src/plugin.ts#L95)。
+
+同步调用从：
+
+```ts
+rxdb.versionManager.syncRepository(...);
+rxdb.versionManager.push();
+rxdb.versionManager.pull();
+```
+
+改为：
+
+```ts
+rxdb.syncManager.syncRepository(...);
+rxdb.syncManager.push();
+rxdb.syncManager.pull();
+```
+
+但是：
+
+- [`migration/README.md`](../../website/docs/migration/README.md#L13) 只新增了 QueryCache 拆包指南；
+- [`collaboration/sync.md`](../../website/docs/collaboration/sync.md#L70) 仍调用
+  `rxdb.versionManager.syncRepository()` / `bulkSync()`；
+- 分支、撤销重做文档仍直接使用 `rxdb.versionManager`，没有安装和注册 history 插件；
+- US-025 自己记录了 `versionManager.<syncMethod>` 到 `syncManager.<syncMethod>` 共影响 104 处调用，
+  但这些信息没有进入面向使用者的迁移文档。
+
+既有用户升级后会遇到三种失败：缺插件导入时类型消失、未注册插件时属性为 `undefined`、
+继续调用旧同步方法时成员不存在。
+
+### 根因
+
+包内 README 被当成了迁移指南，但它只能解释新包怎么用，不能覆盖既有 core 用户从旧 API 到新 API 的映射。
+同时没有文档门禁扫描 `website/docs` 中已经失效的 `versionManager` 同步调用。
+
+### 修复方案
+
+新增 history/sync 拆包迁移页，至少包含：
+
+1. history-only、sync、QueryCache 三种应用分别需要哪些包；
+2. 对应的 `rxdb.use(...)` 注册示例；
+3. `versionManager` 保留的历史/分支 API 清单；
+4. 迁往 `syncManager` 的同步 API 对照表；
+5. `await connect()` 之后槽位才可用的生命周期说明；
+6. 全量更新 collaboration、adapter 和 demo 文档中的旧调用。
+
+---
+
+## 4. P2：QueryCache 声明了不存在的运行时属性
+
+### 问题
+
+[`rxdb-plugin-querycache/src/plugin.ts`](../../packages/rxdb-plugin-querycache/src/plugin.ts#L32) 增强了公开类型：
+
+```ts
+declare module '@aiao/rxdb' {
+  interface RxDB {
+    queryCache: RxDBPluginQueryCache;
+  }
+}
+```
+
+但插件工厂与 `install()` 都没有给 `rxdb.queryCache` 赋值。合法的 TypeScript 代码：
+
+```ts
+rxdb.queryCache.name;
+```
+
+会通过类型检查，运行时却因 `rxdb.queryCache === undefined` 失败。
+
+history、sync、storage 插件都用 `Object.defineProperty()` 挂载运行时槽位，并在 scope 释放时删除；
+QueryCache 只有类型，没有对应运行时动作。
+
+### 根因
+
+从其他插件复制了模块增强，却没有决定 QueryCache 是否真的需要公开插件实例。
+当前已有 `getPlugins('queryCache')` 和 `getQueryCacheEngine()`，通常没有再暴露属性的必要。
+
+### 修复方案
+
+优先删除 `queryCache` 模块增强。若确实要公开插件实例，则必须在 scope 内定义属性并对称撤销，
+同时补「连接期间存在、断连后删除」的运行时测试。
+
+---
+
+## 5. P2：拓扑排序不保持同层插入序
+
+### 问题
+
+[`topologicalPluginOrder`](../../packages/rxdb/src/plugin/dependency-graph.ts#L79) 使用 DFS 后序，
+但 TSDoc 与 US-015 都承诺「提供方在前，同层保持插入序」。
+
+反例：
+
+```ts
+const plugins = [consumer /* depends search */, standalone, search];
+```
+
+当前 DFS 输出：
+
+```text
+[search, consumer, standalone]
+```
+
+稳定拓扑序应为：
+
+```text
+[standalone, search, consumer]
+```
+
+`standalone` 与 `search` 同为初始可用节点，原插入序是 standalone 在前，当前实现却把 search 提到最前。
+随后 `destroyPlugin()` 逆序拆卸时，无依赖插件的相对顺序也随之改变。
+
+现有用例只覆盖 `[standalone, consumer, search]`，因为 standalone 已经在最前，恰好避开了反例。
+
+### 根因
+
+DFS 后序能保证依赖在消费者之前，但不能保证全局稳定性。只有在互不相关节点没有被更早节点递归访问时，
+它才碰巧维持输入顺序。
+
+### 修复方案
+
+采用按原索引稳定出队的 Kahn 排序，或实现等价的稳定拓扑排序。补以下测试：
+
+```ts
+expect(topologicalPluginOrder([consumer, standalone, search], index)).toEqual([standalone, search, consumer]);
+```
+
+并同时断言 `destroyPlugin()` 的拆卸序为 `consumer -> search -> standalone`。
+
+---
+
+## 验证记录
+
+| 验证项                                               | 结果                                                                |
+| ---------------------------------------------------- | ------------------------------------------------------------------- |
+| `rxdb`、history、querycache、sync 的 build/typecheck | ✅ 通过                                                             |
+| 上述四个项目串行 test                                | ✅ 通过                                                             |
+| `rxdb` 测试                                          | ✅ 97 个文件、1,931 条；总覆盖率 93.65%                             |
+| `rxdb-plugin-history` 测试                           | ✅ 22 个文件、316 条；语句覆盖率 97.93%                             |
+| `rxdb-plugin-querycache` 测试                        | ✅ 12 个文件、193 条；语句覆盖率 97.28%                             |
+| `rxdb-plugin-sync` 测试                              | ✅ 通过                                                             |
+| `pnpm audit:api-surface`                             | ✅ 33 个公开包、57 个公开入口与**当前分支已更新的基线**一致         |
+| search Angular/React/Vue API 对称                    | ✅ 共享类型与运行时入口对称                                         |
+| `git diff --check 68b0ba97...HEAD`                   | ✅ 通过                                                             |
+| 工作区                                               | ✅ 评审开始与验证结束时均干净；生成本报告后只新增报告及 README 索引 |
+
+API surface 审计通过不代表相对 main 没有破坏性变更：本分支同时更新了 baseline。
+它只能证明实现与本分支声明的新基线一致，不能替代迁移指南。
+
+## 复核（2026-09-16）
+
+逐条核对后 5 条全部属实，无一条是过度优化。唯一需要修正的是 **#1 的严重度**：
+它确实违反 INV-7，但**在当前已发布的插件组合下不可达**——history / querycache 都不声明
+`inject`，sync 唯一的提供方（history）没有依赖因而永远不会进入 `#release()`，
+三者的 `install()` 又都是同步体。因此它是**潜在**竞态而非现网故障，仍按契约修掉。
+
+#5 也核实过不是对文档的过度解读：[US-015](../stories/core/US-015-plugin-inject-dependency.md)
+第 452 行明写「释放顺序：先按逆拓扑序，同层内再按 US-014 的逆插入序」，
+旧 DFS 只守住了前半条。
+
+## 修复记录
+
+| 编号 | 修复                                                                                                            | 测试                                                                     |
+| ---- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 1    | `#releaseDependents()` 不再跳过 `installing` 的依赖方：改为 `await` 它在飞的转移并循环到无依赖方存活，释放动作仍归 `#applyInstallResult`（避免双释放） | `dependency-scheduler.spec.ts`「依赖方还在 install() 里时…」（先红后绿） |
+| 2    | `migration/querycache-plugin.md` 改为三包安装 / 注册；删掉「出站仍在 core」的错误说明；同步修 `rxdb-plugin-querycache/README.md` | `scripts/audit/docs-plugin-surface.mjs` 第 3 条判据                       |
+| 3    | 新增 `website/docs/migration/history-sync-plugins.md`（包选择、注册 diff、`versionManager`→`syncManager` 15 个方法对照、槽位生命周期、失败症状表）；修 `collaboration/sync.md`、`collaboration/branch.md` 的失效示例 | 同上第 1、2 条判据                                                       |
+| 4    | 删除 `rxdb-plugin-querycache` 里 `rxdb.queryCache` 的模块增强                                                    | `query-cache-engine.scope.spec.ts` 的 `@ts-expect-error` 回归锁           |
+| 5    | `topologicalPluginOrder` 由 DFS 后序换成按原始下标出队的稳定 Kahn 排序；顺带修掉旧实现会把未登记提供方推进结果的隐患 | `dependency-graph.spec.ts` 两条反例 + `RxDB.plugin-inject.spec.ts` 端到端拆卸序 |
+
+配套门禁：新增 `pnpm audit:docs-plugins`（`scripts/audit/docs-plugin-surface.mjs` + 11 条
+`node:test` 自测），已接进 `ci-template.yml`。名单自校验——哪天有人把某个同步方法搬回
+`VersionManager`，门禁先于文档扫描炸掉。
+
+验证：`rxdb`、history、querycache、sync 四个项目 lint / test / build 全绿；
+`pnpm audit:docs-plugins`、`pnpm audit:requirements`、`pnpm audit:api-surface` 均通过。
+
+## 决策
+
+✅ **可以合并**。

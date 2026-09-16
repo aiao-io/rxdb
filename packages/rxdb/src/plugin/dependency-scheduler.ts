@@ -368,20 +368,30 @@ export class PluginDependencyScheduler {
    * 于是调度器不需要认识任何名字就能回答「谁依赖我」。递归必然终止：依赖成环在安装
    * 规划阶段就被拒了（AC#16），图上不存在回边。
    *
-   * 处于 `installing` 的依赖方**不在这里处理**：本插件的 `disposing` 已经同步落地，
-   * 宿主随即把它报成未就绪，那次安装落地时 {@link PluginDependencyScheduler.#applyInstallResult}
-   * 的纪元校验会自己把它释放掉。在这里插手只会让同一个作用域被释放两次。
+   * 处于 `installing` 的依赖方**不自己释放，但一定要等**：那个作用域的唯一释放点是
+   * {@link PluginDependencyScheduler.#applyInstallResult} 的纪元校验（本插件的 `disposing`
+   * 已经同步落地，宿主随即把它报成未就绪），在这里插手会让同一个作用域被释放两次。
+   * 可是「不由我释放」不等于「不必等它释放完」——不等就意味着 provider 先于仍在安装的
+   * consumer 失效，consumer 的安装尾段与 disposer 跑在一份已销毁的依赖上（INV-7）。
+   * 所以这里只 `await` 它那件在飞的转移，释放动作仍归它自己。
+   *
+   * 循环到「没有依赖方还在飞、也没有依赖方还活着」为止：等的那一件落地后，依赖方可能
+   * 刚转成 `active`（它的安装先于本插件的 `disposing` 完成），那就轮到下一圈释放它。
+   * 必然终止——本插件停在 `disposing`，宿主对 `plugin:*` 的就绪判据是提供方 `active`
+   * （US-015 D3），等待期间没有任何依赖方能重新装上来。
    */
   async #releaseDependents(target: IRxDBPlugin): Promise<void> {
-    const pending: Promise<void>[] = [];
-    for (const [plugin, activation] of this.#activations) {
-      if (activation.state !== 'active' || activation.inFlight !== undefined) continue;
-      if (!activation.deps.includes(target)) continue;
-      // 递归发生在这一步内部：依赖方自己的依赖方更早被释放，孙子先于儿子
-      this.#release(plugin, activation);
-      if (activation.inFlight !== undefined) pending.push(activation.inFlight);
+    for (;;) {
+      const pending: Promise<void>[] = [];
+      for (const [plugin, activation] of this.#activations) {
+        if (!activation.deps.includes(target)) continue;
+        // 递归发生在 `#release` 内部：依赖方自己的依赖方更早被释放，孙子先于儿子
+        if (activation.inFlight === undefined && activation.state === 'active') this.#release(plugin, activation);
+        if (activation.inFlight !== undefined) pending.push(activation.inFlight);
+      }
+      if (pending.length === 0) return;
+      await Promise.allSettled(pending);
     }
-    await Promise.allSettled(pending);
   }
 
   /** 建作用域、发起安装，并把结果对齐到落地时的最新目标。 */

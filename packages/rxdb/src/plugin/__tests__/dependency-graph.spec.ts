@@ -181,6 +181,33 @@ describe('topologicalPluginOrder —— 提供方在前，同层保持插入序'
     ]);
   });
 
+  it('依赖方注册在最前时，同层插件不被提到它前面（US-015「同层保持插入序」）', () => {
+    const consumer = new GraphTestPlugin('consumer', ['plugin:search']);
+    const standalone = new GraphTestPlugin('standalone');
+    const search = new GraphTestPlugin('search');
+
+    // DFS 后序会从 consumer 递归下去，把 search 顶到最前面（→ search、consumer、standalone），
+    // 于是 standalone 与 search 这两个同层节点的插入序被排序过程本身打乱了
+    expect(topologicalPluginOrder([consumer, standalone, search], indexOf(consumer, standalone, search))).toEqual([
+      standalone,
+      search,
+      consumer
+    ]);
+  });
+
+  it('提供方出队解锁依赖方后，同层里下标更小的先走（出队规则按原始下标，不按发现顺序）', () => {
+    const consumer = new GraphTestPlugin('consumer', ['plugin:search']);
+    const search = new GraphTestPlugin('search');
+    const tail = new GraphTestPlugin('tail');
+
+    // search 出队的那一刻，就绪集合是 { consumer(0), tail(2) }：consumer 虽然后解锁，下标却更小
+    expect(topologicalPluginOrder([consumer, search, tail], indexOf(consumer, search, tail))).toEqual([
+      search,
+      consumer,
+      tail
+    ]);
+  });
+
   it('依赖缺失时该插件照常在序列里（缺失不等于出局，等待态仍要参与拆卸）', () => {
     const lonely = new GraphTestPlugin('lonely', ['plugin:nonexistent']);
 

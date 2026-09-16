@@ -550,6 +550,24 @@ describe('AC#13 插件依赖插件：拓扑装、逆拓扑卸', () => {
     expect(log).toEqual(['install:search']);
   });
 
+  it('同层插件不因依赖方排在前面而被换位 —— 逆拓扑之下仍是 US-014 的逆插入序', async () => {
+    const { database } = createDatabase();
+    const log: string[] = [];
+    // 登记序 consumer、standalone、search：consumer 与 search 有依赖边，standalone 谁也不沾。
+    // 排序只该把 consumer 推到 search 之后，不该把 search 拽到 standalone 前面。
+    database.use(() => ordered('consumer', ['plugin:search'], log));
+    database.use(() => ordered('standalone', ['adapter:local'], log));
+    database.use(() => ordered('search', ['adapter:local'], log));
+
+    await database.connect('sqlite');
+
+    expect(log).toEqual(['install:standalone', 'install:search', 'install:consumer']);
+
+    await database.disconnectAll();
+
+    expect(log.slice(3)).toEqual(['release:consumer', 'release:search', 'release:standalone']);
+  });
+
   it('三级链 a → b → c 的释放序是 a、b、c', async () => {
     const { database } = createDatabase();
     const log: string[] = [];

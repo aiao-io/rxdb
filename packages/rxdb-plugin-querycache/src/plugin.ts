@@ -29,10 +29,9 @@ export class RxDBPluginQueryCache extends RxDBPluginBase implements IRxDBPlugin 
   }
 }
 
-declare module '@aiao/rxdb' {
-  interface RxDB {
-    queryCache: RxDBPluginQueryCache;
-  }
-}
+// 这里**不做** `declare module '@aiao/rxdb'` 增强。history / sync 增强 `RxDB` 是因为它们真的
+// `Object.defineProperty` 挂了实例槽位；本插件只往引擎槽里塞一个工厂，`rxdb` 上不多一个属性。
+// 声明一个没人赋值的 `queryCache`，换来的是 `rxdb.queryCache.name` 编译通过、运行时炸在
+// `undefined` —— 类型说了一句实现不打算兑现的话。要拿实例走 `getPlugins('queryCache')`。
 
 export const rxDBPluginQueryCache: Plugin<RxDBPluginQueryCacheOptions> = (db: RxDB) => new RxDBPluginQueryCache(db);

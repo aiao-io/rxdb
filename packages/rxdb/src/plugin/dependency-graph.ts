@@ -18,6 +18,7 @@ const GRAY = 1;
 const BLACK = 2;
 
 const NO_DEPENDENCIES: readonly RxDBPluginDependency[] = [];
+const NO_PROVIDERS: readonly IRxDBPlugin[] = [];
 
 /**
  * 判断依赖键是否指向另一个插件。
@@ -68,19 +69,23 @@ export function resolveUniqueProvider(
  * @throws {@link RxDBPluginAmbiguousDependencyError} 被依赖的名字有多个候选（AC#14）
  *
  * @remarks
- * 实现是 DFS 后序而非 Kahn：后序天然保留「互不相关的插件维持插入序」这条性质，
- * 而 Kahn 要靠就绪队列的出队规则额外保证。这条性质是 US-014 的**回归底线**——
- * 没有任何 `plugin:*` 声明时，本函数的输出必须逐项等于输入，
- * 逆序之后才仍是 US-014 承诺的逆插入序。
+ * 实现是 Kahn，就绪集合按**原始下标**出队。DFS 后序只保证「提供方在前」，
+ * 保不住 US-015 承诺的第二条「同层内按插入序」——它会从第一个依赖方递归下去，
+ * 把那条链上的提供方整体顶到前面，越过插入序更早却与之无关的插件。
+ * 按下标出队则两条同时成立：依赖边定层，层内回落到插入序。
+ *
+ * 排序本身不报环：Kahn 只知道「还有节点没出队」。要给出 `a → b → a` 这样的环路径
+ * 得另走一趟 DFS，所以环检测留在 {@link cycleError} 里按需触发——正常图不为
+ * 一条永不发生的诊断多付一趟遍历。
  *
  * 依赖缺失的插件照常留在序列里：它虽然没装成，拆卸路径仍要走到它（legacy 插件的
  * `destroy()` 配对由调度器的 `everInstalled` 另行把关）。
  */
 export function topologicalPluginOrder(plugins: Iterable<IRxDBPlugin>, index: PluginNameIndex): readonly IRxDBPlugin[] {
-  const marks = new Map<IRxDBPlugin, number>();
-  const path: IRxDBPlugin[] = [];
-  const order: IRxDBPlugin[] = [];
-  for (const plugin of plugins) visit(plugin, index, marks, path, order);
+  const nodes = [...plugins];
+  const providers = resolveProviderEdges(nodes, index);
+  const order = stablePluginOrder(nodes, providers);
+  if (order.length !== nodes.length) throw cycleError(nodes, providers, new Set(order));
   return order;
 }
 
@@ -101,27 +106,123 @@ export function assertPluginDependencyGraph(plugins: Iterable<IRxDBPlugin>, inde
   void topologicalPluginOrder(plugins, index);
 }
 
-/** 三色 DFS 的单节点访问：先递归提供方，再把自己追加到后序。 */
-function visit(
+/**
+ * 把每个插件的 `plugin:*` 依赖解析成图上的入边。
+ *
+ * @param nodes - 全部已登记的插件，按 `use()` 顺序
+ * @param index - 插件名索引
+ * @returns 插件 → 它的提供方实例列表
+ * @throws {@link RxDBPluginAmbiguousDependencyError} 被依赖的名字有多个候选（AC#14）
+ *
+ * @remarks
+ * 只收**登记在册**的提供方：`index` 与 `nodes` 同源，理论上不会解析出外来实例，
+ * 但排序的输出必须恰好是输入那批插件，多一个就会让调用方按一份不存在的名单去拆卸。
+ * 解析不到的依赖不留边（AC#15 的缺失走等待态，不是排序问题）。
+ */
+function resolveProviderEdges(
+  nodes: readonly IRxDBPlugin[],
+  index: PluginNameIndex
+): ReadonlyMap<IRxDBPlugin, readonly IRxDBPlugin[]> {
+  const registered = new Set(nodes);
+  const edges = new Map<IRxDBPlugin, IRxDBPlugin[]>();
+  for (const node of nodes) {
+    const providers: IRxDBPlugin[] = [];
+    for (const dependency of node.inject ?? NO_DEPENDENCIES) {
+      if (!isPluginNameDependency(dependency)) continue;
+      const provider = resolveUniqueProvider(index, dependency);
+      if (provider !== undefined && registered.has(provider)) providers.push(provider);
+    }
+    edges.set(node, providers);
+  }
+  return edges;
+}
+
+/**
+ * Kahn 排序：每轮取「入度归零且原始下标最小」的那个。
+ *
+ * @param nodes - 全部已登记的插件，按 `use()` 顺序
+ * @param providers - {@link resolveProviderEdges} 给出的入边
+ * @returns 拓扑序；有环时长度短于 `nodes`（环上的节点入度永不归零）
+ *
+ * @remarks
+ * 出队后**从头重扫**而不是接着往下走：提供方出队可能解锁一个下标更小的依赖方，
+ * 接着扫会把它排在同层里下标更大的插件之后，「同层按插入序」就又破了。
+ * 插件数量是个位到十位数，这点重扫的代价换一条能写进契约的确定性。
+ */
+function stablePluginOrder(
+  nodes: readonly IRxDBPlugin[],
+  providers: ReadonlyMap<IRxDBPlugin, readonly IRxDBPlugin[]>
+): IRxDBPlugin[] {
+  const blocking = new Map<IRxDBPlugin, number>();
+  const dependents = new Map<IRxDBPlugin, IRxDBPlugin[]>();
+  for (const node of nodes) {
+    const incoming = providers.get(node) ?? NO_PROVIDERS;
+    blocking.set(node, incoming.length);
+    for (const provider of incoming) dependents.set(provider, [...(dependents.get(provider) ?? []), node]);
+  }
+  const order: IRxDBPlugin[] = [];
+  const emitted = new Set<IRxDBPlugin>();
+  for (;;) {
+    const ready = nodes.find(node => !emitted.has(node) && blocking.get(node) === 0);
+    // 没有入度归零的节点了：要么排完了，要么剩下的全被环挡着（由调用方按长度判定）
+    if (ready === undefined) break;
+    emitted.add(ready);
+    order.push(ready);
+    for (const dependent of dependents.get(ready) ?? NO_PROVIDERS) {
+      blocking.set(dependent, (blocking.get(dependent) ?? 0) - 1);
+    }
+  }
+  return order;
+}
+
+/**
+ * 在没出队的那批节点上补跑一趟 DFS，把环路径挖出来。
+ *
+ * @param nodes - 全部已登记的插件，按 `use()` 顺序
+ * @param providers - {@link resolveProviderEdges} 给出的入边
+ * @param emitted - 已经出队的节点
+ * @returns 带完整环路径的错误，交由调用方抛出
+ *
+ * @remarks
+ * 只在 Kahn 短出队时才走：剩下的节点必然全部落在环上或被环挡住，从其中任意一个
+ * 出发的 DFS 一定撞到回边。返回而不是就地抛，是为了让 `throw` 留在
+ * {@link topologicalPluginOrder} 里——控制流看得见，才不会被当成可选路径。
+ */
+function cycleError(
+  nodes: readonly IRxDBPlugin[],
+  providers: ReadonlyMap<IRxDBPlugin, readonly IRxDBPlugin[]>,
+  emitted: ReadonlySet<IRxDBPlugin>
+): RxDBPluginDependencyCycleError {
+  const marks = new Map<IRxDBPlugin, number>();
+  const path: IRxDBPlugin[] = [];
+  for (const node of nodes) {
+    if (emitted.has(node)) continue;
+    const found = findCycle(node, providers, marks, path);
+    if (found !== undefined) return new RxDBPluginDependencyCycleError(found);
+  }
+  /* v8 ignore next 2 -- Kahn 短出队等价于有环，这一行只是让返回类型无需可空 */
+  return new RxDBPluginDependencyCycleError(nodes.map(node => node.name));
+}
+
+/** 三色 DFS：撞到灰点即回边，从路径上截出环。 */
+function findCycle(
   plugin: IRxDBPlugin,
-  index: PluginNameIndex,
+  providers: ReadonlyMap<IRxDBPlugin, readonly IRxDBPlugin[]>,
   marks: Map<IRxDBPlugin, number>,
-  path: IRxDBPlugin[],
-  order: IRxDBPlugin[]
-): void {
+  path: IRxDBPlugin[]
+): readonly string[] | undefined {
   const mark = marks.get(plugin);
-  if (mark === BLACK) return;
-  if (mark === GRAY) throw new RxDBPluginDependencyCycleError(cyclePath(path, plugin));
+  if (mark === BLACK) return undefined;
+  if (mark === GRAY) return cyclePath(path, plugin);
   marks.set(plugin, GRAY);
   path.push(plugin);
-  for (const dependency of plugin.inject ?? NO_DEPENDENCIES) {
-    if (!isPluginNameDependency(dependency)) continue;
-    const provider = resolveUniqueProvider(index, dependency);
-    if (provider !== undefined) visit(provider, index, marks, path, order);
+  for (const provider of providers.get(plugin) ?? NO_PROVIDERS) {
+    const found = findCycle(provider, providers, marks, path);
+    if (found !== undefined) return found;
   }
   path.pop();
   marks.set(plugin, BLACK);
-  order.push(plugin);
+  return undefined;
 }
 
 /** 从当前路径截出环：`entry` 起到路径末尾，再回到 `entry`，得到 `a → b → a`。 */
