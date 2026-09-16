@@ -302,7 +302,9 @@ describe('entity.utils', () => {
       const RealDate = Date;
       let tick = 0;
       class TickingDate extends RealDate {
-        constructor(...args: ConstructorParameters<typeof Date>) {
+        // `ConstructorParameters<typeof Date>` 对重载构造器只解析出 1 元组，
+        // 联合 `[]` 才能让「无参调用」这个运行时必然存在的分支在类型上可判。
+        constructor(...args: [] | ConstructorParameters<typeof Date>) {
           if (args.length === 0) super(RealDate.UTC(2026, 0, 1) + tick++);
           else super(...args);
         }
