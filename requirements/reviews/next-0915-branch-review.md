@@ -284,13 +284,13 @@ API surface 审计通过不代表相对 main 没有破坏性变更：本分支�
 
 ## 修复记录
 
-| 编号 | 修复                                                                                                            | 测试                                                                     |
-| ---- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 1    | `#releaseDependents()` 不再跳过 `installing` 的依赖方：改为 `await` 它在飞的转移并循环到无依赖方存活，释放动作仍归 `#applyInstallResult`（避免双释放） | `dependency-scheduler.spec.ts`「依赖方还在 install() 里时…」（先红后绿） |
-| 2    | `migration/querycache-plugin.md` 改为三包安装 / 注册；删掉「出站仍在 core」的错误说明；同步修 `rxdb-plugin-querycache/README.md` | `scripts/audit/docs-plugin-surface.mjs` 第 3 条判据                       |
-| 3    | 新增 `website/docs/migration/history-sync-plugins.md`（包选择、注册 diff、`versionManager`→`syncManager` 15 个方法对照、槽位生命周期、失败症状表）；修 `collaboration/sync.md`、`collaboration/branch.md` 的失效示例 | 同上第 1、2 条判据                                                       |
-| 4    | 删除 `rxdb-plugin-querycache` 里 `rxdb.queryCache` 的模块增强                                                    | `query-cache-engine.scope.spec.ts` 的 `@ts-expect-error` 回归锁           |
-| 5    | `topologicalPluginOrder` 由 DFS 后序换成按原始下标出队的稳定 Kahn 排序；顺带修掉旧实现会把未登记提供方推进结果的隐患 | `dependency-graph.spec.ts` 两条反例 + `RxDB.plugin-inject.spec.ts` 端到端拆卸序 |
+| 编号 | 修复                                                                                                                                                                                                                 | 测试                                                                            |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1    | `#releaseDependents()` 不再跳过 `installing` 的依赖方：改为 `await` 它在飞的转移并循环到无依赖方存活，释放动作仍归 `#applyInstallResult`（避免双释放）                                                               | `dependency-scheduler.spec.ts`「依赖方还在 install() 里时…」（先红后绿）        |
+| 2    | `migration/querycache-plugin.md` 改为三包安装 / 注册；删掉「出站仍在 core」的错误说明；同步修 `rxdb-plugin-querycache/README.md`                                                                                     | `scripts/audit/docs-plugin-surface.mjs` 第 3 条判据                             |
+| 3    | 新增 `website/docs/migration/history-sync-plugins.md`（包选择、注册 diff、`versionManager`→`syncManager` 15 个方法对照、槽位生命周期、失败症状表）；修 `collaboration/sync.md`、`collaboration/branch.md` 的失效示例 | 同上第 1、2 条判据                                                              |
+| 4    | 删除 `rxdb-plugin-querycache` 里 `rxdb.queryCache` 的模块增强                                                                                                                                                        | `query-cache-engine.scope.spec.ts` 的 `@ts-expect-error` 回归锁                 |
+| 5    | `topologicalPluginOrder` 由 DFS 后序换成按原始下标出队的稳定 Kahn 排序；顺带修掉旧实现会把未登记提供方推进结果的隐患                                                                                                 | `dependency-graph.spec.ts` 两条反例 + `RxDB.plugin-inject.spec.ts` 端到端拆卸序 |
 
 配套门禁：新增 `pnpm audit:docs-plugins`（`scripts/audit/docs-plugin-surface.mjs` + 11 条
 `node:test` 自测），已接进 `ci-template.yml`。名单自校验——哪天有人把某个同步方法搬回

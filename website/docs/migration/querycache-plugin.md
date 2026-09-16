@@ -10,11 +10,11 @@
 
 QueryCache 一条完整的读写路径横跨三个包，缺一不可：
 
-| 能力                | 提供方                     | 说明                                     |
-| ------------------- | -------------------------- | ---------------------------------------- |
-| QueryCache 读引擎   | `@aiao/rxdb-plugin-querycache` | 回源远端、比对 `updatedAt`、写本地缓存   |
-| 离线写出站队列      | `@aiao/rxdb-plugin-sync`       | 读引擎靠它区分「远端没返回」和「本地离线写过」 |
-| 同步历史桥          | `@aiao/rxdb-plugin-history`    | sync 插件 `inject: ['plugin:history']`，是它进入 active 的硬前置 |
+| 能力              | 提供方                         | 说明                                                             |
+| ----------------- | ------------------------------ | ---------------------------------------------------------------- |
+| QueryCache 读引擎 | `@aiao/rxdb-plugin-querycache` | 回源远端、比对 `updatedAt`、写本地缓存                           |
+| 离线写出站队列    | `@aiao/rxdb-plugin-sync`       | 读引擎靠它区分「远端没返回」和「本地离线写过」                   |
+| 同步历史桥        | `@aiao/rxdb-plugin-history`    | sync 插件 `inject: ['plugin:history']`，是它进入 active 的硬前置 |
 
 ```bash
 pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-querycache

@@ -6,12 +6,12 @@
 
 ## 先确认你要装哪几个包
 
-| 你在用的能力                                          | 需要的包                                                        |
-| ----------------------------------------------------- | --------------------------------------------------------------- |
-| 只有本地读写                                          | 不装插件                                                          |
-| 撤销重做 / 历史查询 / 分支（`rxdb.versionManager`）   | `@aiao/rxdb-plugin-history`                                       |
-| 推拉同步（`syncRepository` / `push` / `pull` 等）     | `+ @aiao/rxdb-plugin-sync`                                        |
-| `SyncType.QueryCache` 实体                            | `+ @aiao/rxdb-plugin-querycache`（三个包一起，见下）              |
+| 你在用的能力                                        | 需要的包                                             |
+| --------------------------------------------------- | ---------------------------------------------------- |
+| 只有本地读写                                        | 不装插件                                             |
+| 撤销重做 / 历史查询 / 分支（`rxdb.versionManager`） | `@aiao/rxdb-plugin-history`                          |
+| 推拉同步（`syncRepository` / `push` / `pull` 等）   | `+ @aiao/rxdb-plugin-sync`                           |
+| `SyncType.QueryCache` 实体                          | `+ @aiao/rxdb-plugin-querycache`（三个包一起，见下） |
 
 同步插件声明 `inject: ['plugin:history']`：历史插件是它进入 active 的硬前置。**装 sync 必须同时装 history**，只装 sync 时宿主不安装它、只告警一次，`rxdb.syncManager` 这个槽位于是不存在。
 
@@ -52,27 +52,27 @@ pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync
 
 ### 搬到 `rxdb.syncManager` 的成员
 
-| 方法                                                     | 用途                     |
-| -------------------------------------------------------- | ------------------------ |
-| `pull` / `push` / `sync`                                 | 全库推拉                 |
-| `pullRepository` / `pushRepository` / `syncRepository`   | 单仓库推拉               |
-| `bulkSync`                                               | 按依赖序批量同步         |
-| `syncBranches`                                           | 分支表同步               |
-| `cleanupExpired`                                         | 清理不再满足 filter 的行 |
-| `checkRepositoryUpdates`                                 | 探测远端是否有新变更     |
-| `getRepositorySyncStatus` / `getAllRepositorySyncStatus` | 同步状态查询             |
-| `refreshPullableCount`                                   | 重算待拉数               |
+| 方法                                                      | 用途                     |
+| --------------------------------------------------------- | ------------------------ |
+| `pull` / `push` / `sync`                                  | 全库推拉                 |
+| `pullRepository` / `pushRepository` / `syncRepository`    | 单仓库推拉               |
+| `bulkSync`                                                | 按依赖序批量同步         |
+| `syncBranches`                                            | 分支表同步               |
+| `cleanupExpired`                                          | 清理不再满足 filter 的行 |
+| `checkRepositoryUpdates`                                  | 探测远端是否有新变更     |
+| `getRepositorySyncStatus` / `getAllRepositorySyncStatus`  | 同步状态查询             |
+| `refreshPullableCount`                                    | 重算待拉数               |
 | `getRepositoryDependencyGraph` / `getRepositorySyncOrder` | 仓库依赖序               |
 
 ### 留在 `rxdb.versionManager` 的成员
 
-| 方法                                                  | 用途             |
-| ----------------------------------------------------- | ---------------- |
-| `createBranch` / `removeBranch` / `switchBranch`      | 分支增删切       |
-| `mergeBranch`                                         | 分支合并         |
-| `history()`                                           | 历史作用域 API   |
-| `restoreEntity`                                       | 按历史恢复实体   |
-| `resetSessionState`                                   | 复位会话态       |
+| 方法                                             | 用途           |
+| ------------------------------------------------ | -------------- |
+| `createBranch` / `removeBranch` / `switchBranch` | 分支增删切     |
+| `mergeBranch`                                    | 分支合并       |
+| `history()`                                      | 历史作用域 API |
+| `restoreEntity`                                  | 按历史恢复实体 |
+| `resetSessionState`                              | 复位会话态     |
 
 `getLocalRepositories` / `getRemoteRepositories` / `getCurrentBranch` **两边都有**，可以按手头拿到的那个管理器调用，不用为它们改挂载点。
 
@@ -101,12 +101,12 @@ rxdb.syncManager; // ❌ 槽位已删除
 
 ## 4. 漏装的表现
 
-| 症状                                                     | 原因                                          |
-| -------------------------------------------------------- | --------------------------------------------- |
-| `import` 处类型不存在（`Property 'versionManager' …`）   | 没装 `@aiao/rxdb-plugin-history`              |
-| 类型有、运行时 `undefined`                               | 装了包但没 `use()`，或还没 `await connect()`  |
-| `rxdb.syncManager` 恒为 `undefined`，控制台一条依赖告警  | 装了 sync 但没装 history                      |
-| `versionManager.syncRepository is not a function`        | 同步方法已搬到 `syncManager`（见上面对照表）  |
+| 症状                                                    | 原因                                         |
+| ------------------------------------------------------- | -------------------------------------------- |
+| `import` 处类型不存在（`Property 'versionManager' …`）  | 没装 `@aiao/rxdb-plugin-history`             |
+| 类型有、运行时 `undefined`                              | 装了包但没 `use()`，或还没 `await connect()` |
+| `rxdb.syncManager` 恒为 `undefined`，控制台一条依赖告警 | 装了 sync 但没装 history                     |
+| `versionManager.syncRepository is not a function`       | 同步方法已搬到 `syncManager`（见上面对照表） |
 
 ## QueryCache 应用要装三个包
 

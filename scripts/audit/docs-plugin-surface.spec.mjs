@@ -64,7 +64,10 @@ test('用到 versionManager 却不提 history 包', () => {
 });
 
 test('提了 history 包就放行 —— core 不再自动创建这个实例，说清来源是全部要求', () => {
-  const text = ['import { rxDBPluginHistory } from "@aiao/rxdb-plugin-history";', 'await rxdb.versionManager.createBranch("f1");'].join('\n');
+  const text = [
+    'import { rxDBPluginHistory } from "@aiao/rxdb-plugin-history";',
+    'await rxdb.versionManager.createBranch("f1");'
+  ].join('\n');
 
   assert.deepEqual(auditDoc('docs/branch.md', text), []);
 });

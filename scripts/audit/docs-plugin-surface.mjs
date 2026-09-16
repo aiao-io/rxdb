@@ -140,7 +140,11 @@ export const run = async ({ root }) => {
   const offenders = auditMovedList(versionManagerSource, syncManagerSource);
   const docsRoot = path.join(root, 'website/docs');
   const files = await collectDocs(docsRoot, root);
-  const readmes = ['packages/rxdb-plugin-history/README.md', 'packages/rxdb-plugin-sync/README.md', 'packages/rxdb-plugin-querycache/README.md'];
+  const readmes = [
+    'packages/rxdb-plugin-history/README.md',
+    'packages/rxdb-plugin-sync/README.md',
+    'packages/rxdb-plugin-querycache/README.md'
+  ];
   for (const file of [...files, ...readmes]) {
     offenders.push(...auditDoc(file, await readFile(path.join(root, file), 'utf8')));
   }
