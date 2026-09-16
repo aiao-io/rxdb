@@ -230,6 +230,10 @@
         "kind": "type"
       },
       {
+        "name": "entityDefaultNow",
+        "kind": "value"
+      },
+      {
         "name": "EntityFieldConfig",
         "kind": "type"
       },

@@ -11,11 +11,13 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                             | 说明                                | 剩余项              |
-| -------------------------------- | ----------------------------------- | ------------------- |
-| `README.md`                      | 本说明与状态约定                    | —                   |
-| `review.template.md`             | 新建 review 记录的模板              | —                   |
-| `next-11-rxdb-package-review.md` | next-11 分支 `packages/rxdb` 包评审 | 5 块 + 1 条规格决策 |
+| 文件                                                | 说明                                                                                 | 剩余项              |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------- |
+| `README.md`                                         | 本说明与状态约定                                                                     | —                   |
+| `review.template.md`                                | 新建 review 记录的模板                                                               | —                   |
+| `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                  | 5 块 + 1 条规格决策 |
+| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                            | Open                |
+| `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch` | Open                |
 
 > 最近一次全量复核：2026-09-11（`requirements-incomplete-stories-review.md` 八块全部处理完毕，已删除；
 > 更早的 `next-1123-branch-review.md`、`next-0831-branch-review.md` 与 `next-11-rxdb-adapter-tauri-review.md` 同）。
