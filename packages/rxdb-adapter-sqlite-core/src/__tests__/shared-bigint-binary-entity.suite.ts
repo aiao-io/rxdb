@@ -529,6 +529,50 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
       const featureChange = (await findEntityChanges()).find(
         change => change.branchId === branchId && change.type === 'UPDATE'
       );
+      if (!featureChange) {
+        console.error('[DEBUG] dbName', adapter.rxdb.config.dbName, 'branchId', branchId);
+        const rawChanges = await adapter.rawQuery(
+          `SELECT id, type, branchId, entityId FROM "rxdb$rxdb_change" WHERE entity = 'BigIntEntityContractParent' ORDER BY id DESC LIMIT 6`
+        );
+        const rawBranches = await adapter.rawQuery(`SELECT id, activated FROM "rxdb$rxdb_branch"`);
+        const rawTrigger = await adapter.rawQuery(
+          `SELECT sql FROM sqlite_master WHERE type='trigger' AND name LIKE '%bigint_entity_contract_parent_update'`
+        );
+        console.error('[DEBUG] rawChanges', JSON.stringify(rawChanges));
+        console.error('[DEBUG] rawBranches', JSON.stringify(rawBranches));
+        console.error('[DEBUG] triggerHasBranch', JSON.stringify(rawTrigger).includes(branchId));
+        const all = await adapter.localRxDBChange().find({
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'entity', operator: '=', value: 'BigIntEntityContractParent' }]
+          },
+          orderBy: [{ field: 'id', sort: 'asc' }]
+        });
+        console.error(
+          '[DEBUG] featureRecord status',
+          JSON.stringify({
+            amount: String(featureRecord.amount),
+            payload: Array.from(featureRecord.payload ?? []),
+            modified: getEntityStatus(featureRecord).modified,
+            origin: {
+              amount: String((getEntityStatus(featureRecord).origin as { amount?: bigint }).amount),
+              payload: Array.from((getEntityStatus(featureRecord).origin as { payload?: Uint8Array }).payload ?? [])
+            }
+          })
+        );
+        console.error(
+          '[DEBUG] all changes',
+          JSON.stringify(
+            all.map(c => ({
+              id: c.id,
+              type: c.type,
+              branchId: c.branchId,
+              entityId: String(c.entityId),
+              patch: c.patch && Object.keys(c.patch)
+            }))
+          )
+        );
+      }
       expect(featureChange?.entityId).toBe(entityId);
       expect(typeof featureChange?.entityId).toBe('bigint');
       expect(featureChange?.patch?.['amount']).toBe(9_007_199_254_741_105n);

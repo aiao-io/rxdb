@@ -145,6 +145,22 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       branchSwitchResult = await tx.execute(generateSwitchBranchSql(adapter, branchId));
     }, false);
 
+    {
+      const dbg = await adapter.rawQuery(
+        `SELECT name, sql FROM sqlite_master WHERE type='trigger' AND name LIKE '%BigIntEntityContractParent_update'`
+      );
+      const branchRows = await adapter.rawQuery(`SELECT id, activated FROM "rxdb$rxdb_branch"`);
+      console.error(
+        '[SWITCH]',
+        adapter.rxdb.config.dbName,
+        '->',
+        branchId,
+        JSON.stringify({
+          trigger: JSON.stringify(dbg).includes(branchId),
+          branches: JSON.stringify(branchRows).slice(0, 400)
+        })
+      );
+    }
     // 提交成功后派发事件
     if (branchSwitchResult) {
       const result = await transaction_sqlite_result(adapter, RxDBBranch, branchSwitchResult, true);

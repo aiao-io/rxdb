@@ -1195,6 +1195,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
         // 走快路径的实际行为一致。
         const currentBranchId = await this.#readCurrentBranchId(executor);
+        console.error('[TXBRANCH]', this.rxdb.config.dbName, currentBranchId);
         log_begin = switch_transaction_id(this, currentBranchId, transactionId);
         log_commit = switch_transaction_id(this, currentBranchId);
       }
