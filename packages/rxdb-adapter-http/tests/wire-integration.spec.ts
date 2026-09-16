@@ -25,6 +25,9 @@ import {
   type IRxDBAdapter,
   type RuleGroup
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -810,6 +813,13 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
       entities: [WireChunkRecipe],
       sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
     });
+    // 读引擎随 `@aiao/rxdb-plugin-querycache` 走（US-025 阶段 B）：AC#8 要的正是引擎把整份
+    // id 列表交给 `findByIds` 的那条路径，不装插件 `connect()` 会先以缺插件拒绝。
+    rxdb.use(rxDBPluginQueryCache);
+    // 出站队列归 `@aiao/rxdb-plugin-sync`（US-025 阶段 D），同样是 `connect()` 的硬前提；
+    // 历史插件由它 `inject` 进来，本套件自己一行都没用到。
+    rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
     const http = new RxDBAdapterHttp(rxdb, {
       baseUrl: server.baseUrl,
       handlers: createRestHandlers({ resources: { [CHUNK_ENTITY]: RESOURCE } }),
@@ -820,6 +830,11 @@ describe('AC#8 走 core 全栈：findByIds 按 idChunkSize 分块发真请求', 
     rxdb.init();
     // remote 槽位由应用显式连接，与 demo 应用同一条口径；core 的 `getAdapter()` 不代劳
     await http.connect();
+    // `@aiao/rxdb-plugin-sync` 声明 `inject: ['plugin:history']`，它的安装因此被推迟到提供方
+    // 就绪之后；`rxdb.init()` 是同步的，返回时那一趟还没落地。`connect()` 是唯一的公开结算点
+    // （已连接的适配器再连一次也会重跑 `#await_plugin_installs()`），少了它出站队列这一槽
+    // 仍是空的，读引擎第一次对账就以 `RxDBMissingPluginError` 拒绝。
+    await rxdb.connect('sqlite');
     local.attach(
       data => rxdb.entityManager.createEntityRef(WireChunkRecipe, data as never, { local: true }) as unknown as LocalRow
     );

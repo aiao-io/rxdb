@@ -16,6 +16,8 @@
  */
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -144,6 +146,13 @@ describe('多次 Pull/Push 操作测试', () => {
         })
     );
 
+    // 推/拉同步的入口（`push()` / `pull()` / `*Repository()`）自 US-025 阶段 D 起住进
+    // `@aiao/rxdb-plugin-sync`，而 `pushableCount$` 这类历史侧状态仍归
+    // `@aiao/rxdb-plugin-history`。同步插件 `inject: ['plugin:history']`，两个都得装。
+    // 必须早于 `connect()` —— `connect()` 内部才调 `init()`，插件在那一刻装上。
+    rxdb.use(rxDBPluginHistory);
+    rxdb.use(rxDBPluginSync);
+
     await rxdb.connect('wa-sqlite');
     remoteAdapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
     localAdapter = (await rxdb.getAdapter('wa-sqlite')) as unknown as SqliteTestAdapter;
@@ -183,7 +192,7 @@ describe('多次 Pull/Push 操作测试', () => {
       await todo.save();
 
       // 第一次 push
-      const result1 = await rxdb.versionManager.push();
+      const result1 = await rxdb.syncManager.push();
       expect(result1.pushed).toBeGreaterThanOrEqual(1);
 
       // 验证远程数据
@@ -191,7 +200,7 @@ describe('多次 Pull/Push 操作测试', () => {
       expect(remoteData1?.length).toBe(1);
 
       // 第二次 push（无新变更）
-      const result2 = await rxdb.versionManager.push();
+      const result2 = await rxdb.syncManager.push();
       expect(result2.pushed).toBe(0);
       expect(result2.originalCount).toBe(0);
     });
@@ -203,16 +212,16 @@ describe('多次 Pull/Push 操作测试', () => {
       const todo1 = new Todo();
       todo1.title = `${testPrefix}-multi-push-2a`;
       await todo1.save();
-      results.push(await rxdb.versionManager.push());
+      results.push(await rxdb.syncManager.push());
 
       // 第二次：无数据
-      results.push(await rxdb.versionManager.push());
+      results.push(await rxdb.syncManager.push());
 
       // 第三次：新数据
       const todo2 = new Todo();
       todo2.title = `${testPrefix}-multi-push-2b`;
       await todo2.save();
-      results.push(await rxdb.versionManager.push());
+      results.push(await rxdb.syncManager.push());
 
       expect(results[0].pushed).toBeGreaterThanOrEqual(1);
       expect(results[1].pushed).toBe(0);
@@ -230,7 +239,7 @@ describe('多次 Pull/Push 操作测试', () => {
       expect(countBefore).toBeGreaterThan(0);
 
       // 推送。
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // push 后检查
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -245,14 +254,14 @@ describe('多次 Pull/Push 操作测试', () => {
   describe('连续多次 Pull', () => {
     it('连续 pull 两次，第二次应该 pulled=0', async () => {
       // 先清空本地待推送的变更
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 在远程创建数据
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-multi-pull-1` });
 
       // 第一次 pull
-      const result1 = await rxdb.versionManager.pull();
+      const result1 = await rxdb.syncManager.pull();
       expect(result1.pulled).toBeGreaterThanOrEqual(1);
 
       // 验证本地数据
@@ -261,12 +270,12 @@ describe('多次 Pull/Push 操作测试', () => {
       expect(localTodo?.title).toBe(`${testPrefix}-multi-pull-1`);
 
       // 第二次 pull（无新变更）
-      const result2 = await rxdb.versionManager.pull();
+      const result2 = await rxdb.syncManager.pull();
       expect(result2.pulled).toBe(0);
     });
 
     it('pull 多次，lastPullRemoteChangeId 应该递增', async () => {
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 获取初始 repository sync 状态
       const branch = await rxdb.versionManager.getCurrentBranch();
@@ -285,7 +294,7 @@ describe('多次 Pull/Push 操作测试', () => {
       await insertRemoteData({ id: remoteId1, title: uniqueTitle1 });
 
       // 第一次 pull
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
       const afterFirstResult = await localAdapter.internalQuery(
         `SELECT lastPullRemoteChangeId FROM ${LOCAL_RXDB_SYNC_TABLE} WHERE id = '${repoSyncId}'`
       );
@@ -316,7 +325,7 @@ describe('多次 Pull/Push 操作测试', () => {
       expect(newChangeId).toBeGreaterThan(lastPullIdAfterFirstPull);
 
       // 第二次 pull
-      await rxdb.versionManager.pull();
+      await rxdb.syncManager.pull();
       const afterSecondResult = await localAdapter.internalQuery(
         `SELECT lastPullRemoteChangeId FROM ${LOCAL_RXDB_SYNC_TABLE} WHERE id = '${repoSyncId}'`
       );
@@ -333,14 +342,14 @@ describe('多次 Pull/Push 操作测试', () => {
     it('pull 来的数据不应该被 push 到远程', async () => {
       // 清理之前测试留下的本地 changes
       await cleanupLocalChanges();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 远程创建数据
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-no-re-push` });
 
       // 拉取。
-      const pullResult = await rxdb.versionManager.pull();
+      const pullResult = await rxdb.syncManager.pull();
       expect(pullResult.pulled).toBeGreaterThanOrEqual(1);
 
       // 记录远程 RxDBChange 数量
@@ -350,7 +359,7 @@ describe('多次 Pull/Push 操作测试', () => {
         .eq('entityId', remoteId);
 
       // Push（不应该推送 pull 来的数据，因为 pull 的数据不进本地 RxDBChange 表）
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBe(0);
 
       // 验证远程 RxDBChange 数量未增加（因为没有可推送的本地变更）
@@ -363,14 +372,14 @@ describe('多次 Pull/Push 操作测试', () => {
 
     it('push→pull→创建→push 循环应该正确处理', async () => {
       // 初始 push
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 远程创建数据
       const remoteId = crypto.randomUUID();
       await insertRemoteData({ id: remoteId, title: `${testPrefix}-cycle-remote` });
 
       // 拉取。
-      const pullResult = await rxdb.versionManager.pull();
+      const pullResult = await rxdb.syncManager.pull();
       expect(pullResult.pulled).toBeGreaterThanOrEqual(1);
 
       // 本地创建新数据
@@ -379,7 +388,7 @@ describe('多次 Pull/Push 操作测试', () => {
       await localTodo.save();
 
       // Push 新数据
-      const pushResult = await rxdb.versionManager.push();
+      const pushResult = await rxdb.syncManager.push();
       expect(pushResult.pushed).toBeGreaterThanOrEqual(1);
 
       // 验证远程只有本地新创建的数据被推送
@@ -394,15 +403,15 @@ describe('多次 Pull/Push 操作测试', () => {
   describe('边界情况', () => {
     it('空数据库 push 应该返回 pushed=0', async () => {
       // 确保没有待推送的变更
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
-      const result = await rxdb.versionManager.push();
+      const result = await rxdb.syncManager.push();
       expect(result.pushed).toBe(0);
       expect(result.originalCount).toBe(0);
     });
 
     it('空数据库 pull 应该返回 pulled>=0（可能有历史数据）', async () => {
-      const result = await rxdb.versionManager.pull();
+      const result = await rxdb.syncManager.pull();
       expect(result.pulled).toBeGreaterThanOrEqual(0);
     });
 
@@ -411,12 +420,12 @@ describe('多次 Pull/Push 操作测试', () => {
       const todo = new Todo();
       todo.title = `${testPrefix}-update-pushed-1`;
       await todo.save();
-      await rxdb.versionManager.push();
+      await rxdb.syncManager.push();
 
       // 更新并再次 push
       todo.title = `${testPrefix}-update-pushed-2`;
       await todo.save();
-      const result = await rxdb.versionManager.push();
+      const result = await rxdb.syncManager.push();
       expect(result.pushed).toBeGreaterThanOrEqual(1);
 
       // 验证远程数据是最新的

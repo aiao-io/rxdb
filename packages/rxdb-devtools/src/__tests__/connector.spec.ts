@@ -678,6 +678,22 @@ describe('DevToolsConnector', () => {
       expect(spy).toHaveBeenCalledWith(payload);
     });
 
+    // 宿主没装 `@aiao/rxdb-plugin-history` 时分支能力整个不存在（US-025 阶段 C）。
+    // 这不是异常路径而是常态：命令必须据实报错，而不是崩在 `undefined.switchBranch` 上，
+    // 更不能静默吞掉 —— 面板那边一条永远等不到回应的命令，比一条明确的错误难查得多。
+    it.each(BRANCH_COMMANDS)('MUST report %s as unsupported when the history plugin is absent', (type, _, payload) => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(vi.fn());
+      const rxdb = createMockRxDB({ versionManager: undefined });
+      connector.init(rxdb);
+      postMessageSpy.mockClear();
+
+      sendCommand(type, payload);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('@aiao/rxdb-plugin-history'));
+      // 照样刷一次分支列表：面板据此回到真相，而不是停在命令发出前的旧快照。
+      expect(postMessageSpy.mock.calls.filter(call => call[0]?.type === 'BRANCHES')).toHaveLength(1);
+    });
+
     it.each(BRANCH_COMMANDS)(
       'MUST log an error for %s once the instance has been detached',
       async (type, _, payload) => {

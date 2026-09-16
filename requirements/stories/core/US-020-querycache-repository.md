@@ -59,7 +59,7 @@ QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[
 
 ## 问题现状
 
-这不是「类还没写」。`QueryCacheRepository` 存在，单测直接 `new` 它（[QueryCacheRepository.spec.ts](../../../packages/rxdb/src/__tests__/repository/QueryCacheRepository.spec.ts)）。**生产路径从不实例化它。**
+这不是「类还没写」。`QueryCacheRepository` 存在，单测直接 `new` 它（[QueryCacheRepository.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts)）。**生产路径从不实例化它。**
 
 ### 病灶 1：配置了也不会生效
 
@@ -67,7 +67,7 @@ QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[
 
 > 统一 Repository 尚未接入 `QueryCacheRepository`，配置该模式当前不会生效。
 
-类上的 `@experimental` 把话说得更死（[QueryCacheRepository.ts](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)）：
+类上的 `@experimental` 把话说得更死（[QueryCacheRepository.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)）：
 
 > 该类目前**没有生产实例化路径**：`SyncType.QueryCache` 可以配置，但统一 Repository 并未接入它，只有测试直接 `new` 它。
 
@@ -342,7 +342,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 | 7   | QueryCache 实体注册的是**不继承 base** 的自定义适配器对象，且缺 `fetchMetadata` / 远程 `findByIds` / `getMetadataByIds` / `upsertMany` / `deleteByIds` 任一 | 首次 `find()` 或首次写                                         | 抛 `RxDBQueryCacheCapabilityError`，`missing` 列出缺失 duck 名；不降级成 `[]`、不静默改走统一 Repository。继承 base 的适配器**不做**这项运行时检查（D4）                                                                                                       | ✅   |
 | 8   | `TreeRepository` 实体配置 `SyncType.QueryCache`                                                                                                             | `EntityManager.init()`（连接期）                               | 配置期即 fail-fast（元数据校验 violation），一条违规则全部实体不绑定；不提供半套树 + 缓存                                                                                                                                                                      | ✅   |
 | 9   | supabase 适配器已注册                                                                                                                                       | 跑既有 supabase 测试与 RPC 路径                                | 不改 RPC / PostgREST / Realtime；QueryCache 生产路径复用已有 ducks                                                                                                                                                                                             | ✅   |
-| 10  | [QueryCacheRepository.spec.ts](../../../packages/rxdb/src/__tests__/repository/QueryCacheRepository.spec.ts) 已绿                                           | 补经 `getRepository` / `EntityManager` 的生产路径测试          | 旧单测不回退；新测试证明不再需要测试里手写 `new QueryCacheRepository` 才能打到该类                                                                                                                                                                             | ✅   |
+| 10  | [QueryCacheRepository.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts) 已绿                                        | 补经 `getRepository` / `EntityManager` 的生产路径测试          | 旧单测不回退；新测试证明不再需要测试里手写 `new QueryCacheRepository` 才能打到该类                                                                                                                                                                             | ✅   |
 | 21  | QueryCache 实体，本地已有缓存行                                                                                                                             | `getRepository(E).find({ where })` 的返回元素                  | 是**实体实例**：有状态机、进 identity cache、`entity.save()` / `remove()` 可用；同一 id 重复查询拿到同一实例。与 Full/Filter 的实例语义逐条一致                                                                                                                | ✅   |
 | 22  | QueryCache 实体已 find 过一次；随后断连并以新适配器实例重连                                                                                                 | 再次 `find()` / 写                                             | 打到**新**适配器实例；旧实例不被引用（构造期不得 `firstValueFrom(adapter$)` 固化，见 D10）                                                                                                                                                                     | ✅   |
 | 23  | QueryCache 实体，远端同一 `where` 命中 N（N > limit）条                                                                                                     | 逐个调用 D9 矩阵里的 8 个入口                                  | 全部工作，无一 fail-fast；`find({ where, limit, offset, orderBy })` 与 `findByCursor` 的结果与「同数据集配 Full 同步时」逐值一致（`limit`/`offset`/`orderBy` 下推本地 `IRepository`，不是内存切片）；对同一 `where` 翻第二页只发生一次远端同步                 | ✅   |
@@ -381,7 +381,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 | 文件                                                                                                                                                                | 阶段 | 说明                                                                                                     |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------- |
 | [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)                                                                   | A    | 委托层：`sync.type === QueryCache` 时把 find / 写路径改道，保持 `IRepository` 形状（D9、D10）            |
-| [packages/rxdb/src/repository/QueryCacheRepository.ts](../../../packages/rxdb/src/repository/QueryCacheRepository.ts)                                               | A+B  | A 被生产实例化 + 本地读改走 `IRepository`（D8）；B 修 orphan / 指纹 / SWR / 错误分类                     |
+| [packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)                                         | A+B  | A 被生产实例化 + 本地读改走 `IRepository`（D8）；B 修 orphan / 指纹 / SWR / 错误分类                     |
 | [packages/rxdb/src/entity/primary-adapter.ts](../../../packages/rxdb/src/entity/primary-adapter.ts)                                                                 | A    | 写侧判定不得把 QueryCache 继续送进 local changelog；不发明第三 kind                                      |
 | [packages/rxdb/src/entity/entity-manager.ts](../../../packages/rxdb/src/entity/entity-manager.ts)                                                                   | A    | mutations 入口预检（AC#6）；顺手修 `save()` 过时注释                                                     |
 | [packages/rxdb/src/entity/metadata-validate.ts](../../../packages/rxdb/src/entity/metadata-validate.ts)                                                             | A    | 配置期 fail-fast（AC#8、D12）：给 `validateEntityMetadataSet` 加规则，经 `formatMetadataViolations` 报错 |

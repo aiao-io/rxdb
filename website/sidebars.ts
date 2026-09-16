@@ -169,6 +169,7 @@ const sidebars: SidebarsConfig = {
         'migration/desktop-split',
         'migration/plugins',
         'migration/plugin-scope',
+        'migration/querycache-plugin',
         'migration/generator-default',
         'migration/schema'
       ]

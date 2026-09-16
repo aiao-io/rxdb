@@ -1,6 +1,6 @@
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { take, toArray } from 'rxjs/operators';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SyncStateHub, type SyncState } from '../sync-state.js';
 
 type Sources = {
@@ -15,7 +15,10 @@ const createHub = (
     online$: new BehaviorSubject(overrides.online ?? true),
     pushableCount$: new BehaviorSubject(overrides.pushable ?? 0)
   };
-  const hub = new SyncStateHub(sources);
+  const hub = new SyncStateHub({ online$: sources.online$ });
+  // 待推数不再是构造参数：changelog 路径整个住在 `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），
+  // 由插件在安装时 `bindPushableCount()` 接上。这里照插件的做法接。
+  hub.bindPushableCount(sources.pushableCount$);
   if (overrides.outbox !== undefined) {
     hub.reportOutboxCount(overrides.outbox);
   }
@@ -173,11 +176,62 @@ describe('SyncStateHub', () => {
     expect((await snapshot(hub)).pendingCount).toBe(1);
   });
 
+  // 「重算待拉数」这条信号的两端在 US-025 阶段 C 之后各归各家：发信号的是远端适配器
+  // （`@aiao/rxdb-adapter-supabase` 的实时订阅恢复），干活的是 `@aiao/rxdb-plugin-history`。
+  // 两边都不许直接认识对方，所以中间这一跳必须由 hub 兜住，且未接线时是无操作而不是抛错。
+  describe('重算待拉数的请求跳板', () => {
+    it('没有插件接线时请求是无操作', () => {
+      const { hub } = createHub();
+
+      expect(() => hub.requestPullableRefresh()).not.toThrow();
+
+      hub.destroy();
+    });
+
+    it('接上之后每请求一次就执行一次', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      hub.bindPullableRefresh(refresh);
+
+      hub.requestPullableRefresh();
+      hub.requestPullableRefresh();
+
+      expect(refresh).toHaveBeenCalledTimes(2);
+      hub.destroy();
+    });
+
+    it('解绑之后不再执行', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      const unbind = hub.bindPullableRefresh(refresh);
+
+      unbind();
+      hub.requestPullableRefresh();
+
+      expect(refresh).not.toHaveBeenCalled();
+      hub.destroy();
+    });
+
+    // 插件先于 hub 释放是常态，但反过来也必须成立：已销毁的 hub 不能还有一条活订阅
+    // 往插件里打，那一侧的 `VersionManager` 此刻可能已经拆了。
+    it('destroy 之后不再执行', () => {
+      const { hub } = createHub();
+      const refresh = vi.fn();
+      hub.bindPullableRefresh(refresh);
+
+      hub.destroy();
+      hub.requestPullableRefresh();
+
+      expect(refresh).not.toHaveBeenCalled();
+    });
+  });
+
   // 上游是冷流时（非 BehaviorSubject），快照必须仍然可读
   it('上游还没发过值时给出零值快照', async () => {
     const online$ = new Subject<boolean>();
     const pushableCount$ = new Subject<number>();
-    const hub = new SyncStateHub({ online$, pushableCount$ });
+    const hub = new SyncStateHub({ online$ });
+    hub.bindPushableCount(pushableCount$);
 
     await expect(snapshot(hub)).resolves.toEqual({
       online: true,

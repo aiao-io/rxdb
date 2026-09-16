@@ -6,11 +6,12 @@
  *
  * 本模块只做汇聚，不做查询：数据源由 {@link SyncStateSources} 注入，
  * 真正的 DB 读取留在各自的归属模块里（可达性在 `network/reachability.ts`，
- * changelog 待推数在 `HistoryManager`，QueryCache 出站数在 `repository/query-cache-outbox.ts`）。
+ * changelog 待推数在 `@aiao/rxdb-plugin-history` 的 `HistoryManager`，QueryCache 出站数在
+ * `@aiao/rxdb-plugin-sync` 的 `query-cache-outbox.ts`）。
  * 这样这一层可以用普通 Subject 完整测出来，不必搭一整个 RxDB。
  */
 
-import { BehaviorSubject, combineLatest, type Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, combineLatest, type Observable, Subject, Subscription } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
 
 /**
@@ -65,8 +66,6 @@ export interface SyncState {
 export interface SyncStateSources {
   /** 远端可达性，来自 `ReachabilityMonitor.online$` */
   online$: Observable<boolean>;
-  /** changelog 路径待推数，来自 `HistoryManager.pushableCount$` */
-  pushableCount$: Observable<number>;
 }
 
 /** 上游都没发过值时的读数 */
@@ -116,6 +115,8 @@ export class SyncStateHub {
   readonly #lastError$ = new BehaviorSubject<Error | null>(null);
   readonly #lastConflict$ = new BehaviorSubject<SyncConflict | null>(null);
   readonly #state$ = new BehaviorSubject<SyncState>(INITIAL_STATE);
+  /** 「重算待拉数」的请求跳板；没人接线时发进空里，正是无插件时该有的行为 */
+  readonly #pullableRefresh$ = new Subject<void>();
   readonly #subscriptions = new Subscription();
 
   /** 汇总快照流；订阅即得当前值 */
@@ -130,11 +131,6 @@ export class SyncStateHub {
     this.#subscriptions.add(
       sources.online$.subscribe(online => this.#upstream$.next({ ...this.#upstream$.value, online }))
     );
-    this.#subscriptions.add(
-      sources.pushableCount$.subscribe(pushableCount =>
-        this.#upstream$.next({ ...this.#upstream$.value, pushableCount })
-      )
-    );
 
     const derived$ = combineLatest([this.#upstream$, this.#syncing$, this.#lastError$, this.#lastConflict$]).pipe(
       map(([upstream, syncing, lastError, lastConflict]) => ({
@@ -147,6 +143,78 @@ export class SyncStateHub {
       distinctUntilChanged(sameState)
     );
     this.#subscriptions.add(derived$.subscribe(state => this.#state$.next(state)));
+  }
+
+  /**
+   * 接上 changelog 路径的待推数流，返回解绑函数
+   *
+   * @param source$ - 待推数流，通常是 `HistoryManager.pushableCount$`
+   * @returns 解绑函数：断订阅并把这一路的读数清零
+   *
+   * @remarks
+   * **不是构造参数**：changelog 路径整个住在 `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），
+   * 它的生命周期是**连接纪元**（`scoped` 插件在 `connect()` 时安装、断连时随作用域逆序释放），
+   * 而本汇聚器跟随实例、跨断连存活 —— 面板要在断连期间继续显示上一份读数。
+   * 两者寿命不同，只能由插件在安装时接上、在释放时解开。
+   *
+   * 解绑时**清零而不是保留最后一个数**：插件都拆了，那个数字背后已经没有任何东西在维护它；
+   * 留着会让「没装历史插件」和「装了但一条都没待推」在面板上长得一模一样。
+   * QueryCache 出站数走 {@link reportOutboxCount}，不受这里影响。
+   */
+  bindPushableCount(source$: Observable<number>): () => void {
+    const subscription = source$.subscribe(pushableCount =>
+      this.#upstream$.next({ ...this.#upstream$.value, pushableCount })
+    );
+    // 也挂进 `#subscriptions`：插件先于 hub 释放是常态，但反过来（hub 先 `destroy()`）
+    // 不能留一条还在往死 hub 里写数的订阅。解绑时再 `remove()` 摘掉，
+    // 否则反复重连会在父订阅里堆一串已死的子订阅。
+    this.#subscriptions.add(subscription);
+    return () => {
+      this.#subscriptions.remove(subscription);
+      subscription.unsubscribe();
+      this.#upstream$.next({ ...this.#upstream$.value, pushableCount: 0 });
+    };
+  }
+
+  /**
+   * 请求重算待拉数
+   *
+   * @remarks
+   * 由**远端适配器**在实时订阅恢复后调用（`@aiao/rxdb-adapter-supabase` 的
+   * `SUBSCRIBED` 回调）：断线期间远端攒下的变更本地一条都没听见，重新订阅只保证
+   * 「从现在起听得见」，不补历史，所以必须回头按各仓库的水位线重数一遍。
+   *
+   * **只是个请求，不是执行**。真正重数的那段逻辑要读各仓库的同步记忆，整个住在
+   * `@aiao/rxdb-plugin-history` 里（US-025 阶段 C），适配器不许认识它 —— 反过来也一样。
+   * 没装历史插件时这里是**无操作**：待拉数本来就无人维护，请求一个没有归宿的重算
+   * 不该让实时订阅的恢复路径炸掉。
+   */
+  requestPullableRefresh(): void {
+    this.#pullableRefresh$.next();
+  }
+
+  /**
+   * 接上「重算待拉数」的执行者，返回解绑函数
+   *
+   * @param refresh - 执行重算的回调，通常是 `SyncManager.refreshPullableCount()` 的包装
+   * @returns 解绑函数
+   *
+   * @remarks
+   * 与 {@link bindPushableCount} 同构、同理由：执行者跟随**连接纪元**（`scoped` 插件），
+   * 而本汇聚器跟随实例，只能由插件在安装时接上、在释放时解开。
+   *
+   * 回调**不得抛出、不得返回待处理的拒绝**：这里是即发即忘的信号跳板，
+   * 既没有调用方能接住错误，也没有位置能重试。错误处理归执行者自己。
+   */
+  bindPullableRefresh(refresh: () => void): () => void {
+    const subscription = this.#pullableRefresh$.subscribe(refresh);
+    // 与 `bindPushableCount` 同：挂进 `#subscriptions`，`destroy()` 先走一步时
+    // 不会留一条还在往已拆的插件里打的订阅。
+    this.#subscriptions.add(subscription);
+    return () => {
+      this.#subscriptions.remove(subscription);
+      subscription.unsubscribe();
+    };
   }
 
   /**

@@ -8,27 +8,27 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 59   |
-| 🚧 In Progress | 0    |
-| 👀 In Review   | 1    |
-| 📝 Backlog     | 5    |
+| ✅ Done        | 60   |
+| 🚧 In Progress | 1    |
+| 👀 In Review   | 0    |
+| 📝 Backlog     | 7    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 65   |
+| **合计**       | 68   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数（66 个文件 − 1 个 [US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md)，那是证据留档不是故事）。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（0 条）
+## 进行中（1 条）
 
-> 无。
+| Story                                                                              | 当前进度                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）、阶段 C（历史 / 撤销重做 / 分支外移为 `@aiao/rxdb-plugin-history`）与阶段 D（推拉同步 / 冲突 + QueryCache 写回出站外移为 `@aiao/rxdb-plugin-sync`）已交付，A1～A4 / B1～B5 / C1～C6 / D1～D6 全 ✅；C 实到 `version/` 整棵迁出（含推拉半区），核心留下 `system/system-repositories.ts` 与 `sync-contract/` 两批原语，公开面 452 → 460（+20 / −12，破坏性）；D 从历史插件里切出新包并把出站的 5 条导出收回包内，核心公开面 460 → 457（−5 / +2，破坏性），历史插件 15 → 9、新包 20 条，可达性与 `SyncStateHub` 按「搬走的是消费者，不是原语」留核心，`reachability` 改 `watch()` 引用计数满足 D2；C 十二处 / D 十二处计划偏差分别记在故事的阶段 C / D 两节；剩阶段 E（树实体），其前置 `RxDBBranch` 去树化不在本故事任一阶段内 |
 
-## 待评审（1 条）
+## 待评审（0 条）
 
-| Story                                                                            | 收尾条件                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) | 阶段 A 已交付；阶段 B 已移出承诺范围，**解锁条件 = 出现第一个 `plugin:*` 依赖声明**。其余未关闭故事没有一条会产生 `plugin:*` 消费方，故 `In Review` 是稳态而非过渡态，未解锁前不置 `Done` |
+无。
 
 ## 按 Epic 索引
 
@@ -95,7 +95,10 @@
 - ✅ [US-023 QueryCache 远端变更的失效上报口与实时同步](stories/core/US-023-querycache-remote-invalidation.md)
 - ✅ [US-215 条件请求被静默停用时给出可观测信号](stories/adapter/US-215-conditional-request-silence.md)
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
-- ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛依赖另立的 core sync 覆盖故事
+- ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
+- ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
+- ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
+- 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）、阶段 C（历史 / 分支外移，破坏性：`VersionManager` 等 12 条退出核心公开面）与阶段 D（推拉同步 + QueryCache 写回出站外移，破坏性：出站 5 条退出核心公开面，`rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`）已交付；只剩阶段 E（树实体），其前置 `RxDBBranch` 去树化是本故事之外的独立工作
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -132,9 +135,9 @@
 
 - ✅ [US-013 LifecycleScope 生命周期作用域原语](stories/core/US-013-lifecycle-scope-primitive.md) — `@aiao/utils` 侧的原语；只交付原语，不迁移任何调用方
 - ✅ [US-014 插件作用域契约](stories/core/US-014-plugin-scope-contract.md) — `install(scope)`，四个插件包已迁移
-- 👀 [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 阶段 A 已交付，阶段 B 已移出承诺范围
+- ✅ [US-015 插件依赖声明与按需装卸](stories/core/US-015-plugin-inject-dependency.md) — 两个阶段均已交付
   - ✅ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']` + 纪元调度器
-  - ⬜ 阶段 B 插件间依赖图 — 已移出承诺范围：全仓库零 `plugin:*` 声明
+  - ✅ 阶段 B 插件间依赖图 — 名字索引与重名裁决、拓扑装卸、环检测；消费方是 US-025 阶段 C/D
 
 > `US-016` / `US-017` 已按 Epic 收口判据改判移出，不再是候选项（理由见 [epic-008 已移出承诺范围](epics/epic-008-lifecycle-scope.md#已移出承诺范围)）。
 
@@ -146,4 +149,3 @@
 | 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                |
 | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期 |
-| [US-015](stories/core/US-015-plugin-inject-dependency.md) 阶段 B                                 | 出现第一个 `plugin:*` 依赖声明。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`。不随代码进度自动解除，`In Review` 是稳态                                                                                                                                                                      |

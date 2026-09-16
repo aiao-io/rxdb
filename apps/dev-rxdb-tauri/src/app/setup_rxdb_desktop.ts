@@ -16,6 +16,7 @@ import {
   type DevToolsSnapshotSource
 } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
 import { createDevToolsDesktopFilesystem } from '@aiao/rxdb-plugin-storage/devtools-desktop';
@@ -279,6 +280,7 @@ export default async () => {
   // init() 之后再追加，建表那一步早已跑完，metadata 表不会存在。
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage, createDesktopStorageOptions(transport))
     .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 

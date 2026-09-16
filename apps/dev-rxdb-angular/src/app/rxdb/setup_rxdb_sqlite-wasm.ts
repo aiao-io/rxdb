@@ -3,6 +3,7 @@ import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { SqliteGraphRepository } from '@aiao/rxdb-plugin-graph/sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
@@ -71,6 +72,7 @@ export default () => {
   });
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .use(rxDBPluginWorkspace)
     .adapter('sqlite-wasm', async db => {

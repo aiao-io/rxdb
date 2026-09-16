@@ -5,7 +5,7 @@
  * @remarks
  * core 的 `isNetworkError` 是「什么算离线」的唯一权威，而它的**默认方向是「不是」**：
  * 认不出的错误一律判 `false`。适配器把传输失败包成自定义 Error 类而不带任何判别位，
- * 等于让 `QueryCacheRepository` 的 `offlineFallback` 在这个适配器上恒不生效 ——
+ * 等于让 `QueryCacheEngine` 的 `offlineFallback` 在这个适配器上恒不生效 ——
  * 断网时拿到的不是缓存，是异常。
  *
  * 之所以能靠 `status` 而不是嗅探 message：postgrest-js 在 fetch 失败时**不 reject**，

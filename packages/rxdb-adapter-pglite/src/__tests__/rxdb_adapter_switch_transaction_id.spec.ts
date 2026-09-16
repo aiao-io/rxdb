@@ -1,4 +1,5 @@
 import { encodeRxDBChangeEntityId, RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -25,6 +26,7 @@ describe('事务 ID 上下文', () => {
       return adapter;
     });
 
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

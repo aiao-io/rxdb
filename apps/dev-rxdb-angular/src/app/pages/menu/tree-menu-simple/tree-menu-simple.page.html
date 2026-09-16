@@ -188,7 +188,7 @@
               id="menu-title-input"
               [(ngModel)]="$new_menu_title"
               [placeholder]="parentId ? '输入子菜单标题...' : '输入根菜单标题...'"
-              (keyup.enter)="parentId ? addChildMenu($event) : addRootMenu($event)"
+              (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
               data-testid="menu-title-input"
               type="text"
@@ -197,7 +197,7 @@
           <button
             class="btn btn-primary btn-sm"
             [attr.data-testid]="parentId ? 'menu-submit-child' : 'menu-add-root'"
-            (click)="parentId ? addChildMenu($event) : addRootMenu($event)"
+            (click)="onFormSubmit($event)"
             type="button"
           >
             <svg [lucideIcon]="Plus" [size]="16" />

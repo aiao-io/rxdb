@@ -1,4 +1,14 @@
+import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent } from '@aiao/rxdb';
+// 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
+// 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
+// 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
+//
+// 写成 `import type {}` 而不是裸的副作用导入：本文件会被 `testing.ts` 的
+// `import.meta.glob` 连同各 suite 一起打进 `dist/testing.js`，裸导入就成了该入口
+// 的**运行时**依赖。这里要的只有类型声明，`import type` 在 emit 时整句擦除。
+import type {} from '@aiao/rxdb-plugin-history';
 import { expectObservableSequence } from '@aiao/rxdb-test';
+import { expect, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
@@ -73,6 +83,8 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
     await tx.execute(sql);
   }, false);
 
+  // 会话态归 `@aiao/rxdb-plugin-history` 管。这里不做存在性判断：`AdapterFactory` 的契约
+  // 要求交出的实例已装该插件，没装就该在这一行炸掉，而不是把一批脏会话态悄悄带进下一条用例。
   adapter.rxdb.versionManager.resetSessionState();
   await Promise.resolve();
   await adapter.query('SELECT 1;');
@@ -97,3 +109,42 @@ export const expect_observable_sequence = expectObservableSequence;
  * （如订阅后等 300ms 断言没有第二次回调）不属于此列，放大它只会拖慢套件而不改变结论。
  */
 export const SUITE_DEADLINE_MS = 30_000;
+
+/**
+ * 执行一次写入，并等到它引发的变更通知投递、处理完毕后才返回。
+ *
+ * @remarks
+ * `update_hook` 的通知由后端批量投递（debounce + 硬上限），renderer 侧的 `handle_rxdb_change`
+ * 又是 fire-and-forget —— 它会自己发 `adapter.query()` 回库补数据。于是「写完立刻给
+ * `adapter.query` 装 spy」的断言会把这些后台查询算到被测调用头上，表现为调用次数按机器负载
+ * 偶发偏多（`findByRowIds ...` 那几条用例的假红即出自此处）。
+ *
+ * 判据取「`rxdb$rxdb_change` 那条通知已处理完」：变更行由业务表的 AFTER 触发器写出，
+ * 它的通知总排在业务表之后；而适配器查询队列并发度为 1，等到它的终结事件到达时，
+ * 业务表那条任务的回库查询早已出队完成。末尾再压一条空查询，走完两条任务尾部剩余的微任务。
+ *
+ * 计数从 0 起算即可判定「等到的是自己这次写入」——前提是**套件内每次写入都经由本函数**，
+ * 否则上一条用例迟到的通知会提前满足这里的条件。
+ *
+ * @param adapter - 目标适配器
+ * @param write - 产生变更的写入操作（单条已登记事务）
+ */
+export const settle_change_notifications = async (
+  adapter: RxDBAdapterSqliteBase,
+  write: () => Promise<unknown>
+): Promise<void> => {
+  let changeTableEvents = 0;
+  const listener = (event: EntityLocalCreatedEvent) => {
+    if (event.entities.some(entity => entity.namespace === 'rxdb' && entity.entity === 'RxDBChange')) {
+      changeTableEvents += 1;
+    }
+  };
+  adapter.rxdb.addEventListener(ENTITY_LOCAL_CREATE_EVENT, listener);
+  try {
+    await write();
+    await vi.waitFor(() => expect(changeTableEvents).toBeGreaterThan(0), { timeout: SUITE_DEADLINE_MS });
+  } finally {
+    adapter.rxdb.removeEventListener(ENTITY_LOCAL_CREATE_EVENT, listener);
+  }
+  await adapter.query('SELECT 1;');
+};

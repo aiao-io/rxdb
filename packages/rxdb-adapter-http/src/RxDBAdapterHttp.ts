@@ -74,6 +74,8 @@ const UNSUPPORTED_WIRE_TYPES = new Set<string>([PropertyType.bigint, PropertyTyp
  *   entities: [Recipe],
  *   sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
  * });
+ * // 读引擎随插件走（`@aiao/rxdb-plugin-querycache`），漏装时 `connect()` 直接拒绝
+ * rxdb.use(rxDBPluginQueryCache);
  * rxdb.adapter('http', db => new RxDBAdapterHttp(db, {
  *   baseUrl: 'https://api.example.com',
  *   handlers: {
@@ -128,7 +130,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * 创建实体。仅在配置了 `onCreate` 时**存在**。
    *
    * @remarks
-   * `QueryCacheRepository` 用 `if (!this.remoteAdapter.create)` 做特性探测，所以「不支持」
+   * `QueryCacheEngine` 用 `if (!this.remoteAdapter.create)` 做特性探测，所以「不支持」
    * 必须表现为**属性缺席**，不能是一个总在抛错的方法——后者会让探测判 `true`，
    * AC#4 那句清晰的「Remote adapter does not support create」变成运行期意外。
    *

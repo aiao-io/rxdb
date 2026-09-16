@@ -14,6 +14,9 @@ import {
   type RuleGroup,
   type SyncOptions
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpUnsupportedOperationError } from '../errors.js';
@@ -319,6 +322,14 @@ const createDatabase = async (localRows: Row[] = []) => {
     entities: [HttpIntegrationRecipe, HttpIntegrationNote],
     sync: DATABASE_SYNC
   });
+  // QueryCache 的读引擎在 `@aiao/rxdb-plugin-querycache`（US-025 阶段 B）：`HttpIntegrationRecipe`
+  // 声明了 `SyncType.QueryCache`，不装插件的话 `connect()` 会当场以 `RxDBMissingPluginError` 拒绝。
+  rxdb.use(rxDBPluginQueryCache);
+  // 出站队列（「哪些 id 还被离线写占着」）自 US-025 阶段 D 起归 `@aiao/rxdb-plugin-sync`，
+  // 同样是 `connect()` 的硬前提——当空集等于把每条离线写当孤儿删掉，核心不兜底。
+  // 历史插件是被同步插件 `inject` 进来的，本套件自己一行都没用到它。
+  rxdb.use(rxDBPluginHistory);
+  rxdb.use(rxDBPluginSync);
   const http = new RxDBAdapterHttp(rxdb, { baseUrl: BASE_URL, handlers });
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => supabase as unknown as IRxDBAdapter);
@@ -329,6 +340,11 @@ const createDatabase = async (localRows: Row[] = []) => {
   // 从未 `connect()` 的实例也塞进 `#adapter_map`。少了这一步，读写 duck 一律抛
   // `HttpDisconnectedError`，而那正是 `#assertConnected` 要拦的「扫描没跑过」
   await http.connect();
+  // `@aiao/rxdb-plugin-sync` 声明 `inject: ['plugin:history']`，它的安装因此被推迟到提供方
+  // 就绪之后；`rxdb.init()` 是同步的，返回时那一趟还没落地。`connect()` 是唯一的公开结算点
+  // （已连接的适配器再连一次也会重跑 `#await_plugin_installs()`），少了它出站队列这一槽仍是空的，
+  // 读引擎第一次对账就以 `RxDBMissingPluginError` 拒绝。
+  await rxdb.connect('sqlite');
   // 适配器口径的 `updatedAt` 是 ISO 串，实体口径是 `Date`，两端在这里对接
   local.attach(
     data =>

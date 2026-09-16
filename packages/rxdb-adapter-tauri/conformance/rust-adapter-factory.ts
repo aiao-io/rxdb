@@ -18,6 +18,7 @@
 
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -123,6 +124,12 @@ async function createRustAdapter(options?: Record<string, unknown>): Promise<Que
     adapter = new QueryCountingRustAdapter(db, { transport: ensureHost().transport });
     return adapter;
   });
+
+  // 加密契约套件（历史 / 撤销重做 / 分支）直接读 `adapter.rxdb.versionManager`，
+  // 而历史子系统自 US-025 阶段 C 起住在插件里。`EncryptedAdapterFactory` 的契约把
+  // 「装好插件」算成工厂的职责，所以登记在这里，且必须早于下面的 `connect()`
+  // —— `connect()` 内部就会调 `init()`，届时插件才装上。
+  rxdb.use(rxDBPluginHistory);
 
   await rxdb.getAdapter(TAURI_ADAPTER_NAME);
   await rxdb.connect(TAURI_ADAPTER_NAME);

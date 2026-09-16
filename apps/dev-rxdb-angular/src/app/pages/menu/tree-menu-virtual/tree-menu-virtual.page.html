@@ -164,16 +164,12 @@
               id="menu-title-input"
               [(ngModel)]="$new_menu_title"
               [placeholder]="parentId ? '输入子菜单标题...' : '输入根菜单标题...'"
-              (keyup.enter)="parentId ? addChildMenu($event) : addRootMenu($event)"
+              (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
               type="text"
             />
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            (click)="parentId ? addChildMenu($event) : addRootMenu($event)"
-            type="button"
-          >
+          <button class="btn btn-primary btn-sm" (click)="onFormSubmit($event)" type="button">
             <svg [lucideIcon]="Plus" [size]="16" />
             {{ parentId ? '添加子菜单' : '添加根菜单' }}
           </button>

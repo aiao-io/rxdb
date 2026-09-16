@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -29,6 +30,7 @@ describe('undoDatabase/redoDatabase - 撤销一步', () => {
     );
     rxdb = db;
     adapter = await db.getAdapter('pglite');
+    db.use(rxDBPluginHistory);
     await db.connect('pglite');
   });
 

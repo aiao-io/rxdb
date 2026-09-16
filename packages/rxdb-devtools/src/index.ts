@@ -37,6 +37,8 @@ export type {
   DevToolsProviderOptions,
   /** 连接器所需的 RxDB 能力子集；真实 `RxDB` 实例可直接传入 `init`。 */
   DevToolsRxDB,
+  /** 连接器调用的分支写操作子集；`@aiao/rxdb-plugin-history` 的 `VersionManager` 可直接赋值。 */
+  DevToolsVersionManager,
   /** 实体元数据读取函数，通常直接传 `@aiao/rxdb` 的 `getEntityMetadata`。 */
   GetEntityMetadataFn
 } from './connector.js';

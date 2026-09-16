@@ -15,6 +15,7 @@ import {
   SyncType,
   UnsupportedRxDBSystemVersionError
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -157,6 +158,7 @@ describe('PGlite system schema migration', () => {
         sync: { local: { adapter: 'pglite' }, type: SyncType.None }
       });
       rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { dataDir }));
+      rxdb.use(rxDBPluginHistory);
       const adapter = await rxdb.connect('pglite');
       databases.add(rxdb);
       return { rxdb, adapter };
@@ -326,6 +328,7 @@ describe('PGlite system schema migration', () => {
         sync: { local: { adapter: 'pglite' }, type: SyncType.None }
       });
       rxdb.adapter('pglite', database => new RxDBAdapterPGlite(database, { dataDir }));
+      rxdb.use(rxDBPluginHistory);
       const adapter = await rxdb.connect('pglite');
       databases.add(rxdb);
       return { rxdb, adapter };

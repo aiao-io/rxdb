@@ -2,6 +2,7 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { getE2eDbName } from '@aiao/rxdb-test';
@@ -31,6 +32,7 @@ export default () => {
   });
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .use(rxDBPluginWorkspace)
     .adapter('wa-sqlite', async db => {

@@ -72,7 +72,7 @@ US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的�
 
 [US-305 FR-018](./US-305-commit-graph-head.md) 要求「已有 API 的行为不能因为 commit 功能而改变」。把 `switchBranch()` 的默认行为改成「要求工作树 clean」会直接违反它，而且是会打破用户代码的那种违反：
 
-- [VersionManager.ts](../../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch(branchId: string)` 当前**无条件**切换，没有 dirty 检查，也没有 options 参数。
+- [VersionManager.ts](../../../packages/rxdb-plugin-history/src/VersionManager.ts) 的 `switchBranch(branchId: string)` 当前**无条件**切换，没有 dirty 检查，也没有 options 参数。
 - [website/docs/collaboration/branch.md](../../../website/docs/collaboration/branch.md) 里所有示例都是直接 `await rxdb.versionManager.switchBranch('feature-1')`。
 - [branch-manager.ts](../../../apps/dev-rxdb-supabase/src/app/branch-manager.ts#L203) 的 `switchBranch(branch)` 方法从一个下拉框直接 `await this.#rxdb.versionManager.switchBranch(branch)`，没有任何 dirty 处理路径。
 - `VersionManager` 类方法签名不受只记录导出名的 api-baseline 完整保护；现有 `SwitchBranchOptions` 还是

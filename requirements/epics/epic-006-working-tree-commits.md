@@ -140,7 +140,7 @@ US-306 阶段 B 只负责建表与「从已存在的 session 派生 conflicted�
 物理表名、字段、索引、FK、加密 envelope 与迁移版本在 plan 阶段冻结，以**重生成后**的
 `specs/001-working-tree-commits/data-model.md` 为准（重生成是「依赖顺序」第 2 步；现有目录仍含暂存区，不得据此实现）。
 本 Epic 只定死其中一条：`WorkingTreeEntry` 是**独立表**并完整复制 patch / inverse patch，**不复用 `RxDBChange`**、
-也不只存其外键——`rxdb_change` 行会被删分支级联删除、[compact-changes.ts](../../packages/rxdb/src/version/compact-changes.ts)
+也不只存其外键——`rxdb_change` 行会被删分支级联删除、[compact-changes.ts](../../packages/rxdb/src/sync-contract/compact-changes.ts)
 压缩合并、`revertChangeId` 标记回滚与 `redoInvalidatedAt` 标记失效四条既有路径删除或失效，只引用不复制会让冷重放缺项。
 但 `WorkingTreeState` 只存计数和 revision 不算完成：必须有可枚举、可重放、按分支隔离的未提交变更单元。
 `CommitChangeSet` 必须复制完整的不可变恢复数据，不能只引用可能被 undo、清理或删分支删除的
@@ -270,7 +270,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 而不是给这两个方法单独写一套。**这条不影响 bypass 门禁的裁决结论，只是把它的覆盖面补到裁决本来就想覆盖的范围。**
 
 **受信路径必须与 bypass 门禁同批交付。** 表最后一行的拒绝门禁一旦启用，既有的批量投影重写路径就会撞上它——
-最典型的是 [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) 的 `switchBranch()` 经
+最典型的是 [VersionManager.ts](../../packages/rxdb-plugin-history/src/VersionManager.ts) 的 `switchBranch()` 经
 `adapter.switchBranch({ branchId, actions })` 做的整表重写。因此 **US-306 阶段 A 在落地拒绝门禁的同一个阶段内**，
 必须把既有 switch / baseline 物化路径登记为受信路径（关 trigger + 不产生工作树条目 + 不递增 working-tree revision），
 否则阶段 A 合并后到 US-308 合并前，`switchBranch` 会被自己的门禁拒掉或静默绕过工作树。登记的是「路径可信」这一
@@ -284,17 +284,17 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 变成噪音源。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。下表按符号登记，与代码实际调用点一一对应：
 
-| 登记键（文件 + 符号 + 意图）                                                                                             | 传输层                          | 本表归属                                |
-| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | --------------------------------------- |
-| [VersionManager.ts](../../packages/rxdb/src/version/VersionManager.ts) · `switchBranch` · 分支物化                       | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
-| [restore-entity.ts](../../packages/rxdb/src/version/restore-entity.ts) · `restore_entity` · 单条 change 恢复             | `adapter.switchBranch`          | restore：**必须**产生                   |
-| [HistoryManager.ts](../../packages/rxdb/src/version/HistoryManager.ts) · `invalidateRedoStack` · 失效 redo 栈            | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
-| [undo-redo-apply.ts](../../packages/rxdb/src/version/undo-redo-apply.ts) · `applyUndoRedoHistories` · undo/redo 应用     | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
-| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · `merge_branch` · per-change `executor.mergeChanges` | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
-| [merge-branch.ts](../../packages/rxdb/src/version/merge-branch.ts) · `merge_branch` · squash `adapter.mergeChanges`      | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
-| [pull-batch.ts](../../packages/rxdb/src/version/pull-batch.ts) · `pullBatchOnce` · 远端分批应用                          | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
-| [pull-repository.ts](../../packages/rxdb/src/version/pull-repository.ts) · `pullSingleRepository` · 远端仓库应用         | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
-| [cleanup-expired.ts](../../packages/rxdb/src/version/cleanup-expired.ts) · `cleanupExpired` · 过期删除                   | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
+| 登记键（文件 + 符号 + 意图）                                                                                                    | 传输层                          | 本表归属                                |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------------------------- |
+| [VersionManager.ts](../../packages/rxdb-plugin-history/src/VersionManager.ts) · `switchBranch` · 分支物化                       | `adapter.switchBranch`          | 受信物化：**不**产生工作树单元          |
+| [restore-entity.ts](../../packages/rxdb-plugin-history/src/restore-entity.ts) · `restore_entity` · 单条 change 恢复             | `adapter.switchBranch`          | restore：**必须**产生                   |
+| [HistoryManager.ts](../../packages/rxdb-plugin-history/src/HistoryManager.ts) · `invalidateRedoStack` · 失效 redo 栈            | `adapter.switchBranch`          | 只写 `redoInvalidatedAt` 元数据：不产生 |
+| [undo-redo-apply.ts](../../packages/rxdb-plugin-history/src/undo-redo-apply.ts) · `applyUndoRedoHistories` · undo/redo 应用     | `adapter.switchBranch`          | undo/redo：**必须**产生                 |
+| [merge-branch.ts](../../packages/rxdb-plugin-history/src/merge-branch.ts) · `merge_branch` · per-change `executor.mergeChanges` | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [merge-branch.ts](../../packages/rxdb-plugin-history/src/merge-branch.ts) · `merge_branch` · squash `adapter.mergeChanges`      | `mergeChanges`（trigger 开启）  | mergeBranch：必须产生                   |
+| [pull-batch.ts](../../packages/rxdb-plugin-sync/src/pull-batch.ts) · `pullBatchOnce` · 远端分批应用                             | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [pull-repository.ts](../../packages/rxdb-plugin-sync/src/pull-repository.ts) · `pullSingleRepository` · 远端仓库应用            | `mergeChanges(disableTriggers)` | remote apply：`origin=remote_sync`      |
+| [cleanup-expired.ts](../../packages/rxdb-plugin-sync/src/cleanup-expired.ts) · `cleanupExpired` · 过期删除                      | `mergeChanges(disableTriggers)` | 过期删除：`origin=remote_sync`          |
 
 `merge-branch.ts` **两个策略分支各是一个独立调用点**（per-change 走 `executor`、squash 走 `adapter`），
 必须各占一行；只登记其中一个会让漂移测试在落地当天就红。同理 `pull-batch.ts` 与 `pull-repository.ts`
@@ -326,8 +326,8 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 > 本地投影变化同类，因此复用同一条语义而不是新造第八种。它已在实现里跳过仍有未推送变更的候选，
 > 不会与本地未提交编辑打架。
 
-QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheRepository.ts](../../packages/rxdb/src/repository/QueryCacheRepository.ts)
-的 upsert / delete 与 `#evictOrphans` 孤儿清理，以及 [query-cache-outbox.ts](../../packages/rxdb/src/repository/query-cache-outbox.ts)
+QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheRepository.ts](../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)
+的 upsert / delete 与 `#evictOrphans` 孤儿清理，以及 [query-cache-outbox.ts](../../packages/rxdb-plugin-sync/src/query-cache-outbox.ts)
 的离线出站重放（经 `localAdapter.upsertMany()` / `deleteByIds()` 回写本地行）。两者目标都是 QueryCache 实体，
 按 `sync.type` 判定放行；新增 QueryCache 写路径按同一条排除规则登记即可，**排除结论不变**。
 
@@ -342,7 +342,7 @@ QueryCache 另测其排除边界，避免一次缓存刷新把工作树永久标
 ### 远端冲突裁决对工作树的影响
 
 `pull()` / `autoSync` / `pullRepository()` 在**同一事务内**先做冲突裁决、再应用实体
-（[pull-conflict-utils.ts](../../packages/rxdb/src/version/pull-conflict-utils.ts) 的 `resolveConflictsAndBuildActions`
+（[pull-conflict-utils.ts](../../packages/rxdb-plugin-sync/src/pull-conflict-utils.ts) 的 `resolveConflictsAndBuildActions`
 → `executor.mergeChanges(actions, undefined, true)`），并把落败的本地 `RxDBChange` 标记 superseded。
 `WorkingTreeEntry` 的主键粒度是 database + branch + unit，一个单元至多一行；其 patch / inverse patch 是完整快照、
 不引用 `rxdb_change`，因此标记 superseded 不会顺带改变条目，必须显式重算：

@@ -1880,6 +1880,33 @@ export function versionBranchSuite(factory: AdapterFactory) {
           expect(mainAfter?.activated).toBe(false);
           expect(featureAfter?.activated).toBe(true);
         });
+
+        // 回归：历史子系统（invalidateRedoStack / undo-redo-apply）借 switchBranch 批量套用
+        // actions，它们只想「作用在当前分支」。旧实现要求调用方先 getCurrentBranch() 再传
+        // branchId —— 两次 await 之间若发生真正的分支切换，这条迟到的调用会把 activated 和
+        // 全部触发器倒回旧分支，后续写入被错标成旧分支。省略 branchId 时必须由适配器在事务内
+        // 解析当前分支，绝不改变激活分支。
+        it('switchBranch 省略 branchId 时作用于当前分支且不改变激活分支', async () => {
+          await rxdb.versionManager.createBranch('stay-branch');
+          await rxdb.versionManager.switchBranch('stay-branch');
+
+          await adapter.switchBranch({
+            actions: { deletes: new Map(), inserts: new Map(), updates: new Map() }
+          });
+
+          const branchesAfter = await adapter.getRepository(RxDBBranch).find({
+            where: { combinator: 'and', rules: [] }
+          });
+          expect(branchesAfter.find(b => b.id === 'main')?.activated).toBe(false);
+          expect(branchesAfter.find(b => b.id === 'stay-branch')?.activated).toBe(true);
+
+          // 触发器也必须留在当前分支：后续写入的变更日志要标成 stay-branch
+          const todo = new Todo();
+          todo.title = 'stay';
+          await todo.save();
+          const { rows } = await adapter.rawQuery(`SELECT branchId FROM "rxdb$rxdb_change" ORDER BY id DESC LIMIT 1;`);
+          expect(rows[0][0]).toBe('stay-branch');
+        });
       });
     });
   });

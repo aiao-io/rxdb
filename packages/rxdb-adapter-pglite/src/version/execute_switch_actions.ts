@@ -2,6 +2,7 @@ import {
   EntityLocalCreatedEvent,
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
+  getCurrentBranch,
   getEntityType,
   type EntityData,
   type EntityType,
@@ -46,7 +47,11 @@ export async function execute_switch_actions(
   disableTriggers = false
 ): Promise<void> {
   void localChanges;
-  const branch = disableTriggers ? await adapter.rxdb.versionManager.getCurrentBranch() : undefined;
+  // 当前分支的解析自 US-025 阶段 C 起是核心函数：历史子系统搬进
+  // `@aiao/rxdb-plugin-history` 之后 `rxdb.versionManager` 不再必然存在，
+  // 而这里只需要「当前分支是哪个」这条原语，它随 `system/system-repositories.ts` 留在核心。
+  // 读法不变——仍在 `runInTransaction` 之外走热路径，不占队列槽位。
+  const branch = disableTriggers ? await getCurrentBranch(adapter.rxdb) : undefined;
   // 用 runInTransaction 而非 transaction：调用方（如 merge_branch 的 normal 策略）
   // 可能已经开了事务把多次 mergeChanges 包起来，此时必须复用当前事务而不是再入队自锁。
   await adapter.runInTransaction(async executor => {

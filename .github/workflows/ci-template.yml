@@ -214,6 +214,12 @@ jobs:
       - name: Third-party action pin gate
         run: pnpm audit:action-pins
 
+      # core 拆包之后，website/docs 是唯一没有编译器看着的一面：示例调用已搬走的
+      # `versionManager.<syncMethod>`、或只列 querycache 一个包，两种失效都不会让任何
+      # 一条 CI 变红，却让「照官方指南升级」100% 失败。搬迁名单自校验，不会悄悄过期。
+      - name: Docs plugin surface gate
+        run: pnpm audit:docs-plugins
+
       # requirements/ 的派生视图（status-overview 计数与索引、epic status、README 的 N/M、
       # 相对链接与 #L 行号锚点）必须等于 story YAML 推导值。此前全靠手改，README 写 50/61 时
       # YAML 已是 54/63；数字类漂移本地跑 `pnpm audit:requirements:update` 即可回写。

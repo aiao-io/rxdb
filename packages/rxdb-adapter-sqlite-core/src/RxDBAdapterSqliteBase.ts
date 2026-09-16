@@ -81,6 +81,7 @@ import { generate_table_trigger_sql } from './table/trigger_sql.js';
 import { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from './transaction_sqlite_result.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
@@ -712,7 +713,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   localRxDBChange() {
-    return this.getRepository(RxDBChange) as SqliteTreeRepository<typeof RxDBChange>;
+    return this.getRepository(RxDBChange) as SqliteRepository<typeof RxDBChange>;
   }
 
   async getRxDBChangeSequence() {
@@ -732,7 +733,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   // QueryCache 方法
   //
-  // 三个方法一律走 query() 而非 internalQuery()：它们是 QueryCacheRepository 的真实数据
+  // 三个方法一律走 query() 而非 internalQuery()：它们是 QueryCacheEngine 的真实数据
   // 读写路径，由 RxJS Observable 驱动、落地时机不可控。internalQuery 旁路队列并复用同一连接，
   // 落在事务窗口内会被该事务的 ROLLBACK 一并回滚，或反向污染尚未提交的事务。
   // query() 通过 #queue 串行化，事务体内则由 executor 门面直接使用当前连接。
@@ -1019,7 +1020,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    *
    * @remarks
    * 本包所有物理表名都由 `get_table_name(name, namespace) => \`${namespace}$${name}\`` 生成，
-   * 而 `QueryCacheRepository` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
+   * 而 `QueryCacheEngine` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
    * 真机执行必然 `no such table: Todo`。`updatedAt` 同理要经 `propertyMap` 映射，
    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
    *
@@ -1049,37 +1050,6 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       tableName: get_table_name_by_metadata(metadata),
       columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
     };
-  }
-
-  /**
-   * 读当前分支 id，供事务日志的 `switch_transaction_id` 使用。
-   *
-   * @remarks
-   * 语义对齐 `VersionManager.getCurrentBranch()`：先取 `activated` 的分支，没有则回退 `main`。
-   * 必须经 executor 读 —— 理由见调用点。
-   */
-  async #readCurrentBranchId(executor: SqliteTransactionExecutor): Promise<string> {
-    const metadata = getEntityMetadata(RxDBBranch);
-    const table = quote_sql_identifier(get_table_name_by_metadata(metadata));
-    const idColumn = quote_sql_identifier(metadata.propertyMap?.get('id')?.columnName ?? 'id');
-    const activatedColumn = quote_sql_identifier(metadata.propertyMap?.get('activated')?.columnName ?? 'activated');
-
-    // 直发 SQL 而不经仓库：仓库的 addQueryCache 要做实体水合（需要 entityManager），
-    // 而这里只要一个 id。少一层依赖，也让适配器单测不必搭出完整的 RxDB。
-    const readId = async (whereSql: string, params: SQLiteCompatibleType[]): Promise<string | undefined> => {
-      const result = await executor.query(`SELECT ${idColumn} FROM ${table} WHERE ${whereSql} LIMIT 1;`, params);
-      const columnIndex = Math.max(0, result.columns.indexOf(idColumn.replaceAll('"', '')));
-      const value = result.rows[0]?.[columnIndex];
-      return typeof value === 'string' ? value : undefined;
-    };
-
-    const activated = await readId(`${activatedColumn} = ?`, [1]);
-    if (activated !== undefined) return activated;
-
-    const main = await readId(`${idColumn} = ?`, ['main']);
-    if (main !== undefined) return main;
-
-    throw new RxDBAdapterSqliteError('currentBranch is undefined! Cannot start transaction with logging.');
   }
 
   #initEncryption(): void {
@@ -1194,7 +1164,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         //
         // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
         // 走快路径的实际行为一致。
-        const currentBranchId = await this.#readCurrentBranchId(executor);
+        const currentBranchId = await read_current_branch_id(executor);
         log_begin = switch_transaction_id(this, currentBranchId, transactionId);
         log_commit = switch_transaction_id(this, currentBranchId);
       }

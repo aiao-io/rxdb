@@ -206,7 +206,7 @@ export const isAdapterShutdownError = (err: unknown): boolean => {
  *
  * @remarks
  * 输出直接用作查询缓存 key（`QueryManager.createTask`）和数据指纹
- * （`QueryCacheRepository.#computeDataFingerprint`），因此**两个语义不同的输入绝不能
+ * （`QueryCacheEngine.#computeDataFingerprint`），因此**两个语义不同的输入绝不能
  * 映射到同一字符串** —— 那等于把 A 查询的结果发给 B 查询。
  *
  * 所有 `JSON.stringify` 会返回 `undefined` 的值（顶层 undefined、数组元素 undefined、

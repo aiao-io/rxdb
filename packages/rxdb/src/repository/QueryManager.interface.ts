@@ -113,6 +113,18 @@ export interface RepositoryQueryExtensions<T extends EntityType> {
   readonly __extensionBrand: { readonly entityType: T; readonly options: never; readonly type: never };
 }
 
+/**
+ * 一次查询任务的选项联合
+ *
+ * @remarks
+ * `QueryManager.createTask()` 的入参类型，也是任务去重指纹的原料：同一个 `QueryOptions`
+ * 结构序列化后相等的两次订阅会并到同一条任务上。
+ *
+ * 末尾那一支来自 {@link RepositoryQueryExtensions} 的模块扩展——插件包自定义的查询任务
+ * 由此并进联合，因此实现 Repository 或替换 QueryManager 的插件需要这个类型。
+ *
+ * @typeParam T - 查询针对的实体类
+ */
 export type QueryOptions<T extends EntityType> =
   // 通用仓库查询任务选项
   | GetQuery<T>

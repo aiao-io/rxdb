@@ -1,0 +1,42 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "isIgnorableDetachedVersionEventError",
+        "kind": "value"
+      },
+      {
+        "name": "PushInFlightRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "PushInFlightSession",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBCrossScopeTransactionError",
+        "kind": "both"
+      },
+      {
+        "name": "rxDBPluginHistory",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginHistory",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBPluginHistoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SyncHistoryBridge",
+        "kind": "type"
+      },
+      {
+        "name": "VersionManager",
+        "kind": "type"
+      }
+    ]
+  }
+}

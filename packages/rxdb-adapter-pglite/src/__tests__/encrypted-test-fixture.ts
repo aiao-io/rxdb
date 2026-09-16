@@ -8,6 +8,7 @@
  * 本文件因此只剩下 PGlite 浏览器档位**独有**的那部分：怎么造适配器。
  */
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import type { EncryptedAdapterFactory, EncryptedTestAdapter } from '@aiao/rxdb-test/encrypted';
 import type { Results } from '@electric-sql/pglite';
 
@@ -50,6 +51,12 @@ export const pgliteFactory: EncryptedAdapterFactory = {
         return countingAdapter;
       })
       .init();
+
+    // 加密契约套件（历史 / 撤销重做 / 分支）直接读 `adapter.rxdb.versionManager`，
+    // 而历史子系统自 US-025 阶段 C 起住在插件里。`EncryptedAdapterFactory` 的契约把
+    // 「装好插件」算成工厂的职责，所以登记在这里，且必须早于下面的 `connect()`
+    // —— `connect()` 内部就会调 `init()`，届时插件才装上。
+    rxdb.use(rxDBPluginHistory);
 
     await rxdb.getAdapter('pglite');
     await rxdb.connect('pglite');

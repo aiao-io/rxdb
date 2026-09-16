@@ -4,14 +4,24 @@ RxDB 提供类似 Git 的分支管理能力，让你可以在本地创建多个�
 
 ## 快速开始
 
+分支与历史由 `@aiao/rxdb-plugin-history` 提供，不在 core 里：
+
+```bash
+pnpm add @aiao/rxdb-plugin-history
+```
+
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 
 const rxdb = new RxDB({
   dbName: 'myApp',
   entities: [Todo],
   sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
 });
+
+rxdb.use(rxDBPluginHistory);
+await rxdb.connect('wa-sqlite');
 
 // 创建分支
 await rxdb.versionManager.createBranch('feature-1');
@@ -22,6 +32,12 @@ await rxdb.versionManager.switchBranch('feature-1');
 // 删除分支
 await rxdb.versionManager.removeBranch('feature-1');
 ```
+
+:::warning `versionManager` 的可用时机
+`rxdb.versionManager` 由历史插件在连接纪元内挂载，**`await connect()` 之后才存在**。没装插件时读它拿到的是 `undefined`——core 不做 fallback 兜底。
+
+同步方法（`syncRepository` / `bulkSync` / `push` / `pull` 等）已经从 `versionManager` 搬到 `@aiao/rxdb-plugin-sync` 的 `rxdb.syncManager`，见[历史与同步拆包](../migration/history-sync-plugins.md)。
+:::
 
 ## 分支管理 API
 

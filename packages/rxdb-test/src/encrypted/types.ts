@@ -23,7 +23,14 @@ export interface EncryptedAdapterEncryption {
   readonly isLocked: boolean;
 }
 
-/** 套件用到的 `versionManager` 子集。 */
+/**
+ * 套件用到的 `versionManager` 子集。
+ *
+ * @remarks
+ * 这是**结构类型**，不是核心 `RxDB` 上的成员：历史 / 撤销重做 / 分支自 US-025 阶段 C
+ * 起住在 `@aiao/rxdb-plugin-history` 里。本包因此不 `import` 那个插件 —— 它只把套件
+ * 需要的形状写下来，装插件是 factory 的活（见 {@link EncryptedAdapterFactory}）。
+ */
 export interface EncryptedAdapterVersionManager {
   createBranch(branchId: string): Promise<unknown>;
   mergeBranch(branchId: string): Promise<{ merged: number }>;
@@ -74,6 +81,16 @@ export interface EncryptedTestAdapter {
   };
 }
 
+/**
+ * 加密契约套件的 adapter 工厂契约。
+ *
+ * @remarks
+ * `createAdapter()` 交出的实例**必须已装 `@aiao/rxdb-plugin-history`**：
+ * `bigint-binary` / `change-log` / `lifecycle` 三份套件直接读
+ * `adapter.rxdb.versionManager`（见 {@link EncryptedTestAdapter}）。
+ * 历史 / 撤销重做 / 分支自 US-025 阶段 C 起不在核心里，工厂不 `use()` 就是没有 ——
+ * 且必须早于 `connect()`，`connect()` 内部会调 `init()`，插件在那一刻才装上。
+ */
 export interface EncryptedAdapterFactory {
   /** 显示名，会出现在 `describe` 块中。 */
   readonly name: string;

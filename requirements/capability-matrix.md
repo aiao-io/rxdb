@@ -68,11 +68,13 @@
 | HTTP                    | `@aiao/rxdb-adapter-http`        | `http`                  | Remote | 远端权威 HTTP + **独立注册**的 sqlite 行缓存；v1 **只支持 `SyncType.QueryCache`**，`pullChanges`/`mergeChanges`/`getChangeCount` 一律 throw unsupported（不返回空数组/`0`）；`getRepository`/`saveMany`/`removeMany`/`mutations`/`rawQuery` 亦无实现；bigint / binary 字段在 `connect()` fail-fast | [US-212](stories/adapter/US-212-http-adapter.md)（已发 `stable`，两阶段全关）；SSE 变更通知由 [US-023](stories/core/US-023-querycache-remote-invalidation.md) 承接（`changeFeed` 缺省关闭）；行缓存 eviction 见 [roadmap「明确不排期」](roadmap.md#明确不排期) |
 
 > `encrypted` 包的 [index.ts](../packages/rxdb-adapter-encrypted/src/index.ts) 只导出 `Keyring` / `createKeyring` / 信封编解码 / 校验与错误类型，**没有任何 `IRxDBAdapter` 实现**；
-> [RxDBAdapterSqliteBase.ts:33](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L33) 与 [RxDBAdapterPGlite.ts:26](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L26) 直接 import 它，加密是**内建**能力而非外层包装。
+> [`RxDBAdapterSqliteBase`](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts) 与 [`RxDBAdapterPGlite`](../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts) 直接 import 它，加密是**内建**能力而非外层包装。
 > 因此按适配器 `name` 判定能力时不存在「先解包」这一步（见 [epic-006 启用与存储边界](epics/epic-006-working-tree-commits.md)）。
 
 ## 已知的需求覆盖缺口
 
+- **实体同步策略不能由实例按实体覆盖**。`getSyncConfig()` 优先使用实体装饰器声明，HTTP demo 的 `Recipe` 与 `ServerRecipe` 因同步策略不同保留两套类声明。缺口由 [US-026](stories/core/US-026-instance-sync-override.md) 认领；目标是初始化时整体覆盖配置并保持实例隔离，不包含运行时策略切换。
+- **没有应用可调用的本地数据库一致性备份 / 恢复能力**。US-207 / US-208 / US-210 明确把数据库导入、导出、热备份和修复排除在范围外；桌面文件存储当前验证的是退出应用后复制整个应用数据目录。缺口由 [US-217](stories/adapter/US-217-local-database-backup-restore.md) 认领，按 PGlite、SQLite 共享层、桌面 host 分阶段；归档不包含 `rxdb-plugin-storage` 外置文件，也不承诺跨 adapter 恢复。
 - **非微信小程序平台仍无实现**（支付宝 / 抖音 / 百度 / QQ）。Taro 示例保留了多端 `build:*`，适配器构造函数却只认 `wx` + `WXWebAssembly`。缺口由 [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 认领（Backlog，三阶段：先抽宿主契约再按可行性门禁放行）；阶段没关之前文档仍写「仅微信」。
 - **小程序运行时的搜索能力仍无故事覆盖**。`wa-sqlite-miniprogram` 已在 [backend-registry.ts](../packages/rxdb-plugin-search/src/backend/backend-registry.ts) 登记为 `unverified`（登记 ≠ 放行，仍抛 `SearchUnsupportedAdapterError`）。2026-09-12 起 glue + wasm 改用 `@subframe7536/sqlite-wasm`（`ENABLE_FTS5` 编译），[fts5.integration.spec.ts](../packages/rxdb-adapter-miniprogram/src/__tests__/fts5.integration.spec.ts) 在 Node 里对真 wasm + 微信 VFS 存根验证了 `CREATE VIRTUAL TABLE ... USING fts5` 与 `rxdb_fts_bigram` 注册。**剩下的缺口是真机实测与 registry 放行**——不在 US-209 范围内，也无故事认领。
 - **两个 `unverified` 后端待转正**，均为环境/构建管线问题而非设计缺口：`wa-sqlite`（浏览器）要用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm（npm 预编译产物未编入 FTS5，见 [US-703](stories/future/US-703-pglite-full-text-search.md) AC#8）；`wa-sqlite-miniprogram` 的 wasm 已换成编入 FTS5 的构建，只差真机实测（见上一条）。SQLite FTS5（[US-702](stories/future/US-702-full-text-search.md)）与 PGlite `pg-tsvector`（US-703，Done 2026-08-31）本身均已交付，引擎侧不再有能力不对称。

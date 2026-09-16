@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
+import { settle_change_notifications } from './test-utils.js';
 
 /** SqliteRepository 测试：仓库层 CRUD、查询与变更事件。 */
 export function sqliteRepositorySuite(factory: AdapterFactory) {
@@ -21,14 +22,16 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
     });
 
     it('RxDBChange should be created', async () => {
+      // 每次写入都等变更通知落地：本套件后面几条用例给 `adapter.query` 装了 spy，
+      // 迟到的后台补数据查询会被算进它们头上（见 settle_change_notifications）。
       const todo = new Todo();
       todo.title = 'Fanny';
-      await todo.save();
+      await settle_change_notifications(adapter, () => todo.save());
 
       todo.title = 'Fanny2';
-      await todo.save();
+      await settle_change_notifications(adapter, () => todo.save());
 
-      await todo.remove();
+      await settle_change_notifications(adapter, () => todo.remove());
 
       const result = await firstValueFrom(
         adapter.rxdb.entityManager.getRepository(RxDBChange).findAll({
@@ -44,9 +47,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
     it('findByRowIds should use rowId cache for live entities', async () => {
       const todo = new Todo();
       todo.title = 'rowid-cache-hit';
-      await todo.save();
-
-      await adapter.query('SELECT 1');
+      await settle_change_notifications(adapter, () => todo.save());
 
       const rowId = adapter.getRowIdByEntity(todo);
       expect(rowId).toBeDefined();
@@ -65,9 +66,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
     it('findByRowIds should only query rowIds missing from cache', async () => {
       const todo = new Todo();
       todo.title = 'rowid-partial-hit';
-      await todo.save();
-
-      await adapter.query('SELECT 1');
+      await settle_change_notifications(adapter, () => todo.save());
 
       const cachedRowId = adapter.getRowIdByEntity(todo);
       expect(cachedRowId).toBeDefined();
@@ -93,14 +92,12 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
     it('findByRowIds should still return a removed entity kept in the rowId cache (DELETE event relies on this)', async () => {
       const todo = new Todo();
       todo.title = 'rowid-removed-still-cached';
-      await todo.save();
-
-      await adapter.query('SELECT 1');
+      await settle_change_notifications(adapter, () => todo.save());
 
       const rowId = adapter.getRowIdByEntity(todo);
       expect(rowId).toBeDefined();
 
-      await todo.remove();
+      await settle_change_notifications(adapter, () => todo.remove());
 
       // 删除后：DB 行已无，但实体被标记 removed 且仍留在 rowId 缓存中
       expect(getEntityStatus(todo).removed).toBe(true);
@@ -118,14 +115,12 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
     it('findByRowIds should re-query a removed cache entry instead of trusting it as a live hit', async () => {
       const todo = new Todo();
       todo.title = 'rowid-removed-requery';
-      await todo.save();
-
-      await adapter.query('SELECT 1');
+      await settle_change_notifications(adapter, () => todo.save());
 
       const rowId = adapter.getRowIdByEntity(todo);
       expect(rowId).toBeDefined();
 
-      await todo.remove();
+      await settle_change_notifications(adapter, () => todo.remove());
 
       const repo = adapter.getRepository(Todo);
       const querySpy = vi.spyOn(adapter, 'query');

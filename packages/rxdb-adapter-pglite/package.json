@@ -76,6 +76,7 @@
     "type-fest": "^5.9.0"
   },
   "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*"
   }
 }

@@ -28,7 +28,7 @@ import {
 } from './connector-runtime.js';
 import { subscribeOnce, type Subscription } from './connector-subscribe-once.js';
 import { createWindowConnectorTransport, type DevToolsConnectorTransport } from './connector-transport.js';
-import type { DevToolsOptions, DevToolsRxDB, GetEntityMetadataFn } from './connector-types.js';
+import type { DevToolsOptions, DevToolsRxDB, DevToolsVersionManager, GetEntityMetadataFn } from './connector-types.js';
 import { isRecord } from './internal/guards.js';
 import { SequenceGenerator } from './sequence.js';
 import { serialize, serializeDevToolsValue } from './serializer.js';
@@ -56,6 +56,7 @@ export type {
   DevToolsOptions,
   DevToolsProviderOptions,
   DevToolsRxDB,
+  DevToolsVersionManager,
   GetEntityMetadataFn
 } from './connector-types.js';
 export { RXDB_EVENT_TYPES };
@@ -919,18 +920,27 @@ export class DevToolsConnector {
    * 接回调而不是 `versionManager[opName](arg)` 索引式调用：三个方法的返回类型
    * 并不一致（`createBranch` 回 `Promise<RxDBBranch>`，另两个回 `Promise<void>`），
    * 联合索引签名会把它们塌成 `never` 参数。
+   *
+   * 两个前置失败态都据实报错、都照样刷一次分支列表（面板据此回到真相）：
+   * 「命令先于 init 到达」，以及「宿主没装 `@aiao/rxdb-plugin-history`」——
+   * 后者自 US-025 阶段 C 起是常态而非异常，分支能力本就随插件走。
    */
-  #runBranchOp(run: (versionManager: DevToolsRxDB['versionManager']) => Promise<unknown>, logLabel: string): void {
+  #runBranchOp(run: (versionManager: DevToolsVersionManager) => Promise<unknown>, logLabel: string): void {
     const rxdb = this.#rxdbInstance;
-    // 同 `#handleQueryEntity`：`versionManager` 在真实 `RxDB` 上必然存在，
-    // 唯一真实的失败态是「命令先于 init 到达」。
     if (!rxdb) {
       console.error('[RxDB DevTools Connector] RxDB 未初始化');
       this.#handleGetBranches();
       return;
     }
 
-    run(rxdb.versionManager)
+    const versionManager = rxdb.versionManager;
+    if (!versionManager) {
+      console.error(`[RxDB DevTools Connector] ${logLabel} 不可用：宿主未安装 @aiao/rxdb-plugin-history`);
+      this.#handleGetBranches();
+      return;
+    }
+
+    run(versionManager)
       .catch((error: unknown) => {
         console.error(`[RxDB DevTools Connector] ${logLabel} error:`, error);
       })
