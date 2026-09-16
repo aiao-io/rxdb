@@ -3,9 +3,9 @@
 - **评审日期**：2026-09-16
 - **评审分支**：`next-0915`
 - **对比基线**：`main` 的 merge-base `68b0ba97dd25fe158564ce194f6fea37fefc8bd1`
-- **变更规模**：434 个文件，`+13,758 / -4,449`
+- **变更规模**：443 个文件，`+14,884 / -4,465`
 - **主线改动**：把 QueryCache 读引擎、历史/分支、推拉同步从 `@aiao/rxdb` 拆成三个插件包
-- **结论**：🟢 5 条问题已全部修复（2026-09-16），见文末「修复记录」
+- **结论**：🔴 第二轮仍有 1 条 P1、2 条 P2，暂不可合并
 
 ## 问题清单
 
@@ -299,6 +299,91 @@ API surface 审计通过不代表相对 main 没有破坏性变更：本分支�
 验证：`rxdb`、history、querycache、sync 四个项目 lint / test / build 全绿；
 `pnpm audit:docs-plugins`、`pnpm audit:requirements`、`pnpm audit:api-surface` 均通过。
 
-## 决策
+## 第一轮修复后的决策
 
-✅ **可以合并**。
+该轮曾判定可以合并；以下第二轮评审发现新的反例，覆盖本结论。
+
+---
+
+## 第二轮评审（2026-09-16）
+
+### 结论
+
+🔴 **暂不可合并**。第一轮 5 条问题的表面修复均已落地，但其中两条修复没有完整满足原契约；新增的文档门禁也存在可稳定复现的漏检。
+
+| 级别 | 问题                                                           | 影响                                                         |
+| ---- | -------------------------------------------------------------- | ------------------------------------------------------------ |
+| P1   | `disposing` 依赖方过早清空依赖纪元，提供方仍可先释放           | 异步 disposer 会运行在已经销毁的 provider 上，继续违反 INV-7 |
+| P2   | Kahn 排序按动态 ready 集逐个选最小下标，不是真正的同层稳定排序 | 同层安装序和逆向拆卸序继续违反 US-015                        |
+| P2   | 文档门禁只识别直接属性调用和包名，不识别别名及插件注册         | 失效示例仍可通过 CI，门禁无法防住第一轮同类回归              |
+
+### 1. P1：已进入 `disposing` 的依赖方会从反向依赖图中消失
+
+[`#release()`](../../packages/rxdb/src/plugin/dependency-scheduler.ts#L345) 在异步释放真正完成前就执行：
+
+```ts
+activation.state = 'disposing';
+activation.scope = undefined;
+activation.deps = EMPTY_EPOCH;
+```
+
+但 [`#releaseDependents()`](../../packages/rxdb/src/plugin/dependency-scheduler.ts#L383) 仍只用 `activation.deps.includes(target)` 反查依赖方。若 consumer 比 provider 更早注册，同一轮 `reconcile()` 会先让 consumer 进入 `disposing` 并清空 `deps`，随后 provider 扫描时便看不见仍在释放的 consumer。
+
+最小反例：consumer 和 provider 都依赖 `adapter:local`，consumer 还依赖 `plugin:provider`；按 consumer、provider 顺序注册并激活后删除本地适配器。把 consumer 的 `releaseScope()` 挂起，实际日志为：
+
+```text
+release:start:consumer
+release:start:provider
+release:end:provider
+release:end:consumer
+```
+
+provider 在 consumer scope 完成释放前已经失效，直接违反 INV-7。新增测试只覆盖 consumer 仍在 `installing` 的路径，没有覆盖 active consumer 已先进入 `disposing` 的路径。
+
+修复时应在 dispose 完成前保留旧依赖纪元，或增加独立的 `releasingDeps`；同时补“依赖方先注册 + 异步 release gate”的测试，断言 provider 的 `releaseScope()` 直到 consumer 完成后才开始。
+
+### 2. P2：稳定 Kahn 实现允许下一层节点插队
+
+[`stablePluginOrder()`](../../packages/rxdb/src/plugin/dependency-graph.ts#L152) 每出队一个节点，就从所有当前 ready 节点中重新选择原始下标最小者。刚被解锁的下一层节点因此可以插到尚未出完的上一层节点之前。
+
+反例输入：
+
+```text
+[A(depends P), B(depends Q), Q, P]
+```
+
+A/B 同为第 1 层，Q/P 同为第 0 层。当前实现实际输出：
+
+```text
+Q -> B -> P -> A
+```
+
+应按 Kahn 批次输出 `Q -> P -> A -> B`，逆序拆卸才是同层逆插入序 `B -> A -> P -> Q`。当前 [`dependency-graph.spec.ts`](../../packages/rxdb/src/plugin/__tests__/dependency-graph.spec.ts#L198) 反而把“新解锁的低下标节点插队”固化成期望值，需要与实现一起调整。
+
+### 3. P2：文档门禁有两类稳定漏检
+
+[`auditDoc()`](../../scripts/audit/docs-plugin-surface.mjs#L98) 的检查可被两种真实写法绕过：
+
+1. 别名调用：`const vm = rxdb.versionManager; await vm.syncRepository(...)` 返回空问题列表。测试第 25 行注释声称覆盖这种原始故障，测试体却改成了直接调用 `rxdb.versionManager.syncRepository(...)`。
+2. QueryCache 示例只要文本里出现三个包名就放行，即使只注册 `rxDBPluginQueryCache`、完全没有 `rxdb.use(rxDBPluginHistory)` 和 `rxdb.use(rxDBPluginSync)`，`connect()` 仍会失败。
+
+探针结果为：
+
+```json
+{ "alias": [], "registration": [] }
+```
+
+当前官方文档已经修正，因此这不是现存文档错误；问题是 CI 门禁无法阻止同类错误再次进入。建议把代码示例交给 AST/结构化解析，至少追踪槽位别名与三个插件的 `use()` 调用，并用上述两条漏检样例先写红测。
+
+### 第二轮验证
+
+| 验证项                                                                   | 结果                                          |
+| ------------------------------------------------------------------------ | --------------------------------------------- |
+| `pnpm nx test rxdb --outputStyle=static --skipRemoteCache --skipNxCache` | ✅ 97 个文件、1,935 条测试；语句覆盖率 93.57% |
+| `node --test scripts/audit/docs-plugin-surface.spec.mjs`                 | ✅ 11 条通过，但不含上述两个漏检反例          |
+| `pnpm audit:docs-plugins`                                                | ✅ 扫描 76 个文件                             |
+| `pnpm audit:api-surface`                                                 | ✅ 33 个公开包、57 个公开入口与本分支基线一致 |
+| `git diff --check main...HEAD`                                           | ✅ 通过                                       |
+| 生命周期与排序最小探针                                                   | ❌ 分别复现 INV-7 违约与跨层插队              |
+
+`rxdb` 全绿不推翻上述发现：现有用例没有覆盖“consumer 先注册且异步 dispose”以及“两条独立依赖链交错注册”的组合。
