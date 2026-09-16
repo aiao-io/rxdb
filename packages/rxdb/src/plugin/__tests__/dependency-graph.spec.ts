@@ -144,7 +144,7 @@ describe('assertPluginDependencyGraph —— 安装规划阶段的两道闸', ()
   });
 });
 
-describe('topologicalPluginOrder —— 提供方在前，同层保持插入序', () => {
+describe('topologicalPluginOrder —— 提供方在前，其余回落到插入序', () => {
   it('无 plugin:* 声明时逐项等于插入序（US-014 逆插入序的回归底线）', () => {
     const plugins = [
       new GraphTestPlugin('first'),
@@ -181,13 +181,13 @@ describe('topologicalPluginOrder —— 提供方在前，同层保持插入序'
     ]);
   });
 
-  it('依赖方注册在最前时，同层插件不被提到它前面（US-015「同层保持插入序」）', () => {
+  it('依赖方注册在最前时，无关插件不被提到它前面（US-015「其余回落到插入序」）', () => {
     const consumer = new GraphTestPlugin('consumer', ['plugin:search']);
     const standalone = new GraphTestPlugin('standalone');
     const search = new GraphTestPlugin('search');
 
     // DFS 后序会从 consumer 递归下去，把 search 顶到最前面（→ search、consumer、standalone），
-    // 于是 standalone 与 search 这两个同层节点的插入序被排序过程本身打乱了
+    // 于是 standalone 与 search 这两个互不依赖的节点，插入序被排序过程本身打乱了
     expect(topologicalPluginOrder([consumer, standalone, search], indexOf(consumer, standalone, search))).toEqual([
       standalone,
       search,
@@ -195,7 +195,7 @@ describe('topologicalPluginOrder —— 提供方在前，同层保持插入序'
     ]);
   });
 
-  it('提供方出队解锁依赖方后，同层里下标更小的先走（出队规则按原始下标，不按发现顺序）', () => {
+  it('提供方出队解锁依赖方后，下标更小的先走（出队规则按原始下标，不按发现顺序）', () => {
     const consumer = new GraphTestPlugin('consumer', ['plugin:search']);
     const search = new GraphTestPlugin('search');
     const tail = new GraphTestPlugin('tail');
@@ -206,6 +206,19 @@ describe('topologicalPluginOrder —— 提供方在前，同层保持插入序'
       consumer,
       tail
     ]);
+  });
+
+  it('两条依赖链交错注册时取字典序最小的拓扑序（跨层出队是契约，不是 bug）', () => {
+    const a = new GraphTestPlugin('a', ['plugin:p']);
+    const b = new GraphTestPlugin('b', ['plugin:q']);
+    const q = new GraphTestPlugin('q');
+    const p = new GraphTestPlugin('p');
+
+    // 「互不依赖的一律按插入序」在这张图上不可满足：拆卸要同时满足 a 先于 p（依赖边）、
+    // b 先于 a、p 先于 b（各自的逆插入序），三条连起来成环。既然必须挑一条打破僵局的
+    // 规则，就挑字典序最小 —— 按 Kahn 批次整层输出的 [q, p, a, b] 同样合法，
+    // 但它并不更贴近插入序（Kendall-tau 同为 4），还要额外定义「层」这个用户看不见的概念
+    expect(topologicalPluginOrder([a, b, q, p], indexOf(a, b, q, p))).toEqual([q, b, p, a]);
   });
 
   it('依赖缺失时该插件照常在序列里（缺失不等于出局，等待态仍要参与拆卸）', () => {

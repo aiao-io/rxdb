@@ -175,10 +175,12 @@ export function freezeConfig(host: PluginLifecycleHost): void {
  * 不短路：任一插件抛错只记日志，后面的插件照拆。
  *
  * @remarks
- * 两条排序规则有优先级：**先逆拓扑，同层内再逆插入序**。依赖方的撤销条目多半还在用提供方
- * `install()` 建起来的东西，提供方先拆会让它们跑在废墟上（INV-7）。互不依赖的插件之间
- * {@link topologicalPluginOrder} 原样保持插入序，于是这一层退化成 US-014 的逆插入序，
- * 没有 `plugin:*` 声明的工作区行为一字不变。
+ * 两条排序规则有优先级：**依赖边优先，其余回落到逆插入序**。依赖方的撤销条目多半还在用
+ * 提供方 `install()` 建起来的东西，提供方先拆会让它们跑在废墟上（INV-7）。
+ * 没有任何 `plugin:*` 声明时 {@link topologicalPluginOrder} 逐项等于插入序，这里就是
+ * US-014 的逆插入序，工作区行为一字不变；一旦有依赖边跨链交错，「互不依赖的一律按逆插入序」
+ * 会与依赖边成环而不可满足，此时取字典序最小的拓扑序，理由见
+ * {@link topologicalPluginOrder} 的 `@remarks`。
  *
  * `destroy()` 只发给**本纪元发起过安装**的 legacy 插件。依赖始终没就绪的插件从未
  * `install()` 过，对它调 `destroy()` 是一次无配对的拆卸 —— legacy 插件的 `destroy()`

@@ -550,7 +550,7 @@ describe('AC#13 插件依赖插件：拓扑装、逆拓扑卸', () => {
     expect(log).toEqual(['install:search']);
   });
 
-  it('同层插件不因依赖方排在前面而被换位 —— 逆拓扑之下仍是 US-014 的逆插入序', async () => {
+  it('无关插件不因依赖方排在前面而被换位 —— 没有依赖边时仍是 US-014 的逆插入序', async () => {
     const { database } = createDatabase();
     const log: string[] = [];
     // 登记序 consumer、standalone、search：consumer 与 search 有依赖边，standalone 谁也不沾。

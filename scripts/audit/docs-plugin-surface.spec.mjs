@@ -75,13 +75,9 @@ test('别名调用：const vm = rxdb.versionManager 之后调 vm.syncRepository(
 });
 
 test('别名绑的是 syncManager 就不算 —— 那正是迁移之后的写法', () => {
-  const text = [
-    '```ts',
-    'const sync = rxdb.syncManager;',
-    'await sync.push();',
-    '```',
-    '@aiao/rxdb-plugin-sync'
-  ].join('\n');
+  const text = ['```ts', 'const sync = rxdb.syncManager;', 'await sync.push();', '```', '@aiao/rxdb-plugin-sync'].join(
+    '\n'
+  );
 
   assert.deepEqual(auditDoc('docs/sync.md', text), []);
 });

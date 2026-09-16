@@ -119,9 +119,7 @@ export const auditDoc = (file, text) => {
   // 判据挂在「示例真的注册了 querycache」上，不挂在「正文提到过这个名字」上：
   // 后者会把「本包导出 rxDBPluginQueryCache」这种纯说明也拖下水
   if (lines.some(({ line }) => line.includes('use(rxDBPluginQueryCache)'))) {
-    const missing = QUERYCACHE_FACTORIES.filter(
-      factory => !lines.some(({ line }) => line.includes(`use(${factory})`))
-    );
+    const missing = QUERYCACHE_FACTORIES.filter(factory => !lines.some(({ line }) => line.includes(`use(${factory})`)));
     if (missing.length > 0) offenders.push(`${file} -> QueryCache 示例缺 use()：${missing.join('、')}`);
   }
   return offenders;
