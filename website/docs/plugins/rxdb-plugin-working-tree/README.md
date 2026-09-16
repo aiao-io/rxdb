@@ -6,14 +6,14 @@
 
 ## 能力范围
 
-| 能力             | 说明                                                                     |
-| ---------------- | ------------------------------------------------------------------------ |
-| 写捕获           | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获 |
-| `status()`       | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布           |
-| `diff()`         | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标          |
-| `commit()`       | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常   |
-| `discard()`      | 把工作树整体退回 HEAD                                                    |
-| `listCommits()`  | 当前分支从 HEAD 沿父链可达的提交历史                                     |
+| 能力            | 说明                                                                               |
+| --------------- | ---------------------------------------------------------------------------------- |
+| 写捕获          | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获 |
+| `status()`      | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                     |
+| `diff()`        | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                    |
+| `commit()`      | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常             |
+| `discard()`     | 把工作树整体退回 HEAD                                                              |
+| `listCommits()` | 当前分支从 HEAD 沿父链可达的提交历史                                               |
 
 尚未实现（US3 / US4，`specs/001-working-tree-commits/tasks.md` T095–T133）：
 
@@ -77,17 +77,17 @@ console.log(status.entryCount, status.clean, status.byOrigin);
 
 返回 `WorkingTreeStatus`：
 
-| 字段                     | 类型                              | 说明                                                     |
-| ------------------------ | --------------------------------- | -------------------------------------------------------- |
-| `branchId`               | `string`                          | 当前 active 分支 id                                      |
-| `entryCount`             | `number`                          | 未提交条目数                                             |
-| `clean`                  | `boolean`                         | 没有未提交条目                                           |
-| `restoring`              | `boolean`                         | 有未结束的恢复会话，且捕获的 revision 仍对得上           |
-| `conflicted`             | `boolean`                         | 有未结束的恢复会话，但捕获的 revision 已经分叉           |
-| `byOrigin`               | `WorkingTreeOriginBreakdown`      | 条目按来源分布；`remote_sync` **不豁免**                 |
-| `activationRevision`     | `number`                          | 捕获位之一：分支激活 revision                            |
-| `headRevision`           | `number`                          | 捕获位之一：HEAD 推进 revision                           |
-| `workingTreeRevision`    | `number`                          | 捕获位之一：工作树 revision                              |
+| 字段                  | 类型                         | 说明                                           |
+| --------------------- | ---------------------------- | ---------------------------------------------- |
+| `branchId`            | `string`                     | 当前 active 分支 id                            |
+| `entryCount`          | `number`                     | 未提交条目数                                   |
+| `clean`               | `boolean`                    | 没有未提交条目                                 |
+| `restoring`           | `boolean`                    | 有未结束的恢复会话，且捕获的 revision 仍对得上 |
+| `conflicted`          | `boolean`                    | 有未结束的恢复会话，但捕获的 revision 已经分叉 |
+| `byOrigin`            | `WorkingTreeOriginBreakdown` | 条目按来源分布；`remote_sync` **不豁免**       |
+| `activationRevision`  | `number`                     | 捕获位之一：分支激活 revision                  |
+| `headRevision`        | `number`                     | 捕获位之一：HEAD 推进 revision                 |
+| `workingTreeRevision` | `number`                     | 捕获位之一：工作树 revision                    |
 
 三个 revision 字段缺一不可：它们恰好是 `commit()` / `discard()` 要求调用方捕获的那三个位。少给一个，调用方就永远构造不出一次不会撞 `CommitConflict` 的提交。
 
@@ -98,9 +98,9 @@ console.log(status.entryCount, status.clean, status.byOrigin);
 ```typescript
 const diff = await db.workingTree.diff({
   granularity: 'transaction', // 'entity' | 'transaction'，默认 'entity'
-  entities: ['Article'],      // 只看这些实体；空数组 = 一个都不看
-  limit: 50,                  // 不给即一次给全
-  cursor: diff.nextCursor     // 分页续读
+  entities: ['Article'], // 只看这些实体；空数组 = 一个都不看
+  limit: 50, // 不给即一次给全
+  cursor: diff.nextCursor // 分页续读
 });
 ```
 
@@ -136,13 +136,13 @@ if (result.ok) {
 }
 ```
 
-| 入参字段（`CommitOptions`，全部必填） | 说明                                                         |
-| ------------------------------------- | ------------------------------------------------------------ |
+| 入参字段（`CommitOptions`，全部必填） | 说明                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `expectedBranch`                      | 捕获时的 active 分支**令牌**：`{ branchId, activationRevision }`——只认 `branchId` 的话，`main → feature → main` 一个来回之后令牌又「对上了」，而这中间工作树已经换过两轮 |
-| `expectedHeadRevision`                | 捕获时的 HEAD 推进 revision                                  |
-| `expectedWorkingTreeRevision`         | 捕获时的工作树 revision                                      |
-| `authorId`                            | 提交作者；落进不可变历史的 `Commit.author`                   |
-| `operationId`                         | 调用方的操作 id；同一次逻辑提交的重试必须带同一个值（幂等键）|
+| `expectedHeadRevision`                | 捕获时的 HEAD 推进 revision                                                                                                                                              |
+| `expectedWorkingTreeRevision`         | 捕获时的工作树 revision                                                                                                                                                  |
+| `authorId`                            | 提交作者；落进不可变历史的 `Commit.author`                                                                                                                               |
+| `operationId`                         | 调用方的操作 id；同一次逻辑提交的重试必须带同一个值（幂等键）                                                                                                            |
 
 返回 `CommitResult`——判别位是 `ok`：
 
@@ -156,9 +156,9 @@ if (result.ok) {
 ```typescript
 interface CommitConflict {
   kind: 'working_tree_revision' | 'head_revision' | 'activation_revision';
-  expected: number;   // 调用方捕获的值
-  actual: number;     // 事务里读到的当前值
-  branchId: string;   // 当前 active 分支 id
+  expected: number; // 调用方捕获的值
+  actual: number; // 事务里读到的当前值
+  branchId: string; // 当前 active 分支 id
 }
 ```
 
@@ -193,10 +193,10 @@ if (result.ok) {
 
 ```typescript
 const page = await db.workingTree.listCommits({
-  limit: 20,                    // 从 HEAD 端起最多返回多少条；不给返回整条可达历史
+  limit: 20, // 从 HEAD 端起最多返回多少条；不给返回整条可达历史
   since: new Date('2026-01-01'), // 数据库时间下限
   until: new Date('2026-09-01'), // 数据库时间上限
-  entity: 'Article'             // 只要动过这个实体的提交
+  entity: 'Article' // 只要动过这个实体的提交
 });
 ```
 
@@ -261,9 +261,9 @@ export class CommitBar {
     const status = await this.tree.status();
     const result = await this.tree.commit('保存', {
       expectedBranch: {
-    branchId: status.branchId,
-    activationRevision: status.activationRevision
-  },
+        branchId: status.branchId,
+        activationRevision: status.activationRevision
+      },
       expectedHeadRevision: status.headRevision,
       expectedWorkingTreeRevision: status.workingTreeRevision,
       authorId: 'alice',
@@ -288,9 +288,9 @@ export function CommitBar() {
     const status = await tree.status();
     const result = await tree.commit('保存', {
       expectedBranch: {
-    branchId: status.branchId,
-    activationRevision: status.activationRevision
-  },
+        branchId: status.branchId,
+        activationRevision: status.activationRevision
+      },
       expectedHeadRevision: status.headRevision,
       expectedWorkingTreeRevision: status.workingTreeRevision,
       authorId: 'alice',
@@ -325,9 +325,9 @@ const save = async (): Promise<void> => {
   const status = await tree.status();
   const result = await tree.commit('保存', {
     expectedBranch: {
-    branchId: status.branchId,
-    activationRevision: status.activationRevision
-  },
+      branchId: status.branchId,
+      activationRevision: status.activationRevision
+    },
     expectedHeadRevision: status.headRevision,
     expectedWorkingTreeRevision: status.workingTreeRevision,
     authorId: 'alice',
@@ -352,15 +352,15 @@ const save = async (): Promise<void> => {
 
 三端共享同一份状态契约（`WorkingTreeAsyncStates`，定义在插件包而不是三个框架包里）：
 
-| 字段                 | 类型                          | 说明                                        |
-| -------------------- | ----------------------------- | ------------------------------------------- |
-| `isEnabledState`     | 命令态 `<boolean>`            | `isEnabled()` 的状态                        |
-| `enableState`        | 命令态 `<CommitCapabilityInfo>` | `enable()` 的状态                         |
-| `statusState`        | 查询态 `<WorkingTreeStatus>`  | `status()` 的状态；**空即没有未提交变更**   |
-| `diffState`          | 查询态 `<WorkingTreeDiff>`    | `diff()` 的状态；**空即没有可展示的改动**   |
-| `listCommitsState`   | 查询态 `<CommitLogPage>`      | `listCommits()` 的状态；**空即还没有历史**  |
-| `commitState`        | 命令态 `<CommitResult>`       | `commit()` 的状态；**没有 empty**           |
-| `discardState`       | 命令态 `<WorkingTreeDiscardResult>` | `discard()` 的状态；**没有 empty**    |
+| 字段               | 类型                                | 说明                                       |
+| ------------------ | ----------------------------------- | ------------------------------------------ |
+| `isEnabledState`   | 命令态 `<boolean>`                  | `isEnabled()` 的状态                       |
+| `enableState`      | 命令态 `<CommitCapabilityInfo>`     | `enable()` 的状态                          |
+| `statusState`      | 查询态 `<WorkingTreeStatus>`        | `status()` 的状态；**空即没有未提交变更**  |
+| `diffState`        | 查询态 `<WorkingTreeDiff>`          | `diff()` 的状态；**空即没有可展示的改动**  |
+| `listCommitsState` | 查询态 `<CommitLogPage>`            | `listCommits()` 的状态；**空即还没有历史** |
+| `commitState`      | 命令态 `<CommitResult>`             | `commit()` 的状态；**没有 empty**          |
+| `discardState`     | 命令态 `<WorkingTreeDiscardResult>` | `discard()` 的状态；**没有 empty**         |
 
 查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
 
@@ -379,13 +379,13 @@ const save = async (): Promise<void> => {
 
 ## 错误类型
 
-| 错误                                | 出现时机                                                     | 出路                             |
-| ----------------------------------- | ------------------------------------------------------------ | -------------------------------- |
-| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`） | 先 `db.workingTree.enable()`     |
-| `UnsupportedRxDBSystemVersionError` | 库启用了能力，但能力版本三元组与本进程不符                   | 升客户端或跑迁移                 |
-| `CommitValidationError`             | 提交消息为空、或工作树是干净的（`empty_commit`）             | 检查入参与 `status()`            |
-| `CommitGraphCorruptedError`         | 当前分支的提交图已损坏（FR-051）                             | 诊断数据现场                     |
-| `WorkingTreeEntryCountMismatchError`| 冗余列与实际条目行数对不上——库里两份真相对不上               | 诊断数据现场                     |
+| 错误                                 | 出现时机                                                                 | 出路                         |
+| ------------------------------------ | ------------------------------------------------------------------------ | ---------------------------- |
+| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`） | 先 `db.workingTree.enable()` |
+| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                               | 升客户端或跑迁移             |
+| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                         | 检查入参与 `status()`        |
+| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                         | 诊断数据现场                 |
+| `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                           | 诊断数据现场                 |
 
 ## 一致性套件
 

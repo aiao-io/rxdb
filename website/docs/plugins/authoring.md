@@ -57,16 +57,16 @@ export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
 }
 ```
 
-| 字段                 | 说明                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `capability`         | 能力名；非空且不含 `:`。同时是水位行归因与版本不匹配报错用的名字                                       |
-| `version`            | 能力版本；核心拿它写水位行、不比对                                                                     |
-| `packageSpecifier`   | 包说明符（如 `@aiao/rxdb-plugin-working-tree`）；未认领守卫把它**原样报给用户**                        |
-| `entities`           | 系统表实体类；进核心的系统表身份集（`isSystemEntity()` 认得它们，跨包消费者不会当接入方数据）         |
-| `createInitialRows`  | 新库建表那一刻写入的初始行                                                                             |
-| `createMigrations`   | 既有库的引导迁移；与核心系统迁移并进**同一条链、同一张 `rxdb_migration`、同一把锁**，名字必须是 `NNNN-` 数字前缀 |
-| `bootstrapExisting`  | 可选；既有库连接时接通运行期（如装捕获）                                                               |
-| `writeBranchRows`    | 可选；每条新分支创建时贡献行                                                                           |
+| 字段                | 说明                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `capability`        | 能力名；非空且不含 `:`。同时是水位行归因与版本不匹配报错用的名字                                                 |
+| `version`           | 能力版本；核心拿它写水位行、不比对                                                                               |
+| `packageSpecifier`  | 包说明符（如 `@aiao/rxdb-plugin-working-tree`）；未认领守卫把它**原样报给用户**                                  |
+| `entities`          | 系统表实体类；进核心的系统表身份集（`isSystemEntity()` 认得它们，跨包消费者不会当接入方数据）                    |
+| `createInitialRows` | 新库建表那一刻写入的初始行                                                                                       |
+| `createMigrations`  | 既有库的引导迁移；与核心系统迁移并进**同一条链、同一张 `rxdb_migration`、同一把锁**，名字必须是 `NNNN-` 数字前缀 |
+| `bootstrapExisting` | 可选；既有库连接时接通运行期（如装捕获）                                                                         |
+| `writeBranchRows`   | 可选；每条新分支创建时贡献行                                                                                     |
 
 宿主会把每个贡献加工成一条**能力水位行**（`__rxdb_capability__:<capability>:<version>:<packageSpecifier>`），新库随建表写入、既有库伪装成一条空转迁移写入。此后**没装该插件的客户端再打开这个库，核心拒绝连接**并报出 `packageSpecifier`——这道「未认领能力守卫」对第三方插件同样有效，包名是插件自己写进水位的，核心不需要认识它。
 
