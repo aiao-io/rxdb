@@ -21,12 +21,18 @@
  * 有人把 `const { adapter } = …` 改名成 `const { localAdapter } = …`，那处受信写就从第 1 类
  * 掉进「不认识」，门禁安静地少管一个地方——而这正是这条门禁存在的理由。所以**未登记即报出**。
  *
- * **与 `packages/rxdb/src/__tests__/working-tree/trusted-callsite-registry.spec.ts` 的分工**：
+ * **与 `packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts` 的分工**：
  * 那份跑在 chromium 里，够得着 `TRUSTED_CALLSITE_REGISTRY` 这个 TS 值，能断言它与
  * adapter-contract.md §3 的表格逐格一致；但它只看得见 `packages/rxdb/src`，而且 vitest 的
  * `import.meta.glob` 本来就进不了 `dist/` 与别的包。这一份跑在 node 里，看得见整个
  * `packages/`（含 rxdb-devtools 那两处门面调用），但读不到 TS 导出，只能把登记表从源码里**词法解析**
  * 出来。两者互不覆盖，**不要合并**。
+ *
+ * **US-025 抽包之后，「9 行在真实代码里找不找得到」整半边只剩这一份在守。** 9 处声明搬进了
+ * `rxdb-plugin-history`（#1~#6）与 `rxdb-plugin-sync`（#7~#9），8 处 QueryCache 批量写搬进了
+ * `rxdb-plugin-querycache` 与 `rxdb-plugin-sync`——核心那份的 `import.meta.glob` 一处都看不见了。
+ * 连同搬过来的还有 `verifiedAtLine` 的核对（{@link LINE_DRIFT_TOLERANCE}）：那是原先核心独有的一条，
+ * 落在这里之前它已经在抽包里漂了 471 行而无人报警。
  *
  * 为什么符号取「最内层具名函数」而不是行号：行号每次格式化都在变；而委托门面会被重构成另一个
  * 门面，真正发起那次批量重写的函数不会。这也是 `trusted-write-intent.ts` 文件头写死的口径——
@@ -66,9 +72,20 @@ export const BULK_WRITE_METHODS = Object.freeze(['upsertMany', 'deleteByIds']);
  * 而它会以全绿的形态一直存在下去。
  */
 export const QUERY_CACHE_BULK_WRITE_CALLSITES = Object.freeze([
-  'rxdb/src/repository/QueryCacheRepository.ts·this.localAdapter',
-  'rxdb/src/repository/query-cache-outbox.ts·localAdapter'
+  'rxdb-plugin-querycache/src/QueryCacheEngine.ts·this.localAdapter',
+  'rxdb-plugin-sync/src/query-cache-outbox.ts·localAdapter'
 ]);
+
+/**
+ * `verifiedAtLine` 与真实声明之间允许的最大偏差
+ *
+ * @remarks
+ * 存档行号唯一的用处是回答「上次核对的是不是同一段代码」。放任它漂，
+ * 登记表上那句「已与真实代码核对」就只是一个日期——US-025 抽包时 #1 一次漂了 471 行，
+ * 而当时守这条的那份测试正好跟着搬迁失明了。40 行是 adapter-contract.md §3 的既定口径：
+ * 够一次重构在函数内挪位置，不够它挪出一个函数。
+ */
+export const LINE_DRIFT_TOLERANCE = 40;
 
 /**
  * 同名但不是受信写原语的接收者，连同它不是的理由
@@ -318,7 +335,7 @@ export const findPrimitiveCalls = source => {
  * 从 `trusted-write-intent.ts` 里词法解析登记表与意图枚举
  *
  * @param {string} source `trusted-write-intent.ts` 原文
- * @returns {{ intents: string[], rows: { file: string, symbol: string, writePrimitive: string, intent: string }[] }}
+ * @returns {{ intents: string[], rows: { file: string, symbol: string, writePrimitive: string, intent: string, verifiedAtLine: number }[] }}
  * @throws {Error} 解析不出登记表或枚举时抛——这个脚本没有「表是空的所以全都合规」这条出路
  */
 export const parseRegistry = source => {
@@ -338,9 +355,16 @@ export const parseRegistry = source => {
   if (tableBody === null) throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TRUSTED_CALLSITE_REGISTRY`);
   const rows = [
     ...tableBody[1].matchAll(
-      /file:\s*'([^']*)',\s*symbol:\s*'([^']*)',\s*writePrimitive:\s*'([^']*)',\s*intent:\s*TrustedWriteIntent\.([A-Za-z_]\w*)/g
+      /file:\s*'([^']*)',\s*symbol:\s*'([^']*)',\s*writePrimitive:\s*'([^']*)',\s*intent:\s*TrustedWriteIntent\.([A-Za-z_]\w*),\s*entrance:\s*'([^']*)',\s*verifiedAtLine:\s*(\d+)/g
     )
-  ].map(matched => ({ file: matched[1], symbol: matched[2], writePrimitive: matched[3], intent: matched[4] }));
+  ].map(matched => ({
+    file: matched[1],
+    symbol: matched[2],
+    writePrimitive: matched[3],
+    intent: matched[4],
+    entrance: matched[5],
+    verifiedAtLine: Number(matched[6])
+  }));
   if (rows.length === 0) throw new Error('TRUSTED_CALLSITE_REGISTRY 解析出 0 行');
 
   const unknown = rows.filter(row => !intents.includes(row.intent));
@@ -352,7 +376,7 @@ export const parseRegistry = source => {
 };
 
 /** 一处受信写原语调用的归属判定结果。 */
-const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registryKeys }) => {
+const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registryByKey }) => {
   const receiverKey = `${relPath}·${call.receiver}`;
   const scope = call.receiver.includes('.') ? null : call.receiver;
 
@@ -373,7 +397,7 @@ const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registry
     return `\`${call.enclosing}()\` 调了 ${call.receiver}.${call.method}() 却没有 declareTrustedWrite()：未携带意图标记的批量重写按未知入口拒绝`;
   }
 
-  const matching = declared.filter(declaration => registryKeys.has(registryKeyOf(declaration)));
+  const matching = declared.filter(declaration => registryByKey.has(registryKeyOf(declaration)));
   if (matching.length === 0) {
     return `\`${call.enclosing}()\` 自报的意图都不在登记表里：${declared.map(registryKeyOf).join('、')}`;
   }
@@ -383,13 +407,18 @@ const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registry
 /**
  * 审计一个源文件
  *
- * @param {{ relPath: string, source: string, registryKeys: Set<string>, seenKeys: Set<string> }} input 相对路径、原文、登记键索引，以及一个由调用方持有的「已见到的登记键」集合（本函数往里加）
+ * @param {{ relPath: string, source: string, registryByKey: Map<string, { verifiedAtLine: number }>, seenKeys: Set<string> }} input 相对路径、原文、按登记键索引的登记表，以及一个由调用方持有的「已见到的登记键」集合（本函数往里加）
  * @returns {string[]} 每条都是一句可直接照着修的说明；空数组即通过
+ *
+ * @remarks
+ * 收的是整行而不只是键：`verifiedAtLine` 的核对要拿登记的行号跟真实声明的行号比
+ * （{@link LINE_DRIFT_TOLERANCE}），只给一个键集合就做不了这件事。
  */
-export const auditSource = ({ relPath, source, registryKeys, seenKeys }) => {
+export const auditSource = ({ relPath, source, registryByKey, seenKeys }) => {
   const offenders = [];
   const declarations = findDeclarations(source);
   const basename = relPath.split('/').pop();
+  const lineCount = source.split('\n').length;
 
   for (const declaration of declarations) {
     const where = `${relPath}:${declaration.line}`;
@@ -403,8 +432,17 @@ export const auditSource = ({ relPath, source, registryKeys, seenKeys }) => {
         `${where} 自报 symbol 为 '${declaration.symbol}'，最内层具名函数却是 '${declaration.enclosing}'：登记键取实际发起写的函数，不是委托门面`
       );
     }
-    if (!registryKeys.has(registryKeyOf(declaration))) {
+    const registered = registryByKey.get(registryKeyOf(declaration));
+    if (registered === undefined) {
       offenders.push(`${where} 的登记键 \`${registryKeyOf(declaration)}\` 不在 TRUSTED_CALLSITE_REGISTRY 里`);
+    } else if (registered.verifiedAtLine < 1 || registered.verifiedAtLine > lineCount) {
+      offenders.push(
+        `${where} 的存档行号 ${registered.verifiedAtLine} 落在 ${basename}（共 ${lineCount} 行）之外：「已与真实代码核对」核的不是这一版`
+      );
+    } else if (Math.abs(declaration.line - registered.verifiedAtLine) > LINE_DRIFT_TOLERANCE) {
+      offenders.push(
+        `${where} 与存档行号 ${registered.verifiedAtLine} 相差 ${Math.abs(declaration.line - registered.verifiedAtLine)} 行（上限 ${LINE_DRIFT_TOLERANCE}）：把 verifiedAtLine 与 adapter-contract.md §3 的「行」一起刷新`
+      );
     }
     if (!TRUSTED_PRIMITIVE_SCOPES.includes(declaration.scope)) {
       offenders.push(
@@ -422,7 +460,7 @@ export const auditSource = ({ relPath, source, registryKeys, seenKeys }) => {
   }
 
   for (const call of findPrimitiveCalls(source)) {
-    const rejection = classifyPrimitiveCall(call, { relPath, declarationsByFunction, registryKeys });
+    const rejection = classifyPrimitiveCall(call, { relPath, declarationsByFunction, registryByKey });
     if (rejection !== null) offenders.push(`${relPath}:${call.line} ${rejection}`);
   }
 
@@ -453,17 +491,17 @@ export const collectSourceFiles = async (root, prefix = '') => {
  */
 export const auditRepository = async ({ packagesRoot }) => {
   const registry = parseRegistry(await readFile(path.join(packagesRoot, REGISTRY_SOURCE_FILE), 'utf8'));
-  const registryKeys = new Set(registry.rows.map(registryKeyOf));
+  const registryByKey = new Map(registry.rows.map(row => [registryKeyOf(row), row]));
   const seenKeys = new Set();
   const files = await collectSourceFiles(packagesRoot);
   const offenders = [];
 
   for (const relPath of files) {
     const source = await readFile(path.join(packagesRoot, relPath), 'utf8');
-    offenders.push(...auditSource({ relPath, source, registryKeys, seenKeys }));
+    offenders.push(...auditSource({ relPath, source, registryByKey, seenKeys }));
   }
 
-  for (const key of registryKeys) {
+  for (const key of registryByKey.keys()) {
     if (!seenKeys.has(key)) offenders.push(`登记表有 \`${key}\`，真实代码里却找不到对应的 declareTrustedWrite()`);
   }
 

@@ -72,6 +72,30 @@ describe('tree demo page construction contracts', () => {
     expect(rxdb.versionManager.history).toHaveBeenCalledWith(MenuLarge);
   });
 
+  it('提交入口按实时 selectedParentId 分流，不依赖模板渲染快照', async () => {
+    const rxdb = makeRxdb();
+    configure(rxdb);
+
+    const simple = TestBed.runInInjectionContext(() => new MenuTreeSimplePage());
+    const addRootMenu = vi.spyOn(simple.store, 'addRootMenu').mockResolvedValue(undefined);
+    const addChildMenu = vi.spyOn(simple.store, 'addChildMenu').mockResolvedValue(undefined);
+    const event = { preventDefault: vi.fn() } as unknown as Event;
+
+    simple.$new_menu_title.set('根菜单');
+    await simple.onFormSubmit(event);
+
+    expect(addRootMenu).toHaveBeenCalledWith('根菜单');
+    expect(addChildMenu).not.toHaveBeenCalled();
+
+    // zoneless 下 selectParent 之后不跑变更检测就提交：必须仍然走子菜单分支
+    simple.selectParent('menu-1');
+    simple.$new_menu_title.set('子菜单');
+    await simple.onFormSubmit(event);
+
+    expect(addChildMenu).toHaveBeenCalledWith('子菜单');
+    expect(addRootMenu).toHaveBeenCalledOnce();
+  });
+
   it('懒加载菜单页只通过懒 store 控制展开、错误与销毁', () => {
     const rxdb = makeRxdb();
     const history = { undo: vi.fn(), redo: vi.fn() };

@@ -1,5 +1,5 @@
 import { EntityType } from '../entity/entity.interface.js';
-import type { SyncStats } from './QueryCacheRepository.js';
+import type { SyncStats } from './query-cache.interface.js';
 import { RuleGroup } from './query.interface.js';
 
 /**

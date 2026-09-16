@@ -24,6 +24,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb/tsconfig.lib.json"
     }
   ]

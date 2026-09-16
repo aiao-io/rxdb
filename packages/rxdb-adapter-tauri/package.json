@@ -42,6 +42,7 @@
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
   },
   "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*"
   }
 }

@@ -16,8 +16,20 @@
  * **登记表跨两个写原语。** `switchBranch` 与 `mergeChanges` 各占一部分——只在 `mergeChanges` 上挂门禁
  * 会整体漏掉撤销与分支物化面。
  *
- * **本模块留在核心，不随提交能力走进插件。** 登记表描述的是核心 `version/` 下 8 个文件里的调用点，
- * 漂移扫描扫的也是核心调用点——搬进插件之后，核心新增一条批量重写路径就再也不会被扫到。
+ * **9 个调用点自 US-025 起住在两个插件里**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，
+ * #7~#9 在 `@aiao/rxdb-plugin-sync/src/`。登记的是**文件基名**，不带包名也不带目录——
+ * 键要跨这次搬迁存活，而它确实跨过来了：搬迁只换了目录，没换文件名、符号名与意图。
+ *
+ * **但本模块仍然留在核心，而且只能留在核心。** 登记表是 `declareTrustedWrite()` 的准入名单，
+ * 而那个函数与它守的 5 步判定都在核心；两个插件互不依赖，谁都没资格持有一张另一个也必须满足的表。
+ * 把表搬给其中一个，另一个就得反向依赖它，或者各存一份——各存一份的两张表迟早有一张是旧的。
+ *
+ * **代价是核心的 chromium 测试从此扫不到这 9 处声明**（`import.meta.glob` 进不了兄弟包）。
+ * 那一半核对交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066）：它跑在 node 里，
+ * 扫整个 `packages/`，双向比对登记键、自报符号与存档行号。核心那份
+ * （`__tests__/trusted-write/trusted-callsite-registry.spec.ts`）改守两件核心自己看得见的事——
+ * 这张表与 adapter-contract.md §3 逐格一致，以及**核心自身一处受信写、一处批量写都没有**。
+ *
  * 「这一行会不会产生工作树单元」是插件的问题，那个函数（`producesWorkingTreeEntry`）留在插件侧。
  */
 
@@ -69,7 +81,15 @@ export type TrustedWritePrimitive = 'adapter.switchBranch' | 'adapter.mergeChang
  * 里迟早有一份是旧的。要这个答案就调插件侧的 `producesWorkingTreeEntry()`。
  */
 export interface TrustedCallsite {
-  /** 相对 `packages/rxdb/src/version/` 的文件名 */
+  /**
+   * 文件**基名**，不带目录也不带包名
+   *
+   * @remarks
+   * 刻意只存基名：#1~#6 在 `@aiao/rxdb-plugin-history/src/`、#7~#9 在 `@aiao/rxdb-plugin-sync/src/`，
+   * 而 US-025 的抽包正是把它们从核心 `version/` 挪过去的那一次——存了目录，这张表就会在那一次
+   * 全面失配，而失配的九行里没有一行是真的漂了。基名与符号名一起唯一定位一处调用点，
+   * 重名由 T066 在全仓扫描时兜住（同名文件里出现同键声明会被报成重复登记）。
+   */
   readonly file: string;
 
   /** 实际发起该次批量重写的最内层具名函数 */
@@ -89,10 +109,13 @@ export interface TrustedCallsite {
 }
 
 /**
- * 与真实代码核对过的 9 行受信调用点（核对日期 2026-09-12）
+ * 与真实代码核对过的 9 行受信调用点（核对日期 2026-09-16）
  *
  * @remarks
  * 顺序与 adapter-contract.md §3 的表格逐行一致，便于漂移扫描双向比对。
+ *
+ * 2026-09-16 这次核对是跟着 US-025 抽包做的：9 处声明整体从核心 `version/` 搬进了
+ * history / sync 两个插件，键（文件基名 + 符号 + 意图）一个没变，`verifiedAtLine` 九行全变了。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -101,7 +124,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 751
+    verifiedAtLine: 280
   },
   {
     file: 'restore-entity.ts',
@@ -109,7 +132,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.mergeChanges',
     intent: TrustedWriteIntent.restore_entity,
     entrance: 'domain_recompute',
-    verifiedAtLine: 81
+    verifiedAtLine: 86
   },
   {
     file: 'HistoryManager.ts',
@@ -117,7 +140,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.redo_invalidation,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 519
+    verifiedAtLine: 537
   },
   {
     file: 'undo-redo-apply.ts',
@@ -125,7 +148,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.undo_redo,
     entrance: 'domain_recompute',
-    verifiedAtLine: 166
+    verifiedAtLine: 171
   },
   {
     file: 'merge-branch.ts',
@@ -133,7 +156,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_per_change,
     entrance: 'domain_recompute',
-    verifiedAtLine: 127
+    verifiedAtLine: 134
   },
   {
     file: 'merge-branch.ts',
@@ -141,7 +164,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.mergeChanges',
     intent: TrustedWriteIntent.merge_squash,
     entrance: 'domain_recompute',
-    verifiedAtLine: 151
+    verifiedAtLine: 165
   },
   {
     file: 'pull-batch.ts',
@@ -149,7 +172,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 373
+    verifiedAtLine: 382
   },
   {
     file: 'pull-repository.ts',
@@ -157,7 +180,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 636
+    verifiedAtLine: 646
   },
   {
     file: 'cleanup-expired.ts',
@@ -165,7 +188,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'cleanup_expired',
-    verifiedAtLine: 201
+    verifiedAtLine: 208
   }
 ];
 

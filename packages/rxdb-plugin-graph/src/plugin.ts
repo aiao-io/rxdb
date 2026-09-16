@@ -44,6 +44,17 @@ declare module '@aiao/rxdb' {
     graph: RxDBPluginGraph;
   }
   /**
+   * 把 `GraphRepository` 登进门面轴注册表
+   *
+   * @remarks
+   * 与上面 `install()` 里的 `rxdb.repository('GraphRepository', …)` 成对：
+   * 那一处是运行期登记，这一处是类型登记。少了它，`@Entity({ repository: 'GraphRepository' })`
+   * 只能落到 `RxDBRepositoryName` 的 `(string & {})` 那一支，补全里一个字都没有。
+   */
+  interface RxDBRepositories {
+    GraphRepository: typeof GraphRepository;
+  }
+  /**
    * 扩展 EntityMetadataFeatures，添加 graph 字段
    */
   interface EntityMetadataFeatures {

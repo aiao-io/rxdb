@@ -352,20 +352,39 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     await expect(database.disconnect('missing')).resolves.toBeUndefined();
   });
 
-  // `reachability` 在字段初始化里 new，直接挂一对 online / offline 到 globalThis 上。
-  // 它跟随**实例**而不是连接纪元（见 RxDB.ts 该字段的 @remarks），所以 disconnectAll()
-  // 故意不摘；那就必须另有一个终态出口来摘，否则每个 new RxDB() 都往全局上净增一对监听，
-  // 多实例 / HMR / 测试按实例数线性累积。
+  // `reachability` 在字段初始化里 new，但**不**碰宿主：自 US-025 D2 起 online / offline
+  // 改成按需挂，只有 `watch()` 才注册，引用计数归零才摘。核心自己一个 `watch()` 都不开，
+  // 唯一的持有者是 `@aiao/rxdb-plugin-sync` 的作用域。
+  //
+  // 它仍跟随**实例**而不是连接纪元（见 RxDB.ts 该字段的 @remarks），所以 disconnectAll()
+  // 故意不摘；那就必须另有一个终态出口来摘，否则一个漏了 unwatch 的宿主每 new 一次
+  // 就往全局上净增一对监听，多实例 / HMR / 测试按实例数线性累积。
   describe('终态 destroy()', () => {
     /** 只看 online / offline 这两类，globalThis 上还有别人的监听 */
     const networkListenerCalls = (calls: readonly unknown[][]) =>
       calls.filter(([type]) => type === 'online' || type === 'offline');
 
-    it('摘掉挂在全局上的 online/offline 监听，而 disconnectAll() 不摘', async () => {
+    // US-025 D2：只配 local、不装同步插件时，宿主上应当干净得像没来过。
+    it('不装同步插件就一个 online/offline 都不挂', async () => {
+      const addSpy = vi.spyOn(globalThis, 'addEventListener');
+
+      const database = createDatabase();
+      await database.connect('local');
+      expect(networkListenerCalls(addSpy.mock.calls)).toHaveLength(0);
+
+      databases.delete(database);
+      await database.destroy();
+      expect(networkListenerCalls(addSpy.mock.calls)).toHaveLength(0);
+    });
+
+    it('摘掉 watch() 挂在全局上的 online/offline 监听，而 disconnectAll() 不摘', async () => {
       const addSpy = vi.spyOn(globalThis, 'addEventListener');
       const removeSpy = vi.spyOn(globalThis, 'removeEventListener');
 
       const database = createDatabase();
+      // 手工顶一个 `watch()` 替插件的位：本包不依赖 `@aiao/rxdb-plugin-sync`，
+      // 但终态出口该摘的是**任何**持有者留下的监听，与谁开的无关。
+      database.reachability.watch();
       await database.connect('local');
       // 注册确实发生了——不然下面的「已摘干净」会因为压根没挂而假绿
       expect(networkListenerCalls(addSpy.mock.calls)).toHaveLength(2);
@@ -389,12 +408,15 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
       const database = createDatabase();
       const localAdapter = createMockAdapter(database);
       database.adapter('local', () => localAdapter);
+      // 同上：先开一个 watch()，配平断言才有东西可配
+      database.reachability.watch();
       await database.connect('local');
       databases.delete(database);
 
       await database.destroy();
 
       expect(vi.mocked(localAdapter.disconnect)).toHaveBeenCalledTimes(1);
+      expect(networkListenerCalls(addSpy.mock.calls)).toHaveLength(2);
       expect(networkListenerCalls(removeSpy.mock.calls)).toEqual(networkListenerCalls(addSpy.mock.calls));
     });
 

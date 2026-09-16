@@ -148,7 +148,6 @@ describe('RxDB', () => {
       expect(rxdb.config.entities).toContain(TestUser);
       expect(rxdb.schemaManager).toBeDefined();
       expect(rxdb.entityManager).toBeDefined();
-      expect(rxdb.versionManager).toBeDefined();
     });
 
     it('应该冻结配置项', () => {

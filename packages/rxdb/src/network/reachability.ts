@@ -90,6 +90,12 @@ function resolveGlobalNavigatorOnLine(): (() => boolean) | undefined {
  * `navigator.onLine` 的两个方向不对称：`false` 可信为「一定离线」（网卡都没链路），
  * `true` 只说明有链路、不说明后端可达，所以只用来催一次尝试。
  *
+ * **宿主监听是按需挂的**：构造本身对宿主零副作用，要收 `online` / `offline` 事件得先
+ * {@link ReachabilityMonitor.watch}。这两个事件唯一的消费者是同步链路，而同步随
+ * `@aiao/rxdb-plugin-sync` 走（US-025 D2）—— 一个只配本地适配器、根本不同步的库不该因为
+ * `new RxDB()` 就在 `globalThis` 上留下一对活过实例的监听器。`report()` 这条主判据与
+ * 退避节拍都不依赖它，不挂监听只是少了「浏览器自己说网回来了」这一路催促。
+ *
  * @example
  * ```typescript
  * const monitor = new ReachabilityMonitor();
@@ -103,7 +109,8 @@ function resolveGlobalNavigatorOnLine(): (() => boolean) | undefined {
  *   throw error;
  * }
  *
- * // 同步驱动订阅节拍，成功即恢复
+ * // 同步驱动订阅节拍，成功即恢复。先 watch() 才收得到浏览器的 online / offline
+ * const unwatch = monitor.watch();
  * monitor.wakeup$.pipe(exhaustMap(() => flushPendingWrites())).subscribe();
  * ```
  */
@@ -113,10 +120,13 @@ export class ReachabilityMonitor {
   readonly #baseDelayMs: number;
   readonly #maxDelayMs: number;
   readonly #eventTarget: ReachabilityEventTarget | undefined;
+  readonly #navigatorOnLine: (() => boolean) | undefined;
 
   #attempt = 0;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #destroyed = false;
+  #watchers = 0;
+  #attached = false;
 
   /**
    * 当前可达性判断的变化流（已去重，订阅即得当前值）
@@ -143,14 +153,52 @@ export class ReachabilityMonitor {
     this.#maxDelayMs = options.maxDelayMs ?? DEFAULT_MAX_DELAY_MS;
     this.online$ = this.#online$.pipe(distinctUntilChanged());
 
-    const navigatorOnLine = options.navigatorOnLine ?? resolveGlobalNavigatorOnLine();
-    if (navigatorOnLine?.() === false) {
-      this.#setOnline(false);
-    }
+    this.#navigatorOnLine = options.navigatorOnLine ?? resolveGlobalNavigatorOnLine();
+    this.#read_navigator();
 
+    // 只**解析**事件源，不注册 —— 注册要等第一个 watch()（见类注释）。
     this.#eventTarget = this.#resolveEventTarget(options);
-    this.#eventTarget?.addEventListener('online', this.#onOnline);
-    this.#eventTarget?.addEventListener('offline', this.#onOffline);
+  }
+
+  /**
+   * 开始收宿主的 `online` / `offline` 事件
+   *
+   * @returns 撤销本次订阅的函数；幂等，重复调用只算一次
+   *
+   * @remarks
+   * 引用计数：第一位订阅者挂上监听，最后一位撤走才摘掉。同一个宿主上可能同时有多个
+   * 消费者，谁都不该因为另一个撤了就收不到事件。
+   *
+   * 每次从 0 变 1 都**重读一次** `navigator.onLine`：挂监听的时机晚于构造（插件装在
+   * `connect()` 里），这中间网线可能已经拔了，而拔掉那一刻没人在听。
+   *
+   * 退避节拍与引用计数同生共死：撤到 0 停拍，回到 1 且此刻离线就接着排。节拍只对
+   * `wakeup$` 的订阅方有意义，没人听还自我续期只是白占宿主的定时器。
+   *
+   * `destroy()` 之后调用是空操作，返回一个什么都不做的撤销函数。
+   *
+   * @example
+   * ```typescript
+   * // 插件作用域：装上时开始听，拆卸时自动摘掉
+   * scope.acquire(() => rxdb.reachability.watch(), 'sync:reachability');
+   * ```
+   */
+  watch(): () => void {
+    if (this.#destroyed) return () => undefined;
+    this.#watchers += 1;
+    if (this.#watchers === 1) this.#attach_first_watcher();
+    let released = false;
+    return () => {
+      if (released || this.#destroyed) return;
+      released = true;
+      this.#watchers -= 1;
+      if (this.#watchers > 0) return;
+      this.#detach();
+      // 节拍只发给 watch() 的订阅方。`#scheduleWakeup()` 的回调每轮都给自己排下一个，
+      // 撤空之后没人停它 —— 一台离线的监视器会按 `maxDelayMs` 永远空转，既吊着宿主的
+      // 事件循环，也把 `destroy()` 变成唯一的停机入口。
+      this.#clearTimer();
+    };
   }
 
   /**
@@ -183,8 +231,8 @@ export class ReachabilityMonitor {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#clearTimer();
-    this.#eventTarget?.removeEventListener('online', this.#onOnline);
-    this.#eventTarget?.removeEventListener('offline', this.#onOffline);
+    this.#watchers = 0;
+    this.#detach();
     this.#wakeup$.complete();
     this.#online$.complete();
   }
@@ -194,6 +242,36 @@ export class ReachabilityMonitor {
   readonly #onOnline = (): void => this.#wakeup$.next();
 
   readonly #onOffline = (): void => this.#setOnline(false);
+
+  /** `navigator.onLine === false` 是可信的「一定离线」；`true` 不可信为在线，不动状态 */
+  #read_navigator(): void {
+    if (this.#navigatorOnLine?.() === false) this.#setOnline(false);
+  }
+
+  /** 从 0 到 1：重读宿主状态、挂上监听，离线时把停掉的重试节拍接回来 */
+  #attach_first_watcher(): void {
+    this.#read_navigator();
+    this.#attach();
+    // 此刻状态可能早就是 `false`，而 `#setOnline()` 只在**翻转**时排节拍，翻不动。
+    // 于是节拍这一步得自己补，否则离线期间重新接上的订阅方再也等不到下一拍。
+    if (!this.#online$.value) this.#scheduleWakeup();
+  }
+
+  /** 挂上宿主监听；已挂或宿主没有事件源时什么都不做 */
+  #attach(): void {
+    if (this.#attached || this.#eventTarget === undefined) return;
+    this.#attached = true;
+    this.#eventTarget.addEventListener('online', this.#onOnline);
+    this.#eventTarget.addEventListener('offline', this.#onOffline);
+  }
+
+  /** 摘掉宿主监听；幂等 */
+  #detach(): void {
+    if (!this.#attached || this.#eventTarget === undefined) return;
+    this.#attached = false;
+    this.#eventTarget.removeEventListener('online', this.#onOnline);
+    this.#eventTarget.removeEventListener('offline', this.#onOffline);
+  }
 
   /** 解析事件源：显式传入优先，否则探测全局对象 */
   #resolveEventTarget(options: ReachabilityOptions): ReachabilityEventTarget | undefined {

@@ -750,8 +750,10 @@ declare module '@aiao/rxdb' {
  * @public
  */
 export const rxDBPluginSearch: Plugin<SearchPluginOptions> = (db, options) => {
-  if (Object.prototype.hasOwnProperty.call(db, 'searchPlugin')) {
-    const installed = Object.getOwnPropertyDescriptor(db, 'searchPlugin')?.value;
+  // 自检问宿主的插件索引，不问 `db` 上的 `searchPlugin` 自有属性：那个属性是给使用者的门面，
+  // 拿它当探测口意味着门面一改名自检就探空，于是同一个库上会装出第二个插件实例。
+  const [installed] = db.getPlugins('search');
+  if (installed !== undefined) {
     if (installed instanceof RxDBPluginSearch) return installed;
     throw new Error('search plugin is already installed with an incompatible instance');
   }

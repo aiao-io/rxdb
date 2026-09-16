@@ -24,7 +24,7 @@ export class RxDBError extends Error {
  * @example
  * ```typescript
  * try {
- *   await rxdb.versionManager.pull({ fetchAll: true });
+ *   await rxdb.syncManager.pull({ fetchAll: true });
  * } catch (error) {
  *   if (error instanceof RxDBPartialSyncError) {
  *     console.warn(`已应用 ${error.result.applied} 条后中断`, error.cause);
@@ -54,7 +54,7 @@ export class RxDBPartialSyncError<T = unknown> extends RxDBError {
  * 继承 `RxDBAdapterLocalBase` / `RxDBAdapterRemoteBase` 的适配器由 `abstract` 成员在**编译期**
  * 保证这些 duck 存在，永远走不到这条错误；它只服务于不继承 base 的自定义适配器对象。
  *
- * 之所以抛而不是降级：`QueryCacheRepository` 此前缺 duck 时返回空数组，
+ * 之所以抛而不是降级：`QueryCacheEngine` 此前缺 duck 时返回空数组，
  * 调用方看到的是「远端没有数据」而不是「本地读不出来」—— 缓存故障被伪装成业务结果。
  *
  * @example
@@ -131,6 +131,57 @@ export class RxDBLocalAdapterCapabilityError extends RxDBError {
 }
 
 /**
+ * 声明了某个策略、却没装提供它的插件。
+ *
+ * @remarks
+ * US-025 阶段 B 把 QueryCache 读引擎搬进 `@aiao/rxdb-plugin-querycache`，但
+ * `SyncType.QueryCache` 这个取值留在核心（策略轴闭合，`Repository` 的分支要靠它判定）。
+ * 缺口因此是结构性的：配置写得出来，实现可能不在。
+ *
+ * 阶段 D 之后同一个实体有**两个**这样的缺口：读引擎在 querycache 插件，出站队列在
+ * `@aiao/rxdb-plugin-sync`。两处各抛各的，靠 {@link RxDBMissingPluginError.subject} 区分 ——
+ * 装了一个没装另一个的人，读到的必须是还缺哪一半，而不是一句对他已经不成立的
+ * 「引擎没装」。
+ *
+ * 抛在 `connect()` 里而不是等到第一次 `find()`：配置错误要在启动时响。也**不降级为本地读**
+ * —— 降级之后调用方看到的是「远端没有数据」，与 {@link RxDBQueryCacheCapabilityError}
+ * 拒绝降级是同一条理由。
+ *
+ * @example
+ * ```typescript
+ * import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+ *
+ * rxdb.use(rxDBPluginQueryCache);
+ * await rxdb.connect('sqlite');
+ * ```
+ */
+export class RxDBMissingPluginError extends RxDBError {
+  constructor(
+    /** 触发这条错误的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 该实体声明的、需要插件支撑的能力 */
+    readonly capability: string,
+    /** 要安装的包名 */
+    readonly packageName: string,
+    /** 装上之后的注册写法 */
+    readonly registration: string,
+    /**
+     * 缺的那一半叫什么，嵌进 `no ${subject} is installed`。
+     *
+     * @defaultValue `'engine'`
+     */
+    readonly subject: string = 'engine'
+  ) {
+    super(
+      `Entity '${entity}' declares ${capability} but no ${subject} is installed. ` +
+        `Install '${packageName}' and register it via ${registration}.`
+    );
+    this.name = 'RxDBMissingPluginError';
+    Object.setPrototypeOf(this, RxDBMissingPluginError.prototype);
+  }
+}
+
+/**
  * 一次批量修改混入了 QueryCache 实体与版本化（Full / Filter）实体。
  *
  * @remarks
@@ -179,5 +230,60 @@ export class NetworkOfflineError extends RxDBError {
     this.name = 'NetworkOfflineError';
     this.originalError = originalError;
     Object.setPrototypeOf(this, NetworkOfflineError.prototype);
+  }
+}
+
+/**
+ * 插件依赖成环 —— 在**安装规划阶段**抛出（US-015 AC#16）。
+ *
+ * @remarks
+ * 环不能留到运行期发现：`inject` 的语义是「依赖就绪后才安装」，成环意味着环上每个插件都在
+ * 等下一个进入 `active`，谁都不会开工。那种形态在外部看是「插件静默不装」，与依赖缺失
+ * （AC#15）完全同形，却要用完全不同的办法修。因此在 `reconcile()` 之前就拒绝，
+ * 此时一个 `install()` 都还没跑过，不存在半装状态。
+ *
+ * `message` 给出**完整环路径**而不只是「检测到环」：N 个插件的依赖图靠人工重建的成本，
+ * 正是这条错误要替调用方省掉的。
+ */
+export class RxDBPluginDependencyCycleError extends RxDBError {
+  constructor(
+    /** 环路径上的插件名，首尾为同一个插件（如 `['a', 'b', 'a']`） */
+    readonly cycle: readonly string[]
+  ) {
+    super(
+      `Plugin dependency cycle detected: ${cycle.join(' → ')}. ` +
+        `Every plugin on the cycle waits for the next one to become active, so none of them installs. ` +
+        `Break the cycle by removing one of the 'inject' declarations.`
+    );
+    this.name = 'RxDBPluginDependencyCycleError';
+    Object.setPrototypeOf(this, RxDBPluginDependencyCycleError.prototype);
+  }
+}
+
+/**
+ * `plugin:*` 依赖指向了多个同名插件 —— 无法裁决该注入哪一个（US-015 AC#14 / D4）。
+ *
+ * @remarks
+ * 重名**本身**不是错误，宿主只 `console.warn` 一次：两个插件恰好取了同一个名字、
+ * 而谁都没被依赖时，报错只会把一个能正常跑的应用拦在门外。歧义只在该名字**真的被
+ * `inject`** 的那一刻成立——此时必须停下，因为「随便挑一个」会让依赖方在两次运行里
+ * 拿到不同的提供方，而且不报错。
+ *
+ * `candidates` 用构造来源（`constructor.name`）区分：候选的 `name` 按定义是相同的，
+ * 只报名字等于什么都没说。
+ */
+export class RxDBPluginAmbiguousDependencyError extends RxDBError {
+  constructor(
+    /** 触发歧义的依赖键（如 `'plugin:search'`） */
+    readonly dependency: string,
+    /** 全部同名候选的构造来源名 */
+    readonly candidates: readonly string[]
+  ) {
+    super(
+      `Dependency '${dependency}' is ambiguous: ${candidates.length} registered plugins share that name ` +
+        `(${candidates.join(', ')}). Rename one of them or drop the duplicate registration.`
+    );
+    this.name = 'RxDBPluginAmbiguousDependencyError';
+    Object.setPrototypeOf(this, RxDBPluginAmbiguousDependencyError.prototype);
   }
 }

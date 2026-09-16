@@ -57,6 +57,9 @@
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "dotenv": "^17.4.2"
   }

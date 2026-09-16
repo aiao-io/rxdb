@@ -1,7 +1,7 @@
 /**
  * PGL-012：QueryCache 的三个批量方法必须遵守实体 metadata。
  *
- * 这些方法是 `QueryCacheRepository` 的真实读写路径，数据来自远端适配器
+ * 这些方法是 `QueryCacheEngine` 的真实读写路径，数据来自远端适配器
  * （`RxDBAdapterSupabase.findByIds` 的 `select('*')`），键名由远端决定。
  * 旧实现从第一行取 `Object.keys` 直接拼列名，propertyMap / namespace /
  * 加密 / 类型转换全部绕过 —— 本文件逐条锁定正确契约。

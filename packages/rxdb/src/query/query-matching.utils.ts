@@ -311,6 +311,14 @@ const is_entity_match_rule_group_or_rule = (
 
 /**
  * 判断实体是否匹配规则组
+ *
+ * @remarks
+ * 与 SQL 侧 `WHERE` 求值同一套语义（空 `and` 组匹配全部、空 `or` 组同样匹配全部），
+ * 因此可以用它在内存里复算适配器本应下推给 SQL 的过滤条件。
+ *
+ * @param entity - 待判定的实体；`null` / `undefined`（INSERT 的 inversePatch、DELETE 的 patch）一律不匹配
+ * @param ruleGroup - 规则组
+ * @returns 命中返回 `true`
  */
 export const isEntityMatchWhere = <T>(entity: object | null | undefined, ruleGroup: RuleGroup<T>): boolean => {
   // INSERT 的 inversePatch 和 DELETE 的 patch 都是 null
@@ -380,10 +388,18 @@ export const isEntityEffectOrderBy = <T extends object>(
 };
 
 /**
- * 计算排序
- * @param result
- * @param orderByArray
- * @returns
+ * 按 `orderBy` 给一批结果排序。
+ *
+ * @param result - 待排序的结果，**不就地修改**，返回新数组
+ * @param orderBy - 排序字段与方向，按数组顺序逐级比较
+ * @returns 排好序的新数组
+ *
+ * @remarks
+ * 与 {@link isEntityMatchWhere} 成对：前者判「这一行算不算命中」，本函数判「命中的这批怎么排」。
+ * 增量合并（`query/merge_*.ts`）用它把新到的行插到正确位置，插件侧模拟仓库时也必须用它，
+ * 否则模拟出来的顺序与真实查询不一致，测试就守不住真正的行为。
+ *
+ * 字段取值走 lodash 的路径语义，因此 `'author.name'` 这样的嵌套字段可直接作为排序键。
  */
 export const calculateOrderBy = <T>(result: T[], orderBy: OrderBy<string>[]) =>
   orderByFn(

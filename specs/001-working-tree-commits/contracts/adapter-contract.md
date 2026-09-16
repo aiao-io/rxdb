@@ -56,27 +56,29 @@
 - `rawQuery?()` 在 `rxdb-adapter.ts:94` 上是**可选方法**。因此判定不能假设每个适配器都实现了它：共享判定由核心包导出，**由各适配器自己的 `rawQuery` 实现调用**；没有 `rawQuery` 的适配器不因此获得豁免——它的 `upsertMany` / `deleteByIds` 仍受第 1 节约束。
 - `upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而非列集，因此对版本化实体**一律落第 4 步**。
 
-## 3. 受信调用点登记表（已与真实代码核对，2026-09-12）
+## 3. 受信调用点登记表（已与真实代码核对，2026-09-16）
 
 登记键固定为**「文件 + 符号 + 意图」**，符号取实际发起该次批量重写的**最内层具名函数**，不是委托门面，也不是行号。行号仅供本次核对存档。
 
-| #   | 文件（`packages/rxdb/src/version/`） | 符号                       | 写原语                            | 行  | 意图          | 产生工作树单元 |
-| --- | ------------------------------------ | -------------------------- | --------------------------------- | --- | ------------- | -------------- |
-| 1   | `VersionManager.ts`                  | `switchBranch`             | `adapter.switchBranch`            | 751 | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`                  | `restore_entity`           | `adapter.mergeChanges(…, false)`  | 81  | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`                  | `invalidateRedoStack`      | `adapter.switchBranch`            | 519 | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts`                 | `applyUndoRedoHistories`   | `adapter.switchBranch`            | 166 | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`                    | `merge_branch`（逐条分支） | `executor.mergeChanges(…, false)` | 127 | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`                    | `merge_branch`（压缩分支） | `adapter.mergeChanges(…, false)`  | 151 | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`                      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 373 | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`                 | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 636 | `remote_sync` | **必须产生**   |
-| 9   | `cleanup-expired.ts`                 | `cleanupExpired`           | `executor.mergeChanges(…, true)`  | 201 | `remote_sync` | **必须产生**   |
+文件一列只写**基名**：US-025 抽包把这 9 处调用点从核心 `packages/rxdb/src/version/` 搬进了两个插件（#1~#6 → `@aiao/rxdb-plugin-history/src/`，#7~#9 → `@aiao/rxdb-plugin-sync/src/`），登记键必须跨这种搬迁存活，所以它不含目录。登记表本身仍在 `packages/rxdb/src/trusted-write/trusted-write-intent.ts`——它是 `declareTrustedWrite()` 的准入名单，而那道门禁在核心。
+
+| #   | 文件（基名）         | 符号                       | 写原语                            | 行  | 意图          | 产生工作树单元 |
+| --- | -------------------- | -------------------------- | --------------------------------- | --- | ------------- | -------------- |
+| 1   | `VersionManager.ts`  | `switchBranch`             | `adapter.switchBranch`            | 280 | 分支物化      | **不产生**     |
+| 2   | `restore-entity.ts`  | `restore_entity`           | `adapter.mergeChanges(…, false)`  | 86  | 实体恢复      | **必须产生**   |
+| 3   | `HistoryManager.ts`  | `invalidateRedoStack`      | `adapter.switchBranch`            | 537 | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts` | `applyUndoRedoHistories`   | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
+| 5   | `merge-branch.ts`    | `merge_branch`（逐条分支） | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`    | `merge_branch`（压缩分支） | `adapter.mergeChanges(…, false)`  | 165 | 压缩合并      | **必须产生**   |
+| 7   | `pull-batch.ts`      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 382 | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts` | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 646 | `remote_sync` | **必须产生**   |
+| 9   | `cleanup-expired.ts` | `cleanupExpired`           | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
 
 **核对结论**：9 行符号全部存在、签名未漂移。同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记。
 
 **登记表跨两个写原语**：#1 / #3 / #4 走 `switchBranch`，其余走 `mergeChanges`。**只在 `mergeChanges` 上挂门禁会整体漏掉撤销与分支物化面。**
 
-**静态扫描**必须排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`。写路径必须携带显式意图枚举（内部契约，**不进**公开 api-baseline）；未携带标记的批量重写一律按未知入口拒绝。
+**静态扫描跑在 `pnpm audit:callsite-drift`（`scripts/audit/working-tree-callsite-drift.mjs`）里**，扫的是整个 `packages/`——9 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync / rxdb-plugin-querycache 四个包里，只扫单个包的门禁会全绿地什么都看不见。核心包内的 chromium 测试只核对这张表与登记表逐格一致，外加「核心自身零受信写、零批量写」。**静态扫描**必须排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`。写路径必须携带显式意图枚举（内部契约，**不进**公开 api-baseline）；未携带标记的批量重写一律按未知入口拒绝。
 
 ## 4. 能力边界（写进公开文档，不假装拦得住）
 

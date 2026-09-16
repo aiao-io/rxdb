@@ -21,10 +21,16 @@
  * 契约（`suite-context.ts`）要求每次调用都交出一个**全新**实例，所以这里不复用同一个库；
  * 契约没有 teardown 钩子，于是回收落在调用点自己身上——文件级 `afterEach` 在套件内层钩子
  * 之后跑，把本条用例开过的库全部断开。
+ *
+ * **{@link rxDBPluginHistory} 与被测插件一起装。** 套件的 §2.2 用 `database.versionManager`
+ * 建分支——US-025 把 `VersionManager` 从核心搬进了 `@aiao/rxdb-plugin-history`，核心上不再有
+ * 这个成员。它不是被测对象，只是「新建一条分支」这个动作在今天唯一的入口；工作树的
+ * `writeBranchRows` 贡献正是挂在那个动作上，缺了它 §2.2 两条用例拿到的是 `undefined`。
  */
 
 import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterAll, afterEach, expect } from 'vitest';
@@ -54,7 +60,7 @@ workingTreeCommitConformanceSuite({
   name: 'electron',
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await electronAdapterFactory.createAdapter<AdapterCleanupTarget>({
-      plugins: [rxDBPluginWorkingTree]
+      plugins: [rxDBPluginHistory, rxDBPluginWorkingTree]
     });
     opened.push(adapter);
     await adapter.rxdb.workingTree.enable();

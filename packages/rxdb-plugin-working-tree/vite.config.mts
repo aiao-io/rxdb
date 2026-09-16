@@ -62,7 +62,14 @@ export default defineConfig(() => ({
       // `setWorkingTreeCaptureHook()` 往核心的适配器基类上装运行时，内联一份核心进来，
       // 装上去的就是**另一个模块实例**的槽位，宿主那一份永远是 undefined。
       // `vitest` 同理——`./testing` 入口的断言必须登记到调用方那一个 vitest 实例上。
-      external: ['@aiao/rxdb', '@aiao/utils', 'rxjs', 'uuid', 'vitest']
+      //
+      // `@aiao/rxdb-plugin-history` 同属这一档，只是理由晚到：US-025 把 `VersionManager`
+      // 从核心搬进了它，本包的 `enable-migration.ts` 于是从那里取值。漏登记它的代价有两层——
+      // 表层是产物里多出一条**未声明**的 `import '@aiao/utils'`（历史插件自己的依赖被一起内联
+      // 带了进来），而 `@aiao/utils` 不在本包的 dependencies 里，谁从 dist 解析本包就在那一行
+      // 炸掉；深层是历史插件被复制成第二份实例，宿主的 `rxdb.versionManager` 与
+      // `inject: ['plugin:history']` 认的都不会是它。
+      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-history', '@aiao/utils', 'rxjs', 'uuid', 'vitest']
     }
   },
   test: {

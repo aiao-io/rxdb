@@ -10,9 +10,15 @@
  * 契约（`suite-context.ts`）要求每次调用都交出一个**全新**实例，所以这里不复用同一个库；
  * 契约没有 teardown 钩子，于是回收落在调用点自己身上——文件级 `afterEach` 在套件内层钩子
  * 之后跑，把本条用例开过的库全部断开，免得十几个 PGlite WASM 实例一路堆到文件结束。
+ *
+ * **{@link rxDBPluginHistory} 与被测插件一起装。** 套件的 §2.2 用 `database.versionManager`
+ * 建分支——US-025 把 `VersionManager` 从核心搬进了 `@aiao/rxdb-plugin-history`，核心上不再有
+ * 这个成员。它不是被测对象，只是「新建一条分支」这个动作在今天唯一的入口；工作树的
+ * `writeBranchRows` 贡献正是挂在那个动作上，缺了它 §2.2 两条用例拿到的是 `undefined`。
  */
 
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
@@ -37,6 +43,7 @@ workingTreeCommitConformanceSuite({
     database.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     // 必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
     // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+    database.use(rxDBPluginHistory);
     database.use(rxDBPluginWorkingTree);
     opened.push(database);
     await database.connect('pglite');

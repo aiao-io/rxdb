@@ -1,58 +1,56 @@
 /**
- * @fileoverview T055 红测试：受信调用点登记表与批量写漂移扫描（SC-010、adapter-contract.md §3）。
+ * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、adapter-contract.md §3）。
  *
  * @remarks
- * 这个文件守的是**两张表之间的距离**：`adapter-contract.md` §3 的 9 行表格、
- * `TRUSTED_CALLSITE_REGISTRY` 的 9 个字面量、以及 `src/version/` 里 9 处真实的
- * `declareTrustedWrite()` 调用。三者只要有任意两处对不上，`declareTrustedWrite` 的运行时抛错
- * 就会在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
+ * 这个文件守的是**两张表之间的距离**：`adapter-contract.md` §3 的 9 行表格，与
+ * `TRUSTED_CALLSITE_REGISTRY` 的 9 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
+ * 在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
  *
- * 为什么这些断言值得写：
+ * **US-025 抽包挪走了第三张表。** 9 处真实的 `declareTrustedWrite()` 原本就在
+ * `packages/rxdb/src/version/` 下，这份测试直接 `import.meta.glob` 读原文逐行核对；抽包之后
+ * #1~#6 去了 `@aiao/rxdb-plugin-history`、#7~#9 去了 `@aiao/rxdb-plugin-sync`，8 处 QueryCache
+ * 批量写去了 `@aiao/rxdb-plugin-querycache` 与 `@aiao/rxdb-plugin-sync`。vitest 的 `import.meta.glob`
+ * 进不了兄弟包，于是这份测试对那两半是**结构性失明**——不是少看了几行，是一行都看不见。
  *
- * 1. **契约表格是从 markdown 现场解析出来的，不是抄进来的常量。** 抄一份进测试，改契约时只要顺手
- *    把测试里那份也改了就仍然全绿——被守住的从来只有「我抄得一致」，不是「登记表跟契约一致」。
- *    §3 那张表是六个适配器作者读的那一份，它变了就必须有人重新核对代码。
- * 2. **「产生工作树单元」那一列不在这里比对，因为核心算不出它。** 登记表刻意不存这一列
- *    （见 `trusted-write-intent.ts` 的 `TrustedCallsite` 注释）：它是捕获矩阵的结论，不是核心的事实。
- *    算它要 `producesWorkingTreeEntry()`，而那个函数在 `@aiao/rxdb-plugin-working-tree` 里——核心
- *    够不着，**也不该够得着**，为一个布尔值把捕获语义拉回核心正好毁掉抽包立起来的那条边界。
- *    那一列的比对见下面「这张表由两个包分着守」。
- * 3. **9 行必须在真实代码里找得到，而且是「同一个键」找得到。** 只断言「文件里出现过这个符号名」
- *    是纸糊的：符号名在 TSDoc、在日志字符串、在调用处都会出现。这里要求的是一处形状完整的
- *    `declareTrustedWrite(scope, { file, symbol, intent })`，且 `scope` 的变量名就是写原语的宿主前缀
- *    （`adapter.` / `executor.`），再要求紧随其后真的调了那个原语。少任何一条，
- *    「登记了但没挂上」与「挂上了但登记错了」都能全绿。
- * 4. **反向也要成立：真实代码里不许有登记表之外的 `declareTrustedWrite`。** 正向检查只能发现
- *    「登记表里有、代码里没有」。而 SC-010 真正怕的是反过来——有人新加一处受信写。运行时确实会抛，
- *    但那要等到那条路径被执行；静态比对在提交时就红。
- * 5. **`verifiedAtLine` 是存档字段，不参与登记键，但不是没有义务。** 它唯一的用处是回答
- *    「上次核对的是不是同一段代码」。所以断言它仍落在同一个文件里、且距真实声明不超过 40 行
- *    （现存最大偏差是 #6 的 10 行）。行号漂到文件外或漂出一个函数，`已与真实代码核对` 这句话就
- *    只是一个日期。
- * 6. **漂移扫描按「调用点身份」判，不按实参判。** 8 处真实批量写传的实参全是
- *    `this.entityName` / `entity` 这类运行期值，没有一处是字面量——想从实参读出「这是不是
- *    QueryCache」的扫描，在真实仓库上恒等于「什么都报不出来」，而它会以全绿的形态存在下去。
- *    所以允许集是 `文件 · 接收者` 的登记，与 §3 的受信登记同一个思路。
- * 7. **扫描前必须把注释与字符串涂白。** `rxdb-adapter.ts` 的 `@example` 里逐字写着
- *    `adapter.upsertMany('Product', [product1, product2])`——一条**正是**门禁要拦的形状的文档示例。
- *    纯文本匹配会把它永远报成违规，而一条永远红的门禁的下场是被删掉。
- * 8. **涂白器必须在每个文件上收敛回 `code` 态，这条单独断言。** 一个没收敛的文件（比如正则字面量里
- *    带奇数个引号，`raw-write-judgment.ts:89` 就是）会让**它之后的全部内容**被当成字符串涂掉——
- *    扫描对那一段彻底失明，而失明的外在表现与「干净」逐字节相同。
- * 9. **排除清单既断言在判定函数上，也断言在真正喂进扫描的文件清单上。** 只测判定函数，
- *    没人保证 glob 真按它过滤；只测 glob，判定函数就是一段装饰。两头都钉住，中间才没有缝。
+ * 失明的那两半整个交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066，
+ * `pnpm audit:callsite-drift`）：它跑在 node 里，扫整个 `packages/`，双向比对登记键、自报符号、
+ * 作用域宿主与存档行号。**不要在这里把它们重建回来**：核心里的 glob 抄不到别的包，重建出来的
+ * 只会是一份「全绿但什么都没扫」的门禁，而那种形态与真的通过逐字节相同。
  *
- * **这张表由两个包分着守，切口就是第 2 条。** 登记表与 9 处真实声明都在核心，所以这份留在核心，
- * 而且**必须**留在核心：它扫的是 `packages/rxdb/src/**`，从插件包里 `import.meta.glob` 够不着那棵树——
- * 抽包之后它在插件里扫到的是插件自己的 52 个文件，9 行一行都找不到、8 处批量写一处都看不见，
- * 于是整份门禁在「全红」和「全绿但什么都没看」之间二选一。结论列那一半在
- * `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts`，
- * 它从**同一份**契约原文里解析同一张表——两边各自解析而不是一边抄另一边，是为了让契约改动同时
- * 落到两处，而不是落到一处、另一处照旧全绿。
+ * 留在这里的是核心看得见、而且**只有**核心看得见的三件事：
  *
- * **与 T066 的分工**：这份跑在 chromium 里，够得着 `TRUSTED_CALLSITE_REGISTRY` 这个 TS 值，
- * 但只看得见 `packages/rxdb/src`。`scripts/audit/working-tree-callsite-drift.mjs`（T066）跑在 node 里，
- * 看得见 `dist/`、`out-tsc/` 与另外三十个包，但读不到 TS 导出。两者互不覆盖，**别合并**。
+ * 1. **登记表与 §3 逐格一致。** 契约表格是从 markdown 现场解析出来的，不是抄进来的常量。抄一份进
+ *    测试，改契约时只要顺手把测试里那份也改了就仍然全绿——被守住的从来只有「我抄得一致」，不是
+ *    「登记表跟契约一致」。§3 那张表是六个适配器作者读的那一份，它变了就必须有人重新核对代码。
+ *    这一条留在核心，因为登记表这个 TS 值在核心，而 T066 只能把它从源码里词法解析出来。
+ * 2. **核心自身一处受信写、一处批量写都没有。** 这是抽包立起来的那条边界的可判定形式：受信写与
+ *    批量写全部住在插件里，核心只留门禁本身（`declareTrustedWrite` 与 5 步判定）。有人往核心加回
+ *    一条批量重写路径，T066 会因为「没登记」而红，这里会因为「核心不该有」而红——后者说的是
+ *    边界，前者说的是登记，两句话不互相替代。
+ * 3. **扫描器本身没瞎。** 第 2 条报的是一个空集合，而空集合有两种来源：真的没有，和扫描器把什么
+ *    都涂白了。所以造好的样本（真实形状的声明、TSDoc 里的示例、字符串里的写法、接口成员）各占
+ *    一条用例，逼扫描器在同一份实现上同时给出「认得出」与「不误报」。
+ *
+ * 另外几条判据没变，照抄在这里免得下次有人「优化」掉：
+ *
+ * - **「产生工作树单元」那一列不在这里比对，因为核心算不出它。** 登记表刻意不存这一列
+ *   （见 `trusted-write-intent.ts` 的 `TrustedCallsite` 注释）：它是捕获矩阵的结论，不是核心的事实。
+ *   算它要 `producesWorkingTreeEntry()`，而那个函数在 `@aiao/rxdb-plugin-working-tree` 里——核心
+ *   够不着，**也不该够得着**。那一列在
+ *   `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts`
+ *   里解析**同一份**契约原文比对；两边各自解析而不是一边抄另一边，是为了让契约改动同时落到两处。
+ * - **漂移扫描按「调用点身份」判，不按实参判。** 真实批量写传的全是 `this.entityName` / `entity`
+ *   这类运行期值，没有一处是字面量——想从实参读出「这是不是 QueryCache」的扫描，在真实仓库上恒等于
+ *   「什么都报不出来」，而它会以全绿的形态存在下去。允许集因此是 `文件 · 接收者` 的登记，
+ *   如今那份登记在 T066 的 `QUERY_CACHE_BULK_WRITE_CALLSITES` 里（核心侧的允许集是空的：核心一处都没有）。
+ * - **扫描前必须把注释与字符串涂白。** `rxdb-adapter.ts` 的 `@example` 里逐字写着
+ *   `adapter.upsertMany('Product', [product1, product2])`——一条**正是**门禁要拦的形状的文档示例。
+ *   纯文本匹配会把它永远报成违规，而一条永远红的门禁的下场是被删掉。
+ * - **涂白器必须在每个文件上收敛回 `code` 态，这条单独断言。** 一个没收敛的文件（比如正则字面量里
+ *   带奇数个引号）会让**它之后的全部内容**被当成字符串涂掉——扫描对那一段彻底失明，而失明的外在
+ *   表现与「干净」逐字节相同。
+ * - **排除清单既断言在判定函数上，也断言在真正喂进扫描的文件清单上。** 只测判定函数，没人保证
+ *   glob 真按它过滤；只测 glob，判定函数就是一段装饰。两头都钉住，中间才没有缝。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -69,16 +67,10 @@ import {
 import { WRITE_ENTRANCES } from '../../trusted-write/write-entrance.js';
 
 // ---------------------------------------------------------------------------
-// 源码快照：`src/version/*.ts` 用于核对 9 行登记，`src/**` 用于批量写漂移扫描。
+// 源码快照：`src/**` 下的全部核心源码。9 处受信写声明与 8 处 QueryCache 批量写抽包之后都不在
+// 这棵树里了（文件头），所以这份快照如今只用来证明**核心自己一处都没有**。
 // 负向 glob 与 {@link isScannedSourcePath} 一一对应，下面有一条用例把两者钉在一起。
 // ---------------------------------------------------------------------------
-
-/** `src/version/` 下的全部源码；键形如 `../../version/VersionManager.ts`。 */
-const VERSION_SOURCES = import.meta.glob<string>('../../version/*.ts', {
-  query: '?raw',
-  import: 'default',
-  eager: true
-});
 
 /** 参与漂移扫描的全部包内源码；排除项见 adapter-contract.md §3 末段。 */
 const PACKAGE_SOURCES = import.meta.glob<string>(
@@ -419,26 +411,6 @@ const DECLARED_CALLSITES: readonly DeclaredCallsite[] = SCANNED_FILES.flatMap(fi
   declarationsIn(file.path, file.source)
 );
 
-/** 声明自报的三段拼成登记键；这里刻意不复用 {@link trustedCallsiteKey}——它的形参是枚举，
- * 而从源码里抓出来的 `intent` 是一个还没被验证过是合法枚举名的字符串。让两边都走字符串拼接，
- * 「登记表里那个枚举的字面值」与「源码里写的那个成员名」不一致时才会红。 */
-const declaredKey = (declared: DeclaredCallsite): string => `${declared.file}·${declared.symbol}·${declared.intent}`;
-
-/** 按登记键索引，便于逐行核对。 */
-const DECLARED_BY_KEY: ReadonlyMap<string, DeclaredCallsite> = new Map(
-  DECLARED_CALLSITES.map(declared => [declaredKey(declared), declared])
-);
-
-/** 这个符号在文件里有没有一处真正的定义（而不是只在调用处出现过）。 */
-const definesSymbol = (code: string, symbol: string): boolean => {
-  const head = String.raw`^[ \t]*(?:export\s+)?(?:declare\s+)?(?:public\s+|private\s+|protected\s+|static\s+)*(?:async\s+)?`;
-  return [
-    new RegExp(`${head}function\\s+${symbol}\\b`, 'm'),
-    new RegExp(`${head}(?:const|let)\\s+${symbol}\\b\\s*=`, 'm'),
-    new RegExp(`${head}${symbol}\\s*(?:<[^>\\n]*>)?\\s*\\([^\\n]*\\)\\s*(?::[^\\n]*)?\\{[ \\t]*$`, 'm')
-  ].some(pattern => pattern.test(code));
-};
-
 // ---------------------------------------------------------------------------
 // 批量写漂移扫描
 // ---------------------------------------------------------------------------
@@ -467,19 +439,6 @@ interface BulkWriteCallsite {
   readonly method: string;
 }
 
-/**
- * QueryCache 专用的批量写调用点允许集
- *
- * @remarks
- * 键是 `文件 · 接收者`。**不是**实参——8 处真实调用传的都是 `this.entityName` / `entity`，
- * 从实参读不出实体身份（见文件头第 6 条）。`localAdapter` 是 QueryCache 那条路径自己的本地
- * 适配器句柄，换成任何别的接收者都意味着有人把批量写接到了业务实体上。
- */
-const QUERY_CACHE_BULK_WRITE_CALLSITES: ReadonlySet<string> = new Set([
-  'repository/QueryCacheRepository.ts·this.localAdapter',
-  'repository/query-cache-outbox.ts·localAdapter'
-]);
-
 /** 取出一批文件里的全部批量写调用点。 */
 const bulkWriteCallsites = (files: readonly ScannedFile[]): readonly BulkWriteCallsite[] =>
   files.flatMap(file => {
@@ -491,17 +450,6 @@ const bulkWriteCallsites = (files: readonly ScannedFile[]): readonly BulkWriteCa
       method: matched[2]
     }));
   });
-
-/**
- * 漂移扫描：报出允许集之外的批量写调用点
- *
- * @param files - 已按 {@link isScannedSourcePath} 过滤的源文件
- * @returns 每一处「调用 `upsertMany` / `deleteByIds` 但不是 QueryCache 路径」的调用点
- */
-const scanBulkWriteDrift = (files: readonly ScannedFile[]): readonly BulkWriteCallsite[] =>
-  bulkWriteCallsites(files).filter(
-    callsite => !QUERY_CACHE_BULK_WRITE_CALLSITES.has(`${callsite.path}·${callsite.receiver}`)
-  );
 
 /** 失败信息用的紧凑形态。 */
 const locate = (callsite: BulkWriteCallsite): string =>
@@ -576,54 +524,18 @@ describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
   });
 });
 
-describe('9 行在真实代码里都找得到', () => {
-  it('每一行都有一处同键的 declareTrustedWrite 声明', () => {
-    const missing = TRUSTED_CALLSITE_REGISTRY.filter(row => !DECLARED_BY_KEY.has(trustedCallsiteKey(row))).map(
-      trustedCallsiteKey
-    );
-    expect(missing).toEqual([]);
+describe('核心自身既不受信写，也不批量写', () => {
+  it('核心源码里一处 declareTrustedWrite 都没有', () => {
+    // 9 处声明抽包之后全在 history / sync 两个插件里（文件头）。核心留的是门禁本身，不是调用点：
+    // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先过 §3。
+    expect(DECLARED_CALLSITES.map(declared => `${declared.path}:${declared.line}`)).toEqual([]);
   });
 
-  it('声明就落在登记表点名的那个文件里', () => {
-    const misplaced = TRUSTED_CALLSITE_REGISTRY.filter(
-      row => DECLARED_BY_KEY.get(trustedCallsiteKey(row))?.path !== `version/${row.file}`
-    ).map(trustedCallsiteKey);
-    expect(misplaced).toEqual([]);
-  });
-
-  it('作用域实参的变量名就是写原语的宿主前缀', () => {
-    const mismatched = TRUSTED_CALLSITE_REGISTRY.filter(
-      row => DECLARED_BY_KEY.get(trustedCallsiteKey(row))?.scope !== row.writePrimitive.split('.')[0]
-    ).map(row => `${trustedCallsiteKey(row)} → ${DECLARED_BY_KEY.get(trustedCallsiteKey(row))?.scope}`);
-    expect(mismatched).toEqual([]);
-  });
-
-  it('声明之后 15 行内真的调了那个写原语', () => {
-    const detached = TRUSTED_CALLSITE_REGISTRY.filter(row => {
-      const declared = DECLARED_BY_KEY.get(trustedCallsiteKey(row));
-      if (!declared) return true;
-      // 在涂白源码里找，于是「日志字符串里提到了 adapter.switchBranch(」不算数。
-      const { code } = blankNonCode(VERSION_SOURCES[`../../version/${row.file}`]);
-      const called = code.indexOf(`${row.writePrimitive}(`, declared.endOffset);
-      return called < 0 || lineAt(code, called) - declared.line > 15;
-    }).map(trustedCallsiteKey);
-    expect(detached).toEqual([]);
-  });
-
-  it('symbol 是文件里真实存在的具名函数，不是只在调用处出现的名字', () => {
-    const undefinedSymbols = TRUSTED_CALLSITE_REGISTRY.filter(
-      row => !definesSymbol(blankNonCode(VERSION_SOURCES[`../../version/${row.file}`]).code, row.symbol)
-    ).map(row => `${row.file}·${row.symbol}`);
-    expect(undefinedSymbols).toEqual([]);
-  });
-
-  it('真实代码里没有登记表之外的 declareTrustedWrite', () => {
-    const registered = new Set(TRUSTED_CALLSITE_REGISTRY.map(trustedCallsiteKey));
-    const unregistered = DECLARED_CALLSITES.filter(declared => !registered.has(declaredKey(declared))).map(
-      declared => `${declared.path}:${declared.line}`
-    );
-    expect(unregistered).toEqual([]);
-    expect(DECLARED_CALLSITES).toHaveLength(TRUSTED_CALLSITE_REGISTRY.length);
+  it('核心源码里一处批量写调用点都没有', () => {
+    // QueryCache 那 8 处跟着 `@aiao/rxdb-plugin-querycache` / `@aiao/rxdb-plugin-sync` 走了。
+    // 核心里的 `upsertMany` / `deleteByIds` 只剩 `rxdb-adapter.ts` 的 abstract 声明与
+    // `capture/capture-interceptor.ts` 的包装——两者都没有「接收者.方法(」这个形状。
+    expect(bulkWriteCallsites(SCANNED_FILES).map(locate)).toEqual([]);
   });
 
   it('注释或字符串里的 declareTrustedWrite 不算声明', () => {
@@ -639,6 +551,8 @@ describe('9 行在真实代码里都找得到', () => {
   });
 
   it('真实形状的声明会被认出来，连同作用域与行号', () => {
+    // 上面那条「核心一处都没有」报的是空集合，而空集合有两种来源（文件头第 3 条）。
+    // 这一条钉住的是另一种：同一份提取器在真实形状上确实认得出来。
     const real = [
       'async function save() {',
       '  declareTrustedWrite(executor, {',
@@ -661,17 +575,6 @@ describe('9 行在真实代码里都找得到', () => {
         endOffset: expect.any(Number)
       }
     ]);
-  });
-
-  it('存档行号仍落在同一个文件里，且距真实声明不超过 40 行', () => {
-    const stale = TRUSTED_CALLSITE_REGISTRY.filter(row => {
-      const declared = DECLARED_BY_KEY.get(trustedCallsiteKey(row));
-      if (!declared) return true;
-      const lineCount = VERSION_SOURCES[`../../version/${row.file}`].split('\n').length;
-      const inFile = row.verifiedAtLine >= 1 && row.verifiedAtLine <= lineCount;
-      return !inFile || Math.abs(declared.line - row.verifiedAtLine) > 40;
-    }).map(row => `${trustedCallsiteKey(row)} @${row.verifiedAtLine}`);
-    expect(stale).toEqual([]);
   });
 });
 
@@ -697,24 +600,9 @@ describe('登记键：文件 + 符号 + 意图', () => {
   });
 });
 
-describe('漂移扫描：批量写只许打 QueryCache', () => {
-  it('真实源码里的批量写调用点恰好 8 处，全部落在 QueryCache 路径上', () => {
-    const found = bulkWriteCallsites(SCANNED_FILES);
-    expect(found.map(locate)).toEqual([
-      'repository/query-cache-outbox.ts:829 localAdapter.upsertMany()',
-      'repository/query-cache-outbox.ts:832 localAdapter.deleteByIds()',
-      'repository/QueryCacheRepository.ts:493 this.localAdapter.upsertMany()',
-      'repository/QueryCacheRepository.ts:527 this.localAdapter.upsertMany()',
-      'repository/QueryCacheRepository.ts:560 this.localAdapter.upsertMany()',
-      'repository/QueryCacheRepository.ts:593 this.localAdapter.deleteByIds()',
-      'repository/QueryCacheRepository.ts:876 this.localAdapter.deleteByIds()',
-      'repository/QueryCacheRepository.ts:902 this.localAdapter.upsertMany()'
-    ]);
-    expect(scanBulkWriteDrift(SCANNED_FILES)).toEqual([]);
-  });
-
-  it('新增一处打业务实体的 upsertMany 会被报出来', () => {
-    const drifted = scanBulkWriteDrift([
+describe('批量写扫描器：认得出，也不误报', () => {
+  it('一处打业务实体的 upsertMany 会被报出来', () => {
+    const drifted = bulkWriteCallsites([
       {
         path: 'repository/ProductRepository.ts',
         source: 'async saveAll(rows: Product[]) {\n  await this.adapter.upsertMany(this.entityName, rows);\n}\n'
@@ -723,14 +611,16 @@ describe('漂移扫描：批量写只许打 QueryCache', () => {
     expect(drifted.map(locate)).toEqual(['repository/ProductRepository.ts:2 this.adapter.upsertMany()']);
   });
 
-  it('同一个文件里换个接收者也算新增调用点', () => {
-    const drifted = scanBulkWriteDrift([
+  it('接收者算进调用点身份，换一个就是另一处', () => {
+    // 允许集按 `文件 · 接收者` 登记（文件头）。那份登记如今在 T066 里，但「接收者被记下来了」
+    // 这件事必须在这一侧也成立——扫描器要是把接收者丢了，T066 的允许集就永远匹配不上。
+    const found = bulkWriteCallsites([
       {
-        path: 'repository/QueryCacheRepository.ts',
+        path: 'QueryCacheEngine.ts',
         source: 'const go = () => this.remoteAdapter.deleteByIds(this.entityName, ids);\n'
       }
     ]);
-    expect(drifted.map(locate)).toEqual(['repository/QueryCacheRepository.ts:1 this.remoteAdapter.deleteByIds()']);
+    expect(found.map(callsite => callsite.receiver)).toEqual(['this.remoteAdapter']);
   });
 
   it('TSDoc @example 里的示例不算调用点', () => {
@@ -743,12 +633,12 @@ describe('漂移扫描：批量写只许打 QueryCache', () => {
       'export abstract class RxDBAdapter {}',
       ''
     ].join('\n');
-    expect(scanBulkWriteDrift([{ path: 'rxdb-adapter.ts', source: docExample }])).toEqual([]);
+    expect(bulkWriteCallsites([{ path: 'rxdb-adapter.ts', source: docExample }])).toEqual([]);
   });
 
   it('字符串里的写法不算调用点', () => {
     const inString = "const hint = 'this.adapter.upsertMany(name, rows)';\n";
-    expect(scanBulkWriteDrift([{ path: 'trusted-write/trusted-write-scope.ts', source: inString }])).toEqual([]);
+    expect(bulkWriteCallsites([{ path: 'trusted-write/trusted-write-scope.ts', source: inString }])).toEqual([]);
   });
 
   it('接口成员与 abstract 声明不算调用点', () => {
@@ -760,12 +650,12 @@ describe('漂移扫描：批量写只许打 QueryCache', () => {
       'abstract deleteByIds(entityName: string, ids: string[]): Observable<void>;',
       ''
     ].join('\n');
-    expect(scanBulkWriteDrift([{ path: 'rxdb-adapter.ts', source: declarations }])).toEqual([]);
+    expect(bulkWriteCallsites([{ path: 'rxdb-adapter.ts', source: declarations }])).toEqual([]);
   });
 
   it('同一行里的 URL 字符串不会把它后面的调用吃掉', () => {
     const source = "log('see https://x/y'); this.adapter.upsertMany(name, rows);\n";
-    expect(scanBulkWriteDrift([{ path: 'repository/Sample.ts', source }]).map(locate)).toEqual([
+    expect(bulkWriteCallsites([{ path: 'repository/Sample.ts', source }]).map(locate)).toEqual([
       'repository/Sample.ts:1 this.adapter.upsertMany()'
     ]);
   });
@@ -794,16 +684,16 @@ describe('扫描排除（adapter-contract.md §3 末段）', () => {
       'packages/rxdb/out-tsc/vitest/repository/QueryCacheRepository.js',
       'packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts',
       'packages/rxdb/src/__tests__/fixtures/test-db-setup.ts',
-      'packages/rxdb/src/version/version.suite.ts',
-      'packages/rxdb/src/version/VersionManager.spec.ts'
+      'packages/rxdb/src/capture/capture.suite.ts',
+      'packages/rxdb/src/capture/capture-interceptor.spec.ts'
     ];
     expect(excluded.filter(isScannedSourcePath)).toEqual([]);
   });
 
   it('普通源码文件进扫描', () => {
     const included = [
-      'packages/rxdb/src/repository/QueryCacheRepository.ts',
-      'packages/rxdb/src/version/VersionManager.ts',
+      'packages/rxdb/src/repository/QueryManager.ts',
+      'packages/rxdb/src/capture/capture-interceptor.ts',
       'packages/rxdb/src/trusted-write/trusted-write-scope.ts'
     ];
     expect(included.filter(isScannedSourcePath)).toEqual(included);
@@ -819,11 +709,11 @@ describe('扫描排除（adapter-contract.md §3 末段）', () => {
     expect(SCANNED_FILES.filter(file => !isScannedSourcePath(file.path)).map(file => file.path)).toEqual([]);
   });
 
-  it('版本目录的 9 个登记文件都在扫描清单里', () => {
-    const scanned = new Set(SCANNED_FILES.map(file => file.path));
-    const missing = [...new Set(TRUSTED_CALLSITE_REGISTRY.map(row => `version/${row.file}`))].filter(
-      path => !scanned.has(path)
-    );
-    expect(missing).toEqual([]);
+  it('登记表点名的 9 个文件一个都不在核心的扫描清单里', () => {
+    // 反过来断言：抽包之后它们**应该**全部不在。哪天有一个回到核心而登记表没跟着改，
+    // 这里会红——而 T066 那一侧不会，它按基名找，找得到就算数，不问在哪个包。
+    const scanned = new Set(SCANNED_FILES.map(file => file.path.split('/').pop()));
+    const stillInCore = [...new Set(TRUSTED_CALLSITE_REGISTRY.map(row => row.file))].filter(file => scanned.has(file));
+    expect(stillInCore).toEqual([]);
   });
 });

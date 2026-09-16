@@ -28,8 +28,8 @@
 
 import type { Observable } from 'rxjs';
 import type { SwitchBranchOptions, TransactionFun } from '../rxdb-adapter.js';
+import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
 import type { RxDBChange } from '../system/change.js';
-import type { SwitchVersionActions } from '../version/VersionManager.interface.js';
 
 /** 被拦截的批量写方法，与 {@link BulkWriteOperation} 同集合。 */
 export type InterceptedBulkWrite = 'upsert_many' | 'delete_by_ids';

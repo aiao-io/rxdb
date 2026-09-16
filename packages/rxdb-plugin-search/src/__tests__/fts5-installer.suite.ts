@@ -206,10 +206,12 @@ export const fts5InstallerSuite = (factory: Fts5InstallerHarnessFactory): void =
       expect(await queryFtsRowCount(harness.adapter, ftsTable)).toBe(1);
       expect(await queryMatchCount(harness.adapter, ftsTable, 'alpha')).toBe(1);
 
-      const secondPlugin = rxDBPluginSearch(harness.rxdb, { debounce: 0 }) as RxDBPluginSearch;
-      const { scope: secondPluginScope } = installScoped(secondPlugin);
+      // 复装同一个实例，不再经工厂绕一圈：工厂自检读的是宿主插件索引（US-015 AC#17），
+      // 而本套件有意不走 `rxdb.use`，索引里查不到，再调一次工厂会造出第二个实例。
+      // 旧的自有属性探测下工厂本来就原样返回既有实例，这里直接复用它，断言语义一字不变。
+      const { scope: secondPluginScope } = installScoped(plugin);
       cleanups.push(() => secondPluginScope.dispose());
-      await secondPlugin.ready;
+      await plugin.ready;
 
       expect(await queryFtsRowCount(harness.adapter, ftsTable)).toBe(1);
       expect(await queryMatchCount(harness.adapter, ftsTable, 'alpha')).toBe(1);

@@ -2,6 +2,7 @@ import {
   Entity,
   EntityBase,
   PropertyType,
+  SyncStateHub,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
   type EntityMetadata,
@@ -13,7 +14,7 @@ import {
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { Order, User } from '@aiao/rxdb-test/shop';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
 import { handleSupabaseChange } from '../handle_supabase_change.js';
@@ -62,7 +63,12 @@ function createRxdb(entities: EntityType[] = []): RxDB {
     },
     dispatchEvent: vi.fn(),
     // 适配器每次往返都往这儿报结局；本套件不判可达性，用桩避免真 monitor 的退避定时器漏进下个用例
-    reachability: { report: () => undefined }
+    reachability: { report: () => undefined },
+    // 用**真**的 hub 而不是桩：`#refreshPullableCount()` 经 `requestPullableRefresh()`
+    // 发请求，重数逻辑自 US-025 阶段 C 起住在 `@aiao/rxdb-plugin-history` 的执行者里，
+    // 而「请求到底有没有送到已绑定的执行者」正是那两条用例要验的 —— 桩会把它验没。
+    // 这里不 `use()` 插件：用例自己 `bindPullableRefresh()` 一个 spy 当执行者。
+    syncState: new SyncStateHub({ online$: of(true) })
   } as unknown as RxDB;
 }
 
@@ -946,8 +952,9 @@ describe('supabase review regressions', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove realtime channel: leave failed'));
   });
 
+  // 观察点自 US-025 阶段 C 起换成 `syncState` 的跳板：重数那段逻辑搬进了
+  // `@aiao/rxdb-plugin-history`，适配器只负责发信号，不认识执行者。
   it('refreshes pullable count from persistent repository watermarks after subscribing', async () => {
-    const refreshPullableCount = vi.fn(async () => undefined);
     const handlers: Array<(status: string) => void> = [];
     const channelFactory = vi.fn(() => {
       const channel = {
@@ -965,15 +972,16 @@ describe('supabase review regressions', () => {
         rlsCheck: false
       }
     );
-    Object.assign(adapter.rxdb, { versionManager: { refreshPullableCount } });
+    const refresh = vi.fn();
+    adapter.rxdb.syncState.bindPullableRefresh(refresh);
 
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
-    await vi.waitFor(() => expect(refreshPullableCount).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   });
 
+  // 跳板是即发即忘的：执行者慢（这里干脆永不 settle）也不能把 `disconnect()` 拖住。
   it('does not let a pending pullable count refresh block disconnect', async () => {
-    const refreshPullableCount = vi.fn(() => new Promise<void>(() => undefined));
     const removeChannel = vi.fn(async () => undefined);
     const handlers: Array<(status: string) => void> = [];
     const channelFactory = vi.fn(() => {
@@ -992,11 +1000,12 @@ describe('supabase review regressions', () => {
         rlsCheck: false
       }
     );
-    Object.assign(adapter.rxdb, { versionManager: { refreshPullableCount } });
+    const refresh = vi.fn(() => void new Promise<void>(() => undefined));
+    adapter.rxdb.syncState.bindPullableRefresh(refresh);
 
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
-    await vi.waitFor(() => expect(refreshPullableCount).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
 
     await expect(adapter.disconnect()).resolves.toBeUndefined();
     expect(removeChannel).toHaveBeenCalledOnce();

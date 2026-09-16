@@ -76,7 +76,10 @@
     "type-fest": "^5.9.0"
   },
   "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "@aiao/rxdb-plugin-working-tree": "workspace:*"
+    "@aiao/rxdb-plugin-sync": "workspace:*"
   }
 }

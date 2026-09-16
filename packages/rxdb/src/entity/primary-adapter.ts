@@ -129,7 +129,7 @@ export function resolveBatchPrimaryAdapter(
  * QueryCache 的写不是「落到哪一侧」的问题，因此它不进 {@link selectPrimaryAdapterKind}——
  * 那个枚举仍然只有 local / remote 两种，适配器模型没变（US-020 D3）。
  * 这里回答的是另一个问题：这批该交给 `adapter.mutations()`，还是交给
- * `QueryCacheRepository` 的 remote-then-local。
+ * `QueryCacheEngine` 的 remote-then-local。
  *
  * 混批一律拒绝而不是拆开各写各的：版本化实体写本地并进 changelog，QueryCache 实体先写远端再落
  * 可丢弃缓存，拆开执行只会得到「一半进了变更历史、一半没有」。

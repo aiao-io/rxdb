@@ -16,10 +16,16 @@
  * 之后跑，把本条用例开过的库全部断开。`cleanupAdapter` 无条件调用（它在
  * `AdapterFactory` 上本就是可选成员）：本包今天有没有定义它是会变的，而漏掉它的代价是
  * worker 泄漏到文件结束。
+ *
+ * **{@link rxDBPluginHistory} 与被测插件一起装。** 套件的 §2.2 用 `database.versionManager`
+ * 建分支——US-025 把 `VersionManager` 从核心搬进了 `@aiao/rxdb-plugin-history`，核心上不再有
+ * 这个成员。它不是被测对象，只是「新建一条分支」这个动作在今天唯一的入口；工作树的
+ * `writeBranchRows` 贡献正是挂在那个动作上，缺了它 §2.2 两条用例拿到的是 `undefined`。
  */
 
 import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
@@ -39,7 +45,9 @@ afterEach(async () => {
 workingTreeCommitConformanceSuite({
   name: 'wa-sqlite',
   createDatabase: async (): Promise<RxDB> => {
-    const adapter = await waSqliteFactory.createAdapter<AdapterCleanupTarget>({ plugins: [rxDBPluginWorkingTree] });
+    const adapter = await waSqliteFactory.createAdapter<AdapterCleanupTarget>({
+      plugins: [rxDBPluginHistory, rxDBPluginWorkingTree]
+    });
     opened.push(adapter);
     await adapter.rxdb.workingTree.enable();
     return adapter.rxdb;

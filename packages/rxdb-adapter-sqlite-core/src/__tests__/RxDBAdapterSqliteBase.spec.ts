@@ -106,10 +106,7 @@ function createRxdbMock(entities: EntityType[] = []): RxDB {
     // getEntityType：QueryCache 写入口在写完之后要把行同步回 identity cache，
     // 需要从 entityName 反查实体类。替身默认查不到 → 写入口只落 SQL、不做缓存维护，
     // 正是这些用例断言的范围（缓存协同由 sqlite-wasm 的 AC#21 集成用例覆盖）。
-    schemaManager: { getEntityTypeByTableName: vi.fn(), getEntityMetadata: vi.fn(), getEntityType: vi.fn() },
-    versionManager: {
-      getCurrentBranch: vi.fn().mockResolvedValue({ id: 'branch-id' })
-    }
+    schemaManager: { getEntityTypeByTableName: vi.fn(), getEntityMetadata: vi.fn(), getEntityType: vi.fn() }
   } as unknown as RxDB;
 }
 
@@ -205,7 +202,6 @@ const createRealRxdb = (dbName: string): RxDB => {
   rxdb.schemaManager.init();
   rxdb.entityManager.init();
   vi.spyOn(rxdb, 'connect').mockResolvedValue(undefined as never);
-  vi.spyOn(rxdb.versionManager, 'getCurrentBranch').mockResolvedValue({ id: 'main' } as unknown as RxDBBranch);
   return rxdb;
 };
 
@@ -716,7 +712,9 @@ describe('RxDBAdapterSqliteBase', () => {
       const adapter = new TestAdapter(rxdb, () => client);
 
       await expect(adapter.transaction(async () => 'no-log', false)).resolves.toBe('no-log');
-      expect(rxdb.versionManager.getCurrentBranch).not.toHaveBeenCalled();
+      // 「没读分支」这件事只能看 SQL：C2 起序幕的分支读经 executor 直发
+      // （`versionManager.getCurrentBranch` 已不在这条路上，对它下断言等于什么都没验）。
+      expect(executedSqls(client).filter(sql => BRANCH_TABLE_PATTERN.test(sql))).toHaveLength(0);
       const sqls = transactionSqls(client);
       expect(sqls).toHaveLength(2);
       expect(sqls[0]).toContain('BEGIN;');
@@ -797,7 +795,6 @@ describe('RxDBAdapterSqliteBase', () => {
       rxdb.addEventListener(TRANSACTION_ROLLBACK, rollbackListener);
       rxdb.init();
       vi.spyOn(rxdb, 'connect').mockResolvedValue(undefined as never);
-      vi.spyOn(rxdb.versionManager, 'getCurrentBranch').mockResolvedValue({ id: 'main' } as RxDBBranch);
       const entityListener = vi.fn();
       const beginFailure = new Error('real begin listener boom');
       const beginListener = () => {
@@ -1132,10 +1129,10 @@ describe('RxDBAdapterSqliteBase', () => {
   });
 
   // 本包所有物理表名都由 get_table_name(name, namespace) => `${namespace}$${name}` 生成，
-  // 而 QueryCacheRepository 传进来的是**逻辑实体名**（如 'Todo'）。此前三个方法把它直接当表名，
+  // 而 QueryCacheEngine 传进来的是**逻辑实体名**（如 'Todo'）。此前三个方法把它直接当表名，
   // 真机执行必然 `no such table: Todo`；updatedAt 也被硬编码为列名，自定义 columnName 的实体会再次失败。
   // 对照 PGlite 适配器同名方法，它走的是 schemaManager.getEntityMetadata → metadata.tableName。
-  // QueryCache 的 upsertMany / deleteByIds 是**真实数据写路径**（QueryCacheRepository 的
+  // QueryCache 的 upsertMany / deleteByIds 是**真实数据写路径**（QueryCacheEngine 的
   // create/update/delete/pull 全经此写本地缓存），由 RxJS Observable 驱动、落地时机不可控。
   // 它们原先走 internalQuery → 不入队、不看 #transaction_lock，而 #client() 是同一个连接，
   // 于是只要有 transaction() 在跑，这些写入就会被该事务的 ROLLBACK 一并回滚 ——

@@ -325,11 +325,11 @@ export default class TodoPage implements AfterViewInit {
   }
 
   async pull(): Promise<void> {
-    await this.#sync(() => this.#rxdb.versionManager.pull());
+    await this.#sync(() => this.#rxdb.syncManager.pull());
   }
 
   async push(): Promise<void> {
-    await this.#sync(() => this.#rxdb.versionManager.push());
+    await this.#sync(() => this.#rxdb.syncManager.push());
   }
 
   async #sync(operation: () => Promise<unknown>): Promise<void> {

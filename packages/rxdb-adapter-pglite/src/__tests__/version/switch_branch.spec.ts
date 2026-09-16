@@ -8,6 +8,7 @@ import {
   RxDBEntityLocalUpdatedEventData,
   SyncType
 } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -36,6 +37,7 @@ describe('switch_branch 单元测试', () => {
     );
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

@@ -5,6 +5,7 @@
  */
 
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -31,6 +32,7 @@ describe('分支创建 (createBranch)', () => {
       return adapter;
     });
 
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

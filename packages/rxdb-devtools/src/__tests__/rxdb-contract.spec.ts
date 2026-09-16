@@ -18,8 +18,14 @@
  */
 import type { EntityMetadata, EntityType, RxDBEvent } from '@aiao/rxdb';
 import { getEntityMetadata, RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
+import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DevToolsEntityMetadata, DevToolsRxDB, GetEntityMetadataFn } from '../connector.js';
+import type {
+  DevToolsEntityMetadata,
+  DevToolsRxDB,
+  DevToolsVersionManager,
+  GetEntityMetadataFn
+} from '../connector.js';
 import { DevToolsConnector, RXDB_EVENT_TYPES } from '../connector.js';
 import { RXDB_DEVTOOLS_MESSAGE } from '../types.js';
 import {
@@ -87,6 +93,20 @@ describe('rxdb contract', () => {
       expect(metadata.name).toBe('RxDBBranch');
       expect(widened).toBeDefined();
       expect(readMetadata(RxDBBranch)?.name).toBe('RxDBBranch');
+    });
+
+    // `DevToolsVersionManager` 是本包唯一手写的上游形状——`VersionManager` 住在
+    // `@aiao/rxdb-plugin-history` 里，而装不装历史插件是宿主的自由，devtools 不该
+    // 把它写进自己的依赖拓扑（见 `connector-types.ts` 的 @remarks）。手写就会漂移，
+    // 所以这里把真实 `VersionManager` 赋过去：上游改了三个分支写方法中任何一个的签名，
+    // 这一行先编译失败，而不是等面板发出一条永远失败的命令。
+    //
+    // 插件只作为 **devDependency + type-only import** 出现：类型在编译期擦除，
+    // 不进运行时产物，也不给 devtools 的消费者增加安装拓扑负担。
+    it('MUST keep the real VersionManager assignable to DevToolsVersionManager', () => {
+      const versionManager: DevToolsVersionManager = {} as VersionManager;
+
+      expect(versionManager).toBeDefined();
     });
 
     it('MUST read encrypted property names off the real EntityMetadata shape', () => {

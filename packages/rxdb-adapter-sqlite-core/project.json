@@ -28,6 +28,14 @@
       }
     },
     "coverage-acceptance": {
+      "// dependsOn": "这个 target 跑的不止自己，还有 wa-sqlite / sqlite / sqlite-wasm / sqliteai 四个包**自己的** spec（见 vitest.coverage-acceptance.config.mts 的 suiteRoots）。可 `^build` 只沿 sqlite-core 自己的依赖图走，够不到那些 spec 独有的 workspace 包 —— 比如 querycache-identity.spec.ts 要的 @aiao/rxdb-plugin-querycache / @aiao/rxdb-plugin-sync 是 sqlite-wasm 的 devDep，不是 sqlite-core 的。这些包的 exports 指向 dist/index.js，没建出来就是 vite 的 Failed to resolve import，落到 runner 上是 `Failed to import test file`。nx 不支持 `project:^target`，所以挂各包的 `build-deps`（@nx/js/typescript 推断出的 `nx:noop + dependsOn ^build`）—— 只补它们的依赖树，不白建这四个包自己的 dist（spec 走源码）。",
+      "dependsOn": [
+        "^build",
+        "rxdb-adapter-wa-sqlite:build-deps",
+        "rxdb-adapter-sqlite:build-deps",
+        "rxdb-adapter-sqlite-wasm:build-deps",
+        "rxdb-adapter-sqliteai:build-deps"
+      ],
       "executor": "nx:run-commands",
       "cache": false,
       "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-sqlite-core"],

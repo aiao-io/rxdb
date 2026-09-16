@@ -1,11 +1,11 @@
 ---
 id: US-015
 title: 插件依赖声明与按需装卸
-status: In Review
+status: Done
 priority: Medium
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-08-21
+updated: 2026-09-15
 tags: [lifecycle, plugin, public-api, dependency]
 ---
 
@@ -26,21 +26,18 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                     | 直接前置        | AC 区段   | 状态                                   |
-| ---- | ------------------------------------------------------------------------ | --------------- | --------- | -------------------------------------- |
-| A    | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 | US-014          | AC#1～12  | ✅ 已交付 2026-08-21                   |
-| B    | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    | 阶段 A          | AC#13～17 | ⬜ 已移出承诺范围                      |
-| 横切 | 契约测试、覆盖率门禁与插件作者文档                                       | 阶段 A + 阶段 B | AC#18～20 | ✅ AC#18 / #20；⬜ AC#19 随阶段 B 推迟 |
+| 阶段 | 交付                                                                     | 直接前置        | AC 区段   | 状态                                  |
+| ---- | ------------------------------------------------------------------------ | --------------- | --------- | ------------------------------------- |
+| A    | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 | US-014          | AC#1～12  | ✅ 已交付 2026-08-21                  |
+| B    | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    | 阶段 A          | AC#13～17 | ✅ 已交付 2026-09-15                  |
+| 横切 | 契约测试、覆盖率门禁与插件作者文档                                       | 阶段 A + 阶段 B | AC#18～20 | ✅ 已交付（#18 / #20 随 A，#19 随 B） |
 
 阶段顺序是有向的：阶段 A 先落地调度骨架与适配器这一类依赖，阶段 B 在同一骨架上加入插件间依赖图。
 反过来不成立——没有调度器就没有地方接图。
 
-**阶段 B 待第一个 `plugin:*` 消费方出现后再排。** 全仓库唯一的 `inject` 声明是 search 插件的
-`readonly inject = ['adapter:local']`（[`RxDBPluginSearch`](../../../packages/rxdb-plugin-search/src/plugin.ts)），
-没有任何插件声明 `plugin:*` 依赖——拓扑序与环检测是为一个不存在的依赖图准备的。
-按本文件原定的处置规则，只交付阶段 A 并置 `In Review`；AC#13～17 与 AC#19 **不计入完成度**
-（AC#18 契约测试与 AC#20 文档已随阶段 A 交付）。
-解锁条件与改判理由见 [epic-008 已移出承诺范围](../../epics/epic-008-lifecycle-scope.md#已移出承诺范围)。
+阶段 B 的消费方是 [US-025](./US-025-core-plugin-extraction.md)：阶段 C（历史/分支外移）与
+阶段 D（推拉同步外移）都需要插件依赖插件——sync 插件必须排在 history 插件之后，两者共用
+changelog 水位。两个阶段共用这一件硬前置。
 
 INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真相源。
 
@@ -80,12 +77,12 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 `#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[`RxDB`](../../../packages/rxdb/src/RxDB.ts)），键是**工厂函数**。
 `plugin.name` 全文只出现在 `console.error` 的模板串里——`#install_one_plugin`、
 `#track_plugin_install`、`#destroy_plugin` 三条路径的报错处
-（实现已抽到 [rxdb.plugin-lifecycle.ts:75/101/182-188](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L75-L188)，
-RxDB.ts 里只剩薄委托）——**从来没有被当作索引用过**。
+（实现已抽到 [rxdb.plugin-lifecycle.ts:77/103/196-202](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L77-L202)，
+RxDB.ts 里只剩薄委托）——阶段 A 之前**从来没有被当作索引用过**。
 后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」
 （[`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂，
-不匹配时抛 `already installed with an incompatible instance`）。要支持按名字声明依赖，
-必须先补上这个索引——见 D4，落地归阶段 B。
+不匹配时抛 `already installed with an incompatible instance`）。按名字声明依赖要的正是这个索引：
+阶段 B 的 `RxDB.#plugin_by_name` 与 `getPlugins(name)` 补上它，裁决规则见 D4，验收见 AC#17。
 
 ### 证据三：部分断连已有信号，但没有依赖释放
 
@@ -418,23 +415,23 @@ async install(scope: LifecycleScope) {
 
 | #   | 前置条件                                           | 操作                                                   | 预期结果                                                                                                                                                                                                                                         | 状态 |
 | --- | -------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 13  | 插件 B `inject: ['plugin:search']`                 | `init()` + `connect()`                                 | 安装顺序为 search → B，且只有 search 处于 `active` 时 B 才开始安装（D3）；释放顺序为 B → search（逆拓扑），优先于 US-014 的逆插入序                                                                                                              | ⬜   |
-| 14  | 两个不同工厂都声明 `name = 'search'`               | 均 `use()`，且有第三方插件 `inject: ['plugin:search']` | 按 D4 裁决：重名本身只 `console.warn`；**只有当该名字被 inject 时**才抛出「依赖歧义」错误，错误信息列出全部候选                                                                                                                                  | ⬜   |
-| 15  | 插件声明 `inject: ['plugin:nonexistent']`          | `init()` + `connect()`                                 | 该插件不安装；`connect()` 正常 resolve；`console.warn` 一次列出缺失项（INV-5）                                                                                                                                                                   | ⬜   |
-| 16  | A `inject: ['plugin:b']`、B `inject: ['plugin:a']` | `init()`                                               | 在**安装规划阶段**抛出环检测错误，信息给出完整环路径（`a → b → a`）；不进入半装状态，不等到运行时死锁才发现                                                                                                                                      | ⬜   |
-| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search 的 [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂 的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ⬜   |
+| 13  | 插件 B `inject: ['plugin:search']`                 | `init()` + `connect()`                                 | 安装顺序为 search → B，且只有 search 处于 `active` 时 B 才开始安装（D3）；释放顺序为 B → search（逆拓扑），优先于 US-014 的逆插入序                                                                                                              | ✅   |
+| 14  | 两个不同工厂都声明 `name = 'search'`               | 均 `use()`，且有第三方插件 `inject: ['plugin:search']` | 按 D4 裁决：重名本身只 `console.warn`；**只有当该名字被 inject 时**才抛出「依赖歧义」错误，错误信息列出全部候选                                                                                                                                  | ✅   |
+| 15  | 插件声明 `inject: ['plugin:nonexistent']`          | `init()` + `connect()`                                 | 该插件不安装；`connect()` 正常 resolve；`console.warn` 一次列出缺失项（INV-5）                                                                                                                                                                   | ✅   |
+| 16  | A `inject: ['plugin:b']`、B `inject: ['plugin:a']` | `init()`                                               | 在**安装规划阶段**抛出环检测错误，信息给出完整环路径（`a → b → a`）；不进入半装状态，不等到运行时死锁才发现                                                                                                                                      | ✅   |
+| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search 的 [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂 的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ✅   |
 | 18  | `RxDBPluginDependency` 完整取值                    | 跑契约测试                                             | D1 表中六种写法的编译期结果逐条成立，尤其 `'search'` 裸名与 `'plugin:Search'` 大写开头**编译失败**                                                                                                                                               | ✅   |
 
 > **AC#18 已在阶段 A 交付**：`RxDBPluginDependency` 的封闭取值是阶段 A 的契约前提，`plugin:*` 分支
 > 在类型层同期落地（解析仍属阶段 B），编译期契约因此当时就可测——见
 > [plugin-inject-contract.spec.ts](../../../packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts)，
-> 门禁是 `pnpm nx typecheck rxdb`。阶段 B 剩下的是 AC#13～17。
+> 门禁是 `pnpm nx typecheck rxdb`。阶段 B 落的是余下的 AC#13～17。
 
 ### 横切（AC#19～20）
 
 | #   | 前置条件     | 操作                                                                   | 预期结果                                                                                                                                                          | 状态 |
 | --- | ------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 19  | 全部改动完成 | `pnpm nx run-many -t lint test build --projects=tag:js-lib` 与门禁脚本 | 零 ESLint 警告；`@aiao/rxdb` 四项覆盖率 ≥ **90%**，`rxdb-plugin-search` ≥ **80%**；[rxdb.json](../../api-baseline/rxdb.json) 已同步新增导出；`pnpm test-all` 通过 | ⬜   |
+| 19  | 全部改动完成 | `pnpm nx run-many -t lint test build --projects=tag:js-lib` 与门禁脚本 | 零 ESLint 警告；`@aiao/rxdb` 四项覆盖率 ≥ **90%**，`rxdb-plugin-search` ≥ **80%**；[rxdb.json](../../api-baseline/rxdb.json) 已同步新增导出；`pnpm test-all` 通过 | ✅   |
 | 20  | 文档         | 检查插件作者文档                                                       | `inject` 的取值、未满足时的行为、纪元变化导致的重装，以及「不要在 `install()` 里再自己等依赖」的指引已写入 `website/docs/plugins/`                                | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -445,23 +442,40 @@ async install(scope: LifecycleScope) {
   并转发事件；**不要**把纪元比较散进 `#install_one_plugin` / `#destroy_plugin`
 - 状态只能由 reconcile loop 改写，不得让插件包各自维护第二套标志位
 - 环检测在**安装规划阶段**做（AC#16），不是等到运行时死锁才发现
-- 释放顺序：先按逆拓扑序，同层内再按 US-014 的逆插入序；两条规则的优先级写进 TSDoc
+- 规划期校验（[`assertPluginDependencyGraph`](../../../packages/rxdb/src/plugin/dependency-graph.ts)）
+  的挂点是 [`RxDB.use()`](../../../packages/rxdb/src/RxDB.ts)，**唯一一处**：`use()` 是插件注册的
+  唯一入口，按「先校验后提交」执行——拿「现有索引 + 本实例」的图过一遍，不通过就当这次 `use()`
+  没发生过。必须在注册处拒绝，不能推到生命周期阶段：宿主没有摘除插件的 API，一个成环或造成歧义的
+  实例一旦进了 `#plugin_map` 就会永久毒化之后每一次 `init()`，调用方拿到异常也无处补救。
+  校验既然在注册处完成，`installPlugin` / `installOnePlugin` 再挂一份就是永不命中的死代码，
+  外加每趟 reconcile 白跑一次 DFS
+- 释放顺序：安装序取**字典序最小的拓扑序**（每轮在入度归零的节点里选原始插入下标最小的那个），
+  释放序即其逆序；两条规则的优先级写进 TSDoc。这里的「同层保持插入序」只能是这个意思——
+  依赖边一旦跨链交错，「互不依赖的插件一律按逆插入序拆」就是**不可满足**的：
+  `[a(依赖 p), b(依赖 q), q, p]` 同时要求 `a` 先于 `p`、`b` 先于 `a`、`p` 先于 `b`，成环。
+  既然任何实现都得挑一种打破僵局的规则，就挑一条能写进契约、能被单测钉死的：
+  字典序最小的拓扑序唯一确定，且在所有合法序里离插入序最近。按 Kahn 批次整层输出也合法，
+  但它并不更贴近插入序（两者对 `[a, b, q, p]` 的 Kendall-tau 距离同为 4），
+  却要为「层」这个用户看不见的概念额外定义一套语义
 - 未满足依赖的插件**不得**进入 `#plugin_install_promises`（AC#3 / INV-4）
 - 阶段 A 不得为了简化调度而把 search 的 FTS DDL 挪出 `install()` 返回的 Promise（D2 附）
 
 ## 实现文件
 
-| 路径                                                                   | 阶段  | 用途                                                      |
-| ---------------------------------------------------------------------- | ----- | --------------------------------------------------------- |
-| `packages/rxdb/src/rxdb-plugin.ts`                                     | A     | `inject` 与 `RxDBPluginDependency`                        |
-| `packages/rxdb/src/plugin/dependency-scheduler.ts`                     | A / B | A 落调度骨架、纪元比较与装卸；B 加拓扑排序与环检测        |
-| `packages/rxdb/src/RxDB.ts`                                            | A / B | A 接入调度器、收窄 `#await_plugin_installs`；B 加名字索引 |
-| `packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts` | A / B | `inject` 取值的编译期约束                                 |
-| `packages/rxdb/src/plugin/__tests__/dependency-scheduler.spec.ts`      | A / B | 假宿主单测：AC#6 引用身份、强制测试 5 的单趟 reconcile    |
-| `packages/rxdb/src/__tests__/RxDB.plugin-inject.spec.ts`               | A / B | 运行时集成：AC#1～5、7～11 与四条强制并发测试             |
-| `packages/rxdb-plugin-search/src/plugin.ts`                            | A / B | A 声明 `inject` 并删自建等待路径；B 改用宿主名字索引      |
-| `requirements/api-baseline/rxdb.json`                                  | 横切  | 新增导出类型，基线同步                                    |
-| `website/docs/plugins/`                                                | 横切  | `inject` 的语义与迁移指引                                 |
+| 路径                                                                   | 阶段  | 用途                                                                    |
+| ---------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------- |
+| `packages/rxdb/src/rxdb-plugin.ts`                                     | A     | `inject` 与 `RxDBPluginDependency`                                      |
+| `packages/rxdb/src/plugin/dependency-scheduler.ts`                     | A / B | A 落调度骨架、纪元比较与装卸；B 加 `active` 边界唤醒与逆拓扑释放        |
+| `packages/rxdb/src/plugin/dependency-graph.ts`                         | B     | 纯函数图算法：唯一提供方解析、拓扑序、环检测                            |
+| `packages/rxdb/src/RxDBError.ts`                                       | B     | `RxDBPluginDependencyCycleError` / `RxDBPluginAmbiguousDependencyError` |
+| `packages/rxdb/src/rxdb.plugin-lifecycle.ts`                           | B     | `destroyPlugin` 改逆拓扑序                                              |
+| `packages/rxdb/src/RxDB.ts`                                            | A / B | A 接入调度器、收窄 `#await_plugin_installs`；B 加名字索引               |
+| `packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts` | A / B | `inject` 取值的编译期约束                                               |
+| `packages/rxdb/src/plugin/__tests__/dependency-scheduler.spec.ts`      | A / B | 假宿主单测：AC#6 引用身份、强制测试 5 的单趟 reconcile                  |
+| `packages/rxdb/src/__tests__/RxDB.plugin-inject.spec.ts`               | A / B | 运行时集成：AC#1～5、7～11 与四条强制并发测试                           |
+| `packages/rxdb-plugin-search/src/plugin.ts`                            | A / B | A 声明 `inject` 并删自建等待路径；B 改用宿主名字索引                    |
+| `requirements/api-baseline/rxdb.json`                                  | 横切  | 新增导出类型，基线同步                                                  |
+| `website/docs/plugins/`                                                | 横切  | `inject` 的语义与迁移指引                                               |
 
 ## References
 

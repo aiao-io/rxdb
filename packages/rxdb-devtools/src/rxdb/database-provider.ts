@@ -31,7 +31,7 @@ import { RXDB_EVENT_TYPES, toEventRecord } from '../connector-events.js';
 import { maskEncryptedDocument, maskEncryptedEvent, type ConnectorMaskContext } from '../connector-mask.js';
 import { serializeDocument } from '../connector-runtime.js';
 import { subscribeOnce, type Subscribable } from '../connector-subscribe-once.js';
-import type { DevToolsRxDB, GetEntityMetadataFn } from '../connector-types.js';
+import type { DevToolsRxDB, DevToolsVersionManager, GetEntityMetadataFn } from '../connector-types.js';
 import {
   DEVTOOLS_PROVIDER_OPERATIONS,
   type DevToolsProviderDescriptor,
@@ -255,13 +255,23 @@ export function createDevToolsRxdbDatabaseProvider(
     return ok({ branches: rows.map(toBranch) });
   };
 
-  /** 三个分支写操作只在「调哪个方法」上不同，参数与应答形状完全一致。 */
+  /**
+   * 三个分支写操作只在「调哪个方法」上不同，参数与应答形状完全一致。
+   *
+   * @remarks
+   * 回调收的是 {@link DevToolsVersionManager} 而不是整个实例：分支写能力自 US-025 阶段 C
+   * 起随 `@aiao/rxdb-plugin-history` 走，宿主没装就没有这个槽位。这里与上面 `getBranches`
+   * 对缺失分支实体的处理同调——据实回一条失败，而不是让一次没发生的写看起来成功了。
+   * 用 `provider_unsupported` 而非 `resource_not_found`：缺的是这台宿主的能力，不是某个分支。
+   */
   const branchOperation =
-    (run: (rxdb: DevToolsRxDB, id: string) => Promise<unknown>): Handler =>
+    (run: (versionManager: DevToolsVersionManager, id: string) => Promise<unknown>): Handler =>
     async (rxdb, params) => {
       const id = readIdentifier(params, 'id');
       if (id === undefined) return failure('invalid_path');
-      await run(rxdb, id);
+      const versionManager = rxdb.versionManager;
+      if (versionManager === undefined) return failure('provider_unsupported');
+      await run(versionManager, id);
       return ok({ id });
     };
 
@@ -270,9 +280,9 @@ export function createDevToolsRxdbDatabaseProvider(
     query,
     events,
     'get-branches': getBranches,
-    'switch-branch': branchOperation((rxdb, id) => rxdb.versionManager.switchBranch(id)),
-    'create-branch': branchOperation((rxdb, id) => rxdb.versionManager.createBranch(id)),
-    'delete-branch': branchOperation((rxdb, id) => rxdb.versionManager.removeBranch(id))
+    'switch-branch': branchOperation((versionManager, id) => versionManager.switchBranch(id)),
+    'create-branch': branchOperation((versionManager, id) => versionManager.createBranch(id)),
+    'delete-branch': branchOperation((versionManager, id) => versionManager.removeBranch(id))
   };
 
   return {

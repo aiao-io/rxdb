@@ -69,6 +69,15 @@ interface PluginActivation {
   state: PluginActivationState;
   /** 本次安装绑定的依赖实例元组；未安装时为空 */
   deps: readonly object[];
+  /**
+   * 正在释放的那次安装所绑定的依赖元组，释放**真正落地**后才清空。
+   *
+   * 「谁依赖我」只能按依赖实例反查，而 `deps` 在进入 `disposing` 的那一刻就得清掉
+   * （它代表的是「当前这次安装绑着谁」，作用域都要撤了自然不再绑任何东西）。
+   * 两件事挤在一个字段上，仍在释放的依赖方就会从反向依赖图里消失，提供方于是
+   * 先于它失效（INV-7）。拆成两个字段，反查覆盖 `deps ∪ releasing`。
+   */
+  releasing: readonly object[];
   scope: LifecycleScope | undefined;
   /** `install()` 的返回值；`connect()` 靠它传播安装失败 */
   installPromise: Promise<void> | undefined;
@@ -112,11 +121,10 @@ const epochEquals = (a: readonly object[], b: readonly object[]): boolean =>
  * 并发模型是「单飞 + 最新目标胜出」：每个插件最多有一件在飞的异步转移，期间到来的
  * reconcile 只置复查位；转移落地后直接对齐**当前**目标，中间纪元一律不启动。
  *
- * 阶段 A 只解析 `adapter:*`。`plugin:*` 依赖在宿主侧恒为未就绪，因此声明它的插件会停在
- * `waiting`，由宿主经 {@link PluginDependencyScheduler.reportUnsatisfied} 点名一次，
- * 而不是静默消失；阶段 B 的 `active` 边界通知挂载点在
- * {@link PluginDependencyScheduler.#applyInstallResult}——此刻没有依赖方需要被唤醒，
- * 所以非 `active` 的状态转移不会引发任何额外扫描。
+ * 插件间依赖（`plugin:*`）由宿主解析成**提供方实例**后喂进来，调度器因此不认识任何名字：
+ * 「谁依赖我」靠 `deps` 里的引用反查即可，拆卸时据此按逆拓扑序先释放依赖方（INV-7）。
+ * 依赖缺失的插件停在 `waiting`，由宿主经 {@link PluginDependencyScheduler.reportUnsatisfied}
+ * 点名一次，而不是静默消失。
  */
 export class PluginDependencyScheduler {
   readonly #host: PluginSchedulerHost;
@@ -140,6 +148,7 @@ export class PluginDependencyScheduler {
     this.#activations.set(plugin, {
       state: 'registered',
       deps: EMPTY_EPOCH,
+      releasing: EMPTY_EPOCH,
       scope: undefined,
       installPromise: undefined,
       inFlight: undefined,
@@ -280,6 +289,7 @@ export class PluginDependencyScheduler {
     for (const activation of this.#activations.values()) {
       activation.state = 'registered';
       activation.deps = EMPTY_EPOCH;
+      activation.releasing = EMPTY_EPOCH;
       activation.scope = undefined;
       activation.installPromise = undefined;
       activation.inFlight = undefined;
@@ -347,14 +357,56 @@ export class PluginDependencyScheduler {
     const scope = activation.scope;
     activation.state = 'disposing';
     activation.scope = undefined;
+    activation.releasing = activation.deps;
     activation.deps = EMPTY_EPOCH;
     activation.installPromise = undefined;
     this.#startTransition(activation, async () => {
+      // 逆拓扑：依赖本插件的那些先释放完，本插件的作用域才撤（INV-7 / AC#13）
+      await this.#releaseDependents(plugin);
       if (scope !== undefined) await this.#host.releaseScope(plugin, scope);
+      activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       // 释放期间依赖可能已经以新实例回来了，落地后必须重新对齐（AC#8）
       activation.recheck = true;
     });
+  }
+
+  /**
+   * 递归释放依赖本插件的那些插件，依赖方先于提供方。
+   *
+   * @param target - 正在释放的插件实例
+   *
+   * @remarks
+   * 反查靠 `deps` 与 `releasing` 里的**实例引用**——`plugin:*` 解析出来的就是提供方实例
+   * 本身（INV-3），于是调度器不需要认识任何名字就能回答「谁依赖我」。两个字段都要看：
+   * 依赖方一旦进入 `disposing`，绑定关系就搬到了 `releasing`，只看 `deps` 会让它在作用域
+   * 真正撤掉之前从图上消失。递归必然终止：依赖成环在安装规划阶段就被拒了（AC#16），
+   * 图上不存在回边。
+   *
+   * 处于 `installing` 的依赖方**不自己释放，但一定要等**：那个作用域的唯一释放点是
+   * {@link PluginDependencyScheduler.#applyInstallResult} 的纪元校验（本插件的 `disposing`
+   * 已经同步落地，宿主随即把它报成未就绪），在这里插手会让同一个作用域被释放两次。
+   * 可是「不由我释放」不等于「不必等它释放完」——不等就意味着 provider 先于仍在安装的
+   * consumer 失效，consumer 的安装尾段与 disposer 跑在一份已销毁的依赖上（INV-7）。
+   * 所以这里只 `await` 它那件在飞的转移，释放动作仍归它自己。
+   *
+   * 循环到「没有依赖方还在飞、也没有依赖方还活着」为止：等的那一件落地后，依赖方可能
+   * 刚转成 `active`（它的安装先于本插件的 `disposing` 完成），那就轮到下一圈释放它。
+   * 必然终止——本插件停在 `disposing`，宿主对 `plugin:*` 的就绪判据是提供方 `active`
+   * （US-015 D3），等待期间没有任何依赖方能重新装上来。
+   */
+  async #releaseDependents(target: IRxDBPlugin): Promise<void> {
+    for (;;) {
+      const pending: Promise<void>[] = [];
+      for (const [plugin, activation] of this.#activations) {
+        if (!activation.deps.includes(target) && !activation.releasing.includes(target)) continue;
+        // 递归发生在 `#release` 内部：依赖方自己的依赖方更早被释放，孙子先于儿子
+        if (activation.inFlight === undefined && activation.state === 'active') this.#release(plugin, activation);
+        if (activation.inFlight !== undefined) pending.push(activation.inFlight);
+      }
+      if (pending.length === 0) return;
+      await Promise.allSettled(pending);
+    }
   }
 
   /** 建作用域、发起安装，并把结果对齐到落地时的最新目标。 */
@@ -392,7 +444,7 @@ export class PluginDependencyScheduler {
    * 丢弃（AC#7）——它登记的东西绑在一条已经没用的连接上。此时插件不进入 `active`，
    * 已登记的作用域恰好释放一次。
    *
-   * 阶段 B 的 `active` 边界通知挂在这里：只有跨越 `active` 的那一步需要唤醒依赖方，
+   * `active` 边界的通知挂在这里：只有跨越 `active` 的那一步需要唤醒依赖方，
    * `waiting → installing` 之类的中间转移不触发任何扫描。
    */
   async #applyInstallResult(
@@ -409,15 +461,21 @@ export class PluginDependencyScheduler {
     if (!target.satisfied || !epochEquals(activation.deps, target.deps)) {
       activation.state = 'disposing';
       activation.scope = undefined;
+      // 与 `#release` 同一条理由：作用域还没撤完，反查就还得找得到本插件（INV-7）
+      activation.releasing = activation.deps;
       activation.deps = EMPTY_EPOCH;
       activation.installPromise = undefined;
       await this.#host.releaseScope(plugin, scope);
+      activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       activation.recheck = true;
       return;
     }
     if (failure === undefined) {
       activation.state = 'active';
+      // 跨越 active 边界：`plugin:*` 的就绪判据就是这一刻（D3），等着本插件的那些要被唤醒。
+      // 只在确有等待者时复查，免得给「没人依赖我」这个常见情形白扫一趟。
+      activation.recheck = this.#hasWaiters(activation);
       return;
     }
     // 失败绑定当时的依赖纪元（activation.deps 就是它），同纪元内不再重试
@@ -427,11 +485,25 @@ export class PluginDependencyScheduler {
   }
 
   /**
+   * 除 `self` 之外是否还有插件停在等待态。
+   *
+   * @param self - 刚刚落地的那个激活记录
+   * @returns 有等待者返回 `true`
+   */
+  #hasWaiters(self: PluginActivation): boolean {
+    for (const activation of this.#activations.values()) {
+      if (activation !== self && activation.state === 'waiting') return true;
+    }
+    return false;
+  }
+
+  /**
    * 发起一件在飞的转移。
    *
    * @remarks
-   * 转移期间本插件不参与扫描；落地后只在**确有必要**时复查——释放之后要看依赖有没有回来，
-   * 而一次干净的安装成功已经在落地时对齐过目标，再扫一趟纯属浪费。
+   * 转移期间本插件不参与扫描；落地后只在**确有必要**时复查——释放之后要看依赖有没有回来；
+   * 安装成功则只在还有插件停在等待态时复查（它们可能正等着本插件进入 `active`），
+   * 没有等待者时那一趟扫描不会改变任何状态，纯属浪费。
    *
    * 只有**仍然登记在册**的那一件转移有权改写记录：{@link PluginDependencyScheduler.reset}
    * 之后可能已经开始了更晚的一件，让作废的那件把 `inFlight` 清掉，

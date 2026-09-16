@@ -114,6 +114,7 @@ const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = tr
     create: vi.fn(async (entity: unknown) => entity)
   };
   const listeners = new Map<string, ((event: EntityChangeEvent) => void)[]>();
+  const installedPlugins: { readonly name: string }[] = [];
   const activeAdapter =
     exposesRawQuery ?
       {
@@ -133,6 +134,9 @@ const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = tr
     // 连接信号（`connect` / `adapterConnected$` / `localAdapter$`）插件已经不再读，
     // 假宿主也就不提供——真读了会立刻 TypeError，而不是静默走回老路。
     localAdapterSync: activeAdapter,
+    // 工厂的「已装过没有」自检走宿主索引（US-015 AC#17）。真宿主由 `use()` 在工厂返回
+    // **之后**把实例推进索引，所以这里也由用例显式 push，时序与真实一致。
+    getPlugins: vi.fn((name: string) => installedPlugins.filter(entry => entry.name === name)),
     addEventListener: vi.fn((type: string, listener: (event: EntityChangeEvent) => void) => {
       const list = listeners.get(type) ?? [];
       list.push(listener);
@@ -151,6 +155,7 @@ const buildFakeRxdb = (entities: unknown[] = [FakeArticle], exposesRawQuery = tr
     rawQuery,
     adapter: activeAdapter,
     listeners,
+    installedPlugins,
     rxdb: rxdb as unknown as RxDB
   };
 };
@@ -420,6 +425,8 @@ describe('search plugin lifecycle', () => {
   it('publishes the plugin instance as a stable readonly RxDB property', () => {
     const fake = buildFakeRxdb();
     const plugin = rxDBPluginSearch(fake.rxdb, { debounce: 0 }) as RxDBPluginSearch;
+    // `use()` 在工厂返回之后才提交索引，这一句就是那一步
+    fake.installedPlugins.push(plugin);
 
     expect(fake.rxdb.searchPlugin).toBe(plugin);
     expect(Object.getOwnPropertyDescriptor(fake.rxdb, 'searchPlugin')).toMatchObject({
@@ -428,12 +435,25 @@ describe('search plugin lifecycle', () => {
       configurable: false,
       writable: false
     });
+    // 再来一次：自检从索引命中，原样返回既有实例，不会去重定义那个 configurable: false 的门面
     expect(rxDBPluginSearch(fake.rxdb, { debounce: 999 })).toBe(plugin);
   });
 
-  it('rejects an incompatible pre-existing searchPlugin property', () => {
+  it('AC#17 自检读宿主索引，不读 db 上的门面属性', () => {
     const fake = buildFakeRxdb();
-    Object.defineProperty(fake.rxdb, 'searchPlugin', { value: Object.freeze({}) });
+    const existing = rxDBPluginSearch(buildFakeRxdb().rxdb, { debounce: 0 }) as RxDBPluginSearch;
+    fake.installedPlugins.push(existing);
+
+    // 这个库上从没定义过 `searchPlugin`，索引里却有候选 —— 自检照样命中。
+    // 反过来靠自有属性探测的写法在这里会当场装出第二个实例。
+    expect(rxDBPluginSearch(fake.rxdb, { debounce: 0 })).toBe(existing);
+    expect(Object.hasOwn(fake.rxdb, 'searchPlugin')).toBe(false);
+  });
+
+  it('rejects an incompatible pre-existing search plugin', () => {
+    const fake = buildFakeRxdb();
+    // 别的包也注册了一个叫 search 的插件：名字撞上了，类型对不上
+    fake.installedPlugins.push({ name: 'search' });
 
     expect(() => rxDBPluginSearch(fake.rxdb, { debounce: 0 })).toThrow(
       'search plugin is already installed with an incompatible instance'

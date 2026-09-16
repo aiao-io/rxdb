@@ -74,36 +74,20 @@
         "kind": "type"
       },
       {
-        "name": "BranchChangeReader",
-        "kind": "type"
+        "name": "buildOfflineWriteRepositoryRules",
+        "kind": "value"
       },
       {
-        "name": "BulkSyncOptions",
-        "kind": "type"
+        "name": "buildPushableRepositoryRules",
+        "kind": "value"
       },
       {
-        "name": "BulkSyncResult",
-        "kind": "type"
+        "name": "calculateOrderBy",
+        "kind": "value"
       },
       {
         "name": "capabilityWatermarkName",
         "kind": "value"
-      },
-      {
-        "name": "CheckRepositoryUpdatesResult",
-        "kind": "type"
-      },
-      {
-        "name": "cleanupExpired",
-        "kind": "value"
-      },
-      {
-        "name": "CleanupExpiredOptions",
-        "kind": "type"
-      },
-      {
-        "name": "CleanupExpiredResult",
-        "kind": "type"
       },
       {
         "name": "CodeFormat",
@@ -180,10 +164,6 @@
       {
         "name": "decodeRxDBEntityIdentity",
         "kind": "value"
-      },
-      {
-        "name": "DependencyGraph",
-        "kind": "type"
       },
       {
         "name": "describeEntityFields",
@@ -280,6 +260,10 @@
       {
         "name": "EntityData",
         "kind": "type"
+      },
+      {
+        "name": "entityDefaultNow",
+        "kind": "value"
       },
       {
         "name": "EntityFieldConfig",
@@ -518,24 +502,16 @@
         "kind": "value"
       },
       {
-        "name": "find_branch_path_to_root",
-        "kind": "value"
-      },
-      {
-        "name": "find_switch_branch_step",
-        "kind": "value"
-      },
-      {
         "name": "FindAllOptions",
-        "kind": "type"
-      },
-      {
-        "name": "FindBranchPathOptions",
         "kind": "type"
       },
       {
         "name": "FindByCursorOptions",
         "kind": "type"
+      },
+      {
+        "name": "findCurrentSyncRecord",
+        "kind": "value"
       },
       {
         "name": "FindOneOptions",
@@ -566,7 +542,7 @@
         "kind": "value"
       },
       {
-        "name": "get_branch_max_change",
+        "name": "getCurrentBranch",
         "kind": "value"
       },
       {
@@ -594,11 +570,27 @@
         "kind": "value"
       },
       {
+        "name": "getLocalSystemRepositories",
+        "kind": "value"
+      },
+      {
         "name": "getNeedRemoveEntities",
         "kind": "value"
       },
       {
         "name": "getNeedSaveEntities",
+        "kind": "value"
+      },
+      {
+        "name": "getOrCreateSyncRecord",
+        "kind": "value"
+      },
+      {
+        "name": "getRemoteSystemRepositories",
+        "kind": "value"
+      },
+      {
+        "name": "getRxDBChangeEntityIdQueryValues",
         "kind": "value"
       },
       {
@@ -730,6 +722,10 @@
         "kind": "value"
       },
       {
+        "name": "isEntityMatchWhere",
+        "kind": "value"
+      },
+      {
         "name": "isNetworkError",
         "kind": "value"
       },
@@ -740,6 +736,10 @@
       {
         "name": "ISortableTreeEntity",
         "kind": "type"
+      },
+      {
+        "name": "isRemoteNewer",
+        "kind": "value"
       },
       {
         "name": "isRepositorySyncEnabled",
@@ -795,6 +795,14 @@
       },
       {
         "name": "KeyValueSchemaEntry",
+        "kind": "type"
+      },
+      {
+        "name": "LocalRxDBBranchRepository",
+        "kind": "type"
+      },
+      {
+        "name": "LocalRxDBChangeRepository",
         "kind": "type"
       },
       {
@@ -954,6 +962,10 @@
         "kind": "value"
       },
       {
+        "name": "parseUpdatedAt",
+        "kind": "value"
+      },
+      {
         "name": "PercentageFormat",
         "kind": "type"
       },
@@ -1014,6 +1026,10 @@
         "kind": "type"
       },
       {
+        "name": "QueryCacheEngineFactory",
+        "kind": "type"
+      },
+      {
         "name": "QueryCacheEntity",
         "kind": "type"
       },
@@ -1034,7 +1050,15 @@
         "kind": "type"
       },
       {
+        "name": "QueryCacheOutboxProvider",
+        "kind": "type"
+      },
+      {
         "name": "QueryCachePendingWriteIds",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCachePrimary",
         "kind": "type"
       },
       {
@@ -1042,8 +1066,12 @@
         "kind": "type"
       },
       {
-        "name": "QueryCacheRepository",
-        "kind": "both"
+        "name": "QueryCacheSession",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCacheSessionContext",
+        "kind": "type"
       },
       {
         "name": "QueryManager",
@@ -1060,6 +1088,10 @@
       {
         "name": "queryNeedRefreshUpdate",
         "kind": "value"
+      },
+      {
+        "name": "QueryOptions",
+        "kind": "type"
       },
       {
         "name": "QueryTask",
@@ -1186,6 +1218,14 @@
         "kind": "type"
       },
       {
+        "name": "RemoteRxDBBranchRepository",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteRxDBChangeRepository",
+        "kind": "type"
+      },
+      {
         "name": "Repository",
         "kind": "both"
       },
@@ -1246,10 +1286,6 @@
         "kind": "both"
       },
       {
-        "name": "RepositorySyncStatus",
-        "kind": "type"
-      },
-      {
         "name": "RepositorySyncSwitch",
         "kind": "type"
       },
@@ -1258,8 +1294,20 @@
         "kind": "type"
       },
       {
+        "name": "resolve_current_branch",
+        "kind": "value"
+      },
+      {
         "name": "ResolvedTrustedWrite",
         "kind": "type"
+      },
+      {
+        "name": "resolvePullIneligibility",
+        "kind": "value"
+      },
+      {
+        "name": "resolvePushIneligibility",
+        "kind": "value"
       },
       {
         "name": "resolveSingleActiveBranch",
@@ -1418,10 +1466,6 @@
         "kind": "type"
       },
       {
-        "name": "RxDBCrossScopeTransactionError",
-        "kind": "both"
-      },
-      {
         "name": "RxDBDependencyFailedError",
         "kind": "both"
       },
@@ -1514,6 +1558,10 @@
         "kind": "type"
       },
       {
+        "name": "RxDBMissingPluginError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBMissingPrimaryAdapterError",
         "kind": "both"
       },
@@ -1538,6 +1586,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBPluginAmbiguousDependencyError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBPluginBase",
         "kind": "both"
       },
@@ -1546,8 +1598,20 @@
         "kind": "type"
       },
       {
+        "name": "RxDBPluginDependencyCycleError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBQueryCacheCapabilityError",
         "kind": "both"
+      },
+      {
+        "name": "RxDBRepositories",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBRepositoryName",
+        "kind": "type"
       },
       {
         "name": "RxDBScalar",
@@ -1694,10 +1758,6 @@
         "kind": "both"
       },
       {
-        "name": "SwitchBranchStep",
-        "kind": "type"
-      },
-      {
         "name": "SwitchVersionActions",
         "kind": "type"
       },
@@ -1728,14 +1788,6 @@
       {
         "name": "SyncBeginEvent",
         "kind": "both"
-      },
-      {
-        "name": "syncBranches",
-        "kind": "value"
-      },
-      {
-        "name": "SyncBranchesResult",
-        "kind": "type"
       },
       {
         "name": "SyncCompleteEvent",
@@ -1976,10 +2028,6 @@
       {
         "name": "validateFieldValue",
         "kind": "value"
-      },
-      {
-        "name": "VersionManager",
-        "kind": "type"
       },
       {
         "name": "WorkingTreeCaptureHook",

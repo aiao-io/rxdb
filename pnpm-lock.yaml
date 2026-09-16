@@ -560,6 +560,9 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
@@ -729,6 +732,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-plugin-search':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-search
@@ -802,6 +808,9 @@ importers:
       '@aiao/rxdb-plugin-graph':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-graph
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
       '@aiao/rxdb-plugin-search':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-search
@@ -1180,6 +1189,15 @@ importers:
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1208,6 +1226,15 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1254,6 +1281,15 @@ importers:
         specifier: ^5.9.0
         version: 5.9.0
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1279,6 +1315,15 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1307,6 +1352,9 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1335,6 +1383,15 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1357,6 +1414,15 @@ importers:
         specifier: 3.50.4-wasm.1.0.0-sync.1.1.3-vector.1.1.2-memory.1.3.5
         version: 3.50.4-wasm.1.0.0-sync.1.1.3-vector.1.1.2-memory.1.3.5
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1385,6 +1451,15 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1401,6 +1476,9 @@ importers:
         specifier: workspace:*
         version: link:../rxdb-adapter-sqlite-core
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1420,6 +1498,15 @@ importers:
         specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
         version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
     devDependencies:
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1490,6 +1577,9 @@ importers:
       '@aiao/rxdb-adapter-encrypted':
         specifier: workspace:*
         version: link:../rxdb-adapter-encrypted
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.102.0)(sass@1.104.0)(terser@5.51.2)(yaml@2.9.0))
@@ -1515,6 +1605,30 @@ importers:
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
         version: link:../rxdb-adapter-wa-sqlite
+
+  packages/rxdb-plugin-history:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
+  packages/rxdb-plugin-querycache:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
   packages/rxdb-plugin-search:
     dependencies:
@@ -1635,11 +1749,29 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.102.0)(sass@1.104.0)(terser@5.51.2)(yaml@2.9.0))
 
+  packages/rxdb-plugin-sync:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
   packages/rxdb-plugin-working-tree:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-history
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -39669,7 +39801,7 @@ snapshots:
   vite@8.1.5(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.102.0)(sass@1.101.0)(terser@5.51.2)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.33.0
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       postcss: 8.5.28
       rolldown: 1.1.5
       tinyglobby: 0.2.17

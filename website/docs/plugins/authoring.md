@@ -180,7 +180,31 @@ class ExampleSearchPlugin implements IRxDBPlugin {
 
 `inject` 的取值是一个封闭集合：`'adapter:local'`、`'adapter:remote'`、`` `plugin:${string}` ``（首字母小写的插件名）。编译期挡住的是**形状**——裸名 `'search'`、大写开头的 `'plugin:Search'`、未知前缀 `'service:logger'`、拼错的 `'adapter:cache'` 都编译失败。插件名本身拼错（`'plugin:serch'`）形状仍然合法，编译期无从判别，只会在运行时以「依赖永远不满足」的警告暴露，见下一节。
 
-`plugin:*` 属于阶段 B，尚未实现解析：现在声明它等同于「依赖永远不满足」，插件不会被安装，控制台会有一条警告。想表达插件之间的先后，暂时仍靠**注册顺序**——`use()` 的调用序就是安装序，见 [US-015](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-015-plugin-inject-dependency.md)。
+### 依赖另一个插件
+
+`plugin:x` 里的 `x` 就是对方的 `name`。**就绪的判据是「对方已经装好」，不是「对方已经注册」**：只有提供方的 `install()` 真正落地之后，依赖方才开始安装。
+
+```typescript
+class ReportPlugin implements IRxDBPlugin {
+  readonly name = 'report';
+  readonly inject = ['plugin:search'] as const; // search 装好了我才开工
+  readonly lifecycle = 'scoped' as const;
+}
+```
+
+注册顺序不影响这一点——先 `use(reportPlugin)` 再 `use(searchPlugin)` 同样是 search 先装。想拿到提供方实例，用 `db.getPlugins('search')`，它返回该名字下的全部候选（只读快照，按 `use()` 顺序）。
+
+**释放顺序是装载顺序的逆序**，两条规则有优先级：**先逆拓扑，同层内再逆插入序**。依赖方的清理条目多半还在用提供方建起来的东西，所以 `report` 一定先于 `search` 释放。互不依赖的插件之间保持注册顺序不变，因此不声明 `plugin:*` 的工作区行为与过去完全一致。
+
+### 重名与歧义
+
+插件名不是唯一键，宿主不阻止重名：两个插件都叫 `search` 时只有一条 `console.warn`，两个都照常安装。**歧义只在这个名字真的被 inject 时才是错误**——此时 `use()` 同步抛 `RxDBPluginAmbiguousDependencyError`，错误信息列出全部候选的构造来源，让你知道该给谁改名。
+
+### 环与半装状态
+
+依赖成环（`a` 依赖 `b`、`b` 依赖 `a`）在**注册时**就被拒绝：`use()` 同步抛 `RxDBPluginDependencyCycleError`，信息里给出完整环路径（`a → b → a`）。这类规划期错误发生在任何 `install()` 之前，因此不会留下半装状态；成环的那个实例也不会进入注册表，不会毒化后续的 `init()`。
+
+注意区分两类失败：**安装失败**不从 `use()` / `init()` 抛（只记日志，等下一次纪元变化重来），**规划期错误**（成环、歧义）则同步从 `use()` 抛出。
 
 ### 依赖没满足会怎样
 

@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-29
-updated: 2026-08-31
+updated: 2026-09-15
 tags: [adapter, http, server, node, pglite, shared-domain]
 ---
 
@@ -61,11 +61,11 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 以 `opfs-ahp://` 开头时才要求 Worker，Node 下主线程直跑。
 
 真正挡路的只有一处：**同步策略焊死在实体装饰器上**。`getSyncConfig` 的实现是
-`return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/version/sync-type-utils.ts#L30)）——
+`return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts#L30)）——
 实体级配置永远赢。前端 `Recipe` 类上写着 `SyncType.QueryCache + http/wa-sqlite`，后端要的是纯本地 pglite；
 把同一个类直接拿到后端，`init()` 会因缺 remote 适配器被 US-021 的 fail-fast 拒绝。
-让「同一个类」两端共用需要核心的实例级 sync 覆盖能力——**另立 core 故事，本故事不阻塞于它**；
-本故事先用「一份 schema 常量装饰出两个类」的路（D1），并在那条 core 故事落地后收敛为单类。
+让「同一个类」两端共用需要 [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md)。
+本故事采用「一份 schema 常量装饰出两个类」（D1），单类收敛由 US-026 承接，本故事不阻塞于它。
 
 ### 复验方式
 
@@ -79,7 +79,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
   是 US-021 的验收行为，属既有结论引用。
 - wire 不变的总判据：本故事落地前后各跑一次 `dev-rxdb-http-server` 的 `server.spec.ts`（端点级契约，断言内容不变）
   与 `dev-rxdb-http-e2e`（17 条），差异必须为零。US-213 套件测的是适配器 vs 它自己的
-  `tests/reference-server.ts`（[wire-integration.spec.ts:46](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts#L46)
+  `tests/reference-server.ts`（[`startReferenceServer`](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts)
   的导入证实），本故事不触碰两者，只要求保持绿——它**不作**本后端的一致性证据。
 
 ## 范围边界
@@ -97,9 +97,9 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 ### Out of Scope
 
-- **单实体类收敛**：依赖核心的实例级 sync 覆盖能力（另立 core 故事），本故事 A / B 不阻塞于它，见 References
+- **单实体类收敛**：由 [US-026](../core/US-026-instance-sync-override.md) 承接，本故事 A / B 不阻塞于它
 - **Full-sync / 离线写队列 / 冲突解决**：`RxDBAdapterHttp` v1 刻意不实现 changelog
-  （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:469](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L469)），
+  （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:477](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L477)），
   本故事不改变这条边界
 - 真实身份认证与行级作用域：demo 保持假认证；D9 只记录真实后端的模式（租户过滤 AND 组合、写授权、
   每请求审计身份）。「每请求审计身份」若需要 core 的按操作/事务级 context 覆盖，另立 core story
@@ -336,4 +336,4 @@ demo 的变更通知开关就是留给这类实验的。
 - [http-protocol.md](../../../website/docs/adapters/http-protocol.md) — wire 契约，逐字不可变
 - [US-207 Electron 连接本地 SQLite 文件](../../../requirements/stories/adapter/US-207-desktop-local-database.md) — `NodeSqliteEngine` 的出处（node:sqlite + sqlite-core），Out of Scope 里纯 Node 抽包的前置
 - [NodeSqliteEngine](../../../packages/rxdb-adapter-electron/src/node-sqlite-engine.ts) — 文件路径落盘、同步接口、触发器驱动变更事件
-- 核心实例级 sync 覆盖能力——另立 core story（编号待定），本故事 D1 的收尾依赖它，A / B 不阻塞于它
+- [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md) — 承接 D1 的单类收敛，A / B 不阻塞于它

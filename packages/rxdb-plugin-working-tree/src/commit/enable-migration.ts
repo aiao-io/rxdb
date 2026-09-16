@@ -32,16 +32,12 @@
  * 本模块只读 `rxdb_branch` / `rxdb_change`，只写 commit 侧的表。
  */
 
-import type { EntityManager, IRepository, SwitchBranchStep, TransactionExecutor } from '@aiao/rxdb';
-import {
-  find_branch_path_to_root,
-  find_switch_branch_step,
-  get_branch_max_change,
-  resolveSingleActiveBranch,
-  RxDBBranch,
-  RxDBChange,
-  RxDBError
-} from '@aiao/rxdb';
+import type { EntityManager, IRepository, TransactionExecutor } from '@aiao/rxdb';
+import { resolveSingleActiveBranch, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
+// 这三个函数与 `SwitchBranchStep` 自 US-025 阶段 C 起住在 `@aiao/rxdb-plugin-history`：
+// 「父链自不自洽」「这条分支停在哪」必须与 `switchBranch` 同口径，全局只能有一个答案。
+import type { SwitchBranchStep } from '@aiao/rxdb-plugin-history';
+import { find_branch_path_to_root, find_switch_branch_step, get_branch_max_change } from '@aiao/rxdb-plugin-history';
 import { ensureBranchCommitRows } from './branch-commit-rows.js';
 import { CommitErrorCode } from './commit-error-codes.js';
 import { writeCommit } from './write-commit.js';

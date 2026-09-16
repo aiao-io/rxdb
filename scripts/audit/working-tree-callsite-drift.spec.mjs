@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import {
   BULK_WRITE_METHODS,
   KNOWN_NON_PRIMITIVE_RECEIVERS,
+  LINE_DRIFT_TOLERANCE,
   QUERY_CACHE_BULK_WRITE_CALLSITES,
   REGISTRY_SOURCE_FILE,
   TRUSTED_PRIMITIVE_SCOPES,
@@ -23,8 +24,14 @@ import {
 
 const PACKAGES_ROOT = new URL('../../packages/', import.meta.url).pathname;
 
-/** 登记表里真实存在的一行，拿来造「合规」的样本。 */
-const SAMPLE = { file: 'merge-branch.ts', symbol: 'merge_branch', intent: 'merge_per_change' };
+/**
+ * 登记表里真实存在的一行，拿来造「合规」的样本
+ *
+ * @remarks
+ * `verifiedAtLine` 取 1：下面造的样本源码只有几行，而存档行号落到文件外就是一条违规
+ * （`auditSource` 的行号核对）。取 1 让「合规样本」真的合规，不必每处都算行数。
+ */
+const SAMPLE = { file: 'merge-branch.ts', symbol: 'merge_branch', intent: 'merge_per_change', verifiedAtLine: 1 };
 
 const declaration = ({ scope = 'executor', file = SAMPLE.file, symbol = SAMPLE.symbol, intent = SAMPLE.intent } = {}) =>
   `  declareTrustedWrite(${scope}, {\n    file: '${file}',\n    symbol: '${symbol}',\n    intent: TrustedWriteIntent.${intent}\n  });\n`;
@@ -39,8 +46,13 @@ const trustedCallsite = (options = {}) =>
     ''
   ].join('\n');
 
-const audit = (source, { relPath = `rxdb/src/version/${SAMPLE.file}`, keys = [registryKeyOf(SAMPLE)] } = {}) =>
-  auditSource({ relPath, source, registryKeys: new Set(keys), seenKeys: new Set() });
+const audit = (source, { relPath = `rxdb-plugin-history/src/${SAMPLE.file}`, rows = [SAMPLE] } = {}) =>
+  auditSource({
+    relPath,
+    source,
+    registryByKey: new Map(rows.map(row => [registryKeyOf(row), row])),
+    seenKeys: new Set()
+  });
 
 const withTempRoot = async run => {
   const root = await mkdtemp(join(tmpdir(), 'wt-callsite-drift-'));
@@ -66,6 +78,10 @@ test('parseRegistry 从真实源码解析出 9 行登记与 7 个意图', async 
   assert.equal(rows.length, 9);
   assert.equal(intents.length, 7);
   assert.equal(new Set(rows.map(registryKeyOf)).size, 9, '9 行必须是 9 个不同的登记键');
+  assert.ok(
+    rows.every(row => Number.isInteger(row.verifiedAtLine) && row.verifiedAtLine > 0),
+    '每一行都要解析出存档行号——解析不到就退化成「没有行号所以没有漂移」'
+  );
   assert.deepEqual(
     rows.filter(row => row.file === 'merge-branch.ts').map(row => row.intent),
     ['merge_per_change', 'merge_squash'],
@@ -195,7 +211,8 @@ test('findDeclarations 认出真实形状，并解析出外层具名函数', () 
   assert.equal(found.length, 1);
   assert.deepEqual(
     { scope: found[0].scope, file: found[0].file, symbol: found[0].symbol, intent: found[0].intent },
-    { scope: 'executor', ...SAMPLE }
+    // `verifiedAtLine` 是登记表的存档列，调用点不自报它，所以这里只比对自报的四段。
+    { scope: 'executor', file: SAMPLE.file, symbol: SAMPLE.symbol, intent: SAMPLE.intent }
   );
   assert.equal(found[0].enclosing, SAMPLE.symbol);
 });
@@ -277,7 +294,7 @@ test('symbol 报成委托门面会被指出来', () => {
 });
 
 test('登记键不在表里就报出来', () => {
-  const offenders = audit(trustedCallsite(), { keys: [] });
+  const offenders = audit(trustedCallsite(), { rows: [] });
   assert.ok(
     offenders.some(offender => offender.includes('不在 TRUSTED_CALLSITE_REGISTRY 里')),
     offenders.join('\n')
@@ -285,7 +302,7 @@ test('登记键不在表里就报出来', () => {
 });
 
 test('自报的文件名与真实文件不符会被指出来', () => {
-  const offenders = audit(trustedCallsite(), { relPath: 'rxdb/src/version/other-file.ts' });
+  const offenders = audit(trustedCallsite(), { relPath: 'rxdb-plugin-history/src/other-file.ts' });
   assert.ok(
     offenders.some(offender => offender.includes("自报 file 为 'merge-branch.ts'，实际在 other-file.ts")),
     offenders.join('\n')
@@ -322,6 +339,25 @@ test('QueryCache 那两处批量写放行，换个接收者就拒绝', () => {
   assert.match(drifted[0], /只许打 QueryCache/);
 });
 
+test('存档行号漂出文件就报出来', () => {
+  // 行号落到文件外意味着核对的根本不是这一版代码；US-025 抽包时 #1 就是这么漂的。
+  const offenders = audit(trustedCallsite(), { rows: [{ ...SAMPLE, verifiedAtLine: 9001 }] });
+  assert.equal(offenders.length, 1, offenders.join('\n'));
+  assert.match(offenders[0], /落在 merge-branch\.ts（共 \d+ 行）之外/);
+});
+
+test('存档行号漂过容差就报出来，容差之内放行', () => {
+  const padding = Array.from({ length: 100 }, () => '').join('\n');
+  const source = [padding, trustedCallsite(), padding].join('\n');
+  const declaredLine = source.split('\n').findIndex(line => line.includes('declareTrustedWrite')) + 1;
+
+  assert.deepEqual(audit(source, { rows: [{ ...SAMPLE, verifiedAtLine: declaredLine + LINE_DRIFT_TOLERANCE }] }), []);
+
+  const drifted = audit(source, { rows: [{ ...SAMPLE, verifiedAtLine: declaredLine + LINE_DRIFT_TOLERANCE + 1 }] });
+  assert.equal(drifted.length, 1, drifted.join('\n'));
+  assert.match(drifted[0], new RegExp(`相差 ${LINE_DRIFT_TOLERANCE + 1} 行`));
+});
+
 test('业务实体上的两个批量写方法都拒绝', () => {
   for (const method of BULK_WRITE_METHODS) {
     const offenders = audit(`export function save() {\n  return this.adapter.${method}(this.entityName, rows);\n}\n`, {
@@ -343,7 +379,7 @@ test('没登记过的接收者按未知入口拒绝，而不是静默跳过', ()
   // 有人把 `const { adapter } = …` 改名成 `const { localAdapter } = …`，那处受信写就会从第 1 类
   // 掉进「不认识」。静默跳过的话，门禁安静地少管一个地方——而那正是它存在的理由。
   const source = 'export function run() {\n  return someHandle.mergeChanges(actions);\n}\n';
-  const offenders = audit(source, { relPath: 'rxdb/src/version/other.ts' });
+  const offenders = audit(source, { relPath: 'rxdb-plugin-history/src/other.ts' });
   assert.equal(offenders.length, 1);
   assert.match(offenders[0], /按未知入口拒绝/);
   assert.ok(
@@ -370,12 +406,12 @@ test('isScannedSourcePath 排除 dist / out-tsc / __tests__ / suite / spec', () 
     'rxdb/src/__tests__/working-tree/entry-fold.spec.ts',
     'rxdb/src/__tests__/working-tree/fixtures/probe.ts',
     'rxdb/src/working-tree/testing/commit.suite.ts',
-    'rxdb/src/version/merge-branch.spec.ts',
+    'rxdb-plugin-history/src/merge-branch.spec.ts',
     'rxdb/src/index.d.ts',
     'rxdb/node_modules/dep/index.ts'
   ];
   assert.deepEqual(excluded.filter(isScannedSourcePath), []);
-  assert.ok(isScannedSourcePath('rxdb/src/version/merge-branch.ts'));
+  assert.ok(isScannedSourcePath('rxdb-plugin-history/src/merge-branch.ts'));
   assert.ok(isScannedSourcePath('rxdb/src/distributed/plan.ts'), '排除的是路径段，不是子串');
 });
 

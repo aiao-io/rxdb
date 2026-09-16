@@ -39,7 +39,7 @@ tags: [core, reactive, rxjs]
 
 - `packages/rxdb/src/repository/QueryTask.ts` — 查询任务封装 (317 LOC)
 - `packages/rxdb/src/repository/QueryManager.ts` — 查询缓存管理 (295 LOC)
-- `packages/rxdb/src/repository/QueryCacheRepository.ts` — SWR 同步策略 (639 LOC)
+- `packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts` — SWR 同步策略 (639 LOC)
 
 ## 参考
 

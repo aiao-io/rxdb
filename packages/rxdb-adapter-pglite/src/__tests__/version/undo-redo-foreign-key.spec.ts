@@ -5,6 +5,7 @@
  * 冲突行的 `DO UPDATE SET` 里没有 FK 列 → 普通字段被恢复，关联身份仍停在当前值。
  */
 import { Entity, EntityBase, PropertyType, RelationKind, RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
 import { generateDbName } from '../test-utils.js';
@@ -49,6 +50,7 @@ describe('PGL-010 undo/redo 恢复外键', () => {
     });
     rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
     adapter = await rxdb.getAdapter('pglite');
+    rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');
   });
 

@@ -7,6 +7,8 @@ interface RecordedFrame {
   /** v2 信封的版本判别位；v1 帧没有这个字段。两代协议的 `source` 是同一个常量，只能靠它分。 */
   readonly protocol: unknown;
   readonly type: unknown;
+  /** v2 信封的 session 身份；`PROTOCOL_HELLO` 为 `null`，v1 帧没有这个字段。 */
+  readonly sessionId: unknown;
 }
 
 declare global {
@@ -31,9 +33,9 @@ async function recordFrames(page: Page): Promise<void> {
     const frames: RecordedFrame[] = [];
     window.__frames = frames;
     const record = (lane: RecordedFrame['lane'], value: unknown): void => {
-      const frame = value as { protocol?: unknown; type?: unknown } | null;
+      const frame = value as { protocol?: unknown; type?: unknown; sessionId?: unknown } | null;
       if (frame === null || typeof frame !== 'object') return;
-      frames.push({ lane, protocol: frame.protocol, type: frame.type });
+      frames.push({ lane, protocol: frame.protocol, type: frame.type, sessionId: frame.sessionId });
     };
 
     window.addEventListener('message', event => record('window-in', event.data));
@@ -147,14 +149,27 @@ test.describe('真实四段中继', () => {
 
     // 面板的 HELLO 真的穿过了 panel → background → content script → 页面四段。
     expect(pick(frames, 'PROTOCOL_HELLO', inbound).length).toBeGreaterThan(0);
-    // 只建立一个 session：页面只发一条 v2 HANDSHAKE。
-    expect(pick(frames, 'HANDSHAKE', ['window-out', 'port-out']).filter(frame => frame.protocol === 2)).toHaveLength(1);
+    // 只建立一个 session——判据是**身份**，不是要约的条数。
+    //
+    // connector 对每一条合法 HELLO 都必须回一次要约（negotiation-connector 的
+    // 「MUST answer EVERY legal HELLO」：面板补发 HELLO 正是为了对付首条丢失）。而这条链上
+    // 到底跑几条 HELLO 由中继时序决定：bridge 注入后自己发一条 PING，background 在
+    // `executeScript` resolve 后再补一条，每条 PING 都让 connector 重发 legacy HANDSHAKE，
+    // 面板每收到一条 legacy HANDSHAKE 就补发一次 HELLO；再加上导航时新 endpoint 自己发的那条，
+    // 哪几条能赶在 ACK 之前落地，本机与 CI 并不一致（CI 上实测为两条）。
+    // 重复要约是无害的：session 在协商机**构造时**铸造一次，重复要约回显同一个 id，
+    // 面板只认第一条、其余计入拒帧。数帧数等于把这段时序钉进 AC，表现为 CI 上的随机红。
+    const offers = pick(frames, 'HANDSHAKE', ['window-out', 'port-out']).filter(frame => frame.protocol === 2);
+    expect(offers.length).toBeGreaterThan(0);
+    expect(new Set(offers.map(frame => frame.sessionId)).size).toBe(1);
 
     const acks = pick(frames, 'HANDSHAKE_ACK', inbound);
     // ACK 只有一条，且是 v2 信封。中继若代 ACK，代出来的只能是 v1 那条
     // （`protocol` 为 `undefined`）——两代 ACK 的 `source` 相同，唯一能分开它们的就是版本判别位。
     expect(acks).toHaveLength(1);
     expect(acks[0]?.protocol).toBe(2);
+    // 回显的是页面铸造的那个 session，而不是另起一个——「只建立一个 session」的另一半。
+    expect(acks[0]?.sessionId).toBe(offers[0]?.sessionId);
     // v2 赢下协商之后，面板不再发 legacy ACK；端口车道上出现一条就说明有人替它答了。
     expect(acks.filter(frame => frame.protocol !== 2)).toHaveLength(0);
   });

@@ -698,6 +698,10 @@
         "kind": "type"
       },
       {
+        "name": "DevToolsVersionManager",
+        "kind": "type"
+      },
+      {
         "name": "DevToolsWireValue",
         "kind": "type"
       },

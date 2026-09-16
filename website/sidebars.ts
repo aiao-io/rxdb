@@ -175,6 +175,7 @@ const sidebars: SidebarsConfig = {
         'migration/working-tree-split',
         'migration/plugins',
         'migration/plugin-scope',
+        'migration/querycache-plugin',
         'migration/generator-default',
         'migration/schema'
       ]

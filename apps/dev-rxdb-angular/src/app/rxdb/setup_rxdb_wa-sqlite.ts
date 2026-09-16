@@ -3,6 +3,7 @@ import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqli
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { SqliteGraphRepository } from '@aiao/rxdb-plugin-graph/sqlite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
@@ -41,6 +42,7 @@ export default () => {
   });
   rxdb
     .use(rxDBPluginGraph)
+    .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .use(rxDBPluginWorkspace)
     .adapter('wa-sqlite', async db => {

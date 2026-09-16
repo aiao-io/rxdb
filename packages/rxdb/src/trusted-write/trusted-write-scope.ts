@@ -29,7 +29,14 @@ import type { WriteEntrance } from './write-entrance.js';
  * `entrance` 反而更糟：登记表与调用点各存一份入口，改一处漏一处时没有任何东西会报错。
  */
 export interface TrustedWriteDeclaration {
-  /** 相对 `packages/rxdb/src/version/` 的文件名 */
+  /**
+   * 调用点所在文件的**基名**
+   *
+   * @remarks
+   * 不带包名也不带目录，与 {@link TRUSTED_CALLSITE_REGISTRY} 的 `file` 列同构。US-025 把 9 个
+   * 调用点从 `packages/rxdb/src/version/` 搬进了 `@aiao/rxdb-plugin-history` 与
+   * `@aiao/rxdb-plugin-sync`，基名键正是为此：搬迁只换了目录，键一格都没动。
+   */
   readonly file: string;
 
   /** 发起这次写的最内层具名函数 */

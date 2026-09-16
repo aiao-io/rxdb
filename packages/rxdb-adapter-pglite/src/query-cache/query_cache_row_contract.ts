@@ -366,7 +366,7 @@ const buildMessage = (entityName: string, total: number, violations: readonly Ro
  * 的时刻而非记录创建的时刻，不同设备拉同一行会得到不同的值，且这个污染要到跨设备对比时
  * 才暴露。
  *
- * @param entityName - `QueryCacheRepository` 传入的逻辑实体名，原样进错误消息
+ * @param entityName - `QueryCacheEngine` 传入的逻辑实体名，原样进错误消息
  * @param rows - 待落地的远端行
  * @param metadata - 实体元数据（`resolveQueryCacheTarget` 已 fail-fast，这里必然拿得到）
  * @throws {RxDBQueryCacheRowContractError} 存在不满足契约的行

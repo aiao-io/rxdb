@@ -275,6 +275,19 @@ describe('RxDB database provider（AC#46）', () => {
     expect(switchBranch).toHaveBeenCalledTimes(1);
   });
 
+  // 与上面 `get-branches` 的 `resource_not_found` 同调，但缺的东西不同：那里缺的是某个分支
+  // 实体，这里缺的是这台宿主的**能力** —— 历史 / 分支子系统自 US-025 阶段 C 起随
+  // `@aiao/rxdb-plugin-history` 走，宿主没装就没有这个槽位。让一次没发生的写回 `ok` 是最坏的
+  // 一种谎报：面板会照着它刷新 UI，而库里什么都没变。
+  it('宿主没装历史插件时三个写操作回 provider_unsupported', async () => {
+    rxdb = createMockRxDB({ versionManager: undefined });
+    const provider = create();
+
+    expect(expectFailed(await provider.invoke('switch-branch', { id: 'feature' }))).toBe('provider_unsupported');
+    expect(expectFailed(await provider.invoke('create-branch', { id: 'feature' }))).toBe('provider_unsupported');
+    expect(expectFailed(await provider.invoke('delete-branch', { id: 'feature' }))).toBe('provider_unsupported');
+  });
+
   it('versionManager 抛错时映射成脱敏的 provider 错误', async () => {
     rxdb = createMockRxDB({
       versionManager: {

@@ -9,6 +9,7 @@
  * 这是「实体本身」的元数据；具体「字段」/「关系」/「同步」分别见对应子文件。
  */
 
+import type { RxDBRepositoryName } from '../rxdb-adapter.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -121,9 +122,15 @@ export interface EntityMetadataOptions {
 
   /**
    * 自定义 repository
+   *
+   * @remarks
+   * 取值来自门面轴注册表 {@link RxDBRepositoryName}：核心的 `Repository` / `TreeRepository`
+   * 与插件经 `declare module` 注册的门面（如 `GraphRepository`）在补全里同为一等公民。
+   * 名字没经 `RxDB.repository()` 登记过时，`EntityManager.init()` 仍会抛错拦下。
+   *
    * @default "Repository"
    */
-  repository?: 'Repository' | 'TreeRepository' | string;
+  repository?: RxDBRepositoryName;
 
   /**
    * 是否开启日志

@@ -35,8 +35,18 @@ const rxdb = new RxDB({
 
 ### 基本配置
 
+推拉同步不在 core 里，需要装两个插件：
+
+```bash
+pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync
+```
+
+`@aiao/rxdb-plugin-sync` 声明 `inject: ['plugin:history']`，历史插件是它进入 active 的硬前置——一次往返结束要作废 undo 边界、结算待拉计数，那些状态的主人在历史侧。没装历史插件时同步插件不会安装，`rxdb.syncManager` 这个槽位就不存在。
+
 ```ts
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
 
@@ -61,28 +71,40 @@ rxdb.adapter(
     })
 );
 
+// 注册插件。顺序随意：宿主按 `inject` 拓扑排序，历史插件一定先装完
+rxdb.use(rxDBPluginHistory);
+rxdb.use(rxDBPluginSync);
+
 await rxdb.connect('wa-sqlite');
 ```
 
+`use()` 传的是**插件工厂函数本身**，不要调用它（`rxdb.use(rxDBPluginSync)`，不是 `rxdb.use(rxDBPluginSync())`）。
+
 ### 执行同步
 
+同步入口挂在 `rxdb.syncManager` 上，由同步插件在连接纪元内装配——**`await connect()` 之后才可用**。
+
 ```ts
-const vm = rxdb.versionManager;
+const sync = rxdb.syncManager;
 
 // 双向同步单个仓库
-const result = await vm.syncRepository('public', 'Todo');
+const result = await sync.syncRepository('public', 'Todo');
 console.log(`拉取: ${result.pullResult.pulled}, 推送: ${result.pushResult.pushed}`);
 
 // 批量同步所有仓库
-const bulkResult = await vm.bulkSync();
+const bulkResult = await sync.bulkSync();
 console.log(`同步了 ${bulkResult.results.length} 个仓库`);
 
 // 仅拉取远程数据
-await vm.syncRepository('public', 'Todo', { direction: 'pull' });
+await sync.syncRepository('public', 'Todo', { direction: 'pull' });
 
 // 仅推送本地变更
-await vm.syncRepository('public', 'Todo', { direction: 'push' });
+await sync.syncRepository('public', 'Todo', { direction: 'push' });
 ```
+
+:::warning 从 `versionManager` 迁移
+同步方法过去挂在 `rxdb.versionManager` 上，现在全部搬到 `rxdb.syncManager`。`versionManager` 仍然存在，但只保留历史与分支 API。对照表见[历史与同步拆包](../migration/history-sync-plugins.md)。
+:::
 
 ### 冲突解决
 
@@ -110,7 +132,7 @@ class MyConflictResolver implements IConflictResolver {
   }
 }
 
-const result = await vm.syncRepository('public', 'Todo', {
+const result = await rxdb.syncManager.syncRepository('public', 'Todo', {
   pull: {
     conflictResolver: new MyConflictResolver()
   }
@@ -179,16 +201,16 @@ export class Todo extends EntityBase {}
 ### Filter 执行同步
 
 ```ts
-const vm = rxdb.versionManager;
+const sync = rxdb.syncManager;
 
 // 拉取：只获取满足 filter 条件的远程数据
-await vm.syncRepository('public', 'Todo', { direction: 'pull' });
+await sync.syncRepository('public', 'Todo', { direction: 'pull' });
 
 // 推送：本地变更无限制推送
-await vm.syncRepository('public', 'Todo', { direction: 'push' });
+await sync.syncRepository('public', 'Todo', { direction: 'push' });
 
 // 双向同步（拉取受限，推送不受限）
-await vm.syncRepository('public', 'Todo');
+await sync.syncRepository('public', 'Todo');
 ```
 
 ### 清理过期数据
@@ -196,14 +218,14 @@ await vm.syncRepository('public', 'Todo');
 当使用滚动时间窗口时，本地可能存在不再满足 filter 条件的"过期"数据。使用 `cleanupExpired` 清理：
 
 ```ts
-import { cleanupExpired } from '@aiao/rxdb';
+const sync = rxdb.syncManager;
 
 // 删除不再满足 filter 条件的本地数据
-const result = await vm.cleanupExpired('public', 'Todo');
+const result = await sync.cleanupExpired('public', 'Todo');
 console.log(`清理了 ${result.removed} 条过期记录`);
 
 // 预览模式：仅返回将被删除的数据，不实际执行删除
-const preview = await vm.cleanupExpired('public', 'Todo', { dryRun: true });
+const preview = await sync.cleanupExpired('public', 'Todo', { dryRun: true });
 console.log(`将清理 ${preview.removed} 条记录:`, preview.removedIds);
 ```
 

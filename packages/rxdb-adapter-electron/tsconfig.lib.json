@@ -34,7 +34,16 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
     },
     {
       "path": "../rxdb-adapter-pglite/tsconfig.lib.json"

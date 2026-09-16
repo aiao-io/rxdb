@@ -117,6 +117,29 @@ export const setSafeObjectKeyLazyInitOnce = <V>(object: object, key: string | sy
   });
 };
 
+/** 当前 {@link fillDefaultValue} 调用共享的「现在」；不在填充期间为 `undefined`。 */
+let fillInstant: Date | undefined;
+
+/**
+ * 默认值函数里的「现在」。
+ *
+ * @remarks
+ * 同一次默认值填充里所有调用它的默认值拿到**同一个时刻**：`createdAt` 与 `updatedAt`
+ * 各自 `new Date()` 时，两次调用会跨过毫秒边界，新建行的两个时间戳就差 1ms，
+ * 「`updatedAt === createdAt` 即从未改过」这条不变量随机失效。
+ *
+ * 每次返回**新的** `Date` 实例（拷贝而非共享引用），两个字段不会互相别名。
+ * 不在填充期间调用就是普通的当前时刻——它本来就没有可共享的时刻作用域。
+ *
+ * @returns 当次填充的时刻，或调用当下的时刻。
+ *
+ * @example
+ * ```ts
+ * { name: 'createdAt', type: PropertyType.date, default: () => entityDefaultNow() }
+ * ```
+ */
+export const entityDefaultNow = (): Date => (fillInstant === undefined ? new Date() : new Date(fillInstant));
+
 /**
  * `date` 属性的数据库端默认值哨兵。
  *
@@ -150,8 +173,29 @@ const DATABASE_SIDE_TIMESTAMP_DEFAULT = 'CURRENT_TIMESTAMP';
  * 写进列清单，DB 端默认值于是永远不生效），由建表时写下的 DB 端默认值补上；SQLite 的**批量** INSERT 是唯一的
  * 例外，它固定写全列、绕过了 DB DEFAULT，所以 `inserts_sql` 自己把哨兵解析成真实时间戳——
  * 那段代码此前是死的（它只在列缺省时才跑，而本函数总是先把字符串填满）。三条路径都已就位。
+ *
+ * 填充期间 {@link entityDefaultNow} 返回同一个时刻；填充是同步且不可重入的，
+ * 结束（含抛错）一律清掉这个时刻作用域。
  */
 export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata, entity: InstanceType<T>) => {
+  fillInstant = new Date();
+  try {
+    const data = collectDefaultValue(metadata, entity);
+    if (data) Object.assign(entity, data);
+  } finally {
+    fillInstant = undefined;
+  }
+};
+
+/**
+ * 算出 `entity` 上所有仍是 `undefined` 的缺省属性的值。
+ *
+ * @returns 待写入的键值对；没有任何属性需要填充时返回 `undefined`。
+ */
+const collectDefaultValue = <T extends EntityType>(
+  metadata: EntityMetadata,
+  entity: InstanceType<T>
+): Record<string, unknown> | undefined => {
   const data: Record<string, unknown> = {};
   let need = false;
   metadata.defaultValueProperties.forEach(property => {
@@ -167,7 +211,7 @@ export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata,
       data[property.name] = property.type === PropertyType.binary ? new Uint8Array(value as Uint8Array) : value;
     }
   });
-  if (need) Object.assign(entity, data);
+  return need ? data : undefined;
 };
 
 /**

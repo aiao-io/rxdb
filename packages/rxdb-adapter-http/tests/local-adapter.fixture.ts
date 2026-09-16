@@ -3,9 +3,9 @@
  * QueryCache 本地一侧的内存替身（US-213 AC#8）。
  *
  * @remarks
- * **只有 AC#8 需要它。** 其余 AC 都直驱适配器，快且断言直接；但 `idChunkSize` 分块
- * 只在 core 的 `QueryCacheRepository` 把**整份** id 列表交给 `findByIds` 时才显形——
- * 直驱构造不出那个场景，必须让真的 `RxDB` 跑一次完整的
+ * **只有 AC#8 需要它。** 其余 AC 都直驱适配器，快且断言直接；但 `idChunkSize` 分块只在读引擎
+ * （`@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine`）把**整份** id 列表交给 `findByIds`
+ * 时才显形——直驱构造不出那个场景，必须让真的 `RxDB` 跑一次完整的
  * `fetchMetadata → diffMetadata → findByIds → upsertMany`。
  *
  * 本文件是 `src/__tests__/integration.spec.ts` 里同名局部常量的**独立一份**，不是复用：
@@ -116,8 +116,7 @@ export const createLocalAdapter = (initial: LocalRow[] = []): LocalAdapterFixtur
     isTableExisted: vi.fn(() => Promise.resolve(false)),
     createTables: vi.fn(() => Promise.resolve()),
     // 与 `src/__tests__/integration.spec.ts` 的同名替身同一口径：占 `sync.local` 槽位就得能跑完
-    // `connect()` 的本地引导，两个都取 `RxDBAdapterLocalBase` 的默认 no-op。本套件今天不走
-    // `rxdb.connect('sqlite')`，所以缺着也不会红——正因如此才要补上，别让下一个人踩。
+    // `connect()` 的本地引导，两个都取 `RxDBAdapterLocalBase` 的默认 no-op。
     migrateSystemSchema: vi.fn(() => Promise.resolve()),
     completeBootstrap: vi.fn(),
     mutations: vi.fn(() => Promise.resolve([])),
@@ -125,6 +124,13 @@ export const createLocalAdapter = (initial: LocalRow[] = []): LocalAdapterFixtur
     // 真适配器在这里排队并开事务；替身同步执行，本套件没有并发窗口要验。
     // 缺了它，`getCurrentBranch()` 的冷路径（本地一张分支表都没有）当场 TypeError
     transaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
+      Promise.resolve(fun({ getRepository }))
+    ),
+    // 引导期事务，与上面**同一个函数体**而不是委托 `transaction`：这个替身没有就绪门，
+    // 基类那条「跳过就绪门」的区别在它身上不存在（`RxDBAdapterLocalBase.bootstrapTransaction`
+    // 的默认实现也只是直调 `transaction`）。写成委托会让 `transaction` 的调用次数把引导期
+    // 也算进去。缺了它，`connect('sqlite')` 在 `assertLocalAdapterCapabilities` 处当场被拒。
+    bootstrapTransaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
       Promise.resolve(fun({ getRepository }))
     ),
     // 以下三个是 `assertQueryCacheCapabilities` 特性探测的 duck，缺任一个整条

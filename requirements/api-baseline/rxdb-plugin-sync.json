@@ -1,0 +1,86 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BulkSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BulkSyncResult",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRepositoryUpdatesResult",
+        "kind": "type"
+      },
+      {
+        "name": "cleanupExpired",
+        "kind": "value"
+      },
+      {
+        "name": "CleanupExpiredOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CleanupExpiredResult",
+        "kind": "type"
+      },
+      {
+        "name": "countQueryCacheOutbox",
+        "kind": "value"
+      },
+      {
+        "name": "DependencyGraph",
+        "kind": "type"
+      },
+      {
+        "name": "flushQueryCacheOutbox",
+        "kind": "value"
+      },
+      {
+        "name": "GetAllRepositorySyncStatusFilter",
+        "kind": "type"
+      },
+      {
+        "name": "pendingQueryCacheWriteIds",
+        "kind": "value"
+      },
+      {
+        "name": "QueryCacheOutboxFailure",
+        "kind": "type"
+      },
+      {
+        "name": "QueryCacheOutboxResult",
+        "kind": "type"
+      },
+      {
+        "name": "RepositorySyncStatus",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginSync",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginSync",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBPluginSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "syncBranches",
+        "kind": "value"
+      },
+      {
+        "name": "SyncBranchesResult",
+        "kind": "type"
+      },
+      {
+        "name": "SyncManager",
+        "kind": "type"
+      }
+    ]
+  }
+}

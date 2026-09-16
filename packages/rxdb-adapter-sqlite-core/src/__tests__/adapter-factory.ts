@@ -5,7 +5,13 @@ export interface AdapterCleanupTarget {
   readonly rxdb: RxDB;
 }
 
-/** 测试参数化接口：由共享测试套件使用，为 wa-sqlite 和 sqliteai 后端创建适配器实例。 */
+/**
+ * 测试参数化接口：由共享测试套件使用，为 wa-sqlite 和 sqliteai 后端创建适配器实例。
+ *
+ * @remarks
+ * 与 `testing.ts` 里的同名契约一致：`createAdapter()` 交出的实例必须已装
+ * `@aiao/rxdb-plugin-history`，共享套件会直接读 `adapter.rxdb.versionManager`。
+ */
 export interface AdapterFactory {
   /** 工厂显示名称（例如 'wa-sqlite'、'sqliteai'）。 */
   readonly name: string;

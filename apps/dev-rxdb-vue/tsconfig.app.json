@@ -56,6 +56,9 @@
       "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {

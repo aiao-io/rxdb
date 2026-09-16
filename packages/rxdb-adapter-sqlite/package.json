@@ -64,8 +64,11 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "ms": "^2.1.3",
-    "@aiao/rxdb-plugin-working-tree": "workspace:*"
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
+    "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*"
   }
 }
