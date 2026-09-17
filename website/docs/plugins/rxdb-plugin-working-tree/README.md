@@ -6,17 +6,17 @@
 
 ## 能力范围
 
-| 能力               | 说明                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获      |
-| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                          |
-| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                         |
-| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                  |
-| `discard()`        | 把工作树整体退回 HEAD                                                                   |
-| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                    |
-| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史         |
-| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                          |
-| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `db.versionManager` 上 |
+| 能力               | 说明                                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获                                     |
+| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                         |
+| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                        |
+| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                 |
+| `discard()`        | 把工作树整体退回 HEAD                                                                                                  |
+| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                                                   |
+| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                        |
+| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                         |
+| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上 |
 
 ## 用之前要知道的六件事
 
@@ -123,6 +123,20 @@ npm install @aiao/rxdb-plugin-working-tree-vue
 
 peer dependencies：`@aiao/rxdb`、`rxjs`；框架绑定另需对应的 `@aiao/rxdb-angular` / `@aiao/rxdb-react` / `@aiao/rxdb-vue`。
 
+:::info `switchBranch()` 还要装历史插件
+下文「切分支的前置条件」用的 `db.versionManager` **不是本包挂的**，也不在 core 里——它由
+`@aiao/rxdb-plugin-history` 在连接纪元内挂载（见[分支管理](../../collaboration/branch.md)与[历史与同步拆包](../../migration/history-sync-plugins.md)）。
+
+只用工作树与提交（`status()` / `diff()` / `commit()` / `discard()` / `listCommits()` / `restore()`）**不需要**它；
+要用 `switchBranch()` 的那两道前置，就得把它一起装上、一起 `use()`：
+
+```bash npm2yarn
+npm install @aiao/rxdb-plugin-history
+```
+
+没装时 `db.versionManager` 是 `undefined`——core 不做 fallback 兜底。
+:::
+
 ## 注册插件
 
 ```typescript
@@ -134,6 +148,15 @@ db.use(rxDBPluginWorkingTree); // ← 必须在 connect() 之前
 await db.connect('sqlite-wasm');
 
 await db.workingTree.enable(); // 既有库上是一次迁移，新库上是一次幂等确认
+```
+
+要用 `switchBranch()` 的两道前置，再把历史插件一起 `use()` 上——`db.versionManager` 由它挂载，本包只往上加前置：
+
+```typescript
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+
+db.use(rxDBPluginWorkingTree);
+db.use(rxDBPluginHistory);
 ```
 
 :::warning
@@ -357,7 +380,9 @@ const session = await db.workingTree.restoreSession();
 
 ### `db.versionManager.switchBranch(branchId, options?)`
 
-切分支挂在 `db.versionManager` 上，不在 `db.workingTree` 上——分支是核心的概念，工作树只是给它**加了两道可选前置**。
+切分支挂在 `db.versionManager` 上，不在 `db.workingTree` 上——分支属于 `@aiao/rxdb-plugin-history`，工作树只是给它**加了两道可选前置**。
+
+因此本小节的每一行都以「装了历史插件」为前提：没 `use(rxDBPluginHistory)` 时 `db.versionManager` 是 `undefined`，报错报在读槽位那一行，与前置条件无关。
 
 ```typescript
 // 无条件切换：与没装本插件时逐字节一致
@@ -571,7 +596,7 @@ const save = async (): Promise<void> => {
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
 - `commit()` / `discard()` / `restore()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
 - `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
-- `switchBranch()` 挂在核心的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
+- `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。
 
 ## 错误类型

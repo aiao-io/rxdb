@@ -12,7 +12,7 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 - `discard()`：把工作树整体退回 HEAD
 - `listCommits()`：读当前分支的可达提交历史
 - `restore()` / `restoreSession()`：把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史，四个被拒成因走返回值
-- `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `db.versionManager` 上，被拒**走异常**
+- `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上，被拒**走异常**
 
 ## 用之前要知道的六件事
 
@@ -65,6 +65,18 @@ if (!result.ok) {
 **`use()` 必须排在 `connect()` 之前。** 本插件声明 `system`（`RxDBSystemContribution`），
 宿主要在建表之前读走它的实体、初始行与迁移；`connect()` 之后再 `use()` 已经赶不上建表，
 核心会当场抛错而不是静默跳过。
+
+`switchBranch()` 的那两道前置不在本包的入口上：`db.versionManager` 由
+[`@aiao/rxdb-plugin-history`](../rxdb-plugin-history) 在连接纪元内挂载，core 不自动创建它。
+只用工作树与提交不需要它；要用 `switchBranch()` 就把它一起 `use()` 上，否则 `db.versionManager`
+是 `undefined`——core 不做 fallback 兜底。
+
+```ts
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+
+db.use(rxDBPluginWorkingTree);
+db.use(rxDBPluginHistory);
+```
 
 `db.workingTree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来：装了本包才存在这个入口，
 没装时 `db.workingTree` 是编译错误，而不是运行期的 `undefined`。能力未启用时它照样在，

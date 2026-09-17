@@ -1035,6 +1035,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
 
       it('enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号', async () => {
         const refsBefore = await withTransaction(database, readAllRefs);
+        const sourceRef = await readRefSnapshot(database, await readActiveBranchId(database));
 
         await database.versionManager.createBranch('feature-fresh');
 
@@ -1045,11 +1046,18 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const fresh = refsAfter.find(ref => ref.id === 'feature-fresh');
         // 只写 rxdb_branch 一行的话，这条分支在 readCommitBranchRef() 上一读就抛——
         // 下一次 enable() 整体回滚，而 facade 承诺的「补根」对它永远失效。
+        // HEAD 跟着源分支走、不是留空：不带 `fromChangeId` 的 `createBranch()` 是「从当前物化
+        // 状态建分支」，两条分支的内容此刻逐字节相同，各锚一个 `branch_baseline` 等于给同一份
+        // 内容发两个根（FR-017，实现在 `commit/branch-commit-rows.ts` 的
+        // `copyCurrentMaterialization`）。
         expect({ branchId: fresh?.branchId, head: fresh?.headCommitId, revision: fresh?.headRevision }).toEqual({
           branchId: 'feature-fresh',
-          head: null,
+          head: sourceRef.headCommitId,
           revision: 0
         });
+        // 源 HEAD 自己得非空，否则上一条在「两边都没有根」的库上照样成立——
+        // 而那种库正是 §2.2 这一节要拦的。
+        expect(sourceRef.headCommitId).not.toBeNull();
         expect(states.map(state => state.id)).toContain('feature-fresh');
         // 代际取自单调源而非分支数：删过分支之后「数一数加一」会复用旧号（ABA）。
         expect(refsBefore.map(ref => ref.generation)).not.toContain(fresh?.generation);
