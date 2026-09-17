@@ -315,7 +315,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 
 **restore 那一行的文件是 `restore-entity.ts` 而不是 `VersionManager.ts`，传输层是 `mergeChanges` 而不是
 `adapter.switchBranch`**：`VersionManager.restoreEntity()` 只是把调用委托给 `restore_entity()`，而后者
-[明确不能走 `switchBranch`](../../packages/rxdb/src/version/restore-entity.ts)——各适配器 `switch_branch` 的第一步
+[明确不能走 `switchBranch`](../../packages/rxdb-plugin-history/src/restore-entity.ts)——各适配器 `switch_branch` 的第一步
 就是 `remove_all_triggers_sql`，恢复出来的行不会产生任何 change 行，远端会静默停在「已删除」；它改走
 `adapter.mergeChanges(actions, undefined, false)`，与 `merge_branch` 的 squash 出口同路。这正是上面「符号取最内层
 具名函数」那条规则要防的错误——按门面方法登记会让漂移扫描报「登记了但不存在」。undo/redo 那一行同理登记

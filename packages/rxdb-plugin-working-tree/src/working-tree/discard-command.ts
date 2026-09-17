@@ -34,6 +34,7 @@ import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
+import { discardActiveRestoreSession } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import { buildWorkingTreeDiscardTransitionSql } from './working-tree-state-sql.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
@@ -99,6 +100,11 @@ const readBranchEntries = (executor: TransactionExecutor, branchId: string): Pro
  * no-op 的判据取**实际条目行数**而不是 `entryCount` 冗余列：两者万一已经分岔，按冗余列
  * 判会把一批真实存在的条目永久留在表里（而 `status()` 报干净），按行数判则顺带把冗余列
  * 收敛回真实值。真正发现分岔是 {@link assertWorkingTreeEntryCountIntact} 的职责。
+ *
+ * 恢复会话与条目**一并清除**（US-307 AC5）：丢弃掉的正是那次恢复写进工作树的全部内容，
+ * 留着会话会让 `status()` 继续报 `restoring`，而它指向的那批变更已经不在库里了。
+ * {@link discardActiveRestoreSession} 排在状态行 UPDATE 之后，且只在非 no-op 路径上——
+ * 上面第 2 条要求 clean 丢弃一条写语句都不发。
  */
 export const discardWorkingTree = async (
   executor: TransactionExecutor,
@@ -129,6 +135,7 @@ export const discardWorkingTree = async (
       workingTreeRevision
     })
   );
+  await discardActiveRestoreSession(executor, token.branchId);
 
   state.workingTreeRevision = workingTreeRevision;
   state.entryCount = 0;

@@ -256,7 +256,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 - [x] T105 [US3] 实现兼容性预检于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts`：覆盖**完整** commit 路径而非只有目标节点，先检查后写入，命中不兼容即零变化返回（FR-033/050）
 - [x] T106 [US3] 实现 `restore()` 与会话持久化于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts`：写普通 `WorkingTreeEntry`、用 `activeKey` 可空唯一列保证每分支至多一个未结束会话、在写事务内调用 T038 的共享损坏守卫（FR-013/015/034/051、data-model.md §2.8）
-- [ ] T107 [US3] 实现会话终态转换于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts`：`commit()` 与 session 的 `committed` 转换**原子提交**；`discard` 路径对称；新 commit 不改写被恢复的历史节点（FR-015）
+- [x] T107 [US3] 实现会话终态转换于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts`：`commit()` 与 session 的 `committed` 转换**原子提交**；`discard` 路径对称；新 commit 不改写被恢复的历史节点（FR-015）
 - [ ] T108 [US3] 扩展 `packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts` 的 conformance-suites.md §2.6（restore）小节；6 个适配器既有调用点自动带上
 - [ ] T109 [US3] 在 `benchmarks/working-tree.bench.ts` 增加 restore 测量项：恢复含 100 个完整变更单元的 `HEAD~1`，WARMUP=5 / SAMPLES=50，记录 runner profile；接入相对门禁，绝对 p95 ≤ 1 s 只在 `runnerProfileHash` 匹配的固定性能 runner 上作为发布硬门禁（FR-026b、SC-004）
 - [ ] T110 [US3] **（排在 Phase 6 之后）** 把 `restore()` / `restoreSession()` 接进三端入口 `packages/rxdb-{angular,react,vue}/src/use-working-tree.ts`，并补三端 `*.spec.ts` 用例；任一端缺一项 = 未完成（tri-framework-api.md §3）

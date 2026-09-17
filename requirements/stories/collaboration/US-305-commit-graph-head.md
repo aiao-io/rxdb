@@ -200,7 +200,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - **FR-048**：commit 能力启用后 MUST 保证 `RxDBBranch.activated` 恰好一行是 true。首次迁移零 active 时沿用既有 main 恢复语义；多 active 时返回 `ambiguous_active_branch` 并全量回滚。系统 schema MUST 约束至多一个 active，每次连接 MUST 验证至少一个。
 - **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败并返回 `branch_not_materializable`。
   「可完整物化」的判定 MUST 复用既有分支物化路径（`switch_branch_actions()` / `find_switch_branch_step()`，见
-  [`switch-branch-actions.ts`](../../../packages/rxdb/src/version/switch-branch-actions.ts)）：能从当前主库状态沿
+  [`switch-branch-actions.ts`](../../../packages/rxdb-plugin-history/src/switch-branch-actions.ts)）：能从当前主库状态沿
   `RxDBChange` 链无缺口地走到该分支 tip 即可物化；`cleanupExpired()` 已删除的 change、压缩掉的区间或无法配平的
   `revertChangeId` 都构成断链。MUST NOT 为迁移另写第二套重放引擎。
 - **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。
@@ -258,7 +258,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   该事务的规模与既有分支数、`RxDBChange` 条数线性相关，plan 阶段必须给出在 6 个 v1 后端上的实测耗时上界；
   若某后端超出可接受范围，改为可续跑分段迁移属于 plan 阶段的显式决策变更，需回写本故事而不是实现时静默偏离。
 - 启用事务先收敛 active 分支基数：零 active 沿用 `main` 恢复语义，多 active 直接失败；成功后用数据库约束维持至多一个 active，并在连接时验证至少一个。
-  现有 [`resolve_current_branch()`](../../../packages/rxdb/src/version/resolve-current-branch.ts) 以 `limit: 1` 取首个
+  现有 [`resolve_current_branch()`](../../../packages/rxdb/src/system/system-repositories.ts) 以 `limit: 1` 取首个
   `activated=true`，多 active 时静默选一行；迁移与连接握手 MUST 自己统计基数，不得复用该静默行为（AC US2-12 / US2-16）。
 - 启动图校验不得“修复”不可变历史。可达链损坏时保留原 ref 和原始行，把分支标记为派生的只读损坏态；显式历史修复工具不在本 Epic 范围。
 - Workspace NEW 草稿继续由插件独立恢复；commit 迁移不读取、不搬迁、不删除 IndexedDB 记录，草稿保存后按普通 INSERT 处理。

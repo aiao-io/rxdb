@@ -49,6 +49,7 @@ import {
   type RestoreIncompatibility,
   type WorkingTreeRestoreTarget
 } from './restore-precheck.js';
+import { readActiveRestoreSessionRow } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import { encodeWorkingTreePatch } from './working-tree-patch-codec.js';
 import { WorkingTreeRestoreSession } from './working-tree-restore-session.entity.js';
@@ -458,27 +459,20 @@ export interface WorkingTreeRestoreSessionInfo {
  * @returns 见 {@link WorkingTreeRestoreSessionInfo}；无未结束会话时为 `null`
  *
  * @remarks
- * 判据是 `activeKey IS NOT NULL`，与 `status.ts` 的 `readRestoreBits` **同一个**：改判成
- * `status = 'active'` 看着等价，区别在 `conflicted` —— 那种会话的 `activeKey` 仍然占着索引、仍然
- * 要被用户处理掉，按状态筛会让它在这个入口上凭空消失，而唯一索引那边它还在。
+ * 查询本身走 {@link readActiveRestoreSessionRow}，与 `status.ts` 的 `readRestoreBits`
+ * **同一份**：判据是 `activeKey IS NOT NULL` 而不是 `status = 'active'`，两者看着等价，
+ * 区别在 `conflicted`——那种会话的 `activeKey` 仍然占着索引、仍然要被用户处理掉，按状态筛
+ * 会让它在这个入口上凭空消失，而唯一索引那边它还在。
  *
- * 「至多一行」由 `activeKey` 的可空唯一索引保证，`limit: 1` 只是把这条不变量写进查询本身：
- * 真出现第二行时，这里安静地取第一行，而不是让调用方拿到一个它无法解释的数组。
+ * 本函数只做一件额外的事：把行**收窄**成 {@link WorkingTreeRestoreSessionInfo} 再出包。
+ * 直接把实体行交出去的话，调用方就能改它的 `status` / `activeKey`——而终态转换只允许经由
+ * `restore-session-transitions.ts`，那里 SQL 与内存行是一起改的。
  */
 export const readActiveRestoreSession = async (
   executor: TransactionExecutor,
   branchId: string
 ): Promise<WorkingTreeRestoreSessionInfo | null> => {
-  const [session] = await executor.getRepository(WorkingTreeRestoreSession).find({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'branchId', operator: '=', value: branchId },
-        { field: 'activeKey', operator: 'notNull' }
-      ]
-    },
-    limit: 1
-  });
+  const session = await readActiveRestoreSessionRow(executor, branchId);
   if (!session) return null;
   return {
     id: session.id,

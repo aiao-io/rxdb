@@ -10,7 +10,7 @@
  * 「哪套是权威」重新变成开放问题。
  *
  * **T042 填入 §2.1 / §2.2 / §2.5，T085 补上 §2.3 / §2.4**（两类 CAS 分开断言、commit
- * 原子性），§2.6 在 US-307（T108）填，§2.7 在 US-308（T122）填。
+ * 原子性），**T108 补上 §2.6**（restore），§2.7 在 US-308（T122）填。
  *
  * §2.3 / §2.4 要演的是「另一个 Tab 存了一下」与「高并发普通 CRUD」，而本套件**不走
  * `entity.save()`**，走的是 `save()` 最终落到的那个原语 `captureChanges()`——换一条更浅的
@@ -66,14 +66,20 @@ import { BranchNotMaterializableError } from '../../commit/enable-migration.js';
 import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/list-commits.js';
 import type { WriteCommitOutcome } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
+import * as workingTreePublicSurface from '../../index.js';
 import type { ChangeCaptureSource } from '../capture-runtime.js';
 import { captureChanges, readActiveBranchToken } from '../capture-runtime.js';
 import type { CommitResult } from '../commit-command.js';
 import { commitWorkingTree } from '../commit-command.js';
 import type { WorkingTreeCredentials } from '../commit-conflict.js';
+import { discardWorkingTree } from '../discard-command.js';
+import type { WorkingTreeRestoreResult } from '../restore-command.js';
+import { readActiveRestoreSession, restoreWorkingTree } from '../restore-command.js';
 import type { WorkingTreeStatus } from '../status.js';
 import { assertWorkingTreeEntryCountIntact, readWorkingTreeStatus } from '../status.js';
 import { WorkingTreeEntry } from '../working-tree-entry.entity.js';
+import { WorkingTreeManager } from '../working-tree-facade.js';
+import { WorkingTreeRestoreSession } from '../working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
 import { ConformanceNote } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
@@ -87,8 +93,9 @@ import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
  * 入口就此裸奔。T085（`commit()`）/ T108（`restore()`）/ T122（switch-to）各自往这张表里
  * 加一行，下面那四条断言自动覆盖到新入口。
  *
- * 今天表里只有一行：三条入口共用的那份守卫本身（T038）。它不是占位——`assertCommitGraphIntact()`
- * 就是三条入口各自要调的那个符号，先把它的行为钉死，后加的入口只需证明「确实调了它」。
+ * 表里第一行是三条入口共用的那份守卫本身（T038）：先把它的行为钉死，后加的入口只需证明
+ * 「确实调了它」。今天还有 `commit()`（T085）与 `restore()`（T108）两行，switch-to 那行
+ * 等 T122。
  */
 interface CommitCorruptionEntryPoint {
   /** 入口名，进 `it` 标题，让失败输出能直接定位到是哪条入口 */
@@ -438,6 +445,60 @@ const countChangeSets = (database: RxDB): Promise<number> =>
 const rejectionsOf = (settled: readonly PromiseSettledResult<unknown>[]): string[] =>
   settled.filter(outcome => outcome.status === 'rejected').map(outcome => String(outcome.reason));
 
+/** 恢复到某个 commit；捕获位由调用方给，与真实调用点同形。 */
+const restoreWithCredentials = (
+  database: RxDB,
+  commitId: string,
+  credentials: WorkingTreeCredentials
+): Promise<WorkingTreeRestoreResult> =>
+  withTransaction(database, (executor, adapter) =>
+    restoreWorkingTree(executor, createCommitWriteContext(adapter), { commitId }, credentials)
+  );
+
+/**
+ * 拿刚读到的捕获位恢复一次，并要求它确实落库。
+ *
+ * @remarks
+ * 后面几条用例断言的全是「恢复之后」的状态，一次被拒的恢复会让它们在一棵空工作树上继续跑，
+ * 然后以一堆看不出成因的 `0 !== 1` 结束。在这里就把出口摊开报出来。
+ */
+const restoreOnce = async (database: RxDB, commitId: string): Promise<WorkingTreeRestoreResult> => {
+  const result = await restoreWithCredentials(database, commitId, credentialsOf(await readStatus(database)));
+  if (!result.ok) throw new Error(`期望这次恢复落库，实际出口是 ${result.reason}`);
+  return result;
+};
+
+/** 拿刚读到的捕获位丢弃一次。 */
+const discardWithFreshCredentials = (database: RxDB): Promise<unknown> =>
+  withTransaction(database, async executor => discardWorkingTree(executor, credentialsOf(await readStatus(database))));
+
+/** 读 `rxdb_working_tree_restore_session` 全表；终态行也要数进来，「删掉了没有」全靠它。 */
+const readRestoreSessions = (database: RxDB): Promise<WorkingTreeRestoreSession[]> =>
+  withTransaction(database, executor =>
+    executor.getRepository(WorkingTreeRestoreSession).find({ where: { combinator: 'and', rules: [] } })
+  );
+
+/** 把会话行摊成可直接 `toEqual` 的形状：终态转换要盯的恰好是这两列。 */
+const sessionShapeOf = (rows: readonly WorkingTreeRestoreSession[]): unknown[] =>
+  rows.map(row => ({ status: row.status, activeKey: row.activeKey }));
+
+/** 把一次 `status()` 的两位恢复标志摊出来；两位一起断言，免得「都为真」漏过去。 */
+const restoreBitsOf = (status: WorkingTreeStatus): unknown => ({
+  restoring: status.restoring,
+  conflicted: status.conflicted
+});
+
+/** 铺一条两节点的历史，返回较老的那个——它就是后面每条用例的恢复目标。 */
+const seedTwoCommits = async (database: RxDB, branchId: string): Promise<Commit> => {
+  const older = expectCommitted(
+    await commitOnce(database, { branchId, operationId: uuid(), message: '被恢复的那一版', units: [buildUnit()] })
+  );
+  expectCommitted(
+    await commitOnce(database, { branchId, operationId: uuid(), message: '当前 HEAD', units: [buildUnit()] })
+  );
+  return older;
+};
+
 /** 见 {@link CommitCorruptionEntryPoint}。 */
 const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
   {
@@ -461,6 +522,24 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
         operationId: uuid()
       });
       if (!result.ok) throw new Error(`期望这次提交跑到损坏守卫，实际先撞上 ${result.conflict.kind} 冲突`);
+    }
+  },
+  {
+    name: 'restore()',
+    invoke: async ({ adapter, executor, branchId }) => {
+      const ref = await readCommitBranchRef(executor, branchId);
+      if (!ref.headCommitId) throw new Error('这个分支还没有 HEAD，恢复目标无从谈起');
+      // 目标取 **HEAD 自己**：健康分支上它是一次语义 no-op（重放路径为空），于是这一行
+      // 与 `commit()` 那一行一样，把变量压到只剩「损坏与否」——守卫是 `restore()` 的第一步，
+      // 排在可达性、脏检查与预检**全部之前**，损坏分支上它一条都跑不到。
+      const status = await readWorkingTreeStatus(executor);
+      const result = await restoreWorkingTree(
+        executor,
+        createCommitWriteContext(adapter),
+        { commitId: ref.headCommitId },
+        credentialsOf(status)
+      );
+      if (!result.ok) throw new Error(`期望这次恢复跑到损坏守卫，实际先撞上 ${result.reason}`);
     }
   }
 ];
@@ -1045,6 +1124,182 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         // 等于告诉用户「你的库坏了，而且不许看」。
         expect(read.history.map(commit => commit.id)).toContain(head.id);
         expect(read.detail.units).toHaveLength(1);
+      });
+    });
+
+    describe('§2.6 restore（US-307）', () => {
+      it('恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改', async () => {
+        const branchId = await readActiveBranchId(database);
+        const older = await seedTwoCommits(database, branchId);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const before = await withTransaction(database, snapshotCommits);
+
+        const result = await restoreOnce(database, older.id);
+
+        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const after = await withTransaction(database, snapshotCommits);
+        const status = await readStatus(database);
+        // 恢复不是 `checkout`：它把旧版本的内容写成**新的未提交变更**，HEAD 留在原处。
+        // 挪 HEAD 的实现在这条断言下会当场红——而那种实现会让「恢复完再提交」变成一次
+        // 把两个节点之间的历史整段丢掉的强制推送。
+        expect({ head: refAfter.headCommitId, headRevision: refAfter.headRevision }).toEqual({
+          head: refBefore.headCommitId,
+          headRevision: refBefore.headRevision
+        });
+        expectAppendOnly(before, after);
+        expect([...after.keys()], '恢复往历史里加了节点').toEqual([...before.keys()]);
+        expect({
+          restoredCount: result.ok ? result.restoredCount : null,
+          hasSession: result.ok && result.sessionId !== null,
+          entries: await countEntries(database, branchId),
+          clean: status.clean
+        }).toEqual({ restoredCount: 1, hasSession: true, entries: 1, clean: false });
+      });
+
+      it('公开面上没有 checkout()，也没有 detached HEAD 那类符号', async () => {
+        // 这条断言与后端无关，仍然留在套件里：它守的是**公开面**，而公开面正是六个调用点
+        // 共同承诺的那张表。放进某一个 `__tests__` 里的话，它只在那一个包的本地测试里跑，
+        // 而契约 §2.6 要求的是每个适配器各自证明自己没有偷偷长出第二套 HEAD 语义。
+        const exported = Object.keys(workingTreePublicSurface).filter(name => /checkout|detach/i.test(name));
+        const methods = Object.getOwnPropertyNames(WorkingTreeManager.prototype).filter(name =>
+          /checkout|detach/i.test(name)
+        );
+        // `restore()` 在公开面上必须仍然在——否则上面两个空数组用「把整块特性删掉」也能满足。
+        expect({ exported, methods, hasRestore: 'restore' in WorkingTreeManager.prototype }).toEqual({
+          exported: [],
+          methods: [],
+          hasRestore: true
+        });
+        await Promise.resolve();
+      });
+
+      it('CommitConflict 不会让 status().conflicted 变真', async () => {
+        const branchId = await readActiveBranchId(database);
+        const stale = credentialsOf(await readStatus(database));
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-conflict'));
+
+        const rejected = await commitWithCredentials(database, stale, '拿过期凭据提交');
+
+        const status = await readStatus(database);
+        // 两件事共用一个词但不是一回事：`CommitConflict` 是**这一次调用**的返回值，不入库；
+        // `status().conflicted` 描述的是库里那个仍然存在的恢复会话。把前者也算进后者，
+        // 用户会在一次普通的 CAS 落空之后看到一个他永远清不掉的「冲突中」——而恢复会话
+        // 压根不存在，没有任何入口能结束它。
+        expect({ committed: rejected.ok, bits: restoreBitsOf(status) }).toEqual({
+          committed: false,
+          bits: { restoring: false, conflicted: false }
+        });
+        expect(await readRestoreSessions(database)).toEqual([]);
+        expect(branchId).toBe(status.branchId);
+      });
+
+      it('会话捕获的 revision 分叉之后，restoring 灭、conflicted 亮', async () => {
+        const branchId = await readActiveBranchId(database);
+        const older = await seedTwoCommits(database, branchId);
+        await restoreOnce(database, older.id);
+        const restoring = await readStatus(database);
+
+        // 另一个 Tab 存了一下：`captureChanges()` 会推 `workingTreeRevision`，于是会话捕获的
+        // 那一对与当前值分叉。
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-another-tab'));
+
+        const diverged = await readStatus(database);
+        expect({ before: restoreBitsOf(restoring), after: restoreBitsOf(diverged) }).toEqual({
+          before: { restoring: true, conflicted: false },
+          after: { restoring: false, conflicted: true }
+        });
+        // 分叉不销毁会话——它仍然占着唯一索引，仍然要被这个人处理掉。
+        expect(sessionShapeOf(await readRestoreSessions(database))).toEqual([
+          { status: 'active', activeKey: branchId }
+        ]);
+      });
+
+      it('一分支至多一个未结束会话：唯一索引拒绝第二行', async () => {
+        const branchId = await readActiveBranchId(database);
+        const older = await seedTwoCommits(database, branchId);
+        await restoreOnce(database, older.id);
+
+        const rejection = await captureRejection(
+          withTransaction(database, async executor => {
+            const duplicate = database.entityManager.instantiate(WorkingTreeRestoreSession);
+            duplicate.id = uuid();
+            duplicate.branchId = branchId;
+            duplicate.targetCommitId = older.id;
+            duplicate.expectedHeadRevision = 0;
+            duplicate.expectedWorkingTreeRevision = 0;
+            duplicate.status = 'active';
+            duplicate.activeKey = branchId;
+            await executor.saveMany([duplicate]);
+          })
+        );
+
+        // 判据落在**数据库**上而不是某个入口的前置检查上：`restore()` 今天确实会先被
+        // `dirty_working_tree` 挡住，但那道检查是应用层的一句 `if`，六个后端谁都可以绕过去
+        // （比如别的入口、比如将来的批量导入）。「一分支至多一个未结束会话」要成立，
+        // 只能由那条可空唯一索引来保证。
+        expect(rejection).toBeInstanceOf(Error);
+        expect(sessionShapeOf(await readRestoreSessions(database))).toEqual([
+          { status: 'active', activeKey: branchId }
+        ]);
+      });
+
+      it('commit() 把会话推进 committed 并让出 activeKey，新节点挂在原 HEAD 之后', async () => {
+        const branchId = await readActiveBranchId(database);
+        const older = await seedTwoCommits(database, branchId);
+        await restoreOnce(database, older.id);
+        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const before = await withTransaction(database, snapshotCommits);
+
+        const result = await commitWithCredentials(database, credentialsOf(await readStatus(database)), '提交恢复结果');
+
+        const rows = await withTransaction(database, readAllCommits);
+        const created = rows.find(row => result.ok && row.id === result.commitId);
+        const status = await readStatus(database);
+        const after = await withTransaction(database, snapshotCommits);
+        // 被恢复的那个节点一个字节都没动：恢复产生的是新提交，不是对旧节点的重写（FR-015）。
+        expectAppendOnly(before, after);
+        expect({
+          committed: result.ok,
+          firstParentId: created?.firstParentId,
+          bits: restoreBitsOf(status),
+          clean: status.clean,
+          session: await withTransaction(database, executor => readActiveRestoreSession(executor, branchId))
+        }).toEqual({
+          committed: true,
+          firstParentId: refBefore.headCommitId,
+          bits: { restoring: false, conflicted: false },
+          clean: true,
+          session: null
+        });
+        // 行还在，只是让出了唯一键——「这个分支上提交过几次恢复」从这里数得出来。
+        expect(sessionShapeOf(await readRestoreSessions(database))).toEqual([{ status: 'committed', activeKey: null }]);
+      });
+
+      it('discard() 把会话整行删掉，工作树回到干净', async () => {
+        const branchId = await readActiveBranchId(database);
+        const older = await seedTwoCommits(database, branchId);
+        await restoreOnce(database, older.id);
+        const before = await withTransaction(database, snapshotCommits);
+
+        const result = await discardWithFreshCredentials(database);
+
+        const status = await readStatus(database);
+        const after = await withTransaction(database, snapshotCommits);
+        expectAppendOnly(before, after);
+        expect([...after.keys()], 'discard 动了历史').toEqual([...before.keys()]);
+        expect({
+          result,
+          bits: restoreBitsOf(status),
+          clean: status.clean,
+          entries: await countEntries(database, branchId)
+        }).toEqual({
+          result: { ok: true, discardedCount: 1, workingTreeRevision: status.workingTreeRevision },
+          bits: { restoring: false, conflicted: false },
+          clean: true,
+          entries: 0
+        });
+        // 丢弃**不留终态行**：什么都没提交，一行 `committed` 会让上一条用例数出来的那个数字失真。
+        expect(await readRestoreSessions(database)).toEqual([]);
       });
     });
   });

@@ -23,8 +23,8 @@ import type { TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import { readCommitBranchRef } from '../commit/list-commits.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
+import { readActiveRestoreSessionRow } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
-import { WorkingTreeRestoreSession } from './working-tree-restore-session.entity.js';
 import type { WriteEntryOrigin } from './write-entry-matrix.js';
 
 /**
@@ -173,9 +173,10 @@ interface RestoreBits {
  * @returns 见 {@link RestoreBits}
  *
  * @remarks
- * 只认 `activeKey` 非空的那一行——唯一约束保证一分支至多一行（`NULL` 不参与唯一比较）。
- * 把 `status === 'committed'` 的终态行也算进来的话，一个分支的历史里只要有过一次恢复，
- * 此后它永远显示冲突。
+ * 「哪一行算未结束」不在这里判，走 {@link readActiveRestoreSessionRow} 那一份共用口径
+ * （`activeKey` 非空，而不是 `status === 'active'`）；本函数只负责拿捕获的那一对 revision
+ * 与当前值比一次。两位互斥：有会话且两个捕获位都对得上就是 `restoring`，对不上就是
+ * `conflicted`，没有会话则两位全灭。
  */
 const readRestoreBits = async (
   executor: TransactionExecutor,
@@ -183,16 +184,7 @@ const readRestoreBits = async (
   headRevision: number,
   workingTreeRevision: number
 ): Promise<RestoreBits> => {
-  const [session] = await executor.getRepository(WorkingTreeRestoreSession).find({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'branchId', operator: '=', value: branchId },
-        { field: 'activeKey', operator: 'notNull' }
-      ]
-    },
-    limit: 1
-  });
+  const session = await readActiveRestoreSessionRow(executor, branchId);
   if (!session) return { restoring: false, conflicted: false };
   const intact =
     session.expectedHeadRevision === headRevision && session.expectedWorkingTreeRevision === workingTreeRevision;

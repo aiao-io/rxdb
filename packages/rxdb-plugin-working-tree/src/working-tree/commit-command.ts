@@ -37,6 +37,7 @@ import { readCommitBranchRef } from '../commit/list-commits.js';
 import { writeCommit, type WriteCommitOutcome } from '../commit/write-commit.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
+import { commitActiveRestoreSession } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import { buildWorkingTreeCommitTransitionSql } from './working-tree-state-sql.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
@@ -167,11 +168,15 @@ interface FinishCommitInput {
 }
 
 /**
- * 写完 commit 之后的收尾：清条目、推状态行、同步内存行（T081）。
+ * 写完 commit 之后的收尾：清条目、推状态行、结束恢复会话、同步内存行（T081、T107）。
  *
  * @remarks
  * `reused` 分支**什么都不清**：同一个幂等键此前那次提交已经在它自己的事务里清过一遍，
- * 再删一次删掉的是那之后新捕获的变更。它也不推 revision——本次调用没有产生状态转移。
+ * 再删一次删掉的是那之后新捕获的变更。它也不推 revision，也不结束恢复会话——本次调用
+ * 没有产生状态转移，而真正结束那个会话的是此前那次提交。
+ *
+ * {@link commitActiveRestoreSession} 排在状态行 UPDATE **之后**：会话只在工作树确实
+ * 落进历史之后才算结束；这个分支上没有未结束会话时它一条语句都不发（FR-015）。
  */
 const finishCommit = async (executor: TransactionExecutor, input: FinishCommitInput): Promise<CommitResult> => {
   const { outcome, ref, state } = input;
@@ -196,6 +201,7 @@ const finishCommit = async (executor: TransactionExecutor, input: FinishCommitIn
       workingTreeRevision
     })
   );
+  await commitActiveRestoreSession(executor, input.branchId);
 
   const headRevision = input.options.expectedHeadRevision + 1;
   syncRowsAfterCommit(ref, state, { commitId: outcome.commit.id, headRevision, workingTreeRevision });
