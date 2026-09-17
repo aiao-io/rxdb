@@ -30,12 +30,12 @@
 
 四条同属 [epic-006](epics/epic-006-working-tree-commits.md)，代码已完成、收尾门禁未跑完；逐条理由见[按 Epic 索引里的该节](#本地工作树与提交历史)。
 
-| Story                                                                                           | 待收尾的是什么                                                                                                     |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md)                | AC US2-14 的绿半边要一个真实的新 bridge tag（线 A），今天造不出也不许造                                            |
-| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)                 | 阶段 C 的 `bench-working-tree` status 相对门禁必然假红，已归评审；T130 / T132 跑过且各红一处，归属都在别处（见上） |
-| [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)                          | T109 的 restore benchmark 测量项与门禁接入未关闭                                                                   |
-| [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) | 任务侧已全关，等 T130 / T132 那两处红各自收口                                                                      |
+| Story                                                                                           | 待收尾的是什么                                                                                                              |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md)                | AC US2-14 的绿半边要一个真实的新 bridge tag（线 A），今天造不出也不许造                                                     |
+| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)                 | 阶段 C 的 `bench-working-tree` status 相对门禁必然假红，已归评审；T130 已全绿关闭，T132 仍红在 `restore` 未冻结基线（见上） |
+| [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)                          | T109 的 restore benchmark 测量项与门禁接入未关闭                                                                            |
+| [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) | 任务侧已全关，T130 已全绿关闭，只等 T132 那处红收口                                                                         |
 
 ## 按 Epic 索引
 
@@ -122,14 +122,14 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在且 133 条里关闭 130 条，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭。**没有一条写 Done，三个理由都不是文书问题**：① 收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已在 2026-09-18 全部**跑过**，只有 T131 绿：T130 六个适配器各红同一条 `enable() 之后新建的分支自带 ref / state`（根因是并发会话尚未提交的 `branch-commit-rows.ts` 改写，归该会话收口，本任务不擅自改那条断言），T132 的相对门禁红在 `restore` 这个新增测点**不在 reference 里**（唯一解法是重新冻结基线，而那正被下面的 ② 挡着）；② `bench-working-tree` 的 status 相对门禁在参考基线自己的十次运行里就有 3 次超上限，已归评审，**不得靠重算基线或放宽容差转绿**；③ US-305 的 AC US2-14 只有红半边能在真实仓库上执行（见下）。排期上整链（含桥接发布）仍位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后——**代码先落地不等于排期提前**。
+四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在且 133 条里关闭 131 条，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭。收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已在 2026-09-18 全部**跑过**，T130 与 T131 已绿并关闭——T130 那 6 条同形红判定为**套件断言与 FR-017 相反**（`createBranch(branchId)` 按规格就该共享当前 HEAD），按规格收紧断言后 6 后端 5031 条零失败，SC-006 的 12 个调用点齐全。**没有一条写 Done，两个理由都不是文书问题**：① `bench-working-tree` 的相对门禁红着，且**两处红同源**——`restore` 这个新增测点不在 reference 里（T109 / T132 各卡在这里），而 status 门禁在参考基线自己的十次运行里就有 3 次超上限；能同时把两处转绿的动作只有重新冻结基线，**那等于让门禁自证其绿**，已归评审，不得靠重算基线或放宽容差；② US-305 的 AC US2-14 只有红半边能在真实仓库上执行（见下）。排期上整链（含桥接发布）仍位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后——**代码先落地不等于排期提前**。
 
 - 👀 [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 交付阶段 A / B 的代码与 6 后端 conformance 调用点已就位（T022～T045）；**FR-030 的发布前置未解除**：`migration-release.json` 的 `bridge.tag`/`bridge.version` 仍是 `null`，而 AC US2-14 的绿半边要求 `bridge.version` 严格新于 `0.0.25`，仓库里不存在这样的 tag，造一个等于伪造发布锚点。红半边（`null` / `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上跑过并留证
 - 👀 [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
   - 👀 阶段 A 工作树写入捕获与持久化 — T046～T068
   - 👀 阶段 B 提交状态机（status / diff / commit / discard，无暂存区）— T069～T085
-  - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，性能门禁见上面的理由 ②
-- 👀 [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110；其中 **T109（restore 的 benchmark 测量项与门禁接入）未关闭**，与理由 ② 同一处，归评审
+  - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，性能门禁见上面的理由 ①
+- 👀 [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110；其中 **T109（restore 的 benchmark 测量项与门禁接入）未关闭**，与理由 ① 同一处，归评审
 - 👀 [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123，全部关闭
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)

@@ -147,19 +147,21 @@ pnpm nx run-many -t test --projects=rxdb,rxdb-adapter-pglite,rxdb-adapter-wa-sql
 | 3.9 损坏 fail-closed          | `commit/corruption-guard.spec.ts`（19：沿**完整可达父链**遍历、孤立损坏只隔离、校验只读）、`working-tree/commit-corruption-entry.spec.ts`（20）、`working-tree/switch-to-corruption.spec.ts`（15，含「切离损坏分支照常放行」）、commit 套件 §2.5 的四入口 × 四形态表（守卫本身 / `commit()` / `restore()` / switch-to）\*                                       | 绿                    |
 | 3.10 分支 ABA                 | `working-tree/remove-branch-aba.spec.ts`（12：删除既不退号也不发号、同名重建拿到严格更大的代际、重建后旧幂等键不碰撞）、`working-tree/activation-cas.spec.ts`（18：CAS 落空是 `CommitConflict` 值且不重试）                                                                                                                                                     | 绿                    |
 
-**唯一的红，以及它到底压着 3.1 的哪一格**：6 个适配器各红 1 条，逐字节相同——
+**记录当时的唯一一条红，以及它后来怎么消的**：初次实跑时 6 个适配器各红 1 条，逐字节相同——
 `commit.suite.ts §2.2 一次性启用迁移（US-305） > enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号`，
 期望 `head: null`、实得一个真实 commit id。**它压的不是 3.1 第 4 步的原文**：第 4 步问的是
 「**既存**分支在 `enable()` 之后都有 ref / state 初始行」，那一格由 `enable-migration.spec.ts` 的
-21 条在单元层、由捕获套件在 6 后端上守着，今天是绿的。红的是它的**邻接面**——`enable()` 之后再
-`createBranch()` 出来的新分支。根因在并发会话尚未提交的 `src/commit/branch-commit-rows.ts`
-（97 → 450 行）：新的 `copyCurrentMaterialization()` 让「从当前物化状态建分支」共享源分支 HEAD
-（`ref.headCommitId = sourceRef.headCommitId`），而这条断言写于 `head` 仍恒为 `null` 的年代。两边各自
-自洽，只是还没对齐；**本次不改断言也不改实现**，详见 `tasks.md` T130。
+21 条在单元层、由捕获套件在 6 后端上守着，从头到尾都是绿的。红的是它的**邻接面**——`enable()` 之后再
+`createBranch()` 出来的新分支。
 
-**因此本条的结论**：十个场景里九个逐条绿，第 1 个绿在它自己写明的那一格、红在紧邻的一格。这份记录
-不把那条红算进「通过」，也不把它算成 3.1 的失败——它是 US-305 启用面的一条**未对齐**，归属清楚，
-复跑口径就是 `branch-commit-rows.ts` 落地后重跑上面第二条命令。
+**判定结果是断言写反了，不是实现错了**：FR-017 写明「`createBranch(branchId)` 保留从当前物化状态
+创建的行为，复制独立 working-tree snapshot 并**共享当前 HEAD**」，而 `src/commit/branch-commit-rows.ts`
+的 `copyCurrentMaterialization()` 正是这么落的；那条断言写于 `head` 仍恒为 `null` 的年代。断言已按
+FR-017 收紧成 `head: sourceRef.headCommitId`，并另加一条「源 HEAD 非空」挡住空过，6 后端复跑全绿
+（详见 `tasks.md` T130）。
+
+**因此本条的结论**：十个场景逐条绿。第 1 个场景在它自己写明的那一格从未红过；紧邻那一格的红是
+US-305 启用面上套件与实现的一处未对齐，已按规格判归属并修正，不是把期望放宽换来的绿。
 
 ## 4. 三框架对称（阶段 C 收口）
 

@@ -74,8 +74,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   由 `specs/001-working-tree-commits/tasks.md` 的 T022～T045 落地，实现全部落在
   `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
   状态记 👀 而不是 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）的
-  2026-09-18 实跑里只有 T131 绿——T130 与 T132 各红一处且归属都在本故事之外（分别是并发会话的
-  `branch-commit-rows.ts` 改写与待评审的 bench 基线），
+  2026-09-18 实跑里 T130、T131 已绿并关闭——T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)`
+  按规格就该共享当前 HEAD），按规格收紧断言后 6 后端 5031 条零失败；只剩 T132 红在待评审的 bench 基线上，
   且下一条的 FR-030 正向路径按设计走不通。
 - **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
   [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
