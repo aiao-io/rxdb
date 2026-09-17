@@ -63,7 +63,9 @@ Nx target：`benchmarks` 项目（`benchmarks/project.json`，sourceRoot `benchm
     "commit": "<reference commit sha>",
     "runs": 10,
     "medianRatios": { "status": 0, "diff": 0, "commit": 0, "restore": 0 },
-    "frozenAbsolute": { "commit": 0 } // 见 §4
+    "frozenAbsolute": { "commit": 0 }, // 见 §4
+    "runnerProfileHash": "<冻结这十次运行的那台机器>", // §3.2 的准入判据
+    "regeneratedBecause": "<可选：重新冻结的理由>" // 首次冻结时不出现
   }
 }
 ```
@@ -88,6 +90,8 @@ Nx target：`benchmarks` 项目（`benchmarks/project.json`，sourceRoot `benchm
 | `commit`  | **不套用 100 ms** —— 见 §4                         | SC-003 |
 
 `runnerProfileHash` 与 reference 不一致时返回 **`benchmark_environment_mismatch`**，**不得伪装成性能回归**，也不得因此降级为通过。
+
+这道比对要成立，reference 自己必须记得它是在哪台机器上冻的——所以 `reference.runnerProfileHash` 是**必填**，而不是从当次运行的 `environment` 推断（那样永远相等，比对恒真）。`reference.regeneratedBecause` 只在重新冻结时出现，记录 §3.1 允许的那一类理由（测点集合变化），使「为什么存在第二份基线」留在产物里而不是只留在提交记录里。
 
 ## 4. `commit` 的绝对预算（已批准的宪法例外）
 

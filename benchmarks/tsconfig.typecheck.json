@@ -6,6 +6,9 @@
     "declarationMap": false,
     "emitDeclarationOnly": false,
     "noEmit": true,
+    // Node 的 type stripping 按 ESM 规则解析，相对导入必须写全 `.ts`；此处放行以便
+    // 根目录的 *.bench.ts 直接 `node --experimental-strip-types` 运行。noEmit 下无产物歧义。
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "module": "esnext",
     "moduleResolution": "bundler",

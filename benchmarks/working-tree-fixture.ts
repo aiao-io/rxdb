@@ -42,7 +42,11 @@ import { createHash } from 'node:crypto';
 import type { UUID } from '@aiao/rxdb';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import type { CommitOptions, WorkingTreeCredentials } from '@aiao/rxdb-plugin-working-tree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
   ConformanceNote,
   WORKING_TREE_CONFORMANCE_ENTITIES,
@@ -350,6 +354,17 @@ export const buildWorkingTreeFixturePlan = (): WorkingTreeFixturePlan => {
  * 实体清单、远端占位适配器名与 `context.userId` 全部复用 `@aiao/rxdb-plugin-working-tree/testing` 那一份：
  * benchmark 自己再声明一套实体的话，测的就不是一致性套件跑过的那条路径了。
  *
+ * **四个 `use()` 与捕获侧调用点逐条对齐**（`rxdb-adapter-pglite/src/__tests__/working-tree-capture-conformance.spec.ts`），
+ * 顺序也一样。它们不是「顺手多装几个」：`WORKING_TREE_CONFORMANCE_ENTITIES` 里的
+ * `ConformanceCache` 声明了 `SyncType.QueryCache`，核心的护栏查的是**注册清单**而不是
+ * 运行期有没有真的走到，缺 querycache 引擎时 `connect()` 当场抛 `RxDBMissingPluginError`；
+ * sync 插件又声明了 `inject: ['plugin:history']`，缺历史插件时宿主**只告警一次、不装它**，
+ * 于是症状会伪装成「装了 sync 却报缺 sync」。benchmark 自己缩减实体清单能绕开这三个，
+ * 代价是测的不再是一致性套件跑过的那条捕获路径——那正是上一段拒绝的做法。
+ *
+ * 全部排在 `connect()` **之前**：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
+ * （10 张系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+ *
  * 库名带时间戳与随机后缀——那是**标识**不是内容，不进 `contentHash`；同一次运行里连开两个
  * 库时它们必须互不覆盖。
  */
@@ -365,6 +380,10 @@ export const createWorkingTreeFixtureDatabase = async (): Promise<RxDB> => {
     }
   });
   database.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));
+  database.use(rxDBPluginWorkingTree);
+  database.use(rxDBPluginQueryCache);
+  database.use(rxDBPluginSync);
+  database.use(rxDBPluginHistory);
   await database.connect('pglite');
   await database.workingTree.enable();
   return database;

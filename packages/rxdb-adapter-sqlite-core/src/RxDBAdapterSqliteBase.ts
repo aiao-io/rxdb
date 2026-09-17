@@ -403,7 +403,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 不在这里另认一套形状。`@aiao/rxdb` 不能依赖加密包（依赖方向是反的），所以这一句
    * 只能落在适配器侧。
    */
-  isEncryptedAtRest(value: unknown): boolean {
+  override isEncryptedAtRest(value: unknown): boolean {
     return isEnvelope(value);
   }
 

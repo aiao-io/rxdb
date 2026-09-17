@@ -1,0 +1,54 @@
+{
+  "environment": {
+    "runtime": "node 26.7.0",
+    "os": "Darwin darwin arm64",
+    "cpuModel": "Apple M1 Max",
+    "logicalCores": 10,
+    "memoryBytes": 34359738368,
+    "runnerId": "liuleideMacBook-Pro-4.local",
+    "concurrency": 10,
+    "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba"
+  },
+  "fixture": {
+    "entities": 10000,
+    "commits": 100,
+    "unitsPerCommit": 100,
+    "uncommittedUnits": 100,
+    "contentHash": "9bb64d68be9d114dec7520ac23e797ae845c07bec64403dd8e6648fda0cfd0d6"
+  },
+  "measurements": [
+    {
+      "id": "status",
+      "p50": 4.07354199999827,
+      "p95": 6.119542000000365,
+      "max": 14.00837500000489,
+      "controlId": "control_read_100",
+      "controlP95": 2.7940830000006827,
+      "ratio": 2.1901790319038015
+    },
+    {
+      "id": "diff",
+      "p50": 4.775792000000365,
+      "p95": 6.013791000004858,
+      "max": 8.898209000006318,
+      "controlId": "control_read_100",
+      "controlP95": 2.8934579999913694,
+      "ratio": 2.0784096399611798
+    },
+    {
+      "id": "commit",
+      "p50": 363.42204199999105,
+      "p95": 444.9051660000114,
+      "max": 563.6001249999972,
+      "controlId": "control_write_100",
+      "controlP95": 30.435417000000598,
+      "ratio": 14.618007895209802
+    }
+  ],
+  "reference": null,
+  "sampling": {
+    "warmup": 5,
+    "samples": 50
+  },
+  "schemaVersion": 1
+}
