@@ -468,9 +468,18 @@ const restoreOnce = async (database: RxDB, commitId: string): Promise<WorkingTre
   return result;
 };
 
-/** 拿刚读到的捕获位丢弃一次。 */
-const discardWithFreshCredentials = (database: RxDB): Promise<unknown> =>
-  withTransaction(database, async executor => discardWorkingTree(executor, credentialsOf(await readStatus(database))));
+/**
+ * 拿刚读到的捕获位丢弃一次。
+ *
+ * @remarks
+ * 捕获位在**事务外**读完再进去：`readStatus()` 自己要开一个事务，而六个后端里已有一个
+ * 写事务在手时再开一个只会等到超时。这也正是真实调用点的形状——用户先看 `status()`，
+ * 再决定丢不丢。
+ */
+const discardWithFreshCredentials = async (database: RxDB): Promise<unknown> => {
+  const credentials = credentialsOf(await readStatus(database));
+  return withTransaction(database, executor => discardWorkingTree(executor, credentials));
+};
 
 /** 读 `rxdb_working_tree_restore_session` 全表；终态行也要数进来，「删掉了没有」全靠它。 */
 const readRestoreSessions = (database: RxDB): Promise<WorkingTreeRestoreSession[]> =>
@@ -487,6 +496,10 @@ const restoreBitsOf = (status: WorkingTreeStatus): unknown => ({
   restoring: status.restoring,
   conflicted: status.conflicted
 });
+
+/** 按 id 在一批 commit 行里找它的 message；找不到就是 `null`。 */
+const messageOfCommit = (rows: readonly Commit[], commitId: string | null): string | null =>
+  rows.find(row => row.id === commitId)?.message ?? null;
 
 /** 铺一条两节点的历史，返回较老的那个——它就是后面每条用例的恢复目标。 */
 const seedTwoCommits = async (database: RxDB, branchId: string): Promise<Commit> => {
@@ -1247,7 +1260,12 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const branchId = await readActiveBranchId(database);
         const older = await seedTwoCommits(database, branchId);
         await restoreOnce(database, older.id);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        // 取**原始值**而不是留着 ref 行：`readCommitBranchRef()` 交还的是身份映射里那一行，
+        // 而 `commit-command.ts` › `syncRowsAfterCommit()` 会就地把它推到新 HEAD 上。留着行
+        // 对象的话，这个「提交前的 HEAD」会在提交之后变成提交后的 HEAD，断言两边一起动，
+        // 于是它什么都验不出来。
+        const headBeforeCommit = (await withTransaction(database, executor => readCommitBranchRef(executor, branchId)))
+          .headCommitId;
         const before = await withTransaction(database, snapshotCommits);
 
         const result = await commitWithCredentials(database, credentialsOf(await readStatus(database)), '提交恢复结果');
@@ -1258,15 +1276,21 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const after = await withTransaction(database, snapshotCommits);
         // 被恢复的那个节点一个字节都没动：恢复产生的是新提交，不是对旧节点的重写（FR-015）。
         expectAppendOnly(before, after);
+        // 三个位置全部按 **message** 比而不是按 id：三个 uuid 在失败输出里长得一模一样，
+        // 而这条断言真正要说的是「新节点挂在**当前 HEAD** 之后，不是挂在**被恢复的那一版**之后」。
         expect({
           committed: result.ok,
-          firstParentId: created?.firstParentId,
+          created: messageOfCommit(rows, result.ok ? result.commitId : null),
+          parent: messageOfCommit(rows, created?.firstParentId ?? null),
+          headBefore: messageOfCommit(rows, headBeforeCommit),
           bits: restoreBitsOf(status),
           clean: status.clean,
           session: await withTransaction(database, executor => readActiveRestoreSession(executor, branchId))
         }).toEqual({
           committed: true,
-          firstParentId: refBefore.headCommitId,
+          created: '提交恢复结果',
+          parent: '当前 HEAD',
+          headBefore: '当前 HEAD',
           bits: { restoring: false, conflicted: false },
           clean: true,
           session: null

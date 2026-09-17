@@ -518,3 +518,35 @@ describe('物理表名 — SQLite 家族把 schema 折进名字里（`${namespac
     );
   });
 });
+
+describe('注释剥离：未闭合的块注释不能把判定拖成二次方（CWE-1333）', () => {
+  /**
+   * 未闭合 `/*` 的重复；`sql` 参数是库的公开入口，长度不由判定决定。
+   *
+   * @param repeats - `a/*` 重复多少次
+   * @returns 一条永远不会闭合注释的语句
+   */
+  const unterminatedComments = (repeats: number): string => `/*${'a/*'.repeat(repeats)}`;
+
+  it('十万次重复也在毫秒量级判完', () => {
+    // 判定跑在**每一次** raw 调用上。剥注释的正则一旦在未闭合的 `/*` 上退化成
+    // 「从每个 `/*` 重扫到串尾」，一条 300KB 的语句就能把判定本身变成拒绝服务的入口：
+    // 二次方下这条要跑数秒，线性下是亚毫秒。留三个量级的余量，免得成为看机器脸色的断言。
+    const sql = unterminatedComments(100_000);
+    const started = performance.now();
+    judgeRawWrite(sql, context());
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it('未闭合的块注释一路吃到串尾——与 SQLite 对注释的读法一致', () => {
+    // SQLite 明确允许块注释以输入结束收尾，PG 则直接把这条判为语法错。两种方言下
+    // `/*` 之后的内容都不会真的写进业务表，所以剥掉它不开新的绕过口子。
+    expect(allowanceFor("SELECT 1 /* UPDATE post SET title = 'x'").reason).toBe('not_a_write');
+  });
+
+  it('闭合的块注释只吃到 `*/`，后面的写照样被拦', () => {
+    // 与上一条互为边界：真把「`/*` 之后一律不看」写进实现的话，这条会静默放行。
+    expect(rejectionFor("/* c */ UPDATE post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("UPDATE /* c */ post SET title = 'x'").step).toBe(4);
+  });
+});
