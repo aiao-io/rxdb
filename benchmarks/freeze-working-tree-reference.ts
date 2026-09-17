@@ -216,7 +216,7 @@ console.log(`  runnerProfileHash: ${reference.runnerProfileHash}`);
 for (const [id, ratio] of Object.entries(reference.medianRatios)) {
   const series = collected.map(run => run.report.measurements.find(m => m.id === id)?.ratio ?? Number.NaN);
   console.log(
-    `  [${id}] median ratio=${ratio.toFixed(3)}  (十次: ${series.map(value => value.toFixed(2)).join(', ')})`
+    `  [${id}] median ratio=${ratio.toFixed(3)}  (${series.length} 次: ${series.map(value => value.toFixed(2)).join(', ')})`
   );
 }
 console.log(
