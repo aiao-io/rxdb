@@ -502,6 +502,28 @@ export const seedWorkingTreeFixture = async (database: RxDB, plan: WorkingTreeFi
 };
 
 /**
+ * 把工作树清空回 clean HEAD：丢弃当前分支上的一切未提交条目。
+ *
+ * @param database - 已建好 fixture 的库
+ * @throws `Error` 丢弃返回 `ok: false`（单线程 benchmark 里出现 CAS 冲突只可能是实现缺陷）
+ *
+ * @remarks
+ * 两个调用点各要它的一半：{@link restoreWorkingTreeFixture} 拿它当「写新一轮单元之前先
+ * 清场」，而 `restore` 测点拿它当**被测项自己的前置**——契约 §3.2 给 `restore` 的口径是
+ * 「从 clean HEAD 恢复 `HEAD~1`」，工作树不空时 `restore()` 会直接被
+ * `dirty_working_tree` 拒掉，量到的就成了一次前置检查的耗时。
+ *
+ * 丢弃**顺带结束未结束的恢复会话**（US-307 AC5）。`restore` 测点每一轮都会留下一个 active
+ * 会话，下一轮靠这一次丢弃清掉；不清的话，第二轮会撞上「一分支至多一个未结束会话」的
+ * 唯一索引。
+ */
+export const clearWorkingTreeFixture = async (database: RxDB): Promise<void> => {
+  const credentials = await captureFixtureCredentials(database);
+  const discarded = await database.workingTree.discard(credentials);
+  if (!discarded.ok) throw new Error(`fixture 清场时丢弃冲突：${JSON.stringify(discarded.conflict)}`);
+};
+
+/**
  * 每个 sample 前在**计时外**把工作树恢复到同一状态（契约 §1「恢复时机」）。
  *
  * @param database - 已建好 fixture 的库
@@ -524,9 +546,7 @@ export const restoreWorkingTreeFixture = async (
   plan: WorkingTreeFixturePlan,
   revision: number
 ): Promise<void> => {
-  const credentials = await captureFixtureCredentials(database);
-  const discarded = await database.workingTree.discard(credentials);
-  if (!discarded.ok) throw new Error(`fixture 恢复时丢弃冲突：${JSON.stringify(discarded.conflict)}`);
+  await clearWorkingTreeFixture(database);
   await applyUncommittedUnits(database, plan, revision);
 };
 

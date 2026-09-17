@@ -32,6 +32,19 @@ export const RELATIVE_GATE_TOLERANCE = 1.1;
 /** 绝对门禁里 `status` / `diff` 的 p95 上限，毫秒（契约 §3.2，SC-001 / SC-002）。 */
 export const ABSOLUTE_BUDGET_MS = 100;
 
+/**
+ * 绝对门禁里 `restore` 的 p95 上限，毫秒（契约 §3.2，SC-004）。
+ *
+ * @remarks
+ * 单列一个常数而不是复用 {@link ABSOLUTE_BUDGET_MS}：契约给 `restore` 的是 1 s，比
+ * `status` / `diff` 宽十倍，因为它要在一个事务里把 100 个单元的逆向 patch 写成工作树条目。
+ * 两者共用一个名字的话，将来任何一方调整都会悄悄把另一方一起调走。
+ *
+ * 与 `commit` 那条（冻结中位数）也不同：`commit` 是已批准的宪法例外（契约 §4），
+ * 上限由 reference 冻结；`restore` 的 1 s 是契约直接写死的硬数字，不吃 reference。
+ */
+export const RESTORE_ABSOLUTE_BUDGET_MS = 1_000;
+
 /** reference 文件路径；T097 冻结它，本文件只读。 */
 export const REFERENCE_PATH = resolve(__dirname, 'reports', 'working-tree-reference.json');
 

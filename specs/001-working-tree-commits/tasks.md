@@ -259,6 +259,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T107 [US3] 实现会话终态转换于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts`：`commit()` 与 session 的 `committed` 转换**原子提交**；`discard` 路径对称；新 commit 不改写被恢复的历史节点（FR-015）
 - [x] T108 [US3] 扩展 `packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts` 的 conformance-suites.md §2.6（restore）小节；6 个适配器既有调用点自动带上
 - [ ] T109 [US3] 在 `benchmarks/working-tree.bench.ts` 增加 restore 测量项：恢复含 100 个完整变更单元的 `HEAD~1`，WARMUP=5 / SAMPLES=50，记录 runner profile；接入相对门禁，绝对 p95 ≤ 1 s 只在 `runnerProfileHash` 匹配的固定性能 runner 上作为发布硬门禁（FR-026b、SC-004）
+  - 代码侧已完成并实测（p50=304.9ms / p95=340.5ms / ratio=14.13，绝对上限 1 s 有余量）；**剩下 reference 重新冻结一步，归 review**：契约 §3.1 允许「测点集合变化后重新冻结」，但同一次冻结会连带重算 `status` 的中位数，而 `status` 相对门禁正在 review（基线自身十次里有 3 次超上限）。在那个判定落地前重跑 `freeze-working-tree-reference.ts --regenerate` 等于顺手把待审的门禁也重置了，因此不做。
 - [ ] T110 [US3] **（排在 Phase 6 之后）** 把 `restore()` / `restoreSession()` 接进三端入口 `packages/rxdb-{angular,react,vue}/src/use-working-tree.ts`，并补三端 `*.spec.ts` 用例；任一端缺一项 = 未完成（tri-framework-api.md §3）
 
 **Checkpoint**: US-307 独立可交付。恢复语义完整且不改写历史。
