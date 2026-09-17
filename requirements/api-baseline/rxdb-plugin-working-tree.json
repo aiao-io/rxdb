@@ -66,6 +66,10 @@
         "kind": "type"
       },
       {
+        "name": "checkRestoreCompatibility",
+        "kind": "value"
+      },
+      {
         "name": "classifyWriteEntrance",
         "kind": "value"
       },
@@ -230,6 +234,10 @@
         "kind": "value"
       },
       {
+        "name": "findFirstReplayIncompatibility",
+        "kind": "value"
+      },
+      {
         "name": "fingerprintOf",
         "kind": "value"
       },
@@ -302,6 +310,10 @@
         "kind": "value"
       },
       {
+        "name": "readActiveRestoreSession",
+        "kind": "value"
+      },
+      {
         "name": "readCommitLogPage",
         "kind": "value"
       },
@@ -326,12 +338,36 @@
         "kind": "value"
       },
       {
+        "name": "RestoreCompatibility",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreIncompatibility",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreReplayDirection",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreVersionManifest",
+        "kind": "type"
+      },
+      {
+        "name": "restoreWorkingTree",
+        "kind": "value"
+      },
+      {
         "name": "rxDBPluginWorkingTree",
         "kind": "value"
       },
       {
         "name": "RxDBPluginWorkingTree",
         "kind": "both"
+      },
+      {
+        "name": "selectRestoreReplayPath",
+        "kind": "value"
       },
       {
         "name": "StaleActiveBranchError",
@@ -512,6 +548,30 @@
       {
         "name": "WorkingTreeReplayCorruptionError",
         "kind": "both"
+      },
+      {
+        "name": "WorkingTreeRestoreEntityRef",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeRestoreFailureReason",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeRestoreResult",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeRestoreSessionInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeRestoreTarget",
+        "kind": "type"
       },
       {
         "name": "WorkingTreeRevisionSnapshot",
