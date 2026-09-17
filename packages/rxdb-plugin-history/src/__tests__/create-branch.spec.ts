@@ -59,7 +59,11 @@ function createRecordingContribution(
     writeBranchRows: async (_entityManager, { executor, branchId }) => {
       calls.push({ branchId, executor, branchRowsWrittenBefore: countCreatedBranches() });
       await impl?.();
-    }
+    },
+    // 本文件只压 `create_branch` 那一侧的接缝；删分支的清理与切换分支的前置判定分别由
+    // `remove_branch` 与 `VersionManager.switchBranch` 调，各自有 spec 守。
+    removeBranchRows: async () => undefined,
+    assertBranchSwitchable: async () => undefined
   };
 }
 

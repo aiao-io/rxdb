@@ -21,7 +21,7 @@ import {
   type RxDBSystemContribution
 } from '@aiao/rxdb';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
-import { createBranchCommitRows } from './commit/branch-commit-rows.js';
+import { removeBranchCommitRows, writeNewBranchCommitRows } from './commit/branch-commit-rows.js';
 import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from './commit/commit-capability-state.entity.js';
 import { isCommitCapabilityEnabled } from './commit/commit-capability.js';
@@ -31,8 +31,8 @@ import {
   createWorkingTreeCommitsInitialRows,
   createWorkingTreeCommitsMigration
 } from './migrations/0004-working-tree-commits.js';
-import { allocateBranchGeneration } from './working-tree/activation-state.js';
 import { installWorkingTreeCapture } from './working-tree/capture-install.js';
+import { assertSwitchBranchPreconditions, assertSwitchTargetIntact } from './working-tree/switch-branch-options.js';
 import { WorkingTreeActivationState } from './working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeEntry } from './working-tree/working-tree-entry.entity.js';
 import { WorkingTreeManager } from './working-tree/working-tree-facade.js';
@@ -83,7 +83,7 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
  * @returns 交给宿主在建表那一刻编排的声明
  *
  * @remarks
- * 抽成模块级工厂而不是写成类字段的字面量：五个注册点各自带着一段「漏了会怎样」的理由，
+ * 抽成模块级工厂而不是写成类字段的字面量：六个注册点各自带着一段「漏了会怎样」的理由，
  * 塞进类体会让插件类的形状被一段六十行的初始化器盖住，而那个类真正要说的只有
  * 「入口挂在构造器、`install()` 是空的」两句。
  */
@@ -116,12 +116,28 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     if (!enabled) return;
     installWorkingTreeCapture(rxdb, adapter);
   },
-  writeBranchRows: async (entityManager, { executor, branchId }) => {
-    // 代际从单调源发放，不是「当前分支数 + 1」：删过分支之后后者会复用旧号，
-    // 持旧 `(branchId, headRevision)` 的调用方就会误中同名重建的新分支（ABA）。
-    const generation = await allocateBranchGeneration(executor);
-    await executor.saveMany(createBranchCommitRows(entityManager, branchId, generation));
-  }
+  assertBranchSwitchable: async ({ executor, targetBranchId, preconditions }) => {
+    // 未启用的库整套语义都是短路的（FR-037/046）：它没有 ref 行、没有工作树状态行，
+    // 拿一个它还没进入的不变量把切换挡下来，等于让启用能力本身变成一次破坏性变更。
+    if (!(await isCommitCapabilityEnabled(executor))) return;
+    // 损坏优先于调用方提出的条件（与 `commit()` 里「损坏优先于 CAS」同一条次序）：
+    // 反过来的话，一次 CAS 失败会把「这条分支的历史已经重放不出来」盖住，
+    // 而用户会照着 CAS 的建议动作重试——重试多少次都不会成功。
+    await assertSwitchTargetIntact(executor, targetBranchId);
+    await assertSwitchBranchPreconditions(executor, preconditions);
+  },
+  writeBranchRows: (entityManager, { executor, branchId }) =>
+    // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，
+    // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）。
+    writeNewBranchCommitRows(executor, entityManager, branchId),
+  removeBranchRows: ({ executor, branchId }) =>
+    // 建行与删行同住一个模块：「一条分支在本能力里占了哪几张表」只有那里知道，
+    // 而两半分家的那一天，新加的表会只在其中一半里被记得（FR-044）。
+    //
+    // **不判能力位。** 这六张表里的行与 `enable()` 无关——ref 与工作树状态行由
+    // `createInitialRows` / `writeBranchRows` 无条件写下，未启用的库上照样有。
+    // 照着 `assertBranchSwitchable` 抄一句短路进来，残留的就正是那些库上的行。
+    removeBranchCommitRows(executor, branchId)
 });
 
 /**

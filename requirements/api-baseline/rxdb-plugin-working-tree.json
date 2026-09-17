@@ -22,6 +22,14 @@
         "kind": "value"
       },
       {
+        "name": "assertSwitchBranchPreconditions",
+        "kind": "value"
+      },
+      {
+        "name": "assertSwitchTargetIntact",
+        "kind": "value"
+      },
+      {
         "name": "assertWorkingTreeEntryCountIntact",
         "kind": "value"
       },
@@ -274,6 +282,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorkingTreeRestoreSessionEmpty",
+        "kind": "value"
+      },
+      {
         "name": "isWorkingTreeStatusEmpty",
         "kind": "value"
       },
@@ -482,6 +494,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeDirtyError",
+        "kind": "both"
+      },
+      {
         "name": "WorkingTreeDiscardOptions",
         "kind": "type"
       },
@@ -591,6 +607,10 @@
       },
       {
         "name": "WorkingTreeSuccessState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeSwitchBranchOptions",
         "kind": "type"
       },
       {

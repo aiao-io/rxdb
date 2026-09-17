@@ -11,11 +11,27 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 - `commit()`：把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常
 - `discard()`：把工作树整体退回 HEAD
 - `listCommits()`：读当前分支的可达提交历史
+- `restore()` / `restoreSession()`：把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史，四个被拒成因走返回值
+- `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `db.versionManager` 上，被拒**走异常**
 
-尚未实现（US3 / US4，`specs/001-working-tree-commits/tasks.md` T095–T133）：
+## 用之前要知道的六件事
 
-- `restore()` / `restoreSession()` 恢复到任意历史提交
-- 带工作树语义的 `switchBranch`
+完整版见文档站的[插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)，这里是压缩版：
+
+1. **提交能力是数据库级的显式开关**——`enable()` 一次，整个库的所有实体、所有分支都按工作树语义运行。启用会留下一行能力水位，**没装本包的客户端从此拒绝连接这个库**；v1 没有 `disable()`。
+2. **工作树 ≠ 草稿缓存。** 工作树装的是「已经写进数据库、还没提交成快照」的变更，参与事务、被查询读到；草稿缓存（`@aiao/rxdb-plugin-workspace`）装的是「还没保存」的编辑器 buffer，根本没进主库。两层不能合并，本包因此也不占用 `Workspace*` 前缀。
+3. **`restore()` 不是 checkout。** 它把历史内容作为新的未提交变更写回工作树：HEAD 不动、历史不删、工作树变脏，下一步是 `commit()` 或 `discard()`。v1 没有 detached HEAD、没有 `checkout()`。
+4. **历史会原样保留敏感旧值。** 写进过某次提交的字段永久留在那次提交的 `ChangeSet` 里，之后改掉、清空、删行都不会动到它；v1 没有任何公开 API 能把它从历史里抠掉。**不要把不该留痕的东西写进启用了提交能力的库。**
+5. **加密边界**：加密字段在提交、工作树与恢复会话里仍以 versioned envelope 落盘，持久化路径不先解密再写明文，错误与摘要也不带明文。但加密保护的是**落盘的字节**——它不消解第 4 条，第 4 条也不能替代它。
+6. **不改写历史**：没有 amend / rebase / squash，没有「修改提交信息」，也没有 auto-baseline。提交图损坏时守卫只置 `corrupted_read_only` 并留诊断，**不动 HEAD、不删记录**。
+
+另外一条常被漏掉的：**远端同步拉下来的变更和用户的编辑一样进工作树**，在 `status().byOrigin` 里计为 `origin = 'remote_sync'`、**不豁免**，会让 `clean` 变成 `false`，并被下一次 `commit()` 一并提交（提交者是这次 `commit()` 的 `authorId`，v1 不伪造远端作者）。「同步之后工作树突然脏了」是正常行为。
+
+## 能力边界：绕过 adapter 的写入拦不住
+
+写捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**。直接打开同一个 SQLite 文件、另起一个 PGlite 实例、DevTools 里手写 SQL——这些**拦不住，v1 也不承诺拦得住**，而且它们不进工作树、不进历史、`status()` 看不见。
+
+因此启用了提交能力的数据库有一条硬约束：**业务表只能经 RxDB 写入**。写在这里不是免责声明的注脚——不假装拦得住比拦不住更重要：一道号称拦得住却拦不住的门禁，会让人把「没报错」当成「没被绕过」。
 
 ## 使用方式
 

@@ -43,6 +43,12 @@ export * from './raw-write-judgment.js';
 export * from './restore-command.js';
 export * from './restore-precheck.js';
 export * from './status.js';
+// 切换分支的两道前置（US-308）。选项类型与 `WorkingTreeDirtyError` 必须在公开面上：
+// 前者是 `switchBranch(id, options)` 的**入参**，后者是它唯一的失败出口——调用方 import
+// 不到就只能靠 `error.message` 认这件事。那条 CAS 语句本身（`activation-cas.ts`）不在
+// 公开面上，与 `working-tree-state-sql.ts` / `restore-session-transitions.ts` 同一条线：
+// 语句形状是实现细节，调用方拿到手也没有能安全使用它的事务。
+export * from './switch-branch-options.js';
 export * from './trusted-callsite-capture.js';
 export * from './versioned-domain.js';
 export * from './working-tree-commands.js';

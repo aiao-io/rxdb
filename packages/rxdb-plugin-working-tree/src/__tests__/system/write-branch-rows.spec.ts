@@ -16,7 +16,7 @@
  */
 
 import type { EntityManager, EntityType, IRepository, TransactionExecutor, TransactionExecutorFun } from '@aiao/rxdb';
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { RxDBPluginWorkingTree } from '../../plugin.js';
@@ -41,6 +41,7 @@ describe('writeBranchRows', () => {
   let contribution: RxDBPluginWorkingTree['system'];
   let activationRow: WorkingTreeActivationState;
   let activationRepository: { find: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  let branchRepository: { find: ReturnType<typeof vi.fn> };
   let saved: InstanceType<EntityType>[];
   let executor: TransactionExecutor;
 
@@ -64,6 +65,20 @@ describe('writeBranchRows', () => {
       update: vi.fn(async (entity: object, patch: object) => Object.assign(entity, patch))
     };
 
+    // `create_branch` 在调贡献方**之前**就把这一行写进了同一个事务，贡献方的两条支线
+    // （共享源 HEAD / 锚一个 branch_baseline）正是从它的 `parentId` / `fromChangeId` 上判的。
+    // 这里给的是一条**无父**分支：本文件守的是「两行落没落下、代际怎么发」，
+    // 继承什么归 `__tests__/version/switch-branch-working-tree.spec.ts`。
+    const branchRow = entityManager.instantiate(RxDBBranch);
+    branchRow.id = 'feature-x';
+    branchRow.activated = false;
+    branchRow.activeKey = null;
+    branchRow.local = true;
+    branchRow.remote = false;
+    branchRow.parentId = null;
+    branchRow.fromChangeId = null;
+    branchRepository = { find: vi.fn(async () => [branchRow]) };
+
     saved = [];
     executor = {
       id: 'probe-executor',
@@ -72,9 +87,9 @@ describe('writeBranchRows', () => {
       tableRef: fakeTableRef,
       mutations: vi.fn(async () => []),
       getRepository: (EntityClass: unknown) =>
-        (EntityClass === WorkingTreeActivationState ? activationRepository : (
-          { find: vi.fn(async () => []) }
-        )) as unknown as IRepository<EntityType>,
+        (EntityClass === WorkingTreeActivationState ? activationRepository
+        : EntityClass === RxDBBranch ? branchRepository
+        : { find: vi.fn(async () => []) }) as unknown as IRepository<EntityType>,
       saveMany: vi.fn(async (entities: InstanceType<EntityType>[]) => {
         saved.push(...entities);
         return entities;

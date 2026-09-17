@@ -177,6 +177,8 @@ function createHarness(): Harness {
     localAdapter$: of(localAdapter),
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
+    // 没有能力插件贡献：切换前的前置判定短路，编排顺序与今天一致。
+    systemContributions: [],
     addEventListener,
     removeEventListener,
     dispatchEvent

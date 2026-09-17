@@ -29,7 +29,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
+      "path": "../../packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../../modules/wujie/tsconfig.lib.json"

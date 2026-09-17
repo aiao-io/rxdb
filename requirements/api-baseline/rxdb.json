@@ -1422,11 +1422,23 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBranchRemovalContext",
+        "kind": "type"
+      },
+      {
         "name": "RxDBBranchRuleGroup",
         "kind": "type"
       },
       {
         "name": "RxDBBranchStaticTypes",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchContext",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchPreconditions",
         "kind": "type"
       },
       {

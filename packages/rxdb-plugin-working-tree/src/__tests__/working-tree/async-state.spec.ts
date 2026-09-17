@@ -26,6 +26,7 @@ import { CommitValidationError } from '../../commit/write-commit.js';
 import {
   isCommitLogPageEmpty,
   isWorkingTreeDiffEmpty,
+  isWorkingTreeRestoreSessionEmpty,
   isWorkingTreeStatusEmpty,
   trackWorkingTreeCommand,
   trackWorkingTreeQuery,
@@ -36,6 +37,7 @@ import {
 } from '../../working-tree/async-state.js';
 import type { CommitResult } from '../../working-tree/commit-command.js';
 import type { WorkingTreeDiff } from '../../working-tree/diff.js';
+import type { WorkingTreeRestoreSessionInfo } from '../../working-tree/restore-command.js';
 import type { WorkingTreeStatus } from '../../working-tree/status.js';
 
 /** 收集一次调用发出的全部状态，顺序即发出顺序。 */
@@ -108,6 +110,14 @@ const commitLogWith = (entryCount: number): CommitLogPage => ({
     createdAt: new Date(0),
     changeSetCount: 1
   }))
+});
+
+/** 一份未结束的恢复会话；`status` 是唯一的变量。 */
+const restoreSessionWith = (status: WorkingTreeRestoreSessionInfo['status']): WorkingTreeRestoreSessionInfo => ({
+  id: 'session-1',
+  branchId: 'main',
+  targetCommitId: 'commit-1',
+  status
 });
 
 describe('命令状态：loading / success / error，没有第四个出口（§4）', () => {
@@ -276,11 +286,19 @@ describe('判空只有一份实现（§4）', () => {
     expect(isCommitLogPageEmpty(commitLogWith(0))).toBe(true);
     expect(isCommitLogPageEmpty(commitLogWith(5))).toBe(false);
   });
+
+  // 判据是「有没有这一行」，不是「这一行健不健康」。按 `status === 'active'` 判的话，
+  // 一个 conflicted 会话会在面板上凭空消失——而它仍占着唯一索引、仍要用户处理掉。
+  it('恢复会话的空是「没有未结束会话」，conflicted 的会话不算空', () => {
+    expect(isWorkingTreeRestoreSessionEmpty(null)).toBe(true);
+    expect(isWorkingTreeRestoreSessionEmpty(restoreSessionWith('active'))).toBe(false);
+    expect(isWorkingTreeRestoreSessionEmpty(restoreSessionWith('conflicted'))).toBe(false);
+  });
 });
 
 describe('三端共用的初始状态', () => {
   // 键集断言：三端只要少接一项，这里先红——比等三份 spec 各自发现要早。
-  it('键集恰好是阶段 C 收口的六项能力，一项一个状态', () => {
+  it('键集恰好是阶段 C 六项加上 T110 的 restore 两项、T123 的 switchBranch 一项，一项一个状态', () => {
     expectTypeOf<keyof WorkingTreeAsyncStates>().toEqualTypeOf<
       | 'isEnabledState'
       | 'enableState'
@@ -289,12 +307,15 @@ describe('三端共用的初始状态', () => {
       | 'listCommitsState'
       | 'commitState'
       | 'discardState'
+      | 'restoreState'
+      | 'restoreSessionState'
+      | 'switchBranchState'
     >();
   });
 
   // 入口创建时不偷偷发查询：idle 说的是「还没人问过」，与 loading（正在问）
   // 和 empty（问过了，没有）都不是一回事。三者合并会让 UI 在挂载瞬间转圈。
-  it('七项全部从 idle 起步', () => {
+  it('十项全部从 idle 起步', () => {
     expect(Object.values(WORKING_TREE_INITIAL_ASYNC_STATES).every(state => state.phase === 'idle')).toBe(true);
   });
 
@@ -305,6 +326,30 @@ describe('三端共用的初始状态', () => {
   it('discard 用的是命令状态：discardedCount 为零是 no-op，不是空列表', () => {
     expectTypeOf<WorkingTreeAsyncStates['discardState']['phase']>().toEqualTypeOf<
       'idle' | 'loading' | 'success' | 'error'
+    >();
+  });
+
+  // restore 与 discard 同理：`restoredCount: 0` 是一次什么都没写的 no-op **结果**
+  // （FR-042），四个被拒成因是可处理的返回值。两者都不是「这里没有内容」。
+  it('restore 用的是命令状态：restoredCount 为零是 no-op，被拒是返回值', () => {
+    expectTypeOf<WorkingTreeAsyncStates['restoreState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
+    >();
+  });
+
+  // 切到当前分支是一次什么都没发生的切换，但那是**成功**，不是「没有结果」：给它一个 empty
+  // 相位的话，界面会给一次完全正常的操作渲染一块「暂无数据」。被拒那一侧同样没有空形态
+  // ——`requireClean` 撞上脏工作树时分支根本没切，走的是异常而不是返回值。
+  it('switchBranch 用的是命令状态：切到当前分支是成功的 no-op', () => {
+    expectTypeOf<WorkingTreeAsyncStates['switchBranchState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
+    >();
+  });
+
+  // 「当前分支没有未结束的恢复会话」是绝大多数时刻的形态，也正是 empty 说的那件事。
+  it('restoreSession 用的是查询状态：没有未结束会话就是空', () => {
+    expectTypeOf<WorkingTreeAsyncStates['restoreSessionState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'empty' | 'error'
     >();
   });
 });

@@ -1,0 +1,124 @@
+<div class="container mx-auto max-w-3xl space-y-6 p-6" data-testid="working-tree-page">
+  <h1 class="text-2xl font-bold">工作树与提交历史</h1>
+  <p class="text-sm">
+    <strong>启用是数据库级的一次性开关</strong>
+    ：一次
+    <code>enable()</code>
+    之后整个库都按工作树语义运行，v1 没有
+    <code>disable()</code>
+    。
+  </p>
+  <p data-testid="wt-first-visible">
+    首次可见状态耗时：
+    <span data-testid="wt-first-visible-ms">{{ $firstVisibleMs() }}</span>
+    ms
+  </p>
+
+  @if ($notice(); as notice) {
+    <div class="alert alert-warning alert-soft" data-testid="wt-notice" role="alert">
+      <span>{{ notice }}</span>
+    </div>
+  }
+
+  <section class="space-y-2" aria-labelledby="wt-enable-heading">
+    <h2 class="text-lg font-semibold" id="wt-enable-heading">提交能力</h2>
+    @let enabled = tree.isEnabledState();
+    <p aria-live="polite" data-testid="wt-enabled" role="status">
+      @if (enabled.phase === 'success') {
+        {{ enabled.value ? '已启用' : '未启用' }}
+      } @else {
+        {{ enabled.phase }}
+      }
+    </p>
+    <button class="btn btn-primary" (click)="runEnable()" data-testid="wt-enable">启用提交能力</button>
+  </section>
+
+  <section class="space-y-2" aria-labelledby="wt-status-heading">
+    <h2 class="text-lg font-semibold" id="wt-status-heading">工作树状态</h2>
+    @let status = tree.statusState();
+    <div aria-live="polite" data-testid="wt-status" role="status">
+      <span data-testid="wt-status-phase">{{ status.phase }}</span>
+      @if (status.phase === 'success' || status.phase === 'empty') {
+        <span>
+          · 分支
+          <span data-testid="wt-status-branch">{{ status.value.branchId }}</span>
+          · 未提交
+          <span data-testid="wt-status-entry-count">{{ status.value.entryCount }}</span>
+          条 ·
+          <span data-testid="wt-status-clean">{{ status.value.clean ? '干净' : '有未提交改动' }}</span>
+          · 远端同步来源
+          <span data-testid="wt-status-remote-sync">{{ status.value.byOrigin.remote_sync }}</span>
+          条
+        </span>
+      }
+    </div>
+    <button class="btn" (click)="refreshStatus()" data-testid="wt-refresh-status">刷新状态</button>
+  </section>
+
+  <section class="space-y-2" aria-labelledby="wt-write-heading">
+    <h2 class="text-lg font-semibold" id="wt-write-heading">制造一条未提交变更</h2>
+    <label class="block" for="wt-todo-title">Todo 标题</label>
+    <input class="input input-bordered w-full" id="wt-todo-title" [(ngModel)]="title" data-testid="wt-todo-title" />
+    <button class="btn" (click)="writeTodo()" data-testid="wt-write-todo">写入一条 Todo</button>
+  </section>
+
+  <section class="space-y-2" aria-labelledby="wt-diff-heading">
+    <h2 class="text-lg font-semibold" id="wt-diff-heading">未提交改动</h2>
+    <button class="btn" (click)="readDiff()" data-testid="wt-diff">读取未提交改动</button>
+    @let diff = tree.diffState();
+    <div aria-live="polite" data-testid="wt-diff-result">
+      <span data-testid="wt-diff-phase">{{ diff.phase }}</span>
+      @if (diff.phase === 'empty') {
+        <span>· 没有未提交的改动</span>
+      } @else if (diff.phase === 'success') {
+        <ul>
+          @for (entry of diff.value.entries; track entry.unitId) {
+            <li>{{ entry.entity }} · {{ entry.operation }} · {{ entry.origin }}</li>
+          }
+        </ul>
+      }
+    </div>
+  </section>
+
+  <section class="space-y-2" aria-labelledby="wt-commit-heading">
+    <h2 class="text-lg font-semibold" id="wt-commit-heading">提交与丢弃</h2>
+    <label class="block" for="wt-commit-message">提交信息</label>
+    <input
+      class="input input-bordered w-full"
+      id="wt-commit-message"
+      [(ngModel)]="message"
+      data-testid="wt-commit-message"
+    />
+    <div class="flex gap-2">
+      <button class="btn btn-primary" (click)="runCommit()" data-testid="wt-commit">提交全部未提交改动</button>
+      <button class="btn" (click)="runDiscard()" data-testid="wt-discard">丢弃全部未提交改动</button>
+    </div>
+    @let commit = tree.commitState();
+    <div aria-live="polite" data-testid="wt-commit-result" role="status">
+      <span data-testid="wt-commit-phase">{{ commit.phase }}</span>
+      @if (commit.phase === 'success') {
+        <span data-testid="wt-commit-outcome">{{ commit.value.ok ? ' · 已提交' : ' · 并发冲突，可重试' }}</span>
+      } @else if (commit.phase === 'error') {
+        <span data-testid="wt-commit-error">· {{ commit.error.message }}</span>
+      }
+    </div>
+  </section>
+
+  <section class="space-y-2" aria-labelledby="wt-commits-heading">
+    <h2 class="text-lg font-semibold" id="wt-commits-heading">提交历史</h2>
+    <button class="btn" (click)="readCommits()" data-testid="wt-list-commits">读取提交历史</button>
+    @let commits = tree.listCommitsState();
+    <div aria-live="polite" data-testid="wt-commits-result">
+      <span data-testid="wt-commits-phase">{{ commits.phase }}</span>
+      @if (commits.phase === 'empty') {
+        <span>· 这条分支还没有提交</span>
+      } @else if (commits.phase === 'success') {
+        <ol data-testid="wt-commits-list">
+          @for (entry of commits.value.entries; track entry.commitId) {
+            <li>{{ entry.message }} · {{ entry.changeSetCount }} 个单元</li>
+          }
+        </ol>
+      }
+    </div>
+  </section>
+</div>

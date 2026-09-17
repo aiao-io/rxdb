@@ -85,7 +85,9 @@ const retryProbeContribution: RxDBSystemContribution = {
     { name: RETRY_PROBE_MIGRATION_NAME, up: async () => undefined, down: async () => undefined }
   ],
   bootstrapExisting: async () => undefined,
-  writeBranchRows: async () => undefined
+  writeBranchRows: async () => undefined,
+  removeBranchRows: async () => undefined,
+  assertBranchSwitchable: async () => undefined
 };
 
 const retryProbePlugin: Plugin = () => ({

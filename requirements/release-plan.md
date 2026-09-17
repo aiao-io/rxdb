@@ -45,9 +45,9 @@
   这条对裁剪桥接版本 changelog（硬前提 2 的后果 ②）与核对[排期约束 12](roadmap.md#排期约束) 都直接适用。
 - 这条**无法修复、只能记住**：不得为了让 tag 与产物对上而重打或移动 `v0.0.25`。
 
-## 开项：epic-006 抽包（`next-0912`）欠发布说明的三条
+## 开项：epic-006 抽包（`next-0912`）欠发布说明的四条
 
-把工作树/提交历史抽成 `@aiao/rxdb-plugin-working-tree` 之后新增的发布约束。三条都**不影响今天的门禁**
+把工作树/提交历史抽成 `@aiao/rxdb-plugin-working-tree` 之后新增的发布约束。四条都**不影响今天的门禁**
 （`pnpm check-migration-release-gate` 当前仍是绿的），但都必须在发布当下人工承接。
 
 ### ① 系统 schema 号已到 6，这条路径**不能**当桥接锚点
@@ -84,6 +84,34 @@
 
 按本文开头「已发布产物」的口径这**不是**破坏性变更（这三个符号从未发布过，`main` 的 api-baseline
 里 epic-006 公开导出数为 0），但升级说明仍要写：`next-0912` 上开发的下游要改 import 来源。
+
+### ④ 已知影响：系统 schema 号抬升之后，旧客户端**打不开**升级过的库
+
+发布说明必须带上这一条，用户侧的症状才有名字可查。
+
+**判据是什么**：[`assertSupportedRxDBSystemVersions()`](../packages/rxdb/src/system/migration.ts#L196)
+在建连时比对库里的水位与进程常量，`stored > supported` 即抛
+[`UnsupportedRxDBSystemVersionError`](../packages/rxdb/src/system/migration.ts#L95)，消息形如
+`Unsupported RxDB system schema version: stored=6, supported=3`。两个适配器家族各有一处调用点
+（[pglite](../packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts#L189)、
+[sqlite-core](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L617)），
+都排在迁移阶梯之前。
+
+**影响面恰好是一个方向**：升级过的库 + 旧客户端。反过来（旧库 + 新客户端）走 `<` 那一侧，由迁移阶梯
+正常补齐，不受影响；同一个客户端反复打开自己升过的库也不受影响。
+
+**为什么它不是 epic-006 新增的危险面**：这条守卫与它的错误类型早于 epic-006 就在
+（`v0.0.24` / `v0.0.25` 的 `migration.ts` 里 `RXDB_SYSTEM_SCHEMA_VERSION = 3`，`assertSupportedRxDBSystemVersions()`
+逐字节同形）。当年 2 → 3 的那次抬升，对停在 2 的客户端就是同一个拒绝；epic-006 改变的只是**数字**与
+**触发它的人数**，不是机制。写进 release note 是为了让升级者提前知道「降级回旧版本客户端这条路已经关了」，
+不是为了标记一个新风险。
+
+**具体数字按发布当下的实况写，别抄这里**：epic-006 自己走的是 3 → 4 → 5，抽包后到
+6（见上面 ①，`npm pack` 实测已发布的 `@aiao/rxdb@0.0.25` 仍是 3）。发布说明里应写「3 → 6」而不是
+任何中间态——中间那两级从未发布，用户手里不存在停在 4 或 5 的客户端。
+
+**没有缓解措施，也不该造一个**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，那正是
+fail-closed 要挡的事。说明里给出的动作只有一个——**升级客户端**。
 
 ## 下一次发布：重新打一个桥接版本
 

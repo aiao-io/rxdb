@@ -195,6 +195,9 @@ describe('VersionManager', () => {
         })
       },
       getAdapter: vi.fn().mockReturnValue(of(mockAdapter)),
+      // 一个能力插件都没装：`switchBranch` 的前置判定因此连事务都不开，
+      // 本文件测的编排顺序与今天逐字节一致。
+      systemContributions: [],
       addEventListener: addEventListenerMock,
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn()

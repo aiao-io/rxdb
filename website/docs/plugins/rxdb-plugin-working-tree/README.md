@@ -1,24 +1,115 @@
 # @aiao/rxdb-plugin-working-tree
 
-`@aiao/rxdb-plugin-working-tree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 整体退回，`listCommits()` 读取当前分支的提交历史。
+`@aiao/rxdb-plugin-working-tree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 整体退回，`listCommits()` 读取当前分支的提交历史，`restore()` 把历史版本的内容搬回工作树。
 
 未装本包的库**零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
 
 ## 能力范围
 
-| 能力            | 说明                                                                               |
-| --------------- | ---------------------------------------------------------------------------------- |
-| 写捕获          | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获 |
-| `status()`      | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                     |
-| `diff()`        | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                    |
-| `commit()`      | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常             |
-| `discard()`     | 把工作树整体退回 HEAD                                                              |
-| `listCommits()` | 当前分支从 HEAD 沿父链可达的提交历史                                               |
+| 能力               | 说明                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获      |
+| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                          |
+| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                         |
+| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                  |
+| `discard()`        | 把工作树整体退回 HEAD                                                                   |
+| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                    |
+| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史         |
+| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                          |
+| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `db.versionManager` 上 |
 
-尚未实现（US3 / US4，`specs/001-working-tree-commits/tasks.md` T095–T133）：
+## 用之前要知道的六件事
 
-- `restore()` / `restoreSession()` 恢复到任意历史提交
-- 带工作树语义的 `switchBranch`
+这六条不是注意事项的合集，是**六个会让人做错决定的地方**。放在用法前面，是因为其中三条在数据写进去之后就不可撤销了。
+
+### 1. 提交能力是**数据库级**的显式开关，不是按实体、按分支的
+
+`db.workingTree.enable()` 一次，整个库从此按工作树语义运行——所有实体、所有分支。没有「只让 `Article` 走工作树」，也没有「只在 `feature` 分支上启用」。
+
+启用会在 `rxdb_migration` 里留下一行能力水位，**没装本插件的客户端从此拒绝连接这个库**（见下文「未认领能力守卫」）。因此这不是一个可以「先打开试试」的开关：库一旦启用，所有访问它的客户端都必须装上 `@aiao/rxdb-plugin-working-tree`，包括别人的、旧版本的、你控制不到的那些。v1 **没有 `disable()`**。
+
+### 2. 工作树 ≠ 草稿缓存，两者不是同一层，也不互相替代
+
+|          | 工作树（本包）                             | 草稿缓存（`@aiao/rxdb-plugin-workspace`） |
+| -------- | ------------------------------------------ | ----------------------------------------- |
+| 内容     | **已经写进数据库**、但还没提交成快照的变更 | 编辑器里那份**还没保存**的 buffer         |
+| 存放位置 | 主库的系统表，参与事务                     | 插件自己的 IndexedDB，**根本没进主库**    |
+| 查询语义 | `find()` 读到的就是工作树里的值            | 查询看不见它                              |
+| 丢失后果 | 用户已保存的工作没了                       | 用户没保存的输入没了                      |
+| 生命周期 | 直到 `commit()` 或 `discard()`             | 直到用户保存或丢弃                        |
+
+这两层**不能合并成一层**：合并会让查询语义反转（未保存的 buffer 出现在查询结果里）、表达不了 modified / deleted，而且跨不过事务边界。所以「用户点了保存但还没提交」在工作树，「用户还没点保存」在草稿缓存，一个都不能少。
+
+也因此本包的公开名字里**没有 `Workspace*` 前缀**——那个前缀已经属于草稿缓存，同前缀不同义比同名更容易骗过人。
+
+### 3. `restore()` 是「把旧内容搬进工作树」，不是 checkout
+
+`restore()` 读一个历史提交，把它的内容作为**新的未提交变更**写回当前工作树。做完之后：
+
+- `HEAD` **一个字节都没动**；
+- 历史**一条都没删**；
+- 工作树是**脏的**，脏在普通条目上，与手写变更同表同形；
+- 下一步是 `commit()`（把这次恢复变成一个新提交）或 `discard()`（当作没恢复过）。
+
+v1 **没有 detached HEAD、没有 `checkout()`、没有只读历史浏览**：`listCommits()` 返回的是**数据，不是可切换的位置**。想「切过去看一眼再切回来」，用分支。
+
+恢复目标必须在当前分支 HEAD 的可达父链上；够不到就是 `{ ok: false, reason: 'unreachable_target' }`，而不是异常。
+
+### 4. 历史会**原样保留**敏感旧值——删除不等于删干净
+
+提交历史是不可变记录。一个字段被写进过某次提交，它就永久留在那次提交的 `ChangeSet` 里：
+
+- 之后把它改掉、清空、甚至把整行删掉，**都不会**动到历史里的那一份；
+- `discard()` 丢的是工作树，不是历史；
+- `restore()` 也不删历史（见上一条）。
+
+所以：**不要把不该留痕的东西写进启用了提交能力的库**——密码、明文 token、一次性验证码、用户要求「删除」的个人数据。一旦提交，v1 没有任何公开 API 能把它从历史里抠掉（`commit()` 之外没有写入历史的入口，也没有改写历史的入口——这正是下面第 6 条的另一面）。
+
+合规场景下把这一条读成「本库不适合直接存放需要 right-to-erasure 的字段」，而不是「提交前记得清一下」。
+
+### 5. 加密边界：at-rest 契约延续，但加密不是访问控制
+
+支持字段加密的后端上，提交、ChangeSet、工作树条目与恢复会话里的加密字段仍以 **versioned envelope** 落盘——持久化路径**不会**先解密再把明文写进新系统表。错误、摘要与 benchmark 报告里也不出现加密字段明文。
+
+边界在这里：
+
+- 加密保护的是**落盘的字节**。解锁之后读取照常返回明文业务值，工作树与历史也一样；
+- 「历史保留敏感旧值」这条风险**不因为开了加密而消失**——加密只保证别人拿到数据库文件时读不出来，不保证合法用户读不出旧值；
+- **at-rest 加密不能被第 4 条的风险提示替代，第 4 条也不能被加密替代**。两条各管一件事。
+
+### 6. 不改写历史：没有 amend / rebase / squash / 强制推送
+
+已经写进历史的提交，v1 **不提供任何改写入口**。没有 `amend`，没有 `rebase`，没有 `squash`，没有「修改提交信息」。
+
+- CAS 落败丢掉的提交、被删分支留下的节点，行都还在库里，只是没有任何 ref 指向它们——「历史 ≠ `rxdb_commit` 全表」；
+- 提交图损坏时守卫把分支置为 `corrupted_read_only` 并留下诊断，**不动 HEAD、不删记录**（FR-022）：自动回退到较早提交能让界面继续转，代价是用户的数据在他不知情时被换掉；
+- v1 也**不提供 auto-baseline**（同步后自动把远端变化并入 HEAD）——那会造出「谁在什么时刻替用户提交了什么」的隐式历史。
+
+### 另外：远端同步会产生 `origin = 'remote_sync'` 的未提交变化
+
+这一条经常出乎意料，所以单独说：**远端同步拉下来的变更，和用户自己的编辑一样进工作树**，不自动进历史。
+
+- 它们在 `status().byOrigin` 里计入 `remote_sync`，**不豁免**：`clean` 会因此变成 `false`，`entryCount` 会涨；
+- 它们会被下一次 `commit()` 一并提交——`commit()` 提交的是工作树里的**全部**未提交单元，没有子集；
+- 提交者是**这次 `commit()` 的 `authorId`**，不是远端那个作者。v1 刻意不伪造远端作者身份；
+- 因此「一次同步之后工作树突然脏了」是**正常行为**，不是缺陷。要区分谁写的，读 `diff()` 每条的 `origin`。
+
+如果界面上有「有未提交改动」的提示，记得它会被后台同步点亮。
+
+## 能力边界：绕过 adapter 的写入拦不住
+
+写捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**。下面这些**拦不住，v1 也不承诺拦得住**：
+
+- 另一个进程直接打开同一个 SQLite 文件写入；
+- 另起一个 PGlite 实例指向同一份数据；
+- DevTools 里手写 SQL；
+- 任何绕过 `@aiao/rxdb` 的外部数据库句柄。
+
+这类写入不进工作树、不进历史、不会被 `status()` 看见，而且会让工作树与主数据之间的关系**静默失真**。
+
+所以启用了提交能力的数据库有一条硬约束：**业务表只能经 RxDB 写入**。
+
+这句话写在这里不是免责声明的注脚——**不假装拦得住比拦不住更重要**。一道号称拦得住却拦不住的门禁，会让人把「没报错」当成「没被绕过」，而真正被绕过的那次同样不报错。
 
 ## 安装
 
@@ -206,6 +297,106 @@ const page = await db.workingTree.listCommits({
 
 > 历史 ≠ `rxdb_commit` 全表：CAS 丢掉的提交与被删分支留下的节点，行都还在，但没有任何 ref 指向它们。
 
+## 恢复历史版本
+
+### `restore(target, options)`
+
+把一个可达历史提交的内容作为**新的未提交变更**写回当前工作树。**恰好两个必填位置参数**，与 `commit()` 同形——`options` 做成可选的话，「缺省时由本次调用内部读 revision」就成了合法用法，而内部读到的恒等于当前值、CAS 永远命中。
+
+```typescript
+const status = await db.workingTree.status();
+
+const result = await db.workingTree.restore(
+  { commitId: 'commit-abc' }, // 缺省 entities = 整个 commit 的全部单元
+  {
+    expectedBranch: {
+      branchId: status.branchId,
+      activationRevision: status.activationRevision
+    },
+    expectedHeadRevision: status.headRevision,
+    expectedWorkingTreeRevision: status.workingTreeRevision
+  }
+);
+```
+
+`target.entities` 可以只点名一部分单元（`{ namespace, entity, entityId }` 三段全给）。这与「`commit()` 不能挑子集」不冲突，方向恰好相反：这里挑的是**要往工作树里写什么**，写完之后它们和手写变更一样是整棵工作树的一部分，下一次 `commit()` 照样全量提交。
+
+返回 `WorkingTreeRestoreResult`，判别位是 `ok`：
+
+| 出口                                       | 含义                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `ok: true`                                 | `restoredCount`（写进工作树的条目数）、`sessionId`、`workingTreeRevision`；`restoredCount: 0` 是一次什么都没写的 no-op    |
+| `ok: false, reason: 'conflict'`            | 三个捕获位对不上；带 `conflict`，与 `commit()` 同形                                                                       |
+| `ok: false, reason: 'dirty_working_tree'`  | 工作树不干净——先 `commit()` 或 `discard()`                                                                                |
+| `ok: false, reason: 'incompatible_schema'` | 重放路径上有本客户端认不出的实体；带 `incompatible`（首个不兼容节点、重放方向、实体与版本 manifest，**不含 patch 内容**） |
+| `ok: false, reason: 'unreachable_target'`  | 目标提交从当前 HEAD 够不到                                                                                                |
+
+四个被拒成因**全部走返回值**，不是异常：它们都是用户随手点错一个历史条目就会走到的日常路径，而不是「库坏了」。被拒时持久状态**逐字节不变**。
+
+兼容性预检发生在**任何持久写入之前**，覆盖整条重放路径上的**每一个**节点——不是只看目标节点：真正被读取并应用的是 HEAD 到目标之间每一个节点的 inverse patch，中间任何一个引用了本客户端不认识的实体，物化结果就已经错了，而目标节点自己干干净净。
+
+### `restoreSession()`
+
+当前分支那个尚未结束的恢复会话；没有就是 `null`。与 `status()` / `listCommits()` 一样**不收 `branchId`**——会话恒属当前 active 分支。
+
+```typescript
+const session = await db.workingTree.restoreSession();
+// { id, branchId, targetCommitId, status } | null
+```
+
+会话是**一行库表，不是一个内存字段**：跨标签页与刷新之后，「这次恢复来自哪个提交」必须还能问出来。
+
+「这次恢复还成不成立」不在这个入口回答，那是 `status()` 的两位：
+
+- `restoring: true` —— 有未结束会话，且捕获的 revision 仍对得上；
+- `conflicted: true` —— 有未结束会话，但捕获的 revision 已经分叉。
+
+`conflicted` 的会话**不是**空会话：它仍占着唯一索引，仍拦着下一次恢复。
+
+## 切分支的前置条件
+
+### `db.versionManager.switchBranch(branchId, options?)`
+
+切分支挂在 `db.versionManager` 上，不在 `db.workingTree` 上——分支是核心的概念，工作树只是给它**加了两道可选前置**。
+
+```typescript
+// 无条件切换：与没装本插件时逐字节一致
+await db.versionManager.switchBranch('feature');
+
+// 当前分支必须干净，否则抛 WorkingTreeDirtyError
+await db.versionManager.switchBranch('feature', { requireClean: true });
+
+// 激活代际必须对得上，否则抛 StaleActiveBranchError
+await db.versionManager.switchBranch('feature', {
+  expectedActivationRevision: status.activationRevision
+});
+```
+
+| 字段                         | 说明                                                     |
+| ---------------------------- | -------------------------------------------------------- |
+| `requireClean`               | 缺省 / `false` = 不表态；`true` 时当前分支非空就拒绝切换 |
+| `expectedActivationRevision` | 提供时，激活代际与库里的对不上就拒绝切换                 |
+
+两个字段都是**可选**的，而且**不传就是不传**：一个条件都没提出时，这条路径一条语句都不发——不是「读了再忽略」。`requireClean: false` 与不传是同一件事。
+
+**被拒走异常，不走返回值**——这与 `commit()` / `restore()` 恰好相反，理由是那一刻分支**根本没切**，没有任何结果可以交给调用方：
+
+```typescript
+import { WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
+
+try {
+  await db.versionManager.switchBranch('feature', { requireClean: true });
+} catch (error) {
+  if (error instanceof WorkingTreeDirtyError) {
+    // error.branchId / error.entryCount：「main 上还有 2 条未提交改动，先提交或丢弃」
+  }
+}
+```
+
+v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于分支，切过去看到的是**那条**分支的工作树。
+
+另一道前置不受 `requireClean` 控制：**目标分支的提交图必须完整**。它单独判、单独抛，`requireClean: false` 关不掉它——否则历史子系统的回放路径就能切进一份重放不出来的历史。
+
 ## 未认领能力守卫
 
 `enable()` 过的库会在 `rxdb_migration` 里留下一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree`）。**没装本包的客户端再打开这个库时，核心拒绝连接**并把该装的包名原样报出来：
@@ -274,7 +465,7 @@ export class CommitBar {
 }
 ```
 
-`useWorkingTree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。七格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorkingTree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
 ### React
 
@@ -311,7 +502,7 @@ export function CommitBar() {
 }
 ```
 
-`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。七个状态字段是**普通只读值**（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；七个方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
+`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十个状态字段是**普通只读值**（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
 
 ### Vue
 
@@ -346,24 +537,28 @@ const save = async (): Promise<void> => {
 </template>
 ```
 
-`useWorkingTree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。七格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorkingTree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
-### 七格异步状态
+### 十格异步状态
 
 三端共享同一份状态契约（`WorkingTreeAsyncStates`，定义在插件包而不是三个框架包里）：
 
-| 字段               | 类型                                | 说明                                       |
-| ------------------ | ----------------------------------- | ------------------------------------------ |
-| `isEnabledState`   | 命令态 `<boolean>`                  | `isEnabled()` 的状态                       |
-| `enableState`      | 命令态 `<CommitCapabilityInfo>`     | `enable()` 的状态                          |
-| `statusState`      | 查询态 `<WorkingTreeStatus>`        | `status()` 的状态；**空即没有未提交变更**  |
-| `diffState`        | 查询态 `<WorkingTreeDiff>`          | `diff()` 的状态；**空即没有可展示的改动**  |
-| `listCommitsState` | 查询态 `<CommitLogPage>`            | `listCommits()` 的状态；**空即还没有历史** |
-| `commitState`      | 命令态 `<CommitResult>`             | `commit()` 的状态；**没有 empty**          |
-| `discardState`     | 命令态 `<WorkingTreeDiscardResult>` | `discard()` 的状态；**没有 empty**         |
+| 字段                  | 类型                                             | 说明                                                                               |
+| --------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `isEnabledState`      | 命令态 `<boolean>`                               | `isEnabled()` 的状态                                                               |
+| `enableState`         | 命令态 `<CommitCapabilityInfo>`                  | `enable()` 的状态                                                                  |
+| `statusState`         | 查询态 `<WorkingTreeStatus>`                     | `status()` 的状态；**空即没有未提交变更**                                          |
+| `diffState`           | 查询态 `<WorkingTreeDiff>`                       | `diff()` 的状态；**空即没有可展示的改动**                                          |
+| `listCommitsState`    | 查询态 `<CommitLogPage>`                         | `listCommits()` 的状态；**空即还没有历史**                                         |
+| `commitState`         | 命令态 `<CommitResult>`                          | `commit()` 的状态；**没有 empty**                                                  |
+| `discardState`        | 命令态 `<WorkingTreeDiscardResult>`              | `discard()` 的状态；**没有 empty**                                                 |
+| `restoreState`        | 命令态 `<WorkingTreeRestoreResult>`              | `restore()` 的状态；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果   |
+| `restoreSessionState` | 查询态 `<WorkingTreeRestoreSessionInfo \| null>` | `restoreSession()` 的状态；**空即当前分支没有未结束的恢复会话**，且带着那个 `null` |
+| `switchBranchState`   | 命令态 `<void>`                                  | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
 
 查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
 
+- **`switchBranch()` 的被拒反过来走 `error`**：`requireClean` 撞上脏工作树、激活代际过期，都是异常而不是返回值——那一刻分支根本没切，没有结果可交给调用方。
 - **`commit()` 的 CAS 冲突走 `success`**（`CommitResult.ok === false` 的冲突也是成功出口），**不是 `error`**——冲突是并发编辑的正常出口，不是错误。
 - **`empty` 是 `success` 的细化，`value` 照样在**：一次空的 `status()` 里三个 revision 仍可读，不用为了拿它们再查一次。
 
@@ -371,21 +566,25 @@ const save = async (): Promise<void> => {
 
 ### 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：七格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
-- `commit()` / `discard()` 的 CAS 落败走返回值（`result.ok === false` 且带 `conflict`），不是异常。
+- `commit()` / `discard()` / `restore()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
+- `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
+- `switchBranch()` 挂在核心的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。
 
 ## 错误类型
 
-| 错误                                 | 出现时机                                                                 | 出路                         |
-| ------------------------------------ | ------------------------------------------------------------------------ | ---------------------------- |
-| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`） | 先 `db.workingTree.enable()` |
-| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                               | 升客户端或跑迁移             |
-| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                         | 检查入参与 `status()`        |
-| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                         | 诊断数据现场                 |
-| `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                           | 诊断数据现场                 |
+| 错误                                 | 出现时机                                                                                                                 | 出路                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`）                                                 | 先 `db.workingTree.enable()`                        |
+| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                                                                               | 升客户端或跑迁移                                    |
+| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                                                                         | 检查入参与 `status()`                               |
+| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                                                                         | 诊断数据现场                                        |
+| `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                        |
+| `WorkingTreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean` |
+| `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                |
 
 ## 一致性套件
 

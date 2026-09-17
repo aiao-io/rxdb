@@ -81,10 +81,12 @@ const probeContribution: RxDBSystemContribution = {
     return [row];
   },
   createMigrations: () => [{ name: PROBE_MIGRATION_NAME, up: async () => undefined, down: async () => undefined }],
-  // 五个成员都是必填：宿主在 `connect()` 收尾与 `create_branch` 结尾是**无条件**遍历贡献去调
-  // 后两个的，本文件用不上也不能省，省掉不是「没有这项贡献」，是当场 TypeError。
+  // 六个成员都是必填：宿主在 `connect()` 收尾、`create_branch` 与 `remove_branch` 结尾是**无条件**
+  // 遍历贡献去调后三个的，本文件用不上也不能省，省掉不是「没有这项贡献」，是当场 TypeError。
   bootstrapExisting: async () => undefined,
-  writeBranchRows: async () => undefined
+  writeBranchRows: async () => undefined,
+  removeBranchRows: async () => undefined,
+  assertBranchSwitchable: async () => undefined
 };
 
 const probePlugin: Plugin = () => ({

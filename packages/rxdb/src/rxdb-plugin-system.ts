@@ -66,10 +66,75 @@ export interface RxDBBranchCreationContext {
 }
 
 /**
+ * 移除一条分支时，贡献方清自己那几行所需的上下文
+ *
+ * @remarks
+ * 只有两个字段，与 {@link RxDBBranchCreationContext} 逐字同形——两者是同一条分支的一生一死，
+ * 形状不同就意味着建行与删行各认一套「这条分支是谁」，而漂移的那一天，删掉的是另一条分支的行。
+ *
+ * **没有 `entityManager`。** 建行要 `instantiate()` 造行对象，删行只需要先读出来再交给
+ * `executor.removeMany()`；多带一个用不上的入参，等于邀请贡献方在清理路径上造新行。
+ *
+ * 调用时点排在**分支行自己被删之前**：`remove_branch` 的「查子分支 → 查 change → 删」是一段
+ * 有顺序的校验，贡献方抢在前面把 `rxdb_branch` 删掉的话，那段校验读到的就是一条不存在的分支。
+ */
+export interface RxDBBranchRemovalContext {
+  /** 正在删这条分支的事务执行器 */
+  readonly executor: TransactionExecutor;
+
+  /** 即将被删、此刻仍在库里的分支 id */
+  readonly branchId: string;
+}
+
+/**
+ * 切分支时调用方能提出的前置条件
+ *
+ * @remarks
+ * **字段的形状在核心，字段的含义在能力插件。** 核心一个字段都不读，原样转交
+ * {@link RxDBSystemContribution.assertBranchSwitchable}——`requireClean` 的判据是
+ * `WorkingTreeState.entryCount`、`expectedActivationRevision` 的判据是工作树的激活行，
+ * 两张表都由 `@aiao/rxdb-plugin-working-tree` 贡献，核心不认识它们。这与
+ * {@link RxDBSystemContribution.version} 是同一个分工：核心搬运，插件解释。
+ *
+ * 那为什么不让插件自己声明类型？因为 `switchBranch()` 是**核心表面**的方法，它的入参得在
+ * 方法声明处就有形状——换成一袋 `Record<string, unknown>` 的话，用户那边既没有补全也没有
+ * 拼写检查，而这两个字段恰恰是「写错了也不报错、只是静默不生效」的那一类。反方向（核心
+ * 依赖插件的类型）是条依赖环：nx 的图插件把静态 import 直接映射成依赖边。
+ *
+ * 写成类型别名而不是 `interface`：能力插件那侧要拿它当自己的领域类型再导出一次
+ * （`WorkingTreeSwitchBranchOptions`），而那个名字上挂着一条「不多不少就这两个字段」的
+ * 类型层断言——别名让两边**只有一处声明**，于是那条断言同时看住了这里。
+ */
+export type RxDBBranchSwitchPreconditions = {
+  /** 缺省即当前行为：无条件切换，与今天逐字节一致 */
+  readonly requireClean?: boolean;
+
+  /** 提供时，激活代际与它对不上就拒绝切换 */
+  readonly expectedActivationRevision?: number;
+};
+
+/**
+ * {@link RxDBSystemContribution.assertBranchSwitchable} 拿到的上下文
+ */
+export interface RxDBBranchSwitchContext {
+  /** 校验所在的事务执行器；这个事务**只读**，一行都不许写 */
+  readonly executor: TransactionExecutor;
+
+  /** 当前分支 id；一条 active 分支都没有时为 `null` */
+  readonly currentBranchId: string | null;
+
+  /** 要切过去的分支 id */
+  readonly targetBranchId: string;
+
+  /** 调用方提出的前置条件；没提出时是 `undefined`，与空对象是同一件事 */
+  readonly preconditions: RxDBBranchSwitchPreconditions | undefined;
+}
+
+/**
  * 插件对系统层的贡献
  *
  * @remarks
- * 五个注册点缺一不可，各自防一种不会编译报错的事故：
+ * 七个注册点缺一不可，各自防一种不会编译报错的事故：
  *
  * - {@link RxDBSystemContribution.entities} 漏接 → 表建不出来，首次用到时抛一条读不出主语的错；
  * - {@link RxDBSystemContribution.createInitialRows} 没进同一次 `createTables()` → 新库第一次
@@ -80,9 +145,15 @@ export interface RxDBBranchCreationContext {
  * - {@link RxDBSystemContribution.bootstrapExisting} 漏接 → 既有库连上了，能力却没在这条连接上
  *   接通，此后每一次写都绕开本能力，**一条错误都不会有**；
  * - {@link RxDBSystemContribution.writeBranchRows} 漏接 → 新分支缺贡献行，而缺行的分支与
- *   一条正常分支在形状上分辨不出来，要到下一次按 id 取那几行时才炸。
+ *   一条正常分支在形状上分辨不出来，要到下一次按 id 取那几行时才炸；
+ * - {@link RxDBSystemContribution.removeBranchRows} 漏接 → 分支删了、贡献行留着，而留下来的行
+ *   按 id 挂靠，同名重建之后会被新分支**逐字命中**——一条刚建出来的分支于是带着上一条的
+ *   HEAD、上一条的未提交条目、上一条崩在半路的物化现场；
+ * - {@link RxDBSystemContribution.assertBranchSwitchable} 漏接 → `switchBranch()` 收下了调用方的
+ *   前置条件却没人校验，**一条错误都不会有**：用户显式要求「工作树不干净就别切」，切换照样
+ *   发生，而那正是他刚刚说要避免的事。
  *
- * 五个都是**必填**，没有一个带 `?`。没有可写之物的贡献方写一个空实现——那是一句
+ * 七个都是**必填**，没有一个带 `?`。没有可写之物的贡献方写一个空实现——那是一句
  * 「我确实不需要」的明示，而 `?` 让「不需要」与「忘了」变成同一种东西。
  *
  * {@link RxDBSystemContribution.capability} 与 {@link RxDBSystemContribution.packageSpecifier}
@@ -170,6 +241,49 @@ export interface RxDBSystemContribution {
    * 而这里的行**必须与分支行同生共死**。抛错就让整条 `create_branch` 事务回滚，这是对的。
    */
   writeBranchRows(entityManager: EntityManager, context: RxDBBranchCreationContext): Promise<void>;
+
+  /**
+   * 每移除一条分支时，在**调用方的事务里**清掉本能力挂在它名下的那几行
+   *
+   * @param context - 调用方的事务执行器与即将被删的分支 id
+   * @returns 清理完成；没有分支级行的贡献方返回一个已决 promise
+   *
+   * @remarks
+   * 与 {@link RxDBSystemContribution.writeBranchRows} 严格对称：建行、删行由**同一个**贡献方
+   * 负责，因为「一条分支在本能力里占了哪几张表」这件事只有它知道。核心这边既不知道有几张表，
+   * 也不该在加第七张表时跟着改。
+   *
+   * **不指望外键级联替它做这件事。** 级联要不要生效摊在六个后端各自的 `PRAGMA foreign_keys`
+   * 与建表路径上，而贡献方的表里完全可能有几张压根没有指向 `rxdb_branch` 的关系。一半靠约束、
+   * 一半靠代码的清理是两套要互相盯着的机制——`remove_branch` 对 `RxDBChange` 早已给出过答案：
+   * 显式删，尽管那张表同样挂着级联。
+   *
+   * **不碰 `rxdb_branch` 那一行**，那是调用方最后自己删的。也不碰任何全库单例行：那些行不属于
+   * 任何分支，跟着分支一起删掉之后，整个库会在下一次读它们时永久失败。
+   */
+  removeBranchRows(context: RxDBBranchRemovalContext): Promise<void>;
+
+  /**
+   * 每次切分支前，在**调用方开的只读事务里**校验本能力的前置条件
+   *
+   * @param context - 只读执行器、当前/目标分支 id，以及调用方提出的前置条件
+   * @returns 校验通过；没有前置条件要查的贡献方返回一个已决 promise
+   * @throws 任何前置条件不成立；抛出即中止本次切换
+   *
+   * @remarks
+   * 排在 `adapter.switchBranch()` **之前**，而不是包在它的事务里：那次调用内部自带事务
+   * （见各适配器 `version/switch_branch.ts`），把校验塞进去要么得让六个适配器各开一个口子，
+   * 要么得把「切换」拆成两个事务——而拆开之后，中间失败留下的是半棵切过去的工作树。
+   * 排在前面的代价是一个「校验通过到真正切换」之间的窗口，那个窗口由
+   * `expectedActivationRevision` 这类 CAS 字段自己兜住，不由事务边界兜。
+   *
+   * 拿到的执行器**只读**。这不是建议：调用方为它传的是 `transactionLog = false`，
+   * 在这里写下的行不会进事务日志，于是那些写入对同步与 undo 双双不可见。
+   *
+   * 名字不叫 `canSwitchBranch`：`can*` 读起来像返回 `boolean`，而「不能切」的原因
+   * 必须能带着分支 id、条目数、expected/actual revision 一起报给用户——那只有异常带得动。
+   */
+  assertBranchSwitchable(context: RxDBBranchSwitchContext): Promise<void>;
 }
 
 /**

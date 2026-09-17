@@ -79,6 +79,16 @@ export const remove_branch = async (version: VersionManager, branchId: string) =
         rules: [{ field: 'branchId', operator: '=', value: branchId }]
       }
     });
+    // 贡献方挂在这条分支名下的行清在**这一个**事务里，且排在分支行自己被删之前：
+    // 分处两个事务的话，中间失败留下的是一条「分支没了、贡献行还在」的残留，而那些行按 id
+    // 挂靠——同名重建出来的新分支会逐字命中它们，带着上一条分支的 HEAD 与未提交条目出生。
+    //
+    // 串行而非 `Promise.all`，与 `create_branch` 同理：`executor` 是一条并发度为 1 的队列，
+    // 并行发起只会让删除顺序取决于各贡献方内部 await 的排布，出问题时复现不出来。
+    for (const contribution of version.rxdb.systemContributions) {
+      await contribution.removeBranchRows({ executor, branchId });
+    }
+
     await executor.removeMany([...branchChanges, branch]);
     return undefined;
   });

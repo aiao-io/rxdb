@@ -1,11 +1,11 @@
 ---
 id: US-306
 title: 工作树与提交操作
-status: Backlog
+status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-12
+updated: 2026-09-18
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 

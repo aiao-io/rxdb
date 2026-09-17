@@ -10,7 +10,7 @@
  * 「哪套是权威」重新变成开放问题。
  *
  * **T042 填入 §2.1 / §2.2 / §2.5，T085 补上 §2.3 / §2.4**（两类 CAS 分开断言、commit
- * 原子性），**T108 补上 §2.6**（restore），§2.7 在 US-308（T122）填。
+ * 原子性），**T108 补上 §2.6**（restore），**T122 补上 §2.7**（分支隔离与 ABA）。
  *
  * §2.3 / §2.4 要演的是「另一个 Tab 存了一下」与「高并发普通 CRUD」，而本套件**不走
  * `entity.save()`**，走的是 `save()` 最终落到的那个原语 `captureChanges()`——换一条更浅的
@@ -67,6 +67,19 @@ import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/
 import type { WriteCommitOutcome } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import * as workingTreePublicSurface from '../../index.js';
+import type {
+  BranchMaterializationPage,
+  BranchMaterializationPagePayload,
+  BranchMaterializationResult,
+  BranchMaterializationStaging
+} from '../branch-materialization.js';
+import {
+  BranchNotMaterializedError,
+  commitBranchMaterialization,
+  discardMaterializationAttempt,
+  findResumableMaterializationAttempt,
+  stageBranchMaterialization
+} from '../branch-materialization.js';
 import type { ChangeCaptureSource } from '../capture-runtime.js';
 import { captureChanges, readActiveBranchToken } from '../capture-runtime.js';
 import type { CommitResult } from '../commit-command.js';
@@ -77,8 +90,11 @@ import type { WorkingTreeRestoreResult } from '../restore-command.js';
 import { readActiveRestoreSession, restoreWorkingTree } from '../restore-command.js';
 import type { WorkingTreeStatus } from '../status.js';
 import { assertWorkingTreeEntryCountIntact, readWorkingTreeStatus } from '../status.js';
+import { WorkingTreeDirtyError } from '../switch-branch-options.js';
 import { WorkingTreeEntry } from '../working-tree-entry.entity.js';
 import { WorkingTreeManager } from '../working-tree-facade.js';
+import { WorkingTreeMaterializationPage } from '../working-tree-materialization-page.entity.js';
+import { WorkingTreeMaterializationStage } from '../working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
 import { ConformanceNote } from './conformance-entities.js';
@@ -537,6 +553,178 @@ const seedTwoCommits = async (database: RxDB, branchId: string): Promise<Commit>
   return older;
 };
 
+/** §2.7 的隔离用例开出来的那条本地分支。 */
+const ISOLATION_BRANCH_ID = 'conformance-isolation';
+
+/** §2.7 的物化用例那条**只有元数据**的远端分支：有分支行，没有 ref、没有工作树状态行。 */
+const REMOTE_TARGET_ID = 'conformance-remote-target';
+
+/** §2.7 的 ABA 用例那条被删掉又同名重建的分支。 */
+const ABA_BRANCH_ID = 'conformance-aba';
+
+/** 物化 attempt 冻结下来的远端水位；内容不重要，「冻结的是哪一份」才重要。 */
+const MATERIALIZATION_WATERMARK: Record<string, unknown> = { changeId: 7 };
+
+/** 物化 attempt 的同步范围；取真注册过的那个实体名，与本套件其余单元同源。 */
+const MATERIALIZATION_SCOPE: readonly string[] = [UNIT_TARGET.name];
+
+/** 一份完整远端快照的页数。 */
+const MATERIALIZATION_PAGES = 3;
+
+/** {@link materializationPagesOf} 注入的那次崩溃；判别位用类，不用文案。 */
+class InjectedStagingCrash extends Error {
+  constructor(pageIndex: number) {
+    super(`注入：远端快照分页到第 ${pageIndex} 页时崩溃`);
+    this.name = 'InjectedStagingCrash';
+    Object.setPrototypeOf(this, InjectedStagingCrash.prototype);
+  }
+}
+
+/**
+ * 造一个远端快照的分页来源。
+ *
+ * @param pageCount - 总页数
+ * @param crashAt - 给出时在这一页**之前**抛，模拟分页崩在中途
+ *
+ * @remarks
+ * 崩溃点排在 `yield` **之前**而不是之后：排在之后崩的是「这一页已经落库」的下一刻，
+ * 于是「落了几页」与页号差一，而下面那条 `nextPageIndex` 断言正是靠这个数说话的。
+ */
+const materializationPagesOf = (pageCount: number, crashAt?: number): AsyncIterable<BranchMaterializationPagePayload> =>
+  (async function* () {
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+      if (pageIndex === crashAt) throw new InjectedStagingCrash(pageIndex);
+      yield {
+        payload: { rows: [{ entity: UNIT_TARGET.name, id: `materialized-${pageIndex}` }] },
+        fingerprint: `conformance-page-${pageIndex}`
+      };
+    }
+  })();
+
+/**
+ * 注入一条只有元数据的远端分支。
+ *
+ * @returns 注入的分支 id
+ *
+ * @remarks
+ * **不能用 `createBranch()` 造物化目标。** 那条路会连 ref、工作树状态行一起写下，还会把源分支
+ * 此刻的 HEAD 抄过去——而屏障见到一个非空 HEAD 就判 `target_already_materialized`，于是三条
+ * 物化用例全部停在前置条件上，一条都跑不到要测的那件事。US-308 说的那种分支本来也只是
+ * 一行远端元数据：ref 要等这次物化成功才第一次出现。
+ */
+const injectRemoteOnlyBranch = async (database: RxDB): Promise<string> => {
+  await withTransaction(database, async executor => {
+    const branch = database.entityManager.instantiate(RxDBBranch);
+    branch.id = REMOTE_TARGET_ID;
+    branch.parentId = null;
+    branch.activated = false;
+    branch.activeKey = null;
+    branch.local = false;
+    branch.remote = true;
+    branch.fromChangeId = null;
+    await executor.saveMany([branch]);
+  });
+  return REMOTE_TARGET_ID;
+};
+
+/** 开一次 staging：三条物化用例共用这一份意图，只有页数与崩溃点不同。 */
+const stageOnce = (
+  database: RxDB,
+  attemptId: string,
+  pages: AsyncIterable<BranchMaterializationPagePayload>
+): Promise<BranchMaterializationStaging> =>
+  withTransaction(database, executor =>
+    stageBranchMaterialization(database.entityManager, executor, {
+      attemptId,
+      targetBranchId: REMOTE_TARGET_ID,
+      frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+      syncScope: MATERIALIZATION_SCOPE,
+      pages
+    })
+  );
+
+/**
+ * 开一次崩在中途的 staging，并让**崩之前那几页留在库里**。
+ *
+ * @returns 那次崩溃
+ *
+ * @remarks
+ * 崩溃在事务边界**之内**接住。真实调用方每页各开一个事务（模块那条「逐页可恢复」就是这么来的），
+ * 而套件只有 `withTransaction` 一个口子：让异常穿出去的话回滚会连已落的页一起抹掉，
+ * `findResumableMaterializationAttempt()` 随后返回 `null`，屏障也从 `stage_incomplete` 变成
+ * `stage_missing`——两条断言一起变绿，测的却不再是「半份 payload 不得被当成完整快照」。
+ */
+const stagePartially = (database: RxDB, attemptId: string, crashAt: number): Promise<unknown> =>
+  withTransaction(database, executor =>
+    captureRejection(
+      stageBranchMaterialization(database.entityManager, executor, {
+        attemptId,
+        targetBranchId: REMOTE_TARGET_ID,
+        frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+        syncScope: MATERIALIZATION_SCOPE,
+        pages: materializationPagesOf(MATERIALIZATION_PAGES, crashAt)
+      })
+    )
+  );
+
+/** 数一遍某个 attempt 在 staging 两张表上各留了几行。 */
+const stagingFootprintOf = (database: RxDB, attemptId: string): Promise<{ stages: number; pages: number }> =>
+  withTransaction(database, async executor => ({
+    stages: await executor.getRepository(WorkingTreeMaterializationStage).count({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: attemptId }] }
+    }),
+    pages: await executor.getRepository(WorkingTreeMaterializationPage).count({
+      where: { combinator: 'and', rules: [{ field: 'stageId', operator: '=', value: attemptId }] }
+    })
+  }));
+
+/** 数一遍某条分支有几行 ref；物化之前必须是 0，物化之后才第一次出现。 */
+const countRefs = (database: RxDB, branchId: string): Promise<number> =>
+  withTransaction(database, executor =>
+    executor.getRepository(CommitBranchRef).count({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] }
+    })
+  );
+
+/**
+ * 走一次物化屏障。
+ *
+ * @param database - 本条用例的数据库
+ * @param attemptId - 要兑现的那次 staging
+ * @param applied - 交给宿主物化过的页号按序追加进来
+ *
+ * @remarks
+ * 激活位与屏障在**同一个事务**里读，于是那道 CAS 必然命中——这一层把变量压到只剩「依据足不足」
+ * 一个；激活态 CAS 自己由 §2.3 单独盯。`applyPage` 只记页号：投影怎么写归宿主，本套件验的是
+ * 屏障的次序与收尾。
+ */
+const commitMaterialization = (
+  database: RxDB,
+  attemptId: string,
+  applied: number[]
+): Promise<BranchMaterializationResult> =>
+  withTransaction(database, async executor => {
+    const status = await readWorkingTreeStatus(executor);
+    return commitBranchMaterialization(database.entityManager, executor, {
+      attemptId,
+      targetBranchId: REMOTE_TARGET_ID,
+      expectedActiveBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+      frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+      syncScope: MATERIALIZATION_SCOPE,
+      applyPage: (page: BranchMaterializationPage) => {
+        applied.push(page.pageIndex);
+        return Promise.resolve();
+      }
+    });
+  });
+
+/** 读全部激活分支的 id；`activated` 在 JS 侧过滤，理由同 {@link readActiveBranchId}。 */
+const activeBranchIdsOf = (database: RxDB): Promise<string[]> =>
+  withTransaction(database, async executor => {
+    const branches = await executor.getRepository(RxDBBranch).find({ where: { combinator: 'and', rules: [] } });
+    return branches.filter(branch => branch.activated).map(branch => branch.id);
+  });
+
 /** 见 {@link CommitCorruptionEntryPoint}。 */
 const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
   {
@@ -578,6 +766,25 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
         credentialsOf(status)
       );
       if (!result.ok) throw new Error(`期望这次恢复跑到损坏守卫，实际先撞上 ${result.reason}`);
+    }
+  },
+  {
+    name: 'switch-to',
+    invoke: async ({ database, executor, branchId }) => {
+      // 走**贡献方注册的那个钩子**，而不是直接调 `assertSwitchTargetIntact()`：后者与表里
+      // 第一行只差一层转发，这一行于是退化成「守卫本身」的第四次复制，而 §2.5 要证的
+      // 恰恰是 `switchBranch()` 这条路**接线接上了**——漏接时它照样全绿。
+      //
+      // `preconditions` 传 `undefined`：这一行只问损坏，条件那一半归 §2.7。而次序正好是
+      // 插件承诺的那一条——损坏优先于调用方提出的条件，于是不表态也拦得住。
+      for (const contribution of database.systemContributions) {
+        await contribution.assertBranchSwitchable({
+          executor,
+          currentBranchId: branchId,
+          targetBranchId: branchId,
+          preconditions: undefined
+        });
+      }
     }
   }
 ];
@@ -1344,6 +1551,197 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         });
         // 丢弃**不留终态行**：什么都没提交，一行 `committed` 会让上一条用例数出来的那个数字失真。
         expect(await readRestoreSessions(database)).toEqual([]);
+      });
+    });
+
+    describe('§2.7 分支隔离与跨 realm 冲突（US-308）', () => {
+      it('分支各自独立的工作树：切过去看不见来源分支的未提交改动，切回来它还在', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        // 先建分支再写：`createBranch()` 会把源分支此刻的未提交条目复制一份给新分支
+        // （`commit/branch-commit-rows.ts` 的 `copyCurrentMaterialization`），反过来写的话
+        // 目标分支上那一条是**合法复制**，而本用例要抓的是切换泄漏，两者读数相同。
+        await database.versionManager.createBranch(ISOLATION_BRANCH_ID);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-isolated'));
+
+        await database.versionManager.switchBranch(ISOLATION_BRANCH_ID);
+        const onTarget = await readStatus(database);
+        await database.versionManager.switchBranch(sourceBranchId);
+        const backOnSource = await readStatus(database);
+
+        // 两条分支各有一行 `WorkingTreeState`，摘要读的是**当前** active 那一行。用一行全局状态
+        // 实现的话这两次读给出同一个数字：目标分支上凭空多出一条别人的未提交改动，而提交它
+        // 会把来源分支的编辑写进目标分支的历史。
+        expect({
+          branchId: onTarget.branchId,
+          clean: onTarget.clean,
+          entries: await countEntries(database, ISOLATION_BRANCH_ID)
+        }).toEqual({ branchId: ISOLATION_BRANCH_ID, clean: true, entries: 0 });
+        // 切走一趟不是一次 discard：条目行按 `branchId` 留在原处，回来照样脏。
+        expect({
+          branchId: backOnSource.branchId,
+          clean: backOnSource.clean,
+          entries: await countEntries(database, sourceBranchId)
+        }).toEqual({ branchId: sourceBranchId, clean: false, entries: 1 });
+      });
+
+      it('switchBranch(branchId) 不带 options 时行为与今天一致：工作树非空也照切', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await database.versionManager.createBranch(ISOLATION_BRANCH_ID);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-dirty-switch'));
+
+        // 不传第二形参 = 不表态。多判一道 clean 出来的话，本特性会在**每一个**既有调用点上改变
+        // 行为——而历史子系统自己就在调它（undo/redo 回放），那些路径上工作树恒非空。
+        await database.versionManager.switchBranch(ISOLATION_BRANCH_ID);
+        expect(await activeBranchIdsOf(database)).toEqual([ISOLATION_BRANCH_ID]);
+
+        await database.versionManager.switchBranch(sourceBranchId);
+        const dirty = await captureRejection(
+          database.versionManager.switchBranch(ISOLATION_BRANCH_ID, { requireClean: true })
+        );
+
+        // 同一个库、同一棵脏工作树，只因为调用方表了态就换了结论——这正是「不带 options 与今天
+        // 一致」的可证伪形态：两次都放行或两次都拒绝，这两条断言必有一条红。
+        expect(dirty).toBeInstanceOf(WorkingTreeDirtyError);
+        expect((dirty as WorkingTreeDirtyError).branchId).toBe(sourceBranchId);
+        expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
+      });
+
+      it('物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await injectRemoteOnlyBranch(database);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-staging'));
+        const attemptId = uuid();
+        const commitsBefore = await withTransaction(database, snapshotCommits);
+        const refBefore = await readRefSnapshot(database, sourceBranchId);
+
+        const staging = await stageOnce(database, attemptId, materializationPagesOf(MATERIALIZATION_PAGES));
+
+        expect({ attemptId: staging.attemptId, pageCount: staging.pageCount }).toEqual({
+          attemptId,
+          pageCount: MATERIALIZATION_PAGES
+        });
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: MATERIALIZATION_PAGES });
+        // staging 是一份**旁路**快照。直接往业务投影里写页的实现同样能让上面两条全绿，代价是
+        // 分页崩在中途时当前分支的投影已经被目标分支的数据污染了一半，而用户没切过分支。
+        expect([...(await withTransaction(database, snapshotCommits)).keys()]).toEqual([...commitsBefore.keys()]);
+        expect({
+          source: await readRefSnapshot(database, sourceBranchId),
+          entries: await countEntries(database, sourceBranchId)
+        }).toEqual({ source: refBefore, entries: 1 });
+        // 目标分支这时还只是一行远端元数据：ref 要等屏障成功才第一次出现。
+        expect(await countRefs(database, REMOTE_TARGET_ID)).toBe(0);
+        expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
+      });
+
+      it('屏障成功一次：目标分支拿到 baseline 并接过 active，本次 staging 整体删除', async () => {
+        await injectRemoteOnlyBranch(database);
+        const attemptId = uuid();
+        const generationsBefore = (await withTransaction(database, readAllRefs)).map(ref => ref.generation);
+        await stageOnce(database, attemptId, materializationPagesOf(MATERIALIZATION_PAGES));
+        const activationBefore = (await readStatus(database)).activationRevision;
+        const applied: number[] = [];
+
+        const result = await commitMaterialization(database, attemptId, applied);
+
+        const targetRef = await readRefSnapshot(database, REMOTE_TARGET_ID);
+        const history = await withTransaction(database, executor =>
+          listCommits(executor, { branchId: REMOTE_TARGET_ID })
+        );
+        expect(applied, '页没有按序全部交给宿主').toEqual([0, 1, 2]);
+        expect({ head: targetRef.headCommitId, revision: targetRef.headRevision }).toEqual({
+          head: result.baselineCommitId,
+          revision: 1
+        });
+        expect(history.map(commit => commit.kind)).toEqual(['branch_baseline']);
+        // 代际从单调源现发：撞上既有分支的号，两条分支的提交 CAS 与幂等键会互相命中。
+        expect(generationsBefore).not.toContain(result.generation);
+        expect({ activation: result.activationRevision, active: await activeBranchIdsOf(database) }).toEqual({
+          activation: activationBefore + 1,
+          active: [REMOTE_TARGET_ID]
+        });
+        // 留着的话，下一次同一目标分支的物化会把它当成「上次崩在中途的现场」接着往下走。
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
+      });
+
+      it('半份 payload 不得被当作完整快照：一页都不交给宿主，来源分支保持 active', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await injectRemoteOnlyBranch(database);
+        const attemptId = uuid();
+        const crash = await stagePartially(database, attemptId, 2);
+        const applied: number[] = [];
+
+        const rejection = await captureRejection(commitMaterialization(database, attemptId, applied));
+
+        expect(crash).toBeInstanceOf(InjectedStagingCrash);
+        expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+        expect((rejection as BranchNotMaterializedError).reason).toBe('stage_incomplete');
+        // 一页都不许交出去。先物化再复核的实现会把半份快照交给宿主，而它随后「全量回滚」的
+        // 只是自己那个事务——宿主已经写进别处（文件、远端缓存）的那一半留在原地。
+        expect(applied, '半份快照被交给宿主物化了').toEqual([]);
+        expect({
+          refs: await countRefs(database, REMOTE_TARGET_ID),
+          active: await activeBranchIdsOf(database)
+        }).toEqual({ refs: 0, active: [sourceBranchId] });
+        // 崩之前那两页**留在库里**，这正是 FR-044 说的可恢复：判不可用不等于顺手删。
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
+        expect(
+          await withTransaction(database, executor =>
+            findResumableMaterializationAttempt(executor, {
+              targetBranchId: REMOTE_TARGET_ID,
+              frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+              syncScope: MATERIALIZATION_SCOPE
+            })
+          )
+        ).toEqual({ attemptId, nextPageIndex: 2 });
+
+        await withTransaction(database, executor => discardMaterializationAttempt(executor, attemptId));
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
+      });
+
+      it('删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败', async () => {
+        await database.versionManager.createBranch(ABA_BRANCH_ID);
+        const before = await withTransaction(database, executor => readCommitBranchRef(executor, ABA_BRANCH_ID));
+        // 立刻摊成原始值：身份映射交还的是库里那一行本身，留着引用等于把「删之前」与「重建之后」
+        // 存成同一个对象，下面那条 `not.toBe` 于是恒不成立（见 {@link readRefSnapshot}）。
+        const stale = {
+          generation: before.generation,
+          headRevision: before.headRevision,
+          headCommitId: before.headCommitId
+        };
+
+        await database.versionManager.removeBranch(ABA_BRANCH_ID);
+        await database.versionManager.createBranch(ABA_BRANCH_ID);
+
+        const rebuiltRow = await withTransaction(database, executor => readCommitBranchRef(executor, ABA_BRANCH_ID));
+        const rebuilt = {
+          generation: rebuiltRow.generation,
+          headRevision: rebuiltRow.headRevision,
+          headCommitId: rebuiltRow.headCommitId
+        };
+        const outcome = await withTransaction(database, (executor, adapter) =>
+          writeCommit(executor, createCommitWriteContext(adapter), {
+            branchId: ABA_BRANCH_ID,
+            branchGeneration: stale.generation,
+            expectedHeadRevision: stale.headRevision,
+            kind: 'normal',
+            message: '拿着上一代的凭据提交',
+            author: 'conformance-suite',
+            operationId: uuid(),
+            units: [buildUnit()]
+          })
+        );
+
+        // 代际从单调源现发，删分支**不退号**。退号（或者按分支数重算）之后这两个数会相等。
+        expect(rebuilt.generation, '同名重建复用了被删那条的代际').not.toBe(stale.generation);
+        // 另外两个位逐字相同：只认 `(branchId, headRevision)` 的 CAS 在这里**看不出**分支换过一代，
+        // 于是下面那条断言就是「代际有没有进 WHERE」的单点判据。
+        expect({ headRevision: rebuilt.headRevision, head: rebuilt.headCommitId }).toEqual({
+          headRevision: stale.headRevision,
+          head: stale.headCommitId
+        });
+        expect(outcome.status).toBe('head_revision_conflict');
+        // CAS 落空排在任何写之前：漏一行 changeSet 下来，它指着一个从未落库的 commit。
+        expect(await countChangeSets(database)).toBe(0);
       });
     });
   });

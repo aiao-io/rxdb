@@ -117,6 +117,50 @@ pnpm nx run-many -t test --projects=rxdb-adapter-pglite,rxdb-adapter-wa-sqlite,r
 3. 用第 1 步的值做 CAS。
 4. **期望**：**失败**——`generation` 不复用。
 
+### T131 执行记录：§3 十场景逐条验证（2026-09-18）
+
+**怎么跑的，以及为什么这么跑**：十个场景写的是「做什么、看什么」，不是十条可粘贴的命令。手工敲一遍
+REPL 的结论不可复跑、也不会在明天的回归里再红一次，因此这里把每个场景**落到已经在守着它的那些用例
+上**——逐条确认「该场景的每一个期望都有用例在断言」，再跑那些用例。没有为本次验证新写断言，也没有
+把任何一条期望降格成「看着对」。两次实跑：
+
+```bash
+pnpm nx run rxdb-plugin-working-tree:test --skip-nx-cache -- --reporter=verbose
+# → Test Files 63 passed (63) / Tests 1013 passed (1013)，7.32s
+
+pnpm nx run-many -t test --projects=rxdb,rxdb-adapter-pglite,rxdb-adapter-wa-sqlite,\
+  rxdb-adapter-sqlite-wasm,rxdb-adapter-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-electron \
+  --skip-nx-cache            # T130 那一跑，6 后端 × 2 套件的实测
+# → 5025 passed，6 个适配器各红同一条（见下面 3.1 那一行）
+```
+
+| 场景                          | 落到哪些用例上（都在 `packages/rxdb-plugin-working-tree/src/__tests__/`，`*` 表示还在 6 后端上跑了一遍）                                                                                                                                                                                                                                                        | 结果                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 3.1 启用与零行为差异          | `working-tree/facade-capability-gate.spec.ts`（11：豁免名单恰好是 `isEnabled`/`enable`，其余成员零参调用一律 `commit_capability_disabled`）、`commit/capability-enable.spec.ts`（11：重复启用命中 0 行即幂等、三个版本字段启用后只读）、`commit/enable-migration.spec.ts`（21：每个本地分支补出 ref / state，代际续单调源不复用既有号）\*                       | **9 绿 / 1 红**，见下 |
+| 3.2 冷重放不变量              | `working-tree/cold-replay.spec.ts`（28）、`working-tree/crud-transaction.spec.ts`（23）、`working-tree/write-entry-matrix.spec.ts`（41，含「行 5 cleanupExpired → `remote_sync` 删除单元并递增 revision」）、`working-tree/capture-mount-points.spec.ts`（17）、capture 套件 §1.1 的五条「冷重放与业务表**逐字段**相等」\*                                      | 绿                    |
+| 3.3 status / diff 只有一条轴  | `working-tree/diff.spec.ts`（18，首条即「`WorkingTreeDiffOptions` 的键集封闭，不含指向第二个比较端的入参」）、`working-tree/status.spec.ts`（19，含「byOrigin 按来源分组——`remote_sync` 不豁免」）                                                                                                                                                              | 绿                    |
+| 3.4 提交是全量的              | `working-tree/commit-full-scope.spec.ts`（13：`CommitOptions` 键集封闭无 selection、运行期塞进去的 selection 形状不被认领、提交后条目清零 `entryCount` 归零）                                                                                                                                                                                                   | 绿                    |
+| 3.5 `CommitConflict` 是返回值 | `working-tree/commit-cas-captured.spec.ts`（17：三个捕获位各一次比较、「另一个 Tab 在 status() 与 commit() 之间 save() 过：head 没动，提交仍被拒」、`commit_conflict` 不在错误码表里、失败后一次都没再打 CAS）、`working-tree/status.spec.ts` 的「CAS 失败只返回一次性 `CommitConflict`，不写任何持久冲突态」                                                   | 绿                    |
+| 3.6 restore 不动历史          | `working-tree/restore-basic.spec.ts`（15：HEAD 一格不动、历史一行不删、门面上没有 `checkout` 也没有任何能停在历史节点上的入口）、`working-tree/restore-session-transitions.spec.ts`（12：会话 `committed` 后 `restoring`/`conflicted` 两位都灭）                                                                                                                | 绿                    |
+| 3.7 raw 写被挡在执行前        | `working-tree/raw-bypass-judgment.spec.ts`（49，五步判定 + 解析不出即 fail-closed + 物理表名形态）、`working-tree/raw-write-gate-wiring.spec.ts`（7：启用后同一条语句被拒且执行器一次都没被调用）、`working-tree/observable-gate.spec.ts`（13：`upsertMany`/`deleteByIds` **调用即抛**，调用方手里没有 Observable）、capture 套件 §1.3 五步 + §1.2 行 9/行 10\* | 绿                    |
+| 3.8 崩溃恢复                  | `working-tree/commit-atomicity.spec.ts`（14：四步同一个事务、写完 changeSet 就崩则工作树一条都没被清、revision 与 entryCount 是同一条 UPDATE、崩溃后不做补偿写）                                                                                                                                                                                                | 绿                    |
+| 3.9 损坏 fail-closed          | `commit/corruption-guard.spec.ts`（19：沿**完整可达父链**遍历、孤立损坏只隔离、校验只读）、`working-tree/commit-corruption-entry.spec.ts`（20）、`working-tree/switch-to-corruption.spec.ts`（15，含「切离损坏分支照常放行」）、commit 套件 §2.5 的四入口 × 四形态表（守卫本身 / `commit()` / `restore()` / switch-to）\*                                       | 绿                    |
+| 3.10 分支 ABA                 | `working-tree/remove-branch-aba.spec.ts`（12：删除既不退号也不发号、同名重建拿到严格更大的代际、重建后旧幂等键不碰撞）、`working-tree/activation-cas.spec.ts`（18：CAS 落空是 `CommitConflict` 值且不重试）                                                                                                                                                     | 绿                    |
+
+**唯一的红，以及它到底压着 3.1 的哪一格**：6 个适配器各红 1 条，逐字节相同——
+`commit.suite.ts §2.2 一次性启用迁移（US-305） > enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号`，
+期望 `head: null`、实得一个真实 commit id。**它压的不是 3.1 第 4 步的原文**：第 4 步问的是
+「**既存**分支在 `enable()` 之后都有 ref / state 初始行」，那一格由 `enable-migration.spec.ts` 的
+21 条在单元层、由捕获套件在 6 后端上守着，今天是绿的。红的是它的**邻接面**——`enable()` 之后再
+`createBranch()` 出来的新分支。根因在并发会话尚未提交的 `src/commit/branch-commit-rows.ts`
+（97 → 450 行）：新的 `copyCurrentMaterialization()` 让「从当前物化状态建分支」共享源分支 HEAD
+（`ref.headCommitId = sourceRef.headCommitId`），而这条断言写于 `head` 仍恒为 `null` 的年代。两边各自
+自洽，只是还没对齐；**本次不改断言也不改实现**，详见 `tasks.md` T130。
+
+**因此本条的结论**：十个场景里九个逐条绿，第 1 个绿在它自己写明的那一格、红在紧邻的一格。这份记录
+不把那条红算进「通过」，也不把它算成 3.1 的失败——它是 US-305 启用面的一条**未对齐**，归属清楚，
+复跑口径就是 `branch-commit-rows.ts` 落地后重跑上面第二条命令。
+
 ## 4. 三框架对称（阶段 C 收口）
 
 ```bash

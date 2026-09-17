@@ -1,7 +1,7 @@
 ---
 id: epic-006-working-tree-commits
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-09-12
 targetDate: TBD
 owner: jimmy
 ---

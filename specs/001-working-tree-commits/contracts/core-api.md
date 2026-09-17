@@ -20,6 +20,10 @@
 
 三框架包**只适用负向规则**；运行时入口沿用各自既有 `use*` / 服务约定，`useWorkingTree()` 合规。
 
+**前缀规则的三项登记例外**（T126 定案）：`RxDBBranchRemovalContext` / `RxDBBranchSwitchContext` / `RxDBBranchSwitchPreconditions`。三者是 `rxdb-plugin-system.ts` 上的插件系统扩展点上下文，与早已在基线里的同族 `RxDBBranchCreationContext` 逐字同形；改叫 `WorkingTree*` 会让核心的插件系统看起来认识工作树，而它恰恰不认识——`RxDBBranchSwitchPreconditions` 的 TSDoc 把「核心搬运、插件解释」这条分工写死了，用户侧那个 `WorkingTree*` 的名字在能力插件里（`WorkingTreeSwitchBranchOptions` 是本别名的再导出）。例外**逐名登记**，不是放宽成 `RxDBBranch` 前缀：加前缀之后第四个同族名字会静默通过。
+
+**正向规则读 diff，负向规则读当前全集。** 负向规则若也读 diff，失效路径是现成的：新增 `IndexHint` → 门禁红 → 有人跑 `--update` → 它进了基线 → 从此永远绿，而那个名字还在表面上。正向规则没有这条路可走（「哪些名字属于本特性」在全集里读不出来），代价是它只在名字**第一次出现**的那次运行里有效。`rxdb` 的 `SwitchBranchOptions` 与 `rxdb-plugin-workspace` 的四个 `Workspace*` 是本特性之前的既有导出，在门禁里逐名放行（名单封闭）。
+
 ## 1. 入口
 
 ```ts
@@ -178,20 +182,25 @@ interface WorkingTreeRestoreSessionInfo {
 ## 6. 分支与激活（US-308）
 
 ```ts
-interface WorkingTreeSwitchBranchOptions {
+// 形状声明在 `packages/rxdb` 核心（`RxDBBranchSwitchPreconditions`），
+// `@aiao/rxdb-plugin-working-tree` 以 `WorkingTreeSwitchBranchOptions` 之名原样再导出——
+// 同一个声明，两个名字：核心只做搬运，含义由能力插件给。
+type WorkingTreeSwitchBranchOptions = {
   /** 缺省即当前行为：无条件切换，与今天逐字节一致 */
-  readonly requireCleanWorkingTree?: boolean;
+  readonly requireClean?: boolean;
   readonly expectedActivationRevision?: number;
-}
+};
 
 interface VersionManager {
   /** 既有签名，新增【可选】第二形参。不传时行为不变。 */
-  switchBranch(branchId: string, options?: WorkingTreeSwitchBranchOptions): Promise<void>;
+  switchBranch(branchId: string, preconditions?: WorkingTreeSwitchBranchOptions): Promise<void>;
 }
 ```
 
+- 字段名是 `requireClean` 而非 `requireCleanWorkingTree`：类型名里已经有 `WorkingTree`，再缀一遍是冗余（与 spec.md FR-017 / 场景 4、research.md 一致）。
 - **不复用** `SwitchBranchOptions`：后者是适配器入参 `{ branchId, actions }`（`packages/rxdb/src/rxdb-adapter.ts:55`），是另一层。把它漏进公开 API 等于让用户看见适配器的内部形状。
-- `VersionManager.switchBranch` 当前**没有**第二形参（`packages/rxdb/src/version/VersionManager.ts:740`），因此新增可选参数是**纯扩展**，零行为变化（FR-017）。
+- `VersionManager.switchBranch` 当前**没有**第二形参（`packages/rxdb-plugin-history/src/VersionManager.ts:277`），因此新增可选参数是**纯扩展**，零行为变化（FR-017）。
+- 判定不在 `rxdb-plugin-history` 里做：判据（`WorkingTreeState.entryCount`、提交图可达性）都是能力插件的表，而 history 反向 import 能力插件会成环。切换前的判定走系统贡献口子 `RxDBSystemContribution.assertBranchSwitchable()`，在 `adapter.switchBranch()` 之前的一个只读事务里逐个问过贡献方。
 
 ## 7. 错误码
 
@@ -209,3 +218,8 @@ interface VersionManager {
 | `benchmark_environment_mismatch`    | `runnerProfileHash` 不匹配却要求绝对门禁                       |
 
 `CommitConflict` **不在**本表：它是返回值，不是异常。
+
+`WorkingTreeDirtyError`（`switchBranch(id, { requireClean: true })` 撞上未提交改动）也**不在**本表：
+它不铸新码，只是一个带 `branchId` / `entryCount` 的异常类——码是给跨进程、跨语言的判别用的，
+而这一条的处置只发生在发起调用的那一层（先 `commit()` 还是先 `discard()`）。
+`WorkingTreeEntryCountMismatchError` 是同一个形态的先例。

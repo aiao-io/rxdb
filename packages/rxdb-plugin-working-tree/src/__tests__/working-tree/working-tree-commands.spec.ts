@@ -10,15 +10,22 @@
  * 每验一次就要连带把 TestBed / renderHook / `nextTick` 一起拖进来。
  *
  * 本文件把那一层剥掉：`patch` 就是一个往普通对象里写格子的函数，桩只桩到
- * {@link WorkingTreeManager} 那一层。剥掉之后能问出三端问不了的一个问题——
+ * {@link WorkingTreeManager}（与 `switchBranch` 所在的 `VersionManager`）那一层。
+ * 剥掉之后能问出三端问不了的一个问题——
  * **「除了这一格，别的格子动没动」**（见 {@link untouchedKeys}）。框架容器下
  * 这个问题会退化成「渲染有没有多跑一次」，而那是框架的事，不是本层的事。
  *
  * 本文件不碰数据库：谁能落库、落成什么样归 `commit-atomicity.spec.ts` /
  * `discard.spec.ts` / `status.spec.ts`；相位机本身归 `async-state.spec.ts`。
- * 这里只测**接线**：七个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
+ * 这里只测**接线**：十个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
+ *
+ * 桩的形状从 T123 起是 `{ workingTree, versionManager }` 而不再是裸 `workingTree`：
+ * 清单第十项 `switchBranch` 挂在 `versionManager` 上（contracts/core-api.md §6），
+ * 命令层因此收整个库。桩到两个门面**而不是**让 spec 自己造一份 `RxDB`——
+ * 本层只用得到这两个属性，多桩出来的每一个都会变成一处与真库无关的约束。
  */
 
+import type { RxDB } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitLogOptions, CommitLogPage } from '../../commit/commit-log.js';
@@ -28,7 +35,17 @@ import type { CommitOptions, CommitResult } from '../../working-tree/commit-comm
 import type { WorkingTreeCredentials } from '../../working-tree/commit-conflict.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from '../../working-tree/diff.js';
 import type { WorkingTreeDiscardOptions, WorkingTreeDiscardResult } from '../../working-tree/discard-command.js';
+import type {
+  WorkingTreeRestoreOptions,
+  WorkingTreeRestoreResult,
+  WorkingTreeRestoreSessionInfo,
+  WorkingTreeRestoreTarget
+} from '../../working-tree/restore-command.js';
 import type { WorkingTreeStatus } from '../../working-tree/status.js';
+import {
+  WorkingTreeDirtyError,
+  type WorkingTreeSwitchBranchOptions
+} from '../../working-tree/switch-branch-options.js';
 import { createWorkingTreeCommands, type WorkingTreeStatePatch } from '../../working-tree/working-tree-commands.js';
 import type { WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
 
@@ -113,8 +130,17 @@ const CREDENTIALS = {
 
 const COMMIT_OPTIONS: CommitOptions = { ...CREDENTIALS, authorId: 'alice', operationId: 'op-1' };
 const DISCARD_OPTIONS: WorkingTreeDiscardOptions = CREDENTIALS;
+const RESTORE_OPTIONS: WorkingTreeRestoreOptions = CREDENTIALS;
+const RESTORE_TARGET: WorkingTreeRestoreTarget = { commitId: 'commit-1' };
 
-/** 七格状态的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
+const SESSION: WorkingTreeRestoreSessionInfo = {
+  id: 'session-1',
+  branchId: 'main',
+  targetCommitId: 'commit-1',
+  status: 'active'
+};
+
+/** 十格状态的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
 type MutableAsyncStates = { -readonly [K in keyof WorkingTreeAsyncStates]: WorkingTreeAsyncStates[K] };
 
 /**
@@ -133,7 +159,7 @@ const untouchedKeys = (
     key => !touched.includes(key) && states[key].phase !== 'idle'
   );
 
-/** 桩到 `RxDB.workingTree` 那一层；再往下是命令自己的事，不在本文件重测。 */
+/** 桩到 `RxDB.workingTree` / `RxDB.versionManager` 那一层；再往下是命令自己的事，不在本文件重测。 */
 const createFixture = () => {
   const states: MutableAsyncStates = { ...WORKING_TREE_INITIAL_ASYNC_STATES };
   // 相位流水账：既记「进了哪一格」也记「什么相位」，用来钉住**次序**——
@@ -151,16 +177,45 @@ const createFixture = () => {
     diff: vi.fn<(options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>>(),
     listCommits: vi.fn<(options?: CommitLogOptions) => Promise<CommitLogPage>>(),
     commit: vi.fn<(message: string, options: CommitOptions) => Promise<CommitResult>>(),
-    discard: vi.fn<(options: WorkingTreeDiscardOptions) => Promise<WorkingTreeDiscardResult>>()
+    discard: vi.fn<(options: WorkingTreeDiscardOptions) => Promise<WorkingTreeDiscardResult>>(),
+    restore:
+      vi.fn<
+        (target: WorkingTreeRestoreTarget, options: WorkingTreeRestoreOptions) => Promise<WorkingTreeRestoreResult>
+      >(),
+    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>()
   };
   workingTree.status.mockResolvedValue(statusWith(0));
 
-  const commands = createWorkingTreeCommands(workingTree as unknown as WorkingTreeManager, patch);
-  return { commands, states, transitions, workingTree };
+  const versionManager = {
+    switchBranch: vi.fn<(branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>>()
+  };
+  versionManager.switchBranch.mockResolvedValue(undefined);
+
+  // `versionManager` 由历史插件在连接纪元内 `defineProperty` 装上，这里用取值器桩住它，
+  // 顺带把「命令层是不是每次现取」问出来：构造时存一份的实现下 `versionManagerReads`
+  // 会停在 1，而真库里那一份在释放后就没了。
+  let versionManagerReads = 0;
+  const database = {
+    workingTree: workingTree as unknown as WorkingTreeManager,
+    get versionManager() {
+      versionManagerReads += 1;
+      return versionManager;
+    }
+  } as unknown as RxDB;
+
+  const commands = createWorkingTreeCommands(database, patch);
+  return {
+    commands,
+    states,
+    transitions,
+    workingTree,
+    versionManager,
+    versionManagerReadCount: () => versionManagerReads
+  };
 };
 
-describe('七个命令各自只驱动自己那一格（§4）', () => {
-  it('isEnabled 走命令状态，其余六格纹丝不动', async () => {
+describe('十个命令各自只驱动自己那一格（§4）', () => {
+  it('isEnabled 走命令状态，其余九格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(true);
 
@@ -170,7 +225,7 @@ describe('七个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'isEnabledState')).toEqual([]);
   });
 
-  it('status 走查询状态，其余六格纹丝不动', async () => {
+  it('status 走查询状态，其余九格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const dirty = statusWith(3);
     workingTree.status.mockResolvedValue(dirty);
@@ -181,7 +236,7 @@ describe('七个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'statusState')).toEqual([]);
   });
 
-  it('diff 走查询状态，其余六格纹丝不动', async () => {
+  it('diff 走查询状态，其余九格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const diff = diffWith(2);
     workingTree.diff.mockResolvedValue(diff);
@@ -192,7 +247,7 @@ describe('七个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'diffState')).toEqual([]);
   });
 
-  it('listCommits 走查询状态，其余六格纹丝不动', async () => {
+  it('listCommits 走查询状态，其余九格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const page = logWith(2);
     workingTree.listCommits.mockResolvedValue(page);
@@ -201,6 +256,32 @@ describe('七个命令各自只驱动自己那一格（§4）', () => {
 
     expect(states.listCommitsState).toEqual({ phase: 'success', value: page });
     expect(untouchedKeys(states, 'listCommitsState')).toEqual([]);
+  });
+
+  it('restoreSession 走查询状态，其余九格纹丝不动', async () => {
+    const { commands, states, workingTree } = createFixture();
+    workingTree.restoreSession.mockResolvedValue(SESSION);
+
+    await expect(commands.restoreSession()).resolves.toBe(SESSION);
+
+    expect(states.restoreSessionState).toEqual({ phase: 'success', value: SESSION });
+    expect(untouchedKeys(states, 'restoreSessionState')).toEqual([]);
+  });
+
+  // restore 进行中时**只有** restoreState 在 loading：恢复要写满一整个 commit 的条目，
+  // 是九个方法里最慢的一个，此刻若 statusState 也被推成 loading，面板上那份还完全有效的
+  // 摘要会在整段恢复期间变成一个转圈——而它根本没有被重读。
+  it('restore 进行中时只有 restoreState 是 loading，statusState 照旧 idle', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const pending = deferred<WorkingTreeRestoreResult>();
+    workingTree.restore.mockReturnValue(pending.promise);
+
+    const call = commands.restore(RESTORE_TARGET, RESTORE_OPTIONS);
+    expect(states.restoreState).toEqual({ phase: 'loading' });
+    expect(untouchedKeys(states, 'restoreState')).toEqual([]);
+
+    pending.resolve({ ok: true, restoredCount: 3, sessionId: 'session-1', workingTreeRevision: 4 });
+    await call;
   });
 
   // 「进行中」必须先于结果发出（§4），而且此刻**只有**这一格在 loading。
@@ -216,9 +297,25 @@ describe('七个命令各自只驱动自己那一格（§4）', () => {
     pending.resolve({ ok: true, commitId: 'commit-1', changeSetCount: 2, headRevision: 3 });
     await call;
   });
+
+  // 切分支要重放目标分支的整段历史，是十个方法里第二慢的一个。此刻若 statusState 也被推成
+  // loading，面板上那份**当前**分支的摘要会在整段切换期间变成转圈——而它此刻仍然完全有效，
+  // 真正该重读它的时刻在切换**之后**。
+  it('switchBranch 进行中时只有 switchBranchState 是 loading，statusState 照旧 idle', async () => {
+    const { commands, states, versionManager } = createFixture();
+    const pending = deferred<void>();
+    versionManager.switchBranch.mockReturnValue(pending.promise);
+
+    const call = commands.switchBranch('feature');
+    expect(states.switchBranchState).toEqual({ phase: 'loading' });
+    expect(untouchedKeys(states, 'switchBranchState')).toEqual([]);
+
+    pending.resolve();
+    await call;
+  });
 });
 
-describe('三个查询各自的空判据（§4）', () => {
+describe('四个查询各自的空判据（§4）', () => {
   it('干净工作树落在 empty 而不是 success', async () => {
     const { commands, states, workingTree } = createFixture();
     const clean = statusWith(0);
@@ -245,6 +342,30 @@ describe('三个查询各自的空判据（§4）', () => {
     await commands.listCommits();
 
     expect(states.listCommitsState.phase).toBe('empty');
+  });
+
+  // 「没有未结束的恢复会话」是这个查询唯一的空形态，而且是**绝大多数**时刻的形态。
+  // 把 `null` 画成 success 的话，模板要么给「没有会话」渲染一块恢复中的横幅，
+  // 要么每处绑定各写一遍 `=== null`——而那份判据迟早有一端写成 `status !== 'active'`。
+  it('没有未结束会话时落在 empty，且照样带着那个 null', async () => {
+    const { commands, states, workingTree } = createFixture();
+    workingTree.restoreSession.mockResolvedValue(null);
+
+    await expect(commands.restoreSession()).resolves.toBeNull();
+
+    expect(states.restoreSessionState).toEqual({ phase: 'empty', value: null });
+  });
+
+  // 有会话就是 success，无论它是 active 还是 conflicted：这个查询只回答
+  // 「有没有、来自哪个 commit」，「还成不成立」是 status() 那两位的事。
+  it('conflicted 的会话照样是 success，不因为「不健康」被算成空', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const conflicted: WorkingTreeRestoreSessionInfo = { ...SESSION, status: 'conflicted' };
+    workingTree.restoreSession.mockResolvedValue(conflicted);
+
+    await commands.restoreSession();
+
+    expect(states.restoreSessionState).toEqual({ phase: 'success', value: conflicted });
   });
 });
 
@@ -274,6 +395,79 @@ describe('入参原样透传，签名不做框架化改写（§1）', () => {
     await commands.commit('第一次提交', COMMIT_OPTIONS);
 
     expect(workingTree.commit).toHaveBeenCalledWith('第一次提交', COMMIT_OPTIONS);
+  });
+
+  // 与 commit 同形的「恰好两个位置参数」：`options` 若可缺省，「缺省时由入口内部读 revision」
+  // 就成了合法用法，而内部读到的恒等于当前值、CAS 永远命中——FR-034 对 restore 的那半句当场失效。
+  it('restore 的 target 与 options 原样两个位置参数传下去', async () => {
+    const { commands, workingTree } = createFixture();
+    workingTree.restore.mockResolvedValue({
+      ok: true,
+      restoredCount: 3,
+      sessionId: 'session-1',
+      workingTreeRevision: 4
+    });
+
+    await commands.restore(RESTORE_TARGET, RESTORE_OPTIONS);
+
+    expect(workingTree.restore).toHaveBeenCalledWith(RESTORE_TARGET, RESTORE_OPTIONS);
+  });
+
+  // `entities` 的缺省语义是「整个 commit」，与「传了一个空数组」不是一回事。
+  // 入口替调用方补一个 `entities: []` 会把「整个 commit」悄悄改成「一个实体都不恢复」。
+  it('restore 的 entities 子集原样带下去，不被补齐也不被抹掉', async () => {
+    const { commands, workingTree } = createFixture();
+    workingTree.restore.mockResolvedValue({
+      ok: true,
+      restoredCount: 1,
+      sessionId: 'session-2',
+      workingTreeRevision: 5
+    });
+    const subset: WorkingTreeRestoreTarget = {
+      commitId: 'commit-1',
+      entities: [{ namespace: 'app', entity: 'Note', entityId: 'note-1' }]
+    };
+
+    await commands.restore(subset, RESTORE_OPTIONS);
+
+    expect(workingTree.restore).toHaveBeenCalledWith(subset, RESTORE_OPTIONS);
+  });
+
+  it('restoreSession 不带任何入参：会话恒属当前 active 分支（FR-048）', async () => {
+    const { commands, workingTree } = createFixture();
+    workingTree.restoreSession.mockResolvedValue(null);
+
+    await commands.restoreSession();
+
+    expect(workingTree.restoreSession).toHaveBeenCalledWith();
+  });
+
+  // `options` 缺省与传 `{ requireClean: false }` 在核心是同一件事，但「入口替调用方补一个
+  // 空对象」不是：`assertSwitchBranchPreconditions` 靠「一个条件都没提」来决定**一条语句都不发**，
+  // 补出来的空对象会让每一次切换白读一次 active 分支令牌。
+  it('switchBranch 的 branchId 与 options 原样传下去；不传就是不传', async () => {
+    const { commands, versionManager } = createFixture();
+    const options: WorkingTreeSwitchBranchOptions = { requireClean: true, expectedActivationRevision: 1 };
+
+    await commands.switchBranch('feature', options);
+    await commands.switchBranch('main');
+
+    expect(versionManager.switchBranch).toHaveBeenNthCalledWith(1, 'feature', options);
+    expect(versionManager.switchBranch).toHaveBeenNthCalledWith(2, 'main', undefined);
+  });
+
+  // `versionManager` 由历史插件在**连接纪元内** `defineProperty` 装上、释放时删掉。
+  // 命令层若在构造时存一份，入口会一直攥着上一个纪元那个已经作废的门面——重连之后
+  // 每一次切换都打在一个没人再看的对象上，而这里除了「读了几次」看不出别的症状。
+  it('每次调用都现取一次 versionManager，不在构造时存一份', async () => {
+    const { commands, versionManagerReadCount } = createFixture();
+
+    expect(versionManagerReadCount()).toBe(0);
+
+    await commands.switchBranch('feature');
+    await commands.switchBranch('main');
+
+    expect(versionManagerReadCount()).toBe(2);
   });
 
   it('discard 的三个捕获位原样传下去', async () => {
@@ -352,15 +546,109 @@ describe('改动之后重读一次 status，查询之后不重读', () => {
     expect(workingTree.status).toHaveBeenCalledTimes(1);
   });
 
-  it('isEnabled / status / diff / listCommits 都不额外重读 status', async () => {
+  // restore 把一整个 commit 的内容写成未提交条目，工作树从 clean 变脏——不重读的话，
+  // 用户刚恢复完 100 个单元，面板上仍写着「没有未提交的改动」，而下一次 commit()
+  // 会带走这 100 条。
+  it('restore 成功之后重读 status，且重读排在 restoreState 落地之后', async () => {
+    const { commands, transitions, workingTree } = createFixture();
+    const result: WorkingTreeRestoreResult = {
+      ok: true,
+      restoredCount: 3,
+      sessionId: 'session-1',
+      workingTreeRevision: 4
+    };
+    workingTree.restore.mockResolvedValue(result);
+    workingTree.status.mockResolvedValue(statusWith(3));
+
+    await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(result);
+
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+    expect(transitions).toEqual([
+      'restoreState:loading',
+      'restoreState:success',
+      'statusState:loading',
+      'statusState:success'
+    ]);
+  });
+
+  // `restoredCount: 0` 加 `sessionId: null` 是一次什么都没写的 no-op **结果**（FR-042），
+  // 与 discard 的 `discardedCount: 0` 同形：落在 success，不是 empty，也照样重读。
+  it('restoredCount 为零照样是 success，也照样重读', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const noop: WorkingTreeRestoreResult = {
+      ok: true,
+      restoredCount: 0,
+      sessionId: null,
+      workingTreeRevision: 3
+    };
+    workingTree.restore.mockResolvedValue(noop);
+
+    await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(noop);
+
+    expect(states.restoreState).toEqual({ phase: 'success', value: noop });
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+  });
+
+  // 恢复成功之后**不**顺手重读会话：`restoreSession()` 只回答「有没有、来自哪个 commit」，
+  // 而刚刚那次恢复的 `sessionId` 已经在返回值里；「这个会话还成不成立」的唯一出口是
+  // `status()` 的 restoring / conflicted 两位，而那一份摘要上一行已经重读过了。
+  // 顺手读一次等于给每次恢复多发一轮查询，换来一份调用方已经拿在手里的 id。
+  it('restore 之后不顺手重读会话，restoreSessionState 停在 idle', async () => {
+    const { commands, states, workingTree } = createFixture();
+    workingTree.restore.mockResolvedValue({
+      ok: true,
+      restoredCount: 3,
+      sessionId: 'session-1',
+      workingTreeRevision: 4
+    });
+
+    await commands.restore(RESTORE_TARGET, RESTORE_OPTIONS);
+
+    expect(workingTree.restoreSession).not.toHaveBeenCalled();
+    expect(states.restoreSessionState).toEqual({ phase: 'idle' });
+  });
+
+  // 切过去之后面板上那份摘要属于**另一条**分支：条目数、三个捕获位、restoring 位全是旧分支的。
+  // 不重读的话，用户切到一条干净分支后仍看着「3 条未提交变更」，而下一次 commit() 会带着
+  // 一份对不上的 `expectedWorkingTreeRevision` 撞 CAS。
+  it('switchBranch 成功之后重读 status，且重读排在 switchBranchState 落地之后', async () => {
+    const { commands, states, transitions, workingTree } = createFixture();
+    workingTree.status.mockResolvedValue(statusWith(0));
+
+    await expect(commands.switchBranch('feature')).resolves.toBeUndefined();
+
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+    expect(states.switchBranchState).toEqual({ phase: 'success', value: undefined });
+    expect(transitions).toEqual([
+      'switchBranchState:loading',
+      'switchBranchState:success',
+      'statusState:loading',
+      'statusState:empty'
+    ]);
+  });
+
+  // 切到当前分支是一次成功的 no-op，不是空：`switchBranchState` 因此**没有 empty**。
+  // 照样重读——核心不保证它是恒等变换，而「什么都没发生」本身也要有个出处。
+  it('切到当前分支照样是 success，也照样重读', async () => {
+    const { commands, states, workingTree } = createFixture();
+
+    await commands.switchBranch('main');
+
+    expect(states.switchBranchState).toEqual({ phase: 'success', value: undefined });
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+  });
+
+  it('isEnabled / status / diff / listCommits / restoreSession 都不额外重读 status', async () => {
     const { commands, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(false);
     workingTree.diff.mockResolvedValue(diffWith(1));
     workingTree.listCommits.mockResolvedValue(logWith(1));
+    workingTree.restoreSession.mockResolvedValue(null);
 
     await commands.isEnabled();
     await commands.diff();
     await commands.listCommits();
+    await commands.restoreSession();
 
     expect(workingTree.status).not.toHaveBeenCalled();
 
@@ -416,6 +704,48 @@ describe('错误既进状态，也继续往上抛（§1）', () => {
     expect(workingTree.status).not.toHaveBeenCalled();
   });
 
+  // 抛出来只可能是能力未启用或提交图损坏（FR-051）——两者都意味着一个字节都没写进工作树，
+  // 没有什么可重读的。
+  it('restore 抛错时进 error、继续抛，且不重读 status', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const failure = new Error('提交图已损坏');
+    workingTree.restore.mockRejectedValue(failure);
+
+    await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).rejects.toBe(failure);
+
+    expect(states.restoreState).toEqual({ phase: 'error', error: failure });
+    expect(workingTree.status).not.toHaveBeenCalled();
+    expect(untouchedKeys(states, 'restoreState')).toEqual([]);
+  });
+
+  it('restoreSession 抛错时进 error 并继续抛，且不发 empty', async () => {
+    const { commands, states, transitions, workingTree } = createFixture();
+    const failure = new Error('能力未启用');
+    workingTree.restoreSession.mockRejectedValue(failure);
+
+    await expect(commands.restoreSession()).rejects.toBe(failure);
+
+    expect(states.restoreSessionState).toEqual({ phase: 'error', error: failure });
+    expect(transitions).toEqual(['restoreSessionState:loading', 'restoreSessionState:error']);
+  });
+
+  // 被 `requireClean` 拒掉与「切换本身炸了」在本层是同一件事：两者都**抛**，与 commit() 的
+  // CAS 落败（返回值）不同。因为被拒的那一刻分支根本没切，没有任何「结果」可以交给调用方——
+  // 翻成返回值的话，`await tree.switchBranch(id, { requireClean: true })` 之后那行
+  // 「已经切过去了」的代码会照跑。
+  it('switchBranch 撞上脏工作树时进 error、继续抛，且不重读 status', async () => {
+    const { commands, states, versionManager, workingTree } = createFixture();
+    const failure = new WorkingTreeDirtyError('main', 2);
+    versionManager.switchBranch.mockRejectedValue(failure);
+
+    await expect(commands.switchBranch('feature', { requireClean: true })).rejects.toBe(failure);
+
+    expect(states.switchBranchState).toEqual({ phase: 'error', error: failure });
+    // 一个字节都没动，分支也没换：重读只会把同一份摘要再取一遍。
+    expect(workingTree.status).not.toHaveBeenCalled();
+    expect(untouchedKeys(states, 'switchBranchState')).toEqual([]);
+  });
+
   it('isEnabled 抛错时进 error 并继续抛', async () => {
     const { commands, states, workingTree } = createFixture();
     const failure = new Error('连接已断开');
@@ -457,6 +787,25 @@ describe('CommitConflict 是返回值，不是崩溃（§4）', () => {
     expect(states.statusState).toEqual({ phase: 'success', value: statusWith(3) });
   });
 
+  // restore 的四个被拒成因全都是**返回值**：脏工作树与不兼容要用户去处理，不可达是问错了
+  // 节点，冲突要重来一次——四者都不是崩溃。翻成 error 会让 UI 把一次正常的仲裁渲染成故障。
+  it.each(['conflict', 'dirty_working_tree', 'incompatible_schema', 'unreachable_target'] as const)(
+    'restore 被拒（%s）落在 success 相位，并且照样重读 status',
+    async reason => {
+      const { commands, states, workingTree } = createFixture();
+      const rejected = { ok: false, reason } as WorkingTreeRestoreResult;
+      workingTree.restore.mockResolvedValue(rejected);
+      workingTree.status.mockResolvedValue(statusWith(3));
+
+      await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(rejected);
+
+      expect(states.restoreState).toEqual({ phase: 'success', value: rejected });
+      // 被拒本身就说明面板上那份摘要与库里对不上了：`dirty_working_tree` 是它显示的
+      // 「没有未提交改动」不成立，`conflict` 是三个捕获位已经过期。
+      expect(workingTree.status).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('discard 的 ok:false 同样落在 success 相位', async () => {
     const { commands, states, workingTree } = createFixture();
     const conflicted: WorkingTreeDiscardResult = {
@@ -487,6 +836,25 @@ describe('重读失败被吞掉：一次成功的提交不能因为重读而变�
     expect(states.statusState).toEqual({ phase: 'error', error: readFailure });
   });
 
+  it('restore 成功但 status 重读失败时，restore 仍然 resolve', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const result: WorkingTreeRestoreResult = {
+      ok: true,
+      restoredCount: 3,
+      sessionId: 'session-1',
+      workingTreeRevision: 4
+    };
+    workingTree.restore.mockResolvedValue(result);
+    workingTree.status.mockRejectedValue(new Error('读 status 时连接断了'));
+
+    // 100 个条目确实已经写进工作树了：再抛一次会让调用方以为恢复没发生，
+    // 而它接下来大概率会重试一次——那一次会撞上 `dirty_working_tree`。
+    await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(result);
+
+    expect(states.restoreState).toEqual({ phase: 'success', value: result });
+    expect(states.statusState.phase).toBe('error');
+  });
+
   it('enable 成功但 status 重读失败时，enable 仍然 resolve', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.enable.mockResolvedValue(CAPABILITY);
@@ -496,6 +864,19 @@ describe('重读失败被吞掉：一次成功的提交不能因为重读而变�
 
     expect(states.enableState).toEqual({ phase: 'success', value: CAPABILITY });
     expect(states.statusState.phase).toBe('error');
+  });
+
+  it('switchBranch 成功但 status 重读失败时，switchBranch 仍然 resolve', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const readFailure = new Error('读 status 时连接断了');
+    workingTree.status.mockRejectedValue(readFailure);
+
+    // 分支确实已经切过去了：再抛一次会让调用方以为还停在原处，而它接下来那次「重试切换」
+    // 会从新分支切回去——恰好是相反的动作。
+    await expect(commands.switchBranch('feature')).resolves.toBeUndefined();
+
+    expect(states.switchBranchState).toEqual({ phase: 'success', value: undefined });
+    expect(states.statusState).toEqual({ phase: 'error', error: readFailure });
   });
 
   it('discard 成功但 status 重读失败时，discard 仍然 resolve', async () => {

@@ -1,6 +1,9 @@
 // 只取这四个：React 侧的容器就是「普通只读值」，于是 `WorkingTreeResource` 能直接由核心的
-// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把七格套进 `Signal` /
+// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把九格套进 `Signal` /
 // `ComputedRef`，只能展开写 —— 那是容器形态的差异，不是 API 的差异。
+//
+// 这条差异在 T110 上兑现了一次：`restore()` / `restoreSession()` 进核心之后，本端一个字段都
+// 不用加，另外两端各要补两格状态、两个方法声明与两行 computed。
 import {
   createWorkingTreeCommands,
   WORKING_TREE_INITIAL_ASYNC_STATES,
@@ -14,9 +17,10 @@ import { useCallback, useMemo, useState } from 'react';
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
  *
  * @remarks
- * 七个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
- * 解构。七个方法的签名与插件包 `WorkingTreeManager` 上的同名方法完全一致 —— 入参与返回值
- * 用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
+ * 十个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
+ * 解构。十个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）
+ * 上的同名方法完全一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
+ * 本包**不重定义**（tri-framework-api.md §1）。
  *
  * 方法**引用稳定**（同一个库跨 render 复用同一组闭包），因此可以安全地放进 `useEffect`
  * / `useMemo` 的依赖数组；状态字段则随每一次相位变化产生新对象，这正是重渲染的触发源。
@@ -24,8 +28,14 @@ import { useCallback, useMemo, useState } from 'react';
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、Vue `useWorkingTree()`
  * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。
  *
- * `restore()` / `restoreSession()` / `switchBranch` 的 `WorkingTreeSwitchBranchOptions`
- * 尚未在此出现：它们的核心实现属于后续阶段，三端入口一起补，不单端抢跑。
+ * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
+ * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个
+ * 含义 —— 当前分支没有未结束的恢复会话；`conflicted` 的会话照样**不是**空，它仍占着唯一索引、
+ * 仍拦着下一次恢复。
+ *
+ * `switchBranch(branchId, options?)` 的 `WorkingTreeSwitchBranchOptions` 由 T123 接进来：
+ * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
+ * `WorkingTreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
  *
  * @public
  */
@@ -52,7 +62,7 @@ export type WorkingTreeResource = Readonly<WorkingTreeAsyncStates> & WorkingTree
  * ```
  *
  * @remarks
- * **创建入口本身一次 IO 都不发**：七格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询 —— 而 React 下这还会
  * 在 `StrictMode` 里变成两轮。
  *
@@ -69,7 +79,9 @@ export type WorkingTreeResource = Readonly<WorkingTreeAsyncStates> & WorkingTree
  * @public
  */
 export const useWorkingTree = (): WorkingTreeResource => {
-  const { workingTree } = useRxDB();
+  // 取整个库而不是解构 `workingTree`：清单第十项 `switchBranch` 挂在 `versionManager` 上，
+  // 两个入口都由命令层去取（见 `createWorkingTreeCommands` 的同名注记）。
+  const database = useRxDB();
   const [states, setStates] = useState<WorkingTreeAsyncStates>(WORKING_TREE_INITIAL_ASYNC_STATES);
 
   // 函数式更新：命令的闭包活得比某一次 render 长，读 `states` 会读到发起那一刻的旧值，
@@ -78,7 +90,7 @@ export const useWorkingTree = (): WorkingTreeResource => {
     (key, state) => setStates(current => ({ ...current, [key]: state })),
     []
   );
-  const commands = useMemo(() => createWorkingTreeCommands(workingTree, patch), [workingTree, patch]);
+  const commands = useMemo(() => createWorkingTreeCommands(database, patch), [database, patch]);
 
   return useMemo(() => ({ ...states, ...commands }), [states, commands]);
 };

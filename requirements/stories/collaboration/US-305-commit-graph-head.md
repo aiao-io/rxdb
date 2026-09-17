@@ -1,11 +1,11 @@
 ---
 id: US-305
 title: 提交图与 HEAD 持久化
-status: Backlog
+status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-09-12
+updated: 2026-09-18
 tags: [collaboration, commit, head, persistence, migration]
 inherited_acs:
   - from: US-306
@@ -64,20 +64,31 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 | 阶段 | 交付                                                                                                                          | 直接前置                                                                                                               | 验收区段                | 状态 |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
-| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ⬜   |
-| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | ⬜   |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | 👀   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | 👀   |
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
-- 上述前置目前**未满足**：`specs/001-working-tree-commits/data-model.md` 仍登记 `RxDBIndexState` / `RxDBIndexEntry`，
-  `quickstart.md` 仍含 `index_dependency_cycle`，都是本 epic 已废弃的暂存区概念。规格重生成完成前不得开工，
-  否则实现会照着已作废的数据模型落地。**这是本故事唯一的开工前置。**
+- 上述前置**已满足**（2026-09-12 重生成）：`data-model.md` 与 `quickstart.md` 里 `RxDBIndexState` /
+  `RxDBIndexEntry` / `index_dependency_cycle` 的命中数现在都是 0，v1 的无暂存区模型已就位。两个阶段随后
+  由 `specs/001-working-tree-commits/tasks.md` 的 T022～T045 落地，实现全部落在
+  `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
+  状态记 👀 而不是 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）的
+  2026-09-18 实跑里只有 T131 绿——T130 与 T132 各红一处且归属都在本故事之外（分别是并发会话的
+  `branch-commit-rows.ts` 改写与待评审的 bench 基线），
+  且下一条的 FR-030 正向路径按设计走不通。
 - **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
   [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
   [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
   只有 `kind=migration` 的**发布**会被门禁挡住；阶段 A / 阶段 B 的编码、测试与合入都不等它。
   阶段 B 的 FR-030 实现只读 manifest，**不得把任何具体 tag 名或版本号写死进代码**，
   因此「tag 此刻还不存在」对实现与测试都不构成阻塞（用 fixture manifest 覆盖各分支即可）。
+  **复验实况（T045，2026-09-13）**：`check-migration-release-gate.spec.mjs` 39/39 绿；用真实 tag 与真实清单
+  外加三份 `/tmp` 一次性 migration 清单跑出的四条结论记在
+  [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)。AC US2-14 的**红半边**（`bridge.tag`
+  为 `null` / 为 `v0.0.25` / 版本常量不吻合时必红）已在真实仓库上被执行；**绿半边**（补齐后重跑通过）今天
+  无法用真实 tag 走通——下限要求 `bridge.version` 严格大于 `0.0.25`，仓库里不存在这样的 tag，造一个等于
+  伪造发布锚点。它由 39 条注入钩子的单测覆盖，并等线 A 的桥接发布真实关闭，不靠这里的文字关闭。
 - 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
 - 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 

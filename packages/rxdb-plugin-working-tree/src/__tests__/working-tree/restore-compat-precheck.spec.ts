@@ -50,6 +50,7 @@ import { computeChangeUnitFingerprint } from '../../commit/change-unit.js';
 import { restoreWorkingTree, type WorkingTreeRestoreOptions } from '../../working-tree/restore-command.js';
 import {
   checkRestoreCompatibility,
+  selectRestoreReplayPath,
   type RestoreCompatibility,
   type RestoreIncompatibility
 } from '../../working-tree/restore-precheck.js';
@@ -67,6 +68,9 @@ import {
 const HEAD = 'commit-head';
 const MIDDLE = 'commit-middle';
 const TARGET = 'commit-target';
+
+/** 库里确实有这一行、但它不在 {@link HEAD} 的可达父链上；「存在」不等于「可达」。 */
+const ELSEWHERE = 'commit-elsewhere';
 
 /** 本客户端**没有**注册的实体名；引用它的 ChangeSet 就是一个不兼容节点。 */
 const GHOST = 'Ghost';
@@ -274,5 +278,69 @@ describe('错误内容稳定，够用户自己查下去（FR-050）', () => {
       | { readonly ok: true; readonly path: readonly string[] }
       | { readonly ok: false; readonly incompatible: RestoreIncompatibility }
     >();
+  });
+});
+
+describe('选不出路径就是目标不可达，走 unreachable_target 出口（FR-033）', () => {
+  it('空分支上谁都恢复不了——哪怕那个 commit 行确实躺在库里', async () => {
+    // 场景默认 `headCommitId: null`，而目标行是真的 seed 进去了。
+    // 少了这一行 seed，绿可以来自「查不到 commit 行所以返回 undefined」，
+    // 而那条判据在「分支是空的」这件事上什么都没说。
+    const scene = createWorkingTreeScene({});
+    seedCommit(scene, TARGET);
+
+    const path = await selectRestoreReplayPath(scene.probe.executor, refRowOf(scene).headCommitId, TARGET);
+
+    // 空分支没有 HEAD，「恢复到 HEAD 之前的某个节点」这句话本身无处落脚。
+    expect(path).toBeUndefined();
+  });
+
+  it('目标在库里但不在 HEAD 的可达父链上时，同样选不出路径', async () => {
+    const scene = createWorkingTreeScene({ headCommitId: HEAD, headRevision: 2 });
+    seedCommit(scene, TARGET);
+    seedCommit(scene, HEAD, [TARGET]);
+    seedCommit(scene, ELSEWHERE);
+
+    const path = await selectRestoreReplayPath(scene.probe.executor, HEAD, ELSEWHERE);
+
+    // 可达性判据必须是「从 HEAD 逐父走得到」，不是「这张表里有没有这一行」。
+    // 按行存在判的话，另一条分支上的 commit 会被当成可恢复目标，而 restore 接着要做的
+    // 「逐个应用 inverse patch 回退到它」在那条路径上根本没有定义。
+    expect(path).toBeUndefined();
+    // 负向锚：同一个场景里可达的那一个必须选得出来，否则上面的 undefined 可能来自
+    // 「这个函数对什么都返回 undefined」。
+    expect(await selectRestoreReplayPath(scene.probe.executor, HEAD, TARGET)).toEqual([HEAD]);
+  });
+
+  it('restore 把它转成 unreachable_target，且一个字节都没写', async () => {
+    const scene = createWorkingTreeScene({ headCommitId: HEAD, headRevision: 2 });
+    seedCommit(scene, TARGET);
+    seedCommit(scene, HEAD, [TARGET]);
+    seedCommit(scene, ELSEWHERE);
+    const before = {
+      entries: entryRowsOf(scene).length,
+      revision: stateRowOf(scene).workingTreeRevision,
+      saved: scene.probe.saved.length
+    };
+
+    const result = await restoreWorkingTree(
+      scene.probe.executor,
+      scene.context,
+      { commitId: ELSEWHERE },
+      credentialsOf(scene)
+    );
+
+    // 与 incompatible_schema 同形：不可达是**返回值**上的一个 reason，不是异常。
+    // 抛错的话，「你给的 commit 不在这条分支上」与「库坏了」在调用点长得一模一样，
+    // 而前者是用户随手点错一个历史条目就会走到的日常路径。
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('unreachable_target');
+    // 判定发生在任何物化之前，所以持久状态与从未调用过逐字节相同（FR-033）。
+    expect({
+      entries: entryRowsOf(scene).length,
+      revision: stateRowOf(scene).workingTreeRevision,
+      saved: scene.probe.saved.length
+    }).toEqual(before);
   });
 });
