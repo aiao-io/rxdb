@@ -78,6 +78,22 @@ const diffWith = (entryCount: number): WorkingTreeDiff => ({
   nextCursor: null
 });
 
+/**
+ * 一份**事务粒度**的 diff：`entries` 恒为空，改动全在 `transactions` 里。
+ *
+ * @remarks
+ * 两边不会同时有值——`diff.ts` 按 `granularity` 只填一边、另一边给空数组（同一份数据存两份
+ * 就会有两份口径）。于是「只看 `entries`」的判空在这个粒度上恒为真。
+ */
+const transactionDiffWith = (groupCount: number): WorkingTreeDiff => ({
+  ...diffWith(0),
+  granularity: 'transaction',
+  transactions: Array.from({ length: groupCount }, (_, index) => ({
+    transactionId: `t-${index}`,
+    entries: diffWith(1).entries
+  }))
+});
+
 /** 一页提交历史；`entries` 为空即「这个分支还没有历史」。 */
 const commitLogWith = (entryCount: number): CommitLogPage => ({
   branchId: 'main',
@@ -246,6 +262,14 @@ describe('判空只有一份实现（§4）', () => {
   it('diff 的空是「没有可展示的改动」', () => {
     expect(isWorkingTreeDiffEmpty(diffWith(0))).toBe(true);
     expect(isWorkingTreeDiffEmpty(diffWith(2))).toBe(false);
+  });
+
+  it('事务粒度的 diff 有改动就不算空', () => {
+    // 只看 `entries` 的话这一条恒为真：事务粒度下 `entries` 按约定就是空的。症状是 UI 在
+    // 一个明明有改动的工作树上显示空状态插画，而 `commit()` 那边照常提交——两处对同一个
+    // 工作树给出相反的答案。
+    expect(isWorkingTreeDiffEmpty(transactionDiffWith(0))).toBe(true);
+    expect(isWorkingTreeDiffEmpty(transactionDiffWith(2))).toBe(false);
   });
 
   it('提交历史的空是「这个分支还没有历史」', () => {

@@ -17,7 +17,6 @@ import {
 import { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBMigration } from '../system/migration.js';
-import { SYSTEM_ENTITIES } from '../system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX } from '../version.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
@@ -567,8 +566,10 @@ describe('RxDB', () => {
       const [systemBatch] = mockAdapterInstance.createTables.mock.calls[0] as [EntityType[]];
       const [entityBatch] = mockAdapterInstance.createTables.mock.calls[1] as [EntityType[]];
       // 这里只断言「除已存在的 RxDBMigration 外，系统表一张不漏」，不写死张数——
-      // SYSTEM_ENTITIES 每加一张表都改一次数字，改到第三次就没人再看它到底该是几。
-      expect(systemBatch).toEqual(SYSTEM_ENTITIES.filter(entity => entity !== RxDBMigration));
+      // 系统表每加一张都改一次数字，改到第三次就没人再看它到底该是几。
+      // 基准取**本实例**的清单而不是模块级的 `SYSTEM_ENTITIES`：后者只增不减，
+      // 同一进程里别的库 use() 过的贡献也在里面，拿它当基准等于把跨实例污染写进断言。
+      expect(systemBatch).toEqual(localRxdb.systemEntities.filter(entity => entity !== RxDBMigration));
       // 接入方那批**只能**有接入方实体：系统表已在上一批建过，再送一遍等于同一张表被
       // 下发两次，适配器无从分辨补建与重复下发。
       expect(entityBatch).toEqual([TestUser]);

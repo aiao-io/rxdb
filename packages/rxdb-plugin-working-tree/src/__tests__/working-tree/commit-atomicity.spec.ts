@@ -61,7 +61,7 @@ const credentialsOf = (scene: WorkingTreeScene, overrides: Partial<CommitOptions
 
 /** 跑一次提交。 */
 const commitOnce = (scene: WorkingTreeScene, message = '一次提交'): Promise<CommitResult> =>
-  commitWorkingTree(scene.probe.executor, scene.database.entityManager, message, credentialsOf(scene));
+  commitWorkingTree(scene.probe.executor, scene.context, message, credentialsOf(scene));
 
 /** 取成功出口。 */
 const expectOk = (result: CommitResult): Extract<CommitResult, { ok: true }> => {

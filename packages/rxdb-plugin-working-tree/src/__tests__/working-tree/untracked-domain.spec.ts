@@ -290,3 +290,62 @@ describe('清单产出的就是 raw 判定消费的那个端口', () => {
     expect(view.versionedTables.has('Post')).toBe(false);
   });
 });
+
+describe('命名空间限定 — 同名不同 namespace 的两个实体各判各的', () => {
+  /**
+   * 两个都叫 `Commit` 的实体：`public` 下的业务表与 `shop` 下的缓存表。
+   *
+   * @remarks
+   * 裸名索引是这份清单里唯一可能把两个实体折成一个的地方。折了的后果不是判错一次，而是
+   * 「谁先登记」决定了另一个进不进版本控制——顺序敏感、无报错形态。真实形态就是这个名字：
+   * epic-006 的系统表里有一张 `rxdb:Commit`，接入方拿 `Commit` 当业务实体名是完全合法的。
+   */
+  const COLLIDING_INPUT: readonly VersionedDomainEntityInput[] = [
+    entity({ entityName: 'Commit', derivedIndexColumns: ['title_norm'] }),
+    entity({ entityName: 'Commit', namespace: 'shop', syncType: SyncType.QueryCache })
+  ];
+
+  const colliding = (): VersionedDomain => buildVersionedDomain(COLLIDING_INPUT);
+
+  it('带命名空间问：两个同名实体各自回到自己那条登记', () => {
+    const view = colliding();
+
+    expect(view.classifyEntity('Commit', 'public')).toBe('tracked');
+    expect(view.classifyEntity('Commit', 'shop')).toBe('untracked');
+  });
+
+  it('命名空间对不上就是未登记，不退回裸名那一条', () => {
+    // 退回裸名等于「namespace 只是个提示」：`archive` 下真有一个 `Commit` 的那天，
+    // 它会继承 `public` 的归类，而两者本来毫无关系。
+    const view = colliding();
+
+    expect(view.hasEntity('Commit', 'public')).toBe(true);
+    expect(view.hasEntity('Commit', 'archive')).toBe(false);
+  });
+
+  it('派生索引列按登记走，不跨命名空间外溢', () => {
+    const view = colliding();
+
+    expect(view.isUntrackedField('Commit', 'title_norm', 'public')).toBe(true);
+    expect(view.isUntrackedField('Commit', 'title_norm', 'archive')).toBe(false);
+  });
+
+  it('裸名撞车时归类回落到 tracked —— 含糊就按捕获处理', () => {
+    // 两条登记给出的答案不一致，此时判成 untracked 会让 `public` 那张业务表静默退出版本控制。
+    // tracked 是可发现、可修的那个方向。
+    const view = colliding();
+
+    expect(view.classifyEntity('Commit')).toBe('tracked');
+    expect(view.isUntrackedField('Commit', 'title_norm')).toBe(false);
+  });
+
+  it('裸名不撞车时照常解析 —— 挂载点 4 只有实体名', () => {
+    // `upsertMany('ProductCache', …)` 这条路上没有命名空间可传（`RxDBAdapter` 的契约里就没有），
+    // 而全库只有一个 `ProductCache`。此时裸名必须解析得出来，否则缓存表的批量写会被当成业务写。
+    const view = domain();
+
+    expect(view.hasEntity('ProductCache')).toBe(true);
+    expect(view.classifyEntity('ProductCache')).toBe('untracked');
+    expect(view.hasEntity('NeverRegisteredEntity')).toBe(false);
+  });
+});

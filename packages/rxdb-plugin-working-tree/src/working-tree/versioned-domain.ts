@@ -155,24 +155,47 @@ export interface VersionedTransactionGuard {
  */
 export interface VersionedDomain extends VersionedDomainView {
   /**
+   * 这个库登记过这个实体吗
+   *
+   * @param entityName - 实体名
+   * @param namespace - 已知时按身份精确匹配；省略时按裸名匹配任意一条登记
+   * @returns 至少命中一条登记时为 `true`
+   *
+   * @remarks
+   * 与 {@link classifyEntity} 分开一个成员，是因为两者回答的不是同一个问题：归类对未登记的
+   * 实体给的是**默认值**（`'tracked'`），分辨不出「登记过且是 tracked」与「压根没登记」。
+   * 而捕获那一侧恰恰要靠这个差别判系统表——域认得的名字必定是业务实体（建域时系统表已被摘出去），
+   * 于是「域里有」本身就是「它不是系统表」的证明，系统表名单只对域不认得的名字才有发言权。
+   */
+  hasEntity(entityName: string, namespace?: string): boolean;
+
+  /**
    * 这个实体进不进版本控制
    *
    * @param entityName - 实体名
+   * @param namespace - 已知时按身份精确匹配；省略时按裸名匹配（见 remarks）
    * @returns 登记为 {@link SyncType.QueryCache} 时为 `'untracked'`，其余一律 `'tracked'`
    *
    * @remarks
-   * 未登记的实体是 `'tracked'`——这是「没有第四类」的落地形态。
+   * 未登记的实体是 `'tracked'`——这是「没有第四类」的落地形态。**命名空间对不上也算未登记**，
+   * 不退回裸名那一条：退回去等于把 `namespace` 降格成提示，于是另一个命名空间下的同名实体
+   * 会继承一份与它毫无关系的归类。
+   *
+   * 裸名（挂载点 4 只有实体名，`RxDBAdapter.upsertMany()` 的契约里就没有命名空间）撞上多条
+   * 登记时，只有它们**一致**才作数；给出不同答案就回落到 `'tracked'`。含糊时判 untracked
+   * 会让其中那张业务表静默退出版本控制，而 tracked 是可发现、可修的那个方向。
    */
-  classifyEntity(entityName: string): VersionedEntityClass;
+  classifyEntity(entityName: string, namespace?: string): VersionedEntityClass;
 
   /**
    * 这个字段的变化构不构成业务净变化
    *
    * @param entityName - 实体名
    * @param field - 实体属性名
+   * @param namespace - 已知时按身份精确匹配；省略时按裸名匹配，口径同 {@link classifyEntity}
    * @returns 命中三类 untracked 中任意一类时为 `true`
    */
-  isUntrackedField(entityName: string, field: string): boolean;
+  isUntrackedField(entityName: string, field: string, namespace?: string): boolean;
 
   /**
    * 开一个事务级的混用守卫
@@ -249,8 +272,18 @@ function addressableTableNames(namespace: string, tableName: string): readonly s
   return [logical, `${normalizeTable(namespace)}${NAMESPACE_SEPARATOR}${logical}`];
 }
 
+/**
+ * 实体身份键，形如 `public:Post`
+ *
+ * @remarks
+ * 与核心 `isSystemEntity()` 用的那把键同形（`namespace:name`）：两处判的是同一件事的两面，
+ * 键形分叉会让「域里的 `public:Commit`」与「系统表里的 `rxdb:Commit`」需要各自的比对写法。
+ */
+const identityKey = (namespace: string, entityName: string): string => `${namespace}:${entityName}`;
+
 /** 构造期算好的每实体信息，三个判定函数共用，避免在判定里重复查两张表。 */
 interface EntityRecord {
+  readonly entityName: string;
   readonly entityClass: VersionedEntityClass;
   readonly tableNames: readonly string[];
   readonly derivedIndexColumns: ReadonlySet<string>;
@@ -259,10 +292,31 @@ interface EntityRecord {
 /** 把一条登记折成 {@link EntityRecord}。 */
 function toEntityRecord(input: VersionedDomainEntityInput): EntityRecord {
   return {
+    entityName: input.entityName,
     entityClass: input.syncType === SyncType.QueryCache ? 'untracked' : 'tracked',
     tableNames: addressableTableNames(input.namespace, input.tableName),
     derivedIndexColumns: new Set(input.derivedIndexColumns ?? [])
   };
+}
+
+/**
+ * 按裸名聚合登记：同一个实体名可能被多个命名空间各登记一条。
+ *
+ * @param records - 按身份键控的全部登记
+ * @returns 实体名 → 该名字下的全部登记（通常只有一条）
+ *
+ * @remarks
+ * 建成「名字 → 一条登记」的话，后登记的那条会把先登记的覆盖掉，于是「谁先登记」决定了另一个
+ * 实体进不进版本控制——顺序敏感，且没有报错形态。留成数组，含糊由判定那一侧显式处理。
+ */
+function collectRecordsByEntityName(records: ReadonlyMap<string, EntityRecord>): ReadonlyMap<string, EntityRecord[]> {
+  const byEntityName = new Map<string, EntityRecord[]>();
+  for (const record of records.values()) {
+    const bucket = byEntityName.get(record.entityName) ?? [];
+    bucket.push(record);
+    byEntityName.set(record.entityName, bucket);
+  }
+  return byEntityName;
 }
 
 /**
@@ -302,6 +356,11 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  * 就等于把它挪进判定，而判定那一侧没有命名空间可比对，只能按前缀猜——猜宽了误伤 FTS 影子表，
  * 猜窄了就是现在这个洞。
  *
+ * 登记按**身份**（`namespace:entityName`）索引，另建一份裸名索引供只有实体名的调用点用
+ * （`RxDBAdapter.upsertMany()` 这一层的契约里没有命名空间）。裸名撞车时不挑一条当代表——
+ * 挑哪条都得靠登记顺序，而顺序是 `config.entities` 的书写顺序，改一行无关代码就会换答案。
+ * 撞车交由判定那一侧显式按「全体一致才作数」处理。
+ *
  * @example
  * ```ts
  * const domain = buildVersionedDomain([
@@ -310,34 +369,53 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  *   { entityName: 'ProductCache', namespace: 'public', tableName: 'productcache', syncType: SyncType.QueryCache }
  * ]);
  *
- * domain.classifyEntity('Post');                    // 'tracked'
- * domain.classifyEntity('ProductCache');            // 'untracked'
- * domain.isUntrackedField('Post', 'title_norm');    // true —— 登记过的派生列
- * domain.isUntrackedField('Comment', 'title_norm'); // false —— 别的表的同名列不跟着豁免
+ * domain.classifyEntity('Post');                     // 'tracked'
+ * domain.classifyEntity('ProductCache');             // 'untracked'
+ * domain.classifyEntity('Post', 'shop');             // 'tracked' —— 没这条登记，按默认值
+ * domain.hasEntity('Post', 'shop');                  // false —— 与上一行的区别就在这里
+ * domain.isUntrackedField('Post', 'title_norm');     // true —— 登记过的派生列
+ * domain.isUntrackedField('Comment', 'title_norm');  // false —— 别的表的同名列不跟着豁免
  * ```
  */
 export function buildVersionedDomain(entities: readonly VersionedDomainEntityInput[]): VersionedDomain {
-  const records = new Map<string, EntityRecord>(entities.map(input => [input.entityName, toEntityRecord(input)]));
+  const records = new Map<string, EntityRecord>(
+    entities.map(input => [identityKey(input.namespace, input.entityName), toEntityRecord(input)])
+  );
+  const byEntityName = collectRecordsByEntityName(records);
   const derivedByTable = collectDerivedColumnsByTable(records);
   const versionedTables = new Set(
     [...records.values()].filter(record => record.entityClass === 'tracked').flatMap(record => record.tableNames)
   );
 
-  const classifyEntity = (entityName: string): VersionedEntityClass =>
-    records.get(entityName)?.entityClass ?? 'tracked';
+  /** 命中的登记：带命名空间时精确一条（不中就是空），裸名时是该名字下的全部登记。 */
+  const recordsFor = (entityName: string, namespace?: string): readonly EntityRecord[] => {
+    if (namespace === undefined) return byEntityName.get(entityName) ?? [];
+    const record = records.get(identityKey(namespace, entityName));
+    return record ? [record] : [];
+  };
+
+  const hasEntity = (entityName: string, namespace?: string): boolean => recordsFor(entityName, namespace).length > 0;
+
+  const classifyEntity = (entityName: string, namespace?: string): VersionedEntityClass => {
+    const matches = recordsFor(entityName, namespace);
+    if (matches.length === 0) return 'tracked';
+    return matches.every(record => record.entityClass === 'untracked') ? 'untracked' : 'tracked';
+  };
 
   const untrackedFieldsOf = (table: string): ReadonlySet<string> =>
     new Set([...UNTRACKED_BOOKKEEPING_FIELDS, ...(derivedByTable.get(normalizeTable(table)) ?? [])]);
 
-  const isUntrackedField = (entityName: string, field: string): boolean => {
-    if (classifyEntity(entityName) === 'untracked') return true;
+  const isUntrackedField = (entityName: string, field: string, namespace?: string): boolean => {
+    if (classifyEntity(entityName, namespace) === 'untracked') return true;
     if (BOOKKEEPING_FIELD_SET.has(field)) return true;
-    return records.get(entityName)?.derivedIndexColumns.has(field) === true;
+    const matches = recordsFor(entityName, namespace);
+    return matches.length > 0 && matches.every(record => record.derivedIndexColumns.has(field));
   };
 
   return {
     versionedTables,
     untrackedFieldsOf,
+    hasEntity,
     classifyEntity,
     isUntrackedField,
     createTransactionGuard: () => createTransactionGuard(classifyEntity)
@@ -355,7 +433,7 @@ export function buildVersionedDomain(entities: readonly VersionedDomainEntityInp
  * 实体」。攒全集意味着守卫的内存随事务长度增长，却不会让错误信息更有定位价值。
  */
 function createTransactionGuard(
-  classifyEntity: (entityName: string) => VersionedEntityClass
+  classifyEntity: (entityName: string, namespace?: string) => VersionedEntityClass
 ): VersionedTransactionGuard {
   let tracked: string | undefined;
   let untracked: string | undefined;

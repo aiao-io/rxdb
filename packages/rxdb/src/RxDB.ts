@@ -71,7 +71,7 @@ import { createMigrationWatermarks, runMigrations } from './system/migration-run
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
 import { RxDBSync } from './system/sync.js';
-import { isSystemEntity, registerSystemEntities, SYSTEM_ENTITIES } from './system/system-entities.js';
+import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -144,6 +144,23 @@ export class RxDB {
    * 填充点是 {@link RxDB.use}，见那里的 fail-closed 判定。
    */
   #system_contributions = new Map<string, RxDBSystemContribution>();
+
+  /**
+   * 本实例的插件贡献的系统表，按 {@link RxDB.use} 顺序。
+   *
+   * @remarks
+   * 与模块级登记簿（`system-entities.ts`）分开的理由是两者回答的问题不同：登记簿回答
+   * 「这个类是不是系统表」，必须是模块级的——{@link isSystemEntity} 有跨包消费者，它们
+   * 手里没有 RxDB 实例。这份则回答「**这个库**该建哪些系统表」，而那必须按实例算。
+   *
+   * 混用的代价是跨实例污染：登记簿只增不减，拿它去注入会让进程里任何一个库 `use()` 过的
+   * 贡献落到**所有**库上——没装插件的库被建出一整套自己既不写也不拦的表，还要吃它们的迁移，
+   * 而它在类型上与真正装了插件的库完全一样。
+   *
+   * 按类引用去重，不按身份：身份撞车（同 `namespace:name` 的两个不同类）该由
+   * {@link SchemaManager.init} 当场抛「实体命名冲突」，在这里按身份吞掉会把它变成静默缺表。
+   */
+  #contributed_system_entities: EntityType[] = [];
 
   /**
    * 插件名 → 同名候选（按 {@link RxDB.use} 顺序），`plugin:*` 依赖的唯一解析来源。
@@ -467,6 +484,27 @@ export class RxDB {
    */
   get systemContributions(): readonly RxDBSystemContribution[] {
     return [...this.#system_contributions.values()];
+  }
+
+  /**
+   * **本库**的系统表：核心自带的四张 + 本实例 `use()` 过的插件贡献的那些
+   *
+   * @remarks
+   * 建表这一侧的唯一真相，两个消费者共用：{@link SchemaManager.init} 把它补进
+   * `config.entities`，{@link RxDB.#ensureSystemTables} 拿它划既有库的系统补建批次。
+   * 两处都**不能**改读模块级的 `SYSTEM_ENTITIES`——那份是判定用的活视图，只增不减，
+   * 见 {@link RxDB.#contributed_system_entities}。
+   *
+   * 顺序即建表顺序，核心四张在前：贡献方的表允许引用 `RxDBBranch`（分支级行就是这么来的），
+   * 反过来不成立。
+   *
+   * 每次返回新数组：`SchemaManager.init()` 会往 `config.entities` 里推东西，拿到内部数组
+   * 就等于让它写回这里。
+   *
+   * @internal
+   */
+  get systemEntities(): readonly EntityType[] {
+    return [...CORE_SYSTEM_ENTITIES, ...this.#contributed_system_entities];
   }
 
   /**
@@ -1643,10 +1681,17 @@ export class RxDB {
       );
     }
     this.#system_contributions.set(contribution.capability, contribution);
-    // 系统表身份是**实体类**的属性，不是数据库的属性：`isSystemEntity()` 是个纯函数，
-    // 跨包调用点（如 http 适配器判定要不要把这张表推上远端）拿不到 RxDB 实例。
-    // 多认几个身份对没装插件的实例没有任何行为差异——它们的 config.entities 里根本没有这些类。
+    // 两份清单，两个问题：
+    // 模块级登记簿回答「这个类是不是系统表」。它必须是模块级的——`isSystemEntity()` 是个纯
+    // 函数，跨包调用点（如 http 适配器判定要不要把这张表推上远端）拿不到 RxDB 实例。
     registerSystemEntities(contribution.entities);
+    // 实例级清单回答「**本库**该建哪些系统表」。建表只读这一份，于是没 use() 过本插件的库
+    // 不会被建出这些表，也不吃它们的迁移。见 #contributed_system_entities。
+    for (const EntityClass of contribution.entities) {
+      if (!this.#contributed_system_entities.includes(EntityClass)) {
+        this.#contributed_system_entities.push(EntityClass);
+      }
+    }
   }
 
   /**
@@ -1688,7 +1733,7 @@ export class RxDB {
   async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
 
-    for (const entityType of SYSTEM_ENTITIES) {
+    for (const entityType of this.systemEntities) {
       const existed = await adapter.isTableExisted(entityType);
       if (!existed) {
         missingEntities.push(entityType);

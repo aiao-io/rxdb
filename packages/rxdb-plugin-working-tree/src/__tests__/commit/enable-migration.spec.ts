@@ -46,6 +46,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../commit/commit-context.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { BranchNotMaterializableError, runEnableMigration } from '../../commit/enable-migration.js';
@@ -58,6 +59,7 @@ import {
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
+import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
 const MIGRATION_OPERATION_ID = '00000000-0000-4000-8000-0000000000cc';
 const REF_TABLE = getEntityMetadata(CommitBranchRef).tableName;
@@ -88,6 +90,8 @@ interface BranchSpec {
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly entityManager: EntityManager;
+  /** `runEnableMigration()` 要的写上下文；baseline 不带变更单元，at-rest 断言在这条路径上恒为 no-op */
+  readonly context: CommitWriteContext;
   readonly branches: RxDBBranch[];
   readonly changes: RxDBChange[];
   refOf(branchId: string): CommitBranchRef;
@@ -148,6 +152,7 @@ function createScene(branchSpecs: readonly BranchSpec[], changeIds: readonly num
   return {
     probe,
     entityManager,
+    context: plainCommitWriteContext(entityManager),
     branches,
     changes,
     refOf(branchId) {
@@ -159,7 +164,7 @@ function createScene(branchSpecs: readonly BranchSpec[], changeIds: readonly num
 }
 
 const run = (scene: Scene) =>
-  runEnableMigration(scene.probe.executor, scene.entityManager, { operationId: MIGRATION_OPERATION_ID });
+  runEnableMigration(scene.probe.executor, scene.context, { operationId: MIGRATION_OPERATION_ID });
 
 describe('为每个本地可完整物化分支生成 baseline（FR-021）', () => {
   it('三个本地分支各得一个根节点，一个都不少', async () => {

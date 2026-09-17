@@ -95,8 +95,14 @@ const REGEX_AFTER_KEYWORD = new Set([
   'new'
 ]);
 
-/** vitest 上会让用例不跑、或只在某些机器上跑的修饰符。 */
-const DISABLING_MODIFIER = /\b(describe|suite|it|test)\s*\.\s*(skip|todo|skipIf|runIf|failing)\b/;
+/**
+ * vitest 上会让用例不跑、或只在某些机器上跑的修饰符。
+ *
+ * 锚在末尾：它只用来认「**紧挨着**这个左括号的被调者是不是禁用修饰符」，也就是
+ * {@link locateCalls} 那趟扫描里 `(` 的归属判定。按整文件找的话，调用点文件里任何一处
+ * 无关的 `describe.skip` 都会把这一格标成禁用——假阳性逼着人关门禁，而不是去修调用点。
+ */
+const DISABLING_MODIFIER = /\b(describe|suite|it|test)\s*\.\s*(skip|todo|skipIf|runIf|failing)\s*$/;
 
 const IDENTIFIER_CHAR = /[A-Za-z0-9_$]/;
 
@@ -242,6 +248,54 @@ const findNamedImport = (source, exportedName) => {
 };
 
 /**
+ * 找出一个局部名的全部调用，并给每一处标上花括号深度与包着它的禁用修饰符。
+ *
+ * 两件事同出一趟扫描，因为它们问的是同一个问题——**这行调用在加载这个文件时会不会真跑**：
+ *
+ * - 深度：模块顶层（深度 0）的调用在 import 求值时就执行；落在任何一对花括号里的调用都要
+ *   先有人调那个函数/进那个分支。「导入了就算覆盖」的整文件正则分不开这两者，于是把调用
+ *   挪进一个谁都不调的函数，矩阵照样报 12/12 全绿，而那一格一条断言都没跑。
+ * - 修饰符：`describe.skip('…', () => { suite(…) })` 里的调用确实在顶层之外，但它的病因是
+ *   「被 skip 关掉了」而不是「没人调」，报错要说得出这一点，所以顺带记下包着它的那个修饰符。
+ *
+ * 词法上是安全的：入参已经被 {@link stripComments} + {@link blankStringLiterals} 抹过，
+ * 剩下的每一个括号都是真语法括号。
+ *
+ * @param {string} code 抹掉注释与字符串字面量之后的源码
+ * @param {RegExp} pattern 匹配调用起点的正则（无 `g` 标志）
+ * @returns {{ topLevel: boolean, disabledBy: string | null }}
+ */
+const locateCalls = (code, pattern) => {
+  const finder = new RegExp(pattern.source, 'g');
+  const starts = new Set([...code.matchAll(finder)].map(match => match.index));
+  /** @type {(string | null)[]} 每一层未闭合的 `(` 对应的禁用修饰符 */
+  const parens = [];
+  /** 刚闭合的那对括号所属的修饰符，用来接住 `describe.skipIf(x)(…)` 这种链式调用 */
+  let carried = null;
+  let braces = 0;
+  let topLevel = false;
+  let disabledBy = null;
+
+  for (let index = 0; index < code.length; index += 1) {
+    if (starts.has(index)) {
+      if (braces === 0 && parens.length === 0) topLevel = true;
+      disabledBy ??= parens.findLast(label => label !== null) ?? null;
+    }
+    const char = code[index];
+    if (char === '{') braces += 1;
+    else if (char === '}') braces -= 1;
+    else if (char === '(')
+      parens.push(carried ?? DISABLING_MODIFIER.exec(code.slice(0, index))?.slice(1).join('.') ?? null);
+    else if (char === ')') carried = parens.pop() ?? null;
+    if (!/\s/.test(char) && char !== ')') carried = null;
+  }
+
+  // 顶层真调过就没什么可解释的：同一个文件里另有一处被 skip 包着的调用（改写调用点时留下的
+  // 旧形态）不该把这一格判成禁用。
+  return { topLevel, disabledBy: topLevel ? null : disabledBy };
+};
+
+/**
  * 判定一个源文件对某套套件的调用形状。
  *
  * @param {string} source 源码
@@ -255,14 +309,15 @@ export const inspectSource = (source, suiteName) => {
   const binding = findNamedImport(withStrings, suiteName);
   const local = binding === null ? null : binding.local;
   const callPattern = local === null ? null : new RegExp(`(?<![A-Za-z0-9_$.])${escapeRegExp(local)}\\s*\\(`);
-  const disabling = DISABLING_MODIFIER.exec(code);
+  const calls = callPattern === null ? { topLevel: false, disabledBy: null } : locateCalls(code, callPattern);
 
   return {
     local,
     importedFrom: binding === null ? null : binding.from,
     typeOnly: binding !== null && binding.typeOnly,
-    called: callPattern !== null && callPattern.test(code),
-    disabledBy: disabling === null ? null : `${disabling[1]}.${disabling[2]}`
+    // 「调用过」按**模块顶层**算：vitest 加载这个文件就会跑到的那种调用才是覆盖。
+    called: calls.topLevel,
+    disabledBy: calls.disabledBy
   };
 };
 
@@ -280,10 +335,12 @@ export const describeRejection = inspection => {
   if (inspection.importedFrom !== SUITE_ENTRY) {
     return `从 '${inspection.importedFrom}' 导入，绕过了公共入口 '${SUITE_ENTRY}'`;
   }
-  if (!inspection.called) return '导入了但未调用——「导出了但没人跑」等于没覆盖';
+  // 禁用先于未调用：被 `describe.skip` 包住的调用同样不在模块顶层，可它的病因是「关掉了」
+  // 而不是「没人调」，报成后者会把人支去找一个并不存在的缺失调用。
   if (inspection.disabledBy !== null) {
     return `被 ${inspection.disabledBy} 关掉了：运行矩阵是 6 × 2，条件运行等于允许它在某些机器上悄悄缩水`;
   }
+  if (!inspection.called) return '导入了但未调用：模块顶层没有这次调用，「导出了但没人跑」等于没覆盖';
   return null;
 };
 

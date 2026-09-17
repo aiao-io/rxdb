@@ -219,6 +219,27 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   }
 
   /**
+   * 判定一个落库值是否已处于「加密后的 at-rest 形态」（FR-038）。
+   *
+   * @param value - 落库列里的值；调用方保证它既非 `null` 也非 `undefined`
+   * @returns 是加密后的落库形态时为 `true`
+   *
+   * @remarks
+   * **缺席是契约允许的形态**，与 {@link RxDBAdapterLocalBase.reconcileEntityIndexes} 同一
+   * 口径：不支持列加密的适配器不实现它。缺席**不等于放行**——调用方（提交写路径）拿不到
+   * 判定器却确实有加密列要判时，fail-closed 地抛错，而不是跳过检查。
+   *
+   * 声明在这里、实现留给适配器，是因为权威判定器是 `@aiao/rxdb-adapter-encrypted` 的
+   * `isEnvelope`，而 `@aiao/rxdb` **不能**依赖它：后者 peer-depend 前者，依赖方向是反的。
+   * 一个 `PropertyType.string` 的加密列，明文与密文都是字符串，核心自己猜形状等于装一个
+   * 会看走眼的门卫。
+   *
+   * 与 {@link RxDBAdapterLocalBase.setWorkingTreeCaptureHook} 同属「可选能力槽位」：核心
+   * 只声明位置与语义，不替六个后端决定有没有。
+   */
+  isEncryptedAtRest?(value: unknown): boolean;
+
+  /**
    * 在应用迁移或仓储运行前升级 RxDB 拥有的表。
    * 不需要持久化系统 schema 状态的 adapter 保持默认的 no-op 实现。
    */

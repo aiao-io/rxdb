@@ -139,7 +139,7 @@ describe('conflicted 只由恢复会话重建，CAS 失败不留痕（contracts/
     const scene = createWorkingTreeScene({ headRevision: 2, workingTreeRevision: 4 });
     scene.addEntry();
 
-    const result = await commitWorkingTree(scene.probe.executor, scene.database.entityManager, '提交我看过的东西', {
+    const result = await commitWorkingTree(scene.probe.executor, scene.context, '提交我看过的东西', {
       authorId: 'alice',
       operationId: 'op-stale',
       expectedBranch: { branchId: SCENE_BRANCH_ID, activationRevision: 0 },
@@ -163,7 +163,7 @@ describe('conflicted 只由恢复会话重建，CAS 失败不留痕（contracts/
     const scene = createWorkingTreeScene({ workingTreeRevision: 4 });
     scene.addEntry();
 
-    await commitWorkingTree(scene.probe.executor, scene.database.entityManager, '提交', {
+    await commitWorkingTree(scene.probe.executor, scene.context, '提交', {
       authorId: 'alice',
       operationId: 'op-stale-2',
       expectedBranch: { branchId: SCENE_BRANCH_ID, activationRevision: 0 },

@@ -12,11 +12,19 @@
  * **T042 填入 §2.1 / §2.2 / §2.5，T085 补上 §2.3 / §2.4**（两类 CAS 分开断言、commit
  * 原子性），§2.6 在 US-307（T108）填，§2.7 在 US-308（T122）填。
  *
- * §2.3 / §2.4 要演的是「另一个 Tab 存了一下」与「高并发普通 CRUD」，而本套件的六个调用点
- * 建库时**都不带业务实体**（T043 那六个 spec 的工厂一个 `entities` 都没传）。所以这两节
- * 不走 `entity.save()`，走的是 `save()` 最终落到的那个原语 `captureChanges()`——换一条更浅的
+ * §2.3 / §2.4 要演的是「另一个 Tab 存了一下」与「高并发普通 CRUD」，而本套件**不走
+ * `entity.save()`**，走的是 `save()` 最终落到的那个原语 `captureChanges()`——换一条更浅的
  * 路径（比如直接 INSERT 一行 `WorkingTreeEntry`）会绕开 `bumpWorkingTreeRevision()` 那个
  * 读改写，而它正是「第二类 CAS」本身。
+ *
+ * **六个调用点只注册 {@link ConformanceNote} 一个业务实体，而且一次都不写它。** 注册的理由
+ * 在 FR-038：`writeCommit` 会拿每个变更单元的 `namespace` / `entity` 去 `schemaManager` 解析
+ * 目标元数据（要知道哪几列是加密列），解析不到就 fail-closed 地抛
+ * （`commit/commit-codec.ts` 的 `assertCommitUnitsEncryptedAtRest`）。所以套件里全部单元的
+ * 身份都取自那个真注册过的实体（{@link UNIT_TARGET}）——继续手写 `conformance.Note` 这种
+ * 字面量，六个调用点会一起撞在那条 fail-closed 上，而那正是生产里「提交一个没注册的实体」
+ * 应有的下场。捕获侧清单里的另一个实体（声明了 `SyncType.QueryCache` 的那个）**不注册**：
+ * 它会连带要求三个插件与一个远端适配器名，而提交侧一条断言都用不到它。
  *
  * **§2.2 有两条断言不在这里，是有理由的，不是遗漏。**「注入任一分支初始化失败 → 整条迁移
  * 回滚」与「未启用的数据库行为与未安装本特性逐字节一致（FR-046）」说的都是**启用之前**的
@@ -42,11 +50,12 @@
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { RxDB, TransactionExecutor } from '@aiao/rxdb';
+import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import { createCommitWriteContext } from '../../commit/commit-context.js';
 import {
   assertCommitGraphIntact,
   CommitGraphCorruptedError,
@@ -66,6 +75,7 @@ import type { WorkingTreeStatus } from '../status.js';
 import { assertWorkingTreeEntryCountIntact, readWorkingTreeStatus } from '../status.js';
 import { WorkingTreeEntry } from '../working-tree-entry.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
+import { ConformanceNote } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
 /**
@@ -97,8 +107,11 @@ interface CommitCorruptionEntryPoint {
  * 那几行都得跟着改，而「不用改已有的行」正是这张表存在的理由。
  */
 interface CommitCorruptionEntryContext {
-  /** 本条用例的数据库；`commit()` 这类入口要从它取 `entityManager` */
+  /** 本条用例的数据库 */
   readonly database: RxDB;
+
+  /** 开出 {@link CommitCorruptionEntryContext.executor} 的那个本地适配器 */
+  readonly adapter: IRxDBAdapter & RxDBAdapterLocalBase;
 
   /** 调用方那个写事务的执行器 */
   readonly executor: TransactionExecutor;
@@ -107,10 +120,24 @@ interface CommitCorruptionEntryContext {
   readonly branchId: string;
 }
 
-/** 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。 */
-const withTransaction = async <T>(database: RxDB, run: (executor: TransactionExecutor) => Promise<T>): Promise<T> => {
-  const adapter = await firstValueFrom(database.localAdapter$);
-  return adapter.transaction(async executor => run(executor));
+/** 取当前库的本地适配器；提交上下文与写事务都从它来。 */
+const localAdapterOf = (database: RxDB): Promise<IRxDBAdapter & RxDBAdapterLocalBase> =>
+  firstValueFrom(database.localAdapter$);
+
+/**
+ * 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。
+ *
+ * @remarks
+ * 适配器一并交给命令体，与门面 `WorkingTreeManager.#runInTransaction` 同形：提交路径要的
+ * {@link createCommitWriteContext} 是从适配器建出来的，而在命令体里重新订阅一次
+ * `localAdapter$` 可能拿到**另一个纪元**的实例——那时上下文与事务就不属于同一个库了。
+ */
+const withTransaction = async <T>(
+  database: RxDB,
+  run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+): Promise<T> => {
+  const adapter = await localAdapterOf(database);
+  return adapter.transaction(async executor => run(executor, adapter));
 };
 
 /**
@@ -168,12 +195,23 @@ const expectAppendOnly = (before: ReadonlyMap<string, string>, after: ReadonlyMa
   expect(changed, '既有 commit 行被 UPDATE 或 DELETE 了').toEqual([]);
 };
 
+/**
+ * 套件里全部变更与变更单元共用的目标实体身份。
+ *
+ * @remarks
+ * 取自真注册进库的那个实体，理由见本文件 fileoverview 第三段。读类上的装饰器元数据而不是
+ * 抄一份 `{ namespace: 'public', name: 'ConformanceNote' }`：`namespace` 的缺省值由核心的
+ * `transitionMetadata()` 填，抄一份就等于把那个缺省值复制到了一个改不动核心时不会跟着走的
+ * 地方。
+ */
+const UNIT_TARGET = getEntityMetadata(ConformanceNote);
+
 /** 造一个变更单元；同一条用例里要复用的那份必须建一次、传两遍（指纹依赖 `unitId`）。 */
 const buildUnit = (overrides: Partial<CommitChangeUnitContent> = {}): CommitChangeUnitContent => ({
   unitId: uuid(),
   transactionId: null,
-  namespace: 'conformance',
-  entity: 'Note',
+  namespace: UNIT_TARGET.namespace,
+  entity: UNIT_TARGET.name,
   entityId: 'note-1',
   operation: 'update',
   patch: { title: '改后' },
@@ -198,9 +236,9 @@ const commitOnce = async (
   database: RxDB,
   options: { branchId: string; operationId: string; message: string; units: readonly CommitChangeUnitContent[] }
 ): Promise<WriteCommitOutcome> =>
-  withTransaction(database, async executor => {
+  withTransaction(database, async (executor, adapter) => {
     const ref = await readCommitBranchRef(executor, options.branchId);
-    return writeCommit(executor, database.entityManager, {
+    return writeCommit(executor, createCommitWriteContext(adapter), {
       branchId: options.branchId,
       branchGeneration: ref.generation,
       expectedHeadRevision: ref.headRevision,
@@ -251,8 +289,8 @@ const seedLegacyChange = async (database: RxDB, branchId: string): Promise<void>
     change.id = 900001;
     change.branchId = branchId;
     change.type = 'UPDATE';
-    change.namespace = 'conformance';
-    change.entity = 'Note';
+    change.namespace = UNIT_TARGET.namespace;
+    change.entity = UNIT_TARGET.name;
     change.entityId = 'note-1';
     await executor.saveMany([change]);
   });
@@ -267,19 +305,16 @@ const deleteAllChanges = async (database: RxDB): Promise<number> =>
     return rows.length;
   });
 
-/** 把一次 `getCommitDetail()` 摊成可直接 `toEqual` 的形状。 */
-const detailShapeOf = (changeSets: readonly CommitChangeSet[]): unknown[] =>
-  changeSets.map(row => ({
-    sequence: row.sequence,
-    unitId: row.unitId,
-    namespace: row.namespace,
-    entity: row.entity,
-    entityId: row.entityId,
-    operation: row.operation,
-    patch: row.patch,
-    inversePatch: row.inversePatch,
-    origin: row.origin
-  }));
+/**
+ * 一段真能过适配器那个 at-rest 判定器的信封串。
+ *
+ * @remarks
+ * 分段长度不是随手取的：`@aiao/rxdb-adapter-encrypted` 的 `ENVELOPE_REGEX` 逐段卡死
+ * `kid` 11 字符、`iv` 16 字符、`tag` 22 字符（8 / 12 / 16 字节的 base64url）。写成
+ * `repeat()` 拼接而不是一串字面量，是为了让「这一段有几个字符」在代码里看得见——
+ * 手数字符的写法一旦少一位，断言就悄悄变成恒为 `false`，而它本该是恒为 `true` 的那一半。
+ */
+const AT_REST_ENVELOPE = ['1', 'AGCM256', 'A'.repeat(11), 'B'.repeat(16), 'C'.repeat(8), 'D'.repeat(22)].join('|');
 
 /** §2.3 第二类 CAS 用例并发发出的普通写笔数；小到不至于把六个后端跑慢，大到能撞上竞态。 */
 const CONCURRENT_WRITES = 8;
@@ -326,8 +361,8 @@ const changeOf = (entityId: string): ChangeCaptureSource => ({
   id: null,
   type: 'UPDATE',
   transactionId: null,
-  namespace: 'conformance',
-  entity: 'Note',
+  namespace: UNIT_TARGET.namespace,
+  entity: UNIT_TARGET.name,
   entityId,
   patch: { title: '改后' },
   inversePatch: { title: '改前' }
@@ -373,8 +408,8 @@ const commitWithCredentials = (
   credentials: WorkingTreeCredentials,
   message: string
 ): Promise<CommitResult> =>
-  withTransaction(database, executor =>
-    commitWorkingTree(executor, database.entityManager, message, {
+  withTransaction(database, (executor, adapter) =>
+    commitWorkingTree(executor, createCommitWriteContext(adapter), message, {
       ...credentials,
       authorId: 'conformance-suite',
       operationId: uuid()
@@ -411,7 +446,7 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
   },
   {
     name: 'commit()',
-    invoke: async ({ database, executor }) => {
+    invoke: async ({ adapter, database, executor }) => {
       // 先让工作树变脏：干净分支上 `commit()` 会撞 `empty_commit`，那时下面四条用例测的是
       // 「空提交被拒」，损坏守卫一次都没跑到。捕获排在前面不影响结论——守卫是 `commit()`
       // 的第一步，命中损坏时整个事务连这条捕获一起回滚。
@@ -420,7 +455,7 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
       // 第 2 条批的那种写法（那说的是 `commit()` 自己去读），而是这张表要把变量压到
       // 只剩「损坏与否」一个——CAS 本身由 §2.3 单独盯。
       const status = await readWorkingTreeStatus(executor);
-      const result = await commitWorkingTree(executor, database.entityManager, '损坏守卫用例', {
+      const result = await commitWorkingTree(executor, createCommitWriteContext(adapter), '损坏守卫用例', {
         ...credentialsOf(status),
         authorId: 'conformance-suite',
         operationId: uuid()
@@ -443,6 +478,34 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
 
     beforeEach(async () => {
       database = await context.createDatabase();
+    });
+
+    describe('FR-038 at-rest 判定器槽位', () => {
+      it('本地适配器实现了槽位：六个后端一个都不许缺', async () => {
+        const adapter = await localAdapterOf(database);
+
+        // 槽位在核心上是**可选**的（`RxDBAdapterLocalBase.isEncryptedAtRest?`），缺席的合法
+        // 语义只有一条「这个适配器不支持列加密」。六个 v1 后端两族都支持，于是在这里缺席
+        // 只可能是漏接线——而漏接线不会让任何既有用例变红：断言只在真有加密列要判时才
+        // fail-closed 地抛，普通库上它整条是 no-op，一直安静到某个用户的库里真有一列加密。
+        expect(typeof adapter.isEncryptedAtRest).toBe('function');
+      });
+
+      it('提交上下文接到的就是那个判定器：信封串认、明文与裸密文都不认', async () => {
+        const adapter = await localAdapterOf(database);
+        const recognize = createCommitWriteContext(adapter).codec.isEncryptedAtRest;
+        if (!recognize) throw new Error('提交上下文没有从适配器拿到 at-rest 判定器');
+
+        // 判的是**形态**不是内容。裸密文字节单列一条：它是 FR-038 真正要拦的那一类——
+        // 一段 `Uint8Array` 写进 `PropertyType.json` 的 patch 列会变成 `{"0":222,…}`，
+        // 写得进读得回，直到某次解密才炸在完全无关的调用栈里（`commit-codec.ts` 的
+        // fileoverview 展开了这条）。
+        expect({
+          envelope: recognize(AT_REST_ENVELOPE),
+          plaintext: recognize('明文标题'),
+          rawCiphertext: recognize(Uint8Array.of(0xde, 0xad, 0xbe, 0xef))
+        }).toEqual({ envelope: true, plaintext: false, rawCiphertext: false });
+      });
     });
 
     describe('§2.1 commit 图与 HEAD（US-305）', () => {
@@ -514,9 +577,9 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const before = await withTransaction(database, snapshotCommits);
         const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
 
-        const crash = withTransaction(database, async executor => {
+        const crash = withTransaction(database, async (executor, adapter) => {
           const ref = await readCommitBranchRef(executor, branchId);
-          await writeCommit(executor, database.entityManager, {
+          await writeCommit(executor, createCommitWriteContext(adapter), {
             branchId,
             branchGeneration: ref.generation,
             expectedHeadRevision: ref.headRevision,
@@ -548,17 +611,23 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const commit = expectCommitted(
           await commitOnce(database, { branchId, operationId: uuid(), message: '带两个单元', units })
         );
-        const before = await withTransaction(database, executor => getCommitDetail(executor, commit.id));
+        const before = await withTransaction(database, (executor, adapter) =>
+          getCommitDetail(executor, createCommitWriteContext(adapter).codec, commit.id)
+        );
 
         const deleted = await deleteAllChanges(database);
 
-        const after = await withTransaction(database, executor => getCommitDetail(executor, commit.id));
+        const after = await withTransaction(database, (executor, adapter) =>
+          getCommitDetail(executor, createCommitWriteContext(adapter).codec, commit.id)
+        );
         const history = await withTransaction(database, executor => listCommits(executor, { branchId }));
         expect(deleted).toBeGreaterThan(0);
         // CommitChangeSet 自带完整恢复数据（data-model.md §2.4）：change 行会被
         // 「删分支级联 / 压缩合并 / 回滚标记 / 失效标记」四条既有路径清掉，
         // 历史若挂在它上面，用户会在某次清理之后发现旧提交恢复不回来了。
-        expect(detailShapeOf(after.changeSets)).toEqual(detailShapeOf(before.changeSets));
+        // 直接比两份单元内容，不再逐列挑：`getCommitDetail` 现在交的是解码后的变更单元
+        // （纯对象），而不是带代理的落库行——挑列的那种写法会让日后新增的字段自动躲开比较。
+        expect(after.units).toEqual(before.units);
         expect(history.map(row => row.id)).toContain(commit.id);
         await expect(
           withTransaction(database, executor => assertCommitGraphIntact(executor, branchId))
@@ -781,8 +850,8 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const changeSetsBefore = await countChangeSets(database);
 
         const error = await captureRejection(
-          withTransaction(database, executor =>
-            commitWorkingTree(crashOnClear(executor), database.entityManager, '写完 changeSet 就崩', {
+          withTransaction(database, (executor, adapter) =>
+            commitWorkingTree(crashOnClear(executor), createCommitWriteContext(adapter), '写完 changeSet 就崩', {
               ...credentialsOf(captured),
               authorId: 'conformance-suite',
               operationId: uuid()
@@ -856,7 +925,9 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           });
 
           await expect(
-            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
+            withTransaction(database, (executor, adapter) =>
+              entryPoint.invoke({ adapter, database, executor, branchId })
+            )
           ).resolves.toBeUndefined();
         });
 
@@ -875,7 +946,9 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           const before = await withTransaction(database, snapshotCommits);
 
           const error = await captureRejection(
-            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
+            withTransaction(database, (executor, adapter) =>
+              entryPoint.invoke({ adapter, database, executor, branchId })
+            )
           );
 
           const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
@@ -908,7 +981,9 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           );
 
           const error = await captureRejection(
-            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
+            withTransaction(database, (executor, adapter) =>
+              entryPoint.invoke({ adapter, database, executor, branchId })
+            )
           );
 
           const ref = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
@@ -945,7 +1020,9 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           // 行都还在却没有任何 ref 指向它们；把它们算进去，一条谁都够不到的坏记录
           // 会让整个库停摆，而它对任何一次重放都没有影响。
           await expect(
-            withTransaction(database, executor => entryPoint.invoke({ database, executor, branchId }))
+            withTransaction(database, (executor, adapter) =>
+              entryPoint.invoke({ adapter, database, executor, branchId })
+            )
           ).resolves.toBeUndefined();
         });
       }
@@ -959,15 +1036,15 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           markBranchCorrupted(executor, new CommitGraphCorruptedError(branchId, head.id, 'fingerprint_mismatch'))
         );
 
-        const read = await withTransaction(database, async executor => ({
+        const read = await withTransaction(database, async (executor, adapter) => ({
           history: await listCommits(executor, { branchId }),
-          detail: await getCommitDetail(executor, head.id)
+          detail: await getCommitDetail(executor, createCommitWriteContext(adapter).codec, head.id)
         }));
 
         // 诊断导出与当前投影读取是排查这次损坏**唯一**的入口。让它们跟着一起拒绝，
         // 等于告诉用户「你的库坏了，而且不许看」。
         expect(read.history.map(commit => commit.id)).toContain(head.id);
-        expect(read.detail.changeSets).toHaveLength(1);
+        expect(read.detail.units).toHaveLength(1);
       });
     });
   });

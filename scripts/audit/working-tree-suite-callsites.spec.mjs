@@ -132,6 +132,17 @@ test('导入了但从没调用 = 不合格：「导出了但没人跑」等于�
   assert.match(describeRejection(inspection), /未调用/);
 });
 
+test('只写在函数体里、没人调那个函数 = 不合格', () => {
+  // 门禁问的是「vitest 加载这个文件会不会把套件跑起来」，而不是「文件里出现过这个词吗」。
+  // 整文件正则分不开这两件事：把调用挪进一个谁都不调的函数，矩阵照样报 12/12 全绿，
+  // 而那一格实际上一条断言都没跑——这是这份门禁唯一会给出假绿的形态。
+  const source = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\nfunction neverCalled() {\n  ${COMMIT_SUITE}({});\n}\n`;
+  const inspection = inspectSource(source, COMMIT_SUITE);
+
+  assert.equal(inspection.called, false);
+  assert.match(describeRejection(inspection), /未调用/);
+});
+
 test('调用被注释掉 = 不合格', () => {
   const source = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\n// ${COMMIT_SUITE}({ name: 'x' });\n`;
   const inspection = inspectSource(source, COMMIT_SUITE);
@@ -182,7 +193,9 @@ test('describe.skip 包住调用 = 假绿，判不合格', () => {
   const source = `import { describe } from 'vitest';\nimport { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\ndescribe.skip('later', () => {\n  ${COMMIT_SUITE}({});\n});\n`;
   const inspection = inspectSource(source, COMMIT_SUITE);
 
-  assert.equal(inspection.called, true);
+  // `called` 按模块顶层算，被 skip 块包着的调用因此也是 false；但理由要说的是「被关掉了」
+  // 而不是「没人调」，否则报错会把人支去找一个并不存在的缺失调用。
+  assert.equal(inspection.called, false);
   assert.equal(inspection.disabledBy, 'describe.skip');
   assert.match(describeRejection(inspection), /describe\.skip/);
 });
@@ -193,6 +206,18 @@ test('skipIf / runIf 同样不合格：条件运行会让 6×2 的矩阵在某�
 
     assert.equal(inspectSource(source, COMMIT_SUITE).disabledBy, `describe.${modifier}`);
   }
+});
+
+test('文件里别处的 describe.skip 不牵连顶层调用点', () => {
+  // 禁用修饰符必须按「包没包住调用点」判，不能按「文件里出现过吗」判。整份调用点文件里
+  // 顺手 skip 掉一组无关用例是常事，而那会让门禁把一个照常在跑的后端报成禁用——假阳性
+  // 比假阴性更贵：它逼着人去关掉门禁，而不是去修调用点。
+  const source = `import { describe, it } from 'vitest';\nimport { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\ndescribe.skip('另一组用例', () => {\n  it('x', () => {});\n});\n\n${COMMIT_SUITE}({ name: 'x' });\n`;
+  const inspection = inspectSource(source, COMMIT_SUITE);
+
+  assert.equal(inspection.called, true);
+  assert.equal(inspection.disabledBy, null);
+  assert.equal(describeRejection(inspection), null);
 });
 
 // ---------------------------------------------------------------------------

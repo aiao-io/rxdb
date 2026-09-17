@@ -104,9 +104,15 @@ class TestLocalAdapter implements IRxDBAdapter {
   readonly createTablesCalls: CreateTablesCall[] = [];
   readonly claimedMigrationNames: string[] = [];
 
+  /**
+   * @param existing - 这个库是不是既有库（`isTableExisted` 的基准答案）
+   * @param migrationNames - 既有库里已有的迁移/认领水位行
+   * @param absentTables - 既有库里**偏偏没有**的那几张表，用来喂 `#ensureSystemTables` 的补建分支
+   */
   constructor(
     private readonly existing: boolean,
-    private readonly migrationNames: readonly string[] = []
+    private readonly migrationNames: readonly string[] = [],
+    private readonly absentTables: readonly EntityType[] = []
   ) {}
 
   migrateSystemSchema(): Promise<void> {
@@ -145,8 +151,8 @@ class TestLocalAdapter implements IRxDBAdapter {
     return [];
   }
 
-  async isTableExisted(): Promise<boolean> {
-    return this.existing;
+  async isTableExisted(EntityType: EntityType): Promise<boolean> {
+    return this.existing && !this.absentTables.includes(EntityType);
   }
 
   async createTables(EntityTypes: EntityType[], entities: InstanceType<EntityType>[] = []): Promise<boolean> {
@@ -280,6 +286,47 @@ describe('插件贡献的系统实体', () => {
     database.init();
 
     expect(() => database.use(probePlugin)).toThrow(/connect\(\)/);
+  });
+});
+
+/**
+ * 同一进程里多个库共存时，贡献只能落在**贡献方自己那个库**上。
+ *
+ * @remarks
+ * 登记簿 `SYSTEM_ENTITIES` 是模块级、只增不减的活视图——这是 `isSystemEntity()` 保持纯函数
+ * 签名所必需的（跨包消费者拿不到 RxDB 实例）。危险的是**注入**那一侧照着同一份清单走：
+ * 那样一来，进程里只要有任何一个库 `use()` 了贡献方，没装它的库也会被建出那些表、吃它们的
+ * 迁移。这不是多几张空表的问题——那个库对着一套自己既不写也不拦的表，而它在类型上与真正
+ * 装了插件的库完全一样。
+ *
+ * 两条用例分别盯建表的两条路：新库走 `createTables(config.entities)`，
+ * 既有库走 `#ensureSystemTables()` 的逐张补建。两处都得按实例判。
+ */
+describe('系统贡献不跨实例污染', () => {
+  it('新库：没 use() 的实例，config.entities 与建表批次里都没有贡献方的表', async () => {
+    // 先让另一个库把探针推进模块级登记簿——污染的来源就在这一行。
+    createDatabase(new TestLocalAdapter(false)).use(probePlugin);
+
+    const adapter = new TestLocalAdapter(false);
+    const bystander = createDatabase(adapter);
+
+    await bystander.connect(adapter.name);
+
+    expect(bystander.config.entities).not.toContain(ProbeCapabilityState);
+    expect(adapter.createTablesCalls[0].entityTypes).not.toContain(ProbeCapabilityState);
+  });
+
+  it('既有库：没 use() 的实例不去补建贡献方缺的那张表', async () => {
+    createDatabase(new TestLocalAdapter(false)).use(probePlugin);
+
+    // 这个库里探针表本来就不存在（它从没装过那个插件），其余系统表齐全。
+    const adapter = new TestLocalAdapter(true, [], [ProbeCapabilityState]);
+    const bystander = createDatabase(adapter);
+
+    await bystander.connect(adapter.name);
+
+    // 一张都不缺，于是 `#ensureSystemTables()` 连 `createTables()` 都不该调。
+    expect(adapter.createTablesCalls).toEqual([]);
   });
 });
 

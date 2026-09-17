@@ -21,6 +21,7 @@ import {
 import {
   createKeyring,
   EncryptedConfigurationError,
+  isEnvelope,
   type Keyring,
   type UnlockOptions,
   validateEncryptedPropertyMetadata
@@ -175,6 +176,22 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   ) {
     super(rxdb);
     this.#pipelineHost = this.#createPipelineHost();
+  }
+
+  /**
+   * 判定一个落库值是否已处于加密后的 at-rest 形态（FR-038）。
+   *
+   * @param value - 落库列里的值
+   * @returns 是信封串时为 `true`
+   *
+   * @remarks
+   * 权威判定器只有一份，就是 `@aiao/rxdb-adapter-encrypted` 的 `isEnvelope`——本方法是
+   * 核心那个可选槽位（{@link RxDBAdapterLocalBase.isEncryptedAtRest}）到它的一句转发，
+   * 不在这里另认一套形状。`@aiao/rxdb` 不能依赖加密包（依赖方向是反的），所以这一句
+   * 只能落在适配器侧。
+   */
+  isEncryptedAtRest(value: unknown): boolean {
+    return isEnvelope(value);
   }
 
   /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */

@@ -6,27 +6,39 @@ import { RxDBMigration } from './migration.js';
 import { RxDBSync } from './sync.js';
 
 /**
+ * 核心自带的系统表，每个库都有
+ *
+ * @remarks
+ * **这是一份快照，不随插件增长**——正因如此它才是**注入**那一侧的起点：每个库的系统表
+ * = 这四张 + 它自己 `use()` 过的插件所贡献的那些（见 `RxDB.systemEntities`）。拿会增长的
+ * {@link SYSTEM_ENTITIES} 去注入，进程里只要有任何一个库装了贡献方，没装的库也会被建出
+ * 那些表、吃它们的迁移。
+ *
+ * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`。
+ */
+export const CORE_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+
+/**
  * 系统表登记簿的背衬数组；{@link SYSTEM_ENTITIES} 是它的只读视图。
  *
  * @remarks
  * 可变是为了让插件能在 `connect()` 之前**追加**自己的系统表（{@link registerSystemEntities}）。
- * 视图与背衬是**同一个数组对象**，因此所有既有消费者（`SchemaManager.init` 的逐张补表、
- * `capture-hook` 的排除集、`RxDB` 的系统批次划分）读到的恒是当前登记，不需要各自改成取函数。
+ * 视图与背衬是**同一个数组对象**，因此既有消费者（`capture-hook` 的排除集、
+ * `RxDBAdapterHttp` 的同步判定）读到的恒是当前登记，不需要各自改成取函数。
  */
-const SYSTEM_ENTITY_REGISTRY: EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+const SYSTEM_ENTITY_REGISTRY: EntityType[] = [...CORE_SYSTEM_ENTITIES];
 
 /**
- * RxDB 自己注入的系统表
+ * 本进程见过的全部系统表身份
  *
  * @remarks
- * 由 {@link SchemaManager.init} 无条件补进 `config.entities`，接入方既不声明也不感知。
- * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`。
+ * 这是一份**判定**用的清单，不是注入用的：它回答「这个类是不是某个系统表」，
+ * 不回答「哪个库该建哪些表」。后者按实例算，见 {@link CORE_SYSTEM_ENTITIES}。
  *
- * **核心只有这四张。** epic-006「本地工作树与提交历史」的十张表随
- * `@aiao/rxdb-plugin-working-tree` 走，装了那个包才经 {@link registerSystemEntities} 追加进来——
- * 于是不用提交能力的库既不建那十张表，也不吃它们的迁移。
+ * **核心只自带四张。** epic-006「本地工作树与提交历史」的十张表随
+ * `@aiao/rxdb-plugin-working-tree` 走，装了那个包才经 {@link registerSystemEntities} 追加进来。
  *
- * 清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，
+ * 判定清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，
  * 抄漏一个的代价不是编译错误而是运行期的错判。
  *
  * **这是一份活视图，不是快照。** 插件经 {@link registerSystemEntities} 追加的表会直接出现在
@@ -60,8 +72,10 @@ const SYSTEM_ENTITY_IDENTITIES = new Set<string>(SYSTEM_ENTITY_REGISTRY.map(iden
  * 这正是 {@link isSystemEntity} 得以保持纯函数签名的原因——它有跨包消费者
  * （`RxDBAdapterHttp` 拿它决定同步行为），改成按实例取会波及包外调用点。
  *
- * 多实例不会互相污染：没装该插件的 RxDB 实例，它的 `config.entities` 里根本没有这些类，
- * 登记簿多认几个身份对它不产生任何行为差异。
+ * 多实例不会互相污染，但那**不是**这个函数保证的：保证来自建表那一侧按实例算
+ * （`RxDB.systemEntities` = {@link CORE_SYSTEM_ENTITIES} + 本实例 `use()` 过的贡献）。
+ * 登记簿只被「这个类是不是系统表」这类判定读，多认几个身份对没装该插件的库没有行为差异——
+ * 那些类根本进不了它的 `config.entities`。
  *
  * 按身份幂等：同一张表重复登记是空操作，因此 `disconnect()` → `connect()` 重装插件不会让
  * 登记簿无限增长（与 {@link SchemaManager.init} 逐张判定同一个理由）。
@@ -88,6 +102,24 @@ export function registerSystemEntities(entities: readonly EntityType[]): void {
  */
 export function getSystemEntityNames(): ReadonlySet<string> {
   return new Set(SYSTEM_ENTITY_REGISTRY.map(EntityClass => getEntityMetadata(EntityClass).name));
+}
+
+/**
+ * 全部系统表的身份（`namespace:name`，形如 `rxdb:RxDBBranch`）
+ *
+ * @returns 当前登记簿的身份集合；**每次调用重新求值**
+ *
+ * @remarks
+ * 与 {@link getSystemEntityNames} 同源、同「活视图」口径（理由见那边），区别只在**带不带
+ * 命名空间**：裸名回答不了「`public:Commit` 是不是系统表」，而 epic-006 的系统表里恰好有一张
+ * `rxdb:Commit`，接入方拿 `Commit` 当业务实体名完全合法。按裸名判的话，那个业务实体的写会被
+ * 整批判成 `system` 而静默绕过工作树捕获——改动不进提交，且没有任何报错形态。
+ *
+ * 交出集合而不是逐个判定的谓词（{@link isSystemEntity} 那一份要的是实体**类**）：消费者手上
+ * 常常只有从变更日志读出来的 `namespace` + `entity` 两个字符串，回不到类引用。
+ */
+export function getSystemEntityIdentities(): ReadonlySet<string> {
+  return new Set(SYSTEM_ENTITY_IDENTITIES);
 }
 
 /**

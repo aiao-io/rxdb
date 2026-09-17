@@ -38,6 +38,7 @@ import { WorkingTreeWriteRejectedError } from '../../working-tree/write-entry-ma
 const domainStub = (): VersionedDomain => ({
   versionedTables: new Set(['post']),
   untrackedFieldsOf: () => new Set(['remote_id']),
+  hasEntity: () => true,
   classifyEntity: () => 'tracked',
   isUntrackedField: () => false,
   createTransactionGuard: () => ({ record: () => undefined })

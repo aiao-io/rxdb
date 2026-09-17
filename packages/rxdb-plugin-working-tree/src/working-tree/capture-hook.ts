@@ -41,7 +41,10 @@ import type {
 import {
   getEntityMetadata,
   getEntitySync,
+  getSystemEntityIdentities,
   getSystemEntityNames,
+  isSystemEntity,
+  parseRxDBChangeKey,
   RxDBChange,
   RxDBError,
   takeDeclaredWrite,
@@ -58,7 +61,7 @@ import {
 } from './capture-runtime.js';
 import { gateExternalNotify } from './external-notify-gate.js';
 import { applyRawWriteJudgment } from './raw-write-judgment.js';
-import { buildVersionedDomain, type VersionedDomain } from './versioned-domain.js';
+import { buildVersionedDomain, type VersionedDomain, type VersionedDomainEntityInput } from './versioned-domain.js';
 import {
   classifyWriteEntrance,
   WorkingTreeWriteRejectedError,
@@ -82,8 +85,18 @@ export interface WorkingTreeCaptureRuntimeOptions {
   /** 版本化域：谁是 query cache、哪些字段不算净变化 */
   readonly domain: VersionedDomain;
 
-  /** 系统实体名集合（`namespace: 'rxdb'`）；这些表的写永远不进工作树 */
+  /**
+   * 系统实体的裸名集合；只有实体名的场合（挂载点 4）用它
+   *
+   * @remarks
+   * 与 {@link systemEntityIdentities} 是同一份登记簿的两种投影，不是两份清单。裸名判定天然
+   * 认不出命名空间，因此它只在 {@link domain} 不认得这个名字时才有发言权——见
+   * {@link WorkingTreeCaptureRuntime.targetClassOf}。
+   */
   readonly systemEntityNames: ReadonlySet<string>;
+
+  /** 系统实体的身份集合（`namespace:name`，形如 `rxdb:RxDBBranch`）；命名空间已知时用它 */
+  readonly systemEntityIdentities: ReadonlySet<string>;
 
   /** 单元 id 生成器；仅测试需要注入确定值 */
   readonly newUnitId?: () => string;
@@ -159,25 +172,86 @@ const sourceOfChangeRow = (row: ChangeRow): ChangeCaptureSource => ({
  * @remarks
  * `id` 与 `transactionId` 都是 `null`：这批写**可能**根本不产生变更日志行（`disableTriggers`），
  * 于是没有 change id 可引；硬塞一个会让「单元指回哪条变更」这个字段有时真有时假。
+ *
+ * 键必须走 {@link parseRxDBChangeKey} 拆，**不能** `split(':')`：生产侧的键一律由
+ * `getRxDBChangeKey()` 拼（`compact-changes.ts`、`switch-branch-actions.ts`、`merge-branch.ts`），
+ * 第三段是 `rxid1:<hex>` 这种自带冒号的身份键，按冒号切出来的第三片永远是字面量 `'rxid1'`。
+ * 三个适配器（pglite / sqlite-core / supabase）的 switch 结果解析早就是这个口径。
+ *
+ * 解析交回的 `entityId` 是 `RxDBEntityId`（string | number | bigint），照
+ * {@link sourceOfChangeRow} 的口径统一成字符串——捕获源的身份在整条链路上只有一种形状。
  */
 const sourcesOfActions = (actions: SwitchVersionActions): ChangeCaptureSource[] => {
   const sources: ChangeCaptureSource[] = [];
   for (const [bucket, type] of ACTION_TYPES) {
     for (const [key, change] of actions[bucket] as Map<string, SwitchVersionChange>) {
-      const [namespace, entity, entityId] = key.split(':');
+      const [namespace, entity, entityId] = parseRxDBChangeKey(key);
       sources.push({
         id: null,
         type,
         transactionId: null,
         namespace,
         entity,
-        entityId,
+        entityId: String(entityId),
         patch: (change.patch as Record<string, unknown> | null) ?? null,
         inversePatch: (change.inversePatch as Record<string, unknown> | null) ?? null
       });
     }
   }
   return sources;
+};
+
+/**
+ * 「这个事务是捕获自己开的」的标
+ *
+ * @remarks
+ * 挂载点 2 / 3 要一个 executor 才写得了工作树行，而取事务的唯一正确写法是问宿主要（见
+ * {@link WorkingTreeWriteHost}）。宿主是真实适配器时 `runInTransaction()` 转调
+ * `this.transaction()`，而安装层把 `transaction` 改写在**实例**上——这一跳径直落回挂载点 1，
+ * 于是同一批写会被按 `crud` 入口再捕获一遍：`origin` 从 `remote_sync` 翻成 `local`
+ * （discard 会把一次远端同步当成用户自己的编辑退掉），`workingTreeRevision` 一次合并推两格
+ * （它是提交的 CAS 依据，另一个 Tab 手里的那个当场作废）。
+ *
+ * 标打在**事务体函数**上而不是运行时实例上。布尔或计数抑制位是全局态，而适配器事务串行排队：
+ * 两次合并之间排队的用户事务会被一并跳过——症状是「远端同步期间用户的编辑凭空不进工作树」。
+ * 打在函数上则逐次生效，只有被标过的那一个回调放行，别的事务一条都不受影响。
+ *
+ * 标能活着走完那一跳，是因为安装层的 `transaction` 包装把 `fun` 原样转交给挂载点 1
+ * （`capture-interceptor.ts`），中间没有重新包装回调。
+ */
+const CAPTURE_OWNED_TRANSACTION = Symbol('aiao.workingTree.captureOwnedTransaction');
+
+/** 带标的事务体；标是模块私有的 Symbol，出不了本文件。 */
+type CaptureOwnedTransactionFun = TransactionFun & { [CAPTURE_OWNED_TRANSACTION]?: true };
+
+/** 给事务体打标；泛型原样回传，`runInTransaction()` 的返回类型推断不受影响。 */
+const markCaptureOwned = <T extends TransactionFun>(fun: T): T => {
+  (fun as CaptureOwnedTransactionFun)[CAPTURE_OWNED_TRANSACTION] = true;
+  return fun;
+};
+
+/** 这个事务体是不是捕获自己开的。 */
+const isCaptureOwned = (fun: TransactionFun): boolean =>
+  (fun as CaptureOwnedTransactionFun)[CAPTURE_OWNED_TRANSACTION] === true;
+
+/**
+ * 拆 `namespace:entity` 形式的限定名
+ *
+ * @param entityName - 实体名，或 `namespace:entity` 形式的显式限定名
+ * @returns 拆出的实体名与命名空间；没写限定的话命名空间是 `undefined`
+ *
+ * @remarks
+ * 与 `resolveQueryCacheTarget`（`@aiao/rxdb-adapter-pglite`）、`RxDBAdapterSupabase` 的
+ * `resolveEntityScope` 同口径——包括 `separatorIndex > 0` 这个细节：以冒号开头的名字整体
+ * 当裸名，那样才不会拆出一个空命名空间去跟 `'public'` 比对。
+ *
+ * 只有 `upsertMany()` / `deleteByIds()` 那一层需要它：这两个原语的契约里没有独立的命名空间
+ * 参数，限定名是它们仅有的表达形态。其余挂载点手上都有现成的 `namespace`。
+ */
+const splitQualifiedEntityName = (entityName: string): { readonly name: string; readonly namespace?: string } => {
+  const separatorIndex = entityName.indexOf(':');
+  if (separatorIndex <= 0) return { name: entityName };
+  return { name: entityName.slice(separatorIndex + 1), namespace: entityName.slice(0, separatorIndex) };
 };
 
 /**
@@ -191,6 +265,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
   readonly #host: WorkingTreeCaptureHost;
   readonly #domain: VersionedDomain;
   readonly #systemEntityNames: ReadonlySet<string>;
+  readonly #systemEntityIdentities: ReadonlySet<string>;
   readonly #newUnitId: () => string;
   #target: WorkingTreeCaptureMountTarget | undefined;
 
@@ -212,10 +287,10 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
   /**
    * 由 {@link createWorkingTreeCaptureRuntime} 构造；没启用提交能力的库上一次都不会被调到。
    *
-   * @param options - 四项依赖，见 {@link WorkingTreeCaptureRuntimeOptions}
+   * @param options - 全部依赖，见 {@link WorkingTreeCaptureRuntimeOptions}
    *
    * @remarks
-   * 四项全部注入且构造后不可换：版本化域与系统表名集在这里定格，于是「这张表受不受保护」
+   * 全部注入且构造后不可换：版本化域与系统表清单在这里定格，于是「这张表受不受保护」
    * 在本运行时的整个生命周期里只有一个答案。构造器**不**碰挂载目标——`#target` 由
    * {@link bindMountTarget} 在装到适配器上的那一刻才写入，因此同一个运行时可以先造出来、
    * 再决定装到哪个适配器上。
@@ -224,6 +299,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     this.#host = { entityManager: options.entityManager };
     this.#domain = options.domain;
     this.#systemEntityNames = options.systemEntityNames;
+    this.#systemEntityIdentities = options.systemEntityIdentities;
     this.#newUnitId = options.newUnitId ?? uuid;
   }
 
@@ -248,6 +324,9 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    *
    * 没有意图声明时入口是 `crud` 而不是拒绝——`transaction()` 是所有业务写的正常通道，
    * 对它 fail-closed 等于把整个库变成只读。受信路径的 fail-closed 落在挂载点 2 / 3 上。
+   *
+   * 带 {@link CAPTURE_OWNED_TRANSACTION} 标的事务体原样放行：那是挂载点 2 / 3 为了写工作树行
+   * 自己开的事务，业务写已经在那边按受信入口捕获过了。
    */
   async interceptTransaction(
     _host: WorkingTreeWriteHost,
@@ -255,6 +334,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     fun: TransactionFun,
     transactionLog?: boolean
   ): Promise<unknown> {
+    if (isCaptureOwned(fun)) return next(fun, transactionLog);
     const body: TransactionFun = async executor => {
       const watermark = await readChangeWatermark(executor);
       const value = await fun(executor);
@@ -281,12 +361,15 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     localChanges?: Omit<RxDBChange, 'id'>[],
     disableTriggers?: boolean
   ): Promise<number | void> {
-    return host.runInTransaction(async executor => {
-      const entrance = this.#requireEntrance(executor, 'mergeChanges');
-      const result = await next(executorHostOf(executor), actions, localChanges, disableTriggers);
-      await this.#capture(executor, sourcesOfActions(actions), entrance);
-      return result;
-    }, false);
+    return host.runInTransaction(
+      markCaptureOwned(async (executor: TransactionExecutor) => {
+        const entrance = this.#requireEntrance(executor, 'mergeChanges');
+        const result = await next(executorHostOf(executor), actions, localChanges, disableTriggers);
+        await this.#capture(executor, sourcesOfActions(actions), entrance);
+        return result;
+      }),
+      false
+    );
   }
 
   /**
@@ -305,7 +388,10 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     const entrance = this.#requireEntrance(undefined, 'switchBranch');
     const sources = sourcesOfActions(options.actions);
     await next(options);
-    await host.runInTransaction(executor => this.#capture(executor, sources, entrance), false);
+    await host.runInTransaction(
+      markCaptureOwned((executor: TransactionExecutor) => this.#capture(executor, sources, entrance)),
+      false
+    );
   }
 
   /**
@@ -313,6 +399,10 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    *
    * @remarks
    * 同步转发，中间没有 `await`：门禁必须在 Observable 存在之前抛（adapter-contract.md §1.1）。
+   *
+   * `entityName` 按 `namespace:entity` 拆一次再判：这一层的契约里没有独立的命名空间参数，
+   * 而限定名是既有写法（`resolveQueryCacheTarget` 就这么解析）。送进门禁的仍是**原样**的
+   * `entityName`，拒绝信息才指得回调用方写下的那个名字。
    */
   interceptBulkWrite(
     _host: WorkingTreeWriteHost,
@@ -320,8 +410,14 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     entityName: string,
     operation: InterceptedBulkWrite
   ): Observable<void> {
+    const target = splitQualifiedEntityName(entityName);
     return gateBulkWrite(
-      { entityName, operation, targetClass: this.targetClassOf(entityName), capabilityEnabled: true },
+      {
+        entityName,
+        operation,
+        targetClass: this.targetClassOf(target.name, target.namespace),
+        capabilityEnabled: true
+      },
       next
     );
   }
@@ -329,22 +425,28 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
   /**
    * 实体名 → 写入口语义矩阵里的目标类别
    *
-   * @param entityName - 实体名
-   * @param namespace - 已知时直接用；`rxdb` 即系统表
+   * @param entityName - 实体名（不含命名空间）
+   * @param namespace - 已知时按身份精确判；省略时按裸名判
    * @returns `system` / `query_cache` / `versioned` 三者之一
    *
    * @remarks
-   * 全部系统实体都是 `namespace: 'rxdb'`，所以命名空间已知时一问即答；只有实体名的场合
-   * （挂载点 4）回落到系统实体名集合。两条路给出的是同一个答案，不是两份清单——集合本身就是
-   * 造运行时那一刻从核心系统实体注册表（{@link getSystemEntityNames}）的元数据算出来的。
+   * **先问域，域不认得才问系统表清单。** 域里只有业务实体（{@link createWorkingTreeCaptureRuntime}
+   * 建域时已把系统表摘出去），所以「域认得这个名字」本身就是「它不是系统表」的证明。反过来
+   * 先判系统表就是评审 #5 那个洞：接入方把实体取名 `Commit`（epic-006 恰好有一张 `rxdb:Commit`）
+   * 之后，那张业务表的写会被整批判成 `system` 而静默绕过捕获——改动不进提交，且没有报错形态。
+   *
+   * 系统表清单的两种投影按手上有没有命名空间选：有就比身份（`rxdb:RxDBBranch`），没有才比裸名。
+   * 两者是同一份登记簿算出来的（{@link getSystemEntityNames} / {@link getSystemEntityIdentities}），
+   * 不是两份清单。不再按 `namespace === 'rxdb'` 一刀切：命名空间是接入方可以自己取的，
+   * 恰好叫 `rxdb` 的业务实体没有理由整批退出版本控制。
    *
    * 与 {@link domain} 同理**不在核心契约上**：核心的 `notifyExternalUpdate()` 从前要自己问一次
    * 归类再把结果送进门禁，现在只交出实体身份、整段判定走 {@link gateExternalNotify}。
    * 于是「归哪一类」这件事在核心侧一次都不出现。
    */
   targetClassOf(entityName: string, namespace?: string): WriteTargetClass {
-    if (namespace === 'rxdb' || this.#systemEntityNames.has(entityName)) return 'system';
-    return this.#domain.classifyEntity(entityName) === 'untracked' ? 'query_cache' : 'versioned';
+    if (this.#isSystemTarget(entityName, namespace)) return 'system';
+    return this.#domain.classifyEntity(entityName, namespace) === 'untracked' ? 'query_cache' : 'versioned';
   }
 
   /**
@@ -447,6 +549,13 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     });
   }
 
+  /** 系统表判定；先问域的理由见 {@link targetClassOf}。 */
+  #isSystemTarget(entityName: string, namespace: string | undefined): boolean {
+    if (this.#domain.hasEntity(entityName, namespace)) return false;
+    if (namespace === undefined) return this.#systemEntityNames.has(entityName);
+    return this.#systemEntityIdentities.has(`${namespace}:${entityName}`);
+  }
+
   /** 单条捕获源的入口判定；三个平面的取值都从域里问，不在这里另存一份。 */
   #classify(source: ChangeCaptureSource, entrance: WriteEntrance): WriteEntranceDecision {
     const columns = source.patch ? Object.keys(source.patch) : [];
@@ -455,7 +564,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
       targetClass: this.targetClassOf(source.entity, source.namespace),
       operation: OPERATION_OF_TYPE[source.type],
       columns: source.patch ? { kind: 'columns', names: columns } : { kind: 'whole_row' },
-      untrackedFields: columns.filter(name => this.#domain.isUntrackedField(source.entity, name)),
+      untrackedFields: columns.filter(name => this.#domain.isUntrackedField(source.entity, name, source.namespace)),
       capabilityEnabled: true
     });
   }
@@ -479,6 +588,12 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  * 解析不出同步配置时抛而不是当作 `Full`：`RxDBConfig.sync` 是必填的，所以这个分支在正常构造
  * 下走不到；真走到了说明配置形状已经不是这里以为的样子，此时按「不是 QueryCache」继续，
  * 只会把一张缓存表静默地纳入版本化。
+ *
+ * **系统表先摘出去再建域。** 传进来的 `rxdb.config.entities` 已经被 `SchemaManager.init()`
+ * 补过系统表，照单全收会让 `rxdb_branch` / `rxdb_change` 这些表落进 `versionedTables`，
+ * 于是 raw 写五步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
+ * 摘干净之后还多一层作用：域认得的名字必定是业务实体，{@link WorkingTreeCaptureRuntime.targetClassOf}
+ * 正是靠这一点先问域再问系统表清单。
  */
 export const createWorkingTreeCaptureRuntime = (
   entityManager: EntityManager,
@@ -488,17 +603,29 @@ export const createWorkingTreeCaptureRuntime = (
   new WorkingTreeCaptureRuntime({
     entityManager,
     domain: buildVersionedDomain(
-      entities.map(EntityType => {
-        const metadata = getEntityMetadata(EntityType);
-        const sync = getEntitySync(EntityType, databaseSync);
-        if (!sync) throw new RxDBError(`实体 ${metadata.name} 解析不出生效的同步配置，无法判定它是否版本化。`);
-        return {
-          entityName: metadata.name,
-          namespace: metadata.namespace,
-          tableName: metadata.tableName,
-          syncType: sync.type
-        };
-      })
+      entities.filter(EntityType => !isSystemEntity(EntityType)).map(toVersionedDomainEntityInput(databaseSync))
     ),
-    systemEntityNames: getSystemEntityNames()
+    systemEntityNames: getSystemEntityNames(),
+    systemEntityIdentities: getSystemEntityIdentities()
   });
+
+/**
+ * 把一个实体类折成域的登记项
+ *
+ * @param databaseSync - 库级同步配置；实体自身没登记 `sync` 时由它生效
+ * @returns 可直接喂给 `Array.prototype.map` 的折叠函数
+ * @throws RxDBError 实体解析不出生效的同步配置时
+ */
+const toVersionedDomainEntityInput =
+  (databaseSync: SyncOptions) =>
+  (EntityType: EntityType): VersionedDomainEntityInput => {
+    const metadata = getEntityMetadata(EntityType);
+    const sync = getEntitySync(EntityType, databaseSync);
+    if (!sync) throw new RxDBError(`实体 ${metadata.name} 解析不出生效的同步配置，无法判定它是否版本化。`);
+    return {
+      entityName: metadata.name,
+      namespace: metadata.namespace,
+      tableName: metadata.tableName,
+      syncType: sync.type
+    };
+  };

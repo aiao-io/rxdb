@@ -45,6 +45,7 @@ import { buildCommitRows, writeCommit } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe, normalizeSql, setClauseOf, whereClauseOf } from './fixtures/commit-graph-probe.js';
+import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
 const REF_TABLE = getEntityMetadata(CommitBranchRef).tableName;
 const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000aa';
@@ -144,7 +145,7 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     const probe = createCommitGraphProbe({ rowsAffected: 1 });
     seedRef(probe, entityManager, { generation: 7, headRevision: 3 });
 
-    const outcome = await writeCommit(probe.executor, entityManager, {
+    const outcome = await writeCommit(probe.executor, plainCommitWriteContext(entityManager), {
       ...createWriteInput({ branchGeneration: 7, expectedHeadRevision: 3 })
     });
 
@@ -168,7 +169,11 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     const probe = createCommitGraphProbe({ rowsAffected: 1 });
     seedRef(probe, entityManager, { headRevision: 3 });
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput({ expectedHeadRevision: 3 }));
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ expectedHeadRevision: 3 })
+    );
 
     if (outcome.status !== 'committed') throw new Error(`expected committed, got ${outcome.status}`);
     const setClause = setClauseOf(probe.statements[0]);
@@ -181,7 +186,11 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     const probe = createCommitGraphProbe({ rowsAffected: 0 });
     seedRef(probe, entityManager, { headRevision: 9 });
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput({ expectedHeadRevision: 3 }));
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ expectedHeadRevision: 3 })
+    );
 
     // 冲突是返回值不是异常 ⇒ 返回的那一刻事务不会回滚 ⇒ CAS 必须排在所有写入之前，
     // 否则两张表里已经躺着孤儿行了。
@@ -196,7 +205,11 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     const probe = createCommitGraphProbe({ rowsAffected: 1 });
     seedRef(probe, entityManager, { headCommitId: 'commit-head', headRevision: 5 });
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput({ expectedHeadRevision: 5 }));
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ expectedHeadRevision: 5 })
+    );
 
     if (outcome.status !== 'committed') throw new Error(`expected committed, got ${outcome.status}`);
     // 让调用方自带 parentIds 就是第二份真相：它与 expectedHeadRevision 可以互相矛盾，
@@ -210,7 +223,7 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     const probe = createCommitGraphProbe({ rowsAffected: 1 });
     seedRef(probe, entityManager, { headCommitId: null });
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput());
+    const outcome = await writeCommit(probe.executor, plainCommitWriteContext(entityManager), createWriteInput());
 
     if (outcome.status !== 'committed') throw new Error(`expected committed, got ${outcome.status}`);
     expect({ parentIds: outcome.commit.parentIds, firstParentId: outcome.commit.firstParentId }).toEqual({
@@ -225,7 +238,11 @@ describe('推进 HEAD 的 CAS（FR-029）', () => {
     seedRef(probe, entityManager);
     const units = ['recipe-1', 'recipe-2'].map(entityId => createUnit({ entityId }));
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput({ units }));
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ units })
+    );
 
     if (outcome.status !== 'committed') throw new Error(`expected committed, got ${outcome.status}`);
     expect(probe.rowsOf(Commit)).toHaveLength(1);
@@ -254,12 +271,47 @@ describe('提交幂等（FR-036）', () => {
     const input = createWriteInput();
     const existing = seedExistingCommit(probe, entityManager, input);
 
-    const outcome = await writeCommit(probe.executor, entityManager, input);
+    const outcome = await writeCommit(probe.executor, plainCommitWriteContext(entityManager), input);
 
     expect(outcome).toEqual({ status: 'reused', commit: existing });
     // 重放推进 HEAD = 同一次提交被算了两次修订，另一个 Tab 手里的 revision 平白失效。
     expect(probe.statements).toEqual([]);
     expect(probe.saved).toEqual([]);
+  });
+
+  it('author 的首尾空白不参与幂等判定（与 message 同口径）', async () => {
+    const entityManager = createEntityManager();
+    const probe = createCommitGraphProbe({ rowsAffected: 1 });
+    seedRef(probe, entityManager);
+    const existing = seedExistingCommit(probe, entityManager, createWriteInput());
+
+    // `message` 早就 trim 过（`resolveCommitMessage`），`author` 却原样进哈希。于是同一个人
+    // 多打一个尾随空格，一次货真价实的重放被判成内容不符直接抛错——幂等恰好在它唯一要起
+    // 作用的那条路径（上一次到底成没成功？重放一次看看）上失效。
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ author: 'jimmy ' })
+    );
+
+    expect(outcome).toEqual({ status: 'reused', commit: existing });
+  });
+
+  it('落库的 author 也是归一化后的值，守卫按落库值重算才对得上', async () => {
+    const entityManager = createEntityManager();
+    const probe = createCommitGraphProbe({ rowsAffected: 1 });
+    seedRef(probe, entityManager);
+
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ author: '  jimmy  ' })
+    );
+
+    // 只在查重那一侧归一化是不够的：落库值与指纹用的值必须是同一个，否则
+    // `commit-graph-guard.ts` 拿落库值重算会算出第三个指纹，健康的历史被判成损坏。
+    if (outcome.status !== 'committed') expect.unreachable(`期望落库，实际 ${outcome.status}`);
+    expect(outcome.commit.author).toBe('jimmy');
   });
 
   it('同 operationId 但内容不同时稳定报错，既不覆盖也不静默返回旧节点', async () => {
@@ -270,7 +322,9 @@ describe('提交幂等（FR-036）', () => {
     const existing = seedExistingCommit(probe, entityManager, input, { contentFingerprint: 'fp-other' });
 
     // 静默返回旧节点 = 用户以为这次改动提交了，实际没有，且历史里查不出差别。
-    await expect(writeCommit(probe.executor, entityManager, input)).rejects.toThrow(CommitOperationMismatchError);
+    await expect(writeCommit(probe.executor, plainCommitWriteContext(entityManager), input)).rejects.toThrow(
+      CommitOperationMismatchError
+    );
     expect(probe.statements).toEqual([]);
     expect(probe.saved).toEqual([]);
     expect(existing.contentFingerprint).toBe('fp-other');
@@ -283,7 +337,11 @@ describe('提交幂等（FR-036）', () => {
     // 旧世的那次提交还在表里（commit 不随分支删除而消失）。
     seedExistingCommit(probe, entityManager, createWriteInput({ branchGeneration: 1 }));
 
-    const outcome = await writeCommit(probe.executor, entityManager, createWriteInput({ branchGeneration: 2 }));
+    const outcome = await writeCommit(
+      probe.executor,
+      plainCommitWriteContext(entityManager),
+      createWriteInput({ branchGeneration: 2 })
+    );
 
     expect(outcome.status).toBe('committed');
     expect(probe.rowsOf(Commit)).toHaveLength(2);
@@ -307,7 +365,7 @@ describe('提交幂等（FR-036）', () => {
     // CAS 命中意味着 headRevision 仍等于 expected。任何写下同一 operationId 的并发赢家，
     // 必然也已用自己的 CAS 把 headRevision 推到了 expected+1，我们的 CAS 就会先返回 0 行。
     // 所以「CAS 成功 + operationId 冲突」不可达；真发生了就是库态自相矛盾，只能整体回滚。
-    await expect(writeCommit(probe.executor, entityManager, input)).rejects.toThrow(failure);
+    await expect(writeCommit(probe.executor, plainCommitWriteContext(entityManager), input)).rejects.toThrow(failure);
     // 已经发过 CAS（HEAD 推进了）而本次的 commit 没落库 —— 任何 resolve 都会让外层事务提交。
     expect(probe.statements).toHaveLength(1);
     expect(probe.rowsOf(Commit).map(row => (row as Commit).id)).toEqual(['commit-existing']);
@@ -323,7 +381,9 @@ describe('提交幂等（FR-036）', () => {
     });
     seedRef(probe, entityManager);
 
-    await expect(writeCommit(probe.executor, entityManager, createWriteInput())).rejects.toThrow();
+    await expect(
+      writeCommit(probe.executor, plainCommitWriteContext(entityManager), createWriteInput())
+    ).rejects.toThrow();
 
     // 只允许 CAS 之前那两次读：ref 一次、幂等探测一次。第三次读发生在一条失败语句之后，
     // Postgres/PGlite 上事务已 aborted，那条 SELECT 会把原始错误换成一条 25P02，
@@ -344,6 +404,8 @@ describe('提交幂等（FR-036）', () => {
 
     // 包住整段的 try/catch 会把用户实体里一条无关的唯一约束错误读成「这次是重放」，
     // 于是丢掉一次真实提交且无任何报错。捕获只能钉在自己发出的那一条 INSERT 上。
-    await expect(writeCommit(probe.executor, entityManager, createWriteInput())).rejects.toThrow(failure);
+    await expect(
+      writeCommit(probe.executor, plainCommitWriteContext(entityManager), createWriteInput())
+    ).rejects.toThrow(failure);
   });
 });

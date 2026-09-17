@@ -45,7 +45,7 @@ const commitOnce = (
   message: string,
   overrides: Partial<CommitOptions> = {}
 ): Promise<CommitResult> =>
-  commitWorkingTree(scene.probe.executor, scene.database.entityManager, message, credentialsOf(scene, overrides));
+  commitWorkingTree(scene.probe.executor, scene.context, message, credentialsOf(scene, overrides));
 
 /** 取成功出口，拿到别的就直接炸，免得后续断言在 undefined 上继续。 */
 const expectOk = (result: CommitResult): Extract<CommitResult, { ok: true }> => {
@@ -84,9 +84,7 @@ describe('签名里没有 selection 入参（硬裁决 1）', () => {
     scene.addEntry({ unitId: 'unit-c' });
 
     const polluted = { ...credentialsOf(scene), units: ['unit-a'], selection: ['unit-a'] } as CommitOptions;
-    const result = expectOk(
-      await commitWorkingTree(scene.probe.executor, scene.database.entityManager, '全量提交', polluted)
-    );
+    const result = expectOk(await commitWorkingTree(scene.probe.executor, scene.context, '全量提交', polluted));
 
     expect(result.changeSetCount).toBe(3);
   });

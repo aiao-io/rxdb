@@ -7,6 +7,9 @@
  *
  * - **校验排在最前**。排到 CAS 之后，一次被拒的提交照样推进了一格 `headRevision`，
  *   别的 Tab 手里的 `workingTreeRevision` 全部失效，而实际上什么都没提交。
+ * - **at-rest 断言紧随其后**（FR-038）。它必须早于**两处**指纹计算：幂等查重那次与
+ *   `buildCommitRows` 那次。排在指纹之后，`contentFingerprint` 就成了明文的确认预言机——
+ *   拿一份猜测的明文重算一次就能验证猜得对不对，而这个值是公开可读的。
  * - **幂等查重排在 CAS 之前**。重放若推进 HEAD，同一次提交就被算了两次修订。
  * - **CAS 排在所有写入之前**。CAS 未命中返回的是**值**不是异常（见 {@link WriteCommitOutcome}），
  *   返回的那一刻事务不会回滚；写在前面就等于在两张表里留下永远没人指向的孤儿行。
@@ -33,6 +36,8 @@ import type { CommitChangeUnitContent } from './change-unit.js';
 import { computeCommitContentFingerprint } from './change-unit.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import { CommitChangeSet } from './commit-change-set.entity.js';
+import { assertCommitUnitsEncryptedAtRest } from './commit-codec.js';
+import type { CommitWriteContext } from './commit-context.js';
 import {
   CommitOperationMismatchError,
   deriveCommitOperationId,
@@ -254,6 +259,22 @@ const resolveCommitMessage = (input: WriteCommitInput): string =>
   input.kind === 'normal' ? (input.message ?? '').trim() : SYSTEM_COMMIT_MESSAGES[input.kind];
 
 /**
+ * 算出最终落库的作者。
+ *
+ * @remarks
+ * 与 {@link resolveCommitMessage} 同口径 trim，理由却比「首尾空白不进历史」更硬：`author`
+ * 参与 `contentFingerprint`。只要两次调用的作者差一个尾随空格，同一个 `operationId` 就会算出
+ * 两个指纹，于是**一次货真价实的重放被判成内容不符**（{@link CommitOperationMismatchError}）——
+ * 幂等恰好在它唯一要起作用的那条路径上失效：调用方不知道上一次成没成功，重放一次问问。
+ *
+ * 系统根节点没有作者（`assertValidCommitInput` 已经拒绝了带作者的系统提交），这里照 `message`
+ * 的写法从 `kind` 上收敛出 `null`，而不是把 `input.author` 原样透传——透传的话类型上还是
+ * `string | null`，读的人得回头去确认那条校验还在。
+ */
+const resolveCommitAuthor = (input: WriteCommitInput): string | null =>
+  input.kind === 'normal' ? (input.author ?? '').trim() : null;
+
+/**
  * 深拷贝一个 patch。
  *
  * @remarks
@@ -332,10 +353,11 @@ export const buildCommitRows = (entityManager: EntityManager, input: BuildCommit
  * 写一次提交：单原子操作内写 ChangeSet、父 commit、数据库时间、摘要与新 HEAD（FR-008/010/029）。
  *
  * @param executor - 当前事务执行器；本函数不自己开事务，回滚由调用方的事务边界负责
- * @param entityManager - 构造实体行用
+ * @param context - 见 {@link CommitWriteContext}：构造实体行的 `entityManager` 与 at-rest 判定上下文
  * @param input - 见 {@link WriteCommitInput}
  * @returns 见 {@link WriteCommitOutcome}
  * @throws {@link CommitValidationError} 入参没过校验（在任何读写之前）
+ * @throws {@link CommitEncryptedAtRestError} 加密列里躺着明文，或该判而无判定器（在任何读写之前）
  * @throws {@link CommitOperationMismatchError} 同一个幂等键上出现了两份不同内容
  *
  * @remarks
@@ -366,10 +388,13 @@ export const buildCommitRows = (entityManager: EntityManager, input: BuildCommit
  */
 export const writeCommit = async (
   executor: TransactionExecutor,
-  entityManager: EntityManager,
+  context: CommitWriteContext,
   input: WriteCommitInput
 ): Promise<WriteCommitOutcome> => {
   assertValidCommitInput(input);
+  // 一次断言覆盖两条出口：幂等重放那支与正常落库那支都在它之后算指纹。放在读 ref 之前，
+  // 于是「判失败」在外部是可观测的——一条读都没发出去，见本文件 TSDoc 的第二条。
+  assertCommitUnitsEncryptedAtRest(context.codec, input.units);
 
   const ref = await readCommitBranchRef(executor, input.branchId);
   const operationId = deriveCommitOperationId({
@@ -377,6 +402,9 @@ export const writeCommit = async (
     operationId: input.operationId
   });
   const message = resolveCommitMessage(input);
+  // 归一化只做这一次：查重的指纹与落库行必须是同一个值，否则 `commit-graph-guard.ts` 按落库值
+  // 重算会算出第三个指纹，一段健康的历史被判成损坏。
+  const author = resolveCommitAuthor(input);
 
   const existing = await findCommitByOperationId(executor, operationId);
   if (existing) {
@@ -384,7 +412,7 @@ export const writeCommit = async (
       kind: input.kind,
       parentIds: existing.parentIds,
       message,
-      author: input.author,
+      author,
       units: input.units
     });
     if (existing.contentFingerprint !== incoming) {
@@ -393,12 +421,12 @@ export const writeCommit = async (
     return { status: 'reused', commit: existing };
   }
 
-  const rows = buildCommitRows(entityManager, {
+  const rows = buildCommitRows(context.entityManager, {
     id: uuid(),
     kind: input.kind,
     parentIds: ref.headCommitId === null ? [] : [ref.headCommitId],
     message,
-    author: input.author,
+    author,
     operationId,
     units: input.units
   });

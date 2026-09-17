@@ -41,6 +41,7 @@ import type { CommitChangeUnit } from '../../commit/change-unit.js';
 import { computeChangeUnitFingerprint, computeCommitContentFingerprint } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../commit/commit-context.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
@@ -59,21 +60,45 @@ const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000e1';
 const CIPHERTEXT = Uint8Array.of(0xde, 0xad, 0xbe, 0xef, 0x00, 0x01, 0x7f, 0xff);
 
 /** 带一个加密列、一个二进制列、一个普通列的目标实体。 */
+const secretProperties = {
+  id: { name: 'id', columnName: 'id', type: PropertyType.string, primary: true },
+  title: { name: 'title', columnName: 'title', type: PropertyType.string },
+  blob: { name: 'blob', columnName: 'blob', type: PropertyType.binary },
+  secret: { name: 'secret', columnName: 'secret', type: PropertyType.binary, encrypted: true }
+};
+
 const secretMetadata = {
   namespace: 'app',
   name: 'Secret',
-  propertyMap: new Map([
-    ['id', { name: 'id', columnName: 'id', type: PropertyType.string, primary: true }],
-    ['title', { name: 'title', columnName: 'title', type: PropertyType.string }],
-    ['blob', { name: 'blob', columnName: 'blob', type: PropertyType.binary }],
-    ['secret', { name: 'secret', columnName: 'secret', type: PropertyType.binary, encrypted: true }]
-  ])
+  propertyMap: new Map(Object.entries(secretProperties)),
+  // FR-038 的断言只看这张表（`commit-codec.ts` 的 `assertColumnEncryptedAtRest`）。它由
+  // `entity/metadata-transition.ts` 从 `propertyMap` 推出来，这里也现推而不是另抄一份键名：
+  // 抄一份就会在「`secret` 改名了却只改了一处」时给出一个真实元数据不可能出现的组合。
+  encryptedPropertyMap: new Map(Object.entries(secretProperties).filter(([, property]) => 'encrypted' in property))
 } as unknown as EntityMetadata;
+
+/**
+ * 本文件那个替身后端的 at-rest 判定器：落库形态就是{@link CIPHERTEXT}那样的裸字节。
+ *
+ * @remarks
+ * 判定器由**适配器**给（`RxDBAdapter.isEncryptedAtRest`），核心不规定落库形态长什么样。
+ * `@aiao/rxdb-adapter-encrypted` 那两族后端的形态是一段信封串，`commit-codec.spec.ts` 与
+ * `commit.suite.ts` 的 FR-038 组各自钉着那一端；本文件要钉的是**写入路径拿到已落库形态之后
+ * 还会不会再动它**，而「再动一下」这件事只有字节能表达——一段 `Uint8Array` 被 JSON 化成
+ * `{"0":222,…}` 是本文件第 2 条理由里那个不报错的缺陷，换成字符串就再也演不出来了。
+ */
+const isCiphertextAtRest = (value: unknown): boolean => value instanceof Uint8Array;
 
 const codecContext: WorkingTreePatchCodecContext = {
   resolveTargetMetadata: (entity, namespace) =>
     entity === 'Secret' && namespace === 'app' ? secretMetadata : undefined
 };
+
+/** `writeCommit()` 要的写上下文：元数据解析与上面那个判定器。 */
+const contextOf = (entityManager: EntityManager): CommitWriteContext => ({
+  entityManager,
+  codec: { ...codecContext, isEncryptedAtRest: isCiphertextAtRest }
+});
 
 /**
  * 把一批行摊成一个字符串，供子串搜索。
@@ -140,6 +165,8 @@ function createWriteInput(overrides: Partial<WriteCommitInput> = {}): WriteCommi
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly entityManager: EntityManager;
+  /** 见 {@link contextOf} */
+  readonly context: CommitWriteContext;
 }
 
 /** CAS 必然命中的布景——这样没写成的东西只可能是路径自己丢的。 */
@@ -155,11 +182,11 @@ function createScene(): Scene {
   ref.status = 'ok';
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
-  return { probe, entityManager };
+  return { probe, entityManager, context: contextOf(entityManager) };
 }
 
 async function commitOnce(scene: Scene, overrides: Partial<WriteCommitInput> = {}): Promise<void> {
-  const outcome = await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput(overrides));
+  const outcome = await writeCommit(scene.probe.executor, scene.context, createWriteInput(overrides));
   if (outcome.status !== 'committed') throw new Error(`expected committed, got ${outcome.status}`);
 }
 
@@ -339,7 +366,7 @@ describe('错误不含字段值（FR-038）', () => {
     it(`${label} 被拒时，错误里没有 patch 内容`, async () => {
       const scene = createScene();
 
-      const error = await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput(overrides)).catch(
+      const error = await writeCommit(scene.probe.executor, scene.context, createWriteInput(overrides)).catch(
         (caught: unknown) => caught
       );
 
@@ -355,7 +382,7 @@ describe('错误不含字段值（FR-038）', () => {
 
     const error = await writeCommit(
       scene.probe.executor,
-      scene.entityManager,
+      scene.context,
       createWriteInput({ message: '  ', units: [createUnit({ patch, inversePatch: patch })] })
     ).catch((caught: unknown) => caught);
 

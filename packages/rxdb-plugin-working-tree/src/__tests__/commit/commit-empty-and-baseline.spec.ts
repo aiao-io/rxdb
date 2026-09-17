@@ -30,6 +30,7 @@ import type { CommitChangeUnit } from '../../commit/change-unit.js';
 import { computeChangeUnitFingerprint } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../commit/commit-context.js';
 import type { CommitKind } from '../../commit/commit.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
@@ -37,6 +38,7 @@ import { CommitValidationError, SYSTEM_COMMIT_MESSAGES, writeCommit } from '../.
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
+import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
 const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000bb';
 
@@ -89,6 +91,8 @@ function createWriteInput(overrides: Partial<WriteCommitInput> = {}): WriteCommi
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly entityManager: EntityManager;
+  /** `writeCommit()` 要的写上下文；本文件一条加密列都不碰，理由见夹具的 fileoverview */
+  readonly context: CommitWriteContext;
 }
 
 /** 造一个「CAS 必然命中」的场景——这样失败只可能来自校验本身。 */
@@ -104,12 +108,12 @@ function createScene(): Scene {
   ref.status = 'ok';
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
-  return { probe, entityManager };
+  return { probe, entityManager, context: plainCommitWriteContext(entityManager) };
 }
 
 /** 断言一次入参被拒，且拒绝发生在任何写入与 CAS 之前。 */
 async function expectRejectedBeforeWriting(scene: Scene, input: WriteCommitInput, reason: string): Promise<void> {
-  await expect(writeCommit(scene.probe.executor, scene.entityManager, input)).rejects.toMatchObject({
+  await expect(writeCommit(scene.probe.executor, scene.context, input)).rejects.toMatchObject({
     name: 'CommitValidationError',
     reason
   });
@@ -138,7 +142,7 @@ describe('普通 commit 的必填项（FR-008）', () => {
 
     const outcome = await writeCommit(
       scene.probe.executor,
-      scene.entityManager,
+      scene.context,
       createWriteInput({ message: '  修好了导入  ' })
     );
 
@@ -158,7 +162,7 @@ describe('普通 commit 的必填项（FR-008）', () => {
 
   it('CommitValidationError 是 Error 的子类，带可判别的 reason', async () => {
     const scene = createScene();
-    const error = await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput({ message: ' ' })).then(
+    const error = await writeCommit(scene.probe.executor, scene.context, createWriteInput({ message: ' ' })).then(
       () => null,
       (caught: unknown) => caught
     );
@@ -176,9 +180,7 @@ describe('普通 commit 不得为空（FR-009）', () => {
 
   it('空提交不推进 headRevision', async () => {
     const scene = createScene();
-    await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput({ units: [] })).catch(
-      () => undefined
-    );
+    await writeCommit(scene.probe.executor, scene.context, createWriteInput({ units: [] })).catch(() => undefined);
     // 唯一能推进 HEAD 的语句就是那条 CAS；一条都没发 = 一格都没推进。
     expect(scene.probe.statements).toEqual([]);
   });
@@ -193,7 +195,7 @@ describe('两种系统根节点是唯一例外（FR-008/009）', () => {
 
       const outcome = await writeCommit(
         scene.probe.executor,
-        scene.entityManager,
+        scene.context,
         createWriteInput({ kind, message: null, author: null, units: [] })
       );
 
@@ -211,7 +213,7 @@ describe('两种系统根节点是唯一例外（FR-008/009）', () => {
 
       const outcome = await writeCommit(
         scene.probe.executor,
-        scene.entityManager,
+        scene.context,
         createWriteInput({ kind, message: null, author: null, units: [] })
       );
 
@@ -240,7 +242,7 @@ describe('两种系统根节点是唯一例外（FR-008/009）', () => {
 
       const outcome = await writeCommit(
         scene.probe.executor,
-        scene.entityManager,
+        scene.context,
         createWriteInput({ kind, message: null, author: null, units: [] })
       );
 
@@ -254,7 +256,7 @@ describe('两种系统根节点是唯一例外（FR-008/009）', () => {
 
     const outcome = await writeCommit(
       scene.probe.executor,
-      scene.entityManager,
+      scene.context,
       createWriteInput({ kind: 'branch_baseline', message: null, author: null, units: [createUnit()] })
     );
 

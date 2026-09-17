@@ -14,7 +14,7 @@
  * 说的是**不调用它就什么都没发生**，不是调用了要假装成功。
  */
 
-import type { RxDB, TransactionExecutor } from '@aiao/rxdb';
+import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
@@ -24,6 +24,7 @@ import {
   isCommitCapabilityEnabled,
   readCommitCapability
 } from '../commit/commit-capability.js';
+import { createCommitWriteContext } from '../commit/commit-context.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
@@ -147,7 +148,9 @@ export class WorkingTreeManager {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
     const info = await adapter.transaction(async executor => {
       const enabled = await enableCommitCapability(executor);
-      await runEnableMigration(executor, this.#rxdb.entityManager, { operationId: ENABLE_MIGRATION_OPERATION_ID });
+      await runEnableMigration(executor, createCommitWriteContext(adapter), {
+        operationId: ENABLE_MIGRATION_OPERATION_ID
+      });
       return enabled;
     });
     installWorkingTreeCapture(this.#rxdb, adapter);
@@ -206,7 +209,9 @@ export class WorkingTreeManager {
    * {@link runEnabled} 开——命令体自己不开事务，否则门禁读到的启用态与写入就分属两笔。
    */
   async commit(message: string, options: CommitOptions): Promise<CommitResult> {
-    return this.runEnabled(executor => commitWorkingTree(executor, this.#rxdb.entityManager, message, options));
+    return this.runEnabled((executor, adapter) =>
+      commitWorkingTree(executor, createCommitWriteContext(adapter), message, options)
+    );
   }
 
   /**
@@ -255,7 +260,7 @@ export class WorkingTreeManager {
   /**
    * 受管成员的**唯一**入口：开写事务、过能力门禁、再跑命令体。
    *
-   * @param run - 命令体；拿到的执行器与门禁读能力行用的是同一个
+   * @param run - 命令体；拿到的执行器与门禁读能力行用的是同一个，第二参是本纪元的本地适配器
    * @returns 命令体的返回值
    * @throws {@link WorkingTreeCapabilityDisabledError} 未启用时
    * @throws {@link RxDBError} 能力行缺失时（`0004` 迁移没写入那一行）
@@ -277,19 +282,29 @@ export class WorkingTreeManager {
    *
    * 受管成员的**参数校验必须写在 `run` 里面**：写在调用 `runEnabled()` 之前的话，
    * 未启用的库会先回答「message 不能为空」——一个在这个库上根本无从谈起的问题。
+   *
+   * **适配器作为第二参交下去，而不是让命令体自己再解析一次。** 需要它的是提交写路径的
+   * at-rest 判定槽位（`createCommitWriteContext()`，FR-038）；命令体自己走
+   * `rxdb.localAdapterSync` 会在未连接的库上直接抛，而再走一次 `localAdapter$` 则可能取到
+   * **另一个纪元**的实例——那个实例的判定器与本事务写的是两个库。只多写一个形参：
+   * 少写形参的回调在 TS 里仍然可赋值，不需要它的成员一个字都不用改。
    */
-  protected async runEnabled<T>(run: (executor: TransactionExecutor) => Promise<T>): Promise<T> {
-    return this.#runInTransaction(async executor => {
+  protected async runEnabled<T>(
+    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+  ): Promise<T> {
+    return this.#runInTransaction(async (executor, adapter) => {
       const info = await readCommitCapability(executor);
       if (!info.enabled) throw new WorkingTreeCapabilityDisabledError();
       assertSupportedCommitCapability(info);
-      return run(executor);
+      return run(executor, adapter);
     });
   }
 
-  /** 取本地适配器并开一个写事务。 */
-  async #runInTransaction<T>(run: (executor: TransactionExecutor) => Promise<T>): Promise<T> {
+  /** 取本地适配器并开一个写事务；适配器一并交给命令体，理由见 {@link runEnabled}。 */
+  async #runInTransaction<T>(
+    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+  ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
-    return adapter.transaction(async executor => run(executor));
+    return adapter.transaction(async executor => run(executor, adapter));
   }
 }

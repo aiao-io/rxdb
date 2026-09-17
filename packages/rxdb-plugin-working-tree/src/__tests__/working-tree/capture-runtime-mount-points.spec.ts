@@ -38,6 +38,8 @@
 
 import type {
   EntityManager,
+  EntityType,
+  IRxDBChange,
   MergeChangesNext,
   RawWritePrimitives,
   SwitchBranchOptions,
@@ -53,6 +55,8 @@ import {
   declareTrustedWrite,
   Entity,
   EntityBase,
+  getEntityMetadata,
+  getRxDBChangeKey,
   PropertyType,
   RxDB,
   RxDBBranch,
@@ -101,10 +105,14 @@ const entityManager = createEntityManager();
  * @remarks
  * `Post` 是普通版本化实体，`ProductCache` 是 QueryCache——两者一起才能分辨
  * `targetClassOf` 真的问了域，还是把「不是系统表就是版本化表」写死了。
+ *
+ * 命名空间与 {@link CaptureScene.appendChange} 播的变更行一致（都是 `app`）。真机上
+ * `rxdb_change.namespace` 就是从实体元数据写下去的，而域也是从同一份元数据建的——两边
+ * 对不上的布景等于在测一个生产里不存在的形态，还会把命名空间限定的判定测成永远不命中。
  */
 const DOMAIN = buildVersionedDomain([
-  { entityName: 'Post', namespace: 'public', tableName: 'post', syncType: SyncType.Full },
-  { entityName: 'ProductCache', namespace: 'public', tableName: 'productcache', syncType: SyncType.QueryCache }
+  { entityName: 'Post', namespace: 'app', tableName: 'post', syncType: SyncType.Full },
+  { entityName: 'ProductCache', namespace: 'app', tableName: 'productcache', syncType: SyncType.QueryCache }
 ]);
 
 /** 一条 `rxdb_change` 行的可变部分；其余列捕获用不上。 */
@@ -193,7 +201,8 @@ function scene(newUnitId: () => string = () => 'unit-fixed'): CaptureScene {
     runtime: new WorkingTreeCaptureRuntime({
       entityManager,
       domain: DOMAIN,
-      systemEntityNames: new Set(['RxDBChange', 'RxDBBranch']),
+      systemEntityNames: new Set(['RxDBChange', 'RxDBBranch', 'RxDBSync']),
+      systemEntityIdentities: new Set(['rxdb:RxDBChange', 'rxdb:RxDBBranch', 'rxdb:RxDBSync']),
       newUnitId
     }),
     appendChange(seed) {
@@ -229,6 +238,42 @@ const transactionNext = (
     return fun(probe.executor);
   }) as RawWritePrimitives['transaction'];
 
+/**
+ * 挂载点 2 / 3 自己开事务时，宿主与写原语各自看到的那个事务体
+ *
+ * @remarks
+ * 默认布景的 `host.runInTransaction` 把探针 executor 直接交给回调，于是「捕获自己开的事务会不会
+ * 再落回挂载点 1」这条命题在替身上根本不会发生。真链路有两跳：`RxDBAdapter.runInTransaction()`
+ * 转调 `this.transaction()`，而安装层把 `transaction` 改写在**实例**上——第二跳就是挂载点 1。
+ * 少了这个替身，双重捕获在本包一条用例都碰不到，红要等六个适配器的一致性套件才出现。
+ */
+interface CapturingHost {
+  /** 像真适配器那样把 `runInTransaction` 转调被拦截的 `transaction` */
+  readonly host: WorkingTreeWriteHost;
+
+  /** 运行时交给 `runInTransaction()` 的事务体 */
+  readonly submitted: TransactionFun[];
+
+  /** 最终到达写原语的事务体；被挂载点 1 接管过就不是同一个函数 */
+  readonly delivered: TransactionFun[];
+}
+
+function capturingHostOf(stage: CaptureScene): CapturingHost {
+  const submitted: TransactionFun[] = [];
+  const delivered: TransactionFun[] = [];
+  const next: RawWritePrimitives['transaction'] = (async (fun: TransactionFun) => {
+    delivered.push(fun);
+    return fun(stage.probe.executor);
+  }) as RawWritePrimitives['transaction'];
+  const host: WorkingTreeWriteHost = {
+    runInTransaction: (async (fun: TransactionFun, transactionLog?: boolean) => {
+      submitted.push(fun);
+      return stage.runtime.interceptTransaction(host, next, fun, transactionLog);
+    }) as WorkingTreeWriteHost['runInTransaction']
+  };
+  return { host, submitted, delivered };
+}
+
 const actionsOf = (
   init: Partial<Record<'inserts' | 'updates' | 'deletes', readonly (readonly [string, SwitchVersionChange])[]>> = {}
 ): SwitchVersionActions =>
@@ -241,6 +286,17 @@ const actionsOf = (
 /** 一条「把 Post#p1 的标题改掉」的 action。 */
 const titleChange = (): SwitchVersionChange =>
   ({ patch: { title: '远端的标题' }, inversePatch: { title: '原值' } }) as unknown as SwitchVersionChange;
+
+/**
+ * 生产形态的 action 键
+ *
+ * @remarks
+ * 本文件别处的键是 `'app:Post:p1'` 这种手写裸 id，读起来直观，但它在**这一条**命题上是个陷阱：
+ * 真键的第三段是 `getRxDBChangeKey()` 拼的 `rxid1:<hex>` 身份键，自带冒号。按冒号切第三片的
+ * 实现对裸 id 恰好答对，对真键则永远交出字面量 `'rxid1'`。所以要证「拆键拆对了」只能用它。
+ */
+const productionKeyOf = (namespace: string, entity: string, entityId: string): string =>
+  getRxDBChangeKey({ namespace, entity, entityId } as IRxDBChange);
 
 /** 登记表 #7：事务内的远端拉取；入口 `remote_entity_apply`，来源 `remote_sync`。 */
 const PULL_BATCH = {
@@ -441,6 +497,44 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
       ['p3', 'delete']
     ]);
   });
+
+  it('身份键形态的 action 键拆出实体自己的 id，而不是身份键的类型前缀', async () => {
+    const stage = scene();
+    stage.runtime.bindMountTarget(stage.target);
+    declareTrustedWrite(stage.target, PULL_BATCH);
+
+    await stage.runtime.interceptMergeChanges(
+      stage.host,
+      async () => undefined,
+      actionsOf({ updates: [[productionKeyOf('app', 'Post', 'p1'), titleChange()]] })
+    );
+
+    // 拆错的症状不是报错：所有单元的 `entityId` 会一起塌成 `'rxid1'`，于是折叠的唯一约束
+    // `(branch, namespace, entity, entityId)` 把整批远端写折成一条，discard 与冷重放跟着一起错位。
+    expect(stage.entries().map(entry => entry.entityId)).toEqual(['p1']);
+  });
+
+  it('自己开的那个事务不落回挂载点 1：同一批远端写只被捕获一次', async () => {
+    const stage = scene();
+    stage.runtime.bindMountTarget(stage.target);
+    declareTrustedWrite(stage.target, PULL_BATCH);
+
+    await stage.runtime.interceptMergeChanges(
+      capturingHostOf(stage).host,
+      async () => {
+        // `disableTriggers` 为假，触发器照常把这批写记进变更日志——挂载点 1 的增量读看得见它。
+        stage.appendChange({ id: 1, entityId: 'p1' });
+        return undefined;
+      },
+      actionsOf({ updates: [['app:Post:p1', titleChange()]] })
+    );
+
+    // 捕获两遍既不报错也不多出一行：第二遍按 `crud` 判，折叠到同一条上。症状是一次远端同步
+    // 被改写成用户的本地编辑（`origin` 翻成 `local`，discard 会把它当自己的编辑退掉），
+    // 外加 revision 凭空多推一格——而它是 commit 的 CAS 依据，另一个 Tab 手里的那个当场作废。
+    expect(stage.entries().map(entry => entry.origin)).toEqual(['remote_sync']);
+    expect(stage.workingTreeRevision()).toBe(1);
+  });
 });
 
 describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
@@ -537,6 +631,25 @@ describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
       stage.runtime.interceptSwitchBranch(stage.host, async () => undefined, options())
     ).rejects.toBeInstanceOf(WorkingTreeWriteRejectedError);
   });
+
+  it('后继的捕获事务同样不落回挂载点 1：事务体原样交给写原语', async () => {
+    const stage = scene();
+    stage.runtime.bindMountTarget(stage.target);
+    declareTrustedWrite(stage.target, {
+      file: 'undo-redo-apply.ts',
+      symbol: 'applyUndoRedoHistories',
+      intent: TrustedWriteIntent.undo_redo
+    });
+    const capturing = capturingHostOf(stage);
+
+    await stage.runtime.interceptSwitchBranch(capturing.host, async () => undefined, options());
+
+    // 这个挂载点的重复捕获在探针上没有产物：捕获自己写的是系统表，而矩阵把 `system` 目标直接
+    // 短路成 no-capture。可观测的只有「事务体有没有被再包一层」——那正是命题本身，挂载点 1
+    // 判到标就 `next(fun, transactionLog)` 原样放行，一次水位线都不读。
+    expect(capturing.submitted).toHaveLength(1);
+    expect(capturing.delivered[0]).toBe(capturing.submitted[0]);
+  });
 });
 
 describe('挂载点 4：upsertMany / deleteByIds 的门禁', () => {
@@ -618,5 +731,79 @@ describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
     expect(() =>
       createWorkingTreeCaptureRuntime(entityManager, [CaptureRuntimePost], undefined as unknown as SyncOptions)
     ).toThrow(RxDBError);
+  });
+});
+
+/**
+ * 一个**业务**实体，名字正好撞上 epic-006 的系统表 `rxdb:Commit`。
+ *
+ * @remarks
+ * `Commit` / `WorkingTreeState` 这类名字在接入方的领域模型里完全合法——系统表把它们占住的是
+ * `rxdb` 这个命名空间，不是这个词。按裸名判定的话，接入方一建 `public:Commit`，它的写就整批
+ * 被判成 `system` 而**静默绕过捕获**：改动不进工作树、不进提交，且没有任何报错形态。
+ */
+@Entity({
+  name: 'Commit',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class BusinessCommit extends EntityBase {
+  title!: string;
+}
+
+describe('系统实体的判定域 —— 按身份而不是裸名，且不进版本化域', () => {
+  const databaseSync: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
+
+  it('业务实体撞上系统表名仍然是 versioned —— 带不带命名空间都一样', () => {
+    const runtime = createWorkingTreeCaptureRuntime(entityManager, [BusinessCommit], databaseSync);
+
+    expect(runtime.targetClassOf('Commit', 'public')).toBe('versioned');
+    // 挂载点 4（`upsertMany` / `deleteByIds`）手上只有实体名。裸名这条路也必须先问域：
+    // 域认得 `Commit` 就说明它是这个库登记过的业务实体，系统表名单根本轮不到。
+    expect(runtime.targetClassOf('Commit')).toBe('versioned');
+  });
+
+  /** 实体类 → 域里那份归一化过的表名。 */
+  const tableNameOf = (EntityType: EntityType): string => getEntityMetadata(EntityType).tableName.toLowerCase();
+
+  it('系统实体被挡在版本化域外 —— 建域的实体数组里本来就有它们', () => {
+    // `SchemaManager.init()` 已经把系统表塞进 `config.entities`，而运行时是从那个数组建域的。
+    // 不摘出去的话，`rxdb_working_tree_entry` 这类表会落进 `versionedTables`，
+    // 于是 raw 五步门禁把库自己的簿记写拦成第 4 步——与其余 4 个挂载点的判定正相反。
+    const runtime = createWorkingTreeCaptureRuntime(
+      entityManager,
+      [CaptureRuntimePost, WorkingTreeEntry, WorkingTreeState],
+      databaseSync
+    );
+
+    // 域把表名统一归一化成小写，所以问的时候也得按同一口径归一。
+    expect(runtime.domain.versionedTables.has(tableNameOf(CaptureRuntimePost))).toBe(true);
+    expect(runtime.domain.versionedTables.has(tableNameOf(WorkingTreeEntry))).toBe(false);
+    expect(runtime.domain.versionedTables.has(tableNameOf(WorkingTreeState))).toBe(false);
+  });
+
+  it('raw 写系统表在第 5 步放行，不被第 4 步拦下', async () => {
+    const runtime = createWorkingTreeCaptureRuntime(
+      entityManager,
+      [CaptureRuntimePost, WorkingTreeEntry],
+      databaseSync
+    );
+    let calls = 0;
+
+    await expect(
+      runtime.gateRawWrite(`UPDATE ${getEntityMetadata(WorkingTreeEntry).tableName} SET "branchId" = 'b2'`, () => {
+        calls += 1;
+        return 'executed';
+      })
+    ).resolves.toBe('executed');
+    expect(calls).toBe(1);
+  });
+
+  it('域不认得的名字才回落到系统身份，系统表照旧放行', () => {
+    const runtime = createWorkingTreeCaptureRuntime(entityManager, [CaptureRuntimePost], databaseSync);
+
+    expect(runtime.targetClassOf('WorkingTreeEntry')).toBe('system');
+    expect(runtime.targetClassOf('WorkingTreeEntry', 'rxdb')).toBe('system');
+    // 对照组：既不在域里、也不是系统表的名字默认 versioned（「没有第四类 untracked」）。
+    expect(runtime.targetClassOf('NeverRegisteredEntity')).toBe('versioned');
   });
 });

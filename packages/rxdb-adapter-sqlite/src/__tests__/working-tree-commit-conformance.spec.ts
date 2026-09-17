@@ -21,13 +21,20 @@
  * 建分支——US-025 把 `VersionManager` 从核心搬进了 `@aiao/rxdb-plugin-history`，核心上不再有
  * 这个成员。它不是被测对象，只是「新建一条分支」这个动作在今天唯一的入口；工作树的
  * `writeBranchRows` 贡献正是挂在那个动作上，缺了它 §2.2 两条用例拿到的是 `undefined`。
+ *
+ * **`entities` 里那一个 {@link ConformanceNote} 不是给谁写的**，套件对它一次 `save()` 都不调。
+ * 注册它是因为 FR-038：`writeCommit` 会拿每个变更单元的 `namespace` / `entity` 去
+ * `schemaManager` 解析目标元数据（要知道哪几列是加密列），解析不到就 fail-closed 地抛。
+ * 于是套件里全部单元的身份都取自这个真注册过的实体。捕获侧清单里的另一个实体（声明了
+ * `SyncType.QueryCache` 的那个）**不在这里注册**：它会连带要求三个插件与一个远端适配器名，
+ * 而提交侧一条断言都用不到它。
  */
 
 import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
-import { workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
+import { ConformanceNote, workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
 
 import { sqliteOfficialFactory } from './sqlite-official-factory.js';
@@ -46,6 +53,7 @@ workingTreeCommitConformanceSuite({
   name: 'sqlite',
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await sqliteOfficialFactory.createAdapter<AdapterCleanupTarget>({
+      entities: [ConformanceNote],
       plugins: [rxDBPluginHistory, rxDBPluginWorkingTree]
     });
     opened.push(adapter);

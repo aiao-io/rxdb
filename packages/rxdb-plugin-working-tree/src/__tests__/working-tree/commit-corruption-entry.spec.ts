@@ -108,7 +108,7 @@ const credentialsOf = (scene: WorkingTreeScene, overrides: Partial<CommitOptions
 
 /** 跑一次提交。 */
 const commitOnce = (scene: WorkingTreeScene, overrides: Partial<CommitOptions> = {}): Promise<CommitResult> =>
-  commitWorkingTree(scene.probe.executor, scene.database.entityManager, '一次提交', credentialsOf(scene, overrides));
+  commitWorkingTree(scene.probe.executor, scene.context, '一次提交', credentialsOf(scene, overrides));
 
 /** 把一次拒绝摊成可比较的判别位；文案不进来，文案是会被改的。 */
 const verdictOf = (error: unknown): Record<string, unknown> => {

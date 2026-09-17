@@ -13,9 +13,10 @@
  * 与提交侧调用点（`working-tree-commit-conformance.spec.ts`）的形态差别有三处，都是捕获侧的
  * 命题决定的，而且后两处同出一源——清单里那个 `SyncType.QueryCache` 实体：
  *
- * 1. **`entities` 必须注册业务实体。**「捕获是否完备」是关于业务写的命题，空清单一条也断言
- *    不了。清单由套件自己导出（{@link WORKING_TREE_CONFORMANCE_ENTITIES}），六个调用点原样
- *    注册同一份——各写各的实体就等于各测各的语义。
+ * 1. **`entities` 必须注册整份清单。**「捕获是否完备」是关于业务写的命题，少一个实体就少一整
+ *    类断言。清单由套件自己导出（{@link WORKING_TREE_CONFORMANCE_ENTITIES}），六个调用点原样
+ *    注册同一份——各写各的实体就等于各测各的语义。提交侧只取其中的 `ConformanceNote`，而且一次
+ *    都不写它（理由见那边的 fileoverview）。
  * 2. **`remoteAdapter` 必须给。** 那个实体（untracked 域的第一类）让 `missingQueryCacheAdapter`
  *    校验生效，而它读的是**库级** sync 的两侧；少一侧，`EntityManager.init()` 直接拒绝建库。
  *    这个名字下不会有适配器被注册，也不需要：`remoteAdapter$` 是惰性的，`connect()` 与

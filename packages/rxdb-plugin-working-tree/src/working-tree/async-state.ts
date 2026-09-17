@@ -228,8 +228,16 @@ export const trackWorkingTreeQuery = async <T>(
  */
 export const isWorkingTreeStatusEmpty = (status: WorkingTreeStatus): boolean => status.entryCount === 0;
 
-/** `diff()` 的空：这一页没有可展示的改动。 */
-export const isWorkingTreeDiffEmpty = (diff: WorkingTreeDiff): boolean => diff.entries.length === 0;
+/**
+ * `diff()` 的空：这一页没有可展示的改动。
+ *
+ * @remarks
+ * **两个粒度各看各的那一边。** `diff.ts` 按 `granularity` 只填 `entries` 或 `transactions`，
+ * 另一边恒为空数组；只判 `entries` 的话，事务粒度的 diff 永远是空——UI 在一个明明有改动的
+ * 工作树上显示空状态插画，而 `commit()` 那边照常提交出一个非空的提交。
+ */
+export const isWorkingTreeDiffEmpty = (diff: WorkingTreeDiff): boolean =>
+  diff.entries.length === 0 && diff.transactions.length === 0;
 
 /** `listCommits()` 的空：这个分支还没有历史。 */
 export const isCommitLogPageEmpty = (page: CommitLogPage): boolean => page.entries.length === 0;

@@ -46,12 +46,7 @@ const credentialsOf = (scene: WorkingTreeScene, overrides: Partial<CommitOptions
 });
 
 const commitWith = (scene: WorkingTreeScene, overrides: Partial<CommitOptions> = {}): Promise<CommitResult> =>
-  commitWorkingTree(
-    scene.probe.executor,
-    scene.database.entityManager,
-    '提交我看过的东西',
-    credentialsOf(scene, overrides)
-  );
+  commitWorkingTree(scene.probe.executor, scene.context, '提交我看过的东西', credentialsOf(scene, overrides));
 
 /** 取冲突出口。 */
 const expectConflict = (result: CommitResult): CommitConflict => {

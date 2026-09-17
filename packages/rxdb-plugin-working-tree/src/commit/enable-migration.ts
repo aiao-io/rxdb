@@ -32,13 +32,14 @@
  * 本模块只读 `rxdb_branch` / `rxdb_change`，只写 commit 侧的表。
  */
 
-import type { EntityManager, IRepository, TransactionExecutor } from '@aiao/rxdb';
+import type { IRepository, TransactionExecutor } from '@aiao/rxdb';
 import { resolveSingleActiveBranch, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
 // 这三个函数与 `SwitchBranchStep` 自 US-025 阶段 C 起住在 `@aiao/rxdb-plugin-history`：
 // 「父链自不自洽」「这条分支停在哪」必须与 `switchBranch` 同口径，全局只能有一个答案。
 import type { SwitchBranchStep } from '@aiao/rxdb-plugin-history';
 import { find_branch_path_to_root, find_switch_branch_step, get_branch_max_change } from '@aiao/rxdb-plugin-history';
 import { ensureBranchCommitRows } from './branch-commit-rows.js';
+import type { CommitWriteContext } from './commit-context.js';
 import { CommitErrorCode } from './commit-error-codes.js';
 import { writeCommit } from './write-commit.js';
 
@@ -230,7 +231,7 @@ const assertBranchReplayable = async (context: MaterializationContext, branch: R
  * 给每条本地分支补根节点。
  *
  * @param executor - 当前事务执行器
- * @param entityManager - 构造实体行用
+ * @param context - 见 {@link CommitWriteContext}；转手给 {@link writeCommit}
  * @param localBranches - 已经全部通过物化判定的本地分支
  * @param operationId - 见 {@link RunEnableMigrationOptions.operationId}
  * @returns 新建的 baseline 与被跳过的已初始化分支
@@ -250,7 +251,7 @@ const assertBranchReplayable = async (context: MaterializationContext, branch: R
  */
 const writeBaselines = async (
   executor: TransactionExecutor,
-  entityManager: EntityManager,
+  context: CommitWriteContext,
   localBranches: readonly RxDBBranch[],
   operationId: string
 ): Promise<{ baselineCommitIds: Map<string, string>; alreadyInitializedBranchIds: string[] }> => {
@@ -258,12 +259,12 @@ const writeBaselines = async (
   const alreadyInitializedBranchIds: string[] = [];
 
   for (const branch of localBranches) {
-    const ref = await ensureBranchCommitRows(executor, entityManager, branch.id);
+    const ref = await ensureBranchCommitRows(executor, context.entityManager, branch.id);
     if (ref.headCommitId !== null) {
       alreadyInitializedBranchIds.push(branch.id);
       continue;
     }
-    const outcome = await writeCommit(executor, entityManager, {
+    const outcome = await writeCommit(executor, context, {
       branchId: branch.id,
       branchGeneration: ref.generation,
       expectedHeadRevision: ref.headRevision,
@@ -290,7 +291,8 @@ const writeBaselines = async (
  * 启用提交能力后的一次性初始化：给每条本地分支补上根节点（FR-021/049）。
  *
  * @param executor - 调用方**自己那个写事务**的执行器；本函数不开事务，失败由调用方回滚
- * @param entityManager - 构造实体行用
+ * @param context - 见 {@link CommitWriteContext}；基线节点一个变更单元都没有，
+ *   因此 at-rest 断言在这条路径上恒为 no-op——上下文仍要传，判据只此一份
  * @param options - 见 {@link RunEnableMigrationOptions}
  * @returns 见 {@link EnableMigrationResult}
  * @throws {@link BranchNotMaterializableError} 任一本地分支物化不了时——此时一行都没写
@@ -313,10 +315,10 @@ const writeBaselines = async (
  */
 export const runEnableMigration = async (
   executor: TransactionExecutor,
-  entityManager: EntityManager,
+  context: CommitWriteContext,
   options: RunEnableMigrationOptions
 ): Promise<EnableMigrationResult> => {
-  const activeBranch = await resolveSingleActiveBranch(executor, { entityManager });
+  const activeBranch = await resolveSingleActiveBranch(executor, { entityManager: context.entityManager });
   const branches = await readAllBranches(executor);
 
   const localBranches = branches.filter(branch => branch.local);
@@ -326,15 +328,15 @@ export const runEnableMigration = async (
 
   const changeRepository = executor.getRepository(RxDBChange);
   const activeTip = await get_branch_max_change(changeRepository, activeBranch.id);
-  const context: MaterializationContext = {
+  const materialization: MaterializationContext = {
     changeRepository,
     branches,
     activeBranch,
     activeTipChangeId: activeTip ? activeTip.id : null
   };
-  for (const branch of localBranches) await assertBranchReplayable(context, branch);
+  for (const branch of localBranches) await assertBranchReplayable(materialization, branch);
 
-  const written = await writeBaselines(executor, entityManager, localBranches, options.operationId);
+  const written = await writeBaselines(executor, context, localBranches, options.operationId);
   return {
     baselineCommitIds: written.baselineCommitIds,
     skippedBranchIds,

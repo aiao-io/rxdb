@@ -28,9 +28,10 @@
  * 判定全压在那一列上。
  */
 
-import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import type { TransactionExecutor } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../commit/change-unit.js';
 import type { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
+import type { CommitWriteContext } from '../commit/commit-context.js';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
 import { writeCommit, type WriteCommitOutcome } from '../commit/write-commit.js';
@@ -205,7 +206,7 @@ const finishCommit = async (executor: TransactionExecutor, input: FinishCommitIn
  * 提交当前分支工作树里的全部未提交单元（FR-041）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
- * @param entityManager - 造 commit 行用的实体管理器
+ * @param context - 见 {@link CommitWriteContext}：造 commit 行的实体管理器与 at-rest 判定上下文
  * @param message - 用户消息；落库前 trim，空消息由 `writeCommit()` 拒绝
  * @param options - 见 {@link CommitOptions}；三个捕获位全部必填
  * @returns 见 {@link CommitResult}
@@ -231,7 +232,7 @@ const finishCommit = async (executor: TransactionExecutor, input: FinishCommitIn
  */
 export const commitWorkingTree = async (
   executor: TransactionExecutor,
-  entityManager: EntityManager,
+  context: CommitWriteContext,
   message: string,
   options: CommitOptions
 ): Promise<CommitResult> => {
@@ -248,7 +249,7 @@ export const commitWorkingTree = async (
   if (conflict) return { ok: false, conflict };
 
   const entries = await readBranchEntries(executor, token.branchId);
-  const outcome = await writeCommit(executor, entityManager, {
+  const outcome = await writeCommit(executor, context, {
     branchId: token.branchId,
     branchGeneration: ref.generation,
     expectedHeadRevision: options.expectedHeadRevision,

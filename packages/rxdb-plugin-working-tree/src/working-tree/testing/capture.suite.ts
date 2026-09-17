@@ -32,6 +32,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type {
   EntityType,
   IRxDBAdapter,
+  IRxDBChange,
   RxDB,
   RxDBAdapterLocalBase,
   SwitchVersionActions,
@@ -42,6 +43,7 @@ import {
   declareTrustedWrite,
   gateRawWrite,
   getEntityMetadata,
+  getRxDBChangeKey,
   isSystemEntity,
   RxDBBranch,
   RxDBChange,
@@ -464,10 +466,18 @@ const noteFields = (title: string, body: string | null): Record<string, unknown>
   return { title, body, createdAt: now, updatedAt: now, createdBy: null, updatedBy: null };
 };
 
-/** `SwitchVersionActions` 的键格式：`${namespace}:${entity}:${entityId}`。 */
+/**
+ * `SwitchVersionActions` 的键
+ *
+ * @remarks
+ * 必须走 {@link getRxDBChangeKey} 而不是手拼 `${namespace}:${entity}:${entityId}`：真正的键第三段是
+ * `rxid1:<hex>` 身份键（自带冒号），生产侧三个造 actions 的地方都是它拼的。手写裸 id 的键会让
+ * 「按冒号切第三片」这种解析**恰好答对**，于是六个后端全绿、真跑起来捕获到的 `entityId` 却是
+ * 字面量 `'rxid1'`——套件的键形态与生产分叉时，被掩盖的正是它要证的那条命题。
+ */
 const actionKeyOf = (EntityClass: EntityType, entityId: string): string => {
   const metadata = getEntityMetadata(EntityClass);
-  return `${metadata.namespace}:${metadata.name}:${entityId}`;
+  return getRxDBChangeKey({ namespace: metadata.namespace, entity: metadata.name, entityId } as IRxDBChange);
 };
 
 /** 三个桶都空的 actions；三个具体构造器各自往里放一条。 */

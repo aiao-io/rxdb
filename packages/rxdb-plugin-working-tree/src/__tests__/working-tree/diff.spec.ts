@@ -208,6 +208,20 @@ describe('按实体名过滤与分页', () => {
     expect(second.nextCursor).toBeNull();
   });
 
+  it('limit: 0 给一页空的，而不是崩在游标上', async () => {
+    // 游标按定义是「本页最后一行的 id」。`limit: 0` 时本页一行都没有，取
+    // `page[page.length - 1].id` 就是在 `undefined` 上读属性——一次 TypeError，
+    // 而它离真正的病因（调用方把一个算出来的 0 当 limit 传了进来）隔着整条调用栈。
+    const scene = createWorkingTreeScene();
+    scene.addEntry();
+    scene.addEntry();
+
+    const result = await diffOf(scene, { limit: 0 });
+
+    // 也不给兜底游标：兜底出来的游标只会让调用方带着它翻回同一页，一页一页地翻不动。
+    expect({ count: result.entries.length, nextCursor: result.nextCursor }).toEqual({ count: 0, nextCursor: null });
+  });
+
   it('没有 limit 时一次给全，游标为 null', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry();

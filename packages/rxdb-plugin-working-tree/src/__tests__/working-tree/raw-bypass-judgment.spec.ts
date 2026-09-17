@@ -225,6 +225,31 @@ describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', 
     expect(judgeRawWrite("UPDATE post SET remote_id = 'r1'", context({ domain: narrowed })).kind).toBe('reject');
   });
 
+  it('SET 子句里的子查询不截断列集', () => {
+    // 这是词法切分写松时唯一不报错的形态：终止关键字若按正则「第一个 from/where」找，
+    // 子查询里的 `from` 就会把 SET 子句提前截断，`title` 整列从列集里消失，于是一条
+    // 真在改 tracked 列的语句拿到 `untracked_only` 放行——**静默绕过捕获**。
+    expect(
+      rejectionFor("UPDATE post SET remote_id = (SELECT id FROM post_archive WHERE k = 1), title = 'x'").step
+    ).toBe(4);
+  });
+
+  it('子查询之后的列仍在列集里：全是 untracked 列时照常放行', () => {
+    // 反向对照。少了它，把 `columnsOf` 改成「一见子查询就 fail-closed」也能让上一条绿，
+    // 而那会把一批本该放行的写全拦下来。
+    expect(
+      allowanceFor('UPDATE post SET remote_id = (SELECT id FROM post_archive WHERE k = 1), synced_at = 1').reason
+    ).toBe('untracked_only');
+  });
+
+  it('顶层的 FROM 仍然终止 SET 子句（PG 的 `UPDATE … FROM`）', () => {
+    // 与上一条相反的方向：终止关键字不能干脆不找。不终止的话，`FROM` 列表里那个顶层逗号
+    // 会被当成又一段赋值，切出来的第二段匹配不上赋值形态 → 列集解析不出 → 第 4 步拦下。
+    expect(allowanceFor('UPDATE post SET remote_id = o.id FROM other o, another a WHERE o.k = a.k').reason).toBe(
+      'untracked_only'
+    );
+  });
+
   it('untracked 字段域按表取：`post` 上登记的派生索引列不豁免 `comment`', () => {
     // 判定必须拿**被写的那张表**去问域。用任意一张表去问（或先并成一个集合）都会让登记在别处的
     // 列名在这里获得豁免——而豁免列表是插件可以往里加东西的。

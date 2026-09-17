@@ -174,8 +174,21 @@ const TABLE_PATTERNS: readonly RegExp[] = [
   /\bcreate\s+(?:temp\s+|temporary\s+|unique\s+|virtual\s+)*(?:table|view|index)\s+(?:if\s+not\s+exists\s+)?([a-z0-9_.$]+)/g
 ];
 
-/** `SET` 子句：到 `WHERE` / `RETURNING` / `FROM`（PG 的 `UPDATE … FROM`）或语句末为止。 */
-const SET_CLAUSE_PATTERN = /\bset\b([\s\S]*?)(?:\bwhere\b|\breturning\b|\bfrom\b|$)/;
+/** `SET` 关键字本身；子句正文从它后面开始，由 {@link setClauseOf} 往后扫。 */
+const SET_KEYWORD_PATTERN = /\bset\b/;
+
+/**
+ * 终止 `SET` 子句的关键字
+ *
+ * @remarks
+ * `from` 在册是因为 PG 的 `UPDATE … SET … FROM other …`。三个词都**只在括号深度 0 上**终止：
+ * 它们在子查询里出现是家常便饭（`SET a = (SELECT x FROM y WHERE …)`），按深度无关的正则找
+ * 第一个就会把子句提前截断——见 {@link setClauseOf}。
+ */
+const SET_CLAUSE_TERMINATORS: ReadonlySet<string> = new Set(['where', 'returning', 'from']);
+
+/** 归一化文本里的标识符字符；与 {@link WORD_PATTERN} 同口径，用来找词边界。 */
+const WORD_CHARACTER = /[a-z0-9_$.]/;
 
 /** `SET` 子句里的单列赋值。 */
 const ASSIGNMENT_PATTERN = /^\s*([a-z0-9_.$]+)\s*=/;
@@ -253,6 +266,47 @@ function operationOf(words: readonly string[]): WriteOperation | 'schema_change'
 }
 
 /**
+ * 取出 `SET` 子句正文：从 `SET` 之后到**深度 0 的**终止关键字为止
+ *
+ * @param statement - 归一化后的语句
+ * @returns 子句正文，语句里没有 `SET` 时 `undefined`
+ *
+ * @remarks
+ * 终止关键字必须按括号深度找，不能用正则的「第一个 `from`/`where`/`returning`」。
+ * `UPDATE post SET a = (SELECT x FROM y), b = 'v'` 里那个 `from` 在子查询内部，按正则找会把
+ * 子句截到 `a = (select x ` 就停，**`b` 整列从被写列集里消失**——于是第 5 步拿一个残缺的列集去
+ * 问 untracked 域，一条真在改 tracked 列的语句被判成「只碰 untracked 列」而放行。这类漏判不报错、
+ * 不留痕，是五步门禁里最难在事后发现的一种。
+ *
+ * 深度跟踪在归一化文本上是安全的：{@link normalizeSql} 已经剥掉注释、并把字符串字面量整体换成
+ * 不含括号的 {@link LITERAL_PLACEHOLDER}，所以此时的每一个括号都是真语法括号。
+ *
+ * 深度**转负**同样终止：`WITH moved AS (UPDATE post SET title = _lit_ )` 这种把写语句包在括号里的
+ * 写法，那个 `)` 就是子句的右边界，越过它继续扫会把外层语句的词元读进列集。
+ */
+function setClauseOf(statement: string): string | undefined {
+  const keyword = SET_KEYWORD_PATTERN.exec(statement);
+  if (keyword === null) return undefined;
+  const body = statement.slice(keyword.index + keyword[0].length);
+  let depth = 0;
+  let wordStart = -1;
+  // 多扫一位（`body.length`）好让结尾处的词元也走一次边界判定，免得为它再写一段收尾分支。
+  for (let index = 0; index <= body.length; index += 1) {
+    const character = body[index] ?? ' ';
+    if (WORD_CHARACTER.test(character)) {
+      if (wordStart < 0) wordStart = index;
+      continue;
+    }
+    if (depth === 0 && wordStart >= 0 && SET_CLAUSE_TERMINATORS.has(body.slice(wordStart, index)))
+      return body.slice(0, wordStart);
+    wordStart = -1;
+    if (character === '(') depth += 1;
+    else if (character === ')' && --depth < 0) return body.slice(0, index);
+  }
+  return body;
+}
+
+/**
  * 按括号深度切开顶层逗号
  *
  * @param clause - `SET` 子句正文
@@ -289,7 +343,7 @@ function splitTopLevel(clause: string): readonly string[] {
  * 也不解析。两者都会被上游按「不是 untracked 子集」处理。
  */
 function columnsOf(statement: string): WriteColumns {
-  const clause = SET_CLAUSE_PATTERN.exec(statement)?.[1];
+  const clause = setClauseOf(statement);
   if (clause === undefined) return { kind: 'unknown' };
   if (clause.trimStart().startsWith('(')) return { kind: 'unknown' };
   const names: string[] = [];

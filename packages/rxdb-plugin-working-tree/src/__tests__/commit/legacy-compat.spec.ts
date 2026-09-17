@@ -65,12 +65,14 @@ import {
 } from '../../commit/commit-capability-state.entity.js';
 import { enableCommitCapability } from '../../commit/commit-capability.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../commit/commit-context.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
+import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
 const CALLER_OPERATION_ID = '00000000-0000-4000-8000-0000000000d0';
 
@@ -161,6 +163,8 @@ function createWriteInput(overrides: Partial<WriteCommitInput> = {}): WriteCommi
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly entityManager: EntityManager;
+  /** `writeCommit()` 要的写上下文；本文件一条加密列都不碰，理由见夹具的 fileoverview */
+  readonly context: CommitWriteContext;
 }
 
 /** 造一个「CAS 必然命中」的场景——这样写入必然发生，才谈得上「写入没碰到 change 表」。 */
@@ -190,7 +194,7 @@ function createScene(): Scene {
   capability.enabledAt = null;
   probe.seed(CommitCapabilityState, [capability]);
 
-  return { probe, entityManager };
+  return { probe, entityManager, context: plainCommitWriteContext(entityManager) };
 }
 
 describe('RxDBChange 的形状不因 commit 能力而改（FR-018）', () => {
@@ -246,7 +250,7 @@ describe('commit 不写 RxDBChange（FR-018）', () => {
   it('一次成功的 commit 之后，change 表一行没多', async () => {
     const scene = createScene();
 
-    const outcome = await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput());
+    const outcome = await writeCommit(scene.probe.executor, scene.context, createWriteInput());
 
     expect(outcome.status).toBe('committed');
     // 复用 change 表存 commit 的那天，`compactChanges` / `cleanupExpired`
@@ -258,7 +262,7 @@ describe('commit 不写 RxDBChange（FR-018）', () => {
   it('commit 落的是自己的表——反向对照，证明上一条不是空跑', async () => {
     const scene = createScene();
 
-    await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput());
+    await writeCommit(scene.probe.executor, scene.context, createWriteInput());
 
     expect(scene.probe.rowsOf(Commit)).toHaveLength(1);
     expect(scene.probe.rowsOf(CommitChangeSet)).toHaveLength(1);
@@ -267,7 +271,7 @@ describe('commit 不写 RxDBChange（FR-018）', () => {
   it('发出的原始语句里没有 rxdb_change', async () => {
     const scene = createScene();
 
-    await writeCommit(scene.probe.executor, scene.entityManager, createWriteInput());
+    await writeCommit(scene.probe.executor, scene.context, createWriteInput());
 
     // ORM 之外还有一条路：直接发 SQL 去 change 表上打标记。
     for (const sql of scene.probe.statements) {

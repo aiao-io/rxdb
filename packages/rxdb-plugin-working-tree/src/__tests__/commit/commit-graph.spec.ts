@@ -45,9 +45,11 @@ import { getCommitDetail, listCommits } from '../../commit/list-commits.js';
 import type { BuildCommitRowsInput } from '../../commit/write-commit.js';
 import { buildCommitRows } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
+import { encodeWorkingTreePatch } from '../../working-tree/working-tree-patch-codec.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import type { CommitGraphProbe } from './fixtures/commit-graph-probe.js';
 import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
+import { codecWith } from './fixtures/encrypted-entities.js';
 
 /** 只为拿一个真的 {@link EntityManager}——commit 行要靠它 `instantiate()` 出来。 */
 function createEntityManager(): EntityManager {
@@ -631,7 +633,7 @@ describe('提交图（FR-002/003/027）', () => {
   });
 
   describe('getCommitDetail（FR-012）', () => {
-    it('changeSets 在 JS 侧按 sequence 升序，不依赖后端的返回顺序', async () => {
+    it('变更单元在 JS 侧按 sequence 升序，不依赖后端的返回顺序', async () => {
       const entityManager = createEntityManager();
       const probe = createCommitGraphProbe();
       seedGraph(probe, entityManager, [['c1', []]], 'c1');
@@ -642,11 +644,13 @@ describe('提交图（FR-002/003/027）', () => {
         changeSetOf(entityManager, 'c1', 'Ingredient', 1)
       ]);
 
-      const detail = await getCommitDetail(probe.executor, 'c1');
+      const detail = await getCommitDetail(probe.executor, codecWith(), 'c1');
 
       // 顺序错了就是把「先删后建」重放成「先建后删」——重放完的数据看起来完整，只是内容是错的。
-      expect(detail.changeSets.map(row => row.sequence)).toEqual([0, 1, 2]);
-      expect(detail.changeSets.map(row => row.entity)).toEqual(['Note', 'Ingredient', 'Recipe']);
+      // `sequence` 本身不进 units（它是落库行的列，不是变更单元的内容），顺序就是它的全部语义，
+      // 所以这里按 `unitId` 与 `entity` 两路各钉一遍。
+      expect(detail.units.map(unit => unit.unitId)).toEqual(['c1-unit-0', 'c1-unit-1', 'c1-unit-2']);
+      expect(detail.units.map(unit => unit.entity)).toEqual(['Note', 'Ingredient', 'Recipe']);
     });
 
     it('只带回本 commit 的变更集与它自己的父关系', async () => {
@@ -666,12 +670,44 @@ describe('提交图（FR-002/003/027）', () => {
         changeSetOf(entityManager, 'c2', 'Recipe')
       ]);
 
-      const detail = await getCommitDetail(probe.executor, 'c2');
+      const detail = await getCommitDetail(probe.executor, codecWith(), 'c2');
 
       expect(detail.commit.id).toBe('c2');
-      expect(detail.changeSets.map(row => row.id)).toEqual(['c2-cs-0']);
+      expect(detail.units.map(unit => unit.unitId)).toEqual(['c2-unit-0']);
       // `parentIds` 转自 commit 行本身，不是另查一遍关系表 —— 两处各读各的迟早会分叉。
       expect(detail.parentIds).toEqual(['c1']);
+    });
+
+    it('patch 经 codec 解码后才交出去 —— bigint 不会退化成十进制串', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(probe, entityManager, [['c1', []]], 'c1');
+      const codec = codecWith();
+      // 落库态是 codec 编出来的那份，不是手写的字面量：手写一份就等于第二份编码口径。
+      const target = { namespace: 'app', entity: 'Plain' };
+      const row = changeSetOf(entityManager, 'c1', 'Plain');
+      row.patch = encodeWorkingTreePatch(codec, target, { amount: 9007199254740993n });
+      row.inversePatch = encodeWorkingTreePatch(codec, target, { amount: 1n });
+      probe.seed(CommitChangeSet, [row]);
+
+      const detail = await getCommitDetail(probe.executor, codec, 'c1');
+
+      // 原样交出编码态的话，调用方要么自己再写一份解码器（第二份真相），要么把
+      // `{$rxdbChangeValue:…}` 当成业务字段展示出去。两种都不会报错。
+      expect(detail.units[0]?.patch).toEqual({ amount: 9007199254740993n });
+      expect(detail.units[0]?.inversePatch).toEqual({ amount: 1n });
+    });
+
+    it('目标实体没在本进程注册时原样返回，不猜着解', async () => {
+      const entityManager = createEntityManager();
+      const probe = createCommitGraphProbe();
+      seedGraph(probe, entityManager, [['c1', []]], 'c1');
+      probe.seed(CommitChangeSet, [changeSetOf(entityManager, 'c1', 'Note')]);
+
+      const detail = await getCommitDetail(probe.executor, codecWith(), 'c1');
+
+      // 另一个 Tab / 另一个宿主可能只注册了部分实体；猜着解只会把值改坏。
+      expect(detail.units[0]?.patch).toEqual({ title: 'after' });
     });
 
     it('commit 不存在时抛错并把 id 写进消息，不降级成空详情', async () => {
@@ -679,9 +715,11 @@ describe('提交图（FR-002/003/027）', () => {
       const probe = createCommitGraphProbe();
       seedGraph(probe, entityManager, [['c1', []]], 'c1');
 
-      // 返回一个 changeSets 为空的壳会让「这次提交什么都没改」与「这个 id 根本不存在」
+      // 返回一个 units 为空的壳会让「这次提交什么都没改」与「这个 id 根本不存在」
       // 在调用方眼里一模一样，而后者意味着调用方手里的 id 来路不明。
-      await expect(getCommitDetail(probe.executor, 'missing')).rejects.toThrow("Commit 'missing' does not exist.");
+      await expect(getCommitDetail(probe.executor, codecWith(), 'missing')).rejects.toThrow(
+        "Commit 'missing' does not exist."
+      );
     });
   });
 });

@@ -2,9 +2,14 @@
  * @fileoverview 捕获侧一致性套件自带的业务实体。
  *
  * @remarks
- * 提交侧套件用 `entities: []` 就够了——它只碰系统表。捕获侧不行：「捕获是否完备」是关于
- * **业务写**的命题，没有业务实体就一条也断言不了。于是实体由套件自己给出，并经
- * `@aiao/rxdb-plugin-working-tree/testing` 导出，6 个调用点原样注册同一份清单。
+ * 「捕获是否完备」是关于**业务写**的命题，没有业务实体就一条也断言不了。于是实体由套件
+ * 自己给出，并经 `@aiao/rxdb-plugin-working-tree/testing` 导出，6 个调用点原样注册同一份清单。
+ *
+ * **提交侧只注册 {@link ConformanceNote} 一个，而且一次都不写它。** 它在那边纯粹是一份
+ * 「解析得出来的目标元数据」：`writeCommit` 的 FR-038 断言要拿变更单元的 `namespace` /
+ * `entity` 去 `schemaManager` 查哪几列是加密列，查不到就 fail-closed 地抛
+ * （`commit/commit-codec.ts`）。{@link ConformanceCache} 不去那边，因为它会连带拖上三个插件
+ * 与一个远端适配器名，而提交侧一条断言都用不到它。
  *
  * **实体定义不放进 `capture.suite.ts`**：那个文件顶层 `import 'vitest'`，而调用点要在
  * `RxDB` 配置里引用这两个类。同一个模块既是测试注册器又是实体来源，调用点就得先把

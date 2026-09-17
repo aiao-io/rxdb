@@ -58,7 +58,7 @@ const commitOnce = (
   message: string,
   overrides: Partial<CommitOptions> = {}
 ): Promise<CommitResult> =>
-  commitWorkingTree(scene.probe.executor, scene.database.entityManager, message, credentialsOf(scene, overrides));
+  commitWorkingTree(scene.probe.executor, scene.context, message, credentialsOf(scene, overrides));
 
 /** 取成功出口，拿到别的就直接炸。 */
 const expectOk = (result: CommitResult): Extract<CommitResult, { ok: true }> => {

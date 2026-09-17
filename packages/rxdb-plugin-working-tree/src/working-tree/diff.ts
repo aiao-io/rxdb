@@ -183,6 +183,10 @@ const readEntryPage = async (
   });
   if (limit === undefined || rows.length <= limit) return { rows, nextCursor: null };
   const page = rows.slice(0, limit);
+  // `limit: 0` 落在这里：多读的那一行证明「还有」，可本页一行都没有。游标按定义是「本页最后
+  // 一行的 id」，没有行就没有游标——这里提前返回而不是塞一个兜底 id，兜底出来的游标只会让
+  // 调用方带着它翻回同一页，一页一页地翻不动。
+  if (page.length === 0) return { rows: page, nextCursor: null };
   return { rows: page, nextCursor: page[page.length - 1].id };
 };
 

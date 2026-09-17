@@ -12,7 +12,16 @@
  * （`working-tree/testing/commit.suite.ts`，T085）负责。
  */
 
-import { RxDB, RXDB_CHANGE_CODEC_VERSION, RxDBBranch, SyncType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  PropertyType,
+  RxDB,
+  RXDB_CHANGE_CODEC_VERSION,
+  RxDBBranch,
+  SyncType
+} from '@aiao/rxdb';
 import type { CommitChangeUnit } from '../../../commit/change-unit.js';
 import { computeChangeUnitFingerprint } from '../../../commit/change-unit.js';
 import { CommitBranchRef } from '../../../commit/commit-branch-ref.entity.js';
@@ -23,6 +32,8 @@ import {
   CommitCapabilityState
 } from '../../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../../commit/commit-context.js';
+import { createCommitWriteContext } from '../../../commit/commit-context.js';
 import { Commit } from '../../../commit/commit.entity.js';
 import { buildCommitRows } from '../../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../../plugin.js';
@@ -39,6 +50,35 @@ import { createMockAdapter, type MockLocalAdapter } from '../../fixtures/test-db
 
 /** 本文件造出来的分支 id；九个用例文件都拿它当「当前分支」。 */
 export const SCENE_BRANCH_ID = 'main';
+
+/**
+ * 场景里那些条目/单元指向的业务实体。
+ *
+ * @remarks
+ * **必须真注册进库**，不是为了往它里面写东西——九个用例文件一次 `save()` 都不调。理由是
+ * FR-038：`commitWorkingTree()` 在算 `contentFingerprint` 之前会拿每个变更单元的
+ * `namespace` / `entity` 去 `schemaManager` 解析目标元数据（要知道哪几列是加密列），
+ * 解析不到就 fail-closed 地抛（`commit/commit-codec.ts`）。于是种子条目的身份不能是
+ * 一对手写字面量，只能取自一个真存在的实体——{@link entrySeedDefaults} 与
+ * {@link commitUnitOf} 都从它的元数据上现取。
+ *
+ * 命名空间刻意不用默认的 `public`：种子数据从一开始就写作 `app.Note`，而「同名不同
+ * namespace 不是同一个实体」正是 `versioned-domain.ts` 复合键那条不变量的题面，
+ * 场景里留一个非默认 namespace 能让它顺带被走到。
+ */
+@Entity({
+  name: 'Note',
+  namespace: 'app',
+  tableName: 'scene_notes',
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+export class SceneNote extends EntityBase {
+  /** 种子 patch 唯一碰的那一列 */
+  title!: string;
+}
+
+/** {@link SceneNote} 的元数据；种子条目的 `namespace` / `entity` 只从这里取。 */
+const SCENE_NOTE = getEntityMetadata(SceneNote);
 
 /** {@link createWorkingTreeScene} 的可调项；没列出来的字段没人拨过。 */
 export interface WorkingTreeSceneOptions {
@@ -81,6 +121,8 @@ export interface WorkingTreeScene {
   readonly manager: WorkingTreeManager;
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly branchId: string;
+  /** `commitWorkingTree()` 要的写上下文；与门面里那份同源（`createCommitWriteContext`） */
+  readonly context: CommitWriteContext;
   /** 直接往探针里再塞条目；返回塞进去的那一行 */
   readonly addEntry: (seed?: Partial<WorkingTreeEntrySeed>) => WorkingTreeEntry;
   /** 直接往探针里塞一条恢复会话行；`status()` 的 `restoring` / `conflicted` 只认它 */
@@ -101,8 +143,8 @@ const entrySeedDefaults = (index: number): WorkingTreeEntrySeed => ({
   branchId: SCENE_BRANCH_ID,
   unitId: `unit-${index}`,
   transactionId: null,
-  namespace: 'app',
-  entity: 'Note',
+  namespace: SCENE_NOTE.namespace,
+  entity: SCENE_NOTE.name,
   entityId: `note-${index}`,
   operation: 'update',
   patch: { title: `改后-${index}` },
@@ -121,7 +163,7 @@ const entrySeedDefaults = (index: number): WorkingTreeEntrySeed => ({
 export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): WorkingTreeScene {
   const database = new RxDB({
     dbName: `rxdb-working-tree-scene-${Math.random().toString(36).slice(2)}`,
-    entities: [],
+    entities: [SceneNote],
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   const adapter = createMockAdapter(database);
@@ -223,6 +265,7 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
     manager: database.workingTree,
     probe,
     branchId: SCENE_BRANCH_ID,
+    context: createCommitWriteContext(adapter),
     addEntry,
     addRestoreSession
   };
@@ -233,8 +276,8 @@ const commitUnitOf = (unitId: string): CommitChangeUnit => {
   const base: Omit<CommitChangeUnit, 'fingerprint'> = {
     unitId,
     transactionId: null,
-    namespace: 'app',
-    entity: 'Note',
+    namespace: SCENE_NOTE.namespace,
+    entity: SCENE_NOTE.name,
     entityId: `note-${unitId}`,
     operation: 'update',
     patch: { title: '改后' },

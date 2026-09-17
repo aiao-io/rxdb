@@ -4,10 +4,10 @@
  * @remarks
  * 本文件盯的是 `SchemaManager` 那份**登记簿**：谁进 `config.entities`、进几次、撞名时怎么拒。
  * 其中「系统表」这一档已不再是一份静态清单——核心只自带四张，其余由插件经
- * {@link registerSystemEntities} 追加。所以这里挂一个**假贡献方**（见 {@link probeContribution}），
- * 让「登记簿是活视图」这件事在本文件里有一条非平凡的证据：没有它，
- * `expect(config.entities).toEqual([...SYSTEM_ENTITIES])` 就是拿同一个数组和自己比，
- * 贡献接线整条断掉也照样绿。
+ * {@link registerSystemEntities} 追加、并记在**贡献方自己那个实例**上。所以这里挂一个
+ * **假贡献方**（见 {@link probeContribution}），让「贡献确实接上了注入这一侧」在本文件里
+ * 有一条非平凡的证据：没有它，`expect(config.entities).toEqual([...database.systemEntities])`
+ * 就是拿同一份核心清单和自己比，贡献接线整条断掉也照样绿。
  *
  * 假的而不是真的，是因为核心**认不得**插件的类：epic-006 那十张表在 `@aiao/rxdb-plugin-working-tree`
  * 里，它们各自长什么样由那个包自己的
@@ -35,7 +35,6 @@ import { RxDB } from '../../RxDB.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { capabilityWatermarkName } from '../../system/capability-watermark.js';
 import { RxDBMigration } from '../../system/migration.js';
-import { SYSTEM_ENTITIES } from '../../system/system-entities.js';
 
 interface CreateTablesCall {
   entityTypes: EntityType[];
@@ -225,8 +224,8 @@ const createDatabase = (entities: EntityType[], migrations?: MigrationType[]): R
   });
   database.adapter('schema-manager-registration', () => new TestLocalAdapter());
   // 必须在 `init()` 之前——贡献了系统能力的插件晚于 `init()` 才 `use()` 会被宿主当场拒绝。
-  // 全文件统一挂：登记簿是**模块级、只增不减**的，挂一半会让「哪些用例看得见这张表」
-  // 取决于用例执行顺序。
+  // 全文件统一挂：建表清单按实例算，漏挂一个库，那个库就少一张表，而本文件多处断言拿
+  // `database.systemEntities` 当基准，读起来会像是断言本身在漂。
   database.use(probePlugin);
   databases.add(database);
   return database;
@@ -259,12 +258,14 @@ describe('SchemaManager 建表与实体注册冲突检测', () => {
 
     await expect(database.connect(adapter.name)).resolves.toBe(adapter);
 
-    // 断言「注入的就是 SYSTEM_ENTITIES 这一份清单」，不再手抄类名：手抄的那份每加一张
-    // 系统表就得改一次，改漏了断言仍然为真，等于没有门禁。
-    expect(database.config.entities).toEqual([...SYSTEM_ENTITIES]);
-    // 上一条是拿登记簿和它自己比，贡献接线整条断掉也会绿。补这一条把它钉成非平凡的：
-    // 探针那张表进得了 `config.entities`，靠的是 `use()` → `registerSystemEntities()` →
-    // `SchemaManager.init()` 读活视图这一整条链，断在任一环这里都会红。
+    // 断言「注入的就是本实例那一份清单」，不再手抄类名：手抄的那份每加一张系统表就得改
+    // 一次，改漏了断言仍然为真，等于没有门禁。基准是 `database.systemEntities`
+    // （核心四张 + 本实例的贡献）而不是模块级的 `SYSTEM_ENTITIES`：后者只增不减，
+    // 同进程别的库 use() 过的贡献也在里面，拿它当基准等于把跨实例污染写进断言。
+    expect(database.config.entities).toEqual([...database.systemEntities]);
+    // 上一条是拿清单和它自己比，贡献接线整条断掉也会绿。补这一条把它钉成非平凡的：
+    // 探针那张表进得了 `config.entities`，靠的是 `use()` → 实例级清单 →
+    // `SchemaManager.init()` 这一整条链，断在任一环这里都会红。
     expect(database.config.entities).toContain(SchemaRegistrationProbeState);
     expect(adapter.createTablesCalls).toHaveLength(1);
     expect(adapter.createTablesCalls[0].entityTypes).toEqual(database.config.entities);

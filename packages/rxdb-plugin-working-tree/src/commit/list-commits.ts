@@ -21,8 +21,11 @@
 
 import type { TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
+import type { WorkingTreePatchCodecContext } from '../working-tree/working-tree-patch-codec.js';
+import type { CommitChangeUnitContent } from './change-unit.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import { CommitChangeSet } from './commit-change-set.entity.js';
+import { decodeCommitChangeSetUnits } from './commit-codec.js';
 import { Commit } from './commit.entity.js';
 
 /** {@link listCommits} 的入参。 */
@@ -51,8 +54,18 @@ export interface CommitDetail {
   /** 父节点关系，顺序即 `parentIds` 的顺序（第一个是第一父） */
   readonly parentIds: readonly string[];
 
-  /** 该 commit 的全部变更详情，按 `sequence` 升序 */
-  readonly changeSets: readonly CommitChangeSet[];
+  /**
+   * 该 commit 的全部变更详情，按 `sequence` 升序、**已过 codec 解码**
+   *
+   * @remarks
+   * 交的是变更单元内容而不是落库行：行里的 `patch` 是编码态（bigint / binary 被包成
+   * `{$rxdbChangeValue:…}`），原样交出去只有两种下场——调用方自己再写一份解码器，
+   * 或者把内部包装当成业务字段展示出去。两种都不报错。
+   *
+   * `sequence` 不在这里：它是落库行的列，不是变更单元的内容，而顺序本身已经由数组序承载。
+   * 守卫侧（`commit-graph-guard.ts`）继续按**落库态**重算指纹，不跟着换成解码态。
+   */
+  readonly units: readonly CommitChangeUnitContent[];
 }
 
 /**
@@ -232,15 +245,21 @@ export const listCommits = async (executor: TransactionExecutor, options: ListCo
  * 读单个 commit 的变更详情与父节点关系。
  *
  * @param executor - 当前事务执行器
+ * @param codec - 解码用的元数据解析上下文；不需要 at-rest 判定器（本函数不判、也不解密）
  * @param commitId - 要读的 commit id
  * @returns 见 {@link CommitDetail}
  * @throws {@link RxDBError} 该 commit 不存在时
  *
  * @remarks
- * `changeSets` 在 JS 侧按 `sequence` 排，不依赖后端的默认返回顺序：重放要按序进行，
- * 顺序错了就是把「先删后建」重放成「先建后删」。
+ * 排序在 JS 侧按 `sequence` 做，不依赖后端的默认返回顺序：重放要按序进行，
+ * 顺序错了就是把「先删后建」重放成「先建后删」。**排序排在解码之前**——
+ * `decodeCommitChangeSetUnits` 明确不重排（两处都排会在一处改了 ORDER BY 时静默分叉）。
  */
-export const getCommitDetail = async (executor: TransactionExecutor, commitId: string): Promise<CommitDetail> => {
+export const getCommitDetail = async (
+  executor: TransactionExecutor,
+  codec: WorkingTreePatchCodecContext,
+  commitId: string
+): Promise<CommitDetail> => {
   const rows = await executor.getRepository(Commit).find({
     where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: commitId }] },
     limit: 1
@@ -251,9 +270,6 @@ export const getCommitDetail = async (executor: TransactionExecutor, commitId: s
   const changeSets = await executor.getRepository(CommitChangeSet).find({
     where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: commitId }] }
   });
-  return {
-    commit,
-    parentIds: commit.parentIds,
-    changeSets: [...changeSets].sort((left, right) => left.sequence - right.sequence)
-  };
+  const sorted = [...changeSets].sort((left, right) => left.sequence - right.sequence);
+  return { commit, parentIds: commit.parentIds, units: decodeCommitChangeSetUnits(codec, sorted) };
 };
