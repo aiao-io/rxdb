@@ -87,7 +87,7 @@ const restoreOnce = (
   target: WorkingTreeRestoreTarget = { commitId: OLDER },
   overrides: Partial<WorkingTreeRestoreOptions> = {}
 ): Promise<WorkingTreeRestoreResult> =>
-  restoreWorkingTree(scene.probe.executor, target, credentialsOf(scene, overrides));
+  restoreWorkingTree(scene.probe.executor, scene.context, target, credentialsOf(scene, overrides));
 
 /** 取成功出口，拿到别的就直接炸，免得后续断言在 undefined 上继续。 */
 const expectOk = (result: WorkingTreeRestoreResult): Extract<WorkingTreeRestoreResult, { ok: true }> => {
@@ -182,7 +182,7 @@ describe('会话是一行库表，不是一个内存字段（data-model.md §2.8
     });
   });
 
-  it('会话捕获的是恢复前的两个 revision', async () => {
+  it('会话捕获的是这次恢复落盘之后的两个 revision', async () => {
     const scene = sceneWithHistory();
     const before = {
       head: refRowOf(scene).headRevision,
@@ -192,9 +192,17 @@ describe('会话是一行库表，不是一个内存字段（data-model.md §2.8
     await restoreOnce(scene);
     const [session] = sessionRowsOf(scene);
 
-    // 捕获成恢复**后**的值的话，`status()` 里 `intact` 的比较永远成立，
-    // conflicted 这一位于是恒为 false——而它是 conflicted 的唯一来源。
-    expect({ head: session.expectedHeadRevision, workingTree: session.expectedWorkingTreeRevision }).toEqual(before);
+    // 捕获的是「本次恢复完成的那一刻」，不是「恢复开始前」：`status.ts` › `readRestoreBits`
+    // 拿这两个数与**当前值**比，相等即 restoring、不等即 conflicted。恢复自己把
+    // `workingTreeRevision` 推了一格，捕获恢复前的值等于让会话一出生就与当前值不等——
+    // 那与 T102 里「另一个 Tab 写了一次」的场景逐字节相同，于是 conflicted 恒为 true。
+    //
+    // 这不是「捕获什么都行」：值仍然是逐个钉死的，head 不动、workingTree 恰好 +1。
+    // 相等只维持到下一个 writer 推进 revision 为止，而那正是 conflicted 要抓的那一刻。
+    expect({ head: session.expectedHeadRevision, workingTree: session.expectedWorkingTreeRevision }).toEqual({
+      ...before,
+      workingTree: before.workingTree + 1
+    });
   });
 
   it('恢复之后 status() 报 restoring，且不报 conflicted', async () => {
@@ -237,8 +245,8 @@ describe('签名里没有 checkout，也没有 detached HEAD（硬裁决 5、con
   it('凭据是必填的末位参，不是可选的便利入参', () => {
     // 可选末参等于允许「缺省时由本次调用内部读取 revision」——内部读到的值恒等于
     // 当前值，CAS 于是永远命中。
-    expectTypeOf<Parameters<typeof restoreWorkingTree>['length']>().toEqualTypeOf<3>();
-    expectTypeOf<Parameters<typeof restoreWorkingTree>[2]>().toEqualTypeOf<WorkingTreeRestoreOptions>();
+    expectTypeOf<Parameters<typeof restoreWorkingTree>['length']>().toEqualTypeOf<4>();
+    expectTypeOf<Parameters<typeof restoreWorkingTree>[3]>().toEqualTypeOf<WorkingTreeRestoreOptions>();
   });
 
   it('门面上没有 checkout，也没有任何能停在历史节点上的入口', () => {
@@ -263,12 +271,26 @@ describe('签名里没有 checkout，也没有 detached HEAD（硬裁决 5、con
 });
 
 describe('冲突出口与 discard 同形（FR-031）', () => {
+  it('失败出口靠 reason 判别，而不是靠「哪个字段在」', async () => {
+    const scene = sceneWithHistory();
+
+    const result = await restoreOnce(scene, { commitId: OLDER }, { expectedWorkingTreeRevision: 99 });
+
+    // restore 的失败出口不止一种（CAS 冲突、dirty 工作树、schema 不兼容），而 discard 只有一种。
+    // 靠「有没有 conflict 字段」来分辨的话，每加一个失败原因，所有旧调用点的 else 分支
+    // 都会静默地把新原因当成旧原因处理——判别式把这件事变成一个编译错误。
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(typeof result.reason).toBe('string');
+  });
+
   it('捕获的工作树 revision 对不上时返回冲突，且一个字节都没落地', async () => {
     const scene = sceneWithHistory();
 
     const result = await restoreOnce(scene, { commitId: OLDER }, { expectedWorkingTreeRevision: 99 });
 
     if (result.ok) throw new Error('期望这次恢复返回冲突，实际成功了');
+    if (result.reason !== 'conflict') throw new Error(`期望 reason=conflict，实际 ${result.reason}`);
     const conflict: CommitConflict = result.conflict;
     expect({
       kind: conflict.kind,

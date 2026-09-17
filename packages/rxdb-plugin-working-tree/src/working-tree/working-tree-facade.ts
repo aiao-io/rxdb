@@ -37,6 +37,14 @@ import {
   type WorkingTreeDiscardOptions,
   type WorkingTreeDiscardResult
 } from './discard-command.js';
+import {
+  readActiveRestoreSession,
+  restoreWorkingTree,
+  type WorkingTreeRestoreOptions,
+  type WorkingTreeRestoreResult,
+  type WorkingTreeRestoreSessionInfo,
+  type WorkingTreeRestoreTarget
+} from './restore-command.js';
 import { readWorkingTreeStatus, type WorkingTreeStatus } from './status.js';
 
 /**
@@ -254,6 +262,53 @@ export class WorkingTreeManager {
     return this.runEnabled(async executor => {
       const token = await readActiveBranchToken(executor);
       return readCommitLogPage(executor, token.branchId, options);
+    });
+  }
+
+  /**
+   * 把一个可达历史 commit 的内容作为新的未提交变更写回当前工作树（FR-013）。
+   *
+   * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即整个 commit
+   * @param options - 见 {@link WorkingTreeRestoreOptions}；三个捕获位必填
+   * @returns 见 {@link WorkingTreeRestoreResult}；不可达 / 脏工作树 / 不兼容都是 `ok: false` 的**返回值**
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   *
+   * @remarks
+   * **恰好两个必填位置参数**，与 {@link commit} 同形。`options` 做成可选的话，「缺省时由本次调用
+   * 内部读 revision」就成了合法用法，而内部读到的恒等于当前值、CAS 永远命中——FR-034 对 restore
+   * 的那半句当场失效。
+   *
+   * **没有 `checkout()`，也没有游离 HEAD**（硬裁决 5）：这个成员是「把历史内容搬进工作树」，
+   * 不是「把 HEAD 挪过去」。恢复完的工作树是脏的，下一步是 `commit()` 或 `discard()`，与手写变更
+   * 走同一条路（FR-015）。
+   */
+  async restore(
+    target: WorkingTreeRestoreTarget,
+    options: WorkingTreeRestoreOptions
+  ): Promise<WorkingTreeRestoreResult> {
+    return this.runEnabled((executor, adapter) =>
+      restoreWorkingTree(executor, createCommitWriteContext(adapter), target, options)
+    );
+  }
+
+  /**
+   * 当前分支那个尚未结束的恢复会话（contracts/core-api.md §5）。
+   *
+   * @returns 见 {@link WorkingTreeRestoreSessionInfo}；没有未结束会话时为 `null`
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   *
+   * @remarks
+   * 与 {@link status} / {@link listCommits} 一样**不收 `branchId`**：会话恒属当前 active 分支
+   * （FR-048）。别的分支上的恢复会话拿回来，既不能在它上面提交也不能丢弃。
+   *
+   * 「还成不成立」不在这里回答：那是 `status()` 的 `restoring` / `conflicted` 两位，判定只有那一份。
+   * 这个成员只回答「有没有、来自哪个 commit」。
+   */
+  async restoreSession(): Promise<WorkingTreeRestoreSessionInfo | null> {
+    return this.runEnabled(async executor => {
+      const token = await readActiveBranchToken(executor);
+      return readActiveRestoreSession(executor, token.branchId);
     });
   }
 

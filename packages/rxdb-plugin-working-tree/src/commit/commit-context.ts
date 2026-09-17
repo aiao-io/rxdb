@@ -25,6 +25,22 @@ import type { EntityManager, RxDBAdapterLocalBase } from '@aiao/rxdb';
 import type { CommitPatchCodecContext } from './commit-codec.js';
 
 /**
+ * {@link createCommitWriteContext} 真正要用到的那两项，从适配器上 `Pick` 下来。
+ *
+ * @remarks
+ * 收成结构类型而不是直接写 `RxDBAdapterLocalBase`，是因为那个类带 `#private` 字段，而
+ * `RxDBAdapterBase.repository_map` 的值类型 `AdapterRepositoryConstructor<this>` 把 `this` 放在
+ * **构造参数**位上——于是每一个子类实例在 `strictFunctionTypes` 下都不可赋给基类，包括测试里
+ * 那个如假包换的 `MockLocalAdapter extends RxDBAdapterLocalBase`。基类注解在这里换来的不是
+ * 类型安全，而是「只有基类本身能传进来」这条没人想要的约束。
+ *
+ * 仍然从类上 `Pick` 而不是手写两个字段：真实入参恒为一个适配器，两项的类型（尤其
+ * `isEncryptedAtRest` 那个「声明出来的缺席」的可选性）必须跟着适配器一起演进，手抄一份会在
+ * 签名变更的那天静默漂移。
+ */
+export type CommitWriteContextSource = Pick<RxDBAdapterLocalBase, 'rxdb' | 'isEncryptedAtRest'>;
+
+/**
  * 一次提交（写或读）要的全部外部依赖。
  *
  * @remarks
@@ -56,7 +72,7 @@ export interface CommitWriteContext {
  * 会丢掉接收者。不支持列加密的适配器上它本就不存在，取到 `undefined` 正是那条「声明出来的
  * 缺席」——见本文件 fileoverview。
  */
-export const createCommitWriteContext = (adapter: RxDBAdapterLocalBase): CommitWriteContext => {
+export const createCommitWriteContext = (adapter: CommitWriteContextSource): CommitWriteContext => {
   const { rxdb } = adapter;
   const resolve = (entity: string, namespace: string) => rxdb.schemaManager.getEntityMetadata(entity, namespace);
   return {

@@ -37,6 +37,11 @@ export * from './diff.js';
 export * from './discard-command.js';
 export * from './external-notify-gate.js';
 export * from './raw-write-judgment.js';
+// 恢复（US-307）：命令体与它的预检各占一个模块，两个都在公开面上。
+// 预检要导出，是因为 `RestoreIncompatibility` 是 `restore()` 失败出口的**载荷**——调用方不 import
+// 它就只能在 `reason === 'incompatible_schema'` 之后靠鸭子类型读字段，而那正是漂移的起点。
+export * from './restore-command.js';
+export * from './restore-precheck.js';
 export * from './status.js';
 export * from './trusted-callsite-capture.js';
 export * from './versioned-domain.js';

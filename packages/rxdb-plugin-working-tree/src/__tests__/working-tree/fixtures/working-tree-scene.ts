@@ -80,6 +80,49 @@ export class SceneNote extends EntityBase {
 /** {@link SceneNote} 的元数据；种子条目的 `namespace` / `entity` 只从这里取。 */
 const SCENE_NOTE = getEntityMetadata(SceneNote);
 
+/**
+ * 带一个**加密列**的场景实体；只有 FR-043（T104）那一组用得到它。
+ *
+ * @remarks
+ * 加了它而不是把 {@link SceneNote} 改成带加密列：十几个用例文件的种子条目全部指向
+ * `app.Note`，给它加一列加密字段会让每一处 `patch` 的编解码形态一起变，而那些用例
+ * 测的都不是加密。两个实体并存时，想测加密的显式指向 `app.Secret`，其余原样不动。
+ *
+ * `secret` 是 `binary` + `encrypted: true`：`change-codec.ts:17` 对 `encrypted === true`
+ * 的列**一律跳过** codec，所以它的落库形态就是上游给的那份 envelope 原物——
+ * 「envelope 不降级」这句话的可观测面正是这一条。
+ */
+@Entity({
+  name: 'Secret',
+  namespace: 'app',
+  tableName: 'scene_secrets',
+  properties: [
+    { name: 'label', type: PropertyType.string },
+    { name: 'secret', type: PropertyType.binary, encrypted: true },
+    { name: 'thumbnail', type: PropertyType.binary }
+  ]
+})
+export class SceneSecret extends EntityBase {
+  /** 明文字符串列；对照组之一 */
+  label!: string;
+
+  /** **加密** binary 列：codec 一律跳过，落库形态即上游那份 envelope 原物 */
+  secret!: Uint8Array;
+
+  /**
+   * **不加密**的 binary 列；与 {@link SceneSecret.secret} 同类型、只差 `encrypted`。
+   *
+   * @remarks
+   * 它的存在是为了让「跳过加密列」这句话有一个**同类型的反面**：两列都是 `binary`，
+   * 一个该被 codec 包成 `$rxdbChangeValue` 信封、一个必须原样穿过去。只留加密列的话，
+   * 「codec 整个没跑」与「codec 跑了且正确跳过了加密列」两种实现给出的观测完全一样。
+   */
+  thumbnail!: Uint8Array;
+}
+
+/** {@link SceneSecret} 的元数据。 */
+export const SCENE_SECRET = getEntityMetadata(SceneSecret);
+
 /** {@link createWorkingTreeScene} 的可调项；没列出来的字段没人拨过。 */
 export interface WorkingTreeSceneOptions {
   /** 2.5 `CommitBranchRef.headRevision`，默认 0 */
@@ -163,7 +206,7 @@ const entrySeedDefaults = (index: number): WorkingTreeEntrySeed => ({
 export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): WorkingTreeScene {
   const database = new RxDB({
     dbName: `rxdb-working-tree-scene-${Math.random().toString(36).slice(2)}`,
-    entities: [SceneNote],
+    entities: [SceneNote, SceneSecret],
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   const adapter = createMockAdapter(database);
@@ -303,7 +346,12 @@ const commitUnitOf = (unitId: string): CommitChangeUnit => {
  * 而它想测的那件事一次都没跑到。行由 `buildCommitRows()` 造而不是手搓：
  * `contentFingerprint` 与 `changeSetCount` 由写路径自己算出来，守卫才会认。
  */
-export const seedCommit = (scene: WorkingTreeScene, id: string, parentIds: readonly string[] = []): Commit => {
+export const seedCommit = (
+  scene: WorkingTreeScene,
+  id: string,
+  parentIds: readonly string[] = [],
+  units: readonly CommitChangeUnit[] = [commitUnitOf(`${id}-unit`)]
+): Commit => {
   const baseline = parentIds.length === 0;
   const { commit, changeSets } = buildCommitRows(scene.database.entityManager, {
     id,
@@ -312,7 +360,7 @@ export const seedCommit = (scene: WorkingTreeScene, id: string, parentIds: reado
     message: baseline ? null : `commit ${id}`,
     author: baseline ? null : 'alice',
     operationId: `00000000-0000-4000-8000-${id.replace(/\W/g, '').padStart(12, '0').slice(-12)}`,
-    units: [commitUnitOf(`${id}-unit`)]
+    units: [...units]
   });
   scene.probe.seed(Commit, [commit]);
   scene.probe.seed(CommitChangeSet, changeSets);

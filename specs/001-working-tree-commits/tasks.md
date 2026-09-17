@@ -228,7 +228,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T094 [US2] 写固定 fixture 于 `benchmarks/working-tree-fixture.ts`：10,000 实体 / 100 commit / 每 commit 100 单元 / 当前工作树 100 未提交单元，并输出 `contentHash`（内容 hash，不是行数）（benchmark-report.md §1）
 - [x] T095 [US2] 写 `benchmarks/working-tree.bench.ts`：Node + PGlite memory、WARMUP=5 / SAMPLES=50，测完整 status、完整 diff、一次提交 100 单元的 commit；每项配**同一次运行内**采样的 control CRUD（相同实体数量与事务边界），输出 p50/p95/max/ratio 与 `runnerProfileHash`，JSON 结构照 benchmark-report.md §2
 - [x] T096 [US2] 在 `benchmarks/project.json` 增加 `bench-working-tree` target（照既有 `bench-encryption` / `bench-hot-path` 形态：`nx:run-commands` + `dependsOn: ["typecheck", "^build"]`）
-- [ ] T097 [US2] 冻结 reference 并落盘 `benchmarks/reports/working-tree-reference.json`：**10 次独立运行取 median ratio**，同批写入 `frozenAbsolute.commit`（commit 的绝对预算由首个绿色实现的中位数冻结，**不套用 status/diff 的 100 ms**——已批准的宪法例外，见 plan.md Complexity Tracking）；接上相对门禁（ratio ≤ reference median 的 110%，PR CI 的**唯一**硬门禁）。**reference 必须先于发布候选签入**；review 不接受该中位数时回到 plan.md 更新例外或改设计，**不得在失败后重算基线**
+- [x] T097 [US2] 冻结 reference 并落盘 `benchmarks/reports/working-tree-reference.json`：**10 次独立运行取 median ratio**，同批写入 `frozenAbsolute.commit`（commit 的绝对预算由首个绿色实现的中位数冻结，**不套用 status/diff 的 100 ms**——已批准的宪法例外，见 plan.md Complexity Tracking）；接上相对门禁（ratio ≤ reference median 的 110%，PR CI 的**唯一**硬门禁）。**reference 必须先于发布候选签入**；review 不接受该中位数时回到 plan.md 更新例外或改设计，**不得在失败后重算基线**
 
 **Checkpoint**: US-306 三个阶段全部关闭。三端对称、性能门禁可执行。
 
@@ -244,18 +244,18 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 
 ### Tests for User Story 3（先红）
 
-- [ ] T098 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-basic.spec.ts`：恢复可达历史 commit 到当前工作树；默认**不移动 HEAD、不删历史**；会话持久化；不提供 detached HEAD / checkout 到历史 commit（FR-013、contracts/core-api.md §5）
-- [ ] T099 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-dirty-guard.spec.ts`：恢复前检测 dirty 工作树；未显式处理未提交变更时拒绝并保持原状；判定口径只有 clean / dirty 两态（FR-014）
-- [ ] T100 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-entry-shape.spec.ts`：恢复结果写成普通 `WorkingTreeEntry`，与手写变更**同形、同表、同 revision 轴**；不存在「已恢复但未暂存」这一额外状态；`commit()` 不接受任何只提交恢复结果子集的参数（FR-015）
-- [ ] T101 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts`：在任何持久写入前选定确定性物化路径，校验路径上**每个** ChangeSet 的 schema fingerprint manifest 与 change codec version 与当前客户端完全相等；拒绝时持久状态零变化；错误稳定返回首个不兼容 commit ID、重放方向、实体与版本 manifest；检查期间不解码或写入后续 ChangeSet（FR-033/050）
-- [ ] T102 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-cas.spec.ts`：初次 restore 要求 clean、成功只递增 working-tree revision、CAS 失败全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树与 session，并由 expected/actual revision 派生 conflicted，**不自动选择任一 writer 的状态**；会话上的 commit 同样是**调用方捕获型** CAS（FR-034）
-- [ ] T103 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-noop.spec.ts`：restore 产生的完整 diff 为空时返回 no-op，不创建 session、不创建条目、不递增任何 revision（FR-042）
-- [ ] T104 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts`：restore 物化与 session 持久化保持加密 envelope；错误、摘要与 session 诊断无明文（FR-043）
+- [x] T098 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-basic.spec.ts`：恢复可达历史 commit 到当前工作树；默认**不移动 HEAD、不删历史**；会话持久化；不提供 detached HEAD / checkout 到历史 commit（FR-013、contracts/core-api.md §5）
+- [x] T099 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-dirty-guard.spec.ts`：恢复前检测 dirty 工作树；未显式处理未提交变更时拒绝并保持原状；判定口径只有 clean / dirty 两态（FR-014）
+- [x] T100 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-entry-shape.spec.ts`：恢复结果写成普通 `WorkingTreeEntry`，与手写变更**同形、同表、同 revision 轴**；不存在「已恢复但未暂存」这一额外状态；`commit()` 不接受任何只提交恢复结果子集的参数（FR-015）
+- [x] T101 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts`：在任何持久写入前选定确定性物化路径，校验路径上**每个** ChangeSet 的 schema fingerprint manifest 与 change codec version 与当前客户端完全相等；拒绝时持久状态零变化；错误稳定返回首个不兼容 commit ID、重放方向、实体与版本 manifest；检查期间不解码或写入后续 ChangeSet（FR-033/050）
+- [x] T102 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-cas.spec.ts`：初次 restore 要求 clean、成功只递增 working-tree revision、CAS 失败全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树与 session，并由 expected/actual revision 派生 conflicted，**不自动选择任一 writer 的状态**；会话上的 commit 同样是**调用方捕获型** CAS（FR-034）
+- [x] T103 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-noop.spec.ts`：restore 产生的完整 diff 为空时返回 no-op，不创建 session、不创建条目、不递增任何 revision（FR-042）
+- [x] T104 [P] [US3] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts`：restore 物化与 session 持久化保持加密 envelope；错误、摘要与 session 诊断无明文（FR-043）
 
 ### Implementation for User Story 3
 
-- [ ] T105 [US3] 实现兼容性预检于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts`：覆盖**完整** commit 路径而非只有目标节点，先检查后写入，命中不兼容即零变化返回（FR-033/050）
-- [ ] T106 [US3] 实现 `restore()` 与会话持久化于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts`：写普通 `WorkingTreeEntry`、用 `activeKey` 可空唯一列保证每分支至多一个未结束会话、在写事务内调用 T038 的共享损坏守卫（FR-013/015/034/051、data-model.md §2.8）
+- [x] T105 [US3] 实现兼容性预检于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts`：覆盖**完整** commit 路径而非只有目标节点，先检查后写入，命中不兼容即零变化返回（FR-033/050）
+- [x] T106 [US3] 实现 `restore()` 与会话持久化于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts`：写普通 `WorkingTreeEntry`、用 `activeKey` 可空唯一列保证每分支至多一个未结束会话、在写事务内调用 T038 的共享损坏守卫（FR-013/015/034/051、data-model.md §2.8）
 - [ ] T107 [US3] 实现会话终态转换于 `packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts`：`commit()` 与 session 的 `committed` 转换**原子提交**；`discard` 路径对称；新 commit 不改写被恢复的历史节点（FR-015）
 - [ ] T108 [US3] 扩展 `packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts` 的 conformance-suites.md §2.6（restore）小节；6 个适配器既有调用点自动带上
 - [ ] T109 [US3] 在 `benchmarks/working-tree.bench.ts` 增加 restore 测量项：恢复含 100 个完整变更单元的 `HEAD~1`，WARMUP=5 / SAMPLES=50，记录 runner profile；接入相对门禁，绝对 p95 ≤ 1 s 只在 `runnerProfileHash` 匹配的固定性能 runner 上作为发布硬门禁（FR-026b、SC-004）

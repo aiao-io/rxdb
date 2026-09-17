@@ -1,0 +1,13 @@
+{
+  "commit": "2789340c99cdaaa85c9596db329c9116e7772e65",
+  "frozenAbsolute": {
+    "commit": 425.84558349999133
+  },
+  "medianRatios": {
+    "status": 1.9607634064028476,
+    "diff": 2.537189572244733,
+    "commit": 15.71346564887656
+  },
+  "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba",
+  "runs": 10
+}

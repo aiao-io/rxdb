@@ -197,6 +197,11 @@ export class WorkingTreeEntry {
 
   /**
    * 关联分支
+   *
+   * @remarks
+   * `declare` 不是语气问题：`useDefineForClassFields` 打开时，普通字段声明会 emit 成
+   * `this.branch = undefined`，于是每一行实例都带一个从没被赋值过的 `branch` 自有属性，
+   * `Object.keys(row)` 因此永远比真实列多一个。关系由 ORM 按需挂载，不占这个位置。
    */
-  branch?: RxDBBranch;
+  declare branch?: RxDBBranch;
 }
