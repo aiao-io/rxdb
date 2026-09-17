@@ -238,6 +238,31 @@ const readActiveBranchId = async (database: RxDB): Promise<string> =>
     return active.id;
   });
 
+/** {@link readRefSnapshot} 交出的那三项；全是原始值，拷完就与库里那一行脱钩。 */
+interface CommitBranchRefSnapshot {
+  /** 快照那一刻的 HEAD */
+  readonly headCommitId: string | null;
+  /** 快照那一刻的 HEAD 修订号 */
+  readonly headRevision: number;
+  /** 快照那一刻的分支健康位 */
+  readonly status: CommitBranchRef['status'];
+}
+
+/**
+ * 读一次分支 ref，并把要断言的那几项**拷成普通对象**。
+ *
+ * @remarks
+ * 一定要拷：`readCommitBranchRef()` 交还的是身份映射里那一行，同一个库上两次读拿到的是
+ * **同一个 JS 对象**，而提交路径的 `syncRowsAfterCommit()` 会就地把它推到新值上。于是
+ * 「动作前读一行、动作后再读一行、两行对比」这种写法在这里是一句空话——两个变量自始至终
+ * 是一个对象，`toEqual` 恒成立，HEAD 真被挪了也照样绿。本套件每一条「HEAD 前后如何」的
+ * 断言都走这里，正是为了不留下那种永远不会红的断言。
+ */
+const readRefSnapshot = async (database: RxDB, branchId: string): Promise<CommitBranchRefSnapshot> => {
+  const ref = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+  return { headCommitId: ref.headCommitId, headRevision: ref.headRevision, status: ref.status };
+};
+
 /** 各开一个事务提交一次；`operationId` 与 `units` 由调用方给，重放时原样再传一遍。 */
 const commitOnce = async (
   database: RxDB,
@@ -627,12 +652,12 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           await commitOnce(database, { branchId, operationId, message: '可重放的提交', units })
         );
         const before = await withTransaction(database, snapshotCommits);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refBefore = await readRefSnapshot(database, branchId);
 
         const replay = await commitOnce(database, { branchId, operationId, message: '可重放的提交', units });
 
         const after = await withTransaction(database, snapshotCommits);
-        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refAfter = await readRefSnapshot(database, branchId);
         expect({ status: replay.status, id: replay.status === 'reused' ? replay.commit.id : null }).toEqual({
           status: 'reused',
           id: first.id
@@ -667,7 +692,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
       it('崩溃：事务体抛出之后零残留，HEAD 不动', async () => {
         const branchId = await readActiveBranchId(database);
         const before = await withTransaction(database, snapshotCommits);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refBefore = await readRefSnapshot(database, branchId);
 
         const crash = withTransaction(database, async (executor, adapter) => {
           const ref = await readCommitBranchRef(executor, branchId);
@@ -686,7 +711,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         await expect(crash).rejects.toThrow('模拟崩溃');
 
         const after = await withTransaction(database, snapshotCommits);
-        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refAfter = await readRefSnapshot(database, branchId);
         // 半个 commit 比没有 commit 糟得多：HEAD 指向一个没有 ChangeSet 的节点时，
         // 守卫会把整条分支判成损坏，而用户只是关了一次标签页。
         expect([...after.keys()]).toEqual([...before.keys()]);
@@ -787,12 +812,12 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
       it('重复 enable() 幂等：不产生第二个根，HEAD 不动', async () => {
         const branchId = await readActiveBranchId(database);
         const before = await withTransaction(database, snapshotCommits);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refBefore = await readRefSnapshot(database, branchId);
 
         await database.workingTree.enable();
 
         const after = await withTransaction(database, snapshotCommits);
-        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refAfter = await readRefSnapshot(database, branchId);
         expectAppendOnly(before, after);
         expect(after.size).toBe(before.size);
         expect({ head: refAfter.headCommitId, revision: refAfter.headRevision }).toEqual({
@@ -839,12 +864,12 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const branchId = await readActiveBranchId(database);
         const cyclicBranchId = await injectCyclicBranch(database);
         const before = await withTransaction(database, snapshotCommits);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refBefore = await readRefSnapshot(database, branchId);
 
         const error = await captureRejection(database.workingTree.enable());
 
         const after = await withTransaction(database, snapshotCommits);
-        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refAfter = await readRefSnapshot(database, branchId);
         expect(error).toBeInstanceOf(BranchNotMaterializableError);
         expect((error as BranchNotMaterializableError).branchId).toBe(cyclicBranchId);
         expect((error as BranchNotMaterializableError).reason).toBe('corrupt_branch_history');
@@ -1034,7 +1059,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
             if (!target) throw new Error('刚写下的 HEAD 读不回来');
             await executor.getRepository(Commit).update(target, { contentFingerprint: 'tampered-fingerprint' });
           });
-          const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+          const refBefore = await readRefSnapshot(database, branchId);
           const before = await withTransaction(database, snapshotCommits);
 
           const error = await captureRejection(
@@ -1043,7 +1068,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
             )
           );
 
-          const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+          const refAfter = await readRefSnapshot(database, branchId);
           const after = await withTransaction(database, snapshotCommits);
           expect(error).toBeInstanceOf(CommitGraphCorruptedError);
           expect((error as CommitGraphCorruptedError).reason).toBe('fingerprint_mismatch');
@@ -1144,12 +1169,12 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
       it('恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改', async () => {
         const branchId = await readActiveBranchId(database);
         const older = await seedTwoCommits(database, branchId);
-        const refBefore = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refBefore = await readRefSnapshot(database, branchId);
         const before = await withTransaction(database, snapshotCommits);
 
         const result = await restoreOnce(database, older.id);
 
-        const refAfter = await withTransaction(database, executor => readCommitBranchRef(executor, branchId));
+        const refAfter = await readRefSnapshot(database, branchId);
         const after = await withTransaction(database, snapshotCommits);
         const status = await readStatus(database);
         // 恢复不是 `checkout`：它把旧版本的内容写成**新的未提交变更**，HEAD 留在原处。
@@ -1260,12 +1285,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const branchId = await readActiveBranchId(database);
         const older = await seedTwoCommits(database, branchId);
         await restoreOnce(database, older.id);
-        // 取**原始值**而不是留着 ref 行：`readCommitBranchRef()` 交还的是身份映射里那一行，
-        // 而 `commit-command.ts` › `syncRowsAfterCommit()` 会就地把它推到新 HEAD 上。留着行
-        // 对象的话，这个「提交前的 HEAD」会在提交之后变成提交后的 HEAD，断言两边一起动，
-        // 于是它什么都验不出来。
-        const headBeforeCommit = (await withTransaction(database, executor => readCommitBranchRef(executor, branchId)))
-          .headCommitId;
+        const refBefore = await readRefSnapshot(database, branchId);
         const before = await withTransaction(database, snapshotCommits);
 
         const result = await commitWithCredentials(database, credentialsOf(await readStatus(database)), '提交恢复结果');
@@ -1282,7 +1302,7 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           committed: result.ok,
           created: messageOfCommit(rows, result.ok ? result.commitId : null),
           parent: messageOfCommit(rows, created?.firstParentId ?? null),
-          headBefore: messageOfCommit(rows, headBeforeCommit),
+          headBefore: messageOfCommit(rows, refBefore.headCommitId),
           bits: restoreBitsOf(status),
           clean: status.clean,
           session: await withTransaction(database, executor => readActiveRestoreSession(executor, branchId))
