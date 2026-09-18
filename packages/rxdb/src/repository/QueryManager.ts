@@ -395,7 +395,6 @@ export class QueryManager<T extends EntityType> {
     const _need_change = (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => {
       // 如果没有活跃的查询任务，直接返回（性能优化）
       if (this.#query_task_map.size === 0) {
-        console.log("[DEBUG-QM] no tasks for event", event.type);
         return;
       }
 
@@ -408,8 +407,7 @@ export class QueryManager<T extends EntityType> {
       // 如果有相关的实体变更，执行增量缓存更新
       if (entities.length) {
         // 过滤掉只有 updatedAt 变更的 patch（避免无意义的缓存刷新）
-        console.log("[DEBUG-QM] entities pass filter:", entities.length);
-      const need_entities = entities.filter(e => {
+        const need_entities = entities.filter(e => {
           if (e.patch) {
             const keys = Object.keys(e.patch);
             if (keys.length === 1 && keys[0] === 'updatedAt') {

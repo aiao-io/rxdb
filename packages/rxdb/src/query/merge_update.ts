@@ -283,7 +283,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
   }
 
   const result = query_need_refresh_update(task, entities, refresh_rules, recalculate_rules);
-  console.log("[DEBUG-MU] task", task.type, "refresh:", result.refresh, "recalc:", result.recalculate, "resultIds:", [...task.resultEntityIds], "eventIds:", entities.map(e => e.id));
 
   if (result.refresh) {
     task.refresh();
