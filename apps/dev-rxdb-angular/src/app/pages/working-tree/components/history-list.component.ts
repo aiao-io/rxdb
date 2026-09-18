@@ -17,6 +17,17 @@ import { LucideHistory as History, LucideDynamicIcon, LucideRotateCcw as RotateC
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, LucideDynamicIcon],
+  styles: [
+    `
+      /* 宿主是 aside 的 flex 子项：与变更列表同一组规则（见 changes-list） */
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+    `
+  ],
   template: `
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex shrink-0 items-center justify-between px-3 pt-2 pb-1">

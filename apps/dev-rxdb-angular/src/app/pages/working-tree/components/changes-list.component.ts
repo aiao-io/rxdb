@@ -32,6 +32,18 @@ import { diffEntryKey, formatPatchSummary } from '../working-tree.diff-format';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, LucideDynamicIcon],
+  styles: [
+    `
+      /* 宿主是 aside 的 flex 子项：默认 display:inline 会让根 div 的 flex-1/min-h-0
+         失效，列表一多就把底部提交框挤下去而不是内部滚动 */
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+    `
+  ],
   template: `
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="flex shrink-0 items-center justify-between px-3 pt-2 pb-1">

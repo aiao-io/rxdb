@@ -60,6 +60,11 @@ const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = 
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './working-tree.page.html',
+  // page-host（absolute inset-0 + overflow-hidden）是各页占满路由可用区的标准做法：
+  // 旧写法 height:100% 依赖 #layout-content 的 flex 链，而它是 grow 子项且 min-height:auto，
+  // 页面内容一高就把它撑高，内部滚动随之失效（列表把提交框挤出去）。absolute 脱离文档流，
+  // 不再参与撑高，页内 flex 布局才拿得到确定高度。
+  host: { class: 'page-host' },
   imports: [
     CommonModule,
     LucideDynamicIcon,
@@ -70,14 +75,6 @@ const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = 
     WorkingTreeDiffViewerComponent,
     WorkingTreeHistoryListComponent,
     WorkingTreeMergeDialogComponent
-  ],
-  styles: [
-    `
-      :host {
-        display: block;
-        height: 100%;
-      }
-    `
   ]
 })
 export default class WorkingTreePage implements OnInit {

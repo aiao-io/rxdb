@@ -22,6 +22,16 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, LucideDynamicIcon],
+  styles: [
+    `
+      /* 宿主是 aside 的 flex 子项：shrink-0 必须挂在宿主上才拦得住列表的挤压 */
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+    `
+  ],
   template: `
     <div class="border-base-300 shrink-0 space-y-2 border-t p-3" data-testid="wt-commit-box">
       @if (notice(); as notice) {

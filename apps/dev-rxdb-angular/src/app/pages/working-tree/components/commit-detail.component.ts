@@ -22,6 +22,17 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, LucideDynamicIcon],
+  styles: [
+    `
+      /* 宿主是右栏 main 的 flex 子项：与 diff-viewer 同一组规则 */
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+    `
+  ],
   template: `
     @if (commit(); as commit) {
       <div class="flex h-full min-h-0 flex-col" data-testid="wt-commit-detail">

@@ -1,33 +1,60 @@
 {
   "configurations": [
     {
+      "name": "dev-rxdb-angular-attach",
+      "url": "http://localhost:4200",
+      "port": 4200
+    },
+    {
       "name": "dev-rxdb-angular",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-angular"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-angular"
+      ],
       "port": 4200
     },
     {
       "name": "dev-rxdb-react",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-react"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-react"
+      ],
       "port": 4201
     },
     {
       "name": "dev-rxdb-vue",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-vue"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-vue"
+      ],
       "port": 4203
     },
     {
       "name": "website-docs",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["website/scripts/preview-with-redirects.mjs", "--port", "3000"],
+      "runtimeArgs": [
+        "website/scripts/preview-with-redirects.mjs",
+        "--port",
+        "3000"
+      ],
       "port": 3000
     },
     {
       "name": "dev-rxdb-angular-e2e-static",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["scripts/e2e-static-server.mjs", "--root", "dist/apps/dev-rxdb-angular/browser", "--port", "8200"],
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-angular/browser",
+        "--port",
+        "8200"
+      ],
       "port": 8200
     }
   ],

@@ -19,6 +19,17 @@ import { buildDiffRows, formatFieldValue } from '../working-tree.diff-format';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, LucideDynamicIcon],
+  styles: [
+    `
+      /* 宿主是右栏 main 的 flex 子项：行数一多要在查看器内部滚动，不能把 main 撑开 */
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+      }
+    `
+  ],
   template: `
     @if (entry(); as entry) {
       <div class="flex h-full min-h-0 flex-col" data-testid="wt-diff-viewer">
