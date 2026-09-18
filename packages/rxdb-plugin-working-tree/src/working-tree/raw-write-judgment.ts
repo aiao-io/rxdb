@@ -115,8 +115,23 @@ const LITERAL_PLACEHOLDER = ' _lit_ ';
  *
  * 三种引号标识符（`"post"` 标准 / PG、`` `post` `` MySQL、`[post]` T-SQL）并进同一趟，
  * 顺带让 `"it's"` 这类含撇号的标识符不再开出假字面量。
+ *
+ * `$` 是第五类记号的起点（PG 的 dollar-quoted 字符串，`$$…$$` / `$tag$…$tag$`）。它与前四类
+ * 不同的是**落单时什么都不是**：`$1` 是 PG 的位置参数、`$name` 是 SQLite 的命名参数，两者都是
+ * raw 通道上的日常流量。所以认不出配对的收尾记号时按「不是定界符」处理，见
+ * {@link dollarQuoteLexeme}。
  */
-const DELIMITER_PATTERN = /--|\/\*|'|"|`|\[/g;
+const DELIMITER_PATTERN = /--|\/\*|'|"|`|\[|\$/g;
+
+/**
+ * dollar-quote 的起止记号：`$$` 或 `$tag$`
+ *
+ * @remarks
+ * 标签按 PG 的无引号标识符规则取（首字符是字母或下划线，后续可含数字；**不含 `$`**），
+ * 所以 `\p{L}` 而不是 `[a-z]`——PG 的标识符规则认非 ASCII 字母，一个 `$标签$` 认不出来就又是
+ * 一次静默放行。`$1` 因此天然不匹配：数字不能做标签首字符，它是位置参数而不是定界符。
+ */
+const DOLLAR_QUOTE_TOKEN_PATTERN = /\$(?:[\p{L}_][\p{L}\p{N}_]*)?\$/gu;
 
 /** 归一化之后的标识符与关键字词元。 */
 const WORD_PATTERN = /[a-z_][a-z0-9_$]*/g;
@@ -284,17 +299,101 @@ function quotedIdentifierLexeme(sql: string, start: number, closer: string): Nor
 }
 
 /**
+ * 整条语句里全部 dollar-quote 记号的位置索引
+ *
+ * @remarks
+ * 为什么要索引而不是每次 `indexOf`：配对失败时 `indexOf` 会从当前位置一路扫到串尾，而
+ * **每个标签只出现一次**的输入（`$t0$ $t1$ …`）里每一次配对都必然失败——判定于是退化成二次方，
+ * 与未闭合块注释那条 CWE-1333 是同一类退化，只是换了个定界符。
+ *
+ * 先一趟扫出全部记号（O(n)），配对就变成「同名记号的下一个位置」。位置按标签分组且升序，
+ * 而归一化的游标单向前进，所以每个标签配一个只增不减的指针，整条语句的总配对成本是 O(n)。
+ */
+interface DollarQuoteIndex {
+  /** 偏移 → 从这里开始的完整记号；查不到就说明这个 `$` 不是 dollar-quote 的起点 */
+  readonly tokenAt: ReadonlyMap<number, string>;
+
+  /** 记号 → 它在整条语句里的全部出现位置，升序 */
+  readonly positionsOf: ReadonlyMap<string, readonly number[]>;
+
+  /** 记号 → {@link positionsOf} 里已经走过的前缀长度；扫描单向前进，指针因此只增不减 */
+  readonly cursors: Map<string, number>;
+}
+
+/**
+ * 扫出整条语句的 dollar-quote 记号索引
+ *
+ * @param sql - 原始语句
+ * @returns 见 {@link DollarQuoteIndex}
+ *
+ * @remarks
+ * 这一趟**不区分**记号落在注释、字面量还是代码里——它只回答「哪些偏移上有一个 `$tag$`」。
+ * 落在已被别的定界符吃掉的区段里的那些位置，偏移必然小于当前游标，配对时按下界过滤掉。
+ */
+function indexDollarQuotes(sql: string): DollarQuoteIndex {
+  const tokenAt = new Map<number, string>();
+  const positionsOf = new Map<string, number[]>();
+  DOLLAR_QUOTE_TOKEN_PATTERN.lastIndex = 0;
+  for (let found = DOLLAR_QUOTE_TOKEN_PATTERN.exec(sql); found !== null; found = DOLLAR_QUOTE_TOKEN_PATTERN.exec(sql)) {
+    const token = found[0];
+    tokenAt.set(found.index, token);
+    const positions = positionsOf.get(token);
+    if (positions) positions.push(found.index);
+    else positionsOf.set(token, [found.index]);
+  }
+  return { tokenAt, positionsOf, cursors: new Map() };
+}
+
+/**
+ * dollar-quoted 字符串吃到同名的收尾记号；配不上对时按「这不是定界符」处理
+ *
+ * @param sql - 原始语句
+ * @param start - `$` 所在偏移
+ * @param index - 见 {@link DollarQuoteIndex}
+ * @returns 这一段的结束偏移与产出
+ *
+ * @remarks
+ * 配不上对时**不吃到串尾**——这是它与未闭合块注释、未闭合单引号字面量刻意不同的一点。那两类
+ * 吃到串尾是安全的：两种方言下 `/*` 与 `'` 都确实是定界符，后面那截不会真的写进业务表。而 `$$`
+ * 只在 PG 里是定界符，SQLite 家族的五个后端里它连记号都不是；认不出配对就吃到串尾，等于把一条
+ * 真能执行的写从判定的视野里抹掉——正好是 fail-open 的方向。
+ *
+ * 落单的 `$` 原样放回文本：`$1`（PG 位置参数）与 `$name`（SQLite 命名参数）是 raw 通道上的
+ * 日常流量，把它们当成定界符起点会让每一条带参数的 raw 写开始误判。
+ */
+function dollarQuoteLexeme(sql: string, start: number, index: DollarQuoteIndex): NormalizedLexeme {
+  const token = index.tokenAt.get(start);
+  if (token === undefined) return { end: start + 1, text: '$' };
+  const positions = index.positionsOf.get(token) ?? [];
+  // 收尾记号至少要从起始记号之后开始：`$$$$` 是一个空字面量，不是一个自己给自己收尾的记号。
+  const lowerBound = start + token.length;
+  let cursor = index.cursors.get(token) ?? 0;
+  while (cursor < positions.length && (positions[cursor] ?? 0) < lowerBound) cursor += 1;
+  index.cursors.set(token, cursor);
+  const close = positions[cursor];
+  if (close === undefined) return { end: start + 1, text: '$' };
+  return { end: close + token.length, text: LITERAL_PLACEHOLDER };
+}
+
+/**
  * 认出 `start` 处的定界符属于哪一类，并把它整段吃掉
  *
  * @param sql - 原始语句
  * @param start - 定界符所在偏移
  * @param delimiter - {@link DELIMITER_PATTERN} 匹配到的起始记号
+ * @param dollarQuotes - 取 {@link DollarQuoteIndex} 的惰性取值器；只有 `$` 这一支会调它
  * @returns 这一段的结束偏移与产出
  */
-function lexemeAt(sql: string, start: number, delimiter: string): NormalizedLexeme {
+function lexemeAt(
+  sql: string,
+  start: number,
+  delimiter: string,
+  dollarQuotes: () => DollarQuoteIndex
+): NormalizedLexeme {
   if (delimiter === '--') return { end: lineCommentEnd(sql, start), text: ' ' };
   if (delimiter === '/*') return { end: blockCommentEnd(sql, start), text: ' ' };
   if (delimiter === "'") return { end: stringLiteralEnd(sql, start), text: LITERAL_PLACEHOLDER };
+  if (delimiter === '$') return dollarQuoteLexeme(sql, start, dollarQuotes());
   // `[post]`（T-SQL）是三种引号标识符里唯一收尾符与起始符不同的一种。
   return quotedIdentifierLexeme(sql, start, delimiter === '[' ? ']' : delimiter);
 }
@@ -318,10 +417,14 @@ function lexemeAt(sql: string, start: number, delimiter: string): NormalizedLexe
 function normalizeSql(sql: string): string {
   const pieces: string[] = [];
   let plain = 0;
+  // dollar-quote 索引自己要走一趟全串，而绝大多数语句一个 `$` 都没有——所以做成惰性的，
+  // 由 `$` 那一支在第一次用到时建，整条语句只建一次。
+  let indexed: DollarQuoteIndex | undefined;
+  const dollarQuotes = (): DollarQuoteIndex => (indexed ??= indexDollarQuotes(sql));
   // 模块级正则带 `g`，`lastIndex` 是可变状态；进来先清零，每吃完一段再显式推到该去的位置。
   DELIMITER_PATTERN.lastIndex = 0;
   for (let found = DELIMITER_PATTERN.exec(sql); found !== null; found = DELIMITER_PATTERN.exec(sql)) {
-    const lexeme = lexemeAt(sql, found.index, found[0]);
+    const lexeme = lexemeAt(sql, found.index, found[0], dollarQuotes);
     pieces.push(sql.slice(plain, found.index), lexeme.text);
     plain = lexeme.end;
     DELIMITER_PATTERN.lastIndex = lexeme.end;

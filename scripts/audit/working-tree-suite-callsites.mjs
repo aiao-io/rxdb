@@ -119,6 +119,11 @@ const blankOut = chunk => chunk.replace(/[^\n]/g, ' ');
  * `https://` 会被当成行注释开头。正则字面量与字符串同进同出：它里面的引号若不认，
  * `/['"]/` 之后的整段代码都会被误判成字符串。
  *
+ * 模板字面量按段切：文本段算字符串，`${…}` 里的**表达式算代码**。整块抹掉是不行的——
+ * `${await import('./x')}` 那样的调用在语法上与写在外面的没有任何区别，而整块抹掉之后
+ * 它在扫描结果里连一个字符都不剩，于是所有靠这两个函数定位的审计（边界扫描、漂移扫描、
+ * 本门禁的调用点判定）都看不见它。模板嵌套用一个栈跟，`${}` 里再开模板照样按段切。
+ *
  * @param {string} source 源码
  * @param {{ blankComments: boolean, blankStrings: boolean }} options 抹哪些
  * @returns {string} 与入参等长的源码
@@ -156,9 +161,61 @@ const scan = (source, { blankComments, blankStrings }) => {
     return -1;
   };
 
+  /**
+   * 模板文本段读到哪为止：下一个反引号、下一个 `${`，或源码末尾（未闭合的模板）。
+   *
+   * @param {number} start 文本段起点
+   * @returns {{ end: number, opener: boolean }} `opener` 为真表示停在 `${` 上
+   */
+  const templateTextEnd = start => {
+    for (let i = start; i < source.length; i += 1) {
+      const char = source[i];
+      if (char === '\\') {
+        i += 1;
+        continue;
+      }
+      if (char === '`') return { end: i, opener: false };
+      if (char === '$' && source[i + 1] === '{') return { end: i, opener: true };
+    }
+    return { end: source.length, opener: false };
+  };
+
+  /** @type {{ inExpression: boolean, braces: number }[]} 由外到内的模板字面量栈 */
+  const templates = [];
+  const innermost = () => templates[templates.length - 1];
+
+  /** 文本段 + 其后的那个记号（`` ` `` 收尾 / `${` 进表达式 / 未闭合到末尾）。 */
+  const consumeTemplateText = frame => {
+    const { end, opener } = templateTextEnd(index);
+    const stop = end === source.length ? end : end + (opener ? 2 : 1);
+    emitChunk(source.slice(index, stop), blankStrings);
+    index = stop;
+    if (end === source.length) templates.pop();
+    else if (opener) frame.inExpression = true;
+    else templates.pop();
+  };
+
   while (index < source.length) {
+    const frame = innermost();
+    if (frame !== undefined && !frame.inExpression) {
+      consumeTemplateText(frame);
+      continue;
+    }
+
     const char = source[index];
     const next = source[index + 1];
+
+    if (frame !== undefined && (char === '{' || char === '}')) {
+      // `${}` 的收尾靠数花括号：表达式里的对象字面量、块语句都会出现花括号，
+      // 深度归零时的那个 `}` 才是模板记号。
+      if (char === '}' && frame.braces === 0) {
+        emitChunk('}', blankStrings);
+        frame.inExpression = false;
+        index += 1;
+        continue;
+      }
+      frame.braces += char === '{' ? 1 : -1;
+    }
 
     if (char === '/' && next === '/') {
       const end = source.indexOf('\n', index);
@@ -176,10 +233,16 @@ const scan = (source, { blankComments, blankStrings }) => {
       continue;
     }
 
-    if (char === "'" || char === '"' || char === '`') {
-      // 模板字面量整体抹掉，包括 `${}` 里的表达式：模板里的调用不是调用点，
-      // 而把 `${}` 拆出来解析需要一个真解析器。
-      const stop = closeAt(index + 1, char, char === '`');
+    if (char === '`') {
+      // 反引号自己算字符串记号，之后交给模板栈按段处理。
+      emitChunk('`', blankStrings);
+      templates.push({ inExpression: false, braces: 0 });
+      index += 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      const stop = closeAt(index + 1, char, false);
       const end = stop === -1 ? source.length : stop;
       emitChunk(source.slice(index, end), blankStrings);
       index = end;

@@ -1,13 +1,14 @@
 # next-0912 分支对 main 评审
 
-- **评审日期**：2026-09-16（2026-09-17、2026-09-18 两轮复核）
+- **评审日期**：2026-09-16（2026-09-17、2026-09-18 多轮复核；最新二次评审为 2026-09-18）
 - **评审分支**：`next-0912`
 - **对比基线**：`main` 顶端 = merge-base `de70a1a9e1c6d89eabb26606a294a80690d29b3b`
-- **变更规模**：427 个文件，`+61,111 / -2,904`
-- **评审强度**：2026-09-17 的 max 评审 + 2026-09-18 对新增代码与关键调用链的复核
+- **变更规模**：445 个文件，`+62,783 / -2,932`
+- **评审强度**：2026-09-17 的 max 评审 + 2026-09-18 对关键调用链和后续增量的复核
 - **主线改动**：epic-006「工作树 + 提交历史」——捕获钩子 / 原始写闸门 / 受信写声明 / 提交图 CAS + 编解码 + 指纹 / 冷重放
-- **本轮复核**：2026-09-18（同基准 `de70a1a9` → `9e5ddc92`，工作区无新提交）。本文件按结果就地改写：已修项标 Resolved、架构项标 Deferred、说反了的一条改正。
-- **结论（复核后）**：🟡 **可合并性取决于顺延项排期**。2026-09-18 确认的 4 条 P1 **全部判定成立、全部顺延**（都是架构级，见下方逐条）；4 条 P2 里 1 条顺延、3 条未处理。§3 的 11 条次要项本轮**已修 4 条**（`read_current_branch_id` 兜底、三框架 hook 校验、审计脚本两处解析缺陷），1 条补了说明性 TSDoc（客户端时钟），1 条判定不改（错误重包装）。§4.1 的 keyring 一条已修，**并改正了本报告原文一处说反的描述**。
+- **本次二次评审**：2026-09-18，基线 `de70a1a9` → `6e4daebb`；新增确认 1 条 P1、1 条 P2。此前 4 条 P1 的生产路径未改，仍待处理。
+- **当前结论**：🔴 **不建议合并**。PGlite raw 写存在可执行的工作树捕获绕过；旧 4 条 P1 也没有因标为 Deferred 而消失。新增问题与复现见下方「二次评审」。
+- **上一轮结论（HEAD `9e5ddc92`，存档）**：🟡 **可合并性取决于顺延项排期**。当时确认的 4 条 P1 全部成立、全部顺延；4 条 P2 里 1 条顺延、3 条未处理。§3 的 11 条次要项已修 4 条、补注记 1 条、判定不改 1 条；§4.1 的 keyring 一条已修。
 - **原结论（2026-09-18 首轮，存档）**：🔴 **当前不建议合并**。2026-09-17 的 14 条核心正确性问题已处理；本轮在当前 HEAD 确认 4 条 P1、4 条 P2，其中并发受信声明原已记在旧 §3。本轮确认的问题见下方「2026-09-18 复核」；旧 §3、§4 是上一轮留下的独立待办。
 
 ## 评审基准（SHA）
@@ -15,13 +16,29 @@
 | 角色             | SHA                                        | 说明                                                                       |
 | ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
 | `main` 顶端      | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | commit `feat(aiao): 拆分 rxdb 功能为 plugin (#61)`，2026-09-16 16:30 +0800 |
-| `next-0912` HEAD | `9e5ddc92cdca4c781d991a4332ef9a81aab7cf0b` | 2026-09-18 复核时的 HEAD；上一轮 HEAD 为 `263e5a31`                        |
+| `next-0912` HEAD | `6e4daebbe74f30ee243cb4bf0eebfd73dfb762ba` | 本次二次评审的 HEAD；上一轮为 `9e5ddc92`                                   |
 | merge-base       | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | 与 main 顶端相同：next-0912 已把 main 合入，无分叉                         |
 
-- 本轮 diff 范围 = `git diff main...HEAD` 全部 427 文件（`+61,111 / -2,904`）；`main` 与 merge-base 相同。复核开始时工作区 clean，报告本身的修订不计入上述统计。
+- 本次 diff 范围 = `git diff main...HEAD` 全部 445 文件（`+62,783 / -2,932`）；`main` 与 merge-base 相同。工作区另有未提交的 Vue 测试配置改动，不在上述提交差异中，本评审没有修改它。
 - **2026-09-17 重新对齐说明**：初版基准为 main `68b0ba97` / HEAD `e4f2813c`（337 文件）。此后 main 推进到 `de70a1a9`（即 next-0915 的插件拆包 #61），next-0912 已通过 `263e5a31` 将其合入。逐条复核后：Top 榜 15 条中 **14 条在当前树上仍然成立，1 条（原 #14）证伪**（详见 §2）；这 14 条已于 2026-09-17 全部处理，按本目录「只留尚未处理的条目」的约定从报告里删除。
 - **working-tree 那套仍未进 main**——`packages/rxdb-plugin-working-tree` 尚有 115 个文件、三框架绑定另有 41 个文件只存在于本分支，因此这一轮修复赶在它进 main 之前落了地。
 - 记录 SHAs 的等价命令：`git rev-parse main` / `git rev-parse HEAD` / `git merge-base main HEAD`。
+
+## 2026-09-18 二次评审：新增待处理项
+
+本次对上轮 HEAD 之后的实现改动和 raw 写门禁做增量追踪，并复核了三端 `src/index.ts` 与 `WorkingTreeResource` 的公开方法签名。Angular、React、Vue 仍对称。以下复现是对当前源码的纯判定与内存 PGlite 分别执行；没有运行完整插件端到端套件、全量 CI 或 E2E。`git diff --check main...HEAD` 通过。
+
+### [P1] PGlite 的 dollar-quoted 字符串让 raw 写绕过捕获
+
+- **证据**：[`raw-write-judgment.ts:119`](../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L119) 的词法定界符不识别 PostgreSQL 的 `$$...$$`；[`setClauseOf():413`](../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L413) 会把字面量内部的 `WHERE` 当作 `SET` 子句终点。PGlite 适配器的 [`rawQuery():662`](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L662) 将放行结论交给真实 SQL 执行器。
+- **可执行复现**：对版本化表 `post`、untracked 列 `remoteId` 执行 `UPDATE "public"."post" SET "remoteId" = $$ WHERE $$, title = 'changed' WHERE id = 'a'`。当前 `judgeRawWrite()` 返回 `{ kind: 'allow', step: 5, reason: 'untracked_only' }`；内存 PGlite 执行后，该行的 `title` 实际变为 `changed`。门禁误以为只写簿记列，真实 SQL 却写了 tracked 列，工作树没有对应捕获单元。此问题在旧 HEAD 已存在，本轮首次复现，不是后续提交新引入。
+- **改进**：支持 PostgreSQL 的 dollar-quoted 字符串（含带标签形式），或对无法可靠解析的字面量拒绝 `untracked_only` 豁免；用启用提交能力的真实 PGlite adapter `rawQuery()` 加端到端回归测试。修复前不能把当前 raw 门禁视为捕获保证。
+
+### [P2] 模板插值中的动态 import 逃过核心边界审计
+
+- **证据**：[`core-plugin-boundary.mjs:94-100`](../../scripts/audit/core-plugin-boundary.mjs#L94) 新增的 `blankStringLiterals(source)` 偏移检查会抹掉整个模板字符串；[`working-tree-suite-callsites.mjs:179-185`](../../scripts/audit/working-tree-suite-callsites.mjs#L179) 连 `${...}` 内的**可执行表达式**一并抹掉。当前 ``findSpecifiers('const p = `${import("./working-tree/x.js")}`;')`` 返回 `[]`，但运行时确实会加载该模块。旧实现仅清注释，能看见这条 import；因此这是 `9e5ddc92` 之后的提交引入的门禁回退。
+- **影响**：核心源码将动态插件依赖写进模板插值时，审计成功退出，边界依赖漏报。当前仓内未发现此形态的生产调用，属于前瞻性门禁缺口。
+- **改进**：用 TS AST 区分模板文本与插值表达式，只忽略文本；至少补一条 `${import(...)}` 的正反用例，保证边界门不会因字符串误报修复而变盲。
 
 ## 2026-09-18 复核：合并阻塞项
 
@@ -193,7 +210,7 @@
 
 ## 5. 剩余项与优先级建议
 
-> 2026-09-17 的 8 条 P1 + 6 条 P2 已处理并从报告删除；2026-09-18 复核确认 4 条 P1 + 4 条 P2，并在同日的修复轮里按「确定项 + 测试 + 文档」范围落地了一批。以下是**复核后**的状态。
+> 2026-09-17 的 8 条 P1 + 6 条 P2 已处理并从报告删除；2026-09-18 上轮复核确认 4 条 P1 + 4 条 P2，并在同日的修复轮里落地了一批。本次二次评审又新增 1 条 P1 + 1 条 P2，见报告开头；以下保留上轮处置与当前优先级。
 
 ### 5.1 本轮（2026-09-18 修复轮）已处理
 
@@ -209,18 +226,20 @@
 
 另有一批只出现在 `next-0912-branch-review-max.md` 的条目同轮修掉（raw 写判定的注释/字面量扫描顺序、`assertCommitIntact` 检查换序、两个审计闸门的覆盖面、契约 `core-api.md` / `conformance-suites.md` / `tri-framework-api.md` 三份重冻结、四份 website 文档、六条测试与卫生项），处置记在那边的 §6。
 
-### 5.2 顺延项（⏸ Deferred —— 当前真正阻塞合并的全部内容）
+### 5.2 顺延项（⏸ Deferred —— 上轮确认的架构级阻塞项）
 
-本报告确认的 4 条 P1 **全部在此**，按建议优先级：
+**本次新增的 raw 写绕过（P1）应先修**：它有可执行的捕获绕过复现，不依赖跨连接或首次物化。上轮确认的 4 条 P1 **全部仍在此**，按建议优先级：
 
 1. **跨连接启用绕过捕获**（两份报告独立复现，违反 FR-037，最该先排）
 2. **三个未接线的失效保护**，建议一次排完：切换不推进 activation revision（A→B→A 重用旧凭据）/ 远端分支首次物化未接公开入口 / 损坏图不落盘隔离标记
 3. **切换前置条件与最终写入分属两个事务** —— 与第 2 条的 revision 推进同一个结构问题（适配器只收 `{branchId, actions}`），两条一起改
 4. **首次物化流水线的其余两条**：staging 崩溃续传、分页 payload 指纹校验 —— 与第 2 条中段同属一条流水线
 
-另两条来自 max 报告、同属架构级：`merge_branch('normal')` 双重捕获、diff 分页切断事务；以及阻塞在 T132 基线复冻的 `bench-working-tree` 接 CI。**去重后共 6 条**，完整清单见 `next-0912-branch-review-max.md` §6.2。
+另两条来自 max 报告、同属架构级：`merge_branch('normal')` 双重捕获、diff 分页切断事务；以及阻塞在 T132 基线复冻的 `bench-working-tree` 接 CI。**上轮架构项去重后共 6 条**，完整清单见 `next-0912-branch-review-max.md` §6.2；不含本次新增的 raw 写绕过。
 
 ### 5.3 尚未排期
+
+本次新增的模板插值动态 import 漏检（P2）应补到边界审计测试；当前没有对应生产调用点，但门禁已经失去对此写法的拦截能力。
 
 1. §3 剩余的次要项（`allocateBranchGeneration` 无 CAS、迁移恢复 UPDATE 静默 no-op、`cleanup_db` 不恢复插件单例行、raw intent 死代码、迁移触发器 branchId 回落 `'main'`、2+ active 行迁移抛错）—— 多数标着 PLAUSIBLE 或「有意为之」，先确认触发条件再定
 2. §4.4 打 ✅ 的四项：表名解析归属适配器、挂载点清单单源、错误码单源、跨后端脚手架共享

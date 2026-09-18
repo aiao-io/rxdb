@@ -1174,6 +1174,48 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
+      it('第 4 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句', async () => {
+        const adapter = await localAdapterOf(database);
+        const domain = domainOf(adapter);
+        const noteId = newEntityId();
+        const fields = noteFields('dollar-quote 之前的值', null);
+        const head = await materializeNote(noteId, fields);
+        // PG 的 `$$…$$` 是第五类定界符。不认它的话，字面量里的 `WHERE` 会被当成真子句，
+        // 后面的 `title` 就被切进「条件」里丢掉，判定只看见簿记列 `updatedAt`——
+        // 于是这条改 tracked 列的语句在第 5 步以 untracked_only 放行，捕获被整条绕过。
+        const sql = await withTransaction(
+          database,
+          async executor =>
+            `UPDATE ${executor.tableRef(ConformanceNote)} SET "updatedAt" = $$ WHERE $$, title = 'dollar-quote 改的'`
+        );
+
+        const judgment = judgeRawWrite(sql, judgmentContextOf(adapter));
+        if (judgment.kind !== 'reject') {
+          throw new Error(`dollar-quote 绕过没被拦住：落在第 ${judgment.step} 步（${judgment.reason}）`);
+        }
+        expect(judgment.step).toBe(4);
+        expect(judgment.code).toBe(CommitErrorCode.commit_capability_mismatch);
+        expect(
+          judgment.tables.filter(table => !domain.versionedTables.has(table)),
+          '拒绝点名了一张不在版本化域里的表'
+        ).toEqual([]);
+
+        let executed = 0;
+        await expectWriteRejected(() =>
+          gateRawWrite(sql, adapter.workingTreeRawWriteContext, () => {
+            executed += 1;
+          })
+        );
+        // `$$` 只是 PG 的语法，五个 SQLite 家族后端不认；但这条断言不依赖后端能不能解析它——
+        // 判定在执行前就拒了，语句一次都没到过数据库。
+        expect(executed, 'dollar-quote 语句被下发了').toBe(0);
+        const titles = await withTransaction(database, executor =>
+          readColumnValues(executor, ConformanceNote, 'title')
+        );
+        expect(titles, '业务表变了：dollar-quote 穿过了门禁').toEqual([fields['title']]);
+        await expectColdReplayIntact(database, [head]);
+      });
+
       it('第 5 步 只改簿记字段：放行，理由是 untracked_only', async () => {
         const adapter = await localAdapterOf(database);
         // 列名带引号是故意的：判定先压小写、后拆引号，`"updatedAt"` 要能归到域里的 `updatedAt`。

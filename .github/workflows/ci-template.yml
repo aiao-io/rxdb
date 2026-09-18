@@ -121,6 +121,7 @@ jobs:
       has_extras: ${{ steps.plan.outputs.has_extras }}
       code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
+      desktop_chain_changed: ${{ steps.plan.outputs.desktop_chain_changed }}
       nx_no_cloud: ${{ steps.cloud.outputs.nx_no_cloud }}
     steps:
       # fetch-tags 必须显式打开：`fetch-depth: 0` 只保证**历史**完整，不保证 tag 存在。
@@ -306,6 +307,41 @@ jobs:
           AUDIT_SECRETS_JSON=$(projects_json audit-secrets)
           LAZY_BACKEND_JSON=$(projects_json audit-lazy-backend)
 
+          # 桌面链路是否被本次 diff 触碰。路径清单与 release-desktop.yml 的
+          # `on.pull_request.paths` 同源（少了 workflow 基建那几条：它们只用于触发，
+          # 不参与 PR 门禁的 job 过滤）。改清单必须两边同步改 —— 漂移会让
+          # 「无桌面变更却跑桌面 smoke」悄悄复发。
+          #
+          # 三个消费点：E2E_MATRIX 的 electron 条目、rust job 的 if、audit-lazy-backend
+          # 的过滤（见下）。全部是 AND 过滤而非替换 affected：桌面 job 要跑，必须
+          # affected 包含它**且**桌面链路变了。粒度免费：electron-only 的 PR 不会跑
+          # rust（affected 本就不含 tauri 项目），tauri-only 的 PR 不会跑 electron e2e，
+          # 核心-only 的 PR 三个全跳。run-many（main 分支）恒为 true，全量照旧。
+          DESKTOP_PATHS=(
+            'apps/dev-rxdb-tauri/' 'apps/dev-rxdb-tauri-e2e/'
+            'apps/dev-rxdb-electron/' 'apps/dev-rxdb-electron-e2e/'
+            'apps/rxdb-devtools-extension/' 'apps/rxdb-devtools-extension-e2e/'
+            'packages/rxdb-adapter-desktop/' 'packages/rxdb-adapter-tauri/'
+            'packages/rxdb-adapter-electron/' 'packages/rxdb-adapter-sqlite-core/'
+            'packages/rxdb-adapter-encrypted/' 'packages/rxdb-devtools/'
+            'packages/rxdb-plugin-storage/' 'modules/rxdb-devtools-panel/'
+          )
+          DESKTOP_CHANGED=false
+          if [ "${{ inputs.run_mode }}" = "run-many" ]; then
+            DESKTOP_CHANGED=true
+          elif [ "${{ inputs.is_pr }}" = "true" ] && \
+               [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- "${DESKTOP_PATHS[@]}")" ]; then
+            DESKTOP_CHANGED=true
+          fi
+
+          # 非桌面 PR 时 audit-lazy-backend 置空：它 dependsOn build，会把
+          # dev-rxdb-electron / dev-rxdb-tauri 两个 Angular 生产构建拉进 extras，
+          # 与桌面无关的 PR 白付几分钟。这里直接改采集值，union 和 summary
+          # 看到的都是实际会跑的项目，不会出现「表里列了但没跑」的假象。
+          if [ "$DESKTOP_CHANGED" != "true" ]; then
+            LAZY_BACKEND_JSON='[]'
+          fi
+
           # lint / typecheck / spec-typecheck 合成一个 job 跑，项目集取并集
           # （三者的 target 归属并不总是重合）。
           CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" --argjson c "$SPEC_TYPECHECK_JSON" \
@@ -331,15 +367,19 @@ jobs:
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
           #
+          # dev-rxdb-electron-e2e 是唯一的桌面 e2e（tauri 的 smoke target 刻意不叫
+          # e2e，只进发布链路），非桌面 PR 时被 DESKTOP_CHANGED 过滤掉 —— 它的
+          # dependsOn 里有 electron-builder 打包，是 e2e 矩阵里最贵的条目。
+          #
           # label 只是 job 名：`dev-rxdb-angular-e2e / e2e` 里三处都在说 e2e，
           # 在 PR 的 checks 列表（前缀已经占掉 `ci / e2e (`）里会被截断成 `…e2e)`，
           # 剩下的字全是废话。剥掉共有的 `dev-rxdb-` 前缀和 `-e2e` 后缀，
           # 只留真正区分彼此的那一段：angular / electron / react / supabase / vue。
           # 不匹配这套命名的新应用会原样保留全名 —— 名字长点，不会认错。
-          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" '
+          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" --argjson desktop "$DESKTOP_CHANGED" '
             def short_name: sub("^dev-rxdb-"; "") | sub("-e2e$"; "");
             {
-              include: (($e | sort | map({project: ., target: "e2e", label: short_name, supabase: false}))
+              include: (($e | sort | map(select(. != "dev-rxdb-electron-e2e" or $desktop)) | map({project: ., target: "e2e", label: short_name, supabase: false}))
                       + ($r | sort | map({project: ., target: "e2e-remote", label: (short_name + " remote"), supabase: true})))
             }')
 
@@ -385,6 +425,7 @@ jobs:
             echo "has_extras=$(nonempty "$EXTRAS")"
             echo "code_changed=$CODE_CHANGED"
             echo "need_benchmark=$NEED_BENCHMARK"
+            echo "desktop_chain_changed=$DESKTOP_CHANGED"
           } >> "$GITHUB_OUTPUT"
 
           # 写进 job summary：某个 job 显示 skipped 时，能一眼看出是「真的没受影响」
@@ -403,6 +444,7 @@ jobs:
             echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
             echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" --argjson d "$LAZY_BACKEND_JSON" '($a+$b+$c+$d)|unique|length') | \`$EXTRAS\` |"
             echo
+            echo "desktop_chain_changed: \`$DESKTOP_CHANGED\`（false 时 e2e (electron) / rust / audit-lazy-backend 不参与过滤）"
 
             # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
             # artifact 名里（`coverage-lane-t1`）。这张表是两者唯一的映射，
@@ -841,10 +883,15 @@ jobs:
   # 名字对不上，于是那几千行 Rust 在别的 job 里一行都不会被编译。
   # 单开一个 job 而不是并进 lint/test：它要 Rust 工具链和一整套 GTK/WebKit 系统库，
   # 让每条 test lane 都背上这份安装成本是纯亏。
+  #
+  # if 里的 desktop_chain_changed 是路径过滤：tauri crate 与 JS core 没有编译期耦合，
+  # 改 packages/rxdb/src 之类时 affected 会经 rxdb-adapter-tauri 的 test-conformance
+  # （dependsOn ^build）连坐到这里，白付一遍 cargo 编译。run-many（main）恒为 true，
+  # 判定逻辑与路径清单见 setup 的 plan step。
   rust:
     name: rust
     needs: setup
-    if: needs.setup.outputs.has_rust == 'true'
+    if: needs.setup.outputs.has_rust == 'true' && needs.setup.outputs.desktop_chain_changed == 'true'
     runs-on: ubuntu-latest
     # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
     timeout-minutes: 45

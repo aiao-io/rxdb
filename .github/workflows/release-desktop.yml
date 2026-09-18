@@ -29,6 +29,11 @@ on:
   # adapter 发布审计脚本与 workflow 自身基建。改动落在别处的 PR 不触发。
   # 保留 workflow 自触发路径的原因不变：这份文件第一次真实运行若发生在打 tag 之后，
   # 发布当天才发现语法写错、runner 上缺个系统库，是最不该省的那点时间。
+  #
+  # ⚠️ 这份清单也是 ci-template.yml 里 DESKTOP_CHANGED（PR 门禁的桌面 job 路径过滤）
+  # 的同源清单：那边去掉 workflow 基建条目（本文件自身、configure-apt、xvfb、
+  # desktop-adapter-consumer.mjs）后逐条对应。改任何一边必须同步改另一边，
+  # 漂移会让「无桌面变更却跑桌面 smoke / 桌面变更却不跑」悄悄复发。
   pull_request:
     paths:
       - '.github/workflows/release-desktop.yml'

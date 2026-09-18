@@ -575,3 +575,70 @@ describe('词法归一化是单趟的：注释与字面量谁先出现谁先吃'
     expect(rejectionFor("/* don't */ UPDATE post SET title = 'x'").step).toBe(4);
   });
 });
+
+describe('dollar-quoted 字符串：PG 的第五类定界符', () => {
+  it('`$$ … $$` 里的 `WHERE` 不终止 SET 子句——藏在它后面的被跟踪列赋值落第 4 步', () => {
+    // 这是「五类定界符少认一类」的可执行后果，不是理论缺口：内存 PGlite 上，下面这条把
+    // `title` 真改成了 `changed`，而少认 `$$` 的判定读出的列集只有 `remote_id`，于是第 5 步
+    // 给出 `untracked_only`——门禁以为只写了簿记列，工作树没有任何对应捕获单元。
+    // 词法层少认一类定界符，危害与少认注释完全同形：字面量内部的结构字被当成结构。
+    expect(
+      rejectionFor(`UPDATE "public"."post" SET "remote_id" = $$ WHERE $$, title = 'changed' WHERE id = 'a'`).step
+    ).toBe(4);
+  });
+
+  it('带标签的形式一样认——标签是 PG 的标识符，可以是非 ASCII', () => {
+    // 只认无标签的 `$$` 等于把同一个洞留给 `$tag$`：标签形态正是为「正文里含 `$$`」准备的，
+    // 也就是最可能出现在手写 SQL 里的那一种。
+    expect(rejectionFor(`UPDATE post SET remote_id = $tag$ WHERE $tag$, title = 'changed' WHERE id = 'a'`).step).toBe(
+      4
+    );
+    expect(rejectionFor(`UPDATE post SET remote_id = $标签$ WHERE $标签$, title = 'x'`).step).toBe(4);
+  });
+
+  it('字面量内部的分号不切语句、注释符不开注释、撇号不开字面量', () => {
+    // 与 `'…'` 同一条口径（见上一组用例）：认出定界符之后，正文里的一切结构字都只是字符。
+    // 反过来写松的话，这三条都会变成**误拒**——一条只更新簿记列的合法写被拦下。
+    expect(allowanceFor(`UPDATE post SET remote_id = $$a; UPDATE post SET title = 'x'$$ WHERE id = 'a'`).reason).toBe(
+      'untracked_only'
+    );
+    expect(allowanceFor(`UPDATE post SET remote_id = $$ -- don't /* $$ WHERE id = 'a'`).reason).toBe('untracked_only');
+  });
+
+  it('不闭合的 dollar-quote 不吃掉它后面的写（fail-closed）', () => {
+    // 与未闭合的块注释**刻意不同**：那一类吃到串尾是安全的（SQLite 允许、PG 判语法错，两种读法下
+    // 后面那截都不会写进业务表）。这一类不行——`$$` 在 SQLite 里根本不是定界符，吃到串尾就等于
+    // 把一条真能执行的写从视野里抹掉。所以认不出配对时按「这不是定界符」处理，正文继续参与判定。
+    expect(rejectionFor(`UPDATE post SET remote_id = $$, title = 'x'`).step).toBe(4);
+    expect(rejectionFor(`UPDATE post SET remote_id = $tag$, title = 'x'`).step).toBe(4);
+  });
+
+  it('参数占位符不是 dollar-quote——PG 的 `$1` 与 SQLite 的 `$name` 照旧', () => {
+    // 这一条是上面那条 fail-closed 规则的正面：六个后端里五个是 SQLite 家族，`$name` 是它的
+    // 命名参数，`$1` 是 PG 的位置参数。把落单的 `$` 当成定界符起点会让**每一条带参数的 raw 写**
+    // 开始误判——判定跑在每一次 raw 调用上，这种误判比漏判更早被用户撞上。
+    expect(allowanceFor(`UPDATE post SET remote_id = $1 WHERE id = $2`).reason).toBe('untracked_only');
+    expect(allowanceFor(`UPDATE post SET remote_id = $remote, synced_at = $when WHERE id = $id`).reason).toBe(
+      'untracked_only'
+    );
+    expect(rejectionFor(`UPDATE post SET title = $1 WHERE id = $2`).step).toBe(4);
+  });
+
+  it('谁先出现谁先吃：字面量里的 `$$` 不开 dollar-quote', () => {
+    // 与「字面量里的 `/*` 不开块注释」互为边界。开了的话，两个字面量里的 `$$` 之间那段
+    // `title = 'x'` 会被整段吞掉，剩下的列集恰好还是一个只含 untracked 列的良构子集——
+    // 也就是第 5 步会放行的那一种形状。
+    expect(rejectionFor(`UPDATE post SET remote_id = '$$', title = 'x', synced_at = '$$'`).step).toBe(4);
+    expect(rejectionFor(`UPDATE post SET remote_id = 1 /* $$ */, title = 'x', synced_at = 2 /* $$ */`).step).toBe(4);
+  });
+
+  it('十万个配不上对的标签也在毫秒量级判完（CWE-1333）', () => {
+    // 每个标签只出现一次，于是每一次配对都必然落空。用 `indexOf` 逐个从当前位置扫到串尾的写法，
+    // 这条输入会退化成二次方——与未闭合块注释那条是同一类退化，只是换了个定界符。
+    // 线性的做法是先一趟把全部 `$tag$` 记号按标签建索引，配对变成一次指针前进。
+    const sql = Array.from({ length: 100_000 }, (_unused, index) => `$t${index}$`).join(' ');
+    const started = performance.now();
+    judgeRawWrite(sql, context());
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
