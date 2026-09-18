@@ -9,7 +9,15 @@ import {
   LucideDynamicIcon
 } from '@lucide/angular';
 import { startDragResize } from '../working-tree.drag';
-import { gdAvatarColor, gdAvatarInitial, gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../working-tree.gd';
+import {
+  gdAvatarColor,
+  gdAvatarInitial,
+  gdEntryPath,
+  gdOpColor,
+  gdOpIcon,
+  gdPathColor,
+  gdTableName
+} from '../working-tree.gd';
 import { WorkingTreeDiffViewerComponent } from './diff-viewer.component';
 
 /** 一个变更单元的选中键：同一 commit 里的单元也互不相同。 */
@@ -144,10 +152,7 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                       role="button"
                       tabindex="0"
                     >
-                      <div
-                        class="flex min-w-0 items-center gap-2"
-                        [title]="gdEntryPath(unit)"
-                      >
+                      <div class="flex min-w-0 items-center gap-2" [title]="gdEntryPath(unit)">
                         <!-- 路径中间省略（与更改列表同一形态） -->
                         <span
                           class="flex min-w-0 flex-1 items-center text-[13px]"

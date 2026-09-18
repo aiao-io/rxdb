@@ -48,8 +48,8 @@ import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.compone
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
 import { diffEntryKey } from './working-tree.diff-format';
-import { gdEntryPath } from './working-tree.gd';
 import { startDragResize } from './working-tree.drag';
+import { gdEntryPath } from './working-tree.gd';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -170,7 +170,13 @@ export default class WorkingTreePage implements OnInit {
   readonly $contextMenu = signal<WorkingTreeContextMenuState | null>(null);
   /** 右键菜单对应的目标：分发动作时不再靠菜单文案反查。 */
   readonly $contextMenuTarget = signal<
-    | { readonly kind: 'diff'; readonly key: string; readonly namespace: string; readonly entity: string; readonly entityId: string }
+    | {
+        readonly kind: 'diff';
+        readonly key: string;
+        readonly namespace: string;
+        readonly entity: string;
+        readonly entityId: string;
+      }
     | { readonly kind: 'commit'; readonly commitId: string }
     | { readonly kind: 'branch'; readonly branchId: string }
     | null
@@ -366,7 +372,9 @@ export default class WorkingTreePage implements OnInit {
     }
     if (item.id === 'copy-path') {
       void this.copyText(
-        target.kind === 'diff' ? gdEntryPath({ namespace: target.namespace, entity: target.entity, entityId: target.entityId }) : ''
+        target.kind === 'diff' ?
+          gdEntryPath({ namespace: target.namespace, entity: target.entity, entityId: target.entityId })
+        : ''
       );
       return;
     }

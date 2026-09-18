@@ -31,17 +31,17 @@
                其余区域盖一层黑透明遮罩（源码 foldoutStyle: width=sidebarWidth, height 100%）。 -->
           <div
             class="fixed inset-0 z-30"
+            [style.background]="'rgba(0, 0, 0, 0.35)'"
             (click)="closeRepoMenu()"
             (keydown.escape)="closeRepoMenu()"
             aria-label="Close repository menu"
             role="button"
             tabindex="0"
-            [style.background]="'rgba(0, 0, 0, 0.35)'"
           ></div>
           <div
             class="gd-menu gd-menu-flush absolute top-full left-0 z-40 w-64 overflow-y-auto"
-            [style.width.px]="$asideWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $asideWidth()"
             [style.height]="'calc(100vh - 50px)'"
+            [style.width.px]="$asideWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $asideWidth()"
             aria-label="Repository list"
             data-testid="wt-repo-menu-popup"
             role="menu"

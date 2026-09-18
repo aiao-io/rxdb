@@ -82,12 +82,12 @@ import { gdRelativeTime } from '../working-tree.gd';
                让 Escape / 点击关闭对键盘用户成立） -->
           <div
             class="fixed inset-0 z-30"
+            [style.background]="'rgba(0, 0, 0, 0.35)'"
             (click)="closeAll()"
             (keydown.escape)="closeAll()"
             aria-label="Close branch menu"
             role="button"
             tabindex="0"
-            [style.background]="'rgba(0, 0, 0, 0.35)'"
           ></div>
         }
 
@@ -140,8 +140,8 @@ import { gdRelativeTime } from '../working-tree.gd';
         } @else if (menuOpen()) {
           <div
             class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
-            [style.width.px]="popupWidth()"
             [style.height]="'calc(100vh - 50px)'"
+            [style.width.px]="popupWidth()"
             aria-label="Branch list"
             data-testid="wt-branch-menu-popup"
             role="menu"
@@ -205,7 +205,11 @@ import { gdRelativeTime } from '../working-tree.gd';
                         </span>
                       }
                       <!-- GitHub Desktop 的分支行右端是上次提交的相对时间；悬停给完整时间戳 -->
-                      <span class="shrink-0 text-xs" [style.color]="'var(--gd-muted)'" [title]="branchTime(branch).toLocaleString()">
+                      <span
+                        class="shrink-0 text-xs"
+                        [style.color]="'var(--gd-muted)'"
+                        [title]="branchTime(branch).toLocaleString()"
+                      >
                         {{ gdRelativeTime(branchTime(branch)) }}
                       </span>
                     </button>

@@ -289,7 +289,11 @@ test.describe('Working Tree Page A11y', () => {
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
     const actionsReached = await walkPanelWithTab(page, 3);
-    expectReachedWithIndicator(actionsReached, ['wt-branch-menu-switch', 'wt-branch-menu-merge', 'wt-branch-menu-delete']);
+    expectReachedWithIndicator(actionsReached, [
+      'wt-branch-menu-switch',
+      'wt-branch-menu-merge',
+      'wt-branch-menu-delete'
+    ]);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
