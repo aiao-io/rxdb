@@ -87,11 +87,20 @@ test('转义引号不提前结束字符串', () => {
   assert.ok(blanked.includes('const b = 2;'));
 });
 
-test('模板字面量整体清空', () => {
-  const source = 'const a = `${COMMIT}`;\nconst b = 2;\n'.replace('COMMIT', COMMIT_SUITE);
+test('模板字面量的文本段被清空', () => {
+  const source = `const a = \`${COMMIT_SUITE}\`;\nconst b = 2;\n`;
   const blanked = blankStringLiterals(stripComments(source));
 
   assert.ok(!blanked.includes(COMMIT_SUITE));
+  assert.ok(blanked.includes('const b = 2;'));
+});
+
+test('模板插值里的表达式按代码保留，不清空', () => {
+  // `${…}` 里是可以真跑起来的代码，抹掉会把套件调用点漏掉，造成假绿。
+  const source = `const a = \`\${${COMMIT_SUITE}({})}\`;\nconst b = 2;\n`;
+  const blanked = blankStringLiterals(stripComments(source));
+
+  assert.ok(blanked.includes(`${COMMIT_SUITE}({})`));
   assert.ok(blanked.includes('const b = 2;'));
 });
 
