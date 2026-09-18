@@ -1,13 +1,15 @@
 {
-  "commit": "2789340c99cdaaa85c9596db329c9116e7772e65",
+  "commit": "9e5ddc92cdca4c781d991a4332ef9a81aab7cf0b",
   "frozenAbsolute": {
-    "commit": 425.84558349999133
+    "commit": 550.531687499999
   },
   "medianRatios": {
-    "status": 1.9607634064028476,
-    "diff": 2.537189572244733,
-    "commit": 15.71346564887656
+    "status": 2.182196332248118,
+    "diff": 2.555241101149252,
+    "restore": 14.680941324859418,
+    "commit": 15.933321897335857
   },
+  "regeneratedBecause": "T109 新增 restore 测点；本轮为带机器负载的初版基线，待静默后复冻",
   "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba",
   "runs": 10
 }

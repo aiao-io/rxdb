@@ -141,11 +141,30 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    **不能动** `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION`。若那个功能必须升 schema，
    它得排到桥接版本**之后**单独发——否则就会掉进「migration 需要先有 bridge tag，而 bridge tag 又被这次升级污染」的死锁。
 
-   **当前状态实测（2026-09-12，HEAD `f4e0778`）：这条今天是成立的，不必额外动作。**
-   两个常量在 `v0.0.24` 与 `main` 上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` / `RXDB_CHANGE_CODEC_VERSION = 1`，
-   `git log v0.0.24..main -S"RXDB_SYSTEM_SCHEMA_VERSION = " -- packages/rxdb/src/system/migration.ts`
-   与 codec 那条的对应命令**均为空**。启动线 A 前按同样两条命令复测一次即可——只要它们仍为空，
-   清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
+   **⚠️ 复测必须用 `-G`，不能用 `-S`（2026-09-18 修正）。** 本文此前给的是 `git log -S`，而 `-S` 统计的是
+   **字符串出现次数的变化**：把 `= 3` 改成 `= 6`，`RXDB_SYSTEM_SCHEMA_VERSION = ` 这个串前后都出现 1 次，
+   计数没变，`-S` 于是**恒空**。2026-09-18 在 `next-0912` 上实测过这个假清白——常量已经是 6，
+   `-S` 仍报空，而 `-G`（匹配 diff 文本）正确报出 `be3edd18` / `afd4dc0b` / `77d8c076` 三条，
+   正是 3 → 4 → 5 → 6 那三次抬升。**这是唯一一条人工防线**（门禁只比对布尔位、从不读源码常量，
+   见执行顺序第 1 步），用错了它整条防线恒绿。两条正确命令是：
+
+   ```bash
+   git log v0.0.24..main -G"RXDB_SYSTEM_SCHEMA_VERSION = " -- packages/rxdb/src/system/migration.ts
+   git log v0.0.24..main -G"RXDB_CHANGE_CODEC_VERSION = "  -- packages/rxdb/src/system/change-codec.ts
+   ```
+
+   光看输出仍不够——`-G` 会把「抬上去又改回来」的两条都报出来。定论以**两端取值**为准，
+   这一条比任何 `git log` 都直接：
+
+   ```bash
+   git show v0.0.24^{commit}:packages/rxdb/src/system/migration.ts | grep 'RXDB_SYSTEM_SCHEMA_VERSION = '
+   grep 'RXDB_SYSTEM_SCHEMA_VERSION = ' packages/rxdb/src/system/migration.ts
+   ```
+
+   **当时的实测结论（2026-09-12，HEAD `f4e0778`，在 `main` 上量）仍然成立**：两个常量在 `v0.0.24` 与 `main`
+   上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` / `RXDB_CHANGE_CODEC_VERSION = 1`。那次结论没受本次口径修正影响——
+   它在**两端取值相等**这一层就是对的，`-S` 报空只是碰巧同答案。启动线 A 前按上面四条命令复测：
+   只要两端取值相等，清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
 
    **`next-0912` 上已经不成立了（2026-09-13）**：该分支把 `RXDB_SYSTEM_SCHEMA_VERSION` 抬到了
    **5**（3 → 4 是 epic-006 的 10 张工作树/提交图表；4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，
@@ -156,7 +175,7 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    - **`next-0912` 合入 `main` 之后，它不能充当桥接版本**（见本条第一段：`kind=bridge` 撞上
      `systemSchemaUpgrade=true` 会被门禁直接拒）。桥接锚点必须从一条不动这两个常量的路径上先发出去，
      这次 schema 升级排在其**之后**，清单切 `kind=migration`。
-   - 复测那两条 `git log -S` 命令时，区间一旦覆盖本次合入就**不再为空**；届时清单里的
+   - 复测那两条 `git log -G` 命令时（**不是 `-S`**，理由见本条上一段），区间一旦覆盖本次合入就**不再为空**；届时清单里的
      `systemSchemaUpgrade` 必须置 `true`，而不是沿用上面那句「保持 `false`」。
 
    4 → 5 单独拎出来记一笔的理由：`activeKey` 是在 v4 水位线**之后**才进 schema 的，而版本号是升级路径
@@ -211,6 +230,16 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
      `f4e0778` 已在 `origin/main` 上，**不得重写**——只能在 changelog 生成后**人工补写**这两条。
      ② 是多报、④ 是漏报，定稿前两边都要人工过一遍；判断某条到底发没发过，仍按上方开项第三条只认 `npm pack`。
 
+     ⑥ **复测（2026-09-18，在 `origin/main` 上量）：三条输入都变了量、结论一条没变。**
+     `v0.0.24..origin/main` 现为 **42 条提交（23 `feat` + 3 `fix`）**，较 2026-09-12 的 36 / 19 / 3 增加了 4 条 `feat`；
+     bump 量充足，① 的结论不变——specifier 仍是 `minor`、仍被 `adjustSemverBumpsForZeroMajorVersion` 降级，
+     默认推算仍落在禁用且已被 registry 占用的 `0.0.25` 上，**线 A 仍必须显式传版本号**。
+     另外两条当天为绿：⑤ 的非规范标题检查在 `main` 上**零输出**（那 3 条 `2132` / `22` / `21313` 没进 `main`），
+     `git log --merges v0.0.24..origin/main` 同样为空，执行顺序第 1 步依赖的「全历史零 merge commit」仍成立。
+     ⚠️ 这两条都是**时点结论**，不是状态——本条写下之后仓库仍在产生新提交，动手前照样要重跑，理由见 ⑤。
+     特性分支上量没有意义：`next-0912` 同区间有 20+ 条 `123` / `213213` 这类中间提交和 1 个 merge commit，
+     它们会在 squash 时消失，量出来的是噪声。
+
      ⑤ **非规范标题会以 `__INVALID__` 原样进 changelog，且本仓库在持续产生新的。**
      2026-09-12 一个下午就产生了 3 条（`2132` / `22` / `21313`，15:39～16:19，均为并发会话把本文件的
      编辑顺手提交所致），且**每写完一次核对结论就又多一条**。所以这里不列清单——
@@ -249,7 +278,7 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    ⚠️ **这一条门禁守不住，别指望它**：`kind=bridge` 只校验 `systemSchemaUpgrade` / `changeCodecUpgrade`
    两个布尔位（[check-migration-release-gate.mjs:256](../scripts/check-migration-release-gate.mjs#L256)），
    **从不读源码常量**；桥接发布时 `bridge.tag` 是 `null`，新增的 `bridgeTagVersionConstants` 钩子也走不到。
-   悄悄抬了常量却把布尔位留成 `false`，门禁照样全绿。唯一防线是硬前提 1 那两条 `git log -S` 人工复测。
+   悄悄抬了常量却把布尔位留成 `false`，门禁照样全绿。唯一防线是硬前提 1 那两条 `git log -G` 人工复测（**`-S` 在这里恒空，会给出假清白**，见硬前提 1）。
    门禁的祖先判定是
    `git merge-base --is-ancestor <tag>^{commit} HEAD`（[scripts/check-migration-release-gate.mjs:186](../scripts/check-migration-release-gate.mjs#L186)）。
    本仓库全历史零 merge commit，PR 一律 squash：若在特性分支上打 tag 再 squash 进 `main`，
