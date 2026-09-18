@@ -25,10 +25,7 @@ test('包目录被 typedoc 当作 media 复制的链接重写为兄弟包页', (
 test('带 README.md 后缀的 media 链接同样重写', () => {
   const content = '见 [历史](../_media/rxdb-plugin-history/README.md)。';
 
-  assert.equal(
-    rewriteMediaPackageLinks(content, ['rxdb-plugin-history']),
-    '见 [历史](../rxdb-plugin-history)。'
-  );
+  assert.equal(rewriteMediaPackageLinks(content, ['rxdb-plugin-history']), '见 [历史](../rxdb-plugin-history)。');
 });
 
 test('非包 media（图片等）链接原样保留', () => {
@@ -48,10 +45,7 @@ test('media 里有包 README 但站点没有对应文档页时降级为纯文本
   // 在 docusaurus 里不可路由，保留链接就是坏链。参照 docker/sql 先例降级为纯文本。
   const content = '见 [`@aiao/rxdb-plugin-history`](../_media/rxdb-plugin-history) 文档。';
 
-  assert.equal(
-    plainTextMediaPackageLinks(content, ['rxdb-plugin-history']),
-    '见 `@aiao/rxdb-plugin-history` 文档。'
-  );
+  assert.equal(plainTextMediaPackageLinks(content, ['rxdb-plugin-history']), '见 `@aiao/rxdb-plugin-history` 文档。');
 });
 
 test('带 README.md 后缀的无页面 media 链接同样降级', () => {

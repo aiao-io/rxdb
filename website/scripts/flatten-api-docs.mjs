@@ -207,13 +207,13 @@ async function flattenApiDocs() {
   console.log('🔧 修复 HTML 实体编码...');
   const packageNames = (await readdir(apiDir, { withFileTypes: true }))
     .filter(
-      entry =>
-        entry.isDirectory() && entry.name !== '_media' && existsSync(join(apiDir, entry.name, 'README.md'))
+      entry => entry.isDirectory() && entry.name !== '_media' && existsSync(join(apiDir, entry.name, 'README.md'))
     )
     .map(entry => entry.name);
   const mediaDir = join(apiDir, '_media');
-  const mediaPackageNames = existsSync(mediaDir)
-    ? (await readdir(mediaDir, { withFileTypes: true }))
+  const mediaPackageNames =
+    existsSync(mediaDir) ?
+      (await readdir(mediaDir, { withFileTypes: true }))
         .filter(entry => entry.isDirectory() && existsSync(join(mediaDir, entry.name, 'README.md')))
         .map(entry => entry.name)
         .filter(name => !packageNames.includes(name))

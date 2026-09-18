@@ -10,11 +10,11 @@
 
 ## 评审基准（SHA）
 
-| 角色             | SHA                                        | 说明                                   |
-| ---------------- | ------------------------------------------ | -------------------------------------- |
+| 角色             | SHA                                        | 说明                                               |
+| ---------------- | ------------------------------------------ | -------------------------------------------------- |
 | `main` 顶端      | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | commit `feat(aiao): 拆分 rxdb 功能为 plugin (#61)` |
-| `next-0912` HEAD | `9e5ddc92cdca4c781d991a4332ef9a81aab7cf0b` | 2026-09-18 评审时 HEAD                |
-| merge-base       | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | 与 main 顶端相同，无分叉              |
+| `next-0912` HEAD | `9e5ddc92cdca4c781d991a4332ef9a81aab7cf0b` | 2026-09-18 评审时 HEAD                             |
+| merge-base       | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | 与 main 顶端相同，无分叉                           |
 
 - 评审开始时工作区 clean；本报告文件本身不计入变更统计。
 
@@ -126,73 +126,73 @@
 
 ## 4. 证伪项（REFUTED，勿再报）
 
-| 候选 | 结论依据 |
-| ---- | -------- |
-| raw-bypass-judgment.spec.ts:538 的 500ms 墙钟断言 flaky | 实测线性路径 0.34–0.82ms，500ms 上限有 >600 倍余量（文档亦注明「留三个量级的余量」）；普通 CI 争用不足以触发。 |
+| 候选                                                               | 结论依据                                                                                                                                                            |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| raw-bypass-judgment.spec.ts:538 的 500ms 墙钟断言 flaky            | 实测线性路径 0.34–0.82ms，500ms 上限有 >600 倍余量（文档亦注明「留三个量级的余量」）；普通 CI 争用不足以触发。                                                      |
 | apps/dev-rxdb-react / vue 的 package.json 缺 working-tree 依赖登记 | 缺登记属实，但 nx 从 tsconfig references 推断静态边（`nx graph` 实测四条边齐全），`nx affected` 不受影响，vite 走 tsconfigPaths 到源码；降级为 hygiene 级，不计入。 |
 
 ## 5. 其余已验证发现（超出 Top 15 上限，共 32 条 + 1 条 PLAUSIBLE）
 
 ### 5.1 契约 / 文档漂移（7 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
-| [core-api.md:62](../../specs/001-working-tree-commits/contracts/core-api.md#L62) | 契约声明 `status$(): Observable<WorkingTreeStatus>`，实现只有命令式 `status()`，src 内无任何 `status$`。 |
-| [core-api.md:118](../../specs/001-working-tree-commits/contracts/core-api.md#L118) | 契约 CommitOptions 全可选（`author?`、无 `expectedBranch`），实现必填 `authorId`/`operationId`/`expectedBranch`；`restore(target, options?)` 同样实现必填。 |
-| [benchmark-report.md:65](../../specs/001-working-tree-commits/contracts/benchmark-report.md#L65) | 冻结 reference 的 medianRatios 缺 `restore` 键，而 bench 无条件测 restore，`evaluateRelativeGate` 对缺键硬失败；CI 当前不跑该 gate（见 §2 S1），但 HEAD 上手动跑必红。 |
-| [conformance-suites.md:13](../../specs/001-working-tree-commits/contracts/conformance-suites.md#L13) | 契约称套件从 `packages/rxdb` 导出，实际在 `rxdb-plugin-working-tree/testing`；suite-callsites 门禁的 SUITE_ENTRY 也是后者。 |
-| [tri-framework-api.md:23](../../specs/001-working-tree-commits/contracts/tri-framework-api.md#L23) | 契约称 Angular 入口是 `WorkingTreeService` + `Signal<WorkingTreeStatus>`/`status$`，实际只有 `useWorkingTree()` 返回 `statusState: Signal<WorkingTreeQueryState<WorkingTreeStatus>>`。 |
-| [working-tree-split.md:84](../../website/docs/migration/working-tree-split.md#L84) | 迁移文档称「七个状态字段」，实际 `WorkingTreeAsyncStates` 十个字段且绑定与 README 都写十。 |
-| [compare.md:14](../../website/docs/getting-started/compare.md#L14) | 称 restore 与工作树语义 switchBranch「尚在路线图上」，两者均已实现并有测试；collaboration/branch.md:175 同款过时。 |
+| 位置                                                                                                 | 摘要                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [core-api.md:62](../../specs/001-working-tree-commits/contracts/core-api.md#L62)                     | 契约声明 `status$(): Observable<WorkingTreeStatus>`，实现只有命令式 `status()`，src 内无任何 `status$`。                                                                               |
+| [core-api.md:118](../../specs/001-working-tree-commits/contracts/core-api.md#L118)                   | 契约 CommitOptions 全可选（`author?`、无 `expectedBranch`），实现必填 `authorId`/`operationId`/`expectedBranch`；`restore(target, options?)` 同样实现必填。                            |
+| [benchmark-report.md:65](../../specs/001-working-tree-commits/contracts/benchmark-report.md#L65)     | 冻结 reference 的 medianRatios 缺 `restore` 键，而 bench 无条件测 restore，`evaluateRelativeGate` 对缺键硬失败；CI 当前不跑该 gate（见 §2 S1），但 HEAD 上手动跑必红。                 |
+| [conformance-suites.md:13](../../specs/001-working-tree-commits/contracts/conformance-suites.md#L13) | 契约称套件从 `packages/rxdb` 导出，实际在 `rxdb-plugin-working-tree/testing`；suite-callsites 门禁的 SUITE_ENTRY 也是后者。                                                            |
+| [tri-framework-api.md:23](../../specs/001-working-tree-commits/contracts/tri-framework-api.md#L23)   | 契约称 Angular 入口是 `WorkingTreeService` + `Signal<WorkingTreeStatus>`/`status$`，实际只有 `useWorkingTree()` 返回 `statusState: Signal<WorkingTreeQueryState<WorkingTreeStatus>>`。 |
+| [working-tree-split.md:84](../../website/docs/migration/working-tree-split.md#L84)                   | 迁移文档称「七个状态字段」，实际 `WorkingTreeAsyncStates` 十个字段且绑定与 README 都写十。                                                                                             |
+| [compare.md:14](../../website/docs/getting-started/compare.md#L14)                                   | 称 restore 与工作树语义 switchBranch「尚在路线图上」，两者均已实现并有测试；collaboration/branch.md:175 同款过时。                                                                     |
 
 ### 5.2 效率（4 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
+| 位置                                                                                                         | 摘要                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [restore-precheck.ts:264](../../packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L264) | 线性历史 N 次提交时预检约 3N 次顺序往返（两次 BFS 每层一查 + 每路径节点一查 changeSet），且全在调用方写事务内；可用 `in` 批量化（`loadCommitsByIds` 已有此模式）。 |
-| [commit-graph-guard.ts:110](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L110) | 每次 commit()/restore()/switch 对每个可达 commit 顺序一条 `=` 查询；commit 行已按层 `in` 批量化，changeSet 未批。 |
-| [capture-runtime.ts:349](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L349) | 捕获热路径每变更 ~7-8 次查询（token 重验、entry 双读、状态行读+写），同事务内均可提升到批级。 |
-| [rxdb-adapter.ts:185](../../packages/rxdb/src/rxdb-adapter.ts#L185) | 启用态 getter 每次 rawQuery 分配新 context 对象 + gate 闭包；可像禁用态那样缓存单例。 |
+| [commit-graph-guard.ts:110](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L110)   | 每次 commit()/restore()/switch 对每个可达 commit 顺序一条 `=` 查询；commit 行已按层 `in` 批量化，changeSet 未批。                                                  |
+| [capture-runtime.ts:349](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L349)   | 捕获热路径每变更 ~7-8 次查询（token 重验、entry 双读、状态行读+写），同事务内均可提升到批级。                                                                      |
+| [rxdb-adapter.ts:185](../../packages/rxdb/src/rxdb-adapter.ts#L185)                                          | 启用态 getter 每次 rawQuery 分配新 context 对象 + gate 闭包；可像禁用态那样缓存单例。                                                                              |
 
 ### 5.3 重复 / 简化（7 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
-| [list-commits.ts:137](../../packages/rxdb-plugin-working-tree/src/commit/list-commits.ts#L137) | `nextFrontier` 与 [commit-graph-guard.ts:168](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L168) `nextParents` 逐字相同；改一处必漂移。 |
-| [branch-commit-rows.ts:180](../../packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts#L180) | `readBranchEntries` 与 [commit-command.ts:97](../../packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L97) 逐字节相同；id-asc 顺序是内容指纹输入，漂移即指纹分叉。 |
-| [branch-materialization.ts:164](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L164) | `canonicalJson` 与 [capture-runtime.ts:79](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L79) `canonicalize` 输出等价可安全合并；文件注释「收敛口径各不相同」对本对不成立。 |
-| [read_current_branch_id.ts:22](../../packages/rxdb-adapter-sqlite-core/src/version/read_current_branch_id.ts#L22) | sqlite-core 双份「读当前分支」实现（另一份 with_triggers_disabled.ts:42），通道/列索引/报错文案各异；docstring 引用的 `#readCurrentBranchId` 不存在；pglite 只有一份。 |
-| [working-tree-restore-session.entity.ts:12](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-restore-session.entity.ts#L12) | 存储枚举 `'conflicted'` 全库无写入点（status 从修订号推导），死值引诱未来双真源。 |
-| 三份 use-working-tree spec（angular:175 / react / vue） | ~150 行夹具逐字三拷贝；核心 `./testing` 子路径正是共享测试支撑位，夹具可下沉。 |
-| [commit-error-codes.spec.ts:46](../../packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-error-codes.spec.ts#L46) | 「互为全集」断言是同义反复（数组 = Object.values 同一对象）；同文件 25-37 行手写字面量才是真钉，此断言冗余。 |
+| 位置                                                                                                                                             | 摘要                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [list-commits.ts:137](../../packages/rxdb-plugin-working-tree/src/commit/list-commits.ts#L137)                                                   | `nextFrontier` 与 [commit-graph-guard.ts:168](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L168) `nextParents` 逐字相同；改一处必漂移。                                       |
+| [branch-commit-rows.ts:180](../../packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts#L180)                                       | `readBranchEntries` 与 [commit-command.ts:97](../../packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L97) 逐字节相同；id-asc 顺序是内容指纹输入，漂移即指纹分叉。                     |
+| [branch-materialization.ts:164](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L164)                         | `canonicalJson` 与 [capture-runtime.ts:79](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L79) `canonicalize` 输出等价可安全合并；文件注释「收敛口径各不相同」对本对不成立。 |
+| [read_current_branch_id.ts:22](../../packages/rxdb-adapter-sqlite-core/src/version/read_current_branch_id.ts#L22)                                | sqlite-core 双份「读当前分支」实现（另一份 with_triggers_disabled.ts:42），通道/列索引/报错文案各异；docstring 引用的 `#readCurrentBranchId` 不存在；pglite 只有一份。                                    |
+| [working-tree-restore-session.entity.ts:12](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-restore-session.entity.ts#L12) | 存储枚举 `'conflicted'` 全库无写入点（status 从修订号推导），死值引诱未来双真源。                                                                                                                         |
+| 三份 use-working-tree spec（angular:175 / react / vue）                                                                                          | ~150 行夹具逐字三拷贝；核心 `./testing` 子路径正是共享测试支撑位，夹具可下沉。                                                                                                                            |
+| [commit-error-codes.spec.ts:46](../../packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-error-codes.spec.ts#L46)                     | 「互为全集」断言是同义反复（数组 = Object.values 同一对象）；同文件 25-37 行手写字面量才是真钉，此断言冗余。                                                                                              |
 
 ### 5.4 规范 / 清洁（4 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
-| [working-tree-materialization-page.entity.ts:87](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts#L87) | 关系字段 `stage` 未用 `declare`：es2025 + useDefineForClassFields 下每行实例自带 `stage: undefined` 幻影自有属性；四个兄弟实体都用了 `declare` 并有注释说明理由。 |
-| [vue tsconfig.lib.json:26](../../packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json#L26) | include 未排除 `src/__tests__/`，dts 插件把 setup-harness/rxdb-provider-harness 声明发进 dist（已实测存在），`files` 的否定只挡 src 不挡 dist；React/Angular 产物干净。 |
-| [react use-working-tree.ts:2](../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#L2) | 头注释「九格」与同文件 20 行「十个」及核心类型矛盾（T123 加的 switchBranchState）。 |
-| [http errors.ts:9](../../packages/rxdb-adapter-http/src/errors.ts#L9) | doc 注释把 epic-006 码表登记在 `@aiao/rxdb` 的 `commit/commit-error-codes.ts`，实际在插件包，路径不存在。 |
+| 位置                                                                                                                                                       | 摘要                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [working-tree-materialization-page.entity.ts:87](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts#L87) | 关系字段 `stage` 未用 `declare`：es2025 + useDefineForClassFields 下每行实例自带 `stage: undefined` 幻影自有属性；四个兄弟实体都用了 `declare` 并有注释说明理由。       |
+| [vue tsconfig.lib.json:26](../../packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json#L26)                                                              | include 未排除 `src/__tests__/`，dts 插件把 setup-harness/rxdb-provider-harness 声明发进 dist（已实测存在），`files` 的否定只挡 src 不挡 dist；React/Angular 产物干净。 |
+| [react use-working-tree.ts:2](../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#L2)                                                    | 头注释「九格」与同文件 20 行「十个」及核心类型矛盾（T123 加的 switchBranchState）。                                                                                     |
+| [http errors.ts:9](../../packages/rxdb-adapter-http/src/errors.ts#L9)                                                                                      | doc 注释把 epic-006 码表登记在 `@aiao/rxdb` 的 `commit/commit-error-codes.ts`，实际在插件包，路径不存在。                                                               |
 
 ### 5.5 测试缺陷（9 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
-| [status.spec.ts:156](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/status.spec.ts#L156) | CAS 失败断言 `restoring` 键误读 `status.conflicted`；实现若错误残留 restore 会话照样绿。 |
-| [commit.suite.ts:1555](../../packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts#L1555) | discard 版本号断言拿 result 与事后重读比（同源）；删掉 +1 六后端全绿，仅 mock 场景钉住。 |
-| [metadata-only-branch-switch.spec.ts:568](../../packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts#L568) | staging 不变性检查读种子期旧实例；removeMany+saveMany 换行后照样绿，其余兄弟检查都重读 probe。 |
-| [storage-contract.spec.ts:43](../../packages/rxdb-plugin-working-tree/src/__tests__/system/storage-contract.spec.ts#L43) | 「不对 rxdb_change 建外键」闸门循环零次执行（foreignKeys 只来自实体显式选项，两个守卫实体都没声明）。 |
-| [restore-encryption.spec.ts:389](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts#L389) | 密文泄漏检查在未抛异常时真空通过（`thrown === null ? [] : ...`），且未断言确实抛错。 |
-| [capability-enable.spec.ts:111](../../packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts#L111) | find mock 无视 where 参数恒返回种子行；读路径字段/操作符改错测试全绿，真后端才炸。 |
-| [react use-working-tree.ts:93](../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#L93) | 「命令引用跨 render 稳定」契约（25-26 行文档）无任何测试钉住；丢掉 useMemo 全 spec 绿而消费者 effect 死循环。 |
-| [vue use-working-tree.spec.ts:207](../../packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts#L207) | mountWithProvider 丢弃 wrapper 且无 afterEach 卸载，~40 个组件挂满整个文件；React/Angular 两侧都有清理。 |
-| 三端 a11y spec（angular:183 / react / vue） | 空 span `Number(''.trim())` 折成 0 并归档 0ms；面板初始渲染态恰为空 span，注释宣称的「读不出来直接红」只挡元素缺失。 |
+| 位置                                                                                                                                              | 摘要                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [status.spec.ts:156](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/status.spec.ts#L156)                                      | CAS 失败断言 `restoring` 键误读 `status.conflicted`；实现若错误残留 restore 会话照样绿。                             |
+| [commit.suite.ts:1555](../../packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts#L1555)                                    | discard 版本号断言拿 result 与事后重读比（同源）；删掉 +1 六后端全绿，仅 mock 场景钉住。                             |
+| [metadata-only-branch-switch.spec.ts:568](../../packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts#L568) | staging 不变性检查读种子期旧实例；removeMany+saveMany 换行后照样绿，其余兄弟检查都重读 probe。                       |
+| [storage-contract.spec.ts:43](../../packages/rxdb-plugin-working-tree/src/__tests__/system/storage-contract.spec.ts#L43)                          | 「不对 rxdb_change 建外键」闸门循环零次执行（foreignKeys 只来自实体显式选项，两个守卫实体都没声明）。                |
+| [restore-encryption.spec.ts:389](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts#L389)              | 密文泄漏检查在未抛异常时真空通过（`thrown === null ? [] : ...`），且未断言确实抛错。                                 |
+| [capability-enable.spec.ts:111](../../packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts#L111)                      | find mock 无视 where 参数恒返回种子行；读路径字段/操作符改错测试全绿，真后端才炸。                                   |
+| [react use-working-tree.ts:93](../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#L93)                                         | 「命令引用跨 render 稳定」契约（25-26 行文档）无任何测试钉住；丢掉 useMemo 全 spec 绿而消费者 effect 死循环。        |
+| [vue use-working-tree.spec.ts:207](../../packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts#L207)                       | mountWithProvider 丢弃 wrapper 且无 afterEach 卸载，~40 个组件挂满整个文件；React/Angular 两侧都有清理。             |
+| 三端 a11y spec（angular:183 / react / vue）                                                                                                       | 空 span `Number(''.trim())` 折成 0 并归档 0ms；面板初始渲染态恰为空 span，注释宣称的「读不出来直接红」只挡元素缺失。 |
 
 ### 5.6 PLAUSIBLE（1 条）
 
-| 位置 | 摘要 |
-| ---- | ---- |
+| 位置                                                                                      | 摘要                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [capture-interceptor.ts:352](../../packages/rxdb/src/capture/capture-interceptor.ts#L352) | uninstall 的 SAVED-miss 兜底把 install 期 bound 原语焊成自有属性，破坏 this 多态后 mergeChanges 自锁死等；机制真实但仓库内唯一调用方保证先 install 后 uninstall，风险仅外部直调/双副本场景。 |
 
 ## 6. 解决记录
