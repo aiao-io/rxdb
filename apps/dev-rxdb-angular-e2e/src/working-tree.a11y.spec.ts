@@ -9,12 +9,14 @@ import { resetE2eState } from './e2e-utils.js';
  * @fileoverview `/working-tree` 面板的 a11y 与 SC-005 归档用例（T128）。
  *
  * @remarks
- * 三端各一份，断言逐条对齐 —— 面板的 `data-testid` 与 ARIA 属性在
- * Angular / React / Vue 上完全同名，**任何一端的差异都必须在这里变成红**，
- * 而不是留给用户去发现（contracts/tri-framework-api.md §4）。
+ * 2026-09-18 面板重构为「git 工作流」形态（分支 + 历史 + 未提交改动 + 提交框）之后，
+ * 这份 Angular 拷贝是**新设计的参考实现**；React / Vue 的两份拷贝仍对应旧版 API 驱动
+ * 面板，待移植后重新对齐。契约值不变：live region、四态 axe 零违规、键盘可达、
+ * SC-005 归档。
  *
  * 扫描范围锁在 `[data-testid="working-tree-page"]`：页面外的导航壳由
  * `search.a11y.spec.ts` 那一路覆盖，混进来只会让这份用例因为别处的回归而红。
+ * 创建分支 Popover 与合并对话框经 CDK overlay 渲染在面板 div 之外，同样不在扫描范围。
  *
  * **面板上没有 disabled 按钮**，这是设计决定而不是疏漏：daisyUI 的禁用态文字是
  * `base-content/20%`，白底上合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的
@@ -36,17 +38,25 @@ const REPORTS_DIR = join(workspaceRoot, 'benchmarks', 'reports');
 
 const PANEL = '[data-testid="working-tree-page"]';
 
-/** 面板里**期望**能用键盘走到的控件；面板上没有 disabled 控件，所以这张表就是全集。 */
+/**
+ * 面板里**期望**能用键盘走到的静态控件。
+ *
+ * 与旧版面板不同，这里断言的是**超集**而不是精确集合：历史里的「恢复」按钮与分支
+ * 选中后出现的操作按钮数量随数据变化，精确集合会把那些动态控件数成违规。超集 +
+ * 「所有被走到控件都有可见焦点指示」合起来仍是同一强度：没有任何一个焦点停留处
+ * 可以没有指示。
+ */
 const KEYBOARD_REACHABLE = [
-  'wt-enable',
   'wt-refresh-status',
+  'wt-branch-create',
+  'wt-branch-item',
+  'wt-list-commits',
   'wt-todo-title',
   'wt-write-todo',
   'wt-diff',
   'wt-commit-message',
   'wt-commit',
-  'wt-discard',
-  'wt-list-commits'
+  'wt-discard'
 ] as const;
 
 /** 一个控件聚焦时的焦点指示样式。 */
@@ -124,11 +134,19 @@ const openPanel = async (page: Page): Promise<void> => {
   await expect(page.getByTestId('wt-status-phase')).toHaveText(SETTLED, { timeout: 20000 });
 };
 
-test.describe('Working Tree Page A11y', () => {
-  test('状态变化对读屏可感知：三块结果区都挂了 live region', async ({ page }) => {
-    await openPanel(page);
+/** 点「初始化仓库」并等到启用态落定。 */
+const enablePanel = async (page: Page): Promise<void> => {
+  await page.getByTestId('wt-enable').click();
+  await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
+  await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
+};
 
-    // `commit()` / `restore()` 期间不得静默（§4 loading 一栏）：这三块是相位变化的落点，
+test.describe('Working Tree Page A11y', () => {
+  test('状态变化对读屏可感知：状态胶囊与三块结果区都挂了 live region', async ({ page }) => {
+    await openPanel(page);
+    await enablePanel(page);
+
+    // `commit()` / `restore()` 期间不得静默（§4 loading 一栏）：这几块是相位变化的落点，
     // 没有 live region 的话读屏用户拿到的就是「点了按钮，什么都没发生」。
     await expect(page.getByTestId('wt-status')).toHaveAttribute('role', 'status');
     await expect(page.getByTestId('wt-status')).toHaveAttribute('aria-live', 'polite');
@@ -147,9 +165,7 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-status-phase')).toHaveText('error');
     await scanPanel(page);
 
-    await page.getByTestId('wt-enable').click();
-    await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
-    await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
+    await enablePanel(page);
     await scanPanel(page);
 
     await page.getByTestId('wt-write-todo').click();
@@ -158,6 +174,9 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await scanPanel(page);
 
+    // 提交信息默认是空的（面板把它当 git commit 的 message 处理），不填就是
+    // `CommitValidationError`——四态里的「已提交」态需要一条真实的信息。
+    await page.getByTestId('wt-commit-message').fill('demo commit');
     await page.getByTestId('wt-commit').click();
     await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
@@ -169,8 +188,23 @@ test.describe('Working Tree Page A11y', () => {
   test('面板里的每个控件都能用键盘走到，且焦点可见', async ({ page }) => {
     await openPanel(page);
 
-    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length);
-    expect([...reached.keys()].sort()).toEqual([...KEYBOARD_REACHABLE].sort());
+    // 初始化态只有「初始化仓库」与「刷新状态」两个控件。
+    const initReached = await walkPanelWithTab(page, 2);
+    expect(initReached.has('wt-enable'), '初始化态应该能走到 wt-enable').toBe(true);
+    const initWithoutIndicator = [...initReached.values()]
+      .filter(one => !hasVisibleFocusIndicator(one))
+      .map(one => one.testId);
+    expect(initWithoutIndicator).toEqual([]);
+
+    await enablePanel(page);
+
+    // 超集断言（见 KEYBOARD_REACHABLE 的注释）：所有静态控件都必须走到，
+    // 每一个被走到的控件（含动态出现的）都必须有可见焦点指示。
+    const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length + 2);
+    const reachedKeys = [...reached.keys()];
+    for (const wanted of KEYBOARD_REACHABLE) {
+      expect(reachedKeys, `键盘走不到 ${wanted}`).toContain(wanted);
+    }
 
     const withoutIndicator = [...reached.values()].filter(one => !hasVisibleFocusIndicator(one)).map(one => one.testId);
     expect(withoutIndicator).toEqual([]);

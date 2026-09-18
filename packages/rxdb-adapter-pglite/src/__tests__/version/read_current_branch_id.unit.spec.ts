@@ -18,7 +18,12 @@ import {
 const metadataWith = (names: readonly string[]): EntityMetadata =>
   ({
     propertyMap: new Map<string, EntityPropertyMetadata>(
-      names.map(name => [name, { name, columnName: name === 'activated' ? 'is_activated' : name }])
+      // 替身只填 `resolveBranchColumns` 读的那两个字段；补齐 `EntityPropertyMetadata`
+      // 的全部成员只会让这份夹具跟着无关的元数据形状漂移，所以在这一层断言。
+      names.map(name => [
+        name,
+        { name, columnName: name === 'activated' ? 'is_activated' : name } as unknown as EntityPropertyMetadata
+      ])
     )
   }) as unknown as EntityMetadata;
 

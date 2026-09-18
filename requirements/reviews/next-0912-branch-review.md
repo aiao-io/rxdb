@@ -6,8 +6,8 @@
 - **变更规模**：445 个文件，`+62,783 / -2,932`
 - **评审强度**：2026-09-17 的 max 评审 + 2026-09-18 对关键调用链和后续增量的复核
 - **主线改动**：epic-006「工作树 + 提交历史」——捕获钩子 / 原始写闸门 / 受信写声明 / 提交图 CAS + 编解码 + 指纹 / 冷重放
-- **本次二次评审**：2026-09-18，基线 `de70a1a9` → `6e4daebb`；新增确认 1 条 P1、1 条 P2。此前 4 条 P1 的生产路径未改，仍待处理。
-- **当前结论**：🔴 **不建议合并**。PGlite raw 写存在可执行的工作树捕获绕过；旧 4 条 P1 也没有因标为 Deferred 而消失。新增问题与复现见下方「二次评审」。
+- **本次二次评审**：2026-09-18，基线 `de70a1a9` → `6e4daebb`；新增确认 1 条 P1、1 条 P2，**同日均已修复**（见下方「二次评审」）。此前 4 条 P1 的生产路径未改，仍待处理。
+- **当前结论**：🟡 **可合并性取决于顺延项排期**。可执行的 raw 写捕获绕过已修，门禁对 dollar-quote 与模板插值都不再失明；剩下的 4 条 P1 全部是架构级顺延项——它们没有因标为 Deferred 而消失，但也都不是「已知可执行的绕过」。
 - **上一轮结论（HEAD `9e5ddc92`，存档）**：🟡 **可合并性取决于顺延项排期**。当时确认的 4 条 P1 全部成立、全部顺延；4 条 P2 里 1 条顺延、3 条未处理。§3 的 11 条次要项已修 4 条、补注记 1 条、判定不改 1 条；§4.1 的 keyring 一条已修。
 - **原结论（2026-09-18 首轮，存档）**：🔴 **当前不建议合并**。2026-09-17 的 14 条核心正确性问题已处理；本轮在当前 HEAD 确认 4 条 P1、4 条 P2，其中并发受信声明原已记在旧 §3。本轮确认的问题见下方「2026-09-18 复核」；旧 §3、§4 是上一轮留下的独立待办。
 
@@ -24,21 +24,22 @@
 - **working-tree 那套仍未进 main**——`packages/rxdb-plugin-working-tree` 尚有 115 个文件、三框架绑定另有 41 个文件只存在于本分支，因此这一轮修复赶在它进 main 之前落了地。
 - 记录 SHAs 的等价命令：`git rev-parse main` / `git rev-parse HEAD` / `git merge-base main HEAD`。
 
-## 2026-09-18 二次评审：新增待处理项
+## 2026-09-18 二次评审：已全部处理
 
-本次对上轮 HEAD 之后的实现改动和 raw 写门禁做增量追踪，并复核了三端 `src/index.ts` 与 `WorkingTreeResource` 的公开方法签名。Angular、React、Vue 仍对称。以下复现是对当前源码的纯判定与内存 PGlite 分别执行；没有运行完整插件端到端套件、全量 CI 或 E2E。`git diff --check main...HEAD` 通过。
+本次对上轮 HEAD 之后的实现改动和 raw 写门禁做增量追踪，并复核了三端 `src/index.ts` 与
+`WorkingTreeResource` 的公开方法签名。Angular、React、Vue 仍对称。本轮确认的 1 条 P1
+（PGlite dollar-quoted 字符串让 raw 写绕过捕获）与 1 条 P2（模板插值中的动态 import
+逃过核心边界审计）**均已修复**，按本目录约定从报告删除——判据与修法写在代码注释里：
 
-### [P1] PGlite 的 dollar-quoted 字符串让 raw 写绕过捕获
-
-- **证据**：[`raw-write-judgment.ts:119`](../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L119) 的词法定界符不识别 PostgreSQL 的 `$$...$$`；[`setClauseOf():413`](../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L413) 会把字面量内部的 `WHERE` 当作 `SET` 子句终点。PGlite 适配器的 [`rawQuery():662`](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L662) 将放行结论交给真实 SQL 执行器。
-- **可执行复现**：对版本化表 `post`、untracked 列 `remoteId` 执行 `UPDATE "public"."post" SET "remoteId" = $$ WHERE $$, title = 'changed' WHERE id = 'a'`。当前 `judgeRawWrite()` 返回 `{ kind: 'allow', step: 5, reason: 'untracked_only' }`；内存 PGlite 执行后，该行的 `title` 实际变为 `changed`。门禁误以为只写簿记列，真实 SQL 却写了 tracked 列，工作树没有对应捕获单元。此问题在旧 HEAD 已存在，本轮首次复现，不是后续提交新引入。
-- **改进**：支持 PostgreSQL 的 dollar-quoted 字符串（含带标签形式），或对无法可靠解析的字面量拒绝 `untracked_only` 豁免；用启用提交能力的真实 PGlite adapter `rawQuery()` 加端到端回归测试。修复前不能把当前 raw 门禁视为捕获保证。
-
-### [P2] 模板插值中的动态 import 逃过核心边界审计
-
-- **证据**：[`core-plugin-boundary.mjs:94-100`](../../scripts/audit/core-plugin-boundary.mjs#L94) 新增的 `blankStringLiterals(source)` 偏移检查会抹掉整个模板字符串；[`working-tree-suite-callsites.mjs:179-185`](../../scripts/audit/working-tree-suite-callsites.mjs#L179) 连 `${...}` 内的**可执行表达式**一并抹掉。当前 ``findSpecifiers('const p = `${import("./working-tree/x.js")}`;')`` 返回 `[]`，但运行时确实会加载该模块。旧实现仅清注释，能看见这条 import；因此这是 `9e5ddc92` 之后的提交引入的门禁回退。
-- **影响**：核心源码将动态插件依赖写进模板插值时，审计成功退出，边界依赖漏报。当前仓内未发现此形态的生产调用，属于前瞻性门禁缺口。
-- **改进**：用 TS AST 区分模板文本与插值表达式，只忽略文本；至少补一条 `${import(...)}` 的正反用例，保证边界门不会因字符串误报修复而变盲。
+- `raw-write-judgment.ts` 的 `DOLLAR_QUOTE_TOKEN_PATTERN` / `dollarQuoteLexeme()`：`$…$`
+  与 `$tag…$tag` 进入词法归一，未闭合时 fail-closed（不吃到行尾，因为 `$` 在五个
+  SQLite 家族后端不是定界符，吃到行尾才是 fail-open）；`$1` / `$name` 这类参数占位符
+  天然不匹配标签规则，不受影响。回归在 `raw-bypass-judgment.spec.ts` 的
+  「dollar-quoted 字符串：PG 的第五类定界符」（含 CWE-1333 线性度用例），以及
+  `capture.suite.ts` §1.3 的适配器级端到端用例——六个后端各跑一遍，断言语句在下发前被拒。
+- `scripts/audit/working-tree-suite-callsites.mjs` 的 `scan()`：模板字面量改为按段扫描，
+  文本段算字符串、`${…}` 里的表达式算代码（嵌套用栈跟）。`core-plugin-boundary.mjs` 与
+  `working-tree-callsite-drift.mjs` 共用这个词法层，一并恢复对 `${import(...)}` 的可见性。
 
 ## 2026-09-18 复核：合并阻塞项
 
@@ -102,6 +103,14 @@
 - **本轮未处理**：复核成立。与顺延 2b / staging 续传同属首次物化流水线，三条一起排更合算。
 
 **三端核对**：Angular、React、Vue 的 `src/index.ts` 均导出 `useWorkingTree` 和 `WorkingTreeResource`；命令共用 `createWorkingTreeCommands()`，本轮未发现公开导出缺端。此结论不抵消上述核心写入/切换问题。
+
+> **2026-09-18 二次评审补充证据（针对上面三条「函数写好了但生产无调用点」）**：`commitBranchMaterialization()`、
+> `stageBranchMaterialization()`、`markBranchCorrupted()`、`findResumableMaterializationAttempt()`
+> 在 `packages/rxdb-plugin-working-tree` 里**没有任何 barrel 再导出**（该包只有
+> `src/index.ts` 一个入口，它不导出 `branch-materialization.ts` 与 `commit-graph-guard.ts`
+> 的这些符号），包外唯一提到 `markBranchCorrupted` 的两处都是注释。所以它们的现状不是
+> 「留给调用方接线」，而是**连外部调用的可能性都没有**——接线这件事必须由本包内部完成，
+> 排期时不要指望适配器或宿主侧能先行。
 
 > **2026-09-18 复核结论（本节 8 条）**：4 条 P1 逐条复核**全部成立**，但**全部是架构级，本轮一条都不实现**——四条各自需要新的运行时机制（跨连接传播通道 / 切换事务内的 CAS 推进 / 物化流水线接公开入口 / 条件随请求进入最终事务），不属本轮「确定项 + 测试 + 文档」的范围。4 条 P2 里「损坏图持久隔离」与上述第 2 条同属「函数写好了但生产无调用点」，一并顺延；其余 3 条本轮未处理。逐条处置见各条末尾。
 
@@ -210,7 +219,7 @@
 
 ## 5. 剩余项与优先级建议
 
-> 2026-09-17 的 8 条 P1 + 6 条 P2 已处理并从报告删除；2026-09-18 上轮复核确认 4 条 P1 + 4 条 P2，并在同日的修复轮里落地了一批。本次二次评审又新增 1 条 P1 + 1 条 P2，见报告开头；以下保留上轮处置与当前优先级。
+> 2026-09-17 的 8 条 P1 + 6 条 P2 已处理并从报告删除；2026-09-18 上轮复核确认 4 条 P1 + 4 条 P2，并在同日的修复轮里落地了一批。本次二次评审新增的 1 条 P1 + 1 条 P2 也已修完并删除（见报告开头）；以下保留上轮处置与当前优先级。
 
 ### 5.1 本轮（2026-09-18 修复轮）已处理
 
@@ -223,12 +232,14 @@
 | §3 sqlite-core `switch_branch` 错误重包装   | ❌ 判定不改 —— pglite 同位置同口径，是对称不是漂移，记录防复提                    |
 | §4.1 pglite keyring 唯一约束判别            | ✅ Resolved —— 改调核心实现；**本报告原文的描述说反了，已一并改正**               |
 | §4.1 pglite `normalizeEntity` 复制核心实现  | ✅ Resolved —— 改成再导出核心 `normalizeUpdateEntity`                             |
+| 二次评审 [P1] dollar-quote raw 写绕过       | ✅ Resolved —— 词法层认 `$…$`/`$tag…$tag`，未闭合 fail-closed；六后端端到端回归   |
+| 二次评审 [P2] 模板插值逃过边界审计          | ✅ Resolved —— `scan()` 按段扫模板，`${…}` 算代码；三条共用它的审计一并恢复       |
 
 另有一批只出现在 `next-0912-branch-review-max.md` 的条目同轮修掉（raw 写判定的注释/字面量扫描顺序、`assertCommitIntact` 检查换序、两个审计闸门的覆盖面、契约 `core-api.md` / `conformance-suites.md` / `tri-framework-api.md` 三份重冻结、四份 website 文档、六条测试与卫生项），处置记在那边的 §6。
 
 ### 5.2 顺延项（⏸ Deferred —— 上轮确认的架构级阻塞项）
 
-**本次新增的 raw 写绕过（P1）应先修**：它有可执行的捕获绕过复现，不依赖跨连接或首次物化。上轮确认的 4 条 P1 **全部仍在此**，按建议优先级：
+本次新增的 raw 写绕过（P1）已修，不在此列。上轮确认的 4 条 P1 **全部仍在此**，按建议优先级：
 
 1. **跨连接启用绕过捕获**（两份报告独立复现，违反 FR-037，最该先排）
 2. **三个未接线的失效保护**，建议一次排完：切换不推进 activation revision（A→B→A 重用旧凭据）/ 远端分支首次物化未接公开入口 / 损坏图不落盘隔离标记
@@ -239,9 +250,7 @@
 
 ### 5.3 尚未排期
 
-本次新增的模板插值动态 import 漏检（P2）应补到边界审计测试；当前没有对应生产调用点，但门禁已经失去对此写法的拦截能力。
-
 1. §3 剩余的次要项（`allocateBranchGeneration` 无 CAS、迁移恢复 UPDATE 静默 no-op、`cleanup_db` 不恢复插件单例行、raw intent 死代码、迁移触发器 branchId 回落 `'main'`、2+ active 行迁移抛错）—— 多数标着 PLAUSIBLE 或「有意为之」，先确认触发条件再定
 2. §4.4 打 ✅ 的四项：表名解析归属适配器、挂载点清单单源、错误码单源、跨后端脚手架共享
-3. §4.4 打 ⚠️ 的四项需先定第三方适配器威胁模型，以及词法扫描门禁是否改用 AST；§4.1–4.3 打 ✅ 的其余优化按成本收益排期
+3. §4.4 打 ⚠️ 的四项需先定第三方适配器威胁模型；「词法扫描门禁是否改用 AST」这一问在二次评审后**变窄了**——模板插值那条已用按段扫描（而不是 AST）修掉，仍悬而未决的只剩 §3 那条正则字面量误判；§4.1–4.3 打 ✅ 的其余优化按成本收益排期
 4. §4.5 的 4 处定向 lint 抑制维持 ❌ 不改（单行、有注释理由、lint 仍报零警告）
