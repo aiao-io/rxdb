@@ -91,8 +91,8 @@
               <li>
                 <button
                   class="hover:bg-base-200 flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors"
-                  [class.bg-base-200]="$selectedBranchId() === branch.id"
                   [attr.data-branch-id]="branch.id"
+                  [class.bg-base-200]="$selectedBranchId() === branch.id"
                   (click)="selectBranch(branch.id)"
                   data-testid="wt-branch-item"
                 >
