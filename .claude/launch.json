@@ -2,44 +2,30 @@
   "configurations": [
     {
       "name": "dev-rxdb-angular",
-      "runtimeExecutable": "pnpm",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "nx",
-        "serve",
-        "dev-rxdb-angular"
+        "-c",
+        "pnpm nx serve dev-rxdb-angular --port=${PORT:-4200}"
       ],
-      "port": 4200
-    },
-    {
-      "name": "dev-rxdb-angular-4205",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "dev-rxdb-angular",
-        "--port=4205"
-      ],
-      "port": 4205
+      "autoPort": true
     },
     {
       "name": "dev-rxdb-react",
-      "runtimeExecutable": "pnpm",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "nx",
-        "serve",
-        "dev-rxdb-react"
+        "-c",
+        "pnpm nx serve dev-rxdb-react --port=${PORT:-4201}"
       ],
-      "port": 4201
+      "autoPort": true
     },
     {
       "name": "dev-rxdb-vue",
-      "runtimeExecutable": "pnpm",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "nx",
-        "serve",
-        "dev-rxdb-vue"
+        "-c",
+        "pnpm nx serve dev-rxdb-vue --port=${PORT:-4203}"
       ],
-      "port": 4203
+      "autoPort": true
     },
     {
       "name": "website-docs",

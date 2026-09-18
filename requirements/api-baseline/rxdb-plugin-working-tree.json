@@ -118,7 +118,23 @@
         "kind": "type"
       },
       {
+        "name": "CommitChangeSetPage",
+        "kind": "type"
+      },
+      {
         "name": "CommitChangeSetRow",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitContent",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOperation",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOrigin",
         "kind": "type"
       },
       {
@@ -270,6 +286,10 @@
         "kind": "value"
       },
       {
+        "name": "isCommitChangeSetPageEmpty",
+        "kind": "value"
+      },
+      {
         "name": "isCommitErrorCode",
         "kind": "value"
       },
@@ -323,6 +343,10 @@
       },
       {
         "name": "readActiveRestoreSession",
+        "kind": "value"
+      },
+      {
+        "name": "readCommitChangeSetPage",
         "kind": "value"
       },
       {

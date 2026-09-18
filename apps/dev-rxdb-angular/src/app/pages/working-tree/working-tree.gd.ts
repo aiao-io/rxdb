@@ -42,6 +42,21 @@ export const gdOpColor = (operation: WorkingTreeDiffEntry['operation']) =>
   : operation === 'delete' ? 'var(--gd-del-fg)'
   : '#d4a72c';
 
+/**
+ * demo 已知实体的表名（`@Entity` 的 `tableName`，如 Todo → todos）。
+ * 路径**优先用表名**：表名才是数据真正落的位置；查不到（demo 没登记）回退实体名。
+ */
+const TABLE_NAME_BY_ENTITY: Readonly<Record<string, string>> = {
+  Todo: 'todos'
+};
+
+/** 实体名 → 展示用表名：优先 `@Entity` 的 tableName，查不到回退实体名。 */
+export const gdTableName = (entity: string): string => TABLE_NAME_BY_ENTITY[entity] ?? entity;
+
+/** 条目的展示路径：`schema/表名/实体id`（schema 即命名空间；不写「entities」前缀——列表里全是 entities，没信息量）。 */
+export const gdEntryPath = (entry: Pick<WorkingTreeDiffEntry, 'namespace' | 'entity' | 'entityId'>): string =>
+  `${entry.namespace}/${gdTableName(entry.entity)}/${entry.entityId}`;
+
 /** 状态名：图标上挂的 title / aria-label。 */
 export const gdOpLabel = (operation: WorkingTreeDiffEntry['operation']) =>
   operation === 'insert' ? 'Added'

@@ -9,7 +9,7 @@ import {
   LucideDynamicIcon
 } from '@lucide/angular';
 import { startDragResize } from '../working-tree.drag';
-import { gdAvatarColor, gdAvatarInitial, gdOpColor, gdOpIcon, gdPathColor } from '../working-tree.gd';
+import { gdAvatarColor, gdAvatarInitial, gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../working-tree.gd';
 import { WorkingTreeDiffViewerComponent } from './diff-viewer.component';
 
 /** 一个变更单元的选中键：同一 commit 里的单元也互不相同。 */
@@ -146,14 +146,14 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                     >
                       <div
                         class="flex min-w-0 items-center gap-2"
-                        [title]="'entities/' + unit.entity + '/' + unit.entityId"
+                        [title]="gdEntryPath(unit)"
                       >
                         <!-- 路径中间省略（与更改列表同一形态） -->
                         <span
                           class="flex min-w-0 flex-1 items-center text-[13px]"
                           [style.color]="gdPathColor(unit.operation)"
                         >
-                          <span class="min-w-0 truncate">entities/{{ unit.entity }}/</span>
+                          <span class="shrink-0">{{ unit.namespace }}/{{ gdTableName(unit.entity) }}/</span>
                           <span class="gd-truncate-tail min-w-0"
                             ><span>{{ unit.entityId }}</span></span
                           >
@@ -233,6 +233,8 @@ export class WorkingTreeCommitDetailComponent {
   readonly gdOpColor = gdOpColor;
   readonly gdOpIcon = gdOpIcon;
   readonly gdPathColor = gdPathColor;
+  readonly gdEntryPath = gdEntryPath;
+  readonly gdTableName = gdTableName;
 
   constructor() {
     const destroyRef = inject(DestroyRef);

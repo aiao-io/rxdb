@@ -27,7 +27,8 @@
           <svg [lucideIcon]="ChevronDown" size="14"></svg>
         </button>
         @if ($repoMenuOpen()) {
-          <!-- 点外面关闭的透明背板；与分支菜单同一种形态（role=button + tabindex=0） -->
+          <!-- GitHub Desktop 的仓库 foldout：整列、全高、贴工具栏下缘，
+               其余区域盖一层黑透明遮罩（源码 foldoutStyle: width=sidebarWidth, height 100%）。 -->
           <div
             class="fixed inset-0 z-30"
             (click)="closeRepoMenu()"
@@ -35,10 +36,12 @@
             aria-label="Close repository menu"
             role="button"
             tabindex="0"
+            [style.background]="'rgba(0, 0, 0, 0.35)'"
           ></div>
           <div
-            class="gd-menu absolute top-full left-0 z-40 w-64"
-            [style.width.px]="$asideWidth()"
+            class="gd-menu gd-menu-flush absolute top-full left-0 z-40 w-64 overflow-y-auto"
+            [style.width.px]="$asideWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $asideWidth()"
+            [style.height]="'calc(100vh - 50px)'"
             aria-label="Repository list"
             data-testid="wt-repo-menu-popup"
             role="menu"
@@ -66,10 +69,10 @@
         [(menuOpen)]="$branchMenuOpen"
         [activeBranch]="$activeBranch()"
         [branches]="branches.value()"
+        [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
         [style.width.px]="$branchSectionWidth()"
         (createBranch)="createBranch($event)"
-        (deleteBranch)="removeBranch($event)"
-        (mergeBranch)="openMergeDialog($event)"
+        (menuRequest)="openBranchContextMenu($event)"
         (switchBranch)="switchBranch($event)"
       />
 

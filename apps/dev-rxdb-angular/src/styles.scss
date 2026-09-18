@@ -430,12 +430,20 @@ app-header {
   box-shadow: var(--gd-shadow);
   padding: 4px 0;
 }
+/* 工具栏下拉的 foldout 形态：直角贴边，不带圆角（GitHub Desktop 的仓库面板同款） */
+.gd-menu-flush {
+  border-radius: 0;
+}
 .gd-menu-header {
   color: var(--gd-muted);
   font-size: 11px;
   font-weight: 600;
   padding: 4px 12px;
   text-transform: uppercase;
+}
+.gd-menu-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
 }
 .gd-menu-row {
   align-items: center;
@@ -449,7 +457,11 @@ app-header {
   text-align: left;
   width: 100%;
 }
-button.gd-menu-row {
+button.gd-menu-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-menu-row {
   cursor: pointer;
 }
 .gd-menu-row:hover {
@@ -691,7 +703,7 @@ app-root:has(app-working-tree-page) {
   --gd-input-border: #626c76;
   --gd-files-bg: #2c3339;
   --gd-row-border: #171c20;
-  --gd-selected-bg: #454c54;
+  --gd-selected-bg: rgba(56, 139, 253, 0.22); /* GitHub Desktop 的选中行蓝色调 */
   --gd-commit-bg: #292f35;
   --gd-code-key: #a5a0d9;
   --gd-code-value: #e4a975;
@@ -787,10 +799,11 @@ app-root:has(app-working-tree-page) {
     height: 30px;
   }
   .gd-tab {
-    flex: 0 0 auto;
+    flex: 1;
     font-size: 13px;
+    justify-content: center;
     min-width: 0;
-    padding: 5px 10px 4px;
+    padding: 5px 3px;
     white-space: nowrap;
   }
   .gd-tab.gd-tab-active::after {
@@ -895,7 +908,7 @@ app-root:has(app-working-tree-page) {
   .gd-row.gd-row-selected,
   .gd-row.gd-row-selected:hover {
     background: var(--gd-selected-bg);
-    border-left-color: transparent;
+    border-left-color: var(--gd-accent);
   }
   .gd-file-name {
     font-size: 12px;
@@ -1092,7 +1105,7 @@ app-root:has(app-working-tree-page) {
   --gd-input-border: #8c959f;
   --gd-files-bg: #eaeef2;
   --gd-row-border: #d8dee4;
-  --gd-selected-bg: #d8dee4;
+  --gd-selected-bg: #dcedff; /* GitHub Desktop 的选中行蓝色调 */
   --gd-commit-bg: #f6f8fa;
   --gd-code-key: #8250df;
   --gd-code-value: #953800;

@@ -25,15 +25,15 @@ import {
   formatFieldValue,
   formatSide
 } from '../working-tree.diff-format';
-import { gdOpColor, gdOpIcon, gdOpLabel, gdPathColor } from '../working-tree.gd';
+import { gdEntryPath, gdOpColor, gdOpIcon, gdOpLabel, gdPathColor, gdTableName } from '../working-tree.gd';
 
 /** 右侧 diff 的两种显示（GitHub Desktop 的 Unified / Split 同义）。 */
 export type WorkingTreeDiffViewMode = 'unified' | 'split';
 
 @Injectable({ providedIn: 'root' })
 export class WorkingTreeDiffDisplayPreferences {
-  /** 显示模式；GitHub Desktop 默认 Unified。 */
-  readonly mode = signal<WorkingTreeDiffViewMode>('unified');
+  /** 显示模式；demo 默认 Split（用户拍板）。 */
+  readonly mode = signal<WorkingTreeDiffViewMode>('split');
   /** 隐藏只有空白差异的字段（GitHub Desktop Diff Settings 的 Hide Whitespace Changes）。 */
   readonly hideWhitespace = signal(false);
   /** 自动换行（GitHub Desktop Diff Settings 的 Show Word Wrap）。 */
@@ -66,7 +66,7 @@ interface SplitRow {
  * 两个开关同处一菜单。两种模式只改变显示，不改变补丁内容。
  *
  * 文件头不显示**事务** id（`transactionId` 是工作树的簿记，与内容无关），
- * 路径 `entities/<实体>/<实体id>` 是「文件名」本身，完整保留、按状态着色
+ * 路径 `schema/实体/实体id` 是「文件名」本身，完整保留、按状态着色
  * （PathLabel 同款）；操作类型图标放在 Settings 按钮的右侧（源码 diff-header 同位置）。
  *
  * 视觉对齐 GitHub Desktop：浅灰行号槽（`.gd-diff-gutter`），`-`/`+` 行整行红 / 绿底，
@@ -109,9 +109,9 @@ interface SplitRow {
             <span
               class="flex min-w-0 flex-1 items-center text-[12px] font-semibold"
               [style.color]="gdPathColor(entry.operation)"
-              [title]="'entities/' + entry.entity + '/' + entry.entityId"
+              [title]="gdEntryPath(entry)"
             >
-              <span class="min-w-0 truncate">entities/{{ entry.entity }}/</span>
+              <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
               <span class="gd-truncate-tail min-w-0"
                 ><span>{{ entry.entityId }}</span></span
               >
@@ -301,6 +301,8 @@ export class WorkingTreeDiffViewerComponent {
   readonly gdOpColor = gdOpColor;
   readonly gdOpLabel = gdOpLabel;
   readonly gdPathColor = gdPathColor;
+  readonly gdEntryPath = gdEntryPath;
+  readonly gdTableName = gdTableName;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {

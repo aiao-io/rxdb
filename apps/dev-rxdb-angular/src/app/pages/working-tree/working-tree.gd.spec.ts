@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from './working-tree.gd';
+import { gdAvatarColor, gdAvatarInitial, gdEntryPath, gdRelativeTime } from './working-tree.gd';
 
 /**
  * @fileoverview `working-tree.gd` 的纯函数单测。
@@ -27,6 +27,16 @@ describe('gdAvatarInitial', () => {
     expect(gdAvatarInitial('demo-author')).toBe('D');
     expect(gdAvatarInitial('  demo')).toBe('D');
     expect(gdAvatarInitial('')).toBe('?');
+  });
+});
+
+describe('gdEntryPath', () => {
+  it('schema/实体/实体id，不带 entities 前缀', () => {
+    expect(gdEntryPath({ namespace: 'demo', entity: 'Menu', entityId: 'u-1' })).toBe('demo/Menu/u-1');
+  });
+
+  it('优先使用 tableName（Todo → todos），查不到回退实体名', () => {
+    expect(gdEntryPath({ namespace: 'public', entity: 'Todo', entityId: 'u-1' })).toBe('public/todos/u-1');
   });
 });
 

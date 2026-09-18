@@ -48,6 +48,7 @@ import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.compone
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
 import { diffEntryKey } from './working-tree.diff-format';
+import { gdEntryPath } from './working-tree.gd';
 import { startDragResize } from './working-tree.drag';
 
 const AUTHOR_ID = 'demo-author';
@@ -55,6 +56,9 @@ const AUTHOR_ID = 'demo-author';
 /** 左栏宽度下限 / 上限：太窄列表读不了，太宽把右栏挤没。 */
 const ASIDE_WIDTH_MIN = 240;
 const ASIDE_WIDTH_MAX = 560;
+
+/** 下拉面板的最小宽度：跟触发按钮同宽，但窄到读不了时保底一整列的宽度。 */
+const MIN_DROPDOWN_WIDTH = 320;
 
 /** `restore()` 的四个被拒成因 → 用户能看懂的提示。 */
 const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = {
@@ -152,6 +156,8 @@ export default class WorkingTreePage implements OnInit {
   readonly $lastFetchedAt = signal<number | null>(null);
   /** 工具栏 Fetch 的进行中标志（GitHub Desktop 同款：转 spinner + Fetching…）。 */
   readonly $fetching = signal(false);
+  /** 下拉面板保底宽度（模板里用三元夹到按钮宽与保底宽）。 */
+  readonly MIN_DROPDOWN_WIDTH = MIN_DROPDOWN_WIDTH;
   /** 供「上次获取：N 秒前」用的心跳：15s 一跳，文本不必秒级精确。 */
   readonly $now = signal(Date.now());
   /** 左栏宽度；拖动分隔条调（键盘：分隔条上方向键）。工具栏的仓库段跟着它走。 */
@@ -164,8 +170,9 @@ export default class WorkingTreePage implements OnInit {
   readonly $contextMenu = signal<WorkingTreeContextMenuState | null>(null);
   /** 右键菜单对应的目标：分发动作时不再靠菜单文案反查。 */
   readonly $contextMenuTarget = signal<
-    | { readonly kind: 'diff'; readonly key: string; readonly entity: string; readonly entityId: string }
+    | { readonly kind: 'diff'; readonly key: string; readonly namespace: string; readonly entity: string; readonly entityId: string }
     | { readonly kind: 'commit'; readonly commitId: string }
+    | { readonly kind: 'branch'; readonly branchId: string }
     | null
   >(null);
 
@@ -299,6 +306,7 @@ export default class WorkingTreePage implements OnInit {
     this.$contextMenuTarget.set({
       kind: 'diff',
       key: diffEntryKey(entry),
+      namespace: entry.namespace,
       entity: entry.entity,
       entityId: entry.entityId
     });
@@ -311,6 +319,24 @@ export default class WorkingTreePage implements OnInit {
         { id: 'copy-path', label: 'Copy Path' }
       ]
     });
+  }
+
+  /** 分支行上的右键：切换 / 合并 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }) {
+    request.event.preventDefault();
+    const branch = request.target;
+    const items: WorkingTreeContextMenuItem[] = [];
+    if (!branch.activated) {
+      items.push(
+        { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
+        { id: 'branch-merge', label: `Merge into ${this.$activeBranch()}`, testId: 'wt-branch-menu-merge' },
+        { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
+        { id: 'sep-1', label: '', separator: true }
+      );
+    }
+    items.push({ id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' });
+    this.$contextMenuTarget.set({ kind: 'branch', branchId: branch.id });
+    this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
 
   /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
@@ -339,11 +365,25 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     if (item.id === 'copy-path') {
-      void this.copyText(target.kind === 'diff' ? `entities/${target.entity}/${target.entityId}` : '');
+      void this.copyText(
+        target.kind === 'diff' ? gdEntryPath({ namespace: target.namespace, entity: target.entity, entityId: target.entityId }) : ''
+      );
       return;
     }
     if (item.id === 'copy-commit') {
       void this.copyText(target.kind === 'commit' ? target.commitId : '');
+      return;
+    }
+    if (target.kind === 'branch') {
+      if (item.id === 'branch-switch') {
+        void this.switchBranch(target.branchId);
+      } else if (item.id === 'branch-merge') {
+        this.openMergeDialog(target.branchId);
+      } else if (item.id === 'branch-delete') {
+        void this.removeBranch(target.branchId);
+      } else if (item.id === 'branch-copy') {
+        void this.copyText(target.branchId);
+      }
       return;
     }
     if (item.id === 'restore') {
@@ -396,7 +436,7 @@ export default class WorkingTreePage implements OnInit {
     });
   }
 
-  /** 拖动工具栏分段分隔条调宽（分支 / 获取两段），宽度限在 120–480px。 */
+  /** 拖动工具栏分段分隔条调宽（分支 / 获取两段），宽度限在 200–480px（再窄文案读不了）。 */
   startSectionResize(event: PointerEvent, section: 'branch' | 'fetch') {
     startDragResize(event, {
       getWidth: () => (section === 'branch' ? this.$branchSectionWidth() : this.$fetchSectionWidth()),
@@ -407,7 +447,7 @@ export default class WorkingTreePage implements OnInit {
           this.$fetchSectionWidth.set(width);
         }
       },
-      min: 120,
+      min: 200,
       max: 480
     });
   }

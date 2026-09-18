@@ -20,7 +20,7 @@ import {
   LucideSearch as Search
 } from '@lucide/angular';
 import { diffEntryKey, formatPatchSummary } from '../working-tree.diff-format';
-import { gdOpColor, gdOpIcon, gdPathColor } from '../working-tree.gd';
+import { gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../working-tree.gd';
 
 /** 列表行上的一次右键；`event` 给页面定位菜单用。 */
 export interface WorkingTreeContextMenuRequest<T> {
@@ -40,7 +40,7 @@ const KINDS = [
  * 「更改」标签页的文件列表，模仿 GitHub Desktop 的 Changes 列表。
  *
  * @remarks
- * 一条实体记录在这里就是一个文件，路径为 `entities/<实体>/<主键>`。
+ * 一条实体记录在这里就是一个文件，路径为 `schema/表名/主键`（优先 @Entity 的 tableName，查不到回退实体名）。
  * 类型筛选和路径/补丁文本筛选只影响列表，不改变待提交内容。
  * 筛选栏是**一个组合盒子**（GitHub Desktop 形态）：左侧漏斗图标按钮打开类型菜单
  * （全部 / 新增 / 修改 / 删除），分隔线右侧是放大镜 + 文本输入。
@@ -154,14 +154,15 @@ const KINDS = [
                 >
                   <div
                     class="flex min-w-0 items-center gap-2"
-                    [title]="'entities/' + entry.entity + '/' + entry.entityId + ' · ' + formatPatchSummary(entry)"
+                    [title]="gdEntryPath(entry) + ' · ' + formatPatchSummary(entry)"
                   >
                     <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
                     <span
                       class="gd-file-name flex min-w-0 flex-1 items-center"
                       [style.color]="gdPathColor(entry.operation)"
                     >
-                      <span class="min-w-0 truncate">entities/{{ entry.entity }}/</span>
+                      <!-- schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 -->
+                      <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
                       <span class="gd-truncate-tail min-w-0"
                         ><span>{{ entry.entityId }}</span></span
                       >
@@ -198,7 +199,7 @@ export class WorkingTreeChangesListComponent {
     return state.value.entries.filter(
       entry =>
         (this.$operation() === 'all' || entry.operation === this.$operation()) &&
-        `entities/${entry.entity}/${entry.entityId} ${formatPatchSummary(entry)}`.toLowerCase().includes(needle)
+        `${gdEntryPath(entry)} ${formatPatchSummary(entry)}`.toLowerCase().includes(needle)
     );
   });
 
@@ -217,6 +218,8 @@ export class WorkingTreeChangesListComponent {
   readonly opIcon = gdOpIcon;
   readonly opColor = gdOpColor;
   readonly gdPathColor = gdPathColor;
+  readonly gdEntryPath = gdEntryPath;
+  readonly gdTableName = gdTableName;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {

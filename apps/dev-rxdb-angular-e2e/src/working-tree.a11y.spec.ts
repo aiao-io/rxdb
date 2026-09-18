@@ -276,7 +276,7 @@ test.describe('Working Tree Page A11y', () => {
     await page.keyboard.press('Escape');
 
     // 建一条分支。点行是立即切换（GitHub Desktop 同款），切换 / 合并 / 删除收在
-    // 行右端的 ⋯ 菜单里——那条路径的按钮也要键盘可达。
+    // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-branch-create').click();
@@ -284,10 +284,12 @@ test.describe('Working Tree Page A11y', () => {
     await page.getByTestId('wt-branch-create-confirm').click();
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    await page.locator('[data-testid="wt-branch-actions"][data-branch-id="feature/a11y"]').click();
-    await expect(page.getByTestId('wt-branch-switch')).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/a11y"]').click({ button: 'right' });
+    await expect(page.getByTestId('wt-branch-menu-switch')).toBeVisible({ timeout: 10000 });
+    // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
+    await page.locator('[aria-label="Close context menu"]').focus();
     const actionsReached = await walkPanelWithTab(page, 3);
-    expectReachedWithIndicator(actionsReached, ['wt-branch-switch', 'wt-branch-merge', 'wt-branch-delete']);
+    expectReachedWithIndicator(actionsReached, ['wt-branch-menu-switch', 'wt-branch-menu-merge', 'wt-branch-menu-delete']);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。

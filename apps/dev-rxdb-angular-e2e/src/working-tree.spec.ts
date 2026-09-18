@@ -98,10 +98,6 @@ const openChanges = async (page: import('@playwright/test').Page): Promise<void>
 const branchRow = (page: import('@playwright/test').Page, branchId: string) =>
   page.locator(`[data-testid="wt-branch-item"][data-branch-id="${branchId}"]`);
 
-/** 分支行右端的 ⋯ 操作按钮（点行是立即切换，操作收在行菜单里）。 */
-const branchActions = (page: import('@playwright/test').Page, branchId: string) =>
-  page.locator(`[data-testid="wt-branch-actions"][data-branch-id="${branchId}"]`);
-
 test.describe('Working Tree 页面功能', () => {
   test('桌面工作区：变更筛选与历史文件差异', async ({ page }) => {
     await openPanel(page);
@@ -126,30 +122,26 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.locator('.gd-toolbar')).toHaveCSS('background-color', 'rgb(36, 41, 46)');
     await writeTodo(page, '界面仿真测试');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
-    // 没有改前 / 改后分栏（GitHub Desktop 也没有）：一个统一视图，增行整行绿底；
-    // 文件头路径带实体 id（entities/Todo/<id> 是「文件名」本身，不能省略）。
+    // 文件头路径 = schema/表名/id（优先 tableName：Todo → todos；schema 是数据的真实命名空间 public）。
     const viewer = page.getByTestId('wt-diff-viewer');
-    await expect(viewer.getByText(/entities\/Todo\//)).toBeVisible();
-    await expect(viewer.locator('.gd-hunk')).toBeVisible();
-    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toBeVisible();
-    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toHaveCSS('background-color', 'rgb(218, 251, 225)');
-    await expect(viewer).toContainText('界面仿真测试');
-    // Diff Settings：两种显示（Unified / Split，GitHub Desktop 同款）+ 两个开关。
-    await page.getByTestId('wt-diff-settings').click();
-    await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Unified' })).toBeChecked();
-    await page.getByRole('radio', { name: 'Split' }).check();
-    // Split 是逐行对齐的双栏（GitHub Desktop 的 side-by-side），没有「改前 / 改后」标签；
-    // insert 条目旧侧留空槽，新侧有值。
+    await expect(viewer.getByText(/\/todos\//)).toBeVisible();
+    // 默认 Split：逐行对齐双栏（side-by-side），没有「改前 / 改后」标签；insert 旧侧留空槽。
     await expect(page.getByTestId('wt-split')).toBeVisible();
     const insertRow = viewer.locator('.gd-split-row').filter({ hasText: '界面仿真测试' });
     await expect(insertRow.getByTestId('wt-split-new')).toContainText('界面仿真测试');
     await expect(insertRow.getByTestId('wt-split-old')).toHaveText('');
     await expect(viewer.locator('.gd-code-side-label')).toHaveCount(0);
+    // Diff Settings：两种显示（Unified / Split）+ 两个开关。
     await page.getByTestId('wt-diff-settings').click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Split' })).toBeChecked();
     await page.getByRole('radio', { name: 'Unified' }).check();
     await expect(page.getByTestId('wt-split')).toHaveCount(0);
+    // Unified：逐字段 -/+ 行，增行整行绿底。
     await expect(viewer.locator('.gd-hunk')).toBeVisible();
+    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toBeVisible();
+    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toHaveCSS('background-color', 'rgb(218, 251, 225)');
+    await expect(viewer).toContainText('界面仿真测试');
     // 两个开关：隐藏空白变更 / 自动换行。
     await page.getByTestId('wt-diff-settings').click();
     await expect(page.getByTestId('wt-diff-whitespace')).not.toBeChecked();
@@ -162,7 +154,7 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await page.getByTestId('wt-change-filter').fill('no-match');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
-    await page.getByTestId('wt-change-filter').fill('Todo');
+    await page.getByTestId('wt-change-filter').fill('todos');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
     // 类型筛选：漏斗按钮打开菜单（组合筛选框的左侧图标），选中项带 ✓。
     await page.getByTestId('wt-filter-kind').click();
@@ -216,6 +208,12 @@ test.describe('Working Tree 页面功能', () => {
     await openBranchMenu(page);
     await expect(branchRow(page, 'feature/x')).toBeVisible({ timeout: 10000 });
 
+    // 分支行右键有菜单（GitHub Desktop 同款）：切换 / 合并 / 删除 + 复制分支名。
+    await branchRow(page, 'feature/x').click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Switch' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Merge into main' })).toBeVisible();
+    await page.locator('[aria-label="Close context menu"]').click({ position: { x: 4, y: 4 } });
+
     await branchRow(page, 'feature/x').click();
     await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x', { timeout: 30000 });
 
@@ -249,10 +247,10 @@ test.describe('Working Tree 页面功能', () => {
     await branchRow(page, 'main').click();
     await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
 
-    // ── 5. 合并：结果进工作树（git merge --no-commit）；入口在行的 ⋯ 菜单里 ──
+    // ── 5. 合并：结果进工作树（git merge --no-commit）；入口在行的右键菜单里 ──
     await openBranchMenu(page);
-    await branchActions(page, 'feature/x').click();
-    await page.getByTestId('wt-branch-merge').click();
+    await branchRow(page, 'feature/x').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Merge into main' }).click();
     await page.getByTestId('wt-merge-confirm').click();
     await expect(page.getByTestId('wt-toast')).toContainText('working tree', { timeout: 10000 });
     await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
