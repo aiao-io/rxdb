@@ -43,7 +43,8 @@ const enablePanel = async (page: import('@playwright/test').Page): Promise<void>
  * 会一直显示「干净」；同一次页面会话里点链接切页，捕获路径保持不变。
  */
 const writeTodo = async (page: import('@playwright/test').Page, title: string): Promise<void> => {
-  await page.locator('a[href="/todo"]').first().click();
+  await page.getByTestId('wt-repo-menu').click();
+  await page.getByTestId('wt-edit-data').click();
   await page.getByTestId('todo-title-input').fill(title);
   await page.getByTestId('todo-add').click();
   await expect(page.getByTestId('todo-row').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
@@ -52,11 +53,17 @@ const writeTodo = async (page: import('@playwright/test').Page, title: string): 
   await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
 };
 
-/** 用给定信息提交并等提交落定（提交框在「变更」标签页里）。 */
+/**
+ * 用给定信息提交并等提交落定（提交框在「变更」标签页里）。
+ *
+ * 成功没有可见的状态行（GitHub Desktop 同款）：断言两条不可见契约——读屏播报
+ * `wt-commit-live` 出「已提交」，底部状态条跟着翻成「干净」。
+ */
 const commit = async (page: import('@playwright/test').Page, message: string): Promise<void> => {
   await page.getByTestId('wt-commit-message').fill(message);
   await page.getByTestId('wt-commit').click();
-  await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
+  await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
+  await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
 };
 
 /** 打开顶栏的分支下拉并等它渲染出行。 */
@@ -65,10 +72,14 @@ const openBranchMenu = async (page: import('@playwright/test').Page): Promise<vo
   await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
 };
 
-/** 切到「历史」标签页并读一次提交历史。 */
+/**
+ * 切到「历史」标签页并等历史落定。
+ *
+ * 面板头没有刷新按钮（GitHub Desktop 同款）：第一次进历史页由 `selectTab` 自动补读
+ * （`listCommitsState` 停在 idle 时），之后每次提交 `runCommit` 都会重读。
+ */
 const openHistory = async (page: import('@playwright/test').Page): Promise<void> => {
   await page.getByTestId('wt-tab-history').click();
-  await page.getByTestId('wt-list-commits').click();
   await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
 };
 
@@ -87,7 +98,104 @@ const openChanges = async (page: import('@playwright/test').Page): Promise<void>
 const branchRow = (page: import('@playwright/test').Page, branchId: string) =>
   page.locator(`[data-testid="wt-branch-item"][data-branch-id="${branchId}"]`);
 
+/** 分支行右端的 ⋯ 操作按钮（点行是立即切换，操作收在行菜单里）。 */
+const branchActions = (page: import('@playwright/test').Page, branchId: string) =>
+  page.locator(`[data-testid="wt-branch-actions"][data-branch-id="${branchId}"]`);
+
 test.describe('Working Tree 页面功能', () => {
+  test('桌面工作区：变更筛选与历史文件差异', async ({ page }) => {
+    await openPanel(page);
+    await enablePanel(page);
+    // 面板头没有主题切换按钮（GitHub Desktop 也没有）：主题跟整个 demo 走 localStorage，
+    // 切换 = 改 localStorage + 整页刷新。
+    await page.evaluate(() => window.localStorage.setItem('theme', 'dark'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('working-tree-page')).toHaveCSS('background-color', 'rgb(36, 41, 46)');
+    await expect(page.locator('.gd-window-chrome')).toHaveCount(0);
+    await expect(page.locator('.gd-sidebar')).toHaveCSS('border-right-width', '0px');
+    await expect
+      .poll(() => page.getByTestId('wt-aside-resize').evaluate(el => getComputedStyle(el, '::after').width))
+      .toBe('1px');
+    await page.evaluate(() => window.localStorage.setItem('theme', 'light'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.getByTestId('working-tree-page')).toHaveCSS('background-color', 'rgb(246, 248, 250)');
+    // 工具栏蓝（GitHub Desktop 的 $gray-900）：切到亮色主题也不变。
+    await expect(page.locator('.gd-toolbar')).toHaveCSS('background-color', 'rgb(36, 41, 46)');
+    await writeTodo(page, '界面仿真测试');
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
+    // 没有改前 / 改后分栏（GitHub Desktop 也没有）：一个统一视图，增行整行绿底；
+    // 文件头路径带实体 id（entities/Todo/<id> 是「文件名」本身，不能省略）。
+    const viewer = page.getByTestId('wt-diff-viewer');
+    await expect(viewer.getByText(/entities\/Todo\//)).toBeVisible();
+    await expect(viewer.locator('.gd-hunk')).toBeVisible();
+    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toBeVisible();
+    await expect(viewer.locator('.gd-diff-row.gd-add').first()).toHaveCSS('background-color', 'rgb(218, 251, 225)');
+    await expect(viewer).toContainText('界面仿真测试');
+    // Diff Settings：两种显示（Unified / Split，GitHub Desktop 同款）+ 两个开关。
+    await page.getByTestId('wt-diff-settings').click();
+    await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Unified' })).toBeChecked();
+    await page.getByRole('radio', { name: 'Split' }).check();
+    // Split 是左右两栏只读编辑器，没有「改前 / 改后」文字标签（GitHub Desktop 同款）。
+    await expect(page.getByTestId('wt-code-before').locator('ao-code-editor')).toBeVisible();
+    await expect(page.getByTestId('wt-code-after')).toContainText('界面仿真测试');
+    await expect(viewer.locator('.gd-code-side-label')).toHaveCount(0);
+    await page.getByTestId('wt-diff-settings').click();
+    await page.getByRole('radio', { name: 'Unified' }).check();
+    await expect(page.getByTestId('wt-code-before')).toHaveCount(0);
+    await expect(viewer.locator('.gd-hunk')).toBeVisible();
+    // 两个开关：隐藏空白变更 / 自动换行。
+    await page.getByTestId('wt-diff-settings').click();
+    await expect(page.getByTestId('wt-diff-whitespace')).not.toBeChecked();
+    await expect(page.getByTestId('wt-diff-wrap')).toBeChecked();
+    await page.getByTestId('wt-diff-wrap').uncheck();
+    await expect(viewer.locator('.gd-diff-content').first()).toHaveCSS('white-space', 'pre');
+    await page.getByTestId('wt-diff-settings').click();
+    await page.getByTestId('wt-diff-wrap').check();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
+    await page.getByTestId('wt-change-filter').fill('no-match');
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
+    await page.getByTestId('wt-change-filter').fill('Todo');
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
+    // 类型筛选：漏斗按钮打开菜单（组合筛选框的左侧图标），选中项带 ✓。
+    await page.getByTestId('wt-filter-kind').click();
+    await expect(page.getByTestId('wt-filter-kind-popup')).toBeVisible();
+    await page.getByTestId('wt-filter-kind-update').click();
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
+    await page.getByTestId('wt-filter-kind').click();
+    await page.getByTestId('wt-filter-kind-all').click();
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
+    await commit(page, '提交界面测试');
+    await openHistory(page);
+    await page.getByTestId('wt-commit-item').first().click();
+    await expect(page.getByTestId('wt-history-files')).toBeVisible();
+    await expect(page.getByTestId('wt-history-diff')).toBeVisible();
+    await expect(page.getByTestId('wt-history-files').getByTestId('wt-commit-change-item')).toHaveCount(1);
+    await expect(page.getByTestId('wt-history-diff')).toContainText('界面仿真测试');
+    await expect(page.getByTestId('wt-history-diff').locator('.gd-hunk').first()).toBeVisible();
+    // 折叠 chevron 收的是附加基本信息（描述 + 作者/时间/sha），文件列表与差异栏始终可见。
+    await page.getByTestId('wt-detail-collapse').click();
+    await expect(page.getByTestId('wt-commit-copy')).toHaveCount(0);
+    await expect(page.getByTestId('wt-commit-changes')).toBeVisible();
+    await page.getByTestId('wt-detail-collapse').click();
+    await expect(page.getByTestId('wt-commit-copy')).toBeVisible();
+  });
+
+  test('窄屏工作区不受应用侧栏遮罩覆盖', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
+    await openPanel(page);
+    await enablePanel(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('.sidebar-overlay')).toHaveCSS('display', 'none');
+    await expect(page.locator('.gd-toolbar')).toBeVisible();
+    await expect(page.getByTestId('wt-aside-resize')).toBeVisible();
+    await expect(page.getByTestId('working-tree-page')).toHaveCSS('background-color', 'rgb(246, 248, 250)');
+  });
+
   test('完整 git 流程：提交 → 分支 → 脏工作树拒切 → 合并入工作树 → 恢复', async ({ page }) => {
     await openPanel(page);
     await enablePanel(page);
@@ -97,7 +205,7 @@ test.describe('Working Tree 页面功能', () => {
     await commit(page, 'docs: 首页文档');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
 
-    // ── 2. 建分支并切过去 ──────────────────────────────────
+    // ── 2. 建分支并切过去（点行即切换，GitHub Desktop 同款） ──
     await openBranchMenu(page);
     await page.getByTestId('wt-branch-create').click();
     await page.getByTestId('wt-branch-name').fill('feature/x');
@@ -106,7 +214,6 @@ test.describe('Working Tree 页面功能', () => {
     await expect(branchRow(page, 'feature/x')).toBeVisible({ timeout: 10000 });
 
     await branchRow(page, 'feature/x').click();
-    await page.getByTestId('wt-branch-switch').click();
     await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x', { timeout: 30000 });
 
     // ── 3. 分支上的提交（历史继承 main 的父链） ─────────────
@@ -116,27 +223,32 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-commits-list')).toContainText('docs: 首页文档');
     await expect(page.getByTestId('wt-commits-list')).toContainText('feat: 新功能');
 
-    // ── 4. 脏工作树 + requireClean → 切换被拒 ──────────────
+    // ── 4. 脏工作树 + requireClean → 切换被拒（点行即切，被拒是行点击的直接结果） ──
     await openChanges(page);
     await writeTodo(page, '未完成的草稿');
     await openBranchMenu(page);
     await branchRow(page, 'main').click();
-    await page.getByTestId('wt-branch-switch').click();
     await expect(page.getByTestId('wt-toast')).toContainText('未提交改动', { timeout: 10000 });
     // 拒绝不等于切换：还留在原分支上
     await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x');
 
-    // 丢弃后重试成功
+    // 丢弃后重试成功。丢弃入口在更改列表的右键菜单里（GitHub Desktop 的 Discard
+    // 同样在菜单里，提交框旁没有「丢弃全部」按钮）。回页时 diff 是 idle（面板不自动
+    // 重读，见 useWorkingTree 的 TSDoc），先用顶部工具栏的「Fetch origin」
+    // （GitHub Desktop 同位置）把列表拉出来再右键。
+    await page.getByTestId('wt-refresh-status').click();
+    await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
+    await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-diff-item').first().click({ button: 'right' });
     await page.getByTestId('wt-discard').click();
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
     await openBranchMenu(page);
     await branchRow(page, 'main').click();
-    await page.getByTestId('wt-branch-switch').click();
     await expect(page.getByTestId('wt-status-branch')).toHaveText('main', { timeout: 30000 });
 
-    // ── 5. 合并：结果进工作树（git merge --no-commit） ──────
+    // ── 5. 合并：结果进工作树（git merge --no-commit）；入口在行的 ⋯ 菜单里 ──
     await openBranchMenu(page);
-    await branchRow(page, 'feature/x').click();
+    await branchActions(page, 'feature/x').click();
     await page.getByTestId('wt-branch-merge').click();
     await page.getByTestId('wt-merge-confirm').click();
     await expect(page.getByTestId('wt-toast')).toContainText('工作树', { timeout: 10000 });
@@ -147,9 +259,20 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-commits-list')).toContainText('merge: feature/x');
 
     // ── 6. 恢复历史版本：内容回工作树，再提交 ──────────────
-    // 历史倒序（最新在前）：merge / feat / docs / 基线。基线没有恢复按钮，
-    // 最后一个恢复按钮对应最早的用户提交 docs。
-    await page.getByTestId('wt-restore').last().click();
+    // 历史倒序（最新在前）：merge / docs / 基线（squash 合并把 feat 并进 merge 提交）。
+    // 行上没有恢复按钮（GitHub Desktop 同款），恢复入口在行的右键菜单里；
+    // 基线的菜单里没有恢复项，最早的用户提交 docs 是最后一个可恢复的。
+    const commitRows = page.getByTestId('wt-commit-item');
+    const contextMenu = page.locator('.gd-menu[aria-label="右键菜单"]');
+    await commitRows.last().click({ button: 'right' });
+    await expect(contextMenu).toBeVisible();
+    await expect(page.getByTestId('wt-restore')).toHaveCount(0);
+    // 点菜单外（透明背板）关闭。
+    await page.locator('[aria-label="关闭右键菜单"]').click({ position: { x: 4, y: 4 } });
+    await expect(contextMenu).toHaveCount(0);
+    await commitRows.filter({ hasText: 'docs: 首页文档' }).click({ button: 'right' });
+    await expect(contextMenu).toBeVisible();
+    await page.getByTestId('wt-restore').click();
     await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
     await expect(page.getByTestId('wt-status-restore')).toHaveText('恢复中', { timeout: 10000 });
 
@@ -159,14 +282,68 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-commits-list')).toContainText('revert: 恢复 docs 版本');
   });
 
-  test('干净工作树上的空提交被拒（empty_commit 有 UI 呈现）', async ({ page }) => {
+  test('工具栏：仓库段跟左栏同宽，分支 / 获取段可拖宽', async ({ page }) => {
+    await openPanel(page);
+    await enablePanel(page);
+
+    const measure = async () => {
+      const [repo, aside, branch, fetch] = await Promise.all([
+        page.getByTestId('wt-repo-menu').boundingBox(),
+        page.locator('.gd-sidebar').boundingBox(),
+        page.locator('.gd-branch-section').boundingBox(),
+        page.getByTestId('wt-refresh-status').boundingBox()
+      ]);
+      return {
+        repo: Math.round(repo!.width),
+        aside: Math.round(aside!.width),
+        branch: Math.round(branch!.width),
+        fetch: Math.round(fetch!.width)
+      };
+    };
+    // 仓库段宽度跟着下面左栏走（初始都是 320），分支 230 / 获取 200 是固定起点。
+    await expect.poll(measure).toEqual({ repo: 320, aside: 320, branch: 230, fetch: 200 });
+
+    // 拖动分支段右侧的分隔条 +60px。
+    const handle = page.locator('.gd-toolbar-handle').first();
+    const box = (await handle.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, y, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(measure).toEqual({ repo: 320, aside: 320, branch: 290, fetch: 200 });
+
+    // 左栏分隔条方向键 +16px 后，仓库段跟着变宽。
+    await page.getByTestId('wt-aside-resize').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(measure).toEqual({ repo: 336, aside: 336, branch: 290, fetch: 200 });
+  });
+
+  test('干净工作树上的提交被拒（empty_commit 走 toast 呈现）', async ({ page }) => {
     await openPanel(page);
     await enablePanel(page);
 
     await page.getByTestId('wt-commit-message').fill('什么都不会发生');
     await page.getByTestId('wt-commit').click();
-    // 工作树干净 → CommitValidationError.empty_commit，落进提交结果的 error 相位。
-    await expect(page.getByTestId('wt-commit-phase')).toHaveText('error', { timeout: 30000 });
-    await expect(page.getByTestId('wt-commit-error')).toBeVisible();
+    // 工作树干净 → CommitValidationError.empty_commit。提交框没有可见错误行
+    // （GitHub Desktop 同款），失败走页面 toast——GitHub Desktop 的提交失败是弹框，
+    // demo 的对应物就是 toast。
+    await expect(page.getByTestId('wt-toast')).toContainText('没有可提交的改动', { timeout: 30000 });
+    // 拒绝不等于提交：摘要草稿还在，工作树还是干净。
+    await expect(page.getByTestId('wt-commit-message')).toHaveValue('什么都不会发生');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+  });
+
+  test('摘要为空时提交按钮禁用（GitHub Desktop 的 isSummaryBlank 同款）', async ({ page }) => {
+    await openPanel(page);
+    await enablePanel(page);
+
+    const commitButton = page.getByTestId('wt-commit');
+    await expect(commitButton).toBeDisabled();
+    // 只有空白也算空（GitHub Desktop 的 isEmptyOrWhitespace 语义）。
+    await page.getByTestId('wt-commit-message').fill('   ');
+    await expect(commitButton).toBeDisabled();
+    await page.getByTestId('wt-commit-message').fill('有摘要了');
+    await expect(commitButton).toBeEnabled();
   });
 });

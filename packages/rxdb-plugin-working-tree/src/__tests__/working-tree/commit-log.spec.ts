@@ -17,6 +17,7 @@
  */
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import { readCommitChangeSetPage, type CommitChangeSetPage } from '../../commit/commit-changes.js';
 import { readCommitLogPage, type CommitLogEntry, type CommitLogOptions } from '../../commit/commit-log.js';
 import { createWorkingTreeScene, SCENE_BRANCH_ID, seedCommit } from './fixtures/working-tree-scene.js';
 
@@ -113,5 +114,49 @@ describe('门面上的 listCommits()（FR-048、tri-framework-api.md §3）', ()
   it('入参里没有 branchId：读哪条分支由 active 分支唯一决定', () => {
     // 开了这个口子，调用方就能问一个它既不能在其上提交、也不能在其上丢弃的对象。
     expectTypeOf<keyof CommitLogOptions>().toEqualTypeOf<'limit' | 'since' | 'until' | 'entity'>();
+  });
+});
+
+describe('commitChanges()：commit 明细侧（FR-012）', () => {
+  it('回的是该 commit 的全部变更单元：按 sequence 顺序、已过 codec 解码', async () => {
+    const scene = sceneWithHistory();
+
+    const page = await scene.manager.commitChanges('commit-child');
+
+    expect(page.commitId).toBe('commit-child');
+    expect(page.entries).toHaveLength(1);
+    // 种子单元是 `app.Note` 上的一次 update；`patch` 是解码态而不是 `$rxdbChangeValue` 信封
+    expect(page.entries[0]).toMatchObject({
+      unitId: 'commit-child-unit',
+      entity: 'Note',
+      operation: 'update',
+      patch: { title: '改后' },
+      inversePatch: { title: '改前' }
+    });
+    expectTypeOf<keyof CommitChangeSetPage>().toEqualTypeOf<'commitId' | 'entries'>();
+  });
+
+  it('入参只有 commitId：明细侧只回答「它写了什么」，不回答「它在不在当前分支的历史里」', () => {
+    const scene = sceneWithHistory();
+    expectTypeOf<Parameters<typeof scene.manager.commitChanges>[0]>().toEqualTypeOf<string>();
+  });
+
+  it('不存在的 commit 抛错，而不是返回一页空的明细', async () => {
+    const scene = sceneWithHistory();
+
+    await expect(scene.manager.commitChanges('no-such-commit')).rejects.toThrow(/does not exist/);
+    await expect(readCommitChangeSetPage(scene.probe.executor, scene.context.codec, 'no-such-commit')).rejects.toThrow(
+      /does not exist/
+    );
+  });
+
+  it('零变更单元的 commit 是一页空明细（entries 为空数组），不是异常', async () => {
+    const scene = createWorkingTreeScene({ headCommitId: 'commit-empty' });
+    seedCommit(scene, 'commit-empty', [], []);
+
+    const page = await scene.manager.commitChanges('commit-empty');
+
+    expect(page.commitId).toBe('commit-empty');
+    expect(page.entries).toEqual([]);
   });
 });

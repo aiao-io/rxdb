@@ -28,6 +28,7 @@
 import type { RxDB } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
+import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
 import type { CommitLogOptions, CommitLogPage } from '../../commit/commit-log.js';
 import { CommitValidationError } from '../../commit/write-commit.js';
 import { WORKING_TREE_INITIAL_ASYNC_STATES, type WorkingTreeAsyncStates } from '../../working-tree/async-state.js';
@@ -107,6 +108,21 @@ const logWith = (entryCount: number): CommitLogPage => ({
   }))
 });
 
+const changesWith = (entryCount: number): CommitChangeSetPage => ({
+  commitId: 'commit-1',
+  entries: Array.from({ length: entryCount }, (_, index) => ({
+    unitId: `u-${index}`,
+    transactionId: null,
+    namespace: 'app',
+    entity: 'Note',
+    entityId: `note-${index}`,
+    operation: 'update' as const,
+    patch: { title: `改后 ${index}` },
+    inversePatch: { title: `改前 ${index}` },
+    origin: 'local' as const
+  }))
+});
+
 const CAPABILITY: CommitCapabilityInfo = {
   enabled: true,
   enabledAt: new Date(0),
@@ -176,6 +192,7 @@ const createFixture = () => {
     status: vi.fn<() => Promise<WorkingTreeStatus>>(),
     diff: vi.fn<(options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>>(),
     listCommits: vi.fn<(options?: CommitLogOptions) => Promise<CommitLogPage>>(),
+    commitChanges: vi.fn<(commitId: string) => Promise<CommitChangeSetPage>>(),
     commit: vi.fn<(message: string, options: CommitOptions) => Promise<CommitResult>>(),
     discard: vi.fn<(options: WorkingTreeDiscardOptions) => Promise<WorkingTreeDiscardResult>>(),
     restore:
@@ -214,7 +231,7 @@ const createFixture = () => {
   };
 };
 
-describe('十个命令各自只驱动自己那一格（§4）', () => {
+describe('十一个命令各自只驱动自己那一格（§4）', () => {
   it('isEnabled 走命令状态，其余九格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(true);
@@ -256,6 +273,17 @@ describe('十个命令各自只驱动自己那一格（§4）', () => {
 
     expect(states.listCommitsState).toEqual({ phase: 'success', value: page });
     expect(untouchedKeys(states, 'listCommitsState')).toEqual([]);
+  });
+
+  it('commitChanges 走查询状态，零变更单元是 empty，其余九格纹丝不动', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const empty = changesWith(0);
+    workingTree.commitChanges.mockResolvedValue(empty);
+
+    await expect(commands.commitChanges('commit-1')).resolves.toBe(empty);
+
+    expect(states.commitChangesState).toEqual({ phase: 'empty', value: empty });
+    expect(untouchedKeys(states, 'commitChangesState')).toEqual([]);
   });
 
   it('restoreSession 走查询状态，其余九格纹丝不动', async () => {
@@ -902,10 +930,10 @@ describe('库上没装工作树插件时，建入口这一步就抛', () => {
     expect(() => createWorkingTreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorkingTree/);
   });
 
-  it('装了插件时照常建出十个命令', () => {
+  it('装了插件时照常建出十一个命令', () => {
     // 守卫写成无条件抛的话这条会红。
     const { commands } = createFixture();
 
-    expect(Object.keys(commands)).toHaveLength(10);
+    expect(Object.keys(commands)).toHaveLength(11);
   });
 });

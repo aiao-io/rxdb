@@ -17,7 +17,8 @@ export interface MergeDialogState {
 }
 
 /**
- * 合并对话框（从旧页面整体搬出，行为不变）。
+ * 合并对话框（从旧页面整体搬出，行为不变，视觉改为 GitHub Desktop 对话框形态：
+ * 白面板圆角描边、标题 15px 半粗、蓝底白字主按钮、白底灰边取消）。
  *
  * @remarks
  * 背板是 `role="button"` + `tabindex="0"` 的 div：点背板或按 Escape 关闭。
@@ -40,7 +41,8 @@ export interface MergeDialogState {
         tabindex="0"
       >
         <div
-          class="bg-base-100 w-full max-w-md rounded-xl p-6 shadow-2xl"
+          class="w-full max-w-md rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
+          [style.background]="'var(--gd-panel)'"
           (click)="$event.stopPropagation()"
           (keydown)="$event.stopPropagation()"
           aria-modal="true"
@@ -48,38 +50,43 @@ export interface MergeDialogState {
           role="dialog"
         >
           <div class="mb-4 flex items-center gap-2">
-            <svg class="text-success" [lucideIcon]="GitMerge" size="20"></svg>
-            <h2 class="text-lg font-semibold">合并分支</h2>
+            <svg class="text-[var(--gd-accent)]" [lucideIcon]="GitMerge" size="18"></svg>
+            <h2 class="text-[15px] font-semibold">合并分支</h2>
           </div>
 
-          <div class="bg-base-200 mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
-            <span class="font-mono font-medium text-orange-500">{{ dialog.sourceBranchId }}</span>
-            <svg class="text-base-content/80" [lucideIcon]="ChevronRight" size="14"></svg>
-            <span class="font-mono font-medium text-green-600">{{ activeBranch() }}</span>
+          <div
+            class="mb-4 flex items-center gap-2 rounded border border-[var(--gd-border)] px-3 py-2 text-sm"
+            [style.background]="'var(--gd-bg)'"
+          >
+            <span class="min-w-0 truncate font-mono font-medium text-amber-700">{{ dialog.sourceBranchId }}</span>
+            <svg class="shrink-0" [lucideIcon]="ChevronRight" [style.color]="'var(--gd-muted)'" size="14"></svg>
+            <span class="min-w-0 truncate font-mono font-medium text-green-700">{{ activeBranch() }}</span>
           </div>
 
           <div class="mb-4">
             <span class="mb-1.5 block text-sm font-medium">合并策略</span>
             <div class="flex gap-2">
               <button
-                class="flex-1 rounded-lg border px-3 py-2 text-left text-sm transition"
-                [class]="dialog.strategy === 'squash' ? 'bg-primary/10 border-primary' : 'border-base-300'"
+                class="flex-1 rounded border px-3 py-2 text-left text-sm transition-colors"
+                [style.background]="dialog.strategy === 'squash' ? 'var(--gd-selected)' : 'var(--gd-panel)'"
+                [style.border-color]="dialog.strategy === 'squash' ? 'var(--gd-accent)' : 'var(--gd-border)'"
                 (click)="strategyChange.emit('squash')"
                 data-testid="wt-merge-strategy-squash"
                 type="button"
               >
                 <div class="font-medium">Squash</div>
-                <div class="text-base-content/80 mt-0.5 text-xs">压缩为最小变更集，过滤幽灵操作</div>
+                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">压缩为最小变更集，过滤幽灵操作</div>
               </button>
               <button
-                class="flex-1 rounded-lg border px-3 py-2 text-left text-sm transition"
-                [class]="dialog.strategy === 'normal' ? 'bg-primary/10 border-primary' : 'border-base-300'"
+                class="flex-1 rounded border px-3 py-2 text-left text-sm transition-colors"
+                [style.background]="dialog.strategy === 'normal' ? 'var(--gd-selected)' : 'var(--gd-panel)'"
+                [style.border-color]="dialog.strategy === 'normal' ? 'var(--gd-accent)' : 'var(--gd-border)'"
                 (click)="strategyChange.emit('normal')"
                 data-testid="wt-merge-strategy-normal"
                 type="button"
               >
                 <div class="font-medium">Normal</div>
-                <div class="text-base-content/80 mt-0.5 text-xs">逐条应用，保留每条独立变更记录</div>
+                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">逐条应用，保留每条独立变更记录</div>
               </button>
             </div>
           </div>
@@ -98,7 +105,7 @@ export interface MergeDialogState {
             </span>
           </label>
 
-          <p class="text-base-content/80 mb-4 text-xs">
+          <p class="mb-4 text-xs" [style.color]="'var(--gd-muted)'">
             合并结果会进入 {{ activeBranch() }} 的
             <strong>工作树</strong>
             （相当于
@@ -107,28 +114,26 @@ export interface MergeDialogState {
           </p>
 
           @if (error()) {
-            <div class="alert alert-error mb-4 py-2 text-sm" data-testid="wt-merge-error">
-              <svg [lucideIcon]="AlertCircle" size="16"></svg>
+            <div
+              class="mb-4 flex items-center gap-2 rounded border border-red-300 p-2 text-sm text-red-700"
+              data-testid="wt-merge-error"
+            >
+              <svg class="shrink-0" [lucideIcon]="AlertCircle" size="15"></svg>
               {{ error() }}
             </div>
           }
 
           <div class="flex justify-end gap-2">
             <button
-              class="btn btn-ghost btn-sm"
+              class="gd-btn-secondary"
               (click)="closeRequested.emit()"
               data-testid="wt-merge-cancel"
               type="button"
             >
               取消
             </button>
-            <button
-              class="btn btn-success btn-sm gap-1"
-              (click)="confirm.emit()"
-              data-testid="wt-merge-confirm"
-              type="button"
-            >
-              <svg [lucideIcon]="GitMerge" size="14"></svg>
+            <button class="gd-btn-primary" (click)="confirm.emit()" data-testid="wt-merge-confirm" type="button">
+              <svg [lucideIcon]="GitMerge" size="13"></svg>
               确认合并
             </button>
           </div>

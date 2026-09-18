@@ -20,10 +20,13 @@ import { resetE2eState } from './e2e-utils.js';
  * CDK overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
  * 因此它们在扫描与走查范围里；合并对话框是 fixed 定位的面板子元素，同样在内。
  *
- * **面板上没有 disabled 按钮**，这是设计决定而不是疏漏：daisyUI 的禁用态文字是
- * `base-content/20%`，白底上合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的
- * `color-contrast`（见 `search.a11y.spec.ts` 里记下的同一个坑）。前置条件不满足时
- * 面板改用 `role="alert"` 的提示行说明原因。
+ * **面板上只有一处 disabled 按钮**：提交按钮在摘要为空时禁用（GitHub Desktop 的
+ * `isSummaryBlank` 同款交互，它的 tooltip 原文 "A commit summary is required to
+ * commit"）。其余地方不做禁用态——daisyUI 的禁用态文字是 `base-content/20%`，白底上
+ * 合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
+ * `search.a11y.spec.ts` 里记下的同一个坑）。提交按钮的禁用配色是专门选过的
+ * （白字压 `#6b7280`，≈4.8:1，见 styles.scss 的 `.gd-btn-primary:disabled`），
+ * 两套主题都过 axe；键盘走查前先填摘要让按钮回到可用态（disabled 不进 Tab 序列）。
  *
  * 面板不造数据：写 Todo 走 /todo 页（`writeTodo`），和真实用户流一致。
  */
@@ -51,15 +54,15 @@ const PANEL = '[data-testid="working-tree-page"]';
  * 没有任何一个焦点停留处可以没有指示。
  */
 const KEYBOARD_REACHABLE = [
+  'wt-repo-menu',
   'wt-branch-menu',
   'wt-refresh-status',
   'wt-tab-changes',
   'wt-tab-history',
-  'wt-diff',
+  'wt-change-filter',
   'wt-commit-message',
   'wt-commit-description',
-  'wt-commit',
-  'wt-discard'
+  'wt-commit'
 ] as const;
 
 /** 一个控件聚焦时的焦点指示样式。 */
@@ -92,13 +95,33 @@ const walkPanelWithTab = async (page: Page, wanted: number): Promise<Map<string,
       if (element.closest('[data-testid="working-tree-page"]') === null) return null;
       const testId = element.getAttribute('data-testid');
       if (testId === null) return null;
-      const style = getComputedStyle(element);
-      return {
-        testId,
-        outlineStyle: style.outlineStyle,
-        outlineWidth: style.outlineWidth,
-        boxShadow: style.boxShadow
+      // 焦点指示也可以画在祖先上：筛选框的环挂在组合盒子的 :focus-within 上
+      // （label 或 .gd-filter-combo），input 自身保持 outline:none（内层蓝框是视觉缺陷）。
+      // 自己没环时沿祖先链往上找（最多 3 层），谁的环先出现算谁的。
+      const indicator = (node: Element): { outlineStyle: string; outlineWidth: string; boxShadow: string } => {
+        const style = getComputedStyle(node);
+        const outlineStyle =
+          style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 ? style.outlineStyle : 'none';
+        const outlineWidth = outlineStyle === 'none' ? '0px' : style.outlineWidth;
+        const boxShadow = style.boxShadow !== 'none' && style.boxShadow !== '' ? style.boxShadow : 'none';
+        return { outlineStyle, outlineWidth, boxShadow };
       };
+      const own = indicator(element);
+      const hasOwn = own.outlineStyle !== 'none' || own.boxShadow !== 'none';
+      if (hasOwn) return { testId, ...own };
+      let ancestor = element.parentElement;
+      for (
+        let level = 0;
+        level < 3 && ancestor !== null && ancestor.closest('[data-testid="working-tree-page"]') !== null;
+        level += 1
+      ) {
+        const found = indicator(ancestor);
+        if (found.outlineStyle !== 'none' || found.boxShadow !== 'none') {
+          return { testId, ...found };
+        }
+        ancestor = ancestor.parentElement;
+      }
+      return { testId, ...own };
     });
     if (focused === null) continue;
     reached.set(focused.testId, focused);
@@ -158,7 +181,8 @@ const enablePanel = async (page: Page): Promise<void> => {
  * 不经工作树捕获（实测 2026-09-18），工作树会一直显示「干净」。
  */
 const writeTodo = async (page: Page, title: string): Promise<void> => {
-  await page.locator('a[href="/todo"]').first().click();
+  await page.getByTestId('wt-repo-menu').click();
+  await page.getByTestId('wt-edit-data').click();
   await page.getByTestId('todo-title-input').fill(title);
   await page.getByTestId('todo-add').click();
   await expect(page.getByTestId('todo-row').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
@@ -176,8 +200,11 @@ test.describe('Working Tree Page A11y', () => {
     // 没有 live region 的话读屏用户拿到的就是「点了按钮，什么都没发生」。
     await expect(page.getByTestId('wt-status')).toHaveAttribute('role', 'status');
     await expect(page.getByTestId('wt-status')).toHaveAttribute('aria-live', 'polite');
-    await expect(page.getByTestId('wt-commit-result')).toHaveAttribute('role', 'status');
-    await expect(page.getByTestId('wt-commit-result')).toHaveAttribute('aria-live', 'polite');
+    // 提交成功的播报是 sr-only 的（GitHub Desktop 同款 "Committed Just now - …"）：
+    // 眼睛看不到，读屏必须能听到。
+    await expect(page.getByTestId('wt-commit-live')).toHaveAttribute('role', 'status');
+    await expect(page.getByTestId('wt-commit-live')).toHaveAttribute('aria-live', 'polite');
+    await expect(page.getByTestId('wt-commit-live')).toHaveAttribute('aria-atomic', 'true');
     await expect(page.getByTestId('wt-enabled')).toHaveAttribute('role', 'status');
     await expect(page.getByTestId('wt-diff-result')).toHaveAttribute('aria-live', 'polite');
 
@@ -198,21 +225,20 @@ test.describe('Working Tree Page A11y', () => {
     await scanPanel(page);
 
     await writeTodo(page, 'axe demo');
-    await page.getByTestId('wt-diff').click();
+    await page.getByTestId('wt-refresh-status').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await scanPanel(page);
 
-    // 提交信息默认是空的（面板把它当 git commit 的 message 处理），不填就是
-    // `CommitValidationError`——「已提交」态需要一条真实的信息。
+    // 摘要为空时提交按钮是禁用的（GitHub Desktop 的 isSummaryBlank 同款），
+    // 「已提交」态需要一条真实的信息。禁用态配色专为 axe 选过，这一态扫描的就是它。
     await page.getByTestId('wt-commit-message').fill('demo commit');
     await page.getByTestId('wt-commit').click();
-    await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
+    await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
     await scanPanel(page);
 
     // 历史标签页（含提交行与详情区）也要零违规。
     await page.getByTestId('wt-tab-history').click();
-    await page.getByTestId('wt-list-commits').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     await scanPanel(page);
   });
@@ -230,6 +256,10 @@ test.describe('Working Tree Page A11y', () => {
 
     await enablePanel(page);
 
+    // 提交按钮在摘要为空时禁用（GitHub Desktop 同款），disabled 不进 Tab 序列——
+    // 先填摘要让按钮回到可用态，键盘才走得到 wt-commit。
+    await page.getByTestId('wt-commit-message').fill('a11y walk');
+
     // 超集断言（见 KEYBOARD_REACHABLE 的注释）：所有静态控件都必须走到，
     // 每一个被走到的控件（含动态出现的）都必须有可见焦点指示。
     const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length + 2);
@@ -243,7 +273,8 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item']);
     await page.keyboard.press('Escape');
 
-    // 建一条分支，走「选中 → 操作按钮」路径：切换 / 合并 / 删除也要键盘可达。
+    // 建一条分支。点行是立即切换（GitHub Desktop 同款），切换 / 合并 / 删除收在
+    // 行右端的 ⋯ 菜单里——那条路径的按钮也要键盘可达。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-branch-create').click();
@@ -251,31 +282,33 @@ test.describe('Working Tree Page A11y', () => {
     await page.getByTestId('wt-branch-create-confirm').click();
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/a11y"]').click();
+    await page.locator('[data-testid="wt-branch-actions"][data-branch-id="feature/a11y"]').click();
     await expect(page.getByTestId('wt-branch-switch')).toBeVisible({ timeout: 10000 });
     const actionsReached = await walkPanelWithTab(page, 3);
     expectReachedWithIndicator(actionsReached, ['wt-branch-switch', 'wt-branch-merge', 'wt-branch-delete']);
     await page.keyboard.press('Escape');
 
     // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
-    // 先点「读取」把焦点锚在列表头：导航回来时焦点在 body，Tab 会先停在分支栏上。
-    // 点完要等列表渲染出来再走查——diff 是异步读，立刻 Tab 会打在空列表上。
+    // 先点筛选框把焦点锚在列表区：导航回来时焦点在 body，Tab 会先停在分支栏上，
+    // 走查在收齐 wanted 个控件时就停，够不到列表行。点完要等列表渲染出来再走查——
+    // diff 是异步读，立刻 Tab 会打在空列表上。
     await writeTodo(page, 'a11y todo');
-    await page.getByTestId('wt-diff').click();
+    await page.getByTestId('wt-refresh-status').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
-    const diffReached = await walkPanelWithTab(page, 1);
+    await page.getByTestId('wt-change-filter').click();
+    const diffReached = await walkPanelWithTab(page, 2);
     expectReachedWithIndicator(diffReached, ['wt-diff-item']);
 
-    // 提交后，历史列表的行与恢复按钮要能被走到。
+    // 提交后，历史列表的行要能被走到。行上没有恢复按钮（GitHub Desktop 同款），
+    // 恢复在右键菜单里，而菜单项本身是 keyboard 可达的真按钮。
     await page.getByTestId('wt-commit-message').fill('a11y commit');
     await page.getByTestId('wt-commit').click();
-    await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
+    await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
     await page.getByTestId('wt-tab-history').click();
-    await page.getByTestId('wt-list-commits').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     const historyReached = await walkPanelWithTab(page, 2);
-    expectReachedWithIndicator(historyReached, ['wt-commit-item', 'wt-restore']);
+    expectReachedWithIndicator(historyReached, ['wt-commit-item']);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {

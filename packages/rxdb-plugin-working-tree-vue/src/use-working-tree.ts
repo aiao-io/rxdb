@@ -2,6 +2,7 @@ import {
   createWorkingTreeCommands,
   WORKING_TREE_INITIAL_ASYNC_STATES,
   type CommitCapabilityInfo,
+  type CommitChangeSetPage,
   type CommitLogOptions,
   type CommitLogPage,
   type CommitOptions,
@@ -58,6 +59,8 @@ export interface WorkingTreeResource {
   readonly diffState: ComputedRef<WorkingTreeQueryState<WorkingTreeDiff>>;
   /** 提交历史的相位；空历史是 `empty` */
   readonly listCommitsState: ComputedRef<WorkingTreeQueryState<CommitLogPage>>;
+  /** 单个 commit 变更集的相位；零变更单元（基线节点）是 `empty` */
+  readonly commitChangesState: ComputedRef<WorkingTreeQueryState<CommitChangeSetPage>>;
   /** 上一次 `commit()` 的相位；**没有 empty** —— 零未提交变更是 `empty_commit` 错误 */
   readonly commitState: ComputedRef<WorkingTreeCommandState<CommitResult>>;
   /** 上一次 `discard()` 的相位；**没有 empty** —— `discardedCount: 0` 是成功的 no-op */
@@ -79,6 +82,8 @@ export interface WorkingTreeResource {
   readonly diff: (options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>;
   /** 读当前分支的可达提交历史。 */
   readonly listCommits: (options?: CommitLogOptions) => Promise<CommitLogPage>;
+  /** 读一个 commit 的全部变更单元。 */
+  readonly commitChanges: (commitId: string) => Promise<CommitChangeSetPage>;
   /** 提交工作树里的**全部**未提交单元；CAS 落败走返回值，不是异常。 */
   readonly commit: (message: string, options: CommitOptions) => Promise<CommitResult>;
   /** 把工作树整体退回 HEAD；成功后自动重读一次 status。 */
@@ -152,6 +157,7 @@ export const useWorkingTree = (): WorkingTreeResource => {
     statusState: computed(() => states.value.statusState),
     diffState: computed(() => states.value.diffState),
     listCommitsState: computed(() => states.value.listCommitsState),
+    commitChangesState: computed(() => states.value.commitChangesState),
     commitState: computed(() => states.value.commitState),
     discardState: computed(() => states.value.discardState),
     restoreState: computed(() => states.value.restoreState),

@@ -298,13 +298,14 @@ describe('判空只有一份实现（§4）', () => {
 
 describe('三端共用的初始状态', () => {
   // 键集断言：三端只要少接一项，这里先红——比等三份 spec 各自发现要早。
-  it('键集恰好是阶段 C 六项加上 T110 的 restore 两项、T123 的 switchBranch 一项，一项一个状态', () => {
+  it('键集包含提交变更集状态，每条命令和查询各有独立状态', () => {
     expectTypeOf<keyof WorkingTreeAsyncStates>().toEqualTypeOf<
       | 'isEnabledState'
       | 'enableState'
       | 'statusState'
       | 'diffState'
       | 'listCommitsState'
+      | 'commitChangesState'
       | 'commitState'
       | 'discardState'
       | 'restoreState'
@@ -315,7 +316,7 @@ describe('三端共用的初始状态', () => {
 
   // 入口创建时不偷偷发查询：idle 说的是「还没人问过」，与 loading（正在问）
   // 和 empty（问过了，没有）都不是一回事。三者合并会让 UI 在挂载瞬间转圈。
-  it('十项全部从 idle 起步', () => {
+  it('各项全部从 idle 起步', () => {
     expect(Object.values(WORKING_TREE_INITIAL_ASYNC_STATES).every(state => state.phase === 'idle')).toBe(true);
   });
 

@@ -24,6 +24,7 @@ import {
   isCommitCapabilityEnabled,
   readCommitCapability
 } from '../commit/commit-capability.js';
+import { readCommitChangeSetPage, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
@@ -263,6 +264,26 @@ export class WorkingTreeManager {
       const token = await readActiveBranchToken(executor);
       return readCommitLogPage(executor, token.branchId, options);
     });
+  }
+
+  /**
+   * 读一个 commit 的全部变更单元（FR-012 的明细侧）。
+   *
+   * @param commitId - 要读的 commit id
+   * @returns 见 {@link CommitChangeSetPage}；基线节点是没有变更单元的**返回值**，不是异常
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link RxDBError} 这个 commit 不存在时
+   *
+   * @remarks
+   * 与 {@link listCommits} 的可达性口径不同：这里按 id 直读不可变快照行，不做可达性遍历。
+   * 调用方点的是它刚在可达历史里看到的节点；而一个悬挂 commit 的快照行读出来也是它写入
+   * 时的真实内容，不是编造的——「这个 commit 在不在当前分支的历史里」由列表侧回答，
+   * 明细侧只回答「它写了什么」。
+   */
+  async commitChanges(commitId: string): Promise<CommitChangeSetPage> {
+    return this.runEnabled(async (executor, adapter) =>
+      readCommitChangeSetPage(executor, createCommitWriteContext(adapter).codec, commitId)
+    );
   }
 
   /**

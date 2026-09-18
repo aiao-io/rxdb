@@ -9,6 +9,7 @@ import {
   createWorkingTreeCommands,
   WORKING_TREE_INITIAL_ASYNC_STATES,
   type CommitCapabilityInfo,
+  type CommitChangeSetPage,
   type CommitLogOptions,
   type CommitLogPage,
   type CommitOptions,
@@ -33,8 +34,8 @@ import { computed, signal, Signal } from '@angular/core';
  * {@link useWorkingTree} 的返回值。
  *
  * @remarks
- * 十个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
- * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十个方法的签名
+ * 十一个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
+ * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十一个方法的签名
  * 与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）上的同名方法完全
  * 一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
@@ -64,6 +65,8 @@ export interface WorkingTreeResource {
   readonly diffState: Signal<WorkingTreeQueryState<WorkingTreeDiff>>;
   /** 提交历史的相位；空历史是 `empty` */
   readonly listCommitsState: Signal<WorkingTreeQueryState<CommitLogPage>>;
+  /** 单个 commit 变更集的相位；零变更单元（基线节点）是 `empty` */
+  readonly commitChangesState: Signal<WorkingTreeQueryState<CommitChangeSetPage>>;
   /** 上一次 `commit()` 的相位；**没有 empty** —— 零未提交变更是 `empty_commit` 错误 */
   readonly commitState: Signal<WorkingTreeCommandState<CommitResult>>;
   /** 上一次 `discard()` 的相位；**没有 empty** —— `discardedCount: 0` 是成功的 no-op */
@@ -85,6 +88,8 @@ export interface WorkingTreeResource {
   readonly diff: (options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>;
   /** 读当前分支的可达提交历史。 */
   readonly listCommits: (options?: CommitLogOptions) => Promise<CommitLogPage>;
+  /** 读一个 commit 的全部变更单元。 */
+  readonly commitChanges: (commitId: string) => Promise<CommitChangeSetPage>;
   /** 提交工作树里的**全部**未提交单元；CAS 落败走返回值，不是异常。 */
   readonly commit: (message: string, options: CommitOptions) => Promise<CommitResult>;
   /** 把工作树整体退回 HEAD；成功后自动重读一次 status。 */
@@ -141,7 +146,7 @@ export interface WorkingTreeResource {
  * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十格状态挂在本次调用
  * 自己的 signal 上，没有跨组件共享的单例缓存。
  *
- * **创建入口本身一次 IO 都不发**：十格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十一格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、
@@ -168,6 +173,7 @@ export const useWorkingTree = (): WorkingTreeResource => {
     statusState: computed(() => states().statusState),
     diffState: computed(() => states().diffState),
     listCommitsState: computed(() => states().listCommitsState),
+    commitChangesState: computed(() => states().commitChangesState),
     commitState: computed(() => states().commitState),
     discardState: computed(() => states().discardState),
     restoreState: computed(() => states().restoreState),

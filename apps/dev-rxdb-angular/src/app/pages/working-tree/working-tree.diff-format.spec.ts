@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDiffRows,
   buildFieldDiff,
+  buildHunks,
   diffEntryKey,
+  filterWhitespaceOnlyChanges,
   formatFieldValue,
   formatPatchSummary
 } from './working-tree.diff-format';
@@ -110,10 +112,104 @@ describe('formatPatchSummary', () => {
   });
 });
 
+describe('buildHunks', () => {
+  it('连续字段合成一个 hunk，旧侧与新侧行号各自推进', () => {
+    const hunks = buildHunks(makeEntry('update', { title: '买牛奶', done: true }, { title: '买咖啡' }));
+    expect(hunks).toEqual([
+      {
+        key: 'Todo',
+        oldStart: 1,
+        oldCount: 1,
+        newStart: 1,
+        newCount: 2,
+        rows: [
+          { key: 'title', sign: '-', value: '买咖啡', oldNumber: 1, newNumber: null },
+          { key: 'title', sign: '+', value: '买牛奶', oldNumber: null, newNumber: 1 },
+          { key: 'done', sign: '+', value: true, oldNumber: null, newNumber: 2 }
+        ]
+      }
+    ]);
+  });
+
+  it('delete-only 字段：新侧行数 0，旧侧行号照常推进', () => {
+    const hunks = buildHunks(makeEntry('delete', null, { title: '买牛奶' }));
+    expect(hunks).toEqual([
+      {
+        key: 'Todo',
+        oldStart: 1,
+        oldCount: 1,
+        newStart: 0,
+        newCount: 0,
+        rows: [{ key: 'title', sign: '-', value: '买牛奶', oldNumber: 1, newNumber: null }]
+      }
+    ]);
+  });
+
+  it('insert-only 字段从旧侧第 0 行起算，所有新增行在同一个 hunk', () => {
+    expect(buildHunks(makeEntry('insert', { title: '买牛奶', done: false }, null))).toEqual([
+      {
+        key: 'Todo',
+        oldStart: 0,
+        oldCount: 0,
+        newStart: 1,
+        newCount: 2,
+        rows: [
+          { key: 'title', sign: '+', value: '买牛奶', oldNumber: null, newNumber: 1 },
+          { key: 'done', sign: '+', value: false, oldNumber: null, newNumber: 2 }
+        ]
+      }
+    ]);
+  });
+
+  it('没有字段级差异：空数组', () => {
+    expect(buildHunks(makeEntry('update', {}, {}))).toEqual([]);
+  });
+});
+
 describe('diffEntryKey', () => {
   it('键 = unitId:entityId，同一事务里的多实体也能区分', () => {
     const base = makeEntry('insert', { a: 1 }, null);
     expect(diffEntryKey(base)).toBe('u1:1');
     expect(diffEntryKey({ ...base, entityId: '2' })).toBe('u1:2');
+  });
+});
+
+describe('filterWhitespaceOnlyChanges', () => {
+  it('只有空白差异的字段：- / + 两行一起藏掉', () => {
+    const hunks = buildHunks(makeEntry('update', { note: 'a b' }, { note: 'a  b' }));
+    expect(hunks[0].rows).toHaveLength(2);
+    const filtered = filterWhitespaceOnlyChanges(hunks);
+    expect(filtered[0].rows).toEqual([]);
+    expect(filtered[0].oldCount).toBe(0);
+    expect(filtered[0].newCount).toBe(0);
+  });
+
+  it('真实差异与新增 / 删除字段原样保留', () => {
+    const hunks = buildHunks(
+      makeEntry('update', { title: '买牛奶', note: 'a b', done: true }, { title: '买咖啡', note: 'a  b' })
+    );
+    const filtered = filterWhitespaceOnlyChanges(hunks);
+    expect(filtered[0].rows.map(row => row.key)).toEqual(['title', 'title', 'done']);
+  });
+
+  it('过滤后行号连续：旧 / 新行号按剩余行重新推进', () => {
+    const hunks = buildHunks(
+      makeEntry('update', { title: '新标题', note: 'a b', done: true }, { title: '旧标题', note: 'a  b' })
+    );
+    const filtered = filterWhitespaceOnlyChanges(hunks);
+    expect(filtered[0].rows).toEqual([
+      { key: 'title', sign: '-', value: '旧标题', oldNumber: 1, newNumber: null },
+      { key: 'title', sign: '+', value: '新标题', oldNumber: null, newNumber: 1 },
+      { key: 'done', sign: '+', value: true, oldNumber: null, newNumber: 2 }
+    ]);
+    expect(filtered[0].oldStart).toBe(1);
+    expect(filtered[0].oldCount).toBe(1);
+    expect(filtered[0].newStart).toBe(1);
+    expect(filtered[0].newCount).toBe(2);
+  });
+
+  it('insert 只有 + 行，没有可比较的对——原样不动', () => {
+    const hunks = buildHunks(makeEntry('insert', { title: ' a ' }, null));
+    expect(filterWhitespaceOnlyChanges(hunks)).toEqual(hunks);
   });
 });

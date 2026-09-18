@@ -1,27 +1,36 @@
-import type { CommitLogEntry } from '@aiao/rxdb-plugin-working-tree';
+import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import {
+  LucideChevronDown as ChevronDown,
+  LucideChevronUp as ChevronUp,
+  LucideCopy as Copy,
   LucideGitCommitHorizontal as GitCommitHorizontal,
-  LucideDynamicIcon,
-  LucideRotateCcw as RotateCcw
+  LucideDynamicIcon
 } from '@lucide/angular';
+import { gdAvatarColor, gdAvatarInitial, gdOpColor, gdOpIcon } from '../working-tree.gd';
+import { WorkingTreeDiffViewerComponent } from './diff-viewer.component';
+
+/** 一个变更单元的选中键：同一 commit 里的单元也互不相同。 */
+const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
+  `${unit.unitId}:${unit.namespace}:${unit.entity}:${unit.entityId}`;
 
 /**
  * 右栏的提交详情，对应 GitHub Desktop 历史里选中提交后的右侧视图。
  *
  * @remarks
- * 核心侧没有「提交的 diff」这条 API（`diff()` 的唯一轴是 `HEAD ↔ 工作树`，见插件包
- * diff.ts 头注），所以这里只展示提交的元信息与恢复入口——恢复是 v1 里唯一能把
- * 历史内容带回来的操作（写回工作树，不是 checkout）。恢复按钮的 testid 是
- * `wt-restore-detail` 而不是 `wt-restore`：列表行里的按钮也叫「恢复」，同名会让
- * e2e 的「最后一个恢复按钮 = 最早的用户提交」语义错位。
+ * 提交元信息下方是文件列表与逐字段差异。`commitChanges()` 返回不可变变更单元，
+ * 补丁字段与未提交 diff 同形，因此共用查看器；`diff()` 本身仍只比较 HEAD 和工作树。
+ *
+ * 没有「恢复」按钮（GitHub Desktop 的详情区也没有）：恢复入口只在历史行的右键菜单里。
+ * 标题行右端的折叠 chevron 收的是**附加基本信息**（描述 + 作者 / 时间 / sha 元数据行），
+ * 下面的文件列表与差异栏始终可见。文件列表右缘有可拖分隔条（GitHub Desktop 的同款可拖宽度）。
  */
 @Component({
   selector: 'app-working-tree-commit-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon, WorkingTreeDiffViewerComponent],
   styles: [
     `
       /* 宿主是右栏 main 的 flex 子项：与 diff-viewer 同一组规则 */
@@ -36,80 +45,228 @@ import {
   template: `
     @if (commit(); as commit) {
       <div class="flex h-full min-h-0 flex-col" data-testid="wt-commit-detail">
-        <div class="border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2.5">
-          <svg class="text-primary" [lucideIcon]="GitCommitHorizontal" size="18"></svg>
-          <span class="min-w-0 flex-1 truncate text-sm font-semibold" [title]="commit.message">{{
-            commit.message
-          }}</span>
-          @if (commit.kind === 'baseline' || commit.kind === 'branch_baseline') {
-            <span class="badge badge-outline badge-xs">系统基线</span>
-          } @else {
-            <span class="badge badge-outline badge-xs">提交</span>
-          }
-          @if (commit.parentIds.length > 1) {
-            <span class="badge badge-outline badge-xs">合并节点</span>
-          }
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <dl class="space-y-2 text-sm">
-            <div class="flex gap-3">
-              <dt class="text-base-content/80 w-20 shrink-0">作者</dt>
-              <dd>{{ commit.authorId ?? '无作者' }}</dd>
-            </div>
-            <div class="flex gap-3">
-              <dt class="text-base-content/80 w-20 shrink-0">时间</dt>
-              <dd>{{ commit.createdAt.toLocaleString() }}</dd>
-            </div>
-            <div class="flex gap-3">
-              <dt class="text-base-content/80 w-20 shrink-0">变更规模</dt>
-              <dd>{{ commit.changeSetCount }} 个单元</dd>
-            </div>
-            <div class="flex gap-3">
-              <dt class="text-base-content/80 w-20 shrink-0">提交 id</dt>
-              <dd class="min-w-0 truncate font-mono text-xs" [title]="commit.commitId">{{ commit.commitId }}</dd>
-            </div>
-            <div class="flex gap-3">
-              <dt class="text-base-content/80 w-20 shrink-0">父提交</dt>
-              <dd class="min-w-0">
-                @for (parentId of commit.parentIds; track parentId) {
-                  <span class="bg-base-200 mr-1 inline-block rounded px-1 font-mono text-xs">{{ parentId }}</span>
-                } @empty {
-                  <span class="text-base-content/80">无（分支根）</span>
-                }
-              </dd>
-            </div>
-          </dl>
-          <div class="border-base-300 mt-4 border-t pt-3">
-            <p class="text-base-content/80 text-xs">
-              恢复 = 把这个提交的内容写回工作树（不是 checkout），之后再提交或丢弃。
-            </p>
-            @if (commit.kind !== 'baseline' && commit.kind !== 'branch_baseline') {
+        <div class="gd-commit-header shrink-0 px-4 py-2">
+          <div class="flex items-center gap-2">
+            <h2 class="min-w-0 flex-1 truncate text-[15px] font-semibold" [title]="title()">{{ title() }}</h2>
+            @if (commit.kind === 'baseline' || commit.kind === 'branch_baseline') {
+              <span
+                class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
+                [style.color]="'var(--gd-muted)'"
+              >
+                系统基线
+              </span>
+            } @else {
+              <span
+                class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
+                [style.color]="'var(--gd-muted)'"
+              >
+                提交
+              </span>
+            }
+            @if (commit.parentIds.length > 1) {
+              <span
+                class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
+                [style.color]="'var(--gd-muted)'"
+              >
+                合并节点
+              </span>
+            }
+            <button
+              class="gd-icon-btn shrink-0"
+              [attr.aria-expanded]="!$collapsed()"
+              [attr.aria-label]="$collapsed() ? '展开基本信息' : '折叠基本信息'"
+              [title]="$collapsed() ? '展开基本信息' : '折叠基本信息'"
+              (click)="$collapsed.update(value => !value)"
+              data-testid="wt-detail-collapse"
+              type="button"
+            >
+              <svg [lucideIcon]="$collapsed() ? ChevronDown : ChevronUp" size="15"></svg>
+            </button>
+          </div>
+          @if (!$collapsed()) {
+            @if (description(); as description) {
+              <p class="mt-1 text-sm whitespace-pre-wrap" [style.color]="'var(--gd-muted)'">{{ description }}</p>
+            }
+
+            <div
+              class="gd-commit-meta mt-1 flex items-center gap-2 text-xs"
+              [style.color]="'var(--gd-muted)'"
+              [title]="commit.createdAt.toLocaleString()"
+            >
+              <span
+                class="gd-avatar text-[9px]"
+                [style.background]="gdAvatarColor(commit.authorId ?? '?')"
+                [style.height.px]="18"
+                [style.width.px]="18"
+              >
+                {{ gdAvatarInitial(commit.authorId ?? '?') }}
+              </span>
+              <span>{{ commit.authorId ?? '无作者' }}</span>
+              <span class="gd-commit-time">提交于 {{ commit.createdAt.toLocaleString() }}</span>
+              <span class="min-w-0 truncate font-mono text-[11px]" [title]="commit.commitId">
+                {{ commit.commitId.slice(0, 8) }}
+              </span>
               <button
-                class="btn btn-sm btn-outline btn-primary mt-2 gap-1"
-                (click)="restore.emit(commit)"
-                data-testid="wt-restore-detail"
+                class="gd-btn-ghost shrink-0"
+                (click)="copySha(commit.commitId)"
+                data-testid="wt-commit-copy"
+                title="复制提交 id"
                 type="button"
               >
-                <svg [lucideIcon]="RotateCcw" size="13"></svg>
-                恢复这个版本到工作树
+                <svg [lucideIcon]="Copy" size="12"></svg>
+                <span class="sr-only">{{ $copied() ? '已复制' : '复制提交 id' }}</span>
               </button>
-            }
-          </div>
+            </div>
+          }
+        </div>
+
+        <!-- 提交列表之外的文件列表与差异栏；始终可见，折叠只收上面的附加信息。 -->
+        <div
+          class="gd-history-layout min-h-0 flex-1 border-t"
+          [style.border-color]="'var(--gd-border)'"
+          data-testid="wt-commit-changes"
+        >
+          @let changes = changesState();
+          @if (changes.phase === 'success' || changes.phase === 'empty') {
+            <div class="gd-history-files" [style.--gd-files-w.px]="$filesWidth()" data-testid="wt-history-files">
+              <div class="gd-files-count">{{ changes.value.entries.length }} changed files</div>
+              <ul class="min-h-0 flex-1 overflow-y-auto" data-testid="wt-commit-changes-list">
+                @for (unit of changes.value.entries; track changeUnitKey(unit)) {
+                  <li>
+                    <div
+                      class="gd-row"
+                      [attr.data-unit-key]="changeUnitKey(unit)"
+                      [class.gd-row-selected]="selectedUnit() === unit"
+                      (click)="$selectedUnitKey.set(changeUnitKey(unit))"
+                      (keydown.enter)="$selectedUnitKey.set(changeUnitKey(unit))"
+                      data-testid="wt-commit-change-item"
+                      role="button"
+                      tabindex="0"
+                    >
+                      <div
+                        class="flex min-w-0 items-center gap-2"
+                        [title]="'entities/' + unit.entity + '/' + unit.entityId"
+                      >
+                        <!-- 路径中间省略（与更改列表同一形态） -->
+                        <span class="flex min-w-0 flex-1 items-center text-[13px]">
+                          <span class="min-w-0 truncate">entities/{{ unit.entity }}/</span>
+                          <span class="gd-truncate-tail min-w-0"
+                            ><span>{{ unit.entityId }}</span></span
+                          >
+                        </span>
+                        <svg
+                          class="shrink-0"
+                          [lucideIcon]="gdOpIcon(unit.operation)"
+                          [style.color]="gdOpColor(unit.operation)"
+                          size="16"
+                        ></svg>
+                      </div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            </div>
+            <!-- 文件列表右缘的分隔条：按住拖动调宽（GitHub Desktop 的同款可拖分隔）。 -->
+            <div class="gd-resizer" (pointerdown)="startFilesResize($event)" aria-hidden="true"></div>
+            <div class="gd-history-diff min-w-0 flex-1" data-testid="wt-history-diff">
+              <app-working-tree-diff-viewer [entry]="selectedUnit()" />
+            </div>
+          } @else if (changes.phase === 'loading') {
+            <p class="py-6 text-center text-xs" [style.color]="'var(--gd-muted)'">读取变更单元…</p>
+          } @else if (changes.phase === 'error') {
+            <p class="py-6 text-center text-xs" [style.color]="'var(--gd-del-fg)'">{{ changes.error.message }}</p>
+          }
         </div>
       </div>
     } @else {
-      <div class="text-base-content/60 flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-        <svg class="text-base-content/40" [lucideIcon]="GitCommitHorizontal" size="40"></svg>
-        <p class="text-sm">从左侧选择一条提交，这里展示它的详情</p>
+      <div class="gd-empty h-full text-sm">
+        <svg class="text-[var(--gd-line-num)]" [lucideIcon]="GitCommitHorizontal" size="40"></svg>
+        <p>从左侧选择一条提交，这里展示它的详情</p>
       </div>
     }
   `
 })
 export class WorkingTreeCommitDetailComponent {
+  #resetTimer: ReturnType<typeof setTimeout> | null = null;
+  /** SHA 的复制反馈；2s 后复位。 */
+  readonly $copied = signal(false);
+  /** 左栏里选中的变更单元键。 */
+  readonly $selectedUnitKey = signal<string | null>(null);
+  /** 内容区折叠（GitHub Desktop 的 diff 折叠 chevron）。 */
+  readonly $collapsed = signal(false);
+  /** 文件列表宽度；右缘分隔条拖动调。 */
+  readonly $filesWidth = signal(280);
+
   readonly commit = input<CommitLogEntry | null>(null);
+  readonly changesState = input.required<WorkingTreeQueryState<CommitChangeSetPage>>();
 
-  readonly restore = output<CommitLogEntry>();
+  /** 提交标题 = message 的第一行（GitHub Desktop 的大字标题位）。 */
+  readonly title = computed(() => this.commit()?.message.split('\n', 1)[0] ?? '');
+  /** 描述 = message 第一行之后的全部（GitHub Desktop 的灰色描述段）。 */
+  readonly description = computed(() => {
+    const message = this.commit()?.message ?? '';
+    const newline = message.indexOf('\n');
+    return newline === -1 ? '' : message.slice(newline + 1).replace(/^\n+/, '');
+  });
 
+  /** 左栏当前选中的变更单元；没选中时回落到第一条（GitHub Desktop 默认展示第一个文件）。 */
+  readonly selectedUnit = computed(() => {
+    const changes = this.changesState();
+    if (changes.phase !== 'success' && changes.phase !== 'empty') return null;
+    const entries = changes.value.entries;
+    const key = this.$selectedUnitKey();
+    if (key !== null) return entries.find(unit => changeUnitKey(unit) === key) ?? null;
+    return entries[0] ?? null;
+  });
+
+  readonly changeUnitKey = changeUnitKey;
+  readonly Copy = Copy;
+  readonly ChevronDown = ChevronDown;
+  readonly ChevronUp = ChevronUp;
   readonly GitCommitHorizontal = GitCommitHorizontal;
-  readonly RotateCcw = RotateCcw;
+  readonly gdAvatarColor = gdAvatarColor;
+  readonly gdAvatarInitial = gdAvatarInitial;
+  readonly gdOpColor = gdOpColor;
+  readonly gdOpIcon = gdOpIcon;
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => {
+      if (this.#resetTimer !== null) clearTimeout(this.#resetTimer);
+    });
+    // 换一个 commit 就清掉上一个的左栏选中与折叠态：两个 commit 的单元键可能撞上（都叫 u1）。
+    effect(() => {
+      this.commit();
+      this.$selectedUnitKey.set(null);
+      this.$collapsed.set(false);
+    });
+  }
+
+  async copySha(sha: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(sha);
+      this.$copied.set(true);
+    } catch {
+      // 剪贴板不可用（非安全上下文等）：不假装成功
+      return;
+    }
+    if (this.#resetTimer !== null) clearTimeout(this.#resetTimer);
+    this.#resetTimer = setTimeout(() => this.$copied.set(false), 2000);
+  }
+
+  /** 拖动文件列表右缘的分隔条调宽；move/up 挂 document，拖出组件也不断。 */
+  startFilesResize(event: PointerEvent): void {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = this.$filesWidth();
+    const onMove = (move: PointerEvent) => {
+      this.$filesWidth.set(Math.max(140, Math.min(420, startWidth + move.clientX - startX)));
+    };
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }
 }

@@ -3,23 +3,27 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   HostListener,
   input,
   model,
   output,
+  signal,
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  LucideCheck as Check,
   LucideChevronDown as ChevronDown,
   LucideChevronRight as ChevronRight,
-  LucideCircleDot as CircleDot,
   LucideGitBranch as GitBranch,
   LucideGitMerge as GitMerge,
   LucideDynamicIcon,
+  LucideMoreHorizontal as MoreHorizontal,
   LucidePlus as Plus,
+  LucideSearch as Search,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 
@@ -29,17 +33,20 @@ import {
  * @remarks
  * 下拉与创建弹层都是**内联**渲染（absolute 定位在按钮下方）而不是 CDK overlay：
  * overlay 会把节点追加到 `<body>` 末尾，Tab 顺序上排在整页面板之后——键盘用户
- * 从触发按钮按 Tab 会直接跳进侧栏，永远走不进下拉。内联渲染让「按钮 → 新建 →
- * 分支行 → 操作按钮」落在自然 DOM 顺序里，a11y 用例的纯 Tab 走查才走得通。
+ * 从触发按钮按 Tab 会直接跳进侧栏，永远走不进下拉。内联渲染让「按钮 → 筛选框 →
+ * 新建 → 分支行 → ⋯」落在自然 DOM 顺序里，a11y 用例的纯 Tab 走查才走得通。
  *
- * 与 GitHub Desktop 的一个刻意差异：点行是**选中**而不是立即切换。选中后行下方
- * 出现「切换 / 合并 / 删除」，切换仍走 `requireClean` 的被拒路径——demo 要演的就是
- * 「脏工作树被拒」这一步，立即切换会把拒绝的 toast 变成行点击的副作用。
+ * 下拉顶部带筛选框（GitHub Desktop 的分支下拉同样可以打字筛）：按名字子串过滤，
+ * 大小写不敏感。当前分支行右端画 ✓（GitHub Desktop 的选中标记）。
+ *
+ * **点行立即切换**（GitHub Desktop 同款）：切走仍走 `requireClean` 的被拒路径——
+ * demo 要演的「脏工作树被拒」这一步，被拒的 toast 就是行点击的结果。合并 / 删除
+ * 收进每行右端的 ⋯ 按钮（GitHub Desktop 的分支行操作同样藏在行菜单里）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * `#layout-container` 是 `overflow: auto` 的滚动容器；右对齐会让 w-72 的下拉
- * 向左伸进侧栏区域，被滚动容器裁剪——裁掉的那块恰好是「切换 / 合并 / 删除」
- * 操作按钮的位置，点击会被 fixed 背板吃掉（2026-09-18 实测复现，见 e2e）。
+ * 向左伸进侧栏区域，被滚动容器裁剪——裁掉的那块恰好是操作按钮的位置，
+ * 点击会被 fixed 背板吃掉（2026-09-18 实测复现，见 e2e）。
  */
 @Component({
   selector: 'app-working-tree-branch-menu',
@@ -47,23 +54,26 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, LucideDynamicIcon],
   template: `
-    <div class="flex items-center gap-2">
-      <div class="relative">
+    <div class="flex h-full items-stretch">
+      <div class="relative flex-1">
         <button
-          class="btn btn-outline btn-sm gap-1.5"
+          class="gd-toolbar-select"
           [attr.aria-expanded]="menuOpen()"
           [attr.aria-haspopup]="true"
           (click)="toggleMenu()"
           data-testid="wt-branch-menu"
           type="button"
         >
-          <svg class="text-base-content/80" [lucideIcon]="GitBranch" size="14"></svg>
-          <span class="max-w-40 truncate">{{ activeBranch() || '…' }}</span>
+          <svg [lucideIcon]="GitBranch" size="18"></svg>
+          <span class="min-w-0 flex-1 text-left"
+            ><small>Current Branch</small><strong class="truncate">{{ activeBranch() || '…' }}</strong></span
+          >
+          <!-- 注意：动态 class 绑定会被 lucide 指令的 className 覆写，旋转改用 style 绑定 -->
           <svg
-            class="text-base-content/80 transition-transform"
-            [class.rotate-180]="menuOpen()"
+            class="transition-transform"
             [lucideIcon]="ChevronDown"
-            size="12"
+            [style.transform]="menuOpen() ? 'rotate(180deg)' : null"
+            size="14"
           ></svg>
         </button>
 
@@ -82,7 +92,7 @@ import {
 
         @if (createOpen()) {
           <div
-            class="bg-base-100 border-base-300 absolute top-full left-0 z-40 mt-1 w-64 rounded-lg border p-3 shadow-xl"
+            class="gd-menu absolute top-full left-0 z-40 mt-1 w-64 p-3"
             aria-label="创建新分支"
             data-testid="wt-branch-create-popover"
             role="dialog"
@@ -90,10 +100,10 @@ import {
             <div class="flex flex-col gap-2">
               <div class="text-xs font-medium">
                 创建新分支
-                <span class="text-base-content/80">（基于 {{ activeBranch() }}）</span>
+                <span [style.color]="'var(--gd-muted)'">（基于 {{ activeBranch() }}）</span>
               </div>
               <input
-                class="input input-bordered input-sm w-full"
+                class="gd-input"
                 #createInput
                 [(ngModel)]="branchName"
                 (input)="branchError.set(null)"
@@ -103,11 +113,11 @@ import {
                 type="text"
               />
               @if (branchError(); as error) {
-                <p class="text-error text-xs" role="alert">{{ error }}</p>
+                <p class="text-xs text-red-600" role="alert">{{ error }}</p>
               }
               <div class="flex justify-end gap-2">
                 <button
-                  class="btn btn-ghost btn-sm"
+                  class="gd-btn-secondary"
                   (click)="closeAll()"
                   data-testid="wt-branch-create-cancel"
                   type="button"
@@ -115,7 +125,7 @@ import {
                   取消
                 </button>
                 <button
-                  class="btn btn-primary btn-sm"
+                  class="gd-btn-primary"
                   (click)="confirmCreate()"
                   data-testid="wt-branch-create-confirm"
                   type="button"
@@ -127,57 +137,93 @@ import {
           </div>
         } @else if (menuOpen()) {
           <div
-            class="bg-base-100 border-base-300 absolute top-full left-0 z-40 mt-1 w-72 rounded-lg border py-1 shadow-xl"
+            class="gd-menu absolute top-full left-0 z-40 mt-1 w-72"
             aria-label="分支列表"
             data-testid="wt-branch-menu-popup"
             role="menu"
           >
-            <div class="border-base-300 flex items-center justify-between border-b px-3 py-1.5">
-              <span class="text-base-content/80 text-xs font-semibold uppercase">分支（{{ branches().length }}）</span>
-              <button
-                class="btn btn-ghost btn-xs gap-1"
-                (click)="openCreate()"
-                data-testid="wt-branch-create"
-                type="button"
+            <div class="flex items-center justify-between px-3 pt-1 pb-1.5">
+              <span class="text-[11px] font-semibold uppercase" [style.color]="'var(--gd-muted)'"
+                >分支（{{ branches().length }}）</span
               >
+              <button class="gd-btn-ghost shrink-0" (click)="openCreate()" data-testid="wt-branch-create" type="button">
                 <svg [lucideIcon]="Plus" size="12"></svg>
                 新建
               </button>
             </div>
+            <div class="relative px-2 pb-1.5">
+              <svg
+                class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+                [lucideIcon]="Search"
+                [style.color]="'var(--gd-muted)'"
+                size="12"
+              ></svg>
+              <input
+                class="gd-input"
+                [ngModel]="filter()"
+                [style.padding-left.px]="26"
+                (ngModelChange)="filter.set($event)"
+                aria-label="筛选分支"
+                placeholder="筛选"
+                type="text"
+              />
+            </div>
             <ul class="max-h-72 overflow-y-auto py-1">
-              @for (branch of branches(); track branch.id) {
+              @for (branch of filteredBranches(); track branch.id) {
                 <li>
-                  <button
-                    class="hover:bg-base-200 flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors"
-                    [attr.data-branch-id]="branch.id"
-                    [class.bg-base-200]="selectedBranchId() === branch.id"
-                    (click)="selectBranch.emit(branch.id)"
-                    data-testid="wt-branch-item"
-                    role="menuitem"
-                    type="button"
+                  <div
+                    class="flex items-stretch"
+                    [style.background]="$actionsFor() === branch.id ? 'var(--gd-selected)' : null"
                   >
-                    @if (branch.activated) {
-                      <svg class="text-success shrink-0" [lucideIcon]="CircleDot" size="12"></svg>
-                    } @else {
-                      <svg class="text-base-content/80 shrink-0" [lucideIcon]="GitBranch" size="12"></svg>
-                    }
-                    <span class="min-w-0 flex-1 truncate text-sm font-medium" [class.text-green-700]="branch.activated">
-                      {{ branch.id }}
-                    </span>
-                    @if (branch.activated) {
-                      <span class="badge badge-outline badge-success badge-xs text-green-700">当前</span>
-                    }
-                    @if (branch.parentId) {
-                      <span class="text-base-content/80 flex min-w-0 items-center gap-0.5 text-xs">
-                        <svg [lucideIcon]="ChevronRight" size="10"></svg>
-                        {{ branch.parentId }}
+                    <button
+                      class="gd-menu-row min-w-0 flex-1"
+                      [attr.data-branch-id]="branch.id"
+                      (click)="onRowClick(branch)"
+                      data-testid="wt-branch-item"
+                      role="menuitem"
+                      type="button"
+                    >
+                      <svg
+                        class="shrink-0"
+                        [lucideIcon]="GitBranch"
+                        [style.color]="branch.activated ? 'var(--gd-add-fg)' : null"
+                        size="12"
+                      ></svg>
+                      <span
+                        class="min-w-0 flex-1 truncate text-sm font-medium"
+                        [class.text-green-700]="branch.activated"
+                      >
+                        {{ branch.id }}
                       </span>
-                    }
-                  </button>
-                  @if (selectedBranchId() === branch.id && !branch.activated) {
-                    <div class="flex flex-wrap gap-1.5 px-3 pb-2">
+                      @if (branch.parentId) {
+                        <span class="flex min-w-0 items-center gap-0.5 text-xs" [style.color]="'var(--gd-muted)'">
+                          <svg [lucideIcon]="ChevronRight" size="10"></svg>
+                          {{ branch.parentId }}
+                        </span>
+                      }
+                      @if (branch.activated) {
+                        <svg class="shrink-0 text-[var(--gd-accent)]" [lucideIcon]="Check" size="13"></svg>
+                      }
+                    </button>
+                    @if (!branch.activated) {
                       <button
-                        class="btn btn-primary btn-outline btn-xs"
+                        class="gd-menu-row shrink-0"
+                        [attr.aria-expanded]="$actionsFor() === branch.id"
+                        [attr.data-branch-id]="branch.id"
+                        [title]="'分支操作：' + branch.id"
+                        (click)="toggleActions(branch.id)"
+                        data-testid="wt-branch-actions"
+                        role="menuitem"
+                        type="button"
+                      >
+                        <svg [lucideIcon]="MoreHorizontal" size="14"></svg>
+                      </button>
+                    }
+                  </div>
+                  @if ($actionsFor() === branch.id) {
+                    <div class="flex flex-wrap gap-1.5 px-3 pt-0.5 pb-2">
+                      <button
+                        class="gd-btn-secondary"
                         (click)="switchBranch.emit(branch.id)"
                         data-testid="wt-branch-switch"
                         type="button"
@@ -185,7 +231,7 @@ import {
                         切换
                       </button>
                       <button
-                        class="btn btn-success btn-outline btn-xs gap-1"
+                        class="gd-btn-secondary"
                         (click)="mergeBranch.emit(branch.id)"
                         data-testid="wt-branch-merge"
                         type="button"
@@ -194,7 +240,7 @@ import {
                         合并到 {{ activeBranch() }}
                       </button>
                       <button
-                        class="btn btn-error btn-outline btn-xs gap-1"
+                        class="gd-btn-secondary gd-btn-danger"
                         (click)="deleteBranch.emit(branch.id)"
                         data-testid="wt-branch-delete"
                         type="button"
@@ -207,7 +253,9 @@ import {
                 </li>
               }
               @if (branches().length === 0) {
-                <li class="text-base-content/80 px-4 py-4 text-center text-sm">暂无分支</li>
+                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">暂无分支</li>
+              } @else if (filteredBranches().length === 0) {
+                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">没有匹配的分支</li>
               }
             </ul>
           </div>
@@ -219,15 +267,17 @@ import {
 export class WorkingTreeBranchMenuComponent {
   readonly branches = input.required<readonly RxDBBranch[]>();
   readonly activeBranch = input('');
-  readonly selectedBranchId = input<string | null>(null);
+  /** 展开操作按钮的那一行（⋯ 的开关）。 */
+  readonly $actionsFor = signal<string | null>(null);
 
   /** 下拉开合；创建弹层打开时恒为 false（两态互斥，避免两个弹层叠着）。 */
   readonly menuOpen = model(false);
   readonly createOpen = model(false);
   readonly branchName = model('');
   readonly branchError = model<string | null>(null);
+  /** 分支名筛选（大小写不敏感的子串匹配）。 */
+  readonly filter = signal('');
 
-  readonly selectBranch = output<string>();
   readonly switchBranch = output<string>();
   readonly mergeBranch = output<string>();
   readonly deleteBranch = output<string>();
@@ -236,13 +286,22 @@ export class WorkingTreeBranchMenuComponent {
 
   readonly createInput = viewChild<ElementRef<HTMLInputElement>>('createInput');
 
+  /** 筛出来的分支；空筛选 = 全量。 */
+  readonly filteredBranches = computed(() => {
+    const needle = this.filter().trim().toLowerCase();
+    if (needle === '') return this.branches();
+    return this.branches().filter(branch => branch.id.toLowerCase().includes(needle));
+  });
+
+  readonly Check = Check;
   readonly GitBranch = GitBranch;
   readonly GitMerge = GitMerge;
   readonly Trash2 = Trash2;
   readonly Plus = Plus;
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
-  readonly CircleDot = CircleDot;
+  readonly MoreHorizontal = MoreHorizontal;
+  readonly Search = Search;
 
   constructor() {
     // 弹层一出现就把焦点送进名字输入框：创建分支是两步操作，第二步不能靠用户自己
@@ -283,6 +342,21 @@ export class WorkingTreeBranchMenuComponent {
   closeAll() {
     this.menuOpen.set(false);
     this.createOpen.set(false);
+    this.filter.set('');
+    this.$actionsFor.set(null);
+  }
+
+  /** 点行：非当前分支立即切换（GitHub Desktop 同款），当前分支只收起菜单。 */
+  onRowClick(branch: RxDBBranch) {
+    if (branch.activated) {
+      this.closeAll();
+      return;
+    }
+    this.switchBranch.emit(branch.id);
+  }
+
+  toggleActions(branchId: string) {
+    this.$actionsFor.update(current => (current === branchId ? null : branchId));
   }
 
   /** 空名不往页面交：那是一条必然被拒的往返，错误就地呈现。 */

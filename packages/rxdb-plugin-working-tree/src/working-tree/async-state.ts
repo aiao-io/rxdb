@@ -3,7 +3,7 @@
  *
  * @remarks
  * 三端入口（`@aiao/rxdb-angular` / `-react` / `-vue` 的 `useWorkingTree()`）把工作树的
- * 十件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
+ * 十一件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
  * 查询在无结果时额外一个 empty**。
  *
  * 两条不可让步的性质：
@@ -29,6 +29,7 @@
  */
 
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
+import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogPage } from '../commit/commit-log.js';
 import type { CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff } from './diff.js';
@@ -98,10 +99,11 @@ export type WorkingTreeCommandState<T> =
  * 查询的可观测状态：比命令**恰好多一个** empty（§4）。
  *
  * @remarks
- * 只有四件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
- * `listCommits()` 无历史、`restoreSession()` 无未结束会话。判据分别是
- * {@link isWorkingTreeStatusEmpty}、{@link isWorkingTreeDiffEmpty}、
- * {@link isCommitLogPageEmpty}、{@link isWorkingTreeRestoreSessionEmpty}。
+ * 只有五件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
+ * `listCommits()` 无历史、`commitChanges()` 无变更单元（基线节点）、`restoreSession()`
+ * 无未结束会话。判据分别是 {@link isWorkingTreeStatusEmpty}、{@link isWorkingTreeDiffEmpty}、
+ * {@link isCommitLogPageEmpty}、{@link isCommitChangeSetPageEmpty}、
+ * {@link isWorkingTreeRestoreSessionEmpty}。
  */
 export type WorkingTreeQueryState<T> =
   | WorkingTreeIdleState
@@ -115,7 +117,8 @@ export type WorkingTreeQueryState<T> =
  *
  * @remarks
  * 键集是 US-306 阶段 C 收口的六项，加上 T110 补进来的 `restore()` / `restoreSession()`，
- * 再加 T123 补进来的 `switchBranch()`——tri-framework-api.md §3 清单十项到齐。
+ * 再加 T123 补进来的 `switchBranch()`，以及 commit 明细侧的 `commitChanges()`——
+ * tri-framework-api.md §3 清单十一项到齐。
  *
  * `switchBranchState` 走**命令**状态而不是查询：切分支没有「空」这一形态，成功就是切过去了
  * （`VersionManager.switchBranch()` 返回 `void`），被 `requireClean` 拒掉则是一次
@@ -143,6 +146,9 @@ export interface WorkingTreeAsyncStates {
   /** `listCommits()` 的状态；空即「这个分支还没有历史」 */
   readonly listCommitsState: WorkingTreeQueryState<CommitLogPage>;
 
+  /** `commitChanges()` 的状态；空即「这个 commit 没有任何变更单元」（基线节点） */
+  readonly commitChangesState: WorkingTreeQueryState<CommitChangeSetPage>;
+
   /** `commit()` 的状态；**没有 empty** */
   readonly commitState: WorkingTreeCommandState<CommitResult>;
 
@@ -166,6 +172,7 @@ export const WORKING_TREE_INITIAL_ASYNC_STATES: WorkingTreeAsyncStates = Object.
   statusState: { phase: 'idle' },
   diffState: { phase: 'idle' },
   listCommitsState: { phase: 'idle' },
+  commitChangesState: { phase: 'idle' },
   commitState: { phase: 'idle' },
   discardState: { phase: 'idle' },
   restoreState: { phase: 'idle' },

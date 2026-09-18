@@ -1,5 +1,5 @@
 /**
- * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的九个方法与
+ * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十个方法与
  * `versionManager.switchBranch()` 接到 {@link WorkingTreeAsyncStates} 上
  * （US-306 阶段 C、T110 与 T123，contracts/tri-framework-api.md §1/§4）。
  *
@@ -21,6 +21,7 @@ import { RxDBError, type RxDB } from '@aiao/rxdb';
 // 那个别处哪天不 import 了，这里就会退化成 `any` 上的属性访问而没有任何一条用例会红。
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
+import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogOptions, CommitLogPage } from '../commit/commit-log.js';
 import {
   isCommitLogPageEmpty,
@@ -57,7 +58,7 @@ export type WorkingTreeStatePatch = <K extends keyof WorkingTreeAsyncStates>(
 ) => void;
 
 /**
- * 三端入口对外暴露的十个命令；签名与 {@link WorkingTreeManager}
+ * 三端入口对外暴露的十一个命令；签名与 {@link WorkingTreeManager}
  * （以及 `switchBranch` 那一个 {@link VersionManager}）上的同名方法一致。
  *
  * @remarks
@@ -79,6 +80,8 @@ export interface WorkingTreeCommands {
   readonly diff: (options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>;
   /** 当前分支的可达提交历史；空历史是 `empty` 相位 */
   readonly listCommits: (options?: CommitLogOptions) => Promise<CommitLogPage>;
+  /** 一个 commit 的全部变更单元；基线节点的零单元是 `empty` 相位 */
+  readonly commitChanges: (commitId: string) => Promise<CommitChangeSetPage>;
   /** 提交工作树里的全部未提交单元；**没有「空成功」**，零变更时原样抛 `empty_commit` */
   readonly commit: (message: string, options: CommitOptions) => Promise<CommitResult>;
   /** 把工作树整体退回 HEAD；`discardedCount: 0` 是 no-op，不是 empty */
@@ -130,7 +133,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
 };
 
 /**
- * 把十个命令接到状态格子上。
+ * 把十一个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `workingTree` 与 `versionManager` 两个入口
  * @param patch - 每一次相位变化的落点；见 {@link WorkingTreeStatePatch}
@@ -219,6 +222,13 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
         state => patch('listCommitsState', state),
         isCommitLogPageEmpty,
         () => workingTree.listCommits(options)
+      ),
+
+    commitChanges: commitId =>
+      trackWorkingTreeQuery(
+        state => patch('commitChangesState', state),
+        isCommitChangeSetPageEmpty,
+        () => workingTree.commitChanges(commitId)
       ),
 
     commit: async (message, options) => {

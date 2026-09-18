@@ -25,6 +25,7 @@ import {
   CommitValidationError,
   WorkingTreeDirtyError,
   type CommitCapabilityInfo,
+  type CommitChangeSetPage,
   type CommitLogPage,
   type CommitResult,
   type WorkingTreeCredentials,
@@ -179,6 +180,7 @@ const createStub = () => {
     status: vi.fn<() => Promise<WorkingTreeStatus>>(),
     diff: vi.fn<() => Promise<WorkingTreeDiff>>(),
     listCommits: vi.fn<() => Promise<CommitLogPage>>(),
+    commitChanges: vi.fn<() => Promise<CommitChangeSetPage>>(),
     commit: vi.fn<() => Promise<CommitResult>>(),
     discard: vi.fn<() => Promise<WorkingTreeDiscardResult>>(),
     restore: vi.fn<() => Promise<WorkingTreeRestoreResult>>(),
@@ -600,7 +602,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     expect(member in tree).toBe(true);
   });
 
-  it('十格状态与核心那一份同名同数', () => {
+  it('十一格状态与核心那一份同名同数', () => {
     const { tree } = createFixture();
 
     expect(
@@ -608,6 +610,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
         .filter(key => key.endsWith('State'))
         .sort()
     ).toEqual([
+      'commitChangesState',
       'commitState',
       'diffState',
       'discardState',

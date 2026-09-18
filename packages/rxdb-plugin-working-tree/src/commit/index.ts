@@ -16,8 +16,11 @@
 export * from './commit-codec.js';
 // 提交历史的公开面（FR-012）。遍历本身（`list-commits.ts`）与 `Commit` 实体都留在包内：
 // 实体带着幂等键与节点指纹，两者都不承诺跨版本稳定，摆上公开面就会被当成内容判据。
+export * from './commit-changes.js';
 export * from './commit-error-codes.js';
 export * from './commit-log.js';
+// `commitChanges()` 的返回类型引用它：变更单元内容（解码态）是公开面的一部分。
+export type { CommitChangeUnitContent, CommitChangeUnitOperation, CommitChangeUnitOrigin } from './change-unit.js';
 // 能力三元组：`WorkingTreeManager.enable()` 的返回类型。只导出类型，读写能力行的四个
 // 函数留在包内——它们要求调用方自带事务执行器，而那是门面的职责，不是调用方的。
 export type { CommitCapabilityInfo, CommitCapabilityVersions } from './commit-capability.js';

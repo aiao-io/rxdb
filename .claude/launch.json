@@ -1,11 +1,6 @@
 {
   "configurations": [
     {
-      "name": "dev-rxdb-angular-attach",
-      "url": "http://localhost:4200",
-      "port": 4200
-    },
-    {
       "name": "dev-rxdb-angular",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
@@ -14,6 +9,17 @@
         "dev-rxdb-angular"
       ],
       "port": 4200
+    },
+    {
+      "name": "dev-rxdb-angular-4205",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-angular",
+        "--port=4205"
+      ],
+      "port": 4205
     },
     {
       "name": "dev-rxdb-react",
@@ -56,6 +62,18 @@
         "8200"
       ],
       "port": 8200
+    },
+    {
+      "name": "dev-rxdb-angular-static-4206",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/apps/dev-rxdb-angular/browser",
+        "--port",
+        "4206"
+      ],
+      "port": 4206
     }
   ],
   "version": "0.0.1"
