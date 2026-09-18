@@ -8,14 +8,18 @@
 
 ## 0. 两套套件
 
-| 套件                                 | 导出位置                        | 覆盖                                                           | 归属               |
-| ------------------------------------ | ------------------------------- | -------------------------------------------------------------- | ------------------ |
-| `workingTreeCaptureConformanceSuite` | `packages/rxdb`（`*.suite.ts`） | 捕获完备性、写入口语义矩阵、bypass 判定、untracked 域          | US-306 阶段 A      |
-| `workingTreeCommitConformanceSuite`  | `packages/rxdb`（`*.suite.ts`） | commit 图、HEAD 持久化、迁移、CAS、损坏守卫、restore、分支隔离 | US-305 + 阶段 B 起 |
+| 套件                                 | 导出位置                                 | 覆盖                                                           | 归属               |
+| ------------------------------------ | ---------------------------------------- | -------------------------------------------------------------- | ------------------ |
+| `workingTreeCaptureConformanceSuite` | `@aiao/rxdb-plugin-working-tree/testing` | 捕获完备性、写入口语义矩阵、bypass 判定、untracked 域          | US-306 阶段 A      |
+| `workingTreeCommitConformanceSuite`  | `@aiao/rxdb-plugin-working-tree/testing` | commit 图、HEAD 持久化、迁移、CAS、损坏守卫、restore、分支隔离 | US-305 + 阶段 B 起 |
+
+**两套都走 `./testing` 子路径导出**，不在主入口上（`package.json` 的 `exports`；源在 `src/working-tree/testing/*.suite.ts`，与之一并导出的还有共用实体清单 `WORKING_TREE_CONFORMANCE_ENTITIES` 与 `WorkingTreeConformanceSuiteContext`）。epic-006 之前它们在 `packages/rxdb` 里，随工作树一起搬进了插件包。
 
 调用形状（两套一致）：
 
 ```ts
+import { workingTreeCaptureConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
+
 workingTreeCaptureConformanceSuite({
   name: 'pglite',
   createDatabase: async () => /* 返回已启用提交能力的 RxDB 实例 */,

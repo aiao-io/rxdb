@@ -99,9 +99,13 @@ const toUnitContent = (row: CommitChangeSet): CommitChangeUnitContent => ({
  * @throws {@link CommitGraphCorruptedError} 指纹或 ChangeSet 行数对不上时
  *
  * @remarks
- * 两项检查的顺序不可换：行数少一行时指纹仍然对得上（重算用的就是实际这几行），
- * 所以先比指纹能把「内容被改过」与「行数被改过」分成两个可区分的成因；反过来，
- * 先比行数会让一次内容篡改在行数也恰好被动过时报出错误的成因。
+ * **两项检查的顺序不可换，而且是行数在前。** 摘要把 `u${units.length}:` 也折了进去
+ * （见 {@link computeCommitContentFingerprint}），所以少一行时**两项同时不成立**——重算的指纹
+ * 用的是实际剩下的这几行，与落库的那个值必然对不上。先比指纹的那一版里，
+ * `change_set_count_mismatch` 这一支根本走不到：每一次丢行都被报成 `fingerprint_mismatch`，
+ * 两个成因塌成一个。而两者的处置并不相同——「行数被改过」要去查谁删的行（重放会静默少还原
+ * 一个单元），「内容被改过」要去查谁改的值。行数排前面，是因为它是**更窄**的那个判据：
+ * 它成立时指纹必然也不成立，反之不然，于是它一成立就是确定的成因。
  *
  * `sequence` 升序排在 JS 侧做，不依赖后端返回顺序：摘要按 `sequence` 发放的顺序合成，
  * 顺序错了，一个完全健康的 commit 会被判成损坏。
@@ -118,11 +122,11 @@ const assertCommitIntact = async (executor: TransactionExecutor, branchId: strin
     author: commit.author,
     units
   });
-  if (fingerprint !== commit.contentFingerprint) {
-    throw new CommitGraphCorruptedError(branchId, commit.id, 'fingerprint_mismatch');
-  }
   if (changeSets.length !== commit.changeSetCount) {
     throw new CommitGraphCorruptedError(branchId, commit.id, 'change_set_count_mismatch');
+  }
+  if (fingerprint !== commit.contentFingerprint) {
+    throw new CommitGraphCorruptedError(branchId, commit.id, 'fingerprint_mismatch');
   }
 };
 
@@ -226,6 +230,24 @@ export const assertCommitGraphIntact = async (executor: TransactionExecutor, bra
  * `corrupted_read_only` 就直接返回——每次拒绝都刷新会把它变成「最后一次尝试时间」，
  * 事后再也回答不了「坏了多久」。判据取自库里刚读到的那一行而不是进程里的缓存：
  * 这是事务内读改写，不是调用方捕获型 CAS（FR-032）。
+ *
+ * **`new Date()` 用的是客户端时钟，这是有意的，不是漏改。** 本仓的时钟口径按「谁能给这一列
+ * 赋值」分成三档，`corruptedAt` 落在第三档：
+ *
+ * 1. **不可变历史列走库默认值**：`Commit.createdAt` 声明成 `default: 'CURRENT_TIMESTAMP'` +
+ *    `readonly`，构造期一个字都不写（FR-010，见 `write-commit.ts` 的 `buildCommitRows`）。
+ *    客户端时钟漂移不该被写进永远改不了的历史。
+ * 2. **raw CAS 里的时刻走 `sqlTimestampLiteral(new Date())`**：`commit-capability.ts` 的
+ *    `enabledAt` 与 `branch-materialization.ts` 的 `updatedAt` 都是这个形状。`CURRENT_TIMESTAMP`
+ *    在 SQLite 上求值成 `'YYYY-MM-DD HH:MM:SS'`，与本仓日期列的 ISO 存储形态对不上
+ *    （`branch-materialization.ts` 的 `buildActiveBranchSwitchStatements` 写明了这条）。
+ * 3. **仓储层的读改写只能给 JS 值**：这里走的是 `getRepository().update()`，而仓储层没有
+ *    「这一列填一段 SQL 表达式」的口子。`corruptedAt` 又是「首次损坏时刻」，没有列默认值
+ *    可用——默认值只在 INSERT 时求值，而这一行早在建库迁移里就插进去了。
+ *
+ * 代价是这个时刻的偏差上限等于客户端时钟漂移。可接受：它是**诊断值**，不参与指纹、不参与
+ * 任何比较，也没有第二个时刻要和它排序。统一到数据库时钟要先给仓储层加写 SQL 表达式的能力，
+ * 那是架构项，不在本函数的范围内。
  */
 export const markBranchCorrupted = async (
   executor: TransactionExecutor,

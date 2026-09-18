@@ -81,7 +81,7 @@ await db.workingTree.enable();
 | React   | `@aiao/rxdb-plugin-working-tree-react`   | `useWorkingTree()` |
 | Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `useWorkingTree()` |
 
-装插件仍在库侧完成（`db.use(rxDBPluginWorkingTree)`），绑定包只负责读写。七个状态字段的初值全是 `idle`（创建入口一次 IO 都不发），类型与错误类一律从插件包直接 import。
+装插件仍在库侧完成（`db.use(rxDBPluginWorkingTree)`），绑定包只负责读写。十个状态字段的初值全是 `idle`（创建入口一次 IO 都不发），类型与错误类一律从插件包直接 import。
 
 ## 参考
 

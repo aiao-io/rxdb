@@ -208,6 +208,17 @@ export const assertSupportedCommitCapability = (info: CommitCapabilityInfo): voi
  * CAS **命中 0 行**：数据库自己说的「你不是第一个」。0 行之后重新读，而不是复用 CAS 之前
  * 那次读的结果：并发首次启用里，输的那一方手里的 `enabledAt` 还是 `null`，赢家写进去的
  * 时刻只能重新读回来。
+ *
+ * **`enabledAt` 取客户端时钟而不是 `CURRENT_TIMESTAMP`，这是有意的。** CAS 是一条手拼的
+ * UPDATE，时刻只能作为字面量嵌进去，而 `CURRENT_TIMESTAMP` 在 SQLite 上求值成
+ * `'YYYY-MM-DD HH:MM:SS'`，与本仓日期列的 ISO 存储形态对不上——`sqlTimestampLiteral` 存在
+ * 的理由就是这个（`working-tree/branch-materialization.ts` 的
+ * `buildActiveBranchSwitchStatements` 写明了同一条）。与之对照，不可变历史列走的是另一档：
+ * `Commit.createdAt` 声明 `default: 'CURRENT_TIMESTAMP'` + `readonly`，由库自己填（FR-010）。
+ * 两档的分界见 `commit-graph-guard.ts` 的 `markBranchCorrupted`。
+ *
+ * 代价是这个时刻的偏差上限等于客户端时钟漂移。可接受：`enabledAt` 只作为能力状态的展示值
+ * 回给调用方，不参与任何比较——**幂等的仲裁位是 CAS 的 `rowsAffected`，不是它**。
  */
 export const enableCommitCapability = async (executor: TransactionExecutor): Promise<CommitCapabilityInfo> => {
   const current = await readCommitCapability(executor);

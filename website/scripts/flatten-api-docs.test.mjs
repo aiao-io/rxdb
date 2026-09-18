@@ -13,19 +13,23 @@ test('包目录被 typedoc 当作 media 复制的链接重写为兄弟包页', (
   // 源 README 里 `../rxdb-plugin-history` 指向兄弟包目录；typedoc 把它复制进
   // docs/api/_media/ 并把 href 改成 `../_media/rxdb-plugin-history`。扁平化后该 href
   // 从包 README 页解析会落到 /docs/_media/，Docusaurus 判为坏链。应重写为指向
-  // docs/api/<pkg> 的兄弟页链接。
+  // docs/api/<pkg> 的兄弟页链接。目标必须保留 /README.md 后缀：包 README 页的
+  // 路由是文件夹索引形态，无后缀链接会被按路由解析再丢一层。
   const content = '见 [`@aiao/rxdb-plugin-history`](../_media/rxdb-plugin-history) 文档。';
 
   assert.equal(
     rewriteMediaPackageLinks(content, ['rxdb-plugin-history']),
-    '见 [`@aiao/rxdb-plugin-history`](../rxdb-plugin-history) 文档。'
+    '见 [`@aiao/rxdb-plugin-history`](../rxdb-plugin-history/README.md) 文档。'
   );
 });
 
 test('带 README.md 后缀的 media 链接同样重写', () => {
   const content = '见 [历史](../_media/rxdb-plugin-history/README.md)。';
 
-  assert.equal(rewriteMediaPackageLinks(content, ['rxdb-plugin-history']), '见 [历史](../rxdb-plugin-history)。');
+  assert.equal(
+    rewriteMediaPackageLinks(content, ['rxdb-plugin-history']),
+    '见 [历史](../rxdb-plugin-history/README.md)。'
+  );
 });
 
 test('非包 media（图片等）链接原样保留', () => {

@@ -18,14 +18,18 @@
 
 **同名 + 同语义 + 同错误码**；运行时形状按各框架既有约定。对称不等于形状全等——强行让 Angular 返回 React 的 hook 形状，或让 Vue 返回裸 `Observable`，都是把「一致」做成了「别扭」。
 
-| 概念       | Angular 22                                | React 19                              | Vue 3.5                               |
-| ---------- | ----------------------------------------- | ------------------------------------- | ------------------------------------- |
-| 工作树入口 | 可注入服务 `WorkingTreeService`           | `useWorkingTree()`                    | `useWorkingTree()`                    |
-| 响应式状态 | `Signal<WorkingTreeStatus>` / `status$`   | 返回对象上的 state 字段（随渲染更新） | `Ref<WorkingTreeStatus>` / `computed` |
-| 命令       | 方法返回 `Promise`                        | 返回对象上的方法，`Promise`           | 返回对象上的方法，`Promise`           |
-| 错误       | 抛同一组错误码；`CommitConflict` 走返回值 | 同左                                  | 同左                                  |
+| 概念       | Angular 22                                 | React 19                              | Vue 3.5                                 |
+| ---------- | ------------------------------------------ | ------------------------------------- | --------------------------------------- |
+| 工作树入口 | `useWorkingTree()`（须在注入上下文中调用） | `useWorkingTree()`                    | `useWorkingTree()`                      |
+| 响应式状态 | `Signal<WorkingTreeQueryState<…>>`         | 返回对象上的 state 字段（随渲染更新） | `ComputedRef<WorkingTreeQueryState<…>>` |
+| 命令       | 方法返回 `Promise`                         | 返回对象上的方法，`Promise`           | 返回对象上的方法，`Promise`             |
+| 错误       | 抛同一组错误码；`CommitConflict` 走返回值  | 同左                                  | 同左                                    |
 
-三端**共享同一份**核心类型（`WorkingTreeStatus` / `CommitResult` / `CommitConflict` / `WorkingTreeDiff`…），从 `@aiao/rxdb` 再导出，**不各自重定义**。重定义会让三份类型独立漂移，而漂移只在用户那里暴露。
+**三端入口同名**：都叫 `useWorkingTree()`，Angular 侧也不是可注入服务——同一份命令工厂（`createWorkingTreeCommands`）供三端共用，差别只在状态容器（`Signal` / 普通字段 / `ComputedRef`）。
+
+**没有 `status$`**：核心侧至今没有工作树变更流，三端都没有响应式的状态推送。经本入口发出的命令之后状态才更新；别的标签页写进来的改动、直接走 `entity.save()` 的写入都不会推一份新的 status 过来，需要最新值就再调一次 `status()`。
+
+三端**共享同一份**类型（`WorkingTreeStatus` / `CommitResult` / `CommitConflict` / `WorkingTreeDiff` / `WorkingTreeQueryState`…），一律从 `@aiao/rxdb-plugin-working-tree`（三个框架包的 peer 依赖）直接 import，**不各自重定义**，三个框架包也**不把它们再导出一遍**：只转出 `useWorkingTree` 与 `WorkingTreeResource` 两个名字。重定义会让三份类型独立漂移，而漂移只在用户那里暴露；再导出则等于在纯适配包上复制插件包的公开面（十来个错误类全要跟着转）。
 
 ## 2. 命名规则：框架包只适用负向规则
 
@@ -41,7 +45,7 @@
 
 ## 3. 必须三端齐全的能力清单（阶段 C 收口）
 
-`isEnabled()` / `enable()`、`status()` 及其响应式形式、`diff()`、`commit()`、`discard()`、`listCommits()`、`restore()`、`restoreSession()`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`。
+`isEnabled()` / `enable()`、`status()`、`diff()`、`commit()`、`discard()`、`listCommits()`、`restore()`、`restoreSession()`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`——十项，每项各带一格配对的 `*State`（`statusState` / `commitState` …）。
 
 **任一端缺一项 = 阶段 C 未完成**，不接受「先上两端，第三端下个迭代补」。
 

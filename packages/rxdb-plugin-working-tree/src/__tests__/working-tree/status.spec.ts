@@ -153,7 +153,7 @@ describe('conflicted 只由恢复会话重建，CAS 失败不留痕（contracts/
     const status = await statusOf(scene);
     // 「上一次提交失败了」不是这个库的状态，是那一次调用的返回值。存下来的话，
     // 没有任何人负责清它，而契约明确说不需要「清除冲突」的 API。
-    expect({ conflicted: status.conflicted, restoring: status.conflicted }).toEqual({
+    expect({ conflicted: status.conflicted, restoring: status.restoring }).toEqual({
       conflicted: false,
       restoring: false
     });

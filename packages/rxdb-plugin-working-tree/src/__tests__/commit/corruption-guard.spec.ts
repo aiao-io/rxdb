@@ -181,6 +181,27 @@ describe('沿完整可达父链遍历（FR-051）', () => {
     });
   });
 
+  it('ChangeSet 行被删掉一条时，成因是 `change_set_count_mismatch` 而不是 `fingerprint_mismatch`', async () => {
+    const scene = createScene();
+    scene.addCommit('root', []);
+    scene.addCommit('mid', ['root'], 2);
+    scene.addBranch('main', 'mid');
+    // 摘掉 `mid` 的一行：`commit.changeSetCount` 仍是 2，实际只剩 1。
+    // 两项检查在这里**同时**成立——摘要把 `u${units.length}:` 也折了进去（`change-unit.ts`），
+    // 少一行，重算出来的指纹必然也变。于是「先比哪一项」决定了报出来的成因是什么：
+    // 先比指纹的话，「少了一行」被报成「内容被改过」，而这两者的处置完全不同——
+    // 前者要去找谁删的行，后者要去找谁改的值。
+    const rows = scene.probe.rowsOf(CommitChangeSet) as { commitId: string }[];
+    const victim = rows.findIndex(row => row.commitId === 'mid');
+    expect(victim).toBeGreaterThanOrEqual(0);
+    rows.splice(victim, 1);
+
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).rejects.toMatchObject({
+      commitId: 'mid',
+      reason: 'change_set_count_mismatch'
+    });
+  });
+
   it('父链指向不存在的 commit 即损坏', async () => {
     const scene = createScene();
     scene.addCommit('head', ['gone']);

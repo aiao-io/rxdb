@@ -161,15 +161,27 @@ erDiagram
 - `revertChangeId`: 撤销时的变更ID
 - `redoInvalidatedAt`: redo 失效时间
 
-## 分支合并（规划中）
+## 分支合并
+
+把**源分支**的变更合并进**当前激活分支**（目标分支由当前激活分支决定，不作为参数传入）：
 
 ```typescript
-// 合并分支
-// await rxdb.versionManager.merge('feature-1', 'main');
+// 压缩合并（默认）：源分支全部变更压成目标分支上的一组事务记录
+const result = await rxdb.versionManager.mergeBranch('feature-1');
+console.log(`合并了 ${result.merged} 条变更，策略 ${result.strategy}`);
+
+// 普通合并：逐条复制，保留历史细节
+await rxdb.versionManager.mergeBranch('feature-1', { strategy: 'normal' });
+
+// 合并后删除源分支
+const merged = await rxdb.versionManager.mergeBranch('feature-1', { deleteSource: true });
+if (!merged.sourceDeleted) console.warn('合并已落库，但删源分支没做成', merged.sourceDeleteError);
 ```
+
+合并有变更时会**清空 undo/redo 历史**——合并本身不可逆。`deleteSource` 的删除是合并落库之后的收尾动作，失败不回滚合并、也不抛错，只在 `sourceDeleted` / `sourceDeleteError` 上如实报告。
 
 ## 相关文档
 
 - [同步策略](./sync.md) - 了解数据同步配置
 - [Undo/Redo](./undo-redo.md) - 撤销和重做功能
-- [工作树与提交历史](../plugins/rxdb-plugin-working-tree/README.md) - 未提交改动捕获与提交历史（`@aiao/rxdb-plugin-working-tree`）；带工作树语义的 `switchBranch` 属其后续阶段，尚未实现
+- [工作树与提交历史](../plugins/rxdb-plugin-working-tree/README.md) - 未提交改动捕获与提交历史（`@aiao/rxdb-plugin-working-tree`）；装上该插件后 `switchBranch()` 多接受一个前置条件参数（`requireClean` / `expectedActivationRevision`），不传时行为与今天逐字节一致

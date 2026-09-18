@@ -59,6 +59,20 @@ test('findSpecifiers 不把注释里的指路文字当依赖', () => {
   assert.deepEqual(findSpecifiers(source), ['./kept.js']);
 });
 
+test('findSpecifiers 不把字符串字面量里的 import 语句当依赖', () => {
+  // 门禁脚本、迁移指南、codemod 的测试夹具里都会出现「一段代码作为数据」的写法。
+  // 把它算进来，登记表就会因为一段示例文本而多出一条本不存在的跨界依赖。
+  const source = [
+    'const SNIPPET = `',
+    "import { Gone } from './working-tree/y.js';",
+    '`;',
+    'const DYNAMIC = "await import(\'./commit/gone.js\')";',
+    "import { Kept } from './kept.js';",
+    "const real = await import('./real.js');"
+  ].join('\n');
+  assert.deepEqual(findSpecifiers(source), ['./kept.js', './real.js']);
+});
+
 // ---------------------------------------------------------------------------
 // 跨界判定
 // ---------------------------------------------------------------------------
@@ -111,12 +125,24 @@ test('collectCoreFiles 跳过 __tests__ 与两个插件目录，只收 .ts', asy
   });
 });
 
-test('排除的是顶层目录，不是任意深度的同名目录', async () => {
+test('任意深度的 __tests__ 都不扫', async () => {
   await withTempRoot(async root => {
-    // `version/__tests__/` 不在排除表里——排除表是相对核心根的顶层路径。
+    // 测试文件里贴一段「核心不该这么写」的反例是常事，扫进来就是凭空一条未登记跨界。
+    await writeSourceFile(root, 'plugin/__tests__/skip.ts', '');
+    await writeSourceFile(root, 'plugin/kept.ts', '');
+    assert.deepEqual(await collectCoreFiles(root), ['plugin/kept.ts']);
+  });
+});
+
+test('插件目录只按顶层排除，同名子目录照扫', async () => {
+  await withTempRoot(async root => {
+    // `version/commit/` 不是插件目录：`resolveCrossing` 只看首段，它归在 `version` 下。
+    // 跟着 `__tests__` 一起改成按目录名排除的话，扫描范围会凭空塌掉一块，
+    // 那块里真长出跨界依赖也再报不出来——门禁静默变窄比它报错更难发现。
     await writeSourceFile(root, 'version/commit/kept.ts', '');
+    await writeSourceFile(root, 'version/working-tree/kept.ts', '');
     const files = await collectCoreFiles(root);
-    assert.deepEqual(files, ['version/commit/kept.ts']);
+    assert.deepEqual(files, ['version/commit/kept.ts', 'version/working-tree/kept.ts']);
   });
 });
 

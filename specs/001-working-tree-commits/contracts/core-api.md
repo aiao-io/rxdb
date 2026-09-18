@@ -2,7 +2,9 @@
 
 **Feature**: [../spec.md](../spec.md) | **Plan**: [../plan.md](../plan.md) | **Data model**: [../data-model.md](../data-model.md)
 
-本文件冻结 `@aiao/rxdb` 对外暴露的**形状与语义**，不含实现。类型签名用 TypeScript 表达，因为它**就是**本库的用户契约。
+本文件冻结对外暴露的**形状与语义**，不含实现。类型签名用 TypeScript 表达，因为它**就是**本库的用户契约。
+
+> **导出位置**：epic-006 拆分后，§2~§5 的类型由 `@aiao/rxdb-plugin-working-tree` 导出，§1 的 `RxDB.workingTree` 是该包对 `@aiao/rxdb` 的模块增强（`plugin.ts` 的 `declare module`）；§6 的 `RxDBBranchSwitchPreconditions` 留在 `@aiao/rxdb` 核心。§0 的命名门禁两边都管。
 
 > 旧 core-api.md 的 `stage()` / `unstage()` / `stagedCount` / `commit(selection)` / `diff('HEAD..index')` 全部作废，不在本文件中承接。
 
@@ -57,53 +59,123 @@ interface CommitCapabilityInfo {
 
 ## 3. 工作树查询（US-306 阶段 B）
 
+> `WorkingTreeManager` 的实现是一个 **class**（`working-tree/working-tree-facade.ts`）。本文件按小节拆成若干 `interface` 片段只为对照阅读；公开面恰好九个成员——`isEnabled` / `enable`（§2）、`status` / `diff`（§3）、`commit` / `discard`（§4）、`listCommits` / `restore` / `restoreSession`（§5）。**没有 `status$()`**：响应式那一层由三框架绑定各自提供（见 `contracts/tri-framework-api.md`），核心面上只有一次性读取。
+
 ```ts
 interface WorkingTreeManager {
   status(): Promise<WorkingTreeStatus>;
-  status$(): Observable<WorkingTreeStatus>;
 
   /** 唯一一条 diff 轴：HEAD ↔ 工作树。没有第二个参数，也没有 revision range。 */
   diff(options?: WorkingTreeDiffOptions): Promise<WorkingTreeDiff>;
 }
 
 interface WorkingTreeStatus {
+  /** 当前 active 分支 id */
   readonly branchId: string;
-  readonly headCommitId: string | null;
-  /** 调用方必须原样回传给 commit()/restore()/discard() —— 捕获型 CAS 的凭据 */
-  readonly workingTreeRevision: number;
-  readonly headRevision: number;
+
+  /** 未提交条目数，取自冗余列 */
   readonly entryCount: number;
-  readonly byOrigin: Readonly<Record<WorkingTreeOrigin, number>>;
-  /** 仅当存在未结束的 WorkingTreeRestoreSession 时为真。CommitConflict 不会让它变真。 */
+
+  /** 没有未提交条目 */
+  readonly clean: boolean;
+
+  /** 有未结束的恢复会话，且它捕获的两个 revision 仍然对得上 */
+  readonly restoring: boolean;
+
+  /** 有未结束的恢复会话，但它捕获的 revision 已经分叉。CommitConflict 不会让它变真。 */
   readonly conflicted: boolean;
-  readonly branchStatus: 'ok' | 'corrupted_read_only';
+
+  /** 未提交条目按来源的分布 */
+  readonly byOrigin: WorkingTreeOriginBreakdown;
+
+  /** 捕获位之一：分支激活 revision */
+  readonly activationRevision: number;
+
+  /** 捕获位之一：HEAD 推进 revision */
+  readonly headRevision: number;
+
+  /** 捕获位之一：工作树 revision */
+  readonly workingTreeRevision: number;
 }
 
-type WorkingTreeOrigin = 'local' | 'remote_sync';
+/** 键集跟着 `WriteEntryOrigin` 走，不手写两个字段：来源取值域增补时漏改会让新来源凭空消失。 */
+type WorkingTreeOriginBreakdown = Readonly<Record<WriteEntryOrigin, number>>;
+
+type WriteEntryOrigin = 'local' | 'remote_sync';
+
+/** 摊开的粒度：一条单元一行，或按事务收成组。 */
+type WorkingTreeDiffGranularity = 'entity' | 'transaction';
 
 interface WorkingTreeDiffOptions {
+  /** 摊开的粒度，默认 `'entity'` */
+  readonly granularity?: WorkingTreeDiffGranularity;
+
+  /** 只看这些实体名；给空数组即「一个都不看」，不当成「不过滤」 */
   readonly entities?: readonly string[];
+
+  /** 本页最多给几行；不给即一次给全 */
   readonly limit?: number;
+
+  /** 上一页的 `nextCursor`；从它之后接着读 */
   readonly cursor?: string;
 }
 
 interface WorkingTreeDiff {
-  readonly entries: readonly WorkingTreeDiffEntry[];
-  readonly nextCursor: string | null;
+  /** 摊开的是哪条分支 */
+  readonly branchId: string;
+
+  /** 比较的左端：工作树基于的那个 commit；分支还没有任何提交时为 `null` */
+  readonly baseHeadCommitId: string | null;
+
+  /** 比较的右端：当前工作树 revision */
   readonly workingTreeRevision: number;
+
+  /** 本次实际使用的粒度 */
+  readonly granularity: WorkingTreeDiffGranularity;
+
+  /** 实体粒度的行；事务粒度下恒为空数组 */
+  readonly entries: readonly WorkingTreeDiffEntry[];
+
+  /** 事务粒度的组；实体粒度下恒为空数组 */
+  readonly transactions: readonly WorkingTreeDiffTransaction[];
+
+  /** 续读游标；本页已到末尾时为 `null` */
+  readonly nextCursor: string | null;
+}
+
+interface WorkingTreeDiffTransaction {
+  /** 这一组的事务 id；`null` 表示这一组只有一次独立的写，两次无事务的写**各自成组** */
+  readonly transactionId: string | null;
+
+  /** 组内单元，保持读出的顺序 */
+  readonly entries: readonly WorkingTreeDiffEntry[];
 }
 
 interface WorkingTreeDiffEntry {
+  /** 变更单元 id；完整事务的全部实体共享同一个 */
   readonly unitId: string;
+
+  /** 所属事务 id；单次 `save()` 为 `null` */
+  readonly transactionId: string | null;
+
   readonly namespace: string;
   readonly entity: string;
   readonly entityId: string;
   readonly operation: 'insert' | 'update' | 'delete';
-  readonly origin: WorkingTreeOrigin;
-  readonly patch: unknown;
-  readonly inversePatch: unknown;
+
+  /** 正向补丁；`null` 即「这一侧没有值」（delete 的正向） */
+  readonly patch: Record<string, unknown> | null;
+
+  /** 逆向补丁；`null` 即「这一侧没有值」（insert 的逆） */
+  readonly inversePatch: Record<string, unknown> | null;
+
+  readonly origin: WriteEntryOrigin;
 }
 ```
+
+**三个 revision 字段缺一不可。** `activationRevision` / `headRevision` / `workingTreeRevision` 恰好是 `commit()` / `discard()` / `restore()` 要求调用方捕获的那三个位（§4 的 `WorkingTreeCredentials`）。少给一个，调用方就永远构造不出一次不会撞 `CommitConflict` 的提交——所以 `status()` 一次给全，而不是让调用方分几次读。
+
+`WorkingTreeDiffEntry` 的九个字段与 `CommitChangeSet` 的九列逐一对齐：提交时这批单元原样变成变更集，两边字段集对不上就意味着「我看到的」与「我提交的」不是同一批数据。**不带** `sourceChangeId` / `id` / `fingerprint`——前者指向的 `rxdb_change` 行会被删分支级联与压缩合并带走，后两者分别是分页游标的内部载体与折叠判定用的。
 
 **`status()` / `diff()` 展示全部 origin**，不按来源豁免 `remote_sync`（硬裁决 6）。
 
@@ -115,24 +187,53 @@ interface WorkingTreeManager {
    * 提交当前分支工作树的【全部】未提交单元。
    * 没有 selection 入参 —— 这是 v1 硬裁决，不是签名未完成。
    */
-  commit(message: string, options?: CommitOptions): Promise<CommitResult>;
+  commit(message: string, options: CommitOptions): Promise<CommitResult>;
 
   discard(options: WorkingTreeDiscardOptions): Promise<WorkingTreeDiscardResult>;
 }
 
-interface CommitOptions {
-  /** 捕获型 CAS：取自先前 status()。缺省时由本次调用内部读取，等于放弃「提交我看过的东西」的保证。 */
-  readonly expectedWorkingTreeRevision?: number;
-  readonly expectedHeadRevision?: number;
-  readonly author?: string;
-  /** 幂等键。重放同一 operationId 命中既有 commit 节点，不产生第二个。 */
-  readonly operationId?: string;
+/** 调用方在一次 `status()` 里捕获的三个位（FR-020/FR-031）；commit / discard / restore 共用。 */
+interface WorkingTreeCredentials {
+  /** 捕获时的 active 分支身份 */
+  readonly expectedBranch: ActiveBranchToken;
+
+  /** 捕获时的 HEAD 推进 revision */
+  readonly expectedHeadRevision: number;
+
+  /** 捕获时的工作树 revision */
+  readonly expectedWorkingTreeRevision: number;
 }
+
+interface ActiveBranchToken {
+  /** 捕获时的 active 分支 ID */
+  readonly branchId: string;
+
+  /** 捕获时的 activation revision；每次切换分支 +1 */
+  readonly activationRevision: number;
+}
+
+interface CommitOptions extends WorkingTreeCredentials {
+  /** 提交作者；落进不可变历史的 `Commit.author` */
+  readonly authorId: string;
+
+  /** 幂等键。同一次逻辑提交的重试必须带同一个值；重放命中既有 commit 节点，不产生第二个。 */
+  readonly operationId: string;
+}
+
+type WorkingTreeDiscardOptions = WorkingTreeCredentials;
 
 type CommitResult =
   | { readonly ok: true; readonly commitId: string; readonly changeSetCount: number; readonly headRevision: number }
   | { readonly ok: false; readonly conflict: CommitConflict };
+
+type WorkingTreeDiscardResult =
+  | { readonly ok: true; readonly discardedCount: number; readonly workingTreeRevision: number }
+  | { readonly ok: false; readonly conflict: CommitConflict };
 ```
+
+**五个字段全部必填，一个默认值都不给。** 给 `expected*` 任何一位默认值，等于让调用方跳过某一次比较——而跳过哪一次都会落回「提交我没看过的东西」。`authorId` 可选的话，一条历史里会同时存在有作者与无作者的 commit，后者在多设备场景里永远说不清是谁提交的；`operationId` 可选的话，幂等键只能由内容合成，于是「同样内容的两次提交」会被判成同一次。`commit()` 的 `options` 因此也是**必填形参**。
+
+`expectedBranch` 是 `{ branchId, activationRevision }` 两件一起而不是单个 `branchId`：只认分支 id 的话，`main → feature → main` 一个来回之后 token 又「对上了」，而这中间工作树已经换过两轮。
 
 ### 4.1 `CommitConflict` 是诊断值，不是持久状态
 
@@ -159,9 +260,12 @@ interface CommitConflict {
 interface WorkingTreeManager {
   listCommits(options?: CommitLogOptions): Promise<CommitLogPage>;
   /** 把目标 commit 的内容作为【新的未提交变更】写回当前工作树。不移动 HEAD、不改写历史。 */
-  restore(target: WorkingTreeRestoreTarget, options?: WorkingTreeRestoreOptions): Promise<WorkingTreeRestoreResult>;
+  restore(target: WorkingTreeRestoreTarget, options: WorkingTreeRestoreOptions): Promise<WorkingTreeRestoreResult>;
   restoreSession(): Promise<WorkingTreeRestoreSessionInfo | null>;
 }
+
+/** 与 `discard()` 同一组凭据：恢复也是一次会改写工作树的命令，三个捕获位一样必填。 */
+type WorkingTreeRestoreOptions = WorkingTreeCredentials;
 
 interface WorkingTreeRestoreTarget {
   readonly commitId: string;

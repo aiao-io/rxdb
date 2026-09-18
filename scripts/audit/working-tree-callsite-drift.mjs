@@ -280,9 +280,24 @@ export const enclosingFunctionLookup = code => {
 const DECLARATION_PATTERN =
   /declareTrustedWrite\(\s*([A-Za-z_$][\w$]*)\s*,\s*\{\s*file:\s*'([^']*)',\s*symbol:\s*'([^']*)',\s*intent:\s*TrustedWriteIntent\.([A-Za-z_]\w*)\s*,?\s*\}\s*\)/g;
 
-/** `<接收者>.<方法>(`；要求有接收者，于是接口成员与 `abstract` 声明天然落选。 */
+/** 成员访问的三种写法：`.` 直调、可选链、非空断言后再取属性。 */
+const MEMBER_ACCESS = String.raw`(?:\?\.|!\.|\.)`;
+
+/** 受信写原语与批量写方法名的择一。 */
+const WRITE_METHODS = [...TRUSTED_WRITE_METHODS, ...BULK_WRITE_METHODS].join('|');
+
+/**
+ * `<接收者><取成员><方法>(`；要求有接收者，于是接口成员与 `abstract` 声明天然落选。
+ *
+ * 取成员那一段认四种形态——`a.m()` / `a?.m()` / `a!.m()` / `a['m']()`（含 `a?.['m']()`）。
+ * 只认 `.` 直调的那一版里，后三种都被读成「这文件里没有受信写」：调用真的会执行，
+ * 闸门却一声不吭。**当前仓库里一条这样的写法都没有**，收紧是为了挡住还没写出来的那一行。
+ *
+ * 下标形态的方法名捕进第 4 组（第 3 组是引号，`\3` 要回指它），点形态捕进第 2 组。
+ */
 const CALL_PATTERN = new RegExp(
-  String.raw`((?:this|[A-Za-z_$][\w$]*)(?:\s*\.\s*#?[A-Za-z_$][\w$]*)*)\s*\.\s*(${[...TRUSTED_WRITE_METHODS, ...BULK_WRITE_METHODS].join('|')})\s*\(`,
+  String.raw`((?:this|[A-Za-z_$][\w$]*)(?:\s*${MEMBER_ACCESS}\s*#?[A-Za-z_$][\w$]*)*)` +
+    String.raw`\s*(?:${MEMBER_ACCESS}\s*(${WRITE_METHODS})|(?:\?\.|!)?\s*\[\s*(['"])(${WRITE_METHODS})\3\s*\])\s*\(`,
   'g'
 );
 
@@ -318,17 +333,30 @@ export const findDeclarations = source => {
  *
  * @param {string} source 源文件原文
  * @returns {{ receiver: string, method: string, line: number, index: number, enclosing: string | null }[]}
+ *
+ * @remarks
+ * 正则跑在**留字符串**的那一份上，不是全涂白的那份：`a['upsertMany']()` 的方法名自己就是
+ * 一个字面量，涂白之后这一整类调用连名字都不剩。于是「整条调用躺在注释或字符串里」这件事
+ * 改由 {@link findDeclarations} 那套偏移互换法来判——两份视图等长，拿匹配起点（也就是接收者
+ * 的首字符）去全涂白的那份看一眼：还在就是真代码，被涂掉了就说明这段是示例文本。
+ *
+ * 接收者里的 `?` / `!` 连同空白一起去掉，`this?.adapter` 与 `this.adapter` 归一成同一个键；
+ * 不归一的话，本来登记在 `KNOWN_NON_PRIMITIVE_RECEIVERS` /
+ * `QUERY_CACHE_BULK_WRITE_CALLSITES` 里的调用点会因为多了一个 `?` 而对不上，凭空变成假阳性。
  */
 export const findPrimitiveCalls = source => {
-  const code = blankAll(source);
-  const enclosingAt = enclosingFunctionLookup(code);
-  return [...code.matchAll(CALL_PATTERN)].map(matched => ({
-    receiver: matched[1].replace(/\s+/g, ''),
-    method: matched[2],
-    index: matched.index,
-    line: lineAt(code, matched.index),
-    enclosing: enclosingAt(matched.index)
-  }));
+  const blanked = blankAll(source);
+  const code = stripComments(source);
+  const enclosingAt = enclosingFunctionLookup(blanked);
+  return [...code.matchAll(CALL_PATTERN)]
+    .filter(matched => blanked[matched.index] === code[matched.index])
+    .map(matched => ({
+      receiver: matched[1].replace(/[\s?!]/g, ''),
+      method: matched[2] ?? matched[4],
+      index: matched.index,
+      line: lineAt(blanked, matched.index),
+      enclosing: enclosingAt(matched.index)
+    }));
 };
 
 /**

@@ -384,9 +384,12 @@ describe('摘要与失败出口都不含密文（FR-043 后半）', () => {
       (error: unknown) => error
     );
 
+    // 先钉住「必须抛」：这条用例的前提就是 `assertPatchShape` 会抛，而
+    // `thrown === null ? [] : …` 的写法在**什么都没抛**时也是绿的——脱敏一行没做也照样过。
+    expect(thrown).not.toBeNull();
     // 抛错路径不经过任何「构造失败出口」的代码，于是也没人替它想过脱敏；
     // 而它手里的那份坏数据正好就是密文本身。
-    expect(thrown === null ? [] : leaksIn(thrown)).toEqual([]);
+    expect(leaksIn(thrown)).toEqual([]);
   });
 });
 

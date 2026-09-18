@@ -13,7 +13,7 @@ import {
   getSqlWithParams,
   getSwitchUpdatedAt,
   getTableNameByMetadata,
-  normalizeEntity,
+  normalizeUpdateEntity,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -119,12 +119,12 @@ const transformPatch = (patch: object | null, metadata: EntityMetadata): EntityD
  * @remarks
  * 版本机器记下的 update，列集有可能整个落在 readonly 簿记列上（`createdAt` / `updatedAt` /
  * `createdBy` / `updatedBy`）—— 同步应用推来一条只动审计列的行就是这个形状。这种 patch 经
- * {@link normalizeEntity} 归一化后是空对象，真写下去的只剩适配器自己注入的 `updatedAt`：
+ * {@link normalizeUpdateEntity} 归一化后是空对象，真写下去的只剩适配器自己注入的 `updatedAt`：
  * 一次没有语义内容、却照样触发器落变更日志的空写。所以整条跳过 —— 把行恢复到目标态这件事，
  * 在这一行上本来就无事可做。sqlite-core 的同名文件同样跳过，两家在这一格上必须长得一样。
  */
 const hasNoWritableColumn = (metadata: EntityMetadata, patch: EntityData): boolean =>
-  Object.keys(normalizeEntity(metadata, patch)).length === 0;
+  Object.keys(normalizeUpdateEntity(metadata, patch)).length === 0;
 
 export const convertSwitchResultToSql = async (
   adapter: RxDBAdapterPGlite,

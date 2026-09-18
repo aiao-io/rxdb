@@ -32,6 +32,9 @@ module.exports = {
     '../packages/rxdb-plugin-working-tree-angular',
     '../packages/rxdb-plugin-working-tree-react',
     '../packages/rxdb-plugin-working-tree-vue',
+    '../packages/rxdb-plugin-history',
+    '../packages/rxdb-plugin-sync',
+    '../packages/rxdb-plugin-querycache',
     // 代码编辑器
     '../packages/code-editor',
     '../packages/code-editor-angular',

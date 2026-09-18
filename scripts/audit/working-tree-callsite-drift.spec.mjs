@@ -244,6 +244,48 @@ test('findPrimitiveCalls 不认注释与字符串里的调用', () => {
   );
 });
 
+test('可选链 / 非空断言 / 下标调用都算调用点', () => {
+  // 仓库里今天一条这样的写法都没有——这条是**前瞻性**收紧。闸门的意义正在于挡住还没写出来的
+  // 那一行：四种形态都是合法 TS，都真的会执行写，而只认 `.` 直调的版本会把它们读成
+  // 「这文件里没有受信写」，于是新长出来的入口一声不吭地绕过登记表。
+  const source = [
+    'export function a() { return this.adapter?.upsertMany(name, rows); }',
+    'export function b() { return this.adapter!.deleteByIds(name, ids); }',
+    "export function c() { return this.adapter['switchBranch'](token); }",
+    'export function d() { return this.adapter?.["mergeChanges"](actions); }',
+    // 链**中间**的 `?.` 要归一回 `.`：否则接收者串成了 `this?.adapter`，
+    // 在 KNOWN_NON_PRIMITIVE_RECEIVERS / QUERY_CACHE_BULK_WRITE_CALLSITES 里一条都对不上，
+    // 本来登记过的调用点会凭空变成假阳性。
+    'export function e() { return this?.adapter.upsertMany(name, rows); }',
+    ''
+  ].join('\n');
+  assert.deepEqual(
+    findPrimitiveCalls(source).map(call => `${call.receiver}.${call.method}`),
+    [
+      'this.adapter.upsertMany',
+      'this.adapter.deleteByIds',
+      'this.adapter.switchBranch',
+      'this.adapter.mergeChanges',
+      'this.adapter.upsertMany'
+    ]
+  );
+});
+
+test('下标调用里的方法名躺在字符串里，但接收者必须是真代码', () => {
+  // 下标形态逼着正则跑在「留字符串」的那一份上（涂白了方法名就没了），于是**整条调用**
+  // 躺在字面量里的情形只剩接收者那一位能判：注释与字符串里的示例代码照样不算调用点。
+  const source = [
+    "const hint = `this.adapter['upsertMany'](name, rows)`;",
+    '/** @example adapter?.deleteByIds(name, ids) */',
+    'export function real() { return this.adapter!.switchBranch(token); }',
+    ''
+  ].join('\n');
+  assert.deepEqual(
+    findPrimitiveCalls(source).map(call => `${call.receiver}.${call.method}`),
+    ['this.adapter.switchBranch']
+  );
+});
+
 test('接口成员与 abstract 声明没有接收者，不算调用点', () => {
   const source = [
     'export interface LocalWritePort {',

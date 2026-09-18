@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
 import type { Results } from '@electric-sql/pglite';
 
 import { getTableNameByMetadata, quoteIdentifier, RxdbAdapterPGliteError } from '../pglite.utils.js';
@@ -16,11 +16,59 @@ export type PGliteRowReader = {
 };
 
 /**
+ * 分支表上这次查询要用到的两个物理列名。
+ */
+export interface BranchColumnNames {
+  /** `RxDBBranch.id` 的物理列名 */
+  readonly idColumnName: string;
+  /** `RxDBBranch.activated` 的物理列名 */
+  readonly activatedColumnName: string;
+}
+
+/**
+ * 从实体元数据里取一个属性的物理列名
+ *
+ * @param metadata - `RxDBBranch` 的实体元数据
+ * @param propertyName - 要取列名的属性名
+ * @returns 该属性的物理列名
+ * @throws {@link RxdbAdapterPGliteError} 元数据里没有这个属性时抛出
+ */
+function branchColumnName(metadata: EntityMetadata, propertyName: string): string {
+  const property = metadata.propertyMap.get(propertyName);
+  if (!property) {
+    throw new RxdbAdapterPGliteError(`RxDBBranch metadata is missing the "${propertyName}" property.`);
+  }
+  return property.columnName;
+}
+
+/**
+ * 解析分支表上 `id` 与 `activated` 两列的物理列名
+ *
+ * @param metadata - `RxDBBranch` 的实体元数据
+ * @returns 两个物理列名
+ * @throws {@link RxdbAdapterPGliteError} 任一属性在元数据里缺席时抛出
+ *
+ * @remarks
+ * 这里**不给**默认列名。退回字面量 `'id'` / `'activated'` 的前提是「元数据已经装配坏了，但列名
+ * 恰好还猜得中」——猜中了什么都没发生，猜不中就把 PG 的 `column does not exist` 带回来，于是
+ * 「元数据装配坏了」被伪装成「SQL 写错了」，排查要从离病灶最远的那一端往回走。更要紧的是调用方
+ * （{@link readCurrentBranchId}）正处在 `disableTriggers` 之后的重建路径上，这条路径上任何一次
+ * 静默走偏的代价都是提交一个永久没有触发器的库。同包 `migrate_system_schema.ts` 对同一情形就是
+ * 抛，措辞取齐。
+ */
+export function resolveBranchColumns(metadata: EntityMetadata): BranchColumnNames {
+  return {
+    idColumnName: branchColumnName(metadata, 'id'),
+    activatedColumnName: branchColumnName(metadata, 'activated')
+  };
+}
+
+/**
  * 读当前分支 id（`activated` 优先，否则 `main`），供重建触发器使用
  *
  * @param tx - 当前事务的直发门面
  * @returns 当前活跃分支 id
- * @throws {@link RxdbAdapterPGliteError} 读不到任何分支时抛出，让事务回滚
+ * @throws {@link RxdbAdapterPGliteError} 元数据缺列（见 {@link resolveBranchColumns}）或读不到任何分支时抛出，让事务回滚
  *
  * @remarks
  * **不能**走 `versionManager.getCurrentBranch()`：那一份的热路径用绑在**真实适配器**上的仓库
@@ -35,8 +83,7 @@ export type PGliteRowReader = {
 export async function readCurrentBranchId(tx: PGliteRowReader): Promise<string> {
   const metadata = getEntityMetadata(RxDBBranch);
   const table = getTableNameByMetadata(metadata);
-  const idColumnName = metadata.propertyMap?.get('id')?.columnName ?? 'id';
-  const activatedColumnName = metadata.propertyMap?.get('activated')?.columnName ?? 'activated';
+  const { idColumnName, activatedColumnName } = resolveBranchColumns(metadata);
   const idColumn = quoteIdentifier(idColumnName);
   const activatedColumn = quoteIdentifier(activatedColumnName);
 

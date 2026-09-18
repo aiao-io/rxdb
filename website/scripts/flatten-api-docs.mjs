@@ -67,6 +67,11 @@ function escapeRegExp(value) {
  * `/docs/_media/`（少一层），Docusaurus 判为坏链。而兄弟包在 `docs/api/<name>`
  * 有真正的页面，重写过去才是可解析的链接。
  *
+ * 重写目标必须保留 `/README.md` 后缀：包 README 页的站点路由是 `/docs/api/<name>`
+ * （文件夹索引形态），无后缀的相对链接会被 Docusaurus 按路由解析——`../<name>` 从
+ * `/docs/api/<name>` 出发会落到 `/docs/<name>`，又丢一层、仍是坏链。带 `.md` 后缀
+ * 的链接按源文件路径解析，从包根 README 出发恰好指到兄弟包的 README 文件。
+ *
  * @param content 待处理的 Markdown 内容
  * @param packageNames `docs/api/` 下拥有 README.md 的包目录名列表
  */
@@ -75,7 +80,7 @@ export function rewriteMediaPackageLinks(content, packageNames) {
 
   for (const name of packageNames) {
     const pattern = new RegExp(`\\]\\(\\.\\./_media/${escapeRegExp(name)}(?:/README\\.md)?\\)`, 'g');
-    result = result.replace(pattern, `](../${name})`);
+    result = result.replace(pattern, `](../${name}/README.md)`);
   }
 
   return result;

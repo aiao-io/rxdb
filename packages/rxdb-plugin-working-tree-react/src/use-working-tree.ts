@@ -1,5 +1,5 @@
 // 只取这四个：React 侧的容器就是「普通只读值」，于是 `WorkingTreeResource` 能直接由核心的
-// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把九格套进 `Signal` /
+// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把十格套进 `Signal` /
 // `ComputedRef`，只能展开写 —— 那是容器形态的差异，不是 API 的差异。
 //
 // 这条差异在 T110 上兑现了一次：`restore()` / `restoreSession()` 进核心之后，本端一个字段都

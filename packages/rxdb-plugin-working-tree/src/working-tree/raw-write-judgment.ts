@@ -91,35 +91,32 @@ export type RawWriteJudgment =
       readonly tables: readonly string[];
     };
 
-/**
- * 行注释与块注释；先于一切解析剥掉，否则注释里的关键字会被当成语句。
- *
- * @remarks
- * 块注释的收尾写成 `(?:\*\/|$)`——未闭合的 `/*` **吃到串尾**，而不是整体匹配失败。
- *
- * 只写 `\*\/` 的话，未闭合时这次匹配失败、引擎退回去从下一个 `/*` 重扫一遍，于是
- * `'/*' + 'a/*'.repeat(n)` 这种输入上的剥注释成本是 O(n²)（CWE-1333）。`sql` 是库的公开入口，
- * 长度不由判定决定，而判定跑在**每一次** raw 调用上——退化的代价直接落在调用方的主线程上。
- *
- * 吃到串尾也是更贴近方言的读法：SQLite 允许块注释以输入结束收尾，PG 则把这条整个判为语法错。
- * 两种读法下 `/*` 之后的内容都不会真的写进业务表，所以多剥这一截不开新的绕过口子。
- */
-const COMMENT_PATTERN = /--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
-
-/**
- * 单引号字符串字面量（含 `''` 转义）
- *
- * @remarks
- * 必须先于分号切分剥掉：`WHERE note = 'a; DROP TABLE post'` 里的分号不是语句边界，
- * 不剥就会凭空多出一条「语句」。同理，字面量里的 `update` 不是写关键字。
- */
-const STRING_LITERAL_PATTERN = /'(?:[^']|'')*'/g;
-
 /** 字面量的占位符；刻意不含引号与标点，免得再被后续任何一层解析当成结构。 */
 const LITERAL_PLACEHOLDER = ' _lit_ ';
 
-/** 三种方言的引号标识符：`"post"`（标准 / PG）、`` `post` ``（MySQL）、`[post]`（T-SQL）。 */
-const QUOTED_IDENTIFIER_PATTERN = /"([^"]*)"|`([^`]*)`|\[([^\]]*)\]/g;
+/**
+ * 词法定界符：行注释、块注释、字符串字面量与三种方言引号标识符的**起始**记号
+ *
+ * @remarks
+ * 四类记号共用一条正则、在同一趟里竞争，是这层归一化的核心约束——**谁先出现谁先吃**。
+ *
+ * 拆成两趟时，排在后面的那一趟看到的是被前一趟改过的文本，于是两个方向各漏一半：
+ *
+ * - **剥注释在前**：`SET remote_id = '/*', title = 'x', synced_at = '…'` 里那一趟会从第一个
+ *   字面量内部的 `/*` 一路吃到第三个字面量里的块注释收尾记号，把中间那段 `title = …` 整段吞掉。
+ *   剩下的列集恰好还是一个良构的、只含 untracked 列的子集，第 5 步于是给出 `untracked_only`——
+ *   **被跟踪列的赋值就这样藏在一个字符串值里绕过了门禁**。
+ * - **掩字面量在前**：`-- don't` 里的撇号开出一个假字面量，一路吃到下一条语句里真正的引号为止，
+ *   注释后面那条真写随之从视野里消失。
+ *
+ * 单趟扫描把这两类一起消掉。各类记号的收尾都用 `indexOf` 找、游标只向前走，整趟因此是 O(n)——
+ * CWE-1333（`'/*' + 'a/*'.repeat(n)` 上的二次方退化）由**推进方式**挡住，不再依赖正则的形状。
+ * `sql` 是库的公开入口，长度不由判定决定，而判定跑在**每一次** raw 调用上。
+ *
+ * 三种引号标识符（`"post"` 标准 / PG、`` `post` `` MySQL、`[post]` T-SQL）并进同一趟，
+ * 顺带让 `"it's"` 这类含撇号的标识符不再开出假字面量。
+ */
+const DELIMITER_PATTERN = /--|\/\*|'|"|`|\[/g;
 
 /** 归一化之后的标识符与关键字词元。 */
 const WORD_PATTERN = /[a-z_][a-z0-9_$]*/g;
@@ -205,8 +202,105 @@ const WORD_CHARACTER = /[a-z0-9_$.]/;
 /** `SET` 子句里的单列赋值。 */
 const ASSIGNMENT_PATTERN = /^\s*([a-z0-9_.$]+)\s*=/;
 
+/** 一个定界符吃完之后：游标跳到哪儿、往归一化文本里放什么。 */
+interface NormalizedLexeme {
+  /** 这一段的**结束偏移**（不含），也就是扫描游标的下一站；恒大于起始偏移，扫描因此必然终止 */
+  readonly end: number;
+
+  /** 这一段在归一化文本里的产出 */
+  readonly text: string;
+}
+
 /**
- * 词法归一化：大小写、引号标识符、schema 限定在比对前抹平
+ * 行注释吃到换行或串尾
+ *
+ * @param sql - 原始语句
+ * @param start - `--` 所在偏移
+ * @returns 结束偏移（不含）
+ *
+ * @remarks
+ * 换行本身留着不吃：它是 `SELECT 1; -- c\nUPDATE …` 里唯一终止注释的东西，
+ * 连它一起吃掉读起来没区别，但把「注释到此为止」这件事从产出里抹掉了。
+ */
+function lineCommentEnd(sql: string, start: number): number {
+  const newline = sql.indexOf('\n', start);
+  return newline < 0 ? sql.length : newline;
+}
+
+/**
+ * 块注释吃到收尾记号；未闭合时吃到串尾
+ *
+ * @param sql - 原始语句
+ * @param start - `/*` 所在偏移
+ * @returns 结束偏移（不含）
+ *
+ * @remarks
+ * 未闭合吃到串尾是更贴近方言的读法：SQLite 允许块注释以输入结束收尾，PG 则把这条整个判为语法错。
+ * 两种读法下后面那截都不会真的写进业务表，所以多吃它不开新的绕过口子。
+ */
+function blockCommentEnd(sql: string, start: number): number {
+  const close = sql.indexOf('*/', start + 2);
+  return close < 0 ? sql.length : close + 2;
+}
+
+/**
+ * 单引号字面量吃到配对的引号；`''` 是转义不是收尾；未闭合时吃到串尾
+ *
+ * @param sql - 原始语句
+ * @param start - 起始引号所在偏移
+ * @returns 结束偏移（不含）
+ *
+ * @remarks
+ * 必须先于分号切分吃掉：`WHERE note = 'a; DROP TABLE post'` 里的分号不是语句边界，
+ * 不吃就会凭空多出一条「语句」。同理，字面量里的 `update` 不是写关键字。
+ */
+function stringLiteralEnd(sql: string, start: number): number {
+  let cursor = start + 1;
+  while (cursor <= sql.length) {
+    const quote = sql.indexOf("'", cursor);
+    if (quote < 0) return sql.length;
+    if (sql[quote + 1] !== "'") return quote + 1;
+    cursor = quote + 2;
+  }
+  return sql.length;
+}
+
+/**
+ * 引号标识符吃到配对的收尾符，产出**内层原文**
+ *
+ * @param sql - 原始语句
+ * @param start - 起始引号所在偏移
+ * @param closer - 配对的收尾符
+ * @returns 这一段的结束偏移与产出
+ *
+ * @remarks
+ * 未闭合时把内层原文原样放回去，而不是连同引号一起丢掉：丢掉等于让一个落单的引号
+ * 把它后面的整条写从判定的视野里抹去。
+ */
+function quotedIdentifierLexeme(sql: string, start: number, closer: string): NormalizedLexeme {
+  const close = sql.indexOf(closer, start + 1);
+  if (close < 0) return { end: sql.length, text: sql.slice(start + 1) };
+  return { end: close + 1, text: sql.slice(start + 1, close) };
+}
+
+/**
+ * 认出 `start` 处的定界符属于哪一类，并把它整段吃掉
+ *
+ * @param sql - 原始语句
+ * @param start - 定界符所在偏移
+ * @param delimiter - {@link DELIMITER_PATTERN} 匹配到的起始记号
+ * @returns 这一段的结束偏移与产出
+ */
+function lexemeAt(sql: string, start: number, delimiter: string): NormalizedLexeme {
+  if (delimiter === '--') return { end: lineCommentEnd(sql, start), text: ' ' };
+  if (delimiter === '/*') return { end: blockCommentEnd(sql, start), text: ' ' };
+  if (delimiter === "'") return { end: stringLiteralEnd(sql, start), text: LITERAL_PLACEHOLDER };
+  // `[post]`（T-SQL）是三种引号标识符里唯一收尾符与起始符不同的一种。
+  return quotedIdentifierLexeme(sql, start, delimiter === '[' ? ']' : delimiter);
+}
+
+/**
+ * 词法归一化：注释、字面量、引号标识符、大小写与 schema 限定在比对前抹平
  *
  * @param sql - 原始语句（可能是语句批）
  * @returns 归一化后的文本
@@ -215,18 +309,25 @@ const ASSIGNMENT_PATTERN = /^\s*([a-z0-9_.$]+)\s*=/;
  * 归一化是**判定的一部分**，不是调用方的责任。交给 6 个适配器各做一遍就是 6 份实现，
  * 而它们只需有一份写松，整条防线就有洞。
  *
+ * 四类词法记号在**同一趟**里竞争，谁先出现谁先吃——两趟为什么不行见 {@link DELIMITER_PATTERN}。
+ *
  * 引号标识符连同大小写一起抹平：某些方言里 `"Post"` 与 `post` 确实是两张表，但在这里按
  * 「可能是同一张」处理才是 fail-closed 的方向——认错了顶多多拦一条，认漏了就是静默绕过。
+ * 压小写放在最后一步，因为 {@link LITERAL_PLACEHOLDER} 与标识符内层原文都要一起过这一刀。
  */
 function normalizeSql(sql: string): string {
-  return sql
-    .replace(COMMENT_PATTERN, ' ')
-    .replace(STRING_LITERAL_PATTERN, LITERAL_PLACEHOLDER)
-    .toLowerCase()
-    .replace(
-      QUOTED_IDENTIFIER_PATTERN,
-      (_match, quoted?: string, backticked?: string, bracketed?: string) => quoted ?? backticked ?? bracketed ?? ''
-    );
+  const pieces: string[] = [];
+  let plain = 0;
+  // 模块级正则带 `g`，`lastIndex` 是可变状态；进来先清零，每吃完一段再显式推到该去的位置。
+  DELIMITER_PATTERN.lastIndex = 0;
+  for (let found = DELIMITER_PATTERN.exec(sql); found !== null; found = DELIMITER_PATTERN.exec(sql)) {
+    const lexeme = lexemeAt(sql, found.index, found[0]);
+    pieces.push(sql.slice(plain, found.index), lexeme.text);
+    plain = lexeme.end;
+    DELIMITER_PATTERN.lastIndex = lexeme.end;
+  }
+  pieces.push(sql.slice(plain));
+  return pieces.join('').toLowerCase();
 }
 
 /**

@@ -19,7 +19,7 @@
 
 ## 完成计划
 
-仓库还剩 **8 条**未关闭故事（1 In Progress + 4 In Review + 3 Backlog，
+仓库还剩 **9 条**未关闭故事（1 In Progress + 5 In Review + 3 Backlog，
 口径与计数方式同 [status-overview 状态汇总](status-overview.md#状态汇总)）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；批次之间才是顺序。
 每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
@@ -99,15 +99,16 @@
 
 ### 明确不排期
 
-| 项                                                      | 判定                                                                                                                                                                                                        |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-015 阶段 B（插件间依赖图）                           | **已移出 epic-008 承诺范围**。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，零 `plugin:*` 消费方。**解锁条件 = 出现第一个 `plugin:*` 依赖声明**（约束 8）。US-015 的 `In Review` 是稳态，不是待办 |
-| `US-016` 连接纪元与停机收敛                             | **已移出，不再解锁**。原始症状已随 US-015 阶段 A 大部分修复；剩余的资源三步降级为 bugfix 已补齐                                                                                                             |
-| `US-017` 三框架宿主作用域                               | **已移出**。三端各自已有原生作用域（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                  |
-| US-212 AC#30 行缓存 eviction                            | **已移出 US-212**。执行面只有 core 有、HTTP 包按约束 11 的结构隔离碰不到。**解锁条件 = 出现可复现的缓存膨胀症状（具体实体 + 量级）**                                                                        |
-| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6） | **判定不做**。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                               |
-| `packages/rxdb-adapter-tauri/rust/` 发 crates.io        | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                                                                     |
-| 桌面安装包（installer / bundle）的自动化验证            | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍                                                               |
+| 项                                                                          | 判定                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-015 阶段 B（插件间依赖图）                                               | **已移出 epic-008 承诺范围**。全仓库唯一的 `inject` 是 search 的 `['adapter:local']`，零 `plugin:*` 消费方。**解锁条件 = 出现第一个 `plugin:*` 依赖声明**（约束 8）。US-015 的 `In Review` 是稳态，不是待办 |
+| [US-506](stories/plugin/US-506-website-plugin-docs.md) website 插件文档补齐 | **不排期，只待合并**。改动已全部落地，AC 1～6 全 ✅，`site-build` 在坏链门禁下跑绿；是 US-025 拆包的文档收尾，不是待排期的未来工作                                                                          |
+| `US-016` 连接纪元与停机收敛                                                 | **已移出，不再解锁**。原始症状已随 US-015 阶段 A 大部分修复；剩余的资源三步降级为 bugfix 已补齐                                                                                                             |
+| `US-017` 三框架宿主作用域                                                   | **已移出**。三端各自已有原生作用域（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                  |
+| US-212 AC#30 行缓存 eviction                                                | **已移出 US-212**。执行面只有 core 有、HTTP 包按约束 11 的结构隔离碰不到。**解锁条件 = 出现可复现的缓存膨胀症状（具体实体 + 量级）**                                                                        |
+| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6）                     | **判定不做**。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                               |
+| `packages/rxdb-adapter-tauri/rust/` 发 crates.io                            | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                                                                     |
+| 桌面安装包（installer / bundle）的自动化验证                                | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍                                                               |
 
 > **线 A 是一次对外的不可逆动作**（推 tag + `pnpm publish`），本节只做排期，不代表已获授权执行；
 > 真要发布时按 release-plan.md 第 4 步跑绿门禁、并单独确认。另注意

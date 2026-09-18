@@ -550,3 +550,28 @@ describe('注释剥离：未闭合的块注释不能把判定拖成二次方（C
     expect(rejectionFor("UPDATE /* c */ post SET title = 'x'").step).toBe(4);
   });
 });
+
+describe('词法归一化是单趟的：注释与字面量谁先出现谁先吃', () => {
+  it('字面量里的 `--` 不开行注释——被它「注掉」的那条写照样落第 4 步', () => {
+    // 剥注释与掩字面量分两趟跑时，无论哪一趟排在前面，都有一侧会被对方的定界符骗过去。
+    // 注释在前：`'--'` 这个**值**把它后面的一切注掉，于是一条完整的写语句可以整条藏在
+    // 一个无害语句的字符串参数后面——而参数值正是调用方最容易控制的位置。
+    expect(rejectionFor("UPDATE app_setting SET value = '--'; UPDATE post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("UPDATE post SET remote_id = '-- x', title = 'y'").step).toBe(4);
+  });
+
+  it('字面量里的 `/*` 不开块注释——藏在两个字面量之间的被跟踪列赋值照样落第 4 步', () => {
+    // 块注释版更隐蔽：`/*` 与 `*/` 分别落在两个字面量里，中间那段 `title = …` 被整段吞掉，
+    // 剩下的列集恰好还是一个良构的、只含 untracked 列的子集——第 5 步于是给出 `untracked_only`。
+    // 「吞完还留下良构列集」是它能真绕过去、而不是被列集解析的 fail-closed 拦下的唯一原因。
+    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x', synced_at = '*/'").step).toBe(4);
+    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x' -- */").step).toBe(4);
+  });
+
+  it('注释里的撇号不开字面量——注释后面那条写照样落第 4 步', () => {
+    // 与上两条互为边界：把「先掩字面量、再剥注释」当成修法的话，这两条会翻过来漏。
+    // `don't` 的撇号开出一个假字面量，一路吃到下一条语句里真正的引号为止，`UPDATE post` 随之消失。
+    expect(rejectionFor("SELECT 1; -- don't\nUPDATE post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("/* don't */ UPDATE post SET title = 'x'").step).toBe(4);
+  });
+});

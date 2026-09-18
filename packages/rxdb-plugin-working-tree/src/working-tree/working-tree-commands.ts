@@ -15,7 +15,7 @@
  * 由框架决定那一格写进 signal、`useState` 还是 `shallowRef`。
  */
 
-import type { RxDB } from '@aiao/rxdb';
+import { RxDBError, type RxDB } from '@aiao/rxdb';
 // 只为把 `RxDB.versionManager` 那条 `declare module` 拉进本文件的程序里：形状声明在
 // `@aiao/rxdb-plugin-history` 的 `plugin.ts`，靠「本包别处正好 import 过它」间接生效的话，
 // 那个别处哪天不 import 了，这里就会退化成 `any` 上的属性访问而没有任何一条用例会红。
@@ -95,6 +95,41 @@ export interface WorkingTreeCommands {
 }
 
 /**
+ * 取库上的工作树入口，没挂上就抛。
+ *
+ * @param database - 宿主库
+ * @returns 已挂载的工作树入口
+ * @throws {@link RxDBError} 库上没有 `workingTree` 入口时抛出
+ *
+ * @remarks
+ * 类型这一层拦不住：`plugin.ts` 的 `declare module` 故意把 `workingTree` 声明成**非可选**，
+ * 而模块增强是**全局**的——程序里任何一个包 import 过本插件，整个程序里的 `RxDB.workingTree`
+ * 就都成了非可选，包括那些从没 `use(rxDBPluginWorkingTree)` 过的库；而入口真正挂上是在插件
+ * **构造器**里（`plugin.ts` 的 `defineProperty`）。两件事错位的那段缝里，编译期一声不吭，
+ * 运行时给出 `undefined`。
+ *
+ * **在建入口这一步抛，而不是留给第一次 `status()`**：晚抛的那一版，异常从命令层内部冒出来，
+ * 堆栈顶端写着「读 status 失败」，而成因在更早的接线那一步，读的人要一路回溯。三端 hook 的
+ * TSDoc 对这件事的承诺也是「数据库取不到时**抛错而不是**返回一份『一切干净』的默认值」——
+ * 把「入口没接上」伪装成「没有未提交变更」，恰好是最需要出声的时候不出声。
+ *
+ * 与 `versionManager` 的「现取」形态不同步是有意的：那一个由历史插件在**连接纪元内**装卸，
+ * 这一个从 `use()` 那一刻起就不再变（见 {@link WorkingTreeManager} 的类注释），取一次即可。
+ */
+const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
+  // 显式写出 `| undefined`：`declare module` 给的静态类型是非可选的，不放宽的话下面这句
+  // 守卫会被 lint 判成恒真而删掉——把唯一拦得住它的那道检查删在「类型说它不可能」的理由上。
+  const workingTree: WorkingTreeManager | undefined = database.workingTree;
+  if (!workingTree) {
+    throw new RxDBError(
+      '这个数据库上没有 workingTree 入口：它由 use(rxDBPluginWorkingTree) 在插件构造时挂上。' +
+        '先装插件，再建工作树命令入口。'
+    );
+  }
+  return workingTree;
+};
+
+/**
  * 把十个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `workingTree` 与 `versionManager` 两个入口
@@ -126,7 +161,7 @@ export interface WorkingTreeCommands {
  * @public
  */
 export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStatePatch): WorkingTreeCommands => {
-  const workingTree: WorkingTreeManager = database.workingTree;
+  const workingTree = assertWorkingTreeEntry(database);
   // 现取而不是构造时存一份：`versionManager` 由历史插件在**连接纪元内**用
   // `defineProperty` 装上、释放时删掉（见 `rxdb-plugin-history/src/plugin.ts`），
   // 构造那一刻取一次等于把入口钉死在第一个纪元上。

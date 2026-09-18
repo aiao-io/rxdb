@@ -83,6 +83,12 @@ export class WorkingTreeMaterializationPage {
 
   /**
    * 关联 attempt
+   *
+   * @remarks
+   * `declare` 不是语气问题：`useDefineForClassFields` 打开时，普通字段声明会 emit 成
+   * `this.stage = undefined`，于是每一行实例都带一个从没被赋值过的 `stage` 自有属性，
+   * `Object.keys(row)` 因此永远比真实列多一个。关系由 ORM 按需挂载，不占这个位置。
+   * 同包另外四个实体的关联字段（如 `working-tree-entry.entity.ts` 的 `branch`）都是这个写法。
    */
-  stage?: WorkingTreeMaterializationStage;
+  declare stage?: WorkingTreeMaterializationStage;
 }

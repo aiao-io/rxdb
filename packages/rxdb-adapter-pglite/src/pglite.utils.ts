@@ -15,6 +15,10 @@ import {
   type Keyring
 } from '@aiao/rxdb-adapter-encrypted';
 
+// 更新路径的实体归一化走核心的唯一一份实现（sqlite-core 同样再导出这一份）：本地再写一遍
+// 就是第二份真相，而这一份决定的是「值落到哪个列」——两份分家的代价是把数据写到相邻的列上。
+export { normalizeUpdateEntity } from '@aiao/rxdb';
+
 /**
  * 加密上下文，贯穿所有可能接触加密列的 PGlite 辅助函数。
  * 当数据库没有加密列时 keyring 为 `null`，辅助函数走明文分支。
@@ -491,31 +495,6 @@ export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object):
     const value = Reflect.get(entity, key);
     if (value !== undefined) {
       result[foreignKeyColumnNames[i]] = value;
-    }
-  }
-
-  return result;
-};
-
-/**
- * 规范化实体数据，过滤掉只读字段
- */
-export const normalizeEntity = (metadata: EntityMetadata, entity: object): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-
-  for (const [key, property] of metadata.propertyMap) {
-    if (key in entity && property.readonly !== true) {
-      result[property.columnName] = Reflect.get(entity, key);
-    }
-  }
-
-  // 处理外键 - 兼容没有 foreignKeyColumnNames 的情况
-  const foreignKeyNames = metadata.foreignKeyNames || [];
-  const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
-  for (let i = 0; i < foreignKeyNames.length; i++) {
-    const key = foreignKeyNames[i];
-    if (key in entity) {
-      result[foreignKeyColumnNames[i]] = Reflect.get(entity, key);
     }
   }
 

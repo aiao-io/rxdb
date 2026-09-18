@@ -10,10 +10,10 @@
 | :------------- | :--- |
 | ✅ Done        | 60   |
 | 🚧 In Progress | 1    |
-| 👀 In Review   | 4    |
+| 👀 In Review   | 5    |
 | 📝 Backlog     | 3    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 68   |
+| **合计**       | 69   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -26,7 +26,7 @@
 | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）、阶段 C（历史 / 撤销重做 / 分支外移为 `@aiao/rxdb-plugin-history`）与阶段 D（推拉同步 / 冲突 + QueryCache 写回出站外移为 `@aiao/rxdb-plugin-sync`）已交付，A1～A4 / B1～B5 / C1～C6 / D1～D6 全 ✅；C 实到 `version/` 整棵迁出（含推拉半区），核心留下 `system/system-repositories.ts` 与 `sync-contract/` 两批原语，公开面 452 → 460（+20 / −12，破坏性）；D 从历史插件里切出新包并把出站的 5 条导出收回包内，核心公开面 460 → 457（−5 / +2，破坏性），历史插件 15 → 9、新包 20 条，可达性与 `SyncStateHub` 按「搬走的是消费者，不是原语」留核心，`reachability` 改 `watch()` 引用计数满足 D2；C 十二处 / D 十二处计划偏差分别记在故事的阶段 C / D 两节；剩阶段 E（树实体），其前置 `RxDBBranch` 去树化不在本故事任一阶段内 |
 
-## 待评审（4 条）
+## 待评审（5 条）
 
 四条同属 [epic-006](epics/epic-006-working-tree-commits.md)，代码已完成、收尾门禁未跑完；逐条理由见[按 Epic 索引里的该节](#本地工作树与提交历史)。
 
@@ -36,6 +36,8 @@
 | [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)                 | 任务侧 133 条已全关（T130 / T131 / T109 / T132 均已闭合）；`status` 相对门禁的方差问题仍归评审，但已不阻塞门禁（见上） |
 | [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)                          | T109 已关闭：reference 已重新冻结，`restore` 进入基线；该基线是带负载的初版，待复冻（见上）                            |
 | [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) | 任务侧已全关；T132 于 2026-09-18 复跑 `✓ PASS`，收口完成                                                               |
+
+另有一条 👀 [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)：改动已完成，AC 1～6 全 ✅，`site-build` 在坏链门禁下跑绿，待提交合并。
 
 ## 按 Epic 索引
 
@@ -106,6 +108,7 @@
 - ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
 - 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）、阶段 C（历史 / 分支外移，破坏性：`VersionManager` 等 12 条退出核心公开面）与阶段 D（推拉同步 + QueryCache 写回出站外移，破坏性：出站 5 条退出核心公开面，`rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`）已交付；只剩阶段 E（树实体），其前置 `RxDBBranch` 去树化是本故事之外的独立工作
+- 👀 [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复；`site-build` 已绿，待合并
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 

@@ -891,3 +891,21 @@ describe('重读失败被吞掉：一次成功的提交不能因为重读而变�
     expect(states.statusState.phase).toBe('error');
   });
 });
+
+describe('库上没装工作树插件时，建入口这一步就抛', () => {
+  it('`workingTree` 缺席时抛在建入口这一步，而不是等第一次 status() 炸在命令层里面', () => {
+    // 类型这一层拦不住：`declare module` 把 `workingTree` 声明成非可选，而模块增强是**全局**的——
+    // 程序里任何一个包 import 过本插件，整个程序里的 `RxDB.workingTree` 就都非可选了，
+    // 包括那些从没 `use(rxDBPluginWorkingTree)` 过的库。编译期一声不吭，运行时给 `undefined`。
+    const database = { versionManager: {} } as unknown as RxDB;
+
+    expect(() => createWorkingTreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorkingTree/);
+  });
+
+  it('装了插件时照常建出十个命令', () => {
+    // 守卫写成无条件抛的话这条会红。
+    const { commands } = createFixture();
+
+    expect(Object.keys(commands)).toHaveLength(10);
+  });
+});

@@ -6,12 +6,12 @@
 
 核心 `@aiao/rxdb` 保留的是**原语**：三张系统表（`RxDBBranch` / `RxDBChange` / `RxDBSync`）、变更编解码、冲突模型、同步资格判定，以及 `getCurrentBranch()`。这些东西并不专属历史子系统——变更日志触发器直接写 `branchId`，`RxDBChange.branch` 会生成真实的 `REFERENCES rxdb$rxdb_branch(id)` 外键，整条响应式增量链路都跑在 `rxdb_change` 上。搬进本包的是**消费者**：读历史、撤销重做、建/切/合/删分支。
 
-推拉同步的调度**不在这里**，它住在 [`@aiao/rxdb-plugin-sync`](../rxdb-plugin-sync/README.md)：`rxdb.syncManager.push()` / `.pull()` / `.sync()`。那个插件 `inject: ['plugin:history']`，反向没有依赖——本包不认识同步包。
+推拉同步的调度**不在这里**，它住在 [@aiao/rxdb-plugin-sync](../rxdb-plugin-sync/README.md)：`rxdb.syncManager.push()` / `.pull()` / `.sync()`。那个插件 `inject: ['plugin:history']`，反向没有依赖——本包不认识同步包。
 
 ## 安装
 
-```bash
-pnpm add @aiao/rxdb @aiao/rxdb-plugin-history
+```bash npm2yarn
+npm install @aiao/rxdb @aiao/rxdb-plugin-history
 ```
 
 ## 使用
@@ -69,3 +69,7 @@ await rxdb.versionManager.mergeBranch('feature-a');
 本包**不声明 `inject`**，所以它在 `init()` 里就装完；`@aiao/rxdb-plugin-sync` 声明了 `inject: ['plugin:history']`，要等本包装好才轮到它，那个槽位得 `await connect()` 之后才在。
 
 插件**不声明 `inject`**：`VersionManager.init()` 只挂监听与订阅，一条适配器读写都不发。声明 `adapter:local` 会把安装推到引导链之后，而分支流必须在第一条 `rxdb_change` 事件到达之前就订阅上。
+
+## 迁移
+
+从 `versionManager` 直接挂在 core 里的版本升级，见[历史与同步拆包](../../migration/history-sync-plugins.md)。
