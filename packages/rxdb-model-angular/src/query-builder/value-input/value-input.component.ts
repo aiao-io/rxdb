@@ -22,10 +22,11 @@ import {
   output,
   signal,
   ViewChild,
-  ViewContainerRef
+  ViewContainerRef,
+  type OutputRefSubscription
 } from '@angular/core';
-import { Subscription } from 'rxjs';
 import { PopoverSelectComponent } from '../popover-select/popover-select.component';
+import type { SubqueryBuilderComponent } from '../subquery-builder/subquery-builder.component';
 
 /**
  * 值输入组件
@@ -60,7 +61,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
           <input
             class="input input-sm font-mono"
             [class.input-error]="hasError() || !!uuidError()"
-            [value]="currentValue()"
+            [value]="$any(currentValue())"
             (input)="onUuidChange($any($event.target).value)"
             placeholder="输入 UUID"
             style="min-width: 16rem"
@@ -88,7 +89,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
       @case ('enum') {
         <rxdb-popover-select
           [options]="enumSelectOptions()"
-          [selected]="currentValue()?.toString() ?? ''"
+          [selected]="$any(currentValue())?.toString() ?? ''"
           (selectChange)="onEnumSelect($event)"
           minWidth="12rem"
           placeholder="选择值"
@@ -145,7 +146,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
             <input
               class="input input-sm"
               [class.input-error]="hasError()"
-              [value]="rangeMin() ?? ''"
+              [value]="$any(rangeMin()) ?? ''"
               (input)="onRangeMinChange($any($event.target).value)"
               placeholder="最小值"
               style="width: 7rem"
@@ -155,7 +156,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
             <input
               class="input input-sm"
               [class.input-error]="hasError()"
-              [value]="rangeMax() ?? ''"
+              [value]="$any(rangeMax()) ?? ''"
               (input)="onRangeMaxChange($any($event.target).value)"
               placeholder="最大值"
               style="width: 7rem"
@@ -169,7 +170,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
           <input
             class="input input-sm"
             [class.input-error]="hasError()"
-            [value]="currentValue() ?? ''"
+            [value]="$any(currentValue()) ?? ''"
             (input)="onNumberInputChange($any($event.target).value)"
             placeholder="输入数值"
             type="number"
@@ -206,7 +207,7 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
           <input
             class="input input-sm"
             [class.input-error]="hasError()"
-            [value]="currentValue() ?? ''"
+            [value]="$any(currentValue()) ?? ''"
             (input)="onValueChange($any($event.target).value)"
             placeholder="输入值"
             style="width: 100%; min-width: 12rem"
@@ -220,8 +221,8 @@ import { PopoverSelectComponent } from '../popover-select/popover-select.compone
 })
 export class ValueInputComponent implements OnInit, OnDestroy {
   private previousInputType: string | null = null;
-  private subqueryComponentRef?: ComponentRef<any>;
-  private subquerySubscription?: Subscription;
+  private subqueryComponentRef?: ComponentRef<SubqueryBuilderComponent>;
+  private subquerySubscription?: OutputRefSubscription;
   private subqueryLoading = false;
   private readonly injector = inject(Injector);
 
@@ -254,9 +255,9 @@ export class ValueInputComponent implements OnInit, OnDestroy {
   >(undefined);
 
   /** 信号状态 —— 替代原先的可变类属性 */
-  readonly currentValue = signal<any>('');
-  readonly rangeMin = signal<any>(null);
-  readonly rangeMax = signal<any>(null);
+  readonly currentValue = signal<unknown>('');
+  readonly rangeMin = signal<unknown>(null);
+  readonly rangeMax = signal<unknown>(null);
   readonly arrayInputValue = signal('');
   readonly currentDateStr = signal('');
   readonly dateRangeStart = signal('');

@@ -89,7 +89,7 @@ description: 'Task list: 移植 rxdb-model 实体模型库与三框架 UI 组件
 
 ### Tests for User Story 2（先红）⚠️
 
-- [ ] T020 [P] [US2] 重写 6 个旧式假 spec 为真实源码测试（红）：`packages/rxdb-model-angular/src/entity-list/entity-list.component.spec.ts`、`entity-detail/entity-detail.spec.ts`、`entity-table/entity-table/entity-table.component.spec.ts`、`entity-table/query-table/query-table.component.spec.ts`、`query-builder/query-builder/query-builder.component.spec.ts`、`entity-form/rxdb-entity-form-angular.spec.ts`——按 `*.real.spec.ts` 模式（真实 TestBed 渲染 + 真实 core 服务，仅浏览器 API 缺失处打桩）
+- [x] T020 [P] [US2] 重写 6 个旧式假 spec 为真实源码测试（红）：`packages/rxdb-model-angular/src/entity-list/entity-list.component.spec.ts`、`entity-detail/entity-detail.spec.ts`、`entity-table/entity-table/entity-table.component.spec.ts`、`entity-table/query-table/query-table.component.spec.ts`、`query-builder/query-builder/query-builder.component.spec.ts`、`entity-form/rxdb-entity-form-angular.spec.ts`——按 `*.real.spec.ts` 模式（真实 TestBed 渲染 + 真实 core 服务，仅浏览器 API 缺失处打桩）
 - [x] T021 [P] [US2] 搬运 5 个既有真实 spec（红）：`query-builder/{query-builder,query-group,value-input,tree-select}.real.spec.ts` + `operator-selector.component.spec.ts`（`lucide-angular` 类型导入改 `@lucide/angular`）
 
 ### Implementation for User Story 2
@@ -103,10 +103,10 @@ description: 'Task list: 移植 rxdb-model 实体模型库与三框架 UI 组件
 - [x] T028 [US2] 搬运 entity-list 组件（绿）：`src/entity-list/entity-list.component.{ts,html}`（核对 `@aiao/rxdb-angular` 的 `InfiniteScrollingList` API 对齐；`lucide-angular` → `@lucide/angular` 两处使用点）
 - [x] T029 [US2] 落 `src/index.ts`（组件导出 + 两个透传 barrel 语义保留）+ `tailwind.css`（`@source` 注册 fesm 产物与 src）+ 包 `README.md`（样式接入约定：消费方需 Tailwind + daisyUI）
 - [x] T030 [US2] TSDoc 补齐：`packages/rxdb-model-angular/src` 全部公开导出含 TSDoc
-- [ ] T031 [US2] 门禁：lint/typecheck/test/build（partial 编译）零警告；覆盖率达标；`requirements/api-baseline/rxdb-model-angular.json` 落基线并 `--check` 通过
+- [x] T031 [US2] 门禁：lint/typecheck/test/build（partial 编译）零警告；覆盖率达标；`requirements/api-baseline/rxdb-model-angular.json` 落基线并 `--check` 通过
 - [x] T032 [P] [US2] Demo 样式管线：`apps/dev-rxdb-angular` 的 Tailwind 入口补 `@plugin 'daisyui'`（research D6，当前 app CSS 无 daisyUI）
 - [x] T033 [US2] Demo 页面：`apps/dev-rxdb-angular/src/app/pages/entity/` 新增 entity-list / entity-detail / query-builder 页（数据源 `@aiao/rxdb-test` 的 Todo）+ `app.routes.ts` 注册
-- [ ] T034 [US2] e2e：`apps/dev-rxdb-angular-e2e` 增 entity 页用例——行内编辑 + undo/redo、详情 Tab、表单三模式、查询构建器过滤、键盘走查、深浅主题切换（spec US2 场景 5）
+- [x] T034 [US2] e2e：`apps/dev-rxdb-angular-e2e` 增 entity 页用例——行内编辑 + undo/redo、详情 Tab、表单三模式、查询构建器过滤、键盘走查、深浅主题切换（spec US2 场景 5）
 
 **Checkpoint**: US1+US2 可独立工作——Angular 消费方获得完整实体管理 UI
 
@@ -155,7 +155,7 @@ description: 'Task list: 移植 rxdb-model 实体模型库与三框架 UI 组件
 - [ ] T049 跨框架对拍 e2e：相同 Todo 数据下断言三端列表/详情/表单/查询构建器输出一致（`apps/dev-rxdb-*-e2e` 对拍用例，宪法 III「visually identical output」）
 - [ ] T050 运行 `tri-framework-check` 技能复核三端 API 对称性（命名、签名、行为）
 - [ ] T051 文档：`website/docs/` 增 rxdb-model 系列文档页（核心 + 三框架用法 + 样式接入 + 迁移说明）；更新 `requirements/status-overview.md` 状态
-- [ ] T052 全量门禁：`pnpm test-all` + `pnpm audit:coverage --check` + `pnpm audit:api-surface --check` + `pnpm audit:coverage:update`（落 baseline）
+- [x] T052 全量门禁：`pnpm test-all` + `pnpm audit:coverage --check` + `pnpm audit:api-surface --check` + `pnpm audit:coverage:update`（落 baseline）
 - [ ] T053 spec 状态收尾：spec.md Status → Approved，checklist 复检；走仓库常规 PR/CI 流程（api-baseline 门禁 + coverage 门禁 + lint 零警告）
 
 ---

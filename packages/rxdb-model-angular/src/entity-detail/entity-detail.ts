@@ -232,7 +232,7 @@ export class EntityDetailComponent {
       if (cls) {
         const fixed = this.#dialogData.fixedFormData;
         const merged = { ...(this.#dialogData.formData || {}), ...fixed };
-        this.#draftEntity = new (cls as any)(merged) as EntityInstance;
+        this.#draftEntity = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
         this.draftEntitySignal.set(this.#draftEntity);
         this.draftFormData.set(
           entityToFormData(this.#draftEntity as Record<string, unknown>, this.#dialogData.formFields)
@@ -352,7 +352,7 @@ export class EntityDetailComponent {
   /** 清理草稿实体缓存 */
   #cleanupDraftEntity(): void {
     if (!this.#draftEntity || !this.#rxdb) return;
-    this.#rxdb.entityManager.removeEntityCache(this.#draftEntity as any);
+    this.#rxdb.entityManager.removeEntityCache(this.#draftEntity);
     this.#draftEntity = null;
     this.draftEntitySignal.set(null);
   }

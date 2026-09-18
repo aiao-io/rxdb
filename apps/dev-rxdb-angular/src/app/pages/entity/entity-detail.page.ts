@@ -21,13 +21,13 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 })
 export default class EntityDetailPage {
   // 注入 RxDB 以初始化本地数据库
-  protected rxdb = inject(RxDB);
+  rxdb = inject(RxDB);
 
-  protected onSaved(data: EntityFormData): void {
+  onSaved(data: EntityFormData): void {
     console.info('[entity-detail] saved', data);
   }
 
-  protected onCancelled(): void {
+  onCancelled(): void {
     console.info('[entity-detail] cancelled');
   }
 }

@@ -42,7 +42,10 @@ export default defineConfig(({ mode }) => ({
     coverage: {
       reportsDirectory: '../../coverage/packages/rxdb-model-angular',
       provider: 'v8' as const,
-      reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html']
+      reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
+      // 测试基础设施（fake-vtable / in-memory-rxdb 等夹具）不是产品面，
+      // 与其他包排除 __tests__ 的惯例一致，不计入门禁覆盖率
+      exclude: ['src/__tests__/testing/**']
     }
   },
   define: {

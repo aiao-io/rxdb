@@ -37,10 +37,10 @@ export default class QueryBuilderPage {
   /** 查询变更流（switchMap 驱动 Todo.findAll） */
   readonly #query$ = new Subject<RxDBQueryOutput<Todo>>();
   // 注入 RxDB 以初始化本地数据库
-  protected rxdb = inject(RxDB);
+  rxdb = inject(RxDB);
 
   /** Todo 元数据派生的查询构建器 schema */
-  protected readonly schema: SchemaInfo = {
+  readonly schema: SchemaInfo = {
     entityName: 'Todo',
     fields: createSchemaFromEntity(getEntityMetadata(Todo))
   };
@@ -64,7 +64,7 @@ export default class QueryBuilderPage {
       .subscribe(list => this.$results.set(list));
   }
 
-  protected onQueryChange(query: RxDBQueryOutput<Todo>): void {
+  onQueryChange(query: RxDBQueryOutput<Todo>): void {
     this.$query.set(query);
     this.#query$.next(query);
   }

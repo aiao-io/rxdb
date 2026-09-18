@@ -155,7 +155,7 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
  * 级联新增与多对多选择模式。
  */
 export class EntityListComponent {
-  #m2mDialogRef: DialogRef<unknown, unknown> | null = null;
+  #m2mDialogRef: DialogRef<unknown, void> | null = null;
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
   readonly #injector = inject(Injector);
@@ -235,6 +235,13 @@ export class EntityListComponent {
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */
   readonly #localDraftItems = signal<EntityInstance[]>([]);
 
+  /** 列头排序；切实体时重置为默认 id desc */
+  readonly #sortState: WritableSignal<ListSortState> = linkedSignal(() => {
+    this.namespace();
+    this.name();
+    return { ...DEFAULT_SORT_STATE };
+  });
+
   // ── Protected view bindings ───────────────────────────────────────────
   protected readonly Undo2 = Undo2;
   protected readonly Redo2 = Redo2;
@@ -311,13 +318,6 @@ export class EntityListComponent {
     this.namespace();
     this.name();
     return { ...EMPTY_FILTER };
-  });
-
-  /** 列头排序；切实体时重置为默认 id desc */
-  readonly #sortState: WritableSignal<ListSortState> = linkedSignal(() => {
-    this.namespace();
-    this.name();
-    return { ...DEFAULT_SORT_STATE };
   });
 
   readonly $isFilterQuery = computed(() => this.filterQuery().rules.length > 0);
@@ -565,7 +565,7 @@ export class EntityListComponent {
         displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
       }));
       if (draftParent) {
-        const parentMeta = getEntityMetadata((draftParent as any).constructor as EntityType);
+        const parentMeta = getEntityMetadata(draftParent['constructor'] as EntityType);
         if (parentMeta.name === entityName && (!namespace || parentMeta.namespace === namespace)) {
           const parentId = String(draftParent.id);
           if (!items.some(i => i.id === parentId)) {
@@ -623,7 +623,7 @@ export class EntityListComponent {
       minHeight: '300px',
       panelClass: 'entity-m2m-select-dialog'
     });
-    this.#m2mDialogRef = ref as any;
+    this.#m2mDialogRef = ref;
 
     ref.closed.subscribe(() => {
       this.#m2mDialogRef = null;
@@ -671,6 +671,15 @@ export class EntityListComponent {
     this.selectionCancelled.emit();
   }
 
+  /**
+   * 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。
+   */
+  onSortClicked(event: { field: unknown; order: unknown }): void {
+    const field = normalizeSortField(event.field);
+    if (!field) return;
+    this.#sortState.set({ field, order: normalizeSortOrder(event.order) });
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────
 
   async #handleCreateSubmit(data: EntityFormData): Promise<void> {
@@ -681,8 +690,8 @@ export class EntityListComponent {
     const relName = this.parentRelationName();
 
     if (parent && relName) {
-      const child = new (cls as any)(data) as EntityInstance;
-      const relation = (parent as any)[relName + '$'];
+      const child = new (cls as new (...args: unknown[]) => unknown)(data) as EntityInstance;
+      const relation = parent[relName + '$'] as { add(child: EntityInstance): void } | undefined;
       if (relation && typeof relation.add === 'function') {
         relation.add(child);
       }
@@ -691,21 +700,12 @@ export class EntityListComponent {
     }
 
     try {
-      const inst = new (cls as any)(data) as EntityInstance;
+      const inst = new (cls as new (...args: unknown[]) => unknown)(data) as EntityInstance;
       await inst.save();
       this.#currentList()?.refresh();
     } catch (e) {
       this.#errorHandler.handleError(e);
     }
-  }
-
-  /**
-   * 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。
-   */
-  onSortClicked(event: { field: unknown; order: unknown }): void {
-    const field = normalizeSortField(event.field);
-    if (!field) return;
-    this.#sortState.set({ field, order: normalizeSortOrder(event.order) });
   }
 
   #getOrCreateList(key: string, cls: EntityType): InfiniteScrollingList<EntityType> {

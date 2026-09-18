@@ -123,7 +123,7 @@ export class SubqueryBuilderComponent implements OnDestroy {
         const initial = this.initialQuery();
         if (initial) {
           this.initialQueryApplied = true;
-          this.service.fromRxDBQuery(initial as any);
+          this.service.fromRxDBQuery(initial);
         }
       }
     });
@@ -172,7 +172,7 @@ export class SubqueryBuilderComponent implements OnDestroy {
           : firstField.type === 'keyValue' ? 'null'
           : '=',
         value: firstField.type === 'boolean' ? false : ''
-      } as any);
+      });
     }
   }
 
@@ -183,7 +183,7 @@ export class SubqueryBuilderComponent implements OnDestroy {
 
   /** 添加规则到指定组 */
   onAddRule(event: { parentId: string; rule: Omit<UIRule, 'id'> }): void {
-    this.service.addRule(event.parentId, event.rule as any);
+    this.service.addRule(event.parentId, event.rule);
   }
 
   /** 添加子组到指定组 */
@@ -198,7 +198,7 @@ export class SubqueryBuilderComponent implements OnDestroy {
 
   /** 更新规则 */
   onUpdateRule(event: { id: string; updates: Partial<UIRule> }): void {
-    this.service.updateRule(event.id, event.updates as any);
+    this.service.updateRule(event.id, event.updates);
   }
 
   /** 更新组合器 */

@@ -216,4 +216,7 @@ export function isRule<T>(item: QueryBuilderRule<T> | QueryBuilderRuleGroup<T>):
   return 'field' in item && 'operator' in item;
 }
 
+/**
+ * 类型重导出：操作符名及 RxDB 原生规则、规则组类型
+ */
 export type { OperatorName, Rule, RuleGroup };

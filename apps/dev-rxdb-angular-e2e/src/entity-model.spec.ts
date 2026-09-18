@@ -24,8 +24,8 @@ test.describe('Entity Model Pages', () => {
 
     test('should render create-mode detail form with draft lifecycle', async ({ page }) => {
       await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
-      await expect(page.getByLabel('title')).toBeVisible();
-      await expect(page.getByLabel('completed')).toBeVisible();
+      await expect(page.getByRole('group', { name: 'title' }).getByRole('textbox')).toBeVisible();
+      await expect(page.getByRole('group', { name: 'completed' }).getByRole('checkbox')).toBeVisible();
       await expect(page.getByRole('button', { name: '保存' })).toBeVisible();
       await expect(page.getByRole('button', { name: '取消' })).toBeVisible();
     });
