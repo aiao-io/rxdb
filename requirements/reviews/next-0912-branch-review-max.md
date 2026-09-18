@@ -71,7 +71,7 @@
 
 ### [P1] PGlite 与 sqlite-core 的空更新闸门用不同归一化器，行为分裂
 
-- **证据**：[pglite switch-result.utils.ts:126-127](../../packages/rxdb-adapter-pglite/src/version/switch-result.utils.ts#L126) 用本地 `normalizeEntity`（外键循环无 readonly 检查，[pglite.utils.ts:515-520](../../packages/rxdb-adapter-pglite/src/version/pglite.utils.ts#L515)）；[sqlite-core switch-result.utils.ts:124-125](../../packages/rxdb-adapter-sqlite-core/src/version/switch-result.utils.ts#L124) 用核心 `normalizeUpdateEntity`（readonly 外键显式 `continue` 过滤，[entity.utils.ts:265](../../packages/rxdb/src/entity/entity.utils.ts#L265)）。
+- **证据**：[pglite switch-result.utils.ts:126-127](../../packages/rxdb-adapter-pglite/src/version/switch-result.utils.ts#L126) 用本地 `normalizeEntity`（外键循环无 readonly 检查，[pglite.utils.ts:515-520](../../packages/rxdb-adapter-pglite/src/pglite.utils.ts#L515)）；[sqlite-core switch-result.utils.ts:124-125](../../packages/rxdb-adapter-sqlite-core/src/version/switch-result.utils.ts#L124) 用核心 `normalizeUpdateEntity`（readonly 外键显式 `continue` 过滤，[entity.utils.ts:265](../../packages/rxdb/src/entity/entity.utils.ts#L265)）。
 - **触发与影响**：switch/merge 更新 patch 只含 readonly 外键关系字段（如 `{reviewerId: 'x'}`）：sqlite 归一化后 `{}` → 跳过整行；pglite 归一化出 `{reviewer_id: 'x'}` → 发出 UPDATE 并触发变更日志——闸门要防止的「空写」恰在 PGlite 侧发生，与闸门自身注释要求的双端一致相反。核心 spec「使用物理列名并过滤 readonly 外键」已钉死该分歧。
 - **修复建议**：pglite 侧改调核心 `normalizeUpdateEntity`（或补同样的 readonly 过滤）；补双后端对同一 patch 的对称用例。
 
