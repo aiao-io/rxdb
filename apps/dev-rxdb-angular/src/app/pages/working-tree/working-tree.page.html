@@ -57,304 +57,129 @@
         <span class="text-base-content/80">· 尚未初始化，先点「初始化仓库」</span>
       }
     </div>
-    <button class="btn btn-ghost btn-xs" (click)="refreshStatus()" data-testid="wt-refresh-status">刷新状态</button>
+    <!-- 启用态下「刷新」放在分支栏右侧（GitHub Desktop 的 Fetch origin 位），
+         这里只在未启用时保留一个，保证任何状态都恰好有一个 wt-refresh-status。 -->
+    @if (!(enabledState.phase === 'success' && enabledState.value)) {
+      <button class="btn btn-ghost btn-xs" (click)="refreshStatus()" data-testid="wt-refresh-status" type="button">
+        刷新状态
+      </button>
+    }
   </div>
 
   @if (enabledState.phase === 'success' && enabledState.value) {
-    <!-- ═══════════════════ 主体（两栏） ═══════════════════ -->
-    <div class="flex min-h-0 flex-1 overflow-hidden">
-      <!-- ══ 左栏：分支 + 提交历史 ══ -->
-      <aside class="border-base-300 flex w-80 shrink-0 flex-col overflow-y-auto border-r">
-        <!-- ▸ 分支 -->
-        <section class="flex shrink-0 flex-col border-b" aria-labelledby="wt-branches-heading">
-          <div class="flex items-center justify-between px-3 pt-3 pb-1">
-            <h2
-              class="text-base-content/80 flex items-center gap-1.5 text-xs font-semibold uppercase"
-              id="wt-branches-heading"
-            >
-              <svg [lucideIcon]="GitBranch" size="13"></svg>
-              分支（{{ branches.value().length }}）
-            </h2>
-            <button
-              class="btn btn-ghost btn-xs gap-1"
-              #createTrigger="cdkOverlayOrigin"
-              (click)="toggleCreatePopover()"
-              cdkOverlayOrigin
-              data-testid="wt-branch-create"
-            >
-              <svg [lucideIcon]="Plus" size="13"></svg>
-              新建
-            </button>
-          </div>
-          <ul class="pb-1">
-            @for (branch of branches.value(); track branch.id) {
-              <li>
-                <button
-                  class="hover:bg-base-200 flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors"
-                  [attr.data-branch-id]="branch.id"
-                  [class.bg-base-200]="$selectedBranchId() === branch.id"
-                  (click)="selectBranch(branch.id)"
-                  data-testid="wt-branch-item"
-                >
-                  @if (branch.activated) {
-                    <svg class="text-success shrink-0" [lucideIcon]="CircleDot" size="12"></svg>
-                  } @else {
-                    <svg class="text-base-content/80 shrink-0" [lucideIcon]="GitBranch" size="12"></svg>
-                  }
-                  <span class="min-w-0 truncate text-sm font-medium" [class.text-green-700]="branch.activated">
-                    {{ branch.id }}
-                  </span>
-                  @if (branch.activated) {
-                    <span class="badge badge-outline badge-success badge-xs text-green-700">当前</span>
-                  }
-                  @if (branch.parentId) {
-                    <span class="text-base-content/80 ml-auto flex min-w-0 items-center gap-0.5 text-xs">
-                      <svg [lucideIcon]="ChevronRight" size="10"></svg>
-                      {{ branch.parentId }}
-                    </span>
-                  }
-                </button>
-                @if ($selectedBranchId() === branch.id && !branch.activated) {
-                  <div class="flex flex-wrap gap-1.5 px-3 pb-2">
-                    <button
-                      class="btn btn-xs btn-outline btn-primary"
-                      (click)="switchBranch(branch.id)"
-                      data-testid="wt-branch-switch"
-                    >
-                      切换
-                    </button>
-                    <button
-                      class="btn btn-xs btn-outline btn-success gap-1"
-                      (click)="openMergeDialog(branch.id)"
-                      data-testid="wt-branch-merge"
-                    >
-                      <svg [lucideIcon]="GitMerge" size="11"></svg>
-                      合并到 {{ $activeBranch() }}
-                    </button>
-                    <button
-                      class="btn btn-xs btn-outline btn-error gap-1"
-                      (click)="removeBranch(branch.id)"
-                      data-testid="wt-branch-delete"
-                    >
-                      <svg [lucideIcon]="Trash2" size="11"></svg>
-                      删除
-                    </button>
-                  </div>
-                }
-              </li>
-            }
-            @if (branches.value().length === 0) {
-              <li class="text-base-content/80 px-4 py-4 text-center text-sm">暂无分支</li>
-            }
-          </ul>
-        </section>
-
-        <!-- ▸ 提交历史（当前分支） -->
-        <section class="flex shrink-0 flex-col" aria-labelledby="wt-commits-heading">
-          <div class="flex items-center justify-between px-3 pt-3 pb-1">
-            <h2
-              class="text-base-content/80 flex items-center gap-1.5 text-xs font-semibold uppercase"
-              id="wt-commits-heading"
-            >
-              <svg [lucideIcon]="History" size="13"></svg>
-              历史（{{ $activeBranch() }}）
-            </h2>
-            <button class="btn btn-ghost btn-xs" (click)="readCommits()" data-testid="wt-list-commits">
-              读取提交历史
-            </button>
-          </div>
-          @let commits = tree.listCommitsState();
-          <div class="px-3 pb-3" aria-live="polite" data-testid="wt-commits-result">
-            <span class="text-base-content/80 text-xs" data-testid="wt-commits-phase">{{ commits.phase }}</span>
-            @if (commits.phase === 'empty') {
-              <p class="text-base-content/80 py-2 text-center text-xs">这条分支还没有提交</p>
-            } @else if (commits.phase === 'success') {
-              <ol class="space-y-1" data-testid="wt-commits-list">
-                @for (entry of commits.value.entries; track entry.commitId) {
-                  <li class="border-base-300 rounded-lg border px-2.5 py-2">
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="min-w-0 truncate text-sm">{{ entry.message }}</span>
-                      @if (entry.kind !== 'baseline' && entry.kind !== 'branch_baseline') {
-                        <button
-                          class="btn btn-ghost btn-xs shrink-0 gap-1"
-                          (click)="restoreEntry(entry)"
-                          data-testid="wt-restore"
-                          title="把这份内容写回工作树，再提交或丢弃"
-                        >
-                          <svg [lucideIcon]="RotateCcw" size="11"></svg>
-                          恢复
-                        </button>
-                      }
-                    </div>
-                    <div class="text-base-content/80 mt-0.5 flex items-center gap-2 text-xs">
-                      <span>{{ entry.authorId ?? '无作者' }}</span>
-                      <span>·</span>
-                      <span>{{ entry.createdAt.toLocaleString() }}</span>
-                      <span>·</span>
-                      <span>{{ entry.changeSetCount }} 个单元</span>
-                      @if (entry.kind === 'baseline' || entry.kind === 'branch_baseline') {
-                        <span class="badge badge-outline badge-xs">系统基线</span>
-                      }
-                      @if (entry.parentIds.length > 1) {
-                        <span class="badge badge-outline badge-xs">合并节点</span>
-                      }
-                    </div>
-                  </li>
-                }
-              </ol>
-            }
-          </div>
-        </section>
-      </aside>
-
-      <!-- ══ 右栏：Todo 制造器 + 未提交改动 + 提交框 ══ -->
-      <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <!-- ▸ Todo 制造器：demo 里「编辑文件」这一步 -->
-        <div class="border-base-300 flex shrink-0 items-center gap-2 border-b px-4 py-2.5">
-          <label class="shrink-0 text-xs" for="wt-todo-title">Todo 标题</label>
-          <input
-            class="input input-bordered input-sm flex-1"
-            id="wt-todo-title"
-            [(ngModel)]="title"
-            data-testid="wt-todo-title"
-          />
-          <button class="btn btn-sm" (click)="writeTodo()" data-testid="wt-write-todo">写入一条 Todo</button>
-        </div>
-
-        <!-- ▸ 未提交改动（HEAD ↔ 工作树） -->
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-sm font-semibold">未提交改动（HEAD ↔ 工作树）</h2>
-            <button class="btn btn-ghost btn-xs" (click)="refreshStatus()" data-testid="wt-diff">读取未提交改动</button>
-          </div>
-
-          @let diff = tree.diffState();
-          <div class="mt-2 space-y-2" aria-live="polite" data-testid="wt-diff-result">
-            <span class="text-base-content/80 text-xs" data-testid="wt-diff-phase">{{ diff.phase }}</span>
-
-            @let status = tree.statusState();
-
-            @if (status.phase === 'success' || status.phase === 'empty') {
-              @if (status.value.restoring || status.value.conflicted) {
-                <div class="alert alert-warning py-2 text-sm" data-testid="wt-restore-session" role="status">
-                  @if ($restoreSession()) {
-                    恢复会话进行中：来自提交
-                    <code>{{ $restoreSession()!.targetCommitId }}</code>
-                    —— 提交完成恢复，丢弃取消恢复。
-                  }
-                  @if (status.value.conflicted) {
-                    恢复会话已与工作树分叉（捕获位对不上）—— 丢弃以取消会话，再重新恢复。
-                  }
-                </div>
-              }
-            }
-
-            @if (diff.phase === 'empty') {
-              <p class="text-base-content/80 text-sm">没有未提交的改动</p>
-            } @else if (diff.phase === 'success') {
-              <ul class="space-y-1.5" data-testid="wt-diff-list">
-                @for (entry of diff.value.entries; track entry.unitId + entry.entityId) {
-                  <li class="border-base-300 rounded-lg border px-3 py-2">
-                    <div class="flex items-center gap-2">
-                      @switch (entry.operation) {
-                        @case ('insert') {
-                          <span class="badge badge-outline badge-success badge-sm text-green-700">INSERT</span>
-                        }
-                        @case ('update') {
-                          <span class="badge badge-outline badge-warning badge-sm text-amber-700">UPDATE</span>
-                        }
-                        @case ('delete') {
-                          <span class="badge badge-outline badge-error badge-sm text-red-700">DELETE</span>
-                        }
-                      }
-                      <span class="text-sm font-medium">{{ entry.entity }}</span>
-                      <span class="text-base-content/80 font-mono text-xs">#{{ entry.entityId }}</span>
-                      @if (entry.origin === 'remote_sync') {
-                        <span class="badge badge-outline badge-xs">远端同步</span>
-                      }
-                    </div>
-                    <div class="text-base-content/80 mt-1 ml-[72px] truncate font-mono text-xs">
-                      {{ formatPatchSummary(entry) }}
-                    </div>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        </div>
-
-        <!-- ▸ 提交框 -->
-        <div class="border-base-300 shrink-0 space-y-2 border-t p-4">
-          @if ($notice(); as notice) {
-            <div class="alert alert-warning alert-soft py-2 text-sm" data-testid="wt-notice" role="alert">
-              <span>{{ notice }}</span>
-            </div>
-          }
-          <input
-            class="input input-bordered w-full"
-            id="wt-commit-message"
-            [(ngModel)]="message"
-            data-testid="wt-commit-message"
-            placeholder="提交信息（无暂存区：提交全部未提交改动，相当于 git commit -am）"
-          />
-          <div class="flex gap-2">
-            <button class="btn btn-primary" (click)="runCommit()" data-testid="wt-commit">提交全部未提交改动</button>
-            <button class="btn" (click)="runDiscard()" data-testid="wt-discard">丢弃全部未提交改动</button>
-          </div>
-          @let commit = tree.commitState();
-          <div aria-live="polite" data-testid="wt-commit-result" role="status">
-            <span data-testid="wt-commit-phase">{{ commit.phase }}</span>
-            @if (commit.phase === 'success') {
-              <span data-testid="wt-commit-outcome">{{ commit.value.ok ? ' · 已提交' : ' · 并发冲突，可重试' }}</span>
-            } @else if (commit.phase === 'error') {
-              <span data-testid="wt-commit-error">· {{ commit.error.message }}</span>
-            }
-          </div>
-        </div>
-      </main>
+    <!-- ═══════════════════ 分支栏（GitHub Desktop 的顶栏） ═══════════════════ -->
+    <div class="border-base-300 flex shrink-0 items-center gap-3 px-4 py-2" data-testid="wt-branch-bar">
+      <span class="text-base-content/80 flex items-center gap-1.5 text-xs font-semibold uppercase">
+        当前仓库
+        <span class="badge badge-ghost border-base-300 gap-1 border text-xs normal-case" data-testid="wt-repo-label">
+          <svg class="text-primary" [lucideIcon]="GitBranch" size="11"></svg>
+          rxdb-demo
+        </span>
+      </span>
+      <span class="text-base-content/80 text-xs font-semibold uppercase">当前分支</span>
+      <app-working-tree-branch-menu
+        [(branchError)]="$branchError"
+        [(branchName)]="$newBranchName"
+        [(createOpen)]="$createPopoverOpen"
+        [(menuOpen)]="$branchMenuOpen"
+        [activeBranch]="$activeBranch()"
+        [branches]="branches.value()"
+        [selectedBranchId]="$selectedBranchId()"
+        (createBranch)="createBranch($event)"
+        (deleteBranch)="removeBranch($event)"
+        (mergeBranch)="openMergeDialog($event)"
+        (selectBranch)="selectBranch($event)"
+        (switchBranch)="switchBranch($event)"
+      />
+      <button
+        class="btn btn-ghost btn-xs ml-auto gap-1"
+        (click)="refreshStatus()"
+        data-testid="wt-refresh-status"
+        type="button"
+      >
+        <svg [lucideIcon]="RefreshCw" size="12"></svg>
+        刷新
+      </button>
     </div>
 
-    <!-- ═══════════════════ 创建分支 Popover（CDK Overlay） ═══════════════════ -->
-    <ng-template
-      [cdkConnectedOverlayBackdropClass]="'cdk-overlay-transparent-backdrop'"
-      [cdkConnectedOverlayHasBackdrop]="true"
-      [cdkConnectedOverlayOpen]="$showCreatePopover()"
-      [cdkConnectedOverlayOrigin]="createTrigger"
-      [cdkConnectedOverlayPositions]="createOverlayPositions"
-      (backdropClick)="closeCreatePopover()"
-      cdkConnectedOverlay
-    >
-      <div class="bg-base-100 border-base-300 rounded-lg border p-3 shadow-xl">
-        <div class="flex flex-col gap-2">
-          <div class="text-xs font-medium">
-            创建新分支
-            <span class="text-base-content/80">（基于 {{ $activeBranch() }}）</span>
-          </div>
-          <input
-            class="input input-sm input-bordered w-56"
-            #createInput
-            [(ngModel)]="$newBranchName"
-            (keydown.enter)="createBranch()"
-            (keydown.escape)="closeCreatePopover()"
-            (ngModelChange)="$branchError.set(null)"
-            data-testid="wt-branch-name"
-            placeholder="feature/my-feature"
-            type="text"
-          />
-          @if ($branchError(); as error) {
-            <p class="text-error text-xs" role="alert">{{ error }}</p>
-          }
-          <div class="flex justify-end gap-2">
-            <button class="btn btn-ghost btn-sm" (click)="closeCreatePopover()" data-testid="wt-branch-create-cancel">
-              取消
-            </button>
-            <button class="btn btn-primary btn-sm" (click)="createBranch()" data-testid="wt-branch-create-confirm">
-              创建
-            </button>
-          </div>
+    <!-- ═══════════════════ 主体：左侧标签页 + 右栏详情 ═══════════════════ -->
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+      <aside class="border-base-300 flex w-80 shrink-0 flex-col border-r">
+        <div class="tabs tabs-border shrink-0 px-3 pt-2" role="tablist">
+          <button
+            class="tab text-base-content focus-visible:ring-primary focus-visible:ring-2"
+            [attr.aria-selected]="$activeTab() === 'changes'"
+            [class.tab-active]="$activeTab() === 'changes'"
+            (click)="selectTab('changes')"
+            data-testid="wt-tab-changes"
+            role="tab"
+            type="button"
+          >
+            变更{{ $changesCount() }}
+          </button>
+          <button
+            class="tab text-base-content focus-visible:ring-primary focus-visible:ring-2"
+            [attr.aria-selected]="$activeTab() === 'history'"
+            [class.tab-active]="$activeTab() === 'history'"
+            (click)="selectTab('history')"
+            data-testid="wt-tab-history"
+            role="tab"
+            type="button"
+          >
+            历史
+          </button>
         </div>
-      </div>
-    </ng-template>
+
+        @if ($activeTab() === 'changes') {
+          @if ($showRestoreBanner()) {
+            <div class="alert alert-warning shrink-0 py-2 text-sm" data-testid="wt-restore-session" role="status">
+              @if ($restoreSession()) {
+                恢复会话进行中：来自提交
+                <code>{{ $restoreSession()!.targetCommitId }}</code>
+                —— 提交完成恢复，丢弃取消恢复。
+              }
+              @if (status.phase === 'success' && status.value.conflicted) {
+                恢复会话已与工作树分叉（捕获位对不上）—— 丢弃以取消会话，再重新恢复。
+              }
+            </div>
+          }
+          <app-working-tree-changes-list
+            [diffState]="tree.diffState()"
+            [selectedKey]="$selectedDiffKey()"
+            (readDiff)="refreshStatus()"
+            (selectEntry)="selectDiffEntry($event)"
+          />
+          <app-working-tree-commit-box
+            [(description)]="$commitDescription"
+            [(summary)]="$commitSummary"
+            [activeBranch]="$activeBranch()"
+            [commitState]="tree.commitState()"
+            [notice]="$notice()"
+            (commit)="runCommit()"
+            (discard)="runDiscard()"
+          />
+        } @else {
+          <app-working-tree-history-list
+            [activeBranch]="$activeBranch()"
+            [commitsState]="tree.listCommitsState()"
+            [selectedCommitId]="$selectedCommitId()"
+            (readCommits)="readCommits()"
+            (restore)="restoreEntry($event)"
+            (selectEntry)="selectCommit($event)"
+          />
+        }
+      </aside>
+
+      <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        @if ($activeTab() === 'changes') {
+          <!-- 数据在别的页面（如 /todo）产生：本页只做「看」与「提交」，
+               和 GitHub Desktop 打开一个别人编辑过的仓库是同一件事 -->
+          <app-working-tree-diff-viewer [entry]="$selectedDiffEntry()" />
+        } @else {
+          <app-working-tree-commit-detail [commit]="$selectedCommit()" (restore)="restoreEntry($event)" />
+        }
+      </main>
+    </div>
   } @else {
     <!-- ═══════════════════ 初始化卡片（未启用） ═══════════════════ -->
     <div class="flex flex-1 items-center justify-center overflow-y-auto p-8">
@@ -370,104 +195,24 @@
             <code>git init</code>
             。
           </p>
-          <button class="btn btn-primary" (click)="runEnable()" data-testid="wt-enable">初始化仓库（enable）</button>
+          <button class="btn btn-primary" (click)="runEnable()" data-testid="wt-enable" type="button">
+            初始化仓库（enable）
+          </button>
         </div>
       </div>
     </div>
   }
 
   <!-- ═══════════════════ 合并对话框 ═══════════════════ -->
-  @if ($mergeDialog(); as dialog) {
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      (click)="closeMergeDialog()"
-      (keydown.escape)="closeMergeDialog()"
-      aria-label="关闭对话框"
-      role="button"
-      tabindex="0"
-    >
-      <div
-        class="bg-base-100 w-full max-w-md rounded-xl p-6 shadow-2xl"
-        (click)="$event.stopPropagation()"
-        (keydown)="$event.stopPropagation()"
-        aria-modal="true"
-        data-testid="wt-merge-dialog"
-        role="dialog"
-      >
-        <div class="mb-4 flex items-center gap-2">
-          <svg class="text-success" [lucideIcon]="GitMerge" size="20"></svg>
-          <h2 class="text-lg font-semibold">合并分支</h2>
-        </div>
-
-        <div class="bg-base-200 mb-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
-          <span class="font-mono font-medium text-orange-500">{{ dialog.sourceBranchId }}</span>
-          <svg class="text-base-content/80" [lucideIcon]="ChevronRight" size="14"></svg>
-          <span class="font-mono font-medium text-green-600">{{ $activeBranch() }}</span>
-        </div>
-
-        <div class="mb-4">
-          <span class="mb-1.5 block text-sm font-medium">合并策略</span>
-          <div class="flex gap-2">
-            <button
-              class="flex-1 rounded-lg border px-3 py-2 text-left text-sm transition"
-              [class]="dialog.strategy === 'squash' ? 'bg-primary/10 border-primary' : 'border-base-300'"
-              (click)="setMergeStrategy('squash')"
-              data-testid="wt-merge-strategy-squash"
-            >
-              <div class="font-medium">Squash</div>
-              <div class="text-base-content/80 mt-0.5 text-xs">压缩为最小变更集，过滤幽灵操作</div>
-            </button>
-            <button
-              class="flex-1 rounded-lg border px-3 py-2 text-left text-sm transition"
-              [class]="dialog.strategy === 'normal' ? 'bg-primary/10 border-primary' : 'border-base-300'"
-              (click)="setMergeStrategy('normal')"
-              data-testid="wt-merge-strategy-normal"
-            >
-              <div class="font-medium">Normal</div>
-              <div class="text-base-content/80 mt-0.5 text-xs">逐条应用，保留每条独立变更记录</div>
-            </button>
-          </div>
-        </div>
-
-        <label class="mb-2 flex cursor-pointer items-center gap-3">
-          <input
-            class="checkbox checkbox-sm"
-            [ngModel]="dialog.deleteSource"
-            (ngModelChange)="setDeleteSource($event)"
-            data-testid="wt-merge-delete-source"
-            type="checkbox"
-          />
-          <span class="text-sm">
-            合并后删除源分支
-            <code class="text-xs opacity-70">{{ dialog.sourceBranchId }}</code>
-          </span>
-        </label>
-
-        <p class="text-base-content/80 mb-4 text-xs">
-          合并结果会进入 {{ $activeBranch() }} 的
-          <strong>工作树</strong>
-          （相当于
-          <code>git merge --no-commit</code>
-          ），提交之后才入史。
-        </p>
-
-        @if ($mergeError()) {
-          <div class="alert alert-error mb-4 py-2 text-sm" data-testid="wt-merge-error">
-            <svg [lucideIcon]="AlertCircle" size="16"></svg>
-            {{ $mergeError() }}
-          </div>
-        }
-
-        <div class="flex justify-end gap-2">
-          <button class="btn btn-ghost btn-sm" (click)="closeMergeDialog()" data-testid="wt-merge-cancel">取消</button>
-          <button class="btn btn-success btn-sm gap-1" (click)="executeMerge()" data-testid="wt-merge-confirm">
-            <svg [lucideIcon]="GitMerge" size="14"></svg>
-            确认合并
-          </button>
-        </div>
-      </div>
-    </div>
-  }
+  <app-working-tree-merge-dialog
+    [activeBranch]="$activeBranch()"
+    [dialog]="$mergeDialog()"
+    [error]="$mergeError()"
+    (closeRequested)="closeMergeDialog()"
+    (confirm)="executeMerge()"
+    (deleteSourceChange)="setDeleteSource($event)"
+    (strategyChange)="setMergeStrategy($event)"
+  />
 
   <!-- ═══════════════════ Toast ═══════════════════ -->
   @if ($toast(); as toast) {

@@ -1,4 +1,4 @@
-import { get, isEqual, orderBy as orderByFn } from '@aiao/utils';
+import { get, isEqual } from '@aiao/utils';
 import { OrderBy } from '../repository/query-options.interface.js';
 import { RuleGroup } from '../repository/query.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
@@ -204,7 +204,19 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case 'contains':
     case 'notContains': {
       const { value } = rule;
-      const contains = `${entityValue}`.includes(`${value}`);
+      // keyValue 列：SQL 侧把对象规则值逐键展开成 json_extract(...) 做子串比较（contains 是 OR、
+      // notContains 是 AND，见 sqlite-core `handle_flatmap_contains`）。模板字符串会把两个对象都
+      // 转成 '[object Object]'，于是「theme=light 是否 contains theme=dark」恒判成命中。
+      // 这里按同一套语义逐键比对；非对象值仍走通用子串路径。
+      let contains: boolean;
+      if (isObject(entityValue) && isObject(value) && !Array.isArray(entityValue) && !Array.isArray(value)) {
+        contains = Object.entries(value as Record<string, unknown>)
+          .filter(([, v]) => v != null)
+          .map(([key, v]) => `${(entityValue as Record<string, unknown>)[key]}`.includes(`${v}`))
+          .some(Boolean);
+      } else {
+        contains = `${entityValue}`.includes(`${value}`);
+      }
       return operator === 'contains' ? contains : !contains;
     }
     case 'startsWith':
@@ -388,6 +400,31 @@ export const isEntityEffectOrderBy = <T extends object>(
 };
 
 /**
+ * 判断一次更新是否真的改动了排序键。
+ *
+ * @param before - 更新前的完整实体
+ * @param after - 更新后的完整实体
+ * @param orderByArray - 排序字段与方向
+ * @returns 任一排序键的值发生变化时返回 `true`；任一侧缺失时返回 `true`（宁可多刷一次，不可漏刷）
+ *
+ * @remarks
+ * 与 {@link isEntityEffectOrderBy} 配对使用：后者只回答「这个位置会不会落进当前页」，
+ * 分不清「本来就在那个位置」和「刚挪过去」。增量合并只有在排序键**真的变了**时才需要
+ * 重新取页，否则一次无关字段的更新会把整页 SQL 白跑一遍。
+ *
+ * 取值走 lodash 路径语义（与 {@link calculateOrderBy} 一致），比较复用排序同一套归一化
+ * 比较器，因此表示同一时刻的 `Date` 与 ISO 字符串不会被判成「变了」。
+ */
+export const isOrderByValueChanged = (
+  before: object | null | undefined,
+  after: object | null | undefined,
+  orderByArray: OrderBy<string>[]
+): boolean => {
+  if (!before || !after) return true;
+  return orderByArray.some(({ field }) => compareOrderValues(get(before, field), get(after, field)) !== 0);
+};
+
+/**
  * 按 `orderBy` 给一批结果排序。
  *
  * @param result - 待排序的结果，**不就地修改**，返回新数组
@@ -402,11 +439,14 @@ export const isEntityEffectOrderBy = <T extends object>(
  * 字段取值走 lodash 的路径语义，因此 `'author.name'` 这样的嵌套字段可直接作为排序键。
  */
 export const calculateOrderBy = <T>(result: T[], orderBy: OrderBy<string>[]) =>
-  orderByFn(
-    result,
-    orderBy.map(o => o.field),
-    orderBy.map(o => o.sort)
-  );
+  result.slice().sort((a, b) => {
+    for (const { field, sort } of orderBy) {
+      const direction = sort === 'asc' ? 1 : -1;
+      const comparison = compareOrderValues(get(a, field), get(b, field)) * direction;
+      if (comparison !== 0) return comparison;
+    }
+    return 0;
+  });
 
 export const runMatches = (
   matches: { [key: string]: () => boolean },

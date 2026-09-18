@@ -357,7 +357,10 @@ describe('AC#7 安装在飞期间依赖失效', () => {
     await tick();
     // 现在才成功：这份成果绑在一条已经作废的连接上
     finishInstall?.();
-    await connecting;
+    // 这条 connect() 必须以中止错误收场：断连横穿了它的插件安装段，等待解锁时插件已被销毁、
+    // 已连接集合已清空，此时「成功返回适配器」就是在交出一条不存在的连接（见
+    // review-lifecycle.audit.spec.ts「插件安装期间断连后原 connect 应拒绝」）。
+    await expect(connecting).rejects.toThrow('aborted');
     await disconnecting;
     await tick();
 

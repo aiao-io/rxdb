@@ -57,6 +57,7 @@ type StatusHarness = {
   addRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata, entity: object) => void>>;
   cleanRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata) => void>>;
   removeRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata, entity: object) => void>>;
+  getRelationCache: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata) => Set<object>>>;
   getRelationObservableEntry: ReturnType<
     typeof vi.fn<(relation: EntityRelationMetadata) => RelationObservableEntry | undefined>
   >;
@@ -127,10 +128,21 @@ const SINGLE_RELATION_CASES: readonly SingleRelationCase[] = [
 
 const createStatus = (): StatusHarness => {
   const observableEntries = new Map<EntityRelationMetadata, RelationObservableEntry>();
+  // 关系缓存和真身一样是「按关系元数据懒建的 Set」：多对多关系流会把查到的 Junction
+  // 登记进去，替身少了这一格就只是替身不诚实，不该靠生产代码补兜底。
+  const relationCaches = new Map<EntityRelationMetadata, Set<object>>();
   return {
     addRelationEntity: vi.fn<(relation: EntityRelationMetadata, entity: object) => void>(),
     cleanRelationEntity: vi.fn<(relation: EntityRelationMetadata) => void>(),
     removeRelationEntity: vi.fn<(relation: EntityRelationMetadata, entity: object) => void>(),
+    getRelationCache: vi.fn<(relation: EntityRelationMetadata) => Set<object>>(relation => {
+      let cache = relationCaches.get(relation);
+      if (!cache) {
+        cache = new Set<object>();
+        relationCaches.set(relation, cache);
+      }
+      return cache;
+    }),
     getRelationObservableEntry: vi.fn<(relation: EntityRelationMetadata) => RelationObservableEntry | undefined>(
       relation => observableEntries.get(relation)
     ),

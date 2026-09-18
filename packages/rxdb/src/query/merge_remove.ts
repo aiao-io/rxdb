@@ -143,7 +143,9 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
     case 'find':
     case 'findOne':
     case 'findOneOrFail':
-      refresh_rules.push(['result_contains'], ['match_relation_where']);
+      // match_where + match_order_by: offset 页的页前行被删时窗口整体前移一格，
+      // 被删的那行既不在结果集里、也没有"更新前后"可比，result_contains 看不见它
+      refresh_rules.push(['result_contains'], ['match_where', 'match_order_by'], ['match_relation_where']);
       break;
 
     case 'findByCursor':

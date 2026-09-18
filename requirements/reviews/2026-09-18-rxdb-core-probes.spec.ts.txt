@@ -1,0 +1,75 @@
+import { of } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
+import type { RxDBEntityLocalCreatedEventData } from '../rxdb-events.js';
+import { EntityLocalUpdatedEvent } from '../rxdb-events.js';
+import mergeCreate from '../query/merge_create.js';
+import { getFingerprintByEntities } from '../repository/fingerprint.utils.js';
+import { QueryManager } from '../repository/QueryManager.js';
+import { createHarnessQueryTask } from './fixtures/query-task-harness.js';
+import { createTestDB } from './fixtures/test-db-setup.js';
+import { User } from './fixtures/test-entities.js';
+
+const createEvent = (id: string): RxDBEntityLocalCreatedEventData<typeof User> => ({
+  type: 'INSERT', namespace: 'public', entity: 'User', entityType: User,
+  id, recordAt: new Date(0), patch: { id }, inversePatch: null
+});
+
+describe('本轮核心评审临时复现', () => {
+  it('游标查询在新增行后仍遵守 limit', () => {
+    const task = createHarnessQueryTask(User, {
+      type: 'findByCursor',
+      options: { limit: 2, orderBy: [{ field: 'id', sort: 'asc' }] },
+      runner: () => of([{ id: 'a' }, { id: 'b' }])
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      mergeCreate(task, [createEvent('c')]);
+      expect(task.result).toEqual([{ id: 'a' }, { id: 'b' }]);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('计数快照已包含的行不能被迟到 CREATE 再次计数', () => {
+    const task = createHarnessQueryTask(User, {
+      type: 'count', options: {}, runner: () => of(1)
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      mergeCreate(task, [createEvent('a')]);
+      expect(task.result).toBe(1);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('updatedAt 排序查询收到时间戳事件后应重新排序', async () => {
+    const { rxdb, cleanup } = await createTestDB({ entities: [User] });
+    const manager = new QueryManager(rxdb, User);
+    const oldDate = new Date('2026-01-01T00:00:00Z');
+    const middleDate = new Date('2026-01-02T00:00:00Z');
+    const newDate = new Date('2026-01-03T00:00:00Z');
+    const a = rxdb.entityManager.createEntityRef(User, { id: 'a', updatedAt: oldDate }, { local: true });
+    const b = rxdb.entityManager.createEntityRef(User, { id: 'b', updatedAt: middleDate }, { local: true });
+    let current = [a, b];
+    const task = manager.createTask({
+      options: { type: 'find', options: { limit: 2, orderBy: [{ field: 'updatedAt', sort: 'asc' }] } },
+      runner: () => of(current),
+      getFingerprint: getFingerprintByEntities
+    });
+    const seen: string[][] = [];
+    const subscription = task.result$.subscribe(rows => seen.push(rows.map(row => row.id)));
+    try {
+      current = [b, a];
+      rxdb.dispatchEvent(new EntityLocalUpdatedEvent([{
+        type: 'UPDATE', namespace: 'public', entity: 'User', id: a.id,
+        recordAt: newDate, patch: { updatedAt: newDate }, inversePatch: { updatedAt: oldDate }
+      }]));
+      await vi.waitFor(() => expect(seen.at(-1)).toEqual([b.id, a.id]), { timeout: 300 });
+    } finally {
+      subscription.unsubscribe();
+      manager.destroy();
+      await cleanup();
+    }
+  });
+});

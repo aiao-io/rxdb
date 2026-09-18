@@ -70,7 +70,9 @@ const createEntity = (id: string, extra: Partial<TestEntity> = {}): TestEntity =
   entity.createdAt = extra.createdAt || new Date('2024-01-01T00:00:00Z');
   entity.updatedAt = extra.updatedAt || new Date('2024-01-01T00:00:00Z');
   entity.value = extra.value;
-  Object.assign(entity, { [STATUS]: { local: false } });
+  // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
+  // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块。
+  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {} } });
   return entity;
 };
 

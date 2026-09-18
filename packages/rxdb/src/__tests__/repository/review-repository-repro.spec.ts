@@ -1,7 +1,7 @@
 import { firstValueFrom, Observable, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import type { UUID } from '../../entity/entity.interface.js';
-import { getFingerprintPrimitive } from '../../repository/fingerprint.utils.js';
+import { getFingerprintByEntities, getFingerprintPrimitive } from '../../repository/fingerprint.utils.js';
 import { QueryManager } from '../../repository/QueryManager.js';
 import { EntityLocalUpdatedEvent } from '../../rxdb-events.js';
 import { getEntityStatus } from '../../rxdb-utils.js';
@@ -98,6 +98,62 @@ describe('代码评审仓储复现', () => {
         ])
       );
       await vi.waitFor(() => expect(seen).toEqual([0, 1]), { timeout: 200 });
+    } finally {
+      subscription.unsubscribe();
+      manager.destroy();
+      await cleanup();
+    }
+  });
+
+  it('updatedAt 排序查询收到时间戳事件后应重新排序', async () => {
+    const { rxdb, cleanup } = await createTestDB({ entities: [User] });
+    const manager = new QueryManager(rxdb, User);
+    const oldDate = new Date('2026-01-01T00:00:00.000Z');
+    const middleDate = new Date('2026-01-02T00:00:00.000Z');
+    const newDate = new Date('2026-01-03T00:00:00.000Z');
+    const a = rxdb.entityManager.createEntityRef(
+      User,
+      { id: '00000000-0000-0000-0000-000000000097' as UUID, updatedAt: oldDate },
+      { local: true, modified: false }
+    );
+    const b = rxdb.entityManager.createEntityRef(
+      User,
+      { id: '00000000-0000-0000-0000-000000000096' as UUID, updatedAt: middleDate },
+      { local: true, modified: false }
+    );
+    let current = [a, b];
+    const task = manager.createTask({
+      options: {
+        type: 'find',
+        // where 空组（匹配全部）是刻意的：本例要证的是**只靠 orderBy** 引用 updatedAt
+        // 就足以留下单字段时间戳事件，where 里不能出现 updatedAt，否则测的是另一条分支。
+        options: {
+          where: { combinator: 'and', rules: [] },
+          limit: 2,
+          orderBy: [{ field: 'updatedAt', sort: 'asc' }]
+        }
+      },
+      runner: () => of(current),
+      getFingerprint: getFingerprintByEntities
+    });
+    const seen: string[][] = [];
+    const subscription = task.result$.subscribe(rows => seen.push(rows.map(row => row.id)));
+    try {
+      current = [b, a];
+      rxdb.dispatchEvent(
+        new EntityLocalUpdatedEvent([
+          {
+            type: 'UPDATE',
+            namespace: 'public',
+            entity: 'User',
+            id: a.id,
+            recordAt: newDate,
+            patch: { updatedAt: newDate },
+            inversePatch: { updatedAt: oldDate }
+          }
+        ])
+      );
+      await vi.waitFor(() => expect(seen.at(-1)).toEqual([b.id, a.id]), { timeout: 300 });
     } finally {
       subscription.unsubscribe();
       manager.destroy();

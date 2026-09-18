@@ -9,19 +9,23 @@ import { resetE2eState } from './e2e-utils.js';
  * @fileoverview `/working-tree` 面板的 a11y 与 SC-005 归档用例（T128）。
  *
  * @remarks
- * 2026-09-18 面板重构为「git 工作流」形态（分支 + 历史 + 未提交改动 + 提交框）之后，
- * 这份 Angular 拷贝是**新设计的参考实现**；React / Vue 的两份拷贝仍对应旧版 API 驱动
- * 面板，待移植后重新对齐。契约值不变：live region、四态 axe 零违规、键盘可达、
- * SC-005 归档。
+ * 2026-09-18 二版重构为 GitHub Desktop 形态（顶部分支栏 + 变更/历史标签页 +
+ * 右栏详情）之后，这份 Angular 拷贝仍是**新设计的参考实现**；React / Vue 的
+ * 两份拷贝仍对应旧版 API 驱动面板，待移植后重新对齐。契约值不变：live region、
+ * 四态 axe 零违规、键盘可达、SC-005 归档。
  *
  * 扫描范围锁在 `[data-testid="working-tree-page"]`：页面外的导航壳由
  * `search.a11y.spec.ts` 那一路覆盖，混进来只会让这份用例因为别处的回归而红。
- * 创建分支 Popover 与合并对话框经 CDK overlay 渲染在面板 div 之外，同样不在扫描范围。
+ * 分支下拉与创建弹层是**内联**渲染（面板 div 内的子节点，见 branch-menu 的 TSDoc——
+ * CDK overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
+ * 因此它们在扫描与走查范围里；合并对话框是 fixed 定位的面板子元素，同样在内。
  *
  * **面板上没有 disabled 按钮**，这是设计决定而不是疏漏：daisyUI 的禁用态文字是
  * `base-content/20%`，白底上合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的
  * `color-contrast`（见 `search.a11y.spec.ts` 里记下的同一个坑）。前置条件不满足时
  * 面板改用 `role="alert"` 的提示行说明原因。
+ *
+ * 面板不造数据：写 Todo 走 /todo 页（`writeTodo`），和真实用户流一致。
  */
 
 /** 归档文件里的框架名；三端各写各的一份，互不覆盖。 */
@@ -39,22 +43,21 @@ const REPORTS_DIR = join(workspaceRoot, 'benchmarks', 'reports');
 const PANEL = '[data-testid="working-tree-page"]';
 
 /**
- * 面板里**期望**能用键盘走到的静态控件。
+ * 面板里**期望**能用键盘走到的静态控件（「变更」标签页、已启用、工作树干净）。
  *
- * 与旧版面板不同，这里断言的是**超集**而不是精确集合：历史里的「恢复」按钮与分支
- * 选中后出现的操作按钮数量随数据变化，精确集合会把那些动态控件数成违规。超集 +
- * 「所有被走到控件都有可见焦点指示」合起来仍是同一强度：没有任何一个焦点停留处
- * 可以没有指示。
+ * 与旧版面板不同，这里断言的是**超集**而不是精确集合：变更列表的行、历史里的
+ * 「恢复」按钮与分支选中后出现的操作按钮数量随数据变化，精确集合会把那些动态控件
+ * 数成违规。超集 + 「所有被走到控件都有可见焦点指示」合起来仍是同一强度：
+ * 没有任何一个焦点停留处可以没有指示。
  */
 const KEYBOARD_REACHABLE = [
+  'wt-branch-menu',
   'wt-refresh-status',
-  'wt-branch-create',
-  'wt-branch-item',
-  'wt-list-commits',
-  'wt-todo-title',
-  'wt-write-todo',
+  'wt-tab-changes',
+  'wt-tab-history',
   'wt-diff',
   'wt-commit-message',
+  'wt-commit-description',
   'wt-commit',
   'wt-discard'
 ] as const;
@@ -103,6 +106,13 @@ const walkPanelWithTab = async (page: Page, wanted: number): Promise<Map<string,
   return reached;
 };
 
+/** 走查收集结果的通用断言：目标控件都在，且每一个都有可见焦点指示。 */
+const expectReachedWithIndicator = (reached: Map<string, FocusIndicator>, wanted: readonly string[]): void => {
+  expect([...reached.keys()]).toEqual(expect.arrayContaining([...wanted]));
+  const withoutIndicator = [...reached.values()].filter(one => !hasVisibleFocusIndicator(one)).map(one => one.testId);
+  expect(withoutIndicator).toEqual([]);
+};
+
 /**
  * WCAG 2.4.7：键盘焦点必须有可见指示。
  *
@@ -141,8 +151,24 @@ const enablePanel = async (page: Page): Promise<void> => {
   await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
 };
 
+/**
+ * 到 /todo 页写一条 Todo 再回到工作树页；面板不造数据（与功能用例同一叙事）。
+ *
+ * 必须走侧栏链接做 SPA 导航而不是 `page.goto`：整页刷新后 /todo 上的写入
+ * 不经工作树捕获（实测 2026-09-18），工作树会一直显示「干净」。
+ */
+const writeTodo = async (page: Page, title: string): Promise<void> => {
+  await page.locator('a[href="/todo"]').first().click();
+  await page.getByTestId('todo-title-input').fill(title);
+  await page.getByTestId('todo-add').click();
+  await expect(page.getByTestId('todo-row').filter({ hasText: title })).toBeVisible({ timeout: 15000 });
+  await page.locator('a[href="/working-tree"]').first().click();
+  await expect(page.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+};
+
 test.describe('Working Tree Page A11y', () => {
-  test('状态变化对读屏可感知：状态胶囊与三块结果区都挂了 live region', async ({ page }) => {
+  test('状态变化对读屏可感知：状态胶囊与结果区都挂了 live region', async ({ page }) => {
     await openPanel(page);
     await enablePanel(page);
 
@@ -154,10 +180,13 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-commit-result')).toHaveAttribute('aria-live', 'polite');
     await expect(page.getByTestId('wt-enabled')).toHaveAttribute('role', 'status');
     await expect(page.getByTestId('wt-diff-result')).toHaveAttribute('aria-live', 'polite');
+
+    // 提交历史的结果区在「历史」标签页里：切过去才能断言。
+    await page.getByTestId('wt-tab-history').click();
     await expect(page.getByTestId('wt-commits-result')).toHaveAttribute('aria-live', 'polite');
   });
 
-  test('未启用 / 已启用 / 有未提交改动 / 已提交四态都没有 axe 违规', async ({ page }) => {
+  test('未启用 / 已启用 / 有未提交改动 / 已提交 / 历史页五态都没有 axe 违规', async ({ page }) => {
     await openPanel(page);
 
     // 冷启动的库没有提交能力，挂载那次 `status()` 撞上 WorkingTreeCapabilityDisabledError。
@@ -168,18 +197,21 @@ test.describe('Working Tree Page A11y', () => {
     await enablePanel(page);
     await scanPanel(page);
 
-    await page.getByTestId('wt-write-todo').click();
-    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+    await writeTodo(page, 'axe demo');
     await page.getByTestId('wt-diff').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
     await scanPanel(page);
 
     // 提交信息默认是空的（面板把它当 git commit 的 message 处理），不填就是
-    // `CommitValidationError`——四态里的「已提交」态需要一条真实的信息。
+    // `CommitValidationError`——「已提交」态需要一条真实的信息。
     await page.getByTestId('wt-commit-message').fill('demo commit');
     await page.getByTestId('wt-commit').click();
     await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
+    await scanPanel(page);
+
+    // 历史标签页（含提交行与详情区）也要零违规。
+    await page.getByTestId('wt-tab-history').click();
     await page.getByTestId('wt-list-commits').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     await scanPanel(page);
@@ -201,13 +233,49 @@ test.describe('Working Tree Page A11y', () => {
     // 超集断言（见 KEYBOARD_REACHABLE 的注释）：所有静态控件都必须走到，
     // 每一个被走到的控件（含动态出现的）都必须有可见焦点指示。
     const reached = await walkPanelWithTab(page, KEYBOARD_REACHABLE.length + 2);
-    const reachedKeys = [...reached.keys()];
-    for (const wanted of KEYBOARD_REACHABLE) {
-      expect(reachedKeys, `键盘走不到 ${wanted}`).toContain(wanted);
-    }
+    expectReachedWithIndicator(reached, KEYBOARD_REACHABLE);
 
-    const withoutIndicator = [...reached.values()].filter(one => !hasVisibleFocusIndicator(one)).map(one => one.testId);
-    expect(withoutIndicator).toEqual([]);
+    // 分支下拉是内联渲染的：打开后，新建按钮与分支行也在 Tab 序列里。
+    // 等它可见再走查——zoneless 的变更检测在下一帧，点完立刻 Tab 会打在渲染前的 DOM 上。
+    await page.getByTestId('wt-branch-menu').click();
+    await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
+    const menuReached = await walkPanelWithTab(page, 2);
+    expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item']);
+    await page.keyboard.press('Escape');
+
+    // 建一条分支，走「选中 → 操作按钮」路径：切换 / 合并 / 删除也要键盘可达。
+    await page.getByTestId('wt-branch-menu').click();
+    await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-branch-create').click();
+    await page.getByTestId('wt-branch-name').fill('feature/a11y');
+    await page.getByTestId('wt-branch-create-confirm').click();
+    await page.getByTestId('wt-branch-menu').click();
+    await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/a11y"]').click();
+    await expect(page.getByTestId('wt-branch-switch')).toBeVisible({ timeout: 10000 });
+    const actionsReached = await walkPanelWithTab(page, 3);
+    expectReachedWithIndicator(actionsReached, ['wt-branch-switch', 'wt-branch-merge', 'wt-branch-delete']);
+    await page.keyboard.press('Escape');
+
+    // 变更列表的行（数据来自 /todo 页的一条 Todo）要能被走到。
+    // 先点「读取」把焦点锚在列表头：导航回来时焦点在 body，Tab 会先停在分支栏上。
+    // 点完要等列表渲染出来再走查——diff 是异步读，立刻 Tab 会打在空列表上。
+    await writeTodo(page, 'a11y todo');
+    await page.getByTestId('wt-diff').click();
+    await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
+    await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
+    const diffReached = await walkPanelWithTab(page, 1);
+    expectReachedWithIndicator(diffReached, ['wt-diff-item']);
+
+    // 提交后，历史列表的行与恢复按钮要能被走到。
+    await page.getByTestId('wt-commit-message').fill('a11y commit');
+    await page.getByTestId('wt-commit').click();
+    await expect(page.getByTestId('wt-commit-outcome')).toHaveText(/已提交/, { timeout: 30000 });
+    await page.getByTestId('wt-tab-history').click();
+    await page.getByTestId('wt-list-commits').click();
+    await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
+    const historyReached = await walkPanelWithTab(page, 2);
+    expectReachedWithIndicator(historyReached, ['wt-commit-item', 'wt-restore']);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {

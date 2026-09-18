@@ -314,7 +314,6 @@ export class QueryTask<T extends EntityType, RT = unknown> {
     // 建立响应式查询流
     this.refresh$
       .pipe(
-        takeUntil(this.destroy$),
         distinctUntilChanged(),
         tap(() => this.refreshCount++),
         switchMap(() => {
@@ -332,7 +331,11 @@ export class QueryTask<T extends EntityType, RT = unknown> {
               return EMPTY;
             })
           );
-        })
+        }),
+        // takeUntil 必须放在 switchMap 之后：放在前面时 destroy 信号只会让
+        // switchMap 把外层标记为完成，却不会退订仍在运行的内层 runner（同步发射下
+        // 内层 teardown 尚未注册就已被外层退订打断），导致 runner 的 release 永不触发。
+        takeUntil(this.destroy$)
       )
       .subscribe({
         // catchError 之后这里只剩上游操作符自身的异常。留着是因为没有 error 处理器时

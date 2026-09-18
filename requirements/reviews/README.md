@@ -11,19 +11,23 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                                                | 说明                                                                                 | 剩余项                       |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
-| `README.md`                                         | 本说明与状态约定                                                                     | —                            |
-| `review.template.md`                                | 新建 review 记录的模板                                                               | —                            |
-| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（四轮）                             | 5 条 P2                      |
-| `next-0912-branch-review.md`                        | next-0912 分支相对 main 的 epic-006「工作树 + 提交历史」评审（2026-09-18 二次评审）  | 4 条 P1 + 4 条 P2 + 其余待办 |
-| `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                  | 5 块 + 1 条规格决策          |
-| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                            | Open                         |
-| `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch` | Open                         |
-| `RV-014-rv-013-execution-scope.md`                  | 补齐 RV-013 的继承 API 面、测试处置与验证矩阵                                        | Open                         |
+| 文件                                                | 说明                                                                                  | 剩余项                       |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------- |
+| `README.md`                                         | 本说明与状态约定                                                                      | —                            |
+| `review.template.md`                                | 新建 review 记录的模板                                                                | —                            |
+| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（四轮）                              | 5 条 P2                      |
+| `next-0912-branch-review.md`                        | next-0912 分支相对 main 的 epic-006「工作树 + 提交历史」评审（2026-09-18 第三次复核） | 5 条 P1 + 5 条 P2 + 其余待办 |
+| `next-0912-branch-review-max.md`                    | 同上，max 独立复核轮（已修条目已删）                                                  | 7 条 Top + 19 条 §5 + 6 顺延 |
+| `2026-09-18-rxdb-core-review.md`                    | RxDB 核心查询/关系/生命周期定向评审（含复跑记录）                                     | 4 条 P1 + 9 条 P2            |
+| `2026-09-18-rxdb-core-probes.spec.ts.txt`           | 上者的补充复现用例源码（文本，从测试目录移出）                                        | —                            |
+| `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                   | 4 块 + 1 条规格决策          |
+| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                             | Open                         |
+| `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch`  | Open                         |
+| `RV-014-rv-013-execution-scope.md`                  | 补齐 RV-013 的继承 API 面、测试处置与验证矩阵                                         | Open                         |
 
-> 最近一次整分支复核：2026-09-18，见 [`next-0912-branch-review.md`](./next-0912-branch-review.md)（二次评审的 1 条 P1 + 1 条 P2 已修并删除；剩余 4 条 P1 + 4 条 P2 均为顺延的架构级项）；
+> 最近一次整分支复核：2026-09-18，见 [`next-0912-branch-review.md`](./next-0912-branch-review.md)（HEAD `fc30f1da`；仍有 5 条 P1 + 5 条 P2，其中跨连接、切换、合并问题影响当前生产路径）；
 > [`next-0915-branch-review.md`](./next-0915-branch-review.md) 另记 next-0915 插件拆包评审。
+> 同日按「只留尚未处理的条目」约定清理了本目录全部报告：已修条目（含两轮修复记录）删除，剩余条目逐条对照 HEAD 核实并刷新锚点；
 > 2026-09-11 的全量复核已清空 `requirements-incomplete-stories-review.md`；更早的
 > `next-1123-branch-review.md`、`next-0831-branch-review.md` 与 `next-11-rxdb-adapter-tauri-review.md` 同样已删除。
 

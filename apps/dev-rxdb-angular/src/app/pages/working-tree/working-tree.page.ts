@@ -1,4 +1,4 @@
-import { MergeStrategy, RxDB, RxDBBranch } from '@aiao/rxdb';
+import { RxDB, RxDBBranch } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import type {
   CommitLogEntry,
@@ -9,8 +9,6 @@ import type {
 } from '@aiao/rxdb-plugin-working-tree';
 import { WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, type WorkingTreeResource } from '@aiao/rxdb-plugin-working-tree-angular';
-import { Todo } from '@aiao/rxdb-test/entities';
-import { OverlayModule } from '@angular/cdk/overlay';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -18,27 +16,25 @@ import {
   computed,
   DestroyRef,
   effect,
-  ElementRef,
   inject,
   OnInit,
-  signal,
-  viewChild
+  signal
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import {
-  LucideAlertCircle as AlertCircle,
-  LucideChevronRight as ChevronRight,
-  LucideCircleDot as CircleDot,
   LucideGitBranch as GitBranch,
   LucideGitCommitHorizontal as GitCommitHorizontal,
-  LucideGitMerge as GitMerge,
-  LucideHistory as History,
   LucideDynamicIcon,
-  LucidePlus as Plus,
-  LucideRotateCcw as RotateCcw,
-  LucideTrash2 as Trash2
+  LucideRefreshCw as RefreshCw
 } from '@lucide/angular';
 import { ResettableTimer } from '../opfs/utils/resettable-timer';
+import { WorkingTreeBranchMenuComponent } from './components/branch-menu.component';
+import { WorkingTreeChangesListComponent } from './components/changes-list.component';
+import { WorkingTreeCommitBoxComponent } from './components/commit-box.component';
+import { WorkingTreeCommitDetailComponent } from './components/commit-detail.component';
+import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
+import { WorkingTreeHistoryListComponent } from './components/history-list.component';
+import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
+import { diffEntryKey } from './working-tree.diff-format';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -50,19 +46,31 @@ const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = 
   unreachable_target: '这个提交不在当前分支的可达历史里。'
 };
 
-/** 合并对话框状态 */
-interface MergeDialogState {
-  sourceBranchId: string;
-  strategy: MergeStrategy;
-  deleteSource: boolean;
-}
-
+/**
+ * 工作树与提交历史页面 —— GitHub Desktop 形态的参考实现。
+ *
+ * @remarks
+ * 三区布局模仿 GitHub Desktop 的 Current Repository 视图：顶部分支栏（分支下拉）、
+ * 左侧「变更 / 历史」标签页（文件列表 + 底部提交框）、右栏选中项的详情
+ * （字段级 diff 或提交详情）。面板没有变更流（见 `useWorkingTree` 的 TSDoc），
+ * 每次命令后仍要手动重读；本页发起的写之后都由 `refreshStatus()` 兜这一下。
+ */
 @Component({
   selector: 'app-working-tree-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './working-tree.page.html',
-  imports: [CommonModule, FormsModule, OverlayModule, LucideDynamicIcon],
+  imports: [
+    CommonModule,
+    LucideDynamicIcon,
+    WorkingTreeBranchMenuComponent,
+    WorkingTreeChangesListComponent,
+    WorkingTreeCommitBoxComponent,
+    WorkingTreeCommitDetailComponent,
+    WorkingTreeDiffViewerComponent,
+    WorkingTreeHistoryListComponent,
+    WorkingTreeMergeDialogComponent
+  ],
   styles: [
     `
       :host {
@@ -86,10 +94,18 @@ export default class WorkingTreePage implements OnInit {
   });
 
   // ── 页面状态 ──────────────────────────────────────────────
-  readonly $selectedBranchId = signal<string | null>(null);
-  readonly $showCreatePopover = signal(false);
+  readonly $activeTab = signal<'changes' | 'history'>('changes');
+  readonly $selectedDiffKey = signal<string | null>(null);
+  readonly $selectedCommitId = signal<string | null>(null);
+  /** 提交草稿拆成摘要与描述两个框（GitHub Desktop 的 Summary / Description）。 */
+  readonly $commitSummary = signal('');
+  readonly $commitDescription = signal('');
+  // 分支菜单：开合、创建弹层、名字与错误都交给 branch-menu 组件用 model() 双向持有
+  readonly $branchMenuOpen = signal(false);
+  readonly $createPopoverOpen = signal(false);
   readonly $newBranchName = signal('');
   readonly $branchError = signal<string | null>(null);
+  readonly $selectedBranchId = signal<string | null>(null);
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
   readonly $mergeError = signal<string | null>(null);
   readonly $toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -97,42 +113,41 @@ export default class WorkingTreePage implements OnInit {
   readonly $restoreSession = signal<WorkingTreeRestoreSessionInfo | null>(null);
   readonly $firstVisibleMs = signal<number | null>(null);
 
-  message = '';
-  title = '写一条 Todo 作为改动';
-
   // ── 派生状态 ──────────────────────────────────────────────
   readonly $activeBranch = computed(() => this.branches.value().find(b => b.activated)?.id ?? '');
 
+  /** 「变更」标签上的条数；status 里那份 entryCount 与 diff 条目数同源。 */
+  readonly $changesCount = computed(() => {
+    const status = this.tree.statusState();
+    if (status.phase !== 'success' && status.phase !== 'empty') return '';
+    return status.value.entryCount > 0 ? `（${status.value.entryCount}）` : '';
+  });
+
+  /** 恢复会话警示条的可见性：status 说 restoring / conflicted 才亮。 */
+  readonly $showRestoreBanner = computed(() => {
+    const status = this.tree.statusState();
+    if (status.phase !== 'success' && status.phase !== 'empty') return false;
+    return status.value.restoring || status.value.conflicted;
+  });
+
+  readonly $selectedDiffEntry = computed(() => {
+    const diff = this.tree.diffState();
+    if (diff.phase !== 'success') return null;
+    const key = this.$selectedDiffKey();
+    return diff.value.entries.find(entry => diffEntryKey(entry) === key) ?? null;
+  });
+
+  readonly $selectedCommit = computed(() => {
+    const commits = this.tree.listCommitsState();
+    if (commits.phase !== 'success') return null;
+    const id = this.$selectedCommitId();
+    return commits.value.entries.find(entry => entry.commitId === id) ?? null;
+  });
+
   // ── 图标 ──────────────────────────────────────────────────
-  readonly GitBranch = GitBranch;
   readonly GitCommitHorizontal = GitCommitHorizontal;
-  readonly GitMerge = GitMerge;
-  readonly History = History;
-  readonly Plus = Plus;
-  readonly RotateCcw = RotateCcw;
-  readonly Trash2 = Trash2;
-  readonly ChevronRight = ChevronRight;
-  readonly CircleDot = CircleDot;
-  readonly AlertCircle = AlertCircle;
-
-  readonly createOverlayPositions = [
-    {
-      originX: 'end' as const,
-      originY: 'bottom' as const,
-      overlayX: 'end' as const,
-      overlayY: 'top' as const,
-      offsetY: 8
-    },
-    {
-      originX: 'end' as const,
-      originY: 'top' as const,
-      overlayX: 'end' as const,
-      overlayY: 'bottom' as const,
-      offsetY: -8
-    }
-  ];
-
-  readonly createInput = viewChild<ElementRef<HTMLInputElement>>('createInput');
+  readonly GitBranch = GitBranch;
+  readonly RefreshCw = RefreshCw;
 
   constructor() {
     this.destroyRef.onDestroy(() => this.toastTimer.clear());
@@ -142,10 +157,15 @@ export default class WorkingTreePage implements OnInit {
       if (phase === 'idle' || phase === 'loading') return;
       this.$firstVisibleMs.set(Math.round(performance.now() - this.createdAt));
     });
+    // 列表一刷新就自动选中第一条，右栏不至于空着——GitHub Desktop 打开仓库时
+    // 也是默认展示第一个文件的 diff。用户手动选中的键还在列表里就不动它。
     effect(() => {
-      if (this.$showCreatePopover()) {
-        setTimeout(() => this.createInput()?.nativeElement.focus(), 0);
-      }
+      const diff = this.tree.diffState();
+      const entries = diff.phase === 'success' ? diff.value.entries : [];
+      const keys = entries.map(diffEntryKey);
+      const current = this.$selectedDiffKey();
+      if (current !== null && keys.includes(current)) return;
+      this.$selectedDiffKey.set(keys[0] ?? null);
     });
   }
 
@@ -187,13 +207,6 @@ export default class WorkingTreePage implements OnInit {
     await this.tree.listCommits({ limit: 50 }).catch(() => undefined);
   }
 
-  async writeTodo(): Promise<void> {
-    const todo = new Todo();
-    todo.title = this.title;
-    await todo.save();
-    await this.refreshStatus();
-  }
-
   /**
    * 为下一次命令**现读**一份 status 并取出三个捕获位。
    *
@@ -222,8 +235,11 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     this.$notice.set(null);
+    const summary = this.$commitSummary().trim();
+    const description = this.$commitDescription().trim();
+    const message = description ? `${summary}\n\n${description}` : summary;
     await this.tree
-      .commit(this.message, { ...credentials, authorId: AUTHOR_ID, operationId: crypto.randomUUID() })
+      .commit(message, { ...credentials, authorId: AUTHOR_ID, operationId: crypto.randomUUID() })
       .catch(() => undefined);
     await this.refreshStatus();
     await this.readCommits();
@@ -262,36 +278,38 @@ export default class WorkingTreePage implements OnInit {
     await this.refreshStatus();
   }
 
+  // ── 标签页与选中 ──────────────────────────────────────────
+
+  selectTab(tab: 'changes' | 'history') {
+    this.$activeTab.set(tab);
+    if (tab !== 'history') return;
+    // 第一次进历史页时补一次读取并默认选中最新的提交；读过了就不重复发 IO。
+    if (this.tree.listCommitsState().phase === 'idle') {
+      void this.readCommits().then(() => this.selectHeadCommitIfNone());
+    } else {
+      this.selectHeadCommitIfNone();
+    }
+  }
+
+  selectDiffEntry(entry: WorkingTreeDiffEntry) {
+    this.$selectedDiffKey.set(diffEntryKey(entry));
+  }
+
+  selectCommit(entry: CommitLogEntry) {
+    this.$selectedCommitId.set(entry.commitId);
+  }
+
   // ── 分支操作 ──────────────────────────────────────────────
 
   selectBranch(id: string) {
     this.$selectedBranchId.set(id);
   }
 
-  toggleCreatePopover() {
-    if (this.$showCreatePopover()) {
-      this.closeCreatePopover();
-    } else {
-      this.$newBranchName.set('');
-      this.$branchError.set(null);
-      this.$showCreatePopover.set(true);
-    }
-  }
-
-  closeCreatePopover() {
-    this.$showCreatePopover.set(false);
-  }
-
-  async createBranch() {
-    const name = this.$newBranchName().trim();
-    if (!name) {
-      this.$branchError.set('分支名不能为空');
-      return;
-    }
+  async createBranch(name: string) {
     try {
       await this.#rxdb.versionManager.createBranch(name);
+      this.$createPopoverOpen.set(false);
       this.$newBranchName.set('');
-      this.closeCreatePopover();
       this.showToast('success', `分支 "${name}" 创建成功`);
     } catch (e: unknown) {
       this.$branchError.set(e instanceof Error ? e.message : '创建失败');
@@ -303,11 +321,13 @@ export default class WorkingTreePage implements OnInit {
    *
    * 不传 `requireClean` 的话切换照样发生（脏工作树按分支隔离保留，切走再切回原样还在），
    * 但那把「先处理未提交改动」这个 git 流程里最关键的一步藏起来了——demo 要演的就是这一步。
+   * 无论成败都收起菜单：切换是菜单里最重的一个动作，收起来让 toast 成为唯一的反馈。
    */
   async switchBranch(branchId: string) {
+    this.$branchMenuOpen.set(false);
     try {
       await this.tree.switchBranch(branchId, { requireClean: true });
-      this.$selectedBranchId.set(branchId);
+      this.$selectedBranchId.set(null);
       this.showToast('success', `已切换到分支 "${branchId}"`);
       await this.refreshStatus();
       await this.readCommits();
@@ -328,6 +348,7 @@ export default class WorkingTreePage implements OnInit {
       if (this.$selectedBranchId() === branchId) {
         this.$selectedBranchId.set(null);
       }
+      this.$branchMenuOpen.set(false);
       this.showToast('success', `分支 "${branchId}" 已删除`);
     } catch (e: unknown) {
       this.showToast('error', e instanceof Error ? e.message : '删除失败');
@@ -337,6 +358,7 @@ export default class WorkingTreePage implements OnInit {
   // ── 合并对话框 ────────────────────────────────────────────
 
   openMergeDialog(sourceBranchId: string) {
+    this.$branchMenuOpen.set(false);
     this.$mergeError.set(null);
     this.$mergeDialog.set({ sourceBranchId, strategy: 'squash', deleteSource: false });
   }
@@ -346,7 +368,7 @@ export default class WorkingTreePage implements OnInit {
     this.$mergeError.set(null);
   }
 
-  setMergeStrategy(strategy: MergeStrategy) {
+  setMergeStrategy(strategy: MergeDialogState['strategy']) {
     const cur = this.$mergeDialog();
     if (cur) this.$mergeDialog.set({ ...cur, strategy });
   }
@@ -384,23 +406,13 @@ export default class WorkingTreePage implements OnInit {
     }
   }
 
-  // ── 展示辅助 ──────────────────────────────────────────────
+  // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────
 
-  /** diff 条目的一行补丁摘要；与 branch-manager 的变更摘要同一个「旧 → 新」口味。 */
-  formatPatchSummary(entry: WorkingTreeDiffEntry): string {
-    const MAX = 200;
-    let text: string;
-    if (entry.operation === 'insert') {
-      text = entry.patch ? JSON.stringify(entry.patch) : '';
-    } else if (entry.operation === 'delete') {
-      text = entry.inversePatch ? JSON.stringify(entry.inversePatch) : '';
-    } else {
-      const ip = (entry.inversePatch ?? {}) as Record<string, unknown>;
-      const p = (entry.patch ?? {}) as Record<string, unknown>;
-      const keys = [...new Set([...Object.keys(ip), ...Object.keys(p)])];
-      text = keys.map(k => `${k}: ${JSON.stringify(ip[k])} → ${JSON.stringify(p[k])}`).join(', ');
-    }
-    return text.length > MAX ? text.slice(0, MAX) + '…' : text;
+  private selectHeadCommitIfNone(): void {
+    if (this.$selectedCommitId() !== null) return;
+    const commits = this.tree.listCommitsState();
+    if (commits.phase !== 'success' || commits.value.entries.length === 0) return;
+    this.$selectedCommitId.set(commits.value.entries[0].commitId);
   }
 
   private showToast(type: 'success' | 'error', message: string) {

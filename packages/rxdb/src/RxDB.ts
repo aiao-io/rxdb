@@ -1004,6 +1004,11 @@ export class RxDB {
       // 的判据（见 #resolve_dependency），调度器要靠它才会放行声明了该依赖的插件，
       // 而那批安装恰好跑在下一行的 await 里面。
       this.#set_adapter_connected(adapterName, adapter);
+      // 与 disconnect() 里的解绑成对：那一侧把名字置回 `''`，这里填回来，
+      // localAdapter$ / remoteAdapter$ 的去重环节才会认出「换了一个实例」。
+      // 只断一个适配器时 #shutdown() 不会跑，init() 也因幂等早退而不再填名字，
+      // 少了这一行，持续订阅者会一直攥着重连前那个已断开的实例。
+      this.#publish_adapter_name(adapterName);
       // 本条链的引导到此为止，剩下的是插件安装。先归零再装，最后一条链才有机会开闸报告。
       bootstrapDone();
       try {
@@ -1021,6 +1026,11 @@ export class RxDB {
         await this.#scheduler.settle();
         throw error;
       }
+      // 插件安装是整条引导链里唯一可以无限期挂起的一段（install() 等外部资源），
+      // 因此也是最可能被停机横穿的一段：拆卸会先作废纪元、销毁插件，再解锁这里的等待。
+      // 少了这道比对，被拆卸横穿的 connect() 会在插件已销毁、已连接集合已清空之后
+      // 「成功」返回一个适配器，调用方据此以为连接可用。与前几道同口径：只抛错、不清理。
+      this.#assert_connect_alive(adapterName, epoch);
       return adapter;
     })();
 
@@ -1102,6 +1112,10 @@ export class RxDB {
       // 重建，disconnect 重试也会对同一个（可能已部分拆卸的）实例重复调用。
       this.#adapter_map.delete(adapterName);
       this.#connect_promise_map.delete(adapterName);
+      // 解绑名字。#shutdown() 里那两行只覆盖「最后一个适配器也断了」的情形；还有别的
+      // 适配器连着时它根本不跑，名字原样留在 subject 里，去重环节于是看不到任何变化——
+      // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
+      this.#retract_adapter_name(adapterName);
     }
   }
 
@@ -1153,11 +1167,19 @@ export class RxDB {
     // 先于 await 置位：拆卸期间进来的 connect() 直接被 init() 的终态判据挡掉，
     // 否则它会在 disconnectAll() 之后醒来，把刚清空的已连接集合重新填上。
     this.#destroyed = true;
-    await this.disconnectAll();
-    // 顺序：syncState 订阅着 reachability.online$，先断下游再销毁上游，
-    // 中间那一下 complete 才不会被当成一帧状态推给面板。
-    this.syncState.destroy();
-    this.reachability.destroy();
+    try {
+      await this.disconnectAll();
+    } finally {
+      // 适配器关不干净也要释放实例级资源：`#destroyed` 已经置位，本方法幂等早退，
+      // 这个实例不会有第二次 destroy() 来补救。漏掉就等于让 reachability 的退避定时器
+      // 和两条长活 subject 永远吊着——偏偏「关闭失败」正是最该把它们放掉的那条路径。
+      // 错误照常向上抛，调用方仍然知道适配器没关干净。
+      //
+      // 顺序：syncState 订阅着 reachability.online$，先断下游再销毁上游，
+      // 中间那一下 complete 才不会被当成一帧状态推给面板。
+      this.syncState.destroy();
+      this.reachability.destroy();
+    }
   }
 
   /**
@@ -1246,6 +1268,38 @@ export class RxDB {
     this.#adapter_connected_sub.next(new Set(this.#connected_adapters));
     this.#connected_sub.next(this.#connected_adapters.size > 0);
     return true;
+  }
+
+  /**
+   * 把适配器名字填回它所属的那条 subject（`localAdapter$` / `remoteAdapter$` 的源头）。
+   *
+   * @param adapterName - 适配器名称
+   *
+   * @remarks
+   * 两条流都按 `distinctUntilChanged()` 去重**名字**，而调用方真正关心的是**实例**。
+   * 重连会换实例但不换名字，因此必须靠 {@link RxDB.#retract_adapter_name} 先置回 `''`、
+   * 这里再填回来，让去重看到一次真实的变化。名字没变时（首连，`init()` 已填过）
+   * 这一次推送会被去重吞掉，是空操作。
+   *
+   * 既不是 local 也不是 remote 的适配器不属于任何一条流，直接跳过。
+   */
+  #publish_adapter_name(adapterName: string): void {
+    if (this.#config.sync.local?.adapter === adapterName) this.#local_adapter_sub.next(adapterName);
+    if (this.#config.sync.remote?.adapter === adapterName) this.#remote_adapter_sub.next(adapterName);
+  }
+
+  /**
+   * 解绑适配器名：把它所属的那条 subject 置回 `''`。
+   *
+   * @param adapterName - 适配器名称
+   *
+   * @remarks
+   * 与 {@link RxDB.#publish_adapter_name} 成对，语义见那一条。`''` 会被 `filter(Boolean)`
+   * 拦下，订阅者在断连期间停在最后一个值上，不会收到一帧空适配器。
+   */
+  #retract_adapter_name(adapterName: string): void {
+    if (this.#config.sync.local?.adapter === adapterName) this.#local_adapter_sub.next('');
+    if (this.#config.sync.remote?.adapter === adapterName) this.#remote_adapter_sub.next('');
   }
 
   /**

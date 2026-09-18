@@ -188,6 +188,39 @@ export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata,
 };
 
 /**
+ * 深拷贝一个**静态默认值**，让每个实例拿到自己的副本。
+ *
+ * @param value - 元数据里声明的默认值（或默认值函数的返回值）
+ * @returns 与 `value` 等价、但不与任何其他实例共享引用的值
+ *
+ * @remarks
+ * `default` 写成字面量时，这个字面量在**元数据里只存在一份**：
+ * `{ name: 'labels', type: PropertyType.stringArray, default: [] }` 直接赋给实例，
+ * 意味着所有实例的 `labels` 是同一个数组——第一个实例 `push` 一下，
+ * 后面每个新建实例的「默认值」就都带着上一条的数据，元数据本身也被改脏。
+ *
+ * 默认值函数的返回值同样拷贝：函数体里 `return SHARED` 闭包一个常量是合法写法，
+ * 「是不是函数」并不能证明「每次都是新对象」。
+ *
+ * 只拷贝数据形态（`Uint8Array` / `Date` / 数组 / 纯对象），自定义类实例原样返回：
+ * 结构化克隆会丢原型，比共享引用更糟。
+ */
+const cloneDefaultValue = (value: unknown): unknown => {
+  if (value instanceof Uint8Array) return new Uint8Array(value);
+  if (value instanceof Date) return new Date(value);
+  if (Array.isArray(value)) return value.map(cloneDefaultValue);
+  if (!isPlainDefaultObject(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneDefaultValue(item)]));
+};
+
+/** 判断默认值是不是可以逐键拷贝的「纯对象」（排除自定义类实例）。 */
+const isPlainDefaultObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
+};
+
+/**
  * 算出 `entity` 上所有仍是 `undefined` 的缺省属性的值。
  *
  * @returns 待写入的键值对；没有任何属性需要填充时返回 `undefined`。
@@ -208,7 +241,7 @@ const collectDefaultValue = <T extends EntityType>(
       if (property.type === PropertyType.binary && !(value instanceof Uint8Array)) {
         throw new TypeError(`${property.name} default must be a Uint8Array`);
       }
-      data[property.name] = property.type === PropertyType.binary ? new Uint8Array(value as Uint8Array) : value;
+      data[property.name] = cloneDefaultValue(value);
     }
   });
   return need ? data : undefined;

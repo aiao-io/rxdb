@@ -394,9 +394,13 @@ export class EntityManager {
    */
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]) {
     const need_save_entities = getNeedSaveEntities(entities);
+    // 与 {@link save} 同口径：解绑多对多关系产生的待删 Junction 也要一并提交。
+    // 从前这里硬写 `[]`，于是 `owner.tags$.remove(tag)` 之后走 saveMany 的批量路径
+    // 只写了实体本身，中间表那行原封不动留在库里 —— 关系在 UI 上断了，重新查又回来。
+    const need_remove_entities = getNeedRemoveEntities(entities);
     const options = getEntityMutations({
       need_save_entities,
-      need_remove_entities: []
+      need_remove_entities
     });
     return this.mutations(options);
   }
