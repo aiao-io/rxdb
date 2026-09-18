@@ -8,7 +8,8 @@ import {
   LucideGitCommitHorizontal as GitCommitHorizontal,
   LucideDynamicIcon
 } from '@lucide/angular';
-import { gdAvatarColor, gdAvatarInitial, gdOpColor, gdOpIcon } from '../working-tree.gd';
+import { startDragResize } from '../working-tree.drag';
+import { gdAvatarColor, gdAvatarInitial, gdOpColor, gdOpIcon, gdPathColor } from '../working-tree.gd';
 import { WorkingTreeDiffViewerComponent } from './diff-viewer.component';
 
 /** 一个变更单元的选中键：同一 commit 里的单元也互不相同。 */
@@ -53,14 +54,14 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                 class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
                 [style.color]="'var(--gd-muted)'"
               >
-                系统基线
+                Baseline
               </span>
             } @else {
               <span
                 class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
                 [style.color]="'var(--gd-muted)'"
               >
-                提交
+                Commit
               </span>
             }
             @if (commit.parentIds.length > 1) {
@@ -68,14 +69,14 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                 class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
                 [style.color]="'var(--gd-muted)'"
               >
-                合并节点
+                Merge
               </span>
             }
             <button
               class="gd-icon-btn shrink-0"
               [attr.aria-expanded]="!$collapsed()"
-              [attr.aria-label]="$collapsed() ? '展开基本信息' : '折叠基本信息'"
-              [title]="$collapsed() ? '展开基本信息' : '折叠基本信息'"
+              [attr.aria-label]="$collapsed() ? 'Expand details' : 'Collapse details'"
+              [title]="$collapsed() ? 'Expand details' : 'Collapse details'"
               (click)="$collapsed.update(value => !value)"
               data-testid="wt-detail-collapse"
               type="button"
@@ -102,7 +103,7 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                 {{ gdAvatarInitial(commit.authorId ?? '?') }}
               </span>
               <span>{{ commit.authorId ?? '无作者' }}</span>
-              <span class="gd-commit-time">提交于 {{ commit.createdAt.toLocaleString() }}</span>
+              <span class="gd-commit-time">committed on {{ commit.createdAt.toLocaleString() }}</span>
               <span class="min-w-0 truncate font-mono text-[11px]" [title]="commit.commitId">
                 {{ commit.commitId.slice(0, 8) }}
               </span>
@@ -110,11 +111,11 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                 class="gd-btn-ghost shrink-0"
                 (click)="copySha(commit.commitId)"
                 data-testid="wt-commit-copy"
-                title="复制提交 id"
+                title="Copy commit ID"
                 type="button"
               >
                 <svg [lucideIcon]="Copy" size="12"></svg>
-                <span class="sr-only">{{ $copied() ? '已复制' : '复制提交 id' }}</span>
+                <span class="sr-only">{{ $copied() ? 'Copied' : 'Copy commit ID' }}</span>
               </button>
             </div>
           }
@@ -148,7 +149,10 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
                         [title]="'entities/' + unit.entity + '/' + unit.entityId"
                       >
                         <!-- 路径中间省略（与更改列表同一形态） -->
-                        <span class="flex min-w-0 flex-1 items-center text-[13px]">
+                        <span
+                          class="flex min-w-0 flex-1 items-center text-[13px]"
+                          [style.color]="gdPathColor(unit.operation)"
+                        >
                           <span class="min-w-0 truncate">entities/{{ unit.entity }}/</span>
                           <span class="gd-truncate-tail min-w-0"
                             ><span>{{ unit.entityId }}</span></span
@@ -172,7 +176,7 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
               <app-working-tree-diff-viewer [entry]="selectedUnit()" />
             </div>
           } @else if (changes.phase === 'loading') {
-            <p class="py-6 text-center text-xs" [style.color]="'var(--gd-muted)'">读取变更单元…</p>
+            <p class="py-6 text-center text-xs" [style.color]="'var(--gd-muted)'">Loading changes…</p>
           } @else if (changes.phase === 'error') {
             <p class="py-6 text-center text-xs" [style.color]="'var(--gd-del-fg)'">{{ changes.error.message }}</p>
           }
@@ -181,7 +185,7 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
     } @else {
       <div class="gd-empty h-full text-sm">
         <svg class="text-[var(--gd-line-num)]" [lucideIcon]="GitCommitHorizontal" size="40"></svg>
-        <p>从左侧选择一条提交，这里展示它的详情</p>
+        <p>Select a commit from the left to see its details</p>
       </div>
     }
   `
@@ -228,6 +232,7 @@ export class WorkingTreeCommitDetailComponent {
   readonly gdAvatarInitial = gdAvatarInitial;
   readonly gdOpColor = gdOpColor;
   readonly gdOpIcon = gdOpIcon;
+  readonly gdPathColor = gdPathColor;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -254,19 +259,13 @@ export class WorkingTreeCommitDetailComponent {
     this.#resetTimer = setTimeout(() => this.$copied.set(false), 2000);
   }
 
-  /** 拖动文件列表右缘的分隔条调宽；move/up 挂 document，拖出组件也不断。 */
+  /** 拖动文件列表右缘的分隔条调宽（公共拖拽样板，见 working-tree.drag）。 */
   startFilesResize(event: PointerEvent): void {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = this.$filesWidth();
-    const onMove = (move: PointerEvent) => {
-      this.$filesWidth.set(Math.max(140, Math.min(420, startWidth + move.clientX - startX)));
-    };
-    const onUp = () => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-    };
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    startDragResize(event, {
+      getWidth: () => this.$filesWidth(),
+      setWidth: width => this.$filesWidth.set(width),
+      min: 140,
+      max: 420
+    });
   }
 }

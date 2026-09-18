@@ -84,7 +84,7 @@ import {
             class="fixed inset-0 z-30"
             (click)="closeAll()"
             (keydown.escape)="closeAll()"
-            aria-label="关闭分支菜单"
+            aria-label="Close branch menu"
             role="button"
             tabindex="0"
           ></div>
@@ -93,14 +93,14 @@ import {
         @if (createOpen()) {
           <div
             class="gd-menu absolute top-full left-0 z-40 mt-1 w-64 p-3"
-            aria-label="创建新分支"
+            aria-label="Create a branch"
             data-testid="wt-branch-create-popover"
             role="dialog"
           >
             <div class="flex flex-col gap-2">
               <div class="text-xs font-medium">
-                创建新分支
-                <span [style.color]="'var(--gd-muted)'">（基于 {{ activeBranch() }}）</span>
+                Create a branch
+                <span [style.color]="'var(--gd-muted)'">from {{ activeBranch() }}</span>
               </div>
               <input
                 class="gd-input"
@@ -122,7 +122,7 @@ import {
                   data-testid="wt-branch-create-cancel"
                   type="button"
                 >
-                  取消
+                  Cancel
                 </button>
                 <button
                   class="gd-btn-primary"
@@ -130,7 +130,7 @@ import {
                   data-testid="wt-branch-create-confirm"
                   type="button"
                 >
-                  创建
+                  Create
                 </button>
               </div>
             </div>
@@ -144,11 +144,11 @@ import {
           >
             <div class="flex items-center justify-between px-3 pt-1 pb-1.5">
               <span class="text-[11px] font-semibold uppercase" [style.color]="'var(--gd-muted)'"
-                >分支（{{ branches().length }}）</span
+                >Branches ({{ branches().length }})</span
               >
               <button class="gd-btn-ghost shrink-0" (click)="openCreate()" data-testid="wt-branch-create" type="button">
                 <svg [lucideIcon]="Plus" size="12"></svg>
-                新建
+                New branch
               </button>
             </div>
             <div class="relative px-2 pb-1.5">
@@ -163,8 +163,8 @@ import {
                 [ngModel]="filter()"
                 [style.padding-left.px]="26"
                 (ngModelChange)="filter.set($event)"
-                aria-label="筛选分支"
-                placeholder="筛选"
+                aria-label="Filter branches"
+                placeholder="Filter"
                 type="text"
               />
             </div>
@@ -210,7 +210,7 @@ import {
                         class="gd-menu-row shrink-0"
                         [attr.aria-expanded]="$actionsFor() === branch.id"
                         [attr.data-branch-id]="branch.id"
-                        [title]="'分支操作：' + branch.id"
+                        [title]="'Branch actions: ' + branch.id"
                         (click)="toggleActions(branch.id)"
                         data-testid="wt-branch-actions"
                         role="menuitem"
@@ -228,7 +228,7 @@ import {
                         data-testid="wt-branch-switch"
                         type="button"
                       >
-                        切换
+                        Switch
                       </button>
                       <button
                         class="gd-btn-secondary"
@@ -237,7 +237,7 @@ import {
                         type="button"
                       >
                         <svg [lucideIcon]="GitMerge" size="11"></svg>
-                        合并到 {{ activeBranch() }}
+                        Merge into {{ activeBranch() }}
                       </button>
                       <button
                         class="gd-btn-secondary gd-btn-danger"
@@ -246,16 +246,16 @@ import {
                         type="button"
                       >
                         <svg [lucideIcon]="Trash2" size="11"></svg>
-                        删除
+                        Delete
                       </button>
                     </div>
                   }
                 </li>
               }
               @if (branches().length === 0) {
-                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">暂无分支</li>
+                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">No branches yet</li>
               } @else if (filteredBranches().length === 0) {
-                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">没有匹配的分支</li>
+                <li class="px-4 py-4 text-center text-sm" [style.color]="'var(--gd-muted)'">No matching branches</li>
               }
             </ul>
           </div>
@@ -363,7 +363,7 @@ export class WorkingTreeBranchMenuComponent {
   confirmCreate() {
     const name = this.branchName().trim();
     if (!name) {
-      this.branchError.set('分支名不能为空');
+      this.branchError.set('Branch name is required.');
       return;
     }
     this.createBranch.emit(name);

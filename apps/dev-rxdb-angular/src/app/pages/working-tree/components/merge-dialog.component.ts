@@ -36,7 +36,7 @@ export interface MergeDialogState {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         (click)="closeRequested.emit()"
         (keydown.escape)="closeRequested.emit()"
-        aria-label="关闭对话框"
+        aria-label="Close dialog"
         role="button"
         tabindex="0"
       >
@@ -51,7 +51,7 @@ export interface MergeDialogState {
         >
           <div class="mb-4 flex items-center gap-2">
             <svg class="text-[var(--gd-accent)]" [lucideIcon]="GitMerge" size="18"></svg>
-            <h2 class="text-[15px] font-semibold">合并分支</h2>
+            <h2 class="text-[15px] font-semibold">Merge branch</h2>
           </div>
 
           <div
@@ -64,7 +64,7 @@ export interface MergeDialogState {
           </div>
 
           <div class="mb-4">
-            <span class="mb-1.5 block text-sm font-medium">合并策略</span>
+            <span class="mb-1.5 block text-sm font-medium">Merge strategy</span>
             <div class="flex gap-2">
               <button
                 class="flex-1 rounded border px-3 py-2 text-left text-sm transition-colors"
@@ -75,7 +75,9 @@ export interface MergeDialogState {
                 type="button"
               >
                 <div class="font-medium">Squash</div>
-                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">压缩为最小变更集，过滤幽灵操作</div>
+                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">
+                  Squash into a minimal change set, filtering ghost operations
+                </div>
               </button>
               <button
                 class="flex-1 rounded border px-3 py-2 text-left text-sm transition-colors"
@@ -86,7 +88,9 @@ export interface MergeDialogState {
                 type="button"
               >
                 <div class="font-medium">Normal</div>
-                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">逐条应用，保留每条独立变更记录</div>
+                <div class="mt-0.5 text-xs" [style.color]="'var(--gd-muted)'">
+                  Apply each change separately, keeping individual change records
+                </div>
               </button>
             </div>
           </div>
@@ -100,17 +104,19 @@ export interface MergeDialogState {
               type="checkbox"
             />
             <span class="text-sm">
-              合并后删除源分支
+              Delete source branch after merging
               <code class="text-xs opacity-70">{{ dialog.sourceBranchId }}</code>
             </span>
           </label>
 
           <p class="mb-4 text-xs" [style.color]="'var(--gd-muted)'">
-            合并结果会进入 {{ activeBranch() }} 的
-            <strong>工作树</strong>
-            （相当于
+            The result lands in the
+            <strong>working tree</strong>
+            of
+            {{ activeBranch() }}
+            (like
             <code>git merge --no-commit</code>
-            ），提交之后才入史。
+            ) and enters history only after a commit.
           </p>
 
           @if (error()) {
@@ -130,11 +136,11 @@ export interface MergeDialogState {
               data-testid="wt-merge-cancel"
               type="button"
             >
-              取消
+              Cancel
             </button>
             <button class="gd-btn-primary" (click)="confirm.emit()" data-testid="wt-merge-confirm" type="button">
               <svg [lucideIcon]="GitMerge" size="13"></svg>
-              确认合并
+              Merge
             </button>
           </div>
         </div>

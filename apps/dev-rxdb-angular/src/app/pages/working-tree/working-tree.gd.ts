@@ -42,11 +42,17 @@ export const gdOpColor = (operation: WorkingTreeDiffEntry['operation']) =>
   : operation === 'delete' ? 'var(--gd-del-fg)'
   : '#d4a72c';
 
-/** 状态的中文名：图标上挂的 title / aria-label。 */
+/** 状态名：图标上挂的 title / aria-label。 */
 export const gdOpLabel = (operation: WorkingTreeDiffEntry['operation']) =>
-  operation === 'insert' ? '新增'
-  : operation === 'delete' ? '删除'
-  : '修改';
+  operation === 'insert' ? 'Added'
+  : operation === 'delete' ? 'Deleted'
+  : 'Modified';
+
+/** 路径文本的状态色（GitHub Desktop 的 PathLabel 同款：新增绿 / 删除红 / 修改正文色）。 */
+export const gdPathColor = (operation: WorkingTreeDiffEntry['operation']) =>
+  operation === 'insert' ? 'var(--gd-path-add)'
+  : operation === 'delete' ? 'var(--gd-path-del)'
+  : 'var(--gd-fg)';
 
 /**
  * GitHub Desktop 的 TimeAgo 口径的相对时间。

@@ -1,4 +1,3 @@
-import { CodeEditor } from '@aiao/code-editor-angular';
 import type { WorkingTreeDiffEntry } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
 import {
@@ -19,9 +18,14 @@ import {
   LucideDynamicIcon,
   LucideSettings as Settings
 } from '@lucide/angular';
-import { ThemeService } from '@modules/angular';
-import { buildHunks, filterWhitespaceOnlyChanges, formatFieldValue } from '../working-tree.diff-format';
-import { gdOpColor, gdOpIcon, gdOpLabel } from '../working-tree.gd';
+import {
+  buildFieldDiff,
+  buildHunks,
+  filterWhitespaceOnlyChanges,
+  formatFieldValue,
+  formatSide
+} from '../working-tree.diff-format';
+import { gdOpColor, gdOpIcon, gdOpLabel, gdPathColor } from '../working-tree.gd';
 
 /** 右侧 diff 的两种显示（GitHub Desktop 的 Unified / Split 同义）。 */
 export type WorkingTreeDiffViewMode = 'unified' | 'split';
@@ -36,6 +40,15 @@ export class WorkingTreeDiffDisplayPreferences {
   readonly wrap = signal(true);
 }
 
+/** Split 视图里的一行：一个字段的旧 / 新两侧，缺侧为 `null`。 */
+interface SplitRow {
+  readonly key: string;
+  readonly before: unknown;
+  readonly after: unknown;
+  readonly oldNumber: number | null;
+  readonly newNumber: number | null;
+}
+
 /**
  * 右栏的 diff 查看器，模仿 GitHub Desktop 的文件 diff 视图。
  *
@@ -45,15 +58,16 @@ export class WorkingTreeDiffDisplayPreferences {
  * （`buildHunks`，见 diff-format 的 TSDoc）：头部是 git 风格的
  * `@@ -a,b +c,d @@ <字段名>`（字段名占 git 里「函数上下文」的位置）。
  *
- * **两种显示模式**（GitHub Desktop 的 Unified / Split）：Unified 逐字段显示
- * `- / +` 行；Split 是左右两栏只读编辑器，**不带「改前 / 改后」文字标签**
- * （GitHub Desktop 的 split 也没有）。切换入口在 Diff Settings 菜单里，与
- * 「隐藏空白变更（Hide Whitespace Changes）」「自动换行（Show Word Wrap）」
+ * **两种显示模式**（GitHub Desktop 的 Unified / Split）：
+ * Unified 逐字段显示 `- / +` 行；Split 是**逐行对齐的双栏**（side-by-side 形态）——
+ * 一个字段占一行，旧值左栏红底、新值右栏绿底，缺侧留灰槽，两侧行号独立推进，
+ * **不带「改前 / 改后」文字标签**（GitHub Desktop 的 split 也没有）。
+ * 切换入口在 Diff Settings 菜单里，与 Hide Whitespace Changes / Show Word Wrap
  * 两个开关同处一菜单。两种模式只改变显示，不改变补丁内容。
  *
  * 文件头不显示**事务** id（`transactionId` 是工作树的簿记，与内容无关），
- * 路径 `entities/<实体>/<实体id>` 是「文件名」本身，完整保留；操作类型
- * （新增 / 修改 / 删除）用颜色图标展示，放在 Settings 按钮的右侧。
+ * 路径 `entities/<实体>/<实体id>` 是「文件名」本身，完整保留、按状态着色
+ * （PathLabel 同款）；操作类型图标放在 Settings 按钮的右侧（源码 diff-header 同位置）。
  *
  * 视觉对齐 GitHub Desktop：浅灰行号槽（`.gd-diff-gutter`），`-`/`+` 行整行红 / 绿底，
  * 行号与符号用对应侧的深红 / 深绿，内容文字保持正文色。
@@ -62,7 +76,7 @@ export class WorkingTreeDiffDisplayPreferences {
   selector: 'app-working-tree-diff-viewer',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CodeEditor, CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, LucideDynamicIcon],
   styles: [
     `
       /* 宿主是右栏 main 的 flex 子项：行数一多要在查看器内部滚动，不能把 main 撑开 */
@@ -90,9 +104,11 @@ export class WorkingTreeDiffDisplayPreferences {
         >
           <div class="flex min-w-0 items-center gap-2">
             <svg [lucideIcon]="FileDiff" [style.color]="gdOpColor(entry.operation)" size="14"></svg>
-            <!-- 路径里的实体 id 是「文件名」的一部分，不能省略；空间不够时中间省略（尾部保留结尾） -->
+            <!-- 路径里的实体 id 是「文件名」的一部分，不能省略；空间不够时中间省略（尾部保留结尾）；
+                 文本按状态着色（GitHub Desktop PathLabel 同款） -->
             <span
               class="flex min-w-0 flex-1 items-center text-[12px] font-semibold"
+              [style.color]="gdPathColor(entry.operation)"
               [title]="'entities/' + entry.entity + '/' + entry.entityId"
             >
               <span class="min-w-0 truncate">entities/{{ entry.entity }}/</span>
@@ -105,7 +121,7 @@ export class WorkingTreeDiffDisplayPreferences {
                 class="rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
                 [style.color]="'var(--gd-muted)'"
               >
-                远端同步
+                Remote sync
               </span>
             }
             <div class="flex shrink-0 items-center" #settingsContainer>
@@ -157,7 +173,7 @@ export class WorkingTreeDiffDisplayPreferences {
                       data-testid="wt-diff-whitespace"
                       type="checkbox"
                     />
-                    隐藏空白变更
+                    Hide Whitespace Changes
                   </label>
                   <label class="gd-menu-row cursor-pointer">
                     <input
@@ -166,7 +182,7 @@ export class WorkingTreeDiffDisplayPreferences {
                       data-testid="wt-diff-wrap"
                       type="checkbox"
                     />
-                    自动换行
+                    Show Word Wrap
                   </label>
                 </div>
               }
@@ -207,34 +223,36 @@ export class WorkingTreeDiffDisplayPreferences {
                 }
               </div>
             } @empty {
-              <p class="py-3 text-center text-xs" [style.color]="'var(--gd-muted)'">该改动没有字段级补丁可展示</p>
+              <p class="py-3 text-center text-xs" [style.color]="'var(--gd-muted)'">No field-level patch to display</p>
             }
           } @else {
-            <div class="gd-code-split">
-              <div
-                class="gd-code-side"
-                [class.gd-code-empty]="entry.inversePatch === null"
-                data-testid="wt-code-before"
-              >
-                <ao-code-editor
-                  [lineWrapping]="true"
-                  [readonly]="true"
-                  [theme]="theme.$currentThemeLightDark()"
-                  [value]="patchText(entry.inversePatch)"
-                  label="改前补丁（只读）"
-                  language="json"
-                />
-              </div>
-              <div class="gd-code-side" [class.gd-code-empty]="entry.patch === null" data-testid="wt-code-after">
-                <ao-code-editor
-                  [lineWrapping]="true"
-                  [readonly]="true"
-                  [theme]="theme.$currentThemeLightDark()"
-                  [value]="patchText(entry.patch)"
-                  label="改后补丁（只读）"
-                  language="json"
-                />
-              </div>
+            <div class="gd-split" data-testid="wt-split">
+              @for (row of splitRows(); track row.key) {
+                <div class="gd-split-row">
+                  <div
+                    class="gd-split-cell gd-split-old"
+                    [class.gd-split-cell-empty]="row.before === undefined"
+                    data-testid="wt-split-old"
+                  >
+                    @if (row.before !== undefined) {
+                      <span class="gd-split-num">{{ row.oldNumber }}</span>
+                      <span class="gd-split-sign">-</span>
+                      <span class="gd-split-value">{{ row.key }}: {{ formatSide(row.before) }}</span>
+                    }
+                  </div>
+                  <div
+                    class="gd-split-cell gd-split-new"
+                    [class.gd-split-cell-empty]="row.after === undefined"
+                    data-testid="wt-split-new"
+                  >
+                    @if (row.after !== undefined) {
+                      <span class="gd-split-num">{{ row.newNumber }}</span>
+                      <span class="gd-split-sign">+</span>
+                      <span class="gd-split-value">{{ row.key }}: {{ formatSide(row.after) }}</span>
+                    }
+                  </div>
+                </div>
+              }
             </div>
           }
         </div>
@@ -242,13 +260,12 @@ export class WorkingTreeDiffDisplayPreferences {
     } @else {
       <div class="gd-empty h-full text-sm">
         <svg class="text-[var(--gd-line-num)]" [lucideIcon]="FileDiff" size="40"></svg>
-        <p>从左侧选择一条改动，这里展示它的字段级差异</p>
+        <p>Select a change from the left to see its field-level diff</p>
       </div>
     }
   `
 })
 export class WorkingTreeDiffViewerComponent {
-  readonly theme = inject(ThemeService);
   readonly preferences = inject(WorkingTreeDiffDisplayPreferences);
   readonly entry = input<WorkingTreeDiffEntry | null>(null);
   readonly $settingsOpen = signal(false);
@@ -262,13 +279,28 @@ export class WorkingTreeDiffViewerComponent {
     return this.preferences.hideWhitespace() ? filterWhitespaceOnlyChanges(hunks) : hunks;
   });
 
+  /** Split 视图的行：一个字段一行，两侧行号独立推进（GitHub Desktop 的 side-by-side 行对齐）。 */
+  readonly splitRows = computed<SplitRow[]>(() => {
+    const entry = this.entry();
+    if (entry === null) return [];
+    let oldLine = 1;
+    let newLine = 1;
+    return buildFieldDiff(entry).map(line => {
+      const oldNumber = line.before === undefined ? null : oldLine++;
+      const newNumber = line.after === undefined ? null : newLine++;
+      return { key: line.key, before: line.before, after: line.after, oldNumber, newNumber };
+    });
+  });
+
   readonly FileDiff = FileDiff;
   readonly Settings = Settings;
   readonly ChevronDown = ChevronDown;
   readonly formatFieldValue = formatFieldValue;
+  readonly formatSide = formatSide;
   readonly gdOpIcon = gdOpIcon;
   readonly gdOpColor = gdOpColor;
   readonly gdOpLabel = gdOpLabel;
+  readonly gdPathColor = gdPathColor;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -298,9 +330,5 @@ export class WorkingTreeDiffViewerComponent {
   setViewMode(mode: WorkingTreeDiffViewMode): void {
     this.preferences.mode.set(mode);
     this.$settingsOpen.set(false);
-  }
-
-  patchText(patch: Record<string, unknown> | null): string {
-    return patch === null ? '' : JSON.stringify(patch, null, 2);
   }
 }

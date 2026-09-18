@@ -683,6 +683,8 @@ app-root:has(app-working-tree-page) {
   --gd-warn-fg: #f0c560;
   --gd-shadow: 0 12px 30px #0008;
   --gd-toolbar-edge: #11161a;
+  --gd-path-add: #7ee787;
+  --gd-path-del: #ffa198;
   --gd-sidebar-bg: #262c31;
   --gd-tabs-bg: #292f35;
   --gd-input-bg: #20262b;
@@ -785,11 +787,10 @@ app-root:has(app-working-tree-page) {
     height: 30px;
   }
   .gd-tab {
-    flex: 1;
+    flex: 0 0 auto;
     font-size: 13px;
-    justify-content: center;
     min-width: 0;
-    padding: 5px 3px;
+    padding: 5px 10px 4px;
     white-space: nowrap;
   }
   .gd-tab.gd-tab-active::after {
@@ -924,36 +925,56 @@ app-root:has(app-working-tree-page) {
     flex-direction: column;
     overflow: hidden;
   }
-  /* Split 显示的两栏（GitHub Desktop 的 split 视图）：左右各一栏只读编辑器，
-     **不带「改前 / 改后」文字标签**（GitHub Desktop 也没有）；空侧透明底。 */
-  .gd-code-split {
-    display: flex;
-    height: 100%;
-    min-height: 0;
+  /* Split 显示：逐行对齐的双栏（GitHub Desktop 的 side-by-side 形态），
+     不带「改前 / 改后」文字标签；旧值左栏红底、新值右栏绿底，缺侧留灰槽。 */
+  .gd-split {
+    min-height: 100%;
   }
-  .gd-code-side {
+  .gd-split-row {
+    display: flex;
+    min-height: 24px;
+  }
+  .gd-split-cell {
+    align-items: baseline;
     display: flex;
     flex: 1 1 50%;
-    flex-direction: column;
+    gap: 6px;
     min-width: 0;
-    overflow: hidden;
+    padding: 3px 12px;
   }
-  .gd-code-side + .gd-code-side {
+  .gd-split-cell + .gd-split-cell {
     border-left: 1px solid var(--gd-border);
   }
-  .gd-code-side ao-code-editor {
-    flex: 1 1 auto;
-    height: auto;
-    min-height: 0;
-  }
-  .gd-code-side[data-testid='wt-code-before'] .cm-line {
+  .gd-split-old {
     background: var(--gd-del-bg);
   }
-  .gd-code-side[data-testid='wt-code-after'] .cm-line {
+  .gd-split-new {
     background: var(--gd-add-bg);
   }
-  .gd-code-side.gd-code-empty .cm-line {
-    background: transparent;
+  .gd-split-cell.gd-split-cell-empty {
+    background: var(--gd-gutter-bg);
+  }
+  .gd-split-num {
+    color: var(--gd-line-num);
+    flex-shrink: 0;
+    font-size: 11px;
+    min-width: 16px;
+    text-align: right;
+  }
+  .gd-split-sign {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .gd-split-old .gd-split-sign {
+    color: var(--gd-del-fg);
+  }
+  .gd-split-new .gd-split-sign {
+    color: var(--gd-add-fg);
+  }
+  .gd-split-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .gd-hunk {
@@ -1015,12 +1036,8 @@ app-root:has(app-working-tree-page) {
       max-width: none;
       min-width: 0;
     }
-    .gd-code-split {
-      flex-direction: column;
-    }
-    .gd-code-side + .gd-code-side {
-      border-left: 0;
-      border-top: 1px solid var(--gd-border);
+    .gd-split-cell {
+      padding: 3px 8px;
     }
   }
   @media (max-width: 520px) {
@@ -1067,6 +1084,8 @@ app-root:has(app-working-tree-page) {
   --gd-warn-fg: #7d4e00;
   --gd-shadow: 0 12px 30px #1b1f2429;
   --gd-toolbar-edge: #d0d7de;
+  --gd-path-add: #116329;
+  --gd-path-del: #a40e26;
   --gd-sidebar-bg: #f6f8fa;
   --gd-tabs-bg: #f0f2f5;
   --gd-input-bg: #ffffff;

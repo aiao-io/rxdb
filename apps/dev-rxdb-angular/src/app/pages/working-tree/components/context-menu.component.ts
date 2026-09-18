@@ -46,7 +46,7 @@ const SEPARATOR_HEIGHT = 9;
         class="fixed inset-0 z-40"
         (click)="closeRequested.emit()"
         (keydown.escape)="closeRequested.emit()"
-        aria-label="关闭右键菜单"
+        aria-label="Close context menu"
         role="button"
         tabindex="0"
       ></div>
@@ -55,7 +55,7 @@ const SEPARATOR_HEIGHT = 9;
         [style.left.px]="clampedX()"
         [style.top.px]="clampedY()"
         [style.width.px]="MENU_WIDTH"
-        aria-label="右键菜单"
+        aria-label="Context menu"
         role="menu"
       >
         @for (item of menu.items; track item.id) {

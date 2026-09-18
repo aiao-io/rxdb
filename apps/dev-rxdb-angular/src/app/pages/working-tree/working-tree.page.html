@@ -32,18 +32,18 @@
             class="fixed inset-0 z-30"
             (click)="closeRepoMenu()"
             (keydown.escape)="closeRepoMenu()"
-            aria-label="关闭仓库菜单"
+            aria-label="Close repository menu"
             role="button"
             tabindex="0"
           ></div>
           <div
             class="gd-menu absolute top-full left-0 z-40 w-64"
             [style.width.px]="$asideWidth()"
-            aria-label="仓库列表"
+            aria-label="Repository list"
             data-testid="wt-repo-menu-popup"
             role="menu"
           >
-            <div class="gd-menu-header">当前仓库</div>
+            <div class="gd-menu-header">Current Repository</div>
             <button class="gd-menu-row" (click)="closeRepoMenu()" type="button">
               <svg [lucideIcon]="FolderGit2" size="14"></svg>
               <span class="min-w-0 flex-1 truncate text-left">rxdb-demo</span>
@@ -51,9 +51,9 @@
             </button>
             <div class="gd-menu-divider"></div>
             <a class="gd-menu-row" (click)="closeRepoMenu()" data-testid="wt-edit-data" routerLink="/todo">
-              编辑待办数据
+              Edit Todo data
             </a>
-            <a class="gd-menu-row" (click)="closeRepoMenu()" routerLink="/home">返回 RxDB Demo</a>
+            <a class="gd-menu-row" (click)="closeRepoMenu()" routerLink="/home">Back to RxDB Demo</a>
           </div>
         }
       </div>
@@ -87,10 +87,10 @@
         title="Fetch origin（重读本地状态与提交历史）"
         type="button"
       >
-        <svg [lucideIcon]="RefreshCw" size="18"></svg>
+        <svg [class.animate-spin]="$fetching()" [lucideIcon]="RefreshCw" size="18"></svg>
         <span class="min-w-0 flex-1 text-left">
-          <strong>Fetch origin</strong>
-          <small>Last fetched {{ $lastFetchedLabel() }}</small>
+          <strong>{{ $fetching() ? 'Fetching…' : 'Fetch origin' }}</strong>
+          <small>{{ $fetching() ? 'Fetching changes…' : 'Last fetched ' + $lastFetchedLabel() }}</small>
         </span>
       </button>
 
@@ -137,12 +137,13 @@
           @if ($showRestoreBanner()) {
             <div class="gd-warn-strip shrink-0" data-testid="wt-restore-session" role="status">
               @if ($restoreSession()) {
-                恢复会话进行中：来自提交
+                Restore session in progress from commit
                 <code>{{ $restoreSession()!.targetCommitId }}</code>
-                —— 提交完成恢复，丢弃取消恢复。
+                — commit to complete the restore, discard to cancel it.
               }
               @if (status.phase === 'success' && status.value.conflicted) {
-                恢复会话已与工作树分叉（捕获位对不上）—— 丢弃以取消会话，再重新恢复。
+                The restore session has diverged from the working tree (capture mismatch) — discard to cancel, then
+                restore again.
               }
             </div>
           }
@@ -179,7 +180,7 @@
         [attr.aria-valuenow]="$asideWidth()"
         (keydown)="handleAsideResizeKey($event)"
         (pointerdown)="startAsideResize($event)"
-        aria-label="调整左栏宽度"
+        aria-label="Resize sidebar"
         aria-orientation="vertical"
         data-testid="wt-aside-resize"
         role="separator"
@@ -203,17 +204,18 @@
       [style.background]="'var(--gd-bg)'"
     >
       <svg [lucideIcon]="GitBranch" [style.color]="'var(--gd-muted)'" size="40"></svg>
-      <h2 class="text-xl font-semibold">初始化仓库</h2>
+      <h2 class="text-xl font-semibold">Initialize repository</h2>
       <p class="max-w-md text-center text-sm" [style.color]="'var(--gd-muted)'">
         <code>enable()</code>
-        是数据库级的一次性开关（v1 没有
+        is a one-time database-level switch (v1 has no
         <code>disable()</code>
-        ）：启用之后整个库都按工作树语义运行，所有写入都会被捕获成未提交变更——相当于
+        ): once enabled, the whole database runs under working-tree semantics and every write is captured as an
+        uncommitted change — the equivalent of
         <code>git init</code>
-        。
+        .
       </p>
       <button class="gd-btn-primary" (click)="runEnable()" data-testid="wt-enable" type="button">
-        初始化仓库（enable）
+        Initialize repository (enable)
       </button>
     </div>
   }

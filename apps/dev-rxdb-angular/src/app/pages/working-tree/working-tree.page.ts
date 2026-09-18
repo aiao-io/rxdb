@@ -48,6 +48,7 @@ import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.compone
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
 import { diffEntryKey } from './working-tree.diff-format';
+import { startDragResize } from './working-tree.drag';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -57,20 +58,23 @@ const ASIDE_WIDTH_MAX = 560;
 
 /** `restore()` 的四个被拒成因 → 用户能看懂的提示。 */
 const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = {
-  conflict: '并发冲突：有人动过工作树，重试即可。',
-  dirty_working_tree: '工作树里还有未提交改动：先提交或丢弃，再恢复历史版本。',
-  incompatible_schema: '这个提交里有当前客户端不认识的实体，恢复不了。',
-  unreachable_target: '这个提交不在当前分支的可达历史里。'
+  conflict: 'Concurrent conflict: the working tree changed. Retry.',
+  dirty_working_tree: 'The working tree has uncommitted changes. Commit or discard them before restoring.',
+  incompatible_schema: 'This commit contains entities the current client cannot read.',
+  unreachable_target: 'This commit is not reachable from the current branch.'
 };
 
 /** `commit()` 的五种校验拒绝 → 用户能看懂的提示（demo 的入参只会命中 empty_commit）。 */
 const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
-  empty_message: '提交信息是空的：先写摘要。',
-  missing_author: '提交缺少作者信息。',
-  missing_operation_id: '提交缺少幂等键，无法安全重放。',
-  empty_commit: '工作树里没有可提交的改动。',
-  user_authored_system_commit: '系统基线提交不能带用户信息。'
+  empty_message: 'The commit message is empty. Write a summary first.',
+  missing_author: 'The commit is missing author information.',
+  missing_operation_id: 'The commit is missing an idempotency key and cannot be replayed safely.',
+  empty_commit: 'The working tree has no changes to commit.',
+  user_authored_system_commit: 'System baseline commits cannot carry user information.'
 };
+
+/** `requireClean` 切换被拒的提示；GitHub Desktop 会在切换时拒绝脏工作树，同款语义。 */
+const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or discard them before switching branches.';
 
 /**
  * 工作树与提交历史页面 —— GitHub Desktop 形态的参考实现。
@@ -146,6 +150,8 @@ export default class WorkingTreePage implements OnInit {
   readonly $repoMenuOpen = signal(false);
   /** 最近一次本地读取的时刻。 */
   readonly $lastFetchedAt = signal<number | null>(null);
+  /** 工具栏 Fetch 的进行中标志（GitHub Desktop 同款：转 spinner + Fetching…）。 */
+  readonly $fetching = signal(false);
   /** 供「上次获取：N 秒前」用的心跳：15s 一跳，文本不必秒级精确。 */
   readonly $now = signal(Date.now());
   /** 左栏宽度；拖动分隔条调（键盘：分隔条上方向键）。工具栏的仓库段跟着它走。 */
@@ -268,11 +274,17 @@ export default class WorkingTreePage implements OnInit {
     this.$repoMenuOpen.set(false);
   }
 
-  /** 重读本地状态与历史，并更新刷新时间。 */
+  /** 重读本地状态与历史，并更新刷新时间；进行中忽略重复点击（GitHub Desktop 的 Fetching 态）。 */
   async runFetch(): Promise<void> {
-    await this.refreshStatus();
-    await this.readCommits();
-    this.$lastFetchedAt.set(Date.now());
+    if (this.$fetching()) return;
+    this.$fetching.set(true);
+    try {
+      await this.refreshStatus();
+      await this.readCommits();
+      this.$lastFetchedAt.set(Date.now());
+    } finally {
+      this.$fetching.set(false);
+    }
   }
 
   // ── 右键菜单 ──────────────────────────────────────────────
@@ -284,7 +296,6 @@ export default class WorkingTreePage implements OnInit {
   openChangesContextMenu(request: WorkingTreeContextMenuRequest<WorkingTreeDiffEntry>) {
     request.event.preventDefault();
     const entry = request.target;
-    const path = `entities/${entry.entity}/${entry.entityId}`;
     this.$contextMenuTarget.set({
       kind: 'diff',
       key: diffEntryKey(entry),
@@ -295,9 +306,9 @@ export default class WorkingTreePage implements OnInit {
       x: request.event.clientX,
       y: request.event.clientY,
       items: [
-        { id: 'discard', label: '丢弃全部改动', danger: true, testId: 'wt-discard' },
+        { id: 'discard', label: 'Discard Changes', danger: true, testId: 'wt-discard' },
         { id: 'sep-1', label: '', separator: true },
-        { id: 'copy-path', label: `复制路径（${path}）` }
+        { id: 'copy-path', label: 'Copy Path' }
       ]
     });
   }
@@ -308,11 +319,11 @@ export default class WorkingTreePage implements OnInit {
     const items: WorkingTreeContextMenuItem[] = [];
     if (request.target.kind !== 'baseline' && request.target.kind !== 'branch_baseline') {
       items.push(
-        { id: 'restore', label: '恢复这个版本到工作树', testId: 'wt-restore' },
+        { id: 'restore', label: 'Restore this version to working tree', testId: 'wt-restore' },
         { id: 'sep-1', label: '', separator: true }
       );
     }
-    items.push({ id: 'copy-commit', label: '复制提交 id' });
+    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
     this.$contextMenuTarget.set({ kind: 'commit', commitId: request.target.commitId });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
@@ -349,9 +360,9 @@ export default class WorkingTreePage implements OnInit {
   async copyText(text: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
-      this.showToast('success', '已复制到剪贴板');
+      this.showToast('success', 'Copied to clipboard');
     } catch {
-      this.showToast('error', '剪贴板不可用，复制失败');
+      this.showToast('error', 'Clipboard unavailable — copy failed.');
     }
   }
 
@@ -377,39 +388,28 @@ export default class WorkingTreePage implements OnInit {
 
   /** 按住分隔条拖动；move/up 挂 document，拖出组件也不断。 */
   startAsideResize(event: PointerEvent) {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = this.$asideWidth();
-    const onMove = (move: PointerEvent) => {
-      this.$asideWidth.set(this.clampAsideWidth(startWidth + move.clientX - startX));
-    };
-    const onUp = () => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-    };
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    startDragResize(event, {
+      getWidth: () => this.$asideWidth(),
+      setWidth: width => this.$asideWidth.set(width),
+      min: ASIDE_WIDTH_MIN,
+      max: ASIDE_WIDTH_MAX
+    });
   }
 
   /** 拖动工具栏分段分隔条调宽（分支 / 获取两段），宽度限在 120–480px。 */
   startSectionResize(event: PointerEvent, section: 'branch' | 'fetch') {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = section === 'branch' ? this.$branchSectionWidth() : this.$fetchSectionWidth();
-    const onMove = (move: PointerEvent) => {
-      const width = Math.max(120, Math.min(480, startWidth + move.clientX - startX));
-      if (section === 'branch') {
-        this.$branchSectionWidth.set(width);
-      } else {
-        this.$fetchSectionWidth.set(width);
-      }
-    };
-    const onUp = () => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-    };
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    startDragResize(event, {
+      getWidth: () => (section === 'branch' ? this.$branchSectionWidth() : this.$fetchSectionWidth()),
+      setWidth: width => {
+        if (section === 'branch') {
+          this.$branchSectionWidth.set(width);
+        } else {
+          this.$fetchSectionWidth.set(width);
+        }
+      },
+      min: 120,
+      max: 480
+    });
   }
 
   // `enable()` 自己会重读一次 status，但**不会**重读 isEnabled ——
@@ -467,7 +467,7 @@ export default class WorkingTreePage implements OnInit {
   async runCommit(): Promise<void> {
     const credentials = await this.freshCredentials();
     if (credentials === null) {
-      this.$notice.set('读不到工作树状态，提交凭据无从谈起——先刷新状态。');
+      this.$notice.set('Cannot read the working tree — refresh status before committing.');
       return;
     }
     this.$notice.set(null);
@@ -487,12 +487,12 @@ export default class WorkingTreePage implements OnInit {
       if (cause instanceof CommitValidationError) {
         this.showToast('error', COMMIT_REJECTION_TEXT[cause.reason]);
       } else {
-        this.showToast('error', cause instanceof Error ? cause.message : '提交失败');
+        this.showToast('error', cause instanceof Error ? cause.message : 'Commit failed.');
       }
       result = null;
     }
     if (result !== null && !result.ok) {
-      this.showToast('error', '并发冲突：有人动过工作树，重试即可。');
+      this.showToast('error', 'Concurrent conflict: the working tree changed. Retry.');
     }
     if (result?.ok) {
       this.$commitSummary.set('');
@@ -505,7 +505,7 @@ export default class WorkingTreePage implements OnInit {
   async runDiscard(): Promise<void> {
     const credentials = await this.freshCredentials();
     if (credentials === null) {
-      this.$notice.set('读不到工作树状态，丢弃凭据无从谈起——先刷新状态。');
+      this.$notice.set('Cannot read the working tree — refresh status before discarding.');
       return;
     }
     this.$notice.set(null);
@@ -522,7 +522,7 @@ export default class WorkingTreePage implements OnInit {
   async restoreEntry(entry: CommitLogEntry): Promise<void> {
     const credentials = await this.freshCredentials();
     if (credentials === null) {
-      this.$notice.set('读不到工作树状态，恢复凭据无从谈起——先刷新状态。');
+      this.$notice.set('Cannot read the working tree — refresh status before restoring.');
       return;
     }
     this.$notice.set(null);
@@ -530,7 +530,7 @@ export default class WorkingTreePage implements OnInit {
     // 「拒绝」与「两份都留着」，没有入参可承载）——不带 authorId / operationId。
     const result = await this.tree.restore({ commitId: entry.commitId }, credentials).catch(() => null);
     if (result !== null && !result.ok) {
-      this.showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `恢复被拒：${result.reason}`);
+      this.showToast('error', RESTORE_REJECTION_TEXT[result.reason] ?? `Restore rejected: ${result.reason}`);
     }
     await this.refreshStatus();
   }
@@ -563,7 +563,7 @@ export default class WorkingTreePage implements OnInit {
       await this.#rxdb.versionManager.createBranch(name);
       this.$createPopoverOpen.set(false);
       this.$newBranchName.set('');
-      this.showToast('success', `分支 "${name}" 创建成功`);
+      this.showToast('success', `Branch "${name}" created.`);
     } catch (e: unknown) {
       this.$branchError.set(e instanceof Error ? e.message : '创建失败');
     }
@@ -580,15 +580,15 @@ export default class WorkingTreePage implements OnInit {
     this.$branchMenuOpen.set(false);
     try {
       await this.tree.switchBranch(branchId, { requireClean: true });
-      this.showToast('success', `已切换到分支 "${branchId}"`);
+      this.showToast('success', `Switched to branch "${branchId}".`);
       await this.refreshStatus();
       await this.readCommits();
     } catch (e: unknown) {
       this.showToast(
         'error',
-        e instanceof WorkingTreeDirtyError ? e.message
+        e instanceof WorkingTreeDirtyError ? DIRTY_SWITCH_TEXT
         : e instanceof Error ? e.message
-        : '切换失败'
+        : 'Switch failed.'
       );
     }
   }
@@ -598,9 +598,9 @@ export default class WorkingTreePage implements OnInit {
     try {
       await this.#rxdb.versionManager.removeBranch(branchId);
       this.$branchMenuOpen.set(false);
-      this.showToast('success', `分支 "${branchId}" 已删除`);
+      this.showToast('success', `Branch "${branchId}" deleted.`);
     } catch (e: unknown) {
-      this.showToast('error', e instanceof Error ? e.message : '删除失败');
+      this.showToast('error', e instanceof Error ? e.message : 'Delete failed.');
     }
   }
 
@@ -646,12 +646,12 @@ export default class WorkingTreePage implements OnInit {
       this.closeMergeDialog();
       this.showToast(
         'success',
-        `合并完成：${result.merged} 条变更已进入 ${this.$activeBranch()} 的工作树` +
-          `，提交之后才入史${result.sourceDeleted ? '，源分支已删除' : ''}`
+        `Merged ${result.merged} change(s) into the working tree of ${this.$activeBranch()}` +
+          ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
       );
       await this.refreshStatus();
     } catch (e: unknown) {
-      this.$mergeError.set(e instanceof Error ? e.message : '合并失败');
+      this.$mergeError.set(e instanceof Error ? e.message : 'Merge failed.');
     }
   }
 

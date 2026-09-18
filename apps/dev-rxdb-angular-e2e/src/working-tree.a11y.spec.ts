@@ -233,7 +233,9 @@ test.describe('Working Tree Page A11y', () => {
     // 「已提交」态需要一条真实的信息。禁用态配色专为 axe 选过，这一态扫描的就是它。
     await page.getByTestId('wt-commit-message').fill('demo commit');
     await page.getByTestId('wt-commit').click();
-    await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
+    await expect
+      .poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 })
+      .toContain('Committed');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
     await scanPanel(page);
 
@@ -304,7 +306,9 @@ test.describe('Working Tree Page A11y', () => {
     // 恢复在右键菜单里，而菜单项本身是 keyboard 可达的真按钮。
     await page.getByTestId('wt-commit-message').fill('a11y commit');
     await page.getByTestId('wt-commit').click();
-    await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
+    await expect
+      .poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 })
+      .toContain('Committed');
     await page.getByTestId('wt-tab-history').click();
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     const historyReached = await walkPanelWithTab(page, 2);

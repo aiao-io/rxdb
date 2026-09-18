@@ -62,7 +62,7 @@ const writeTodo = async (page: import('@playwright/test').Page, title: string): 
 const commit = async (page: import('@playwright/test').Page, message: string): Promise<void> => {
   await page.getByTestId('wt-commit-message').fill(message);
   await page.getByTestId('wt-commit').click();
-  await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('已提交');
+  await expect.poll(() => page.getByTestId('wt-commit-live').textContent(), { timeout: 30000 }).toContain('Committed');
   await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
 };
 
@@ -139,13 +139,16 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-diff-settings-popup')).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Unified' })).toBeChecked();
     await page.getByRole('radio', { name: 'Split' }).check();
-    // Split 是左右两栏只读编辑器，没有「改前 / 改后」文字标签（GitHub Desktop 同款）。
-    await expect(page.getByTestId('wt-code-before').locator('ao-code-editor')).toBeVisible();
-    await expect(page.getByTestId('wt-code-after')).toContainText('界面仿真测试');
+    // Split 是逐行对齐的双栏（GitHub Desktop 的 side-by-side），没有「改前 / 改后」标签；
+    // insert 条目旧侧留空槽，新侧有值。
+    await expect(page.getByTestId('wt-split')).toBeVisible();
+    const insertRow = viewer.locator('.gd-split-row').filter({ hasText: '界面仿真测试' });
+    await expect(insertRow.getByTestId('wt-split-new')).toContainText('界面仿真测试');
+    await expect(insertRow.getByTestId('wt-split-old')).toHaveText('');
     await expect(viewer.locator('.gd-code-side-label')).toHaveCount(0);
     await page.getByTestId('wt-diff-settings').click();
     await page.getByRole('radio', { name: 'Unified' }).check();
-    await expect(page.getByTestId('wt-code-before')).toHaveCount(0);
+    await expect(page.getByTestId('wt-split')).toHaveCount(0);
     await expect(viewer.locator('.gd-hunk')).toBeVisible();
     // 两个开关：隐藏空白变更 / 自动换行。
     await page.getByTestId('wt-diff-settings').click();
@@ -228,7 +231,7 @@ test.describe('Working Tree 页面功能', () => {
     await writeTodo(page, '未完成的草稿');
     await openBranchMenu(page);
     await branchRow(page, 'main').click();
-    await expect(page.getByTestId('wt-toast')).toContainText('未提交改动', { timeout: 10000 });
+    await expect(page.getByTestId('wt-toast')).toContainText('uncommitted changes', { timeout: 10000 });
     // 拒绝不等于切换：还留在原分支上
     await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x');
 
@@ -251,7 +254,7 @@ test.describe('Working Tree 页面功能', () => {
     await branchActions(page, 'feature/x').click();
     await page.getByTestId('wt-branch-merge').click();
     await page.getByTestId('wt-merge-confirm').click();
-    await expect(page.getByTestId('wt-toast')).toContainText('工作树', { timeout: 10000 });
+    await expect(page.getByTestId('wt-toast')).toContainText('working tree', { timeout: 10000 });
     await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
 
     await commit(page, 'merge: feature/x');
@@ -263,12 +266,12 @@ test.describe('Working Tree 页面功能', () => {
     // 行上没有恢复按钮（GitHub Desktop 同款），恢复入口在行的右键菜单里；
     // 基线的菜单里没有恢复项，最早的用户提交 docs 是最后一个可恢复的。
     const commitRows = page.getByTestId('wt-commit-item');
-    const contextMenu = page.locator('.gd-menu[aria-label="右键菜单"]');
+    const contextMenu = page.locator('.gd-menu[aria-label="Context menu"]');
     await commitRows.last().click({ button: 'right' });
     await expect(contextMenu).toBeVisible();
     await expect(page.getByTestId('wt-restore')).toHaveCount(0);
     // 点菜单外（透明背板）关闭。
-    await page.locator('[aria-label="关闭右键菜单"]').click({ position: { x: 4, y: 4 } });
+    await page.locator('[aria-label="Close context menu"]').click({ position: { x: 4, y: 4 } });
     await expect(contextMenu).toHaveCount(0);
     await commitRows.filter({ hasText: 'docs: 首页文档' }).click({ button: 'right' });
     await expect(contextMenu).toBeVisible();
@@ -328,7 +331,7 @@ test.describe('Working Tree 页面功能', () => {
     // 工作树干净 → CommitValidationError.empty_commit。提交框没有可见错误行
     // （GitHub Desktop 同款），失败走页面 toast——GitHub Desktop 的提交失败是弹框，
     // demo 的对应物就是 toast。
-    await expect(page.getByTestId('wt-toast')).toContainText('没有可提交的改动', { timeout: 30000 });
+    await expect(page.getByTestId('wt-toast')).toContainText('no changes to commit', { timeout: 30000 });
     // 拒绝不等于提交：摘要草稿还在，工作树还是干净。
     await expect(page.getByTestId('wt-commit-message')).toHaveValue('什么都不会发生');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');

@@ -41,7 +41,7 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
         @if (commits.phase === 'empty') {
           <div class="gd-empty py-10 text-xs">
             <svg class="text-[var(--gd-line-num)]" [lucideIcon]="History" size="28"></svg>
-            <p>这条分支还没有提交</p>
+            <p>No commits on this branch yet</p>
           </div>
         } @else if (commits.phase === 'success') {
           <ol data-testid="wt-commits-list">
@@ -78,7 +78,7 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
                       >
                         {{ gdAvatarInitial(entry.authorId ?? '?') }}
                       </span>
-                      <span class="min-w-0 truncate">{{ entry.authorId ?? '无作者' }}</span>
+                      <span class="min-w-0 truncate">{{ entry.authorId ?? 'No author' }}</span>
                       <span>·</span>
                       <!-- GitHub Desktop 的 TimeAgo：相对时间展示，完整时间戳留在悬停 title -->
                       <span class="min-w-0 truncate" [title]="entry.createdAt.toLocaleString()">{{
@@ -86,12 +86,12 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
                       }}</span>
                       @if (entry.kind === 'baseline' || entry.kind === 'branch_baseline') {
                         <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
-                          >系统基线</span
+                          >Baseline</span
                         >
                       }
                       @if (entry.parentIds.length > 1) {
                         <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
-                          >合并节点</span
+                          >Merge</span
                         >
                       }
                     </div>

@@ -36,7 +36,7 @@ const MISSING = '—';
 export const formatFieldValue = (value: unknown): string => JSON.stringify(value) ?? String(value);
 
 /** 缺失侧（`undefined`）的展示文本。 */
-const formatSide = (value: unknown): string => (value === undefined ? MISSING : formatFieldValue(value));
+export const formatSide = (value: unknown): string => (value === undefined ? MISSING : formatFieldValue(value));
 
 /**
  * 把一条 diff 条目摊成逐字段差异。

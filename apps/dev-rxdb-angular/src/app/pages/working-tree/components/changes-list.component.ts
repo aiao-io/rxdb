@@ -20,7 +20,7 @@ import {
   LucideSearch as Search
 } from '@lucide/angular';
 import { diffEntryKey, formatPatchSummary } from '../working-tree.diff-format';
-import { gdOpColor, gdOpIcon } from '../working-tree.gd';
+import { gdOpColor, gdOpIcon, gdPathColor } from '../working-tree.gd';
 
 /** 列表行上的一次右键；`event` 给页面定位菜单用。 */
 export interface WorkingTreeContextMenuRequest<T> {
@@ -30,10 +30,10 @@ export interface WorkingTreeContextMenuRequest<T> {
 
 /** 变更类型筛选的四个档位。 */
 const KINDS = [
-  { value: 'all', label: '全部' },
-  { value: 'insert', label: '新增' },
-  { value: 'update', label: '修改' },
-  { value: 'delete', label: '删除' }
+  { value: 'all', label: 'All' },
+  { value: 'insert', label: 'Added' },
+  { value: 'update', label: 'Modified' },
+  { value: 'delete', label: 'Deleted' }
 ] as const;
 
 /**
@@ -79,7 +79,7 @@ const KINDS = [
             <button
               class="gd-filter-kind-btn"
               [attr.aria-expanded]="$kindOpen()"
-              [title]="'变更类型：' + kindLabel()"
+              [title]="'Change type: ' + kindLabel()"
               (click)="$kindOpen.update(open => !open)"
               aria-haspopup="true"
               data-testid="wt-filter-kind"
@@ -91,7 +91,7 @@ const KINDS = [
             @if ($kindOpen()) {
               <div
                 class="gd-menu absolute top-full left-0 z-40 mt-1 w-36 py-1"
-                aria-label="变更类型"
+                aria-label="Change type"
                 data-testid="wt-filter-kind-popup"
                 role="menu"
               >
@@ -117,7 +117,7 @@ const KINDS = [
             <input
               [value]="$filter()"
               (input)="setFilter($event)"
-              aria-label="筛选变更"
+              aria-label="Filter changes"
               data-testid="wt-change-filter"
               placeholder="Filter"
               type="search"
@@ -133,8 +133,8 @@ const KINDS = [
         @if (diff.phase === 'empty') {
           <div class="gd-empty py-10 text-xs">
             <svg class="text-[var(--gd-line-num)]" [lucideIcon]="FileDiff" size="28"></svg>
-            <p>没有本地更改</p>
-            <p class="text-xs">在其它页面（如待办）写入数据后，这里会列出未提交的改动</p>
+            <p>No local changes</p>
+            <p class="text-xs">Data written on other pages (like Todo) shows up here as uncommitted changes</p>
           </div>
         } @else if (diff.phase === 'success') {
           <ul data-testid="wt-diff-list">
@@ -157,7 +157,10 @@ const KINDS = [
                     [title]="'entities/' + entry.entity + '/' + entry.entityId + ' · ' + formatPatchSummary(entry)"
                   >
                     <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
-                    <span class="gd-file-name flex min-w-0 flex-1 items-center">
+                    <span
+                      class="gd-file-name flex min-w-0 flex-1 items-center"
+                      [style.color]="gdPathColor(entry.operation)"
+                    >
                       <span class="min-w-0 truncate">entities/{{ entry.entity }}/</span>
                       <span class="gd-truncate-tail min-w-0"
                         ><span>{{ entry.entityId }}</span></span
@@ -173,7 +176,7 @@ const KINDS = [
                 </div>
               </li>
             } @empty {
-              <li class="gd-empty py-8 text-xs">没有匹配的变更</li>
+              <li class="gd-empty py-8 text-xs">No matching changes</li>
             }
           </ul>
         }
@@ -213,6 +216,7 @@ export class WorkingTreeChangesListComponent {
   readonly formatPatchSummary = formatPatchSummary;
   readonly opIcon = gdOpIcon;
   readonly opColor = gdOpColor;
+  readonly gdPathColor = gdPathColor;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -230,7 +234,7 @@ export class WorkingTreeChangesListComponent {
 
   /** 当前类型的展示名（漏斗按钮的 title 用）。 */
   kindLabel(): string {
-    return KINDS.find(kind => kind.value === this.$operation())?.label ?? '全部';
+    return KINDS.find(kind => kind.value === this.$operation())?.label ?? 'All';
   }
 
   setFilter(event: Event): void {

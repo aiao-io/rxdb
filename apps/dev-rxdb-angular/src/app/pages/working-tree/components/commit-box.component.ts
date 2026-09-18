@@ -18,7 +18,7 @@ import { gdAvatarColor, gdAvatarInitial } from '../working-tree.gd';
  *   只有「提交到 <branch>」文字，提交中才亮 spinner（GitHub Desktop 的 `<Loading />`），
  *   摘要为空时**禁用**（`isSummaryBlank`，tooltip 原文 "A commit summary is required to
  *   commit"），两个输入框提交中只读。
- * - 没有可见的「已提交 / idle」状态行：GitHub Desktop 的成功反馈是 **sr-only** 的
+ * - 没有可见的「Committed / idle」状态行：GitHub Desktop 的成功反馈是 **sr-only** 的
  *   `aria-live` 播报（"Committed Just now - …"），本组件同样只留一条读屏播报；
  *   失败由页面层弹 toast（GitHub Desktop 的提交失败是对话框，demo 的对应物是 toast）。
  * 后端只收一个 `message`（见 `CommitOptions` 的 TSDoc），摘要与描述在这里合成
@@ -70,9 +70,9 @@ import { gdAvatarColor, gdAvatarInitial } from '../working-tree.gd';
           class="gd-input min-w-0 flex-1"
           [(ngModel)]="summary"
           [readOnly]="isCommitting"
-          aria-label="提交摘要（必填）"
+          aria-label="Commit summary (required)"
           data-testid="wt-commit-message"
-          placeholder="摘要（必填）"
+          placeholder="Summary (required)"
           type="text"
         />
       </div>
@@ -80,17 +80,17 @@ import { gdAvatarColor, gdAvatarInitial } from '../working-tree.gd';
         class="gd-input min-h-[100px]"
         [(ngModel)]="description"
         [readOnly]="isCommitting"
-        aria-label="提交描述（可选）"
+        aria-label="Commit description (optional)"
         data-testid="wt-commit-description"
-        placeholder="描述"
+        placeholder="Description"
       ></textarea>
       <button
         class="gd-btn-primary w-full"
         [disabled]="summaryBlank || isCommitting"
         [title]="
-          isCommitting ? '提交中…'
-          : summaryBlank ? '填写摘要后才能提交'
-          : '无暂存区：提交全部未提交改动，相当于 git commit -am'
+          isCommitting ? 'Committing…'
+          : summaryBlank ? 'A commit summary is required to commit'
+          : 'No staging area: commits all uncommitted changes, like git commit -am'
         "
         (click)="commit.emit()"
         data-testid="wt-commit"
@@ -100,12 +100,12 @@ import { gdAvatarColor, gdAvatarInitial } from '../working-tree.gd';
         @if (isCommitting) {
           <svg class="animate-spin" [lucideIcon]="RefreshCw" size="13"></svg>
         }
-        提交到 {{ activeBranch() || '…' }}
+        Commit to {{ activeBranch() || '…' }}
       </button>
       <!-- GitHub Desktop 的提交成功对眼睛不可见：同款 sr-only 播报，读屏专用。 -->
       <span class="sr-only" aria-atomic="true" aria-live="polite" data-testid="wt-commit-live" role="status">
         @if (commitResult.phase === 'success' && commitResult.value.ok) {
-          已提交
+          Committed
         }
       </span>
     </div>
