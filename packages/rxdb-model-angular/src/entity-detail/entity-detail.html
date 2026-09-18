@@ -1,0 +1,58 @@
+<rxdb-entity-dialog [title]="dialogTitle()" (closeRequested)="onCancel()">
+  <!-- Tab Bar -->
+  <div class="tabs tabs-border min-h-0 flex-1" role="tablist">
+    @for (tab of tabs(); track tab.key) {
+      <input
+        class="tab"
+        [attr.aria-label]="tab.label"
+        [checked]="tab.key === activeTabKey()"
+        [name]="tabGroupName"
+        (change)="selectTab(tab.key)"
+        role="tab"
+        type="radio"
+      />
+      <div
+        class="tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col"
+        [class.overflow-auto]="tab.type === 'form'"
+        [class.overflow-hidden]="tab.type === 'table'"
+        [class.p-4]="tab.type === 'form'"
+        [hidden]="tab.key !== activeTabKey()"
+      >
+        @if (tab.type === 'form') {
+          <rxdb-entity-form
+            [data]="formDataValue"
+            [fields]="formFieldsValue"
+            [mode]="formModeValue"
+            [relatedEntityProvider]="relatedEntityProviderValue"
+            [showActions]="!isCreateMode()"
+            (fieldChanged)="onFieldChanged($event)"
+            (formCancelled)="onFormCancelled()"
+            (formSubmitted)="onFormSubmitted($event)"
+            (validationErrors)="onValidationErrors($event)"
+          />
+        }
+        @if (tab.type === 'table') {
+          <rxdb-entity-list
+            [creationChain]="creationChain()"
+            [draftParentEntity]="draftEntitySignal()"
+            [fixedFormData]="buildFixedFormData($any(tab))"
+            [fixedQuery]="buildFixedQuery($any(tab))"
+            [name]="$any(tab).relatedEntityName"
+            [namespace]="$any(tab).relatedNamespace"
+            [parentEntity]="parentEntityForRelation()"
+            [parentRelationName]="$any(tab).relationName"
+            [relationKind]="$any(tab).relationKind"
+          />
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Save/Cancel buttons for create mode (below tabs) -->
+  @if (isCreateMode()) {
+    <div class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3">
+      <button class="btn" (click)="onCancel()" type="button">取消</button>
+      <button class="btn btn-primary" (click)="onSave()" type="button">保存</button>
+    </div>
+  }
+</rxdb-entity-dialog>

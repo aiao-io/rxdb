@@ -90,6 +90,18 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/ag-grid/ag-grid.page')
   },
   {
+    path: 'entity-list',
+    loadComponent: () => import('./pages/entity/entity-list.page')
+  },
+  {
+    path: 'entity-detail',
+    loadComponent: () => import('./pages/entity/entity-detail.page')
+  },
+  {
+    path: 'query-builder',
+    loadComponent: () => import('./pages/entity/query-builder.page')
+  },
+  {
     path: 'code-editor',
     loadComponent: () => import('./pages/code-editor/code-editor.page')
   },

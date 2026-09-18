@@ -1,0 +1,37 @@
+<div class="flex h-full w-full flex-col overflow-hidden">
+  <!-- 筛选栏插槽 -->
+  <ng-content select="[filterBar]"></ng-content>
+
+  <!-- 筛选状态栏 -->
+  @if (queryActive() && statusText()) {
+    <div class="text-base-content/60 flex items-center gap-2 border-b px-3 py-1 text-xs">
+      <span>{{ statusText() }}</span>
+    </div>
+  }
+
+  <!-- 表格主体 -->
+  <div class="min-h-0 flex-1">
+    <rxdb-entity-table
+      [cellClearable]="cellClearable()"
+      [cellErrorDetector]="cellErrorDetector()"
+      [columns]="columns()"
+      [idField]="idField()"
+      [isDarkMode]="isDarkMode()"
+      [loading]="loading()"
+      [loadingMore]="loadingMore()"
+      [loadMore]="loadMore()"
+      [nonClearableFields]="nonClearableFields()"
+      [records]="records()"
+      [tableOptions]="tableOptions()"
+      (batchUpdated)="batchUpdated.emit($event)"
+      (cellChanged)="cellChanged.emit($event)"
+      (iconClicked)="iconClicked.emit($event)"
+      (rowDeleted)="rowDeleted.emit($event)"
+      (rowReordered)="rowReordered.emit($event)"
+      (scrollNearBottom)="scrollNearBottom.emit()"
+      (sortClicked)="sortClicked.emit($event)"
+    >
+      <ng-content ngProjectAs="[emptyState]" select="[emptyState]"></ng-content>
+    </rxdb-entity-table>
+  </div>
+</div>

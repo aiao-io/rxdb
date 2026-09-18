@@ -3,20 +3,37 @@
     {
       "name": "dev-rxdb-angular",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-angular"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-angular"
+      ],
       "port": 4200
     },
     {
       "name": "dev-rxdb-react",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-react"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-react"
+      ],
       "port": 4201
     },
     {
       "name": "dev-rxdb-vue",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["nx", "serve", "dev-rxdb-vue"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "dev-rxdb-vue"
+      ],
       "port": 4203
+    },
+    {
+      "name": "dev-rxdb-angular-attach",
+      "url": "http://localhost:4200",
+      "port": 4200
     }
   ],
   "version": "0.0.1"
