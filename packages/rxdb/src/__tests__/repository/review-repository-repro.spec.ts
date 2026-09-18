@@ -1,5 +1,6 @@
 import { firstValueFrom, Observable, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
+import type { UUID } from '../../entity/entity.interface.js';
 import { getFingerprintPrimitive } from '../../repository/fingerprint.utils.js';
 import { QueryManager } from '../../repository/QueryManager.js';
 import { EntityLocalUpdatedEvent } from '../../rxdb-events.js';
@@ -34,7 +35,7 @@ describe('代码评审仓储复现', () => {
   it('再次查询已编辑实体后，save 仍应提交未保存补丁', async () => {
     const { rxdb, adapter, cleanup } = await createTestDB({ entities: [User] });
     const row = {
-      id: '00000000-0000-0000-0000-000000000099',
+      id: '00000000-0000-0000-0000-000000000099' as UUID,
       name: '原始值',
       email: 'review@example.com',
       role: 'user',
@@ -44,7 +45,7 @@ describe('代码评审仓储复现', () => {
     vi.mocked(local.find).mockImplementation(async () => [
       rxdb.entityManager.createEntityRef(User, row, { local: true, modified: false })
     ]);
-    const repository = rxdb.getRepository(User);
+    const repository = rxdb.entityManager.getRepository(User);
     try {
       const user = await firstValueFrom(repository.get(row.id));
       user.name = '未保存编辑';

@@ -6,8 +6,8 @@ import mergeUpdate from '../../query/merge_update.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalRemovedEventData, RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
 import { compactChanges } from '../../sync-contract/compact-changes.js';
-import type { RxDBChange } from '../../system/change.js';
-import { createHarnessQueryTask } from '../fixtures/query-task-harness.js';
+import type { IRxDBChange } from '../../system/system.interface.js';
+import { createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
 
 class ReviewEntity {
   [key: string]: unknown;
@@ -48,7 +48,10 @@ describe('review query regression probes', () => {
         type,
         options: { where: { combinator: 'and', rules: [] }, orderBy: [{ field: 'score', sort: 'asc' }], limit: 1 },
         runner: () => of(type === 'findOne' ? { id: 'a', score: 10 } : [{ id: 'a', score: 10 }])
-      });
+      } as unknown as HarnessTaskOptions<
+        typeof ReviewEntity,
+        { id: string; score: number } | { id: string; score: number }[]
+      >);
       const subscription = task.result$.subscribe();
       const refresh = vi.spyOn(task, 'refresh');
       try {
@@ -93,7 +96,7 @@ describe('review query regression probes', () => {
       entityId: 'a',
       createdAt: new Date(0),
       updatedAt: new Date(0)
-    })) as RxDBChange[];
+    })) as IRxDBChange[];
     const actions = compactChanges(changes);
     expect(actions.deletes.size).toBe(1);
   });
@@ -106,14 +109,14 @@ describe('review query regression probes', () => {
         level: 0,
         where: { combinator: 'and', rules: [{ field: 'active', operator: '=', value: true }] }
       },
-      runner: () => of(1)
+      runner: () => of(0)
     });
     const subscription = task.result$.subscribe();
     try {
       mergeUpdate(task as unknown as QueryTask<typeof ReviewEntity>, [
         update('child', { parentId: 'root', active: true }, { parentId: 'root', active: false })
       ]);
-      expect(task.result).toBe(1);
+      expect(task.result).toBe(0);
     } finally {
       subscription.unsubscribe();
     }

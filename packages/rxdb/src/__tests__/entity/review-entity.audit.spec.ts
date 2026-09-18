@@ -1,4 +1,4 @@
-import { firstValueFrom, of } from 'rxjs';
+import { firstValueFrom, Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
@@ -9,8 +9,9 @@ import type {
   RelationEntityObservable,
   UUID
 } from '../../entity/entity.interface.js';
-import { getNeedRemoveEntities } from '../../entity/entity.utils.js';
+import { fillDefaultValue, getNeedRemoveEntities } from '../../entity/entity.utils.js';
 import { PropertyType, RelationKind, SyncType } from '../../entity/metadata-options.interface.js';
+import { transitionMetadata } from '../../entity/metadata-transition.js';
 import type { IRxDBAdapter, RxDBMutationsMap } from '../../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus, uuid } from '../../rxdb-utils.js';
 
@@ -98,7 +99,7 @@ describe('review entity audit', () => {
     vi.spyOn(repository, 'get').mockImplementation(id => of(id === parentA.id ? parentA : parentB));
     const child = db.entityManager.createEntityRef(ReviewChild, { id: uuid(), parentId: parentA.id }, { local: true });
     const values: (UUID | null)[] = [];
-    const subscription = child.parent$.subscribe(parent => values.push(parent?.id ?? null));
+    const subscription = child.parent$.subscribe((parent: ReviewParent | null) => values.push(parent?.id ?? null));
     db.entityManager.createEntityRef(ReviewChild, { id: child.id, parentId: parentB.id }, { local: true });
     subscription.unsubscribe();
     expect(child.parentId).toBe(parentB.id);
@@ -163,5 +164,36 @@ describe('review entity audit', () => {
     expect(junction).toBeDefined();
     db.entityManager.createEntityRef(ReviewOwner, { id: owner.id }, { local: true });
     expect(getEntityStatus(owner).getNeedSaveEntities()).toContain(junction);
+  });
+
+  it('last relation unsubscribe must release the repository subscription', async () => {
+    const db = setup();
+    const parent = db.entityManager.createEntityRef(ReviewParent, { id: uuid() }, { local: true });
+    const repository = db.entityManager.getRepository(ReviewParent);
+    const released = vi.fn();
+    vi.spyOn(repository, 'get').mockReturnValue(
+      new Observable(subscriber => {
+        subscriber.next(parent);
+        return released;
+      })
+    );
+    const child = db.entityManager.createEntityRef(ReviewChild, { id: uuid(), parentId: parent.id }, { local: true });
+    expect(await firstValueFrom(child.parent$)).toBe(parent);
+    expect(released).toHaveBeenCalledOnce();
+  });
+
+  it('mutable static defaults must be isolated between entity instances', () => {
+    const defaults = ['initial'];
+    const metadata = transitionMetadata({
+      name: 'ReviewMutableDefault',
+      properties: [{ name: 'labels', type: PropertyType.stringArray, default: defaults }]
+    });
+    const first = { labels: undefined as string[] | undefined };
+    const second = { labels: undefined as string[] | undefined };
+    fillDefaultValue(metadata, first);
+    fillDefaultValue(metadata, second);
+    first.labels!.push('first-only');
+    expect(second.labels).toEqual(['initial']);
+    expect(defaults).toEqual(['initial']);
   });
 });
