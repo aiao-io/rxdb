@@ -47,6 +47,12 @@ import {
       default: false
     },
     {
+      name: 'activeKey',
+      type: PropertyType.string,
+      unique: true,
+      nullable: true
+    },
+    {
       name: 'fromChangeId',
       type: PropertyType.number,
       nullable: true
@@ -124,6 +130,21 @@ export class RxDBBranch {
    * 是否激活
    */
   activated!: boolean;
+
+  /**
+   * active 哨兵键：本分支是 active 时为 `ACTIVE_BRANCH_KEY`，否则为 `null`
+   *
+   * @remarks
+   * 唯一约束 + `NULL` 不参与唯一比较 = 全库至多一条 active 分支。这条约束只有 schema
+   * 拦得住：运行期守卫再严，也只能在两行都写进去**之后**才发现，而那时「当前分支是谁」
+   * 已经没有答案了。
+   *
+   * 它**不是**第二份 active 分支 id。真相仍然只有 `activated` 一列，本列存的是一个与任何
+   * 分支 id 都不相同的常量哨兵——存 id 会让同一个事实有两份写法，二者漂移时无法判定谁对。
+   *
+   * 因此**每一处**写 `activated` 的地方都必须同时写本列，两列必须同进同出。
+   */
+  activeKey?: string | null;
 
   /**
    * 父分支 ID

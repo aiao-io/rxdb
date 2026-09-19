@@ -38,7 +38,10 @@ interface IdentityCacheOwner {
 export const createEntityProxy = <T extends EntityType>(entity: EntityInstanceType<T>): EntityInstanceType<T> => {
   const state = getEntityStatus(entity);
   const metadata = getEntityMetadata(entity.constructor as EntityType);
-  let pendingCheck = false;
+  // 已排队但尚未触发的防抖 checkChange 是「哪一代」的；没有排队时为 undefined。
+  // 不能只用一个 boolean：reset()/replace() 会把上一代的排队作废（见下方 generation 比较），
+  // 此后同一 tick 里的新赋值必须能**重新**排队，否则那次编辑永远等不到 checkChange。
+  let pendingGeneration: number | undefined;
 
   const handler: ProxyHandler<EntityInstanceType<T>> = {
     /**
@@ -61,14 +64,15 @@ export const createEntityProxy = <T extends EntityType>(entity: EntityInstanceTy
         // 同步记录变更属性，用于优化 patch 计算
         state.markChanged(prop as keyof EntityInstanceType<T>);
         state.modified = true;
-        if (!pendingCheck) {
-          pendingCheck = true;
+        if (pendingGeneration !== state.generation) {
           // 记下排队时的代数：reset()/replace() 若在微任务触发前同步跑过，
           // #changed_keys/_patches 已被清空，此次防抖排队的 checkChange 已过期，
           // 执行只会把一条空 patch 塞回刚清空的 _patches
           const scheduledGeneration = state.generation;
+          pendingGeneration = scheduledGeneration;
           queueMicrotask(() => {
-            pendingCheck = false;
+            // 只清自己那一代的占位：作废后又排了新一代时，这里不能把新的一并抹掉
+            if (pendingGeneration === scheduledGeneration) pendingGeneration = undefined;
             if (state.generation !== scheduledGeneration) return;
             state.checkChange();
           });

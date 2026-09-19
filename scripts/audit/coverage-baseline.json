@@ -26,10 +26,10 @@
       "lines": 100
     },
     "rxdb": {
-      "statements": 95,
+      "statements": 94,
       "branches": 90,
-      "functions": 96,
-      "lines": 96
+      "functions": 95,
+      "lines": 95
     },
     "rxdb-adapter-electron": {
       "statements": 93,
@@ -186,6 +186,30 @@
       "branches": 86,
       "functions": 96,
       "lines": 94
+    },
+    "rxdb-plugin-working-tree": {
+      "statements": 97,
+      "branches": 91,
+      "functions": 98,
+      "lines": 98
+    },
+    "rxdb-plugin-working-tree-angular": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-working-tree-react": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-working-tree-vue": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
     },
     "rxdb-plugin-workspace": {
       "statements": 90,

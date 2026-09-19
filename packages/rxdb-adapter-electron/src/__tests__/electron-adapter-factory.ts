@@ -11,7 +11,7 @@
  * @module __tests__/electron-adapter-factory
  */
 
-import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -106,13 +106,22 @@ class QueryCountingElectronAdapter extends RxDBAdapterElectron {
 const encryptedQueryCounts = new WeakMap<object, () => number>();
 
 async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingElectronAdapter> {
-  const entities = ((options ?? {}) as { entities?: EntityType[] }).entities?.slice() ?? [];
+  const rawOptions = (options ?? {}) as {
+    entities?: EntityType[];
+    plugins?: readonly Plugin[];
+    remoteAdapter?: string;
+  };
+  const entities = rawOptions.entities?.slice() ?? [];
+  const plugins = rawOptions.plugins ?? [];
   const rxdb = new RxDB({
     dbName: uniqueDbName(),
     context: { userId: 'userId' },
     entities,
     sync: {
       local: { adapter: ADAPTER_NAME },
+      // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，
+      // 缺一侧 `EntityManager.init()` 直接抛。不传就整个不出现这个键，既有调用方零变化。
+      ...(rawOptions.remoteAdapter === undefined ? {} : { remote: { adapter: rawOptions.remoteAdapter } }),
       type: SyncType.None
     }
   });
@@ -127,10 +136,15 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
 
   // 共享套件（undo/redo、版本分支、系统表迁移）直接读 `adapter.rxdb.versionManager`，
   // 而历史子系统自 US-025 阶段 C 起住在插件里。`AdapterFactory` 的契约把「装好插件」
-  // 算成工厂的职责（见 `@aiao/rxdb-adapter-sqlite-core/testing`），所以登记在这里，
-  // 且必须早于下面的 `connect()` —— `connect()` 内部就会调 `init()`，届时插件才装上。
+  // 算成工厂的职责（见 `@aiao/rxdb-adapter-sqlite-core/testing`），所以登记在这里。
   rxdb.use(rxDBPluginHistory);
 
+  // 其余插件**由调用点传进来**，不在这里无条件装：本工厂被共享套件反复复用，
+  // 无条件装上工作树插件等于给每一个都多建 10 张系统表。默认空数组 ⇒ 既有调用方零变化。
+  //
+  // 两者都必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
+  // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
+  for (const plugin of plugins) rxdb.use(plugin);
   await rxdb.getAdapter(ADAPTER_NAME);
   await rxdb.connect(ADAPTER_NAME);
   if (!adapter) throw new Error('desktop adapter factory did not create an adapter');

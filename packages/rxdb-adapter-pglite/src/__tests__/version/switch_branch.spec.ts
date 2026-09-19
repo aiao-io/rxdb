@@ -1,4 +1,5 @@
 import {
+  ACTIVE_BRANCH_KEY,
   encodeRxDBChangeEntityId,
   ENTITY_LOCAL_UPDATE_EVENT,
   EntityLocalUpdatedEvent,
@@ -95,6 +96,10 @@ describe('switch_branch 单元测试', () => {
 
       expect(mainBranch?.activated).toBe(true);
       expect(featureBranch?.activated).toBe(false);
+      // 「至多一个 active」那一半靠可空唯一列，而可空唯一列只管得住非 NULL 的行。
+      // 所以 `activeKey` 必须严格跟着 `activated` 走，两列同进同出。
+      expect(mainBranch?.activeKey).toBe(ACTIVE_BRANCH_KEY);
+      expect(featureBranch?.activeKey).toBeNull();
 
       // 切换到 feature-branch
       await rxdb.versionManager.switchBranch('feature-branch');
@@ -108,6 +113,8 @@ describe('switch_branch 单元测试', () => {
 
       expect(mainAfter?.activated).toBe(false);
       expect(featureAfter?.activated).toBe(true);
+      expect(mainAfter?.activeKey).toBeNull();
+      expect(featureAfter?.activeKey).toBe(ACTIVE_BRANCH_KEY);
     });
 
     it('切换分支的 UPDATE 事件应携带翻转后的 inversePatch.activated 与 recordAt', async () => {

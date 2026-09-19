@@ -50,6 +50,12 @@
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
     },
     {

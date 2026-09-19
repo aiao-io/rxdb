@@ -148,16 +148,28 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
       // 分页查询: 结果集受影响时刷新
       // result_contains: 更新的实体在当前结果中
       // match_where + not_match_where_before: 新匹配的实体
+      // match_where + match_order_by: 一直匹配、但排序键变化后挤进/挪出当前页的实体
       // match_relation_where: 关系实体变更
-      refresh_rules.push(['result_contains'], ['match_where', 'not_match_where_before'], ['match_relation_where']);
+      refresh_rules.push(
+        ['result_contains'],
+        ['match_where', 'not_match_where_before'],
+        ['match_where', 'match_order_by'],
+        ['match_relation_where']
+      );
       break;
 
     case 'findByCursor':
       // 游标分页: 结果集受影响时刷新
       // result_contains: 更新的实体在当前结果中
       // match_where + not_match_where_before: 新匹配的实体
+      // match_where + match_order_by: 一直匹配、但排序键变化后挤进/挪出当前窗口的实体
       // match_relation_where: 关系实体变更
-      refresh_rules.push(['result_contains'], ['match_where', 'not_match_where_before'], ['match_relation_where']);
+      refresh_rules.push(
+        ['result_contains'],
+        ['match_where', 'not_match_where_before'],
+        ['match_where', 'match_order_by'],
+        ['match_relation_where']
+      );
       break;
 
     case 'findAll':
@@ -185,8 +197,10 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
         ['result_contains', 'not_match_relation_where'],
         ['match_where', 'not_match_where_before', 'not_match_relation_where']
       );
-      // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
+      // match_where + match_order_by: 一直匹配、但排序键变化后越到当前命中之前的实体——
+      // 它既不在结果里（result_contains 假）也不是"新匹配"（not_match_where_before 假），
+      // JS 侧没有它的数据可比，只能回 SQL 重取
+      refresh_rules.push(['match_where', 'match_order_by'], ['match_relation_where']);
       break;
 
     case 'count':

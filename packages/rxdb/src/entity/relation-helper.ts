@@ -61,7 +61,11 @@ export default (relation: EntityRelationMetadata, EntityType: EntityType, manage
             if (id != null) return em.getRepository(MappedRelationEntityType).get(id);
             return of(null);
           }),
-          shareReplay(1)
+          // refCount 必须开：默认的 shareReplay(1) 订阅上游之后永不退订，
+          // 关系的最后一个订阅者离开时 repository.get 的实时查询仍挂在那里，
+          // 实体被缓存多久就泄漏多久。开了之后最后一个订阅者离开即释放上游，
+          // 下次访问由 BehaviorSubject 重放当前外键重新建流。
+          shareReplay({ bufferSize: 1, refCount: true })
         ) as RelationEntityObservable<typeof MappedRelationEntityType>;
 
         setSafeObjectKey(observable, 'set', (entity: InstanceType<typeof MappedRelationEntityType> | null) => {
@@ -186,6 +190,11 @@ export default (relation: EntityRelationMetadata, EntityType: EntityType, manage
               })
               .pipe(
                 switchMap(junctionEntities => {
+                  // 查出来的 Junction 必须登记进关系缓存：remove() 只认缓存里的 Junction，
+                  // 不登记的话「查询水合出来的关联」永远删不掉 —— 只有同一 tick 内被
+                  // add() 造出来的那些才删得掉，而这正是用户最常做的那种解绑。
+                  const relationCache = selfStatus.getRelationCache(relation);
+                  junctionEntities.forEach(junctionEntity => relationCache.add(junctionEntity));
                   const ids = junctionEntities.map(junctionEntity => junctionEntity[mappedPropertyIdName]);
                   return em.getRepository(MappedRelationEntityType).findAll({
                     where: {

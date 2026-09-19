@@ -7,6 +7,7 @@
 
 import {
   compactChanges,
+  declareTrustedWrite,
   type EntityMetadata,
   type EntityType,
   getEntityMetadata,
@@ -30,7 +31,8 @@ import {
   type RxDBEvent,
   RxDBPartialSyncError,
   RxDBSync,
-  type SyncFailure
+  type SyncFailure,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
@@ -640,6 +642,12 @@ async function pullSingleRepository(
           if (applyCount > 0) {
             // 先将实体变更应用到本地数据库（在更新 RxDBSync 之前）
             // disableTriggers=true 确保不生成本地 RxDBChange 记录
+            // 同 pull-batch：远端来的行进工作树，但不回流成一次可 push 的本地变更。
+            declareTrustedWrite(executor, {
+              file: 'pull-repository.ts',
+              symbol: 'pullSingleRepository',
+              intent: TrustedWriteIntent.remote_sync
+            });
             await executor.mergeChanges(applyActions, undefined, true);
             for (const supersession of localChangeSupersessions) {
               await markLocalChangesSuperseded(txChangeRepo, supersession.localChanges, supersession.remoteId);

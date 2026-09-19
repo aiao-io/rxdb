@@ -53,7 +53,11 @@ describe('merge_branch', () => {
         changeRepository: mockChangeRepository,
         adapter: mockAdapter
       }),
-      getCurrentBranch: vi.fn()
+      getCurrentBranch: vi.fn(),
+      // merge 的收尾会调 `remove_branch` 删掉源分支，而那里要遍历系统贡献方清分支级行。
+      // 本文件只验合并语义，一个贡献方都不挂；空数组与「没有这个属性」不是一回事——
+      // 后者会在 `for…of` 上炸成 TypeError，把断言的红变成加载的红。
+      rxdb: { systemContributions: [] }
     } as unknown as VersionManager;
   });
 

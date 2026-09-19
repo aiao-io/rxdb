@@ -198,6 +198,56 @@ export class TreeHelper<T extends EntityType> {
   }
 
   /**
+   * 计算实体相对目标实体的后代深度 (用于 count 查询)
+   *
+   * @param entity 要检查的实体
+   * @param targetEntityId 目标实体ID；为 null 或 undefined 时表示查询所有树，深度从根节点算起
+   * @returns `{ isDescendant, depth }`；无法确定时返回 `undefined`
+   *
+   * @remarks
+   * {@link isEntityDescendantForCount} 只回答「是不是后代」，答不出「隔了几层」，
+   * 于是 `countDescendants` 的 `level` 限制在增量合并里整个缺席：`{ entityId, level: 0 }`
+   * （只数目标节点自己，后代一个都不算）会被一个直接子节点的 where 翻转加成 1。
+   *
+   * 深度口径与 `FindTreeOptions.level` 一致：给了 `entityId` 时目标节点自身深度为 0、
+   * 直接子节点为 1；没给 `entityId` 时根节点深度为 0。调用方用 `depth <= level` 过滤。
+   *
+   * 与 {@link isEntityDescendantForCount} 一样，父链上任何一环取不到就返回 `undefined`
+   * 让调用方回 SQL 重算 —— 深度算不准时不能猜。
+   */
+  descendantDepthForCount(
+    entity: InstanceType<T> | null | undefined,
+    targetEntityId: RxDBEntityId | null | undefined
+  ): { isDescendant: boolean; depth: number } | undefined {
+    if (!entity) {
+      return undefined; // 实体不存在，无法判断
+    }
+
+    const findsWholeTree = targetEntityId === null || targetEntityId === undefined;
+    let currentParentId = get_tree_parent_id<RxDBEntityId>(entity);
+    const visited = new Set<RxDBEntityId>(); // 防止循环引用
+    let depth = 0;
+
+    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+      depth++;
+      if (!findsWholeTree && currentParentId === targetEntityId) {
+        return { isDescendant: true, depth };
+      }
+      visited.add(currentParentId);
+
+      // 尝试从更新数据中获取父实体
+      const parentEntity = this.cache.getSerializedUpdate(currentParentId);
+      if (!parentEntity) {
+        return undefined; // 父实体不在更新数据中，深度无从算起
+      }
+      currentParentId = get_tree_parent_id<RxDBEntityId>(parentEntity);
+    }
+
+    // 走到根节点：查全树时任何节点都算命中，深度即到根的距离；限定了目标则说明不是它的后代
+    return findsWholeTree ? { isDescendant: true, depth } : { isDescendant: false, depth };
+  }
+
+  /**
    * 检查实体是否是目标的祖先 (用于 count 查询)
    *
    * 与 isEntityAncestor 类似，但返回 undefined 表示无法确定

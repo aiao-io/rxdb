@@ -2,7 +2,7 @@ import { EntityMetadata, EntityType, IEntity, IMutationContext } from '@aiao/rxd
 import {
   EncryptionContext,
   getTableNameByMetadata,
-  normalizeEntity,
+  normalizeUpdateEntity,
   transformEntityValueToSql
 } from '../pglite.utils.js';
 
@@ -20,7 +20,7 @@ const generate_entity_update_sql = async <T extends EntityType>(
   context?: UpdateSqlOptions
 ) => {
   // 规范化更新数据（过滤只读字段）
-  const entityData: Partial<IEntity> = normalizeEntity(metadata, patch);
+  const entityData: Partial<IEntity> = normalizeUpdateEntity(metadata, patch);
 
   // 设置更新时间戳
   if (metadata.propertyMap.has('updatedAt')) {

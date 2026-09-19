@@ -35,6 +35,43 @@ const hasVisibleChange = (entity: object, payload: object): boolean => {
   return Object.keys(incoming).some(key => !isEqual(current[key], incoming[key]));
 };
 
+/**
+ * 判断一份 UPDATE 事件负载是否只改了 `updatedAt` 一个字段。
+ *
+ * 这类 patch 对「不读 updatedAt」的查询毫无意义：不会改变任何匹配状态、不会改变排序，
+ * 纯属无谓刷新。但反过来，只要查询自己读了 `updatedAt` —— `where` 按时间窗过滤，
+ * 或者 `orderBy` 按时间戳排序 —— 就必须收下它，否则永远看不到只 bump 时间戳的变更。
+ */
+const isUpdatedAtOnlyPatch = (entity: RxDBEntityLocalEventData): boolean => {
+  const patch = (entity as { patch?: Record<string, unknown> }).patch;
+  if (!patch) return false;
+  const keys = Object.keys(patch);
+  return keys.length === 1 && keys[0] === 'updatedAt';
+};
+
+/**
+ * 判断一组查询规则的 `where` 是否引用了某个字段（递归穿透嵌套规则组）。
+ */
+const whereReferencesField = (where: unknown, field: string): boolean => {
+  if (!where || typeof where !== 'object') return false;
+  const rules = (where as { rules?: unknown[] }).rules;
+  if (!Array.isArray(rules)) return false;
+  return rules.some(rule => {
+    const item = rule as { field?: string; rules?: unknown[] };
+    if (Array.isArray(item.rules)) return whereReferencesField(item, field);
+    return item.field === field;
+  });
+};
+
+/**
+ * 判断一组排序规则是否引用了某个字段。
+ *
+ * @remarks
+ * 只看 `orderBy` 顶层的 `field`：排序不像 `where` 那样有嵌套规则组。
+ */
+const orderByReferencesField = (orderBy: unknown, field: string): boolean =>
+  Array.isArray(orderBy) && orderBy.some(item => (item as { field?: string }).field === field);
+
 export type MergeQueryTaskCreateFn<T extends EntityType = EntityType> = (
   task: QueryTask<T>,
   entities: RxDBEntityLocalCreatedEventData<T>[]
@@ -355,20 +392,38 @@ export class QueryManager<T extends EntityType> {
     entities: RxDBEntityLocalEventData[]
   ): void {
     try {
+      // 「只有 updatedAt」的 patch 是否无意义，取决于查询本身读不读 updatedAt：
+      // where 引用了 updatedAt（按时间窗过滤的 count/find）、或 orderBy 按 updatedAt 排序
+      // （「最近更新」列表）都要保留，否则过滤掉，省下不会改变匹配状态的无效刷新。
+      // 必须在每个任务里判，不能在事件批次层一刀切 —— 一刀切会让依赖 updatedAt 的查询
+      // 永远收不到单字段时间戳变更。
+      let target_entities = entities;
+      if (event.type === ENTITY_LOCAL_UPDATE_EVENT) {
+        const options = task.options as { where?: unknown; orderBy?: unknown };
+        if (
+          !whereReferencesField(options.where, 'updatedAt') &&
+          !orderByReferencesField(options.orderBy, 'updatedAt')
+        ) {
+          target_entities = entities.filter(entity => !isUpdatedAtOnlyPatch(entity));
+          if (target_entities.length === 0) {
+            return;
+          }
+        }
+      }
       switch (event.type) {
         case ENTITY_LOCAL_CREATE_EVENT: {
           const merge_create_fn = this.#query_task_merge_create_map.get(task.type) || merge_create;
-          merge_create_fn(task, entities as RxDBEntityLocalCreatedEventData<T>[]);
+          merge_create_fn(task, target_entities as RxDBEntityLocalCreatedEventData<T>[]);
           return;
         }
         case ENTITY_LOCAL_UPDATE_EVENT: {
           const merge_update_fn = this.#query_task_merge_update_map.get(task.type) || merge_update;
-          merge_update_fn(task, entities as RxDBEntityLocalUpdatedEventData<T>[]);
+          merge_update_fn(task, target_entities as RxDBEntityLocalUpdatedEventData<T>[]);
           return;
         }
         case ENTITY_LOCAL_REMOVE_EVENT: {
           const merge_remove_fn = this.#query_task_merge_remove_map.get(task.type) || merge_remove;
-          merge_remove_fn(task, entities as RxDBEntityLocalRemovedEventData<T>[]);
+          merge_remove_fn(task, target_entities as RxDBEntityLocalRemovedEventData<T>[]);
           return;
         }
       }
@@ -406,19 +461,6 @@ export class QueryManager<T extends EntityType> {
 
       // 如果有相关的实体变更，执行增量缓存更新
       if (entities.length) {
-        // 过滤掉只有 updatedAt 变更的 patch（避免无意义的缓存刷新）
-        const need_entities = entities.filter(e => {
-          if (e.patch) {
-            const keys = Object.keys(e.patch);
-            if (keys.length === 1 && keys[0] === 'updatedAt') {
-              return false;
-            }
-          }
-          return true;
-        });
-        if (need_entities.length === 0) {
-          return;
-        }
         // 使用分块处理，避免一次性处理大量任务导致性能问题。
         //
         // 每个 task 各自 try/catch（见 #merge_event_into_task）：consumer 一旦把错误抛给
@@ -426,7 +468,7 @@ export class QueryManager<T extends EntityType> {
         // 查询任务一条都不会再合并，缓存停在事件之前的样子，且没有任何人去纠正它。
         // 一个查询的合并策略出问题不该让另一个查询显示脏数据。
         void performChunk(Array.from(this.#query_task_map.values()), task =>
-          this.#merge_event_into_task(task, event, need_entities)
+          this.#merge_event_into_task(task, event, entities)
         ).done.catch((error: unknown) => {
           // 走到这里说明是分片调度自身出错（consumer 已不会抛）。不向上抛：
           // 这是事件监听器，抛出去只会变成另一条无人接管的错误。

@@ -168,6 +168,12 @@ export class AppMenu {
       icon: GitMerge
     },
     {
+      type: 'link',
+      title: 'Working Tree',
+      path: '/working-tree',
+      icon: GitMerge
+    },
+    {
       type: 'divider',
       title: 'Advanced'
     },

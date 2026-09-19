@@ -1,4 +1,12 @@
-import { getRxDBChangeKey, MergeBranchOptions, MergeBranchResult, RxDBError, SwitchVersionActions } from '@aiao/rxdb';
+import {
+  declareTrustedWrite,
+  getRxDBChangeKey,
+  MergeBranchOptions,
+  MergeBranchResult,
+  RxDBError,
+  SwitchVersionActions,
+  TrustedWriteIntent
+} from '@aiao/rxdb';
 import { VersionManager } from './VersionManager.js';
 import { remove_branch } from './remove-branch.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
@@ -122,6 +130,12 @@ export const merge_branch = async (
         } else if (change.type === 'DELETE') {
           singleActions.deletes.set(key, { patch: null, inversePatch: change.inversePatch! });
         }
+        // 声明写在循环体内：声明是取用即清除的，提到循环外只有第一条变更带得上身份。
+        declareTrustedWrite(executor, {
+          file: 'merge-branch.ts',
+          symbol: 'merge_branch',
+          intent: TrustedWriteIntent.merge_per_change
+        });
         await executor.mergeChanges(singleActions, undefined, false);
       }
     });
@@ -146,6 +160,13 @@ export const merge_branch = async (
 
     // 应用变更到当前分支的实体表
     // disableTriggers=false：让数据库触发器自动生成目标分支的 RxDBChange 记录
+    // 与逐条出口同一个符号、不同意图：登记表把它们分成两行，因为写原语不同
+    // （事务内的 executor vs 适配器级的 adapter），作用域对象也就不是同一个。
+    declareTrustedWrite(adapter, {
+      file: 'merge-branch.ts',
+      symbol: 'merge_branch',
+      intent: TrustedWriteIntent.merge_squash
+    });
     await adapter.mergeChanges(actions, undefined, false);
   }
 

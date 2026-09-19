@@ -74,6 +74,13 @@
       ],
       "@aiao/rxdb-plugin-storage/testing": ["./packages/rxdb-plugin-storage/src/testing.ts"],
       "@aiao/rxdb-plugin-sync": ["./packages/rxdb-plugin-sync/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree": ["./packages/rxdb-plugin-working-tree/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-angular": ["./packages/rxdb-plugin-working-tree-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-react": ["./packages/rxdb-plugin-working-tree-react/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-vue": ["./packages/rxdb-plugin-working-tree-vue/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree/testing": [
+        "./packages/rxdb-plugin-working-tree/src/working-tree/testing/index.ts"
+      ],
       "@aiao/rxdb-plugin-workspace": ["./packages/rxdb-plugin-workspace/src/index.ts"],
       "@aiao/rxdb-react": ["./packages/rxdb-react/src/index.ts"],
       "@aiao/rxdb-test": ["./packages/rxdb-test/src/index.ts"],

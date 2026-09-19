@@ -1,15 +1,9 @@
 # Specification Quality Checklist: 本地工作树与提交历史
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
-
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-08-15
+
+**Created**: 2026-09-12
+
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -37,31 +31,42 @@
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
-## 验证记录
+## 本特性专属门禁（epic-006 依赖顺序第 2 步的复核项）
 
-### 第 1 轮（初稿）
-
-发现并已修复的问题：
-
-1. **实现细节泄漏** — Key Entities 与横切需求中出现了具体表名、方法签名与 `useWorkingTree()` 等运行时入口名。已改写为语义契约（「工作树入口」「同一组语义键」），并把物理表名、DTO 字段布局、意图枚举名与提交标识生成方式统一移入 Assumptions 标注为「计划阶段冻结」。
-2. **成功标准含技术指标** — 初稿把 p95 100 ms / 1 s 写成裸性能数字。已改为带完整环境限定的用户可验证判据（SC-012 明确「运行环境指纹匹配参考的固定 runner」，并要求环境不匹配时 100% 产出环境不匹配结论而非绿色发布结论）。
-3. **不可测量的成功标准** — 初稿有「状态保持一致」这类表述。已全部改为可数判据（一致率 100%、变化量 0、缺席即失败、成功者恰好 1 个）。
-4. **范围边界缺失** — 模板无「非目标」段。已补充「范围边界 → 明确不做」共 9 条，并补「交付顺序（依赖约束）」记录 US1→US2→US3→US4→(US5 ∥ US6) 与扩展点协议的先后关系。
-5. **可追溯性缺失** — 已补 Traceability 表，把 6 个用户故事、7 组 FR 段落与来源故事 US-305 / US-306 阶段 A/B/C / US-307 / US-308 一一对应。
-
-### 第 2 轮（复核）
-
-- 逐条复核 FR-001..FR-058：每条均含可判定谓词（MUST / MUST NOT + 可观察结果），无「合理地」「尽量」「高效」类不可测量措辞。
-- 逐条复核 SC-001..SC-015：全部含数值或计数判据，无框架/存储/语言名称。
-- 复核 6 个用户故事：均有 Why this priority、Independent Test 与可独立验收的场景集合；P1 三条构成最小可用闭环（提交图 → 工作树捕获 → 缓存区与提交），P2 为跨框架操作面，P3 两条相互独立。
-- 复核 Edge Cases：覆盖半状态、空/无操作、幂等、并发、过期写入方、依赖闭包、写入口边界、受信登记漂移、损坏、能力协商、激活基数、存储环境、加密与性能环境不匹配共 14 类。
-
-结论：全部检查项通过，无残留问题。
+- [x] **无暂存区模型已贯穿全文**：没有 stage / unstage / 部分提交 / staged snapshot；`commit()` 无 selection 入参（FR-041）
+- [x] **只有一条 diff 轴** `HEAD ↔ 工作树`；`HEAD ↔ index` 已显式裁撤（FR-005）
+- [x] **无 `index_dependency_cycle`**，也无依赖闭包 / residual rebase（仅作为 FR-047 墓碑与非目标论据出现）
+- [x] **无 `Index*` 前缀导出**要求已进命名裁决与 SC-014
+- [x] **裁撤编号 FR-006 / 007 / 024 / 025 / 028 / 040 / 047 全部以墓碑形式保留**，标注「编号不得复用」，且未被任何新条目占用
+- [x] **FR-001…FR-052 + FR-026b 编号与 epic-006 逐一对应**，无新编、无重编（脚本核对通过）
+- [x] **受信调用点登记表的登记键**（文件 + 符号 + 意图）与扫描排除规则已入规格，SC-010 有对应漂移门禁
+- [x] **调用方捕获型 vs 事务内读改写型**两类 CAS 已分开，普通 CRUD 明确不得用捕获型（FR-031 / FR-039 / revision 校验矩阵）
+- [x] **`origin=remote_sync` 不按来源豁免**已在写入口矩阵、Edge Cases、FR-046 与 SC-015 四处一致
+- [x] **6 个 v1 后端 + Tauri Rust host 不入矩阵**已入 Assumptions 与 SC-006
+- [x] **性能口径而非裸墙钟数字**：相对门禁（≤ reference median 110%）是普通 CI 唯一硬门禁，绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上生效，commit 不套用 100 ms（SC-001…SC-004）
+- [x] **FR-030 明确 MUST NOT 重写 [check-migration-release-gate.mjs](../../../scripts/check-migration-release-gate.mjs)**，且不得重打 / 移动 / 伪造已发布 tag
+- [x] **损坏守卫是同一份共享实现**（FR-051 + 横切约束 6 + SC-013），三条入口各自复用而非各写一份
+- [x] **非目标照抄 epic-006 全部条目**，含三条显式裁决的「要改结论必须先改 epic-006 非目标一节」条款
 
 ## Notes
 
-- 本规格**零 [NEEDS CLARIFICATION] 标记**：来源 epic 与 6 个故事已冻结全部有争议决策（命名前缀归属、revision 校验两分类、受信意图登记键、v1 后端矩阵、基准环境与门禁口径、切换分支默认行为兼容性裁定），无需再向用户提问。
-- 唯一真相源是 [epic-006](../../../requirements/epics/epic-006-working-tree-commits.md)。本规格是它的规格化承接；若两者口径冲突以 epic 为准，并须同步修订 spec.md。
-- 术语纪律：新增公开导出禁止使用 `Workspace*` 前缀（已被草稿缓存插件占用），切换分支选项固定为 `WorkingTreeSwitchBranchOptions`。该约束已固化为 FR-054，进入 `/speckit-plan` 时不得放宽。
-- 计划阶段需优先冻结的开放项（均已在 Assumptions 中登记，不属于规格缺陷）：物理表名与系统 schema 版本策略、工作树条目的存储载体选型（复用既有变更表 vs 不可变派生表）、意图枚举命名、启用配置项命名、提交标识生成方式。
-- 下一步建议直接进入 `/speckit-plan`；`/speckit-clarify` 无待澄清项可处理。
+### 关于「No implementation details」的判定口径
+
+本规格出现了若干**既有**符号名：`commit()`、`discardWorkingTree()`、`switchBranch()`、`createBranch()` / `removeBranch()` / `mergeBranch()`、`syncBranches()`、`pull()` / `pullRepository()` / `cleanupExpired()`、`upsertMany()` / `deleteByIds()`、`notifyExternalUpdate()`、`RxDBChange` / `RxDBBranch.activated`、`WorkspaceCacheEntry.staged`、`SwitchBranchOptions`。这**不违反**该检查项，理由有三：
+
+1. 它们全部是**仓库中已存在**的公开或内部契约，规格引用它们是为了界定「哪些既有行为不能变」（FR-017 / FR-018）与「哪些入口必须挂门禁」（FR-046），属于 WHAT 的边界描述，不是新设计。
+2. 命名裁决本身就是一条**需求**（SC-014 是可执行门禁）：不写出被禁用的具体前缀与被禁止复活的具体符号，该门禁不可验收。
+3. 真正属于 plan 阶段的内容——物理表名、字段、索引、外键、加密 envelope 格式、迁移版本号、SQL 方言——**已在 Key Entities 开头显式声明推迟冻结**，全文未出现任何一处。
+
+### 关于「Written for non-technical stakeholders」
+
+本特性的受众是**库的使用者与实现者**，不是终端业务用户；epic-006 本身即以「Git 概念对照」为共同语言。规格保留了四层分层对照表作为入门锚点，使不熟悉实现的读者也能判断某条需求归属哪一层。
+
+### 验证轮次
+
+第 1 轮：全部 16 项通过，未进入修订循环。
+
+### 交付前提醒
+
+- `tasks.md` 尚不存在，`plan.md` / `data-model.md` / `research.md` / `quickstart.md` / `contracts/*` 仍是按旧三层模型写的，**必须随后由 `/speckit-plan` 与 `/speckit-tasks` 一并重生成**，否则本规格与下游 artifact 不一致。
+- 本目录重生成完成前，US-305 不得开工（epic-006 依赖顺序第 2 步）。

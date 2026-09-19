@@ -44,10 +44,11 @@
       }
     },
     "api-docs": {
+      "// dependsOn": "typedoc 的 packages 策略按每个包自己的 tsconfig.json 建程序；import 落在被引用的 composite 项目里时，TS 会把它重定向到该项目的声明产物。JS 包的声明产物在包自己的 dist/（vite build 每轮都产），Angular 包的声明产物在 dist/out-tsc/（ng-packagr 写的是 dist/packages/，任何构建链都不产 out-tsc）——rxdb-plugin-working-tree-angular 引用了 rxdb-angular/tsconfig.lib.json，净树上 typedoc 必报 TS6305（本地绿只是因为历史会话 tsc --build 过）。所以 typedoc 前先 tsc --build 把入口里全部 Angular 包的复合产物补出来；新加 Angular 入口包时把它的 tsconfig.lib.json 一并加进来。",
       "executor": "nx:run-commands",
       "options": {
         "cwd": "website",
-        "command": "pnpm exec typedoc --options typedoc.config.cjs && node scripts/flatten-api-docs.mjs"
+        "command": "pnpm exec tsc --build ../packages/rxdb-angular/tsconfig.lib.json ../packages/code-editor-angular/tsconfig.lib.json ../packages/rxdb-plugin-search-angular/tsconfig.lib.json ../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json --emitDeclarationOnly && pnpm exec typedoc --options typedoc.config.cjs && node scripts/flatten-api-docs.mjs"
       }
     },
     "site-build": {

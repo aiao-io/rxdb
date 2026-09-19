@@ -1,3 +1,5 @@
+import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
+
 type SqliteQueryRow = unknown[];
 
 type SqliteExecuteResult = {
@@ -44,7 +46,15 @@ type SqliteTable = {
   sql: string | null;
 };
 
-const DEFAULT_INSERT_MAIN_BRANCH_SQL = `INSERT INTO "rxdb$rxdb_branch" (id,activated,fromChangeId,local,remote) VALUES ('main',1,NULL,1,0);`;
+/**
+ * 清库后补回 main 分支的默认 INSERT。
+ *
+ * @remarks
+ * `activeKey` 与 `activated` 必须同进同出：「至多一个 active」那一半靠 `rxdb_branch.activeKey`
+ * 的可空唯一列实现，而可空唯一列只管得住非 NULL 的行。这里写 `activated = 1` 却不写哨兵值，
+ * 补回来的 main 就从此刻起不受该约束管辖，且不报任何错。
+ */
+const DEFAULT_INSERT_MAIN_BRANCH_SQL = `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`;
 
 /**
  * 默认清哪些表。

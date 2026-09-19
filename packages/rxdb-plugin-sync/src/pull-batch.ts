@@ -13,6 +13,7 @@
 import {
   compactChanges,
   type ConflictResolver,
+  declareTrustedWrite,
   getEntityMetadata,
   getOrCreateSyncRecord,
   getSyncCapability,
@@ -26,7 +27,8 @@ import {
   RxDBError,
   type RxDBEvent,
   RxDBPartialSyncError,
-  RxDBSync
+  RxDBSync,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
@@ -375,6 +377,13 @@ async function pullBatchOnce(
         const applyCount = countActions(applyActions);
         if (applyCount > 0) {
           // disableTriggers=true 确保不生成本地 RxDBChange 记录
+          // disableTriggers=true 压掉的是变更日志行，不是工作树单元：FR-046 要求拉取
+          // 照样落一个 origin='remote_sync' 的单元，所以挂载点 2 从 actions 派生，不看日志。
+          declareTrustedWrite(executor, {
+            file: 'pull-batch.ts',
+            symbol: 'pullBatchOnce',
+            intent: TrustedWriteIntent.remote_sync
+          });
           await executor.mergeChanges(applyActions, undefined, true);
           totalApplied += applyCount;
         }

@@ -1,3 +1,4 @@
+import { isUniqueConstraintViolation } from '@aiao/rxdb';
 import { EncryptedConfigurationError, type KeyringRow, type KeyringStorageBinding } from '@aiao/rxdb-adapter-encrypted';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
@@ -54,7 +55,11 @@ export class PgliteKeyringStorage implements KeyringStorageBinding {
     try {
       await this.adapter.writeQuery(INSERT_SQL, [row.id, row.createdAt, row.kdf, row.salt, row.kid, row.verifier]);
     } catch (cause) {
-      if (Reflect.get(Object(cause), 'code') !== '23505') throw cause;
+      // 走核心那一份判别而不是只认 `.code === '23505'`：PGlite 把错误跨 worker 回传、或上层
+      // 再包一层之后 SQLSTATE 会掉，只认 code 的那一版于是把一次主键冲突原样当普通写失败抛出去，
+      // 调用方看不到 `keyring_singleton_conflict`。核心版同时认 SQLSTATE 与 PG/SQLite 两家的
+      // 消息文本，且已经是 `sqlite-core-keyring-storage.ts` 声明对齐的那个口径（SQLC-029）。
+      if (!isUniqueConstraintViolation(cause)) throw cause;
       throw new EncryptedConfigurationError({
         code: 'keyring_singleton_conflict',
         message: 'rxdb_db_keyring already contains a singleton row',

@@ -6,7 +6,7 @@
 
 核心 `@aiao/rxdb` 保留的是**原语**：三张系统表（`RxDBBranch` / `RxDBChange` / `RxDBSync`）、变更编解码、冲突模型、同步资格判定，以及 `getCurrentBranch()`。这些东西并不专属历史子系统——变更日志触发器直接写 `branchId`，`RxDBChange.branch` 会生成真实的 `REFERENCES rxdb$rxdb_branch(id)` 外键，整条响应式增量链路都跑在 `rxdb_change` 上。搬进本包的是**消费者**：读历史、撤销重做、建/切/合/删分支。
 
-推拉同步的调度**不在这里**，它住在 [`@aiao/rxdb-plugin-sync`](../rxdb-plugin-sync/)：`rxdb.syncManager.push()` / `.pull()` / `.sync()`。那个插件 `inject: ['plugin:history']`，反向没有依赖——本包不认识同步包。
+推拉同步的调度**不在这里**，它住在 [`@aiao/rxdb-plugin-sync`](../rxdb-plugin-sync/README.md)：`rxdb.syncManager.push()` / `.pull()` / `.sync()`。那个插件 `inject: ['plugin:history']`，反向没有依赖——本包不认识同步包。
 
 ## 安装
 

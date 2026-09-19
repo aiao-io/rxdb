@@ -1,5 +1,6 @@
 import {
   buildPushableRepositoryRules,
+  declareTrustedWrite,
   type FindOptions,
   type HistoryItem,
   type IRepository,
@@ -11,7 +12,8 @@ import {
   type RxDBChangeRuleGroup,
   RxDBSync,
   type RxDBSyncOrderByField,
-  type RxDBSyncRuleGroup
+  type RxDBSyncRuleGroup,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { buildLastPushedMap } from './history-filters.js';
@@ -165,6 +167,12 @@ export async function applyUndoRedoHistories(
     if (operation === 'undo') {
       if (undoSession === undefined || !host.isUndoSessionCurrent(undoSession)) return;
     }
+    // undo/redo 是用户可感知的编辑，矩阵行 6 要求它**产生**单元（origin='undo_redo'）。
+    declareTrustedWrite(adapter, {
+      file: 'undo-redo-apply.ts',
+      symbol: 'applyUndoRedoHistories',
+      intent: TrustedWriteIntent.undo_redo
+    });
     // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
     // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
     await adapter.switchBranch({ actions });

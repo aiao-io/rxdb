@@ -1,3 +1,4 @@
+import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { cleanupSqliteTestAdapter } from '../../testing/sqlite.js';
 
@@ -48,7 +49,7 @@ describe('cleanupSqliteTestAdapter', () => {
       "SELECT name, sql FROM sqlite_master WHERE type='table';",
       'DELETE FROM "public$todos";',
       'DELETE FROM "rxdb$rxdb_branch";',
-      `INSERT INTO "rxdb$rxdb_branch" (id,activated,fromChangeId,local,remote) VALUES ('main',1,NULL,1,0);`,
+      `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`,
       'CREATE TRIGGER todo_insert_main;'
     ]);
   });
@@ -155,9 +156,11 @@ describe('cleanupSqliteTestAdapter', () => {
     expect(executedSql).toContain('DELETE FROM "public$articles_fts";');
     expect(executedSql).toContain('DELETE FROM "rxdb$rxdb_change";');
     expect(executedSql).toContain('DELETE FROM "rxdb$rxdb_branch";');
-    // 清掉分支表后必须补回 main 分支（此前这条分支在默认配置下永远不可达）
+    // 清掉分支表后必须补回 main 分支（此前这条分支在默认配置下永远不可达），
+    // 且补回的那一行要带上哨兵键：写 `activated` 不写 `activeKey`，补回来的 main
+    // 就退出「至多一个 active」的唯一约束管辖，而且不报任何错。
     expect(executedSql).toContain(
-      `INSERT INTO "rxdb$rxdb_branch" (id,activated,fromChangeId,local,remote) VALUES ('main',1,NULL,1,0);`
+      `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`
     );
     expect(executedSql).toContain('SELECT reset_to_main;');
   });

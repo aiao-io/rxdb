@@ -47,6 +47,14 @@
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types non-encrypted-hot-path.bench.ts"
       }
+    },
+    "bench-working-tree": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types working-tree.bench.ts"
+      }
     }
   }
 }

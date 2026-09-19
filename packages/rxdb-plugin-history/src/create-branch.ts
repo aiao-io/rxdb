@@ -22,6 +22,12 @@ import { VersionManager } from './VersionManager.js';
  *
  * 远端 `branchExists` 那一趟**留在事务外**：它是网络往返，放进事务会让并发度 1 的
  * 写队列被一次 RTT 堵住。它本来也只是尽力而为的预检，真正的互斥由本地主键约束兜底。
+ *
+ * **一条分支未必只有一行。** 贡献系统能力的插件可以在同一个事务里追写自己那几行
+ * （{@link RxDBSystemContribution.writeBranchRows}）——装了 `@aiao/rxdb-plugin-working-tree`
+ * 时是 `CommitBranchRef` 与 `WorkingTreeState` 两行。同属一个事务，正是为了不让
+ * 「建了分支却没有对应视图」这种半成品状态存在：那样一条分支与一条正常的老分支
+ * 在形状上分辨不出来，只会在下一次用到它时抛一句读不出主语的错。
  */
 export const create_branch = async (version: VersionManager, branchId: string, fromChangeId?: number) => {
   const { branchRepository: queuedBranchRepository, adapter } = await version.getLocalRepositories();
@@ -107,11 +113,24 @@ export const create_branch = async (version: VersionManager, branchId: string, f
     const branch = version.rxdb.entityManager.instantiate(RxDBBranch);
     branch.id = branchId;
     branch.activated = false;
+    // 冗余列与 `activated` 必须同写（`system/branch.ts` 的唯一索引就架在它上面）。
+    // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
+    branch.activeKey = null;
     branch.local = true;
     branch.remote = false;
     branch.fromChangeId = fromChange?.id ?? null;
     branch.parentId = fromBranch.id;
     await branchRepository.create(branch);
+
+    // 贡献方的分支级行写在**这一个**事务里，不另开一个：分支行与贡献行分处两个事务的话，
+    // 中间失败留下的是一条「分支在、贡献行不在」的记录，而这种半条分支与一条正常的老分支
+    // 在形状上分辨不出来。抛错就让整条 `create_branch` 回滚，这是对的。
+    //
+    // 串行而非 `Promise.all`：`executor` 是一条并发度为 1 的队列，并行发起只会让
+    // 写入顺序取决于各贡献方内部 await 的排布，出问题时复现不出来。
+    for (const contribution of version.rxdb.systemContributions) {
+      await contribution.writeBranchRows(version.rxdb.entityManager, { executor, branchId });
+    }
     return branch;
   });
 

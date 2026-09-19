@@ -28,6 +28,7 @@ owner: jimmy
 - [x] QueryCache 的远端变更实时同步：core 失效上报口 + HTTP 可选变更通知通道，让别的客户端的写自己走到屏幕上
 - [ ] 本地数据库一致性备份与恢复：保留数据库完整状态，按 adapter 能力分阶段支持
 - [ ] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
+- [ ] 会话录制回放与失败现场数据还原：e2e 失败自动留档界面回放，并按 working-tree 提交还原数据状态
 
 ## 故事
 
@@ -54,7 +55,9 @@ owner: jimmy
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
+- [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — rrweb 事件流按每事件一文档写入本地库；阶段 A e2e 失败现场、阶段 B 关联 working-tree commit 还原数据状态、阶段 C 插件与三框架组件（价值待证）
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析。**Epic 归属存疑**：属核心重构而非用户可见能力，承诺交付前宜另开 Epic
+- [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿，待合并
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 归本 Epic

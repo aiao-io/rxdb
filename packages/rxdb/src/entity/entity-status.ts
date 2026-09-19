@@ -378,7 +378,9 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     // 外部事件那一路由 `applyExternalEntityUpdate` 显式调 {@link markContentChanged}。
     this.#clear_cache(false);
     this.#changed_keys.clear();
-    this.#relations.clear();
+    // 只把关系 Observable 同步到新外键，不清关系缓存：未保存的关系编辑
+    // （待写入 / 待删除的 Junction）不是这次回填能代表的东西，清掉即静默丢失用户意图。
+    this.#relations.syncObservableForeignKeys();
     this._patches = [];
     // 与 reset 同理：作废此前排队但尚未触发的防抖 checkChange
     this.#generation++;
@@ -421,7 +423,8 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     // 不推进内容修订号：适配器写回 computed 列时会先经 proxy 把实体标脏，随后正是走这条分支
     // （`status.modified ? mergeExternal(row) : replace(row)`），在这里推进同样会自激
     this.#clear_cache(false);
-    this.#relations.clear();
+    // 同 {@link replace}：只回灌外键，不清未保存的关系编辑
+    this.#relations.syncObservableForeignKeys();
     // 按新基线重算是否仍有未保存改动，而不是无条件归零
     this._modified = Object.keys(this.patch).length > 0;
   }

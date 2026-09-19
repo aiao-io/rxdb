@@ -396,8 +396,19 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
   const targetEntityId = options.entityId as RxDBEntityId | null | undefined; // 目标实体ID
   const currentCount = (task.result as number) || 0; // 当前计数
 
+  const { level } = options; // 层级上限，口径同 FindTreeOptions.level（含当前节点）
+
   const oldResultMap = new Map<RxDBEntityId, InstanceType<T>>();
   const helper = new TreeHelper(cache, oldResultMap);
+
+  // 只在给了 level 时才按深度过滤：没给 level 就是「不限层级」，
+  // 沿用只判后代关系的旧路径，免得为了算深度而多要一次父链（要不到就得回 SQL）。
+  const isCountedDescendant = (entity: InstanceType<T> | null | undefined): boolean | undefined => {
+    if (level === undefined) return helper.isEntityDescendantForCount(entity, targetEntityId);
+    const resolved = helper.descendantDepthForCount(entity, targetEntityId);
+    if (resolved === undefined) return undefined;
+    return resolved.isDescendant && resolved.depth <= level;
+  };
 
   let needsRefresh = false; // 是否需要触发 SQL 刷新
   let countChange = 0; // 计数变化量
@@ -408,7 +419,7 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
     // （涉及未被本次 update 修改的字段）下会缺字段误判，导致计数静默偏差。
     const beforeEntity = cache.getSerializedBefore(updateData.id as RxDBEntityId, updateData.inversePatch);
     const matchedBefore = !where || isEntityMatchWhere(beforeEntity, where);
-    const isDescendantBefore = helper.isEntityDescendantForCount(beforeEntity, targetEntityId);
+    const isDescendantBefore = isCountedDescendant(beforeEntity);
 
     // 无法确定更新前的后代关系 → 触发刷新
     if (isDescendantBefore === undefined) {
@@ -422,7 +433,7 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
     // 同理，更新后的 where 判定也用完整的更新后实体，而非裸 patch。
     const afterEntity = cache.getSerializedUpdate(updateData.id as RxDBEntityId);
     const matchesNow = !where || isEntityMatchWhere(afterEntity, where);
-    const isDescendantNowResult = helper.isEntityDescendantForCount(afterEntity, targetEntityId);
+    const isDescendantNowResult = isCountedDescendant(afterEntity);
 
     // 无法确定更新后的后代关系 → 触发刷新
     if (isDescendantNowResult === undefined) {

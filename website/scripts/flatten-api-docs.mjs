@@ -8,7 +8,7 @@
 import { existsSync } from 'node:fs';
 import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,6 +55,57 @@ const apiPackageDescriptions = {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 把「typedoc 当 media 复制的包目录链接」重写为扁平化后的兄弟包页链接。
+ *
+ * @remarks
+ * 源 README 里指向兄弟包目录的相对链接（如 `../rxdb-plugin-history`）会被
+ * typedoc-plugin-markdown 当作 media 处理：把目标目录整包复制进 `docs/api/_media/`，
+ * href 改成 `../_media/<name>`。扁平化后从包 README 页解析这个 href 会落到
+ * `/docs/_media/`（少一层），Docusaurus 判为坏链。而兄弟包在 `docs/api/<name>`
+ * 有真正的页面，重写过去才是可解析的链接。
+ *
+ * 重写目标必须保留 `/README.md` 后缀：包 README 页的站点路由是 `/docs/api/<name>`
+ * （文件夹索引形态），无后缀的相对链接会被 Docusaurus 按路由解析——`../<name>` 从
+ * `/docs/api/<name>` 出发会落到 `/docs/<name>`，又丢一层、仍是坏链。带 `.md` 后缀
+ * 的链接按源文件路径解析，从包根 README 出发恰好指到兄弟包的 README 文件。
+ *
+ * @param content 待处理的 Markdown 内容
+ * @param packageNames `docs/api/` 下拥有 README.md 的包目录名列表
+ */
+export function rewriteMediaPackageLinks(content, packageNames) {
+  let result = content;
+
+  for (const name of packageNames) {
+    const pattern = new RegExp(`\\]\\(\\.\\./_media/${escapeRegExp(name)}(?:/README\\.md)?\\)`, 'g');
+    result = result.replace(pattern, `](../${name}/README.md)`);
+  }
+
+  return result;
+}
+
+/**
+ * 把「media 里有包 README、但站点没有对应文档页」的链接降级为纯文本。
+ *
+ * @remarks
+ * typedoc 把兄弟包目录复制进 `docs/api/_media/<name>/`，但当 `<name>` 不在入口列表里
+ * 时，站点没有它的页面可指，media 副本在 Docusaurus 里也不可路由——保留链接就是坏链。
+ * 参照 docker/sql 先例降级为纯文本。
+ *
+ * @param content 待处理的 Markdown 内容
+ * @param mediaPackageNames 有 README.md 副本但没有对应站点页的 media 包目录名
+ */
+export function plainTextMediaPackageLinks(content, mediaPackageNames) {
+  let result = content;
+
+  for (const name of mediaPackageNames) {
+    const pattern = new RegExp(`\\[([^\\]]+)\\]\\(\\.\\./_media/${escapeRegExp(name)}(?:/README\\.md)?\\)`, 'g');
+    result = result.replace(pattern, (_, text) => text);
+  }
+
+  return result;
 }
 
 async function postProcessRootDocs() {
@@ -159,20 +210,33 @@ async function flattenApiDocs() {
 
   // 修复 Markdown 文件中的 HTML 实体编码
   console.log('🔧 修复 HTML 实体编码...');
-  await fixHtmlEntities(apiDir);
+  const packageNames = (await readdir(apiDir, { withFileTypes: true }))
+    .filter(
+      entry => entry.isDirectory() && entry.name !== '_media' && existsSync(join(apiDir, entry.name, 'README.md'))
+    )
+    .map(entry => entry.name);
+  const mediaDir = join(apiDir, '_media');
+  const mediaPackageNames =
+    existsSync(mediaDir) ?
+      (await readdir(mediaDir, { withFileTypes: true }))
+        .filter(entry => entry.isDirectory() && existsSync(join(mediaDir, entry.name, 'README.md')))
+        .map(entry => entry.name)
+        .filter(name => !packageNames.includes(name))
+    : [];
+  await fixHtmlEntities(apiDir, packageNames, mediaPackageNames);
 
   console.log('✅ API 文档结构扁平化完成！');
 }
 
 // 递归处理所有 .md 文件，修复标题
-async function fixHtmlEntities(dirPath) {
+async function fixHtmlEntities(dirPath, packageNames, mediaPackageNames) {
   const entries = await readdir(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
     const fullPath = join(dirPath, entry.name);
 
     if (entry.isDirectory()) {
-      await fixHtmlEntities(fullPath);
+      await fixHtmlEntities(fullPath, packageNames, mediaPackageNames);
     } else if (entry.name.endsWith('.md')) {
       let content = await readFile(fullPath, 'utf-8');
       const originalContent = content;
@@ -187,6 +251,14 @@ async function fixHtmlEntities(dirPath) {
       // 移除包名称中的 scope 前缀（@aiao/ → 空）
       content = content.replace(/^# @aiao\//gm, '# ');
       content = content.replaceAll('../../_media/', '../_media/');
+
+      // media 链接重写只针对包 README（entryFileName 固定是 README，深层页面没有
+      // README.md）：深层页面的 media 链接经上一行归一后深度不同，重写会落到
+      // docs/api/<pkg>/ 下面而不是 docs/api/，比不重写更糟。
+      if (entry.name === 'README.md') {
+        content = rewriteMediaPackageLinks(content, packageNames);
+        content = plainTextMediaPackageLinks(content, mediaPackageNames);
+      }
 
       // 在 h1 标题中处理特殊字符
       let sidebarLabel = null;
@@ -308,7 +380,11 @@ async function fixHtmlEntities(dirPath) {
   }
 }
 
-flattenApiDocs().catch(error => {
-  console.error('❌ 扁平化失败:', error);
-  process.exit(1);
-});
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) {
+  flattenApiDocs().catch(error => {
+    console.error('❌ 扁平化失败:', error);
+    process.exit(1);
+  });
+}
