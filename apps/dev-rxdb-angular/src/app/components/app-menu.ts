@@ -184,6 +184,28 @@ export class AppMenu {
       icon: Grid3x3
     },
     {
+      type: 'divider',
+      title: 'Entity Model'
+    },
+    {
+      type: 'link',
+      title: 'Entity List',
+      path: '/entity-list',
+      icon: ListTodo
+    },
+    {
+      type: 'link',
+      title: 'Entity Detail',
+      path: '/entity-detail',
+      icon: Layers
+    },
+    {
+      type: 'link',
+      title: 'Query Builder',
+      path: '/query-builder',
+      icon: ListTree
+    },
+    {
       type: 'link',
       title: 'Code Editor',
       path: '/code-editor',

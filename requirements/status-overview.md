@@ -82,7 +82,7 @@
 - ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）已移出承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
-> US-401 / US-701 查询构建器系列不在本仓库范围内。
+> ⬜ US-401 / US-701 查询构建器系列原标注不在本仓库范围内 —— 该范围已由 `specs/002-rxdb-model-port`（rxdb-model 实体模型库移植：框架无关核心 + 三框架 UI 组件集，含可视化查询构建器；Angular 先行，React/Vue 同 epic 补齐）引入，进行中。
 
 ### [未来功能](epics/epic-004-future-features.md)
 

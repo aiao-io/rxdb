@@ -54,6 +54,8 @@
       "@aiao/rxdb-adapter-supabase": ["./packages/rxdb-adapter-supabase/src/index.ts"],
       "@aiao/rxdb-angular": ["./packages/rxdb-angular/src/index.ts"],
       "@aiao/rxdb-client-generator": ["./packages/rxdb-client-generator/src/index.ts"],
+      "@aiao/rxdb-model": ["./packages/rxdb-model/src/index.ts"],
+      "@aiao/rxdb-model-angular": ["./packages/rxdb-model-angular/src/index.ts"],
       "@aiao/rxdb-plugin-graph": ["./packages/rxdb-plugin-graph/src/index.ts"],
       "@aiao/rxdb-plugin-graph/sqlite": ["./packages/rxdb-plugin-graph/src/sqlite.ts"],
       "@aiao/rxdb-plugin-history": ["./packages/rxdb-plugin-history/src/index.ts"],

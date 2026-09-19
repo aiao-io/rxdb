@@ -74,9 +74,11 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 直接依赖 `@subframe7536/sqlite-wasm`，资产不再经本仓库的 `exports` 暴露。
  *
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
+ * `rxdb-model-angular` 的 `tailwind.css` 是 Tailwind 的 `@source` 注册资产（无 TS 导出表面），
+ * 由消费方的 Tailwind 管线消费，内容为纯指令、无供应链风险面。
  * @type {Map<string, string[]>}
  */
-const ASSET_SUBPATHS = new Map();
+const ASSET_SUBPATHS = new Map([['rxdb-model-angular', ['./tailwind.css']]]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';
 

@@ -191,6 +191,12 @@
     },
     {
       "path": "./packages/rxdb-plugin-sync"
+    },
+    {
+      "path": "./packages/rxdb-model-angular"
+    },
+    {
+      "path": "./packages/rxdb-model"
     }
   ]
 }

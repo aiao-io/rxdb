@@ -1,0 +1,58 @@
+{
+  "name": "@aiao/rxdb-model-angular",
+  "version": "0.0.25",
+  "description": "Angular UI components for Aiao RxDB Model: metadata-driven entity list, detail, form, dialog, editable table and query builder.",
+  "homepage": "https://rxdb.netlify.app/docs",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "entity",
+    "form",
+    "table",
+    "query-builder"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-model-angular"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./tailwind.css": "./tailwind.css"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "*",
+    "@aiao/rxdb-angular": "*",
+    "@aiao/rxdb-model": "*",
+    "@aiao/rxdb-plugin-history": "*",
+    "@angular/cdk": "22.1.6",
+    "@angular/common": "22.1.6",
+    "@angular/core": "22.1.6",
+    "@angular/forms": "22.1.6",
+    "@angular/platform-browser": "22.1.6",
+    "@lucide/angular": "^1.45.0",
+    "@visactor/vtable": "~1.26.5",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "@angular/compiler": "22.1.6",
+    "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
