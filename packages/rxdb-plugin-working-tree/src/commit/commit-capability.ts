@@ -13,11 +13,9 @@
  * 拿新协议去写旧图。所以这里是**严格相等**。
  */
 
-import type { EntityMetadata, RxDBCapabilityVersionKind, TransactionExecutor } from '@aiao/rxdb';
+import type { RxDBCapabilityVersionKind, TransactionExecutor } from '@aiao/rxdb';
 import {
-  getEntityColumnName,
   getEntityMetadata,
-  quoteSqlIdentifier,
   RXDB_CHANGE_CODEC_VERSION,
   RxDBError,
   sqlBooleanLiteral,
@@ -26,6 +24,7 @@ import {
   UnsupportedRxDBSystemVersionError
 } from '@aiao/rxdb';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
+import { createColumnOf } from '../entity-column.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
   COMMIT_GRAPH_SCHEMA_VERSION,
@@ -95,12 +94,10 @@ const MISSING_CAPABILITY_ROW =
   '迁移 0004-working-tree-commits 建了表但没写入这一行，或它被外部删除了。' +
   '这不是「未启用」，不能按未启用继续。';
 
-/** 取列名，取不到就抛——拼 SQL 时拿到 `undefined` 会安静地产出一条语法错误的语句。 */
-const columnOf = (metadata: EntityMetadata, field: keyof CommitCapabilityState): string => {
-  const columnName = getEntityColumnName(metadata, field);
-  if (!columnName) throw new RxDBError(`CommitCapabilityState 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName);
-};
+/** `CommitCapabilityState` 里参与启用 CAS 的那几列。 */
+type CommitCapabilityStateColumn = 'id' | 'enabled' | 'enabledAt';
+
+const columnOf = createColumnOf<CommitCapabilityStateColumn>('CommitCapabilityState');
 
 /**
  * 拼一条启用 CAS。

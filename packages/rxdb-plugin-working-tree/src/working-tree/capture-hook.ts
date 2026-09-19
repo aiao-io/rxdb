@@ -235,6 +235,44 @@ const isCaptureOwned = (fun: TransactionFun): boolean =>
   (fun as CaptureOwnedTransactionFun)[CAPTURE_OWNED_TRANSACTION] === true;
 
 /**
+ * 已被受信挂载点认领过的变更行 id，按事务分格
+ *
+ * @remarks
+ * {@link CAPTURE_OWNED_TRANSACTION} 挡的是「挂载点 2 / 3 自己开事务」那一跳；反向的嵌套它挡不住：
+ * 挂载点 1 先到，事务体里才调 `executor.mergeChanges` 落到挂载点 2。`merge_branch` 的 normal 策略
+ * 正是这个形状（`merge-branch.ts`：`adapter.transaction()` 包住整个循环，循环体逐条调
+ * `executor.mergeChanges`）。挂载点 1 的增量读在 `fun` **之后**发生，看见的正是那批 `mergeChanges`
+ * 刚写下的变更行，于是同一批写被按 `crud` 再判一遍：一次合并的 N 条变更被拆进 N+1 个单元，
+ * `workingTreeRevision` 一条变更推两格——而它是提交的 CAS 依据，另一个 Tab 手里的那个当场作废。
+ *
+ * 记的是**变更行 id 的集合**，不是一个抬高的水位线。抬水位线等于说「这个点之前的都别捕获」，
+ * 而合并之前同一个外层事务里的业务写 id 更小，会被一起抹掉——那才是真正该进工作树的东西。
+ *
+ * 按 executor 分格而不是运行时实例上的一个字段：适配器的事务是串行排队的，实例级的抑制位会把
+ * 两次合并之间排队的用户事务一并跳过。WeakMap 的键是事务身份本身，格子随事务对象一起消失。
+ *
+ * 只有挂载点 1 会登记格子，所以挂载点 2 在**非嵌套**形态下一次多余的读都不发生：
+ * `has()` 为假就直接走原路。
+ */
+const CONSUMED_CHANGE_IDS = new WeakMap<TransactionExecutor, Set<number>>();
+
+/**
+ * 把 `watermark` 之后的变更行记成「已被本挂载点认领」，供外层事务的增量读排除
+ *
+ * @param executor - 业务写所在的事务
+ * @param watermark - 本次受信写开始前的变更水位线
+ *
+ * @remarks
+ * 外层没登记格子（即本次调用不在挂载点 1 的事务体内）时什么都不做——连增量读都不发。
+ */
+const recordConsumedChanges = async (executor: TransactionExecutor, watermark: number): Promise<void> => {
+  const consumed = CONSUMED_CHANGE_IDS.get(executor);
+  if (!consumed) return;
+  const rows = await readChangesAfter(executor, watermark);
+  for (const row of rows) consumed.add(row.id);
+};
+
+/**
  * 拆 `namespace:entity` 形式的限定名
  *
  * @param entityName - 实体名，或 `namespace:entity` 形式的显式限定名
@@ -337,11 +375,18 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     if (isCaptureOwned(fun)) return next(fun, transactionLog);
     const body: TransactionFun = async executor => {
       const watermark = await readChangeWatermark(executor);
-      const value = await fun(executor);
-      const declared = takeDeclaredWrite(executor);
-      const rows = await readChangesAfter(executor, watermark);
-      await this.#capture(executor, rows.map(sourceOfChangeRow), declared?.entrance ?? 'crud');
-      return value;
+      const consumed = new Set<number>();
+      CONSUMED_CHANGE_IDS.set(executor, consumed);
+      try {
+        const value = await fun(executor);
+        const declared = takeDeclaredWrite(executor);
+        const rows = await readChangesAfter(executor, watermark);
+        const own = rows.filter(row => !consumed.has(row.id));
+        await this.#capture(executor, own.map(sourceOfChangeRow), declared?.entrance ?? 'crud');
+        return value;
+      } finally {
+        CONSUMED_CHANGE_IDS.delete(executor);
+      }
     };
     return next(body, transactionLog);
   }
@@ -353,6 +398,10 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * 业务写与捕获共用 `host.runInTransaction()` 要来的那一个事务：`mergeChanges` 内部走的也是
    * `runInTransaction`，把它发到该事务 executor 的门面上，它就复用而不是新开。于是
    * 「写了业务表却没留下单元」在这个挂载点上不存在崩溃窗口。
+   *
+   * 本次写产生的变更行要登记进 {@link CONSUMED_CHANGE_IDS}：嵌在挂载点 1 的事务体里时
+   * （`merge_branch` 的 normal 策略就是这个形状），外层的增量读否则会把同一批写再判一遍。
+   * 不在嵌套形态下时格子不存在，`has()` 为假，连那次水位线读都不发。
    */
   async interceptMergeChanges(
     host: WorkingTreeWriteHost,
@@ -364,7 +413,9 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
     return host.runInTransaction(
       markCaptureOwned(async (executor: TransactionExecutor) => {
         const entrance = this.#requireEntrance(executor, 'mergeChanges');
+        const watermark = CONSUMED_CHANGE_IDS.has(executor) ? await readChangeWatermark(executor) : 0;
         const result = await next(executorHostOf(executor), actions, localChanges, disableTriggers);
+        await recordConsumedChanges(executor, watermark);
         await this.#capture(executor, sourcesOfActions(actions), entrance);
         return result;
       }),

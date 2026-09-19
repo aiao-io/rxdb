@@ -5,7 +5,9 @@ import {
   EntityType,
   KeyValuePropertyMetadata,
   PropertyType,
-  type RxDBEntityId
+  quoteSqlIdentifier,
+  type RxDBEntityId,
+  sqlStringLiteral
 } from '@aiao/rxdb';
 import {
   deserializeFromEnvelope,
@@ -130,9 +132,34 @@ export class RxdbAdapterPGliteError extends Error {
   }
 }
 
-export const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+/**
+ * 把标识符（schema 名、表名、列名）包成双引号形式。
+ *
+ * @param value - 标识符原文
+ * @returns 双引号包裹、内部双引号已加倍的标识符
+ *
+ * @throws {@link RxDBError} 标识符为空或含 NUL 时
+ *
+ * @remarks
+ * 直接复用核心的 {@link quoteSqlIdentifier}，不另写一份：两份转义规则一旦分叉，
+ * 分叉的必然是**拒绝哪些输入**而不是加引号的写法——本适配器这份原先对空串与 NUL
+ * 一律放行，而 PostgreSQL 会因为一个 NUL 拒绝整条语句，错误指向的是语句而不是那个值。
+ */
+export const quoteIdentifier = (value: string): string => quoteSqlIdentifier(value);
 
-export const quoteLiteral = (value: string): string => `'${value.replaceAll("'", "''")}'`;
+/**
+ * 把字符串拼成 SQL 字符串字面量。
+ *
+ * @param value - 字符串原文
+ * @returns 单引号包裹、内部单引号已加倍的字面量
+ *
+ * @throws {@link RxDBError} 值含 NUL 时
+ *
+ * @remarks
+ * 同 {@link quoteIdentifier}，复用核心的 {@link sqlStringLiteral} 以保证全仓只有一套
+ * 「哪些输入不转义而是拒绝」的判据。
+ */
+export const quoteLiteral = (value: string): string => sqlStringLiteral(value);
 
 /**
  * 拼出形如 `"public"."users"` 的完全限定表名（带双引号转义）。

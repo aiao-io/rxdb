@@ -22,16 +22,9 @@
  * 这里分叉成两份实现。字面量由 `sql-literal.ts` 负责转义。
  */
 
-import type { EntityManager, EntityMetadata, TransactionExecutor } from '@aiao/rxdb';
-import {
-  getEntityColumnName,
-  getEntityMetadata,
-  quoteSqlIdentifier,
-  RxDBError,
-  sqlIntegerLiteral,
-  sqlStringLiteral,
-  uuid
-} from '@aiao/rxdb';
+import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBError, sqlIntegerLiteral, sqlStringLiteral, uuid } from '@aiao/rxdb';
+import { createColumnOf } from '../entity-column.js';
 import type { CommitChangeUnitContent } from './change-unit.js';
 import { computeCommitContentFingerprint } from './change-unit.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
@@ -187,20 +180,7 @@ type CommitBranchRefColumn = 'id' | 'generation' | 'headCommitId' | 'headRevisio
 /** 空白判定；`if (!value)` 放不住只有空格的串。 */
 const isBlank = (value: string | null): boolean => value === null || value.trim() === '';
 
-/**
- * 取一列的真实列名并加引号。
- *
- * @throws {@link RxDBError} 元数据里没有这一列时
- *
- * @remarks
- * 不接受「取不到就用字段名兜底」：列名一旦被改，兜底会拼出一条语法正确、
- * 却永远匹配不到任何行的 UPDATE——`rowsAffected` 恒为 0，症状是「提交总是冲突」。
- */
-const columnOf = (metadata: EntityMetadata, field: CommitBranchRefColumn): string => {
-  const columnName = getEntityColumnName(metadata, field);
-  if (!columnName) throw new RxDBError(`CommitBranchRef 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName);
-};
+const columnOf = createColumnOf<CommitBranchRefColumn>('CommitBranchRef');
 
 /**
  * 拼出推进 HEAD 的那一条 CAS。

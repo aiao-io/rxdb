@@ -17,25 +17,14 @@
  */
 
 import type { EntityMetadata } from '@aiao/rxdb';
-import {
-  getEntityColumnName,
-  getEntityMetadata,
-  quoteSqlIdentifier,
-  RxDBError,
-  sqlIntegerLiteral,
-  sqlStringLiteral
-} from '@aiao/rxdb';
+import { getEntityMetadata, sqlIntegerLiteral, sqlStringLiteral } from '@aiao/rxdb';
+import { createColumnOf } from '../entity-column.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
 
 /** `WorkingTreeState` 里参与状态转移的那几列。 */
 type WorkingTreeStateColumn = 'id' | 'baseHeadCommitId' | 'workingTreeRevision' | 'entryCount';
 
-/** 取一列的真实列名并加引号。 */
-const columnOf = (metadata: EntityMetadata, field: WorkingTreeStateColumn): string => {
-  const columnName = getEntityColumnName(metadata, field);
-  if (!columnName) throw new RxDBError(`WorkingTreeState 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName);
-};
+const columnOf = createColumnOf<WorkingTreeStateColumn>('WorkingTreeState');
 
 /** 定位单个分支状态行的等值谓词。 */
 const branchPredicate = (metadata: EntityMetadata, branchId: string): string =>

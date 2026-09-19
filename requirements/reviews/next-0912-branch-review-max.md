@@ -7,7 +7,7 @@
 - **评审强度**：max（9 个分区 finder 全角度扫描 → 44 条候选 → 每条独立对抗式验证 → 1 轮 sweep 查漏）
 - **主线改动**：epic-006「工作树 + 提交历史」——捕获钩子 / 原始写闸门 / 受信写声明 / 提交图 CAS + 编解码 + 指纹 / 冷重放
 - **本轮复核**：2026-09-18（同基准 `de70a1a9` → `9e5ddc92`）。逐条复核 + 按裁决落地修复；已修条目按本目录「只留尚未处理的条目」约定从报告删除（修法与判据写在代码注释与 TSDoc 里），证伪项留档于 §4、架构项标 Deferred。
-- **结论（复核后）**：🟡 **可合并性取决于 D 档排期**。仍阻塞合并的是 **6 条架构级顺延项**（§6.1）；另有 §2 的三条未处理 P2 与 §5 的未处理发现。它们需要单独排期，不在「确定项 + 测试 + 文档」范围内。
+- **结论（复核后）**：🟡 **可合并性取决于 D 档排期**。仍阻塞合并的是 **4 条架构级顺延项**（§6.1；原 6 条里的双重捕获与 diff 分页已于 2026-09-19 修复）；另有 §2 的三条未处理 P2 与 §5 的未处理发现。它们需要单独排期，不在「确定项 + 测试 + 文档」范围内。
 - **原结论（2026-09-18 首轮，存档）**：🔴 **不建议合并**。本轮新确认 **2 条 P0、8 条 P1、5 条 P2**（Top 15），另有 32 条已验证发现因报告上限未进 Top 榜，其中一条与上一轮 [P1] 独立复现。全部 15 条 Top 榜均为独立验证后的 CONFIRMED，2 条候选被证伪剔除。
 
 ## 评审基准（SHA）
@@ -25,16 +25,9 @@
 - **验证方式说明**：本报告条目以静态跨文件追踪 + 局部实测为准；未跑全量 `pnpm test-all` 或 E2E。
 - **上限说明**：报告 Top 榜上限 15 条，correctness 优先；其余 32 条已验证发现见 §5。
 
-## 2. Top 发现（按严重度 —— 已修条目按约定删除，剩未处理 7 条）
+## 2. Top 发现（按严重度 —— 已修条目按约定删除，剩未处理 5 条）
 
 > **标记说明**：`⏸ Deferred` = 判定成立但属架构级，单独排期（§6.1）；`⬇ 降级` = 原严重度高估，附降级理由。
-
-### [P1] ⏸ Deferred — 调用方事务内 mergeChanges 被双重捕获
-
-- **证据**：[capture-hook.ts:342-343](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L342) 挂载点 1 的 watermark 后扫对同一批 change 行二次捕获；`CAPTURE_OWNED_TRANSACTION` 只保护运行时自开事务。而 [merge-branch.ts:118-139](../../packages/rxdb-plugin-history/src/merge-branch.ts#L118) 的 `'normal'` 策略在调用方开启的事务里调 `executor.mergeChanges(singleActions, undefined, false)`。
-- **触发与影响**：挂载点 2 捕获一次（entrance `domain_recompute`），挂载点 1 再捕获一次（entrance 覆写为 `'crud'`、origin 翻成 `CAPTURE_LOCAL`）——每次合并变更 `workingTreeRevision` +2（「一次合并推两格」，文件自身文档视为设计破坏），unitId/transactionId 被第二遍覆写；未来 remote 入口的受信调用会被误标为本地编辑，discard 会撤销远程同步。所有嵌套合并测试都恰好用 `disableTriggers: true` 绕过了此路径。
-- **修复建议**：把「本次事务内的变更已由内层挂载点消费」的信息沿事务上下文传递（不依赖运行时自开标记），或用 watermark 排除内层已写入的修订号；补 `merge_branch('normal')` 端到端用例断言 revision 只 +1。
-- **本轮处理（⏸ Deferred，D-3）**：判定复核成立，本轮不实现。修法要么给事务上下文加一条「本事务的变更已被内层消费」的传递位，要么改 watermark 的语义——两者都动捕获管线的契约面，不属本轮「确定项 + 测试 + 文档」范围。见 §6.1 顺延项。2026-09-18 第三次复核（HEAD `fc30f1da`）再次确认仍未修，条目同步在 [`next-0912-branch-review.md`](./next-0912-branch-review.md) 第三次复核节。
 
 ### [P1] ⏸ Deferred — 跨 realm 能力启用后，旧连接写入静默绕过捕获（与上一轮 [P1] 独立复现）
 
@@ -56,13 +49,6 @@
 - **触发与影响**：调用方捕获 `{branchId:A, activationRevision:3}`，另一 realm 切到 B（revision 7），调用方再带旧凭据操作 → 错误 `expected={branchId:B, activationRevision:3}`，消息「写入时持有 B@3，库里现在是 B@7」——一个从未存在过的 token，误导按 `expected.branchId` 定位问题的跨 realm 消费者。spec 只覆盖同分支场景。
 - **修复建议**：expected 用调用方完整捕获值（branchId 为调用时所在分支）；补跨分支后旧凭据被拒的用例断言错误字段。
 - **降级理由（P1 → P2）+ 本轮未处理**：**拒绝本身是对的**——旧凭据该被拒，也确实被拒了，没有任何写入穿过去。坏的只有错误对象里 `expected.branchId` 这一格的取值，影响面是「按该字段定位问题的跨 realm 消费者读到一个从未存在过的 token」。属诊断质量而非正确性，原报排 P1 是高估。修法本身不大，但要连带调整 `expected` 的语义契约与跨 realm 用例，与 D-1 同一场景，建议并入那次排期。
-
-### [P1] ⏸ Deferred — diff 分页把同一事务切成两个半组
-
-- **证据**：[diff.ts:242-251](../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L242) 先 `readEntryPage`（`rows.slice(0, limit)`，185 行）后 `groupByTransaction`。实测 limit=2、3 条目事务 → 页 1 `{e1,e2}`、页 2 `{e3}`，两组同 `transactionId`。
-- **触发与影响**：类型设计上组 = 一个原子事务（null 事务每条目一组正是为此）；消费者按组整体渲染或按 `transactionId` 去重会得到两个幻影事务或静默丢半组条目。分页 + 事务粒度组合无测试、无 TSDoc/契约允许切分，也没有任何调用方合并页。
-- **修复建议**：分页边界改为按事务边界对齐（取整组后再截断页），或对跨页事务做延续标记并在文档中约定；补组合用例。
-- **本轮处理（⏸ Deferred，D-5）**：判定复核成立，本轮不实现。两条修法都要改**分页游标的语义**（按事务边界对齐要允许页大小浮动；延续标记要在 `WorkingTreeDiff` 上加字段并写进已冻结的契约 §3），属公开面变更。见 §6.1 顺延项。第三次复核降为 P2 并确认仍未修（见 [`next-0912-branch-review.md`](./next-0912-branch-review.md)），本报告保留原判定。
 
 ### [P2] raw 判定第 2 步受信 intent 豁免没有生产通道
 
@@ -146,21 +132,19 @@
 
 ### 6.1 顺延项（⏸ Deferred —— 架构级，需单独排期）
 
-这 6 条是**当前真正阻塞合并的全部内容**，按建议优先级排：
+这 4 条是**当前真正阻塞合并的全部内容**，按建议优先级排（原第 3 条 `merge_branch('normal')` 双重捕获与第 5 条 diff 分页切断事务**已于 2026-09-19 修复**并按约定删除，修复索引见 [`next-0912-branch-review.md`](./next-0912-branch-review.md) 文末「2026-09-19 修复记录」）：
 
 1. **跨 realm 能力启用后旧连接静默绕过捕获**（§2）——两份报告独立复现，违反 FR-037，最该先排。要新增跨连接的能力变更传播通道。
 2. **三个未接线的失效保护**：`bumpActivationRevision`（普通切换不推进 activation revision，A→B→A 可重用旧凭据）/ `commitBranchMaterialization`（远端分支首次物化未接公开入口）/ `markBranchCorrupted`（检测到损坏不落盘隔离标记）——三者都是「函数写好了但生产代码没有调用点」。详见 `next-0912-branch-review.md`。
-3. **`merge_branch('normal')` 路径双重捕获**（§2）——要改事务上下文的传递位或 watermark 语义。
-4. **切换前置条件与最终写入分属两个事务**——详见 `next-0912-branch-review.md`。
-5. **diff 分页把同一事务切成两个半组**（§2）——两条修法都要改分页游标的公开语义。
-6. **`bench-working-tree` 接 CI**（§2）——T132 已于 2026-09-18 按 T109 复冻基线跑 `✓ PASS`，**剩 CI 接线**；顺带把 `working-tree-reference.json` 的 `regeneratedBecause` 过期文案一并清掉。
+3. **切换前置条件与最终写入分属两个事务**——详见 `next-0912-branch-review.md`。
+4. **`bench-working-tree` 接 CI**（§2）——T132 已于 2026-09-18 按 T109 复冻基线跑 `✓ PASS`，**剩 CI 接线**；顺带把 `working-tree-reference.json` 的 `regeneratedBecause` 过期文案一并清掉。
 
-第 7 条是本轮复核**新发现**的：**`normalizeCreateEntity` 的平行数组下标配对**（pglite `pglite.utils.ts:479-497` + sqlite-core `sqlite-core.utils.ts:482-503`，两份逐字相同）。它是已修的 `normalizeUpdateEntity` 分歧在 INSERT 侧的镜像，同一个缺陷形态——但**这一侧修不了**：核心里根本没有 `normalizeCreateEntity` 可指（只在 `entity.utils.ts:171` 的注释里被提到）。要先往 `@aiao/rxdb` 补一份 keyed 实现再让两个适配器改指，是新增核心公开导出。详见 `next-0912-branch-review.md` §4.1。
+第 5 条是本轮复核**新发现**的：**`normalizeCreateEntity` 的平行数组下标配对**（pglite `pglite.utils.ts:479-497` + sqlite-core `sqlite-core.utils.ts:482-503`，两份逐字相同）。它是已修的 `normalizeUpdateEntity` 分歧在 INSERT 侧的镜像，同一个缺陷形态——但**这一侧修不了**：核心里根本没有 `normalizeCreateEntity` 可指（只在 `entity.utils.ts:171` 的注释里被提到）。要先往 `@aiao/rxdb` 补一份 keyed 实现再让两个适配器改指，是新增核心公开导出。详见 `next-0912-branch-review.md` §4.1。
 
-第 8 条相关但更小：**时钟口径统一**（`corruptedAt` / `enabledAt` 用客户端时钟）。本轮判定为**改不了**——`CURRENT_TIMESTAMP` 在 SQLite 上求值成 `'YYYY-MM-DD HH:MM:SS'`，与本仓日期列的 ISO 存储形态对不上，而仓储层没有写 SQL 表达式的口子。本轮只在两处补了说明边界的 TSDoc（见 `next-0912-branch-review.md` §3）；统一要先给仓储层加能力。
+第 6 条相关但更小：**时钟口径统一**（`corruptedAt` / `enabledAt` 用客户端时钟）。本轮判定为**改不了**——`CURRENT_TIMESTAMP` 在 SQLite 上求值成 `'YYYY-MM-DD HH:MM:SS'`，与本仓日期列的 ISO 存储形态对不上，而仓储层没有写 SQL 表达式的口子。本轮只在两处补了说明边界的 TSDoc（见 `next-0912-branch-review.md` §3）；统一要先给仓储层加能力。
 
 ### 6.2 尚未排期
 
 - [ ] §5.2 效率 4 条、§5.3 重复/简化 7 条、§5.4 剩余测试缺陷 6 条、§5.5 PLAUSIBLE 1 条
 - [ ] §2 里标「本轮未处理」的 3 条 P2（系统实体 namespace、StaleActiveBranchError 诊断字段、raw intent 豁免方向决策）
-- [ ] D 档 6 条全部落地后，本报告与 `next-0912-branch-review.md` 一并归档（`status: Resolved`）
+- [ ] D 档剩余 4 条全部落地后，本报告与 `next-0912-branch-review.md` 一并归档（`status: Resolved`）

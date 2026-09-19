@@ -133,8 +133,17 @@ export const loadCommitsByIds = async (executor: TransactionExecutor, ids: reado
  * @param level - 本层已取回的节点
  * @param seen - 已入队过的 id；本函数就地登记
  * @returns 下一层的 id，按本层顺序展开
+ *
+ * @remarks
+ * `seen` 是逐层遍历唯一的终止条件。提交图理论上无环，但一个被篡改过的库可以有环，
+ * 没有 visited 集合的遍历在这种库上会从「给出结论」变成「挂起」。环本身不判成损坏：
+ * 它不影响任何一次可达性重放的结论，判它等于多造一种只有遍历方自己认得的损坏。
+ *
+ * 导出是给 `assertCommitGraphIntact()` 复用的：读路径与守卫的**展开规则完全相同**，
+ * 差别只在取回本层时对缺失 id 的判定（见 {@link loadCommitsByIds}）。两份各自演化，
+ * 迟早在「父指针怎么展开」上分叉。
  */
-const nextFrontier = (level: readonly Commit[], seen: Set<string>): string[] => {
+export const nextFrontier = (level: readonly Commit[], seen: Set<string>): string[] => {
   const next: string[] = [];
   for (const commit of level) {
     for (const parentId of commit.parentIds) {

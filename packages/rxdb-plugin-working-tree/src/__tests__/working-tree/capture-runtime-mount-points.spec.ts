@@ -305,6 +305,13 @@ const PULL_BATCH = {
   intent: TrustedWriteIntent.remote_sync
 } as const;
 
+/** 登记表 #6：`merge_branch` 的 normal 策略；外层事务里逐条调 `executor.mergeChanges`。 */
+const MERGE_PER_CHANGE = {
+  file: 'merge-branch.ts',
+  symbol: 'merge_branch',
+  intent: TrustedWriteIntent.merge_per_change
+} as const;
+
 describe('挂载点 1：transaction —— 事务增量即捕获源', () => {
   it('捕获的只有水位线之后的变更，先前留下的历史不算这次的改动', async () => {
     const stage = scene();
@@ -534,6 +541,65 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
     // 外加 revision 凭空多推一格——而它是 commit 的 CAS 依据，另一个 Tab 手里的那个当场作废。
     expect(stage.entries().map(entry => entry.origin)).toEqual(['remote_sync']);
     expect(stage.workingTreeRevision()).toBe(1);
+  });
+
+  it('外层事务里发起的 mergeChanges：外层的增量读不再把同一批写算第二遍', async () => {
+    // `merge_branch` 的 normal 策略正是这个形状：`adapter.transaction()` 包住整个循环
+    // （挂载点 1），循环体里逐条调 `executor.mergeChanges`（挂载点 2）。上一条用例覆盖的是
+    // 挂载点 2 **自己开**事务的形态，靠事务体上的标躲开挂载点 1；而这里挂载点 1 先到，
+    // 标躲不掉——它的增量读在 `fun` 之后发生，看见的正是 `mergeChanges` 刚写下的那些变更行。
+    let units = 0;
+    const stage = scene(() => `unit-${(units += 1)}`);
+    stage.runtime.bindMountTarget(stage.target);
+
+    const seen: { transactionLog?: boolean } = {};
+    await stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, seen), async executor => {
+      declareTrustedWrite(executor, MERGE_PER_CHANGE);
+      await stage.runtime.interceptMergeChanges(
+        stage.facade,
+        async () => {
+          // `disableTriggers` 为假：触发器照常记一行，这行落在外层水位线之后。
+          stage.appendChange({ id: 1, entityId: 'p1' });
+          return undefined;
+        },
+        actionsOf({ updates: [['app:Post:p1', titleChange()]] })
+      );
+    });
+
+    // 捕获两遍不报错也不多出一行：唯一约束把它折到同一条上，只是单元 id 被改写成外层那次的。
+    // 症状有两个，都不在合并当场发作：一次合并的 N 条变更被拆进 N+1 个单元（历史里一次业务
+    // 操作从此对不上号），以及 `workingTreeRevision` 一条变更推两格——而它是提交的 CAS 依据，
+    // 另一个 Tab 手里的那个当场作废。
+    expect(stage.entries().map(entry => entry.unitId)).toEqual(['unit-1']);
+    expect(stage.workingTreeRevision()).toBe(1);
+  });
+
+  it('排除的是被认领过的那几行，不是整段水位线——合并之前的业务写照旧进工作树', async () => {
+    // 这一条钉的是修法本身。把「已认领」实现成抬高外层水位线同样能让上一条用例转绿，代价是
+    // 同一个外层事务里**早于**合并的业务写 id 更小，会被一并抹掉——用户刚改的那一笔悄悄不进
+    // 工作树，既不报错也没有日志，要等 discard 或提交时才发现少了东西。
+    let units = 0;
+    const stage = scene(() => `unit-${(units += 1)}`);
+    stage.runtime.bindMountTarget(stage.target);
+
+    const seen: { transactionLog?: boolean } = {};
+    await stage.runtime.interceptTransaction(stage.host, transactionNext(stage.probe, seen), async executor => {
+      stage.appendChange({ id: 1, entityId: 'p0' });
+      declareTrustedWrite(executor, MERGE_PER_CHANGE);
+      await stage.runtime.interceptMergeChanges(
+        stage.facade,
+        async () => {
+          stage.appendChange({ id: 2, entityId: 'p1' });
+          return undefined;
+        },
+        actionsOf({ updates: [['app:Post:p1', titleChange()]] })
+      );
+    });
+
+    expect(stage.entries().map(entry => [entry.entityId, entry.unitId])).toEqual([
+      ['p1', 'unit-1'],
+      ['p0', 'unit-2']
+    ]);
   });
 });
 

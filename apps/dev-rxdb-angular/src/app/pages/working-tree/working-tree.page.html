@@ -163,7 +163,6 @@
             [commitState]="tree.commitState()"
             [notice]="$notice()"
             (commit)="runCommit()"
-            (discard)="runDiscard()"
           />
         } @else {
           <app-working-tree-history-list

@@ -30,7 +30,8 @@ import {
   isWorkingTreeStatusEmpty,
   trackWorkingTreeCommand,
   trackWorkingTreeQuery,
-  type WorkingTreeAsyncStates
+  type WorkingTreeAsyncStates,
+  type WorkingTreeStateSink
 } from './async-state.js';
 import type { CommitOptions, CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from './diff.js';
@@ -96,6 +97,42 @@ export interface WorkingTreeCommands {
   /** 切到另一条分支；成功后顺带重读一次 status。被 `requireClean` 拒掉时**抛** `WorkingTreeDirtyError` */
   readonly switchBranch: (branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>;
 }
+
+/**
+ * 一格一个的请求代次；只有最新那一次请求能往自己那一格写终态。
+ *
+ * @param patch - 调用方给的落点
+ * @returns 取数器；在**发起**一次请求时调用，拿到那一次专属的相位落点
+ *
+ * @remarks
+ * 同一格上的请求会并发：筛选器一改就重发一次 `diff()`，用户连点两下就重发两次
+ * `status()`，而先发的那一次没有任何东西会取消它。哪一次先回来由后端与网络决定，
+ * 于是「最后写进状态的」与「用户现在问的」是两回事——先发后到的结果会盖掉更晚的那份，
+ * 而屏幕上没有任何迹象说明这一格已经旧了。
+ *
+ * 代次在**发起**时领（即本函数在实参位置求值的那一刻，恰在 `loading` 之前），
+ * 而不是在结果回来时比对时间戳：时间戳只能告诉你两次谁更晚开始，领号能告诉你
+ * 「我这一次还是不是最新的那一次」——后者才是判据。
+ *
+ * **按 key 分格**，不是一个全局计数器：一次 `diff()` 不该把正在飞的 `status()` 判成过期。
+ *
+ * 过期请求只是**不写状态**，异常照旧抛给它自己的调用方（§1：状态与异常不是二选一）。
+ * 也不取消底层调用——`WorkingTreeManager` 上的每一个方法都是一整个事务，中途撤回
+ * 会把「已经写了一半」变成一种新的、没人定义过的结果。
+ */
+const createLatestOnlyPatch = (
+  patch: WorkingTreeStatePatch
+): (<K extends keyof WorkingTreeAsyncStates>(key: K) => WorkingTreeStateSink<WorkingTreeAsyncStates[K]>) => {
+  const generations = new Map<keyof WorkingTreeAsyncStates, number>();
+  return <K extends keyof WorkingTreeAsyncStates>(key: K) => {
+    const generation = (generations.get(key) ?? 0) + 1;
+    generations.set(key, generation);
+    return (state: WorkingTreeAsyncStates[K]) => {
+      if (generations.get(key) !== generation) return;
+      patch(key, state);
+    };
+  };
+};
 
 /**
  * 取库上的工作树入口，没挂上就抛。
@@ -169,12 +206,9 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
   // `defineProperty` 装上、释放时删掉（见 `rxdb-plugin-history/src/plugin.ts`），
   // 构造那一刻取一次等于把入口钉死在第一个纪元上。
   const versionManager = (): VersionManager => database.versionManager;
+  const sinkFor = createLatestOnlyPatch(patch);
   const runStatus = (): Promise<WorkingTreeStatus> =>
-    trackWorkingTreeQuery(
-      state => patch('statusState', state),
-      isWorkingTreeStatusEmpty,
-      () => workingTree.status()
-    );
+    trackWorkingTreeQuery(sinkFor('statusState'), isWorkingTreeStatusEmpty, () => workingTree.status());
 
   /**
    * 一次改动之后把 status 重读一遍。
@@ -195,13 +229,13 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
   return {
     isEnabled: () =>
       trackWorkingTreeCommand(
-        state => patch('isEnabledState', state),
+        sinkFor('isEnabledState'),
         () => workingTree.isEnabled()
       ),
 
     enable: async () => {
       const info = await trackWorkingTreeCommand(
-        state => patch('enableState', state),
+        sinkFor('enableState'),
         () => workingTree.enable()
       );
       await refreshStatus();
@@ -212,21 +246,21 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
 
     diff: options =>
       trackWorkingTreeQuery(
-        state => patch('diffState', state),
+        sinkFor('diffState'),
         isWorkingTreeDiffEmpty,
         () => workingTree.diff(options)
       ),
 
     listCommits: options =>
       trackWorkingTreeQuery(
-        state => patch('listCommitsState', state),
+        sinkFor('listCommitsState'),
         isCommitLogPageEmpty,
         () => workingTree.listCommits(options)
       ),
 
     commitChanges: commitId =>
       trackWorkingTreeQuery(
-        state => patch('commitChangesState', state),
+        sinkFor('commitChangesState'),
         isCommitChangeSetPageEmpty,
         () => workingTree.commitChanges(commitId)
       ),
@@ -236,7 +270,7 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       // 也就没有什么可重读的。走到下一行只可能是 `ok: true` 或 `ok: false` 的返回值，
       // 而两者都意味着别人或自己动过工作树。
       const result = await trackWorkingTreeCommand(
-        state => patch('commitState', state),
+        sinkFor('commitState'),
         () => workingTree.commit(message, options)
       );
       await refreshStatus();
@@ -245,7 +279,7 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
 
     discard: async options => {
       const result = await trackWorkingTreeCommand(
-        state => patch('discardState', state),
+        sinkFor('discardState'),
         () => workingTree.discard(options)
       );
       await refreshStatus();
@@ -258,7 +292,7 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       // 刚多了一整个 commit 的条目，`ok: false` 的每一种成因都在说面板上那份摘要已经过期：
       // `dirty_working_tree` 是它显示的「没有未提交改动」不成立，`conflict` 是三个捕获位已经旧了。
       const result = await trackWorkingTreeCommand(
-        state => patch('restoreState', state),
+        sinkFor('restoreState'),
         () => workingTree.restore(target, options)
       );
       await refreshStatus();
@@ -267,7 +301,7 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
 
     restoreSession: () =>
       trackWorkingTreeQuery(
-        state => patch('restoreSessionState', state),
+        sinkFor('restoreSessionState'),
         isWorkingTreeRestoreSessionEmpty,
         () => workingTree.restoreSession()
       ),
@@ -277,7 +311,7 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       // 同一件事：两者都**抛**，与 `commit()` 的 CAS 落败不同——那一个是「调用成功、结果是
       // 冲突」，而这一个连切换都没发生。翻成返回值会让调用方以为自己已经在新分支上了。
       await trackWorkingTreeCommand(
-        state => patch('switchBranchState', state),
+        sinkFor('switchBranchState'),
         () => versionManager().switchBranch(branchId, options)
       );
       // 切过去之后那份摘要属于**另一条**分支：`branchId`、`entryCount`、三个 revision 全换了人。

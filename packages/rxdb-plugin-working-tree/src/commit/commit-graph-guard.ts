@@ -33,7 +33,7 @@ import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import { CommitChangeSet } from './commit-change-set.entity.js';
 import { CommitErrorCode } from './commit-error-codes.js';
 import type { Commit } from './commit.entity.js';
-import { loadCommitsByIds, readCommitBranchRef } from './list-commits.js';
+import { loadCommitsByIds, nextFrontier, readCommitBranchRef } from './list-commits.js';
 
 /** 一次损坏命中的成因。 */
 export type CommitGraphCorruptionReason =
@@ -157,31 +157,6 @@ const loadLevelStrict = async (
 };
 
 /**
- * 由本层节点算出下一层要取的 id。
- *
- * @param level - 本层已取回的节点
- * @param seen - 已入队过的 id；本函数就地登记
- * @returns 下一层的 id
- *
- * @remarks
- * `seen` 是这轮遍历唯一的终止条件。提交图理论上无环，但一个被篡改过的库可以有环，
- * 而守卫恰好是唯一会在这种库上跑的东西——没有 visited 集合，它就从「拒绝操作」
- * 变成「挂起」，调用方连错误都拿不到。环本身不判成损坏：它不影响任何一次可达性重放
- * 的结论，判它等于多造一种只有守卫自己认得的损坏。
- */
-const nextParents = (level: readonly Commit[], seen: Set<string>): string[] => {
-  const next: string[] = [];
-  for (const commit of level) {
-    for (const parentId of commit.parentIds) {
-      if (seen.has(parentId)) continue;
-      seen.add(parentId);
-      next.push(parentId);
-    }
-  }
-  return next;
-};
-
-/**
  * 校验一个分支的提交图完整可用；**只读，不写任何东西**。
  *
  * @param executor - 调用方**自己那个写事务**的执行器
@@ -212,7 +187,7 @@ export const assertCommitGraphIntact = async (executor: TransactionExecutor, bra
   while (frontier.length > 0) {
     const level = await loadLevelStrict(executor, branchId, frontier);
     for (const commit of level) await assertCommitIntact(executor, branchId, commit);
-    frontier = nextParents(level, seen);
+    frontier = nextFrontier(level, seen);
   }
 };
 

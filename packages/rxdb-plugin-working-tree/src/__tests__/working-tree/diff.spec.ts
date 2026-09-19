@@ -233,6 +233,50 @@ describe('按实体名过滤与分页', () => {
   });
 });
 
+describe('事务粒度不与分页同用（keyset 游标按 entry id 走，而 entry id 不按事务聚簇）', () => {
+  // `WorkingTreeEntry.id` 是建行时取的随机 uuid，而同一个事务的多条单元**不是**一次写进去的：
+  // 命中既有行时是原地 UPDATE `transactionId`（见 capture-runtime 的 persistEntry）。于是
+  // 一个事务的若干行在 `id` 升序里根本不相邻。截断一页再分组，切出来的「事务」就少了几条实体，
+  // 而它在界面上写着「这次事务改了 N 条」——N 是错的，且下一页会再冒出同一个 transactionId
+  // 的另一组。宁可当场拒绝，也不给一个看起来能用的错答案。
+  it('granularity: transaction 搭 limit 直接拒绝，而不是给一组截断过的事务', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({ entityId: 'note-a', transactionId: 'tx-1' });
+    scene.addEntry({ entityId: 'note-b', transactionId: 'tx-1' });
+
+    await expect(diffOf(scene, { granularity: 'transaction', limit: 1 })).rejects.toThrow(/granularity/);
+  });
+
+  it('granularity: transaction 搭 cursor 同样拒绝', async () => {
+    const scene = createWorkingTreeScene();
+    const first = scene.addEntry({ entityId: 'note-a', transactionId: 'tx-1' });
+
+    await expect(diffOf(scene, { granularity: 'transaction', cursor: first.id })).rejects.toThrow(/granularity/);
+  });
+
+  it('实体粒度下这两个键照常可用——拒的是组合，不是分页本身', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({ entityId: 'note-a', transactionId: 'tx-1' });
+    scene.addEntry({ entityId: 'note-b', transactionId: 'tx-1' });
+
+    const result = await diffOf(scene, { granularity: 'entity', limit: 1 });
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
+  it('事务粒度不给分页键时照常一次给全', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({ entityId: 'note-a', transactionId: 'tx-1' });
+    scene.addEntry({ entityId: 'note-b', transactionId: 'tx-1' });
+
+    const result = await diffOf(scene, { granularity: 'transaction' });
+
+    expect(result.transactions).toHaveLength(1);
+    expect(result.nextCursor).toBeNull();
+  });
+});
+
 describe('门面上的 diff()（contracts/core-api.md §3）', () => {
   it('零参可调，默认给实体粒度的全量', async () => {
     const scene = createWorkingTreeScene();

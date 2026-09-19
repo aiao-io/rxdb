@@ -305,6 +305,13 @@ export default class WorkingTreePage implements OnInit {
   /**
    * 更改列表行上的右键，对齐 GitHub Desktop 的文件右键菜单：
    * 动作（Discard）在前，分隔线后是复制路径。
+   *
+   * @remarks
+   * 动作项写的是 **Discard All Changes** 而不是 GitHub Desktop 的 `Discard Changes`：
+   * 那一条在 GitHub Desktop 里丢的是右键那几行，而这里的 `discard()` 只有整棵工作树一种粒度
+   * （`working-tree-facade.ts` 里那条「不收选择集」的硬裁决）。照抄标签等于让菜单许诺一个
+   * 做不到的范围——用户以为退掉了一行，实际连同别处正在写的改动一起没了，而这一步不可撤销。
+   * 复制路径仍按右键那一行走，所以右键目标照常记。
    */
   openChangesContextMenu(request: WorkingTreeContextMenuRequest<WorkingTreeDiffEntry>) {
     request.event.preventDefault();
@@ -320,7 +327,7 @@ export default class WorkingTreePage implements OnInit {
       x: request.event.clientX,
       y: request.event.clientY,
       items: [
-        { id: 'discard', label: 'Discard Changes', danger: true, testId: 'wt-discard' },
+        { id: 'discard', label: 'Discard All Changes', danger: true, testId: 'wt-discard' },
         { id: 'sep-1', label: '', separator: true },
         { id: 'copy-path', label: 'Copy Path' }
       ]
@@ -550,7 +557,23 @@ export default class WorkingTreePage implements OnInit {
     await this.readCommits();
   }
 
+  /**
+   * 丢弃整棵工作树的未提交改动
+   *
+   * @remarks
+   * 先确认再读凭证：`discard()` 不可撤销且粒度是整棵树，而它唯一的入口是某一行上的右键菜单——
+   * 「我只右键了这一行」与「丢的是全部」之间的落差，只有这一步能拦住。条数来自
+   * {@link $changesCount}（与 diff 条目同源），读不到时说「所有未提交改动」而不是编一个数字。
+   */
   async runDiscard(): Promise<void> {
+    const count = this.$changesCount();
+    const scope = count === null ? 'all uncommitted changes' : `all ${count} uncommitted changes`;
+    if (
+      !confirm(
+        `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
+      )
+    )
+      return;
     const credentials = await this.freshCredentials();
     if (credentials === null) {
       this.$notice.set('Cannot read the working tree — refresh status before discarding.');

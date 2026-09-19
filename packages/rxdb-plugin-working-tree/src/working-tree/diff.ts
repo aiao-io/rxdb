@@ -17,11 +17,14 @@
  * 之间有人 `save()` 时会漏行或重复行，而漏掉的那一行照样会被下一次 `commit()` 提交——
  * 用户于是提交了他翻页时没看见的变更。游标就是上一页最后一行的 `id`，续读用 `id > cursor`。
  *
+ * **分页只对实体粒度开放**（见 {@link assertPageableGranularity}）：游标走的是
+ * `WorkingTreeEntry.id`，而同一个事务的若干行在这个序上并不相邻。
+ *
  * 本模块不解补丁：`patch` / `inversePatch` 原样摊出来，解码是
  * `working-tree-patch-codec.ts` 与 `cold-replay.ts` 的事。
  */
 
-import type { TransactionExecutor } from '@aiao/rxdb';
+import { RxDBError, type TransactionExecutor } from '@aiao/rxdb';
 import { readWorkingTreeStateRow } from './capture-runtime.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import type { WriteEntryOrigin } from './write-entry-matrix.js';
@@ -45,10 +48,10 @@ export interface WorkingTreeDiffOptions {
   /** 只看这些实体名；给空数组即「一个都不看」，不当成「不过滤」 */
   readonly entities?: readonly string[];
 
-  /** 本页最多给几行；不给即一次给全 */
+  /** 本页最多给几行；不给即一次给全。**只在 `granularity: 'entity'` 下可用** */
   readonly limit?: number;
 
-  /** 上一页的 {@link WorkingTreeDiff.nextCursor}；从它之后接着读 */
+  /** 上一页的 {@link WorkingTreeDiff.nextCursor}；从它之后接着读。**只在 `granularity: 'entity'` 下可用** */
   readonly cursor?: string;
 }
 
@@ -215,13 +218,47 @@ const groupByTransaction = (entries: readonly WorkingTreeDiffEntry[]): WorkingTr
 };
 
 /**
+ * 事务粒度不与分页同用。
+ *
+ * @param granularity - 本次要的粒度
+ * @param options - 本次的可选项
+ * @throws {@link RxDBError} 事务粒度下给了 `limit` 或 `cursor` 时
+ *
+ * @remarks
+ * 游标走的是 `WorkingTreeEntry.id`，而**同一个事务的若干行在这个序上不相邻**：`id` 是建行
+ * 那一刻取的随机 uuid（v4），且命中既有行时走的是原地 UPDATE——`transactionId` 换了人，
+ * `id` 不动（见 `capture-runtime.ts` 的 `persistEntry`）。一个事务因此可以横跨任意多页。
+ *
+ * 于是「截断一页再分组」给出的每一组都可能缺实体，而那一组在界面上写着「这次事务改了 N 条」，
+ * N 是错的；下一页还会再冒出同一个 `transactionId` 的第二组，两组都不完整。这不是少给了几行，
+ * 是给了一个**看起来能用的错答案**——调用方没有任何办法从返回值里看出它被截断过。
+ *
+ * **不补「把末尾那组读全」**：非相邻意味着「读全」等于全表扫描，那就不是分页了。
+ * **也不改成按 `transactionId` 排序**：`null` 的排序位置在 SQLite 与 PostgreSQL 上相反，
+ * 而 `null` 正是「单次 `save()`」这类最常见的条目——同一个游标在两个后端上会翻出不同的页。
+ *
+ * 当场拒绝而不是悄悄忽略这两个键：忽略等于在调用方要一页时给他全量，一棵大工作树上
+ * 这一条 `diff()` 会把整张表拉进内存，而调用方以为自己限了量。
+ */
+const assertPageableGranularity = (granularity: WorkingTreeDiffGranularity, options: WorkingTreeDiffOptions): void => {
+  if (granularity !== 'transaction') return;
+  if (options.limit === undefined && options.cursor === undefined) return;
+  throw new RxDBError(
+    "granularity: 'transaction' 不支持 limit / cursor：分页游标走 WorkingTreeEntry.id，" +
+      '而同一个事务的条目在这个序上不相邻，截断会给出不完整的事务组。' +
+      "要分页请用 granularity: 'entity'，由调用方自己按 transactionId 收组。"
+  );
+};
+
+/**
  * 摊开一条分支的 `HEAD ↔ 工作树` 差异（FR-005）。
  *
  * @param executor - 调用方那个事务的执行器；本函数不自己开事务
  * @param branchId - 要摊开的分支
  * @param options - 见 {@link WorkingTreeDiffOptions}
  * @returns 见 {@link WorkingTreeDiff}
- * @throws {@link RxDBError} 工作树状态行缺失时
+ * @throws {@link RxDBError} 工作树状态行缺失时，或事务粒度下给了分页键时
+ *   （见 {@link assertPageableGranularity}）
  *
  * @remarks
  * `branchId` 是显式入参而不是「自己读一次 active 分支」：门面上的 `diff()` 零参、只看当前
@@ -239,6 +276,7 @@ export const readWorkingTreeDiff = async (
 ): Promise<WorkingTreeDiff> => {
   const state = await readWorkingTreeStateRow(executor, branchId);
   const granularity: WorkingTreeDiffGranularity = options.granularity ?? 'entity';
+  assertPageableGranularity(granularity, options);
   const page = await readEntryPage(executor, branchId, options);
   const entries = page.rows.map(toDiffEntry);
 

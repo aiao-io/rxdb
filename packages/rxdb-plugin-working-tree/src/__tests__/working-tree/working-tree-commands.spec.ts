@@ -920,6 +920,88 @@ describe('重读失败被吞掉：一次成功的提交不能因为重读而变�
   });
 });
 
+describe('同一格上的并发请求：只有最新那一次能写终态', () => {
+  // 面板上的筛选器一改就重发一次 diff（三端都这么接），而慢的那一次没有任何东西会取消它。
+  // 没有代次守卫时，先发后到的那一份会把更晚的结果盖掉，用户看到的列表与筛选器对不上——
+  // 而屏幕上没有任何迹象说明这一格是旧的。
+  it('先发的 diff 后完成时，写不进状态——终态属于后发那一次', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const slow = deferred<WorkingTreeDiff>();
+    const fast = deferred<WorkingTreeDiff>();
+    workingTree.diff.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+    const stale = diffWith(9);
+    const latest = diffWith(2);
+
+    const first = commands.diff({ entities: ['Old'] });
+    const second = commands.diff({ entities: ['New'] });
+    fast.resolve(latest);
+    await expect(second).resolves.toBe(latest);
+    slow.resolve(stale);
+    await expect(first).resolves.toBe(stale);
+
+    expect(states.diffState).toEqual({ phase: 'success', value: latest });
+  });
+
+  // 失败那一侧更要拦：一次已经被取代的请求报错，会在用户面前把一份**刚刚读成功**的列表
+  // 换成错误提示，而那次失败问的是另一个问题。
+  it('先发的 status 失败后完成时，盖不掉后发那次的成功', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const slow = deferred<WorkingTreeStatus>();
+    const fast = deferred<WorkingTreeStatus>();
+    workingTree.status.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+    const latest = statusWith(3);
+
+    const first = commands.status();
+    const second = commands.status();
+    fast.resolve(latest);
+    await expect(second).resolves.toBe(latest);
+    slow.reject(new CommitValidationError('empty_commit', 'normal'));
+    await expect(first).rejects.toBeInstanceOf(CommitValidationError);
+
+    expect(states.statusState).toEqual({ phase: 'success', value: latest });
+  });
+
+  // 状态里丢掉它，不等于调用方不知道它失败了：两条出口在 §1 里不是二选一。
+  it('被丢弃的那一次仍把异常抛给它自己的调用方', async () => {
+    const { commands, transitions, workingTree } = createFixture();
+    const slow = deferred<boolean>();
+    const fast = deferred<boolean>();
+    workingTree.isEnabled.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+    const failure = new CommitValidationError('empty_commit', 'normal');
+
+    const first = commands.isEnabled();
+    const second = commands.isEnabled();
+    fast.resolve(true);
+    await expect(second).resolves.toBe(true);
+    slow.reject(failure);
+    await expect(first).rejects.toBe(failure);
+
+    expect(transitions).toEqual([
+      'isEnabledState:loading',
+      'isEnabledState:loading',
+      'isEnabledState:success'
+    ]);
+  });
+
+  // 代次按格子分，不是全局一个计数器：一次 diff 不该把正在飞的 status 判成过期。
+  it('代次按格子分——另一格上的新请求不会让本格在飞的那次失效', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const pendingStatus = deferred<WorkingTreeStatus>();
+    workingTree.status.mockReturnValueOnce(pendingStatus.promise);
+    const diff = diffWith(1);
+    workingTree.diff.mockResolvedValue(diff);
+    const status = statusWith(4);
+
+    const statusCall = commands.status();
+    await expect(commands.diff()).resolves.toBe(diff);
+    pendingStatus.resolve(status);
+    await expect(statusCall).resolves.toBe(status);
+
+    expect(states.statusState).toEqual({ phase: 'success', value: status });
+    expect(states.diffState).toEqual({ phase: 'success', value: diff });
+  });
+});
+
 describe('库上没装工作树插件时，建入口这一步就抛', () => {
   it('`workingTree` 缺席时抛在建入口这一步，而不是等第一次 status() 炸在命令层里面', () => {
     // 类型这一层拦不住：`declare module` 把 `workingTree` 声明成非可选，而模块增强是**全局**的——

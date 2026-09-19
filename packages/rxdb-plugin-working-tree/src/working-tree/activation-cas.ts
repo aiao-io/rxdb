@@ -21,15 +21,9 @@
  *    分支身份那一半由写路径的 token 校验（`write-entry.ts` › `assertActiveBranch`）负责。
  */
 
-import type { EntityMetadata, TransactionExecutor } from '@aiao/rxdb';
-import {
-  getEntityColumnName,
-  getEntityMetadata,
-  quoteSqlIdentifier,
-  RxDBError,
-  sqlIntegerLiteral,
-  sqlStringLiteral
-} from '@aiao/rxdb';
+import type { TransactionExecutor } from '@aiao/rxdb';
+import { getEntityMetadata, sqlIntegerLiteral, sqlStringLiteral } from '@aiao/rxdb';
+import { createColumnOf } from '../entity-column.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import type { CommitConflict } from './commit-conflict.js';
 import {
@@ -37,12 +31,10 @@ import {
   WorkingTreeActivationState
 } from './working-tree-activation-state.entity.js';
 
-/** 取一列的真实列名并加引号；写字面量会在列改名那天拼出一条打在不存在的列上的合法 SQL。 */
-const columnOf = (metadata: EntityMetadata, field: 'id' | 'activationRevision'): string => {
-  const columnName = getEntityColumnName(metadata, field);
-  if (!columnName) throw new RxDBError(`WorkingTreeActivationState 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName);
-};
+/** `WorkingTreeActivationState` 里参与启用 CAS 的那两列。 */
+type WorkingTreeActivationStateColumn = 'id' | 'activationRevision';
+
+const columnOf = createColumnOf<WorkingTreeActivationStateColumn>('WorkingTreeActivationState');
 
 /**
  * 拼这条 CAS：把 revision 从捕获值推到捕获值 +1。

@@ -113,12 +113,23 @@ interface WorkingTreeDiffOptions {
   /** 只看这些实体名；给空数组即「一个都不看」，不当成「不过滤」 */
   readonly entities?: readonly string[];
 
-  /** 本页最多给几行；不给即一次给全 */
+  /** 本页最多给几行；不给即一次给全。**只在 `granularity: 'entity'` 下可用** */
   readonly limit?: number;
 
-  /** 上一页的 `nextCursor`；从它之后接着读 */
+  /** 上一页的 `nextCursor`；从它之后接着读。**只在 `granularity: 'entity'` 下可用** */
   readonly cursor?: string;
 }
+```
+
+**分页只对实体粒度开放。** `granularity: 'transaction'` 搭 `limit` 或 `cursor` 一律抛
+`RxDBError`，不静默忽略。游标走的是 `WorkingTreeEntry.id`，而同一个事务的若干行在这个序上
+**不相邻**——`id` 是建行那一刻取的随机 uuid，命中既有行时走原地 UPDATE（`transactionId` 换人、
+`id` 不动）。截断一页再分组，切出来的每一组都可能缺实体，而它自报「这次事务改了 N 条」，
+N 是错的；下一页还会冒出同一个 `transactionId` 的第二组。调用方从返回值里看不出自己被截断过，
+所以这里给错误而不是给一个看起来能用的答案。要分页就用实体粒度，由调用方自己按
+`transactionId` 收组。
+
+```ts
 
 interface WorkingTreeDiff {
   /** 摊开的是哪条分支 */

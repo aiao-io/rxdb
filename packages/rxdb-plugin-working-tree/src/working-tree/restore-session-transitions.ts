@@ -30,19 +30,15 @@
  * 与兜底没有区别。
  */
 
-import type { EntityMetadata, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityColumnName, getEntityMetadata, quoteSqlIdentifier, RxDBError, sqlStringLiteral } from '@aiao/rxdb';
+import type { TransactionExecutor } from '@aiao/rxdb';
+import { getEntityMetadata, sqlStringLiteral } from '@aiao/rxdb';
+import { createColumnOf } from '../entity-column.js';
 import { WorkingTreeRestoreSession } from './working-tree-restore-session.entity.js';
 
 /** 拼终态 UPDATE 用得上的那三列。 */
 type RestoreSessionColumn = 'id' | 'status' | 'activeKey';
 
-/** 取一列的真实列名并加引号；取不到就抛——`undefined` 会安静地拼出一条语法错误的语句。 */
-const columnOf = (metadata: EntityMetadata, field: RestoreSessionColumn): string => {
-  const columnName = getEntityColumnName(metadata, field);
-  if (!columnName) throw new RxDBError(`WorkingTreeRestoreSession 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName);
-};
+const columnOf = createColumnOf<RestoreSessionColumn>('WorkingTreeRestoreSession');
 
 /**
  * 拼一条「会话转 `committed` 并让出 `activeKey`」的单语句。

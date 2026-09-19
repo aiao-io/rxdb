@@ -306,11 +306,25 @@ test.describe('Working Tree 页面功能', () => {
     // 同样在菜单里，提交框旁没有「丢弃全部」按钮）。回页时 diff 是 idle（面板不自动
     // 重读，见 useWorkingTree 的 TSDoc），先用顶部工具栏的「Fetch origin」
     // （GitHub Desktop 同位置）把列表拉出来再右键。
+    //
+    // 这里特意留**两条**未提交改动：`discard()` 只有整棵树一种粒度，而入口是某一行上的
+    // 右键菜单。只留一条时「丢这一行」与「丢全部」的结果一模一样，菜单许诺错范围这件事
+    // 一条用例都碰不到；两条才分得开——右键第一行，第二行也必须跟着消失。
+    await writeTodo(page, '另一条未完成的草稿');
     await page.getByTestId('wt-refresh-status').click();
     await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
-    await expect(page.getByTestId('wt-diff-item').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(2, { timeout: 10000 });
     await page.getByTestId('wt-diff-item').first().click({ button: 'right' });
+    // 范围写在菜单项上，也写在确认框里：不可撤销 + 粒度与右键目标不符，这一步是唯一的拦截点。
+    await expect(page.getByTestId('wt-discard')).toHaveText('Discard All Changes');
+    const discardPrompt = new Promise<string>(resolve => {
+      page.once('dialog', dialog => {
+        resolve(dialog.message());
+        void dialog.accept();
+      });
+    });
     await page.getByTestId('wt-discard').click();
+    expect(await discardPrompt).toContain('all 2 uncommitted changes');
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
     await openBranchMenu(page);
     await branchRow(page, 'main').click();
