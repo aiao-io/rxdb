@@ -29,7 +29,7 @@
  */
 
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
-import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
+import type { CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogPage } from '../commit/commit-log.js';
 import type { CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff } from './diff.js';
@@ -102,7 +102,7 @@ export type WorkingTreeCommandState<T> =
  * 只有五件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
  * `listCommits()` 无历史、`commitChanges()` 无变更单元（基线节点）、`restoreSession()`
  * 无未结束会话。判据分别是 {@link isWorkingTreeStatusEmpty}、{@link isWorkingTreeDiffEmpty}、
- * {@link isCommitLogPageEmpty}、{@link isCommitChangeSetPageEmpty}、
+ * {@link isCommitLogPageEmpty}、`isCommitChangeSetPageEmpty()`、
  * {@link isWorkingTreeRestoreSessionEmpty}。
  */
 export type WorkingTreeQueryState<T> =

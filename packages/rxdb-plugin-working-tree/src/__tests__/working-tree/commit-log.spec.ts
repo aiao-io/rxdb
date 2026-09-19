@@ -138,7 +138,7 @@ describe('commitChanges()：commit 明细侧（FR-012）', () => {
 
   it('入参只有 commitId：明细侧只回答「它写了什么」，不回答「它在不在当前分支的历史里」', () => {
     const scene = sceneWithHistory();
-    expectTypeOf<Parameters<typeof scene.manager.commitChanges>[0]>().toEqualTypeOf<string>();
+    expectTypeOf(scene.manager.commitChanges).parameter(0).toEqualTypeOf<string>();
   });
 
   it('不存在的 commit 抛错，而不是返回一页空的明细', async () => {
