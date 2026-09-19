@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../entity/metadata-options.interface.js';
 import { RxDBTabsGateway } from '../gateway/RxDBTabsGateway.js';
 import { ENTITY_LOCAL_CREATE_EVENT, EntityLocalCreatedEvent, type RxDBEvent } from '../rxdb-events.js';
+import type { RxDBSystemContribution } from '../rxdb-plugin-system.js';
 import type { Plugin } from '../rxdb-plugin.js';
 import type { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { SyncStateHub } from '../sync-state.js';
+import { capabilityWatermarkName } from '../system/capability-watermark.js';
 import { RxDBMigration } from '../system/migration.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
@@ -51,6 +53,51 @@ afterEach(async () => {
     vi.restoreAllMocks();
   }
 });
+
+/**
+ * 一个只为「让系统迁移链非空」而存在的假贡献方。
+ *
+ * @remarks
+ * 核心今天**自带零条系统迁移**——十张表随 `@aiao/rxdb-plugin-working-tree` 走了，
+ * `createSystemMigrations()` 对一个没装插件的库返回空数组。而 `runMigrations()` 开头
+ * 就是 `if (!migrations || migrations.length === 0) return;`：空链**一次读都不发**。
+ *
+ * 于是重试那条用例不能就这么把插件名删掉了事：系统那一次 `runMigrations` 会整个消失，
+ * `rxdb_migration` 的读次数从 6 掉到 4，而它要守的恰恰是「系统迁移与接入方迁移是**两条
+ * 独立的** `runMigrations`，中间隔着 `migrateSystemSchema()` / `completeBootstrap()`，
+ * 不能合并成一次读」。断言改成 4 不会报错，只会让这条用例从此不再看着那个接缝。
+ *
+ * 所以这里补一个本地假贡献，把系统链填成非空。它刻意**不带任何实体**：
+ * `entities: []` 让 `registerSystemEntities()` 无事可做，不会往模块级注册表里塞
+ * 一个只属于本文件的身份——那张表是进程全局的、追加式的，污染它会让同一次 vitest 里
+ * 别的用例对 `isSystemEntity()` 得到不同答案。
+ */
+const RETRY_PROBE_PACKAGE = '@example/rxdb-plugin-retry-probe';
+const RETRY_PROBE_MIGRATION_NAME = '0001-retry-probe';
+
+const retryProbeContribution: RxDBSystemContribution = {
+  capability: 'retryProbe',
+  version: 1,
+  packageSpecifier: RETRY_PROBE_PACKAGE,
+  entities: [],
+  createInitialRows: () => [],
+  createMigrations: () => [
+    { name: RETRY_PROBE_MIGRATION_NAME, up: async () => undefined, down: async () => undefined }
+  ],
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined,
+  removeBranchRows: async () => undefined,
+  assertBranchSwitchable: async () => undefined
+};
+
+const retryProbePlugin: Plugin = () => ({
+  name: 'retryProbe',
+  system: retryProbeContribution,
+  install: () => undefined
+});
+
+/** 贡献方的能力认领行；它与迁移同链，因此也会被认领执行权。 */
+const RETRY_PROBE_CLAIM_ROW = capabilityWatermarkName(retryProbeContribution);
 
 describe('RxDB 连接、迁移与插件生命周期', () => {
   it('registers and retrieves repository configuration', () => {
@@ -143,6 +190,8 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     const adapterFactory = vi.fn(() => adapter);
     vi.mocked(adapter.isTableExisted).mockResolvedValue(true);
     database.adapter('local', adapterFactory);
+    // 系统迁移链非空是这条用例的前置，不是背景装饰——理由见 `retryProbeContribution`。
+    database.use(retryProbePlugin);
     database.init();
 
     const appliedRecord = new RxDBMigration();
@@ -180,13 +229,25 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
 
     expect(adapterFactory).toHaveBeenCalledTimes(1);
     expect(vi.mocked(adapter.connect)).toHaveBeenCalledTimes(2);
-    expect(repository.find).toHaveBeenCalledTimes(2);
+    // 每次 connect 读三次 rxdb_migration。后两次是两条独立的 runMigrations（系统迁移与接入方
+    // 迁移中间隔着 migrateSystemSchema() / completeBootstrap()，不能合并成一次读）；第一次是
+    // 「未认领能力守卫」——它要在**任何写之前**判定这个库该不该由本进程打开，因此宁可多读一次，
+    // 也不把它折进 runMigrations 里换成「靠行文顺序维持」的保证。
+    expect(repository.find).toHaveBeenCalledTimes(6);
     expect(alreadyApplied).not.toHaveBeenCalled();
     expect(retryMigration).toHaveBeenCalledTimes(2);
     // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
     // `created` 是内存数组，回滚不到它，所以两次尝试各留下一条。真库上只会剩最后一条。
     // 关键契约是：只有 z-retry 认领了执行权，已执行的 a-applied 一次都没碰。
-    expect(created.map(record => record.name)).toEqual(['z-retry', 'z-retry']);
+    // 系统链两条（能力认领行按 localeCompare 排在迁移前面），接入方链一条。
+    expect(created.map(record => record.name)).toEqual([
+      RETRY_PROBE_CLAIM_ROW,
+      RETRY_PROBE_MIGRATION_NAME,
+      'z-retry',
+      RETRY_PROBE_CLAIM_ROW,
+      RETRY_PROBE_MIGRATION_NAME,
+      'z-retry'
+    ]);
     expect(vi.mocked(adapter.createTables)).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith('Migration failed: z-retry', migrationFailure);
   });

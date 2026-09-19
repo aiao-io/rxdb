@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [60/68 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [60/70 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -190,6 +190,10 @@ aiao/
 │   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
 │   ├── rxdb-plugin-search-react/    # React 搜索集成
 │   ├── rxdb-plugin-search-vue/      # Vue 搜索集成
+│   ├── rxdb-plugin-working-tree/    # 工作树与提交历史插件
+│   ├── rxdb-plugin-working-tree-angular/ # Angular 工作树集成
+│   ├── rxdb-plugin-working-tree-react/   # React 工作树集成
+│   ├── rxdb-plugin-working-tree-vue/     # Vue 工作树集成
 │   ├── rxdb-test/                   # 测试库与跨框架 fixture
 │   ├── code-editor/                 # 代码编辑器核心
 │   ├── code-editor-angular/         # Angular 编辑器集成

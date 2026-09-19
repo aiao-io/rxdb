@@ -141,6 +141,19 @@ let fillInstant: Date | undefined;
 export const entityDefaultNow = (): Date => (fillInstant === undefined ? new Date() : new Date(fillInstant));
 
 /**
+ * `date` 属性的数据库端默认值哨兵。
+ *
+ * @remarks
+ * 它**不是**一个 JS 值，是建表语句里的一段表达式：PGlite 建表器把它译成 `DEFAULT now()`，
+ * SQLite 建表器译成 `strftime`。语义是「这一列的时间由数据库时钟给」，
+ * 提交历史的 `createdAt` 正是靠它才不会把客户端时钟漂移写进不可变历史（FR-010）。
+ *
+ * 字面量在六个适配器的建表器里各有一份，这里不与它们共享常量：那要么让
+ * `@aiao/rxdb` 反向依赖适配器，要么新开一个只装一个字符串的公开导出。
+ */
+const DATABASE_SIDE_TIMESTAMP_DEFAULT = 'CURRENT_TIMESTAMP';
+
+/**
  * 给实体实例填充默认值
  * 根据元数据中定义的默认值，为实体的未赋值属性设置默认值
  *
@@ -149,6 +162,18 @@ export const entityDefaultNow = (): Date => (fillInstant === undefined ? new Dat
  * @param entity - 实体实例
  *
  * @remarks
+ * {@link DATABASE_SIDE_TIMESTAMP_DEFAULT} 被跳过，该属性保持未赋值。这不是优化，是正确性：
+ * 把这个字符串填进 `date` 属性，它会一路原样走到 INSERT ——
+ * PGlite 报 `22007 invalid input syntax for type timestamp with time zone`，
+ * `RxDB.connect()` 在建表阶段就炸；SQLite 是动态类型，照单收下这段文本，
+ * 读回来 `new Date('CURRENT_TIMESTAMP')` 是 Invalid Date → `null`，一声不响地丢掉时间戳。
+ *
+ * 跳过之后该属性不出现在 INSERT 列清单里（两个适配器的 `normalizeCreateEntity` 都按
+ * `value !== undefined` 取列：`useDefineForClassFields` 下键是恒在的，按键判定会把未赋值也
+ * 写进列清单，DB 端默认值于是永远不生效），由建表时写下的 DB 端默认值补上；SQLite 的**批量** INSERT 是唯一的
+ * 例外，它固定写全列、绕过了 DB DEFAULT，所以 `inserts_sql` 自己把哨兵解析成真实时间戳——
+ * 那段代码此前是死的（它只在列缺省时才跑，而本函数总是先把字符串填满）。三条路径都已就位。
+ *
  * 填充期间 {@link entityDefaultNow} 返回同一个时刻；填充是同步且不可重入的，
  * 结束（含抛错）一律清掉这个时刻作用域。
  */
@@ -163,6 +188,39 @@ export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata,
 };
 
 /**
+ * 深拷贝一个**静态默认值**，让每个实例拿到自己的副本。
+ *
+ * @param value - 元数据里声明的默认值（或默认值函数的返回值）
+ * @returns 与 `value` 等价、但不与任何其他实例共享引用的值
+ *
+ * @remarks
+ * `default` 写成字面量时，这个字面量在**元数据里只存在一份**：
+ * `{ name: 'labels', type: PropertyType.stringArray, default: [] }` 直接赋给实例，
+ * 意味着所有实例的 `labels` 是同一个数组——第一个实例 `push` 一下，
+ * 后面每个新建实例的「默认值」就都带着上一条的数据，元数据本身也被改脏。
+ *
+ * 默认值函数的返回值同样拷贝：函数体里 `return SHARED` 闭包一个常量是合法写法，
+ * 「是不是函数」并不能证明「每次都是新对象」。
+ *
+ * 只拷贝数据形态（`Uint8Array` / `Date` / 数组 / 纯对象），自定义类实例原样返回：
+ * 结构化克隆会丢原型，比共享引用更糟。
+ */
+const cloneDefaultValue = (value: unknown): unknown => {
+  if (value instanceof Uint8Array) return new Uint8Array(value);
+  if (value instanceof Date) return new Date(value);
+  if (Array.isArray(value)) return value.map(cloneDefaultValue);
+  if (!isPlainDefaultObject(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneDefaultValue(item)]));
+};
+
+/** 判断默认值是不是可以逐键拷贝的「纯对象」（排除自定义类实例）。 */
+const isPlainDefaultObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null) return false;
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  return prototype === Object.prototype || prototype === null;
+};
+
+/**
  * 算出 `entity` 上所有仍是 `undefined` 的缺省属性的值。
  *
  * @returns 待写入的键值对；没有任何属性需要填充时返回 `undefined`。
@@ -174,7 +232,7 @@ const collectDefaultValue = <T extends EntityType>(
   const data: Record<string, unknown> = {};
   let need = false;
   metadata.defaultValueProperties.forEach(property => {
-    if (entity[property.name] === undefined) {
+    if (property.default !== DATABASE_SIDE_TIMESTAMP_DEFAULT && entity[property.name] === undefined) {
       need = true;
       const value = isFunction(property.default) ? property.default() : property.default;
       if (property.type === PropertyType.bigint && typeof value !== 'bigint') {
@@ -183,7 +241,7 @@ const collectDefaultValue = <T extends EntityType>(
       if (property.type === PropertyType.binary && !(value instanceof Uint8Array)) {
         throw new TypeError(`${property.name} default must be a Uint8Array`);
       }
-      data[property.name] = property.type === PropertyType.binary ? new Uint8Array(value as Uint8Array) : value;
+      data[property.name] = cloneDefaultValue(value);
     }
   });
   return need ? data : undefined;

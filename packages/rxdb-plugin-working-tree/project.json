@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// namedInputs": "`working-tree/testing/**` 是本包的**产品面**（6 个适配器包消费一致性套件），不是测试文件。默认 production 只排 `*.spec.ts`，正合适——套件本身不带 .spec 后缀，因此改它照样使 build 失效，适配器侧的 conformance 也跟着重跑。这里把 production 原样写出来是为了让这句话有地方说，不是为了改它的值。",
+  "name": "rxdb-plugin-working-tree",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-working-tree/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"],
+      "// inputs": "同 packages/rxdb：@nx/js/typescript 推断出的 inputs 是 production，把 spec 全排除了，spec 侧的编译期契约改一行也命中缓存。换成 default 把 spec 纳入哈希。",
+      "inputs": ["default", "^production", { "externalDependencies": ["typescript"] }]
+    },
+    "build": {
+      "options": {
+        "command": "vite build && node ../../scripts/audit/package-api-docs.mjs . --members"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-working-tree",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

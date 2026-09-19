@@ -48,6 +48,7 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { type Mock, vi } from 'vitest';
 import { rxDBPluginSync } from '../../plugin.js';
+import { fakeTableRef } from './fake-table-ref.js';
 import { TEST_ENTITIES } from './test-entities.js';
 
 /**
@@ -172,6 +173,7 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
       id: 'mock-executor',
       state: 'active',
       query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+      tableRef: fakeTableRef,
       mutations: options => this.mutations(options as RxDBMutationsMap<EntityType>),
       getRepository: EntityType => this.getRepository(EntityType),
       saveMany: entities => this.saveMany(entities),

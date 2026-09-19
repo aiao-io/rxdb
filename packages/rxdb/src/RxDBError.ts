@@ -188,11 +188,19 @@ export class RxDBMissingPluginError extends RxDBError {
  * 两者的写语义不可调和：版本化实体写本地并进 changelog，QueryCache 实体先写远端再落可丢弃缓存。
  * 同批执行只会得到「一半进了变更历史、一半没有」，因此在入口拒绝，由调用方分批。
  *
- * `code` 是本仓库唯一用错误码而非 `name` 判别的错误：该字符串由
- * `US-306 FR-046` 指定，跨故事复用，不得改名。
+ * `code` 而非 `name` 是本类的判别位：该字符串由 `US-306 FR-046` 指定，跨故事复用，
+ * 不得改名。它也是 `@aiao/rxdb-plugin-working-tree` 那张 `CommitErrorCode` 码表里的一条——
+ * 但**本类先于那张表存在**，而且本类属于核心：核心为了一个字符串反向依赖插件，等于把
+ * 「不装插件」这件事变成不可能。所以这里写字面量，不从码表取。
+ *
+ * 两边不会漂：那张码表是 const 对象不是 `enum`（它的 @fileoverview 自陈，正是为了迁就本类
+ * 早就在用的裸字面量），成员的静态类型就是普通字符串字面量，于是两侧逐值兼容；且码表那侧
+ * 有一条钉死键值逐字相同的测试。
+ *
+ * 其余各包的新错误仍按「类名主判别」，不要照抄本类。
  */
 export class RxDBMixedVersionedCacheTransactionError extends RxDBError {
-  /** US-306 FR-046 指定的稳定错误码 */
+  /** US-306 FR-046 指定的稳定错误码；写字面量而非取自码表的理由见本类 @remarks */
   readonly code = 'mixed_versioned_cache_transaction';
 
   constructor(

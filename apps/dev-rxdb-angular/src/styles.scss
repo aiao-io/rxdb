@@ -193,3 +193,925 @@ app-header {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   working-tree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 调色板：跟随 daisyUI 的 data-theme，light 用 GitHub Desktop 亮色值，
+   dark 用 GitHub 暗色系。所有 .gd-* 组件类只引用这些变量，不写死颜色。
+   文本色都满足 WCAG AA（≥4.5:1）——面板的 axe 门禁是零违规。 */
+:root[data-theme='light'] {
+  --gd-bg: #fafbfc; /* 窗口灰底 */
+  --gd-panel: #ffffff;
+  --gd-fg: #24292f;
+  --gd-muted: #57606a;
+  --gd-border: #d0d7de;
+  --gd-hover: #f3f4f6;
+  --gd-selected: #dcedff; /* 选中行浅蓝（GitHub Desktop 列表选中色） */
+  --gd-accent: #1f6feb; /* 按钮 / 下划线 / 左边条蓝（白字对比 4.7:1） */
+  --gd-accent-hover: #1158c7;
+  --gd-pill-bg: #eaeef2;
+  --gd-add-bg: #e6ffed; /* diff 增行 */
+  --gd-add-fg: #1a7f37;
+  --gd-del-bg: #ffebe9; /* diff 删行 */
+  --gd-del-fg: #cf222e;
+  --gd-gutter-bg: #f6f8fa;
+  --gd-line-num: #667085;
+  --gd-hunk-bg: #e6edf5; /* hunk @@ 头 */
+  --gd-warn-bg: #fff8c5;
+  --gd-warn-fg: #9a6700;
+  --gd-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+}
+
+:root[data-theme='dark'] {
+  --gd-bg: #1b1f24;
+  --gd-panel: #22272e;
+  --gd-fg: #e6edf3;
+  --gd-muted: #8b949e;
+  --gd-border: #30363d;
+  --gd-hover: #2d333b;
+  --gd-selected: rgba(47, 129, 247, 0.18);
+  --gd-accent: #388bfd;
+  --gd-accent-hover: #1f6feb;
+  --gd-pill-bg: #2d333b;
+  --gd-add-bg: #12261e;
+  --gd-add-fg: #7ee787;
+  --gd-del-bg: #2d1516;
+  --gd-del-fg: #ff7b72;
+  --gd-gutter-bg: #161b22;
+  --gd-line-num: #8b949e;
+  --gd-hunk-bg: #262c36;
+  --gd-warn-bg: rgba(187, 128, 9, 0.15);
+  --gd-warn-fg: #d29922;
+  --gd-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+}
+
+/* 主按钮：GitHub Desktop 的蓝底白字（「提交到 main」/ 对话框确认）。 */
+.gd-btn-primary {
+  align-items: center;
+  background: var(--gd-accent);
+  border: 1px solid var(--gd-accent);
+  border-radius: 4px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  justify-content: center;
+  padding: 4px 12px;
+}
+.gd-btn-primary:hover {
+  background: var(--gd-accent-hover);
+  border-color: var(--gd-accent-hover);
+}
+.gd-btn-primary:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 2px;
+}
+/* 禁用态：提交摘要为空时锁提交按钮（GitHub Desktop 的 isSummaryBlank 同款交互）。
+   白字压 #6b7280（≈4.8:1）两套主题都过 axe 的 color-contrast；放在 :hover 之后
+   保证禁用时悬停也不变色。 */
+.gd-btn-primary:disabled {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: #fff;
+  cursor: default;
+}
+
+/* 次级按钮：白底灰边（丢弃 / 取消 / 恢复）。 */
+.gd-btn-secondary {
+  align-items: center;
+  background: var(--gd-panel);
+  border: 1px solid var(--gd-border);
+  border-radius: 4px;
+  color: var(--gd-fg);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px;
+  justify-content: center;
+  padding: 4px 12px;
+}
+.gd-btn-secondary:hover {
+  background: var(--gd-hover);
+}
+.gd-btn-secondary:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 2px;
+}
+
+/* 危险操作（删除分支）：次级按钮的红色字变体。 */
+.gd-btn-danger {
+  color: var(--gd-del-fg);
+}
+.gd-btn-danger:hover {
+  color: var(--gd-del-fg);
+}
+
+/* 幽灵按钮：灰字无边框（列表行里的轻操作）。 */
+.gd-btn-ghost {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--gd-muted);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 4px;
+  justify-content: center;
+  padding: 3px 8px;
+}
+.gd-btn-ghost:hover {
+  background: var(--gd-hover);
+  color: var(--gd-fg);
+}
+.gd-btn-ghost:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -1px;
+}
+
+/* 工具栏图标按钮（获取 origin）。 */
+.gd-icon-btn {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--gd-muted);
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+.gd-icon-btn:hover {
+  background: var(--gd-hover);
+  color: var(--gd-fg);
+}
+.gd-icon-btn:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 1px;
+}
+
+/* 工具栏选择器（仓库 / 分支）。 */
+.gd-select {
+  align-items: center;
+  background: var(--gd-panel);
+  border: 1px solid var(--gd-border);
+  border-radius: 4px;
+  color: var(--gd-fg);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+}
+.gd-select svg {
+  color: var(--gd-muted);
+  flex-shrink: 0;
+}
+.gd-select:hover {
+  background: var(--gd-hover);
+}
+.gd-select:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 1px;
+}
+
+/* 标签页：GitHub Desktop 的 tab bar（选中项深色字 + 蓝色下划线）。 */
+.gd-tab {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--gd-muted);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+  padding: 8px 4px 6px;
+  position: relative;
+}
+.gd-tab:hover {
+  color: var(--gd-fg);
+}
+.gd-tab:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-tab.gd-tab-active {
+  color: var(--gd-fg);
+  font-weight: 600;
+}
+.gd-tab.gd-tab-active::after {
+  background: var(--gd-accent);
+  border-radius: 1px 1px 0 0;
+  bottom: -1px;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+/* 「更改」标签上的条数徽章。 */
+.gd-pill {
+  background: var(--gd-pill-bg);
+  border-radius: 999px;
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 7px;
+}
+
+/* 下拉菜单（仓库 / 分支）。 */
+.gd-menu {
+  background: var(--gd-panel);
+  border: 1px solid var(--gd-border);
+  border-radius: 6px;
+  box-shadow: var(--gd-shadow);
+  padding: 4px 0;
+}
+/* 工具栏下拉的 foldout 形态：直角贴边，不带圆角（GitHub Desktop 的仓库面板同款） */
+.gd-menu-flush {
+  border-radius: 0;
+}
+.gd-branch-create-popover {
+  padding: 12px;
+}
+.gd-menu-header {
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  text-transform: uppercase;
+}
+.gd-menu-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-menu-row {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--gd-fg);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  padding: 5px 12px;
+  text-align: left;
+  width: 100%;
+}
+button.gd-menu-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-menu-row {
+  cursor: pointer;
+}
+.gd-menu-row:hover {
+  background: var(--gd-hover);
+}
+.gd-menu-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-menu-row svg {
+  color: var(--gd-muted);
+  flex-shrink: 0;
+}
+
+/* 侧栏列表行（更改 / 历史共用）：选中 = 浅蓝底 + 3px 蓝左边条。 */
+.gd-row {
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  display: block;
+  padding: 6px 10px;
+  text-align: left;
+  width: 100%;
+}
+.gd-row:hover {
+  background: var(--gd-hover);
+}
+.gd-row:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -2px;
+}
+.gd-row.gd-row-selected,
+.gd-row.gd-row-selected:hover {
+  background: var(--gd-selected);
+  border-left-color: var(--gd-accent);
+}
+
+/* 头像圆：GitHub 的八色头像底色（白字均 ≥4.5:1），按作者名散列取色。 */
+.gd-avatar {
+  align-items: center;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-weight: 600;
+  justify-content: center;
+  user-select: none;
+}
+
+/* 黄色警示条（恢复会话 / 提交提示）。 */
+.gd-warn-strip {
+  background: var(--gd-warn-bg);
+  color: var(--gd-warn-fg);
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+/* 文本框（摘要 / 描述 / 分支名筛选）。 */
+.gd-input {
+  background: var(--gd-panel);
+  border: 1px solid var(--gd-border);
+  border-radius: 4px;
+  color: var(--gd-fg);
+  font-size: 12px;
+  padding: 5px 8px;
+  width: 100%;
+}
+.gd-input::placeholder {
+  color: var(--gd-muted);
+}
+.gd-input:focus-visible {
+  border-color: var(--gd-accent);
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -1px;
+}
+textarea.gd-input {
+  resize: none;
+}
+
+/* 左栏 / 右栏分隔条：按住拖动调宽；中间一根 1px 线，悬停 / 聚焦变蓝加粗。 */
+.gd-resizer {
+  background: transparent;
+  border: 0;
+  cursor: col-resize;
+  flex-shrink: 0;
+  padding: 0;
+  position: relative;
+  width: 6px;
+}
+.gd-resizer::after {
+  background: var(--gd-border);
+  content: '';
+  height: 100%;
+  left: 50%;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 1px;
+}
+.gd-resizer:hover::after,
+.gd-resizer:focus-visible::after {
+  background: var(--gd-accent);
+  width: 2px;
+}
+.gd-resizer:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: -1px;
+}
+
+/* diff hunk 盒子（GitHub Desktop 形态）。 */
+.gd-hunk {
+  background: var(--gd-panel);
+  border: 1px solid var(--gd-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.gd-hunk-header {
+  background: var(--gd-hunk-bg);
+  color: var(--gd-muted);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+.gd-diff-row {
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.gd-diff-row.gd-add {
+  background: var(--gd-add-bg);
+}
+.gd-diff-row.gd-del {
+  background: var(--gd-del-bg);
+}
+.gd-diff-gutter {
+  align-items: center;
+  background: var(--gd-gutter-bg);
+  display: flex;
+  flex-shrink: 0;
+}
+.gd-diff-num {
+  color: var(--gd-line-num);
+  padding: 3px 0;
+  text-align: right;
+  width: 34px;
+}
+.gd-diff-row.gd-add .gd-diff-num,
+.gd-diff-sign.gd-add {
+  color: var(--gd-add-fg);
+}
+.gd-diff-row.gd-del .gd-diff-num,
+.gd-diff-sign.gd-del {
+  color: var(--gd-del-fg);
+}
+.gd-diff-sign {
+  font-weight: 700;
+  text-align: center;
+  width: 22px;
+}
+.gd-diff-content {
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 3px 10px;
+}
+
+/* 底部状态条：demo 的原始状态读数（分支 / 未提交数 / 干净与否），
+   视觉上与 GitHub Desktop 无关，放在最底部当仪器用。 */
+.gd-strip {
+  align-items: center;
+  background: var(--gd-bg);
+  border-top: 1px solid var(--gd-border);
+  color: var(--gd-muted);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 11px;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 3px 12px;
+}
+
+/* 空态：灰色图标 + 说明，GitHub Desktop 空白石板的缩小版。 */
+.gd-empty {
+  align-items: center;
+  color: var(--gd-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.gd-workspace {
+  --gd-bg: #24292e;
+  --gd-panel: #202428;
+  --gd-fg: #e5e8eb;
+  --gd-muted: #a7afb9;
+  --gd-border: #11161a;
+  --gd-hover: #30373d;
+  --gd-selected: #39434d;
+  --gd-accent: #0969da;
+  --gd-accent-hover: #0755b3;
+  --gd-pill-bg: #4a535d;
+  --gd-add-bg: #10341e;
+  --gd-add-fg: #3fb950;
+  --gd-del-bg: #4a171a;
+  --gd-del-fg: #f47067;
+  --gd-gutter-bg: #1f252a;
+  --gd-line-num: #8e99a4;
+  --gd-hunk-bg: #20262b;
+  --gd-warn-bg: #473a1c;
+  --gd-warn-fg: #f0c560;
+  --gd-shadow: 0 12px 30px #0008;
+  --gd-toolbar-edge: #11161a;
+  --gd-path-add: #7ee787;
+  --gd-path-del: #ffa198;
+  --gd-sidebar-bg: #262c31;
+  --gd-tabs-bg: #292f35;
+  --gd-input-bg: #20262b;
+  --gd-input-border: #626c76;
+  --gd-files-bg: #2c3339;
+  --gd-row-border: #171c20;
+  --gd-selected-bg: rgba(56, 139, 253, 0.22); /* GitHub Desktop 的选中行蓝色调 */
+  --gd-commit-bg: #292f35;
+  --gd-code-key: #a5a0d9;
+  --gd-code-value: #e4a975;
+  --gd-gutter-add: #164b2a;
+  --gd-gutter-del: #61272b;
+  --gd-status-bg: #202428;
+  --gd-enabled-fg: #7ee787;
+  --gd-focus: #6cb6ff;
+  background: var(--gd-bg);
+  color: var(--gd-fg);
+  color-scheme: dark;
+  font-size: 13px;
+
+  /* GitHub Desktop 的工具栏蓝（$gray-900）：两套主题都不换色，文字 / 悬停也写死
+     白系而不是吃 var——亮色主题下 var(--gd-fg) 是深灰，压蓝底会塌对比度。 */
+  .gd-toolbar {
+    background: #24292e;
+    height: 50px;
+  }
+  .gd-toolbar-section {
+    min-width: 0;
+  }
+  .gd-toolbar-select,
+  .gd-toolbar-refresh {
+    align-items: center;
+    background: transparent;
+    color: #e5e8eb;
+    display: flex;
+    gap: 12px;
+    height: 100%;
+    padding: 0 14px;
+    width: 100%;
+  }
+  .gd-toolbar-select:hover,
+  .gd-toolbar-refresh:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .gd-toolbar-select:focus-visible,
+  .gd-toolbar-refresh:focus-visible {
+    outline: 2px solid #6cb6ff;
+    outline-offset: -2px;
+  }
+  .gd-toolbar-select small,
+  .gd-toolbar-refresh small {
+    color: #a7afb9;
+    display: block;
+    font-size: 11px;
+    line-height: 15px;
+    white-space: nowrap;
+  }
+  .gd-toolbar-select strong,
+  .gd-toolbar-refresh strong {
+    display: block;
+    font-size: 13px;
+    line-height: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gd-toolbar-select svg,
+  .gd-toolbar-refresh svg {
+    flex-shrink: 0;
+  }
+  /* 工具栏分段之间的可拖分隔条：常驻 1px 深线，悬停 / 按住亮起。 */
+  .gd-toolbar-handle {
+    background: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+    position: relative;
+    width: 5px;
+  }
+  .gd-toolbar-handle::before {
+    background: #11161a;
+    content: '';
+    height: 100%;
+    left: 0;
+    margin: 0 auto;
+    position: absolute;
+    right: 0;
+    width: 1px;
+  }
+  .gd-toolbar-handle:hover,
+  .gd-toolbar-handle:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .gd-sidebar {
+    max-width: 44vw;
+    background: var(--gd-sidebar-bg);
+  }
+  .gd-tabs {
+    background: var(--gd-tabs-bg);
+    height: 30px;
+  }
+  .gd-tab {
+    flex: 1;
+    font-size: 13px;
+    justify-content: center;
+    min-width: 0;
+    padding: 5px 3px;
+    white-space: nowrap;
+  }
+  .gd-tab.gd-tab-active::after {
+    height: 3px;
+  }
+  .gd-pill {
+    color: var(--gd-fg);
+    padding: 0 6px;
+  }
+  .gd-menu-divider {
+    border-top: 1px solid var(--gd-border);
+    margin: 4px 0;
+  }
+
+  .gd-filter-bar {
+    align-items: stretch;
+    display: flex;
+    gap: 4px;
+    height: 36px;
+    padding: 5px 8px;
+  }
+  /* 组合筛选框：漏斗按钮 + 分隔线 + 放大镜输入框拼成一个盒子（GitHub Desktop 形态），
+     焦点环只画在外层盒子上，内部 input 不再单独上环。 */
+  .gd-filter-combo {
+    align-items: stretch;
+    background: var(--gd-input-bg);
+    border: 1px solid var(--gd-input-border);
+    border-radius: 4px;
+    color: var(--gd-fg);
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .gd-filter-combo:focus-within {
+    outline: 2px solid var(--gd-focus);
+    outline-offset: -1px;
+  }
+  .gd-filter-kind-btn {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--gd-border);
+    color: var(--gd-muted);
+    display: flex;
+    flex-shrink: 0;
+    gap: 3px;
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .gd-filter-kind-btn:hover {
+    background: var(--gd-hover);
+    color: var(--gd-fg);
+  }
+  .gd-filter-kind-btn:focus-visible {
+    outline: 2px solid var(--gd-accent);
+    outline-offset: -2px;
+  }
+  .gd-filter-search {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .gd-filter-search svg {
+    color: var(--gd-muted);
+    flex-shrink: 0;
+  }
+  .gd-filter-search input {
+    background: transparent;
+    color: var(--gd-fg);
+    min-width: 0;
+    outline: none;
+    width: 100%;
+  }
+  /* 路径中间省略：尾部段用 RTL 技巧把省略号挪到段首（保留结尾），前缀段照常截断 */
+  .gd-truncate-tail {
+    direction: rtl;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gd-truncate-tail > span {
+    direction: ltr;
+  }
+  .gd-files-count {
+    background: var(--gd-files-bg);
+    border-bottom: 1px solid var(--gd-border);
+    color: var(--gd-fg);
+    flex-shrink: 0;
+    font-size: 12px;
+    height: 28px;
+    padding: 5px 12px;
+  }
+  .gd-row {
+    border-bottom: 1px solid var(--gd-row-border);
+    min-height: 30px;
+    padding: 6px 9px;
+  }
+  .gd-row.gd-row-selected,
+  .gd-row.gd-row-selected:hover {
+    background: var(--gd-selected-bg);
+    border-left-color: var(--gd-accent);
+  }
+  .gd-file-name {
+    font-size: 12px;
+  }
+  .gd-history-row {
+    min-height: 56px;
+  }
+
+  .gd-commit-header {
+    background: var(--gd-commit-bg);
+  }
+  .gd-history-layout {
+    display: flex;
+  }
+  /* 文件列表宽：默认 280px，右缘的分隔条拖动改 --gd-files-w（GitHub Desktop 同款可拖）。
+     分隔线只有分隔条的那一条，文件面板自己不再画右边框（双线是视觉缺陷）。 */
+  .gd-history-files {
+    display: flex;
+    flex: 0 0 var(--gd-files-w, 280px);
+    flex-direction: column;
+    max-width: 420px;
+    min-width: 200px;
+    overflow: hidden;
+  }
+  .gd-history-diff {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* Split 显示：逐行对齐的双栏（GitHub Desktop 的 side-by-side 形态），
+     不带「改前 / 改后」文字标签；旧值左栏红底、新值右栏绿底，缺侧留灰槽。 */
+  .gd-split {
+    min-height: 100%;
+  }
+  .gd-split-row {
+    display: flex;
+    min-height: 24px;
+  }
+  .gd-split-cell {
+    align-items: baseline;
+    display: flex;
+    flex: 1 1 50%;
+    gap: 6px;
+    min-width: 0;
+    padding: 3px 12px;
+  }
+  .gd-split-cell + .gd-split-cell {
+    border-left: 1px solid var(--gd-border);
+  }
+  .gd-split-old {
+    background: var(--gd-del-bg);
+  }
+  .gd-split-new {
+    background: var(--gd-add-bg);
+  }
+  .gd-split-cell.gd-split-cell-empty {
+    background: var(--gd-gutter-bg);
+  }
+  .gd-split-num {
+    color: var(--gd-line-num);
+    flex-shrink: 0;
+    font-size: 11px;
+    min-width: 16px;
+    text-align: right;
+  }
+  .gd-split-sign {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .gd-split-old .gd-split-sign {
+    color: var(--gd-del-fg);
+  }
+  .gd-split-new .gd-split-sign {
+    color: var(--gd-add-fg);
+  }
+  .gd-split-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .gd-hunk {
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+  }
+  .gd-hunk-header {
+    border-top: 1px solid var(--gd-border);
+    font-size: 12px;
+    padding: 3px 12px;
+  }
+  .gd-diff-row {
+    font-size: 12px;
+    min-height: 24px;
+  }
+  .gd-diff-content {
+    padding: 3px 12px;
+    white-space: pre-wrap;
+  }
+  .gd-diff-content span:first-child {
+    color: var(--gd-code-key) !important;
+  }
+  .gd-diff-content span:last-child {
+    color: var(--gd-code-value);
+  }
+  .gd-diff-gutter {
+    background: var(--gd-gutter-bg);
+  }
+  .gd-diff-row.gd-add .gd-diff-gutter {
+    background: var(--gd-gutter-add);
+  }
+  .gd-diff-row.gd-del .gd-diff-gutter {
+    background: var(--gd-gutter-del);
+  }
+  .gd-strip {
+    background: var(--gd-status-bg);
+    min-height: 22px;
+  }
+  [data-testid='wt-enabled'].text-green-700 {
+    color: var(--gd-enabled-fg);
+  }
+
+  @media (max-width: 800px) {
+    .gd-toolbar-select,
+    .gd-toolbar-refresh {
+      gap: 5px;
+      padding: 0 7px;
+    }
+    .gd-toolbar-refresh small {
+      display: none;
+    }
+    .gd-history-layout {
+      flex-direction: column;
+    }
+    .gd-history-files {
+      border-bottom: 1px solid var(--gd-border);
+      flex-basis: 34%;
+      max-width: none;
+      min-width: 0;
+    }
+    .gd-split-cell {
+      padding: 3px 8px;
+    }
+  }
+  @media (max-width: 520px) {
+    .gd-toolbar-select small {
+      display: none;
+    }
+    .gd-toolbar-refresh strong {
+      font-size: 11px;
+    }
+    .gd-sidebar {
+      max-width: 47vw;
+    }
+    .gd-tab {
+      font-size: 11px;
+    }
+    .gd-commit-time {
+      display: none;
+    }
+    .gd-commit-meta {
+      gap: 4px;
+    }
+  }
+}
+
+:root[data-theme='light'] .gd-workspace {
+  --gd-bg: #f6f8fa;
+  --gd-panel: #ffffff;
+  --gd-fg: #24292f;
+  --gd-muted: #57606a;
+  --gd-border: #cbd2d9;
+  --gd-hover: #eaeef2;
+  --gd-selected: #dcedff;
+  --gd-accent: #0969da;
+  --gd-accent-hover: #0755b3;
+  --gd-pill-bg: #d8dee4;
+  --gd-add-bg: #dafbe1;
+  --gd-add-fg: #1a7f37;
+  --gd-del-bg: #ffebe9;
+  --gd-del-fg: #cf222e;
+  --gd-gutter-bg: #eef1f4;
+  --gd-line-num: #57606a;
+  --gd-hunk-bg: #eaeef2;
+  --gd-warn-bg: #fff8c5;
+  --gd-warn-fg: #7d4e00;
+  --gd-shadow: 0 12px 30px #1b1f2429;
+  --gd-toolbar-edge: #d0d7de;
+  --gd-path-add: #116329;
+  --gd-path-del: #a40e26;
+  --gd-sidebar-bg: #f6f8fa;
+  --gd-tabs-bg: #f0f2f5;
+  --gd-input-bg: #ffffff;
+  --gd-input-border: #8c959f;
+  --gd-files-bg: #eaeef2;
+  --gd-row-border: #d8dee4;
+  --gd-selected-bg: #dcedff; /* GitHub Desktop 的选中行蓝色调 */
+  --gd-commit-bg: #f6f8fa;
+  --gd-code-key: #8250df;
+  --gd-code-value: #953800;
+  --gd-gutter-add: #baf2c6;
+  --gd-gutter-del: #ffd7d4;
+  --gd-status-bg: #f0f2f5;
+  --gd-enabled-fg: #1a7f37;
+  --gd-focus: #0969da;
+  color-scheme: light;
+
+  .gd-toolbar-select[aria-expanded='true'] {
+    background: var(--gd-panel);
+    color: var(--gd-fg);
+    position: relative;
+    z-index: 40;
+  }
+
+  .gd-toolbar-select[aria-expanded='true'] small {
+    color: var(--gd-muted);
+  }
+}

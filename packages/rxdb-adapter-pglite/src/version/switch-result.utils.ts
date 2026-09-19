@@ -13,6 +13,7 @@ import {
   getSqlWithParams,
   getSwitchUpdatedAt,
   getTableNameByMetadata,
+  normalizeUpdateEntity,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -111,6 +112,19 @@ const transformPatch = (patch: object | null, metadata: EntityMetadata): EntityD
   }
   return result;
 };
+
+/**
+ * 列集过滤掉 readonly 列后是否一个可写列都不剩。
+ *
+ * @remarks
+ * 版本机器记下的 update，列集有可能整个落在 readonly 簿记列上（`createdAt` / `updatedAt` /
+ * `createdBy` / `updatedBy`）—— 同步应用推来一条只动审计列的行就是这个形状。这种 patch 经
+ * {@link normalizeUpdateEntity} 归一化后是空对象，真写下去的只剩适配器自己注入的 `updatedAt`：
+ * 一次没有语义内容、却照样触发器落变更日志的空写。所以整条跳过 —— 把行恢复到目标态这件事，
+ * 在这一行上本来就无事可做。sqlite-core 的同名文件同样跳过，两家在这一格上必须长得一样。
+ */
+const hasNoWritableColumn = (metadata: EntityMetadata, patch: EntityData): boolean =>
+  Object.keys(normalizeUpdateEntity(metadata, patch)).length === 0;
 
 export const convertSwitchResultToSql = async (
   adapter: RxDBAdapterPGlite,
@@ -270,12 +284,16 @@ export const convertSwitchResultToSql = async (
     const metadata = getGroupedMetadata(adapter, key);
     const changesMap = updateChangesMap.get(key)!;
     const sqlStatements: string[] = [];
+    // 只收真正写过的 id：被跳过的行没落过写，它的 RETURNING 行自然也不存在，
+    // 不该被当成「更新过」再发事件、再回填身份缓存。
+    const writtenIds = new Set<RxDBEntityId>();
 
     for (const dataRaw of entityDataArray) {
       // FR-006：把历史行里的信封解回明文，让写入钩子只加密一次。
       const data = await decryptEntityDataForApply(adapter, metadata, dataRaw);
       const { id, ...updateData } = data;
       if (!isEntityId(id)) throw new TypeError('Switch update requires a string, number or bigint entity id');
+      if (hasNoWritableColumn(metadata, updateData)) continue;
       // 目标状态的 updatedAt（patch）与被替换状态的 updatedAt（inversePatch）都只是水位输入，
       // 真正写下去的是「此刻」——undo/redo 是新的写入，详见 getSwitchUpdatedAt。
       const updatedAt =
@@ -292,15 +310,16 @@ export const convertSwitchResultToSql = async (
         }
       );
       sqlStatements.push(getSqlWithParams(updateSql, updateParams));
+      writtenIds.add(id);
     }
-    const combinedSql = sqlStatements.join('---STATEMENT_SEPARATOR---');
+    if (sqlStatements.length === 0) continue;
 
     result.updates.push({
       metadata,
-      ids: new Set(entityDataArray.map(data => data['id']).filter(isEntityId)),
-      sql: combinedSql,
+      ids: writtenIds,
+      sql: sqlStatements.join('---STATEMENT_SEPARATOR---'),
       params: [], // 已经内联到 SQL 中
-      changes: updateChangesMap.get(key)!
+      changes: changesMap
     });
   }
 

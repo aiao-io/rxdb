@@ -7,6 +7,7 @@ import {
   getEntityMetadata,
   KeyValuePropertyMetadata,
   PropertyType,
+  quoteSqlIdentifier,
   type RxDBEntityId
 } from '@aiao/rxdb';
 import { EncryptedDecryptError, EncryptedLockedError, type Keyring } from '@aiao/rxdb-adapter-encrypted';
@@ -469,13 +470,22 @@ export const transformEntityValueToSql = async (
  * @param metadata 实体元数据
  * @param entity 实体对象
  * @returns 过滤后的实体对象，键为数据库列名
+ *
+ * @remarks
+ * 判定看的是**值不为 `undefined`**，不是 `key in entity`：`target: es2025` 下
+ * `useDefineForClassFields` 默认开启，`capturedAt?: Date` 这行字段声明本身就会在实例上装出一个
+ * 值为 `undefined` 的自有属性，键恒在。按键判定等于把「没赋值」也写进 INSERT 的列清单，
+ * 建表时那句 `DEFAULT (strftime(...))` 于是永远不生效——SQLite 是动态类型，不会像 PG 那样报错，
+ * 只是把 NULL 收下，时间戳一声不响地丢掉。
+ *
+ * 显式的 `null` 照常写：「没给值」与「就是要清空」是两件事，只有后者该压过 DB 端默认值。
  */
 export const normalizeCreateEntity = (metadata: EntityMetadata, entity: EntityData): EntityData => {
   const result: EntityData = {};
 
   // 处理属性
   for (const [key, property] of metadata.propertyMap) {
-    if (key in entity) {
+    if (entity[key] !== undefined) {
       result[property.columnName] = entity[key];
     }
   }
@@ -485,7 +495,7 @@ export const normalizeCreateEntity = (metadata: EntityMetadata, entity: EntityDa
   const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
   for (let i = 0; i < foreignKeyNames.length; i++) {
     const key = foreignKeyNames[i];
-    if (key in entity) {
+    if (entity[key] !== undefined) {
       result[foreignKeyColumnNames[i]] = entity[key];
     }
   }
@@ -550,11 +560,18 @@ export const getSwitchUpdatedAt = (known: readonly unknown[]): Date => {
 
 /**
  * 将标识符（表名、列名、触发器名等）转义为双引号引用的 SQL 标识符。
- * 内部双引号使用 "" 转义，防止 SQL 注入。
- * @param name 标识符字符串
+ *
+ * @param name - 标识符字符串
  * @returns 双引号引用的 SQL 标识符
+ *
+ * @throws {@link RxDBError} 标识符为空或含 NUL 时
+ *
+ * @remarks
+ * 直接复用核心的 {@link quoteSqlIdentifier}，不另写一份：两份转义规则一旦分叉，
+ * 分叉的必然是**拒绝哪些输入**而不是加引号的写法——本适配器这份原先对空串与 NUL
+ * 一律放行，而 SQLite 在 NUL 处**静默截断**，拼出来的是一条语法正确、打在别的名字上的语句。
  */
-export const quote_sql_identifier = (name: string): string => `"${name.replaceAll('"', '""')}"`;
+export const quote_sql_identifier = (name: string): string => quoteSqlIdentifier(name);
 
 /**
  * 构建覆盖写 `sqlite_sequence` 某表序列值的参数化语句序列。

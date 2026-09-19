@@ -8,11 +8,11 @@ import type {
   TransactionExecutor,
   TransactionExecutorState
 } from '@aiao/rxdb';
-import { getEntityMutations } from '@aiao/rxdb';
+import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { rxdb_adapter_mutations } from '../rxdb_adapter_mutations.js';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
-import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 
 /**
  * 把一个适配器包装成「所有 `query()` 都落在指定事务里」的门面。
@@ -125,6 +125,18 @@ export class SqliteTransactionExecutor implements TransactionExecutor {
       rows: result.results[0]?.rows ?? [],
       columns: result.results[0]?.columns ?? []
     };
+  }
+
+  /**
+   * SQLite 家族的物理表引用：`namespace` 是表名前缀，拼成 `"rxdb$rxdb_change"`。
+   *
+   * @remarks
+   * 与建表路径（`table/create_table_sql.ts`）取同一对 {@link get_table_name_by_metadata}
+   * 与 {@link quote_sql_identifier}，不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张
+   * 不存在的表上。`$` 在未加引号的标识符里不是合法字符，引号不能省。
+   */
+  tableRef(EntityType: EntityType): string {
+    return quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(EntityType)));
   }
 
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {

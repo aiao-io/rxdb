@@ -8,9 +8,9 @@ import type {
   TransactionExecutor,
   TransactionExecutorState
 } from '@aiao/rxdb';
-import { getEntityMutations } from '@aiao/rxdb';
+import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { Results, Transaction } from '@electric-sql/pglite';
-import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 import rxdb_adapter_mutations from '../rxdb_adapter_mutations.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
@@ -118,6 +118,17 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
         (result.rows as Record<string, unknown>[]).map(row => columns.map(column => row?.[column] ?? null))
       : [];
     return { rowsAffected: result.affectedRows ?? 0, rows, columns };
+  }
+
+  /**
+   * PGlite 的物理表引用：`namespace` 是 schema，拼成 `"rxdb"."rxdb_change"`。
+   *
+   * @remarks
+   * 与建表路径（`table/create_table_sql.ts`）取同一个 {@link getTableNameByMetadata}，
+   * 不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张不存在的表上。
+   */
+  tableRef(EntityType: EntityType): string {
+    return getTableNameByMetadata(getEntityMetadata(EntityType));
   }
 
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {

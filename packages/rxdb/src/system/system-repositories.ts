@@ -15,6 +15,7 @@
  */
 import { firstValueFrom } from 'rxjs';
 import type { RxDB } from '../RxDB.js';
+import { ACTIVE_BRANCH_KEY } from './active-branch-guard.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from './types.local.js';
@@ -61,14 +62,18 @@ export const resolve_current_branch = async (
   )[0];
 
   if (mainBranch) {
+    // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
+    // 漏写一处，那一行就绕过唯一约束，而 schema 那一半的保护正好在这种漏写上失效。
     mainBranch.activated = true;
-    await branchRepository.update(mainBranch, { activated: true });
+    mainBranch.activeKey = ACTIVE_BRANCH_KEY;
+    await branchRepository.update(mainBranch, { activated: true, activeKey: ACTIVE_BRANCH_KEY });
     return mainBranch;
   }
 
   const branch = rxdb.entityManager.instantiate(RxDBBranch);
   branch.id = 'main';
   branch.activated = true;
+  branch.activeKey = ACTIVE_BRANCH_KEY;
   branch.local = true;
   branch.remote = false;
   await branchRepository.create(branch);

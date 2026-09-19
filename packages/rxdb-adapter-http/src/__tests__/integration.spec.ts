@@ -278,6 +278,13 @@ const createLocalAdapter = (initial: Row[] = []) => {
     transaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
       Promise.resolve(fun({ getRepository }))
     ),
+    // 引导期事务，与上面**同一个函数体**而不是委托 `transaction`：这个替身没有就绪门，
+    // 基类那条「跳过就绪门」的区别在它身上不存在（`RxDBAdapterLocalBase.bootstrapTransaction`
+    // 的默认实现也只是直调 `transaction`）。写成委托会让 `transaction` 的调用次数把引导期
+    // 也算进去，而本文件的断言面正是「谁在什么时候被调了」。
+    bootstrapTransaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
+      Promise.resolve(fun({ getRepository }))
+    ),
     getMetadataByIds: vi.fn((_entityName: string, ids: string[]) =>
       of(new Map(ids.filter(id => store.has(id)).map(id => [id, store.get(id)!.updatedAt])))
     ),

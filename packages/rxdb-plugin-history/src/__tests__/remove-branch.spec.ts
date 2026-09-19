@@ -1,14 +1,21 @@
-import { type EntityType, RxDBBranch, RxDBError } from '@aiao/rxdb';
+import {
+  type EntityType,
+  RxDBBranch,
+  type RxDBBranchRemovalContext,
+  RxDBError,
+  type RxDBSystemContribution,
+  type TransactionExecutor
+} from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { remove_branch } from '../remove-branch.js';
 import { VersionManager } from '../VersionManager.js';
-import { createTransactionStub } from './fixtures/transaction-executor-stub.js';
+import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
 type FindRepositoryMock = { find: ReturnType<typeof vi.fn> };
 type RemoveAdapterMock = {
   removeMany: ReturnType<typeof vi.fn>;
   getRepository: (EntityType: EntityType) => unknown;
-  transaction: ReturnType<typeof createTransactionStub>;
+  transaction: ReturnType<typeof vi.fn>;
 };
 type FindQuery = {
   where: {
@@ -16,13 +23,63 @@ type FindQuery = {
   };
 };
 
+/** 一次 `removeBranchRows` 调用被看见的样子。 */
+interface BranchRowsCall {
+  readonly branchId: string;
+  /** 本次调用拿到的执行器**是不是** `remove_branch` 那个事务的执行器。 */
+  readonly executor: RxDBBranchRemovalContext['executor'];
+  /** 调用发生时本次事务已经删过多少批——用来判定「排在分支行之前」。 */
+  readonly removalsBefore: number;
+}
+
+/**
+ * 造一个只记账、不删行的系统贡献。
+ *
+ * @param calls - 共享的记账数组，按真实调用顺序追加
+ * @param countRemovals - 读一下本次事务到此为止删过几批
+ * @param impl - 覆盖 `removeBranchRows` 的行为（用于「贡献方抛错」那一支）
+ *
+ * @remarks
+ * 不用真实插件的贡献：本文件测的是 `remove_branch` 那一侧的契约——有没有调、拿到的是不是
+ * 同一个执行器、排不排在分支行之前、抛错让不让它穿出去。换成真插件，断言会同时压在
+ * 「插件删了哪几张表」上，于是插件加一张表、本文件跟着红，而红的这一侧什么都不用改。
+ * 删了什么由 `@aiao/rxdb-plugin-working-tree` 自己的 `remove-branch-aba.spec.ts` 守。
+ */
+function createRecordingContribution(
+  calls: BranchRowsCall[],
+  countRemovals: () => number,
+  impl?: () => Promise<void>
+): RxDBSystemContribution {
+  return {
+    capability: 'probe',
+    version: 1,
+    packageSpecifier: '@aiao/rxdb-plugin-probe',
+    entities: [],
+    createInitialRows: () => [],
+    createMigrations: () => [],
+    bootstrapExisting: async () => undefined,
+    writeBranchRows: async () => undefined,
+    removeBranchRows: async ({ executor, branchId }) => {
+      calls.push({ branchId, executor, removalsBefore: countRemovals() });
+      await impl?.();
+    },
+    assertBranchSwitchable: async () => undefined
+  };
+}
+
 describe('remove_branch', () => {
   let mockVersion: VersionManager;
   let mockBranchRepository: FindRepositoryMock;
   let mockChangeRepository: FindRepositoryMock;
   let mockAdapter: RemoveAdapterMock;
+  let branchRowsCalls: BranchRowsCall[];
+  let systemContributions: RxDBSystemContribution[];
+  let transactionExecutor: TransactionExecutor;
 
   beforeEach(() => {
+    branchRowsCalls = [];
+    systemContributions = [];
+
     mockBranchRepository = {
       find: vi.fn()
     };
@@ -33,19 +90,29 @@ describe('remove_branch', () => {
 
     // 「查 → 删」整段搬进了事务：仓库改由 executor 给，删除改走 `executor.removeMany()`。
     // 打桩把两者都转发回原来的 mock，因此下面各用例的断言对象与语义都不变。
+    //
+    // 不走 `createTransactionStub`：那个 helper 把 executor 造在自己肚子里，而本文件要
+    // **按引用**断言贡献方拿到的就是这一个（见下方「执行器同一性」那条）。自己造一份留住它。
     const host = {
       removeMany: vi.fn().mockResolvedValue(undefined),
       getRepository: (EntityType: EntityType) =>
         (EntityType as unknown) === RxDBBranch ? mockBranchRepository : mockChangeRepository
     };
-    mockAdapter = { ...host, transaction: createTransactionStub(host) };
+    transactionExecutor = createTransactionExecutorStub(host);
+    mockAdapter = {
+      ...host,
+      transaction: vi.fn(async (fun: (executor: TransactionExecutor) => Promise<unknown>) => fun(transactionExecutor))
+    };
 
     mockVersion = {
       getLocalRepositories: vi.fn().mockResolvedValue({
         branchRepository: mockBranchRepository,
         changeRepository: mockChangeRepository,
         adapter: mockAdapter
-      })
+      }),
+      // 贡献方在删分支行之前被无条件遍历一遍（`RxDBSystemContribution.removeBranchRows`），
+      // 所以这个字段不是可选布景：缺了它 `remove_branch` 当场 TypeError。
+      rxdb: { systemContributions }
     } as unknown as VersionManager;
   });
 
@@ -234,6 +301,76 @@ describe('remove_branch', () => {
         ]
       },
       limit: 1
+    });
+  });
+
+  describe('贡献方的分支级行清理（FR-044）', () => {
+    /** 布景：一条可删的分支加一条它名下的 change。 */
+    const seedRemovableBranch = () => {
+      const branch = { id: 'feature', activated: false };
+      const change = { id: 300, branchId: 'feature' };
+      mockBranchRepository.find.mockImplementation((query: FindQuery) => {
+        if (query.where.rules.some(r => r.field === 'parentId')) return Promise.resolve([]);
+        return Promise.resolve([branch]);
+      });
+      mockChangeRepository.find.mockResolvedValue([change]);
+      return { branch, change };
+    };
+
+    it('每个贡献方都被调到，且拿到的是本次事务的执行器', async () => {
+      systemContributions.push(
+        createRecordingContribution(branchRowsCalls, () => mockAdapter.removeMany.mock.calls.length)
+      );
+      seedRemovableBranch();
+
+      await remove_branch(mockVersion, 'feature');
+
+      // 自己另开一个事务的话，中间失败留下的是「分支没了、贡献行还在」，
+      // 而那些行按 id 挂靠——同名重建出来的新分支会逐字命中它们。按引用比，
+      // 不比「是不是一个 executor」：形状相同的另一个执行器属于另一个事务。
+      expect(
+        branchRowsCalls.map(call => ({ branchId: call.branchId, sameExecutor: call.executor === transactionExecutor }))
+      ).toEqual([{ branchId: 'feature', sameExecutor: true }]);
+    });
+
+    it('排在分支行被删之前', async () => {
+      systemContributions.push(
+        createRecordingContribution(branchRowsCalls, () => mockAdapter.removeMany.mock.calls.length)
+      );
+      seedRemovableBranch();
+
+      await remove_branch(mockVersion, 'feature');
+
+      // 反过来（先删分支行再调贡献）时，贡献方读到的是一条已经不存在的分支——
+      // 而它要清的那几张表全按这条分支的 id 挂靠。
+      expect(branchRowsCalls[0].removalsBefore).toBe(0);
+      expect(mockAdapter.removeMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('贡献方抛错时整条删除失败，分支行一行都没删', async () => {
+      systemContributions.push(
+        createRecordingContribution(
+          branchRowsCalls,
+          () => mockAdapter.removeMany.mock.calls.length,
+          async () => {
+            throw new RxDBError('贡献方清理失败');
+          }
+        )
+      );
+      seedRemovableBranch();
+
+      // 吞掉它的话，留下的是一条「分支没了、贡献行还在」的库，而这种残留
+      // 与一条正常的老分支在形状上分辨不出来。
+      await expect(remove_branch(mockVersion, 'feature')).rejects.toThrow('贡献方清理失败');
+      expect(mockAdapter.removeMany).not.toHaveBeenCalled();
+    });
+
+    it('一个贡献方都没有时照常删', async () => {
+      const { branch, change } = seedRemovableBranch();
+
+      await remove_branch(mockVersion, 'feature');
+
+      expect(mockAdapter.removeMany).toHaveBeenCalledWith([change, branch]);
     });
   });
 });

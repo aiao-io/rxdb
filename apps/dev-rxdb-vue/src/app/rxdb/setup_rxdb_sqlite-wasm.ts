@@ -5,6 +5,7 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import {
   getE2eDbName,
@@ -51,6 +52,9 @@ export default () => {
     .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
     .use(rxDBPluginWorkspace)
+    // 只装不启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
+    // 按在这里等于替所有 demo 页做了这个决定。启用留给 /working-tree 面板上的显式点击。
+    .use(rxDBPluginWorkingTree)
     .adapter('sqlite-wasm', async db => {
       let options: SqliteOptions;
       const available = await checkOPFSAvailable();

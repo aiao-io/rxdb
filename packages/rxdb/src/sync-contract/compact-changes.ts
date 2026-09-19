@@ -57,19 +57,28 @@ export function compactChanges<T extends IRxDBChange>(
   for (const change of sortedChanges) {
     const changeKey = getRxDBChangeKey(change);
     switch (change.type) {
-      case 'INSERT':
+      case 'INSERT': {
         // 清除同 key 之前的 DELETE：显式复用已删除实体 id 重新创建时，
         // 一个 key 不能同时挂在 deletes 和 inserts 两个 Map 里，
         // 否则下游 push 批次会把同一批原始变更计入两次（重复 sourceChanges）
+        const clearedDelete = actions.deletes.get(changeKey);
         actions.deletes.delete(changeKey);
         actions.updates.delete(changeKey);
+        // 被清掉的 DELETE 的 inversePatch 要接力到这条 INSERT 上：它是「服务器上曾有这行」
+        // 的唯一凭据，而本地重建出来的 INSERT 自己的 inversePatch 恒为 null。丢掉它之后，
+        // 离线期间「远端行被删 → 用同 id 重建 → 又删」会在最后那个 DELETE 处被
+        // isLocalOnlyInsert 误判成「本地新建后删除」而整段抵消，服务器上那行永远删不掉。
+        // 与 @remarks 里 `INSERT → DELETE + inversePatch !== null → 保留 DELETE` 同一条规则。
+        //
         // 浅拷贝：actions 不得持有源 change.patch 的引用，否则后续 Object.assign 合并
         // 会原地改写源 change（可能是 EntityManager 缓存实例），污染缓存
+        const priorRemoteState = change.inversePatch ?? clearedDelete?.inversePatch ?? null;
         actions.inserts.set(changeKey, {
           patch: { ...change.patch! },
-          inversePatch: change.inversePatch ? { ...change.inversePatch } : null
+          inversePatch: priorRemoteState ? { ...priorRemoteState } : null
         });
         break;
+      }
 
       case 'UPDATE':
         {

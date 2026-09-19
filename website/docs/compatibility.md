@@ -18,17 +18,20 @@
 
 框架绑定采用 `peerDependencies`，因此由你的应用决定框架的具体次/补丁版本，只要落在下表范围内即可。
 
-| 框架    | 绑定包                             | 框架版本要求                                             | RxJS     |
-| :------ | :--------------------------------- | :------------------------------------------------------- | :------- |
-| Angular | `@aiao/rxdb-angular`               | `@angular/core >=20.0.0`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-react`                 | `react / react-dom ^19.2`                                | `^7.8.0` |
-| Vue     | `@aiao/rxdb-vue`                   | `vue >=3.5.0`                                            | `^7.8.0` |
-| Angular | `@aiao/rxdb-plugin-search-angular` | `@angular/core >=19.0.0`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-search-react`   | `react ^19.2`                                            | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-search-vue`     | `vue >=3.5.0`                                            | `^7.8.2` |
-| Angular | `@aiao/code-editor-angular`        | `@angular/{common,core,forms,platform-browser} >=20.0.0` | —        |
-| React   | `@aiao/code-editor-react`          | `react / react-dom ^19.2`                                | —        |
-| Vue     | `@aiao/code-editor-vue`            | `vue >=3.5.0`                                            | —        |
+| 框架    | 绑定包                                   | 框架版本要求                                             | RxJS     |
+| :------ | :--------------------------------------- | :------------------------------------------------------- | :------- |
+| Angular | `@aiao/rxdb-angular`                     | `@angular/core >=20.0.0`                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-react`                       | `react / react-dom ^19.2`                                | `^7.8.0` |
+| Vue     | `@aiao/rxdb-vue`                         | `vue >=3.5.0`                                            | `^7.8.0` |
+| Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core >=19.0.0`                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.2`                                            | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue >=3.5.0`                                            | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core >=22.1.6`                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.2.8`                                          | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue >=3.5.42`                                           | `^7.8.2` |
+| Angular | `@aiao/code-editor-angular`              | `@angular/{common,core,forms,platform-browser} >=20.0.0` | —        |
+| React   | `@aiao/code-editor-react`                | `react / react-dom ^19.2`                                | —        |
+| Vue     | `@aiao/code-editor-vue`                  | `vue >=3.5.0`                                            | —        |
 
 ## `@aiao/rxdb` × 适配器 / 插件
 
@@ -46,6 +49,7 @@
 | `@aiao/rxdb-adapter-encrypted`   | 适配器封装 | 为底层适配器提供透明加密                                                               |
 | `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，仅微信小程序逻辑层；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`    |
 | `@aiao/rxdb-plugin-search`       | 插件       | 依赖 `@aiao/rxdb-adapter-sqlite-wasm`；其他适配器 fail-fast                            |
+| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位      |
 | `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                       |
 | `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                       |
 | `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                         |

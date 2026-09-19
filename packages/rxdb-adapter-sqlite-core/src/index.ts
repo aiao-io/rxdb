@@ -142,7 +142,7 @@ export { generate_table_trigger_sql } from './table/trigger_sql.js';
 export { dispatch_switch_events, execute_switch_actions } from './version/execute_switch_actions.js';
 export { convertSwitchResultToSql } from './version/switch-result.utils.js';
 export type { SqliteStatement, SwitchVersionSqlItem, SwitchVersionSqlResult } from './version/switch-result.utils.js';
-export { generateSwitchBranchSql, switch_branch } from './version/switch_branch.js';
+export { generateSwitchBranchSql, generateSwitchBranchStatements, switch_branch } from './version/switch_branch.js';
 export { switch_transaction_id } from './version/switch_transaction_id.js';
 export { readCurrentBranchId, withTriggersDisabled, type SqlExecutor } from './version/with_triggers_disabled.js';
 

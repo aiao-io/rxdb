@@ -84,8 +84,19 @@ export const isLocalAdapter = (adapterName: RxDBAdapterName, options: RxDBOption
  * `reconcileEntityIndexes` 不在列内：它在 {@link RxDBAdapterLocalBase} 上声明为可选（`?:`），
  * 缺席是契约允许的形态。`createTables` / `isTableExisted` 是 `abstract`，缺了会自然抛
  * `TypeError`，但那条消息读不出「哪个适配器缺哪个方法」，所以一并纳入。
+ *
+ * `bootstrapTransaction` 从 epic-006 起进列：系统迁移链此前是空的，`runMigrations` 那一步
+ * 只有在接入方自己配了 migrations 时才会走到它；`0004-working-tree-commits` 之后**每一次**
+ * 在既有库上的 `connect()` 都必经此路。判定摆在本地分支入口、而不是分首装/既有两条路，
+ * 是因为缺了它的适配器对任何一个库都只能撑到第二次启动——首装当场报错远好过在用户
+ * 第二次打开应用时抛一条读不出主语的 `TypeError`。
  */
-const LOCAL_BOOTSTRAP_MEMBERS = ['migrateSystemSchema', 'completeBootstrap', 'createTables'] as const;
+const LOCAL_BOOTSTRAP_MEMBERS = [
+  'migrateSystemSchema',
+  'completeBootstrap',
+  'createTables',
+  'bootstrapTransaction'
+] as const;
 
 /**
  * 校验一个被配置为 `sync.local` 的适配器能跑完系统引导，不能则抛。

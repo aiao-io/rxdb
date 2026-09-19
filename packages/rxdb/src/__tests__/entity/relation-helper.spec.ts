@@ -56,6 +56,7 @@ type RelationStatus = {
   addRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata, entity: object) => void>>;
   cleanRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata) => void>>;
   removeRelationEntity: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata, entity: object) => void>>;
+  getRelationCache: ReturnType<typeof vi.fn<(relation: EntityRelationMetadata) => Set<object>>>;
   getRelationObservableEntry: ReturnType<
     typeof vi.fn<(relation: EntityRelationMetadata) => RelationObservableEntry | undefined>
   >;
@@ -126,10 +127,21 @@ const SINGLE_RELATION_CASES: readonly SingleRelationCase[] = [
 
 const createStatus = (): RelationStatus => {
   const observableEntries = new Map<EntityRelationMetadata, RelationObservableEntry>();
+  // 关系缓存和真身一样是「按关系元数据懒建的 Set」：多对多关系流会把查到的 Junction
+  // 登记进去，替身少了这一格就只是替身不诚实，不该靠生产代码补兜底。
+  const relationCaches = new Map<EntityRelationMetadata, Set<object>>();
   return {
     addRelationEntity: vi.fn<(relation: EntityRelationMetadata, entity: object) => void>(),
     cleanRelationEntity: vi.fn<(relation: EntityRelationMetadata) => void>(),
     removeRelationEntity: vi.fn<(relation: EntityRelationMetadata, entity: object) => void>(),
+    getRelationCache: vi.fn<(relation: EntityRelationMetadata) => Set<object>>(relation => {
+      let cache = relationCaches.get(relation);
+      if (!cache) {
+        cache = new Set<object>();
+        relationCaches.set(relation, cache);
+      }
+      return cache;
+    }),
     getRelationObservableEntry: vi.fn<(relation: EntityRelationMetadata) => RelationObservableEntry | undefined>(
       relation => observableEntries.get(relation)
     ),
@@ -207,7 +219,7 @@ describe('relation-helper', () => {
   });
 
   describe.each(SINGLE_RELATION_CASES)('$label', ({ relation }) => {
-    it('按外键读取并用 shareReplay 缓存同一个关系流', async () => {
+    it('按外键读取：并存订阅共享一条流，最后一个订阅者离开后释放仓库订阅', async () => {
       const target = new Target();
       const repository = createRepository<Target>();
       repository.get.mockImplementation(id => of(id === TARGET_ID ? target : null));
@@ -218,9 +230,18 @@ describe('relation-helper', () => {
       relationHelper(relation, Owner, em);
       const relation$ = owner.target$;
 
-      await expect(firstValueFrom(relation$)).resolves.toBe(target);
-      await expect(firstValueFrom(relation$)).resolves.toBe(target);
+      const seen: (Target | null)[] = [];
+      const first = relation$.subscribe(value => seen.push(value));
+      const second = relation$.subscribe(value => seen.push(value));
+      expect(seen).toEqual([target, target]);
       expect(repository.get).toHaveBeenCalledTimes(1);
+
+      first.unsubscribe();
+      second.unsubscribe();
+      // refCount：最后一个订阅者离开就退订仓库查询，再订阅时重新建流。
+      // 不这么做的话，实体在缓存里活多久，那条实时查询就挂多久。
+      await expect(firstValueFrom(relation$)).resolves.toBe(target);
+      expect(repository.get).toHaveBeenCalledTimes(2);
       expect(repository.get).toHaveBeenCalledWith(TARGET_ID);
       expectFrozenActions(relation$, ['set', 'remove']);
     });

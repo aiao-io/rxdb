@@ -56,5 +56,8 @@
     "rxjs": "^7.8.2",
     "type-fest": "^5.9.0",
     "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
   }
 }

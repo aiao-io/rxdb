@@ -119,6 +119,12 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/branch-manager/branch-manager.page')
   },
   {
+    // 与 /search 同一道门：面板初始化就调 `workingTree.status()`，深链进来时连接还没建立。
+    path: 'working-tree',
+    canActivate: [connectLocalAdapter],
+    loadComponent: () => import('./pages/working-tree/working-tree.page')
+  },
+  {
     matcher: storageMatcher,
     loadComponent: () => import('./pages/storage/storage.page')
   },

@@ -32,8 +32,8 @@ owner: jimmy
       （2026-09-12 更新：那 2 个 `miniprogram/assets/*` 入口随 glue + wasm 改用
       `@subframe7536/sqlite-wasm` 而撤销，资产白名单现为空，53 个入口全部进基线。）
       **本 Epic 因此转 `In Progress`**：三条目标关了两条，剩一条仍无故事认领
-- [x] 迁移发布门禁的三个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol`）
-      进入 PR CI，而不只在打 tag 时跑——已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，
+- [x] 迁移发布门禁的四个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` /
+      `bridgeTagVersionConstants`）进入 PR CI，而不只在打 tag 时跑——已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，
       配 `fetch-tags: true` 与按 `GITHUB_REF_TYPE` 解析 tag），未单开故事，落点见
       [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
 - [ ] 手工发布路径的前置校验：`pnpm test-all` 未跑绿即发布，会重演 0.0.25 的版本漂移——**尚无故事认领**，

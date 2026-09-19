@@ -308,16 +308,42 @@ export class EntityRelationCache {
   }
 
   /**
-   * 清空所有关系缓存（用于 replace / reset 等场景）
+   * 清空所有关系缓存（含待删 Junction 与已记忆化的 Observable）。
    *
-   * 同时清空 #observable_map：replace/mergeExternal 直接写 target（绕过 Proxy），
-   * 已缓存的关系 Observable 无法感知外键变化，必须失效，下次访问 getter 时重建。
-   * reset() 不调用本方法（走 proxyTarget，Proxy set 拦截会实时同步，见 proxy.ts）。
+   * @remarks
+   * 这是「把这个实体的关系状态整个丢掉」的动作，语义等同于重新构造一个实体引用。
+   *
+   * 外部数据回填（`replace` / `mergeExternal`）**不**走这里，走
+   * {@link EntityRelationCache.syncObservableForeignKeys}：那两条路径落的是**属性值**，
+   * 未保存的关系编辑（待写入的 Junction、待删除的 Junction）是另一件事，
+   * 清掉就等于把用户的解绑/绑定意图静默丢弃。`reset()` 同样不调用本方法
+   * （它走 proxyTarget，Proxy set 拦截会实时同步，见 proxy.ts）。
    */
   clear(): void {
     this.#relation_map.clear();
     this.#remove_junction_set.clear();
     this.#observable_map.clear();
+  }
+
+  /**
+   * 把已记忆化的关系 Observable 同步到实体当前的外键值。
+   *
+   * @remarks
+   * `replace` / `mergeExternal` 直接写 target（绕过 Proxy），单值关系
+   *（`MANY_TO_ONE` / `ONE_TO_ONE`）内部那个 BehaviorSubject 收不到外键变化，
+   * 已经订阅上的调用方会一直停在旧的关联实体上。
+   *
+   * 这里主动回灌而不是把 Observable 作废：作废只对**之后**才访问 getter 的调用方有效，
+   * 回填发生时已经持有订阅的那些（UI 里最常见的形态）拿到的仍是旧值。
+   *
+   * 集合关系（`ONE_TO_MANY` / `MANY_TO_MANY`）的 Observable 是按 `self.id` 现查的
+   * `defer`，而回填不会改主键，无需处理。
+   */
+  syncObservableForeignKeys(): void {
+    const target = this.getTarget() as unknown as Record<string, unknown>;
+    for (const [relation, entry] of this.#observable_map) {
+      entry.syncForeignKeyId?.((target[relation.name + 'Id'] ?? null) as RxDBEntityId | null);
+    }
   }
 
   /**

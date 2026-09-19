@@ -1,6 +1,9 @@
 import type { EntityMetadata, EntityType, IRepository, IRxDBAdapter } from '@aiao/rxdb';
 import {
+  ACTIVE_BRANCH_KEY,
+  AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
+  gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
   getRxDBSystemVersionState,
@@ -26,6 +29,7 @@ import {
 import {
   createKeyring,
   EncryptedConfigurationError,
+  isEnvelope,
   type Keyring,
   type UnlockOptions,
   validateEncryptedPropertyMetadata
@@ -73,7 +77,8 @@ import {
   isSqlResultEmpty,
   isTableExistedSql,
   quote_sql_identifier,
-  RxDBAdapterSqliteError
+  RxDBAdapterSqliteError,
+  rxDBColumnTypeToSqliteType
 } from './sqlite-core.utils.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
@@ -87,6 +92,101 @@ import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
+
+/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
+const MAIN_BRANCH_ID = 'main';
+
+/**
+ * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
+ *
+ * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
+ * 否则同一个库换个后端打开就是另一套约束。顺序同样是**先建索引、后回填**：
+ * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
+ * 但两端走不同顺序等于给自己留两条要分别验证的路径。
+ *
+ * 探列在 SQLite 这边是**必需的而非优化**：`ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，
+ * 重复执行会直接报错。
+ *
+ * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ *
+ * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
+ * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。把同一个值
+ * 原样写回去仍然是一次 UPDATE，会沿变更派发链路冒出一条谁都没做过的 `RxDBBranch` 更新，
+ * 而且没有任何东西会报错。
+ *
+ * **零 active 且库里连 `main` 行都没有时，这里什么都不建。** 迁移 0004 的不变量是「新库与
+ * 升级库逐字段相同」——一个分支行必须连带 `rxdb_commit_branch_ref` 与 `rxdb_working_tree_state`
+ * 两行（见 `commit/branch-commit-rows.ts`），而这里是裸 SQL，造不出那两行。凭空插一行
+ * `main` 等于亲手制造一个原本不存在的不一致；这种库交给实体层的 `resolve_current_branch`
+ * 去建，它走的是能连带写全的那条路。空表本身不违反「至多一个」，索引照建不误。
+ */
+const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> => {
+  const branchMetadata = getEntityMetadata(RxDBBranch);
+  const branchTableName = get_table_name_by_metadata(branchMetadata);
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return;
+
+  const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
+  if (!activeKeyProperty) {
+    throw new RxDBAdapterSqliteError('RxDBBranch metadata is missing the "activeKey" property.');
+  }
+  const branchTable = quote_sql_identifier(branchTableName);
+  const activeKeyColumn = quote_sql_identifier(activeKeyProperty.columnName);
+
+  const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
+    branchTableName,
+    activeKeyProperty.columnName
+  ]);
+  if (!columnResult.results.some(result => result.rows.length > 0)) {
+    // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
+    // 不会有编译错误，只会让两条路径悄悄分叉。
+    await client.execute(
+      `ALTER TABLE ${branchTable} ADD COLUMN ${activeKeyColumn} ${rxDBColumnTypeToSqliteType(activeKeyProperty)}`
+    );
+  }
+
+  const activeResult = await client.execute(`SELECT "id" FROM ${branchTable} WHERE "activated" = 1 ORDER BY "id"`);
+  const activeBranchIds = activeResult.results.flatMap(result => result.rows).map(row => String(row[0]));
+  if (activeBranchIds.length > 1) throw new AmbiguousActiveBranchError(activeBranchIds);
+
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
+      getTableColumnIndexName(branchMetadata, activeKeyProperty)
+    )} ON ${branchTable}(${activeKeyColumn})`
+  );
+
+  const activeBranchId = activeBranchIds[0];
+  // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
+  // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
+  // A 仍在清空范围内，索引照样不会瞬时自撞。
+  await client.execute(
+    `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
+     WHERE ${activeKeyColumn} IS NOT NULL AND "id" != ?`,
+    [activeBranchId ?? MAIN_BRANCH_ID]
+  );
+
+  if (activeBranchId !== undefined) {
+    // `IS NOT` 在 SQLite 里是 null 安全的比较，列为 NULL 时照样成立。
+    await client.execute(
+      `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NOT ?`,
+      [ACTIVE_BRANCH_KEY, activeBranchId, ACTIVE_BRANCH_KEY]
+    );
+    return;
+  }
+  // 零 active 这一支不需要守卫：`activated` 此刻必然为假（否则不会走到这里），这条 UPDATE
+  // 一定是真变更。
+  await client.execute(`UPDATE ${branchTable} SET "activated" = 1, ${activeKeyColumn} = ? WHERE "id" = ?`, [
+    ACTIVE_BRANCH_KEY,
+    MAIN_BRANCH_ID
+  ]);
+};
 
 /**
  * 事务回调。
@@ -289,6 +389,22 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     }
     this.repository('Repository', SqliteRepository);
     this.repository('TreeRepository', SqliteTreeRepository);
+  }
+
+  /**
+   * 判定一个落库值是否已处于加密后的 at-rest 形态（FR-038）。
+   *
+   * @param value - 落库列里的值
+   * @returns 是信封串时为 `true`
+   *
+   * @remarks
+   * 权威判定器只有一份，就是 `@aiao/rxdb-adapter-encrypted` 的 `isEnvelope`——本方法是
+   * 核心那个可选槽位（{@link RxDBAdapterLocalBase.isEncryptedAtRest}）到它的一句转发，
+   * 不在这里另认一套形状。`@aiao/rxdb` 不能依赖加密包（依赖方向是反的），所以这一句
+   * 只能落在适配器侧。
+   */
+  override isEncryptedAtRest(value: unknown): boolean {
+    return isEnvelope(value);
   }
 
   /**
@@ -542,6 +658,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             )} ON ${migrationTable}("name")`
           );
 
+          await ensureBranchActiveKey(client);
+
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(
               `INSERT INTO ${migrationTable} ("name", "executedAt")
@@ -633,14 +751,32 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.runInTransaction(executor => (executor as SqliteTransactionExecutor).execute(sql, bindings), false);
   }
 
+  /**
+   * 原始 SQL。
+   *
+   * @remarks
+   * **judgment 由核心包出，这里只负责接上**（adapter-contract.md §2）。`rawQuery?()` 在
+   * `IRxDBAdapter` 上是可选方法，核心包没法像四个捕获挂载点那样替适配器包住它，于是这一句
+   * `gateRawWrite` 是本类唯一要写对的地方。判定本身一个字都不在这里重写——六份实现里只要有一份
+   * 把词法归一化写松，整条防线就有洞，而那个洞不会在任何一个后端自己的测试里现形。
+   *
+   * 这一句覆盖 **5 个 v1 适配器**（wa-sqlite / sqlite-wasm / sqlite / sqliteai / electron）：
+   * 它们都继承本类且都不覆写 `rawQuery`。在五个子类里各写一遍是 T064「不各写一份」明确排除的
+   * 形态；哪天某个子类真的覆写了 `rawQuery`，它就得自己接上，这一点由 T068 的 6 个一致性调用点兜住。
+   *
+   * 门禁包在**整个方法体**外面，两条生命周期分支都在里面：拒绝发生在语句下发之前，连事务都不会开，
+   * 业务表零变化——不是写完再回滚。引导窗内捕获运行时还没装上，判定第 1 步放行，行为与接入前逐字一致。
+   */
   public async rawQuery(sql: string, params?: unknown[]) {
-    // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
-    // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
-    // 引导完成后仍走 transaction，保证正式写入等表就绪。
-    if (this.#lifecycle_state === 'bootstrap') {
-      return this.bootstrapTransaction(executor => executor.query(sql, params), false);
-    }
-    return this.transaction(executor => executor.query(sql, params), false);
+    return gateRawWrite(sql, this.workingTreeRawWriteContext, () => {
+      // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
+      // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
+      // 引导完成后仍走 transaction，保证正式写入等表就绪。
+      if (this.#lifecycle_state === 'bootstrap') {
+        return this.bootstrapTransaction(executor => executor.query(sql, params), false);
+      }
+      return this.transaction(executor => executor.query(sql, params), false);
+    });
   }
 
   // transaction() 与 query() 共用 #queue（并发度 1）串行通道。真实适配器入口总是重新入队，
@@ -691,7 +827,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 真实适配器入口总是新开事务；executor 门面会把事务内的 `runInTransaction()` 映射为
    * `executor.run()`，复用当前事务且不重新入队。
    */
-  public async runInTransaction<T extends TransactionFun>(
+  public override async runInTransaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
@@ -1212,8 +1348,18 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           console.error('[rxdb-adapter-sqlite-core] TRANSACTION_ROLLBACK listener threw:', listenerError);
         }
       }
-      const message = error instanceof Error ? error.message : 'Transaction Error';
-      throw new RxDBAdapterSqliteError(message, { cause: error });
+      // 事务体的错误**原样**冒泡。包装成 RxDBAdapterSqliteError 只保下文案，原型、`code`
+      // 与 stack 一并丢掉：调用方再也 `instanceof` 不到自己抛的领域错误，只能拿字符串匹配
+      // 错误消息。而 PGlite 那一端是原样抛的——同一段业务代码在两个后端上要走不同的 catch
+      // 分支，这正是 workingTreeCommitConformanceSuite 存在的理由。
+      //
+      // 驱动层的 SQL 错误不靠这里补类型：executeHelper 在 client 层就已经包成了
+      // RxDBAdapterSqliteError，再包一层只是把 cause 链拉长。
+      //
+      // 非 Error 拒绝（`Promise.reject('...')`）仍归一成 Error：调用方至少要拿到一个有
+      // message、有 stack 的东西，而不是一个裸字符串。
+      if (error instanceof Error) throw error;
+      throw new RxDBAdapterSqliteError('Transaction Error', { cause: error });
     } finally {
       // executor 必须自持状态并在这里翻成终态：逃逸出事务体后再使用它要能立刻抛错，
       // 而不是静默落到一个已提交/已回滚的连接上继续写。

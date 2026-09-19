@@ -394,9 +394,13 @@ export class EntityManager {
    */
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]) {
     const need_save_entities = getNeedSaveEntities(entities);
+    // 与 {@link save} 同口径：解绑多对多关系产生的待删 Junction 也要一并提交。
+    // 从前这里硬写 `[]`，于是 `owner.tags$.remove(tag)` 之后走 saveMany 的批量路径
+    // 只写了实体本身，中间表那行原封不动留在库里 —— 关系在 UI 上断了，重新查又回来。
+    const need_remove_entities = getNeedRemoveEntities(entities);
     const options = getEntityMutations({
       need_save_entities,
-      need_remove_entities: []
+      need_remove_entities
     });
     return this.mutations(options);
   }
@@ -512,6 +516,21 @@ export class EntityManager {
    * @param EntityType 实体类型
    * @param id 实体 ID
    * @param patch 变更的字段
+   * @throws 已启用提交能力的库上、目标是版本化业务实体时，由捕获钩子抛出写拒绝错误；
+   *   此时一条事件都不会派发
+   *
+   * @remarks
+   * 写入口语义矩阵行 11：库外的那次改动不经任何捕获挂载点，业务表变了而工作树不会多出单元。
+   * 让它照常派发，下游 QueryCache 会照着 patch 改内存实体，于是工作树、业务表、内存三方各说各话。
+   *
+   * **核心一次都不做归类，整段判定转交钩子的
+   * `WorkingTreeCaptureHook.gateExternalNotify()`。** 从前这里要自己问一次「这张表算哪类」
+   * 再把结果送进门禁，等于核心侧留着半句捕获语义；捕获规则随插件走之后，那半句就成了第二份真相。
+   * 现在交出去的只有实体身份与还没被调用的派发体。
+   *
+   * 取钩子走 {@link RxDB.workingTreeCaptureHook} 而不是 `localAdapterSync`：后者在「没配本地
+   * 适配器」与「还没连上」两种情形下抛错，而本方法今天在这两种库上都能调（它只派发事件）。
+   * 给它们凭空加一个「未连接」异常，就违反了 FR-046 的零行为差异。
    */
   notifyExternalUpdate<T extends EntityType>(
     EntityType: T,
@@ -530,7 +549,13 @@ export class EntityManager {
         recordAt: new Date()
       }
     ]);
-    this.rxdb.dispatchEvent(event);
+    const hook = this.rxdb.workingTreeCaptureHook;
+    // 没有钩子就是没启用提交能力：照常派发，行为与接入前逐字一致（FR-046）。
+    if (!hook) {
+      this.rxdb.dispatchEvent(event);
+      return;
+    }
+    hook.gateExternalNotify(metadata.name, metadata.namespace, () => this.rxdb.dispatchEvent(event));
   }
 
   /**

@@ -1,355 +1,449 @@
 # Feature Specification: 本地工作树与提交历史
 
-> [!WARNING]
-> **本文件已过期（2026-08-22）。** 上游 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 已裁决
-> **不做暂存区（index / staging area）与任何形式的选择性提交**：没有 `stage` / `unstage` / `clearIndex`，
-> `commit(message)` 只提交当前分支工作树的全部未提交变更，隔离工作线用分支。
-> 本文件仍按「工作树 → 缓存区 → 提交」三层写成，其中所有 `Index*` / `RxDBIndexEntry` / `indexRevision` /
-> `staged` 相关的表、契约、状态迁移、验收项与基准 fixture **均已作废，不得据此实现**。
-> 真相源以 `requirements/` 为准；本目录需要用 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` 重新生成。
+**Feature Branch**: `next-0912`
 
-**Feature Branch**: `001-working-tree-commits`
-
-**Created**: 2026-08-15
+**Created**: 2026-09-12
 
 **Status**: Draft
 
-**Input**: User description: "epic-006 本地工作树与提交历史：把 RxDB 的本地变更组织成 Git 式工作流（工作树 `WorkingTree*` / 缓存区 `Index*` / 提交 `Commit*`），覆盖 US-305、US-306 阶段 A/B/C、US-307、US-308 的完整范围。来源文档：requirements/epics/epic-006-working-tree-commits.md"
+**Input**: 重生成 [epic-006 本地工作树与提交历史](../../requirements/epics/epic-006-working-tree-commits.md) 的规格。这是对既有 `specs/001-working-tree-commits/` 的**就地重生成**：原目录按已作废的「工作树 → 缓存区 → 提交」三层写成，整体改写为 v1 的**无暂存区**模型。
 
-## 概述
+> **权威来源**。本规格不自行发明结论，全部条目回溯到下列文件；两者冲突时以下列文件为准：
+>
+> - [epic-006 本地工作树与提交历史](../../requirements/epics/epic-006-working-tree-commits.md)
+> - [US-305 提交图与 HEAD 持久化](../../requirements/stories/collaboration/US-305-commit-graph-head.md)
+> - [US-306 工作树与提交操作](../../requirements/stories/collaboration/US-306-working-tree-commits.md)
+> - [US-307 历史恢复会话](../../requirements/stories/collaboration/US-307-restore-session.md)
+> - [US-308 分支隔离与跨 realm 冲突检测](../../requirements/stories/collaboration/US-308-branch-isolation-conflict.md)
 
-把本地数据变更组织成 Git 式工作流：**工作树**（未提交的当前状态）→ **缓存区**（本次准备提交的选择）→ **提交**（不可变历史节点）。用户刷新页面、重启应用或意外关闭后，这三层状态与恢复结果仍然存在且语义一致。
+## 核心能力
 
-本特性**不引入** Git 的远程仓库、权限与代码评审：不做 remote commit push/pull、不做历史改写（rebase / cherry-pick）、不做多人协作权限。
+把 RxDB 的本地变更组织成 Git 式工作流：提交图与 HEAD 持久化、工作树捕获全部业务写入口、status / diff / commit、历史恢复（restore）、分支隔离与跨 realm 冲突检测；刷新、重启与崩溃后语义一致。不引入远程仓库、权限与代码评审。
 
-### 术语（唯一口径）
+### v1 硬裁决（不得被稀释）
 
-| 概念               | 中文     | 命名前缀       | 归属                              |
-| ------------------ | -------- | -------------- | --------------------------------- |
-| Git working tree   | 工作树   | `WorkingTree*` | 本特性新契约                      |
-| index / staging    | 缓存区   | `Index*`       | 本特性新契约                      |
-| commit / commit 图 | 提交     | `Commit*`      | 本特性新契约                      |
-| NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 Workspace 插件（**已占用**） |
+这六条是 epic-006 的显式裁决，不是遗漏。**要改结论必须先改 epic-006「非目标」一节**，不得靠在本规格或某条 story 里追加条目悄悄扩范围。
 
-`Workspace` 前缀已被既有草稿缓存占用。本特性**不得**新增该前缀的公开导出；文档正文中"工作区"一词只指草稿缓存。恢复会话使用 `WorkingTreeRestore*`，分支引用与并发冲突使用 `CommitBranch*` / `CommitConflict*`，切换分支的新选项固定为 `WorkingTreeSwitchBranchOptions`（不复用既有适配器层的 `SwitchBranchOptions`）。
+1. **没有暂存区（index / staging area）**，没有 stage / unstage / 部分提交。`commit(message)` 恒提交当前分支工作树的**全部**未提交变更单元，**没有 selection 入参**。隔离一条工作线的唯一手段是分支：`createBranch()` → 改 → `mergeBranch()` 或 `removeBranch()`。
+2. 因此**不存在**依赖闭包、环检测（`index_dependency_cycle`）、staged snapshot 冻结、commit 后 residual rebase，也**不存在** `HEAD ↔ index` 第二条 diff 轴。**只有一条 diff 轴：`HEAD ↔ 工作树`**。
+3. **已知并接受的代价**：commit 采用**调用方捕获型** `workingTreeRevision` CAS。另一个 Tab 在 status 与 commit 之间 `save()` 会让本次 commit 返回 `CommitConflict`。这是刻意的——没有暂存区就没有冻结快照，不校验等于提交调用方没有看过的变更。**该代价不构成重新引入暂存区的理由。**
+4. **`entity.save()` 等价于 Ctrl+S，不等价于 commit**。未提交变更对**全部查询立即可见**；v1 不做长事务 / 预览语义（「未提交的东西攒够了再一起生效」在 Git 里的对照物是分支，不是 commit）。
+5. **不做 detached HEAD / checkout 到历史 commit**。v1 只做 **restore**——把旧版本内容作为**新的未提交变更**写回当前工作树，不移动 HEAD、不改写历史。
+6. **远端同步会弄脏工作树**。`pull()` / `autoSync` / `pullRepository()` / `cleanupExpired()` 产生 `origin=remote_sync` 的未提交变化；工作树**不按来源豁免**，`status()` / `diff()` 展示全部 origin。
+
+### 命名裁决
+
+| 概念               | 中文     | 前缀           | 归属                               |
+| ------------------ | -------- | -------------- | ---------------------------------- |
+| Git working tree   | 工作树   | `WorkingTree*` | 本特性新契约                       |
+| commit / commit 图 | 提交     | `Commit*`      | 本特性新契约                       |
+| NEW 草稿本地缓存   | 草稿缓存 | `Workspace*`   | 既有 `@aiao/rxdb-plugin-workspace` |
+
+- 新导出只用 `Commit*` / `WorkingTree*` 前缀。
+- **禁止 `Workspace*` 前缀**——它已被 `@aiao/rxdb-plugin-workspace` 的草稿缓存占用（`WorkspaceCacheEntry` / `WorkspaceCacheId` / `WorkspaceCorruptedEntry` / `WorkspaceFlushError`）。禁止范围不止「同名同签名」，还包括「同前缀不同义」。
+- **禁止任何 `Index*` 前缀导出**——随暂存区一并裁掉。
+- **不得复活** `stagedChange()` / `unstageChange()` / `stagedCount` / `WorkspaceCacheEntry.staged`。
+- `switchBranch` 的新选项固定用 `WorkingTreeSwitchBranchOptions`，**不复用**既有 `SwitchBranchOptions`。
+- 三个框架包只适用**负向**规则（无 `Workspace*` 新导出、不复用 `SwitchBranchOptions`）；运行时入口沿用仓库既有 `use*` 约定，`useWorkingTree()` 合规。
+
+### 四层分层对照（读本规格前必须先对齐）
+
+| Git 概念            | 对照物               | 存放位置             | 归属                               |
+| ------------------- | -------------------- | -------------------- | ---------------------------------- |
+| 编辑器未保存 buffer | 草稿缓存（NEW 草稿） | 插件独立 IndexedDB   | 既有 `@aiao/rxdb-plugin-workspace` |
+| working directory   | 工作树               | **主库业务表当前值** | 本特性 `WorkingTree*`              |
+| commit              | 提交                 | 主库 commit 图       | 本特性 `Commit*`                   |
+| `.gitignore`        | 未版本化实体域       | —                    | 见「版本化域」                     |
+
+**Git 的 index 这一层没有对照物**——被显式裁掉。草稿缓存与工作树**不能合并成一层**（合并会让查询语义反转、表达不了 modified/deleted、且跨不了事务边界）。
 
 ## User Scenarios & Testing _(mandatory)_
 
-### User Story 1 - 提交后刷新仍可查询（Priority: P1）
-
-开发者把一组已确定的变更写成一个带消息、作者和时间的提交，之后刷新页面或重启应用，提交、父子关系与当前分支的 HEAD 依然完整可查询。已有数据库第一次打开该能力时，是一次可重试的迁移而不是重建。
-
-**Why this priority**: 没有可跨会话引用的稳定版本锚点，后面所有能力（选择性提交、恢复、分支隔离）都无处附着。这是整个特性的底座。
-
-**Independent Test**: 在已有数据的库上显式启用该能力，写入一组变更并提交，刷新或重新打开应用后查询历史列表与提交详情；再次启动验证迁移幂等。
-
-**Acceptance Scenarios**:
-
-1. **Given** 一组已确定的变更单元，**When** 创建提交并刷新页面，**Then** 提交、父节点、作者、时间、摘要与分支 HEAD 全部可查询且与提交时一致。
-2. **Given** 提交写入过程中出现存储错误或应用崩溃，**When** 下次打开应用，**Then** 只能看到上一次完整一致的状态，不出现"提交已存在但 HEAD 未更新"这类可见半状态。
-3. **Given** 变更单元集合为空，或提交消息 trim 后为空，或缺少作者标识 / 操作标识，**When** 创建提交，**Then** 在任何持久状态变化前被拒绝，HEAD 不变。
-4. **Given** 两个写入方从相同的 head 版本号开始提交，**When** 先后推进同一分支，**Then** 只有一个成功；失败方不产生可见提交，并收到含 expected/actual 版本号的稳定冲突结果。
-5. **Given** 提交已在数据库落盘但响应在返回前丢失，**When** 调用方用相同操作标识与相同内容重试，**Then** 返回第一次创建的同一提交且 HEAD 不再推进；相同标识携带不同内容时返回稳定的"标识已被复用"错误。
-6. **Given** 已有多分支数据与历史变更记录的数据库，**When** 首次显式启用，**Then** 为每个仅凭本地数据即可完整物化的分支生成一个基线提交，既有历史记录、当前激活分支与业务数据都不改变；重复启动幂等。
-7. **Given** 迁移前没有激活分支且默认主分支存在，**When** 首次启用，**Then** 沿用既有语义激活主分支后建立基线；**Given** 存在多个激活分支，**Then** 整体失败并零变化，不按查询顺序任选一个。
-8. **Given** 应用未显式启用该能力，**When** 打开旧数据库，**Then** 不创建任何系统表、不生成基线，现有增删改查、分支与撤销/重做行为完全不变。
-9. **Given** 数据库已由一个运行实例启用该能力，**When** 另一个未声明该能力或协议版本不匹配的实例尝试写入，**Then** 在业务写入前被拒绝或进入调用方明确请求的只读模式，业务数据零变化。
-10. **Given** 提交记录损坏，**When** 启动，**Then** 不可达的孤立记录被隔离且其他提交可用；损坏节点位于某分支 HEAD 或可达祖先时该分支进入只读损坏态，保留原引用、不自动改指针、不删除记录，其他健康分支照常使用。
+四条用户故事按交付顺序排列。整体固定顺序为 **US-305 → US-306 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**；US-307 / US-308 的核心持久层语义可与阶段 C 并行开工，但它们的三框架入口必须排在阶段 C 之后。
 
 ---
 
-### User Story 2 - 未提交的编辑刷新后不丢（Priority: P1）
+### User Story 1 - 提交图与 HEAD 持久化（US-305，Priority: P1）
 
-开发者在本地持续编辑数据；每一次业务数据的净变化都与一个可重放的工作树变更单元一起原子落盘。刷新、崩溃或离开又回到该分支后，未提交的工作仍然在。
+**作为**使用 RxDB 管理本地数据的开发者，**我想要**把一组变更写成不可变 commit，并让 HEAD 与 commit 图在刷新后仍然可查询，**以便**我有一个跨会话稳定、可审计、可被后续恢复引用的版本锚点。
 
-**Why this priority**: 工作树是"未提交状态"的唯一真相源。没有它，选择性提交与恢复都只能建立在内存状态上，一次刷新就失效。
+本故事只做**底座**：commit 图、HEAD、分支引用的原子一致性、存储布局，以及已有数据库的一次性启用迁移。工作树与提交状态机在 User Story 2。
 
-**Independent Test**: 通过各类写入口产生数据变化，丢弃全部进程内状态与业务数据投影，只用 HEAD 与持久化的工作树条目冷重放，逐字段比对刷新前快照。
+**Why this priority**：没有持久 commit 图与 HEAD，后面三条故事全部没有落脚点。它同时是首个真实**系统迁移发布**，迁移安全边界必须最先立住。
 
-**Acceptance Scenarios**:
+**Independent Test**：最小闭环「写 commit → 刷新 → 读回 log / show」可独立验收，不需要工作树 UI、不需要 status/diff、不需要 restore、不需要分支切换改动。
 
-1. **Given** 当前分支有 HEAD，**When** 新增/更新/删除成功，**Then** 业务数据、完整工作树条目与递增后的工作树版本号在同一事务内可见；任一步失败全部回滚。
-2. **Given** 当前分支有未提交数据，**When** 丢弃全部进程内状态与业务数据投影后只喂 HEAD 与工作树条目冷重放，**Then** 结果与刷新前逐字段相等，不依赖内存脏标记或残留在业务表里的值。
-3. **Given** 同步流程为避免回推而关闭本地变更记录，**When** 远端数据产生净变化，**Then** 同一事务内写入来源为"远端同步"的未暂存条目，且不产生可推送的本地变更。
-4. **Given** 同步只回填远端 ID、推进水位或更新审计时间，**When** 事务提交，**Then** 不创建工作树条目、不递增工作树版本号。
-5. **Given** 分支合并、撤销/重做或实体恢复修改了业务数据，**When** 操作提交，**Then** 对应工作树条目与该操作自身的版本号在同一事务内收敛。
-6. **Given** 查询缓存类实体发生写入、删除或过期清理，**When** 操作完成，**Then** 它不进入基线、状态、差异、暂存或提交；同一个回调事务内混写查询缓存与版本化实体时整笔回滚并返回类型化错误。
-7. **Given** 一个运行实例在读取实体时捕获了 `{ 分支, 激活版本号 }`，**When** 激活版本号已被推进后它再保存旧实体，**Then** 写事务以稳定的"激活分支已过期"拒绝，业务数据与工作树零变化，错误返回 expected/actual。
-8. **Given** 该能力已启用，**When** 原生 SQL 或未知适配器路径试图绕过工作树维护，**Then** 在业务提交前被拒绝，不得先写数据再补记事件。
-9. **Given** 批量重写路径按**调用方意图**登记为受信，**When** 分支切换物化 / 基线物化以受信意图关闭记录触发器重写投影，**Then** 操作正常完成、不产生工作树条目、不递增工作树版本号；**When** 同一批底层函数被恢复、撤销/重做、合并、拉取或过期删除等意图调用，**Then** 每一类都必须产生对应来源的工作树条目——受信登记不因共用同一函数而顺带放行；未携带任何已登记意图的批量重写仍被拒绝。
-10. **Given** 草稿缓存中存在 NEW 草稿，**When** 应用启动并读取工作树，**Then** 草稿仍按草稿缓存自己的规则恢复，既不出现在工作树条目中也不递增工作树版本号；**When** 用户保存该草稿，**Then** 它作为一次普通新增被捕获为本地工作树条目。
-11. **Given** 实体含加密字段且写入了明文哨兵，**When** 增删改查、同步、刷新并重放，**Then** 工作树条目的原始持久化转储中明文哨兵零命中，解锁后业务值正确。
+**Acceptance Scenarios**：
 
----
-
-### User Story 3 - 选择性暂存并提交（Priority: P1）
-
-开发者查看当前差异，选择其中一部分放进缓存区，用消息提交；未被选择的修改继续留在工作树。选择动作自动扩展到"能够独立重放"所需的完整依赖闭包，绝不生成一个装不进 HEAD 的缓存区。
-
-**Why this priority**: 这是本特性对用户的核心价值——一次编辑可以拆成多个有意义的版本。它同时决定了并发安全边界。
-
-**Independent Test**: 对两个实体做不同修改，只暂存其中一个，刷新后提交，检查 HEAD、历史与另一个实体的工作树状态。
-
-**Acceptance Scenarios**:
-
-1. **Given** 工作树包含两个独立修改，**When** 只暂存其中一个并刷新后提交，**Then** 缓存区快照、顺序、依赖与事务边界保持不变，新提交只含该闭包，另一个修改继续未暂存并显示准确差异。
-2. **Given** 缓存区为空，或消息/作者标识/操作标识非法，**When** 提交，**Then** 在任何持久状态变化前被拒绝，工作树与 HEAD 不变。
-3. **Given** 暂存后同一实体又被任意运行实例编辑，**When** 查看状态/差异或提交原快照，**Then** 已暂存快照保持不变、后续编辑一律显示为未暂存且不被覆盖；再次暂存才原子替换快照，工作树未变化时的重复暂存是无操作且不递增版本号。
-4. **Given** 事务 T1 新增 A/B、事务 T2 更新 A，且 HEAD 中不存在 A/B，**When** 只选择 T2 暂存，**Then** 闭包递归扩展为 T1+T2 并返回实际单元列表；反向取消暂存 T1 时同时移除依赖它的 T2，任何一步失败缓存区零变化。
-5. **Given** T1 新增父实体 P、T2 新增引用 P 的子实体 C，**When** 只选择 T2 暂存，**Then** 闭包包含 T1 并按父→子拓扑重放；子删除→父删除、关系键更新遵守反向依赖；不可拆分的关系环整体纳入，无法形成合法闭包时返回稳定的"依赖成环"错误且缓存区零变化。
-6. **Given** 任意一次成功的暂存，**When** 在空投影上仅凭当前 HEAD 与缓存区条目重放，**Then** 总能得到一致结果——缓存区永远自包含。
-7. **Given** 两个运行实例从同一版本号开始暂存或提交，**When** 条件更新竞争，**Then** 只有一个成功，失败方收到 expected/actual 版本号且不留半成品。
-8. **Given** 一次普通的暂存/提交条件更新失败，**When** 刷新后查看状态，**Then** 状态按最新持久数据重建，不因历史失败被永久标记为冲突。
-9. **Given** 一个恢复会话的 expected 版本号与当前值已分叉，**When** 查看状态，**Then** 返回持久化的冲突状态；会话解决或删除后该状态消失。
-10. **Given** 实体被删除后暂存，**When** 查看差异，**Then** 该删除以显式删除单元出现在两条差异线中，不表现为条目消失或空差异；提交后 HEAD 中该实体不存在。
-11. **Given** 工作树有未提交修改且缓存区非空，**When** 清空缓存区，**Then** 只清除暂存选择并递增缓存区版本号，业务投影与工作树逐字段不变；**When** 丢弃工作树，**Then** 业务投影回到当前 HEAD、缓存区一并清空、历史提交不变，跨实体外键依赖在事务边界内整体回滚。
-12. **Given** 空事务、对未变化工作树的重复暂存、对已 clean 工作树的重复丢弃，**When** 反复执行，**Then** 全部幂等：不产生额外提交、**不递增任何版本号**、不返回错误。
-13. **Given** 加密字段被暂存并提交，**When** 扫描缓存区条目的原始持久化转储，**Then** 明文哨兵零命中。
+1. **Given** 一个已启用提交能力的数据库与一组变更单元，**When** 以非空消息、`authorId` 与 `operationId` 提交，**Then** 变更集合、父 commit、数据库时间、摘要与新的分支 HEAD 在**一次原子操作**内写入；刷新、重启与正常关闭后都能读回。
+2. **Given** 当前工作树没有任何变更单元，**When** 发起普通 commit，**Then** 提交失败且**不产生空节点**；实体数为零的 `kind=baseline | branch_baseline` 是仅有的空 ChangeSet 例外。
+3. **Given** commit 写入过程中任意一步失败，**When** 事务结束，**Then** 恢复到提交前状态，不出现可见半状态。
+4. **Given** 同一 `operationId` 的提交请求被重试，**When** 再次提交，**Then** 幂等命中并返回**原 commit**；相同 key 但 message / author / parent / ChangeSet 指纹不同时返回稳定错误，**不覆盖**原记录。
+5. **Given** 一个分支被删除后同名重建，**When** 用旧 `operationId` 提交，**Then** 使用**新 generation**，不与旧幂等键碰撞。
+6. **Given** 另一个 realm 已推进了同一分支的 head，**When** 本次 commit 以过期的 expected `headRevision` 落盘，**Then** CAS 失败，commit、ChangeSet 与 branch ref **全部不可见**。
+7. **Given** 一个已有数据（旧 `RxDBChange` 历史）的数据库，**When** 开发者**显式启用**提交能力，**Then** 为每个本地可完整物化的分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败后重试。
+8. **Given** 迁移时发现某个本地分支无法沿 `RxDBChange` 链无缺口物化，**When** 执行迁移，**Then** 迁移**整体失败**并返回 `branch_not_materializable`，不留下部分启用状态。metadata-only 远端分支是唯一例外，它此时不创建 baseline 或 `CommitBranchRef`。
+9. **Given** 迁移时 `RxDBBranch.activated` 为零行，**When** 执行迁移，**Then** 沿用既有 `resolve_current_branch` 语义（优先激活 `main`，没有则创建）；发现多行 active 时以 `ambiguous_active_branch` 整体回滚，**不按查询顺序猜一个**。
+10. **Given** 某个 commit 记录损坏，**When** 遍历该分支 branch ref 的完整可达父链，**Then** 不可达的孤立损坏可单独隔离且其他分支照常可用；HEAD 或可达祖先损坏时该分支 fail-closed 为 `corrupted_read_only`，保留原始 ref 与记录，**不得**自动回退到较早 commit、空工作树或内存模式。
+11. **Given** 提交能力已在数据库级启用，**When** 一个未声明该能力或协议版本不匹配的 writer 连接，**Then** 它在业务写入前 fail-fast，不得继续裸写业务表。
+12. **Given** 数据库启用了字段加密，**When** 写入 commit、ChangeSet 与 baseline，**Then** 持久化路径不先解密再把明文写进新系统表；日志、错误与摘要不含加密字段值。
+13. **Given** 实现进入发布分支之前，**When** 发布负责人准备本故事的**系统迁移发布**，**Then** 迁移锚点取自最近一次已验证、且满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的 bridge manifest，`bridge.version` **严格新于** `LAST_INELIGIBLE_BRIDGE_VERSION`，且 bridge tag 上的版本常量与本次升级位吻合。既有门禁脚本**不得重写**，本故事只在真实 tag 与真实清单上复验。
+14. **Given** 首次启用提交能力，**When** 迁移事务提交，**Then** 同一事务内建立数据库级单行 `WorkingTreeActivationState` 且 `activationRevision` 初始化为 0；未启用提交能力的数据库**不创建**该状态。
 
 ---
 
-### User Story 4 - 三框架一致的工作树操作面（Priority: P2）
+### User Story 2 - 工作树捕获与提交操作（US-306，Priority: P1）
 
-Angular、React、Vue 开发者使用同名、同签名、同返回键的工作树 API 与状态，框架选择不改变可用能力、错误分类与恢复建议。
+**作为**需要控制发布边界的开发者，**我想要**在工作树里改完之后，用一条消息把当前分支的**全部**未提交变更提交成一个版本点，**以便**一段工作可以留下有意义的存档点，且刷新后不必重新判断上次做到哪一步。
 
-**Why this priority**: 跨框架对称是产品承诺（用户选框架，不选功能子集），但它依赖核心状态机先落地。
+本故事分**三个阶段**，顺序是硬约束，阶段之间不可并行，每个阶段有独立可运行的验收场景区段：
 
-**Independent Test**: 三端加载同一 fixture 跑完整流程，比对返回键、状态转换、依赖闭包、提交摘要与错误码；对称门禁在任一端缺失时整体失败。
+| 阶段 | 交付闭环                             | 主要内容                                                                                          |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance             |
+| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径（含 restore session 建表与冲突类型） |
+| C    | 三端操作 → 刷新 → 同语义读回         | Angular / React / Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                         |
 
-**Acceptance Scenarios**:
+**Why this priority**：这是用户第一次能给本地变更打点存档的能力，也是 User Story 3 / 4 的直接依赖。阶段 A 的写入口捕获决定了「HEAD + 工作树条目是不是真相源」这一条根本前提。
 
-1. **Given** 三端加载同一 fixture，**When** 执行 状态 → 暂存 → 刷新 → 提交，**Then** 三端返回相同状态、依赖闭包、提交摘要与错误码。
-2. **Given** 命令运行、成功或失败，**When** 状态变化，**Then** 三端均暴露 loading / success / error，错误说明操作、对象与恢复建议；查询在无结果时额外暴露 empty，命令不伪造 empty。
-3. **Given** 仅用键盘操作，**When** 浏览差异、选择单元、暂存、清空或提交，**Then** 焦点顺序、可见焦点、名称与状态公告达到 WCAG 2.1 AA。
-4. **Given** 最长实体名、错误文本与窄视口，**When** 状态更新，**Then** 文本不溢出、不遮挡、不改变固定工具栏尺寸。
-5. **Given** 任一共享类型或运行时入口只在一到两端导出，**When** 对称门禁运行，**Then** 整体失败，不能把单端实现记为完成。
-6. **Given** 冻结的基准 fixture 与已签入的参考报告，**When** 执行工作树性能基准，**Then** 输出含 p50/p95、对照比值、fixture 哈希与运行环境指纹的报告；归一化比值超过参考中位数 110% 时门禁失败且不得靠重算基线转绿；运行环境指纹匹配时额外以绝对 p95 作为发布门禁，不匹配时该绝对判据跳过而不是放宽为通过。
+**Independent Test**：阶段 A 可用**持久层重放断言**独立验收（清掉进程内状态、只喂 HEAD + 工作树条目，验证能重建出相同结果），不需要真的切一次分支；阶段 B 用「改 → 刷新 → commit → 查 status」独立验收；阶段 C 用三端同语义读回独立验收。
+
+**Acceptance Scenarios（阶段 A — 写入口捕获）**：
+
+1. **Given** 提交能力已启用，**When** 发生任意一次普通 CRUD，**Then** 在**同一事务内**校验 active branch token、写入业务实体、写入或合并完整工作树条目并递增 `workingTreeRevision`；任一步失败全部回滚。**禁止只靠内存 dirty set 重建。**
+2. **Given** 一次 full / filter 远端实体应用为防回推而关闭了 change trigger，**When** 应用远端实体，**Then** 仍在同一事务写入 `origin=remote_sync` 的工作树单元，且**不形成 push echo**。
+3. **Given** 一次同步只回填 `remoteId`、同步水位或审计时间，**When** 该 UPDATE 落盘，**Then** **不构成业务实体净变化**：不创建工作树单元、不递增 `workingTreeRevision`。
+4. **Given** 一次远端冲突裁决，**When** 结果为 `KEEP_LOCAL` 或无净变化，**Then** 业务表与工作树条目零变化且不递增 revision；**When** 结果为 `KEEP_REMOTE`，**Then** 在同一事务、实体应用**之后**就地重算该单元（patch / inverse patch 换成新的完整快照、`origin` 一律记 `remote_sync`、`sequence` 取该分支**新的最大值**），净差为空时删除该行。
+5. **Given** `cleanupExpired()` 删除了版本化实体，**When** 删除落盘，**Then** 与 `pull` 同类：写入 `origin=remote_sync` 的 DELETE 单元并递增 revision，不生成可 push 的本地 change。
+6. **Given** QueryCache 同步类型的实体，**When** 发生任何 upsert / delete / 孤儿清理 / 离线出站重放，**Then** 它们**完整排除**在 baseline、status、diff、commit 之外；一次缓存刷新不得把工作树永久标成 dirty。
+7. **Given** 一个 callback transaction 在任意时点混用 QueryCache 实体与版本化实体，**When** 检测到混用，**Then** 抛 `mixed_versioned_cache_transaction` 并**回滚整个事务**（不要求事务系统预知回调未来的操作）。
+8. **Given** 提交能力已启用，**When** 经 adapter 的 raw 写语句命中版本化业务实体表**且**被写列集不是 untracked 字段域的子集，**Then** 在**语句执行前**以 `commit_capability_mismatch` 拒绝，业务表**零变化**（不是写完回滚）；目标表或列集无法确定时按拒绝处理（fail-closed）。
+9. **Given** 全文检索插件在 SQLite 侧写虚拟表 / 影子表、在 PG 侧写业务表的派生索引列与空更新回填，**When** 这些语句下发，**Then** 一律放行且不产生工作树单元、不递增 revision；同一语句里同时写派生索引列与一个 tracked 字段时则拒绝。
+10. **Given** adapter 的公开批量写方法（`upsertMany()` / `deleteByIds()`），**When** 目标实体是版本化实体，**Then** 拒绝；目标是 QueryCache 实体则放行。这两个方法**不经 raw 查询路径**，阶段 A 必须显式把门禁挂到它们上。
+11. **Given** 既有的批量投影重写路径（分支物化、baseline/restore 物化、commit 后清空），**When** 阶段 A 的拒绝门禁启用，**Then** 这些路径**在同一阶段内**被登记为受信路径，按各自意图落入正确的语义行；登记键固定为「**文件 + 符号 + 意图**」，符号取**实际发起该次批量重写的最内层具名函数**，不是委托门面方法，也不是行号。
+12. **Given** 写路径没有携带显式意图标记，**When** 发生批量重写，**Then** 一律按未知入口拒绝。
+13. **Given** 提交能力**未**启用，**When** 发生以上任何一种写入，**Then** 一律放行，**零行为差异**。
+14. **Given** 一次 `pull` 之后刷新页面，**When** 清掉全部进程内状态并只喂 HEAD + 工作树条目，**Then** 能重放出相同的业务实体状态（切出 / 切回的另一半边由 User Story 4 收口）。
+15. **Given** 数据库启用了字段加密，**When** 工作树条目落盘，**Then** 延续 at-rest envelope 契约；读取可在解锁后返回明文业务值，但持久化 dump、错误与摘要不得出现明文。
+
+**Acceptance Scenarios（阶段 B — 提交状态机）**：
+
+16. **Given** 当前分支工作树，**When** 查询 status，**Then** 至少区分 clean、有未提交变更、恢复中与冲突四种状态。
+17. **Given** 当前分支有未提交变更，**When** 查询 diff，**Then** 返回面向实体或完整事务的 `HEAD ↔ 工作树` 比较；**只有这一条 diff 轴**。
+18. **Given** 调用方读到 status 之后、commit 落盘之前，另一个 realm 写入了工作树，**When** 本次 commit 落盘，**Then** 返回 `CommitConflict`——**不得**为提高成功率而放宽为只校验 head，那等于提交调用方没有看过的变更。
+19. **Given** 一次成功的 commit，**When** 事务提交，**Then** **全部**已提交的工作树单元被清除，工作树回到 clean 并以新 commit 为基线；**不存在**提交后的残量与 rebase。
+20. **Given** 一次 commit 调用，**When** 调用方尝试传入变更选择参数，**Then** 该入参**不存在**：提交范围恒为当前分支工作树的全部未提交单元。调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、版本 manifest 或变更数量。
+21. **Given** 当前分支工作树有未提交变更，**When** 调用 `discardWorkingTree()`，**Then** 工作树整体回到当前 HEAD；已 clean 时是 no-op。discard 同样校验 active token 与 expected working-tree revision。
+22. **Given** 同一实体被当前 realm 与其他 realm 先后编辑，**When** 两次写入都落盘，**Then** 二者**平等地**成为同一份工作树的未提交变更；writer 身份**不是**提交正确性的必要条件，并发保护只由 revision CAS 提供。
+23. **Given** 一次普通命令的 CAS 失败，**When** 刷新页面，**Then** 状态按最新持久 revision 重建，**不留下** durable conflicted；`status().conflicted` 与 `requireClean` 只读取仍存在的 durable domain session。
+24. **Given** 分支 HEAD 或其可达祖先损坏，**When** 调用 commit，**Then** 复用 User Story 1 提供的**同一份**守卫返回 `commit_graph_corrupted`，不改指针、不删记录。
+
+**Acceptance Scenarios（阶段 C — 三框架与门禁）**：
+
+25. **Given** Angular / React / Vue 三端，**When** 使用工作树入口，**Then** 命名、行为、状态处理语义对称；单端缺失即未完成。
+26. **Given** 一个异步命令，**When** 执行，**Then** 暴露 loading / success / error；查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，且不给无 empty 语义的命令伪造 empty。
+27. **Given** 三端 UI，**When** 用键盘操作，**Then** 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA。
+28. **Given** 一次 undo/redo 因另一个 Tab 的 `save()` 而 CAS 失败，**When** 三端入口收到该失败，**Then** 呈现为**可重试**的提示，**不得静默吞掉**。
+29. **Given** 公开文档，**When** 交付阶段 C，**Then** 文档说明六项：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、加密边界、不改写历史的承诺，并**明示远端同步会产生 `origin=remote_sync` 的未提交变化**。
+30. **Given** 固定基准环境，**When** 运行工作树 benchmark，**Then** 按 Success Criteria 的口径同时产出归一化 ratio 与绝对 p95，并记录 runner profile。
 
 ---
 
-### User Story 5 - 从历史恢复到工作树（Priority: P3）
+### User Story 3 - 历史恢复会话（US-307，Priority: P2）
 
-用户浏览提交历史，把某个版本的数据恢复到当前工作树先看结果，再决定是否以新提交保存。恢复**不移动 HEAD**、不改写历史，刷新后恢复结果仍在并明确标记为"恢复后未提交"。
+**作为**想纠正错误的用户，**我想要**浏览 commit 历史并把某个版本恢复到工作树，且刷新后恢复结果仍在，**以便**我可以先检查结果，再决定是否以新 commit 保存，而不必担心恢复被静默当成历史改写。
 
-**Why this priority**: 高价值但可独立交付；它建立在提交图与状态机之上，且其拒绝路径比主路径更重要。
+**Why this priority**：它建立在 User Story 1 的 commit 图与 User Story 2 阶段 B 的状态机之上，是「有了历史之后才有意义」的能力，因此排在 P1 之后。只有 restore 一条主路径加它的拒绝分支，范围可控。
 
-**Independent Test**: 创建至少三个提交，恢复中间版本，刷新确认结果与标记，显式暂存后提交，验证历史未被覆盖。
+**Independent Test**：「restore → 刷新 → 仍显示且标记未提交 → commit」可独立验收。
 
-**Acceptance Scenarios**:
+**Acceptance Scenarios**：
 
-1. **Given** 工作树与缓存区均 clean，**When** 恢复任意可达提交，**Then** 目标数据物化为普通、未暂存的工作树变更，HEAD 不移动，状态可被识别为"恢复中"；刷新后继续显示并保持该标记。
-2. **Given** 恢复会话已建立，**When** 用户显式暂存完整依赖闭包并用新消息提交，**Then** 生成以原 HEAD 为父节点的新提交，会话在同一事务转为已提交，被恢复的旧提交与其后继节点仍可访问；未暂存时提交仍按空缓存区规则拒绝。
-3. **Given** 用户在恢复会话中选择丢弃，**When** 操作完成，**Then** 工作树回到当前 HEAD，会话与未提交暂存一并清除，历史提交不变。
-4. **Given** 工作树存在未提交修改或缓存区非空，**When** 恢复历史提交，**Then** 拒绝并说明需先提交或丢弃/清空缓存区，不把"仅已暂存"误报为 clean。
-5. **Given** 恢复目标不存在、不可达或属于其他数据库，**When** 恢复，**Then** 拒绝且工作树不变。
-6. **Given** 实际物化路径（正向重放或逆向重放）上**任一**变更集的实体 schema 指纹或变更编解码版本与当前客户端不完全相等，**When** 恢复，**Then** 在物化前返回稳定的"schema 不兼容"，指出首个不兼容提交、重放方向与双方 manifest，工作树/缓存区/HEAD/会话全部零变化——不能只检查目标提交。
-7. **Given** 恢复目标与当前 HEAD 物化内容完全相同，**When** 恢复完成，**Then** 返回类型化的无操作结果，不创建会话、不产生条目、不递增任何版本号。
-8. **Given** 初次恢复捕获 expected 版本号后、事务提交前被其他运行实例改变 HEAD/工作树/缓存区/激活分支，**When** 条件更新失败，**Then** 初次恢复全量回滚且**不创建会话**；只有已成功存在的会话在后续提交/丢弃冲突时才保留并派生冲突状态。
-9. **Given** 恢复涉及跨实体外键依赖，**When** 中途失败，**Then** 在事务边界内回滚全部实体与元数据，不留部分物化的中间态；**Given** 目标包含已被删除的实体，**Then** 该实体重新出现并以普通新增进入工作树。
-10. **Given** 目标提交包含加密字段，**When** 恢复、刷新并再次暂存，**Then** 工作树条目、缓存区条目与会话转储中明文哨兵零命中，解锁后业务值正确。
+1. **Given** 一个当前分支 HEAD 沿父链可达的 commit，**When** 调用 restore，**Then** 目标内容物化到当前工作树，**不移动 HEAD**、不删除历史，并把恢复会话持久化；刷新后据其重建「恢复后未提交」标记。
+2. **Given** 工作树 dirty，**When** 未显式处理未提交变更就调用 restore，**Then** 操作**拒绝并保持原状**。判定口径只有 clean / dirty 两态。
+3. **Given** 一次成功的 restore，**When** 检查产出，**Then** 恢复结果是**普通的工作树条目**——与用户手写的变更同形、同表、同 revision 轴，**不存在**「已恢复但未暂存」这一额外状态。
+4. **Given** 一个恢复会话处于 active，**When** 用户随后 `commit(message)`，**Then** 当前工作树整体落成新 commit，且新 commit **不改写**被恢复的历史节点，并与会话的 `committed` 转换**原子提交**；`commit()` **不接受**任何只提交恢复结果子集的参数。
+5. **Given** restore 目标内容与当前 HEAD 相同（完整 diff 为空），**When** 调用 restore，**Then** 返回 no-op：不创建恢复会话、不创建工作树条目、不递增任何 revision。
+6. **Given** 恢复路径上某个 commit 的 schema fingerprint manifest 或 change codec version 与当前客户端不等，**When** 做兼容预检，**Then** 在**任何持久写入前**拒绝，所有持久状态**零变化**，并稳定返回首个不兼容 commit ID、重放方向、实体与版本 manifest；检查期间**不解码或写入**后续 ChangeSet。v1 不提供跨 schema / codec patch 转换。
+7. **Given** 兼容性判断，**When** 执行，**Then** 覆盖**实际读取 / 应用的完整 commit 路径**，而不只是目标节点；系统在任何持久写入前先选定确定性的物化路径。
+8. **Given** 初次 restore 的 CAS 失败，**When** 事务结束，**Then** 全部回滚且**不创建会话**；**Given** 已有会话的 commit / discard CAS 失败，**When** 事务结束，**Then** 保留工作树与会话，并由 expected / actual revision 派生 conflicted，**不得自动选择任一 writer 的状态**。
+9. **Given** 恢复会话上的 commit，**When** 其他 realm 在 restore 之后、commit 之前写入工作树，**Then** 返回 `CommitConflict`——**不得**为了让恢复结果顺利落盘而放宽该校验。
+10. **Given** 数据库启用了字段加密，**When** restore 物化与会话持久化，**Then** 保持 envelope 契约；任何错误、摘要与会话诊断不含加密字段明文。
+11. **Given** 分支 HEAD 或其可达祖先损坏，**When** 调用 restore，**Then** 复用同一份守卫返回 `commit_graph_corrupted`。
 
 ---
 
-### User Story 6 - 分支隔离与跨标签页冲突检测（Priority: P3）
+### User Story 4 - 分支隔离与跨 realm 冲突检测（US-308，Priority: P2）
 
-每个分支拥有自己的 HEAD、工作树与缓存区。切换分支恢复目标分支自己的未提交状态而不是无条件重置；多个标签页并发操作时，后到的写入被明确拒绝而不是静默覆盖。
+**作为**在多个实验分支或标签页中工作的开发者，**我想要**每个分支拥有自己的 HEAD 和工作树，并能发现并发冲突，**以便**切换和协作时不会静默覆盖本地修改。
 
-**Why this priority**: 多分支/多标签页是真实场景但不是首个可用闭环；它收口前面故事顺延过来的"必须真的切一次分支才能观察"的断言。
+**Why this priority**：它不改 commit 存储、不改 restore 语义，是在前三条之上收口「真的切一次分支才能观察」的那类行为，并把 activation 维度接进冲突诊断。
 
-**Independent Test**: 在分支 A 留下未提交修改与暂存条目，切到 B 做同样的事，往返 A→B→A→B；另开两个同源标签页制造并发竞争。
+**Independent Test**：双 realm fixture 可判定「后到的提交被拒绝且无数据丢失」；切出 / 切回往返可独立验收。
 
-**Acceptance Scenarios**:
+**Acceptance Scenarios**：
 
-1. **Given** A/B 两个分支各自有未提交工作树与已暂存条目，**When** 执行 A → B → A → B，**Then** 每次都恢复目标分支原有的工作树/缓存区/版本号，任何一端都不被重置到 HEAD；目标分支从未产生未提交状态时才从 HEAD 物化。
-2. **Given** 当前工作树 dirty，**When** 调用**不带选项**的切换分支，**Then** 行为与本特性实施前完全一致（无条件切换成功），现有文档示例与既有 demo 无需修改即可通过。
-3. **Given** 当前工作树 dirty、或仅缓存区非空、或存在活跃恢复会话、或该会话已分叉为冲突，**When** 以显式的"要求 clean"选项切换，**Then** 拒绝且所有状态零变化，错误建议与具体的非 clean 原因一致；历史上的一次普通条件更新失败不构成该状态。
-4. **Given** 两个同源标签页从相同版本号开始操作同一分支，**When** 一个先推进 HEAD 或缓存区、另一个随后提交，**Then** 后者失败并返回 expected/actual 版本号，禁止静默丢弃另一方修改。
-5. **Given** 标签页 A 在分支 A 读取实体并捕获激活令牌，标签页 B 随后切到 B，**When** A 保存旧实体，**Then** 写事务以"激活分支已过期"拒绝，A/B 两个分支的业务投影、工作树与版本号均不被错误修改。
-6. **Given** 两个运行实例从同一激活版本号同时切换到不同分支，**When** 两个事务竞争，**Then** 只有一个成功；失败方刷新后读取胜出分支，不重放自己的物化动作。
-7. **Given** 当前分支存在未提交工作树，**When** 调用既有的一参创建分支，**Then** 保持现有"从当前物化状态创建"语义：共享当前 HEAD、复制一份独立的未提交工作树快照、缓存区为空，来源与新分支不共享可变条目；**Given** 带历史变更标识创建分支，**Then** 业务状态与实施前一致并以确定性的分支基线锚定。
-8. **Given** 删除非激活且无子分支的分支，**When** 删除成功，**Then** 同一事务删除该分支的引用、工作树、缓存区、恢复会话与该分支变更记录，但保留可能被其他引用共享或按 ID 审计的不可变提交；同名重建获得新的分支代次，既有拒绝行为不变。
-9. **Given** 只有元数据、本地没有提交图的远端分支，**When** 用户首次切换，**Then** 系统冻结目标身份、远端终止水位与配置的同步范围，按页把内容、水位与指纹原子写入可续传的暂存区，期间当前业务表/当前分支同步水位/激活标记/工作树全部不变；完整收敛后由单一事务复核后一次性物化、建立分支基线与引用、激活目标并递增激活版本号、删除暂存区。
-10. **Given** 上述预取缺少依据、不收敛，或发生网络失败、配额不足、同步范围漂移，**When** 用户尝试切换，**Then** 返回稳定的"分支未物化"，来源/目标业务投影、激活标记、激活版本号、当前分支同步水位、提交图与分支引用全部零变化；暂存区可安全续传或按尝试 ID 清理，不得先激活空分支再等后续同步修补。
-11. **Given** 首次物化在任意分页后崩溃，**When** 同一目标分支再次切换，**Then** 从已提交的暂存水位继续，不重复应用、不跳过远端变更；远端分支身份或同步范围已变化时废弃旧尝试并从新冻结水位重建。
+1. **Given** 当前分支有未提交变更，**When** 切到另一分支再切回，**Then** 恢复本分支自己的 `HEAD + 工作树条目`；分支间**不共享**可变 HEAD 或工作树。
+2. **Given** 目标分支**没有**未提交条目，**When** 切换过去，**Then** 只物化目标 HEAD；物化投影本身不改变目标分支的逻辑工作树，因此只递增 `activationRevision`，**不得平白递增** `workingTreeRevision`。**不得**把「切到分支」实现成无条件 reset 到 HEAD。
+3. **Given** `createBranch(branchId)`，**When** 从当前物化状态创建，**Then** 保留既有行为，复制独立 working-tree snapshot 并共享当前 HEAD；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。
+4. **Given** 调用方显式提供 `WorkingTreeSwitchBranchOptions.requireClean`，**When** 工作树 dirty，**Then** 切换被拒；**不带该选项时仍无条件切换**（`switchBranch()` 的现有默认行为不变）。
+5. **Given** 一个 realm 在读取 / 实例化实体时捕获了 `{ branchId, activationRevision }`，**When** 另一个 realm 已切换分支后它才写入，**Then** 返回稳定的 `stale_active_branch`；**不得**在事务中重新读取新 active branch 后把旧实体归到新分支，也**不得**只依赖 `BroadcastChannel` 或内存状态承担该正确性。
+6. **Given** 一次 CAS 失败，**When** 构造诊断，**Then** `CommitConflict` 从失败操作、对象 ID、expected / actual 的 activation / head / working-tree revision 与建议动作派生；**不建立**第二张可与真实 revision 漂移的冲突状态表。该类型本身由 User Story 2 阶段 B 定义并登记 api-baseline，本故事**只扩展 activation 维度**。
+7. **Given** 一个分支被移除，**When** `removeBranch()` 提交，**Then** 原子删除该分支全部可变状态与物化 attempt，但**保留不可变 commit**；同名重建使用**新 generation**。
+8. **Given** `syncBranches()` 只同步了 metadata，**When** 同步完成，**Then** **不得提前伪造** baseline / ref；没有 `CommitBranchRef` 的 metadata-only 远端分支**不是空 HEAD**。
+9. **Given** 一个 metadata-only 远端分支首次被切换过去，**When** 执行首次物化，**Then** 使用**独立 durable staging** 冻结目标分支身份、终止水位与完整配置 sync scope，逐页持久化 payload / fingerprint 且**不触碰当前投影**；最终把「复核 active token、目标身份、水位/scope/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision、删除 staging」放进**同一提交屏障**。
+10. **Given** 物化依据不足（网络失败、scope 漂移、配额不足或不收敛），**When** 首次物化结束，**Then** 以 `branch_not_materialized` 全量回滚，来源分支保持 active，只留下可安全重试 / 清理的 staging，**不留下部分目标投影**。
+11. **Given** 分页物化过程中进程崩溃，**When** 重新连接，**Then** 可从 staging 续传；staging 可按 attempt 清理。
+12. **Given** 一个 `origin=remote_sync` 的工作树单元，**When** 切出再切回，**Then** 该单元仍一致（收口 User Story 2 阶段 A 的重放半边）。
+13. **Given** 分支 HEAD 或其可达祖先损坏，**When** 切换到该分支，**Then** 复用同一份守卫返回 `commit_graph_corrupted`；「切离」该分支不受影响。
 
 ---
 
 ### Edge Cases
 
-- **半状态**：提交写入中途崩溃、标签页关闭、schema 升级中断——重启后只能看到上一次完整一致的状态，不出现半个提交、半个事务或半成品缓存区。
-- **空与无操作**：空变更集合提交、空消息提交、对未变化工作树重复暂存、对 clean 工作树重复丢弃、恢复到内容相同的目标——全部是拒绝或类型化无操作，**都不递增任何版本号**。
-- **重复与幂等**：数据库已落盘但响应丢失后的重试；相同操作标识 + 相同内容返回原提交，相同标识 + 不同内容返回稳定错误且不覆盖原记录。分支删除后同名重建使用新代次，不与旧幂等键碰撞。
-- **并发**：两个标签页同时提交 / 暂存 / 切换分支；捕获令牌后被抢先修改；暂存后另一实例编辑同一实体（属正常行为，一律记为未暂存，**不因写入方身份分叉**）。
-- **依赖闭包**：同实体顺序修改链、多实体事务、跨事务父子新增、子删除→父删除、关系键更新、不可拆分的关系环（整体纳入或类型化拒绝）。
-- **写入口边界**：纯远端 ID / 水位 / 审计时间更新不产生工作树条目；过期清理属于远端同步类；查询缓存完全排除；混合事务整笔回滚；原生 SQL 与未知路径 fail-fast。
-- **受信登记漂移**：同一底层批量重写函数被多种意图复用——按函数放行会把恢复、撤销/重做、合并、拉取静默吞掉，因此登记键必须是"文件 + 符号 + 意图"，且必须区分同名重载、排除构建产物目录。
-- **损坏**：不可达孤立提交与可达链损坏必须分别处置；后者 fail-closed 为只读损坏态，保留原引用与原始记录，禁止静默回退到较早提交、空工作树或内存模式。
-- **能力协商**：未启用的数据库零副作用；已启用后未声明能力/协议不匹配/试图绕过的写入方在首笔业务写入前被拒绝或进入显式只读，不允许一个实例维护版本号而另一个继续裸写。
-- **激活分支基数**：迁移时零激活分支沿用主分支恢复语义，多激活分支整体拒绝；启用后由数据库约束保证至多一个、每次连接验证至少一个。
-- **存储与环境**：配额不足、浏览器禁用持久化、schema 升级失败——明确报告持久化不可用，禁止把状态伪装成已保存。
-- **加密**：所有新增持久化位置（提交、变更集、工作树、缓存区、恢复会话）都必须保持信封落盘；错误、摘要、日志与基准报告不得带明文。
-- **性能环境不匹配**：运行环境指纹与参考不一致时返回环境不匹配，**不得伪装成性能回归，也不得放宽为通过**。
+- **另一个 Tab 在 status 与 commit 之间 `save()`** → 本次 commit 返回 `CommitConflict` 而非静默提交。这是砍掉暂存区后**新增的失败面**，必须有专门用例（发布门禁 5）。
+- **另一个 Tab 的 `save()` 撞上 undo/redo** → undo/redo 同样是调用方捕获型，返回冲突。这比 commit 的失败更高频，**该代价也是被接受的**；替代方案（读改写型 undo）意味着在别人改过的状态上盲目应用 inverse patch，会产出用户没有审阅过的结果。
+- **普通 CRUD 不得采用调用方捕获型 CAS** → 否则另一个 Tab 的任何一次写入都会让多标签页下所有在途 `save()` 失败，与「writer 身份不得成为提交正确性的必要条件」直接冲突。
+- **空 commit** → 拒绝；`kind=baseline | branch_baseline` 是仅有的空 ChangeSet 例外。
+- **孤立损坏 vs 可达损坏** → 前者单独隔离、其他分支照常可用；后者使该分支 `corrupted_read_only`，且 commit / restore / switch-to **三条入口各自**返回 `commit_graph_corrupted`。
+- **零个 / 多个 active 分支** → 零个沿用既有 `main` 恢复语义；多个以 `ambiguous_active_branch` 全量回滚。schema 约束至多一个，每次连接验证至少一个；`activationRevision` 只防并发切换，**不能替代该基数不变量**。
+- **未启用提交能力的数据库** → 零副作用、零行为差异。
+- **不兼容 writer 混用** → 业务写入前 fail-fast，不允许「一个 realm 维护 revision、另一个 realm 继续裸写」。
+- **`upsertMany()` / `deleteByIds()` 的结构性缺口** → 方法签名不带意图，任何调用方传一个 Full/Filter 实体名就能写版本化业务表且不产生工作树单元；必须显式挂门禁。
+- **绕过 adapter 的外部数据库句柄**（另开 `sqlite3` 连接、直接打开 OPFS 文件、用 psql 连 PGlite）→ **拦不住，v1 也不承诺拦得住**；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。
+- **动态拼接 / 多语句串 / 方言不认识的构造** → fail-closed 按拒绝处理，宁可误伤不可放过。
+- **重载函数名的静态扫描** → 本地与远端两个同名重载语义不同，必须**按签名区分**；扫描必须排除构建产物目录与测试夹具 / 共享测试套件，否则门禁在落地当天以与真实缺口无关的理由变红。
+- **同一文件里的两个策略分支** → 各是一个独立调用点，必须各占一行登记；只登记其中一个会让漂移测试落地即红。
+- **benchmark 环境不匹配** → 返回 `benchmark_environment_mismatch`，**不得伪装成性能回归**。
+- **restore 目标与 HEAD 相同** → no-op，不创建会话、不递增 revision。
+- **恢复路径中段不兼容** → 在任何持久写入前拒绝，稳定返回首个不兼容 commit ID，检查期间不解码后续 ChangeSet。
 
 ## Requirements _(mandatory)_
 
 ### Functional Requirements
 
-#### A. 提交图、HEAD 与启用迁移
+编号沿用 epic-006 与四条 story 的既有 FR 编号，**一一对应，不重新编号**。已裁撤编号以墓碑形式保留，**不得复用**。
 
-- **FR-001**: 系统 MUST 为每个数据库/分支维护唯一分支引用；HEAD MUST 从当前激活分支的 head 提交派生，MUST NOT 持久化第二份可漂移的 HEAD 指针。
-- **FR-002**: 系统 MUST 持久化提交元数据、分支引用的 head 提交与 head 版本号，并在刷新、重启与正常关闭后可恢复。
-- **FR-003**: 系统 MUST 把新增、更新、删除与完整事务表示为可比较的变更单元，每条保留实体身份、操作类型、基线版本与当前版本指纹。变更单元粒度固定为"实体操作或完整事务"，同一事务 MUST NOT 被拆到不同提交。
-- **FR-004**: 普通提交 MUST 携带 trim 后非空的消息、调用方提供的作者标识与操作标识，并在一次原子操作内写入变更集合、父提交、数据库时间、摘要与新的分支 HEAD。系统根节点（迁移基线与分支基线）是仅有的无用户作者/消息节点。
-- **FR-005**: 普通提交 MUST 非空；无变更单元时失败且不产生空节点。零实体的系统根节点是仅有的例外，且该例外 MUST NOT 放宽普通提交的非空要求。
-- **FR-006**: 提交创建失败时系统 MUST 恢复到提交前状态，MUST NOT 出现可见半状态。
-- **FR-007**: 系统 MUST 提供按分支引用父链**可达性**、实体与数据库时间查询的历史列表，以及单个提交的变更详情与父子关系。创建位置标记只用于审计，MUST NOT 用于截断继承历史。同一父链按拓扑顺序返回，创建时间只作展示与稳定游标的次级排序，且取数据库时钟而非本地时钟。
-- **FR-008**: 普通提交 MUST 在同一数据库事务内以 expected head 版本号条件更新分支引用；失败时提交、变更集与分支引用全部不可见。跨实例竞争 MUST 只由该条件更新承担，MUST NOT 引入额外的写入方级协调协议。
-- **FR-009**: 普通提交 MUST 以数据库 + 不可变分支代次 + 操作标识建立唯一幂等约束；相同请求重试返回原提交，相同键但内容不同返回稳定错误且 MUST NOT 覆盖原记录。
-- **FR-010**: 显式启用后系统 MUST 为已有数据库提供一次性初始化：为每个本地可完整物化的分支生成基线、保留既有变更记录、保持激活分支与业务数据不变，并支持失败重试与重复启动幂等。
-- **FR-011**: 首次启用 MUST 持久化数据库级的能力/协议状态；此后所有写入方在连接时协商。未启用或不兼容的写入方 MUST 在首笔业务写入前被拒绝或进入调用方明确请求的只读模式，MUST NOT 继续裸写业务表。启用是数据库级且单向的。
-- **FR-012**: 启用后系统 MUST 保证恰好一个激活分支。首次迁移零激活时沿用既有主分支恢复语义；多激活时整体拒绝并全量回滚。系统 schema MUST 用数据库约束保证至多一个，且每次连接 MUST 验证至少一个。
-- **FR-013**: 首次迁移 MUST 区分本地可完整物化分支与仅有元数据的远端分支。后者在没有完整本地状态时 MUST NOT 创建基线或分支引用，也 MUST NOT 被解释为空 HEAD；除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败，不留部分启用状态。
-- **FR-014**: 系统 MUST 从每个分支引用遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支 MUST fail-closed 为只读损坏态：保留原引用与原始记录，只允许读取当前投影、导出诊断与切离，提交/恢复/切入及任何历史重放返回稳定错误；MUST NOT 自动回退到较早提交、空工作树或内存模式。
-- **FR-015**: 首次启用 MUST 在同一迁移事务内建立数据库级单行激活状态并把激活版本号初始化为 0；该状态 MUST NOT 复制第二份激活分支标识。未启用的数据库 MUST NOT 创建该状态。
-- **FR-016**: 系统 schema 迁移进入发布分支前，发布 manifest 的桥接锚点 MUST 指向一个满足"是候选发布提交的真实祖先"的已发布标签；内容相同但经 squash 脱离祖先链的历史标签 MUST NOT 被引用。缺失有效锚点时门禁 MUST 失败，且 MUST NOT 重打、移动或伪造任何已发布标签。
-- **FR-017**: 系统 MUST 与既有变更记录、撤销/重做与实体恢复保持兼容，既有 API 行为 MUST NOT 因本特性改变；MUST 明确区分持久提交历史与会话级重做栈——刷新后重做栈可清空，提交与 HEAD MUST NOT 清空。
+#### US-305 提交图与 HEAD 持久化（P1）
 
-#### B. 工作树捕获（真相源）
+- **FR-001**：系统 MUST 为每个数据库/分支维护唯一 `CommitBranchRef`；HEAD MUST 从当前激活分支的 `headCommitId` 派生，不得持久化第二份可漂移的 HEAD 指针。
+- **FR-002**：系统 MUST 持久化 commit 元数据、`CommitBranchRef.headCommitId` 与 `headRevision`；刷新、重启和正常关闭后可恢复。
+- **FR-003**：系统 MUST 把 NEW、UPDATE、DELETE 和完整事务表示为可比较的变更单元，并为每条保留实体身份、操作类型、基线版本和当前版本指纹。
+- **FR-008**：系统 MUST 要求普通 commit 包含 trim 后非空的消息、调用方提供的 `authorId` 与 `operationId`，并在一次原子操作中写入变更集合、父 commit、数据库时间、摘要和新的分支 HEAD；`kind=baseline | branch_baseline` 是仅有的无用户作者/消息系统根节点。
+- **FR-009**：系统 MUST 保证普通 commit 不为空；无变更单元时提交失败且不产生空节点。实体数为零的 `kind=baseline | branch_baseline` 是仅有的空 ChangeSet 例外。
+- **FR-010**：系统 MUST 保证 commit 创建失败时恢复提交前状态，不出现可见半状态。
+- **FR-012**：系统 MUST 提供按 branch ref 父链可达性、实体和数据库时间查询的历史列表，以及单个 commit 的变更详情和父节点关系；`originBranchId` 只用于审计，不得用于截断继承历史。
+- **FR-018**：系统 MUST 与现有 `RxDBChange`、历史 undo/redo 和 `restoreEntity` 保持兼容；已有 API 的行为不能因为 commit 功能而改变。
+- **FR-019**：系统 MUST 明确区分 durable commit 历史与会话级 redo 栈；刷新后 redo 可清空，但 commit 与 HEAD 不得清空。
+- **FR-021**：系统 MUST 在显式启用后为已有数据库提供一次性初始化：为每个本地可完整物化分支生成 baseline、保留旧 change 记录、保持激活分支与业务实体状态，并支持失败重试；Workspace 草稿不参与迁移，metadata-only 远端分支遵守 FR-049。
+- **FR-022**：系统 MUST 对损坏或不兼容的 commit 记录进行隔离和诊断。不可达孤立记录可单独隔离；HEAD 或可达祖先损坏时该分支 MUST fail-closed 为 `corrupted_read_only`，保留原始 ref 与记录，不得自动回退到较早 commit、空工作树或内存模式。
+- **FR-027**：commit 历史 MUST 可审计，至少记录稳定 commit ID、父节点、分支、作者标识、消息、创建时间、变更数量和 schema/数据版本；不得记录无法恢复的数据引用。
+- **FR-029**：普通 commit MUST 在同一数据库事务内以 expected `headRevision` 条件更新 `CommitBranchRef`；CAS 失败时 commit、ChangeSet 与 branch ref 全部不可见。跨 realm 正确性由该 revision CAS 本身承担，不引入额外的协调协议。
+- **FR-030**：本故事是首个真实系统迁移发布。实现进入发布分支前，发布负责人 MUST 从最近一次已验证、且满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的 bridge manifest 读取 `bridge.tag` / `bridge.version`，启用明确的 `oldBundlePolicy`，并通过真实 git tag 的 migration release gate。`v0.0.25` 虽是历史 bridge 发布，但当前主线经 squash 后不再包含其 tagged commit，MUST NOT 作为本故事的迁移锚点；不得重打、移动或伪造已发布 tag。若发布主线没有有效 bridge ancestor，必须先从该主线发布新的非迁移 bridge 版本，再开始本故事的 system schema 迁移发布。**锚点合法性不止于「是祖先」**：`v0.0.24` 及更早的 tag 也是祖先、也含系统迁移面的四个文件，却早于工作树桥接改造。因此 `bridge.version` MUST 严格新于 `LAST_INELIGIBLE_BRIDGE_VERSION`，且 bridge tag 上的 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` MUST 与本次发布的升级位吻合（声明升级则严格更旧，未声明升级则完全相等）。这两条判据**已在 [check-migration-release-gate.mjs](../../scripts/check-migration-release-gate.mjs) 中实现并有单测**，本故事 MUST NOT 重写该脚本，只负责在真实 tag 与真实清单上复验。
+- **FR-036**：普通 commit MUST 以 database + immutable branch generation + `operationId` 建立唯一幂等约束。相同请求重试返回原 commit；相同 key 的 message、author、parent 或 ChangeSet 指纹不同则返回稳定错误，不得覆盖原记录。删除并同名重建的分支使用新 generation，不与旧幂等键碰撞。
+- **FR-037**：首次启用 MUST 持久化数据库级 capability/protocol 状态。此后所有 writer 在连接时协商；未启用或不兼容 writer 不得继续裸写业务表。
+- **FR-038**：commit、ChangeSet 与 baseline MUST 保持既有字段加密 at-rest 契约；持久化路径不得先解密再把明文写入新系统表，日志、错误与摘要不得包含加密字段值。
+- **FR-048**：commit 能力启用后 MUST 保证 `RxDBBranch.activated` 恰好一行是 true。首次迁移零 active 时沿用既有 main 恢复语义；多 active 时返回 `ambiguous_active_branch` 并全量回滚。系统 schema MUST 约束至多一个 active，每次连接 MUST 验证至少一个。
+- **FR-049**：首次迁移 MUST 区分本地可完整物化分支与 metadata-only 远端分支。后者在没有完整本地状态时不得创建 baseline 或 `CommitBranchRef`；其首次 baseline/ref 创建由 US-308 与完整物化放在同一事务。除该明确例外外，任一本地分支无法物化都 MUST 使迁移整体失败并返回 `branch_not_materializable`。「可完整物化」的判定 MUST 复用既有分支物化路径：能从当前主库状态沿 `RxDBChange` 链无缺口地走到该分支 tip 即可物化；已被清理的 change、压缩掉的区间或无法配平的回滚标记都构成断链。MUST NOT 为迁移另写第二套重放引擎。
+- **FR-051**：commit 图校验 MUST 从每个 branch ref 遍历完整可达父链并区分孤立损坏与可达损坏。可达损坏的分支只允许读取不依赖重放的当前投影、导出诊断和切离；commit、restore、switch-to 及任何历史重放 MUST 返回稳定的 `commit_graph_corrupted`。本故事 MUST 把该判定实现为**共享 guard**，供 commit / restore / switch-to 在各自写事务内调用；US-306 阶段 B、US-307、US-308 MUST 复用它，不得各写一份损坏判定。
+- **FR-052**：首次启用 MUST 在同一迁移事务内建立数据库级单行 `WorkingTreeActivationState` 并把 `activationRevision` 初始化为 0。该状态 MUST NOT 复制第二份 active branch ID——当前分支仍由 `RxDBBranch.activated` 表示。本故事只负责建表、初始化与「连接时可读」；递增该 revision 的 switch 语义归 US-308，写路径的 token 校验归 US-306 阶段 A。未启用 commit 能力的数据库 MUST NOT 创建该表。
 
-- **FR-018**: 每次普通增删改 MUST 在同一事务内校验激活分支令牌、写入业务数据、写入或合并完整工作树条目并递增工作树版本号；任一步失败全部回滚。MUST NOT 只靠内存脏集合重建。
-- **FR-019**: 所有会改业务数据的写入口 MUST 落入已定义的写入口语义矩阵之一，未知入口默认拒绝，MUST NOT 先改业务数据再靠事件补记。远端实体应用即使关闭本地变更触发器，也 MUST 在同一事务写入来源为"远端同步"的未暂存条目且 MUST NOT 形成推送回声；过期清理归同一语义。
-- **FR-020**: 只更新远端 ID、同步水位或审计时间的写入 MUST NOT 创建工作树条目，也 MUST NOT 递增工作树版本号。
-- **FR-021**: 查询缓存类实体 MUST 完整排除于基线、状态、差异、暂存与提交之外。回调事务在任意时点检测到查询缓存与版本化实体混用时 MUST 抛出类型化错误并回滚整个事务，MUST NOT 要求事务系统预知回调的未来操作。
-- **FR-022**: 绕过工作树维护的原生/未知写入路径 MUST 在业务写入前 fail-fast。受信路径登记 MUST 与该拒绝门禁**同批交付**，且登记键 MUST 是「文件 + 符号 + 调用方意图」而非行号、也非传输层函数：每个关闭触发器的写路径 MUST 携带显式意图枚举并透传到事务体，同一函数的不同意图 MUST 得到不同处置。新增此类调用点 MUST 先登记再实现。
-- **FR-023**: 任意时刻，该分支的业务数据 MUST 能仅凭其 HEAD 与持久化工作树条目完整重放。工作树状态只存计数与版本号不算满足；条目 MUST 可枚举、可重放并按分支隔离，且 MUST NOT 只引用可能被撤销、清理或删分支删除的既有变更行。
-- **FR-024**: 草稿缓存的 NEW 草稿 MUST 留在其独立存储中，不参与系统 schema 事务、不进入基线、不进入工作树；草稿保存进主库后才作为普通新增进入工作树。
-- **FR-025**: 每个运行实例在读取/实例化实体时 MUST 捕获 `{ 分支, 激活版本号 }`；普通增删改、暂存、提交、恢复、丢弃与分支操作 MUST 在实际写事务内校验该令牌。令牌过期时返回稳定错误且零变化，MUST NOT 把旧分支实体写进新分支。广播通道、响应式通知与内存缓存 MUST NOT 承担该正确性。
+#### US-306 工作树与提交操作（P1）
 
-#### C. 缓存区与提交状态机
+阶段 A 承接 FR-039 / FR-046 / FR-045；阶段 B 承接 FR-004 / FR-005 / FR-011 / FR-016 / FR-031 / FR-032 / FR-041；阶段 C 承接 FR-023 / FR-026。
 
-- **FR-026**: 系统 MUST 提供工作树状态，至少区分 clean、仅未暂存、仅已暂存、同时存在、恢复中与冲突。
-- **FR-027**: 系统 MUST 提供面向实体或完整事务的差异，能分别比较「HEAD ↔ 工作树」与「HEAD ↔ 缓存区」。删除 MUST 以显式删除单元出现，MUST NOT 表现为条目消失或空差异。
-- **FR-028**: 系统 MUST 支持暂存、取消暂存、全部暂存与清空缓存区；这些操作 MUST NOT 修改已有提交，也 MUST NOT 丢弃未选择的工作树变更。
-- **FR-029**: 暂存后再次编辑时系统 MUST 保留已暂存快照并把新增部分标记为未暂存，MUST NOT 隐式扩大暂存范围；再次暂存才原子替换快照，工作树未变化时的重复暂存是无操作且不递增版本号。后续编辑 MUST NOT 按写入方身份分叉处理——写入方身份 MUST NOT 成为提交正确性的必要条件。
-- **FR-030**: 缓存区 MUST 满足独立可重放不变量：任意时刻全部条目只依赖当前 HEAD 与缓存区内其他条目。暂存 MUST 向前扩展同实体前置单元，并按完整事务、schema 关系图与实际行引用递归包含跨实体/跨事务依赖；取消暂存 MUST 向后移除失去实体、事务或关系依赖的条目。闭包按依赖拓扑稳定排序，不可拆分的关系环整体纳入，无法形成合法闭包时返回稳定的依赖成环错误。暂存与取消暂存 MUST 返回实际扩展后的稳定单元列表；计算或条件更新失败时缓存区零变化。
-- **FR-031**: 提交 MUST 只写入缓存区内容并在同一事务内读取当前工作树完成残量 rebase：与已暂存快照相同的部分从工作树扣除，后续编辑形成的差量保留为未暂存。提交 MUST NOT 仅因暂存后发生普通编辑而失败，也 MUST NOT 用已暂存快照覆盖该编辑。
-- **FR-032**: 所有操作 MUST 遵守版本号校验矩阵，且 MUST 区分两类：**调用方捕获型**（暂存、取消暂存、提交、恢复、丢弃、切换分支——失败即冲突）与**事务内读改写型**（普通增删改与远端实体应用——不接收调用方 expected 值，因而不会因并发失败）。普通增删改 MUST NOT 采用调用方捕获型的工作树版本号校验。任何语义无操作 MUST NOT 递增版本号。
-- **FR-033**: 并发/版本校验失败 MUST 返回一次性、不可变的类型化诊断值，包含操作、对象、受影响单元、expected/actual 版本号与建议动作；MUST NOT 因此形成持久冲突状态，也 MUST NOT 建立第二张会与真实版本号漂移的冲突表。持久的冲突状态 MUST 只由仍存在且版本号已分叉的恢复会话派生。
-- **FR-034**: 丢弃工作树与清空缓存区的范围 MUST 明确区分：前者回到当前 HEAD 并一并清除暂存，后者只清除暂存选择而业务投影与工作树逐字段不变。跨实体外键依赖 MUST 在事务边界内整体回滚。
-- **FR-035**: 空事务、重复暂存、重复丢弃 MUST 幂等：不产生额外提交、不递增任何版本号、不返回错误。
-- **FR-036**: 恢复会话的存储结构与 schema 迁移 MUST 与状态机同批交付（因为持久冲突状态在该批次就必须成立），其读路径 MUST 能从已存在的会话派生冲突状态；会话的创建与生命周期语义归 US5 的范围。
+- **FR-004**（阶段 B）：系统 MUST 提供工作树 status，至少区分 clean、有未提交变更、恢复中和冲突状态。普通命令 CAS 失败只返回一次性 `CommitConflict`，不得形成 durable conflicted；v1 的 conflicted 只由仍存在且 revision 已分叉的 `WorkingTreeRestoreSession` 重建。
+- **FR-005**（阶段 B）：系统 MUST 提供面向实体或完整事务的 diff，比较 `HEAD ↔ 工作树`。**只有这一条 diff 轴**——`HEAD ↔ index` 随暂存区一并裁撤。
+- **FR-006**：_（已裁撤，编号不得复用。）_ 原条目要求 stage / unstage / stage all / clear index，暂存区已裁决不做。
+- **FR-007**：_（已裁撤，编号不得复用。）_ 原条目要求保留 staged 快照并把后续编辑标为 unstaged，无暂存区即无快照。
+- **FR-011**（阶段 B）：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
+- **FR-016**（阶段 B）：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。
+- **FR-023**（阶段 C）：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
+- **FR-026**（阶段 C，口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-031**（阶段 B）：所有操作 MUST 遵守 revision 矩阵：commit 校验 active branch token、expected head 与 expected working-tree revision，三者任一不匹配即全量回滚并返回 `CommitConflict`。`workingTreeRevision` 采用**调用方捕获型** CAS：调用方读到 status 之后、commit 落盘之前的任何一次工作树写入都 MUST 让本次 commit 失败，**不得**为了提高成功率而放宽为只校验 head——那等于提交调用方没有看过的变更。discard 同样校验 active token 与 expected working-tree revision。
+- **FR-032**（阶段 B）：工作树中的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 平等地成为同一份工作树的未提交变更。writer 身份不得成为提交正确性的必要条件；并发保护只由 FR-031 的 revision CAS 提供。
+- **FR-039**（阶段 A）：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
+- **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
+- **FR-041**（阶段 B）：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
+- **FR-045**（阶段 A）：`WorkingTreeEntry` MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
+- **FR-046**（阶段 A）：所有业务实体写入口 MUST 遵守写入口语义矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，五步 bypass 判定够不到，必须在阶段 A 显式挂载。
+- **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
 
-#### D. 跨框架操作面、异步状态与性能
+> **FR-024 / FR-025 / FR-028 三个编号同样已作废**，不在任何故事中承接，也不得被新条目复用——对应内容整体转为「横切约束」一节，按故事适用。
 
-- **FR-037**: Angular / React / Vue 三端 MUST 导出同名同签名的工作树入口并从核心包透传同一组共享类型；返回对象 MUST 保持同一组语义键（状态、差异、刷新、暂存/取消暂存、清空/丢弃、提交、命令状态）。响应式容器差异（signal / state / ref）是允许的唯一差异；MUST NOT 让某一端额外拥有业务能力，也 MUST NOT 在某一端把能力做成组件内部逻辑。任一端缺失即整体失败。
-- **FR-038**: 异步命令 MUST 暴露 loading / success / error，查询 MUST 在无结果时额外暴露 empty；错误 MUST 说明操作、对象与恢复建议，且 MUST NOT 给没有 empty 语义的命令伪造 empty 状态。
-- **FR-039**: 面向用户的操作界面 MUST 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；长文本与窄视口下 MUST NOT 溢出、遮挡或改变固定工具栏尺寸。核心底座（US1–US3）无界面，不适用本条。
-- **FR-040**: 跨框架入口 MUST 冻结扩展点协议：后续能力（恢复入口、分支切换与冲突提示）按同一协议追加键，复用同一命令状态形状与错误码结构，MUST NOT 另立入口或重定义已冻结键的语义。
-- **FR-041**: 系统 MUST 提供工作树性能基准，固定环境、fixture 与统计口径：固定基准环境、5 次预热 / 50 次采样、每次采样前在计时外恢复同一 fixture（10,000 条实体、100 个提交、每个提交 100 个完整变更单元、当前 100 个未暂存 / 50 个已暂存单元），报告 MUST 记录 p50/p95、对照比值、fixture 内容与哈希、运行环境画像与其指纹。普通 CI MUST 只以归一化比值为硬门禁（不超过已签入参考中位数的 110%），绝对值仅记录趋势；发布门禁 MUST 在运行环境指纹匹配参考的固定 runner 上执行绝对预算。环境不匹配 MUST 返回环境不匹配，MUST NOT 伪装成性能回归或放宽为通过；参考报告与阈值 MUST 先于发布候选签入，失败后 MUST NOT 重算基线。
+#### US-307 历史恢复会话（P2）
 
-#### E. 历史恢复会话
+- **FR-013**：系统 MUST 支持将可达历史 commit 恢复到当前工作树；恢复默认不移动 HEAD、不删除历史，并将恢复会话持久化。
+- **FR-014**：系统 MUST 在恢复前检测 dirty 工作树；未显式处理未提交变更时，恢复操作必须拒绝并保持原状。判定口径只有 clean / dirty 两态。
+- **FR-015**：系统 MUST 把恢复结果写成普通的 `WorkingTreeEntry`，与用户手写的变更同形、同表、同 revision 轴，不存在「已恢复但未暂存」这一额外状态。用户随后用 `commit(message)` 把当前工作树整体落成新 commit；`commit()` MUST NOT 接受任何只提交恢复结果子集的参数。生成的新 commit 不得改写被恢复的历史节点，并须与 restore session 的 `committed` 转换原子提交。
+- **FR-026b**（口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit 下，以 5 次 warmup、50 次采样恢复含 100 个完整变更单元的 `HEAD~1` 并记录 runner profile。普通 CI 以归一化 ratio 不超过 reference median 的 110% 为硬门禁；promise resolve 的 p95 不高于 1 s 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁。
+- **FR-033**：v1 只允许恢复当前分支 HEAD 沿父链可达的 commit。系统 MUST 在任何持久写入前选定确定性的物化路径，并校验该路径每个 ChangeSet 涉及实体的 schema fingerprint manifest 与 change codec version 均与当前客户端完全相等；v1 不提供跨 schema/codec patch 转换。拒绝时所有持久状态 MUST 零变化。
+- **FR-034**：restore / discard MUST 在同一数据库事务内校验 active branch token 与 expected head、working tree revision。初次 restore 要求工作树 clean，成功只递增 working-tree revision。初次 restore CAS 失败时全部回滚且不创建 session；已有 session 的 commit/discard CAS 失败时保留工作树和 session，并由 expected/actual revision 派生 conflicted，不得自动选择任一 writer 的状态。恢复会话上的 commit 与普通 commit 一样是**调用方捕获型** `workingTreeRevision` CAS（见 FR-031）：其他 realm 在 restore 之后、commit 之前写入工作树时返回 `CommitConflict`，MUST NOT 为了让恢复结果顺利落盘而放宽该校验。
+- **FR-042**：restore 产生的完整 diff 为空时 MUST 返回 no-op，不创建 `WorkingTreeRestoreSession` 或 `WorkingTreeEntry`，也不递增任何 revision。
+- **FR-043**：restore 物化与 session 持久化 MUST 保持字段加密 envelope；任何错误、摘要与 session 诊断不得包含加密字段明文。
+- **FR-050**：restore 兼容性判断 MUST 覆盖实际读取/应用的完整 commit 路径，而不只是目标节点。错误 MUST 稳定返回首个不兼容 commit ID、重放方向、实体和版本 manifest；检查期间不得解码或写入后续 ChangeSet。
 
-- **FR-042**: 系统 MUST 支持把可达历史提交恢复到当前工作树：默认不移动 HEAD、不删除历史，结果写成**普通、未暂存**的工作树条目，MUST NOT 自动创建缓存区条目或递增缓存区版本号。用户显式暂存完整依赖闭包后才能提交；生成的新提交 MUST NOT 改写被恢复的历史节点，并 MUST 与会话状态转换原子提交。恢复 MUST NOT 通过「把旧节点改成当前」实现。
-- **FR-043**: 恢复前系统 MUST 检测未提交工作树与非空缓存区；未显式处理时 MUST 拒绝并保持原状，且 MUST NOT 把"仅已暂存"误报为 clean。
-- **FR-044**: v1 MUST 只允许恢复当前分支父链可达的提交，并 MUST 在任何持久写入前选定确定性物化路径、校验该路径上**每个**变更集涉及实体的 schema 指纹与编解码版本与当前客户端完全相等。拒绝时 MUST 稳定返回首个不兼容提交、重放方向与双方 manifest，所有持久状态零变化，且检查期间 MUST NOT 解码或写入后续变更集。v1 不提供跨 schema/编解码的转换。
-- **FR-045**: 恢复与丢弃 MUST 在同一事务内校验激活令牌与 expected head / 工作树 / 缓存区版本号。初次恢复要求缓存区为空、成功只递增工作树版本号；初次恢复条件更新失败时全量回滚且 MUST NOT 创建会话。已存在会话的提交/丢弃冲突 MUST 保留工作树与会话并由 expected/actual 派生冲突状态，MUST NOT 自动选择任一方状态。丢弃仅在用户后来暂存过恢复结果时清空缓存区并递增其版本号。
-- **FR-046**: 恢复产生的完整差异为空时 MUST 返回类型化无操作：不创建会话、不产生工作树或缓存区条目、不递增任何版本号。
-- **FR-047**: 恢复场景 MUST 作为采样场景**追加**进既有工作树性能基准，MUST NOT 新建独立基准、改报告结构或重算已冻结的参考。
+#### US-308 分支隔离与跨 realm 冲突检测（P2）
 
-#### F. 分支隔离与并发
+- **FR-017**：系统 MUST 与现有分支操作集成。`createBranch(branchId)` 保留从当前物化状态创建的行为，复制独立 working-tree snapshot 并共享当前 HEAD；`createBranch(branchId, fromChangeId)` 保留历史 change 状态并以 `kind=branch_baseline` 锚定。分支不得共享可变 HEAD / 工作树。切换恢复目标分支状态；clean 检查以 `WorkingTreeSwitchBranchOptions.requireClean` 显式提供，不带选项仍无条件切换。
+- **FR-020**：系统 MUST 使用持久化 activation/head/working-tree revision CAS 阻止跨标签页静默覆盖。普通 CRUD MUST 校验实体/realm 捕获的 active branch token；不得在事务中重新读取新 active branch 后把旧实体归到新分支，也不得只依赖 `BroadcastChannel` 或内存状态。
+- **FR-035**：`CommitConflict` MUST 从失败操作、对象 ID、expected/actual activation/head/working-tree revision 与建议动作派生，不得建立第二张可与真实 revision 漂移的冲突状态表。普通命令 CAS 失败只返回诊断值，不建立 durable conflict；`status().conflicted` 与 `requireClean` 只读取仍存在的 `WorkingTreeRestoreSession` 等 durable domain session。**该类型本身由首个使用者 US-306 阶段 B 定义、补 TSDoc 并登记 api-baseline**；本故事只把 activation 维度（activation expected/actual 与切换建议动作）扩展进去，不重新定义类型、不新建并行诊断类型。
+- **FR-044**：`removeBranch()` MUST 原子删除该分支全部可变状态和 materialization attempt，但保留不可变 commit；同名重建 MUST 使用新 branch generation。`syncBranches()` 只同步 metadata 时不得提前伪造 baseline/ref；承接 FR-049，没有 `CommitBranchRef` 的 metadata-only 远端分支不是空 HEAD。其首次 switch MUST 使用独立 durable staging 冻结目标分支、终止水位和完整配置 sync scope，逐页持久化 payload/fingerprint 且不触碰当前投影；最终把「复核 active token、目标身份、水位/scope/fingerprint、完整物化、创建 `kind=branch_baseline`、创建 ref、切换 active、递增 activation revision、删除 staging」放进同一提交屏障。物化依据不足则以 `branch_not_materialized` 全量回滚，来源分支保持 active；分页崩溃可恢复，staging 可按 attempt 清理。旧签名、旧拒绝条件与 remote commit 非目标保持不变。
 
-- **FR-048**: 既有切换分支入口的**默认行为 MUST 保持不变**（无条件切换、单参数签名继续编译）；clean 检查 MUST 作为显式选项提供，公开选项类型使用本特性的新命名且 MUST NOT 复用既有适配器层的同义名。把默认改成拒绝 MUST 走独立的破坏性变更故事。clean 的判据固定为：工作树为空、缓存区为空、无活跃恢复会话、无由持久会话派生的未解决冲突；仅已暂存、恢复中或可重建的冲突都不是 clean，而历史上一次普通条件更新失败 MUST NOT 构成该状态。
-- **FR-049**: 无条件切换 MUST NOT 等于重置：来源分支的工作树/缓存区 MUST 保留，目标分支有未提交状态时 MUST 恢复自己的状态，只有目标分支从未产生未提交状态时才从其 HEAD 物化。物化投影本身不改变目标分支的逻辑工作树，因此 MUST 只递增激活版本号，MUST NOT 平白递增工作树版本号。
-- **FR-050**: 系统 MUST 用持久化的激活/head/缓存区/工作树版本号条件更新阻止跨标签页静默覆盖。长时间挂起后恢复的写入方 MUST 走与其他竞争完全相同的条件更新失败路径，不存在额外的写入方级判定。切换分支 MUST 以 expected 激活版本号条件更新，竞争时只允许一个成功。
-- **FR-051**: 既有创建分支、删除分支与分支元数据同步的公开签名与用户可见语义 MUST 保持不变，并与提交/工作树/缓存区生命周期集成：一参创建保持"从当前物化状态创建"（共享当前 HEAD、复制独立的未提交工作树快照、缓存区为空、不共享可变条目）；带历史标识创建以确定性分支基线锚定；删除分支 MUST 在同一事务删除该分支全部可变状态与物化暂存，但 MUST 保留可能被共享或按 ID 审计的不可变提交，同名重建 MUST 使用新代次。
-- **FR-052**: 仅有元数据的远端分支首次切换 MUST 使用独立、可恢复的持久暂存：开始时冻结目标身份、配置同步范围与远端终止水位，逐页把内容、水位与指纹原子落盘，期间当前业务投影、激活标记、当前分支同步水位与工作树全部不变。最终 MUST 由单一提交屏障复核激活令牌、目标身份、终止水位、范围与指纹后一次性完成物化、建立分支基线与引用、激活目标、递增激活版本号并删除暂存。依据不足、网络失败、范围漂移、配额不足或不收敛 MUST 以稳定的"分支未物化"全量回滚，只留可安全续传或按尝试 ID 清理的暂存，MUST NOT 先激活空分支再等后续同步修补；分页崩溃后 MUST 可从已提交水位续传。
-- **FR-053**: 冲突诊断值的激活维度（激活 expected/actual 与切换建议动作）MUST 扩展进同一个类型，MUST NOT 新建并行诊断类型。
+### 横切约束（按故事适用，不单独成 FR）
 
-#### G. 横切约束
+1. **三框架对称**：US-306 阶段 C、US-307、US-308 的用户操作面必须在 Angular / React / Vue 提供语义对称的 API；US-305 与 US-306 阶段 A/B 是无 UI 的核心底座，只要求核心公开类型、TSDoc 和类型契约测试。
+2. **异步状态**：命令暴露 loading / success / error，查询在无结果时额外暴露 empty；错误说明操作、对象与恢复建议，不给无 empty 语义的命令伪造 empty 状态。
+3. **可访问性**：US-306 阶段 C、US-307、US-308 的 UI 键盘可达、焦点可见、状态与错误可被屏幕阅读器读出，达到 WCAG 2.1 AA；US-305 与 US-306 阶段 A/B 不适用 UI a11y。
+4. **不复活旧导出**：`stagedChange()`、`unstageChange()`、`commit()`、`stagedCount`、`WorkspaceCacheEntry.staged` 在可复核的 `v0.0.24` 公开表面中已不存在；新导出不得与它们同名同签名，也不得使用 `Workspace` 前缀，更不得使用 `Index*` 前缀。
+5. **加密不降级**：支持后端叠加字段加密时，commit、working-tree、restore session 中的加密字段仍以 versioned envelope 落盘；错误、摘要和 benchmark 报告不得带明文。历史保留风险提示不能代替 at-rest 加密。
+6. **损坏分支 fail-closed**：FR-022 / FR-051 建立 commit 图校验与 `corrupted_read_only` / `commit_graph_corrupted`，但**守卫必须落在每个入口上**：US-306 阶段 B 的 `commit()`、US-307 的 `restore()` / `restoreState()`、US-308 的 switch-to MUST 复用 US-305 提供的**同一份**守卫，命中可达损坏时拒绝、保留原 ref、不删记录。不依赖重放的当前投影读取、诊断导出与「切离」目标分支不受影响；孤立损坏只隔离记录，不影响任何入口。
 
-- **FR-054**: 所有新增公开导出 MUST 使用 `Commit*` / `WorkingTree*` / `Index*` 前缀，MUST NOT 使用 `Workspace*` 前缀（已被草稿缓存占用），MUST NOT 复用既有适配器层的切换分支选项名，也 MUST NOT 与在可复核的历史公开表面中已不存在的旧暂存导出同名同签名。
-- **FR-055**: 支持字段加密的后端 MUST 在提交、变更集、工作树条目、缓存区条目与恢复会话中以版本化信封落盘；持久化路径 MUST NOT 先解密再把明文写入新系统表，错误、摘要、日志与基准报告 MUST NOT 包含加密字段明文。历史保留风险提示 MUST NOT 代替静态加密。
-- **FR-056**: 跨后端一致性 MUST 由两套具名套件覆盖——写入捕获套件（写入口捕获、事务原子性、工作树重放）与提交状态机套件（版本号条件更新、残量 rebase、崩溃恢复，并含提交图/迁移断言）——并在 v1 承诺的 6 个本地后端上运行；任一后端缺席即未完成。
-- **FR-057**: 公开文档 MUST 说明数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、加密边界与不改写历史的承诺。
-- **FR-058**: 所有新增公开导出 MUST 补齐 TSDoc 并登记进 API 基线；类型契约测试 MUST 断言形状与基线一致，基线未同步更新即失败。既有公开方法签名的兼容性 MUST 有专门的签名兼容测试，不能只更新导出名基线。
+### Key Entities _(include if data involved)_
 
-### Key Entities
+本节是**逻辑契约**，只约束「必须持久化什么、按什么粒度隔离」。物理表名、字段、索引、外键、加密 envelope 与迁移版本在 plan 阶段冻结。
 
-- **Commit** — 不可变提交节点：稳定标识、种类、零或一个父节点、创建位置与分支代次、操作标识、作者、消息、数据库时间、变更集合、摘要、编解码版本与按实体的 schema 指纹。
-- **CommitBranchRef** — 分支引用：分支标识、不可变代次、head 提交、head 版本号、来源与更新时间。该次分支生命周期内 HEAD 的唯一真相源；同名重建生成新代次。
-- **CommitChangeSet** — 一次提交的变更单元集合，按实体/事务分组，保留补丁、逆补丁或等价可恢复信息（完整复制，不只引用可能被删除的变更行）。
-- **CommitCapabilityState** — 数据库级启用与协议协商状态：提交协议、系统 schema、编解码版本、启用迁移标识与时间。
-- **CommitConflict** — 一次失败命令的类型化诊断值（非持久状态、非协调锁）：操作、对象、受影响单元、expected/actual 版本号、建议动作。
-- **WorkingTreeActivationState** — 数据库级单行激活版本号；当前分支仍由既有激活标记表示，此处不复制第二份标识。
-- **WorkingTreeState** — 数据库/分支级工作树水位：基于哪个 HEAD、是否恢复中、未提交单元计数、工作树版本号。
-- **WorkingTreeEntry** — 数据库/分支/单元级未提交变更单元：实体或完整事务身份、操作、补丁/逆补丁或等价快照、当前指纹、来源变更标识、来源分类（本地 / 远端同步 / 合并 / 撤销重做 / 恢复）。
-- **IndexState** — 数据库/分支级缓存区水位：缓存区版本号、基线 HEAD、条目计数。
-- **IndexEntry** — 分支级缓存区条目：变更单元标识、基线提交、完整已暂存快照、暂存时的工作树版本号、依赖单元、暂存时间。
-- **WorkingTreeRestoreSession** — 历史恢复会话：目标提交、恢复前 HEAD 与各 expected 版本号、产生的工作树版本号、目标 schema/编解码 manifest、数据库创建时间、活跃/冲突/已提交生命周期。
-- **CommitBranchMaterializationAttempt** — 仅元数据远端分支首次物化的内部持久暂存：尝试标识、目标身份、冻结终止水位、范围 manifest、已提交分页水位、内容指纹、生命周期；成功切换后原子删除。
-- **CommitOptions** — 普通提交选项：必填作者标识与操作标识、可选扩展审计元数据；保留审计字段（父节点、时间、作者、操作标识、manifest、变更数量）MUST NOT 被元数据覆盖。
+| 状态                         | 主键                     | 必须持久化的版本/内容                                                        | 写入规则                                                              | 建表归属      |
+| ---------------------------- | ------------------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------- |
+| `CommitCapabilityState`      | database                 | enabled、protocol/schema/codec version                                       | 首次启用后数据库级生效；所有 writer 连接时协商                        | US-305        |
+| `WorkingTreeActivationState` | database                 | `activationRevision`                                                         | switch branch CAS 成功后递增；不复制第二份 active branch ID           | US-305        |
+| `Commit`                     | database + commit        | 不可变节点：父链、message、作者、时间、幂等 `operationId`                    | 只追加，永不改写或删除；同一 `operationId` 重复提交幂等命中现有节点   | US-305        |
+| `CommitChangeSet`            | database + commit + unit | 该 commit 的变更单元：patch / inverse patch 或等价可恢复信息的完整不可变副本 | 与 `Commit` 节点同一事务写入；只追加，不引用可能被删除的 `RxDBChange` | US-305        |
+| `CommitBranchRef`            | database + branch        | 不可变 `generation`、`headCommitId`、`headRevision`                          | commit 在同一事务内以 generation + revision 做 CAS 后推进             | US-305        |
+| `WorkingTreeState`           | database + branch        | `baseHeadCommitId`、`workingTreeRevision`、未提交条目数                      | CRUD、restore、discard 改变逻辑工作树时递增                           | US-306 阶段 A |
+| `WorkingTreeEntry`           | database + branch + unit | 实体/事务身份、操作、patch / inverse patch 或快照、当前指纹、来源 change ID  | 与业务 CRUD 同一事务写入；完整事务共享同一 unit                       | US-306 阶段 A |
+| `WorkingTreeRestoreSession`  | database + branch        | 目标 commit、expected revision、`active \| conflicted \| committed` 生命周期 | 建表与「派生 conflicted」归阶段 B；会话创建与生命周期归 US-307        | US-306 阶段 B |
+| branch materialization stage | database + attempt       | 目标分支、冻结远端水位、scope manifest、分页 payload、fingerprint            | 只落盘目标分支快照，不写当前业务投影；成功 switch 后删除              | US-308        |
+
+两条不可让步的存储契约：
+
+- `WorkingTreeEntry` 是**独立的**、完整复制 patch / inverse patch 的状态，**不复用 `RxDBChange`**、也不只存其外键——change 行会被「删分支级联删除 / 压缩合并 / 回滚标记 / 失效标记」四条既有路径删除或失效，只引用不复制会让冷重放缺项。
+- `CommitChangeSet` 必须复制**完整的不可变恢复数据**，不能只引用可能被 undo、清理或删分支删除的 change 行。`WorkingTreeState` 只存计数和 revision **不算完成**：必须有可枚举、可重放、按分支隔离的未提交变更单元。
+
+#### 版本化域（tracked / untracked）
+
+**默认全部实体都是 tracked**。判据是「它的净变化必须能由 HEAD + `WorkingTreeEntry` 重放」。untracked 只允许以下三类，**新增第四类必须先改 epic-006 的该节**：
+
+| untracked 对象                            | 为什么不进版本控制                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| QueryCache 同步类型的实体                 | 可从远端重建的缓存，不是用户编辑的结果；混进 commit 会让一次缓存刷新把工作树永久标成 dirty |
+| 实体行上的 `remoteId`、同步水位、审计时间 | 同步机制自身的簿记字段，不表达用户意图；回填它们是对实体行的 UPDATE，但不构成业务净变化    |
+| 插件在业务表上加装的**派生索引列**        | 由数据库 trigger 从 tracked 字段实时算出的冗余投影；列名 MUST 由插件静态声明并登记         |
+
+- untracked 与 tracked **不得混进同一个事务单元**（违反即 `mixed_versioned_cache_transaction` 并回滚整个事务）。
+- untracked 的判定是**按实体类型或字段的静态属性**，不按调用方、意图或时机。同一个实体不得在一条写入口上 tracked、在另一条上 untracked。
+- `origin=remote_sync` **不是** untracked 的一种：它是 tracked 实体的一次净变化，只是作者不是本地用户。
+- 草稿缓存不在本表内——它**根本没进主库**，属于 buffer 层，不需要 untracked 豁免。
+
+#### revision 校验矩阵
+
+分两类，**不可混为一谈**。**调用方捕获型**：调用方在事务开始前读到某个 revision，事务内以它做条件更新，失败即冲突。**事务内读改写型**：事务内读当前值、写业务数据、写 +1，不接收调用方 expected 值，因此**不会因并发而失败**。
+
+| 操作                      | 同一事务必须校验                                                       | 成功后递增                                    |
+| ------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
+| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写            | working-tree revision                         |
+| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写 | 有实体净变化时递增 working-tree revision      |
+| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision         | 有逻辑工作树变化时递增 working-tree revision  |
+| commit                    | active branch token、expected head + working-tree revision             | head、working-tree revision                   |
+| restore                   | active branch token、expected head + working-tree revision             | working-tree revision                         |
+| discard                   | active branch token、expected head + working-tree revision             | working-tree revision                         |
+| switch branch             | expected activation revision、来源/目标分支状态或物化快照              | activation revision                           |
+| create branch             | active branch token、来源 head + working-tree revision                 | 新 ref/state 从 revision 0 开始；来源状态不变 |
+| remove branch             | expected activation revision、目标 ref/state revision、非 active       | 原子删除目标可变状态；revision 不复用         |
+
+**任何语义 no-op 都不递增 revision。** `CommitConflict` 是一次失败命令的**类型化诊断值，不是持久状态**；`status().conflicted` 只允许由仍存在的 durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession`。
+
+#### 写入口语义矩阵
+
+所有会改业务实体表的入口必须在同一数据库事务内落入下表之一；**未知入口默认拒绝**，不能先改业务表再靠事件补记。
+
+| 写入口                                                         | 提交能力启用后的语义                                                                                                   |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 普通 CRUD、显式事务、Workspace 草稿 `save()`                   | 写入/合并本地工作树单元，来源为 `local`，递增 working-tree revision                                                    |
+| `mergeBranch()`、undo/redo、restore/discard                    | 按各自原子边界写入或重算本地工作树；不得绕过 active token 与 revision CAS                                              |
+| `pull()` / autoSync / `pullRepository()` / `sync()` 的实体应用 | 即使关闭 change trigger，也必须写入 `origin=remote_sync` 的单元；不生成可 push 的本地 change                           |
+| 只更新 `remoteId`、同步水位或审计时间                          | **不构成业务实体净变化**：不创建单元、不递增 revision                                                                  |
+| `cleanupExpired()` 的过期删除                                  | 与 `pull` 同类：写入 `origin=remote_sync` 的 DELETE 单元并递增 revision                                                |
+| branch switch、baseline/restore 物化、commit 后的工作树清空    | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                      |
+| metadata-only 目标分支的远端预取                               | 只写 staging 与独立水位，不得更新当前分支同步状态或业务表                                                              |
+| QueryCache 的 upsert/delete/孤儿清理与离线出站重放             | 不进入 baseline、status、diff 或 commit；不能与版本化实体混在同一事务单元中                                            |
+| raw SQL、adapter 直写或其他 trigger bypass                     | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger   |
+| `upsertMany()` / `deleteByIds()` 等 adapter 公开批量写方法     | 同上判定：目标是版本化业务实体表即拒绝，是 QueryCache 实体表即放行。**这两个方法不经 `rawQuery`**，阶段 A 必须显式挂载 |
+| `EntityManager.notifyExternalUpdate()`                         | 对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出没有工作树单元支撑的事件；对 QueryCache 实体行为不变      |
+
+**受信路径登记键固定为「文件 + 符号 + 意图」**，符号取**实际发起该次批量重写的最内层具名函数**，不是委托门面方法，也不是行号。同一文件里语义不同的两个策略分支各占一行；被重载的传输层函数名必须按签名区分（写本地业务投影的重载属于本表，推送到远端的重载不属于）；静态扫描必须排除构建产物目录与测试夹具 / 共享测试套件。写路径必须携带显式意图枚举（内部契约，不进公开 api-baseline），未携带标记的批量重写一律按未知入口拒绝。
+
+#### raw 写路径的 bypass 判定（按目标表 + 目标列 + 受信 intent 豁免）
+
+每次 raw 调用在**语句执行前**按下列顺序判定：
+
+1. 提交能力**未启用** → 原样放行，零行为差异。
+2. 调用携带内部受信 `intent`（非公开参数，仅登记表内的路径可传）→ 放行。
+3. 非写语句 → 放行。
+4. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理。
+5. 其余写目标（全文检索虚拟表与影子表、系统表、查询缓存实体表、临时表），以及第 4 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 revision。
+
+「版本化业务实体表」与「untracked 字段域」两个集合与「版本化域」引用**同一份清单**，**不得另建第二份**。`upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而不是列集，因此对版本化实体一律落第 4 步。解析取保守口径（**fail-closed**）；大小写、引号标识符与 schema 限定在比对前归一化；6 个后端共用**同一份**判定实现，方言差异只体现在词法层。
+
+**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 raw 写路径与 adapter 公开批量写方法**。绕过 adapter 的外部数据库句柄**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。
 
 ## Success Criteria _(mandatory)_
 
+### 性能口径（先立口径，再谈数字）
+
+裸墙钟数字**不可验收**：不指定设备与存储后端（OPFS / IDB / wa-sqlite / PGlite 的差距是数量级）、不定义「用户可见响应」是 promise resolve 还是首次绘制、不给统计口径（p50 / p95 / max），在 CI 机器上做绝对墙钟断言必然抖动。因此本特性采用**双门禁**，下列 SC 全部按此口径判定：
+
+- **基准环境固定**为 Node + PGlite memory；「响应」定义为 **API promise resolve**（操作完成），不把三框架首次绘制混入核心 benchmark。
+- **采样固定** `WARMUP = 5`、`SAMPLES = 50`。每个 sample 前在计时外恢复同一 fixture：**10,000 条实体、100 个 commit**（每个 commit 100 个完整变更单元），当前工作树 **100 个未提交单元**。fixture 内容与 hash 必须写入 JSON，**禁止只固定总行数**。
+- **环境指纹**：benchmark JSON 必须记录运行时版本、OS、CPU 型号、逻辑核数、内存、runner ID 与并发度并计算 `runnerProfileHash`；profile 不匹配 reference 时返回 `benchmark_environment_mismatch`，**不得伪装成性能回归**。
+- **相对门禁（普通 PR CI 的唯一硬门禁）**：每项 control CRUD 使用相同实体数量和事务边界，比较「被测操作 p95 / 同次 control CRUD p95」。首个绿色实现先归档 reference commit 的 **10 次独立运行**并冻结各项 median ratio；候选版本不得超过该 ratio 的 **110%**。reference JSON 与阈值必须**先于**发布候选签入，不能在失败后重算基线。
+- **绝对门禁（仅发布）**：只在与 reference `runnerProfileHash` 相同的固定性能 runner 上作为硬门禁。
+
 ### Measurable Outcomes
 
-- **SC-001**: 在任意一个 v1 承诺后端上，用户完成"编辑 → 暂存 → 刷新/重启 → 提交"全流程后，工作树数据、暂存选择、变更顺序与事务边界与刷新前 **100% 逐字段一致**；崩溃恢复 fixture 中出现半个提交、半个事务或半成品缓存区的次数为 **0**。
-- **SC-002**: 任意分支在任意时刻的业务数据都能仅凭该分支 HEAD 与其持久化未提交单元完整重放；冷重放比对失败数为 **0**。
-- **SC-003**: 两套具名跨后端一致性套件在 **6 个** v1 承诺后端上全部通过；任一后端缺席或存在已知非确定性失败即判定未完成。
-- **SC-004**: 覆盖全部写入口（普通增删改、合并、撤销/重做、四类同步入口、过期清理、查询缓存排除、原生绕过拒绝）的一致性用例通过率 **100%**；未在意图登记表中登记的批量重写调用点数量为 **0**（静态扫描以"文件 + 符号 + 意图"为键，区分同名重载并排除构建产物目录）。
-- **SC-005**: 两个运行实例并发竞争同一分支时，成功者恰好 **1** 个，失败方获得含 expected/actual 版本号的可操作诊断，静默覆盖另一方修改的次数为 **0**。
-- **SC-006**: 任意一次成功的暂存，在空投影上仅凭当前 HEAD 与缓存区条目重放的成功率为 **100%**；依赖闭包 fixture（同实体链、多实体事务、跨事务父子、删除逆序、关系键更新、关系环）全部通过。
-- **SC-007**: 所有语义无操作场景（空事务、未变化重复暂存、clean 重复丢弃、内容相同的恢复）的版本号递增次数为 **0**。
-- **SC-008**: 未启用该能力的数据库在启动与日常读写后，新增系统表数量为 **0**、行为差异为 **0**；已启用数据库上，未声明能力或协议不匹配的写入方造成的业务数据变化为 **0**。
-- **SC-009**: 支持字段加密的后端上，扫描提交、变更集、基线、工作树条目、缓存区条目与恢复会话的原始持久化转储，明文哨兵命中数为 **0**；错误、摘要与基准报告中的明文命中数同样为 **0**。
-- **SC-010**: 在 Angular、React、Vue 三端跑同一 fixture，返回键、状态转换、依赖闭包、提交摘要与错误码的一致率为 **100%**；跨框架对称门禁在任一端缺失时判定整体失败。
-- **SC-011**: 面向用户的工作树界面在三端通过 WCAG 2.1 AA 键盘可达性、可见焦点与状态公告检查，阻断级问题数为 **0**。
-- **SC-012**: 工作树性能基准在普通 CI 上的归一化比值不超过已签入参考中位数的 **110%**；在运行环境指纹匹配参考的固定 runner 上，状态、完整差异、批量暂存 50 单元的 p95 不高于 **100 ms**，恢复含 100 个变更单元的上一提交的 p95 不高于 **1 s**。环境不匹配时产出环境不匹配结论的比例为 **100%**（不得产出绿色发布结论）。
-- **SC-013**: 历史恢复的全部拒绝路径（dirty、不可达、跨库、目标不兼容、路径中间节点不兼容、初次恢复条件更新失败）在拒绝后的持久状态变化量为 **0**，且不遗留任何会话。
-- **SC-014**: 分支往返（A dirty+staged → B dirty+staged → A → B）后每个分支的数据、缓存区与版本号恢复一致率为 **100%**；不带选项的既有切换分支调用的行为差异为 **0**，既有文档示例与 demo 无需修改即可通过。
-- **SC-015**: 仅有元数据的远端分支首次物化在网络失败、配额不足、范围漂移、分页崩溃场景下，当前业务投影/激活标记/同步水位/提交图的变化量为 **0**，且暂存可续传或按尝试标识清理成功率为 **100%**。
-
-## 范围边界
-
-### 明确不做（非目标）
-
-- 远程提交推送/拉取、认证、签名与多人协作权限
-- rebase、cherry-pick、交互式 rebase 与任意历史改写
-- 字段级或代码行级的部分暂存（v1 粒度固定为"实体操作或完整事务"）
-- 自动 stash、stash pop 与跨分支携带脏工作树
-- 自动合并冲突的最终解决界面（只要求检测并阻止静默覆盖）
-- 基于时间或大小的提交自动清理策略
-- 改变既有切换分支入口的默认行为
-- 显式的历史修复/修补工具（损坏时只做隔离、诊断与 fail-closed）
-- 跨 schema / 编解码版本的补丁转换
-
-### 交付顺序（依赖约束）
-
-固定顺序为 **US1 → US2 → US3 → US4 →（US5 ∥ US6）**。US5 与 US6 相互独立可并行，但它们的**跨框架入口与基准追加**必须排在 US4 冻结扩展点协议之后；其核心持久层语义可与 US4 并行开工。跨实例正确性完全由本特性自己的版本号条件更新承担，不依赖任何外部的写入方协调协议。
+- **SC-001**：在固定基准环境与 fixture 下，完整 status 摘要的归一化 ratio 不超过冻结 reference median 的 110%；在 profile 匹配的固定性能 runner 上，其 p95 不高于 **100 ms**。
+- **SC-002**：无 scope 的完整 `HEAD ↔ 工作树` diff 满足与 SC-001 相同的两道门禁（相对 110%，绝对 p95 ≤ **100 ms**）。
+- **SC-003**：一次提交 100 个单元的 commit 通过相对门禁（≤ reference median ratio 的 110%）；其**绝对预算由首个绿色实现的 reference 中位数冻结并与相对门禁同批签入**，**不套用 status / diff 的 100 ms**——它要把 100 个单元整体落盘并清空工作树，与只读摘要的操作量级不同。
+- **SC-004**：从 clean HEAD 恢复含 100 个完整变更单元的 `HEAD~1` 通过相对门禁；在 profile 匹配的固定性能 runner 上，promise resolve 的 p95 不高于 **1 s**。
+- **SC-005**：浏览器 OPFS / IDB **不承诺**相同绝对数字，但三端 E2E 必须记录**首次可见状态耗时**，防止核心 promise 很快而 UI 长时间无反馈。
+- **SC-006**：**6 个 v1 后端**（PGlite、wa-sqlite、sqlite-wasm、sqlite、sqliteai 四个 SQLite 浏览器适配器，以及 Electron `node:sqlite` host）的 `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` **双双全绿**。
+- **SC-007**：崩溃与刷新恢复 fixture 全绿——**不出现**半个 commit、半个事务或半清空的工作树。
+- **SC-008**：跨 realm fixture 覆盖 switch 与旧实体 CRUD 竞争、启用/未启用 writer 混用、HEAD / working-tree CAS，并**必须包含一条「另一个 Tab 在 status 与 commit 之间 `save()`」的用例**，断言返回 `CommitConflict` 而非静默提交。
+- **SC-009**：写入口 conformance 覆盖普通 CRUD、merge、undo/redo、full/filter pull / autoSync / repository sync / bulkSync、`cleanupExpired()` 过期删除、QueryCache 排除与 raw bypass 拒绝；**任何业务表净变化都能由 HEAD + `WorkingTreeEntry` 重放**。
+- **SC-010**：意图标记登记表与代码实际调用点**一致**：存在未登记的分支物化调用点、未登记的**本地重载**批量合并调用点（两种接收者、`disableTriggers` 真假**都算**）、未登记的 `upsertMany` / `deleteByIds` 调用点即门禁失败。漂移扫描 MUST 能报出「调用 `upsertMany` 但目标实体不是 QueryCache」的新增调用点。
+- **SC-011**：支持字段加密的后端，其 commit / working-tree / restore 持久化 dump 的**明文哨兵零命中**。
+- **SC-012**：active 分支基数、metadata-only 远端分支首次物化和完整 restore 路径预检 fixture 全绿。
+- **SC-013**：损坏隔离 fixture 全绿——孤立损坏可单独隔离且其他分支照常可用；HEAD 或可达祖先损坏时该分支进入 `corrupted_read_only`，`commit()` / `restore()` / switch-to **三条入口各自**返回 `commit_graph_corrupted` 且不改指针、不删记录。
+- **SC-014**：命名门禁全绿——核心共享契约的新增导出全部使用 `Commit*` / `WorkingTree*` 前缀且**无 `Index*` 新导出**；三个框架包无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`；`useWorkingTree()` 按框架侧**负向**规则合规。
+- **SC-015**：公开文档说明**六项**：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、加密边界、不改写历史的承诺，并**明示远端同步会产生 `origin=remote_sync` 的未提交变化**。
+- **SC-016**：四条故事全部 Done（US-306 的阶段 A / B / C 全部关闭），交付阶段与边界表逐条有归属，跨故事的半边以收口故事的场景为准。
+- **SC-017**：`bridge.tag` 指向一个满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 的**真实** tag，`bridge.version` **严格新于** `LAST_INELIGIBLE_BRIDGE_VERSION`，且 bridge tag 上的版本常量与升级位吻合。判据**已实现并有单测，不得重写脚本**；本特性只在真实 tag 与真实清单上复验。
 
 ## Assumptions
 
-- **"用户"是使用本库的应用开发者**，以及经由三端演示界面操作工作树的最终用户；两类用户的验收场景都已在上文区分（核心底座无界面）。
-- **v1 承诺 6 个本地后端**：PGlite、四个浏览器 SQLite 适配器与 Electron 进程内 SQLite host。入矩阵判据是**宿主能力**（共享套件全绿且无已知非确定性失败），不是其所属故事的状态。Tauri 的进程外 Rust host 因存在已知事件时序抖动且缺跨进程重启覆盖，**v1 暂不承诺**；实验性小程序适配器不承诺崩溃恢复，也不在矩阵内。
-- **主库是唯一一致性边界**：提交、工作树元数据与缓存区都在 SQL/PGlite 主库事务内；草稿缓存留在独立存储，不参与系统 schema 事务。
-- **启用是显式、数据库级且单向的**：从未启用的数据库零副作用；具体配置名在计划阶段冻结。
-- **本地变更单元的存储载体可协商**：工作树条目是逻辑契约，计划阶段可证明复用既有变更表或不可变派生表满足同一契约；但只存计数与版本号不算满足，且提交与缓存区必须复制完整不可变恢复数据。
-- **物理表名、内部 DTO 字段布局、意图枚举名与提交标识生成方式在计划阶段冻结**，本规格只约束语义与不变量。
-- **基准环境固定为 Node + 内存 PGlite**，"响应完成"定义为操作的 promise resolve，不把三端首次绘制混入核心基准；浏览器 OPFS/IDB 不承诺相同绝对数字，其首次可见状态耗时由三端 E2E 单独记录。
-- **远端数据进入工作树不等于远程提交同步**：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端提交节点。
-- **作者标识由调用方提供**，不得从空值、设备名或写入方标识伪造；时间取数据库时钟，不信任本地时钟。
-- 覆盖率、TDD 红→绿顺序、零 ESLint 警告、TSDoc 齐全与跨框架对称等仓库级铁律默认适用，本规格不重述。
+- **提交能力是数据库级、单向的显式启用**。从未启用的数据库零副作用、零行为差异；具体配置名在 plan 阶段冻结。
+- **SQL / PGlite 主库是 commit 与工作树元数据的唯一一致性边界**。Workspace 插件的 NEW 草稿仍留在独立 IndexedDB 中，不参与系统 schema 事务，也不进入 baseline commit；草稿 `save()` 落入主表后才作为普通 INSERT 进入工作树。
+- **v1 支持矩阵是 6 个后端**。入矩阵的判据是**宿主能力**（已在既有跨后端共享套件上全绿，且没有已知的非确定性失败），不是它所属 story 的 status。
+- **Tauri 的 Rust host 是第 7 个后端，v1 暂不承诺**：它在 stdio 测试宿主上存在可复现的非确定性失败（CPU 争抢下随机挂 1–4 条，全落在「改完立刻读到旧值」同一族），属跨进程管道的调度时序特征。该族 flake 收敛后按同一套件补入矩阵，不在本特性内夹带。实验性的 miniprogram 适配器不承诺崩溃恢复，也不在矩阵内。
+- **v1 变更单元粒度是「实体操作或完整事务」**。同一事务不能被拆到不同 commit；字段级、代码行级粒度属于后续扩展。
+- **既有 `mergeBranch()` 不自动创建双父 commit**：它只把合并结果写成目标分支的普通工作树变更；用户随后提交时仍以目标分支原 HEAD 为唯一父节点。
+- **跨后端 conformance 拆成两套具名套件**，各有唯一归属故事：捕获套件归 US-306 阶段 A，提交套件归 US-306 阶段 B；US-305 的 commit 图/迁移断言**并入提交套件**，不另起第三个套件名。
+- **v1 不提供 auto-baseline**（同步后自动把远端变化并入 HEAD）——它会引入「谁在什么时刻替用户提交了什么」的隐式历史，与「不伪造远端作者」和「不改写历史」两条承诺冲突。
+- **本特性不扩大相邻 epic 的门禁覆盖面**：命名门禁与「不复活旧导出」只约束本特性新增的导出；host 本身的正确性、打包与 flake 收敛归适配器故事；不引入新的 scope 原语。
+- **数据库 trigger fail-closed 留作后续故事**：它是唯一能拦住外部句柄的方案，但受信标记的载体在 6 个后端不统一，且每张版本化表要挂 3 个 trigger，不在本特性范围内。
 
-## Traceability
+## 非目标
 
-| 本规格用户故事 | 来源故事                             | 主要 FR 段落    |
-| -------------- | ------------------------------------ | --------------- |
-| US1            | US-305 提交图与 HEAD 持久化          | A（FR-001–017） |
-| US2            | US-306 阶段 A 工作树写入捕获与持久化 | B（FR-018–025） |
-| US3            | US-306 阶段 B 缓存区与提交状态机     | C（FR-026–036） |
-| US4            | US-306 阶段 C 三框架交互面与性能门禁 | D（FR-037–041） |
-| US5            | US-307 历史恢复会话                  | E（FR-042–047） |
-| US6            | US-308 分支隔离与跨 realm 冲突       | F（FR-048–053） |
-| 全部           | epic-006 横切约束与发布门禁          | G（FR-054–058） |
+照抄 epic-006「非目标」全部条目：
 
-来源文档：[epic-006 本地工作树与提交历史](../../requirements/epics/epic-006-working-tree-commits.md)（术语表、状态模型、写入口语义矩阵、revision 校验矩阵、发布门禁的唯一真相源）。本规格是它的规格化承接，不改变其任何口径；两者冲突时以 epic 为准并同步修订本文件。
+- 远程 commit push/pull、认证、签名与多人协作权限
+- rebase、cherry-pick、interactive rebase 与任意历史改写
+- 自动 stash、stash pop 与跨分支携带脏工作树
+- 自动合并冲突的最终解决 UI（只要求**检测并阻止静默覆盖**）
+- 基于时间或大小的 commit 自动清理策略
+- 改变 `VersionManager.switchBranch()` 的现有默认行为
+- **未提交变更对查询不可见**的长事务 / 预览语义（已裁决）：`save()` 后数据立即对全部查询生效，commit 只是存档打点。「未提交的东西攒够了再一起生效」需要读时按 HEAD 过滤或影子表，是数量级的成本上升且会波及全部既有查询路径。它在 Git 里的对照物不是 commit，而是「在分支上工作」，应走分支而非 commit
+- **detached HEAD、`checkout` 到历史 commit 与只读历史浏览**（已裁决）：v1 只提供 US-307 的 **restore**——把旧版本内容作为**新的未提交变更**写回当前工作树，不移动 HEAD、不改写历史。「切过去看一眼再切回来」需要先解禁「自动 stash / 跨分支携带脏工作树」，两条一起解才有意义
+- **暂存区（index / staging area）与任何形式的选择性提交**（已裁决）：v1 没有 stage / unstage，`commit(message)` 只能提交当前分支工作树的**全部**未提交变更，没有子集、没有字段级或行级部分暂存。隔离一条工作线的唯一手段是**分支**。理由是 RxDB 已有的分支能力覆盖了绝大多数「先隔离再决定」的场景，而暂存区要额外背上依赖闭包与环检测、staged snapshot 冻结、commit 后的 residual rebase、`HEAD ↔ index` 第二条 diff 轴以及第三个 revision——这些复杂度全部为「一次只提交一部分」这一个能力服务，性价比不成立。**已知代价**：commit 因此对并发编辑敏感，另一个 Tab 在 status 与 commit 之间 `save()` 会让本次 commit 返回 `CommitConflict`。这条代价是被接受的，**不构成重新引入暂存区的理由**
+
+> 上面三条是**显式裁决，不是遗漏**。它们直接对应三个反复被提起的直觉——「commit 应该像事务提交一样让一批变更一起生效」「应该能像 `git checkout` 一样切到历史版本」和「应该能只提交改动的一部分」。答案分别是「那是分支，不是 commit」「那是 restore，不是 checkout」和「那是分支，不是暂存区」；**要改结论必须先改 epic-006 的「非目标」一节**，不能靠在某条 story 或本规格里追加条目悄悄扩范围。

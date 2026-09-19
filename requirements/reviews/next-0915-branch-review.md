@@ -15,13 +15,13 @@
 14 个 sync 入口、`resolve-current-branch`、被删测试的全部用例都在新包中重建；所有 import 路径
 解析通过、无循环包依赖、无残留的旧导出消费者；新包 lint 零警告。
 
-| 级别 | 遗留问题                                          | 影响                                              | 不动的理由                            |
-| ---- | ------------------------------------------------- | ------------------------------------------------- | ------------------------------------- |
-| P2   | `fillInstant` 模块级共享状态可重入                | 非标配置下 `createdAt !== updatedAt` 不变量被破坏 | PLAUSIBLE，触发路径需非标默认值配置   |
-| P2   | querycache `export *` 冻结 10 个零消费实现符号    | 内部重构需走破坏性变更周期，纯未来税              | 导出策略取舍，应与 1.0 冻结范围一起定 |
-| P2   | 两个 QueryCache 缺插件错误工厂逐字节重复          | 诊断信息只改一半即过期                            | 收益边际，两处各两个内部调用点        |
-| P2   | 三个新包逐字节复制 14 个测试 fixture              | 核心契约变更时副本静默腐化                        | 需独立的 `rxdb-test` 抽取重构         |
-| P2   | 文档门禁源码自检靠正则，`static`/修饰符前缀即失明 | 门禁静默漏检或误报红 CI                           | 当下并未失明，属未来形态，见 §5       |
+| 级别 | 遗留问题                                            | 影响                                              | 不动的理由                            |
+| ---- | --------------------------------------------------- | ------------------------------------------------- | ------------------------------------- |
+| P2   | `fillInstant` 模块级共享状态可重入                  | 非标配置下 `createdAt !== updatedAt` 不变量被破坏 | PLAUSIBLE，触发路径需非标默认值配置   |
+| P2   | querycache `export *` 冻结 10 个零消费实现符号      | 内部重构需走破坏性变更周期，纯未来税              | 导出策略取舍，应与 1.0 冻结范围一起定 |
+| P2   | 两个 QueryCache 缺插件错误工厂逐字节重复            | 诊断信息只改一半即过期                            | 收益边际，两处各两个内部调用点        |
+| P2   | 多个新包复制测试 fixture（逐字节相同者已降到 2 份） | 核心契约变更时副本静默腐化                        | 需独立的 `rxdb-test` 抽取重构         |
+| P2   | 文档门禁源码自检靠正则，`static`/修饰符前缀即失明   | 门禁静默漏检或误报红 CI                           | 当下并未失明，属未来形态，见 §5       |
 
 ## 遗留债务明细
 
@@ -53,13 +53,16 @@ factory/primary/sync-memo/engine 的全部实现符号（`createQueryCachePrimar
 `missingQueryCacheEngineError` 仅差包名与提示词；引擎侧注释自己承认「分开写两份，迟早会有一份
 不提包名」。各有两个内部调用点、均非公开 API，应收敛为 `RxDBError.ts` 中一个参数化工厂。
 
-### 4. P2：三个新包逐字节复制 14 个测试 fixture
+### 4. P2：多个新包复制测试 fixture
 
-`test-entities.ts`（92 行）、`transaction-executor-stub.ts`（72 行）、`private-symbols.ts`（17
-行）、`reachability.ts`（24 行）等在 sync/history/querycache 间逐字节相同（`diff` 为 0），
-`test-db-setup.ts` 两个副本与核心 fixture 约九成相同。这些 fixture 探测核心私有符号，核心
-契约变更时需在 2-3 处同步更新，漏一处即静默腐化。`packages/rxdb-test` 已存在且目的就是共享
-fixture；`test-db-setup` 的分叉至少在文件内注明是有意的，逐字节相同的四个没有任何说明。
+`test-entities.ts`、`transaction-executor-stub.ts`、`private-symbols.ts`、`reachability.ts` 等
+fixture 逐字节复制于插件包之间（2026-09-18 复核：逐字节相同的 fixture 已从 3 份降到 2 份——
+`test-entities.ts` / `transaction-executor-stub.ts` 在 sync/history 间相同，`private-symbols.ts` /
+`reachability.ts` 在 sync/querycache 间相同，另有 `fake-table-ref.ts` 在 sync/history 间相同；
+querycache 已不再持有 test-entities / transaction-executor-stub）。`test-db-setup.ts` 现有 4 份
+互不相同（core / sync / history / working-tree）。这些 fixture 探测核心私有符号，核心契约变更时
+需在多处同步更新，漏一处即静默腐化。`packages/rxdb-test` 已存在且目的就是共享 fixture，但上述
+fixture 均未下沉到它；`test-db-setup` 的分叉至少在文件内注明是有意的，逐字节相同的几份没有任何说明。
 
 ### 5. P2：文档门禁源码自检靠正则，`static`/修饰符前缀即失明
 

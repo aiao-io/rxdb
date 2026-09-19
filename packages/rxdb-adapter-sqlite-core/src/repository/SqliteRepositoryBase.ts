@@ -70,7 +70,20 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     return transaction_sqlite_result<T>(this.adapter, this.EntityType, sqliteSuccessResult, forcedUpdate);
   }
 
-  private mergeQueryCache(sqliteSuccessResult: SqliteSuccessResult): Promise<InstanceType<T>[]> {
+  /**
+   * 把结果行合进身份映射：干净实体整行刷新，脏实体逐字段避让未保存的编辑。
+   *
+   * @param sqliteSuccessResult - 一次 SELECT 的结果集
+   * @returns 结果行对应的实体（命中缓存的返回同一引用）
+   *
+   * @remarks
+   * 与 {@link addQueryCache} 的分工是「读」与「写」：写路径（`create` / `update`）知道自己
+   * 刚刚写了什么，用 `forcedUpdate` 整行盖回去是对的；读路径拿到的是**别人**写的行，可能
+   * 落在一个用户正在编辑的实体上，只能用 `state.modified ? mergeExternal : replace`
+   * 这一对策略——这正是 `entity-status.ts#applyExternal` 的语义，它把「查询结果回填」
+   * 明确列为必须分流的三条路径之一。
+   */
+  protected mergeQueryCache(sqliteSuccessResult: SqliteSuccessResult): Promise<InstanceType<T>[]> {
     return transaction_sqlite_result<T>(this.adapter, this.EntityType, sqliteSuccessResult, false, false, true);
   }
 }

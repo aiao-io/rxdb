@@ -1,4 +1,5 @@
 import {
+  declareTrustedWrite,
   ENTITY_LOCAL_CREATE_EVENT,
   EntityLocalCreatedEvent,
   EntityType,
@@ -20,7 +21,10 @@ import {
   SwitchBranchRollbackEvent,
   TRANSACTION_BEGIN,
   TRANSACTION_COMMIT,
-  TRANSACTION_ROLLBACK
+  TRANSACTION_ROLLBACK,
+  TrustedWriteIntent,
+  type RxDBAdapterLocalBase,
+  type RxDBBranchSwitchPreconditions
 } from '@aiao/rxdb';
 import { create_branch } from './create-branch.js';
 import { isIgnorableDetachedVersionEventError } from './detached-event-error.js';
@@ -256,12 +260,21 @@ export class VersionManager {
    * 切换到指定分支
    *
    * @param branchId - 目标分支 ID
+   * @param preconditions - 【可选】切换前要成立的条件；不传时行为与以往逐字节一致
    *
    * @remarks
    * 切换分支后会自动清空 redo 栈，因为 redo 历史在新分支中不再有效。
    * 如果目标分支与当前分支相同，则直接返回，避免不必要的操作。
+   *
+   * 第二形参是**纯扩展**：既有调用点一个都不用改，不传即不表态。做成默认开启的话，
+   * `switchBranch(id)` 会在任何有未提交改动的库上开始抛错——而历史子系统自己就在调它
+   * （undo/redo 回放、redo 失效），那些路径上工作树恒非空，默认开启等于让 undo 在有改动时不可用。
+   *
+   * 条件由**能力插件**校验，本方法一个字段都不读：判据是
+   * `@aiao/rxdb-plugin-working-tree` 贡献的那几张表，这里既不认识也不该认识它们。
+   * 反方向（本包 import 那个插件）是条依赖环，nx 的图插件会把 `run-many` 当场拒掉。
    */
-  async switchBranch(branchId: string): Promise<void> {
+  async switchBranch(branchId: string, preconditions?: RxDBBranchSwitchPreconditions): Promise<void> {
     const currentBranch = await this.getCurrentBranch();
     // 若切换到相同分支则直接返回，避免不必要操作
     if (currentBranch?.id === branchId) {
@@ -271,7 +284,16 @@ export class VersionManager {
     try {
       this.rxdb.dispatchEvent(new SwitchBranchBeginEvent(branchId));
       const { adapter } = await this.getLocalRepositories();
+      await this.#assert_branch_switchable(adapter, currentBranch?.id ?? null, branchId, preconditions);
       const actions = await switch_branch_actions(this, branchId);
+      // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
+      // 不声明的话挂载点只看见「有人在调 switchBranch」，与 undo/redo（行 6，必须产生单元）
+      // 完全同形，切一次分支就会把整批物化写记成一批未提交变更。
+      declareTrustedWrite(adapter, {
+        file: 'VersionManager.ts',
+        symbol: 'switchBranch',
+        intent: TrustedWriteIntent.branch_materialization
+      });
       const result = await adapter.switchBranch({
         branchId: branchId,
         actions
@@ -438,6 +460,47 @@ export class VersionManager {
    */
   async getCurrentBranch() {
     return getCurrentBranch(this.rxdb);
+  }
+
+  /**
+   * 逐个问贡献方：这次切换能不能发生。
+   *
+   * @param adapter - 本地适配器
+   * @param currentBranchId - 当前分支 id；一条 active 分支都没有时为 `null`
+   * @param targetBranchId - 要切过去的分支 id
+   * @param preconditions - 调用方提出的条件；没提出时是 `undefined`
+   *
+   * @remarks
+   * **每一次真正发生的切换上都跑，与调用方提没提条件无关。** 目标分支的提交图可达损坏
+   * 与有没有 `preconditions` 无关（SC-013：三条入口各自返回 `commit_graph_corrupted`）；
+   * 只在带选项时跑的话，日常那条不带选项的切换会一路切进一份重放不出来的历史。
+   *
+   * 「真正发生」是字面意思：A→A 的调用在 {@link VersionManager.switchBranch} 里就早返回了
+   * （同文件上方的 `currentBranch?.id === branchId`），根本走不到这里。那条路径上没有要防的
+   * 东西——分支没换，目标分支的历史也没有被重放，工作树连一行都不会动。把早返回去掉好让
+   * 守卫「真的无条件」是反向的：切到当前分支会因为它自己的历史损坏而失败，而这次切换
+   * 本来什么都不做。
+   *
+   * 排在 `switch_branch_actions()` **之前**：那一步要把目标分支的变更链算成一批重放指令，
+   * 在一条已知损坏的链上算出来的东西没有意义，而算完再拒只是白算一遍。
+   *
+   * `transactionLog` 传 `false`——这个事务一行都不写。串行而非 `Promise.all`：`executor`
+   * 是并发度为 1 的队列，并行发起只会让读取顺序取决于各贡献方内部 await 的排布。
+   */
+  async #assert_branch_switchable(
+    adapter: RxDBAdapterLocalBase,
+    currentBranchId: string | null,
+    targetBranchId: string,
+    preconditions: RxDBBranchSwitchPreconditions | undefined
+  ): Promise<void> {
+    const contributions = this.rxdb.systemContributions;
+    // 一个贡献方都没有时连事务都不开：没装能力插件的库上，这条扩展必须是零成本的。
+    if (contributions.length === 0) return;
+    await adapter.transaction(async executor => {
+      for (const contribution of contributions) {
+        await contribution.assertBranchSwitchable({ executor, currentBranchId, targetBranchId, preconditions });
+      }
+    }, false);
   }
 
   #runDetachedEventTask(task: Promise<void>, label: string) {

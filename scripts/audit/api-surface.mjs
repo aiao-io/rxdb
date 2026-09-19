@@ -264,6 +264,86 @@ function diffEntries(previous, current) {
   return { removedEntries, addedEntries, perEntry };
 }
 
+/**
+ * SC-014 的可执行形式：`contracts/core-api.md` §0 那张表逐行搬到这里。
+ *
+ * 那张表的「门禁宿主」一栏指着本脚本，而基线 diff 只回答「增没增」，从不回答「增的这个
+ * 叫什么」——命名规则因此一直只是文档里的一句话。下面是它缺的那一半。
+ *
+ * **正向规则（核心新增导出的前缀）读 diff，反向规则（禁用词）读当前全集。** 这不是不一致：
+ * 反向规则若也读 diff，失效路径是现成的——新增 `IndexHint` → 门禁红 → 有人跑 `--update` →
+ * 它进了基线 → `added` 空了 → 规则从此永远绿，而那个名字还在表面上。正向规则没有这条路可走
+ * （「哪些名字属于本特性」在全集里读不出来），代价写在明处：它只在名字**第一次出现**的那次
+ * 运行里有效。
+ */
+const NAMING = {
+  /** 适用范围「`packages/rxdb` 核心共享契约」= 这一个包 */
+  corePackage: 'rxdb',
+  /** 核心新增导出允许的前缀 */
+  corePrefixes: ['Commit', 'WorkingTree'],
+  /**
+   * 前缀规则的**逐名**例外，不是放宽前缀。
+   *
+   * 这三个是插件系统的扩展点上下文，与它们早已在基线里的同族 `RxDBBranchCreationContext`
+   * 逐字同形；改叫 `WorkingTree*` 会让核心的插件系统看起来认识工作树，而它恰恰不认识
+   * （`RxDBBranchSwitchPreconditions` 的 TSDoc 把这条「核心搬运、插件解释」的分工写死了）。
+   * 用户侧那个 `WorkingTree*` 的名字在能力插件里：`WorkingTreeSwitchBranchOptions` 是本别名
+   * 的再导出。
+   *
+   * 列成名单而不是加一条 `RxDBBranch` 前缀：加前缀之后第四个同族名字会静默通过，而这份名单
+   * 逼着下一个人把理由重讲一遍。
+   */
+  corePrefixExceptions: ['RxDBBranchRemovalContext', 'RxDBBranchSwitchContext', 'RxDBBranchSwitchPreconditions'],
+  /** 全部包都不许有的新前缀 */
+  bannedPrefixes: ['Index', 'Workspace'],
+  /** 全部包都不许有的名字：复用旧选项类型、复活 staging 词汇 */
+  bannedNames: ['SwitchBranchOptions', 'stagedChange', 'unstageChange', 'stagedCount'],
+  /**
+   * 本特性之前就在基线里的那几个，逐名放行。
+   *
+   * 少了这份名单，门禁从第一次运行起就是红的——而一条恒红的门禁与没有门禁是同一件事。
+   * 名单是封闭的：这里不接受新增。
+   */
+  grandfathered: {
+    rxdb: ['SwitchBranchOptions'],
+    'rxdb-plugin-workspace': [
+      'WorkspaceCacheEntry',
+      'WorkspaceCacheId',
+      'WorkspaceCorruptedEntry',
+      'WorkspaceFlushError'
+    ]
+  }
+};
+
+/**
+ * 按 `contracts/core-api.md` §0 判一个包的导出命名。
+ *
+ * @param {{ pkg: string, currentNames: readonly string[], addedNames: readonly string[] }} input
+ *   `currentNames` 是该包当前全部入口的导出名（去重后），`addedNames` 是相对基线新增的那些。
+ * @returns {string[]} 违规说明，每条一个名字；合规时为空数组
+ */
+export function auditNaming({ pkg, currentNames, addedNames }) {
+  const grandfathered = new Set(NAMING.grandfathered[pkg] ?? []);
+  const problems = [];
+
+  if (pkg === NAMING.corePackage) {
+    for (const name of addedNames) {
+      if (NAMING.corePrefixes.some(prefix => name.startsWith(prefix))) continue;
+      if (NAMING.corePrefixExceptions.includes(name)) continue;
+      problems.push(`核心新增导出 ${name} 不是 ${NAMING.corePrefixes.map(p => `${p}*`).join(' / ')} 前缀`);
+    }
+  }
+
+  for (const name of new Set(currentNames)) {
+    if (grandfathered.has(name)) continue;
+    const prefix = NAMING.bannedPrefixes.find(candidate => name.startsWith(candidate));
+    if (prefix !== undefined) problems.push(`${name} 用了禁用前缀 ${prefix}*`);
+    else if (NAMING.bannedNames.includes(name)) problems.push(`${name} 是禁用名（旧选项类型 / staging 词汇）`);
+  }
+
+  return problems;
+}
+
 /** CLI 主流程：枚举包 → 提取表面 → 与基线比对（或重写基线）。 */
 function main() {
   const packages = listPublicPackages();
@@ -292,6 +372,7 @@ function main() {
     process.exit(1);
   }
 
+  let naming = 0; // 命名违规（SC-014 / core-api.md §0）—— 改名，不是更新基线
   let breaking = 0; // 入口移除 / 符号 removed / 种类 changed —— 需迁移说明
   let drift = 0; // 仅新增入口或新增符号 —— 更新基线即可
   let errors = 0; // 解析失败 / 缺基线
@@ -347,6 +428,21 @@ function main() {
     }
 
     const { removedEntries, addedEntries, perEntry } = diffEntries(baseline, current);
+    // 命名门禁独立于「破坏性 / 漂移」那条轴：一个名字既可以只是新增（漂移）又同时犯规，
+    // 而两者的处置相反——漂移跑 `--update` 就完了，犯规必须改名。合成一条的话，`--update`
+    // 会把犯规的名字直接写进基线，从此再也不红。
+    const namingProblems = auditNaming({
+      pkg,
+      currentNames: Object.values(current).flatMap(list => list.map(e => e.name)),
+      addedNames: perEntry
+        .flatMap(d => d.added)
+        .concat(addedEntries.flatMap(subpath => current[subpath].map(e => e.name)))
+    });
+    if (namingProblems.length > 0) {
+      naming++;
+      console.log(`❌ ${pkg}: 命名违规（core-api.md §0）`);
+      for (const problem of namingProblems) console.log(`   ${problem}`);
+    }
     const hasBreaking = removedEntries.length > 0 || perEntry.some(d => d.removed.length > 0 || d.changed.length > 0);
     const hasDrift = addedEntries.length > 0 || perEntry.some(d => d.added.length > 0);
 
@@ -380,9 +476,15 @@ function main() {
     process.exit(0);
   }
 
-  if (breaking + drift + errors > 0) {
+  if (naming + breaking + drift + errors > 0) {
     console.log('');
     if (errors > 0) console.log(`📋 ${errors} 处解析失败 / 缺少基线文件 / 基线格式过期，请先排查 / 运行 --update。`);
+    if (naming > 0) {
+      console.log(
+        `📋 ${naming} 个包存在命名违规（SC-014 / contracts/core-api.md §0）：` +
+          `**改名**，不要跑 \`--update\`——更新基线只会把这个名字变成既成事实。`
+      );
+    }
     if (breaking > 0) {
       console.log(
         `📋 ${breaking} 个包存在破坏性变化（入口或符号移除 / 种类变化）：更新基线之外，` +
@@ -398,7 +500,7 @@ function main() {
   }
 
   console.log(
-    `\n✅ 全部 ${packages.length} 个公开包、${scannedEntries} 个公开入口的 API 表面与基线一致` +
+    `\n✅ 全部 ${packages.length} 个公开包、${scannedEntries} 个公开入口的 API 表面与基线一致、命名合规` +
       `（另跳过 ${skippedAssetEntries} 个无导出表面的资产入口）。`
   );
 }

@@ -3,6 +3,7 @@ import {
   EntityBase,
   EntityMetadata,
   EntityPropertyMetadata,
+  EntityRelationMetadata,
   getEntityMetadata,
   PropertyType
 } from '@aiao/rxdb';
@@ -20,7 +21,7 @@ import {
   getTableColumnIndexName,
   getTableNameByMetadata,
   normalizeCreateEntity,
-  normalizeEntity,
+  normalizeUpdateEntity,
   RxdbAdapterPGliteError,
   rxDBColumnTypeToPGliteType,
   rxDBColumnTypeToPGliteTypeIndexName,
@@ -313,18 +314,40 @@ describe('pglite.utils', () => {
     });
   });
 
-  describe('normalizeEntity', () => {
+  describe('normalizeUpdateEntity', () => {
     it('should filter out readonly fields', async () => {
       const propertyMap = new Map([
         ['title', { name: 'title', columnName: 'title', readonly: false } as EntityPropertyMetadata],
         ['id', { name: 'id', columnName: 'id', readonly: true } as EntityPropertyMetadata]
       ]);
-      const metadata = { propertyMap } as EntityMetadata;
+      const metadata = { propertyMap, foreignKeyRelationMap: new Map() } as unknown as EntityMetadata;
       const entity = { id: '123', title: 'Test' };
 
-      const result = normalizeEntity(metadata, entity);
+      const result = normalizeUpdateEntity(metadata, entity);
       expect(result.title).toBe('Test');
       expect(result.id).toBeUndefined();
+    });
+
+    it('外键名与外键列名两个数组长度不等时，不把值写进相邻列', () => {
+      // 按下标配对两个平行数组：长度一旦不等，`authorId` 的值就被写进 `editorId` 的列，
+      // 而且完全无声——不抛、不记日志，只是一行数据落在了别人的列上，并且随后的下标越界
+      // 还会造出一个字面量为 "undefined" 的列名。keyed 的 `foreignKeyRelationMap` 把配对
+      // 关系交给数据结构本身保证，两个数组是否同步演进就不再是正确性的前提。
+      const metadata = {
+        namespace: 'test',
+        name: 'Post',
+        propertyMap: new Map<string, EntityPropertyMetadata>(),
+        foreignKeyNames: ['authorId', 'editorId'],
+        foreignKeyColumnNames: ['editor_id'],
+        foreignKeyRelationMap: new Map<string, EntityRelationMetadata>([
+          ['authorId', { columnName: 'author_id' } as EntityRelationMetadata],
+          ['editorId', { columnName: 'editor_id' } as EntityRelationMetadata]
+        ])
+      } as unknown as EntityMetadata;
+
+      const result = normalizeUpdateEntity(metadata, { authorId: 'a1', editorId: 'e1' });
+
+      expect(result).toEqual({ author_id: 'a1', editor_id: 'e1' });
     });
   });
 

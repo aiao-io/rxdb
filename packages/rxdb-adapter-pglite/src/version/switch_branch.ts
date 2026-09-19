@@ -1,4 +1,5 @@
 import {
+  ACTIVE_BRANCH_KEY,
   EntityLocalUpdatedEvent,
   EntityMetadata,
   getEntityMetadata,
@@ -16,7 +17,7 @@ import type { PGliteTransactionExecutor } from '../transaction/PGliteTransaction
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
 import { dispatch_switch_events } from './execute_switch_actions.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
-import { read_current_branch_id } from './read_current_branch_id.js';
+import { readCurrentBranchId } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
 /**
@@ -89,21 +90,36 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
   // 转义分支 ID 中的单引号，防止 SQL 注入
   const escapedBranchId = branchId.replace(/'/g, "''");
 
-  // 生成更新分支状态的 SQL：激活目标分支并停用其他所有分支
+  // 生成更新分支状态的 SQL：熄灭旧的 active 行，再点亮目标分支
   // PostgreSQL 使用 TRUE/FALSE 代替 1/0
-  const branchUpdateSql = `
+  //
+  // 熄灭与点亮是**两条**语句，不是一条 `SET activated = CASE ... END`。
+  // `activeKey` 的唯一索引是逐行立即检查的（`SET CONSTRAINTS ALL DEFERRED` 对普通唯一索引
+  // 无效），在同一条语句里把哨兵值从 A 行搬到 B 行，会按行处理顺序瞬时撞上自己。
+  // 先熄灭再点亮，哨兵值在任何一个时刻都只被一行持有。
+  //
+  // `updatedAt` 只在**真正翻转**的行上推进这一既有语义保持不变（两处 inversePatch 依赖它）：
+  // 熄灭那条的 WHERE 已经把没翻转的行排除干净，所以无条件推进；点亮那条会扫到
+  // 「本来就是当前分支」的行，条件必须留着。
+  //
+  // 两条都带 RETURNING：少一条，那一侧翻转过的行就不进事件派发。
+  const deactivateSql = `
     UPDATE ${tableName}
     SET
-      activated = CASE
-        WHEN id = '${escapedBranchId}' THEN TRUE
-        ELSE FALSE
-      END,
-      "updatedAt" = CASE
-        WHEN (id = '${escapedBranchId}' AND activated = FALSE) OR (id != '${escapedBranchId}' AND activated = TRUE) THEN NOW()
-        ELSE "updatedAt"
-      END
-    WHERE id = '${escapedBranchId}' OR activated = TRUE
+      activated = FALSE,
+      "activeKey" = NULL,
+      "updatedAt" = NOW()
+    WHERE activated = TRUE AND id != '${escapedBranchId}'
     RETURNING *`;
+  const activateSql = `
+    UPDATE ${tableName}
+    SET
+      activated = TRUE,
+      "activeKey" = '${ACTIVE_BRANCH_KEY}',
+      "updatedAt" = CASE WHEN activated = FALSE THEN NOW() ELSE "updatedAt" END
+    WHERE id = '${escapedBranchId}'
+    RETURNING *`;
+  const branchUpdateSql = `${deactivateSql}\n---STATEMENT_SEPARATOR---\n${activateSql}`;
 
   return triggerSql ? `${triggerSql}\n---STATEMENT_SEPARATOR---\n${branchUpdateSql}` : branchUpdateSql;
 };
@@ -127,7 +143,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       const sink = (executor as PGliteTransactionExecutor).adapter;
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
-      targetBranchId ??= await read_current_branch_id(executor as PGliteTransactionExecutor);
+      targetBranchId ??= await readCurrentBranchId(sink);
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
       const removeAllTriggers = remove_all_triggers_sql(sink);
       if (removeAllTriggers) await executeSwitchStatements(sink, removeAllTriggers);

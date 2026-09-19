@@ -447,7 +447,14 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   protected _setLocal = (entity: InstanceType<T>) => {
     const status = getEntityStatus(entity);
     status.local = true;
-    status.modified = false;
+    // 只有「无真实未保存改动」时才把 modified 归零：命中缓存且用户还在编辑的脏实体，
+    // 经 createEntityRef→applyExternal→mergeExternal 已保留编辑、modified 按 patch 重算为 true，
+    // 这里无条件归零会把未保存改动标成「已保存」，下一次 save() 静默 no-op、编辑永久丢失。
+    // 用 patch 而非 modified 作判据：远端适配器用 `new EntityType()` 水合出 modified=true
+    // 但 patch 为空的干净实体，仍要归零。
+    if (Object.keys(status.patch).length === 0) {
+      status.modified = false;
+    }
   };
   protected _setLocals = (entities: InstanceType<T>[]) => entities.forEach(this._setLocal);
 
