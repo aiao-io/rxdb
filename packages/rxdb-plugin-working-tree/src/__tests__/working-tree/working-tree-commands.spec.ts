@@ -976,11 +976,7 @@ describe('同一格上的并发请求：只有最新那一次能写终态', () =
     slow.reject(failure);
     await expect(first).rejects.toBe(failure);
 
-    expect(transitions).toEqual([
-      'isEnabledState:loading',
-      'isEnabledState:loading',
-      'isEnabledState:success'
-    ]);
+    expect(transitions).toEqual(['isEnabledState:loading', 'isEnabledState:loading', 'isEnabledState:success']);
   });
 
   // 代次按格子分，不是全局一个计数器：一次 diff 不该把正在飞的 status 判成过期。

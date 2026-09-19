@@ -227,17 +227,10 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
     );
 
   return {
-    isEnabled: () =>
-      trackWorkingTreeCommand(
-        sinkFor('isEnabledState'),
-        () => workingTree.isEnabled()
-      ),
+    isEnabled: () => trackWorkingTreeCommand(sinkFor('isEnabledState'), () => workingTree.isEnabled()),
 
     enable: async () => {
-      const info = await trackWorkingTreeCommand(
-        sinkFor('enableState'),
-        () => workingTree.enable()
-      );
+      const info = await trackWorkingTreeCommand(sinkFor('enableState'), () => workingTree.enable());
       await refreshStatus();
       return info;
     },
@@ -245,43 +238,27 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
     status: runStatus,
 
     diff: options =>
-      trackWorkingTreeQuery(
-        sinkFor('diffState'),
-        isWorkingTreeDiffEmpty,
-        () => workingTree.diff(options)
-      ),
+      trackWorkingTreeQuery(sinkFor('diffState'), isWorkingTreeDiffEmpty, () => workingTree.diff(options)),
 
     listCommits: options =>
-      trackWorkingTreeQuery(
-        sinkFor('listCommitsState'),
-        isCommitLogPageEmpty,
-        () => workingTree.listCommits(options)
-      ),
+      trackWorkingTreeQuery(sinkFor('listCommitsState'), isCommitLogPageEmpty, () => workingTree.listCommits(options)),
 
     commitChanges: commitId =>
-      trackWorkingTreeQuery(
-        sinkFor('commitChangesState'),
-        isCommitChangeSetPageEmpty,
-        () => workingTree.commitChanges(commitId)
+      trackWorkingTreeQuery(sinkFor('commitChangesState'), isCommitChangeSetPageEmpty, () =>
+        workingTree.commitChanges(commitId)
       ),
 
     commit: async (message, options) => {
       // 抛出来的（`empty_commit` 之类）直接往上走，status 保持原样——什么都没提交，
       // 也就没有什么可重读的。走到下一行只可能是 `ok: true` 或 `ok: false` 的返回值，
       // 而两者都意味着别人或自己动过工作树。
-      const result = await trackWorkingTreeCommand(
-        sinkFor('commitState'),
-        () => workingTree.commit(message, options)
-      );
+      const result = await trackWorkingTreeCommand(sinkFor('commitState'), () => workingTree.commit(message, options));
       await refreshStatus();
       return result;
     },
 
     discard: async options => {
-      const result = await trackWorkingTreeCommand(
-        sinkFor('discardState'),
-        () => workingTree.discard(options)
-      );
+      const result = await trackWorkingTreeCommand(sinkFor('discardState'), () => workingTree.discard(options));
       await refreshStatus();
       return result;
     },
@@ -291,28 +268,22 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       // 直接往上走，status 保持原样。走到下一行则无论 ok 与否都要重读——`ok: true` 是工作树
       // 刚多了一整个 commit 的条目，`ok: false` 的每一种成因都在说面板上那份摘要已经过期：
       // `dirty_working_tree` 是它显示的「没有未提交改动」不成立，`conflict` 是三个捕获位已经旧了。
-      const result = await trackWorkingTreeCommand(
-        sinkFor('restoreState'),
-        () => workingTree.restore(target, options)
-      );
+      const result = await trackWorkingTreeCommand(sinkFor('restoreState'), () => workingTree.restore(target, options));
       await refreshStatus();
       return result;
     },
 
     restoreSession: () =>
-      trackWorkingTreeQuery(
-        sinkFor('restoreSessionState'),
-        isWorkingTreeRestoreSessionEmpty,
-        () => workingTree.restoreSession()
+      trackWorkingTreeQuery(sinkFor('restoreSessionState'), isWorkingTreeRestoreSessionEmpty, () =>
+        workingTree.restoreSession()
       ),
 
     switchBranch: async (branchId, options) => {
       // 被拒（`requireClean` 撞上脏工作树、`expectedActivationRevision` 过期）与出错在这里是
       // 同一件事：两者都**抛**，与 `commit()` 的 CAS 落败不同——那一个是「调用成功、结果是
       // 冲突」，而这一个连切换都没发生。翻成返回值会让调用方以为自己已经在新分支上了。
-      await trackWorkingTreeCommand(
-        sinkFor('switchBranchState'),
-        () => versionManager().switchBranch(branchId, options)
+      await trackWorkingTreeCommand(sinkFor('switchBranchState'), () =>
+        versionManager().switchBranch(branchId, options)
       );
       // 切过去之后那份摘要属于**另一条**分支：`branchId`、`entryCount`、三个 revision 全换了人。
       // 不重读的话面板上留着的是上一条分支的未提交计数，而用户正要按着它决定提不提交。

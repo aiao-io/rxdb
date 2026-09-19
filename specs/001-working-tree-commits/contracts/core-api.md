@@ -130,7 +130,6 @@ N 是错的；下一页还会冒出同一个 `transactionId` 的第二组。调�
 `transactionId` 收组。
 
 ```ts
-
 interface WorkingTreeDiff {
   /** 摊开的是哪条分支 */
   readonly branchId: string;

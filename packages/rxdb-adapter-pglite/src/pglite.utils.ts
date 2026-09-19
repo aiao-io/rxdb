@@ -6,8 +6,8 @@ import {
   KeyValuePropertyMetadata,
   PropertyType,
   quoteSqlIdentifier,
-  type RxDBEntityId,
-  sqlStringLiteral
+  sqlStringLiteral,
+  type RxDBEntityId
 } from '@aiao/rxdb';
 import {
   deserializeFromEnvelope,
