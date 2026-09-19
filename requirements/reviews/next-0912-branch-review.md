@@ -1,27 +1,88 @@
 # next-0912 分支对 main 评审
 
-- **评审日期**：2026-09-16（2026-09-17、2026-09-18 多轮复核；最新第三次复核为 2026-09-18）
+- **评审日期**：2026-09-16（2026-09-17、2026-09-18、2026-09-19 多轮复核；最新第四次复核为 2026-09-19）
 - **评审分支**：`next-0912`
 - **对比基线**：`main` 顶端 = merge-base `de70a1a9e1c6d89eabb26606a294a80690d29b3b`
-- **变更规模**：452 个文件，`+64,517 / -2,935`
-- **评审强度**：2026-09-17 的 max 评审 + 2026-09-18 对关键调用链和后续增量的复核
+- **变更规模**：494 个文件，`+69,417 / -3,107`
+- **评审强度**：2026-09-17 的 max 评审 + 2026-09-18、2026-09-19 对关键调用链和后续增量的复核
 - **主线改动**：epic-006「工作树 + 提交历史」——捕获钩子 / 原始写闸门 / 受信写声明 / 提交图 CAS + 编解码 + 指纹 / 冷重放
-- **本次第三次复核**：2026-09-18，基线 `de70a1a9` → `fc30f1da`；此前 4 条 P1 生产路径仍未改变，另从 max 报告复核 1 条 P1 与 1 条 P2（见下方「第三次复核」）。
-- **当前结论**：🔴 **不建议合并**。5 条 P1 仍可由正常跨连接、切换或合并路径触发；测试通过不能替代这些组合时序的回归用例。本报告另有 5 条 P2 与其他待办。
-- **上一轮结论（HEAD `6e4daebb`，存档）**：🟡 **可合并性取决于顺延项排期**。当时新增的 raw 写捕获绕过与模板插值审计漏检均已修复；此前 4 条 P1 仍顺延。
+- **本次第四次复核**：2026-09-19，基线 `de70a1a9` → `cef3abf0`；重新检查全部 494 个差异文件，确认 5 条既有 P1、1 条既有 P2 仍成立，并新增 1 条 P1 与 1 条 P2（见下方「第四次复核」）。
+- **当前结论**：🔴 **不建议合并**。6 条 P1 可由正常跨连接、切换、合并或 Demo 操作触发；测试通过不能替代这些组合时序与乱序请求的回归用例。本报告另有 6 条 P2 与其他待办。
+- **上一轮结论（HEAD `fc30f1da`，存档）**：🔴 **不建议合并**。当时已有 5 条 P1 + 5 条 P2 未处理。
 
 ## 评审基准（SHA）
 
 | 角色             | SHA                                        | 说明                                                                       |
 | ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
 | `main` 顶端      | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | commit `feat(aiao): 拆分 rxdb 功能为 plugin (#61)`，2026-09-16 16:30 +0800 |
-| `next-0912` HEAD | `fc30f1da2f5baca19473ed3485346ed575c28fe6` | 本次第三次复核的 HEAD；二次评审为 `6e4daebb`                               |
+| `next-0912` HEAD | `cef3abf01ba344b7517967fc2dcf1034a7640236` | 本次第四次复核的 HEAD；第三次评审为 `fc30f1da`                             |
 | merge-base       | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | 与 main 顶端相同：next-0912 已把 main 合入，无分叉                         |
 
-- 本次 diff 范围 = `git diff main...HEAD` 全部 452 文件（`+64,517 / -2,935`）；`main` 与 merge-base 相同。工作区另有未提交的 `packages/rxdb/src` 查询/仓储改动，不在上述提交差异中，本评审没有修改它们。
+- 本次 diff 范围 = `git diff main...HEAD` 全部 494 文件（`+69,417 / -3,107`）；`main` 与 merge-base 相同。评审开始时工作区干净，本轮只改动本报告及其索引。
 - **2026-09-17 重新对齐说明**：初版基准为 main `68b0ba97` / HEAD `e4f2813c`（337 文件）。此后 main 推进到 `de70a1a9`（即 next-0915 的插件拆包 #61），next-0912 已通过 `263e5a31` 将其合入。逐条复核后：Top 榜 15 条中 **14 条在当前树上仍然成立，1 条（原 #14）证伪**（详见 §2）；这 14 条已于 2026-09-17 全部处理，按本目录「只留尚未处理的条目」的约定从报告里删除。
 - **working-tree 那套仍未进 main**——`packages/rxdb-plugin-working-tree` 尚有 115 个文件、三框架绑定另有 41 个文件只存在于本分支，因此这一轮修复赶在它进 main 之前落了地。
 - 记录 SHAs 的等价命令：`git rev-parse main` / `git rev-parse HEAD` / `git merge-base main HEAD`。
+
+## 2026-09-19 第四次复核：当前合并结论
+
+本轮重新审阅 `main...HEAD` 全部 494 个差异文件，并重点追踪能力启用、写入捕获、分支切换、远端首次物化、`normal` 合并、三端异步状态与 Angular Demo 操作链。Angular / React / Vue 均导出 `useWorkingTree`、`WorkingTreeResource`，并共享 `createWorkingTreeCommands`，三端公开 API 对称。
+
+验证结果：
+
+- `git diff --check main...HEAD` 通过。
+- `pnpm nx run-many -t lint typecheck test -p rxdb-plugin-working-tree rxdb-plugin-working-tree-angular rxdb-plugin-working-tree-react rxdb-plugin-working-tree-vue dev-rxdb-angular --output-style=static --parallel=4 --skipRemoteCache` 通过，共 78 个 Nx 任务。
+- `pnpm test-scripts` 通过，共 320 个测试。
+- 未跑完整 `pnpm test-all` 和浏览器 E2E；现有测试没有覆盖下面的多连接、跨事务、ABA、请求乱序和事务分页边界。
+
+本轮确认 6 条 P1 与 2 条重点 P2。前五条 P1 与事务分页 P2 在第三次复核中已存在；行级 discard 和异步状态乱序是本轮新增。报告下文另有 4 条既有 P2 与其他待办，均未因本轮验证通过而解除。
+
+### [P1] 已连接实例在另一实例启用后继续绕过捕获
+
+- **证据**：[`plugin.ts:105-117`](../../packages/rxdb-plugin-working-tree/src/plugin.ts#L105) 只在连接期读取一次能力位；未启用时不安装捕获 hook。[`working-tree-facade.ts:156-166`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L156) 的 `enable()` 只给发起调用的 adapter 安装 hook。[`rxdb-adapter.ts:182-188`](../../packages/rxdb/src/rxdb-adapter.ts#L182) 又把是否存在 hook 当成 raw write 能力状态。
+- **触发与影响**：A、B 在能力未启用时连接同一持久库；A 调用 `enable()` 后，B 无需重连便可继续 CRUD 或 raw write。业务写成功，但不生成 `WorkingTreeEntry`，`status()` / `commit()` / `discard()` 都看不到它。
+- **修复要求**：能力启用必须对所有存量连接可见；B 在下一次写事务开始前必须安装 hook 或拒绝写入。增加两个真实 adapter 实例共享同一持久库的回归用例。
+
+### [P1] 切分支前置条件与最终提交存在 TOCTOU
+
+- **证据**：[`VersionManager.ts:287-300`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L287) 先调用 `#assert_branch_switchable()`，再计算 actions，最后调用 adapter。[`VersionManager.ts:490-503`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L490) 显示前置条件运行在独立只读事务中；[`rxdb-adapter.ts:60-72`](../../packages/rxdb/src/rxdb-adapter.ts#L60) 的 `SwitchBranchOptions` 只有 `{branchId, actions}`，最终事务拿不到 `requireClean` 或 `expectedActivationRevision`。
+- **触发与影响**：校验结束后，另一连接可写脏当前工作树或切换 active 分支；本次调用仍会提交基于旧状态计算的投影。调用方显式提出的前置条件只是瞬时检查，不是提交条件。
+- **修复要求**：把前置条件传入 adapter，在最终切换事务内、任何投影写入前复核；CAS 落败必须回滚整次切换。
+
+### [P1] 普通切分支不推进 activation revision，ABA 防护失效
+
+- **证据**：[`VersionManager.ts:297-300`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L297) 的普通切换没有传入或推进 revision；SQLite 的最终事务在 [`switch_branch.ts:153-195`](../../packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts#L153) 只应用 actions 和翻转 active 分支。生产代码对 `bumpActivationRevision()` 的唯一调用位于 [`branch-materialization.ts:630`](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L630)。
+- **触发与影响**：读取 A 的 `{branchId, activationRevision}`，切到 B 再切回 A；旧 token 再次完全匹配。迟到的提交、丢弃、恢复或捕获写入会被当成仍属于当前激活代际。
+- **修复要求**：每次真实分支切换都在最终事务内 CAS 推进 activation revision，并增加 A→B→A 后旧 token 必须失败的跨 adapter 用例。
+
+### [P1] metadata-only 远端分支无法通过公开入口首次物化
+
+- **证据**：[`sync-branches.ts:143-153`](../../packages/rxdb-plugin-sync/src/sync-branches.ts#L143) 只创建远端分支 metadata，不创建 `CommitBranchRef`。[`plugin.ts:119-127`](../../packages/rxdb-plugin-working-tree/src/plugin.ts#L119) 在公开切换前无条件调用图完整性守卫，最终由 `readCommitBranchRef()` 对缺 ref 抛错。`stageBranchMaterialization()` / `commitBranchMaterialization()` 在生产代码中没有调用者。
+- **触发与影响**：同步到一条新远端分支后，第一次 `switchBranch(remoteId)` 必然停在缺 ref 错误，不会进入下载、staging 或物化屏障。
+- **修复要求**：公开切换入口先分类目标分支；metadata-only 分支接入预取 → staging → 复核 → 提交屏障，只有已物化目标才执行提交图完整性检查。
+
+### [P1] `normal` 合并在同一事务内重复捕获
+
+- **证据**：[`merge-branch.ts:118-141`](../../packages/rxdb-plugin-history/src/merge-branch.ts#L118) 在外层 `adapter.transaction()` 中逐条调用 `executor.mergeChanges()`。内层 merge hook 在 [`capture-hook.ts:357-369`](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L357) 已捕获一次；外层 transaction hook 又在 [`capture-hook.ts:338-346`](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L338) 按原水位线读取并捕获相同业务变更。
+- **触发与影响**：实体唯一索引会折叠重复行，但 `workingTreeRevision` 多推进一次，原先逐条捕获的 `unitId` / `transactionId` / `origin` 被外层整批捕获覆盖。
+- **修复要求**：同一业务写只能由一个挂载点负责捕获；标记外层事务、传递已消费水位或改成一次批量捕获，并用真实 adapter 断言 revision 和分组身份只变化一次。
+
+### [P1] Angular 行级 Discard 实际丢弃整个工作树
+
+- **证据**：[`working-tree.page.ts:309-327`](../../apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.page.ts#L309) 在单条 diff 行上展示 `Discard Changes` 并保存目标实体；[`working-tree.page.ts:364-371`](../../apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.page.ts#L364) 随后丢弃目标，直接调用全量 `runDiscard()`。核心 [`working-tree-facade.ts:241-243`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L241) 只支持整棵工作树 discard。
+- **触发与影响**：存在多条未提交改动时，用户右键其中一行会在无明确全量提示的情况下删除全部改动。现有 E2E 只使用一条改动，反而把误导行为编码成正常路径。
+- **修复要求**：实现真正的 selection discard，或删除行级菜单，将全量操作改名为 `Discard All Changes` 并增加确认；补两条以上改动的防误删 E2E。
+
+### [P2] 共享查询状态会被迟到请求覆盖
+
+- **证据**：[`async-state.ts:232-245`](../../packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L232) 每次查询都直接向同一 sink 发出 `loading → success | empty | error`，没有 request generation 或 latest guard。[`working-tree-commands.ts:227-232`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts#L227) 的所有 `commitChanges()` 调用共享同一个 `commitChangesState`。
+- **触发与影响**：用户快速选择提交 A、B，若 B 先完成、A 后完成，最终选中标题是 B，详情状态却被 A 的迟到结果覆盖。共享 commands 使 Angular / React / Vue 三端都受影响。
+- **修复要求**：每个状态槽维护单调请求代际，只允许最新请求提交终态；补后发先完成和旧请求失败晚到两类测试。
+
+### [P2] transaction 粒度 diff 分页切断原子组
+
+- **证据**：[`diff.ts:173-190`](../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L173) 先按 entry 的 `limit` 截断，[`diff.ts:242-252`](../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L242) 才按 `transactionId` 分组。三条同事务记录配 `limit: 2` 时，两页各返回一个同 ID 的半组。
+- **触发与影响**：按组渲染会把一个原子操作展示成两组；消费者若按 `transactionId` 跨页去重，可能漏掉后一页数据。
+- **修复要求**：按事务边界分页，或把跨页延续状态纳入公开协议；补同一事务跨越 limit 边界的回归用例。
 
 ## 2026-09-18 第三次复核：当前合并结论
 
