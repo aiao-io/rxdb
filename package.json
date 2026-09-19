@@ -266,7 +266,8 @@
       "@jimp/core>mkdirp": "^0.5.6",
       "@jimp/core>phin": "^3.7.1",
       "@jimp/jpeg>jpeg-js": "^0.4.4",
-      "cacheable-request@2>http-cache-semantics": "^4.1.1"
+      "cacheable-request@2>http-cache-semantics": "^4.1.1",
+      "geojson-flatten>minimist": "^1.2.8"
     },
     "peerDependencyRules": {
       "allowedVersions": {

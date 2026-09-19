@@ -33,6 +33,7 @@ overrides:
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
   cacheable-request@2>http-cache-semantics: ^4.1.1
+  geojson-flatten>minimist: ^1.2.8
 
 patchedDependencies:
   typescript@6.0.3:
@@ -14974,9 +14975,6 @@ packages:
   minimatch@9.0.9:
     resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
     engines: {node: '>=16 || 14 >=14.17'}
-
-  minimist@1.2.0:
-    resolution: {integrity: sha512-7Wl+Jz+IGWuSdgsQEJ4JunV0si/iMhg42MnQQG6h1R6TNeVenp4U9x5CC5v/gYqz/fENLQITAWXidNtVL0NNbw==}
 
   minimist@1.2.6:
     resolution: {integrity: sha512-Jsjnk4bw3YJqYzbdyBiNsPWHPfO++UGG749Cxs6peCu5Xg4nrena6OVxOYxrQTqww0Jmwt+Ref8rggumkTLz9Q==}
@@ -33116,7 +33114,7 @@ snapshots:
   geojson-flatten@0.2.4:
     dependencies:
       get-stdin: 6.0.0
-      minimist: 1.2.0
+      minimist: 1.2.8
 
   geojson-linestring-dissolve@0.0.1: {}
 
@@ -35947,8 +35945,6 @@ snapshots:
   minimatch@9.0.9:
     dependencies:
       brace-expansion: 2.1.4
-
-  minimist@1.2.0: {}
 
   minimist@1.2.6: {}
 
