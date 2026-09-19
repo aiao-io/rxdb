@@ -99,6 +99,71 @@ const branchRow = (page: import('@playwright/test').Page, branchId: string) =>
   page.locator(`[data-testid="wt-branch-item"][data-branch-id="${branchId}"]`);
 
 test.describe('Working Tree 页面功能', () => {
+  test('保留应用侧栏，工作树只占路由内容区', async ({ page }) => {
+    await openPanel(page);
+
+    const appSidebar = page.locator('app-sidebar');
+    const workspace = page.getByTestId('working-tree-page');
+    await expect(appSidebar).toBeVisible();
+    await expect(appSidebar).toHaveCSS('width', '240px');
+    await expect(page.locator('app-header')).toBeVisible();
+    await expect
+      .poll(async () => {
+        const [sidebarBox, workspaceBox] = await Promise.all([appSidebar.boundingBox(), workspace.boundingBox()]);
+        return {
+          sidebarRight: Math.round(sidebarBox!.x + sidebarBox!.width),
+          workspaceLeft: Math.round(workspaceBox!.x)
+        };
+      })
+      .toEqual({ sidebarRight: 240, workspaceLeft: 240 });
+  });
+
+  test('亮色主题下仓库与分支按钮的展开态为白底', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
+    await openPanel(page);
+    await enablePanel(page);
+
+    const repositoryButton = page.getByTestId('wt-repo-menu');
+    await repositoryButton.click();
+    await expect(page.getByTestId('wt-repo-menu-popup')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(repositoryButton).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(repositoryButton).toHaveCSS('color', 'rgb(36, 41, 47)');
+    await expect
+      .poll(() =>
+        repositoryButton.evaluate(button => {
+          const box = button.getBoundingClientRect();
+          const topmost = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return topmost === button || button.contains(topmost);
+        })
+      )
+      .toBe(true);
+    await page.locator('[aria-label="Close repository menu"]').click({ position: { x: 1000, y: 500 } });
+
+    const branchButton = page.getByTestId('wt-branch-menu');
+    await branchButton.click();
+    await expect(page.getByTestId('wt-branch-menu-popup')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(branchButton).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(branchButton).toHaveCSS('color', 'rgb(36, 41, 47)');
+    await expect
+      .poll(() =>
+        branchButton.evaluate(button => {
+          const box = button.getBoundingClientRect();
+          const topmost = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return topmost === button || button.contains(topmost);
+        })
+      )
+      .toBe(true);
+  });
+
+  test('创建分支弹层保留内容内边距', async ({ page }) => {
+    await openPanel(page);
+    await enablePanel(page);
+    await openBranchMenu(page);
+    await page.getByTestId('wt-branch-create').click();
+
+    await expect(page.getByTestId('wt-branch-create-popover')).toHaveCSS('padding', '12px');
+  });
+
   test('桌面工作区：变更筛选与历史文件差异', async ({ page }) => {
     await openPanel(page);
     await enablePanel(page);
@@ -180,12 +245,16 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-commit-copy')).toBeVisible();
   });
 
-  test('窄屏工作区不受应用侧栏遮罩覆盖', async ({ page }) => {
+  test('窄屏工作区保留应用菜单入口', async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
+    await page.setViewportSize({ width: 390, height: 844 });
     await openPanel(page);
     await enablePanel(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.locator('.sidebar-overlay')).toHaveCSS('display', 'none');
+    const menuToggle = page.getByRole('button', { name: 'Toggle menu' });
+    await expect(menuToggle).toBeVisible();
+    await menuToggle.click();
+    await expect(page.locator('app-sidebar')).toBeVisible();
+    await expect(page.locator('.sidebar-overlay')).toBeVisible();
     await expect(page.locator('.gd-toolbar')).toBeVisible();
     await expect(page.getByTestId('wt-aside-resize')).toBeVisible();
     await expect(page.getByTestId('working-tree-page')).toHaveCSS('background-color', 'rgb(246, 248, 250)');

@@ -434,6 +434,9 @@ app-header {
 .gd-menu-flush {
   border-radius: 0;
 }
+.gd-branch-create-popover {
+  padding: 12px;
+}
 .gd-menu-header {
   color: var(--gd-muted);
   font-size: 11px;
@@ -656,21 +659,6 @@ textarea.gd-input {
   justify-content: center;
   padding: 32px 16px;
   text-align: center;
-}
-
-/* 工作树路由使用独立的桌面画布，Demo 导航仍可从仓库菜单返回。 */
-app-root:has(app-working-tree-page) {
-  app-sidebar,
-  app-header,
-  .sidebar-overlay {
-    display: none !important;
-  }
-
-  #layout-container,
-  #layout-content {
-    width: 100%;
-    min-width: 0;
-  }
 }
 
 .gd-workspace {
@@ -1115,4 +1103,15 @@ app-root:has(app-working-tree-page) {
   --gd-enabled-fg: #1a7f37;
   --gd-focus: #0969da;
   color-scheme: light;
+
+  .gd-toolbar-select[aria-expanded='true'] {
+    background: var(--gd-panel);
+    color: var(--gd-fg);
+    position: relative;
+    z-index: 40;
+  }
+
+  .gd-toolbar-select[aria-expanded='true'] small {
+    color: var(--gd-muted);
+  }
 }

@@ -93,7 +93,7 @@ import { gdRelativeTime } from '../working-tree.gd';
 
         @if (createOpen()) {
           <div
-            class="gd-menu gd-menu-flush absolute top-full left-0 z-40 mt-1 p-3"
+            class="gd-menu gd-menu-flush gd-branch-create-popover absolute top-full left-0 z-40 mt-1"
             [style.width.px]="popupWidth()"
             aria-label="Create a branch"
             data-testid="wt-branch-create-popover"
