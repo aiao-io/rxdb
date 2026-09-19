@@ -32,6 +32,7 @@ overrides:
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
+  '@visactor/vtable>lodash': ^4.18.1
   cacheable-request@2>http-cache-semantics: ^4.1.1
   geojson-flatten>minimist: ^1.2.8
 
@@ -14476,9 +14477,6 @@ packages:
 
   lodash.uniq@4.5.0:
     resolution: {integrity: sha512-xfBaXQd9ryd9dlSDvnvI0lvxfLJlYAZzXomUYzLKtUeOQvOP5piqAWuGtrhWeqaXK9hhoM/iyJc5AV+XfsX3HQ==}
-
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
@@ -28961,7 +28959,7 @@ snapshots:
       '@visactor/vutils-extension': 2.0.22
       cssfontparser: 1.2.1
       gifuct-js: 2.1.2
-      lodash: 4.17.21
+      lodash: 4.18.1
 
   '@visactor/vutils-extension@2.0.22':
     dependencies:
@@ -35162,8 +35160,6 @@ snapshots:
   lodash.truncate@4.4.2: {}
 
   lodash.uniq@4.5.0: {}
-
-  lodash@4.17.21: {}
 
   lodash@4.18.1: {}
 
