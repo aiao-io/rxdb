@@ -28,6 +28,7 @@ import {
   getEntityStatus,
   isEntityMatchWhere,
   parseRxDBChangeKey,
+  quoteSqlIdentifier,
   RxDB,
   RxDBAdapterLocalBase,
   SyncType,
@@ -531,6 +532,7 @@ export class InMemoryRxDBAdapter extends RxDBAdapterLocalBase implements IRxDBAd
         void params;
         return Promise.resolve({ rowsAffected: 0, rows: [], columns: [] });
       },
+      tableRef: EntityType => quoteSqlIdentifier(getEntityMetadata(EntityType).tableName),
       mutations: options => this.mutations(options as RxDBMutationsMap),
       getRepository: EntityType => this.getRepository(EntityType),
       saveMany: entities => this.saveMany(entities),
