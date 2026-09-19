@@ -36,6 +36,12 @@ export default class QueryBuilderPage {
   readonly #destroyRef = inject(DestroyRef);
   /** 查询变更流（switchMap 驱动 Todo.findAll） */
   readonly #query$ = new Subject<RxDBQueryOutput<Todo>>();
+
+  protected readonly $query = signal<RxDBQueryOutput<Todo> | null>(null);
+  protected readonly $results = signal<Todo[]>([]);
+  protected readonly $total = signal(0);
+  protected readonly $resultTitles = computed(() => this.$results().map(r => r.title));
+
   // 注入 RxDB 以初始化本地数据库
   rxdb = inject(RxDB);
 
@@ -44,12 +50,6 @@ export default class QueryBuilderPage {
     entityName: 'Todo',
     fields: createSchemaFromEntity(getEntityMetadata(Todo))
   };
-
-  protected readonly $query = signal<RxDBQueryOutput<Todo> | null>(null);
-  protected readonly $results = signal<Todo[]>([]);
-  protected readonly $total = signal(0);
-
-  protected readonly $resultTitles = computed(() => this.$results().map(r => r.title));
 
   constructor() {
     Todo.findAll({ where: { combinator: 'and', rules: [] } })
