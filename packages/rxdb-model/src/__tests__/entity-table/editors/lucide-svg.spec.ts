@@ -1,105 +1,106 @@
+// @vitest-environment happy-dom
+
 import { describe, expect, it } from 'vitest';
 import type { IconData } from '../../../entity-table/editors/lucide-svg.js';
-import { lucideToSvgHtml } from '../../../entity-table/editors/lucide-svg.js';
+import { lucideToSvgElement } from '../../../entity-table/editors/lucide-svg.js';
 
 const mockIcon: IconData = [
   ['circle', { cx: '12', cy: '12', r: '10', key: 'circle' }],
   ['line', { x1: '12', y1: '8', x2: '12', y2: '12', key: 'line' }]
 ];
 
-describe('lucideToSvgHtml', () => {
-  it('renders SVG with given color and default size', () => {
-    const svg = lucideToSvgHtml(mockIcon, '#ff0000');
-    expect(svg).toContain('stroke="#ff0000"');
-    expect(svg).toContain('width="13"');
-    expect(svg).toContain('height="13"');
-    expect(svg).toContain('<circle');
-    expect(svg).toContain('<line');
+describe('lucideToSvgElement', () => {
+  it('渲染 SVG 元素并应用颜色与默认尺寸', () => {
+    const svg = lucideToSvgElement(mockIcon, '#ff0000');
+    expect(svg.tagName.toLowerCase()).toBe('svg');
+    expect(svg.getAttribute('stroke')).toBe('#ff0000');
+    expect(svg.getAttribute('width')).toBe('13');
+    expect(svg.getAttribute('height')).toBe('13');
+    expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+    expect([...svg.children].map(c => c.tagName.toLowerCase())).toEqual(['circle', 'line']);
   });
 
-  it('uses custom size', () => {
-    const svg = lucideToSvgHtml(mockIcon, '#000', 24);
-    expect(svg).toContain('width="24"');
-    expect(svg).toContain('height="24"');
+  it('使用自定义尺寸', () => {
+    const svg = lucideToSvgElement(mockIcon, '#000', 24);
+    expect(svg.getAttribute('width')).toBe('24');
+    expect(svg.getAttribute('height')).toBe('24');
   });
 
-  it('strips key attributes from children', () => {
-    const svg = lucideToSvgHtml(mockIcon, '#000');
-    expect(svg).not.toContain('key=');
+  it('剥离 key 属性', () => {
+    const svg = lucideToSvgElement(mockIcon, '#000');
+    expect(svg.children[0].hasAttribute('key')).toBe(false);
   });
 
-  it('converts camelCase attributes to kebab-case', () => {
+  it('camelCase 属性转 kebab-case', () => {
     const icon: IconData = [['path', { strokeWidth: '2', fillRule: 'evenodd', key: 'p' }]];
-    const svg = lucideToSvgHtml(icon, '#000');
-    expect(svg).toContain('stroke-width="2"');
-    expect(svg).toContain('fill-rule="evenodd"');
+    const path = lucideToSvgElement(icon, '#000').children[0];
+    expect(path.getAttribute('stroke-width')).toBe('2');
+    expect(path.getAttribute('fill-rule')).toBe('evenodd');
   });
 
-  it('accepts valid CSS color names', () => {
-    const svg = lucideToSvgHtml(mockIcon, 'red');
-    expect(svg).toContain('stroke="red"');
+  it('接受合法 CSS 颜色（色名 / hex / var()）', () => {
+    expect(lucideToSvgElement(mockIcon, 'red').getAttribute('stroke')).toBe('red');
+    expect(lucideToSvgElement(mockIcon, '#abc123').getAttribute('stroke')).toBe('#abc123');
+    expect(lucideToSvgElement(mockIcon, 'var(--my-color)').getAttribute('stroke')).toBe('var(--my-color)');
   });
 
-  it('accepts valid hex colors', () => {
-    const svg = lucideToSvgHtml(mockIcon, '#abc123');
-    expect(svg).toContain('stroke="#abc123"');
+  it('拒绝危险颜色字符串并回退 currentColor', () => {
+    for (const color of ['"><script>alert(1)</script>', 'red" onclick="alert(1)', '<img onerror=alert(1)>']) {
+      expect(lucideToSvgElement(mockIcon, color).getAttribute('stroke')).toBe('currentColor');
+    }
   });
 
-  it('accepts CSS variable references', () => {
-    const svg = lucideToSvgHtml(mockIcon, 'var(--my-color)');
-    expect(svg).toContain('stroke="var(--my-color)"');
+  it('处理空图标数组', () => {
+    const svg = lucideToSvgElement([] as unknown as IconData, '#000');
+    expect(svg.tagName.toLowerCase()).toBe('svg');
+    expect(svg.children).toHaveLength(0);
   });
 
-  it('rejects dangerous color strings with script injection', () => {
-    const svg = lucideToSvgHtml(mockIcon, '"><script>alert(1)</script>');
-    expect(svg).toContain('stroke="currentColor"');
-    expect(svg).not.toContain('<script>');
-  });
-
-  it('rejects color strings containing quotes', () => {
-    const svg = lucideToSvgHtml(mockIcon, 'red" onclick="alert(1)');
-    expect(svg).toContain('stroke="currentColor"');
-    expect(svg).not.toContain('onclick=');
-  });
-
-  it('rejects color with angle brackets', () => {
-    const svg = lucideToSvgHtml(mockIcon, '<img onerror=alert(1)>');
-    expect(svg).toContain('stroke="currentColor"');
-  });
-
-  it('handles empty icon array', () => {
-    const svg = lucideToSvgHtml([] as unknown as IconData, '#000');
-    expect(svg).toContain('<svg');
-    expect(svg).toContain('</svg>');
-  });
-
-  it('escapes attribute values to prevent XSS', () => {
+  it('属性值中的引号与尖括号按字面存储（DOM 赋值免疫标记注入）', () => {
     const maliciousIcon: IconData = [['circle', { cx: '12"onload="alert(1)', cy: '12', r: '10', key: 'c' }]];
-    const svg = lucideToSvgHtml(maliciousIcon, '#000');
-    expect(svg).not.toContain('"onload="');
-    expect(svg).toContain('&quot;');
+    const svg = lucideToSvgElement(maliciousIcon, '#000');
+    expect(svg.children).toHaveLength(1);
+    expect(svg.children[0].getAttribute('cx')).toBe('12"onload="alert(1)');
+    expect(svg.children[0].hasAttribute('onload')).toBe(false);
+
+    const scriptIcon: IconData = [['path', { d: '<script>', key: 'p' }]];
+    const scriptSvg = lucideToSvgElement(scriptIcon, '#000');
+    expect(scriptSvg.children[0].getAttribute('d')).toBe('<script>');
+    // 属性值按字面存储：不产生新元素、无子节点、无可查询到的 script 节点
+    expect(scriptSvg.children).toHaveLength(1);
+    expect(scriptSvg.children[0].childNodes).toHaveLength(0);
+    expect(scriptSvg.querySelectorAll('script')).toHaveLength(0);
   });
 
-  it('escapes angle brackets in attribute values', () => {
-    const icon: IconData = [['path', { d: '<script>', key: 'p' }]];
-    const svg = lucideToSvgHtml(icon, '#000');
-    expect(svg).not.toContain('<script>');
-    expect(svg).toContain('&lt;script&gt;');
-  });
-
-  it('rejects non-SVG tag names to prevent XSS', () => {
+  it('拒绝非 SVG 标签', () => {
     const malicious: IconData = [['script', { src: 'evil.js', key: 's' }]];
-    const svg = lucideToSvgHtml(malicious, '#000');
-    expect(svg).not.toContain('<script');
+    expect(lucideToSvgElement(malicious, '#000').children).toHaveLength(0);
   });
 
-  it('filters unsafe tags while preserving safe ones', () => {
+  it('过滤不安全标签并保留安全标签', () => {
     const mixed: IconData = [
       ['circle', { cx: '12', cy: '12', r: '10', key: 'c' }],
       ['iframe', { src: 'evil.html', key: 'i' }]
     ];
-    const svg = lucideToSvgHtml(mixed, '#000');
-    expect(svg).toContain('<circle');
-    expect(svg).not.toContain('<iframe');
+    const svg = lucideToSvgElement(mixed, '#000');
+    expect([...svg.children].map(c => c.tagName.toLowerCase())).toEqual(['circle']);
+  });
+
+  it('拒绝事件处理属性名（on*）', () => {
+    const malicious: IconData = [['path', { d: 'M0 0', onclick: 'alert(1)', key: 'p' }]];
+    const path = lucideToSvgElement(malicious, '#000').children[0];
+    expect(path.hasAttribute('onclick')).toBe(false);
+  });
+
+  it('拒绝 URL 与非法字符属性名（href / 含引号尖括号）', () => {
+    const malicious: IconData = [
+      ['use', { href: 'https://evil.example/x.svg', key: 'u' }],
+      ['path', { d: 'M0 0', 'bad"name>': 'x', key: 'p' }]
+    ];
+    const svg = lucideToSvgElement(malicious, '#000');
+    const [use, path] = [...svg.children] as [SVGElement, SVGElement];
+    expect(use.hasAttribute('href')).toBe(false);
+    expect(path.hasAttribute('bad"name>')).toBe(false);
+    expect(path.attributes).toHaveLength(1);
   });
 });

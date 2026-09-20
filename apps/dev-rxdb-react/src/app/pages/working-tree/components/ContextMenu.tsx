@@ -65,7 +65,6 @@ export function WorkingTreeContextMenu({
     document.addEventListener('keydown', onDocumentKeyDown);
     return () => document.removeEventListener('keydown', onDocumentKeyDown);
     // 挂载时挂一次、卸载时摘掉；开合状态不参与（与 Angular 的 HostListener 同构）。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (menu === null) return null;

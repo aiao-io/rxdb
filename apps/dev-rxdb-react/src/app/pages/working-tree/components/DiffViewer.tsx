@@ -283,13 +283,13 @@ export function WorkingTreeDiffViewer({ entry }: WorkingTreeDiffViewerProps): Re
                 </div>
                 {hunk.rows.map(row => (
                   <div
-                    className={`gd-diff-row${row.sign === '+' ? 'gd-add' : 'gd-del'}`}
+                    className={`gd-diff-row ${row.sign === '+' ? 'gd-add' : 'gd-del'}`}
                     key={`${row.key}${row.sign}${formatFieldValue(row.value)}`}
                   >
                     <div className='gd-diff-gutter border-r border-[var(--gd-border)]'>
                       <span className='gd-diff-num'>{row.oldNumber ?? ''}</span>
                       <span className='gd-diff-num'>{row.newNumber ?? ''}</span>
-                      <span className={`gd-diff-sign${row.sign === '+' ? 'gd-add' : 'gd-del'}`}>{row.sign}</span>
+                      <span className={`gd-diff-sign ${row.sign === '+' ? 'gd-add' : 'gd-del'}`}>{row.sign}</span>
                     </div>
                     <div className='gd-diff-content' style={{ whiteSpace: preferences.wrap ? undefined : 'pre' }}>
                       <span style={{ color: 'var(--gd-muted)' }}>{row.key}:</span>

@@ -4,6 +4,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import EntityDetailPage from './entity-detail-page';
+import EntityListPage from './entity-list-page';
+import EntityShell from './entity-shell';
+
 /** 非 public namespace 的测试实体（壳页分组用）。 */
 @Entity({ name: 'ShellOther', namespace: 'other' })
 class ShellOther extends EntityBase {}
@@ -34,10 +38,6 @@ vi.mock('@aiao/rxdb-model-react', async () => {
   };
   return { EntityList: stubs.EntityListStub, EntityDetail: stubs.EntityDetailStub };
 });
-
-import EntityDetailPage from './entity-detail-page';
-import EntityListPage from './entity-list-page';
-import EntityShell from './entity-shell';
 
 const makeRxdb = (entities: unknown[] = [Todo]) => ({ config: { entities } });
 

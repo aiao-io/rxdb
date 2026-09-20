@@ -167,7 +167,7 @@ export function EntityDetail({
     if (!metadata) return null;
     if (!rxdb) return null;
     const cls = entityClsFromDialog;
-    if (!cls) return null;
+    if (!cls || typeof cls !== 'function') return null;
     const fixed = fixedFormData;
     const merged = { ...(formData || {}), ...fixed };
     return new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;

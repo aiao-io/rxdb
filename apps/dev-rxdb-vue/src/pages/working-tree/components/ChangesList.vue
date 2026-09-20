@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
         >
           <div
             class="gd-row"
-            :aria-current="selectedKey === diffEntryKey(entry) ? 'true' : null"
+            :aria-current="selectedKey === diffEntryKey(entry) || undefined"
             :class="{ 'gd-row-selected': selectedKey === diffEntryKey(entry) }"
             :data-diff-key="diffEntryKey(entry)"
             @click="emit('selectEntry', entry)"

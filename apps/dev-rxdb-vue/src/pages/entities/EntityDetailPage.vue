@@ -5,7 +5,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 // 注入 RxDB 以初始化本地数据库
-const rxdb = injectRxDB()!;
+injectRxDB();
 
 /** 路由参数 :namespace / :name / :entityId */
 const route = useRoute();

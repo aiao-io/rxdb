@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getEntityMetadata, type Entity } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import { injectRxDB, useCount } from '@aiao/rxdb-vue';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
@@ -11,7 +11,7 @@ interface EntityOption {
   /** `${namespace}:${name}` */
   key: string;
   displayName: string;
-  cls: Entity;
+  cls: EntityType;
 }
 
 /** 非 public namespace 的实体分组。 */

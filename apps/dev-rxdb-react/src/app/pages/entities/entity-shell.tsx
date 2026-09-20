@@ -1,4 +1,4 @@
-import { getEntityMetadata, type Entity } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import { useCount, useRxDB } from '@aiao/rxdb-react';
 import { useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ interface EntityOption {
   /** `${namespace}:${name}` */
   key: string;
   displayName: string;
-  cls: Entity;
+  cls: EntityType;
 }
 
 /** 非 public namespace 的实体分组。 */
@@ -20,7 +20,7 @@ interface EntityGroup {
 }
 
 /** 每个实体一个计数徽章组件：hook 不能进循环 / map 回调，用子组件隔离调用点。 */
-function EntityCountBadge({ cls }: { cls: Entity }): React.JSX.Element {
+function EntityCountBadge({ cls }: { cls: EntityType }): React.JSX.Element {
   const count = useCount(cls, { where: { combinator: 'and', rules: [] } });
   return <span className='badge badge-ghost badge-xs'>{count.value ?? 0}</span>;
 }

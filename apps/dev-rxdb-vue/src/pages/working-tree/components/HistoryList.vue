@@ -60,7 +60,7 @@ const emit = defineEmits<{
         >
           <div
             class="gd-row gd-history-row"
-            :aria-current="selectedCommitId === entry.commitId ? 'true' : null"
+            :aria-current="selectedCommitId === entry.commitId || undefined"
             :class="{ 'gd-row-selected': selectedCommitId === entry.commitId }"
             :data-commit-id="entry.commitId"
             @click="emit('selectEntry', entry)"

@@ -12,7 +12,7 @@ import { useNavigate, useParams } from 'react-router-dom';
  */
 export default function EntityDetailPage(): React.JSX.Element {
   // 注入 RxDB 以初始化本地数据库
-  const rxdb = useRxDB();
+  useRxDB();
 
   const { namespace = '', name = '', entityId = '' } = useParams();
   const navigate = useNavigate();

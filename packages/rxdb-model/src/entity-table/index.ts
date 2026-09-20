@@ -61,7 +61,7 @@ export {
 export { IconListEditor, type IconLabeledItem } from './editors/icon-list-editor.js';
 export { JsonEditor } from './editors/json-editor.js';
 export { KeyValueEditor } from './editors/key-value-editor.js';
-export { lucideToSvgHtml, type IconData } from './editors/lucide-svg.js';
+export { lucideToSvgElement, type IconData } from './editors/lucide-svg.js';
 export { MultiSelectEditor, type MultiSelectOption } from './editors/multiselect-editor.js';
 export { NumberEditor, type NumberEditorOptions } from './editors/number-editor.js';
 export { RelationEditor } from './editors/relation-editor.js';

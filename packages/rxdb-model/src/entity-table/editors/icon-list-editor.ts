@@ -1,5 +1,5 @@
 import { DAISY_COLORS, GlobalOverlayEditor } from './global-overlay-editor.js';
-import { lucideToSvgHtml, type IconData } from './lucide-svg.js';
+import { lucideToSvgElement, type IconData } from './lucide-svg.js';
 
 /**
  * 带图标的列表条目
@@ -92,7 +92,7 @@ export class IconListEditor extends GlobalOverlayEditor {
       ].join(';');
 
       if (item.icon && item.color) {
-        row.innerHTML = lucideToSvgHtml(item.icon, item.color);
+        row.appendChild(lucideToSvgElement(item.icon, item.color));
         const span = document.createElement('span');
         span.textContent = item.text;
         row.appendChild(span);

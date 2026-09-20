@@ -11,7 +11,7 @@ import { useParams } from 'react-router-dom';
  */
 export default function EntityListPage(): React.JSX.Element {
   // 注入 RxDB 以初始化本地数据库（首次查询经适配器 ready() 自动 connect）
-  const rxdb = useRxDB();
+  useRxDB();
 
   const { namespace = '', name = '' } = useParams();
 

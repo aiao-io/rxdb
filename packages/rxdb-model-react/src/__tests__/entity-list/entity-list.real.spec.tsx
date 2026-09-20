@@ -474,7 +474,9 @@ describe('EntityList（真实组件）', () => {
     await waitFor(() => {
       expect(good.container.querySelector('.badge-primary')?.textContent?.trim()).toBe('1');
     });
-    expect(tableOf().records).toHaveLength(2);
+    await waitFor(() => {
+      expect(tableOf().records).toHaveLength(2);
+    });
     good.unmount();
 
     const bad = await renderList({ initialFilter: '{not-json' });
@@ -958,5 +960,41 @@ describe('EntityList（真实组件）', () => {
     });
     expect(await findTitles()).not.toContain('draft-child');
     void container;
+  });
+
+  it('注册表条目不是构造器时新增提交安全 no-op（不抛 TypeError）', async () => {
+    // 元数据经原型链仍可读（Object.create(Todo)），但 `new cls(data)` 会抛 TypeError ——
+    // handleCreateSubmit 的 typeof 守卫应把这类损坏注册表降级为静默 no-op。
+    const corrupt = createInMemoryRxdb([Object.create(Todo) as unknown as EntityType]);
+    await corrupt.connect(IN_MEMORY_ADAPTER_NAME);
+    try {
+      const { container } = render(
+        <RxDBProvider db={corrupt}>
+          <EntityList namespace='public' name='Todo' />
+        </RxDBProvider>
+      );
+      await waitFor(() => {
+        expect(getLastListTable()).toBeInstanceOf(FakeListTable);
+      });
+      await FLUSH();
+
+      fireEvent.click([...container.querySelectorAll('button')].find(b => b.textContent?.includes('+ 新增'))!);
+      await waitFor(() => {
+        expect(document.querySelector('.rxdb-dialog-pane')).toBeTruthy();
+      });
+
+      fireEvent.change(
+        [...document.querySelectorAll('.rxdb-dialog-pane [data-field="title"] input')][0] as HTMLInputElement,
+        { target: { value: 'should-not-save' } }
+      );
+      fireEvent.click(
+        [...document.querySelectorAll('.rxdb-dialog-pane button')].find(b => b.textContent?.trim() === '保存')!
+      );
+
+      await FLUSH();
+      expect(tableOf().records.some(r => r['title'] === 'should-not-save')).toBe(false);
+    } finally {
+      await corrupt.destroy();
+    }
   });
 });

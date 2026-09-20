@@ -262,7 +262,8 @@ export function EntityList({
     }
   }
 
-  const entityCls = entityClsMap.get(entityKey);
+  // Map.has 先验证再取值：与 Angular 侧 #entityCls 同语义，且满足 CodeQL CWE-915 的白名单取值模式
+  const entityCls = entityClsMap.has(entityKey) ? entityClsMap.get(entityKey) : undefined;
 
   // ── 历史 / 撤销重做（@aiao/rxdb-plugin-history 装配的 versionManager）──
   const vHistory = useMemo<HistoryScopeAPI>(() => {
@@ -697,7 +698,7 @@ export function EntityList({
   const handleCreateSubmit = useCallback(
     async (data: EntityFormData): Promise<void> => {
       const cls = entityClsRef.current;
-      if (!cls) return;
+      if (!cls || typeof cls !== 'function') return;
       const parent = draftParentEntity;
       const relName = parentRelationName;
 

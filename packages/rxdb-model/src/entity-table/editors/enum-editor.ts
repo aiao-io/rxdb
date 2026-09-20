@@ -1,5 +1,5 @@
 import { DAISY_COLORS, GlobalOverlayEditor } from './global-overlay-editor.js';
-import { lucideToSvgHtml, type IconData } from './lucide-svg.js';
+import { lucideToSvgElement, type IconData } from './lucide-svg.js';
 
 /** 枚举选项配置 */
 export interface EnumItem {
@@ -127,7 +127,7 @@ export class EnumEditor extends GlobalOverlayEditor {
         `background:${isSelected ? DAISY_COLORS.selectedBg : 'transparent'}`
       ].join(';');
       if (item.icon && item.color) {
-        row.innerHTML = lucideToSvgHtml(item.icon, item.color);
+        row.appendChild(lucideToSvgElement(item.icon, item.color));
         const span = document.createElement('span');
         span.textContent = item.text ?? item.value;
         row.appendChild(span);

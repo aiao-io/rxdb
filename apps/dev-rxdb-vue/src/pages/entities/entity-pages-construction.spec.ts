@@ -38,7 +38,9 @@ vi.mock('@aiao/rxdb-vue', () => ({
 vi.mock('vue-router', async () => {
   const { defineComponent } = await import('vue');
   return {
+    // eslint-disable-next-line vue/one-component-per-file -- 测试桩：RouterLink 就地桩化
     RouterLink: defineComponent({ template: '<a><slot /></a>' }),
+    // eslint-disable-next-line vue/one-component-per-file -- 测试桩：RouterView 就地桩化
     RouterView: defineComponent({ template: '<div><slot /></div>' }),
     useRoute: () => routeHolder.current,
     useRouter: () => ({ push })
@@ -47,16 +49,20 @@ vi.mock('vue-router', async () => {
 
 vi.mock('@aiao/rxdb-model-vue', async () => {
   const { defineComponent } = await import('vue');
+  // eslint-disable-next-line vue/one-component-per-file -- 测试桩：EntityList 就地桩化
   stubs.EntityListStub = defineComponent({
     name: 'EntityList',
+    // eslint-disable-next-line vue/require-default-prop -- 测试桩：仅记录 props，无默认值语义
     props: { namespace: String, name: String },
     setup: props => {
       stubs.listProps.props = props;
       return () => null;
     }
   });
+  // eslint-disable-next-line vue/one-component-per-file -- 测试桩：EntityDetail 就地桩化
   stubs.EntityDetailStub = defineComponent({
     name: 'EntityDetail',
+    // eslint-disable-next-line vue/require-default-prop -- 测试桩：仅记录 props，无默认值语义
     props: { namespace: String, name: String, entityId: String },
     emits: ['formSubmitted', 'formCancelled'],
     setup(props) {
