@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-18
+updated: 2026-09-20
 tags: [collaboration, branch, concurrency, conflict]
 inherited_acs:
   - from: US-306
@@ -18,7 +18,7 @@ inherited_acs:
     ac: US2-AC17
     note: remote_sync 单元在切出/切回后仍一致的半边，由本故事 US1-AC12 收口
   - from: US-306
-    ac: US4-AC7
+    ac: US4-AC4
     note: 真实双 Tab stale_active_branch fixture 半边，由本故事 US2-AC5 收口
 ---
 
@@ -66,7 +66,7 @@ US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的�
 | --------------------------------------------------------- | -------------- |
 | US-306 US1-AC4 / US4-AC2 的切出/切回端到端往返            | US1-AC5        |
 | US-306 US2-AC17 的 `remote_sync` 单元切出/切回后仍一致    | US1-AC12       |
-| US-306 US4-AC7 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
+| US-306 US4-AC4 的真实双 Tab `stale_active_branch` fixture | US2-AC5        |
 
 ## 既有 `switchBranch()` 的兼容处置
 
@@ -186,14 +186,14 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
   来源分支仍 active 且 activation revision 未递增；同一 fixture 断言从该损坏分支切离成功。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
-## 实现文件（计划阶段待确认）
+## 实现文件
 
-- `packages/rxdb/src/version/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
-- `packages/rxdb/src/version/` — 分支隔离、revision 冲突派生与错误分类
-- `packages/rxdb/src/system/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（表本身由 US-305 建立）
-- `packages/rxdb-{angular,react,vue}/` — 对称的冲突状态与提示
+- `packages/rxdb-plugin-history/src/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — 分支隔离、revision 冲突派生与错误分类（`activation-cas.ts`、`commit-conflict.ts`、`branch-materialization.ts`、`switch-branch-options.ts`）
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（`activation-state.ts`；表本身由 US-305 建立）
+- `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的冲突状态与提示
 - `requirements/api-baseline/rxdb.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
-- `packages/rxdb/src/__tests__/contracts/` — `switchBranch` 公开方法签名兼容测试
+- `packages/rxdb-plugin-history/src/__tests__/contracts/public-type-compatibility.spec.ts` — `switchBranch` 公开方法签名兼容测试
 
 ## 依赖与参考
 

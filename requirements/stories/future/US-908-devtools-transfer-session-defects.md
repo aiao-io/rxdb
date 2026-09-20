@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-09-20
 tags: [devtools, desktop, transfer, filesystem, cleanup, electron]
 ---
 
@@ -69,7 +69,7 @@ INVEST 检查清单:
 「CHUNK 紧跟 CANCEL」这条时序里 `discard()` 会在句柄尚未打开时命中那条空操作分支，随后兑现的
 `open()` 又把 host 的 `.rxdb-tmp` 建出来——没有人再去清它。
 
-判据必须能控制 `write` 的兑现时机。AC#10 的取消驱动先等临时产物出现再发 CANCEL，那时 `opened`
+判据必须能控制 `write` 的兑现时机。US-905 AC#10 的取消驱动先等临时产物出现再发 CANCEL，那时 `opened`
 必已赋值，这条时序它按定义碰不到；绕开是故意的，那条用例要验的是「取消之后盘上干不干净」，
 把两件事写进同一条断言，红了也分不出是哪一件。因此本条另立两个用例：状态机层验「在途写入未兑现
 时不得结算」，provider 层把 `openWrite` 按在闸上验「盘上不留 `.rxdb-tmp`」。
@@ -107,8 +107,3 @@ Playwright + 打包产物的代价。为此把 provider 装配从 `default` 里�
 - [US-905 Tauri DevTools 调试窗口](./US-905-tauri-native-devtools.md) — 两条缺陷的发现处
 - [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](./US-906-electron-devtools-developer-path.md) —
   AC#2 落在这条路径的装配处
-
----
-
-> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
-> [CONVENTIONS.md](../../CONVENTIONS.md)。

@@ -20,6 +20,7 @@ import {
   type WorkingTreeDiffOptions,
   type WorkingTreeDiscardOptions,
   type WorkingTreeDiscardResult,
+  type WorkingTreeEnableIfEmptyResult,
   type WorkingTreeQueryState,
   type WorkingTreeRestoreOptions,
   type WorkingTreeRestoreResult,
@@ -34,8 +35,8 @@ import { computed, signal, Signal } from '@angular/core';
  * {@link useWorkingTree} 的返回值。
  *
  * @remarks
- * 十一个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
- * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十一个方法的签名
+ * 十二个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
+ * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十二个方法的签名
  * 与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）上的同名方法完全
  * 一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
@@ -59,6 +60,8 @@ export interface WorkingTreeResource {
   readonly isEnabledState: Signal<WorkingTreeCommandState<boolean>>;
   /** 上一次 `enable()` 的相位 */
   readonly enableState: Signal<WorkingTreeCommandState<CommitCapabilityInfo>>;
+  /** 上一次 `enableIfEmpty()` 的相位；**没有 empty** —— `not_empty` 是结果，不是「没有内容」 */
+  readonly enableIfEmptyState: Signal<WorkingTreeCommandState<WorkingTreeEnableIfEmptyResult>>;
   /** 工作树摘要的相位；干净工作树是 `empty`，**带着**那份 status */
   readonly statusState: Signal<WorkingTreeQueryState<WorkingTreeStatus>>;
   /** 未提交改动的相位；零条目是 `empty` */
@@ -82,6 +85,8 @@ export interface WorkingTreeResource {
   readonly isEnabled: () => Promise<boolean>;
   /** 启用提交能力；成功后自动重读一次 status。 */
   readonly enable: () => Promise<CommitCapabilityInfo>;
+  /** 库为空时自动启用、有内容时跳过；三种结局后都自动重读一次 status。 */
+  readonly enableIfEmpty: () => Promise<WorkingTreeEnableIfEmptyResult>;
   /** 读当前分支的工作树摘要。 */
   readonly status: () => Promise<WorkingTreeStatus>;
   /** 读当前分支相对 HEAD 的未提交改动。 */
@@ -143,10 +148,10 @@ export interface WorkingTreeResource {
  * ```
  *
  * @remarks
- * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十格状态挂在本次调用
+ * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十二格状态挂在本次调用
  * 自己的 signal 上，没有跨组件共享的单例缓存。
  *
- * **创建入口本身一次 IO 都不发**：十一格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、
@@ -159,7 +164,7 @@ export interface WorkingTreeResource {
  * @public
  */
 export const useWorkingTree = (): WorkingTreeResource => {
-  // 取整个库而不是解构 `workingTree`：清单第十项 `switchBranch` 挂在 `versionManager` 上，
+  // 取整个库而不是解构 `workingTree`：清单第十一项 `switchBranch` 挂在 `versionManager` 上，
   // 两个入口都由命令层去取（见 `createWorkingTreeCommands` 的同名注记）。
   const database = useRxDB();
   const states = signal<WorkingTreeAsyncStates>(WORKING_TREE_INITIAL_ASYNC_STATES);
@@ -170,6 +175,7 @@ export const useWorkingTree = (): WorkingTreeResource => {
   return {
     isEnabledState: computed(() => states().isEnabledState),
     enableState: computed(() => states().enableState),
+    enableIfEmptyState: computed(() => states().enableIfEmptyState),
     statusState: computed(() => states().statusState),
     diffState: computed(() => states().diffState),
     listCommitsState: computed(() => states().listCommitsState),

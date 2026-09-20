@@ -26,6 +26,12 @@
   ],
   "references": [
     {
+      "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqliteai/tsconfig.lib.json"
     },
     {

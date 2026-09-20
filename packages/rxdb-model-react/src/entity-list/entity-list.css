@@ -1,0 +1,11 @@
+/**
+ * 实体列表样式（Angular 侧 CDK 透明 backdrop 的等价物）。
+ */
+
+/* 筛选弹层透明遮罩（对应 .cdk-overlay-transparent-backdrop）：点击关闭，内容卡片自停冒泡 */
+.rxdb-filter-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: transparent;
+}

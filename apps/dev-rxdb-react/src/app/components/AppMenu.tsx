@@ -59,93 +59,59 @@ const menus: MenuItem[] = [
   },
   {
     type: 'divider',
-    title: 'Workspace'
+    title: 'Components'
   },
   {
     type: 'link',
-    title: 'Draft Recovery',
-    path: '/workspace',
-    icon: LayersIcon
-  },
-  {
-    type: 'divider',
-    title: 'Tree Menu'
-  },
-  {
-    type: 'link',
-    title: 'Simple',
+    title: 'Tree Menu - Simple',
     path: '/menu-simple',
     icon: ListTree
   },
   {
     type: 'link',
-    title: 'Virtual Scroll',
+    title: 'Tree Menu - Virtual Scroll',
     path: '/menu-virtual',
     icon: ListTree
   },
   {
     type: 'link',
-    title: 'Lazy Load',
+    title: 'Tree Menu - Lazy Load',
     path: '/menu-lazy',
     icon: ListTree
   },
   {
-    type: 'divider',
-    title: 'File Manager'
-  },
-  {
     type: 'link',
-    title: 'Simple',
+    title: 'File Manager - Simple',
     path: '/file-manager-simple',
     icon: FolderTree
   },
   {
     type: 'link',
-    title: 'Virtual Scroll',
+    title: 'File Manager - Virtual Scroll',
     path: '/file-manager-virtual',
     icon: FolderTree
   },
   {
     type: 'link',
-    title: 'Lazy Load',
+    title: 'File Manager - Lazy Load',
     path: '/file-manager-lazy',
     icon: FolderTree
-  },
-  {
-    type: 'divider',
-    title: 'Entity query'
-  },
-  {
-    type: 'link',
-    title: 'Global Search',
-    path: '/search',
-    icon: Search
-  },
-  {
-    type: 'divider',
-    title: 'Branch'
-  },
-  {
-    type: 'link',
-    title: 'Branch Manager',
-    path: '/branch-manager',
-    icon: GitMerge
-  },
-  {
-    type: 'link',
-    title: 'Working Tree',
-    path: '/working-tree',
-    icon: GitMerge
-  },
-  {
-    type: 'divider',
-    title: 'Advanced'
   },
   {
     type: 'link',
     title: 'AG Grid',
     path: '/ag-grid',
     icon: Grid3x3
+  },
+  {
+    type: 'divider',
+    title: 'Entity Model'
+  },
+  {
+    type: 'link',
+    title: 'Entities',
+    path: '/entities',
+    icon: ListTodo
   },
   {
     type: 'link',
@@ -158,6 +124,20 @@ const menus: MenuItem[] = [
     title: 'Generator',
     path: '/generator',
     icon: Factory
+  },
+  {
+    type: 'divider',
+    title: 'Search'
+  },
+  {
+    type: 'link',
+    title: 'Global Search',
+    path: '/search',
+    icon: Search
+  },
+  {
+    type: 'divider',
+    title: 'Storage'
   },
   {
     type: 'link',
@@ -176,6 +156,22 @@ const menus: MenuItem[] = [
     title: 'Remote Cache',
     path: '/remote-cache',
     icon: Cloud
+  },
+  {
+    type: 'divider',
+    title: 'Workspace'
+  },
+  {
+    type: 'link',
+    title: 'Draft Recovery',
+    path: '/workspace',
+    icon: LayersIcon
+  },
+  {
+    type: 'link',
+    title: 'Working Tree',
+    path: '/working-tree',
+    icon: GitMerge
   },
   {
     type: 'divider',

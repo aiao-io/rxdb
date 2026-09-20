@@ -5,14 +5,13 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-09-01
+updated: 2026-09-20
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
     ac: 1
     note: >-
-      ac 一律是 US-207 的**当前**编号——US-207 拆出 US-208 / US-210 后由 11 条重编为 8 条，
-      各条括注的「原 AC#N」只用于回溯 git 历史，不要拿它索引今天的 US-207。
+      ac 一律是 US-207 的**当前**编号——US-207 拆出 US-208 / US-210 后由 11 条重编为 9 条。
       本条：Electron PGlite data directory 的持久化与类型保真验收（原 AC#4）整条迁入本故事 AC#1；
       US-207 AC#1 是它的 SQLite 对偶，今天的 US-207 已无 PGlite 相关 AC。
   - from: US-207
@@ -136,8 +135,8 @@ external 依赖改声明进 `dependencies`，并补两条单测把
 > **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
 > 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
 > 补的理由见 US-207 那一节：校验代码在共享层，但三个 host 是独立实现的，不能只在一处验。
-> 本故事的 PGlite host 尚未开工，所以这条标 ⬜——它是**开工时要一并做的**，不是事后补丁：
-> `open` 应答携带协议版本这件事，写在协议里比写在 host 里便宜一个量级。
+> 握手（无副作用，不碰会话表、不碰路径解析）在 `open` 之前协商版本：`open` 会建库、开连接、
+> 登记会话，核对排在它之后的话，一次注定失败的连接仍会留下空库文件。证据见「验收证据」AC#11 行。
 
 ## 技术笔记
 
@@ -166,7 +165,8 @@ roadmap 批次 1 线 G 的两案对照实验已完成，**选型冻结为「IPC 
 多次 invoke，方案 B 直接 `import` 后整体在主进程执行。SQL 逐字相同，所有差异都只能归因于
 「事务体在哪个进程里跑」，而不是「两份原型写得不一样」。
 
-整个 `pglite-tx-experiment/` 目录与配套 spec 可一并删除，生产主进程一行不用改。
+`pglite-tx-experiment/` 目录与配套 spec **保留**作为选型实验的证据（对照断言见
+`pglite-tx-experiment.spec.ts`）；实验只跑原型，生产主进程一行不用改。
 
 #### 实测对照
 

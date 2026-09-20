@@ -1,0 +1,48 @@
+<!-- Resize handles -->
+@if (isInDialog) {
+  <div class="resize-handle resize-n" (mousedown)="startResize($event, 'n')"></div>
+  <div class="resize-handle resize-s" (mousedown)="startResize($event, 's')"></div>
+  <div class="resize-handle resize-e" (mousedown)="startResize($event, 'e')"></div>
+  <div class="resize-handle resize-w" (mousedown)="startResize($event, 'w')"></div>
+  <div class="resize-handle resize-ne" (mousedown)="startResize($event, 'ne')"></div>
+  <div class="resize-handle resize-nw" (mousedown)="startResize($event, 'nw')"></div>
+  <div class="resize-handle resize-se" (mousedown)="startResize($event, 'se')"></div>
+  <div class="resize-handle resize-sw" (mousedown)="startResize($event, 'sw')"></div>
+}
+
+<!-- Dialog Title Bar (drag handle + fullscreen toggle + close) -->
+@if (isInDialog) {
+  <div class="border-base-300 flex shrink-0 items-center justify-between border-b px-4 py-2">
+    <span class="flex-1 cursor-grab text-base font-semibold select-none active:cursor-grabbing" cdkDragHandle>
+      {{ title() }}
+    </span>
+    <div class="flex items-center gap-1">
+      <!-- Fullscreen Toggle -->
+      <button
+        class="btn btn-ghost btn-xs btn-square"
+        [attr.aria-label]="isFullscreen() ? '退出全屏' : '全屏'"
+        (click)="toggleFullscreen()"
+        type="button"
+      >
+        @if (isFullscreen()) {
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+          </svg>
+        } @else {
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+        }
+      </button>
+      <!-- Close -->
+      <button class="btn btn-ghost btn-xs btn-square" (click)="close()" aria-label="关闭" type="button">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Projected content -->
+<ng-content />

@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-18
+updated: 2026-09-20
 tags: [collaboration, restore, history, persistence, angular, react, vue]
 ---
 
@@ -144,11 +144,11 @@ INVEST 检查清单:
 - 损坏守卫用例：目标 commit 本身健康但路径上存在可达损坏时，`restore()` 断言返回 `commit_graph_corrupted`
   且不创建 `WorkingTreeRestoreSession`；它与「目标不兼容」的 manifest fail-fast 各有独立用例，错误码不得混用。
 
-## 实现文件（计划阶段待确认）
+## 实现文件
 
-- `packages/rxdb/src/version/` — 恢复语义与恢复会话生命周期
-- `packages/rxdb/src/system/` — 恢复会话元数据（表由 US-306 阶段 B 建立，本故事只写入）
-- `packages/rxdb-{angular,react,vue}/` — 对称的恢复入口与状态
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — 恢复语义与恢复会话生命周期（`restore-command.ts`、`restore-session-transitions.ts`）
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — 恢复会话元数据（`working-tree-restore-session.entity.ts`；表由 US-306 阶段 B 建立，本故事只写入）
+- `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的恢复入口与状态
 - `apps/dev-rxdb-{angular,react,vue}/` — 历史与恢复演示
 - `benchmarks/working-tree.bench.ts` — 恢复场景采样
 - `requirements/api-baseline/rxdb.json`

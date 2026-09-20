@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * 四个功能路由的初始化冒烟。
+ * 三个功能路由的初始化冒烟。
  *
- * REACT-E2E-FRESH-01：`/workspace`、`/branch-manager`、`/opfs`、`/encrypted`
+ * REACT-E2E-FRESH-01：`/workspace`、`/opfs`、`/encrypted`
  * 此前**没有任何 `page.goto()` 进入过** —— 不是断言不够深，是连"这个页面能不能打开"
- * 都没有浏览器级门禁。它们各自依赖一条独立能力（workspace 插件、分支管理、
+ * 都没有浏览器级门禁。它们各自依赖一条独立能力（workspace 插件、
  * OPFS、字段加密），任何一条在打包/初始化阶段坏掉都不会被现有 126 条用例发现。
  *
  * 这里刻意只做**初始化断言**：路由能进、页面主结构渲染出来、没有崩到路由错误屏。
@@ -22,13 +22,6 @@ test.describe('功能路由初始化冒烟', () => {
     await page.goto('/workspace');
 
     await expect(page.getByRole('heading', { name: 'Workspace 草稿恢复' })).toBeVisible({ timeout: 20000 });
-    await assertNoRouterError(page);
-  });
-
-  test('/branch-manager 能打开并渲染分支管理', async ({ page }) => {
-    await page.goto('/branch-manager');
-
-    await expect(page.getByRole('heading', { name: '分支管理' })).toBeVisible({ timeout: 20000 });
     await assertNoRouterError(page);
   });
 

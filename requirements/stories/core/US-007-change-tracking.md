@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, sync, change-tracking]
 ---
 
@@ -38,9 +38,9 @@ tags: [core, sync, change-tracking]
 ## 实现文件
 
 - `packages/rxdb/src/system/change.ts` — 变更记录
-- `packages/rxdb/src/version/compact-changes.ts` — Push 变更压缩
-- `packages/rxdb/src/version/cleanup-expired.ts` — 过期清理
-- `packages/rxdb/src/rxdb-events.ts` — 17 种事件 + map (464 LOC)
+- `packages/rxdb/src/sync-contract/compact-changes.ts` — Push 变更压缩
+- `packages/rxdb-plugin-sync/src/cleanup-expired.ts` — 过期清理
+- `packages/rxdb/src/rxdb-events.ts` — 17 种事件 + map
 
 ## 参考
 

@@ -29,6 +29,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
+      "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json"
     },
     {

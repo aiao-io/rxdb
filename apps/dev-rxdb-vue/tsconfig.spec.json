@@ -26,6 +26,9 @@
       "path": "../../packages/rxdb-vue/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
     },
     {

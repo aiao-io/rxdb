@@ -51,9 +51,12 @@ owner: jimmy
 - [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
 - [US-023 QueryCache 远端变更的失效上报口与实时同步](../stories/core/US-023-querycache-remote-invalidation.md) — 出自 US-214：别的客户端改了数据，本客户端永不更新；三阶段（core 失效上报口 → HTTP 可选 SSE 通道 → demo 双页面收敛），**承接 US-212 AC#29**，失效粒度=整实体、通知不带行数据
-- [US-024 PGlite 侧 QueryCache 远端行的列契约](../stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边：`upsert_many_sql.ts` 落地前执行同一份列契约，缺列整批拒绝；判定函数首选抽到 `@aiao/rxdb`，不让 pglite 依赖 sqlite-core
+- [US-024 PGlite 侧 QueryCache 远端行的列契约](../stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边：`upsert_many_sql.ts` 落地前执行同一份列契约，缺列整批拒绝；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
+- [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵：引擎写边界强制（fail-closed）+ rxdb-model UI 能力派生 + 系统实体迁移；三阶段交付
+- [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；依赖方向 tree → sortable，为 US-025 阶段 E 树插件化铺路
+- [US-029 多用户 RBAC 权限与租户隔离的关联设计](../stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 两字段预留 + `RxDBContext` 角色扩展 + US-027 执行者轴谓词化 + pull 过滤 / push 裁决配合点 + 三框架行级只读派生；四阶段交付，阶段 B 依赖 US-027
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — rrweb 事件流按每事件一文档写入本地库；阶段 A e2e 失败现场、阶段 B 关联 working-tree commit 还原数据状态、阶段 C 插件与三框架组件（价值待证）
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析。**Epic 归属存疑**：属核心重构而非用户可见能力，承诺交付前宜另开 Epic

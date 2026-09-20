@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, query, dsl]
 ---
 
@@ -40,9 +40,9 @@ tags: [core, query, dsl]
 
 ## 实现文件
 
-- `packages/rxdb/src/repository/Repository.ts` — 仓库核心 CRUD (348 LOC)
-- `packages/rxdb/src/repository/QueryManager.ts` — 查询缓存管理 (295 LOC)
-- `packages/rxdb/src/repository/QueryTask.ts` — 查询任务封装 (317 LOC)
+- `packages/rxdb/src/repository/Repository.ts` — 仓库核心 CRUD
+- `packages/rxdb/src/repository/QueryManager.ts` — 查询缓存管理
+- `packages/rxdb/src/repository/QueryTask.ts` — 查询任务封装
 
 ## 参考
 

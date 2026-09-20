@@ -5,8 +5,12 @@ status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-09-14
+updated: 2026-09-20
 tags: [tooling, devtools, desktop, tauri, transport, sqlite, filesystem, security]
+inherited_acs:
+  - from: US-904
+    ac: [25, 27, 29, 30]
+    note: 承接 US-904 这四条 AC 的 Tauri 半边（由本故事 AC#10/#11/#16 关闭）。
 ---
 
 <!--
@@ -147,59 +151,54 @@ US-210 SQLite host / US-505 native file host
 
 ## 交付状态
 
-AC 表的「状态」列是唯一口径：阶段 1 八条全 ✅（含本阶段收尾的 #2 #6 #7）；阶段 2 九条全 ✅（#9～#17）。
-AC#17 三平台实测的调度已从「只在 release 分支/tag」改为「release 发布 + 手动 dispatch + 桌面链路相关
-PR」（`release-desktop.yml` 的 PR paths 扩到桌面链路本身）；三平台证据由 PR #58 最终 HEAD 的
-[Release Desktop run 34858162498](https://github.com/aiao-io/rxdb/actions/runs/34858162498) 回填——
-ubuntu / macOS / Windows 的 packaging smoke 与 devtools smoke 全绿，desktop-gate 通过。
-win32 的回填过程修掉一处真实缺陷：首跑里 idb 档在 Windows 上挂到 60s 看门狗报 `timedOut`（既不是
-ok 也不是诚实失败），挂点是模块 SharedWorker 传输——WebView2 上 worker 脚本不开始。强制档因此改走
-与 opfs 档同形态的 dedicated Worker（`resolveWaSqliteIdbTransport`，生产路径保留 SharedWorker 让
-多标签页共享同一条连接），win32 的 idb 档随即按冻结真值 `ok` 通过。linux 的 idb 真值按首跑回填
-`failed`（WebKitGTK 页面上下文没有 `navigator.storage`，见 gear spec 的平台事实表）。
+AC 表的「状态」列是唯一口径：17 条 AC 全部 ✅。
 
-阶段 1 收尾补上了原先三条 ⚠️ 的证据，全部落在打包产物上的真实双窗口走查：
+- **AC#17 三平台实测的调度为三触发**：release 发布、手动 dispatch、桌面链路相关 PR（`release-desktop.yml`
+  的 PR paths 扩到桌面链路本身）。三平台 packaging smoke 与 devtools smoke 全绿、desktop-gate 通过的证据见
+  [Release Desktop run 34858162498](https://github.com/aiao-io/rxdb/actions/runs/34858162498)。
+- **win32 的 idb 强制档走与 opfs 档同形态的 dedicated Worker**（`resolveWaSqliteIdbTransport`；生产路径保留
+  SharedWorker 让多标签页共享同一条连接），真值 `ok`。WebView2 上模块 SharedWorker 的 worker 脚本不开始，挂到
+  60s 看门狗只会报 `timedOut`（既不是 ok 也不是诚实失败），因此强制档不经过它。
+- **linux 的 idb 真值为 `failed` 且为冻结值**（WebKitGTK 页面上下文没有 `navigator.storage`，见 gear spec 的
+  平台事实表）。
+- VFS 三态（opfs / idb / unavailable）按平台分表冻结真值（darwin / win32 / linux）。
 
-- **AC#2**（fake providers 五类操作走真实双窗口）：新增
-  `apps/dev-rxdb-tauri-e2e/src/devtools-provider-gear.spec.ts`，由 dev-only 档位
-  `DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE=fake` 把共享 `DevToolsFakeProviderSet` 装配进主窗口 connector，
-  经真实 `invoke` / `emit_to` 中继到调试窗口，由 `devtools_driver.js` 的 `runFake()` 分叉走查查询、事件、
-  授权、transfer、snapshot 五类。五类里换掉的只是 connector 背后的 provider，中继、wire 校验、面板协商
-  与能力镜像都是真的——这正是「Tauri 只适配 transport、不复制状态机」的证据。fake 档覆盖 full+ok、
-  只读授权半边，以及 snapshot 的 busy / too_large / expired 三场景。
-- **AC#6**（VFS 三态映射）：同文件新增三档 `DEV_RXDB_DEVTOOLS_FORCE_VFS=opfs|idb|unavailable` 的
-  process-level 走查。`opfs` 档面板 descriptors 报 `files: opfs` + `settings: opfs`；`idb` 档报
-  `settings: idb` 且 `files` 不宣告（无文件根，是现状行为）；`unavailable` 档应用库诚实失败——打开即抛、
-  报 failed + 退出码 1、devtools 探针根本没跑。强制档只改 `setup_rxdb_wa-sqlite.ts` 的后端选择与 runtime
-  传递，映射语义仍由 `selectWaSqliteBackend` 纯函数与 `tauri-vfs-providers.ts` 钉住。三态按平台分表冻结
-  `darwin` 真值（`win32` / `linux` 为假设，由 CI 三 OS 矩阵首跑回填）。
-- **AC#7**（真实链路复跑 conformance 判据）：`devtools-window-transport.spec.ts` 在**真实** `invoke` /
-  `listen` 跨窗口投递上复跑 safe-integer guard、decoded-byte 限额、非法 base64、snapshot 分页 / 越界 /
-  expired 双开、事件订阅与 EVENT 帧计数、transfer 乱序/取消/资源释放。判据、fixture、错误码表沿用
-  `packages/rxdb-devtools` 的共享 suite，不新增平台错误码、编码或 fallback。
+阶段 1 三条 AC 的证据全部落在打包产物上的真实双窗口走查：
 
-阶段 2 收尾补上的是**真实 host** 半边证据，全部经真实 wire（面板 → IPC → Rust 中继 → native host）：
+- **AC#2**（fake providers 五类操作走真实双窗口）：`apps/dev-rxdb-tauri-e2e/src/devtools-provider-gear.spec.ts`，
+  由 dev-only 档位 `DEV_RXDB_DEVTOOLS_PROVIDER_SOURCE=fake` 把共享 `DevToolsFakeProviderSet` 装配进主窗口
+  connector，经真实 `invoke` / `emit_to` 中继到调试窗口，由 `devtools_driver.js` 的 `runFake()` 分叉走查查询、
+  事件、授权、transfer、snapshot 五类。五类里换掉的只是 connector 背后的 provider，中继、wire 校验、面板协商
+  与能力镜像都是真的。fake 档覆盖 full+ok、只读授权半边，以及 snapshot 的 busy / too_large / expired 三场景。
+- **AC#6**（VFS 三态映射）：同文件新增三档 `DEV_RXDB_DEVTOOLS_FORCE_VFS=opfs|idb|unavailable` 的 process-level
+  走查。`opfs` 档面板 descriptors 报 `files: opfs` + `settings: opfs`；`idb` 档报 `settings: idb` 且 `files` 不宣告
+  （无文件根，是现状行为）；`unavailable` 档应用库诚实失败——打开即抛、报 failed + 退出码 1、devtools 探针根本没跑。
+  强制档只改 `setup_rxdb_wa-sqlite.ts` 的后端选择与 runtime 传递，映射语义仍由 `selectWaSqliteBackend` 纯函数与
+  `tauri-vfs-providers.ts` 钉住。
+- **AC#7**（真实链路复跑 conformance 判据）：`devtools-window-transport.spec.ts` 在**真实** `invoke` / `listen`
+  跨窗口投递上复跑 safe-integer guard、decoded-byte 限额、非法 base64、snapshot 分页 / 越界 / expired 双开、
+  事件订阅与 EVENT 帧计数、transfer 乱序/取消/资源释放。判据、fixture、错误码表沿用 `packages/rxdb-devtools`
+  的共享 suite，不新增平台错误码、编码或 fallback。
 
-- **AC#9**（query/events 之外补 branch 走查）：`devtools_driver.js` 的 `runReal()` 增加
-  `database.get-branches` 与 `database.switch-branch` 两步——后者切到当前已激活分支，
-  `versionManager.switchBranch` 对同分支是 no-op 成功，探针零副作用。没开写入授权时 switch-branch
-  被 mutation policy 按写操作拒（`provider_unsupported`，与「未声明」同码——AC#13 的刻意不可区分），
-  授权档下走通答 `ok`；报告探针面 v10→v11（`branchesList` / `branchCount` / `branchSwitch`）。
-- **AC#10 / #12 / #13 / #14 / #15**：真实 host 的字节往返、settings 两码、伪造 session、建删目录、
-  取消无半写、逃逸、2^53、非法 base64、跨重启比对等已在 `devtools-window-transport.spec.ts` 全部落位，
-  随本次收尾全绿复核；US-908 已关的两条缺陷（`TRANSFER_CANCEL` 排空在途写入、
-  `pagehide → filesystem.dispose()`）正是 AC#14 资源释放的最后两道坑。
-- **AC#11**（1001+ 快照走查）：`devtools-window-transport.spec.ts` 新增真实存储根播种 1001 个小文件的
-  进程级走查——首页 ok → 翻页至 complete → 记录数 ≥ 1001（默认页大小 100 意味着至少 11 页），
-  双开 expired 与越界 pageSize 同码复核；播种不经 wire、不撞 `.rxdb-tmp` 过滤与 32 MiB 字节上限。
-- **AC#16**（conformance 架构对齐）：Tauri 半边与 Electron 同构——`tauri-conformance.spec.ts` 以薄
-  transport 驱动 + 共享 fake 端点跑同一套 control-plane / data-plane suite，「真实 host 半边」由
-  `devtools-window-transport.spec.ts` 的 wire 走查承担。这是 US-904/906 已关过的架构形态；不把整套
-  conformance 断言搬到真实窗口复跑（故事 Out-of-Scope 明确不做）。
-- **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；win32/linux
-  实测的调度改为桌面相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路）。
-  首跑暴露出 win32 的 idb 档 SharedWorker 传输挂起，强制档改走 dedicated Worker 修复后，
-  最终 HEAD 的全矩阵复验三平台 smoke 全绿（run 34858162498），本 AC 关闭。
+阶段 2 的真实 host 证据全部经真实 wire（面板 → IPC → Rust 中继 → native host）：
+
+- **AC#9**（query/events 之外补 branch 走查）：`devtools_driver.js` 的 `runReal()` 增加 `database.get-branches`
+  与 `database.switch-branch` 两步——后者切到当前已激活分支，`versionManager.switchBranch` 对同分支是 no-op 成功，
+  探针零副作用。没开写入授权时 switch-branch 被 mutation policy 按写操作拒（`provider_unsupported`，与「未声明」
+  同码——AC#13 的刻意不可区分），授权档下走通答 `ok`；探针面报告含 `branchesList` / `branchCount` /
+  `branchSwitch`。
+- **AC#10 / #12 / #13 / #14 / #15**：真实 host 的字节往返、settings 两码、伪造 session、建删目录、取消无半写、
+  逃逸、2^53、非法 base64、跨重启比对等已在 `devtools-window-transport.spec.ts` 全部落位；US-908 已关的两条缺陷
+  （`TRANSFER_CANCEL` 排空在途写入、`pagehide → filesystem.dispose()`）覆盖 AC#14 的资源释放。
+- **AC#11**（1001+ 快照走查）：`devtools-window-transport.spec.ts` 新增真实存储根播种 1001 个小文件的 process-level
+  走查——首页 ok → 翻页至 complete → 记录数 ≥ 1001（默认页大小 100 意味着至少 11 页），双开 expired 与越界 pageSize
+  同码复核；播种不经 wire、不撞 `.rxdb-tmp` 过滤与 32 MiB 字节上限。
+- **AC#16**（conformance 架构对齐）：Tauri 半边与 Electron 同构——`tauri-conformance.spec.ts` 以薄 transport 驱动 +
+  共享 fake 端点跑同一套 control-plane / data-plane suite，「真实 host 半边」由 `devtools-window-transport.spec.ts`
+  的 wire 走查承担。不把整套 conformance 断言搬到真实窗口复跑（故事 Out-of-Scope 明确不做）。
+- **AC#17**（三平台）：release 隔离半边由 `devtools-release-isolation.spec.ts` 钉住；win32 / linux 的实测随桌面
+  相关 PR 与 release 发布都跑（`release-desktop.yml` 的 PR paths 扩到桌面链路），三平台 smoke 全绿
+  （run 34858162498）。
 
 三档开关（provider 源 / snapshot 场景 / VFS 强制）与驱动档位键全部 `#[cfg(dev)]` 编进 dev 二进制，
 release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三档 env 名只出现在 `devtools_config.rs`
@@ -209,7 +208,7 @@ release 产物静态不含；`devtools-release-isolation.spec.ts` 已钉住三�
 （Tauri 装配处已接 `pagehide`），两条缺陷由
 [US-908](./US-908-devtools-transfer-session-defects.md) 认领并关闭，不在本故事范围内。
 
-## 技术约束
+## 技术笔记
 
 - **两阶段必须是独立的 PR / commit 序列**：阶段 1 的证据只用共享 fake provider，不得夹带真实 host 接线。
 - Tauri transport 复用 US-904 阶段 B 的 v2 与「宽外层、严内层」解析；外层必须能返回 `protocol_unsupported`，

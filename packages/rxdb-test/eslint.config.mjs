@@ -10,7 +10,10 @@ export default [
         {
           ignoredFiles: [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
-            '{projectRoot}/vite.config.{js,ts,mjs,mts}'
+            '{projectRoot}/vite.config.{js,ts,mjs,mts}',
+            // public-contract 是「以消费者视角」验证发布面的契约文件，
+            // 故意 self-import 本包子路径，不属于真实依赖图。
+            '{projectRoot}/public-contract/**'
           ]
         }
       ]

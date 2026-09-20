@@ -1,5 +1,6 @@
 <div class="gd-workspace flex h-full flex-col overflow-hidden" data-testid="working-tree-page">
   @let status = tree.statusState();
+  @let displayStatus = $displayStatusState();
   @let enabledState = tree.isEnabledState();
 
   <!-- GitHub Desktop 没有页面标题栏：标题只留给读屏，视觉上第一行就是工具栏 -->
@@ -144,14 +145,14 @@
                 <code>{{ $restoreSession()!.targetCommitId }}</code>
                 — commit to complete the restore, discard to cancel it.
               }
-              @if (status.phase === 'success' && status.value.conflicted) {
+              @if (displayStatus.phase === 'success' && displayStatus.value.conflicted) {
                 The restore session has diverged from the working tree (capture mismatch) — discard to cancel, then
                 restore again.
               }
             </div>
           }
           <app-working-tree-changes-list
-            [diffState]="tree.diffState()"
+            [diffState]="$displayDiffState()"
             [selectedKey]="$selectedDiffKey()"
             (menuRequest)="openChangesContextMenu($event)"
             (selectEntry)="selectDiffEntry($event)"
@@ -214,7 +215,8 @@
         ): once enabled, the whole database runs under working-tree semantics and every write is captured as an
         uncommitted change — the equivalent of
         <code>git init</code>
-        .
+        . Empty databases initialize automatically at app startup; a database that already contains data still needs
+        this explicit click.
       </p>
       <button class="gd-btn-primary" (click)="runEnable()" data-testid="wt-enable" type="button">
         Initialize repository (enable)

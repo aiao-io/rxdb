@@ -1,0 +1,19 @@
+/**
+ * 对话框原语样式（Angular CDK overlay 的视觉等价物）。
+ */
+
+.rxdb-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.rxdb-dialog-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-base-100, #ffffff);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}

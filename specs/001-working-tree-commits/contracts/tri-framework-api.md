@@ -45,7 +45,7 @@
 
 ## 3. 必须三端齐全的能力清单（阶段 C 收口）
 
-`isEnabled()` / `enable()`、`status()`、`diff()`、`commit()`、`discard()`、`listCommits()`、`restore()`、`restoreSession()`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`——十项，每项各带一格配对的 `*State`（`statusState` / `commitState` …）。
+`isEnabled()` / `enable()` / `enableIfEmpty()`、`status()`、`diff()`、`commit()`、`discard()`、`listCommits()`、`restore()`、`restoreSession()`、`switchBranch` 的 `WorkingTreeSwitchBranchOptions`——十一项，每项各带一格配对的 `*State`（`statusState` / `commitState` / `enableIfEmptyState` …）。
 
 **任一端缺一项 = 阶段 C 未完成**，不接受「先上两端，第三端下个迭代补」。
 

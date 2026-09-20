@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-08-18
+updated: 2026-09-20
 tags: [framework, angular]
 ---
 
@@ -51,10 +51,10 @@ tags: [framework, angular]
 ## 实现文件
 
 - `packages/rxdb-angular/src/rxdb.provider.ts` — DI Provider
-- `packages/rxdb-angular/src/rxdb.ts` — Hooks 核心
-- `packages/rxdb-angular/src/rxdb-infinite-scroll.ts` — 无限滚动
+- `packages/rxdb-angular/src/hooks.ts` — Hooks 核心（含 `useFindDescendants` 等 Tree/Graph hooks，无独立 tree 文件）
+- `packages/rxdb-angular/src/use-infinite-scroll.ts` — 无限滚动
 - `packages/rxdb-angular/src/rxdb-change-detector.directive.ts` — 变更检测优化
-- `packages/rxdb-angular/src/rxdb-tree.ts` — Tree hooks
+- `packages/rxdb-angular/src/use-action.ts` / `use-state.ts` / `use-persisted-state.ts` — localStorage 状态管理
 
 ## 参考
 

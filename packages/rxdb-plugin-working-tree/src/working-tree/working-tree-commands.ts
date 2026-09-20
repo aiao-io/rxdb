@@ -1,5 +1,5 @@
 /**
- * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十个方法与
+ * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十一个方法与
  * `versionManager.switchBranch()` 接到 {@link WorkingTreeAsyncStates} 上
  * （US-306 阶段 C、T110 与 T123，contracts/tri-framework-api.md §1/§4）。
  *
@@ -44,7 +44,7 @@ import type {
 } from './restore-command.js';
 import type { WorkingTreeStatus } from './status.js';
 import type { WorkingTreeSwitchBranchOptions } from './switch-branch-options.js';
-import type { WorkingTreeManager } from './working-tree-facade.js';
+import type { WorkingTreeEnableIfEmptyResult, WorkingTreeManager } from './working-tree-facade.js';
 
 /**
  * 往某一格状态里写一个新相位。
@@ -59,7 +59,7 @@ export type WorkingTreeStatePatch = <K extends keyof WorkingTreeAsyncStates>(
 ) => void;
 
 /**
- * 三端入口对外暴露的十一个命令；签名与 {@link WorkingTreeManager}
+ * 三端入口对外暴露的十二个命令；签名与 {@link WorkingTreeManager}
  * （以及 `switchBranch` 那一个 {@link VersionManager}）上的同名方法一致。
  *
  * @remarks
@@ -75,6 +75,8 @@ export interface WorkingTreeCommands {
   readonly isEnabled: () => Promise<boolean>;
   /** 启用提交能力；成功后顺带重读一次 status */
   readonly enable: () => Promise<CommitCapabilityInfo>;
+  /** 库为空时自动启用、有内容时跳过；三种结局后都顺带重读一次 status */
+  readonly enableIfEmpty: () => Promise<WorkingTreeEnableIfEmptyResult>;
   /** 当前分支的工作树摘要；干净工作树是 `empty` 相位 */
   readonly status: () => Promise<WorkingTreeStatus>;
   /** 当前分支相对 HEAD 的未提交改动；零条目是 `empty` 相位 */
@@ -170,7 +172,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
 };
 
 /**
- * 把十一个命令接到状态格子上。
+ * 把十二个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `workingTree` 与 `versionManager` 两个入口
  * @param patch - 每一次相位变化的落点；见 {@link WorkingTreeStatePatch}
@@ -193,7 +195,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
  * 同理，`commit()` / `discard()` 也不重读会话，尽管两者都会结束它：三处各加一轮查询，换来的
  * 是一份没有任何判定依赖它的补充信息。
  *
- * **收整个库而不是只收 `workingTree`。** 清单第十项 `switchBranch` 挂在 `versionManager` 上
+ * **收整个库而不是只收 `workingTree`。** 清单第十一项 `switchBranch` 挂在 `versionManager` 上
  * （contracts/core-api.md §6 把它钉在那里，判定才走系统贡献口子回到本插件）；只收工作树入口
  * 的话，这一项只能由三端各自去取 `versionManager` 再各自接一遍状态——而「切完要不要重读
  * status」这类判定正是本文件存在的理由，三份实现迟早有一份忘了重读。
@@ -233,6 +235,12 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       const info = await trackWorkingTreeCommand(sinkFor('enableState'), () => workingTree.enable());
       await refreshStatus();
       return info;
+    },
+
+    enableIfEmpty: async () => {
+      const result = await trackWorkingTreeCommand(sinkFor('enableIfEmptyState'), () => workingTree.enableIfEmpty());
+      await refreshStatus();
+      return result;
     },
 
     status: runStatus,

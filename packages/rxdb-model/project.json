@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-model",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["{projectRoot}", "dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-model"],
+      "options": {
+        "cwd": "packages/rxdb-model",
+        "command": "vitest run --coverage"
+      },
+      "metadata": {
+        "description": "Run tests with coverage (node 默认环境 + 按文件 happy-dom pragma)。"
+      }
+    }
+  }
+}

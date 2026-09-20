@@ -167,12 +167,27 @@ const openPanel = async (page: Page): Promise<void> => {
   await expect(page.getByTestId('wt-status-phase')).toHaveText(SETTLED, { timeout: 20000 });
 };
 
-/** 点「初始化仓库」并等到启用态落定。 */
-const enablePanel = async (page: Page): Promise<void> => {
+/** 点「初始化仓库」并等到启用态落定（手动路径，需要先跳过启动时的自动启用）。 */
+const clickEnable = async (page: Page): Promise<void> => {
   await page.getByTestId('wt-enable').click();
   await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
   await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
 };
+
+/**
+ * 等自动初始化落定。
+ *
+ * 空库在应用启动时被 `enableIfEmpty()` 自动启用，页面加载后这里只等、不点；
+ * 需要「未启用」初始态的用例用 localStorage 键跳过自动启用后走 {@link clickEnable}。
+ */
+const waitForAutoEnabled = async (page: Page): Promise<void> => {
+  await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
+  await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
+};
+
+/** 注册「跳过启动时的自动启用」的 init script——手动路径用例的起点。 */
+const skipAutoEnable = (page: Page) =>
+  page.addInitScript(() => window.localStorage.setItem('rxdb-e2e-skip-working-tree-auto-enable', '1'));
 
 /**
  * 到 /todo 页写一条 Todo 再回到工作树页；面板不造数据（与功能用例同一叙事）。
@@ -194,7 +209,7 @@ const writeTodo = async (page: Page, title: string): Promise<void> => {
 test.describe('Working Tree Page A11y', () => {
   test('状态变化对读屏可感知：状态胶囊与结果区都挂了 live region', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     // `commit()` / `restore()` 期间不得静默（§4 loading 一栏）：这几块是相位变化的落点，
     // 没有 live region 的话读屏用户拿到的就是「点了按钮，什么都没发生」。
@@ -214,14 +229,15 @@ test.describe('Working Tree Page A11y', () => {
   });
 
   test('未启用 / 已启用 / 有未提交改动 / 已提交 / 历史页五态都没有 axe 违规', async ({ page }) => {
+    // 跳过启动时的自动启用，留住「未启用」这一态：有内容的库（或这里跳过自动启用的
+    // 空库）冷启动时挂载那次 `status()` 撞上 WorkingTreeCapabilityDisabledError。
+    await skipAutoEnable(page);
     await openPanel(page);
 
-    // 冷启动的库没有提交能力，挂载那次 `status()` 撞上 WorkingTreeCapabilityDisabledError。
-    // 这不是用例没准备好，而是**默认状态**：v1 的启用是数据库级的显式开关。
     await expect(page.getByTestId('wt-status-phase')).toHaveText('error');
     await scanPanel(page);
 
-    await enablePanel(page);
+    await clickEnable(page);
     await scanPanel(page);
 
     await writeTodo(page, 'axe demo');
@@ -246,6 +262,9 @@ test.describe('Working Tree Page A11y', () => {
   });
 
   test('面板里的每个控件都能用键盘走到，且焦点可见', async ({ page }) => {
+    // 跳过自动启用：初始化态只有「初始化仓库」与「刷新状态」两个控件这一断言
+    // 以「未启用」为起点，而自动启用后的面板是另一套控件树。
+    await skipAutoEnable(page);
     await openPanel(page);
 
     // 初始化态只有「初始化仓库」与「刷新状态」两个控件。
@@ -256,7 +275,7 @@ test.describe('Working Tree Page A11y', () => {
       .map(one => one.testId);
     expect(initWithoutIndicator).toEqual([]);
 
-    await enablePanel(page);
+    await clickEnable(page);
 
     // 提交按钮在摘要为空时禁用（GitHub Desktop 同款），disabled 不进 Tab 序列——
     // 先填摘要让按钮回到可用态，键盘才走得到 wt-commit。
@@ -341,7 +360,7 @@ test.describe('Working Tree Page A11y', () => {
           metric: 'working-tree-panel-first-visible-state',
           framework: FRAMEWORK,
           route: '/working-tree',
-          // 冷启动的库还没启用提交能力，第一个可见状态因此通常是 `error`。
+          // 空库在应用启动时已被自动启用，第一个可见状态因此通常是 `success` / `empty`；
           // 一并记下来，免得后来人把这个数字读成「读一次 status 要多久」。
           firstPhase,
           firstVisibleMs,

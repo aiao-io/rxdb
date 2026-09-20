@@ -1,0 +1,81 @@
+/**
+ * 对话框外壳样式（Angular `entity-dialog.component.scss` 的移植）。
+ */
+
+.rxdb-entity-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-base-100, #ffffff);
+  border-radius: var(--radius-md, 12px);
+}
+
+.resize-handle {
+  position: absolute;
+  z-index: 100;
+}
+
+.resize-n {
+  top: -4px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: n-resize;
+}
+
+.resize-s {
+  bottom: -4px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: s-resize;
+}
+
+.resize-e {
+  top: 8px;
+  bottom: 8px;
+  right: -4px;
+  width: 8px;
+  cursor: e-resize;
+}
+
+.resize-w {
+  top: 8px;
+  bottom: 8px;
+  left: -4px;
+  width: 8px;
+  cursor: w-resize;
+}
+
+.resize-ne {
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  cursor: ne-resize;
+}
+
+.resize-nw {
+  top: -4px;
+  left: -4px;
+  width: 16px;
+  height: 16px;
+  cursor: nw-resize;
+}
+
+.resize-se {
+  bottom: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+}
+
+.resize-sw {
+  bottom: -4px;
+  left: -4px;
+  width: 16px;
+  height: 16px;
+  cursor: sw-resize;
+}

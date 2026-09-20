@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * 五个功能路由的初始化冒烟。
+ * 四个功能路由的初始化冒烟。
  *
- * ANGULAR-E2E-FRESH-01：`/workspace`、`/branch-manager`、`/remote-cache`、
- * `/menu-virtual`、`/file-manager-virtual` 此前**没有任何 `page.goto()` 进入过** ——
+ * ANGULAR-E2E-FRESH-01：`/workspace`、`/remote-cache`、`/menu-virtual`、
+ * `/file-manager-virtual` 此前**没有任何 `page.goto()` 进入过** ——
  * 不是断言不够深，是连"这个页面能不能打开"都没有浏览器级门禁。
  *
  * 其中 `menu-virtual` / `file-manager-virtual` 尤其值得补：同系列的
@@ -26,13 +26,6 @@ test.describe('功能路由初始化冒烟', () => {
 
     await expect(page.getByRole('heading', { name: 'Workspace 草稿恢复' })).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('heading', { name: '创建未保存草稿' })).toBeVisible();
-    await assertNoAppCrash(page);
-  });
-
-  test('/branch-manager 能打开并渲染分支管理', async ({ page }) => {
-    await page.goto('/branch-manager');
-
-    await expect(page.getByRole('heading', { name: '分支管理' })).toBeVisible({ timeout: 20000 });
     await assertNoAppCrash(page);
   });
 

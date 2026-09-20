@@ -60,6 +60,11 @@
         "4206"
       ],
       "port": 4206
+    },
+    {
+      "name": "dev-rxdb-angular-attach",
+      "url": "http://localhost:4200",
+      "port": 4200
     }
   ],
   "version": "0.0.1"

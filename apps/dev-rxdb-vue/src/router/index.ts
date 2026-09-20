@@ -77,11 +77,6 @@ const router = createRouter({
       redirect: '/file-manager-simple'
     },
     {
-      path: '/branch-manager',
-      name: 'branch-manager',
-      component: () => import('../pages/BranchManagerPage.vue')
-    },
-    {
       // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
       path: '/working-tree',
       name: 'working-tree',
@@ -97,6 +92,31 @@ const router = createRouter({
       path: '/code-editor',
       name: 'code-editor',
       component: () => import('../pages/CodeEditorPage.vue')
+    },
+    {
+      path: '/entities',
+      name: 'entities',
+      component: () => import('../pages/entities/EntityShellPage.vue'),
+      children: [
+        // 空路径子路由：vue-router 要求有 children 的记录必须有子路由命中才算匹配，
+        // Angular 前缀匹配下 /entities 即可渲染壳页（右栏空 outlet），这里用空子路由对齐该语义；
+        // 壳页随即自动重定向到首个实体
+        {
+          path: '',
+          name: 'entity-index',
+          component: () => import('../pages/entities/EntityEmptyView.vue')
+        },
+        {
+          path: ':namespace/:name',
+          name: 'entity-list',
+          component: () => import('../pages/entities/EntityListPage.vue')
+        }
+      ]
+    },
+    {
+      path: '/entities/:namespace/:name/:entityId',
+      name: 'entity-detail',
+      component: () => import('../pages/entities/EntityDetailPage.vue')
     },
     {
       path: '/generator',

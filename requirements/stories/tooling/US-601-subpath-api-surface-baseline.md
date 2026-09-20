@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-08-15
-updated: 2026-08-24
+updated: 2026-09-20
 tags: [tooling, release-gate, api-baseline, exports]
 ---
 
@@ -66,16 +66,16 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
 
 ## 验收标准
 
-| #   | 前置条件                                                                                     | 操作                                         | 预期结果                                                                                                                 | 状态 |
-| --- | -------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 16 个子路径入口中有 3 个在 `tsconfig.base.json` paths 与 `@aiao/source` 条件里都查不到源入口 | 补齐声明后运行 `--update` 再 `--check`       | 每个有导出表面的子路径入口都能解析到 `.ts` 源文件；源入口声明只存在于一处真相源，不再散落三处                            | ✅   |
-| 2   | 基线已建立                                                                                   | 删除某子路径入口导出的一个符号，跑 `--check` | 以**破坏性**失败，输出指明包名、子路径与符号名，退出码非 0；与主入口用同一套分级                                         | ✅   |
-| 3   | 基线已建立                                                                                   | 只向某子路径入口新增一个导出，跑 `--check`   | 报**基线漂移**并提示 `--update`，不要求迁移说明                                                                          | ✅   |
-| 4   | 某子路径的源入口无法解析（路径写错 / 声明缺失）                                              | 跑 `--check`                                 | **硬失败**并报出包名与子路径；不得降级为「零导出」——否则整个入口被删会被记成「表面无变化」                               | ✅   |
-| 5   | 子路径指向二进制 / CJS 资产（`./assets/wa-sqlite.wasm`）                                     | 跑 `--check`                                 | 显式跳过并说明由 [wa-sqlite-integrity.mjs](../../../scripts/audit/wa-sqlite-integrity.mjs) 的 SHA-256 守护；不报解析失败 | ✅   |
-| 6   | 新增一个未登记在资产白名单、且无源入口声明的子路径入口                                       | 跑 `--check`                                 | 仍然失败：清单核对与表面扫描任一维度都不允许静默通过                                                                     | ✅   |
-| 7   | 本故事已交付                                                                                 | 阅读维护者与对外两份版本策略文档             | 「已知不覆盖」措辞已收敛到仅剩资产入口，两份文档一致，`website/docs/versioning.md` 不再提示使用者自行验证子路径导出      | ✅   |
-| 8   | CI                                                                                           | 跑 `pnpm test-scripts`                       | 入口发现、资产跳过、解析失败三类分支都有 `__fixtures__/` 驱动的单测；用例不依赖真实 `packages/` 的当前形状               | ✅   |
+| #   | 前置条件                                                                                                                                                                                                                                                              | 操作                                         | 预期结果                                                                                                            | 状态 |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 16 个子路径入口中有 3 个在 `tsconfig.base.json` paths 与 `@aiao/source` 条件里都查不到源入口                                                                                                                                                                          | 补齐声明后运行 `--update` 再 `--check`       | 每个有导出表面的子路径入口都能解析到 `.ts` 源文件；源入口声明只存在于一处真相源，不再散落三处                       | ✅   |
+| 2   | 基线已建立                                                                                                                                                                                                                                                            | 删除某子路径入口导出的一个符号，跑 `--check` | 以**破坏性**失败，输出指明包名、子路径与符号名，退出码非 0；与主入口用同一套分级                                    | ✅   |
+| 3   | 基线已建立                                                                                                                                                                                                                                                            | 只向某子路径入口新增一个导出，跑 `--check`   | 报**基线漂移**并提示 `--update`，不要求迁移说明                                                                     | ✅   |
+| 4   | 某子路径的源入口无法解析（路径写错 / 声明缺失）                                                                                                                                                                                                                       | 跑 `--check`                                 | **硬失败**并报出包名与子路径；不得降级为「零导出」——否则整个入口被删会被记成「表面无变化」                          | ✅   |
+| 5   | 子路径指向二进制 / CJS 等无导出表面资产（`ASSET_SUBPATHS` 白名单，现含 `rxdb-model-angular` 的 `./tailwind.css`；旧条目 `rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}` 已随 glue + wasm 改用 `@subframe7536/sqlite-wasm` 删除，二进制来源守护见 US-209 AC#5） | 跑 `--check`                                 | 显式跳过并说明去向；白名单孤儿同样被双向核对；不报解析失败                                                          | ✅   |
+| 6   | 新增一个未登记在资产白名单、且无源入口声明的子路径入口                                                                                                                                                                                                                | 跑 `--check`                                 | 仍然失败：清单核对与表面扫描任一维度都不允许静默通过                                                                | ✅   |
+| 7   | 本故事已交付                                                                                                                                                                                                                                                          | 阅读维护者与对外两份版本策略文档             | 「已知不覆盖」措辞已收敛到仅剩资产入口，两份文档一致，`website/docs/versioning.md` 不再提示使用者自行验证子路径导出 | ✅   |
+| 8   | CI                                                                                                                                                                                                                                                                    | 跑 `pnpm test-scripts`                       | 入口发现、资产跳过、解析失败三类分支都有 `__fixtures__/` 驱动的单测；用例不依赖真实 `packages/` 的当前形状          | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -102,7 +102,8 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
   （旧格式直接抛错并提示跑 `--update`）。迁移前后做了逐字节比对：
   **30 个包的 `.` 入口表面一字未变**，净增的是 14 个子路径入口、共 203 个新纳入守护的符号。
 - **常量改名为 `ASSET_SUBPATHS`**，语义从「已知不覆盖的公开入口」收窄为「无导出表面的资产入口」，
-  条目从 10 包 16 条降到 1 包 2 条。原 `auditSubpathInventory()` 拆成
+  条目现为 `rxdb-model-angular` 的 `./tailwind.css` 1 条（原 miniprogram 的两个 `./assets/*`
+  已随 glue + wasm 改用 `@subframe7536/sqlite-wasm` 删除，见 US-209 AC#5）。原 `auditSubpathInventory()` 拆成
   `resolveScanEntries()`（入口枚举，兼做清单核对）与 `auditAssetWhitelistScope()`（白名单孤儿核对）。
 - **CI 的独立步骤 "Subpath inventory gate" 已删除**。清单核对成了表面扫描的前置条件，
   留着那一步反而危险：`subpath-inventory.mjs` 现在只有导出、没有 CLI 入口，
@@ -110,37 +111,20 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
 - 顺带修了两条 `rxdb-adapter-sqlite-core` 的入口契约测试：它们 `toEqual` 断言整个条件对象，
   多出 `@aiao/source` 键即红。断言里补了键与注释，它们真正守的性质（运行时条件仍落在
   可执行 dist 产物上）原样保留。
-
-### 交付后变更
-
-- **2026-09-12：`ASSET_SUBPATHS` 白名单已空。** AC#5 与技术笔记里那两个
-  `rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}` 入口随 glue + wasm 改用
-  `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 SHA-512，见
-  [wa-sqlite-integrity.mjs](../../../scripts/audit/wa-sqlite-integrity.mjs)）一并删除，
-  资产不再经本仓库 `exports` 暴露，因此 AC#5 所述的「SHA-256 守护」去向已不成立。
-  **白名单机制本身保留**：它是通用的、有独立 fixture 单测（`asset-entry` 假包）覆盖，
-  留给将来真需要发二进制子路径的包；空白名单同样受双向核对约束。
-  当前口径为 **30 个公开包、53 个公开入口全部进基线，跳过 0 个资产入口**。
+- **当前口径：39 个公开包、64 个公开入口全部进基线，跳过 0 个资产入口（以 `api-surface.mjs --check` 输出为准）。**
 
 ## 技术笔记
 
-### 源入口声明散在三处，且没有一处是全的
+### 源入口声明曾散在三处，且没有一处是全的
 
 扫描器基于**源码**而非 dist（无需先构建，且 ng-packagr 包与普通包的产物布局不同）。
-但 12 个子路径入口里，10 个的 `exports` 只指向 `./dist/*.js`，源入口得另找。实测分布：
+规划时 12 个子路径入口里 10 个的 `exports` 只指向 `./dist/*.js`，源入口分布在
+`tsconfig.base.json` 的 `paths`、`package.json` 的 `@aiao/source` 条件与各 vite 配置三处，
+且每一处都不全（缺声明实为 3 个，见「交付结论」）。
 
-> **下表是 2026-08-15 规划时的快照，实施时已过期**：实为 16 个入口 / 3 个缺声明，
-> 其中 `rxdb-adapter-desktop/host` 在 US-207 拆包后已不存在。修正后的口径见上方「交付结论」。
-
-| 声明位置                                                             | 覆盖的子路径入口                                                                                                                                                 | 数量 |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| `tsconfig.base.json` › `paths`                                       | `rxdb-adapter-encrypted/testing`、`rxdb-adapter-pglite/testing`、`rxdb-adapter-sqlite-core/testing`、`rxdb-adapter-wa-sqlite/client`、`rxdb-plugin-graph/sqlite` | 5    |
-| `package.json` › `exports` › `@aiao/source`                          | `rxdb-adapter-wa-sqlite/client`（与上表重复）、`rxdb-adapter-miniprogram/runtime`                                                                                | 2    |
-| 只在 vite 配置里（`build.lib.entry` 字典 / `rolldownOptions.input`） | `rxdb-adapter-desktop/host`、`rxdb-client-generator/{cli,vite}`、`rxdb-plugin-graph/generator`                                                                   | 4    |
-| 无导出表面（资产）                                                   | `rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}`                                                                                                           | 2    |
-
-去重后 6 个有声明、4 个只能从构建配置里推。**不要去解析 vite 配置**——那是 TS 模块、含条件分支，
-解析它等于把门禁的正确性押在构建脚本的写法上。
+**现在真相源只有一个：`package.json` › `exports` › `@aiao/source` 条件。** 缺声明的入口
+已按此补齐（12 个 `package.json` 共 14 条），扫描器直接读它。**不要去解析 vite 配置**——
+那是 TS 模块、含条件分支，解析它等于把门禁的正确性押在构建脚本的写法上。
 
 两个候选真相源：
 
@@ -151,7 +135,7 @@ US-209 AC#8 问的是「`@aiao/rxdb-adapter-miniprogram/runtime` 的 11 个导�
 
 推荐前者：`subpath-inventory.mjs` 已经在读 `package.json` 的 `exports`，声明与入口同处一地不会分家；
 且 `--check` 天然能断言「有导出表面的入口必须有 `@aiao/source`」，把漂移拦在源头。
-无论选哪个，**先补齐 4 个缺失声明**是第一步，AC#1 就是这一步的验收。
+补齐缺失声明是第一步——AC#1 的验收（已落地）。
 
 ### 基线文件格式
 

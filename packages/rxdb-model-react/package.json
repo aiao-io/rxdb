@@ -1,0 +1,66 @@
+{
+  "name": "@aiao/rxdb-model-react",
+  "version": "0.0.25",
+  "description": "React UI components for Aiao RxDB Model: metadata-driven entity list, detail, form, dialog, editable table and query builder.",
+  "homepage": "https://rxdb.netlify.app/docs",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "react",
+    "entity",
+    "form",
+    "table",
+    "query-builder"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-model-react"
+  },
+  "files": [
+    "dist",
+    "src",
+    "tailwind.css",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./index.css": "./dist/index.css",
+    "./tailwind.css": "./tailwind.css"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "*",
+    "@aiao/rxdb-model": "*",
+    "@aiao/rxdb-plugin-history": "*",
+    "@aiao/rxdb-react": "*",
+    "@visactor/vtable": "~1.26.5",
+    "lucide-react": "^1.45.0",
+    "react": "^19.2.8",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

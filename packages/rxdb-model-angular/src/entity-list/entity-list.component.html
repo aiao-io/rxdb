@@ -1,0 +1,158 @@
+<!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
+<div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
+  <div class="flex items-center gap-2 text-sm">
+    <span class="font-medium">{{ displayName() }}</span>
+    @if ($isFilterQuery()) {
+      <span class="badge badge-ghost badge-sm">{{ filteredCount() }} 条记录</span>
+    }
+  </div>
+  <div class="flex items-center gap-2">
+    @if (!isSelectMode()) {
+      <!-- Undo / Redo -->
+      <button
+        class="btn btn-xs btn-ghost"
+        [disabled]="!canUndo()"
+        (click)="undo()"
+        aria-label="撤销 (Ctrl+Z)"
+        type="button"
+      >
+        <svg class="h-3.5 w-3.5" [lucideIcon]="Undo2"></svg>
+        @if (undoCount(); as c) {
+          <span class="badge badge-xs">{{ c }}</span>
+        }
+      </button>
+      <button
+        class="btn btn-xs btn-ghost"
+        [disabled]="!canRedo()"
+        (click)="redo()"
+        aria-label="重做 (Ctrl+Shift+Z)"
+        type="button"
+      >
+        <svg class="h-3.5 w-3.5" [lucideIcon]="Redo2"></svg>
+        @if (redoCount(); as c) {
+          <span class="badge badge-xs">{{ c }}</span>
+        }
+      </button>
+      <div class="divider divider-horizontal mx-0.5 h-5 self-center"></div>
+    }
+    <!-- 筛选 popover 触发器 -->
+    <div>
+      <button
+        class="btn btn-ghost btn-sm gap-1"
+        #filterTrigger="cdkOverlayOrigin"
+        [class.btn-active]="isQueryActive()"
+        (click)="toggleFilterPopover()"
+        cdkOverlayOrigin
+        type="button"
+      >
+        <svg class="h-4 w-4" [lucideIcon]="Funnel"></svg>
+        筛选
+        @if (isQueryActive()) {
+          <span class="badge badge-primary badge-xs">{{ filterQuery().rules.length }}</span>
+        }
+      </button>
+      <ng-template
+        [cdkConnectedOverlayBackdropClass]="'cdk-overlay-transparent-backdrop'"
+        [cdkConnectedOverlayHasBackdrop]="true"
+        [cdkConnectedOverlayOpen]="showFilterPopover()"
+        [cdkConnectedOverlayOrigin]="filterTrigger"
+        [cdkConnectedOverlayPositions]="overlayPositions"
+        (backdropClick)="showFilterPopover.set(false)"
+        cdkConnectedOverlay
+      >
+        @if (queryBuilderFields().length > 0) {
+          <div
+            class="border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg"
+            (click)="$event.stopPropagation()"
+            aria-hidden="true"
+          >
+            <rxdb-query-builder
+              [fields]="queryBuilderFields()"
+              [initialQuery]="$any(filterQuery())"
+              (queryChange)="onQueryChange($event)"
+              (validationChange)="onValidationChange($event)"
+            />
+            <div class="mt-3 flex justify-end gap-2">
+              <button class="btn btn-ghost btn-sm" (click)="resetFilter()" type="button">重置</button>
+              <button
+                class="btn btn-primary btn-sm"
+                [disabled]="!pendingQueryValid()"
+                (click)="applyFilter()"
+                type="button"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        }
+      </ng-template>
+    </div>
+    @if (!isCreateBlocked()) {
+      @if (isSelectMode()) {
+        <button class="btn btn-sm btn-outline" (click)="openCreateDialog()" type="button">+ 新建</button>
+      } @else if (isM2m()) {
+        <button class="btn btn-primary btn-sm" (click)="openM2mSelectDialog()" type="button">+ 添加</button>
+      } @else {
+        <button class="btn btn-primary btn-sm" (click)="openCreateDialog()" type="button">+ 新增</button>
+      }
+    }
+  </div>
+</div>
+
+<!-- 表格主体 -->
+<div class="min-h-0 flex-1">
+  @if (isBrowser) {
+    @for (key of [namespace() + ':' + name()]; track key) {
+      <rxdb-query-table
+        [columns]="tableColumns()"
+        [filteredCount]="filteredCount()"
+        [loading]="isInitialLoading()"
+        [loadingMore]="isLoadingMore()"
+        [loadMore]="loadMore()"
+        [queryActive]="isQueryActive()"
+        [records]="tableRecords()"
+        (batchUpdated)="onBatchUpdated($event)"
+        (cellChanged)="onCellChanged($event)"
+        (iconClicked)="onIconClicked($event)"
+        (rowDeleted)="onRowDeleted($event)"
+        (sortClicked)="onSortClicked($event)"
+      />
+    }
+  }
+</div>
+
+<!-- Select mode footer -->
+@if (isSelectMode()) {
+  <div class="border-base-300 flex shrink-0 items-center justify-between border-t px-4 py-3">
+    @if (selectedCount() > 0) {
+      <span class="text-base-content/70 text-sm">已选 {{ selectedCount() }} 项</span>
+    } @else {
+      <span class="text-base-content/40 text-sm">请选择要关联的{{ displayName() }}</span>
+    }
+    <div class="flex gap-2">
+      <button class="btn btn-sm" (click)="cancelSelection()" type="button">取消</button>
+      <button
+        class="btn btn-primary btn-sm"
+        [disabled]="selectedCount() === 0"
+        (click)="confirmSelection()"
+        type="button"
+      >
+        确认添加
+      </button>
+    </div>
+  </div>
+}
+
+<!-- M2M Selection Dialog Template -->
+<ng-template #m2mSelectTpl>
+  <rxdb-entity-dialog [title]="'添加' + displayName()" (closeRequested)="m2mCancelSelection()">
+    <rxdb-entity-list
+      [alreadyLinkedIds]="m2mAlreadyLinkedIds()"
+      [mode]="'select'"
+      [name]="name()"
+      [namespace]="namespace()"
+      (selectionCancelled)="m2mCancelSelection()"
+      (selectionConfirmed)="onM2mSelectionConfirmed($event)"
+    />
+  </rxdb-entity-dialog>
+</ng-template>

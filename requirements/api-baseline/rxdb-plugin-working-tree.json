@@ -534,6 +534,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeEnableIfEmptyResult",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeEntryCountMismatchError",
         "kind": "both"
       },

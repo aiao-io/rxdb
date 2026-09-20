@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-09-06
+updated: 2026-09-20
 tags: [adapter, http, remote, querycache]
 ---
 
@@ -28,12 +28,7 @@ INVEST 检查清单:
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34  | ✅   |
 | B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / If-None-Match 条件请求（AC#28，2026-08-24 判定 owner = **本包**并交付）                                    | 阶段 A   | AC#27 ✅、AC#28 ✅ | ✅   |
 
-**前置与发布门禁：已全部解除（2026-08-23 复核）。** 本故事现在零前置，可直接开工并按 `stable` 发布。
-
-留档两条曾经的锁，避免复查时以为漏了：
-
-- **US-020 的两档发布门禁**（[roadmap 约束 10](../../roadmap.md#排期约束)）：曾要求 US-020 阶段 A 关闭才可发 `experimental`、阶段 B 关闭才可标 `stable`。[US-020](../core/US-020-querycache-repository.md) 两阶段已全关（`status: Done`），两档同时解除。它要防的病症——配了 `SyncType.QueryCache` 却 find 仍打本地、save 仍进 local changelog——已不复存在。
-- **epic-006 前置**：曾要求本包不得在 [US-306](../collaboration/US-306-working-tree-commits.md) 阶段 A 的 bypass 门禁冻结前发布。2026-08-22 解除，理由见下方[技术笔记「与 epic-006 的关系」](#与-epic-006-的关系)——注意该段的引用口径已修正。
+**前置与发布门禁：已全部解除。** 本故事零前置，直接开工并按 `stable` 发布。
 
 Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另一种 `SyncType`，**不是本文件的阶段 C**。v1 对这些方法必须 throw unsupported。
 
@@ -374,9 +369,6 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> 🚧「设计待定（owner 未指定，不可排期）」曾用于 AC#28～30，2026-08-24 owner 判定后本文件已无此状态：
-> AC#28 判给本包并于同日实现（✅），AC#29 / #30 移出。
-
 ## 技术笔记
 
 ### 产品 B，不是产品 A
@@ -398,7 +390,7 @@ rxdb.adapter('sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicV
 rxdb.adapter('http', db => new RxDBAdapterHttp(db, { baseUrl, handlers, auth }));
 ```
 
-**没有 `createRxDatabase()` 这个函数**——本故事早期版本误用过，AC#1 已改正。仓库的适配器注册入口只有 `RxDB.prototype.adapter()`。
+**没有 `createRxDatabase()` 这个函数**——仓库的适配器注册入口只有 `RxDB.prototype.adapter()`。
 
 同样，**适配器身上没有 `inject`**。`inject` 是 [`IRxDBPlugin`](../../../packages/rxdb/src/rxdb-plugin.ts) 的字段，`'adapter:remote'` 是**插件**声明依赖用的 token，由 `RxDB` 从 `config.sync.remote.adapter` 反解成实例。本包要写的是 `declare module` 扩 `RxDBAdapters`，不是 `inject`。
 
@@ -486,7 +478,7 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 | `HttpConfigError`               | `CONFIG_ERROR`          | 构造期配置校验失败（AC#31）                                               |
 | `HttpUnsupportedOperationError` | `UNSUPPORTED_OPERATION` | `getRepository` / `saveMany` / `removeMany` / `mutations` 被调用（AC#32） |
 
-类名与 `code` 字面量在 plan 可微调，**判别位不可调**。AC 表已统一改用类名——早期版本写的 `remote_changelog_unsupported` / `unsupported_wire_type` 是症状标识，不是 `code` 字面量，勿照抄成 snake_case。
+类名与 `code` 字面量在 plan 可微调，**判别位不可调**。AC 表统一以类名判别——`remote_changelog_unsupported` / `unsupported_wire_type` 是症状标识，不是 `code` 字面量，勿照抄成 snake_case。
 
 ### 协议
 
@@ -497,7 +489,7 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 ### AC#28～30 的 owner 判定
 
-2026-08-24 完成。阶段 B 原文要求「进入阶段 B 前必须先为这三条各自指定 owner（本包 / core / 应用）」，本节是那次判定的结论与依据。判定只问一件事：**这条 AC 需要的状态或 API，今天有没有一个够得着它的持有者。**
+本节是 owner 判定的结论与依据。判定只问一件事：**这条 AC 需要的状态或 API，今天有没有一个够得着它的持有者。**
 
 | AC  | 需要什么                      | 今天有没有                                                | owner            |
 | --- | ----------------------------- | --------------------------------------------------------- | ---------------- |

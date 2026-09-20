@@ -60,9 +60,10 @@
 > [api-surface.mjs](../scripts/audit/api-surface.mjs) 的 `ASSET_SUBPATHS` 白名单里显式跳过，
 > 内容交由供应链审计守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
 >
-> **该白名单当前为空。** 唯一的使用者 `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}`
-> 已随 glue + wasm 改用 `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 integrity，见
-> [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）而撤销，机制保留给将来的包。
+> **该白名单当前含一条**：`rxdb-model-angular` 的 `./tailwind.css`（资产入口，无导出表面，内容由供应链审计守护）。
+> 机制保留给将来的包：曾登记的 `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}` 现由
+> `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 integrity，见
+> [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）替代，不再需要该入口。
 >
 > `@aiao/rxdb-test` 的 5 个子路径不在此列——整包已排除，非产品 API。
 > 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md)。
@@ -71,6 +72,8 @@
 
 - 提交遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`fix:`→补丁，`feat:`→次版本，`feat!:` / `BREAKING CHANGE:`→主版本。
 - 发布由 Nx Release 驱动（`nx.json` › `release`），`release.version.conventionalCommits` 按提交类型推断级别。
+  **0.x 例外**：nx 的 `adjustSemverBumpsForZeroMajorVersion` 默认为 `true`，major 为 0 时 `feat:` 实际落 patch
+  （`0.0.24 → 0.0.25` 即此机制，见 [release-plan](release-plan.md) 硬前提 2）；改该开关是全仓库版本策略决定，不随发布顺手做。
 - API 基线出现破坏性 diff 但提交未标注 breaking → 以基线检查为准阻止发布。
 
 涉及系统 schema 或 change codec 的发布还必须通过 `requirements/migration-release.json`
@@ -79,7 +82,7 @@
 
 ## 6. 实验性层级（1.0 冻结范围之外）
 
-31 个包同步发版，但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
+全部公开包同步发版（当前 **42 个**，其中 41 个受 API 基线保护，`rxdb-test` 除外），但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
 只需在 changelog 与迁移指南注明。1.0 发布前必须把这份清单与 TSDoc `@experimental` 标注、各包 README 对齐。
 
 | 能力                                                            | 为什么是实验性                                                                                       |

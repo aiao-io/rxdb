@@ -90,10 +90,6 @@ export const routes: RouteObject[] = [
         loader: () => redirect('/file-manager-simple')
       },
       {
-        path: 'branch-manager',
-        lazy: lazyRoute(() => import('./pages/branch-manager'))
-      },
-      {
         // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
         path: 'working-tree',
         loader: connectLocalAdapter,
@@ -106,6 +102,20 @@ export const routes: RouteObject[] = [
       {
         path: 'code-editor',
         lazy: lazyRoute(() => import('./pages/code-editor'))
+      },
+      {
+        path: 'entities',
+        lazy: lazyRoute(() => import('./pages/entities/entity-shell')),
+        children: [
+          {
+            path: ':namespace/:name',
+            lazy: lazyRoute(() => import('./pages/entities/entity-list-page'))
+          }
+        ]
+      },
+      {
+        path: 'entities/:namespace/:name/:entityId',
+        lazy: lazyRoute(() => import('./pages/entities/entity-detail-page'))
       },
       {
         path: 'generator',

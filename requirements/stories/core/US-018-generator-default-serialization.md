@@ -5,18 +5,18 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-16
-updated: 2026-08-24
+updated: 2026-09-20
 tags: [core, codegen, generator, default, serialization, bigint, binary]
 inherited_acs:
   - from: US-012
-    ac: 35
-    note: default 语义保留与显式失败；对应 US-012 拆分前阶段 C 的旧 AC#35，US-012 已删除该行并把 38/39 重编为 35/36
+    ac: 拆分前-35
+    note: default 语义保留与显式失败；对应 US-012 拆分前阶段 C 的旧 AC#35——该行已随拆分移出 US-012，现无对应编号（US-012 的旧 38/39 已重编为现 35/36，与本条无关）
   - from: US-012
-    ac: 36
-    note: 拆除 `transitionMetadata()` 的 JSON 往返；对应 US-012 拆分前的旧 AC#36
+    ac: 拆分前-36
+    note: 拆除 `transitionMetadata()` 的 JSON 往返；对应 US-012 拆分前的旧 AC#36——该行已随拆分移出 US-012，现无对应编号
   - from: US-012
-    ac: 37
-    note: '`enumerable: false` 内部键不进生成结果；对应 US-012 拆分前的旧 AC#37'
+    ac: 拆分前-37
+    note: '`enumerable: false` 内部键不进生成结果；对应 US-012 拆分前的旧 AC#37——该行已随拆分移出 US-012，现无对应编号'
 ---
 
 <!--

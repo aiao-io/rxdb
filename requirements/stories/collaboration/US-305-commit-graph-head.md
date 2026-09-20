@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-09-18
+updated: 2026-09-20
 tags: [collaboration, commit, head, persistence, migration]
 inherited_acs:
   - from: US-306
@@ -69,34 +69,31 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
-- 上述前置**已满足**（2026-09-12 重生成）：`data-model.md` 与 `quickstart.md` 里 `RxDBIndexState` /
+- 上述前置**已满足**：`data-model.md` 与 `quickstart.md` 里 `RxDBIndexState` /
   `RxDBIndexEntry` / `index_dependency_cycle` 的命中数现在都是 0，v1 的无暂存区模型已就位。两个阶段随后
   由 `specs/001-working-tree-commits/tasks.md` 的 T022～T045 落地，实现全部落在
   `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
-  状态记 👀 而不是 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）的
-  2026-09-18 实跑里 T130、T131 已绿并关闭——T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)`
-  按规格就该共享当前 HEAD），按规格收紧断言后 6 后端 5031 条零失败；只剩 T132 红在待评审的 bench 基线上，
-  且下一条的 FR-030 正向路径按设计走不通。
+  状态记 👀 而不是 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已全部关闭——
+  T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)` 按规格就该共享当前 HEAD），
+  按规格收紧断言后 6 后端 5031 条零失败；T132 已随 reference 重新冻结复跑 ✓ PASS（四项 ratio 均 ≤110%）。
+  但重冻基线带机器负载（`frozenAbsolute.commit` 虚高约 29%），发布用的绝对门禁待机器静默复冻，`status` 容差口径
+  待评审（过程与数字留证见 [tasks.md T132](../../../specs/001-working-tree-commits/tasks.md)）。
 - **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
   [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
   [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
   只有 `kind=migration` 的**发布**会被门禁挡住；阶段 A / 阶段 B 的编码、测试与合入都不等它。
   阶段 B 的 FR-030 实现只读 manifest，**不得把任何具体 tag 名或版本号写死进代码**，
   因此「tag 此刻还不存在」对实现与测试都不构成阻塞（用 fixture manifest 覆盖各分支即可）。
-  **复验实况（T045，2026-09-13）**：`check-migration-release-gate.spec.mjs` 39/39 绿；用真实 tag 与真实清单
-  外加三份 `/tmp` 一次性 migration 清单跑出的四条结论记在
-  [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)。AC US2-14 的**红半边**（`bridge.tag`
-  为 `null` / 为 `v0.0.25` / 版本常量不吻合时必红）已在真实仓库上被执行；**绿半边**（补齐后重跑通过）今天
-  无法用真实 tag 走通——下限要求 `bridge.version` 严格大于 `0.0.25`，仓库里不存在这样的 tag，造一个等于
-  伪造发布锚点。它由 39 条注入钩子的单测覆盖，并等线 A 的桥接发布真实关闭，不靠这里的文字关闭。
-- **发布前置核对（2026-09-18，只核对不发布）**：按 [release-plan](../../release-plan.md) 逐条实测，
-  `pnpm check-migration-release-gate` 绿（`bridge 0.0.25`）、`v0.0.25` 仍脱离主线、`origin/main` 上
-  非规范标题零条且零 merge commit、bump 量 23 `feat` + 3 `fix`（默认推算仍落在禁用值 `0.0.25`，
-  线 A 必须显式传版本号）。**核对中查出一处真缺陷并已修**：计划里硬前提 1 的复测命令写的是
-  `git log -S`，而 `-S` 比的是字符串出现次数——`= 3` 改成 `= 6` 计数不变，命令**恒空**。
-  实测 `next-0912` 上常量已是 6，`-S` 仍报空、`-G` 正确报出 3 → 4 → 5 → 6 那三条。
-  这是**唯一一条**人工防线（门禁只比对布尔位、从不读源码常量），口径已在 release-plan 与 roadmap 两处改成 `-G`
-  并补了「以两端取值为准」的定论命令。**发布动作本身留给 owner**，本条不关闭 AC US2-14。
+  AC US2-14 的**红半边**（`bridge.tag` 为 `null` / 为 `v0.0.25` / 版本常量不吻合时必红）已在真实仓库上成立；
+  **绿半边**（补齐后重跑通过）当前无法用真实 tag 走通——下限要求 `bridge.version` 严格大于 `0.0.25`，
+  仓库里不存在这样的 tag，造一个等于伪造发布锚点。它由 `check-migration-release-gate.spec.mjs` 的 39 条
+  注入钩子单测覆盖，并等线 A 的桥接发布真实关闭，不靠这里的文字关闭（四条结论记在
+  [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)）。
+- **发布前置核对结论**：按 [release-plan](../../release-plan.md) 逐条实测，`pnpm check-migration-release-gate` 绿
+  （`bridge 0.0.25`）、`v0.0.25` 仍脱离主线、`origin/main` 上非规范标题零条且零 merge commit、bump 量 23 `feat`
+  - 3 `fix`（默认推算仍落在禁用值 `0.0.25`，线 A 必须显式传版本号）。复测命令固定为 `git log -G` 而不是 `-S`
+    （`-S` 比的是字符串出现次数，常量计数不变时命令恒空），定论以两端取值为准——这是门禁只比对布尔位、
+    从不读源码常量之下唯一的人工防线。**发布动作本身留给 owner**，本条不关闭 AC US2-14。
 - 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
 - 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 
@@ -320,17 +317,17 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   不复用 `SwitchBranchOptions`。
 - 测试文件使用 `*.spec.ts`，不依赖非确定性的固定延时。
 
-## 实现文件（计划阶段待确认）
+## 实现文件
 
-| 路径                                    | 阶段 | 用途                                                   |
-| --------------------------------------- | ---- | ------------------------------------------------------ |
-| `packages/rxdb/src/version/`            | A    | commit 图、HEAD 与分支引用                             |
-| `packages/rxdb/src/system/`             | A    | commit 元数据表                                        |
-| `packages/rxdb/src/system/`             | B    | 首次启用迁移、baseline、`WorkingTreeActivationState`   |
-| `packages/rxdb/src/system/migration.ts` | B    | `RXDB_SYSTEM_SCHEMA_VERSION` 抬升与迁移登记            |
-| `requirements/migration-release.json`   | B    | `kind=migration`、bridge 锚点与 `oldBundlePolicy` 回填 |
-| `packages/rxdb/src/__tests__/version/`  | A/B  | 核心回归套件                                           |
-| `requirements/api-baseline/rxdb.json`   | A/B  | 新增公开类型登记                                       |
+| 路径                                               | 阶段 | 用途                                                                                                                                                                |
+| -------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-plugin-working-tree/src/commit/`    | A    | commit 图、HEAD 与分支引用（`write-commit.ts`、`commit-log.ts`、`commit-graph-guard.ts`）                                                                           |
+| `packages/rxdb-plugin-working-tree/src/commit/`    | A    | commit 元数据表（`commit.entity.ts`、`commit-branch-ref.entity.ts`、`commit-change-set.entity.ts`）                                                                 |
+| `packages/rxdb-plugin-working-tree/src/`           | B    | 首次启用迁移、baseline、`WorkingTreeActivationState`（`commit/enable-migration.ts`、`migrations/0004-working-tree-commits.ts`、`working-tree/activation-state.ts`） |
+| `packages/rxdb/src/system/migration.ts`            | B    | `RXDB_SYSTEM_SCHEMA_VERSION` 抬升与迁移登记（常量在核心，本故事只抬号登记）                                                                                         |
+| `requirements/migration-release.json`              | B    | `kind=migration`、bridge 锚点与 `oldBundlePolicy` 回填                                                                                                              |
+| `packages/rxdb-plugin-working-tree/src/__tests__/` | A/B  | 核心回归套件                                                                                                                                                        |
+| `requirements/api-baseline/rxdb.json`              | A/B  | 新增公开类型登记                                                                                                                                                    |
 
 ## 依赖与参考
 

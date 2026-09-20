@@ -3,7 +3,7 @@
  *
  * @remarks
  * 三端入口（`@aiao/rxdb-angular` / `-react` / `-vue` 的 `useWorkingTree()`）把工作树的
- * 十一件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
+ * 十二件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
  * 查询在无结果时额外一个 empty**。
  *
  * 两条不可让步的性质：
@@ -36,6 +36,7 @@ import type { WorkingTreeDiff } from './diff.js';
 import type { WorkingTreeDiscardResult } from './discard-command.js';
 import type { WorkingTreeRestoreResult, WorkingTreeRestoreSessionInfo } from './restore-command.js';
 import type { WorkingTreeStatus } from './status.js';
+import type { WorkingTreeEnableIfEmptyResult } from './working-tree-facade.js';
 
 /** 还没人发起过这次调用。 */
 export interface WorkingTreeIdleState {
@@ -117,16 +118,16 @@ export type WorkingTreeQueryState<T> =
  *
  * @remarks
  * 键集是 US-306 阶段 C 收口的六项，加上 T110 补进来的 `restore()` / `restoreSession()`，
- * 再加 T123 补进来的 `switchBranch()`，以及 commit 明细侧的 `commitChanges()`——
- * tri-framework-api.md §3 清单十一项到齐。
+ * 再加 T123 补进来的 `switchBranch()`，加上 commit 明细侧的 `commitChanges()`，
+ * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项到齐。
  *
  * `switchBranchState` 走**命令**状态而不是查询：切分支没有「空」这一形态，成功就是切过去了
  * （`VersionManager.switchBranch()` 返回 `void`），被 `requireClean` 拒掉则是一次
  * `WorkingTreeDirtyError`，落在 `error` 相位。切到当前分支是一次 no-op **成功**，
  * 与 `discard()` 的 `discardedCount: 0` 同形，不是「这里没有内容」。
  *
- * 做成一个记录而不是十个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
- * 十个容器就是十条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
+ * 做成一个记录而不是十二个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
+ * 十二个容器就是十二条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
  * （命令成功后刷新摘要）——两条路径先后到达时，UI 会看到「提交成功了但摘要还是旧的」
  * 这一帧。
  */
@@ -136,6 +137,9 @@ export interface WorkingTreeAsyncStates {
 
   /** `enable()` 的状态 */
   readonly enableState: WorkingTreeCommandState<CommitCapabilityInfo>;
+
+  /** `enableIfEmpty()` 的状态；**没有 empty** —— `not_empty` 是结果，不是「没有内容」 */
+  readonly enableIfEmptyState: WorkingTreeCommandState<WorkingTreeEnableIfEmptyResult>;
 
   /** `status()` 的状态；空即「没有未提交变更」 */
   readonly statusState: WorkingTreeQueryState<WorkingTreeStatus>;
@@ -165,10 +169,11 @@ export interface WorkingTreeAsyncStates {
   readonly switchBranchState: WorkingTreeCommandState<void>;
 }
 
-/** 十项全部「还没人问过」；三端入口的初值只有这一份。 */
+/** 十二项全部「还没人问过」；三端入口的初值只有这一份。 */
 export const WORKING_TREE_INITIAL_ASYNC_STATES: WorkingTreeAsyncStates = Object.freeze({
   isEnabledState: { phase: 'idle' },
   enableState: { phase: 'idle' },
+  enableIfEmptyState: { phase: 'idle' },
   statusState: { phase: 'idle' },
   diffState: { phase: 'idle' },
   listCommitsState: { phase: 'idle' },

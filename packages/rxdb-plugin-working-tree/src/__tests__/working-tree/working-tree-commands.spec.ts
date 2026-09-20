@@ -17,10 +17,10 @@
  *
  * 本文件不碰数据库：谁能落库、落成什么样归 `commit-atomicity.spec.ts` /
  * `discard.spec.ts` / `status.spec.ts`；相位机本身归 `async-state.spec.ts`。
- * 这里只测**接线**：十个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
+ * 这里只测**接线**：十一个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
  *
  * 桩的形状从 T123 起是 `{ workingTree, versionManager }` 而不再是裸 `workingTree`：
- * 清单第十项 `switchBranch` 挂在 `versionManager` 上（contracts/core-api.md §6），
+ * 清单第十一项 `switchBranch` 挂在 `versionManager` 上（contracts/core-api.md §6），
  * 命令层因此收整个库。桩到两个门面**而不是**让 spec 自己造一份 `RxDB`——
  * 本层只用得到这两个属性，多桩出来的每一个都会变成一处与真库无关的约束。
  */
@@ -48,7 +48,7 @@ import {
   type WorkingTreeSwitchBranchOptions
 } from '../../working-tree/switch-branch-options.js';
 import { createWorkingTreeCommands, type WorkingTreeStatePatch } from '../../working-tree/working-tree-commands.js';
-import type { WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
+import type { WorkingTreeEnableIfEmptyResult, WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
 
 /** 手控的 promise：不控住它，`loading` 在第一个 await 之前就已经翻过去了。 */
 const deferred = <T>() => {
@@ -189,6 +189,7 @@ const createFixture = () => {
   const workingTree = {
     isEnabled: vi.fn<() => Promise<boolean>>(),
     enable: vi.fn<() => Promise<CommitCapabilityInfo>>(),
+    enableIfEmpty: vi.fn<() => Promise<WorkingTreeEnableIfEmptyResult>>(),
     status: vi.fn<() => Promise<WorkingTreeStatus>>(),
     diff: vi.fn<(options?: WorkingTreeDiffOptions) => Promise<WorkingTreeDiff>>(),
     listCommits: vi.fn<(options?: CommitLogOptions) => Promise<CommitLogPage>>(),
@@ -231,8 +232,8 @@ const createFixture = () => {
   };
 };
 
-describe('十一个命令各自只驱动自己那一格（§4）', () => {
-  it('isEnabled 走命令状态，其余九格纹丝不动', async () => {
+describe('十二个命令各自只驱动自己那一格（§4）', () => {
+  it('isEnabled 走命令状态，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(true);
 
@@ -242,7 +243,20 @@ describe('十一个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'isEnabledState')).toEqual([]);
   });
 
-  it('status 走查询状态，其余九格纹丝不动', async () => {
+  it('enableIfEmpty 走命令状态，其余格子只有 statusState 跟着动', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const result: WorkingTreeEnableIfEmptyResult = { kind: 'not_empty' };
+    workingTree.enableIfEmpty.mockResolvedValue(result);
+
+    await expect(commands.enableIfEmpty()).resolves.toBe(result);
+
+    // 与 enable 同一条尾巴：自动启用（或被跳过）之后重读一次 status，
+    // 其余格子仍是一格都不许动。
+    expect(states.enableIfEmptyState).toEqual({ phase: 'success', value: result });
+    expect(untouchedKeys(states, 'enableIfEmptyState', 'statusState')).toEqual([]);
+  });
+
+  it('status 走查询状态，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const dirty = statusWith(3);
     workingTree.status.mockResolvedValue(dirty);
@@ -253,7 +267,7 @@ describe('十一个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'statusState')).toEqual([]);
   });
 
-  it('diff 走查询状态，其余九格纹丝不动', async () => {
+  it('diff 走查询状态，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const diff = diffWith(2);
     workingTree.diff.mockResolvedValue(diff);
@@ -264,7 +278,7 @@ describe('十一个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'diffState')).toEqual([]);
   });
 
-  it('listCommits 走查询状态，其余九格纹丝不动', async () => {
+  it('listCommits 走查询状态，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const page = logWith(2);
     workingTree.listCommits.mockResolvedValue(page);
@@ -275,7 +289,7 @@ describe('十一个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'listCommitsState')).toEqual([]);
   });
 
-  it('commitChanges 走查询状态，零变更单元是 empty，其余九格纹丝不动', async () => {
+  it('commitChanges 走查询状态，零变更单元是 empty，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     const empty = changesWith(0);
     workingTree.commitChanges.mockResolvedValue(empty);
@@ -286,7 +300,7 @@ describe('十一个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'commitChangesState')).toEqual([]);
   });
 
-  it('restoreSession 走查询状态，其余九格纹丝不动', async () => {
+  it('restoreSession 走查询状态，其余十一格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.restoreSession.mockResolvedValue(SESSION);
 
@@ -522,6 +536,44 @@ describe('改动之后重读一次 status，查询之后不重读', () => {
     expect(transitions).toEqual([
       'enableState:loading',
       'enableState:success',
+      'statusState:loading',
+      'statusState:empty'
+    ]);
+  });
+
+  it('enableIfEmpty 成功之后重读 status，且重读排在 enableIfEmptyState 落地之后', async () => {
+    const { commands, states, transitions, workingTree } = createFixture();
+    const result: WorkingTreeEnableIfEmptyResult = { kind: 'enabled', capability: CAPABILITY };
+    workingTree.enableIfEmpty.mockResolvedValue(result);
+    workingTree.status.mockResolvedValue(statusWith(0));
+
+    await expect(commands.enableIfEmpty()).resolves.toBe(result);
+
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+    expect(states.enableIfEmptyState).toEqual({ phase: 'success', value: result });
+    expect(transitions).toEqual([
+      'enableIfEmptyState:loading',
+      'enableIfEmptyState:success',
+      'statusState:loading',
+      'statusState:empty'
+    ]);
+  });
+
+  // not_empty 也是一次**成功**的调用：库里有内容时跳过自动启用，但面板仍然要拿到
+  // 一份诚实的 status（未启用状态下的拒绝会落进 statusState 的 error 相位）。
+  it('enableIfEmpty 返回 not_empty 时照样重读 status', async () => {
+    const { commands, states, transitions, workingTree } = createFixture();
+    const result: WorkingTreeEnableIfEmptyResult = { kind: 'not_empty' };
+    workingTree.enableIfEmpty.mockResolvedValue(result);
+    workingTree.status.mockResolvedValue(statusWith(0));
+
+    await expect(commands.enableIfEmpty()).resolves.toBe(result);
+
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+    expect(states.enableIfEmptyState).toEqual({ phase: 'success', value: result });
+    expect(transitions).toEqual([
+      'enableIfEmptyState:loading',
+      'enableIfEmptyState:success',
       'statusState:loading',
       'statusState:empty'
     ]);
@@ -1008,10 +1060,10 @@ describe('库上没装工作树插件时，建入口这一步就抛', () => {
     expect(() => createWorkingTreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorkingTree/);
   });
 
-  it('装了插件时照常建出十一个命令', () => {
+  it('装了插件时照常建出十二个命令', () => {
     // 守卫写成无条件抛的话这条会红。
     const { commands } = createFixture();
 
-    expect(Object.keys(commands)).toHaveLength(11);
+    expect(Object.keys(commands)).toHaveLength(12);
   });
 });

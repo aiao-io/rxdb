@@ -17,8 +17,8 @@ import { useCallback, useMemo, useState } from 'react';
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
  *
  * @remarks
- * 十个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
- * 解构。十个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）
+ * 十二个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
+ * 解构。十二个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）
  * 上的同名方法完全一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
  *
@@ -62,7 +62,7 @@ export type WorkingTreeResource = Readonly<WorkingTreeAsyncStates> & WorkingTree
  * ```
  *
  * @remarks
- * **创建入口本身一次 IO 都不发**：十格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询 —— 而 React 下这还会
  * 在 `StrictMode` 里变成两轮。
  *
@@ -79,7 +79,7 @@ export type WorkingTreeResource = Readonly<WorkingTreeAsyncStates> & WorkingTree
  * @public
  */
 export const useWorkingTree = (): WorkingTreeResource => {
-  // 取整个库而不是解构 `workingTree`：清单第十项 `switchBranch` 挂在 `versionManager` 上，
+  // 取整个库而不是解构 `workingTree`：清单第十一项 `switchBranch` 挂在 `versionManager` 上，
   // 两个入口都由命令层去取（见 `createWorkingTreeCommands` 的同名注记）。
   const database = useRxDB();
   const [states, setStates] = useState<WorkingTreeAsyncStates>(WORKING_TREE_INITIAL_ASYNC_STATES);

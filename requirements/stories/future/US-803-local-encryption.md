@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2026-05-10
-updated: 2026-05-21
+updated: 2026-09-20
 tags: [security, adapter, encryption, local-first, mvp]
 ---
 
@@ -17,25 +17,25 @@ tags: [security, adapter, encryption, local-first, mvp]
 **我想要** 通过实体 metadata 把指定字段标记为 `encrypted`，由本地适配器在持久化前自动加密、读取时自动解密
 **以便** 攻击者拿到 OPFS / IndexedDB / PGlite 本地文件后无法直接读取敏感字段明文，而非加密字段的 Repository / 查询 / 索引能力一字不改
 
-## 可行性评审结论
+## 架构定调
 
-✅ **值得做，按 MVP 交付**。范围一旦扩到「整库加密 + passkey + native keychain + audit log + 性能门槛」立即变成不值得，必须拆。
+✅ **按 MVP 交付**：范围一旦扩到「整库加密 + passkey + native keychain + audit log + 性能门槛」立即变成不值得，必须拆。可行性等级：中风险可行。
 
-**可行性等级**：中风险可行。源码盘点结果比初版更乐观——
+接入点与泄漏面盘点：
 
 | 验证点                                     | 现状                                                                                                                                                                                               | 含义                                                                                             |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | SQLite core 与 PGlite 是否共享转换点       | **是**。两边都有同名 `transformEntityValueToSql()` / `getEntityObjectFromResult()`；insert / inserts / update / mutations / transaction result / Repository `addQueryCache()` **全部**走这两个函数 | 加 / 解密钩子收敛在每个适配器的 `utils.ts` 一对函数上，**不需要散点改 5+ 文件**                  |
 | 表结构生成是否单点                         | 是，两边 DDL 都走 `PropertyType → column type` 单一 switch                                                                                                                                         | 列类型强制覆写也是单点                                                                           |
 | `saveMany` / `mergeChanges` / `upsertMany` | 最终复用 `transformEntityValueToSql` + `getEntityObjectFromResult`                                                                                                                                 | 不需要给批量路径单独写转换                                                                       |
-| undo/redo 历史快照                         | `packages/rxdb/src/version/HistoryManager.ts` 持有 materialized 实体快照                                                                                                                           | **初版漏列的泄漏面**：内存快照必须存 envelope 而非明文                                           |
+| undo/redo 历史快照                         | `packages/rxdb-plugin-history/src/HistoryManager.ts` 持有 materialized 实体快照                                                                                                                    | **泄漏面**：内存快照必须存 envelope 而非明文                                                     |
 | 系统变更历史表 `rxdb_change`               | `packages/rxdb/src/system/change.ts` 记录的 `patch` / `inversePatch`                                                                                                                               | **最易漏列的严重泄露面**：变更历史中的 JSON patch 必须深层脱敏，对应加密列数据转为 envelope 保存 |
-| FTS5 / pglite tsvector                     | `packages/rxdb-adapter-sqlite-core/src/fts5/`、`packages/rxdb-adapter-pglite/src/fts/`                                                                                                             | **初版漏列**：加密字段绝不能进 FTS 索引，必须 schema 启动期硬拒                                  |
+| FTS5 / pglite tsvector                     | `packages/rxdb-adapter-sqlite-core/src/fts5/`、`packages/rxdb-adapter-pglite/src/fts/`                                                                                                             | **泄漏面**：加密字段绝不能进 FTS 索引，必须 schema 启动期硬拒                                    |
 
 **收敛后的接入点**：
 
 1. 共享核心包：crypto / envelope / keyring / errors / metadata 校验。
-2. `packages/rxdb/src/entity/metadata-options.interface.ts` + `metadata-transition.ts`：加 `encrypted?: boolean` 与配置校验。
+2. `packages/rxdb/src/entity/property-types.interface.ts` + `metadata-transition.ts`：加 `encrypted?: boolean` 与配置校验。
 3. SQLite core / PGlite 各自 `*.utils.ts` 里的 `transformEntityValueToSql` 与 `getEntityObjectFromResult`：加 / 解密单点。
 4. SQLite core / PGlite 各自的 DDL 列类型映射：`encrypted: true` 一律改为 `TEXT` / `text`。
 5. FTS / search 注册路径：拒绝加密字段。
@@ -114,14 +114,6 @@ tags: [security, adapter, encryption, local-first, mvp]
 - **明文泄漏扫描 helper**：放 `packages/rxdb-test/`，遍历用户表 + `rxdb_change*` + QueryCache 表 + history serialized blob，正则匹配哨兵。
 - **性能策略**：本故事只给 baseline；如果加密 overhead > 30% 再开新故事讨论 batched encrypt / WebCrypto 优化。
 
-## 拆分顺序（建议执行）
-
-1. 红测试夹具：metadata 校验 / DDL 列类型 / locked / wa-sqlite 哨兵扫描 / FTS 拒绝 / undo 快照。
-2. 共享核心包：crypto + envelope + keyring + typed errors + metadata 校验 + test helpers。
-3. SQLite core 接入：DDL + utils 双单点 + FTS 拒绝 + history serialize 钩子 → 跑 contract。
-4. PGlite 接入：DDL + utils 双单点 + fts 拒绝 → 跑 contract。
-5. 哨兵扫描 + benchmark 基线报告。
-
 ## 后续拆分
 
 - 故事 B：整库加密 backend 调研与 PoC（SQLCipher / page hook）
@@ -138,9 +130,9 @@ tags: [security, adapter, encryption, local-first, mvp]
 
 修改：
 
-- `packages/rxdb/src/entity/metadata-options.interface.ts` — 属性基础接口加 `encrypted?: boolean`
+- `packages/rxdb/src/entity/property-types.interface.ts` — 属性基础接口加 `encrypted?: boolean`
 - `packages/rxdb/src/entity/metadata-transition.ts` — 构建 `encryptedPropertyMap` + 启动期硬约束校验
-- `packages/rxdb/src/version/HistoryManager.ts` — 快照序列化复用 envelope，不存明文
+- `packages/rxdb-plugin-history/src/HistoryManager.ts` — 快照序列化复用 envelope，不存明文
 - `packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts` — `transformEntityValueToSql` / `getEntityObjectFromResult` + DDL 列类型分支
 - `packages/rxdb-adapter-sqlite-core/src/fts5/` — 注册时拒绝加密字段
 - `packages/rxdb-adapter-pglite/src/pglite.utils.ts` — 同上对应改动

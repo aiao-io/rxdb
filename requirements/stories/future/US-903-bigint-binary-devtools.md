@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-09-20
 tags: [devtools, serialization, bigint, binary]
 ---
 
@@ -71,7 +71,7 @@ type DevToolsBinaryValue = { $rxdb: 1; type: 'binary'; encoding: 'base64url'; va
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 技术约束
+## 技术笔记
 
 - 禁止用裸 `JSON.parse(JSON.stringify(value))` 处理 connector payload
 - DevTools envelope 必须带版本，字段名变化视为 wire contract 变化

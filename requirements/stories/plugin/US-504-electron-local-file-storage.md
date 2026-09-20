@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
-updated: 2026-08-15
+updated: 2026-09-20
 tags: [plugin, storage, desktop, electron, filesystem]
 ---
 
@@ -116,20 +116,14 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> AC#7 的锁归宿是本故事最大的设计决策：`PathLockManager` 现用 Web Locks（按 rootDir
-> 命名空间的同源锁），两个 BrowserWindow 同 origin 同 profile 时成立，但这是对 Chromium
-> 实现的假设而非契约。另注意：`PathLockManager` 在
-> `navigator.locks` 缺失时**静默降级为进程内队列**（`path-lock.ts`），该回退在多窗口下
-> 不提供任何互斥且不报错 —— 锁归宿决策必须把它列为不充分项：缺 Web Locks 时要么临界区
-> 下沉 host 侧，要么以可判别错误拒绝多窗口场景，不得静默单进程化（无 fallback 铁律）。
-> plan 阶段必须决定「继续依赖 Web Locks 并用双窗口 e2e 固定」还是「临界区下沉 host 侧
-> 兜底」；该决策同时约束 [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的
-> Web Locks 可用性另算）。另注意：现有 e2e
-> （`desktop-persistence.spec.ts`）只有单窗口用例；且
-> `dev-rxdb-electron` demo **结构上不支持**第二个窗口 —— `main.ts` 是单一模块级 `win`
-> 变量，`createWindow()` 仅在 `whenReady` 与 macOS `activate`（守卫 `win === null`）
-> 调用，无任何新建窗口入口。选 Web Locks 路线时，「先给 demo 加多窗口能力」是双窗口
-> e2e 的前置成本，要计入 plan。
+> AC#7 的锁归宿已冻结为**临界区下沉 host 侧**：后端提供 `lockBackend`，桌面后端构造期即断言
+> 其存在，不留静默单进程化路径（与 US-505「从 US-504 继承的三条决策」一致）。
+> 理由：`PathLockManager` 的 Web Locks（按 rootDir 命名空间的同源锁）只在两个 BrowserWindow
+> 同 origin 同 profile 时成立，是对 Chromium 实现的假设而非契约；且它在 `navigator.locks`
+> 缺失时**静默降级为进程内队列**（`path-lock.ts`），多窗口下不提供任何互斥且不报错——
+> 缺 Web Locks 时不得静默单进程化（无 fallback 铁律）。跨窗口仲裁用例走两个独立 session
+> （等价于两个窗口），见「交付说明」AC#7 行；该决策同时约束
+> [US-505](./US-505-tauri-local-file-storage.md)（WKWebView 的 Web Locks 可用性因此无关）。
 
 ## 交付说明
 
@@ -141,7 +135,7 @@ INVEST 检查清单:
 | #2       | `packages/rxdb-plugin-storage/src/__tests__/backend-parity.spec.ts` —— 15 组行为 × 2 后端 = 30 用例，测试体不知道自己跑在哪个后端上，无跳过项                               |
 | #4       | `packages/rxdb-adapter-electron/src/__tests__/electron-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                               |
 | #6       | `packages/rxdb-plugin-storage/src/__tests__/desktop-failure.spec.ts` —— 故障注入在**传输层**，host 与磁盘都是真的，补偿路径发出的 `writeAbort` / `remove` 走真实实现        |
-| #7       | 同 `desktop-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁             |
+| #7       | 同 `electron-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁            |
 | #8       | `public-api.spec.ts` 的 import 图断言（以每个 renderer 入口为图根，含 `desktop.ts`）+ `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 登记 + 浏览器套件 20/20 |
 | #9       | `desktop-filesystem.spec.ts` 的 `adapter_mismatch` 两例                                                                                                                     |
 
@@ -206,8 +200,7 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
   `DESKTOP_HOST_PROTOCOL_VERSION` 协商（US-207 E1 之前这两样在 `@aiao/rxdb-adapter-desktop` 里）；
   版本不一致按既有拒绝路径处理 —— 注意
   该路径是**单向**的：客户端在 `open` **之前**先发一次无副作用的 `handshake` 拒绝异版本
-  host（`negotiateProtocolVersion`；RV-003 之前这个判断在 `parseDesktopHostOpenResult` 里，
-  即 open 应答上，那时 host 已经把库建出来了），host 不校验 renderer 声称的版本。文件消息
+  host（`negotiateProtocolVersion`），host 不校验 renderer 声称的版本。文件消息
   沿用此方向即可，但 renderer 不可信侧的兜底是 host 对消息形状的类型化校验与
   AC#4 的路径校验，不是版本协商
 - renderer 入口不得出现 `node:fs` —— 同 US-207 对 `node:sqlite` 的承诺。源码层已有自动

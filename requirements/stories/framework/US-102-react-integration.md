@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-08-18
+updated: 2026-09-20
 tags: [framework, react]
 ---
 
@@ -50,10 +50,9 @@ tags: [framework, react]
 
 ## 实现文件
 
-- `packages/rxdb-react/src/rxdb.tsx` — Provider + Hooks 核心
-- `packages/rxdb-react/src/rxdb-react.ts` — Hooks 封装
-- `packages/rxdb-react/src/rxdb-infinite-scroll.ts` — 无限滚动
-- `packages/rxdb-react/src/rxdb-tree.ts` — Tree hooks
+- `packages/rxdb-react/src/rxdb-react.tsx` — Provider + Hooks 核心
+- `packages/rxdb-react/src/hooks.ts` — Hooks 实现（含 `useFindDescendants` 等 Tree/Graph hooks，无独立 tree 文件）
+- `packages/rxdb-react/src/useInfiniteScroll.ts` — 无限滚动
 
 ## 参考
 

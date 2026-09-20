@@ -15,10 +15,11 @@
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
 | `README.md`                                         | 本说明与状态约定                                                                               | —                            |
 | `review.template.md`                                | 新建 review 记录的模板                                                                         | —                            |
+| `002-rxdb-model-port-branch-review.md`              | `002-rxdb-model-port` 相对 main 的实体模型与三框架 UI 移植评审                                 | 3 条未解决                   |
 | `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（四轮）                                       | 5 条 P2                      |
 | `next-0912-branch-review.md`                        | next-0912 分支相对 main 的 epic-006「工作树 + 提交历史」评审（2026-09-19 第四次复核 + 修复轮） | 4 条 P1 + 4 条 P2 + 其余待办 |
 | `next-0912-branch-review-max.md`                    | 同上，max 独立复核轮（已修条目已删）                                                           | 5 条 Top + 19 条 §5 + 4 顺延 |
-| `2026-09-18-rxdb-core-review.md`                    | RxDB 核心查询/关系/生命周期定向评审（含复跑记录）                                              | 4 条 P1 + 9 条 P2            |
+| `2026-09-18-rxdb-core-review.md`                    | RxDB 核心查询/关系/生命周期定向评审（含复跑记录）                                              | 2 条 P2                      |
 | `2026-09-18-rxdb-core-probes.spec.ts.txt`           | 上者的补充复现用例源码（文本，从测试目录移出）                                                 | —                            |
 | `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                            | 4 块 + 1 条规格决策          |
 | `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                                      | Open                         |

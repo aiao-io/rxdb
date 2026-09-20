@@ -1,0 +1,846 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "_resetEditorRegistry",
+        "kind": "value"
+      },
+      {
+        "name": "actionsColumn",
+        "kind": "value"
+      },
+      {
+        "name": "applyClipboard",
+        "kind": "value"
+      },
+      {
+        "name": "applyPopoverPosition",
+        "kind": "value"
+      },
+      {
+        "name": "applySystemText",
+        "kind": "value"
+      },
+      {
+        "name": "BatchChangeItem",
+        "kind": "type"
+      },
+      {
+        "name": "buildDetailTabs",
+        "kind": "value"
+      },
+      {
+        "name": "buildEditableColumns",
+        "kind": "value"
+      },
+      {
+        "name": "BuildEditableColumnsOptions",
+        "kind": "type"
+      },
+      {
+        "name": "buildFieldTree",
+        "kind": "value"
+      },
+      {
+        "name": "buildFormFields",
+        "kind": "value"
+      },
+      {
+        "name": "buildPropertyColumn",
+        "kind": "value"
+      },
+      {
+        "name": "buildTableOptions",
+        "kind": "value"
+      },
+      {
+        "name": "BUILTIN_VALIDATION_RULES",
+        "kind": "value"
+      },
+      {
+        "name": "calcPopoverPosition",
+        "kind": "value"
+      },
+      {
+        "name": "CellChangeEvent",
+        "kind": "type"
+      },
+      {
+        "name": "CellTooltipManager",
+        "kind": "both"
+      },
+      {
+        "name": "changeCellValue",
+        "kind": "value"
+      },
+      {
+        "name": "ClipboardCell",
+        "kind": "type"
+      },
+      {
+        "name": "ClipboardContent",
+        "kind": "type"
+      },
+      {
+        "name": "cn",
+        "kind": "value"
+      },
+      {
+        "name": "collectDeleteWrites",
+        "kind": "value"
+      },
+      {
+        "name": "collectReorderedIds",
+        "kind": "value"
+      },
+      {
+        "name": "completeTableEdit",
+        "kind": "value"
+      },
+      {
+        "name": "computeTooltipPosition",
+        "kind": "value"
+      },
+      {
+        "name": "createDefaultFormData",
+        "kind": "value"
+      },
+      {
+        "name": "createFieldNodeMap",
+        "kind": "value"
+      },
+      {
+        "name": "createListTable",
+        "kind": "value"
+      },
+      {
+        "name": "createOperatorRegistry",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryBuilderService",
+        "kind": "value"
+      },
+      {
+        "name": "createQueryConverter",
+        "kind": "value"
+      },
+      {
+        "name": "createSchemaFromEntities",
+        "kind": "value"
+      },
+      {
+        "name": "createSchemaFromEntity",
+        "kind": "value"
+      },
+      {
+        "name": "createSchemaParser",
+        "kind": "value"
+      },
+      {
+        "name": "createTheme",
+        "kind": "value"
+      },
+      {
+        "name": "createValidationService",
+        "kind": "value"
+      },
+      {
+        "name": "CSSVariables",
+        "kind": "type"
+      },
+      {
+        "name": "DAISY_COLORS",
+        "kind": "value"
+      },
+      {
+        "name": "DateEditor",
+        "kind": "both"
+      },
+      {
+        "name": "DEFAULT_COLUMN_SIZES",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_OPERATORS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_QUERY_BUILDER_THEME",
+        "kind": "value"
+      },
+      {
+        "name": "DELETE_COLOR",
+        "kind": "value"
+      },
+      {
+        "name": "DetailFormTab",
+        "kind": "type"
+      },
+      {
+        "name": "DetailTab",
+        "kind": "type"
+      },
+      {
+        "name": "DetailTabBase",
+        "kind": "type"
+      },
+      {
+        "name": "DetailTableTab",
+        "kind": "type"
+      },
+      {
+        "name": "DetailTabType",
+        "kind": "type"
+      },
+      {
+        "name": "disabledEditorForReadonly",
+        "kind": "value"
+      },
+      {
+        "name": "DISPLAY_ONLY_FIELDS",
+        "kind": "value"
+      },
+      {
+        "name": "ensureBaseEditorRegistered",
+        "kind": "value"
+      },
+      {
+        "name": "ENTITY_TABLE_CONFIG",
+        "kind": "value"
+      },
+      {
+        "name": "EntityDetailComponent",
+        "kind": "both"
+      },
+      {
+        "name": "EntityDetailDialogData",
+        "kind": "type"
+      },
+      {
+        "name": "EntityDialogComponent",
+        "kind": "both"
+      },
+      {
+        "name": "EntityFieldConfig",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFieldType",
+        "kind": "type"
+      },
+      {
+        "name": "EntityFormComponent",
+        "kind": "both"
+      },
+      {
+        "name": "EntityFormData",
+        "kind": "type"
+      },
+      {
+        "name": "EntityListComponent",
+        "kind": "both"
+      },
+      {
+        "name": "EntityTableComponent",
+        "kind": "both"
+      },
+      {
+        "name": "EntityTableConfig",
+        "kind": "type"
+      },
+      {
+        "name": "EntityTableRecord",
+        "kind": "type"
+      },
+      {
+        "name": "entityToFormData",
+        "kind": "value"
+      },
+      {
+        "name": "EnumEditor",
+        "kind": "both"
+      },
+      {
+        "name": "EnumItem",
+        "kind": "type"
+      },
+      {
+        "name": "extractEntityFields",
+        "kind": "value"
+      },
+      {
+        "name": "extractFieldsFromMetadata",
+        "kind": "value"
+      },
+      {
+        "name": "extractKeyValueFields",
+        "kind": "value"
+      },
+      {
+        "name": "extractRelationTargetFields",
+        "kind": "value"
+      },
+      {
+        "name": "extractSystemFields",
+        "kind": "value"
+      },
+      {
+        "name": "FieldExtractorConfig",
+        "kind": "type"
+      },
+      {
+        "name": "FieldMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "FieldSelectorComponent",
+        "kind": "both"
+      },
+      {
+        "name": "FieldTreeNode",
+        "kind": "type"
+      },
+      {
+        "name": "FieldValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "filterVisibleFields",
+        "kind": "value"
+      },
+      {
+        "name": "findNodeByValue",
+        "kind": "value"
+      },
+      {
+        "name": "findOptionLabel",
+        "kind": "value"
+      },
+      {
+        "name": "flattenFieldTree",
+        "kind": "value"
+      },
+      {
+        "name": "formatAsTsv",
+        "kind": "value"
+      },
+      {
+        "name": "formatDateToYmd",
+        "kind": "value"
+      },
+      {
+        "name": "formatDateValue",
+        "kind": "value"
+      },
+      {
+        "name": "formatEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "formDataToEntityChanges",
+        "kind": "value"
+      },
+      {
+        "name": "FormFieldChangeEvent",
+        "kind": "type"
+      },
+      {
+        "name": "FormFieldConfig",
+        "kind": "type"
+      },
+      {
+        "name": "FormFieldValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "FormMode",
+        "kind": "type"
+      },
+      {
+        "name": "FormValidationResult",
+        "kind": "type"
+      },
+      {
+        "name": "generateId",
+        "kind": "value"
+      },
+      {
+        "name": "getCellRecord",
+        "kind": "value"
+      },
+      {
+        "name": "getCSSVariables",
+        "kind": "value"
+      },
+      {
+        "name": "getCSSVariableValue",
+        "kind": "value"
+      },
+      {
+        "name": "getDefaultColors",
+        "kind": "value"
+      },
+      {
+        "name": "getDefaultOperatorRegistry",
+        "kind": "value"
+      },
+      {
+        "name": "getDefaultValueForType",
+        "kind": "value"
+      },
+      {
+        "name": "getDisplayNamePath",
+        "kind": "value"
+      },
+      {
+        "name": "getDocumentRootStyle",
+        "kind": "value"
+      },
+      {
+        "name": "getInputType",
+        "kind": "value"
+      },
+      {
+        "name": "getOperatorsForType",
+        "kind": "value"
+      },
+      {
+        "name": "getOptionGroupChildren",
+        "kind": "value"
+      },
+      {
+        "name": "getRelationIgnoreKeys",
+        "kind": "value"
+      },
+      {
+        "name": "getTableContainer",
+        "kind": "value"
+      },
+      {
+        "name": "GlobalOverlayEditor",
+        "kind": "both"
+      },
+      {
+        "name": "handleTableKeydown",
+        "kind": "value"
+      },
+      {
+        "name": "IconData",
+        "kind": "type"
+      },
+      {
+        "name": "IconLabeledItem",
+        "kind": "type"
+      },
+      {
+        "name": "IconListEditor",
+        "kind": "both"
+      },
+      {
+        "name": "isDocumentDarkMode",
+        "kind": "value"
+      },
+      {
+        "name": "isReadonly",
+        "kind": "value"
+      },
+      {
+        "name": "isReadonlyOrAddRow",
+        "kind": "value"
+      },
+      {
+        "name": "isRule",
+        "kind": "value"
+      },
+      {
+        "name": "isRuleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "isTableEditing",
+        "kind": "value"
+      },
+      {
+        "name": "JsonEditor",
+        "kind": "both"
+      },
+      {
+        "name": "KeyboardHandlerContext",
+        "kind": "type"
+      },
+      {
+        "name": "KeyValueEditor",
+        "kind": "both"
+      },
+      {
+        "name": "KeyValueSchemaEntry",
+        "kind": "type"
+      },
+      {
+        "name": "KVSchemaEntry",
+        "kind": "type"
+      },
+      {
+        "name": "lucideToSvgElement",
+        "kind": "value"
+      },
+      {
+        "name": "makeDeleteIcons",
+        "kind": "value"
+      },
+      {
+        "name": "makeEditorForReadonly",
+        "kind": "value"
+      },
+      {
+        "name": "makeViewIcons",
+        "kind": "value"
+      },
+      {
+        "name": "mapPropertyType",
+        "kind": "value"
+      },
+      {
+        "name": "ModelInfo",
+        "kind": "type"
+      },
+      {
+        "name": "MultiSelectEditor",
+        "kind": "both"
+      },
+      {
+        "name": "MultiSelectOption",
+        "kind": "type"
+      },
+      {
+        "name": "normalizeKVSchemaEntryType",
+        "kind": "value"
+      },
+      {
+        "name": "NumberEditor",
+        "kind": "both"
+      },
+      {
+        "name": "NumberEditorOptions",
+        "kind": "type"
+      },
+      {
+        "name": "OperatorDefinition",
+        "kind": "type"
+      },
+      {
+        "name": "OperatorName",
+        "kind": "type"
+      },
+      {
+        "name": "OperatorRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "OperatorRegistryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "OperatorSelectorComponent",
+        "kind": "both"
+      },
+      {
+        "name": "organizeFields",
+        "kind": "value"
+      },
+      {
+        "name": "parseCommaSeparatedInput",
+        "kind": "value"
+      },
+      {
+        "name": "parseEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "parseEntityFieldValueStrict",
+        "kind": "value"
+      },
+      {
+        "name": "parsePropertyColumnValue",
+        "kind": "value"
+      },
+      {
+        "name": "parseYmdToLocalDate",
+        "kind": "value"
+      },
+      {
+        "name": "patchDragIconForReadonlyRows",
+        "kind": "value"
+      },
+      {
+        "name": "PendingWrite",
+        "kind": "type"
+      },
+      {
+        "name": "PopoverSelectComponent",
+        "kind": "both"
+      },
+      {
+        "name": "positionOverlayPanel",
+        "kind": "value"
+      },
+      {
+        "name": "PropertyColumnConfig",
+        "kind": "type"
+      },
+      {
+        "name": "PropertyType",
+        "kind": "type"
+      },
+      {
+        "name": "PropertyTypeString",
+        "kind": "type"
+      },
+      {
+        "name": "provideQueryBuilderTheme",
+        "kind": "value"
+      },
+      {
+        "name": "QUERY_BUILDER_THEME",
+        "kind": "value"
+      },
+      {
+        "name": "QueryBuilderComponent",
+        "kind": "both"
+      },
+      {
+        "name": "QueryBuilderConfig",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderOperator",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderRule",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderRuleGroup",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderService",
+        "kind": "both"
+      },
+      {
+        "name": "QueryBuilderServiceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderState",
+        "kind": "type"
+      },
+      {
+        "name": "QueryBuilderTheme",
+        "kind": "type"
+      },
+      {
+        "name": "QueryConverter",
+        "kind": "both"
+      },
+      {
+        "name": "QueryConverterOptions",
+        "kind": "type"
+      },
+      {
+        "name": "QueryExample",
+        "kind": "type"
+      },
+      {
+        "name": "QueryGroupComponent",
+        "kind": "both"
+      },
+      {
+        "name": "QueryRuleComponent",
+        "kind": "both"
+      },
+      {
+        "name": "QueryTableComponent",
+        "kind": "both"
+      },
+      {
+        "name": "refocusTable",
+        "kind": "value"
+      },
+      {
+        "name": "registerEditor",
+        "kind": "value"
+      },
+      {
+        "name": "RelatedEntityItem",
+        "kind": "type"
+      },
+      {
+        "name": "RelatedEntityProvider",
+        "kind": "type"
+      },
+      {
+        "name": "RelatedItemsProviderFactory",
+        "kind": "type"
+      },
+      {
+        "name": "RelationEditor",
+        "kind": "both"
+      },
+      {
+        "name": "ROW_SERIES_COL_OFFSET",
+        "kind": "value"
+      },
+      {
+        "name": "RowDeleteEvent",
+        "kind": "type"
+      },
+      {
+        "name": "RowReorderEvent",
+        "kind": "type"
+      },
+      {
+        "name": "Rule",
+        "kind": "type"
+      },
+      {
+        "name": "RuleGroup",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBQueryOutput",
+        "kind": "type"
+      },
+      {
+        "name": "SafeListEditor",
+        "kind": "both"
+      },
+      {
+        "name": "scheduleEditorSetup",
+        "kind": "value"
+      },
+      {
+        "name": "SchemaInfo",
+        "kind": "type"
+      },
+      {
+        "name": "SchemaParser",
+        "kind": "both"
+      },
+      {
+        "name": "SchemaParserOptions",
+        "kind": "type"
+      },
+      {
+        "name": "setCellSwitchState",
+        "kind": "value"
+      },
+      {
+        "name": "SKIP_FIELDS",
+        "kind": "value"
+      },
+      {
+        "name": "snapshotSelection",
+        "kind": "value"
+      },
+      {
+        "name": "sortFormFields",
+        "kind": "value"
+      },
+      {
+        "name": "structuralEqual",
+        "kind": "value"
+      },
+      {
+        "name": "SubqueryBuilderComponent",
+        "kind": "both"
+      },
+      {
+        "name": "SwitchDisableCallback",
+        "kind": "type"
+      },
+      {
+        "name": "switchDisabledForReadonly",
+        "kind": "value"
+      },
+      {
+        "name": "TableClipboardManager",
+        "kind": "both"
+      },
+      {
+        "name": "TagsEditor",
+        "kind": "both"
+      },
+      {
+        "name": "TagsMode",
+        "kind": "type"
+      },
+      {
+        "name": "TreeItemDirective",
+        "kind": "both"
+      },
+      {
+        "name": "TreeSelectComponent",
+        "kind": "both"
+      },
+      {
+        "name": "UIRule",
+        "kind": "type"
+      },
+      {
+        "name": "updateTableRecords",
+        "kind": "value"
+      },
+      {
+        "name": "UUID_RE",
+        "kind": "value"
+      },
+      {
+        "name": "validateEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "validateField",
+        "kind": "value"
+      },
+      {
+        "name": "validateForm",
+        "kind": "value"
+      },
+      {
+        "name": "ValidationContext",
+        "kind": "type"
+      },
+      {
+        "name": "ValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "ValidationGroupInput",
+        "kind": "type"
+      },
+      {
+        "name": "ValidationResult",
+        "kind": "type"
+      },
+      {
+        "name": "ValidationRule",
+        "kind": "type"
+      },
+      {
+        "name": "ValidationService",
+        "kind": "both"
+      },
+      {
+        "name": "ValidationServiceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ValueInputComponent",
+        "kind": "both"
+      }
+    ]
+  }
+}

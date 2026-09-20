@@ -1,7 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
-// 这里静态引入适配器是安全的：`pg-fts-contract.ts` 要求的惰性加载约束只针对
-// `index.ts` 可达的运行时图，spec 不在发布产物里（package.json `files` 已排除）。
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+// 类型导入允许：`@nx/enforce-module-boundaries` 只约束运行时静态导入，
+// `import type` 会被擦除，不会把适配器拉进运行时图。
+import type { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createPgTsvectorBackend } from '../../backend/pg/pg-backend.js';
@@ -100,7 +100,8 @@ describe('pg-tsvector backend against a real PGlite database', () => {
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }
     });
     rxdb.adapter('pglite', async db => {
-      adapter = new RxDBAdapterPGlite(db, { store: 'memory' });
+      const { RxDBAdapterPGlite: PGliteAdapter } = await import('@aiao/rxdb-adapter-pglite');
+      adapter = new PGliteAdapter(db, { store: 'memory' });
       return adapter;
     });
     await rxdb.connect('pglite');

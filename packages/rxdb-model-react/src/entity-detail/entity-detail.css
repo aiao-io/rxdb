@@ -1,0 +1,10 @@
+/**
+ * 实体详情样式（Angular `entity-detail.scss` 的移植）。
+ */
+
+.rxdb-entity-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}

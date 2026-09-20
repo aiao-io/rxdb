@@ -47,7 +47,8 @@
     "MenuLarge": "function",
     "MenuSimple": "function",
     "Todo": "function",
-    "TypeDemo": "function"
+    "TypeDemo": "function",
+    "TypeDemoNative": "function"
   },
   "./query-cache-contract": {
     "QcContractBlob": "function",
