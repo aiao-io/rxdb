@@ -20,6 +20,8 @@ import {
  */
 export type EntityFieldType =
   | PropertyType
+  | `${PropertyType.bigint}`
+  | `${PropertyType.binary}`
   | `${PropertyType.boolean}`
   | `${PropertyType.date}`
   | `${PropertyType.enum}`
