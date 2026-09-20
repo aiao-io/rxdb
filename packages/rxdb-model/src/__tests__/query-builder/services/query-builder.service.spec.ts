@@ -289,6 +289,24 @@ describe('QueryBuilderService', () => {
 
       expect(() => service.moveItem(groupId, innerGroupId, 0)).toThrow(/不能将分组移动到其自身内部/);
     });
+
+    it('目标分组不存在时不得删除源节点', () => {
+      const ruleId = service.addRule();
+      const before = service.getState();
+      expect(() => service.moveItem(ruleId, 'missing-group', 0)).toThrow(/目标分组不存在/);
+      expect(service.getState()).toEqual(before);
+    });
+
+    it('移动深层分组不得绕过最大嵌套深度', () => {
+      const source = service.addGroup();
+      const child = service.addGroup(source);
+      const target = service.addGroup();
+      const targetChild = service.addGroup(target);
+      const deepTarget = service.addGroup(targetChild);
+      expect(() => service.moveItem(source, deepTarget, 0)).toThrow(/超过最大嵌套深度/);
+      expect(service.getState().rootGroup.rules.some(item => item.id === source)).toBe(true);
+      expect(service.getState().rootGroup.rules.some(item => item.id === child)).toBe(false);
+    });
   });
 
   describe('destroy', () => {

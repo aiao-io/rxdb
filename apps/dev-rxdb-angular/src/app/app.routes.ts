@@ -90,16 +90,19 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/ag-grid/ag-grid.page')
   },
   {
-    path: 'entity-list',
-    loadComponent: () => import('./pages/entity/entity-list.page')
+    // 实体浏览壳页：左侧实体目录 + 右侧列表（dashboard 同款两栏布局）
+    path: 'entities',
+    loadComponent: () => import('./pages/entity/entity.page'),
+    children: [
+      {
+        path: ':namespace/:name',
+        loadComponent: () => import('./pages/entity/entity-list.page')
+      }
+    ]
   },
   {
-    path: 'entity-detail',
+    path: 'entities/:namespace/:name/:entityId',
     loadComponent: () => import('./pages/entity/entity-detail.page')
-  },
-  {
-    path: 'query-builder',
-    loadComponent: () => import('./pages/entity/query-builder.page')
   },
   {
     path: 'code-editor',
@@ -125,10 +128,6 @@ export const appRoutes: Route[] = [
     path: 'file-manager',
     redirectTo: 'file-manager-simple',
     pathMatch: 'full'
-  },
-  {
-    path: 'branch-manager',
-    loadComponent: () => import('./pages/branch-manager/branch-manager.page')
   },
   {
     // 与 /search 同一道门：面板初始化就调 `workingTree.status()`，深链进来时连接还没建立。

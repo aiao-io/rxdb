@@ -174,7 +174,7 @@ export const filterWhitespaceOnlyChanges = (hunks: readonly DiffHunk[]): DiffHun
 const MAX_SUMMARY_LENGTH = 200;
 
 /**
- * diff 条目的一行补丁摘要，列表行用；与 branch-manager 的变更摘要同一个「旧 → 新」口味。
+ * diff 条目的一行补丁摘要，列表行用；走「旧 → 新」口味。
  */
 export const formatPatchSummary = (entry: WorkingTreeDiffEntry): string => {
   let text: string;

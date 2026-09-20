@@ -1,14 +1,17 @@
 import type { ListTableConstructorOptions } from '@visactor/vtable';
 import * as VTable from '@visactor/vtable';
-import { InputEditor } from '@visactor/vtable-editors';
+import { InputEditor, TextAreaEditor } from '@visactor/vtable-editors';
+import { ColorEditor } from '../editors/color-editor.js';
 import { DateEditor } from '../editors/date-editor.js';
 import { EnumEditor } from '../editors/enum-editor.js';
 import { JsonEditor } from '../editors/json-editor.js';
 import { KeyValueEditor } from '../editors/key-value-editor.js';
+import { MultiSelectEditor } from '../editors/multiselect-editor.js';
 import { NumberEditor } from '../editors/number-editor.js';
 import { RelationEditor } from '../editors/relation-editor.js';
 import { SafeListEditor } from '../editors/safe-list-editor.js';
 import { TagsEditor } from '../editors/tags-editor.js';
+import { TextFormatEditor } from '../editors/text-format-editor.js';
 import { UuidEditor } from '../editors/uuid-editor.js';
 import type { EntityTableRecord } from '../interfaces.js';
 import { createTheme, getCSSVariables } from './table-theme.js';
@@ -30,8 +33,13 @@ export function ensureBaseEditorRegistered(): void {
   VTable.register.editor('key-value-editor', new KeyValueEditor());
   VTable.register.editor('number-editor', new NumberEditor(false));
   VTable.register.editor('integer-editor', new NumberEditor(true));
+  VTable.register.editor('bigint-editor', new NumberEditor(false, { bigint: true }));
   VTable.register.editor('uuid-editor', new UuidEditor());
   VTable.register.editor('relation-editor', new RelationEditor());
+  VTable.register.editor('color-editor', new ColorEditor());
+  VTable.register.editor('text-format-editor', new TextFormatEditor('url'));
+  VTable.register.editor('multiselect-editor', new MultiSelectEditor([]));
+  VTable.register.editor('vtable-textarea-editor', new TextAreaEditor());
 }
 
 /**

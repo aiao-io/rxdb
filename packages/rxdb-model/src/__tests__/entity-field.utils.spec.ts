@@ -100,6 +100,67 @@ describe('extractEntityFields', () => {
     expect(fields[0].enumValues).toEqual(['active', 'inactive']);
   });
 
+  it('should carry format / options / encrypted only when declared', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([
+        [
+          'homepage',
+          {
+            name: 'homepage',
+            columnName: 'homepage',
+            type: PropertyType.string,
+            displayName: '主页',
+            format: { kind: 'url', schemes: ['HTTPS'] }
+          } as EntityPropertyMetadata
+        ],
+        [
+          'status',
+          {
+            name: 'status',
+            columnName: 'status',
+            type: PropertyType.enum,
+            displayName: '状态',
+            enum: ['draft', 'archived'],
+            format: { kind: 'singleSelect' },
+            options: { draft: { label: '草稿', disabled: true } }
+          } as EntityPropertyMetadata
+        ],
+        [
+          'secret',
+          {
+            name: 'secret',
+            columnName: 'secret',
+            type: PropertyType.string,
+            displayName: '密文',
+            encrypted: true
+          } as EntityPropertyMetadata
+        ],
+        [
+          'title',
+          {
+            name: 'title',
+            columnName: 'title',
+            type: PropertyType.string,
+            displayName: '标题'
+          } as EntityPropertyMetadata
+        ]
+      ])
+    });
+    const fields = extractEntityFields(meta);
+    const homepage = fields.find(f => f.field === 'homepage')!;
+    expect(homepage.format).toEqual({ kind: 'url', schemes: ['HTTPS'] });
+    expect('options' in homepage).toBe(false);
+    const status = fields.find(f => f.field === 'status')!;
+    expect(status.format).toEqual({ kind: 'singleSelect' });
+    expect(status.options).toEqual({ draft: { label: '草稿', disabled: true } });
+    const secret = fields.find(f => f.field === 'secret')!;
+    expect(secret.encrypted).toBe(true);
+    const title = fields.find(f => f.field === 'title')!;
+    expect('format' in title).toBe(false);
+    expect('options' in title).toBe(false);
+    expect('encrypted' in title).toBe(false);
+  });
+
   it('should extract keyValue property with schema', () => {
     const meta = makeMeta({
       propertyMap: new Map([

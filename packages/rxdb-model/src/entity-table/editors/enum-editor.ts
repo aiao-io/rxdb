@@ -11,6 +11,8 @@ export interface EnumItem {
   icon?: IconData;
   /** 图标描边颜色（可选，配合 icon 使用） */
   color?: string;
+  /** 是否禁用（只影响展示与选择，不改变枚举合法性） */
+  disabled?: boolean;
 }
 
 type VTableWithColumnDef = {
@@ -109,6 +111,7 @@ export class EnumEditor extends GlobalOverlayEditor {
     this.#items.forEach((item, idx) => {
       const isNullItem = item.value === '';
       const isSelected = item.value === this.#currentValue;
+      const isDisabled = item.disabled === true;
       const row = document.createElement('div');
       row.dataset['value'] = item.value;
       row.dataset['idx'] = String(idx);
@@ -116,10 +119,10 @@ export class EnumEditor extends GlobalOverlayEditor {
         'display:flex',
         'align-items:center',
         'padding:5px 12px',
-        'cursor:pointer',
+        `cursor:${isDisabled ? 'default' : 'pointer'}`,
         'font-size:13px',
-        `color:${isNullItem ? DAISY_COLORS.text : DAISY_COLORS.text}`,
-        `opacity:${isNullItem ? '0.55' : '1'}`,
+        `color:${DAISY_COLORS.text}`,
+        `opacity:${isNullItem || isDisabled ? '0.55' : '1'}`,
         `font-style:${isNullItem ? 'italic' : 'normal'}`,
         `background:${isSelected ? DAISY_COLORS.selectedBg : 'transparent'}`
       ].join(';');
@@ -132,11 +135,13 @@ export class EnumEditor extends GlobalOverlayEditor {
         row.textContent = item.text ?? item.value;
       }
 
-      row.addEventListener('mouseenter', () => this.setFocused(idx));
+      row.addEventListener('mouseenter', () => {
+        if (!isDisabled) this.setFocused(idx);
+      });
       row.addEventListener('mousedown', e => {
         e.preventDefault();
         e.stopPropagation();
-        this.onRowClick(idx);
+        if (!isDisabled) this.onRowClick(idx);
       });
 
       panel.appendChild(row);
@@ -145,7 +150,7 @@ export class EnumEditor extends GlobalOverlayEditor {
 
   protected onRowClick(idx: number): void {
     const item = this.#items[idx];
-    if (!item) return;
+    if (!item || item.disabled === true) return;
     this.#currentValue = item.value;
     this.close();
   }

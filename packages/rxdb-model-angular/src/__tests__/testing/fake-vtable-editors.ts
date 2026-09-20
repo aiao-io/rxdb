@@ -16,3 +16,6 @@ export class ListEditor {
     // 替身：无真实编辑器状态
   }
 }
+
+/** 替身多行文本编辑器（multilineText / richText / code 列注册用）。 */
+export class TextAreaEditor {}

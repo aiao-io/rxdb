@@ -1,4 +1,10 @@
-import type { EntityMetadata, EntityPropertyMetadata, EntityRelationMetadata } from '@aiao/rxdb';
+import type {
+  EntityMetadata,
+  EntityPropertyMetadata,
+  EntityRelationMetadata,
+  FieldFormat,
+  FieldOptions
+} from '@aiao/rxdb';
 import { PropertyType, RelationKind } from '@aiao/rxdb';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
@@ -117,14 +123,17 @@ export function buildEditableColumns(
 
   for (const [key, prop] of metadata.propertyMap) {
     if (DISPLAY_ONLY_FIELDS.has(key) || SKIP_FIELDS.has(key)) continue;
+    const raw = prop as Record<string, unknown>;
     columns.push(
       buildPropertyColumn({
         field: key,
         title: prop.displayName ?? key,
         type: prop.type,
-        readonly: (prop as Record<string, unknown>)['readonly'] === true,
-        enumValues: (prop as Record<string, unknown>)['enum'] as string[] | undefined,
-        keyValueSchema: prop.type === PropertyType.keyValue ? buildKeyValueSchema(prop) : undefined
+        readonly: raw['readonly'] === true,
+        enumValues: raw['enum'] as string[] | undefined,
+        keyValueSchema: prop.type === PropertyType.keyValue ? buildKeyValueSchema(prop) : undefined,
+        format: raw['format'] as FieldFormat | undefined,
+        options: raw['options'] as FieldOptions | undefined
       })
     );
   }

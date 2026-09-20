@@ -29,6 +29,20 @@ function parseSystemValue(value: string, propertyType: string | undefined): unkn
       if (!/^-?\d+$/.test(trimmed)) return INVALID;
       return parseInt(trimmed, 10);
     }
+    case 'bigint': {
+      if (trimmed === '') return null;
+      if (!/^-?\d+$/.test(trimmed)) return INVALID;
+      return BigInt(trimmed);
+    }
+    case 'binary': {
+      if (trimmed === '') return null;
+      if (trimmed.length % 2 !== 0 || !/^(?:[0-9a-fA-F]{2})+$/.test(trimmed)) return INVALID;
+      const bytes = new Uint8Array(trimmed.length / 2);
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = parseInt(trimmed.slice(i * 2, i * 2 + 2), 16);
+      }
+      return bytes;
+    }
     case 'date': {
       if (trimmed === '') return null;
       const d = new Date(trimmed);
@@ -140,8 +154,10 @@ const PROPERTY_TYPE_GROUP: Record<string, string> = {
   enum: 'enum',
   number: 'number',
   integer: 'number',
+  bigint: 'number',
   boolean: 'boolean',
   date: 'date',
+  binary: 'binary',
   stringArray: 'stringArray',
   numberArray: 'numberArray',
   json: 'object',

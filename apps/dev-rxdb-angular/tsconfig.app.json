@@ -65,9 +65,6 @@
       "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-model/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
     },
     {

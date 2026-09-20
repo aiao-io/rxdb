@@ -560,6 +560,103 @@ describe('buildPropertyColumn editor names', () => {
   });
 });
 
+// ── buildPropertyColumn bigint / binary / format 语义 ──────────────────────
+
+describe('buildPropertyColumn bigint / binary / format', () => {
+  function getEditorName(col: Record<string, unknown>, record: Record<string, unknown> = {}): unknown {
+    const editorFn = col['editor'] as ((a: StylePropertyFunctionArg) => unknown) | undefined;
+    return editorFn?.(makeArgs(record));
+  }
+
+  function fieldFormat(col: Record<string, unknown>, record: Record<string, unknown>): string {
+    const fn = col['fieldFormat'] as ((r: Record<string, unknown>) => string) | undefined;
+    return fn?.(record) ?? '';
+  }
+
+  it('bigint uses bigint-editor', () => {
+    const col = buildPropertyColumn({ field: 'amount', type: 'bigint' }) as Record<string, unknown>;
+    expect(getEditorName(col)).toBe('bigint-editor');
+    expect(getEditorName(col, { _readonly: true })).toBeUndefined();
+  });
+
+  it('binary is display-only and renders hex preview', () => {
+    const col = buildPropertyColumn({ field: 'payload', type: 'binary' }) as Record<string, unknown>;
+    expect(col['editor']).toBeUndefined();
+    const fn = col['fieldFormat'] as (r: Record<string, unknown>) => string;
+    expect(fn({ payload: new Uint8Array([0xde, 0xad, 0xbe, 0xef]) })).toBe('deadbeef');
+  });
+
+  it('color format uses per-column ColorEditor', () => {
+    const col = buildPropertyColumn({
+      field: 'color',
+      type: 'string',
+      format: { kind: 'color', colorSpace: 'hex' }
+    }) as Record<string, unknown>;
+    const inst = getEditorName(col) as { editorType?: string };
+    expect(inst?.editorType).toBe('color-editor');
+  });
+
+  it('url format uses per-column TextFormatEditor', () => {
+    const col = buildPropertyColumn({
+      field: 'homepage',
+      type: 'string',
+      format: { kind: 'url', schemes: ['HTTPS'] }
+    }) as Record<string, unknown>;
+    const inst = getEditorName(col) as { editorType?: string };
+    expect(inst?.editorType).toBe('text-format-editor');
+  });
+
+  it('multilineText uses vtable-textarea-editor', () => {
+    const col = buildPropertyColumn({
+      field: 'body',
+      type: 'string',
+      format: { kind: 'multilineText' }
+    }) as Record<string, unknown>;
+    expect(getEditorName(col)).toBe('vtable-textarea-editor');
+  });
+
+  it('stringArray with enum uses per-column MultiSelectEditor', () => {
+    const col = buildPropertyColumn({
+      field: 'labels',
+      type: 'stringArray',
+      enumValues: ['a', 'b'],
+      options: { a: { label: '甲' } }
+    }) as Record<string, unknown>;
+    const inst = getEditorName(col) as { editorType?: string };
+    expect(inst?.editorType).toBe('multiselect-editor');
+  });
+
+  it('number with currency format renders currency display', () => {
+    const col = buildPropertyColumn({
+      field: 'price',
+      type: 'number',
+      format: { kind: 'currency', currency: 'CNY' }
+    }) as Record<string, unknown>;
+    expect(fieldFormat(col, { price: 3.14 })).toBe('3.14 CNY');
+  });
+
+  it('number with rating format renders rating display and bounds editor', () => {
+    const col = buildPropertyColumn({
+      field: 'score',
+      type: 'number',
+      format: { kind: 'rating', min: 1, max: 5, step: 0.5 }
+    }) as Record<string, unknown>;
+    expect(fieldFormat(col, { score: 4.5 })).toBe('4.5 ★');
+    const inst = getEditorName(col) as { editorType?: string };
+    expect(inst?.editorType).toBe('number-editor');
+  });
+
+  it('date with dateTime display=date renders date only', () => {
+    const col = buildPropertyColumn({
+      field: 'birthday',
+      type: 'date',
+      format: { kind: 'dateTime', display: 'date' }
+    }) as Record<string, unknown>;
+    const value = new Date('2026-01-02T03:04:05.000Z');
+    expect(fieldFormat(col, { birthday: value })).toBe(value.toLocaleDateString());
+  });
+});
+
 // ── enum enumItems 文本映射 ────────────────────────────────────────────────
 
 describe('buildPropertyColumn enum enumItems', () => {

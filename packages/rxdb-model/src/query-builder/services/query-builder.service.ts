@@ -337,9 +337,21 @@ export class QueryBuilderService<T = Record<string, unknown>> {
       throw new Error(`项目不存在: ${itemId}`);
     }
 
+    if (!this.findGroup(state.rootGroup, targetGroupId)) {
+      throw new Error(`目标分组不存在: ${targetGroupId}`);
+    }
+
     // 如果是规则组，不能移动到自身内部
     if (isRuleGroup<T>(item) && this.isDescendant(item, targetGroupId)) {
       throw new Error('不能将分组移动到其自身内部');
+    }
+
+    if (isRuleGroup<T>(item)) {
+      const targetDepth = this.getGroupDepth(state.rootGroup, targetGroupId);
+      const subtreeHeight = this.getGroupHeight(item);
+      if (targetDepth + subtreeHeight > this.getMaxNestingLevel()) {
+        throw new Error(`移动后超过最大嵌套深度 ${this.getMaxNestingLevel()}`);
+      }
     }
 
     // 先移除，再插入
@@ -489,6 +501,25 @@ export class QueryBuilderService<T = Record<string, unknown>> {
       }
     }
     return undefined;
+  }
+
+  private findGroup(group: QueryBuilderRuleGroup<T>, groupId: string): QueryBuilderRuleGroup<T> | undefined {
+    if (group.id === groupId) return group;
+    for (const child of group.rules) {
+      if (isRuleGroup<T>(child)) {
+        const found = this.findGroup(child, groupId);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
+
+  private getGroupHeight(group: QueryBuilderRuleGroup<T>): number {
+    let height = 1;
+    for (const child of group.rules) {
+      if (isRuleGroup<T>(child)) height = Math.max(height, 1 + this.getGroupHeight(child));
+    }
+    return height;
   }
 
   private isDescendant(group: QueryBuilderRuleGroup<T>, targetId: string): boolean {

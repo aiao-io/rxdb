@@ -277,7 +277,171 @@ describe('EntityFormComponent（真实组件）', () => {
     expect(fieldChanged).toEqual([]);
     expect(validationErrors).toHaveLength(1);
     expect(validationErrors[0].valid).toBe(false);
-    expect(validationErrors[0].errors[0]).toMatchObject({ field: 'tags', message: '无法转换的值' });
+    // parseEntityFieldValueStrict 契约：displayName 前缀 + 结构化失败原因
+    expect(validationErrors[0].errors[0]).toMatchObject({ field: 'tags', message: '标签 无法转换的值' });
     expect(component.formData()['tags']).toEqual(['a', 'b']);
+  });
+});
+
+// ── bigint / binary / format 语义控件 ──────────────────────────────────────
+
+const FORMAT_FIELDS: FormFieldConfig[] = [
+  { field: 'big', displayName: '大整数', type: 'bigint' },
+  { field: 'blob', displayName: '字节序列', type: 'binary' },
+  { field: 'accent', displayName: '颜色', type: 'string', format: { kind: 'color', colorSpace: 'hex' } },
+  { field: 'homepage', displayName: '主页', type: 'string', format: { kind: 'url', schemes: ['HTTPS'] } },
+  { field: 'email', displayName: '邮箱', type: 'string', format: { kind: 'email' } },
+  { field: 'body', displayName: '正文', type: 'string', format: { kind: 'multilineText' } },
+  { field: 'rating', displayName: '评分', type: 'number', format: { kind: 'rating', min: 1, max: 5, step: 0.5 } },
+  { field: 'price', displayName: '价格', type: 'number', format: { kind: 'currency', currency: 'CNY' } },
+  { field: 'dur', displayName: '时长', type: 'integer', format: { kind: 'duration', unit: 's' } },
+  { field: 'birthday', displayName: '生日', type: 'date', format: { kind: 'dateTime', display: 'date' } },
+  {
+    field: 'labels',
+    displayName: '多选',
+    type: 'stringArray',
+    enumValues: ['a', 'b'],
+    options: { a: { label: '甲', color: '#112233' }, b: { label: '乙' } },
+    format: { kind: 'multiSelect' }
+  },
+  {
+    field: 'status2',
+    displayName: '状态二',
+    type: 'enum',
+    enumValues: ['x', 'y'],
+    options: { x: { label: '叉' }, y: { label: '勾', disabled: true } }
+  }
+];
+
+const FORMAT_DATA: EntityFormData = {
+  big: 42n,
+  blob: new Uint8Array([0xde, 0xad]),
+  accent: '#22c55e',
+  homepage: 'https://example.com',
+  email: 'a@example.com',
+  body: 'line1\nline2',
+  rating: 3.5,
+  price: 9.9,
+  dur: 120,
+  birthday: '2026-01-02T00:00:00.000Z',
+  labels: ['a'],
+  status2: 'x'
+};
+
+describe('EntityFormComponent format 语义控件（真实组件）', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+  });
+
+  function render(
+    inputs: Partial<{ fields: FormFieldConfig[]; data: EntityFormData; mode: 'view' | 'edit' | 'create' }> = {}
+  ) {
+    const fixture = TestBed.createComponent(EntityFormComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('fields', inputs.fields ?? FORMAT_FIELDS);
+    fixture.componentRef.setInput('data', inputs.data ?? FORMAT_DATA);
+    fixture.componentRef.setInput('mode', inputs.mode ?? 'edit');
+
+    const fieldChanged: FormFieldChangeEvent[] = [];
+    const validationErrors: FormValidationResult[] = [];
+    component.fieldChanged.subscribe(e => fieldChanged.push(e));
+    component.validationErrors.subscribe(e => validationErrors.push(e));
+    fixture.detectChanges();
+
+    return { fixture, component, fieldChanged, validationErrors };
+  }
+
+  function fieldset(fixture: { nativeElement: HTMLElement }, displayName: string): HTMLElement {
+    const legends = [...fixture.nativeElement.querySelectorAll('legend')] as HTMLElement[];
+    const legend = legends.find(l => l.textContent?.trim() === displayName);
+    if (!legend) throw new Error(`legend not found: ${displayName}`);
+    return legend.parentElement as HTMLElement;
+  }
+
+  it('bigint 渲染数字输入模式文本框', () => {
+    const { fixture } = render();
+    const input = fieldset(fixture, '大整数').querySelector('input') as HTMLInputElement;
+    expect(input.type).toBe('text');
+    expect(input.inputMode).toBe('numeric');
+    expect(input.value).toBe('42');
+  });
+
+  it('binary 渲染 hex 文本域并回显字节', () => {
+    const { fixture } = render();
+    const textarea = fieldset(fixture, '字节序列').querySelector('textarea') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('dead');
+  });
+
+  it('color 渲染取色器与 hex 文本输入', () => {
+    const { fixture } = render();
+    const fs = fieldset(fixture, '颜色');
+    expect(fs.querySelector('input[type=color]')).toBeTruthy();
+    expect(fs.querySelector('input[type=text]')).toBeTruthy();
+  });
+
+  it('url / email 渲染对应原生输入类型', () => {
+    const { fixture } = render();
+    expect(fieldset(fixture, '主页').querySelector('input[type=url]')).toBeTruthy();
+    expect(fieldset(fixture, '邮箱').querySelector('input[type=email]')).toBeTruthy();
+  });
+
+  it('multilineText 渲染多行文本域', () => {
+    const { fixture } = render();
+    expect(fieldset(fixture, '正文').querySelector('textarea')).toBeTruthy();
+  });
+
+  it('rating 数字输入带 min / max / step', () => {
+    const { fixture } = render();
+    const input = fieldset(fixture, '评分').querySelector('input[type=number]') as HTMLInputElement;
+    expect(input.min).toBe('1');
+    expect(input.max).toBe('5');
+    expect(input.step).toBe('0.5');
+  });
+
+  it('currency 与 duration 数字输入带单位标注', () => {
+    const { fixture } = render();
+    expect(fieldset(fixture, '价格').textContent).toContain('CNY');
+    expect(fieldset(fixture, '时长').textContent).toContain('s');
+  });
+
+  it('dateTime display=date 渲染 date 输入', () => {
+    const { fixture } = render();
+    expect(fieldset(fixture, '生日').querySelector('input[type=date]')).toBeTruthy();
+  });
+
+  it('stringArray + enum 渲染复选组并回显选中项', () => {
+    const { fixture } = render();
+    const checkboxes = [...fieldset(fixture, '多选').querySelectorAll('input[type=checkbox]')] as HTMLInputElement[];
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0].checked).toBe(true);
+    expect(checkboxes[1].checked).toBe(false);
+    expect(fieldset(fixture, '多选').textContent).toContain('甲');
+    expect(fieldset(fixture, '多选').textContent).toContain('乙');
+  });
+
+  it('复选组切换按数组输出 fieldChanged', () => {
+    const { fixture, fieldChanged } = render();
+    const input = fieldset(fixture, '多选').querySelectorAll('input[type=checkbox]')[1] as HTMLInputElement;
+    // 浏览器点击会先翻转 checked 再派发 change，这里按同样顺序模拟
+    input.checked = true;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(fieldChanged).toHaveLength(1);
+    expect(fieldChanged[0].field).toBe('labels');
+    expect(fieldChanged[0].value).toEqual(['a', 'b']);
+  });
+
+  it('enum options 渲染 label 且 disabled 选项不可选', () => {
+    const { fixture } = render();
+    const options = [...fieldset(fixture, '状态二').querySelectorAll('option')];
+    expect(options.map(o => o.textContent?.trim())).toEqual(['叉', '勾']);
+    expect((options[1] as HTMLOptionElement).disabled).toBe(true);
+  });
+
+  it('view 模式按 format 展示（currency / binary / rating）', () => {
+    const { fixture } = render({ mode: 'view' });
+    expect(fieldset(fixture, '价格').textContent).toContain('9.9 CNY');
+    expect(fieldset(fixture, '字节序列').textContent).toContain('dead');
+    expect(fieldset(fixture, '评分').textContent).toContain('3.5 ★');
   });
 });

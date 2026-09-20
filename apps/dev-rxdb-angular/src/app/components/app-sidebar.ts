@@ -15,7 +15,7 @@ import { BranchManager } from './branch-manager';
   imports: [LucideDynamicIcon, ThemeBtn, AppMenu, BranchManager],
   selector: 'app-sidebar',
   template: `
-    <div class="bg-base-300 flex items-center justify-between p-1">
+    <div class="bg-base-300 flex h-10 min-h-10 items-center justify-between p-1">
       <div id="logo">
         <button
           class="btn btn-ghost btn-sm hover:border-transparent hover:bg-transparent"

@@ -9,7 +9,13 @@ import type {
   FormValidationResult,
   RelatedEntityProvider
 } from '@aiao/rxdb-model';
-import { buildDetailTabs, buildFormFields, entityToFormData, validateForm } from '@aiao/rxdb-model';
+import {
+  buildDetailTabs,
+  buildFormFields,
+  entityToFormData,
+  formDataToEntityChanges,
+  validateForm
+} from '@aiao/rxdb-model';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import {
   ChangeDetectionStrategy,
@@ -37,6 +43,10 @@ export interface EntityDetailDialogData {
   formFields: FormFieldConfig[];
   formData: EntityFormData;
   formMode: FormMode;
+  /** 编辑模式：按 id 从 Repository 加载实体实例；缺省时表单数据为纯透传 */
+  entityId?: string;
+  /** 已打开详情对话框的记录 id 栈（含当前记录），关系 tab 列表据此阻断无限套娃 */
+  editChain?: string[];
   relatedEntityProvider?: RelatedEntityProvider;
   /** 预填充的外键数据（不可编辑），用于级联新增场景 */
   fixedFormData?: EntityFormData;
@@ -50,7 +60,9 @@ let nextDetailId = 0;
 
 /**
  * Tab 式实体详情组件：基础表单 Tab + 每个一对多/多对多关系一个表格 Tab；
- * create 模式先生成内存草稿实体，校验通过并保存时才落库。
+ * create 模式先生成内存草稿实体，校验通过并保存时才落库；
+ * edit 模式按 `entityId`（路由输入或 DIALOG_DATA）从 Repository 加载实例，保存时内部落库。
+ * 关系 Tab 内嵌的实体列表可继续打开子实体详情对话框（套娃），由 `editChain` 阻断环。
  */
 @Component({
   selector: 'rxdb-entity-detail',
@@ -108,7 +120,12 @@ export class EntityDetailComponent {
   });
 
   readonly #entityInstance = toSignal(
-    toObservable(computed(() => ({ cls: this.#entityCls(), id: this.entityId() }))).pipe(
+    toObservable(
+      computed(() => ({
+        cls: this.#entityCls() ?? this.#entityClsFromDialog(),
+        id: this.entityId() ?? this.#dialogData?.entityId
+      }))
+    ).pipe(
       switchMap(({ cls, id }) => {
         if (!cls || !id || !this.#rxdb) return of(null);
         return this.#rxdb.entityManager.getRepository(cls).get(id);
@@ -168,6 +185,9 @@ export class EntityDetailComponent {
     const key = `${meta.namespace}:${meta.name}`;
     return parentChain.includes(key) ? parentChain : [...parentChain, key];
   });
+
+  /** 已打开详情对话框的记录 id 栈（DIALOG_DATA 透传，含当前记录），关系 tab 列表据此阻断无限套娃 */
+  readonly editChain = computed<string[]>(() => this.#dialogData?.editChain ?? []);
 
   /** 当前活动关系 tab 的 relationName（用于子实体注册关系） */
   readonly activeRelationName = computed<string | undefined>(() => {
@@ -263,7 +283,26 @@ export class EntityDetailComponent {
   }
 
   onFormSubmitted(data: EntityFormData): void {
-    this.formSubmitted.emit(data);
+    // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理
+    if (this.isCreateMode()) {
+      this.formSubmitted.emit(data);
+      return;
+    }
+    const inst = this.#entityInstance() as EntityInstance | null;
+    if (!inst) {
+      this.formSubmitted.emit(data);
+      return;
+    }
+    // edit 模式内部保存：变更应用到已加载实例并落库，成功后关闭对话框并通知宿主
+    const changes = formDataToEntityChanges(inst as Record<string, unknown>, data, this.formFieldsValue);
+    Object.assign(inst as Record<string, unknown>, changes);
+    inst
+      .save()
+      .then(() => {
+        this.#dialogRef?.close('saved');
+        this.formSubmitted.emit(data);
+      })
+      .catch(e => this.#errorHandler.handleError(e));
   }
 
   onFormCancelled(): void {

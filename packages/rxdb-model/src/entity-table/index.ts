@@ -49,6 +49,7 @@ export {
 } from './vtable/vtable-compat.js';
 
 // 自定义编辑器
+export { ColorEditor } from './editors/color-editor.js';
 export { DateEditor } from './editors/date-editor.js';
 export { EnumEditor, type EnumItem } from './editors/enum-editor.js';
 export {
@@ -62,10 +63,11 @@ export { JsonEditor } from './editors/json-editor.js';
 export { KeyValueEditor } from './editors/key-value-editor.js';
 export { lucideToSvgHtml, type IconData } from './editors/lucide-svg.js';
 export { MultiSelectEditor, type MultiSelectOption } from './editors/multiselect-editor.js';
-export { NumberEditor } from './editors/number-editor.js';
+export { NumberEditor, type NumberEditorOptions } from './editors/number-editor.js';
 export { RelationEditor } from './editors/relation-editor.js';
 export { SafeListEditor } from './editors/safe-list-editor.js';
 export { TagsEditor, type TagsMode } from './editors/tags-editor.js';
+export { TextFormatEditor, type TextFormatMode } from './editors/text-format-editor.js';
 
 // 列工具
 export {

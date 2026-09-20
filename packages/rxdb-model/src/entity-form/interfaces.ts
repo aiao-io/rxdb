@@ -2,6 +2,7 @@
  * Entity Form 类型定义
  * @module entity-form/interfaces
  */
+import type { FieldFormat, FieldOptions } from '@aiao/rxdb';
 import type { EntityFieldType, KeyValueSchemaEntry } from '../entity-field.utils.js';
 
 /**
@@ -35,6 +36,12 @@ export interface FormFieldConfig {
   relatedEntityName?: string;
   /** 关系字段关联实体的命名空间 */
   relatedNamespace?: string;
+  /** 字段语义标注（只影响展示与控件选择，不改变运行时值类型） */
+  format?: FieldFormat;
+  /** 枚举/多选值的展示元数据（label / color / disabled） */
+  options?: FieldOptions;
+  /** 是否为加密列 */
+  encrypted?: boolean;
   /** 是否隐藏 */
   hidden?: boolean;
   /** 排序权重 */

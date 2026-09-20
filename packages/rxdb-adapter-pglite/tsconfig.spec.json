@@ -3,12 +3,6 @@
     "outDir": "./out-tsc/vitest",
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@aiao/rxdb-test": ["../../packages/rxdb-test/dist/index.d.ts"],
-      "@aiao/rxdb-test/encrypted": ["../../packages/rxdb-test/dist/encrypted/index.d.ts"],
-      "@aiao/rxdb-test/entities": ["../../packages/rxdb-test/dist/entities/index.d.ts"],
-      "@aiao/rxdb-test/shop": ["../../packages/rxdb-test/dist/shop/index.d.ts"]
-    },
     "rootDir": "."
   },
   "extends": "../../tsconfig.base.json",
@@ -32,6 +26,9 @@
   "references": [
     {
       "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-test/tsconfig.lib.json"
     }
   ]
 }

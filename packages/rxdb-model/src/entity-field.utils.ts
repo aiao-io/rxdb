@@ -9,6 +9,8 @@ import {
   RelationKind,
   type EntityPropertyMetadata,
   type EntityRelationMetadata,
+  type FieldFormat,
+  type FieldOptions,
   type KeyValuePropertyMetadata
 } from '@aiao/rxdb';
 
@@ -73,22 +75,45 @@ export interface EntityFieldConfig {
   relatedEntityName?: string;
   /** 关系字段关联实体的命名空间 */
   relatedNamespace?: string;
+  /**
+   * 字段语义标注（只影响展示与控件选择，不改变运行时值类型）
+   * 仅在元数据声明 `format` 时输出该键
+   */
+  format?: FieldFormat;
+  /**
+   * 枚举/多选值的展示元数据（label / color / disabled），键是 `enum` 的子集
+   * 仅在元数据声明 `options` 时输出该键
+   */
+  options?: FieldOptions;
+  /**
+   * 是否为加密列
+   * 仅在元数据声明 `encrypted: true` 时输出该键
+   */
+  encrypted?: boolean;
 }
 
 const SYSTEM_FIELDS = new Set(['id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']);
+
+/** 只在显式声明 `true` 时才把布尔标志读成 true。 */
+const readFlag = (source: object, key: string): boolean => (source as Record<string, unknown>)[key] === true;
 
 /**
  * 将属性元数据转换为字段配置
  */
 function propertyToField(key: string, prop: EntityPropertyMetadata): EntityFieldConfig {
+  const raw = prop as Record<string, unknown>;
   const field: EntityFieldConfig = {
     field: key,
     displayName: prop.displayName ?? key,
     type: prop.type as PropertyType,
-    readonly: (prop as Record<string, unknown>)['readonly'] === true,
+    readonly: readFlag(prop, 'readonly'),
     nullable: prop.nullable,
     required: prop.required,
-    unique: prop.unique
+    unique: prop.unique,
+    // 只在元数据声明过时才输出这些键，保证既有「全等断言」的字段形状不漂移
+    ...(raw['format'] === undefined ? {} : { format: raw['format'] as FieldFormat }),
+    ...(raw['options'] === undefined ? {} : { options: raw['options'] as FieldOptions }),
+    ...(raw['encrypted'] === undefined ? {} : { encrypted: raw['encrypted'] as boolean })
   };
   if (prop.type === PropertyType.enum) {
     field.enumValues = (prop as { enum: readonly string[] }).enum;

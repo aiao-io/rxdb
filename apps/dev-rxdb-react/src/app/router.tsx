@@ -90,10 +90,6 @@ export const routes: RouteObject[] = [
         loader: () => redirect('/file-manager-simple')
       },
       {
-        path: 'branch-manager',
-        lazy: lazyRoute(() => import('./pages/branch-manager'))
-      },
-      {
         // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
         path: 'working-tree',
         loader: connectLocalAdapter,

@@ -35,6 +35,7 @@
           <rxdb-entity-list
             [creationChain]="creationChain()"
             [draftParentEntity]="draftEntitySignal()"
+            [editChain]="editChain()"
             [fixedFormData]="buildFixedFormData($any(tab))"
             [fixedQuery]="buildFixedQuery($any(tab))"
             [name]="$any(tab).relatedEntityName"

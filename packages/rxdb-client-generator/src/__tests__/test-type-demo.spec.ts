@@ -79,6 +79,23 @@ describe('RxDBClientGenerator', () => {
               "inactive",
               "pending"
             ],
+            format: {
+              kind: "singleSelect"
+            },
+            options: {
+              active: {
+                label: "激活",
+                color: "#22c55e"
+              },
+              inactive: {
+                label: "停用",
+                color: "#9ca3af"
+              },
+              pending: {
+                label: "待定",
+                disabled: true
+              }
+            },
             nullable: true,
             columnName: "enum"
           },
@@ -141,6 +158,175 @@ describe('RxDBClientGenerator', () => {
             type: PropertyType.json,
             nullable: true,
             columnName: "json"
+          },
+          {
+            displayName: "多行文本",
+            name: "multilineText",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "multilineText"
+            },
+            columnName: "multilineText"
+          },
+          {
+            displayName: "富文本",
+            name: "richText",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "richText",
+              contentType: "text/markdown"
+            },
+            columnName: "richText"
+          },
+          {
+            displayName: "链接",
+            name: "url",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "url",
+              schemes: [
+                "HTTP",
+                "HTTPS"
+              ]
+            },
+            columnName: "url"
+          },
+          {
+            displayName: "邮箱",
+            name: "email",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "email"
+            },
+            columnName: "email"
+          },
+          {
+            displayName: "电话",
+            name: "phone",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "phone"
+            },
+            columnName: "phone"
+          },
+          {
+            displayName: "代码",
+            name: "code",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "code",
+              language: "typescript"
+            },
+            columnName: "code"
+          },
+          {
+            displayName: "颜色",
+            name: "color",
+            type: PropertyType.string,
+            nullable: true,
+            format: {
+              kind: "color",
+              colorSpace: "hex"
+            },
+            columnName: "color"
+          },
+          {
+            displayName: "货币",
+            name: "currency",
+            type: PropertyType.number,
+            nullable: true,
+            format: {
+              kind: "currency",
+              currency: "CNY"
+            },
+            columnName: "currency"
+          },
+          {
+            displayName: "百分比",
+            name: "percentage",
+            type: PropertyType.number,
+            nullable: true,
+            format: {
+              kind: "percentage",
+              scale: "0..1"
+            },
+            columnName: "percentage"
+          },
+          {
+            displayName: "评分",
+            name: "rating",
+            type: PropertyType.number,
+            nullable: true,
+            format: {
+              kind: "rating",
+              min: 1,
+              max: 5,
+              step: 0.5
+            },
+            columnName: "rating"
+          },
+          {
+            displayName: "时长",
+            name: "duration",
+            type: PropertyType.integer,
+            nullable: true,
+            format: {
+              kind: "duration",
+              unit: "s"
+            },
+            columnName: "duration"
+          },
+          {
+            displayName: "日期（仅日期）",
+            name: "dateOnly",
+            type: PropertyType.date,
+            nullable: true,
+            format: {
+              kind: "dateTime",
+              display: "date"
+            },
+            columnName: "dateOnly"
+          },
+          {
+            displayName: "时间（仅时间）",
+            name: "timeOnly",
+            type: PropertyType.date,
+            nullable: true,
+            format: {
+              kind: "dateTime",
+              display: "time"
+            },
+            columnName: "timeOnly"
+          },
+          {
+            displayName: "多选标签",
+            name: "tags",
+            type: PropertyType.stringArray,
+            enum: [
+              "alpha",
+              "beta",
+              "gamma"
+            ],
+            format: {
+              kind: "multiSelect"
+            },
+            options: {
+              alpha: {
+                label: "甲",
+                color: "#112233"
+              },
+              beta: {
+                label: "乙"
+              }
+            },
+            nullable: true,
+            columnName: "tags"
           }
         ],
         repository: "Repository",
@@ -188,7 +374,21 @@ describe('RxDBClientGenerator', () => {
       | RelationNumberRules<'keyValue.number', number | null>
       | RelationNumberRules<'keyValue.integer', number | null>
       | RelationBooleanRules<'keyValue.boolean', boolean | null>
-      | RelationDateRules<'keyValue.date', Date | null>;
+      | RelationDateRules<'keyValue.date', Date | null>
+      | StringRules<TypeDemo, 'multilineText'>
+      | StringRules<TypeDemo, 'richText'>
+      | StringRules<TypeDemo, 'url'>
+      | StringRules<TypeDemo, 'email'>
+      | StringRules<TypeDemo, 'phone'>
+      | StringRules<TypeDemo, 'code'>
+      | StringRules<TypeDemo, 'color'>
+      | NumberRules<TypeDemo, 'currency'>
+      | NumberRules<TypeDemo, 'percentage'>
+      | NumberRules<TypeDemo, 'rating'>
+      | NumberRules<TypeDemo, 'duration'>
+      | DateRules<TypeDemo, 'dateOnly'>
+      | DateRules<TypeDemo, 'timeOnly'>
+      | StringArrayRules<TypeDemo, 'tags', string>;
 
       /**
        * RuleGroupBase
@@ -213,13 +413,27 @@ describe('RxDBClientGenerator', () => {
         |'keyValue.number'
         |'keyValue.integer'
         |'keyValue.boolean'
-        |'keyValue.date',
+        |'keyValue.date'
+        |'multilineText'
+        |'richText'
+        |'url'
+        |'email'
+        |'phone'
+        |'code'
+        |'color'
+        |'currency'
+        |'percentage'
+        |'rating'
+        |'duration'
+        |'dateOnly'
+        |'timeOnly'
+        |'tags',
       TypeDemoRule>;
 
       /**
        * OrderByField
        */
-      declare type TypeDemoOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "uuid" | "string" | "number" | "integer" | "boolean" | "date" | "enum" | "stringArray" | "numberArray" | "keyValue" | "json";
+      declare type TypeDemoOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "uuid" | "string" | "number" | "integer" | "boolean" | "date" | "enum" | "stringArray" | "numberArray" | "keyValue" | "json" | "multilineText" | "richText" | "url" | "email" | "phone" | "code" | "color" | "currency" | "percentage" | "rating" | "duration" | "dateOnly" | "timeOnly" | "tags";
 
       /**
        * rxdb
@@ -322,6 +536,62 @@ describe('RxDBClientGenerator', () => {
          * JSON
          */
         json?: Record<string, unknown> | null;
+        /**
+         * 多行文本
+         */
+        multilineText?: string | null;
+        /**
+         * 富文本
+         */
+        richText?: string | null;
+        /**
+         * 链接
+         */
+        url?: string | null;
+        /**
+         * 邮箱
+         */
+        email?: string | null;
+        /**
+         * 电话
+         */
+        phone?: string | null;
+        /**
+         * 代码
+         */
+        code?: string | null;
+        /**
+         * 颜色
+         */
+        color?: string | null;
+        /**
+         * 货币
+         */
+        currency?: number | null;
+        /**
+         * 百分比
+         */
+        percentage?: number | null;
+        /**
+         * 评分
+         */
+        rating?: number | null;
+        /**
+         * 时长
+         */
+        duration?: number | null;
+        /**
+         * 日期（仅日期）
+         */
+        dateOnly?: Date | null;
+        /**
+         * 时间（仅时间）
+         */
+        timeOnly?: Date | null;
+        /**
+         * 多选标签
+         */
+        tags?: string[] | null;
       }
 
       /**
@@ -360,9 +630,33 @@ describe('RxDBClientGenerator', () => {
          */
         boolean?: boolean | null;
         /**
+         * 代码
+         */
+        code?: string | null;
+        /**
+         * 颜色
+         */
+        color?: string | null;
+        /**
+         * 货币
+         */
+        currency?: number | null;
+        /**
          * 日期
          */
         date?: Date | null;
+        /**
+         * 日期（仅日期）
+         */
+        dateOnly?: Date | null;
+        /**
+         * 时长
+         */
+        duration?: number | null;
+        /**
+         * 邮箱
+         */
+        email?: string | null;
         /**
          * 枚举
          */
@@ -380,6 +674,10 @@ describe('RxDBClientGenerator', () => {
          */
         keyValue?: TypeDemoKeyValueKeyValue | null;
         /**
+         * 多行文本
+         */
+        multilineText?: string | null;
+        /**
          * 数字
          */
         number?: number | null;
@@ -388,6 +686,18 @@ describe('RxDBClientGenerator', () => {
          */
         numberArray?: number[] | null;
         /**
+         * 百分比
+         */
+        percentage?: number | null;
+        /**
+         * 电话
+         */
+        phone?: string | null;
+        /**
+         * 评分
+         */
+        rating?: number | null;
+        /**
          * 删除
          */
         remove: () => Promise<this>;
@@ -395,6 +705,10 @@ describe('RxDBClientGenerator', () => {
          * 重置数据
          */
         reset: () => void;
+        /**
+         * 富文本
+         */
+        richText?: string | null;
         /**
          * 保存
          */
@@ -407,6 +721,18 @@ describe('RxDBClientGenerator', () => {
          * 字符串数组
          */
         stringArray?: string[] | null;
+        /**
+         * 多选标签
+         */
+        tags?: string[] | null;
+        /**
+         * 时间（仅时间）
+         */
+        timeOnly?: Date | null;
+        /**
+         * 链接
+         */
+        url?: string | null;
         /**
          * UUID
          */

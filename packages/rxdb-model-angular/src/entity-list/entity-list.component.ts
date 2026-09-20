@@ -44,6 +44,7 @@ import {
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { LucideFunnel as Funnel, LucideDynamicIcon, LucideRedo2 as Redo2, LucideUndo2 as Undo2 } from '@lucide/angular';
 import type { ColumnsDefine } from '@visactor/vtable';
+import { of } from 'rxjs';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { QueryTableComponent } from '../entity-table/query-table/query-table.component';
@@ -221,7 +222,12 @@ export class EntityListComponent {
     })
   );
 
-  readonly #vHistory = this.#rxdb.versionManager.history();
+  readonly #vHistory = (this.#rxdb as unknown as { versionManager?: VersionManager }).versionManager?.history() ?? {
+    undoCount$: of(0),
+    redoCount$: of(0),
+    undo: async () => undefined,
+    redo: async () => undefined
+  };
   readonly #entityKey = computed(() => `${this.namespace()}:${this.name()}`);
   readonly #currentList = signal<InfiniteScrollingList<EntityType> | undefined>(undefined);
 
@@ -292,6 +298,9 @@ export class EntityListComponent {
   /** 创建链路中的实体类型（namespace:name），用于阻断循环创建 */
   readonly creationChain = input<string[]>([]);
 
+  /** 已打开详情对话框的记录 id 栈（含祖先记录），「查看」前检查以防无限套娃 */
+  readonly editChain = input<string[]>([]);
+
   /** 关系类型（MANY_TO_MANY 时启用选择模式） */
   readonly relationKind = input<RelationKind | undefined>(undefined);
 
@@ -304,7 +313,7 @@ export class EntityListComponent {
   /** 已关联的实体 ID 集合（选择模式下过滤掉，不再展示） */
   readonly alreadyLinkedIds = input<Set<string>>(new Set());
 
-  /** 点击「查看」按钮时触发，携带对应行记录 */
+  /** 点击「查看」按钮时触发，携带对应行记录；组件同时打开内置编辑对话框（记录已在 editChain 中或为未保存草稿时仅 emit） */
   readonly viewEntity = output<EntityTableRecord>();
 
   /** 选择模式：确认选择时触发，携带选中的实体实例 */
@@ -511,6 +520,7 @@ export class EntityListComponent {
   async onIconClicked(event: { name: string; record: EntityTableRecord }): Promise<void> {
     if (event.name === 'view-action') {
       this.viewEntity.emit(event.record);
+      void this.#openViewDialog(event.record);
       return;
     }
     if (event.name !== 'delete-action') return;
@@ -550,34 +560,7 @@ export class EntityListComponent {
     if (!cls || fields.length === 0) return;
 
     const meta = getEntityMetadata(cls);
-    const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
-    const draftParent = this.draftParentEntity();
-    const relatedEntityProvider: RelatedEntityProvider = (entityName, namespace) => {
-      const relCls = [...this.#entityClsMap.values()].find(c => {
-        const m = getEntityMetadata(c);
-        return m.name === entityName && (!namespace || m.namespace === namespace);
-      });
-      if (!relCls) return [];
-      const relMeta = getEntityMetadata(relCls);
-      const list = this.#getOrCreateList(`${relMeta.namespace}:${relMeta.name}`, relCls);
-      const items = (list.value() as Record<string, unknown>[]).map(inst => ({
-        id: String(inst['id'] ?? ''),
-        displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
-      }));
-      if (draftParent) {
-        const parentMeta = getEntityMetadata(draftParent['constructor'] as EntityType);
-        if (parentMeta.name === entityName && (!namespace || parentMeta.namespace === namespace)) {
-          const parentId = String(draftParent.id);
-          if (!items.some(i => i.id === parentId)) {
-            items.push({
-              id: parentId,
-              displayName: strVal(draftParent['displayName']) ?? strVal(draftParent['name']) ?? parentId
-            });
-          }
-        }
-      }
-      return items;
-    };
+    const relatedEntityProvider = this.#makeRelatedEntityProvider(this.draftParentEntity());
 
     void import('../entity-detail/entity-detail').then(({ EntityDetailComponent }) => {
       const dialogRef = this.#dialog.open(EntityDetailComponent, {
@@ -681,6 +664,79 @@ export class EntityListComponent {
   }
 
   // ── Private helpers ───────────────────────────────────────────────────
+
+  /**
+   * 「查看」行 → 打开 edit 详情对话框（内置弹窗修改）。
+   * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
+   */
+  #openViewDialog(record: EntityTableRecord): void {
+    const id = record['id'];
+    if (typeof id !== 'string' || !id) return;
+    if (this.editChain().includes(id)) return;
+    if (this.#localDraftItems().some(i => i.id === id)) return;
+    const cls = this.#entityCls();
+    if (!cls) return;
+
+    const meta = getEntityMetadata(cls);
+    const fields = buildFormFields(meta, 'edit');
+
+    void import('../entity-detail/entity-detail').then(({ EntityDetailComponent }) => {
+      const dialogRef = this.#dialog.open(EntityDetailComponent, {
+        width: '720px',
+        minWidth: '400px',
+        height: '80vh',
+        minHeight: '300px',
+        panelClass: 'entity-detail-dialog',
+        data: {
+          metadata: meta,
+          formFields: fields,
+          formData: {},
+          formMode: 'edit' as const,
+          entityId: id,
+          editChain: [...this.editChain(), id],
+          relatedEntityProvider: this.#makeRelatedEntityProvider(null)
+        } satisfies EntityDetailDialogData
+      });
+
+      dialogRef.closed.subscribe(result => {
+        if (result === 'saved') this.#currentList()?.refresh();
+      });
+    });
+  }
+
+  /**
+   * 关系字段下拉的数据源：按关联实体名（+可选 namespace）解析实体类并读出当前列表。
+   * `draftParent` 存在时把草稿父实体并入候选（级联新增自引用场景）。
+   */
+  #makeRelatedEntityProvider(draftParent: EntityInstance | null): RelatedEntityProvider {
+    const strVal = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
+    return (entityName, namespace) => {
+      const relCls = [...this.#entityClsMap.values()].find(c => {
+        const m = getEntityMetadata(c);
+        return m.name === entityName && (!namespace || m.namespace === namespace);
+      });
+      if (!relCls) return [];
+      const relMeta = getEntityMetadata(relCls);
+      const list = this.#getOrCreateList(`${relMeta.namespace}:${relMeta.name}`, relCls);
+      const items = (list.value() as Record<string, unknown>[]).map(inst => ({
+        id: String(inst['id'] ?? ''),
+        displayName: strVal(inst['displayName']) ?? strVal(inst['name']) ?? String(inst['id'] ?? '')
+      }));
+      if (draftParent) {
+        const parentMeta = getEntityMetadata(draftParent['constructor'] as EntityType);
+        if (parentMeta.name === entityName && (!namespace || parentMeta.namespace === namespace)) {
+          const parentId = String(draftParent.id);
+          if (!items.some(i => i.id === parentId)) {
+            items.push({
+              id: parentId,
+              displayName: strVal(draftParent['displayName']) ?? strVal(draftParent['name']) ?? parentId
+            });
+          }
+        }
+      }
+      return items;
+    };
+  }
 
   async #handleCreateSubmit(data: EntityFormData): Promise<void> {
     const cls = this.#entityCls();

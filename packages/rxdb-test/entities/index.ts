@@ -6,6 +6,7 @@ import { MenuLarge } from './MenuLarge.js';
 import { MenuSimple } from './MenuSimple.js';
 import { Todo } from './Todo.js';
 import { TypeDemo } from './TypeDemo.js';
+import { TypeDemoNative } from './TypeDemoNative.js';
 
 export { Article } from './Article.js';
 export { Comment } from './Comment.js';
@@ -15,5 +16,6 @@ export { MenuLarge } from './MenuLarge.js';
 export { MenuSimple } from './MenuSimple.js';
 export { Todo } from './Todo.js';
 export { TypeDemo } from './TypeDemo.js';
+export { TypeDemoNative } from './TypeDemoNative.js';
 
-export const ENTITIES = [Article, Comment, FileLarge, FileNode, MenuLarge, MenuSimple, Todo, TypeDemo];
+export const ENTITIES = [Article, Comment, FileLarge, FileNode, MenuLarge, MenuSimple, Todo, TypeDemo, TypeDemoNative];

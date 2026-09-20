@@ -130,6 +130,63 @@ describe('buildEditableColumns', () => {
     expect(inst.editorType).toBe('enum-editor');
   });
 
+  it('uses enum options labels as cell display text', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([
+        [
+          'status',
+          {
+            name: 'status',
+            columnName: 'status',
+            type: PropertyType.enum,
+            enum: ['draft', 'archived'],
+            options: { draft: { label: '草稿' }, archived: { label: '归档', disabled: true } }
+          }
+        ]
+      ])
+    });
+    const columns = buildEditableColumns(meta);
+    const col = columns[1] as Record<string, unknown>;
+    const fn = col['fieldFormat'] as (r: Record<string, unknown>) => string;
+    expect(fn({ status: 'draft' })).toBe('草稿');
+    expect(fn({ status: 'archived' })).toBe('归档');
+    expect(fn({ status: 'unknown' })).toBe('unknown');
+  });
+
+  it('uses a MultiSelectEditor for stringArray with enum', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([
+        ['labels', { name: 'labels', columnName: 'labels', type: PropertyType.stringArray, enum: ['a', 'b'] }]
+      ])
+    });
+    const columns = buildEditableColumns(meta);
+    const col = columns[1] as Record<string, unknown>;
+    const editorFn = col['editor'] as (a: StylePropertyFunctionArg) => unknown;
+    const inst = editorFn(makeArgs({})) as { editorType?: string };
+    expect(inst?.editorType).toBe('multiselect-editor');
+  });
+
+  it('passes format through for color columns', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([
+        [
+          'accent',
+          {
+            name: 'accent',
+            columnName: 'accent',
+            type: PropertyType.string,
+            format: { kind: 'color', colorSpace: 'hex' }
+          }
+        ]
+      ])
+    });
+    const columns = buildEditableColumns(meta);
+    const col = columns[1] as Record<string, unknown>;
+    const editorFn = col['editor'] as (a: StylePropertyFunctionArg) => unknown;
+    const inst = editorFn(makeArgs({})) as { editorType?: string };
+    expect(inst?.editorType).toBe('color-editor');
+  });
+
   it('builds a KeyValueEditor with the schema derived from keyValue properties', () => {
     const meta = makeMeta({
       propertyMap: new Map([

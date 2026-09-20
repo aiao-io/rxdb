@@ -1,9 +1,14 @@
+import type { FieldFormat, FieldOptions } from '@aiao/rxdb';
 import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types/index.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { formatEntityFieldValue, parseEntityFieldValue } from '../../entity-value.utils.js';
+import { ColorEditor } from '../editors/color-editor.js';
 import { EnumEditor, type EnumItem } from '../editors/enum-editor.js';
 import { KeyValueEditor } from '../editors/key-value-editor.js';
+import { MultiSelectEditor } from '../editors/multiselect-editor.js';
+import { NumberEditor } from '../editors/number-editor.js';
 import { RelationEditor } from '../editors/relation-editor.js';
+import { TextFormatEditor } from '../editors/text-format-editor.js';
 import { getCSSVariableValue, getDocumentRootStyle } from '../vtable/table-theme.js';
 
 /** 删除图标默认颜色 */
@@ -24,8 +29,10 @@ export type PropertyTypeString =
   | 'enum'
   | 'number'
   | 'integer'
+  | 'bigint'
   | 'boolean'
   | 'date'
+  | 'binary'
   | 'stringArray'
   | 'numberArray'
   | 'keyValue'
@@ -63,6 +70,14 @@ export interface PropertyColumnConfig {
   sort?: boolean;
   /** keyValue 属性 Schema—定义允许的键以及对应的值类型 */
   keyValueSchema?: Record<string, KVSchemaEntry>;
+  /**
+   * 字段语义标注（决定展示形态与编辑器选择，不改变运行时值类型）
+   */
+  format?: FieldFormat;
+  /**
+   * 枚举/多选值的展示元数据（label / color / disabled），键是 `enum` 的子集
+   */
+  options?: FieldOptions;
   /**
    * 关联实体候选列表（oneToOne / manyToOne 类型使用）
    *
@@ -124,6 +139,36 @@ function formatJson(v: unknown): string {
   return formatEntityFieldValue('json', v);
 }
 
+/** 数字类 format 的值域约束（min / max / step） */
+interface NumericBounds {
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+/** 从数字类 format 提取值域约束；非数字类 format 返回 null */
+function numericBoundsOf(format: FieldFormat | undefined): NumericBounds | null {
+  if (!format) return null;
+  switch (format.kind) {
+    case 'number':
+    case 'currency':
+    case 'percentage':
+    case 'duration':
+    case 'rating':
+      return {
+        ...(format.min === undefined ? {} : { min: format.min }),
+        ...(format.max === undefined ? {} : { max: format.max }),
+        ...(format.step === undefined ? {} : { step: format.step })
+      };
+    default:
+      return null;
+  }
+}
+
+/** 值域约束是否声明了任何一维 */
+const hasNumericBounds = (bounds: NumericBounds): boolean =>
+  bounds.min !== undefined || bounds.max !== undefined || bounds.step !== undefined;
+
 function stringField(r: Record<string, unknown>, field: string): string {
   const v = r[field];
   return v == null ? '' : String(v);
@@ -141,6 +186,8 @@ export const DEFAULT_COLUMN_SIZES: Record<string, { width: number; minWidth?: nu
   uuid: { width: 320, minWidth: 200, maxWidth: 400 },
   number: { width: 100, minWidth: 70 },
   integer: { width: 80, minWidth: 60 },
+  bigint: { width: 120, minWidth: 80 },
+  binary: { width: 160, minWidth: 100 },
   oneToOne: { width: 160, minWidth: 100 },
   manyToOne: { width: 160, minWidth: 100 },
   computed: { width: 0, minWidth: 80 },
@@ -185,6 +232,8 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     enumItems,
     nullable,
     keyValueSchema,
+    format,
+    options,
     sort = true
   } = config;
 
@@ -211,12 +260,23 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     }
 
     case 'enum': {
+      // 有 enumItems 用 enumItems；否则从 enumValues + options 派生（label / color / disabled）
       const resolvedItems: EnumItem[] =
-        enumItems ? [...enumItems] : (enumValues ?? []).map(v => ({ value: v, text: v }));
-      const textMap = enumItems ? new Map(enumItems.map(i => [i.value, i.text ?? i.value])) : null;
+        enumItems ?
+          [...enumItems]
+        : (enumValues ?? []).map(v => {
+            const option = options?.[v];
+            return {
+              value: v,
+              ...(option?.label === undefined ? {} : { text: option.label }),
+              ...(option?.color === undefined ? {} : { color: option.color }),
+              ...(option?.disabled === undefined ? {} : { disabled: option.disabled })
+            };
+          });
+      const textMap = new Map(resolvedItems.map(i => [i.value, i.text ?? i.value]));
       col['fieldFormat'] = (r: Record<string, unknown>) => {
         const v = stringField(r, field);
-        return textMap?.get(v) ?? v;
+        return textMap.get(v) ?? v;
       };
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) {
@@ -230,16 +290,42 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     }
 
     case 'date':
-      col['fieldFormat'] = (r: Record<string, unknown>) => formatDateValue(r[field]);
+      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('date', r[field], format);
       applyDefaultSizes(col, type, config.width);
       if (!propReadonly) col['editor'] = makeEditorForReadonly('date-editor');
       break;
 
-    case 'stringArray':
-      col['fieldFormat'] = (r: Record<string, unknown>) => formatArray(r[field]);
+    case 'stringArray': {
+      const textMap = new Map((enumValues ?? []).map(v => [v, options?.[v]?.label ?? v]));
+      col['fieldFormat'] = (r: Record<string, unknown>) => {
+        const v = r[field];
+        const items =
+          Array.isArray(v) ? v
+          : v == null || v === '' ? []
+          : String(v).split(',');
+        return items.map(item => textMap.get(String(item).trim()) ?? String(item).trim()).join(', ');
+      };
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('tags-editor');
+      if (!propReadonly) {
+        if (enumValues && enumValues.length > 0) {
+          const optionList = enumValues.map(v => {
+            const option = options?.[v];
+            return {
+              id: v,
+              name: option?.label ?? v,
+              ...(option?.color === undefined ? {} : { color: option.color }),
+              ...(option?.disabled === undefined ? {} : { disabled: option.disabled })
+            };
+          });
+          const multiInst = new MultiSelectEditor(optionList);
+          col['editor'] = ((args: StylePropertyFunctionArg) =>
+            isReadonly(getCellRecord(args)) ? undefined : multiInst) as ColumnDefine['editor'];
+        } else {
+          col['editor'] = makeEditorForReadonly('tags-editor');
+        }
+      }
       break;
+    }
 
     case 'numberArray':
       col['fieldFormat'] = (r: Record<string, unknown>) => formatArray(r[field]);
@@ -275,15 +361,45 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
       break;
 
     case 'number':
-      col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
+      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('number', r[field], format);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('number-editor');
+      if (!propReadonly) {
+        const bounds = numericBoundsOf(format);
+        if (bounds && hasNumericBounds(bounds)) {
+          const inst = new NumberEditor(false, bounds);
+          col['editor'] = ((args: StylePropertyFunctionArg) =>
+            isReadonly(getCellRecord(args)) ? undefined : inst) as ColumnDefine['editor'];
+        } else {
+          col['editor'] = makeEditorForReadonly('number-editor');
+        }
+      }
       break;
 
     case 'integer':
+      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('integer', r[field], format);
+      applyDefaultSizes(col, type, config.width);
+      if (!propReadonly) {
+        const bounds = numericBoundsOf(format);
+        if (bounds && hasNumericBounds(bounds)) {
+          const inst = new NumberEditor(true, bounds);
+          col['editor'] = ((args: StylePropertyFunctionArg) =>
+            isReadonly(getCellRecord(args)) ? undefined : inst) as ColumnDefine['editor'];
+        } else {
+          col['editor'] = makeEditorForReadonly('integer-editor');
+        }
+      }
+      break;
+
+    case 'bigint':
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, type, config.width);
-      if (!propReadonly) col['editor'] = makeEditorForReadonly('integer-editor');
+      if (!propReadonly) col['editor'] = makeEditorForReadonly('bigint-editor');
+      break;
+
+    case 'binary':
+      col['fieldFormat'] = (r: Record<string, unknown>) => formatEntityFieldValue('binary', r[field]);
+      applyDefaultSizes(col, type, config.width);
+      // 二进制列只读展示（表格内不做字节级编辑，表单里用 hex 编辑）
       break;
 
     // ── 关系类型 ─────────────────────────────────────────────────────────
@@ -320,7 +436,41 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
     default:
       col['fieldFormat'] = (r: Record<string, unknown>) => stringField(r, field);
       applyDefaultSizes(col, 'string', config.width);
-      if (!propReadonly) col['editor'] = disabledEditorForReadonly;
+      if (!propReadonly) {
+        switch (format?.kind) {
+          case 'color': {
+            const colorInst = new ColorEditor();
+            col['editor'] = ((args: StylePropertyFunctionArg) =>
+              isReadonly(getCellRecord(args)) ? undefined : colorInst) as ColumnDefine['editor'];
+            break;
+          }
+          case 'url': {
+            const urlInst = new TextFormatEditor('url', format.schemes);
+            col['editor'] = ((args: StylePropertyFunctionArg) =>
+              isReadonly(getCellRecord(args)) ? undefined : urlInst) as ColumnDefine['editor'];
+            break;
+          }
+          case 'email': {
+            const emailInst = new TextFormatEditor('email');
+            col['editor'] = ((args: StylePropertyFunctionArg) =>
+              isReadonly(getCellRecord(args)) ? undefined : emailInst) as ColumnDefine['editor'];
+            break;
+          }
+          case 'phone': {
+            const phoneInst = new TextFormatEditor('phone');
+            col['editor'] = ((args: StylePropertyFunctionArg) =>
+              isReadonly(getCellRecord(args)) ? undefined : phoneInst) as ColumnDefine['editor'];
+            break;
+          }
+          case 'multilineText':
+          case 'richText':
+          case 'code':
+            col['editor'] = makeEditorForReadonly('vtable-textarea-editor');
+            break;
+          default:
+            col['editor'] = disabledEditorForReadonly;
+        }
+      }
       break;
   }
 

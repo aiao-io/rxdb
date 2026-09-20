@@ -328,7 +328,7 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(component.dialogTitle()).toBe('DetailGroup');
   });
 
-  it('edit 模式 formSubmitted 输出 entityToFormData 后的表单数据', async () => {
+  it('edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）', async () => {
     const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '旧标题' });
     await inst.save();
 
@@ -337,7 +337,54 @@ describe('EntityDetailComponent（真实组件）', () => {
     component.formSubmitted.subscribe(e => submitted.push(e));
     await FLUSH();
 
-    component.onFormSubmitted({ title: '新标题' });
-    expect(submitted).toEqual([{ title: '新标题' }]);
+    component.onFormSubmitted({ title: '新标题', count: 0 });
+    await vi.waitFor(async () => {
+      expect(((await findAll())[0] as Record<string, unknown>)['title']).toBe('新标题');
+    });
+    expect(submitted).toEqual([{ title: '新标题', count: 0 }]);
+  });
+
+  it('edit 对话框模式（DIALOG_DATA entityId）从仓库加载实例作为表单数据', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '弹窗编辑', count: 3 });
+    await inst.save();
+
+    const { component } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+
+    expect(component.formModeValue).toBe('edit');
+    expect(component.formDataValue['title']).toBe('弹窗编辑');
+    expect(component.formDataValue['count']).toBe(3);
+  });
+
+  it('edit 对话框模式内部保存：变更落库 + dialogRef.close(saved) + 成功后 emit formSubmitted', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+
+    const { component, submitted } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+
+    component.onFormSubmitted({ title: '已编辑', count: 2 });
+    await vi.waitFor(async () => {
+      expect(((await findAll())[0] as Record<string, unknown>)['title']).toBe('已编辑');
+    });
+    expect(closeSpy).toHaveBeenCalledWith('saved');
+    expect(submitted).toEqual([{ title: '已编辑', count: 2 }]);
+  });
+
+  it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {
+    const { component, submitted } = createWithDialog(dialogData({ formMode: 'edit' }));
+
+    component.onFormSubmitted({ title: '纯数据', count: 0 });
+    await FLUSH();
+
+    expect(submitted).toEqual([{ title: '纯数据', count: 0 }]);
+    expect(await findAll()).toHaveLength(0);
+    expect(closeSpy).not.toHaveBeenCalled();
+  });
+
+  it('editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用）', () => {
+    const { component } = createWithDialog(dialogData({ editChain: ['group-1'] }));
+
+    expect(component.editChain()).toEqual(['group-1']);
   });
 });

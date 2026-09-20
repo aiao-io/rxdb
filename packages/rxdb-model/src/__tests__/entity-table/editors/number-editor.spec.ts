@@ -438,4 +438,166 @@ describe('NumberEditor', () => {
       editor.onEnd();
     });
   });
+
+  describe('bigint mode', () => {
+    it('declares the bigint-editor type and numeric inputMode', () => {
+      const editor = new NumberEditor(false, { bigint: true });
+      expect(editor.editorType).toBe('bigint-editor');
+      editor.onStart(createEditContext() as never);
+      vi.advanceTimersByTime(10);
+
+      expect(getInput().inputMode).toBe('numeric');
+
+      editor.onEnd();
+    });
+
+    it('parses a string origin as bigint', () => {
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(createEditContext({ value: '42' }) as never);
+      vi.advanceTimersByTime(10);
+
+      expect(getInput().value).toBe('42');
+      expect(editor.getValue()).toBe(42n);
+
+      editor.onEnd();
+    });
+
+    it('parses a native bigint origin', () => {
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(createEditContext({ value: -7n }) as never);
+      vi.advanceTimersByTime(10);
+
+      expect(getInput().value).toBe('-7');
+      expect(editor.getValue()).toBe(-7n);
+
+      editor.onEnd();
+    });
+
+    it('treats a decimal origin as null', () => {
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(createEditContext({ value: '42.5' }) as never);
+      vi.advanceTimersByTime(10);
+
+      expect(getInput().value).toBe('');
+      expect(editor.getValue()).toBeNull();
+
+      editor.onEnd();
+    });
+
+    it('rejects a decimal input on commit', () => {
+      const ctx = createEditContext();
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '3.5';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).not.toHaveBeenCalled();
+      expect(getTooltip().textContent).toContain('请输入 64 位整数');
+
+      editor.onEnd();
+    });
+
+    it('commits a negative bigint', () => {
+      const ctx = createEditContext();
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '-9223372036854775808';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+      expect(editor.getValue()).toBe(-9223372036854775808n);
+
+      editor.onEnd();
+    });
+
+    it('commits null for a blank input', () => {
+      const ctx = createEditContext({ value: 42n });
+      const editor = new NumberEditor(false, { bigint: true });
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+      expect(editor.getValue()).toBeNull();
+
+      editor.onEnd();
+    });
+  });
+
+  describe('value bounds', () => {
+    const boundedEditor = (): NumberEditor => new NumberEditor(false, { min: 1, max: 5, step: 0.5 });
+
+    it('rejects a value below min', () => {
+      const ctx = createEditContext();
+      const editor = boundedEditor();
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '0.5';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).not.toHaveBeenCalled();
+      expect(getTooltip().textContent).toContain('必须不小于 1');
+
+      editor.onEnd();
+    });
+
+    it('rejects a value above max', () => {
+      const ctx = createEditContext();
+      const editor = boundedEditor();
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '9';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).not.toHaveBeenCalled();
+      expect(getTooltip().textContent).toContain('必须不大于 5');
+
+      editor.onEnd();
+    });
+
+    it('rejects an off-step value', () => {
+      const ctx = createEditContext();
+      const editor = boundedEditor();
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '3.25';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).not.toHaveBeenCalled();
+      expect(getTooltip().textContent).toContain('必须按步长 0.5 取值');
+
+      editor.onEnd();
+    });
+
+    it('accepts an on-step value', () => {
+      const ctx = createEditContext();
+      const editor = boundedEditor();
+      editor.onStart(ctx as never);
+      vi.advanceTimersByTime(10);
+
+      const input = getInput();
+      input.value = '3.5';
+      keydown(input, 'Enter');
+
+      expect(ctx.endEdit).toHaveBeenCalledTimes(1);
+      expect(editor.getValue()).toBe(3.5);
+
+      editor.onEnd();
+    });
+  });
 });

@@ -105,4 +105,17 @@ describe('structuralEqual', () => {
     b.push(b);
     expect(structuralEqual(a, b)).toBe(true);
   });
+
+  it('应该按左右对象对跟踪共享引用', () => {
+    const shared = {};
+    expect(structuralEqual({ x: shared, y: shared }, { x: {}, y: { extra: true } })).toBe(false);
+  });
+
+  it('应该拒绝非对称循环引用', () => {
+    const a: Record<string, unknown> = {};
+    a.self = a;
+    const b: Record<string, unknown> = {};
+    b.self = {};
+    expect(structuralEqual(a, b)).toBe(false);
+  });
 });

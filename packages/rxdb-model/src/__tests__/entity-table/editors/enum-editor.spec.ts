@@ -342,4 +342,33 @@ describe('EnumEditor', () => {
     document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     expect(ctx.endEdit).not.toHaveBeenCalled();
   });
+
+  it('ignores clicks on disabled items', () => {
+    const items: EnumItem[] = [
+      { value: 'draft', text: '草稿' },
+      { value: 'pending', text: '待定', disabled: true }
+    ];
+    const ctx = createEditContext({ value: 'draft' });
+    const editor = new EnumEditor(items);
+    editor.onStart(ctx as never);
+
+    getRows()[1]?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(ctx.endEdit).not.toHaveBeenCalled();
+    expect(editor.getValue()).toBe('draft');
+
+    editor.onEnd();
+  });
+
+  it('renders disabled items dimmed without pointer cursor', () => {
+    const items: EnumItem[] = [{ value: 'pending', text: '待定', disabled: true }];
+    const editor = new EnumEditor(items);
+    editor.onStart(createEditContext() as never);
+
+    const row = getRows()[0];
+    expect(row?.style.opacity).toBe('0.55');
+    expect(row?.style.cursor).toBe('default');
+
+    editor.onEnd();
+  });
 });

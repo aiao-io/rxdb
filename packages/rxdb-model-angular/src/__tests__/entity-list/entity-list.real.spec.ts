@@ -885,4 +885,83 @@ describe('EntityListComponent（真实组件）', () => {
     const fn = (component as unknown as { loadMore(): unknown }).loadMore();
     expect(typeof fn).toBe('function');
   });
+
+  it('view-action 打开 edit 详情对话框并加载记录数据', async () => {
+    await seedTodo('dialog-me');
+    const { fixture, component } = await renderList();
+    await FLUSH();
+    const record = component.tableRecords()[0];
+
+    await component.onIconClicked({ name: 'view-action', record });
+    await vi.waitFor(() => {
+      const dialog = document.body.querySelector('.cdk-dialog-container');
+      expect(dialog).toBeTruthy();
+      // edit 模式：表单自带动作为「取消 / 保存」
+      expect(dialog?.textContent).toContain('取消');
+      expect(dialog?.textContent).toContain('保存');
+    });
+    // 编辑模式：表单已按记录 id 从仓库加载数据
+    await vi.waitFor(() => {
+      const inputs = [...document.body.querySelectorAll<HTMLInputElement>('.cdk-dialog-container input')];
+      expect(inputs.some(i => i.value === 'dialog-me')).toBe(true);
+    });
+
+    // 清理：点「取消」关闭对话框，避免污染后续用例的 overlay 断言
+    const cancel = [...document.body.querySelectorAll<HTMLButtonElement>('.cdk-dialog-container button')].find(b =>
+      b.textContent?.includes('取消')
+    );
+    cancel?.click();
+    await FLUSH();
+    expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('editChain 含记录 id 时 view-action 只 emit 不打开编辑对话框（防环）', async () => {
+    const chained = await seedTodo('chained');
+    const fixture = TestBed.createComponent(EntityListComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('namespace', 'public');
+    fixture.componentRef.setInput('name', 'Todo');
+    fixture.componentRef.setInput('editChain', [chained.id]);
+    const viewed: EntityTableRecord[] = [];
+    component.viewEntity.subscribe(e => viewed.push(e));
+    fixture.detectChanges();
+    await FLUSH();
+    const record = component.tableRecords()[0];
+
+    await component.onIconClicked({ name: 'view-action', record });
+    await FLUSH();
+
+    expect(viewed).toEqual([record]);
+    expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('草稿行 view-action 只 emit 不打开编辑对话框', async () => {
+    await seedTodo('draft-victim');
+    const fixture = TestBed.createComponent(EntityListComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('namespace', 'public');
+    fixture.componentRef.setInput('name', 'Todo');
+    const draftParent = { id: 'p-draft', save: vi.fn(), children$: { add: vi.fn() } };
+    fixture.componentRef.setInput('parentEntity', draftParent as never);
+    fixture.componentRef.setInput('parentRelationName', 'children');
+    fixture.componentRef.setInput('draftParentEntity', draftParent as never);
+    const viewed: EntityTableRecord[] = [];
+    component.viewEntity.subscribe(e => viewed.push(e));
+    fixture.detectChanges();
+    await FLUSH();
+    const record = component.tableRecords()[0];
+
+    // 行经级联通道进入本地草稿集合（未落库，无法按 id 打开编辑）
+    component.onM2mSelectionConfirmed(component.tableRecords() as never);
+    await FLUSH();
+
+    await component.onIconClicked({ name: 'view-action', record });
+    await FLUSH();
+
+    expect(viewed).toEqual([record]);
+    expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
+    fixture.destroy();
+  });
 });

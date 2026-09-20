@@ -77,11 +77,6 @@ const router = createRouter({
       redirect: '/file-manager-simple'
     },
     {
-      path: '/branch-manager',
-      name: 'branch-manager',
-      component: () => import('../pages/BranchManagerPage.vue')
-    },
-    {
       // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
       path: '/working-tree',
       name: 'working-tree',
