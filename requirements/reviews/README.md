@@ -22,7 +22,7 @@
 | `2026-09-18-rxdb-core-review.md`                    | RxDB 核心查询/关系/生命周期定向评审（含复跑记录）                                              | 2 条 P2                      |
 | `2026-09-18-rxdb-core-probes.spec.ts.txt`           | 上者的补充复现用例源码（文本，从测试目录移出）                                                 | —                            |
 | `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                            | 4 块 + 1 条规格决策          |
-| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                                      | Open                         |
+| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                                      | Resolved                     |
 | `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch`           | Open                         |
 | `RV-014-rv-013-execution-scope.md`                  | 补齐 RV-013 的继承 API 面、测试处置与验证矩阵                                                  | Open                         |
 

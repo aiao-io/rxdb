@@ -1,11 +1,11 @@
 import { Observable } from 'rxjs';
+import { Entity } from '../entity/entity.decorator.js';
 import {
   ENTITY_STATIC_TYPES,
   RelationEntitiesObservable,
   RelationEntityObservable
 } from '../entity/entity.interface.js';
 import { PropertyType, RelationKind } from '../entity/metadata-options.interface.js';
-import { TreeEntity } from '../entity/tree-entity.decorator.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -14,22 +14,25 @@ import {
   FindOneOrFailOptions,
   FindOptions
 } from '../repository/query-options.interface.js';
-import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { RxDBChange } from './change.js';
 import type { RxDBSync } from './sync.js';
-import {
-  RxDBBranchOrderByField,
-  RxDBBranchRuleGroup,
-  RxDBBranchStaticTypes,
-  RxDBBranchTreeRuleGroup
-} from './types.js';
+import { RxDBBranchOrderByField, RxDBBranchRuleGroup, RxDBBranchStaticTypes } from './types.js';
 
 /**
  * 分支表
  *
  * 记录当前分支的信息，包括是否激活、是否本地分支、是否远程分支等
+ *
+ * @remarks
+ * 下面的 `parent` / `children` 是自引用关系，**不是**树实体声明——分支刻意用 `@Entity`
+ * 而非 `@TreeEntity`。`parentId` 列由 `parent` 这条 MANY_TO_ONE 产生，与树能力无关。
+ *
+ * 不用树查询是因为用了会错：递归 CTE 碰到断链、成环只会静默截断，返回一棵少了枝干的树
+ * 而不是报错，也给不出有序路径和逐段的 `fromChangeId` 区间。分支的父链遍历一律手写
+ * （`getPathToRoot` / `collectBranchChain` / `sync_branches` / `remove_branch`），
+ * 各自带着坏数据检测。别把 `@TreeEntity` 装回来。
  */
-@TreeEntity({
+@Entity({
   namespace: 'rxdb',
   name: 'RxDBBranch',
   tableName: 'rxdb_branch',
@@ -194,20 +197,6 @@ export class RxDBBranch {
    */
   declare static count: (options: CountOptions<typeof RxDBBranch, RxDBBranchRuleGroup>) => Observable<number>;
   /**
-   * 查询祖先实体数量
-   * @param options 查询选项
-   */
-  declare static countAncestors: (
-    options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>
-  ) => Observable<number>;
-  /**
-   * 查询子孙实体数量
-   * @param options 查询选项
-   */
-  declare static countDescendants: (
-    options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>
-  ) => Observable<number>;
-  /**
    * find 查询
    * @param options 查询选项
    */
@@ -222,25 +211,11 @@ export class RxDBBranch {
     options: FindAllOptions<typeof RxDBBranch, RxDBBranchRuleGroup, RxDBBranchOrderByField>
   ) => Observable<RxDBBranch[]>;
   /**
-   * 查询祖先实体
-   * @param options 查询选项
-   */
-  declare static findAncestors: (
-    options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>
-  ) => Observable<RxDBBranch[]>;
-  /**
    * findByCursor 查询
    * @param options 查询选项
    */
   declare static findByCursor: (
     options: FindByCursorOptions<typeof RxDBBranch, RxDBBranchRuleGroup, RxDBBranchOrderByField>
-  ) => Observable<RxDBBranch[]>;
-  /**
-   * 查询子孙实体
-   * @param options 查询选项
-   */
-  declare static findDescendants: (
-    options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>
   ) => Observable<RxDBBranch[]>;
   /**
    * findOne 查询

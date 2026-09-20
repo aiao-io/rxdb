@@ -1,9 +1,9 @@
 ---
 id: RV-012
 title: RxDBBranch 声明了树能力却从不使用，并卡住 US-025 阶段 E
-status: Open # Open / Resolved
+status: Resolved # Open / Resolved
 created: 2026-09-16
-updated: 2026-09-16
+updated: 2026-09-20
 pr: # 修复 PR 链接，Resolved 时填
 ---
 
@@ -163,5 +163,7 @@ node scripts/audit/api-surface.mjs    # 基线差异应只有 RxDBBranchTreeRule
 
 ## 解决记录
 
-- [ ] 开 PR 修复（`pr` 字段记录链接）
-- [ ] PR 合并，`status: Resolved`
+- [x] 代码修复落地：`system/branch.ts` 由 `@TreeEntity` 改 `@Entity`，四个树查询方法与
+      `RxDBBranchTreeRuleGroup` 从 `types.ts` / `types.local.ts` / `types.remote.ts` 删除；
+      新增元数据契约用例锁死不回退；两处 DDL 快照零 diff，表结构未变
+- [ ] 开 PR 并合并（`pr` 字段记录链接）

@@ -1442,10 +1442,6 @@
         "kind": "type"
       },
       {
-        "name": "RxDBBranchTreeRuleGroup",
-        "kind": "type"
-      },
-      {
         "name": "RxDBCapabilityClaim",
         "kind": "type"
       },
