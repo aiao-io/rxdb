@@ -73,13 +73,13 @@
     "@aiao/utils": "workspace:*",
     "@electric-sql/pglite": "^0.5.8",
     "rxjs": "^7.8.2",
-    "type-fest": "^5.9.0"
+    "type-fest": "^5.10.0"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*",
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
-    "@aiao/rxdb-test": "workspace:*",
-    "@aiao/rxdb-plugin-sync": "workspace:*"
+    "@aiao/rxdb-test": "workspace:*"
   }
 }

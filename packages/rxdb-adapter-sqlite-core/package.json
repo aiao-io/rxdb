@@ -78,7 +78,7 @@
   "peerDependencies": {
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "vitest": ">=4.0.0"
+    "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-plugin-history": {
