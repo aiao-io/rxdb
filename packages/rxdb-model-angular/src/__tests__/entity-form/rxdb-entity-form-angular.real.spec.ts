@@ -438,6 +438,81 @@ describe('EntityFormComponent format 语义控件（真实组件）', () => {
     expect((options[1] as HTMLOptionElement).disabled).toBe(true);
   });
 
+  it('dateTime display=time / datetime 映射对应输入类型与管道格式', () => {
+    const { component } = render();
+    const base = FORMAT_FIELDS.find(f => f.field === 'birthday')!;
+
+    const time: FormFieldConfig = { ...base, format: { kind: 'dateTime', display: 'time' } };
+    expect(component.dateInputType(time)).toBe('time');
+    expect(component.datePipeFormat(time)).toBe('HH:mm');
+
+    const datetime: FormFieldConfig = { ...base, format: { kind: 'dateTime', display: 'datetime' } };
+    expect(component.dateInputType(datetime)).toBe('datetime-local');
+    expect(component.datePipeFormat(datetime)).toBe('yyyy-MM-ddTHH:mm');
+  });
+
+  it('percentage 渲染 % 单位标注，phone 字符串渲染 tel 输入', () => {
+    const fields: FormFieldConfig[] = [
+      { field: 'pct', displayName: '百分比', type: 'number', format: { kind: 'percentage' } },
+      { field: 'tel', displayName: '电话', type: 'string', format: { kind: 'phone' } }
+    ];
+    const { fixture } = render({ fields, data: { pct: 0.5, tel: '10086' } });
+
+    expect(fieldset(fixture, '百分比').textContent).toContain('%');
+    expect(fieldset(fixture, '电话').querySelector('input[type=tel]')).toBeTruthy();
+  });
+
+  it('colorValue 补全 # 前缀，非法值退回黑色', () => {
+    const { component } = render();
+    const accent = FORMAT_FIELDS.find(f => f.field === 'accent')!;
+
+    expect(component.colorValue(accent)).toBe('#22c55e');
+
+    component.onFieldChange(accent, '22c55e');
+    expect(component.colorValue(accent)).toBe('#22c55e');
+
+    component.onFieldChange(accent, 'red');
+    expect(component.colorValue(accent)).toBe('#000000');
+  });
+
+  it('binaryToHex 只回显 Uint8Array，其它形态退回空串', () => {
+    const { component } = render();
+    expect(component.binaryToHex(new Uint8Array([0x0a, 0x0b]))).toBe('0a0b');
+    expect(component.binaryToHex('dead')).toBe('');
+  });
+
+  it('multiSelected 兼容逗号字符串存储形态，非数组非字符串返回 false', () => {
+    const { component } = render({ data: { ...FORMAT_DATA, labels: 'a,b' } });
+    const labels = FORMAT_FIELDS.find(f => f.field === 'labels')!;
+
+    expect(component.multiSelected(labels, 'a')).toBe(true);
+    expect(component.multiSelected(labels, 'c')).toBe(false);
+
+    const dur = FORMAT_FIELDS.find(f => f.field === 'dur')!;
+    expect(component.multiSelected(dur, 'a')).toBe(false);
+  });
+
+  it('onMultiSelectChange 兼容逗号字符串形态的勾选与取消', () => {
+    const labels = FORMAT_FIELDS.find(f => f.field === 'labels')!;
+
+    const checked = render({ data: { ...FORMAT_DATA, labels: 'a' } });
+    checked.component.onMultiSelectChange(labels, 'b', true);
+    expect(checked.component.formData()['labels']).toEqual(['a', 'b']);
+
+    const unchecked = render({ data: { ...FORMAT_DATA, labels: 'a,b' } });
+    unchecked.component.onMultiSelectChange(labels, 'a', false);
+    expect(unchecked.component.formData()['labels']).toEqual(['b']);
+  });
+
+  it('view 模式：枚举值未命中 options 回退原值，stringArray 兼容逗号字符串与未命名选项', () => {
+    const { fixture } = render({ mode: 'view', data: { ...FORMAT_DATA, labels: 'a,c', status2: 'z' } });
+    const ghost = (name: string): string =>
+      fieldset(fixture, name).querySelector('.input-ghost')?.textContent?.trim() ?? '';
+
+    expect(ghost('多选')).toBe('甲, c');
+    expect(ghost('状态二')).toBe('z');
+  });
+
   it('view 模式按 format 展示（currency / binary / rating）', () => {
     const { fixture } = render({ mode: 'view' });
     expect(fieldset(fixture, '价格').textContent).toContain('9.9 CNY');

@@ -182,6 +182,49 @@ describe('ValueInputComponent（真实组件）', () => {
     expect(emptyNumber.component.currentValue()).toBeNull();
   });
 
+  it('ngOnInit 边界：日期范围缺端、date/uuid 非字符串、enum-array 非数组都回退安全默认', () => {
+    const sparseRange = render({ fieldType: 'date', operator: 'between', value: [undefined, undefined] });
+    expect(sparseRange.component.dateRangeStart()).toBe('');
+    expect(sparseRange.component.dateRangeEnd()).toBe('');
+
+    const nullDate = render({ fieldType: 'date', value: null });
+    expect(nullDate.component.currentDateStr()).toBe('');
+
+    const numberUuid = render({ fieldType: 'uuid', value: 42 });
+    expect(numberUuid.component.currentValue()).toBe('');
+
+    const nonArrayEnum = render({ fieldType: 'string', operator: 'in', enumOptions: ['a'], value: 'a' });
+    expect(nonArrayEnum.component.currentValue()).toEqual([]);
+  });
+
+  it("onNativeDateChange 回显并 emit；空串走 value || '' 兜底", () => {
+    const host = render({ fieldType: 'date' });
+
+    host.component.onNativeDateChange('2026-01-01');
+    expect(host.component.currentDateStr()).toBe('2026-01-01');
+    expect(host.emitted.at(-1)).toBe('2026-01-01');
+    expect(host.viaCallback.at(-1)).toBe('2026-01-01');
+
+    host.component.onNativeDateChange('');
+    expect(host.emitted.at(-1)).toBe('');
+    expect(host.viaCallback.at(-1)).toBe('');
+  });
+
+  it('onRangeMinChange 空串归一为 null 后走缺端分支', () => {
+    const host = render({ fieldType: 'number', operator: 'between' });
+
+    host.component.onRangeMinChange('');
+    expect(host.component.rangeMin()).toBeNull();
+    expect(host.emitted.at(-1)).toEqual([]);
+  });
+
+  it('uuidError 对 null 当前值不报错（?? 兜底空串）', () => {
+    const host = render({ fieldType: 'uuid' });
+
+    host.component.onValueChange(null);
+    expect(host.component.uuidError()).toBe('');
+  });
+
   it('切换输入形态时重置为该形态的默认值并 emit', () => {
     const host = render({ fieldType: 'string' });
     host.component.onValueChange('leftover');
