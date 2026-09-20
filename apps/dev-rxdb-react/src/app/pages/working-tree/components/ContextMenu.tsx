@@ -97,7 +97,7 @@ export function WorkingTreeContextMenu({
           item.separator === true ?
             <div className='gd-menu-divider' key={item.id} role='separator' />
           : <button
-              className={`gd-menu-row${item.danger === true ? 'gd-btn-danger' : ''}`}
+              className={`gd-menu-row ${item.danger === true ? 'gd-btn-danger' : ''}`}
               data-testid={item.testId ?? undefined}
               key={item.id}
               onClick={() => onItemSelected(item)}

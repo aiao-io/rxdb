@@ -842,7 +842,7 @@ export default function WorkingTreePage(): React.JSX.Element {
               <div className='gd-tabs flex shrink-0 items-center border-b' style={{ borderColor: 'var(--gd-border)' }}>
                 <div className='flex h-full flex-1 items-center' role='tablist'>
                   <button
-                    className={`gd-tab${activeTab === 'changes' ? 'gd-tab-active' : ''}`}
+                    className={`gd-tab ${activeTab === 'changes' ? 'gd-tab-active' : ''}`}
                     aria-selected={activeTab === 'changes'}
                     onClick={() => selectTab('changes')}
                     data-testid='wt-tab-changes'
@@ -853,7 +853,7 @@ export default function WorkingTreePage(): React.JSX.Element {
                     {changesCount !== null && <span className='gd-pill'>{changesCount}</span>}
                   </button>
                   <button
-                    className={`gd-tab${activeTab === 'history' ? 'gd-tab-active' : ''}`}
+                    className={`gd-tab ${activeTab === 'history' ? 'gd-tab-active' : ''}`}
                     aria-selected={activeTab === 'history'}
                     onClick={() => selectTab('history')}
                     data-testid='wt-tab-history'

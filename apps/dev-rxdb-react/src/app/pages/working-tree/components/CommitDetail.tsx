@@ -205,7 +205,7 @@ export function WorkingTreeCommitDetail({ changesState, commit }: WorkingTreeCom
                 {changesState.value.entries.map(unit => (
                   <li key={changeUnitKey(unit)}>
                     <div
-                      className={`gd-row${selectedUnit === unit ? 'gd-row-selected' : ''}`}
+                      className={`gd-row ${selectedUnit === unit ? 'gd-row-selected' : ''}`}
                       data-unit-key={changeUnitKey(unit)}
                       onClick={() => setSelectedUnitKey(changeUnitKey(unit))}
                       onKeyDown={event => {

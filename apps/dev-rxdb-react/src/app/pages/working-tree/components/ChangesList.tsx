@@ -170,7 +170,7 @@ export function WorkingTreeChangesList({
             {filteredEntries.map(entry => (
               <li key={diffEntryKey(entry)}>
                 <div
-                  className={`gd-row${selectedKey === diffEntryKey(entry) ? 'gd-row-selected' : ''}`}
+                  className={`gd-row ${selectedKey === diffEntryKey(entry) ? 'gd-row-selected' : ''}`}
                   aria-current={selectedKey === diffEntryKey(entry) ? 'true' : undefined}
                   data-diff-key={diffEntryKey(entry)}
                   onClick={() => onSelectEntry(entry)}

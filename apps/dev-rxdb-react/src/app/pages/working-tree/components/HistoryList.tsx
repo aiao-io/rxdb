@@ -45,7 +45,7 @@ export function WorkingTreeHistoryList({
             {commitsState.value.entries.map(entry => (
               <li key={entry.commitId}>
                 <div
-                  className={`gd-row gd-history-row${selectedCommitId === entry.commitId ? 'gd-row-selected' : ''}`}
+                  className={`gd-row gd-history-row ${selectedCommitId === entry.commitId ? 'gd-row-selected' : ''}`}
                   aria-current={selectedCommitId === entry.commitId ? 'true' : undefined}
                   data-commit-id={entry.commitId}
                   onClick={() => onSelectEntry(entry)}

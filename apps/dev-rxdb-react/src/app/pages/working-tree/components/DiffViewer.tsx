@@ -304,7 +304,7 @@ export function WorkingTreeDiffViewer({ entry }: WorkingTreeDiffViewerProps): Re
             {splitRows.map(row => (
               <div className='gd-split-row' key={row.key}>
                 <div
-                  className={`gd-split-cell gd-split-old${row.before === undefined ? 'gd-split-cell-empty' : ''}`}
+                  className={`gd-split-cell gd-split-old ${row.before === undefined ? 'gd-split-cell-empty' : ''}`}
                   data-testid='wt-split-old'
                 >
                   {row.before !== undefined && (
