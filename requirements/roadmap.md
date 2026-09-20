@@ -19,7 +19,7 @@
 
 ## 完成计划
 
-仓库还剩 **10 条**未关闭故事（1 In Progress + 5 In Review + 4 Backlog，
+仓库还剩 **13 条**未关闭故事（1 In Progress + 5 In Review + 7 Backlog，
 口径与计数方式同 [status-overview 状态汇总](status-overview.md#状态汇总)）。本节只排**顺序与并行度，不排日期**——
 依据是硬前置与已冻结的决策，不是估时。同一批内的行**彼此无依赖**，可各开各的 PR；批次之间才是顺序。
 每条的关闭判据以对应 story 的 AC 为准，本表只写「什么算这条做完了」。
@@ -110,6 +110,7 @@
 | `packages/rxdb-adapter-tauri/rust/` 发 crates.io                                           | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                                                                        |
 | 桌面安装包（installer / bundle）的自动化验证                                               | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍                                                                  |
 | [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放与失败现场数据还原 | **未立项**。新能力提案，整体排期待 owner 决策；阶段 B 受 US-307 `Done` 门禁；阶段 C 价值待证——解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）。阶段 A 的 e2e 失败现场诊断可作为候选价值单独评审 |
+| US-027 / US-028 / US-029 三条新提案（实体权限模型、可排序实体、RBAC 与租户隔离）           | **未立项，待 owner 排期**。同日随实体模型工作新立，尚未进入任何批次；US-029 阶段 B 依赖 US-027 的判定原语，排期时按依赖顺序考虑                                                                                |
 
 > **线 A 是一次对外的不可逆动作**（推 tag + `pnpm publish`），本节只做排期，不代表已获授权执行；
 > 真要发布时按 release-plan.md 第 4 步跑绿门禁、并单独确认。另注意

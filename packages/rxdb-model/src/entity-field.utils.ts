@@ -115,7 +115,7 @@ function propertyToField(key: string, prop: EntityPropertyMetadata): EntityField
     ...(raw['options'] === undefined ? {} : { options: raw['options'] as FieldOptions }),
     ...(raw['encrypted'] === undefined ? {} : { encrypted: raw['encrypted'] as boolean })
   };
-  if (prop.type === PropertyType.enum) {
+  if (prop.type === PropertyType.enum || prop.type === PropertyType.stringArray) {
     field.enumValues = (prop as { enum: readonly string[] }).enum;
   }
   if (prop.type === PropertyType.keyValue) {

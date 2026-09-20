@@ -11,9 +11,9 @@
 | ✅ Done        | 60   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 5    |
-| 📝 Backlog     | 4    |
+| 📝 Backlog     | 7    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 70   |
+| **合计**       | 73   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -106,6 +106,9 @@
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
 - ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
+- ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵：引擎写边界强制（fail-closed）+ rxdb-model UI 能力派生 + 系统实体迁移；三阶段交付
+- ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化
+- ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 字段预留与权限谓词扩展：pull 过滤 / push 裁决配合点与三框架行级只读派生；四阶段交付，阶段 B 依赖 US-027
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
 - ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A e2e 失败现场录制回放；阶段 B 依赖 US-307 完成后关联 commit 还原数据状态；阶段 C 插件与三框架组件价值待证
 - 🚧 [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包；阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移，破坏性：`QueryCacheRepository` 退出公开面）、阶段 C（历史 / 分支外移，破坏性：`VersionManager` 等 12 条退出核心公开面）与阶段 D（推拉同步 + QueryCache 写回出站外移，破坏性：出站 5 条退出核心公开面，`rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`）已交付；只剩阶段 E（树实体），其前置 `RxDBBranch` 去树化是本故事之外的独立工作

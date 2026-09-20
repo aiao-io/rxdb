@@ -100,6 +100,29 @@ describe('extractEntityFields', () => {
     expect(fields[0].enumValues).toEqual(['active', 'inactive']);
   });
 
+  it('should extract stringArray enum values with format and options', () => {
+    const meta = makeMeta({
+      propertyMap: new Map([
+        [
+          'labels',
+          {
+            name: 'labels',
+            columnName: 'labels',
+            type: PropertyType.stringArray,
+            displayName: '标签',
+            enum: ['alpha', 'beta'],
+            format: { kind: 'multiSelect' },
+            options: { alpha: { label: '甲' } }
+          } as EntityPropertyMetadata
+        ]
+      ])
+    });
+    const fields = extractEntityFields(meta);
+    expect(fields[0].enumValues).toEqual(['alpha', 'beta']);
+    expect(fields[0].format).toEqual({ kind: 'multiSelect' });
+    expect(fields[0].options).toEqual({ alpha: { label: '甲' } });
+  });
+
   it('should carry format / options / encrypted only when declared', () => {
     const meta = makeMeta({
       propertyMap: new Map([

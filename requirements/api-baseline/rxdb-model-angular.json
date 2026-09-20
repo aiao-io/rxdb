@@ -518,6 +518,10 @@
         "kind": "both"
       },
       {
+        "name": "NumberEditorOptions",
+        "kind": "type"
+      },
+      {
         "name": "OperatorDefinition",
         "kind": "type"
       },
@@ -547,6 +551,10 @@
       },
       {
         "name": "parseEntityFieldValue",
+        "kind": "value"
+      },
+      {
+        "name": "parseEntityFieldValueStrict",
         "kind": "value"
       },
       {
