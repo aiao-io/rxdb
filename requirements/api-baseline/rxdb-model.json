@@ -82,6 +82,10 @@
         "kind": "type"
       },
       {
+        "name": "cn",
+        "kind": "value"
+      },
+      {
         "name": "collectDeleteWrites",
         "kind": "value"
       },
@@ -442,7 +446,7 @@
         "kind": "type"
       },
       {
-        "name": "lucideToSvgHtml",
+        "name": "lucideToSvgElement",
         "kind": "value"
       },
       {

@@ -7,6 +7,9 @@ export * from './entity-field.utils.js';
 export * from './entity-value.utils.js';
 export * from './structural-equal.js';
 
+// 类名工具
+export * from './cn.js';
+
 // Entity Detail
 export * from './entity-detail/detail-tabs.js';
 export * from './entity-detail/interfaces.js';

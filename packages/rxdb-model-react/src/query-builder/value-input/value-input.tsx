@@ -14,6 +14,7 @@
  * @module query-builder/value-input
  */
 import {
+  cn,
   getDefaultValueForType,
   getInputType,
   parseCommaSeparatedInput,
@@ -258,10 +259,10 @@ export function ValueInput({
       return (
         <div
           data-tip={uuidError || errorMessage || null}
-          className={`${uuidError || hasError ? 'tooltip tooltip-top' : ''}`}
+          className={cn((uuidError || hasError) && 'tooltip tooltip-top')}
         >
           <input
-            className={`input input-sm font-mono${hasError || !!uuidError ? 'input-error' : ''}`}
+            className={cn('input input-sm font-mono', (hasError || !!uuidError) && 'input-error')}
             value={String(currentValue)}
             onChange={event => {
               const raw = event.target.value;
@@ -313,7 +314,7 @@ export function ValueInput({
       return (
         <div data-tip={errorMessage || null} className={hasError ? 'tooltip tooltip-top' : ''}>
           <select
-            className={`select select-sm${hasError ? 'select-error' : ''}`}
+            className={cn('select select-sm', hasError && 'select-error')}
             onChange={onEnumArrayChange}
             multiple
             style={{ minWidth: '12rem', minHeight: '6rem' }}
@@ -334,7 +335,7 @@ export function ValueInput({
         return (
           <div className='flex items-center gap-2' data-tip={errorMessage || null}>
             <input
-              className={`input input-sm${hasError ? 'input-error' : ''}`}
+              className={cn('input input-sm', hasError && 'input-error')}
               value={dateRangeStart}
               onChange={event => {
                 setDateRangeStart(event.target.value);
@@ -345,7 +346,7 @@ export function ValueInput({
             />
             <span className='text-base-content/50'>至</span>
             <input
-              className={`input input-sm${hasError ? 'input-error' : ''}`}
+              className={cn('input input-sm', hasError && 'input-error')}
               value={dateRangeEnd}
               onChange={event => {
                 setDateRangeEnd(event.target.value);
@@ -360,7 +361,7 @@ export function ValueInput({
       return (
         <div className='flex items-center gap-2' data-tip={errorMessage || null}>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={String(rangeMin ?? '')}
             onChange={event => {
               const min = event.target.value === '' ? null : Number(event.target.value);
@@ -373,7 +374,7 @@ export function ValueInput({
           />
           <span className='text-base-content/50'>至</span>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={String(rangeMax ?? '')}
             onChange={event => {
               const max = event.target.value === '' ? null : Number(event.target.value);
@@ -390,7 +391,7 @@ export function ValueInput({
       return (
         <div data-tip={errorMessage || null} className={hasError ? 'tooltip tooltip-top' : ''}>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={String(currentValue ?? '')}
             onChange={event => onNumberInputChange(event.target.value)}
             placeholder='输入数值'
@@ -402,7 +403,7 @@ export function ValueInput({
       return (
         <div data-tip={errorMessage || null} className={hasError ? 'tooltip tooltip-top' : ''}>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={currentDateStr}
             onChange={event => onNativeDateChange(event.target.value)}
             style={{ width: '10rem' }}
@@ -414,7 +415,7 @@ export function ValueInput({
       return (
         <div data-tip={errorMessage || null} className={hasError ? 'tooltip tooltip-top' : ''}>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={arrayInputValue}
             onChange={event => onArrayInputChange(event.target.value)}
             placeholder='输入多个值，用逗号分隔'
@@ -427,7 +428,7 @@ export function ValueInput({
       return (
         <div data-tip={errorMessage || null} className={hasError ? 'tooltip tooltip-top' : ''}>
           <input
-            className={`input input-sm${hasError ? 'input-error' : ''}`}
+            className={cn('input input-sm', hasError && 'input-error')}
             value={String(currentValue ?? '')}
             onChange={event => onValueChangeHandler(event.target.value)}
             placeholder='输入值'

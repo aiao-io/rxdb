@@ -14,7 +14,7 @@
  *
  * @module query-builder/tree-select
  */
-import { applyPopoverPosition, findNodeByValue, getDisplayNamePath, type FieldTreeNode } from '@aiao/rxdb-model';
+import { applyPopoverPosition, cn, findNodeByValue, getDisplayNamePath, type FieldTreeNode } from '@aiao/rxdb-model';
 import {
   Braces,
   Calendar,
@@ -247,7 +247,7 @@ export function TreeSelect({
   const renderIcon = (item: FlatItem): JSX.Element => {
     const Icon = typeIconMap[item.node.type] ?? defaultTypeIcon;
     const color = typeColorMap[item.node.type] ?? defaultTypeColor;
-    return <Icon className={`w-3.5 shrink-0 ${color}`} size={14} />;
+    return <Icon className={cn('w-3.5 shrink-0', color)} size={14} />;
   };
 
   return (
@@ -308,9 +308,11 @@ export function TreeSelect({
           {visibleItems.map((item, index) => (
             <li style={{ paddingLeft: `${item.depth * 0.75}rem` }} role='none' key={trackItem(item)}>
               <button
-                className={`flex w-full items-center gap-1.5 text-left text-sm${
-                  !item.isExpandable && item.node.value === selected ? 'bg-primary/15 font-semibold' : ''
-                }${index === activeIndex ? 'menu-focus' : ''}`}
+                className={cn(
+                  'flex w-full items-center gap-1.5 text-left text-sm',
+                  !item.isExpandable && item.node.value === selected && 'bg-primary/15 font-semibold',
+                  index === activeIndex && 'menu-focus'
+                )}
                 aria-expanded={item.isExpandable ? item.isExpanded : undefined}
                 aria-selected={!item.isExpandable ? item.node.value === selected : undefined}
                 id={`${uid}-item-${item.node.value}`}

@@ -8,7 +8,7 @@
  *
  * @module query-builder/query-group
  */
-import type { FieldMetadata, UIRule, ValidationError } from '@aiao/rxdb-model';
+import { cn, type FieldMetadata, type UIRule, type ValidationError } from '@aiao/rxdb-model';
 import { useState, useSyncExternalStore, type JSX } from 'react';
 import { QueryRule } from '../query-rule/query-rule';
 import './query-group.css';
@@ -376,12 +376,12 @@ export function QueryGroup({
 
   return (
     <div
-      className={`rxdb-query-group border-base-300 my-1 rounded-lg border p-2${depth % 2 === 1 ? 'bg-base-200' : ''}`}
+      className={cn('rxdb-query-group border-base-300 my-1 rounded-lg border p-2', depth % 2 === 1 && 'bg-base-200')}
     >
-      <div className={`flex items-center gap-2${collapsed ? '' : 'mb-2'}`}>
+      <div className={cn('flex items-center gap-2', !collapsed && 'mb-2')}>
         <div className='join'>
           <button
-            className={`btn btn-xs join-item${group.combinator === 'and' ? 'btn-primary' : 'btn-ghost'}`}
+            className={cn('btn btn-xs join-item', group.combinator === 'and' ? 'btn-primary' : 'btn-ghost')}
             onClick={() => {
               if (group.combinator !== 'and') onUpdateCombinator?.({ id: group.id, combinator: 'and' });
             }}
@@ -390,7 +390,7 @@ export function QueryGroup({
             AND
           </button>
           <button
-            className={`btn btn-xs join-item${group.combinator === 'or' ? 'btn-primary' : 'btn-ghost'}`}
+            className={cn('btn btn-xs join-item', group.combinator === 'or' ? 'btn-primary' : 'btn-ghost')}
             onClick={() => {
               if (group.combinator !== 'or') onUpdateCombinator?.({ id: group.id, combinator: 'or' });
             }}
@@ -408,7 +408,7 @@ export function QueryGroup({
             onClick={() => setCollapsed(value => !value)}
           >
             <svg
-              className={`h-3 w-3 transition-transform duration-200${collapsed ? '-rotate-90' : ''}`}
+              className={cn('h-3 w-3 transition-transform duration-200', collapsed && '-rotate-90')}
               fill='none'
               stroke='currentColor'
               strokeLinecap='round'

@@ -9,6 +9,7 @@
  * @module entity-form
  */
 import {
+  cn,
   EntityFieldType,
   formatEntityFieldValue,
   parseEntityFieldValueStrict,
@@ -483,7 +484,7 @@ export function EntityForm({
     >
       {editableFields.map(field => (
         <fieldset
-          className={`fieldset${isWideField(field) ? 'md:col-span-2' : ''}`}
+          className={cn('fieldset', isWideField(field) && 'md:col-span-2')}
           data-field={field.field}
           key={field.field}
         >

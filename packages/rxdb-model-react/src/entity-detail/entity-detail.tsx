@@ -25,6 +25,7 @@ import type {
 import {
   buildDetailTabs,
   buildFormFields,
+  cn,
   entityToFormData,
   formDataToEntityChanges,
   validateForm
@@ -414,9 +415,10 @@ export function EntityDetail({
                 onChange={() => selectTab(tab.key)}
               />
               <div
-                className={`tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col${
+                className={cn(
+                  'tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col',
                   tab.type === 'form' ? 'overflow-auto p-4' : 'overflow-hidden'
-                }`}
+                )}
                 hidden={tab.key !== activeTabKey}
               >
                 {tab.type === 'form' ?

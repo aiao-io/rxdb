@@ -3,6 +3,9 @@
  * 提供实体详情、对话框、表单、列表、表格等 Angular 组件
  * @module @aiao/rxdb-model-angular
  */
+// 类名工具（与 React / Vue 端对称）
+export { cn } from '@aiao/rxdb-model';
+
 // Entity Detail Angular
 export * from './entity-detail/entity-detail';
 

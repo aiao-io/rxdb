@@ -22,6 +22,7 @@ import {
   actionsColumn,
   buildEditableColumns,
   buildFormFields,
+  cn,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -1074,7 +1075,7 @@ function FilterPopover({
     <div>
       <button
         ref={triggerRef}
-        className={`btn btn-ghost btn-sm gap-1${isQueryActive ? 'btn-active' : ''}`}
+        className={cn('btn btn-ghost btn-sm gap-1', isQueryActive && 'btn-active')}
         onClick={onToggle}
         type='button'
       >

@@ -7,7 +7,7 @@
  *
  * @module query-builder/popover-select
  */
-import { applyPopoverPosition, findOptionLabel } from '@aiao/rxdb-model';
+import { applyPopoverPosition, cn, findOptionLabel } from '@aiao/rxdb-model';
 import { useMemo, useRef, useState, type JSX } from 'react';
 
 let uidCounter = 0;
@@ -185,9 +185,11 @@ export function PopoverSelect({
           {filteredOptions.map((option, index) => (
             <li role='none' key={option.value}>
               <button
-                className={`flex w-full items-center text-left text-sm${
-                  option.value === selected ? 'bg-primary/15 font-semibold' : ''
-                }${index === activeIndex ? 'menu-focus' : ''}`}
+                className={cn(
+                  'flex w-full items-center text-left text-sm',
+                  option.value === selected && 'bg-primary/15 font-semibold',
+                  index === activeIndex && 'menu-focus'
+                )}
                 aria-selected={option.value === selected}
                 id={`${uid}-opt-${option.value}`}
                 role='option'

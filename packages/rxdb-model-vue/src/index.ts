@@ -5,6 +5,9 @@
  * @module @aiao/rxdb-model-vue
  */
 
+// 类名工具（与 React / Angular 端对称）
+export { cn } from '@aiao/rxdb-model';
+
 // Entity Detail Vue
 export * from './entity-detail/index';
 
