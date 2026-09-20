@@ -74,7 +74,10 @@ export default defineConfig(() => ({
       reportsDirectory: '../../coverage/packages/rxdb-model-react',
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
-      include: ['src/**/*']
+      include: ['src/**/*'],
+      // 测试基础设施（fake-vtable / in-memory-rxdb 等夹具）不是产品面，
+      // 与 rxdb-model-angular 及全仓「排除 __tests__」的惯例一致，不计入门禁覆盖率
+      exclude: ['src/__tests__/testing/**']
     }
   }
 }));
