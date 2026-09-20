@@ -22,6 +22,10 @@
  *    CONVENTIONS 说「锚点失效的真实代价不是链接坏了，是读者停止复验」；
  * 6. CONVENTIONS「过程留档的去向」禁止进正文的叙述词（`已于 X 日`、删除线、`落地偏差`……）
  *    只**告警**不阻塞：存量太多，先让它可见，再逐条烧掉。
+ * 7. 验收与真相源对齐：Done 故事的 AC 表不得残留 ⬜；`inherited_acs` 的 `from` 必须指向存在的
+ *    story、纯数字 `ac` 不得超出源故事 AC 编号行数。
+ * 8. README「大故事」清单与「正文含交付阶段」的 story 集合一致；
+ *    capability-matrix / versioning-policy 手写的包计数等于 packages/ 与 api-baseline/ 的实际值。
  *
  * `--update` 只重写机器能唯一确定的数字：汇总表、两个标题里的条数、README 的 N/M。
  * 状态符号、epic `status`、死链**不自动改**——那些是判断，不是派生。
@@ -149,9 +153,10 @@ export async function collectStories(root) {
   const stories = [];
   for (const file of await collectMarkdown(storiesDir)) {
     if (!/^US-\d+-.*\.md$/.test(path.basename(file))) continue;
-    const fm = parseFrontmatter(await readFile(file, 'utf8'));
+    const text = await readFile(file, 'utf8');
+    const fm = parseFrontmatter(text);
     if (!fm) continue;
-    stories.push({ file, rel: path.relative(root, file), fm, id: fm.id ?? path.basename(file).slice(0, 6) });
+    stories.push({ file, rel: path.relative(root, file), fm, text, id: fm.id ?? path.basename(file).slice(0, 6) });
   }
   return stories;
 }
@@ -512,6 +517,152 @@ export async function checkLinks(root) {
   return offenders;
 }
 
+/**
+ * AC 表区域（`## 验收标准` 与下一个 `## ` 标题之间）里带编号的行，返回编号数组。
+ * 分阶段故事的行编号仍用纯数字（如 US-012），Given/When/Then 类故事没有编号行，返回空。
+ *
+ * @param {string} text story 全文
+ */
+export function acIdsOf(text) {
+  const section = text.split(/^## 验收标准\s*$/m)[1] ?? '';
+  const body = section.split(/^##\s/m)[0] ?? '';
+  const ids = [];
+  for (const line of body.split('\n')) {
+    const m = /^\|\s*(\d+)\s*\|/.exec(line.trim());
+    if (m) ids.push(Number(m[1]));
+  }
+  return ids;
+}
+
+/**
+ * Done 故事的 AC 表不得残留 ⬜：YAML `status: Done` 与 AC 符号脱节（如 US-216 曾全表 ⬜）
+ * 是唯一能让「真相源」与验收状态互相矛盾的形态，机器可判。
+ *
+ * @param {Array<{rel: string, fm: Record<string, string>, text: string}>} stories
+ */
+export function checkAcSymbols(stories) {
+  const offenders = [];
+  for (const { rel, fm, text } of stories) {
+    if (fm.status !== 'Done') continue;
+    const section = text.split(/^## 验收标准\s*$/m)[1];
+    if (!section) continue;
+    const body = section.split(/^##\s/m)[0];
+    for (const line of body.split('\n')) {
+      if (!/^\|\s*\d+\s*\|/.test(line.trim())) continue;
+      const cells = line.replace(/\|$/, '').split('|');
+      if ((cells[cells.length - 1] ?? '').includes('⬜'))
+        offenders.push(`${rel}: Done 故事的 AC 行仍标 ⬜（应 ✅，或改为带移出依据的 ⚠️）`);
+    }
+  }
+  return offenders;
+}
+
+/**
+ * inherited_acs 是接收方声明的机器可读真相：`from` 必须指向存在的 story，
+ * 纯数字 `ac` 不得超过源故事 AC 表的编号行数。`US1-AC4` 这类复合编号留人工核对。
+ *
+ * @param {Array<{id: string, rel: string, fm: Record<string, string>, text: string}>} stories
+ */
+export function checkInheritedAcs(stories) {
+  const offenders = [];
+  const byId = new Map(stories.map(s => [s.id, s]));
+  for (const { rel, fm } of stories) {
+    const raw = fm.inherited_acs ?? '';
+    for (const entry of raw.split(/(?=-\s+from:)/)) {
+      const from = /-\s+from:\s*(US-\d+)/.exec(entry);
+      if (!from) continue;
+      const source = byId.get(from[1]);
+      if (!source) {
+        offenders.push(`${rel}: inherited_acs 的 from ${from[1]} 没有对应的故事文件`);
+        continue;
+      }
+      const ac = /ac:\s*(\d+)/.exec(entry);
+      if (ac && Number(ac[1]) > acIdsOf(source.text).length)
+        offenders.push(
+          `${rel}: inherited_acs 的 ac ${ac[1]} 超出 ${from[1]} 的 AC 编号行数 ${acIdsOf(source.text).length}`
+        );
+    }
+  }
+  return offenders;
+}
+
+/**
+ * README「大故事」清单必须与「正文含交付阶段」的 story 文件集合一致。
+ * 清单是手写维护的派生视图，历史上 13 条清单对 19 条实际都未被任何门禁发现。
+ *
+ * @param {string} readmeText README.md 全文
+ * @param {Array<{id: string, text: string}>} stories
+ */
+export function checkBigStoryList(readmeText, stories) {
+  const offenders = [];
+  const actual = stories
+    .filter(s => s.text.includes('交付阶段'))
+    .map(s => s.id)
+    .sort();
+  const count = /现有\s*(\d+)\s*条：/.exec(readmeText);
+  const paragraph = readmeText.split(/现有\s*\d+\s*条：/)[1]?.split('\n\n')[0] ?? '';
+  const listed = [...paragraph.matchAll(/\((stories\/[^)]+)\)/g)].map(m => path.basename(m[1]).slice(0, 6)).sort();
+  if (count && Number(count[1]) !== actual.length)
+    offenders.push(`README.md: 大故事清单写「现有 ${count[1]} 条」，实际 ${actual.length} 条`);
+  if (listed.length && (listed.length !== actual.length || listed.some((id, i) => id !== actual[i])))
+    offenders.push(
+      `README.md: 大故事清单与「正文含交付阶段」的故事不一致（清单 ${listed.join(' ')}，实际 ${actual.join(' ')}）`
+    );
+  return offenders;
+}
+
+/**
+ * capability-matrix 与 versioning-policy 手写的公开包 / 受基线保护包计数必须等于实际。
+ * 这两处此前长期停在「31 / 30」，而真相源（packages/ 与 api-baseline/）一直在变。
+ *
+ * @param {string} root 仓库根
+ */
+export async function checkPackageCounts(root) {
+  const offenders = [];
+  const pkgs = [];
+  for (const entry of await readdir(path.join(root, 'packages'), { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const pkgJson = path.join(root, 'packages', entry.name, 'package.json');
+    let json;
+    try {
+      json = JSON.parse(await readFile(pkgJson, 'utf8'));
+    } catch {
+      continue; // 无 package.json 的目录壳（如已废弃的 rxdb-adapter-desktop）不计
+    }
+    if (!json.private) pkgs.push(entry.name);
+  }
+  let baselines = [];
+  try {
+    baselines = (await readdir(path.join(root, 'requirements', 'api-baseline'))).filter(f => f.endsWith('.json'));
+  } catch {
+    // api-baseline/ 不存在时跳过计数比对（测试脚手架与最小仓库没有该目录）
+  }
+  let matrix;
+  try {
+    matrix = await readFile(path.join(root, 'requirements', 'capability-matrix.md'), 'utf8');
+  } catch {
+    matrix = '';
+  }
+  const matrixTotal = /\*\*(\d+) 个\*\* `packages\/\*`/.exec(matrix);
+  const matrixGuarded = /其中 \*\*(\d+) 个\*\*受 API baseline 保护/.exec(matrix);
+  if (matrixTotal && Number(matrixTotal[1]) !== pkgs.length)
+    offenders.push(`capability-matrix.md: 公开包写 ${matrixTotal[1]} 个，实际 ${pkgs.length} 个`);
+  if (matrixGuarded && Number(matrixGuarded[1]) !== baselines.length)
+    offenders.push(`capability-matrix.md: 受基线保护写 ${matrixGuarded[1]} 个，实际 ${baselines.length} 个`);
+  let policy;
+  try {
+    policy = await readFile(path.join(root, 'requirements', 'versioning-policy.md'), 'utf8');
+  } catch {
+    policy = '';
+  }
+  const policyCounts = /当前 \*\*(\d+) 个\*\*，其中 (\d+) 个受 API 基线保护/.exec(policy);
+  if (policyCounts && (Number(policyCounts[1]) !== pkgs.length || Number(policyCounts[2]) !== baselines.length))
+    offenders.push(
+      `versioning-policy.md: 公开包写 ${policyCounts[1]} 个 / 受保护 ${policyCounts[2]} 个，实际 ${pkgs.length} / ${baselines.length}`
+    );
+  return offenders;
+}
+
 /** 不能当证据的通用词：语言关键字与随处可见的标识符。 */
 const EVIDENCE_STOPWORDS = new Set(
   [
@@ -774,6 +925,10 @@ export async function run({ root, update = false }) {
   const evidence = await checkAnchorEvidence(root);
   const offenders = [
     ...checkFrontmatter(stories, new Set(epics.map(e => e.id))),
+    ...checkAcSymbols(stories),
+    ...checkInheritedAcs(stories),
+    ...checkBigStoryList(await readFile(readmePath, 'utf8'), stories),
+    ...(await checkPackageCounts(root)),
     ...checkStatusOverview(await readFile(overviewPath, 'utf8'), stories),
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),
     ...checkRoadmap(await readFile(roadmapPath, 'utf8'), stories),

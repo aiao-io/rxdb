@@ -50,6 +50,7 @@ import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
+import { keepLastGood } from './working-tree.keep-last-good';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -185,9 +186,17 @@ export default class WorkingTreePage implements OnInit {
   // ── 派生状态 ──────────────────────────────────────────────
   readonly $activeBranch = computed(() => this.branches.value().find(b => b.activated)?.id ?? '');
 
+  /**
+   * 渲染用 diff / status：`loading` 相位不携带旧值，直接绑 `diffState` / `statusState`
+   * 每次重读（本页每个写命令后的 `refreshStatus()`、工具栏 Fetch）都会把列表闪成空白。
+   * 保底让 loading 期间继续显示上一份已知值，新结果落地后一次性替换。
+   */
+  readonly $displayDiffState = keepLastGood(this.tree.diffState);
+  readonly $displayStatusState = keepLastGood(this.tree.statusState);
+
   /** 「更改」标签上的条数徽章；status 里那份 entryCount 与 diff 条目数同源。 */
   readonly $changesCount = computed(() => {
-    const status = this.tree.statusState();
+    const status = this.$displayStatusState();
     if (status.phase !== 'success' && status.phase !== 'empty') return null;
     return status.value.entryCount > 0 ? status.value.entryCount : null;
   });
@@ -207,13 +216,13 @@ export default class WorkingTreePage implements OnInit {
 
   /** 恢复会话警示条的可见性：status 说 restoring / conflicted 才亮。 */
   readonly $showRestoreBanner = computed(() => {
-    const status = this.tree.statusState();
+    const status = this.$displayStatusState();
     if (status.phase !== 'success' && status.phase !== 'empty') return false;
     return status.value.restoring || status.value.conflicted;
   });
 
   readonly $selectedDiffEntry = computed(() => {
-    const diff = this.tree.diffState();
+    const diff = this.$displayDiffState();
     if (diff.phase !== 'success') return null;
     const key = this.$selectedDiffKey();
     return diff.value.entries.find(entry => diffEntryKey(entry) === key) ?? null;
@@ -247,8 +256,9 @@ export default class WorkingTreePage implements OnInit {
     });
     // 列表一刷新就自动选中第一条，右栏不至于空着——GitHub Desktop 打开仓库时
     // 也是默认展示第一个文件的 diff。用户手动选中的键还在列表里就不动它。
+    // 读 display 状态：loading 期间列表与详情都停在旧内容，选中键不该跟着清空。
     effect(() => {
-      const diff = this.tree.diffState();
+      const diff = this.$displayDiffState();
       const entries = diff.phase === 'success' ? diff.value.entries : [];
       const keys = entries.map(diffEntryKey);
       const current = this.$selectedDiffKey();

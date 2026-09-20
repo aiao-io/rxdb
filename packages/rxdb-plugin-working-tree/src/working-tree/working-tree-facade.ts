@@ -15,7 +15,7 @@
  */
 
 import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
-import { RxDBError } from '@aiao/rxdb';
+import { RxDBChange, RxDBError } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import {
@@ -75,13 +75,39 @@ export class WorkingTreeCapabilityDisabledError extends RxDBError {
    */
   constructor() {
     super(
-      '这个数据库尚未启用提交能力：除 isEnabled() / enable() 之外的 workingTree 成员都不可用。' +
-        '先调用 database.workingTree.enable()。'
+      '这个数据库尚未启用提交能力：除 isEnabled() / enable() / enableIfEmpty() 之外的 workingTree 成员都不可用。' +
+        '先调用 database.workingTree.enable()，或让应用在启动时用 enableIfEmpty() 空库自动启用。'
     );
     this.name = 'WorkingTreeCapabilityDisabledError';
     Object.setPrototypeOf(this, WorkingTreeCapabilityDisabledError.prototype);
   }
 }
+
+/**
+ * {@link WorkingTreeManager.enableIfEmpty} 的三种结局。
+ *
+ * @remarks
+ * 做成判别联合而不是 `{ enabled: boolean; … }`：三种结局各有各的载荷——`enabled` 与
+ * `already_enabled` 带能力信息，`not_empty` 什么都没有。拍平成一个对象就要给「没发生的
+ * 那次启用」编造一份能力信息（或可空字段），调用方被迫处理四种组合，其中两种是假的。
+ */
+export type WorkingTreeEnableIfEmptyResult =
+  | {
+      /** 判别位：本次调用完成了启用 */
+      readonly kind: 'enabled';
+      /** 启用后的能力信息 */
+      readonly capability: CommitCapabilityInfo;
+    }
+  | {
+      /** 判别位：库本来就已启用，本次调用什么都没改 */
+      readonly kind: 'already_enabled';
+      /** 现状的能力信息 */
+      readonly capability: CommitCapabilityInfo;
+    }
+  | {
+      /** 判别位：库里已有内容，按规则不自动启用；手动 `enable()` 仍可用 */
+      readonly kind: 'not_empty';
+    };
 
 /**
  * 工作树与提交历史的入口（契约见 contracts/core-api.md §1）。
@@ -120,7 +146,7 @@ export class WorkingTreeManager {
    * @returns 已启用返回 `true`
    *
    * @remarks
-   * 与 {@link enable} 同为未启用库上仅有的两个可用成员，因此**不经**
+   * 与 {@link enable} / {@link enableIfEmpty} 同为未启用库上仅有的三个可用成员，因此**不经**
    * {@link runEnabled}——经了就成了「只有启用的库才能查自己启没启用」。
    */
   async isEnabled(): Promise<boolean> {
@@ -164,6 +190,49 @@ export class WorkingTreeManager {
     });
     installWorkingTreeCapture(this.#rxdb, adapter);
     return info;
+  }
+
+  /**
+   * 库为空时自动启用，已有内容时一行不写（应用启动时的自动初始化入口）。
+   *
+   * @returns 见 {@link WorkingTreeEnableIfEmptyResult}
+   * @throws {@link BranchNotMaterializableError} 任一本地分支沿 `rxdb_change` 链物化不了时
+   *   （只发生在「空」判定通过、启用迁移开跑之后，与 {@link enable} 同形）
+   *
+   * @remarks
+   * **「空」的判据是 `rxdb_change` 行数为零。** 本地每一次实体写入都会追加一条变更
+   * （undo/redo 的数据源），sync pull 走 disableTriggers 不产生行；行数为零 ⟺ 这个库
+   * 从来没有过用户内容。判据不用用户实体行数：插件不认识应用注册的实体清单，按实体
+   * 逐张表数一遍等于把「什么是内容」摊给每个调用方。
+   *
+   * **判空、翻能力位、补 baseline 在同一个事务里。** 拆开的话，判空之后、启用之前有别的
+   * writer 落进第一批内容，自动启用就会把一份刚出现的用户数据折进 baseline——而这条规则
+   * 的全部意义就是「有内容时不替用户做这个决定」。
+   *
+   * **三种结局分工明确。** `already_enabled` 原样报告、不跑启用迁移：把库收敛到已启用
+   * 该有的形状是 {@link enable} 的语义（它的 TSDoc 承诺重复调用补根），这里只回答
+   * 「要不要启用」；`not_empty` 返回时能力位仍是关的，手动 `enable()` 面对的是同一个起点。
+   * 捕获运行时在两个启用结局之后照常装载，与 `enable()` 重复调用的幂等行为一致；
+   * `not_empty` 不装——本进程尚未启用，装了等于在未启用的库上开始捕获。
+   *
+   * **能力行缺失照常抛**（`readCommitCapability` 自己抛），不按「未启用且空」继续：
+   * 那是 `0004` 迁移没跑完的损坏现场，自动启用会把损坏掩埋成一次正常启动。
+   */
+  async enableIfEmpty(): Promise<WorkingTreeEnableIfEmptyResult> {
+    const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
+    const result = await adapter.transaction(async executor => {
+      const current = await readCommitCapability(executor);
+      if (current.enabled) return { kind: 'already_enabled', capability: current } as const;
+      const changeCount = await executor.getRepository(RxDBChange).count({ where: { combinator: 'and', rules: [] } });
+      if (changeCount > 0) return { kind: 'not_empty' } as const;
+      const capability = await enableCommitCapability(executor);
+      await runEnableMigration(executor, createCommitWriteContext(adapter), {
+        operationId: ENABLE_MIGRATION_OPERATION_ID
+      });
+      return { kind: 'enabled', capability } as const;
+    });
+    if (result.kind !== 'not_empty') installWorkingTreeCapture(this.#rxdb, adapter);
+    return result;
   }
 
   /**

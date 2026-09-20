@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-02-28
+updated: 2026-09-20
 tags: [collaboration, versioning]
 ---
 
@@ -16,6 +16,24 @@ tags: [collaboration, versioning]
 **作为** 用户
 **我想要** 拥有数据的版本历史
 **以便** 我可以追踪随时间的变化
+
+## 范围边界
+
+### In Scope
+
+- 分支生命周期：`createBranch()` / `switchBranch()` / `deleteBranch()` 与 `RxDBBranch` 树形结构管理
+- 分支切换时按外键依赖的拓扑排序处理实体
+- 分支合并：可插拔 `ConflictResolver`，默认 Last-Write-Wins
+- 变更压缩：`compactChanges()` — INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
+- push / pull 增量同步：`pullChanges(sinceId)` 拉取并合并远程变更
+
+### Out of Scope
+
+- commit 图、HEAD 持久化与工作树状态机 —— 属 [US-305](./US-305-commit-graph-head.md) / [US-306](./US-306-working-tree-commits.md)
+- 历史恢复会话语义 —— 属 [US-307](./US-307-restore-session.md)
+- 分支隔离与跨 realm 冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
+- change codec 的 bigint/binary 无损表示 —— 属 [US-303](./US-303-bigint-binary-change-codec.md)
+- 远程多人协作的权限与签名
 
 ## 验收标准
 
@@ -33,7 +51,7 @@ tags: [collaboration, versioning]
 ## 技术笔记
 
 - 分支管理：`createBranch()` / `switchBranch()` / `deleteBranch()`
-- 分支存储：每个分支对应独立的 SQLite 文件或 PGlite 数据库
+- 分支存储：分支是同一数据库内 `rxdb_branch` 表的行（[`branch.ts`](../../../packages/rxdb/src/system/branch.ts)，`activated` 列切换），各分支的 change/ref 也在同一主库内
 - 拓扑排序：分支切换时按外键依赖顺序处理实体
 - 变更压缩：`compactChanges()` - INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
 - 冲突解决：可插拔 `ConflictResolver`，默认 Last-Write-Wins
@@ -41,16 +59,13 @@ tags: [collaboration, versioning]
 
 ## 实现文件
 
-- `packages/rxdb/src/version/VersionManager.ts` — 版本管理器核心
-- `packages/rxdb/src/version/HistoryManager.ts` — 历史记录管理
-- `packages/rxdb/src/version/compact-changes.ts` — 变更压缩
-- `packages/rxdb/src/version/conflict.ts` — 冲突解决
+- `packages/rxdb-plugin-history/src/VersionManager.ts` — 版本管理器核心
+- `packages/rxdb-plugin-history/src/HistoryManager.ts` — 历史记录管理
+- `packages/rxdb/src/sync-contract/compact-changes.ts` — 变更压缩
+- `packages/rxdb/src/sync-contract/conflict.ts` — 冲突解决（`LWWConflictResolver`）
 
-## 测试文件
+## References
 
-- `packages/rxdb/src/__tests__/version/HistoryManager.spec.ts` — 历史管理测试
-- `packages/rxdb/src/__tests__/version/sync-undo.spec.ts` — 同步与撤销测试
-
-## 参考
-
+- 测试：`packages/rxdb-plugin-history/src/__tests__/HistoryManager.spec.ts` — 历史管理测试
+- 测试：`packages/rxdb-plugin-history/src/__tests__/sync-undo.spec.ts` — 同步与撤销测试
 - [文档: 版本控制](../../../website/docs/collaboration/branch.md)

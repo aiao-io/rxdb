@@ -34,7 +34,7 @@
 
 - **`v0.0.25` 这个 tag 指向的树，和 npm 上实际发布的 `0.0.25` 产物对不上**。tag 落在
   `b31c7e2`（2026-08-14），而发布是从一个**晚得多**的工作树跑的 `pnpm publish`。
-  2026-09-12 实测两组对照：① 已发布的 `@aiao/rxdb-client-generator@0.0.25` 产物里**含**
+  两组对照：① 已发布的 `@aiao/rxdb-client-generator@0.0.25` 产物里**含**
   `unsupportedDefaultFactory`（[US-018](stories/core/US-018-generator-default-serialization.md) 的
   `BREAKING CHANGE` 实现），而 `git show v0.0.25^{commit}:…RxDBClientGenerator.utils.ts` 里**没有**；
   ② 已发布的 `@aiao/rxdb@0.0.25` 产物 `package.json` 写 `0.0.25`、打包进去的 `RXDB_VERSION` 却是
@@ -52,7 +52,7 @@
 
 ### ① 系统 schema 号已到 6，这条路径**不能**当桥接锚点
 
-2026-09-15 用 `npm pack` 拉已发布产物实测（不是 tag 树，理由见上一节第三条）：
+以 `npm pack` 拉已发布产物实测（不是 tag 树，理由见上一节第三条）：
 
 ```text
 已发布的 @aiao/rxdb@0.0.25  → RXDB_SYSTEM_SCHEMA_VERSION = 3，commit / working-tree 文件数各为 0
@@ -141,11 +141,9 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    **不能动** `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION`。若那个功能必须升 schema，
    它得排到桥接版本**之后**单独发——否则就会掉进「migration 需要先有 bridge tag，而 bridge tag 又被这次升级污染」的死锁。
 
-   **⚠️ 复测必须用 `-G`，不能用 `-S`（2026-09-18 修正）。** 本文此前给的是 `git log -S`，而 `-S` 统计的是
-   **字符串出现次数的变化**：把 `= 3` 改成 `= 6`，`RXDB_SYSTEM_SCHEMA_VERSION = ` 这个串前后都出现 1 次，
-   计数没变，`-S` 于是**恒空**。2026-09-18 在 `next-0912` 上实测过这个假清白——常量已经是 6，
-   `-S` 仍报空，而 `-G`（匹配 diff 文本）正确报出 `be3edd18` / `afd4dc0b` / `77d8c076` 三条，
-   正是 3 → 4 → 5 → 6 那三次抬升。**这是唯一一条人工防线**（门禁只比对布尔位、从不读源码常量，
+   **⚠️ 复测必须用 `-G`，不能用 `-S`。** `-S` 统计的是**字符串出现次数的变化**：把 `= 3` 改成 `= 6`，
+   `RXDB_SYSTEM_SCHEMA_VERSION = ` 这个串前后都出现 1 次，计数没变，`-S` 于是**恒空**，给的是假清白；
+   `-G` 匹配 diff 文本，能正确报出每次抬升。**这是唯一一条人工防线**（门禁只比对布尔位、从不读源码常量，
    见执行顺序第 1 步），用错了它整条防线恒绿。两条正确命令是：
 
    ```bash
@@ -161,26 +159,25 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    grep 'RXDB_SYSTEM_SCHEMA_VERSION = ' packages/rxdb/src/system/migration.ts
    ```
 
-   **当时的实测结论（2026-09-12，HEAD `f4e0778`，在 `main` 上量）仍然成立**：两个常量在 `v0.0.24` 与 `main`
-   上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` / `RXDB_CHANGE_CODEC_VERSION = 1`。那次结论没受本次口径修正影响——
-   它在**两端取值相等**这一层就是对的，`-S` 报空只是碰巧同答案。启动线 A 前按上面四条命令复测：
-   只要两端取值相等，清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
+   **当前取值**：两个常量在 `v0.0.24` 与 `main` 上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` /
+   `RXDB_CHANGE_CODEC_VERSION = 1`。启动线 A 前按上面四条命令复测：只要两端取值相等，
+   清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
 
-   **`next-0912` 上已经不成立了（2026-09-13）**：该分支把 `RXDB_SYSTEM_SCHEMA_VERSION` 抬到了
-   **5**（3 → 4 是 epic-006 的 10 张工作树/提交图表；4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，
-   FR-048 的「至多一个 active」那一半）。两次都是**单向操作**：标成 5 的库再打开于旧客户端会按
-   `UnsupportedRxDBSystemVersionError` 拒绝——不是新增的危险面（2 → 3 同样如此），但**必须进发布说明**。
-   两条实际后果：
+   **`next-0912` 上这一前提不成立**：该分支把 `RXDB_SYSTEM_SCHEMA_VERSION` 抬到了
+   **6**（3 → 4 是 epic-006 的 10 张工作树/提交图表；4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，
+   FR-048 的「至多一个 active」那一半；5 → 6 是抽包后 `activeKey` 就位、十张表不再归核心管）。
+   这些都是**单向操作**：标成 6 的库再打开于旧客户端会按 `UnsupportedRxDBSystemVersionError` 拒绝
+   ——不是新增的危险面（2 → 3 同样如此），但**必须进发布说明**。两条实际后果：
 
    - **`next-0912` 合入 `main` 之后，它不能充当桥接版本**（见本条第一段：`kind=bridge` 撞上
      `systemSchemaUpgrade=true` 会被门禁直接拒）。桥接锚点必须从一条不动这两个常量的路径上先发出去，
      这次 schema 升级排在其**之后**，清单切 `kind=migration`。
-   - 复测那两条 `git log -G` 命令时（**不是 `-S`**，理由见本条上一段），区间一旦覆盖本次合入就**不再为空**；届时清单里的
+   - 复测那两条 `git log -G` 命令时，区间一旦覆盖本次合入就**不再为空**；届时清单里的
      `systemSchemaUpgrade` 必须置 `true`，而不是沿用上面那句「保持 `false`」。
 
-   4 → 5 单独拎出来记一笔的理由：`activeKey` 是在 v4 水位线**之后**才进 schema 的，而版本号是升级路径
-   唯一的触发条件、列本身不是——已被标成 4 的库（开发机上的那批）不 bump 就永远补不出这一列。
-   它是**补记**，不是新增能力；v4 从未发布，代价只是一个数字。
+   `activeKey` 是在 v4 水位线**之后**才进 schema 的，而版本号是升级路径唯一的触发条件、列本身不是——
+   已被标成 4 的库（开发机上的那批）不 bump 就永远补不出这一列。它是补记，不是新增能力；v4 从未发布，
+   代价只是一个数字。
 
 2. **版本号是算出来的，不是选的**。`conventionalCommits: true`，`nx.json` 只自定义了 `cleanup` /
    `__INVALID__` 两个类型（均 `semverBump: none`），其余走 nx 23.2.1 的
@@ -192,12 +189,18 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
      这也意味着算出来的版本号反映的是**提交信息的形态，不是改动的份量**——0.0.25 就是一个全新可发布包
      以 patch 发出去的例子，changelog 上看不出来。
    - 若要指定版本号，需显式传参覆盖推算结果。无论取哪个，**清单、tag、`packages/rxdb/package.json` 三处必须同为那个实际值**。
-   - **当前状态实测（2026-09-12 跑 `pnpm nx release version --dry-run`，在 `main` 上量，HEAD `f4e0778`，nx 23.2.1）**：
+   - **当前状态实测（跑 `pnpm nx release version --dry-run`，在 `main` 上量）**：
      `v0.0.25` 已脱离主线，`git describe --tags --abbrev=0` 解析到的基准 tag 因此**回退成 `v0.0.24`**。
      **区间必须在 `main` 上量，不能在 feature 分支上量**：tag 只打在 `main`，`nx release` 的输入是 `main`
      的提交；feature 分支上的 `123` 这类中间提交经 squash 后不进 `main`，PR 标题才是留下的那一条。
-     `v0.0.24..main` 共 36 条提交：**19 条 `feat` + 3 条 `fix`**，4 条 `cleanup(...)` 记 `none`，
-     其余为 `chore` / `docs`。三个后果必须在动手前确认：
+     区间随仓库继续产生提交而变化（最近一次实测 `v0.0.24..origin/main` 为 42 条：23 `feat` + 3 `fix`），
+     **动手前重跑本节命令取当前值**；结论不随数量变化——specifier 仍是 `minor`、仍被
+     `adjustSemverBumpsForZeroMajorVersion` 降级，默认推算仍落在禁用且已被 registry 占用的 `0.0.25` 上，
+     **线 A 仍必须显式传版本号**。另外两条当天为绿的前提是时点结论、不是状态：非规范标题检查在
+     `main` 上零输出、`git log --merges v0.0.24..origin/main` 为空——本条写下之后仓库仍在产生新提交，
+     动手前照样要重跑。特性分支上量没有意义：`next-0912` 同区间有大量 `123` / `213213` 类中间提交和
+     merge commit，它们会在 squash 时消失，量出来的是噪声。
+     三个后果必须在动手前确认：
 
      ① **默认推算结果是 `0.0.25`，正好是禁用值，且 npm 上已被占用——不能直接用**。
      dry-run 的原话是「Resolved the specifier as "minor" … Applied semver relative bump "minor" …
@@ -230,19 +233,9 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
      `f4e0778` 已在 `origin/main` 上，**不得重写**——只能在 changelog 生成后**人工补写**这两条。
      ② 是多报、④ 是漏报，定稿前两边都要人工过一遍；判断某条到底发没发过，仍按上方开项第三条只认 `npm pack`。
 
-     ⑥ **复测（2026-09-18，在 `origin/main` 上量）：三条输入都变了量、结论一条没变。**
-     `v0.0.24..origin/main` 现为 **42 条提交（23 `feat` + 3 `fix`）**，较 2026-09-12 的 36 / 19 / 3 增加了 4 条 `feat`；
-     bump 量充足，① 的结论不变——specifier 仍是 `minor`、仍被 `adjustSemverBumpsForZeroMajorVersion` 降级，
-     默认推算仍落在禁用且已被 registry 占用的 `0.0.25` 上，**线 A 仍必须显式传版本号**。
-     另外两条当天为绿：⑤ 的非规范标题检查在 `main` 上**零输出**（那 3 条 `2132` / `22` / `21313` 没进 `main`），
-     `git log --merges v0.0.24..origin/main` 同样为空，执行顺序第 1 步依赖的「全历史零 merge commit」仍成立。
-     ⚠️ 这两条都是**时点结论**，不是状态——本条写下之后仓库仍在产生新提交，动手前照样要重跑，理由见 ⑤。
-     特性分支上量没有意义：`next-0912` 同区间有 20+ 条 `123` / `213213` 这类中间提交和 1 个 merge commit，
-     它们会在 squash 时消失，量出来的是噪声。
-
      ⑤ **非规范标题会以 `__INVALID__` 原样进 changelog，且本仓库在持续产生新的。**
-     2026-09-12 一个下午就产生了 3 条（`2132` / `22` / `21313`，15:39～16:19，均为并发会话把本文件的
-     编辑顺手提交所致），且**每写完一次核对结论就又多一条**。所以这里不列清单——
+     非规范提交（`123` / `213213` 这类）nx 解析不到、一律记为 `none`，一批非规范提交等于零 bump 量、发不出版本；
+     特性分支上的中间提交经 squash 后不进 `main`，只在 `main` 上量才有意义。所以这里不列清单——
      **这不是一次性清理，而是每次推送前必跑的例行检查**——
      未推送的可以 `git commit --amend` 只改信息、不动树，已推送的（如 `f4e0778`）没有这个机会。
      推送前跑：
@@ -280,7 +273,7 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    **从不读源码常量**；桥接发布时 `bridge.tag` 是 `null`，新增的 `bridgeTagVersionConstants` 钩子也走不到。
    悄悄抬了常量却把布尔位留成 `false`，门禁照样全绿。唯一防线是硬前提 1 那两条 `git log -G` 人工复测（**`-S` 在这里恒空，会给出假清白**，见硬前提 1）。
    门禁的祖先判定是
-   `git merge-base --is-ancestor <tag>^{commit} HEAD`（[scripts/check-migration-release-gate.mjs:186](../scripts/check-migration-release-gate.mjs#L186)）。
+   `git merge-base --is-ancestor <tag>^{commit} HEAD`（[scripts/check-migration-release-gate.mjs:277](../scripts/check-migration-release-gate.mjs#L277)）。
    本仓库全历史零 merge commit，PR 一律 squash：若在特性分支上打 tag 再 squash 进 `main`，
    tag 指向的提交**不在** `main` 的历史里，将来那次 migration 发布会卡在
    `bridge.tag ... is not an ancestor of the release commit`，且无法在不重写 tag 的前提下补救。
@@ -317,7 +310,7 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<实际版本>"` 全绿后才允许提交。
 5. **提交并打 tag 推送**：package.json 与清单在同一个提交里，tag 指向 `main` 上的该提交。
    推送 tag 不会触发任何发布——发布是手工执行 `pnpm publish`，由执行者自行确保第 4 步已跑绿。
-6. **回写 US-305**：把该桥接 tag 记进 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 证据，
+6. **回写 US-305**：把该桥接 tag 记进 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC US2-14 证据，
    依据是「桥接 tag 已推送、是 `main` 祖先、清单声明 `kind=bridge` 且通过门禁」。US-305 的迁移发布从此有了合法锚点。
 
 ### 门禁 tag 钩子的状态
@@ -378,7 +371,7 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向该次桥接版本、`oldBundlePolicy.strategy` 四选一、
 `minimumVersion` 不低于桥接版本、`enforced=true`。
 
-**这条门禁由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC14 承接**（其范围含「每分支 baseline commit 与一次性迁移」）。
+**这条门禁由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC US2-14 承接**（其范围含「每分支 baseline commit 与一次性迁移」）。
 US-305 在 schema 迁移前先验证当前主线存在有效 bridge ancestor，随后用首个真实迁移发布验收该 bridge manifest、
 `oldBundlePolicy` 和 migration release gate，不形成循环依赖。
 

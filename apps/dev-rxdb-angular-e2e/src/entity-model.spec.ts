@@ -13,8 +13,8 @@ test.describe('Entity Model Pages', () => {
     test('should switch the right list by clicking the left catalog', async ({ page }) => {
       await page.goto('/entities/public/Article');
 
-      // 限定在壳页目录内：全局侧边栏菜单也有 "Todo (findAll)" 链接
-      await page.locator('app-entity').getByRole('link', { name: /^Todo/ }).click();
+      // 限定在壳页目录内：全局侧边栏菜单也有 "Todo (findAll)" 链接（三端统一 testid 锚点）
+      await page.getByTestId('entity-shell').getByRole('link', { name: /^Todo/ }).click();
       await page.waitForURL('**/entities/public/Todo');
 
       await expect(page.getByText('Todo', { exact: true }).first()).toBeVisible();

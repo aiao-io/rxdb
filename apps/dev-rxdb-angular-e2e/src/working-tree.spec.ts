@@ -10,7 +10,7 @@ import { resetE2eState } from './e2e-utils.js';
  * 页面（/todo）产生，一条实体记录就是工作树里的一个「文件」；分支行是
  * 「选中 → 操作按钮」而不是立即切换（demo 要演「脏工作树被拒」这一步）。
  * 这份用例按同一条叙事走：
- * 初始化 → 首次提交 → 建分支 → 分支提交 → 带脏工作树被拒 → 丢弃后切换 → 合并
+ * 自动初始化（空库在应用启动时自动启用）→ 首次提交 → 建分支 → 分支提交 → 带脏工作树被拒 → 丢弃后切换 → 合并
  * （落进工作树，像 `git merge --no-commit`）→ 提交合并 → 恢复历史版本 → 提交恢复。
  *
  * a11y 与 SC-005 的断言在 `working-tree.a11y.spec.ts`，这里只锁行为。
@@ -26,8 +26,14 @@ const openPanel = async (page: import('@playwright/test').Page): Promise<void> =
   await expect(page.getByTestId('wt-status-phase')).toHaveText(SETTLED, { timeout: 20000 });
 };
 
-const enablePanel = async (page: import('@playwright/test').Page): Promise<void> => {
-  await page.getByTestId('wt-enable').click();
+/**
+ * 等自动初始化落定。
+ *
+ * 空库在**应用启动时**就被 `enableIfEmpty()` 自动启用（setup 在 init 之后 fire-and-forget），
+ * 页面加载后这里只等、不点：手动 `enable()` 只属于「有内容但未启用」的库（见
+ * 「有内容的库不自动启用」用例，它用 localStorage 键跳过启动时的自动启用）。
+ */
+const waitForAutoEnabled = async (page: import('@playwright/test').Page): Promise<void> => {
   await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
   await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
 };
@@ -121,7 +127,7 @@ test.describe('Working Tree 页面功能', () => {
   test('亮色主题下仓库与分支按钮的展开态为白底', async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     const repositoryButton = page.getByTestId('wt-repo-menu');
     await repositoryButton.click();
@@ -157,7 +163,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('创建分支弹层保留内容内边距', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
     await openBranchMenu(page);
     await page.getByTestId('wt-branch-create').click();
 
@@ -166,7 +172,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('桌面工作区：变更筛选与历史文件差异', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
     // 面板头没有主题切换按钮（GitHub Desktop 也没有）：主题跟整个 demo 走 localStorage，
     // 切换 = 改 localStorage + 整页刷新。
     await page.evaluate(() => window.localStorage.setItem('theme', 'dark'));
@@ -249,7 +255,7 @@ test.describe('Working Tree 页面功能', () => {
     await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
     await page.setViewportSize({ width: 390, height: 844 });
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
     const menuToggle = page.getByRole('button', { name: 'Toggle menu' });
     await expect(menuToggle).toBeVisible();
     await menuToggle.click();
@@ -262,7 +268,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('完整 git 流程：提交 → 分支 → 脏工作树拒切 → 合并入工作树 → 恢复', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     // ── 1. main 上首次提交 ─────────────────────────────────
     await writeTodo(page, 'docs: 首页文档');
@@ -368,7 +374,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('工具栏：仓库段跟左栏同宽，分支 / 获取段可拖宽', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     const measure = async () => {
       const [repo, aside, branch, fetch] = await Promise.all([
@@ -405,7 +411,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('干净工作树上的提交被拒（empty_commit 走 toast 呈现）', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     await page.getByTestId('wt-commit-message').fill('什么都不会发生');
     await page.getByTestId('wt-commit').click();
@@ -420,7 +426,7 @@ test.describe('Working Tree 页面功能', () => {
 
   test('摘要为空时提交按钮禁用（GitHub Desktop 的 isSummaryBlank 同款）', async ({ page }) => {
     await openPanel(page);
-    await enablePanel(page);
+    await waitForAutoEnabled(page);
 
     const commitButton = page.getByTestId('wt-commit');
     await expect(commitButton).toBeDisabled();
@@ -429,5 +435,29 @@ test.describe('Working Tree 页面功能', () => {
     await expect(commitButton).toBeDisabled();
     await page.getByTestId('wt-commit-message').fill('有摘要了');
     await expect(commitButton).toBeEnabled();
+  });
+
+  test('有内容的库不自动启用：手动点击启用仍可用', async ({ page }) => {
+    // 用 localStorage 键跳过启动时的自动启用：这样先写内容、再进面板时，
+    // 库是「有内容但未启用」——自动初始化的规则对它有内容这一点必须让路。
+    await page.addInitScript(() => window.localStorage.setItem('rxdb-e2e-skip-working-tree-auto-enable', '1'));
+    await resetE2eState(page);
+    await page.goto('/todo', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('todo-title-input')).toBeVisible({ timeout: 20000 });
+    await page.getByTestId('todo-title-input').fill('自动启用测试');
+    await page.getByTestId('todo-add').click();
+    await expect(page.getByTestId('todo-row').filter({ hasText: '自动启用测试' })).toBeVisible({ timeout: 15000 });
+
+    // SPA 导航进面板（同 writeTodo 的理由：goto 整页刷新后的写入不经捕获）。
+    await page.locator('a[href="/working-tree"]').first().click();
+    await expect(page.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('wt-enabled')).toHaveText('未启用', { timeout: 20000 });
+    await expect(page.getByTestId('wt-status-phase')).toHaveText('error', { timeout: 20000 });
+    await expect(page.getByTestId('wt-enable')).toBeVisible();
+
+    // 手动路径照旧：点击启用后进入已启用状态。
+    await page.getByTestId('wt-enable').click();
+    await expect(page.getByTestId('wt-enabled')).toHaveText('已启用', { timeout: 30000 });
+    await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
   });
 });

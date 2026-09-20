@@ -20,7 +20,7 @@ tags: [core, permission, model, rxdb-model]
 ## 背景与动机
 
 - 现有字段级 `readonly` 的事实语义是「前端不可编辑」：数据层（repository / entity-manager / capture / schema）完全不消费它，只有 rxdb-model 表单与表格在用；但其 TSDoc 却写着「更新数据时这个列的值不会被更新」——文档与实现不符。
-- 系统实体靠逐字段标记 readonly 维持只读（如 `system/change.ts` 标了 12 个字段），漏标新字段即裸奔，且「只读」止于 UI：程序化写随时可以改掉 Change 记录。
+- 系统实体靠逐字段标记 readonly 维持只读（如 `system/change.ts` 标了 10 个字段），漏标新字段即裸奔，且「只读」止于 UI：程序化写随时可以改掉 Change 记录。
 - 引擎已存在「受信写通道」（`packages/rxdb/src/trusted-write/`）：fail-closed、作用域对象 + WeakMap、取用即清除、9 调用点登记表。它是「系统写」身份自报的底子，但只为捕获层豁免服务，不参与任何权限判定。
 - vision 阶段 4「模型驱动应用」已规划「字段级权限、只读规则、条件显示和统一校验」，本故事是其中「实体级操作权限」的增量切片。
 
@@ -128,4 +128,4 @@ interface EntityPermissionOptions {
 
 - [vision.md](../../vision.md) — 阶段 4「字段级权限、只读规则、条件显示和统一校验」
 - [受信写通道](../../../packages/rxdb/src/trusted-write/index.ts) — `declareTrustedWrite` fail-closed 通道与作用域模式
-- [US-025 核心包子系统按插件边界外移](US-025-core-plugin-extraction.md) — 受信通道抽包决策与 9 调用点登记表
+- [受信调用点登记表](../../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) — 9 调用点登记表与 US-025 抽包决策的核对记录（见其 `@remarks`）

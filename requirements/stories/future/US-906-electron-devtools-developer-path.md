@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-09-03
-updated: 2026-09-11
+updated: 2026-09-20
 tags: [tooling, devtools, desktop, electron, dx]
 ---
 
@@ -73,7 +73,7 @@ INVEST 检查清单:
 
 ## 交付状态
 
-6 条 AC 全部关闭，逐条状态以上面的 AC 表为准（这里不复述，复述必然先烂）。AC#2 的证据链见下。
+6 条 AC 全部关闭，逐条状态以上面的 AC 表为准。AC#2 的证据链见下。
 
 ### 证据落点
 
@@ -108,7 +108,7 @@ AC#2 判据里的每一项都在这条链上得证。
 用脚本代跑就把被验对象换掉了——已**移出承诺范围**：项目处于早期，v2 迁移的行为中性由
 自动化证据承担；未来收尾需要人工回归时另立故事。
 
-### 两条实测得出的开发流程约束（都不在原故事里）
+### 两条实测得出的开发流程约束
 
 1. **`nx dev dev-rxdb-electron` 单跑跑不起来——AC#2 前置里那句「`nx serve` 已起在 4120」是必需的，
    不是可选的。** 原因在依赖链：`dev` 依赖**非 continuous** 的 `prepare-electron-package`，
@@ -163,8 +163,3 @@ AC#2 判据里的每一项都在这条链上得证。
 - [US-904 阶段 D](./US-904-devtools-native-storage-contract.md) — AC#52 的真机证据与两条实测约束的出处
 - [US-904 阶段 A 可行性记录](./US-904-phase-a-evidence.md) — `chrome.permissions` 缺失被登记为可容忍差异
 - [Chrome 扩展 match patterns](https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns) — 合法 scheme 集（http / https / file / ftp / urn），自定义 scheme 不在其中
-
----
-
-> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
-> [CONVENTIONS.md](../../CONVENTIONS.md)。

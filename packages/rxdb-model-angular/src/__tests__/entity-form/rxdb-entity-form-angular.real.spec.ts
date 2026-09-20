@@ -453,7 +453,7 @@ describe('EntityFormComponent format 语义控件（真实组件）', () => {
 
   it('percentage 渲染 % 单位标注，phone 字符串渲染 tel 输入', () => {
     const fields: FormFieldConfig[] = [
-      { field: 'pct', displayName: '百分比', type: 'number', format: { kind: 'percentage' } },
+      { field: 'pct', displayName: '百分比', type: 'number', format: { kind: 'percentage', scale: '0..1' } },
       { field: 'tel', displayName: '电话', type: 'string', format: { kind: 'phone' } }
     ];
     const { fixture } = render({ fields, data: { pct: 0.5, tel: '10086' } });

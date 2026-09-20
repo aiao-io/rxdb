@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-26
-updated: 2026-08-27
+updated: 2026-09-20
 tags: [adapter, http, demo, e2e, angular, node, sqlite, cors]
 ---
 
@@ -95,25 +95,23 @@ INVEST 检查清单:
 
 ### 阶段 B：浏览器专属证据 + 自动化门禁
 
-| #   | 前置条件                                                                       | 操作                                                                                                            | 预期结果                                                                                                                                                                                                                                                                         | 状态 |
-| --- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 前后端**不同源**（4300 / 4301）                                                | 任意一次读、一次 `PATCH`、一次 `HEAD`                                                                           | 浏览器对 `POST :entity/metadata` 先发 `OPTIONS` 预检（`content-type: application/json` 不在 CORS 安全列表内）；`PATCH` 因方法不在安全列表**必然**预检；后端 `Access-Control-Allow-Headers` 含 `content-type` / `authorization` / `if-none-match`，七端点全部可用                 | ✅   |
-| 10  | 后端**不**回 `Access-Control-Expose-Headers`，前端 `conditionalRequests: true` | 重复同一次 `fetchMetadata`                                                                                      | `HttpTransport.#cacheAndReturn` 的 `response.headers.get('etag')` 读到 `null` → 走 `cache.delete(key)` → 第二次请求**不带** `if-none-match`、仍回 `200`。条件请求**全程不命中、不报错、无任何日志**。用例名写死这是[已知症状](#跨源下-etag-读不到条件请求静默失效)，不是待修 bug | ✅   |
-| 11  | 后端回 `Access-Control-Expose-Headers: ETag`（demo 默认开）                    | 同 AC#10                                                                                                        | 第二个请求实收 `if-none-match`、后端回 `304`（无 body），前端还原上次结果**而非空集**；流量面板显示 `304`；内容改动后回 `200` + 新 `ETag`                                                                                                                                        | ✅   |
-| 12  | `http-protocol.md` 无任何 CORS 相关内容                                        | 补写「跨源（CORS）」一节                                                                                        | 该节写明：三个必须放行的请求头、`PATCH` 必然预检、`Access-Control-Expose-Headers: ETag` 是条件请求在浏览器可用的**前置**（漏配的后果是 AC#10 那条静默失效）；「验收清单」加一条。**本故事唯一允许的 docs 改动**                                                                  | ✅   |
-| 13  | demo 有「模拟离线」开关（打 `POST __control/offline`）                         | 打开开关后重新查询                                                                                              | transport 抛 `NetworkOfflineError`、`offlineFallback` 命中本地 wa-sqlite 行缓存、页面进离线态且**仍能看到数据**；关闭开关后恢复真实拉取。对照一条：后端回 `409` 时**不降级**，页面报错                                                                                           | ✅   |
-| 14  | 后端绕过前端直接删掉一行                                                       | 前端重新查询                                                                                                    | 该行从本地行缓存中消失（core 调 `deleteByIds` 做孤儿清理）、UI 同步移除——证明"远端权威"在真实落盘的两端之间成立                                                                                                                                                                  | ✅   |
-| 15  | 后端支持 `?pageMode=token`，前端可切换                                         | 用 token 形态跑一次全量查询                                                                                     | token 逐页推进、末页缺省 `nextPageToken`；token 里编码**读取水位线**，翻页途中另一个连接插入新行不会造成重复 / 遗漏——这是协议「快照一致」在 offset 形态下**做不到**、必须用形态 B 的那条                                                                                         | ✅   |
-| 16  | 仓库无 `apps/dev-rxdb-http-e2e`                                                | `pnpm nx e2e dev-rxdb-http-e2e`                                                                                 | playwright `webServer` 起后端（**临时目录的库文件 + 种子**，不碰 `.data/` 的开发库）与前端静态服务；AC#9～15 各至少一条用例；全绿                                                                                                                                                | ✅   |
-| 17  | 三个新 project 已建                                                            | `pnpm nx run-many -t lint typecheck test build --projects=dev-rxdb-http,dev-rxdb-http-server,dev-rxdb-http-e2e` | 全绿、零 ESLint 警告；`rule-group-to-sql.ts` 有单测覆盖（它是后端唯一含分支逻辑的模块，其余端点都是直筒子）；三个 project 打上与既有 demo 一致的 tag                                                                                                                             | ✅   |
+| #   | 前置条件                                                                       | 操作                                                                                                            | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                     | 状态 |
+| --- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 9   | 前后端**不同源**（4300 / 4301）                                                | 任意一次读、一次 `PATCH`、一次 `HEAD`                                                                           | 浏览器对 `POST :entity/metadata` 先发 `OPTIONS` 预检（`content-type: application/json` 不在 CORS 安全列表内）；`PATCH` 因方法不在安全列表**必然**预检；后端 `Access-Control-Allow-Headers` 含 `content-type` / `authorization` / `if-none-match`，七端点全部可用                                                                                                                                             | ✅   |
+| 10  | 后端**不**回 `Access-Control-Expose-Headers`，前端 `conditionalRequests: true` | 重复同一次 `fetchMetadata`                                                                                      | `HttpTransport.#cacheAndReturn` 的 `response.headers.get('etag')` 读到 `null` → 走 `cache.delete(key)` → 第二次请求**不带** `if-none-match`、仍回 `200`。条件请求**全程不命中、不报错、无任何日志**。用例名写死「未暴露 ETag 且未配诊断回调时，条件请求全程不命中，且不报错、无日志」——这是**未配置诊断回调时的默认行为**（[US-215](./US-215-conditional-request-silence.md) D3 改写后的口径），不是待修 bug | ✅   |
+| 11  | 后端回 `Access-Control-Expose-Headers: ETag`（demo 默认开）                    | 同 AC#10                                                                                                        | 第二个请求实收 `if-none-match`、后端回 `304`（无 body），前端还原上次结果**而非空集**；流量面板显示 `304`；内容改动后回 `200` + 新 `ETag`                                                                                                                                                                                                                                                                    | ✅   |
+| 12  | `http-protocol.md` 无任何 CORS 相关内容                                        | 补写「跨源（CORS）」一节                                                                                        | 该节写明：三个必须放行的请求头、`PATCH` 必然预检、`Access-Control-Expose-Headers: ETag` 是条件请求在浏览器可用的**前置**（漏配的后果是 AC#10 那条静默失效）；「验收清单」加一条。**本故事唯一允许的 docs 改动**                                                                                                                                                                                              | ✅   |
+| 13  | demo 有「模拟离线」开关（打 `POST __control/offline`）                         | 打开开关后重新查询                                                                                              | transport 抛 `NetworkOfflineError`、`offlineFallback` 命中本地 wa-sqlite 行缓存、页面进离线态且**仍能看到数据**；关闭开关后恢复真实拉取。对照一条：后端回 `409` 时**不降级**，页面报错                                                                                                                                                                                                                       | ✅   |
+| 14  | 后端绕过前端直接删掉一行                                                       | 前端重新查询                                                                                                    | 该行从本地行缓存中消失（core 调 `deleteByIds` 做孤儿清理）、UI 同步移除——证明"远端权威"在真实落盘的两端之间成立                                                                                                                                                                                                                                                                                              | ✅   |
+| 15  | 后端支持 `?pageMode=token`，前端可切换                                         | 用 token 形态跑一次全量查询                                                                                     | token 逐页推进、末页缺省 `nextPageToken`；token 里编码**读取水位线**，翻页途中另一个连接插入新行不会造成重复 / 遗漏——这是协议「快照一致」在 offset 形态下**做不到**、必须用形态 B 的那条                                                                                                                                                                                                                     | ✅   |
+| 16  | 仓库无 `apps/dev-rxdb-http-e2e`                                                | `pnpm nx e2e dev-rxdb-http-e2e`                                                                                 | playwright `webServer` 起后端（**临时目录的库文件 + 种子**，不碰 `.data/` 的开发库）与前端静态服务；AC#9～15 各至少一条用例；全绿                                                                                                                                                                                                                                                                            | ✅   |
+| 17  | 三个新 project 已建                                                            | `pnpm nx run-many -t lint typecheck test build --projects=dev-rxdb-http,dev-rxdb-http-server,dev-rxdb-http-e2e` | 全绿、零 ESLint 警告；`rule-group-to-sql.ts` 有单测覆盖（它是后端唯一含分支逻辑的模块，其余端点都是直筒子）；三个 project 打上与既有 demo 一致的 tag                                                                                                                                                                                                                                                         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 落地发现
 
-落地时按实测更正了 AC#4 括号里的算术标注（250 行 = 6 次请求：offset 翻页在满页后必然再请求一次
-才知到底，末次是空页）。另发现三条 client 侧缺陷，按 [roadmap 约束 14](../../roadmap.md#排期约束)
-「另开 US」分别落成：
+三条 client 侧缺陷按 [roadmap 约束 14](../../roadmap.md#排期约束)「另开 US」分别落成：
 
 - [US-022](../core/US-022-querycache-remote-row-contract.md) —— 远端行缺 `createdAt` 会在客户端 upsert
   时撞 `NOT NULL`，报的还是后端没听说过的列名；
@@ -168,7 +166,7 @@ better-sqlite3 / knex 中的任何一个：
 - 协议本身只有七个端点、两个必选，路由用 `URL` + `switch` 二十行写完。上框架是**给读者增加**
   阅读成本——demo 的读者要看的是协议怎么实现，不是 express 怎么用。
 
-**不为"以后换 PG"预留抽象层。** 你说的「先使用 sqlite」我理解为「sqlite 够用且好测」，
+**不为"以后换 PG"预留抽象层。**「先使用 sqlite」应理解为「sqlite 够用且好测」，
 而不是「现在就要能换」。落实方式是：**方言相关的代码只集中在 `rule-group-to-sql.ts` 一个文件**，
 其余端点处理器只碰 `id` / `updatedAt` 这些协议字段。真要加 PG 时，要换的就是那一个文件——
 届时再抽接口，抽象数才不会超过病灶数（AGENTS.md 铁律「无 fallback 兜底」的同一条理由）。
@@ -298,9 +296,8 @@ COEP `require-corp` 会给跨源响应再叠一层策略判定——**推断**�
 | B    | `apps/dev-rxdb-http-e2e/`                                           | 新增：playwright，`webServer` 起前后端，AC#9～15 各一条用例                    |
 | B    | `website/docs/adapters/http-protocol.md`                            | 「跨源（CORS）」一节 + 验收清单一条。**本故事唯一允许的 docs 改动**            |
 | —    | `requirements/epics/epic-004-future-features.md`                    | 目标行 + 故事清单条目（**已随本文件落地**）                                    |
-| —    | `requirements/status-overview.md`                                   | 汇总表计数 Backlog 9 → 10、合计 56 → 57 + 未来功能段条目（**已随本文件落地**） |
 | —    | `requirements/roadmap.md`                                           | 批次 3 排期行 + 约束 14（**已随本文件落地**）                                  |
-| —    | 状态流转                                                            | 关闭时把上述三处派生视图改掉；story YAML `status` 是唯一真相源                 |
+| —    | 状态流转                                                            | 关闭时把上述两处派生视图改掉；story YAML `status` 是唯一真相源                 |
 
 ## References
 
@@ -312,8 +309,3 @@ COEP `require-corp` 会给跨源响应再叠一层策略判定——**推断**�
 - 默认数值配置：[config.ts](../../../packages/rxdb-adapter-http/src/config.ts) 的 `DEFAULT_HTTP_CONFIG`
 - 接线范例：[apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts](../../../apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts)
 - `node:sqlite` 先例：[packages/rxdb-adapter-electron/src/sqlite-script.ts](../../../packages/rxdb-adapter-electron/src/sqlite-script.ts)
-
----
-
-> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
-> [CONVENTIONS.md](../../CONVENTIONS.md)。

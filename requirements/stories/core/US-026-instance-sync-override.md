@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-09-20
 tags: [core, sync, model, server, cross-framework]
 ---
 
@@ -139,15 +139,15 @@ INVEST 检查清单:
 
 以下为实现落点，不表示本需求提交已经修改产品代码；新增文件名由 plan 冻结。
 
-| 路径                                                                                          | 职责                                        |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `packages/rxdb/src/rxdb.interface.ts`、`packages/rxdb/src/RxDB.ts`                            | 可选实例配置与配置生命周期                  |
-| `packages/rxdb/src/version/`、`packages/rxdb/src/entity/`、`packages/rxdb/src/repository/`    | 生效配置解析、校验与全部读写/同步消费者接入 |
-| `packages/rxdb-plugin-querycache/`                                                            | QueryCache 插件按实例生效配置消费依赖       |
-| `packages/rxdb-angular/`、`packages/rxdb-react/`、`packages/rxdb-vue/`、`packages/rxdb-test/` | 三框架配置类型与共享行为夹具                |
-| `modules/recipes-domain/`、`apps/dev-rxdb-http/`、`apps/dev-rxdb-http-server/`                | 单实体类与前后端配置收敛                    |
-| `packages/rxdb-adapter-http/`、`apps/dev-rxdb-http-e2e/`                                      | 协议与真实浏览器回归                        |
-| `requirements/api-baseline/`、`website/docs/`                                                 | 增量 API 基线与接入文档                     |
+| 路径                                                                                                                                                            | 职责                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `packages/rxdb/src/rxdb.interface.ts`、`packages/rxdb/src/RxDB.ts`                                                                                              | 可选实例配置与配置生命周期                  |
+| `packages/rxdb/src/sync-contract/`、`packages/rxdb/src/entity/`、`packages/rxdb/src/repository/`、`packages/rxdb-plugin-sync/`、`packages/rxdb-plugin-history/` | 生效配置解析、校验与全部读写/同步消费者接入 |
+| `packages/rxdb-plugin-querycache/`                                                                                                                              | QueryCache 插件按实例生效配置消费依赖       |
+| `packages/rxdb-angular/`、`packages/rxdb-react/`、`packages/rxdb-vue/`、`packages/rxdb-test/`                                                                   | 三框架配置类型与共享行为夹具                |
+| `modules/recipes-domain/`、`apps/dev-rxdb-http/`、`apps/dev-rxdb-http-server/`                                                                                  | 单实体类与前后端配置收敛                    |
+| `packages/rxdb-adapter-http/`、`apps/dev-rxdb-http-e2e/`                                                                                                        | 协议与真实浏览器回归                        |
+| `requirements/api-baseline/`、`website/docs/`                                                                                                                   | 增量 API 基线与接入文档                     |
 
 ## References
 

@@ -302,6 +302,7 @@ describe('三端共用的初始状态', () => {
     expectTypeOf<keyof WorkingTreeAsyncStates>().toEqualTypeOf<
       | 'isEnabledState'
       | 'enableState'
+      | 'enableIfEmptyState'
       | 'statusState'
       | 'diffState'
       | 'listCommitsState'
@@ -322,6 +323,14 @@ describe('三端共用的初始状态', () => {
 
   it('isEnabled 用的是命令状态：boolean 没有「空」这一形态', () => {
     expectTypeOf<WorkingTreeAsyncStates['isEnabledState']>().toEqualTypeOf<WorkingTreeCommandState<boolean>>();
+  });
+
+  // not_empty 是**结果**，不是「没有内容」：有内容的库跳过自动启用是一次成功的调用，
+  // 界面要拿这个结果决定显不显示手动启用按钮。给它 empty 相位会把「没启用」画成「没数据」。
+  it('enableIfEmpty 用的是命令状态：not_empty 是成功结果，不是空', () => {
+    expectTypeOf<WorkingTreeAsyncStates['enableIfEmptyState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
+    >();
   });
 
   it('discard 用的是命令状态：discardedCount 为零是 no-op，不是空列表', () => {

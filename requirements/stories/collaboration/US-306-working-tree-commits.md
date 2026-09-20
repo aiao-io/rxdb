@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-18
+updated: 2026-09-20
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
@@ -76,11 +76,13 @@ INVEST 检查清单:
 
 阶段顺序是硬约束，阶段之间不可并行；每个阶段有独立可运行的验收场景区段，落地后即可单独回归。
 
-| 阶段 | 交付闭环                             | 主要内容                                                                                                             | 承接的 FR                                              | 承接的 AC                                                                                                                                   |
-| ---- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                | FR-039、FR-046、FR-045                                 | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 |
-| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC9、US2-AC12～AC13、US2-AC20～22、US3-AC1～AC3                                                     |
-| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                |
+| 阶段 | 交付闭环                             | 主要内容                                                                                                             | 承接的 FR                                              | 承接的 AC                                                                                                                                   | 状态 |
+| ---- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                | FR-039、FR-046、FR-045                                 | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 | 👀   |
+| B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC9、US2-AC12～AC13、US2-AC20～22、US3-AC1～AC3                                                     | 👀   |
+| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                | 👀   |
+
+三阶段状态均为 👀：代码已完成、任务侧全部关闭，但性能基线为带负载初版、发布用绝对门禁待机器静默复冻，`status` 容差口径待评审（见「性能门禁」节）。
 
 阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
@@ -88,13 +90,14 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 并行开工，但它们的三框架入口必须排在阶段 C 之后；benchmark 追加只涉及 US-307 的 restore 场景，US-308 无 benchmark 交付项（见
 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序)）。
 
-两条 AC 的另一半落在本故事**之外**，由相邻故事收口，审计时按此核对，不得视为无人承接：
+四条 AC 的另一半落在本故事**之外**，由相邻故事收口，审计时按此核对，不得视为无人承接：
 
-| 本故事条目 | 落在本故事外的半边                        | 收口故事与场景                                           |
-| ---------- | ----------------------------------------- | -------------------------------------------------------- |
-| US1-AC3    | baseline 不含草稿的半边                   | [US-305](./US-305-commit-graph-head.md) AC US2-6         |
-| US1-AC4    | 切出/切回端到端往返半边                   | [US-308](./US-308-branch-isolation-conflict.md) US1-AC5  |
-| US2-AC17   | remote_sync 单元在切出/切回后仍一致的半边 | [US-308](./US-308-branch-isolation-conflict.md) US1-AC12 |
+| 本故事条目 | 落在本故事外的半边                                   | 收口故事与场景                                           |
+| ---------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| US1-AC3    | baseline 不含草稿的半边                              | [US-305](./US-305-commit-graph-head.md) AC US2-6         |
+| US1-AC4    | 切出/切回端到端往返半边                              | [US-308](./US-308-branch-isolation-conflict.md) US1-AC5  |
+| US2-AC17   | remote_sync 单元在切出/切回后仍一致的半边            | [US-308](./US-308-branch-isolation-conflict.md) US1-AC12 |
+| US4-AC4    | 真实双 Tab `stale_active_branch` 端到端 fixture 半边 | [US-308](./US-308-branch-isolation-conflict.md) US2-AC5  |
 
 > 明确不由本故事承接的相邻条目：`WorkingTreeActivationState` 建表归 [US-305](./US-305-commit-graph-head.md) FR-052
 > （本故事只消费它做写路径 token 校验，不递增）；分支切换的用户可见语义（切回恢复、`requireClean`、switch CAS）
@@ -356,6 +359,9 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - 普通 CI 的归一化 ratio 不得超过冻结 reference median 的 110%；绝对 p95 只在 profile 匹配的固定 runner 上作为发布门禁
   （status / diff 为 100 ms，commit 的阈值随首个 reference 冻结）。
 - 三端 E2E 记录首次可见状态耗时，但浏览器 OPFS/IDB 不承诺相同绝对数字。
+- **当前结论**：reference 是带负载的初版（`frozenAbsolute.commit` 虚高约 29%），发布用绝对门禁待机器静默复冻；
+  `status` 测点容差口径待评审。过程与数字留证见
+  [tasks.md T132](../../../specs/001-working-tree-commits/tasks.md)。
 
 ### 边界情况
 
@@ -438,23 +444,23 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - 公开文档（US5-AC8）随三端契约一并签入，覆盖发布门禁 9 的六项内容；文档中出现的 API 示例必须与
   `useWorkingTree()` 的实际导出一致，示例代码纳入文档构建校验，不得只写在正文里不跑。
 
-## 实现文件（计划阶段待确认）
+## 实现文件
 
-| 路径                                                | 阶段 | 用途                                                                       |
-| --------------------------------------------------- | ---- | -------------------------------------------------------------------------- |
-| `packages/rxdb/src/version/`                        | A    | 工作树单元与写入口编排、受信路径登记                                       |
-| `packages/rxdb/src/version/`                        | B    | status/diff/commit 状态机                                                  |
-| `packages/rxdb/src/system/`                         | A    | `WorkingTreeState` / `WorkingTreeEntry`                                    |
-| `packages/rxdb/src/system/`                         | B    | `WorkingTreeRestoreSession`（仅建表与迁移）                                |
-| `packages/rxdb/src/__tests__/version/`              | B    | CAS、幂等与 commit 后工作树清空                                            |
-| `packages/rxdb-test/`                               | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite` |
-| 各 v1 本地 adapter                                  | A    | 事务内 trigger/capability 接入                                             |
-| `packages/rxdb-{angular,react,vue}/`                | C    | `useWorkingTree()` 与共享类型透传                                          |
-| `apps/dev-rxdb-{angular,react,vue}/`                | C    | 对称演示与 E2E                                                             |
-| `benchmarks/working-tree.bench.ts`（新增）          | C    | FR-026 的判定依据                                                          |
-| `benchmarks/reports/`                               | C    | 冻结 reference 报告                                                        |
-| `website/docs/collaboration/`（既有目录，新增页面） | C    | 发布门禁 9 的公开文档（US5-AC8）                                           |
-| `requirements/api-baseline/rxdb.json`               | A/B  | 新增公开类型登记                                                           |
+| 路径                                                          | 阶段 | 用途                                                                                                      |
+| ------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-plugin-working-tree/src/working-tree/`         | A    | 工作树单元与写入口编排、受信路径登记（`capture-*`、`write-entry.ts`、`working-tree-state.entity.ts`）     |
+| `packages/rxdb-plugin-working-tree/src/working-tree/`         | B    | status/diff/commit 状态机（`status.ts`、`diff.ts`、`commit-command.ts`、`working-tree-commands.ts`）      |
+| `packages/rxdb-plugin-working-tree/src/working-tree/`         | A    | `WorkingTreeState` / `WorkingTreeEntry`（`working-tree-state.entity.ts`、`working-tree-entry.entity.ts`） |
+| `packages/rxdb-plugin-working-tree/src/working-tree/`         | B    | `WorkingTreeRestoreSession`（仅建表与迁移；`working-tree-restore-session.entity.ts`）                     |
+| `packages/rxdb-plugin-working-tree/src/__tests__/`            | B    | CAS、幂等与 commit 后工作树清空                                                                           |
+| `packages/rxdb-plugin-working-tree/src/working-tree/testing/` | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`                                |
+| 各 v1 本地 adapter                                            | A    | 事务内 trigger/capability 接入                                                                            |
+| `packages/rxdb-plugin-working-tree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与共享类型透传                                                                         |
+| `apps/dev-rxdb-{angular,react,vue}/`                          | C    | 对称演示与 E2E                                                                                            |
+| `benchmarks/working-tree.bench.ts`                            | C    | FR-026 的判定依据                                                                                         |
+| `benchmarks/reports/`                                         | C    | 冻结 reference 报告                                                                                       |
+| `website/docs/collaboration/`（既有目录，新增页面）           | C    | 发布门禁 9 的公开文档（US5-AC8）                                                                          |
+| `requirements/api-baseline/rxdb.json`                         | A/B  | 新增公开类型登记                                                                                          |
 
 ## 依赖与参考
 

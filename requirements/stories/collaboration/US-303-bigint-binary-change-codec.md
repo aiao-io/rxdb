@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-08-16
+updated: 2026-09-20
 tags: [collaboration, change-tracking, migration, history, cross-tab]
 ---
 
@@ -70,7 +70,7 @@ INVEST 检查清单:
 - DevTools wire/display 表示（US-903）
 - bigint[]、binary[] 和内嵌新类型
 - 自动 down migration 或允许旧客户端写入已升级数据库
-- 跨 realm/进程 writer lease、drain barrier 与 epoch fencing（已取消，见下方「AC13 说明」）
+- 跨 realm/进程 writer lease、drain barrier 与 epoch fencing（锁契约只有后端排他锁，见下方「AC13 说明」）
 
 ## 验收标准
 
@@ -116,10 +116,7 @@ INVEST 检查清单:
 AC13 由后端排他锁本身满足：迁移在 `BEGIN EXCLUSIVE`（SQLite）/ 表锁（PGlite）失败时抛
 `RxDBSystemMigrationLockError` 并中止，业务 trigger 不启动。
 
-原计划在此之上叠加的**跨 realm writer lease、drain barrier 与 epoch fencing 已取消**——
-它需要一套持久化 lease/guard 表、桥接版本发布流程和多进程回归套件，而 0.0.x 线至今没有真实
-迁移发布来验证它，成本与收益不成比例。该协议连同其代码与用户故事一并删除。
-若未来出现真实的跨 realm 迁移需求，重新立项即可，本 story 的锁契约不受影响。
+本 story 的锁契约只有这一把后端排他锁；不引入跨 realm writer lease / drain barrier / epoch fencing。
 
 ## 技术约束
 
@@ -133,7 +130,7 @@ AC13 由后端排他锁本身满足：迁移在 `BEGIN EXCLUSIVE`（SQLite）/ �
 ## 实现文件
 
 - `packages/rxdb/src/system/` — RxDBChange entityId、schema/codec 版本与生成类型
-- `packages/rxdb/src/version/` — history、undo/redo、branch 和 identity key
+- `packages/rxdb-plugin-history/src/` — history、undo/redo 与 branch（identity key 在核心 `system/change-codec.ts`）
 - `packages/rxdb/src/gateway/` — 跨 Tab codec 边界
 - `packages/rxdb/src/RxDB.ts` — 内建迁移顺序、锁与 watermark
 - `packages/rxdb-adapter-sqlite-core/src/` — trigger codec 与 SQLite 系统迁移

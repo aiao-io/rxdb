@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2026-04-15
-updated: 2026-05-10
+updated: 2026-09-20
 tags: [adapter, sqlite, wasm]
 ---
 
@@ -24,7 +24,7 @@ tags: [adapter, sqlite, wasm]
 | 1   | `@subframe7536/sqlite-wasm` 包安装 | 创建适配器实例                  | 通过 oo1 API 初始化连接                    | ✅   |
 | 2   | OPFS / IDB VFS                     | 选择持久化策略                  | 与 wa-sqlite 适配器共享 VFS 选择逻辑       | ✅   |
 | 3   | RuleGroup 查询                     | 编译执行                        | 与 wa-sqlite 适配器输出一致                | ✅   |
-| 4   | 适配器 core 共享                   | `rxdb-adapter-sqlite-core` 提取 | 三个 SQLite 适配器复用执行/事务/触发器代码 | ✅   |
+| 4   | 适配器 core 共享                   | `rxdb-adapter-sqlite-core` 提取 | 四个 SQLite 适配器复用执行/事务/触发器代码 | ✅   |
 | 5   | 标准适配器测试套件                 | 运行                            | 全部通过                                   | ✅   |
 | 6   | `@sqlite.org/sqlite-wasm` 官方包   | 创建适配器实例                  | 与 subframe 版本接口一致                   | ✅   |
 | 7   | FTS5 能力检测                      | 启用搜索插件                    | adapter guard 正确暴露能力                 | ✅   |

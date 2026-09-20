@@ -276,7 +276,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
 既不是 `rawQuery` 也不是外部句柄——它落在那条能力边界声明的空隙里：实现走
 `transaction(executor => executor.query(...))`（见 [RxDBAdapterPGlite.ts](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts)），
-门禁结构上够不到。今天的调用方 `QueryCacheRepository` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 5 步本来就该放行，
+门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 5 步本来就该放行，
 所以缺口暂时不可见；但方法签名 `upsertMany(entityName, data)` 不带意图，**任何调用方传一个 Full/Filter 实体名
 就能写版本化业务表且不产生工作树单元、也不被任何门禁拦下**，直接违反发布门禁 10 的「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」。
 阶段 A 的判定必须按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（判定明令不得另建第二份），
@@ -336,7 +336,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 `mergeChanges(actions, localChanges, disableTriggers)`、
 [shared-cascade-mutation.suite.ts](../../packages/rxdb-adapter-sqlite-core/src/__tests__/shared-cascade-mutation.suite.ts)
 对非 QueryCache 实体调 `adapter.upsertMany`，都是今天就存在的命中点；不排除会让漂移门禁在落地当天以与真实缺口
-无关的理由变红。上文「今天的调用方 `QueryCacheRepository` 与 `query-cache-outbox` 都只写 QueryCache 实体」
+无关的理由变红。上文「生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体」
 限定的是**生产代码**。
 
 因此写路径必须携带**显式意图枚举** `RxDBWriteIntent`（内部契约，不进公开 api-baseline），由发起领域操作的调用方传入并透传到事务内；
@@ -349,7 +349,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 > 本地投影变化同类，因此复用同一条语义而不是新造第八种。它已在实现里跳过仍有未推送变更的候选，
 > 不会与本地未提交编辑打架。
 
-QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheRepository.ts](../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)
+QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCacheEngine.ts](../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)
 的 upsert / delete 与 `#evictOrphans` 孤儿清理，以及 [query-cache-outbox.ts](../../packages/rxdb-plugin-sync/src/query-cache-outbox.ts)
 的离线出站重放（经 `localAdapter.upsertMany()` / `deleteByIds()` 回写本地行）。两者目标都是 QueryCache 实体，
 按 `sync.type` 判定放行；新增 QueryCache 写路径按同一条排除规则登记即可，**排除结论不变**。
@@ -598,6 +598,12 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
   restore 不高于 1 s。**commit 不套用 status / diff 的 100 ms**——它要把 100 个单元整体落盘并清空工作树，
   与只读摘要的操作量级不同；它的绝对预算由首个绿色实现的 reference 中位数冻结，
   与相对门禁同批签入，不在此凭空指定
+
+> **当前 reference 状态**：现有 reference 是带负载的初版（`frozenAbsolute.commit` 因后 4 轮 restore 离群值虚高
+> 约 29%，`status` 上限抬到 2.400 且自身十轮极差 ±19%）。发布用的绝对门禁在机器静默复冻之前不得据此放行；
+> `status` 的「4ms 量级读 ÷ 2.5ms 量级对照」比值对噪声没有抵抗力，容差口径仍归评审。留证见
+> `specs/001-working-tree-commits/tasks.md` T132 与 [status-overview](../status-overview.md)。
+
 - 每项 control CRUD 使用相同实体数量和事务边界；相对门禁比较“被测操作 p95 / 同次 control CRUD p95”。
   首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio 的 110%；
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线

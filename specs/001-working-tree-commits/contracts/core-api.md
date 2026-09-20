@@ -31,13 +31,13 @@
 ```ts
 declare module '@aiao/rxdb' {
   interface RxDB {
-    /** 提交能力未在本数据库启用时，除 enable() 外的成员一律以 commit_capability_disabled 拒绝 */
+    /** 提交能力未在本数据库启用时，除 enable() / enableIfEmpty() 外的成员一律以 commit_capability_disabled 拒绝 */
     readonly workingTree: WorkingTreeManager;
   }
 }
 ```
 
-`workingTree` **恒存在**（避免 `?.` 蔓延），但在未启用的数据库上除 `enable()` / `isEnabled()` 外一律拒绝——**不是**静默返回空结果。这与 FR-046「未启用 = 零行为差异」不冲突：不调用它就什么都没发生。
+`workingTree` **恒存在**（避免 `?.` 蔓延），但在未启用的数据库上除 `enable()` / `enableIfEmpty()` / `isEnabled()` 外一律拒绝——**不是**静默返回空结果。这与 FR-046「未启用 = 零行为差异」不冲突：不调用它就什么都没发生。
 
 ## 2. 能力启用（US-305）
 
@@ -46,7 +46,15 @@ interface WorkingTreeManager {
   isEnabled(): Promise<boolean>;
   /** 数据库级一次性启用。重复调用幂等命中，不报错、不重置版本。 */
   enable(): Promise<CommitCapabilityInfo>;
+
+  /** 空库自动启用（应用启动时的自动初始化入口）；库里有内容时一行不写，返回 not_empty。 */
+  enableIfEmpty(): Promise<WorkingTreeEnableIfEmptyResult>;
 }
+
+type WorkingTreeEnableIfEmptyResult =
+  | { readonly kind: 'enabled'; readonly capability: CommitCapabilityInfo }
+  | { readonly kind: 'already_enabled'; readonly capability: CommitCapabilityInfo }
+  | { readonly kind: 'not_empty' };
 
 interface CommitCapabilityInfo {
   readonly enabled: boolean;
@@ -57,9 +65,11 @@ interface CommitCapabilityInfo {
 }
 ```
 
+「空」的判据是 `rxdb_change` 行数为零（本地每一次实体写入都会追加一条变更，sync pull 走 disableTriggers 不产生行）。判空、翻能力位、补 baseline 在**同一个事务**里；`not_empty` 返回时能力位仍是关的，手动 `enable()` 面对的是同一个起点。
+
 ## 3. 工作树查询（US-306 阶段 B）
 
-> `WorkingTreeManager` 的实现是一个 **class**（`working-tree/working-tree-facade.ts`）。本文件按小节拆成若干 `interface` 片段只为对照阅读；公开面恰好九个成员——`isEnabled` / `enable`（§2）、`status` / `diff`（§3）、`commit` / `discard`（§4）、`listCommits` / `restore` / `restoreSession`（§5）。**没有 `status$()`**：响应式那一层由三框架绑定各自提供（见 `contracts/tri-framework-api.md`），核心面上只有一次性读取。
+> `WorkingTreeManager` 的实现是一个 **class**（`working-tree/working-tree-facade.ts`）。本文件按小节拆成若干 `interface` 片段只为对照阅读；公开面恰好十一个成员——`isEnabled` / `enable` / `enableIfEmpty`（§2）、`status` / `diff`（§3）、`commit` / `discard`（§4）、`listCommits` / `commitChanges` / `restore` / `restoreSession`（§5）。**没有 `status$()`**：响应式那一层由三框架绑定各自提供（见 `contracts/tri-framework-api.md`），核心面上只有一次性读取。
 
 ```ts
 interface WorkingTreeManager {

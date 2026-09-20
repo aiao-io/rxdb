@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, mutation, crud]
 ---
 
@@ -37,8 +37,8 @@ tags: [core, mutation, crud]
 
 ## 实现文件
 
-- `packages/rxdb/src/repository/Repository.ts` — 仓库核心 CRUD (348 LOC)
-- `packages/rxdb/src/entity/EntityManager.ts` — 实体生命周期/缓存/代理 (455 LOC)
+- `packages/rxdb/src/repository/Repository.ts` — 仓库核心 CRUD
+- `packages/rxdb/src/entity/entity-manager.ts` — 实体生命周期/缓存/代理
 
 ## 参考
 

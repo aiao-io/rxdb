@@ -22,20 +22,20 @@
 
 ## 进行中（1 条）
 
-| Story                                                                              | 当前进度                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）、阶段 C（历史 / 撤销重做 / 分支外移为 `@aiao/rxdb-plugin-history`）与阶段 D（推拉同步 / 冲突 + QueryCache 写回出站外移为 `@aiao/rxdb-plugin-sync`）已交付，A1～A4 / B1～B5 / C1～C6 / D1～D6 全 ✅；C 实到 `version/` 整棵迁出（含推拉半区），核心留下 `system/system-repositories.ts` 与 `sync-contract/` 两批原语，公开面 452 → 460（+20 / −12，破坏性）；D 从历史插件里切出新包并把出站的 5 条导出收回包内，核心公开面 460 → 457（−5 / +2，破坏性），历史插件 15 → 9、新包 20 条，可达性与 `SyncStateHub` 按「搬走的是消费者，不是原语」留核心，`reachability` 改 `watch()` 引用计数满足 D2；C 十二处 / D 十二处计划偏差分别记在故事的阶段 C / D 两节；剩阶段 E（树实体），其前置 `RxDBBranch` 去树化不在本故事任一阶段内 |
+| Story                                                                              | 当前进度                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) | 阶段 A（门面轴注册表类型化 + 网关原地作用域化）、阶段 B（QueryCache 读路径外移为 `@aiao/rxdb-plugin-querycache`）、阶段 C（历史 / 撤销重做 / 分支外移为 `@aiao/rxdb-plugin-history`）与阶段 D（推拉同步 / 冲突 + QueryCache 写回出站外移为 `@aiao/rxdb-plugin-sync`）已交付，A1～A4 / B1～B5 / C1～C6 / D1～D6 全 ✅；C 实到 `version/` 整棵迁出（含推拉半区），核心留下 `system/system-repositories.ts` 与 `sync-contract/` 两批原语，公开面 452 → 460（+20 / −12，破坏性）；D 从历史插件里切出新包并把出站的 5 条导出收回包内，核心公开面 460 → 457（−5 / +2，破坏性），历史插件 15 → 9、新包 20 条，可达性与 `SyncStateHub` 按「搬走的是消费者，不是原语」留核心，`reachability` 改 `watch()` 引用计数满足 D2；剩阶段 E（树实体），其前置 `RxDBBranch` 去树化不在本故事任一阶段内 |
 
 ## 待评审（5 条）
 
 四条同属 [epic-006](epics/epic-006-working-tree-commits.md)，代码已完成、收尾门禁未跑完；逐条理由见[按 Epic 索引里的该节](#本地工作树与提交历史)。
 
-| Story                                                                                           | 待收尾的是什么                                                                                                         |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md)                | AC US2-14 的绿半边要一个真实的新 bridge tag（线 A），今天造不出也不许造                                                |
-| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)                 | 任务侧 133 条已全关（T130 / T131 / T109 / T132 均已闭合）；`status` 相对门禁的方差问题仍归评审，但已不阻塞门禁（见上） |
-| [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)                          | T109 已关闭：reference 已重新冻结，`restore` 进入基线；该基线是带负载的初版，待复冻（见上）                            |
-| [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) | 任务侧已全关；T132 于 2026-09-18 复跑 `✓ PASS`，收口完成                                                               |
+| Story                                                                                           | 待收尾的是什么                                                                                                             |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md)                | AC US2-14 的绿半边要一个真实的新 bridge tag（线 A），仓库里不存在也不许造；另有 1 条分支评审 P1（FR-037）                  |
+| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)                 | 任务侧 133 条已全关（T130 / T131 / T109 / T132 均已闭合）；性能基线是带负载的初版，待机器静默复冻；`status` 容差口径归评审 |
+| [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md)                          | T109 已关闭：reference 已重新冻结，`restore` 进入基线；该基线是带负载的初版，待复冻                                        |
+| [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) | 任务侧已全关；分支评审仍开 3 条落在本故事的架构级 P1（FR-020 ×2 / FR-044），测试通过不能替代组合时序                       |
 
 另有一条 👀 [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)：改动已完成，AC 1～6 全 ✅，`site-build` 在坏链门禁下跑绿，待提交合并。
 
@@ -77,12 +77,12 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做，未来 v2 收尾另立故事）
-- ✅ [US-905 Tauri DevTools 调试窗口](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 八条与阶段 2 九条共十七条 AC 全 ✅；AC#17 三平台证据由 PR #58 最终 HEAD 的 Release Desktop run 34858162498 回填（ubuntu/macOS/Windows 的 packaging 与 devtools smoke 全绿）；win32 首跑里 idb 档的 SharedWorker 挂起修于 dedicated Worker 传输，linux idb 真值按首跑回填 `failed`
-- ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）已移出承诺范围
+- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#19 的真实断连半边、AC#40 的 OPFS conformance 半边与 AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做，v2 收尾另立故事）
+- ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 八条与阶段 2 九条共十七条 AC 全 ✅；ubuntu/macOS/Windows 三平台的 packaging 与 devtools smoke 证据齐全；idb 档走 dedicated Worker 传输；linux idb 真值为 `failed`（冻结值）
+- ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）不在承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
-> ⬜ US-401 / US-701 查询构建器系列原标注不在本仓库范围内 —— 该范围已由 `specs/002-rxdb-model-port`（rxdb-model 实体模型库移植：框架无关核心 + 三框架 UI 组件集，含可视化查询构建器；Angular 先行，React/Vue 同 epic 补齐）引入，进行中。
+> 🚧 US-401 / US-701 查询构建器系列无故事文件；该范围由 `specs/002-rxdb-model-port`（rxdb-model 实体模型库移植：框架无关核心 + 三框架 UI 组件集，含可视化查询构建器；Angular 先行，React/Vue 同 epic 补齐）引入，进行中。
 
 ### [未来功能](epics/epic-004-future-features.md)
 
@@ -92,8 +92,8 @@
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)
-- ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；AC#6/#7 随 2026-09-01 的三 OS 矩阵跑绿关闭
-- ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 已按冻结的「IPC 事务 ID 协议」实现；AC#10 随同一跑关闭
+- ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；AC#6/#7 已随三 OS 矩阵跑绿关闭
+- ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md) — 已按冻结的「IPC 事务 ID 协议」实现；AC#10 三平台打包 smoke 已关闭
 - ✅ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
 - ✅ [US-020 将 QueryCache 接入统一 Repository](stories/core/US-020-querycache-repository.md)
 - ✅ [US-212 HTTP 远程适配器](stories/adapter/US-212-http-adapter.md)
@@ -129,15 +129,21 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在，**133 条已全部关闭**，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭。收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已在 2026-09-18 全部跑过并关闭——T130 那 6 条同形红判定为**套件断言与 FR-017 相反**（`createBranch(branchId)` 按规格就该共享当前 HEAD），按规格收紧断言后 6 后端 5031 条零失败，SC-006 的 12 个调用点齐全；T132 在同日重新冻结 reference 之后复跑 `✓ PASS`（四项 ratio 全部在 110% 以内）。**仍不写 Done，两个理由都不是文书问题**：① 性能基线只是**初版**——重新冻结走的是契约 §3.1 点名允许的「测点集合变化（T109 加入 `restore`）后重新冻结」，不是「失败后重算」（重算前 status / diff / commit 三项本就 PASS），但它是在 1 分钟负载冲到 44 的机器上冻的，后 4 轮 `restore` 出现 3–4 倍离群值，`frozenAbsolute.commit` 因此从 425.85ms 虚高到 550.53ms（+29%），**发布用的绝对门禁在机器静默复冻之前不得据此放行**；同一次冻结还顺带把 `status` 的上限从 2.157 抬到 2.400，而新基线自身十轮极差 1.78–2.59（±19%），在旧上限下 6/10 会超限——这说明 `status` 的问题不在基线取值，在「4ms 量级读操作 ÷ 2.5ms 量级对照」这个比值对噪声没有抵抗力，**容差口径仍归评审**（可选解：给小量级测点单独容差，或改判绝对 p95 ≤ 100ms，实测 5.54ms、余量 18 倍）；② US-305 的 AC US2-14 只有红半边能在真实仓库上执行（见下）。排期上整链（含桥接发布）仍位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后——**代码先落地不等于排期提前**。
+四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在，**133 条已全部关闭**，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭，6 后端 5031 条零失败，SC-006 的 12 个调用点齐全。**仍不写 Done，三个理由都不是文书问题**：
 
-- 👀 [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 交付阶段 A / B 的代码与 6 后端 conformance 调用点已就位（T022～T045）；**FR-030 的发布前置未解除**：`migration-release.json` 的 `bridge.tag`/`bridge.version` 仍是 `null`，而 AC US2-14 的绿半边要求 `bridge.version` 严格新于 `0.0.25`，仓库里不存在这样的 tag，造一个等于伪造发布锚点。红半边（`null` / `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上跑过并留证
+1. **性能基线只是初版**——重新冻结走的是契约 §3.1 点名允许的「测点集合变化（T109 加入 `restore`）后重新冻结」，但它是带负载的初版：`frozenAbsolute.commit` 因后 4 轮 `restore` 离群值虚高约 29%（425.85→550.53ms），**发布用的绝对门禁在机器静默复冻之前不得据此放行**；同一次冻结还把 `status` 上限抬到 2.400，而新基线自身十轮极差 1.78–2.59（±19%），在旧上限下 6/10 会超限——`status` 的「4ms 量级读操作 ÷ 2.5ms 量级对照」比值对噪声没有抵抗力，**容差口径仍归评审**（可选解：给小量级测点单独容差，或改判绝对 p95 ≤ 100ms，实测 5.54ms、余量 18 倍）。
+2. **分支评审仍开 4 条架构级 P1**——[next-0912-branch-review.md](reviews/next-0912-branch-review.md)（🔴 不建议合并）判定：已连接实例在另一实例启用后继续绕过捕获（违反 US-305 FR-037 / AC US2-9）；普通切分支不推进 activation revision、A→B→A 可重用旧凭据（违反 US-308 FR-020）；metadata-only 远端分支首次物化未接公开切换入口（`commitBranchMaterialization()` 生产无调用点，违反 US-308 FR-044 / US1-AC9～11）；切换前置条件与最终写入分属两个事务（TOCTOU，违反 FR-020 / US1-AC2）。评审明言「测试通过不能替代这些组合时序」——四条 story 的对应 AC 应视为 ⚠️ 有保留，修复后按 reviews 目录约定回写。
+3. **US-305 的 AC US2-14 只有红半边能在真实仓库上执行**——FR-030 的发布前置未解除：`migration-release.json` 的 `bridge.tag`/`bridge.version` 仍是 `null`，而绿半边要求 `bridge.version` 严格新于 `0.0.25`，仓库里不存在这样的 tag，造一个等于伪造发布锚点。红半边（`null` / `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上跑过并留证。
+
+排期上整链（含桥接发布）仍位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后——**代码先落地不等于排期提前**。
+
+- 👀 [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 交付阶段 A / B 的代码与 6 后端 conformance 调用点已就位（T022～T045）；除 FR-030 发布前置（理由 3）外，分支评审另开 1 条落在本故事的 P1（FR-037 跨连接启用，理由 2）
 - 👀 [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
   - 👀 阶段 A 工作树写入捕获与持久化 — T046～T068
   - 👀 阶段 B 提交状态机（status / diff / commit / discard，无暂存区）— T069～T085
-  - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，性能门禁四项 ratio 均在容差内（2026-09-18 实测），遗留项见上面的理由 ①
-- 👀 [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 **已全部关闭**；T109 于 2026-09-18 随 reference 重新冻结闭合，遗留的基线复冻见理由 ①
-- 👀 [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123，全部关闭
+  - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，性能门禁四项 ratio 均在容差内，遗留项见理由 1
+- 👀 [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 **已全部关闭**；T109 随 reference 重新冻结闭合，遗留的基线复冻见理由 1
+- 👀 [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；分支评审仍开 3 条落在本故事的 P1（FR-020 两条：activation revision 未推进、切换 TOCTOU；FR-044 一条：物化未接公开入口），见理由 2
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
@@ -153,13 +159,13 @@
   - ✅ 阶段 A 适配器依赖纪元 — `inject: ['adapter:local']` + 纪元调度器
   - ✅ 阶段 B 插件间依赖图 — 名字索引与重名裁决、拓扑装卸、环检测；消费方是 US-025 阶段 C/D
 
-> `US-016` / `US-017` 已按 Epic 收口判据改判移出，不再是候选项（理由见 [epic-008 已移出承诺范围](epics/epic-008-lifecycle-scope.md#已移出承诺范围)）。
+> `US-016` / `US-017` 无故事文件、不在候选项中（理由见 [epic-008 已移出承诺范围](epics/epic-008-lifecycle-scope.md#已移出承诺范围)）。
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 以下故事的 YAML `status` 都不是 `Blocked`，但有硬前置——epic-006 那条挡的是**发布**而不是开工，代码已在 `next-0912` 上落地，前置照样没解除。系统迁移的排他性由后端排他锁与单事务提交承担
 （[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) AC13），不存在跨 realm writer lease 或迁移 epoch，故下表没有这一类前置。
 
-| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期。截至 2026-09-18 这一条仍然成立：四条故事的代码已完成并转 👀 In Review，`bridge.tag` 依旧是 `null` |
+| 被挡住的                                                                                         | 硬前置                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| epic-006 整条链（链首 [US-305](stories/collaboration/US-305-commit-graph-head.md)，不是 US-306） | 首个真实 system schema 迁移发布，其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`——**必须先从主线发布一个新的非迁移 bridge 版本**，见 [release-plan.md](release-plan.md)。不随代码进度自动解除，需单独排期——四条故事的代码已完成并转 👀 In Review，`bridge.tag` 依旧是 `null` |

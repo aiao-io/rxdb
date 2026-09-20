@@ -1,0 +1,8 @@
+/**
+ * 子查询构建器样式（Angular 侧 `::ng-deep` 嵌套组样式去边框的移植）。
+ */
+
+.rxdb-subquery-builder .rxdb-query-group {
+  border: 0;
+  padding: 0;
+}

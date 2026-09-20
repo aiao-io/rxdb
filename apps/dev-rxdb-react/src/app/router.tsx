@@ -104,6 +104,20 @@ export const routes: RouteObject[] = [
         lazy: lazyRoute(() => import('./pages/code-editor'))
       },
       {
+        path: 'entities',
+        lazy: lazyRoute(() => import('./pages/entities/entity-shell')),
+        children: [
+          {
+            path: ':namespace/:name',
+            lazy: lazyRoute(() => import('./pages/entities/entity-list-page'))
+          }
+        ]
+      },
+      {
+        path: 'entities/:namespace/:name/:entityId',
+        lazy: lazyRoute(() => import('./pages/entities/entity-detail-page'))
+      },
+      {
         path: 'generator',
         lazy: lazyRoute(() => import('./pages/generator'))
       },

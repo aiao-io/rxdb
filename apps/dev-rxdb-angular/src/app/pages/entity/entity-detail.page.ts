@@ -6,7 +6,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 /**
  * rxdb-model 实体详情演示页：`/entities/:namespace/:name/:entityId` 路由进入编辑模式，
  * 按 id 从 Repository 加载实体；保存由 EntityDetailComponent 内部完成（edit 模式实例路径），
- * 本页只负责保存/取消后返回实体列表（`../..` 相对导航，dashboard 同款）。
+ * 本页只负责保存/取消后返回实体列表（`..` 相对导航：详情路由是扁平的四段 URL，
+ * 上一段即 `/entities/:namespace/:name` 列表页，dashboard 嵌套结构的 `../..` 不适用）。
  *
  * 交互式编辑走列表页「查看」的内置编辑对话框；本路由是深链入口。
  */
@@ -38,11 +39,11 @@ export default class EntityDetailPage {
 
   onSaved(data: EntityFormData): void {
     console.info('[entity-detail] saved', data);
-    void this.#router.navigate(['../..'], { relativeTo: this.#route });
+    void this.#router.navigate(['..'], { relativeTo: this.#route });
   }
 
   onCancelled(): void {
     console.info('[entity-detail] cancelled');
-    void this.#router.navigate(['../..'], { relativeTo: this.#route });
+    void this.#router.navigate(['..'], { relativeTo: this.#route });
   }
 }

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-model-vue",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-model-vue/src",
+  "tags": ["vue-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
+}

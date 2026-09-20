@@ -99,7 +99,7 @@ describe('entity demo page construction contracts', () => {
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(router.navigate).toHaveBeenCalledTimes(2);
-    expect(router.navigate).toHaveBeenNthCalledWith(1, ['../..'], { relativeTo: route });
-    expect(router.navigate).toHaveBeenNthCalledWith(2, ['../..'], { relativeTo: route });
+    expect(router.navigate).toHaveBeenNthCalledWith(1, ['..'], { relativeTo: route });
+    expect(router.navigate).toHaveBeenNthCalledWith(2, ['..'], { relativeTo: route });
   });
 });

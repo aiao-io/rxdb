@@ -112,7 +112,7 @@
     "rxdb-client-generator": {
       "statements": 94,
       "branches": 86,
-      "functions": 94,
+      "functions": 96,
       "lines": 95
     },
     "rxdb-devtools": {

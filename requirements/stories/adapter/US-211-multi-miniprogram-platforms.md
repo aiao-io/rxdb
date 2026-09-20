@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-09-20
 tags: [adapter, miniprogram, alipay, douyin, baidu, qq, wa-sqlite, experimental, multi-platform]
 ---
 
@@ -156,7 +156,8 @@ INVEST 检查清单:
 | 19  | 覆盖率门禁                                | `node scripts/audit/coverage-check.mjs`（本包） | 不低于包类型门槛（80%）与既有 baseline 趋势                                                       | ⬜   |
 | 20  | 微信 + 已支持的非微信 host                | 全量 `pnpm nx test rxdb-adapter-miniprogram`    | 全绿；平台 fixture 不得互相污染全局对象                                                           | ⬜   |
 
-状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ⏭️ 因可行性 `unsupported` 跳过
+状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。因可行性 `unsupported` 而跳过的条目标 ⬜，
+并在行内注记「因可行性 `unsupported` 跳过」——不引入模板之外的符号。
 
 ## 技术笔记
 

@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, reactive, rxjs]
 ---
 
@@ -26,20 +26,20 @@ tags: [core, reactive, rxjs]
 | 3   | 实体 CRUD 事件触发              | `need_refresh_*` 判定通过 | 按需重查或 merge 更新                  | ✅   |
 | 4   | 多个相同查询同时存在            | fingerprint 去重          | 复用同一个 `QueryTask`                 | ✅   |
 | 5   | 查询 Observable 订阅者归零      | 触发引用计数清零          | 延迟销毁 `QueryTask`                   | ✅   |
-| 6   | `QueryCacheRepository` SWR 策略 | 缓存过期                  | 增量同步（元数据 diff → 最小数据拉取） | ✅   |
+| 6   | `QueryCacheEngine` SWR 策略     | 缓存过期                  | 增量同步（元数据 diff → 最小数据拉取） | ✅   |
 
 ## 技术笔记
 
 - 查询管道：`Repository.find(options)` → `QueryManager.addQuery(hash, options)` → `QueryTask` (RxJS Observable)
 - 自动刷新：监听 `ENTITY_LOCAL_CREATE/UPDATE/REMOVE` 事件 → `need_refresh_*` 判定 → 按需重查
 - 缓存去重：对 `FindOptions` 生成 fingerprint，相同查询复用 `QueryTask`
-- SWR 同步：`QueryCacheRepository` (639 LOC) 实现 Stale-While-Revalidate 增量同步
+- SWR 同步：`QueryCacheEngine` 实现 Stale-While-Revalidate 增量同步
 
 ## 实现文件
 
-- `packages/rxdb/src/repository/QueryTask.ts` — 查询任务封装 (317 LOC)
-- `packages/rxdb/src/repository/QueryManager.ts` — 查询缓存管理 (295 LOC)
-- `packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts` — SWR 同步策略 (639 LOC)
+- `packages/rxdb/src/repository/QueryTask.ts` — 查询任务封装
+- `packages/rxdb/src/repository/QueryManager.ts` — 查询缓存管理
+- `packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts` — SWR 同步策略
 
 ## 参考
 

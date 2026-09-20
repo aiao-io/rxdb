@@ -29,9 +29,9 @@
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';
-import { RxDB, RXDB_CHANGE_CODEC_VERSION, RxDBBranch, SyncType } from '@aiao/rxdb';
+import { RxDB, RXDB_CHANGE_CODEC_VERSION, RxDBBranch, RxDBChange, SyncType } from '@aiao/rxdb';
 import { firstValueFrom, isObservable } from 'rxjs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import {
   COMMIT_CAPABILITY_STATE_ID,
@@ -41,13 +41,18 @@ import {
 } from '../../commit/commit-capability-state.entity.js';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
+import { Commit } from '../../commit/commit.entity.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
-import { WorkingTreeCapabilityDisabledError, WorkingTreeManager } from '../../working-tree/working-tree-facade.js';
+import {
+  WorkingTreeCapabilityDisabledError,
+  WorkingTreeManager,
+  type WorkingTreeEnableIfEmptyResult
+} from '../../working-tree/working-tree-facade.js';
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
-/** 门面上**不**受门禁管辖的两个成员，出处是 contracts/core-api.md §1 那一句。 */
-const UNGATED_MEMBERS = ['isEnabled', 'enable'] as const;
+/** 门面上**不**受门禁管辖的三个成员，出处是 contracts/core-api.md §1 那一句。 */
+const UNGATED_MEMBERS = ['isEnabled', 'enable', 'enableIfEmpty'] as const;
 
 /**
  * 借门面自己的门禁跑一个探针命令。
@@ -239,6 +244,76 @@ describe('未启用的库：isEnabled / enable 照常，其余一律拒绝', () 
   });
 });
 
+describe('enableIfEmpty：空库自动启用，有内容的库一行不写', () => {
+  // 结果形状钉成三种结局：调用方（demo 的启动装配）按 kind 决定是否要显示手动启用。
+  // 多一种「半启用」的结局就多一条必须处理的状态路径。
+  it('结果联合恰好三种结局', () => {
+    expectTypeOf<WorkingTreeEnableIfEmptyResult>().toEqualTypeOf<
+      | { readonly kind: 'enabled'; readonly capability: CommitCapabilityInfo }
+      | { readonly kind: 'already_enabled'; readonly capability: CommitCapabilityInfo }
+      | { readonly kind: 'not_empty' }
+    >();
+  });
+
+  // 判据是 `rxdb_change` 有没有行：本地每一次实体写入都会追加一条变更（undo/redo 的数据源），
+  // sync pull 走 disableTriggers 不产生行。行数为零 ⟺ 这个库从来没有过用户内容，
+  // 此时启用把「当前库状态」折成 baseline 是免费的；有行时折 baseline 是一次
+  // 语义决定（全部既有数据并成一个初始提交），必须留给用户显式点。
+  it('空库 → enabled：翻能力位、写 baseline、装捕获', async () => {
+    const { manager, adapter, probe } = createScene({ enabled: false });
+    const installSpy = vi.spyOn(adapter, 'setWorkingTreeCaptureHook');
+
+    const result = await manager.enableIfEmpty();
+
+    expect(result.kind).toBe('enabled');
+    expect(result.kind === 'enabled' ? result.capability.enabled : null).toBe(true);
+    // 判空查的是 `rxdb_change` 全表行数，不是按实体收窄的某个子集——
+    // 收窄之后「这个库只有 Todo」和「这个库没有内容」会混成同一个答案。
+    expect(probe.finds).toContainEqual({ entity: 'RxDBChange', where: { combinator: 'and', rules: [] } });
+    // 与 enable() 同一条启用迁移：给激活分支补上根节点，后续 commit 才有父可挂。
+    expect(probe.rowsOf(Commit)).toHaveLength(1);
+    expect(installSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('非空 → not_empty：能力位不动、一行不写、不装捕获', async () => {
+    const { database, manager, adapter, probe } = createScene({ enabled: false });
+    const change = database.entityManager.instantiate(RxDBChange);
+    change.id = 1;
+    change.namespace = 'app';
+    change.entity = 'Todo';
+    change.entityId = 'todo-1';
+    change.type = 'INSERT';
+    probe.seed(RxDBChange, [change]);
+    const installSpy = vi.spyOn(adapter, 'setWorkingTreeCaptureHook');
+
+    const result = await manager.enableIfEmpty();
+
+    expect(result).toEqual({ kind: 'not_empty' });
+    // 能力位仍是关的：自动启用跳过时，手动 enable() 面对的还是同一个起点。
+    expect((probe.rowsOf(CommitCapabilityState)[0] as { enabled: boolean }).enabled).toBe(false);
+    // 一条语句都不发：CAS 的 UPDATE 会记进 statements，baseline 的 INSERT 会记进 saved。
+    expect(probe.statements).toEqual([]);
+    expect(probe.saved).toEqual([]);
+    expect(installSpy).not.toHaveBeenCalled();
+  });
+
+  it('已启用 → already_enabled：原样报告，不补迁移，照常补装捕获', async () => {
+    const { manager, adapter, probe } = createScene({ enabled: true });
+    const installSpy = vi.spyOn(adapter, 'setWorkingTreeCaptureHook');
+
+    const result = await manager.enableIfEmpty();
+
+    expect(result.kind).toBe('already_enabled');
+    expect(result.kind === 'already_enabled' ? result.capability.enabled : null).toBe(true);
+    // 「把库收敛到已启用该有的形状」是 enable() 的语义；自动启用只回答
+    // 「要不要启用」，已启用的库原样报告、不动提交图。
+    expect(probe.statements).toEqual([]);
+    expect(probe.saved).toEqual([]);
+    // 与 enable() 重复调用的行为一致：本进程的捕获运行时照常补装（幂等）。
+    expect(installSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('门禁覆盖门面上的全部成员（后续阶段自动纳管）', () => {
   /** 原型上除构造器与两个豁免成员之外的全部方法名。 */
   const gatedMemberNames = (): string[] =>
@@ -246,11 +321,11 @@ describe('门禁覆盖门面上的全部成员（后续阶段自动纳管）', (
       name => name !== 'constructor' && !(UNGATED_MEMBERS as readonly string[]).includes(name)
     );
 
-  it('豁免名单恰好是 isEnabled 与 enable', () => {
+  it('豁免名单恰好是 isEnabled、enable 与 enableIfEmpty', () => {
     const own = new Set(Object.getOwnPropertyNames(WorkingTreeManager.prototype));
     // 名单长胖一格，就有一个成员永久绕过门禁。
     for (const name of UNGATED_MEMBERS) expect(own.has(name)).toBe(true);
-    expect(UNGATED_MEMBERS).toHaveLength(2);
+    expect(UNGATED_MEMBERS).toHaveLength(3);
   });
 
   it('原型上没有非方法的自有属性——getter 绕不过门禁', () => {

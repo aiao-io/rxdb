@@ -280,6 +280,15 @@ describe('ts_morph_browser', () => {
       expect(text).toContain(' * Represents a user in the system');
       expect(text).toContain(' * @interface');
     });
+
+    it('同名接口再次添加时复用既有 helper', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      const first = sourceFile.addInterface({ name: 'I' });
+      first.addProperty({ name: 'id', type: 'string' });
+
+      const second = sourceFile.addInterface({ name: 'I' });
+      expect(second).toBe(first);
+    });
   });
 
   describe('SourceFile - Type Alias', () => {
@@ -379,6 +388,13 @@ describe('ts_morph_browser', () => {
       expect(text).toContain("import { Component } from 'react';");
       expect(text).toContain("import { observer } from 'mobx-react';");
     });
+
+    it('无命名导入的 import 声明不渲染任何内容', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      sourceFile.addImportDeclaration({ namedImports: [], moduleSpecifier: 'side-effect' });
+
+      expect(sourceFile.getText()).toBe('');
+    });
   });
 
   describe('SourceFile - Enum Declaration', () => {
@@ -419,6 +435,28 @@ describe('ts_morph_browser', () => {
       expect(text).not.toContain('export enum Status');
       expect(text).toContain('Open,');
       expect(text).toContain('Closed');
+    });
+
+    it('renders enum without members', () => {
+      const sourceFile = project.createSourceFile('empty.ts');
+      sourceFile.addEnum({ name: 'Void', members: [] });
+
+      expect(sourceFile.getText()).toContain('enum Void');
+    });
+
+    it('带值的最后一个成员不带尾逗号', () => {
+      const sourceFile = project.createSourceFile('vals.ts');
+      sourceFile.addEnum({
+        name: 'N',
+        members: [
+          { name: 'A', value: 1 },
+          { name: 'B', value: 2 }
+        ]
+      });
+
+      const text = sourceFile.getText();
+      expect(text).toContain('A = 1,');
+      expect(text).toContain('B = 2\n');
     });
   });
 
@@ -484,6 +522,26 @@ describe('ts_morph_browser', () => {
       const text = sourceFile.getText();
 
       expect(text).toContain('let x: number = 0, y: number = 0;');
+    });
+
+    it('should render variable without type annotation', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      sourceFile.addVariableStatement({
+        declarationKind: VariableDeclarationKind.Let,
+        declarations: [{ name: 'untyped' }]
+      });
+
+      expect(sourceFile.getText()).toContain('let untyped;');
+    });
+
+    it('declarations 为空时声明列表返回空串', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      sourceFile.addVariableStatement({
+        declarationKind: VariableDeclarationKind.Const,
+        declarations: []
+      });
+
+      expect(sourceFile.getText()).toBe('const ;\n\n');
     });
   });
 
@@ -573,6 +631,16 @@ describe('ts_morph_browser', () => {
       helper.addProperty({ name: 'id', type: 'string' });
 
       expect(() => helper.addProperty({ name: 'id', type: 'number' })).toThrow(/User.*id.*string.*number/);
+    });
+
+    it('无类型声明的重复属性以 unknown 兜底报错', () => {
+      const existingUntyped = new InterfaceHelper({ name: 'User' });
+      existingUntyped.addProperty({ name: 'id' });
+      expect(() => existingUntyped.addProperty({ name: 'id', type: 'string' })).toThrow(/unknown/);
+
+      const incomingUntyped = new InterfaceHelper({ name: 'User' });
+      incomingUntyped.addProperty({ name: 'id', type: 'string' });
+      expect(() => incomingUntyped.addProperty({ name: 'id' })).toThrow(/unknown/);
     });
 
     it('should preserve existing properties', () => {
@@ -885,6 +953,89 @@ describe('ts_morph_browser', () => {
       const sourceFile = project.createSourceFile('test.ts');
       const cls = sourceFile.addClass({ name: 'TestClass' });
       expect(cls.getText()).toBe('TestClass');
+    });
+
+    it('带装饰器的类：装饰器表达式与参数包装器回显结构', () => {
+      const sourceFile = project.createSourceFile('decorated.ts');
+      const cls = sourceFile.addClass({
+        name: 'Widget',
+        decorators: [{ name: 'Entity', arguments: ['{ namespace: "app" }'] }]
+      });
+
+      const decorators = cls.getDecorators();
+      expect(decorators).toHaveLength(1);
+      expect(decorators[0].getName()).toBe('Entity');
+
+      const expr = decorators[0].getExpression();
+      expect(expr.getName()).toBe('Entity');
+      expect(expr.getText()).toBe('Entity({ namespace: "app" })');
+      expect(expr.getDecorators()).toEqual([]);
+      expect(expr.getImplements()).toEqual([]);
+      expect(expr.getBaseClass()).toBeUndefined();
+
+      const args = expr.getArguments!();
+      expect(args).toHaveLength(1);
+      expect(args[0].getName()).toBeUndefined();
+      expect(args[0].getText()).toBe('{ namespace: "app" }');
+      expect(args[0].getDecorators()).toEqual([]);
+      expect(args[0].getImplements()).toEqual([]);
+      expect(args[0].getBaseClass()).toBeUndefined();
+    });
+
+    it('带 extends 的类：基类包装器回显名称，无继承时返回 undefined', () => {
+      const sourceFile = project.createSourceFile('rel.ts');
+      const cls = sourceFile.addClass({ name: 'Child', extends: 'Base' });
+
+      const base = cls.getBaseClass();
+      expect(base).toBeDefined();
+      expect(base!.getName()).toBe('Base');
+      expect(base!.getText()).toBe('Base');
+      expect(base!.getDecorators()).toEqual([]);
+      expect(base!.getImplements()).toEqual([]);
+      expect(base!.getBaseClass()).toBeUndefined();
+
+      const solo = sourceFile.addClass({ name: 'Solo' });
+      expect(solo.getBaseClass()).toBeUndefined();
+    });
+
+    it('implements 包装器的全部回显方法', () => {
+      const sourceFile = project.createSourceFile('impl.ts');
+      const cls = sourceFile.addClass({ name: 'Svc', implements: ['IFoo', 'IBar'] });
+
+      const impls = cls.getImplements();
+      expect(impls.map(i => i.getName())).toEqual(['IFoo', 'IBar']);
+      expect(impls.map(i => i.getText())).toEqual(['IFoo', 'IBar']);
+      expect(impls[0].getDecorators()).toEqual([]);
+      expect(impls[0].getImplements()).toEqual([]);
+      expect(impls[0].getBaseClass()).toBeUndefined();
+    });
+
+    it('类级 docs 经 addJsDoc 累积并渲染为 JSDoc；getClasses 回显全部类', () => {
+      const sourceFile = project.createSourceFile('docs.ts');
+      sourceFile.addClass({ name: 'DocA', docs: ['第一行说明', '第二行说明'] });
+      sourceFile.addClass({ name: 'DocB' });
+
+      const classes = sourceFile.getClasses();
+      expect(classes.map(c => c.getName())).toEqual(['DocA', 'DocB']);
+
+      const text = sourceFile.getText();
+      expect(text).toContain('第一行说明');
+      expect(text).toContain('第二行说明');
+    });
+
+    it('renders nothing for class without name', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      sourceFile.addClass({ name: '' });
+
+      expect(sourceFile.getText()).toBe('');
+    });
+
+    it('renders method without docs', () => {
+      const sourceFile = project.createSourceFile('test.ts');
+      const cls = sourceFile.addClass({ name: 'MyClass' });
+      cls.addMethods([{ name: 'plain', returnType: 'void' }]);
+
+      expect(sourceFile.getText()).toContain('plain(): void;');
     });
   });
 });

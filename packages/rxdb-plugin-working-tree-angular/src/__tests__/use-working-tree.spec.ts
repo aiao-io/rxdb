@@ -224,21 +224,23 @@ afterEach(() => TestBed.resetTestingModule());
 describe('useWorkingTree：初始状态', () => {
   // 挂上去就去读库，会让每个用到这个入口的组件在挂载时各发一轮查询，
   // 而其中大多数只是想拿到 commit() 这个方法。
-  it('十格全是 idle，创建入口本身一次 IO 都不发', () => {
+  it('十二格全是 idle，创建入口本身一次 IO 都不发', () => {
     const { workingTree, tree } = createFixture();
 
     expect([
       tree.isEnabledState().phase,
       tree.enableState().phase,
+      tree.enableIfEmptyState().phase,
       tree.statusState().phase,
       tree.diffState().phase,
       tree.listCommitsState().phase,
+      tree.commitChangesState().phase,
       tree.commitState().phase,
       tree.discardState().phase,
       tree.restoreState().phase,
       tree.restoreSessionState().phase,
       tree.switchBranchState().phase
-    ]).toEqual(['idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
+    ]).toEqual(['idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
     expect(workingTree.status).not.toHaveBeenCalled();
     expect(workingTree.isEnabled).not.toHaveBeenCalled();
   });
@@ -578,13 +580,14 @@ describe('useWorkingTree：没有 provider', () => {
 });
 
 describe('tri-framework-api.md §3 清单守卫', () => {
-  // 清单共十项，十项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
+  // 清单共十二项，十二项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
   // 它现在守的是反方向的那件事：任何一项被摘掉（重构时顺手改了返回值、某端漏接一次）
   // 都会在这里当场红，而不是等到另外两端的用户先发现分歧。
   // `switchBranch` 那一行今天从「不该有」翻成「该有」，靠的就是这条断言先红。
   const CHECKLIST = [
     { member: 'isEnabled', deliveredIn: 'phase-c' },
     { member: 'enable', deliveredIn: 'phase-c' },
+    { member: 'enableIfEmpty', deliveredIn: 'auto-enable' },
     { member: 'status', deliveredIn: 'phase-c' },
     { member: 'statusState', deliveredIn: 'phase-c' },
     { member: 'diff', deliveredIn: 'phase-c' },
@@ -602,7 +605,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     expect(member in tree).toBe(true);
   });
 
-  it('十一格状态与核心那一份同名同数', () => {
+  it('十二格状态与核心那一份同名同数', () => {
     const { tree } = createFixture();
 
     expect(
@@ -614,6 +617,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
       'commitState',
       'diffState',
       'discardState',
+      'enableIfEmptyState',
       'enableState',
       'isEnabledState',
       'listCommitsState',
