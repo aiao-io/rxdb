@@ -25,6 +25,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ErrorHandler,
   forwardRef,
@@ -162,6 +163,7 @@ export class EntityListComponent {
   readonly #injector = inject(Injector);
   readonly #dialog = inject(Dialog);
   readonly #errorHandler = inject(ErrorHandler);
+  readonly #destroyRef = inject(DestroyRef);
 
   // ── Save coalescing ───────────────────────────────────────────────────
   readonly #pendingChanges = new Map<string, Record<string, unknown>>();
@@ -520,7 +522,7 @@ export class EntityListComponent {
   async onIconClicked(event: { name: string; record: EntityTableRecord }): Promise<void> {
     if (event.name === 'view-action') {
       this.viewEntity.emit(event.record);
-      void this.#openViewDialog(event.record);
+      await this.#openViewDialog(event.record);
       return;
     }
     if (event.name !== 'delete-action') return;
@@ -552,7 +554,7 @@ export class EntityListComponent {
     }
   }
 
-  openCreateDialog(): void {
+  async openCreateDialog(): Promise<void> {
     if (this.isCreateBlocked()) return;
 
     const fields = this.createFormFieldConfigs();
@@ -562,33 +564,35 @@ export class EntityListComponent {
     const meta = getEntityMetadata(cls);
     const relatedEntityProvider = this.#makeRelatedEntityProvider(this.draftParentEntity());
 
-    void import('../entity-detail/entity-detail').then(({ EntityDetailComponent }) => {
-      const dialogRef = this.#dialog.open(EntityDetailComponent, {
-        width: '720px',
-        minWidth: '400px',
-        height: '80vh',
-        minHeight: '300px',
-        panelClass: 'entity-detail-dialog',
-        data: {
-          metadata: meta,
-          formFields: fields,
-          formData: {},
-          formMode: 'create' as const,
-          relatedEntityProvider,
-          fixedFormData: this.fixedFormData(),
-          delegateSave: !!this.draftParentEntity(),
-          creationChain: this.creationChain()
-        } satisfies EntityDetailDialogData
-      });
+    const { EntityDetailComponent } = await import('../entity-detail/entity-detail');
+    // 懒加载 chunk 期间组件可能已被销毁（如测试 teardown），销毁后不再打开对话框
+    if (this.#destroyRef.destroyed) return;
 
-      dialogRef.componentInstance!.formSubmitted.subscribe((result: EntityFormData) => {
-        this.#handleCreateSubmit(result);
-        dialogRef.close();
-      });
+    const dialogRef = this.#dialog.open(EntityDetailComponent, {
+      width: '720px',
+      minWidth: '400px',
+      height: '80vh',
+      minHeight: '300px',
+      panelClass: 'entity-detail-dialog',
+      data: {
+        metadata: meta,
+        formFields: fields,
+        formData: {},
+        formMode: 'create' as const,
+        relatedEntityProvider,
+        fixedFormData: this.fixedFormData(),
+        delegateSave: !!this.draftParentEntity(),
+        creationChain: this.creationChain()
+      } satisfies EntityDetailDialogData
+    });
 
-      dialogRef.closed.subscribe(result => {
-        if (result === 'saved') this.#currentList()?.refresh();
-      });
+    dialogRef.componentInstance!.formSubmitted.subscribe((result: EntityFormData) => {
+      this.#handleCreateSubmit(result);
+      dialogRef.close();
+    });
+
+    dialogRef.closed.subscribe(result => {
+      if (result === 'saved') this.#currentList()?.refresh();
     });
   }
 
@@ -669,7 +673,7 @@ export class EntityListComponent {
    * 「查看」行 → 打开 edit 详情对话框（内置弹窗修改）。
    * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
    */
-  #openViewDialog(record: EntityTableRecord): void {
+  async #openViewDialog(record: EntityTableRecord): Promise<void> {
     const id = record['id'];
     if (typeof id !== 'string' || !id) return;
     if (this.editChain().includes(id)) return;
@@ -680,27 +684,29 @@ export class EntityListComponent {
     const meta = getEntityMetadata(cls);
     const fields = buildFormFields(meta, 'edit');
 
-    void import('../entity-detail/entity-detail').then(({ EntityDetailComponent }) => {
-      const dialogRef = this.#dialog.open(EntityDetailComponent, {
-        width: '720px',
-        minWidth: '400px',
-        height: '80vh',
-        minHeight: '300px',
-        panelClass: 'entity-detail-dialog',
-        data: {
-          metadata: meta,
-          formFields: fields,
-          formData: {},
-          formMode: 'edit' as const,
-          entityId: id,
-          editChain: [...this.editChain(), id],
-          relatedEntityProvider: this.#makeRelatedEntityProvider(null)
-        } satisfies EntityDetailDialogData
-      });
+    const { EntityDetailComponent } = await import('../entity-detail/entity-detail');
+    // 懒加载 chunk 期间组件可能已被销毁（如测试 teardown），销毁后不再打开对话框
+    if (this.#destroyRef.destroyed) return;
 
-      dialogRef.closed.subscribe(result => {
-        if (result === 'saved') this.#currentList()?.refresh();
-      });
+    const dialogRef = this.#dialog.open(EntityDetailComponent, {
+      width: '720px',
+      minWidth: '400px',
+      height: '80vh',
+      minHeight: '300px',
+      panelClass: 'entity-detail-dialog',
+      data: {
+        metadata: meta,
+        formFields: fields,
+        formData: {},
+        formMode: 'edit' as const,
+        entityId: id,
+        editChain: [...this.editChain(), id],
+        relatedEntityProvider: this.#makeRelatedEntityProvider(null)
+      } satisfies EntityDetailDialogData
+    });
+
+    dialogRef.closed.subscribe(result => {
+      if (result === 'saved') this.#currentList()?.refresh();
     });
   }
 

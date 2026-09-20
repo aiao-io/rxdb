@@ -37,7 +37,7 @@ function createEditContext(overrides: Partial<EditorContextLike> = {}): EditorCo
 }
 
 function getPanel(): HTMLElement {
-  const panels = Array.from(document.querySelectorAll('body > div')).filter(
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('body > div')).filter(
     el => el.style.position === 'fixed' && el.style.zIndex === '9999'
   );
   const panel = panels[panels.length - 1];

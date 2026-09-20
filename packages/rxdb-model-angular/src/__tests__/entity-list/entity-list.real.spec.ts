@@ -315,6 +315,25 @@ describe('EntityListComponent（真实组件）', () => {
     expect(viewed).toEqual([record]);
   });
 
+  it('view-action 懒加载对话框在组件销毁后不再打开（防 NG0205 竞态）', async () => {
+    await seedTodo('destroy-race');
+    const { fixture, component, viewed } = await renderList();
+    await FLUSH();
+    const record = component.tableRecords()[0];
+
+    // 预热懒加载 chunk：让组件内 import() 在微任务内即完成，旧实现会在销毁后仍打开对话框
+    await import('../../entity-detail/entity-detail');
+
+    const openPromise = component.onIconClicked({ name: 'view-action', record });
+    fixture.destroy();
+    await openPromise;
+    await FLUSH();
+    await FLUSH();
+
+    expect(viewed).toEqual([record]);
+    expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
+  });
+
   it('列头排序驱动 cursor orderBy 重查（默认 id desc，点列头切换字段序）', async () => {
     await seedTodo('sort-b');
     await seedTodo('sort-c');
