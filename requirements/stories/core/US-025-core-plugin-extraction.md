@@ -234,12 +234,12 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 | B    | QueryCache 读路径外移                                           | 无                                          | B1～B5  | ✅   |
 | C    | 历史 / 撤销重做 / 分支外移                                      | `plugin:*` 依赖解析（US-015 阶段 B 已交付） | C1～C6  | ✅   |
 | D    | 推拉同步 / 冲突 / 可达性 + QueryCache 写回出站外移              | 阶段 B + 阶段 C                             | D1～D6  | ✅   |
-| E    | 树实体外移                                                      | 阶段 A + `RxDBBranch` 去树化                | E1～E4  | ⬜   |
+| E    | 树实体外移                                                      | 阶段 A + US-028（排序出树）                 | E1～E4  | ⬜   |
 
 阶段 D 从 `@aiao/rxdb-plugin-history` 里切出 `@aiao/rxdb-plugin-sync`——`version/` 在阶段 C
 已整棵迁出核心，阶段 D 不再从核心切。可达性与 `SyncStateHub` 留在核心（见「必须留在核心」），
-迁走的只有它们的消费者。阶段 E 的前置不在本故事的任一阶段里——`RxDBBranch` 去树化是一段
-独立工作，见「前置与阻塞」。
+迁走的只有它们的消费者。阶段 E 的前置不在本故事的任一阶段里——排序出树是一段独立工作，
+见「前置与阻塞」。
 
 ## 验收标准
 
@@ -333,21 +333,20 @@ sync 插件必须排在 history 插件之后——两者共用 changelog 水位�
 等待插件就绪的公开结算点是 `await rxdb.connect(<adapterName>)`，它对已连接的适配器同样有效，
 会重跑插件等待。
 
-### `RxDBBranch` 是树实体（阶段 E 的硬前置）
+### 排序能力仍挂在树接口下（阶段 E 的硬前置）
 
-阶段 E 卡住的不是任何一个外移阶段，而是核心的系统表自己在用树能力——
-[`RxDBBranch`](../../../packages/rxdb/src/system/branch.ts) 挂的是 `@TreeEntity` 而不是 `@Entity`：
+[US-028](./US-028-sortable-entity.md) 要把排序从树接口里独立出来，而它尚在 Backlog。
+顺序反了的代价是返工：排序继续挂在 `ISortableTreeEntity` 下时，阶段 E 一搬树就会把排序
+一并拖走——非树实体的排序需求从此要装 tree 插件才能满足，与「按需安装」的目标相反。
+依赖方向必须是树插件**依赖**排序模块，因此排序先出树、树才能出核心。
 
-```ts
-import { TreeEntity } from '../entity/tree-entity.decorator.js';
-```
+树实体在核心的入边都不阻塞：`rxdb-adapter.ts`（门面轴注册表的类型位）、`entity-manager.ts`
+（`repository('TreeRepository', …)` 注册）、`entity.interface.ts`（`ITreeEntity`）、
+`QueryManager.interface.ts` 与 `query/merge_*`（`FindTreeOptions` 与树 merge 分支），
+逐条随插件注册路径与 `registerMerge*Fn` 解开——[`GraphRepository`](../../../packages/rxdb-plugin-graph/src/GraphRepository.ts)
+已经把这条路走通。系统表自身不再是其中之一：`RxDBBranch` 用 `@Entity`，
+分支的父链遍历一律手写（见 [RV-012](../../reviews/RV-012-rxdb-branch-detree.md)）。
 
-树实体一旦成插件，不装 tree 插件连分支表都建不起来；而分支属于阶段 C 的 history 插件，
-于是 history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增一条跨插件边。
-因此阶段 E 的真前置是**先把 `RxDBBranch` 去树化**（或让它随 history 插件走并自带树能力），
-这是一段独立工作，不在本故事的任一阶段里。树实体在核心的入边共 4 条
-（`entity-manager.ts`、`entity.interface.ts`、`index.ts`、`system/branch.ts`），
-其中只有 `system/branch.ts` 这条是阻塞性的，其余三条随插件注册路径即可解开。
 「价值待证」的标注不撤。
 
 ## 技术笔记

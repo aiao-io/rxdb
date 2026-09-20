@@ -21,7 +21,7 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 - `ISortableTreeEntity` 接口已存在（`tree-entity.interface.ts`：`sortOrder?: string | null`，文档指明 fractional indexing 如 `generateKeyBetween` 产生），但**全仓库无任何消费方**：`sortOrder` 在 core 与 rxdb-model 中零实现、零读取，排序能力从未落地。
 - rxdb-model 底层表格已具备拖拽重排的 UI 半成品：`table-factory.ts` 开启 `dragOrder`，`entity-table.component.ts` 监听 `change_header_position` 并经 `collectReorderedIds` 输出 `rowReordered: string[]`，还有只读行拖拽手柄 hack（`patchDragIconForReadonlyRows`）——但该组件没有生产消费者，重排结果无持久化。
-- US-025 阶段 E 将把树实体外移为插件（前置 `RxDBBranch` 去树化，尚未开始）。排序能力若继续挂在树接口下，树插件化时会被一并拖走或撕裂；必须在树外独立成模块，让未来的树插件**依赖**排序模块，而不是反过来。
+- US-025 阶段 E 将把树实体外移为插件，而**本故事是它的硬前置**。排序能力若继续挂在树接口下，树插件化时会被一并拖走或撕裂——非树实体的排序需求从此要装 tree 插件才能满足；必须在树外独立成模块，让未来的树插件**依赖**排序模块，而不是反过来。
 - 普通实体同样需要手动排序：菜单顺序、看板列序、清单拖拽。US-010 的 AC#2/#3 只覆盖了树形节点排序，扁平列表是空白。
 
 ## 核心设计方向（待 `/speckit-plan` 细化）

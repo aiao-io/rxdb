@@ -32,7 +32,6 @@ import {
   RelationStringRules,
   RelationUUIDRules
 } from '../repository/relation-query.interface.js';
-import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import { RxDBMigration } from './migration.js';
@@ -446,31 +445,6 @@ export declare type RxDBBranchOrderByField =
   'id' | 'activated' | 'fromChangeId' | 'local' | 'remote' | 'createdAt' | 'updatedAt';
 
 /**
- * 树形规则
- */
-declare type RxDBBranchTreeRule =
-  | RelationBooleanRules<'children.activated', boolean>
-  | RelationNumberRules<'children.fromChangeId', number | null>
-  | RelationBooleanRules<'children.local', boolean>
-  | RelationBooleanRules<'children.remote', boolean>
-  | RelationDateRules<'children.createdAt', Date | null>
-  | RelationDateRules<'children.updatedAt', Date | null>;
-
-/**
- * 树形规则组
- */
-export declare type RxDBBranchTreeRuleGroup = RuleGroupBase<
-  typeof RxDBBranch,
-  | 'children.activated'
-  | 'children.fromChangeId'
-  | 'children.local'
-  | 'children.remote'
-  | 'children.createdAt'
-  | 'children.updatedAt',
-  RxDBBranchTreeRule
->;
-
-/**
  * rxdb
  */
 declare module '@aiao/rxdb' {
@@ -787,22 +761,6 @@ export interface RxDBBranchStaticTypes {
    * 查询的实体
    */
   entity: RxDBBranch;
-  /**
-   * 查询选项
-   */
-  findDescendantsOptions: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>;
-  /**
-   * 查询选项
-   */
-  countDescendantsOptions: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>;
-  /**
-   * 查询选项
-   */
-  findAncestorsOptions: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>;
-  /**
-   * 查询选项
-   */
-  countAncestorsOptions: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>;
 }
 
 /**
