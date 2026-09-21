@@ -17,6 +17,6 @@
     "@aiao/rxdb-devtools": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "electron": "44.3.0"
+    "electron": "44.4.3"
   }
 }

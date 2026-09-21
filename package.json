@@ -243,8 +243,8 @@
     ],
     "overrides": {
       "@codemirror/language": "^6.12.4",
-      "@codemirror/state": "^6.7.2",
-      "@codemirror/view": "^6.43.10",
+      "@codemirror/state": "^6.7.5",
+      "@codemirror/view": "^6.43.12",
       "@angular/common": "22.1.6",
       "@angular/core": "22.1.6",
       "@angular/forms": "22.1.6",
