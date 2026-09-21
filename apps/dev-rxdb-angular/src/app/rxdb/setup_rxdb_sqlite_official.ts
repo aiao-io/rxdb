@@ -4,6 +4,7 @@ import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { ENTITIES } from '@aiao/rxdb-test/entities';
 import { ENTITIES as shop_entities } from '@aiao/rxdb-test/shop';
@@ -35,6 +36,7 @@ export default () => {
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
+    .use(rxDBPluginTree)
     .use(rxDBPluginWorkspace)
     .adapter('sqlite', async db => {
       let options: SqliteOptions = {

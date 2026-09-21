@@ -14,6 +14,7 @@
     "@aiao/rxdb-plugin-search": "workspace:*",
     "@aiao/rxdb-plugin-search-react": "workspace:*",
     "@aiao/rxdb-plugin-storage": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/rxdb-plugin-workspace": "workspace:*",
     "@aiao/rxdb-react": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",

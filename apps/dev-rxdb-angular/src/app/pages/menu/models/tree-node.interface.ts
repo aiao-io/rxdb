@@ -1,4 +1,4 @@
-import type { ITreeEntity } from '@aiao/rxdb';
+import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 import type { Observable } from 'rxjs';
 
 /** 菜单树操作需要的实体能力。 */

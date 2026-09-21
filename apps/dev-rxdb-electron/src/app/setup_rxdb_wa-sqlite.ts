@@ -3,6 +3,7 @@ import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqli
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { connectWithOpfsFallback } from './connect-wa-sqlite-adapter';
@@ -59,6 +60,7 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .use(rxDBPluginStorage)
     .adapter('wa-sqlite', async db => {
       let opfsWorker: Worker | undefined;

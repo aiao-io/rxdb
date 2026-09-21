@@ -2,6 +2,8 @@
 
 `findDescendants` 用于树结构实体的后代查询。它返回的是响应式 `Observable`。
 
+> 四个树查询由插件包 `@aiao/rxdb-plugin-tree` 提供，库侧需先 `rxdb.use(rxDBPluginTree)`。见[树结构拆包](../migration/tree-split.md)。
+
 ## 适用对象
 
 - 继承 `TreeAdjacencyListEntityBase` 的实体

@@ -26,10 +26,10 @@
       "lines": 100
     },
     "rxdb": {
-      "statements": 94,
+      "statements": 92,
       "branches": 90,
-      "functions": 95,
-      "lines": 95
+      "functions": 92,
+      "lines": 93
     },
     "rxdb-adapter-electron": {
       "statements": 93,
@@ -68,10 +68,10 @@
       "lines": 95
     },
     "rxdb-adapter-sqlite-core": {
-      "statements": 98,
-      "branches": 95,
-      "functions": 100,
-      "lines": 99
+      "statements": 96,
+      "branches": 91,
+      "functions": 96,
+      "lines": 97
     },
     "rxdb-adapter-sqlite-wasm": {
       "statements": 95,
@@ -111,8 +111,8 @@
     },
     "rxdb-client-generator": {
       "statements": 94,
-      "branches": 86,
-      "functions": 96,
+      "branches": 85,
+      "functions": 97,
       "lines": 95
     },
     "rxdb-devtools": {
@@ -133,6 +133,18 @@
       "functions": 89,
       "lines": 93
     },
+    "rxdb-model-react": {
+      "statements": 91,
+      "branches": 82,
+      "functions": 88,
+      "lines": 94
+    },
+    "rxdb-model-vue": {
+      "statements": 89,
+      "branches": 84,
+      "functions": 81,
+      "lines": 91
+    },
     "rxdb-plugin-graph": {
       "statements": 97,
       "branches": 93,
@@ -142,7 +154,7 @@
     "rxdb-plugin-history": {
       "statements": 97,
       "branches": 93,
-      "functions": 98,
+      "functions": 97,
       "lines": 98
     },
     "rxdb-plugin-querycache": {
@@ -152,10 +164,10 @@
       "lines": 97
     },
     "rxdb-plugin-search": {
-      "statements": 91,
-      "branches": 80,
-      "functions": 94,
-      "lines": 92
+      "statements": 93,
+      "branches": 84,
+      "functions": 96,
+      "lines": 94
     },
     "rxdb-plugin-search-angular": {
       "statements": 100,
@@ -187,10 +199,34 @@
       "functions": 96,
       "lines": 94
     },
+    "rxdb-plugin-tree": {
+      "statements": 93,
+      "branches": 90,
+      "functions": 97,
+      "lines": 94
+    },
+    "rxdb-plugin-tree-angular": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-tree-react": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-tree-vue": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
     "rxdb-plugin-working-tree": {
       "statements": 97,
       "branches": 91,
-      "functions": 98,
+      "functions": 97,
       "lines": 98
     },
     "rxdb-plugin-working-tree-angular": {
@@ -219,8 +255,8 @@
     },
     "rxdb-react": {
       "statements": 99,
-      "branches": 93,
-      "functions": 100,
+      "branches": 95,
+      "functions": 98,
       "lines": 100
     },
     "rxdb-vue": {

@@ -1,4 +1,5 @@
-import { ISortableTreeEntity, UUID } from '@aiao/rxdb';
+import { UUID } from '@aiao/rxdb';
+import { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
 import { generateKeyBetween } from '@aiao/utils';
 import { describe, expect, it } from 'vitest';
 import { DragDropService } from './useDragDropService';

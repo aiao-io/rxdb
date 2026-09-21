@@ -62,7 +62,7 @@ export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryIns
    * @remarks
    * 当前**没有任何读取方**：真正生效的是
    * {@link QueryManager.registerMergeCreateFn} 一族按 task 类型注册的函数，
-   * `rxdb.repository()` 收下这个字段后就再没人取。已记 RV 待裁决，在裁决前保持可选 ——
+   * `rxdb.repository()` 收下这个字段后就再没人取。裁决见 RV-016，在裁决前保持可选 ——
    * 强制每个插件塞一份没人读的实现只会制造噪音。
    */
   mergeOperations?: MergeQueryTaskOptions;

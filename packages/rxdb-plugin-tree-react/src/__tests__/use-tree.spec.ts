@@ -11,8 +11,8 @@
  * - `packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts`
  */
 import { ENTITY_STATIC_TYPES } from '@aiao/rxdb';
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
-import { Observable, of } from 'rxjs';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { Observable, of, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useCountAncestors, useCountDescendants, useFindAncestors, useFindDescendants } from '../index.js';
@@ -86,16 +86,33 @@ describe('树 hooks（React）', () => {
     expect(queryMocks.countAncestors).toHaveBeenCalledWith(options);
   });
 
-  it('查询结果原样透出，计数 hook 的初值是 0 而不是 undefined', async () => {
+  it('查询结果原样透出', async () => {
     const descendants = renderHook(() => useFindDescendants(TreeEntity, { entityId: 'root' }));
     const count = renderHook(() => useCountAncestors(TreeEntity, { entityId: 'leaf' }));
-
-    expect(count.result.current.value).toBe(0);
 
     await waitFor(() => expect(descendants.result.current.hasValue).toBe(true));
     await waitFor(() => expect(count.result.current.hasValue).toBe(true));
 
     expect(descendants.result.current.value.map(node => node.id)).toEqual(['descendant']);
     expect(count.result.current.value).toBe(1);
+  });
+
+  it('计数 hook 未产出前的默认值是 0 而不是 undefined', async () => {
+    // 用永不自发产出的 Subject：`of(...)` 在首次渲染里就同步产出了，测不到默认值这一刻。
+    const pending = new Subject<number>();
+    queryMocks.countDescendants.mockReturnValue(pending);
+
+    const count = renderHook(() => useCountDescendants(TreeEntity, { entityId: 'leaf' }));
+
+    expect(count.result.current.value).toBe(0);
+    expect(count.result.current.hasValue).toBe(false);
+    expect(count.result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      pending.next(7);
+    });
+
+    expect(count.result.current.value).toBe(7);
+    expect(count.result.current.hasValue).toBe(true);
   });
 });

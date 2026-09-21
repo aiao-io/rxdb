@@ -571,6 +571,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
@@ -755,6 +758,9 @@ importers:
       '@aiao/rxdb-plugin-storage':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-storage
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace
@@ -834,6 +840,9 @@ importers:
       '@aiao/rxdb-plugin-storage':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-storage
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace

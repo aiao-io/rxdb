@@ -31,7 +31,7 @@ pr: # 修复 PR 链接，Resolved 时填
 
 **复验**：`grep -rn "findDescendants\|findAncestors\|countDescendants\|countAncestors" packages/*/src`，
 排除 `__tests__` / `*.spec.ts` 后的命中只有三类：`branch.ts` 的 `declare static`、`system/types*.ts`
-的类型声明、以及 [`TreeRepository`](../../packages/rxdb/src/repository/TreeRepository.ts) 自身的实现。
+的类型声明、以及 [`TreeRepository`](../../packages/rxdb-plugin-tree/src/repository/TreeRepository.ts) 自身的实现。
 
 ### 2. 分支的祖先遍历是手写的，而且**必须**手写
 
@@ -73,12 +73,12 @@ while (current.parentId) {
 ## 根因
 
 `@TreeEntity` 声明的是**能力**，不是**表结构**。
-[`TreeEntity`](../../packages/rxdb/src/entity/tree-entity.decorator.ts) 全部作用只有三条：
+[`TreeEntity`](../../packages/rxdb-plugin-tree/src/entity/tree-entity.decorator.ts) 全部作用只有三条：
 补 `features.tree.type = 'adjacency-list'`、补 `features.tree.hasChildren = false`、
 强制 `repository: 'TreeRepository'`。
 
 而分支真正需要的 `parentId` 列来自它**自己**在 `relations` 里写的 `parent` / `children` 自引用关系——
-`RxDBBranch` 并不继承 [`TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS`](../../packages/rxdb/src/entity/tree-entity-base.ts)，
+`RxDBBranch` 并不继承 [`TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS`](../../packages/rxdb-plugin-tree/src/entity/tree-entity-base.ts)，
 关系、可空性、无级联删除都是它自己声明的。当年选 `@TreeEntity` 换到的唯一实质是「将来也许用得上的递归查询」，
 而这个「也许」在十余处调用点里一次都没兑现。
 

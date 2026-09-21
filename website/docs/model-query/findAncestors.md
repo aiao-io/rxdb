@@ -2,6 +2,8 @@
 
 `findAncestors` 用于树结构实体的祖先查询。它返回的是响应式 `Observable`。
 
+> 四个树查询由插件包 `@aiao/rxdb-plugin-tree` 提供，库侧需先 `rxdb.use(rxDBPluginTree)`。见[树结构拆包](../migration/tree-split.md)。
+
 ## 树关系图
 
 ```mermaid

@@ -1,0 +1,82 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "assertTreeLevel",
+        "kind": "value"
+      },
+      {
+        "name": "CountAncestorsQuery",
+        "kind": "type"
+      },
+      {
+        "name": "CountDescendantsQuery",
+        "kind": "type"
+      },
+      {
+        "name": "EntityMetadataTreeFeatures",
+        "kind": "type"
+      },
+      {
+        "name": "FindAncestorsQuery",
+        "kind": "type"
+      },
+      {
+        "name": "FindDescendantsQuery",
+        "kind": "type"
+      },
+      {
+        "name": "FindTreeOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ISortableTreeEntity",
+        "kind": "type"
+      },
+      {
+        "name": "ITreeEntity",
+        "kind": "type"
+      },
+      {
+        "name": "ITreeRepository",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginTree",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginTree",
+        "kind": "both"
+      },
+      {
+        "name": "TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS",
+        "kind": "value"
+      },
+      {
+        "name": "TREE_MAX_LEVEL",
+        "kind": "value"
+      },
+      {
+        "name": "TREE_QUERY_TYPES",
+        "kind": "value"
+      },
+      {
+        "name": "TreeAdjacencyListEntityBase",
+        "kind": "both"
+      },
+      {
+        "name": "TreeEntity",
+        "kind": "value"
+      },
+      {
+        "name": "TreeEntityType",
+        "kind": "type"
+      },
+      {
+        "name": "TreeRepository",
+        "kind": "both"
+      }
+    ]
+  }
+}

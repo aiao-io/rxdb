@@ -2,6 +2,8 @@
 
 `countDescendants` 统计树结构实体的后代数量，不返回实体本身。
 
+> 四个树查询由插件包 `@aiao/rxdb-plugin-tree` 提供，库侧需先 `rxdb.use(rxDBPluginTree)`。见[树结构拆包](../migration/tree-split.md)。
+
 ## 签名
 
 ```ts

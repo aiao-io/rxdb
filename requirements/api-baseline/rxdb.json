@@ -46,10 +46,6 @@
         "kind": "value"
       },
       {
-        "name": "assertTreeLevel",
-        "kind": "value"
-      },
-      {
         "name": "assertValidSystemContribution",
         "kind": "value"
       },
@@ -346,10 +342,6 @@
         "kind": "type"
       },
       {
-        "name": "EntityMetadataTreeFeatures",
-        "kind": "type"
-      },
-      {
         "name": "EntityMetadataValidationError",
         "kind": "type"
       },
@@ -534,7 +526,7 @@
         "kind": "type"
       },
       {
-        "name": "FindTreeOptions",
+        "name": "Fingerprint",
         "kind": "type"
       },
       {
@@ -579,6 +571,18 @@
       },
       {
         "name": "getEntityType",
+        "kind": "value"
+      },
+      {
+        "name": "getFingerprintByEntities",
+        "kind": "value"
+      },
+      {
+        "name": "getFingerprintByEntity",
+        "kind": "value"
+      },
+      {
+        "name": "getFingerprintPrimitive",
         "kind": "value"
       },
       {
@@ -754,10 +758,6 @@
         "kind": "value"
       },
       {
-        "name": "ISortableTreeEntity",
-        "kind": "type"
-      },
-      {
         "name": "isRemoteNewer",
         "kind": "value"
       },
@@ -788,14 +788,6 @@
       {
         "name": "isUniqueConstraintViolation",
         "kind": "value"
-      },
-      {
-        "name": "ITreeEntity",
-        "kind": "type"
-      },
-      {
-        "name": "ITreeRepository",
-        "kind": "type"
       },
       {
         "name": "JSONProperty",
@@ -1958,26 +1950,6 @@
         "kind": "value"
       },
       {
-        "name": "TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS",
-        "kind": "value"
-      },
-      {
-        "name": "TREE_MAX_LEVEL",
-        "kind": "value"
-      },
-      {
-        "name": "TreeAdjacencyListEntityBase",
-        "kind": "both"
-      },
-      {
-        "name": "TreeEntity",
-        "kind": "value"
-      },
-      {
-        "name": "TreeEntityType",
-        "kind": "type"
-      },
-      {
         "name": "TRUSTED_CALLSITE_REGISTRY",
         "kind": "value"
       },
@@ -2039,7 +2011,7 @@
       },
       {
         "name": "UpdateDataCache",
-        "kind": "type"
+        "kind": "both"
       },
       {
         "name": "UrlFormat",
@@ -2096,6 +2068,32 @@
       {
         "name": "WriteEntrance",
         "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "collectEmissions",
+        "kind": "value"
+      },
+      {
+        "name": "createHarnessQueryTask",
+        "kind": "value"
+      },
+      {
+        "name": "EntityCache",
+        "kind": "type"
+      },
+      {
+        "name": "HarnessSchemaOverrides",
+        "kind": "type"
+      },
+      {
+        "name": "HarnessTaskOptions",
+        "kind": "type"
+      },
+      {
+        "name": "METADATA",
+        "kind": "value"
       }
     ]
   }

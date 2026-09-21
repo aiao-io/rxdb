@@ -1,6 +1,12 @@
 # 树结构 (Tree)
 
-当前核心包里的树结构基于邻接表模型：每个节点只有一个可空 `parentId`，父子关系靠自引用维护。
+树结构由插件包 `@aiao/rxdb-plugin-tree` 提供，基于邻接表模型：每个节点只有一个可空 `parentId`，父子关系靠自引用维护。
+
+```bash npm2yarn
+npm install @aiao/rxdb-plugin-tree
+```
+
+库侧必须在 `init()` / `connect()` 之前 `rxdb.use(rxDBPluginTree)`，否则声明了 `@TreeEntity` 的实体在初始化时会因为找不到 `TreeRepository` 报错。从核心包迁移见[树结构拆包](../migration/tree-split.md)。
 
 ## 区分两个角色
 
@@ -10,7 +16,8 @@
 最常见且最稳妥的写法如下：
 
 ```ts
-import { PropertyType, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
+import { PropertyType } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 
 @TreeEntity({
   name: 'Menu',

@@ -97,5 +97,5 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 - [US-010 树形实体](US-010-tree-entity.md) — 树节点排序的原始验收（AC#2/#3）
 - [US-025 核心包子系统按插件边界外移](US-025-core-plugin-extraction.md) — 阶段 E 树实体外移及其前置
-- [tree-entity.interface.ts](../../../packages/rxdb/src/entity/tree-entity.interface.ts) — `ISortableTreeEntity` 现状（零消费）
+- [tree-entity.interface.ts](../../../packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts) — `ISortableTreeEntity` 现状（零消费）
 - [entity-table.component.ts](../../../packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts) — 已有 dragOrder / rowReordered 半成品

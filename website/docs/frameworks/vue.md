@@ -361,6 +361,8 @@ const { value: todos, isLoading, isEmpty, hasMore } = toRefs(list);
 
 用于查询树形结构的实体（使用 `@TreeEntity` 定义）。
 
+> 这四个来自独立包 `@aiao/rxdb-plugin-tree-vue`，不在 `@aiao/rxdb-vue` 里。库侧还需 `rxdb.use(rxDBPluginTree)`，见[树结构拆包](../migration/tree-split.md)。
+
 #### useFindDescendants
 
 查找所有后代节点：
@@ -368,7 +370,7 @@ const { value: todos, isLoading, isEmpty, hasMore } = toRefs(list);
 ```vue
 <script lang="ts" setup>
 import { toRefs } from 'vue';
-import { useFindDescendants } from '@aiao/rxdb-vue';
+import { useFindDescendants } from '@aiao/rxdb-plugin-tree-vue';
 import { Menu } from './entities/Menu';
 
 const props = defineProps<{ rootId: string }>();
@@ -398,7 +400,7 @@ const { value: descendants, isLoading } = toRefs(
 ```vue
 <script lang="ts" setup>
 import { toRefs } from 'vue';
-import { useCountDescendants } from '@aiao/rxdb-vue';
+import { useCountDescendants } from '@aiao/rxdb-plugin-tree-vue';
 import { Menu } from './entities/Menu';
 
 const props = defineProps<{ id: string }>();
@@ -418,7 +420,7 @@ const { value: count } = toRefs(useCountDescendants(Menu, { id: props.id }));
 ```vue
 <script lang="ts" setup>
 import { toRefs } from 'vue';
-import { useFindAncestors } from '@aiao/rxdb-vue';
+import { useFindAncestors } from '@aiao/rxdb-plugin-tree-vue';
 import { Menu } from './entities/Menu';
 
 const props = defineProps<{ currentId: string }>();
@@ -447,7 +449,7 @@ const { value: ancestors } = toRefs(
 ```vue
 <script lang="ts" setup>
 import { toRefs } from 'vue';
-import { useCountAncestors } from '@aiao/rxdb-vue';
+import { useCountAncestors } from '@aiao/rxdb-plugin-tree-vue';
 import { Menu } from './entities/Menu';
 
 const props = defineProps<{ id: string }>();

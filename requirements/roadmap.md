@@ -15,7 +15,7 @@
 | 📝 Backlog     | 7      |
 | **未完成合计** | **13** |
 
-仓库还剩 **13 条**未关闭故事（1 In Progress + 5 In Review + 7 Backlog）。
+仓库还剩 **12 条**未关闭故事（0 In Progress + 5 In Review + 7 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > 另有一项**进行中的规格工作不在故事计数内**：[specs/002-rxdb-model-port](../specs/002-rxdb-model-port/spec.md)

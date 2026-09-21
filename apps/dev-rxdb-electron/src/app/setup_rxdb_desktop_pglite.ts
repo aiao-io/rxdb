@@ -2,6 +2,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { ELECTRON_PGLITE_ADAPTER_NAME, RxDBAdapterElectronPGlite } from '@aiao/rxdb-adapter-electron/pglite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_PGLITE_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -60,6 +61,7 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .adapter(
       ELECTRON_PGLITE_ADAPTER_NAME,
       async db => new RxDBAdapterElectronPGlite(db, { dataDirectoryName: DESKTOP_PGLITE_DATA_DIRECTORY })

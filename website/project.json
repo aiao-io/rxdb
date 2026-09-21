@@ -48,7 +48,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "website",
-        "command": "pnpm exec tsc --build ../packages/rxdb-angular/tsconfig.lib.json ../packages/code-editor-angular/tsconfig.lib.json ../packages/rxdb-plugin-search-angular/tsconfig.lib.json ../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json --emitDeclarationOnly && pnpm exec typedoc --options typedoc.config.cjs && node scripts/flatten-api-docs.mjs"
+        "command": "pnpm exec tsc --build ../packages/rxdb-angular/tsconfig.lib.json ../packages/code-editor-angular/tsconfig.lib.json ../packages/rxdb-plugin-search-angular/tsconfig.lib.json ../packages/rxdb-plugin-tree-angular/tsconfig.lib.json ../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json --emitDeclarationOnly && pnpm exec typedoc --options typedoc.config.cjs && node scripts/flatten-api-docs.mjs"
       }
     },
     "site-build": {

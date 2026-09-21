@@ -12,7 +12,7 @@
  * - `packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts`
  */
 import { ENTITY_STATIC_TYPES } from '@aiao/rxdb';
-import { Observable, of } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, type EffectScope } from 'vue';
 
@@ -103,11 +103,17 @@ describe('树 hooks（Vue）', () => {
     expect(queryMocks.countAncestors).toHaveBeenCalledWith({ entityId: 'ancestor-count' });
   });
 
-  it('查询产出后资源状态收敛，计数 hook 的默认值是 0', () => {
-    queryMocks.countDescendants.mockReturnValue(of(0));
+  it('计数 hook 未产出前的默认值是 0 而不是 undefined', () => {
+    // 用永不自发产出的 Subject：`of(...)` 在建资源时就同步产出了，测不到默认值这一刻。
+    const pending = new Subject<number>();
+    queryMocks.countDescendants.mockReturnValue(pending);
 
     const count = inScope(() => useCountDescendants(TreeEntity, { entityId: 'leaf' }));
 
-    expect(count).toMatchObject({ value: 0, error: undefined, isLoading: false, hasValue: true });
+    expect(count).toMatchObject({ value: 0, error: undefined, isLoading: true, hasValue: false });
+
+    pending.next(7);
+
+    expect(count).toMatchObject({ value: 7, error: undefined, isLoading: false, hasValue: true });
   });
 });

@@ -35,6 +35,8 @@
 
 ## 树形查询
 
+由插件包 `@aiao/rxdb-plugin-tree` 提供，装上才有。
+
 - [findDescendants](./findDescendants.md)
 - [findAncestors](./findAncestors.md)
 - [countDescendants](./countDescendants.md)
