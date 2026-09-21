@@ -1157,7 +1157,7 @@ jobs:
       # 之前挂在可变 tag `v7` 上，上游 tag 被强推就等于把 secret 和 OIDC 一起交出去。
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -1166,7 +1166,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: success()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
