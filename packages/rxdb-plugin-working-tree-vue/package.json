@@ -47,7 +47,7 @@
     "@aiao/rxdb-plugin-working-tree": "*",
     "@aiao/rxdb-vue": "*",
     "rxjs": "^7.8.2",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
