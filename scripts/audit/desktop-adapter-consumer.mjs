@@ -40,7 +40,13 @@ const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 
 /**
  * 两个桌面运行时包共享的依赖闭包。顺序即 `pnpm pack` 顺序，与依赖方向一致。
  */
-const SHARED_PACKAGE_DIRECTORIES = ['utils', 'rxdb', 'rxdb-adapter-encrypted', 'rxdb-adapter-sqlite-core'];
+const SHARED_PACKAGE_DIRECTORIES = [
+  'utils',
+  'rxdb',
+  'rxdb-adapter-encrypted',
+  'rxdb-plugin-tree',
+  'rxdb-adapter-sqlite-core'
+];
 
 /**
  * 两个包的差异全在这里。新增桌面运行时（US-208 的 `pglite-electron` 等）只加一项，
@@ -359,17 +365,25 @@ const auditTarget = async (target, tarballs, sharedTarballs) => {
     const packed = new Map(sharedTarballs);
     packed.set(target.directory, await pack(path.join(workspaceRoot, 'packages', target.directory), tarballs));
 
+    const dependencies = Object.fromEntries(
+      packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])
+    );
+
     const packageJson = {
       name: `${target.directory}-consumer`,
       private: true,
       type: 'module',
-      dependencies: Object.fromEntries(
-        packageDirectories.map(directory => [`@aiao/${directory}`, `file:${packed.get(directory)}`])
-      ),
+      dependencies,
       devDependencies: {
         '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
         '@types/node': workspacePackageJson.devDependencies['@types/node']
-      }
+      },
+      // 传递依赖也必须落在本地 tarball 上。`pnpm pack` 会把 `workspace:*` 换成具体版本号，
+      // 于是 tarball 里的 `@aiao/*` 依赖看起来就是普通的 registry 依赖——不覆盖的话 pnpm
+      // 会去 npm 上抓同版本的**已发布**副本，这道门禁验的就成了线上旧产物而非手头这次改动。
+      // 症状只在某个包尚未发布时才炸（US-303 加 `@aiao/rxdb-plugin-tree` 时的 404），
+      // 已发布的包则一路静默走线上副本，所以这里必须显式钉死。
+      pnpm: { overrides: dependencies }
     };
     await writeFile(path.join(root, 'package.json'), JSON.stringify(packageJson, null, 2));
     await writeFile(path.join(root, '.npmrc'), 'node-linker=hoisted\n');
