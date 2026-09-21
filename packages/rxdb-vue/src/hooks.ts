@@ -1,4 +1,4 @@
-import { EntityStaticType, EntityType, TreeEntityType } from '@aiao/rxdb';
+import { EntityStaticType, EntityType } from '@aiao/rxdb';
 import type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 import { GraphEntityType } from '@aiao/rxdb-plugin-graph';
 import { createQueryOptionsKey, getRepositoryMethod, isFunction } from '@aiao/utils';
@@ -371,72 +371,6 @@ export const useCount = <T extends EntityType>(
   options: UseOptions<EntityStaticType<T, 'countOptions'>>
 ): RxDBResource<number> =>
   useRepositoryQuery<T, EntityStaticType<T, 'countOptions'>, number>(EntityType, 'count', 0, options);
-
-/*
- * Tree Repository Hooks（树形仓库 hooks）
- */
-
-/**
- * 查找树形结构下的所有子孙实体
- *
- * @param EntityType 实体类
- * @param options 树形查询选项（entityId、depth 等）
- * @returns 包含子孙实体的响应式资源对象
- */
-export const useFindDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findDescendants',
-    [],
-    options
-  );
-
-/**
- * 统计树形结构下的子孙实体数
- *
- * @param EntityType 实体类
- * @param options 树形查询选项
- * @returns 包含统计数的响应式资源对象
- */
-export const useCountDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countDescendants', 0, options);
-
-/**
- * 查找树形结构下的所有祖先实体
- *
- * @param EntityType 实体类
- * @param options 树形查询选项
- * @returns 包含祖先实体的响应式资源对象
- */
-export const useFindAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findAncestors',
-    [],
-    options
-  );
-
-/**
- * 统计树形结构下的祖先实体数
- *
- * @param EntityType 实体类
- * @param options 树形查询选项
- * @returns 包含统计数的响应式资源对象
- */
-export const useCountAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countAncestors', 0, options);
 
 /*
  * Graph Repository Hooks（图仓库 hooks）

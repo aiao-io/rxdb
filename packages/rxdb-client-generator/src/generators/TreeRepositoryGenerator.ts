@@ -5,7 +5,6 @@
  * @module rxdb-client-generator/generators/tree-repository
  */
 
-import { capitalizeFirst } from '@aiao/utils';
 import { generateEntityRules } from './entity-rules.js';
 import type { GeneratorContext } from './RepositoryGenerator.interface.js';
 import { buildRules, RepositoryMethodsGenerator } from './RepositoryGeneratorBase.js';
@@ -16,6 +15,15 @@ import { buildRules, RepositoryMethodsGenerator } from './RepositoryGeneratorBas
  */
 export class TreeRepositoryGenerator extends RepositoryMethodsGenerator {
   override readonly name = 'TreeRepository';
+
+  /**
+   * 树实体的基类与配套类型都在 `@aiao/rxdb-plugin-tree`（US-025 阶段 E 起核心不再内置树）。
+   *
+   * @remarks
+   * 这个值同时决定三处产物：`.js` 里 `TreeAdjacencyListEntityBase` 的 import 来源、
+   * `.d.ts` 里 `ITreeEntity` 的 import 来源、以及基类签名带出的 `FindTreeOptions`。
+   */
+  override readonly entityBaseModuleSpecifier = '@aiao/rxdb-plugin-tree';
 
   protected override generateMethods(context: GeneratorContext): void {
     // Tree 特有方法（基类方法已在 generator_entity_definition.ts 中单独生成）
@@ -52,8 +60,6 @@ export class TreeRepositoryGenerator extends RepositoryMethodsGenerator {
       type: `${className}`,
       docs: ['查询的实体']
     });
-
-    rxdbNamedImports.add(capitalizeFirst(`FindTreeOptions`));
 
     const treeOptions = `FindTreeOptions<typeof ${className},${className}TreeRuleGroup>`;
 

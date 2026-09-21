@@ -47,7 +47,7 @@ export type MetadataValidationRule =
   | 'enumOptionsMismatch'
   | 'invalidOptionsConfig'
   | 'cardinalityConflict'
-  | 'unsupportedTreeQueryCache'
+  | 'unsupportedRepositorySyncType'
   | 'missingQueryCacheAdapter';
 
 /**
@@ -428,24 +428,29 @@ const missingQueryCacheAdapterSides = (databaseSync: SyncOptions | undefined): r
  * @param collector - 违规收集器
  * @param metadata - 实体元数据
  * @param databaseSync - 数据库级 `rxdb.config.sync`；实体自己没写 `sync` 时生效
+ * @param isSyncTypeUnsupported - 仓储级限制查询；省略即「核心不认识任何仓储限制」
  *
  * @remarks
  * 两条判定都只看元数据与数据库级配置，不需要适配器实例，因此同归配置期（US-020 D12）。
  *
- * `unsupportedTreeQueryCache`：`TreeRepository` 的 `findDescendants` / `findAncestors` 是本地表上的
- * 递归查询，前提是祖先链完整落在本地；QueryCache 只保证「查过的 `where` 命中的那些行」在本地，
- * 中间节点可以整段缺失，递归会在缺口处静默截断 —— 返回的是一棵少了枝干的树，不是一个错误。
+ * `unsupportedRepositorySyncType`：由仓储自己声明，核心只负责把声明翻成违规条目 ——
+ * 「哪种仓储撑不住哪种同步策略」是仓储实现的知识，核心没有判据。见
+ * {@link SyncTypeRestrictionLookup}。
  *
  * `missingQueryCacheAdapter`：见 {@link missingQueryCacheAdapterSides}。两条规则判的是两件事
- * （适配器在不在、树能不能用缓存），同一实体上可以同时成立，各报一条。
+ * （适配器在不在、仓储撑不撑得住这种策略），同一实体上可以同时成立，各报一条。
  */
 const validateSyncStrategy = (
   collector: ViolationCollector,
   metadata: EntityMetadata,
-  databaseSync: SyncOptions | undefined
+  databaseSync: SyncOptions | undefined,
+  isSyncTypeUnsupported: SyncTypeRestrictionLookup | undefined
 ): void => {
   const sync = metadata.sync ?? databaseSync;
-  if (sync?.type !== SyncType.QueryCache) return;
+  if (!sync) return;
+
+  validateRepositorySyncSupport(collector, metadata, sync.type, isSyncTypeUnsupported);
+  if (sync.type !== SyncType.QueryCache) return;
 
   const missing = missingQueryCacheAdapterSides(databaseSync);
   if (missing.length > 0) {
@@ -460,14 +465,47 @@ const validateSyncStrategy = (
         `请在库级 sync 上补齐 ${sides}。`
     );
   }
+};
 
-  if (metadata.repository !== 'TreeRepository') return;
+/**
+ * 查询某个仓储撑不撑得住某种同步策略。
+ *
+ * 返回**不支持的理由**（会原样拼进违规消息），支持时返回 `undefined`。
+ *
+ * @remarks
+ * 这是核心唯一一处「同步策略与仓储的兼容性」入口，也是它故意不知道的那部分知识：
+ * 哪种仓储在哪种策略下会坏、怎么坏、改用什么，只有仓储实现清楚。核心拿着这个查询
+ * 把声明翻成注册期违规，仅此而已 —— 换言之，插件注册的仓储与核心内置的仓储在这条
+ * 规则上走同一条路，核心不需要认识任何具体仓储名。
+ *
+ * 实现方是 {@link IRepositoryConfig.unsupportedSyncTypes}，由 `EntityManager.init()`
+ * 从仓储注册表里现取。
+ *
+ * @param repository - 实体声明的仓储名（`EntityMetadata.repository`）
+ * @param type - 该实体生效的同步策略
+ * @returns 不支持时返回理由文本，支持时返回 `undefined`
+ */
+export type SyncTypeRestrictionLookup = (repository: string, type: SyncType) => string | undefined;
+
+/** `SyncType` 的值 → 枚举键名，让违规消息里写 `SyncType.QueryCache` 而不是裸值 `querycache`。 */
+const SYNC_TYPE_NAMES = new Map<SyncType, string>(
+  Object.entries(SyncType).map(([key, value]) => [value as SyncType, key])
+);
+
+/** 把仓储声明的同步策略限制翻成违规条目。 */
+const validateRepositorySyncSupport = (
+  collector: ViolationCollector,
+  metadata: EntityMetadata,
+  type: SyncType,
+  isSyncTypeUnsupported: SyncTypeRestrictionLookup | undefined
+): void => {
+  const reason = isSyncTypeUnsupported?.(metadata.repository, type);
+  if (reason === undefined) return;
+  const typeName = SYNC_TYPE_NAMES.get(type) ?? type;
   collector.add(
     'sync',
-    'unsupportedTreeQueryCache',
-    `TreeRepository 不支持 SyncType.QueryCache：树查询依赖本地完整的祖先链，` +
-      `而缓存只覆盖查过的 where 命中的行，递归会在缺口处静默截断。` +
-      `改用 SyncType.Full / Filter，或把该实体换成普通 Repository。`
+    'unsupportedRepositorySyncType',
+    `${metadata.repository} 不支持 SyncType.${typeName}：${reason}`
   );
 };
 
@@ -488,6 +526,8 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  * @param metadata - `transitionMetadata()` 产出的实体元数据
  * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效。
  *   省略即只看实体自己的声明
+ * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}。
+ *   省略即核心不认识任何仓储限制
  * @returns 排序后的违规列表；无违规时为空数组
  *
  * @example
@@ -498,13 +538,14 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  */
 export function validateEntityMetadata(
   metadata: EntityMetadata,
-  databaseSync?: SyncOptions
+  databaseSync?: SyncOptions,
+  isSyncTypeUnsupported?: SyncTypeRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
   const collector = new ViolationCollector(metadata.namespace, metadata.name);
   metadata.propertyMap.forEach(property => validateProperty(collector, property));
   metadata.computedPropertyMap.forEach(property => validateProperty(collector, property));
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
-  validateSyncStrategy(collector, metadata, databaseSync);
+  validateSyncStrategy(collector, metadata, databaseSync, isSyncTypeUnsupported);
   return collector.drain().sort(compareViolations);
 }
 
@@ -525,10 +566,14 @@ export function formatMetadataViolations(errors: readonly EntityMetadataValidati
  *
  * @param metadataList - 待校验的实体元数据集合
  * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效
+ * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}
  */
 export function validateEntityMetadataSet(
   metadataList: readonly EntityMetadata[],
-  databaseSync?: SyncOptions
+  databaseSync?: SyncOptions,
+  isSyncTypeUnsupported?: SyncTypeRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
-  return metadataList.flatMap(metadata => validateEntityMetadata(metadata, databaseSync)).sort(compareViolations);
+  return metadataList
+    .flatMap(metadata => validateEntityMetadata(metadata, databaseSync, isSyncTypeUnsupported))
+    .sort(compareViolations);
 }

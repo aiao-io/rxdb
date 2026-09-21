@@ -11,6 +11,7 @@ import {
   RxDBChange,
   SyncType
 } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import { RxDBAdapterSqliteBase, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
@@ -54,10 +55,15 @@ const createRxdb = (dbName: string): RxDB => {
   const rxdb = new RxDB({
     dbName,
     entities: [Todo, MenuLarge, ResultTypedRecord],
-    sync: { local: { adapter: 'noop' }, type: SyncType.None }
+    sync: { local: { adapter: 'noop' }, type: SyncType.None },
+    // 单元测试不跨标签页，`init()` 没必要拉起多实例网关。
+    multiInstance: false
   });
-  rxdb.schemaManager.init();
-  rxdb.entityManager.init();
+  // MenuLarge 是树实体，`TreeRepository` 由插件注册；而 `use()` 在 `init()` 之前只是登记，
+  // 真正安装发生在 `rxdb.init()` 里。所以这里不能再手点两个管理器的 `init()` —— 那条路
+  // 绕开了插件安装，`entityManager.init()` 会找不到 `TreeRepository` 当场抛。
+  rxdb.use(rxDBPluginTree);
+  rxdb.init();
   return rxdb;
 };
 

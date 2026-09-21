@@ -3,13 +3,8 @@
  * 提供树形结构的查询功能（邻接表模型）
  */
 
-import {
-  assertTreeLevel,
-  type EntityType,
-  type FindTreeOptions,
-  type ITreeRepository,
-  type RuleGroup
-} from '@aiao/rxdb';
+import { type EntityType, type RuleGroup } from '@aiao/rxdb';
+import { assertTreeLevel, type FindTreeOptions, type ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import { chunk_values, select_all_pages, SUPABASE_PAGE_SIZE } from './pagination.js';
 import { assert_postgrest_ok } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';

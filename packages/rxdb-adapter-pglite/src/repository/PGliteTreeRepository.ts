@@ -1,4 +1,5 @@
-import { EntityType, FindTreeOptions, ITreeRepository } from '@aiao/rxdb';
+import { EntityType } from '@aiao/rxdb';
+import { FindTreeOptions, ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import {
   generate_entity_count_ancestors_sql,

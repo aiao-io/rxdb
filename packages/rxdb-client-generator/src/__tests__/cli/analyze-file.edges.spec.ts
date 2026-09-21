@@ -36,8 +36,8 @@ describe('analyzeFile edge branches', () => {
 
   it('supports TreeEntity and GraphEntity repository assignment', async () => {
     const filePath = await createEntityFile(`
-      import { TreeEntity } from '@aiao/rxdb';
       import { GraphEntity } from '@aiao/rxdb-plugin-graph';
+      import { TreeEntity } from '@aiao/rxdb-plugin-tree';
 
       @TreeEntity({ name: 'TreeNode', properties: [] })
       class TreeNode {}
@@ -57,7 +57,8 @@ describe('analyzeFile edge branches', () => {
 
   it('rejects multiple entity decorators on one class', async () => {
     const filePath = await createEntityFile(`
-      import { Entity, TreeEntity } from '@aiao/rxdb';
+      import { Entity } from '@aiao/rxdb';
+      import { TreeEntity } from '@aiao/rxdb-plugin-tree';
 
       @Entity({ name: 'A', properties: [] })
       @TreeEntity({ name: 'A', properties: [] })

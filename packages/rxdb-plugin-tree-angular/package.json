@@ -1,0 +1,44 @@
+{
+  "name": "@aiao/rxdb-plugin-tree-angular",
+  "version": "0.0.25",
+  "description": "Angular bindings for the Aiao RxDB tree plugin.",
+  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "tree",
+    "hierarchy",
+    "signals"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-tree-angular"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@aiao/rxdb": "*",
+    "@aiao/rxdb-plugin-tree": "*",
+    "@aiao/rxdb-angular": "*",
+    "@angular/core": "22.1.6",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-angular": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
+    "@angular/common": "22.1.6",
+    "@angular/compiler": "22.1.6",
+    "@angular/core": "22.1.6",
+    "@angular/platform-browser": "22.1.6",
+    "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}

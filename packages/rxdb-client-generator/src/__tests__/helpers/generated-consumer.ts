@@ -4,13 +4,16 @@ import path from 'node:path';
 import type { SourceFile } from '../../core/ts-morph-browser.js';
 import { runTypeScriptCompiler } from './typescript-compiler.js';
 
-const RXDB_IMPORT_PATTERN = /import(?:\s+type)? \{ ([^}]+) \} from '@aiao\/rxdb';/g;
+const RXDB_PACKAGE = '@aiao/rxdb';
+const TREE_PLUGIN_PACKAGE = '@aiao/rxdb-plugin-tree';
 
-const collectRxDBImports = (sourceFiles: readonly SourceFile[]): string[] => {
+/** 生成物按模块分桶导入（树符号在 `@aiao/rxdb-plugin-tree`），桩包也得按模块分别渲染。 */
+const collectImports = (sourceFiles: readonly SourceFile[], moduleSpecifier: string): string[] => {
+  const pattern = new RegExp(`import(?:\\s+type)? \\{ ([^}]+) \\} from '${moduleSpecifier.replace('/', '\\/')}';`, 'g');
   const imports = new Set<string>();
 
   sourceFiles.forEach(sourceFile => {
-    for (const match of sourceFile.getText().matchAll(RXDB_IMPORT_PATTERN)) {
+    for (const match of sourceFile.getText().matchAll(pattern)) {
       match[1]?.split(',').forEach(name => imports.add(name.trim()));
     }
   });
@@ -69,13 +72,27 @@ const renderRxDBDeclaration = (name: string): string => {
   }
 };
 
+const hasTreeBase = (imports: readonly string[]): boolean =>
+  imports.some(name => name === 'TreeAdjacencyListEntityBase' || name === 'TreeEntityBase');
+
 const renderRxDBStub = (sourceFiles: readonly SourceFile[]): string => {
-  const imports = collectRxDBImports(sourceFiles);
-  const hasTreeBase = imports.some(name => name === 'TreeAdjacencyListEntityBase' || name === 'TreeEntityBase');
-  const declarations = (hasTreeBase && !imports.includes('EntityBase') ? ['EntityBase', ...imports] : imports).map(
+  const imports = collectImports(sourceFiles, RXDB_PACKAGE);
+  // 树基类继承 `EntityBase`：插件桩包要 import 得到它，核心桩包就必须导出它。
+  const needsEntityBase = hasTreeBase(imports) || hasTreeBase(collectImports(sourceFiles, TREE_PLUGIN_PACKAGE));
+  const declarations = (needsEntityBase && !imports.includes('EntityBase') ? ['EntityBase', ...imports] : imports).map(
     renderRxDBDeclaration
   );
   return ["import type { Observable } from 'rxjs';", 'export interface RxDB {}', ...declarations].join('\n');
+};
+
+const renderTreePluginStub = (sourceFiles: readonly SourceFile[]): string => {
+  const imports = collectImports(sourceFiles, TREE_PLUGIN_PACKAGE);
+  return [
+    "import type { Observable } from 'rxjs';",
+    `import type { EntityBase } from '${RXDB_PACKAGE}';`,
+    'export type { EntityBase };',
+    ...imports.map(renderRxDBDeclaration)
+  ].join('\n');
 };
 
 const writePackage = async (root: string, packageName: string, declaration: string): Promise<void> => {
@@ -111,7 +128,8 @@ export const compileGeneratedConsumer = async (
         })
     );
     await Promise.all([
-      writePackage(root, '@aiao/rxdb', renderRxDBStub(sourceFiles)),
+      writePackage(root, RXDB_PACKAGE, renderRxDBStub(sourceFiles)),
+      writePackage(root, TREE_PLUGIN_PACKAGE, renderTreePluginStub(sourceFiles)),
       writePackage(root, 'rxjs', 'export interface Observable<T> { readonly value?: T; }'),
       writeFile(path.join(root, 'package.json'), JSON.stringify({ private: true, type: 'module' })),
       writeFile(consumerPath, consumerSource),

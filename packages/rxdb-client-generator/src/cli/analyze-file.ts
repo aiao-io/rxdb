@@ -51,7 +51,7 @@ type StaticValue = boolean | number | string | null | StaticObject | StaticValue
 const ENTITY_DECORATOR_PACKAGES = new Map([
   ['Entity', '@aiao/rxdb'],
   ['GraphEntity', '@aiao/rxdb-plugin-graph'],
-  ['TreeEntity', '@aiao/rxdb']
+  ['TreeEntity', '@aiao/rxdb-plugin-tree']
 ]);
 const ENTITY_DECORATOR_NAMES = new Set(ENTITY_DECORATOR_PACKAGES.keys());
 const ENTITY_DECORATOR_MODULES = new Set(ENTITY_DECORATOR_PACKAGES.values());
@@ -273,11 +273,23 @@ const getPackageName = (filePath: string): string | undefined => {
   }
 };
 
-const getBuiltinMetadataOptions = (declaration: ClassDeclaration): EntityMetadataOptions[] | undefined => {
-  if (getPackageName(declaration.getSourceFile().getFilePath()) !== '@aiao/rxdb') return undefined;
+/**
+ * 内置实体基类的元数据由生成器直接持有，不再静态求值它们的装饰器实参。
+ *
+ * @remarks
+ * 基类按所属包分流：`EntityBase` 在 `@aiao/rxdb`，树基类自 US-025 阶段 E 起在
+ * `@aiao/rxdb-plugin-tree`。不在表里的包一律走常规静态求值。
+ */
+const BUILTIN_METADATA_RESOLVERS = new Map<string, (className: string) => EntityMetadataOptions[] | undefined>([
+  ['@aiao/rxdb', getEntityMetadataOptions],
+  ['@aiao/rxdb-plugin-tree', getTreeEntityMetadataOptions]
+]);
 
+const getBuiltinMetadataOptions = (declaration: ClassDeclaration): EntityMetadataOptions[] | undefined => {
+  const packageName = getPackageName(declaration.getSourceFile().getFilePath());
+  const resolve = packageName ? BUILTIN_METADATA_RESOLVERS.get(packageName) : undefined;
   const className = declaration.getName();
-  return className ? getEntityMetadataOptions(className) || getTreeEntityMetadataOptions(className) : undefined;
+  return resolve && className ? resolve(className) : undefined;
 };
 
 const resolveAliasedSymbol = (symbol: MorphSymbol | undefined): MorphSymbol | undefined => {

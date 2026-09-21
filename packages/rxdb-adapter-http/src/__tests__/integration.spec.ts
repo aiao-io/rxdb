@@ -46,9 +46,8 @@ const HTTP_QUERY_CACHE = {
  * 库级默认走 Full，QueryCache 只写在实体上。
  *
  * @remarks
- * 库级配 QueryCache 会连 core 的系统实体 `RxDBBranch` 一起罩进去，而它是树实体——
- * `init()` 当场以 `unsupportedTreeQueryCache` 拒绝。槽位名保持不变，`adapter:remote`
- * 仍然解析到本包（AC#17 要的就是这个）。
+ * 库级配 QueryCache 会把 core 的系统实体一起罩进去，那是另一条路径，本用例不验。
+ * 槽位名保持不变，`adapter:remote` 仍然解析到本包（AC#17 要的就是这个）。
  */
 const DATABASE_SYNC = {
   type: SyncType.Full,

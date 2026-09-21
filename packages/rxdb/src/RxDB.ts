@@ -846,6 +846,20 @@ export class RxDB {
   }
 
   /**
+   * 列出当前已注册的 Repository 名称
+   *
+   * @returns 按注册顺序排列的仓储名数组
+   *
+   * @remarks
+   * 给报错用的。实体声明的 `repository` 找不到时，只说「没找到」等于让人猜是拼错了
+   * 还是插件没装；列出当前有什么，调用方一眼看得出缺的是哪一类。核心自身只注册
+   * `Repository`，其余全由插件在 `install()` 里挂上来。
+   */
+  getRepositoryNames(): string[] {
+    return Array.from(this.#repository_config_map.keys());
+  }
+
+  /**
    * 取已注册的 QueryCache 读引擎工厂
    *
    * @returns 装了插件时是工厂本身，否则 `undefined`

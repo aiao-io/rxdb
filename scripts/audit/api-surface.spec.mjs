@@ -71,6 +71,16 @@ test('三个 RxDBBranch* 扩展点类型是**逐名登记**的例外，不是放
   assert.equal(problems.length, 1);
 });
 
+test('`@aiao/rxdb/testing` 的测试台符号逐名放行，主入口同名照样拦', () => {
+  // 这个子路径依赖 vitest（可选 peer），不进生产主入口，本就不在「核心共享契约」的射程内；
+  // 但正向规则读的是整个 diff，所以只能逐名登记。第七个测试台符号得自己再走一遍这段理由。
+  const added = ['collectEmissions', 'createHarnessQueryTask', 'EntityCache', 'METADATA'];
+  assert.deepEqual(auditNaming({ pkg: 'rxdb', currentNames: added, addedNames: added }), []);
+
+  const problems = auditNaming({ pkg: 'rxdb', currentNames: ['HarnessEntityMap'], addedNames: ['HarnessEntityMap'] });
+  assert.equal(problems.length, 1);
+});
+
 test('前缀规则只管核心；插件包的新增导出不受它约束', () => {
   const added = ['assertSwitchBranchPreconditions'];
 

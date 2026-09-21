@@ -7,7 +7,6 @@ import type { EntityType } from '../../entity/entity.interface.js';
 import { createEntityProxy } from '../../entity/proxy.js';
 import type {
   EventListener,
-  ITreeRepository,
   MergeQueryTaskOptions,
   EntityStatus as PublicEntityStatus,
   QueryManager,
@@ -218,10 +217,9 @@ describe('public type compatibility', () => {
     // `DependencyGraph` / `VersionManager` 自身）随实现搬去了 `@aiao/rxdb-plugin-history`
     // （US-025 阶段 C），同一条可具名性由那边的
     // `__tests__/contracts/public-type-compatibility.spec.ts` 接着守。
-
-    // `TreeRepository` 类**不补**：评审把它与 `VersionManager` 并列，但用户经
-    // `ITreeRepository`（已在桶里）就能具名，拿不到类本身不构成缺口。
-    expectTypeOf<ITreeRepository<typeof ProxiedEntity>>().not.toBeNever();
+    //
+    // `ITreeRepository` / `FindTreeOptions` / `TreeRepository` 同理随实现搬去了
+    // `@aiao/rxdb-plugin-tree`（US-025 阶段 E），由那边的同名文件接着守。
   });
 
   it('accepts named options and legacy local adapter overrides', () => {

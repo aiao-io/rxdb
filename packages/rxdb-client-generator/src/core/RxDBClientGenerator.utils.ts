@@ -15,6 +15,24 @@ import {
 import { isNil, kebabCase, omit } from '@aiao/utils';
 import type { OptionalKind, PropertyDeclarationStructure } from './ts-morph-browser.js';
 
+/**
+ * 把一个命名导入登记到「模块 → 名字集合」表里。
+ *
+ * @remarks
+ * 生成的代码不再只从 `@aiao/rxdb` 取类型：实体基类与它配套的接口随
+ * {@link IRepositoryGenerator.entityBaseModuleSpecifier} 走（树实体在
+ * `@aiao/rxdb-plugin-tree`），所以收集导入时必须按模块分桶。
+ *
+ * @param imports - 模块到命名导入集合的映射，原地修改
+ * @param moduleSpecifier - 模块说明符
+ * @param name - 命名导入
+ */
+export const addNamedImport = (imports: Map<string, Set<string>>, moduleSpecifier: string, name: string): void => {
+  const names = imports.get(moduleSpecifier) ?? new Set<string>();
+  names.add(name);
+  imports.set(moduleSpecifier, names);
+};
+
 const IDENTIFIER_PATTERN = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
 const NAMESPACE_PATTERN = /^[\p{L}\p{N}_$][\p{L}\p{N}_$-]*$/u;
 const RESERVED_BINDINGS = new Set([

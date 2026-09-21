@@ -24,6 +24,8 @@
 
 **前缀规则的三项登记例外**（T126 定案）：`RxDBBranchRemovalContext` / `RxDBBranchSwitchContext` / `RxDBBranchSwitchPreconditions`。三者是 `rxdb-plugin-system.ts` 上的插件系统扩展点上下文，与早已在基线里的同族 `RxDBBranchCreationContext` 逐字同形；改叫 `WorkingTree*` 会让核心的插件系统看起来认识工作树，而它恰恰不认识——`RxDBBranchSwitchPreconditions` 的 TSDoc 把「核心搬运、插件解释」这条分工写死了，用户侧那个 `WorkingTree*` 的名字在能力插件里（`WorkingTreeSwitchBranchOptions` 是本别名的再导出）。例外**逐名登记**，不是放宽成 `RxDBBranch` 前缀：加前缀之后第四个同族名字会静默通过。
 
+**前缀规则的十二项登记例外**（US-025 阶段 E）：`prepareIncrementalUpdate` / `IncrementalUpdateContext` / `UpdateClassification` / `UpdateDataCache` / `applyExternalEntityUpdate` / `getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` / `Fingerprint` / `getFingerprintPrimitive` / `getFingerprintByEntity` / `getFingerprintByEntities`。正向规则的适用范围写的是「核心共享契约」，实现上读的却是整个 diff，因此与工作树无关的核心新增导出也会撞上它。前八个是树查询外移到 `@aiao/rxdb-plugin-tree` 所需的增量合并原语（插件要自己算「更新前后各自匹不匹配 where」）；后四个是指纹计算——自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，而指纹正是 QueryManager 判定「结果变没变」的依据，各写一份就是两套「变了」的定义。冠 `Commit*` / `WorkingTree*` 会让核心看起来把合并判定当成提交能力的一部分。同样逐名登记，不放宽成前缀。
+
 **正向规则读 diff，负向规则读当前全集。** 负向规则若也读 diff，失效路径是现成的：新增 `IndexHint` → 门禁红 → 有人跑 `--update` → 它进了基线 → 从此永远绿，而那个名字还在表面上。正向规则没有这条路可走（「哪些名字属于本特性」在全集里读不出来），代价是它只在名字**第一次出现**的那次运行里有效。`rxdb` 的 `SwitchBranchOptions` 与 `rxdb-plugin-workspace` 的四个 `Workspace*` 是本特性之前的既有导出，在门禁里逐名放行（名单封闭）。
 
 ## 1. 入口

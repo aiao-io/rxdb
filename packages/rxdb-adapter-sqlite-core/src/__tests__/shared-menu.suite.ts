@@ -1,3 +1,4 @@
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -11,7 +12,10 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
     let adapter: RxDBAdapterSqliteBase;
 
     beforeAll(async () => {
-      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [MenuLarge] });
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+        entities: [MenuLarge],
+        plugins: [rxDBPluginTree]
+      });
     });
 
     afterAll(async () => {

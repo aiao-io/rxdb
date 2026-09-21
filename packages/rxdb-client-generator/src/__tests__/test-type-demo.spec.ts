@@ -349,7 +349,7 @@ describe('RxDBClientGenerator', () => {
 
     const indexTsFile = files.find(f => f.getFilePath() === 'index.d.ts');
     expect(indexTsFile?.getText()).toMatchInlineSnapshot(`
-      "import type { BooleanRules, CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, ITreeEntity, KeyValueRules, NumberArrayRules, NumberRules, RelationBooleanRules, RelationDateRules, RelationNumberRules, RelationStringRules, RuleGroupBase, StringArrayRules, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
+      "import type { BooleanRules, CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, KeyValueRules, NumberArrayRules, NumberRules, RelationBooleanRules, RelationDateRules, RelationNumberRules, RelationStringRules, RuleGroupBase, StringArrayRules, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
       import type { Observable } from 'rxjs';
 
       /**

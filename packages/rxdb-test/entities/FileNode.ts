@@ -1,4 +1,5 @@
-import { PropertyType, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
+import { PropertyType } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 
 /**
  * FileNode - 文件/文件夹树结构实体

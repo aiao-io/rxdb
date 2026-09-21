@@ -1,4 +1,5 @@
-import { assertTreeLevel, EntityMetadata, EntityRelationManyToOneMetadata, FindTreeOptions } from '@aiao/rxdb';
+import { EntityMetadata, EntityRelationManyToOneMetadata } from '@aiao/rxdb';
+import { assertTreeLevel, FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { SetOptional } from 'type-fest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';

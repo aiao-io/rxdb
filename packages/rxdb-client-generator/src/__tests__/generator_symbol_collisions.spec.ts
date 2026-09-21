@@ -192,7 +192,6 @@ describe('generated symbol collisions', () => {
   it.each([
     ['EntityType', 'fixed RxDB import "EntityType"'],
     ['IEntity', 'fixed RxDB import "IEntity"'],
-    ['ITreeEntity', 'fixed RxDB import "ITreeEntity"'],
     ['RuleGroupBase', 'fixed RxDB import "RuleGroupBase"'],
     ['UUID', 'fixed RxDB import "UUID"'],
     ['Observable', 'fixed RxJS import "Observable"']
@@ -205,6 +204,26 @@ describe('generated symbol collisions', () => {
       symbol: name,
       sources: [importSource, `entity declaration "${name}"`]
     });
+  });
+
+  it('rejects a tree entity colliding with the ITreeEntity declaration import', () => {
+    const generator = new RxDBClientGenerator();
+    generator.addEntity(
+      createEntity('ITreeEntity', { repository: 'TreeRepository', extends: ['TreeAdjacencyListEntityBase'] })
+    );
+
+    expectCollision(generator, {
+      entity: 'ITreeEntity',
+      symbol: 'ITreeEntity',
+      sources: ['tree entity import "ITreeEntity"', 'entity declaration "ITreeEntity"']
+    });
+  });
+
+  it('allows a non-tree entity named ITreeEntity', () => {
+    const generator = new RxDBClientGenerator();
+    generator.addEntity(createEntity('ITreeEntity'));
+
+    expect(() => generator.exec()).not.toThrow();
   });
 
   it('includes repository plugin members in collision validation', () => {

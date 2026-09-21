@@ -1,15 +1,20 @@
-import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
+import { EntityType } from '../entity/entity.interface.js';
 import { FindAllOptions } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalRemovedEventData } from '../rxdb-events.js';
 import { query_need_refresh_remove } from './need_refresh_remove.js';
 import { calculateOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
-import { buildEntityMap, traverseAncestors } from './query-tree.utils.js';
 import { isStaleEntityRemoveEvent } from './stale-event.utils.js';
 
 /**
  * JS 增量更新查询结果
+ *
+ * @remarks
+ * 只处理**走得到 recalculate 的**任务类型。`get` 在默认导出里就短路返回了；
+ * `find` / `findOne` / `findOneOrFail` 只往 `refresh_rules` 推规则，
+ * `recalculate_rules` 为空时 `runMatches` 恒返回 `recalculate: false`——
+ * 给它们留 case 只是死码。
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalRemovedEventData<T>[]) => {
   const removed_ids = new Set(data.map(e => e.id));
@@ -23,31 +28,6 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 
       const new_result = options.orderBy?.length ? calculateOrderBy(filtered, options.orderBy) : filtered;
       task.next(new_result, true);
-      break;
-    }
-
-    case 'find': {
-      const old_result = Array.from(task.resultEntitySet.values());
-      if (old_result.some(e => removed_ids.has(e.id))) {
-        task.refresh();
-      }
-      break;
-    }
-
-    case 'findOne':
-    case 'findOneOrFail': {
-      if (task.result === null || task.result === undefined) return;
-      const current_id = (task.result as InstanceType<T>)?.id;
-      if (removed_ids.has(current_id)) {
-        task.refresh();
-      }
-      break;
-    }
-
-    case 'get': {
-      if (removed_ids.has(task.options as EntityStaticType<T, 'idType'>)) {
-        task.refresh();
-      }
       break;
     }
 
@@ -71,42 +51,6 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       // autoCache=false 原因同 merge_create.ts 的 count 分支：next() 在 autoCache=true 时
       // 无条件清空 resultEntityIds，会把上面刚做的精确删除以及其它未被本批触及的 id 一并清掉。
       task.next(Math.max(0, current_count - matched.length), false);
-      break;
-    }
-
-    case 'findDescendants': {
-      const options = task.options as FindAllOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      const entities_map = buildEntityMap(old_result, e => e.id);
-      let has_changes = false;
-
-      const filtered = old_result.filter(entity => {
-        if (removed_ids.has(entity.id)) {
-          has_changes = true;
-          return false;
-        }
-        // 检查祖先链是否有被删除的节点
-        for (const { entity: ancestor } of traverseAncestors(entity, entities_map)) {
-          if (ancestor?.id && removed_ids.has(ancestor.id)) {
-            has_changes = true;
-            return false;
-          }
-        }
-        return true;
-      });
-
-      if (!has_changes) return;
-
-      const new_result = options.orderBy?.length ? calculateOrderBy(filtered, options.orderBy) : filtered;
-      task.next(new_result, true);
-      break;
-    }
-
-    case 'findAncestors': {
-      const old_result = Array.from(task.resultEntitySet.values());
-      const filtered = old_result.filter(e => !removed_ids.has(e.id));
-      if (filtered.length === old_result.length) return;
-      task.next(filtered, true);
       break;
     }
   }
@@ -150,7 +94,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
 
     case 'findByCursor':
     case 'findAll':
-    case 'findAncestors':
       recalculate_rules.push(['result_contains']);
       refresh_rules.push(['match_relation_where']);
       break;
@@ -163,25 +106,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
       // 命中关系条件时交给 refresh_rules 走 SQL 刷新，而不是继续用扁平快照做 JS 计数。
       recalculate_rules.push(['match_where', 'not_match_relation_where']);
       refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'findDescendants':
-      recalculate_rules.push(['result_contains'], ['match_where']);
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'countDescendants':
-    case 'countAncestors':
-      refresh_rules.push(['match_where'], ['match_relation_where']);
-      break;
-
-    case 'findNeighbors':
-    case 'countNeighbors':
-    case 'findPaths':
-      // 图查询同样不维护 resultEntitySet，只能 SQL 刷新；不带 match_where_before——
-      // REMOVE 没有"更新前"状态，QueryRulesBuilder.buildRemoveRules() 对它恒返回 true，
-      // 加进来只会让刷新变成无条件触发。
-      refresh_rules.push(['match_where'], ['match_relation_where']);
       break;
   }
 

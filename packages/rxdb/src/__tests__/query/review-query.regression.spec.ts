@@ -7,7 +7,7 @@ import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalRemovedEventData, RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
 import { compactChanges } from '../../sync-contract/compact-changes.js';
 import type { IRxDBChange } from '../../system/system.interface.js';
-import { createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
+import { createHarnessQueryTask, type HarnessTaskOptions } from '../../testing/query-task-harness.js';
 
 class ReviewEntity {
   [key: string]: unknown;
@@ -99,26 +99,5 @@ describe('review query regression probes', () => {
     })) as IRxDBChange[];
     const actions = compactChanges(changes);
     expect(actions.deletes.size).toBe(1);
-  });
-
-  it('Q4 countDescendants level 0 should ignore direct-child where transitions', () => {
-    const task = createHarnessQueryTask(ReviewEntity, {
-      type: 'countDescendants',
-      options: {
-        entityId: 'root',
-        level: 0,
-        where: { combinator: 'and', rules: [{ field: 'active', operator: '=', value: true }] }
-      },
-      runner: () => of(0)
-    });
-    const subscription = task.result$.subscribe();
-    try {
-      mergeUpdate(task as unknown as QueryTask<typeof ReviewEntity>, [
-        update('child', { parentId: 'root', active: true }, { parentId: 'root', active: false })
-      ]);
-      expect(task.result).toBe(0);
-    } finally {
-      subscription.unsubscribe();
-    }
   });
 });

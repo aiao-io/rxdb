@@ -7,6 +7,7 @@
 
 import { PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
+import { addNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
 import type { GeneratorContext, IRepositoryGenerator } from './RepositoryGenerator.interface.js';
 import { getIdType, type IdType } from './utils.js';
@@ -59,6 +60,9 @@ export const buildRules = (
 export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
   abstract readonly name: string;
 
+  /** @inheritDoc */
+  readonly entityBaseModuleSpecifier?: string;
+
   generate(context: GeneratorContext): void {
     this.generateProperties(context);
     this.generateMethods(context);
@@ -92,6 +96,21 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
   /**
    * 共享工具：添加静态查询方法
    */
+  /**
+   * 登记一个类型导入，按本生成器的 {@link entityBaseModuleSpecifier} 分流。
+   *
+   * @remarks
+   * 树实体的基类与配套选项类型（`TreeAdjacencyListEntityBase` / `FindTreeOptions`）在
+   * `@aiao/rxdb-plugin-tree`；没有声明 specifier 的生成器一律落回 `@aiao/rxdb`。
+   */
+  protected addTypeImport(context: GeneratorContext, name: string): void {
+    if (this.entityBaseModuleSpecifier) {
+      addNamedImport(context.namedImportsByModule, this.entityBaseModuleSpecifier, name);
+      return;
+    }
+    context.rxdbNamedImports.add(name);
+  }
+
   protected addStaticMethod(
     context: GeneratorContext,
     config: {
@@ -111,7 +130,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
       };
     }
   ): void {
-    const { classMethods, staticTypesInterface, rxdbNamedImports } = context;
+    const { classMethods, staticTypesInterface } = context;
 
     const docs = [config.metHodDoc || `${config.method} 查询`, '@param options 查询选项'];
     if (config.example) {
@@ -135,7 +154,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
     if (config.baseSignature) {
       const { entityBase, options, parameterName = 'options', returnType } = config.baseSignature;
       const entityBaseConstraint = getIdType(context.metadata) === 'bigint' ? `${entityBase}<bigint>` : entityBase;
-      rxdbNamedImports.add(entityBase);
+      this.addTypeImport(context, entityBase);
       classMethods.push({
         name: config.method,
         returnType: `Observable<${returnType}>`,
@@ -164,7 +183,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
         // 只添加标准的 RxDB Options 类型（以大写字母开头且不包含实体名）
         // 例如：FindOneOptions, CountOptions 等，但不包括 PersonFindOneOptions
         if (!/^[a-z]/.test(imp) && imp.match(/^(Find|Count|Get)/)) {
-          rxdbNamedImports.add(imp);
+          this.addTypeImport(context, imp);
         }
       });
     }

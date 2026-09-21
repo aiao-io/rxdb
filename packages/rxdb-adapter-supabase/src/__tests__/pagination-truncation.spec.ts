@@ -11,6 +11,7 @@
  */
 
 import { type RuleGroup, RxDB, SyncType, type UUID } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -46,6 +47,8 @@ describe('SUPA-004 / SUPA-005 — 超过 PostgREST max-rows 的结果集', () =>
       entities: [MenuLarge],
       sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
 
     rxdb.adapter(
       'supabase',

@@ -4,7 +4,7 @@ import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
-import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
+import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '../../testing/query-task-harness.js';
 
 describe('query_merge_update_cache', () => {
   class TestEntity {

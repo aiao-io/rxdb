@@ -1,12 +1,5 @@
-import {
-  getEntityMetadata,
-  PropertyType,
-  RxDB,
-  RxDBError,
-  SyncType,
-  TreeAdjacencyListEntityBase,
-  TreeEntity
-} from '@aiao/rxdb';
+import { getEntityMetadata, PropertyType, RxDB, RxDBError, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge, MenuSimple } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import {
@@ -30,6 +23,8 @@ const rxdb = new RxDB({
   entities: [MenuSimple, MenuLarge, PglEncryptedTree],
   sync: { local: { adapter: 'pglite' }, type: SyncType.None }
 });
+// 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+rxdb.use(rxDBPluginTree);
 rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' })).init();
 const adapter = new RxDBAdapterPGlite(rxdb, { store: 'memory' });
 

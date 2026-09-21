@@ -5,7 +5,6 @@ import merge_remove from '../query/merge_remove.js';
 import merge_update from '../query/merge_update.js';
 import { Repository } from '../repository/Repository.js';
 import { RepositoryBase } from '../repository/RepositoryBase.js';
-import { TreeRepository } from '../repository/TreeRepository.js';
 import { IRxDBAdapter, RxDBMutationsMap } from '../rxdb-adapter.js';
 import { EntityLocalNewEvent, EntityLocalUpdatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
@@ -94,23 +93,14 @@ export class EntityManager {
    * @param rxdb - RxDB实例，提供数据库访问和事件分发
    */
   constructor(public readonly rxdb: RxDB) {
-    rxdb
-      .repository('Repository', {
-        class: Repository,
-        mergeOperations: {
-          create: merge_create,
-          update: merge_update,
-          remove: merge_remove
-        }
-      })
-      .repository('TreeRepository', {
-        class: TreeRepository,
-        mergeOperations: {
-          create: merge_create,
-          update: merge_update,
-          remove: merge_remove
-        }
-      });
+    rxdb.repository('Repository', {
+      class: Repository,
+      mergeOperations: {
+        create: merge_create,
+        update: merge_update,
+        remove: merge_remove
+      }
+    });
   }
 
   init() {
@@ -118,7 +108,8 @@ export class EntityManager {
     // 传数据库级 sync：实体不写 `sync` 时生效的是它，只看元数据会漏掉库级 QueryCache 的组合违规。
     const violations = validateEntityMetadataSet(
       this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
-      this.rxdb.config.sync
+      this.rxdb.config.sync,
+      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type]
     );
     if (violations.length > 0) {
       throw new RxDBError(formatMetadataViolations(violations));
@@ -132,7 +123,16 @@ export class EntityManager {
         setRuntimeObjectKey(metadata, ENTITY_TYPE, EntityType);
         const config = this.rxdb.getRepositoryConfig(metadata.repository);
         if (!config) {
-          throw new RxDBError(`Repository '${metadata.repository}' not found for entity '${metadata.name}'`);
+          // 列出当前已注册的仓储名，而不是只说「没找到」：核心只自带 `Repository`，
+          // `TreeRepository` 这类全由插件在 `install()` 里注册。不列出来，调用方分不清
+          // 自己是把名字拼错了，还是漏了一句 `rxdb.use(...)`。这里不点名具体包——
+          // 核心不认识任何插件，写死包名等于把刚拆出去的耦合又焊回来。
+          const registered = this.rxdb.getRepositoryNames();
+          throw new RxDBError(
+            `Repository '${metadata.repository}' not found for entity '${metadata.name}'. ` +
+              `Registered repositories: ${registered.join(', ')}. ` +
+              `若该仓储由插件注册，请确认已调用 rxdb.use(...) 装上对应插件。`
+          );
         }
 
         registerEntityManager(EntityType, this);

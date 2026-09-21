@@ -2,11 +2,9 @@ import { EntityType } from '../entity/entity.interface.js';
 import { FindAllOptions, FindByCursorOptions, FindOptions } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
-import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { RxDBEntityLocalCreatedEventData } from '../rxdb-events.js';
 import { query_need_refresh_create } from './need_refresh_create.js';
 import { calculateOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
-import { buildEntityMap, isAncestorOf, isDescendantOf } from './query-tree.utils.js';
 import { isStaleEntityEvent } from './stale-event.utils.js';
 
 /**
@@ -157,45 +155,6 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       task.next(current_count + added, false);
       break;
     }
-
-    case 'findDescendants': {
-      const options = task.options as FindTreeOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      // 必须把本批新建实体一并纳入关系图，否则"父子同批新建"时，
-      // 子节点向上查父节点会查不到而被丢弃（与 findAncestors 分支保持一致）
-      const entities_map = buildEntityMap([...old_result, ...entities], e => e.id);
-
-      const new_descendants = entities.filter(
-        entity =>
-          entity.id === options.entityId || isDescendantOf(entity, options.entityId, entities_map, options.level)
-      );
-      if (new_descendants.length === 0) return;
-
-      new_descendants.forEach(entity => task.resultEntitySet.add(entity));
-      task.next(Array.from(task.resultEntitySet.values()), true);
-      break;
-    }
-
-    case 'findAncestors': {
-      const options = task.options as FindTreeOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      const all_entities = [...old_result, ...entities];
-      const entities_map = buildEntityMap(all_entities, e => e.id);
-
-      const new_ancestors = entities.filter(
-        entity => entity.id === options.entityId || isAncestorOf(entity, options.entityId, entities_map, options.level)
-      );
-      if (new_ancestors.length === 0) return;
-
-      new_ancestors.forEach(entity => task.resultEntitySet.add(entity));
-      task.next(Array.from(task.resultEntitySet.values()), true);
-      break;
-    }
-
-    case 'countDescendants':
-    case 'countAncestors':
-      // count 查询无法 JS 增量更新，由上层触发 SQL 刷新
-      break;
   }
 };
 
@@ -267,24 +226,7 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
     case 'findByCursor':
     case 'findAll':
     case 'count':
-    case 'findDescendants':
-    case 'findAncestors':
       default_recalculate();
-      break;
-
-    case 'countDescendants':
-    case 'countAncestors':
-      // count 查询不维护 resultEntitySet，只能 SQL 刷新
-      refresh_rules.push(['match_where'], ['match_relation_where']);
-      break;
-
-    case 'findNeighbors':
-    case 'countNeighbors':
-    case 'findPaths':
-      // 图查询同样不维护 resultEntitySet，只能 SQL 刷新；不带 match_where_before——
-      // CREATE 没有"更新前"状态，QueryRulesBuilder.buildCreateRules() 对它恒返回 true，
-      // 加进来只会让刷新变成无条件触发。
-      refresh_rules.push(['match_where'], ['match_relation_where']);
       break;
   }
 

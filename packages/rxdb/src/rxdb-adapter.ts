@@ -7,7 +7,6 @@ import type { QueryCacheEntityMetadata } from './entity/metadata-options.interfa
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
-import type { TreeRepository } from './repository/TreeRepository.js';
 import { RxDB } from './RxDB.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
@@ -608,8 +607,9 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
  *
  * @remarks
  * 门面轴（`@Entity({ repository: 'X' })` → `getRepository(E)` 拿到什么）的名字表。
- * 核心自带 `Repository` / `TreeRepository` 两项（由 `EntityManager` 的构造函数登记到运行期），
- * 插件包用 `declare module '@aiao/rxdb'` 把自己的门面合并进来，与核心两项同为一等公民。
+ * 核心只自带 `Repository` 一项（由 `EntityManager` 的构造函数登记到运行期），
+ * 插件包用 `declare module '@aiao/rxdb'` 把自己的门面合并进来，与核心那项同为一等公民
+ * （`TreeRepository` 就来自 `@aiao/rxdb-plugin-tree`）。
  *
  * 与 {@link RxDBAdapters} 同一套模板，同一个禁忌：**绝不能加索引签名**。
  * 一旦加上，`keyof RxDBRepositories` 就塌成 `string`，所有 `declare module` 静默失效。
@@ -629,7 +629,6 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
  */
 export interface RxDBRepositories {
   Repository: typeof Repository;
-  TreeRepository: typeof TreeRepository;
 }
 
 /**

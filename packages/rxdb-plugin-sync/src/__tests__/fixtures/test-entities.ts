@@ -1,11 +1,11 @@
 /**
  * @fileoverview 测试实体定义
  *
- * 提供用于测试的标准实体：User, Post, Category
- * 覆盖基础 CRUD、关系、树形结构场景
+ * 提供用于测试的标准实体：User, Post, Category, Tag
+ * 覆盖基础 CRUD 与关系场景
  */
 
-import { Entity, EntityBase, PropertyType, RelationKind, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
 
 /**
  * 用户实体 - 简单实体，用于基础 CRUD 和版本控制测试
@@ -55,9 +55,13 @@ export class Post extends EntityBase {
 }
 
 /**
- * 分类实体 - 树形结构，用于测试级联操作和分支管理
+ * 分类实体 - 带排序字段的普通实体，用于测试分支管理下的批量写入
+ *
+ * @remarks
+ * 曾经是树实体，但树形对本包的用例不承载任何语义（没有一个 spec 查过祖先/后代），
+ * 留着只会让 history/sync 平白多一条指向 `@aiao/rxdb-plugin-tree` 的依赖边。
  */
-@TreeEntity({
+@Entity({
   name: 'Category',
   properties: [
     { name: 'name', type: PropertyType.string },
@@ -65,7 +69,7 @@ export class Post extends EntityBase {
     { name: 'slug', type: PropertyType.string, unique: true }
   ]
 })
-export class Category extends TreeAdjacencyListEntityBase {
+export class Category extends EntityBase {
   name!: string;
   order!: number;
   slug!: string;

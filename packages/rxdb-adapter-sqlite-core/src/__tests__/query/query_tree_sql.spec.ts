@@ -6,11 +6,9 @@ import {
   RelationKind,
   RxDB,
   RxDBError,
-  SyncType,
-  TreeAdjacencyListEntityBase,
-  TreeEntity,
-  type FindTreeOptions
+  SyncType
 } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity, type FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge, MenuSimple } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import {

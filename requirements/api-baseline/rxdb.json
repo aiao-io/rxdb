@@ -30,6 +30,10 @@
         "kind": "both"
       },
       {
+        "name": "applyExternalEntityUpdate",
+        "kind": "value"
+      },
+      {
         "name": "assertClaimedCapabilities",
         "kind": "value"
       },
@@ -554,6 +558,10 @@
         "kind": "value"
       },
       {
+        "name": "getEntityId",
+        "kind": "value"
+      },
+      {
         "name": "getEntityMetadata",
         "kind": "value"
       },
@@ -670,6 +678,10 @@
         "kind": "type"
       },
       {
+        "name": "IncrementalUpdateContext",
+        "kind": "type"
+      },
+      {
         "name": "installWorkingTreeCapture",
         "kind": "value"
       },
@@ -759,6 +771,14 @@
       },
       {
         "name": "isRxDBEntity",
+        "kind": "value"
+      },
+      {
+        "name": "isStaleEntityEvent",
+        "kind": "value"
+      },
+      {
+        "name": "isStaleEntityRemoveEvent",
         "kind": "value"
       },
       {
@@ -988,6 +1008,10 @@
       {
         "name": "Plugin",
         "kind": "type"
+      },
+      {
+        "name": "prepareIncrementalUpdate",
+        "kind": "value"
       },
       {
         "name": "PrimaryAdapterKind",
@@ -2008,6 +2032,14 @@
       {
         "name": "UnsupportedRxDBSystemVersionError",
         "kind": "both"
+      },
+      {
+        "name": "UpdateClassification",
+        "kind": "type"
+      },
+      {
+        "name": "UpdateDataCache",
+        "kind": "type"
       },
       {
         "name": "UrlFormat",

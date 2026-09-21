@@ -231,7 +231,7 @@ export const transitionMetadata = (
   // 实体级配置沿原型链继承
   // 这四项描述的是**整个实体的行为**，不是「自己定义的那几个字段」：属性 / 关系 / 索引
   // 早就沿原型链合并了，它们却只带自身声明的值 —— 结果是继承一个基类只继承到「形状」，
-  // 继承不到「行为」（树基类的 features.tree 与 TreeRepository 都传不下来）。
+  // 继承不到「行为」（例如树插件的基类，它的 features.tree 与 repository 都传不下来）。
   const features = metadataOptionsArray.reduce<EntityMetadataFeatures | undefined>(
     (merged, meta) => merge_features(merged, meta.features),
     undefined
@@ -243,7 +243,7 @@ export const transitionMetadata = (
   const log = nearest_declared(metadataOptionsArray, 'log');
   if (log !== undefined) metadata.log = log;
   // 默认仓库名的兜底必须在继承**之后**：先定死成 'Repository'，
-  // 祖先声明的 'TreeRepository' 就再也传不下来
+  // 祖先声明的门面名（如树插件的 'TreeRepository'）就再也传不下来
   metadata.repository = nearest_declared(metadataOptionsArray, 'repository') || 'Repository';
 
   // 将映射添加到元数据对象
