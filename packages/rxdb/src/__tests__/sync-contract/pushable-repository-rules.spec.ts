@@ -45,7 +45,7 @@ const SYNC_CONFIG: Readonly<Record<RepositorySyncType, SyncOptions>> = {
  * @param name - 实体名，同时进规则的 `entity` 字段
  * @param syncType - 想要的同步类型；`undefined` 表示不写实体级 sync，走全局回退
  */
-const entityWith = (name: string, syncType?: RepositorySyncType): EntityType => {
+const entityWith = (name: Capitalize<string>, syncType?: RepositorySyncType): EntityType => {
   @Entity({ name, properties: [], sync: syncType ? SYNC_CONFIG[syncType] : undefined })
   class Fixture extends EntityBase {}
   return Fixture as unknown as EntityType;

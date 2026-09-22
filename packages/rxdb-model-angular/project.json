@@ -16,9 +16,10 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "dependsOn": ["^build"],
+      "// command": "用 tsc --build 而不是 tsc -p --noEmit：tsconfig.spec.json 引用了 rxdb-angular/tsconfig.lib.json，而 tsc CLI 不开 useSourceOfProjectReferenceRedirect，会把 @aiao/rxdb-angular 的 import 重定向到 dist/out-tsc/rxdb-angular/lib 的声明产物上。Angular 包的构建走 ng-packagr，写的是 dist/packages/，整条构建链都不产 out-tsc，净树上必报 TS6305（本地绿只是因为历史会话 tsc --build 过）。--build 会先把被引用的复合项目补出来，website 的 api-docs 用的是同一套做法。",
       "options": {
         "cwd": "packages/rxdb-model-angular",
-        "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
+        "command": "tsc --build tsconfig.spec.json --pretty false"
       }
     },
     "build": {
