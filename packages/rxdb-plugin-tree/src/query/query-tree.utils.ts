@@ -54,7 +54,11 @@ export function* traverseAncestors<T extends object, ID>(
   let currentParentId = get_tree_parent_id<ID>(entity);
   let level = 1;
 
-  while (currentParentId !== null && !visited.has(currentParentId) && (maxDepth === undefined || visited.size < maxDepth)) {
+  while (
+    currentParentId !== null &&
+    !visited.has(currentParentId) &&
+    (maxDepth === undefined || visited.size < maxDepth)
+  ) {
     visited.add(currentParentId);
 
     const parent = entitiesMap.get(currentParentId);

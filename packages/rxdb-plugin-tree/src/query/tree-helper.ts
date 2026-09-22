@@ -153,9 +153,10 @@ export class TreeHelper<T extends EntityType> {
    * @returns true 表示候选实体是目标的祖先
    *
    * @remarks
-   * `maxLevel` 不是可选的性能优化，而是正确性要求：适配器的递归成员带
-   * `c.__level < level`，`__level` 超出上限的祖先 SQL 根本不会返回。不传上限
-   * 会把深处的祖先加进结果，连默认的 `level: 0`（只返回目标自己）都兜不住。
+   * `maxLevel` 不是可选的性能优化，而是正确性要求：调用方给了 `level` 时，
+   * 适配器的递归成员带 `c.__level < level`，`__level` 超出上限的祖先 SQL 根本不会返回；
+   * 这里不跟着截断就会把深处的祖先并进增量结果，与全量刷新分叉。
+   * 调用方没给 `level`（不限深度）时传 `undefined`，两边都走到根。
    */
   isEntityAncestor(targetEntity: InstanceType<T>, candidateEntity: InstanceType<T>, maxLevel?: number): boolean {
     const candidateId = getEntityId(candidateEntity);
@@ -315,7 +316,7 @@ export class TreeHelper<T extends EntityType> {
    * 才标记 `complete: false`。环由 `ids` 自身兜住，无需额外的跳数上限。
    */
   collectAncestorIdsForCount(targetEntity: InstanceType<T>, maxLevel?: number): TreeAncestorIdSet {
-    // `ids` 同时充当 visited：祖先链上的节点两种身份完全重合，环与深度上限用它一并兜住
+    // `ids` 同时充当 visited：祖先链上的节点两种身份完全重合，环用它一并兜住
     const ids = new Set<RxDBEntityId>();
     let currentParentId = get_tree_parent_id<RxDBEntityId>(targetEntity);
     let level = 0; // 距目标实体的跳数：父节点为 1
