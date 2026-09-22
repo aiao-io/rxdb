@@ -5,7 +5,7 @@ import { ITreeEntity } from '../entity/tree-entity.interface.js';
 import { merge_create } from '../query/merge_create.js';
 import { merge_remove } from '../query/merge_remove.js';
 import { merge_update } from '../query/merge_update.js';
-import { assertTreeLevel, TREE_MAX_LEVEL } from './tree-level.utils.js';
+import { assertTreeLevel } from './tree-level.utils.js';
 import { FindTreeOptions, ITreeRepository } from './tree-repository.interface.js';
 
 /**
@@ -122,24 +122,12 @@ export class TreeRepository<
   /**
    * 归一查询选项。
    *
-   * `level` 的两层处理**互相衔接、不冲突**：
-   * 先按 {@link FindTreeOptions.level} 的 `@remarks` 对数字做裁剪（`< 0 → 0`、`> TREE_MAX_LEVEL → 100`），
-   * 再交给 {@link assertTreeLevel} 兜住裁剪管不到的情况 —— 无类型调用方传来的字符串/小数/NaN
-   * 既不小于 0 也不大于 100，会原样穿过裁剪并被适配器直接插值进 SQL。
-   * 在这里同步抛错，比让它走到 SQL 生成再炸更早、也与适配器无关。
+   * 两件事：`entityId` 的 `undefined` 与 `null` 在树语义里都表示「查全树」，统一成 `null`；
+   * `level` 交给 {@link assertTreeLevel} 校验后原样透传 —— 不传就是 `undefined`（不限深度），
+   * 非法值直接抛错。这里**不做裁剪**：把越界值悄悄改成边界值，只会让调用方拿到一份
+   * 自己没要过的结果，且掩盖掉注入探针。
    */
   #normalizeOptions(options: FindTreeOptions<T>): FindTreeOptions<T> {
-    const opt: FindTreeOptions<T> = { ...options };
-    const level = opt.level ?? 0;
-    // 负数规范化为 0，超过最大值限制为 TREE_MAX_LEVEL
-    if (level < 0) {
-      opt.level = 0;
-    } else if (level > TREE_MAX_LEVEL) {
-      opt.level = TREE_MAX_LEVEL;
-    } else {
-      opt.level = assertTreeLevel(level);
-    }
-    opt.entityId = opt.entityId ?? null;
-    return opt;
+    return { ...options, level: assertTreeLevel(options.level), entityId: options.entityId ?? null };
   }
 }

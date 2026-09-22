@@ -22,3 +22,19 @@
 ## PR 说明 · `@aiao/rxdb` 有破坏性导出移除
 
 C1 删掉了 `IRepositoryConfig.mergeOperations` 与 `MergeQueryTaskOptions`（死通道，真正生效的是 `QueryManager.registerMerge*Fn`）。`scripts/audit/api-surface.mjs` 已标记为**破坏性变更**，基线已更新，但合并 PR 时仍需附迁移/breaking note。
+
+## PR 说明 · tree 查询 `level` 默认语义翻转
+
+不传 `level` 时 `findDescendants` / `findAncestors` 从「只返回锚点节点」改成「不限制深度」，
+深度由前端按需显式传 `level` 决定。随之：
+
+- `TREE_MAX_LEVEL` 从 `@aiao/rxdb-plugin-tree` 的公开导出移除（基线已更新）
+- `assertTreeLevel` 返回 `number | undefined`；显式 `level` 不再有 100 上限，
+  非负安全整数以外一律抛 `RxDBError`（不裁剪，符合「无 fallback 兜底」）
+- pglite / sqlite-core 递归 CTE 在 `level` 缺省时改用适配器内部常量
+  `TREE_RECURSION_MAX_DEPTH = 1000` 兜住脏数据成环，这不是用户可配的查询深度
+- 本地增量 merge 去掉 `tree-helper.ts` / `query-tree.utils.ts` 里 100 跳的硬上限
+  （环由 `visited` / `ids` 集合保证终止），否则深树上增量 merge 会与 SQL 全量刷新分叉
+
+⚠️ 残余边界：`level` 缺省时本地 merge 真正不限深度、SQL 停在 1000 层。
+只有超过 1000 层的树或成环数据才够得着，两者都在契约之外。

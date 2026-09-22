@@ -243,16 +243,28 @@ describe('TreeHelper', () => {
     expect(isAncestorForCount(helper, leaf, unreachable)).toBe(false);
   });
 
-  it('enforces the 100-edge limit only on the guarded traversal variants', () => {
+  // 不传 level 时后端不限深度，本地增量 merge 必须跟着不限：此前几个守卫变体各带
+  // 100 边的硬上限，深链上会与 isEntityDescendant（无上限）以及 SQL 的结果分叉。
+  it('keeps every traversal variant consistent past 100 edges', () => {
     const { helper } = createHelper(createChain(101));
     const leaf = createNode('leaf', 'node-1');
 
     expect(helper.isEntityDescendant(leaf, 'node-101')).toEqual({ isDescendant: true, level: 101 });
     expect(helper.isEntityAncestor(leaf, createNode('node-100'))).toBe(true);
-    expect(helper.isEntityAncestor(leaf, createNode('node-101'))).toBe(false);
+    expect(helper.isEntityAncestor(leaf, createNode('node-101'))).toBe(true);
     expect(helper.isEntityDescendantForCount(leaf, 'node-100')).toBe(true);
-    expect(helper.isEntityDescendantForCount(leaf, 'node-101')).toBe(false);
+    expect(helper.isEntityDescendantForCount(leaf, 'node-101')).toBe(true);
     expect(isAncestorForCount(helper, leaf, createNode('node-100'))).toBe(true);
-    expect(isAncestorForCount(helper, leaf, createNode('node-101'))).toBe(false);
+    expect(isAncestorForCount(helper, leaf, createNode('node-101'))).toBe(true);
+  });
+
+  // 给了 maxLevel 时仍然按它截断：这是正确性要求，SQL 不会返回超出上限的祖先
+  it('still honours an explicit maxLevel', () => {
+    const { helper } = createHelper(createChain(101));
+    const leaf = createNode('leaf', 'node-1');
+
+    expect(helper.isEntityAncestor(leaf, createNode('node-2'), 2)).toBe(true);
+    expect(helper.isEntityAncestor(leaf, createNode('node-3'), 2)).toBe(false);
+    expect(isAncestorForCount(helper, leaf, createNode('node-3'), 2)).toBe(false);
   });
 });

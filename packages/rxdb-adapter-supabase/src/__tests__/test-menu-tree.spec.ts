@@ -362,14 +362,12 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
   describe('边界情况测试', () => {
     it('负数 level 应被拒绝', async () => {
       await expect(repository.findDescendants({ entityId: rootMenu.id, level: -1 })).rejects.toThrow(
-        /integer between 0 and 100/
+        /non-negative integer/
       );
     });
 
-    it('超过上限的 level 应被拒绝', async () => {
-      await expect(repository.findDescendants({ entityId: rootMenu.id, level: 101 })).rejects.toThrow(
-        /integer between 0 and 100/
-      );
+    it('level 不设上界：超大层级照常查询，不报错', async () => {
+      await expect(repository.findDescendants({ entityId: rootMenu.id, level: 101 })).resolves.toBeDefined();
     });
   });
 

@@ -1,11 +1,9 @@
-import { TREE_MAX_LEVEL } from '../repository/tree-level.utils.js';
-
 /**
  * 树形遍历配置
  */
 interface TreeTraversalOptions {
   maxLevel?: number; // 最大层级限制
-  maxDepth?: number; // 最大深度（防止无限循环）
+  maxDepth?: number; // 最大跳数；不传则不限（环由 visited 兜住）
 }
 
 /**
@@ -51,12 +49,12 @@ export function* traverseAncestors<T extends object, ID>(
   entitiesMap: Map<ID, T>,
   options: TreeTraversalOptions = {}
 ): Generator<{ entity: T; level: number }> {
-  const { maxLevel, maxDepth = TREE_MAX_LEVEL } = options;
+  const { maxLevel, maxDepth } = options;
   const visited = new Set<ID>();
   let currentParentId = get_tree_parent_id<ID>(entity);
   let level = 1;
 
-  while (currentParentId !== null && !visited.has(currentParentId) && visited.size < maxDepth) {
+  while (currentParentId !== null && !visited.has(currentParentId) && (maxDepth === undefined || visited.size < maxDepth)) {
     visited.add(currentParentId);
 
     const parent = entitiesMap.get(currentParentId);

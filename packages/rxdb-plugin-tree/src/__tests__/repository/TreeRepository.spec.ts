@@ -1,4 +1,4 @@
-import { ENTITY_STATIC_TYPES, SyncType, type RxDB, type UUID } from '@aiao/rxdb';
+import { ENTITY_STATIC_TYPES, RxDBError, SyncType, type RxDB, type UUID } from '@aiao/rxdb';
 import { METADATA } from '@aiao/rxdb/testing';
 import { BehaviorSubject, NEVER, Observable, firstValueFrom, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -119,7 +119,7 @@ describe('TreeRepository', () => {
       );
     });
 
-    it('应在未提供时将 level 规范化为 0', async () => {
+    it('未提供 level 时保持 undefined（不限深度）', async () => {
       mockLocal.findDescendants.mockReturnValue(of([]));
 
       const result$ = repository.findDescendants({
@@ -129,10 +129,10 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$); // 等待 Observable 完成
 
       const callArgs = mockLocal.findDescendants.mock.calls[0][0];
-      expect(callArgs.level).toBe(0); // 默认为 0
+      expect(callArgs.level).toBeUndefined(); // 不传即不限深度
     });
 
-    it('应将 level 限制为 TREE_MAX_LEVEL', async () => {
+    it('超大 level 原样透传，不裁剪', async () => {
       mockLocal.findDescendants.mockReturnValue(of([]));
 
       const result$ = repository.findDescendants({
@@ -143,7 +143,7 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$);
 
       const callArgs = mockLocal.findDescendants.mock.calls[0][0];
-      expect(callArgs.level).toBe(100); // 应限制为 TREE_MAX_LEVEL
+      expect(callArgs.level).toBe(200); // 原样透传
     });
 
     it('应允许有效的 level 值', async () => {
@@ -204,7 +204,7 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$);
 
       const callArgs = mockLocal.countDescendants.mock.calls[0][0];
-      expect(callArgs.level).toBe(100); // 限制为 TREE_MAX_LEVEL
+      expect(callArgs.level).toBe(150); // 原样透传
       expect(callArgs.entityId).toBe('parent-1');
     });
   });
@@ -235,7 +235,7 @@ describe('TreeRepository', () => {
       );
     });
 
-    it('应在未提供时将 level 规范化为 0', async () => {
+    it('未提供 level 时保持 undefined（不限深度）', async () => {
       mockLocal.findAncestors.mockReturnValue(of([]));
 
       const result$ = repository.findAncestors({
@@ -245,10 +245,10 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$);
 
       const callArgs = mockLocal.findAncestors.mock.calls[0][0];
-      expect(callArgs.level).toBe(0); // 默认为 0
+      expect(callArgs.level).toBeUndefined(); // 不传即不限深度
     });
 
-    it('应将零或负的 level 值规范化为 0', async () => {
+    it('显式 level: 0 原样透传（仅当前节点）', async () => {
       mockLocal.findAncestors.mockReturnValue(of([]));
 
       const result$ = repository.findAncestors({
@@ -259,7 +259,7 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$);
 
       const callArgs = mockLocal.findAncestors.mock.calls[0][0];
-      expect(callArgs.level).toBe(0); // 应保持为 0
+      expect(callArgs.level).toBe(0); // 原样透传
     });
   });
 
@@ -294,7 +294,7 @@ describe('TreeRepository', () => {
       await firstValueFrom(result$);
 
       const callArgs = mockLocal.countAncestors.mock.calls[0][0];
-      expect(callArgs.level).toBe(100); // 限制为 TREE_MAX_LEVEL
+      expect(callArgs.level).toBe(200); // 原样透传
       expect(callArgs.entityId).toBeNull(); // 未提供时使用默认值
     });
   });
@@ -336,18 +336,11 @@ describe('TreeRepository', () => {
       expect(callArgs.customProp).toBe('custom'); // 应保留
     });
 
-    it('应将负的 level 值规范化为 0', async () => {
+    it('负的 level 值同步抛错，不裁剪', () => {
       mockLocal.countDescendants.mockReturnValue(of(0));
 
-      const result$ = repository.countDescendants({
-        entityId: 'test-1',
-        level: -5
-      });
-
-      await firstValueFrom(result$);
-
-      const callArgs = mockLocal.countDescendants.mock.calls[0][0];
-      expect(callArgs.level).toBe(0); // 负数应规范化为 0
+      expect(() => repository.countDescendants({ entityId: 'test-1', level: -5 })).toThrow(RxDBError);
+      expect(mockLocal.countDescendants).not.toHaveBeenCalled();
     });
   });
 });

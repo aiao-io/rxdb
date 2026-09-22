@@ -42,7 +42,7 @@ class InheritedTreeNode {}
 const createRxDB = (
   dbName: string,
   entities: EntityType[],
-  type: SyncType,
+  type: SyncType.Full | SyncType.QueryCache,
   { withPlugin = true }: { withPlugin?: boolean } = {}
 ) => {
   const rxdb = new RxDB({

@@ -54,10 +54,6 @@
         "kind": "value"
       },
       {
-        "name": "TREE_MAX_LEVEL",
-        "kind": "value"
-      },
-      {
         "name": "TREE_QUERY_TYPE_LIST",
         "kind": "value"
       },

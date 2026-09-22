@@ -87,10 +87,11 @@ describe('query_tree_sql unit edges', () => {
     expect(countAnc.sql).toContain('count');
   });
 
-  it('level 未设置时按 FindTreeOptions 契约仅返回当前节点', () => {
+  it('level 未设置时不限深度，只保留递归 CTE 的失控保护上限', () => {
     const sql = generate_tree_sql(adapter, metadata, { entityId: 'n1' }).sql;
 
-    expect(sql).toContain('c.level < 0');
+    // 不传 level = 不限深度；`c.level < 1000` 不是查询契约，是脏数据成环时的兜底
+    expect(sql).toContain('c.level < 1000');
   });
 
   it('拒绝通过 children 别名过滤当前树实体的加密列', () => {
@@ -106,7 +107,6 @@ describe('query_tree_sql unit edges', () => {
     const injection = '1; DROP TABLE menu_simple --' as unknown as number;
 
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: injection })).toThrow(RxDBError);
-    expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 101 })).toThrow(RxDBError);
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: -1 })).toThrow(RxDBError);
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 1.5 })).toThrow(RxDBError);
   });

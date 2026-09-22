@@ -1,5 +1,4 @@
 import { EntityType, getEntityId, RxDBEntityId, UpdateDataCache } from '@aiao/rxdb';
-import { TREE_MAX_LEVEL } from '../repository/tree-level.utils.js';
 import { get_tree_parent_id } from './query-tree.utils.js';
 
 /**
@@ -174,7 +173,7 @@ export class TreeHelper<T extends EntityType> {
     let level = 0; // 距目标实体的跳数：父节点为 1
 
     // 从目标实体向上遍历
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
+    while (currentParentId !== null && !visited.has(currentParentId)) {
       level++;
       // 超出层级上限：再往上的节点 SQL 都不会返回，无需继续遍历
       if (maxLevel !== undefined && level > maxLevel) {
@@ -226,7 +225,7 @@ export class TreeHelper<T extends EntityType> {
     let currentParentId = get_tree_parent_id<RxDBEntityId>(entity);
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
 
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
+    while (currentParentId !== null && !visited.has(currentParentId)) {
       // 找到目标实体，确认是后代
       if (currentParentId === targetEntityId) {
         return true;
@@ -277,7 +276,7 @@ export class TreeHelper<T extends EntityType> {
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
     let depth = 0;
 
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
+    while (currentParentId !== null && !visited.has(currentParentId)) {
       depth++;
       if (!findsWholeTree && currentParentId === targetEntityId) {
         return { isDescendant: true, depth };
@@ -311,9 +310,9 @@ export class TreeHelper<T extends EntityType> {
    *
    * 与 {@link isEntityAncestor} 同因，`maxLevel` 不是性能优化而是正确性要求：
    * `countAncestors` 数的是 `__level <= level` 的祖先，不带上限会把超深祖先也计进去。
-   * 超出上限时停止收集并标记 `complete: true` —— 更上方的祖先 SQL 不会返回，
+   * 超出 `maxLevel` 时停止收集并标记 `complete: true` —— 更上方的祖先 SQL 不会返回，
    * 「不是祖先」是能确定的答案，不必为此回一次 SQL。只有父链中途取不到实体
-   * 才标记 `complete: false`。
+   * 才标记 `complete: false`。环由 `ids` 自身兜住，无需额外的跳数上限。
    */
   collectAncestorIdsForCount(targetEntity: InstanceType<T>, maxLevel?: number): TreeAncestorIdSet {
     // `ids` 同时充当 visited：祖先链上的节点两种身份完全重合，环与深度上限用它一并兜住
@@ -321,7 +320,7 @@ export class TreeHelper<T extends EntityType> {
     let currentParentId = get_tree_parent_id<RxDBEntityId>(targetEntity);
     let level = 0; // 距目标实体的跳数：父节点为 1
 
-    while (currentParentId !== null && !ids.has(currentParentId) && ids.size < TREE_MAX_LEVEL) {
+    while (currentParentId !== null && !ids.has(currentParentId)) {
       level++;
       // 超出层级上限：SQL 不会返回更上方的祖先，链到此为止即可
       if (maxLevel !== undefined && level > maxLevel) {
@@ -337,6 +336,6 @@ export class TreeHelper<T extends EntityType> {
       currentParentId = get_tree_parent_id<RxDBEntityId>(parentEntity);
     }
 
-    return { ids, complete: true }; // 走到根节点，或被环/深度上限截断
+    return { ids, complete: true }; // 走到根节点，或被环截断
   }
 }

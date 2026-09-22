@@ -180,7 +180,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     let currentLevelNodes = await loadRoots();
     let depth = 0;
 
-    while (currentLevelNodes.length > 0 && depth <= level) {
+    while (currentLevelNodes.length > 0 && (level === undefined || depth <= level)) {
       const nextParentIds: string[] = [];
       const uniqueCurrentLevel = currentLevelNodes.filter(node => {
         const nodeId = String(node['id']);
@@ -199,7 +199,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
 
       // 带 where 时 hasChildren 另有来源（见 loadParentsWithChildren），
       // 所以最后一层不必再白拉一次被过滤的子节点。
-      const needsChildren = depth < level || (hasChildrenFeature === true && !where);
+      const needsChildren = level === undefined || depth < level || (hasChildrenFeature === true && !where);
       const nextLevelNodes = needsChildren && nextParentIds.length > 0 ? await loadChildren(nextParentIds) : [];
       const parentsWithChildren =
         hasChildrenFeature ? await loadParentsWithChildren(nextParentIds, nextLevelNodes) : undefined;
@@ -214,7 +214,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
         results.push(entity);
       }
 
-      currentLevelNodes = depth < level ? nextLevelNodes : [];
+      currentLevelNodes = level === undefined || depth < level ? nextLevelNodes : [];
       depth += 1;
     }
 
@@ -243,15 +243,15 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     //
     // 整表 `select('*')` 会被 PostgREST 的 `max-rows`（默认 1000）**静默截断** ——
     // 目标节点或其祖先落在截断之外时，内存回溯会在未命中处提前 break，
-    // 返回不完整的祖先链且不报任何错。往返次数由树深度决定（≤ level + 1），
+    // 返回不完整的祖先链且不报任何错。往返次数由树深度决定（给了 level 时 ≤ level + 1），
     // 树的深度天然有界，代价可控。
     const rows: Record<string, unknown>[] = [];
     const seen = new Set<string>();
     let currentId: string | null = entityId as string;
     let currentLevel = 0;
 
-    while (currentId && currentLevel <= level) {
-      // 环保护：数据损坏导致的 parentId 成环不该让循环跑满 level 次
+    while (currentId && (level === undefined || currentLevel <= level)) {
+      // 环保护：不传 level 时它就是唯一的终止条件；给了 level 时也不该让循环跑满 level 次
       if (seen.has(currentId)) break;
       seen.add(currentId);
 

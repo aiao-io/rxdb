@@ -1,6 +1,6 @@
 import { RxDBError } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { assertTreeLevel, TREE_MAX_LEVEL } from '../../repository/tree-level.utils.js';
+import { assertTreeLevel } from '../../repository/tree-level.utils.js';
 
 /**
  * `level` 是唯一一个被**直接字符串插值**进树查询 SQL 的选项
@@ -8,25 +8,30 @@ import { assertTreeLevel, TREE_MAX_LEVEL } from '../../repository/tree-level.uti
  * 因此它的合法性判定必须在唯一一处收口，且失败即抛错——不裁剪、不兜默认值。
  */
 describe('assertTreeLevel', () => {
-  it('未提供时按 FindTreeOptions 契约默认 0（仅当前节点）', () => {
-    expect(assertTreeLevel(undefined)).toBe(0);
+  it('未提供时返回 undefined，表示不限深度', () => {
+    expect(assertTreeLevel(undefined)).toBeUndefined();
   });
 
-  it('0..TREE_MAX_LEVEL 的整数原样返回', () => {
+  it('非负整数原样返回', () => {
     expect(assertTreeLevel(0)).toBe(0);
     expect(assertTreeLevel(1)).toBe(1);
-    expect(assertTreeLevel(TREE_MAX_LEVEL)).toBe(TREE_MAX_LEVEL);
+    expect(assertTreeLevel(100)).toBe(100);
   });
 
-  it('越界值抛错，不裁剪', () => {
+  it('不设上界：超大层级原样透传，深度由调用方决定', () => {
+    expect(assertTreeLevel(101)).toBe(101);
+    expect(assertTreeLevel(100_000)).toBe(100_000);
+  });
+
+  it('负数抛错，不裁剪', () => {
     expect(() => assertTreeLevel(-1)).toThrow(RxDBError);
-    expect(() => assertTreeLevel(TREE_MAX_LEVEL + 1)).toThrow(RxDBError);
   });
 
   it('非整数抛错', () => {
     expect(() => assertTreeLevel(1.5)).toThrow(RxDBError);
     expect(() => assertTreeLevel(Number.NaN)).toThrow(RxDBError);
     expect(() => assertTreeLevel(Number.POSITIVE_INFINITY)).toThrow(RxDBError);
+    expect(() => assertTreeLevel(Number.MAX_SAFE_INTEGER + 2)).toThrow(RxDBError);
   });
 
   it('非数字（来自无类型调用方）抛错，杜绝 SQL 注入', () => {

@@ -350,6 +350,10 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 `getFingerprintPrimitive` / `getFingerprintByEntity` / `getFingerprintByEntities`），
 外加新开的 `@aiao/rxdb/testing` 子入口 6 个符号（插件测试要复用核心的 harness）。
 **这是本阶段付出的代价**：merge 引擎的内部原语从此进基线、受兼容承诺约束。
+
+> 后续修订：`TREE_MAX_LEVEL` 已在「树查询默认不限深度」一轮中从 `@aiao/rxdb-plugin-tree` 删除
+> （默认不再限制深度后，显式 `level` 的 100 上限不再自洽）。上面这份符号清单记录的是
+> US-025 当时的迁移范围，不随后续增删改写。
 换来的是插件能做**真增量** merge——图插件当年一律 `refresh()`，树不能，
 四个树查询的 43 + 34 + 26 + 43 条 handler 断言全靠这批原语才搬得动。
 
