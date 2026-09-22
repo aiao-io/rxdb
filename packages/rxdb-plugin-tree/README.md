@@ -74,7 +74,7 @@ Category.findDescendants({ entityId: root.id, level: 2 }).subscribe(nodes => {
 2. 事件里有过期实体（`isStaleEntityEvent`）→ refresh；
 3. `findAncestors` 且 `parentId` 变过 → refresh（祖先链已被改写，增量无从谈起）。
 
-`find*` 走 recalculate，`count*` 走 refresh。用到的 merge 原语（`classifyUpdates` / `applyExternalEntityUpdate` / `invalidateEntityFingerprint` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束。
+`find*` 走 recalculate，`count*` 走 refresh。用到的 merge 原语（`prepareIncrementalUpdate` / `applyExternalEntityUpdate` / `getEntityId` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束；`classifyUpdates` 与 `invalidateEntityFingerprint` 是核心内部装配细节，不在公开面上。
 
 ## 连接纪元
 

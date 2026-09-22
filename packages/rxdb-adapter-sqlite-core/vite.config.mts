@@ -60,6 +60,7 @@ export default defineConfig(() => {
           '@aiao/rxdb',
           '@aiao/rxdb-adapter-encrypted',
           '@aiao/rxdb-adapter-sqlite-core',
+          '@aiao/rxdb-plugin-tree',
           '@aiao/rxdb-test',
           '@aiao/rxdb-test/entities',
           '@aiao/rxdb-test/shop',

@@ -11,9 +11,9 @@
 | ✅ Done        | 61   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 5    |
-| 📝 Backlog     | 7    |
+| 📝 Backlog     | 24   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 73   |
+| **合计**       | 90   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -160,6 +160,30 @@
   - ✅ 阶段 B 插件间依赖图 — 名字索引与重名裁决、拓扑装卸、环检测；消费方是 US-025 阶段 C/D
 
 > `US-016` / `US-017` 无故事文件、不在候选项中（理由见 [epic-008 已移出承诺范围](epics/epic-008-lifecycle-scope.md#已移出承诺范围)）。
+
+### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
+
+**整条 Epic 标价值待证，全部 `priority: Low`，不进任何排期批次**——17 条抽象对应零个已知病灶，
+解锁条件见 [epic-009 价值待证](epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+唯一带独立病灶的是 US-509（graph 插件写入期不拦环），它可以脱离 Epic 单独评审。
+
+- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；关闭条件是 `(bom_header_id, line_no)` 唯一而 `(parent_item_id, child_item_id)` 不唯一
+- ⬜ [US-508 BOM 视图解析：类型/组织/版本/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — 日期生效期与替代方案不重叠约束
+- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — **本 Epic 唯一有独立病灶的故事**：`findPaths` 只保证返回的路径无环，`addEdge` 不阻止写入成环的边
+- ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；闭包表不存累计用量
+- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 三阶段；七步有序公式，损耗制式必须记录
+- ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行
+- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进结构闭包与环检测
+- ⬜ [US-514 成本卷算](stories/plugin/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；前置 US-511 / US-520
+- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/plugin/US-515-bom-change-management.md) — `valid_from` 由 ECN 派生，不手填
+- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/plugin/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
+- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/plugin/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
+- ⬜ [US-518 序列与批次有效性](stories/plugin/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
+- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/plugin/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
+- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/plugin/US-520-bom-routing-operation.md) — 只做挂接点，不建路线实体
+- ⬜ [US-521 ERP/MRP 集成契约](stories/plugin/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline；批量导入按行报错
+- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/plugin/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
+- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/plugin/US-523-bom-as-built-instance.md) — 实例闭包与主数据闭包分离
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

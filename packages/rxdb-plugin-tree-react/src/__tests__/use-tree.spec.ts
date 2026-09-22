@@ -30,7 +30,17 @@ const queryMocks = {
 
 /** 满足 `ITreeEntity`：`id` / `createdAt` / `updatedAt` / `parentId` 齐备。 */
 class TreeEntity {
-  static [ENTITY_STATIC_TYPES]: { findTreeOptions: TreeOptions } = { findTreeOptions: { entityId: '' } };
+  static [ENTITY_STATIC_TYPES]: {
+    countAncestorsOptions: TreeOptions;
+    countDescendantsOptions: TreeOptions;
+    findAncestorsOptions: TreeOptions;
+    findDescendantsOptions: TreeOptions;
+  } = {
+    countAncestorsOptions: { entityId: '' },
+    countDescendantsOptions: { entityId: '' },
+    findAncestorsOptions: { entityId: '' },
+    findDescendantsOptions: { entityId: '' }
+  };
 
   readonly createdAt = new Date(0);
   readonly parentId: string | null = null;

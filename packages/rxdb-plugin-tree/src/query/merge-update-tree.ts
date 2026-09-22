@@ -57,11 +57,30 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
   // 记录"因 parentId 改变而移出子树"的节点，供孤儿复查使用
   const removedDueToMove = new Set<RxDBEntityId>();
 
+  /**
+   * 该实体是否是递归 CTE 的**基准成员**行。
+   *
+   * 适配器生成的 SQL 里，基准成员是 `WHERE id = ?`（指定了 entityId）或
+   * `WHERE parentId IS NULL`（查全树），**既不带 where 规则、也不带
+   * `c.__level < N`** —— 两者只挂在递归成员上。所以锚点（或查全树时的各个根节点）
+   * 无论 where 命中怎么翻转、自身 parentId 怎么改，SQL 重跑都照样返回它。
+   * 增量合并必须同口径，否则本地会摘掉一行 SQL 一定会给的记录。
+   */
+  const isTreeAnchor = (entityId: RxDBEntityId, current: InstanceType<T>): boolean =>
+    targetEntityId === null || targetEntityId === undefined ?
+      get_tree_parent_id(current) === null
+    : entityId === targetEntityId;
+
   const afterRemoval = oldResult.filter(entity => {
     const entityId = getEntityId(entity);
     if (entityId === undefined) return true; // 无ID的实体保留（理论上不应该出现）
 
     if (classification.updatedIds.has(entityId)) {
+      // 情况0: 基准成员恒在结果中 —— where 翻转与自身改父都不能把它摘掉。
+      // 锚点自己改父时，下面"是否仍是自己的后代"必然判否（节点不是自己的后代），
+      // 会把锚点连同整棵子树（孤儿复查）一起清空，而 SQL 其实一行没少。
+      if (isTreeAnchor(entityId, cache.getSerializedUpdate(entityId) ?? entity)) return true;
+
       // 情况1: 实体从匹配变为不匹配 where 条件 → 移除
       if (classification.newlyUnmatchedIds.has(entityId)) {
         hasChanges = true;
@@ -244,6 +263,7 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
 ) => {
   const options = task.options as FindTreeOptions<T>;
   const targetEntityId = options.entityId as RxDBEntityId | null | undefined; // 目标实体ID (查询谁的祖先)
+  const level = options.level; // 层级上限 (undefined 表示无限制)
 
   // 构建旧结果集的映射
   const oldResult = Array.from(task.resultEntitySet.values());
@@ -336,8 +356,10 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
     if (!serialized) return;
 
     const targetEntity = getTargetEntity();
-    // 是祖先 → 添加
-    if (targetEntity && helper.isEntityAncestor(targetEntity, serialized)) {
+    // 是祖先 且 在层级范围内 → 添加。
+    // 层级必须传：适配器递归成员带 `c.__level < level`，超出上限的祖先 SQL 不会返回，
+    // 本地补进去就会比 SQL 多行（默认 level=0 时连直接父节点都不该出现）。
+    if (targetEntity && helper.isEntityAncestor(targetEntity, serialized, level)) {
       hasChanges = true;
       newlyMatchedEntities.push(serialized);
       oldResultMap.set(id, serialized);
@@ -416,6 +438,17 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
     return resolved.isDescendant && resolved.depth <= level;
   };
 
+  /**
+   * 该实体是否是递归 CTE 的基准成员行（口径同 {@link handleFindDescendantsUpdate}）。
+   *
+   * 基准成员不过 where 也不过 level。查全树（`entityId` 为空）时它是所有根节点，
+   * 而这条分支的 SQL 是裸 `count(*)` —— 根节点恒被计入，where 命中翻转不改变计数。
+   * 指定了 `entityId` 时基准成员只有目标自己，而 SQL 用 `max(count(*)-1, 0)` 把它减掉，
+   * 净贡献为 0，因此这里恒为 false。
+   */
+  const isTreeBaseMember = (entity: InstanceType<T> | null | undefined): boolean =>
+    (targetEntityId === null || targetEntityId === undefined) && !!entity && get_tree_parent_id(entity) === null;
+
   let needsRefresh = false; // 是否需要触发 SQL 刷新
   let countChange = 0; // 计数变化量
 
@@ -433,8 +466,8 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
       break;
     }
 
-    // 更新前: 匹配条件 且 是后代 → 计入计数
-    const wasDescendantBefore = matchedBefore && isDescendantBefore;
+    // 更新前: 匹配条件 且 是后代 → 计入计数（基准成员豁免 where）
+    const wasDescendantBefore = isTreeBaseMember(beforeEntity) || (matchedBefore && isDescendantBefore);
 
     // 同理，更新后的 where 判定也用完整的更新后实体，而非裸 patch。
     const afterEntity = cache.getSerializedUpdate(updateData.id as RxDBEntityId);
@@ -462,8 +495,8 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
       break;
     }
 
-    // 更新后: 匹配条件 且 是后代 → 计入计数
-    const isDescendantNow = matchesNow && isDescendantNowResult;
+    // 更新后: 匹配条件 且 是后代 → 计入计数（基准成员豁免 where）
+    const isDescendantNow = isTreeBaseMember(afterEntity) || (matchesNow && isDescendantNowResult);
 
     if (isDescendantNow && !wasDescendantBefore) {
       countChange++; // 新增后代
@@ -520,6 +553,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
   const options = task.options as FindTreeOptions<T>;
   const targetEntityId = options.entityId as RxDBEntityId | null | undefined; // 目标实体ID
   const currentCount = (task.result as number) || 0; // 当前计数
+  const { level } = options; // 层级上限，口径同 FindTreeOptions.level
 
   if (targetEntityId === null || targetEntityId === undefined) {
     // 目标实体ID无效，触发刷新
@@ -584,7 +618,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
     const entityBefore = cache.getSerializedBefore(entityId, updateData.inversePatch);
     const matchedBefore = !where || isEntityMatchWhere(entityBefore, where);
     if (cacheEntry.before === undefined) {
-      cacheEntry.before = helper.isEntityAncestorForCount(targetBefore, entityBefore);
+      cacheEntry.before = helper.isEntityAncestorForCount(targetBefore, entityBefore, level);
     }
     const wasAncestorBefore = cacheEntry.before;
 
@@ -615,7 +649,7 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
     const entityAfter = cache.getSerializedUpdate(entityId);
     const matchesNow = !where || isEntityMatchWhere(entityAfter, where);
     if (cacheEntry.after === undefined) {
-      cacheEntry.after = helper.isEntityAncestorForCount(targetAfter, entityAfter);
+      cacheEntry.after = helper.isEntityAncestorForCount(targetAfter, entityAfter, level);
     }
     const isAncestorNow = cacheEntry.after;
 

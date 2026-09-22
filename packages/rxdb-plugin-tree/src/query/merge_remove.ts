@@ -15,6 +15,7 @@ import {
   RxDBEntityLocalRemovedEventData
 } from '@aiao/rxdb';
 import { TREE_QUERY_TYPES } from '../constants.js';
+import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { buildEntityMap, traverseAncestors } from './query-tree.utils.js';
 
 /**
@@ -37,9 +38,13 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
           has_changes = true;
           return false;
         }
-        // 检查祖先链是否有被删除的节点
+        // 检查祖先链是否有被删除的节点。
+        // 这里不能写成 `ancestor.id && removed_ids.has(...)`：`RxDBEntityId` 允许
+        // `0` / `0n` / `''`，真值判断会把这些合法主键当成"没有 id"跳过，被删节点
+        // 名下的子树就整棵留在结果里。`traverseAncestors` 本身只 yield 已解析到的
+        // 父实体（取不到就 break），所以 `ancestor` 恒非空，无需可选链。
         for (const { entity: ancestor } of traverseAncestors(entity, entities_map)) {
-          if (ancestor?.id && removed_ids.has(ancestor.id)) {
+          if (removed_ids.has(ancestor.id)) {
             has_changes = true;
             return false;
           }
@@ -58,7 +63,30 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       const old_result = Array.from(task.resultEntitySet.values());
       const filtered = old_result.filter(e => !removed_ids.has(e.id));
       if (filtered.length === old_result.length) return;
-      task.next(filtered, true);
+
+      const { entityId } = task.options as FindTreeOptions<T>;
+      if (entityId === null || entityId === undefined) {
+        // 查根节点的祖先：CTE 基准成员是 `parentId IS NULL` 的各个根，递归成员
+        // 往上找不到东西，结果就是这些根本身。彼此无链路关系，删谁摘谁。
+        task.next(filtered, true);
+        break;
+      }
+
+      // 祖先链是一条自 target 向上的单链。适配器的递归成员是
+      // `children.id = c.parentId`，走到被删节点就再也接不上，断点**上方**的祖先
+      // 不会出现在重跑结果里。只把被删的那一个过滤掉会把它们留下（结果比 SQL 多）。
+      // 这里改为从 target 出发、在幸存节点里重建可达链路：target 自己被删则结果为空，
+      // 与基准成员取不到行时 CTE 返回 0 行一致。
+      const survivors = buildEntityMap(filtered, e => e.id);
+      const reachable: InstanceType<T>[] = [];
+      const target = survivors.get(entityId);
+      if (target) {
+        reachable.push(target);
+        for (const { entity: ancestor } of traverseAncestors(target, survivors)) {
+          reachable.push(ancestor);
+        }
+      }
+      task.next(reachable, true);
       break;
     }
 

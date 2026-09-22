@@ -486,6 +486,76 @@ describe('树形更新合并处理器', () => {
 
       expect(next).not.toHaveBeenCalled();
     });
+
+    it('keeps the anchor when the anchor itself is re-parented', () => {
+      // 递归 CTE 的基准成员是 `WHERE id = 'root'`：锚点自己改挂到哪里都照样返回。
+      // 本地若按「是否仍是自己的后代」判定，必然判否（节点不是自己的后代），
+      // 就会把锚点连同整棵子树一起摘掉，而 SQL 一行没少。
+      const anchor = createNode('root', null);
+      const child = createNode('child', 'root');
+      const updates = [createUpdate('root', { parentId: 'elsewhere' }, { parentId: null })];
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root', level: 5 }, [anchor, child]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['root'], matchNowIds: ['root'] }),
+        createCache(updates, [['root', createNode('root', 'elsewhere')]])
+      );
+
+      // 成员没变（SQL 重跑仍是这两行），只有锚点自己的字段被就地更新
+      expect(refresh).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['root', 'child']);
+      expect(anchor.parentId).toBe('elsewhere');
+    });
+
+    it('keeps the anchor when the anchor stops matching where', () => {
+      // 同上：基准成员不过 where 规则，锚点 where 命中翻转不影响它自己在不在结果里
+      const anchor = createNode('root', null, { active: false });
+      const updates = [createUpdate('root', { active: false }, { active: true })];
+      const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 5 }, [anchor]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['root'], matchBeforeIds: ['root'], newlyUnmatchedIds: ['root'] }),
+        createCache(updates, [['root', createNode('root', null, { active: false })]]),
+        activeWhere,
+        matchesActive
+      );
+
+      // 锚点留在结果里（where 不作用于基准成员），字段仍就地更新
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['root']);
+      expect(anchor.active).toBe(false);
+    });
+
+    it('drops a node whose new parent left the subtree in the same batch', () => {
+      // 同一批里父子都动：`moved.parentId root→null`（移出）与 `leaf.parentId other→moved`。
+      // 判定 leaf 的链路必须读**本批应用后**的状态；读旧结果集会顺着过期的
+      // `moved.parentId = 'root'` 往上走，把已经移出子树的 leaf 判成仍在子树内。
+      const moved = createNode('moved', 'root');
+      const leaf = createNode('leaf', 'other');
+      const updates = [
+        createUpdate('moved', { parentId: null }, { parentId: 'root' }),
+        createUpdate('leaf', { parentId: 'moved' }, { parentId: 'other' })
+      ];
+      const { task, next } = createFindDescendantsTask({ entityId: 'root', level: 10 }, [moved, leaf]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['moved', 'leaf'], matchNowIds: ['moved', 'leaf'] }),
+        createCache(updates, [
+          ['moved', createNode('moved', null)],
+          ['leaf', createNode('leaf', 'moved')]
+        ])
+      );
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual([]);
+    });
   });
 
   describe('handleFindAncestorsUpdate', () => {
@@ -688,6 +758,44 @@ describe('树形更新合并处理器', () => {
 
       expect(next).not.toHaveBeenCalled();
     });
+
+    it('does not add a newly matching ancestor beyond the requested level', () => {
+      // findAncestors({ entityId: 'target', level: 1 }) 的 SQL 里递归成员带 `c.__level < 1`，
+      // 只返回 target 和它的直接父级。祖父 where 翻转为匹配时本地不能补进来 —— 补了就比 SQL 多行。
+      const target = createNode('target', 'parent', { active: true });
+      const parent = createNode('parent', 'grand', { active: true });
+      const updates = [createUpdate('grand', { active: true }, { active: false })];
+      const { task, next } = createFindAncestorsTask({ entityId: 'target', level: 1 }, [target, parent]);
+
+      handleFindAncestorsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['grand'], matchNowIds: ['grand'], newlyMatchedIds: ['grand'] }),
+        createCache(updates, [['grand', createNode('grand', null, { active: true })]]),
+        activeWhere,
+        matchesActive
+      );
+
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('adds a newly matching direct parent that is within the requested level', () => {
+      const target = createNode('target', 'parent', { active: true });
+      const updates = [createUpdate('parent', { active: true }, { active: false })];
+      const { task, next } = createFindAncestorsTask({ entityId: 'target', level: 1 }, [target]);
+
+      handleFindAncestorsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['parent'], matchNowIds: ['parent'], newlyMatchedIds: ['parent'] }),
+        createCache(updates, [['parent', createNode('parent', null, { active: true })]]),
+        activeWhere,
+        matchesActive
+      );
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['target', 'parent']);
+    });
   });
 
   describe('handleCountDescendantsUpdate', () => {
@@ -821,19 +929,42 @@ describe('树形更新合并处理器', () => {
     });
 
     it('supports all-tree counts with an undefined target', () => {
-      const updates = [createUpdate('root', { id: 'root', parentId: null, active: true }, { active: false })];
+      const updates = [createUpdate('child', { id: 'child', parentId: 'root', active: true }, { active: false })];
       const { task, next } = createCountDescendantsTask({}, 0);
 
       handleCountDescendantsUpdate(
         task,
         updates,
         createClassification(),
-        createCache(updates, [['root', createNode('root', null, { active: true })]]),
+        createCache(updates, [
+          ['child', createNode('child', 'root', { active: true })],
+          ['root', createNode('root', null, { active: true })]
+        ]),
         activeWhere,
         matchesActive
       );
 
       expect(next).toHaveBeenCalledWith(1, false);
+    });
+
+    it('keeps a root node counted in all-tree mode when it stops matching where', () => {
+      // 查全树（`entityId` 为空）时递归 CTE 的基准成员是 `WHERE parentId IS NULL`，
+      // **不带 where 规则也不带 level** —— 规则只挂在递归成员上。这条分支的 SQL 是裸
+      // `count(*)`，所以根节点恒被计入，`active` 翻转不改变计数。
+      const updates = [createUpdate('root', { id: 'root', parentId: null, active: false }, { active: true })];
+      const { task, next, refresh } = createCountDescendantsTask({}, 1);
+
+      handleCountDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['root'], matchBeforeIds: ['root'], newlyUnmatchedIds: ['root'] }),
+        createCache(updates, [['root', createNode('root', null, { active: false })]]),
+        activeWhere,
+        matchesActive
+      );
+
+      expect(next).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled();
     });
   });
 

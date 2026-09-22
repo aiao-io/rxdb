@@ -25,7 +25,17 @@ interface TreeOptions {
 
 /** 满足 `ITreeEntity`：`id` / `createdAt` / `updatedAt` / `parentId` 齐备。 */
 class MockTreeEntity {
-  static [ENTITY_STATIC_TYPES]: { findTreeOptions: TreeOptions } = { findTreeOptions: { entityId: '' } };
+  static [ENTITY_STATIC_TYPES]: {
+    countAncestorsOptions: TreeOptions;
+    countDescendantsOptions: TreeOptions;
+    findAncestorsOptions: TreeOptions;
+    findDescendantsOptions: TreeOptions;
+  } = {
+    countAncestorsOptions: { entityId: '' },
+    countDescendantsOptions: { entityId: '' },
+    findAncestorsOptions: { entityId: '' },
+    findDescendantsOptions: { entityId: '' }
+  };
 
   static findDescendants = vi.fn();
   static countDescendants = vi.fn();

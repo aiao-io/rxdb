@@ -19,10 +19,18 @@ import { describe, expect, it } from 'vitest';
 import { useCountAncestors, useCountDescendants, useFindAncestors, useFindDescendants } from '../index.js';
 
 interface TreeStaticTypes {
-  findTreeOptions: { entityId: string };
+  countAncestorsOptions: { entityId: string };
+  countDescendantsOptions: { entityId: string };
+  findAncestorsOptions: { entityId: string };
+  findDescendantsOptions: { entityId: string };
 }
 
-const treeStaticTypes: TreeStaticTypes = { findTreeOptions: { entityId: '' } };
+const treeStaticTypes: TreeStaticTypes = {
+  countAncestorsOptions: { entityId: '' },
+  countDescendantsOptions: { entityId: '' },
+  findAncestorsOptions: { entityId: '' },
+  findDescendantsOptions: { entityId: '' }
+};
 
 /**
  * 满足 `EntityType`，但实例缺 `createdAt` / `updatedAt` —— 因此不是 `ITreeEntity`。

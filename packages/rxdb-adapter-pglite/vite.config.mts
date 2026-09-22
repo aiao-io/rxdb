@@ -155,6 +155,7 @@ export default defineConfig(() => {
         external: [
           '@aiao/rxdb',
           '@aiao/rxdb-adapter-encrypted',
+          '@aiao/rxdb-plugin-tree',
           '@aiao/utils',
           '@electric-sql/pglite',
           'rxjs',

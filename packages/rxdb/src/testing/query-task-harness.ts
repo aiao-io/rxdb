@@ -34,12 +34,19 @@ import { STATUS } from '../rxdb.private.js';
  *
  * - 数组 → 实体列表（`findAll` / `find` / `findByCursor` / 插件的 `find*`）；
  * - 标量 → 计数（`count` / 插件的 `count*`）；标量的三种形态与 `Fingerprint` 一致，
- *   `bigint` 不在其中——它不是合法指纹，真出现了就该在 `getFingerprintPrimitive` 处报错；
+ *   `bigint` 不在其中——它不是合法指纹（`getFingerprintPrimitive` 的入参约束是
+ *   `T extends Fingerprint`，bigint 在生产侧编译期就过不去），所以这里显式抛错：
+ *   放进对象分支会被 `{ ...1n }` 摊成 `{}`，`1n` 与 `2n` 指纹相同，
+ *   `QueryTask#next` 判定「未变化」直接吞掉第二次发射；补进标量分支则让测试台
+ *   比生产更宽松，测试台一旦比被测对象更能干，它验的就不再是生产行为。
  * - 其余（对象、`null`）→ 单实体（`findOne` / `findOneOrFail` / `get`，未命中时是 `null`，
  *   摊开成 `{}` 与命中时同走一条路）。
  */
 const harnessFingerprint = (result: unknown): Fingerprint[] => {
   if (Array.isArray(result)) return result.map(entity => JSON.stringify({ ...(entity as object) }));
+  if (typeof result === 'bigint') {
+    throw new TypeError(`harnessFingerprint: bigint 不是合法的 Fingerprint（收到 ${result}n）`);
+  }
   if (typeof result === 'number' || typeof result === 'string' || typeof result === 'boolean') {
     return getFingerprintPrimitive(result);
   }

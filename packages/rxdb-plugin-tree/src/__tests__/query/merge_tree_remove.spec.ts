@@ -897,11 +897,11 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
             { id: '2', name: 'child1', parentId: '1' },
             { id: '1', name: 'root', parentId: null }
           ],
-          // 删除 child1 (直接父级)
-          [
-            { id: '3', name: 'target', parentId: '2' },
-            { id: '1', name: 'root', parentId: null }
-          ]
+          // 删除 child1（直接父级）后只剩 target 自己。
+          // 适配器的递归成员是 `children.id = c.parentId`：从 target 往上走，
+          // 第一跳要找 id='2' 的行，已被删除 → 链路断在这里，root 接不上，
+          // SQL 重跑只会返回基准成员 target 一行。
+          [{ id: '3', name: 'target', parentId: '2' }]
         ];
         let resultIndex = 0;
 
@@ -1009,6 +1009,9 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
 
     it('应该支持批量删除多个祖先', () => {
       return new Promise<void>((done, reject) => {
+        // 链路 target(4) → child2(3) → child1(2) → root(1)。
+        // 目标实体必须在结果集里：它就是递归 CTE 的基准成员（`WHERE id = ?`），
+        // 既不过 where 也不过 level，SQL 恒返回。
         const task = createMockQueryTask({
           type: 'findAncestors',
           options: {
@@ -1017,20 +1020,23 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
           },
           runner: () =>
             of([
-              { id: '1', name: 'root', parentId: null },
+              { id: '4', name: 'target', parentId: '3' },
+              { id: '3', name: 'child2', parentId: '2' },
               { id: '2', name: 'child1', parentId: '1' },
-              { id: '3', name: 'child2', parentId: '2' }
+              { id: '1', name: 'root', parentId: null }
             ])
         });
 
         const results = [
           [
-            { id: '1', name: 'root', parentId: null },
+            { id: '4', name: 'target', parentId: '3' },
+            { id: '3', name: 'child2', parentId: '2' },
             { id: '2', name: 'child1', parentId: '1' },
-            { id: '3', name: 'child2', parentId: '2' }
+            { id: '1', name: 'root', parentId: null }
           ],
-          // 批量删除 root 和 child2
-          [{ id: '2', name: 'child1', parentId: '1' }]
+          // 批量删除 root 和 child2：链路断在 child2，它上面的 child1 / root
+          // 一起失去连接，只剩 target 自己
+          [{ id: '4', name: 'target', parentId: '3' }]
         ];
         let resultIndex = 0;
 
@@ -1111,10 +1117,12 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
 
     it('应该支持 where 条件：删除后正确过滤祖先', () => {
       return new Promise<void>((done, reject) => {
-        // 树结构（只包含 isActive=true 的祖先）:
+        // 树结构（where 只过滤祖先，不过滤目标本身）:
         // root (id: 1, isActive: true)
         //   └─ child1 (id: 2, parentId: 1, isActive: true)
-        //        └─ target (id: 3, parentId: 2)
+        //        └─ target (id: 3, parentId: 2, isActive: false)
+        //
+        // target 是基准成员，`isActive: false` 也照样返回 —— where 规则只挂在递归成员上。
 
         const task = createMockQueryTask({
           type: 'findAncestors',
@@ -1127,18 +1135,20 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
           },
           runner: () =>
             of([
-              { id: '1', name: 'root', parentId: null, isActive: true },
-              { id: '2', name: 'child1', parentId: '1', isActive: true }
+              { id: '3', name: 'target', parentId: '2', isActive: false },
+              { id: '2', name: 'child1', parentId: '1', isActive: true },
+              { id: '1', name: 'root', parentId: null, isActive: true }
             ])
         });
 
         const results = [
           [
-            { id: '1', name: 'root', parentId: null, isActive: true },
-            { id: '2', name: 'child1', parentId: '1', isActive: true }
+            { id: '3', name: 'target', parentId: '2', isActive: false },
+            { id: '2', name: 'child1', parentId: '1', isActive: true },
+            { id: '1', name: 'root', parentId: null, isActive: true }
           ],
-          // 删除 child1 后
-          [{ id: '1', name: 'root', parentId: null, isActive: true }]
+          // 删除 child1 后链路截断，root 失去连接
+          [{ id: '3', name: 'target', parentId: '2', isActive: false }]
         ];
         let resultIndex = 0;
 
@@ -1193,11 +1203,9 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
               { id: '2', name: 'child1', parentId: '1' },
               { id: '1', name: 'root', parentId: null }
             ],
-            // 删除目标实体后，结果应该为空（祖先查询依赖目标实体存在）
-            [
-              { id: '2', name: 'child1', parentId: '1' },
-              { id: '1', name: 'root', parentId: null }
-            ]
+            // 删除目标实体后，结果应该为空（祖先查询依赖目标实体存在）：
+            // 基准成员 `WHERE id = '3'` 匹配不到行，递归成员无从起步，SQL 返回 0 行
+            []
           ];
           let resultIndex = 0;
 
@@ -1290,10 +1298,8 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
               { id: '2', name: 'child1', parentId: '1', isActive: true },
               { id: '1', name: 'root', parentId: null, isActive: true }
             ],
-            [
-              { id: '2', name: 'child1', parentId: '1', isActive: true },
-              { id: '1', name: 'root', parentId: null, isActive: true }
-            ]
+            // 目标实体没了，整条祖先链都接不上
+            []
           ];
           let resultIndex = 0;
 
@@ -1343,6 +1349,65 @@ describe('query_merge_tree_remove_cache - REMOVE 事件的树形查询', () => {
 
         expect(emissions).toEqual([[{ id: '2', name: 'child1', parentId: '1' }]]);
       });
+    });
+  });
+
+  describe('假值主键', () => {
+    // `RxDBEntityId` 允许 `string | number | bigint`，`0` / `0n` / `''` 都是合法主键。
+    // 级联删除若用 `ancestor.id && removed_ids.has(ancestor.id)` 这种真值判断，
+    // 会把这些主键当成「没有 id」直接跳过，被删节点名下的子树整棵留在结果里。
+    class NumericEntity {
+      [key: string]: unknown;
+      static [ENTITY_STATIC_TYPES] = { idType: 0 as number };
+      id = 0;
+    }
+
+    type NumericEntityType = typeof NumericEntity;
+    type NumericRemovedEvent = RxDBEntityLocalRemovedEventData<NumericEntityType>;
+
+    const createNumericRemoveEvent = (entity: InstanceType<NumericEntityType>): NumericRemovedEvent => ({
+      type: 'DELETE',
+      namespace: 'test',
+      entity: 'Category',
+      id: entity.id,
+      entityType: NumericEntity,
+      recordAt: new Date(0),
+      patch: null,
+      inversePatch: entity
+    });
+
+    it('删除 id 为 0 的中间节点时，其子树应一并移除', () => {
+      // 树结构: root(5) → mid(0) → leaf(2)
+      const task = createHarnessQueryTask<NumericEntityType, Array<Record<string, unknown>>>(NumericEntity, {
+        type: 'findDescendants',
+        options: {
+          entityId: 5,
+          level: 10,
+          where: { combinator: 'and', rules: [] }
+        },
+        runner: () =>
+          of([
+            { id: 5, name: 'root', parentId: null },
+            { id: 0, name: 'mid', parentId: 5 },
+            { id: 2, name: 'leaf', parentId: 0 }
+          ])
+      });
+
+      const emissions = collectEmissions(task);
+
+      query_merge_remove_cache_impl(task as unknown as QueryTask<NumericEntityType>, [
+        createNumericRemoveEvent({ id: 0, name: 'mid', parentId: 5 })
+      ]);
+
+      expect(emissions).toEqual([
+        [
+          { id: 5, name: 'root', parentId: null },
+          { id: 0, name: 'mid', parentId: 5 },
+          { id: 2, name: 'leaf', parentId: 0 }
+        ],
+        // leaf 的父级被删，失去连接，跟着一起摘掉
+        [{ id: 5, name: 'root', parentId: null }]
+      ]);
     });
   });
 });

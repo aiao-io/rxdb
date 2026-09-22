@@ -22,9 +22,9 @@ import type { TreeEntityType } from '@aiao/rxdb-plugin-tree';
  */
 export const useFindDescendants = <T extends TreeEntityType>(
   EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
+  options: UseOptions<EntityStaticType<T, 'findDescendantsOptions'>>
 ): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
+  useRepositoryQuery<T, EntityStaticType<T, 'findDescendantsOptions'>, InstanceType<T>[]>(
     EntityType,
     'findDescendants',
     [],
@@ -40,9 +40,14 @@ export const useFindDescendants = <T extends TreeEntityType>(
  */
 export const useCountDescendants = <T extends TreeEntityType>(
   EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
+  options: UseOptions<EntityStaticType<T, 'countDescendantsOptions'>>
 ): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countDescendants', 0, options);
+  useRepositoryQuery<T, EntityStaticType<T, 'countDescendantsOptions'>, number>(
+    EntityType,
+    'countDescendants',
+    0,
+    options
+  );
 
 /**
  * 查找树结构中的所有祖先实体
@@ -53,9 +58,9 @@ export const useCountDescendants = <T extends TreeEntityType>(
  */
 export const useFindAncestors = <T extends TreeEntityType>(
   EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
+  options: UseOptions<EntityStaticType<T, 'findAncestorsOptions'>>
 ): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
+  useRepositoryQuery<T, EntityStaticType<T, 'findAncestorsOptions'>, InstanceType<T>[]>(
     EntityType,
     'findAncestors',
     [],
@@ -71,6 +76,6 @@ export const useFindAncestors = <T extends TreeEntityType>(
  */
 export const useCountAncestors = <T extends TreeEntityType>(
   EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
+  options: UseOptions<EntityStaticType<T, 'countAncestorsOptions'>>
 ): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countAncestors', 0, options);
+  useRepositoryQuery<T, EntityStaticType<T, 'countAncestorsOptions'>, number>(EntityType, 'countAncestors', 0, options);

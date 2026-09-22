@@ -27,22 +27,27 @@ export class TreeHelper<T extends EntityType> {
   /**
    * 解析父实体
    *
-   * 从旧结果集或更新缓存中获取父实体，避免重复查询数据库
+   * 从更新缓存或旧结果集中获取父实体，避免重复查询数据库
    *
    * @param id 父实体ID
    * @returns 父实体实例，如果不存在则返回 undefined
+   *
+   * @remarks
+   * **更新缓存优先，旧结果集兜后**。`oldResultMap` 是本批事件**之前**的快照；
+   * 同一批里父节点自己也被移动时（`Y.parentId A→null` 与 `M.parentId Z→Y` 同批到达），
+   * 先读旧结果集会顺着过期的 `parentId` 往上走，把已经移出子树的节点判成仍在子树内。
+   * `cache.getSerializedUpdate` 给的是本批应用后的状态，与 `merge-update-tree.ts`
+   * 孤儿复查里的 `resolveParent` 同口径。
    */
   resolveParentEntity(id: RxDBEntityId): InstanceType<T> | undefined {
-    // 优先从旧结果集获取(已经序列化过的实体)
-    if (this.oldResultMap.has(id)) {
-      return this.oldResultMap.get(id);
-    }
-    // 从更新缓存中获取并缓存到结果集
+    // 本批更新后的状态优先
     const serialized = this.cache.getSerializedUpdate(id);
     if (serialized) {
       this.oldResultMap.set(id, serialized);
+      return serialized;
     }
-    return serialized;
+    // 未被本批更新：回旧结果集取已序列化的实体
+    return this.oldResultMap.get(id);
   }
 
   /**
@@ -112,9 +117,16 @@ export class TreeHelper<T extends EntityType> {
    *
    * @param targetEntity 目标实体 (要查找其祖先)
    * @param candidateEntity 候选祖先实体
+   * @param maxLevel 层级上限，口径同 `FindTreeOptions.level`：目标自身为 0、父节点为 1。
+   *   `undefined` 表示不限层级。
    * @returns true 表示候选实体是目标的祖先
+   *
+   * @remarks
+   * `maxLevel` 不是可选的性能优化，而是正确性要求：适配器的递归成员带
+   * `c.__level < level`，`__level` 超出上限的祖先 SQL 根本不会返回。不传上限
+   * 会把深处的祖先加进结果，连默认的 `level: 0`（只返回目标自己）都兜不住。
    */
-  isEntityAncestor(targetEntity: InstanceType<T>, candidateEntity: InstanceType<T>): boolean {
+  isEntityAncestor(targetEntity: InstanceType<T>, candidateEntity: InstanceType<T>, maxLevel?: number): boolean {
     const candidateId = getEntityId(candidateEntity);
     if (candidateId === undefined) {
       return false;
@@ -127,9 +139,15 @@ export class TreeHelper<T extends EntityType> {
 
     let currentParentId = get_tree_parent_id<RxDBEntityId>(targetEntity);
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
+    let level = 0; // 距目标实体的跳数：父节点为 1
 
     // 从目标实体向上遍历
     while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+      level++;
+      // 超出层级上限：再往上的节点 SQL 都不会返回，无需继续遍历
+      if (maxLevel !== undefined && level > maxLevel) {
+        return false;
+      }
       // 找到候选实体，确认是祖先
       if (currentParentId === candidateId) {
         return true;
@@ -253,11 +271,18 @@ export class TreeHelper<T extends EntityType> {
    *
    * @param targetEntity 目标实体
    * @param candidateEntity 候选祖先实体
+   * @param maxLevel 层级上限，口径同 {@link isEntityAncestor}；`undefined` 表示不限层级。
    * @returns true=是祖先, false=不是祖先, undefined=无法确定
+   *
+   * @remarks
+   * 与 {@link isEntityAncestor} 同因：`countAncestors` 数的是 `__level <= level`
+   * 的祖先，不带上限会把超深祖先也计进去。超出上限时返回 `false` 而非 `undefined`
+   * —— 这是能确定的答案（SQL 不会返回它），不必为此回一次 SQL。
    */
   isEntityAncestorForCount(
     targetEntity: InstanceType<T>,
-    candidateEntity: InstanceType<T> | null | undefined
+    candidateEntity: InstanceType<T> | null | undefined,
+    maxLevel?: number
   ): boolean | undefined {
     const candidateId = getEntityId(candidateEntity);
     if (candidateId === undefined) {
@@ -265,8 +290,14 @@ export class TreeHelper<T extends EntityType> {
     }
     let currentParentId = get_tree_parent_id<RxDBEntityId>(targetEntity);
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
+    let level = 0; // 距目标实体的跳数：父节点为 1
 
     while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+      level++;
+      // 超出层级上限：SQL 不会返回更上方的祖先，可以确定地答 false
+      if (maxLevel !== undefined && level > maxLevel) {
+        return false;
+      }
       // 找到候选实体，确认是祖先
       if (currentParentId === candidateId) {
         return true;

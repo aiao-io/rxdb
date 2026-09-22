@@ -83,12 +83,18 @@ Repository 'TreeRepository' not found for entity 'Menu'. 已注册的仓储：Re
 
 树的增量 merge 是真增量（不像图查询一律回 SQL 刷新），搬进插件要求核心把 merge 引擎的几个内部原语公开出来。它们进了 API 基线，此后受兼容承诺约束：
 
-| 符号                                                           | 用途                     |
-| :------------------------------------------------------------- | :----------------------- |
-| `classifyUpdates` / `UpdateClassification` / `UpdateDataCache` | 把更新事件分类到增量路径 |
-| `applyExternalEntityUpdate`                                    | 把外部更新落到已有结果上 |
-| `getEntityId` / `invalidateEntityFingerprint`                  | 实体标识与指纹失效       |
-| `isStaleEntityEvent` / `isStaleEntityRemoveEvent`              | 过期事件识别（前置守卫） |
+| 符号                                              | 用途                             |
+| :------------------------------------------------ | :------------------------------- |
+| `prepareIncrementalUpdate`                        | 把一批更新事件备好成增量输入     |
+| `UpdateClassification` / `UpdateDataCache`        | 分类结果与更新前后快照的取用入口 |
+| `applyExternalEntityUpdate`                       | 把外部更新落到已有结果上         |
+| `getEntityId`                                     | 实体标识                         |
+| `isStaleEntityEvent` / `isStaleEntityRemoveEvent` | 过期事件识别（前置守卫）         |
+
+`classifyUpdates` 与 `invalidateEntityFingerprint` **不在**这份清单里：它们是
+`prepareIncrementalUpdate` / `applyExternalEntityUpdate` 内部的装配细节，没有进 API 基线，
+也由 `incremental-merge-surface.spec.ts` 钉死为「只该留在核心内部」。插件拿到的是
+`prepareIncrementalUpdate` 返回的 `UpdateClassification`，不必自己调分类器。
 
 第三方插件要实现自己的增量 merge，用的就是这一组。
 

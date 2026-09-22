@@ -66,12 +66,20 @@ const createChain = (length: number): NodeDefinition[] =>
 
 describe('TreeHelper', () => {
   describe('resolveParentEntity', () => {
-    it('prefers the old result map over an update with the same id', () => {
+    it('prefers the batch update over a stale old-result entry with the same id', () => {
+      // `oldResultMap` 是本批事件**之前**的快照。父节点自己也在本批里改了 parentId 时，
+      // 读旧快照会顺着过期的链路往上走，把已经移出子树的节点判成仍在子树内。
       const oldParent = createNode('parent', null);
-      const { helper, serializeCount } = createHelper([['parent', 'updated-root']], [oldParent]);
+      const { helper, oldResultMap, serializeCount } = createHelper([['parent', 'updated-root']], [oldParent]);
 
-      expect(helper.resolveParentEntity('parent')).toBe(oldParent);
-      expect(serializeCount()).toBe(0);
+      const resolved = helper.resolveParentEntity('parent');
+
+      expect(resolved).toMatchObject({ id: 'parent', parentId: 'updated-root' });
+      expect(serializeCount()).toBe(1);
+      // 反写回旧结果集，同批内的后续查询直接命中，不重复反序列化
+      expect(oldResultMap.get('parent')).toBe(resolved);
+      expect(helper.resolveParentEntity('parent')).toBe(resolved);
+      expect(serializeCount()).toBe(1);
     });
 
     it('promotes a serialized update into the old result map and leaves misses uncached', () => {
