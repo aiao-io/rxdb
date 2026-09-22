@@ -509,9 +509,7 @@ readonly reason = 'v1 supports SyncType.QueryCache only'
 - [US-010 树实体](./US-010-tree-entity.md) — 阶段 E 的行为基线
 - [US-301 版本控制](../collaboration/US-301-version-control.md) / [US-302 撤销重做](../collaboration/US-302-undo-redo.md) — 阶段 C 的行为基线
 - [versioning-policy.md](../../versioning-policy.md) — 公开 API 破坏性变更流程
-- [RV-012 `RxDBBranch` 去树化](../../reviews/RV-012-rxdb-branch-detree.md) — 阶段 E 动手前清掉的系统表树依赖
 - [RV-015 CLI 缺生成器插件加载缝](../../reviews/RV-015-cli-plugin-generator-seam.md) — 阶段 E 把 `TreeRepositoryGenerator` 留在 `@aiao/rxdb-client-generator` 的理由
-- [RV-016 `mergeOperations` 写而不读](../../reviews/RV-016-repository-config-merge-operations-unread.md) — 阶段 E 用 `registerMerge*Fn` 而非该字段的理由
 
 ---
 
