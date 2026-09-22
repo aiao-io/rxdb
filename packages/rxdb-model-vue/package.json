@@ -49,10 +49,10 @@
     "@aiao/rxdb-model": "*",
     "@aiao/rxdb-plugin-history": "*",
     "@aiao/rxdb-vue": "*",
-    "@lucide/vue": "^1.45.0",
+    "@lucide/vue": "^1.47.0",
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
