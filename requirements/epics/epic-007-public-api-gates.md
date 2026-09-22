@@ -46,6 +46,7 @@ owner: jimmy
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-601 子路径入口纳入 API 表面基线](../stories/tooling/US-601-subpath-api-surface-baseline.md) (Medium)
+- [US-602 发布产物面向 AI 的可理解性](../stories/tooling/US-602-ai-comprehensible-artifacts.md) (Medium)
 
 ## 非目标
 

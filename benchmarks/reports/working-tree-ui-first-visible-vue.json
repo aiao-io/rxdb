@@ -1,9 +1,9 @@
 {
   "firstPhase": "empty",
-  "firstVisibleMs": 195,
+  "firstVisibleMs": 285,
   "framework": "vue",
   "metric": "working-tree-panel-first-visible-state",
   "note": "SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档",
-  "recordedAt": "2026-09-22T14:06:38.442Z",
+  "recordedAt": "2026-09-22T14:20:17.448Z",
   "route": "/working-tree"
 }

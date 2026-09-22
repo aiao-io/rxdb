@@ -444,7 +444,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - 与 T124 同批落在两处（网站长版 + 插件包 README）各起一节 `## 能力边界：绕过 adapter 的写入拦不住`，核心 README 用 `### 写捕获拦得住什么，拦不住什么` 同义复述。
   - 写明覆盖面与漏洞各是什么：捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**；另一个进程直接打开同一个 SQLite 文件、另起一个 PGlite 实例、DevTools 里手写 SQL 都拦不住，这类写入不进工作树、不进历史、`status()` 看不见。由此推出那条硬约束：**启用了提交能力的库，业务表只能经 RxDB 写入**。
   - **「v1 也不承诺拦得住」是正文而不是脚注**（adapter-contract.md §4）：一道号称拦得住却拦不住的门禁，会让人把「没报错」当成「没被绕过」——不假装拦得住比拦不住更重要。
-  - 顺带把文档站 URL 对齐 `docusaurus.config.ts`（`https://docs.aiao.io` + `/docs` 路由），先前压缩版里写的 `rxdb.aiao.io` 是错的。
+  - 顺带把文档站 URL 对齐 `docusaurus.config.ts`（`https://rxdb.netlify.app` + `/docs` 路由），先前压缩版里写的 `rxdb.aiao.io` 是错的。
 - [x] T126 [P] 跑 `node scripts/audit/api-surface.mjs` 与 `requirements/api-baseline/rxdb.json` 比对，确认核心新增导出全部 `Commit*` / `WorkingTree*` 前缀、**零 `Index*` 新导出**、无 `Workspace*` 新导出（SC-014、contracts/core-api.md §0）
   - **跑之前先发现门禁不存在**：core-api.md §0 那张表的「门禁宿主」一栏指着 `api-surface.mjs`，而那个脚本里 `Index` / `Workspace` / `staged` / `SwitchBranchOptions` **一个字都没有**——它只做基线 diff，回答「增没增」，从不回答「增的这个叫什么」。照着任务原文「跑一下确认」打勾的话，勾的是一条从未运行过的规则。于是 T126 的实际交付是把那张表做成 `auditNaming()`（+8 条 `api-surface.spec.mjs` 用例，先红后绿，12/12）。
   - **正向规则读 diff，负向规则读当前全集**：负向规则若也读 diff，失效路径是现成的——新增 `IndexHint` → 门禁红 → 有人跑 `--update` → 它进了基线 → `added` 空了 → 从此永远绿，而那个名字还在表面上。正向规则没有这条路可走（「哪些名字属于本特性」在全集里读不出来），代价写在脚本注释里：它只在名字**第一次出现**的那次运行里有效。

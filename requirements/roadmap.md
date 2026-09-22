@@ -15,7 +15,7 @@
 | 📝 Backlog     | 24     |
 | **未完成合计** | **29** |
 
-仓库还剩 **32 条**未关闭故事（0 In Progress + 5 In Review + 27 Backlog）。
+仓库还剩 **33 条**未关闭故事（0 In Progress + 5 In Review + 28 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > 另有一项**进行中的规格工作不在故事计数内**：[specs/002-rxdb-model-port](../specs/002-rxdb-model-port/spec.md)
@@ -44,6 +44,7 @@
 | [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                     | 📝 Backlog     | 未立项；AC#7 联动 US-027（无 update 权限不可重排）                                                           | 立项池   |
 | [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)       | 📝 Backlog     | 未立项；阶段 A 独立可交付，阶段 B 依赖 US-027 判定原语                                                       | 立项池   |
 | [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)      | 📝 Backlog     | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 依赖 US-307 `Done`，阶段 C 价值待证                 | 立项池   |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)      | 📝 Backlog     | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，B/C 只吃 A 的真相源                           | 立项池   |
 
 ## 即办清单
 
@@ -92,13 +93,14 @@ dry-run 默认推算的版本号恰是 `0.0.25`（禁用值且 npm 已占用，�
 
 ### 立项池（待 owner 决策，未进任何批次）
 
-| 故事                                                                           | 依赖                                       | 入场条件 / 建议顺序                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型      | UI 派生依赖 rxdb-model 移植（specs/002）   | 引擎写边界强制（fail-closed）+ UI 能力派生 + 系统实体迁移，三阶段交付。**建议随 002 移植收尾后启动**——它是 US-028 / US-029 的判定原语上游                                                                             |
-| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                    | AC#7 联动 US-027                           | 建议与 US-027 同批或紧随；fractional indexing 工具与树实体解耦，`tree → sortable` 单向依赖（AC#9）                                                                                                                    |
-| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离 | 阶段 B 依赖 US-027 判定原语                | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付；按 A → B → C → D 排，一阶段一 PR                                                                                                                             |
-| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放       | 阶段 B 依赖 US-307 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**；阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                        |
-| 🚧 US-025 阶段 E 的前置：`RxDBBranch` 去树化                                   | 无                                         | 独立工作（不在 US-025 任一阶段内）：`system/branch.ts` 挂 `@TreeEntity`，树实体成插件后分支表建不起来，history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增跨插件边。需 owner 决策去树化后分支表归谁，未立项 |
+| 故事                                                                                       | 依赖                                       | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | UI 派生依赖 rxdb-model 移植（specs/002）   | 引擎写边界强制（fail-closed）+ UI 能力派生 + 系统实体迁移，三阶段交付。**建议随 002 移植收尾后启动**——它是 US-028 / US-029 的判定原语上游                                                                                                                                                                                        |
+| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                                | AC#7 联动 US-027                           | 建议与 US-027 同批或紧随；fractional indexing 工具与树实体解耦，`tree → sortable` 单向依赖（AC#9）                                                                                                                                                                                                                               |
+| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语                | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付；按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                        |
+| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 依赖 US-307 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**；阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                   |
+| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无                                         | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除「兄弟包声明一半 `dependencies` 一半 `peerDependencies`」的不一致；B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
+| 🚧 US-025 阶段 E 的前置：`RxDBBranch` 去树化                                               | 无                                         | 独立工作（不在 US-025 任一阶段内）：`system/branch.ts` 挂 `@TreeEntity`，树实体成插件后分支表建不起来，history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增跨插件边。需 owner 决策去树化后分支表归谁，未立项                                                                                                            |
 
 ## 零散收尾项（不成故事，随手可带）
 

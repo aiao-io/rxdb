@@ -11,9 +11,9 @@
 | ✅ Done        | 61   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 5    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 93   |
+| **合计**       | 94   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -153,6 +153,7 @@
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
+- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 包关系真相源 + 漂移门禁（阶段 A）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C）；MCP 另立故事
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
