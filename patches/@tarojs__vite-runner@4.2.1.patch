@@ -1,0 +1,39 @@
+diff --git a/dist/index.h5.js b/dist/index.h5.js
+index 32eabe74231c5248e6e66e03e5ceb20b56ac13f4..a19f8a550e4055808f1dd60a2546411e228ff7dc 100644
+--- a/dist/index.h5.js
++++ b/dist/index.h5.js
+@@ -38,7 +38,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
+diff --git a/dist/index.harmony.js b/dist/index.harmony.js
+index 1221b1345031bf9288f58ef2eb0287ca966219a0..0815b7853a505c3df15c26274af751a0babc8f46 100644
+--- a/dist/index.harmony.js
++++ b/dist/index.harmony.js
+@@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
+diff --git a/dist/index.mini.js b/dist/index.mini.js
+index f6117d213c5987f8292905bf3984cb465b9170cd..46097621fd0c60abe0536390b6262e5425adf190 100644
+--- a/dist/index.mini.js
++++ b/dist/index.mini.js
+@@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
