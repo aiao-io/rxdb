@@ -874,10 +874,6 @@
         "kind": "type"
       },
       {
-        "name": "MergeQueryTaskOptions",
-        "kind": "type"
-      },
-      {
         "name": "MergeStrategy",
         "kind": "type"
       },

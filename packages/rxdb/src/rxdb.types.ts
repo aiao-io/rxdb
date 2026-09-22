@@ -1,7 +1,6 @@
 import { EntityType } from './entity/entity.interface.js';
 import { EntityMetadata } from './entity/metadata.interface.js';
 import { SyncType } from './entity/sync-options.interface.js';
-import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
 import { RepositoryConstructor, RepositoryInstance } from './rxdb-adapter.js';
 import { RxDBEvent } from './rxdb-events.js';
 import { RxDBOptions } from './rxdb.interface.js';
@@ -38,15 +37,14 @@ export interface TransactionContext {
   events: RxDBEvent[];
 }
 
-export interface MergeQueryTaskOptions {
-  create: MergeQueryTaskCreateFn;
-  update: MergeQueryTaskUpdateFn;
-  remove: MergeQueryTaskRemoveFn;
-}
-
 /**
  * IRepositoryConfig 统一注册配置
- * 合并 factory、class 和 merge operations 为单一配置对象
+ *
+ * @remarks
+ * 增量 merge 实现**不在这里**：它按 task 类型注册在
+ * {@link QueryManager.registerMergeCreateFn} 一族上，由各 Repository 自己在构造期登记
+ * （见 `TreeRepository` / `GraphRepository`）。这里只声明「用哪个类、要不要动态造实体、
+ * 哪些同步策略撑不住」。
  */
 export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryInstance> {
   /**
@@ -55,17 +53,6 @@ export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryIns
   entityGenerator?: (metadata: EntityMetadata) => EntityType | EntityType[];
 
   class: RepositoryConstructor<RT>;
-
-  /**
-   * 仓储级的默认增量 merge 实现。
-   *
-   * @remarks
-   * 当前**没有任何读取方**：真正生效的是
-   * {@link QueryManager.registerMergeCreateFn} 一族按 task 类型注册的函数，
-   * `rxdb.repository()` 收下这个字段后就再没人取。裁决见 RV-016，在裁决前保持可选 ——
-   * 强制每个插件塞一份没人读的实现只会制造噪音。
-   */
-  mergeOperations?: MergeQueryTaskOptions;
 
   /**
    * 本仓储撑不住的同步策略，键是策略、值是**不支持的理由**。
@@ -81,7 +68,6 @@ export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryIns
    * ```typescript
    * rxdb.repository('TreeRepository', {
    *   class: TreeRepository, // 来自 @aiao/rxdb-plugin-tree
-   *   mergeOperations,
    *   unsupportedSyncTypes: {
    *     [SyncType.QueryCache]: '树查询依赖本地完整的祖先链，而缓存只覆盖查过的 where 命中的行。'
    *   }

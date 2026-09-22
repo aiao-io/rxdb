@@ -26,6 +26,7 @@ import {
   assertGeneratedBindingIdentifier,
   assertGeneratedIdentifier,
   assertGeneratedNamespace,
+  DEFAULT_ENTITY_BASE_MODULE,
   isGeneratedIdentifier,
   transitionMetadata as transitionMetadataUtil
 } from './RxDBClientGenerator.utils.js';
@@ -486,9 +487,7 @@ export class RxDBClientGenerator {
       const { name: className } = metadata;
       const decoratorArguments = transitionMetadataUtil(metadata);
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -530,9 +529,7 @@ ${className}
       ]);
 
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -737,5 +734,17 @@ ${className}
       isExported: true,
       declarations: [{ name: 'ENTITIES', type: `EntityType[]` }]
     });
+  }
+
+  /**
+   * 该实体的基类从哪个模块导入。
+   *
+   * @remarks
+   * 生成器没注册、或注册了但没声明 `entityBaseModuleSpecifier`，都落回
+   * {@link DEFAULT_ENTITY_BASE_MODULE} —— 前者对应用户写了个没人认的 `repository`，
+   * 后者对应核心实体。两种情形产出同一条 import，不必区分。
+   */
+  #resolve_entity_base_module(repository: string): string {
+    return this.getRepositoryGenerator(repository)?.entityBaseModuleSpecifier ?? DEFAULT_ENTITY_BASE_MODULE;
   }
 }

@@ -5,13 +5,12 @@
  * 这条判定本地就能做，所以走真增量；`count*` 仍只能刷新。
  */
 import {
-  calculateOrderBy,
   EntityType,
-  FindAllOptions,
   isStaleEntityRemoveEvent,
   queryNeedRefreshRemove,
   QueryTask,
   RefreshMatchRules,
+  RxDBEntityId,
   RxDBEntityLocalRemovedEventData
 } from '@aiao/rxdb';
 import { TREE_QUERY_TYPES } from '../constants.js';
@@ -26,36 +25,50 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 
   switch (task.type) {
     case 'findDescendants': {
-      // 借 `FindAllOptions` 读 `orderBy`：`FindTreeOptions` 本身不声明排序，
-      // 但适配器返回的顺序由 SQL 决定，这里只在调用方确实带了 orderBy 时才重排。
-      const options = task.options as FindAllOptions<T>;
       const old_result = Array.from(task.resultEntitySet.values());
       const entities_map = buildEntityMap(old_result, e => e.id);
-      let has_changes = false;
 
-      const filtered = old_result.filter(entity => {
-        if (removed_ids.has(entity.id)) {
-          has_changes = true;
-          return false;
-        }
-        // 检查祖先链是否有被删除的节点。
-        // 这里不能写成 `ancestor.id && removed_ids.has(...)`：`RxDBEntityId` 允许
-        // `0` / `0n` / `''`，真值判断会把这些合法主键当成"没有 id"跳过，被删节点
-        // 名下的子树就整棵留在结果里。`traverseAncestors` 本身只 yield 已解析到的
-        // 父实体（取不到就 break），所以 `ancestor` 恒非空，无需可选链。
-        for (const { entity: ancestor } of traverseAncestors(entity, entities_map)) {
-          if (removed_ids.has(ancestor.id)) {
-            has_changes = true;
-            return false;
+      // 批级记忆：同一条父链会被所有兄弟节点反复走一遍，逐节点回溯是 O(n·depth)。
+      // `detached_map` 记「这个 id 是否已因自身或祖先被删而脱离结果集」，
+      // 每条链只算一次，整批摊平成 O(n)。
+      const detached_map = new Map<RxDBEntityId, boolean>();
+
+      // 判定不能写成 `ancestor.id && removed_ids.has(...)`：`RxDBEntityId` 允许
+      // `0` / `0n` / `''`，真值判断会把这些合法主键当成"没有 id"跳过，被删节点
+      // 名下的子树就整棵留在结果里。`traverseAncestors` 本身只 yield 已解析到的
+      // 父实体（取不到就 break），所以 `ancestor` 恒非空，无需可选链。
+      const is_detached = (entity: InstanceType<T>): boolean => {
+        const cached = detached_map.get(entity.id);
+        if (cached !== undefined) return cached;
+
+        // `chain` 收集「结论未知」的节点：它们都是断点的后代，共享同一个结论，
+        // 循环结束后统一回填。
+        const chain: RxDBEntityId[] = [entity.id];
+        let detached = removed_ids.has(entity.id);
+
+        if (!detached) {
+          for (const { entity: ancestor } of traverseAncestors(entity, entities_map)) {
+            const known = detached_map.get(ancestor.id);
+            if (known !== undefined) {
+              detached = known;
+              break;
+            }
+            if (removed_ids.has(ancestor.id)) {
+              detached = true;
+              break;
+            }
+            chain.push(ancestor.id);
           }
         }
-        return true;
-      });
 
-      if (!has_changes) return;
+        for (const id of chain) detached_map.set(id, detached);
+        return detached;
+      };
 
-      const new_result = options.orderBy?.length ? calculateOrderBy(filtered, options.orderBy) : filtered;
-      task.next(new_result, true);
+      const filtered = old_result.filter(entity => !is_detached(entity));
+      if (filtered.length === old_result.length) return;
+
+      task.next(filtered, true);
       break;
     }
 

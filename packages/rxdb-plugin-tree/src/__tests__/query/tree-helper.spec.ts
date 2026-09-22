@@ -1,6 +1,6 @@
 import { UpdateDataCache, type RxDBEntityLocalUpdatedEventData } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { TreeHelper } from '../../query/tree-helper.js';
+import { resolveAncestorForCount, TreeHelper } from '../../query/tree-helper.js';
 
 class TreeNode {
   id?: string;
@@ -56,6 +56,20 @@ const createHelper = (updates: readonly NodeDefinition[] = [], oldNodes: readonl
     serializeCount: () => serialized
   };
 };
+
+/**
+ * 「候选是否为目标的祖先」（count 口径）的等价写法：先收集整条祖先链，再用集合判定候选。
+ *
+ * 判定拆成「收集一次 + O(1) 查集合」两步后，同一批事件里的所有候选共用同一个集合；
+ * 这个包装只是把两步重新合成一次调用，方便逐条断言单个候选的结果。
+ */
+const isAncestorForCount = (
+  helper: TreeHelper<typeof TreeNode>,
+  targetEntity: TreeNode,
+  candidateEntity: TreeNode | null | undefined,
+  maxLevel?: number
+): boolean | undefined =>
+  resolveAncestorForCount<typeof TreeNode>(helper.collectAncestorIdsForCount(targetEntity, maxLevel), candidateEntity);
 
 const createChain = (length: number): NodeDefinition[] =>
   Array.from({ length }, (_, index): NodeDefinition => {
@@ -168,9 +182,9 @@ describe('TreeHelper', () => {
       expect(helper.isEntityDescendantForCount(undefined, 'root')).toBeUndefined();
       expect(helper.isEntityDescendantForCount(root, null)).toBe(true);
       expect(helper.isEntityDescendantForCount(root, undefined)).toBe(true);
-      expect(helper.isEntityAncestorForCount(root, null)).toBeUndefined();
-      expect(helper.isEntityAncestorForCount(root, undefined)).toBeUndefined();
-      expect(helper.isEntityAncestorForCount(root, createNode())).toBeUndefined();
+      expect(isAncestorForCount(helper, root, null)).toBeUndefined();
+      expect(isAncestorForCount(helper, root, undefined)).toBeUndefined();
+      expect(isAncestorForCount(helper, root, createNode())).toBeUndefined();
     });
 
     it('reuses serialized update cache entries for determinate relationships', () => {
@@ -182,8 +196,17 @@ describe('TreeHelper', () => {
 
       expect(helper.isEntityDescendantForCount(leaf, 'root')).toBe(true);
       expect(helper.isEntityDescendantForCount(leaf, 'root')).toBe(true);
-      expect(helper.isEntityAncestorForCount(leaf, createNode('root'))).toBe(true);
       expect(serializeCount()).toBe(1);
+
+      // 祖先判定是「先收集整条链、再判候选」：收集会一路走到根，因此比「命中即停」
+      // 多反序列化一个终点节点(root)。这一次开销在整批候选之间摊薄 ——
+      const ancestors = helper.collectAncestorIdsForCount(leaf);
+      expect(serializeCount()).toBe(2);
+      // —— 之后每个候选都只查集合，不再回 cache。
+      expect(resolveAncestorForCount<typeof TreeNode>(ancestors, createNode('root'))).toBe(true);
+      expect(resolveAncestorForCount<typeof TreeNode>(ancestors, createNode('parent'))).toBe(true);
+      expect(resolveAncestorForCount<typeof TreeNode>(ancestors, createNode('other'))).toBe(false);
+      expect(serializeCount()).toBe(2);
     });
 
     it('returns false at roots and does not treat a root as its own relation', () => {
@@ -192,8 +215,8 @@ describe('TreeHelper', () => {
 
       expect(helper.isEntityDescendantForCount(root, 'other')).toBe(false);
       expect(helper.isEntityDescendantForCount(root, 'root')).toBe(false);
-      expect(helper.isEntityAncestorForCount(root, createNode('other'))).toBe(false);
-      expect(helper.isEntityAncestorForCount(root, root)).toBe(false);
+      expect(isAncestorForCount(helper, root, createNode('other'))).toBe(false);
+      expect(isAncestorForCount(helper, root, root)).toBe(false);
     });
 
     it('returns undefined when an updated parent chain is incomplete', () => {
@@ -201,7 +224,7 @@ describe('TreeHelper', () => {
       const leaf = createNode('leaf', 'missing');
 
       expect(helper.isEntityDescendantForCount(leaf, 'root')).toBeUndefined();
-      expect(helper.isEntityAncestorForCount(leaf, createNode('root'))).toBeUndefined();
+      expect(isAncestorForCount(helper, leaf, createNode('root'))).toBeUndefined();
     });
   });
 
@@ -217,7 +240,7 @@ describe('TreeHelper', () => {
     expect(helper.isEntityDescendant(leaf, 'unreachable')).toEqual({ isDescendant: false, level: 0 });
     expect(helper.isEntityAncestor(leaf, unreachable)).toBe(false);
     expect(helper.isEntityDescendantForCount(leaf, 'unreachable')).toBe(false);
-    expect(helper.isEntityAncestorForCount(leaf, unreachable)).toBe(false);
+    expect(isAncestorForCount(helper, leaf, unreachable)).toBe(false);
   });
 
   it('enforces the 100-edge limit only on the guarded traversal variants', () => {
@@ -229,7 +252,7 @@ describe('TreeHelper', () => {
     expect(helper.isEntityAncestor(leaf, createNode('node-101'))).toBe(false);
     expect(helper.isEntityDescendantForCount(leaf, 'node-100')).toBe(true);
     expect(helper.isEntityDescendantForCount(leaf, 'node-101')).toBe(false);
-    expect(helper.isEntityAncestorForCount(leaf, createNode('node-100'))).toBe(true);
-    expect(helper.isEntityAncestorForCount(leaf, createNode('node-101'))).toBe(false);
+    expect(isAncestorForCount(helper, leaf, createNode('node-100'))).toBe(true);
+    expect(isAncestorForCount(helper, leaf, createNode('node-101'))).toBe(false);
   });
 });

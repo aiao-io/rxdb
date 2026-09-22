@@ -1,8 +1,5 @@
 import { nextMicroTask } from '@aiao/utils';
 import { firstValueFrom, Observable } from 'rxjs';
-import merge_create from '../query/merge_create.js';
-import merge_remove from '../query/merge_remove.js';
-import merge_update from '../query/merge_update.js';
 import { Repository } from '../repository/Repository.js';
 import { RepositoryBase } from '../repository/RepositoryBase.js';
 import { IRxDBAdapter, RxDBMutationsMap } from '../rxdb-adapter.js';
@@ -93,14 +90,7 @@ export class EntityManager {
    * @param rxdb - RxDB实例，提供数据库访问和事件分发
    */
   constructor(public readonly rxdb: RxDB) {
-    rxdb.repository('Repository', {
-      class: Repository,
-      mergeOperations: {
-        create: merge_create,
-        update: merge_update,
-        remove: merge_remove
-      }
-    });
+    rxdb.repository('Repository', { class: Repository });
   }
 
   init() {

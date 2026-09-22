@@ -56,7 +56,11 @@ tags: [plugin, bom, integration]
 因此 EBOM 与 MBOM 是两张独立的 `bom_header` + `bom_line`，`bom_map` 是它们之间的第三张表。
 这张表是 PLM↔ERP 集成的核心资产，不是可选的便利设施——AC#4 的同步缺口查询完全依赖它。
 
-视图过滤仍然适用于**同一 `bom_type` 内**的版本、生效期、组织差异，那部分在
+两张头各自挂自己的 `parent_revision_id`（[US-507](US-507-bom-graph-skeleton.md)）：制造侧的分层
+与设计侧的修订不同步推进，共用一个修订会让 MBOM 的每次工艺调整都伪装成一次设计变更。
+`bom_map` 连的是**行**而非头，两侧修订各走各的不影响映射。
+
+视图过滤仍然适用于**同一 `bom_type` 内**的修订、生效期、组织差异，那部分在
 [US-508](US-508-bom-view-resolution.md)。两者的分界就是本故事与 US-508 的分界。
 
 ## 价值待证

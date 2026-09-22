@@ -7,7 +7,7 @@
 
 import { PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
-import { addNamedImport } from '../core/RxDBClientGenerator.utils.js';
+import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
 import type { GeneratorContext, IRepositoryGenerator } from './RepositoryGenerator.interface.js';
 import { getIdType, type IdType } from './utils.js';
@@ -94,9 +94,6 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
   protected abstract generateMethods(context: GeneratorContext): void;
 
   /**
-   * 共享工具：添加静态查询方法
-   */
-  /**
    * 登记一个类型导入，按本生成器的 {@link entityBaseModuleSpecifier} 分流。
    *
    * @remarks
@@ -104,13 +101,17 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
    * `@aiao/rxdb-plugin-tree`；没有声明 specifier 的生成器一律落回 `@aiao/rxdb`。
    */
   protected addTypeImport(context: GeneratorContext, name: string): void {
-    if (this.entityBaseModuleSpecifier) {
-      addNamedImport(context.namedImportsByModule, this.entityBaseModuleSpecifier, name);
-      return;
-    }
-    context.rxdbNamedImports.add(name);
+    addEntityBaseNamedImport(
+      context.namedImportsByModule,
+      context.rxdbNamedImports,
+      this.entityBaseModuleSpecifier,
+      name
+    );
   }
 
+  /**
+   * 共享工具：添加静态查询方法
+   */
   protected addStaticMethod(
     context: GeneratorContext,
     config: {

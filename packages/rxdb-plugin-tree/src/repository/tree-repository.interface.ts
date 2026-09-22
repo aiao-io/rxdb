@@ -15,26 +15,23 @@ export interface FindTreeOptions<T extends EntityType = EntityType, WhereType = 
   where?: WhereType;
 
   /**
-   * 查询级别（包含当前节点）
-   * - 0: 当前节点  1，parentId 为 null 是查询所有根节点，2，parentId=xxx 时只有当前节点
-   * - 1: 当前节点 + 直接子节点（1 层深度）
-   * - 2: 当前节点 + 子节点 + 孙子节点（2 层深度）
-   * - n: 查询到第 n 层深度
-   * @default 0
-   * 最大值：100。
+   * 查询深度（层级数包含当前节点本身）
    *
-   * 注意：层级数包含当前节点本身
-   * 例如 level=1 会返回：当前节点 + 其直接子节点
+   * - 不传：**不限深度** —— `findDescendants` 返回整棵子树、`findAncestors` 返回整条祖先链
+   * - `0`：仅当前节点（`entityId` 为空时即所有根节点）
+   * - `1`：当前节点 + 直接子节点
+   * - `n`：查询到第 n 层深度
+   *
+   * @defaultValue `undefined`（不限深度）
    *
    * @remarks
-   * - 当 level 未提供时，默认 0
-   * - 当 level < 0 时，会被规范化为 0
-   * - 当 level > 100 时，会被限制为 100
+   * 不裁剪、不兜底：非负整数以外的值（负数、小数、`NaN`、字符串）一律抛 `RxDBError`。
+   * `level` 是树查询里唯一被直接插值进递归 CTE 比较式的选项，悄悄改写它等于把注入
+   * 变成一次静默的错误查询。校验在 `assertTreeLevel` 一处收口，`TreeRepository` 与
+   * 各适配器都走它 —— 绕过 Repository 直接调适配器时同样抛错。
    *
-   * 上述裁剪只发生在 `TreeRepository` 这一层，且只对**数字**生效。
-   * 适配器层不做任何兜底：`level` 会被直接插值进递归 CTE 的比较式，
-   * 因此收到非 `0..100` 整数（字符串、小数、NaN）一律抛 `RxDBError`。
-   * 见 `assertTreeLevel`。
+   * 不传时递归深度由各 SQL 适配器内部的失控保护常量兜底（防脏数据把 `parentId` 连成环），
+   * 那是实现细节而非查询语义：正常树不会触到。
    */
   level?: number;
 }

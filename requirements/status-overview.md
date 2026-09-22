@@ -11,12 +11,16 @@
 | ✅ Done        | 61   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 5    |
-| 📝 Backlog     | 24   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 90   |
+| **合计**       | 93   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+>
+> **27 条 Backlog 里只有 7 条是可开工的**：另外 20 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md)）
+> 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
+> 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
@@ -109,6 +113,7 @@
 - ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵：引擎写边界强制（fail-closed）+ rxdb-model UI 能力派生 + 系统实体迁移；三阶段交付
 - ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化
 - ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 字段预留与权限谓词扩展：pull 过滤 / push 裁决配合点与三框架行级只读派生；四阶段交付，阶段 B 依赖 US-027
+- ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
 - ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A e2e 失败现场录制回放；阶段 B 依赖 US-307 完成后关联 commit 还原数据状态；阶段 C 插件与三框架组件价值待证
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）
@@ -163,27 +168,30 @@
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-**整条 Epic 标价值待证，全部 `priority: Low`，不进任何排期批次**——17 条抽象对应零个已知病灶，
+**整条 Epic 标价值待证，全部 `priority: Low`，不进任何排期批次**——19 条故事约 15 项新增抽象对应零个已知病灶（US-525 不引入抽象），
 解锁条件见 [epic-009 价值待证](epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
 唯一带独立病灶的是 US-509（graph 插件写入期不拦环），它可以脱离 Epic 单独评审。
+四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），解锁条件低一档。
 
-- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；关闭条件是 `(bom_header_id, line_no)` 唯一而 `(parent_item_id, child_item_id)` 不唯一
-- ⬜ [US-508 BOM 视图解析：类型/组织/版本/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — 日期生效期与替代方案不重叠约束
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — **本 Epic 唯一有独立病灶的故事**：`findPaths` 只保证返回的路径无环，`addEdge` 不阻止写入成环的边
-- ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；闭包表不存累计用量
+- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、无独立 `version` 轴；关闭条件是 `(bom_header_id, line_no)` 唯一而 `(parent_revision_id, child_item_id)` 不唯一
+- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — 日期生效期与替代方案不重叠约束；区间排他落 US-030
+- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — **本 Epic 唯一有独立病灶的故事**：`findPaths` 只保证返回的路径无环，`addEdge` 不阻止写入成环的边；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席
+- ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；闭包表不存累计用量、不含生效期，删边按 `line_path` 增量维护
 - ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 三阶段；七步有序公式，损耗制式必须记录
-- ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进结构闭包与环检测
-- ⬜ [US-514 成本卷算](stories/plugin/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；前置 US-511 / US-520
+- ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
+- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进结构闭包与环检测；四个 `flow_direction` 各自有下游消费方
+- ⬜ [US-514 成本卷算](stories/plugin/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；前置 US-511 / US-520 / US-524
 - ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/plugin/US-515-bom-change-management.md) — `valid_from` 由 ECN 派生，不手填
 - ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/plugin/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
 - ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/plugin/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
 - ⬜ [US-518 序列与批次有效性](stories/plugin/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
 - ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/plugin/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
-- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/plugin/US-520-bom-routing-operation.md) — 只做挂接点，不建路线实体
+- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/plugin/US-520-bom-routing-operation.md) — 只做挂接点，路线本体归 US-524
 - ⬜ [US-521 ERP/MRP 集成契约](stories/plugin/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline；批量导入按行报错
 - ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/plugin/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/plugin/US-523-bom-as-built-instance.md) — 实例闭包与主数据闭包分离
+- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/plugin/US-524-routing-master-model.md) — 四阶段；US-520 AC#5 引用完整性与 US-514 加工费的那一端，解锁条件比 Epic 其余各条更晚
+- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/plugin/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

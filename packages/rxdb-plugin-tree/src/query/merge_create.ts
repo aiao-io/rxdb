@@ -16,7 +16,7 @@ import {
 } from '@aiao/rxdb';
 import { TREE_QUERY_TYPES } from '../constants.js';
 import { FindTreeOptions } from '../repository/tree-repository.interface.js';
-import { buildEntityMap, isAncestorOf, isDescendantOf } from './query-tree.utils.js';
+import { buildEntityMap, concatIterables, isAncestorOf, isDescendantOf } from './query-tree.utils.js';
 
 /**
  * JS 增量更新查询结果
@@ -31,10 +31,11 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
   switch (task.type) {
     case 'findDescendants': {
       const options = task.options as FindTreeOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
       // 必须把本批新建实体一并纳入关系图，否则"父子同批新建"时，
-      // 子节点向上查父节点会查不到而被丢弃（与 findAncestors 分支保持一致）
-      const entities_map = buildEntityMap([...old_result, ...entities], e => e.id);
+      // 子节点向上查父节点会查不到而被丢弃（与 findAncestors 分支保持一致）。
+      // 直接流式喂给 `buildEntityMap`：此前先 `Array.from` 再展开成第二个数组，
+      // 把整个结果集物化了两遍，而这两个数组除了建图之外没有别的用处。
+      const entities_map = buildEntityMap(concatIterables(task.resultEntitySet, entities), e => e.id);
 
       const new_descendants = entities.filter(
         entity =>
@@ -49,9 +50,7 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 
     case 'findAncestors': {
       const options = task.options as FindTreeOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      const all_entities = [...old_result, ...entities];
-      const entities_map = buildEntityMap(all_entities, e => e.id);
+      const entities_map = buildEntityMap(concatIterables(task.resultEntitySet, entities), e => e.id);
 
       const new_ancestors = entities.filter(
         entity => entity.id === options.entityId || isAncestorOf(entity, options.entityId, entities_map, options.level)

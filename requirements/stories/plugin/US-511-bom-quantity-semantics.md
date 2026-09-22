@@ -23,7 +23,7 @@ tags: [plugin, bom, calculation]
 | ---- | ----------------------------------------------------------------------------------- | ---- |
 | A    | 用量语义：`qty` / `qty_formula` 二选一、`is_fixed_qty`、`lotsize_from/to`、单位换算 | ⬜   |
 | B    | 三类损耗按正确顺序；`scrap_convention` 区分加成制与良率制                           | ⬜   |
-| C    | 虚拟件穿透：`COALESCE(line.phantom_override, item.default_phantom)`                 | ⬜   |
+| C    | 虚拟件穿透：`COALESCE(line.phantom_override, item_revision.default_phantom)`        | ⬜   |
 
 ## 范围边界
 
@@ -33,13 +33,16 @@ tags: [plugin, bom, calculation]
 - 单位换算：行 UoM → 子件库存 UoM，物料级换算率 + 行级覆盖
 - 三类损耗各就其位：装配损耗在**头**、组件损耗在**行**、工序损耗在**工序**
 - 损耗记法两制并存：加成制 `qty × (1+s)` 与良率制 `qty ÷ (1−s)`
-- 虚拟件穿透，且**行级标记覆盖物料级标记**
+- 虚拟件穿透，且**行级标记覆盖修订级标记**
+- 只有 `flow_direction = 'consume'` 的行进入需求展开
 
 ### Out of Scope
 
 - 工序损耗的工序序列本身（→ US-520 提供 `operation_seq` 与分摊）
 - 替代组的需求分摊（→ US-512）
 - 成本（→ US-514）
+- 非 `consume` 行的数量语义（→ US-513）：`produce` / `by_product` 的产出量与 `scrap_out` 的废料量
+  都不是「需求」，不进本故事的七步公式
 
 ## 验收标准
 
@@ -66,7 +69,7 @@ tags: [plugin, bom, calculation]
 3. 组件毛需求                G  = is_fixed ? qty : qty × P' / h.base_qty
 4. 组件损耗（行级）          G' = G × (1 + l.component_scrap) + l.component_scrap_fixed
 5. 工序损耗（工序级）        G'' = G' × Π(1 + op.scrap)，从 l.operation_seq 起累乘至末工序
-6. 虚拟件穿透                COALESCE(l.phantom_override, i.default_phantom) 为真时
+6. 虚拟件穿透                COALESCE(l.phantom_override, r.default_phantom) 为真时
                              不产生需求行，G'' 作为其子件的 P 继续下钻
 7. 单位换算                  l.uom → child.base_uom
 ```
@@ -80,6 +83,13 @@ tags: [plugin, bom, calculation]
 
 **AC#4 是最易漏的一条**：同一物料在不同装配下 phantom 与否不同，
 所以标记要能同时挂节点与边，且**边覆盖节点**。只在物料主数据上放一个布尔值是不够的。
+
+节点侧的那个布尔值挂 `item_revision` 而不是 `item`（[US-507](US-507-bom-graph-skeleton.md) 阶段 A）：
+虚拟与否是**设计决定**，同一物料的 D 版可以是虚拟件、E 版改成实体件。挂在 `item` 上则改一次
+会追溯性地改掉所有历史修订的展开结果，而历史展开本该可复算。
+
+**七步公式只认 `qty`。** 位号数不是第二个数量来源——一致性由
+[US-507](US-507-bom-graph-skeleton.md) AC#5 在写入期保证，展开期不做推导也不做校正。
 
 ## 价值待证
 

@@ -2197,7 +2197,7 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
     it('RXD-022：中间祖先节点换父级时应刷新，而非按 ±1 局部计数', () => {
       // target (id: 3) 的直接父节点是 E (id: 2)，E 本身没有换父——但本批更新里
       // E 自己的 parentId 从 '1' 变成 '9'。target 到 E 这一环的祖先关系
-      // (isEntityAncestorForCount 第一跳就命中 target.parentId === E.id)
+      // (E.id 就在 collectAncestorIdsForCount 收集到的第一跳里)
       // 不受影响，能被立即判定为 true，不会走进"无法确定→刷新"的既有分支；
       // 真正该刷新的原因是 E 之上的链路整体换了——这正是本次修复新增的
       // hasParentIdChanged 分支要捕获的场景，而不是天真按 wasAncestorBefore/

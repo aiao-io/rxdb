@@ -5,13 +5,7 @@ import type { EntityManager } from '../../entity/entity-manager.js';
 import type { EntityStatus } from '../../entity/entity-status.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { createEntityProxy } from '../../entity/proxy.js';
-import type {
-  EventListener,
-  MergeQueryTaskOptions,
-  EntityStatus as PublicEntityStatus,
-  QueryManager,
-  RxDBConfig
-} from '../../index.js';
+import type { EventListener, EntityStatus as PublicEntityStatus, QueryManager, RxDBConfig } from '../../index.js';
 import type { Rule, RuleGroup } from '../../repository/query.interface.js';
 import type { RepositoryBase } from '../../repository/RepositoryBase.js';
 import type {
@@ -210,7 +204,6 @@ describe('public type compatibility', () => {
     // 这个 it 连带整个文件一起红——这就是它的红态。
     expectTypeOf<EventListener<string>>().not.toBeNever();
     expectTypeOf<RxDBConfig>().not.toBeNever();
-    expectTypeOf<MergeQueryTaskOptions>().not.toBeNever();
     expectTypeOf<QueryManager<typeof ProxiedEntity>>().not.toBeNever();
     expectTypeOf<PublicEntityStatus<typeof ProxiedEntity>>().not.toBeNever();
     // `VersionManager` 一族（`BulkSyncOptions` / `BulkSyncResult` / `RepositorySyncStatus` /

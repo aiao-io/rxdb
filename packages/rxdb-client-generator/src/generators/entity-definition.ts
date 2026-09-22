@@ -9,7 +9,7 @@ import { EntityMetadata, RelationKind } from '@aiao/rxdb';
 import { unionBy } from '@aiao/utils';
 import { validateGeneratedClassMembers } from '../core/generated-symbols.js';
 import { REPOSITORY_TYPE_REPOSITORY, RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
-import { addNamedImport } from '../core/RxDBClientGenerator.utils.js';
+import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import type {
   MethodDeclarationStructure,
   OptionalKind,
@@ -66,16 +66,8 @@ export const generateEntityDefinition = (
   if (!repoGenerator) {
     throw new Error(`No repository generator registered for "${repoType}" (entity ${className})`);
   }
-  // 实体基类与它配套的接口同属一个模块：核心实体在 `@aiao/rxdb`，树实体在
-  // `@aiao/rxdb-plugin-tree`。由 Repository 生成器声明，核心生成器不写死包名。
-  const entityBaseModule = repoGenerator.entityBaseModuleSpecifier;
-  const addEntityBaseImport = (name: string): void => {
-    if (entityBaseModule) {
-      addNamedImport(namedImportsByModule, entityBaseModule, name);
-      return;
-    }
-    rxdbNamedImports.add(name);
-  };
+  const addEntityBaseImport = (name: string): void =>
+    addEntityBaseNamedImport(namedImportsByModule, rxdbNamedImports, repoGenerator.entityBaseModuleSpecifier, name);
 
   // 类。
   const extendClassImport = metadata.extends[0] || '';

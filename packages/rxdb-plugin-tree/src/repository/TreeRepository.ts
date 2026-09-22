@@ -1,6 +1,6 @@
 import { EntityType, getFingerprintByEntities, getFingerprintPrimitive, Repository, RxDB } from '@aiao/rxdb';
 import { Observable, switchMap, tap } from 'rxjs';
-import { TREE_QUERY_TYPES } from '../constants.js';
+import { TREE_QUERY_TYPE_LIST, TREE_QUERY_TYPES } from '../constants.js';
 import { ITreeEntity } from '../entity/tree-entity.interface.js';
 import { merge_create } from '../query/merge_create.js';
 import { merge_remove } from '../query/merge_remove.js';
@@ -43,13 +43,9 @@ export class TreeRepository<
   T extends EntityType & (new (...args: never[]) => ITreeEntity),
   RepositoryType extends ITreeRepository<T> = ITreeRepository<T>
 > extends Repository<T, RepositoryType> {
-  protected static override _STATIC_METHODS = [
-    ...super._STATIC_METHODS,
-    'findDescendants',
-    'countDescendants',
-    'findAncestors',
-    'countAncestors'
-  ];
+  // 直接摊开单一来源：挂到实体上的静态方法名与 merge 登记的 task 类型本就是同一批，
+  // 各写一份时漏掉这里 = 实体上根本没有这个查询方法。
+  protected static override _STATIC_METHODS = [...super._STATIC_METHODS, ...TREE_QUERY_TYPE_LIST];
 
   constructor(rxdb: RxDB, EntityType: T) {
     super(rxdb, EntityType);

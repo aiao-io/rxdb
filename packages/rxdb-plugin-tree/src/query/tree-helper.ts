@@ -1,10 +1,42 @@
 import { EntityType, getEntityId, RxDBEntityId, UpdateDataCache } from '@aiao/rxdb';
+import { TREE_MAX_LEVEL } from '../repository/tree-level.utils.js';
 import { get_tree_parent_id } from './query-tree.utils.js';
 
 /**
- * 树遍历的深度上限，防止环或异常深度树拖垮性能
+ * 目标实体的祖先 id 集合，{@link TreeHelper.collectAncestorIdsForCount} 的产物
  */
-const MAX_TREE_DEPTH = 100;
+export interface TreeAncestorIdSet {
+  /** 自目标向上、`maxLevel` 以内解析到的全部祖先 id */
+  ids: ReadonlySet<RxDBEntityId>;
+  /**
+   * 父链是否走到了尽头。
+   *
+   * `false` 表示中途有一环取不到实体 —— 集合**之外**的候选无从判定，只能回 SQL；
+   * 集合**之内**的候选仍是确定的 `true`（走链在断点之前就已经经过它）。
+   */
+  complete: boolean;
+}
+
+/**
+ * 用预先收集的祖先集合判定单个候选实体（`count` 口径）
+ *
+ * @param ancestors {@link TreeHelper.collectAncestorIdsForCount} 的结果
+ * @param candidateEntity 候选祖先实体
+ * @returns true=是祖先, false=不是祖先, undefined=无法确定（调用方回 SQL 重算）
+ */
+export const resolveAncestorForCount = <T extends EntityType>(
+  ancestors: TreeAncestorIdSet,
+  candidateEntity: InstanceType<T> | null | undefined
+): boolean | undefined => {
+  const candidateId = getEntityId(candidateEntity);
+  if (candidateId === undefined) {
+    return undefined; // 候选实体ID不存在
+  }
+  if (ancestors.ids.has(candidateId)) {
+    return true;
+  }
+  return ancestors.complete ? false : undefined;
+};
 
 /**
  * 树形结构辅助函数管理器
@@ -142,7 +174,7 @@ export class TreeHelper<T extends EntityType> {
     let level = 0; // 距目标实体的跳数：父节点为 1
 
     // 从目标实体向上遍历
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
       level++;
       // 超出层级上限：再往上的节点 SQL 都不会返回，无需继续遍历
       if (maxLevel !== undefined && level > maxLevel) {
@@ -194,7 +226,7 @@ export class TreeHelper<T extends EntityType> {
     let currentParentId = get_tree_parent_id<RxDBEntityId>(entity);
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
 
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
       // 找到目标实体，确认是后代
       if (currentParentId === targetEntityId) {
         return true;
@@ -245,7 +277,7 @@ export class TreeHelper<T extends EntityType> {
     const visited = new Set<RxDBEntityId>(); // 防止循环引用
     let depth = 0;
 
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < TREE_MAX_LEVEL) {
       depth++;
       if (!findsWholeTree && currentParentId === targetEntityId) {
         return { isDescendant: true, depth };
@@ -265,55 +297,46 @@ export class TreeHelper<T extends EntityType> {
   }
 
   /**
-   * 检查实体是否是目标的祖先 (用于 count 查询)
+   * 收集目标实体的祖先 id 集合 (用于 count 查询)
    *
-   * 与 isEntityAncestor 类似，但返回 undefined 表示无法确定
-   *
-   * @param targetEntity 目标实体
-   * @param candidateEntity 候选祖先实体
+   * @param targetEntity 目标实体（要查找其祖先）
    * @param maxLevel 层级上限，口径同 {@link isEntityAncestor}；`undefined` 表示不限层级。
-   * @returns true=是祖先, false=不是祖先, undefined=无法确定
+   * @returns 祖先 id 集合 + 「父链是否完整」标记，交给 {@link resolveAncestorForCount} 判定候选
    *
    * @remarks
-   * 与 {@link isEntityAncestor} 同因：`countAncestors` 数的是 `__level <= level`
-   * 的祖先，不带上限会把超深祖先也计进去。超出上限时返回 `false` 而非 `undefined`
-   * —— 这是能确定的答案（SQL 不会返回它），不必为此回一次 SQL。
+   * `countAncestors` 的目标祖先链在一批事件内是**不变**的（目标自己改父会被调用方
+   * 提前 `refresh()` 拦掉），而这条链只取决于起点的 `parentId` 加逐跳的
+   * `cache.getSerializedUpdate` —— 对批内每个候选各走一遍是 O(N×depth) 的逐字节重复。
+   * 走一次建 Set，候选判定降到 O(1)。
+   *
+   * 与 {@link isEntityAncestor} 同因，`maxLevel` 不是性能优化而是正确性要求：
+   * `countAncestors` 数的是 `__level <= level` 的祖先，不带上限会把超深祖先也计进去。
+   * 超出上限时停止收集并标记 `complete: true` —— 更上方的祖先 SQL 不会返回，
+   * 「不是祖先」是能确定的答案，不必为此回一次 SQL。只有父链中途取不到实体
+   * 才标记 `complete: false`。
    */
-  isEntityAncestorForCount(
-    targetEntity: InstanceType<T>,
-    candidateEntity: InstanceType<T> | null | undefined,
-    maxLevel?: number
-  ): boolean | undefined {
-    const candidateId = getEntityId(candidateEntity);
-    if (candidateId === undefined) {
-      return undefined; // 候选实体ID不存在
-    }
+  collectAncestorIdsForCount(targetEntity: InstanceType<T>, maxLevel?: number): TreeAncestorIdSet {
+    // `ids` 同时充当 visited：祖先链上的节点两种身份完全重合，环与深度上限用它一并兜住
+    const ids = new Set<RxDBEntityId>();
     let currentParentId = get_tree_parent_id<RxDBEntityId>(targetEntity);
-    const visited = new Set<RxDBEntityId>(); // 防止循环引用
     let level = 0; // 距目标实体的跳数：父节点为 1
 
-    while (currentParentId !== null && !visited.has(currentParentId) && visited.size < MAX_TREE_DEPTH) {
+    while (currentParentId !== null && !ids.has(currentParentId) && ids.size < TREE_MAX_LEVEL) {
       level++;
-      // 超出层级上限：SQL 不会返回更上方的祖先，可以确定地答 false
+      // 超出层级上限：SQL 不会返回更上方的祖先，链到此为止即可
       if (maxLevel !== undefined && level > maxLevel) {
-        return false;
+        return { ids, complete: true };
       }
-      // 找到候选实体，确认是祖先
-      if (currentParentId === candidateId) {
-        return true;
-      }
-      visited.add(currentParentId);
+      ids.add(currentParentId);
 
       // 尝试从更新数据中获取父实体
       const parentEntity = this.cache.getSerializedUpdate(currentParentId);
-      if (parentEntity) {
-        currentParentId = get_tree_parent_id<RxDBEntityId>(parentEntity);
-      } else {
-        // 父实体不在更新数据中，无法继续追踪，返回 undefined
-        return undefined;
+      if (!parentEntity) {
+        return { ids, complete: false }; // 父实体不在更新数据中，无法继续追踪
       }
+      currentParentId = get_tree_parent_id<RxDBEntityId>(parentEntity);
     }
 
-    return false; // 到达根节点仍未找到候选实体
+    return { ids, complete: true }; // 走到根节点，或被环/深度上限截断
   }
 }

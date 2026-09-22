@@ -111,7 +111,18 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
-      exclude: ['src/__tests__/**', 'src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts']
+      exclude: ['src/__tests__/**', 'src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts'],
+      // 公开包门槛 80（核心四包是 90），见 scripts/audit/coverage-check.mjs。
+      // 无条件挂：本包只有 browser 这一趟，它产出的就是全量覆盖率，没有「等另一趟合并」
+      // 这回事（对照 rxdb-plugin-search 的 node/browser 双趟，那边才需要 isBrowserTest 守卫）。
+      // 这是 RXD-043 要的「让 Nx target 自己变红」的本地闸 —— 少了它，删测试或分支失守时
+      // `nx test` 依然全绿，只有 `pnpm audit:coverage` 的漂移检查事后才抓得到。
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80
+      }
     },
     browser: {
       enabled: true,

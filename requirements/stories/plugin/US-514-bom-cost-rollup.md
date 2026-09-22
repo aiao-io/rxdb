@@ -28,7 +28,7 @@ tags: [plugin, bom, calculation, cost]
 
 ### Out of Scope
 
-- 费率与作业类型的主数据维护（→ US-520 的路线模型提供）
+- 费率与作业类型的主数据维护（→ [US-524](US-524-routing-master-model.md)）
 - 实际成本与差异分析（属事务域）
 - 副产品成本分配方法学的选择（只消费给定的 `credit_price`）
 
@@ -57,6 +57,11 @@ cost(item) = Σ_{consume 行}  qty_eff × cost(child)                       -- �
 `qty_eff` 取 [US-511](US-511-bom-quantity-semantics.md) 的展开结果，含三类损耗——
 **卷算不重新实现数量逻辑**，否则两处会漂。
 
+加工项的 `setup` / `run` / `rate` 三个量一个都不在 BOM 侧，它们来自
+[US-524](US-524-routing-master-model.md) 的路线本体；
+[US-520](US-520-bom-routing-operation.md) 只提供「哪一行归哪道工序」的挂接。
+两条都是本故事的前置，缺任一条则加工项无从计算。
+
 **拓扑逆序单遍是 DAG 约束存在的唯一实质理由**：没有环才能保证每个节点在其所有子件算完后恰好算一次。
 AC#4 要求卷算自身也能检出环，而不是依赖 US-509 —— 写入期约束可能因迁移或直连被绕过，
 计算期不做防御就会变成死循环而非报错。
@@ -76,4 +81,5 @@ AC#6 遵守本仓「无 fallback 兜底」铁律：缺成本以 0 计会产出�
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 前置
-- [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 前置
+- [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 前置；行到工序的挂接
+- [US-524 工艺路线本体](US-524-routing-master-model.md) — 前置；工时与费率的来源

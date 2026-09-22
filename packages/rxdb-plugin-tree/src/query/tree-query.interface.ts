@@ -6,6 +6,7 @@
  * `QueryTask.type` 也不会出现树类型 —— 这正是 US-025 阶段 E 要的「核心不内置树」。
  */
 import { EntityType } from '@aiao/rxdb';
+import type { TreeQueryType } from '../constants.js';
 import { FindTreeOptions } from '../repository/tree-repository.interface.js';
 
 /**
@@ -13,7 +14,7 @@ import { FindTreeOptions } from '../repository/tree-repository.interface.js';
  * 查找指定实体的所有后代节点
  */
 export interface FindDescendantsQuery<T extends EntityType> {
-  type: 'findDescendants';
+  type: Extract<TreeQueryType, 'findDescendants'>;
   options: FindTreeOptions<T>;
 }
 
@@ -22,7 +23,7 @@ export interface FindDescendantsQuery<T extends EntityType> {
  * 查找指定实体的所有祖先节点
  */
 export interface FindAncestorsQuery<T extends EntityType> {
-  type: 'findAncestors';
+  type: Extract<TreeQueryType, 'findAncestors'>;
   options: FindTreeOptions<T>;
 }
 
@@ -31,7 +32,7 @@ export interface FindAncestorsQuery<T extends EntityType> {
  * 统计指定实体的后代节点数量
  */
 export interface CountDescendantsQuery<T extends EntityType> {
-  type: 'countDescendants';
+  type: Extract<TreeQueryType, 'countDescendants'>;
   options: FindTreeOptions<T>;
 }
 
@@ -40,9 +41,20 @@ export interface CountDescendantsQuery<T extends EntityType> {
  * 统计指定实体的祖先节点数量
  */
 export interface CountAncestorsQuery<T extends EntityType> {
-  type: 'countAncestors';
+  type: Extract<TreeQueryType, 'countAncestors'>;
   options: FindTreeOptions<T>;
 }
+
+/**
+ * 四支树查询任务的联合。
+ *
+ * @remarks
+ * 与 {@link TreeQueryType} 的双向一致性由
+ * `__tests__/contracts/tree-query-type-parity.spec.ts` 钉死：这里加一支而
+ * {@link TREE_QUERY_TYPE_LIST} 没加（或反过来），那条断言编译失败。
+ */
+export type TreeQuery<T extends EntityType> =
+  FindDescendantsQuery<T> | FindAncestorsQuery<T> | CountDescendantsQuery<T> | CountAncestorsQuery<T>;
 
 declare module '@aiao/rxdb' {
   interface RepositoryQueryExtensions<T extends EntityType> {

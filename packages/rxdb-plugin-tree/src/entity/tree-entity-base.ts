@@ -17,6 +17,20 @@ import { Observable } from 'rxjs';
 import type { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { ITreeEntity } from './tree-entity.interface.js';
 
+/**
+ * `TreeAdjacencyListEntityBase` 的 `@Entity` 元数据。
+ *
+ * @remarks
+ * 邻接表模型的那一份声明：`parentId` 外键、`children` 一对多自关联、
+ * `hasChildren` 计算属性，以及 `repository: 'TreeRepository'`。子类沿原型链继承整份，
+ * 所以 `@Entity({ name: 'Category' })` 不必重复声明任何一项就有树能力。
+ *
+ * 之所以导出而不是内联进装饰器：`@TreeEntity` 装饰器要拿它去合并用户自己的选项，
+ * 手写实体（不继承基类、自己实现 {@link ITreeEntity}）也要靠它对齐字段，
+ * 两条路径必须用同一份声明，否则「继承来的树」和「手写的树」在 schema 上会分叉。
+ *
+ * @see {@link TreeAdjacencyListEntityBase}
+ */
 export const TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: EntityMetadataOptions = {
   name: 'TreeAdjacencyListEntityBase',
   abstract: true, // 标记为抽象类，不会直接创建此类的实例

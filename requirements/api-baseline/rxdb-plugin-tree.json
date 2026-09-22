@@ -58,6 +58,10 @@
         "kind": "value"
       },
       {
+        "name": "TREE_QUERY_TYPE_LIST",
+        "kind": "value"
+      },
+      {
         "name": "TREE_QUERY_TYPES",
         "kind": "value"
       },
@@ -71,6 +75,14 @@
       },
       {
         "name": "TreeEntityType",
+        "kind": "type"
+      },
+      {
+        "name": "TreeQuery",
+        "kind": "type"
+      },
+      {
+        "name": "TreeQueryType",
         "kind": "type"
       },
       {

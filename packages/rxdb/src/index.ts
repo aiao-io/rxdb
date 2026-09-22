@@ -110,11 +110,11 @@ export * from './rxdb-events.js';
 export * from './rxdb-plugin-system.js';
 export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
-// `addEventListener` 的形参、`RxDBOptions` 的公开别名、`mergeOperations` 的字段类型 ——
-// 三者都出现在用户拿得到的签名上。整文件不转桶，其余成员仍是内部约定。
+// `addEventListener` 的形参与 `RxDBOptions` 的公开别名 —— 两者都出现在用户拿得到的
+// 签名上。整文件不转桶，其余成员仍是内部约定。
 export * from './rxdb.interface.js';
 export * from './RxDB.js';
-export type { EventListener, MergeQueryTaskOptions, RxDBConfig } from './rxdb.types.js';
+export type { EventListener, RxDBConfig } from './rxdb.types.js';
 export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';

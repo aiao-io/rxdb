@@ -1,3 +1,5 @@
+import { TREE_MAX_LEVEL } from '../repository/tree-level.utils.js';
+
 /**
  * 树形遍历配置
  */
@@ -16,6 +18,27 @@ export const get_tree_parent_id = <ID = string>(entity: object | null | undefine
 };
 
 /**
+ * 判断一条更新事件是否**真的**改动了 `parentId`
+ *
+ * @param event 带 `patch` / `inversePatch` 的更新事件
+ * @returns `true` 表示父节点发生了位移
+ *
+ * @remarks
+ * 两条都不能省：
+ *
+ * - **key 存在 ≠ 值变了**：只改 `isActive` 时 patch 仍可能带上未变的 `parentId`，
+ *   单看 `'parentId' in patch` 会把纯字段更新误判成"移动"，触发不必要的 refresh。
+ * - **两侧都要归一**：在树语义里「缺失」「`null`」「`undefined`」都是「挂在根上」，
+ *   所以两侧统一走 {@link get_tree_parent_id}。裸 `Reflect.get` 比较会把
+ *   `undefined → null` 这种无变化算成移动。
+ *
+ * 这是全插件判断"父节点变了没有"的**唯一**实现：此前 `merge_update.ts` 与
+ * `merge-update-tree.ts` 各有一套拼写，null/undefined 语义在两套之间分叉。
+ */
+export const hasTreeParentChanged = (event: { patch: object; inversePatch: object }): boolean =>
+  'parentId' in event.patch && get_tree_parent_id(event.patch) !== get_tree_parent_id(event.inversePatch);
+
+/**
  * 向上遍历父级链路
  *
  * @param entity 起始实体
@@ -28,7 +51,7 @@ export function* traverseAncestors<T extends object, ID>(
   entitiesMap: Map<ID, T>,
   options: TreeTraversalOptions = {}
 ): Generator<{ entity: T; level: number }> {
-  const { maxLevel, maxDepth = 1000 } = options;
+  const { maxLevel, maxDepth = TREE_MAX_LEVEL } = options;
   const visited = new Set<ID>();
   let currentParentId = get_tree_parent_id<ID>(entity);
   let level = 1;
@@ -144,17 +167,36 @@ export function isAncestorOf<T extends object, ID>(
 }
 
 /**
+ * 顺序串联多个可迭代源，不物化中间数组
+ *
+ * @param sources 按顺序遍历的可迭代源
+ * @yields 各源中的元素，顺序与传入顺序一致
+ *
+ * @remarks
+ * 专为 {@link buildEntityMap} 的「旧结果 `Set` + 本批事件数组」场景而设：
+ * `Array.from(set)` 再展开拼接会把旧结果集整体物化两遍，只为建一张查找表。
+ */
+export function* concatIterables<T>(...sources: Iterable<T>[]): Generator<T> {
+  for (const source of sources) {
+    yield* source;
+  }
+}
+
+/**
  * 构建实体 ID 映射表（优化查找性能）
  *
- * @param entities 实体数组
+ * @param entities 实体来源；接受任意可迭代对象（数组、`Set`、{@link concatIterables} 的产物）
  * @param getIdFn 获取实体 ID 的函数
  * @returns 实体 ID 到实体的映射表
  */
-export function buildEntityMap<T, ID>(entities: T[], getIdFn: (entity: T) => ID | null | undefined): Map<ID, T> {
+export function buildEntityMap<T, ID>(
+  entities: Iterable<T>,
+  getIdFn: (entity: T) => ID | null | undefined
+): Map<ID, T> {
   const map = new Map<ID, T>();
-  entities.forEach(entity => {
+  for (const entity of entities) {
     const id = getIdFn(entity);
     if (id !== null && id !== undefined) map.set(id, entity);
-  });
+  }
   return map;
 }

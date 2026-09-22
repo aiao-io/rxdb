@@ -56,6 +56,22 @@ AC#3 与 AC#5 合起来确立单一真相源：`ecn.effective_date` 是源，`bo
 
 AC#4 的「不留半生效状态」需要事务保证：一次 ECN 取消可能涉及跨多张 BOM 的数十行。
 
+**AC#2 的差异不能由 `@aiao/rxdb-plugin-working-tree` 的 `diff()` 承担**，三条理由，
+按 [CONVENTIONS 的病灶数 ≥ 抽象数](../../CONVENTIONS.md#价值待证) 这里必须说清，
+否则 `ecn` 看起来就是一个已有能力的重复抽象：
+
+1. **轴不对。** `WorkingTreeDiff` 的
+   [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts)
+   键集是封闭的，文件头自述「只有一条轴，而且它没有入参」——左端恒为 `baseHeadCommitId`、
+   右端恒为当前工作树，`from` / `to` / `ref` 被明确拒绝。AC#2 要的是「这个 ECN 生效前 ↔ 生效后」，
+   是任意两点，不是 HEAD ↔ 工作树。
+2. **单位不对。** `listCommits()` 的单位是提交，而一次 ECN 可能跨多次提交，
+   也可能一次提交都没有（生效日在未来、行已写入但尚未到期）。「一次变更」这个单位在提交图里没有对应物。
+3. **维度不对。** 工作树的 diff 是**写入时刻**的差异；ECN 的差异是**生效时刻**的差异。
+   同一批行在两个时间轴上的前后关系并不一致——AC#6 的两个 ECN 先后生效，写入顺序可以相反。
+
+可以复用的是别处：AC#4 的整体回退需要的事务边界与 `commit()` 同源，那是引擎能力，不是本故事的抽象。
+
 ## 价值待证
 
 同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
@@ -68,3 +84,4 @@ AC#4 的「不留半生效状态」需要事务保证：一次 ECN 取消可能�
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置
+- [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点

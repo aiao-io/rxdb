@@ -7,8 +7,6 @@
  */
 import {
   EntityType,
-  FindAllOptions,
-  isEntityMatchWhere,
   prepareIncrementalUpdate,
   queryNeedRefreshUpdate,
   QueryTask,
@@ -22,23 +20,12 @@ import {
   handleFindAncestorsUpdate,
   handleFindDescendantsUpdate
 } from './merge-update-tree.js';
-
-/**
- * 判断一条更新事件是否改动了 `parentId`
- *
- * @remarks
- * `findAncestors` 的结果就是一条祖先链。链上任一节点改父，整条链都要重算，
- * 本地拿不到新链上那些从未进过结果集的节点，只能回 SQL。
- */
-const hasTreeParentChanged = <T extends EntityType>(event: RxDBEntityLocalUpdatedEventData<T>): boolean =>
-  Reflect.has(event.patch, 'parentId') &&
-  Reflect.get(event.patch, 'parentId') !== Reflect.get(event.inversePatch, 'parentId');
+import { hasTreeParentChanged } from './query-tree.utils.js';
 
 /**
  * 重新计算查询结果（JS 增量更新）
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalUpdatedEventData<T>[]) => {
-  const where = (task.options as FindAllOptions<T>).where;
   const { cache, classification } = prepareIncrementalUpdate(task, data);
 
   switch (task.type) {
@@ -51,11 +38,11 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       break;
 
     case 'countDescendants':
-      handleCountDescendantsUpdate(task, data, classification, cache, where, isEntityMatchWhere);
+      handleCountDescendantsUpdate(task, data, classification, cache);
       break;
 
     case 'countAncestors':
-      handleCountAncestorsUpdate(task, data, classification, cache, where, isEntityMatchWhere);
+      handleCountAncestorsUpdate(task, data, classification, cache);
       break;
   }
 };
@@ -80,6 +67,14 @@ export const merge_update = <T extends EntityType>(
     return;
   }
 
+  // `findAncestors` 的结果就是一条祖先链。链上任一节点改父，整条链都要重算，
+  // 而新链上方那些节点从未进过结果集、也不在本批事件里，本地只能摘不能补。
+  //
+  // 这一层必须放在 `queryNeedRefreshUpdate` 之前：链上某个**不匹配 where**、
+  // 因而不在结果集里的中间节点改父，同样会让它上方匹配 where 的祖先整体进出结果，
+  // 但它既不满足 `result_contains` 也不满足 `match_where`，连 recalculate 的门都进不来。
+  // {@link handleFindAncestorsUpdate} 开头按同一条规则（同一个 `hasTreeParentChanged`）
+  // 再判一次，是为了让处理器脱离本调用方也成立，不是兜底：两处判的是同一条规则。
   if (task.type === 'findAncestors' && entities.some(hasTreeParentChanged)) {
     task.refresh();
     return;
