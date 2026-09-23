@@ -29,9 +29,6 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
-      "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json"
     },
     {
@@ -56,6 +53,9 @@
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-tree/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"
     },
     {
@@ -69,6 +69,9 @@
     },
     {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"

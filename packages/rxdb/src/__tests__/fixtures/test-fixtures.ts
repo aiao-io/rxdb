@@ -4,9 +4,8 @@
  * 提供创建测试数据的工厂函数，确保测试数据一致性
  */
 
-import { UUID } from '../../entity/entity.interface.js';
 import { uuid } from '../../rxdb-utils.js';
-import type { Category, Post, Tag, User } from './test-entities.js';
+import type { Post, Tag, User } from './test-entities.js';
 
 /**
  * 用户 Fixture 工厂
@@ -93,84 +92,6 @@ export const PostFixture = {
       published: true,
       ...overrides
     })
-};
-
-/**
- * 分类 Fixture 工厂
- */
-export const CategoryFixture = {
-  /**
-   * 创建单个分类
-   */
-  create: (overrides?: Partial<Category> & { parentId?: string | null }): Category =>
-    ({
-      id: uuid(),
-      name: 'Test Category',
-      order: 0,
-      slug: `category-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      parentId: overrides?.parentId ?? null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: '',
-      updatedBy: '',
-      ...overrides
-    }) as Category,
-
-  /**
-   * 创建树形分类结构
-   * @param depth 树的深度
-   * @returns 按层级顺序排列的分类数组（根在前）
-   */
-  createTree: (depth: number = 3): Category[] => {
-    const categories: Category[] = [];
-    let parentId: UUID | null = null;
-
-    for (let i = 0; i < depth; i++) {
-      const cat = CategoryFixture.create({
-        name: `Category L${i}`,
-        order: i,
-        slug: `category-l${i}-${Date.now()}`,
-        parentId
-      });
-      categories.push(cat);
-      parentId = cat.id;
-    }
-
-    return categories;
-  },
-
-  /**
-   * 创建具有多个子节点的树形结构
-   * @param width 每层的子节点数
-   * @param depth 树的深度
-   */
-  createWideTree: (width: number = 3, depth: number = 2): Category[] => {
-    const categories: Category[] = [];
-    const root = CategoryFixture.create({
-      name: 'Root',
-      order: 0,
-      slug: `root-${Date.now()}`
-    });
-    categories.push(root);
-
-    const createChildren = (parent: Category, currentDepth: number): void => {
-      if (currentDepth >= depth) return;
-
-      for (let i = 0; i < width; i++) {
-        const child = CategoryFixture.create({
-          name: `${parent.name} > Child ${i + 1}`,
-          order: i,
-          slug: `${parent.slug}-child${i + 1}`,
-          parentId: parent.id
-        });
-        categories.push(child);
-        createChildren(child, currentDepth + 1);
-      }
-    };
-
-    createChildren(root, 0);
-    return categories;
-  }
 };
 
 /**

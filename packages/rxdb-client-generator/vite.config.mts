@@ -71,6 +71,7 @@ export default defineConfig(() => ({
         'ts-morph',
         '@aiao/utils',
         '@aiao/rxdb',
+        '@aiao/rxdb-plugin-tree',
         'jiti',
         'path',
         'fs',

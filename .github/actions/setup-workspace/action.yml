@@ -4,9 +4,10 @@ description: pnpm + Node + 依赖安装。CI 里每个 job 的固定开销，抽
 inputs:
   free-disk:
     description: >
-      是否删除 runner 预装但本仓库用不到的工具链（约 16-19GB，耗时约 60s）。
+      根分区紧张时是否删除 runner 预装但本仓库用不到的工具链（约 16-19GB）。
       只有会写大量产物的 job 需要：全量 build、Supabase lane、e2e。
-      普通 test lane 不开 —— 那 60s 是白交的税。
+      普通 test lane 不开。删除本身不再是固定开销：先查空闲，
+      低于阈值才动手（2026-09 实测新镜像删前 ~87G 空闲，多数 job 零成本）。
     required: false
     default: 'false'
 
@@ -15,17 +16,25 @@ runs:
   steps:
     # 根分区写满曾导致两类事故：Chromium 因 /tmp 共享内存归零而崩溃、
     # rolldown 报 ENOSPC（os error 28）。删的都是 runner 预装、本仓库不碰的东西。
+    # 但这只在真不够时才需要：旧 7GB runner 时代的无条件删除，在现在的
+    # 145G 镜像上每 job 白付 30-100s（run 96566026767 的 extras 甚至花了 276s，
+    # 而删前日志显示已有 87G 空闲）。阈值防御保留，常态下零成本。
     - name: Free disk space
       if: inputs.free-disk == 'true'
       shell: bash
       run: |
-        df -h / | tail -1
-        sudo rm -rf \
-          /usr/local/lib/android \
-          /usr/share/dotnet \
-          /opt/hostedtoolcache/CodeQL \
-          /usr/local/.ghcup
-        df -h / | tail -1
+        free_kb=$(df -P / | awk 'NR==2 {print $4}')
+        echo "root free space: $((free_kb / 1024 / 1024))G"
+        if [ "$free_kb" -lt $((20 * 1024 * 1024)) ]; then
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/.ghcup
+          df -h / | tail -1
+        else
+          echo "skip cleanup: free space above 20G threshold"
+        fi
 
     # 第三方 action 一律钉 commit SHA，不用可变的 tag/分支：tag 可以被强推，
     # 一次上游账号失陷就能拿到所有 CI 的 secrets 和 id-token。尾注的 `# vX` 是

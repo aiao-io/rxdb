@@ -19,6 +19,7 @@ import {
   createDevToolsStorageSnapshotPorts,
   type DevToolsStorageSnapshotPorts
 } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -179,6 +180,7 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .use(rxDBPluginStorage, {
       rootDir: DESKTOP_STORAGE_ROOT_DIR,
       filesystem: createDesktopStorageFilesystem()

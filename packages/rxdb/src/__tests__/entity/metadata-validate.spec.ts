@@ -514,9 +514,8 @@ describe('validateEntityMetadata — AC#12 结构 fixture 单向不变式', () =
 });
 
 describe('US-021 missingQueryCacheAdapter — QueryCache 生效但库级 sync 没注册适配器', () => {
-  const queryCacheMeta = (repository = 'Repository'): EntityMetadata =>
+  const queryCacheMeta = (): EntityMetadata =>
     makeMeta({
-      repository,
       sync: { type: SyncType.QueryCache, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'http' } }
     });
 
@@ -594,12 +593,5 @@ describe('US-021 missingQueryCacheAdapter — QueryCache 生效但库级 sync �
       remote: { adapter: 'http' }
     };
     expect(validateEntityMetadata(metadata, databaseSync)).toEqual([]);
-  });
-
-  // 两条规则判的是两件事：适配器在不在、树能不能用缓存。同一字段上可以同时成立
-  it('TreeRepository + QueryCache 且适配器缺席时两条规则各报一次，按 rule 稳定排序', () => {
-    const errors = validateEntityMetadata(queryCacheMeta('TreeRepository'));
-    expect(errors.map(error => error.rule)).toEqual(['missingQueryCacheAdapter', 'unsupportedTreeQueryCache']);
-    expect(errors.every(error => error.field === 'sync')).toBe(true);
   });
 });

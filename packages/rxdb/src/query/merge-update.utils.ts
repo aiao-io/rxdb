@@ -1,7 +1,10 @@
 import { EntityType, RxDBEntityId } from '../entity/entity.interface.js';
+import { FindAllOptions } from '../repository/query-options.interface.js';
 import { RuleGroup } from '../repository/query.interface.js';
+import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { tryGetEntityStatus } from '../rxdb-utils.js';
+import { isEntityMatchWhere } from './query-matching.utils.js';
 import { isStaleEventPayload } from './stale-event.utils.js';
 
 /**
@@ -182,4 +185,40 @@ export const classifyUpdates = <T extends EntityType>(
     newlyUnmatchedIds,
     stillMatchedIds
   };
+};
+
+/**
+ * 一次增量合并的上下文：完整实体缓存 + 匹配状态分类。
+ */
+export interface IncrementalUpdateContext<T extends EntityType> {
+  /** 更新前/后完整实体的惰性缓存，供 handler 取 before/after 态 */
+  cache: UpdateDataCache<T>;
+  /** 各实体在本批更新前后的 where 匹配状态变化 */
+  classification: UpdateClassification;
+}
+
+/**
+ * 为一批 UPDATE 事件准备增量合并上下文。
+ *
+ * 这是**插件实现增量合并的入口原语**：插件（如树查询）拿到 task 与本批事件后，
+ * 先调它得到 `{ cache, classification }`，再按自己的 task 类型决定怎么改 `task.result`。
+ *
+ * 它封住三处纯内部装配——完整实体怎么反序列化、where 判定器是哪个、缓存怎么建。
+ * 这三处不外泄有实际约束力：where 判定必须基于**完整实体**，patch/inversePatch 只是
+ * 增量字段，复合 where 下拿裸 patch 判定会因字段缺失恒判 false，让 newlyUnmatchedIds
+ * 漏算、count 静默偏差。各插件自行接线就是各写一份判定，漂移了也不会报错。
+ *
+ * 进基线后受兼容承诺约束，见 `website/docs/versioning.md`。
+ *
+ * @param task 正在合并的查询任务；`task.options.where` 为空时视为全匹配
+ * @param data 本批本地 UPDATE 事件
+ */
+export const prepareIncrementalUpdate = <T extends EntityType, RT = unknown>(
+  task: QueryTask<T, RT>,
+  data: RxDBEntityLocalUpdatedEventData<T>[]
+): IncrementalUpdateContext<T> => {
+  const where = (task.options as FindAllOptions<T>).where;
+  const cache = new UpdateDataCache<T>(data, (event: RxDBEntityLocalUpdatedEventData<T>) => task.serialize(event));
+  const classification = classifyUpdates<T>(data, where, isEntityMatchWhere, cache);
+  return { cache, classification };
 };

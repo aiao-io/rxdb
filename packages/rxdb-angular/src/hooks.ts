@@ -1,4 +1,4 @@
-import { EntityStaticType, EntityType, TreeEntityType } from '@aiao/rxdb';
+import { EntityStaticType, EntityType } from '@aiao/rxdb';
 import type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 import { GraphEntityType } from '@aiao/rxdb-plugin-graph';
 import { getRepositoryMethod, isFunction } from '@aiao/utils';
@@ -235,70 +235,6 @@ export const useCount = <T extends EntityType>(
   EntityType: T,
   options: UseOptions<EntityStaticType<T, 'countOptions'>>
 ) => useRepositoryQuery<T, EntityStaticType<T, 'countOptions'>, number>(EntityType, 'count', 0, options);
-
-/*
- * TreeRepository（树形仓库）
- */
-
-/**
- * 查找树结构中的所有子孙实体
- *
- * @param EntityType 实体类
- * @param options 树查询参数（entityId、深度等）
- * @returns 返回包含子孙实体的资源 signal
- */
-export const useFindDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-) =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findDescendants',
-    [],
-    options
-  );
-
-/**
- * 统计树结构中的子孙数量
- *
- * @param EntityType 实体类
- * @param options 树查询参数
- * @returns 返回包含数量的资源 signal
- */
-export const useCountDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-) => useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countDescendants', 0, options);
-
-/**
- * 查找树结构中的所有祖先实体
- *
- * @param EntityType 实体类
- * @param options 树查询参数
- * @returns 返回包含祖先实体的资源 signal
- */
-export const useFindAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-) =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findAncestors',
-    [],
-    options
-  );
-
-/**
- * 统计树结构中的祖先数量
- *
- * @param EntityType 实体类
- * @param options 树查询参数
- * @returns 返回包含数量的资源 signal
- */
-export const useCountAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-) => useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countAncestors', 0, options);
 
 /*
  * GraphRepository（图仓库）

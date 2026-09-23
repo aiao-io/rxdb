@@ -27,7 +27,6 @@ import {
   FindOneOrFailOptions,
   FindOptions
 } from '../repository/query-options.interface.js';
-import { ITreeEntity } from './tree-entity.interface.js';
 
 export const ENTITY_STATIC_TYPES: unique symbol = Symbol('ɵEntityStaticTypes');
 
@@ -147,15 +146,6 @@ export type EntityData = Record<string, unknown>;
  * `IRepository` 时使用。绝大多数业务代码应直接用 {@link EntityType}。
  */
 export type EntityBaseType = IEntityStaticType & (new (...args: never[]) => IEntity);
-
-/**
- * 树形实体类型
- *
- * 继承了 {@link IEntity} 的 `id` / `createdAt` 等字段，再加上
- * `parentId` 与 `hasChildren` 这类树形独有属性。
- * {@link TreeRepository} 据此提供 `findDescendants` / `countAncestors` 等方法。
- */
-export type TreeEntityType = IEntityStaticType & (new (...args: never[]) => ITreeEntity);
 
 /**
  * 抽象实体类型

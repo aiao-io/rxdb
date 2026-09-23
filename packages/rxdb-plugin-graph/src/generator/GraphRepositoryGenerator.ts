@@ -42,7 +42,7 @@ const GRAPH_IMPORTED_TYPES = [
  */
 export class GraphRepositoryGenerator extends RepositoryGeneratorBase {
   override readonly name: string = 'GraphRepository';
-  readonly entityBaseModuleSpecifier = GRAPH_MODULE;
+  override readonly entityBaseModuleSpecifier = GRAPH_MODULE;
 
   protected override generateMethods(context: GeneratorContext): void {
     // Graph 特有方法（基类方法已在 generator_entity_definition.ts 中单独生成）

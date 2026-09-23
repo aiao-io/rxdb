@@ -52,9 +52,6 @@ export {
   getEntitySync,
   type PrimaryAdapterKind
 } from './entity/primary-adapter.js';
-export * from './entity/tree-entity-base.js';
-export * from './entity/tree-entity.decorator.js';
-export * from './entity/tree-entity.interface.js';
 export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
@@ -62,7 +59,25 @@ export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/nee
 // 查询语义的两条判定原语。插件要自己模拟一个仓库（历史插件的集成测试、QueryCache 的
 // 本地读）时，`where` 过滤与 `orderBy` 排序必须与核心逐字同源 —— 各写一份就是漂移。
 export { calculateOrderBy, isEntityMatchWhere, isRuleGroup } from './query/query-matching.utils.js';
+// 增量合并原语。插件要把某类查询的合并整体接管走（树查询就是真增量，不像图查询一律
+// refresh），就得用核心这套判定：哪些实体在本批更新里由不匹配变匹配、外部更新怎么落到
+// 已缓存的实体实例上、事件是不是已经过期。各插件自行复刻一份等于埋下静默漂移。
+// 这批符号进 API 基线，受兼容承诺约束。
+export type { IncrementalUpdateContext, UpdateClassification } from './query/merge-update.utils.js';
+// `UpdateDataCache` 转的是**类**而不只是类型：它是一批更新事件的惰性解包缓存，
+// 插件接管某类查询的合并时要自己 `new` 一个（树的四个 handler 全靠它把同一批事件
+// 的 `data` 只解一次）。只转类型的话，包外拿得到形参签名却造不出实参。
+export {
+  UpdateDataCache,
+  applyExternalEntityUpdate,
+  getEntityId,
+  prepareIncrementalUpdate
+} from './query/merge-update.utils.js';
+export { isStaleEntityEvent, isStaleEntityRemoveEvent } from './query/stale-event.utils.js';
+// 查询任务指纹计算。插件自带 Repository 时必须自己给 `createTask` 传 `getFingerprint`，
+// 而指纹正是 QueryManager 判定「结果变没变」的依据 —— 各写一份就是两套「变了」的定义。
 export * from './repository/diff-metadata.js';
+export * from './repository/fingerprint.utils.js';
 export { isNetworkError } from './repository/network-error.js';
 export type {
   QueryCacheEngineFactory,
@@ -89,19 +104,17 @@ export * from './repository/relation-query.interface.js';
 export * from './repository/repository.interface.js';
 export * from './repository/Repository.js';
 export * from './repository/RepositoryBase.js';
-export * from './repository/tree-level.utils.js';
-export * from './repository/tree-repository.interface.js';
 export { isRemoteNewer, parseUpdatedAt } from './repository/updated-at.utils.js';
 export * from './rxdb-adapter.js';
 export * from './rxdb-events.js';
 export * from './rxdb-plugin-system.js';
 export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
-// `addEventListener` 的形参、`RxDBOptions` 的公开别名、`mergeOperations` 的字段类型 ——
-// 三者都出现在用户拿得到的签名上。整文件不转桶，其余成员仍是内部约定。
+// `addEventListener` 的形参与 `RxDBOptions` 的公开别名 —— 两者都出现在用户拿得到的
+// 签名上。整文件不转桶，其余成员仍是内部约定。
 export * from './rxdb.interface.js';
 export * from './RxDB.js';
-export type { EventListener, MergeQueryTaskOptions, RxDBConfig } from './rxdb.types.js';
+export type { EventListener, RxDBConfig } from './rxdb.types.js';
 export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';

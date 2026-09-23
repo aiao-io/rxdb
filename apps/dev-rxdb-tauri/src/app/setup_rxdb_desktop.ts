@@ -24,6 +24,7 @@ import {
   createDevToolsStorageSnapshotPorts,
   type DevToolsStorageSnapshotPorts
 } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -281,6 +282,7 @@ export default async () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .use(rxDBPluginStorage, createDesktopStorageOptions(transport))
     .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 

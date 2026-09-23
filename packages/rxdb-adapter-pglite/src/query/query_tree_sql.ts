@@ -1,10 +1,23 @@
-import { assertTreeLevel, EntityMetadata, EntityRelationManyToOneMetadata, FindTreeOptions } from '@aiao/rxdb';
+import { EntityMetadata, EntityRelationManyToOneMetadata } from '@aiao/rxdb';
+import { assertTreeLevel, FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import type { SetOptional } from 'type-fest';
 import { getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import type { FieldAlias } from './json_accessor.js';
 import { buildRuleGroupPG, GenerateSqlResult } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
+
+/**
+ * 递归 CTE 的失控保护上限。
+ *
+ * @remarks
+ * 不传 `FindTreeOptions.level` 时默认不限深度，而 `WITH RECURSIVE … UNION ALL` 没有
+ * 天然的终止条件（换 `UNION` 也不行：CTE 选了层级列，同一节点在不同层不算重复行）。
+ * 脏数据把 `parentId` 连成环时，少了这道闸门数据库会一直递归下去 —— 在浏览器里
+ * 这是不可中断的挂死。所以这是**适配器内部**的兜底常量，不是用户可配的查询深度：
+ * 正常树触不到，触到即说明数据有环。
+ */
+const TREE_RECURSION_MAX_DEPTH = 1000;
 
 interface TreeOptions extends SetOptional<FindTreeOptions, 'entityId'> {
   /**
@@ -48,9 +61,11 @@ export const generate_tree_sql = (
   const parentColumnName = parentRelation?.columnName ?? 'parentId';
 
   let children_where = '';
-  // level 按 FindTreeOptions 契约解析：未设置 → 0（仅当前节点），显式 level=N → c.level < N。
-  // assertTreeLevel 保证插值进来的一定是 0..100 的整数（这里无法参数化：它在递归成员的比较式里）。
-  const level_sql = `c.level < ${assertTreeLevel(options.level)}`;
+  // level 按 FindTreeOptions 契约解析：未设置 → 不限深度（退到内部失控保护上限），
+  // 显式 level=N → c.level < N。assertTreeLevel 保证插值进来的一定是非负整数
+  //（这里无法参数化：它在递归成员的比较式里）。
+  const level = assertTreeLevel(options.level);
+  const level_sql = `c.level < ${level ?? TREE_RECURSION_MAX_DEPTH}`;
   const children_where_conditions = [level_sql];
   const params: unknown[] = [];
 

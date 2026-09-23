@@ -1,6 +1,6 @@
 import { EntityType } from './entity/entity.interface.js';
 import { EntityMetadata } from './entity/metadata.interface.js';
-import { MergeQueryTaskCreateFn, MergeQueryTaskRemoveFn, MergeQueryTaskUpdateFn } from './repository/QueryManager.js';
+import { SyncType } from './entity/sync-options.interface.js';
 import { RepositoryConstructor, RepositoryInstance } from './rxdb-adapter.js';
 import { RxDBEvent } from './rxdb-events.js';
 import { RxDBOptions } from './rxdb.interface.js';
@@ -37,15 +37,14 @@ export interface TransactionContext {
   events: RxDBEvent[];
 }
 
-export interface MergeQueryTaskOptions {
-  create: MergeQueryTaskCreateFn;
-  update: MergeQueryTaskUpdateFn;
-  remove: MergeQueryTaskRemoveFn;
-}
-
 /**
  * IRepositoryConfig 统一注册配置
- * 合并 factory、class 和 merge operations 为单一配置对象
+ *
+ * @remarks
+ * 增量 merge 实现**不在这里**：它按 task 类型注册在
+ * {@link QueryManager.registerMergeCreateFn} 一族上，由各 Repository 自己在构造期登记
+ * （见 `TreeRepository` / `GraphRepository`）。这里只声明「用哪个类、要不要动态造实体、
+ * 哪些同步策略撑不住」。
  */
 export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryInstance> {
   /**
@@ -55,5 +54,25 @@ export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryIns
 
   class: RepositoryConstructor<RT>;
 
-  mergeOperations: MergeQueryTaskOptions;
+  /**
+   * 本仓储撑不住的同步策略，键是策略、值是**不支持的理由**。
+   *
+   * @remarks
+   * 注册期校验会把这里的声明翻成 `unsupportedRepositorySyncType` 违规，理由原样拼进消息 ——
+   * 所以理由要写清「为什么坏」和「改用什么」，它是开发者唯一能看到的说明。
+   *
+   * 「哪种仓储在哪种策略下会坏」是仓储实现的知识，核心没有判据，因此由注册方声明而不是
+   * 核心硬编码；插件注册的仓储与核心内置仓储在这条规则上走同一条路。
+   *
+   * @example
+   * ```typescript
+   * rxdb.repository('TreeRepository', {
+   *   class: TreeRepository, // 来自 @aiao/rxdb-plugin-tree
+   *   unsupportedSyncTypes: {
+   *     [SyncType.QueryCache]: '树查询依赖本地完整的祖先链，而缓存只覆盖查过的 where 命中的行。'
+   *   }
+   * });
+   * ```
+   */
+  unsupportedSyncTypes?: Partial<Record<SyncType, string>>;
 }

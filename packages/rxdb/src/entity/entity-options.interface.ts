@@ -18,45 +18,16 @@ import type {
 import type { EntityRelationMetadataOptions } from './relation-types.interface.js';
 import type { SyncOptions } from './sync-options.interface.js';
 
-type TreeType = 'adjacency-list';
-
-/**
- * 实体元数据树形结构特性接口
- */
-export interface EntityMetadataTreeFeatures {
-  /**
-   * 树形结构类型
-   *
-   * 目前仅支持 adjacency-list (邻接表模型)，未来可能支持其他模型：
-   * - 'closure-table': 闭包表模型
-   * - 'nested-set': 嵌套集模型
-   * - 'materialized-path': 物化路径模型
-   *
-   * 参考资料：
-   * - https://www.slideshare.net/slideshow/models-for-hierarchical-data/4179181
-   * - https://schinckel.net/2014/09/13/long-live-adjacency-lists/
-   *
-   * @default 'adjacency-list'
-   */
-  type?: TreeType;
-
-  /**
-   * 是否有子节点
-   * 在树结构里使用，表示当前节点是否有子节点
-   * @default false
-   */
-  hasChildren?: boolean;
-}
-
 /**
  * EntityMetadata 扩展特性
+ *
+ * @remarks
+ * 核心不内置任何具体特性——`tree` 由 `@aiao/rxdb-plugin-tree`、`graph` 由
+ * `@aiao/rxdb-plugin-graph` 各自经 `declare module '@aiao/rxdb'` 挂上来。
+ * 索引签名是这条扩展路径的落点：没装对应插件的应用，元数据上连字段名都不该出现。
  */
 export interface EntityMetadataFeatures {
   [name: string]: unknown;
-  /**
-   * 树形结构特性
-   */
-  tree?: EntityMetadataTreeFeatures;
 }
 
 /**
@@ -124,8 +95,9 @@ export interface EntityMetadataOptions {
    * 自定义 repository
    *
    * @remarks
-   * 取值来自门面轴注册表 {@link RxDBRepositoryName}：核心的 `Repository` / `TreeRepository`
-   * 与插件经 `declare module` 注册的门面（如 `GraphRepository`）在补全里同为一等公民。
+   * 取值来自门面轴注册表 {@link RxDBRepositoryName}：核心的 `Repository`
+   * 与插件经 `declare module` 注册的门面（如 `TreeRepository` / `GraphRepository`）
+   * 在补全里同为一等公民。
    * 名字没经 `RxDB.repository()` 登记过时，`EntityManager.init()` 仍会抛错拦下。
    *
    * @default "Repository"

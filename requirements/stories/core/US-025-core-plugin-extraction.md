@@ -1,11 +1,11 @@
 ---
 id: US-025
 title: 核心包子系统按插件边界外移
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-20
+updated: 2026-09-22
 tags: [core, plugin, packaging]
 ---
 
@@ -17,9 +17,12 @@ tags: [core, plugin, packaging]
 **我想要** `@aiao/rxdb` 的可选子系统以插件形式按需安装
 **以便** 不为用不到的能力付出包体、启动成本与拆卸复杂度
 
-## 今天踩得到的症状
+## 立项时踩得到的症状（阶段 A～E 已全部关闭）
 
-三条都可一次跳转复验，不是架构洁癖：
+三条都是立项时在核心包里实测的，不是架构洁癖。阶段 A～E 交付后，
+`version/` 归 `@aiao/rxdb-plugin-history` 与 `@aiao/rxdb-plugin-sync`、
+QueryCache 归 `@aiao/rxdb-plugin-querycache`、树归 `@aiao/rxdb-plugin-tree`，
+下面引的核心代码片段**均已不在 `RxDB.ts` 里**——留着是为了记录判据，不是现状描述：
 
 1. **可选子系统无法不装。** [`RxDB`](../../../packages/rxdb/src/RxDB.ts) 构造函数里
    `new VersionManager(this)` 是**无条件**的：
@@ -36,7 +39,8 @@ tags: [core, plugin, packaging]
    [`RxDB.init()`](../../../packages/rxdb/src/RxDB.ts) 里 `if (this.#config.multiInstance !== false) this.#init_gateway();`，
    小程序接入必须写 `multiInstance: false`（见 `packages/rxdb-adapter-miniprogram/README.md`）。
    也就是说这条边界已经被承认存在，只是以配置项而非安装与否表达：代码照样进包，
-   而 `version` / `QueryCache` / `tree` 连对应的 flag 都没有。
+   而 `version` / `QueryCache` / `tree` 连对应的 flag 都没有——三者现已各自成包，
+   边界改由「装不装插件」表达。
 
 3. **每多一个内置子系统，就多一处必须手工保持对称的拆卸。**
    [`RxDB.#shutdown()`](../../../packages/rxdb/src/RxDB.ts) 与 `init()` 的失败回滚各自逐个销毁
@@ -56,18 +60,18 @@ tags: [core, plugin, packaging]
 依赖边数由遍历 `packages/rxdb/src` 下全部非测试 `.ts` 的相对 `import` / `export … from` 规格得出，
 出边 = 该切片依赖的核心模块数，入边 = 依赖该切片的核心模块数。
 
-| 子系统                        | 位置                                                                          | 行数   | 判定                                                                                             |
-| ----------------------------- | ----------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
-| QueryCache 读路径             | `repository/QueryCacheRepository.ts` `query-cache-primary.ts` `-sync-memo.ts` | 1,541  | **已拆**（阶段 B ✅）                                                                            |
-| QueryCache 写回出站           | `repository/query-cache-outbox.ts`                                            | 837    | **已拆**（阶段 D ✅，随推拉同步）                                                                |
-| 跨 tab 网关                   | `gateway/`                                                                    | 416    | **不拆**，原地作用域化（阶段 A）                                                                 |
-| 历史 / 撤销重做 / 分支        | `version/HistoryManager.ts` 等                                                | ~3,525 | **已拆**（阶段 C ✅）                                                                            |
-| 推拉同步 / 冲突解决           | `version/push*.ts` `pull*.ts` `sync*.ts` `conflict.ts`                        | 4,482  | **已拆**（阶段 D ✅）——`version/` 随阶段 C 整棵迁出核心，D 从 `@aiao/rxdb-plugin-history` 里切出 |
-| 可达性 + 同步状态             | `network/` `sync-state.ts`                                                    | 449    | **留核心**——迁走的只有消费者，见「必须留在核心」                                                 |
-| 树实体                        | `entity/tree-entity*.ts` `repository/TreeRepository.ts` + tree 工具           | 474    | 阶段 E，**价值待证**                                                                             |
-| 迁移执行器                    | `system/migration*.ts`                                                        | 378    | 不拆，见下                                                                                       |
-| 元数据校验                    | `entity/metadata-validate.ts`                                                 | 534    | 不拆，**价值待证**                                                                               |
-| 事务 / 实体 / Schema / 活查询 | `transaction/` `entity/` `schema/` `query/`                                   | 剩余   | **核心，不拆**                                                                                   |
+| 子系统                        | 位置                                                                                    | 行数   | 判定                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+| QueryCache 读路径             | `repository/QueryCacheRepository.ts` `query-cache-primary.ts` `-sync-memo.ts`           | 1,541  | **已拆**（阶段 B ✅）                                                                            |
+| QueryCache 写回出站           | `repository/query-cache-outbox.ts`                                                      | 837    | **已拆**（阶段 D ✅，随推拉同步）                                                                |
+| 跨 tab 网关                   | `gateway/`                                                                              | 416    | **不拆**，原地作用域化（阶段 A）                                                                 |
+| 历史 / 撤销重做 / 分支        | `version/HistoryManager.ts` 等                                                          | ~3,525 | **已拆**（阶段 C ✅）                                                                            |
+| 推拉同步 / 冲突解决           | `version/push*.ts` `pull*.ts` `sync*.ts` `conflict.ts`                                  | 4,482  | **已拆**（阶段 D ✅）——`version/` 随阶段 C 整棵迁出核心，D 从 `@aiao/rxdb-plugin-history` 里切出 |
+| 可达性 + 同步状态             | `network/` `sync-state.ts`                                                              | 449    | **留核心**——迁走的只有消费者，见「必须留在核心」                                                 |
+| 树实体 + 树增量 merge         | `entity/tree-entity*.ts` `repository/TreeRepository.ts` `query/merge-update-tree.ts` 等 | 1,983  | **已拆**（阶段 E ✅）                                                                            |
+| 迁移执行器                    | `system/migration*.ts`                                                                  | 378    | 不拆，见下                                                                                       |
+| 元数据校验                    | `entity/metadata-validate.ts`                                                           | 534    | 不拆，**价值待证**                                                                               |
+| 事务 / 实体 / Schema / 活查询 | `transaction/` `entity/` `schema/` `query/`                                             | 剩余   | **核心，不拆**                                                                                   |
 
 ### 为什么 QueryCache 必须切成两半
 
@@ -234,12 +238,12 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 | B    | QueryCache 读路径外移                                           | 无                                          | B1～B5  | ✅   |
 | C    | 历史 / 撤销重做 / 分支外移                                      | `plugin:*` 依赖解析（US-015 阶段 B 已交付） | C1～C6  | ✅   |
 | D    | 推拉同步 / 冲突 / 可达性 + QueryCache 写回出站外移              | 阶段 B + 阶段 C                             | D1～D6  | ✅   |
-| E    | 树实体外移                                                      | 阶段 A + US-028（排序出树）                 | E1～E4  | ⬜   |
+| E    | 树实体 + 树增量 merge 外移                                      | 阶段 A                                      | E1～E4  | ✅   |
 
 阶段 D 从 `@aiao/rxdb-plugin-history` 里切出 `@aiao/rxdb-plugin-sync`——`version/` 在阶段 C
 已整棵迁出核心，阶段 D 不再从核心切。可达性与 `SyncStateHub` 留在核心（见「必须留在核心」），
-迁走的只有它们的消费者。阶段 E 的前置不在本故事的任一阶段里——排序出树是一段独立工作，
-见「前置与阻塞」。
+迁走的只有它们的消费者。阶段 E 把树实体、树仓储与约 1,100 行树专属增量 merge 整体搬进
+`@aiao/rxdb-plugin-tree`，并同步新增三个框架绑定包（见「前置与阻塞」下的排序说明）。
 
 ## 验收标准
 
@@ -312,10 +316,57 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 
 | #   | 前置条件                     | 操作                   | 预期结果                                                                         | 状态 |
 | --- | ---------------------------- | ---------------------- | -------------------------------------------------------------------------------- | ---- |
-| E1  | 装 tree 插件                 | `@TreeEntity` 增删改查 | 行为与外移前一致（复用 US-010 测试）                                             | ⬜   |
-| E2  | 未装 tree 插件               | 声明 `@TreeEntity`     | 注册阶段抛错点名缺失插件                                                         | ⬜   |
-| E3  | 各适配器的 `*TreeRepository` | 经插件注册路径装配     | 六个适配器均不需为此改公开 API                                                   | ⬜   |
-| E4  | 未装 tree 插件               | `connect()` 并建系统表 | `RxDBBranch` 建表成功——它已不是树实体；`EntityMetadataFeatures.tree?` 已随插件走 | ⬜   |
+| E1  | 装 tree 插件                 | `@TreeEntity` 增删改查 | 行为与外移前一致（复用 US-010 测试）                                             | ✅   |
+| E2  | 未装 tree 插件               | 声明 `@TreeEntity`     | 注册阶段抛错点名缺失插件                                                         | ✅   |
+| E3  | 各适配器的 `*TreeRepository` | 经插件注册路径装配     | 六个适配器均不需为此改公开 API                                                   | ✅   |
+| E4  | 未装 tree 插件               | `connect()` 并建系统表 | `RxDBBranch` 建表成功——它已不是树实体；`EntityMetadataFeatures.tree?` 已随插件走 | ✅   |
+
+**E3 的判据是零 diff**：`pnpm audit:api-surface:update` 后，六个适配器的基线文件
+（`rxdb-adapter-{pglite,sqlite-core,sqlite,sqliteai,supabase,wa-sqlite}.json`）
+一个字节未变——适配器只换了 `ITreeRepository` / `FindTreeOptions` / `assertTreeLevel`
+的 import 来源，类名与签名原样。`case 'TreeRepository'` 的字符串分发也一行未动：
+插件注册的仓储名仍是 `'TreeRepository'`。
+
+**破坏性变更落在三框架绑定包**（AC E3 只护适配器）：`@aiao/rxdb-{angular,react,vue}`
+各删 4 个导出（`useFindDescendants` / `useCountDescendants` / `useFindAncestors` /
+`useCountAncestors`），迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`，
+三端同名同形。换线步骤见[树结构拆包](../../../website/docs/migration/tree-split.md)。
+
+**核心瘦身实测**：`packages/rxdb/src` 非测试代码净减 1,731 行（删 1,983 / 加 252），
+测试净减 7,361 行（删 7,748 / 加 387）。迁出的不只是 474 行实体与仓储——
+`query/merge-update-tree.ts`（648）、`query/tree-helper.ts`（289）、
+`query/query-tree.utils.ts`（160）这约 1,100 行树专属增量 merge 才是大头，
+它们此前从 `merge_{create,update,remove}` 三个永远加载的 switch 里可达，
+不用树的应用一行也甩不掉。落到新包是 2,184 行源码（`@aiao/rxdb-plugin-tree`）
+加三个框架绑定包 115 / 91 / 89 行。
+
+**核心公开 API 净 +7**（516 → 523）：删 11 个树符号
+（`TreeEntity` / `TreeAdjacencyListEntityBase` / `TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS` /
+`TREE_MAX_LEVEL` / `assertTreeLevel` / `ITreeEntity` / `ISortableTreeEntity` /
+`ITreeRepository` / `TreeEntityType` / `FindTreeOptions` / `EntityMetadataTreeFeatures`），
+加 12 个增量 merge 与指纹原语（`UpdateDataCache` / `UpdateClassification` /
+`IncrementalUpdateContext` / `prepareIncrementalUpdate` / `applyExternalEntityUpdate` /
+`getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` / `Fingerprint` /
+`getFingerprintPrimitive` / `getFingerprintByEntity` / `getFingerprintByEntities`），
+外加新开的 `@aiao/rxdb/testing` 子入口 6 个符号（插件测试要复用核心的 harness）。
+**这是本阶段付出的代价**：merge 引擎的内部原语从此进基线、受兼容承诺约束。
+
+> 后续修订：`TREE_MAX_LEVEL` 已在「树查询默认不限深度」一轮中从 `@aiao/rxdb-plugin-tree` 删除
+> （默认不再限制深度后，显式 `level` 的 100 上限不再自洽）。上面这份符号清单记录的是
+> US-025 当时的迁移范围，不随后续增删改写。
+> 换来的是插件能做**真增量** merge——图插件当年一律 `refresh()`，树不能，
+> 四个树查询的 43 + 34 + 26 + 43 条 handler 断言全靠这批原语才搬得动。
+
+**测试数**：10 个核心树 spec 整体搬入插件，221 条断言**逐条不变**（E1 判据），
+插件另补 5 份新 spec（10 条）——含 AC E2 的
+[`missing-plugin-error.spec.ts`](../../../packages/rxdb-plugin-tree/src/__tests__/contracts/missing-plugin-error.spec.ts)：
+只装核心声明 `@TreeEntity` 时 `init()` 同步抛错，消息三段齐全（缺哪个名字 / 现有哪些名字 /
+下一步 `rxdb.use(...)`），且**不点名任何插件包**。合计 15 文件 / 231 条。
+三框架插件包各 4 个 hook、三端同名同形。
+
+**覆盖率**：`rxdb` 92.57 / 90.08 / 92.58 / 93.59（四项 ≥ 90 核心门禁），
+`rxdb-plugin-tree` 93.16 / 90.88 / 97.33 / 94.14，
+`rxdb-plugin-tree-{angular,react,vue}` 三端均 100 / 100 / 100 / 100（四项 ≥ 80 公共包门禁）。
 
 ## 前置与阻塞
 
@@ -333,21 +384,17 @@ sync 插件必须排在 history 插件之后——两者共用 changelog 水位�
 等待插件就绪的公开结算点是 `await rxdb.connect(<adapterName>)`，它对已连接的适配器同样有效，
 会重跑插件等待。
 
-### 排序能力仍挂在树接口下（阶段 E 的硬前置）
+### 排序能力仍挂在树接口下（遗留债，不阻塞）
 
-[US-028](./US-028-sortable-entity.md) 要把排序从树接口里独立出来，而它尚在 Backlog。
-顺序反了的代价是返工：排序继续挂在 `ISortableTreeEntity` 下时，阶段 E 一搬树就会把排序
-一并拖走——非树实体的排序需求从此要装 tree 插件才能满足，与「按需安装」的目标相反。
-依赖方向必须是树插件**依赖**排序模块，因此排序先出树、树才能出核心。
+`ISortableTreeEntity` 随树一起搬进了 `@aiao/rxdb-plugin-tree`，因此**非树实体的排序需求
+今天要装 tree 插件才能满足**——这与「按需安装」相悖，但不构成阶段 E 的阻塞：
+`sortOrder` 在核心与 `rxdb-model` 里零实现、零读取，运行期没有任何东西跟着被拖走，
+迁走的只是一个类型声明。
 
-树实体在核心的入边都不阻塞：`rxdb-adapter.ts`（门面轴注册表的类型位）、`entity-manager.ts`
-（`repository('TreeRepository', …)` 注册）、`entity.interface.ts`（`ITreeEntity`）、
-`QueryManager.interface.ts` 与 `query/merge_*`（`FindTreeOptions` 与树 merge 分支），
-逐条随插件注册路径与 `registerMerge*Fn` 解开——[`GraphRepository`](../../../packages/rxdb-plugin-graph/src/GraphRepository.ts)
-已经把这条路走通。系统表自身不再是其中之一：`RxDBBranch` 用 `@Entity`，
-分支的父链遍历一律手写（见 [RV-012](../../reviews/RV-012-rxdb-branch-detree.md)）。
-
-「价值待证」的标注不撤。
+[US-028](./US-028-sortable-entity.md)（Backlog）要新增与 `ITreeEntity` 平行的
+`ISortableEntity`，把 `ISortableTreeEntity` 降为两者的交叉别名。它落地时的依赖方向是
+树插件**依赖**排序模块，而排序模块的归属（核心还是独立包）由 US-028 自己定——
+阶段 E 已经把树搬出核心，这一步不再受阶段 E 牵制。
 
 ## 技术笔记
 
@@ -442,13 +489,13 @@ readonly reason = 'v1 supports SyncType.QueryCache only'
 
 ## 实现文件
 
-| 阶段 | 新增包                             | 迁出自 / 就地改动                                                                                                                                                       |
-| ---- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A    | 无                                 | 就地：`entity/entity-options.interface.ts`、`rxdb-adapter.ts`（注册表模板）、`RxDB.ts`（网关作用域化）                                                                  |
-| B    | `packages/rxdb-plugin-querycache/` | `packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts` `query-cache-primary.ts` `query-cache-sync-memo.ts`                                                           |
-| C    | `packages/rxdb-plugin-history/`    | `packages/rxdb/src/version/`（**整棵**，含推拉半区）；核心留下 `system/system-repositories.ts` 与 `sync-contract/`                                                      |
-| D    | `packages/rxdb-plugin-sync/`       | `packages/rxdb-plugin-history/src/`（`push*.ts` `pull*.ts` `sync*.ts`）+ `packages/rxdb/src/repository/query-cache-outbox.ts`；`network/` 与 `sync-state.ts` **留核心** |
-| E    | `packages/rxdb-plugin-tree/`       | `packages/rxdb/src/entity/tree-entity*.ts` + `repository/TreeRepository.ts` + tree 工具                                                                                 |
+| 阶段 | 新增包                                                                          | 迁出自 / 就地改动                                                                                                                                                                                                                                                                                                                                               |
+| ---- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | 无                                                                              | 就地：`entity/entity-options.interface.ts`、`rxdb-adapter.ts`（注册表模板）、`RxDB.ts`（网关作用域化）                                                                                                                                                                                                                                                          |
+| B    | `packages/rxdb-plugin-querycache/`                                              | `packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts` `query-cache-primary.ts` `query-cache-sync-memo.ts`                                                                                                                                                                                                                                                   |
+| C    | `packages/rxdb-plugin-history/`                                                 | `packages/rxdb/src/version/`（**整棵**，含推拉半区）；核心留下 `system/system-repositories.ts` 与 `sync-contract/`                                                                                                                                                                                                                                              |
+| D    | `packages/rxdb-plugin-sync/`                                                    | `packages/rxdb-plugin-history/src/`（`push*.ts` `pull*.ts` `sync*.ts`）+ `packages/rxdb/src/repository/query-cache-outbox.ts`；`network/` 与 `sync-state.ts` **留核心**                                                                                                                                                                                         |
+| E    | `packages/rxdb-plugin-tree/` + `packages/rxdb-plugin-tree-{angular,react,vue}/` | `packages/rxdb/src/entity/tree-entity*.ts` + `repository/TreeRepository.ts` + `repository/tree-level.utils.ts` + `query/{merge-update-tree,tree-helper,query-tree.utils}.ts`；三框架的四个树 hook 从 `packages/rxdb-{angular,react,vue}/src/hooks.ts` 迁出；`website/project.json` 的 `api-docs` 预构建列表补 `rxdb-plugin-tree-angular`（净树上不补会 TS6305） |
 
 受影响但不迁移：`packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/gateway/`、`packages/rxdb-devtools/`、
 三框架绑定包、`packages/rxdb-test/`、`apps/dev-rxdb-*`。
@@ -462,6 +509,7 @@ readonly reason = 'v1 supports SyncType.QueryCache only'
 - [US-010 树实体](./US-010-tree-entity.md) — 阶段 E 的行为基线
 - [US-301 版本控制](../collaboration/US-301-version-control.md) / [US-302 撤销重做](../collaboration/US-302-undo-redo.md) — 阶段 C 的行为基线
 - [versioning-policy.md](../../versioning-policy.md) — 公开 API 破坏性变更流程
+- [RV-015 CLI 缺生成器插件加载缝](../../reviews/RV-015-cli-plugin-generator-seam.md) — 阶段 E 把 `TreeRepositoryGenerator` 留在 `@aiao/rxdb-client-generator` 的理由
 
 ---
 

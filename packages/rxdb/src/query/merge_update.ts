@@ -1,5 +1,4 @@
 import { EntityType } from '../entity/entity.interface.js';
-import { FindAllOptions } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
@@ -10,19 +9,8 @@ import {
   handleFindOneUpdate,
   handleFindUpdate
 } from './merge-update-basic.js';
-import {
-  handleCountAncestorsUpdate,
-  handleCountDescendantsUpdate,
-  handleFindAncestorsUpdate,
-  handleFindDescendantsUpdate
-} from './merge-update-tree.js';
-import { UpdateDataCache, applyExternalEntityUpdate, classifyUpdates } from './merge-update.utils.js';
+import { applyExternalEntityUpdate, prepareIncrementalUpdate } from './merge-update.utils.js';
 import { query_need_refresh_update } from './need_refresh_update.js';
-import { isEntityMatchWhere } from './query-matching.utils.js';
-
-const hasTreeParentChanged = <T extends EntityType>(event: RxDBEntityLocalUpdatedEventData<T>): boolean =>
-  Reflect.has(event.patch, 'parentId') &&
-  Reflect.get(event.patch, 'parentId') !== Reflect.get(event.inversePatch, 'parentId');
 
 /**
  * 重新计算查询结果（JS 增量更新）
@@ -37,9 +25,7 @@ const hasTreeParentChanged = <T extends EntityType>(event: RxDBEntityLocalUpdate
  * @param data 更新的实体数据
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalUpdatedEventData<T>[]) => {
-  const where = (task.options as FindAllOptions<T>).where;
-  const cache = new UpdateDataCache(data, (event: RxDBEntityLocalUpdatedEventData<T>) => task.serialize(event));
-  const classification = classifyUpdates(data, where, isEntityMatchWhere, cache);
+  const { cache, classification } = prepareIncrementalUpdate(task, data);
 
   switch (task.type) {
     case 'findAll':
@@ -76,22 +62,6 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 
     case 'count':
       handleCountUpdate(task, classification);
-      break;
-
-    case 'findDescendants':
-      handleFindDescendantsUpdate(task, data, classification, cache);
-      break;
-
-    case 'findAncestors':
-      handleFindAncestorsUpdate(task, data, classification, cache);
-      break;
-
-    case 'countDescendants':
-      handleCountDescendantsUpdate(task, data, classification, cache, where, isEntityMatchWhere);
-      break;
-
-    case 'countAncestors':
-      handleCountAncestorsUpdate(task, data, classification, cache, where, isEntityMatchWhere);
       break;
   }
 };
@@ -135,11 +105,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
     if (matchedEntities.length > 0) {
       _recalculate(task, matchedEntities);
     }
-    return;
-  }
-
-  if (task.type === 'findAncestors' && entities.some(hasTreeParentChanged)) {
-    task.refresh();
     return;
   }
 
@@ -211,87 +176,6 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
       recalculate_rules.push(['match_where', 'not_match_relation_where']);
       recalculate_rules.push(['match_where_before', 'not_match_relation_where']);
       // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'findDescendants':
-      // 树形后代查询: JS 增量更新
-      // 处理 parentId 变化导致的树形结构重组
-      // result_contains: 更新的实体在当前结果中
-      // match_where: 更新后匹配条件的实体
-      // match_where_before: 更新前匹配条件的实体
-      // not_match_relation_where: 关系实体没有变更时才能使用 JS 更新
-      recalculate_rules.push(
-        ['result_contains', 'not_match_relation_where'],
-        ['match_where', 'not_match_relation_where'],
-        ['match_where_before', 'not_match_relation_where']
-      );
-      // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'findAncestors':
-      // 树形祖先查询: JS 增量更新
-      // 处理树形结构变化
-      // result_contains: 更新的实体在当前结果中
-      // match_where: 更新后匹配条件的实体
-      // not_match_relation_where: 关系实体没有变更时才能使用 JS 更新
-      recalculate_rules.push(
-        ['result_contains', 'not_match_relation_where'],
-        ['match_where', 'not_match_relation_where']
-      );
-      // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'countDescendants':
-      // 树形后代计数: JS 增量更新
-      // 处理 parentId 变化和 where 条件变化导致的计数变化
-      // match_where: 更新后匹配条件的实体
-      // match_where_before: 更新前匹配条件的实体
-      // not_match_relation_where: 关系实体没有变更时才能使用 JS 更新
-      recalculate_rules.push(
-        ['match_where', 'not_match_relation_where'],
-        ['match_where_before', 'not_match_relation_where']
-      );
-      // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'countAncestors':
-      // 树形祖先计数: JS 增量更新
-      // 处理树形结构变化导致的计数变化
-      // match_where: 更新后匹配条件的实体
-      // match_where_before: 更新前匹配条件的实体
-      // not_match_relation_where: 关系实体没有变更时才能使用 JS 更新
-      recalculate_rules.push(
-        ['match_where', 'not_match_relation_where'],
-        ['match_where_before', 'not_match_relation_where']
-      );
-      // 如果有关系实体变更,则刷新
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    // 图查询刷新规则（Phase 6 US4）
-
-    case 'findNeighbors':
-      // 邻居查询：节点属性更新或边表变更都需要刷新
-      refresh_rules.push(['match_where']); // 节点属性变更
-      refresh_rules.push(['match_where_before']); // 更新前匹配条件
-      refresh_rules.push(['match_relation_where']); // 边表变更
-      break;
-
-    case 'countNeighbors':
-      // 邻居计数：SQL 刷新确保准确性
-      refresh_rules.push(['match_where']);
-      refresh_rules.push(['match_where_before']);
-      refresh_rules.push(['match_relation_where']);
-      break;
-
-    case 'findPaths':
-      // 路径查询：任何节点属性或边的变更都需要刷新
-      refresh_rules.push(['match_where']);
-      refresh_rules.push(['match_where_before']);
       refresh_rules.push(['match_relation_where']);
       break;
   }

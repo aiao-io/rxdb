@@ -15,20 +15,21 @@
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
 | `README.md`                                         | 本说明与状态约定                                                                               | —                            |
 | `review.template.md`                                | 新建 review 记录的模板                                                                         | —                            |
-| `002-rxdb-model-port-branch-review.md`              | `002-rxdb-model-port` 相对 main 的实体模型与三框架 UI 移植评审                                 | 3 条未解决                   |
-| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（四轮）                                       | 5 条 P2                      |
+| `002-rxdb-model-port-branch-review.md`              | `002-rxdb-model-port` 相对 main 的实体模型与三框架 UI 移植评审                                 | 2 条 P2                      |
+| `next-0915-branch-review.md`                        | next-0915 分支相对 main 的插件拆包与依赖调度评审（四轮）                                       | 4 条 P2                      |
 | `next-0912-branch-review.md`                        | next-0912 分支相对 main 的 epic-006「工作树 + 提交历史」评审（2026-09-19 第四次复核 + 修复轮） | 4 条 P1 + 4 条 P2 + 其余待办 |
-| `next-0912-branch-review-max.md`                    | 同上，max 独立复核轮（已修条目已删）                                                           | 5 条 Top + 19 条 §5 + 4 顺延 |
+| `next-0912-branch-review-max.md`                    | 同上，max 独立复核轮（已修条目已删）                                                           | 5 条 Top + 15 条 §4 + 5 顺延 |
 | `2026-09-18-rxdb-core-review.md`                    | RxDB 核心查询/关系/生命周期定向评审（含复跑记录）                                              | 2 条 P2                      |
 | `2026-09-18-rxdb-core-probes.spec.ts.txt`           | 上者的补充复现用例源码（文本，从测试目录移出）                                                 | —                            |
 | `next-11-rxdb-package-review.md`                    | next-11 分支 `packages/rxdb` 包评审                                                            | 4 块 + 1 条规格决策          |
-| `RV-012-rxdb-branch-detree.md`                      | `RxDBBranch` 去树化（US-025 阶段 E 前置）                                                      | Resolved                     |
+| `REVIEW-rxdb-tree-vs-main.md`                       | `rxdb-tree` 分支相对 main 的评审                                                               | C8 + 2 条 PR 说明            |
 | `RV-013-adapter-local-system-repository-helpers.md` | 删除适配器的 `localRxDBBranch()` / `localRxDBChange()` 及 PGlite 孤儿 `createBranch`           | Open                         |
 | `RV-014-rv-013-execution-scope.md`                  | 补齐 RV-013 的继承 API 面、测试处置与验证矩阵                                                  | Open                         |
+| `RV-015-cli-plugin-generator-seam.md`               | CLI 没有加载插件生成器的缝，插件自带的 `RepositoryGenerator` 零接线                            | Open                         |
 
-> 最近一次整分支复核：2026-09-19，见 [`next-0912-branch-review.md`](./next-0912-branch-review.md)（HEAD `cef3abf0`）。同日的修复轮处理了 8 项（2 P1 + 2 P2 + 3 条清理项 + 1 条判定翻转），已修条目按约定删除、修复索引见该报告文末；**仍有 4 条 P1 + 4 条 P2**，全为架构级（跨连接能力传播、切换事务内 CAS、物化流水线接公开入口、前置条件进最终事务）；
+> **2026-09-22 清理**：按上面的约定重扫全目录，删掉了已完成与判定不改的条目——`RV-012`（`RxDBBranch` 去树化，已 Resolved）、`RV-016`（repository `mergeOperations`，自身判据「`packages/**` 零命中」已满足）两份文件整份删除；各整分支报告里的「证伪项 / REFUTED」「❌ 不值得做」「误报订正」小节与行一并删除（判据均已落在代码注释与 TSDoc 里，报告不再留副本）。
+> 最近一次整分支复核：2026-09-19，见 [`next-0912-branch-review.md`](./next-0912-branch-review.md)（HEAD `cef3abf0`）；该分支已于同日以 `2132c30d`（`feat(aiao): 添加 working-tree 能力 (#55)`）合入 main，报告里原「不建议合并」的结论已过期，但**仍有 4 条 P1 + 4 条 P2 未修**，全为架构级（跨连接能力传播、切换事务内 CAS、物化流水线接公开入口、前置条件进最终事务）。
 > [`next-0915-branch-review.md`](./next-0915-branch-review.md) 另记 next-0915 插件拆包评审。
-> 2026-09-18 按「只留尚未处理的条目」约定清理了本目录全部报告：已修条目（含两轮修复记录）删除，剩余条目逐条对照 HEAD 核实并刷新锚点；
 > 2026-09-11 的全量复核已清空 `requirements-incomplete-stories-review.md`；更早的
 > `next-1123-branch-review.md`、`next-0831-branch-review.md` 与 `next-11-rxdb-adapter-tauri-review.md` 同样已删除。
 

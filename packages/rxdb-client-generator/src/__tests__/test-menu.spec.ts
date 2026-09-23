@@ -19,7 +19,8 @@ describe('RxDBClientGenerator', () => {
     const files = generator.getSourceFiles();
     const indexJSFile = files.find(f => f.getFilePath() === 'index.js');
     expect(indexJSFile?.getText()).toMatchInlineSnapshot(`
-      "import { Entity, PropertyType, TreeAdjacencyListEntityBase, __decorateClass } from '@aiao/rxdb';
+      "import { Entity, PropertyType, __decorateClass } from '@aiao/rxdb';
+      import { TreeAdjacencyListEntityBase } from '@aiao/rxdb-plugin-tree';
       let MenuLarge = class extends TreeAdjacencyListEntityBase {};
       MenuLarge = __decorateClass(
       [
@@ -83,7 +84,8 @@ describe('RxDBClientGenerator', () => {
 
     const indexTsFile = files.find(f => f.getFilePath() === 'index.d.ts');
     expect(indexTsFile?.getText()).toMatchInlineSnapshot(`
-      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, FindTreeOptions, IEntity, ITreeEntity, RelationDateRules, RelationEntitiesObservable, RelationEntityObservable, RelationExistsRules, RelationStringRules, RelationUUIDRules, RuleGroupBase, StringRules, TreeAdjacencyListEntityBase, UUID, UUIDRules } from '@aiao/rxdb';
+      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, RelationDateRules, RelationEntitiesObservable, RelationEntityObservable, RelationExistsRules, RelationStringRules, RelationUUIDRules, RuleGroupBase, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
+      import type { FindTreeOptions, ITreeEntity, TreeAdjacencyListEntityBase } from '@aiao/rxdb-plugin-tree';
       import type { Observable } from 'rxjs';
 
       /**

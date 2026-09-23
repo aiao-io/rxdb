@@ -192,7 +192,7 @@ describe('graph', () => {
       export { ENTITIES, Person };"
     `);
     expect(indexDJSFile?.getText()).toMatchInlineSnapshot(`
-      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, ITreeEntity, NumberRules, RuleGroupBase, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
+      "import type { CountOptions, DateRules, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, NumberRules, RuleGroupBase, StringRules, UUID, UUIDRules } from '@aiao/rxdb';
       import type { EdgeFilterOptions, EdgeFilterOptionsWithWeight, EdgeInfoWithWeight, FindNeighborsOptions, FindPathsOptions, GraphEdgeInfoType, GraphEdgePropertiesRecord, GraphEntityBase, GraphPath, GraphQueryResult, GraphWhere, NeighborResult } from '@aiao/rxdb-plugin-graph';
       import type { Observable } from 'rxjs';
 

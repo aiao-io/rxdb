@@ -9,13 +9,13 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 60     |
-| 🚧 In Progress | 1      |
+| ✅ Done        | 61     |
+| 🚧 In Progress | 0      |
 | 👀 In Review   | 5      |
-| 📝 Backlog     | 7      |
-| **未完成合计** | **13** |
+| 📝 Backlog     | 24     |
+| **未完成合计** | **29** |
 
-仓库还剩 **13 条**未关闭故事（1 In Progress + 5 In Review + 7 Backlog）。
+仓库还剩 **33 条**未关闭故事（0 In Progress + 5 In Review + 28 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > 另有一项**进行中的规格工作不在故事计数内**：[specs/002-rxdb-model-port](../specs/002-rxdb-model-port/spec.md)
@@ -24,7 +24,10 @@
 
 ## 未完成需求全景
 
-13 条未完成故事的「剩什么」与「排期位置」一屏总览：
+下表只列**已立项**的未完成故事的「剩什么」与「排期位置」。
+[epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 的 19 条整体标价值待证、不进任何批次，
+与同标价值待证的 [US-030](stories/core/US-030-declarative-storage-constraints.md) 一起
+单独列在[明确不排期](#明确不排期)里，不混进本表。
 
 | Story                                                                                           | 状态           | 剩什么                                                                                                       | 排期位置 |
 | ----------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------ | -------- |
@@ -41,6 +44,7 @@
 | [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                     | 📝 Backlog     | 未立项；AC#7 联动 US-027（无 update 权限不可重排）                                                           | 立项池   |
 | [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)       | 📝 Backlog     | 未立项；阶段 A 独立可交付，阶段 B 依赖 US-027 判定原语                                                       | 立项池   |
 | [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)      | 📝 Backlog     | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 依赖 US-307 `Done`，阶段 C 价值待证                 | 立项池   |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)      | 📝 Backlog     | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，B/C 只吃 A 的真相源                           | 立项池   |
 
 ## 即办清单
 
@@ -89,13 +93,14 @@ dry-run 默认推算的版本号恰是 `0.0.25`（禁用值且 npm 已占用，�
 
 ### 立项池（待 owner 决策，未进任何批次）
 
-| 故事                                                                           | 依赖                                       | 入场条件 / 建议顺序                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型      | UI 派生依赖 rxdb-model 移植（specs/002）   | 引擎写边界强制（fail-closed）+ UI 能力派生 + 系统实体迁移，三阶段交付。**建议随 002 移植收尾后启动**——它是 US-028 / US-029 的判定原语上游                                                                             |
-| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                    | AC#7 联动 US-027                           | 建议与 US-027 同批或紧随；fractional indexing 工具与树实体解耦，`tree → sortable` 单向依赖（AC#9）                                                                                                                    |
-| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离 | 阶段 B 依赖 US-027 判定原语                | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付；按 A → B → C → D 排，一阶段一 PR                                                                                                                             |
-| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放       | 阶段 B 依赖 US-307 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**；阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                        |
-| 🚧 US-025 阶段 E 的前置：`RxDBBranch` 去树化                                   | 无                                         | 独立工作（不在 US-025 任一阶段内）：`system/branch.ts` 挂 `@TreeEntity`，树实体成插件后分支表建不起来，history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增跨插件边。需 owner 决策去树化后分支表归谁，未立项 |
+| 故事                                                                                       | 依赖                                       | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | UI 派生依赖 rxdb-model 移植（specs/002）   | 引擎写边界强制（fail-closed）+ UI 能力派生 + 系统实体迁移，三阶段交付。**建议随 002 移植收尾后启动**——它是 US-028 / US-029 的判定原语上游                                                                                                                                                                                        |
+| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                                | AC#7 联动 US-027                           | 建议与 US-027 同批或紧随；fractional indexing 工具与树实体解耦，`tree → sortable` 单向依赖（AC#9）                                                                                                                                                                                                                               |
+| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语                | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付；按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                        |
+| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 依赖 US-307 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**；阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                   |
+| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无                                         | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除「兄弟包声明一半 `dependencies` 一半 `peerDependencies`」的不一致；B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
+| 🚧 US-025 阶段 E 的前置：`RxDBBranch` 去树化                                               | 无                                         | 独立工作（不在 US-025 任一阶段内）：`system/branch.ts` 挂 `@TreeEntity`，树实体成插件后分支表建不起来，history 反过来要 `inject: ['plugin:tree']`——为搬走 474 行新增跨插件边。需 owner 决策去树化后分支表归谁，未立项                                                                                                            |
 
 ## 零散收尾项（不成故事，随手可带）
 
@@ -189,15 +194,20 @@ dry-run 默认推算的版本号恰是 `0.0.25`（禁用值且 npm 已占用，�
 
 ## 明确不排期
 
-| 项                                                                          | 判定                                                                                                                                                       |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-506](stories/plugin/US-506-website-plugin-docs.md) website 插件文档补齐 | **不排期，只待合并**。改动已全部落地，AC 1～6 全 ✅，`site-build` 在坏链门禁下跑绿；是 US-025 拆包的文档收尾，不是待排期的未来工作                         |
-| `US-016` 连接纪元与停机收敛                                                 | **不排期，不再解锁**——原症状由 US-015 阶段 A 覆盖，剩余的资源降级路径已按 bugfix 补齐                                                                      |
-| `US-017` 三框架宿主作用域                                                   | **不排期**。三端各自已有原生作用域（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）。**解锁条件 = 三端任一出现可复现的清理泄漏** |
-| US-212 AC#30 行缓存 eviction                                                | **不在 US-212 范围内**。执行面只有 core 有、HTTP 包按约束 11 的结构隔离碰不到。**解锁条件 = 出现可复现的缓存膨胀症状（具体实体 + 量级）**                  |
-| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6）                     | **判定不做**。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路              |
-| `packages/rxdb-adapter-tauri/rust/` 发 crates.io                            | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                    |
-| 桌面安装包（installer / bundle）的自动化验证                                | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍              |
+| 项                                                                                            | 判定                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-506](stories/plugin/US-506-website-plugin-docs.md) website 插件文档补齐                   | **不排期，只待合并**。改动已全部落地，AC 1～6 全 ✅，`site-build` 在坏链门禁下跑绿；是 US-025 拆包的文档收尾，不是待排期的未来工作                                                                                                                                                                                                                                                                                   |
+| `US-016` 连接纪元与停机收敛                                                                   | **不排期，不再解锁**——原症状由 US-015 阶段 A 覆盖，剩余的资源降级路径已按 bugfix 补齐                                                                                                                                                                                                                                                                                                                                |
+| `US-017` 三框架宿主作用域                                                                     | **不排期**。三端各自已有原生作用域（Angular `DestroyRef` / React `useEffect` cleanup / Vue `onScopeDispose`）。**解锁条件 = 三端任一出现可复现的清理泄漏**                                                                                                                                                                                                                                                           |
+| US-212 AC#30 行缓存 eviction                                                                  | **不在 US-212 范围内**。执行面只有 core 有、HTTP 包按约束 11 的结构隔离碰不到。**解锁条件 = 出现可复现的缓存膨胀症状（具体实体 + 量级）**                                                                                                                                                                                                                                                                            |
+| `npm deprecate @aiao/rxdb-adapter-desktop`（US-207 E6）                                       | **判定不做**。`@aiao/rxdb-adapter-desktop@0.0.25` 保留在 registry 上，未来仍可更新；迁移路径由 `website/docs/migration/desktop-split.md` 指路                                                                                                                                                                                                                                                                        |
+| `packages/rxdb-adapter-tauri/rust/` 发 crates.io                                              | **本轮不发**（US-210 T7，`publish = false`）。README 已写清 path / git 依赖的用法与限制                                                                                                                                                                                                                                                                                                                              |
+| 桌面安装包（installer / bundle）的自动化验证                                                  | **人工验收，不排自动化**。`release-desktop.yml` 跑 `tauri build --ci --no-bundle`，只验编译与 smoke、不产安装包；装包能否安装启动由人工过一遍                                                                                                                                                                                                                                                                        |
+| [epic-009](epics/epic-009-bom-domain-model.md) BOM 领域模型全 19 条                           | **整条 Epic 不排期**，全部 `priority: Low`。约 15 项新增抽象对应**零个已知病灶**，不满足 [CONVENTIONS 价值待证](CONVENTIONS.md#价值待证) 的「病灶数 ≥ 抽象数」判据。**解锁条件 = 出现真实驱动场景**（拿到客户 BOM 数据，或有 BOM 应用要上线）。逐条：US-507 / US-508 / US-510 / US-511 / US-512 / US-513 / US-514 / US-515 / US-516 / US-517 / US-518 / US-519 / US-520 / US-521 / US-522 / US-523 / US-524 / US-525 |
+| [US-509](stories/plugin/US-509-bom-dag-cycle-detection.md) DAG 约束与环路检测下沉存储层       | **不排期，但可单独评审**——它是 epic-009 里唯一带独立病灶的一条：`@aiao/rxdb-plugin-graph` 的 `findPaths` 只保证**返回的**路径无环，写入侧不阻止成环的边。这条病灶不依赖 BOM 场景即成立，解锁条件比 Epic 其余 18 条低                                                                                                                                                                                                 |
+| [US-030](stories/core/US-030-declarative-storage-constraints.md) 实体元数据层的声明式存储约束 | **不排期，但解锁条件低一档**——从 epic-009 拆出，归 [epic-004](epics/epic-004-future-features.md)。四类引擎缺口今天确实不存在（`EntityMetadataOptions` 无 CHECK 落点，`EntityIndexMetadataOptions` 自有字段只有 `properties` 与 `normalized`，`unique` 来自继承的 `IEntityObject`），但当前消费方全是 BOM 故事，无独立病灶。**解锁条件 = 任意一条需要「不变量在存储层成立」的故事**，不限 BOM 场景                    |
+| [US-524](stories/plugin/US-524-routing-master-model.md) 工艺路线本体                          | **不排期，且比 Epic 其余各条更晚**——US-520 与 US-514 都能先以「路线由外部系统提供」的形态交付。**解锁条件 = 路线主数据也要落在本仓**                                                                                                                                                                                                                                                                                 |
+| [US-525](stories/plugin/US-525-bom-end-to-end-demo.md) BOM 端到端 demo                        | **不排期，且不得反过来当解锁依据**——demo 需要插件先存在，拿它论证 Epic 该启动是循环论证。它不新增抽象，是解锁**之后**首轮切片的验收手段。**解锁条件 = epic-009 已解锁且首轮切片开工**                                                                                                                                                                                                                                |
 
 ## 建议补充的验收维度
 

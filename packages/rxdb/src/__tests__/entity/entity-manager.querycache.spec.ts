@@ -12,9 +12,8 @@ import { ENTITY_STATIC_TYPES, UUID } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import type { SyncOptions } from '../../entity/sync-options.interface.js';
-import { TreeAdjacencyListEntityBase } from '../../entity/tree-entity-base.js';
-import { TreeEntity } from '../../entity/tree-entity.decorator.js';
-import type { IRxDBAdapter } from '../../rxdb-adapter.js';
+import { Repository } from '../../repository/Repository.js';
+import type { IRxDBAdapter, RepositoryConstructor } from '../../rxdb-adapter.js';
 import { uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMixedVersionedCacheTransactionError } from '../../RxDBError.js';
@@ -47,9 +46,22 @@ class VersionedTodo extends EntityBase {
   title!: string;
 }
 
-/** 树实体 + QueryCache：树查询要递归本地表，缓存只保证「查过的 where 命中的行」在本地 */
-@TreeEntity({
+/**
+ * 声明自己撑不住 QueryCache 的替身仓储。
+ *
+ * @remarks
+ * 这里不用 `TreeRepository`：US-025 阶段 E 起树在 `@aiao/rxdb-plugin-tree`，核心测试
+ * 不该为了造一条违规去装一个插件。被测的本来就不是「树」，而是**核心**把
+ * {@link IRepositoryConfig.unsupportedSyncTypes} 的声明在 `init()` 期翻成违规这条链路——
+ * 谁声明的限制对这条链路没有区别，随便哪个注册过的仓储都能把它跑满。
+ */
+const RESTRICTED_REPOSITORY = 'RestrictedRepository';
+const RESTRICTED_REASON = '该仓储的查询要递归本地表，而缓存只覆盖查过的 where 命中的行。';
+
+/** 违规实体 + QueryCache：实体级 sync 就写死了 QueryCache */
+@Entity({
   name: 'CachedMenu',
+  repository: RESTRICTED_REPOSITORY,
   properties: [{ name: 'title', type: PropertyType.string }],
   sync: {
     type: SyncType.QueryCache,
@@ -57,14 +69,15 @@ class VersionedTodo extends EntityBase {
     remote: { adapter: 'supabase' }
   }
 })
-class CachedMenu extends TreeAdjacencyListEntityBase {}
+class CachedMenu extends EntityBase {}
 
-/** 不写 sync 的树实体：生效的是数据库级配置 */
-@TreeEntity({
+/** 不写 sync 的违规实体：生效的是数据库级配置 */
+@Entity({
   name: 'PlainMenu',
+  repository: RESTRICTED_REPOSITORY,
   properties: [{ name: 'title', type: PropertyType.string }]
 })
-class PlainMenu extends TreeAdjacencyListEntityBase {}
+class PlainMenu extends EntityBase {}
 
 @Entity({
   name: 'RemoteOnlyNote',
@@ -120,6 +133,14 @@ const dirtyEntity = <T extends { title: string }>(entity: T): T => {
   return entity;
 };
 
+/** 把替身仓储登记进门面轴，`@Entity({ repository: RESTRICTED_REPOSITORY })` 才解析得到 */
+const registerRestrictedRepository = (rxdb: RxDB): void => {
+  rxdb.repository(RESTRICTED_REPOSITORY, {
+    class: Repository as RepositoryConstructor,
+    unsupportedSyncTypes: { [SyncType.QueryCache]: RESTRICTED_REASON }
+  });
+};
+
 const createDatabase = (dbName: string, entities: ConstructorParameters<typeof RxDB>[0]['entities']) => {
   const local = createLocalAdapter();
   const remote = createRemoteAdapter();
@@ -130,6 +151,7 @@ const createDatabase = (dbName: string, entities: ConstructorParameters<typeof R
   });
   rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
+  registerRestrictedRepository(rxdb);
   rxdb.init();
   return { rxdb, local, remote };
 };
@@ -200,28 +222,29 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
   });
 
   // AC#8 + D12：纯元数据就能判定的组合，在配置期拒绝，不拖到首次调用
-  it('AC#8 TreeRepository + QueryCache 在 init() 即 fail-fast', () => {
-    expect(() => createDatabase('TreeQueryCache', [CachedMenu])).toThrow(/QueryCache/);
+  it('AC#8 受限仓储 + QueryCache 在 init() 即 fail-fast', () => {
+    expect(() => createDatabase('RestrictedQueryCache', [CachedMenu])).toThrow(/QueryCache/);
   });
 
   // AC#8：违规来自数据库级 sync 时同样在配置期拒绝——实体不写 sync 就继承它
-  it('AC#8 数据库级 QueryCache 撞上树实体也在 init() 拒绝', () => {
+  it('AC#8 数据库级 QueryCache 撞上受限仓储也在 init() 拒绝', () => {
     const local = createLocalAdapter();
     const remote = createRemoteAdapter();
     const rxdb = new RxDB({
-      dbName: 'TreeQueryCacheDatabaseLevel',
+      dbName: 'RestrictedQueryCacheDatabaseLevel',
       entities: [PlainMenu],
       sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
     });
     rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
     rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
+    registerRestrictedRepository(rxdb);
 
     expect(() => rxdb.init()).toThrow(/QueryCache/);
   });
 
-  // AC#8：一条违规则一条都不绑定，不提供半套树 + 缓存
+  // AC#8：一条违规则一条都不绑定，不提供半套「受限仓储 + 缓存」
   it('AC#8 违规时同批其他实体也不绑定', () => {
-    expect(() => createDatabase('TreeQueryCacheMixed', [CachedProduct, CachedMenu])).toThrow(/QueryCache/);
+    expect(() => createDatabase('RestrictedQueryCacheMixed', [CachedProduct, CachedMenu])).toThrow(/QueryCache/);
   });
 });
 
@@ -300,6 +323,7 @@ describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
       sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
     });
     rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
+    registerRestrictedRepository(rxdb);
 
     let message = '';
     try {
@@ -309,7 +333,7 @@ describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
     }
     expect(message).toContain('CachedProduct');
     expect(message).toContain('CachedMenu');
-    // CachedMenu 是树实体：两条规则各报一条，加上 CachedProduct 共 3 项
+    // CachedMenu 挂在受限仓储上：两条规则各报一条，加上 CachedProduct 共 3 项
     expect(message).toContain('（3 项）');
     expect(message.indexOf('CachedMenu')).toBeLessThan(message.indexOf('CachedProduct'));
   });

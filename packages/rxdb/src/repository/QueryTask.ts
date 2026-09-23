@@ -188,22 +188,14 @@ export class QueryTask<T extends EntityType, RT = unknown> {
 
   /**
    * 查询类型
+   *
+   * @remarks
+   * 从 {@link QueryOptions} 取，而不是另抄一份字面量联合。原先那份字面量里躺着
+   * `findDescendants` / `findNeighbors` 这类插件任务类型——核心因此「认识」自己
+   * 并不实现的查询，插件新增一种任务还得回来改核心。改成索引取值后，
+   * 插件经 `RepositoryQueryExtensions` 的模块扩展并支，这里自动跟着变宽。
    */
-  readonly type:
-    | 'get'
-    | 'findOne'
-    | 'findOneOrFail'
-    | 'find'
-    | 'findAll'
-    | 'findByCursor'
-    | 'count'
-    | 'findDescendants'
-    | 'findAncestors'
-    | 'countDescendants'
-    | 'countAncestors'
-    | 'findNeighbors'
-    | 'countNeighbors'
-    | 'findPaths';
+  readonly type: QueryOptions<T>['type'];
 
   /**
    * 查询选项

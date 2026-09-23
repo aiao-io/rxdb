@@ -5,6 +5,7 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { getE2eDbName, installSearchDemoTestApi } from '@aiao/rxdb-test';
@@ -39,6 +40,7 @@ export default () => {
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
     .use(rxDBPluginStorage)
+    .use(rxDBPluginTree)
     .use(rxDBPluginWorkspace)
     // 只装不手动启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
     // 按在这里等于替所有 demo 页做了这个决定。空库由启动时的 `enableIfEmpty()` 自动启用

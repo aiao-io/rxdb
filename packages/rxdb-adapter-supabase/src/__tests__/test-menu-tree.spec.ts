@@ -16,6 +16,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
@@ -66,6 +67,8 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
         type: SyncType.None
       }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
 
     rxdb.adapter(
       'supabase',
@@ -359,14 +362,12 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
   describe('边界情况测试', () => {
     it('负数 level 应被拒绝', async () => {
       await expect(repository.findDescendants({ entityId: rootMenu.id, level: -1 })).rejects.toThrow(
-        /integer between 0 and 100/
+        /non-negative integer/
       );
     });
 
-    it('超过上限的 level 应被拒绝', async () => {
-      await expect(repository.findDescendants({ entityId: rootMenu.id, level: 101 })).rejects.toThrow(
-        /integer between 0 and 100/
-      );
+    it('level 不设上界：超大层级照常查询，不报错', async () => {
+      await expect(repository.findDescendants({ entityId: rootMenu.id, level: 101 })).resolves.toBeDefined();
     });
   });
 

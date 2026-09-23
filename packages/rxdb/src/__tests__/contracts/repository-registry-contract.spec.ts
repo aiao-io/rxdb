@@ -2,8 +2,10 @@
  * 门面轴仓储注册表的类型契约（US-025 阶段 A：A1 / A2）。
  *
  * 门面轴决定 `getRepository(E)` 的**公开面**，入口是 `@Entity({ repository: 'X' })`。
- * 改造前这个字段写死成 `'Repository' | 'TreeRepository' | string`：核心的两个成员是一等公民，
- * 插件注册的门面（`GraphRepository`）只能落到那条 `| string` 上，补全里一个字都没有。
+ * 改造前这个字段写死成 `'Repository' | 'TreeRepository' | string`：核心硬编码的两个成员是
+ * 一等公民，插件注册的门面（`GraphRepository`）只能落到那条 `| string` 上，补全里一个字都没有。
+ * US-025 阶段 E 之后核心只剩 `Repository` 一个成员，`TreeRepository` 也改由
+ * `@aiao/rxdb-plugin-tree` 经 `declare module` 合并进来 —— 更说明这条路径必须通。
  *
  * 这里守两件事：
  * 1. 注册表可经 `declare module` 合并，且**没有索引签名** —— 带索引签名时 `keyof` 恒为
@@ -37,12 +39,14 @@ class UnregisteredRepositoryEntity extends EntityBase {
 }
 
 describe('RxDBRepositories 门面轴注册表', () => {
-  it('A1 注册表无索引签名，核心两个门面与插件合并进来的成员同为一等公民', () => {
+  it('A1 注册表无索引签名，核心门面与插件合并进来的成员同为一等公民', () => {
     // 索引签名一旦存在，keyof 就塌成 string，下面三条断言全部退化成恒真
     expectTypeOf<keyof RxDBRepositories>().not.toEqualTypeOf<string>();
     expectTypeOf<'Repository'>().toExtend<keyof RxDBRepositories>();
-    expectTypeOf<'TreeRepository'>().toExtend<keyof RxDBRepositories>();
     expectTypeOf<'SpecRepository'>().toExtend<keyof RxDBRepositories>();
+    // 反向也要钉住：核心自己**不再**登记 `TreeRepository`。它由
+    // `@aiao/rxdb-plugin-tree` 的 `declare module` 挂上来，核心里写死一条就是阶段 E 的残留。
+    expectTypeOf<'TreeRepository'>().not.toExtend<keyof RxDBRepositories>();
   });
 
   it('A1 `repository?` 取自注册表而不是硬编码字面量联合', () => {

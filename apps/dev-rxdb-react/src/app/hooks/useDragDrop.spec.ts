@@ -1,4 +1,5 @@
-import type { ITreeEntity, RxDBEntityId, UUID } from '@aiao/rxdb';
+import type { RxDBEntityId, UUID } from '@aiao/rxdb';
+import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useDragDrop } from './useDragDrop';

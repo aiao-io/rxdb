@@ -4,9 +4,9 @@
 - **复核**：2026-09-09，逐条对照源码 + 实跑 `nx test rxdb --coverage`
 - **修复**：2026-09-09，第 1 块的「空断言」与「绑私有状态」两节已清空。九条用例改成钉行为：`bulk-sync.spec.ts` 的并发组量 `syncRepository` 的在飞峰值，`HistoryManager.spec.ts` 的跳过分支断言「没开 `switchBranch` 事务 + redo 栈原样保留」，`entity-status.spec.ts` 先证缓存在、再证 `modified` 清了它；`setProxyTarget` 改走生产同一个 `setSafeObjectKey`。每条都用变异测试反证过（改实现必红）
 - **修复**：2026-09-09，第 4 块的 `reachability` 泄漏已清空。补了终态 `RxDB.destroy()`（断全部适配器 → `syncState.destroy()` → `reachability.destroy()`），与可逆的 `disconnectAll()` 分成两个出口；`init()` 与 `connect()` 各加终态判据（`connect()` 那道必须排在重入缓存**之前**，否则拆卸窗口内会交出一个正要被断开的适配器）。三绑定与 `dev-rxdb-http-server` 的自有实例拆卸改调 `destroy()`。六个变异各自被对应用例咬红
-- **复核 2**：2026-09-10 @ `6b6d703`。**行号已按 HEAD 全量刷新**，并纠正了三条原报告的误报（各条就地标注 ⚠️）。`packages/rxdb/src` 自 `2cf208f`（09-10 08:24，含 09-09 那批修复的 squash）未再改动，故 09-09 那份覆盖率实测仍然有效，本轮未重跑
+- **复核 2**：2026-09-10 @ `6b6d703`。**行号已按 HEAD 全量刷新**，原报告的三条误报经复核后已连同条目删除。`packages/rxdb/src` 自 `2cf208f`（09-10 08:24，含 09-09 那批修复的 squash）未再改动，故 09-09 那份覆盖率实测仍然有效，本轮未重跑
 - **复核 3**：2026-09-18 @ `fc30f1da`。**块 6 已修并按约定删除**——无校验 cast 换成 `assertLocalAdapterCapabilities`（`rxdb.private.ts:115-124`，缺失即抛带适配器名与成员名的错误），`migrateSystemSchema()` / `completeBootstrap()` 改直调；剩 `reconcileEntityIndexes?.()` 一处已契约化：`rxdb-adapter.ts:319` 把它声明为 `RxDBAdapterLocalBase` 的可选成员，TSDoc 写明「缺席是契约允许的形态」，不再是静默兜底。**块 2 部分落地**（已修项见块内删除后的余文）：`proxy.ts` 泛型、幻影类 `RxDBSyncRepository`、一批类型具名导出、四处文档漂移、`entity-base` 类 TSDoc 位置。其余条目逐条对照源码复核，锚点按拆包后位置刷新，判定不变
-- **结论**：本文件只留尚未处理的条目。已修的连同修法说明一并删除——判据现在都写在代码注释与 TSDoc 里，报告再留一份副本只会随代码漂移。同时保留两条误报订正（`rxdb.transaction.ts:68-69` 的裸 `forEach` 是**有意的** fail-fast 契约；`relation-helper.spec.ts:495` 的 `Reflect.set` 是公开访问器赋值而非改私有字段），防复提。
+- **结论**：本文件只留尚未处理的条目。已修的、以及复核后判定为误报或不值得做的条目连同说明一并删除——判据现在都写在代码注释与 TSDoc 里，报告再留一份副本只会随代码漂移。
 
 ## 剩余工作与优先级
 
@@ -14,7 +14,7 @@
 | ---- | ------------------------- | --------------------- | -------------------------------------------------------------------------------------- |
 | ①    | 4 够不到的 undo/redo 守卫 | ⬜ 待决策             | **值得**，但是「定」不是「做」，10 分钟                                                |
 | ①    | 5 依赖调度器误报          | 🔒 待规格决策         | **值得**，同上，且不改代码                                                             |
-| ②    | 1 测试基建残留            | 🟡 进行中             | **挑着做**：同步主干覆盖 + 拆卸 after-hook 值得；按文件补 spec **不做**（见下）        |
+| ②    | 1 测试基建残留            | 🟡 进行中             | **挑着做**：核心侧覆盖缺口 + 拆卸 after-hook                                           |
 | ③    | 2 公共 API 面收敛         | 🟡 进行中（部分已修） | **最值得，且有时间窗**（见下方「为什么是现在」）；头号项 `createEntityRef: any` 仍未动 |
 | ④    | 3 拆长函数（余 9 条）     | ⬜ 未开始             | **可无限期推迟**：无 lint 门禁，纯风格债；唯一例外是 pull 那对已分叉的副本             |
 
@@ -49,12 +49,6 @@
 
 **值得做**：这是定时炸弹，一旦切 `isolate:false` 或换 runner 就集体挂，且现场极难读（泄漏的实例互相串事件）。成本低，优先级排在覆盖率之前。
 
-### 无专属 spec 的活代码 —— ⛔ 不按文件补
-
-拆包后位置：`undo-redo-apply.ts` / `restore-entity.ts` / `history-scope-api.ts`（rxdb-plugin-history）、`pull-conflict-utils.ts`（rxdb-plugin-sync）、`pushable-repository-rules.ts`（核心 `sync-contract/`）、`rxdb.plugin-lifecycle.ts` / `migration-runner.ts` / `many-to-many-entity.ts` / `json-safe.ts` / `need_refresh_*.ts`（核心，公开导出）。
-
-**不值得按这个清单做**：整体 95.95 / 91.44 已过门禁，说明这些文件是被其他 spec 间接覆盖的。按文件名逐个补专属 spec 是指标驱动而非风险驱动，产出多半正是本块开头刚清完的那种「空断言」。**保留这份清单只作为一件事的输入**：将来改到其中某个文件时，先看它有没有专属 spec，没有就先补再改。
-
 ---
 
 ## 2. 公共 API 面收敛（`export *` 现 53 条）
@@ -70,19 +64,18 @@
 
 ### 条目（2026-09-18 复核后剩余）
 
-- **`any` 泄出**：`createEntityProxy` 的返回类型已修（`proxy.ts:38` 现为 `EntityInstanceType<T>`），但连锁的 `createEntityRef` 推断返回类型仍塌成 `any`：`entity-manager.ts:255` 无显式返回类型，`dist/entity/entity-manager.d.ts:59` 实测 `createEntityRef(...): any`，`repository/QueryManager.ts:315` 因此要写 `!`。**这是本块的头号项，单独修也有价值。**
+- **`any` 泄出**：`createEntityProxy` 的返回类型已修（`proxy.ts:38` 现为 `EntityInstanceType<T>`），但连锁的 `createEntityRef` 推断返回类型仍塌成 `any`：`entity-manager.ts:245` 无显式返回类型，`dist/entity/entity-manager.d.ts:59` 实测 `createEntityRef(...): any`，`repository/QueryManager.ts:315` 因此要写 `!`。**这是本块的头号项，单独修也有价值。**
 - **公开签名引用未导出类型（已修一批）**：`EventListener` / `RxDBConfig` / `MergeQueryTaskOptions`（`index.ts:104`）、`QueryManager` / `EntityStatus`（type 级具名）、`SyncRepositoryOptions/Result`（在 barrel 内）均已可具名；`BulkSyncOptions/Result`、`RepositorySyncStatus`、`DependencyGraph`、`VersionManager` 已随拆包移入 plugin-sync / plugin-history 并具名导出（原口径对核心 MOOT）。**仍不可具名**：`TreeRepository` 类本身（`repository/TreeRepository.ts:40`，barrel 只导出 `tree-repository.interface.js` 与 `tree-level.utils.js`）。
 - **死代码**：
-  - ⚠️ **原报告「`system/types.local.ts` / `types.remote.ts` 整文件零引用」是误报，按其「做法」删会直接编译失败。** 实测两文件被 `VersionManager.ts:22-23`、`create-branch.ts`、`remove-branch.ts`、`resolve-current-branch.ts`、`switch-branch-actions.ts` 及一份 spec 引用；且 `index.ts` **没有** `export * from './system/types.local.js'`，它们既不是死代码也不在公共面上。（此条保留防复提；其中真正死的 `types.local.ts:147` 幻影类 `RxDBSyncRepository` 已删，删除理由写在文件头注释。）
-  - `RxDB.ts:1832-1839` 与 `system/types.ts:476-490` 两处 `declare module '@aiao/rxdb'` —— ⚠️ 原报告并列成两条，实测是**同一个增强的两个副本**（都给 `interface RxDB` 挂 `RxDBChange/RxDBBranch/RxDBMigration/RxDBSync` 四个同名字段）。删一处留一处还是两处都删，要一起定；`rxdb.RxDBChange` 类型是类、运行时 `undefined` 的问题两处同源。
-  - `system/types.ts:56/65/79, 207/216/228`（另有第三份 `334/349/362`）手写规则联合混入他表字段，`RxDBSync.find({ where: { field: 'parentId' } })` 编译通过运行时撞不存在的列 —— `types.ts` **确在 barrel 里**（`index.ts:86`），这条成立且直面用户。
+  - [`RxDB.ts:1846-1853`](../../packages/rxdb/src/RxDB.ts#L1846) 与 [`system/types.ts:450-472`](../../packages/rxdb/src/system/types.ts#L450) 是**同一个模块增强的两个副本**（都给 `interface RxDB` 挂 `RxDBChange/RxDBBranch/RxDBMigration/RxDBSync` 四个同名字段）。删一处留一处还是两处都删，要一起定；`rxdb.RxDBChange` 类型是类、运行时 `undefined` 的问题两处同源。
+  - `system/types.ts:56/65/79, 207/216/228`（另有第三份 `334/349/362`）手写规则联合混入他表字段，`RxDBSync.find({ where: { field: 'parentId' } })` 编译通过运行时撞不存在的列 —— `types.ts` **确在 barrel 里**（`index.ts:162`），这条成立且直面用户。
   - `version.utils.ts`（现 `rxdb-plugin-sync/src/version.utils.ts`）唯一导出 `remote_change_to_local` 只有测试引用、不在 barrel。`dependency-graph.ts` / `topological-sort.ts` 已随拆包成为 plugin-sync 的内部实现（被 bulk-sync / push / pull 大量消费），**不再是死代码**。
 - **内部实现漏出**：`cleanupExpired` / `syncBranches` 现于 plugin-sync，barrel 仍 `export * from './cleanup-expired.js'` / `'./sync-branches.js'`（签名改为收 `SyncManager`）；`setSafeObjectKey` 系列、`fillDefaultValue`、`getEntityMutations`（参数字段 `need_save_entities` 仍是 snake_case）仍经核心 `index.ts:24` 的 `export *` 公开；`QueryTask` 含 `serialize/onClean/depEntityTypeMap` 内部管线整体导出（`index.ts:87`）——**原阻挡前提已退**：`rxdb-plugin-graph` 的生产代码现在只 import 类型，`serialize` 仅出现在其测试里，可以按替代面直接收。
 - **命名**：`merge_create.ts` / `need_refresh_*.ts` / `entity_type_dependencies.ts` 与 `merge-update-tree.ts` 两套文件名风格；`query_need_refresh_*` 在 barrel 处改名（`index.ts:59-61`）；`isRuleGroup` 公开的是宽松版（`query-matching.utils.ts:40`，只判 `combinator` 存在），`QueryTask.ts:26-35` 另有严格私有副本（校验 combinator ∈ {and,or} 且 rules 逐项合法）。
 - **TSDoc 缺口**：仍集中在 `rxdb-events.ts`（25 个事件常量 + 9 个 `*EventData` 无 TSDoc）、`rxdb-adapter.ts`（`IRxDBAdapter` 大部分成员）、`system/migration.ts`（4 个 watermark 常量与 `RxDBSystemVersionState`）、`entity/property-types.interface.ts`（`UUIDProperty` / `StringProperty` / `EnumProperty` / `NumberArrayProperty` 等）。`entity-base.ts:84-97` 的类 TSDoc 已移到 `@Entity(...)` 装饰器之前（已修）。
 - **文档漂移（剩余 1 处）**：`scope-selection.ts` 现居 `rxdb-plugin-history/src/scope-selection.ts`，:116 的 TSDoc 仍写「`historyManager` 是私有字段，够不到」。已修的四处：`change-codec.ts` 的「字符串 ID 走原始通道」（`encodeRxDBChangeEntityId` TSDoc :340 已澄清归属 `getRxDBChangeEntityIdQueryValues`）；identity 版本与信封版本已拆成两个错误类（`UnsupportedRxDBEntityIdentityVersionError`）；`VersionManager.ts` 的不存在示例 `pull?.pulled`（示例已随拆包消失）；`QueryCacheRepository.ts` 的 `operator: 'eq'`（文件已不存在，继承者 `QueryCacheEngine.ts:211` 示例用 `'='`）。
 
-**做法**：`index.ts` 改具名导出并补齐缺失类型；删重复的模块增强（**不要动 `types.local/remote` 两个文件本身**）；给 `createEntityRef` 补显式返回类型消掉 `: any`；补 TSDoc。这一块会动 `requirements/api-baseline/rxdb.json`，属破坏性变更，须在 PR 说明里逐条列出。
+**做法**：`index.ts` 改具名导出并补齐缺失类型；删重复的模块增强；给 `createEntityRef` 补显式返回类型消掉 `: any`；补 TSDoc。这一块会动 `requirements/api-baseline/rxdb.json`，属破坏性变更，须在 PR 说明里逐条列出。
 
 ---
 
@@ -128,7 +121,7 @@
 ## 5. 🔒 依赖调度器的误报（待规格决策，不改代码）
 
 - **文件**：`packages/rxdb/src/rxdb.plugin-lifecycle.ts:45-48` 的 `reportUnsatisfiedPlugins`（闸门 = `bootstrappingConnects === 0 && connectedAdapters.size > 0`）→ `packages/rxdb/src/plugin/dependency-scheduler.ts:271-279` 的 `reportUnsatisfied`（warn-once）。
-- **现象**：顺序 `await connect('local'); await connect('remote')` 会报「依赖未满足」，误报已实测复现；`RxDB.ts:318-327` 的 `#bootstrapping_connects` 计数只挡**并行** connect 的情形。
+- **现象**：顺序 `await connect('local'); await connect('remote')` 会报「依赖未满足」，误报已实测复现；[`RxDB.ts:936-942`](../../packages/rxdb/src/RxDB.ts#L936) 的 `#bootstrapping_connects` 计数只挡**并行** connect 的情形。
 - **为什么不改**：「每次 connect 落地就结算一次未满足依赖」正是 US-015 AC#11 点名的契约（仍标 ✅），改判据等于反转一条已 ✅ 的验收。
 - **两条出路**：① 放宽 AC#11（改成「全部已注册适配器都连上才结算」）；② 保留误报，在文档里写明顺序 connect 会有这条噪声。**这是规格问题，不是实现问题**，需要先定，再动代码。
 

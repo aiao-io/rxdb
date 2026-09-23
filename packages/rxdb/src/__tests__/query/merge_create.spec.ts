@@ -11,7 +11,7 @@ import {
   createHarnessQueryTask,
   type HarnessSchemaOverrides,
   type HarnessTaskOptions
-} from '../fixtures/query-task-harness.js';
+} from '../../testing/query-task-harness.js';
 
 describe('query_merge_create_cache', () => {
   class TestEntity {
@@ -1915,40 +1915,5 @@ describe('query_merge_create_cache', () => {
 
       expect(refreshCount).toBeGreaterThan(0);
     });
-  });
-
-  describe('图查询 - findNeighbors/countNeighbors/findPaths（RXD-025）', () => {
-    /**
-     * merge_create 的 switch 目前没有这三种图查询类型的 case，refresh_rules/recalculate_rules
-     * 保持空数组——runMatches 对空规则数组恒返回 false，命中 where 的 CREATE 事件永远不会
-     * 触发 task.refresh()，活查询永久 stale。
-     */
-    const createGraphTask = <RT>(
-      type: 'findNeighbors' | 'countNeighbors' | 'findPaths',
-      runnerResult: RT
-    ): QueryTask<TestEntityType, RT> => {
-      const task = createHarnessQueryTask<TestEntityType, RT>(TestEntity, {
-        type,
-        options: {
-          where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'Alice' }] }
-        },
-        runner: () => of(runnerResult)
-      } as unknown as HarnessTaskOptions<TestEntityType, RT>);
-      return task;
-    };
-
-    it.each(['findNeighbors', 'countNeighbors', 'findPaths'] as const)(
-      '%s 命中 where 条件的新实体应该触发 SQL 刷新',
-      type => {
-        const task = createGraphTask(type, (type === 'countNeighbors' ? 0 : []) as never);
-        const subscription = task.result$.subscribe({ error: () => undefined });
-        const refreshSpy = vi.spyOn(task, 'refresh');
-
-        query_merge_create_cache(task, [createMockEntityEvent({ id: 'alice-1', name: 'Alice' })]);
-
-        expect(refreshSpy).toHaveBeenCalled();
-        subscription.unsubscribe();
-      }
-    );
   });
 });

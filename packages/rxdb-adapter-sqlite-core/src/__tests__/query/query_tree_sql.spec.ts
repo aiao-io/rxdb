@@ -6,11 +6,9 @@ import {
   RelationKind,
   RxDB,
   RxDBError,
-  SyncType,
-  TreeAdjacencyListEntityBase,
-  TreeEntity,
-  type FindTreeOptions
+  SyncType
 } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity, type FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge, MenuSimple } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import {
@@ -101,21 +99,19 @@ describe('generate_tree_sql', () => {
     );
   });
 
-  it('level 未设置时按 FindTreeOptions 契约仅返回当前节点，不退化为不限深度', () => {
+  it('level 未设置时不限深度，只保留递归 CTE 的失控保护上限', () => {
     const withLevel = generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 3 });
     const withoutLevel = generate_tree_sql(adapter, metadata, { entityId: 'n1' });
 
     expect(withLevel.sql).toContain('WHERE c.__level < 3');
-    // `@default 0` = 仅当前节点。此前 level == null 被当作「不限深度」，
-    // 与 pglite（`c.level < 0`）行为分叉，也与 TSDoc 矛盾。
-    expect(withoutLevel.sql).toContain('WHERE c.__level < 0');
+    // 不传 level = 不限深度；`__level < 1000` 不是查询契约，是脏数据成环时的兜底
+    expect(withoutLevel.sql).toContain('WHERE c.__level < 1000');
   });
 
   it('level 非法时抛错，绝不把原值拼进 SQL', () => {
     const injection = '1; DROP TABLE menu_simple --' as unknown as number;
 
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: injection })).toThrow(RxDBError);
-    expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 101 })).toThrow(RxDBError);
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: -1 })).toThrow(RxDBError);
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 1.5 })).toThrow(RxDBError);
   });

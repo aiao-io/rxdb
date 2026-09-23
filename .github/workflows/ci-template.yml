@@ -433,6 +433,8 @@ jobs:
           {
             echo "### CI plan (\`${{ inputs.run_mode }}\`)"
             echo
+            echo "affected base (nx-set-shas): \`${NX_BASE:-未设置}\`"
+            echo
             echo "| job | num | projects |"
             echo "| --- | --- | --- |"
             echo "| lint + typecheck | $(jq -r 'length' <<<"$LINT_JSON") | \`$CHECK\` |"
@@ -569,7 +571,7 @@ jobs:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
         with:
-          # Supabase lane 要拉 Docker 镜像，其余 lane 不值得交那 60s。
+          # Supabase lane 要拉 Docker 镜像，其余 lane 没必要开删除开关。
           free-disk: ${{ matrix.supabase }}
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
@@ -658,8 +660,15 @@ jobs:
       # 的 test-browser 产出覆盖率，workspace / rxdb-react 那两个是裸 `vitest run`。
       # affected 模式下只命中后两个时，这里本来就该是空的 —— 那不是故障。
       # 对应地，coverage job 用 `pattern:` 而非 `name:` 下载，缺 artifact 不报错。
+      #
+      # continue-on-error 是刻意的：上传失败只可能是 GitHub artifact 后端的
+      # 瞬时故障（run 96566026767 里这里 502 重试 11 分钟后失败，把一次全绿的
+      # 测试变成 job 失败，并连锁染红 coverage / gate）。降级后浏览器侧覆盖率
+      # 数据缺失时，coverage gate 会拿 lane 的 node-only 数据判定 search/storage，
+      # 可能低估 —— 但「可能低估两个包」比「基础设施抖动红掉整个 PR」便宜。
       - name: Upload coverage
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-browser
@@ -1114,6 +1123,10 @@ jobs:
       # if-no-files-found: ignore 会让 artifact 根本不存在。`name:` 找不到会直接抛
       # `Artifact 'coverage-browser' not found`；`pattern:` 命中 0 个则正常返回
       # 「Total of 0 artifact(s) downloaded」。这不是兜底，是这两种参数的既定语义差异。
+      #
+      # 上传失败（test-browser 的 continue-on-error 路径）时这里同样命中 0 份，
+      # 且不会报错 —— gate 退化为拿 lane 的 node-only 数据判定 search/storage，
+      # 见 test-browser 上传步骤的注释。
       - name: Download browser coverage
         if: needs.test-browser.result == 'success'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

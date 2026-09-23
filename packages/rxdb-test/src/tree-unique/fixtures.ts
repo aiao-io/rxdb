@@ -8,7 +8,8 @@
  * 让「NULL 让唯一索引整条失效」这个缺陷在契约套件里被直接触发；
  * 公共实体自身有没有声明同一条索引，由 `src/entity-model-contract.spec.ts` 的元数据断言负责。
  */
-import { PropertyType, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
+import { PropertyType } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 
 /** 夹具实体的 namespace，避免与 demo 实体撞表。 */
 const NAMESPACE = 'tree-unique-fixtures';

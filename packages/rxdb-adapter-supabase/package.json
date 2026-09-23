@@ -50,6 +50,9 @@
       "js-lib"
     ]
   },
+  "dependencies": {
+    "@aiao/rxdb-plugin-tree": "workspace:*"
+  },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@supabase/supabase-js": "^2.88.0",

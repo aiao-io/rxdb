@@ -11,7 +11,7 @@ import {
   createHarnessQueryTask,
   type EntityCache,
   type HarnessTaskOptions
-} from '../fixtures/query-task-harness.js';
+} from '../../testing/query-task-harness.js';
 
 describe('query_merge_remove_cache', () => {
   class TestEntity {
@@ -1060,51 +1060,5 @@ describe('query_merge_remove_cache', () => {
       // 陈旧删除必须被过滤掉：不应该有第二次 emit（实体没有被从结果集里移除）
       expect(emissions).toEqual([[NEWER]]);
     });
-  });
-
-  describe('图查询 - findNeighbors/countNeighbors/findPaths（RXD-025）', () => {
-    /**
-     * merge_remove 的 switch 目前没有这三种图查询类型的 case，refresh_rules/recalculate_rules
-     * 保持空数组——runMatches 对空规则数组恒返回 false，命中 where 的 DELETE 事件永远不会
-     * 触发 task.refresh()，活查询永久 stale。
-     */
-    it.each(['findNeighbors', 'countNeighbors', 'findPaths'] as const)(
-      '%s 命中 where 条件的删除事件应该触发 SQL 刷新',
-      type => {
-        return new Promise<void>((resolve, reject) => {
-          const task = createMockQueryTask(
-            {
-              type,
-              options: {
-                where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'Alice' }] }
-              }
-            } as unknown as QueryOptions<TestEntityType>,
-            () => of((type === 'countNeighbors' ? 0 : []) as never)
-          );
-
-          const refreshSpy = vi.spyOn(task, 'refresh');
-          let emitted = false;
-
-          task.result$.subscribe({
-            next: () => {
-              if (emitted) {
-                return;
-              }
-              emitted = true;
-
-              query_merge_remove_cache(task, [createMockRemoveEvent({ id: 'alice-1', name: 'Alice' })]);
-
-              try {
-                expect(refreshSpy).toHaveBeenCalledTimes(1);
-                resolve();
-              } catch (error) {
-                reject(error);
-              }
-            },
-            error: reject
-          });
-        });
-      }
-    );
   });
 });

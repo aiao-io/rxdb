@@ -81,6 +81,7 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
     "rxjs": "^7.8.2",
     "vitest": "4.1.11"
   },

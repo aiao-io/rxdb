@@ -65,6 +65,7 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/utils": "workspace:*",
     "glob": "^13.0.6",
     "jiti": "^2.7.0",

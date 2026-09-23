@@ -580,6 +580,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../../packages/rxdb-test
@@ -764,6 +767,9 @@ importers:
       '@aiao/rxdb-plugin-storage':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-storage
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace
@@ -843,6 +849,9 @@ importers:
       '@aiao/rxdb-plugin-storage':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-storage
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-tree
       '@aiao/rxdb-plugin-workspace':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-workspace
@@ -1300,6 +1309,9 @@ importers:
       '@aiao/rxdb-adapter-encrypted':
         specifier: workspace:*
         version: link:../rxdb-adapter-encrypted
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1374,6 +1386,9 @@ importers:
       '@aiao/rxdb-adapter-encrypted':
         specifier: workspace:*
         version: link:../rxdb-adapter-encrypted
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1424,6 +1439,9 @@ importers:
       '@aiao/rxdb-plugin-sync':
         specifier: workspace:*
         version: link:../rxdb-plugin-sync
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1473,6 +1491,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@supabase/supabase-js':
         specifier: ^2.88.0
         version: 2.116.0
@@ -1588,6 +1609,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1934,6 +1958,87 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
 
+  packages/rxdb-plugin-tree:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
+  packages/rxdb-plugin-tree-angular:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: '*'
+        version: 0.0.25
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-angular':
+        specifier: workspace:*
+        version: link:../rxdb-angular
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
+      '@angular/common':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 22.1.6
+        version: 22.1.6
+      '@angular/core':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/common@22.1.6(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.2)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.102.0)(sass@1.104.1)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/rxdb-plugin-tree-react:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: '*'
+        version: 0.0.25
+      react:
+        specifier: ^19.2.8
+        version: 19.3.0
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
+      '@aiao/rxdb-react':
+        specifier: workspace:*
+        version: link:../rxdb-react
+
+  packages/rxdb-plugin-tree-vue:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: '*'
+        version: 0.0.25
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.43(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+    devDependencies:
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
+      '@aiao/rxdb-vue':
+        specifier: workspace:*
+        version: link:../rxdb-vue
+
   packages/rxdb-plugin-working-tree:
     dependencies:
       '@aiao/rxdb':
@@ -2071,6 +2176,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2

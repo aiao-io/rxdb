@@ -12,9 +12,9 @@ import {
   EntityType,
   getEntityMetadata,
   RelationKind,
-  transitionMetadata,
-  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS
+  transitionMetadata
 } from '@aiao/rxdb';
+import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS } from '@aiao/rxdb-plugin-tree';
 import { isFunction } from '@aiao/utils';
 import { generateEntityDefinition } from '../generators/entity-definition.js';
 import type { IRepositoryGenerator } from '../generators/RepositoryGenerator.interface.js';
@@ -22,9 +22,11 @@ import { RepositoryMethodsGenerator } from '../generators/RepositoryGeneratorBas
 import { TreeRepositoryGenerator } from '../generators/TreeRepositoryGenerator.js';
 import { validateGeneratedOutputSymbols } from './generated-symbols.js';
 import {
+  addNamedImport,
   assertGeneratedBindingIdentifier,
   assertGeneratedIdentifier,
   assertGeneratedNamespace,
+  DEFAULT_ENTITY_BASE_MODULE,
   isGeneratedIdentifier,
   transitionMetadata as transitionMetadataUtil
 } from './RxDBClientGenerator.utils.js';
@@ -85,12 +87,6 @@ const get_cache_key = (mappedEntity: string, mappedNamespace?: string) =>
   JSON.stringify([mappedNamespace || NAMESPACE_PUBLIC, mappedEntity]);
 
 const RESERVED_ENTITY_BINDINGS = new Set(['ENTITIES', 'Entity', 'PropertyType', 'RelationKind', '__decorateClass']);
-
-const addNamedImport = (imports: Map<string, Set<string>>, moduleSpecifier: string, name: string): void => {
-  const names = imports.get(moduleSpecifier) ?? new Set<string>();
-  names.add(name);
-  imports.set(moduleSpecifier, names);
-};
 
 const renderRuntimeImports = (imports: Map<string, Set<string>>): string =>
   Array.from(imports.entries())
@@ -491,9 +487,7 @@ export class RxDBClientGenerator {
       const { name: className } = metadata;
       const decoratorArguments = transitionMetadataUtil(metadata);
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -535,9 +529,7 @@ ${className}
       ]);
 
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -600,7 +592,7 @@ ${className}
     });
 
     // imports（导入）
-    const imports = new Set<string>(['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID']);
+    const imports = new Set<string>(['EntityType', 'IEntity', 'RuleGroupBase', 'UUID']);
     const namedImportsByModule = new Map<string, Set<string>>();
 
     // 生成所有 entity
@@ -692,7 +684,7 @@ ${className}
 
       // 生成独立 entity 定义文件
       const entityFile = project.createSourceFile(`${className}.d.ts`);
-      const entityImports = new Set<string>(['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID']);
+      const entityImports = new Set<string>(['EntityType', 'IEntity', 'RuleGroupBase', 'UUID']);
 
       const { rxdbNamedImports, namedImportsByModule, siblingNamedImports } = generateEntityDefinition(
         this,
@@ -742,5 +734,17 @@ ${className}
       isExported: true,
       declarations: [{ name: 'ENTITIES', type: `EntityType[]` }]
     });
+  }
+
+  /**
+   * 该实体的基类从哪个模块导入。
+   *
+   * @remarks
+   * 生成器没注册、或注册了但没声明 `entityBaseModuleSpecifier`，都落回
+   * {@link DEFAULT_ENTITY_BASE_MODULE} —— 前者对应用户写了个没人认的 `repository`，
+   * 后者对应核心实体。两种情形产出同一条 import，不必区分。
+   */
+  #resolve_entity_base_module(repository: string): string {
+    return this.getRepositoryGenerator(repository)?.entityBaseModuleSpecifier ?? DEFAULT_ENTITY_BASE_MODULE;
   }
 }

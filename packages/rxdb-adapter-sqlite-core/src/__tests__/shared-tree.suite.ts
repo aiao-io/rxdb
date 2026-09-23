@@ -1,4 +1,5 @@
 import { RxDBError } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -12,7 +13,10 @@ export function treeIntegrationSuite(factory: AdapterFactory) {
     let adapter: RxDBAdapterSqliteBase;
 
     beforeAll(async () => {
-      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [MenuLarge] });
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+        entities: [MenuLarge],
+        plugins: [rxDBPluginTree]
+      });
     });
 
     afterAll(async () => {
@@ -281,16 +285,44 @@ export function treeIntegrationSuite(factory: AdapterFactory) {
         });
       });
 
-      describe('level 契约', () => {
-        it('不传 level：端到端只返回当前节点（FindTreeOptions 的 @default 0）', async () => {
+      describe('level 深度契约', () => {
+        it('不传 level：findDescendants 返回整棵子树（默认不限深度）', async () => {
           const root = new MenuLarge({ title: '默认层级根' });
           const child = new MenuLarge({ title: '默认层级子' });
+          const grand = new MenuLarge({ title: '默认层级孙' });
           root.children$.add(child);
+          child.children$.add(grand);
           await root.save();
 
           const data = await firstValueFrom(MenuLarge.findDescendants({ entityId: root.id }));
 
-          expect(data.map(item => item.title)).toEqual(['默认层级根']);
+          expect(data.map(item => item.title)).toEqual(['默认层级根', '默认层级子', '默认层级孙']);
+        });
+
+        it('不传 level：findAncestors 返回整条祖先链（默认不限深度）', async () => {
+          const root = new MenuLarge({ title: '祖先链根' });
+          const child = new MenuLarge({ title: '祖先链子' });
+          const grand = new MenuLarge({ title: '祖先链孙' });
+          root.children$.add(child);
+          child.children$.add(grand);
+          await root.save();
+
+          const data = await firstValueFrom(MenuLarge.findAncestors({ entityId: grand.id }));
+
+          expect(data.map(item => item.title).sort()).toEqual(['祖先链子', '祖先链孙', '祖先链根'].sort());
+        });
+
+        it('显式 level=1：仍然只返回当前节点 + 直接子节点', async () => {
+          const root = new MenuLarge({ title: '显式层级根' });
+          const child = new MenuLarge({ title: '显式层级子' });
+          const grand = new MenuLarge({ title: '显式层级孙' });
+          root.children$.add(child);
+          child.children$.add(grand);
+          await root.save();
+
+          const data = await firstValueFrom(MenuLarge.findDescendants({ entityId: root.id, level: 1 }));
+
+          expect(data.map(item => item.title)).toEqual(['显式层级根', '显式层级子']);
         });
 
         it('level 非法：同步抛错，不进入 SQL 生成', async () => {
@@ -721,7 +753,10 @@ export function treeIntegrationSuite(factory: AdapterFactory) {
         if (adapter) {
           await adapter.rxdb.disconnectAll();
         }
-        adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [MenuLarge] });
+        adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+          entities: [MenuLarge],
+          plugins: [rxDBPluginTree]
+        });
       });
 
       afterEach(async () => {

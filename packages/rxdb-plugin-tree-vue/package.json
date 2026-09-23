@@ -1,0 +1,58 @@
+{
+  "name": "@aiao/rxdb-plugin-tree-vue",
+  "version": "0.0.25",
+  "description": "Vue bindings for the Aiao RxDB tree plugin.",
+  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "vue",
+    "tree",
+    "hierarchy",
+    "composables"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-tree-vue"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "*",
+    "@aiao/rxdb-plugin-tree": "*",
+    "@aiao/rxdb-vue": "*",
+    "rxjs": "^7.8.2",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-tree": "workspace:*",
+    "@aiao/rxdb-vue": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

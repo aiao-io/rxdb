@@ -1353,7 +1353,7 @@ describe('supabase review regressions', () => {
     expect(count).toBe(0);
   });
 
-  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5, 101])(
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
     'tree repositories reject an invalid level before querying: %s',
     async level => {
       const schema = vi.fn();
@@ -1366,7 +1366,8 @@ describe('supabase review regressions', () => {
     }
   );
 
-  it('tree repositories default to the current node only', async () => {
+  /** root → parent 两层链，子节点查询恒为空：够区分「往下走一层」与「原地不动」。 */
+  const createAnchorHarness = () => {
     const nodes = new Map([
       ['root', { id: 'root', parentId: 'parent' }],
       ['parent', { id: 'parent', parentId: null }]
@@ -1380,11 +1381,27 @@ describe('supabase review regressions', () => {
     }));
     const from = vi.fn(() => ({ select }));
     const schema = vi.fn(() => ({ from }));
-    const adapter = createAdapter({ schema });
-    const repository = buildTreeRepository(adapter);
+    return { loadChildren, repository: buildTreeRepository(createAdapter({ schema })) };
+  };
+
+  it('tree repositories default to unlimited depth', async () => {
+    const { loadChildren, repository } = createAnchorHarness();
 
     const descendants = await repository.findDescendants({ entityId: 'root' });
     const ancestors = await repository.findAncestors({ entityId: 'root' });
+
+    // 不传 level = 不限深度：后代必须真的往下查一层（root 没有子节点，结果仍只有自己）
+    expect(descendants.map(entity => entity.id)).toEqual(['root']);
+    expect(loadChildren).toHaveBeenCalled();
+    // 祖先链一路走到根，不再停在锚点
+    expect(ancestors.map(entity => entity.id)).toEqual(['root', 'parent']);
+  });
+
+  it('tree repositories stop at the anchor when level is 0', async () => {
+    const { loadChildren, repository } = createAnchorHarness();
+
+    const descendants = await repository.findDescendants({ entityId: 'root', level: 0 });
+    const ancestors = await repository.findAncestors({ entityId: 'root', level: 0 });
 
     expect(descendants.map(entity => entity.id)).toEqual(['root']);
     expect(ancestors.map(entity => entity.id)).toEqual(['root']);

@@ -203,6 +203,18 @@
     },
     {
       "path": "./packages/rxdb-model-vue"
+    },
+    {
+      "path": "./packages/rxdb-plugin-tree"
+    },
+    {
+      "path": "./packages/rxdb-plugin-tree-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-tree-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-tree-vue"
     }
   ]
 }

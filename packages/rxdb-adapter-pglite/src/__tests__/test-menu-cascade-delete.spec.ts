@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -19,6 +20,8 @@ describe('树结构 - 级联删除场景', () => {
         type: SyncType.None
       }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
 
     rxdb.adapter('pglite', db => {
       return new RxDBAdapterPGlite(db, { store: 'memory' });

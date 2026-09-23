@@ -5,11 +5,8 @@
  * @module rxdb-client-generator/core/metadata-utils
  */
 
-import {
-  ENTITY_BASE_METADATA_OPTIONS,
-  EntityMetadataOptions,
-  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS
-} from '@aiao/rxdb';
+import { ENTITY_BASE_METADATA_OPTIONS, EntityMetadataOptions } from '@aiao/rxdb';
+import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS } from '@aiao/rxdb-plugin-tree';
 
 export function getEntityMetadataOptions(className: string): EntityMetadataOptions[] | undefined {
   switch (className) {

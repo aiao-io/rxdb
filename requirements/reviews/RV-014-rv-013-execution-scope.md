@@ -120,7 +120,6 @@ public abstract getRepository<T extends EntityType, RT extends IRepository<T> = 
 - `requirements/api-baseline/*.json` 只记录顶层导出 `{ name, kind }`，不记录类成员，本项不更新基线。
 - [`getLocalSystemRepositories()`](../../packages/rxdb/src/system/system-repositories.ts) 仍是事务外等待本地适配器就绪的公开替代入口。
 - 事务内仍使用 `executor.getRepository(EntityType)`。
-- RV-012 与本项没有实现文件交集，可独立落地。
 
 ## 复验
 

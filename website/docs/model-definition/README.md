@@ -3,7 +3,7 @@
 模型定义决定实体长什么样、怎么关联、怎么被查询。三条建模入口按场景选:
 
 - `@Entity()` — 普通实体,来自 `@aiao/rxdb`
-- `@TreeEntity()` — 树结构实体,来自 `@aiao/rxdb`
+- `@TreeEntity()` — 树结构实体，来自 `@aiao/rxdb-plugin-tree`
 - `@GraphEntity()` — 图结构实体,来自 `@aiao/rxdb-plugin-graph`
 
 日常业务最常用的是普通实体:

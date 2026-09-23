@@ -1,3 +1,5 @@
+import { RxDBError } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -11,7 +13,10 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
     let adapter: RxDBAdapterSqliteBase;
 
     beforeAll(async () => {
-      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({ entities: [MenuLarge] });
+      adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+        entities: [MenuLarge],
+        plugins: [rxDBPluginTree]
+      });
     });
 
     afterAll(async () => {
@@ -381,14 +386,17 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
         await cleanup_db(adapter);
       });
 
-      it('findDescendants() 不传 entityId 应返回所有根节点', async () => {
+      it('findDescendants() 不传 entityId 也不传 level 应返回所有树的全部节点', async () => {
         const allTrees = await firstValueFrom(MenuLarge.findDescendants({}));
 
         const rootTitles = allTrees.filter(m => m.parentId === null).map(m => m.title);
         expect(rootTitles).toContain('standalone-root1');
         expect(rootTitles).toContain('standalone-root2');
 
-        expect(allTrees.length).toBe(2);
+        // 不传 level = 不限深度：两棵树的根和子节点全在
+        expect(allTrees.map(m => m.title).sort()).toEqual(
+          ['standalone-root1', 'standalone-child1', 'standalone-root2', 'standalone-child2'].sort()
+        );
       });
 
       it('findDescendants() 不传 entityId + level=1 应只返回根节点和直接子节点', async () => {
@@ -476,7 +484,8 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
       it('countDescendants() 不传 entityId 应统计所有根节点及其后代', async () => {
         const totalCount = await firstValueFrom(MenuLarge.countDescendants({}));
 
-        expect(totalCount).toBe(2);
+        // 不传 level = 不限深度：2 个根 + 2 个子节点
+        expect(totalCount).toBe(4);
       });
 
       it('countDescendants() 不传 entityId + level=1 应只统计根节点和直接子节点', async () => {
@@ -524,14 +533,8 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
         expect(count).toBe(0);
       });
 
-      it('findDescendants() level 为负数应被处理（转换为 0 或报错）', async () => {
-        const result = await firstValueFrom(
-          MenuLarge.findDescendants({
-            entityId: testRoot.id,
-            level: -1
-          })
-        );
-        expect(Array.isArray(result)).toBe(true);
+      it('findDescendants() level 为负数应同步抛错，不裁剪成 0', () => {
+        expect(() => MenuLarge.findDescendants({ entityId: testRoot.id, level: -1 })).toThrow(RxDBError);
       });
 
       it('findDescendants() level 为极大值应正常工作', async () => {
@@ -544,10 +547,12 @@ export function menuIntegrationSuite(factory: AdapterFactory) {
         expect(result.length).toBeGreaterThanOrEqual(2);
       });
 
-      it('countDescendants() level=0 与空对象应有一致行为', async () => {
+      it('countDescendants() 不传 level 应比 level=0 多算出后代', async () => {
         const countWithZero = await firstValueFrom(MenuLarge.countDescendants({ level: 0 }));
         const countWithEmpty = await firstValueFrom(MenuLarge.countDescendants({}));
-        expect(countWithZero).toEqual(countWithEmpty);
+
+        // level: 0 只数根节点；不传 level 不限深度，后代一并计入
+        expect(countWithEmpty).toBeGreaterThan(countWithZero);
       });
 
       it('findAncestors() 查询根节点应只返回根节点本身', async () => {

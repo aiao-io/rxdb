@@ -9,7 +9,7 @@ import type { MethodDeclarationStructure, OptionalKind, PropertyDeclarationStruc
 const NAMESPACE_PUBLIC = 'public';
 const REPOSITORY_TYPE_REPOSITORY = 'Repository';
 const REPOSITORY_TYPE_TREE_REPOSITORY = 'TreeRepository';
-const FIXED_RXDB_TYPE_IMPORTS = ['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID'];
+const FIXED_RXDB_TYPE_IMPORTS = ['EntityType', 'IEntity', 'RuleGroupBase', 'UUID'];
 const FIXED_RXJS_TYPE_IMPORTS = ['Observable'];
 
 interface GeneratedSymbol {
@@ -132,29 +132,21 @@ const addEntityTypeSymbols = (
 };
 
 const addFixedDeclarationImportSymbols = (table: GeneratedSymbolTable, generator: RxDBClientGenerator): void => {
-  const scopes =
+  // split 模式一个实体一个 `.d.ts` 作用域；合并模式所有实体共用 `types:index`。
+  const scopes: [string, EntityMetadata[]][] =
     generator.config.splitFiles ?
-      Array.from(generator.metadataSet, metadata => `types:${metadata.name}`)
-    : ['types:index'];
-  scopes.forEach(scope => {
-    FIXED_RXDB_TYPE_IMPORTS.forEach(symbol =>
-      table.add({
-        entity: symbol,
-        kind: 'declaration import',
-        scope,
-        source: `fixed RxDB import "${symbol}"`,
-        symbol
-      })
-    );
-    FIXED_RXJS_TYPE_IMPORTS.forEach(symbol =>
-      table.add({
-        entity: symbol,
-        kind: 'declaration import',
-        scope,
-        source: `fixed RxJS import "${symbol}"`,
-        symbol
-      })
-    );
+      Array.from(generator.metadataSet, metadata => [`types:${metadata.name}`, [metadata]])
+    : [['types:index', Array.from(generator.metadataSet)]];
+  scopes.forEach(([scope, scopeMetadata]) => {
+    const addImport = (symbol: string, source: string): void =>
+      table.add({ entity: symbol, kind: 'declaration import', scope, source, symbol });
+    FIXED_RXDB_TYPE_IMPORTS.forEach(symbol => addImport(symbol, `fixed RxDB import "${symbol}"`));
+    FIXED_RXJS_TYPE_IMPORTS.forEach(symbol => addImport(symbol, `fixed RxJS import "${symbol}"`));
+    // `ITreeEntity` 不再是固定的 RxDB 导入：它随 `TreeRepositoryGenerator.entityBaseModuleSpecifier`
+    // 从 `@aiao/rxdb-plugin-tree` 取，只有该作用域里确实有树实体时才占名。
+    if (scopeMetadata.some(metadata => hasStandardTreeOutput(generator, metadata))) {
+      addImport('ITreeEntity', 'tree entity import "ITreeEntity"');
+    }
   });
 };
 

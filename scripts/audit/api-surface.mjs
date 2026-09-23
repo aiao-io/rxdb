@@ -301,7 +301,39 @@ const NAMING = {
    * 列成名单而不是加一条 `RxDBBranch` 前缀：加前缀之后第四个同族名字会静默通过，而这份名单
    * 逼着下一个人把理由重讲一遍。
    */
-  corePrefixExceptions: ['RxDBBranchRemovalContext', 'RxDBBranchSwitchContext', 'RxDBBranchSwitchPreconditions'],
+  corePrefixExceptions: [
+    'RxDBBranchRemovalContext',
+    'RxDBBranchSwitchContext',
+    'RxDBBranchSwitchPreconditions',
+    // US-025 阶段 E 的增量合并原语。正向前缀规则的适用范围写的是「核心共享契约」，
+    // 实现上却读整个 diff —— 于是任何与工作树无关的核心新增导出都会撞上它。
+    // 这十二个是树查询外移到 `@aiao/rxdb-plugin-tree` 所需的 merge 引擎入口，
+    // 叫 `Commit*` / `WorkingTree*` 只会让核心看起来把合并判定当成提交能力的一部分。
+    // 按本表自己的规矩逐名登记，不放宽成前缀。
+    'applyExternalEntityUpdate',
+    'getEntityId',
+    'IncrementalUpdateContext',
+    'isStaleEntityEvent',
+    'isStaleEntityRemoveEvent',
+    'prepareIncrementalUpdate',
+    'UpdateClassification',
+    'UpdateDataCache',
+    // 指纹计算。自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，
+    // 而指纹正是 QueryManager 判定「结果变没变」的依据——各写一份就是两套「变了」的定义。
+    'Fingerprint',
+    'getFingerprintByEntities',
+    'getFingerprintByEntity',
+    'getFingerprintPrimitive',
+    // `@aiao/rxdb/testing` 的测试台符号。这个子路径依赖 vitest（可选 peer），不进生产主入口，
+    // 也就不在「核心共享契约」的射程内——而正向规则读的是整个 diff，照样会把它们捞上来。
+    // 叫成 `Commit*` / `WorkingTree*` 等于宣称核心把「造一个合并测试任务」当成提交能力。
+    'collectEmissions',
+    'createHarnessQueryTask',
+    'EntityCache',
+    'HarnessSchemaOverrides',
+    'HarnessTaskOptions',
+    'METADATA'
+  ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],
   /** 全部包都不许有的名字：复用旧选项类型、复活 staging 词汇 */

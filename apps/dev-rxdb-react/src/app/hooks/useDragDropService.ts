@@ -1,4 +1,5 @@
-import { ISortableTreeEntity, type RxDBEntityId, UUID } from '@aiao/rxdb';
+import { type RxDBEntityId, UUID } from '@aiao/rxdb';
+import { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
 import { generateKeyBetween } from '@aiao/utils';
 import { DragDropError, DragDropErrorCode, DropMode, DropResult } from './drag-drop-types';
 
