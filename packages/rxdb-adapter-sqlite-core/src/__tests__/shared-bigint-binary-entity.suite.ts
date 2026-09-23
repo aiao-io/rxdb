@@ -5,7 +5,8 @@ import {
   getEntityStatus,
   OnDeleteAction,
   PropertyType,
-  RelationKind
+  RelationKind,
+  RxDBChange
 } from '@aiao/rxdb';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -290,7 +291,7 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
       child.parentId = safeParentId;
       await child.save();
 
-      const changes = await adapter.localRxDBChange().find({
+      const changes = await adapter.getRepository(RxDBChange).find({
         where: {
           combinator: 'and',
           rules: [{ field: 'entity', operator: '=', value: 'BigIntEntityContractChild' }]
@@ -371,7 +372,7 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
 
     it('records typed INSERT/UPDATE/DELETE changes through SQLite JSON1', async () => {
       const entityId = 9_007_199_254_740_993n;
-      const repository = adapter.localRxDBChange();
+      const repository = adapter.getRepository(RxDBChange);
       const findChanges = () =>
         repository.find({
           where: {
@@ -419,7 +420,7 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
       await record.save();
       next.fill(8);
 
-      const changes = await adapter.localRxDBChange().find({
+      const changes = await adapter.getRepository(RxDBChange).find({
         where: {
           combinator: 'and',
           rules: [{ field: 'entity', operator: '=', value: 'BigIntEntityContractParent' }]
@@ -462,7 +463,7 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
       await record.save();
 
       const findEntityChanges = async () => {
-        const changes = await adapter.localRxDBChange().find({
+        const changes = await adapter.getRepository(RxDBChange).find({
           where: {
             combinator: 'and',
             rules: [{ field: 'entity', operator: '=', value: 'BigIntEntityContractParent' }]
@@ -517,7 +518,7 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
       await featureRecord.save();
 
       const findEntityChanges = async () => {
-        const changes = await adapter.localRxDBChange().find({
+        const changes = await adapter.getRepository(RxDBChange).find({
           where: {
             combinator: 'and',
             rules: [{ field: 'entity', operator: '=', value: 'BigIntEntityContractParent' }]

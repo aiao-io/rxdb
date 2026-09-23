@@ -53,6 +53,7 @@ type MockAdapter = {
  */
 const switchOptions = (branchId: string): SwitchBranchOptions & { prepare: Mock<SwitchBranchOptions['prepare']> } => ({
   branchId,
+  actions: { deletes: new Map(), updates: new Map(), inserts: new Map() },
   prepare: vi.fn(async () => undefined)
 });
 

@@ -824,7 +824,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
         await todo.save();
         await rxdb.versionManager.createBranch('branch_01');
         await rxdb.versionManager.removeBranch('branch_01');
-        const branches = await adapter.localRxDBBranch().find({
+        const branches = await adapter.getRepository(RxDBBranch).find({
           where: {
             combinator: 'and',
             rules: [{ field: 'id', operator: '=', value: 'branch_01' }]
