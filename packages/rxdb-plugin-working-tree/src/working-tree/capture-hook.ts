@@ -27,6 +27,7 @@ import type {
   InterceptedBulkWrite,
   MergeChangesNext,
   RawWritePrimitives,
+  RxDBAdapterLocalBase,
   SwitchBranchOptions,
   SwitchVersionActions,
   SwitchVersionChange,
@@ -647,6 +648,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  * 正是靠这一点先问域再问系统表清单。
  */
 export const createWorkingTreeCaptureRuntime = (
+  adapter: PhysicalTableNameSource,
   entityManager: EntityManager,
   entities: readonly EntityType[],
   databaseSync: SyncOptions
@@ -654,21 +656,42 @@ export const createWorkingTreeCaptureRuntime = (
   new WorkingTreeCaptureRuntime({
     entityManager,
     domain: buildVersionedDomain(
-      entities.filter(EntityType => !isSystemEntity(EntityType)).map(toVersionedDomainEntityInput(databaseSync))
+      entities
+        .filter(EntityType => !isSystemEntity(EntityType))
+        .map(toVersionedDomainEntityInput(adapter, databaseSync))
     ),
     systemEntityNames: getSystemEntityNames(),
     systemEntityIdentities: getSystemEntityIdentities()
   });
 
 /**
+ * 建域时唯一要向适配器问的那件事：这张表在它发出的 SQL 里叫什么
+ *
+ * @remarks
+ * 收窄到一个成员而不是整个 `RxDBAdapterLocalBase`，是因为建域只读这一项——收整个适配器会让
+ * 「建域还依赖适配器的什么」变成要逐行读实现才能回答的问题。
+ *
+ * 不收一个裸的 `(metadata) => string[]`：那样任何一处都能就地塞一份自己拼的规则进来，
+ * 而这次改动的全部意义正是让规则只有一份、且归写表的那一方所有。要求**有这个方法的对象**，
+ * 生产路径上就只有适配器本身能交得出。
+ */
+type PhysicalTableNameSource = Pick<RxDBAdapterLocalBase, 'physicalTableNames'>;
+
+/**
  * 把一个实体类折成域的登记项
  *
+ * @param adapter - 物理表名的唯一出处
  * @param databaseSync - 库级同步配置；实体自身没登记 `sync` 时由它生效
  * @returns 可直接喂给 `Array.prototype.map` 的折叠函数
  * @throws RxDBError 实体解析不出生效的同步配置时
+ *
+ * @remarks
+ * 表名问适配器而不是读 `metadata.tableName`：后者是**逻辑**名，而 SQLite 家族真正建出来的是
+ * `public$post`，那也是它们唯一能用的表名。在这里只登记逻辑名的话，raw 门禁在 5/6 的后端上
+ * 整条失效，且没有报错形态。
  */
 const toVersionedDomainEntityInput =
-  (databaseSync: SyncOptions) =>
+  (adapter: PhysicalTableNameSource, databaseSync: SyncOptions) =>
   (EntityType: EntityType): VersionedDomainEntityInput => {
     const metadata = getEntityMetadata(EntityType);
     const sync = getEntitySync(EntityType, databaseSync);
@@ -676,7 +699,7 @@ const toVersionedDomainEntityInput =
     return {
       entityName: metadata.name,
       namespace: metadata.namespace,
-      tableName: metadata.tableName,
+      physicalTableNames: adapter.physicalTableNames(metadata),
       syncType: sync.type
     };
   };

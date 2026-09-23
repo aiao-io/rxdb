@@ -400,11 +400,16 @@ describe('第 5 步 — untracked_only 要对着**生产域**成立', () => {
    */
   const productionDomain = (): VersionedDomainView =>
     buildVersionedDomain([
-      { entityName: 'ConformanceNote', namespace: 'public', tableName: 'conformance_notes', syncType: SyncType.Full },
+      {
+        entityName: 'ConformanceNote',
+        namespace: 'public',
+        physicalTableNames: ['conformance_notes'],
+        syncType: SyncType.Full
+      },
       {
         entityName: 'ConformanceCache',
         namespace: 'public',
-        tableName: 'conformance_caches',
+        physicalTableNames: ['conformance_caches'],
         syncType: SyncType.QueryCache
       }
     ]);
@@ -444,7 +449,7 @@ describe('第 5 步 — untracked_only 要对着**生产域**成立', () => {
   });
 });
 
-describe('物理表名 — SQLite 家族把 schema 折进名字里（`${namespace}$${tableName}`）', () => {
+describe('物理表名 — SQLite 家族把 schema 折进名字里（适配器报 `public$conformance_notes`）', () => {
   /**
    * 两种物理表名形态，同一份逻辑表名。
    *
@@ -460,17 +465,25 @@ describe('物理表名 — SQLite 家族把 schema 折进名字里（`${namespac
    * 业务表写穿，而捕获链一无所知，冷重放从此对不上。而这条缺陷躲过了本文件此前的全部用例，
    * 只因为它们都用逻辑表名（`post`）或 PG 形态（`public.post`）提问——恰好是 1/6 的那个后端。
    *
-   * 域这边登记**全部可寻址形态**，而不是让判定去猜分隔符：判定继续只做集合成员判定，
-   * 于是 `_fts_public$conformance_notes`（FTS 影子表，spec.md 明列的 `out_of_domain`）
-   * 不会因为「切一刀 `$`」被误伤。
+   * 全部可寻址形态由**写表的那个适配器**报（`RxDBAdapterLocalBase.physicalTableNames()`），
+   * 域与判定都不猜分隔符：判定继续只做集合成员判定，于是
+   * `_fts_public$conformance_notes`（FTS 影子表，spec.md 明列的 `out_of_domain`）不会因为
+   * 「切一刀 `$`」被误伤；而域这边照抄一份折叠规则的话，原件改了它不会报错，只会开始算错。
+   *
+   * 下面这份登记就是 sqlite-core 的 `physicalTableNames()` 真实交出来的形状：逻辑名 + 折叠名。
    */
   const physicalDomain = (): VersionedDomainView =>
     buildVersionedDomain([
-      { entityName: 'ConformanceNote', namespace: 'public', tableName: 'conformance_notes', syncType: SyncType.Full },
+      {
+        entityName: 'ConformanceNote',
+        namespace: 'public',
+        physicalTableNames: ['conformance_notes', 'public$conformance_notes'],
+        syncType: SyncType.Full
+      },
       {
         entityName: 'ConformanceCache',
         namespace: 'public',
-        tableName: 'conformance_caches',
+        physicalTableNames: ['conformance_caches', 'public$conformance_caches'],
         syncType: SyncType.QueryCache
       }
     ]);

@@ -14,12 +14,10 @@ import {
   RelationKind,
   transitionMetadata
 } from '@aiao/rxdb';
-import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS } from '@aiao/rxdb-plugin-tree';
 import { isFunction } from '@aiao/utils';
 import { generateEntityDefinition } from '../generators/entity-definition.js';
 import type { IRepositoryGenerator } from '../generators/RepositoryGenerator.interface.js';
 import { RepositoryMethodsGenerator } from '../generators/RepositoryGeneratorBase.js';
-import { TreeRepositoryGenerator } from '../generators/TreeRepositoryGenerator.js';
 import { validateGeneratedOutputSymbols } from './generated-symbols.js';
 import {
   addNamedImport,
@@ -37,13 +35,11 @@ import { Project, VariableDeclarationKind } from './ts-morph-browser.js';
 export const NAMESPACE_PUBLIC = 'public' as const;
 /** 内置普通 Repository 生成器的注册名称。 */
 export const REPOSITORY_TYPE_REPOSITORY = 'Repository' as const;
-/** 内置树 Repository 生成器的注册名称。 */
+/** 树 Repository 生成器的注册名称，供插件扩展使用。 */
 export const REPOSITORY_TYPE_TREE_REPOSITORY = 'TreeRepository' as const;
 /** 图 Repository 生成器的注册名称，供插件扩展使用。 */
 export const REPOSITORY_TYPE_GRAPH_REPOSITORY = 'GraphRepository' as const;
 const ENTITY_BASE_NAME = 'EntityBase' as const;
-const TREE_ADJACENCY_LIST_BASE_NAME = 'TreeAdjacencyListEntityBase' as const;
-const TREE_ENTITY_BASE_NAME = 'TreeEntityBase' as const;
 
 /** RxDB 客户端生成器的代码形态与查询类型配置。 */
 export interface RxDBClientGeneratorOptions {
@@ -235,9 +231,7 @@ export class RxDBClientGenerator {
   private pendingProject?: Project;
 
   entityMetadataOptionsMap = new Map<string, EntityMetadataOptions[]>([
-    [ENTITY_BASE_NAME, [ENTITY_BASE_METADATA_OPTIONS]],
-    [TREE_ADJACENCY_LIST_BASE_NAME, [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]],
-    [TREE_ENTITY_BASE_NAME, [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]]
+    [ENTITY_BASE_NAME, [ENTITY_BASE_METADATA_OPTIONS]]
   ]);
   metadataOptionsSet: Set<EntityMetadataOptions> = new Set();
   metadataSet: Set<EntityMetadata> = new Set();
@@ -265,9 +259,8 @@ export class RxDBClientGenerator {
       this.config.splitFiles = options.splitFiles;
     }
 
-    // 注册内置 Repository 生成器
+    // 注册唯一的内置 Repository 生成器；树、图等扩展由插件包经 `repositoryGenerators` 装载
     this.registerRepositoryGenerator(new RepositoryMethodsGenerator());
-    this.registerRepositoryGenerator(new TreeRepositoryGenerator());
   }
 
   /**
@@ -361,6 +354,9 @@ export class RxDBClientGenerator {
    * 注册 Repository 生成器
    * 用于扩展支持自定义 Repository 类型
    *
+   * 生成器声明的 {@link IRepositoryGenerator.abstractEntityMetadata} 会一并登记为抽象元数据，
+   * 调用方不必再手写一遍 {@link registerAbstractMetadata}。
+   *
    * @param generator Repository 生成器实例
    * @example
    * ```typescript
@@ -370,6 +366,9 @@ export class RxDBClientGenerator {
    */
   registerRepositoryGenerator(generator: IRepositoryGenerator): void {
     this.repositoryGenerators.set(generator.name, generator);
+    generator.abstractEntityMetadata?.forEach((metadataOptions, abstractEntityName) => {
+      this.registerAbstractMetadata(abstractEntityName, metadataOptions);
+    });
   }
 
   /**

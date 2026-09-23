@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import type { GeneratorContext } from '../generators/RepositoryGenerator.interface.js';
 import { RepositoryGeneratorBase } from '../generators/RepositoryGeneratorBase.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
+import { GEO_ENTITY_BASE, GEO_REPOSITORY, GeoRepositoryGenerator } from './helpers/fixture-repository-generator.js';
 
 const createEntity = (name: string, overrides: Partial<EntityMetadataOptions> = {}): EntityMetadataOptions => ({
   name: name as Capitalize<string>,
@@ -206,22 +207,22 @@ describe('generated symbol collisions', () => {
     });
   });
 
-  it('rejects a tree entity colliding with the ITreeEntity declaration import', () => {
+  it('rejects a plugin entity colliding with its declared entity interface import', () => {
     const generator = new RxDBClientGenerator();
-    generator.addEntity(
-      createEntity('ITreeEntity', { repository: 'TreeRepository', extends: ['TreeAdjacencyListEntityBase'] })
-    );
+    generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
+    generator.addEntity(createEntity('IGeoEntity', { repository: GEO_REPOSITORY, extends: [GEO_ENTITY_BASE] }));
 
     expectCollision(generator, {
-      entity: 'ITreeEntity',
-      symbol: 'ITreeEntity',
-      sources: ['tree entity import "ITreeEntity"', 'entity declaration "ITreeEntity"']
+      entity: 'IGeoEntity',
+      symbol: 'IGeoEntity',
+      sources: ['entity base interface import "IGeoEntity"', 'entity declaration "IGeoEntity"']
     });
   });
 
-  it('allows a non-tree entity named ITreeEntity', () => {
+  it('allows a plain entity named after a plugin entity interface', () => {
     const generator = new RxDBClientGenerator();
-    generator.addEntity(createEntity('ITreeEntity'));
+    generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
+    generator.addEntity(createEntity('IGeoEntity'));
 
     expect(() => generator.exec()).not.toThrow();
   });

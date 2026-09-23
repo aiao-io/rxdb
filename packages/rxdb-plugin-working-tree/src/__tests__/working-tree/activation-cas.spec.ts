@@ -14,10 +14,11 @@
  *    它们要拦的是「反正事务里能读到当前分支，直接用它不就行了」这个念头——那样写
  *    校验永不失败，代价是用户在 `feature-x` 上编辑的实体被记进 `main`（spec.md 场景 5）。
  *
- * **为什么递增只收一个数字，不收整个 token。** 一次 switch 在同一个事务里先把
- * `rxdb_branch.activated` 挪到目标分支、再推进 revision；期望值里带上源分支 id 的话，
- * 落到这一步时库里的 active 分支已经是目标分支，CAS 会对着一个自己刚写下的值报冲突。
- * 分支身份那一半由写路径的 token 校验负责（本文件第三组），两者管的不是同一件事。
+ * **为什么递增只收一个数字，不收整个 token。** 这条 CAS 是一条打在激活态单例行上的
+ * `UPDATE ... WHERE revision = ?`，它能比的只有这张表自己的列；分支 id 住在 `rxdb_branch`，
+ * 要把它也纳入期望值就得先单独读一次那张表再比——而那一次比较落在 CAS 之外，
+ * 两者之间照样能插进别人的切换，于是多出来的只有「看起来比过了」。分支身份那一半
+ * 由写路径的 token 校验负责（本文件第三组），它每次现读库，管的不是同一件事。
  *
  * 与 T073（`crud-not-captured-cas.spec.ts`）的分工：那一份用的是 mock 端口，钉的是
  * 「普通写不该长出捕获型 CAS」这条签名边界；本文件用的是真场景里的真行，钉的是
@@ -28,7 +29,11 @@ import type { TransactionExecutor } from '@aiao/rxdb';
 import { getEntityColumnName, getEntityMetadata, quoteSqlIdentifier, RxDBBranch } from '@aiao/rxdb';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
-import { bumpActivationRevision, type ActivationBumpOutcome } from '../../working-tree/activation-cas.js';
+import {
+  advanceActivationRevision,
+  bumpActivationRevision,
+  type ActivationBumpOutcome
+} from '../../working-tree/activation-cas.js';
 import { createWorkingTreeCapturePort, readActiveBranchToken } from '../../working-tree/capture-runtime.js';
 import type { CommitConflict } from '../../working-tree/commit-conflict.js';
 import {
@@ -361,5 +366,67 @@ describe('递增的入参只有捕获到的那个数字', () => {
 
   it('第一个参数是调用方那个事务的执行器——它不自己开事务', () => {
     expectTypeOf(bumpActivationRevision).parameter(0).toEqualTypeOf<TransactionExecutor>();
+  });
+});
+
+/**
+ * 每一次真正发生的切换都要推进这一列，与调用方有没有提 `expectedActivationRevision` 无关。
+ *
+ * @remarks
+ * 这一支与 {@link bumpActivationRevision} 管的不是同一件事，所以它**不是** CAS：
+ * 它跑在切换事务内部、跑在前置校验刚判完之后，此刻「期望值」只能由它自己读出来——
+ * 而自读的期望值恒等于当前值，CAS 于是永远命中（本文件第一组第三条同一个理由）。
+ * 仲裁由外面那个独占事务做掉了，这里剩下的只有「把号推上去」。
+ *
+ * 四条断言各挡一种会让 `A → B → A` 之后旧凭据复活的退化：
+ *
+ * 1. **推进被写成赋一个具体的数。** 那个数只能来自一次自读，于是两条并发切换会写下同一个号。
+ * 2. **WHERE 里多钉了 revision。** 那就退回成 CAS，而它的期望值是自读的——
+ *    真出现并发时后到的那条会静默地什么都没改，`rowsAffected = 0` 被当成「没事」。
+ * 3. **先读一遍再写回。** 多一次往返只是代价，真正的问题是读到的值迟早会被「顺手」用上。
+ * 4. **那一行不见了却走过去。** 激活态是单例行，它不在意味着装载期没跑完；
+ *    静默放行等于让接下来整条切换在一个没有仲裁位的库上完成。
+ */
+describe('每一次切换都无条件推进 activation revision（FR-020）', () => {
+  it('发出的是一条 UPDATE，把 revision 就地 +1，而不是赋一个自读来的数', async () => {
+    const scene = sceneFor(1);
+
+    await advanceActivationRevision(scene.probe.executor);
+
+    const revision = activationColumn('activationRevision');
+    const updates = activationUpdatesOf(scene);
+    expect(updates).toHaveLength(1);
+    expect(setClauseOf(updates[0] ?? '')).toContain(`${revision} = ${revision} + 1`);
+  });
+
+  it('WHERE 只钉常量主键——它不是 CAS，仲裁由同一个事务里的前置校验做掉了', async () => {
+    const scene = sceneFor(1);
+
+    await advanceActivationRevision(scene.probe.executor);
+
+    const where = whereClauseOf(activationUpdatesOf(scene)[0] ?? '');
+    expect({
+      pinsId: where.includes(`${activationColumn('id')} = '${WORKING_TREE_ACTIVATION_STATE_ID}'`),
+      pinsRevision: where.includes(activationColumn('activationRevision'))
+    }).toEqual({ pinsId: true, pinsRevision: false });
+  });
+
+  it('不先读一遍再写回：整条路径上一次都没读过激活态那张表', async () => {
+    const scene = sceneFor(1);
+
+    await advanceActivationRevision(scene.probe.executor);
+
+    expect(activationFindCountOf(scene)).toBe(0);
+  });
+
+  it('单例行不在时当场抛，不静默走过去', async () => {
+    const scene = sceneFor(0);
+
+    // 放行等于让接下来整条切换在一个没有仲裁位的库上完成，而 `status()` 照样报「已校验」。
+    await expect(advanceActivationRevision(scene.probe.executor)).rejects.toThrow();
+  });
+
+  it('入参只有执行器：它没有「期望值」这个概念', () => {
+    expectTypeOf(advanceActivationRevision).parameters.toEqualTypeOf<[TransactionExecutor]>();
   });
 });

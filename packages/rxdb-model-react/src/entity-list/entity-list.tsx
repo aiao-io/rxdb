@@ -1098,7 +1098,6 @@ function FilterPopover({
               ref={contentRef}
               className='border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg'
               onClick={event => event.stopPropagation()}
-              aria-hidden='true'
             >
               <QueryBuilder
                 fields={fields}

@@ -19,7 +19,7 @@
 
 import type { EntityManager } from './entity/entity-manager.js';
 import type { EntityType } from './entity/entity.interface.js';
-import type { RxDBAdapterLocalBase } from './rxdb-adapter.js';
+import type { RxDBAdapterLocalBase, SwitchBranchOptions } from './rxdb-adapter.js';
 import type { MigrationType } from './rxdb.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
@@ -91,7 +91,7 @@ export interface RxDBBranchRemovalContext {
  *
  * @remarks
  * **字段的形状在核心，字段的含义在能力插件。** 核心一个字段都不读，原样转交
- * {@link RxDBSystemContribution.assertBranchSwitchable}——`requireClean` 的判据是
+ * {@link RxDBSystemContribution.prepareBranchSwitch}——`requireClean` 的判据是
  * `WorkingTreeState.entryCount`、`expectedActivationRevision` 的判据是工作树的激活行，
  * 两张表都由 `@aiao/rxdb-plugin-working-tree` 贡献，核心不认识它们。这与
  * {@link RxDBSystemContribution.version} 是同一个分工：核心搬运，插件解释。
@@ -114,10 +114,16 @@ export type RxDBBranchSwitchPreconditions = {
 };
 
 /**
- * {@link RxDBSystemContribution.assertBranchSwitchable} 拿到的上下文
+ * {@link RxDBSystemContribution.prepareBranchSwitch} 拿到的上下文
  */
 export interface RxDBBranchSwitchContext {
-  /** 校验所在的事务执行器；这个事务**只读**，一行都不许写 */
+  /**
+   * **切换事务本身**的执行器
+   *
+   * @remarks
+   * 这里读到的与写下的，跟接下来那次切换同生共死：抛出即整次回滚，不会留下半棵切过去的工作树。
+   * 能写并不意味着该写——见 {@link RxDBSystemContribution.prepareBranchSwitch}。
+   */
   readonly executor: TransactionExecutor;
 
   /** 当前分支 id；一条 active 分支都没有时为 `null` */
@@ -149,9 +155,10 @@ export interface RxDBBranchSwitchContext {
  * - {@link RxDBSystemContribution.removeBranchRows} 漏接 → 分支删了、贡献行留着，而留下来的行
  *   按 id 挂靠，同名重建之后会被新分支**逐字命中**——一条刚建出来的分支于是带着上一条的
  *   HEAD、上一条的未提交条目、上一条崩在半路的物化现场；
- * - {@link RxDBSystemContribution.assertBranchSwitchable} 漏接 → `switchBranch()` 收下了调用方的
+ * - {@link RxDBSystemContribution.prepareBranchSwitch} 漏接 → `switchBranch()` 收下了调用方的
  *   前置条件却没人校验，**一条错误都不会有**：用户显式要求「工作树不干净就别切」，切换照样
- *   发生，而那正是他刚刚说要避免的事。
+ *   发生，而那正是他刚刚说要避免的事；随切换而来的那些行（激活代际 +1）也一并不落，
+ *   于是 `main → feature → main` 走一个来回之后，走之前捕获的凭据仍然验得过。
  *
  * 七个都是**必填**，没有一个带 `?`。没有可写之物的贡献方写一个空实现——那是一句
  * 「我确实不需要」的明示，而 `?` 让「不需要」与「忘了」变成同一种东西。
@@ -264,26 +271,34 @@ export interface RxDBSystemContribution {
   removeBranchRows(context: RxDBBranchRemovalContext): Promise<void>;
 
   /**
-   * 每次切分支前，在**调用方开的只读事务里**校验本能力的前置条件
+   * 在**切换事务内部**校验本能力的前置条件，并落下本能力在一次切换中该落的行
    *
-   * @param context - 只读执行器、当前/目标分支 id，以及调用方提出的前置条件
-   * @returns 校验通过；没有前置条件要查的贡献方返回一个已决 promise
-   * @throws 任何前置条件不成立；抛出即中止本次切换
+   * @param context - 切换事务的执行器、当前/目标分支 id，以及调用方提出的前置条件
+   * @returns 做完；没有前置条件要查、也没有行要落的贡献方返回一个已决 promise
+   * @throws 任何前置条件不成立；抛出即回滚整次切换
    *
    * @remarks
-   * 排在 `adapter.switchBranch()` **之前**，而不是包在它的事务里：那次调用内部自带事务
-   * （见各适配器 `version/switch_branch.ts`），把校验塞进去要么得让六个适配器各开一个口子，
-   * 要么得把「切换」拆成两个事务——而拆开之后，中间失败留下的是半棵切过去的工作树。
-   * 排在前面的代价是一个「校验通过到真正切换」之间的窗口，那个窗口由
-   * `expectedActivationRevision` 这类 CAS 字段自己兜住，不由事务边界兜。
+   * **跑在 `adapter.switchBranch()` 的写事务里**，由适配器经
+   * {@link SwitchBranchOptions.prepare} 在解析出目标分支之后、动第一行之前回调，
+   * 每次切换恰好一次。
    *
-   * 拿到的执行器**只读**。这不是建议：调用方为它传的是 `transactionLog = false`，
-   * 在这里写下的行不会进事务日志，于是那些写入对同步与 undo 双双不可见。
+   * 它曾经排在那次调用**之前**、自己开一个只读事务，理由写的是「塞进去要让每个适配器各开一个
+   * 口子」。那个理由不成立：真正实现 SQL 切换的只有 `rxdb-adapter-pglite` 与
+   * `rxdb-adapter-sqlite-core` 两处（sqlite 家族的五个后端共用后者），开的是两个口子，
+   * 而且开的方式是入参上多一个必填回调，不是每个适配器各写一遍校验。
+   * 代价那一侧则被低估了：两个事务之间有一个窗口，校验说「干净」，窗口里的一次写让它变脏，
+   * 切换照样完成。当时写着这个窗口「由 `expectedActivationRevision` 这类 CAS 字段自己兜住」——
+   * 而那个字段恰恰也是在只读事务里比的，它不是 CAS，只是一次读后比较，兜不住任何东西。
    *
-   * 名字不叫 `canSwitchBranch`：`can*` 读起来像返回 `boolean`，而「不能切」的原因
+   * 拿到的执行器**可写**，写下的行与这次切换同生共死。能写并不意味着该写：这里该落的只有
+   * 「一次切换本身必然带来的那些行」（例如激活代际 +1），业务数据不在此列。
+   *
+   * 名字里是 `prepare` 而不是 `assert`：它的职责从「只判断」扩成了「判断 + 落下随切换而来的行」，
+   * 而 `assert*` 读起来像一个不留痕迹的检查，会让下一个人把那一次写挪出去。
+   * 也不叫 `canSwitchBranch`：`can*` 读起来像返回 `boolean`，而「不能切」的原因
    * 必须能带着分支 id、条目数、expected/actual revision 一起报给用户——那只有异常带得动。
    */
-  assertBranchSwitchable(context: RxDBBranchSwitchContext): Promise<void>;
+  prepareBranchSwitch(context: RxDBBranchSwitchContext): Promise<void>;
 }
 
 /**

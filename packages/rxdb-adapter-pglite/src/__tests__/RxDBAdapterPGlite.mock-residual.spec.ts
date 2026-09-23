@@ -83,6 +83,7 @@ vi.mock('../version/switch_branch.js', () => ({
 }));
 
 import type { RxDB } from '@aiao/rxdb';
+import { SKIP_BRANCH_SWITCH_PREPARE } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { PGliteChangeEvent, PGliteChangeType } from '../pglite.interface.js';
 
@@ -131,7 +132,9 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
     expect(state.createBranch).toHaveBeenCalled();
 
     // switchBranch 也会通过非 PGliteClient 的 drain 路径刷新。
-    await expect(adapter.switchBranch({ branchId: 'main' } as never)).resolves.toBeUndefined();
+    await expect(
+      adapter.switchBranch({ branchId: 'main', prepare: SKIP_BRANCH_SWITCH_PREPARE })
+    ).resolves.toBeUndefined();
     expect(state.switchBranch).toHaveBeenCalled();
   });
 
@@ -148,7 +151,7 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
       await Promise.resolve();
     });
 
-    await adapter.switchBranch({ branchId: 'main' } as never);
+    await adapter.switchBranch({ branchId: 'main', prepare: SKIP_BRANCH_SWITCH_PREPARE });
     expect(state.handleRxdbChange).not.toHaveBeenCalled();
     expect(state.switchBranch).toHaveBeenCalled();
   });

@@ -47,6 +47,65 @@ import { RxDBBranch } from './branch.js';
 export const ACTIVE_BRANCH_KEY = '*active*';
 
 /**
+ * 分支 id 里被保留、因而一律不许出现的字符。
+ *
+ * @remarks
+ * {@link ACTIVE_BRANCH_KEY} 的安全性建立在「分支 id 里不会出现 `*`」之上。这句话在
+ * 加校验之前**只是注释**：创建与导入路径没有任何一处兑现它，一条名叫 `*active*`
+ * 的用户分支能直接写进 `id` 列，再由 `activeKey` 的唯一约束把两件毫不相干的事
+ * 撞在一起——错误信息会指向唯一约束，而真正的原因在几百行外的哨兵形状上。
+ *
+ * 禁的是**字符**不是那一个值：只拒 `'*active*'` 的话，`'*active'` / `'active*'`
+ * 照样进得来，它们撞不上唯一约束，但会让任何按「带不带 `*`」区分哨兵与用户数据的
+ * 读者（含两个后端 `switch_branch` 里对 `activeKey` 的裸 SQL 比较）读出两种答案。
+ */
+const RESERVED_BRANCH_ID_CHAR = '*';
+
+/**
+ * 分支 id 不可用时抛出。
+ *
+ * @remarks
+ * 独立错误类型而不是裸 {@link RxDBError}：调用方要能把「这个名字不能用」与
+ * 「这个名字已经被占了」分开处理——前者改名就行，后者得先问清楚占用它的是谁。
+ */
+export class InvalidBranchIdError extends RxDBError {
+  constructor(
+    /** 被拒的分支 id，原样带上 */
+    readonly branchId: string,
+    reason: string
+  ) {
+    super(`Branch id (${branchId}) is not usable: ${reason}`);
+    this.name = 'InvalidBranchIdError';
+    // `RxDBError` 的构造器把原型钉回 `RxDBError.prototype`，子类必须在自己这边钉回来，
+    // 否则 `instanceof InvalidBranchIdError` 恒为 false。同文件另两个错误类同此手法。
+    Object.setPrototypeOf(this, InvalidBranchIdError.prototype);
+  }
+}
+
+/**
+ * 校验分支 id 可用，不可用即抛。
+ *
+ * @param branchId - 待校验的分支 id
+ *
+ * @throws {@link InvalidBranchIdError} id 为空 / 纯空白 / 含保留字符 `*` 时
+ *
+ * @remarks
+ * 放在哨兵常量**同一个文件**里，是因为它兑现的正是 {@link ACTIVE_BRANCH_KEY} 那段
+ * TSDoc 立下的承诺。拆到 `version/create-branch.ts` 之类的调用点旁边，改哨兵形状的人
+ * 就看不到这条规则了，而那恰恰是唯一需要同步改的时刻。
+ *
+ * 校验点是**创建与导入边界**，不是每次读写：id 一旦落库就不再变，在读路径上重复校验
+ * 只会把「历史遗留的坏数据」变成「整个库打不开」。已经躺在库里的坏 id 由
+ * {@link assertSingleActiveBranch} 那条基数不变量兜底。
+ */
+export const assertUsableBranchId = (branchId: string): void => {
+  if (branchId.trim().length === 0) throw new InvalidBranchIdError(branchId, 'id 不能为空或纯空白');
+  if (branchId.includes(RESERVED_BRANCH_ID_CHAR)) {
+    throw new InvalidBranchIdError(branchId, `'${RESERVED_BRANCH_ID_CHAR}' 是 active 哨兵保留字符`);
+  }
+};
+
+/**
  * 零 active 时的恢复目标分支 id。
  *
  * @remarks

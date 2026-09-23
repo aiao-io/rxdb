@@ -38,6 +38,7 @@
 
 import type {
   EntityManager,
+  EntityMetadata,
   EntityType,
   IRxDBChange,
   MergeChangesNext,
@@ -62,6 +63,7 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBError,
+  SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
   TrustedWriteIntent
 } from '@aiao/rxdb';
@@ -111,8 +113,8 @@ const entityManager = createEntityManager();
  * 对不上的布景等于在测一个生产里不存在的形态，还会把命名空间限定的判定测成永远不命中。
  */
 const DOMAIN = buildVersionedDomain([
-  { entityName: 'Post', namespace: 'app', tableName: 'post', syncType: SyncType.Full },
-  { entityName: 'ProductCache', namespace: 'app', tableName: 'productcache', syncType: SyncType.QueryCache }
+  { entityName: 'Post', namespace: 'app', physicalTableNames: ['post'], syncType: SyncType.Full },
+  { entityName: 'ProductCache', namespace: 'app', physicalTableNames: ['productcache'], syncType: SyncType.QueryCache }
 ]);
 
 /** 一条 `rxdb_change` 行的可变部分；其余列捕获用不上。 */
@@ -606,7 +608,10 @@ describe('挂载点 2：本地 mergeChanges —— 捕获源是 actions', () => 
 describe('挂载点 3：switchBranch —— 拒绝在 next() 之前', () => {
   const options = (): SwitchBranchOptions => ({
     branchId: BRANCH_ID,
-    actions: actionsOf({ updates: [['app:Post:p1', titleChange()]] })
+    actions: actionsOf({ updates: [['app:Post:p1', titleChange()]] }),
+    // 本组测的是捕获运行时的拒绝顺序，`next()` 都是替身、根本不解析分支，
+    // 更不会走到前置校验；豁免在这里是「确实没有」，不是漏传。
+    prepare: SKIP_BRANCH_SWITCH_PREPARE
   });
 
   it('从未 bindMountTarget 时没有作用域可查，一律拒绝', async () => {
@@ -775,11 +780,30 @@ class CaptureRuntimeCache extends EntityBase {
   payload!: string;
 }
 
+/**
+ * 建域时的物理表名出处，形状与真适配器上的那个成员逐字相同。
+ *
+ * @remarks
+ * 不折叠命名空间的后端（PGlite）交的就是这一份——逻辑名本身。
+ */
+const logicalOnlyAdapter = {
+  physicalTableNames: (metadata: EntityMetadata): readonly string[] => [metadata.tableName]
+};
+
+/** 折叠命名空间的后端（SQLite 家族）交出来的形状：逻辑名 + `public$post`。 */
+const namespaceFoldingAdapter = {
+  physicalTableNames: (metadata: EntityMetadata): readonly string[] => [
+    metadata.tableName,
+    `${metadata.namespace}$${metadata.tableName}`
+  ]
+};
+
 describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
   const databaseSync: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
 
   it('实体自身的 sync 优先于库级：QueryCache 实体被判成 untracked，其余继承库级', () => {
     const runtime = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
       entityManager,
       [CaptureRuntimePost, CaptureRuntimeCache],
       databaseSync
@@ -791,11 +815,42 @@ describe('createWorkingTreeCaptureRuntime —— 按实体登记造域', () => {
     expect(runtime.domain.classifyEntity('CaptureRuntimeCache')).toBe('untracked');
   });
 
+  it('版本化表名来自适配器，不是 `metadata.tableName`', async () => {
+    // SQLite 家族真正建出来的表叫 `public$captureruntimepost`，那也是它们**唯一**能用的表名。
+    // 域自己按 `'$'` 重拼一份的话，拼法一改它不会报错，只会开始认不出这张表，
+    // 于是 raw 门禁对一条绕过捕获的写静默放行。
+    const folded = createWorkingTreeCaptureRuntime(
+      namespaceFoldingAdapter,
+      entityManager,
+      [CaptureRuntimePost],
+      databaseSync
+    );
+    const logical = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
+      entityManager,
+      [CaptureRuntimePost],
+      databaseSync
+    );
+    const physical = `public$${getEntityMetadata(CaptureRuntimePost).tableName}`.toLowerCase();
+
+    expect(folded.domain.versionedTables.has(physical)).toBe(true);
+    // 对照组：不折叠的后端上，同一个名字**不该**在域里——多认一个名字在这里不是保守，
+    // 而是让「某个后端到底叫什么」这件事重新变成域的猜测。
+    expect(logical.domain.versionedTables.has(physical)).toBe(false);
+
+    await expect(folded.gateRawWrite(`UPDATE "${physical}" SET title = 'x'`, () => 'executed')).rejects.toThrow();
+  });
+
   it('解析不出生效的同步配置时抛，不按「不是 QueryCache」继续', () => {
     // 正常构造下走不到：`RxDBConfig.sync` 是必填的。真走到了说明配置形状已经不是这里以为的样子，
     // 此时静默按 Full 继续，只会把一张缓存表悄悄纳入版本化。
     expect(() =>
-      createWorkingTreeCaptureRuntime(entityManager, [CaptureRuntimePost], undefined as unknown as SyncOptions)
+      createWorkingTreeCaptureRuntime(
+        logicalOnlyAdapter,
+        entityManager,
+        [CaptureRuntimePost],
+        undefined as unknown as SyncOptions
+      )
     ).toThrow(RxDBError);
   });
 });
@@ -820,7 +875,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
   const databaseSync: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
 
   it('业务实体撞上系统表名仍然是 versioned —— 带不带命名空间都一样', () => {
-    const runtime = createWorkingTreeCaptureRuntime(entityManager, [BusinessCommit], databaseSync);
+    const runtime = createWorkingTreeCaptureRuntime(logicalOnlyAdapter, entityManager, [BusinessCommit], databaseSync);
 
     expect(runtime.targetClassOf('Commit', 'public')).toBe('versioned');
     // 挂载点 4（`upsertMany` / `deleteByIds`）手上只有实体名。裸名这条路也必须先问域：
@@ -836,6 +891,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
     // 不摘出去的话，`rxdb_working_tree_entry` 这类表会落进 `versionedTables`，
     // 于是 raw 五步门禁把库自己的簿记写拦成第 4 步——与其余 4 个挂载点的判定正相反。
     const runtime = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
       entityManager,
       [CaptureRuntimePost, WorkingTreeEntry, WorkingTreeState],
       databaseSync
@@ -849,6 +905,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
 
   it('raw 写系统表在第 5 步放行，不被第 4 步拦下', async () => {
     const runtime = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
       entityManager,
       [CaptureRuntimePost, WorkingTreeEntry],
       databaseSync
@@ -865,7 +922,12 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
   });
 
   it('域不认得的名字才回落到系统身份，系统表照旧放行', () => {
-    const runtime = createWorkingTreeCaptureRuntime(entityManager, [CaptureRuntimePost], databaseSync);
+    const runtime = createWorkingTreeCaptureRuntime(
+      logicalOnlyAdapter,
+      entityManager,
+      [CaptureRuntimePost],
+      databaseSync
+    );
 
     expect(runtime.targetClassOf('WorkingTreeEntry')).toBe('system');
     expect(runtime.targetClassOf('WorkingTreeEntry', 'rxdb')).toBe('system');

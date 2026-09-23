@@ -210,6 +210,10 @@
         "kind": "value"
       },
       {
+        "name": "createWorkingTreeCaptureBatch",
+        "kind": "value"
+      },
+      {
         "name": "createWorkingTreeCapturePort",
         "kind": "value"
       },
@@ -346,6 +350,10 @@
         "kind": "value"
       },
       {
+        "name": "readBranchEntries",
+        "kind": "value"
+      },
+      {
         "name": "readCommitChangeSetPage",
         "kind": "value"
       },
@@ -468,6 +476,10 @@
       {
         "name": "WorkingTreeCapabilityDisabledError",
         "kind": "both"
+      },
+      {
+        "name": "WorkingTreeCaptureBatch",
+        "kind": "type"
       },
       {
         "name": "WorkingTreeCaptureHost",
@@ -688,6 +700,54 @@
         "kind": "both"
       },
       {
+        "name": "createWorkingTreeHookStubs",
+        "kind": "value"
+      },
+      {
+        "name": "CREDENTIALS",
+        "kind": "value"
+      },
+      {
+        "name": "deferred",
+        "kind": "value"
+      },
+      {
+        "name": "Deferred",
+        "kind": "type"
+      },
+      {
+        "name": "diffWith",
+        "kind": "value"
+      },
+      {
+        "name": "logWith",
+        "kind": "value"
+      },
+      {
+        "name": "REJECTED_RESTORES",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORE_OK",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORE_TARGET",
+        "kind": "value"
+      },
+      {
+        "name": "sessionWith",
+        "kind": "value"
+      },
+      {
+        "name": "statusWith",
+        "kind": "value"
+      },
+      {
+        "name": "VersionManagerStub",
+        "kind": "type"
+      },
+      {
         "name": "WORKING_TREE_CONFORMANCE_ENTITIES",
         "kind": "value"
       },
@@ -713,6 +773,14 @@
       },
       {
         "name": "WorkingTreeConformanceSuiteContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeHookStubs",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeManagerStub",
         "kind": "type"
       }
     ]

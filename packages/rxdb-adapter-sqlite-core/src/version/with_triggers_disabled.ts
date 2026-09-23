@@ -1,8 +1,7 @@
-import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
-import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
+import { readCurrentBranchId as readCurrentBranchIdWith } from './read_current_branch_id.js';
 import { generateSwitchBranchSql } from './switch_branch.js';
 
 /**
@@ -21,38 +20,25 @@ export type SqlExecutor = {
  *
  * @param tx - 当前事务的执行器
  * @returns 当前活跃分支 id
- * @throws {@link RxDBAdapterSqliteError} 读不到任何分支时抛出，让事务回滚
+ * @throws {@link RxDBAdapterSqliteError} 元数据缺列或读不到任何分支时抛出，让事务回滚
  *
  * @remarks
  * **不能**走 `versionManager.getCurrentBranch()`：
  * C2 下仓库读写经真实适配器会重新入队（并发度 1）。`pullRepository` 在外层
  * `adapter.transaction` 里调 `executor.mergeChanges(..., disableTriggers=true)` 时，
  * 队列槽位仍被外层事务占用；再入队读分支会排在自己身后永久挂起。
- * 这里经当前事务 executor 直发 SQL，与 `RxDBAdapterSqliteBase.#readCurrentBranchId` 同口径。
+ * 这里经当前事务 executor 直发 SQL。
+ *
+ * 判定本身在 `read_current_branch_id.ts`，本函数只把 `execute` 的结果形状
+ * （包在 `results[0]` 里）摊成那一份要的扁平形状：两份各写一遍的时候，`?? 'id'` 兜底的
+ * 那次删除只落在了其中一份上。
  */
-export async function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
-  const metadata = getEntityMetadata(RxDBBranch);
-  const table = quote_sql_identifier(get_table_name_by_metadata(metadata));
-  const idColumnName = metadata.propertyMap?.get('id')?.columnName ?? 'id';
-  const activatedColumnName = metadata.propertyMap?.get('activated')?.columnName ?? 'activated';
-  const idColumn = quote_sql_identifier(idColumnName);
-  const activatedColumn = quote_sql_identifier(activatedColumnName);
-
-  const readId = async (whereSql: string, params: SQLiteCompatibleType[]): Promise<string | undefined> => {
-    const result = await tx.execute(`SELECT ${idColumn} FROM ${table} WHERE ${whereSql} LIMIT 1;`, params);
-    const columns = result.results[0]?.columns ?? [];
-    const rows = result.results[0]?.rows ?? [];
-    const columnIndex = Math.max(0, columns.indexOf(idColumnName));
-    const value = rows[0]?.[columnIndex];
-    return typeof value === 'string' ? value : undefined;
-  };
-
-  const branchId = (await readId(`${activatedColumn} = ?`, [1])) ?? (await readId(`${idColumn} = ?`, ['main']));
-  // 读不到分支就无法重建触发器；此时必须让事务回滚，否则会提交一个永久没有触发器的库。
-  if (branchId === undefined) {
-    throw new RxDBAdapterSqliteError('currentBranch is undefined! Cannot rebuild triggers after disableTriggers.');
-  }
-  return branchId;
+export function readCurrentBranchId(tx: SqlExecutor): Promise<string> {
+  return readCurrentBranchIdWith(async (sql, params) => {
+    const result = await tx.execute(sql, params);
+    const first = result.results[0];
+    return { columns: first?.columns ?? [], rows: first?.rows ?? [] };
+  });
 }
 
 /**

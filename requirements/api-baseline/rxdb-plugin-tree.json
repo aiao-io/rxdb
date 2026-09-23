@@ -85,6 +85,12 @@
         "name": "TreeRepository",
         "kind": "both"
       }
+    ],
+    "./generator": [
+      {
+        "name": "TreeRepositoryGenerator",
+        "kind": "both"
+      }
     ]
   }
 }

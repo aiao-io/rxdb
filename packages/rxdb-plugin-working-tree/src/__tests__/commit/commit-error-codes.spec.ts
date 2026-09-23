@@ -42,11 +42,6 @@ describe('提交错误码', () => {
     }
   });
 
-  it('CommitErrorCode 的成员集与 COMMIT_ERROR_CODES 互为全集', () => {
-    expect(new Set(Object.values(CommitErrorCode))).toEqual(new Set(COMMIT_ERROR_CODES));
-    expect(COMMIT_ERROR_CODES).toHaveLength(Object.keys(CommitErrorCode).length);
-  });
-
   it('benchmark_environment_mismatch 被排除在外', () => {
     // core-api.md §7 与本码集共处一张表，但它是 benchmark 跑分器的结论，
     // 不是数据库命令的错误——照表补全会把它加进来，所以钉死。

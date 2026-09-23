@@ -156,6 +156,25 @@ describe('T064 适配器 raw 写判定上下文', () => {
     expect(receivedExecute, '核心把执行器包了一层再转交').toBe(execute);
   });
 
+  it('启用态上下文是按运行时缓存的同一个对象，不是每次取值新建', () => {
+    // 这个取值器在**每一条 raw 语句**上被调用（六个适配器的 `rawQuery` 都要先取它）。
+    // 每次新建意味着每条语句多分配一个对象加一个闭包，而它不持有任何 per-call 状态。
+    // 用身份相等钉住：换成每次新建时这一条立刻红。
+    const adapter = new WiringAdapter();
+    adapter.setWorkingTreeCaptureHook(hookStub(domainStub()));
+    expect(adapter.workingTreeRawWriteContext).toBe(adapter.workingTreeRawWriteContext);
+  });
+
+  it('换一个运行时就换一个上下文，旧上下文不会被继续交出去', () => {
+    // 缓存的代价是失效点：装第二个运行时之后仍交出绑着第一个的闭包，raw 写就判到了
+    // 已经卸下的那份域清单上，而症状是静默放行。
+    const adapter = new WiringAdapter();
+    adapter.setWorkingTreeCaptureHook(hookStub(domainStub()));
+    const first = adapter.workingTreeRawWriteContext;
+    adapter.setWorkingTreeCaptureHook(hookStub(domainStub()));
+    expect(adapter.workingTreeRawWriteContext).not.toBe(first);
+  });
+
   it('卸下捕获运行时后退回未启用形态', () => {
     const adapter = new WiringAdapter();
     adapter.setWorkingTreeCaptureHook(hookStub(domainStub()));

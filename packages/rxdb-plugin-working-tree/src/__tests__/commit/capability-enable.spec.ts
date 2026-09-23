@@ -94,6 +94,73 @@ interface CapabilityProbe {
   readonly patches: Partial<CommitCapabilityState>[];
 }
 
+/** 替身认得的规则形状：单列 `field <op> value`，不含嵌套条件组。 */
+interface CapabilityRule {
+  readonly field: string;
+  readonly operator: string;
+  readonly value: unknown;
+}
+
+/** 替身认得的条件组形状：一层 combinator 串起若干规则。 */
+interface CapabilityWhere {
+  readonly combinator: string;
+  readonly rules: readonly unknown[];
+}
+
+const isObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
+
+/**
+ * `where` 是不是「一层条件组」
+ *
+ * @param where - `FindOptions.where`，派生静态类型把它放宽成了 `object`
+ * @returns 带 `combinator` 与 `rules` 数组时为 `true`
+ *
+ * @remarks
+ * `EntityStaticType<T, 'findOptions'>` 在未声明生成类型的实体上把 `where` 派生成 `object`
+ * （见 `entity.interface.ts` 的 `DerivedEntityStaticType`），编译期拿不到 `RuleGroup` 的字段。
+ * 替身要真读条件就只能在运行期认形状——认不出来就抛，不猜。
+ */
+const isCapabilityWhere = (where: object): where is CapabilityWhere =>
+  typeof Reflect.get(where, 'combinator') === 'string' && Array.isArray(Reflect.get(where, 'rules'));
+
+/**
+ * 一条 `rules` 元素是不是单列规则（而非嵌套条件组）
+ *
+ * @param rule - `where.rules` 里的一项
+ * @returns 带字符串 `field` 与字符串 `operator` 时为 `true`
+ */
+const isCapabilityRule = (rule: unknown): rule is CapabilityRule =>
+  isObject(rule) && typeof Reflect.get(rule, 'field') === 'string' && typeof Reflect.get(rule, 'operator') === 'string';
+
+/**
+ * 判定一次 `find()` 的 `where` 是否选中了替身手里那一行
+ *
+ * @param row - 替身手里的能力行
+ * @param options - 生产代码传进来的查询选项
+ * @returns `where` 的全部规则都命中该行时为 `true`
+ *
+ * @remarks
+ * **替身必须真读 `where`。** 无视条件恒返回种子行的话，读路径把 `field` 写成别的列、把
+ * `'='` 写成别的操作符、甚至丢掉整个 `where`，本文件全绿——只有真后端才会炸，而这张表的
+ * 读法正是能力位判定的第一步。
+ *
+ * 只认 `and` + `=`：这张表的唯一读法就是按主键取一行。出现别的形状直接抛，不按「尽力而为」
+ * 放过去——替身悄悄支持了一种生产从不使用的查询形状，等于把「读法变了」这件事藏起来。
+ */
+function matchesCapabilityRow(
+  row: CommitCapabilityState,
+  options: Parameters<IRepository<EntityType>['find']>[0]
+): boolean {
+  const { where } = options;
+  if (!isCapabilityWhere(where)) throw new Error('能力行的读法必须带条件组：无条件取表会在多行时取到任意一行。');
+  if (where.combinator !== 'and') throw new Error(`能力行的读法只用 and，收到 ${where.combinator}。`);
+  return where.rules.every(rule => {
+    if (!isCapabilityRule(rule)) throw new Error('能力行的读法不含嵌套条件组。');
+    if (rule.operator !== '=') throw new Error(`能力行的读法只用 '='，收到 ${rule.operator}。`);
+    return Reflect.get(row, rule.field) === rule.value;
+  });
+}
+
 /**
  * 最小 {@link TransactionExecutor} 替身：只模拟能力行这一张表。
  *
@@ -108,7 +175,7 @@ function createCapabilityProbe(row: CommitCapabilityState | null): CapabilityPro
   const statements: string[] = [];
   const patches: Partial<CommitCapabilityState>[] = [];
   const repository: IRepository<EntityType> = {
-    find: vi.fn(async () => (row ? [row as InstanceType<EntityType>] : [])),
+    find: vi.fn(async options => (row && matchesCapabilityRow(row, options) ? [row as InstanceType<EntityType>] : [])),
     count: vi.fn(async () => (row ? 1 : 0)),
     create: vi.fn(async entity => entity),
     update: vi.fn(async (entity, patch) => {

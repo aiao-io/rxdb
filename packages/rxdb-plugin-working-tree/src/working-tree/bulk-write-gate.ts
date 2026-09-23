@@ -14,10 +14,22 @@
  * 的话，六个适配器里少写一次、写晚一次都没有任何东西能发现。
  */
 
+import type { InterceptedBulkWrite } from '@aiao/rxdb';
 import { classifyWriteEntrance, WorkingTreeWriteRejectedError, type WriteTargetClass } from './write-entry-matrix.js';
 
-/** 受门禁约束的两个 adapter 公开批量写方法。 */
-export type BulkWriteOperation = 'upsert_many' | 'delete_by_ids';
+/**
+ * 受门禁约束的两个 adapter 公开批量写方法。
+ *
+ * @remarks
+ * **是核心 {@link InterceptedBulkWrite} 的别名，不是第二份声明。** 这个集合随**核心的写原语**变
+ * （多一个批量写方法就多一个挂载点），按 `capture/index.ts` 立的那条线它归核心；插件这边只是把
+ * 同一个集合换个本地名字用。
+ *
+ * 各写一遍的形态下，核心加第三个操作**不会有任何编译错误**——插件的副本照旧只有两项，门禁于是
+ * 对新方法一律按「不认识」处理，敞口静默出现。改成别名之后，本文件下方三张 `Record<…>` 查找表
+ * 的穷尽性检查会当场变红，漏改改不过去。
+ */
+export type BulkWriteOperation = InterceptedBulkWrite;
 
 /**
  * 一次批量写的判定输入

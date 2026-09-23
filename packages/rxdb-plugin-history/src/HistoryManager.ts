@@ -9,6 +9,7 @@ import {
   RxDB,
   RxDBBranch,
   RxDBChange,
+  SKIP_BRANCH_SWITCH_PREPARE,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import {
@@ -542,7 +543,8 @@ export class HistoryManager {
         // 不传 branchId：这里只想把 actions 套用在**当前**分支上。自己先查再传会留下一个
         // 采样窗口——本方法是 detached 任务（变更通知还会被批处理 / 跨进程延迟），窗口内的一次
         // 真实 switchBranch 会让这条调用把 activated 与全部触发器倒回旧分支。
-        await adapter.switchBranch({ actions });
+        // 同上：分支不换，没有前置条件可校验。
+        await adapter.switchBranch({ actions, prepare: SKIP_BRANCH_SWITCH_PREPARE });
 
         this.clearRedoStack();
       } catch (error) {

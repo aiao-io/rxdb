@@ -359,7 +359,7 @@ export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 
 **测试数**：10 个核心树 spec 整体搬入插件，221 条断言**逐条不变**（E1 判据），
 插件另补 5 份新 spec（10 条）——含 AC E2 的
-[`missing-plugin-error.spec.ts`](../../../packages/rxdb-plugin-tree/src/__tests__/contracts/missing-plugin-error.spec.ts)：
+[`missing-plugin-error.browser.spec.ts`](../../../packages/rxdb-plugin-tree/src/__tests__/contracts/missing-plugin-error.browser.spec.ts)：
 只装核心声明 `@TreeEntity` 时 `init()` 同步抛错，消息三段齐全（缺哪个名字 / 现有哪些名字 /
 下一步 `rxdb.use(...)`），且**不点名任何插件包**。合计 15 文件 / 231 条。
 三框架插件包各 4 个 hook、三端同名同形。
@@ -509,7 +509,8 @@ readonly reason = 'v1 supports SyncType.QueryCache only'
 - [US-010 树实体](./US-010-tree-entity.md) — 阶段 E 的行为基线
 - [US-301 版本控制](../collaboration/US-301-version-control.md) / [US-302 撤销重做](../collaboration/US-302-undo-redo.md) — 阶段 C 的行为基线
 - [versioning-policy.md](../../versioning-policy.md) — 公开 API 破坏性变更流程
-- [RV-015 CLI 缺生成器插件加载缝](../../reviews/RV-015-cli-plugin-generator-seam.md) — 阶段 E 把 `TreeRepositoryGenerator` 留在 `@aiao/rxdb-client-generator` 的理由
+- RV-015（已收口并删除，见 [reviews/README.md](../../reviews/README.md) 的 2026-09-23 条）— 阶段 E 把 `TreeRepositoryGenerator`
+  留在 `@aiao/rxdb-client-generator` 的理由，以及后续搬进 `@aiao/rxdb-plugin-tree/generator` 的破坏性迁移
 
 ---
 

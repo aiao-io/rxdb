@@ -98,7 +98,53 @@ Repository 'TreeRepository' not found for entity 'Menu'. 已注册的仓储：Re
 
 第三方插件要实现自己的增量 merge，用的就是这一组。
 
-## 5. 适配器不受影响
+## 5. 代码生成器要显式声明树生成器
+
+用 CLI（`rxdb-client-generator`）或 Vite 插件生成客户端代码、且实体上带 `@TreeEntity` 的项目，
+必须在配置里声明树的仓储生成器：
+
+```diff
+  // rxdb.config.ts
+  export default [
+    {
+      entities: [path.join(__dirname, 'entities', '*.ts')],
+      outDir: path.join(__dirname, 'dist', 'entities'),
++     repositoryGenerators: ['@aiao/rxdb-plugin-tree/generator#TreeRepositoryGenerator'],
+      relationQueryDeep: 10
+    }
+  ];
+```
+
+原因和 §2 的 `use()` 是同一件：`TreeRepository` 的**构建期**代码生成器原先硬编码在
+`@aiao/rxdb-client-generator` 里，生成器包因此反向依赖插件包。现在它随插件走，
+由 `repositoryGenerators` 按 `<模块>#<导出名>` 装载（相对路径也可以，按配置文件所在目录解析）。
+
+漏了这一行是 **fail-closed**，不会静默少生成：
+
+```
+No repository generator registered for "TreeRepository" (entity Menu). Add "@aiao/rxdb-plugin-tree/generator#TreeRepositoryGenerator" to `repositoryGenerators` in the generator config.
+```
+
+`@GraphEntity` 同理，声明 `'@aiao/rxdb-plugin-graph/generator#GraphRepositoryGenerator'`。
+只用 `@Entity` 的项目不受影响——默认的 `Repository` 生成器仍内置。
+
+如果你是在代码里直接用 `RxDBClientGenerator`（而不是走 CLI），改成：
+
+```diff
+  import { RxDBClientGenerator } from '@aiao/rxdb-client-generator';
++ import { TreeRepositoryGenerator } from '@aiao/rxdb-plugin-tree/generator';
+
+  const generator = new RxDBClientGenerator();
++ generator.registerRepositoryGenerator(new TreeRepositoryGenerator());
+  generator.addEntity(Menu);
+  generator.exec();
+```
+
+`/generator` 子路径是构建期专用入口：它不引装饰器也不引 rxjs，和运行时入口互不牵连。
+生成产物**一字未变**——`TreeAdjacencyListEntityBase` 的 import 来源、四个静态方法的重载、
+`XxxTreeRuleGroup` 都和搬家前逐字节相同。
+
+## 6. 适配器不受影响
 
 PGlite / SQLite / SQLite-WASM / sqliteai / Supabase / wa-sqlite 六个适配器的**公开 API 一字未动**：`case 'TreeRepository'` 的字符串分发保持原样，`PGliteTreeRepository` / `SqliteTreeRepository` / `SupabaseTreeRepository` 的类名与签名不变，只把类型来源改到了本包。照着旧文档写的适配器代码不需要改。
 

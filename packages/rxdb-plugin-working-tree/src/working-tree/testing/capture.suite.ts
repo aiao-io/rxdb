@@ -50,6 +50,7 @@ import {
   RxDBMigration,
   RxDBMixedVersionedCacheTransactionError,
   RxDBSync,
+  SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
   SYSTEM_ENTITIES,
   TrustedWriteIntent,
@@ -608,7 +609,12 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
       const adapter = await localAdapterOf(database);
       const branchId = await withTransaction(database, readActiveBranchId);
       declareTrustedWrite(adapter, CALLSITE.branch_materialization);
-      await adapter.switchBranch({ branchId, actions: insertActions(ConformanceNote, entityId, fields) });
+      await adapter.switchBranch({
+        branchId,
+        actions: insertActions(ConformanceNote, entityId, fields),
+        // `branchId` 取自 `readActiveBranchId()`，分支不换，没有前置条件可校验。
+        prepare: SKIP_BRANCH_SWITCH_PREPARE
+      });
       return headRowOf(ConformanceNote, entityId, fields);
     };
 
@@ -709,7 +715,11 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const noteId = newEntityId();
         const fields = noteFields('redo 失效写下的', null);
         declareTrustedWrite(adapter, CALLSITE.redo_invalidation);
-        await adapter.switchBranch({ branchId, actions: insertActions(ConformanceNote, noteId, fields) });
+        await adapter.switchBranch({
+          branchId,
+          actions: insertActions(ConformanceNote, noteId, fields),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
+        });
 
         const entries = await withTransaction(database, readEntries);
         expect(entries, 'redo 失效被记成了工作树单元').toHaveLength(0);
@@ -725,7 +735,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         declareTrustedWrite(adapter, CALLSITE.undo_redo);
         await adapter.switchBranch({
           branchId,
-          actions: updateActions(ConformanceNote, noteId, { title: '撤销后' }, { title: '原值' })
+          actions: updateActions(ConformanceNote, noteId, { title: '撤销后' }, { title: '原值' }),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
         });
 
         const entries = await withTransaction(database, readEntries);
@@ -740,7 +751,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expect(
           adapter.switchBranch({
             branchId,
-            actions: insertActions(ConformanceNote, newEntityId(), noteFields('不该落地', null))
+            actions: insertActions(ConformanceNote, newEntityId(), noteFields('不该落地', null)),
+            prepare: SKIP_BRANCH_SWITCH_PREPARE
           })
         ).rejects.toThrow(WorkingTreeWriteRejectedError);
 
@@ -907,7 +919,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         declareTrustedWrite(adapter, CALLSITE.branch_materialization);
         await adapter.switchBranch({
           branchId,
-          actions: updateActions(ConformanceNote, noteId, { title: '投影重写后' }, { title: '投影原值' })
+          actions: updateActions(ConformanceNote, noteId, { title: '投影重写后' }, { title: '投影原值' }),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
         });
 
         const entries = await withTransaction(database, readEntries);

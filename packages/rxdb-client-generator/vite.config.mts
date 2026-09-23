@@ -67,30 +67,13 @@ export default defineConfig(() => ({
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
       // 不打进库里的外部依赖。
-      external: [
-        'ts-morph',
-        '@aiao/utils',
-        '@aiao/rxdb',
-        '@aiao/rxdb-plugin-tree',
-        'jiti',
-        'path',
-        'fs',
-        'fs/promises',
-        'glob',
-        'node:events',
-        'node:module',
-        'node:url',
-        'node:child_process',
-        'node:stream',
-        'node:string_decoder',
-        'node:url',
-        'node:path',
-        'node:fs',
-        'node:fs/promises'
-      ],
+      // `node:` 用正则整体外置：逐条枚举漏一个（比如 `node:os`）不会报错，
+      // 只会被打成空对象的 stub，等到运行时才炸成 `tmpdir is not a function`。
+      external: [/^node:/u, 'ts-morph', '@aiao/utils', '@aiao/rxdb', 'jiti', 'path', 'fs', 'fs/promises', 'glob'],
       input: {
         index: 'src/index.ts',
         cli: 'src/cli/cli.ts',
+        testing: 'src/testing/index.ts',
         vite: 'src/plugins/vite.ts'
       },
       output: {

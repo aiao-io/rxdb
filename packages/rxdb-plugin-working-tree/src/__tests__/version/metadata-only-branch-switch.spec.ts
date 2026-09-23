@@ -250,7 +250,7 @@ interface StageOverrides {
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly executor: TransactionExecutor;
-  readonly activation: WorkingTreeActivationState;
+  activationRow(): WorkingTreeActivationState | undefined;
   classify(branchId: string): ReturnType<typeof classifyBranchMaterialization>;
   stage(overrides?: StageOverrides): ReturnType<typeof stageBranchMaterialization>;
   stageRow(attemptId?: string): WorkingTreeMaterializationStage | undefined;
@@ -310,7 +310,13 @@ function createScene(
   return {
     probe,
     executor: probe.executor,
-    activation,
+    // 现读而不是把种子期那个实例挂出去：`stageBranchMaterialization()` 真要动激活行的话，
+    // 走的是 `removeMany` + `saveMany`——换行之后种子实例仍停在 7/2，断言照样绿。
+    // 兄弟的 `refOf` / `stateOf` / `activeBranchIds` 全是现读，这一格不能例外。
+    activationRow: () =>
+      rowsOf<WorkingTreeActivationState>(WorkingTreeActivationState).find(
+        row => row.id === WORKING_TREE_ACTIVATION_STATE_ID
+      ),
     classify: branchId => classifyBranchMaterialization(probe.executor, branchId),
     stage: (overrides = {}) =>
       stageBranchMaterialization(entityManager, probe.executor, {
@@ -565,8 +571,8 @@ describe('staging 不触碰当前投影（FR-044）', () => {
     // 切换 active 与递增 activation revision 都在 T116 那道提交屏障里，staging 这一步一格都不该动。
     expect(scene.activeBranchIds()).toEqual([SOURCE_BRANCH_ID]);
     expect({
-      activationRevision: scene.activation.activationRevision,
-      branchGenerationSeq: scene.activation.branchGenerationSeq
+      activationRevision: scene.activationRow()?.activationRevision,
+      branchGenerationSeq: scene.activationRow()?.branchGenerationSeq
     }).toEqual({ activationRevision: 7, branchGenerationSeq: 2 });
   });
 

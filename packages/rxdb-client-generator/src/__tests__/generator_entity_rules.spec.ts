@@ -266,22 +266,3 @@ describe('generator_entity_rules - KeyValue Support', () => {
     expect(nestedRules).toHaveLength(0);
   });
 });
-
-describe('generator_entity_rules - TreeRepository validation', () => {
-  it('rejects a TreeRepository without children query rules', () => {
-    const generator = new RxDBClientGenerator();
-    generator.addEntity({
-      name: 'OrphanTree',
-      namespace: 'public',
-      displayName: 'Orphan tree',
-      repository: 'TreeRepository',
-      extends: [],
-      properties: [{ name: 'id', type: PropertyType.uuid, primary: true }],
-      computedProperties: [],
-      relations: [],
-      indexes: []
-    });
-
-    expect(() => generator.exec()).toThrow(/TreeRepository.*children/i);
-  });
-});

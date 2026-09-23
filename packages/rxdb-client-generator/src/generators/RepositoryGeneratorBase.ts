@@ -5,15 +5,33 @@
  * @module rxdb-client-generator/generators/repository-generator-base
  */
 
-import { PropertyType } from '@aiao/rxdb';
+import { type EntityMetadata, type EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
 import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
-import type { GeneratorContext, IRepositoryGenerator } from './RepositoryGenerator.interface.js';
+import type {
+  GeneratorContext,
+  IRepositoryGenerator,
+  RepositoryGeneratorSymbols
+} from './RepositoryGenerator.interface.js';
 import { getIdType, type IdType } from './utils.js';
 /** 匹配 `Partial<XxxKeyValue>` 里的接口名——关系递归下这个接口归对端实体所有。 */
 const KEY_VALUE_INTERFACE_PATTERN = /^Partial<(\w+KeyValue)>$/;
 
+/**
+ * 把规则数据渲染成规则类型字面量，并顺带登记所需的命名导入。
+ *
+ * @param entityRules - {@link generateEntityRules} 产出的规则数据
+ * @param rxdbNamedImports - 从 `@aiao/rxdb` 引入的规则名集合，渲染时就地补齐
+ * @param siblingNamedImports - 同目录实体文件的命名导入集合，关系递归产生的
+ *   `Partial<XxxKeyValue>` 会登记到对端实体名下；不传则跳过登记
+ * @returns 规则类型字面量数组，顺序与 `entityRules` 一致
+ *
+ * @example
+ * ```ts
+ * const rules = buildRules(generateEntityRules(generator, metadata), rxdbNamedImports);
+ * ```
+ */
 export const buildRules = (
   entityRules: RuleTypeData[],
   rxdbNamedImports: Set<string>,
@@ -62,6 +80,9 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
 
   /** @inheritDoc */
   readonly entityBaseModuleSpecifier?: string;
+
+  /** @inheritDoc */
+  readonly abstractEntityMetadata?: ReadonlyMap<string, EntityMetadataOptions[]>;
 
   generate(context: GeneratorContext): void {
     this.generateProperties(context);
@@ -240,6 +261,18 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
  */
 export class RepositoryMethodsGenerator extends RepositoryGeneratorBase {
   readonly name: string = 'Repository';
+
+  /** @inheritDoc */
+  declareSymbols(metadata: EntityMetadata): RepositoryGeneratorSymbols {
+    return {
+      instanceMembers: ['save', 'remove', 'reset'],
+      types: [
+        { name: `${metadata.name}Rule` },
+        { exported: true, name: `${metadata.name}RuleGroup` },
+        { name: `${metadata.name}OrderByField` }
+      ]
+    };
+  }
 
   protected generateMethods(context: GeneratorContext): void {
     const { metadata, file, rxdbNamedImports, siblingNamedImports, staticTypesInterface } = context;

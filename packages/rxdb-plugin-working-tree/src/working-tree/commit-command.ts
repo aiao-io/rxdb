@@ -35,7 +35,7 @@ import type { CommitWriteContext } from '../commit/commit-context.js';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
 import { writeCommit, type WriteCommitOutcome } from '../commit/write-commit.js';
-import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
+import { readActiveBranchToken, readBranchEntries, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
 import { commitActiveRestoreSession } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
@@ -85,20 +85,6 @@ export type CommitResult =
       /** 诊断值；**不入库**，也没有「清除冲突」的 API */
       readonly conflict: CommitConflict;
     };
-
-/**
- * 读当前分支全部未提交条目，按插入顺序。
- *
- * @remarks
- * **按 `id` 升序**而不是让后端自由排：`CommitChangeSet.sequence` 按这个顺序密集发放，
- * 而内容指纹又吃这个顺序。排序不定的话，同一批变更在两个后端上算出两个指纹，
- * `assertCommitGraphIntact()` 会把其中一边整条链判成损坏。
- */
-const readBranchEntries = (executor: TransactionExecutor, branchId: string): Promise<WorkingTreeEntry[]> =>
-  executor.getRepository(WorkingTreeEntry).find({
-    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branchId }] },
-    orderBy: [{ field: 'id', sort: 'asc' }]
-  });
 
 /**
  * 把工作树条目摊成提交用的变更单元。

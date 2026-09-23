@@ -107,7 +107,15 @@ export async function create_tables_statements<T extends EntityType>(
 
     // 2. 触发器（仅对 log !== false 的实体）
     if (metadata.log !== false) {
+      // 建表期固定写 `main`，不去读当前活动分支：新库走到这里时 `rxdb_branch` 表**正在**本次调用里
+      // 被建出来，没有行可读。
+      //
+      // 既有库补建缺失实体表（`RxDB.#ensureEntityTables`）时读得到，而这一侧**没有** sqlite 那样的自愈——
+      // PG 的触发器只在建表 / `switch_branch` / 系统迁移这三处重建，事务只设 `rxdb.transaction_id` 这个
+      // setting，不碰分支。所以在 `feature` 上新加的实体，其变更会一直记在 `main` 名下，直到下一次切分支。
+      // 与迁移侧同一个缺口，见 `requirements/reviews/next-0912-branch-review.md` §2。
       const triggerSQL = generate_trigger_sql(metadata, {
+        branchId: 'main',
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       // 哨兵是给拆分用的，绝不能原样留在返回值里 —— 送进 PG 就是 42601

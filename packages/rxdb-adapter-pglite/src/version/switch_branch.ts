@@ -131,11 +131,13 @@ export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: st
  * @param options - 分支切换选项；省略 `branchId` 即「留在当前激活分支」，仅套用 actions
  */
 export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchBranchOptions) => {
-  const { branchId, actions } = options;
+  const { branchId, actions, prepare } = options;
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   let branchSwitchResult: Results<Record<string, unknown>> | undefined;
   let targetBranchId = branchId;
+  // 前置校验被拒是一条日常路径，不是适配器故障；下面的 catch 靠它决定包不包。
+  let prepareRejected = false;
 
   try {
     // switch_branch 自管触发器和变更日志，跳过事务日志以免重复
@@ -144,6 +146,13 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await readCurrentBranchId(sink);
+      // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
+      // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
+      // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
+      await prepare({ executor, targetBranchId }).catch((error: unknown) => {
+        prepareRejected = true;
+        throw error;
+      });
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
       const removeAllTriggers = remove_all_triggers_sql(sink);
       if (removeAllTriggers) await executeSwitchStatements(sink, removeAllTriggers);
@@ -210,6 +219,10 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
       await dispatch_switch_events(adapter, switchAction);
     }
   } catch (cause) {
+    // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
+    // 包进 RxdbAdapterPGliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
+    // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
+    if (prepareRejected) throw cause;
     const message = cause instanceof Error ? cause.message : String(cause);
     const originalError = cause instanceof Error ? cause : new Error(message, { cause });
     throw new RxdbAdapterPGliteError(

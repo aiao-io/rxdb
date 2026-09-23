@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
-const TYPESCRIPT_COMPILER_PATH = fileURLToPath(
-  new URL('../../../../../node_modules/typescript/bin/tsc', import.meta.url)
-);
+// 按 node 解析而不是拼相对路径：这个模块既在 `src/`（workspace 的 `@aiao/source` 条件）
+// 下跑，也会被打包进 `dist/`，两处到 `node_modules` 的层级不同。
+const TYPESCRIPT_COMPILER_PATH = createRequire(import.meta.url).resolve('typescript/bin/tsc');
 
 /**
  * 用工作区里真实的 `tsc` 编译一个临时工程，返回诊断行；空数组即编译通过。

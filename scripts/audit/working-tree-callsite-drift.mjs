@@ -39,15 +39,20 @@
  * 本脚本是它唯一的机械执行者，因为运行时的 `declareTrustedWrite()` 只校验键在不在表里，
  * **不校验自报的 symbol 是不是所在函数**。
  *
- * 为什么不用 TypeScript 解析器：判据全部落在词法层（谁在调、调用点外面是哪个具名函数、
- * 那个函数有没有自报意图），而 scripts/ 下的审计脚本一律是零依赖 .mjs。注释与字符串的涂白层
- * 直接复用 `working-tree-suite-callsites.mjs` 已导出的那一份——再抄一份词法扫描器，
- * 两份迟早会在不同的边角上分叉。
+ * **扫调用点那半边不用 TypeScript 解析器**：判据全部落在词法层（谁在调、调用点外面是哪个
+ * 具名函数、那个函数有没有自报意图），而跨 `packages/` 也没有一份能覆盖全仓的类型化 Program
+ * 可用。注释与字符串的涂白层直接复用 `working-tree-suite-callsites.mjs` 已导出的那一份——
+ * 再抄一份词法扫描器，两份迟早会在不同的边角上分叉。
+ *
+ * **读登记表那半边用**（{@link parseRegistry}）：那是一张自家的常量表，是数据不是待扫描的
+ * 代码。按固定键序的正则去读它，等于在门禁侧再编码一遍登记表的书写形状，重排字段就会让
+ * 整行静默消失。`scripts/audit/api-surface.mjs` 早已按同样理由引了 `typescript`。
  */
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 
 import { blankStringLiterals, stripComments } from './working-tree-suite-callsites.mjs';
 
@@ -360,39 +365,131 @@ export const findPrimitiveCalls = source => {
 };
 
 /**
- * 从 `trusted-write-intent.ts` 里词法解析登记表与意图枚举
+ * 在一棵 AST 里按变量名找出它的初始化表达式。
+ *
+ * @param {import('typescript').SourceFile} sourceFile 已解析的源文件
+ * @param {string} name 变量名
+ * @returns {import('typescript').Expression | null} 找不到时为 `null`
+ *
+ * @remarks
+ * 穿透 `as const` / `satisfies` 这类只影响类型的包装：登记表写成
+ * `= [...] as const` 还是裸数组，是 `trusted-write-intent.ts` 的自由，不该让本脚本读不出来。
+ */
+const findInitializer = (sourceFile, name) => {
+  let found = null;
+  const visit = node => {
+    if (found !== null) return;
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer) {
+      let initializer = node.initializer;
+      while (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer))
+        initializer = initializer.expression;
+      found = initializer;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(sourceFile, visit);
+  return found;
+};
+
+/**
+ * 读一个对象字面量里某个键的值，按**键名**取。
+ *
+ * @param {import('typescript').ObjectLiteralExpression} literal 对象字面量
+ * @param {string} key 键名
+ * @returns {import('typescript').Expression | null} 键不在时为 `null`
+ */
+const propertyOf = (literal, key) => {
+  for (const property of literal.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    const name = property.name;
+    const text = ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : null;
+    if (text === key) return property.initializer;
+  }
+  return null;
+};
+
+/**
+ * 取一个字符串字面量的内容，不是字符串就抛。
+ *
+ * @param {import('typescript').Expression | null} node 待读取的表达式
+ * @param {string} where 报错时用来定位的说明
+ * @returns {string}
+ */
+const stringValueOf = (node, where) => {
+  if (node === null || !ts.isStringLiteralLike(node)) throw new Error(`${where} 不是字符串字面量`);
+  return node.text;
+};
+
+/**
+ * 从 `trusted-write-intent.ts` 里解析登记表与意图枚举
  *
  * @param {string} source `trusted-write-intent.ts` 原文
- * @returns {{ intents: string[], rows: { file: string, symbol: string, writePrimitive: string, intent: string, verifiedAtLine: number }[] }}
+ * @returns {{ intents: string[], rows: { file: string, symbol: string, writePrimitive: string, intent: string, entrance: string, verifiedAtLine: number }[] }}
  * @throws {Error} 解析不出登记表或枚举时抛——这个脚本没有「表是空的所以全都合规」这条出路
+ *
+ * @remarks
+ * **登记表是数据，用 AST 按键名读，不用正则按键序读。** 正则那一版把「六个字段按这个顺序、
+ * 中间只准有逗号和空白」写死在本脚本里，等于在门禁侧再编码一遍登记表的书写形状——而那是
+ * `trusted-write-intent.ts` 的自由。重排一行的字段、给某一行补一个与本门禁无关的新字段，
+ * 都会让那一行**静默**从登记表里消失；对应的真实声明随即变成「不在 TRUSTED_CALLSITE_REGISTRY
+ * 里」的假阳性，而门禁指出的位置是一处没有问题的代码。
+ *
+ * 这与文件头「不用 TypeScript 解析器」那条**不冲突**：那条说的是跨 `packages/` 扫调用点的那
+ * 半边——判据落在词法层，也没有一份能覆盖全仓的类型化 Program 可用。读一张自家的常量表是另
+ * 一件事，`scripts/audit/api-surface.mjs` 早已按同样理由引了 `typescript`。
  */
 export const parseRegistry = source => {
-  const withoutComments = stripComments(source);
+  const sourceFile = ts.createSourceFile(REGISTRY_SOURCE_FILE, source, ts.ScriptTarget.Latest, true);
 
-  const enumBody = /export const TrustedWriteIntent = \{([\s\S]*?)\n\} as const;/.exec(withoutComments);
-  if (enumBody === null) throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TrustedWriteIntent 枚举`);
-  const intents = [...enumBody[1].matchAll(/([A-Za-z_]\w*):\s*'([^']*)'/g)].map(matched => {
-    if (matched[1] !== matched[2]) {
-      throw new Error(`TrustedWriteIntent.${matched[1]} 的值是 '${matched[2]}'：本脚本按成员名比对，两者必须同名`);
+  const enumLiteral = findInitializer(sourceFile, 'TrustedWriteIntent');
+  if (enumLiteral === null || !ts.isObjectLiteralExpression(enumLiteral)) {
+    throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TrustedWriteIntent 枚举`);
+  }
+  const intents = enumLiteral.properties.map(property => {
+    if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name)) {
+      throw new Error("TrustedWriteIntent 的成员必须是 `名字: '名字'` 形态");
     }
-    return matched[1];
+    const member = property.name.text;
+    const value = stringValueOf(property.initializer, `TrustedWriteIntent.${member} 的值`);
+    if (member !== value) {
+      throw new Error(`TrustedWriteIntent.${member} 的值是 '${value}'：本脚本按成员名比对，两者必须同名`);
+    }
+    return member;
   });
   if (intents.length === 0) throw new Error('TrustedWriteIntent 解析出 0 个成员');
 
-  const tableBody = /const TRUSTED_CALLSITE_REGISTRY[^=]*=\s*\[([\s\S]*?)\n\];/.exec(withoutComments);
-  if (tableBody === null) throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TRUSTED_CALLSITE_REGISTRY`);
-  const rows = [
-    ...tableBody[1].matchAll(
-      /file:\s*'([^']*)',\s*symbol:\s*'([^']*)',\s*writePrimitive:\s*'([^']*)',\s*intent:\s*TrustedWriteIntent\.([A-Za-z_]\w*),\s*entrance:\s*'([^']*)',\s*verifiedAtLine:\s*(\d+)/g
-    )
-  ].map(matched => ({
-    file: matched[1],
-    symbol: matched[2],
-    writePrimitive: matched[3],
-    intent: matched[4],
-    entrance: matched[5],
-    verifiedAtLine: Number(matched[6])
-  }));
+  const tableLiteral = findInitializer(sourceFile, 'TRUSTED_CALLSITE_REGISTRY');
+  if (tableLiteral === null || !ts.isArrayLiteralExpression(tableLiteral)) {
+    throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TRUSTED_CALLSITE_REGISTRY`);
+  }
+  const rows = tableLiteral.elements.map((element, index) => {
+    if (!ts.isObjectLiteralExpression(element)) {
+      throw new Error(`TRUSTED_CALLSITE_REGISTRY 第 ${index + 1} 项不是对象字面量`);
+    }
+    const where = `TRUSTED_CALLSITE_REGISTRY 第 ${index + 1} 项`;
+
+    // `intent` 是唯一一个不写字符串的字段：它必须是 `TrustedWriteIntent.成员`。
+    // 允许裸字符串的话，登记表就能引用一个枚举里没有的意图而不被下面那条交叉校验看见。
+    const intentNode = propertyOf(element, 'intent');
+    if (intentNode === null || !ts.isPropertyAccessExpression(intentNode)) {
+      throw new Error(`${where} 的 intent 不是 TrustedWriteIntent.成员 形态`);
+    }
+
+    const verifiedAtLineNode = propertyOf(element, 'verifiedAtLine');
+    if (verifiedAtLineNode === null || !ts.isNumericLiteral(verifiedAtLineNode)) {
+      throw new Error(`${where} 的 verifiedAtLine 不是数字字面量`);
+    }
+
+    return {
+      file: stringValueOf(propertyOf(element, 'file'), `${where} 的 file`),
+      symbol: stringValueOf(propertyOf(element, 'symbol'), `${where} 的 symbol`),
+      writePrimitive: stringValueOf(propertyOf(element, 'writePrimitive'), `${where} 的 writePrimitive`),
+      intent: intentNode.name.text,
+      entrance: stringValueOf(propertyOf(element, 'entrance'), `${where} 的 entrance`),
+      verifiedAtLine: Number(verifiedAtLineNode.text)
+    };
+  });
   if (rows.length === 0) throw new Error('TRUSTED_CALLSITE_REGISTRY 解析出 0 行');
 
   const unknown = rows.filter(row => !intents.includes(row.intent));

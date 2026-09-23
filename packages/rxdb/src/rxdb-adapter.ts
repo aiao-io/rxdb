@@ -1,9 +1,10 @@
 import type { Observable } from 'rxjs';
-import type { RawWritePrimitives, WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
+import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { installWorkingTreeCapture, uninstallWorkingTreeCapture } from './capture/capture-interceptor.js';
 import type { RawWriteContext } from './capture/raw-write-gate.js';
 import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
+import type { EntityMetadata } from './entity/metadata.interface.js';
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
@@ -56,6 +57,22 @@ export interface RxDBMutationsMap<T extends EntityType = EntityType> {
  */
 export type TransactionFun = (executor: TransactionExecutor) => Promise<unknown>;
 
+/**
+ * {@link SwitchBranchOptions.prepare} 拿到的上下文。
+ *
+ * @remarks
+ * 两个字段都不可省。`executor` 是**切换事务本身**的执行器——回调在它上面读到的与写下的，
+ * 与接下来那次切换同生共死；`targetBranchId` 是适配器**解析之后**的目标分支，
+ * 而不是调用方那份可省的 {@link SwitchBranchOptions.branchId}：省略那一支上，
+ * 前置校验要看的是库里当前激活的那条分支，不是一个 `undefined`。
+ */
+export interface SwitchBranchPrepareContext {
+  /** 切换事务的执行器；回调在这里做的读写与本次切换在同一个事务内 */
+  readonly executor: TransactionExecutor;
+  /** 解析之后的目标分支 id；{@link SwitchBranchOptions.branchId} 省略时是库里当前激活的那条 */
+  readonly targetBranchId: string;
+}
+
 export interface SwitchBranchOptions {
   /**
    * 目标分支 id。
@@ -68,7 +85,44 @@ export interface SwitchBranchOptions {
    */
   branchId?: string;
   actions: SwitchVersionActions;
+
+  /**
+   * 切换事务内的前置钩子：适配器在解析出目标分支之后、动第一行之前 await 它。
+   *
+   * @remarks
+   * **适配器一侧的义务**：解析完 `branchId`、在删触发器/改 `activated`/套用 actions 之前调用，
+   * 每次切换恰好一次。抛出的东西原样上抛，由事务回滚——不要 catch，也不要「记下来稍后再说」。
+   *
+   * **调用方一侧的义务**：必填。分支切换的前置条件（工作树是否干净、提交图是否可达损坏、
+   * 代际凭据是否过期）以前跑在**另一个只读事务**里，那个事务与这次切换之间的窗口没有任何东西守着：
+   * 校验说「干净」，窗口里的一次写让它变脏，切换照样完成。放进这里之后，
+   * 「校验通过」与「切换完成」不再是两件可以分开发生的事。
+   *
+   * 做成必填而不是 `?`，与 `RxDBSystemContribution` 七个贡献点一个都不带 `?` 是同一条理由：
+   * `?` 让「不需要」与「忘了」变成同一种东西，而这里忘了的症状是切换照常成功、只是没校验过。
+   * 真的不需要校验的调用点（历史回放只借本方法批量套用 actions，从不改分支）写一个显式空实现，
+   * 那一行是一句「我确实不需要」。
+   */
+  prepare: (context: SwitchBranchPrepareContext) => Promise<void>;
 }
+
+/**
+ * 显式表态「这次调用没有分支要校验」的空实现
+ *
+ * @remarks
+ * **只有不改分支的调用点能用它。** `switchBranch` 同时是「切分支」和「批量套用
+ * {@link SwitchVersionActions}」两件事的原语；历史回放（undo/redo、作废 redo 栈）只要后者，
+ * 省略 {@link SwitchBranchOptions.branchId} 让 actions 落在当前分支上，激活分支一动不动。
+ * 分支没换，就没有「切过去的那条分支的历史可不可重放」可问，也没有代际要推进。
+ *
+ * 会改分支的调用点用它等于把守卫关掉：目标分支的提交图不验、调用方提的条件不判、
+ * 激活代际不推进，而切换照样完成——那正是把 {@link SwitchBranchOptions.prepare} 做成必填
+ * 要拦的情形。
+ *
+ * 做成具名导出而不是让各调用点各写一个 `async () => {}`：这样「谁豁免了前置校验」
+ * 是一次 grep 就能数清的一张表，而匿名空箭头只能靠读全文发现。
+ */
+export const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions['prepare'] = async () => {};
 
 export interface RawQueryResult {
   rowsAffected: number;
@@ -148,7 +202,16 @@ const CAPABILITY_DISABLED_RAW_WRITE_CONTEXT: RawWriteContext = Object.freeze({ c
  */
 export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   #workingTreeCaptureHook: WorkingTreeCaptureHook | undefined;
-  #rawWritePrimitives: RawWritePrimitives | undefined;
+
+  /**
+   * 启用态的 raw 写判定上下文；与 {@link RxDBAdapterLocalBase.workingTreeCaptureHook} 同生同灭。
+   *
+   * @remarks
+   * 建在装载那一刻而不是每次取值：取值器在**每一条 raw 语句**上被调用，而这个对象不持有
+   * 任何 per-call 状态——它只是「把语句转给这一个运行时」这件事本身。两个字段一起赋值、
+   * 一起清空，于是「装了运行时却交出旧上下文」在结构上不成立。
+   */
+  #workingTreeRawWriteContext: RawWriteContext = CAPABILITY_DISABLED_RAW_WRITE_CONTEXT;
 
   /**
    * 捕获运行时；未启用提交能力的库上恒为 `undefined`。
@@ -170,7 +233,10 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    *
    * 能力位直接由**捕获运行时装没装上**决定，不另存一个布尔：运行时只在能力位为真时被装上
    * （`RxDB.connect()` 读到真、或 `workingTree.enable()` 刚翻开）。再存一份就是第二份真相，
-   * 而两份不同步的后果是单向的——门禁以为没开，raw 写全部放行。
+   * 而两份不同步的后果是单向的——门禁以为没开，raw 写全部放行。上下文对象本身在
+   * `setWorkingTreeCaptureHook()` 里与运行时**同一句赋值**建好，不是每次取值新建：取值器在每条
+   * raw 语句上都被调用，而它不含 per-call 状态。两个字段只在那一处一起变，「装了新运行时却
+   * 交出绑着旧运行时的闭包」因此不是一种可达状态。
    *
    * 交出去的是**判定入口本身**，不是判定要看的那些东西（域、列集、受信意图）。核心因此不必
    * 复述捕获认什么，也就不存在「拷了一份域出来、插件后续登记的派生索引列只落进其中一份」这类
@@ -179,12 +245,7 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * @internal
    */
   get workingTreeRawWriteContext(): RawWriteContext {
-    const hook = this.#workingTreeCaptureHook;
-    if (!hook) return CAPABILITY_DISABLED_RAW_WRITE_CONTEXT;
-    return {
-      capabilityEnabled: true,
-      gate: <T>(sql: string, execute: () => Promise<T> | T): Promise<T> => hook.gateRawWrite(sql, execute)
-    };
+    return this.#workingTreeRawWriteContext;
   }
 
   /**
@@ -205,15 +266,17 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * @internal
    */
   setWorkingTreeCaptureHook(hook: WorkingTreeCaptureHook | undefined): void {
-    const raw = this.#rawWritePrimitives;
-    if (raw) {
-      uninstallWorkingTreeCapture(this, raw);
-      this.#rawWritePrimitives = undefined;
-    }
+    uninstallWorkingTreeCapture(this);
     this.#workingTreeCaptureHook = hook;
-    if (!hook) return;
+    if (!hook) {
+      this.#workingTreeRawWriteContext = CAPABILITY_DISABLED_RAW_WRITE_CONTEXT;
+      return;
+    }
+    this.#workingTreeRawWriteContext = {
+      capabilityEnabled: true,
+      gate: <T>(sql: string, execute: () => Promise<T> | T): Promise<T> => hook.gateRawWrite(sql, execute)
+    };
     const installed = installWorkingTreeCapture(this, hook);
-    this.#rawWritePrimitives = installed;
     hook.bindMountTarget(this, installed);
   }
 
@@ -237,6 +300,34 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * 只声明位置与语义，不替六个后端决定有没有。
    */
   isEncryptedAtRest?(value: unknown): boolean;
+
+  /**
+   * 一张实体表在本适配器发出的 SQL 里可能被写成的全部名字。
+   *
+   * @param metadata - 实体元数据；答案只由它决定，不读任何实例状态
+   * @returns 未归一化、不带 schema 限定的物理表名；至少一个
+   *
+   * @remarks
+   * **命名规则归写表的那一方所有。** 在这条能力之前，
+   * `@aiao/rxdb-plugin-working-tree` 的版本化域自己按 `'$'` 把 sqlite 家族的折叠规则重拼了
+   * 一遍。抄来的规则不会因为原件改了而报错，它只是开始算错——而算错的后果是单向的：
+   * raw 写门禁认不出某张受版本控制的表，于是**静默放行**一条绕过捕获的写。
+   *
+   * 默认实现交出逻辑名、一个字都不猜。替后端猜一个「常见」形态（比如把 sqlite 家族的
+   * `namespace$table` 写成默认）只是把抄规则这件事从插件挪到核心，而且从此没有任何一个
+   * 后端会因为忘了覆写而被发现——它会一直拿着别人的规则算自己的表名。
+   *
+   * **有默认实现而不是 `abstract`**，与 {@link RxDBAdapterLocalBase.migrateSystemSchema}
+   * 同一口径：这是一次对既有基类的扩展，`abstract` 会让仓外每一个自建适配器在升级时直接
+   * 编译不过，而它们里面**不折叠命名空间的那一批本来就是对的**。代价是「忘了覆写」与
+   * 「确实不需要」在类型上同形；折叠命名空间的后端（sqlite 家族）必须自己覆写。
+   *
+   * 不带 schema 限定：`"public"."post"` 这种形态在 raw 判定的限定剥离一步里已经被还原成
+   * 逻辑名了，这里再登记一遍只是同一个名字的第二种写法。要登记的是**剥不掉**的那一种。
+   */
+  physicalTableNames(metadata: EntityMetadata): readonly string[] {
+    return [metadata.tableName];
+  }
 
   /**
    * 在应用迁移或仓储运行前升级 RxDB 拥有的表。

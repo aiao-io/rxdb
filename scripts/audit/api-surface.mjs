@@ -318,6 +318,19 @@ const NAMING = {
     'prepareIncrementalUpdate',
     'UpdateClassification',
     'UpdateDataCache',
+    // active 哨兵 `'*active*'` 的分支 id 校验。它兑现的是 `ACTIVE_BRANCH_KEY` 那段 TSDoc
+    // 立下的「`*` 不是合法命名字符」——此前只是注释，创建与导入路径没有一处兑现它。
+    // 三条创建路径（`version/create-branch.ts` / `syncBranches` / pglite 适配器）都要调，
+    // 必须在公开面上。与工作树无关，叫 `Commit*` / `WorkingTree*` 只会让核心看起来
+    // 把「分支名合法性」当成提交能力的一部分。
+    'assertUsableBranchId',
+    'InvalidBranchIdError',
+    // 创建边界的字段规范化。与早已在基线里的 `normalizeUpdateEntity` 是同一件事的两侧：
+    // 两个适配器各带过一份按下标配对 `foreignKeyNames` / `foreignKeyColumnNames` 平行数组的
+    // 副本，两边长度不等就把 A 的值写进 B 的列且完全无声。收进核心走 keyed 的
+    // `foreignKeyRelationMap` 之后，适配器只剩 re-export。与工作树无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称核心把「写 INSERT 前整理字段」当成提交能力。
+    'normalizeCreateEntity',
     // 指纹计算。自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，
     // 而指纹正是 QueryManager 判定「结果变没变」的依据——各写一份就是两套「变了」的定义。
     'Fingerprint',

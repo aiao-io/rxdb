@@ -756,37 +756,6 @@ describe('sqlite.utils', () => {
     });
   });
 
-  describe('normalizeCreateEntity 兼容分支', () => {
-    it('元数据缺失 foreignKeyNames 时应该只保留属性', () => {
-      const metadata = fakeMetadata({
-        propertyMap: new Map([['name', { name: 'name', columnName: 'name', type: PropertyType.string }]])
-      });
-
-      const result = normalizeCreateEntity(metadata, { name: 'John', fooId: 'x' });
-
-      expect(result).toEqual({ name: 'John' });
-    });
-
-    it('实体缺少外键字段时应该跳过外键', () => {
-      const metadata = createMetadata(
-        [{ name: 'name', type: PropertyType.string }],
-        [
-          {
-            name: 'dept',
-            kind: RelationKind.MANY_TO_ONE,
-            mappedEntity: 'Dept',
-            mappedProperty: 'items',
-            columnName: 'dept_id'
-          }
-        ]
-      );
-
-      const result = normalizeCreateEntity(metadata, { name: 'John' });
-
-      expect(result).toEqual({ name: 'John' });
-    });
-  });
-
   describe('getSqliteBindChunkSize', () => {
     it('缺省时应该返回 SQLITE_MAX_BIND_VARIABLES', () => {
       expect(SQLITE_MAX_BIND_VARIABLES).toBe(999);

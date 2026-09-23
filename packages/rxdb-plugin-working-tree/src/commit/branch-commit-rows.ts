@@ -22,7 +22,7 @@ import { RxDBBranch, RxDBChange, RxDBError, uuid } from '@aiao/rxdb';
 // `enable-migration.ts` 判可物化性时用的也是它。
 import { get_branch_max_change } from '@aiao/rxdb-plugin-history';
 import { allocateBranchGeneration } from '../working-tree/activation-state.js';
-import { readWorkingTreeStateRow } from '../working-tree/capture-runtime.js';
+import { readBranchEntries, readWorkingTreeStateRow } from '../working-tree/capture-runtime.js';
 import { WorkingTreeEntry } from '../working-tree/working-tree-entry.entity.js';
 import { WorkingTreeMaterializationPage } from '../working-tree/working-tree-materialization-page.entity.js';
 import { WorkingTreeMaterializationStage } from '../working-tree/working-tree-materialization-stage.entity.js';
@@ -169,19 +169,6 @@ const readBranchRow = async (executor: TransactionExecutor, branchId: string): P
   }
   return row;
 };
-
-/**
- * 读一条分支当前全部未提交条目，按 `id` 升序。
- *
- * @remarks
- * 与 `commit-command.ts` 的 `readBranchEntries` 同一个排序理由：顺序交给后端自由决定的话，
- * 同一批条目在两个后端上复制出两种排列，而条目顺序是要进内容指纹的。
- */
-const readBranchEntries = (executor: TransactionExecutor, branchId: string): Promise<WorkingTreeEntry[]> =>
-  executor.getRepository(WorkingTreeEntry).find({
-    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branchId }] },
-    orderBy: [{ field: 'id', sort: 'asc' }]
-  });
 
 /** 深拷一份 patch；`null` 原样穿过。 */
 const clonePatch = (patch: Record<string, unknown> | null): Record<string, unknown> | null =>

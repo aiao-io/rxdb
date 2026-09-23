@@ -23,6 +23,23 @@ export interface RxDBClientCLIentGeneratorOptions extends RxDBClientGeneratorOpt
    */
   outDir: string;
   /**
+   * 额外装载的 Repository 生成器，每项形如 `<模块>#<导出名>`。
+   *
+   * @remarks
+   * 内置的 `Repository` / `TreeRepository` 自动注册，这里只声明插件带来的生成器。
+   * 模块可以是包名、子路径导出或相对配置文件的路径（相对路径按配置文件目录解析）；
+   * 导出必须是一个可 `new` 的生成器类。重名会被拒绝而不是顶替已注册的同名生成器。
+   *
+   * 生成器自带的抽象基类元数据也在这一步被登记，`@GraphEntity` 这类实体因此不再需要
+   * 生成器包反向依赖插件包。
+   *
+   * @example
+   * ```jsonc
+   * { "repositoryGenerators": ["@aiao/rxdb-plugin-graph/generator#GraphRepositoryGenerator"] }
+   * ```
+   */
+  repositoryGenerators?: string[];
+  /**
    * 允许「没有发现任何实体」的构建成功
    *
    * 默认 `false`（fail-closed）。零实体的构建会写出空 `index` 并按上次 manifest

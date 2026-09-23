@@ -346,10 +346,14 @@ test.describe('Working Tree Page A11y', () => {
     await openPanel(page);
 
     const raw = await page.getByTestId('wt-first-visible-ms').textContent();
-    const firstVisibleMs = Number(raw?.trim());
+    const text = raw?.trim() ?? '';
     // 读不出来直接红，不折成 0：`0 ms` 恰好是这条指标最想看到的数字，
-    // 用它兜底等于让「面板没渲染」伪装成「快到测不出来」。
-    expect(Number.isFinite(firstVisibleMs), `读不出首次可见状态耗时：${JSON.stringify(raw)}`).toBe(true);
+    // 用它兜底等于让「面板没渲染」伪装成「快到测不出来」。空串要在 `Number()` 之前单独拦掉——
+    // `Number('')` 就是 0，而 0 是有限数：元素挂上了、一个字都没渲染的那一刻，
+    // 下面那条 `Number.isFinite` 照样绿，归档的还是一份「0 ms」的假成绩。
+    expect(text, `读不出首次可见状态耗时：${JSON.stringify(raw)}`).not.toBe('');
+    const firstVisibleMs = Number(text);
+    expect(Number.isFinite(firstVisibleMs), `首次可见状态耗时不是数字：${JSON.stringify(raw)}`).toBe(true);
     expect(firstVisibleMs).toBeGreaterThanOrEqual(0);
 
     const firstPhase = (await page.getByTestId('wt-status-phase').textContent())?.trim() ?? '';

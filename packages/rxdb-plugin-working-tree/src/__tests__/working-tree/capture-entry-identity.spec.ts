@@ -32,7 +32,7 @@ import type { WorkingTreeCaptureHost } from '../../working-tree/capture-runtime.
 import { createWorkingTreeCapturePort } from '../../working-tree/capture-runtime.js';
 import { WorkingTreeEntry } from '../../working-tree/working-tree-entry.entity.js';
 import type { ActiveBranchToken, WorkingTreeEntryKey, WorkingTreeEntryRow } from '../../working-tree/write-entry.js';
-import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
+import { createCommitGraphProbe, type CommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 /** 只为拿一个真的 {@link EntityManager}——单元行要靠它 `instantiate()` 出来。 */
@@ -78,12 +78,29 @@ describe('工作树捕获端口：单元主键', () => {
   const entityManager = createEntityManager();
   const host: WorkingTreeCaptureHost = { entityManager };
 
+  /**
+   * 按真实捕获顺序落一行：先 `readEntry()` 再 `persistEntry()`。
+   *
+   * @remarks
+   * 两步不能只调后一步：端口把 `readEntry()` 读到的那一行**记下来**给 `persistEntry()` 用
+   * （`capture-runtime.ts` › `createBatchPort`），没读过就落盘会当场抛。顺序本来也就是
+   * `captureCrudWrite()` 四步里的第三步，这里照着走才是在测那条路上的行为。
+   */
+  const persistThrough = async (
+    probe: CommitGraphProbe,
+    row: WorkingTreeEntryRow,
+    entryCountDelta: number
+  ): Promise<void> => {
+    const port = createWorkingTreeCapturePort(probe.executor, host, TOKEN, keyOf(row));
+    await port.readEntry(keyOf(row));
+    await port.persistEntry(row, entryCountDelta);
+  };
+
   it('新建单元时落库那一行带着非空主键', async () => {
     const probe = createCommitGraphProbe();
     const row = rowOf();
-    const port = createWorkingTreeCapturePort(probe.executor, host, TOKEN, keyOf(row));
 
-    await port.persistEntry(row, 1);
+    await persistThrough(probe, row, 1);
 
     const persisted = probe.rowsOf(WorkingTreeEntry) as WorkingTreeEntry[];
     expect(persisted).toHaveLength(1);
@@ -98,8 +115,8 @@ describe('工作树捕获端口：单元主键', () => {
     const first = rowOf();
     const second = rowOf({ entityId: 'note-2', operation: 'insert', inversePatch: null });
 
-    await createWorkingTreeCapturePort(probe.executor, host, TOKEN, keyOf(first)).persistEntry(first, 1);
-    await createWorkingTreeCapturePort(probe.executor, host, TOKEN, keyOf(second)).persistEntry(second, 1);
+    await persistThrough(probe, first, 1);
+    await persistThrough(probe, second, 1);
 
     const ids = (probe.rowsOf(WorkingTreeEntry) as WorkingTreeEntry[]).map(entry => entry.id);
     // 同一事务的两条写共用一个 unitId（adapter-contract.md §5），拿它当主键会在这里撞号。
@@ -113,7 +130,7 @@ describe('工作树捕获端口：单元主键', () => {
     probe.seed(WorkingTreeEntry, [existing]);
 
     const folded = rowOf({ patch: { title: '又改了一次' }, fingerprint: '00000002', unitId: 'unit-2' });
-    await createWorkingTreeCapturePort(probe.executor, host, TOKEN, keyOf(folded)).persistEntry(folded, 0);
+    await persistThrough(probe, folded, 0);
 
     const rows = probe.rowsOf(WorkingTreeEntry) as WorkingTreeEntry[];
     expect(rows).toHaveLength(1);

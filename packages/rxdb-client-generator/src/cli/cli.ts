@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import buildClientLibrary from './build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from './cli.interface.js';
 import { validateUniqueConfigOutDirs } from './out-dir.js';
+import { resolveRepositoryGeneratorSpec } from './repository-generators.js';
 
 export type { RxDBClientCLIentGeneratorOptions } from './cli.interface.js';
 
@@ -29,7 +30,7 @@ const normalizeConfig = (value: unknown, configDir: string, configIndex: number)
     throw new Error(`Config entry ${configIndex} must be an object`);
   }
 
-  const { allowEmpty, entities, outDir, relationQueryDeep, splitFiles } = value;
+  const { allowEmpty, entities, outDir, relationQueryDeep, repositoryGenerators, splitFiles } = value;
   if (!Array.isArray(entities) || !entities.every(entity => typeof entity === 'string')) {
     throw new Error(`Config entry ${configIndex} entities must be a string array`);
   }
@@ -42,6 +43,12 @@ const normalizeConfig = (value: unknown, configDir: string, configIndex: number)
   if (splitFiles !== undefined && typeof splitFiles !== 'boolean') {
     throw new Error(`Config entry ${configIndex} splitFiles must be a boolean`);
   }
+  if (
+    repositoryGenerators !== undefined &&
+    (!Array.isArray(repositoryGenerators) || !repositoryGenerators.every(spec => typeof spec === 'string'))
+  ) {
+    throw new Error(`Config entry ${configIndex} repositoryGenerators must be a string array`);
+  }
   // 不校验的话 `allowEmpty: 'no'` 这类写法会因为字符串真值绕过 fail-closed（RCG-003）
   if (allowEmpty !== undefined && typeof allowEmpty !== 'boolean') {
     throw new Error(`Config entry ${configIndex} allowEmpty must be a boolean`);
@@ -53,6 +60,9 @@ const normalizeConfig = (value: unknown, configDir: string, configIndex: number)
     entities: entities.map(entity => normalize(resolve(configDir, entity))),
     outDir: normalize(resolve(configDir, outDir)),
     relationQueryDeep: relationQueryDeep as number | undefined,
+    repositoryGenerators: (repositoryGenerators as string[] | undefined)?.map(spec =>
+      resolveRepositoryGeneratorSpec(spec, configDir)
+    ),
     splitFiles: splitFiles as boolean | undefined
   };
 };

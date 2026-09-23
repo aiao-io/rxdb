@@ -1,4 +1,11 @@
-import { type IRepository, RxDBBranch, RxDBChange, RxDBError } from '@aiao/rxdb';
+import {
+  assertUsableBranchId,
+  InvalidBranchIdError,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError,
+  type IRepository
+} from '@aiao/rxdb';
 import { toLocalFromChangeId } from './branch-change-id.js';
 import type { SyncManager } from './SyncManager.js';
 
@@ -22,6 +29,26 @@ export interface SyncBranchesResult {
 interface RemoteBranchRow {
   id: string;
   parentId?: string | null;
+}
+
+/**
+ * 远端分支 id 能否落进本地 `rxdb_branch.id`。
+ *
+ * @remarks
+ * 判定口径**只有**核心 {@link assertUsableBranchId} 一份——这里把它的抛错翻成布尔，
+ * 不是第二份规则。各写一遍的话，核心哪天多禁一个字符，同步这条导入路径会静默放行。
+ *
+ * 只吞 {@link InvalidBranchIdError}：别的异常说明校验自身坏了，那不是「这条远端行不合格」，
+ * 不该被记成一次 `skipped`。
+ */
+function isUsableBranchId(branchId: string): boolean {
+  try {
+    assertUsableBranchId(branchId);
+    return true;
+  } catch (error) {
+    if (error instanceof InvalidBranchIdError) return false;
+    throw error;
+  }
 }
 
 /**
@@ -122,6 +149,16 @@ export async function syncBranches(sm: SyncManager): Promise<SyncBranchesResult>
     const skipped: string[] = [];
 
     for (const remote of sortBranchesParentFirst(remoteBranches, new Set(localMap.keys()))) {
+      // 远端分支行是外来数据，它的 id 没走过本地那条创建路径。不校验就直接落库，
+      // 一条叫 `*active*` 的远端分支会与 active 哨兵同形（`system/active-branch-guard.ts`）。
+      //
+      // 跳过而不是整批放弃：`skipped` 这条通道本来就是为「这一行本轮落不了库，别的行照常」
+      // 准备的。整批抛错会让一条坏的远端行把整个同步卡死，而本地这边一点办法都没有。
+      if (!isUsableBranchId(remote.id)) {
+        skipped.push(remote.id);
+        continue;
+      }
+
       const local = localMap.get(remote.id);
       if (local) {
         if (!local.remote) {

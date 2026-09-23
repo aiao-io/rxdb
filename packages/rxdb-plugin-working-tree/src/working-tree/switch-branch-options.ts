@@ -9,7 +9,7 @@
  * 正是这么调的，于是那条路径可以切进一份重放不出来的历史。
  *
  * 两者仍然同住一个模块：它们是同一次切换的两道前置，接线点也是同一处
- * （`RxDBSystemContribution.assertBranchSwitchable`），拆成两个文件只会让那一处要 import 两次。
+ * （`RxDBSystemContribution.prepareBranchSwitch`），拆成两个文件只会让那一处要 import 两次。
  */
 
 import { RxDBError, type RxDBBranchSwitchPreconditions, type TransactionExecutor } from '@aiao/rxdb';

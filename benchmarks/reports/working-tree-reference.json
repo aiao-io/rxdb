@@ -9,7 +9,7 @@
     "restore": 14.680941324859418,
     "commit": 15.933321897335857
   },
-  "regeneratedBecause": "T109 新增 restore 测点；本轮为带机器负载的初版基线，待静默后复冻",
+  "regeneratedBecause": "T109 新增 restore 测点，测点集合变了必须重冻 —— contracts/benchmark-report.md §3.1 允许的唯一理由",
   "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba",
   "runs": 10
 }

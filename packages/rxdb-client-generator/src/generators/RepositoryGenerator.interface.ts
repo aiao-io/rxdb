@@ -3,7 +3,7 @@
  * 提供插件化的 Repository 方法生成机制，支持扩展新的数据结构类型
  */
 
-import type { EntityMetadata } from '@aiao/rxdb';
+import type { EntityMetadata, EntityMetadataOptions } from '@aiao/rxdb';
 import type { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import type {
   AddedInterface,
@@ -42,6 +42,38 @@ export interface GeneratorContext {
   file: SourceFile;
   /** 静态类型接口 */
   staticTypesInterface: AddedInterface;
+}
+
+/**
+ * 生成器自报的一个顶层类型名。
+ */
+export interface RepositoryGeneratorTypeSymbol {
+  /** 类型名，例如 `FolderTreeRuleGroup`。 */
+  readonly name: string;
+  /** 是否被 `index.d.ts` 再导出；split 模式下导出名另占一个作用域。 */
+  readonly exported?: boolean;
+}
+
+/**
+ * 生成器自报的产物符号
+ *
+ * @remarks
+ * 与 {@link IRepositoryGenerator.generate} 一一对应：**只声明本生成器自己写入的符号**。
+ * 扩展类型（`repository` 不是 `Repository`）的实体会先跑一轮基类 `Repository` 生成，
+ * 那一轮的符号由基类生成器自报；覆盖了 `generateMethods` 而不调用 `super` 的子类，
+ * 同样必须覆盖 {@link IRepositoryGenerator.declareSymbols} 而不合并父类结果，否则同一个
+ * 符号会被声明两次，预检把它当成冲突。
+ */
+export interface RepositoryGeneratorSymbols {
+  /** 写入实体声明文件的顶层类型。 */
+  readonly types?: readonly RepositoryGeneratorTypeSymbol[];
+  /** 写入实体类的实例成员名。 */
+  readonly instanceMembers?: readonly string[];
+  /**
+   * 实体类要 `implements` 的接口名，从 {@link IRepositoryGenerator.entityBaseModuleSpecifier}
+   * 引入；非空时取代默认的 `IEntity`。
+   */
+  readonly entityInterfaces?: readonly string[];
 }
 
 /**
@@ -100,6 +132,34 @@ export interface IRepositoryGenerator {
 
   /** 实体运行时基类的来源模块；未设置时使用 @aiao/rxdb。 */
   readonly entityBaseModuleSpecifier?: string;
+
+  /**
+   * 本生成器负责的抽象实体基类元数据，键为基类名，值按「自身 → 祖先」顺序排列。
+   *
+   * @remarks
+   * 抽象基类的装饰器实参通常是一个常量标识符（`@Entity(GRAPH_ENTITY_BASE_OPTIONS)`），
+   * CLI 的静态求值取不到它的值；而基类元数据又必须在分析实体源码时就位，否则
+   * `extends GraphEntityBase` 的实体直接报「无法静态求值」。
+   *
+   * 由生成器随身携带这份数据后，分析器按 {@link entityBaseModuleSpecifier} 指向的包名
+   * 加基类名回填——生成器包因此不必为每个插件的基类反向依赖该插件。
+   * 只声明了本字段而没有 {@link entityBaseModuleSpecifier} 的生成器不会被分析器采纳：
+   * 少了包名就只能按类名匹配，用户自己写的同名类会被顶替。
+   */
+  readonly abstractEntityMetadata?: ReadonlyMap<string, EntityMetadataOptions[]>;
+
+  /**
+   * 自报本生成器将写入的符号，供生成前的冲突预检与实体声明使用。
+   *
+   * @remarks
+   * 预检必须在建 ts-morph Project 之前跑完，那时还没有任何产物文本可供扫描，
+   * 只能由生成器自己申报。不实现本方法的生成器不占任何名字——它写出的符号因此
+   * 不参与预检，冲突要等到 {@link generate} 落盘阶段的成员校验才暴露。
+   *
+   * @param metadata 当前实体的元数据
+   * @returns 本生成器为该实体写入的符号
+   */
+  declareSymbols?(metadata: EntityMetadata): RepositoryGeneratorSymbols;
 
   /**
    * 生成 Repository 特有的属性和方法

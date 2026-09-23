@@ -6,9 +6,10 @@ import {
   SyncType,
   type EntityType,
   type RxDBEntityLocalUpdatedEventData,
+  type SwitchBranchOptions,
   type SwitchVersionActions
 } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteSuccessResult } from '../../sqlite-core.interface.js';
 import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
@@ -165,12 +166,28 @@ describe('generateSwitchBranchSql', () => {
   });
 });
 
+/**
+ * 一次 `switch_branch` 调用的选项，`prepare` 是可断言的 spy。
+ *
+ * @remarks
+ * 契约要求适配器在解析出目标分支之后、动第一行之前 `await options.prepare(...)`
+ * （见 `rxdb-adapter.ts` › `SwitchBranchOptions.prepare`）。这里**不**用
+ * `SKIP_BRANCH_SWITCH_PREPARE`：那个常量留给「分支不换、确实没有前置条件可校验」的调用点，
+ * 本组每条用例都在真的换分支。
+ */
+const switchOptions = (branchId: string): SwitchBranchOptions & { prepare: Mock<SwitchBranchOptions['prepare']> } => ({
+  branchId,
+  prepare: vi.fn(async () => undefined)
+});
+
 describe('switch_branch', () => {
   it('无 actions 时应移除触发器并执行分支切换', async () => {
     const { adapter, calls, dispatched } = createSwitchAdapter();
 
-    await switch_branch(adapter, { branchId: 'main' });
+    const options = switchOptions('main');
+    await switch_branch(adapter, options);
 
+    expect(options.prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'main' });
     expect(calls.some(call => call.sql.includes('DROP TRIGGER'))).toBe(true);
     expect(calls.some(call => call.sql.includes('rxdb_branch'))).toBe(true);
     // 分支切换未返回任何行时不应派发事件
@@ -186,7 +203,7 @@ describe('switch_branch', () => {
       ]
     });
 
-    await switch_branch(adapter, { branchId: 'feature' });
+    await switch_branch(adapter, switchOptions('feature'));
 
     expect(dispatched).toHaveLength(1);
     expect(dispatched[0]).toBeInstanceOf(EntityLocalUpdatedEvent);
@@ -210,7 +227,7 @@ describe('switch_branch', () => {
       branchRows: [[1, 'feature', 1, 1, 0, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z']]
     });
 
-    await switch_branch(adapter, { branchId: 'feature' });
+    await switch_branch(adapter, switchOptions('feature'));
 
     const branchCalls = calls.filter(call => call.sql.includes('UPDATE "rxdb$rxdb_branch"'));
     expect(branchCalls).toHaveLength(2);
@@ -225,7 +242,7 @@ describe('switch_branch', () => {
   it('分支切换语句无结果时不应派发事件', async () => {
     const { adapter, dispatched } = createSwitchAdapter({ branchResultUndefined: true });
 
-    await switch_branch(adapter, { branchId: 'main' });
+    await switch_branch(adapter, switchOptions('main'));
 
     expect(dispatched).toEqual([]);
   });
@@ -239,7 +256,7 @@ describe('switch_branch', () => {
       updateRxDBChangeSequence: 42
     } as unknown as SwitchVersionActions;
 
-    await switch_branch(adapter, { branchId: 'feature', actions });
+    await switch_branch(adapter, { ...switchOptions('feature'), actions });
 
     expect(calls.some(call => call.sql.startsWith('DELETE FROM "public$todos"'))).toBe(true);
     expect(calls.some(call => call.sql.includes('INTO "public$todos"'))).toBe(true);
@@ -257,6 +274,22 @@ describe('switch_branch', () => {
   it('事务内失败时应包装为 switch branch failed 错误', async () => {
     const { adapter } = createSwitchAdapter({ failOn: 'DROP TRIGGER' });
 
-    await expect(switch_branch(adapter, { branchId: 'main' })).rejects.toThrow(/switch branch main failed/);
+    await expect(switch_branch(adapter, switchOptions('main'))).rejects.toThrow(/switch branch main failed/);
+  });
+
+  it('prepare 被拒时原样抛出，且一条语句都没执行过', async () => {
+    const { adapter, calls, dispatched } = createSwitchAdapter();
+    const options = switchOptions('feature');
+    const rejection = new Error('工作树不干净');
+    options.prepare.mockRejectedValue(rejection);
+
+    // 两条断言各管一件事：
+    // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorkingTreeDirtyError` 之类），
+    //    包成 RxDBAdapterSqliteError 会让调用方的 `instanceof` 全部落空。
+    // 2. **一条 SQL 都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
+    //    而那正是两事务版本留下的那个窗口。
+    await expect(switch_branch(adapter, options)).rejects.toBe(rejection);
+    expect(calls).toEqual([]);
+    expect(dispatched).toEqual([]);
   });
 });

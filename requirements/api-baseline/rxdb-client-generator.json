@@ -2,8 +2,16 @@
   "entries": {
     ".": [
       {
+        "name": "buildRules",
+        "kind": "value"
+      },
+      {
         "name": "EntitySourceGetter",
         "kind": "type"
+      },
+      {
+        "name": "generateEntityRules",
+        "kind": "value"
       },
       {
         "name": "GeneratorContext",
@@ -32,6 +40,22 @@
       {
         "name": "RepositoryGeneratorBase",
         "kind": "both"
+      },
+      {
+        "name": "RepositoryGeneratorSymbols",
+        "kind": "type"
+      },
+      {
+        "name": "RepositoryGeneratorTypeSymbol",
+        "kind": "type"
+      },
+      {
+        "name": "RepositoryMethodsGenerator",
+        "kind": "both"
+      },
+      {
+        "name": "RuleTypeData",
+        "kind": "type"
       },
       {
         "name": "RxDBClientGenerator",
@@ -65,6 +89,24 @@
       },
       {
         "name": "sameCliFileUrl",
+        "kind": "value"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "compileGeneratedConsumer",
+        "kind": "value"
+      },
+      {
+        "name": "CompileGeneratedConsumerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "GeneratedConsumerPluginStub",
+        "kind": "type"
+      },
+      {
+        "name": "runTypeScriptCompiler",
         "kind": "value"
       }
     ],

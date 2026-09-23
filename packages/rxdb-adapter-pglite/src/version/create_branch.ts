@@ -1,4 +1,4 @@
-import { RxDBBranch } from '@aiao/rxdb';
+import { assertUsableBranchId, RxDBBranch } from '@aiao/rxdb';
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
@@ -26,6 +26,11 @@ export default async (
   branchId: string,
   fromChangeId?: number
 ): Promise<InstanceType<typeof RxDBBranch>> => {
+  // 适配器这一层是绕开 versionManager 的**第三条**创建路径，哨兵校验得各自成立：
+  // 只在 `version/create-branch.ts` 校验的话，`adapter.createBranch()` 照样能把一条
+  // 与 active 哨兵同形的 id 写进 `rxdb_branch.id`（`system/active-branch-guard.ts`）。
+  assertUsableBranchId(branchId);
+
   const localRxDBBranch = adapter.localRxDBBranch();
   const localRxDBChange = adapter.localRxDBChange();
 

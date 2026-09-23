@@ -97,6 +97,7 @@ import { WorkingTreeMaterializationPage } from '../working-tree-materialization-
 import { WorkingTreeMaterializationStage } from '../working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
+import { StaleActiveBranchError } from '../write-entry.js';
 import { ConformanceNote } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
@@ -562,6 +563,12 @@ const REMOTE_TARGET_ID = 'conformance-remote-target';
 /** §2.7 的 ABA 用例那条被删掉又同名重建的分支。 */
 const ABA_BRANCH_ID = 'conformance-aba';
 
+/** §2.7 的代际用例那条来回切的分支：`A → B → A` 里的 B。 */
+const ACTIVATION_BRANCH_ID = 'conformance-activation';
+
+/** §2.7 那条**切不过去**的分支：前置校验会把这次切换拒掉。 */
+const REFUSED_BRANCH_ID = 'conformance-refused';
+
 /** 物化 attempt 冻结下来的远端水位；内容不重要，「冻结的是哪一份」才重要。 */
 const MATERIALIZATION_WATERMARK: Record<string, unknown> = { changeId: 7 };
 
@@ -778,7 +785,7 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
       // `preconditions` 传 `undefined`：这一行只问损坏，条件那一半归 §2.7。而次序正好是
       // 插件承诺的那一条——损坏优先于调用方提出的条件，于是不表态也拦得住。
       for (const contribution of database.systemContributions) {
-        await contribution.assertBranchSwitchable({
+        await contribution.prepareBranchSwitch({
           executor,
           currentBranchId: branchId,
           targetBranchId: branchId,
@@ -1539,6 +1546,11 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const older = await seedTwoCommits(database, branchId);
         await restoreOnce(database, older.id);
         const before = await withTransaction(database, snapshotCommits);
+        // 丢弃**前**的 revision：期望值必须从这里推，不能拿事后重读的那个数回填。
+        // `result.workingTreeRevision` 与 `status.workingTreeRevision` 是同一次写的两个出口，
+        // 互相比对只证明「返回值等于落库值」——`discard-command.ts` 那句 `+ 1` 删掉之后两边
+        // 一起停在原地，断言照样绿。真正要钉的是「这次丢弃把 revision 推进了一格」。
+        const revisionBefore = (await readStatus(database)).workingTreeRevision;
 
         const result = await discardWithFreshCredentials(database);
 
@@ -1548,11 +1560,13 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect([...after.keys()], 'discard 动了历史').toEqual([...before.keys()]);
         expect({
           result,
+          revision: status.workingTreeRevision,
           bits: restoreBitsOf(status),
           clean: status.clean,
           entries: await countEntries(database, branchId)
         }).toEqual({
-          result: { ok: true, discardedCount: 1, workingTreeRevision: status.workingTreeRevision },
+          result: { ok: true, discardedCount: 1, workingTreeRevision: revisionBefore + 1 },
+          revision: revisionBefore + 1,
           bits: { restoring: false, conflicted: false },
           clean: true,
           entries: 0
@@ -1612,6 +1626,88 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(dirty).toBeInstanceOf(WorkingTreeDirtyError);
         expect((dirty as WorkingTreeDirtyError).branchId).toBe(sourceBranchId);
         expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
+      });
+
+      it('每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await database.versionManager.createBranch(ACTIVATION_BRANCH_ID);
+        // 这就是调用方从 `status()` 拿到的那份凭据：`commit()` 与捕获路径都按它仲裁。
+        const captured = await readStatus(database);
+
+        await database.versionManager.switchBranch(ACTIVATION_BRANCH_ID);
+        const onTarget = await readStatus(database);
+        await database.versionManager.switchBranch(sourceBranchId);
+        const backOnSource = await readStatus(database);
+
+        // 一次切换推一格，来回两次推两格。推进漏接线时这两个数都停在捕获值上——而
+        // `advanceActivationRevision()` 自己那组单测照样全绿：它们喂的是一个直接构造出来的
+        // executor，证不了 `switchBranch()` 这条路**走到过**那一行。
+        expect({ target: onTarget.activationRevision, back: backOnSource.activationRevision }).toEqual({
+          target: captured.activationRevision + 1,
+          back: captured.activationRevision + 2
+        });
+
+        // 走回来之后 `branchId` 与走之前**逐字相同**，三位仲裁里只剩代际这一位认得出
+        // 「你看的不是这个工作树」。它不推进的话，用户在 B 上改完切回 A，A 上那个早就把实体
+        // 读进内存的 Tab 会把基于旧投影算出来的 patch 原样写进来，全程零报错。
+        expect(backOnSource.branchId).toBe(sourceBranchId);
+        const stale = await captureRejection(
+          withTransaction(database, executor =>
+            captureChanges(executor, database, {
+              token: { branchId: sourceBranchId, activationRevision: captured.activationRevision },
+              unitId: uuid(),
+              origin: 'local',
+              changes: [changeOf('note-aba-token')],
+              shouldCapture: () => true
+            })
+          )
+        );
+        expect(stale).toBeInstanceOf(StaleActiveBranchError);
+        // `actual` 现读库：它与 `backOnSource` 对得上，才说明捕获路径仲裁用的就是切换推进的那一格，
+        // 而不是另有一处各自记账。
+        expect((stale as StaleActiveBranchError).actual).toEqual({
+          branchId: sourceBranchId,
+          activationRevision: backOnSource.activationRevision
+        });
+        // 拒绝排在写之前（`write-entry.ts` › `captureCrudWrite` 第一步），条目一行都不许落。
+        expect(await countEntries(database, sourceBranchId)).toBe(0);
+      });
+
+      it('前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await database.versionManager.createBranch(REFUSED_BRANCH_ID);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-refused'));
+        const captured = await readStatus(database);
+
+        const dirty = await captureRejection(
+          database.versionManager.switchBranch(REFUSED_BRANCH_ID, { requireClean: true })
+        );
+
+        expect(dirty).toBeInstanceOf(WorkingTreeDirtyError);
+        // 这一条是上一条用例的另一半：**没切成就一格都不动**——分支、条目、代际全部原样。
+        // 代际单列一条断言，是因为它是这三样里唯一可能与切换分家的：推进跑在切换事务内部
+        // （`plugin.ts` › `prepareBranchSwitch`），只要它逃出这个回滚单元（自己开一个事务、
+        // 或者被挪到调用方那一侧先跑），被拒的切换就会烧掉一代；而工作树一脏就拒，
+        // 被拒在日常使用里很常见，代价是每拒一次就把全库所有 Tab 手上的 token 一起作废。
+        //
+        // 本条钉的是**回滚单元**，不是次序：把推进挪到两道校验之前不会让它变红——
+        // 拒绝会把整个事务连推进一起回滚，那个次序在事务内本就不可观测。
+        expect((await readStatus(database)).activationRevision).toBe(captured.activationRevision);
+        // 上一条是库里那个计数，这一条是它的用户可见后果：被拒的切换不连坐已经在手的凭据。
+        await withTransaction(database, executor =>
+          captureChanges(executor, database, {
+            token: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+            unitId: uuid(),
+            origin: 'local',
+            changes: [changeOf('note-refused')],
+            shouldCapture: () => true
+          })
+        );
+        // 同一个 entityId 折进同一条条目，所以仍是 1——数字变成 2 说明折叠没走，那是另一回事。
+        expect({
+          active: await activeBranchIdsOf(database),
+          entries: await countEntries(database, sourceBranchId)
+        }).toEqual({ active: [sourceBranchId], entries: 1 });
       });
 
       it('物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动', async () => {

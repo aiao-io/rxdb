@@ -22,7 +22,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(QuoteEntity));
+    const sql = generate_table_trigger_sql(getEntityMetadata(QuoteEntity), { branchId: 'main' });
 
     // 原始注入字符串不应原封出现
     expect(sql).not.toContain("ns'; DROP TABLE x; --'");
@@ -41,7 +41,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EvilName));
+    const sql = generate_table_trigger_sql(getEntityMetadata(EvilName), { branchId: 'main' });
 
     expect(sql).toContain("'Evil''Name'");
     expect(sql).not.toContain(",'Evil'Name',");
@@ -60,7 +60,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       normal!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(KeyEscape));
+    const sql = generate_table_trigger_sql(getEntityMetadata(KeyEscape), { branchId: 'main' });
 
     // json_object 的 key 应为转义字面量
     expect(sql).toContain("'weird''key'");
@@ -77,7 +77,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       order!: number;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(ReservedCol));
+    const sql = generate_table_trigger_sql(getEntityMetadata(ReservedCol), { branchId: 'main' });
 
     // 未引用的 NEW.order 是 SQLite 语法错误（order 为保留字）
     expect(sql).toContain('NEW."order"');
@@ -96,7 +96,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       title!: string;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(Clean));
+    const sql = generate_table_trigger_sql(getEntityMetadata(Clean), { branchId: 'main' });
     expect(sql).toContain("'app'");
     expect(sql).toContain("'Clean'");
     expect(sql).toContain("'title'");
@@ -117,7 +117,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       payload!: Uint8Array;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(TypedChange));
+    const sql = generate_table_trigger_sql(getEntityMetadata(TypedChange), { branchId: 'main' });
 
     expect(sql).toContain("'__rxdb_change_id__:' || json_object(");
     expect(sql).toContain("'type', 'bigint'");
@@ -154,6 +154,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
 
     const parentMetadata = getEntityMetadata(BigintTriggerParent);
     const sql = generate_table_trigger_sql(getEntityMetadata(BigintTriggerChild), {
+      branchId: 'main',
       resolveEntityMetadata: (entity, namespace) =>
         entity === parentMetadata.name && namespace === parentMetadata.namespace ? parentMetadata : undefined
     });
@@ -176,7 +177,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       secretPayload!: Uint8Array;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedTypedChange));
+    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedTypedChange), { branchId: 'main' });
 
     expect(sql).toContain('\'secretAmount\', NEW."secretAmount"');
     expect(sql).toContain('\'secretPayload\', NEW."secretPayload"');
@@ -204,7 +205,7 @@ describe('generate_table_trigger_sql - 元数据字符串转义', () => {
       plainFlag!: boolean;
     }
 
-    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedBoolChange));
+    const sql = generate_table_trigger_sql(getEntityMetadata(EncryptedBoolChange), { branchId: 'main' });
 
     expect(sql).toContain('\'secretFlag\', NEW."secretFlag"');
     expect(sql).toContain('\'secretNullableFlag\', NEW."secretNullableFlag"');
@@ -240,5 +241,38 @@ describe('SQLC-018 nullable boolean 的 NULL 不得在历史 patch 里退化成 
     expect(sql).not.toMatch(/CASE WHEN (NEW|OLD)\."flag" = 1 THEN 1 ELSE 0 END/);
     // NULL 必须原样保留
     expect(sql).toMatch(/CASE WHEN (NEW|OLD)\."flag" IS NULL THEN NULL WHEN (NEW|OLD)\."flag" = 1 THEN 1 ELSE 0 END/);
+  });
+});
+
+// 触发器把分支 id 硬编码进 INSERT 的 VALUES 里——它决定这张表后续每一次写入被记到哪条分支下。
+// 生成器自己替调用方填一个默认值，等于在「这条历史算谁的」这个问题上替人做主，而做错了不报错：
+// 库停在 feature 上、触发器写着 main，写入照样成功，只有事后审计历史才看得出来。
+describe('generate_table_trigger_sql - branchId 必填', () => {
+  @Entity({
+    name: 'TrgBranchRequired',
+    namespace: 'trg',
+    tableName: 'trg_branch_required',
+    properties: [
+      { name: 'id', type: PropertyType.uuid, primary: true },
+      { name: 'title', type: PropertyType.string }
+    ]
+  })
+  class TrgBranchRequired extends EntityBase {
+    title!: string;
+  }
+
+  it('缺 branchId 时报错，而不是静默回落 main', () => {
+    expect(() =>
+      generate_table_trigger_sql(getEntityMetadata(TrgBranchRequired), {
+        branchId: undefined as unknown as string
+      })
+    ).toThrow(/branchId/);
+  });
+
+  it('调用方给的分支原样落进 VALUES', () => {
+    const sql = generate_table_trigger_sql(getEntityMetadata(TrgBranchRequired), { branchId: 'feature' });
+
+    expect(sql).toContain("'feature'");
+    expect(sql).not.toContain("'main'");
   });
 });

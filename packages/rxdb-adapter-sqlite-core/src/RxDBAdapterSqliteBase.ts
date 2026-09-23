@@ -634,8 +634,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           const removeTriggersSql = remove_all_triggers_sql(this);
           if (removeTriggersSql) await client.execute(removeTriggersSql);
           for (const metadata of existingLoggedMetadata) {
+            // 这里重建触发器时固定写 `main`，而 pglite 侧（`migrate_system_schema.ts`）是先读活动分支再传——
+            // 不对称是已知的，见 `requirements/reviews/next-0912-branch-review.md` §2。这段跑在 **system schema
+            // 迁移中途**，活动分支该从哪张表按哪个 schema 版本读取决于本次迁移走到了哪一步（`activeKey` 回填
+            // 就在同一段迁移里），在能真实复现「旧库升级 + 非 main 活动分支 + 窗口期裸写」的迁移用例立起来之前，
+            // 照抄 pglite 是拿迁移顺序赌运气。现状有自愈：下一个默认事务会按真实分支重建全部触发器。
             await client.execute(
               generate_table_trigger_sql(metadata, {
+                branchId: MAIN_BRANCH_ID,
                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
               })
             );
@@ -686,6 +692,25 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         throw error;
       }
     });
+  }
+
+  /**
+   * SQLite 家族把命名空间折进表名：`public$todos`。
+   *
+   * @param metadata - 实体元数据
+   * @returns 逻辑名（基类那一份）加上本家族真正建出来的那个名字
+   *
+   * @remarks
+   * 覆写的全部意义是**让规则只有一份**：名字由 {@link get_table_name_by_metadata} 给出，
+   * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-working-tree` 的
+   * 版本化域按 `'$'` 自己拼了一份；拼法一改，那份不会报错，只会开始认不出这张表，于是
+   * raw 写门禁对它静默放行。
+   *
+   * 保留基类给的逻辑名而不是只交折叠名：raw 判定宁可**多认**一个名字——多认只是多挡下
+   * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
+   */
+  override physicalTableNames(metadata: EntityMetadata): readonly string[] {
+    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata)];
   }
 
   async switchBranch(options: SwitchBranchOptions): Promise<void> {

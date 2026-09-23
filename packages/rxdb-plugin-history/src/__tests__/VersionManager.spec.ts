@@ -8,14 +8,21 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBSync,
+  takeDeclaredWrite,
   TRANSACTION_BEGIN,
-  TRANSACTION_COMMIT
+  TRANSACTION_COMMIT,
+  type EntityType,
+  type SwitchBranchOptions
 } from '@aiao/rxdb';
 import { firstValueFrom, of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { HistoryManager } from '../HistoryManager.js';
 import { VersionManager } from '../VersionManager.js';
-import { createTransactionStub } from './fixtures/transaction-executor-stub.js';
+import {
+  createSwitchBranchStub,
+  createTransactionExecutorStub,
+  createTransactionStub
+} from './fixtures/transaction-executor-stub.js';
 
 type VersionManagerHistoryManagerTestBridge = Pick<
   HistoryManager,
@@ -49,7 +56,9 @@ type AdapterMock = {
   switchBranch: ReturnType<typeof vi.fn>;
   mergeChanges: ReturnType<typeof vi.fn>;
   getRxDBChangeSequence: ReturnType<typeof vi.fn>;
-  getRepository: ReturnType<typeof vi.fn>;
+  // 这一格不能用裸 `vi.fn`：它要被原样交给 `createSwitchBranchStub` / `createTransactionExecutorStub`
+  // 当仓库宿主用，宿主那边要的是一个可调用签名，而 `ReturnType<typeof vi.fn>` 是不可调用的联合。
+  getRepository: Mock<(EntityType: EntityType) => unknown>;
   transaction: ReturnType<typeof createTransactionStub>;
 };
 
@@ -156,7 +165,7 @@ describe('VersionManager', () => {
       return null;
     });
     mockAdapter = {
-      switchBranch: vi.fn().mockResolvedValue(undefined),
+      switchBranch: vi.fn(createSwitchBranchStub({ getRepository })),
       mergeChanges: vi.fn().mockResolvedValue(undefined),
       getRxDBChangeSequence: vi.fn().mockResolvedValue(100),
       getRepository,
@@ -195,8 +204,8 @@ describe('VersionManager', () => {
         })
       },
       getAdapter: vi.fn().mockReturnValue(of(mockAdapter)),
-      // 一个能力插件都没装：`switchBranch` 的前置判定因此连事务都不开，
-      // 本文件测的编排顺序与今天逐字节一致。
+      // 一个能力插件都没装：`prepare` 回调因此会跑完一个空的贡献方列表，
+      // 本文件测的编排顺序与今天逐字节一致。需要看前置校验本身的用例自己往这里放贡献方。
       systemContributions: [],
       addEventListener: addEventListenerMock,
       removeEventListener: vi.fn(),
@@ -567,9 +576,11 @@ describe('VersionManager', () => {
         if (activated) return branches.filter(branch => branch.activated === activated.value);
         return branches;
       });
-      mockAdapter.switchBranch.mockImplementation(async ({ branchId }: { branchId: string }) => {
-        for (const branch of branches) branch.activated = branch.id === branchId;
-      });
+      mockAdapter.switchBranch.mockImplementation(
+        createSwitchBranchStub({ getRepository: mockAdapter.getRepository }, branchId => {
+          for (const branch of branches) branch.activated = branch.id === branchId;
+        })
+      );
       // 活跃分支订阅在构造时就取值，必须在建 VersionManager 之前备好 main
       mockBranchRepository.findOne.mockReturnValue(of(branches[0]));
       const manager = new VersionManager(mockRxDB);
@@ -585,6 +596,86 @@ describe('VersionManager', () => {
       await manager.switchBranch('main');
       // 切回来必须拿回 main 原来那一份，而不是再新建一份或停在 feature 上
       expect(historyManager.undoSessionGeneration).toBe(mainGeneration);
+    });
+
+    // 前置校验以前跑在**另一个只读事务**里：它提交之后、切换事务开始之前留着一个窗口，
+    // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。校验搬进
+    // `SwitchBranchOptions.prepare` 之后，「校验通过」与「切换完成」不再是两件可以分开发生的事。
+    describe('前置校验跑在切换事务内部', () => {
+      /** 只实现这条路径上会被问到的那一个贡献点；其余六个在 switchBranch 上一次都不会被调到。 */
+      const contributePrepare = () => {
+        const prepareBranchSwitch = vi.fn().mockResolvedValue(undefined);
+        (mockRxDB as unknown as { systemContributions: unknown[] }).systemContributions = [{ prepareBranchSwitch }];
+        return prepareBranchSwitch;
+      };
+
+      /** main 已激活、feature 存在；`switch_branch_actions` 取到空变更集。 */
+      const stubMainToFeature = () => {
+        mockBranchRepository.find
+          .mockResolvedValueOnce([{ id: 'main', activated: true }])
+          .mockResolvedValueOnce([{ id: 'main', activated: true }])
+          .mockResolvedValueOnce([
+            { id: 'main', activated: true },
+            { id: 'feature', activated: false }
+          ])
+          .mockResolvedValue([]);
+        mockChangeRepository.find.mockResolvedValue([]);
+      };
+
+      it('贡献方拿到的是切换事务自己的 executor，而不是另开一个事务', async () => {
+        const prepareBranchSwitch = contributePrepare();
+        stubMainToFeature();
+        const switchExecutor = createTransactionExecutorStub({ getRepository: mockAdapter.getRepository });
+        mockAdapter.switchBranch.mockImplementation(async ({ branchId, prepare }: SwitchBranchOptions) => {
+          await prepare({ executor: switchExecutor, targetBranchId: branchId as string });
+        });
+
+        await versionManager.switchBranch('feature');
+
+        expect(prepareBranchSwitch).toHaveBeenCalledTimes(1);
+        expect(prepareBranchSwitch).toHaveBeenCalledWith({
+          executor: switchExecutor,
+          currentBranchId: 'main',
+          targetBranchId: 'feature',
+          preconditions: undefined
+        });
+        // 自己开事务就又造出一个窗口，所以这条路径上一个事务都不该开。
+        expect(mockAdapter.transaction).not.toHaveBeenCalled();
+      });
+
+      it('调用方提的 preconditions 原样转交给贡献方', async () => {
+        const prepareBranchSwitch = contributePrepare();
+        stubMainToFeature();
+
+        await versionManager.switchBranch('feature', { requireClean: true });
+
+        expect(prepareBranchSwitch).toHaveBeenCalledWith(
+          expect.objectContaining({ preconditions: { requireClean: true }, targetBranchId: 'feature' })
+        );
+      });
+
+      it('前置校验拒绝时，适配器上不能留下受信写声明', async () => {
+        const prepareBranchSwitch = contributePrepare();
+        prepareBranchSwitch.mockRejectedValue(new Error('工作树不干净'));
+        stubMainToFeature();
+
+        await expect(versionManager.switchBranch('feature', { requireClean: true })).rejects.toThrow('工作树不干净');
+
+        // 声明挂在**适配器实例**上，取用即清除。校验拒绝时一个写原语都没跑，没人取用它；
+        // 留着就会被这个适配器的下一次 `mergeChanges` 取走，那次合并于是按
+        // `projection_rewrite` 判定——一个工作树单元都不产生，拉回来的远端改动凭空消失。
+        expect(takeDeclaredWrite(mockAdapter)).toBeUndefined();
+      });
+
+      it('适配器没有调用 prepare 时必须炸，而不是当作校验通过', async () => {
+        const prepareBranchSwitch = contributePrepare();
+        stubMainToFeature();
+        // 契约违背在其他任何地方都不显形：分支照切、事件照发、actions 照放。
+        mockAdapter.switchBranch.mockResolvedValue(undefined);
+
+        await expect(versionManager.switchBranch('feature')).rejects.toThrow(/prepare/);
+        expect(prepareBranchSwitch).not.toHaveBeenCalled();
+      });
     });
   });
 

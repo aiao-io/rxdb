@@ -8,7 +8,7 @@ import {
   RXDB_CHANGE_VALUE_ENVELOPE_KEY,
   RxDBChange
 } from '@aiao/rxdb';
-import { getTableNameByMetadata } from '../pglite.utils.js';
+import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 
 /**
  * 对用于 SQL 中的标识符进行基本校验，防止注入非法字符。
@@ -43,8 +43,18 @@ function escapeIdentifier(identifier: string): string {
  * 触发器选项
  */
 interface TriggerOptions {
-  /** 分支 ID (默认 'main') */
-  branchId?: string;
+  /**
+   * 分支 ID —— **必填**。
+   *
+   * @remarks
+   * 这个值被硬编码进触发器函数的 `INSERT ... VALUES` 里，决定这张表**后续每一次写入**被记到
+   * 哪条分支名下。生成器替调用方填一个默认分支，等于在「这条历史算谁的」上替人做主，而做错了
+   * 不报错：库停在 `feature`、触发器写着 `main`，写入照样成功，只有事后审计历史才看得出来。
+   *
+   * 所以每个调用点都要自己说明写的是哪条分支——包括那些确实就该写 `main` 的（新库建表），
+   * 它们给出的是一个有理由的取值，不是一个没人填所以顶上来的取值。
+   */
+  branchId: string;
   /** 事务 ID (可选，用于事务内的变更追踪) */
   transactionId?: string;
   resolveEntityMetadata?: (entity: string, namespace: string) => EntityMetadata | undefined;
@@ -65,15 +75,15 @@ interface TriggerOptions {
  *
  * @example
  * ```typescript
- * const sql = generate_trigger_sql(todoMetadata);
+ * const sql = generate_trigger_sql(todoMetadata, { branchId: 'main' });
  * await adapter.exec(sql);
  *
  * // 为旧调用方保留生成期 transactionId fallback
- * const sqlWithTx = generate_trigger_sql(todoMetadata, { transactionId: 'tx-123' });
+ * const sqlWithTx = generate_trigger_sql(todoMetadata, { branchId: 'main', transactionId: 'tx-123' });
  * await adapter.exec(sqlWithTx);
  * ```
  */
-export function generate_trigger_sql(entityMetadata: EntityMetadata, options: TriggerOptions = {}): string {
+export function generate_trigger_sql(entityMetadata: EntityMetadata, options: TriggerOptions): string {
   const tableName = getTableNameByMetadata(entityMetadata);
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
   const rxDBChangeTableName = getTableNameByMetadata(rxDBChangeMetadata);
@@ -87,6 +97,10 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
     namespace
   } = entityMetadata;
   const { branchId, transactionId } = options;
+  // 类型上已经必填，这里挡的是绕过类型的 JS 调用方：本函数是包的公开导出。
+  if (!branchId) {
+    throw new RxdbAdapterPGliteError('generate_trigger_sql requires options.branchId.');
+  }
 
   const safeEntityTableName = escapeIdentifier(entityTableName);
   const safeNamespace = escapeIdentifier(namespace);
@@ -166,8 +180,8 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
   const transactionIdExpression = `(COALESCE(NULLIF(current_setting('rxdb.transaction_id', true), ''), ${transactionIdFallback}))::uuid`;
 
   // 分支 ID
-  // 归一化为非空字符串；真正的转义在构造 VALUES 列表时进行。
-  const rawBranchId = branchId ?? 'main';
+  // 转义在构造 VALUES 列表时进行。
+  const rawBranchId = branchId;
 
   // 触发器函数名 - PostgreSQL 标准格式: schema.function_name
   // 使用 tableName 来命名函数

@@ -45,7 +45,9 @@ import {
 
 const entity = (init: Partial<VersionedDomainEntityInput> & { entityName: string }): VersionedDomainEntityInput => ({
   namespace: 'public',
-  tableName: init.entityName.toLowerCase(),
+  // 默认只报逻辑名——本文件测的是域自己的判定，不是某个后端的命名规则。
+  // 物理形态（`public$post` 这一类）由适配器报，覆盖它的用例在 `physical-table-names-wiring.spec.ts`。
+  physicalTableNames: [init.entityName.toLowerCase()],
   syncType: SyncType.Full,
   ...init
 });

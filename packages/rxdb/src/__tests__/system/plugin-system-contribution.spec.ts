@@ -66,13 +66,13 @@ const probeContribution: RxDBSystemContribution = {
   // 宿主在 `connect()` 收尾处无条件遍历贡献调 `bootstrapExisting`，
   // `create_branch` 结尾同样无条件调 `writeBranchRows`，`remove_branch` 删分支行之前同样
   // 无条件调 `removeBranchRows`，`switchBranch()` 开头同样无条件调
-  // `assertBranchSwitchable`。缺一个不是「没有这项贡献」，
+  // `prepareBranchSwitch`。缺一个不是「没有这项贡献」，
   // 是当场 `TypeError: contribution.bootstrapExisting is not a function`。
   // 这四个接缝本身由 `RxDB.connect-lifecycle.spec.ts` 与 `version/create-branch.spec.ts` 守。
   bootstrapExisting: async () => undefined,
   writeBranchRows: async () => undefined,
   removeBranchRows: async () => undefined,
-  assertBranchSwitchable: async () => undefined
+  prepareBranchSwitch: async () => undefined
 };
 
 const probePlugin: Plugin = () => ({ name: 'probe', system: probeContribution, install: () => undefined });

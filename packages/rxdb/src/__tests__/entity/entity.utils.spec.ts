@@ -7,6 +7,7 @@ import {
   fillInitValue,
   getNeedSaveEntities,
   isEntityInternalName,
+  normalizeCreateEntity,
   normalizeUpdateEntity,
   setSafeObjectKey,
   setSafeObjectKeyLazyInitOnce,
@@ -545,6 +546,96 @@ describe('entity.utils', () => {
 
       // 应该去重，最多只有一个实体
       expect(needSave.length).toBeLessThanOrEqual(1);
+    });
+  });
+
+  // INSERT 侧与 UPDATE 侧是同一个缺陷形态的两面：两个适配器各带一份按下标配对
+  // `foreignKeyNames` / `foreignKeyColumnNames` 的实现，长度一旦不等就把 A 的值写进 B 的列，
+  // 且完全无声。UPDATE 侧已经改成走 keyed 的 foreignKeyRelationMap，这里把 INSERT 侧也收进来。
+  describe('normalizeCreateEntity', () => {
+    it('按物理列名输出，且 readonly 字段照常写入', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map([
+          ['displayName', { columnName: 'display_name', readonly: false }],
+          ['createdAt', { columnName: 'created_at', readonly: true }]
+        ]),
+        foreignKeyRelationMap: new Map()
+      } as unknown as EntityMetadata;
+
+      // 与 UPDATE 侧相反：INSERT 必须写 readonly 列。主键、createdAt 都是 readonly，
+      // 照 UPDATE 的口径过滤会让每一行都缺主键。
+      expect(normalizeCreateEntity(metadata, { displayName: 'n', createdAt: '2020-01-01' })).toEqual({
+        display_name: 'n',
+        created_at: '2020-01-01'
+      });
+    });
+
+    it('按「值不为 undefined」判定，不按 key in entity', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map([
+          ['displayName', { columnName: 'display_name' }],
+          ['updatedAt', { columnName: 'updated_at' }],
+          ['cleared', { columnName: 'cleared' }]
+        ]),
+        foreignKeyRelationMap: new Map()
+      } as unknown as EntityMetadata;
+
+      // `useDefineForClassFields` 下 `updatedAt!: Date` 这行声明本身就在实例上装出一个值为
+      // undefined 的自有属性，键恒在；按键判定会把它写进 INSERT，建表时的 DEFAULT 于是永不生效。
+      // 显式 null 照常写：「没给值」与「就是要清空」是两件事。
+      expect(normalizeCreateEntity(metadata, { displayName: 'n', updatedAt: undefined, cleared: null })).toEqual({
+        display_name: 'n',
+        cleared: null
+      });
+    });
+
+    it('外键列名从关系上取，不按下标配对平行数组', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        // 两个平行数组在这里被故意写反：按下标配对的实现会把 owner 的值写进 reviewer 的列。
+        foreignKeyNames: ['ownerId', 'reviewerId'],
+        foreignKeyColumnNames: ['reviewer_id', 'owner_id'],
+        foreignKeyRelationMap: new Map([
+          ['ownerId', { columnName: 'owner_id' }],
+          ['reviewerId', { columnName: 'reviewer_id' }]
+        ])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { ownerId: 'owner-1', reviewerId: 'reviewer-1' })).toEqual({
+        owner_id: 'owner-1',
+        reviewer_id: 'reviewer-1'
+      });
+    });
+
+    it('未赋值的外键不写入结果', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([
+          ['ownerId', { columnName: 'owner_id' }],
+          ['absentId', { columnName: 'absent_id' }]
+        ])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { ownerId: 'owner-1' })).toEqual({ owner_id: 'owner-1' });
+    });
+
+    it('外键关系缺少 columnName 时抛错并点名该关系', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['brokenId', {}]])
+      } as unknown as EntityMetadata;
+
+      expect(() => normalizeCreateEntity(metadata, { brokenId: 'x' })).toThrow(/brokenId/);
     });
   });
 });

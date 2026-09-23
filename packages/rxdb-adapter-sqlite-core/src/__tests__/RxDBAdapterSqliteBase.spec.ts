@@ -31,7 +31,7 @@ import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
-import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { Todo } from './fixtures/Todo.js';
 
 @Entity({
@@ -2012,8 +2012,12 @@ describe('RxDBAdapterSqliteBase', () => {
       const rxdb = createRealRxdb('sqlite-core-base-switch-branch');
       const adapter = new TestAdapter(rxdb, () => client);
 
-      await adapter.switchBranch({ branchId: 'feature' });
+      // 契约要求适配器在事务内、动第一行之前 await 这个回调；这里顺手断一次，
+      // 免得「委托给 switch_branch」退化成「委托给一个不校验任何前置条件的 switch_branch」。
+      const prepare = vi.fn(async () => undefined);
+      await adapter.switchBranch({ branchId: 'feature', prepare });
 
+      expect(prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'feature' });
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN');
       expect(sqls.some(sql => sql.includes('"rxdb$rxdb_branch"') && sql.includes(`'feature'`))).toBe(true);
@@ -2029,7 +2033,9 @@ describe('RxDBAdapterSqliteBase', () => {
       });
       const adapter = new TestAdapter(createRxdbMock(), () => client);
 
-      await expect(adapter.switchBranch({ branchId: 'feature' })).rejects.toThrow('switch branch feature failed');
+      await expect(adapter.switchBranch({ branchId: 'feature', prepare: async () => undefined })).rejects.toThrow(
+        'switch branch feature failed'
+      );
     });
 
     it('mergeChanges 空 actions 也走完整事务提交', async () => {
@@ -2042,6 +2048,26 @@ describe('RxDBAdapterSqliteBase', () => {
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN');
       expect(sqls.at(-1)).toContain('COMMIT');
+    });
+  });
+
+  describe('physicalTableNames', () => {
+    it('把本家族的命名空间折叠规则说出来，而不是让调用方去猜', () => {
+      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
+
+      // `todos` 是 `@Entity({ tableName })` 给的逻辑名，`public$todos` 是本家族真正建出来的表。
+      // 两个都登记：raw 判定宁可多认一个名字（多认只是多挡一条本来也跑不通的语句），
+      // 也不能少认——少认那一个恰好是绕过捕获的写会用的名字。
+      expect(adapter.physicalTableNames(getEntityMetadata(Todo))).toEqual(['todos', 'public$todos']);
+    });
+
+    it('折叠出来的名字与本家族建表用的是同一个函数', () => {
+      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
+      const metadata = getEntityMetadata(Todo);
+
+      // 这条断言是这次改动的**全部意义**：名字由 `get_table_name_by_metadata()` 给出，
+      // 而不是在别处按 `'$'` 再拼一遍。拼法一改，这里跟着变；抄来的那一份不会。
+      expect(adapter.physicalTableNames(metadata)).toContain(get_table_name_by_metadata(metadata));
     });
   });
 });

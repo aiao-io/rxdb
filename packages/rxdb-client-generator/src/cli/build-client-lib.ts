@@ -21,6 +21,7 @@ import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import analyzeFile, { createAnalysisProject } from './analyze-file.js';
 import type { RxDBClientCLIentGeneratorOptions } from './cli.interface.js';
 import findFiles from './find-files.js';
+import { loadRepositoryGenerators, registerRepositoryGenerators } from './repository-generators.js';
 
 const MANIFEST_FILE_NAME = '.rxdb-client-generator-manifest.json';
 const STAGING_DIR_PREFIX = '.rxdb-client-generator-staging-';
@@ -185,7 +186,13 @@ const writeOutputs = (outDir: string, outputs: OutputFile[]): void => {
 };
 
 const buildOnce = async (options: RxDBClientCLIentGeneratorOptions): Promise<void> => {
-  const { entities, outDir: configuredOutDir, allowEmpty = false, ...generatorOptions } = options;
+  const {
+    entities,
+    outDir: configuredOutDir,
+    allowEmpty = false,
+    repositoryGenerators = [],
+    ...generatorOptions
+  } = options;
   const outDir = resolve(configuredOutDir);
 
   // 三道 fail-closed 断言（RCG-003）。零实体的构建会按上次 manifest 删掉全部产物，
@@ -196,12 +203,16 @@ const buildOnce = async (options: RxDBClientCLIentGeneratorOptions): Promise<voi
     );
   }
 
+  // 装载放在读文件之前：插件规格写错要在任何分析开销之前炸出来
+  const loadedGenerators = await loadRepositoryGenerators(repositoryGenerators);
   const files = await findFiles(entities, { allowEmpty });
   const project = createAnalysisProject(files);
   const generator = new RxDBClientGenerator(generatorOptions);
+  registerRepositoryGenerators(generator, loadedGenerators);
 
   for (const file of files) {
-    for (const { extendMetadataOptions, metadataOptions, sourceGetters } of analyzeFile(file, project)) {
+    const analyzed = analyzeFile(file, project, { repositoryGenerators: loadedGenerators });
+    for (const { extendMetadataOptions, metadataOptions, sourceGetters } of analyzed) {
       generator.addEntity(metadataOptions, extendMetadataOptions, sourceGetters);
     }
   }

@@ -7,7 +7,7 @@ describe('generate_trigger_sql', () => {
   const metadata = getEntityMetadata(Todo);
 
   it('should generate complete trigger SQL for a table', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toBeTruthy();
     expect(sql).toContain('CREATE OR REPLACE FUNCTION');
@@ -16,14 +16,14 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should use correct table name with schema', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // Todo 的 tableName 为 'todos'，因此应使用它而不是实体名。
     expect(sql).toContain('"public"."todos"');
   });
 
   it('should create trigger function with correct name', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // 触发器函数按表名命名。
     expect(sql).toContain('"public"."todos_change_trigger_fn"');
@@ -32,7 +32,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should handle INSERT operations', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain("TG_OP = 'INSERT'");
     expect(sql).toContain("'INSERT'"); // 操作类型
@@ -41,7 +41,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should handle UPDATE operations with change detection', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain("TG_OP = 'UPDATE'");
     expect(sql).toContain("'UPDATE'"); // 操作类型
@@ -52,7 +52,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should handle DELETE operations', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain("TG_OP = 'DELETE'");
     expect(sql).toContain("'DELETE'"); // 操作类型
@@ -61,7 +61,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should track all properties except id', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // 应跟踪这些字段。
     expect(sql).toContain('title');
@@ -74,7 +74,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should use default branchId "main"', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain("'main'"); // 默认分支
   });
@@ -87,7 +87,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should insert into RxDBChange table', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // RxDBChange 的 tableName 为 'rxdb_change'。
     expect(sql).toContain('"rxdb"."rxdb_change"');
@@ -102,7 +102,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should use JSONB for patch data', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain('jsonb_build_object');
     expect(sql).toContain('to_jsonb'); // 用于 UPDATE 转换
@@ -110,7 +110,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should drop existing trigger before creating new one', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain('DROP TRIGGER IF EXISTS');
     // DROP 应出现在 CREATE 之前。
@@ -120,14 +120,14 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should create trigger for all operations (INSERT, UPDATE, DELETE)', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain('AFTER INSERT OR UPDATE OR DELETE');
     expect(sql).toContain('FOR EACH ROW');
   });
 
   it('should only record UPDATE if fields actually changed', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // 应包含用于检查变化的 IF 条件。
     expect(sql).toContain('IS DISTINCT FROM');
@@ -136,7 +136,7 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should generate valid PostgreSQL syntax', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // 检查 PostgreSQL 特有语法。
     expect(sql).toContain('$$'); // PL/pgSQL 分隔符。
@@ -148,14 +148,14 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should handle entity metadata with namespace and name', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     expect(sql).toContain("'public'"); // 命名空间
     expect(sql).toContain("'Todo'"); // 实体名称
   });
 
   it('should use quoted identifiers for PostgreSQL compatibility', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // PostgreSQL 标识符应加引号，以处理大小写敏感和保留字。
     expect(sql).toMatch(/"branchId"/);
@@ -165,13 +165,13 @@ describe('generate_trigger_sql', () => {
   });
 
   it('should support transactionId option', () => {
-    const sql = generate_trigger_sql(metadata, { transactionId: 'tx-123' });
+    const sql = generate_trigger_sql(metadata, { branchId: 'main', transactionId: 'tx-123' });
 
     expect(sql).toContain("'tx-123'");
   });
 
   it('should use NULL for transactionId by default', () => {
-    const sql = generate_trigger_sql(metadata);
+    const sql = generate_trigger_sql(metadata, { branchId: 'main' });
 
     // transactionId 默认应为 NULL。
     // 检查 transactionId 在 VALUES 部分是否为 NULL。
@@ -191,7 +191,7 @@ describe('generate_trigger_sql residual edges', () => {
       value: new Map([['bad-name', { columnName: 'bad-name' }]]),
       enumerable: true
     });
-    expect(() => generate_trigger_sql(broken)).toThrow(/Invalid identifier/);
+    expect(() => generate_trigger_sql(broken, { branchId: 'main' })).toThrow(/Invalid identifier/);
   });
 
   it('skips foreign key named id and uses foreignKeyNames when column names missing', () => {
@@ -205,7 +205,7 @@ describe('generate_trigger_sql residual edges', () => {
       value: undefined,
       enumerable: true
     });
-    const sql = generate_trigger_sql(withFk, { transactionId: 'tx-1' });
+    const sql = generate_trigger_sql(withFk, { branchId: 'main', transactionId: 'tx-1' });
     expect(sql).toContain('ownerId');
     expect(sql).toContain("'tx-1'");
   });
@@ -220,7 +220,7 @@ describe('generate_trigger_sql residual edges', () => {
       ]
     });
 
-    const sql = generate_trigger_sql(typed);
+    const sql = generate_trigger_sql(typed, { branchId: 'main' });
 
     expect(sql).toContain(
       `'__rxdb_change_id__:{"codecVersion":1,"schemaVersion":1,"type":"bigint","value":' || ` +
@@ -253,6 +253,7 @@ describe('generate_trigger_sql residual edges', () => {
     });
 
     const sql = generate_trigger_sql(child, {
+      branchId: 'main',
       resolveEntityMetadata: (entity, namespace) =>
         entity === parent.name && namespace === parent.namespace ? parent : undefined
     });
@@ -271,11 +272,29 @@ describe('generate_trigger_sql residual edges', () => {
       ]
     });
 
-    const sql = generate_trigger_sql(encrypted);
+    const sql = generate_trigger_sql(encrypted, { branchId: 'main' });
 
     expect(sql).toContain('to_jsonb(NEW."secretAmount")');
     expect(sql).toContain('to_jsonb(NEW."secretPayload")');
     expect(sql).not.toContain('NEW."secretAmount"::text');
     expect(sql).not.toContain('encode(NEW."secretPayload", \'hex\')');
+  });
+});
+
+// 触发器把分支 id 硬编码进 INSERT 的 VALUES 里——它决定这张表后续每一次写入被记到哪条分支下。
+// 生成器自己替调用方填一个默认值，等于在「这条历史算谁的」这个问题上替人做主，而做错了不报错：
+// 库停在 feature 上、触发器写着 main，写入照样成功，只有事后审计历史才看得出来。
+describe('generate_trigger_sql - branchId 必填', () => {
+  const metadata = getEntityMetadata(Todo);
+
+  it('缺 branchId 时报错，而不是静默回落 main', () => {
+    expect(() => generate_trigger_sql(metadata, { branchId: undefined as unknown as string })).toThrow(/branchId/);
+  });
+
+  it('调用方给的分支原样落进 VALUES', () => {
+    const sql = generate_trigger_sql(metadata, { branchId: 'feature' });
+
+    expect(sql).toContain("'feature'");
+    expect(sql).not.toContain("'main'");
   });
 });

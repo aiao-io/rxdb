@@ -31,6 +31,7 @@ import {
   createWorkingTreeCommitsInitialRows,
   createWorkingTreeCommitsMigration
 } from './migrations/0004-working-tree-commits.js';
+import { advanceActivationRevision } from './working-tree/activation-cas.js';
 import { installWorkingTreeCapture } from './working-tree/capture-install.js';
 import { assertSwitchBranchPreconditions, assertSwitchTargetIntact } from './working-tree/switch-branch-options.js';
 import { WorkingTreeActivationState } from './working-tree/working-tree-activation-state.entity.js';
@@ -116,7 +117,7 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     if (!enabled) return;
     installWorkingTreeCapture(rxdb, adapter);
   },
-  assertBranchSwitchable: async ({ executor, targetBranchId, preconditions }) => {
+  prepareBranchSwitch: async ({ executor, targetBranchId, preconditions }) => {
     // 未启用的库整套语义都是短路的（FR-037/046）：它没有 ref 行、没有工作树状态行，
     // 拿一个它还没进入的不变量把切换挡下来，等于让启用能力本身变成一次破坏性变更。
     if (!(await isCommitCapabilityEnabled(executor))) return;
@@ -125,6 +126,12 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     // 而用户会照着 CAS 的建议动作重试——重试多少次都不会成功。
     await assertSwitchTargetIntact(executor, targetBranchId);
     await assertSwitchBranchPreconditions(executor, preconditions);
+    // 两道校验都过了，这次切换从此刻起必然发生——推进激活代际就落在这里。
+    // 它跑在**切换事务内部**，所以不是 CAS：仲裁由这个独占事务本身做掉了
+    // （见 `activation-cas.ts` › advanceActivationRevision）。
+    // 漏掉这一步的代价是 `main → feature → main` 走完之后代际原地不动，
+    // 于是走之前捕获的 token 在走回来之后仍然验得过——三位并发仲裁里的第一位变成常数。
+    await advanceActivationRevision(executor);
   },
   writeBranchRows: (entityManager, { executor, branchId }) =>
     // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，
@@ -136,7 +143,7 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     //
     // **不判能力位。** 这六张表里的行与 `enable()` 无关——ref 与工作树状态行由
     // `createInitialRows` / `writeBranchRows` 无条件写下，未启用的库上照样有。
-    // 照着 `assertBranchSwitchable` 抄一句短路进来，残留的就正是那些库上的行。
+    // 照着 `prepareBranchSwitch` 抄一句短路进来，残留的就正是那些库上的行。
     removeBranchCommitRows(executor, branchId)
 });
 

@@ -31,8 +31,9 @@
  *    后端对空批在哪一步短路并不一致，同一段调用代码会因后端而异地被拦或被放过。
  */
 
+import type { InterceptedBulkWrite } from '@aiao/rxdb';
 import { Observable } from 'rxjs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
   gateBulkWrite,
@@ -254,5 +255,15 @@ describe('门禁与决策表是同一份规则', () => {
       expect([0, 1]).toContain(probe.built);
       expect(probe.subscribed).toBe(0);
     }
+  });
+});
+
+// 门禁的操作集合必须与核心的写原语集合是**同一个**类型，不是两份碰巧相等的字面量联合。
+// 各写一遍的话，核心加第四个批量写原语时插件这边零编译错误，门禁对新原语按「不认识」处理，
+// 敞口静默出现。这条断言钉的是「别名关系还在」，不是「现在有哪两项」。
+describe('操作集合单源于核心', () => {
+  it('BulkWriteOperation 与核心 InterceptedBulkWrite 互为同一类型', () => {
+    expectTypeOf<BulkWriteOperation>().toEqualTypeOf<InterceptedBulkWrite>();
+    expectTypeOf<InterceptedBulkWrite>().toEqualTypeOf<BulkWriteOperation>();
   });
 });

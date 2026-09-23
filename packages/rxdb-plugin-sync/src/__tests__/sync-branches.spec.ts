@@ -180,6 +180,29 @@ describe('syncBranches', () => {
     expect(mockBranchRepository.update).not.toHaveBeenCalled();
   });
 
+  // 远端分支行是**外来数据**，它的 id 没有经过本地那条创建路径。一条叫 `*active*` 的
+  // 远端分支落进 `rxdb_branch.id` 就会与 active 哨兵同形，之后任何按「带不带 `*`」区分
+  // 哨兵与用户数据的读者（含两个后端 `switch_branch` 的裸 SQL）都会读出两种答案。
+  //
+  // 跳过而不是整批放弃：`skipped` 这条通道本来就是为「这一行本轮落不了库，别的行照常」
+  // 准备的。整批抛错会让一条坏的远端行把整个同步卡死，而本地这边一点办法都没有。
+  it('跳过 id 含 active 哨兵保留字符的远端分支，其余照常创建', async () => {
+    pullBranchesMock.mockResolvedValue([
+      { id: '*active*', fromChangeId: 1, parentId: 'main' },
+      { id: 'feature-ok', fromChangeId: 2, parentId: 'main' }
+    ]);
+
+    mockBranchRepository.find.mockResolvedValue([LOCAL_MAIN]);
+    resolveRemoteChangeIds({ 1: 11, 2: 12 });
+
+    const result = await syncBranches(mockVersion);
+
+    expect(result.created).toBe(1);
+    expect(result.skipped).toEqual(['*active*']);
+    expect(mockBranchRepository.create).toHaveBeenCalledTimes(1);
+    expect(mockBranchRepository.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'feature-ok' }));
+  });
+
   it('should handle mixed scenario: new + existing + already-remote', async () => {
     pullBranchesMock.mockResolvedValue([
       { id: 'remote-only', fromChangeId: 1, parentId: 'main' },

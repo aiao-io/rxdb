@@ -2,12 +2,18 @@
  * @fileoverview 树形结构 Repository 生成器
  * 继承基础 Repository 方法生成器，为树形结构实体生成特有的查询方法
  *
- * @module rxdb-client-generator/generators/tree-repository
+ * @module rxdb-plugin-tree/generator
  */
 
-import { generateEntityRules } from './entity-rules.js';
-import type { GeneratorContext } from './RepositoryGenerator.interface.js';
-import { buildRules, RepositoryMethodsGenerator } from './RepositoryGeneratorBase.js';
+import { ENTITY_BASE_METADATA_OPTIONS, type EntityMetadata, type EntityMetadataOptions } from '@aiao/rxdb';
+import {
+  buildRules,
+  generateEntityRules,
+  type GeneratorContext,
+  type RepositoryGeneratorSymbols,
+  RepositoryMethodsGenerator
+} from '@aiao/rxdb-client-generator';
+import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS } from '../constants.js';
 
 /**
  * 树形结构 Repository 方法生成器
@@ -24,6 +30,35 @@ export class TreeRepositoryGenerator extends RepositoryMethodsGenerator {
    * `.d.ts` 里 `ITreeEntity` 的 import 来源、以及基类签名带出的 `FindTreeOptions`。
    */
   override readonly entityBaseModuleSpecifier = '@aiao/rxdb-plugin-tree';
+
+  /**
+   * `TreeAdjacencyListEntityBase` 的装饰器实参是常量标识符，CLI 静态求值取不到它的值。
+   *
+   * @remarks
+   * 生成器随身带上这份元数据，CLI 才能在分析 `extends TreeAdjacencyListEntityBase` 的实体时
+   * 把它回填；否则生成器包得反向依赖本插件才拿得到（RV-015）。顺序为「自身 → 祖先」。
+   *
+   * `TreeEntityBase` 是 `@TreeEntity` 装饰器给手写实体用的别名，共用同一份声明。
+   */
+  override readonly abstractEntityMetadata: ReadonlyMap<string, EntityMetadataOptions[]> = new Map([
+    ['TreeAdjacencyListEntityBase', [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]],
+    ['TreeEntityBase', [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]]
+  ]);
+
+  /**
+   * @inheritDoc
+   *
+   * @remarks
+   * 不合并父类结果：`generateMethods` 没有调用 `super`，基类那一份符号由
+   * `entity-definition` 单独跑的基类生成轮次自报。
+   */
+  override declareSymbols(metadata: EntityMetadata): RepositoryGeneratorSymbols {
+    return {
+      // `ITreeEntity` 只由邻接表基类带出：`TreeEntityBase` 的实体走默认的 `IEntity`
+      entityInterfaces: metadata.extends[0]?.includes('TreeAdjacencyListEntityBase') ? ['ITreeEntity'] : [],
+      types: [{ name: `${metadata.name}TreeRule` }, { exported: true, name: `${metadata.name}TreeRuleGroup` }]
+    };
+  }
 
   protected override generateMethods(context: GeneratorContext): void {
     // Tree 特有方法（基类方法已在 generator_entity_definition.ts 中单独生成）

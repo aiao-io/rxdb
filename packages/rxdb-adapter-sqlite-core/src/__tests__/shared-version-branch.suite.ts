@@ -2,6 +2,7 @@ import {
   RxDB,
   RxDBBranch,
   RxDBChange,
+  SKIP_BRANCH_SWITCH_PREPARE,
   SwitchVersionActions,
   getEntityMetadata,
   type SwitchVersionChange
@@ -1891,7 +1892,9 @@ export function versionBranchSuite(factory: AdapterFactory) {
           await rxdb.versionManager.switchBranch('stay-branch');
 
           await adapter.switchBranch({
-            actions: { deletes: new Map(), inserts: new Map(), updates: new Map() }
+            actions: { deletes: new Map(), inserts: new Map(), updates: new Map() },
+            // 这条调用的全部意义就是「分支不换」，没有前置条件可校验。
+            prepare: SKIP_BRANCH_SWITCH_PREPARE
           });
 
           const branchesAfter = await adapter.getRepository(RxDBBranch).find({

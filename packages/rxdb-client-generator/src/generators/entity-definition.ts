@@ -8,6 +8,7 @@
 import { EntityMetadata, RelationKind } from '@aiao/rxdb';
 import { unionBy } from '@aiao/utils';
 import { validateGeneratedClassMembers } from '../core/generated-symbols.js';
+import { describeMissingGeneratorForRepository } from '../core/known-repository-generators.js';
 import { REPOSITORY_TYPE_REPOSITORY, RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import type {
@@ -64,7 +65,10 @@ export const generateEntityDefinition = (
   // 拿不到生成器就必须炸：静默跳过会产出没有任何查询方法、也没有 XxxRuleGroup 的半成品类，
   // 而别的实体只要关联到它就会引用这个从未声明的 RuleGroup（TS2304）。
   if (!repoGenerator) {
-    throw new Error(`No repository generator registered for "${repoType}" (entity ${className})`);
+    throw new Error(
+      `No repository generator registered for "${repoType}" (entity ${className}).` +
+        describeMissingGeneratorForRepository(repoType)
+    );
   }
   const addEntityBaseImport = (name: string): void =>
     addEntityBaseNamedImport(namedImportsByModule, rxdbNamedImports, repoGenerator.entityBaseModuleSpecifier, name);
@@ -73,10 +77,15 @@ export const generateEntityDefinition = (
   const extendClassImport = metadata.extends[0] || '';
   const extendClassName =
     extendClassImport === 'EntityBase' && getIdType(metadata) === 'bigint' ? 'EntityBase<bigint>' : extendClassImport;
-  const implementNames = [];
-  if (extendClassName.includes('TreeAdjacencyListEntityBase')) {
-    addEntityBaseImport('ITreeEntity');
-    implementNames.push('ITreeEntity');
+  const implementNames: string[] = [];
+  // 插件基类要实现的接口（树的 `ITreeEntity`）由生成器自报，与符号预检取同一份声明；
+  // 没有自报的实体按 `EntityBase` 走默认的 `IEntity`。
+  const entityInterfaces = repoGenerator.declareSymbols?.(metadata).entityInterfaces ?? [];
+  if (entityInterfaces.length > 0) {
+    entityInterfaces.forEach(name => {
+      addEntityBaseImport(name);
+      implementNames.push(name);
+    });
   } else if (extendClassName.includes('EntityBase')) {
     implementNames.push('IEntity');
   }

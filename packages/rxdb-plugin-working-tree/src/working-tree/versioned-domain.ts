@@ -19,7 +19,7 @@
  * 本地用户。把它当豁免最省事，代价是一次 pull 之后 HEAD 与工作树永久对不上，且不可见、不可恢复。
  */
 
-import { RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
+import { RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
 
 /**
  * 第二类 untracked：实体行上的簿记字段，**全域**豁免
@@ -57,8 +57,8 @@ export type VersionedEntityClass = 'tracked' | 'untracked';
  * 构造版本化域所需的单个实体登记
  *
  * @remarks
- * 四个必填项分别对应判定的三个平面：`entityName` 是调用方在实体层问的名字，`namespace` 与
- * `tableName` 合起来是 raw 判定在 SQL 里看到的名字，`syncType` 决定第一类 untracked。
+ * 四个必填项分别对应判定的三个平面：`entityName` 与 `namespace` 合起来是调用方在实体层问的
+ * 身份，`physicalTableNames` 是 raw 判定在 SQL 里看到的名字，`syncType` 决定第一类 untracked。
  * 少任何一个都会逼下游自己去元数据里再查一次，而那正是「第二份清单」的开始。
  */
 export interface VersionedDomainEntityInput {
@@ -69,14 +69,24 @@ export interface VersionedDomainEntityInput {
    * 该实体的命名空间（`@Entity({ namespace })`）
    *
    * @remarks
-   * 必填而不是省略时当 `'public'`：这一项决定 SQLite 家族上那个物理表名
-   * （`public$post`）登不登记得上，而漏登记的后果是**静默放行**。留个默认值的话，
-   * 下一个忘了传的调用方会拿到一个看起来正常、实际只保护 1/6 后端的域。
+   * 必填而不是省略时当 `'public'`：它是登记的身份键的一半（`public:Post`），与核心
+   * `isSystemEntity()` 用的那把键同形。留个默认值的话，两个命名空间下的同名实体会撞成一条登记。
    */
   readonly namespace: string;
 
-  /** 该实体的逻辑表名（`@Entity({ tableName })`）；构造时统一归一化成小写 */
-  readonly tableName: string;
+  /**
+   * 这张表在**本后端**发出的 SQL 里可能被写成的全部名字
+   *
+   * @remarks
+   * 由 {@link RxDBAdapterLocalBase.physicalTableNames} 给出，域一个字都不猜。SQLite 家族没有
+   * schema，命名空间被折进名字本身（`public$post`），而那是它们**唯一**能用的表名；PGlite 有真
+   * schema，`"public"."post"` 在 raw 判定的限定剥离一步里已经回到逻辑名。让域按 `'$'` 自己拼一份
+   * 的话，规则就有了第二份——第二份不会因为原件改了而报错，只会开始认不出某张受版本控制的表，
+   * 于是 raw 门禁对它**静默放行**。
+   *
+   * 构造时归一化成小写并去重；空清单（或只有空白名）直接抛，见 {@link buildVersionedDomain}。
+   */
+  readonly physicalTableNames: readonly string[];
 
   /** 该实体的同步策略；{@link SyncType.QueryCache} 即第一类 untracked */
   readonly syncType: SyncType;
@@ -106,16 +116,16 @@ export interface VersionedDomainView {
    * @remarks
    * 放实体名的话，`UPDATE post` 永远命不中 `Post`，整条 raw 防线静默失效。
    *
-   * 每张表登记**两个**名字：逻辑表名（`post`）与 SQLite 家族的物理表名（`public$post`）。
-   * 两个都要，因为 6 个 v1 后端分两种物理形态——PGlite 有真 schema，表引用是
-   * `"public"."post"`，判定切掉点号限定之后回到 `post`；另外 5 个 SQLite 家族后端**没有**
-   * schema，命名空间被折进名字本身，而那是它们**唯一**能用的表名。只登记逻辑名的话，
-   * raw 门禁在 5/6 的后端上整条失效：用户用后端唯一可用的表名就能把版本化业务表写穿，
-   * 捕获链一无所知，冷重放从此对不上。
+   * 名字来自适配器（{@link VersionedDomainEntityInput.physicalTableNames}），一张表通常有两个：
+   * 逻辑表名（`post`）与 SQLite 家族折叠命名空间之后的物理表名（`public$post`）。两个都要，
+   * 因为 6 个 v1 后端分两种物理形态——PGlite 有真 schema，表引用是 `"public"."post"`，判定切掉
+   * 点号限定之后回到 `post`；另外 5 个 SQLite 家族后端**没有** schema，命名空间被折进名字本身，
+   * 而那是它们**唯一**能用的表名。只登记逻辑名的话，raw 门禁在 5/6 的后端上整条失效：用户用后端
+   * 唯一可用的表名就能把版本化业务表写穿，捕获链一无所知，冷重放从此对不上。
    *
    * 登记别名而不是让判定按 `$` 切一刀：`_fts_public$post`（rxdb-plugin-search 的影子表，
    * spec.md 明列的域外目标）切完正好等于 `post`，于是一条本该放行的写开始报错。
-   * 判定那一侧继续只做集合成员判定，多一种物理形态就在**这里**多登记一个名字。
+   * 判定那一侧继续只做集合成员判定，多一种物理形态由**写表的那个适配器**多报一个名字。
    */
   readonly versionedTables: ReadonlySet<string>;
 
@@ -248,28 +258,31 @@ export class MixedVersionedCacheTransactionError extends RxDBMixedVersionedCache
 const normalizeTable = (table: string): string => table.toLowerCase();
 
 /**
- * SQLite 家族把命名空间折进表名时的分隔符（`get_table_name()`，rxdb-adapter-sqlite-core）
+ * 把适配器报的物理表名归一化、去重，并拒绝空答案
+ *
+ * @param input - 单条登记
+ * @returns 归一化、去重后的物理表名；至少一个
+ * @throws RxDBError 清单为空，或归一化之后一个非空名字都不剩时
  *
  * @remarks
- * 它不出现在任何**逻辑**表名里（逻辑表名来自 `@Entity({ tableName })`），所以拿它拼出来的
- * 别名不会和别的逻辑表撞名。
- */
-const NAMESPACE_SEPARATOR = '$';
-
-/**
- * 一张表在 SQL 里可能被写成的全部名字（已归一化、已去点号限定）
+ * **一个字都不替适配器猜。** 折叠命名空间是 SQLite 家族的规则，属于写表的那一方；在这里按
+ * `'$'` 重拼一遍就是第二份规则，而第二份不会因为原件改了而报错，只会开始认不出某张受版本控制
+ * 的表——raw 门禁于是对它静默放行。
  *
- * @param namespace - 实体命名空间
- * @param tableName - 逻辑表名
- * @returns 逻辑名与 SQLite 家族物理名
- *
- * @remarks
- * PGlite 的 `"public"."post"` 不在这里登记：它带点号，raw 判定的 schema 限定剥离已经把它
- * 还原成逻辑名了。这里补的是**剥不掉**的那一种。
+ * **空清单抛而不是当成「这张表没有物理形态」。** 空清单会让一张 tracked 表在
+ * {@link VersionedDomainView.versionedTables} 里一个名字都没有，于是 raw 判定对它的每一条写都落
+ * `out_of_domain` 放行——正是这次改动要堵的那个洞，只是换了个来路。交空清单的适配器是坏的，
+ * 但坏在它那一侧；这里的责任只是**不把它的空答案当成结论**。
  */
-function addressableTableNames(namespace: string, tableName: string): readonly string[] {
-  const logical = normalizeTable(tableName);
-  return [logical, `${normalizeTable(namespace)}${NAMESPACE_SEPARATOR}${logical}`];
+function normalizePhysicalTableNames(input: VersionedDomainEntityInput): readonly string[] {
+  const names = [...new Set(input.physicalTableNames.map(name => normalizeTable(name.trim())).filter(Boolean))];
+  if (names.length === 0) {
+    throw new RxDBError(
+      `实体 ${identityKey(input.namespace, input.entityName)} 没有报出任何物理表名，` +
+        `无法判定针对它的 raw 写是否绕过捕获。请检查适配器的 physicalTableNames() 实现。`
+    );
+  }
+  return names;
 }
 
 /**
@@ -294,7 +307,7 @@ function toEntityRecord(input: VersionedDomainEntityInput): EntityRecord {
   return {
     entityName: input.entityName,
     entityClass: input.syncType === SyncType.QueryCache ? 'untracked' : 'tracked',
-    tableNames: addressableTableNames(input.namespace, input.tableName),
+    tableNames: normalizePhysicalTableNames(input),
     derivedIndexColumns: new Set(input.derivedIndexColumns ?? [])
   };
 }
@@ -343,6 +356,7 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  *
  * @param entities - 全部已登记实体；**不会被修改**
  * @returns 一份与输入顺序无关、可重复构造出逐项相等结果的域视图
+ * @throws RxDBError 某条登记报不出任何物理表名时
  *
  * @remarks
  * 纯函数：同一份输入构造两次，两份清单逐项相等，且传进来的数组与其中的对象都不被改动——
@@ -351,10 +365,12 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  * 表名在这里统一归一化成小写，于是「归一化」这件事在整条链上只有两处：域构造（对登记）
  * 与 raw 判定（对语句）。交给六个适配器各自归一化的话，它们只需要有一份写松，整条防线就有洞。
  *
- * 每张 tracked 表登记**两个**可寻址名字（见 {@link VersionedDomainView.versionedTables}）：
- * 逻辑名与 SQLite 家族的物理名。物理形态属于「同一张表叫什么」，归域管；让判定去猜分隔符
- * 就等于把它挪进判定，而判定那一侧没有命名空间可比对，只能按前缀猜——猜宽了误伤 FTS 影子表，
- * 猜窄了就是现在这个洞。
+ * 每张 tracked 表的可寻址名字由**适配器**报（见 {@link VersionedDomainEntityInput.physicalTableNames}），
+ * 通常两个：逻辑名与 SQLite 家族的物理名。域不猜、判定也不猜——判定那一侧没有命名空间可比对，
+ * 只能按前缀猜，猜宽了误伤 FTS 影子表，猜窄了就是那个洞；而域这边猜出来的是第二份规则，
+ * 原件改了它不会报错，只会开始算错。
+ *
+ * 一条登记报不出任何名字时**抛**，见 {@link normalizePhysicalTableNames}。
  *
  * 登记按**身份**（`namespace:entityName`）索引，另建一份裸名索引供只有实体名的调用点用
  * （`RxDBAdapter.upsertMany()` 这一层的契约里没有命名空间）。裸名撞车时不挑一条当代表——
@@ -364,9 +380,10 @@ function collectDerivedColumnsByTable(records: ReadonlyMap<string, EntityRecord>
  * @example
  * ```ts
  * const domain = buildVersionedDomain([
- *   { entityName: 'Post', namespace: 'public', tableName: 'post', syncType: SyncType.Full,
- *     derivedIndexColumns: ['title_norm'] },
- *   { entityName: 'ProductCache', namespace: 'public', tableName: 'productcache', syncType: SyncType.QueryCache }
+ *   { entityName: 'Post', namespace: 'public', physicalTableNames: ['post', 'public$post'],
+ *     syncType: SyncType.Full, derivedIndexColumns: ['title_norm'] },
+ *   { entityName: 'ProductCache', namespace: 'public', physicalTableNames: ['productcache'],
+ *     syncType: SyncType.QueryCache }
  * ]);
  *
  * domain.classifyEntity('Post');                     // 'tracked'

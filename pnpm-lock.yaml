@@ -1609,9 +1609,6 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
-      '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1963,6 +1960,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-client-generator':
+        specifier: workspace:*
+        version: link:../rxdb-client-generator
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils

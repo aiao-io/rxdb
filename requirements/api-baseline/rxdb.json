@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "assertUsableBranchId",
+        "kind": "value"
+      },
+      {
         "name": "assertValidSystemContribution",
         "kind": "value"
       },
@@ -702,6 +706,10 @@
         "kind": "type"
       },
       {
+        "name": "InvalidBranchIdError",
+        "kind": "both"
+      },
+      {
         "name": "IQueryContext",
         "kind": "type"
       },
@@ -912,6 +920,10 @@
       {
         "name": "NoActiveBranchError",
         "kind": "both"
+      },
+      {
+        "name": "normalizeCreateEntity",
+        "kind": "value"
       },
       {
         "name": "normalizeUpdateEntity",

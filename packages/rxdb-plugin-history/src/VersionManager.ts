@@ -19,12 +19,14 @@ import {
   SwitchBranchBeginEvent,
   SwitchBranchCommitEvent,
   SwitchBranchRollbackEvent,
+  takeDeclaredWrite,
   TRANSACTION_BEGIN,
   TRANSACTION_COMMIT,
   TRANSACTION_ROLLBACK,
   TrustedWriteIntent,
   type RxDBAdapterLocalBase,
-  type RxDBBranchSwitchPreconditions
+  type RxDBBranchSwitchPreconditions,
+  type TransactionExecutor
 } from '@aiao/rxdb';
 import { create_branch } from './create-branch.js';
 import { isIgnorableDetachedVersionEventError } from './detached-event-error.js';
@@ -281,10 +283,13 @@ export class VersionManager {
       return;
     }
     let switchCommitted = false;
+    // 声明挂在**适配器实例**上、取用即清除；下面的 catch 要靠它原路清掉。
+    let declaredAdapter: RxDBAdapterLocalBase | undefined;
+    // 适配器是否真的调了 prepare。见下方「没调用就抛」那一段。
+    let prepared = false;
     try {
       this.rxdb.dispatchEvent(new SwitchBranchBeginEvent(branchId));
       const { adapter } = await this.getLocalRepositories();
-      await this.#assert_branch_switchable(adapter, currentBranch?.id ?? null, branchId, preconditions);
       const actions = await switch_branch_actions(this, branchId);
       // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
       // 不声明的话挂载点只看见「有人在调 switchBranch」，与 undo/redo（行 6，必须产生单元）
@@ -294,9 +299,16 @@ export class VersionManager {
         symbol: 'switchBranch',
         intent: TrustedWriteIntent.branch_materialization
       });
+      declaredAdapter = adapter;
       const result = await adapter.switchBranch({
         branchId: branchId,
-        actions
+        actions,
+        // 前置校验跑在切换事务**内部**（见 #prepare_branch_switch）。`targetBranchId` 用
+        // 适配器解析出来的那一个而不是这里的 `branchId`：省略分支的调用点上只有它是对的。
+        prepare: async ({ executor, targetBranchId }) => {
+          prepared = true;
+          await this.#prepare_branch_switch(executor, currentBranch?.id ?? null, targetBranchId, preconditions);
+        }
       });
       // 适配器的 switchBranch 内部包了事务（见各适配器 version/switch_branch.ts），
       // 走到这里说明已提交。此后任何失败都不该再发 Rollback —— 分支确实切过去了。
@@ -311,8 +323,24 @@ export class VersionManager {
       this.historyManager.setUndoBranch(branchId);
 
       this.rxdb.dispatchEvent(new SwitchBranchCommitEvent(branchId));
+      // 适配器吞掉 `prepare` 不会以任何别的方式显形：分支照切、actions 照套、事件照发，
+      // 只是这一次切换没验过目标分支的提交图、没判过调用方提的条件、也没推进激活代际。
+      // 上面那几步记账照做完 —— 分支确实切过去了，把内存视图留在旧分支只是再坏一件事；
+      // 抛出只为一件事：不让这条契约违背被当成一次正常切换吞掉。
+      if (!prepared) {
+        throw new RxDBError(
+          `适配器 ${adapter.constructor.name} 的 switchBranch 没有调用 options.prepare：` +
+            `分支已经切到 ${branchId}，但这次切换一条前置条件都没校验过。` +
+            '适配器必须在解析出目标分支之后、动第一行之前 await 它（见 rxdb-adapter.ts › SwitchBranchOptions.prepare）。'
+        );
+      }
       return result;
     } catch (error) {
+      // 前置校验现在在事务内判，被拒是一条**日常**路径（工作树不干净就该拒），而那条路径上
+      // 一个写原语都没跑过——声明还原封不动挂在适配器上。留着的话，这个适配器的下一次
+      // mergeChanges 会把它取走，那次合并于是按 projection_rewrite 判定：一个工作树单元都不产生，
+      // 拉回来的远端改动凭空消失。
+      if (declaredAdapter) takeDeclaredWrite(declaredAdapter);
       if (!switchCommitted) {
         this.rxdb.dispatchEvent(new SwitchBranchRollbackEvent(branchId));
       }
@@ -463,14 +491,23 @@ export class VersionManager {
   }
 
   /**
-   * 逐个问贡献方：这次切换能不能发生。
+   * 逐个问贡献方：这次切换能不能发生；能的话，把该在同一个事务里做掉的事做掉。
    *
-   * @param adapter - 本地适配器
+   * @param executor - **切换事务本身**的执行器，由适配器经 `SwitchBranchOptions.prepare` 交过来
    * @param currentBranchId - 当前分支 id；一条 active 分支都没有时为 `null`
-   * @param targetBranchId - 要切过去的分支 id
+   * @param targetBranchId - 适配器解析之后的目标分支 id
    * @param preconditions - 调用方提出的条件；没提出时是 `undefined`
    *
    * @remarks
+   * **跑在切换事务内部。** 它以前自己开一个只读事务、在 `adapter.switchBranch()` **之前**跑完：
+   * 那个事务提交到切换事务开始之间是一段没有任何东西守着的窗口，窗口里的一次写能让刚判过的
+   * 「工作树干净」重新变脏，而切换照样完成。搬进来之后，「校验通过」与「切换完成」不再是
+   * 两件可以分开发生的事——同一个事务，要么一起成立，要么一起没发生。
+   *
+   * 代价是顺序反了过来：`switch_branch_actions()` 现在排在校验**之前**（它算出来的重放指令
+   * 得先交给适配器才谈得上开事务），目标分支的链已知损坏时会白算一遍。那一遍只读不写，
+   * 被拒时一行都还没动——拿一次白算换掉上面那段窗口。
+   *
    * **每一次真正发生的切换上都跑，与调用方提没提条件无关。** 目标分支的提交图可达损坏
    * 与有没有 `preconditions` 无关（SC-013：三条入口各自返回 `commit_graph_corrupted`）；
    * 只在带选项时跑的话，日常那条不带选项的切换会一路切进一份重放不出来的历史。
@@ -481,26 +518,19 @@ export class VersionManager {
    * 守卫「真的无条件」是反向的：切到当前分支会因为它自己的历史损坏而失败，而这次切换
    * 本来什么都不做。
    *
-   * 排在 `switch_branch_actions()` **之前**：那一步要把目标分支的变更链算成一批重放指令，
-   * 在一条已知损坏的链上算出来的东西没有意义，而算完再拒只是白算一遍。
-   *
-   * `transactionLog` 传 `false`——这个事务一行都不写。串行而非 `Promise.all`：`executor`
-   * 是并发度为 1 的队列，并行发起只会让读取顺序取决于各贡献方内部 await 的排布。
+   * 串行而非 `Promise.all`：`executor` 是并发度为 1 的队列，并行发起只会让读取顺序取决于
+   * 各贡献方内部 await 的排布。一个贡献方都没有时这里是一次空循环——没装能力插件的库上，
+   * 这条扩展不多开事务、也不多发一条查询。
    */
-  async #assert_branch_switchable(
-    adapter: RxDBAdapterLocalBase,
+  async #prepare_branch_switch(
+    executor: TransactionExecutor,
     currentBranchId: string | null,
     targetBranchId: string,
     preconditions: RxDBBranchSwitchPreconditions | undefined
   ): Promise<void> {
-    const contributions = this.rxdb.systemContributions;
-    // 一个贡献方都没有时连事务都不开：没装能力插件的库上，这条扩展必须是零成本的。
-    if (contributions.length === 0) return;
-    await adapter.transaction(async executor => {
-      for (const contribution of contributions) {
-        await contribution.assertBranchSwitchable({ executor, currentBranchId, targetBranchId, preconditions });
-      }
-    }, false);
+    for (const contribution of this.rxdb.systemContributions) {
+      await contribution.prepareBranchSwitch({ executor, currentBranchId, targetBranchId, preconditions });
+    }
   }
 
   #runDetachedEventTask(task: Promise<void>, label: string) {

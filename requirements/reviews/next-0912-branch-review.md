@@ -1,82 +1,28 @@
 # next-0912 分支对 main 评审
 
-- **评审日期**：2026-09-16（2026-09-17、2026-09-18、2026-09-19 多轮复核；最新第四次复核为 2026-09-19）
+- **评审日期**：2026-09-16，此后 2026-09-17 / 09-18 / 09-19 / 09-23 多轮复核
 - **评审分支**：`next-0912`
 - **对比基线**：`main` 顶端 = merge-base `de70a1a9e1c6d89eabb26606a294a80690d29b3b`
 - **变更规模**：494 个文件，`+69,417 / -3,107`
-- **评审强度**：2026-09-17 的 max 评审 + 2026-09-18、2026-09-19 对关键调用链和后续增量的复核
+- **评审强度**：2026-09-17 的 max 评审 + 此后各轮对关键调用链与后续增量的复核
 - **主线改动**：epic-006「工作树 + 提交历史」——捕获钩子 / 原始写闸门 / 受信写声明 / 提交图 CAS + 编解码 + 指纹 / 冷重放
-- **本次第四次复核**：2026-09-19，基线 `de70a1a9` → `cef3abf0`；重新检查全部 494 个差异文件，确认 5 条既有 P1、1 条既有 P2 仍成立，并新增 1 条 P1 与 1 条 P2（见下方「第四次复核」）。
-- **2026-09-19 修复轮**：第四次复核的 8 条里，2 条 P1 + 2 条 P2 与 §3 的 3 条清理项已修，按约定从本报告删除（修法与判据写在代码注释 / TSDoc 里）。
-- **当前状态**：分支已于 2026-09-19 以 `2132c30d`（`feat(aiao): 添加 working-tree 能力 (#55)`）合入 main，原「不建议合并」的结论**已过期**。但下面 4 条 P1 全是架构级（跨连接能力传播 / 切换事务内 CAS / 物化流水线接公开入口 / 前置条件进最终事务），可由正常跨连接、切换或同步操作触发，**仍未修复**，测试通过不能替代这些组合时序的回归用例。报告另有 4 条 P2 与其他待办。
+- **最近一轮处理**：2026-09-23。逐条复核后落地修复，已修 / 经复核证伪 / 判定不值得做的条目按本目录「只留尚未处理的条目」约定从报告删除（修法与判据写在代码注释与 TSDoc 里）。
+- **当前状态**：分支已于 2026-09-19 以 `2132c30d`（`feat(aiao): 添加 working-tree 能力 (#55)`）合入 main，原「不建议合并」的结论**已过期**。余下 4 条 P1 全是架构级（跨连接能力传播 / 切换事务内 CAS / 物化流水线接公开入口 / 前置条件进最终事务），可由正常跨连接、切换或同步操作触发，**仍未修复**；测试通过不能替代这些组合时序的回归用例。另有 4 条 P2（§ 同节）与 §2 / §3 的待办。
 
 ## 评审基准（SHA）
 
 | 角色             | SHA                                        | 说明                                                                       |
 | ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
 | `main` 顶端      | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | commit `feat(aiao): 拆分 rxdb 功能为 plugin (#61)`，2026-09-16 16:30 +0800 |
-| `next-0912` HEAD | `cef3abf01ba344b7517967fc2dcf1034a7640236` | 本次第四次复核的 HEAD；第三次评审为 `fc30f1da`                             |
+| `next-0912` HEAD | `cef3abf01ba344b7517967fc2dcf1034a7640236` | 证据行号所依据的 HEAD（2026-09-19 复核）                                   |
 | merge-base       | `de70a1a9e1c6d89eabb26606a294a80690d29b3b` | 与 main 顶端相同：next-0912 已把 main 合入，无分叉                         |
 
-- 本次 diff 范围 = `git diff main...HEAD` 全部 494 文件（`+69,417 / -3,107`）；`main` 与 merge-base 相同。评审开始时工作区干净，本轮只改动本报告及其索引。
-- **2026-09-17 重新对齐说明**：初版基准为 main `68b0ba97` / HEAD `e4f2813c`（337 文件）。此后 main 推进到 `de70a1a9`（即 next-0915 的插件拆包 #61），next-0912 已通过 `263e5a31` 将其合入。逐条复核后：Top 榜 15 条中 **14 条在当前树上仍然成立，1 条（原 #14）证伪**；这 14 条已于 2026-09-17 全部处理，按本目录「只留尚未处理的条目」的约定从报告里删除。
-- **working-tree 那套仍未进 main**——`packages/rxdb-plugin-working-tree` 尚有 115 个文件、三框架绑定另有 41 个文件只存在于本分支，因此这一轮修复赶在它进 main 之前落了地。
+- 本次 diff 范围 = `git diff main...HEAD` 全部 494 文件（`+69,417 / -3,107`）；`main` 与 merge-base 相同。
 - 记录 SHAs 的等价命令：`git rev-parse main` / `git rev-parse HEAD` / `git merge-base main HEAD`。
 
-## 2026-09-19 第四次复核：当前合并结论
+## 未处理的合并阻塞项（4 条 P1 + 4 条 P2）
 
-本轮重新审阅 `main...HEAD` 全部 494 个差异文件，并重点追踪能力启用、写入捕获、分支切换、远端首次物化、`normal` 合并、三端异步状态与 Angular Demo 操作链。Angular / React / Vue 均导出 `useWorkingTree`、`WorkingTreeResource`，并共享 `createWorkingTreeCommands`，三端公开 API 对称。
-
-验证结果：
-
-- `git diff --check main...HEAD` 通过。
-- `pnpm nx run-many -t lint typecheck test -p rxdb-plugin-working-tree rxdb-plugin-working-tree-angular rxdb-plugin-working-tree-react rxdb-plugin-working-tree-vue dev-rxdb-angular --output-style=static --parallel=4 --skipRemoteCache` 通过，共 78 个 Nx 任务。
-- `pnpm test-scripts` 通过，共 320 个测试。
-- 未跑完整 `pnpm test-all` 和浏览器 E2E；现有测试没有覆盖下面的多连接、跨事务、ABA、请求乱序和事务分页边界。
-
-本轮确认 6 条 P1 与 2 条重点 P2。其中 `normal` 合并双重捕获、Angular 行级 Discard、异步状态被迟到请求覆盖、事务粒度 diff 分页这 4 条已于 2026-09-19 修复，按本目录「只留尚未处理的条目」的约定从本节删除；留下的 4 条 P1 全部是架构级，逐条处置见「2026-09-18 复核」各条末尾。报告下文另有 4 条既有 P2 与其他待办，均未因本轮验证通过而解除。
-
-### [P1] 已连接实例在另一实例启用后继续绕过捕获
-
-- **证据**：[`plugin.ts:105-117`](../../packages/rxdb-plugin-working-tree/src/plugin.ts#L105) 只在连接期读取一次能力位；未启用时不安装捕获 hook。[`working-tree-facade.ts:156-166`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L156) 的 `enable()` 只给发起调用的 adapter 安装 hook。[`rxdb-adapter.ts:182-188`](../../packages/rxdb/src/rxdb-adapter.ts#L182) 又把是否存在 hook 当成 raw write 能力状态。
-- **触发与影响**：A、B 在能力未启用时连接同一持久库；A 调用 `enable()` 后，B 无需重连便可继续 CRUD 或 raw write。业务写成功，但不生成 `WorkingTreeEntry`，`status()` / `commit()` / `discard()` 都看不到它。
-- **修复要求**：能力启用必须对所有存量连接可见；B 在下一次写事务开始前必须安装 hook 或拒绝写入。增加两个真实 adapter 实例共享同一持久库的回归用例。
-
-### [P1] 切分支前置条件与最终提交存在 TOCTOU
-
-- **证据**：[`VersionManager.ts:287-300`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L287) 先调用 `#assert_branch_switchable()`，再计算 actions，最后调用 adapter。[`VersionManager.ts:490-503`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L490) 显示前置条件运行在独立只读事务中；[`rxdb-adapter.ts:60-72`](../../packages/rxdb/src/rxdb-adapter.ts#L60) 的 `SwitchBranchOptions` 只有 `{branchId, actions}`，最终事务拿不到 `requireClean` 或 `expectedActivationRevision`。
-- **触发与影响**：校验结束后，另一连接可写脏当前工作树或切换 active 分支；本次调用仍会提交基于旧状态计算的投影。调用方显式提出的前置条件只是瞬时检查，不是提交条件。
-- **修复要求**：把前置条件传入 adapter，在最终切换事务内、任何投影写入前复核；CAS 落败必须回滚整次切换。
-
-### [P1] 普通切分支不推进 activation revision，ABA 防护失效
-
-- **证据**：[`VersionManager.ts:297-300`](../../packages/rxdb-plugin-history/src/VersionManager.ts#L297) 的普通切换没有传入或推进 revision；SQLite 的最终事务在 [`switch_branch.ts:153-195`](../../packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts#L153) 只应用 actions 和翻转 active 分支。生产代码对 `bumpActivationRevision()` 的唯一调用位于 [`branch-materialization.ts:630`](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L630)。
-- **触发与影响**：读取 A 的 `{branchId, activationRevision}`，切到 B 再切回 A；旧 token 再次完全匹配。迟到的提交、丢弃、恢复或捕获写入会被当成仍属于当前激活代际。
-- **修复要求**：每次真实分支切换都在最终事务内 CAS 推进 activation revision，并增加 A→B→A 后旧 token 必须失败的跨 adapter 用例。
-
-### [P1] metadata-only 远端分支无法通过公开入口首次物化
-
-- **证据**：[`sync-branches.ts:143-153`](../../packages/rxdb-plugin-sync/src/sync-branches.ts#L143) 只创建远端分支 metadata，不创建 `CommitBranchRef`。[`plugin.ts:119-127`](../../packages/rxdb-plugin-working-tree/src/plugin.ts#L119) 在公开切换前无条件调用图完整性守卫，最终由 `readCommitBranchRef()` 对缺 ref 抛错。`stageBranchMaterialization()` / `commitBranchMaterialization()` 在生产代码中没有调用者。
-- **触发与影响**：同步到一条新远端分支后，第一次 `switchBranch(remoteId)` 必然停在缺 ref 错误，不会进入下载、staging 或物化屏障。
-- **修复要求**：公开切换入口先分类目标分支；metadata-only 分支接入预取 → staging → 复核 → 提交屏障，只有已物化目标才执行提交图完整性检查。
-
-## 2026-09-18 第三次复核：当前合并结论
-
-本轮对 `main...HEAD` 的公开写入、跨连接启用、分支切换、远端首次物化和 `normal` 合并调用链重新追踪。`pnpm nx run rxdb-plugin-working-tree:test --run --outputStyle=static --skipRemoteCache` 通过（63 文件、1026 用例；语句覆盖率 96.96%，分支覆盖率 90.42%），`git diff --check main...HEAD` 通过；**未跑全量 `pnpm test-all` 或 E2E**。Angular、React、Vue 均导出 `useWorkingTree` / `WorkingTreeResource`，状态与命令字段对称。
-
-以下 4 条 P1 在当前 HEAD 仍成立，详细证据与修复建议见下文「2026-09-18 复核」：
-
-1. **跨连接启用后旧连接漏捕获**：连接时能力未启用的实例不会装钩子，另一实例启用后仍可写入业务表而不产生工作树条目。下一次写入前必须获知能力变化或拒绝写入。
-2. **普通 A→B→A 切换不推进 activation revision**：旧的 A 分支凭据重新匹配，失效令牌通过校验。每次真实切换要在最终事务内推进 revision。
-3. **远端 metadata-only 分支首次物化未接公开入口**：同步只写分支行，公开切换先查缺失的 commit ref 而失败；staging 与提交屏障没有生产调用点。
-4. **切换前置条件与最终写入分属两个事务**：`requireClean` / `expectedActivationRevision` 校验后，其他连接可以改写状态，适配器最终事务并不复核条件。需将条件传入最终事务并做 CAS。
-
-**本轮判定**：5 条 P1 + 1 条 P2 是本次重新核验的高优先级问题；下文原有 4 条 P2 仍未处理。本轮没有修改实现或测试，工作区的未提交查询/仓储改动未纳入评审。
-（本节原先列出的 `normal` 合并双重捕获与事务粒度 diff 分页两条，已于 2026-09-19 修复并按约定删除。）
-
-## 2026-09-18 复核：合并阻塞项
-
-本轮对公开入口、适配器事务、跨连接启用、提交图损坏处理与首次物化做跨文件追踪；检查了三端 `src/index.ts` 的实际导出。`pnpm nx test rxdb-plugin-working-tree --run --outputStyle=static --skipRemoteCache` 通过（63 文件、1013 用例；语句覆盖率 97.07%，分支覆盖率 90.41%），`git diff --check main...HEAD` 通过；**未跑全量 `pnpm test-all` 或 E2E**。这些测试没有覆盖下面的多连接时序，也没有从公开 `switchBranch()` 走首次物化。
+这 8 条经 2026-09-17 / 09-18 / 09-19 / 09-23 四轮复核**逐条仍然成立**，且**全部是架构级**：各自需要新的运行时机制（跨连接传播通道 / 切换事务内的 CAS 推进 / 物化流水线接公开入口 / 条件随请求进入最终事务 / 受信声明改绑定粒度），不是改一处判断。每条末尾记了「不实现的原因」。证据行号以 2026-09-19 HEAD `cef3abf0` 为准；`pnpm nx test rxdb-plugin-working-tree` 当时通过（63 文件、1026 用例，语句 96.96% / 分支 90.42%），**但这些测试不覆盖下面的多连接、跨事务、ABA 与请求乱序时序**。
 
 ### [P1] ⏸ Deferred — 已连接实例在另一实例启用后继续绕过捕获
 
@@ -115,7 +61,7 @@
 
 ### [P2] ⏸ Deferred — 检测到提交图损坏后没有持久化隔离标记
 
-- **证据**：[`assertCommitGraphIntact()`](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L178) 只读并抛错；[`markBranchCorrupted():227`](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L227) 是唯一把 ref 置为 `corrupted_read_only` 的函数，但生产代码没有调用它，只有测试直接调用。
+- **证据**：[`assertCommitGraphIntact()`](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L234) 只读并抛错；[`markBranchCorrupted():284`](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L284) 是唯一把 ref 置为 `corrupted_read_only` 的函数，但生产代码没有调用它，只有测试直接调用。
 - **触发与影响**：某个可达 commit 内容或父链损坏时，`commit()` / `restore()` / switch-to 会报错，但 ref 一直保持 `ok`，每次重试重新扫整张图，`corruptedAt` 诊断也永远缺席。当前 `status()` API 不返回 `branchStatus`，不要误写成「status 显示 ok」。
 - **改进**：捕获 `CommitGraphCorruptedError`，在失败事务回滚后另开事务调用 `markBranchCorrupted()`；测试要从真实公开入口触发，而不是先手动标记。
 - **本轮处理（⏸ Deferred，顺延 2c）**：复核成立。三个未接线失效保护中的第三个。不实现的原因：接线要在**失败事务回滚之后另开一个事务**——错误路径上的二次事务，要同时考虑二次事务自己失败时不能掩盖原始错误。是错误处理拓扑的改动，不是加一行调用。
@@ -145,8 +91,6 @@
 > 「留给调用方接线」，而是**连外部调用的可能性都没有**——接线这件事必须由本包内部完成，
 > 排期时不要指望适配器或宿主侧能先行。
 
-> **2026-09-18 复核结论（本节 8 条）**：4 条 P1 逐条复核**全部成立**，但**全部是架构级，本轮一条都不实现**——四条各自需要新的运行时机制（跨连接传播通道 / 切换事务内的 CAS 推进 / 物化流水线接公开入口 / 条件随请求进入最终事务），不属本轮「确定项 + 测试 + 文档」的范围。4 条 P2 里「损坏图持久隔离」与上述第 2 条同属「函数写好了但生产无调用点」，一并顺延；其余 3 条本轮未处理。逐条处置见各条末尾。
-
 ## 1. 范围与方法
 
 核心区域：
@@ -162,16 +106,15 @@
 
 **流程**：16 个 finder agent × 10 个角度（逐行 ×5 区域、删除行为审计、跨文件追踪 ×3、语言陷阱、包装器正确性、复用、简化、效率、根因深度、规范）产出 74 条候选 → 去重后经 8 个验证 agent 逐条裁决（CONFIRMED / PLAUSIBLE / REFUTED）→ 1 个查漏 agent 补充 3 条新发现 → 2026-09-17 在新基线上逐条复核。
 
-**2026-09-17 当时的结论**：14 条 CONFIRMED 正确性发现（已全部处理）。当时最突出的系统性问题是：**捕获层的实体身份解析损坏、系统实体隔离失效、以及多处「写了但没接线」的失效保险**——三者都已修复并接线。2026-09-18 的新发现和当前合并结论以上文复核章节为准。
+## 2. 次要发现（验证通过但未进 Top 榜 —— 已修或判定不做的按约定删除，剩 5 条）
 
-## 2. 次要发现（验证通过但未进 Top 榜 —— 已修或判定不做的按约定删除，剩 4 条）
-
-| 位置                                                                                                                                                                                                          | 缺陷                                                                                                                     | 验证结论与触发条件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [activation-state.ts:134-147](../../packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts#L134)                                                                                              | ⏸ **顺延（并入顺延 1）** `allocateBranchGeneration` 读-改-写无 CAS，两连接可发出相同分支代际 → 同 operationId 撞唯一索引 | PLAUSIBLE：rollback-journal 模式静默丢失更新；WAL/OPFS 下是响亮的 `SQLITE_BUSY_SNAPSHOT`；PGlite 无跨进程共享。代码层无并发防护，仅注释以「本地写队列并发度为 1」辩护。**本轮不做**：它的前提正是顺延 1 要推翻的那个前提——「一个库只有一个连接在写」。单独给这一处加 CAS，只是把同一个跨连接假设的一个出口堵上，而该假设在能力传播、activation revision、切换事务三处都有出口；跨连接模型定下来之前修这一处会白改一遍                                                                                                                                                                                                                                                                                                                              |
-| [testing.ts:183-191](../../packages/rxdb-adapter-pglite/src/testing.ts#L183)（sqlite-core 侧现居 [`__tests__/test-utils.ts:84-91`](../../packages/rxdb-adapter-sqlite-core/src/__tests__/test-utils.ts#L84)） | ⏸ **顺延（前置：`@aiao/rxdb-test` 边界）** `cleanup_db` 清库后不恢复插件单例行                                           | PLAUSIBLE：代码注释承认是刻意取舍并计划加「由调用方传入初始行」入口（入口未加）；当前仓内无触发路径。**本轮不做**：这是测试工具，且要加的那个入口正好落在 §3.1 三条 ⚠️ 的同一个未决问题上（`@aiao/rxdb-test` 的边界划在哪、`cleanup_db` 是否该改指它）。边界没定就加入口，等于在将来要被合并掉的那份副本上再加一个公开参数                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| [capture-hook.ts:459-461](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L459)                                                                                                      | ⏸ **顺延（并入 §3.4 受信写绑定粒度）** raw-write 判定从不传入 intent，step 2 受信放行是死代码                            | CONFIRMED（前瞻性）：判定已重构进 `raw-write-judgment.ts`，上下文类型有可选 `intent` 字段（:57、step 2 在 :683），但唯一生产调用点仍只传 `{capabilityEnabled, domain}`；核心 `gateRawWrite` 与两个适配器调用点整条链均无 intent 槽位，生产路径上 step 2 不可达。**本轮不做**：两个方向现在都不该走——删掉 step 2 会把「受信意图可以放行 raw 写」这条已成文的规则从代码里抹掉；接通它要给 `gateRawWrite` 与两个适配器调用点整条链加 intent 槽位，而意图的承载形式正是 §3.4「受信写标记是自报字符串键」要重定的东西。等那条决策落地后一起接                                                                                                                                                                                                           |
-| [RxDBAdapterSqliteBase.ts:636-642](../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L636)                                                                                                 | ⏸ **顺延** 迁移重建的变更触发器不传 branchId，回落 `'main'`，而 pglite 侧读 active 分支传入                              | CONFIRMED（不对称，损失窗口窄）：默认事务每次会按真实当前分支重建触发器自愈；仅绕过事务日志的窗口期写入会被标错分支。pglite 侧 [`migrate_system_schema.ts:203-241`](../../packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts#L203) 读 active 分支传入。**本轮不做**：改法看着只是「照 pglite 那样先读 active 分支再传」，但这段跑在 **system schema 迁移中途**——active 分支要从哪张表按哪个 schema 版本读，取决于本次迁移走到了哪一步（`activeKey` 回填就在同一段迁移里）。在能真实复现「旧库升级 + 非 main 活动分支 + 窗口期裸写」的迁移用例立起来之前，改它是拿迁移顺序赌运气；而现状有自愈，损失窗口窄。该一并清掉的还有 [`trigger_sql.ts:99`](../../packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts#L99) 的 `branchId |     | 'main'`——那是一处兜底，应改成必填参数由调用方各自说明，同样等迁移用例 |
+| 位置                                                                                                                                                                                                          | 缺陷                                                                                                                     | 验证结论与触发条件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [activation-state.ts:134-147](../../packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts#L134)                                                                                              | ⏸ **顺延（并入顺延 1）** `allocateBranchGeneration` 读-改-写无 CAS，两连接可发出相同分支代际 → 同 operationId 撞唯一索引 | PLAUSIBLE：rollback-journal 模式静默丢失更新；WAL/OPFS 下是响亮的 `SQLITE_BUSY_SNAPSHOT`；PGlite 无跨进程共享。代码层无并发防护，仅注释以「本地写队列并发度为 1」辩护。**本轮不做**：它的前提正是顺延 1 要推翻的那个前提——「一个库只有一个连接在写」。单独给这一处加 CAS，只是把同一个跨连接假设的一个出口堵上，而该假设在能力传播、activation revision、切换事务三处都有出口；跨连接模型定下来之前修这一处会白改一遍                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| [testing.ts:183-191](../../packages/rxdb-adapter-pglite/src/testing.ts#L183)（sqlite-core 侧现居 [`__tests__/test-utils.ts:84-91`](../../packages/rxdb-adapter-sqlite-core/src/__tests__/test-utils.ts#L84)） | ⏸ **顺延（前置：`@aiao/rxdb-test` 边界）** `cleanup_db` 清库后不恢复插件单例行                                           | PLAUSIBLE：代码注释承认是刻意取舍并计划加「由调用方传入初始行」入口（入口未加）；当前仓内无触发路径。**本轮不做**：这是测试工具，且要加的那个入口正好落在 §3.1 三条 ⚠️ 的同一个未决问题上（`@aiao/rxdb-test` 的边界划在哪、`cleanup_db` 是否该改指它）。边界没定就加入口，等于在将来要被合并掉的那份副本上再加一个公开参数                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [capture-hook.ts:459-461](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L459)                                                                                                      | ⏸ **顺延（并入 §3.4 受信写绑定粒度）** raw-write 判定从不传入 intent，step 2 受信放行是死代码                            | CONFIRMED（前瞻性）：判定已重构进 `raw-write-judgment.ts`，上下文类型有可选 `intent` 字段（:57、step 2 在 :683），但唯一生产调用点仍只传 `{capabilityEnabled, domain}`；核心 `gateRawWrite` 与两个适配器调用点整条链均无 intent 槽位，生产路径上 step 2 不可达。**本轮不做**：两个方向现在都不该走——删掉 step 2 会把「受信意图可以放行 raw 写」这条已成文的规则从代码里抹掉；接通它要给 `gateRawWrite` 与两个适配器调用点整条链加 intent 槽位，而意图的承载形式正是 §3.4「受信写标记是自报字符串键」要重定的东西。等那条决策落地后一起接                                                                                                                                                                                                                                                                                                           |
+| [RxDBAdapterSqliteBase.ts:637-648](../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L637)                                                                                                 | ⏸ **顺延** 迁移重建的变更触发器固定写 `main`，而 pglite 侧读 active 分支传入                                             | CONFIRMED（不对称，损失窗口窄）：默认事务每次会按真实当前分支重建触发器自愈；仅绕过事务日志的窗口期写入会被标错分支。pglite 侧 [`migrate_system_schema.ts:203-241`](../../packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts#L203) 读 active 分支传入。**本轮不做**：改法看着只是「照 pglite 那样先读 active 分支再传」，但这段跑在 **system schema 迁移中途**——active 分支要从哪张表按哪个 schema 版本读，取决于本次迁移走到了哪一步（`activeKey` 回填就在同一段迁移里）。在能真实复现「旧库升级 + 非 main 活动分支 + 窗口期裸写」的迁移用例立起来之前，改它是拿迁移顺序赌运气；而现状有自愈，损失窗口窄。**兜底那一半已于 2026-09-23 清掉**：两个适配器 `generate_*trigger_sql` 的 `branchId` 改为必填（缺省即报错），三个原本不传的调用点各自写出了自己写的是哪条分支、为什么；剩在这里的是「该不该读 active 分支」这个行为决策。 |
+| [pglite create_tables_sql.ts:110-120](../../packages/rxdb-adapter-pglite/src/table/create_tables_sql.ts#L110)                                                                                                 | ⏸ **顺延（与上一行同一个决策）** 既有库上补建的实体表，触发器固定写 `main`，且 PG 侧没有自愈                             | CONFIRMED（2026-09-23 清兜底时新发现）：[`RxDB.#ensureEntityTables`](../../packages/rxdb/src/RxDB.ts#L1828) 在**既有**库上补建缺失实体表，走到这里时库可能正停在非 main 分支。sqlite 侧每个默认事务都会按真实分支重建全部触发器（`#run_transaction` → `switch_transaction_id`）因而自愈，**PG 侧不会**——它的触发器只在建表 / `switch_branch` / 系统迁移三处重建，事务只设 `rxdb.transaction_id`，不碰分支。于是在 `feature` 上新加的实体，其变更一直记在 `main` 名下，直到下一次切分支。**本轮不做**：要读活动分支就得先回答「建表期读得到吗」——新库走到这里时 `rxdb_branch` 表**正在**本次调用里被建出来，没有行可读，与上一行是同一个「迁移/建表中途的库状态」问题，同样等能复现的用例。                                                                                                                                                         |
 
 ## 3. 清理与架构类发现
 
@@ -198,15 +141,12 @@
 
 ### 3.3 效率
 
-| 判定 | 位置                                                                                                           | 内容与理由                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ⏸    | [commit-graph-guard.ts:213-225](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L213) | 每次 commit/discard/switch 全量重验整张可达提交图（[`commit-command.ts:246`](../../packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L246) 无条件调用，discard/restore/switch 各一处）：每提交一次顺序查询 + 全部变更单元重哈希，1 万提交时每次保存 O(N) 查询——图是只追加的，可持久化「最后已验证 HEAD」水位。**本节最高收益项**。**本轮不做**：水位要持久化就得有存放点与失效规则（损坏后如何回退重扫），而「损坏后落盘隔离标记」本身还是顺延 2c；两条是同一份 ref 状态，先加水位再补标记会把状态机改两遍 |
-| ⏸    | [capture-runtime.ts:245](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L245)     | 每个被捕获变更重读 active-branch token（同事务里上一行刚读过）：一实体一写 4 次查询，M 实体 2M 次冗余查询——捕获热路径。**本轮不做**：性能项，要先有基准才知道改完值多少——`bench-working-tree` 尚未接 CI（见 §4.1 末），没有基准的性能改动无法验收；且本轮刚改过捕获热路径（见「2026-09-19 修复记录」第 7 条），两件事叠在一起会让回归定位不了                                                                                                                                                                                 |
-| ⏸    | [capture-runtime.ts:254](../../packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L254)     | `persistEntry` 重复 `readEntry` 刚做过的 findEntry 唯一索引查询；`bumpWorkingTreeRevision` 每变更读/写一次状态行而非每批一次——同上，热路径。**本轮不做**：同上一条，等基准接 CI 后一起改；另外 `workingTreeRevision` 是提交 CAS 的依据，改成每批一次会改变它的语义（一次事务推一格而非 N 格），要先确认没有调用方依赖逐条推进                                                                                                                                                                                                 |
-| ⏸    | [list-commits.ts:163-176](../../packages/rxdb-plugin-working-tree/src/commit/list-commits.ts#L163)             | 线性历史下 BFS 每层一次往返 = 每提交一次顺序查询。批量 `in` 已用于同层加载并导出给守卫复用，但逐层往返未变——改动小、收益直接。**本轮不做**：同属性能项且无基准；只有线性历史才是那个最坏形态，收益规模未测                                                                                                                                                                                                                                                                                                                    |
-| ⏸    | [RxDB.ts:1737-1776](../../packages/rxdb/src/RxDB.ts#L1737)                                                     | 每次 connect 约 14 次顺序 `isTableExisted` 探测（系统实体 + 实体表两个循环）——每次 connect 都付，可一次元数据查询批量取回。**本轮不做**：批量元数据查询要每个适配器各写一遍（6 个后端两种方言），且落在 `RxDB.ts` 的连接路径上——本分支的评审范围是工作树/提交历史，连接路径改动的爆炸半径是全仓，不该混进同一个分支                                                                                                                                                                                                           |
-| ⚠️   | [status.ts:152](../../packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L152)                       | 两个顺序 `COUNT(*)` 而非一个 `GROUP BY origin`；三框架 hook 每次 commit/discard/enable 后都自动调 status——单次收益很小，是否值得改取决于 hook 的自动调用频次是否要收敛                                                                                                                                                                                                                                                                                                                                                        |
-| ⚠️   | [write-commit.ts:374](../../packages/rxdb-plugin-working-tree/src/commit/write-commit.ts#L374)                 | `writeCommit` / `readCommitLogPage` 在同一事务里二次读取刚读过的 CommitBranchRef 行——同事务内重复读代价低，收益边际                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 判定 | 位置                                                                                                           | 内容与理由                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⏸    | [commit-graph-guard.ts:234-260](../../packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts#L234) | 每次 commit/discard/switch 全量重验整张可达提交图（[`commit-command.ts:232`](../../packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L232) 无条件调用，discard/restore/switch 各一处）：每层两次查询 + 全部变更单元重哈希，1 万提交时每次保存仍是 O(N)。**逐个查已经改成逐层查**（节点与 ChangeSet 各一次 `in`），省掉的是常数倍，没有动量级——图是只追加的，要降量级得持久化「最后已验证 HEAD」水位。**本节最高收益项**。**本轮不做**：水位要持久化就得有存放点与失效规则（损坏后如何回退重扫），而「损坏后落盘隔离标记」本身还是顺延 2c；两条是同一份 ref 状态，先加水位再补标记会把状态机改两遍 |
+| ⏸    | [list-commits.ts:163-176](../../packages/rxdb-plugin-working-tree/src/commit/list-commits.ts#L163)             | 线性历史下 BFS 每层一次往返 = 每提交一次顺序查询。**原判据「改动小、收益直接」不成立**：同层的批量 `in` 早就在了（`loadCommitsByIds`），剩下的每层一次往返是 BFS 本身——`Commit` 上没有 `branchId` 列，一次查回整条分支无从查起，要省掉往返的前提是先有一份按分支存的派生结构。**本轮不做**：那份派生结构与本表第一条（守卫的「最后已验证 HEAD」水位）是同一件事，两条一起做才不会把状态机改两遍                                                                                                                                                                                                                      |
+| ⏸    | [RxDB.ts:1737-1776](../../packages/rxdb/src/RxDB.ts#L1737)                                                     | 每次 connect 约 14 次顺序 `isTableExisted` 探测（系统实体 + 实体表两个循环）——每次 connect 都付，可一次元数据查询批量取回。**本轮不做**：批量元数据查询要每个适配器各写一遍（6 个后端两种方言），且落在 `RxDB.ts` 的连接路径上——本分支的评审范围是工作树/提交历史，连接路径改动的爆炸半径是全仓，不该混进同一个分支                                                                                                                                                                                                                                                                                                  |
+| ⚠️   | [status.ts:152](../../packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L152)                       | 两个顺序 `COUNT(*)` 而非一个 `GROUP BY origin`。**挡住它的不是收益判断，是没有能表达 `GROUP BY` 的 API**：[`IRepository`](../../packages/rxdb/src/repository/repository.interface.ts#L16) 只有 `find/count/create/update/remove`，一格聚合都没有。剩下两条路都要先决策——走 `executor.query()` 裸 SQL 会是这个插件的第一处生产裸读（各方言 `COUNT(*)` 的返回类型与列名大小写不一致，且现有测试替身只认结构化查询）；往核心补聚合入口则正是 §4.2 第 2 条那个 core ↔ plugin 公开面决策。顺带记一笔**不能**走的那条：拿 `entryCount - local` 反推 `remote_sync`，会把 denormalized 计数的漂移变成一个看起来正常的错数字  |
 
 ### 3.4 根因深度
 
@@ -222,27 +162,26 @@
 
 ## 4. 剩余项与优先级建议
 
-> 2026-09-17 的 8 条 P1 + 6 条 P2、以及 2026-09-18 两轮修复落地的一批条目（raw 写判定扫描器重写、dollar-quote 词法、模板插值审计、契约重冻结、§2/§3.1 的已修行等）均已处理，按本目录约定从报告删除——修法与判据写在代码注释与 TSDoc 里。以下保留仍未处理的条目与当前优先级。
+> 2026-09-17 的 8 条 P1 + 6 条 P2，以及 2026-09-18 / 09-19 / 09-23 三轮修复落地的条目，均按本目录约定从报告删除——修法与判据写在代码注释与 TSDoc 里。以下只留仍未处理的条目与当前优先级。
 
-### 4.1 顺延项（⏸ Deferred —— 上轮确认的架构级阻塞项）
+### 4.1 顺延项（⏸ Deferred —— 架构级阻塞项）
 
-上轮确认的 4 条 P1 **全部仍在此**，按建议优先级：
+4 条 P1 **全部仍在**，按建议优先级：
 
 1. **跨连接启用绕过捕获**（两份报告独立复现，违反 FR-037，最该先排）
 2. **三个未接线的失效保护**，建议一次排完：切换不推进 activation revision（A→B→A 重用旧凭据）/ 远端分支首次物化未接公开入口 / 损坏图不落盘隔离标记
 3. **切换前置条件与最终写入分属两个事务** —— 与第 2 条的 revision 推进同一个结构问题（适配器只收 `{branchId, actions}`），两条一起改
 4. **首次物化流水线的其余两条**：staging 崩溃续传、分页 payload 指纹校验 —— 与第 2 条中段同属一条流水线
 
-上轮列在这里的另两条（`merge_branch('normal')` 双重捕获、diff 分页切断事务）**已于 2026-09-19 修复**并按约定删除；两条都不是架构级，之前被归到这一节是判错了规模。本节余下的顺延项还有：§3 各表里打 ⏸ 的条目（复用/简化/效率/根因深度，各自的前置条件写在行内）、§2 打 ⏸ 的四条次要项，以及 `bench-working-tree` 接 CI（T132 已于 2026-09-18 按 T109 复冻基线跑过 `✓ PASS`，剩 CI 接线未做）——**§3.3 的五条性能项都卡在它后面**：没有 CI 基准，性能改动没有验收口径。完整清单见 `next-0912-branch-review-max.md` §6.1。
+本节余下的顺延项：§3 各表里打 ⏸ 的条目（复用 / 简化 / 效率 / 根因深度，各自的前置条件写在行内）与 §2 打 ⏸ 的四条次要项。`next-0912-branch-review-max.md` 另记该轮独立复核剩下的条目。
 
 ### 4.2 尚未排期
 
 §2 与 §3 的每一行现在都带判定，本节只留**跨行的前置决策**——这些问题不定，被它们挡住的行就没法开工：
 
-1. **跨连接是否在威胁模型内**（一个库同时被多个连接写）。挡着：顺延 1、§2 的 `allocateBranchGeneration` 无 CAS
-2. **core ↔ plugin 的公开面边界**：core 是否愿意把 `InterceptedBulkWrite`、捕获原语清单这类内部形状作为公开面被插件钉住。挡着：§3.2 的 bulk-write-gate 重声明、§3.4 的挂载点清单单源
+1. **跨连接是否在威胁模型内**（一个库同时被多个连接写）。挡着：顺延 1、§2 的 `allocateBranchGeneration` 无 CAS，以及 `next-0912-branch-review-max.md` §2 的 StaleActiveBranchError 诊断字段（`RxDBBranchSwitchPreconditions` 要不要多带调用方分支 id）
+2. **core ↔ plugin 的公开面边界**：core 是否愿意把 `InterceptedBulkWrite`、捕获原语清单这类内部形状作为公开面被插件钉住，以及 `IRepository` 要不要长出聚合能力。挡着：§3.2 的 bulk-write-gate 重声明、§3.4 的挂载点清单单源、§3.3 的 `status.ts` 双 `COUNT(*)`，以及 max 报告 §3 末尾的 `normalizeCreateEntity`（要往核心补一份 keyed 实现才有得指）
 3. **适配器公开面能否扩**（物理表名解析、`switchBranch` 入参形状、跨后端公共层落在哪个包）。挡着：顺延 3、§3.1 的 switch-result 脚手架、§3.4 的表名解析与 switch_branch 对称项、§3.2 的 activeKey 回填序列
-4. **第三方适配器是否在威胁模型内**。挡着：§3.4 打 ⚠️ 的受信写自报键、`'*active*'` 哨兵；连带 §2 的 raw intent 死代码（意图的承载形式要先定）
+4. **第三方适配器是否在威胁模型内**。挡着：§3.4 打 ⚠️ 的受信写自报键、`'*active*'` 哨兵；连带 §2 的 raw intent 豁免（意图的承载形式要先定：加槽位扩公开面，还是从契约里删掉这一条）
 5. **词法扫描门禁是否改用 AST**：二次评审后这一问**变窄了**——模板插值那条已用按段扫描（而不是 AST）修掉，仍悬而未决的只剩 §3.4 的两条扫描器 ⚠️（受信注册表二次解析、调用点清单硬编码）
 6. **`@aiao/rxdb-test` 的边界**。挡着：§3.1 的三条 ⚠️ 测试工具复用、§2 的 `cleanup_db` 不恢复单例行
-7. **`bench-working-tree` 接 CI**。挡着：§3.3 的五条性能项（没有基准就没有验收口径）

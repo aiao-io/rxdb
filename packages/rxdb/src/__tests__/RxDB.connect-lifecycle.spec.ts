@@ -87,7 +87,7 @@ const retryProbeContribution: RxDBSystemContribution = {
   bootstrapExisting: async () => undefined,
   writeBranchRows: async () => undefined,
   removeBranchRows: async () => undefined,
-  assertBranchSwitchable: async () => undefined
+  prepareBranchSwitch: async () => undefined
 };
 
 const retryProbePlugin: Plugin = () => ({

@@ -4,7 +4,7 @@
  * 测试 rxdb_adapter_create_branch 功能，确保与 SQLite 行为一致
  */
 
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { InvalidBranchIdError, RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom } from 'rxjs';
@@ -131,5 +131,11 @@ describe('分支创建 (createBranch)', () => {
     expect(result).toBeDefined();
     expect(result.id).toBe('branch_from_change');
     expect(result.fromChangeId).toBe(firstChangeId);
+  });
+
+  // 适配器这一层是**第三条**创建路径：`adapter.createBranch()` 绕开 versionManager 直达。
+  // 哨兵校验必须在这里也成立，否则「核心加了校验」只是三条路里的两条。
+  it('拒绝含 active 哨兵保留字符的分支 id', async () => {
+    await expect(adapter.createBranch('*active*')).rejects.toThrow(InvalidBranchIdError);
   });
 });

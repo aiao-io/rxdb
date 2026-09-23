@@ -106,6 +106,66 @@ test('parseRegistry 拒绝「成员名与值不同」的枚举', () => {
   assert.throws(() => parseRegistry(source), /按成员名比对/);
 });
 
+// 登记表是**数据**，不是一段碰巧长这样的文本。按固定键序的正则去读它，等于在脚本里
+// 再编码一遍「这六个字段按这个顺序排」——而那是 `trusted-write-intent.ts` 的自由。
+// 换行、重排、加一个与判定无关的新字段，都不该让某一行从登记表里静默消失：那一行对应的
+// 真实声明会立刻变成「不在 TRUSTED_CALLSITE_REGISTRY 里」的假阳性，而门禁给出的理由
+// 指向的是一处没有问题的代码。
+test('parseRegistry 按键名读取，不依赖字段书写顺序', () => {
+  const source = [
+    'export const TrustedWriteIntent = {',
+    "  merge_squash: 'merge_squash'",
+    '} as const;',
+    'const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [',
+    '  {',
+    '    verifiedAtLine: 127,',
+    '    intent: TrustedWriteIntent.merge_squash,',
+    "    symbol: 'merge_branch',",
+    "    entrance: 'domain_recompute',",
+    "    file: 'merge-branch.ts',",
+    "    writePrimitive: 'executor.mergeChanges'",
+    '  }',
+    '];',
+    ''
+  ].join('\n');
+
+  const { rows } = parseRegistry(source);
+
+  assert.deepEqual(rows, [
+    {
+      file: 'merge-branch.ts',
+      symbol: 'merge_branch',
+      writePrimitive: 'executor.mergeChanges',
+      intent: 'merge_squash',
+      entrance: 'domain_recompute',
+      verifiedAtLine: 127
+    }
+  ]);
+});
+
+// 同上一条的另一面：多一个与本门禁判定无关的字段，不该让整行读不出来。
+test('parseRegistry 容忍登记表新增与判定无关的字段', () => {
+  const source = [
+    'export const TrustedWriteIntent = {',
+    "  merge_squash: 'merge_squash'",
+    '} as const;',
+    'const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [',
+    '  {',
+    "    file: 'merge-branch.ts',",
+    "    symbol: 'merge_branch',",
+    "    writePrimitive: 'executor.mergeChanges',",
+    '    intent: TrustedWriteIntent.merge_squash,',
+    "    entrance: 'domain_recompute',",
+    '    verifiedAtLine: 127,',
+    "    note: '将来某个与本门禁无关的补充字段'",
+    '  }',
+    '];',
+    ''
+  ].join('\n');
+
+  assert.equal(parseRegistry(source).rows.length, 1);
+});
+
 test('parseRegistry 拒绝登记表引用不存在的意图', () => {
   const source = [
     'export const TrustedWriteIntent = {',

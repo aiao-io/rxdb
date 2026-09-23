@@ -1,8 +1,8 @@
-import { ENTITY_BASE_METADATA_OPTIONS, type EntityType, getEntityMetadata, PropertyType } from '@aiao/rxdb';
+import { type EntityType, getEntityMetadata, PropertyType } from '@aiao/rxdb';
 import { RxDBClientGenerator } from '@aiao/rxdb-client-generator';
 import { describe, expect, it } from 'vitest';
 import { GraphEntity } from '../../@GraphEntity.js';
-import { GRAPH_ENTITY_BASE_OPTIONS, GraphEntityBase } from '../../GraphEntityBase.js';
+import { GraphEntityBase } from '../../GraphEntityBase.js';
 import { GraphRepositoryGenerator } from '../../generator/GraphRepositoryGenerator.js';
 
 /**
@@ -91,7 +91,6 @@ class FullGraphNode extends GraphEntityBase {}
 const generateGraphEntity = (EntityType: EntityType): string => {
   const generator = new RxDBClientGenerator({ relationQueryDeep: 10 });
   generator.addEntity(EntityType);
-  generator.registerAbstractMetadata('GraphEntityBase', [GRAPH_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]);
   generator.registerRepositoryGenerator(new GraphRepositoryGenerator());
   generator.exec();
   return (
@@ -108,7 +107,6 @@ describe('graph', () => {
       relationQueryDeep: 10
     });
     generator.addEntity(Person);
-    generator.registerAbstractMetadata('GraphEntityBase', [GRAPH_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]);
     generator.registerRepositoryGenerator(new GraphRepositoryGenerator());
     generator.exec();
     const files = generator.getSourceFiles();
@@ -472,7 +470,6 @@ describe('graph', () => {
   it('Workflow（properties-only 图的 addEdge 参数位置必须与运行时 ABI 一致，GRAPH-004）', { timeout: 30000 }, () => {
     const generator = new RxDBClientGenerator({ relationQueryDeep: 10 });
     generator.addEntity(Workflow);
-    generator.registerAbstractMetadata('GraphEntityBase', [GRAPH_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]);
     generator.registerRepositoryGenerator(new GraphRepositoryGenerator());
     generator.exec();
     const indexDJSFile = generator.getSourceFiles().find(f => f.getFilePath() === 'index.d.ts');

@@ -190,4 +190,24 @@ describe('RxDBAdapterPGlite residual unit edges', () => {
     const branch = await ad.createBranch(`residual-branch-${Date.now()}`);
     expect(branch).toBeTruthy();
   });
+
+  /**
+   * PGlite **不**把命名空间折进表名——它用 schema 限定（`"public"."todos"`）。
+   *
+   * @remarks
+   * 这条用例是本后端对「物理表名解析」这个能力的**表态**，不是一次覆盖率填充：raw 写判定
+   * 在比对前会把 schema 限定与引号一起抹掉（`raw-write-judgment.ts` 的限定剥离），剥完剩下的
+   * 正是逻辑名，所以本后端交出基类那一份就是对的。
+   *
+   * 没有为此写一个 `override physicalTableNames()`：那个方法体只会是 `return super...`，
+   * 读到的人有充分理由把它当噪音删掉、连同这段理由一起。断言删不掉——PGlite 哪天真的改用
+   * 折叠命名（或别的限定形态），红的是这一条。
+   */
+  it('physicalTableNames 交出逻辑名，因为本后端用 schema 限定而不是折叠命名', async () => {
+    const ad = await setup();
+    const metadata = getEntityMetadata(Todo);
+
+    expect(ad.physicalTableNames(metadata)).toEqual([metadata.tableName]);
+    expect(ad.physicalTableNames(metadata)).not.toContain(`${metadata.namespace}$${metadata.tableName}`);
+  });
 });

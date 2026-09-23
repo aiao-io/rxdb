@@ -315,6 +315,58 @@ export const normalizeUpdateEntity = (metadata: EntityMetadata, entity: EntityDa
 };
 
 /**
+ * 规范化创建数据（过滤未赋值字段）。
+ *
+ * @param metadata - 实体元数据
+ * @param entity - 待写入的实体实例或数据对象
+ * @returns 以数据库列名为键的待写入字段
+ *
+ * @throws {@link RxDBError} 外键关系缺少 `columnName` 时
+ *
+ * @remarks
+ * 与 {@link normalizeUpdateEntity} 是同一件事的两侧，两点**故意**不同：
+ *
+ * 1. **不过滤 `readonly`。** 主键、`createdAt` 这类列正是 readonly 的，照更新侧的口径过滤会让
+ *    每一行都缺主键。readonly 的执行点在更新边界，不在创建边界。
+ * 2. **按「值不为 `undefined`」判定，不按 `key in entity`。** `target: es2025` 下
+ *    `useDefineForClassFields` 默认开启，`updatedAt!: Date` 这行字段声明本身就会在实例上装出一个
+ *    值为 `undefined` 的自有属性，键恒在。按键判定等于把「没赋值」也写进 INSERT，适配器再把
+ *    `undefined` 归一成 `null`——建表时那句 `DEFAULT now()` 于是永远不生效，NOT NULL + DEFAULT
+ *    的列直接报约束错。显式的 `null` 照常写：「没给值」与「就是要清空」是两件事。
+ *
+ * 外键**走 keyed 的 `foreignKeyRelationMap`，不走 `foreignKeyNames` / `foreignKeyColumnNames`
+ * 两个平行数组按下标配对**：那种写法一旦两边长度不等就会把 A 的值写进 B 的列，且完全无声。
+ * 列名直接从关系上取，配对关系由数据结构本身保证。三个字段在 `EntityMetadata` 上都是必填，
+ * 故不加 `??` / `?.`——真为空是元数据装配的 bug，让它当场炸，别伪装成「这个实体没有外键」。
+ *
+ * SQLite 家族与 PGlite 两个适配器都在创建边界调用本函数；`createdBy` / `updatedBy` 等审计字段
+ * 在此之后由 adapter 按物理列名单独注入。
+ */
+export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object): EntityData => {
+  const result: EntityData = {};
+
+  for (const [key, property] of metadata.propertyMap) {
+    const value = Reflect.get(entity, key);
+    if (value !== undefined) {
+      result[property.columnName] = value;
+    }
+  }
+
+  for (const [key, relation] of metadata.foreignKeyRelationMap) {
+    const value = Reflect.get(entity, key);
+    if (value === undefined) continue;
+
+    const { columnName } = relation as { columnName?: string };
+    if (!columnName) {
+      throw new RxDBError(`${metadata.namespace}:${metadata.name} 的外键关系 '${key}' 缺少 columnName`);
+    }
+    result[columnName] = value;
+  }
+
+  return result;
+};
+
+/**
  * 获取需要保存的实体
  * @param entities
  * @returns

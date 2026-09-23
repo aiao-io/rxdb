@@ -1,6 +1,6 @@
-import type { KeyValuePropertyMetadata } from '@aiao/rxdb';
-import type { GeneratorContext } from '@aiao/rxdb-client-generator';
-import { RepositoryGeneratorBase } from '@aiao/rxdb-client-generator';
+import { ENTITY_BASE_METADATA_OPTIONS, type EntityMetadataOptions, type KeyValuePropertyMetadata } from '@aiao/rxdb';
+import { type GeneratorContext, RepositoryGeneratorBase } from '@aiao/rxdb-client-generator';
+import { GRAPH_ENTITY_BASE_OPTIONS } from '../constants.js';
 
 type EdgeTypeEntry = { filter: string; info: string };
 
@@ -43,6 +43,17 @@ const GRAPH_IMPORTED_TYPES = [
 export class GraphRepositoryGenerator extends RepositoryGeneratorBase {
   override readonly name: string = 'GraphRepository';
   override readonly entityBaseModuleSpecifier = GRAPH_MODULE;
+
+  /**
+   * `GraphEntityBase` 的装饰器实参是常量标识符，CLI 静态求值取不到它的值。
+   *
+   * @remarks
+   * 生成器随身带上这份元数据，CLI 才能在分析 `extends GraphEntityBase` 的实体时把它回填；
+   * 否则生成器包得反向依赖本插件才拿得到（RV-015）。顺序为「自身 → 祖先」。
+   */
+  override readonly abstractEntityMetadata: ReadonlyMap<string, EntityMetadataOptions[]> = new Map([
+    ['GraphEntityBase', [GRAPH_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]]
+  ]);
 
   protected override generateMethods(context: GeneratorContext): void {
     // Graph 特有方法（基类方法已在 generator_entity_definition.ts 中单独生成）
