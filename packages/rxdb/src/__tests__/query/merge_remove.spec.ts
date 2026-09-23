@@ -694,50 +694,6 @@ describe('query_merge_remove_cache', () => {
         query_merge_remove_cache(task, removeEvents);
       });
     });
-
-    // RXD-020 对称清理：merge_create.ts 的 count 分支把已计数的 id 记进
-    // task.resultEntityIds 去重；这里删除时必须同步摘掉，否则被删 id 会一直卡在去重集合里，
-    // 之后同 id 重建（如 undo/redo 撤销删除）时会被误判成"已经计过数的重复事件"而漏计数。
-    it('删除匹配的实体后应该把对应 id 从 resultEntityIds 去重集合中摘除', () => {
-      const task = createMockQueryTask(
-        {
-          type: 'count',
-          options: { where: { combinator: 'and', rules: [] } }
-        },
-        () => of(1)
-      );
-
-      task.result$.subscribe();
-      // 模拟 CREATE 侧已经把这个 id 记进去重集合
-      task.resultEntityIds.add('1');
-
-      const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1' });
-      query_merge_remove_cache(task, [removeEvent]);
-
-      expect(task.result).toBe(0);
-      expect(task.resultEntityIds.has('1')).toBe(false);
-    });
-
-    it('删除一个 id 不应该清空 resultEntityIds 中其它未涉及的 id', () => {
-      const task = createMockQueryTask(
-        {
-          type: 'count',
-          options: { where: { combinator: 'and', rules: [] } }
-        },
-        () => of(2)
-      );
-
-      task.result$.subscribe();
-      task.resultEntityIds.add('1');
-      task.resultEntityIds.add('2');
-
-      const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1' });
-      query_merge_remove_cache(task, [removeEvent]);
-
-      expect(task.result).toBe(1);
-      expect(task.resultEntityIds.has('1')).toBe(false);
-      expect(task.resultEntityIds.has('2')).toBe(true);
-    });
   });
 
   // 与 merge_create / merge_update 的同款守卫：首个权威结果落地前收到 DELETE 事件，

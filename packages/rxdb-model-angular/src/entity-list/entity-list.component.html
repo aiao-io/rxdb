@@ -61,11 +61,15 @@
         cdkConnectedOverlay
       >
         @if (queryBuilderFields().length > 0) {
-          <div
-            class="border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg"
-            (click)="$event.stopPropagation()"
-            aria-hidden="true"
-          >
+          <!--
+            面板**不能**带 aria-hidden：里面全是可聚焦控件（字段树选择、操作符、值输入、
+            重置 / 确定），aria-hidden 会把它们整片从无障碍树里摘掉 —— 屏幕阅读器读不到、
+            axe 的 aria-hidden-focus 判违规，基于 role 的定位（含 e2e 的 getByRole）也全部落空。
+            CDK 的 backdrop 是 overlay pane 的**兄弟节点**而非祖先，面板内的点击根本到不了
+            backdropClick，所以这里也不需要 stopPropagation（Vue 同为兄弟结构；只有 React
+            把面板套在 backdrop 里，那端的 stopPropagation 才是必需的）。
+          -->
+          <div class="border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg">
             <rxdb-query-builder
               [fields]="queryBuilderFields()"
               [initialQuery]="$any(filterQuery())"

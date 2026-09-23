@@ -1,10 +1,15 @@
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
+import mergeCreate from '../../query/merge_create.js';
 import mergeRemove from '../../query/merge_remove.js';
 import mergeUpdate from '../../query/merge_update.js';
 import { QueryTask } from '../../repository/QueryTask.js';
-import type { RxDBEntityLocalRemovedEventData, RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
+import type {
+  RxDBEntityLocalCreatedEventData,
+  RxDBEntityLocalRemovedEventData,
+  RxDBEntityLocalUpdatedEventData
+} from '../../rxdb-events.js';
 import { compactChanges } from '../../sync-contract/compact-changes.js';
 import type { IRxDBChange } from '../../system/system.interface.js';
 import { createHarnessQueryTask, type HarnessTaskOptions } from '../../testing/query-task-harness.js';
@@ -38,6 +43,17 @@ const remove = (id: string): RxDBEntityLocalRemovedEventData<typeof ReviewEntity
   recordAt: new Date(0),
   patch: null,
   inversePatch: { id }
+});
+
+const create = (id: string): RxDBEntityLocalCreatedEventData<typeof ReviewEntity> => ({
+  type: 'INSERT',
+  namespace: 'review',
+  entity: 'ReviewEntity',
+  id,
+  entityType: ReviewEntity,
+  recordAt: new Date(0),
+  patch: { id },
+  inversePatch: null
 });
 
 describe('review query regression probes', () => {
@@ -79,6 +95,42 @@ describe('review query regression probes', () => {
     try {
       mergeRemove(task as QueryTask<typeof ReviewEntity>, [remove('a')]);
       expect(refresh).toHaveBeenCalled();
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('Q4 should keep the cursor page within limit when a matching row is created', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'findByCursor',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        limit: 2,
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      },
+      runner: () => of([{ id: 'a' }, { id: 'b' }])
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      mergeCreate(task as QueryTask<typeof ReviewEntity>, [create('c')]);
+      expect(task.result).toEqual([{ id: 'a' }, { id: 'b' }]);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('Q5 should refresh instead of incrementing a count whose snapshot may already include the row', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'count',
+      options: { where: { combinator: 'and', rules: [] } },
+      runner: () => of(1)
+    });
+    const subscription = task.result$.subscribe();
+    const refresh = vi.spyOn(task, 'refresh');
+    try {
+      mergeCreate(task as QueryTask<typeof ReviewEntity>, [create('a')]);
+      expect(refresh).toHaveBeenCalled();
+      expect(task.result).toBe(1);
     } finally {
       subscription.unsubscribe();
     }

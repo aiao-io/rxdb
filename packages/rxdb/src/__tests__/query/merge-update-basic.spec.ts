@@ -267,14 +267,11 @@ describe('merge-update-basic', () => {
   });
 
   /**
-   * count 模式下 `resultEntityIds` 是**跨批次的去重集合**，不是结果集镜像。
-   *
-   * `QueryTask#next` 在 `autoCache=true` 时无条件 `resultEntityIds.clear()`，而 count 的
-   * 结果是个 number，清空后不会被重新填充。`merge_create` / `merge_remove` 的 count 分支
-   * 为此都显式传了 `false`；update 分支漏传，于是一次计数更新就把去重记录抹干净，
-   * 同一个实体的后续 CREATE 会被重复计入。
+   * `QueryTask#next` 在 `autoCache=true` 时无条件清空 `resultEntitySet` / `resultEntityIds`，
+   * 而 count 的结果是个 number，清空后不会被重新填充。计数更新只该改那个数字，
+   * 不该顺手把任务身上的实体缓存集合一并抹掉（`merge_remove` 的 count 分支同口径）。
    */
-  it('count 更新不清空跨批次去重集合', () => {
+  it('count 更新不清空任务的实体缓存集合', () => {
     const task = createTask({ type: 'count', options: { where: activeWhere } });
     task.next(2, false);
     task.resultEntityIds.add('a');

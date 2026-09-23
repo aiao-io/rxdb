@@ -44,12 +44,9 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       const where = (task.options as FindAllOptions<T>)?.where;
       const matched = where ? data.filter(e => isEntityMatchWhere(e.inversePatch, where)) : data;
       if (matched.length === 0) break;
-      // 与 merge_create.ts 的 count 分支对称清理：那边把已计数的 id 记进
-      // resultEntityIds 去重，这里删除时要同步摘掉，否则被删 id 会一直卡在去重集合里，
-      // 之后同 id 重建（如 undo/redo 撤销删除）时会被误判成「已经计过数的重复事件」而漏计数。
-      matched.forEach(e => task.resultEntityIds.delete(e.id));
-      // autoCache=false 原因同 merge_create.ts 的 count 分支：next() 在 autoCache=true 时
-      // 无条件清空 resultEntityIds，会把上面刚做的精确删除以及其它未被本批触及的 id 一并清掉。
+      // autoCache 传 false：count 结果是个 number，`QueryTask#next` 在 autoCache=true 时
+      // 只会白白清空 resultEntitySet / resultEntityIds（清空逻辑在类型分支之外），
+      // 而 count 任务本来就没有实体结果可缓存。与 merge-update-basic.ts 的 count 分支同口径。
       task.next(Math.max(0, current_count - matched.length), false);
       break;
     }

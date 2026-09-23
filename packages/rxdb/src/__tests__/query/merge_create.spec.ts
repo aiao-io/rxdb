@@ -3,6 +3,7 @@ import { firstValueFrom, map, of, switchMap, throwError, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES, type EntityType } from '../../entity/entity.interface.js';
 import query_merge_create_cache_impl from '../../query/merge_create.js';
+import type { CountOptions } from '../../repository/query-options.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalCreatedEventData } from '../../rxdb-events.js';
 import { METADATA } from '../../rxdb.private.js';
@@ -897,11 +898,11 @@ describe('query_merge_create_cache', () => {
             { id: '12', title: 'Task 12' },
             { id: '13', title: 'Task 13' }
           ],
+          // 新行挤进窗口后，窗口末尾的 13 落到下一页——与 SQL 用同样参数重查的结果一致
           [
             { id: '11', title: 'Task 11' },
             { id: '11.5', title: 'Task 11.5' },
-            { id: '12', title: 'Task 12' },
-            { id: '13', title: 'Task 13' }
+            { id: '12', title: 'Task 12' }
           ]
         ];
         let resultIndex = 0;
@@ -955,8 +956,8 @@ describe('query_merge_create_cache', () => {
             { id: '18', title: 'Task 18' },
             { id: '19', title: 'Task 19' }
           ],
+          // before 页紧贴游标，被挤出去的是窗口最前面的 17（它属于上一页）
           [
-            { id: '17', title: 'Task 17' },
             { id: '17.5', title: 'Task 17.5' },
             { id: '18', title: 'Task 18' },
             { id: '19', title: 'Task 19' }
@@ -987,7 +988,7 @@ describe('query_merge_create_cache', () => {
       });
     });
 
-    it('应该在增量场景下结果集大小超过 limit', () => {
+    it('增量插入后仍然只发射一页（不超过 limit）', () => {
       return new Promise<void>((done, reject) => {
         const task = createMockQueryTask({
           type: 'findByCursor',
@@ -1010,12 +1011,11 @@ describe('query_merge_create_cache', () => {
             { id: '2', title: 'Task 2' },
             { id: '3', title: 'Task 3' }
           ],
-          // 增量场景下:新实体插入后,结果集从 3 条变成 4 条(超过 limit)
+          // 新实体插入后这一页仍然只有 limit 条，3 被挤到下一页
           [
             { id: '1', title: 'Task 1' },
             { id: '1.5', title: 'Task 1.5' },
-            { id: '2', title: 'Task 2' },
-            { id: '3', title: 'Task 3' }
+            { id: '2', title: 'Task 2' }
           ]
         ];
         let resultIndex = 0;
@@ -1277,182 +1277,96 @@ describe('query_merge_create_cache', () => {
   });
 
   describe('count - 计数查询', () => {
-    it('应该使用 JS 计算增加计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'completed', operator: '=', value: false }]
-            }
-          },
-          runner: () => of(5)
-        });
-
-        const results = [5, 6]; // 5 + 1 = 6
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const entity = createMockEntityEvent({ id: '10', title: 'Task 10', completed: false });
-        query_merge_create_cache(task, [entity]);
-      });
-    });
-
-    it('应该批量增加计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: { combinator: 'and', rules: [] }
-          },
-          runner: () => of(10)
-        });
-
-        const results = [10, 13]; // 10 + 3 = 13
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const entities = [
-          createMockEntityEvent({ id: '1', title: 'Task 1' }),
-          createMockEntityEvent({ id: '2', title: 'Task 2' }),
-          createMockEntityEvent({ id: '3', title: 'Task 3' })
-        ];
-        query_merge_create_cache(task, entities);
-      });
-    });
-
-    it('不应该计数不匹配 where 条件的实体', () => {
-      const task = createMockQueryTask({
+    /** 按调用次序依次返回 SQL 计数，模拟「每次重数都去库里读一遍」。 */
+    const createCountTask = (
+      counts: number[],
+      where: CountOptions<TestEntityType>['where'] = { combinator: 'and', rules: [] }
+    ) => {
+      let call = 0;
+      return createMockQueryTask({
         type: 'count',
-        options: {
-          where: {
-            combinator: 'and',
-            rules: [{ field: 'status', operator: '=', value: 'active' }]
-          }
-        },
-        runner: () => of(8)
+        options: { where },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
       });
+    };
 
+    it('匹配 where 的 CREATE 应该回 SQL 重数', () => {
+      const task = createCountTask([5, 6], {
+        combinator: 'and',
+        rules: [{ field: 'completed', operator: '=', value: false }]
+      });
       const emissions = collectEmissions(task);
 
-      const entity = createMockEntityEvent({ id: '1', title: 'Task 1', status: 'completed' });
-      query_merge_create_cache(task, [entity]);
+      query_merge_create_cache(task, [createMockEntityEvent({ id: '1', title: 'Task 1', completed: false })]);
 
-      expect(emissions).toEqual([8]);
+      expect(emissions).toEqual([5, 6]);
     });
 
-    it('应该处理从 0 开始计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: { combinator: 'and', rules: [] }
-          },
-          runner: () => of(0)
-        });
-
-        const results = [0, 1]; // 0 + 1 = 1
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const entity = createMockEntityEvent({ id: '1', title: 'First Task' });
-        query_merge_create_cache(task, [entity]);
-      });
-    });
-
-    // RXD-020：同上（见 find 分支的说明）——branch-merge 对同一条 INSERT 的两次独立派发
-    // 若不去重，count 会被 +1 两次。
-    it('同一 id 的两次独立 CREATE 派发不应该重复计数', () => {
-      const task = createMockQueryTask({
-        type: 'count',
-        options: { where: { combinator: 'and', rules: [] } },
-        runner: () => of(5)
-      });
-
-      task.result$.subscribe();
-
-      query_merge_create_cache(task, [createMockEntityEvent({ id: '10', title: 'Task 10' })]);
-      expect(task.result).toBe(6);
-
-      // 同一 id 的第二次独立派发（等价负载、不同对象引用）不应该让 count 变成 7
-      query_merge_create_cache(task, [createMockEntityEvent({ id: '10', title: 'Task 10' })]);
-      expect(task.result).toBe(6);
-    });
-
-    it('批内同一 id 出现两次也不应该重复计数', () => {
-      const task = createMockQueryTask({
-        type: 'count',
-        options: { where: { combinator: 'and', rules: [] } },
-        runner: () => of(0)
-      });
-
-      task.result$.subscribe();
+    it('一批多条创建只触发一次重数', () => {
+      const task = createCountTask([10, 13]);
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
 
       query_merge_create_cache(task, [
         createMockEntityEvent({ id: '1', title: 'Task 1' }),
-        createMockEntityEvent({ id: '1', title: 'Task 1' })
+        createMockEntityEvent({ id: '2', title: 'Task 2' }),
+        createMockEntityEvent({ id: '3', title: 'Task 3' })
       ]);
 
-      expect(task.result).toBe(1);
+      expect(emissions).toEqual([10, 13]);
+      expect(refresh).toHaveBeenCalledTimes(1);
     });
 
-    it('不同 id 的多次派发仍应该分别计数（去重不应该误伤正常批量）', () => {
-      const task = createMockQueryTask({
-        type: 'count',
-        options: { where: { combinator: 'and', rules: [] } },
-        runner: () => of(0)
+    it('不应该计数不匹配 where 条件的实体', () => {
+      const task = createCountTask([8, 9], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
       });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
 
-      task.result$.subscribe();
+      const entity = createMockEntityEvent({ id: '1.5', title: 'Task 1.5', status: 'completed' });
+      query_merge_create_cache(task, [entity]);
 
-      query_merge_create_cache(task, [createMockEntityEvent({ id: '1', title: 'Task 1' })]);
-      query_merge_create_cache(task, [createMockEntityEvent({ id: '2', title: 'Task 2' })]);
-      query_merge_create_cache(task, [createMockEntityEvent({ id: '3', title: 'Task 3' })]);
+      expect(emissions).toEqual([8]);
+      expect(refresh).not.toHaveBeenCalled();
+    });
 
-      expect(task.result).toBe(3);
+    it('应该处理从 0 开始计数', () => {
+      const task = createCountTask([0, 1]);
+      const emissions = collectEmissions(task);
+
+      query_merge_create_cache(task, [createMockEntityEvent({ id: '1', title: 'First Task' })]);
+
+      expect(emissions).toEqual([0, 1]);
+    });
+
+    // RXD-020：branch-merge 对同一条 INSERT 有两次独立派发。重数拿到的都是库里的真值，
+    // 第二次派发因此不会把计数顶到 7——同一个 id 被数两次在 SQL 侧根本不成立。
+    it('同一 id 的两次独立 CREATE 派发不应该重复计数', () => {
+      const task = createCountTask([5, 6, 6]);
+      const emissions = collectEmissions(task);
+
+      query_merge_create_cache(task, [createMockEntityEvent({ id: '10', title: 'Task 10' })]);
+      query_merge_create_cache(task, [createMockEntityEvent({ id: '10', title: 'Task 10' })]);
+
+      // 第二次重数拿回同一个 6，指纹未变，不再发射
+      expect(emissions).toEqual([5, 6]);
+      expect(task.result).toBe(6);
+    });
+
+    // 本条是 count 不做 JS 加法的根据：SQL 先读到新行返回 1，这行的批处理 CREATE 随后才到，
+    // `current_count + 1` 会把计数顶成 2 且再也回不去。重数拿到的仍是 1。
+    it('快照已包含的行迟到 CREATE 时不应该把计数顶高', () => {
+      const task = createCountTask([1, 1]);
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_create_cache(task, [createMockEntityEvent({ id: 'a', title: 'Task A' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([1]);
+      expect(task.result).toBe(1);
     });
   });
 

@@ -16,6 +16,16 @@ function has_result_changed<T>(old_result: T[], new_result: T[]): boolean {
 }
 
 /**
+ * 取数组末尾 limit 项
+ *
+ * @remarks
+ * 不写成 `list.slice(-limit)`：`limit` 为 0 时 `-0 === 0`，`slice(0)` 返回的是整个数组
+ * 而不是空集，正好在「limit: 0 = 返回空集」这个合法取值上给出相反结果。
+ */
+const take_last = <T>(list: T[], limit: number): T[] =>
+  limit <= 0 ? [] : list.slice(Math.max(0, list.length - limit));
+
+/**
  * JS 增量更新查询结果
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalCreatedEventData<T>[]) => {
@@ -94,6 +104,8 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       const options = task.options as FindByCursorOptions<T>;
       const { before, after, orderBy } = options;
       if (!orderBy?.length) return;
+      // `?? 100`：与 Repository.findByCursor 的归一化同口径，`limit: 0` 是合法的「返回空集」
+      const limit = options.limit ?? 100;
 
       const old_result = Array.from(task.resultEntitySet.values());
       const combined_by_id = new Map(old_result.map(entity => [entity.id, entity]));
@@ -131,28 +143,14 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
         new_result = calculateOrderBy(combined, orderBy);
       }
 
+      // 一页就是一页：游标查询的每次发射都必须是 SQL 拿同样参数会给出的那一页，
+      // 否则持续插入会让这一页无限膨胀（`limit: 0` 也保不住空集）。
+      // 裁剪方向跟着翻页方向走——正向页（首页与 after）取窗口开头 limit 项，
+      // before 页取紧邻游标的末尾 limit 项，被挤出窗口的那几行属于相邻页。
+      new_result = before ? take_last(new_result, limit) : new_result.slice(0, limit);
+
       if (!has_result_changed(old_result, new_result)) return;
       task.next(new_result, true);
-      break;
-    }
-
-    case 'count': {
-      // 同一原因（见上方 find 分支注释），count 原先无条件 `+entities.length`，
-      // 同一条 INSERT 的两次独立派发会被计两次。这里借用此前对 count 类型任务完全空置的
-      // `task.resultEntityIds`（QueryTask#next 只在 result 是数组/带 id 对象时才填充它，
-      // number 类型的 count 结果永远不会被填充）当作已计数 id 的去重集合。
-      const current_count = (task.result as number) || 0;
-      let added = 0;
-      for (const entity of entities) {
-        if (task.resultEntityIds.has(entity.id)) continue;
-        task.resultEntityIds.add(entity.id);
-        added++;
-      }
-      if (added === 0) return;
-      // autoCache 必须传 false：QueryTask#next 在 autoCache=true 时无条件清空
-      // resultEntityIds（清空逻辑在类型分支之外），即使 count 结果本身不会重新填充它。
-      // 若沿用默认值，刚写入的去重记录会被自己这次 next() 立刻清空，起不到跨批次去重的作用。
-      task.next(current_count + added, false);
       break;
     }
   }
@@ -166,7 +164,7 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
  * - find: 合并后重新排序和截取
  * - findByCursor: 在游标范围内增量添加
  * - findOne/findOneOrFail: 比较并决定是否替换
- * - count: 简单加法
+ * - count: 不做 JS 增量，交回 SQL 重算（见下方 count 分支的说明）
  *
  * @param task 查询任务
  * @param entities 创建的实体事件数据
@@ -225,8 +223,19 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
 
     case 'findByCursor':
     case 'findAll':
-    case 'count':
       default_recalculate();
+      break;
+
+    case 'count':
+      // count 是唯一没有 id 级基线的查询类型：结果只是个 number，`QueryTask#next` 无从
+      // 按 id 缓存，于是「这条 CREATE 是否已经被当前快照数进去了」在 JS 侧根本无法判定。
+      // 数组类查询不受影响——它们按 id 合并，重复或迟到的 CREATE 是幂等的；
+      // 而 `current_count + 1` 一旦把快照已包含的行再加一次，计数就永久偏高，
+      // 直到下一次整查才纠回来（SQL 先读到新行返回 1、这行的批处理 CREATE 随后才送达，
+      // 是变更投递按批 flush 下完全合法的到达顺序）。
+      // 用已收到事件的 id 集合去重挡不住这种情况：它只证明「这个事件我见过」，
+      // 不证明「这行不在快照里」。没有可对齐的水位就别猜，直接回 SQL 重数。
+      refresh_rules.push(['match_where', 'not_match_relation_where'], ['match_relation_where']);
       break;
   }
 

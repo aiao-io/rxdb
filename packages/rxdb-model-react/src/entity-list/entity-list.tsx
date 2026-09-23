@@ -1086,6 +1086,14 @@ function FilterPopover({
       {open && (
         <div className='rxdb-filter-backdrop' onClick={onBackdropClick}>
           {fields.length > 0 && (
+            /*
+              面板**不能**带 aria-hidden：里面全是可聚焦控件（字段树选择、操作符、值输入、
+              重置 / 确定），aria-hidden 会把它们整片从无障碍树里摘掉 —— 屏幕阅读器读不到、
+              axe 的 aria-hidden-focus 判违规，基于 role 的定位（含 e2e 的 getByRole）也全部落空。
+              这里的 stopPropagation 则是必需的：React 端 backdrop 是面板的**父节点**，
+              不拦截的话面板内的任何点击都会冒泡到 backdrop 的 onClick 把 popover 关掉
+              （Angular / Vue 的 backdrop 是面板的兄弟节点，那两端不需要）。
+            */
             <div
               ref={contentRef}
               className='border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg'
