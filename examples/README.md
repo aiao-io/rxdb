@@ -31,6 +31,26 @@ cd examples/<示例目录>
 pnpm install
 ```
 
+## 插件拆分（US-025）与示例的滞后
+
+仓库源码已把历史 / 同步 / 查询缓存等能力从核心 `@aiao/rxdb` 拆进
+`@aiao/rxdb-plugin-*`；`modules/angular-todo` 那份同源代码已经按新形态写成
+`import type {} from '@aiao/rxdb-plugin-history';` + `rxdb.use(rxDBPluginHistory)`。
+
+示例**暂时不能**跟：拆出来的插件包一个都没发到 npm（截至 2026-09-23，`@aiao/*` 里只有
+`rxdb` 与 `rxdb-plugin-search` 发布到 0.0.25），而示例按约定只装已发布版本。
+`examples/angular-todo` 因此仍直接用 `rxdb.versionManager.history()`。
+
+这不是一条会自己引爆的雷：`package.json` 里写的是 `"@aiao/rxdb": "^0.0.24"`，
+在 0.x 下 caret 只放行 patch 的同段——`^0.0.24` 就是 `>=0.0.24 <0.0.25`，
+装到的永远是 0.0.24；而且已发布的 0.0.25 产物里 `RxDB.versionManager` 仍然在。
+真正的触发点是**插件包首次发布、示例随之升到那个版本**，届时这里要一起改：
+
+1. `examples/angular-todo/package.json` 加 `@aiao/rxdb-plugin-history`；
+2. `src/app/setup_rxdb.ts` 补 `rxdb.use(rxDBPluginHistory)`；
+3. `src/app/todo/todo.page.ts` 顶部补 `import type {} from '@aiao/rxdb-plugin-history';`
+   （`versionManager` 的三处调用本身不用动），照 `modules/angular-todo/todo-page/todo.page.ts` 抄。
+
 ## 已迁出：Taro 微信小程序示例
 
 原 `examples/taro-react-todo/` 已迁入 [apps/dev-rxdb-miniprogram](../apps/dev-rxdb-miniprogram/)，

@@ -289,6 +289,15 @@ export class VersionManager {
     let prepared = false;
     try {
       this.rxdb.dispatchEvent(new SwitchBranchBeginEvent(branchId));
+      // 问一句这次切换要不要整个交给某个能力贡献方（见 RxDBSystemContribution.takeOverBranchSwitch）。
+      // 排在 `getLocalRepositories()` **之前**：接管方自己解析适配器、自己开事务，这里先取一个
+      // 出来只是让它在接管路径上白白闲置一个纪元引用。
+      if (await this.#take_over_branch_switch(currentBranch?.id ?? null, branchId, preconditions)) {
+        // 接管方已经把 active 切过去了（它自己的事务已提交），此后与普通路径同一个状态。
+        switchCommitted = true;
+        this.#settle_switched(branchId);
+        return;
+      }
       const { adapter } = await this.getLocalRepositories();
       const actions = await switch_branch_actions(this, branchId);
       // 切分支重写的是实体表的**投影**，不是用户的编辑：矩阵行 4 要求它不产生工作树单元。
@@ -314,15 +323,7 @@ export class VersionManager {
       // 走到这里说明已提交。此后任何失败都不该再发 Rollback —— 分支确实切过去了。
       switchCommitted = true;
 
-      // 切换分支后清理状态：
-      // 1. 清空 redo 栈，因为 redo 历史在新分支中不再有效
-      // 2. 更新当前分支ID和历史起始时间为切换时刻
-      this.historyManager.clearRedoStack();
-      // undo session 是按分支存的，这里同步切视图。否则要等 current_branch$
-      // 这条响应式查询补发，切换后紧接着的 undo() 会撞上中途换 session 的竞态。
-      this.historyManager.setUndoBranch(branchId);
-
-      this.rxdb.dispatchEvent(new SwitchBranchCommitEvent(branchId));
+      this.#settle_switched(branchId);
       // 适配器吞掉 `prepare` 不会以任何别的方式显形：分支照切、actions 照套、事件照发，
       // 只是这一次切换没验过目标分支的提交图、没判过调用方提的条件、也没推进激活代际。
       // 上面那几步记账照做完 —— 分支确实切过去了，把内存视图留在旧分支只是再坏一件事；
@@ -343,6 +344,10 @@ export class VersionManager {
       if (declaredAdapter) takeDeclaredWrite(declaredAdapter);
       if (!switchCommitted) {
         this.rxdb.dispatchEvent(new SwitchBranchRollbackEvent(branchId));
+        // 诊断落盘排在**回滚之后**、重新抛出之前：判定失败发生在那次注定回滚的事务里，
+        // 写在里面的标记会跟着一起消失（见 RxDBSystemContribution.settleBranchSwitchFailure）。
+        // 只在没提交的那条路径上跑——切换已经成立之后的失败不是「没切成」。
+        await this.#settle_branch_switch_failure(currentBranch?.id ?? null, branchId, error);
       }
       throw error;
     }
@@ -522,6 +527,73 @@ export class VersionManager {
    * 各贡献方内部 await 的排布。一个贡献方都没有时这里是一次空循环——没装能力插件的库上，
    * 这条扩展不多开事务、也不多发一条查询。
    */
+  /**
+   * 切换成立之后那几步与库无关的记账。
+   *
+   * @param branchId - 已经切过去的分支 id
+   *
+   * @remarks
+   * 抽出来只为一件事：**接管路径与普通路径必须记同一笔账**。两处各抄一遍的那天，
+   * 接管路径上漏掉的 `setUndoBranch()` 不会以任何形式报错——它只是让切换后紧接着的
+   * 一次 `undo()` 撤到上一条分支的 session 上去。
+   *
+   * 三步的顺序是：redo 栈先清（它在新分支上不再有效），undo 视图再切（按分支存，
+   * 等 `current_branch$` 补发会让紧接着的 `undo()` 撞上中途换 session 的竞态），
+   * 事件最后发（订阅者醒来时这两样都该已经是新分支的）。
+   */
+  #settle_switched(branchId: string): void {
+    this.historyManager.clearRedoStack();
+    this.historyManager.setUndoBranch(branchId);
+    this.rxdb.dispatchEvent(new SwitchBranchCommitEvent(branchId));
+  }
+
+  /**
+   * 问各贡献方要不要接管这次切换，第一个答应的就停。
+   *
+   * @param currentBranchId - 当前分支 id
+   * @param targetBranchId - 目标分支 id
+   * @param preconditions - 调用方提出的前置条件
+   * @returns 有人接管了就是 `true`，此时 active 已经切过去了
+   *
+   * @remarks
+   * 问到第一个 `'switched'` 为止：两个贡献方都接管等于 active 被切两次，而第二次看到的
+   * 现场已经是第一次的结果。串行的理由与 {@link VersionManager.#prepare_branch_switch} 同源。
+   */
+  async #take_over_branch_switch(
+    currentBranchId: string | null,
+    targetBranchId: string,
+    preconditions: RxDBBranchSwitchPreconditions | undefined
+  ): Promise<boolean> {
+    for (const contribution of this.rxdb.systemContributions) {
+      const verdict = await contribution.takeOverBranchSwitch({ currentBranchId, targetBranchId, preconditions });
+      if (verdict === 'switched') return true;
+    }
+    return false;
+  }
+
+  /**
+   * 切换事务回滚之后，让各贡献方落下自己的失败诊断。
+   *
+   * @param currentBranchId - 仍然 active 的那条分支
+   * @param targetBranchId - 没切成的目标分支
+   * @param error - 让这次切换失败的那个错误
+   *
+   * @remarks
+   * 调用点在 `catch` 里，紧接着就要把 `error` 重新抛出去——所以贡献方那一侧带着一条
+   * 「不得抛出」的硬契约（见 {@link RxDBSystemContribution.settleBranchSwitchFailure}）。
+   * 这里**不**加 try/catch 替它兜：兜住就等于宣布这个契约可以不遵守，而真正被兜掉的那个
+   * 异常从此没有任何一处会显形。
+   */
+  async #settle_branch_switch_failure(
+    currentBranchId: string | null,
+    targetBranchId: string,
+    error: unknown
+  ): Promise<void> {
+    for (const contribution of this.rxdb.systemContributions) {
+      await contribution.settleBranchSwitchFailure({ currentBranchId, targetBranchId, error });
+    }
+  }
+
   async #prepare_branch_switch(
     executor: TransactionExecutor,
     currentBranchId: string | null,

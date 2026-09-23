@@ -74,12 +74,18 @@ export type BranchMaterializationState =
   /** 本地只有它的 metadata，首次切换要先物化（FR-044/049） */
   | { readonly kind: 'metadata_only'; readonly branchId: string };
 
-/** 一页远端快照的内容；页序由 {@link stageBranchMaterialization} 发放。 */
+/** 一页远端快照的内容；页序由 {@link appendBranchMaterializationPage} 的调用方发放。 */
 export interface BranchMaterializationPagePayload {
   /** 该页的快照 payload，原样落库 */
   readonly payload: Record<string, unknown>;
 
-  /** 该页指纹，原样落库 */
+  /**
+   * 该页指纹，必须等于 {@link branchMaterializationPageFingerprint} 对 `payload` 的复算值
+   *
+   * @remarks
+   * 仍然由来源方填、而不是落库时现算：这一格的用途正是**让来源方和本地各算一遍再比**。
+   * 落库时现算的话，两边永远相等，这一列就成了 payload 的一个纯函数——它挡不住任何东西。
+   */
   readonly fingerprint: string;
 }
 
@@ -98,15 +104,21 @@ export type BranchNotMaterializedReason =
   /** 调用方手上的水位/scope 与 staging 行上冻结下来的那份不一致 */
   | 'intent_drift'
   /** 目标分支已经有 baseline 了，这次物化没有位置可放 */
-  | 'target_already_materialized';
+  | 'target_already_materialized'
+  /** 落库的那批页与它们自己声明的指纹对不上，或页号不是从 0 起的密集序列 */
+  | 'stage_tampered'
+  /** 这条连接上没有登记远端快照来源，拉不到要物化的那份 payload */
+  | 'source_unavailable';
 
 /**
  * 物化依据不足，整次尝试以 `branch_not_materialized` 全量回滚（FR-044）。
  *
  * @remarks
- * 四个成因的分辨力全在这个类上，所以它不是一个裸 {@link RxDBError}：`stage_missing` 要重新拉一遍，
- * `stage_incomplete` 可以接着上次拉，`intent_drift` 要换一份意图重来，而 `target_already_materialized`
- * 说明这条分支本来就不该走这条路。合并成一个错误码之后，调用方只能一律重来。
+ * 六个成因的分辨力全在这个类上，所以它不是一个裸 {@link RxDBError}：`stage_missing` 要重新拉一遍，
+ * `stage_incomplete` 可以接着上次拉，`intent_drift` 要换一份意图重来，`stage_tampered` 要把这份
+ * staging 整个丢掉重拉（接着拉只会把坏页留在原地），`target_already_materialized` 说明这条分支
+ * 本来就不该走这条路，而 `source_unavailable` 与库里的状态无关——它说的是这条连接还没登记
+ * 快照来源。合并成一个错误码之后，调用方只能一律重来。
  *
  * 抛出时 staging **不被顺手删掉**：那半份 payload 连同它的 `scopeManifest` 正是诊断「上一次为什么
  * 没接上」需要的东西。清理是 FR-044 单列的一条能力（{@link discardMaterializationAttempt}），
@@ -172,6 +184,37 @@ const canonicalJson = (value: unknown): string => {
 
 /** 把一份 sync scope 折成落库的清单形状；顺序照抄配置，不排序也不去重。 */
 const scopeManifestOf = (syncScope: readonly string[]): Record<string, unknown> => ({ entities: [...syncScope] });
+
+/**
+ * 分页指纹的域分隔前缀；与 {@link MATERIALIZATION_FINGERPRINT_DOMAIN} 分开。
+ *
+ * @remarks
+ * 两者算的是同一条链路上的两样东西（一份意图、一页内容），共用前缀的话，一份恰好等于
+ * `{entities:[...]}` 的 payload 会与它自己那份 scope 清单算出同一个指纹。
+ */
+const MATERIALIZATION_PAGE_FINGERPRINT_DOMAIN = 'rxdb.working-tree.materialization.page.v1';
+
+/**
+ * 算一页快照 payload 的指纹——**这是分页指纹的公开口径**（FR-044）。
+ *
+ * @param payload - 该页原样落库的那份 payload
+ * @returns 十六进制 SHA-256
+ *
+ * @remarks
+ * 导出而不是留在模块内：屏障要在任何 `applyPage` 之前拿存下来的 payload 复算一遍再与
+ * {@link BranchMaterializationPagePayload.fingerprint} 比（见 {@link assertStagingUsable}），
+ * 而来源方那一侧得算得出同一个值——口径只存在于本模块内部的话，来源方只能靠试出来，
+ * 试出来的那一份会在本函数改版那天静默失配。
+ *
+ * 只吃 payload，不掺页号、attempt id 或目标分支：掺进去之后，同一页内容在续用一份旧
+ * attempt 时会因为页号错位而"变了内容"，而页号是否错位由 {@link assertStagingUsable} 的
+ * 密集性检查单独回答。两件事合进一个值，报出来的成因就永远只有一个。
+ *
+ * 走 {@link canonicalJson} 而不是 `JSON.stringify`：`{a:1,b:2}` 与 `{b:2,a:1}` 是同一页内容，
+ * 直接序列化却得两个指纹——于是一份完好的 staging 会因为来源方换了个 JSON 库而被判成被篡改。
+ */
+export const branchMaterializationPageFingerprint = (payload: Record<string, unknown>): string =>
+  sha256Hex(textEncoder.encode(`${MATERIALIZATION_PAGE_FINGERPRINT_DOMAIN} ${canonicalJson(payload)}`));
 
 /**
  * 算一次 attempt 的指纹：只看冻结下来的那份意图。
@@ -264,8 +307,8 @@ export const classifyBranchMaterialization = async (
   return { kind: 'materialized', ref };
 };
 
-/** {@link stageBranchMaterialization} 的入参。 */
-export interface StageBranchMaterializationInput {
+/** {@link beginBranchMaterializationStage} 的入参。 */
+export interface BeginBranchMaterializationStageInput {
   /** 本次尝试的 attempt id；同时是 staging 头行的主键 */
   readonly attemptId: string;
 
@@ -277,12 +320,24 @@ export interface StageBranchMaterializationInput {
 
   /** **完整配置**的 sync scope，不是本次有页的那几个实体 */
   readonly syncScope: readonly string[];
-
-  /** 远端快照的分页来源；逐页拉、逐页落库 */
-  readonly pages: AsyncIterable<BranchMaterializationPagePayload>;
 }
 
-/** 一次 staging 落全之后的交代。 */
+/** {@link appendBranchMaterializationPage} 的入参。 */
+export interface AppendBranchMaterializationPageInput {
+  /** 这一页挂在哪条 attempt 上 */
+  readonly attemptId: string;
+
+  /** 那条 attempt 记的目标分支；与头行对不上就拒 */
+  readonly targetBranchId: string;
+
+  /** 这一页的页序，从 0 起密集发放 */
+  readonly pageIndex: number;
+
+  /** 这一页的内容与它自己声明的指纹 */
+  readonly page: BranchMaterializationPagePayload;
+}
+
+/** 一份 staging 封口之后的交代。 */
 export interface BranchMaterializationStaging {
   /** 本次 attempt id */
   readonly attemptId: string;
@@ -295,35 +350,67 @@ export interface BranchMaterializationStaging {
 }
 
 /**
- * 把一份远端快照逐页落进 durable staging（FR-044）。
+ * 三段式 staging 的公共前置：把头行读出来，并确认它还收得下页（FR-044）。
+ *
+ * @remarks
+ * `staged` 的头行一律拒：封口之后再追加一页，页数就与 `pageCount` 对不上了，而屏障那边
+ * 报出来的成因会是 `stage_incomplete`——一个把"有人往封好的 staging 里塞东西"说成
+ * "这份 staging 没落全"的成因。
+ */
+const requirePendingStage = async (
+  executor: TransactionExecutor,
+  attemptId: string,
+  targetBranchId: string
+): Promise<WorkingTreeMaterializationStage> => {
+  const stage = await findStage(executor, attemptId, targetBranchId);
+  if (!stage) {
+    throw new BranchNotMaterializedError(
+      targetBranchId,
+      attemptId,
+      'stage_missing',
+      '库里没有这条 attempt 的头行，或它记的目标分支不是这一条——头行要先由 beginBranchMaterializationStage() 落下。'
+    );
+  }
+  if (stage.status !== 'pending') {
+    throw new BranchNotMaterializedError(
+      targetBranchId,
+      attemptId,
+      'stage_incomplete',
+      `这条 attempt 的 status 已经是 '${stage.status}'，不再收页。`
+    );
+  }
+  return stage;
+};
+
+/**
+ * 开一份 durable staging：只落头行，一页都不写（FR-044）。
  *
  * @param entityManager - 用于 `instantiate()` 的实体管理器
- * @param executor - 调用方那个写事务的执行器
- * @param input - 见 {@link StageBranchMaterializationInput}
- * @returns 见 {@link BranchMaterializationStaging}
+ * @param executor - 一个**只装这一步**的写事务的执行器
+ * @param input - 见 {@link BeginBranchMaterializationStageInput}
+ * @returns 本次意图的指纹；attempt id 是调用方自己给的，不再回传
  *
  * @remarks
  * `entityManager` 由调用方给而不是从 `executor` 上摸，与 `createBranchCommitRows` 同一个手法：
  * 多个库共用同一个实体类时 `new WorkingTreeMaterializationStage()` 判断不出目标库。
  *
- * 三步的次序全都是契约：
+ * **三段分开，是因为它们必须分属三个事务。** 头行、每一页、封口各自提交之后才做下一步：
+ * 一个事务装完全程的写法能让事后断言全绿，而它恰恰把「崩在分页中途还留得住」这唯一的
+ * 设计目标抹掉了——进程崩在第 7 页，回滚的是从头行开始的全部 7 页，下一次只能从 0 重来。
+ * 测试里那种「在事务体内部 catch 掉异常然后正常提交」的半份 staging，真实进程一次都产生不了。
  *
- * 1. **头行先落。** 崩在第一页之前也要留下一条可按 attempt 清理的记录，否则这批页无主。
- * 2. **逐页落库。** 拉下一页的唯一时机是上一页写完之后；攒在内存里最后一把 `saveMany` 能让
- *    所有事后断言全绿，而分页崩溃那天没落库的页恢复不了。
- * 3. **`staged` 最后写。** 全部页落库之前 `status` 必须是 `pending`——提前写等于宣布一份半截
- *    payload 可用。收尾走 `repository.update()` 而不是再 `saveMany()` 一次头行：后者是一次
- *    插入，会在表里留下第二条同主键的 attempt。
+ * 头行先落还有一条独立理由：崩在第一页之前也要留下一条**可按 attempt 清理**的记录，
+ * 否则那批页无主，而按目标分支清理会把旁观的另一次尝试一起带走。
  *
  * 水位走 `structuredClone` 而不是存引用：远端在分页期间照常推进，存引用的话 staging 就成了
  * 一份跨水位的拼接。`scopeManifest` 写的是**完整配置**——按「出现过的实体」写清单，一个当时恰好
  * 没有行的实体会从清单里消失，续用判定于是把一份范围更窄的旧 attempt 判成可续用。
  */
-export const stageBranchMaterialization = async (
+export const beginBranchMaterializationStage = async (
   entityManager: EntityManager,
   executor: TransactionExecutor,
-  input: StageBranchMaterializationInput
-): Promise<BranchMaterializationStaging> => {
+  input: BeginBranchMaterializationStageInput
+): Promise<string> => {
   const frozenRemoteWatermark = structuredClone(input.frozenRemoteWatermark);
   const fingerprint = materializationFingerprint(frozenRemoteWatermark, input.syncScope);
 
@@ -336,21 +423,120 @@ export const stageBranchMaterialization = async (
   stage.status = 'pending';
   stage.pageCount = 0;
   await executor.saveMany([stage]);
+  return fingerprint;
+};
 
-  let pageCount = 0;
-  for await (const page of input.pages) {
-    const row = entityManager.instantiate(WorkingTreeMaterializationPage);
-    row.id = uuid();
-    row.stageId = input.attemptId;
-    row.pageIndex = pageCount;
-    row.payload = page.payload;
-    row.fingerprint = page.fingerprint;
-    await executor.saveMany([row]);
-    pageCount += 1;
+/**
+ * 往一份开着的 staging 里追加一页（FR-044）。
+ *
+ * @param entityManager - 用于 `instantiate()` 的实体管理器
+ * @param executor - 一个**只装这一页**的写事务的执行器
+ * @param input - 见 {@link AppendBranchMaterializationPageInput}
+ * @throws {@link BranchNotMaterializedError} 头行不在、已经封口，或这一页的指纹与内容对不上时
+ *
+ * @remarks
+ * **一次调用 = 一页 = 一个事务**，这是崩溃续传的全部依据：上一页提交之后才去拉下一页，
+ * 于是任何时刻库里那批页都是「已经确认落盘的前缀」，`findResumableMaterializationAttempt()`
+ * 数出来的 `nextPageIndex` 才是真的接续位置。
+ *
+ * 指纹在**落库这一刻**就复算一遍，不留到屏障：坏页越早拒越省——拒在这里，重拉的是这一页；
+ * 拒在屏障，重拉的是整份快照。屏障那一遍照样要做（见 {@link assertStagingUsable}），
+ * 因为这一遍防的是「来源方传坏了」，那一遍防的是「落库之后被改了」，不是同一件事。
+ *
+ * **页号由调用方给，本函数不自己数。** 自己数（读一次当前页数当页号）的话，两个并发的
+ * 追加会算出同一个页号，而其中一个的失败要等到唯一索引那一层才显形；调用方那边本来就
+ * 拿着 `nextPageIndex`，让它报出来，(stageId, pageIndex) 上的唯一索引才是在替它把关。
+ * 页号连续性由封口与屏障两处统一验（密集从 0 起），不在每一页上各读一次页数来验——
+ * 那是每页多一次查询，换来的判断与封口那一次完全一样。
+ */
+export const appendBranchMaterializationPage = async (
+  entityManager: EntityManager,
+  executor: TransactionExecutor,
+  input: AppendBranchMaterializationPageInput
+): Promise<void> => {
+  await requirePendingStage(executor, input.attemptId, input.targetBranchId);
+
+  const recomputed = branchMaterializationPageFingerprint(input.page.payload);
+  if (recomputed !== input.page.fingerprint) {
+    throw new BranchNotMaterializedError(
+      input.targetBranchId,
+      input.attemptId,
+      'stage_tampered',
+      `第 ${input.pageIndex} 页声明的指纹是 ${input.page.fingerprint}，按 payload 复算得到的是 ${recomputed}。`
+    );
   }
 
-  await executor.getRepository(WorkingTreeMaterializationStage).update(stage, { status: 'staged', pageCount });
-  return { attemptId: input.attemptId, pageCount, fingerprint };
+  const row = entityManager.instantiate(WorkingTreeMaterializationPage);
+  row.id = uuid();
+  row.stageId = input.attemptId;
+  row.pageIndex = input.pageIndex;
+  row.payload = input.page.payload;
+  row.fingerprint = input.page.fingerprint;
+  await executor.saveMany([row]);
+};
+
+/**
+ * 给一份落全的 staging 封口：把 `status` 置成 `staged` 并记下页数（FR-044）。
+ *
+ * @param executor - 一个**只装这一步**的写事务的执行器
+ * @param input - 要封口的 attempt 与它的目标分支
+ * @returns 见 {@link BranchMaterializationStaging}
+ * @throws {@link BranchNotMaterializedError} 头行不在、已经封口，或落库的页号不是从 0 起的密集序列时
+ *
+ * @remarks
+ * 页数由**数出来**而不是由调用方报：调用方报的是「我打算拉几页」，而这里要写的是
+ * 「库里现在有几页」。两者在续传之后天然不同（这一趟只追加了后半截），照调用方报的写
+ * 会让屏障那边的页数校验恒不成立。
+ *
+ * 封口**最后**写，且走 `repository.update()` 而不是再 `saveMany()` 一次头行：全部页落库之前
+ * `status` 必须是 `pending`——提前写等于宣布一份半截 payload 可用；而 `saveMany` 是一次插入，
+ * 会在表里留下第二条同主键的 attempt。
+ *
+ * 密集性在这里先验一遍，屏障那边还要再验一遍（{@link assertStagingUsable}）：这一遍挡的是
+ * 「这一趟自己就漏发了一页」，那一遍挡的是「封口之后有人动了页表」。只留屏障那一遍的话，
+ * 漏页要等到用户真的切分支那一刻才报出来，而那时这一趟的上下文早就没了。
+ */
+export const sealBranchMaterializationStage = async (
+  executor: TransactionExecutor,
+  input: { readonly attemptId: string; readonly targetBranchId: string }
+): Promise<BranchMaterializationStaging> => {
+  const stage = await requirePendingStage(executor, input.attemptId, input.targetBranchId);
+  const pages = await findStagePages(executor, input.attemptId);
+  assertDensePageOrder(pages, {
+    branchId: input.targetBranchId,
+    attemptId: input.attemptId
+  });
+
+  await executor
+    .getRepository(WorkingTreeMaterializationStage)
+    .update(stage, { status: 'staged', pageCount: pages.length });
+  return { attemptId: input.attemptId, pageCount: pages.length, fingerprint: stage.fingerprint };
+};
+
+/**
+ * 页号必须是从 0 起、步长 1 的密集序列。
+ *
+ * @param pages - 已按 `pageIndex` 升序取回的那批页
+ * @param attempt - 报错时用来定位的目标分支与 attempt id
+ * @throws {@link BranchNotMaterializedError} 有缺口、有重号或不从 0 起时
+ *
+ * @remarks
+ * `(stageId, pageIndex)` 上的唯一索引只保证不重号，**不保证连续**：缺了第 3 页之后再补两页
+ * 到第 5、6 号，页数照样对得上一个被改过的 `pageCount`。而屏障是按取回顺序逐页交给
+ * `applyPage` 的——缺口那一页的内容就此静默消失，物化却宣布成功。
+ */
+const assertDensePageOrder = (
+  pages: readonly WorkingTreeMaterializationPage[],
+  attempt: { readonly branchId: string; readonly attemptId: string }
+): void => {
+  const gap = pages.findIndex((page, index) => page.pageIndex !== index);
+  if (gap === -1) return;
+  throw new BranchNotMaterializedError(
+    attempt.branchId,
+    attempt.attemptId,
+    'stage_tampered',
+    `页号不是从 0 起的密集序列：第 ${gap} 位上的页号是 ${pages[gap].pageIndex}。`
+  );
 };
 
 /** 读一条 attempt 的头行；按 `(id, targetBranchId)` 一对定位，不只按 id。 */

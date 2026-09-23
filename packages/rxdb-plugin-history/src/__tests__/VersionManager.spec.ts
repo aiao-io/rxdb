@@ -602,10 +602,21 @@ describe('VersionManager', () => {
     // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。校验搬进
     // `SwitchBranchOptions.prepare` 之后，「校验通过」与「切换完成」不再是两件可以分开发生的事。
     describe('前置校验跑在切换事务内部', () => {
-      /** 只实现这条路径上会被问到的那一个贡献点；其余六个在 switchBranch 上一次都不会被调到。 */
+      /**
+       * 只实现 switchBranch 会问到的那三个贡献点；其余六个在这条路径上一次都不会被调到。
+       *
+       * `takeOverBranchSwitch` 必须答 `'not_applicable'`：答 `'switched'` 等于宣布 active 已经
+       * 由贡献方切过去了，普通路径整段跳过，于是下面每一条断言的都是一次没发生的切换。
+       */
       const contributePrepare = () => {
         const prepareBranchSwitch = vi.fn().mockResolvedValue(undefined);
-        (mockRxDB as unknown as { systemContributions: unknown[] }).systemContributions = [{ prepareBranchSwitch }];
+        (mockRxDB as unknown as { systemContributions: unknown[] }).systemContributions = [
+          {
+            prepareBranchSwitch,
+            takeOverBranchSwitch: vi.fn().mockResolvedValue('not_applicable'),
+            settleBranchSwitchFailure: vi.fn().mockResolvedValue(undefined)
+          }
+        ];
         return prepareBranchSwitch;
       };
 
