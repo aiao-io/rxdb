@@ -13,7 +13,6 @@ import {
   RelationKind,
   RxDB,
   RxDBBranch,
-  RxDBChange,
   SyncType,
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
@@ -479,15 +478,6 @@ describe('RxDBAdapterSqliteBase', () => {
       const adapter = new OptionsTestAdapter(createRxdbMock(), { repositories });
 
       expect(adapter.getRepository(CustomRepoEntity)).toBeInstanceOf(CustomRepository);
-    });
-
-    it('localRxDBBranch 与 localRxDBChange 返回系统实体仓库', () => {
-      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
-
-      expect(adapter.localRxDBBranch()).toBeInstanceOf(SqliteRepository);
-      expect(adapter.localRxDBBranch().EntityType).toBe(RxDBBranch);
-      expect(adapter.localRxDBChange()).toBeInstanceOf(SqliteRepository);
-      expect(adapter.localRxDBChange().EntityType).toBe(RxDBChange);
     });
   });
 

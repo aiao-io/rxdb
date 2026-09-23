@@ -89,7 +89,7 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
 
         adapter = await reconnectAdapter(adapter, factory.name);
 
-        const changes = await adapter.localRxDBChange().find({
+        const changes = await adapter.getRepository(RxDBChange).find({
           where: {
             combinator: 'and',
             rules: [{ field: 'entityId', operator: '=', value: legacyId }]

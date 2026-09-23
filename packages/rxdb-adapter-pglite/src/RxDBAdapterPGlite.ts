@@ -14,7 +14,6 @@ import {
   getEntityStatus,
   RxDB,
   RxDBAdapterLocalBase,
-  RxDBBranch,
   RxDBChange,
   TransactionFun
 } from '@aiao/rxdb';
@@ -56,7 +55,6 @@ import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
-import rxdb_adapter_create_branch from './version/create_branch.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
@@ -412,13 +410,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
   }
 
-  /** 创建分支后冲刷 NOTIFY。 */
-  async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
-    const branch = await rxdb_adapter_create_branch(this, branchId, fromChangeId);
-    await this.#flushPendingChangePipeline();
-    return branch;
-  }
-
   /** 切换分支期间抑制 `rxdb_branch` NOTIFY。 */
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
     this.#suppressedChangeTables.add('rxdb_branch');
@@ -568,24 +559,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       [metadata.namespace, metadata.tableName]
     );
     return result.rows as PgliteTableColumn[];
-  }
-
-  /**
-   * 获取本地分支仓库
-   *
-   * @returns 分支仓库实例
-   */
-  localRxDBBranch() {
-    return this.getRepository<typeof RxDBBranch, PGliteRepository<typeof RxDBBranch>>(RxDBBranch);
-  }
-
-  /**
-   * 获取本地变更仓库
-   *
-   * @returns 变更仓库实例
-   */
-  localRxDBChange() {
-    return this.getRepository<typeof RxDBChange, PGliteRepository<typeof RxDBChange>>(RxDBChange);
   }
 
   /**

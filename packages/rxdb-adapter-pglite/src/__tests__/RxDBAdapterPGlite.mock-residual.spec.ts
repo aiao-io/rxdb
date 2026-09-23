@@ -9,7 +9,6 @@ const state = vi.hoisted(() => {
         pendingCalls.push({ tableName: event.tableName, resolve });
       })
   );
-  const createBranch = vi.fn(async () => ({ id: 'feature-mock' }));
   const switchBranch = vi.fn(async () => undefined);
 
   class MockPGliteClient {
@@ -51,7 +50,6 @@ const state = vi.hoisted(() => {
     clientInstances,
     pendingCalls,
     handleRxdbChange,
-    createBranch,
     switchBranch,
     MockPGliteClient
   };
@@ -72,20 +70,28 @@ vi.mock('../PGliteClient.js', () => ({
   PGliteClient: state.MockPGliteClient
 }));
 
-vi.mock('../version/create_branch.js', () => ({
-  default: state.createBranch
-}));
-
 vi.mock('../version/switch_branch.js', () => ({
   switch_branch: state.switchBranch,
   generateBranchTriggerSql: () => '',
   generateSwitchBranchSql: () => ''
 }));
 
-import type { RxDB } from '@aiao/rxdb';
+import type { RxDB, SwitchBranchOptions } from '@aiao/rxdb';
 import { SKIP_BRANCH_SWITCH_PREPARE } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { PGliteChangeEvent, PGliteChangeType } from '../pglite.interface.js';
+
+/**
+ * `switch_branch` 在本文件整体被 mock，actions 永远不会被消费；给出空的三张表只是为了
+ * 满足 {@link SwitchBranchOptions} 的必填项。这里只断言 switchBranch 这个入口确实接上了
+ * 冲刷与事件抑制，冲刷本身的轮次语义在 `change-pipeline.spec.ts` 里直接测
+ * `flushPendingChangePipeline()`；分支语义由 `version/switch_branch.spec.ts` 负责。
+ */
+const switchOptions = (): SwitchBranchOptions => ({
+  branchId: 'main',
+  actions: { deletes: new Map(), updates: new Map(), inserts: new Map() },
+  prepare: SKIP_BRANCH_SWITCH_PREPARE
+});
 
 describe('RxDBAdapterPGlite mock residual paths', () => {
   let adapter: RxDBAdapterPGlite;
@@ -95,8 +101,9 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
     state.clientInstances.length = 0;
     state.pendingCalls.length = 0;
     state.handleRxdbChange.mockClear();
-    state.createBranch.mockClear();
-    state.switchBranch.mockClear();
+    // mockReset 而不是 mockClear：有用例给 switchBranch 装了自定义实现来发事件，
+    // 不能把实现漏给后面的用例。
+    state.switchBranch.mockReset();
 
     adapter = new RxDBAdapterPGlite({ config: { dbName: 'mock-residual', entities: [] } } as unknown as RxDB, {
       store: 'memory'
@@ -119,7 +126,7 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
     state.clientInstances.length = 0;
   });
 
-  it('liveQuery / createBranch flush reject non-PGliteClient after prototype break', async () => {
+  it('liveQuery / switchBranch flush reject non-PGliteClient after prototype break', async () => {
     Object.setPrototypeOf(client, Object.prototype);
 
     // liveQuery 按能力判定而不是按类：只有真的没有这个方法才拒绝。断原型只会摘掉原型上的
@@ -128,13 +135,8 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
     Reflect.deleteProperty(client, 'liveQuery');
     await expect(adapter.liveQuery('SELECT 1')).rejects.toThrow(/liveQuery is not supported/);
 
-    await expect(adapter.createBranch('feature-x')).resolves.toMatchObject({ id: 'feature-mock' });
-    expect(state.createBranch).toHaveBeenCalled();
-
-    // switchBranch 也会通过非 PGliteClient 的 drain 路径刷新。
-    await expect(
-      adapter.switchBranch({ branchId: 'main', prepare: SKIP_BRANCH_SWITCH_PREPARE })
-    ).resolves.toBeUndefined();
+    // switchBranch 通过非 PGliteClient 的 drain 路径刷新。
+    await expect(adapter.switchBranch(switchOptions())).resolves.toBeUndefined();
     expect(state.switchBranch).toHaveBeenCalled();
   });
 
@@ -151,7 +153,7 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
       await Promise.resolve();
     });
 
-    await adapter.switchBranch({ branchId: 'main', prepare: SKIP_BRANCH_SWITCH_PREPARE });
+    await adapter.switchBranch(switchOptions());
     expect(state.handleRxdbChange).not.toHaveBeenCalled();
     expect(state.switchBranch).toHaveBeenCalled();
   });
@@ -200,97 +202,5 @@ describe('RxDBAdapterPGlite mock residual paths', () => {
     await Promise.resolve();
     resolveFirst();
     await vi.waitFor(() => expect(state.handleRxdbChange).toHaveBeenCalledTimes(2));
-  });
-
-  it('generation 变化后必须再经过一轮 idle barrier', async () => {
-    state.handleRxdbChange.mockResolvedValueOnce(undefined);
-    const event: PGliteChangeEvent = {
-      type: PGliteChangeType.INSERT,
-      dbName: 'test-db',
-      tableName: 'rxdb_change',
-      rowIds: ['generation-1'],
-      recordAt: new Date()
-    };
-    client.flushPendingNotifications
-      .mockImplementationOnce(async () => {
-        client.emit(event.type, event);
-        for (let index = 0; index < 8; index += 1) await Promise.resolve();
-        return false;
-      })
-      .mockResolvedValue(false);
-
-    await adapter.createBranch('generation-barrier');
-
-    expect(client.flushPendingNotifications).toHaveBeenCalledTimes(2);
-  });
-
-  it('不再用固定五轮截断链式通知', async () => {
-    for (let index = 0; index < 6; index += 1) {
-      client.flushPendingNotifications.mockResolvedValueOnce(true);
-    }
-    client.flushPendingNotifications.mockResolvedValue(false);
-
-    await adapter.createBranch('long-notify-chain');
-
-    expect(client.flushPendingNotifications).toHaveBeenCalledTimes(7);
-  });
-
-  it('deadline 到期时抛结构化错误并保留超时 cause 与诊断', async () => {
-    client.pendingNotificationCount = 7;
-    client.flushPendingNotifications.mockResolvedValue(true);
-    const now = vi.spyOn(Date, 'now').mockReturnValueOnce(1_000).mockReturnValue(3_001);
-
-    try {
-      const result = await adapter.createBranch('pipeline-timeout').then(
-        () => ({ ok: true as const }),
-        (error: unknown) => ({ ok: false as const, error })
-      );
-
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.error).toMatchObject({
-        code: 'CHANGE_PIPELINE_TIMEOUT',
-        diagnostics: {
-          pendingEvents: 7,
-          pendingHandlers: 0,
-          attempts: 1
-        },
-        cause: {
-          name: 'TimeoutError'
-        }
-      });
-    } finally {
-      now.mockRestore();
-    }
-  });
-
-  it('deadline 能打断永不结束的 notification flush', async () => {
-    vi.useFakeTimers();
-    client.pendingNotificationCount = 4;
-    client.flushPendingNotifications.mockImplementation(() => new Promise<boolean>(() => undefined));
-
-    try {
-      const resultPromise = adapter.createBranch('hung-notification-flush').then(
-        () => ({ ok: true as const }),
-        (error: unknown) => ({ ok: false as const, error })
-      );
-      await vi.advanceTimersByTimeAsync(2_000);
-      const result = await resultPromise;
-
-      expect(result).toMatchObject({
-        ok: false,
-        error: {
-          code: 'CHANGE_PIPELINE_TIMEOUT',
-          diagnostics: {
-            pendingEvents: 4,
-            pendingHandlers: 0,
-            attempts: 1
-          },
-          cause: { name: 'TimeoutError' }
-        }
-      });
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });

@@ -865,16 +865,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.transaction(transactionFun, transactionLog);
   }
 
-  localRxDBBranch() {
-    return this.getRepository(RxDBBranch) as SqliteRepository<typeof RxDBBranch>;
-  }
-
   internalQuery(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
     return this.#internal_exec(sql, bindings);
-  }
-
-  localRxDBChange() {
-    return this.getRepository(RxDBChange) as SqliteRepository<typeof RxDBChange>;
   }
 
   async getRxDBChangeSequence() {

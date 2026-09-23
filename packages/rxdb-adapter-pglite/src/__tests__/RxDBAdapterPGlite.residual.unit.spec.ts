@@ -183,14 +183,6 @@ describe('RxDBAdapterPGlite residual unit edges', () => {
     await expect(ad.removeMany(entities)).resolves.toBe(entities);
   });
 
-  it('local branch/change repos and createBranch flush pipeline', async () => {
-    const ad = await setup();
-    expect(ad.localRxDBBranch()).toBeTruthy();
-    expect(ad.localRxDBChange()).toBeTruthy();
-    const branch = await ad.createBranch(`residual-branch-${Date.now()}`);
-    expect(branch).toBeTruthy();
-  });
-
   /**
    * PGlite **不**把命名空间折进表名——它用 schema 限定（`"public"."todos"`）。
    *
