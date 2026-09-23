@@ -38,6 +38,10 @@
         "kind": "value"
       },
       {
+        "name": "assertOptionalNonNegativeSafeInteger",
+        "kind": "value"
+      },
+      {
         "name": "assertSingleActiveBranch",
         "kind": "value"
       },

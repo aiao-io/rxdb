@@ -5,13 +5,7 @@ import type { ITreeEntity } from '../../index.js';
 import { TREE_QUERY_TYPE_LIST, TREE_QUERY_TYPES, type TreeQuery, type TreeQueryType } from '../../index.js';
 
 /** 判定只看 `type` 字段，实体替身满足泛型约束即可。 */
-class ProxiedEntity implements ITreeEntity {
-  id!: string;
-  createdAt!: Date;
-  updatedAt!: Date;
-  parentId?: string | null;
-  hasChildren?: boolean | null;
-}
+type ProxiedEntity = new () => ITreeEntity;
 
 describe('树查询任务类型的单一来源', () => {
   it('keeps the query union and the runtime name list in lockstep', () => {
@@ -22,7 +16,7 @@ describe('树查询任务类型的单一来源', () => {
     //
     // 这条断言把「类型侧的联合」与「运行时侧的名单」对齐成双向包含：
     // 任一侧多一支或少一支，`toEqualTypeOf` 立刻编译失败。
-    expectTypeOf<TreeQuery<typeof ProxiedEntity>['type']>().toEqualTypeOf<TreeQueryType>();
+    expectTypeOf<TreeQuery<ProxiedEntity>['type']>().toEqualTypeOf<TreeQueryType>();
   });
 
   it('derives the runtime set from the same list', () => {

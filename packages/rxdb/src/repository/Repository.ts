@@ -8,6 +8,7 @@ import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
+import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
   missingQueryCacheEngineError,
   type QueryCachePrimary,
@@ -51,10 +52,7 @@ type QueryCacheSyncOptions = Extract<SyncOptions, { type: SyncType.QueryCache }>
  * 而不是让它继续往适配器走。
  */
 const assertPageBound = (field: 'limit' | 'offset', value: number | undefined): void => {
-  if (value === undefined) return;
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RxDBError(`${field} must be a non-negative safe integer, received: ${value}`);
-  }
+  assertOptionalNonNegativeSafeInteger(value, `${field} must be a non-negative safe integer, received: ${value}`);
 };
 
 /**

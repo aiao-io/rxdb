@@ -142,7 +142,8 @@ export const dumpPGliteUserTables = async (adapter: unknown): Promise<Uint8Array
  * 2. DROP 所有版本分支 trigger
  * 3. TRUNCATE `public` / `rxdb` schema 下的全部表（CASCADE）
  * 4. 重新插入默认 `main` 分支记录
- * 5. 重新装配 `main` 分支的 trigger
+ * 5. 按系统能力贡献补回各插件的初始行（没装插件时为空）
+ * 6. 重新装配 `main` 分支的 trigger
  *
  * @param adapter - 待清理的适配器实例
  * @public
@@ -180,15 +181,26 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
     `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"activeKey","fromChangeId",local,remote) VALUES ('main',TRUE,'${ACTIVE_BRANCH_KEY}',NULL,TRUE,FALSE)`
   );
 
-  // TRUNCATE 同时清掉了工作树/提交侧的单例与 main 的伴生行，这里**不补**：抽包之后那十张表
-  // 只存在于 `use(rxDBPluginWorkingTree)` 过的库里，而 `cleanup_db` 的调用点一个都没装插件
-  // （装了的只有两个一致性 spec，它们各自建库、不走清库）。在没有那些表的库上调
-  // `createWorkingTreeCommitsInitialRows` 只会因为实体未注册当场抛错。
+  // TRUNCATE 连工作树/提交侧的单例与 main 的伴生行一起清掉了，这里把它们补回来。
   //
-  // 真让某个装了插件的库走到这里，症状是**响的**：清库后第一次 `createBranch()` 在发放分支
-  // 代际时读不到激活态行直接抛错。届时该做的是给 `cleanup_db` 加一个由调用方传入初始行的
-  // 入口，**而不是**在本文件 import 插件包——`src/testing.ts` 是已发布的 `./testing` 子路径，
-  // 而 `@aiao/rxdb-plugin-working-tree` 只是 devDependency，静态 import 等于把它塞进发布链。
+  // 「新库形态」不是本文件定义的，是 `RxDB.createTables()` 定义的：main 分支行**加上**每个
+  // 系统能力贡献的初始行。上一条 INSERT 补的是前半截，这一段补后半截——回头调**同一个**
+  // `createInitialRows`，于是行的内容始终只有贡献方一个定义处，本文件不必知道有哪些行。
+  //
+  // 这一版比注释里许诺过的「由调用方传入初始行」更省事，也更不容易错：既不必在本文件
+  // import 插件包（`src/testing.ts` 是已发布的 `./testing` 子路径，而
+  // `@aiao/rxdb-plugin-working-tree` 只是 devDependency，静态 import 等于把它塞进发布链），
+  // 也不必给调用方开第二个定义处。没装插件的库贡献列表为空，一行不写、一次事务都不开。
+  //
+  // 位置卡在触发器重装**之前**且不可下移：此刻触发器还没挂回去，这批行不会被记成变更；
+  // `transaction(..., false)` 的 `false` 再挡住变更日志。两道缺任何一道，清理动作自己就会
+  // 在下一个用例的 undo 栈里留下一格。
+  const initialRows = adapter.rxdb.systemContributions.flatMap(contribution =>
+    contribution.createInitialRows(adapter.rxdb.entityManager, { branchIds: ['main'] })
+  );
+  if (initialRows.length > 0) {
+    await adapter.transaction(tx => tx.saveMany(initialRows), false);
+  }
 
   // 只重挂触发器，不再顺带跑 switch 的那条分支激活 UPDATE：上一行的 INSERT 已经把
   // main 置为 activated=TRUE，那条 UPDATE 在取值上是空操作，却会触发行级 NOTIFY，

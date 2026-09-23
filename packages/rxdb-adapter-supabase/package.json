@@ -50,11 +50,9 @@
       "js-lib"
     ]
   },
-  "dependencies": {
-    "@aiao/rxdb-plugin-tree": "workspace:*"
-  },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
     "@supabase/supabase-js": "^2.88.0",
     "rxjs": "^7.8.2"
   },
@@ -63,7 +61,13 @@
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-plugin-sync": "workspace:*",
+    "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "dotenv": "^17.4.2"
+  },
+  "peerDependenciesMeta": {
+    "@aiao/rxdb-plugin-tree": {
+      "optional": true
+    }
   }
 }

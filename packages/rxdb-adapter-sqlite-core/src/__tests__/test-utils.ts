@@ -1,4 +1,4 @@
-import { ACTIVE_BRANCH_KEY, ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent } from '@aiao/rxdb';
+import { ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEvent } from '@aiao/rxdb';
 // 只为把 `declare module '@aiao/rxdb'` 的 `versionManager` 声明带进本编译单元：
 // 历史 / 撤销重做 / 分支自 US-025 阶段 C 起住在这个插件里，核心 `RxDB` 上没有这个成员。
 // 共享套件本身不 `use()` 它 —— 装插件是 `AdapterFactory` 的活（见 `testing.ts` 的契约）。
@@ -7,51 +7,27 @@ import { ACTIVE_BRANCH_KEY, ENTITY_LOCAL_CREATE_EVENT, type EntityLocalCreatedEv
 // `import.meta.glob` 连同各 suite 一起打进 `dist/testing.js`，裸导入就成了该入口
 // 的**运行时**依赖。这里要的只有类型声明，`import type` 在 emit 时整句擦除。
 import type {} from '@aiao/rxdb-plugin-history';
-import { expectObservableSequence } from '@aiao/rxdb-test';
+import { cleanupSqliteTestAdapter, expectObservableSequence } from '@aiao/rxdb-test';
 import { expect, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
+import type { SqliteTransactionExecutor } from '../transaction/SqliteTransactionExecutor.js';
 import { generateSwitchBranchSql } from '../version/switch_branch.js';
-
-/** fts5 为每张虚拟表生成的影子表后缀 */
-const FTS5_SHADOW_SUFFIXES = ['_data', '_idx', '_content', '_docsize', '_config'] as const;
-
-/**
- * 把表名分成「虚拟表」「影子表」「普通表」三类。
- *
- * fts5 虚拟表在 `sqlite_master` 里和它的影子表并列出现。若按 `sqlite_master` 的返回顺序
- * 直接逐表 `DELETE`，影子表 `<vt>_config` 可能先被清空，之后 `DELETE FROM <vt>` 就会报
- * `invalid fts5 file format (found 0, expected 4 or 5)`。删虚拟表本身即可连带清干净影子表，
- * 所以影子表必须整体跳过。
- *
- * `sqlite_*` 内部表同样整体跳过，理由见 {@link cleanup_db}。
- */
-const classifyTables = (rows: readonly (readonly unknown[])[]) => {
-  const virtualTables: string[] = [];
-  const allNames: string[] = [];
-  for (const row of rows) {
-    const name = String(row[0]);
-    const sql = row[1] == null ? '' : String(row[1]);
-    if (name.startsWith('sqlite_')) continue;
-    allNames.push(name);
-    if (/^\s*CREATE\s+VIRTUAL\s+TABLE/i.test(sql)) virtualTables.push(name);
-  }
-  const shadowNames = new Set(
-    virtualTables.flatMap(virtualTable => FTS5_SHADOW_SUFFIXES.map(suffix => `${virtualTable}${suffix}`))
-  );
-  return {
-    virtualTables,
-    plainTables: allNames.filter(name => !shadowNames.has(name) && !virtualTables.includes(name))
-  };
-};
 
 /**
  * 清理数据库中的所有数据。
  *
  * @remarks
- * 只清业务表与 `rxdb$` 系统表，**不碰 `sqlite_*` 内部表**（与 `@aiao/rxdb-test` 的
- * `cleanupSqliteTestAdapter` 同口径）。尤其不能重置 `sqlite_sequence`：
+ * 清库动作本身由 `@aiao/rxdb-test` 的 {@link cleanupSqliteTestAdapter} 执行 ——
+ * 本文件只负责交出 sqlite-core 特有的那两段方言 SQL。这个分工的判据是**认不认方言**：
+ * 「列出 `sqlite_master`、跳过影子表与 `sqlite_*`、逐表 DELETE、补回 main」对任何 SQLite
+ * 后端都一样，而触发器怎么拆、分支怎么切是 sqlite-core 自己的表结构决定的。
+ *
+ * 此前这里是一份平行实现，两边同时维护的代价已经兑现过一次：共享工具按 RXT-005 把影子表
+ * 判定收紧成三族精确后缀（FTS5 + FTS3-4 + RTree），本地这份还停在「FTS5 那五个」，于是
+ * RTree 的 `_node`/`_rowid`/`_parent` 会被当普通表 DELETE 掉，直接损坏 R 树索引结构。
+ *
+ * 只清业务表与 `rxdb$` 系统表，**不碰 `sqlite_*` 内部表**。尤其不能重置 `sqlite_sequence`：
  * `rxdb$rxdb_change.id` 是 `INTEGER PRIMARY KEY AUTOINCREMENT`，产品契约是**单调递增、
  * 删行也不回收 id**，身份缓存（identity map）按 id 认实体正是建立在这条契约上。
  *
@@ -62,36 +38,32 @@ const classifyTables = (rows: readonly (readonly unknown[])[]) => {
  * 这类按机器负载偶发的假红）。序列不重置后，跨测试的 id 不再重叠，陈旧缓存无从冒充新行。
  */
 export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
-  adapter.rxdb.entityManager.cleanAllCache();
-  adapter.cleanAllCache();
-  await adapter.transaction(async tx => {
-    const remove_trigger_sql = remove_all_triggers_sql(adapter);
-    await tx.execute(remove_trigger_sql);
-    const tableNameResult = await tx.execute(`SELECT name, sql FROM sqlite_master WHERE type='table';`);
-    const { virtualTables, plainTables } = classifyTables(tableNameResult.results[0].rows);
-    // 先清虚拟表：此时它的影子表还完好，fts5 能正常读到自己的 config
-    for (const tableName of virtualTables) {
-      await tx.execute(`DELETE FROM ${quote_sql_identifier(tableName)};`);
-    }
-    for (const tableName of plainTables) {
-      await tx.execute(`DELETE FROM ${quote_sql_identifier(tableName)};`);
-    }
-    // 两列同进同出：这条 INSERT 就把 main 写成 active，哨兵值必须同时落下。
-    // 下方的 switch SQL 事实上也会补上它，但那是另一条语句的副作用，不是这一行的意图。
-    await tx.execute(
-      `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`
-    );
-    // 逐表 DELETE 同时清掉了工作树/提交侧的单例与 main 的伴生行，这里**不补**：抽包之后
-    // 那十张表只存在于 `use(rxDBPluginWorkingTree)` 过的库里，而 `cleanup_db` 的调用点
-    // （八套 shared suite）一个都没装插件。在没有那些表的库上调
-    // `createWorkingTreeCommitsInitialRows` 只会因为实体未注册当场抛错。
+  await cleanupSqliteTestAdapter(adapter, {
+    removeTriggersSql: remove_all_triggers_sql(adapter),
+    // main 分支行本身由共享工具按默认 INSERT 补回（那条字面量与本包此前自带的逐字节相同），
+    // 这段 switch SQL 负责把触发器按 main 重新装回去。
+    resetToMainBranchSql: () => generateSwitchBranchSql(adapter, 'main'),
+    // 逐表 DELETE 连工作树/提交侧的单例与 main 的伴生行一起清掉了，这里把它们补回来。
     //
-    // 真让某个装了插件的库走到这里，症状是**响的**：清库后第一次 `createBranch()` 在发放
-    // 分支代际时读不到激活态行直接抛错。届时加一个由调用方传入初始行的入口，别在这里
-    // import 插件包——sqlite-core 连它的 devDependency 都没有。
-    const sql = generateSwitchBranchSql(adapter, 'main');
-    await tx.execute(sql);
-  }, false);
+    // 「新库形态」不是本文件定义的，是 `RxDB.createTables()` 定义的：main 分支行**加上**每个
+    // 系统能力贡献的初始行。上面那条 INSERT 补的是前半截，这个钩子补后半截——回头调**同一个**
+    // `createInitialRows`，于是行的内容始终只有贡献方一个定义处，本文件不必知道有哪些行，
+    // 也就不必 import 任何插件包（sqlite-core 连 `@aiao/rxdb-plugin-working-tree` 的
+    // devDependency 都没有）。没装插件的库贡献列表为空，一行不写、一次 `saveMany` 都不发。
+    //
+    // 必须走钩子而不是等 `cleanupSqliteTestAdapter` 返回后再补：那时 `resetToMainBranchSql`
+    // 已经把触发器装回去了，补行会被记成一次用户编辑，清理动作自己就在下一个用例的 undo 栈里
+    // 留下一格。钩子的调用点卡在 main 分支行之后（那些行按分支挂靠）、触发器重装之前。
+    //
+    // 形参标注成 `SqliteTransactionExecutor` 是**必要**的：共享工具的事务句柄最小结构里只有
+    // `execute`，`saveMany` 归本包的执行器；这条标注同时也是 `TTx` 的推断来源。
+    restoreInitialRows: async (tx: SqliteTransactionExecutor) => {
+      const initialRows = adapter.rxdb.systemContributions.flatMap(contribution =>
+        contribution.createInitialRows(adapter.rxdb.entityManager, { branchIds: ['main'] })
+      );
+      if (initialRows.length > 0) await tx.saveMany(initialRows);
+    }
+  });
 
   // 会话态归 `@aiao/rxdb-plugin-history` 管。这里不做存在性判断：`AdapterFactory` 的契约
   // 要求交出的实例已装该插件，没装就该在这一行炸掉，而不是把一批脏会话态悄悄带进下一条用例。

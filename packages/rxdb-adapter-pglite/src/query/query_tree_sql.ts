@@ -1,5 +1,5 @@
-import { EntityMetadata, EntityRelationManyToOneMetadata } from '@aiao/rxdb';
-import { assertTreeLevel, FindTreeOptions } from '@aiao/rxdb-plugin-tree';
+import { assertOptionalNonNegativeSafeInteger, EntityMetadata, EntityRelationManyToOneMetadata } from '@aiao/rxdb';
+import type { FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import type { SetOptional } from 'type-fest';
 import { getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -62,9 +62,12 @@ export const generate_tree_sql = (
 
   let children_where = '';
   // level 按 FindTreeOptions 契约解析：未设置 → 不限深度（退到内部失控保护上限），
-  // 显式 level=N → c.level < N。assertTreeLevel 保证插值进来的一定是非负整数
+  // 显式 level=N → c.level < N。assertOptionalNonNegativeSafeInteger 保证插值进来的一定是非负整数
   //（这里无法参数化：它在递归成员的比较式里）。
-  const level = assertTreeLevel(options.level);
+  const level = assertOptionalNonNegativeSafeInteger(
+    options.level,
+    `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
+  );
   const level_sql = `c.level < ${level ?? TREE_RECURSION_MAX_DEPTH}`;
   const children_where_conditions = [level_sql];
   const params: unknown[] = [];

@@ -79,6 +79,7 @@ export { isStaleEntityEvent, isStaleEntityRemoveEvent } from './query/stale-even
 export * from './repository/diff-metadata.js';
 export * from './repository/fingerprint.utils.js';
 export { isNetworkError } from './repository/network-error.js';
+export { assertOptionalNonNegativeSafeInteger } from './repository/number-validation.utils.js';
 export type {
   QueryCacheEngineFactory,
   QueryCachePrimary,

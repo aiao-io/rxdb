@@ -2,7 +2,7 @@
 
 树形结构（邻接表模型）从 `@aiao/rxdb` 核心抽成了独立插件包，**下一个发布版本起**生效：实体基类、`@TreeEntity` 装饰器、`TreeRepository`、四个树查询 task 类型、以及约 1100 行树专属增量 merge 全部随 `@aiao/rxdb-plugin-tree` 走。三框架的四个树 hook 同时搬进 `@aiao/rxdb-plugin-tree-{angular,react,vue}`。
 
-**不涉及数据迁移。** 表结构、`parentId` 列、已有数据一样都没动——仓储名仍是 `'TreeRepository'`，适配器公开 API 一字未变。要改的只有依赖清单、import 来源、以及一行 `use()`。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
+**不涉及数据迁移。** 表结构、`parentId` 列、已有数据一样都没动——仓储名仍是 `'TreeRepository'`，适配器公开 API 一字未变。需要修改依赖清单、import 来源和 `use()` 注册；此外，本次变更调整了树查询的默认深度，并移除了未生效的 merge 配置入口，迁移步骤见下文。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
 ## 为什么拆
 
@@ -147,6 +147,51 @@ No repository generator registered for "TreeRepository" (entity Menu). Add "@aia
 ## 6. 适配器不受影响
 
 PGlite / SQLite / SQLite-WASM / sqliteai / Supabase / wa-sqlite 六个适配器的**公开 API 一字未动**：`case 'TreeRepository'` 的字符串分发保持原样，`PGliteTreeRepository` / `SqliteTreeRepository` / `SupabaseTreeRepository` 的类名与签名不变，只把类型来源改到了本包。照着旧文档写的适配器代码不需要改。
+
+PGlite / SQLite Core / Supabase 不再运行时加载 tree 插件；仅通过可选 peer 声明树类型契约，
+不用树的应用不会被强制安装插件。使用树 API 的应用需直接安装 `@aiao/rxdb-plugin-tree` 并注册它，
+不要再依赖适配器间接安装插件。SQLite-WASM 的 tree 插件依赖仅用于开发测试。
+
+## 7. 树查询默认深度变更（破坏性变更）
+
+`findDescendants` / `findAncestors` 及对应的 `count*` 查询，不传 `level` 时从「仅锚点层」
+改为「不限制深度」。Angular / React / Vue 的树查询绑定遵循同一规则。
+
+依赖旧默认值的调用必须显式传 `level: 0`：
+
+```diff
+- Category.findDescendants({ entityId: rootId });
++ Category.findDescendants({ entityId: rootId, level: 0 });
+```
+
+要读取整棵子树或整条祖先链，省略 `level`；要限制到直接子节点或父节点，传 `level: 1`。
+`find*` 保留锚点；指定 `entityId` 的 `count*` 不计锚点，因此 `level: 0` 的计数为 0。
+
+- `TREE_MAX_LEVEL` 已移除，不再提供用户查询深度的全局上限。不要把旧常量当作「无限深度」，省略 `level` 即可。
+- `assertTreeLevel` 返回 `number | undefined`；省略时返回 `undefined`，显式值必须是非负安全整数，
+  负数、小数、`NaN`、无穷大、非数字及不安全整数一律抛 `RxDBError`，不裁剪、不改写为默认值。
+- `assertTreeLevel` 仅由 `@aiao/rxdb-plugin-tree` 提供；核心不导出树领域 API。
+  插件、适配器和核心分页共同复用通用校验 `assertOptionalNonNegativeSafeInteger`，适配器无需运行时加载树插件。
+- PGlite / SQLite 在缺省 `level` 时仍有内部 1000 层递归保护；本地增量 merge 通过已访问节点集合终止，
+  没有对应深度上限。超过 1000 层或含环数据不属于当前一致性保证范围；本次变更不解决这一边界。
+
+## 8. 移除无效 merge 配置（破坏性变更）
+
+`IRepositoryConfig.mergeOperations` 和 `MergeQueryTaskOptions` 已移除。
+前者是未接入执行路径的配置，不应继续用它声明自定义 merge；后者的 import 必须删除。
+
+自定义查询的增量处理应通过仓储的 `queryManager` 注册：
+
+```typescript
+repository.queryManager.registerMergeCreateFn(taskType, mergeCreate);
+repository.queryManager.registerMergeUpdateFn(taskType, mergeUpdate);
+repository.queryManager.registerMergeRemoveFn(taskType, mergeRemove);
+```
+
+回调类型可从公开方法签名提取，例如
+`type MergeCreate = Parameters<typeof repository.queryManager.registerMergeCreateFn>[1]`；
+更新、删除回调同理。不要从包内部路径导入类型，也不要直接把旧配置对象换一个类型名：
+必须把回调接入对应的注册方法。
 
 ## 参考
 

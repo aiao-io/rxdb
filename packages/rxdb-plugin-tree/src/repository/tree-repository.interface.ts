@@ -27,8 +27,8 @@ export interface FindTreeOptions<T extends EntityType = EntityType, WhereType = 
    * @remarks
    * 不裁剪、不兜底：非负整数以外的值（负数、小数、`NaN`、字符串）一律抛 `RxDBError`。
    * `level` 是树查询里唯一被直接插值进递归 CTE 比较式的选项，悄悄改写它等于把注入
-   * 变成一次静默的错误查询。校验在 `assertTreeLevel` 一处收口，`TreeRepository` 与
-   * 各适配器都走它 —— 绕过 Repository 直接调适配器时同样抛错。
+   * 变成一次静默的错误查询。插件的 `assertTreeLevel` 与各适配器复用核心的通用数值校验，
+   * 绕过 Repository 直接调适配器时同样抛错。
    *
    * 不传时递归深度由各 SQL 适配器内部的失控保护常量兜底（防脏数据把 `parentId` 连成环），
    * 那是实现细节而非查询语义：正常树不会触到。

@@ -4,13 +4,7 @@ import { describe, expectTypeOf, it } from 'vitest';
 import type { FindTreeOptions, ITreeEntity, ITreeRepository, TreeRepository } from '../../index.js';
 
 /** `TreeRepository` 的泛型约束要求实体产出 {@link ITreeEntity}，替身必须是树形。 */
-class ProxiedEntity implements ITreeEntity {
-  id!: string;
-  createdAt!: Date;
-  updatedAt!: Date;
-  parentId?: string | null;
-  hasChildren?: boolean | null;
-}
+type ProxiedEntity = new () => ITreeEntity;
 
 describe('@aiao/rxdb-plugin-tree 的公开类型必须可具名', () => {
   it('exposes every type reachable from a public signature', () => {
@@ -26,8 +20,8 @@ describe('@aiao/rxdb-plugin-tree 的公开类型必须可具名', () => {
     // 这份文件的搬家史：核心
     // （`packages/rxdb/src/__tests__/contracts/public-type-compatibility.spec.ts`，
     // 现只留一条指路注释）→ 本包（US-025 阶段 E）。判据始终跟着实现走。
-    expectTypeOf<ITreeRepository<typeof ProxiedEntity>>().not.toBeNever();
-    expectTypeOf<FindTreeOptions<typeof ProxiedEntity>>().not.toBeNever();
-    expectTypeOf<TreeRepository<typeof ProxiedEntity>>().not.toBeNever();
+    expectTypeOf<ITreeRepository<ProxiedEntity>>().not.toBeNever();
+    expectTypeOf<FindTreeOptions<ProxiedEntity>>().not.toBeNever();
+    expectTypeOf<TreeRepository<ProxiedEntity>>().not.toBeNever();
   });
 });

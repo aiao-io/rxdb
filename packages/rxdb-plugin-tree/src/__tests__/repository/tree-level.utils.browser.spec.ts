@@ -1,6 +1,6 @@
 import { RxDBError } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { assertTreeLevel } from '../../repository/tree-level.utils.js';
+import { assertTreeLevel } from '../../index.js';
 
 /**
  * `level` 是唯一一个被**直接字符串插值**进树查询 SQL 的选项
@@ -8,6 +8,10 @@ import { assertTreeLevel } from '../../repository/tree-level.utils.js';
  * 因此它的合法性判定必须在唯一一处收口，且失败即抛错——不裁剪、不兜默认值。
  */
 describe('assertTreeLevel', () => {
+  it('保留树查询的错误文案', () => {
+    expect(() => assertTreeLevel(-1)).toThrow("tree query 'level' must be a non-negative integer, received: -1");
+  });
+
   it('未提供时返回 undefined，表示不限深度', () => {
     expect(assertTreeLevel(undefined)).toBeUndefined();
   });
@@ -21,6 +25,7 @@ describe('assertTreeLevel', () => {
   it('不设上界：超大层级原样透传，深度由调用方决定', () => {
     expect(assertTreeLevel(101)).toBe(101);
     expect(assertTreeLevel(100_000)).toBe(100_000);
+    expect(assertTreeLevel(Number.MAX_SAFE_INTEGER)).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('负数抛错，不裁剪', () => {
