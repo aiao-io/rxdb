@@ -50,6 +50,9 @@ export default class TodoPage implements OnInit, AfterViewInit {
   #hasMore = true;
 
   readonly itemSize = 48;
+  // 仓库源码已把历史能力拆进 `@aiao/rxdb-plugin-history`（US-025），本文件仍直接用
+  // `versionManager` —— 那个插件还没发到 npm，而示例按约定只装已发布版本。
+  // 升级步骤与触发时机见 `examples/README.md` 的「插件拆分（US-025）与示例的滞后」。
   readonly history = this.#rxdb.versionManager.history(Todo);
 
   readonly undoIcon = LucideUndo2;

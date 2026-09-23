@@ -9,6 +9,9 @@
  *
  * 单测该断言的是「这条 CAS 打在 executor 交回来的那个表引用上」，因此断言用
  * `\b<tableName>\b` 这种词边界匹配，三种形态都能通过。
+ *
+ * 本包与其他插件包里的这份副本逐字相同，这是**有意**的重复，不要往 `@aiao/rxdb-test` 收敛——
+ * 理由见该包 README 的「什么不搬进来」。
  */
 
 import type { EntityType } from '@aiao/rxdb';

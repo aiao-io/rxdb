@@ -117,7 +117,15 @@ export const setSafeObjectKeyLazyInitOnce = <V>(object: object, key: string | sy
   });
 };
 
-/** 当前 {@link fillDefaultValue} 调用共享的「现在」；不在填充期间为 `undefined`。 */
+/**
+ * 当前 {@link fillDefaultValue} 调用共享的「现在」；不在填充期间为 `undefined`。
+ *
+ * @remarks
+ * 填充**可以**重入：默认值工厂同步 `new` 另一个实体时，那个实例的构造器会再进一次
+ * `fillDefaultValue`。因此这里按**栈**使用——进入时压入本次时刻、退出时恢复调用方的那个，
+ * 而不是退出时一律清空。清空的写法会让外层剩余字段掉回「读当下时钟」，
+ * `createdAt === updatedAt` 于是随内层耗时随机失效。
+ */
 let fillInstant: Date | undefined;
 
 /**
@@ -130,6 +138,9 @@ let fillInstant: Date | undefined;
  *
  * 每次返回**新的** `Date` 实例（拷贝而非共享引用），两个字段不会互相别名。
  * 不在填充期间调用就是普通的当前时刻——它本来就没有可共享的时刻作用域。
+ *
+ * 嵌套填充各自持有自己的时刻（见 {@link fillInstant}）：内层实例是**另一行**，
+ * 它的「创建于」不该被外层那一刻追认。内层结束后外层恢复到自己的时刻继续填。
  *
  * @returns 当次填充的时刻，或调用当下的时刻。
  *
@@ -174,16 +185,18 @@ const DATABASE_SIDE_TIMESTAMP_DEFAULT = 'CURRENT_TIMESTAMP';
  * 例外，它固定写全列、绕过了 DB DEFAULT，所以 `inserts_sql` 自己把哨兵解析成真实时间戳——
  * 那段代码此前是死的（它只在列缺省时才跑，而本函数总是先把字符串填满）。三条路径都已就位。
  *
- * 填充期间 {@link entityDefaultNow} 返回同一个时刻；填充是同步且不可重入的，
- * 结束（含抛错）一律清掉这个时刻作用域。
+ * 填充期间 {@link entityDefaultNow} 返回同一个时刻。默认值工厂同步 `new` 另一个实体会
+ * **重入**本函数，所以时刻作用域按栈进出：结束（含抛错）恢复调用方的时刻，而不是清空——
+ * 清空会让外层剩余字段掉回当下时钟，`createdAt === updatedAt` 这条不变量随内层耗时随机失效。
  */
 export const fillDefaultValue = <T extends EntityType>(metadata: EntityMetadata, entity: InstanceType<T>) => {
+  const callerInstant = fillInstant;
   fillInstant = new Date();
   try {
     const data = collectDefaultValue(metadata, entity);
     if (data) Object.assign(entity, data);
   } finally {
-    fillInstant = undefined;
+    fillInstant = callerInstant;
   }
 };
 

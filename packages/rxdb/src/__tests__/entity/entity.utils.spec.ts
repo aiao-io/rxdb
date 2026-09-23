@@ -3,6 +3,7 @@ import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import {
+  entityDefaultNow,
   fillDefaultValue,
   fillInitValue,
   getNeedSaveEntities,
@@ -57,11 +58,49 @@ describe('entity.utils', () => {
     startAt!: Date;
   }
 
+  /** 重入夹具的「内层行」：被外层实体的默认值工厂同步 `new` 出来。 */
+  @Entity({
+    name: 'ReentrantChildEntity',
+    properties: [{ name: 'label', type: PropertyType.string, default: 'child' }]
+  })
+  class ReentrantChildEntity extends EntityBase {
+    label!: string;
+  }
+
+  /** 上一次重入建出来的那一行；实体只存 id（实例进不了 `structuredClone`），留个引用给断言看。 */
+  let reentrantChild: ReentrantChildEntity | undefined;
+
+  /**
+   * 默认值工厂同步 `new` 另一个实体的实体。
+   *
+   * 属性顺序是这条规则的全部要害：祖先（`EntityBase` 的 `createdAt` / `updatedAt`）先合并，
+   * 自有属性在后，于是 `childId` 的重入正好夹在 `createdAt` 与 `stampedAt` 之间 ——
+   * 标准实体的两个审计字段反而连着跑、测不出问题。
+   */
+  @Entity({
+    name: 'ReentrantParentEntity',
+    properties: [
+      {
+        name: 'childId',
+        type: PropertyType.string,
+        default: () => {
+          reentrantChild = new ReentrantChildEntity();
+          return reentrantChild.id;
+        }
+      },
+      { name: 'stampedAt', type: PropertyType.date, default: () => entityDefaultNow() }
+    ]
+  })
+  class ReentrantParentEntity extends EntityBase {
+    childId!: string;
+    stampedAt!: Date;
+  }
+
   beforeAll(async () => {
     // 初始化 RxDB 用于注册实体
     const rxdb = new RxDB({
       dbName: 'entity-utils-test',
-      entities: [TestEntity, TimestampSentinelEntity],
+      entities: [TestEntity, TimestampSentinelEntity, ReentrantChildEntity, ReentrantParentEntity],
       sync: {
         local: {
           adapter: 'sqlite'
@@ -376,6 +415,36 @@ describe('entity.utils', () => {
         expect(bare.createdAt.getTime()).toBe(bare.updatedAt.getTime());
         // 两个字段各自持有实例，不共享引用。
         expect(bare.createdAt).not.toBe(bare.updatedAt);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    // 时刻作用域按栈进出的判据。内层实体填完自己那一轮后若把作用域**清空**而不是还给外层，
+    // 外层剩下的字段就掉回「读当下时钟」——真实时钟下表现为「嵌套构造稍慢一点就错开」的 flake。
+    it('默认值工厂里嵌套建实体，外层剩余字段仍拿外层那一刻', () => {
+      const RealDate = Date;
+      let tick = 0;
+      class TickingDate extends RealDate {
+        constructor(...args: [] | ConstructorParameters<typeof Date>) {
+          if (args.length === 0) super(RealDate.UTC(2026, 0, 1) + tick++);
+          else super(...args);
+        }
+      }
+      vi.stubGlobal('Date', TickingDate);
+      try {
+        const metadata = getEntityMetadata(ReentrantParentEntity);
+        const entity = new ReentrantParentEntity();
+        const bare = Object.create(Object.getPrototypeOf(entity) as object) as ReentrantParentEntity;
+        fillDefaultValue(metadata, bare);
+
+        // 内层确实跑过（否则这条用例什么也没验）
+        expect(bare.childId).toBe(reentrantChild?.id);
+        // 内层是另一行，拿自己的时刻，不该被外层那一刻追认
+        expect(reentrantChild?.createdAt.getTime()).not.toBe(bare.createdAt.getTime());
+        // 外层的 createdAt 在重入之前、stampedAt 在重入之后，两者必须仍是同一刻
+        expect(bare.stampedAt.getTime()).toBe(bare.createdAt.getTime());
+        expect(bare.updatedAt.getTime()).toBe(bare.createdAt.getTime());
       } finally {
         vi.unstubAllGlobals();
       }
