@@ -15,7 +15,7 @@ import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import { DesktopSqliteClient, type DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
+import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -103,8 +103,6 @@ class QueryCountingElectronAdapter extends RxDBAdapterElectron {
   }
 }
 
-const encryptedQueryCounts = new WeakMap<object, () => number>();
-
 async function createDesktopAdapter(options?: Record<string, unknown>): Promise<QueryCountingElectronAdapter> {
   const rawOptions = (options ?? {}) as {
     entities?: EntityType[];
@@ -171,11 +169,10 @@ export const electronAdapterFactory: AdapterFactory = {
 /** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的桌面适配器工厂。 */
 export const electronEncryptedAdapterFactory: EncryptedAdapterFactory = {
   name: ADAPTER_NAME,
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
   createAdapter: async options => {
     const adapter = await createDesktopAdapter(options);
-    encryptedQueryCounts.set(adapter, () => adapter.queryCount);
-    return adapter;
+    return registerQueryCount(adapter, () => adapter.queryCount);
   }
 };
 

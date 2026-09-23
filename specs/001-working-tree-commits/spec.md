@@ -266,7 +266,7 @@
 - **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
 - **FR-041**（阶段 B）：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
 - **FR-045**（阶段 A）：`WorkingTreeEntry` MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
-- **FR-046**（阶段 A）：所有业务实体写入口 MUST 遵守写入口语义矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，五步 bypass 判定够不到，必须在阶段 A 显式挂载。
+- **FR-046**（阶段 A）：所有业务实体写入口 MUST 遵守写入口语义矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，四步 bypass 判定够不到，必须在阶段 A 显式挂载。
 - **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
 
 > **FR-024 / FR-025 / FR-028 三个编号同样已作废**，不在任何故事中承接，也不得被新条目复用——对应内容整体转为「横切约束」一节，按故事适用。
@@ -373,19 +373,20 @@
 
 **受信路径登记键固定为「文件 + 符号 + 意图」**，符号取**实际发起该次批量重写的最内层具名函数**，不是委托门面方法，也不是行号。同一文件里语义不同的两个策略分支各占一行；被重载的传输层函数名必须按签名区分（写本地业务投影的重载属于本表，推送到远端的重载不属于）；静态扫描必须排除构建产物目录与测试夹具 / 共享测试套件。写路径必须携带显式意图枚举（内部契约，不进公开 api-baseline），未携带标记的批量重写一律按未知入口拒绝。
 
-#### raw 写路径的 bypass 判定（按目标表 + 目标列 + 受信 intent 豁免）
+#### raw 写路径的 bypass 判定（按目标表 + 目标列）
 
 每次 raw 调用在**语句执行前**按下列顺序判定：
 
 1. 提交能力**未启用** → 原样放行，零行为差异。
-2. 调用携带内部受信 `intent`（非公开参数，仅登记表内的路径可传）→ 放行。
-3. 非写语句 → 放行。
-4. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理。
-5. 其余写目标（全文检索虚拟表与影子表、系统表、查询缓存实体表、临时表），以及第 4 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 revision。
+2. 非写语句 → 放行。
+3. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理。
+4. 其余写目标（全文检索虚拟表与影子表、系统表、查询缓存实体表、临时表），以及第 3 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 revision。
 
-「版本化业务实体表」与「untracked 字段域」两个集合与「版本化域」引用**同一份清单**，**不得另建第二份**。`upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而不是列集，因此对版本化实体一律落第 4 步。解析取保守口径（**fail-closed**）；大小写、引号标识符与 schema 限定在比对前归一化；6 个后端共用**同一份**判定实现，方言差异只体现在词法层。
+**判定里没有「受信 `intent` 豁免」这一步**，这是刻意的：受信路径全部走 `switchBranch` / `mergeChanges` 这两个带类型的写原语，raw 通道上一个受信调用点都没有，而 raw 通道也拿不出任何能证明发起方身份的东西。判据见 [threat-model.md](./threat-model.md) §3。
 
-**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 raw 写路径与 adapter 公开批量写方法**。绕过 adapter 的外部数据库句柄**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。
+「版本化业务实体表」与「untracked 字段域」两个集合与「版本化域」引用**同一份清单**，**不得另建第二份**。`upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而不是列集，因此对版本化实体一律落第 3 步。解析取保守口径（**fail-closed**）；大小写、引号标识符与 schema 限定在比对前归一化；6 个后端共用**同一份**判定实现，方言差异只体现在词法层。
+
+**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 raw 写路径与 adapter 公开批量写方法**。绕过 adapter 的外部数据库句柄**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。门禁各自挡谁、不挡谁，见 [threat-model.md](./threat-model.md)。
 
 ## Success Criteria _(mandatory)_
 

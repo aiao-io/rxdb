@@ -524,7 +524,7 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 **该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，「不影响 bypass 门禁的裁决结论」。
 
-**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 5 步。该判定的五步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「五步判定**够不到**」，所以它们今天落在门禁的结构性缺口里，要靠 US-306 阶段 A（US2-AC23）显式挂载。结论没错，但只引第 5 步会让复查者以为门禁已经生效。
+**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 4 步。该判定的四步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「四步判定**够不到**」，所以它们今天落在门禁的结构性缺口里，要靠 US-306 阶段 A（US2-AC23）显式挂载。结论没错，但只引第 4 步会让复查者以为门禁已经生效。
 
 结论不受影响：政策方向已定，本包又完全不碰这两个方法（AC#19），US-306 阶段 A 落地时对本包是 no-op，没有 breaking change 可言。US-306 阶段 A 的 SC-004 漂移扫描仍应把本包纳入扫描范围（[roadmap 约束 11](../../roadmap.md#排期约束)）。
 

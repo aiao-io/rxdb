@@ -58,6 +58,10 @@ export const ACTIVE_BRANCH_KEY = '*active*';
  * 禁的是**字符**不是那一个值：只拒 `'*active*'` 的话，`'*active'` / `'active*'`
  * 照样进得来，它们撞不上唯一约束，但会让任何按「带不带 `*`」区分哨兵与用户数据的
  * 读者（含两个后端 `switch_branch` 里对 `activeKey` 的裸 SQL 比较）读出两种答案。
+ *
+ * 它防的是**碰撞**（用户无意间起了个撞车的名字），不是**攻击**（存心去撞哨兵的调用方）：
+ * 后者的前提是已经能直写系统表，到那一步唯一约束是谁都无所谓了
+ * （`specs/001-working-tree-commits/threat-model.md` §5）。
  */
 const RESERVED_BRANCH_ID_CHAR = '*';
 

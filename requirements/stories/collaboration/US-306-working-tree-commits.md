@@ -132,7 +132,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - `discardWorkingTree()`：回到当前 HEAD
 - **受信路径的意图登记**：与 raw/未知 bypass 拒绝门禁同批交付，登记以**调用方意图**为键、不以传输层函数为键
 - **adapter 公开批量写方法 `upsertMany()` / `deleteByIds()` 的门禁挂载**（阶段 A）：这两个方法不经 `rawQuery`，
-  五步判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
+  四步判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
 - `WorkingTreeRestoreSession` 的**建表与 schema 迁移**，以及「从已存在 session 派生 conflicted」的读路径
 - 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitConflict`）的定义、
   TSDoc 与 api-baseline 登记；`CommitConflict` 由本故事首个使用者落地，
@@ -197,7 +197,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 20. **Given** commit 响应丢失，**When** 以相同 operation ID 与相同 payload 重试，**Then** 返回原 commit；payload 不同返回 `idempotency_key_reused`。
 21. **Given** 存在 active restore session 且其 expected revision 与当前值分叉（表由本故事阶段 B 建立，fixture **直接写入 session 行**构造分叉，不经 [US-307](./US-307-restore-session.md) 的 `restore()` 入口——与阶段 A 直接推进 `activationRevision` 同源），**When** 调用 `status()`，**Then** 返回 durable conflicted；session 解决或删除后该状态消失。
 22. **Given** 普通 commit 的 CAS 失败，**When** 刷新后调用 `status()`，**Then** 状态按最新持久数据重建，不因历史失败永久显示 conflicted。
-23. **Given** 调用方对一个**版本化实体**（`sync.type !== QueryCache`）调用 adapter 公开批量写方法 `upsertMany()` 或 `deleteByIds()`，**When** 写入到达业务表前，**Then** 以 `commit_capability_mismatch` 拒绝且业务表与工作树零变化；对 QueryCache 实体调用同样两个方法则正常放行且不产生工作树单元。判定 MUST 复用 [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的同一份版本化实体表清单，不得为这两个方法另建第二份；漂移扫描（SC-004）MUST 把「新增的、目标实体不是 QueryCache 的 `upsertMany`/`deleteByIds` 调用点」报为未登记调用点。这两个方法**不经 `rawQuery`**，五步判定结构上够不到它们，因此必须在阶段 A 显式挂载，见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)。
+23. **Given** 调用方对一个**版本化实体**（`sync.type !== QueryCache`）调用 adapter 公开批量写方法 `upsertMany()` 或 `deleteByIds()`，**When** 写入到达业务表前，**Then** 以 `commit_capability_mismatch` 拒绝且业务表与工作树零变化；对 QueryCache 实体调用同样两个方法则正常放行且不产生工作树单元。判定 MUST 复用 [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的同一份版本化实体表清单，不得为这两个方法另建第二份；漂移扫描（SC-004）MUST 把「新增的、目标实体不是 QueryCache 的 `upsertMany`/`deleteByIds` 调用点」报为未登记调用点。这两个方法**不经 `rawQuery`**，四步判定结构上够不到它们，因此必须在阶段 A 显式挂载，见 [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)。
 
 ### User Story 3 - 丢弃未提交变更（Priority: P2）
 
@@ -254,7 +254,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
 - **FR-041**：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
 - **FR-045**：WorkingTreeEntry MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
-- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的五步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
+- **FR-046**：所有业务实体写入口 MUST 遵守 Epic 写入口矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，[epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 的四步判定够不到，必须在阶段 A 显式挂载（US2-AC23）。
   **混批闸门的分工（避免两套错误码）**：批量入口在**调用前已知全部目标实体**时（如 [US-020 AC#6](../core/US-020-querycache-repository.md) 的 `EntityManager.mutations`、[US-212 AC#11](../adapter/US-212-http-adapter.md)）MUST 做入口预检并**复用 `mixed_versioned_cache_transaction` 这一个 code**，不得另起名字；本 FR 的事务内检测只负责 callback transaction 这种运行时才知道内容的场景。两者是同一条规则的两个触发时机，不是两条规则。
 - **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
   **无子集选择即无闭包**：commit 取整棵工作树，天然自包含。「工作树可仅凭 HEAD 与自身条目重放」这一条不变量

@@ -77,7 +77,7 @@ type MountPointDetail = Omit<WorkingTreeCaptureMountPoint, 'method'>;
  * 挂载点，**编译不过**。早先的数组形态下，加原语忘了登记没有任何东西会红——敞口静默出现，
  * 而这正是捕获最不能出现的一种失效。
  *
- * `rawQuery` **不在**表内：它走 §2 的 5 步 bypass 判定——**拒绝**，不是捕获。而且它在适配器接口上
+ * `rawQuery` **不在**表内：它走 §2 的 4 步 bypass 判定——**拒绝**，不是捕获。而且它在适配器接口上
  * 是可选方法，把它混进来会让「没有 `rawQuery` 的适配器没有敞口」这个错误结论看起来成立；真正的
  * 敞口是第 4 行那两个方法。
  *
@@ -106,7 +106,7 @@ const MOUNT_POINTS_BY_PRIMITIVE: Readonly<Record<keyof RawWritePrimitives, Mount
     ordinal: 4,
     host: 'RxDBAdapterLocalBase',
     parameters: ['entityName', 'data'],
-    why: '不经 rawQuery 也不经 transaction，5 步 bypass 判定够不到；不显式挂载就是一个敞口。'
+    why: '不经 rawQuery 也不经 transaction，4 步 bypass 判定够不到；不显式挂载就是一个敞口。'
   },
   deleteByIds: {
     ordinal: 4,

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 覆盖范围见 `specs/001-working-tree-commits/contracts/conformance-suites.md` §1：
- * 四个挂载点的捕获完备性、写入口语义矩阵、raw 通道 bypass 五步判定、untracked 域、
+ * 四个挂载点的捕获完备性、写入口语义矩阵、raw 通道 bypass 四步判定、untracked 域、
  * 存储契约静态断言。
  *
  * **每组末尾都跑冷重放不变量**（§1.1 明文要求）。判据只有这一条：
@@ -1043,8 +1043,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
       });
     });
 
-    describe('§1.3 raw 通道 bypass 五步判定', () => {
-      /** 一条打在版本化业务表 tracked 列上的 raw 写；第 1 / 2 / 4 步共用它，只换上下文。 */
+    describe('§1.3 raw 通道 bypass 四步判定', () => {
+      /** 一条打在版本化业务表 tracked 列上的 raw 写；第 1 / 3 步共用它，只换上下文。 */
       const trackedRawWrite = (): Promise<string> =>
         withTransaction(
           database,
@@ -1065,20 +1065,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database);
       });
 
-      it('第 2 步 携带受信 intent：放行，且不必再看语句写了什么', async () => {
-        const adapter = await localAdapterOf(database);
-        const sql = await trackedRawWrite();
-
-        // 同一条语句在第 4 步会被拒（下一组用例就是它）；这里放行的唯一理由是 intent。
-        expect(judgeRawWrite(sql, { ...judgmentContextOf(adapter), intent: TrustedWriteIntent.remote_sync })).toEqual({
-          kind: 'allow',
-          step: 2,
-          reason: 'trusted_intent'
-        });
-        await expectColdReplayIntact(database);
-      });
-
-      it('第 3 步 不是写语句：放行', async () => {
+      it('第 2 步 不是写语句：放行', async () => {
         const adapter = await localAdapterOf(database);
         const sql = await withTransaction(
           database,
@@ -1087,25 +1074,25 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(sql, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 3,
+          step: 2,
           reason: 'not_a_write'
         });
         await expectColdReplayIntact(database);
       });
 
-      it('第 4 步 打在 tracked 列上：语句执行之前被拒，业务表零变化', async () => {
+      it('第 3 步 打在 tracked 列上：语句执行之前被拒，业务表零变化', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         const noteId = newEntityId();
-        const fields = noteFields('第 4 步之前的值', null);
+        const fields = noteFields('第 3 步之前的值', null);
         const head = await materializeNote(noteId, fields);
         const sql = await trackedRawWrite();
 
         const judgment = judgeRawWrite(sql, judgmentContextOf(adapter));
         if (judgment.kind !== 'reject') {
-          throw new Error(`第 4 步没有拒绝：落在第 ${judgment.step} 步（${judgment.reason}）`);
+          throw new Error(`第 3 步没有拒绝：落在第 ${judgment.step} 步（${judgment.reason}）`);
         }
-        expect(judgment.step).toBe(4);
+        expect(judgment.step).toBe(3);
         expect(judgment.code).toBe(CommitErrorCode.commit_capability_mismatch);
         // 被点名的表名按后端归一（PGlite 的 `conformance_notes` 与 SQLite 家族的
         // `public$conformance_notes`），两种形态都在域里登记过，所以断言只问「在不在域里」。
@@ -1131,7 +1118,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 语句批里的第二条也要拦住整批', async () => {
+      it('第 3 步 语句批里的第二条也要拦住整批', async () => {
         const adapter = await localAdapterOf(database);
         const noteId = newEntityId();
         const fields = noteFields('语句批之前的值', null);
@@ -1157,7 +1144,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 列集解析不出：fail-closed，同样在执行前拒绝', async () => {
+      it('第 3 步 列集解析不出：fail-closed，同样在执行前拒绝', async () => {
         const adapter = await localAdapterOf(database);
         const noteId = newEntityId();
         const fields = noteFields('解析不出之前的值', null);
@@ -1187,7 +1174,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句', async () => {
+      it('第 3 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         const noteId = newEntityId();
@@ -1195,7 +1182,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const head = await materializeNote(noteId, fields);
         // PG 的 `$$…$$` 是第五类定界符。不认它的话，字面量里的 `WHERE` 会被当成真子句，
         // 后面的 `title` 就被切进「条件」里丢掉，判定只看见簿记列 `updatedAt`——
-        // 于是这条改 tracked 列的语句在第 5 步以 untracked_only 放行，捕获被整条绕过。
+        // 于是这条改 tracked 列的语句在第 4 步以 untracked_only 放行，捕获被整条绕过。
         const sql = await withTransaction(
           database,
           async executor =>
@@ -1206,7 +1193,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         if (judgment.kind !== 'reject') {
           throw new Error(`dollar-quote 绕过没被拦住：落在第 ${judgment.step} 步（${judgment.reason}）`);
         }
-        expect(judgment.step).toBe(4);
+        expect(judgment.step).toBe(3);
         expect(judgment.code).toBe(CommitErrorCode.commit_capability_mismatch);
         expect(
           judgment.tables.filter(table => !domain.versionedTables.has(table)),
@@ -1229,10 +1216,10 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 5 步 只改簿记字段：放行，理由是 untracked_only', async () => {
+      it('第 4 步 只改簿记字段：放行，理由是 untracked_only', async () => {
         const adapter = await localAdapterOf(database);
         // 列名带引号是故意的：判定先压小写、后拆引号，`"updatedAt"` 要能归到域里的 `updatedAt`。
-        // 这一步归不到位的话，一次只改审计时间的簿记写会被第 4 步拦成能力不匹配。
+        // 这一步归不到位的话，一次只改审计时间的簿记写会被第 3 步拦成能力不匹配。
         const sql = await withTransaction(
           database,
           async executor => `UPDATE ${executor.tableRef(ConformanceNote)} SET "updatedAt" = '2026-01-01T00:00:00.000Z'`
@@ -1240,13 +1227,13 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(sql, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 5,
+          step: 4,
           reason: 'untracked_only'
         });
         await expectColdReplayIntact(database);
       });
 
-      it('第 5 步 写域外目标：放行，理由是 out_of_domain', async () => {
+      it('第 4 步 写域外目标：放行，理由是 out_of_domain', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         // 影子表这类域外目标的代表。名字在 `versionedTables` 之外即为域外——判定不按 `$`
@@ -1256,7 +1243,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(`UPDATE ${outOfDomainTable} SET title = '域外改的'`, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 5,
+          step: 4,
           reason: 'out_of_domain'
         });
         await expectColdReplayIntact(database);
@@ -1271,7 +1258,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('query_cache');
         expect(hook.targetClassOf(getEntityMetadata(ConformanceNote).name)).toBe('versioned');
         // 表平面必须跟着实体平面走：缓存表不在 `versionedTables` 里，于是一条打在它上面的 raw 写
-        // 在第 5 步就以 out_of_domain 放行，根本走不到第 4 步的列级判定。两个平面分叉的话，
+        // 在第 4 步就以 out_of_domain 放行，根本走不到第 3 步的列级判定。两个平面分叉的话，
         // 同一张缓存表会「实体入口放行、raw 入口拒绝」，而调用方无从知道自己踩的是哪一条。
         expect(domain.versionedTables.has(getEntityMetadata(ConformanceCache).tableName)).toBe(false);
         expect(domain.versionedTables.has(getEntityMetadata(ConformanceNote).tableName)).toBe(true);
@@ -1297,7 +1284,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const domain = domainOf(adapter);
         // 「全局」是这一类的全部内容：豁免不挑实体、也不挑表名的书写形态。逐个可寻址名字都问一遍
         // 而不是只问逻辑名——漏掉 SQLite 家族的 `public$conformance_notes`，一次只改审计时间的
-        // 簿记写会在那 5 个后端上被第 4 步拦成 `commit_capability_mismatch`，而那是在拦错了人。
+        // 簿记写会在那 5 个后端上被第 3 步拦成 `commit_capability_mismatch`，而那是在拦错了人。
         for (const table of domain.versionedTables) {
           const untracked = domain.untrackedFieldsOf(table);
           for (const field of UNTRACKED_BOOKKEEPING_FIELDS) {

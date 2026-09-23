@@ -2,7 +2,7 @@
  * @fileoverview T051 红测试：版本化域的 tracked / untracked 判定（spec.md「版本化域」、conformance-suites.md §1.4）。
  *
  * @remarks
- * 这份清单是**唯一**的一份：raw 通道的 5 步判定（T050/T062）、批量写门禁（T049/T061）、捕获挂载点
+ * 这份清单是**唯一**的一份：raw 通道的 4 步判定（T050/T062）、批量写门禁（T049/T061）、捕获挂载点
  * （T058–T061）问的都是它。所以这里测的不是「某个实体是不是 tracked」，而是**这份清单怎么算出来、
  * 以及它对外暴露成什么形状**——形状一错，下游六个适配器各自补一份就成了必然。
  *
@@ -68,8 +68,8 @@ describe('第一类 untracked — QueryCache 同步类型的实体', () => {
   });
 
   it('它的表不出现在版本化表集合里', () => {
-    // 这一条是 raw 判定第 5 步「QueryCache 实体表放行」的来源：判定不认识 QueryCache 这个概念，
-    // 它只看表在不在集合里。集合算错，第 5 步就跟着错，而两处都不会报错。
+    // 这一条是 raw 判定第 4 步「QueryCache 实体表放行」的来源：判定不认识 QueryCache 这个概念，
+    // 它只看表在不在集合里。集合算错，第 4 步就跟着错，而两处都不会报错。
     expect(domain().versionedTables.has('productcache')).toBe(false);
     expect(domain().versionedTables.has('post')).toBe(true);
   });

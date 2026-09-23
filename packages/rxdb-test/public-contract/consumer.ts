@@ -38,6 +38,8 @@ import {
 import {
   ENCRYPTED_SENTINELS,
   EncryptedUser,
+  queryCountOf,
+  registerQueryCount,
   runBigIntBinaryEncryptedSuite,
   runCrudSuite,
   runLifecycleSuite,
@@ -161,6 +163,8 @@ void [
   runLifecycleSuite,
   runQueryValidationSuite,
   runTamperSuite,
+  registerQueryCount,
+  queryCountOf,
   // entities
   todoFindOptions,
   entityTypes,

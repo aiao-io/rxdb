@@ -103,6 +103,7 @@ specs/001-working-tree-commits/
 ├── research.md                      # Phase 0 输出：R1–R12
 ├── data-model.md                    # Phase 1 输出：8 张逻辑状态 + staging 的物理落地
 ├── quickstart.md                    # Phase 1 输出：可运行验证场景
+├── threat-model.md                  # 各道门禁挡谁、不挡谁（防漂移 ≠ 防对抗）
 ├── checklists/
 │   └── requirements.md              # 规格质量检查单（已过）
 ├── contracts/

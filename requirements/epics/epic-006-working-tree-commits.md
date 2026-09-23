@@ -267,16 +267,16 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | branch switch、baseline/restore 物化、commit 后的工作树清空                                | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                                                                                                                                                                                                                                      |
 | metadata-only 目标分支的远端预取                                                           | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                                                                                                                                                                                                                                   |
 | QueryCache 的 upsert/delete/孤儿清理与离线出站重放（见下注）                               | QueryCache 实体不进入 baseline、status、diff 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中                                                                                                                                                                                                                           |
-| raw SQL、adapter 直写或其他 trigger bypass                                                 | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表**判定 + 受信 intent 豁免，非「rawQuery 整体只读」）与其能力边界见下文「raw SQL / adapter 直写的 bypass 门禁判定」                                                                           |
+| raw SQL、adapter 直写或其他 trigger bypass                                                 | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表 + 目标列**判定，非「rawQuery 整体只读」）与其能力边界见下文「raw SQL / adapter 直写的 bypass 门禁判定」                                                                                     |
 | `upsertMany()` / `deleteByIds()` 等 adapter 公开批量写方法                                 | 与上一行同判定：目标是版本化业务实体表即拒绝，目标是 QueryCache 实体表即放行。**这两个方法不经 `rawQuery`**，US-306 阶段 A 必须显式把门禁挂到它们上，见下注                                                                                                                                                                            |
 | [`EntityManager.notifyExternalUpdate()`](../../packages/rxdb/src/entity/entity-manager.ts) | 它是「先绕过 ORM 写库、再补发标准事件」这条既有工作流的**后半段**，而前半段对版本化实体已被上两行拒绝。启用后它对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出一个没有工作树单元支撑的 `EntityLocalUpdatedEvent`——那会让事件流与工作树永久分叉；对 QueryCache 实体行为不变。这条 MUST 写进下文「能力边界」那句公开声明里 |
 
 **`upsertMany` / `deleteByIds` 是门禁的结构性缺口，阶段 A 必须显式补上。** 下文「raw SQL / adapter 直写的 bypass 门禁判定」
-的五步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
+的四步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
 既不是 `rawQuery` 也不是外部句柄——它落在那条能力边界声明的空隙里：实现走
 `transaction(executor => executor.query(...))`（见 [RxDBAdapterPGlite.ts](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts)），
-门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 5 步本来就该放行，
+门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 4 步本来就该放行，
 所以缺口暂时不可见；但方法签名 `upsertMany(entityName, data)` 不带意图，**任何调用方传一个 Full/Filter 实体名
 就能写版本化业务表且不产生工作树单元、也不被任何门禁拦下**，直接违反发布门禁 10 的「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」。
 阶段 A 的判定必须按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（判定明令不得另建第二份），
@@ -398,25 +398,29 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 `UPDATE <业务表> SET "<pk>" = "<pk>" WHERE …`（借 trigger 重算的空更新），`resetFts` 则是
 `UPDATE <业务表> SET "_fts" = NULL`——三条都经 `rawQuery` 下发，目标表就是版本化业务实体表本身。
 纯按表判定会让启用提交能力的 PGlite 数据库**装不上全文检索**，正是上一段用来否决「整体只读」的那个后果，
-只是把打击面从 6 个后端缩到 1 个。因此第 4 步 MUST 是**列粒度**的。
+只是把打击面从 6 个后端缩到 1 个。因此第 3 步 MUST 是**列粒度**的。
 
-**判定 = 按目标表 + 目标列判定 + 受信 intent 豁免。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
+**判定 = 按目标表 + 目标列判定。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
 
 1. commit 能力**未启用** → 原样放行，零行为差异。
-2. 调用携带内部受信 `intent`（非公开参数，仅登记表内的路径可传）→ 放行。
-3. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
-4. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，
+2. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
+3. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，
    **业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理（同下方 fail-closed 口径）。
-5. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表），以及第 4 步中**只**触及
+4. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表），以及第 3 步中**只**触及
    untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 working-tree revision。
+
+**判定里没有「受信 `intent` 豁免」这一步。** 曾有过一步「携带内部受信 `intent` → 放行」，2026-09-23 连同上下文槽位
+一并删除：受信调用点全部走 `switchBranch` / `mergeChanges` 这两个带类型的写原语，raw 通道上一个都没有，那一步在
+生产里永远取不到真值，却是整条防线上唯一无条件放行的一步。判据见
+[threat-model.md](../../specs/001-working-tree-commits/threat-model.md) §3。
 
 「版本化业务实体表」= 已注册实体中 `sync.type !== SyncType.QueryCache` 的那些的 SQL 表名；「untracked 字段域」=
 「版本化域」untracked 表第 2、3 行列出的那些列（`remoteId`、同步水位、审计时间、已登记的插件派生索引列）。
 两者都与「版本化域」引用**同一个集合**，**不得另建第二份清单**。`upsertMany()` / `deleteByIds()` 复用同一份清单与
-同一个第 4 / 第 5 步判定——但它们的入参是**整行**而不是列集，因此对版本化实体一律落第 4 步的拒绝分支。
+同一个第 3 / 第 4 步判定——但它们的入参是**整行**而不是列集，因此对版本化实体一律落第 3 步的拒绝分支。
 
 列粒度豁免只补齐「表粒度会误伤 untracked 列」这一个缺口，**不放宽能力边界**：写入口矩阵里「只更新 remoteId、
-同步水位或审计时间不构成净变化」本来就是字段粒度的判定，第 4 步是跟它对齐，而不是新开一个豁免维度。
+同步水位或审计时间不构成净变化」本来就是字段粒度的判定，第 3 步是跟它对齐，而不是新开一个豁免维度。
 
 解析取保守口径（fail-closed）：目标表**无法确定**（动态拼接、多语句串、方言不认识的构造）→ 按**拒绝**处理，宁可误伤，
 不可放过；大小写、引号标识符（SQLite 的 `` ` `` / `[]`、PG 的 `""`）、schema 限定（`public.x`）在比对前归一化；

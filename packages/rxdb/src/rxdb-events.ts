@@ -52,6 +52,23 @@ export const CONFLICT_PENDING_EVENT = 'CONFLICT_PENDING' as const;
  */
 export const REMOTE_ENTITY_INVALIDATED_EVENT = 'REMOTE_ENTITY_INVALIDATED' as const;
 
+/**
+ * 某个能力刚在**另一条连接**上被启用（FR-037）。
+ *
+ * @remarks
+ * 能力位是单向的闩：只有启用，没有停用。所以这条事件也只有一个方向 —— 收到它的一端把
+ * 该能力在本连接上接通，不存在与之对称的「收到就拆」。
+ *
+ * 载荷只有能力名，没有适配器、没有执行器、没有任何句柄：接通要用的东西只有本连接自己知道，
+ * 跨连接送过来的那一份指向的是**别人**的纪元。
+ *
+ * 不进 {@link RxDBEntityEventMap}：它不带 `entities`，{@link isCrossTabEvent} 对它恒为 `false`，
+ * 一旦被网关的实体转发路径捎带出去就会在两端之间无限回声（每次回声换一个 `messageId`，
+ * 去重窗口拦不住）。它的跨连接投递由 {@link RxDBTabsGateway.broadcastCapabilityEnabled}
+ * 显式单向完成。
+ */
+export const CAPABILITY_ENABLED_EVENT = 'CAPABILITY_ENABLED' as const;
+
 export const REPOSITORY_SYNC_BEGIN_EVENT = 'REPOSITORY_SYNC_BEGIN' as const;
 export const REPOSITORY_SYNC_COMPLETE_EVENT = 'REPOSITORY_SYNC_COMPLETE' as const;
 export const REPOSITORY_SYNC_ERROR_EVENT = 'REPOSITORY_SYNC_ERROR' as const;
@@ -456,6 +473,22 @@ export class RemoteEntityInvalidatedEvent {
   ) {}
 }
 
+/**
+ * 能力启用事件（FR-037）。
+ *
+ * @remarks
+ * 由启用方所在的连接经网关广播，同源的其他连接收到后自行接通该能力。
+ * 发起方**不会**收到自己的这条事件：它在 `enable()` 里已经同步接通过了。
+ */
+export class CapabilityEnabledEvent {
+  readonly type = CAPABILITY_ENABLED_EVENT;
+
+  constructor(
+    /** 能力名，与 `RxDBSystemContribution.capability` 同值 */
+    public readonly capability: string
+  ) {}
+}
+
 /** RxDB 实体事件映射接口 */
 export interface RxDBEntityEventMap {
   [ENTITY_LOCAL_NEW_EVENT]: EntityLocalNewEvent;
@@ -487,6 +520,7 @@ export interface RxDBEventMap extends RxDBEntityEventMap {
   [REPOSITORY_SYNC_COMPLETE_EVENT]: RepositorySyncCompleteEvent;
   [REPOSITORY_SYNC_ERROR_EVENT]: RepositorySyncErrorEvent;
   [REMOTE_ENTITY_INVALIDATED_EVENT]: RemoteEntityInvalidatedEvent;
+  [CAPABILITY_ENABLED_EVENT]: CapabilityEnabledEvent;
 }
 
 /** RxDB 实体事件联合类型 */

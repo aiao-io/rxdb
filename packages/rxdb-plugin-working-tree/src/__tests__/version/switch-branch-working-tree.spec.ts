@@ -54,6 +54,11 @@ import {
   whereClauseOf
 } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import {
+  activationUpdatesOf,
+  isActivationStatement,
+  runBranchGenerationSql
+} from '../working-tree/fixtures/activation-sql.js';
 
 /** 源分支：一条有历史、有未提交改动、正在激活的普通分支。 */
 const SOURCE_BRANCH_ID = 'main';
@@ -159,7 +164,12 @@ interface Scene {
 function createScene(options: SceneOptions = {}): Scene {
   const { database, plugin } = createDatabase();
   const entityManager = database.entityManager;
-  const probe = createCommitGraphProbe({ rowsAffected: 1 });
+  const probe = createCommitGraphProbe({
+    rowsAffected: 1,
+    // 代际发放的加法在库里做，紧接着的读回来也走原始语句（`activation-state.ts`），
+    // 而替身不执行 SQL；不补这两下，发放当场就会因为「读回 0 行」抛错。见 `activation-sql.ts`。
+    onQuery: runBranchGenerationSql
+  });
 
   const fromChangeId = options.fromChangeId === undefined ? SOURCE_TIP_CHANGE_ID : options.fromChangeId;
   const headCommitId = options.headCommitId === undefined ? SOURCE_HEAD_COMMIT_ID : options.headCommitId;
@@ -282,7 +292,12 @@ describe('createBranch(branchId)：从当前物化状态创建（FR-017）', () 
     // 给新分支现造一个根节点会让同一段历史在库里有两条互不相交的链，
     // 而 commit 是不可变的：两条分支指着同一个节点本来就不会互相影响。
     expect(scene.probe.rowsOf(Commit)).toEqual([]);
-    expect(scene.probe.statements).toEqual([]);
+    // 这条路径上只该发出代际发放那两条原始语句：就地 +1，以及紧跟着把号读回来
+    // （`activation-state.ts`）。再多一条就意味着有人在这里另写了一次 HEAD——
+    // 而共享 HEAD 靠的正是什么都不写。
+    expect(activationUpdatesOf(scene.probe.statements)).toHaveLength(1);
+    expect(scene.probe.statements.filter(sql => !isActivationStatement(sql))).toEqual([]);
+    expect(scene.probe.statements).toHaveLength(2);
   });
 
   it('源分支的未提交条目整份复制进新分支，身份与内容逐字保留', async () => {
@@ -402,8 +417,11 @@ describe('createBranch(branchId, fromChangeId)：以 branch_baseline 锚定（FR
 
     // 另写一条「建分支专用」的 UPDATE 意味着 CAS 的 generation / status 两个条件
     // 会在这条路上被悄悄放宽，而放宽之后没有任何测试会红。
-    expect(scene.probe.statements).toHaveLength(1);
-    const [sql] = scene.probe.statements;
+    // 代际发放那两条打在激活态表上，与 HEAD 无关，先摘掉再数——按 `isActivationUpdate` 摘
+    // 只摘得掉 +1 那条，读回来那条 SELECT 会被当成 HEAD 语句数进来。
+    const headStatements = scene.probe.statements.filter(sql => !isActivationStatement(sql));
+    expect(headStatements).toHaveLength(1);
+    const [sql] = headStatements;
     expect(normalizeSql(sql)).toMatch(new RegExp(`^update\\b[^]*\\b${REF_TABLE}\\b`));
     expect(whereClauseOf(sql)).toContain(String(EXPECTED_GENERATION));
     expect(setClauseOf(sql)).toContain('1');

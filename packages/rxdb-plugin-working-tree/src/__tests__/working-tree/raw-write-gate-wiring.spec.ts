@@ -1,5 +1,5 @@
 /**
- * @fileoverview T064 红测试：适配器把 raw 写接进共享 5 步判定的那根管子（adapter-contract.md §2）。
+ * @fileoverview T064 红测试：适配器把 raw 写接进共享 4 步判定的那根管子（adapter-contract.md §2）。
  *
  * @remarks
  * T050 已经测过判定本身（给一条语句，落第几步）。这里测的是**判定怎么被接上**：

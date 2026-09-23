@@ -214,7 +214,7 @@ describe('远端 mergeChanges 重载不在表内，且判别按签名不按函�
 });
 
 describe('rawQuery 不属于捕获表', () => {
-  it('它走 5 步 bypass 判定（拒绝），不是捕获挂载点', () => {
+  it('它走 4 步 bypass 判定（拒绝），不是捕获挂载点', () => {
     // `point.method` 的类型已是 `keyof RawWritePrimitives`，把 `'rawQuery'` 写进注册表**编译不过**；
     // 这条运行时断言仍留着，是为了在那个键控被放宽的那天，先在这里红一次而不是悄悄多一行。
     const methods: readonly string[] = WORKING_TREE_CAPTURE_MOUNT_POINTS.map(point => point.method);

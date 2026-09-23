@@ -28,6 +28,20 @@ import { runCrudSuite, runLifecycleSuite, runTamperSuite } from '@aiao/rxdb-test
 
 **它划的是包边界，不是「什么能下沉」**：凡是只用到 core 与最小结构类型的测试骨架都应当住在本包，即使它当前只有一个适配器在用。下沉与否看依赖方向，不看使用者数量。
 
+### 已下沉 / 刻意不下沉
+
+按上面那条口径把六个适配器的测试夹具逐项过了一遍，结论分两拨：
+
+**已下沉**——只碰 core 与最小结构类型的那些：
+
+- `cleanupSqliteTestAdapter`（清库回到「新库形态」，见 `src/testing/sqlite.ts`）；
+- `registerQueryCount` / `queryCountOf`（加密套件的查询计数登记表，见 `src/encrypted/query-count.ts`）。
+
+**刻意不下沉**——六个适配器工厂那段「造 `RxDB` → `adapter()` → `use()` 插件 → `connect()`」骨架。这不是漏做，理由两条：
+
+1. **形状本来就不一致，上提后参数表比被消掉的重复还长。** 适配器类、选项形状、以及连不上时怎么收场三件事各不相同：`sqlite` / `sqliteai` 要用 `try/catch` 兜住失败路径再 `terminateWorker()`；两个 PGlite 工厂要把成品再套一层查询形状代理，于是交给套件的对象不是内层那个实例；`electron-pglite` 压根不收 `plugins`。把这些差异全用参数表达出来，得到的是一个谁都要读两遍的开关集合。
+2. **剩下的重复是同一条规则的六份解释，不是六份可能漂移的实现。** 那段骨架唯一的顺序约束是「贡献系统能力的插件必须在 `connect()` 之前 `use()`」，而它由核心 `RxDB.use()` → `#register_system_contribution` 当场抛错守着（错误消息直接说出成因）。规则本身只有一处实现，六处注释漂移了也改变不了行为。
+
 ## 加密持久化扫描的可信度边界
 
 `runCrudSuite` 要求 adapter 提供 `readDatabaseFile`，并扫描它返回的字节是否包含明文 sentinel。这个断言只证明该 adapter 暴露的 persisted-state byte view 未发现 sentinel。

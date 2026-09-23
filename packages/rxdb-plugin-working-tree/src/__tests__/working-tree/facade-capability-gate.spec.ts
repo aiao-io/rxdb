@@ -138,6 +138,10 @@ function createScene(capability: { enabled: boolean } | null): Scene {
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
 
+  // 这个替身上没有捕获钩子（种子直接进探针，没走过 `connect()`）。已启用 + 无钩子
+  // 在生产里只意味着漏掉了能力启用广播，于是 `runEnabled()` 提交后会自愈补装，而补装经
+  // `define()` **覆写实例成员**——下面这个 spy 在第一次受管调用之后就不再是
+  // `adapter.transaction` 本身了。要数开事务次数就得先取引用，包装会转发回它。
   adapter.transaction.mockImplementation(async fun => fun(probe.executor));
 
   return { database, adapter, manager: new ProbeWorkingTreeManager(database), probe };
@@ -225,11 +229,12 @@ describe('未启用的库：isEnabled / enable 照常，其余一律拒绝', () 
 
   it('启用之后同一个成员放行，并且拿到的是事务执行器', async () => {
     const { manager, adapter, probe } = createScene({ enabled: true });
+    const openTransaction = adapter.transaction;
 
     await expect(manager.probe()).resolves.toBe(probe.executor.id);
     // 受管命令必须跑在写事务里：门禁读到的启用态与命令的写入必须同进同出，
     // 否则「读到已启用」和「写入」之间隔着一个别人可以 disable 的窗口。
-    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(openTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('能力行缺失时抛的是迁移缺失，不是「未启用」', async () => {

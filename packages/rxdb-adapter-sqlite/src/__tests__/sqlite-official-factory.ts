@@ -1,7 +1,7 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
+import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { createSqliteClient } from '../create_sqlite_client.js';
 import { RxDBAdapterSqlite } from '../RxDBAdapterSqliteOfficial.js';
 import type { SqliteOptions } from '../sqlite-official.interface.js';
@@ -14,8 +14,6 @@ class QueryCountingSqliteOfficialAdapter extends RxDBAdapterSqlite {
     return super.query(...args);
   }
 }
-
-const encryptedQueryCounts = new WeakMap<object, () => number>();
 
 const workers = new WeakMap<RxDB, Worker>();
 
@@ -112,10 +110,9 @@ async function createSqliteOfficialAdapter(
 
 export const sqliteOfficialEncryptedFactory: EncryptedAdapterFactory = {
   name: 'sqlite',
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
   createAdapter: async options => {
     const adapter = await createSqliteOfficialAdapter(options);
-    encryptedQueryCounts.set(adapter, () => adapter.queryCount);
-    return adapter;
+    return registerQueryCount(adapter, () => adapter.queryCount);
   }
 };

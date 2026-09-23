@@ -9,7 +9,12 @@
  */
 import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory, EncryptedTestAdapter } from '@aiao/rxdb-test/encrypted';
+import {
+  queryCountOf,
+  registerQueryCount,
+  type EncryptedAdapterFactory,
+  type EncryptedTestAdapter
+} from '@aiao/rxdb-test/encrypted';
 import type { Results } from '@electric-sql/pglite';
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -24,11 +29,9 @@ class QueryCountingPGliteAdapter extends RxDBAdapterPGlite {
   }
 }
 
-const encryptedQueryCounts = new WeakMap<object, () => number>();
-
 export const pgliteFactory: EncryptedAdapterFactory = {
   name: 'pglite',
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
 
   async createAdapter(options?: Record<string, unknown>): Promise<EncryptedTestAdapter> {
     const entities = ((options?.['entities'] as EntityType[]) ?? []).slice();
@@ -62,9 +65,9 @@ export const pgliteFactory: EncryptedAdapterFactory = {
     await rxdb.connect('pglite');
     if (!countingAdapter) throw new Error('pglite adapter factory did not create an adapter');
     const adapter = countingAdapter;
+    // 登记键必须是**交给套件的那个对象**（代理），读数函数闭包捕获内层带计数器的实例。
     const wrapped = wrapEncryptedQueryShape(adapter) as unknown as EncryptedTestAdapter;
-    encryptedQueryCounts.set(wrapped, () => adapter.queryCount);
-    return wrapped;
+    return registerQueryCount(wrapped, () => adapter.queryCount);
   }
 };
 

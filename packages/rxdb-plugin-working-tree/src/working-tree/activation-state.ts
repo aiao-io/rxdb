@@ -22,11 +22,17 @@
  */
 
 import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
-import { RxDBError } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBError, sqlStringLiteral } from '@aiao/rxdb';
+import { createColumnOf } from '../entity-column.js';
 import {
   WORKING_TREE_ACTIVATION_STATE_ID,
   WorkingTreeActivationState
 } from './working-tree-activation-state.entity.js';
+
+/** `WorkingTreeActivationState` 里参与代际发放的那两列。 */
+type WorkingTreeActivationStateColumn = 'id' | 'branchGenerationSeq';
+
+const columnOf = createColumnOf<WorkingTreeActivationStateColumn>('WorkingTreeActivationState');
 
 /**
  * 激活态单行的只读视图。
@@ -116,32 +122,132 @@ export const readWorkingTreeActivationState = async (
 };
 
 /**
- * 发放下一个分支代际：`branchGenerationSeq + 1`，并把新值写回单调源。
+ * 拼那条发放语句：把代际就地 +1。
+ *
+ * @param tableRef - 由 executor 解析出来的物理表引用
+ * @returns 单条 UPDATE
+ *
+ * @remarks
+ * `SET seq = seq + 1` 而不是 `SET seq = <算好的数>`：后者那个数只能来自一次自读，
+ * 于是两条并发的 create branch 会读到同一个当前值、写下同一个新号，而代际的全部意义
+ * 就是**永不复用**。让库自己做那一步加法，新号是什么由行锁决定。
+ *
+ * WHERE 里只有主键那一条。多钉一条 `seq = ?` 就退回成 CAS，而这里没有调用方给的期望值
+ * 可用——唯一能填的仍是自读来的数，于是 CAS 永远命中，多出来的只有「看起来比过了」。
+ */
+const buildBranchGenerationAdvance = (tableRef: string): string => {
+  const metadata = getEntityMetadata(WorkingTreeActivationState);
+  const seq = columnOf(metadata, 'branchGenerationSeq');
+  return [
+    `UPDATE ${tableRef}`,
+    `SET ${seq} = ${seq} + 1`,
+    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(WORKING_TREE_ACTIVATION_STATE_ID)}`
+  ].join(' ');
+};
+
+/**
+ * 拼那条读回语句：把刚发放到的号从库里取出来。
+ *
+ * @param tableRef - 由 executor 解析出来的物理表引用
+ * @returns 单条 SELECT，只取一列
+ *
+ * @remarks
+ * **不走 {@link readWorkingTreeActivationState}。** 那一条读的是仓库，而仓库交出来的是
+ * 身份映射里那个实体实例——上一条 UPDATE 是原始语句，ORM 看不见它，于是回填走的是
+ * 「逐字段避让本地未保存编辑」那条路（`entity-status.ts` › `applyExternal`）：这一行只要还
+ * 带着一处未清的本地编辑，`branchGenerationSeq` 就会被**当成用户的编辑保护起来**，读回来的
+ * 是本会话上次以为的那个数，而不是库刚发放的那个。两条新分支因此拿到同一个代际，
+ * 幂等键跟着撞号——正是 `buildBranchGenerationAdvance` 把加法交给库要躲开的那个结局。
+ *
+ * 所以写在哪条通道上，就从哪条通道读回来：加法在库里做，号也从库里取。
+ *
+ * 也不用 `UPDATE ... RETURNING` 合成一条：那条语法在本仓支持的六个后端上并不齐平
+ * （`rxdb-adapter-electron/src/sqlite-script.ts` 记着多语句脚本会把 `RETURNING` 的结果集整个吞掉），
+ * 而这两条语句本来就同属调用方那个写事务，中间插不进别人的发放。
+ */
+const buildBranchGenerationRead = (tableRef: string): string => {
+  const metadata = getEntityMetadata(WorkingTreeActivationState);
+  return [
+    `SELECT ${columnOf(metadata, 'branchGenerationSeq')}`,
+    `FROM ${tableRef}`,
+    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(WORKING_TREE_ACTIVATION_STATE_ID)}`
+  ].join(' ');
+};
+
+/**
+ * 从读回语句的结果里取出那一个数。
+ *
+ * @param rows - {@link buildBranchGenerationRead} 的返回行
+ * @returns 本次发放到的代际号
+ * @throws {@link RxDBError} 行数不是 1、或那一格不是整数时
+ *
+ * @remarks
+ * 形状不对就抛，不挑一个能用的出来：这一格要么是库刚发放的号，要么什么都不是。
+ * 放过一个非整数（某个后端把整型读成字符串、或读回 `null`）会让它一路走到
+ * `CommitBranchRef.generation` 落库，而代际是**不可变**列，落错之后没有第二次机会。
+ */
+const readSingleGeneration = (rows: readonly unknown[][]): number => {
+  if (rows.length !== 1) throw new RxDBError(generationReadbackMessage(`读回 ${rows.length} 行`));
+  const [[value]] = rows;
+  if (!Number.isInteger(value)) throw new RxDBError(generationReadbackMessage(`读回的值是 ${String(value)}`));
+  return value as number;
+};
+
+/**
+ * 读不回号时的错误文案。
+ *
+ * @param detail - 这一次具体错在哪
+ * @returns 文案
+ */
+const generationReadbackMessage = (detail: string): string =>
+  `读回分支代际失败（${detail}），期望恰好 1 行 1 个整数：` +
+  '上一条 UPDATE 已经报了命中 1 行，读不回来意味着这两条语句看见的不是同一行。' +
+  '这不能按成功继续——继续就等于让调用方自己编一个代际出来，而代际的全部意义是永不复用。';
+
+/**
+ * 发放不出号时的错误文案。
+ *
+ * @param rowsAffected - 那条 UPDATE 实际命中的行数
+ * @returns 文案
+ */
+const allocationMissMessage = (rowsAffected: number): string =>
+  `发放分支代际时命中 ${rowsAffected} 行，期望恰好 1 行：` +
+  '激活态是单例行——命中 0 行意味着迁移 0004-working-tree-commits 建了表却没写入这一行（或它被外部删除了），' +
+  '命中多行意味着有人往这张表里写了第二行。' +
+  '这不是「暂时没号可发」，不能按成功继续：那会让这条新分支带着一个不可信的代际落库。';
+
+/**
+ * 发放下一个分支代际：让库把 `branchGenerationSeq` 就地 +1，再把新值读回来。
  *
  * @param executor - **调用方那个写事务**的执行器；发放与新分支落库必须同属一个事务
  * @returns 本次发放的代际号，首次发放为 1
- * @throws {@link RxDBError} 激活态行缺失时
+ * @throws {@link RxDBError} 单例行不存在、或不止一行（`rowsAffected !== 1`）时
  *
  * @remarks
- * 「取号」与「写回」不可分开：分成两步会让两个并发的 create branch 拿到同一个号，
- * 而代际的全部意义就是**永不复用**——复用之后，持旧 `(branchId, headRevision)` 的调用方
- * 会误中同名重建的新分支（ABA），提交幂等键也就同时失效（`commit-idempotency.ts`）。
- * 本地写队列并发度为 1，同事务内的读—改—写因此是原子的。
+ * **加法在库里做，不在 JS 里做**（见 {@link buildBranchGenerationAdvance}）。这里曾经是一次
+ * 同事务内的读—改—写，靠一句「本地写队列并发度为 1，同事务内的读—改—写因此是原子的」自辩；
+ * 那句话把「一个库只有一个连接在写」当成前提，而 `threat-model.md` §6 已经把跨连接明确划进
+ * 模型内——同一个库可以有第二个标签页、第二个 worker 在写，写队列只排得住自己进程里的那些。
  *
- * 缺行**抛错**，不补行：理由同 {@link readWorkingTreeActivationState}——补出来的
- * `branchGenerationSeq = 0` 会让这条新分支与既有分支撞号。
+ * **返回值现读库，不是 `读到的 + 1`。** 读回来那一次落在同一个事务里，它看得见自己刚写下的
+ * 那一步加法；并发的第二条发放此刻正卡在这一行的行锁上（SQLite 家族则整条写事务串行），
+ * 所以读回来的就是本次发放到的号。省掉这次读、在 JS 里算一个数出来的话，前面那条 UPDATE
+ * 就白发了——号仍然是调用方算的。
+ *
+ * **读回来那一次也走原始语句**（{@link buildBranchGenerationRead}），不走仓库：仓库交出的是
+ * 身份映射里的实体实例，它看不见上一条原始 UPDATE，回填时反而会把 `branchGenerationSeq`
+ * 当成「本地未保存的编辑」保护下来。两条语句因此都落在同一条通道上——加法在库里做，
+ * 号也从库里取，中间没有一层会替它记答案的缓存。
+ *
+ * `rowsAffected !== 1` 当场抛，不静默走过去，理由与 {@link readWorkingTreeActivationState}
+ * 的缺行抛错同源，代价更重：带着一个不可信代际落库的新分支，会让持旧 `(branchId, headRevision)`
+ * 的调用方误中同名重建的那一条（ABA），提交幂等键跟着一起失效（`commit-idempotency.ts`），
+ * 而这一次撞号在建分支的那一刻是完全静默的。
  */
 export const allocateBranchGeneration = async (executor: TransactionExecutor): Promise<number> => {
-  const repository = executor.getRepository(WorkingTreeActivationState);
-  const [row] = await repository.find({
-    where: {
-      combinator: 'and',
-      rules: [{ field: 'id', operator: '=', value: WORKING_TREE_ACTIVATION_STATE_ID }]
-    },
-    limit: 1
-  });
-  if (!row) throw new RxDBError(MISSING_ACTIVATION_ROW);
-  const generation = row.branchGenerationSeq + 1;
-  await repository.update(row, { branchGenerationSeq: generation });
-  return generation;
+  const tableRef = executor.tableRef(WorkingTreeActivationState);
+  const { rowsAffected } = await executor.query(buildBranchGenerationAdvance(tableRef));
+  if (rowsAffected !== 1) throw new RxDBError(allocationMissMessage(rowsAffected));
+  const { rows } = await executor.query(buildBranchGenerationRead(tableRef));
+  return readSingleGeneration(rows);
 };

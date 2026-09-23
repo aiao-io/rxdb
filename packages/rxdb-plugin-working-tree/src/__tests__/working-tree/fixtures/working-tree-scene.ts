@@ -266,6 +266,13 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   state.updatedAt = new Date('2026-01-01T00:00:00.000Z');
   probe.seed(WorkingTreeState, [state]);
 
+  // 场景是「能力已启用、适配器上还没有捕获钩子」——种子直接写进探针，没走过 `connect()`，
+  // 于是 `bootstrapExisting()` 那次装载一次都没发生。生产里这个组合只有一种成因（漏掉了
+  // 能力启用广播），所以门面的 `runEnabled()` 会在事务提交后自愈补装。补装用的是
+  // `installWorkingTreeCapture()`，而它经 `define()` **覆写实例成员**：第一次受管调用之后，
+  // `adapter.transaction` 不再是下面这个 spy，而是转发回它的拦截包装。
+  //
+  // 要数开事务次数的用例因此得**先取引用再调用**。包装转发回原件，引用上的计数仍然是真的。
   adapter.transaction.mockImplementation(async fun => fun(probe.executor));
 
   let nextIndex = 0;

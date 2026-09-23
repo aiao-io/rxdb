@@ -18,7 +18,12 @@ import { RxDB, SyncType, type EntityType } from '@aiao/rxdb';
 import { dumpPGliteUserTables, wrapEncryptedQueryShape } from '@aiao/rxdb-adapter-pglite/testing';
 import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory, EncryptedTestAdapter } from '@aiao/rxdb-test/encrypted';
+import {
+  queryCountOf,
+  registerQueryCount,
+  type EncryptedAdapterFactory,
+  type EncryptedTestAdapter
+} from '@aiao/rxdb-test/encrypted';
 import type { Results } from '@electric-sql/pglite';
 import { PGlite } from '@electric-sql/pglite';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -119,8 +124,6 @@ class QueryCountingElectronPGliteAdapter extends RxDBAdapterElectronPGlite {
   }
 }
 
-const encryptedQueryCounts = new WeakMap<object, () => number>();
-
 /**
  * 造一个连上进程内 host 的桌面 PGlite 适配器。
  *
@@ -165,12 +168,12 @@ export async function createDesktopPgliteAdapter(
 /** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的桌面 PGlite 工厂。 */
 export const electronPgliteEncryptedAdapterFactory: EncryptedAdapterFactory = {
   name: ADAPTER_NAME,
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
   createAdapter: async options => {
     const adapter = await createDesktopPgliteAdapter(options);
+    // 登记键必须是**交给套件的那个对象**（代理），读数函数闭包捕获内层带计数器的实例。
     const wrapped = wrapEncryptedQueryShape(adapter) as unknown as EncryptedTestAdapter;
-    encryptedQueryCounts.set(wrapped, () => adapter.queryCount);
-    return wrapped;
+    return registerQueryCount(wrapped, () => adapter.queryCount);
   }
 };
 

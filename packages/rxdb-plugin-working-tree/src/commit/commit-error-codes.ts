@@ -48,7 +48,7 @@ export const CommitErrorCode = {
    *
    * @remarks
    * 三处共用本码：
-   * - adapter 五步 bypass 判定的第 4 步（写目标表 ∩ 版本化业务实体表 ≠ ∅ **且**
+   * - adapter 四步 bypass 判定的第 3 步（写目标表 ∩ 版本化业务实体表 ≠ ∅ **且**
    *   被写列集 ⊄ untracked 字段域），见 contracts/adapter-contract.md；
    * - `upsertMany()` / `deleteByIds()` 这两个够不到 `rawQuery` 的公开批量写方法；
    * - `EntityManager.notifyExternalUpdate()` 对版本化实体。

@@ -26,7 +26,7 @@
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';
-import { getEntityColumnName, getEntityMetadata, quoteSqlIdentifier, RxDBBranch } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
@@ -47,7 +47,8 @@ import {
   type ActiveBranchToken,
   type CapturedWrite
 } from '../../working-tree/write-entry.js';
-import { normalizeSql, setClauseOf, whereClauseOf } from '../commit/fixtures/commit-graph-probe.js';
+import { setClauseOf, whereClauseOf } from '../commit/fixtures/commit-graph-probe.js';
+import { activationColumn, activationFindCountOf, activationUpdatesOf } from './fixtures/activation-sql.js';
 import {
   createWorkingTreeScene,
   entryRowsOf,
@@ -66,32 +67,7 @@ const OTHER_TAB_REVISION = 9;
 /** 另一个标签页切过去的那条分支。 */
 const OTHER_BRANCH_ID = 'feature-x';
 
-const ACTIVATION = getEntityMetadata(WorkingTreeActivationState);
 const NOTE = getEntityMetadata(SceneNote);
-
-/**
- * 取激活态表某个字段在语句里的真实写法（加引号后小写，便于与归一化后的 SQL 比）。
- *
- * @remarks
- * 带引号取，因为本仓所有手拼 SQL 的模块都经 `quoteSqlIdentifier()` 写列名
- * （`working-tree-state-sql.ts` / `commit-capability.ts` / `write-commit.ts` / `restore-session-transitions.ts`）：
- * 裸名比对会把「按约定加引号」判成不合格，而那条约定正是列名撞上保留字那天唯一的保护。
- */
-const activationColumn = (field: string): string => {
-  const columnName = getEntityColumnName(ACTIVATION, field);
-  if (!columnName) throw new Error(`WorkingTreeActivationState 元数据里没有 '${field}' 对应的列`);
-  return quoteSqlIdentifier(columnName).toLowerCase();
-};
-
-/** 打在激活态表上的 UPDATE，按发出顺序。 */
-const activationUpdatesOf = (scene: WorkingTreeScene): string[] =>
-  scene.probe.statements
-    .map(normalizeSql)
-    .filter(sql => sql.startsWith('update') && new RegExp(`\\b${ACTIVATION.tableName}\\b`).test(sql));
-
-/** 本次调用在激活态表上发过的 `find()` 次数。 */
-const activationFindCountOf = (scene: WorkingTreeScene): number =>
-  scene.probe.finds.filter(call => call.entity === ACTIVATION.name).length;
 
 /** 造一个装着激活态初值的场景；`rowsAffected` 决定这一次 CAS 命不命中。 */
 const sceneFor = (rowsAffected: number): WorkingTreeScene =>
@@ -173,7 +149,7 @@ describe('activation revision 的递增走一条持久化 CAS（FR-020）', () =
 
     await bumpActivationRevision(scene.probe.executor, CAPTURED_REVISION);
 
-    const updates = activationUpdatesOf(scene);
+    const updates = activationUpdatesOf(scene.probe.statements);
     expect(updates).toHaveLength(1);
     expect(setClauseOf(updates[0] ?? '')).toContain(
       `${activationColumn('activationRevision')} = ${CAPTURED_REVISION + 1}`
@@ -188,7 +164,7 @@ describe('activation revision 的递增走一条持久化 CAS（FR-020）', () =
     // 少了 revision 那一条，这就是一条无条件覆盖：两个标签页各自 +1，后到的那个把
     // 先到的那次切换抹掉，而两边都读到 `rowsAffected = 1`。
     // 少了主键那一条，它会在某天这张表长出第二行时把两行一起改。
-    const where = whereClauseOf(activationUpdatesOf(scene)[0] ?? '');
+    const where = whereClauseOf(activationUpdatesOf(scene.probe.statements)[0] ?? '');
     expect({
       pinsId: where.includes(`${activationColumn('id')} = '${WORKING_TREE_ACTIVATION_STATE_ID}'`),
       pinsRevision: where.includes(`${activationColumn('activationRevision')} = ${CAPTURED_REVISION}`)
@@ -202,7 +178,7 @@ describe('activation revision 的递增走一条持久化 CAS（FR-020）', () =
 
     // 自己读出来的期望值恒等于当前值，CAS 于是永远命中——这比不校验更糟，
     // 因为它看起来校验过了（`commit-conflict.ts` 第 2 条同一个理由）。
-    expect(activationFindCountOf(scene)).toBe(0);
+    expect(activationFindCountOf(scene.probe.finds)).toBe(0);
   });
 
   it('命中时返回推进之后的那个值', async () => {
@@ -271,7 +247,7 @@ describe('CAS 落空是一个 CommitConflict 值，不是异常（FR-020/035）'
     await bumpActivationRevision(scene.probe.executor, CAPTURED_REVISION);
 
     // 拿第二次读到的值再打一次 CAS，那一次必然成功——而它盖掉的正是别人刚做完的那次切换。
-    expect(activationUpdatesOf(scene)).toHaveLength(1);
+    expect(activationUpdatesOf(scene.probe.statements)).toHaveLength(1);
   });
 });
 
@@ -394,7 +370,7 @@ describe('每一次切换都无条件推进 activation revision（FR-020）', ()
     await advanceActivationRevision(scene.probe.executor);
 
     const revision = activationColumn('activationRevision');
-    const updates = activationUpdatesOf(scene);
+    const updates = activationUpdatesOf(scene.probe.statements);
     expect(updates).toHaveLength(1);
     expect(setClauseOf(updates[0] ?? '')).toContain(`${revision} = ${revision} + 1`);
   });
@@ -404,7 +380,7 @@ describe('每一次切换都无条件推进 activation revision（FR-020）', ()
 
     await advanceActivationRevision(scene.probe.executor);
 
-    const where = whereClauseOf(activationUpdatesOf(scene)[0] ?? '');
+    const where = whereClauseOf(activationUpdatesOf(scene.probe.statements)[0] ?? '');
     expect({
       pinsId: where.includes(`${activationColumn('id')} = '${WORKING_TREE_ACTIVATION_STATE_ID}'`),
       pinsRevision: where.includes(activationColumn('activationRevision'))
@@ -416,7 +392,7 @@ describe('每一次切换都无条件推进 activation revision（FR-020）', ()
 
     await advanceActivationRevision(scene.probe.executor);
 
-    expect(activationFindCountOf(scene)).toBe(0);
+    expect(activationFindCountOf(scene.probe.finds)).toBe(0);
   });
 
   it('单例行不在时当场抛，不静默走过去', async () => {

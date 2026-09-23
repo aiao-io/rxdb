@@ -531,6 +531,31 @@ export class RxDB {
   }
 
   /**
+   * 已连接的本地适配器实例；未配置或尚未连接时为 `undefined`
+   *
+   * @remarks
+   * **这条路不抛**，与 {@link RxDB.localAdapterSync} 的分工只在这一点上：那个服务的是
+   * 声明了 `inject: ['adapter:local']` 的插件，被调用时依赖必然已就绪，取不到就是调用方
+   * 的时序错误，该炸；这个服务的是**事件到达时**才执行的代码 —— 事件什么时候来不由接收方
+   * 决定，一条在断连期间飘到的通知不该变成一次异常。
+   *
+   * 今天的唯一消费方是能力插件的 {@link CAPABILITY_ENABLED_EVENT} 处理器（FR-037）：
+   * 它要在收到通知的**同一个同步块**里把捕获钩子装到本纪元的适配器上，走
+   * `await firstValueFrom(localAdapter$)` 会让出一个微任务，而那个缝隙里的写入不留痕迹。
+   *
+   * 读的是**调度器为本纪元绑定的那个实例**（与 `localAdapterSync` 同一份来源），不是按名字
+   * 重新解析：纪元交替时两者可能指向不同对象，而钩子必须装在当前纪元的那一个上。
+   *
+   * @internal
+   */
+  get localAdapterIfConnected(): (IRxDBAdapter & RxDBAdapterLocalBase) | undefined {
+    const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
+    // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
+    // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
+    return adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined;
+  }
+
+  /**
    * @param options - RxDB 配置选项
    */
   constructor(options: RxDBOptions) {
@@ -1221,6 +1246,30 @@ export class RxDB {
    */
   invalidateRemoteEntity(entity: string, namespace = 'public'): void {
     this.dispatchEvent(new RemoteEntityInvalidatedEvent(namespace, entity));
+  }
+
+  /**
+   * 通知同源的其他连接：某个能力刚在本连接上被启用（FR-037）。
+   *
+   * @param capability - 能力名，与 `RxDBSystemContribution.capability` 同值
+   *
+   * @remarks
+   * 能力位只在**连接期**读一次（见 {@link RxDBSystemContribution.bootstrapExisting}），
+   * 于是「A 启用、B 早已连上」这一种排列下，B 此后的每一次写都绕开该能力，**一条错误都不会有**。
+   * 本方法就是那条补齐用的通道：启用方发一次，同源的其他连接收到
+   * {@link CAPABILITY_ENABLED_EVENT} 后自行接通。
+   *
+   * **只覆盖同源的 BroadcastChannel 可达范围。** 跨进程（Electron 主/渲染、Tauri、Node 多进程）
+   * 与 `multiInstance: false` 的实例收不到 —— 那两种情形由能力插件自己的自愈路径收窄，
+   * 见 `specs/001-working-tree-commits/threat-model.md` §6。
+   *
+   * 发起方自己收不到这条事件（网关按 `clientId` 忽略自己发的消息），这是对的：
+   * 它在 `enable()` 里已经同步接通过了，再收一次只会让接通发生两遍。
+   *
+   * 网关未启用（`multiInstance: false`）时是无操作，不抛。
+   */
+  broadcastCapabilityEnabled(capability: string): void {
+    this.#gateway?.broadcastCapabilityEnabled(capability);
   }
 
   addEventListener<T extends keyof RxDBEventMap>(type: T, listener: EventListener<RxDBEventMap[T]>): void {

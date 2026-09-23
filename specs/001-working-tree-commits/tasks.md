@@ -142,7 +142,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T047 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts`：冷重放不变量作为「捕获是否完备」的**唯一**判据，不靠计数相等（conformance-suites.md §1.1、SC-009）
 - [x] T048 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts`：spec.md「写入口语义矩阵」**每一行**至少一条用例，含「只更新 `remoteId` / 同步水位 / 审计时间 → 不创建单元、不递增 revision」与「`cleanupExpired()` 过期删除 → 落 `origin='remote_sync'` DELETE 单元并递增 revision」（FR-046、conformance-suites.md §1.2）
 - [x] T049 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/observable-gate.spec.ts`：`upsertMany()` / `deleteByIds()` 返回 `Observable<void>`，门禁必须在**返回 Observable 之前同步拒绝**，断言调用方从不订阅时业务表同样零变化（adapter-contract.md §1.1）
-- [x] T050 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：5 步判定每步一组用例；第 4 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
+- [x] T050 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：4 步判定每步一组用例；第 3 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
 - [x] T051 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/untracked-domain.spec.ts`：三类 untracked 各一组 + 「清单外的实体默认 tracked」；tracked 与 untracked 混进同一事务抛 `mixed_versioned_cache_transaction` 且**整事务回滚**；`origin='remote_sync'` **不是** untracked；untracked 是静态属性（conformance-suites.md §1.4）
 - [x] T052 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-fold.spec.ts`：同一实体多次写入的折叠规则——patch 取最新、**inversePatch 取首次捕获值**、INSERT+DELETE 相抵、origin 取最新、**不做值级归零**；`entryCount` 与实际条目数的不变量断言（data-model.md §2.7）
 - [x] T053 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts`：每次普通 CRUD 在同事务内校验 active branch token、写业务实体、写/合并完整 `WorkingTreeEntry`、递增 `workingTreeRevision`；任一步失败全部回滚；**禁止**只靠内存 dirty set 重建（FR-039）
@@ -157,7 +157,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T059 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的**本地** `mergeChanges(actions, localChanges?, disableTriggers?)`（:200）挂载捕获，按签名与远端重载（:322）区分；`disableTriggers` 为真时**仍**写 `origin='remote_sync'` 单元且不形成 push echo（FR-046、挂载点 2）
 - [x] T060 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `switchBranch(options)`（:182）挂载捕获：分支物化与 redo 失效**不产生**单元，undo/redo **产生**单元（挂载点 3）
 - [x] T061 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `upsertMany()`（:239）与 `deleteByIds()`（:255）显式挂门禁，并在**返回 Observable 之前同步拒绝**；入参是整行而非列集，故对版本化实体一律落第 4 步（挂载点 4、adapter-contract.md §1.1）
-- [x] T062 [US2] 实现**共享的** 5 步 bypass 判定于 `packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 4 步的保守口径处理）（R4、adapter-contract.md §2）
+- [x] T062 [US2] 实现**共享的** 4 步 bypass 判定于 `packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 3 步的保守口径处理）（R4、adapter-contract.md §2）
 - [x] T063 [US2] 从 `packages/rxdb/src/index.ts` 导出 T062 的判定入口（`Commit*` / `WorkingTree*` 前缀），供适配器调用；`rawQuery?()` 在 `packages/rxdb/src/rxdb-adapter.ts:94` 是**可选方法**，判定不得假设它普遍存在
 - [x] T064 [US2] 在 6 个 v1 适配器各自的 `rawQuery` 实现中调用 T062 的共享判定（`packages/rxdb-adapter-pglite/src/`、`-wa-sqlite/src/`、`-sqlite-wasm/src/`、`-sqlite/src/`、`-sqliteai/src/`、`-electron/src/`）——**一份判定，六处调用**，不各写一份；没有 `rawQuery` 的适配器不因此获得豁免，其 `upsertMany` / `deleteByIds` 仍受 T061 约束
 - [x] T065 [US2] 给 9 个受信调用点加显式意图枚举（内部契约，**不进**公开 api-baseline）：`packages/rxdb-plugin-history/src/`（原 `packages/rxdb/src/version/`，de70a1a9 拆包后迁出）下的 `VersionManager.ts·switchBranch`、`restore-entity.ts·restore_entity`、`HistoryManager.ts·invalidateRedoStack`、`undo-redo-apply.ts·applyUndoRedoHistories`、`merge-branch.ts·merge_branch`（逐条与压缩**各一行**）、`pull-batch.ts·pullBatchOnce`、`pull-repository.ts·pullSingleRepository`、`cleanup-expired.ts·cleanupExpired`（adapter-contract.md §3）
@@ -565,7 +565,7 @@ US-305 ──► US-306 阶段 A ──► US-306 阶段 B ──┬──► US
 - T019（schema 3→4 单条迁移）依赖 T018；全有或全无，任一分支初始化失败即停在 v3
 - T038（共享损坏守卫）是 T077 / T084 / T106 / T117 的共同前置——**四处复用同一份，不得各写一份**
 - T056（单一版本化域清单）是 T062 与 T067 的前置——**不得另建第二份清单**
-- T062（共享 5 步判定）是 T064 六处调用的前置
+- T062（共享 4 步判定）是 T064 六处调用的前置
 - T082（`CommitConflict` 定义）是 T119（activation 维度扩展）的前置——扩展既有类型，不新建并行类型
 - T042 / T067（两套套件）是 T043 / T068（6 适配器调用点）的前置；T044（调用点门禁）在两者之后
 - T097（reference 冻结）**必须先于任何发布候选签入**，且 T109 的 restore 测量项接入同一份 reference
@@ -613,12 +613,12 @@ Task: "声明 WorkingTreeMaterializationPage in packages/rxdb-plugin-working-tre
 ## Parallel Example: 6 适配器接入（Phase 4 / T064）
 
 ```bash
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-pglite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-wa-sqlite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqlite-wasm/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqlite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqliteai/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-electron/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-pglite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-wa-sqlite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqlite-wasm/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqlite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqliteai/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-electron/src/"
 ```
 
 ---

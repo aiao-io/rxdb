@@ -1,5 +1,5 @@
 /**
- * @fileoverview T050 红测试：raw 写路径的 5 步 bypass 判定（adapter-contract.md §2、FR-046）。
+ * @fileoverview T050 红测试：raw 写路径的 4 步 bypass 判定（adapter-contract.md §2、FR-046）。
  *
  * @remarks
  * 判定只有一份，落在 `packages/rxdb`，由 6 个适配器各自的 `rawQuery` 调用。所以这里测的是
@@ -12,28 +12,30 @@
  *
  * 为什么这些断言值得写：
  *
- * 1. **结论里带「第几步」，不只带「拦没拦」。** 五步的顺序本身就是契约：同一条语句可能同时满足
- *    第 1 步与第 4 步（未启用能力 + 写版本化表），落哪一步决定了未启用的库是照常工作还是开始报错。
- *    只断言 allow/reject 的话，把第 1 步挪到第 4 步之后仍然全绿，而那是一次面向所有未启用用户的故障。
- * 2. **第 4 步断的是「业务表零变化」，不是「写完回滚」。** 所以挂载壳拿的是**还没被调用的**执行器，
+ * 1. **结论里带「第几步」，不只带「拦没拦」。** 四步的顺序本身就是契约：同一条语句可能同时满足
+ *    第 1 步与第 3 步（未启用能力 + 写版本化表），落哪一步决定了未启用的库是照常工作还是开始报错。
+ *    只断言 allow/reject 的话，把第 1 步挪到第 3 步之后仍然全绿，而那是一次面向所有未启用用户的故障。
+ * 2. **第 3 步断的是「业务表零变化」，不是「写完回滚」。** 所以挂载壳拿的是**还没被调用的**执行器，
  *    用例直接断言它一次都没被调用。回滚形态在单测里同样能给出正确的错误类型——但它在没有事务的
  *    raw 通道上根本回滚不了，而这正是 raw 通道存在的原因。
- * 3. **解析不出来时必须落第 4 步（fail-closed）。** 目标表解析不出、列集解析不出、语句批里混了第二条
+ * 3. **解析不出来时必须落第 3 步（fail-closed）。** 目标表解析不出、列集解析不出、语句批里混了第二条
  *    写语句——这三类都得拦。反过来的读法（解析不出就放行）会让绕过捕获变成一道语法题：只要把语句
  *    写得判定读不懂就行。
  * 4. **词法归一化是判定的一部分，不是调用方的责任。** 大小写、引号标识符、schema 限定三种写法在
  *    6 个后端上混着出现；归一化交给调用方意味着 6 份实现，而它们只需要有一份写松，整条防线就有洞。
- * 5. **`INSERT` 不因为列名都在 untracked 域里就获得豁免。** 第 5 步的豁免对象是「只更新元数据列」的
+ * 5. **`INSERT` 不因为列名都在 untracked 域里就获得豁免。** 第 4 步的豁免对象是「只更新元数据列」的
  *    UPDATE；新插入一行本身就是净变化。与写入口语义矩阵（T048）行 4 的判据逐字同源，两处不一致时
  *    raw 通道会成为那条更松的路。
- * 6. **受信 intent 是内部契约，不是公开参数。** 它排在第 2 步——在「是不是写语句」之前——因为登记表里
- *    的路径（分支物化、基线重写）本来就要写版本化表，让它们先过第 3、4 步再靠豁免捞回来，等于把
- *    判定写成「先拦下再放行」，而每加一条受信路径都要再改一次拦截逻辑。
+ * 6. **没有「受信 intent 豁免」可测，因为判定里没有这一步。** 判定曾有过一步「携带内部受信 `intent`
+ *    → 放行」，2026-09-23 连同上下文槽位一起删除：`TRUSTED_CALLSITE_REGISTRY` 的 9 个条目全部走
+ *    `switchBranch` / `mergeChanges` 这两个带类型的写原语，一个 raw 调用点都没有，那一步在生产里
+ *    永远取不到真值——却是整条防线上唯一无条件放行的一步（threat-model.md §3）。这里记下它，是因为
+ *    「某处曾有一张万能豁免票」这件事，删掉之后在代码里就再也看不出来了。
  * 7. **判定是纯的。** 同一条语句判两次结果相同，且不动传进来的域集合——域是 T056 那一份清单的视图，
  *    判定顺手改它会让下一次判定基于被改过的域。
  */
 
-import { SyncType, TrustedWriteIntent } from '@aiao/rxdb';
+import { SyncType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
@@ -73,7 +75,7 @@ const context = (init: Partial<RawWriteJudgmentContext> = {}): RawWriteJudgmentC
 /** 判定并要求落在 reject 上，顺带把「本该拦下却放行了」变成读得懂的失败。 */
 function rejectionFor(sql: string, ctx: RawWriteJudgmentContext = context()) {
   const judgment = judgeRawWrite(sql, ctx);
-  if (judgment.kind !== 'reject') expect.unreachable(`期望第 4 步拦下，实际落在第 ${judgment.step} 步：${sql}`);
+  if (judgment.kind !== 'reject') expect.unreachable(`期望第 3 步拦下，实际落在第 ${judgment.step} 步：${sql}`);
   return judgment;
 }
 
@@ -98,77 +100,58 @@ describe('第 1 步 — 提交能力未启用即放行', () => {
     expect(allowanceFor('EXECUTE some_prepared_statement', context({ capabilityEnabled: false })).step).toBe(1);
   });
 
-  it('排在受信 intent 之前：不带 intent 也不报错', () => {
+  it('DDL 也在第 1 步放行：未启用的库不因为语句种类而改行为', () => {
     const judgment = allowanceFor('DROP TABLE post', context({ capabilityEnabled: false }));
     expect(judgment.reason).toBe('capability_disabled');
   });
 });
 
-describe('第 2 步 — 受信 intent 放行', () => {
-  it('分支物化写版本化表 → 放行', () => {
-    expect(
-      allowanceFor("UPDATE post SET title = 'x'", context({ intent: TrustedWriteIntent.branch_materialization }))
-    ).toEqual({ kind: 'allow', step: 2, reason: 'trusted_intent' });
-  });
-
-  it('排在「是不是写语句」之前：读语句带 intent 也报第 2 步', () => {
-    // 顺序有可观测形式，这条就是它：登记表里的路径不必先过完第 3、4 步再被捞回来。
-    expect(
-      allowanceFor('SELECT * FROM post', context({ intent: TrustedWriteIntent.branch_materialization })).step
-    ).toBe(2);
-  });
-
-  it('不带 intent 的同一条语句被拦下', () => {
-    expect(rejectionFor("UPDATE post SET title = 'x'").step).toBe(4);
-  });
-});
-
-describe('第 3 步 — 非写语句放行', () => {
+describe('第 2 步 — 非写语句放行', () => {
   it('对版本化表的 SELECT', () => {
     expect(allowanceFor('SELECT id, title FROM post WHERE id = 1')).toEqual({
       kind: 'allow',
-      step: 3,
+      step: 2,
       reason: 'not_a_write'
     });
   });
 
   it('纯读的 CTE', () => {
-    expect(allowanceFor('WITH recent AS (SELECT * FROM post LIMIT 10) SELECT * FROM recent').step).toBe(3);
+    expect(allowanceFor('WITH recent AS (SELECT * FROM post LIMIT 10) SELECT * FROM recent').step).toBe(2);
   });
 
   it('写在 CTE 里的 UPDATE 不算读语句', () => {
     // `WITH x AS (UPDATE …) SELECT` 是一条以 WITH 开头的**写**语句。按首关键字分类的实现会在这里放行，
     // 而它写的正是版本化业务表。
-    expect(rejectionFor("WITH moved AS (UPDATE post SET title = 'x' RETURNING id) SELECT * FROM moved").step).toBe(4);
+    expect(rejectionFor("WITH moved AS (UPDATE post SET title = 'x' RETURNING id) SELECT * FROM moved").step).toBe(3);
   });
 });
 
-describe('第 4 步 — 写到版本化业务表且列集不是 untracked 子集', () => {
+describe('第 3 步 — 写到版本化业务表且列集不是 untracked 子集', () => {
   it('UPDATE 报出被命中的表', () => {
     const judgment = rejectionFor("UPDATE post SET title = 'x' WHERE id = 1");
-    expect(judgment).toMatchObject({ kind: 'reject', step: 4, code: CommitErrorCode.commit_capability_mismatch });
+    expect(judgment).toMatchObject({ kind: 'reject', step: 3, code: CommitErrorCode.commit_capability_mismatch });
     expect(judgment.tables).toEqual(['post']);
   });
 
   it('DELETE 与 INSERT 一样拦', () => {
-    expect(rejectionFor('DELETE FROM post WHERE id = 1').step).toBe(4);
-    expect(rejectionFor("INSERT INTO comment (id, body) VALUES ('c1', 'hi')").step).toBe(4);
+    expect(rejectionFor('DELETE FROM post WHERE id = 1').step).toBe(3);
+    expect(rejectionFor("INSERT INTO comment (id, body) VALUES ('c1', 'hi')").step).toBe(3);
   });
 
   it('DDL 也是写：DROP / ALTER 版本化表被拦', () => {
-    // 迁移确实要做 DDL，但它走第 2 步的受信 intent；没有 intent 的 `DROP TABLE post` 会让业务数据
-    // 整张消失而工作树里一个单元都没有。
-    expect(rejectionFor('DROP TABLE post').step).toBe(4);
-    expect(rejectionFor('ALTER TABLE post ADD COLUMN subtitle TEXT').step).toBe(4);
+    // 判定没有「这是迁移」这一档：`DROP TABLE post` 会让业务数据整张消失而工作树里一个单元都没有，
+    // 而 raw 通道上没有任何东西能证明发起方是迁移。要做 schema 变更就先关掉提交能力（落第 1 步）。
+    expect(rejectionFor('DROP TABLE post').step).toBe(3);
+    expect(rejectionFor('ALTER TABLE post ADD COLUMN subtitle TEXT').step).toBe(3);
   });
 
   it('列集里混入业务列 → 整条拦下', () => {
-    expect(rejectionFor("UPDATE post SET remote_id = 'r1', title = 'x'").step).toBe(4);
+    expect(rejectionFor("UPDATE post SET remote_id = 'r1', title = 'x'").step).toBe(3);
   });
 
   it('INSERT 的列名全在 untracked 域里也拦', () => {
     // 豁免只对「只更新元数据列」的 UPDATE 成立；新插入一行本身就是净变化。
-    expect(rejectionFor("INSERT INTO post (remote_id) VALUES ('r1')").step).toBe(4);
+    expect(rejectionFor("INSERT INTO post (remote_id) VALUES ('r1')").step).toBe(3);
   });
 
   it('被拦时错误里带得走的诊断信息', () => {
@@ -178,30 +161,30 @@ describe('第 4 步 — 写到版本化业务表且列集不是 untracked 子集
   });
 });
 
-describe('第 4 步的 fail-closed：解析不出就当命中', () => {
+describe('第 3 步的 fail-closed：解析不出就当命中', () => {
   it('目标表解析不出', () => {
-    expect(rejectionFor('EXECUTE write_plan(1, 2)').step).toBe(4);
+    expect(rejectionFor('EXECUTE write_plan(1, 2)').step).toBe(3);
   });
 
   it('列集解析不出（INSERT … SELECT）', () => {
-    expect(rejectionFor('INSERT INTO post SELECT * FROM post_archive').step).toBe(4);
+    expect(rejectionFor('INSERT INTO post SELECT * FROM post_archive').step).toBe(3);
   });
 
   it('列集解析不出（子查询赋值）', () => {
-    expect(rejectionFor('UPDATE post SET (title, body) = (SELECT title, body FROM post_archive LIMIT 1)').step).toBe(4);
+    expect(rejectionFor('UPDATE post SET (title, body) = (SELECT title, body FROM post_archive LIMIT 1)').step).toBe(3);
   });
 
   it('语句批里第二条才写版本化表', () => {
     // 追加一条语句是最省事的一种绕过：判定只看第一条的话，前面放一条无害语句就够了。
-    expect(rejectionFor("UPDATE app_setting SET value = '1'; UPDATE post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("UPDATE app_setting SET value = '1'; UPDATE post SET title = 'x'").step).toBe(3);
   });
 });
 
-describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', () => {
+describe('第 4 步 — 其余写目标与「只碰 untracked 列」的写入', () => {
   it('只更新 remote_id 的 UPDATE', () => {
     expect(allowanceFor("UPDATE post SET remote_id = 'r1' WHERE id = 1")).toEqual({
       kind: 'allow',
-      step: 5,
+      step: 4,
       reason: 'untracked_only'
     });
   });
@@ -231,7 +214,7 @@ describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', 
     // 真在改 tracked 列的语句拿到 `untracked_only` 放行——**静默绕过捕获**。
     expect(
       rejectionFor("UPDATE post SET remote_id = (SELECT id FROM post_archive WHERE k = 1), title = 'x'").step
-    ).toBe(4);
+    ).toBe(3);
   });
 
   it('子查询之后的列仍在列集里：全是 untracked 列时照常放行', () => {
@@ -244,7 +227,7 @@ describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', 
 
   it('顶层的 FROM 仍然终止 SET 子句（PG 的 `UPDATE … FROM`）', () => {
     // 与上一条相反的方向：终止关键字不能干脆不找。不终止的话，`FROM` 列表里那个顶层逗号
-    // 会被当成又一段赋值，切出来的第二段匹配不上赋值形态 → 列集解析不出 → 第 4 步拦下。
+    // 会被当成又一段赋值，切出来的第二段匹配不上赋值形态 → 列集解析不出 → 第 3 步拦下。
     expect(allowanceFor('UPDATE post SET remote_id = o.id FROM other o, another a WHERE o.k = a.k').reason).toBe(
       'untracked_only'
     );
@@ -254,24 +237,24 @@ describe('第 5 步 — 其余写目标与「只碰 untracked 列」的写入', 
     // 判定必须拿**被写的那张表**去问域。用任意一张表去问（或先并成一个集合）都会让登记在别处的
     // 列名在这里获得豁免——而豁免列表是插件可以往里加东西的。
     expect(allowanceFor("UPDATE post SET title_norm = 'x'").reason).toBe('untracked_only');
-    expect(rejectionFor("UPDATE comment SET title_norm = 'x'").step).toBe(4);
+    expect(rejectionFor("UPDATE comment SET title_norm = 'x'").step).toBe(3);
   });
 });
 
 describe('词法归一化：大小写 / 引号标识符 / schema 限定', () => {
   it('大小写与关键字大小写都不影响判定', () => {
-    expect(rejectionFor("update POST set TITLE = 'x'").step).toBe(4);
+    expect(rejectionFor("update POST set TITLE = 'x'").step).toBe(3);
     expect(allowanceFor("UPDATE Post SET Remote_Id = 'r1'").reason).toBe('untracked_only');
   });
 
   it('引号标识符', () => {
-    expect(rejectionFor('UPDATE "post" SET "title" = \'x\'').step).toBe(4);
-    expect(rejectionFor('UPDATE "Post" SET "Title" = \'x\'').step).toBe(4);
+    expect(rejectionFor('UPDATE "post" SET "title" = \'x\'').step).toBe(3);
+    expect(rejectionFor('UPDATE "Post" SET "Title" = \'x\'').step).toBe(3);
   });
 
   it('schema 限定', () => {
-    expect(rejectionFor("UPDATE public.post SET title = 'x'").step).toBe(4);
-    expect(rejectionFor('UPDATE main."post" SET title = \'x\'').step).toBe(4);
+    expect(rejectionFor("UPDATE public.post SET title = 'x'").step).toBe(3);
+    expect(rejectionFor('UPDATE main."post" SET title = \'x\'').step).toBe(3);
   });
 
   it('归一化不会把不同的表名压成同一张', () => {
@@ -381,20 +364,20 @@ describe('挂载壳与纯判定是同一份规则', () => {
   });
 });
 
-describe('第 5 步 — untracked_only 要对着**生产域**成立', () => {
+describe('第 4 步 — untracked_only 要对着**生产域**成立', () => {
   /**
    * 用 `buildVersionedDomain()` 真的造一个域，而不是本文件顶部那份手写的 {@link domain}。
    *
    * @remarks
    * 手写那份把 untracked 列名写成了 `remote_id` / `updated_at`——**恰好**与 `normalizeSql()`
-   * 抹平之后的 SQL 词元同形，于是子集判定成立、第 5 步绿。生产域给的却是
+   * 抹平之后的 SQL 词元同形，于是子集判定成立、第 4 步绿。生产域给的却是
    * `UNTRACKED_BOOKKEEPING_FIELDS`：`remoteId` / `createdAt` / `updatedAt`，驼峰。
    *
    * 两个平面的大小写口径不同不是笔误：实体平面的 `isUntrackedField()` **必须**大小写精确
    * （`remoteId` 与 `remoteid` 在 JS 里是两个属性），而 SQL 平面已经被 `normalizeSql()` 整体
    * 压成小写。判定把域原样递给 `hasNetChange()` 的精确字符串比对，两边就永远对不上——
-   * 于是第 5 步的 `untracked_only` 在**任何真实数据库上**都不可达，一条只改审计时间的
-   * 簿记写会被第 4 步拦成 `commit_capability_mismatch`。
+   * 于是第 4 步的 `untracked_only` 在**任何真实数据库上**都不可达，一条只改审计时间的
+   * 簿记写会被第 3 步拦成 `commit_capability_mismatch`。
    *
    * 这条缺陷躲过了本文件其余全部用例，只因为夹具恰好把域也写成了小写蛇形。
    */
@@ -416,34 +399,34 @@ describe('第 5 步 — untracked_only 要对着**生产域**成立', () => {
 
   const productionContext = (): RawWriteJudgmentContext => ({ capabilityEnabled: true, domain: productionDomain() });
 
-  it('只改审计时间的 UPDATE 放行于第 5 步', () => {
+  it('只改审计时间的 UPDATE 放行于第 4 步', () => {
     expect(allowanceFor('UPDATE conformance_notes SET "updatedAt" = now()', productionContext())).toEqual({
       kind: 'allow',
-      step: 5,
+      step: 4,
       reason: 'untracked_only'
     });
   });
 
-  it('只改 remoteId 的 UPDATE 放行于第 5 步', () => {
+  it('只改 remoteId 的 UPDATE 放行于第 4 步', () => {
     expect(allowanceFor(`UPDATE conformance_notes SET "remoteId" = 'r-1'`, productionContext()).reason).toBe(
       'untracked_only'
     );
   });
 
-  it('掺了一列业务字段就仍然落第 4 步', () => {
+  it('掺了一列业务字段就仍然落第 3 步', () => {
     // 放宽大小写不能顺手放宽列集：多一列 `title` 就是净变化。
     expect(rejectionFor(`UPDATE conformance_notes SET "updatedAt" = now(), title = 'x'`, productionContext())).toEqual({
       kind: 'reject',
-      step: 4,
+      step: 3,
       code: CommitErrorCode.commit_capability_mismatch,
       tables: ['conformance_notes']
     });
   });
 
-  it('QueryCache 表落第 5 步的 out_of_domain', () => {
+  it('QueryCache 表落第 4 步的 out_of_domain', () => {
     expect(allowanceFor(`UPDATE conformance_caches SET label = 'x'`, productionContext())).toEqual({
       kind: 'allow',
-      step: 5,
+      step: 4,
       reason: 'out_of_domain'
     });
   });
@@ -490,24 +473,24 @@ describe('物理表名 — SQLite 家族把 schema 折进名字里（适配器�
 
   const physicalContext = (): RawWriteJudgmentContext => ({ capabilityEnabled: true, domain: physicalDomain() });
 
-  it('`public$conformance_notes` 与逻辑表名一样落第 4 步', () => {
-    expect(rejectionFor(`UPDATE public$conformance_notes SET title = 'x'`, physicalContext()).step).toBe(4);
-    expect(rejectionFor(`UPDATE "public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(4);
-    expect(rejectionFor(`DELETE FROM "public$conformance_notes"`, physicalContext()).step).toBe(4);
-    expect(rejectionFor(`INSERT INTO "public$conformance_notes" (id) VALUES ('x')`, physicalContext()).step).toBe(4);
+  it('`public$conformance_notes` 与逻辑表名一样落第 3 步', () => {
+    expect(rejectionFor(`UPDATE public$conformance_notes SET title = 'x'`, physicalContext()).step).toBe(3);
+    expect(rejectionFor(`UPDATE "public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(3);
+    expect(rejectionFor(`DELETE FROM "public$conformance_notes"`, physicalContext()).step).toBe(3);
+    expect(rejectionFor(`INSERT INTO "public$conformance_notes" (id) VALUES ('x')`, physicalContext()).step).toBe(3);
   });
 
-  it('附加库限定叠在物理表名上仍然落第 4 步', () => {
+  it('附加库限定叠在物理表名上仍然落第 3 步', () => {
     // SQLite `ATTACH` 之后的 `main."public$conformance_notes"`：点号与 `$` 同时出现。
-    expect(rejectionFor(`UPDATE main."public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(4);
+    expect(rejectionFor(`UPDATE main."public$conformance_notes" SET title = 'x'`, physicalContext()).step).toBe(3);
   });
 
-  it('物理表名上的 untracked 列集照样在第 5 步放行', () => {
+  it('物理表名上的 untracked 列集照样在第 4 步放行', () => {
     // 别名要能被 `untrackedFieldsOf()` 认出来，否则列级豁免在 5 个后端上不可达——
     // 一条只改审计时间的簿记写会被拦成 `commit_capability_mismatch`。
     expect(allowanceFor(`UPDATE "public$conformance_notes" SET "updatedAt" = now()`, physicalContext())).toEqual({
       kind: 'allow',
-      step: 5,
+      step: 4,
       reason: 'untracked_only'
     });
   });
@@ -523,7 +506,7 @@ describe('物理表名 — SQLite 家族把 schema 折进名字里（适配器�
     // 登记别名而不是切分隔符，正是为了让这条继续落 `out_of_domain`。
     expect(allowanceFor(`INSERT INTO "_fts_public$conformance_notes" (rowid) VALUES (1)`, physicalContext())).toEqual({
       kind: 'allow',
-      step: 5,
+      step: 4,
       reason: 'out_of_domain'
     });
     expect(allowanceFor(`UPDATE "other$conformance_notes" SET title = 'x'`, physicalContext()).reason).toBe(
@@ -559,54 +542,54 @@ describe('注释剥离：未闭合的块注释不能把判定拖成二次方（C
 
   it('闭合的块注释只吃到 `*/`，后面的写照样被拦', () => {
     // 与上一条互为边界：真把「`/*` 之后一律不看」写进实现的话，这条会静默放行。
-    expect(rejectionFor("/* c */ UPDATE post SET title = 'x'").step).toBe(4);
-    expect(rejectionFor("UPDATE /* c */ post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("/* c */ UPDATE post SET title = 'x'").step).toBe(3);
+    expect(rejectionFor("UPDATE /* c */ post SET title = 'x'").step).toBe(3);
   });
 });
 
 describe('词法归一化是单趟的：注释与字面量谁先出现谁先吃', () => {
-  it('字面量里的 `--` 不开行注释——被它「注掉」的那条写照样落第 4 步', () => {
+  it('字面量里的 `--` 不开行注释——被它「注掉」的那条写照样落第 3 步', () => {
     // 剥注释与掩字面量分两趟跑时，无论哪一趟排在前面，都有一侧会被对方的定界符骗过去。
     // 注释在前：`'--'` 这个**值**把它后面的一切注掉，于是一条完整的写语句可以整条藏在
     // 一个无害语句的字符串参数后面——而参数值正是调用方最容易控制的位置。
-    expect(rejectionFor("UPDATE app_setting SET value = '--'; UPDATE post SET title = 'x'").step).toBe(4);
-    expect(rejectionFor("UPDATE post SET remote_id = '-- x', title = 'y'").step).toBe(4);
+    expect(rejectionFor("UPDATE app_setting SET value = '--'; UPDATE post SET title = 'x'").step).toBe(3);
+    expect(rejectionFor("UPDATE post SET remote_id = '-- x', title = 'y'").step).toBe(3);
   });
 
-  it('字面量里的 `/*` 不开块注释——藏在两个字面量之间的被跟踪列赋值照样落第 4 步', () => {
+  it('字面量里的 `/*` 不开块注释——藏在两个字面量之间的被跟踪列赋值照样落第 3 步', () => {
     // 块注释版更隐蔽：`/*` 与 `*/` 分别落在两个字面量里，中间那段 `title = …` 被整段吞掉，
-    // 剩下的列集恰好还是一个良构的、只含 untracked 列的子集——第 5 步于是给出 `untracked_only`。
+    // 剩下的列集恰好还是一个良构的、只含 untracked 列的子集——第 4 步于是给出 `untracked_only`。
     // 「吞完还留下良构列集」是它能真绕过去、而不是被列集解析的 fail-closed 拦下的唯一原因。
-    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x', synced_at = '*/'").step).toBe(4);
-    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x' -- */").step).toBe(4);
+    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x', synced_at = '*/'").step).toBe(3);
+    expect(rejectionFor("UPDATE post SET remote_id = '/*', title = 'x' -- */").step).toBe(3);
   });
 
-  it('注释里的撇号不开字面量——注释后面那条写照样落第 4 步', () => {
+  it('注释里的撇号不开字面量——注释后面那条写照样落第 3 步', () => {
     // 与上两条互为边界：把「先掩字面量、再剥注释」当成修法的话，这两条会翻过来漏。
     // `don't` 的撇号开出一个假字面量，一路吃到下一条语句里真正的引号为止，`UPDATE post` 随之消失。
-    expect(rejectionFor("SELECT 1; -- don't\nUPDATE post SET title = 'x'").step).toBe(4);
-    expect(rejectionFor("/* don't */ UPDATE post SET title = 'x'").step).toBe(4);
+    expect(rejectionFor("SELECT 1; -- don't\nUPDATE post SET title = 'x'").step).toBe(3);
+    expect(rejectionFor("/* don't */ UPDATE post SET title = 'x'").step).toBe(3);
   });
 });
 
 describe('dollar-quoted 字符串：PG 的第五类定界符', () => {
-  it('`$$ … $$` 里的 `WHERE` 不终止 SET 子句——藏在它后面的被跟踪列赋值落第 4 步', () => {
+  it('`$$ … $$` 里的 `WHERE` 不终止 SET 子句——藏在它后面的被跟踪列赋值落第 3 步', () => {
     // 这是「五类定界符少认一类」的可执行后果，不是理论缺口：内存 PGlite 上，下面这条把
-    // `title` 真改成了 `changed`，而少认 `$$` 的判定读出的列集只有 `remote_id`，于是第 5 步
+    // `title` 真改成了 `changed`，而少认 `$$` 的判定读出的列集只有 `remote_id`，于是第 4 步
     // 给出 `untracked_only`——门禁以为只写了簿记列，工作树没有任何对应捕获单元。
     // 词法层少认一类定界符，危害与少认注释完全同形：字面量内部的结构字被当成结构。
     expect(
       rejectionFor(`UPDATE "public"."post" SET "remote_id" = $$ WHERE $$, title = 'changed' WHERE id = 'a'`).step
-    ).toBe(4);
+    ).toBe(3);
   });
 
   it('带标签的形式一样认——标签是 PG 的标识符，可以是非 ASCII', () => {
     // 只认无标签的 `$$` 等于把同一个洞留给 `$tag$`：标签形态正是为「正文里含 `$$`」准备的，
     // 也就是最可能出现在手写 SQL 里的那一种。
     expect(rejectionFor(`UPDATE post SET remote_id = $tag$ WHERE $tag$, title = 'changed' WHERE id = 'a'`).step).toBe(
-      4
+      3
     );
-    expect(rejectionFor(`UPDATE post SET remote_id = $标签$ WHERE $标签$, title = 'x'`).step).toBe(4);
+    expect(rejectionFor(`UPDATE post SET remote_id = $标签$ WHERE $标签$, title = 'x'`).step).toBe(3);
   });
 
   it('字面量内部的分号不切语句、注释符不开注释、撇号不开字面量', () => {
@@ -622,8 +605,8 @@ describe('dollar-quoted 字符串：PG 的第五类定界符', () => {
     // 与未闭合的块注释**刻意不同**：那一类吃到串尾是安全的（SQLite 允许、PG 判语法错，两种读法下
     // 后面那截都不会写进业务表）。这一类不行——`$$` 在 SQLite 里根本不是定界符，吃到串尾就等于
     // 把一条真能执行的写从视野里抹掉。所以认不出配对时按「这不是定界符」处理，正文继续参与判定。
-    expect(rejectionFor(`UPDATE post SET remote_id = $$, title = 'x'`).step).toBe(4);
-    expect(rejectionFor(`UPDATE post SET remote_id = $tag$, title = 'x'`).step).toBe(4);
+    expect(rejectionFor(`UPDATE post SET remote_id = $$, title = 'x'`).step).toBe(3);
+    expect(rejectionFor(`UPDATE post SET remote_id = $tag$, title = 'x'`).step).toBe(3);
   });
 
   it('参数占位符不是 dollar-quote——PG 的 `$1` 与 SQLite 的 `$name` 照旧', () => {
@@ -634,15 +617,15 @@ describe('dollar-quoted 字符串：PG 的第五类定界符', () => {
     expect(allowanceFor(`UPDATE post SET remote_id = $remote, synced_at = $when WHERE id = $id`).reason).toBe(
       'untracked_only'
     );
-    expect(rejectionFor(`UPDATE post SET title = $1 WHERE id = $2`).step).toBe(4);
+    expect(rejectionFor(`UPDATE post SET title = $1 WHERE id = $2`).step).toBe(3);
   });
 
   it('谁先出现谁先吃：字面量里的 `$$` 不开 dollar-quote', () => {
     // 与「字面量里的 `/*` 不开块注释」互为边界。开了的话，两个字面量里的 `$$` 之间那段
     // `title = 'x'` 会被整段吞掉，剩下的列集恰好还是一个只含 untracked 列的良构子集——
-    // 也就是第 5 步会放行的那一种形状。
-    expect(rejectionFor(`UPDATE post SET remote_id = '$$', title = 'x', synced_at = '$$'`).step).toBe(4);
-    expect(rejectionFor(`UPDATE post SET remote_id = 1 /* $$ */, title = 'x', synced_at = 2 /* $$ */`).step).toBe(4);
+    // 也就是第 4 步会放行的那一种形状。
+    expect(rejectionFor(`UPDATE post SET remote_id = '$$', title = 'x', synced_at = '$$'`).step).toBe(3);
+    expect(rejectionFor(`UPDATE post SET remote_id = 1 /* $$ */, title = 'x', synced_at = 2 /* $$ */`).step).toBe(3);
   });
 
   it('十万个配不上对的标签也在毫秒量级判完（CWE-1333）', () => {

@@ -74,23 +74,24 @@ spec.md 的 Key Entities 已把这条列为「两条不可让步的存储契约�
 
 ---
 
-## R4. raw 写路径的 5 步 bypass 判定：一份实现，6 个后端共用
+## R4. raw 写路径的 4 步 bypass 判定：一份实现，6 个后端共用
 
-**Decision**：实现**单一**判定函数，位于核心包，6 个后端共用；方言差异只体现在**词法归一化**层（大小写、引号标识符、schema 限定）。判定顺序严格按 spec.md：
+**Decision**：实现**单一**判定函数，位于 `@aiao/rxdb-plugin-working-tree`，6 个后端共用（核心只留 `gateRawWrite()` 的接缝）；方言差异只体现在**词法归一化**层（大小写、引号标识符、schema 限定）。判定顺序严格按 spec.md：
 
 1. 提交能力未启用 → 放行（零行为差异）
-2. 携带内部受信 `intent` → 放行
-3. 非写语句 → 放行
-4. 写目标表 ∩ 版本化业务实体表 ≠ ∅ **且** 被写列集 ⊄ untracked 字段域 → `commit_capability_mismatch`，**执行前**拒绝
-5. 其余 → 放行
+2. 非写语句 → 放行
+3. 写目标表 ∩ 版本化业务实体表 ≠ ∅ **且** 被写列集 ⊄ untracked 字段域 → `commit_capability_mismatch`，**执行前**拒绝
+4. 其余 → 放行
 
-**Rationale**：`rawQuery` 在适配器接口上是**可选方法**（`rxdb-adapter.ts:94`，`rawQuery?(sql, params?)`），因此判定不能依赖「所有适配器都实现了 rawQuery」。把判定放在核心包并由各适配器在自己的 `rawQuery` 实现入口调用，既满足「同一份实现」又容忍可选性。
+**删掉的那一步**：判定原有第 2 步「携带内部受信 `intent` → 放行」，2026-09-23 连同上下文槽位一并删除。9 个受信调用点全部走 `switchBranch` / `mergeChanges` 这两个带类型的写原语，raw 通道上一个都没有，那一步在生产里永远取不到真值，却是整条防线上唯一无条件放行的一步。要接内部受信 raw 写路径，先补能证明身份的传递通道——判据见 [threat-model.md](./threat-model.md) §3。
 
-`upsertMany()` / `deleteByIds()` **不经 `rawQuery`**，五步判定够不到，必须在阶段 A **显式挂载**；它们的入参是**整行**而非列集，因此对版本化实体一律落第 4 步（FR-046）。注意二者返回 `Observable<void>` 而非 `Promise`，门禁必须在**订阅前**同步拒绝，否则「执行前拒绝、业务表零变化」不成立。
+**Rationale**：`rawQuery` 在适配器接口上是**可选方法**（`rxdb-adapter.ts:163`，`rawQuery?(sql, params?)`），因此判定不能依赖「所有适配器都实现了 rawQuery」。把判定放在插件包并由各适配器在自己的 `rawQuery` 实现入口调用，既满足「同一份实现」又容忍可选性。
+
+`upsertMany()` / `deleteByIds()` **不经 `rawQuery`**，四步判定够不到，必须在阶段 A **显式挂载**；它们的入参是**整行**而非列集，因此对版本化实体一律落第 3 步（FR-046）。注意二者返回 `Observable<void>` 而非 `Promise`，门禁必须在**订阅前**同步拒绝，否则「执行前拒绝、业务表零变化」不成立。
 
 **fail-closed 是硬要求**：动态拼接、多语句串、方言不认识的构造一律按「不是子集」处理。SC-009 的判据是「宁可误伤不可放过」。
 
-**能力边界写进文档**：绕过 adapter 的外部句柄（另开 `sqlite3` 连接、直接打开 OPFS 文件、psql 连 PGlite）**拦不住，v1 也不承诺拦得住**。
+**能力边界写进文档**：绕过 adapter 的外部句柄（另开 `sqlite3` 连接、直接打开 OPFS 文件、psql 连 PGlite）**拦不住，v1 也不承诺拦得住**。门禁各自挡谁、不挡谁见 [threat-model.md](./threat-model.md)——它是这条边界的完整版。
 
 **Alternatives considered**：
 

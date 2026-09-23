@@ -643,7 +643,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  *
  * **系统表先摘出去再建域。** 传进来的 `rxdb.config.entities` 已经被 `SchemaManager.init()`
  * 补过系统表，照单全收会让 `rxdb_branch` / `rxdb_change` 这些表落进 `versionedTables`，
- * 于是 raw 写五步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
+ * 于是 raw 写四步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
  * 摘干净之后还多一层作用：域认得的名字必定是业务实体，{@link WorkingTreeCaptureRuntime.targetClassOf}
  * 正是靠这一点先问域再问系统表清单。
  */

@@ -66,6 +66,7 @@ import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.j
 import { StaleActiveBranchError, type ActiveBranchToken } from '../../working-tree/write-entry.js';
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import { runBranchGenerationSql } from '../working-tree/fixtures/activation-sql.js';
 
 /** 当前 active 的来源分支；全程一格都不该动。 */
 const SOURCE_BRANCH_ID = 'main';
@@ -288,7 +289,12 @@ interface SceneOverrides {
 function createScene(overrides: SceneOverrides = {}): Scene {
   const database = createDatabase();
   const entityManager = database.entityManager;
-  const probe = createCommitGraphProbe({ rowsAffected: 1 });
+  const probe = createCommitGraphProbe({
+    rowsAffected: 1,
+    // 代际发放的加法在库里做，紧接着的读回来也走原始语句（`activation-state.ts`），
+    // 而替身不执行 SQL；不补这两下，发放当场就会因为「读回 0 行」抛错。见 `activation-sql.ts`。
+    onQuery: runBranchGenerationSql
+  });
   const applied: BranchMaterializationPage[] = [];
 
   probe.seed(RxDBBranch, [

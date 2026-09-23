@@ -2,24 +2,28 @@
  * @fileoverview `@aiao/rxdb-plugin-working-tree` 的装配入口。
  *
  * @remarks
- * 插件本身只做两件事，其余全部语义在 `working-tree/` 与 `commit/` 两个目录里：
+ * 插件本身只做三件事，其余全部语义在 `working-tree/` 与 `commit/` 两个目录里：
  *
  * 1. **挂入口**：`use()` 的那一刻把 {@link WorkingTreeManager} 定义成 `rxdb.workingTree`。
  * 2. **声明系统贡献**：10 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
  *    以及每条新分支的贡献行，一次性交给宿主按 {@link RxDBSystemContribution} 编排。
  *
- * `install()` 是空的，这是结论不是遗漏——理由见该方法。
+ * 3. **接住别人的启用**：`install()` 里登记一个 `CAPABILITY_ENABLED` 监听器（FR-037），
+ *    把「另一条连接刚启用了本能力」变成本连接上的一次接通。
  */
 
 import {
+  CAPABILITY_ENABLED_EVENT,
   RxDBPluginBase,
   assertSingleActiveBranch,
+  type CapabilityEnabledEvent,
   type EntityType,
   type IRxDBPlugin,
   type Plugin,
   type RxDB,
   type RxDBSystemContribution
 } from '@aiao/rxdb';
+import type { LifecycleScope } from '@aiao/utils';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
 import { removeBranchCommitRows, writeNewBranchCommitRows } from './commit/branch-commit-rows.js';
 import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
@@ -154,7 +158,7 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
  * 与 `@aiao/rxdb-plugin-storage` 那类插件的形状差别，全部来自**时点**：storage 的服务是连接期
  * 资源（它握着 OPFS 句柄），所以三件事都登记在作用域里、断连时逆序退回；本插件挂的入口是
  * 进程内库版本的属性，贡献的表要赶在建表那一刻之前就位——两者都早于 `install()`，也都没有
- * 对称的拆卸义务。
+ * 对称的拆卸义务。真正落在作用域里的只有那个跨连接的能力启用监听器（见 {@link RxDBPluginWorkingTree.install}）。
  */
 export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin {
   /** 已迁移到作用域拆卸，宿主不再调用 `destroy()`。 */
@@ -194,22 +198,46 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
   }
 
   /**
-   * 什么都不登记。
+   * 只登记一件事：跨连接的能力启用通知（FR-037）。
+   *
+   * @param scope - 本次连接纪元的激活作用域
    *
    * @remarks
-   * 空实现是结论不是遗漏：该做的三件事各有自己的时点，没有一件落在 `install()` 上。
+   * 另外三件事都**不**在这里，各有自己的时点：
    *
    * - `rxdb.workingTree` 在**构造时**挂上（见构造器），必须早于 `init()`；
    * - 10 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
    *   那一刻编排——走 `install()` 的贡献永远赶不上自己的表（见 {@link RxDBSystemContribution}）；
-   * - 捕获运行时挂在**适配器实例**上，由 `bootstrapExisting()` 与 {@link WorkingTreeManager.enable}
-   *   装载；`connect()` / `disconnect()` 换实例时钩子随旧实例一起走，没有要撤销的登记。
+   * - 本连接自己的接通由 `bootstrapExisting()`（既有库读能力位）与
+   *   {@link WorkingTreeManager.enable}（本连接刚启用）完成。
    *
-   * 形参一个都不收（而不是收一个不用的 `scope`）：收下它读起来就像「这里本该登记点什么」。
-   * 仍然声明 `lifecycle = 'scoped'`，它表示的是「不要调 `destroy()`」，与登记了几条无关。
+   * 留给这里的只有第四种排列：**别的连接启用了，而本连接早已连上**。它落在这里而不是
+   * `bootstrapExisting()` 里，尽管那边手边就有 adapter——因为那个钩子**只在既有库上调**
+   * （见 {@link RxDBSystemContribution.bootstrapExisting} 的 @remarks）。把监听器挂在那里，
+   * 建库的那个客户端就一次都收不到，而「A 建库、B 连上、B 启用」正是这条通道最该救的排列。
+   *
+   * 登记在作用域里而不是裸挂：监听器指着**本纪元**的适配器解析路径，漏摘的话下一纪元会有
+   * 两个监听器，各自把钩子往自己那一代上装。
    */
-  install(): void {
-    // 故意什么都不做，理由见上方 @remarks。
+  install(scope: LifecycleScope): void {
+    const onCapabilityEnabled = (event: CapabilityEnabledEvent): void => {
+      // 本库将来不止一个能力贡献方：不比对能力名的话，别人的启用通知会被当成本能力的接通。
+      if (event.capability !== WORKING_TREE_CAPABILITY) return;
+      // 走非抛的 localAdapterIfConnected，且**同步**取：
+      // `await firstValueFrom(localAdapter$)` 会让出一个微任务，而这条通道存在的全部意义
+      // 就是「在下一次写之前装上」——那个缝隙里的写入照样不留痕迹。
+      // 断连期间飘到的通知取不到适配器，静默返回：事件什么时候来不由接收方决定。
+      const adapter = this.rxdb.localAdapterIfConnected;
+      if (!adapter) return;
+      // 幂等（`setWorkingTreeCaptureHook` 先卸后装），且能力位是只进不退的闩——
+      // 没有与之对称的「收到就拆」，所以装重了也不需要撤销。
+      installWorkingTreeCapture(this.rxdb, adapter);
+    };
+
+    scope.acquire(() => {
+      this.rxdb.addEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
+      return () => this.rxdb.removeEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
+    }, 'workingTree:capability-enabled');
   }
 }
 

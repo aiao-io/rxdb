@@ -168,7 +168,7 @@ export interface WorkingTreeCaptureHook {
   ): Observable<void>;
 
   /**
-   * 转交门 1：一条 raw 写语句（adapter-contract.md §2 的 5 步判定）
+   * 转交门 1：一条 raw 写语句（adapter-contract.md §2 的 4 步判定）
    *
    * @typeParam T - 语句执行体的返回类型；放行时原样透传
    * @param sql - 待判定的语句原文

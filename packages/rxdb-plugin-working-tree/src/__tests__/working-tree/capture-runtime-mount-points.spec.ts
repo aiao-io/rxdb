@@ -889,7 +889,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
   it('系统实体被挡在版本化域外 —— 建域的实体数组里本来就有它们', () => {
     // `SchemaManager.init()` 已经把系统表塞进 `config.entities`，而运行时是从那个数组建域的。
     // 不摘出去的话，`rxdb_working_tree_entry` 这类表会落进 `versionedTables`，
-    // 于是 raw 五步门禁把库自己的簿记写拦成第 4 步——与其余 4 个挂载点的判定正相反。
+    // 于是 raw 四步门禁把库自己的簿记写拦成第 3 步——与其余 4 个挂载点的判定正相反。
     const runtime = createWorkingTreeCaptureRuntime(
       logicalOnlyAdapter,
       entityManager,
@@ -903,7 +903,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
     expect(runtime.domain.versionedTables.has(tableNameOf(WorkingTreeState))).toBe(false);
   });
 
-  it('raw 写系统表在第 5 步放行，不被第 4 步拦下', async () => {
+  it('raw 写系统表在第 4 步放行，不被第 3 步拦下', async () => {
     const runtime = createWorkingTreeCaptureRuntime(
       logicalOnlyAdapter,
       entityManager,

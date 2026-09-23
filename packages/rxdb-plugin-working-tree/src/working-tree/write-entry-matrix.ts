@@ -3,7 +3,7 @@
  *
  * @remarks
  * 四个捕获挂载点与六个适配器的 `rawQuery` 调的都是这里的 {@link classifyWriteEntrance}。
- * 一份判定、多处调用——与 5 步 bypass 判定同一个理由：同一张表在十处各解释一遍，十处就会
+ * 一份判定、多处调用——与 4 步 bypass 判定同一个理由：同一张表在十处各解释一遍，十处就会
  * 慢慢解释成十个样子。
  *
  * **判据是「入口 × 目标类 × 写了哪些列」，不是函数名。** 同一个 `mergeChanges` 在本地重载上
@@ -264,7 +264,7 @@ function classifyVersionedTarget(request: WriteEntranceRequest): WriteEntranceDe
   if (capture) return hasNetChange(request) ? capture : noCapture('no_net_change');
   // 行 6：物化必须写得进去。判成 reject 的话，切分支这件事本身会失败。
   if (request.entrance === 'projection_rewrite') return noCapture('domain_managed');
-  // 行 9 第 5 步：只触及 untracked 字段域的 raw 写放行，且不因为「是 raw」而获得一个单元。
+  // 行 9 第 4 步：只触及 untracked 字段域的 raw 写放行，且不因为「是 raw」而获得一个单元。
   if (request.entrance === 'raw_write' && !hasNetChange(request)) return noCapture('no_net_change');
   return REJECT;
 }

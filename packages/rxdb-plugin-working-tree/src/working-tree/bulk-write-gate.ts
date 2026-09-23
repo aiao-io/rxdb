@@ -2,7 +2,7 @@
  * @fileoverview `upsertMany()` / `deleteByIds()` 的写门禁（adapter-contract.md §1.1、挂载点 4）。
  *
  * @remarks
- * 这两个方法**不经 `rawQuery`**，5 步 bypass 判定够不到它们；不显式挂载就是一个敞口。
+ * 这两个方法**不经 `rawQuery`**，4 步 bypass 判定够不到它们；不显式挂载就是一个敞口。
  *
  * 它们又是四个捕获挂载点里唯一返回 `Observable<void>` 的，于是「先判定再执行」不再是自然而然的：
  * 把判定写进 `defer(() => …)` 里同样能编译、同样能在订阅时抛出正确的错误，单看错误类型的测试也会绿。

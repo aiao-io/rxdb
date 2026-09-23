@@ -123,12 +123,15 @@ describe('四步同一个事务（FR-010）', () => {
   it('门面 commit() 恰好开一次事务', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry();
+    // 先取引用：`commit()` 之后场景的捕获自愈会覆写 `adapter.transaction`，
+    // 理由见 `fixtures/working-tree-scene.ts` 里 `mockImplementation` 那一段。
+    const openTransaction = scene.adapter.transaction;
 
     await scene.manager.commit('一次提交', credentialsOf(scene));
 
     // 「读一次、写一次」分两个事务是最自然的拆法，也正是它让回滚失去对象：
     // 第二个事务崩掉时第一个早已提交，库里留下一个没有工作树变化的 commit。
-    expect(scene.adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(openTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('崩溃时也不会另开一个事务补救', async () => {

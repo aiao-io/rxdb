@@ -2047,6 +2047,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
