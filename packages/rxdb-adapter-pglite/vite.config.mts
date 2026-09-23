@@ -28,6 +28,10 @@ export default defineConfig(() => {
       conditions: sourceConditions,
       alias: {
         '@aiao/rxdb-adapter-encrypted': path.resolve(workspaceRoot, 'packages/rxdb-adapter-encrypted/src/index.ts'),
+        // `./testing` 必须排在裸 `@aiao/rxdb` 之前：alias 按 `/` 边界前缀匹配，
+        // 反过来 `@aiao/rxdb/testing` 会被改写成 `.../src/index.ts/testing`（`Not a directory`）。
+        // 同下方 `@aiao/rxdb-plugin-working-tree` 与 `@aiao/rxdb-test` 两处的排序理由。
+        '@aiao/rxdb/testing': path.resolve(workspaceRoot, 'packages/rxdb/src/testing.ts'),
         '@aiao/rxdb': path.resolve(workspaceRoot, 'packages/rxdb/src/index.ts'),
         // 插件包的两条都必须显式指向源码，缺一条就是**同一份代码被装载两次**。
         // 根因是本包的 `tsconfig.spec.json` 自带 `compilerOptions.paths`——tsconfig 的 paths
@@ -154,6 +158,9 @@ export default defineConfig(() => {
         // 不打进库里的外部依赖。
         external: [
           '@aiao/rxdb',
+          // `src/testing.ts` 转出口 `cloneEntityClasses`。不列在这里，rolldown 会把核心那份
+          // 实现**复制进** `dist/testing.js`——单一实现当场变回两份，`.d.ts` 却仍写着转出口。
+          '@aiao/rxdb/testing',
           '@aiao/rxdb-adapter-encrypted',
           '@aiao/rxdb-plugin-tree',
           '@aiao/utils',

@@ -19,6 +19,7 @@
 
 import type { EntityManager } from './entity/entity-manager.js';
 import type { EntityType } from './entity/entity.interface.js';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- SwitchBranchOptions 只被 TSDoc 的 {@link} 引用；删掉它文档里那条链接就断了
 import type { RxDBAdapterLocalBase, SwitchBranchOptions } from './rxdb-adapter.js';
 import type { MigrationType } from './rxdb.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';

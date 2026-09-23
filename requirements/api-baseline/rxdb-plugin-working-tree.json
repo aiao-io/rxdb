@@ -46,10 +46,6 @@
         "kind": "type"
       },
       {
-        "name": "CAPTURE_MOUNT_POINTS",
-        "kind": "value"
-      },
-      {
         "name": "captureChanges",
         "kind": "value"
       },
@@ -59,14 +55,6 @@
       },
       {
         "name": "CapturedWrite",
-        "kind": "type"
-      },
-      {
-        "name": "CaptureMountPoint",
-        "kind": "type"
-      },
-      {
-        "name": "CaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -286,10 +274,6 @@
         "kind": "value"
       },
       {
-        "name": "isCaptureMountPoint",
-        "kind": "value"
-      },
-      {
         "name": "isCommitChangeSetPageEmpty",
         "kind": "value"
       },
@@ -299,6 +283,10 @@
       },
       {
         "name": "isCommitLogPageEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isWorkingTreeCaptureMountPoint",
         "kind": "value"
       },
       {
@@ -462,6 +450,14 @@
         "kind": "value"
       },
       {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
         "name": "WORKING_TREE_INITIAL_ASYNC_STATES",
         "kind": "value"
       },
@@ -483,6 +479,14 @@
       },
       {
         "name": "WorkingTreeCaptureHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -654,6 +658,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeWritePrimitiveSignature",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeWriteRejectedError",
         "kind": "both"
       },
@@ -679,10 +687,6 @@
       },
       {
         "name": "WriteOperation",
-        "kind": "type"
-      },
-      {
-        "name": "WritePrimitiveSignature",
         "kind": "type"
       },
       {

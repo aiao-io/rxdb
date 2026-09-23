@@ -122,7 +122,9 @@ export interface SwitchBranchOptions {
  * 做成具名导出而不是让各调用点各写一个 `async () => {}`：这样「谁豁免了前置校验」
  * 是一次 grep 就能数清的一张表，而匿名空箭头只能靠读全文发现。
  */
-export const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions['prepare'] = async () => {};
+export const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions['prepare'] = async () => {
+  // 空体就是语义本身：这一次切换不做任何前置校验。
+};
 
 export interface RawQueryResult {
   rowsAffected: number;

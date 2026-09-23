@@ -15,4 +15,5 @@
  * 「槽位是 `undefined`」这一步——五个写原语连一层包装都没有。
  */
 export * from './capture-interceptor.js';
+export * from './capture-mount-points.js';
 export * from './raw-write-gate.js';

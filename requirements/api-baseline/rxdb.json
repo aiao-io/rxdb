@@ -798,6 +798,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorkingTreeCaptureMountPoint",
+        "kind": "value"
+      },
+      {
         "name": "JSONProperty",
         "kind": "type"
       },
@@ -1734,6 +1738,10 @@
         "kind": "type"
       },
       {
+        "name": "SKIP_BRANCH_SWITCH_PREPARE",
+        "kind": "value"
+      },
+      {
         "name": "sqlBooleanLiteral",
         "kind": "value"
       },
@@ -1791,6 +1799,10 @@
       },
       {
         "name": "SwitchBranchOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SwitchBranchPrepareContext",
         "kind": "type"
       },
       {
@@ -2058,7 +2070,23 @@
         "kind": "value"
       },
       {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
         "name": "WorkingTreeCaptureHook",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -2067,6 +2095,10 @@
       },
       {
         "name": "WorkingTreeWriteHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeWritePrimitiveSignature",
         "kind": "type"
       },
       {
@@ -2079,6 +2111,10 @@
       }
     ],
     "./testing": [
+      {
+        "name": "cloneEntityClasses",
+        "kind": "value"
+      },
       {
         "name": "collectEmissions",
         "kind": "value"

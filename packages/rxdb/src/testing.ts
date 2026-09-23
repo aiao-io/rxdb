@@ -26,6 +26,8 @@
  */
 export { METADATA } from './rxdb.private.js';
 
+export { cloneEntityClasses } from './testing/clone-entity-classes.js';
+
 export {
   collectEmissions,
   createHarnessQueryTask,

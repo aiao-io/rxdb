@@ -305,6 +305,13 @@ const NAMING = {
     'RxDBBranchRemovalContext',
     'RxDBBranchSwitchContext',
     'RxDBBranchSwitchPreconditions',
+    // `SwitchBranchOptions`（已在 grandfathered 名单里）的两个伴生名：`prepare` 的入参形状，
+    // 与「这次调用没有分支要校验」的具名空实现。理由与上面三个同族：适配器契约刻意不认识工作树，
+    // 叫 `WorkingTree*` 会让 `IRxDBAdapter` 看起来知道谁在用它。
+    // `SKIP_BRANCH_SWITCH_PREPARE` 另有一层：它是 SCREAMING 形，而前缀判定是大小写敏感的
+    // `startsWith('WorkingTree')`——任何常量名都不可能满足它，只能逐名登记。
+    'SwitchBranchPrepareContext',
+    'SKIP_BRANCH_SWITCH_PREPARE',
     // US-025 阶段 E 的增量合并原语。正向前缀规则的适用范围写的是「核心共享契约」，
     // 实现上却读整个 diff —— 于是任何与工作树无关的核心新增导出都会撞上它。
     // 这十二个是树查询外移到 `@aiao/rxdb-plugin-tree` 所需的 merge 引擎入口，
@@ -331,6 +338,14 @@ const NAMING = {
     // `foreignKeyRelationMap` 之后，适配器只剩 re-export。与工作树无关，
     // 叫 `Commit*` / `WorkingTree*` 等于宣称核心把「写 INSERT 前整理字段」当成提交能力。
     'normalizeCreateEntity',
+    // 捕获挂载点注册表（`capture/capture-mount-points.ts`）。同族的三个类型
+    // （`WorkingTreeCaptureMountPoint` / `...Ordinal` / `WorkingTreeWritePrimitiveSignature`）
+    // 已按本规则改名带上前缀，不在这里；下面三个是**同一张表**的常量与谓词，形态上
+    // 满足不了大小写敏感的 `startsWith('WorkingTree')`——SCREAMING 与 camelCase 都不行。
+    // 登记的是形态豁免，不是「与工作树无关」：它们恰恰是工作树的表面。
+    'WORKING_TREE_CAPTURE_MOUNT_POINTS',
+    'WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS',
+    'isWorkingTreeCaptureMountPoint',
     // 指纹计算。自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，
     // 而指纹正是 QueryManager 判定「结果变没变」的依据——各写一份就是两套「变了」的定义。
     'Fingerprint',
@@ -341,6 +356,7 @@ const NAMING = {
     // 也就不在「核心共享契约」的射程内——而正向规则读的是整个 diff，照样会把它们捞上来。
     // 叫成 `Commit*` / `WorkingTree*` 等于宣称核心把「造一个合并测试任务」当成提交能力。
     'collectEmissions',
+    'cloneEntityClasses',
     'createHarnessQueryTask',
     'EntityCache',
     'HarnessSchemaOverrides',

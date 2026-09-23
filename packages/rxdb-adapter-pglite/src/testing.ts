@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { ACTIVE_BRANCH_KEY, type EntityType } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -203,55 +203,18 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
 };
 
 /**
- * 克隆 Entity Class 数组，避免 `Symbol(ɵEntityManager)` 冲突。
+ * 克隆 Entity Class 数组，避免多 RxDB 实例注册同一组实体类时互相干扰。
  *
- * 当同一组 Entity Class 需要被多个 RxDB 实例同时注册时（典型场景：单测内并发创建多个
- * 隔离的 adapter 实例），EntityManager 会因为 metadata symbol 重复而抛错。
- * 此函数为每个 EntityClass 创建一份 prototype 干净的副本，并复制其 metadata symbol、
- * 静态属性与可枚举 symbol，确保各副本互不干扰。
+ * @remarks
+ * **是核心 `@aiao/rxdb/testing` 那一份的转出口，不是第二份实现。** 本包与
+ * `@aiao/rxdb-adapter-sqlite-core` 曾各写一遍逐字等价的副本，两份都靠
+ * `symbol.description === 'ɵMetadata'` 找元数据槽位——而核心的槽位描述是
+ * `'@aiao/rxdb/ɵMetadata'`，那个字面量从来没匹配上过，元数据隔离那一段一直是死代码。
+ * 核心那一份按 `METADATA` 符号本身认，核心改名即编译错误。
  *
- * 与 `@aiao/rxdb-adapter-sqlite-core/testing` 的同名函数行为完全一致。
+ * 转出口而不是让调用方改去 import 核心：这个名字是本包 `testing` 入口的对外契约，
+ * 已有的 e2e 与第三方测试从这里取，路径不该因为实现搬家而断。
  *
- * @param entities - 待克隆的 Entity Class 数组
- * @returns 克隆后的 Entity Class 数组，顺序与入参一致
  * @public
  */
-export const cloneEntityClasses = (entities: EntityType[]): EntityType[] => {
-  return entities.map(EntityClass => {
-    const Clone = class extends (EntityClass as unknown as new (
-      ...a: unknown[]
-    ) => Record<string, unknown>) {} as unknown as EntityType;
-    let metadataSymbol: symbol | undefined;
-    let metadata: unknown;
-    let currentCtor: object | null = EntityClass;
-
-    while (currentCtor && !metadataSymbol) {
-      metadataSymbol = Object.getOwnPropertySymbols(currentCtor).find(sym => sym.description === 'ɵMetadata');
-      metadata = metadataSymbol ? Object.getOwnPropertyDescriptor(currentCtor, metadataSymbol)?.value : undefined;
-      currentCtor = metadataSymbol ? null : Object.getPrototypeOf(currentCtor);
-    }
-
-    if (metadata && typeof metadata === 'object') {
-      Object.defineProperty(Clone, metadataSymbol!, {
-        value: Object.create(metadata as object),
-        enumerable: false,
-        configurable: true,
-        writable: false
-      });
-    }
-
-    for (const key of Object.getOwnPropertyNames(EntityClass)) {
-      if (key === 'prototype' || key === 'length' || key === 'name') continue;
-      const desc = Object.getOwnPropertyDescriptor(EntityClass, key);
-      if (desc) Object.defineProperty(Clone, key, desc);
-    }
-    for (const sym of Object.getOwnPropertySymbols(EntityClass)) {
-      if (sym === metadataSymbol || sym.description?.startsWith('ɵ')) continue;
-      const desc = Object.getOwnPropertyDescriptor(EntityClass, sym);
-      if (desc) {
-        Object.defineProperty(Clone, sym, { ...desc, configurable: true });
-      }
-    }
-    return Clone;
-  });
-};
+export { cloneEntityClasses } from '@aiao/rxdb/testing';

@@ -1,7 +1,7 @@
-import { ACTIVE_BRANCH_KEY, type EntityType } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
-import { cleanup_db, cloneEntityClasses } from '../testing.js';
+import { cleanup_db } from '../testing.js';
 
 /**
  * 造一个只认 `cleanup_db` 用得着的那几个成员的假适配器，并把每一路调用都录下来。
@@ -79,12 +79,5 @@ describe('testing residual branches', () => {
 
     expect(saveMany).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
-  });
-
-  it('cloneEntityClasses handles classes without ɵMetadata', () => {
-    class Plain {}
-    const [Clone] = cloneEntityClasses([Plain as unknown as EntityType]);
-    expect(Clone).not.toBe(Plain);
-    expect(new Clone()).toBeInstanceOf(Object);
   });
 });

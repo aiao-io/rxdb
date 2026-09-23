@@ -83,6 +83,30 @@ await db.workingTree.enable();
 
 装插件仍在库侧完成（`db.use(rxDBPluginWorkingTree)`），绑定包只负责读写。十个状态字段的初值全是 `idle`（创建入口一次 IO 都不发），类型与错误类一律从插件包直接 import。
 
+## 6. 捕获挂载点注册表改名并下沉到核心
+
+挂载点清单（契约 §1 那张表）此前在核心与本插件**各写一遍**，插件那份靠读核心源码逐字比对形参名：核心改名只会让测试红，类型与运行时都不响。现在唯一定义处在 `@aiao/rxdb`，本插件只是转出口——**导入路径不变，名字变了**：
+
+| 旧名                       | 新名                                  |
+| -------------------------- | ------------------------------------- |
+| `CAPTURE_MOUNT_POINTS`     | `WORKING_TREE_CAPTURE_MOUNT_POINTS`   |
+| `CaptureMountPoint`        | `WorkingTreeCaptureMountPoint`        |
+| `CaptureMountPointOrdinal` | `WorkingTreeCaptureMountPointOrdinal` |
+| `WritePrimitiveSignature`  | `WorkingTreeWritePrimitiveSignature`  |
+| `isCaptureMountPoint`      | `isWorkingTreeCaptureMountPoint`      |
+
+```typescript
+// 旧
+import { CAPTURE_MOUNT_POINTS, isCaptureMountPoint } from '@aiao/rxdb-plugin-working-tree';
+
+// 新：路径照旧，改名字即可；从 `@aiao/rxdb` 直接取也等价（是同一个对象）
+import { WORKING_TREE_CAPTURE_MOUNT_POINTS, isWorkingTreeCaptureMountPoint } from '@aiao/rxdb-plugin-working-tree';
+```
+
+改名是为了让核心扁平的导出清单说清这些名字属于哪个特性——`CaptureMountPoint` 在核心里读不出「捕获什么」，而它的同族 `WorkingTreeCaptureHook` / `WorkingTreeCaptureMountTarget` 早就带着前缀（门禁：`scripts/audit/api-surface.mjs` 的 `NAMING`，规则见 `contracts/core-api.md` §0）。
+
+同时新增 `WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS`：`installWorkingTreeCapture()` / `uninstallWorkingTreeCapture()` 装卸时遍历的就是它，于是「注册表少一行」与「有个写原语没被包住」从此是同一件事，而不再是一份没人调用的自述。
+
 ## 参考
 
 - [工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)：完整用法与 API
