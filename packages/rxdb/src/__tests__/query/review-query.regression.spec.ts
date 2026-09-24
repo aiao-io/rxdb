@@ -179,6 +179,46 @@ describe('review query regression probes', () => {
     }
   });
 
+  // Q6/Q7 已经被上面 findByCursor 的页窗口回归占用，REMOVE/UPDATE 的对应回归改用 Q8/Q9。
+  it('Q8 should refresh instead of decrementing a count whose snapshot may already exclude the row', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'count',
+      options: { where: { combinator: 'and', rules: [] } },
+      runner: () => of(1)
+    });
+    const subscription = task.result$.subscribe();
+    const refresh = vi.spyOn(task, 'refresh');
+    try {
+      // 快照（1）已经不含 'a'——它先于这条 DELETE 事件被别的路径（例如同一事件的
+      // 重复派发）计入。旧实现按 `current_count - matched.length` 在 JS 侧减,
+      // 会把本该保持不变的 1 减成 0。
+      mergeRemove(task as QueryTask<typeof ReviewEntity>, [remove('a')]);
+      expect(refresh).toHaveBeenCalled();
+      expect(task.result).toBe(1);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('Q9 should refresh instead of incrementing a count whose snapshot may already include the newly matching row', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'count',
+      options: { where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'active' }] } },
+      runner: () => of(1)
+    });
+    const subscription = task.result$.subscribe();
+    const refresh = vi.spyOn(task, 'refresh');
+    try {
+      // 快照（1）已经把 'a' 的 inactive -> active 计进去了,这条 UPDATE 事件是姗姗来迟的
+      // 重复派发。旧实现按 `newlyMatchedIds` 在 JS 侧加,会把本该保持不变的 1 加成 2。
+      mergeUpdate(task as QueryTask<typeof ReviewEntity>, [update('a', { status: 'active' }, { status: 'inactive' })]);
+      expect(refresh).toHaveBeenCalled();
+      expect(task.result).toBe(1);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
   it('Q3 should preserve the final delete for a remote row deleted, recreated and deleted offline', () => {
     const changes = [
       { id: 1, type: 'DELETE', patch: null, inversePatch: { id: 'a', name: 'remote' } },

@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { Entity, EntityBase, MAIN_BRANCH_ID, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { create_tables_sql } from '../../index.js';
 import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
@@ -36,7 +36,7 @@ const adapter = {
 
 describe('create_tables_sql', () => {
   it('应为每个实体生成建表 SQL，并只为开启日志的实体生成触发器', async () => {
-    const sql = await create_tables_sql(adapter, [CtsAlpha, CtsQuiet]);
+    const sql = await create_tables_sql(adapter, [CtsAlpha, CtsQuiet], MAIN_BRANCH_ID);
 
     expect(sql).toContain('CREATE TABLE "public$cts_alpha"');
     expect(sql).toContain('CREATE TABLE "public$cts_quiet"');
@@ -48,7 +48,7 @@ describe('create_tables_sql', () => {
     const alpha1 = Object.assign(new CtsAlpha(), { id: 'a-1', title: 'first' });
     const alpha2 = Object.assign(new CtsAlpha(), { id: 'a-2', title: 'second' });
 
-    const sql = await create_tables_sql(adapter, [CtsAlpha], [alpha1, alpha2]);
+    const sql = await create_tables_sql(adapter, [CtsAlpha], MAIN_BRANCH_ID, [alpha1, alpha2]);
 
     expect(sql).toContain('INSERT INTO "public$cts_alpha"');
     expect(sql).toContain(`'a-1'`);
@@ -58,9 +58,19 @@ describe('create_tables_sql', () => {
   });
 
   it('未提供初始数据时不应生成实体表的 INSERT 语句', async () => {
-    const sql = await create_tables_sql(adapter, [CtsAlpha]);
+    const sql = await create_tables_sql(adapter, [CtsAlpha], MAIN_BRANCH_ID);
 
     // 触发器体内会向变更日志表 INSERT，这里只断言不为实体表生成初始数据
     expect(sql).not.toContain('INSERT INTO "public$cts_alpha"');
+  });
+
+  it('触发器应写入调用方传入的 branchId，不固定写死 main', async () => {
+    const sql = await create_tables_sql(adapter, [CtsAlpha], 'cts-branch');
+
+    // 触发器体内 `INSERT INTO rxdb$rxdb_change (...) VALUES (...)` 把 branchId 烙成 SQL 字面量，
+    // 这里直接断言字面量本身，而不是断言某个更高层行为——建表这一刻既没有事务执行器可用于
+    // 查询当前分支，也不该在这里替调用方兜底，branchId 必须原样透传进触发器体。
+    expect(sql).toContain(`'cts-branch'`);
+    expect(sql).not.toContain(`'${MAIN_BRANCH_ID}'`);
   });
 });

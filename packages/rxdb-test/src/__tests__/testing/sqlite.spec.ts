@@ -393,4 +393,72 @@ describe('cleanupSqliteTestAdapter 初始行回放', () => {
     // 触发器没被装回去 —— 事务本身要回滚，这里只确认失败点之后不再继续往下走。
     expect(executedSql).not.toContain('CREATE TRIGGER todo_insert_main;');
   });
+
+  // restoreInitialRows 写的是按分支挂靠的行，前提是 rxdb$rxdb_branch 本轮被清空、只剩 main
+  // 一行。分支表在库里、却被 shouldDeleteTable 留下时，它可能残留上一轮任意分支组合的旧行，
+  // 钩子写进去轻则撞唯一约束、报一条读不出原因的底层 SQL 错误，重则在没有唯一约束的表上
+  // 悄悄产出重复行。这是清理配置自相矛盾，与缺 resetToMainBranchSql 同类，必须在任何 DELETE
+  // 之前拒绝——所以这里让 shouldDeleteTable 只留分支表、照常清 public$todos，只放行
+  // 「钩子没被调用」而放过半截清理的实现会在 executedSql 上露馅。
+  it('分支表被 shouldDeleteTable 留下时拒绝 restoreInitialRows，且在任何 DELETE 之前', async () => {
+    const executedSql: string[] = [];
+    let restoreInitialRowsCalled = false;
+
+    await expect(
+      cleanupSqliteTestAdapter(
+        {
+          transaction: async callback =>
+            callback({
+              execute: async sql => {
+                executedSql.push(sql.trim());
+                if (sql.includes('sqlite_master')) {
+                  return tableResult([
+                    ['public$todos', 'CREATE TABLE "public$todos" (...)'],
+                    ['rxdb$rxdb_branch', 'CREATE TABLE "rxdb$rxdb_branch" (...)']
+                  ]);
+                }
+                return tableResult([]);
+              }
+            })
+        },
+        {
+          shouldDeleteTable: tableName => tableName !== 'rxdb$rxdb_branch',
+          restoreInitialRows: async () => {
+            restoreInitialRowsCalled = true;
+          }
+        }
+      )
+    ).rejects.toThrow(/restoreInitialRows requires rxdb\$rxdb_branch to be cleared/);
+
+    expect(restoreInitialRowsCalled).toBe(false);
+    expect(executedSql).toEqual([
+      'PRAGMA defer_foreign_keys = ON;',
+      "SELECT name, sql FROM sqlite_master WHERE type='table';"
+    ]);
+  });
+
+  // 库里压根没有分支表（只聚焦单表行为的夹具）时无旧行可残留，钩子照常调用，不能与
+  // 「分支表在、却被留下」一概而论地拒绝。
+  it('库里没有分支表时照常调用 restoreInitialRows', async () => {
+    let restoreInitialRowsCalled = false;
+
+    await cleanupSqliteTestAdapter(
+      {
+        transaction: async callback =>
+          callback({
+            execute: async sql =>
+              sql.includes('sqlite_master') ?
+                tableResult([['public$todos', 'CREATE TABLE "public$todos" (...)']])
+              : tableResult([])
+          })
+      },
+      {
+        restoreInitialRows: async () => {
+          restoreInitialRowsCalled = true;
+        }
+      }
+    );
+
+    expect(restoreInitialRowsCalled).toBe(true);
+  });
 });

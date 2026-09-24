@@ -47,7 +47,7 @@
 3. 写目标表 ∩ 版本化业务实体表 ≠ ∅ **且** 被写列集 ⊄ untracked 字段域 → 抛 `commit_capability_mismatch`，**业务表零变化**。列集无法确定时按「不是子集」处理。
 4. 其余写目标（FTS 虚拟表与影子表、系统表、QueryCache 实体表、临时表），以及第 3 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后不创建工作树单元、不递增 revision。
 
-**没有「受信 `intent` 豁免」这一步。** 判定曾有过一步「携带内部受信 `intent` → 放行」，2026-09-23 连同上下文槽位一并删除：§3 登记表的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语，一个 raw 调用点都没有，那一步在生产里永远取不到真值——却是整条防线上唯一无条件放行的一步。未来真要内部受信 raw 写路径，先补一条能证明身份的传递通道，见 [../threat-model.md](../threat-model.md) §3。
+**没有「受信 `intent` 豁免」这一步。** 判定曾有过一步「携带内部受信 `intent` → 放行」，2026-09-23 连同上下文槽位一并删除：§3 登记表的条目全部走**带类型的**写原语（`switchBranch` / `mergeChanges` / `transaction`），一个 raw 调用点都没有，那一步在生产里永远取不到真值——却是整条防线上唯一无条件放行的一步。未来真要内部受信 raw 写路径，先补一条能证明身份的传递通道，见 [../threat-model.md](../threat-model.md) §3。
 
 **实现约束**：
 
@@ -61,27 +61,28 @@
 
 登记键固定为**「文件 + 符号 + 意图」**，符号取实际发起该次批量重写的**最内层具名函数**，不是委托门面，也不是行号。行号仅供本次核对存档。
 
-文件一列只写**基名**：US-025 抽包把这 9 处调用点从核心 `packages/rxdb/src/version/` 搬进了两个插件（#1~#6 → `@aiao/rxdb-plugin-history/src/`，#7~#9 → `@aiao/rxdb-plugin-sync/src/`），登记键必须跨这种搬迁存活，所以它不含目录。登记表本身仍在 `packages/rxdb/src/trusted-write/trusted-write-intent.ts`——它是 `declareTrustedWrite()` 的准入名单，而那道门禁在核心。
+文件一列只写**基名**：US-025 抽包把 #1~#9 从核心 `packages/rxdb/src/version/` 搬进了两个插件（#1~#6 → `@aiao/rxdb-plugin-history/src/`，#7~#9 → `@aiao/rxdb-plugin-sync/src/`），登记键必须跨这种搬迁存活，所以它不含目录。#10 从一开始就在 `@aiao/rxdb-plugin-working-tree/src/`。登记表本身仍在 `packages/rxdb/src/trusted-write/trusted-write-intent.ts`——它是 `declareTrustedWrite()` 的准入名单，而那道门禁在核心。
 
-| #   | 文件（基名）         | 符号                       | 写原语                            | 行  | 意图          | 产生工作树单元 |
-| --- | -------------------- | -------------------------- | --------------------------------- | --- | ------------- | -------------- |
-| 1   | `VersionManager.ts`  | `switchBranch`             | `adapter.switchBranch`            | 280 | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`  | `restore_entity`           | `executor.mergeChanges(…, false)` | 94  | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`  | `invalidateRedoStack`      | `adapter.switchBranch`            | 537 | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts` | `applyUndoRedoHistories`   | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`    | `merge_branch`（逐条分支） | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`    | `merge_branch`（压缩分支） | `executor.mergeChanges(…, false)` | 174 | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 349 | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts` | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 627 | `remote_sync` | **必须产生**   |
-| 9   | `cleanup-expired.ts` | `cleanupExpired`           | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
+| #   | 文件（基名）            | 符号                                      | 写原语                            | 行  | 意图          | 产生工作树单元 |
+| --- | ----------------------- | ----------------------------------------- | --------------------------------- | --- | ------------- | -------------- |
+| 1   | `VersionManager.ts`     | `switchBranch`                            | `adapter.switchBranch`            | 280 | 分支物化      | **不产生**     |
+| 2   | `restore-entity.ts`     | `restore_entity`                          | `executor.mergeChanges(…, false)` | 94  | 实体恢复      | **必须产生**   |
+| 3   | `HistoryManager.ts`     | `invalidateRedoStack`                     | `adapter.switchBranch`            | 537 | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`                  | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
+| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）                | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）                | `executor.mergeChanges(…, false)` | 174 | 压缩合并      | **必须产生**   |
+| 7   | `pull-batch.ts`         | `pullBatchOnce`                           | `executor.mergeChanges(…, true)`  | 349 | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`    | `pullSingleRepository`                    | `executor.mergeChanges(…, true)`  | 627 | `remote_sync` | **必须产生**   |
+| 9   | `cleanup-expired.ts`    | `cleanupExpired`                          | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
+| 10  | `materialize-branch.ts` | `takeOverBranchSwitchWithMaterialization` | `adapter.transaction`             | 356 | 分支物化      | **不产生**     |
 
-**核对结论**：9 行符号全部存在、签名未漂移。同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记。
+**核对结论**：#1~#9 符号全部存在、签名未漂移（2026-09-16 整表核对）；#10 是 2026-09-25 补登的一行，只核对了它自己——metadata-only 接管路径的物化屏障原先没有自报意图，挂载点 1 把整份快照按 `crud` 记成了一批未提交变更。同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记。
 
-**登记表跨两个写原语**：#1 / #3 / #4 走 `switchBranch`，其余走 `mergeChanges`。**只在 `mergeChanges` 上挂门禁会整体漏掉撤销与分支物化面。**
+**登记表跨三个写原语**：#1 / #3 / #4 走 `switchBranch`，#10 走 `transaction`，其余走 `mergeChanges`。**只在 `mergeChanges` 上挂门禁会整体漏掉撤销与分支物化面**；只认 `switchBranch` 上的分支物化则会漏掉接管路径——那条路径切 active 用的是屏障自己开的事务，一次 `switchBranch` 都不调。`transaction` 与另外两个原语不同：没声明的 `transaction()` 是普通 CRUD，不是未知入口，所以它只在自报了意图时才进本表。
 
-**`mergeChanges` 那 6 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；而工作树的 `interceptMergeChanges()` 是排队拿到事务之后才取声明的。绑适配器实例时两个并发的 `mergeChanges` 会互相覆盖——先执行的取到后声明者的意图，后执行的取不到声明被当作未知入口拒绝。#2 与 #6 原先是适配器级（各自只有一次写，本不需要事务），2026-09-24 改为先开事务再按执行器声明；并发用例在 `packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`。`switchBranch` 不在此列：它在调用钩子时**同步**消费声明，声明与取用之间没有排队窗口，因此仍以适配器实例为作用域。
+**`mergeChanges` 那 6 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；而工作树的 `interceptMergeChanges()` 是排队拿到事务之后才取声明的。绑适配器实例时两个并发的 `mergeChanges` 会互相覆盖——先执行的取到后声明者的意图，后执行的取不到声明被当作未知入口拒绝。#2 与 #6 原先是适配器级（各自只有一次写，本不需要事务），2026-09-24 改为先开事务再按执行器声明；并发用例在 `packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`。`switchBranch` 不在此列：它在调用钩子时**同步**消费声明，声明与取用之间没有排队窗口，因此仍以适配器实例为作用域。#10 的 `transaction` 同样绑执行器（那笔事务交出来的那一个），并且声明写在事务体**末尾**：挂载点 1 在事务体返回之后才取声明，写在开头的话，会先被体内嵌套的 `executor.mergeChanges()` 取走。
 
-**静态扫描跑在 `pnpm audit:callsite-drift`（`scripts/audit/working-tree-callsite-drift.mjs`）里**，扫的是整个 `packages/`——9 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync / rxdb-plugin-querycache 四个包里，只扫单个包的门禁会全绿地什么都看不见。核心包内的 chromium 测试只核对这张表与登记表逐格一致，外加「核心自身零受信写、零批量写」。**静态扫描**必须排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`。写路径必须携带显式意图枚举（内部契约，**不进**公开 api-baseline）；未携带标记的批量重写一律按未知入口拒绝。
+**静态扫描跑在 `pnpm audit:callsite-drift`（`scripts/audit/working-tree-callsite-drift.mjs`）里**，扫的是整个 `packages/`——10 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync / rxdb-plugin-working-tree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。核心包内的 chromium 测试只核对这张表与登记表逐格一致，外加「核心自身零受信写、零批量写」。**静态扫描**必须排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`。写路径必须携带显式意图枚举（内部契约，**不进**公开 api-baseline）；未携带标记的批量重写一律按未知入口拒绝。
 
 ## 4. 能力边界（写进公开文档，不假装拦得住）
 

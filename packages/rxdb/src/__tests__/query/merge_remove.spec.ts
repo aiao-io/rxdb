@@ -2,6 +2,7 @@ import { firstValueFrom, map, Observable, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_remove_cache_impl from '../../query/merge_remove.js';
+import type { CountOptions } from '../../repository/query-options.interface.js';
 import { QueryOptions } from '../../repository/QueryManager.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import { RxDBEntityLocalRemovedEventData } from '../../rxdb-events.js';
@@ -530,134 +531,69 @@ describe('query_merge_remove_cache', () => {
   });
 
   describe('count - 计数查询', () => {
-    it('应该使用 JS 计算减少计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask(
-          {
-            type: 'count',
-            options: {
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'completed', operator: '=', value: false }]
-              }
-            }
-          },
-          () => of(10)
-        );
-
-        const results = [10, 9]; // 10 - 1 = 9
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1', completed: false });
-        query_merge_remove_cache(task, [removeEvent]);
-      });
-    });
-
-    it('应该批量减少计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask(
-          {
-            type: 'count',
-            options: { where: { combinator: 'and', rules: [] } }
-          },
-          () => of(20)
-        );
-
-        const results = [20, 17]; // 20 - 3 = 17
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const removeEvents = [
-          createMockRemoveEvent({ id: '1', title: 'Task 1' }),
-          createMockRemoveEvent({ id: '2', title: 'Task 2' }),
-          createMockRemoveEvent({ id: '3', title: 'Task 3' })
-        ];
-        query_merge_remove_cache(task, removeEvents);
-      });
-    });
-
-    it('应该确保计数不小于 0', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask(
-          {
-            type: 'count',
-            options: { where: { combinator: 'and', rules: [] } }
-          },
-          () => of(2)
-        );
-
-        const results = [2, 0]; // 2 - 5 = max(0, -3) = 0
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const removeEvents = [
-          createMockRemoveEvent({ id: '1', title: 'Task 1' }),
-          createMockRemoveEvent({ id: '2', title: 'Task 2' }),
-          createMockRemoveEvent({ id: '3', title: 'Task 3' }),
-          createMockRemoveEvent({ id: '4', title: 'Task 4' }),
-          createMockRemoveEvent({ id: '5', title: 'Task 5' })
-        ];
-        query_merge_remove_cache(task, removeEvents);
-      });
-    });
-
-    it('不应该减少不匹配 where 条件的实体计数', () => {
-      const task = createMockQueryTask(
-        {
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          }
-        },
-        () => of(8)
+    /** 按调用次序依次返回 SQL 计数，模拟「每次重数都去库里读一遍」。 */
+    const createCountTask = (
+      counts: number[],
+      where: CountOptions<TestEntityType>['where'] = { combinator: 'and', rules: [] }
+    ): QueryTask<TestEntityType, number> => {
+      let call = 0;
+      return createMockQueryTask<number>({ type: 'count', options: { where } }, () =>
+        of(counts[Math.min(call++, counts.length - 1)])
       );
+    };
 
+    it('匹配 where 的 DELETE 应该回 SQL 重数', () => {
+      const task = createCountTask([10, 9], {
+        combinator: 'and',
+        rules: [{ field: 'completed', operator: '=', value: false }]
+      });
+      const emissions = collectEmissions(task);
+
+      const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1', completed: false });
+      query_merge_remove_cache(task, [removeEvent]);
+
+      expect(emissions).toEqual([10, 9]);
+    });
+
+    it('一批多条删除只触发一次重数', () => {
+      const task = createCountTask([20, 17]);
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      const removeEvents = [
+        createMockRemoveEvent({ id: '1', title: 'Task 1' }),
+        createMockRemoveEvent({ id: '2', title: 'Task 2' }),
+        createMockRemoveEvent({ id: '3', title: 'Task 3' })
+      ];
+      query_merge_remove_cache(task, removeEvents);
+
+      expect(emissions).toEqual([20, 17]);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('即使批量删除数超过原计数，也只信 SQL 重数结果', () => {
+      // 不再是 `Math.max(0, 2 - 5)` 的本地钳制——这里就是 SQL 给回的权威值。
+      const task = createCountTask([2, 0]);
+      const emissions = collectEmissions(task);
+
+      const removeEvents = [
+        createMockRemoveEvent({ id: '1', title: 'Task 1' }),
+        createMockRemoveEvent({ id: '2', title: 'Task 2' }),
+        createMockRemoveEvent({ id: '3', title: 'Task 3' }),
+        createMockRemoveEvent({ id: '4', title: 'Task 4' }),
+        createMockRemoveEvent({ id: '5', title: 'Task 5' })
+      ];
+      query_merge_remove_cache(task, removeEvents);
+
+      expect(emissions).toEqual([2, 0]);
+    });
+
+    it('不应该计数不匹配 where 条件的实体', () => {
+      const task = createCountTask([8], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
+      });
+      const refresh = vi.spyOn(task, 'refresh');
       const emissions = collectEmissions(task);
 
       // 删除不匹配条件的实体（inversePatch 中 status 是 'inactive'）
@@ -665,67 +601,70 @@ describe('query_merge_remove_cache', () => {
       query_merge_remove_cache(task, [removeEvent]);
 
       expect(emissions).toEqual([8]);
+      expect(refresh).not.toHaveBeenCalled();
     });
 
-    it('混合删除事件中只减少匹配 where 的实体计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask(
-          {
-            type: 'count',
-            options: {
-              where: {
-                combinator: 'and',
-                rules: [{ field: 'status', operator: '=', value: 'active' }]
-              }
-            }
-          },
-          () => of(10)
-        );
-
-        const results = [10, 9]; // 3 个删除事件中只有 1 个匹配 where，10 - 1 = 9
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const removeEvents = [
-          createMockRemoveEvent({ id: '1', status: 'active' }), // 匹配
-          createMockRemoveEvent({ id: '2', status: 'inactive' }), // 不匹配
-          createMockRemoveEvent({ id: '3', status: 'archived' }) // 不匹配
-        ];
-        query_merge_remove_cache(task, removeEvents);
+    it('混合删除事件中命中 where 的那条应该触发 SQL 重数', () => {
+      const task = createCountTask([10, 9], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
       });
-    });
-
-    it('计数已经是 0 时不会被减成负数', () => {
-      const task = createMockQueryTask({ type: 'count', options: { where: { combinator: 'and', rules: [] } } }, () =>
-        of(0)
-      );
-
       const emissions = collectEmissions(task);
 
-      // 0 是合法的已落地结果（`task.result === 0`），不是"还没跑过"。上游守卫只拦
-      // `undefined`，所以这里会真的进 JS 增量：计数与删除事件本就可能对不上——
-      // runner 的快照取自这行被删之前还是之后，取决于两者到达的先后。
+      const removeEvents = [
+        createMockRemoveEvent({ id: '1', status: 'active' }), // 匹配
+        createMockRemoveEvent({ id: '2', status: 'inactive' }), // 不匹配
+        createMockRemoveEvent({ id: '3', status: 'archived' }) // 不匹配
+      ];
+      query_merge_remove_cache(task, removeEvents);
+
+      expect(emissions).toEqual([10, 9]);
+    });
+
+    it('计数为 0 时的删除事件同样走 SQL 重数，而不是本地判定', () => {
+      const task = createCountTask([0, 0]);
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      // 0 是合法的已落地结果（`task.result === 0`），不是"还没跑过"——上游守卫只拦
+      // `undefined`，这里会真的触发一次重数，只是 SQL 给回的还是 0。
       query_merge_remove_cache(task, [createMockRemoveEvent({ id: '1', title: 'Task 1' })]);
 
-      expect(task.result).toBe(0);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      // 第二次重数拿回同一个 0，指纹未变，不再发射
       expect(emissions).toEqual([0]);
     });
 
-    it('where 不依赖关系字段时，关系实体的删除既不减计数也不刷新', () => {
+    // RXD-020 的 REMOVE 对偶：branch-merge 对同一条 DELETE 也可能有两次独立派发。
+    it('同一 id 的两次独立 DELETE 派发不应该重复计数', () => {
+      const task = createCountTask([5, 4, 4]);
+      const emissions = collectEmissions(task);
+
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: '10', title: 'Task 10' })]);
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: '10', title: 'Task 10' })]);
+
+      // 第二次重数拿回同一个 4，指纹未变，不再发射
+      expect(emissions).toEqual([5, 4]);
+      expect(task.result).toBe(4);
+    });
+
+    // 本条是 count 不做 JS 减法的根据：快照先于事件把这行的删除计进去了（SQL 已经不含
+    // 这行，返回值已经是减过的），这行的批处理 DELETE 随后才到，`current_count -
+    // matched.length` 会在已经减过的数上再减一次，且没有下一次整查前不会纠回来。
+    // 重数拿到的仍是同一个权威值。
+    it('快照已包含的删除迟到时不应该把计数压低', () => {
+      const task = createCountTask([1, 1]);
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: 'a', title: 'Task A' })]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([1]);
+      expect(task.result).toBe(1);
+    });
+
+    it('where 不依赖关系字段时，关系实体的删除既不触发重数也不刷新', () => {
       class Post {
         static [ENTITY_STATIC_TYPES] = { idType: '' as string };
         id = '';
@@ -774,9 +713,9 @@ describe('query_merge_remove_cache', () => {
       const emissions = collectEmissions(task);
 
       // Tag 指向 Post，所以这条 DELETE 会被派发到这个 Post 计数任务上；`separateEntities`
-      // 把它判进 relation_entities，当前实体集是空的。两条路都不该走：`match_where` 在空集上
-      // 为假（减不得），`match_relation_where` 也为假——这个 where 只用 Post 自己的字段，
-      // 删一个 Tag 影响不到"已发布文章数"，回 SQL 重取同样是白跑一趟。
+      // 把它判进 relation_entities，当前实体集是空的。两条 refresh_rules 都不该命中：
+      // `match_where` 在空集上为假，`match_relation_where` 也为假——这个 where 只用 Post
+      // 自己的字段，删一个 Tag 影响不到"已发布文章数"，回 SQL 重取同样是白跑一趟。
       query_merge_remove_cache_impl(task as unknown as QueryTask<typeof Post>, [
         {
           type: 'DELETE',
@@ -796,7 +735,7 @@ describe('query_merge_remove_cache', () => {
   });
 
   // 与 merge_create / merge_update 的同款守卫：首个权威结果落地前收到 DELETE 事件，
-  // count 分支会用 `(result || 0) - matched` 伪造出首发结果 0；其余分支虽是空转，
+  // 各分支此时都还是空转（count 也一样，已经没有本地加减能伪造出首发结果），
   // 但 runner 的快照可能取自删除提交之前，静默丢弃会让这行死数据永远留在活查询里。
   describe('权威基线落地前的 DELETE 事件', () => {
     it('不得成为首个结果，而应交回 SQL 重算', async () => {
@@ -880,35 +819,25 @@ describe('query_merge_remove_cache', () => {
     });
 
     it('应该处理 count 为 0 的情况', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask(
-          {
-            type: 'count',
-            options: { where: { combinator: 'and', rules: [] } }
-          },
-          () => of(1)
-        );
-        const results = [1, 0]; // 1 - 1 = 0
-        let resultIndex = 0;
+      // 快照 1 -> 命中 where 的 DELETE 触发重数 -> SQL 给回权威的 0。
+      let call = 0;
+      const counts = [1, 0];
+      const task = createMockQueryTask(
+        {
+          type: 'count',
+          options: { where: { combinator: 'and', rules: [] } }
+        },
+        () => of(counts[Math.min(call++, counts.length - 1)])
+      );
 
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
 
-        const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1' });
-        query_merge_remove_cache(task, [removeEvent]);
-      });
+      const removeEvent = createMockRemoveEvent({ id: '1', title: 'Task 1' });
+      query_merge_remove_cache(task, [removeEvent]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([1, 0]);
     });
   });
 

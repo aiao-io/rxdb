@@ -81,7 +81,9 @@ type MountPointDetail = Omit<WorkingTreeCaptureMountPoint, 'method'>;
  * 是可选方法，把它混进来会让「没有 `rawQuery` 的适配器没有敞口」这个错误结论看起来成立；真正的
  * 敞口是第 4 行那两个方法。
  *
- * 序号 4 占两行：`upsertMany` 与 `deleteByIds` 各算一个挂载点，缺任何一个都留下敞口。
+ * 序号 4 占两行：契约把 `upsertMany` 与 `deleteByIds` 算作**同一个**挂载点（同一个敞口的写入侧与
+ * 删除侧），这里按写原语键控，所以拆成两行——表里 5 行、挂载点 4 个，两个数都对。两者都得挂，
+ * 缺任何一个都留下敞口。
  */
 const MOUNT_POINTS_BY_PRIMITIVE: Readonly<Record<keyof RawWritePrimitives, MountPointDetail>> = {
   transaction: {

@@ -94,7 +94,7 @@
 [`UnsupportedRxDBSystemVersionError`](../packages/rxdb/src/system/migration.ts#L95)，消息形如
 `Unsupported RxDB system schema version: stored=6, supported=3`。两个适配器家族各有一处调用点
 （[pglite](../packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts#L189)、
-[sqlite-core](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L617)），
+[sqlite-core](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L679)），
 都排在迁移阶梯之前。
 
 **影响面恰好是一个方向**：升级过的库 + 旧客户端。反过来（旧库 + 新客户端）走 `<` 那一侧，由迁移阶梯

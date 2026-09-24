@@ -723,7 +723,10 @@ describe('sqlite.utils', () => {
       expect(result).toEqual({ dept_id: 'd1' });
     });
 
-    it('应该过滤 readonly 的外键', () => {
+    // 关系不会带 readonly 键：类型层声明为 `readonly?: never`，`EntityManager.init()` 的
+    // readonlyOnRelation 规则也会拒绝注册。这里手工构造出这种不可达的元数据，只为钉住
+    // UPDATE 侧不再为它单独过滤（与 CREATE 侧对称），契约本身锁在 @aiao/rxdb 的 entity.utils.spec。
+    it('关系上的 readonly 键不再被单独过滤', () => {
       const metadata = createMetadata(
         [],
         [
@@ -740,7 +743,7 @@ describe('sqlite.utils', () => {
 
       const result = normalizeUpdateEntity(metadata, { deptId: 'd1' });
 
-      expect(result).toEqual({});
+      expect(result).toEqual({ dept_id: 'd1' });
     });
 
     it('foreignKeyRelationMap 缺失对应关系时应该忽略该外键', () => {

@@ -42,6 +42,7 @@ import {
   ACTIVE_BRANCH_KEY,
   getEntityColumnName,
   getEntityMetadata,
+  isUniqueConstraintViolation,
   quoteSqlIdentifier,
   RxDBBranch,
   RxDBError,
@@ -111,15 +112,18 @@ export type BranchNotMaterializedReason =
   /** 落库的那批页与它们自己声明的指纹对不上，或页号不是从 0 起的密集序列 */
   | 'stage_tampered'
   /** 这条连接上没有登记远端快照来源，拉不到要物化的那份 payload */
-  | 'source_unavailable';
+  | 'source_unavailable'
+  /** 这一页的页号已经被另一路追加占了——多半是另一个标签页在续同一份 staging */
+  | 'page_conflict';
 
 /**
  * 物化依据不足，整次尝试以 `branch_not_materialized` 全量回滚（FR-044）。
  *
  * @remarks
- * 六个成因的分辨力全在这个类上，所以它不是一个裸 {@link RxDBError}：`stage_missing` 要重新拉一遍，
+ * 七个成因的分辨力全在这个类上，所以它不是一个裸 {@link RxDBError}：`stage_missing` 要重新拉一遍，
  * `stage_incomplete` 可以接着上次拉，`intent_drift` 要换一份意图重来，`stage_tampered` 要把这份
- * staging 整个丢掉重拉（接着拉只会把坏页留在原地），`target_already_materialized` 说明这条分支
+ * staging 整个丢掉重拉（接着拉只会把坏页留在原地），`page_conflict` 说明另一路正在续同一份
+ * staging（它本身没坏，重判一次续用位置再接着拉），`target_already_materialized` 说明这条分支
  * 本来就不该走这条路，而 `source_unavailable` 与库里的状态无关——它说的是这条连接还没登记
  * 快照来源。合并成一个错误码之后，调用方只能一律重来。
  *
@@ -441,7 +445,8 @@ export const beginBranchMaterializationStage = async (
  * @param entityManager - 用于 `instantiate()` 的实体管理器
  * @param executor - 一个**只装这一页**的写事务的执行器
  * @param input - 见 {@link AppendBranchMaterializationPageInput}
- * @throws {@link BranchNotMaterializedError} 头行不在、已经封口，或这一页的指纹与内容对不上时
+ * @throws {@link BranchNotMaterializedError} 头行不在、已经封口、这一页的指纹与内容对不上，
+ * 或这个页号已被另一路追加占了时
  *
  * @remarks
  * **一次调用 = 一页 = 一个事务**，这是崩溃续传的全部依据：上一页提交之后才去拉下一页，
@@ -457,6 +462,10 @@ export const beginBranchMaterializationStage = async (
  * 拿着 `nextPageIndex`，让它报出来，(stageId, pageIndex) 上的唯一索引才是在替它把关。
  * 页号连续性由封口与屏障两处统一验（密集从 0 起），不在每一页上各读一次页数来验——
  * 那是每页多一次查询，换来的判断与封口那一次完全一样。
+ *
+ * 唯一索引把关的那一刻要**翻译**成 `page_conflict` 再抛。两个标签页从同一个续用位置出发时，
+ * 页号在事务之外发放，事务再怎么串行，后到的那一路手上的号也已经被占了；裸约束错误说不出
+ * 「是另一路在续同一份 staging」，调用方拿到它只能把一份完好的 staging 当成坏了丢掉重拉。
  */
 export const appendBranchMaterializationPage = async (
   entityManager: EntityManager,
@@ -481,7 +490,18 @@ export const appendBranchMaterializationPage = async (
   row.pageIndex = input.pageIndex;
   row.payload = input.page.payload;
   row.fingerprint = input.page.fingerprint;
-  await executor.saveMany([row]);
+  try {
+    await executor.saveMany([row]);
+  } catch (error) {
+    // 唯一约束判定只夹在这一条 INSERT 上：主键是现发的 uuid，这一行能撞的只剩 (stageId, pageIndex)。
+    if (!isUniqueConstraintViolation(error)) throw error;
+    throw new BranchNotMaterializedError(
+      input.targetBranchId,
+      input.attemptId,
+      'page_conflict',
+      `第 ${input.pageIndex} 页已经被另一路追加占了，多半是另一个标签页在续同一份 staging；重判一次续用位置再接着拉。`
+    );
+  }
 };
 
 /**

@@ -10,7 +10,7 @@ import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
 import { UpdateDataCache } from './merge-update.utils.js';
-import { runMatches } from './query-matching.utils.js';
+import { isEntityMatchWhere, runMatches } from './query-matching.utils.js';
 import { separateEntities, whereUsesRelations } from './query-relation.utils.js';
 import { QueryRulesBuilder } from './query-rules-builder.js';
 
@@ -91,10 +91,27 @@ export const query_need_refresh_update = <T extends EntityType>(
   // 更新前态未知时不能走 JS 增量：它的每一条规则都建立在「能对比更新前后」之上。
   const before_unknown = hasUnknownBefore(current_entities);
 
+  // count 专用的精确判据（其余 task.type 都有更合适的机制，不该消费这个字段——见
+  // merge_update.ts 的 count 分支）。match_where / match_where_before 是整个批次的
+  // 存在性判断（`.some()`），一批里同时有「新匹配」和「新不匹配」两个方向、或者一批里
+  // 只是几个本来就匹配的稳定实体，这两个布尔值会**同时为真**——批次级别根本分不清
+  // 这两种情形。count 没有 result_contains 那样的结果集可以兜底，只能配对着比较
+  // **同一个实体自己**的 patch 与 inversePatch，才能看出它是否真的跨过了 where 边界，
+  // 不受同批次其它实体方向的干扰。用 resolvedCurrentEntities 而不是原始
+  // current_entities——复合 where 下真实的增量 patch 可能只含被改字段，必须先合并进
+  // 缓存实体补全字段（RXD-017），否则缺失字段在 isEntityMatchWhere 里恒判 false。
+  const count_boundary_crossed =
+    where ?
+      resolvedCurrentEntities.some(
+        e => isEntityMatchWhere(e.patch, where) !== isEntityMatchWhere(e.inversePatch, where)
+      )
+    : false;
+
   return {
     refresh: matches.refresh || before_unknown,
     recalculate: before_unknown ? false : matches.recalculate,
     current_entities,
-    relation_entities
+    relation_entities,
+    count_boundary_crossed
   };
 };

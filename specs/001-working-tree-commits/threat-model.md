@@ -52,7 +52,7 @@ raw 判定、bulk-write 门禁、捕获钩子**全部由适配器自己调用**�
 
 [raw-write-judgment.ts](../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts) 的判定曾有 5 步，第 2 步是「携带内部受信 `intent` → 放行」。**2026-09-23 连同上下文槽位一并删除，判定变为 4 步。**
 
-删而不是留空位，理由是这一步在生产里**永远取不到真值**：`TRUSTED_CALLSITE_REGISTRY` 的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语（adapter-contract.md §3 登记表），一个 raw 调用点都没有。它是一条死分支——却是整条防线上**唯一无条件放行**的一步。留着它的成本不是死代码，是**误导**：读判定的人会以为这条通道存在并且被用着，写新代码的人会以为「加个 intent 就能绕过去」是被支持的用法。
+删而不是留空位，理由是这一步在生产里**永远取不到真值**：`TRUSTED_CALLSITE_REGISTRY` 的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语（adapter-contract.md §3 登记表），一个 raw 调用点都没有（2026-09-25 补登的 #10 走 `transaction()` 事务体末尾的自报，同样是带类型的调用路径，结论不变）。它是一条死分支——却是整条防线上**唯一无条件放行**的一步。留着它的成本不是死代码，是**误导**：读判定的人会以为这条通道存在并且被用着，写新代码的人会以为「加个 intent 就能绕过去」是被支持的用法。
 
 ### 3.2 未来真要内部受信 raw 写路径，要补的是什么
 
@@ -130,15 +130,16 @@ raw 判定、bulk-write 门禁、捕获钩子**全部由适配器自己调用**�
 
 ## 7. 门禁一览
 
-| 门禁                                          | 防                       | 不防                                                              | 判据                   |
-| --------------------------------------------- | ------------------------ | ----------------------------------------------------------------- | ---------------------- |
-| raw 写 4 步判定                               | 未登记的 raw 写路径漂移  | 绕过 adapter 的外部句柄                                           | adapter-contract.md §2 |
-| `upsertMany` / `deleteByIds` bulk 门禁        | 不经 `rawQuery` 的批量写 | 同上                                                              | adapter-contract.md §1 |
-| 捕获挂载点清单                                | 新增写原语忘了挂捕获     | 不调用捕获的适配器                                                | §2.1                   |
-| `declareTrustedWrite()` 登记表                | 新调用点忘了登记         | 仿冒登记键                                                        | §4                     |
-| `'*active*'` 哨兵 + `assertUsableBranchId`    | 用户分支 ID 与哨兵碰撞   | 直写系统表                                                        | §5                     |
-| active branch token + revision CAS            | 并发提交丢更新           | 跨进程实时一致性；**漏捕获的写**（根本没进工作树，revision 不动） | FR-031 / §6            |
-| `capability_enabled` 广播 + `runEnabled` 自愈 | 同源连接漏掉能力启用     | 通知在途的那一小段；从不调工作树 API 的跨进程连接                 | §6                     |
+| 门禁                                          | 防                       | 不防                                                              | 判据                        |
+| --------------------------------------------- | ------------------------ | ----------------------------------------------------------------- | --------------------------- |
+| raw 写 4 步判定                               | 未登记的 raw 写路径漂移  | 绕过 adapter 的外部句柄                                           | adapter-contract.md §2      |
+| `upsertMany` / `deleteByIds` bulk 门禁        | 不经 `rawQuery` 的批量写 | 同上                                                              | adapter-contract.md §1      |
+| 捕获挂载点清单                                | 新增写原语忘了挂捕获     | 不调用捕获的适配器                                                | §2.1                        |
+| `declareTrustedWrite()` 登记表                | 新调用点忘了登记         | 仿冒登记键                                                        | §4                          |
+| `'*active*'` 哨兵 + `assertUsableBranchId`    | 用户分支 ID 与哨兵碰撞   | 直写系统表                                                        | §5                          |
+| active branch token + revision CAS            | 并发提交丢更新           | 跨进程实时一致性；**漏捕获的写**（根本没进工作树，revision 不动） | FR-031 / §6                 |
+| `capability_enabled` 广播 + `runEnabled` 自愈 | 同源连接漏掉能力启用     | 通知在途的那一小段；从不调工作树 API 的跨进程连接                 | §6                          |
+| 物化 staging 页指纹                           | 来源方传坏、落库之后被改 | payload 形态：加密列交成明文照样落库，失败残留一直留到调用方丢弃  | FR-044 / data-model.md §2.9 |
 
 ## 8. 写进公开文档的那一句
 

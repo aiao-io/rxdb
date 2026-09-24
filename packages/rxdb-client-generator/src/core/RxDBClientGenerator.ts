@@ -357,7 +357,14 @@ export class RxDBClientGenerator {
    * 生成器声明的 {@link IRepositoryGenerator.abstractEntityMetadata} 会一并登记为抽象元数据，
    * 调用方不必再手写一遍 {@link registerAbstractMetadata}。
    *
+   * 重名一律拒绝，不会静默顶替。检查必须放在这里，不能只放在 CLI 装载路径
+   * （`cli/repository-generators.ts` 的 `registerRepositoryGenerators`）：直接
+   * `new RxDBClientGenerator()` 后手动注册的编程调用方（例如 `apps/dev-rxdb-angular` 的
+   * generator.page.ts）走不到 CLI 那一层，一个与已注册生成器同名的插件（比如也叫
+   * `Repository`）会静默顶掉它，用到这个名字的实体随之换掉方法集且不报错。
+   *
    * @param generator Repository 生成器实例
+   * @throws {Error} 已存在同名生成器时抛出
    * @example
    * ```typescript
    * const generator = new RxDBClientGenerator();
@@ -365,6 +372,11 @@ export class RxDBClientGenerator {
    * ```
    */
   registerRepositoryGenerator(generator: IRepositoryGenerator): void {
+    if (this.repositoryGenerators.has(generator.name)) {
+      throw new Error(
+        `Duplicate repository generator name ${JSON.stringify(generator.name)}: a generator with this name is already registered`
+      );
+    }
     this.repositoryGenerators.set(generator.name, generator);
     generator.abstractEntityMetadata?.forEach((metadataOptions, abstractEntityName) => {
       this.registerAbstractMetadata(abstractEntityName, metadataOptions);

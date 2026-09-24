@@ -70,6 +70,10 @@
         "kind": "type"
       },
       {
+        "name": "SyncBranchSkipReason",
+        "kind": "type"
+      },
+      {
         "name": "SyncManager",
         "kind": "type"
       }

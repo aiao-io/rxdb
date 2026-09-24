@@ -4,9 +4,11 @@
  * @remarks
  * **这是指纹的唯一口径。** NEW / UPDATE / DELETE 与完整事务都归一成同一种
  * {@link CommitChangeUnit}，于是「工作树里这个单元和已提交的那个是不是同一份内容」
- * 只有一个答案。`WorkingTreeEntry.fingerprint`（US-306）、`Commit.contentFingerprint`
- * （US-305）与 `commit-graph-guard.ts` 的重算（T038）三处**全部**走这里，
- * 各写各的那天不会有任何报错——遍历与校验各自自洽，只是看见的不是同一张图。
+ * 只有一个答案。`Commit.contentFingerprint`（US-305）与 `commit-graph-guard.ts` 的重算
+ * （T038）两处**全部**走这里，各写各的那天不会有任何报错——遍历与校验各自自洽，
+ * 只是看见的不是同一张图。`WorkingTreeEntry.fingerprint`（US-306）**不**在其中：它是
+ * `capture-runtime.ts` 的 `fingerprintOf` 只对 `operation` + `patch` 算的 FNV-1a/32
+ * 状态指纹，今天只作诊断、不进提交，口径要不要并过来留给 US-308 的冲突检测定。
  *
  * ## 摘要的输入集合：恰好是 `CommitChangeSet` 落库的那九列
  *

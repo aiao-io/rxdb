@@ -1858,6 +1858,38 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
       });
 
+      it('两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续', async () => {
+        await injectRemoteOnlyBranch(database);
+        const attemptId = uuid();
+        await stagePartially(database, attemptId, 1);
+        // 两个标签页判出同一个续用位置（第 1 页）。页号在事务**之外**发放，事务再怎么串行，
+        // 后到的那一路手上的号也已经被先到的那一路占了。
+        await appendPagesFrom(database, attemptId, 1, materializationPagesOf(1));
+
+        const rejection = await captureRejection(appendPagesFrom(database, attemptId, 1, materializationPagesOf(1)));
+
+        // 裸唯一约束错误只说「某个索引撞了」，调用方分不出这是另一路在续同一份 staging
+        // （重判续用位置接着拉即可），还是这份 staging 坏了（该丢掉重拉）。
+        expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+        const { reason, attemptId: rejectedAttemptId, branchId } = rejection as BranchNotMaterializedError;
+        expect({ reason, attemptId: rejectedAttemptId, branchId }).toEqual({
+          reason: 'page_conflict',
+          attemptId,
+          branchId: REMOTE_TARGET_ID
+        });
+        // 先到的那一页原样留着，后到的那一页随自己的事务回滚：staging 没坏，重判一次就能接着拉。
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
+        expect(
+          await withTransaction(database, executor =>
+            findResumableMaterializationAttempt(executor, {
+              targetBranchId: REMOTE_TARGET_ID,
+              frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+              syncScope: MATERIALIZATION_SCOPE
+            })
+          )
+        ).toEqual({ attemptId, nextPageIndex: 2, sealed: false });
+      });
+
       it('删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败', async () => {
         await database.versionManager.createBranch(ABA_BRANCH_ID);
         const before = await withTransaction(database, executor => readCommitBranchRef(executor, ABA_BRANCH_ID));

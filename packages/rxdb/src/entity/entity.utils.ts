@@ -315,8 +315,11 @@ export const normalizeUpdateEntity = (metadata: EntityMetadata, entity: EntityDa
   // bug，让它当场炸，别伪装成「这个实体没有外键」。
   for (const [key, relation] of metadata.foreignKeyRelationMap) {
     if (!(key in entity)) continue;
-    if ('readonly' in relation && relation.readonly === true) continue;
 
+    // 不检查 relation.readonly：关系不会带这个键。`relation-types.interface.ts` 里所有
+    // 关系选项都声明了 `readonly?: never`，类型层就不让声明；`EntityManager.init()` 又会
+    // 用 metadata-validate 的 readonlyOnRelation 规则，把任何带 readonly 键的关系当场拒绝
+    // 注册。能跑到这里的 relation 必然已经过了那道校验，不用在业务代码里再防一次。
     const { columnName } = relation as { columnName?: string };
     if (!columnName) {
       throw new RxDBError(`${metadata.namespace}:${metadata.name} 的外键关系 '${key}' 缺少 columnName`);
@@ -369,6 +372,8 @@ export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object):
     const value = Reflect.get(entity, key);
     if (value === undefined) continue;
 
+    // 同样不检查 relation.readonly——关系不可能带这个键，理由见
+    // normalizeUpdateEntity 对应位置的注释。
     const { columnName } = relation as { columnName?: string };
     if (!columnName) {
       throw new RxDBError(`${metadata.namespace}:${metadata.name} 的外键关系 '${key}' 缺少 columnName`);

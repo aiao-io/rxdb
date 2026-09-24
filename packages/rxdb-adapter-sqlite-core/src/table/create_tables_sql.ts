@@ -1,4 +1,4 @@
-import { EntityMetadata, EntityType, getEntityMetadata, MAIN_BRANCH_ID } from '@aiao/rxdb';
+import { EntityMetadata, EntityType, getEntityMetadata } from '@aiao/rxdb';
 import { generate_entity_inserts_sql } from '../entity/inserts_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_with_params } from '../sqlite-core.utils.js';
@@ -9,11 +9,17 @@ import { generate_table_trigger_sql } from './trigger_sql.js';
  * 生成多张创建表的 SQL
  * @param adapter 适配器实例
  * @param EntityTypes 实体类型数组
+ * @param branchId 新表触发器要写入变更历史的分支 id——**必填**。本函数只负责拼 SQL 字符串，
+ * 没有事务执行器可用于查询，也不该在这里自己猜：新库首次建表时 `rxdb_branch` 表往往还没有
+ * 行（甚至还没建出来），「当前活动分支」这个概念此刻根本读不出来。调用方
+ * （{@link RxDBAdapterSqliteBase.createTables}）手里有事务执行器，必须先读出真实值——哪怕
+ * 结论就是 main——再传进来，而不是让本函数替它悄悄决定写哪条分支。
  * @param entities 可选，初始数据实体数组
  */
 export const create_tables_sql = async <T extends EntityType>(
   adapter: RxDBAdapterSqliteBase,
   EntityTypes: T[],
+  branchId: string,
   entities?: InstanceType<T>[]
 ): Promise<string> => {
   let sql = '';
@@ -22,15 +28,8 @@ export const create_tables_sql = async <T extends EntityType>(
     const metadata = getEntityMetadata(EntityType);
     sql += '\n' + create_table_sql(adapter, metadata);
     if (metadata.log !== false) {
-      // 建表期固定写根分支，不去读当前活动分支：新库走到这里时 `rxdb_branch` 表**正在**本次调用里
-      // 被建出来，没有行可读。既有库补建缺失实体表（`RxDB.#ensureEntityTables`）时读得到，但读回来的
-      // 分支对这张**空表**没有意义——第一次写入前，默认事务会先按真实当前分支把全部触发器重建一遍
-      // （`#run_transaction` → {@link switch_transaction_id}），这张表的触发器那时才真正生效。
-      // 漏网的只有绕开事务日志的裸写窗口（不经 `transaction()` 的裸写），与迁移侧
-      // {@link RxDBAdapterSqliteBase.migrateSystemSchema} 重挂触发器那一步是同一个缺口：那一步已改为读真实活动
-      // 分支（`readActiveBranchIdForMigration`），这里读不到——差别就在「`rxdb_branch` 此刻有没有行」。
       const trigger_sql = generate_table_trigger_sql(metadata, {
-        branchId: MAIN_BRANCH_ID,
+        branchId,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       sql += '\n' + trigger_sql;

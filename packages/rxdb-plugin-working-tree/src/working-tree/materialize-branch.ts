@@ -17,6 +17,10 @@
  * 5. 一笔事务封口；
  * 6. 一笔事务跑屏障——九件事同生共死，含最后那一步切 active。
  *
+ * 第 6 步写业务表，却**不产生**工作树单元：屏障体返回前自报 `branch_materialization`
+ * （受信调用点登记表 #10），挂载点 1 据此把整笔判成投影重写。这一行与 #1 意图相同、原语不同——
+ * #1 走 `adapter.switchBranch()`，这里走的是屏障自己开的 `adapter.transaction()`。
+ *
  * 于是它接在 {@link RxDBSystemContribution.takeOverBranchSwitch} 上，而不是
  * `prepareBranchSwitch` 上：后者拿到的是**切换事务自己的**执行器，上面六步一步都塞不进去，
  * 而第 6 步末尾本来就在切 active——它是那次切换，不是那次切换的前置。
@@ -29,7 +33,7 @@ import type {
   RxDBBranchSwitchTakeoverContext,
   TransactionExecutor
 } from '@aiao/rxdb';
-import { uuid } from '@aiao/rxdb';
+import { declareTrustedWrite, TrustedWriteIntent, uuid } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { isCommitCapabilityEnabled } from '../commit/commit-capability.js';
 import {
@@ -148,6 +152,10 @@ export interface BranchMaterializationSource {
    * @remarks
    * 跑在**屏障那笔事务**里，按页序逐页调，且排在建 baseline / 建 ref 之前——一条
    * 「已经有根」的分支不该在物化中途对外可见。
+   *
+   * 经执行器做的普通写**不产生**工作树单元：屏障整笔自报 `branch_materialization`（登记表 #10）。
+   * 这张票只罩得住普通写——在同一个执行器上调受信写原语（`mergeChanges` 等）的实现
+   * 要自己声明并登记，否则按未知入口被拒。
    */
   applyPage(context: BranchMaterializationApplyContext): Promise<void>;
 }
@@ -330,15 +338,26 @@ export const takeOverBranchSwitchWithMaterialization = async (
     );
   }
 
-  await adapter.transaction(executor =>
-    commitBranchMaterialization(rxdb.entityManager, executor, {
+  await adapter.transaction(async executor => {
+    await commitBranchMaterialization(rxdb.entityManager, executor, {
       attemptId: cursor.attemptId,
       targetBranchId,
       expectedActiveBranch: prelude.activeToken,
       frozenRemoteWatermark: intent.frozenRemoteWatermark,
       syncScope: intent.syncScope,
       applyPage: (page, executor) => confirmed.applyPage({ targetBranchId, page, executor })
-    })
-  );
+    });
+    // applyPage 写的是目标分支的**投影**，不是用户的编辑——与 `VersionManager.switchBranch()` 那次
+    // 物化（登记表 #1）同一个意图。不声明的话，挂载点 1 在事务体返回后按 `crud` 捕获，
+    // 切一次分支就把整份快照记成一批未提交变更。
+    // 声明放在屏障**之后**而不是开头：挂载点 2 取声明时先问执行器，开头那张票会被 applyPage 里
+    // 嵌套的 `executor.mergeChanges()` 先取走——那次嵌套写被当成物化放行，屏障自己反倒落回 `crud`。
+    // 放在之后，嵌套原语没带自己的声明就当场被拒（fail-closed）。
+    declareTrustedWrite(executor, {
+      file: 'materialize-branch.ts',
+      symbol: 'takeOverBranchSwitchWithMaterialization',
+      intent: TrustedWriteIntent.branch_materialization
+    });
+  });
   return 'switched';
 };

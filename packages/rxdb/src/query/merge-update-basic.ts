@@ -116,21 +116,3 @@ export const handleFindOneUpdate = <T extends EntityType>(
     task.refresh();
   }
 };
-
-/**
- * 处理 count 查询更新
- */
-export const handleCountUpdate = <T extends EntityType>(task: QueryTask<T>, classification: UpdateClassification) => {
-  const currentCount = (task.result as number) || 0;
-  const addedCount = classification.newlyMatchedIds.size;
-  const removedCount = classification.newlyUnmatchedIds.size;
-
-  // 只有计数真正变化时才更新
-  if (addedCount > 0 || removedCount > 0) {
-    const newCount = Math.max(0, currentCount + addedCount - removedCount);
-    // autoCache 传 false：count 结果是个 number，`QueryTask#next` 在 autoCache=true 时
-    // 只会白白清空 resultEntitySet / resultEntityIds（清空逻辑在类型分支之外），
-    // 而 count 任务本来就没有实体结果可缓存。与 merge_remove.ts 的 count 分支同口径。
-    task.next(newCount, false);
-  }
-};

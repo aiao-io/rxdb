@@ -2,9 +2,15 @@ import { firstValueFrom, map, of, timer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import query_merge_update_cache_impl from '../../query/merge_update.js';
+import type { CountOptions } from '../../repository/query-options.interface.js';
 import { QueryTask } from '../../repository/QueryTask.js';
 import type { RxDBEntityLocalUpdatedEventData } from '../../rxdb-events.js';
-import { collectEmissions, createHarnessQueryTask, type HarnessTaskOptions } from '../../testing/query-task-harness.js';
+import {
+  collectEmissions,
+  createHarnessQueryTask,
+  type EntityCache,
+  type HarnessTaskOptions
+} from '../../testing/query-task-harness.js';
 
 describe('query_merge_update_cache', () => {
   class TestEntity {
@@ -684,65 +690,56 @@ describe('query_merge_update_cache', () => {
   });
 
   describe('count - 计数查询', () => {
-    it('应该增加新匹配实体的计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'completed', operator: '=', value: false }]
-            }
-          },
-          runner: () => of(5)
-        });
-
-        const results = [5, 6]; // 5 + 1 = 6
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // Task 1 从 completed: true 变为 false
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1', completed: false },
-          { id: '1', title: 'Task 1', completed: true }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+    /** 按调用次序依次返回 SQL 计数，模拟「每次重数都去库里读一遍」。 */
+    const createCountTask = (
+      counts: number[],
+      where: CountOptions<TestEntityType>['where'] = { combinator: 'and', rules: [] },
+      cachedById?: EntityCache
+    ): QueryTask<TestEntityType, number> => {
+      let call = 0;
+      return createMockQueryTask<number>({
+        type: 'count',
+        options: { where },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)]),
+        cachedById
       });
+    };
+
+    it('新匹配的实体应该触发 SQL 重数', () => {
+      const task = createCountTask([5, 6], {
+        combinator: 'and',
+        rules: [{ field: 'completed', operator: '=', value: false }]
+      });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      // Task 1 从 completed: true 变为 false —— 新匹配
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1', completed: false },
+        { id: '1', title: 'Task 1', completed: true }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([5, 6]);
     });
 
-    it('复合 where 下真实的增量 patch(只含被改字段)应该识别新匹配实体(RXD-017)', () => {
+    it('复合 where 下真实的增量 patch(只含被改字段)应该识别新匹配实体并触发 SQL 重数(RXD-017)', () => {
       // 模拟生产环境的实体缓存:更新前,id='1' 的完整实体已缓存为
       // { status: 'inactive', priority: 5 }。生产 QueryManager#serialize 会把增量
       // patch 经 entityManager 合并进这个缓存实体,补全成完整实体后再交给合并算法。
-      const task = createMockQueryTask({
-        type: 'count',
-        options: {
-          where: {
-            combinator: 'and',
-            rules: [
-              { field: 'status', operator: '=', value: 'active' },
-              { field: 'priority', operator: '=', value: 5 }
-            ]
-          }
+      const task = createCountTask(
+        [5, 6],
+        {
+          combinator: 'and',
+          rules: [
+            { field: 'status', operator: '=', value: 'active' },
+            { field: 'priority', operator: '=', value: 5 }
+          ]
         },
-        runner: () => of(5),
-        cachedById: { '1': { id: '1', status: 'inactive', priority: 5 } }
-      });
-
+        { '1': { id: '1', status: 'inactive', priority: 5 } }
+      );
+      const refresh = vi.spyOn(task, 'refresh');
       const emissions = collectEmissions(task);
 
       // Task 1 的 priority 此前一直是 5(未变),本次更新只有 status 从
@@ -762,100 +759,64 @@ describe('query_merge_update_cache', () => {
       query_merge_update_cache(task, [updateEvent]);
 
       // 停在 [5] 就是回归:gating 层拿裸 patch 判定复合 where 时,缺失字段恒判 false,
-      // 于是既不 recalculate 也不 refresh,count 永远不会走到 6。
+      // count_boundary_crossed 永远算不出「跨过边界」,SQL 重数不会触发。
+      expect(refresh).toHaveBeenCalledTimes(1);
       expect(emissions).toEqual([5, 6]);
     });
 
-    it('应该减少不再匹配实体的计数', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'completed', operator: '=', value: false }]
-            }
-          },
-          runner: () => of(5)
-        });
-
-        const results = [5, 4]; // 5 - 1 = 4
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        // Task 1 从 completed: false 变为 true
-        const updateEvent = createMockUpdateEvent(
-          { id: '1', title: 'Task 1', completed: true },
-          { id: '1', title: 'Task 1', completed: false }
-        );
-        query_merge_update_cache(task, [updateEvent]);
+    it('不再匹配的实体应该触发 SQL 重数', () => {
+      const task = createCountTask([5, 4], {
+        combinator: 'and',
+        rules: [{ field: 'completed', operator: '=', value: false }]
       });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      // Task 1 从 completed: false 变为 true —— 新不匹配
+      const updateEvent = createMockUpdateEvent(
+        { id: '1', title: 'Task 1', completed: true },
+        { id: '1', title: 'Task 1', completed: false }
+      );
+      query_merge_update_cache(task, [updateEvent]);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([5, 4]);
     });
 
-    it('应该同时处理新匹配和不再匹配的实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(10)
-        });
-
-        const results = [10, 11]; // 10 + 2 - 1 = 11
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const updateEvents = [
-          // Task 1 变为 active (+1)
-          createMockUpdateEvent(
-            { id: '1', title: 'Task 1', status: 'active' },
-            { id: '1', title: 'Task 1', status: 'inactive' }
-          ),
-          // Task 2 变为 active (+1)
-          createMockUpdateEvent(
-            { id: '2', title: 'Task 2', status: 'active' },
-            { id: '2', title: 'Task 2', status: 'inactive' }
-          ),
-          // Task 3 变为 inactive (-1)
-          createMockUpdateEvent(
-            { id: '3', title: 'Task 3', status: 'inactive' },
-            { id: '3', title: 'Task 3', status: 'active' }
-          )
-        ];
-        query_merge_update_cache(task, updateEvents);
+    it('混合批次(同时有新匹配和新不匹配)应该只触发一次 SQL 重数', () => {
+      // count_boundary_crossed 要正确处理的关键场景:批次里 Task 1/2 新匹配、Task 3
+      // 新不匹配,match_where 与 match_where_before 在批次级别是各自独立的存在性判断,
+      // 两者会**同时为真**,和"批次里只是几个本来就匹配的稳定实体"完全没法区分——
+      // 只有逐实体配对比较自己的 patch/inversePatch,才能看出每一个实体各自是否跨过了
+      // where 边界,不受同批次其它实体方向的干扰(见 need_refresh_update.ts 的注释)。
+      const task = createCountTask([10, 11], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
       });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      const updateEvents = [
+        // Task 1 变为 active(新匹配)
+        createMockUpdateEvent(
+          { id: '1', title: 'Task 1', status: 'active' },
+          { id: '1', title: 'Task 1', status: 'inactive' }
+        ),
+        // Task 2 变为 active(新匹配)
+        createMockUpdateEvent(
+          { id: '2', title: 'Task 2', status: 'active' },
+          { id: '2', title: 'Task 2', status: 'inactive' }
+        ),
+        // Task 3 变为 inactive(新不匹配)
+        createMockUpdateEvent(
+          { id: '3', title: 'Task 3', status: 'inactive' },
+          { id: '3', title: 'Task 3', status: 'active' }
+        )
+      ];
+      query_merge_update_cache(task, updateEvents);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([10, 11]);
     });
 
     it('inversePatch 为空(更新前态未知)时必须 SQL 刷新,不能当作"没变化"', () => {
@@ -923,49 +884,29 @@ describe('query_merge_update_cache', () => {
       expect(emissions).toEqual([8]);
     });
 
-    it('应该确保计数不小于 0', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'status', operator: '=', value: 'active' }]
-            }
-          },
-          runner: () => of(1)
-        });
-
-        const results = [1, 0]; // 1 - 2 = max(0, -1) = 0
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const updateEvents = [
-          createMockUpdateEvent(
-            { id: '1', title: 'Task 1', status: 'inactive' },
-            { id: '1', title: 'Task 1', status: 'active' }
-          ),
-          createMockUpdateEvent(
-            { id: '2', title: 'Task 2', status: 'inactive' },
-            { id: '2', title: 'Task 2', status: 'active' }
-          )
-        ];
-        query_merge_update_cache(task, updateEvents);
+    it('即使一批里多个实体同时新不匹配，也只信 SQL 重数结果而不做本地扣减', () => {
+      // 不再是 `Math.max(0, 1 - 2)` 的本地钳制——这里就是 SQL 给回的权威值。
+      const task = createCountTask([1, 0], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
       });
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      const updateEvents = [
+        createMockUpdateEvent(
+          { id: '1', title: 'Task 1', status: 'inactive' },
+          { id: '1', title: 'Task 1', status: 'active' }
+        ),
+        createMockUpdateEvent(
+          { id: '2', title: 'Task 2', status: 'inactive' },
+          { id: '2', title: 'Task 2', status: 'active' }
+        )
+      ];
+      query_merge_update_cache(task, updateEvents);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([1, 0]);
     });
   });
 
@@ -1015,52 +956,40 @@ describe('query_merge_update_cache', () => {
     });
 
     it('应该处理批量更新多个实体', () => {
-      return new Promise<void>((done, reject) => {
-        const task = createMockQueryTask({
-          type: 'count',
-          options: {
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'completed', operator: '=', value: false }]
-            }
-          },
-          runner: () => of(5)
-        });
-
-        const results = [5, 8]; // 5 + 3 = 8
-        let resultIndex = 0;
-
-        task.result$.subscribe({
-          next: d => {
-            try {
-              expect(d).toEqual(results[resultIndex]);
-              resultIndex++;
-              if (resultIndex === 2) {
-                done();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          },
-          error: reject
-        });
-
-        const updateEvents = [
-          createMockUpdateEvent(
-            { id: '1', title: 'Task 1', completed: false },
-            { id: '1', title: 'Task 1', completed: true }
-          ),
-          createMockUpdateEvent(
-            { id: '2', title: 'Task 2', completed: false },
-            { id: '2', title: 'Task 2', completed: true }
-          ),
-          createMockUpdateEvent(
-            { id: '3', title: 'Task 3', completed: false },
-            { id: '3', title: 'Task 3', completed: true }
-          )
-        ];
-        query_merge_update_cache(task, updateEvents);
+      let call = 0;
+      const counts = [5, 8];
+      const task = createMockQueryTask<number>({
+        type: 'count',
+        options: {
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'completed', operator: '=', value: false }]
+          }
+        },
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
       });
+
+      const refresh = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      const updateEvents = [
+        createMockUpdateEvent(
+          { id: '1', title: 'Task 1', completed: false },
+          { id: '1', title: 'Task 1', completed: true }
+        ),
+        createMockUpdateEvent(
+          { id: '2', title: 'Task 2', completed: false },
+          { id: '2', title: 'Task 2', completed: true }
+        ),
+        createMockUpdateEvent(
+          { id: '3', title: 'Task 3', completed: false },
+          { id: '3', title: 'Task 3', completed: true }
+        )
+      ];
+      query_merge_update_cache(task, updateEvents);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([5, 8]);
     });
   });
 });

@@ -221,8 +221,8 @@ G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该
   把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。两者已经在同一个文件里碰面：
   `RxDBClientGenerator.ts` 同时导入两个，靠 [L29](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L29)
   的 `transitionMetadata as transitionMetadataUtil` 别名区分——**本故事要改的是带 `Util` 后缀的那个**
-  （调用点 [L487](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L487) /
-  [L525](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L525)），
+  （调用点 [L499](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L499) /
+  [L537](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L537)），
   L291 的 `transitionMetadata(meta_options, options)` 是 core 的那个，不要动。
 - 渲染入口 `renderMetadataValue()` 目前假定输入已是 plain 值；改成类型分派后，`renderToken()` 的
   `PropertyType.*` / `RelationKind.*` 还原逻辑必须继续生效，不得因为遍历顺序调整而丢失。

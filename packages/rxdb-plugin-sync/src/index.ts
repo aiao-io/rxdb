@@ -51,7 +51,8 @@ export {
   type QueryCacheOutboxFailure,
   type QueryCacheOutboxResult
 } from './query-cache-outbox.js';
-// 同 `cleanup-expired`：只转 `SyncManager.syncBranches()` 的返回值，自由函数收回。
-export type { SyncBranchesResult } from './sync-branches.js';
+// 同 `cleanup-expired`：只转 `SyncManager.syncBranches()` 的返回值（连同 `skipReasons` 的
+// 元素类型），自由函数收回。
+export type { SyncBranchSkipReason, SyncBranchesResult } from './sync-branches.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
 export type { SyncManager } from './SyncManager.js';

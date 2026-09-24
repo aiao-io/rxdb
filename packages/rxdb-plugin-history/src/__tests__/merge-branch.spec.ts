@@ -538,6 +538,36 @@ describe('merge_branch', () => {
     expect(mockAdapter.transaction).toHaveBeenCalledTimes(1);
   });
 
+  it('squash 策略的外层事务显式传 transactionLog=false，不改变历史分组语义', async () => {
+    // 这层 adapter.transaction 只是「拿一个执行器当声明作用域」的容器（见上一条用例的注释），
+    // 不该顺带把 transactionLog 的默认值 true 带进来——那会让 switch_transaction_id() 跑一遍，
+    // 给这次写的 change 行盖上共享的 transactionId，`history-item-builder.ts` 的
+    // `type = transactionId ? 'TRANSACTION' : first_change.type` 就会把这次合并折叠成一条
+    // `'TRANSACTION'` HistoryItem，undo 粒度从「按实体」变成「整次合并一起撤销」——这是容器化
+    // 引入的意外副作用，不是 squash 本身该有的语义（main 分支上的 squash 从不经过这层
+    // adapter.transaction，天然不会盖 transactionId）。这条用例锁的是调用契约本身：
+    // 真实 transactionId 是否落空由 rxdb-adapter-pglite 的集成用例验证
+    // （该包才有真实适配器；本包没有 `@aiao/rxdb-adapter-*` 依赖，见 package.json）。
+    mockBranchRepository.find.mockResolvedValue([{ id: 'feature', fromChangeId: 5, parentId: 'main' }]);
+    mockChangeRepository.find.mockResolvedValue([
+      {
+        id: 6,
+        branchId: 'feature',
+        type: 'INSERT',
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: 'todo-1',
+        patch: { title: 'Draft' },
+        inversePatch: null,
+        revertChangeId: null
+      }
+    ]);
+
+    await merge_branch(mockVersion, 'feature', 'main', { strategy: 'squash' });
+
+    expect(mockAdapter.transaction).toHaveBeenCalledWith(expect.any(Function), false);
+  });
+
   // ============================================
   // deleteSource 选项
   // ============================================

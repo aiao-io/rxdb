@@ -1,6 +1,6 @@
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { handleCountUpdate, handleFindAllUpdate, handleFindOneUpdate } from '../../query/merge-update-basic.js';
+import { handleFindAllUpdate, handleFindOneUpdate } from '../../query/merge-update-basic.js';
 import { UpdateDataCache, type UpdateClassification } from '../../query/merge-update.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import type { QueryOptions } from '../../repository/QueryManager.interface.js';
@@ -186,40 +186,5 @@ describe('merge-update-basic', () => {
     );
 
     expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it('updates and clamps count results only when the classification changes the count', () => {
-    const changed = createTask({ type: 'count', options: { where: activeWhere } });
-    const unchanged = createTask({ type: 'count', options: { where: activeWhere } });
-    changed.next(1);
-    unchanged.next(5);
-    const unchangedNext = vi.spyOn(unchanged, 'next');
-
-    handleCountUpdate(
-      changed,
-      createClassification({ newlyMatchedIds: new Set(['a']), newlyUnmatchedIds: new Set(['b', 'c', 'd']) })
-    );
-    handleCountUpdate(unchanged, createClassification());
-
-    expect(changed.result).toBe(0);
-    expect(unchanged.result).toBe(5);
-    expect(unchangedNext).not.toHaveBeenCalled();
-  });
-
-  /**
-   * `QueryTask#next` 在 `autoCache=true` 时无条件清空 `resultEntitySet` / `resultEntityIds`，
-   * 而 count 的结果是个 number，清空后不会被重新填充。计数更新只该改那个数字，
-   * 不该顺手把任务身上的实体缓存集合一并抹掉（`merge_remove` 的 count 分支同口径）。
-   */
-  it('count 更新不清空任务的实体缓存集合', () => {
-    const task = createTask({ type: 'count', options: { where: activeWhere } });
-    task.next(2, false);
-    task.resultEntityIds.add('a');
-    task.resultEntityIds.add('b');
-
-    handleCountUpdate(task, createClassification({ newlyMatchedIds: new Set(['c']) }));
-
-    expect(task.result).toBe(3);
-    expect([...task.resultEntityIds]).toEqual(['a', 'b']);
   });
 });

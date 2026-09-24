@@ -170,6 +170,14 @@ export const merge_branch = async (
     //
     // 与逐条出口同一个符号、不同意图：登记表把它们分成两行，因为压缩与逐条的判定不同，
     // 合成一行会让其中一条策略失去登记。
+    //
+    // 第二个参数（transactionLog）显式传 false：这一层只借执行器当声明作用域，不该把合并记成
+    // 一次事务化的历史条目。默认 true 会为本次事务启用一个 transactionId（SQLite 系后端按分支
+    // 重建全部触发器，PGlite 设一个事务局部变量），写出的每条 change 行都盖上它，
+    // `history-item-builder.ts` 的 `type = transactionId ? 'TRANSACTION' : first_change.type`
+    // 随即把 squash 产生的多条 change 折叠成一条 `'TRANSACTION'`——undo 粒度从「按实体」
+    // 变成「整次合并一起撤销」。传 false，历史记账与不包这层事务时一致（调用契约锁在
+    // `__tests__/merge-branch.spec.ts`，分组结果锁在 pglite 的 `version/merge_branch.spec.ts`）。
     await adapter.transaction(async executor => {
       declareTrustedWrite(executor, {
         file: 'merge-branch.ts',
@@ -177,7 +185,7 @@ export const merge_branch = async (
         intent: TrustedWriteIntent.merge_squash
       });
       await executor.mergeChanges(actions, undefined, false);
-    });
+    }, false);
   }
 
   return toResult(merged, await doDeleteSource());

@@ -60,7 +60,16 @@ function findMetadata(EntityClass: EntityType): object | undefined {
   return undefined;
 }
 
-/** 把源类的自有静态属性搬到克隆体上；内部槽位与身份三件套除外。 */
+/**
+ * 把源类的自有静态属性搬到克隆体上；内部槽位与身份三件套除外。
+ *
+ * @remarks
+ * 复制的是属性描述符，其中的 `value` 是引用而非深拷贝：静态属性若是原始值，复制后各自
+ * 独立；若是可变对象（数组、普通对象……），源类与所有克隆体会共享同一个引用——其中
+ * 任意一方原地修改，其余各方都会看到。{@link cloneEntityClasses} 事后用一个新对象覆盖
+ * {@link METADATA} 槽位，单独补上隔离；除此之外的可变静态状态本函数不作处理，测试夹具
+ * 里的其余静态属性应当只存不可变值。
+ */
 function copyStaticProperties(source: EntityType, target: EntityType): void {
   for (const key of Object.getOwnPropertyNames(source)) {
     if (OWN_IDENTITY_NAMES.has(key)) continue;

@@ -63,8 +63,10 @@ import { CommitCapabilityState } from '../../commit/commit-capability-state.enti
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { Commit } from '../../commit/commit.entity.js';
+import { branchMaterializationPageFingerprint } from '../branch-materialization.js';
 import { WorkingTreeCaptureRuntime } from '../capture-hook.js';
 import { assertColdReplayInvariant, type ColdReplayRow, type ColdReplaySnapshot } from '../cold-replay.js';
+import type { BranchMaterializationSource } from '../materialize-branch.js';
 import { judgeRawWrite, type RawWriteJudgmentContext } from '../raw-write-judgment.js';
 import { UNTRACKED_BOOKKEEPING_FIELDS, type VersionedDomainView } from '../versioned-domain.js';
 import { WorkingTreeActivationState } from '../working-tree-activation-state.entity.js';
@@ -520,7 +522,13 @@ const headRowOf = (EntityClass: EntityType, entityId: string, fields: Record<str
   return { namespace: metadata.namespace, entity: metadata.name, entityId, fields };
 };
 
-/** 登记表里那 9 行的三段身份，按 `文件·符号·意图` 原样抄。 */
+/**
+ * 本套件要冒充的登记表行，三段身份按 `文件·符号·意图` 原样抄
+ *
+ * @remarks
+ * 不是整表：#8 `pullSingleRepository` 用不上；#10 接管屏障也不抄——接管用例走的是真实的
+ * `switchBranch()`，那一行由生产代码自己声明。
+ */
 const CALLSITE = {
   branch_materialization: {
     file: 'VersionManager.ts',
@@ -539,6 +547,70 @@ const CALLSITE = {
   pull_batch: { file: 'pull-batch.ts', symbol: 'pullBatchOnce', intent: TrustedWriteIntent.remote_sync },
   cleanup_expired: { file: 'cleanup-expired.ts', symbol: 'cleanupExpired', intent: TrustedWriteIntent.remote_sync }
 } as const satisfies Readonly<Record<string, TrustedWriteDeclaration>>;
+
+/**
+ * 接管切换那条用例的目标分支
+ *
+ * @remarks
+ * 只有一行远端元数据：没有 ref、没有工作树状态行。只有这种分支会让
+ * `VersionManager.switchBranch()` 真的走进接管路径——`classifyBranchMaterialization()`
+ * 判出 `metadata_only` 才接管，其余一律照常走普通切换。
+ */
+const METADATA_ONLY_BRANCH_ID = 'conformance-capture-metadata-only';
+
+/**
+ * 注入一条只有元数据的远端分支
+ *
+ * @param database - 被测库
+ * @returns 注入的分支 id
+ *
+ * @remarks
+ * 不能用 `createBranch()`：那条路会连 ref、工作树状态行一起写下，目标于是被判成已物化，
+ * 切换照常走普通路径，屏障一行都不会跑。提交侧套件里那一份同理由、同写法。
+ */
+const injectMetadataOnlyBranch = async (database: RxDB): Promise<string> => {
+  await withTransaction(database, async executor => {
+    const branch = database.entityManager.instantiate(RxDBBranch);
+    branch.id = METADATA_ONLY_BRANCH_ID;
+    branch.parentId = null;
+    branch.activated = false;
+    branch.activeKey = null;
+    branch.local = false;
+    branch.remote = true;
+    branch.fromChangeId = null;
+    await executor.saveMany([branch]);
+  });
+  return METADATA_ONLY_BRANCH_ID;
+};
+
+/**
+ * 造一个只有一页、`applyPage` 只写一条 {@link ConformanceNote} 的快照来源
+ *
+ * @param title - `applyPage` 写下那一行的标题；断言靠它认出这一行确实是屏障写的
+ * @returns 可直接交给 `registerMaterializationSource()` 的来源
+ *
+ * @remarks
+ * `applyPage` 用屏障交下来的 executor 上的 Repository 写——普通 CRUD 的写法，是故意的：挂载点 1
+ * 在事务体返回之后按「有没有声明」定入口，没有声明就按 `crud` 捕获。屏障里的投影重写若被这样
+ * 捕获，症状就是「切了个分支，工作树里多出一条用户没做过的编辑」。
+ *
+ * 页 payload 不参与 `applyPage`：本节只问屏障里的写会不会被当成用户编辑，
+ * 不问来源怎么把 payload 翻成行——那是同步层（US-308）的事。
+ */
+const singleNoteMaterializationSource = (title: string): BranchMaterializationSource => {
+  const entity = getEntityMetadata(ConformanceNote).name;
+  return {
+    freezeIntent: async () => ({ frozenRemoteWatermark: { changeId: 1 }, syncScope: [entity] }),
+    pages: () =>
+      (async function* () {
+        const payload = { rows: [{ entity, title }] };
+        yield { payload, fingerprint: branchMaterializationPageFingerprint(payload) };
+      })(),
+    applyPage: async ({ executor }) => {
+      await executor.getRepository(ConformanceNote).create(noteOf(title, null));
+    }
+  };
+};
 
 /**
  * 一张表在系统表判定里的身份键
@@ -703,6 +775,37 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const state = await withTransaction(database, readWorkingTreeState);
         expect(state.entryCount, '投影重写改了 entryCount').toBe(0);
         await expectColdReplayIntact(database, [head]);
+      });
+
+      it('切到 metadata-only 分支时屏障里的物化不产生单元：走真实 switchBranch，切完每条分支 entryCount 仍为 0', async () => {
+        // 上一条用例直接调 `adapter.switchBranch()`，证的是 #1 那一行；接管路径不经过它——
+        // 屏障写投影用的是自己开的 `adapter.transaction()`，只有从 VersionManager 走进去才测得到。
+        const targetBranchId = await injectMetadataOnlyBranch(database);
+        const title = '屏障物化写下的';
+        database.workingTree.registerMaterializationSource(singleNoteMaterializationSource(title));
+
+        await database.versionManager.switchBranch(targetBranchId);
+
+        expect(await withTransaction(database, readActiveBranchId), '接管路径没有把 active 切过去').toBe(
+          targetBranchId
+        );
+        const titles = await withTransaction(database, executor =>
+          readColumnValues(executor, ConformanceNote, 'title')
+        );
+        // 这一条是下面两条的前提：applyPage 一行都没写的话，「零单元」是空转出来的。
+        expect(titles, 'applyPage 没有经屏障事务写下业务行').toEqual([title]);
+        const entries = await withTransaction(database, readAllEntries);
+        expect(entries, '屏障里的投影重写被记成了工作树单元').toHaveLength(0);
+        const counts = await withTransaction(database, async executor => {
+          const states = await executor
+            .getRepository(WorkingTreeState)
+            .find({ where: { combinator: 'and', rules: [] } });
+          return states.map(({ branchId, entryCount }) => ({ branchId, entryCount }));
+        });
+        expect(
+          counts.filter(({ entryCount }) => entryCount !== 0),
+          '屏障里的投影重写改了 entryCount'
+        ).toEqual([]);
       });
 
       it('redo 失效不产生单元，冷重放以物化结果为 HEAD 成立', async () => {

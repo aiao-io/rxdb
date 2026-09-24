@@ -113,26 +113,20 @@ export const loadRepositoryGenerators = async (specs: readonly string[]): Promis
 };
 
 /**
- * 把装载好的生成器注册到生成器实例上。
+ * 把装载好的生成器按顺序注册到生成器实例上。
  *
  * @remarks
- * 重名必须拒绝：`registerRepositoryGenerator` 按名字覆盖，一个拼错名字的插件
- * 会静默顶替内置的 `Repository` / `TreeRepository`，所有实体随之换掉方法集且不报错。
+ * 重名拒绝由 `RxDBClientGenerator.registerRepositoryGenerator` 自己保证，这里不再重复
+ * check-then-register：两处各写一份时，直接 `new RxDBClientGenerator()` 手动注册的编程调用方
+ * 走不到 CLI 这一层，「重名会被拒绝」对那条路径不成立。检查只留一处，这里只按配置顺序转发。
  *
  * @param target 生成器实例
  * @param generators 已装载的生成器
- * @throws {Error} 与已注册生成器重名时抛出
+ * @throws {Error} 与已注册生成器重名时抛出（见 `RxDBClientGenerator.registerRepositoryGenerator`）
  */
 export const registerRepositoryGenerators = (
   target: RxDBClientGenerator,
   generators: readonly IRepositoryGenerator[]
 ): void => {
-  generators.forEach(generator => {
-    if (target.getRepositoryGenerator(generator.name)) {
-      throw new Error(
-        `Duplicate repository generator name ${JSON.stringify(generator.name)}: a generator with this name is already registered`
-      );
-    }
-    target.registerRepositoryGenerator(generator);
-  });
+  generators.forEach(generator => target.registerRepositoryGenerator(generator));
 };

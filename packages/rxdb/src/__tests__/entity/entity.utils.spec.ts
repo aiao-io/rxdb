@@ -531,7 +531,7 @@ describe('entity.utils', () => {
 
     // 列名从关系对象上取，不再按下标去 foreignKeyColumnNames 里配对 ——
     // 那两个平行数组长度一旦不等就会把值写进相邻的列，且完全无声。
-    it('使用物理列名并过滤 readonly 外键', () => {
+    it('使用物理列名，过滤属性的 readonly', () => {
       const metadata = {
         namespace: 'public',
         name: 'Fixture',
@@ -539,20 +539,31 @@ describe('entity.utils', () => {
           ['displayName', { columnName: 'display_name', readonly: false }],
           ['immutable', { columnName: 'immutable', readonly: true }]
         ]),
-        foreignKeyRelationMap: new Map([
-          ['ownerId', { columnName: 'owner_id' }],
-          ['reviewerId', { columnName: 'reviewer_id', readonly: true }]
-        ])
+        foreignKeyRelationMap: new Map([['ownerId', { columnName: 'owner_id' }]])
       } as unknown as EntityMetadata;
 
       expect(
         normalizeUpdateEntity(metadata, {
           displayName: 'updated',
           immutable: 'ignored',
-          ownerId: 'owner-1',
-          reviewerId: 'reviewer-1'
+          ownerId: 'owner-1'
         })
       ).toEqual({ display_name: 'updated', owner_id: 'owner-1' });
+    });
+
+    // 关系不会带 readonly 键——`relation-types.interface.ts` 在类型层就不让声明，
+    // `EntityManager.init()` 会用 readonlyOnRelation 规则把任何带 readonly 键的关系
+    // 当场拒绝注册。即便手工构造出这种（现实中不可达的）元数据，UPDATE 侧也不再单独
+    // 过滤，与 CREATE 侧（见 normalizeCreateEntity 的同名用例）保持对称。
+    it('关系上的 readonly 键不再被单独过滤', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['reviewerId', { columnName: 'reviewer_id', readonly: true }]])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeUpdateEntity(metadata, { reviewerId: 'reviewer-1' })).toEqual({ reviewer_id: 'reviewer-1' });
     });
 
     it('未出现在更新数据里的外键不写入结果', () => {
@@ -644,6 +655,19 @@ describe('entity.utils', () => {
         display_name: 'n',
         created_at: '2020-01-01'
       });
+    });
+
+    // 关系不会带 readonly 键（理由见 normalizeUpdateEntity 的同名用例）；这里同样验证
+    // CREATE 侧不为此单独判断，与 UPDATE 侧保持对称。
+    it('关系上的 readonly 键不影响写入', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['reviewerId', { columnName: 'reviewer_id', readonly: true }]])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { reviewerId: 'reviewer-1' })).toEqual({ reviewer_id: 'reviewer-1' });
     });
 
     it('按「值不为 undefined」判定，不按 key in entity', () => {

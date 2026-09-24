@@ -536,9 +536,11 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @throws {@link WorkingTreeWriteRejectedError} 两个作用域上都没有声明时
    *
    * @remarks
-   * 先问 executor 再问适配器：事务内的调用（登记表 #5/#7/#8/#9）把声明放在 executor 上，
-   * 适配器级调用（#1/#2/#3/#4/#6）放在适配器上。反过来先问适配器的话，一次适配器级声明会被
-   * 紧随其后的事务内写取走。
+   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9，全是 `mergeChanges`）
+   * 把声明放在 executor 上，适配器级调用（#1/#3/#4，全是 `switchBranch`）放在适配器上。
+   * 反过来先问适配器的话，一次适配器级声明会被紧随其后的事务内写取走。
+   * #10（接管路径的物化屏障）虽然也绑在 executor 上，却不经过这里：它是 `transaction()`
+   * 事务体末尾的自报，由挂载点 1 在事务体返回后取走。
    */
   #requireEntrance(executor: TransactionExecutor | undefined, method: string): WriteEntrance {
     const declared = this.#takeDeclaration(executor);

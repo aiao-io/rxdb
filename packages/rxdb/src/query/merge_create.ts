@@ -265,6 +265,12 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
       // 是变更投递按批 flush 下完全合法的到达顺序）。
       // 用已收到事件的 id 集合去重挡不住这种情况：它只证明「这个事件我见过」，
       // 不证明「这行不在快照里」。没有可对齐的水位就别猜，直接回 SQL 重数。
+      //
+      // 代价也记在这里：热表上每一条命中 where 的写都打一次整表 COUNT（REMOVE 与跨 where
+      // 边界的 UPDATE 同口径，见 merge_remove.ts / merge_update.ts 的 count 分支），而
+      // `refresh$` 走 switchMap，只丢弃过时那一轮的结果，并不合并刷新。正确性优先；要把它
+      // 降下来，得先给 count 结果配一个能与事件对齐的水位，或者给刷新加合并窗口——登记在
+      // requirements/roadmap.md「epic-006 评审顺延的架构项」。
       refresh_rules.push(['match_where', 'not_match_relation_where'], ['match_relation_where']);
       break;
   }

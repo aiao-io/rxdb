@@ -66,6 +66,11 @@ export type SqliteCleanupOptions<TTx extends SqliteTransactionLike = SqliteTrans
    * 调用时机卡在 main 分支行**之后**（那些行按分支挂靠，main 不在就是悬空外键）、
    * 触发器重装**之前**。抛错不吞：半残库（有 main、没有单例行）的症状会落到下一个
    * 用例头上，离原因隔着一整条用例。
+   *
+   * 前提：库里有 `rxdb$rxdb_branch` 时，它必须在本轮被清空（`shouldDeleteTable` 放行）。
+   * 这些行按分支挂靠，写进一张保留了上一轮任意分支组合的旧表，轻则撞唯一约束、报一条读不出
+   * 原因的底层 SQL 错误，重则悄悄产出重复行。前提不满足时 {@link cleanupSqliteTestAdapter}
+   * 在任何 DELETE 之前抛错，钩子不被调用。库里压根没有分支表则无旧行可残留，不受此限。
    */
   restoreInitialRows?: (tx: TTx) => Promise<void>;
 };
@@ -166,6 +171,10 @@ const cleanAdapterCaches = async (adapter: CacheOwner): Promise<void> => {
 
 /**
  * 重置基于 SQLite 的测试适配器，默认不删除 SQLite、RxDB 系统或虚表存储。
+ *
+ * @throws {Error} 清理配置内部不一致时抛出：清空 `rxdb$rxdb_branch` 却没给
+ * `resetToMainBranchSql`；或提供了 {@link SqliteCleanupOptions.restoreInitialRows}
+ * 却让 `shouldDeleteTable` 留下了库里的 `rxdb$rxdb_branch`。两种都在任何 DELETE 之前抛出。
  */
 export const cleanupSqliteTestAdapter = async <TTx extends SqliteTransactionLike = SqliteTransactionLike>(
   adapter: SqliteTestAdapterLike<TTx>,
@@ -192,6 +201,17 @@ export const cleanupSqliteTestAdapter = async <TTx extends SqliteTransactionLike
         const resetToMainBranchSql = clearsBranchTable ? options.resetToMainBranchSql?.().trim() : undefined;
         if (clearsBranchTable && !resetToMainBranchSql) {
           throw new Error('resetToMainBranchSql is required when cleaning rxdb$rxdb_branch');
+        }
+        // 与上一条同类的配置矛盾，同样要在 DELETE 之前拒绝（契约见 restoreInitialRows 的
+        // TSDoc）。判「留下了」要看过滤前的原始表：库里压根没有分支表时无旧行可残留，不拒绝。
+        const keepsBranchTable =
+          !clearsBranchTable && getSqliteTables(tableNameResult).some(table => table.name === 'rxdb$rxdb_branch');
+        if (options.restoreInitialRows && keepsBranchTable) {
+          throw new Error(
+            'restoreInitialRows requires rxdb$rxdb_branch to be cleared this round, but shouldDeleteTable ' +
+              'excluded it: restoreInitialRows rows are branch-scoped and assume a freshly reset branch table, ' +
+              'so writing them now would collide with — or duplicate — whatever rows are already there'
+          );
         }
         for (const tableName of tableNames) {
           await tx.execute(`DELETE FROM ${quoteIdentifier(tableName)};`);

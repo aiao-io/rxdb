@@ -10,7 +10,9 @@
  *
  * 1. **受信写原语** `adapter.switchBranch` / `adapter.mergeChanges` / `executor.mergeChanges`
  *    ——必须由所在函数用 `declareTrustedWrite()` 自报意图，且「文件 + 符号 + 意图」这个键
- *    必须已在 {@link TRUSTED_CALLSITE_REGISTRY} 里。
+ *    必须已在 {@link TRUSTED_CALLSITE_REGISTRY} 里。`adapter.transaction` 也在 `TrustedWritePrimitive`
+ *    里，但**不按调用扫**：没声明的 `transaction()` 是普通 CRUD（{@link OPTIONAL_DECLARATION_METHODS}）；
+ *    声明了的那几处照样逐条核对键、符号、作用域与存档行号。
  * 2. **批量写** `upsertMany` / `deleteByIds` ——只有 QueryCache 那两处本地缓存路径可以调；
  *    版本化业务实体走这两个方法就绕开了工作树捕获（`bulk-write-gate.ts`）。
  * 3. **门面与远端重载** ——`versionManager.switchBranch()` 是 VersionManager 的公开 API，
@@ -28,9 +30,10 @@
  * `packages/`（含 rxdb-devtools 那两处门面调用），但读不到 TS 导出，只能把登记表从源码里**词法解析**
  * 出来。两者互不覆盖，**不要合并**。
  *
- * **US-025 抽包之后，「9 行在真实代码里找不找得到」整半边只剩这一份在守。** 9 处声明搬进了
- * `rxdb-plugin-history`（#1~#6）与 `rxdb-plugin-sync`（#7~#9），8 处 QueryCache 批量写搬进了
+ * **US-025 抽包之后，「登记表每一行在真实代码里找不找得到」整半边只剩这一份在守。** #1~#9 的声明
+ * 搬进了 `rxdb-plugin-history`（#1~#6）与 `rxdb-plugin-sync`（#7~#9），8 处 QueryCache 批量写搬进了
  * `rxdb-plugin-querycache` 与 `rxdb-plugin-sync`——核心那份的 `import.meta.glob` 一处都看不见了。
+ * 后来补登的 #10 在 `rxdb-plugin-working-tree` 里，同样只有这一份看得见。
  * 连同搬过来的还有 `verifiedAtLine` 的核对（{@link LINE_DRIFT_TOLERANCE}）：那是原先核心独有的一条，
  * 落在这里之前它已经在抽包里漂了 471 行而无人报警。
  *
@@ -93,8 +96,22 @@ export const BULK_WRITE_GATE_SOURCE_FILE = 'rxdb-plugin-working-tree/src/working
  */
 export const TRUSTED_PRIMITIVE_SCOPES = Object.freeze(['adapter', 'executor']);
 
-/** 受信写原语的方法名；`switchBranch` 与 `mergeChanges` 各覆盖登记表的一部分。与上一条同钉。 */
+/** 调用即须带声明的受信写原语方法名；`switchBranch` 与 `mergeChanges` 各覆盖登记表的一部分。与上一条同钉。 */
 export const TRUSTED_WRITE_METHODS = Object.freeze(['switchBranch', 'mergeChanges']);
+
+/**
+ * 在 `TrustedWritePrimitive` 里、却**不按调用扫**的方法名
+ *
+ * @remarks
+ * `transaction()` 是所有业务写的正常通道：没有声明时挂载点 1 按 `crud` 捕获，而不是按未知入口
+ * 拒绝。把它并进 {@link TRUSTED_WRITE_METHODS}，{@link CALL_PATTERN} 就会把仓库里每一处
+ * `adapter.transaction(` 都报成「没有 declareTrustedWrite()」。自报了意图的那几处（登记表 #10）
+ * 仍然逐条过 {@link auditSource} 的声明核对，登记表里有、代码里找不到也照样在反查那一轮变红。
+ *
+ * 与上面三张同钉：{@link assertScannerVocabulary} 把它与 {@link TRUSTED_WRITE_METHODS} 的并集
+ * 跟 `TrustedWritePrimitive` 的方法对照。
+ */
+export const OPTIONAL_DECLARATION_METHODS = Object.freeze(['transaction']);
 
 /** 绕开工作树捕获的两个批量写方法（bulk-write-gate.ts）。与上两条同钉。 */
 export const BULK_WRITE_METHODS = Object.freeze(['upsertMany', 'deleteByIds']);
@@ -453,6 +470,20 @@ const stringValueOf = (node, where) => {
 };
 
 /**
+ * 判定一个表达式是不是 `TrustedWriteIntent.成员`：左半边必须就是 `TrustedWriteIntent` 这个标识符。
+ *
+ * @param {import('typescript').Expression} node 待判定的表达式
+ * @returns {node is import('typescript').PropertyAccessExpression}
+ *
+ * @remarks
+ * 成员名是否真在枚举里，由 `parseRegistry` 末尾的交叉校验负责；这里只管左半边。
+ */
+const isTrustedWriteIntentMember = node =>
+  ts.isPropertyAccessExpression(node) &&
+  ts.isIdentifier(node.expression) &&
+  node.expression.text === 'TrustedWriteIntent';
+
+/**
  * 从 `trusted-write-intent.ts` 里解析登记表与意图枚举
  *
  * @param {string} source `trusted-write-intent.ts` 原文
@@ -502,8 +533,9 @@ export const parseRegistry = source => {
 
     // `intent` 是唯一一个不写字符串的字段：它必须是 `TrustedWriteIntent.成员`。
     // 允许裸字符串的话，登记表就能引用一个枚举里没有的意图而不被下面那条交叉校验看见。
+    // 左半边也要核：只读 `.成员` 的话，`别的对象.merge_squash` 会被当成 `merge_squash` 放行。
     const intentNode = propertyOf(element, 'intent');
-    if (intentNode === null || !ts.isPropertyAccessExpression(intentNode)) {
+    if (intentNode === null || !isTrustedWriteIntentMember(intentNode)) {
       throw new Error(`${where} 的 intent 不是 TrustedWriteIntent.成员 形态`);
     }
 
@@ -560,7 +592,7 @@ const findTypeAlias = (sourceFile, name) => {
  * @throws {Error} 别名不在、不是字符串字面量联合、或某一项不是 `宿主.方法` 形状时抛
  *
  * @remarks
- * **这里读的是类型，不是登记表的数据行。** 拿 9 行 `writePrimitive` 去推词表也能得到同一个集合，
+ * **这里读的是类型，不是登记表的数据行。** 拿登记表各行的 `writePrimitive` 去推词表也能得到同一个集合，
  * 但那是「现在恰好有人这么调」；联合是「允许这么调」。核心加一个宿主或方法时，先变的是联合——
  * 而这条门禁要在第一处调用写出来之前就认得它。
  */
@@ -655,7 +687,12 @@ const assertSameVocabulary = (what, derived, literal, source) => {
 export const assertScannerVocabulary = ({ registrySource, bulkWriteGateSource }) => {
   const { scopes, methods } = parsePrimitiveVocabulary(registrySource);
   assertSameVocabulary('宿主', scopes, TRUSTED_PRIMITIVE_SCOPES, 'TrustedWritePrimitive');
-  assertSameVocabulary('写原语方法', methods, TRUSTED_WRITE_METHODS, 'TrustedWritePrimitive');
+  assertSameVocabulary(
+    '写原语方法',
+    methods,
+    [...TRUSTED_WRITE_METHODS, ...OPTIONAL_DECLARATION_METHODS],
+    'TrustedWritePrimitive'
+  );
   assertSameVocabulary('批量写方法', parseBulkWriteMethods(bulkWriteGateSource), BULK_WRITE_METHODS, 'METHOD_NAMES');
 };
 

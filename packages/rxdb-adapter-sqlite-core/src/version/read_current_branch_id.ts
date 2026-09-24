@@ -101,8 +101,19 @@ export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<
 
   const readId = async (whereSql: string, params: SQLiteCompatibleType[]): Promise<string | undefined> => {
     const { columns, rows } = await read(`SELECT ${idColumn} FROM ${table} WHERE ${whereSql} LIMIT 1;`, params);
-    const columnIndex = Math.max(0, columns.indexOf(idColumnName));
-    const value = rows[0]?.[columnIndex];
+    const row = rows[0];
+    // 没有行时不检查列——部分驱动对「零行」结果集连 columns 都给空数组（见
+    // with_triggers_disabled.ts 的适配层），这属于「没有这个答案」的正常分支，要让调用方
+    // 照常回退到下一条查询（activated 查不到就查 main），不是「结果集缺列」的异常。
+    if (!row) return undefined;
+    const columnIndex = columns.indexOf(idColumnName);
+    // 有行却找不到 id 列，是结果集形状不对——不能像原来那样 `Math.max(0, -1)` 钳成第 0 列
+    // 静默返回别的列的值：那样会把一个查不出真实含义的字符串错认成分支 id 带出去，
+    // 后续按它重建触发器 / 写 activated 都会悄悄写错分支，且没有任何报错可供排查。
+    if (columnIndex < 0) {
+      throw new RxDBAdapterSqliteError(`RxDBBranch query result is missing the "${idColumnName}" column.`);
+    }
+    const value = row[columnIndex];
     return typeof value === 'string' ? value : undefined;
   };
 

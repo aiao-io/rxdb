@@ -22,7 +22,8 @@
  * 的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语，一个 raw 调用点都没有，
  * 于是那一步在生产里永远取不到真值——它只是一条无条件放行的死分支，却是整条防线上唯一无条件放行的
  * 一步。未来真需要内部受信 raw 写路径时，要做的是补一条能证明身份的传递通道（见
- * `threat-model.md` §3），不是把槽位留在这儿等人填。
+ * `threat-model.md` §3），不是把槽位留在这儿等人填。2026-09-25 补登的 #10 走 `transaction()`
+ * 事务体末尾的自报，同样是带类型的调用路径，这个结论不变。
  */
 
 import { CommitErrorCode } from '../commit/commit-error-codes.js';

@@ -73,7 +73,7 @@ describe('syncBranches', () => {
 
     const result = await syncBranches(mockVersion);
 
-    expect(result).toEqual({ created: 0, updated: 0, total: 0, skipped: [] });
+    expect(result).toEqual({ created: 0, updated: 0, total: 0, skipped: [], skipReasons: {} });
   });
 
   it('should return empty result if no remote branches', async () => {
@@ -81,7 +81,7 @@ describe('syncBranches', () => {
 
     const result = await syncBranches(mockVersion);
 
-    expect(result).toEqual({ created: 0, updated: 0, total: 0, skipped: [] });
+    expect(result).toEqual({ created: 0, updated: 0, total: 0, skipped: [], skipReasons: {} });
   });
 
   it('should create local entries for new remote branches', async () => {
@@ -201,6 +201,76 @@ describe('syncBranches', () => {
     expect(result.skipped).toEqual(['*active*']);
     expect(mockBranchRepository.create).toHaveBeenCalledTimes(1);
     expect(mockBranchRepository.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'feature-ok' }));
+  });
+
+  // 坏分支被跳过后，它的子孙如果照常创建，会带着一个指向「本轮不存在的父」的 parentId ——
+  // 真实落库时这是一条悬空外键，`PRAGMA defer_foreign_keys` 会在 COMMIT 才发现并回滚整个
+  // 事务（连同本该成功的兄弟分支），且因为坏分支每轮都会被跳过，下一轮又会在同一个点上
+  // 撞上同一个外键，永久卡死同步。这里的测试替身没有真实的 FK/回滚语义
+  // （`mockVersion.getLocalRepositories().adapter.transaction` 只是
+  // `(fun) => fun({getRepository: ...})`），复现不出真实 COMMIT 回滚，所以断言口径改为
+  // 「create 从未带着悬空 parentId 被调用」—— 这是 COMMIT 回滚在仓库调用层面的等价、
+  // 且可在测试替身里直接验证的后果。
+  it('坏分支的子孙（含多代）连带跳过，不因悬空 parentId 尝试创建', async () => {
+    pullBranchesMock.mockResolvedValue([
+      { id: '*active*', fromChangeId: 1, parentId: 'main' },
+      { id: 'child-of-bad', fromChangeId: 2, parentId: '*active*' },
+      { id: 'grandchild-of-bad', fromChangeId: 3, parentId: 'child-of-bad' },
+      { id: 'sibling-ok', fromChangeId: 4, parentId: 'main' }
+    ]);
+
+    mockBranchRepository.find.mockResolvedValue([LOCAL_MAIN]);
+    resolveRemoteChangeIds({ 1: 11, 2: 12, 3: 13, 4: 14 });
+
+    const result = await syncBranches(mockVersion);
+
+    // 正常兄弟不受影响：父是 main，与坏分支的谱系无关。
+    expect(result.created).toBe(1);
+    expect(mockBranchRepository.create).toHaveBeenCalledTimes(1);
+    expect(mockBranchRepository.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'sibling-ok' }));
+
+    // 坏分支自己 + 两代后代，一个都不少地进 skipped，且顺序即处理顺序（父优先拓扑序）。
+    expect(result.skipped).toEqual(['*active*', 'child-of-bad', 'grandchild-of-bad']);
+
+    // create 从未被跟后代的 id 一起调用过 —— 不是「调用后失败」，是压根没调用。
+    expect(mockBranchRepository.create).not.toHaveBeenCalledWith(expect.objectContaining({ id: 'child-of-bad' }));
+    expect(mockBranchRepository.create).not.toHaveBeenCalledWith(expect.objectContaining({ id: 'grandchild-of-bad' }));
+
+    // skipReasons 能看出原因是「祖先被跳过」，以及具体是哪一个祖先（直接父，不是根因）。
+    expect(result.skipReasons['*active*']).toEqual({ cause: 'invalid-id' });
+    expect(result.skipReasons['child-of-bad']).toEqual({ cause: 'ancestor-skipped', ancestorId: '*active*' });
+    expect(result.skipReasons['grandchild-of-bad']).toEqual({
+      cause: 'ancestor-skipped',
+      ancestorId: 'child-of-bad'
+    });
+  });
+
+  it('分叉点翻译失败的分支若带有子分支，子分支连带跳过，不因悬空 parentId 尝试创建', async () => {
+    // 老的跳过通道（fromChangeId 翻译不出本地 id）有同样的潜在问题，只是它会随着分叉点
+    // 变更被拉到本地而自愈，不像 id 不可用那样永久卡死；但级联跳过的逻辑不分渠道，
+    // 这条通道也必须验证到。
+    pullBranchesMock.mockResolvedValue([
+      { id: 'untranslatable-parent', fromChangeId: 9042, parentId: 'main' },
+      { id: 'child-of-untranslatable', fromChangeId: 2, parentId: 'untranslatable-parent' },
+      { id: 'sibling-ok', fromChangeId: 3, parentId: 'main' }
+    ]);
+
+    mockBranchRepository.find.mockResolvedValue([LOCAL_MAIN]);
+    // 9042 故意不进翻译表：模拟分叉点变更还没拉到本地。
+    resolveRemoteChangeIds({ 2: 12, 3: 13 });
+
+    const result = await syncBranches(mockVersion);
+
+    expect(result.created).toBe(1);
+    expect(mockBranchRepository.create).toHaveBeenCalledTimes(1);
+    expect(mockBranchRepository.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'sibling-ok' }));
+
+    expect(result.skipped).toEqual(['untranslatable-parent', 'child-of-untranslatable']);
+    expect(result.skipReasons['untranslatable-parent']).toEqual({ cause: 'unresolved-from-change-id' });
+    expect(result.skipReasons['child-of-untranslatable']).toEqual({
+      cause: 'ancestor-skipped',
+      ancestorId: 'untranslatable-parent'
+    });
   });
 
   it('should handle mixed scenario: new + existing + already-remote', async () => {
