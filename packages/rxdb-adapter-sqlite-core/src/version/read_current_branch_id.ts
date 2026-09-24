@@ -1,4 +1,4 @@
-import { getEntityMetadata, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
+import { getEntityMetadata, MAIN_BRANCH_ID, RxDBBranch, type EntityMetadata } from '@aiao/rxdb';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import type { SqliteTransactionExecutor } from '../transaction/SqliteTransactionExecutor.js';
@@ -106,7 +106,7 @@ export const readCurrentBranchId = async (read: SqliteBranchRowReader): Promise<
     return typeof value === 'string' ? value : undefined;
   };
 
-  const branchId = (await readId(`${activatedColumn} = ?`, [1])) ?? (await readId(`${idColumn} = ?`, ['main']));
+  const branchId = (await readId(`${activatedColumn} = ?`, [1])) ?? (await readId(`${idColumn} = ?`, [MAIN_BRANCH_ID]));
   // 读不到分支的调用方都在写路径上（重建触发器 / 切分支），此时必须让事务回滚：
   // 继续下去会提交一个永久没有触发器、或把投影写错分支的库。
   if (branchId === undefined) {

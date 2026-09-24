@@ -48,6 +48,7 @@ import { Commit } from '../../commit/commit.entity.js';
 import { SYSTEM_COMMIT_MESSAGES } from '../../commit/write-commit.js';
 import { RxDBPluginWorkingTree } from '../../plugin.js';
 import {
+  branchMaterializationPageFingerprint,
   BranchNotMaterializedError,
   commitBranchMaterialization,
   discardMaterializationAttempt,
@@ -226,7 +227,14 @@ function createStage(entityManager: EntityManager, spec: StageSpec): WorkingTree
   return stage;
 }
 
-/** 造一页 staging payload。 */
+/**
+ * 造一页 staging payload。
+ *
+ * @remarks
+ * 指纹**现算**，不写字面量：屏障对每一页都复算一遍（`assertPageFingerprints`），
+ * 手写的那串在第一页就会被判成 `stage_tampered`，于是全部用例都红在同一个与自己无关的成因上。
+ * 「页被改过」那一支要的是**这里算完之后再动 payload**，不是从一开始就给一对对不上的值。
+ */
 function createPage(
   entityManager: EntityManager,
   attemptId: string,
@@ -237,7 +245,7 @@ function createPage(
   page.stageId = attemptId;
   page.pageIndex = pageIndex;
   page.payload = { rows: [{ entity: 'Note', id: `note-${pageIndex}` }] };
-  page.fingerprint = `page-fingerprint-${pageIndex}`;
+  page.fingerprint = branchMaterializationPageFingerprint(page.payload);
   return page;
 }
 
@@ -575,7 +583,9 @@ describe('分页崩溃可恢复、staging 可按 attempt 清理（FR-044）', ()
   it('同一份意图的半截 attempt 判为可续用，并交回从哪一页接着拉', async () => {
     const scene = createScene({ stage: { attemptId: ATTEMPT_ID, status: 'pending', pageCount: 0, pages: 2 } });
 
-    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: 2 });
+    // `sealed: false` 是「还要接着拉」这句话的可观测面：只断言 `nextPageIndex` 的话，
+    // 一个把半截 attempt 也报成已封口的实现照样绿，而调用方会直接跳过封口走进屏障。
+    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: 2, sealed: false });
   });
 
   it('意图漂移过的旧 attempt 判不可续用，但**不**被顺手删掉', async () => {
@@ -593,7 +603,9 @@ describe('分页崩溃可恢复、staging 可按 attempt 清理（FR-044）', ()
   it('已经落全的 attempt 同样可续用，接着的是收尾不是拉页', async () => {
     const scene = createScene();
 
-    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: PAGE_COUNT });
+    // 「接着的是收尾不是拉页」逐字就是 `sealed: true`：光看 `nextPageIndex === PAGE_COUNT`
+    // 分不出「已封口」与「还开着、只是刚好拉满」，而两者的下一步一个是屏障、一个是封口。
+    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: PAGE_COUNT, sealed: true });
   });
 
   it('按 attempt 清理连页一起删净，旁观的那次一行不动', async () => {

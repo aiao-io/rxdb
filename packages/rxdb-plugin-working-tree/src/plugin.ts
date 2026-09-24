@@ -30,6 +30,7 @@ import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from './commit/commit-capability-state.entity.js';
 import { isCommitCapabilityEnabled } from './commit/commit-capability.js';
 import { CommitChangeSet } from './commit/commit-change-set.entity.js';
+import { latchBranchCorruption } from './commit/commit-graph-guard.js';
 import { Commit } from './commit/commit.entity.js';
 import {
   createWorkingTreeCommitsInitialRows,
@@ -37,6 +38,7 @@ import {
 } from './migrations/0004-working-tree-commits.js';
 import { advanceActivationRevision } from './working-tree/activation-cas.js';
 import { installWorkingTreeCapture } from './working-tree/capture-install.js';
+import { takeOverBranchSwitchWithMaterialization } from './working-tree/materialize-branch.js';
 import { assertSwitchBranchPreconditions, assertSwitchTargetIntact } from './working-tree/switch-branch-options.js';
 import { WorkingTreeActivationState } from './working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeEntry } from './working-tree/working-tree-entry.entity.js';
@@ -88,9 +90,14 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
  * @returns 交给宿主在建表那一刻编排的声明
  *
  * @remarks
- * 抽成模块级工厂而不是写成类字段的字面量：六个注册点各自带着一段「漏了会怎样」的理由，
- * 塞进类体会让插件类的形状被一段六十行的初始化器盖住，而那个类真正要说的只有
+ * 抽成模块级工厂而不是写成类字段的字面量：八个注册点各自带着一段「漏了会怎样」的理由，
+ * 塞进类体会让插件类的形状被一段一百行的初始化器盖住，而那个类真正要说的只有
  * 「入口挂在构造器、`install()` 是空的」两句。
+ *
+ * 注册点里有两个**在这一刻读不到自己要的东西**：`takeOverBranchSwitch` 要的
+ * `BranchMaterializationSource` 由同步层在装配之后才登记，而 `rxdb.workingTree` 本身
+ * 要等插件构造器的函数体（本工厂跑在字段初始化器里，早于它）。两处都写成**调用时**
+ * 才去取——取一次存下来的话，前者永远是 `null`，后者当场 `undefined`。
  */
 const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
   capability: WORKING_TREE_CAPABILITY,
@@ -136,6 +143,24 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     // 漏掉这一步的代价是 `main → feature → main` 走完之后代际原地不动，
     // 于是走之前捕获的 token 在走回来之后仍然验得过——三位并发仲裁里的第一位变成常数。
     await advanceActivationRevision(executor);
+  },
+  takeOverBranchSwitch: context =>
+    // 接管判据整个在 `materialize-branch.ts`：它要连着开五六笔事务、中间夹着网络 I/O，
+    // 而这里手上一个执行器都没有——这正是本钩子与 `prepareBranchSwitch` 分开的理由
+    // （见 {@link RxDBBranchSwitchTakeoverContext}）。
+    //
+    // 来源**每次现取**：同步层在 `use()` 之后才调 `registerMaterializationSource()`，
+    // 而本工厂跑在插件的字段初始化器里，比那早得多。
+    takeOverBranchSwitchWithMaterialization(rxdb, rxdb.workingTree.materializationSource, context),
+  settleBranchSwitchFailure: async ({ error }) => {
+    // 只认损坏这一种，其余原样放过——判类型的是 `latchBranchCorruption` 自己。
+    //
+    // 取 `localAdapterIfConnected` 而不是 `await firstValueFrom(localAdapter$)`：后者在
+    // 断连期间**永远不决**，而本函数跑在 `catch` 里、紧接着要把原始错误重新抛出去。
+    // 挂在这里等于把一次失败的切换变成一个永不返回的 promise。
+    const adapter = rxdb.localAdapterIfConnected;
+    if (!adapter) return;
+    await latchBranchCorruption(adapter, error);
   },
   writeBranchRows: (entityManager, { executor, branchId }) =>
     // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，

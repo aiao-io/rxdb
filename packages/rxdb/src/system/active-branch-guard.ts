@@ -110,14 +110,22 @@ export const assertUsableBranchId = (branchId: string): void => {
 };
 
 /**
- * 零 active 时的恢复目标分支 id。
+ * 根分支（也是零 active 时的恢复目标）的分支 id。
  *
  * @remarks
- * 与 `version/resolve-current-branch.ts`、`RxDB.ts:733`、`version/remove-branch.ts` 用的
- * 是同一个名字。恢复目标必须是**确定**的：库里通常有 `feature-x`，挑它比建 `main` 更
- * 「聪明」，但那是在替用户做一次分支切换。
+ * 恢复目标必须是**确定**的：库里通常有 `feature-x`，挑它比建 `main` 更「聪明」，
+ * 但那是在替用户做一次分支切换。
+ *
+ * 与 {@link ACTIVE_BRANCH_KEY} 一样**必须**出现在公开面上，理由也一样：认这个 id 的地方
+ * 有一半是裸 SQL——两个后端的 `read_current_branch_id` 把它当零 active 时的兜底谓词
+ * （`WHERE id = 'main'`）、`create_tables_sql` 把它拼进新表的变更触发器、`migrate_system_schema`
+ * 用它收敛 activeKey 基数。各自抄一份字面量的话，某一端拼错了不会有编译错误，只会让那一端
+ * 认另一条分支当根：变更记到不存在的分支名下、零 active 的库恢复出第二个 main。
+ *
+ * 值本身不参与任何格式约定（不像哨兵键那样架在「分支 id 里没有 `*`」之上）：
+ * 它就是一个普通的合法分支 id，只是被默认占用了。
  */
-const MAIN_BRANCH_ID = 'main';
+export const MAIN_BRANCH_ID = 'main';
 
 /**
  * {@link resolveSingleActiveBranch} 建 `main` 时需要的最小能力。

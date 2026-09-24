@@ -512,7 +512,7 @@ describe('merge_branch', () => {
     expect(mockAdapter.transaction).toHaveBeenCalledTimes(1);
   });
 
-  it('squash 策略只有一次 mergeChanges，不额外包事务', async () => {
+  it('squash 策略只有一次 mergeChanges，且它必须在事务里发出', async () => {
     mockBranchRepository.find.mockResolvedValue([{ id: 'feature', fromChangeId: 5, parentId: 'main' }]);
     mockChangeRepository.find.mockResolvedValue([
       {
@@ -530,9 +530,12 @@ describe('merge_branch', () => {
 
     await merge_branch(mockVersion, 'feature', 'main', { strategy: 'squash' });
 
-    // 单次 mergeChanges 在适配器内部已经是一个事务，再包一层是多余的嵌套
+    // 压缩只写一次，`mergeChanges` 在适配器内部本就是一个事务——这一层事务不是为了原子性，
+    // 是为了拿到一个**只属于这次写**的作用域对象来挂受信声明。绑适配器实例的旧写法会被并发的
+    // 另一次适配器级写覆盖（`trusted-write-concurrency.spec.ts`），所以「不额外包事务」这条
+    // 旧约束被这条取代，而不是两条并存。
     expect(mockAdapter.mergeChanges).toHaveBeenCalledTimes(1);
-    expect(mockAdapter.transaction).not.toHaveBeenCalled();
+    expect(mockAdapter.transaction).toHaveBeenCalledTimes(1);
   });
 
   // ============================================

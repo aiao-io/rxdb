@@ -73,6 +73,7 @@ vi.mock('../PGliteClient.js', () => ({
 vi.mock('../version/switch_branch.js', () => ({
   switch_branch: state.switchBranch,
   generateBranchTriggerSql: () => '',
+  generateBranchTriggerSqlFor: () => '',
   generateSwitchBranchSql: () => ''
 }));
 

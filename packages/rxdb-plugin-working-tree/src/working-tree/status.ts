@@ -141,6 +141,21 @@ const countEntriesOfOrigin = (
  * @remarks
  * 逐个来源 `count()` 而不是把整张表 `find()` 回来自己分组：摘要只要两个数字，
  * 读回全部 patch 会让「有没有未提交变更」的代价随工作树大小线性增长。
+ *
+ * **一个 `GROUP BY origin` 能把这两次顺序查询并成一次，挡住它的不是收益判断，是没有 API。**
+ * `IRepository` 只有 `find` / `count` / `create` / `update` / `remove`，一格聚合都没有
+ * （见 `packages/rxdb/src/repository/repository.interface.ts`）。剩下两条路都要先决策，
+ * 所以这里维持两次 `count()`：
+ *
+ * 1. 走 `executor.query()` 裸 SQL——会是本插件的**第一处生产裸读**，而各方言 `COUNT(*)` 的
+ *    返回类型与列名大小写并不一致（PG 给 bigint 且列名折成小写，SQLite 给 number），
+ *    且现有测试替身只认结构化查询（`commit-graph-probe.ts` 的 `@fileoverview` 写明了
+ *    「只支持一点点、其余抛错」正是它敢被信任的理由），补一条裸读等于让替身开始长成数据库。
+ * 2. 往核心补聚合入口——那是 core ↔ plugin 公开面决策，记在
+ *    `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ *
+ * 顺带记一笔**不能**走的那条：拿 `entryCount - local` 反推 `remote_sync`。`entryCount` 是
+ * 冗余列，它与明细行的漂移正是这份摘要要暴露的东西；反推会把漂移换成一个看起来正常的错数字。
  */
 const readOriginBreakdown = async (
   executor: TransactionExecutor,

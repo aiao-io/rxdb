@@ -164,13 +164,16 @@ describe('VersionManager', () => {
       if (entity === RxDBChange) return mockChangeRepository;
       return null;
     });
+    const mergeChanges = vi.fn().mockResolvedValue(undefined);
     mockAdapter = {
       switchBranch: vi.fn(createSwitchBranchStub({ getRepository })),
-      mergeChanges: vi.fn().mockResolvedValue(undefined),
+      mergeChanges,
       getRxDBChangeSequence: vi.fn().mockResolvedValue(100),
       getRepository,
       // `getCurrentBranch` 的冷路径（查不到激活分支）现在开事务；事务内的仓库转发回同一组 mock。
-      transaction: createTransactionStub({ getRepository })
+      // `mergeChanges` 也要转发：`restore_entity` 自己开事务、按执行器声明受信意图
+      // （否则并发的适配器级写会互相顶掉声明），于是那次写是从执行器上发出的。
+      transaction: createTransactionStub({ getRepository, mergeChanges: mergeChanges as never })
     };
 
     mockRxDB = {
@@ -490,6 +493,25 @@ describe('VersionManager', () => {
   });
 
   describe('switchBranch', () => {
+    /**
+     * main 已激活、feature 存在；`switch_branch_actions` 取到空变更集。
+     *
+     * @remarks
+     * 挂在 `switchBranch` 这一层而不是各内层 describe 各抄一份：两个内层 describe（前置校验、
+     * 接管）验的是同一条入口的两段，分支查询序列一旦在一处被改，另一处测的就是另一个库了。
+     */
+    const stubMainToFeature = () => {
+      mockBranchRepository.find
+        .mockResolvedValueOnce([{ id: 'main', activated: true }])
+        .mockResolvedValueOnce([{ id: 'main', activated: true }])
+        .mockResolvedValueOnce([
+          { id: 'main', activated: true },
+          { id: 'feature', activated: false }
+        ])
+        .mockResolvedValue([]);
+      mockChangeRepository.find.mockResolvedValue([]);
+    };
+
     it('should skip switching to the same branch', async () => {
       const currentBranch = { id: 'main', activated: true };
       mockBranchRepository.find.mockResolvedValue([currentBranch]);
@@ -620,19 +642,6 @@ describe('VersionManager', () => {
         return prepareBranchSwitch;
       };
 
-      /** main 已激活、feature 存在；`switch_branch_actions` 取到空变更集。 */
-      const stubMainToFeature = () => {
-        mockBranchRepository.find
-          .mockResolvedValueOnce([{ id: 'main', activated: true }])
-          .mockResolvedValueOnce([{ id: 'main', activated: true }])
-          .mockResolvedValueOnce([
-            { id: 'main', activated: true },
-            { id: 'feature', activated: false }
-          ])
-          .mockResolvedValue([]);
-        mockChangeRepository.find.mockResolvedValue([]);
-      };
-
       it('贡献方拿到的是切换事务自己的 executor，而不是另开一个事务', async () => {
         const prepareBranchSwitch = contributePrepare();
         stubMainToFeature();
@@ -686,6 +695,167 @@ describe('VersionManager', () => {
 
         await expect(versionManager.switchBranch('feature')).rejects.toThrow(/prepare/);
         expect(prepareBranchSwitch).not.toHaveBeenCalled();
+      });
+    });
+
+    /**
+     * `takeOverBranchSwitch` 与 `settleBranchSwitchFailure` 这两个贡献点的编排。
+     *
+     * @remarks
+     * 两个一起测而不是各起一个 describe：它们是同一条 `switchBranch()` 上的一进一出——
+     * 「接管成立」这条路径上没有切换事务，于是「失败诊断落在事务之外」这句话在它身上
+     * 才有意义，而分开写的话没有任何一条用例会同时走到这两处。
+     */
+    describe('接管与失败诊断（RxDBSystemContribution）', () => {
+      /**
+       * 装 n 个贡献方，第 i 个的 `takeOverBranchSwitch` 答 `verdicts[i]`。
+       *
+       * @param verdicts - 各贡献方的接管判词，按登记顺序
+       * @returns 那几个贡献方，用于断言各自被调了几次、拿到了什么
+       *
+       * @remarks
+       * 三个钩子都装上，哪怕某条用例只看其中一个：只装被看的那个，一次「实现顺手多调了
+       * 一个钩子」的回归会以 `is not a function` 的形态炸在别处，而不是以断言失败的形态
+       * 落在这里。
+       */
+      const contributeTakeover = (...verdicts: readonly ('switched' | 'not_applicable')[]) => {
+        const contributions = verdicts.map(verdict => ({
+          prepareBranchSwitch: vi.fn().mockResolvedValue(undefined),
+          takeOverBranchSwitch: vi.fn().mockResolvedValue(verdict),
+          settleBranchSwitchFailure: vi.fn().mockResolvedValue(undefined)
+        }));
+        (mockRxDB as unknown as { systemContributions: unknown[] }).systemContributions = contributions;
+        return contributions;
+      };
+
+      it('接管成立时普通切换整段不跑', async () => {
+        const [contribution] = contributeTakeover('switched');
+        stubMainToFeature();
+
+        await versionManager.switchBranch('feature');
+
+        expect(contribution.takeOverBranchSwitch).toHaveBeenCalledTimes(1);
+        // 接管方已经在**它自己的**事务里把 active 切过去了。普通路径再跑一遍不是幂等的：
+        // `switch_branch_actions` 是在接管之前的现场上算出来的，套到已经切过去的库上
+        // 等于拿一份过期的差异把目标分支的投影重写一次。
+        expect(mockAdapter.switchBranch).not.toHaveBeenCalled();
+        // `prepareBranchSwitch` 跑在切换事务**内部**，而接管路径上根本没有那个事务。
+        // 仍然调它的实现只能是自己新开一个——那就又造出了一个「判过之后、切换之前」的窗口。
+        expect(contribution.prepareBranchSwitch).not.toHaveBeenCalled();
+      });
+
+      it('接管方拿到的上下文里没有 executor——它自己开事务', async () => {
+        const [contribution] = contributeTakeover('switched');
+        stubMainToFeature();
+
+        await versionManager.switchBranch('feature', { requireClean: true });
+
+        // 全等而不是 `objectContaining`：多出一个 `executor` 键正是要挡的那件事。接管要做
+        // 网络 I/O 和多笔事务，交一个执行器下去等于请它把一笔事务攥过整个分页过程。
+        expect(contribution.takeOverBranchSwitch).toHaveBeenCalledWith({
+          currentBranchId: 'main',
+          targetBranchId: 'feature',
+          preconditions: { requireClean: true }
+        });
+      });
+
+      it('第一个答 switched 之后不再问第二个', async () => {
+        const [first, second] = contributeTakeover('switched', 'not_applicable');
+        stubMainToFeature();
+
+        await versionManager.switchBranch('feature');
+
+        expect(first.takeOverBranchSwitch).toHaveBeenCalledTimes(1);
+        // 问完一圈再挑的话，第二个贡献方看到的现场已经是第一个接管的结果，而它会按
+        // 「还没切」去判断——两个都答 switched 就等于 active 被切两次。
+        expect(second.takeOverBranchSwitch).not.toHaveBeenCalled();
+      });
+
+      it('接管成立照样记账：redo 栈清空、undo 视图落到目标分支、COMMIT 事件照发', async () => {
+        const [contribution] = contributeTakeover('switched');
+        stubMainToFeature();
+        const clearRedoStack = vi.spyOn(historyManagerForTest, 'clearRedoStack');
+        const setUndoBranch = vi.spyOn(historyManagerForTest, 'setUndoBranch');
+
+        await versionManager.switchBranch('feature');
+
+        // 接管之后的库与普通切换之后的库处在同一个状态，所以收尾记账一格都不能少：
+        // 少了的话 redo 栈里留着来源分支的项，而 undo 视图还停在来源分支上。
+        expect(clearRedoStack).toHaveBeenCalled();
+        expect(setUndoBranch).toHaveBeenCalledWith('feature');
+        expect(mockRxDB.dispatchEvent).toHaveBeenCalledTimes(2);
+        expect(mockRxDB.dispatchEvent).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ type: 'SWITCH_BRANCH_COMMIT' })
+        );
+        // 接管成立就是切成了，失败诊断这条路一步都不该走。
+        expect(contribution.settleBranchSwitchFailure).not.toHaveBeenCalled();
+
+        clearRedoStack.mockRestore();
+        setUndoBranch.mockRestore();
+      });
+
+      it('全答 not_applicable 时普通路径照跑', async () => {
+        const [contribution] = contributeTakeover('not_applicable');
+        stubMainToFeature();
+
+        await versionManager.switchBranch('feature');
+
+        // 没人接管是**常态**（一个能力插件都没装的库上恒是它）。把「问过一圈」写成
+        // 「问过就算接管」会让每一次普通切换都变成空操作。
+        expect(mockAdapter.switchBranch).toHaveBeenCalledTimes(1);
+        expect(contribution.prepareBranchSwitch).toHaveBeenCalledTimes(1);
+      });
+
+      it('切换没成时，失败诊断在回滚事件之后落盘，拿到的是原错误', async () => {
+        const [contribution] = contributeTakeover('not_applicable');
+        stubMainToFeature();
+        const failure = new Error('Switch failed');
+        mockAdapter.switchBranch.mockRejectedValue(failure);
+
+        // 诊断落盘不吞错：调用方等的仍是让这次切换失败的那一个。
+        await expect(versionManager.switchBranch('feature')).rejects.toBe(failure);
+
+        expect(contribution.settleBranchSwitchFailure).toHaveBeenCalledWith({
+          currentBranchId: 'main',
+          targetBranchId: 'feature',
+          error: failure
+        });
+        // 顺序是这条契约的全部：判定失败发生在那笔注定回滚的事务里，写在里面的标记会跟着
+        // 一起消失，所以诊断只能在回滚之后、用自己的一笔事务落盘。
+        const dispatchOrder = (mockRxDB.dispatchEvent as Mock).mock.invocationCallOrder.at(-1) as number;
+        expect(contribution.settleBranchSwitchFailure.mock.invocationCallOrder[0]).toBeGreaterThan(dispatchOrder);
+      });
+
+      it('接管方自己抛出时，失败诊断照落', async () => {
+        const [contribution] = contributeTakeover('switched');
+        stubMainToFeature();
+        const failure = new Error('物化中断');
+        contribution.takeOverBranchSwitch.mockRejectedValue(failure);
+
+        await expect(versionManager.switchBranch('feature')).rejects.toBe(failure);
+
+        // 接管抛出时 active 还在来源分支上——这正是「没切成」，与普通路径的失败同一个处置。
+        // 漏掉的话，恰恰是最需要留痕的那条路径（远端物化断在半路）一个字都不落盘。
+        expect(contribution.settleBranchSwitchFailure).toHaveBeenCalledWith({
+          currentBranchId: 'main',
+          targetBranchId: 'feature',
+          error: failure
+        });
+        expect(mockAdapter.switchBranch).not.toHaveBeenCalled();
+      });
+
+      it('切换已经成立之后的失败不算没切成——不落失败诊断', async () => {
+        const [contribution] = contributeTakeover('not_applicable');
+        stubMainToFeature();
+        // 适配器吞掉 prepare：分支确实切过去了，`switchBranch()` 随后才抛契约违背。
+        mockAdapter.switchBranch.mockResolvedValue(undefined);
+
+        await expect(versionManager.switchBranch('feature')).rejects.toThrow(/prepare/);
+
+        // 这条路径上 active 已经在目标分支上了。落一份「切换失败」的诊断等于把库标记成
+        // 一个它并不处在的状态，而下一次启动会照着那份诊断去修一件没坏的事。
+        expect(contribution.settleBranchSwitchFailure).not.toHaveBeenCalled();
       });
     });
   });

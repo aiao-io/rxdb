@@ -74,11 +74,14 @@ import type {
   BranchMaterializationStaging
 } from '../branch-materialization.js';
 import {
+  appendBranchMaterializationPage,
+  beginBranchMaterializationStage,
+  branchMaterializationPageFingerprint,
   BranchNotMaterializedError,
   commitBranchMaterialization,
   discardMaterializationAttempt,
   findResumableMaterializationAttempt,
-  stageBranchMaterialization
+  sealBranchMaterializationStage
 } from '../branch-materialization.js';
 import type { ChangeCaptureSource } from '../capture-runtime.js';
 import { captureChanges, readActiveBranchToken } from '../capture-runtime.js';
@@ -601,10 +604,10 @@ const materializationPagesOf = (pageCount: number, crashAt?: number): AsyncItera
   (async function* () {
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
       if (pageIndex === crashAt) throw new InjectedStagingCrash(pageIndex);
-      yield {
-        payload: { rows: [{ entity: UNIT_TARGET.name, id: `materialized-${pageIndex}` }] },
-        fingerprint: `conformance-page-${pageIndex}`
-      };
+      const payload = { rows: [{ entity: UNIT_TARGET.name, id: `materialized-${pageIndex}` }] };
+      // 指纹现算而不是写 `page-${pageIndex}` 之类的占位串：落库那一步会复算一遍，占位串
+      // 一律进不去，而改成「实现怎么算、这里就抄一遍」又会让指纹成为恒等式。
+      yield { payload, fingerprint: branchMaterializationPageFingerprint(payload) };
     }
   })();
 
@@ -634,21 +637,69 @@ const injectRemoteOnlyBranch = async (database: RxDB): Promise<string> => {
   return REMOTE_TARGET_ID;
 };
 
-/** 开一次 staging：三条物化用例共用这一份意图，只有页数与崩溃点不同。 */
-const stageOnce = (
+/**
+ * 走一趟完整 staging：开头行、逐页追加、封口，**每一步各一个事务**。
+ *
+ * @param database - 本条用例的数据库
+ * @param attemptId - 本次 attempt id
+ * @param pages - 远端快照的分页来源
+ * @returns 封口那一步的交代
+ *
+ * @remarks
+ * 三个 `withTransaction` 而不是一个：一个事务装完全程的话，「崩在第 N 页时前 N 页还在」
+ * 这条性质在套件里恒不成立，而它正是 {@link stagePartially} 那几条断言的全部内容。
+ * 这也是真实调用方的形状——分页之间要发网络请求，不能把写事务一直攥着。
+ */
+const stageOnce = async (
   database: RxDB,
   attemptId: string,
   pages: AsyncIterable<BranchMaterializationPagePayload>
-): Promise<BranchMaterializationStaging> =>
-  withTransaction(database, executor =>
-    stageBranchMaterialization(database.entityManager, executor, {
+): Promise<BranchMaterializationStaging> => {
+  await withTransaction(database, executor =>
+    beginBranchMaterializationStage(database.entityManager, executor, {
       attemptId,
       targetBranchId: REMOTE_TARGET_ID,
       frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-      syncScope: MATERIALIZATION_SCOPE,
-      pages
+      syncScope: MATERIALIZATION_SCOPE
     })
   );
+  await appendPagesFrom(database, attemptId, 0, pages);
+  return withTransaction(database, executor =>
+    sealBranchMaterializationStage(executor, { attemptId, targetBranchId: REMOTE_TARGET_ID })
+  );
+};
+
+/**
+ * 把一个来源里的页逐个追加进已经开着的 staging，页号从 `firstPageIndex` 起。
+ *
+ * @param database - 本条用例的数据库
+ * @param attemptId - 页挂在哪条 attempt 上
+ * @param firstPageIndex - 这一趟的第一页算第几页
+ * @param pages - 分页来源
+ *
+ * @remarks
+ * 页号由这里发而不是由 `appendBranchMaterializationPage` 自己数，与真实调用方同形：
+ * 续传那一趟接着上次的页号往下发，而不是从 0 重新发一遍。
+ */
+const appendPagesFrom = async (
+  database: RxDB,
+  attemptId: string,
+  firstPageIndex: number,
+  pages: AsyncIterable<BranchMaterializationPagePayload>
+): Promise<void> => {
+  let pageIndex = firstPageIndex;
+  for await (const page of pages) {
+    await withTransaction(database, executor =>
+      appendBranchMaterializationPage(database.entityManager, executor, {
+        attemptId,
+        targetBranchId: REMOTE_TARGET_ID,
+        pageIndex,
+        page
+      })
+    );
+    pageIndex += 1;
+  }
+};
 
 /**
  * 开一次崩在中途的 staging，并让**崩之前那几页留在库里**。
@@ -656,23 +707,26 @@ const stageOnce = (
  * @returns 那次崩溃
  *
  * @remarks
- * 崩溃在事务边界**之内**接住。真实调用方每页各开一个事务（模块那条「逐页可恢复」就是这么来的），
- * 而套件只有 `withTransaction` 一个口子：让异常穿出去的话回滚会连已落的页一起抹掉，
- * `findResumableMaterializationAttempt()` 随后返回 `null`，屏障也从 `stage_incomplete` 变成
- * `stage_missing`——两条断言一起变绿，测的却不再是「半份 payload 不得被当成完整快照」。
+ * 崩溃就这么穿出去，不在事务里接住：头行与每一页各自提交过了，穿出去的异常回滚的只是
+ * 「正要开始的下一页」那个空事务。接住它反而会让这条用例说谎——接住等于宣称崩溃点之后
+ * 还有代码在跑。
+ *
+ * 封口那一步自然到不了，于是头行停在 `pending`：屏障随后报 `stage_incomplete`，
+ * 报的是真实成因而不是布景摆出来的成因。
  */
-const stagePartially = (database: RxDB, attemptId: string, crashAt: number): Promise<unknown> =>
-  withTransaction(database, executor =>
-    captureRejection(
-      stageBranchMaterialization(database.entityManager, executor, {
-        attemptId,
-        targetBranchId: REMOTE_TARGET_ID,
-        frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-        syncScope: MATERIALIZATION_SCOPE,
-        pages: materializationPagesOf(MATERIALIZATION_PAGES, crashAt)
-      })
-    )
+const stagePartially = async (database: RxDB, attemptId: string, crashAt: number): Promise<unknown> => {
+  await withTransaction(database, executor =>
+    beginBranchMaterializationStage(database.entityManager, executor, {
+      attemptId,
+      targetBranchId: REMOTE_TARGET_ID,
+      frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+      syncScope: MATERIALIZATION_SCOPE
+    })
   );
+  return captureRejection(
+    appendPagesFrom(database, attemptId, 0, materializationPagesOf(MATERIALIZATION_PAGES, crashAt))
+  );
+};
 
 /** 数一遍某个 attempt 在 staging 两张表上各留了几行。 */
 const stagingFootprintOf = (database: RxDB, attemptId: string): Promise<{ stages: number; pages: number }> =>
@@ -1796,7 +1850,10 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
               syncScope: MATERIALIZATION_SCOPE
             })
           )
-        ).toEqual({ attemptId, nextPageIndex: 2 });
+          // `sealed: false` 是这里最要紧的一格：本次崩在分页中途，头行还停在 `pending`。
+          // 续用方要据此接着拉第 2 页再封口；把它读成已封口会让屏障当场判 `stage_incomplete`，
+          // 而那条错误说的不是真正发生的事（见 `ResumableMaterializationAttempt.sealed`）。
+        ).toEqual({ attemptId, nextPageIndex: 2, sealed: false });
 
         await withTransaction(database, executor => discardMaterializationAttempt(executor, attemptId));
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });

@@ -5,12 +5,15 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
 import {
+  BULK_WRITE_GATE_SOURCE_FILE,
   BULK_WRITE_METHODS,
   KNOWN_NON_PRIMITIVE_RECEIVERS,
   LINE_DRIFT_TOLERANCE,
   QUERY_CACHE_BULK_WRITE_CALLSITES,
   REGISTRY_SOURCE_FILE,
   TRUSTED_PRIMITIVE_SCOPES,
+  TRUSTED_WRITE_METHODS,
+  assertScannerVocabulary,
   auditRepository,
   auditSource,
   collectSourceFiles,
@@ -18,6 +21,8 @@ import {
   findDeclarations,
   findPrimitiveCalls,
   isScannedSourcePath,
+  parseBulkWriteMethods,
+  parsePrimitiveVocabulary,
   parseRegistry,
   registryKeyOf
 } from './working-tree-callsite-drift.mjs';
@@ -184,6 +189,98 @@ test('parseRegistry 拒绝登记表引用不存在的意图', () => {
     ''
   ].join('\n');
   assert.throws(() => parseRegistry(source), /不存在的意图/);
+});
+
+// ---------------------------------------------------------------------------
+// 扫描词表与真实类型的绑定
+// ---------------------------------------------------------------------------
+
+/** 真实登记表源码，供下面几条按需改写其中一行。 */
+const realRegistrySource = () => readFile(join(PACKAGES_ROOT, REGISTRY_SOURCE_FILE), 'utf8');
+
+/** 真实的 `bulk-write-gate.ts` 原文；只改一张词表的用例把另一张保持为真。 */
+const realGateSource = () => readFile(join(PACKAGES_ROOT, BULK_WRITE_GATE_SOURCE_FILE), 'utf8');
+
+/** 把真实源码里的 `TrustedWritePrimitive` 换成另一个联合（`null` 表示整条删掉）。 */
+const withPrimitiveUnion = (source, union) =>
+  source.replace(
+    /export type TrustedWritePrimitive =[^;]*;/,
+    union === null ? '' : `export type TrustedWritePrimitive = ${union};`
+  );
+
+test('parsePrimitiveVocabulary 从 TrustedWritePrimitive 解析出宿主与方法', async () => {
+  const { scopes, methods } = parsePrimitiveVocabulary(await realRegistrySource());
+  assert.deepEqual([...scopes].sort(), [...TRUSTED_PRIMITIVE_SCOPES].sort());
+  assert.deepEqual([...methods].sort(), [...TRUSTED_WRITE_METHODS].sort());
+});
+
+// 这两个常量是扫描器的**词表**：`CALL_PATTERN` 只认它们列出的方法名，`classifyPrimitiveCall`
+// 只把它们列出的宿主当受信写原语。核心给 `TrustedWritePrimitive` 加一个新宿主或新方法而这里
+// 没跟上，扫描器不会报错——它会安静地一处都扫不到，然后打印一行 ✅。
+/** 只改 `TrustedWritePrimitive` 一处，另一张词表保持为真。 */
+const vocabularyWithUnion = async union => {
+  const [registrySource, bulkWriteGateSource] = await Promise.all([realRegistrySource(), realGateSource()]);
+  return { registrySource: withPrimitiveUnion(registrySource, union), bulkWriteGateSource };
+};
+
+test('TrustedWritePrimitive 多出扫描器不认识的方法时抛', async () => {
+  const sources = await vocabularyWithUnion(
+    "'adapter.switchBranch' | 'adapter.mergeChanges' | 'executor.mergeChanges' | 'executor.replaceRange'"
+  );
+  assert.throws(() => assertScannerVocabulary(sources), /replaceRange/);
+});
+
+test('TrustedWritePrimitive 多出扫描器不认识的宿主时抛', async () => {
+  const sources = await vocabularyWithUnion("'gateway.switchBranch' | 'executor.mergeChanges'");
+  assert.throws(() => assertScannerVocabulary(sources), /gateway/);
+});
+
+test('扫描词表里多出联合已经没有的宿主时同样抛', async () => {
+  // 反向也要报：联合里删掉 `adapter.` 之后，扫描器还在认一个不存在的宿主。
+  const sources = await vocabularyWithUnion("'executor.mergeChanges'");
+  assert.throws(() => assertScannerVocabulary(sources), /adapter/);
+});
+
+test('TrustedWritePrimitive 不在了就抛，而不是退化成空词表', async () => {
+  // 空词表是最坏的失败形态：一处受信写都扫不出来，与「全仓合规」逐字节相同。
+  const source = withPrimitiveUnion(await realRegistrySource(), null);
+  assert.throws(() => parsePrimitiveVocabulary(source), /找不到 TrustedWritePrimitive/);
+  assert.throws(() => parsePrimitiveVocabulary('export type TrustedWritePrimitive = string;'), /字符串字面量/);
+  assert.throws(() => parsePrimitiveVocabulary("export type TrustedWritePrimitive = 'switchBranch';"), /宿主\.方法/);
+});
+
+test('parseBulkWriteMethods 从 bulk-write-gate 的 METHOD_NAMES 解析出对外方法名', async () => {
+  const source = await readFile(join(PACKAGES_ROOT, BULK_WRITE_GATE_SOURCE_FILE), 'utf8');
+  assert.deepEqual([...parseBulkWriteMethods(source)].sort(), [...BULK_WRITE_METHODS].sort());
+});
+
+// `BULK_WRITE_METHODS` 是同一个集合在仓库里的第三份写法（核心 `InterceptedBulkWrite` →
+// 插件 `METHOD_NAMES` → 这里）。前两份由穷尽性检查钉在一起，第三份没有编译器管——
+// 核心加第四个批量写原语，这个扫描器只会继续扫旧的那两个。
+test('METHOD_NAMES 多出扫描器不认识的批量写方法时抛', async () => {
+  const gate = [
+    'const METHOD_NAMES = {',
+    "  upsert_many: 'upsertMany',",
+    "  delete_by_ids: 'deleteByIds',",
+    "  replace_all: 'replaceAll'",
+    '};',
+    ''
+  ].join('\n');
+  const registrySource = await realRegistrySource();
+  assert.throws(() => assertScannerVocabulary({ registrySource, bulkWriteGateSource: gate }), /replaceAll/);
+});
+
+test('METHOD_NAMES 读不出来就抛', () => {
+  assert.throws(() => parseBulkWriteMethods('export const other = {};\n'), /找不到 METHOD_NAMES/);
+  assert.throws(() => parseBulkWriteMethods('const METHOD_NAMES = {};\n'), /0 个/);
+});
+
+test('真实源码两边对得上：assertScannerVocabulary 在真实仓库上不抛', async () => {
+  const [registrySource, bulkWriteGateSource] = await Promise.all([
+    realRegistrySource(),
+    readFile(join(PACKAGES_ROOT, BULK_WRITE_GATE_SOURCE_FILE), 'utf8')
+  ]);
+  assert.doesNotThrow(() => assertScannerVocabulary({ registrySource, bulkWriteGateSource }));
 });
 
 // ---------------------------------------------------------------------------

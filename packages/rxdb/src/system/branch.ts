@@ -31,6 +31,19 @@ import { RxDBBranchOrderByField, RxDBBranchRuleGroup, RxDBBranchStaticTypes } fr
  * 而不是报错，也给不出有序路径和逐段的 `fromChangeId` 区间。分支的父链遍历一律手写
  * （`getPathToRoot` / `collectBranchChain` / `sync_branches` / `remove_branch`），
  * 各自带着坏数据检测。别把 `@TreeEntity` 装回来。
+ *
+ * **`activeKey` 是 `activated` 的第二份拷贝**（口径恒为 `activated ? '*active*' : null`），
+ * 它存在的唯一理由是让「同时只有一条分支是激活的」成为一条**唯一约束**——布尔列上没法表达
+ * 「只许一个 true」，而 `unique` + `nullable` 的哨兵列可以。代价是这个不变量由约十处生产写点
+ * 手工共写（`RxDB.ts` 的建库初始行、`system-repositories.ts`、`active-branch-guard.ts`，
+ * 以及 pglite / sqlite-core 两个适配器的 migrate 与 switch SQL 路径），每一处都带着
+ * 「漏写一处就绕过唯一约束」的注释——也就是说不变量靠人守，不是机械保证的。
+ *
+ * 真正的修法是让约束由 schema 表达：`activeKey` 改成生成列（`GENERATED ALWAYS AS`），
+ * 或者干脆去掉它、在 `activated` 上建**部分唯一索引**（`WHERE activated`）。两种都只需一处编码。
+ * 没做是因为它要动六个适配器的 system schema 迁移、并给既有库写迁移步骤；只改写点不改 schema
+ * 等于把十处手写换成十处调用，不变量仍然靠人守。顺延记录见 `requirements/roadmap.md`
+ * 的「epic-006 评审顺延的架构项」。
  */
 @Entity({
   namespace: 'rxdb',

@@ -134,21 +134,21 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在，**133 条已全部关闭**，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭，6 后端 5031 条零失败，SC-006 的 12 个调用点齐全。**仍不写 Done，三个理由都不是文书问题**：
+四条全部 👀 In Review。`specs/001-working-tree-commits/tasks.md` 已存在，**133 条已全部关闭**，交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，US-306 的阶段 A / B / C 全部关闭，6 后端 5031 条零失败，SC-006 的 12 个调用点齐全。**仍不写 Done，理由都不是文书问题**（原三条里第 2 条已于 2026-09-24 清零，留档在原位）：
 
 1. **性能基线只是初版**——重新冻结走的是契约 §3.1 点名允许的「测点集合变化（T109 加入 `restore`）后重新冻结」，但它是带负载的初版：`frozenAbsolute.commit` 因后 4 轮 `restore` 离群值虚高约 29%（425.85→550.53ms），**发布用的绝对门禁在机器静默复冻之前不得据此放行**；同一次冻结还把 `status` 上限抬到 2.400，而新基线自身十轮极差 1.78–2.59（±19%），在旧上限下 6/10 会超限——`status` 的「4ms 量级读操作 ÷ 2.5ms 量级对照」比值对噪声没有抵抗力，**容差口径仍归评审**（可选解：给小量级测点单独容差，或改判绝对 p95 ≤ 100ms，实测 5.54ms、余量 18 倍）。
-2. **分支评审仍开 4 条架构级 P1**——[next-0912-branch-review.md](reviews/next-0912-branch-review.md)（🔴 不建议合并）判定：已连接实例在另一实例启用后继续绕过捕获（违反 US-305 FR-037 / AC US2-9）；普通切分支不推进 activation revision、A→B→A 可重用旧凭据（违反 US-308 FR-020）；metadata-only 远端分支首次物化未接公开切换入口（`commitBranchMaterialization()` 生产无调用点，违反 US-308 FR-044 / US1-AC9～11）；切换前置条件与最终写入分属两个事务（TOCTOU，违反 FR-020 / US1-AC2）。评审明言「测试通过不能替代这些组合时序」——四条 story 的对应 AC 应视为 ⚠️ 有保留，修复后按 reviews 目录约定回写。
+2. **~~分支评审的架构级 P1~~ 已于 2026-09-24 清零**（原 4 条：FR-037 跨连接启用绕过捕获、FR-020 activation revision 未推进、FR-044 首次物化未接公开入口、FR-020 切换 TOCTOU）——四条的修法与判据都写在落地代码与 [`threat-model.md`](../specs/001-working-tree-commits/threat-model.md) 里，评审报告按 [reviews 目录约定](reviews/README.md)已整份删除。仍在账上的是**六项不阻塞的架构顺延**（提交图水位属 FR-051 / SC-013 的规格变更、`IRepository` 聚合能力、跨后端公共层、`activeKey` 由 schema 表达、批量取表名、词法门禁已判定不改 AST），登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项2026-09-24-从-review-报告转入)。**这一条不再是不写 Done 的理由**，剩下的是 1 与 3。
 3. **US-305 的 AC US2-14 只有红半边能在真实仓库上执行**——FR-030 的发布前置未解除：`migration-release.json` 的 `bridge.tag`/`bridge.version` 仍是 `null`，而绿半边要求 `bridge.version` 严格新于 `0.0.25`，仓库里不存在这样的 tag，造一个等于伪造发布锚点。红半边（`null` / `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上跑过并留证。
 
 排期上整链（含桥接发布）仍位于 [roadmap 批次 4](roadmap.md#批次-4epic-006-链整体压后)、排在所有其他批次之后——**代码先落地不等于排期提前**。
 
-- 👀 [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 交付阶段 A / B 的代码与 6 后端 conformance 调用点已就位（T022～T045）；除 FR-030 发布前置（理由 3）外，分支评审另开 1 条落在本故事的 P1（FR-037 跨连接启用，理由 2）
+- 👀 [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 交付阶段 A / B 的代码与 6 后端 conformance 调用点已就位（T022～T045）；原落在本故事的那条 P1（FR-037 跨连接启用）已落地，**只剩 FR-030 发布前置（理由 3）**
 - 👀 [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
   - 👀 阶段 A 工作树写入捕获与持久化 — T046～T068
   - 👀 阶段 B 提交状态机（status / diff / commit / discard，无暂存区）— T069～T085
   - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，性能门禁四项 ratio 均在容差内，遗留项见理由 1
 - 👀 [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 **已全部关闭**；T109 随 reference 重新冻结闭合，遗留的基线复冻见理由 1
-- 👀 [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；分支评审仍开 3 条落在本故事的 P1（FR-020 两条：activation revision 未推进、切换 TOCTOU；FR-044 一条：物化未接公开入口），见理由 2
+- 👀 [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；原落在本故事的 3 条 P1（FR-020 的 activation revision 未推进与切换 TOCTOU、FR-044 的物化未接公开入口）**已全部落地**，本故事不再有评审开项
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

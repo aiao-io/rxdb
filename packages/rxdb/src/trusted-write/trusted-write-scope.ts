@@ -8,9 +8,16 @@
  *
  * **声明挂在作用域对象上，不挂在模块级全局变量上。** 全局变量在两次并发写之间会串台：
  * A 声明了 `remote_sync`、还没走到写原语，B 声明了 `undo_redo`，于是 A 的写被记成 B 的意图。
- * 作用域对象天然把声明隔离在一次写里——适配器级原语（`switchBranch` / `adapter.mergeChanges`）
- * 以**适配器实例**为作用域，事务内原语（`executor.mergeChanges`）以**该事务的 executor**
- * 为作用域，两者都是「这一次写」的天然身份。
+ * 作用域对象天然把声明隔离在一次写里——`switchBranch` 以**适配器实例**为作用域，
+ * `mergeChanges` 以**该事务的 executor** 为作用域，两者都是「这一次写」的天然身份。
+ *
+ * **适配器实例只够 `switchBranch` 用。** 它在调用钩子时**同步**消费声明，声明与取用之间没有
+ * 排队窗口；`mergeChanges` 不是——工作树的 `interceptMergeChanges()` 先排队拿到事务，之后才取
+ * 声明。于是每个作用域只存一条这件事，在适配器实例上就成了一个覆盖窗口：两个并发的
+ * `adapter.mergeChanges()` 里，先执行的取到后声明者的意图（按错误的入口判定），后执行的取不到
+ * 声明被当作未知入口拒绝。登记表里 6 行 `mergeChanges` 因此**一律**绑执行器；调用方手上没有
+ * 执行器时，自己开一个事务（`merge-branch.ts` 的压缩出口与 `restore-entity.ts` 就是这么做的，
+ * 并发用例在 `rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`）。
  *
  * **取用即清除**（{@link takeDeclaredWrite}）：声明只对紧随其后的那一次写有效。留着不清的话，
  * 下一次没声明的写会悄悄继承上一次的身份，而那正是 fail-closed 要拒绝的情形。

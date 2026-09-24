@@ -21,6 +21,10 @@
  * **登记表跨两个写原语。** `switchBranch` 与 `mergeChanges` 各占一部分——只在 `mergeChanges` 上挂门禁
  * 会整体漏掉撤销与分支物化面。
  *
+ * **`writePrimitive` 一列里 `mergeChanges` 的 6 行全是 `executor.`，没有 `adapter.`。** 声明的作用域
+ * 每次只存一条，而 `mergeChanges` 的取用发生在排队拿到事务之后，绑适配器实例就留下一个并发覆盖
+ * 窗口（见 {@link declareTrustedWrite} 所在文件的头注）。这一列因此也是一条不变量，不只是说明。
+ *
  * **9 个调用点自 US-025 起住在两个插件里**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，
  * #7~#9 在 `@aiao/rxdb-plugin-sync/src/`。登记的是**文件基名**，不带包名也不带目录——
  * 键要跨这次搬迁存活，而它确实跨过来了：搬迁只换了目录，没换文件名、符号名与意图。
@@ -134,10 +138,10 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
     file: 'restore-entity.ts',
     symbol: 'restore_entity',
-    writePrimitive: 'adapter.mergeChanges',
+    writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.restore_entity,
     entrance: 'domain_recompute',
-    verifiedAtLine: 86
+    verifiedAtLine: 94
   },
   {
     file: 'HistoryManager.ts',
@@ -166,10 +170,10 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
     file: 'merge-branch.ts',
     symbol: 'merge_branch',
-    writePrimitive: 'adapter.mergeChanges',
+    writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_squash,
     entrance: 'domain_recompute',
-    verifiedAtLine: 165
+    verifiedAtLine: 174
   },
   {
     file: 'pull-batch.ts',

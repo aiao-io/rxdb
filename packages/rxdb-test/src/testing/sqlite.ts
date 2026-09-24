@@ -1,4 +1,4 @@
-import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from '@aiao/rxdb';
 
 type SqliteQueryRow = unknown[];
 
@@ -83,7 +83,7 @@ type SqliteTable = {
  * 的可空唯一列实现，而可空唯一列只管得住非 NULL 的行。这里写 `activated = 1` 却不写哨兵值，
  * 补回来的 main 就从此刻起不受该约束管辖，且不报任何错。
  */
-const DEFAULT_INSERT_MAIN_BRANCH_SQL = `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`;
+const DEFAULT_INSERT_MAIN_BRANCH_SQL = `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('${MAIN_BRANCH_ID}',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`;
 
 /**
  * 默认清哪些表。

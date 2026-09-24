@@ -1,4 +1,4 @@
-import { RxDBBranch } from '@aiao/rxdb';
+import { MAIN_BRANCH_ID, RxDBBranch } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -8,7 +8,7 @@ import type { SyncManager } from './SyncManager.js';
  */
 export async function getAncestorBranchIds(sm: SyncManager, branchId: string): Promise<string[]> {
   const branchIds = [branchId];
-  if (branchId === 'main') return branchIds;
+  if (branchId === MAIN_BRANCH_ID) return branchIds;
 
   const { adapter } = await sm.getLocalRepositories();
   const branchRepository = adapter.getRepository(RxDBBranch);

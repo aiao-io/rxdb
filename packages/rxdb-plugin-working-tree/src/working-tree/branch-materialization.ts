@@ -7,7 +7,9 @@
  * 走到「可以切过去」的那一段，三件事分属三个入口：
  *
  * 1. {@link classifyBranchMaterialization}——它现在算哪一种；
- * 2. {@link stageBranchMaterialization}——把一份冻结下来的远端快照逐页落进 staging；
+ * 2. {@link beginBranchMaterializationStage} / {@link appendBranchMaterializationPage} /
+ *    {@link sealBranchMaterializationStage}——把一份冻结下来的远端快照逐页落进 staging，
+ *    **三段各占一个事务**；
  * 3. {@link commitBranchMaterialization}——把一份**已经落全**的 staging 变成一条切过去的分支。
  *
  * 四条不可让步的性质：
@@ -16,9 +18,10 @@
  *   分支上给出正确答案，却会把 `enable()` 之前的每一条**本地**分支一并送进远端物化路径——那条
  *   路要拉远端 payload，而本地分支的完整状态就在本机。同理，本地分支缺 ref 是**迁移没跑完**，
  *   必须抛；把两种成因合流到「都当 metadata-only」上，损坏就此无声（FR-049）。
- * - **逐页落库，落全之前不写 `staged`。** 攒在内存里最后一把写，所有「页都在、`pageCount` 对」
- *   的断言照样全绿，代价要到分页崩溃那天才显形：FR-044 要求分页崩溃可恢复，而没落库的页恢复
- *   不了。提前写 `staged` 则是反过来——宣布一份半截 payload 可用（data-model.md §2.9）。
+ * - **逐页落库、逐页提交，落全之前不写 `staged`。** 攒在内存里最后一把写，所有「页都在、
+ *   `pageCount` 对」的断言照样全绿，代价要到分页崩溃那天才显形：FR-044 要求分页崩溃可恢复，
+ *   而没落库的页恢复不了。把三段塞进同一个事务是同一个错的另一种写法——崩在第 7 页时回滚的是
+ *   从头行起的全部 7 页。提前写 `staged` 则是反过来——宣布一份半截 payload 可用（data-model.md §2.9）。
  * - **九件事同属一道屏障。** 最自然的拆法是「先物化完、再切过去」，中间崩一次就留下一条投影
  *   已经换成目标分支、active 却还在来源分支的现场：用户看见的是别人的数据，而界面上的分支名是
  *   自己的。所以拒绝路径一律**零写入零语句**，不是「写了会回滚」——回滚发生在事务边界之外
@@ -130,17 +133,23 @@ export class BranchNotMaterializedError extends RxDBError {
 
   /**
    * @param branchId - 物化失败的目标分支 id
-   * @param attemptId - 本次尝试的 attempt id，可据此清理或续用
+   * @param attemptId - 本次尝试的 attempt id，可据此清理或续用；一次都还没开始时是 `null`
    * @param reason - 成因
    * @param detail - 人读的补充说明
+   *
+   * @remarks
+   * `attemptId` 可空是因为 `source_unavailable` 在**任何** attempt 开始之前就判定了：那一刻
+   * 库里连一行 staging 都没有。给它编一个不存在的 id 的话，用户拿着它去
+   * {@link discardMaterializationAttempt} 会静默成功（清理是幂等的），于是「这个 id 指向什么」
+   * 永远问不出答案。
    */
   constructor(
     readonly branchId: string,
-    readonly attemptId: string,
+    readonly attemptId: string | null,
     readonly reason: BranchNotMaterializedReason,
     readonly detail: string
   ) {
-    super(`分支 '${branchId}' 的物化尝试 '${attemptId}' 依据不足（${reason}）：${detail}`);
+    super(`分支 '${branchId}' 的物化尝试 '${attemptId ?? '<none>'}' 依据不足（${reason}）：${detail}`);
     this.name = 'BranchNotMaterializedError';
     Object.setPrototypeOf(this, BranchNotMaterializedError.prototype);
   }
@@ -591,8 +600,16 @@ export interface CommitBranchMaterializationInput {
   /** 调用方手上那份完整 sync scope；同样与行上的比对 */
   readonly syncScope: readonly string[];
 
-  /** 把一页快照写进投影；由调用方注入，本模块不认识业务实体 */
-  readonly applyPage: (page: BranchMaterializationPage) => Promise<void>;
+  /**
+   * 把一页快照写进投影；由调用方注入，本模块不认识业务实体
+   *
+   * @remarks
+   * 屏障那个执行器**一并交下去**，而不是让实现自己去解析一个：九件事靠同一笔事务同生共死，
+   * 而自己开事务的实现写下的那一页会在屏障后续任何一步失败时**留在库里**——用户看见的是
+   * 一半目标分支的数据，而 active 还在来源分支上。少写一个形参的实现仍然可赋值，
+   * 不需要它的调用点一个字都不用改。
+   */
+  readonly applyPage: (page: BranchMaterializationPage, executor: TransactionExecutor) => Promise<void>;
 }
 
 /** 一次物化成功之后的交代。 */
@@ -607,7 +624,7 @@ export interface BranchMaterializationResult {
   readonly activationRevision: number;
 }
 
-/** 屏障拒绝时抛的那个错；四个成因共用这一个出口。 */
+/** 屏障拒绝时抛的那个错；它认得的四个成因共用这一个出口。 */
 const reject = (
   input: CommitBranchMaterializationInput,
   reason: BranchNotMaterializedReason,
@@ -623,6 +640,15 @@ const reject = (
  * 次序是「自洽先于关系」：`status` 与 `pageCount` 是写页那一方自己写下的两个值，它们先得
  * 互相对得上；水位与 scope 是**调用方与这一行之间**的关系，只有在这一行自洽之后才谈得上比。
  * 倒过来的话，一份半截 staging 会因为意图恰好没漂而先被判成「意图相符」，成因就报错了。
+ *
+ * 页号密集性与逐页指纹在封口那一刻已经验过一遍（{@link sealBranchMaterializationStage} /
+ * {@link appendBranchMaterializationPage}），这里**照样再验**：那一遍挡的是「这一趟自己发坏了」，
+ * 这一遍挡的是「封口之后有人动了页表」——staging 是几张普通的表，从封口到切分支之间隔着
+ * 任意长的时间和任意多的写入方。只留封口那一遍，等于把「屏障之前这份快照没被改过」当成前提，
+ * 而屏障存在的全部理由就是不把它当成前提。
+ *
+ * 两项都摆在意图比对**之后**：意图不符时这份 staging 压根不是为这次切换攒的，对它复算 N 页
+ * 指纹是纯粹的浪费，而报出来的成因还会从「这不是你要的那份」变成「这份被改过」。
  */
 const assertStagingUsable = async (
   executor: TransactionExecutor,
@@ -646,7 +672,39 @@ const assertStagingUsable = async (
       '调用方手上的水位/scope 与 staging 冻结下来的那份不一致，这份快照不是为这次切换攒的。'
     );
   }
+  assertDensePageOrder(pages, { branchId: input.targetBranchId, attemptId: input.attemptId });
+  assertPageFingerprints(pages, { branchId: input.targetBranchId, attemptId: input.attemptId });
   return pages;
+};
+
+/**
+ * 每一页的内容都要与它自己声明的指纹对得上。
+ *
+ * @param pages - 已经确认页号密集的那批页
+ * @param attempt - 报错时用来定位的目标分支与 attempt id
+ * @throws {@link BranchNotMaterializedError} 任一页复算不出声明的指纹时
+ *
+ * @remarks
+ * 复算而不是只比「指纹字段非空」：这一列的存在意义就是让内容与它自己可比，不复算的话它
+ * 只是一串跟着 payload 一起被改掉的字符。
+ *
+ * 第一页不符就停，不攒一份全量清单：屏障的后手是整份重拉，知道「有页坏了」与知道
+ * 「哪 37 页坏了」导向的动作完全一样，而后者要把每一页都算完。
+ */
+const assertPageFingerprints = (
+  pages: readonly WorkingTreeMaterializationPage[],
+  attempt: { readonly branchId: string; readonly attemptId: string }
+): void => {
+  for (const page of pages) {
+    const recomputed = branchMaterializationPageFingerprint(page.payload);
+    if (recomputed === page.fingerprint) continue;
+    throw new BranchNotMaterializedError(
+      attempt.branchId,
+      attempt.attemptId,
+      'stage_tampered',
+      `第 ${page.pageIndex} 页声明的指纹是 ${page.fingerprint}，按落库的 payload 复算得到的是 ${recomputed}。`
+    );
+  }
 };
 
 /** 取 `RxDBBranch` 上一列的真实列名并加引号；写字面量会在列改名那天拼出一条打在不存在的列上的合法 SQL。 */
@@ -790,7 +848,10 @@ export const commitBranchMaterialization = async (
 
   const pages = await assertStagingUsable(executor, input);
   for (const page of pages) {
-    await input.applyPage({ pageIndex: page.pageIndex, payload: page.payload, fingerprint: page.fingerprint });
+    await input.applyPage(
+      { pageIndex: page.pageIndex, payload: page.payload, fingerprint: page.fingerprint },
+      executor
+    );
   }
 
   const generation = existingRef ? existingRef.generation : await allocateBranchGeneration(executor);
@@ -849,6 +910,18 @@ export interface ResumableMaterializationAttempt {
 
   /** 从第几页接着拉；已经落全时它等于总页数，接着的是收尾不是拉页 */
   readonly nextPageIndex: number;
+
+  /**
+   * 这份 staging 已经封过口了吗；`true` 时直接走屏障，别再拉页也别再封一次
+   *
+   * @remarks
+   * 单独给一格而不是让调用方拿 `nextPageIndex` 去猜：总页数**不在**这个返回值里，
+   * 「接下来从第 N 页拉」与「一共就 N 页、已经封好了」在调用方眼里是同一个数字。
+   * 猜错的那一侧都会硬失败——接着拉会把第 N 页写进一个 `staged` 的头行
+   * （`stage_incomplete`），而对一个 `pending` 的头行直接走屏障同样是 `stage_incomplete`——
+   * 但那两条错误说的都不是真正发生的事。
+   */
+  readonly sealed: boolean;
 }
 
 /**
@@ -889,7 +962,7 @@ export const findResumableMaterializationAttempt = async (
   if (!match) return null;
 
   const pages = await findStagePages(executor, match.id);
-  return { attemptId: match.id, nextPageIndex: pages.length };
+  return { attemptId: match.id, nextPageIndex: pages.length, sealed: match.status === 'staged' };
 };
 
 /**

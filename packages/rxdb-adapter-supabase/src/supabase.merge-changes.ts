@@ -5,7 +5,7 @@
  * 翻译为 `rxdb_mutations` RPC 所需的 `p_upserts` / `p_deletes` / `p_changes` 载荷。
  */
 
-import { parseRxDBChangeKey, type IRxDBChange, type SwitchVersionActions } from '@aiao/rxdb';
+import { MAIN_BRANCH_ID, parseRxDBChangeKey, type IRxDBChange, type SwitchVersionActions } from '@aiao/rxdb';
 
 export interface MergeChangesUpsertPayload {
   table: string;
@@ -44,7 +44,7 @@ export function build_merge_changes_payload(
   resolveTableKey: (namespace: string, entityName: string) => string
 ): MergeChangesPayload {
   const now = new Date().toISOString();
-  const effectiveBranchId = branchId ?? 'main';
+  const effectiveBranchId = branchId ?? MAIN_BRANCH_ID;
 
   const resolveChangeTable = (namespace: string, entityName: string) => {
     const [schema, table] = resolveTableKey(namespace, entityName).split('.');
@@ -162,7 +162,7 @@ export function build_merge_changes_payload(
   }
 
   // 非激活分支只写 RxDBChange 记录，不修改实体表
-  const isActiveBranch = effectiveBranchId === 'main';
+  const isActiveBranch = effectiveBranchId === MAIN_BRANCH_ID;
 
   const p_upserts =
     isActiveBranch ?

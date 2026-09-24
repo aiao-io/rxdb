@@ -121,9 +121,10 @@ export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';
 // active 分支基数守卫（FR-048）。**归核心而不是随提交能力走**：「恰好一个 active 分支」是
 // 分支拓扑不变量，核心的 `resolve-current-branch` / `sync-branches` / `create-branch` 本就在写它，
-// 与提交能力无关。`ACTIVE_BRANCH_KEY` 必须出现在公开面上：两个后端的 `switch_branch` 是裸 SQL，
-// 哨兵值要直接拼进 UPDATE 里。各自抄一份字面量的话，某一端拼错了不会有编译错误——
-// 只会让那一端的 active 行安静地退出唯一约束的管辖。
+// 与提交能力无关。`ACTIVE_BRANCH_KEY` 与 `MAIN_BRANCH_ID` 必须出现在公开面上：两个后端的
+// `switch_branch` / `read_current_branch_id` / `create_tables_sql` 是裸 SQL，这两个值要直接拼进
+// 语句里。各自抄一份字面量的话，某一端拼错了不会有编译错误——只会让那一端的 active 行安静地
+// 退出唯一约束的管辖，或让它认另一条分支当根。
 export * from './system/active-branch-guard.js';
 export * from './system/branch.js';
 export * from './system/capability-watermark.js';

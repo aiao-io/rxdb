@@ -63,7 +63,7 @@ import {
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import { SyncStateHub } from './sync-state.js';
-import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { RxDBChange } from './system/change.js';
@@ -71,7 +71,7 @@ import { createMigrationWatermarks, runMigrations } from './system/migration-run
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
 import { RxDBSync } from './system/sync.js';
-import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
+import { CORE_SYSTEM_ENTITIES, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -150,7 +150,7 @@ export class RxDB {
    *
    * @remarks
    * 与模块级登记簿（`system-entities.ts`）分开的理由是两者回答的问题不同：登记簿回答
-   * 「这个类是不是系统表」，必须是模块级的——{@link isSystemEntity} 有跨包消费者，它们
+   * 「这个类是不是系统表」，必须是模块级的——`isSystemEntity()`（`system/system-entities.ts`）有跨包消费者，它们
    * 手里没有 RxDB 实例。这份则回答「**这个库**该建哪些系统表」，而那必须按实例算。
    *
    * 混用的代价是跨实例污染：登记簿只增不减，拿它去注入会让进程里任何一个库 `use()` 过的
@@ -1003,7 +1003,7 @@ export class RxDB {
         } else {
           // 创建表结构
           const branch = this.entityManager.instantiate(RxDBBranch);
-          branch.id = 'main';
+          branch.id = MAIN_BRANCH_ID;
           branch.activated = true;
           // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
           // 漏写这一处，新库的 main 从第一天起就不受「至多一个 active」约束，且不报任何错。
@@ -1846,6 +1846,12 @@ export class RxDB {
    * `IF NOT EXISTS`（`sqlite-core/src/table/create_table_sql.ts`、`pglite/src/table/create_table_sql.ts`
    * 都是裸 `CREATE TABLE`；该子句只出现在建索引那一句上）。把一张已存在的表送进 `createTables()`
    * 会直接报错，于是整条 `connect()` 在既有库上炸掉。
+   *
+   * **探测是逐张顺序发的，两个循环加起来每次 `connect()` 约十几次往返。** 一次元数据查询
+   * （`sqlite_master` / `information_schema.tables` 各一句）就能把这批答案一起取回来，但那要求
+   * 适配器长出「批量取现存表名」这个公开能力，六个后端两种方言各实现一遍——是一次适配器公开面
+   * 扩张，而且落在 `connect()` 这条全仓都走的路径上。顺延记录见 `requirements/roadmap.md`
+   * 的「epic-006 评审顺延的架构项」。
    */
   async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
@@ -1873,12 +1879,22 @@ export class RxDB {
    * ——刚建完的表查出来就是存在的——但那是一个**跨方法的巧合**：它依赖「系统表先建」这一执行
    * 顺序，而这里显式摘出去不依赖任何顺序。差别在 `CREATE TABLE` 没有 `IF NOT EXISTS`
    * （见 {@link RxDB.#ensureSystemTables}）：一旦顺序被调换，重复下发就不是多跑一趟，是直接报错。
+   *
+   * **摘系统表按 {@link RxDB.systemEntities}（本实例的清单），不用模块级的 `isSystemEntity()`。**
+   * 这是建表侧，与 {@link SchemaManager.init} / {@link RxDB.#ensureSystemTables} 同一条口径
+   * （`systemEntities` 的 `@remarks` 把这条写成了不变量）。模块级登记簿是只增不减的活视图，
+   * 认得进程里**任何一个**库登记过的身份：同进程里只要有别的库 `use()` 过某插件，本库一个
+   * 身份撞上贡献表的接入方实体（`@Entity({namespace:'rxdb', name:'Commit'})` 是合法声明，
+   * `namespace` 无人校验）就会在这里被判成「系统表」而静默跳过建表——首次查询报 `no such table`，
+   * 错误里没有一个字指向实体注册。按类引用比而不是按 `namespace:name` 比也是刻意的：
+   * 这里要回答的正是「**是不是同一个类**」，撞名的两个类必须分开。
    */
   async #ensureEntityTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
+    const systemEntities = new Set<EntityType>(this.systemEntities);
 
     for (const entityType of this.#config.entities) {
-      if (isSystemEntity(entityType)) continue;
+      if (systemEntities.has(entityType)) continue;
       const existed = await adapter.isTableExisted(entityType);
       if (!existed) {
         missingEntities.push(entityType);
