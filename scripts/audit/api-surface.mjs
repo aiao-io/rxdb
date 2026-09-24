@@ -383,7 +383,23 @@ const NAMING = {
     // `Parameters<typeof getEntityMutations>[0]`，或者照抄一份结构。抄出来的那份不会跟着改，
     // 于是字段改名的那天，抄件在类型层仍然绿。与工作树、提交能力都无关：
     // 它装的是「这批要写、那批要删」，叫 `Commit*` 等于宣称核心把批量写盘当成提交能力。
-    'EntityMutationsOptions'
+    'EntityMutationsOptions',
+    // 本地 / 远端适配器的具名交集（`IRxDBAdapter & RxDBAdapterLocalBase` 与其远端对偶）。
+    // 上不上公开面不是风格问题，是编译期的硬约束：这个交集会经**推断**出来的返回类型跨包传播，
+    // 而匿名交集在下游包做声明发射时没法经 `@aiao/rxdb` 命名——`@aiao/source` 条件把裸说明符
+    // 解析到 `src/index.ts`，发射器于是退回一条指向 `packages/rxdb/src/` 的相对路径，把核心包
+    // 源码拽进下游的编译程序（ng-packagr 给每个入口点强制 `rootDir`，当场判 TS6059，一次 181 条）。
+    // 具名别名让发射器有一个可经 barrel 命名的符号，逃逸不再发生。
+    // 理由与 T126 那三项同族：适配器契约刻意不认识工作树，叫 `WorkingTree*` 会让 `IRxDBAdapter`
+    // 看起来知道谁在用它。逐名登记，不放宽成 `RxDBAdapter` 前缀。
+    'LocalRxDBAdapter',
+    'RemoteRxDBAdapter',
+    // `EntityMetadata` 背后的那个接口。它**事实上早已在公开面上**——`EntityMetadata` 就是
+    // `Readonly<EntityMetadataType>`，这里只是让它可被命名。必须可命名的理由与上面两个同源：
+    // `Readonly<…>` 这层别名在进入联合或被泛型实例化时会丢掉，展开成对底层接口的引用，
+    // 届时底层接口若不能经本 barrel 命名，下游的声明发射同样退回 `packages/rxdb/src/` 的相对路径。
+    // 装的是实体元数据，与提交能力毫无关系，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    'EntityMetadataType'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

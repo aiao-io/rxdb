@@ -62,7 +62,12 @@ export {
   type MetadataValidationRule,
   type RelationResolutionRule
 } from './entity/metadata-validate.js';
-export type { EntityMetadata } from './entity/metadata.interface.js';
+// `EntityMetadataType` 与它的只读形态 `EntityMetadata` 一并导出：后者是 `Readonly<前者>`，
+// 而 `Readonly<…>` 在进入联合或被泛型实例化时会丢掉别名，展开成对底层接口的引用。届时若
+// 底层接口不能经本 barrel 命名，下游包的声明发射只能退回一条指向 `packages/rxdb/src/` 的
+// 相对路径，把核心包源码拽进下游编译程序（ng-packagr 的 `rootDir` 当场判 TS6059）。
+// 它事实上早已在公开面上，这里只是让它可被命名。
+export type { EntityMetadata, EntityMetadataType } from './entity/metadata.interface.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，

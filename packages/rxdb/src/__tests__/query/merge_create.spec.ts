@@ -898,11 +898,12 @@ describe('query_merge_create_cache', () => {
             { id: '12', title: 'Task 12' },
             { id: '13', title: 'Task 13' }
           ],
-          // 新行挤进窗口后，窗口末尾的 13 落到下一页——与 SQL 用同样参数重查的结果一致
+          // 11.5 落在窗口之内，本页因此变长；末尾的 13 是下一页游标指着的那一行，不能被挤走
           [
             { id: '11', title: 'Task 11' },
             { id: '11.5', title: 'Task 11.5' },
-            { id: '12', title: 'Task 12' }
+            { id: '12', title: 'Task 12' },
+            { id: '13', title: 'Task 13' }
           ]
         ];
         let resultIndex = 0;
@@ -956,8 +957,9 @@ describe('query_merge_create_cache', () => {
             { id: '18', title: 'Task 18' },
             { id: '19', title: 'Task 19' }
           ],
-          // before 页紧贴游标，被挤出去的是窗口最前面的 17（它属于上一页）
+          // before 页紧贴游标，敞开的是最前一端；17.5 落在窗口之内，17 是上一页游标指着的那一行
           [
+            { id: '17', title: 'Task 17' },
             { id: '17.5', title: 'Task 17.5' },
             { id: '18', title: 'Task 18' },
             { id: '19', title: 'Task 19' }
@@ -988,7 +990,7 @@ describe('query_merge_create_cache', () => {
       });
     });
 
-    it('增量插入后仍然只发射一页（不超过 limit）', () => {
+    it('应该在增量场景下结果集大小超过 limit', () => {
       return new Promise<void>((done, reject) => {
         const task = createMockQueryTask({
           type: 'findByCursor',
@@ -1011,11 +1013,12 @@ describe('query_merge_create_cache', () => {
             { id: '2', title: 'Task 2' },
             { id: '3', title: 'Task 3' }
           ],
-          // 新实体插入后这一页仍然只有 limit 条，3 被挤到下一页
+          // 增量场景下:新实体插入后,结果集从 3 条变成 4 条(超过 limit)
           [
             { id: '1', title: 'Task 1' },
             { id: '1.5', title: 'Task 1.5' },
-            { id: '2', title: 'Task 2' }
+            { id: '2', title: 'Task 2' },
+            { id: '3', title: 'Task 3' }
           ]
         ];
         let resultIndex = 0;

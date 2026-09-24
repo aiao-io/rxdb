@@ -119,6 +119,49 @@ describe('review query regression probes', () => {
     }
   });
 
+  it('Q6 should keep the page tail put when a matching row is created inside the window', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'findByCursor',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        limit: 2,
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      },
+      runner: () => of([{ id: 'b' }, { id: 'c' }])
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      mergeCreate(task as QueryTask<typeof ReviewEntity>, [create('a')]);
+      // 与 Q4 成对：那条插在页尾之后（属于下一页，裁掉），这条插在窗口之内。
+      // 页内插入必须让本页变长而不是把页尾的 c 挤走——c 正是下一页 `after` 游标指着的那一行，
+      // 挤走它下一页就会重锚到 b，夹在 b 与 c 之间的行凭空消失。见 FindByCursorOptions.limit。
+      expect(task.result).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it('Q7 should still clip to limit when the created rows only extend the open end', () => {
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'findByCursor',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        limit: 2,
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      },
+      runner: () => of([{ id: 'a' }])
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      mergeCreate(task as QueryTask<typeof ReviewEntity>, [create('b'), create('c'), create('d')]);
+      // 未满的一页（SQL 只给回 1 条）尾端是敞开的，新行往尾端堆时仍然按 limit 收口，
+      // 否则持续插入会让这一页无限膨胀——Q4/Q6 保的是「原有行不被裁掉」，不是「不再裁剪」。
+      expect(task.result).toEqual([{ id: 'a' }, { id: 'b' }]);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
   it('Q5 should refresh instead of incrementing a count whose snapshot may already include the row', () => {
     const task = createHarnessQueryTask(ReviewEntity, {
       type: 'count',

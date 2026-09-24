@@ -29,7 +29,7 @@
  * 保留原 ref、不删记录、拒绝操作，是唯一诚实的处理。
  */
 
-import type { IRxDBAdapter, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
+import type { LocalRxDBAdapter, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from './change-unit.js';
 import { computeCommitContentFingerprint } from './change-unit.js';
@@ -330,10 +330,7 @@ export const markBranchCorrupted = async (
  * {@link CommitGraphCorruptedError} 的 @remarks），而这里要取的是 `branchId` 这个**自有属性**
  * ——只有类型判定能把它带出来。
  */
-export const latchBranchCorruption = async (
-  adapter: IRxDBAdapter & RxDBAdapterLocalBase,
-  error: unknown
-): Promise<void> => {
+export const latchBranchCorruption = async (adapter: LocalRxDBAdapter, error: unknown): Promise<void> => {
   if (!(error instanceof CommitGraphCorruptedError)) return;
   try {
     await adapter.transaction(executor => markBranchCorrupted(executor, error));

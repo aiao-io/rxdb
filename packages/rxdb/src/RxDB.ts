@@ -20,10 +20,11 @@ import {
 import {
   AdapterFactory,
   IRxDBAdapter,
+  LocalRxDBAdapter,
+  RemoteRxDBAdapter,
   RepositoryInstance,
   RxDBAdapterLocalBase,
   RxDBAdapterName,
-  RxDBAdapterRemoteBase,
   RxDBAdapters
 } from './rxdb-adapter.js';
 import {
@@ -340,16 +341,14 @@ export class RxDB {
    * 只有让这个空值参与去重，重连时同名的适配器才会被认作一次变化并重新求值。反过来先 filter，
    * 空值被吞掉，去重看到的永远是同一个名字，仍在订阅中的实时查询就会一直挂在已断开的适配器上。
    */
-  public readonly localAdapter$: Observable<IRxDBAdapter & RxDBAdapterLocalBase> = this.#local_adapter_sub
-    .asObservable()
-    .pipe(
-      distinctUntilChanged(),
-      filter(Boolean),
-      switchMap(localAdapter =>
-        defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as IRxDBAdapter & RxDBAdapterLocalBase))
-      ),
-      shareReplay({ bufferSize: 1, refCount: true })
-    );
+  public readonly localAdapter$: Observable<LocalRxDBAdapter> = this.#local_adapter_sub.asObservable().pipe(
+    distinctUntilChanged(),
+    filter(Boolean),
+    switchMap(localAdapter =>
+      defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as LocalRxDBAdapter))
+    ),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
   /**
    * 远程适配器
@@ -357,16 +356,14 @@ export class RxDB {
    * @remarks
    * 缓存语义同 {@link RxDB.localAdapter$}。
    */
-  public readonly remoteAdapter$: Observable<IRxDBAdapter & RxDBAdapterRemoteBase> = this.#remote_adapter_sub
-    .asObservable()
-    .pipe(
-      distinctUntilChanged(),
-      filter(Boolean),
-      switchMap(localAdapter =>
-        defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as IRxDBAdapter & RxDBAdapterRemoteBase))
-      ),
-      shareReplay({ bufferSize: 1, refCount: true })
-    );
+  public readonly remoteAdapter$: Observable<RemoteRxDBAdapter> = this.#remote_adapter_sub.asObservable().pipe(
+    distinctUntilChanged(),
+    filter(Boolean),
+    switchMap(localAdapter =>
+      defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as RemoteRxDBAdapter))
+    ),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
   /**
    * 连接状态 Observable
@@ -427,7 +424,7 @@ export class RxDB {
    * 未连接时**抛错而不是返回 `undefined`**：没有依赖声明就来同步取适配器是调用方的时序
    * 错误，返回空值只会把它推迟到某个更远的地方再炸。
    */
-  public get localAdapterSync(): IRxDBAdapter & RxDBAdapterLocalBase {
+  public get localAdapterSync(): LocalRxDBAdapter {
     const adapterName = this.#config.sync.local?.adapter;
     if (adapterName === undefined) {
       throw new Error('[RxDB] local adapter is not configured (sync.local.adapter)');
@@ -438,7 +435,7 @@ export class RxDB {
     }
     // 这里不重复判定：能进 #connected_adapter_instances 就说明 `connect()` 的 local 分支
     // 已经过了 assertLocalAdapterCapabilities，缺成员的适配器在那一步就抛掉了。
-    return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
+    return adapter as LocalRxDBAdapter;
   }
 
   get context() {
@@ -525,7 +522,7 @@ export class RxDB {
     const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
     // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
     // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
-    return (adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined)?.workingTreeCaptureHook;
+    return (adapter as LocalRxDBAdapter | undefined)?.workingTreeCaptureHook;
   }
 
   /**
@@ -546,11 +543,11 @@ export class RxDB {
    *
    * @internal
    */
-  get localAdapterIfConnected(): (IRxDBAdapter & RxDBAdapterLocalBase) | undefined {
+  get localAdapterIfConnected(): LocalRxDBAdapter | undefined {
     const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
     // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
     // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
-    return adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined;
+    return adapter as LocalRxDBAdapter | undefined;
   }
 
   /**

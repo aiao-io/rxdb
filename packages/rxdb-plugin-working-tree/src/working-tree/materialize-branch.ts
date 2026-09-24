@@ -23,9 +23,8 @@
  */
 
 import type {
-  IRxDBAdapter,
+  LocalRxDBAdapter,
   RxDB,
-  RxDBAdapterLocalBase,
   RxDBBranchSwitchTakeover,
   RxDBBranchSwitchTakeoverContext,
   TransactionExecutor
@@ -259,7 +258,7 @@ const openStaging = async (
  */
 const appendPages = async (
   rxdb: RxDB,
-  adapter: IRxDBAdapter & RxDBAdapterLocalBase,
+  adapter: LocalRxDBAdapter,
   attempt: { readonly attemptId: string; readonly targetBranchId: string },
   fromPageIndex: number,
   pages: AsyncIterable<BranchMaterializationPagePayload>

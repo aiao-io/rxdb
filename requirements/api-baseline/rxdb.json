@@ -358,6 +358,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityMetadataType",
+        "kind": "type"
+      },
+      {
         "name": "EntityMetadataValidationError",
         "kind": "type"
       },
@@ -830,6 +834,10 @@
         "kind": "type"
       },
       {
+        "name": "LocalRxDBAdapter",
+        "kind": "type"
+      },
+      {
         "name": "LocalRxDBBranchRepository",
         "kind": "type"
       },
@@ -1255,6 +1263,10 @@
       },
       {
         "name": "RemoteMergeResult",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteRxDBAdapter",
         "kind": "type"
       },
       {

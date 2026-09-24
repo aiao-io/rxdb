@@ -14,7 +14,7 @@
  * 说的是**不调用它就什么都没发生**，不是调用了要假装成功。
  */
 
-import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
+import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
@@ -506,7 +506,7 @@ export class WorkingTreeManager {
    * 少写形参的回调在 TS 里仍然可赋值，不需要它的成员一个字都不用改。
    */
   protected async runEnabled<T>(
-    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
   ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
     const result = await this.#runEnabledOnce(adapter, run);
@@ -542,7 +542,7 @@ export class WorkingTreeManager {
    * 而换掉的那一刻恰好有别的事务正握着旧实例的话，那笔事务余下的写会记在一个已经被丢弃的
    * 运行时上。
    */
-  #healCapture(adapter: IRxDBAdapter & RxDBAdapterLocalBase): void {
+  #healCapture(adapter: LocalRxDBAdapter): void {
     if (adapter.workingTreeCaptureHook) return;
     installWorkingTreeCapture(this.#rxdb, adapter);
   }
@@ -561,8 +561,8 @@ export class WorkingTreeManager {
    * 时点从「提交之后」漂成了「无论提交与否」。
    */
   async #runEnabledOnce<T>(
-    adapter: IRxDBAdapter & RxDBAdapterLocalBase,
-    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+    adapter: LocalRxDBAdapter,
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
   ): Promise<T> {
     try {
       return await adapter.transaction(async executor => {
@@ -579,7 +579,7 @@ export class WorkingTreeManager {
 
   /** 取本地适配器并开一个写事务；适配器一并交给命令体，理由见 {@link runEnabled}。 */
   async #runInTransaction<T>(
-    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
   ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
     return adapter.transaction(async executor => run(executor, adapter));

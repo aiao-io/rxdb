@@ -31,10 +31,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import type {
   EntityType,
-  IRxDBAdapter,
   IRxDBChange,
+  LocalRxDBAdapter,
   RxDB,
-  RxDBAdapterLocalBase,
   SwitchVersionActions,
   TransactionExecutor,
   UUID
@@ -78,11 +77,8 @@ import { classifyWriteEntrance, WorkingTreeWriteRejectedError } from '../write-e
 import { ConformanceCache, ConformanceNote, WORKING_TREE_CONFORMANCE_ENTITIES } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
-/** 被测库的本地适配器；四个挂载点都装在它的实例上。 */
-type LocalAdapter = IRxDBAdapter & RxDBAdapterLocalBase;
-
 /** 取本地适配器；受信写声明与 raw 判定上下文都挂在这个实例上。 */
-const localAdapterOf = (database: RxDB): Promise<LocalAdapter> => firstValueFrom(database.localAdapter$);
+const localAdapterOf = (database: RxDB): Promise<LocalRxDBAdapter> => firstValueFrom(database.localAdapter$);
 
 /**
  * 取本地适配器上的捕获运行时
@@ -102,7 +98,7 @@ const localAdapterOf = (database: RxDB): Promise<LocalAdapter> => firstValueFrom
  * 钩子缺席时抛而不是跳过：`workingTree.enable()` 没生效的库上，本节全部断言都会以
  * 「归类为 versioned」的形态假绿。
  */
-const hookOf = (adapter: LocalAdapter): WorkingTreeCaptureRuntime => {
+const hookOf = (adapter: LocalRxDBAdapter): WorkingTreeCaptureRuntime => {
   const hook = adapter.workingTreeCaptureHook;
   if (!hook) throw new Error('本地适配器上没有捕获钩子：工作树没有启用，本节的全部前置都无从谈起');
   if (!(hook instanceof WorkingTreeCaptureRuntime)) {
@@ -121,7 +117,7 @@ const hookOf = (adapter: LocalAdapter): WorkingTreeCaptureRuntime => {
  * **不从 `adapter.workingTreeRawWriteContext` 上取**：那是适配器与核心之间的接缝，未启用形态在
  * 类型上就没有域可读（{@link RawWriteContext} 是个判别联合）。域是判定的输入，只在运行时手上。
  */
-const domainOf = (adapter: LocalAdapter): VersionedDomainView => hookOf(adapter).domain;
+const domainOf = (adapter: LocalRxDBAdapter): VersionedDomainView => hookOf(adapter).domain;
 
 /**
  * 凑一份「已启用」的判定上下文
@@ -133,7 +129,7 @@ const domainOf = (adapter: LocalAdapter): VersionedDomainView => hookOf(adapter)
  * 能力位恒为真：本套件只跑在已启用提交能力的库上。唯一的例外是 §1.3 第 1 步——它要的正是
  * 能力位为假，所以那一条自己现造，不走这里。
  */
-const judgmentContextOf = (adapter: LocalAdapter): RawWriteJudgmentContext => ({
+const judgmentContextOf = (adapter: LocalRxDBAdapter): RawWriteJudgmentContext => ({
   capabilityEnabled: true,
   domain: domainOf(adapter)
 });

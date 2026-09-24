@@ -277,11 +277,15 @@ describe('条件请求', () => {
 });
 
 describe('种子确定性（D7）', () => {
+  // 显式超时：本条要跑两遍完整 reset（各 250 行落库）再各回读 250 行，单独跑 ~2.7s，
+  // 是本文件次重那条（1.7s）的一倍半。默认 5s 在单跑时够用，但 `test-all` 的 `--parallel=4`
+  // 下它稳定越线——门禁里红、单独复跑绿，正是被当成 flaky 的那种假故障。
+  // 写死的是这条测试**本来就要花的时间**，不是给不稳定留的余量。
   it('reset 跑两遍读出的 250 行逐字节相同', async () => {
     const first = await readAllRowsAfterReset();
     const second = await readAllRowsAfterReset();
     expect(first).toEqual(second);
-  });
+  }, 20_000);
 
   const readAllRowsAfterReset = async (): Promise<Record<string, unknown>[]> => {
     const response = await post('__control/reset', {});

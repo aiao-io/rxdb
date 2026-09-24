@@ -26,6 +26,38 @@ const take_last = <T>(list: T[], limit: number): T[] =>
   limit <= 0 ? [] : list.slice(Math.max(0, list.length - limit));
 
 /**
+ * 按翻页方向把游标页裁回窗口，但**绝不裁掉本页原有的行**
+ *
+ * @param sorted - 合并且排好序的候选行
+ * @param old_ids - 本次合并之前就在这一页里的行 id
+ * @param limit - 页容量
+ * @param before - 是否为 before 页（窗口贴着游标向前取）
+ *
+ * @remarks
+ * 裁剪本身必须有：落在窗口敞开那一端之外的新行属于相邻页，不收口的话持续插入会让这一页
+ * 无限膨胀（`limit: 0` 也保不住空集）。但裁剪只能作用在**新进来的**行上——本页原有的行是
+ * 相邻页游标的锚点，裁掉它，相邻页就会重锚到另一行，夹在中间的那几行凭空消失。
+ *
+ * 所以窗口的边界不是「条数」而是「原有行里最外侧的那一条」：正向页保到最后一条原有行，
+ * before 页保到最前一条原有行，两侧都至少给足 `limit` 条。页内插入因此会让本页超出
+ * `limit`，这正是 {@link FindByCursorOptions.limit} 写明的增量语义——本页可以变长，
+ * 相邻页的指针不动。
+ */
+const clip_to_window = <T extends { id: unknown }>(
+  sorted: T[],
+  old_ids: ReadonlySet<unknown>,
+  limit: number,
+  before: boolean
+): T[] => {
+  if (before) {
+    const first_old = sorted.findIndex(entity => old_ids.has(entity.id));
+    return take_last(sorted, Math.max(limit, first_old === -1 ? 0 : sorted.length - first_old));
+  }
+  const last_old = sorted.findLastIndex(entity => old_ids.has(entity.id));
+  return sorted.slice(0, Math.max(limit, last_old + 1));
+};
+
+/**
  * JS 增量更新查询结果
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalCreatedEventData<T>[]) => {
@@ -143,11 +175,9 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
         new_result = calculateOrderBy(combined, orderBy);
       }
 
-      // 一页就是一页：游标查询的每次发射都必须是 SQL 拿同样参数会给出的那一页，
-      // 否则持续插入会让这一页无限膨胀（`limit: 0` 也保不住空集）。
-      // 裁剪方向跟着翻页方向走——正向页（首页与 after）取窗口开头 limit 项，
-      // before 页取紧邻游标的末尾 limit 项，被挤出窗口的那几行属于相邻页。
-      new_result = before ? take_last(new_result, limit) : new_result.slice(0, limit);
+      // 收口方向跟着翻页方向走——正向页（首页与 after）从窗口开头数，before 页从紧邻游标的
+      // 末尾数，被挤出窗口的那几行属于相邻页。本页原有的行一条都不裁，理由见 clip_to_window。
+      new_result = clip_to_window(new_result, new Set(old_result.map(entity => entity.id)), limit, !!before);
 
       if (!has_result_changed(old_result, new_result)) return;
       task.next(new_result, true);

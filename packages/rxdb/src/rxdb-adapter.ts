@@ -295,6 +295,30 @@ export interface IRxDBAdapter {
 }
 
 /**
+ * 本地适配器的完整形态：接口契约 + 本地基类能力。
+ *
+ * @remarks
+ * `localAdapter$` 这一支发出的对象同时满足两者，调用方也总是两边的成员混着用，
+ * 因此「交集」才是这条链上的真实类型，而不是某一半。
+ *
+ * 给它一个名字而不是在每处签名里重抄 `IRxDBAdapter & RxDBAdapterLocalBase`，除了少抄
+ * 二十遍，还有一条编译期的硬理由：这个交集会经**推断**出来的返回类型跨包传播，而匿名
+ * 交集在下游包做声明发射时没法经 `@aiao/rxdb` 命名——`@aiao/source` 条件把裸说明符解析
+ * 到 `src/index.ts`，发射器于是退回一条指向 `packages/rxdb/src/` 的相对路径，把核心包源码
+ * 拽进下游的编译程序（ng-packagr 给每个入口点强制 `rootDir`，当场判 TS6059）。具名别名
+ * 让发射器有一个可经 barrel 命名的符号，逃逸不再发生。
+ */
+export type LocalRxDBAdapter = IRxDBAdapter & RxDBAdapterLocalBase;
+
+/**
+ * 远端适配器的完整形态：接口契约 + 远端基类能力。
+ *
+ * @remarks
+ * 与 {@link LocalRxDBAdapter} 对称，存在理由相同。
+ */
+export type RemoteRxDBAdapter = IRxDBAdapter & RxDBAdapterRemoteBase;
+
+/**
  * 数据库适配器基类
  */
 export abstract class RxDBAdapterBase {

@@ -50,7 +50,7 @@
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
+import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
@@ -138,7 +138,7 @@ interface CommitCorruptionEntryContext {
   readonly database: RxDB;
 
   /** 开出 {@link CommitCorruptionEntryContext.executor} 的那个本地适配器 */
-  readonly adapter: IRxDBAdapter & RxDBAdapterLocalBase;
+  readonly adapter: LocalRxDBAdapter;
 
   /** 调用方那个写事务的执行器 */
   readonly executor: TransactionExecutor;
@@ -148,8 +148,7 @@ interface CommitCorruptionEntryContext {
 }
 
 /** 取当前库的本地适配器；提交上下文与写事务都从它来。 */
-const localAdapterOf = (database: RxDB): Promise<IRxDBAdapter & RxDBAdapterLocalBase> =>
-  firstValueFrom(database.localAdapter$);
+const localAdapterOf = (database: RxDB): Promise<LocalRxDBAdapter> => firstValueFrom(database.localAdapter$);
 
 /**
  * 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。
@@ -161,7 +160,7 @@ const localAdapterOf = (database: RxDB): Promise<IRxDBAdapter & RxDBAdapterLocal
  */
 const withTransaction = async <T>(
   database: RxDB,
-  run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+  run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
 ): Promise<T> => {
   const adapter = await localAdapterOf(database);
   return adapter.transaction(async executor => run(executor, adapter));
