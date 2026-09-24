@@ -34,6 +34,38 @@
         "kind": "value"
       },
       {
+        "name": "BranchMaterializationApplyContext",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationIntent",
+        "kind": "type"
+      },
+      {
+        "name": "branchMaterializationPageFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "BranchMaterializationPagePayload",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationPageRequest",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationSource",
+        "kind": "type"
+      },
+      {
+        "name": "BranchNotMaterializedError",
+        "kind": "both"
+      },
+      {
+        "name": "BranchNotMaterializedReason",
+        "kind": "type"
+      },
+      {
         "name": "buildVersionedDomain",
         "kind": "value"
       },
@@ -242,6 +274,10 @@
         "kind": "value"
       },
       {
+        "name": "ExpectedActiveBranch",
+        "kind": "type"
+      },
+      {
         "name": "ExternalNotifyGateRequest",
         "kind": "type"
       },
@@ -404,6 +440,10 @@
       {
         "name": "StaleActiveBranchError",
         "kind": "both"
+      },
+      {
+        "name": "takeOverBranchSwitchWithMaterialization",
+        "kind": "value"
       },
       {
         "name": "toCapturedWrite",

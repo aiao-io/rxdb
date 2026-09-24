@@ -842,6 +842,10 @@
         "kind": "both"
       },
       {
+        "name": "MAIN_BRANCH_ID",
+        "kind": "value"
+      },
+      {
         "name": "MalformedRxDBCapabilityWatermarkError",
         "kind": "both"
       },
