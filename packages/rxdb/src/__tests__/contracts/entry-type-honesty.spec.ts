@@ -5,6 +5,7 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import type { RxDBAdapters } from '../../index.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { RxDB } from '../../RxDB.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 /**
  * RXD-039 残留项：**包入口导出的类型名，指向的不是运行时真正的东西**。
@@ -26,6 +27,8 @@ import { RxDB } from '../../RxDB.js';
  * 核心侧漂移的那份同时删除，于是同一条判据改由
  * `packages/rxdb-plugin-history/src/__tests__/contracts/entry-type-honesty.spec.ts` 守。
  */
+const { trackSharedRxDB } = registerRxDBTeardown();
+
 describe('RXD-039 · 包入口导出的类型必须与运行时一致', () => {
   @Entity({
     name: 'EntryTypeHonestyEntity',
@@ -38,14 +41,16 @@ describe('RXD-039 · 包入口导出的类型必须与运行时一致', () => {
   let rxdb!: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'entry-type-honesty',
-      entities: [EntryTypeHonestyEntity],
-      sync: {
-        local: { adapter: 'sqlite' },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'entry-type-honesty',
+        entities: [EntryTypeHonestyEntity],
+        sync: {
+          local: { adapter: 'sqlite' },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

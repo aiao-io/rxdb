@@ -500,13 +500,18 @@ export class HistoryManager {
   /**
    * 使 redo 栈失效。全部 trigger id ≤ {@link #redoInvalidationFloor} 视为迟到通知，跳过。
    *
+   * @remarks
+   * 这里**不查** `isUndoRedoInProgress` / `isInvalidatingRedo`：undo、redo 与本方法三个入口
+   * 全部排进 {@link HistoryManager.#runSerialized}，两个标志又只在同一个序列化任务内部置起
+   * 再复位，因此轮到本任务时它们必然已复位——查了也是一条走不到的分支。下面那句
+   * `isInvalidatingRedo = true` 留着是给 {@link HistoryManager.isExecutingUndoRedo} 读的，
+   * 真正生效的守卫在调用方 `VersionManager` 的 `if (!historyManager.isExecutingUndoRedo())`，
+   * 它连 `syncDepth` 一起看，覆盖比这里严。
+   *
    * @internal
    */
   async invalidateRedoStack(triggerChangeIds?: readonly number[]): Promise<void> {
     return this.#runSerialized(async () => {
-      if (this.isUndoRedoInProgress || this.isInvalidatingRedo) {
-        return;
-      }
       if (triggerChangeIds?.length && triggerChangeIds.every(id => id <= this.#redoInvalidationFloor)) {
         return;
       }

@@ -26,6 +26,10 @@
 
 **前缀规则的十二项登记例外**（US-025 阶段 E）：`prepareIncrementalUpdate` / `IncrementalUpdateContext` / `UpdateClassification` / `UpdateDataCache` / `applyExternalEntityUpdate` / `getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` / `Fingerprint` / `getFingerprintPrimitive` / `getFingerprintByEntity` / `getFingerprintByEntities`。正向规则的适用范围写的是「核心共享契约」，实现上读的却是整个 diff，因此与工作树无关的核心新增导出也会撞上它。前八个是树查询外移到 `@aiao/rxdb-plugin-tree` 所需的增量合并原语（插件要自己算「更新前后各自匹不匹配 where」）；后四个是指纹计算——自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，而指纹正是 QueryManager 判定「结果变没变」的依据，各写一份就是两套「变了」的定义。冠 `Commit*` / `WorkingTree*` 会让核心看起来把合并判定当成提交能力的一部分。同样逐名登记，不放宽成前缀。
 
+**前缀规则的五项登记例外**（next-11 复核）：`RxDBBranchSwitchTakeoverContext` / `RxDBBranchSwitchTakeover` / `RxDBBranchSwitchFailureContext` / `CAPABILITY_ENABLED_EVENT` / `CapabilityEnabledEvent`。前三个是 `rxdb-plugin-system.ts` 上分支切换**接管**钩子的伴生名，与上面 T126 那三项同族同文件：`RxDBBranchSwitchTakeoverContext` 与 `RxDBBranchSwitchContext` 逐字段同形，差别只有「没有 `executor`」——接管方要拉远端快照、逐页落库，这些塞不进那次切换事务，必须自己开事务。理由与 T126 一字不差：核心只搬运，叫 `WorkingTree*` 会让 `RxDBSystemContribution` 看起来认识工作树。上面那段写明「加前缀之后第四个同族名字会静默通过，而这份名单逼着下一个人把理由重讲一遍」——这就是那第四、五、六个，理由已重讲。后两个是 FR-037 的能力闩：能力位是 `RxDBSystemContribution.capability` 的通用机制，工作树只是使用者之一；`CAPABILITY_ENABLED_EVENT` 另有一层与 `WORKING_TREE_CAPTURE_MOUNT_POINTS` 相同的形态豁免——SCREAMING 形满足不了大小写敏感的 `startsWith('WorkingTree')`。同样逐名登记。
+
+> 本节列出的是**定案时点**的登记例外；门禁宿主 `scripts/audit/api-surface.mjs` 的 `corePrefixExceptions` 是唯一可执行的那一份，其中另有若干项（`SwitchBranchPrepareContext`、`SKIP_BRANCH_SWITCH_PREPARE`、`assertUsableBranchId`、`InvalidBranchIdError`、`normalizeCreateEntity`、捕获挂载点三项、`@aiao/rxdb/testing` 测试台七项）只在脚本注释里留了理由，未回填本节。
+
 **正向规则读 diff，负向规则读当前全集。** 负向规则若也读 diff，失效路径是现成的：新增 `IndexHint` → 门禁红 → 有人跑 `--update` → 它进了基线 → 从此永远绿，而那个名字还在表面上。正向规则没有这条路可走（「哪些名字属于本特性」在全集里读不出来），代价是它只在名字**第一次出现**的那次运行里有效。`rxdb` 的 `SwitchBranchOptions` 与 `rxdb-plugin-workspace` 的四个 `Workspace*` 是本特性之前的既有导出，在门禁里逐名放行（名单封闭）。
 
 ## 1. 入口

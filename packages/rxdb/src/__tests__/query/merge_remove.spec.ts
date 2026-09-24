@@ -95,6 +95,20 @@ describe('query_merge_remove_cache', () => {
         });
       });
     });
+
+    it('删的是别的实体时既不刷新也不发射', () => {
+      const task = createMockQueryTask({ type: 'get', options: 'run-1' }, () => of({ id: 'run-1', status: 'queued' }));
+      const refreshSpy = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: 'run-2', status: 'queued' })]);
+
+      // `get` 是按 id 定点取一条：同一张表里别的行被删，与这条结果无关。
+      // 少了这层判断，任意一条 DELETE 都会把全部活着的 `get` 查询推回 SQL——
+      // 批量删除时这是一整轮无谓的往返。
+      expect(refreshSpy).not.toHaveBeenCalled();
+      expect(emissions).toEqual([{ id: 'run-1', status: 'queued' }]);
+    });
   });
 
   describe('findAll - 全量查询', () => {
@@ -693,6 +707,91 @@ describe('query_merge_remove_cache', () => {
         ];
         query_merge_remove_cache(task, removeEvents);
       });
+    });
+
+    it('计数已经是 0 时不会被减成负数', () => {
+      const task = createMockQueryTask({ type: 'count', options: { where: { combinator: 'and', rules: [] } } }, () =>
+        of(0)
+      );
+
+      const emissions = collectEmissions(task);
+
+      // 0 是合法的已落地结果（`task.result === 0`），不是"还没跑过"。上游守卫只拦
+      // `undefined`，所以这里会真的进 JS 增量：计数与删除事件本就可能对不上——
+      // runner 的快照取自这行被删之前还是之后，取决于两者到达的先后。
+      query_merge_remove_cache(task, [createMockRemoveEvent({ id: '1', title: 'Task 1' })]);
+
+      expect(task.result).toBe(0);
+      expect(emissions).toEqual([0]);
+    });
+
+    it('where 不依赖关系字段时，关系实体的删除既不减计数也不刷新', () => {
+      class Post {
+        static [ENTITY_STATIC_TYPES] = { idType: '' as string };
+        id = '';
+      }
+      const postMetadata = {
+        name: 'Post',
+        namespace: 'test',
+        target: Post,
+        properties: [],
+        primary: { name: 'id', type: 'string' },
+        relations: [],
+        relationMap: new Map(),
+        propertyMap: new Map(),
+        indexes: []
+      };
+      const tagMetadata = {
+        name: 'Tag',
+        namespace: 'test',
+        properties: [],
+        primary: { name: 'id', type: 'string' },
+        // Tag 指向 Post，于是 Tag 的 DELETE 会被派发到这个 Post 计数任务上。
+        relations: [{ name: 'post', propertyName: 'post', kind: 'n:1', mappedEntity: 'Post', mappedNamespace: 'test' }],
+        relationMap: new Map(),
+        propertyMap: new Map(),
+        indexes: []
+      };
+      Object.assign(Post, { [METADATA]: postMetadata });
+
+      const task = createHarnessQueryTask<typeof Post, number>(Post, {
+        type: 'count',
+        options: { where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'published' }] } },
+        runner: () => of(4),
+        schemaManager: {
+          getEntityMetadata: (entity: string, namespace: string) => {
+            if (namespace !== 'test') return undefined;
+            return (
+              entity === 'Post' ? postMetadata
+              : entity === 'Tag' ? tagMetadata
+              : undefined
+            );
+          }
+        }
+      } as unknown as HarnessTaskOptions<typeof Post, number>);
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      // Tag 指向 Post，所以这条 DELETE 会被派发到这个 Post 计数任务上；`separateEntities`
+      // 把它判进 relation_entities，当前实体集是空的。两条路都不该走：`match_where` 在空集上
+      // 为假（减不得），`match_relation_where` 也为假——这个 where 只用 Post 自己的字段，
+      // 删一个 Tag 影响不到"已发布文章数"，回 SQL 重取同样是白跑一趟。
+      query_merge_remove_cache_impl(task as unknown as QueryTask<typeof Post>, [
+        {
+          type: 'DELETE',
+          namespace: 'test',
+          entity: 'Tag',
+          id: 'tag-1',
+          entityType: Post,
+          recordAt: new Date(0),
+          patch: null,
+          inversePatch: { id: 'tag-1', postId: 'post-1' }
+        } as unknown as RxDBEntityLocalRemovedEventData<typeof Post>
+      ]);
+
+      expect(emissions).toEqual([4]);
+      expect(refreshSpy).not.toHaveBeenCalled();
     });
   });
 

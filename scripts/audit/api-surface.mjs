@@ -361,7 +361,29 @@ const NAMING = {
     'EntityCache',
     'HarnessSchemaOverrides',
     'HarnessTaskOptions',
-    'METADATA'
+    'METADATA',
+    // 分支切换接管钩子的三个伴生名。与上面 T126 那三项同族、同文件：
+    // `RxDBBranchSwitchTakeoverContext` 与 `RxDBBranchSwitchContext` 逐字段同形，差别只有
+    // 「没有 `executor`」——接管方要拉远端快照、逐页落库，那些塞不进那次切换事务，
+    // 必须自己开事务，这正是它不能共用前者的原因。理由与 T126 那三项一字不差：核心只搬运，
+    // 叫 `WorkingTree*` 会让 `RxDBSystemContribution` 看起来认识工作树，而九个注册点没有一个提到它。
+    // 这份名单当初写明「加前缀之后第四个同族名字会静默通过，而这份名单逼着下一个人把理由
+    // 重讲一遍」——这就是那第四、五、六个，理由已重讲于上。
+    'RxDBBranchSwitchTakeoverContext',
+    'RxDBBranchSwitchTakeover',
+    'RxDBBranchSwitchFailureContext',
+    // FR-037 的能力闩。能力位是 `RxDBSystemContribution.capability` 的通用机制，工作树只是
+    // 它的使用者之一；叫 `WorkingTree*` 等于宣称核心把「能力启用」当成提交能力专有的事。
+    // `CAPABILITY_ENABLED_EVENT` 另有一层与 `WORKING_TREE_CAPTURE_MOUNT_POINTS` 相同的形态豁免：
+    // SCREAMING 形永远满足不了大小写敏感的 `startsWith('WorkingTree')`。
+    'CAPABILITY_ENABLED_EVENT',
+    'CapabilityEnabledEvent',
+    // `getEntityMutations` 的入参形状。那个函数本就在基线里（grandfathered 之前就公开），
+    // 而它的选项类型此前没导出——包外要给这个对象起名只能写
+    // `Parameters<typeof getEntityMutations>[0]`，或者照抄一份结构。抄出来的那份不会跟着改，
+    // 于是字段改名的那天，抄件在类型层仍然绿。与工作树、提交能力都无关：
+    // 它装的是「这批要写、那批要删」，叫 `Commit*` 等于宣称核心把批量写盘当成提交能力。
+    'EntityMutationsOptions'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

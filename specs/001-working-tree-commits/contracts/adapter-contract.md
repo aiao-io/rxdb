@@ -71,8 +71,8 @@
 | 4   | `undo-redo-apply.ts` | `applyUndoRedoHistories`   | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
 | 5   | `merge-branch.ts`    | `merge_branch`（逐条分支） | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
 | 6   | `merge-branch.ts`    | `merge_branch`（压缩分支） | `adapter.mergeChanges(…, false)`  | 165 | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 382 | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts` | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 646 | `remote_sync` | **必须产生**   |
+| 7   | `pull-batch.ts`      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 349 | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts` | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 627 | `remote_sync` | **必须产生**   |
 | 9   | `cleanup-expired.ts` | `cleanupExpired`           | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
 
 **核对结论**：9 行符号全部存在、签名未漂移。同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记。

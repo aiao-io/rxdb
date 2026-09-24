@@ -1,12 +1,6 @@
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  handleCountUpdate,
-  handleFindAllUpdate,
-  handleFindByCursorUpdate,
-  handleFindOneUpdate,
-  handleFindUpdate
-} from '../../query/merge-update-basic.js';
+import { handleCountUpdate, handleFindAllUpdate, handleFindOneUpdate } from '../../query/merge-update-basic.js';
 import { UpdateDataCache, type UpdateClassification } from '../../query/merge-update.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import type { QueryOptions } from '../../repository/QueryManager.interface.js';
@@ -102,60 +96,6 @@ describe('merge-update-basic', () => {
     expect(task.result).toEqual([expect.objectContaining({ id: 'd', score: 0 }), updated, untouched, withoutId]);
     expect(updated).toMatchObject({ status: 'active', score: 1 });
     expect(removed.status).toBe('inactive');
-  });
-
-  it('refreshes find when an existing result is updated', () => {
-    const task = createTask({ type: 'find', options: { where: activeWhere } });
-    task.next([createItem('a', 'active', 1)]);
-    const refresh = vi.spyOn(task, 'refresh');
-
-    handleFindUpdate(task, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it('refreshes find when a new entity matches and ignores unrelated updates', () => {
-    const affected = createTask({ type: 'find', options: { where: activeWhere } });
-    const unaffected = createTask({ type: 'find', options: { where: activeWhere } });
-    affected.next([createItem(undefined, 'active', 1)]);
-    unaffected.next([createItem(undefined, 'active', 1)]);
-    const affectedRefresh = vi.spyOn(affected, 'refresh');
-    const unaffectedRefresh = vi.spyOn(unaffected, 'refresh');
-
-    handleFindUpdate(affected, createClassification({ newlyMatchedIds: new Set(['a']) }));
-    handleFindUpdate(unaffected, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(affectedRefresh).toHaveBeenCalledOnce();
-    expect(unaffectedRefresh).not.toHaveBeenCalled();
-  });
-
-  it('refreshes cursor results for updated rows or new matches', () => {
-    const updatedTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    const newMatchTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    const unaffectedTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    updatedTask.next([createItem('a', 'active', 1)]);
-    newMatchTask.next([]);
-    unaffectedTask.next([createItem(undefined, 'active', 1)]);
-    const updatedRefresh = vi.spyOn(updatedTask, 'refresh');
-    const newMatchRefresh = vi.spyOn(newMatchTask, 'refresh');
-    const unaffectedRefresh = vi.spyOn(unaffectedTask, 'refresh');
-
-    handleFindByCursorUpdate(updatedTask, createClassification({ updatedIds: new Set(['a']) }));
-    handleFindByCursorUpdate(newMatchTask, createClassification({ newlyMatchedIds: new Set(['b']) }));
-    handleFindByCursorUpdate(unaffectedTask, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(updatedRefresh).toHaveBeenCalledOnce();
-    expect(newMatchRefresh).toHaveBeenCalledOnce();
-    expect(unaffectedRefresh).not.toHaveBeenCalled();
   });
 
   it('refreshes an empty findOne only when a new entity matches', () => {

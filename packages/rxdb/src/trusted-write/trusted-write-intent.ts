@@ -121,6 +121,10 @@ export interface TrustedCallsite {
  *
  * 2026-09-16 这次核对是跟着 US-025 抽包做的：9 处声明整体从核心 `version/` 搬进了
  * history / sync 两个插件，键（文件基名 + 符号 + 意图）一个没变，`verifiedAtLine` 九行全变了。
+ *
+ * 2026-09-24 只刷新了 #7 / #8 两行：`pull-batch.ts` 与 `pull-repository.ts` 抽出了共用的
+ * `pull-round.ts`（拆分自推变更、回填 `remoteId`），两处声明各自上移。**其余七行没有重新核对**，
+ * 表头那个日期仍然只为 2026-09-16 那次整表核对背书——把日期一起改掉，等于替另外七行做了没做过的担保。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -177,7 +181,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 382
+    verifiedAtLine: 349
   },
   {
     file: 'pull-repository.ts',
@@ -185,7 +189,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 646
+    verifiedAtLine: 627
   },
   {
     file: 'cleanup-expired.ts',

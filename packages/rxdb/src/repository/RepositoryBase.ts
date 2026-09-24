@@ -65,7 +65,7 @@ export abstract class RepositoryBase<T extends EntityType> {
    * @param id - 实体主键
    * @returns 缓存命中则返回实例，未命中返回 `undefined`（**不**触发数据库查询）
    */
-  getEntityRef(id: EntityStaticType<T, 'idType'>): InstanceType<T> | undefined {
+  getEntityRef(id: EntityStaticType<T, 'idType'>): EntityInstanceType<T> | undefined {
     return this.rxdb.entityManager.getEntityRef(this.EntityType, id);
   }
 

@@ -14,10 +14,6 @@
         "kind": "type"
       },
       {
-        "name": "cleanupExpired",
-        "kind": "value"
-      },
-      {
         "name": "CleanupExpiredOptions",
         "kind": "type"
       },
@@ -68,10 +64,6 @@
       {
         "name": "RxDBPluginSyncOptions",
         "kind": "type"
-      },
-      {
-        "name": "syncBranches",
-        "kind": "value"
       },
       {
         "name": "SyncBranchesResult",

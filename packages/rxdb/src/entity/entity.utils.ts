@@ -434,10 +434,26 @@ export const getNeedRemoveEntities = <T extends EntityType>(entities: InstanceTy
   return Array.from(entitySet).filter(entity => getEntityStatus(entity).local);
 };
 
-interface EntityMutationsOptions<T extends EntityType = EntityType> {
-  need_save_entities: InstanceType<T>[];
-  // 与 {@link getNeedRemoveEntities} 同源：装的是关系另一侧的 Junction，不是根实体 `T`。
-  need_remove_entities: EntityInstanceType<EntityType>[];
+/**
+ * {@link getEntityMutations} 的入参
+ *
+ * @remarks
+ * 此前它既不导出、字段又是 snake_case：`getEntityMutations` 本身在公开面上，
+ * 于是包外要么照抄一份结构、要么被迫写 `Parameters<typeof getEntityMutations>[0]`
+ * 才能给这个对象起名——本轮把类型一并转出，字段也改成与仓内其余接口一致的 camelCase。
+ *
+ * @typeParam T - 根实体类型
+ */
+export interface EntityMutationsOptions<T extends EntityType = EntityType> {
+  /** 待写入（新增或更新由各自的 {@link getEntityStatus} 判定）的实体 */
+  needSaveEntities: InstanceType<T>[];
+  /**
+   * 待删除的实体
+   *
+   * @remarks
+   * 与 {@link getNeedRemoveEntities} 同源：装的是关系另一侧的 Junction，不是根实体 `T`。
+   */
+  needRemoveEntities: EntityInstanceType<EntityType>[];
 }
 
 /**
@@ -448,7 +464,7 @@ interface EntityMutationsOptions<T extends EntityType = EntityType> {
 export const getEntityMutations = <T extends EntityType = EntityType>(
   options: EntityMutationsOptions<T>
 ): RxDBMutationsMap<T> => {
-  const { need_save_entities, need_remove_entities } = options;
+  const { needSaveEntities, needRemoveEntities } = options;
   const need_create_entities_map = new Map<T, Set<InstanceType<T>>>();
   const need_update_entities_map = new Map<T, Set<InstanceType<T>>>();
   const need_delete_entities_map = new Map<T, Set<InstanceType<T>>>();
@@ -462,13 +478,13 @@ export const getEntityMutations = <T extends EntityType = EntityType>(
     set.add(entity);
   };
 
-  for (const entity of need_save_entities) {
+  for (const entity of needSaveEntities) {
     const status = getEntityStatus(entity);
     const ctor = entity.constructor as T;
     addToGroup(status.local ? need_update_entities_map : need_create_entities_map, ctor, entity);
   }
 
-  for (const entity of need_remove_entities) {
+  for (const entity of needRemoveEntities) {
     const status = getEntityStatus(entity);
     if (status.local) {
       // 删除桶装的是**关系另一侧**的实体（Junction），构造器与根实体 `T` 无关——所以 key 一直要断言成 `T`。

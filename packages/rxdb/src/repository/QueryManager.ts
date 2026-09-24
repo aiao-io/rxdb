@@ -308,7 +308,7 @@ export class QueryManager<T extends EntityType> {
     // 一起打回旧值；用户再编辑成同一个值会被 proxy 的 `isEqual` 判成「没变」→ patch 为空
     // → `save()` **静默 no-op**。即写丢了且全程无错误。
     const cached = this.rxdb.entityManager.getEntityRef(entityType, data.id);
-    if (cached && isStaleEventPayload(cached, entityData)) return cached;
+    if (cached && isStaleEventPayload(cached, entityData)) return cached as InstanceType<T>;
 
     // 外部事件的 patch 不保证带 `updatedAt`（`notifyExternalUpdate` 允许只发业务字段，
     // 上面 `_need_change` 还会专门丢掉「只有 updatedAt」的 patch），指纹的前两段（id@updatedAt）
@@ -321,9 +321,13 @@ export class QueryManager<T extends EntityType> {
     //
     // 本地 UPDATE 走到这里时缓存实体早已是新值（用户经 Proxy 改的），diff 为空、不会多发一次。
     const contentChanged = cached ? hasVisibleChange(cached, entityData) : false;
-    const entity = this.rxdb.entityManager.createEntityRef(entityType, entityData, { modified: false, local: true })!;
+    const entity = this.rxdb.entityManager.createEntityRef(entityType, entityData, { modified: false, local: true });
     if (contentChanged) getEntityStatus(entity).markContentChanged();
-    return entity;
+    // `createEntityRef` 现在如实返回 `EntityInstanceType<T>`，而查询管线（`QueryTask.serialize`
+    // 及其下游 merge_*）整条还写着 `InstanceType<T>` —— 后者因 `EntityType` 的构造签名是
+    // `new (...args: never[])` 而恒等于 `any`（见 `EntityInstanceType` 的 TSDoc）。
+    // 这一句是两种写法的接缝：管线整体换成 `EntityInstanceType<T>` 是另一件事，不在本次范围内。
+    return entity as InstanceType<T>;
   };
 
   /**

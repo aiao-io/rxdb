@@ -94,6 +94,14 @@
         "kind": "value"
       },
       {
+        "name": "CAPABILITY_ENABLED_EVENT",
+        "kind": "value"
+      },
+      {
+        "name": "CapabilityEnabledEvent",
+        "kind": "both"
+      },
+      {
         "name": "capabilityWatermarkName",
         "kind": "value"
       },
@@ -354,6 +362,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityMutationsOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityPropertyFieldDescriptor",
         "kind": "type"
       },
@@ -502,14 +514,6 @@
         "kind": "type"
       },
       {
-        "name": "fillDefaultValue",
-        "kind": "value"
-      },
-      {
-        "name": "fillInitValue",
-        "kind": "value"
-      },
-      {
         "name": "FindAllOptions",
         "kind": "type"
       },
@@ -595,14 +599,6 @@
       },
       {
         "name": "getLocalSystemRepositories",
-        "kind": "value"
-      },
-      {
-        "name": "getNeedRemoveEntities",
-        "kind": "value"
-      },
-      {
-        "name": "getNeedSaveEntities",
         "kind": "value"
       },
       {
@@ -1470,7 +1466,19 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBranchSwitchFailureContext",
+        "kind": "type"
+      },
+      {
         "name": "RxDBBranchSwitchPreconditions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchTakeover",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchTakeoverContext",
         "kind": "type"
       },
       {
@@ -1712,26 +1720,6 @@
       {
         "name": "SchemaManager",
         "kind": "type"
-      },
-      {
-        "name": "setRuntimeObjectGetter",
-        "kind": "value"
-      },
-      {
-        "name": "setRuntimeObjectKey",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectKey",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectKeyLazyInitOnce",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectWritableKey",
-        "kind": "value"
       },
       {
         "name": "sha256Hex",

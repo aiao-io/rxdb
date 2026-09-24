@@ -2,13 +2,7 @@ import { EntityType } from '../entity/entity.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
-import {
-  handleCountUpdate,
-  handleFindAllUpdate,
-  handleFindByCursorUpdate,
-  handleFindOneUpdate,
-  handleFindUpdate
-} from './merge-update-basic.js';
+import { handleCountUpdate, handleFindAllUpdate, handleFindOneUpdate } from './merge-update-basic.js';
 import { applyExternalEntityUpdate, prepareIncrementalUpdate } from './merge-update.utils.js';
 import { query_need_refresh_update } from './need_refresh_update.js';
 
@@ -21,6 +15,15 @@ import { query_need_refresh_update } from './need_refresh_update.js';
  * - 需要考虑 where 条件前后的匹配情况
  * - 需要考虑 orderBy 导致的排序位置变化
  *
+ * @remarks
+ * 与 `merge_remove.ts` 的同名函数同一条口径：只留**走得到 recalculate 的**任务类型。
+ * `find` / `findByCursor` 在下面的派发里只往 `refresh_rules` 推规则（注释写得很明白：
+ * 「受影响时需要重新应用 limit」「排序变化可能影响游标范围」，两者都只能回 SQL），
+ * `recalculate_rules` 为空时 `runMatches` 恒返回 `recalculate: false`，给它们留 case
+ * 只是死码——而且那两个 case 调用的 `handleFind*Update` 不过是把同一个「受影响就刷新」
+ * 的判断用 JS 又写了一遍，规则层早已判完。`get` 则在默认导出里就短路处理了，
+ * 不经过这里。
+ *
  * @param task 查询任务
  * @param data 更新的实体数据
  */
@@ -32,38 +35,42 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
       handleFindAllUpdate(task, classification, cache);
       break;
 
-    case 'find':
-      handleFindUpdate(task, classification);
-      break;
-
     case 'findOne':
     case 'findOneOrFail':
       handleFindOneUpdate(task, classification, cache);
-      break;
-
-    case 'get': {
-      const targetId = task.options as string;
-      const update = data.find(entity => entity.id === targetId);
-      if (!update) return;
-
-      if (task.result && typeof task.result === 'object') {
-        const currentResult = task.result as InstanceType<T>;
-        applyExternalEntityUpdate(currentResult, update.patch);
-        task.next(currentResult);
-      } else {
-        task.next(task.serialize(update));
-      }
-      break;
-    }
-
-    case 'findByCursor':
-      handleFindByCursorUpdate(task, classification);
       break;
 
     case 'count':
       handleCountUpdate(task, classification);
       break;
   }
+};
+
+/**
+ * 把一条 UPDATE 落到 `get` 任务的结果上。
+ *
+ * @remarks
+ * `get` 不走 `_recalculate`：那里按 `task.type` 分派，而 `get` 的判定根本不需要规则层——
+ * 只要事件批次里有目标 id，这次更新就一定影响结果。原先它在 `_recalculate` 里多带一层
+ * 「再 `find` 一次目标 id」的守卫，但传进去的已经是按同一个 id 过滤过的非空数组，
+ * 那次 `find` 恒命中，`if (!update) return` 是死分支。收进来之后只剩一处 id 判定。
+ *
+ * 两条分支不是兜底而是两种真实形态：命中缓存实例时就地打 patch，保住订阅者手里的引用；
+ * 结果是 `null`（`get` 未命中）时没有实例可打，只能把事件负载序列化成新实例发出去——
+ * 这正是「查的时候还不存在、随后被别的端建出来」的那一幕。
+ *
+ * @param task - 目标 `get` 任务
+ * @param update - 命中目标 id 的那条更新事件
+ */
+const applyGetUpdate = <T extends EntityType>(task: QueryTask<T>, update: RxDBEntityLocalUpdatedEventData<T>) => {
+  if (task.result && typeof task.result === 'object') {
+    const currentResult = task.result as InstanceType<T>;
+    applyExternalEntityUpdate(currentResult, update.patch);
+    task.next(currentResult);
+    return;
+  }
+
+  task.next(task.serialize(update));
 };
 
 /**
@@ -101,10 +108,8 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
   const recalculate_rules: RefreshMatchRules = [];
 
   if (task.type === 'get') {
-    const matchedEntities = entities.filter(entity => entity.id === task.options);
-    if (matchedEntities.length > 0) {
-      _recalculate(task, matchedEntities);
-    }
+    const update = entities.find(entity => entity.id === task.options);
+    if (update) applyGetUpdate(task, update);
     return;
   }
 

@@ -147,12 +147,12 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     this.#assertActive('saveMany');
-    return this.mutations(getEntityMutations({ need_save_entities: entities, need_remove_entities: [] }));
+    return this.mutations(getEntityMutations({ needSaveEntities: entities, needRemoveEntities: [] }));
   }
 
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     this.#assertActive('removeMany');
-    return this.mutations(getEntityMutations({ need_save_entities: [], need_remove_entities: entities }));
+    return this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: entities }));
   }
 
   async mergeChanges(

@@ -1,5 +1,5 @@
 import { EntityType } from '../entity/entity.interface.js';
-import { FindAllOptions } from '../repository/query-options.interface.js';
+import { CountOptions, FindAllOptions } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalRemovedEventData } from '../rxdb-events.js';
@@ -15,6 +15,14 @@ import { isStaleEntityRemoveEvent } from './stale-event.utils.js';
  * `find` / `findOne` / `findOneOrFail` 只往 `refresh_rules` 推规则，
  * `recalculate_rules` 为空时 `runMatches` 恒返回 `recalculate: false`——
  * 给它们留 case 只是死码。
+ *
+ * 同理，`findAll` / `findByCursor` 分支里**不再判「什么都没删掉」**：这两类的
+ * `recalculate_rules` 只有 `['result_contains']`，而 `result_contains` 查的是
+ * `task.resultEntityIds`，它与 `task.resultEntitySet` 由 `QueryTask#next` 在
+ * 同一个 `autoCache` 分支里一起清、一起填，不存在只进其一的路径。于是
+ * 「走到这里」本身就意味着 `data` 里至少有一个 id 在结果集内，过滤后必然变短，
+ * `filtered.length === old_result.length` 恒为假。留着那行 `return` 只会是一条
+ * 永远测不到的死分支。
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalRemovedEventData<T>[]) => {
   const removed_ids = new Set(data.map(e => e.id));
@@ -22,28 +30,27 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
   switch (task.type) {
     case 'findAll': {
       const options = task.options as FindAllOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      const filtered = old_result.filter(e => !removed_ids.has(e.id));
-      if (filtered.length === old_result.length) return;
-
+      const filtered = Array.from(task.resultEntitySet.values()).filter(e => !removed_ids.has(e.id));
       const new_result = options.orderBy?.length ? calculateOrderBy(filtered, options.orderBy) : filtered;
       task.next(new_result, true);
       break;
     }
 
     case 'findByCursor': {
-      const old_result = Array.from(task.resultEntitySet.values());
-      const filtered = old_result.filter(e => !removed_ids.has(e.id));
-      if (filtered.length === old_result.length) return;
+      const filtered = Array.from(task.resultEntitySet.values()).filter(e => !removed_ids.has(e.id));
       task.next(filtered, true);
       break;
     }
 
     case 'count': {
-      const current_count = (task.result as number) || 0;
-      const where = (task.options as FindAllOptions<T>)?.where;
-      const matched = where ? data.filter(e => isEntityMatchWhere(e.inversePatch, where)) : data;
-      if (matched.length === 0) break;
+      // `where` 在 `CountOptions` 里是必填的，`task.result` 也已被上面的守卫排除了
+      // `undefined`——这里不再为这两样写兜底：写了只会是两条永远测不到的死分支，
+      // 还会把「count 居然没有 where」这种本该在类型层就拦掉的事伪装成可处理。
+      // 同理不判 `matched.length === 0`：recalculate 的门槛正是 `match_where`，
+      // 它用的就是下面这个谓词、这份 `data`、这个 `where`，恒非空。
+      const current_count = task.result as number;
+      const { where } = task.options as CountOptions<T>;
+      const matched = data.filter(e => isEntityMatchWhere(e.inversePatch, where));
       // autoCache 传 false：count 结果是个 number，`QueryTask#next` 在 autoCache=true 时
       // 只会白白清空 resultEntitySet / resultEntityIds（清空逻辑在类型分支之外），
       // 而 count 任务本来就没有实体结果可缓存。与 merge-update-basic.ts 的 count 分支同口径。

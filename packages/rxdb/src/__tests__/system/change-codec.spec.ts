@@ -79,6 +79,21 @@ describe('RxDB change codec', () => {
     }
   );
 
+  it('resolves a foreign key whose relation omits mappedNamespace against the owning namespace', () => {
+    // 同命名空间内的关系通常不写 `mappedNamespace`——省略即"与本实体同一个命名空间"。
+    // 少了这条回落，`resolveEntityMetadata('Account', undefined)` 反查不到对端的 id 列类型，
+    // 这个 bigint 外键就会被当普通值直接落进 JSON，跨端解回来是个 number。
+    const sameNamespaceMetadata = {
+      ...metadata,
+      foreignKeyRelationMap: new Map([['accountId', { name: 'account', mappedEntity: 'Account' }]])
+    } as unknown as EntityMetadata;
+
+    const encoded = encodeRxDBChangePatch(sameNamespaceMetadata, { accountId: 7n }, resolveEntityMetadata)!;
+
+    expect(encoded['accountId']).toMatchObject({ $rxdbChangeValue: { type: PropertyType.bigint, value: '7' } });
+    expect(decodeRxDBChangePatch(sameNamespaceMetadata, encoded, resolveEntityMetadata)).toEqual({ accountId: 7n });
+  });
+
   it('does not interpret an envelope-shaped object in an ordinary JSON field', () => {
     const lookalike = {
       $rxdbChangeValue: { codecVersion: 1, schemaVersion: 1, type: 'bigint', value: '7' }
@@ -154,6 +169,14 @@ describe('RxDB change codec', () => {
 
     const keys = [getRxDBEntityIdentityKey(1), getRxDBEntityIdentityKey(1n), getRxDBEntityIdentityKey('1')];
     expect(new Set(keys).size).toBe(3);
+  });
+
+  it('keeps -0 distinct from 0 instead of collapsing both onto "0"', () => {
+    // `String(-0)` 是 `'0'`：直接拼字符串会让两个不同的主键编出完全相同的身份字节。
+    // 身份键是加密 adapter 的分桶主键，撞键意味着一条记录的密文落到另一条名下。
+    expect(getRxDBEntityIdentityKey(-0)).not.toBe(getRxDBEntityIdentityKey(0));
+    expect(Object.is(decodeRxDBEntityIdentity(encodeRxDBEntityIdentity(-0)), -0)).toBe(true);
+    expect(Object.is(decodeRxDBEntityIdentity(encodeRxDBEntityIdentity(0)), 0)).toBe(true);
   });
 
   it('reports the identity version axis by name when the identity format is unsupported', () => {

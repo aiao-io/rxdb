@@ -80,6 +80,47 @@ describe('query_merge_update_cache', () => {
         ]);
       });
     });
+
+    it('查询没命中（结果为 null）时把事件负载序列化成结果', () => {
+      const task = createMockQueryTask<TestEntityData | null>({
+        type: 'get',
+        options: 'run-1',
+        runner: () => of(null)
+      });
+
+      const emissions = collectEmissions(task);
+
+      // `null` 是"查过、没有"，不是"还没查"——上游守卫只拦 `undefined`，所以这条 UPDATE
+      // 会真的落到结果上。此刻手里没有实例可以就地打 patch，只能把事件负载整个序列化出去。
+      // 现场形态：本端 `get` 落空之后，另一端才把这条建出来并改了一次，两条事件里只有
+      // UPDATE 追上了这个活查询。
+      query_merge_update_cache(task as unknown as QueryTask<TestEntityType>, [
+        createMockUpdateEvent({ id: 'run-1', title: 'Delay task', status: 'completed' })
+      ]);
+
+      expect(emissions).toEqual([null, { id: 'run-1', title: 'Delay task', status: 'completed' }]);
+    });
+
+    it('事件批次里没有目标 id 时不动结果', () => {
+      const task = createMockQueryTask({
+        type: 'get',
+        options: 'run-1',
+        runner: () => of({ id: 'run-1', title: 'Delay task', status: 'queued' })
+      });
+
+      const refreshSpy = vi.spyOn(task, 'refresh');
+      const emissions = collectEmissions(task);
+
+      // 变更事件是按批次投递的，一批里混着别的行是常态。`get` 定点取一条，
+      // 批次里没有它就既不该发射也不该回 SQL。
+      query_merge_update_cache(task, [
+        createMockUpdateEvent({ id: 'run-2', status: 'completed' }),
+        createMockUpdateEvent({ id: 'run-3', status: 'completed' })
+      ]);
+
+      expect(refreshSpy).not.toHaveBeenCalled();
+      expect(emissions).toEqual([{ id: 'run-1', title: 'Delay task', status: 'queued' }]);
+    });
   });
 
   describe('findAll - 全量查询', () => {

@@ -62,51 +62,6 @@ export const handleFindAllUpdate = <T extends EntityType>(
 };
 
 /**
- * 处理 find 查询更新 (分页查询)
- */
-export const handleFindUpdate = <T extends EntityType>(task: QueryTask<T>, classification: UpdateClassification) => {
-  const oldResult = Array.from(task.resultEntitySet.values());
-
-  // 检查结果集是否受影响
-  const resultAffected = oldResult.some(entity => {
-    const entityId = getEntityId(entity);
-    return entityId !== undefined && classification.updatedIds.has(entityId);
-  });
-
-  // 如果有新匹配的实体,也可能影响分页结果
-  const hasNewMatches = classification.newlyMatchedIds.size > 0;
-
-  // 如果结果集受影响或有新匹配,需要刷新
-  if (resultAffected || hasNewMatches) {
-    task.refresh();
-  }
-};
-
-/**
- * 处理 findByCursor 查询更新
- */
-export const handleFindByCursorUpdate = <T extends EntityType>(
-  task: QueryTask<T>,
-  classification: UpdateClassification
-) => {
-  const oldResult = Array.from(task.resultEntitySet.values());
-
-  // 检查结果集是否受影响
-  const resultAffected = oldResult.some(entity => {
-    const entityId = getEntityId(entity);
-    return entityId !== undefined && classification.updatedIds.has(entityId);
-  });
-
-  // 如果有新匹配的实体,也可能影响游标范围
-  const hasNewMatches = classification.newlyMatchedIds.size > 0;
-
-  // 如果结果集受影响或有新匹配,需要刷新
-  if (resultAffected || hasNewMatches) {
-    task.refresh();
-  }
-};
-
-/**
  * 处理 findOne/findOneOrFail 查询更新
  *
  * 注意：patch 可能是增量数据（跨 Tab 场景），不是完整实体

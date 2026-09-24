@@ -18,6 +18,9 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('entity.utils', () => {
   @Entity({
@@ -98,16 +101,18 @@ describe('entity.utils', () => {
 
   beforeAll(async () => {
     // 初始化 RxDB 用于注册实体
-    const rxdb = new RxDB({
-      dbName: 'entity-utils-test',
-      entities: [TestEntity, TimestampSentinelEntity, ReentrantChildEntity, ReentrantParentEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    const rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'entity-utils-test',
+        entities: [TestEntity, TimestampSentinelEntity, ReentrantChildEntity, ReentrantParentEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

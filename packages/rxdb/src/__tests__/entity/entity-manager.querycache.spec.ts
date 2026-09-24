@@ -17,6 +17,7 @@ import type { IRxDBAdapter, RepositoryConstructor } from '../../rxdb-adapter.js'
 import { uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMixedVersionedCacheTransactionError } from '../../RxDBError.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 @Entity({
   name: 'CachedProduct',
@@ -108,6 +109,7 @@ const createLocalAdapter = () => {
       return of(undefined);
     }),
     deleteByIds: vi.fn(() => of(undefined)),
+    disconnect: vi.fn(async () => undefined),
     getRepository: () => adapter
   };
   return adapter;
@@ -122,6 +124,7 @@ const createRemoteAdapter = () => {
     delete: vi.fn(() => of(undefined)),
     fetchMetadata: vi.fn(() => of([])),
     findByIds: vi.fn(() => of([])),
+    disconnect: vi.fn(async () => undefined),
     getRepository: () => adapter
   };
   return adapter;
@@ -144,17 +147,21 @@ const registerRestrictedRepository = (rxdb: RxDB): void => {
 const createDatabase = (dbName: string, entities: ConstructorParameters<typeof RxDB>[0]['entities']) => {
   const local = createLocalAdapter();
   const remote = createRemoteAdapter();
-  const rxdb = new RxDB({
-    dbName,
-    entities,
-    sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
-  });
+  const rxdb = trackRxDB(
+    new RxDB({
+      dbName,
+      entities,
+      sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+    })
+  );
   rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
   registerRestrictedRepository(rxdb);
   rxdb.init();
   return { rxdb, local, remote };
 };
+
+const { trackRxDB } = registerRxDBTeardown();
 
 describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
   let ctx: ReturnType<typeof createDatabase>;
@@ -230,11 +237,13 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
   it('AC#8 数据库级 QueryCache 撞上受限仓储也在 init() 拒绝', () => {
     const local = createLocalAdapter();
     const remote = createRemoteAdapter();
-    const rxdb = new RxDB({
-      dbName: 'RestrictedQueryCacheDatabaseLevel',
-      entities: [PlainMenu],
-      sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
-    });
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'RestrictedQueryCacheDatabaseLevel',
+        entities: [PlainMenu],
+        sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+      })
+    );
     rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
     rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
     registerRestrictedRepository(rxdb);
@@ -259,7 +268,7 @@ describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
   // JS 调用方或从旧配置反序列化出来的对象都能走到，`init()` 会当场拒绝（见最后一条用例）。
   // 断言这一支必须绕过类型，故显式 cast。
   const initWith = (dbName: string, sync?: SyncOptions) => {
-    const rxdb = new RxDB({ dbName, entities: [CachedProduct], sync: sync as SyncOptions });
+    const rxdb = trackRxDB(new RxDB({ dbName, entities: [CachedProduct], sync: sync as SyncOptions }));
     rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
     rxdb.adapter('supabase', () => createRemoteAdapter() as unknown as IRxDBAdapter);
     return () => rxdb.init();
@@ -306,22 +315,26 @@ describe('US-021：QueryCache 缺库级适配器在 init() fail-fast', () => {
   });
 
   it('AC#5 非 QueryCache 实体在同一份缺失配置下不被误伤', () => {
-    const rxdb = new RxDB({
-      dbName: 'RemoteOnlyUnaffected',
-      entities: [RemoteOnlyNote],
-      sync: { type: SyncType.None, remote: { adapter: 'supabase' } }
-    });
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'RemoteOnlyUnaffected',
+        entities: [RemoteOnlyNote],
+        sync: { type: SyncType.None, remote: { adapter: 'supabase' } }
+      })
+    );
     rxdb.adapter('supabase', () => createRemoteAdapter() as unknown as IRxDBAdapter);
     expect(() => rxdb.init()).not.toThrow();
   });
 
   // AC#6：撞见第一条就抛会让人修一轮跑一轮
   it('AC#6 多个实体同时违规时一次性列出', () => {
-    const rxdb = new RxDB({
-      dbName: 'QueryCacheMultipleViolations',
-      entities: [CachedProduct, CachedMenu],
-      sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
-    });
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'QueryCacheMultipleViolations',
+        entities: [CachedProduct, CachedMenu],
+        sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+      })
+    );
     rxdb.adapter('sqlite', () => createLocalAdapter() as unknown as IRxDBAdapter);
     registerRestrictedRepository(rxdb);
 

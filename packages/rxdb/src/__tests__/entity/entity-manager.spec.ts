@@ -11,6 +11,7 @@ import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
 import { collectGarbageUntil } from '../fixtures/gc.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 // 用于测试的模拟适配器。
 type ManagedEntity = InstanceType<EntityType>;
@@ -91,8 +92,11 @@ const mockAdapter = {
     }
     return results;
   },
+  disconnect: async () => undefined,
   getRepository: () => mockAdapter
 };
+
+const { trackRxDB, trackSharedRxDB } = registerRxDBTeardown();
 
 describe('EntityManager', () => {
   @Entity({
@@ -125,16 +129,18 @@ describe('EntityManager', () => {
 
   let rxdb: RxDB;
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'Todo',
-      entities: [Todo, Tag],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'Todo',
+        entities: [Todo, Tag],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
 
     // 注册模拟适配器。
     rxdb.adapter('sqlite', () => mockAdapter as unknown as IRxDBAdapter);
@@ -475,12 +481,14 @@ describe('EntityManager', () => {
 
     it('remote-only 配置下批量入口写到 remote 适配器，与单条 save 同一去向', async () => {
       const remote = createRecordingAdapter('supabase');
-      const remoteOnly = new RxDB({
-        dbName: 'RemoteOnlyBatch',
-        entities: [Todo],
-        // 类型上合法的 remote-only：`Remote` 变体的 `local` 是可选的
-        sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
-      });
+      const remoteOnly = trackRxDB(
+        new RxDB({
+          dbName: 'RemoteOnlyBatch',
+          entities: [Todo],
+          // 类型上合法的 remote-only：`Remote` 变体的 `local` 是可选的
+          sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
+        })
+      );
       remoteOnly.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
       remoteOnly.init();
 
@@ -505,11 +513,13 @@ describe('EntityManager', () => {
 
       const local = createRecordingAdapter('sqlite');
       const remote = createRecordingAdapter('supabase');
-      const mixed = new RxDB({
-        dbName: 'PerEntitySync',
-        entities: [Todo, RemoteNote],
-        sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' }, type: SyncType.Full }
-      });
+      const mixed = trackRxDB(
+        new RxDB({
+          dbName: 'PerEntitySync',
+          entities: [Todo, RemoteNote],
+          sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' }, type: SyncType.Full }
+        })
+      );
       mixed.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
       mixed.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
       mixed.init();
@@ -536,11 +546,13 @@ describe('EntityManager', () => {
 
       const local = createRecordingAdapter('sqlite');
       const remote = createRecordingAdapter('supabase');
-      const mixed = new RxDB({
-        dbName: 'MixedPrimaryBatch',
-        entities: [Todo, RemoteMemo],
-        sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' }, type: SyncType.Full }
-      });
+      const mixed = trackRxDB(
+        new RxDB({
+          dbName: 'MixedPrimaryBatch',
+          entities: [Todo, RemoteMemo],
+          sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' }, type: SyncType.Full }
+        })
+      );
       mixed.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
       mixed.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
       mixed.init();
@@ -563,11 +575,13 @@ describe('EntityManager', () => {
         title!: string;
       }
 
-      const orphan = new RxDB({
-        dbName: 'NoAdapterBatch',
-        entities: [OrphanDoc],
-        sync: { type: SyncType.None } as never
-      });
+      const orphan = trackRxDB(
+        new RxDB({
+          dbName: 'NoAdapterBatch',
+          entities: [OrphanDoc],
+          sync: { type: SyncType.None } as never
+        })
+      );
       orphan.schemaManager.init();
       orphan.entityManager.init();
 
@@ -577,11 +591,13 @@ describe('EntityManager', () => {
     });
 
     it('空批次不需要任何适配器', async () => {
-      const orphan = new RxDB({
-        dbName: 'EmptyBatch',
-        entities: [Todo],
-        sync: { type: SyncType.None } as never
-      });
+      const orphan = trackRxDB(
+        new RxDB({
+          dbName: 'EmptyBatch',
+          entities: [Todo],
+          sync: { type: SyncType.None } as never
+        })
+      );
       orphan.schemaManager.init();
       orphan.entityManager.init();
 

@@ -66,11 +66,9 @@ import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
-import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
-import { RxDBSync } from './system/sync.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
@@ -1888,15 +1886,5 @@ export class RxDB {
     if (missingEntities.length > 0) {
       await adapter.createTables(missingEntities);
     }
-  }
-}
-
-// 扩展模块以包含 RxDB 系统实体
-declare module '@aiao/rxdb' {
-  interface RxDB {
-    RxDBChange: typeof RxDBChange;
-    RxDBBranch: typeof RxDBBranch;
-    RxDBMigration: typeof RxDBMigration;
-    RxDBSync: typeof RxDBSync;
   }
 }

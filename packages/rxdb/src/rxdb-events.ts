@@ -2,24 +2,81 @@ import { EntityStaticType, EntityType } from './entity/entity.interface.js';
 import { Conflict } from './sync-contract/conflict.js';
 import { PullResult, PushResult } from './sync-contract/VersionManager.interface.js';
 
+/**
+ * 实体刚被 `new` 出来，**尚未落库**（`type: 'NEW'`）
+ *
+ * @remarks
+ * 与 {@link ENTITY_LOCAL_CREATE_EVENT} 的区别是「有没有进数据库」：这条在构造函数里就发，
+ * 此时实体没有数据库分配的字段，也可能永远不会被保存。UI 想在列表里乐观地插一行草稿用它，
+ * 想统计真实数据用 CREATE。
+ */
 export const ENTITY_LOCAL_NEW_EVENT = 'ENTITY_LOCAL_NEW' as const;
+
+/** 本地实体已成功插入数据库（`type: 'INSERT'`），载荷的 `patch` 是完整实体 */
 export const ENTITY_LOCAL_CREATE_EVENT = 'ENTITY_LOCAL_CREATE' as const;
+
+/** 本地实体已成功更新（`type: 'UPDATE'`），载荷同时带 `patch` 与 `inversePatch`，只含变化的字段 */
 export const ENTITY_LOCAL_UPDATE_EVENT = 'ENTITY_LOCAL_UPDATE' as const;
+
+/** 本地实体已成功删除（`type: 'DELETE'`），载荷只有 `inversePatch`——`patch` 为 `null` */
 export const ENTITY_LOCAL_REMOVE_EVENT = 'ENTITY_LOCAL_REMOVE' as const;
 
+/**
+ * 远端拉取到的实体创建
+ *
+ * @remarks
+ * 三个 `ENTITY_REMOTE_*` 与对应的 `ENTITY_LOCAL_*` 是**两套**，因为载荷形状不同：
+ * 远端事件带的是整行 `data`，没有 `patch` / `inversePatch`——远端变更不参与本地 undo/redo，
+ * 逆向补丁在这里没有意义。
+ */
 export const ENTITY_REMOTE_CREATE_EVENT = 'ENTITY_REMOTE_CREATE' as const;
+
+/** 远端拉取到的实体更新；载荷是更新后的整行 `data`，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
 export const ENTITY_REMOTE_UPDATE_EVENT = 'ENTITY_REMOTE_UPDATE' as const;
+
+/** 远端拉取到的实体删除；载荷是删除前的整行 `data`，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
 export const ENTITY_REMOTE_REMOVE_EVENT = 'ENTITY_REMOTE_REMOVE' as const;
 
+/**
+ * 事务开始
+ *
+ * @remarks
+ * 可以嵌套：带同一 `transactionId` 的再次 BEGIN 表示 savepoint，不同身份的各自成队
+ * （见 {@link TransactionBeginEvent}）。因此收到 N 条 BEGIN 不代表有 N 个独立事务。
+ */
 export const TRANSACTION_BEGIN = 'TRANSACTION_BEGIN' as const;
+
+/** 事务提交；本次事务内的实体事件在它**之前**已经发过，不要等它再刷 UI */
 export const TRANSACTION_COMMIT = 'TRANSACTION_COMMIT' as const;
+
+/**
+ * 事务回滚
+ *
+ * @remarks
+ * 已经派发出去的实体事件**不会**被撤回——没有与之对应的反向事件。
+ * 需要精确跟随事务边界的消费方应把事务内的实体事件缓存起来，等到 COMMIT 再应用。
+ */
 export const TRANSACTION_ROLLBACK = 'TRANSACTION_ROLLBACK' as const;
 
+/** 分支切换开始，在切换事务内、动第一行之前派发 */
 export const SWITCH_BRANCH_BEGIN = 'SWITCH_BRANCH_BEGIN' as const;
+
+/**
+ * 分支切换已提交
+ *
+ * @remarks
+ * 收到它才意味着 `activated` 与全部变更日志触发器都已指向新分支。
+ * 此后落盘的写才会被标到新分支上。
+ */
 export const SWITCH_BRANCH_COMMIT = 'SWITCH_BRANCH_COMMIT' as const;
+
+/** 分支切换回滚，库停在切换前的分支上 */
 export const SWITCH_BRANCH_ROLLBACK = 'SWITCH_BRANCH_ROLLBACK' as const;
 
+/** 分支合并开始 */
 export const MERGE_BRANCH_BEGIN = 'MERGE_BRANCH_BEGIN' as const;
+
+/** 分支合并全部完成；与 {@link MERGE_BRANCH_FAILED} 是仅有的两个终态 */
 export const MERGE_BRANCH_COMMIT = 'MERGE_BRANCH_COMMIT' as const;
 /**
  * 分支合并失败事件类型
@@ -32,11 +89,46 @@ export const MERGE_BRANCH_COMMIT = 'MERGE_BRANCH_COMMIT' as const;
  */
 export const MERGE_BRANCH_FAILED = 'MERGE_BRANCH_FAILED' as const;
 
+/**
+ * 一轮同步开始
+ *
+ * @remarks
+ * 粒度是**整轮同步**；单个仓库的进度另有 {@link REPOSITORY_SYNC_BEGIN_EVENT} 一族。
+ * 一轮 SYNC 里会穿插任意多条 REPOSITORY_SYNC_*。
+ */
 export const SYNC_BEGIN_EVENT = 'SYNC_BEGIN' as const;
+
+/**
+ * 一轮同步正常结束
+ *
+ * @remarks
+ * 「结束」不等于「全部同步成功」：这一轮里可能检出过冲突
+ * （{@link CONFLICT_DETECTED_EVENT}），也可能有仓库各自失败过。
+ * 结果要看载荷里的 {@link PullResult} / {@link PushResult}。
+ */
 export const SYNC_COMPLETE_EVENT = 'SYNC_COMPLETE' as const;
+
+/** 一轮同步因异常中断；与 {@link SYNC_COMPLETE_EVENT} 互斥，一轮只会收到其中一条 */
 export const SYNC_ERROR_EVENT = 'SYNC_ERROR' as const;
+
+/**
+ * 远端有变更待拉取
+ *
+ * @deprecated 保留仅为不破坏导出面：它既不在 {@link RxDBEventMap} 里，全仓也没有任何派发点，
+ * 订阅它永远收不到东西。要感知远端变化请用 {@link REMOTE_ENTITY_INVALIDATED_EVENT}。
+ */
 export const REMOTE_CHANGES_PENDING_EVENT = 'REMOTE_CHANGES_PENDING' as const;
+
+/**
+ * 同步过程中检出冲突
+ *
+ * @remarks
+ * 只报「检出」，不代表同步就此停下——冲突的处置由冲突策略决定。
+ * 需要人工介入的那一部分另发 {@link CONFLICT_PENDING_EVENT}。
+ */
 export const CONFLICT_DETECTED_EVENT = 'CONFLICT_DETECTED' as const;
+
+/** 存在等待人工裁决的冲突；在用户给出选择之前，相关实体的同步不会推进 */
 export const CONFLICT_PENDING_EVENT = 'CONFLICT_PENDING' as const;
 
 /**
@@ -69,8 +161,25 @@ export const REMOTE_ENTITY_INVALIDATED_EVENT = 'REMOTE_ENTITY_INVALIDATED' as co
  */
 export const CAPABILITY_ENABLED_EVENT = 'CAPABILITY_ENABLED' as const;
 
+/**
+ * 单个仓库的同步开始
+ *
+ * @remarks
+ * 与 {@link SYNC_BEGIN_EVENT} 是两个粒度：这一族按仓库逐个发，
+ * 用来驱动「哪张表正在同步」这类逐表进度显示。
+ */
 export const REPOSITORY_SYNC_BEGIN_EVENT = 'REPOSITORY_SYNC_BEGIN' as const;
+
+/** 单个仓库同步完成；同一轮里其他仓库可能仍在进行 */
 export const REPOSITORY_SYNC_COMPLETE_EVENT = 'REPOSITORY_SYNC_COMPLETE' as const;
+
+/**
+ * 单个仓库同步失败
+ *
+ * @remarks
+ * 不一定伴随 {@link SYNC_ERROR_EVENT}：单表失败可以被整轮同步吞掉继续跑下一张表，
+ * 整轮仍以 {@link SYNC_COMPLETE_EVENT} 收尾。
+ */
 export const REPOSITORY_SYNC_ERROR_EVENT = 'REPOSITORY_SYNC_ERROR' as const;
 
 /**
@@ -101,6 +210,13 @@ interface RxDBEntityLocalEventDataBase<T extends EntityType = EntityType> {
   origin?: EventOrigin;
 }
 
+/**
+ * {@link ENTITY_LOCAL_NEW_EVENT} 的载荷
+ *
+ * @remarks
+ * `patch` 是 `Partial`：`new` 出来的实体只有调用方显式赋过的字段，默认值与数据库回填都还没发生。
+ * `inversePatch` 恒为 `null`——还没有任何已落库的状态可回退到。
+ */
 export interface RxDBEntityLocalNewEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
@@ -108,6 +224,13 @@ export interface RxDBEntityLocalNewEventData<
   inversePatch: null;
 }
 
+/**
+ * {@link ENTITY_LOCAL_CREATE_EVENT} 的载荷
+ *
+ * @remarks
+ * `patch` 是**完整实体**（非 `Partial`）：行刚插入，所有字段都已确定，包括数据库回填的那些。
+ * `inversePatch` 恒为 `null`——插入的逆操作是删除，由 id 本身表达，不需要补丁。
+ */
 export interface RxDBEntityLocalCreatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
@@ -115,6 +238,13 @@ export interface RxDBEntityLocalCreatedEventData<
   inversePatch: null;
 }
 
+/**
+ * {@link ENTITY_LOCAL_UPDATE_EVENT} 的载荷
+ *
+ * @remarks
+ * 唯一两个补丁都非 `null` 的形态：`patch` 是改后值、`inversePatch` 是改前值，
+ * **只含发生变化的字段**。undo/redo 与冲突合并都据此工作，所以两者的键集必须一致。
+ */
 export interface RxDBEntityLocalUpdatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
@@ -122,6 +252,13 @@ export interface RxDBEntityLocalUpdatedEventData<
   inversePatch: Readonly<Partial<InstanceType<T>>>;
 }
 
+/**
+ * {@link ENTITY_LOCAL_REMOVE_EVENT} 的载荷
+ *
+ * @remarks
+ * 与创建正好相反：`patch` 恒为 `null`，`inversePatch` 带着删除前的字段，
+ * 恢复（见 `RestoreEntityOptions`）重放的就是它。
+ */
 export interface RxDBEntityLocalRemovedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
@@ -136,18 +273,32 @@ export type RxDBEntityLocalEventData<T extends EntityType = EntityType> =
   | RxDBEntityLocalUpdatedEventData<T>
   | RxDBEntityLocalRemovedEventData<T>;
 
+/**
+ * {@link ENTITY_REMOTE_CREATE_EVENT} 的载荷
+ *
+ * @remarks
+ * 三个远端载荷都只带整行 `data`，不带补丁对——理由见 {@link ENTITY_REMOTE_CREATE_EVENT}。
+ * 三者形状目前完全相同，分成三个类型是为了让消费方能按事件类型收窄，
+ * 也给日后各自演进留出位置。
+ */
 export interface RxDBEntityRemoteCreatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
   data: Readonly<InstanceType<T>>;
 }
 
+/**
+ * {@link ENTITY_REMOTE_UPDATE_EVENT} 的载荷；`data` 是更新**之后**的整行
+ */
 export interface RxDBEntityRemoteUpdatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
   data: Readonly<InstanceType<T>>;
 }
 
+/**
+ * {@link ENTITY_REMOTE_REMOVE_EVENT} 的载荷；`data` 是删除**之前**的整行
+ */
 export interface RxDBEntityRemoteRemovedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
@@ -248,6 +399,13 @@ export class TransactionRollbackEvent {
   constructor(public readonly transactionId?: string) {}
 }
 
+/**
+ * 三个分支切换事件的共同载荷
+ *
+ * @remarks
+ * 不带 `type`，因此它本身不是可派发的事件——`type` 由三个子类各自钉死，
+ * {@link RxDBEventMap} 的键靠的就是那个字面量类型。
+ */
 export class SwitchBranchEventBase {
   constructor(
     /** 分支名称 */
@@ -270,6 +428,13 @@ export class SwitchBranchRollbackEvent extends SwitchBranchEventBase {
   type = SWITCH_BRANCH_ROLLBACK;
 }
 
+/**
+ * 三个分支合并事件的共同载荷
+ *
+ * @remarks
+ * 与 {@link SwitchBranchEventBase} 同样不带 `type`，由子类钉死。
+ * 两个分支名都是**名称**而不是 id，直接用于面向用户的提示。
+ */
 export class MergeBranchEventBase {
   constructor(
     /** 源分支名称 */

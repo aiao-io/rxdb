@@ -21,8 +21,30 @@ export type { EntityStatus } from './entity/entity-status.js';
 export * from './entity/entity-value.utils.js';
 export * from './entity/entity.decorator.js';
 export * from './entity/entity.interface.js';
-export * from './entity/entity.utils.js';
-export { isEntityInternalName } from './entity/entity.utils.js';
+// 具名收口（原为 `export *`，连带把九个内部装配手法一起放在了公开面上）。
+// 留在面上的五个各有理由：`normalizeCreateEntity` / `normalizeUpdateEntity` 是适配器写
+// INSERT / UPDATE 前的字段规范化（两个适配器各 import 一次，共 11 个文件）；
+// `getEntityMutations` 是 save 路径的入口（4 个文件）；`isEntityInternalName` 本就是
+// 此前显式具名转出的那一个；`entityDefaultNow` 是用户实体唯一能接上「同一次填充共享一个
+// 时刻」的入口——核心自己的 `createdAt` / `updatedAt` 就是这么定义的（`entity-base.ts`），
+// 用户实体写 `default: () => entityDefaultNow()` 才能拿到同样的语义，收掉它等于把这条
+// 语义变成核心专有（它的 TSDoc `@example` 写的正是这个用法）。
+//
+// 收掉的九个全仓零包外 import：`setSafeObjectKey` / `setRuntimeObjectKey` /
+// `setRuntimeObjectGetter` / `setSafeObjectWritableKey` / `setSafeObjectKeyLazyInitOnce` 是
+// `Object.defineProperty` 的五个包装，往实体类与实例上挂不可枚举的元数据载体；
+// `fillDefaultValue` / `fillInitValue` 是构造期的填充步骤，前者还握着模块级的 `fillInstant`
+// 时刻栈——包外调用它等于在实体构造之外改写那个栈；`getNeedSaveEntities` /
+// `getNeedRemoveEntities` 是 `EntityManager` 保存与删除路径的自由函数副本，
+// 同名的 `EntityStatus` 方法仍在公开面上（包外用的一直是方法，不是这两个函数）。
+export {
+  entityDefaultNow,
+  getEntityMutations,
+  isEntityInternalName,
+  normalizeCreateEntity,
+  normalizeUpdateEntity,
+  type EntityMutationsOptions
+} from './entity/entity.utils.js';
 export * from './entity/metadata-options.interface.js';
 // 不经装饰器直接产出 `EntityMetadata` 的入口。跨包的元数据夹具（rxdb-adapter-encrypted 的
 // 查询校验与 patch 加密测试）靠它拿到一份与装饰器产物同构的元数据——不转出去，包外只能手搓
@@ -100,7 +122,9 @@ export type {
 } from './repository/QueryManager.interface.js';
 // 同上，只转类型：`Repository.queryManager` 的声明类型。
 export type { QueryManager } from './repository/QueryManager.js';
-export * from './repository/QueryTask.js';
+// 具名收口：本模块只有这两个导出，收口不改变表面，改变的是**下一次**往这里加内部符号时
+// 要不要顺手上公开面——`export *` 的答案是「自动上」。
+export { QueryTask, type QueryTaskOptions } from './repository/QueryTask.js';
 export * from './repository/relation-query.interface.js';
 export * from './repository/repository.interface.js';
 export * from './repository/Repository.js';

@@ -546,16 +546,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: entities,
-      need_remove_entities: []
+      needSaveEntities: entities,
+      needRemoveEntities: []
     });
     return this.mutations(options);
   }
 
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: [],
-      need_remove_entities: entities
+      needSaveEntities: [],
+      needRemoveEntities: entities
     });
     return this.mutations(options);
   }

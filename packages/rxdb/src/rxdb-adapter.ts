@@ -14,12 +14,33 @@ import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
+/**
+ * 一次批量拉取里针对**单个实体**的水位线请求
+ *
+ * @remarks
+ * 之所以按实体各带一个 `sinceId` 而不是全库共用一个：变更日志是全局单调 id，
+ * 但各实体的同步进度并不齐平（有的表刚建、有的已经追到最新）。共用最小水位
+ * 会把已经拿过的变更重新下载一遍，共用最大水位则会漏掉落后表的变更。
+ *
+ * `namespace` 省略时由适配器按当前库的默认命名空间解析。
+ */
 export interface PullBatchRequest {
   namespace?: string;
   entity: string;
   sinceId: number;
 }
 
+/**
+ * 远端合并一批本地变更之后回传的结果
+ *
+ * @remarks
+ * 两个字段都可省——远端实现可以只回传其中之一，甚至都不回传（那种情况下调用方按
+ * 「无映射」处理，见 `push-repository.ts`）。
+ *
+ * `changeIdMapping` 是本地变更 id 到远端分配 id 的对照表：本地变更在推送前就已落盘，
+ * 带的是本地自增 id，而远端有自己的一套。拿到映射才能把本地变更日志标上 `remoteId`，
+ * 后续拉取时据此认出「这条是我自己推上去的」而不是当成新的远端变更再落一遍。
+ */
 export interface RemoteMergeResult {
   maxChangeId?: number;
   changeIdMapping?: Array<{ localId: number; remoteId: number }>;
@@ -32,16 +53,45 @@ export interface RepositoryInstance<T extends EntityType = EntityType> {
   readonly EntityType: T;
 }
 
+/**
+ * 门面仓储的构造器类型（由 `RxDB.repository()` 登记）
+ *
+ * @remarks
+ * 两条构造签名不是重载而是**放宽手段**：第一条 `new (...args: never[])` 让带额外泛型形参的
+ * 仓储子类也能赋值进来（那些子类的构造参数与第二条并不精确相同），第二条声明真正的调用形态。
+ * 参数是 `never[]` 而不是 `any[]`，因此它只放宽赋值、不放宽调用——没人能真的按第一条构造。
+ *
+ * 与 {@link AdapterRepositoryConstructor} 的区别在于**第一个参数**：门面仓储拿 {@link RxDB}，
+ * 适配器仓储拿适配器实例。两条轴各自注册，不要混用。
+ */
 export interface RepositoryConstructor<RT extends RepositoryInstance = RepositoryInstance> {
   new (...args: never[]): RT;
   new (rxdb: RxDB, EntityType: RT['EntityType']): RT;
 }
 
+/**
+ * 适配器仓储的构造器类型（由 `RxDBAdapterBase.repository()` 登记）
+ *
+ * @remarks
+ * 与 {@link RepositoryConstructor} 是**两条平行的轴**：门面轴决定 `getRepository(E)` 返回什么类，
+ * 适配器轴决定那个类底下由谁执行 SQL。`Adapter` 形参默认 `RxDBAdapterBase`，
+ * 适配器包传自己的类进来，于是自定义仓储能直接用到该适配器的私有能力而不必向下转型。
+ */
 export type AdapterRepositoryConstructor<
   Adapter extends { readonly rxdb: RxDB } = RxDBAdapterBase,
   RT extends RepositoryInstance = RepositoryInstance
 > = new (adapter: Adapter, EntityType: EntityType) => RT;
 
+/**
+ * 一次事务内要落库的全部变更，按「建 / 删 / 改」分好组
+ *
+ * @remarks
+ * 用 `Set` 而不是数组：同一个实体实例在一次刷写里可能被多条路径收集到（级联、关系反向维护），
+ * 去重靠身份而不是靠调用方自律，否则同一行会被写两遍。
+ *
+ * 三组的执行顺序由适配器决定而不是由本结构表达——外键约束要求建在引用之前、删在被引用之后，
+ * 那是适配器 `mutations()` 实现的职责。
+ */
 export interface RxDBMutationsMap<T extends EntityType = EntityType> {
   create: Map<T, Set<InstanceType<T>>>;
   remove: Map<T, Set<InstanceType<T>>>;
@@ -73,6 +123,15 @@ export interface SwitchBranchPrepareContext {
   readonly targetBranchId: string;
 }
 
+/**
+ * `adapter.switchBranch()` 的参数
+ *
+ * @remarks
+ * 这个原语同时承担两件事：**切换激活分支**，以及**批量套用
+ * {@link SwitchVersionActions}**（历史回放只要后者，省略 {@link SwitchBranchOptions.branchId}
+ * 即可让 actions 落在当前分支上）。两件事共用一个事务，这正是它不拆成两个方法的原因——
+ * 拆开就会在两者之间留出一个没人守着的窗口。
+ */
 export interface SwitchBranchOptions {
   /**
    * 目标分支 id。
@@ -84,6 +143,14 @@ export interface SwitchBranchOptions {
    * 迟到的调用把 `activated` 与全部变更日志触发器倒回旧分支，之后的写入全被错标。
    */
   branchId?: string;
+
+  /**
+   * 本次切换要在同一个事务里套用的版本动作（撤销/重做的写回、redo 栈作废等）。
+   *
+   * @remarks
+   * 必填但可以为空动作集。与分支切换同事务是有意的：动作改的是变更日志的可见性，
+   * 而分支切换改的是触发器指向，两者分属两个事务时中间的写会被错标。
+   */
   actions: SwitchVersionActions;
 
   /**
@@ -126,6 +193,15 @@ export const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions['prepare'] = async 
   // 空体就是语义本身：这一次切换不做任何前置校验。
 };
 
+/**
+ * {@link IRxDBAdapter.rawQuery} 的返回形态
+ *
+ * @remarks
+ * 行是**二维数组**而不是对象数组：裸查询的列名由 SQL 自己决定，适配器没有元数据可据以命名，
+ * 列名单独放在 `columns` 里、与每行的下标一一对应。调用方要对象形态得自己 zip。
+ *
+ * 写语句（UPDATE / DELETE）只填 `rowsAffected`，`rows` 与 `columns` 为空。
+ */
 export interface RawQueryResult {
   rowsAffected: number;
   rows: unknown[][];
@@ -136,18 +212,58 @@ export interface RawQueryResult {
  * RxDB 数据库适配器接口
  */
 export interface IRxDBAdapter {
+  /** 适配器名，与 `RxDB.adapter()` 登记时用的键同值；错误消息与 `getAdapter()` 都按它认人 */
   readonly name: string;
 
+  /**
+   * 建立连接并把系统表补到当前水位。
+   *
+   * @returns 自身，便于链式使用
+   *
+   * @remarks
+   * 建表与系统迁移都在这里发生（见 `isCurrentRxDBSystemVersion`），因此它可能很慢，
+   * 也可能因为库比本进程新而抛 `UnsupportedRxDBSystemVersionError`。
+   */
   connect(): Promise<IRxDBAdapter>;
 
+  /**
+   * 断开连接并释放底层句柄。
+   *
+   * @remarks
+   * 与 `RxDB.destroy()` 不同，断开是**可逆**的：同一个适配器实例之后还能再 `connect()`。
+   * 实现须幂等——未连接时调用是空操作而不是抛错。
+   */
   disconnect(): Promise<void>;
 
+  /**
+   * 底层数据库引擎的版本号（如 SQLite 的 `3.45.0`），用于诊断与能力判断。
+   *
+   * @remarks
+   * 与系统表水位号（`RXDB_SYSTEM_SCHEMA_VERSION`）无关，那是 RxDB 自己的号。
+   */
   version(): Promise<string>;
 
+  /**
+   * 取该实体在**本适配器**上的仓储实例。
+   *
+   * @remarks
+   * 返回的是适配器轴的仓储（见 {@link AdapterRepositoryConstructor}），
+   * 与用户通常拿到的门面仓储 `RxDB.getRepository()` 不是同一个对象。
+   */
   getRepository<T extends EntityType, RT extends IRepository<T> = IRepository<T>>(EntityType: T): RT;
 
+  /**
+   * 批量写入实体（不存在则插入，存在则更新）。
+   *
+   * @returns 落库后的实体；主键、数据库端默认值等由库回填的字段在这里才有值
+   */
   saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]>;
 
+  /**
+   * 批量删除实体。
+   *
+   * @returns 被删除的实体
+   */
   removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]>;
 
   /**
@@ -155,10 +271,25 @@ export interface IRxDBAdapter {
    */
   mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]>;
 
+  /**
+   * 该实体对应的表在库里是否已存在。
+   *
+   * @remarks
+   * 问的是**物理表**，不是元数据里有没有登记这个实体。
+   */
   isTableExisted(EntityType: EntityType): Promise<boolean>;
 
   /**
    * 执行原始 SQL 查询（条件 UPDATE 等绕过 ORM 的场景）
+   *
+   * @remarks
+   * **可选方法**，这一点有后果：核心包没法像四个写原语那样替适配器包住它，
+   * 于是启用提交能力的库上，raw 写的门禁只能由各适配器自己的实现调用
+   * `gateRawWrite(sql, ctx, …)` 来完成（`ctx` 取自
+   * {@link RxDBAdapterLocalBase.workingTreeRawWriteContext}）。漏掉那一句
+   * 等于这条路径上的写全部绕过变更捕获。
+   *
+   * 走这里的写不经过实体 Proxy，因此也不会产生实体事件，缓存里的实例不会自动刷新。
    */
   rawQuery?(sql: string, params?: unknown[]): Promise<RawQueryResult>;
 }
@@ -182,7 +313,19 @@ export abstract class RxDBAdapterBase {
   }
 }
 
+/**
+ * 恢复被删除实体的参数
+ *
+ * @remarks
+ * 只对**删除**成立：`changeId` 必须指向 `rxdb_change` 里一条 DELETE 变更，
+ * 恢复靠重放它的 `inversePatch` 把行重新插回去，因此日志被裁剪过、
+ * 或 id 指向的是 CREATE / UPDATE 时都恢复不了。要回到某次修改之前的形态请走 undo/redo。
+ *
+ * 恢复本身会再产生一条新的变更记录（可被推送到远端），而不是把那条 DELETE 抹掉——
+ * 变更日志是只追加的。
+ */
 export interface RestoreEntityOptions {
+  /** DELETE 类型的 `rxdb_change` 记录 id；实现按 `Number()` 解析，所以只能是十进制整数字符串 */
   changeId: string;
 }
 
@@ -658,6 +801,16 @@ export interface RemoteBranchInfo {
  */
 export type IRxDBAdapterOptions = object;
 
+/**
+ * 适配器工厂：`RxDB.adapter()` 登记的就是它，而不是已经建好的适配器实例
+ *
+ * @remarks
+ * 登记工厂而非实例，是为了让适配器的构造推迟到 `RxDB.connect()`——建实例往往要打开文件、
+ * 申请 OPFS 句柄、加载 WASM，这些都不该在模块求值期发生。
+ *
+ * 返回值允许同步也允许 `Promise`，于是需要 `await import()` 懒加载 WASM 的适配器
+ * 和纯同步构造的适配器共用一条登记路径。
+ */
 export type AdapterFactory = (rxDB: RxDB) => Promise<IRxDBAdapter> | IRxDBAdapter;
 
 /**
