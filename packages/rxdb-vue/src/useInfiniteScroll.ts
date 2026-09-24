@@ -235,7 +235,7 @@ export function useInfiniteScroll<T extends EntityType>(
       return;
     }
 
-    if (tail !== undefined && cursorId(pageHandles[index + 1].cursor) !== cursorId(tail)) {
+    if (tail !== undefined) {
       openPage(index + 1, tail, undefined);
     }
   }

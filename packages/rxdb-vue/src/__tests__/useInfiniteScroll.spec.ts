@@ -1,4 +1,5 @@
 import { ENTITY_STATIC_TYPES, type EntityType, type RxDB } from '@aiao/rxdb';
+import { mergeCreatedIntoCursorPage } from '@aiao/rxdb-test';
 import { mount } from '@vue/test-utils';
 import { BehaviorSubject, Observable, Subject, map, of, throwError, type Observer, type Subscription } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -765,45 +766,104 @@ describe('useInfiniteScroll', () => {
     const byOrderBy = (a: ScrollEntity, b: ScrollEntity): number =>
       a.sort === b.sort ? a.id.localeCompare(b.id) : a.sort - b.sort;
 
-    /** 单一数据集 + 每页一条按自身游标切片的活查询，数据集变化同时推给所有页。 */
+    /** 回 SQL 重查一页：按游标切片，再**恒定**裁到 limit。 */
+    const sqlPage = (
+      rows: ScrollEntity[],
+      cursor: ScrollEntity | undefined,
+      limit: number | undefined
+    ): ScrollEntity[] => {
+      const ordered = [...rows].sort(byOrderBy);
+      const rest = cursor ? ordered.filter(candidate => isAfter(candidate, cursor)) : ordered;
+      return rest.slice(0, limit);
+    };
+
+    /**
+     * 单一数据集 + 每页一条按自身游标切片的活查询，数据集变化同时推给所有页。
+     *
+     * 建模的是**回 SQL 重查**：核心的 `merge_update` / `merge_remove` 在 findByCursor 分支
+     * 一律如此（排序键变化会挪动窗口，JS 侧算不准），所以删除 / 重排 / 以及命中
+     * `query_need_refresh_create` 的那类 CREATE 都走这条。CREATE 的另一条路见
+     * {@link createMergingDataset}。
+     */
     const createLiveDataset = (database: DatabaseHarness, initial: ScrollEntity[]): BehaviorSubject<ScrollEntity[]> => {
       const rows$ = new BehaviorSubject<ScrollEntity[]>(initial);
       database.findByCursor.mockImplementation(options =>
-        rows$.pipe(
-          map(rows => {
-            const ordered = [...rows].sort(byOrderBy);
-            const cursor = options.after;
-            const rest = cursor ? ordered.filter(candidate => isAfter(candidate, cursor)) : ordered;
-            return rest.slice(0, options.limit);
-          })
-        )
+        rows$.pipe(map(rows => sqlPage(rows, options.after, options.limit)))
       );
       return rows$;
+    };
+
+    /**
+     * CREATE 的另一条真实路径：**JS 增量合并**，不回 SQL。
+     *
+     * 新行并进每一条在订阅的页，页内原有的行一条都不裁掉 —— 于是页会涨过 limit 而
+     * **页尾不动**，见 `FindByCursorOptions.limit` 的文档（「更新后的数据量就会比 limit 多 1,
+     * 第二个 FindByCursor 开头的指针是不会变的」）与核心的 `clip_to_window`。
+     * 语义由 `@aiao/rxdb-test` 的 {@link mergeCreatedIntoCursorPage} 三端共用，防止各抄一份后跑偏。
+     */
+    const createMergingDataset = (database: DatabaseHarness, initial: ScrollEntity[]) => {
+      let rows = initial;
+      const opened: { cursor: ScrollEntity | undefined; limit: number; page$: BehaviorSubject<ScrollEntity[]> }[] = [];
+      database.findByCursor.mockImplementation(options => {
+        const { limit } = options;
+        if (limit === undefined) throw new Error('本用例组的游标查询必须显式带 limit');
+        const page$ = new BehaviorSubject<ScrollEntity[]>(sqlPage(rows, options.after, limit));
+        opened.push({ cursor: options.after, limit, page$ });
+        return page$;
+      });
+      return {
+        create: (...created: ScrollEntity[]) => {
+          rows = [...rows, ...created];
+          opened.forEach(page =>
+            page.page$.next(mergeCreatedIntoCursorPage(page.page$.value, created, page.cursor, page.limit))
+          );
+        }
+      };
     };
 
     const initialRows = (): ScrollEntity[] => [row('a', 1), row('b', 2), row('c', 3), row('d', 4)];
 
     /** 载入两页：`[a,b]` 与 after-b 的 `[c,d]`。 */
+    const openTwoPages = (database: DatabaseHarness): InfiniteScrollResource<ScrollEntity> => {
+      const { resource } = mountResource(database.database, createOptions('boundary', 2));
+      resource.loadMore();
+
+      expect(resource.value.value.map(entity => entity.id)).toEqual(['a', 'b', 'c', 'd']);
+      return resource;
+    };
+
     const loadTwoPages = (): {
       resource: InfiniteScrollResource<ScrollEntity>;
       rows$: BehaviorSubject<ScrollEntity[]>;
     } => {
       const database = createDatabase();
       const rows$ = createLiveDataset(database, initialRows());
-      const { resource } = mountResource(database.database, createOptions('boundary', 2));
-      resource.loadMore();
-
-      expect(resource.value.value.map(entity => entity.id)).toEqual(['a', 'b', 'c', 'd']);
-      return { resource, rows$ };
+      return { resource: openTwoPages(database), rows$ };
     };
 
-    it('keeps the boundary entity when a head insert shifts the first page', () => {
+    it('keeps the boundary entity when a refreshing head insert shifts the first page', () => {
       const { resource, rows$ } = loadTwoPages();
 
-      // 头插：首页变成 [x,a]，尾边界从 b 移到 a —— 第二页仍锚在 b 上就会漏掉 b
+      // 回 SQL 刷新的那条 CREATE 路径（命中关系 where / 事件陈旧）：首页重裁回 limit 变成 [x,a]，
+      // 尾边界从 b 移到 a —— 第二页仍锚在 b 上就会漏掉 b
       rows$.next([row('x', 0), ...initialRows()]);
 
       expect(resource.value.value.map(entity => entity.id)).toEqual(['x', 'a', 'b', 'c']);
+    });
+
+    it('keeps the tail anchored when an incremental head insert grows the first page', () => {
+      const database = createDatabase();
+      const dataset = createMergingDataset(database, initialRows());
+      const resource = openTwoPages(database);
+
+      // 增量合并：首页涨成 [x,a,b]（超出 limit=2），尾边界仍是 b —— 第二页的锚点没失效。
+      // 首页要原样透出 3 条：自己按条数裁回 2 会把 b 挤掉，b 就此从结果里消失。
+      dataset.create(row('x', 0));
+
+      expect(resource.value.value.map(entity => entity.id)).toEqual(['x', 'a', 'b', 'c', 'd']);
+      // 尾没动就不该重开下一页的查询。内容断言看不出这一条 —— 重锚会用同一个游标重查，
+      // 拿回一模一样的 [c,d]，只有调用次数能把这次白白的退订 / 重订暴露出来。
+      expect(database.findByCursor).toHaveBeenCalledTimes(2);
     });
 
     it('does not repeat an entity when a deletion pulls the next page into the first', () => {

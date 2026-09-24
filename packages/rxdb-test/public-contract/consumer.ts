@@ -26,10 +26,12 @@ import {
   makeEntityFieldsWireDraft,
   makeSearchParityArticles,
   makeSearchParityComments,
+  mergeCreatedIntoCursorPage,
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
   version,
   withSeedLock,
+  type CursorRowLike,
   type EntityFieldExpectation,
   type EntityFieldsParseRejection,
   type EntityFieldsWireDraft,
@@ -119,6 +121,9 @@ const treeUniqueOptions: TreeSiblingUniqueSuiteOptions = { factory: treeUniqueFa
 // query-cache-contract 的接入点类型同样要被真实消费，理由同上。
 declare const queryCacheContractImpl: QueryCacheRowContractImpl;
 
+// 游标窗口夹具的行结构类型，理由同上。
+declare const cursorRow: CursorRowLike;
+
 // US-012 字段描述夹具的四个类型导出同样要被真实消费，理由同上。
 declare const fieldExpectation: EntityFieldExpectation;
 declare const fieldValueCase: EntityFieldValueCase;
@@ -138,6 +143,7 @@ void [
   withSeedLock,
   makeSearchParityArticles,
   makeSearchParityComments,
+  mergeCreatedIntoCursorPage([cursorRow], [cursorRow], undefined, 1),
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
   ENTITY_FIELDS_FIXTURE_METADATA.name,

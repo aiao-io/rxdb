@@ -202,7 +202,7 @@ export function useInfiniteScroll<T extends EntityType>(
         });
 
         if (isLastPage || tail === undefined) return;
-        if (cursorId(pagesRef.current[pageIndex + 1].cursor) !== cursorId(tail)) {
+        if (true) {
           openPage(pageIndex + 1, tail, undefined);
         }
       };
