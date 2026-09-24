@@ -161,9 +161,33 @@ describe('expectedActivationRevision 是切换时的代际 CAS（FR-020）', () 
     // 而后者恰恰是这个字段唯一要拦的东西。
     await expect(guard(scene, { expectedActivationRevision: 6 })).rejects.toThrowError(StaleActiveBranchError);
     await expect(guard(scene, { expectedActivationRevision: 6 })).rejects.toMatchObject({
-      expected: { branchId: SCENE_BRANCH_ID, activationRevision: 6 },
+      // `expected.branchId` 是 `null` 而不是 `SCENE_BRANCH_ID`：调用方只断言了代际。理由见下一条用例。
+      expected: { branchId: null, activationRevision: 6 },
       actual: { branchId: SCENE_BRANCH_ID, activationRevision: 7 }
     });
+  });
+
+  it('expected 不替调用方认领分支：只断言了代际时 branchId 就是 null', async () => {
+    const scene = sceneWith(0, 7);
+
+    // 现场：调用方在 A@3 上捕获凭据，另一个 realm 把库切到了 B（代际 7），调用方带旧凭据再来。
+    // 拒绝本身是对的，坏的是 `expected.branchId` 此前填的是**库里当前**的那条分支，
+    // 于是错误里出现一个从未存在过的 token（B@3）——按 `expected.branchId` 定位问题的
+    // 跨 realm 消费者会被指去查 B，而调用方从来不在 B 上。
+    //
+    // 这一格填不出真值：公开入口 `RxDBBranchSwitchPreconditions` 只有
+    // `{ requireClean, expectedActivationRevision }` 两个字段（还被一条「不多不少就这两个」的
+    // 类型断言钉住），调用方从没说过自己在哪条分支。缺这一格也不影响判定：
+    // `activationRevision` 是**库级单行**（`working-tree-activation-state`，每次切换 +1），
+    // 单凭代际号就把激活态钉死了。所以 `null` 不是降级，是把「没表态」如实写出来。
+    const error: unknown = await guard(scene, { expectedActivationRevision: 3 }).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(StaleActiveBranchError);
+    const stale = error as StaleActiveBranchError;
+    expect(stale.expected).toEqual({ branchId: null, activationRevision: 3 });
+    // 消息里同样不许出现那个伪造的 token。
+    expect(stale.message).not.toContain(`${SCENE_BRANCH_ID}@3`);
+    expect(stale.message).toContain(`${SCENE_BRANCH_ID}@7`);
   });
 
   it('对得上时放行；没提 requireClean 就不读工作树状态行', async () => {

@@ -14,6 +14,7 @@
 
 import { RxDBError, type RxDBBranchSwitchPreconditions, type TransactionExecutor } from '@aiao/rxdb';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
+import { BranchNotMaterializedError, classifyBranchMaterialization } from './branch-materialization.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { StaleActiveBranchError } from './write-entry.js';
 
@@ -91,10 +92,12 @@ export const assertSwitchBranchPreconditions = async (
 
   const token = await readActiveBranchToken(executor);
   if (expectedActivationRevision !== undefined && token.activationRevision !== expectedActivationRevision) {
-    throw new StaleActiveBranchError(
-      { branchId: token.branchId, activationRevision: expectedActivationRevision },
-      token
-    );
+    // `branchId: null` 是刻意的：调用方经 {@link WorkingTreeSwitchBranchOptions} 只交得出一个
+    // 代际号，从没说过自己在哪条分支。拿 `token.branchId`（库里**当前**的那条）去补，补出来的是
+    // 一个从未存在过的 token——调用方在 A@3，库里是 B@7，错误却说它「持有 B@3」，
+    // 于是按 `expected.branchId` 定位问题的跨 realm 消费者被指去查 B。判定不缺这一格：
+    // `activationRevision` 是库级单行，单凭代际号就把激活态钉死了（见 `ExpectedActiveBranch`）。
+    throw new StaleActiveBranchError({ branchId: null, activationRevision: expectedActivationRevision }, token);
   }
   if (!requireClean) return;
 
@@ -108,9 +111,19 @@ export const assertSwitchBranchPreconditions = async (
  *
  * @param executor - 调用方那个只读事务的执行器
  * @param targetBranchId - 要切过去的分支 id
+ * @throws {@link BranchNotMaterializedError} 目标只有 metadata、本地还没有它的提交图时
  * @throws {@link CommitGraphCorruptedError} 目标分支已被标记损坏，或可达父链上有一处对不上
  *
  * @remarks
+ * **先判物化状态，再谈损坏。** 一条 metadata-only 的远端分支（FR-044/049）没有 ref、
+ * 或者有一行 HEAD 为空的 ref，而损坏守卫读不到 ref 时抛的是一句「迁移没为它建行」——
+ * 那句话对着一条**本来就该先物化**的分支是错的诊断，会把用户引去查迁移。
+ * 判在前面之后，它拿到的是 `branch_not_materialized`，而那个码上挂着可操作的下一步。
+ *
+ * 到得了这里说明 `takeOverBranchSwitch` 没有接管这次切换（本连接没登记快照来源，或调用方
+ * 绕开 `rxdb.switchBranch()` 直接打到了适配器），所以成因写作 `source_unavailable`，
+ * `attemptId` 是 `null`——一次尝试都还没开始。
+ *
  * 判定**整个**转交 {@link assertCommitGraphIntact}，本模块一个字面量都不重复：FR-051 要的是
  * 「实现为共享 guard，不得各写一份」。抄一份出来一开始逐字段相同，直到某次只改了守卫、
  * 没改抄件——而那一刻两边的用例都还是绿的。
@@ -126,5 +139,16 @@ export const assertSwitchTargetIntact = async (
   executor: TransactionExecutor,
   targetBranchId: string
 ): Promise<void> => {
+  const state = await classifyBranchMaterialization(executor, targetBranchId);
+  if (state.kind === 'metadata_only') {
+    throw new BranchNotMaterializedError(
+      targetBranchId,
+      null,
+      'source_unavailable',
+      '这条分支本地只有 metadata，切过去要先把远端快照物化成本地历史；' +
+        '本次切换没有经过 takeOverBranchSwitch——这条连接没有登记 BranchMaterializationSource，' +
+        '或者调用方绕开了 rxdb.switchBranch()。'
+    );
+  }
   await assertCommitGraphIntact(executor, targetBranchId);
 };

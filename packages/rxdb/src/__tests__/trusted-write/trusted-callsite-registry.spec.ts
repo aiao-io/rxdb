@@ -509,9 +509,12 @@ describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('登记表只用三个写原语，且 #1 / #3 / #4 走 switchBranch', () => {
+  it('登记表只用两个写原语：switchBranch 绑适配器，mergeChanges 一律绑执行器', () => {
+    // `adapter.mergeChanges` 一行都不该剩。声明存在一个 WeakMap 里，每个作用域只存一条，
+    // 而 `interceptMergeChanges()` 是排队拿到事务之后才取声明的——绑适配器实例时两个并发的
+    // `mergeChanges` 会互相覆盖（`rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`）。
+    // `switchBranch` 不在此列：它在调用钩子时同步消费声明，没有排队窗口。
     expect([...new Set(TRUSTED_CALLSITE_REGISTRY.map(row => row.writePrimitive))].sort()).toEqual([
-      'adapter.mergeChanges',
       'adapter.switchBranch',
       'executor.mergeChanges'
     ]);

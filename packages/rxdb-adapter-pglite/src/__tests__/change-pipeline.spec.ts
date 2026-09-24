@@ -19,6 +19,7 @@ const state = vi.hoisted(() => {
 vi.mock('../handle_rxdb_change.js', () => ({ handle_rxdb_change: state.handleRxdbChange }));
 vi.mock('../PGliteClient.js', () => ({ PGliteClient: state.MockPGliteClient }));
 
+import type { IPGliteClient } from '../PGliteClient.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { flushPendingChangePipeline, trackChangeHandler, type ChangePipelineHost } from '../change-pipeline.js';
 import { PGliteChangeType, type PGliteChangeEvent } from '../pglite.interface.js';
@@ -42,7 +43,9 @@ const createHost = (client: InstanceType<typeof state.MockPGliteClient>): Change
   pendingChangeQueues: new Map<string, Promise<void>>(),
   changeErrors: new Subject<Error>(),
   changePipelineGeneration: 0,
-  cachedClient: client,
+  // 替身只实现了驱动侧冲刷那两个成员：管道对客户端的**唯一**要求是 `instanceof PGliteClient`
+  // 加这两个成员，把 `IPGliteClient` 的另外八个补全只会让替身看起来比它承担的多。
+  cachedClient: client as unknown as IPGliteClient,
   clientPromise: undefined
 });
 

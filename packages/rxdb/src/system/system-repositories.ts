@@ -15,7 +15,7 @@
  */
 import { firstValueFrom } from 'rxjs';
 import type { RxDB } from '../RxDB.js';
-import { ACTIVE_BRANCH_KEY } from './active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './active-branch-guard.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
 import type { LocalRxDBBranchRepository, LocalRxDBChangeRepository } from './types.local.js';
@@ -55,7 +55,7 @@ export const resolve_current_branch = async (
     await branchRepository.find({
       where: {
         combinator: 'and',
-        rules: [{ field: 'id', operator: '=', value: 'main' }]
+        rules: [{ field: 'id', operator: '=', value: MAIN_BRANCH_ID }]
       },
       limit: 1
     })
@@ -71,7 +71,7 @@ export const resolve_current_branch = async (
   }
 
   const branch = rxdb.entityManager.instantiate(RxDBBranch);
-  branch.id = 'main';
+  branch.id = MAIN_BRANCH_ID;
   branch.activated = true;
   branch.activeKey = ACTIVE_BRANCH_KEY;
   branch.local = true;

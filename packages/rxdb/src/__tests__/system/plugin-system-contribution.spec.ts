@@ -42,6 +42,26 @@ class ProbeCapabilityState extends EntityBase {
   branchId!: string;
 }
 
+/**
+ * 接入方**自己的**实体，身份与探针的系统表逐字撞上（`rxdb:ProbeCapabilityState`）。
+ *
+ * @remarks
+ * `namespace` 默认是 `public`，撞上 `rxdb:` 下的保留身份要接入方显式写出来——不是日常路径，
+ * 但它是合法的实体声明，本库没有任何一处校验 `namespace` 不许填 `rxdb`。
+ * 它存在是为了把「按身份判系统表」与「按本实例的清单判系统表」这两种口径的差别逼出来：
+ * 前者认得进程里**任何一个**库登记过的身份，于是这张表会被当成系统表而跳过建表。
+ */
+@Entity({
+  namespace: 'rxdb',
+  name: 'ProbeCapabilityState',
+  tableName: 'user_owned_probe_state',
+  log: false,
+  properties: [{ name: 'note', type: PropertyType.string }]
+})
+class UserOwnedProbeState extends EntityBase {
+  note!: string;
+}
+
 const PROBE_MIGRATION_NAME = '0001-probe-capability';
 const PROBE_PACKAGE = '@aiao/rxdb-plugin-probe';
 
@@ -207,11 +227,11 @@ class TestLocalAdapter implements IRxDBAdapter {
 const databases = new Set<RxDB>();
 let databaseIndex = 0;
 
-const createDatabase = (adapter: TestLocalAdapter): RxDB => {
+const createDatabase = (adapter: TestLocalAdapter, entities: EntityType[] = []): RxDB => {
   databaseIndex += 1;
   const database = new RxDB({
     dbName: `plugin-system-contribution-${databaseIndex}`,
-    entities: [],
+    entities,
     sync: { local: { adapter: adapter.name }, type: SyncType.None }
   });
   database.adapter(adapter.name, () => adapter);
@@ -334,6 +354,23 @@ describe('系统贡献不跨实例污染', () => {
 
     // 一张都不缺，于是 `#ensureSystemTables()` 连 `createTables()` 都不该调。
     expect(adapter.createTablesCalls).toEqual([]);
+  });
+
+  it('既有库：接入方实体的身份撞上别的库登记过的系统表，照样要建出来', async () => {
+    // 别的库把 `rxdb:ProbeCapabilityState` 推进了模块级登记簿——这一行是污染源。
+    createDatabase(new TestLocalAdapter(false)).use(probePlugin);
+
+    // 本实例没装探针，它只有自己那张同名表，且这张表在库里还不存在。
+    const adapter = new TestLocalAdapter(true, [], [UserOwnedProbeState]);
+    const bystander = createDatabase(adapter, [UserOwnedProbeState]);
+
+    await bystander.connect(adapter.name);
+
+    // 补建接入方实体表时若拿模块级的 `isSystemEntity()` 摘系统表，这张表会被判成「别人的系统表」
+    // 而静默跳过：`createTables()` 一次都不调，首次查询报 `no such table`，错误里没有一个字
+    // 指向实体注册。摘系统表必须按**本实例**的清单（`RxDB.systemEntities`）。
+    const created = adapter.createTablesCalls.flatMap(call => call.entityTypes);
+    expect(created).toContain(UserOwnedProbeState);
   });
 });
 

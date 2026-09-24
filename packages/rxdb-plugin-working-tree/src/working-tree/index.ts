@@ -49,6 +49,22 @@ export * from './status.js';
 // 公开面上，与 `working-tree-state-sql.ts` / `restore-session-transitions.ts` 同一条线：
 // 语句形状是实现细节，调用方拿到手也没有能安全使用它的事务。
 export * from './switch-branch-options.js';
+// 目标分支物化（US-309 / FR-044/049）：**只出接缝，不出原语**。
+// `materialize-branch.js` 整个导出——`BranchMaterializationSource` 是同步层必须实现的接口，
+// 它的三个入参类型也一并要得到，否则实现方只能把形状抄一遍。
+//
+// `branch-materialization.js` 则**逐个挑**：那四段原语（开头行 / 追页 / 封口 / 屏障）拿到手也
+// 没有能安全使用它们的事务——页序、续用判定与屏障那九件事的次序缺一不可，散着调等于让调用方
+// 自己重写一遍流水线。挑出来的三样都是**契约载荷**：失败出口那个错误类、它的成因枚举，
+// 以及来源方必须照着算的页指纹函数——少一样，同步层就只能靠 `error.message` 认成因、
+// 或者把指纹算法抄第二份。
+export {
+  BranchNotMaterializedError,
+  branchMaterializationPageFingerprint,
+  type BranchMaterializationPagePayload,
+  type BranchNotMaterializedReason
+} from './branch-materialization.js';
+export * from './materialize-branch.js';
 export * from './trusted-callsite-capture.js';
 export * from './versioned-domain.js';
 export * from './working-tree-commands.js';

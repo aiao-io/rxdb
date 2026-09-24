@@ -272,6 +272,28 @@ export interface ActiveBranchToken {
   readonly activationRevision: number;
 }
 
+/**
+ * 调用方**提出的**那份 active 分支断言（{@link StaleActiveBranchError.expected} 的类型）
+ *
+ * @remarks
+ * 比 {@link ActiveBranchToken} 松一格，松的正是 `branchId`：写路径的调用方交的是完整捕获值
+ * （`ActiveBranchToken` 直接可赋值过来），而 `switchBranch(branchId, options)` 的调用方
+ * 经公开入口 `RxDBBranchSwitchPreconditions` 只交得出 `expectedActivationRevision`
+ * 一个数——那个形状被一条「不多不少就这两个字段」的类型断言钉住，里面没有分支这一格。
+ *
+ * **`null` 写的是「没表态」，不是「不知道」。** 此前那一处拿库里**当前**的 branchId 去补，
+ * 补出来的是一个从未存在过的 token（`B@3`：调用方其实在 A@3，库里是 B@7），而消费者会照着
+ * `expected.branchId` 去查 B。判定本身不需要这一格：`activationRevision` 是**库级单行**
+ * （`working-tree-activation-state`，每次切换 +1），单凭代际号就把激活态钉死了。
+ */
+export interface ExpectedActiveBranch {
+  /** 调用方捕获的 active 分支 ID；`null` = 调用方只断言了代际，没对分支表态 */
+  readonly branchId: string | null;
+
+  /** 调用方捕获或断言的 activation revision */
+  readonly activationRevision: number;
+}
+
 /** 工作树单元的身份三元组，对应唯一约束里除 `branch` 外的部分。 */
 export interface WorkingTreeEntryKey {
   /** 实体所属命名空间 */
@@ -343,19 +365,25 @@ export class StaleActiveBranchError extends RxDBError {
   /** 稳定错误码，见 {@link CommitErrorCode.stale_active_branch} */
   readonly code = CommitErrorCode.stale_active_branch;
 
-  /** 调用方捕获的 token */
-  readonly expected: ActiveBranchToken;
+  /** 调用方提出的断言；`branchId` 为 `null` 表示只断言了代际（见 {@link ExpectedActiveBranch}） */
+  readonly expected: ExpectedActiveBranch;
 
   /** 库里当前的 token */
   readonly actual: ActiveBranchToken;
 
   /**
-   * @param expected - 调用方捕获的 token
+   * @param expected - 调用方提出的断言
    * @param actual - 库里当前的 token
    */
-  constructor(expected: ActiveBranchToken, actual: ActiveBranchToken) {
+  constructor(expected: ExpectedActiveBranch, actual: ActiveBranchToken) {
+    // 没表态的那一半按「代际 N」写，不拿 `actual.branchId` 顶上：顶上去的消息读起来像
+    // 「你持有 B@3」，而调用方从来不在 B 上。
+    const held =
+      expected.branchId === null ?
+        `断言 activation revision 为 ${expected.activationRevision}`
+      : `持有 ${expected.branchId}@${expected.activationRevision}`;
     super(
-      `active 分支已被切换：写入时持有 ${expected.branchId}@${expected.activationRevision}，` +
+      `active 分支已被切换：写入时${held}，` +
         `库里现在是 ${actual.branchId}@${actual.activationRevision}。请在新分支上重新读取实体后再写入。`
     );
     this.expected = expected;

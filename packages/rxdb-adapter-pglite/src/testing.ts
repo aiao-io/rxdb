@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-import { ACTIVE_BRANCH_KEY } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import remove_all_triggers_sql from './table/remove_trigger_sql.js';
 import { generateBranchTriggerSql } from './version/switch_branch.js';
@@ -178,7 +178,7 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   // 所以这条 INSERT 是本函数里唯一一处把 main 置为 active 的地方，哨兵值只能由它写。
   // 漏写的话清库之后的 main 就退出「至多一个 active」的唯一约束管辖，且不报任何错。
   await adapter.query(
-    `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"activeKey","fromChangeId",local,remote) VALUES ('main',TRUE,'${ACTIVE_BRANCH_KEY}',NULL,TRUE,FALSE)`
+    `INSERT INTO "rxdb"."rxdb_branch" (id,activated,"activeKey","fromChangeId",local,remote) VALUES ('${MAIN_BRANCH_ID}',TRUE,'${ACTIVE_BRANCH_KEY}',NULL,TRUE,FALSE)`
   );
 
   // TRUNCATE 连工作树/提交侧的单例与 main 的伴生行一起清掉了，这里把它们补回来。
@@ -196,7 +196,7 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   // `transaction(..., false)` 的 `false` 再挡住变更日志。两道缺任何一道，清理动作自己就会
   // 在下一个用例的 undo 栈里留下一格。
   const initialRows = adapter.rxdb.systemContributions.flatMap(contribution =>
-    contribution.createInitialRows(adapter.rxdb.entityManager, { branchIds: ['main'] })
+    contribution.createInitialRows(adapter.rxdb.entityManager, { branchIds: [MAIN_BRANCH_ID] })
   );
   if (initialRows.length > 0) {
     await adapter.transaction(tx => tx.saveMany(initialRows), false);
@@ -205,7 +205,7 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   // 只重挂触发器，不再顺带跑 switch 的那条分支激活 UPDATE：上一行的 INSERT 已经把
   // main 置为 activated=TRUE，那条 UPDATE 在取值上是空操作，却会触发行级 NOTIFY，
   // 异步派发成裸 RxDBBranch UPDATE 事件污染下一个用例的监听窗口。
-  const sql = generateBranchTriggerSql(adapter, 'main');
+  const sql = generateBranchTriggerSql(adapter, MAIN_BRANCH_ID);
   const triggerStatements = sql.split('---STATEMENT_SEPARATOR---').filter((s: string) => s.trim());
   for (const stmt of triggerStatements) {
     await adapter.query(stmt.trim());

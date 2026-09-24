@@ -47,6 +47,25 @@
  * **读登记表那半边用**（{@link parseRegistry}）：那是一张自家的常量表，是数据不是待扫描的
  * 代码。按固定键序的正则去读它，等于在门禁侧再编码一遍登记表的书写形状，重排字段就会让
  * 整行静默消失。`scripts/audit/api-surface.mjs` 早已按同样理由引了 `typescript`。
+ *
+ * **为什么扫调用点那半边不打算改成 AST/类型级校验**（epic-006 评审的遗留一问，2026-09-24 判定
+ * 留在词法层）：这条门禁的每一种失败都是**响的**，不是静默的——
+ *
+ * - 接收者改名（`adapter` → `localAdapter`）：那处调用掉进第 3 类「不认识的接收者」，而未登记
+ *   即报出（见上）。不是少管一处，是当场变红。
+ * - 正则认不出某处声明：`auditRepository` 末尾那轮反查会报「登记表有 X，真实代码里却找不到」，
+ *   spec 里还钉了 `seenKeys.size === rows.length`。一次「部分匹配旧形状」于是也是红的。
+ * - 注释或 TSDoc 示例里写了一段 `declareTrustedWrite(...)`：涂白层挡在前面
+ *   （{@link findDeclarations}），假阳性进不来。
+ * - 词表与真实类型分叉：{@link assertScannerVocabulary} 在扫描之前抛。这是原先唯一**真的**
+ *   静默的一格——三张词表是硬编码字面量，核心给 `TrustedWritePrimitive` 或
+ *   `InterceptedBulkWrite` 加一项，这个脚本会继续只扫旧的那几个并打印 ✅。现在钉住了。
+ *
+ * 换成 AST 能多得到的只有「类型层面确认这个接收者真是 RxDBAdapterLocalBase」，而代价是让一条
+ * 秒级的门禁依赖一份覆盖全仓的类型化 Program（跨 `packages/` 并没有这么一份，得现搭）——
+ * 把 pre-commit 级的检查绑上一次全量 typecheck。收益与代价不成比例，**判定不做**；真要重提，
+ * 先给出一处「现有词法判据放过了、AST 能拦住」的实例。顺延记录见
+ * `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -59,13 +78,25 @@ import { blankStringLiterals, stripComments } from './working-tree-suite-callsit
 /** 登记表与意图枚举的源文件，供 {@link parseRegistry} 词法解析。 */
 export const REGISTRY_SOURCE_FILE = 'rxdb/src/trusted-write/trusted-write-intent.ts';
 
-/** 受信写原语的宿主变量名。9 处真实声明的作用域实参只有这两个名字。 */
+/** 批量写方法名的真实出处，供 {@link parseBulkWriteMethods} 解析。 */
+export const BULK_WRITE_GATE_SOURCE_FILE = 'rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts';
+
+/**
+ * 受信写原语的宿主变量名
+ *
+ * @remarks
+ * 这三张词表是**字面量，但不是自由的字面量**：{@link assertScannerVocabulary} 每次跑都拿它们跟
+ * 真实类型对一遍（宿主与方法出自 `TrustedWritePrimitive`，批量写方法出自 `METHOD_NAMES`），
+ * 对不上就抛。写成字面量的理由只有一个——{@link CALL_PATTERN} 是模块级正则，在它构造出来之前
+ * 没有读文件的时机；写成字面量**而不钉住**才是那条真问题：词表漏一项，扫描器不会报错，
+ * 它会安静地一处都扫不到，然后打印一行 ✅。
+ */
 export const TRUSTED_PRIMITIVE_SCOPES = Object.freeze(['adapter', 'executor']);
 
-/** 受信写原语的方法名；`switchBranch` 与 `mergeChanges` 各覆盖登记表的一部分。 */
+/** 受信写原语的方法名；`switchBranch` 与 `mergeChanges` 各覆盖登记表的一部分。与上一条同钉。 */
 export const TRUSTED_WRITE_METHODS = Object.freeze(['switchBranch', 'mergeChanges']);
 
-/** 绕开工作树捕获的两个批量写方法（bulk-write-gate.ts）。 */
+/** 绕开工作树捕获的两个批量写方法（bulk-write-gate.ts）。与上两条同钉。 */
 export const BULK_WRITE_METHODS = Object.freeze(['upsertMany', 'deleteByIds']);
 
 /**
@@ -500,6 +531,134 @@ export const parseRegistry = source => {
   return { intents, rows };
 };
 
+/**
+ * 找一个类型别名的右侧
+ *
+ * @param {import('typescript').SourceFile} sourceFile 已解析的源文件
+ * @param {string} name 别名名字
+ * @returns {import('typescript').TypeNode | null}
+ */
+const findTypeAlias = (sourceFile, name) => {
+  let found = null;
+  const visit = node => {
+    if (found !== null) return;
+    if (ts.isTypeAliasDeclaration(node) && node.name.text === name) {
+      found = node.type;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(sourceFile, visit);
+  return found;
+};
+
+/**
+ * 从 `TrustedWritePrimitive` 解析出扫描器该认的宿主与方法
+ *
+ * @param {string} source `trusted-write-intent.ts` 原文
+ * @returns {{ scopes: string[], methods: string[] }} 各自去重，顺序按联合里首次出现
+ * @throws {Error} 别名不在、不是字符串字面量联合、或某一项不是 `宿主.方法` 形状时抛
+ *
+ * @remarks
+ * **这里读的是类型，不是登记表的数据行。** 拿 9 行 `writePrimitive` 去推词表也能得到同一个集合，
+ * 但那是「现在恰好有人这么调」；联合是「允许这么调」。核心加一个宿主或方法时，先变的是联合——
+ * 而这条门禁要在第一处调用写出来之前就认得它。
+ */
+export const parsePrimitiveVocabulary = source => {
+  const sourceFile = ts.createSourceFile(REGISTRY_SOURCE_FILE, source, ts.ScriptTarget.Latest, true);
+  const alias = findTypeAlias(sourceFile, 'TrustedWritePrimitive');
+  if (alias === null) throw new Error(`${REGISTRY_SOURCE_FILE} 里找不到 TrustedWritePrimitive`);
+
+  const members = ts.isUnionTypeNode(alias) ? alias.types : [alias];
+  const scopes = [];
+  const methods = [];
+  for (const member of members) {
+    if (!ts.isLiteralTypeNode(member) || !ts.isStringLiteralLike(member.literal)) {
+      throw new Error('TrustedWritePrimitive 的每一项都必须是字符串字面量');
+    }
+    const segments = member.literal.text.split('.');
+    if (segments.length !== 2 || segments.some(segment => segment === '')) {
+      throw new Error(`TrustedWritePrimitive 的 '${member.literal.text}' 不是 宿主.方法 形状`);
+    }
+    if (!scopes.includes(segments[0])) scopes.push(segments[0]);
+    if (!methods.includes(segments[1])) methods.push(segments[1]);
+  }
+  return { scopes, methods };
+};
+
+/**
+ * 从 `bulk-write-gate.ts` 的 `METHOD_NAMES` 解析出对外方法名
+ *
+ * @param {string} source `bulk-write-gate.ts` 原文
+ * @returns {string[]} 按书写顺序
+ * @throws {Error} 表不在、不是对象字面量、或解析出 0 项时抛
+ *
+ * @remarks
+ * 那张表是 `Record<BulkWriteOperation, string>`，于是它被穷尽性检查钉在核心的
+ * `InterceptedBulkWrite` 上——从它读，等于间接从核心读，而不必让本脚本再认得
+ * 「内部键怎么折成对外方法名」这条规则（`upsert_many` → `upsertMany` 看着像纯驼峰化，
+ * 但那是那张表的自由，不是本脚本的判据）。
+ */
+export const parseBulkWriteMethods = source => {
+  const sourceFile = ts.createSourceFile(BULK_WRITE_GATE_SOURCE_FILE, source, ts.ScriptTarget.Latest, true);
+  const literal = findInitializer(sourceFile, 'METHOD_NAMES');
+  if (literal === null || !ts.isObjectLiteralExpression(literal)) {
+    throw new Error(`${BULK_WRITE_GATE_SOURCE_FILE} 里找不到 METHOD_NAMES`);
+  }
+  const methods = literal.properties.map((property, index) => {
+    if (!ts.isPropertyAssignment(property)) throw new Error(`METHOD_NAMES 第 ${index + 1} 项不是 键: 值 形态`);
+    return stringValueOf(property.initializer, `METHOD_NAMES 第 ${index + 1} 项的值`);
+  });
+  if (methods.length === 0) throw new Error('METHOD_NAMES 解析出 0 个方法名');
+  return methods;
+};
+
+/**
+ * 一张词表与它的真实出处逐项对照，两边多出来的都抛
+ *
+ * @param {string} what 这张词表是什么，进错误信息
+ * @param {readonly string[]} derived 从真实源码读出来的
+ * @param {readonly string[]} literal 本脚本里写着的
+ * @param {string} source 真实出处，进错误信息
+ * @throws {Error} 任一侧多出条目时抛
+ *
+ * @remarks
+ * **按集合比，不按顺序比。** 顺序是那份联合 / 那张表的书写自由，把它也当判据，就等于再犯一次
+ * {@link parseRegistry} 上面那条注释说的错。
+ */
+const assertSameVocabulary = (what, derived, literal, source) => {
+  const missing = derived.filter(item => !literal.includes(item));
+  if (missing.length > 0) {
+    throw new Error(
+      `${source} 里的${what} ${missing.join('、')} 不在本脚本的词表里：` +
+        '这个扫描器现在一处都看不见它们，把它加进词表（改完这里，本文件的 spec 会告诉你还差哪一格）'
+    );
+  }
+  const stale = literal.filter(item => !derived.includes(item));
+  if (stale.length > 0) {
+    throw new Error(
+      `本脚本词表里的${what} ${stale.join('、')} 在 ${source} 里已经没有对应项：` + '扫描器在认一个不存在的东西，删掉它'
+    );
+  }
+};
+
+/**
+ * 校验扫描器的三张词表与真实类型一致
+ *
+ * @param {{ registrySource: string, bulkWriteGateSource: string }} sources 两个出处的原文
+ * @throws {Error} 任一张词表与出处不一致时抛
+ *
+ * @remarks
+ * 这条校验的位置很关键：它跑在**扫描之前**。放在扫描之后的话，词表漏一项的那一轮会先打印
+ * 一行「0 处违规」，再抛一个没人看的错。
+ */
+export const assertScannerVocabulary = ({ registrySource, bulkWriteGateSource }) => {
+  const { scopes, methods } = parsePrimitiveVocabulary(registrySource);
+  assertSameVocabulary('宿主', scopes, TRUSTED_PRIMITIVE_SCOPES, 'TrustedWritePrimitive');
+  assertSameVocabulary('写原语方法', methods, TRUSTED_WRITE_METHODS, 'TrustedWritePrimitive');
+  assertSameVocabulary('批量写方法', parseBulkWriteMethods(bulkWriteGateSource), BULK_WRITE_METHODS, 'METHOD_NAMES');
+};
+
 /** 一处受信写原语调用的归属判定结果。 */
 const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registryByKey }) => {
   const receiverKey = `${relPath}·${call.receiver}`;
@@ -613,9 +772,15 @@ export const collectSourceFiles = async (root, prefix = '') => {
  *
  * @param {{ packagesRoot: string }} options 仓库的 `packages/` 目录
  * @returns {Promise<{ files: number, offenders: string[], seenKeys: Set<string>, registry: ReturnType<typeof parseRegistry> }>}
+ * @throws {Error} 扫描词表与真实类型不一致时**先**抛（{@link assertScannerVocabulary}），一个文件都不扫
  */
 export const auditRepository = async ({ packagesRoot }) => {
-  const registry = parseRegistry(await readFile(path.join(packagesRoot, REGISTRY_SOURCE_FILE), 'utf8'));
+  const registrySource = await readFile(path.join(packagesRoot, REGISTRY_SOURCE_FILE), 'utf8');
+  assertScannerVocabulary({
+    registrySource,
+    bulkWriteGateSource: await readFile(path.join(packagesRoot, BULK_WRITE_GATE_SOURCE_FILE), 'utf8')
+  });
+  const registry = parseRegistry(registrySource);
   const registryByKey = new Map(registry.rows.map(row => [registryKeyOf(row), row]));
   const seenKeys = new Set();
   const files = await collectSourceFiles(packagesRoot);

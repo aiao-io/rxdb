@@ -32,7 +32,7 @@
  * 「捕获偶尔丢单元」，不像「通知还在路上」。
  */
 
-import { RxDB, SyncType, type TransactionExecutor } from '@aiao/rxdb';
+import { RxDB, SyncType, uuid, type TransactionExecutor } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { ConformanceNote, WORKING_TREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-working-tree/testing';
@@ -122,19 +122,25 @@ const awaitCaptureInstalled = async (database: RxDB, label: string): Promise<voi
  * 在某条连接上写一条 note。
  *
  * @remarks
- * 建行走 `repository.createEntityRef()` 而不是 `new ConformanceNote()`：裸构造器要从**全局**
- * 注册表把实体类解析回它的 EntityManager，而同一个 realm 里挂着两个实例时那张表有两项，
+ * 建行走 `database.entityManager.createEntityRef()` 而不是 `new ConformanceNote()`：裸构造器要从
+ * **全局**注册表把实体类解析回它的 EntityManager，而同一个 realm 里挂着两个实例时那张表有两项，
  * 解析当场抛（`Entity 'ConformanceNote' is registered with multiple RxDB instances`）。
  * 这是本用例的形状带来的——真实的两个 tab 是两个 realm，各有各的注册表，碰不到它。
- * 仓储自己知道它属于哪个管理器，所以经仓储建的行不需要那次全局解析。
+ * 这里直接点名**哪个实例**的管理器，于是那次全局解析根本不发生。
+ *
+ * 不经 `executor.getRepository(...)` 拿这个引用：执行器交出来的是 `IRepository`——
+ * 只承诺 CRUD 五个方法，水合助手 `createEntityRef` 在 `RepositoryBase` 上而不在这份契约里。
+ * 水合路径不过构造器，所以 `id` 得自己给——`EntityBase` 那个默认值是构造器发的，
+ * `Object.create()` + `Object.assign()` 这条路上没人发它。取值用 `uuid()` 而不是自描述字面量：
+ * `id` 声明成 `PropertyType.uuid`，别的后端会把它建成真 uuid 列并在插入时校验格式。
  *
  * 写走 `transaction` 是因为业务写的公开入口在执行器上。
  */
 const writeNote = async (database: RxDB, title: string): Promise<void> => {
   const adapter = await database.getAdapter('wa-sqlite');
   await adapter.transaction(async (executor: TransactionExecutor) => {
-    const repository = executor.getRepository(ConformanceNote);
-    await repository.create(repository.createEntityRef({ title, body: null }));
+    const entity = database.entityManager.createEntityRef(ConformanceNote, { id: uuid(), title, body: null });
+    await executor.getRepository(ConformanceNote).create(entity);
   });
 };
 

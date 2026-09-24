@@ -6,6 +6,7 @@ import {
   getEntityMetadata,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
+  MAIN_BRANCH_ID,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
@@ -40,9 +41,6 @@ export interface SystemSchemaMigrationHost {
   getClient(): Promise<IPGliteClient>;
 }
 
-/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
-const MAIN_BRANCH_ID = 'main';
-
 /**
  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
  *
@@ -76,6 +74,19 @@ const MAIN_BRANCH_ID = 'main';
  * 两行（见 `commit/branch-commit-rows.ts`），而这里是裸 SQL，造不出那两行。凭空插一行
  * `main` 等于亲手制造一个原本不存在的不一致；这种库交给实体层的 `resolve_current_branch`
  * 去建，它走的是能连带写全的那条路。空表本身不违反「至多一个」，索引照建不误。
+ *
+ * **另一个后端有一份形状相同的 `ensureBranchActiveKey`**
+ * （`packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts`）。两份没有合一，而
+ * 「抽出来」能省的比看上去少：两端的**客户端协议**不同——这一端是 `IPGliteClient.query`，
+ * 回 `{ rows }`、绑 `$1::text`、探 `information_schema.columns`；sqlite 侧是
+ * `SqliteClientLike.execute`，回 `{ results: [{ rows }] }`（要 `flatMap` 摊平）、绑 `?`、
+ * 探 `sqlite_master`。加上 `ALTER TABLE` 的列类型与索引 DDL 各自方言，抽完剩下的只有
+ * 「探列 → 补列 → 数 active → 建索引 → 两条 UPDATE」这个骨架，真正的语句仍旧两端各一份。
+ * 顺延记录见 `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ *
+ * 在那之前，改动**必须两端同改**：这一步是 `activeKey` 唯一约束在既有库上的唯一来源
+ * （口径见 `packages/rxdb/src/system/branch.ts` 的 `RxDBBranch` @remarks），一端漏改就意味着
+ * 换个后端打开同一个库，「至多一条激活分支」不再成立。
  */
 const ensureBranchActiveKey = async (
   tx: Pick<IPGliteClient, 'query'>,
@@ -200,7 +211,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         }
 
         const branchMetadata = getEntityMetadata(RxDBBranch);
-        let activeBranchId = 'main';
+        let activeBranchId: string = MAIN_BRANCH_ID;
         if (existingTables.has(`${branchMetadata.namespace}\u0000${branchMetadata.tableName}`)) {
           const branchResult = await tx.query<{ id: string }>(
             `SELECT "id" FROM ${getTableNameByMetadata(branchMetadata)}

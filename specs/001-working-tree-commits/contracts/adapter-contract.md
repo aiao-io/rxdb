@@ -66,11 +66,11 @@
 | #   | 文件（基名）         | 符号                       | 写原语                            | 行  | 意图          | 产生工作树单元 |
 | --- | -------------------- | -------------------------- | --------------------------------- | --- | ------------- | -------------- |
 | 1   | `VersionManager.ts`  | `switchBranch`             | `adapter.switchBranch`            | 280 | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`  | `restore_entity`           | `adapter.mergeChanges(…, false)`  | 86  | 实体恢复      | **必须产生**   |
+| 2   | `restore-entity.ts`  | `restore_entity`           | `executor.mergeChanges(…, false)` | 94  | 实体恢复      | **必须产生**   |
 | 3   | `HistoryManager.ts`  | `invalidateRedoStack`      | `adapter.switchBranch`            | 537 | redo 失效标记 | **不产生**     |
 | 4   | `undo-redo-apply.ts` | `applyUndoRedoHistories`   | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
 | 5   | `merge-branch.ts`    | `merge_branch`（逐条分支） | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`    | `merge_branch`（压缩分支） | `adapter.mergeChanges(…, false)`  | 165 | 压缩合并      | **必须产生**   |
+| 6   | `merge-branch.ts`    | `merge_branch`（压缩分支） | `executor.mergeChanges(…, false)` | 174 | 压缩合并      | **必须产生**   |
 | 7   | `pull-batch.ts`      | `pullBatchOnce`            | `executor.mergeChanges(…, true)`  | 349 | `remote_sync` | **必须产生**   |
 | 8   | `pull-repository.ts` | `pullSingleRepository`     | `executor.mergeChanges(…, true)`  | 627 | `remote_sync` | **必须产生**   |
 | 9   | `cleanup-expired.ts` | `cleanupExpired`           | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
@@ -78,6 +78,8 @@
 **核对结论**：9 行符号全部存在、签名未漂移。同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记。
 
 **登记表跨两个写原语**：#1 / #3 / #4 走 `switchBranch`，其余走 `mergeChanges`。**只在 `mergeChanges` 上挂门禁会整体漏掉撤销与分支物化面。**
+
+**`mergeChanges` 那 6 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；而工作树的 `interceptMergeChanges()` 是排队拿到事务之后才取声明的。绑适配器实例时两个并发的 `mergeChanges` 会互相覆盖——先执行的取到后声明者的意图，后执行的取不到声明被当作未知入口拒绝。#2 与 #6 原先是适配器级（各自只有一次写，本不需要事务），2026-09-24 改为先开事务再按执行器声明；并发用例在 `packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`。`switchBranch` 不在此列：它在调用钩子时**同步**消费声明，声明与取用之间没有排队窗口，因此仍以适配器实例为作用域。
 
 **静态扫描跑在 `pnpm audit:callsite-drift`（`scripts/audit/working-tree-callsite-drift.mjs`）里**，扫的是整个 `packages/`——9 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync / rxdb-plugin-querycache 四个包里，只扫单个包的门禁会全绿地什么都看不见。核心包内的 chromium 测试只核对这张表与登记表逐格一致，外加「核心自身零受信写、零批量写」。**静态扫描**必须排除 `dist/`、`out-tsc/`、`**/__tests__/**`、`*.suite.ts`、`*.spec.ts`。写路径必须携带显式意图枚举（内部契约，**不进**公开 api-baseline）；未携带标记的批量重写一律按未知入口拒绝。
 

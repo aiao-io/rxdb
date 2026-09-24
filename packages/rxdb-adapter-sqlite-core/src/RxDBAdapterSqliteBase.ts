@@ -8,6 +8,7 @@ import {
   getEntityMutations,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
+  MAIN_BRANCH_ID,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
@@ -93,8 +94,38 @@ import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
-/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
-const MAIN_BRANCH_ID = 'main';
+/**
+ * 读迁移中途「重建的变更触发器该挂到哪条分支上」。
+ *
+ * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ * @returns 活动分支 id；分支表还不存在、或一行 active 都没有时返回根分支
+ *
+ * @remarks
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同一步逐语义对齐——触发器把 `branchId`
+ * 烙成 SQL 字面量，两端读法不一致就意味着同一个库换个后端打开，窗口期的裸写会记到不同分支名下。
+ *
+ * 只读 `activated`，不读 `activeKey`：后者是本次迁移**稍后**才补出来的列
+ * （见 {@link ensureBranchActiveKey}），而 `activated` 在所有受支持的旧版本里都在——
+ * 同一段迁移里的那一步也正是靠读它来决定点亮谁，所以这次读在迁移的任何中途都成立。
+ *
+ * 三种「读不到」都归根分支，且都不是兜底——它们问的不是「出错了怎么办」，而是「库里此刻有没有
+ * 这个答案」：分支表还不存在（旧库可能只有 `rxdb_migration` 与 `rxdb_change` 两张）；
+ * 分支表在但是空的；有行但零 active——零 active 的恢复目标本就是根分支，与
+ * {@link ensureBranchActiveKey} 的同名分支是同一个判断。
+ */
+const readActiveBranchIdForMigration = async (client: SqliteClientLike): Promise<string> => {
+  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch));
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return MAIN_BRANCH_ID;
+
+  const activeResult = await client.execute(
+    `SELECT "id" FROM ${quote_sql_identifier(branchTableName)} WHERE "activated" = 1 LIMIT 1`
+  );
+  const activeBranchId = activeResult.results.flatMap(result => result.rows)[0]?.[0];
+  return typeof activeBranchId === 'string' ? activeBranchId : MAIN_BRANCH_ID;
+};
 
 /**
  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
@@ -104,7 +135,9 @@ const MAIN_BRANCH_ID = 'main';
  *
  * @remarks
  * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
- * 否则同一个库换个后端打开就是另一套约束。顺序同样是**先建索引、后回填**：
+ * 否则同一个库换个后端打开就是另一套约束。**两份没有合一的判据写在那一端的 @remarks 里**
+ * （客户端协议与 DDL 方言都不同，抽完只剩骨架）；在合一之前，这里的任何改动都必须两端同改。
+ * 顺序同样是**先建索引、后回填**：
  * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
  * 但两端走不同顺序等于给自己留两条要分别验证的路径。
  *
@@ -631,17 +664,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             }
           }
 
+          // 重建的触发器必须按库此刻停在的分支写。自愈只能兜住一部分：下一个默认事务 COMMIT 时
+          // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
+          // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
+          const migrationBranchId = await readActiveBranchIdForMigration(client);
           const removeTriggersSql = remove_all_triggers_sql(this);
           if (removeTriggersSql) await client.execute(removeTriggersSql);
           for (const metadata of existingLoggedMetadata) {
-            // 这里重建触发器时固定写 `main`，而 pglite 侧（`migrate_system_schema.ts`）是先读活动分支再传——
-            // 不对称是已知的，见 `requirements/reviews/next-0912-branch-review.md` §2。这段跑在 **system schema
-            // 迁移中途**，活动分支该从哪张表按哪个 schema 版本读取决于本次迁移走到了哪一步（`activeKey` 回填
-            // 就在同一段迁移里），在能真实复现「旧库升级 + 非 main 活动分支 + 窗口期裸写」的迁移用例立起来之前，
-            // 照抄 pglite 是拿迁移顺序赌运气。现状有自愈：下一个默认事务会按真实分支重建全部触发器。
             await client.execute(
               generate_table_trigger_sql(metadata, {
-                branchId: MAIN_BRANCH_ID,
+                branchId: migrationBranchId,
                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
               })
             );

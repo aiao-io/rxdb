@@ -28,6 +28,7 @@ import {
 import { readCommitChangeSetPage, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
+import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import { installWorkingTreeCapture } from './capture-install.js';
@@ -39,6 +40,7 @@ import {
   type WorkingTreeDiscardOptions,
   type WorkingTreeDiscardResult
 } from './discard-command.js';
+import type { BranchMaterializationSource } from './materialize-branch.js';
 import {
   readActiveRestoreSession,
   restoreWorkingTree,
@@ -126,6 +128,21 @@ export type WorkingTreeEnableIfEmptyResult =
 export class WorkingTreeManager {
   readonly #rxdb: RxDB;
 
+  #materializationSource: BranchMaterializationSource | null = null;
+
+  /**
+   * 本连接登记的远端快照来源；没登记就是 `null`。
+   *
+   * @returns 见 {@link BranchMaterializationSource}
+   *
+   * @remarks
+   * 给插件的 `takeOverBranchSwitch` 读。做成只读取值器而不是公开字段：赋值只能走
+   * {@link registerMaterializationSource}，那里才有「至多一个」这条守卫。
+   */
+  get materializationSource(): BranchMaterializationSource | null {
+    return this.#materializationSource;
+  }
+
   /**
    * 由插件构造器调用，一个 RxDB 实例一个。
    *
@@ -139,6 +156,37 @@ export class WorkingTreeManager {
    */
   constructor(rxdb: RxDB) {
     this.#rxdb = rxdb;
+  }
+
+  /**
+   * 登记这条连接的远端快照来源（FR-044/049）。
+   *
+   * @param source - 见 {@link BranchMaterializationSource}
+   * @throws {@link RxDBError} 这条连接上已经登记过一个时
+   *
+   * @remarks
+   * **一条连接至多一个，重复登记硬失败。** 后来者覆盖前者的话，同一条分支会被两份互不相识的
+   * 快照各物化一次，而第二次看到的现场已经是第一次的结果；静默忽略后来者则更糟——
+   * 用户以为自己换了来源，实际拉的还是旧的那一份。两种都不报错，而登记这件事一个库只做一次，
+   * 做重了必然是接线错误。
+   *
+   * 不带对称的注销：来源是**进程内**的接线（同步层装上就一直在），不是连接纪元资源。
+   * 给它一个 `unregister` 等于允许「拉到一半来源没了」这个状态存在，而那一刻正在跑的
+   * `pages()` 拿的是已经取出来的那个引用，注销对它没有任何影响——只会让下一次续拉
+   * 以 `source_unavailable` 失败，而那半份 staging 还留在库里。
+   *
+   * 不判能力位：登记发生在装配期，而 `enable()` 可能还没调。把它挡在能力位后面等于要求
+   * 同步层去感知一件与它无关的事——真正需要能力位的是物化那条路径，而那里自己会判
+   * （见 `materialize-branch.ts` › readPrelude）。
+   */
+  registerMaterializationSource(source: BranchMaterializationSource): void {
+    if (this.#materializationSource) {
+      throw new RxDBError(
+        '这条连接已经登记过 BranchMaterializationSource 了：一条连接至多一个。' +
+          '两个来源意味着同一条分支可以被两份互不相识的快照各物化一次。'
+      );
+    }
+    this.#materializationSource = source;
   }
 
   /**
@@ -436,6 +484,13 @@ export class WorkingTreeManager {
    * 5. **提交之后补一次捕获自愈**（`#healCapture()`，理由见它自己的 @remarks）。
    *    它排在事务**外面**，与 `enable()` 里那一句同理由：装在事务里的话，
    *    捕获会开始拦截这同一笔事务余下的写。
+   * 6. **回滚之后补一次损坏闩**（`latchBranchCorruption()`）。`commit()` / `restore()` /
+   *    `discard()` 三条路径都在这笔事务里跑 `assertCommitGraphIntact()`，而命中损坏的那一笔
+   *    注定回滚——标记写在里面等于写完就没。于是三条路径各自去 catch 一次？那三份 catch
+   *    会在下一条受管成员加进来时漏掉第四份。放在唯一入口上，新成员**天然**带着这条闩。
+   *
+   * 那个 catch 只补一件事就把原错**原样**抛回去：它不认识的错误一个字都不改（`latchBranchCorruption`
+   * 自己判类型），也绝不让落标记这一步的失败顶替掉手上那个真正的错误。
    *
    * 不再经 `#runInTransaction()`，虽然前三行与它逐字相同：自愈要拿到**这一笔事务用的那个**
    * 适配器，而那个方法只交出命令体的返回值。再走一次 `localAdapter$` 可能取到另一个纪元的
@@ -454,12 +509,7 @@ export class WorkingTreeManager {
     run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
   ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
-    const result = await adapter.transaction(async executor => {
-      const info = await readCommitCapability(executor);
-      if (!info.enabled) throw new WorkingTreeCapabilityDisabledError();
-      assertSupportedCommitCapability(info);
-      return run(executor, adapter);
-    });
+    const result = await this.#runEnabledOnce(adapter, run);
     // 事务已提交，这里才自愈——理由与 `enable()` 那一句完全相同：装在事务里的话，
     // 捕获会立刻开始拦截这同一个事务余下的写。
     this.#healCapture(adapter);
@@ -495,6 +545,36 @@ export class WorkingTreeManager {
   #healCapture(adapter: IRxDBAdapter & RxDBAdapterLocalBase): void {
     if (adapter.workingTreeCaptureHook) return;
     installWorkingTreeCapture(this.#rxdb, adapter);
+  }
+
+  /**
+   * 开那笔受管事务；回滚时把损坏闩补上，再把原错原样抛回去。
+   *
+   * @param adapter - 调用方已经解析好的本纪元适配器；闩要落在**同一个**实例上
+   * @param run - 命令体
+   * @returns 命令体的返回值
+   *
+   * @remarks
+   * 拆出来只为一件事：{@link runEnabled} 的 `#healCapture()` 必须在**成功**路径上跑，
+   * 而这里的 catch 在**失败**路径上跑。写成一个 `try/catch/finally` 的话，自愈会跟着
+   * 命中损坏的那一次一起跑——那一次的事务已经回滚，自愈装上的钩子却留了下来，
+   * 时点从「提交之后」漂成了「无论提交与否」。
+   */
+  async #runEnabledOnce<T>(
+    adapter: IRxDBAdapter & RxDBAdapterLocalBase,
+    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+  ): Promise<T> {
+    try {
+      return await adapter.transaction(async executor => {
+        const info = await readCommitCapability(executor);
+        if (!info.enabled) throw new WorkingTreeCapabilityDisabledError();
+        assertSupportedCommitCapability(info);
+        return run(executor, adapter);
+      });
+    } catch (error) {
+      await latchBranchCorruption(adapter, error);
+      throw error;
+    }
   }
 
   /** 取本地适配器并开一个写事务；适配器一并交给命令体，理由见 {@link runEnabled}。 */

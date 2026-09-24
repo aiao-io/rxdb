@@ -2,6 +2,7 @@ import {
   ACTIVE_BRANCH_KEY,
   EntityLocalUpdatedEvent,
   EntityMetadata,
+  EntityType,
   getEntityMetadata,
   RxDBBranch,
   RxDBEntityLocalUpdatedEventData,
@@ -47,11 +48,32 @@ function convertResultsToPGliteExecuteResult<T>(results: Results<T>): PGliteExec
  * 却仍会触发行级 NOTIFY，异步派发成一条 `inversePatch:{}` 的裸 RxDBBranch UPDATE 事件，
  * 污染下一个用例的事件监听窗口。
  */
-export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
+export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: string): string =>
+  generateBranchTriggerSqlFor(adapter, branchId, adapter.rxdb.config.entities);
+
+/**
+ * 同 {@link generateBranchTriggerSql}，但只重挂**指定的**那几个实体
+ *
+ * @param adapter - RxDB PGlite 适配器实例
+ * @param branchId - 触发器要写入的目标分支 ID
+ * @param EntityTypes - 要重挂的实体；只有 `log !== false` 的会产出语句
+ * @returns SQL 语句字符串，用 ---STATEMENT_SEPARATOR--- 分隔；无可挂载实体时为空串
+ *
+ * @remarks
+ * 建表路径（`RxDBAdapterPGlite.createTables`）必须收窄到本次建出来的那几张表，不能图省事
+ * 走全量的 {@link generateBranchTriggerSql}：`RxDB.#ensureSystemTables` 那一趟补的是系统表，
+ * 此时 `config.entities` 里的接入方实体表可能**还没建**，对它们下发 `CREATE TRIGGER`
+ * 当场报 `relation … does not exist`，把整条 `connect()` 堵死。
+ */
+export const generateBranchTriggerSqlFor = (
+  adapter: RxDBAdapterPGlite,
+  branchId: string,
+  EntityTypes: readonly EntityType[]
+): string => {
   const sqlParts: string[] = [];
 
-  // 遍历所有实体，为启用了日志功能的实体重新生成触发器
-  adapter.rxdb.config.entities.forEach(EntityType => {
+  // 遍历给定实体，为启用了日志功能的实体重新生成触发器
+  EntityTypes.forEach(EntityType => {
     const metadata = getEntityMetadata(EntityType);
 
     // 只为启用了日志功能的实体生成触发器
@@ -79,6 +101,18 @@ export const generateBranchTriggerSql = (adapter: RxDBAdapterPGlite, branchId: s
  * @param adapter - RxDB PGlite 适配器实例
  * @param branchId - 要切换到的目标分支 ID
  * @returns SQL 语句字符串，用 ---STATEMENT_SEPARATOR--- 分隔
+ *
+ * **另一个后端有一份平行实现**（`packages/rxdb-adapter-sqlite-core/src/version/switch_branch.ts`）。
+ * 两端的**机制已经一致**（都是「先熄灭、后点亮」两条带 `RETURNING` 的 UPDATE，理由见上），
+ * 剩下的分歧只在**语句收集协议**：sqlite 侧交出语句数组（要行的调用方逐条执行，不要行的才用
+ * `join('')` 的那个变体），pglite 侧交出一整段 `---STATEMENT_SEPARATOR---` 分隔的字符串。
+ * 合一的前提是先统一这个协议，而两个适配器互不依赖、公共层该落在哪个包本身未定——
+ * 与 `version/switch-result.utils.ts` 的判定是同一件事（那两份文件的 `@fileoverview` 里写了
+ * 「抽完只剩壳」的具体理由）。顺延记录见 `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ *
+ * 在合一之前，这两条 UPDATE 的**任何**改动都必须两端同改：`activeKey` 的唯一索引是
+ * 「至多一条激活分支」的唯一机械保证（口径见 `packages/rxdb/src/system/branch.ts`），
+ * 而 `RETURNING` 少一条就意味着那一侧翻转过的行不进事件派发。
  */
 export const generateSwitchBranchSql = (adapter: RxDBAdapterPGlite, branchId: string): string => {
   const triggerSql = generateBranchTriggerSql(adapter, branchId);

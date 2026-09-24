@@ -51,8 +51,27 @@ import {
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
-/** 门面上**不**受门禁管辖的三个成员，出处是 contracts/core-api.md §1 那一句。 */
-const UNGATED_MEMBERS = ['isEnabled', 'enable', 'enableIfEmpty'] as const;
+/**
+ * 门面上**不**受门禁管辖的成员。
+ *
+ * @remarks
+ * 前三个的出处是 contracts/core-api.md §1 那一句：未启用的库上只有它们可用，
+ * 其中任一个受门禁管辖都会变成「只有启用的库才能查自己启没启用」。
+ *
+ * 后两个是**装配期接线**，不是数据库操作：同步层在 `use()` 之后、`enable()` 之前
+ * 就要把 `BranchMaterializationSource` 登记进来，而插件的 `takeOverBranchSwitch`
+ * 每次切分支都要现取它（`plugin.ts`）。挡在能力位后面等于要求同步层去感知一件与它
+ * 无关的事——真正需要能力位的是物化那条路径，而那里自己判（`materialize-branch.ts` ›
+ * readPrelude）。两个名字必须一起在名单里：只豁免登记那一个的话，取值器会被下面
+ * 「零参调用都该被拒」那条当成受管成员去 `call()`，而它取出来的是 `null`。
+ */
+const UNGATED_MEMBERS = [
+  'isEnabled',
+  'enable',
+  'enableIfEmpty',
+  'registerMaterializationSource',
+  'materializationSource'
+] as const;
 
 /**
  * 借门面自己的门禁跑一个探针命令。
@@ -326,20 +345,28 @@ describe('门禁覆盖门面上的全部成员（后续阶段自动纳管）', (
       name => name !== 'constructor' && !(UNGATED_MEMBERS as readonly string[]).includes(name)
     );
 
-  it('豁免名单恰好是 isEnabled、enable 与 enableIfEmpty', () => {
+  it('豁免名单恰好是那三个能力成员加两个装配期接线', () => {
     const own = new Set(Object.getOwnPropertyNames(WorkingTreeManager.prototype));
     // 名单长胖一格，就有一个成员永久绕过门禁。
     for (const name of UNGATED_MEMBERS) expect(own.has(name)).toBe(true);
-    expect(UNGATED_MEMBERS).toHaveLength(3);
+    expect(UNGATED_MEMBERS).toHaveLength(5);
   });
 
-  it('原型上没有非方法的自有属性——getter 绕不过门禁', () => {
-    const nonMethods = Object.getOwnPropertyNames(WorkingTreeManager.prototype).filter(name => {
+  it('受管成员里没有非方法的自有属性——getter 绕不过门禁', () => {
+    const nonMethods = gatedMemberNames().filter(name => {
       const descriptor = Object.getOwnPropertyDescriptor(WorkingTreeManager.prototype, name);
       return typeof descriptor?.value !== 'function';
     });
     // `get status()` 这样的写法在调用点看不出区别，却压根没有可以插门禁的调用时机。
     expect(nonMethods).toEqual([]);
+  });
+
+  it('唯一那个豁免取值器只读——赋值只能走 registerMaterializationSource()', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(WorkingTreeManager.prototype, 'materializationSource');
+
+    // 有 setter 的话，「一条连接至多一个」那条守卫就有了一条绕过去的路，
+    // 而绕过去之后同一条分支会被两份互不相识的快照各物化一次。
+    expect({ get: typeof descriptor?.get, set: descriptor?.set }).toEqual({ get: 'function', set: undefined });
   });
 
   it('每个受管成员在未启用的库上都以 commit_capability_disabled 拒绝（零参调用）', async () => {

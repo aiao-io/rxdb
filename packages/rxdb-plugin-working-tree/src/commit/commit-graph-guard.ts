@@ -29,7 +29,7 @@
  * 保留原 ref、不删记录、拒绝操作，是唯一诚实的处理。
  */
 
-import type { TransactionExecutor } from '@aiao/rxdb';
+import type { IRxDBAdapter, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from './change-unit.js';
 import { computeCommitContentFingerprint } from './change-unit.js';
@@ -230,6 +230,22 @@ const loadLevelStrict = async (
  * 而那时历史已经少了一截，没有任何记录说明少的是什么。
  *
  * 空分支（`headCommitId === null`）通过：刚跑完 `0004`、一次都没提交过的库就是这个状态。
+ *
+ * **每次调用都走完整可达父链，代价是 O(N)——这不是没优化，是 FR-051 的字面要求。**
+ * 四个调用点（`commit()` / `discard()` / `restore()` / switch-to）都无条件跑一遍全图，
+ * 于是每一次保存都要把整条历史的全部变更单元重哈希一遍；一万次提交的库，每次保存都付这个价。
+ * 想降量级只有一条路：在 ref 上持久化一个「最后已验证 HEAD」水位，BFS 走到水位就剪掉。
+ * 剪枝在模型内是**可靠**的（提交不可变、只追加，已验证祖先不会再变），但它剪掉的恰恰是
+ * FR-051 写明的那件事——「MUST 从每个 branch ref 遍历**完整**可达父链」——而 SC-013 要求
+ * 「HEAD 或**可达祖先**损坏时三条入口各自返回 `commit_graph_corrupted`」：水位之下的祖先
+ * 被存储层损坏（OPFS 部分写、页损坏、IDB 驱逐）之后，`commit()` 不再报它，而冷重放会把那段
+ * 坏历史照样放出来。所以这是一次**规格变更**（要同时改 FR-051 的 MUST 与 SC-013 的验收），
+ * 不是一次性能重构，不能在清理轮里顺手落地——判据与顺延记录见
+ * `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ *
+ * 同一份水位也是 `list-commits.ts` 那边「BFS 每层一次往返」的前提：`Commit` 上没有
+ * `branchId` 列，一次查回整条分支无从查起，要省掉往返得先有一份按分支存的派生结构——
+ * 与水位是同一份状态，两条必须一起改，否则状态机要扩张两遍。
  */
 export const assertCommitGraphIntact = async (executor: TransactionExecutor, branchId: string): Promise<void> => {
   const ref = await readCommitBranchRef(executor, branchId);
@@ -291,4 +307,37 @@ export const markBranchCorrupted = async (
     status: 'corrupted_read_only',
     corruptedAt: new Date()
   });
+};
+
+/**
+ * 在**另一笔事务**里把损坏标记落住；不是 {@link CommitGraphCorruptedError} 就什么都不做。
+ *
+ * @param adapter - 本纪元的本地适配器；本函数自己开事务
+ * @param error - 刚把某次操作打回去的那个错误；类型是 `unknown`，由本函数认
+ *
+ * @remarks
+ * 存在的理由是一条时序：{@link assertCommitGraphIntact} 跑在调用方那笔**注定回滚**的事务里，
+ * 而 {@link markBranchCorrupted} 要写的两列必须留得住。写在同一笔事务里的标记会跟着回滚一起
+ * 消失，于是每一次重试都重新扫一遍全图（`branch_marked_corrupted` 这条捷径永远走不到），
+ * 而「什么时候开始坏的」这个诊断永远缺席。
+ *
+ * **绝不抛出。** 两个调用点——{@link WorkingTreeManager.runEnabled} 的 catch 与
+ * `RxDBSystemContribution.settleBranchSwitchFailure`——都紧接着要把原始错误重新抛出去；
+ * 从这里抛出的任何东西都会顶替掉它，于是用户拿到的是「落标记时数据库忙」，而不是
+ * 「这条分支的历史重放不出来」。落标记是**附加**的，落不下来不改变那次操作已经失败这件事。
+ *
+ * 类型判定用 `instanceof` 而不是比 `code`：同一个码另有两条入口（见
+ * {@link CommitGraphCorruptedError} 的 @remarks），而这里要取的是 `branchId` 这个**自有属性**
+ * ——只有类型判定能把它带出来。
+ */
+export const latchBranchCorruption = async (
+  adapter: IRxDBAdapter & RxDBAdapterLocalBase,
+  error: unknown
+): Promise<void> => {
+  if (!(error instanceof CommitGraphCorruptedError)) return;
+  try {
+    await adapter.transaction(executor => markBranchCorrupted(executor, error));
+  } catch {
+    /* 见 @remarks：这一笔失败了也不能顶替掉调用方手上那个真正的错误 */
+  }
 };
