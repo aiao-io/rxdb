@@ -830,7 +830,9 @@ const plantTargetBranchRows = async (
  * 1. **复核 active token**——排在任何写入之前。写完发现不对再撤，撤销发生在事务边界之外
  *    （或者进程崩在中间）留下的是半棵切过去的工作树，而用户以为自己的操作被拒绝了。
  * 2. **判目标身份**——目标分支已经有 baseline 就停手。覆盖过去会让那条分支上已经提交的历史
- *    整段失去根；跳过则更糟——active 切过去了，而投影还是上一次物化的内容。
+ *    整段失去根；跳过则更糟——active 切过去了，而投影还是上一次物化的内容。身份按分支行上的
+ *    `local` / `remote` 重判（{@link classifyBranchMaterialization}），不只看 ref：开拉之后
+ *    被删掉又以同名本地分支重建的那条，ref 与 0004 的占位同形。
  * 3. **复核 staging**（见 {@link assertStagingUsable}）。
  * 4. **逐页物化**，排在建 baseline / 建 ref **之前**：建了 ref 再往投影里写，等于让一条
  *    「已经有根」的分支在物化中途对外可见。
@@ -857,14 +859,22 @@ export const commitBranchMaterialization = async (
     throw new StaleActiveBranchError(input.expectedActiveBranch, actual);
   }
 
-  const existingRef = await findBranchRef(executor, input.targetBranchId);
-  if (existingRef && existingRef.headCommitId !== null) {
+  // 身份按分支行重判，不沿用 prelude 的结论：两者之间隔着 `freezeIntent` 那趟网络，分支可能已被
+  // 删掉又以同名本地分支重建——无父的本地分支 HEAD 同样为空，只看 ref 会把它当 0004 占位接管。
+  // 分支行没了则由 `readBranchRow` 直接抛：放行的话两条切换 UPDATE 会把 active 清空。
+  const target = await classifyBranchMaterialization(executor, input.targetBranchId);
+  if (target.kind === 'materialized') {
+    // metadata-only 只判给「纯远端 + HEAD 为空」，所以这里 HEAD 为空就意味着它已不是纯远端分支。
+    const headCommitId = target.ref.headCommitId;
     reject(
       input,
       'target_already_materialized',
-      `它的 HEAD 已经是 ${existingRef.headCommitId}，这次物化没有位置可放。`
+      headCommitId === null ?
+        '它已经不是 metadata-only 的远端分支（多半是开拉之后被删掉、又以同名本地分支重建了），完整状态就在本机。'
+      : `它的 HEAD 已经是 ${headCommitId}，这次物化没有位置可放。`
     );
   }
+  const existingRef = await findBranchRef(executor, input.targetBranchId);
 
   const pages = await assertStagingUsable(executor, input);
   for (const page of pages) {

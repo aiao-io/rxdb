@@ -284,6 +284,11 @@ interface SceneOverrides {
   readonly stage?: StageSpec | null;
   /** 目标分支已有的 ref；`undefined` 表示没有这一行（0004 之后同步进来的那种） */
   readonly targetRef?: { readonly generation: number; readonly headCommitId: string | null };
+  /**
+   * 目标分支行此刻的 `local` / `remote`；`null` 表示这一行已经没了。缺省即 prelude 判过的那个
+   * metadata-only 远端形态——prelude 与屏障之间隔着 `freezeIntent` 那趟网络，这一行可能已经变了。
+   */
+  readonly targetBranch?: { readonly local: boolean; readonly remote: boolean } | null;
 }
 
 /**
@@ -305,10 +310,11 @@ function createScene(overrides: SceneOverrides = {}): Scene {
   });
   const applied: BranchMaterializationPage[] = [];
 
-  probe.seed(RxDBBranch, [
-    createBranchRow(entityManager, SOURCE_BRANCH_ID, true),
-    createBranchRow(entityManager, TARGET_BRANCH_ID, false)
-  ]);
+  const branches = [createBranchRow(entityManager, SOURCE_BRANCH_ID, true)];
+  if (overrides.targetBranch !== null) {
+    branches.push(Object.assign(createBranchRow(entityManager, TARGET_BRANCH_ID, false), overrides.targetBranch));
+  }
+  probe.seed(RxDBBranch, branches);
   const refs = [createRef(entityManager, SOURCE_BRANCH_ID, 1, SOURCE_HEAD_COMMIT_ID)];
   if (overrides.targetRef) {
     refs.push(
@@ -508,6 +514,37 @@ describe('九件事同属一道提交屏障（FR-044）', () => {
     // 覆盖过去会让那条分支上已经提交的历史整段失去根；跳过则更糟——active 切过去了，
     // 而投影还是上一次物化的内容。
     expect(scene.refOf(TARGET_BRANCH_ID)?.headCommitId).toBe('commit-already-there');
+    expect(scene.applied).toEqual([]);
+  });
+
+  it('目标分支开拉之后被删掉、又以同名本地分支重建时判身份不符，不接管它那行空 HEAD 的 ref', async () => {
+    // 无父的本地分支建出来 HEAD 就是空的，与 0004 的占位 ref 同形。屏障只看 ref 的话会把它
+    // 就地接管——远端快照物化到了一条本地分支上，而那条分支的完整状态本来就在本机。
+    const scene = createScene({
+      targetRef: { generation: 6, headCommitId: null },
+      targetBranch: { local: true, remote: false }
+    });
+
+    await expect(scene.commit()).rejects.toMatchObject({
+      code: CommitErrorCode.branch_not_materialized,
+      reason: 'target_already_materialized'
+    });
+
+    expect({ ...rejectionFootprintOf(scene), targetRef: scene.refOf(TARGET_BRANCH_ID)?.headCommitId }).toEqual({
+      ...untouched,
+      targetRef: null
+    });
+    expect(scene.applied).toEqual([]);
+  });
+
+  it('目标分支开拉之后被删掉、没有重建时整次拒绝，不对一条不存在的分支切 active', async () => {
+    // 放行的话两条切换 UPDATE 里第一条照常把来源分支的 active 清掉，第二条却一行都匹配不上——
+    // 库里从此没有 active 分支。
+    const scene = createScene({ targetBranch: null });
+
+    await expect(scene.commit()).rejects.toThrow(TARGET_BRANCH_ID);
+
+    expect(rejectionFootprintOf(scene)).toEqual(untouched);
     expect(scene.applied).toEqual([]);
   });
 });

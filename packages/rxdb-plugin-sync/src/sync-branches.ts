@@ -191,11 +191,14 @@ export async function syncBranches(sm: SyncManager): Promise<SyncBranchesResult>
     let created = 0;
     let updated = 0;
     const skipped: string[] = [];
-    const skipReasons: Record<string, SyncBranchSkipReason> = {};
-    // 本轮已跳过的分支 id。级联判断（下面对 `remoteParentId` 的检查）只能靠它，不能靠
-    // `localMap`——`localMap` 是本轮开始前的快照，而分支已经按父优先的拓扑序处理
+    // 本轮已跳过的分支 id → 跳过原因。级联判断（下面对 `remoteParentId` 的检查）只能靠它，
+    // 不能靠 `localMap`——`localMap` 是本轮开始前的快照，而分支已经按父优先的拓扑序处理
     // （`sortBranchesParentFirst`），父的跳过决定必然先于子被记录进这个集合。
-    const skippedThisRound = new Set<string>();
+    //
+    // 用 Map 记、返回时才经 `Object.fromEntries` 转成对象：键是远端给的分支 id，`__proto__`
+    // 过得了 id 校验。对象字面量逐键赋值会命中 `Object.prototype.__proto__` 的 setter，
+    // 改写返回对象的原型而不是添一个键；`Object.fromEntries` 建的是自有数据属性，不走 setter。
+    const skippedThisRound = new Map<string, SyncBranchSkipReason>();
 
     /**
      * 记一次跳过：本函数三处跳过点（id 不可用 / 分叉点翻译不出 / 祖先已跳过）共用同一套
@@ -205,8 +208,7 @@ export async function syncBranches(sm: SyncManager): Promise<SyncBranchesResult>
      */
     const recordSkip = (branchId: string, reason: SyncBranchSkipReason): void => {
       skipped.push(branchId);
-      skipReasons[branchId] = reason;
-      skippedThisRound.add(branchId);
+      skippedThisRound.set(branchId, reason);
     };
 
     for (const remote of sortBranchesParentFirst(remoteBranches, new Set(localMap.keys()))) {
@@ -263,6 +265,12 @@ export async function syncBranches(sm: SyncManager): Promise<SyncBranchesResult>
       created++;
     }
 
-    return { created, updated, total: remoteBranches.length, skipped, skipReasons };
+    return {
+      created,
+      updated,
+      total: remoteBranches.length,
+      skipped,
+      skipReasons: Object.fromEntries(skippedThisRound)
+    };
   });
 }

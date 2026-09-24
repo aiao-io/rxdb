@@ -225,7 +225,7 @@ interface StagingCursor {
  * 续用一份意图相同的旧 staging，没有就开一份新的。
  *
  * @remarks
- * 两条分支共用**同一笔**事务：查与开之间的缝里，另一条连接可以开出第二份意图相同的 staging，
+ * 续用与新开两条支线共用**同一笔**事务：查与开之间的缝里，另一条连接可以开出第二份意图相同的 staging，
  * 于是两份各拉一半、哪一份都封不了口。
  */
 const openStaging = async (

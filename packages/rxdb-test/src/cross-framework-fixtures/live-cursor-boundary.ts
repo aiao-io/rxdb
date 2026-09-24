@@ -8,19 +8,23 @@
  * 「数据集一变就按各自游标重切一遍」的夹具，那等价于**每次变更都回 SQL 重查**。
  * 核心只在一部分路径上这么做：
  *
- * - `merge_update` / `merge_remove` 的 `findByCursor` 分支一律回 SQL（排序键变化会挪动窗口，
- *   JS 侧算不准），所以**删除 / 重排**继续用各端原有的「重切」夹具建模，那是忠实的；
+ * - `merge_update` 的 `findByCursor` 分支受影响就回 SQL（排序键变化会挪动窗口，JS 侧算不准），
+ *   所以**重排**继续用各端原有的「重切」夹具建模，那是忠实的。`merge_remove` 平时只在 JS 里
+ *   滤掉被删的行、不补位，命中关系 where 才回 SQL；三端的**删除**用例用「重切」建模的是后者——
+ *   补位会把页尾往外推，比只缩不补更考验重锚；
  * - `merge_create` 走的是 **JS 增量合并**：新行并进页内，只裁新行、绝不裁掉本页原有的行，
  *   于是**页可以涨过 `limit` 而页尾不动**。这条由本文件的
  *   {@link mergeCreatedIntoCursorPage} 建模。
  *
  * 两条都真实存在 —— CREATE 命中关系 where、或事件比实体缓存陈旧时，`merge_create` 同样
  * 回 SQL（`query_need_refresh_create`），那时页重裁到 `limit`、页尾随之移动。
+ * 涨过 `limit` 的页也只是暂时的：之后任何一次回 SQL 都整页重裁，页尾同样会移动。
  * 三端的重锚判断必须对**两条**都正确，所以两条都要有消费者。
  *
  * 建模对象是 `packages/rxdb/src/query/merge_create.ts` 的 `clip_to_window`，
  * 其行为由核心用例 `merge_create.spec.ts`（「应该在增量场景下结果集大小超过 limit」）与
- * `review-query.regression.spec.ts` 的 `Q6` 钉住；公开契约写在 `FindByCursorOptions.limit` 上。
+ * `review-query.regression.spec.ts` 的 `Q6`（涨）/ `Q10`（涨过的页回 SQL 后重裁）钉住；
+ * 公开契约写在 `FindByCursorOptions.limit` 上。
  *
  * 放本包而不是三端各抄一份：这里装的是**语义**不是数据，抄件跑偏不会在 diff 里显形 ——
  * 而「三端对同一场景断言相反」正是这个缺陷当初能在两端潜伏的原因。
@@ -36,9 +40,18 @@ export interface CursorRowLike {
 const isAfterCursor = (candidate: CursorRowLike, cursor: CursorRowLike): boolean =>
   candidate.sort === cursor.sort ? candidate.id > cursor.id : candidate.sort > cursor.sort;
 
-/** `orderBy: [{ sort, asc }, { id, asc }]` 的比较器。 */
-const byCursorOrder = (a: CursorRowLike, b: CursorRowLike): number =>
-  a.sort === b.sort ? a.id.localeCompare(b.id) : a.sort - b.sort;
+/**
+ * `orderBy: [{ sort, asc }, { id, asc }]` 的比较器。
+ *
+ * @remarks
+ * `id` 按二进制比较，与 {@link isAfterCursor}、核心 `compareOrderValues` 和 SQLite 的 TEXT 排序同一口径；
+ * `localeCompare` 会把大小写混排的 id 排成另一种次序。
+ */
+const byCursorOrder = (a: CursorRowLike, b: CursorRowLike): number => {
+  if (a.sort !== b.sort) return a.sort - b.sort;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+};
 
 /**
  * 把新建的行按核心 `merge_create` 的 JS 增量语义并进**已经加载出来的一页**。

@@ -355,8 +355,12 @@ describe('useInfiniteScroll', () => {
     const isAfter = (candidate: CursorEntity, cursor: CursorEntity): boolean =>
       candidate.sort === cursor.sort ? candidate.id > cursor.id : candidate.sort > cursor.sort;
 
-    const byOrderBy = (a: CursorEntity, b: CursorEntity): number =>
-      a.sort === b.sort ? a.id.localeCompare(b.id) : a.sort - b.sort;
+    /** `id` 按二进制比较：与 `isAfter`、核心 `compareOrderValues`、SQLite 的 TEXT 排序和共享夹具同一口径。 */
+    const byOrderBy = (a: CursorEntity, b: CursorEntity): number => {
+      if (a.sort !== b.sort) return a.sort - b.sort;
+      if (a.id === b.id) return 0;
+      return a.id < b.id ? -1 : 1;
+    };
 
     /** 回 SQL 重查一页：按游标切片，再**恒定**裁到 limit。 */
     const sqlPage = (
@@ -372,10 +376,10 @@ describe('useInfiniteScroll', () => {
     /**
      * 单一数据集 + 每页一条按自身游标切片的活查询，数据集变化同时推给所有页。
      *
-     * 建模的是**回 SQL 重查**：核心的 `merge_update` / `merge_remove` 在 findByCursor 分支
-     * 一律如此（排序键变化会挪动窗口，JS 侧算不准），所以删除 / 重排 / 以及命中
-     * `query_need_refresh_create` 的那类 CREATE 都走这条。CREATE 的另一条路见
-     * {@link createMergingDataset}。
+     * 建模的是**回 SQL 重查**：核心的 `merge_update` 在 findByCursor 分支受影响就如此（排序键
+     * 变化会挪动窗口，JS 侧算不准），命中 `query_need_refresh_create` 的那类 CREATE、命中关系
+     * where 的 DELETE 也走这条。DELETE 平时是 JS 过滤、不补位；这里的删除用例取回 SQL 那条，
+     * 补位会把页尾往外推，更考验重锚。CREATE 的另一条路见 {@link createMergingDataset}。
      */
     const createLiveDataset = (initial: CursorEntity[]): BehaviorSubject<CursorEntity[]> => {
       const rows$ = new BehaviorSubject<CursorEntity[]>(initial);
@@ -387,8 +391,8 @@ describe('useInfiniteScroll', () => {
      * CREATE 的另一条真实路径：**JS 增量合并**，不回 SQL。
      *
      * 新行并进每一条在订阅的页，页内原有的行一条都不裁掉 —— 于是页会涨过 limit 而
-     * **页尾不动**，见 `FindByCursorOptions.limit` 的文档（「更新后的数据量就会比 limit 多 1,
-     * 第二个 FindByCursor 开头的指针是不会变的」）与核心的 `clip_to_window`。
+     * **页尾不动**，见 `FindByCursorOptions.limit` 的文档（「CREATE 的 JS 增量合并」那一条）
+     * 与核心的 `clip_to_window`。
      * 语义由 `@aiao/rxdb-test` 的 {@link mergeCreatedIntoCursorPage} 三端共用，防止各抄一份后跑偏。
      */
     const createMergingDataset = (initial: CursorEntity[]) => {

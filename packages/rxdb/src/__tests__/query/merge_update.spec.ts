@@ -860,27 +860,24 @@ describe('query_merge_update_cache', () => {
       expect(emissions).toEqual([1, 0]);
     });
 
-    it('不应该改变仍然匹配实体的计数', () => {
-      const task = createMockQueryTask({
-        type: 'count',
-        options: {
-          where: {
-            combinator: 'and',
-            rules: [{ field: 'status', operator: '=', value: 'active' }]
-          }
-        },
-        runner: () => of(8)
+    it('一直匹配、只改了无关字段的实体不应触发 SQL 重数', () => {
+      // 重数要给回与首个结果不同的值：同值会被去重，停在 [8] 分不出「没刷新」与「刷新了但数没变」，
+      // 把 count 门控退回批次级的 match_where（merge_update.ts count 分支要避免的那种）也照样绿。
+      const task = createCountTask([8, 9], {
+        combinator: 'and',
+        rules: [{ field: 'status', operator: '=', value: 'active' }]
       });
-
+      const refresh = vi.spyOn(task, 'refresh');
       const emissions = collectEmissions(task);
 
-      // Task 1 更新前后都是 active,不影响计数
+      // Task 1 更新前后都是 active，只改了 title
       const updateEvent = createMockUpdateEvent(
         { id: '1', title: 'Task 1 Updated', status: 'active' },
         { id: '1', title: 'Task 1', status: 'active' }
       );
       query_merge_update_cache(task, [updateEvent]);
 
+      expect(refresh).not.toHaveBeenCalled();
       expect(emissions).toEqual([8]);
     });
 

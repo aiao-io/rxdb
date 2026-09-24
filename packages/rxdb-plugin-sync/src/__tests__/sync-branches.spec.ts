@@ -273,6 +273,30 @@ describe('syncBranches', () => {
     });
   });
 
+  // `__proto__` 过得了 id 校验（只禁空串与 active 哨兵字符）。`skipReasons` 若是对象字面量逐键
+  // 赋值，这一键会命中 `Object.prototype.__proto__` 的 setter——改写的是返回对象的原型，
+  // 而不是添一个键：条目从 `Object.keys` / JSON 里消失，`cause` 反倒经原型链漏进 `for...in`。
+  it('id 为 __proto__ 的远端分支被跳过时，skipReasons 照常记成自有键，不改写返回对象的原型', async () => {
+    pullBranchesMock.mockResolvedValue([
+      { id: '__proto__', fromChangeId: 9042, parentId: 'main' },
+      { id: 'child-of-proto', fromChangeId: 2, parentId: '__proto__' }
+    ]);
+
+    mockBranchRepository.find.mockResolvedValue([LOCAL_MAIN]);
+    // 9042 故意不进翻译表，让 `__proto__` 走「分叉点翻译不出」跳过。
+    resolveRemoteChangeIds({ 2: 12 });
+
+    const result = await syncBranches(mockVersion);
+
+    expect(result.skipped).toEqual(['__proto__', 'child-of-proto']);
+    expect(Object.getPrototypeOf(result.skipReasons)).toBe(Object.prototype);
+    expect(Object.keys(result.skipReasons)).toEqual(['__proto__', 'child-of-proto']);
+    expect(Object.getOwnPropertyDescriptor(result.skipReasons, '__proto__')?.value).toEqual({
+      cause: 'unresolved-from-change-id'
+    });
+    expect(result.skipReasons['child-of-proto']).toEqual({ cause: 'ancestor-skipped', ancestorId: '__proto__' });
+  });
+
   it('should handle mixed scenario: new + existing + already-remote', async () => {
     pullBranchesMock.mockResolvedValue([
       { id: 'remote-only', fromChangeId: 1, parentId: 'main' },

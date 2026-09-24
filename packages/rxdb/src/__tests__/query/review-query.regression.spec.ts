@@ -162,6 +162,35 @@ describe('review query regression probes', () => {
     }
   });
 
+  it('Q10 should re-clip a grown cursor page to limit once a SQL refresh lands', () => {
+    // runner 按 SQL 语义出页：数据源已按 id 升序，取前 limit 条
+    const rows = [{ id: 'b' }, { id: 'c' }];
+    const task = createHarnessQueryTask(ReviewEntity, {
+      type: 'findByCursor',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        limit: 2,
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      },
+      runner: () => of(rows.slice(0, 2))
+    });
+    const subscription = task.result$.subscribe();
+    try {
+      rows.unshift({ id: 'a' });
+      mergeCreate(task as QueryTask<typeof ReviewEntity>, [create('a')]);
+      expect(task.result?.map(entity => entity.id)).toEqual(['a', 'b', 'c']);
+
+      // 接着 Q6：涨出来的那一行只活在 JS 增量里。之后任何一次回 SQL（这里是 UPDATE 命中页内的 b）
+      // 都整页重裁回 limit，页尾从 c 内移到 b，c 既不在本页、也不在锚着 `after c` 的下一页里。
+      // 这是契约不是缺陷：页尾本来就会随重排、删除、回 SQL 的 CREATE 移动，链式分页的消费者
+      // 必须在页尾变化时重锚下一页（三端 infinite scroll 的 commitPage 即如此）。见 FindByCursorOptions.limit。
+      mergeUpdate(task as QueryTask<typeof ReviewEntity>, [update('b', { title: 'B' }, { title: 'b' })]);
+      expect(task.result?.map(entity => entity.id)).toEqual(['a', 'b']);
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
   it('Q5 should refresh instead of incrementing a count whose snapshot may already include the row', () => {
     const task = createHarnessQueryTask(ReviewEntity, {
       type: 'count',
