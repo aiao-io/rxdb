@@ -557,6 +557,16 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
     - 冻结脚本在 M1 上：`--new-profile "x"` 以 0 跳过；不带参数以 1 拒绝并引用 §3.1；两个参数同时给出时抛错。三种情况都没写任何文件。
   - **预期中的红**：CI 画像（EPYC / Xeon）的 reference 签入之前，PR 的 benchmark job 在任何 CI CPU 上都会以 mismatch 失败，包括之前碰巧过了的 Intel。这说明门禁不再拿 M1 的数字去判 CI 机器。
   - **后续**：推注解 tag `bench-freeze/<日期>` → 下载 `working-tree-reference-slot-N` artifact → 检查 commit / runs / ratioProfile / regeneratedBecause → 签入 → 重跑 PR CI，确认 benchmark job 转绿后勾选本条。
+  - **CI 画像冻结（2026-09-25）**：PR CI run 36077337412 在 `b1337e76` 上按预期以 mismatch 失败（EPYC 7763）。同一提交先在本机 M1 画像上复跑相对门禁，四项 status 2.158 / diff 2.536 / restore 11.009 / commit 16.430 均 **✓ PASS**，满足 §3.1 前置条件，再推注解 tag `bench-freeze/2026-09-25`，冻结 run 36106968538 四个槽位全绿。签入 3 份，均为 `commit b1337e76`、`runs 10`：
+
+    | 画像（CPU）              | 槽位 | status | diff  | restore | commit | frozenAbsolute.commit |
+    | ------------------------ | ---- | ------ | ----- | ------- | ------ | --------------------- |
+    | AMD EPYC 7763 64-Core    | 1    | 2.193  | 2.500 | 11.706  | 13.890 | 726.98ms              |
+    | AMD EPYC 9V74 80-Core    | 4    | 2.045  | 2.206 | 12.027  | 14.125 | 567.89ms              |
+    | Intel(R) Xeon(R) 6973P-C | 3    | 1.772  | 1.916 | 12.779  | 15.326 | 578.08ms              |
+    - 槽位 2 同落 EPYC 9V74（status 1.992 / diff 2.366 / restore 12.103 / commit 13.977），按 workflow 约定只签一份：取先完成的槽位 4，不按数字挑。
+    - 用 run 36077337412 的 EPYC 7763 读数回放新 reference：status 2.195 ≤ 2.412、diff 2.582 ≤ 2.750、restore 12.151 ≤ 12.877、commit 14.008 ≤ 15.279，四项均过。
+    - `ubuntu-latest` 的 CPU 池至少有 4 种：本轮碰到 EPYC 7763 / EPYC 9V74 / Xeon 6973P-C，起因里的 Xeon 8573C 仍没有 reference，分到它的 PR 仍会以 mismatch 失败，需要再补冻一轮。
 
 ---
 
