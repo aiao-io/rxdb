@@ -8,14 +8,15 @@
  * 来源分支保持 active；**分页崩溃可恢复，staging 可按 attempt 清理**。
  *
  * 三个入口与 T115 的两个并排落在 `working-tree/branch-materialization.ts`（T122 的落点）：
- * `commitBranchMaterialization`、`findResumableMaterializationAttempt`、
+ * `commitBranchMaterialization`、`findLatestMaterializationAttempt`、`abortMaterializationAttempt`、
  * `discardMaterializationAttempt`。T115 已经钉了这条链的前半截（classify 与逐页 staging），
  * 本文件接的是后半截——把一份**已经落全**的 staging 变成一条能切过去的分支。
  *
- * **物化那一步由调用方注入 `applyPage`，本模块不认识业务实体。** 要写进投影的行来自
+ * **物化那一步由调用方注入 `materialize`，本模块不认识业务实体。** 要写进投影的行来自
  * 配置的 sync scope，那份登记在宿主上；本模块把它内联的话，十张系统表的知识与整个业务
  * 实体登记就绑在了一起。注入之后「完整物化排在建 baseline 之前」也才是可观测的：
- * 用例在每一次 `applyPage` 里回看库里的 commit 表与目标 ref，两者都必须还是空的。
+ * 用例在 `materialize` 里回看库里的 commit 表与目标 ref，两者都必须还是空的。
+ * 「冻结之后本地同步配置漂没漂」同样由调用方注入 `resolveIntentDrift` 来判——配置在来源方手上。
  *
  * **activation revision 的 CAS 机制归 T119**（`bumpActivationRevision`，由 T113 钉）。本文件
  * 只断言屏障的**结果**（`result.activationRevision` 是期望值 +1）与**拒绝时的零副作用**，
@@ -37,8 +38,8 @@
  *    「可按 attempt 清理」写成一条**独立**能力，清理是调用方的决定，不是判定的副作用。
  */
 
-import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
-import { ACTIVE_BRANCH_KEY, RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
+import type { BranchMaterializationPage, EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, branchMaterializationPageFingerprint, RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -48,12 +49,11 @@ import { Commit } from '../../commit/commit.entity.js';
 import { SYSTEM_COMMIT_MESSAGES } from '../../commit/write-commit.js';
 import { RxDBPluginWorkingTree } from '../../plugin.js';
 import {
-  branchMaterializationPageFingerprint,
+  abortMaterializationAttempt,
   BranchNotMaterializedError,
   commitBranchMaterialization,
   discardMaterializationAttempt,
-  findResumableMaterializationAttempt,
-  type BranchMaterializationPage
+  findLatestMaterializationAttempt
 } from '../../working-tree/branch-materialization.js';
 import {
   WORKING_TREE_ACTIVATION_STATE_ID,
@@ -256,20 +256,20 @@ interface BarrierOverrides {
   readonly expectedActiveBranch?: ActiveBranchToken;
   readonly frozenRemoteWatermark?: Record<string, unknown>;
   readonly syncScope?: readonly string[];
-  readonly applyPage?: (page: BranchMaterializationPage) => Promise<void>;
+  readonly materialize?: (pages: readonly BranchMaterializationPage[]) => Promise<void>;
+  /** 来源方对「冻结之后本地同步配置漂没漂」的判定；缺省恒答没漂 */
+  readonly resolveIntentDrift?: () => Promise<string | undefined>;
 }
 
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly executor: TransactionExecutor;
   readonly activation: WorkingTreeActivationState;
-  /** 本次调用里 `applyPage` 收到的页，按到达顺序 */
+  /** 本次调用里 `materialize` 收到的页，按到达顺序 */
   readonly applied: BranchMaterializationPage[];
   commit(overrides?: BarrierOverrides): ReturnType<typeof commitBranchMaterialization>;
-  resume(criteria?: {
-    frozenRemoteWatermark?: Record<string, unknown>;
-    syncScope?: readonly string[];
-  }): ReturnType<typeof findResumableMaterializationAttempt>;
+  latest(): ReturnType<typeof findLatestMaterializationAttempt>;
+  abort(attemptId: string): Promise<void>;
   discard(attemptId: string): Promise<void>;
   refOf(branchId: string): CommitBranchRef | undefined;
   stateOf(branchId: string): WorkingTreeState | undefined;
@@ -367,18 +367,15 @@ function createScene(overrides: SceneOverrides = {}): Scene {
         },
         frozenRemoteWatermark: barrier.frozenRemoteWatermark ?? { ...FROZEN_WATERMARK },
         syncScope: barrier.syncScope ?? SYNC_SCOPE,
-        applyPage:
-          barrier.applyPage ??
-          (async page => {
-            applied.push(page);
+        resolveIntentDrift: barrier.resolveIntentDrift ?? (async () => undefined),
+        materialize:
+          barrier.materialize ??
+          (async pages => {
+            applied.push(...pages);
           })
       }),
-    resume: (criteria = {}) =>
-      findResumableMaterializationAttempt(probe.executor, {
-        targetBranchId: TARGET_BRANCH_ID,
-        frozenRemoteWatermark: criteria.frozenRemoteWatermark ?? { ...FROZEN_WATERMARK },
-        syncScope: criteria.syncScope ?? SYNC_SCOPE
-      }),
+    latest: () => findLatestMaterializationAttempt(probe.executor, TARGET_BRANCH_ID),
+    abort: attemptId => abortMaterializationAttempt(probe.executor, attemptId),
     discard: attemptId => discardMaterializationAttempt(probe.executor, attemptId),
     refOf: branchId => rowsOf<CommitBranchRef>(CommitBranchRef).find(row => row.id === branchId),
     stateOf: branchId => rowsOf<WorkingTreeState>(WorkingTreeState).find(row => row.id === branchId),
@@ -445,8 +442,9 @@ describe('九件事同属一道提交屏障（FR-044）', () => {
       generation: scene.refOf(TARGET_BRANCH_ID)?.generation,
       entryCount: scene.stateOf(TARGET_BRANCH_ID)?.entryCount
     }).toEqual({ headCommitId: result.baselineCommitId, generation: result.generation, entryCount: 0 });
-    // 屏障的收尾三件事：切 active、推进 revision、删 staging。前两件走裸 SQL（探针不把
-    // UPDATE 作用到内存行上，形状归 T119），所以这里断言的是屏障自己交代的结果与 staging 的消失。
+    // 屏障的收尾两件事：推进 revision、删 staging。前者走裸 SQL（探针不把 UPDATE 作用到
+    // 内存行上，形状归 T119），所以这里断言的是屏障自己交代的结果与 staging 的消失。
+    // 切 active 不在屏障里：屏障跑在适配器 `switchBranch` 的 `prepare` 里，翻 active 是适配器紧随其后的那一步。
     expect(result.activationRevision).toBe(ACTIVATION_REVISION + 1);
     expect({ stages: scene.stagesOf(ATTEMPT_ID).length, pages: scene.pagesOf(ATTEMPT_ID).length }).toEqual({
       stages: 0,
@@ -468,14 +466,14 @@ describe('九件事同属一道提交屏障（FR-044）', () => {
     );
   });
 
-  it('完整物化排在建 baseline / 建 ref 之前，逐页按序交出去', async () => {
+  it('完整物化排在建 baseline / 建 ref 之前，整份按页号顺序一次交出去', async () => {
     const scene = createScene();
-    const seen: { pageIndex: number; commits: number; hasRef: boolean; stages: number }[] = [];
+    const seen: { pageIndexes: number[]; commits: number; hasRef: boolean; stages: number }[] = [];
 
     await scene.commit({
-      applyPage: async page => {
+      materialize: async pages => {
         seen.push({
-          pageIndex: page.pageIndex,
+          pageIndexes: pages.map(page => page.pageIndex),
           commits: scene.probe.rowsOf(Commit).length,
           hasRef: scene.refOf(TARGET_BRANCH_ID) !== undefined,
           stages: scene.stagesOf(ATTEMPT_ID).length
@@ -485,7 +483,8 @@ describe('九件事同属一道提交屏障（FR-044）', () => {
 
     // 建了 ref 再往投影里写，等于让一条「已经有根」的分支在物化中途对外可见；
     // 而先删 staging 再写投影，则让中途崩掉的那次既没投影也没得重试。
-    expect(seen).toEqual([0, 1, 2].map(pageIndex => ({ pageIndex, commits: 1, hasRef: false, stages: 1 })));
+    // 只调一次：来源方要整份去重压缩（同一行跨页的多次变更折成一次），逐页交它就做不到。
+    expect(seen).toEqual([{ pageIndexes: [0, 1, 2], commits: 1, hasRef: false, stages: 1 }]);
   });
 
   it('active token 过期时一个字节都不写', async () => {
@@ -602,6 +601,22 @@ describe('依据不足以 branch_not_materialized 全量回滚，来源分支保
     expect(rejectionFootprintOf(scene)).toEqual(untouched);
   });
 
+  it('来源方判出本地同步配置在冻结之后漂过时同样判漂移，一页都不交出去', async () => {
+    const scene = createScene();
+
+    const rejection = scene.commit({ resolveIntentDrift: async () => 'Note 的过滤条件变了' });
+
+    // 水位与 scope 两格对得上不等于意图没漂：过滤条件、级联关系变了，按旧意图攒的那份快照
+    // 照样不是这次切换要的。这一格只有来源方判得出，所以由它注入。
+    await expect(rejection).rejects.toMatchObject({
+      code: CommitErrorCode.branch_not_materialized,
+      reason: 'intent_drift',
+      message: expect.stringContaining('Note 的过滤条件变了')
+    });
+    expect(scene.applied).toEqual([]);
+    expect(rejectionFootprintOf(scene)).toEqual(untouched);
+  });
+
   it('被拒的是一个带成因的 BranchNotMaterializedError，不是裸 RxDBError', async () => {
     const scene = createScene({ stage: null });
 
@@ -617,32 +632,41 @@ describe('依据不足以 branch_not_materialized 全量回滚，来源分支保
 });
 
 describe('分页崩溃可恢复、staging 可按 attempt 清理（FR-044）', () => {
-  it('同一份意图的半截 attempt 判为可续用，并交回从哪一页接着拉', async () => {
+  it('半截 attempt 交回行上冻结的意图、从哪一页接着拉，以及最后一页（续拉游标在它里面）', async () => {
     const scene = createScene({ stage: { attemptId: ATTEMPT_ID, status: 'pending', pageCount: 0, pages: 2 } });
 
     // `sealed: false` 是「还要接着拉」这句话的可观测面：只断言 `nextPageIndex` 的话，
     // 一个把半截 attempt 也报成已封口的实现照样绿，而调用方会直接跳过封口走进屏障。
-    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: 2, sealed: false });
-  });
-
-  it('意图漂移过的旧 attempt 判不可续用，但**不**被顺手删掉', async () => {
-    const scene = createScene({ stage: { attemptId: ATTEMPT_ID, status: 'pending', pageCount: 0, pages: 2 } });
-
-    expect(await scene.resume({ syncScope: [...SYNC_SCOPE, 'Comment'] })).toBeNull();
-    // 「反正用不了」删掉它，等于把诊断「上一次为什么没接上」需要的 `scopeManifest` 与
-    // 那半份 payload 一起丢了。清理是 FR-044 单列的一条能力，是调用方的决定。
-    expect({ stages: scene.stagesOf(ATTEMPT_ID).length, pages: scene.pagesOf(ATTEMPT_ID).length }).toEqual({
-      stages: 1,
-      pages: 2
+    // 意图必须是**行上冻结下来的**那份：续拉用新冻结的水位，拼出来的是远端从未存在过的状态。
+    expect(await scene.latest()).toMatchObject({
+      attemptId: ATTEMPT_ID,
+      intent: { frozenRemoteWatermark: FROZEN_WATERMARK, syncScope: [...SYNC_SCOPE] },
+      nextPageIndex: 2,
+      sealed: false,
+      lastPage: { pageIndex: 1 }
     });
   });
 
-  it('已经落全的 attempt 同样可续用，接着的是收尾不是拉页', async () => {
+  it('作废过的 attempt 不再被取到，但**不**被顺手删掉', async () => {
+    const scene = createScene({ stage: { attemptId: ATTEMPT_ID, status: 'pending', pageCount: 0, pages: 2 } });
+
+    await scene.abort(ATTEMPT_ID);
+
+    expect(await scene.latest()).toBeNull();
+    // 「反正用不了」删掉它，等于把诊断「上一次为什么没接上」需要的 `scopeManifest` 与
+    // 那半份 payload 一起丢了。清理是 FR-044 单列的一条能力，是调用方的决定。
+    expect({
+      status: scene.stagesOf(ATTEMPT_ID).map(stage => stage.status),
+      pages: scene.pagesOf(ATTEMPT_ID).length
+    }).toEqual({ status: ['aborted'], pages: 2 });
+  });
+
+  it('已经落全的 attempt 同样交回，接着的是收尾不是拉页', async () => {
     const scene = createScene();
 
     // 「接着的是收尾不是拉页」逐字就是 `sealed: true`：光看 `nextPageIndex === PAGE_COUNT`
     // 分不出「已封口」与「还开着、只是刚好拉满」，而两者的下一步一个是屏障、一个是封口。
-    expect(await scene.resume()).toEqual({ attemptId: ATTEMPT_ID, nextPageIndex: PAGE_COUNT, sealed: true });
+    expect(await scene.latest()).toMatchObject({ attemptId: ATTEMPT_ID, nextPageIndex: PAGE_COUNT, sealed: true });
   });
 
   it('按 attempt 清理连页一起删净，旁观的那次一行不动', async () => {

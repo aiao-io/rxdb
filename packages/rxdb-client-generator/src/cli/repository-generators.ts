@@ -13,18 +13,6 @@ import type { IRepositoryGenerator } from '../generators/RepositoryGenerator.int
 
 const SPEC_SEPARATOR = '#';
 
-/**
- * 以用户工程为基准解析插件模块。
- *
- * @remarks
- * 锚点必须是 `process.cwd()` 而不是本文件：生成器包在 monorepo / pnpm 下常被提升到别处，
- * 以自身为锚点会解析不到用户工程里装的插件包。
- */
-const jiti = createJiti(pathToFileURL(resolve(process.cwd(), 'rxdb-client-generator.js')).href, {
-  fsCache: false,
-  moduleCache: false
-});
-
 /** 拆开后的生成器规格。 */
 export interface RepositoryGeneratorSpec {
   /** 导出生成器类的模块，可以是包名、子路径导出或绝对路径。 */
@@ -75,9 +63,25 @@ const isRepositoryGenerator = (value: unknown): value is IRepositoryGenerator =>
   return typeof candidate.name === 'string' && candidate.name.length > 0 && typeof candidate.generate === 'function';
 };
 
-const loadRepositoryGenerator = async (spec: string): Promise<IRepositoryGenerator> => {
+const loadRepositoryGenerator = async (
+  spec: string,
+  jiti: ReturnType<typeof createJiti>,
+  resolutionAnchor: string
+): Promise<IRepositoryGenerator> => {
   const { exportName, moduleSpecifier } = parseRepositoryGeneratorSpec(spec);
-  const loaded = (await jiti.import(moduleSpecifier)) as Record<string, unknown>;
+  let loaded: Record<string, unknown>;
+  try {
+    loaded = (await jiti.import(moduleSpecifier)) as Record<string, unknown>;
+  } catch (error) {
+    // jiti 装不到模块时只报 `Cannot find module '<模块>'`——既不带原始 spec 里的
+    // `#<导出名>` 后缀，也不提这是哪份配置引发的。深层 monorepo 一次跑多份配置，
+    // 或从仓库根目录跑某个子项目配置时，光凭这条消息定位不到该改哪个文件。
+    throw new Error(
+      `Failed to load repository generator ${JSON.stringify(spec)} ` +
+        `(resolved against ${resolutionAnchor}): ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
   const exported = loaded[exportName];
   if (exported === undefined) {
     throw new Error(`Repository generator ${JSON.stringify(exportName)} is not exported by ${moduleSpecifier}`);
@@ -100,14 +104,35 @@ const loadRepositoryGenerator = async (spec: string): Promise<IRepositoryGenerat
 /**
  * 按配置顺序装载生成器。
  *
+ * @remarks
+ * 裸包、包子路径导出、Node `#imports` 与相对路径统一按 `resolutionAnchor`
+ * 所在目录解析——每次调用现建一个 `jiti` 实例，不再用模块级单例：单例曾经把
+ * 「CLI 应该按配置文件解析」和「Vite 插件按宿主 cwd 解析」这两种不同语义
+ * 焊死在同一个、模块加载时就已冻结的锚点（`process.cwd()`）上，CLI 从
+ * 配置目录之外的 cwd 运行时（例如从 monorepo 根跑子项目配置、CI 传绝对
+ * 配置路径）会解析到错误的目录，报出「找不到模块」——即使模块明明装在
+ * 配置项目自己的 `node_modules` 里。现在调用方各自按自己的语义显式传入锚点，
+ * 不再共享、也不再静默兜底成某一方的猜测。
+ *
  * @param specs `repositoryGenerators` 配置项
+ * @param resolutionAnchor 模块解析锚点文件路径（不必真实存在，但其所在目录
+ *   必须是期望的解析基准目录）——CLI 传配置文件的绝对路径，Vite 插件传
+ *   调用方 cwd 下的虚构文件名（见 `plugins/vite.ts`）。装载失败时也会
+ *   写进错误信息，帮助定位是相对哪个目录解析失败的。
  * @returns 实例化后的生成器
  * @throws {Error} 规格畸形、模块装载失败、导出缺失或导出不是生成器类时抛出
  */
-export const loadRepositoryGenerators = async (specs: readonly string[]): Promise<IRepositoryGenerator[]> => {
+export const loadRepositoryGenerators = async (
+  specs: readonly string[],
+  resolutionAnchor: string
+): Promise<IRepositoryGenerator[]> => {
+  const jiti = createJiti(pathToFileURL(resolve(resolutionAnchor)).href, {
+    fsCache: false,
+    moduleCache: false
+  });
   const generators: IRepositoryGenerator[] = [];
   for (const spec of specs) {
-    generators.push(await loadRepositoryGenerator(spec));
+    generators.push(await loadRepositoryGenerator(spec, jiti, resolutionAnchor));
   }
   return generators;
 };

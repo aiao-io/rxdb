@@ -79,11 +79,11 @@ const writeSourceFile = async (root, relPath, source) => {
 // 登记表的词法解析
 // ---------------------------------------------------------------------------
 
-test('parseRegistry 从真实源码解析出 10 行登记与 7 个意图', async () => {
+test('parseRegistry 从真实源码解析出 11 行登记与 7 个意图', async () => {
   const { intents, rows } = parseRegistry(await readFile(join(PACKAGES_ROOT, REGISTRY_SOURCE_FILE), 'utf8'));
-  assert.equal(rows.length, 10);
+  assert.equal(rows.length, 11);
   assert.equal(intents.length, 7);
-  assert.equal(new Set(rows.map(registryKeyOf)).size, 10, '10 行必须是 10 个不同的登记键');
+  assert.equal(new Set(rows.map(registryKeyOf)).size, 11, '11 行必须是 11 个不同的登记键');
   assert.ok(
     rows.every(row => Number.isInteger(row.verifiedAtLine) && row.verifiedAtLine > 0),
     '每一行都要解析出存档行号——解析不到就退化成「没有行号所以没有漂移」'
@@ -332,8 +332,10 @@ test('没声明的 adapter.transaction() 不算违规：它是普通 CRUD 的正
 });
 
 test('事务体末尾自报意图的物化屏障照样逐条核对：键、符号与作用域', () => {
-  // 登记表 #10 的形状：声明写在 `adapter.transaction(async executor => {` 这个匿名箭头里，
-  // 登记键的 symbol 段取外层具名函数；作用域是那笔事务交出来的执行器。
+  // 形状取自 2026-09-26 之前的登记表 #10（今天它改走 `switchBranch`，一行 `transaction` 都不剩）：
+  // 声明写在 `adapter.transaction(async executor => {` 这个匿名箭头里，登记键的 symbol 段取外层
+  // 具名函数，作用域是那笔事务交出来的执行器。`transaction` 仍在 `TrustedWritePrimitive` 里，
+  // 这条守住扫描器对这种自报形状的核对不随那一行消失而失效。
   const row = {
     file: 'materialize-branch.ts',
     symbol: 'takeOverBranchSwitchWithMaterialization',
@@ -701,7 +703,7 @@ test('collectSourceFiles 按同一套规则过滤真实目录树', async () => {
 // 真实仓库
 // ---------------------------------------------------------------------------
 
-test('真实仓库当前没有漂移，10 行登记全部找得到', async () => {
+test('真实仓库当前没有漂移，11 行登记全部找得到', async () => {
   const result = await auditRepository({ packagesRoot: PACKAGES_ROOT });
   assert.deepEqual(result.offenders, [], result.offenders.join('\n'));
   assert.equal(result.seenKeys.size, result.registry.rows.length);

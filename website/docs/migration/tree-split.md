@@ -117,7 +117,11 @@ Repository 'TreeRepository' not found for entity 'Menu'. 已注册的仓储：Re
 
 原因和 §2 的 `use()` 是同一件：`TreeRepository` 的**构建期**代码生成器原先硬编码在
 `@aiao/rxdb-client-generator` 里，生成器包因此反向依赖插件包。现在它随插件走，
-由 `repositoryGenerators` 按 `<模块>#<导出名>` 装载（相对路径也可以，按配置文件所在目录解析）。
+由 `repositoryGenerators` 按 `<模块>#<导出名>` 装载——`<模块>` 可以是包名（如上面例子里的
+`@aiao/rxdb-plugin-tree/generator`）、包的子路径导出，也可以是相对路径，三者统一按**配置文件
+所在的项目**解析，而不是按运行 CLI 时的当前目录：从 monorepo 根目录跑某个子项目的配置、
+或 CI 传入绝对配置路径时，只要生成器包装在该配置所在项目自己的 `node_modules` 里就能找到，
+不需要 CLI 恰好从那个项目目录起跑。
 
 漏了这一行是 **fail-closed**，不会静默少生成：
 

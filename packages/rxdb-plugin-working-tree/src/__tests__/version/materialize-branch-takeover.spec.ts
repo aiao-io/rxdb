@@ -17,19 +17,32 @@
  *    分页崩溃那天才显形：崩在第 7 页，回滚的是从头行起的全部 7 页，下一次只能从 0 重来——
  *    而「崩在分页中途还留得住」正是 FR-044 给这条路径的唯一设计目标。同一个错的另一面是把
  *    `freezeIntent()` 拉进事务里：它要问远端，握着写事务不放会把整个库锁到超时。
- * 3. **续用判成了重来**。意图逐字相同的那份 staging 必须接着拉（`fromPageIndex` 不是 0），
+ * 3. **续用判成了重来**。来源方判「没漂」的那份 staging 必须接着拉（`fromPageIndex` 不是 0），
  *    已经封口的那份必须直接进屏障。猜错的两侧都会硬失败，但报出来的成因
  *    （`stage_incomplete`）说的都不是真正发生的事。
  * 4. **前置条件在物化路径上静默失效**。这次切换从此不再经过 `prepareBranchSwitch`，
- *    `requireClean` / `expectedActivationRevision` 的唯一落点就是第一段那笔只读事务——
+ *    `requireClean` / `expectedActivationRevision` 的落点是第一段那笔只读事务与屏障——
  *    漏掉之后两个选项在这条路上什么都不做，而调用方拿到的是一次「成功」的切换。
+ *
+ * 来源经 `rxdb.branchMaterializationSource()` 登记，与生产上同步插件的登记走同一个槽位；
+ * 屏障经适配器 `switchBranch()` 的 `prepare` 跑，替身的 `switchBranch` 因此照真适配器的次序
+ * 在一笔事务里 await 它。
  *
  * 场景复用 `createWorkingTreeScene()`：它布的正是「已启用能力 + 一条 active 本地 main +
  * ref + 工作树状态 + 激活态单行」。本文件只额外布**目标那条远端分支行**与各用例自己的 staging。
  */
 
-import type { RxDB, RxDBBranchSwitchTakeoverContext, RxDBSystemContribution } from '@aiao/rxdb';
-import { RxDBBranch, RxDBError } from '@aiao/rxdb';
+import type {
+  BranchMaterializationIntent,
+  BranchMaterializationPagePayload,
+  BranchMaterializationPageRequest,
+  BranchMaterializationSource,
+  RxDB,
+  RxDBBranchSwitchTakeoverContext,
+  RxDBSystemContribution,
+  SwitchVersionActions
+} from '@aiao/rxdb';
+import { branchMaterializationPageFingerprint, RxDBBranch, RxDBError } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { WORKING_TREE_CAPABILITY } from '../../capability-identity.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
@@ -37,15 +50,7 @@ import { CommitCapabilityState } from '../../commit/commit-capability-state.enti
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { CommitGraphCorruptedError } from '../../commit/commit-graph-guard.js';
 import { Commit } from '../../commit/commit.entity.js';
-import {
-  branchMaterializationPageFingerprint,
-  BranchNotMaterializedError,
-  type BranchMaterializationPagePayload
-} from '../../working-tree/branch-materialization.js';
-import type {
-  BranchMaterializationPageRequest,
-  BranchMaterializationSource
-} from '../../working-tree/materialize-branch.js';
+import { BranchNotMaterializedError } from '../../working-tree/branch-materialization.js';
 import { takeOverBranchSwitchWithMaterialization } from '../../working-tree/materialize-branch.js';
 import { WorkingTreeDirtyError } from '../../working-tree/switch-branch-options.js';
 import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
@@ -86,8 +91,10 @@ interface SourceSpy extends BranchMaterializationSource {
   readonly requests: BranchMaterializationPageRequest[];
   /** 每一页交出去的那一刻，适配器上已经开过的事务笔数 */
   readonly yieldSeenTransactions: number[];
-  /** `applyPage()` 收到的页序，按到达顺序 */
-  readonly applied: number[];
+  /** `projectPage()` 收到的页序，按到达顺序 */
+  readonly projected: number[];
+  /** `settle()` 被调的次数 */
+  readonly settled: number[];
 }
 
 /** 造来源替身时的覆盖位。 */
@@ -100,10 +107,25 @@ interface SourceOptions {
   readonly beforePage?: (pageIndex: number) => void;
   /** `freezeIntent()` 返回之前跑一次；同上 */
   readonly beforeFreeze?: () => void;
+  /** `freezeIntent()` 抛这个；`undefined` 表示不抛 */
+  readonly freezeFailure?: Error;
+  /** 来源方对一份意图的漂移判定；缺省是「水位不是本次冻结那份就算漂」 */
+  readonly driftOf?: (intent: BranchMaterializationIntent) => string | undefined;
 }
 
-/** 分页中途那次失败抛的东西；要认得出它原样穿过了编排层。 */
+/** 分页中途那次失败抛的东西；要认得出它原样挂在编排层抛出的错误上。 */
 const PAGE_FAILURE = new Error('第 2 页拉失败');
+
+/** 缺省的漂移判定：行上冻结的水位不是本次那份，就当远端配置在那之后变过。 */
+const driftByWatermark = (intent: BranchMaterializationIntent): string | undefined =>
+  intent.frozenRemoteWatermark['changeId'] === FROZEN_WATERMARK.changeId ? undefined : '冻结水位不是本次这一份';
+
+/** 来源方给第 N 页算出的投影：一条插入，键里带页号，好在 `mergeChanges` 的入参里认出来。 */
+const projectionOf = (pageIndex: number): SwitchVersionActions => ({
+  deletes: new Map(),
+  updates: new Map(),
+  inserts: new Map([[`public:Note:note-${pageIndex}`, { patch: { id: `note-${pageIndex}` }, inversePatch: null }]])
+});
 
 /**
  * 造一个记账型来源。
@@ -123,20 +145,24 @@ function createSource(scene: WorkingTreeScene, options: SourceOptions = {}): Sou
   const freezeSeenTransactions: number[] = [];
   const requests: BranchMaterializationPageRequest[] = [];
   const yieldSeenTransactions: number[] = [];
-  const applied: number[] = [];
+  const projected: number[] = [];
+  const settled: number[] = [];
+  const driftOf = options.driftOf ?? driftByWatermark;
   const openedTransactions = (): number => scene.adapter.transaction.mock.calls.length;
 
   return {
     freezeSeenTransactions,
     requests,
     yieldSeenTransactions,
-    applied,
+    projected,
+    settled,
     freezeIntent: async () => {
       freezeSeenTransactions.push(openedTransactions());
       options.beforeFreeze?.();
+      if (options.freezeFailure) throw options.freezeFailure;
       return { frozenRemoteWatermark: { ...FROZEN_WATERMARK }, syncScope: [...SYNC_SCOPE] };
     },
-    pages: request => {
+    pages: (request: BranchMaterializationPageRequest) => {
       requests.push(request);
       return (async function* () {
         for (let pageIndex = request.fromPageIndex; pageIndex < pageCount; pageIndex += 1) {
@@ -147,8 +173,13 @@ function createSource(scene: WorkingTreeScene, options: SourceOptions = {}): Sou
         }
       })();
     },
-    applyPage: async ({ page }) => {
-      applied.push(page.pageIndex);
+    resolveIntentDrift: async ({ intent }) => driftOf(intent),
+    projectPage: async ({ page }) => {
+      projected.push(page.pageIndex);
+      return projectionOf(page.pageIndex);
+    },
+    settle: async () => {
+      settled.push(openedTransactions());
     }
   };
 }
@@ -238,6 +269,12 @@ function createTakeoverScene(): WorkingTreeScene {
   siblingRef.corruptedAt = null;
   scene.probe.seed(CommitBranchRef, [siblingRef]);
 
+  // 真适配器在一笔事务里解析出目标分支、await `prepare`、再翻 active；替身照这个次序走前两步。
+  // 翻 active 走裸 SQL，探针不执行，所以第三步省掉不影响任何断言。
+  scene.adapter.switchBranch.mockImplementation(async ({ branchId, prepare }) => {
+    await scene.adapter.transaction(executor => prepare({ executor, targetBranchId: branchId ?? '' }));
+  });
+
   return scene;
 }
 
@@ -251,12 +288,20 @@ const contextOf = (
   preconditions
 });
 
-/** 跑一次接管。 */
+/**
+ * 跑一次接管；`source` 为 `null` 时这条连接上没有登记来源。
+ *
+ * @remarks
+ * 登记走 `rxdb.branchMaterializationSource()`——生产上同步插件在 `install()` 里调的就是它。
+ */
 const takeOver = (
   scene: WorkingTreeScene,
   source: BranchMaterializationSource | null,
   context: RxDBBranchSwitchTakeoverContext = contextOf()
-) => takeOverBranchSwitchWithMaterialization(scene.database, source, context);
+) => {
+  if (source) scene.database.branchMaterializationSource(source);
+  return takeOverBranchSwitchWithMaterialization(scene.database, context);
+};
 
 /** 接一次拒绝，把错误交出来。 */
 const captureRejection = async (promise: Promise<unknown>): Promise<unknown> => {
@@ -377,6 +422,19 @@ describe('该不该接管这次切换（FR-044/049）', () => {
     expect(error).toBeInstanceOf(StaleActiveBranchError);
     expect(source.freezeSeenTransactions).toEqual([]);
   });
+
+  it('拉页期间工作树变脏：屏障里再过一遍 requireClean，切换整笔回滚、staging 留着', async () => {
+    const scene = createTakeoverScene();
+    // 第一段那次判定与屏障之间隔着整趟拉页；这段时间里用户照样能编辑。只判一次的话，
+    // 调用方要的「干净才切」在这条路径上退化成「开拉那一刻干净就切」。
+    const source = createSource(scene, { beforePage: pageIndex => pageIndex === 1 && void scene.addEntry() });
+
+    const error = await captureRejection(takeOver(scene, source, contextOf(TARGET_BRANCH_ID, { requireClean: true })));
+
+    expect(error).toBeInstanceOf(WorkingTreeDirtyError);
+    expect(source.projected).toEqual([]);
+    expect(stagingOf(scene)).toEqual({ stages: 1, status: 'staged', pages: 3, pageIndexes: [0, 1, 2] });
+  });
 });
 
 describe('六段流水线各自的事务边界（FR-044）', () => {
@@ -402,11 +460,63 @@ describe('六段流水线各自的事务边界（FR-044）', () => {
       stateBranchId: TARGET_BRANCH_ID,
       baselineKind: 'branch_baseline'
     });
-    // 九件事的最后一件：本次 attempt 的 staging 清空，页与头行都不留。切 active 与推进
-    // activation revision 那两件走裸 SQL，形状由屏障自己的 spec 钉（T119）；编排这一层
-    // 只需要知道屏障**跑到了最后一步**，而 staging 的消失就是它跑完的凭据。
+    // 九件事的最后一件：本次 attempt 的 staging 清空，页与头行都不留。推进 activation
+    // revision 走裸 SQL，形状由屏障自己的 spec 钉（T119）；编排这一层只需要知道屏障
+    // **跑到了最后一步**，而 staging 的消失就是它跑完的凭据。
     expect(stagingOf(scene)).toEqual({ stages: 0, status: undefined, pages: 0, pageIndexes: [] });
-    expect(source.applied).toEqual([0, 1, 2]);
+    expect(source.projected).toEqual([0, 1, 2]);
+  });
+
+  it('屏障跑在适配器 switchBranch 的 prepare 里，投影由来源方算、按页经 mergeChanges 落下', async () => {
+    const scene = createTakeoverScene();
+    const source = createSource(scene);
+
+    await takeOver(scene, source);
+
+    // 切换只发一次，且不带动作：目标分支的投影全部在 `prepare` 里落，适配器随后只翻 active。
+    // 带着「从来源分支算出来的」动作切过去的话，那份动作是按一条还没有历史的分支算的——空的。
+    expect(scene.adapter.switchBranch).toHaveBeenCalledTimes(1);
+    const [options] = scene.adapter.switchBranch.mock.calls[0];
+    expect({
+      branchId: options.branchId,
+      actionCount: options.actions.deletes.size + options.actions.updates.size + options.actions.inserts.size
+    }).toEqual({ branchId: TARGET_BRANCH_ID, actionCount: 0 });
+    // 撤掉来源分支投影的那一批在这个场景里是空的（main 一条变更都没有），空批不发；
+    // 其余三批各一次、都关着触发器——物化出来的行不是用户的编辑，不该进变更日志。
+    const merged = (scene.probe.executor.mergeChanges as ReturnType<typeof vi.fn>).mock.calls;
+    expect(merged.map(([actions, , disableTriggers]) => [[...actions.inserts.keys()], disableTriggers])).toEqual(
+      [0, 1, 2].map(pageIndex => [[`public:Note:note-${pageIndex}`], true])
+    );
+    // `settle` 在屏障那笔事务里、全部投影落下之后跑一次：同步水位要与这份快照一起提交或一起回滚。
+    expect(source.settled).toEqual([scene.adapter.transaction.mock.calls.length]);
+  });
+
+  it('适配器没调 prepare 时不当成功：明说切换已提交而物化一页没落', async () => {
+    const scene = createTakeoverScene();
+    scene.adapter.switchBranch.mockImplementation(async () => undefined);
+
+    const error = await captureRejection(takeOver(scene, createSource(scene)));
+
+    // 这是一条适配器违约，事后已经补救不了（切换事务已经提交），能做的只有把它大声报出来。
+    expect(error).toBeInstanceOf(RxDBError);
+    expect((error as Error).message).toContain('options.prepare');
+  });
+
+  it('freezeIntent() 失败：source_failed，一行 staging 都不留，原始错误挂在 cause 上', async () => {
+    const scene = createTakeoverScene();
+    const failure = new Error('远端不可达');
+    const source = createSource(scene, { freezeFailure: failure });
+
+    const error = await captureRejection(takeOver(scene, source));
+
+    expect(error).toBeInstanceOf(BranchNotMaterializedError);
+    expect({
+      reason: (error as BranchNotMaterializedError).reason,
+      attemptId: (error as BranchNotMaterializedError).attemptId,
+      cause: (error as BranchNotMaterializedError).cause
+    }).toEqual({ reason: 'source_failed', attemptId: null, cause: failure });
+    expect(stagingOf(scene).stages).toBe(0);
+    expect(targetFootprintOf(scene)).toEqual(untouchedTarget);
   });
 
   it('freezeIntent() 跑在任何事务之外，而开头行紧跟在它之后', async () => {
@@ -440,8 +550,15 @@ describe('六段流水线各自的事务边界（FR-044）', () => {
     const scene = createTakeoverScene();
     const source = createSource(scene, { pageCount: 5, throwAtPage: 2 });
 
-    await expect(takeOver(scene, source)).rejects.toBe(PAGE_FAILURE);
+    const error = await captureRejection(takeOver(scene, source));
 
+    // 网络失败翻译成稳定的 `branch_not_materialized`，原始错误挂在 `cause` 上：调用方按错误码
+    // 分支，而「稍后重试还是放弃」要看的类型与状态码还在。
+    expect(error).toBeInstanceOf(BranchNotMaterializedError);
+    expect({
+      reason: (error as BranchNotMaterializedError).reason,
+      cause: (error as BranchNotMaterializedError).cause
+    }).toEqual({ reason: 'source_failed', cause: PAGE_FAILURE });
     // 头行仍是 `pending`，两页留着：下一次切换从第 2 页接着拉。循环体里把异常吞掉
     // 继续拉的实现会留下一份页号带洞的 staging，而洞要到封口那一刻才被发现。
     expect(stagingOf(scene)).toEqual({ stages: 1, status: 'pending', pages: 2, pageIndexes: [0, 1] });
@@ -483,14 +600,30 @@ describe('续用一份意图相同的旧 staging（FR-044）', () => {
 
     // `fromPageIndex` 这一格就是「可续拉」的全部：不给的话，续用只能从头拉一遍，而崩在
     // 第 900 页的那次尝试留下的 900 页会被原样重写——留得住也就没有意义了。
-    expect(source.requests.map(request => request.fromPageIndex)).toEqual([2]);
-    expect(source.applied).toEqual([0, 1, 2, 3]);
-    // 没有开出第二份头行：查与开共用同一笔事务，否则两份意图相同的 staging 各拉一半、
-    // 哪一份都封不了口。
-    expect(scene.adapter.transaction).toHaveBeenCalledTimes(1 + 1 + 2 + 1 + 1);
+    // 续拉请求带着上一页：来源方的游标（比如 keyset 的最后一个 id）在它的 payload 里。
+    expect(source.requests.map(request => [request.fromPageIndex, request.previousPage?.pageIndex])).toEqual([[2, 1]]);
+    expect(source.projected).toEqual([0, 1, 2, 3]);
+    // 没有开出第二份头行，也没有另开一笔去查：查 staging 在第一段那笔只读事务里。
+    // 1 只读前奏 + 2 页 + 1 封口 + 1 屏障。
+    expect(scene.adapter.transaction).toHaveBeenCalledTimes(1 + 2 + 1 + 1);
   });
 
-  it('意图不同的那份不接：另开一份，旧的原样留着', async () => {
+  it('续用沿用行上冻结的意图，不重新冻结一份', async () => {
+    const scene = createTakeoverScene();
+    seedStage(scene, { attemptId: 'attempt-old', status: 'pending', pages: 1 });
+    const source = createSource(scene, { pageCount: 2 });
+
+    await takeOver(scene, source);
+
+    // 重新冻结的水位会比行上的新，接着拉下来的后半截与已落库的前半截属于两个时刻——
+    // 拼出来的是一份从未在远端存在过的状态。续用那一刻连问都不该问。
+    expect(source.freezeSeenTransactions).toEqual([]);
+    expect(source.requests.map(request => request.intent)).toEqual([
+      { frozenRemoteWatermark: FROZEN_WATERMARK, syncScope: [...SYNC_SCOPE] }
+    ]);
+  });
+
+  it('来源方判漂移的那份不接：作废它、另开一份，旧的连页留着', async () => {
     const scene = createTakeoverScene();
     seedStage(scene, {
       attemptId: 'attempt-other-watermark',
@@ -503,14 +636,17 @@ describe('续用一份意图相同的旧 staging（FR-044）', () => {
     expect(await takeOver(scene, source)).toBe('switched');
 
     expect(source.requests.map(request => request.fromPageIndex)).toEqual([0]);
-    // 本次那份在屏障末尾被清掉，旧的那份连同它的两页原样留着——清理**带 attempt 条件**，
-    // 不带的话两张表会被清空，而「本次的没了」照样成立。
+    // 本次那份在屏障末尾被清掉，旧的那份置成 `aborted`、连同它的两页留着——下一次不会再
+    // 取到它，而诊断「上一次为什么没接上」要的 payload 与 `scopeManifest` 还在。清理**带
+    // attempt 条件**，不带的话两张表会被清空，而「本次的没了」照样成立。
     expect(stagingOf(scene)).toEqual({
       stages: 1,
-      status: 'pending',
+      status: 'aborted',
       pages: 2,
       pageIndexes: [0, 1]
     });
+    // 1 只读前奏 + 1 作废旧的 + 1 开头行 + 1 页 + 1 封口 + 1 屏障。
+    expect(scene.adapter.transaction).toHaveBeenCalledTimes(6);
   });
 
   it('已经封口的那份直接进屏障：不再拉页，也不再封一次口', async () => {
@@ -525,34 +661,9 @@ describe('续用一份意图相同的旧 staging（FR-044）', () => {
     // （`stage_incomplete`）说的都不是真正发生的事：接着拉是把新页写进一个 `staged` 的头行，
     // 再封一次口则是对一个已经封好的头行调 `requirePendingStage()`。
     expect(pages).not.toHaveBeenCalled();
-    expect(source.applied).toEqual([0, 1]);
-    // 1 只读前奏 + 1 查 staging + 1 屏障；中间那四段一段都没跑。
-    expect(scene.adapter.transaction).toHaveBeenCalledTimes(3);
-  });
-});
-
-describe('一条连接至多一个快照来源', () => {
-  it('登记之后取值器交回的就是它', () => {
-    const scene = createTakeoverScene();
-    const source = createSource(scene);
-
-    // 不判能力位：登记发生在装配期，而 `enable()` 可能还没调。挡在能力位后面等于要求
-    // 同步层去感知一件与它无关的事。
-    scene.manager.registerMaterializationSource(source);
-
-    expect(scene.manager.materializationSource).toBe(source);
-  });
-
-  it('重复登记硬失败，先登记的那个原样留着', () => {
-    const scene = createTakeoverScene();
-    const first = createSource(scene);
-    const second = createSource(scene);
-    scene.manager.registerMaterializationSource(first);
-
-    // 后来者覆盖前者的话，同一条分支会被两份互不相识的快照各物化一次，而第二次看到的
-    // 现场已经是第一次的结果；静默忽略后来者则更糟——用户以为自己换了来源，拉的还是旧那份。
-    expect(() => scene.manager.registerMaterializationSource(second)).toThrow(RxDBError);
-    expect(scene.manager.materializationSource).toBe(first);
+    expect(source.projected).toEqual([0, 1]);
+    // 1 只读前奏（含查 staging）+ 1 屏障；中间那几段一段都没跑。
+    expect(scene.adapter.transaction).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -594,10 +705,10 @@ describe('这条路径接在哪两个钩子上（plugin.ts）', () => {
   it('takeOverBranchSwitch 每次现取来源，所以装配之后才登记的那个也算数', async () => {
     const scene = createTakeoverScene();
     const contribution = contributionOf(scene);
-    // 登记发生在 `use()` 之后：同步层要等宿主装配完才拿得到 `rxdb.workingTree`。而系统贡献
-    // 这个对象是在插件的**字段初始化器**里造的，比这早得多——取一次存下来的写法在这里
-    // 永远读到 `null`，于是每一次切到远端分支都是 `source_unavailable`，而那条错还理直气壮。
-    scene.manager.registerMaterializationSource(createSource(scene));
+    // 登记发生在 `use()` 之后：同步插件在每个连接期的 `install()` 里登记，重连时换一个新的。
+    // 而系统贡献这个对象是在插件的**字段初始化器**里造的，比这早得多——取一次存下来的写法在这里
+    // 永远读到 `undefined`，于是每一次切到远端分支都是 `source_unavailable`，而那条错还理直气壮。
+    scene.database.branchMaterializationSource(createSource(scene));
 
     expect(await contribution.takeOverBranchSwitch(contextOf())).toBe('switched');
   });

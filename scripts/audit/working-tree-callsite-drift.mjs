@@ -33,7 +33,7 @@
  * **US-025 抽包之后，「登记表每一行在真实代码里找不找得到」整半边只剩这一份在守。** #1~#9 的声明
  * 搬进了 `rxdb-plugin-history`（#1~#6）与 `rxdb-plugin-sync`（#7~#9），8 处 QueryCache 批量写搬进了
  * `rxdb-plugin-querycache` 与 `rxdb-plugin-sync`——核心那份的 `import.meta.glob` 一处都看不见了。
- * 后来补登的 #10 在 `rxdb-plugin-working-tree` 里，同样只有这一份看得见。
+ * 后来补登的 #10 / #11 在 `rxdb-plugin-working-tree` 里，同样只有这一份看得见。
  * 连同搬过来的还有 `verifiedAtLine` 的核对（{@link LINE_DRIFT_TOLERANCE}）：那是原先核心独有的一条，
  * 落在这里之前它已经在抽包里漂了 471 行而无人报警。
  *
@@ -105,8 +105,9 @@ export const TRUSTED_WRITE_METHODS = Object.freeze(['switchBranch', 'mergeChange
  * @remarks
  * `transaction()` 是所有业务写的正常通道：没有声明时挂载点 1 按 `crud` 捕获，而不是按未知入口
  * 拒绝。把它并进 {@link TRUSTED_WRITE_METHODS}，{@link CALL_PATTERN} 就会把仓库里每一处
- * `adapter.transaction(` 都报成「没有 declareTrustedWrite()」。自报了意图的那几处（登记表 #10）
- * 仍然逐条过 {@link auditSource} 的声明核对，登记表里有、代码里找不到也照样在反查那一轮变红。
+ * `adapter.transaction(` 都报成「没有 declareTrustedWrite()」。自报了意图的那几处（今天登记表里
+ * 没有这样的行；原 #10 于 2026-09-26 改走 `switchBranch`）仍然逐条过 {@link auditSource} 的声明核对，
+ * 登记表里有、代码里找不到也照样在反查那一轮变红。
  *
  * 与上面三张同钉：{@link assertScannerVocabulary} 把它与 {@link TRUSTED_WRITE_METHODS} 的并集
  * 跟 `TrustedWritePrimitive` 的方法对照。

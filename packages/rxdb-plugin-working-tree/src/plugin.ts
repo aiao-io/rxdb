@@ -94,10 +94,11 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
  * 塞进类体会让插件类的形状被一段一百行的初始化器盖住，而那个类真正要说的只有
  * 「入口挂在构造器、`install()` 是空的」两句。
  *
- * 注册点里有两个**在这一刻读不到自己要的东西**：`takeOverBranchSwitch` 要的
- * `BranchMaterializationSource` 由同步层在装配之后才登记，而 `rxdb.workingTree` 本身
- * 要等插件构造器的函数体（本工厂跑在字段初始化器里，早于它）。两处都写成**调用时**
- * 才去取——取一次存下来的话，前者永远是 `null`，后者当场 `undefined`。
+ * 注册点里有两个**在这一刻读不到自己要的东西**：`takeOverBranchSwitch` 要的分支物化来源
+ * 由同步插件在每个连接纪元的 `install()` 里才登记进 `rxdb.branchMaterializationSource()`，
+ * 而 `rxdb.workingTree` 本身要等插件构造器的函数体（本工厂跑在字段初始化器里，早于它）。
+ * 两处都写成**调用时**才去取——取一次存下来的话，前者永远是 `undefined`（重连后更是旧纪元的
+ * 那一个），后者当场 `undefined`。
  */
 const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
   capability: WORKING_TREE_CAPABILITY,
@@ -149,9 +150,9 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     // 而这里手上一个执行器都没有——这正是本钩子与 `prepareBranchSwitch` 分开的理由
     // （见 {@link RxDBBranchSwitchTakeoverContext}）。
     //
-    // 来源**每次现取**：同步层在 `use()` 之后才调 `registerMaterializationSource()`，
-    // 而本工厂跑在插件的字段初始化器里，比那早得多。
-    takeOverBranchSwitchWithMaterialization(rxdb, rxdb.workingTree.materializationSource, context),
+    // 来源由它自己**每次现取**（`rxdb.getBranchMaterializationSource()`）：同步插件按连接纪元
+    // 登记与撤销，而本工厂跑在插件的字段初始化器里，比第一次登记早得多。
+    takeOverBranchSwitchWithMaterialization(rxdb, context),
   settleBranchSwitchFailure: async ({ error }) => {
     // 只认损坏这一种，其余原样放过——判类型的是 `latchBranchCorruption` 自己。
     //

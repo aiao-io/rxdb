@@ -82,6 +82,38 @@
         "kind": "type"
       },
       {
+        "name": "BranchMaterializationBarrierContext",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationIntent",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationPage",
+        "kind": "type"
+      },
+      {
+        "name": "branchMaterializationPageFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "BranchMaterializationPagePayload",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationPageRequest",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationProjectionContext",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationSource",
+        "kind": "type"
+      },
+      {
         "name": "buildOfflineWriteRepositoryRules",
         "kind": "value"
       },
@@ -91,6 +123,10 @@
       },
       {
         "name": "calculateOrderBy",
+        "kind": "value"
+      },
+      {
+        "name": "canonicalMaterializationJson",
         "kind": "value"
       },
       {

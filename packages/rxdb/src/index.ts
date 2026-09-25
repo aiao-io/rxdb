@@ -208,6 +208,9 @@ export {
   buildOfflineWriteRepositoryRules,
   buildPushableRepositoryRules
 } from './sync-contract/pushable-repository-rules.js';
+// metadata-only 分支首次物化的来源契约：同步插件实现、工作树插件消费，两者互不依赖，
+// 接口、登记槽与两端都要算出同一个值的分页指纹只能留在核心。
+export * from './sync-contract/branch-materialization-source.js';
 // 同步水位线（`RxDBSync`）的读写。核心按它判定 QueryCache 出站资格，
 // 历史插件按它记录推拉进度——同一张表、同一套解析，不能各写一份。
 export * from './sync-contract/compact-changes.js';

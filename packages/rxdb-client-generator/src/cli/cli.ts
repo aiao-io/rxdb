@@ -101,8 +101,12 @@ export async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const configs = await loadConfig(args[0]);
-  await Promise.all(configs.map(config => buildClientLibrary(config)));
+  // repositoryGenerators 里裸包/子路径/相对路径都按这份配置文件的绝对路径解析，
+  // 不再由 build-client-lib.ts 兜底猜测宿主 cwd（那是 Vite 插件没有配置文件时的语义，
+  // 见 repository-generators.ts 里 loadRepositoryGenerators 的 remarks）。
+  const configPath = resolve(args[0]);
+  const configs = await loadConfig(configPath);
+  await Promise.all(configs.map(config => buildClientLibrary(config, configPath)));
   console.log(`✅ Generated ${configs.length} client(s) from ${args[0]}`);
 }
 

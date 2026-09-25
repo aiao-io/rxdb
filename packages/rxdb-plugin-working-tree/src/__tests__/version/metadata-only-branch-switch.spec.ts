@@ -47,8 +47,15 @@
  *    判成可续用。
  */
 
-import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
-import { ACTIVE_BRANCH_KEY, RxDB, RxDBBranch, RxDBError, SyncType } from '@aiao/rxdb';
+import type { BranchMaterializationPagePayload, EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import {
+  ACTIVE_BRANCH_KEY,
+  branchMaterializationPageFingerprint,
+  RxDB,
+  RxDBBranch,
+  RxDBError,
+  SyncType
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -57,11 +64,9 @@ import { RxDBPluginWorkingTree } from '../../plugin.js';
 import {
   appendBranchMaterializationPage,
   beginBranchMaterializationStage,
-  branchMaterializationPageFingerprint,
   BranchNotMaterializedError,
   classifyBranchMaterialization,
   sealBranchMaterializationStage,
-  type BranchMaterializationPagePayload,
   type BranchMaterializationStaging
 } from '../../working-tree/branch-materialization.js';
 import {
@@ -578,7 +583,7 @@ describe('首次 switch 的独立 durable staging（FR-044）', () => {
 
     const rejection = await rejectionOf(scene.seal());
 
-    // 封口成功的话，屏障是按取回顺序逐页交给 applyPage 的——缺口那一页的内容就此静默消失，
+    // 封口成功的话，屏障是按取回顺序逐页交给 projectPage 的——缺口那一页的内容就此静默消失，
     // 物化却宣布成功。
     expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
     expect((rejection as BranchNotMaterializedError).reason).toBe('stage_tampered');

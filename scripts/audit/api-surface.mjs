@@ -399,7 +399,22 @@ const NAMING = {
     // `Readonly<…>` 这层别名在进入联合或被泛型实例化时会丢掉，展开成对底层接口的引用，
     // 届时底层接口若不能经本 barrel 命名，下游的声明发射同样退回 `packages/rxdb/src/` 的相对路径。
     // 装的是实体元数据，与提交能力毫无关系，叫 `Commit*` / `WorkingTree*` 只会是个谎。
-    'EntityMetadataType'
+    'EntityMetadataType',
+    // metadata-only 分支首次物化的来源契约（2026-09-26 评审 P1）。同步插件实现、
+    // 工作树插件消费，两者互不依赖，于是接口、登记槽与两端必须逐字相同的分页指纹只能住在核心。
+    // 理由与 `RxDBBranchSwitchTakeover` 那三项同族：核心只搬运，叫 `WorkingTree*` 会让实现方
+    // （同步插件）看起来认识工作树，而它只认识「冻结一个水位、分页交出、在屏障里结算」。
+    // `canonicalMaterializationJson` 是两端比对意图、复算指纹的同一把尺：工作树判续用、
+    // 同步插件判漂移都用它，各写一份就是两种「同一份意图」。
+    'BranchMaterializationBarrierContext',
+    'BranchMaterializationIntent',
+    'BranchMaterializationPage',
+    'BranchMaterializationPagePayload',
+    'BranchMaterializationPageRequest',
+    'BranchMaterializationProjectionContext',
+    'BranchMaterializationSource',
+    'branchMaterializationPageFingerprint',
+    'canonicalMaterializationJson'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

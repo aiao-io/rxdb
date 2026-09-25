@@ -50,8 +50,14 @@
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
+import type {
+  BranchMaterializationPage,
+  BranchMaterializationPagePayload,
+  LocalRxDBAdapter,
+  RxDB,
+  TransactionExecutor
+} from '@aiao/rxdb';
+import { branchMaterializationPageFingerprint, getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -67,20 +73,14 @@ import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/
 import type { WriteCommitOutcome } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import * as workingTreePublicSurface from '../../index.js';
-import type {
-  BranchMaterializationPage,
-  BranchMaterializationPagePayload,
-  BranchMaterializationResult,
-  BranchMaterializationStaging
-} from '../branch-materialization.js';
+import type { BranchMaterializationResult, BranchMaterializationStaging } from '../branch-materialization.js';
 import {
   appendBranchMaterializationPage,
   beginBranchMaterializationStage,
-  branchMaterializationPageFingerprint,
   BranchNotMaterializedError,
   commitBranchMaterialization,
   discardMaterializationAttempt,
-  findResumableMaterializationAttempt,
+  findLatestMaterializationAttempt,
   sealBranchMaterializationStage
 } from '../branch-materialization.js';
 import type { ChangeCaptureSource } from '../capture-runtime.js';
@@ -755,8 +755,8 @@ const countRefs = (database: RxDB, branchId: string): Promise<number> =>
  *
  * @remarks
  * 激活位与屏障在**同一个事务**里读，于是那道 CAS 必然命中——这一层把变量压到只剩「依据足不足」
- * 一个；激活态 CAS 自己由 §2.3 单独盯。`applyPage` 只记页号：投影怎么写归宿主，本套件验的是
- * 屏障的次序与收尾。
+ * 一个；激活态 CAS 自己由 §2.3 单独盯。`materialize` 只记页号：投影怎么写归来源方，本套件验的是
+ * 屏障的次序与收尾。来源方的漂移判定恒答「没漂」——漂移那条出口由单元测试单独盯。
  */
 const commitMaterialization = (
   database: RxDB,
@@ -771,8 +771,9 @@ const commitMaterialization = (
       expectedActiveBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
       frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
       syncScope: MATERIALIZATION_SCOPE,
-      applyPage: (page: BranchMaterializationPage) => {
-        applied.push(page.pageIndex);
+      resolveIntentDrift: () => Promise.resolve(undefined),
+      materialize: (pages: readonly BranchMaterializationPage[]) => {
+        applied.push(...pages.map(page => page.pageIndex));
         return Promise.resolve();
       }
     });
@@ -1790,7 +1791,8 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
       });
 
-      it('屏障成功一次：目标分支拿到 baseline 并接过 active，本次 staging 整体删除', async () => {
+      it('屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
         await injectRemoteOnlyBranch(database);
         const attemptId = uuid();
         const generationsBefore = (await withTransaction(database, readAllRefs)).map(ref => ref.generation);
@@ -1812,9 +1814,11 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(history.map(commit => commit.kind)).toEqual(['branch_baseline']);
         // 代际从单调源现发：撞上既有分支的号，两条分支的提交 CAS 与幂等键会互相命中。
         expect(generationsBefore).not.toContain(result.generation);
+        // 屏障只推代际、不翻 active：翻 active 是适配器 `switchBranch` 在 `prepare` 之后的那一步，
+        // 屏障自己翻的话，适配器随后再切一次会撞上「切到同一条分支」。
         expect({ activation: result.activationRevision, active: await activeBranchIdsOf(database) }).toEqual({
           activation: activationBefore + 1,
-          active: [REMOTE_TARGET_ID]
+          active: [sourceBranchId]
         });
         // 留着的话，下一次同一目标分支的物化会把它当成「上次崩在中途的现场」接着往下走。
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
@@ -1842,17 +1846,11 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         // 崩之前那两页**留在库里**，这正是 FR-044 说的可恢复：判不可用不等于顺手删。
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
         expect(
-          await withTransaction(database, executor =>
-            findResumableMaterializationAttempt(executor, {
-              targetBranchId: REMOTE_TARGET_ID,
-              frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-              syncScope: MATERIALIZATION_SCOPE
-            })
-          )
+          await withTransaction(database, executor => findLatestMaterializationAttempt(executor, REMOTE_TARGET_ID))
           // `sealed: false` 是这里最要紧的一格：本次崩在分页中途，头行还停在 `pending`。
           // 续用方要据此接着拉第 2 页再封口；把它读成已封口会让屏障当场判 `stage_incomplete`，
-          // 而那条错误说的不是真正发生的事（见 `ResumableMaterializationAttempt.sealed`）。
-        ).toEqual({ attemptId, nextPageIndex: 2, sealed: false });
+          // 而那条错误说的不是真正发生的事（见 `LatestMaterializationAttempt.sealed`）。
+        ).toMatchObject({ attemptId, nextPageIndex: 2, sealed: false, lastPage: { pageIndex: 1 } });
 
         await withTransaction(database, executor => discardMaterializationAttempt(executor, attemptId));
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
@@ -1880,14 +1878,8 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         // 先到的那一页原样留着，后到的那一页随自己的事务回滚：staging 没坏，重判一次就能接着拉。
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
         expect(
-          await withTransaction(database, executor =>
-            findResumableMaterializationAttempt(executor, {
-              targetBranchId: REMOTE_TARGET_ID,
-              frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-              syncScope: MATERIALIZATION_SCOPE
-            })
-          )
-        ).toEqual({ attemptId, nextPageIndex: 2, sealed: false });
+          await withTransaction(database, executor => findLatestMaterializationAttempt(executor, REMOTE_TARGET_ID))
+        ).toMatchObject({ attemptId, nextPageIndex: 2, sealed: false, lastPage: { pageIndex: 1 } });
       });
 
       it('删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败', async () => {

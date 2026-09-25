@@ -2,8 +2,8 @@
  * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、adapter-contract.md §3）。
  *
  * @remarks
- * 这个文件守的是**两张表之间的距离**：`adapter-contract.md` §3 的 10 行表格，与
- * `TRUSTED_CALLSITE_REGISTRY` 的 10 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
+ * 这个文件守的是**两张表之间的距离**：`adapter-contract.md` §3 的 11 行表格，与
+ * `TRUSTED_CALLSITE_REGISTRY` 的 11 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
  * 在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
  *
  * **US-025 抽包挪走了第三张表。** 9 处真实的 `declareTrustedWrite()` 原本就在
@@ -11,7 +11,7 @@
  * #1~#6 去了 `@aiao/rxdb-plugin-history`、#7~#9 去了 `@aiao/rxdb-plugin-sync`，8 处 QueryCache
  * 批量写去了 `@aiao/rxdb-plugin-querycache` 与 `@aiao/rxdb-plugin-sync`。vitest 的 `import.meta.glob`
  * 进不了兄弟包，于是这份测试对那两半是**结构性失明**——不是少看了几行，是一行都看不见。
- * 后来补登的 #10 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，同样看不见。
+ * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，同样看不见。
  *
  * 失明的那两半整个交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066，
  * `pnpm audit:callsite-drift`）：它跑在 node 里，扫整个 `packages/`，双向比对登记键、自报符号、
@@ -305,7 +305,7 @@ const backticked = (cell: string): string => {
   return matched[1];
 };
 
-/** §3 的 10 行，现场从契约原文解析。 */
+/** §3 的 11 行，现场从契约原文解析。 */
 const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(ADAPTER_CONTRACT, '## 3. 受信调用点登记表', '\n## 4.')
   .split('\n')
   .filter(line => line.trimStart().startsWith('|'))
@@ -471,10 +471,10 @@ const isScannedSourcePath = (path: string): boolean => {
 // ---------------------------------------------------------------------------
 
 describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
-  it('契约表格解析出 10 行，与登记表长度一致', () => {
-    expect(CONTRACT_ROWS).toHaveLength(10);
+  it('契约表格解析出 11 行，与登记表长度一致', () => {
+    expect(CONTRACT_ROWS).toHaveLength(11);
     expect(TRUSTED_CALLSITE_REGISTRY).toHaveLength(CONTRACT_ROWS.length);
-    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
   it('文件、符号、写原语、存档行号逐格相同，顺序也相同', () => {
@@ -510,32 +510,31 @@ describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('登记表只用三个写原语：switchBranch 绑适配器，mergeChanges 一律绑执行器，transaction 只有物化屏障一行', () => {
+  it('登记表只用两个写原语：switchBranch 绑适配器，mergeChanges 一律绑执行器', () => {
     // `adapter.mergeChanges` 一行都不该剩。声明存在一个 WeakMap 里，每个作用域只存一条，
     // 而 `interceptMergeChanges()` 是排队拿到事务之后才取声明的——绑适配器实例时两个并发的
     // `mergeChanges` 会互相覆盖（`rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`）。
     // `switchBranch` 不在此列：它在调用钩子时同步消费声明，没有排队窗口。
     expect([...new Set(TRUSTED_CALLSITE_REGISTRY.map(row => row.writePrimitive))].sort()).toEqual([
       'adapter.switchBranch',
-      'adapter.transaction',
       'executor.mergeChanges'
     ]);
     const viaSwitchBranch = TRUSTED_CALLSITE_REGISTRY.filter(row => row.writePrimitive === 'adapter.switchBranch');
     expect(viaSwitchBranch.map(row => row.symbol)).toEqual([
       'switchBranch',
       'invalidateRedoStack',
-      'applyUndoRedoHistories'
+      'applyUndoRedoHistories',
+      'switchWithMaterialization'
     ]);
-    // 没声明的 `transaction()` 是普通 CRUD，所以这一列里的 `transaction` 只该出现在自报了意图的
-    // 那一处：metadata-only 接管路径的物化屏障。多出一行就是有人给普通事务发了一张受信票。
-    const viaTransaction = TRUSTED_CALLSITE_REGISTRY.filter(row => row.writePrimitive === 'adapter.transaction');
-    expect(viaTransaction.map(row => row.symbol)).toEqual(['takeOverBranchSwitchWithMaterialization']);
+    // metadata-only 接管路径的物化不再自己开事务切 active（原 #10 走 `adapter.transaction`）：
+    // 它发起一次 `switchBranch`（#10），屏障在那次切换的 `prepare` 里经执行器落投影（#11）。
+    // `adapter.transaction` 重新出现在这一列，就是有人又给一笔普通事务发了受信票。
   });
 });
 
 describe('核心自身既不受信写，也不批量写', () => {
   it('核心源码里一处 declareTrustedWrite 都没有', () => {
-    // 10 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
+    // 11 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
     // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先过 §3。
     expect(DECLARED_CALLSITES.map(declared => `${declared.path}:${declared.line}`)).toEqual([]);
   });
@@ -588,7 +587,7 @@ describe('核心自身既不受信写，也不批量写', () => {
 });
 
 describe('登记键：文件 + 符号 + 意图', () => {
-  it('10 行 10 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
+  it('11 行 11 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
     const keys = TRUSTED_CALLSITE_REGISTRY.map(trustedCallsiteKey);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys[4]).not.toBe(keys[5]);

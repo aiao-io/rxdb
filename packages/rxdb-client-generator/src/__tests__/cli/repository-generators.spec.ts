@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import buildClientLibrary from '../../cli/build-client-lib.js';
-import { loadConfig } from '../../cli/cli.js';
+import { loadConfig, main } from '../../cli/cli.js';
 import { parseRepositoryGeneratorSpec } from '../../cli/repository-generators.js';
 
 const FIXTURE_MODULE = fileURLToPath(new URL('../fixtures/geo-repository-generator.ts', import.meta.url));
@@ -229,5 +230,144 @@ describe('loadConfig 归一化 repositoryGenerators', () => {
     );
 
     await expect(loadConfig(configPath)).rejects.toThrow(/repositoryGenerators must be a string array/);
+  });
+});
+
+describe('CLI 在配置目录之外的 cwd 装载 repositoryGenerators（跨 cwd 集成测试）', () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map(dir => rm(dir, { force: true, recursive: true })));
+  });
+
+  /**
+   * 造一个「配置项目」：生成器包只装在**该项目自己的** `node_modules` 里，不落进仓库真正的
+   * `node_modules`——测试进程的 cwd（仓库根 / 包目录）因此天然就在配置目录之外，不需要
+   * `process.chdir()` 就能复现评审报告的场景（从 monorepo 根目录跑子项目配置 / CI 传绝对配置路径）。
+   */
+  const setupOutsideCwdProject = async (): Promise<{ tempDir: string; pkgName: string; outDir: string }> => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'rxdb-client-generator-outside-cwd-'));
+    tempDirs.push(tempDir);
+    // 包名带随机后缀：避免和仓库真正 node_modules 里任何已装包撞名，
+    // 撞名会让「只能从配置目录解析」这个前提失去意义。
+    const pkgName = `rxdb-cg-fixture-${randomUUID().replaceAll('-', '')}`;
+
+    const pkgDir = path.join(tempDir, 'node_modules', pkgName);
+    await mkdir(pkgDir, { recursive: true });
+    await writeFile(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({
+        name: pkgName,
+        version: '1.0.0',
+        type: 'module',
+        // 根导出 + 子路径导出：分别对应规格里「裸包」与「包子路径」两种写法。
+        exports: { '.': './index.js', './sub': './sub.js' }
+      }),
+      'utf8'
+    );
+    await writeFile(
+      path.join(pkgDir, 'index.js'),
+      "export class RootRepositoryGenerator {\n  name = 'RootRepo';\n  generate() {}\n}\n",
+      'utf8'
+    );
+    await writeFile(
+      path.join(pkgDir, 'sub.js'),
+      "export class SubRepositoryGenerator {\n  name = 'SubRepo';\n  generate() {}\n}\n",
+      'utf8'
+    );
+    await writeFile(
+      path.join(tempDir, 'local-generator.js'),
+      "export class LocalRepositoryGenerator {\n  name = 'LocalRepo';\n  generate() {}\n}\n",
+      'utf8'
+    );
+
+    const entityDir = path.join(tempDir, 'entities');
+    await mkdir(entityDir, { recursive: true });
+    await writeFile(
+      path.join(entityDir, 'Thing.ts'),
+      `
+        import { Entity } from '@aiao/rxdb';
+
+        @Entity({ name: 'Thing', properties: [] })
+        class Thing {}
+      `,
+      'utf8'
+    );
+
+    return { tempDir, pkgName, outDir: path.join(tempDir, 'generated') };
+  };
+
+  /** 把 `repositoryGenerators` 写进一份最小可用配置，其余字段固定。 */
+  const writeConfig = async (tempDir: string, repositoryGenerators: string[]): Promise<string> => {
+    const configPath = path.join(tempDir, 'rxdb.config.ts');
+    await writeFile(
+      configPath,
+      [
+        'export default {',
+        "  entities: ['./entities/*.ts'],",
+        "  outDir: './generated',",
+        `  repositoryGenerators: ${JSON.stringify(repositoryGenerators)}`,
+        '};'
+      ].join('\n'),
+      'utf8'
+    );
+    return configPath;
+  };
+
+  /** 像真正的 bin 脚本一样，通过 `process.argv` 驱动 CLI 的可编程入口 `main()`。 */
+  const runCli = async (configPath: string): Promise<void> => {
+    const originalArgv = process.argv;
+    process.argv = ['node', 'rxdb-client-generator', configPath];
+    try {
+      await main();
+    } finally {
+      process.argv = originalArgv;
+    }
+  };
+
+  const pathExists = async (filePath: string): Promise<boolean> => {
+    try {
+      await access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  it('裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载', async () => {
+    const { tempDir, pkgName, outDir } = await setupOutsideCwdProject();
+    const configPath = await writeConfig(tempDir, [
+      `${pkgName}#RootRepositoryGenerator`,
+      `${pkgName}/sub#SubRepositoryGenerator`,
+      './local-generator.js#LocalRepositoryGenerator'
+    ]);
+
+    // 前提断言：不手动 chdir，测试进程的 cwd 本来就不是配置目录——
+    // 和评审报告「从仓库根跑子项目配置」是同一件事，这里不需要额外模拟。
+    expect(path.resolve(process.cwd())).not.toBe(path.resolve(tempDir));
+
+    await runCli(configPath);
+
+    expect(await pathExists(path.join(outDir, 'index.d.ts'))).toBe(true);
+  });
+
+  it('缺包时的错误信息同时包含原始 spec 字符串与配置文件路径', async () => {
+    const { tempDir } = await setupOutsideCwdProject();
+    const missingSpec = 'this-package-does-not-exist-anywhere#MissingExport';
+    const configPath = await writeConfig(tempDir, [missingSpec]);
+
+    await runCli(configPath).then(
+      () => {
+        throw new Error('main() 本该因为找不到这个包而 reject');
+      },
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(Error);
+        const message = (error as Error).message;
+        // 只报 jiti 原生的 "Cannot find module" 排查不出是哪份配置的哪一条
+        // repositoryGenerators 引发的——尤其是深层 monorepo 里一次跑多份配置时。
+        expect(message).toContain(missingSpec);
+        expect(message).toContain(configPath);
+      }
+    );
   });
 });

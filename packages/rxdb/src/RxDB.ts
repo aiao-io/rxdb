@@ -63,6 +63,7 @@ import {
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
+import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
 import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
@@ -131,6 +132,16 @@ export class RxDB {
    * 配置都是合法的应用形态），合并成一槽会逼着两个插件互相依赖。
    */
   #query_cache_outbox: QueryCacheOutboxProvider | undefined;
+
+  /**
+   * metadata-only 分支的首次物化来源 —— 由 `@aiao/rxdb-plugin-sync` 经
+   * {@link RxDB.branchMaterializationSource} 填入。
+   *
+   * @remarks
+   * 工作树插件切到 metadata-only 分支时来这里取。两个插件互不依赖，这一格是它们唯一的会合点；
+   * 一条连接至多一个来源，见 {@link RxDB.branchMaterializationSource}。
+   */
+  #branch_materialization_source: BranchMaterializationSource | undefined;
 
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
@@ -756,6 +767,40 @@ export class RxDB {
   }
 
   /**
+   * 登记 metadata-only 分支的首次物化来源
+   *
+   * @param source - 物化来源，见 {@link BranchMaterializationSource}
+   * @param scope - 传入时，本次登记会随作用域释放而撤销；不传则永久有效
+   * @throws Error 这条连接上已经登记了另一个来源
+   *
+   * @remarks
+   * 形状与 {@link RxDB.queryCacheOutbox} 相同（身份守卫撤销、写槽放在 `setup` 里），多一道
+   * 冲突检查：一条连接**至多一个**来源。两个来源意味着同一条分支可以被两份互不相识的快照
+   * 各物化一次，所以后到的那个当场抛错，而不是静默顶掉前一个；同一个来源重复登记是幂等的。
+   *
+   * 官方同步插件在每个连接期的 `install` 里登记：断连时随作用域撤销，重连时重新登记，
+   * 重复 `use()` 由插件去重、走不到第二次登记。业务代码不需要调它。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+   *
+   * rxdb.use(rxDBPluginSync); // 装配时自动登记
+   * ```
+   */
+  public branchMaterializationSource(source: BranchMaterializationSource, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#assign_branch_materialization_source(source);
+      return this;
+    }
+    scope.acquire(() => {
+      this.#assign_branch_materialization_source(source);
+      return () => this.#unregister_branch_materialization_source(source);
+    }, 'rxdb:branch-materialization-source');
+    return this;
+  }
+
+  /**
    * 注册 adapter
    * @param adapterName - 适配器名称
    * @param adapter - 适配器工厂函数
@@ -908,6 +953,19 @@ export class RxDB {
    */
   getQueryCacheOutbox(): QueryCacheOutboxProvider | undefined {
     return this.#query_cache_outbox;
+  }
+
+  /**
+   * 取已登记的首次物化来源
+   *
+   * @returns 装了同步插件且处于连接期时是来源本身，否则 `undefined`
+   *
+   * @remarks
+   * `undefined` 交给工作树插件去抛 `branch_not_materialized`（`source_unavailable`）——
+   * 点名哪条分支这一层不知道。
+   */
+  getBranchMaterializationSource(): BranchMaterializationSource | undefined {
+    return this.#branch_materialization_source;
   }
 
   /**
@@ -1647,6 +1705,21 @@ export class RxDB {
   #unregister_query_cache_outbox(provider: QueryCacheOutboxProvider): void {
     if (this.#query_cache_outbox !== provider) return;
     this.#query_cache_outbox = undefined;
+  }
+
+  /** 写入物化来源槽；已被另一个来源占着时抛错（一条连接至多一个）。 */
+  #assign_branch_materialization_source(source: BranchMaterializationSource): void {
+    const current = this.#branch_materialization_source;
+    if (current !== undefined && current !== source) {
+      throw new Error('[RxDB] 这条连接已经登记了一个分支物化来源；一条连接至多一个，先撤销前一个再登记。');
+    }
+    this.#branch_materialization_source = source;
+  }
+
+  /** 撤销 {@link RxDB.branchMaterializationSource} 的一次登记，按来源对象身份守卫。 */
+  #unregister_branch_materialization_source(source: BranchMaterializationSource): void {
+    if (this.#branch_materialization_source !== source) return;
+    this.#branch_materialization_source = undefined;
   }
 
   /**

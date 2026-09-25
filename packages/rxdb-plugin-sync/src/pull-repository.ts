@@ -432,7 +432,7 @@ async function pullCascadeNode(
  *
  * @internal
  */
-function resolveCascadeFilter(
+export function resolveCascadeFilter(
   repoKey: string,
   repoMetadata: EntityMetadata,
   repoSyncType: RepositorySyncType,

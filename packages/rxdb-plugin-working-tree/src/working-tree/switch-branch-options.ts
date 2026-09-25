@@ -146,8 +146,8 @@ export const assertSwitchTargetIntact = async (
       null,
       'source_unavailable',
       '这条分支本地只有 metadata，切过去要先把远端快照物化成本地历史；' +
-        '本次切换没有经过 takeOverBranchSwitch——这条连接没有登记 BranchMaterializationSource，' +
-        '或者调用方绕开了 rxdb.switchBranch()。'
+        '本次切换没有经过 takeOverBranchSwitch——这条连接上没有分支物化来源' +
+        '（官方来源由 @aiao/rxdb-plugin-sync 在装配时登记），或者调用方绕开了 rxdb.switchBranch()。'
     );
   }
   await assertCommitGraphIntact(executor, targetBranchId);

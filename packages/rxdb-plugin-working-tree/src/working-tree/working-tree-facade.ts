@@ -40,7 +40,6 @@ import {
   type WorkingTreeDiscardOptions,
   type WorkingTreeDiscardResult
 } from './discard-command.js';
-import type { BranchMaterializationSource } from './materialize-branch.js';
 import {
   readActiveRestoreSession,
   restoreWorkingTree,
@@ -128,21 +127,6 @@ export type WorkingTreeEnableIfEmptyResult =
 export class WorkingTreeManager {
   readonly #rxdb: RxDB;
 
-  #materializationSource: BranchMaterializationSource | null = null;
-
-  /**
-   * 本连接登记的远端快照来源；没登记就是 `null`。
-   *
-   * @returns 见 {@link BranchMaterializationSource}
-   *
-   * @remarks
-   * 给插件的 `takeOverBranchSwitch` 读。做成只读取值器而不是公开字段：赋值只能走
-   * {@link registerMaterializationSource}，那里才有「至多一个」这条守卫。
-   */
-  get materializationSource(): BranchMaterializationSource | null {
-    return this.#materializationSource;
-  }
-
   /**
    * 由插件构造器调用，一个 RxDB 实例一个。
    *
@@ -156,37 +140,6 @@ export class WorkingTreeManager {
    */
   constructor(rxdb: RxDB) {
     this.#rxdb = rxdb;
-  }
-
-  /**
-   * 登记这条连接的远端快照来源（FR-044/049）。
-   *
-   * @param source - 见 {@link BranchMaterializationSource}
-   * @throws {@link RxDBError} 这条连接上已经登记过一个时
-   *
-   * @remarks
-   * **一条连接至多一个，重复登记硬失败。** 后来者覆盖前者的话，同一条分支会被两份互不相识的
-   * 快照各物化一次，而第二次看到的现场已经是第一次的结果；静默忽略后来者则更糟——
-   * 用户以为自己换了来源，实际拉的还是旧的那一份。两种都不报错，而登记这件事一个库只做一次，
-   * 做重了必然是接线错误。
-   *
-   * 不带对称的注销：来源是**进程内**的接线（同步层装上就一直在），不是连接纪元资源。
-   * 给它一个 `unregister` 等于允许「拉到一半来源没了」这个状态存在，而那一刻正在跑的
-   * `pages()` 拿的是已经取出来的那个引用，注销对它没有任何影响——只会让下一次续拉
-   * 以 `source_unavailable` 失败，而那半份 staging 还留在库里。
-   *
-   * 不判能力位：登记发生在装配期，而 `enable()` 可能还没调。把它挡在能力位后面等于要求
-   * 同步层去感知一件与它无关的事——真正需要能力位的是物化那条路径，而那里自己会判
-   * （见 `materialize-branch.ts` › readPrelude）。
-   */
-  registerMaterializationSource(source: BranchMaterializationSource): void {
-    if (this.#materializationSource) {
-      throw new RxDBError(
-        '这条连接已经登记过 BranchMaterializationSource 了：一条连接至多一个。' +
-          '两个来源意味着同一条分支可以被两份互不相识的快照各物化一次。'
-      );
-    }
-    this.#materializationSource = source;
   }
 
   /**

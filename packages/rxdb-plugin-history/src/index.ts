@@ -46,13 +46,16 @@ export type { PushInFlightSession } from './push-inflight.js';
 export type { SyncHistoryBridge } from './sync-history-bridge.js';
 
 // ---------------------------------------------------------------------------
-// 以下四项只为 `@aiao/rxdb-plugin-working-tree` 而导出，全部标了 `@internal`：
+// 以下六项只为 `@aiao/rxdb-plugin-working-tree` 而导出，全部标了 `@internal`：
 // 工作树插件的 commit 迁移（`commit/enable-migration.ts`）要在放行一条分支之前，
-// 先按 `switchBranch` 的同一口径问两件事——「父链自不自洽」与「这条分支现在停在哪」。
-// 迁移期另写一条同义查询，迟早会在「回滚标记算不算」或「排序列是哪一个」上与切换路径
-// 分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支（research.md R11）。
+// 先按 `switchBranch` 的同一口径问两件事——「父链自不自洽」与「这条分支现在停在哪」；
+// 它的物化屏障（`working-tree/materialize-branch.ts`）要在切换事务里按同一口径撤掉
+// 来源分支的投影，手上只有事务执行器的仓库。另写一条同义查询，迟早会在「回滚标记算不算」
+// 或「排序列是哪一个」上与切换路径分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支
+// （research.md R11），或物化后留下一截来源分支的数据。
 // 两包之间只有 `dist` 一条路，没有深路径可走，所以从桶里出。应用代码不该引用它们。
 // ---------------------------------------------------------------------------
 export { find_branch_path_to_root, find_switch_branch_step } from './find-switch-branch-step.js';
 export type { SwitchBranchStep } from './find-switch-branch-step.js';
-export { get_branch_max_change } from './switch-branch-actions.js';
+export { compute_switch_branch_actions, get_branch_max_change } from './switch-branch-actions.js';
+export type { SwitchBranchActionReaders } from './switch-branch-actions.js';

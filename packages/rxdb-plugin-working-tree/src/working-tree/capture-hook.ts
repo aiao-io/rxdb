@@ -18,7 +18,7 @@
  * `switch_branch()` 内部直接调 `adapter.transaction()`（还要在前后各刷一次变更管道），
  * 嵌进一个已开的事务就是等自己占着的队列槽位。所以 `switchBranch` 的捕获是**后继事务**，
  * 与业务写之间存在一个崩溃窗口——这是 adapter-contract.md §5 的一处已知偏离，仅影响
- * 登记表第 4 行（undo/redo）：第 1、3 行是 `projection_rewrite`，本来就不产生单元。
+ * 登记表第 4 行（undo/redo）：第 1、3、10 行是 `projection_rewrite`，本来就不产生单元。
  */
 
 import type {
@@ -536,11 +536,11 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @throws {@link WorkingTreeWriteRejectedError} 两个作用域上都没有声明时
    *
    * @remarks
-   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9，全是 `mergeChanges`）
-   * 把声明放在 executor 上，适配器级调用（#1/#3/#4，全是 `switchBranch`）放在适配器上。
+   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11，全是 `mergeChanges`）
+   * 把声明放在 executor 上，适配器级调用（#1/#3/#4/#10，全是 `switchBranch`）放在适配器上。
    * 反过来先问适配器的话，一次适配器级声明会被紧随其后的事务内写取走。
-   * #10（接管路径的物化屏障）虽然也绑在 executor 上，却不经过这里：它是 `transaction()`
-   * 事务体末尾的自报，由挂载点 1 在事务体返回后取走。
+   * 接管路径的物化正是两者叠在一起的那一处：#10 由挂载点 3 在调 `prepare` **之前**同步取走，
+   * 屏障里的每一批 #11 再由挂载点 2 各自当场取走，两张声明互不相碰。
    */
   #requireEntrance(executor: TransactionExecutor | undefined, method: string): WriteEntrance {
     const declared = this.#takeDeclaration(executor);

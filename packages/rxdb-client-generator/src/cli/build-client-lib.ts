@@ -185,7 +185,13 @@ const writeOutputs = (outDir: string, outputs: OutputFile[]): void => {
   }
 };
 
-const buildOnce = async (options: RxDBClientCLIentGeneratorOptions): Promise<void> => {
+const buildOnce = async (
+  options: RxDBClientCLIentGeneratorOptions,
+  // 默认值在调用时才求值，不是模块加载时冻结的单例——没有配置文件概念的调用方
+  // （这里默认走 Vite 插件既有语义）仍按宿主 cwd 解析，但每次调用各自现算，
+  // 不再是一处全局单例同时服务两种不同语义的调用方。
+  repositoryGeneratorAnchor: string = resolve(process.cwd(), 'rxdb-client-generator.js')
+): Promise<void> => {
   const {
     entities,
     outDir: configuredOutDir,
@@ -204,7 +210,7 @@ const buildOnce = async (options: RxDBClientCLIentGeneratorOptions): Promise<voi
   }
 
   // 装载放在读文件之前：插件规格写错要在任何分析开销之前炸出来
-  const loadedGenerators = await loadRepositoryGenerators(repositoryGenerators);
+  const loadedGenerators = await loadRepositoryGenerators(repositoryGenerators, repositoryGeneratorAnchor);
   const files = await findFiles(entities, { allowEmpty });
   const project = createAnalysisProject(files);
   const generator = new RxDBClientGenerator(generatorOptions);
@@ -250,8 +256,19 @@ const resolveQueueKey = (outDir: string): string => {
   }
 };
 
-/** 生成客户端文件，并按输出目录串行化并发构建。 */
-const buildClientLibrary = (options: RxDBClientCLIentGeneratorOptions): Promise<void> => {
+/**
+ * 生成客户端文件，并按输出目录串行化并发构建。
+ *
+ * @param options 构建配置
+ * @param repositoryGeneratorAnchor `repositoryGenerators` 里裸包/子路径/相对路径的解析锚点。
+ *   CLI 入口（见 `cli.ts` 的 `main`）会显式传入配置文件的绝对路径；省略时按 Vite 插件的
+ *   既有语义回退到宿主 cwd——两者的差异正是本参数存在的原因，调用方必须按自己的场景显式选择，
+ *   不应该指望某个隐藏的全局锚点替自己做对。
+ */
+const buildClientLibrary = (
+  options: RxDBClientCLIentGeneratorOptions,
+  repositoryGeneratorAnchor: string = resolve(process.cwd(), 'rxdb-client-generator.js')
+): Promise<void> => {
   const queueKey = resolveQueueKey(options.outDir);
   const previous = outputQueues.get(queueKey) ?? Promise.resolve();
   let release: () => void;
@@ -262,7 +279,7 @@ const buildClientLibrary = (options: RxDBClientCLIentGeneratorOptions): Promise<
 
   return previous.then(async () => {
     try {
-      await buildOnce(options);
+      await buildOnce(options, repositoryGeneratorAnchor);
     } finally {
       release();
       if (outputQueues.get(queueKey) === next) {

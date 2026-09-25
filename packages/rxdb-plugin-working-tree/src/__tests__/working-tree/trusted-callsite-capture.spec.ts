@@ -60,21 +60,22 @@ const CONTRACT_PRODUCES_ENTRY: readonly boolean[] = sectionOf(ADAPTER_CONTRACT, 
 
 describe('adapter-contract.md §3 第 7 列：产生工作树单元', () => {
   it('这一列由矩阵算出，不从登记表字段里读', () => {
-    // 前置：契约那张表确实解析出了 10 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
-    // 全绿——被守住的就从「10 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
+    // 前置：契约那张表确实解析出了 11 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
+    // 全绿——被守住的就从「11 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
     expect(CONTRACT_PRODUCES_ENTRY).toHaveLength(TRUSTED_CALLSITE_REGISTRY.length);
     const computed = TRUSTED_CALLSITE_REGISTRY.map(row => producesWorkingTreeEntry(row));
     expect(computed).toEqual(CONTRACT_PRODUCES_ENTRY);
   });
 
-  it('不产生单元的恰好是 #1 分支物化、#3 redo 失效与 #10 接管路径的物化屏障', () => {
+  it('不产生单元的恰好是 #1 分支物化、#3 redo 失效与 #10 / #11 接管路径的分支物化', () => {
     const notProducing = TRUSTED_CALLSITE_REGISTRY.filter(row => !producesWorkingTreeEntry(row)).map(
       row => `${row.file}·${row.symbol}`
     );
     expect(notProducing).toEqual([
       'VersionManager.ts·switchBranch',
       'HistoryManager.ts·invalidateRedoStack',
-      'materialize-branch.ts·takeOverBranchSwitchWithMaterialization'
+      'materialize-branch.ts·switchWithMaterialization',
+      'materialize-branch.ts·applyMaterializedActions'
     ]);
   });
 });

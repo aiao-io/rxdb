@@ -142,10 +142,11 @@ export interface RxDBBranchSwitchContext {
  *
  * @remarks
  * 与 {@link RxDBBranchSwitchContext} 的差别只有一处，而那一处决定了两个钩子的分工：
- * **这里没有 `executor`**。接管方要做的事（拉远端快照、逐页落库、最后自己切 active）
- * 一件都塞不进那次切换事务——网络 I/O 握着写事务不放会把整个库锁到超时，而逐页落库的
- * 全部意义就是「崩在中途也留得住」，与「同生共死」正相反。所以接管方自己开事务，
- * 开几个、怎么切，核心不管。
+ * **这里没有 `executor`**。接管方要做的前两件事（拉远端快照、逐页落库）塞不进任何一次
+ * 切换事务——网络 I/O 握着写事务不放会把整个库锁到超时，而逐页落库的全部意义就是
+ * 「崩在中途也留得住」，与「同生共死」正相反。所以接管方先在事务外把它们做完，最后一步
+ * 再由它自己发起 `adapter.switchBranch()`，把提交屏障放进那次切换的 `prepare` 里——
+ * 物化与切 active 同一个事务，要么都落、要么都不落。
  */
 export interface RxDBBranchSwitchTakeoverContext {
   /** 当前分支 id；一条 active 分支都没有时为 `null` */
@@ -368,16 +369,18 @@ export interface RxDBSystemContribution {
    * 远端分支只有 metadata，第一次切过去要先把远端快照拉下来物化成本地历史（FR-044/049），
    * 而那条流水线的三段——预取、分页落库、提交屏障——没有一段能跑在
    * {@link RxDBSystemContribution.prepareBranchSwitch} 里：预取是网络 I/O，分页落库要求每页
-   * 各自可提交，而屏障最后那一步**自己就是在切 active**。
+   * 各自可提交，而屏障必须与切 active 落在同一个事务里，只能由接管方自己发起那次切换。
    *
-   * 于是分工是：接管方把这次切换**整个**做完（含切 active），核心这边跳过普通路径，只补上
-   * 与切换无关的记账（redo 栈、undo 视图、`SwitchBranchCommitEvent`）。
+   * 于是分工是：接管方把这次切换**整个**做完（含自己调 `adapter.switchBranch()`、把屏障放进
+   * 它的 `prepare`），核心这边跳过普通路径，只补上与切换无关的记账（redo 栈、undo 视图、
+   * `SwitchBranchCommitEvent`）。
    *
    * **第一个答 `'switched'` 的就是最后一个**：核心问到它为止，后面的贡献方一个都不再问。
    * 两个贡献方都接管等于 active 被切两次，而第二次看到的现场已经是第一次的结果。
    *
-   * 跑在 `adapter.switchBranch()` **之外**，因此它自己开的事务与那次切换不同生共死：
-   * 接管失败要自己把现场收干净（staging 是按 attempt 可清理的，见 FR-044），核心不会替它回滚。
+   * 预取与分页落库跑在切换事务**之外**，与那次切换不同生共死：接管失败时已落库的 staging
+   * 留给下一次续用（按 attempt 可续、可作废，见 FR-044），核心不会替它回滚；屏障那一段则随
+   * 切换事务一起回滚，active 仍停在原处。
    *
    * 名字里是 `takeOver` 而不是 `beforeSwitch`：`before*` 读起来像一个不改变主流程的前置钩子，
    * 而这个钩子的返回值**决定主流程还跑不跑**。

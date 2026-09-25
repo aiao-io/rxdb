@@ -107,6 +107,40 @@ import { WORKING_TREE_CAPTURE_MOUNT_POINTS, isWorkingTreeCaptureMountPoint } fro
 
 同时新增 `WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS`：`installWorkingTreeCapture()` / `uninstallWorkingTreeCapture()` 装卸时遍历的就是它，于是「注册表少一行」与「有个写原语没被包住」从此是同一件事，而不再是一份没人调用的自述。
 
+## 7. 分支物化来源由同步插件自动登记
+
+`metadata_only` 分支（`syncBranches()` 拉下来、本地还没有数据的分支）第一次 `switchBranch()` 要从远端物化快照。此前这份来源要调用方自己实现 `BranchMaterializationSource` 并调 `db.workingTree.registerMaterializationSource()` 登记，而生产代码里没有任何人登记它——结果是 `syncBranches()` 之后的第一次切换恒抛 `BranchNotMaterializedError`（`source_unavailable`）。
+
+现在 `@aiao/rxdb-plugin-sync` 在每个连接纪元的 `install()` 里自动登记来源、断开时撤销，**同时 `use()` 了同步插件与本插件就够了**，不需要任何手动接线：
+
+```typescript
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
+
+db.use(rxDBPluginHistory);
+db.use(rxDBPluginSync);
+db.use(rxDBPluginWorkingTree);
+await db.connect('sqlite-wasm');
+
+await db.syncManager.syncBranches();
+await db.versionManager.switchBranch('feature'); // 首次切换即物化
+```
+
+随之变化的公开面：
+
+| 旧（`@aiao/rxdb-plugin-working-tree`）                                  | 新                                                                                                     |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `db.workingTree.registerMaterializationSource(source)`                  | 删除；自定义来源改用 `db.branchMaterializationSource(source, scope?)`                                  |
+| `db.workingTree.materializationSource`                                  | 删除；读取用 `db.getBranchMaterializationSource()`                                                     |
+| `BranchMaterializationSource` / `BranchMaterializationIntent`           | 移到 `@aiao/rxdb`，成员改为 `freezeIntent` / `pages` / `resolveIntentDrift` / `projectPage` / `settle` |
+| `BranchMaterializationPagePayload` / `BranchMaterializationPageRequest` | 移到 `@aiao/rxdb`                                                                                      |
+| `branchMaterializationPageFingerprint`                                  | 移到 `@aiao/rxdb`（算法不变）                                                                          |
+| `BranchMaterializationApplyContext`                                     | 删除；由 `BranchMaterializationBarrierContext` / `BranchMaterializationProjectionContext` 取代         |
+| `takeOverBranchSwitchWithMaterialization`                               | 删除；插件已经在 `takeOverBranchSwitch` 里接好，经 `switchBranch()` 触发                               |
+
+来源槽一条连接**至多一个**：装了同步插件的库槽位已经被它占住，再调 `db.branchMaterializationSource()` 会抛错。只有不装同步插件、自带远端的应用才需要自己实现并登记。`BranchNotMaterializedError` 与 `BranchNotMaterializedReason` 仍从本包导出，失败时来源分支保持 active、已拉的页留在 staging，下次切换接着续传。
+
 ## 参考
 
 - [工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)：完整用法与 API
