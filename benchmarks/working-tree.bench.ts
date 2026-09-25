@@ -37,10 +37,14 @@
  *
  * **门禁**（契约 §3）：
  *
- * - 相对门禁：各项 ratio ≤ 冻结 reference median 的 110%。reference 文件存在即执行，
- *   这是 PR CI 的**唯一**硬门禁。reference 还没冻结时打印提示并以 0 退出——首个绿色实现
- *   得先跑出数字，T097 才有东西可冻。
- * - 绝对门禁：只在 `--release` 下评估，且只在 `runnerProfileHash` 与 reference 相等时。
+ * - 相对门禁：各项 ratio ≤ **与本机同比值画像**的那份 reference median 的 110%，这是 PR CI 的
+ *   **唯一**硬门禁。画像 = 系统/架构 + CPU 型号 + Node 主版本；为什么 ratio 只能在同画像内比，
+ *   见 `working-tree-gate.ts`。三种结局：
+ *   - 一份 reference 都没冻结：打印提示并以 0 退出——首个绿色实现得先跑出数字，T097 才有东西可冻。
+ *   - 有 reference 但没有同画像的：以 `benchmark_environment_mismatch` 失败，不降级为通过；
+ *     补冻方法见失败时打印的提示。
+ *   - 有同画像的：逐项比。
+ * - 绝对门禁：只在 `--release` 下评估，且只在 `runnerProfileHash` 与同画像 reference 相等时。
  *   profile 对不上时以 `benchmark_environment_mismatch` 失败，**既不伪装成性能回归，也不
  *   降级为通过**（契约 §3.2 的原话）。
  *
@@ -51,9 +55,7 @@
  * @see specs/001-working-tree-commits/tasks.md T095、T109
  */
 
-import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { availableParallelism, cpus, hostname, totalmem, type } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import type { IRxDBAdapter, RxDBAdapterLocalBase, UUID } from '@aiao/rxdb';
@@ -74,6 +76,8 @@ import {
   restoreWorkingTreeFixture,
   seedWorkingTreeFixture
 } from './working-tree-fixture.ts';
+import type { RatioVerdict, RelativeGateDecision } from './working-tree-gate.ts';
+import { collectEnvironment, decideRelativeGate, readReferences, selectReference } from './working-tree-gate.ts';
 import type {
   BenchEnvironment,
   BenchMeasurement,
@@ -84,8 +88,7 @@ import {
   ABSOLUTE_BUDGET_MS,
   ENVIRONMENT_MISMATCH_CODE,
   LATEST_PATH,
-  REFERENCE_PATH,
-  RELATIVE_GATE_TOLERANCE,
+  REFERENCE_DIR,
   RESTORE_ABSOLUTE_BUDGET_MS,
   SAMPLES,
   SCHEMA_VERSION,
@@ -97,61 +100,6 @@ const timed = async (operation: () => Promise<unknown>): Promise<number> => {
   const start = performance.now();
   await operation();
   return performance.now() - start;
-};
-
-// ---------------------------------------------------------------------------
-// 运行环境
-// ---------------------------------------------------------------------------
-
-/**
- * 由环境七字段算出 profile hash。
- *
- * @param environment - 除 `runnerProfileHash` 外的七个字段
- * @returns 64 位十六进制摘要
- *
- * @remarks
- * 按固定顺序逐行喂而不是 `JSON.stringify` 整个对象：后者的键序由对象字面量的书写顺序决定，
- * 将来有人调整字段顺序就会让同一台机器算出新 hash，而绝对门禁会把它读成「换了 runner」。
- */
-const computeRunnerProfileHash = (environment: Omit<BenchEnvironment, 'runnerProfileHash'>): string =>
-  createHash('sha256')
-    .update(
-      [
-        `runtime=${environment.runtime}`,
-        `os=${environment.os}`,
-        `cpuModel=${environment.cpuModel}`,
-        `logicalCores=${environment.logicalCores}`,
-        `memoryBytes=${environment.memoryBytes}`,
-        `runnerId=${environment.runnerId}`,
-        `concurrency=${environment.concurrency}`
-      ].join('\n')
-    )
-    .digest('hex');
-
-/**
- * 采集当前运行环境。
- *
- * @returns 见 {@link BenchEnvironment}
- *
- * @remarks
- * `runnerId` 优先取 CI 注入的 runner 名，退回到主机名——固定性能 runner 上前者稳定，
- * 开发机上后者稳定，两者都稳定正是 profile hash 能当准入判据的前提。
- *
- * `memoryBytes` 取物理内存而不是进程堆：换一台内存规格不同的机器，PGlite 的页缓存行为
- * 就不是同一件事，而绝对门禁的合法性依赖「这台机器与冻结时那台是同一种」。
- */
-const collectEnvironment = (): BenchEnvironment => {
-  const cpuList = cpus();
-  const base = {
-    runtime: `node ${process.versions.node}`,
-    os: `${type()} ${process.platform} ${process.arch}`,
-    cpuModel: cpuList[0]?.model ?? 'unknown',
-    logicalCores: cpuList.length,
-    memoryBytes: totalmem(),
-    runnerId: process.env.RUNNER_NAME ?? process.env.HOSTNAME ?? hostname(),
-    concurrency: availableParallelism()
-  };
-  return { ...base, runnerProfileHash: computeRunnerProfileHash(base) };
 };
 
 // ---------------------------------------------------------------------------
@@ -531,57 +479,50 @@ const runMeasurements = async (
 // ---------------------------------------------------------------------------
 
 /**
- * 读冻结的 reference。
+ * 打印相对门禁的逐项判定（契约 §3.1）；判定本身见 `decideRelativeGate`。
  *
- * @returns 文件不存在时返回 `null`
- * @throws 读到了但解析失败时向上抛——一个坏掉的 reference 必须让门禁红，不能当成「没冻结」
+ * @param verdicts - 同画像 reference 下的逐项判定
  */
-const readReference = async (): Promise<BenchReference | null> => {
-  const raw = await readFile(REFERENCE_PATH, 'utf8').catch((error: NodeJS.ErrnoException) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
-  if (raw === null) return null;
-  return JSON.parse(raw) as BenchReference;
+const printRelativeVerdicts = (verdicts: readonly RatioVerdict[]): void => {
+  console.log('\n[bench:working-tree] === 相对门禁（PR CI 唯一硬门禁）===');
+  for (const verdict of verdicts) {
+    if (verdict.referenceRatio === null || verdict.budget === null) {
+      console.log(`  [${verdict.id}] reference 里没有这一项 → ✗ FAIL（新增测点必须先重新冻结 reference）`);
+      continue;
+    }
+    console.log(
+      `  [${verdict.id}] ratio=${verdict.ratio.toFixed(3)} ` +
+        `(reference median=${verdict.referenceRatio.toFixed(3)}, 上限=${verdict.budget.toFixed(3)}) → ` +
+        (verdict.passed ? '✓ PASS' : '✗ FAIL')
+    );
+  }
 };
 
 /**
- * 相对门禁：各项 ratio ≤ reference median 的 110%（契约 §3.1）。
+ * 打印「没有同画像 reference」的失败说明与补冻方法。
  *
- * @param measurements - 本次测量
- * @param reference - 冻结的 reference
- * @returns 全部通过返回 `true`
+ * @param decision - `mismatch` 分支
  *
  * @remarks
- * reference 里缺某个测点时判**失败**而不是跳过：新增测点（如 T109 的 `restore`）必须
- * 伴随一次重新冻结，静默跳过等于让新测点在没有基线的情况下长期不设防。
+ * 不拿别的画像的 reference 凑合着判：那正是 CI run 36070569734 红掉的原因——EPYC 上的 `status`
+ * 拿 M1 的 median 去比。也不当成通过：CI 大多数时候恰恰跑在还没冻结过的 CPU 上。
  */
-const evaluateRelativeGate = (measurements: readonly BenchMeasurement[], reference: BenchReference): boolean => {
-  console.log('\n[bench:working-tree] === 相对门禁（PR CI 唯一硬门禁）===');
-  let passed = true;
-  for (const measurement of measurements) {
-    const referenceRatio = reference.medianRatios[measurement.id];
-    if (referenceRatio === undefined) {
-      console.log(`  [${measurement.id}] reference 里没有这一项 → ✗ FAIL（新增测点必须先重新冻结 reference）`);
-      passed = false;
-      continue;
-    }
-    const budget = referenceRatio * RELATIVE_GATE_TOLERANCE;
-    const ok = measurement.ratio <= budget;
-    if (!ok) passed = false;
-    console.log(
-      `  [${measurement.id}] ratio=${measurement.ratio.toFixed(3)} ` +
-        `(reference median=${referenceRatio.toFixed(3)}, 上限=${budget.toFixed(3)}) → ${ok ? '✓ PASS' : '✗ FAIL'}`
-    );
-  }
-  return passed;
+const printProfileMismatch = (decision: Extract<RelativeGateDecision, { kind: 'mismatch' }>): void => {
+  console.error(
+    `\n[bench:working-tree] ${ENVIRONMENT_MISMATCH_CODE}: 本机画像「${decision.profile}」没有冻结的 reference。\n` +
+      `[bench:working-tree] 已冻结的画像：${decision.known.map(profile => `「${profile}」`).join('、')}\n` +
+      '[bench:working-tree] ratio 只在同画像内可比，相对门禁不在此机上评估，也不降级为通过。\n' +
+      '[bench:working-tree] 补冻（所在提交须先在已冻结画像上过相对门禁，契约 §3.1）：\n' +
+      '[bench:working-tree]   CI：推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`，或手动触发 bench-freeze workflow；\n' +
+      '[bench:working-tree]   本机：node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"'
+  );
 };
 
 /**
  * 绝对门禁：只在 `--release` 且 profile 匹配时评估（契约 §3.2）。
  *
  * @param measurements - 本次测量
- * @param reference - 冻结的 reference
+ * @param reference - 与本机同画像的 reference
  * @param environment - 本次运行环境
  * @returns 全部通过返回 `true`
  *
@@ -638,10 +579,15 @@ const archiveReport = async (report: WorkingTreeBenchReport): Promise<void> => {
   console.log(`\n[bench:working-tree] 报告已写入 → ${LATEST_PATH}`);
 };
 
-/** 跑完一次完整 benchmark 并返回报告。 */
-const runBenchmark = async (): Promise<WorkingTreeBenchReport> => {
+/**
+ * 跑完一次完整 benchmark 并返回报告。
+ *
+ * @param references - 已冻结的全部 reference；报告里只记与本机同画像的那一份
+ */
+const runBenchmark = async (references: readonly BenchReference[]): Promise<WorkingTreeBenchReport> => {
   const environment = collectEnvironment();
   console.log(`[bench:working-tree] ${environment.runtime} / ${environment.cpuModel} / ${environment.os}`);
+  console.log(`[bench:working-tree] ratioProfile=${environment.ratioProfile}`);
   console.log(`[bench:working-tree] runnerProfileHash=${environment.runnerProfileHash}`);
 
   const plan = buildWorkingTreeFixturePlan();
@@ -670,14 +616,16 @@ const runBenchmark = async (): Promise<WorkingTreeBenchReport> => {
     environment,
     sampling: { warmup: WARMUP, samples: SAMPLES },
     measurements,
-    reference: await readReference()
+    reference: selectReference(references, environment.ratioProfile)
   };
 };
 
 /** `--release` 打开绝对门禁；`--no-gate` 只产数字不判定，供 T097 的冻结脚本使用。 */
 const releaseMode = process.argv.includes('--release');
 const gatingDisabled = process.argv.includes('--no-gate');
-const report = await runBenchmark();
+// 先读 reference 再开跑：坏掉的 reference 应该在第一秒让门禁变红，而不是在六七分钟之后。
+const references = await readReferences(REFERENCE_DIR);
+const report = await runBenchmark(references);
 
 console.log('\n[bench:working-tree] === 测量 ===');
 for (const measurement of report.measurements) {
@@ -698,17 +646,24 @@ if (gatingDisabled) {
   process.exit(0);
 }
 
-if (report.reference === null) {
+const decision = decideRelativeGate(references, report.environment.ratioProfile, report.measurements);
+if (decision.kind === 'unfrozen') {
   console.log(
-    '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference.json）——' +
+    '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
       '本次只产出数字，不做门禁判定。冻结见 tasks.md T097。'
   );
   process.exit(0);
 }
+if (decision.kind === 'mismatch') {
+  printProfileMismatch(decision);
+  console.log('\n[bench:working-tree] 总判定：✗ FAIL');
+  process.exit(1);
+}
 
-const relativePassed = evaluateRelativeGate(report.measurements, report.reference);
+printRelativeVerdicts(decision.verdicts);
+const relativePassed = decision.passed;
 const absolutePassed =
-  releaseMode ? evaluateAbsoluteGate(report.measurements, report.reference, report.environment) : true;
+  releaseMode ? evaluateAbsoluteGate(report.measurements, decision.reference, report.environment) : true;
 if (!releaseMode) console.log('\n[bench:working-tree] 绝对门禁未评估（非 --release）。');
 
 const overall = relativePassed && absolutePassed;

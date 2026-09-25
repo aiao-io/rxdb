@@ -103,7 +103,8 @@ export default defineConfig(() => ({
     environment: 'node',
     testTimeout: 5000,
     hookTimeout: 5000,
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.spec.mjs'],
+    // 根目录的 *.spec.ts 是 `--experimental-strip-types` 脚本共用的纯模块的测试（如 working-tree-gate.ts）
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.spec.mjs', '*.spec.ts'],
     coverage: {
       enabled: false,
       reportsDirectory: '../coverage/benchmarks',

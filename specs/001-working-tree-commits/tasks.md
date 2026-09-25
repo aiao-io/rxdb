@@ -534,6 +534,29 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - 「不是新增危险面」这半句是**核过的**而不是抄任务文本：`git show v0.0.24:…/migration.ts` 与 `v0.0.25` 同处都是 `RXDB_SYSTEM_SCHEMA_VERSION = 3` 且守卫逐字节同形——当年 2 → 3 对停在 2 的客户端就是同一个拒绝。epic-006 改的是数字与撞上它的人数，不是机制。
   - 明确写了**不提供缓解措施**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，那正是 fail-closed 要挡的；说明里给出的动作只有「升级客户端」一个。
   - `node scripts/audit/requirements-consistency.mjs` 在改动后仍是 `✅ 60 Done / 1 In Progress / 4 In Review / 3 Backlog / 0 Blocked，合计 68`。
+- [ ] T134 `bench-working-tree` 相对门禁按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分别冻结 reference，找不到同画像的判 `benchmark_environment_mismatch`，不降级为通过。**代码与本机锚点已完成；CI 画像的 reference 签入后勾选**
+  - **起因**：PR CI 在 `6fc5c665` 上红了，`status` ratio 2.515 > 上限 2.400（CI run 36070569734）。这不是回归：同一提交三种 CPU 的 ratio 如下，唯一一份 reference 冻在 M1 上，而 `ubuntu-latest` 随机分配 CPU，门禁过不过要看分到哪台。
+
+    | CPU                      | status | diff  | restore | commit |
+    | ------------------------ | ------ | ----- | ------- | ------ |
+    | Apple M1 Max（冻结基线） | 2.101  | 2.118 | 12.95   | 15.54  |
+    | Intel Xeon 8573C         | 1.960  | 1.893 | 12.39   | 13.93  |
+    | AMD EPYC 7763            | 2.515  | 2.796 | 11.89   | 13.35  |
+
+    读项（status / diff）在 EPYC 上整体偏高、写项（restore / commit）整体偏低，方向相反，说明契约 §0「机器快一倍时 ratio 不动」只在同一种 CPU 内成立，没有一个整体系数能校正。**不放宽 110%，不重算 M1 那份的数字。**
+
+  - **改动**：
+    - 新增纯逻辑模块 `benchmarks/working-tree-gate.ts`（环境采集、画像、reference 读取与选择、相对门禁判定、冻结准入）与 `working-tree-gate.spec.ts`（32 例，先红后绿）。`computeRunnerProfileHash` 原样搬出，golden 值钉住公式；`cpuModel` 取不到时抛错，不再记成 `unknown`。
+    - reference 从单文件 `reports/working-tree-reference.json` 迁到 `reports/working-tree-reference/<画像 slug>.json`，M1 那份 `git mv` 后只加 `ratioProfile`，数字一个不动；报告 `schemaVersion` 1 → 2。
+    - 冻结脚本加 `--new-profile "理由"`：只为没有 reference 的画像冻结，画像已有时以 0 跳过、不覆盖；准入规则（含 `--regenerate`）收进 `decideFreeze` 并有单测。
+    - 新增 `.github/workflows/bench-freeze.yml`：推注解 tag `bench-freeze/*`（理由取 tag message）或手动触发，4 个槽位并行碰不同 CPU，只上传 artifact，不自动提交。
+    - 契约 §2 / §3.1 / §3.2、`benchmarks/README.md`、`.gitignore`、`ci-template.yml` 注释同步。
+  - **验证**：
+    - `pnpm nx run-many -t typecheck lint test -p benchmarks`：87 例全绿，lint 零警告。
+    - 本机 `pnpm nx run benchmarks:bench-working-tree`（M1 画像，3m23s）：`runnerProfileHash` 仍是 `a9853503…f2ba`，与 reference 逐字相同，说明哈希公式没被搬坏。四项 ratio 为 status 2.128 / diff 2.157 / restore 14.033 / commit 15.374，均低于上限，**✓ PASS**。报告 `schemaVersion: 2`，带 `ratioProfile`。这一跑同时是新画像冻结的锚点：本提交已在已冻结画像上通过相对门禁。
+    - 冻结脚本在 M1 上：`--new-profile "x"` 以 0 跳过；不带参数以 1 拒绝并引用 §3.1；两个参数同时给出时抛错。三种情况都没写任何文件。
+  - **预期中的红**：CI 画像（EPYC / Xeon）的 reference 签入之前，PR 的 benchmark job 在任何 CI CPU 上都会以 mismatch 失败，包括之前碰巧过了的 Intel。这说明门禁不再拿 M1 的数字去判 CI 机器。
+  - **后续**：推注解 tag `bench-freeze/<日期>` → 下载 `working-tree-reference-slot-N` artifact → 检查 commit / runs / ratioProfile / regeneratedBecause → 签入 → 重跑 PR CI，确认 benchmark job 转绿后勾选本条。
 
 ---
 

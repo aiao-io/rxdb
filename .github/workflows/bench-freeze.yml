@@ -1,0 +1,127 @@
+name: Bench Freeze
+
+# 为 bench-working-tree 的相对门禁冻结**新比值画像**的 reference（contracts/benchmark-report.md §3.1）。
+#
+# 为什么需要它：ratio 只在同一种 CPU 内可比（见 benchmarks/working-tree-gate.ts 的文件头）。
+# `ubuntu-latest` 会随机分到 AMD EPYC 7763、Intel Xeon 8573C 等不同 CPU，每一种都得在 CI 上
+# 亲自冻一份 reference；一份都没有的画像上，PR CI 的 benchmark job 以
+# `benchmark_environment_mismatch` 失败（不降级为通过）。
+#
+# 触发：
+#   - 推注解 tag `bench-freeze/<任意后缀>`，理由写在 tag message 里：
+#       git tag -a bench-freeze/2026-09-25 -m "<提交> 已在 M1 画像上过相对门禁，为 CI 画像冻结"
+#       git push origin bench-freeze/2026-09-25
+#     tag 触发用的是 tag 所指提交里的这份 workflow，所以不必先合进 main。
+#   - 手动触发（workflow_dispatch，需先在默认分支上）：理由填在 reason 输入里。
+#
+# 契约 §3.1 的前置条件由人把关：所在提交必须已在某个已冻结画像上通过相对门禁（例如本机 M1
+# 跑一遍 `pnpm nx run benchmarks:bench-working-tree` 是 PASS），并在理由里写明。
+#
+# 四个槽位并行，是为了在一轮里尽量碰到不同的 CPU。落到已冻结画像的槽位由
+# `--new-profile` 原样跳过（以 0 退出，不跑、不覆盖）；两个槽位碰到同一种新 CPU 时会各冻一份，
+# 任取其一签入即可——两份都是合规的 10 次独立运行。
+#
+# **只上传 artifact，不自动提交。** 下载 `working-tree-reference-slot-N`，检查 commit / runs /
+# ratioProfile / regeneratedBecause 后放进 benchmarks/reports/working-tree-reference/ 签入。
+# 自动提交等于让 CI 自己给自己的门禁定基线，而 §3.1 要求基线先于候选版本经人签入。
+#
+# 第三方 action 一律钉 commit SHA（尾注 `# vX` 供 Dependabot 识别），理由见 ci-template.yml。
+
+on:
+  push:
+    tags:
+      - 'bench-freeze/**'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 冻结理由（写明所在提交已在哪个已冻结画像上通过相对门禁），会记进 reference 的 regeneratedBecause
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-freeze-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    name: freeze (slot ${{ matrix.slot }})
+    runs-on: ubuntu-latest
+    # 单次 bench 在 CI 上约 6–7 分钟，契约要求 10 次独立运行，再加 setup 与依赖构建
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        slot: [1, 2, 3, 4]
+    env:
+      NX_NO_CLOUD: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: tree:0
+
+      # 理由先于一切耗时步骤解析：没有理由的冻结不该烧掉两个小时再失败。
+      # tag 触发时显式重取一次 tag 对象——不依赖 checkout 恰好保留了注解，轻量 tag 直接失败。
+      - name: Resolve freeze reason
+        id: reason
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_REASON: ${{ inputs.reason }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            reason="$INPUT_REASON"
+          else
+            git fetch --no-tags --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+            if [ "$(git cat-file -t "refs/tags/${TAG}")" != tag ]; then
+              echo "::error::${TAG} 是轻量 tag。理由必须写在注解 tag 的 message 里：git tag -a ${TAG} -m \"理由\""
+              exit 1
+            fi
+            reason="$(git for-each-ref --format='%(contents:subject) %(contents:body)' "refs/tags/${TAG}")"
+          fi
+          reason="$(printf '%s' "$reason" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')"
+          if [ -z "$reason" ]; then
+            echo "::error::冻结理由为空（契约 §3.1 要求记进 regeneratedBecause）"
+            exit 1
+          fi
+          echo "value=${reason}" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-workspace
+      - uses: ./.github/actions/nx-cache-restore
+
+      # typecheck 依赖 ^build：借它把 bench 要 import 的工作区包建好，同时确认脚本本身能过类型检查
+      - run: pnpm exec nx run benchmarks:typecheck --output-style=stream
+
+      - name: Freeze reference for this runner's profile
+        env:
+          REASON: ${{ steps.reason.outputs.value }}
+        run: node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "$REASON"
+
+      # 冻结脚本只会新增文件（--new-profile 不覆盖已有画像），未跟踪的 reference 就是本槽位的产物
+      - name: Collect new reference
+        id: collect
+        run: |
+          files="$(git ls-files --others --exclude-standard -- benchmarks/reports/working-tree-reference/)"
+          if [ -z "$files" ]; then
+            echo "本槽位落在已冻结的画像上，没有新 reference。" >> "$GITHUB_STEP_SUMMARY"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/working-tree-reference"
+          for file in $files; do
+            profile="$(node -p "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')).ratioProfile" "$file")"
+            echo "新画像 \`${profile}\` → \`${file}\`" >> "$GITHUB_STEP_SUMMARY"
+            cp "$file" "$RUNNER_TEMP/working-tree-reference/"
+          done
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload reference
+        if: steps.collect.outputs.found == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: working-tree-reference-slot-${{ matrix.slot }}
+          # 只传本槽位新冻的那份：目录里已签入的 reference 不该混进待审的 artifact
+          path: ${{ runner.temp }}/working-tree-reference/
+          if-no-files-found: error
