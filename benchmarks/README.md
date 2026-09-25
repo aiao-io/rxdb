@@ -128,6 +128,6 @@ benchmarks/
 
 - `search-ci`：独立运行 3 次并按中位数判定，INSERT→查询 P90 ≤ 100ms、批量 100 写入→查询 P95 ≤ 5000ms
 - `bench-hot-path`：非加密热路径相对基线回归 ≤ 2%
-- `bench-working-tree`：工作树 `status` / `diff` / `restore` / `commit` 的 p95 ÷ 同次 control p95，≤ 冻结 reference median 的 110%（PR CI 唯一硬门禁，契约见 `specs/001-working-tree-commits/contracts/benchmark-report.md` §3）
+- `bench-working-tree`：工作树 `status` / `diff` / `restore` / `commit` 的 p95 ÷ 同次 control p95，≤ 冻结 reference median × 该项容差（读项 130%，写项 110%；PR CI 唯一硬门禁，契约见 `specs/001-working-tree-commits/contracts/benchmark-report.md` §3）
   - reference 按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分份放在 `reports/working-tree-reference/`，只和同画像的比；本机画像没有 reference 时以 `benchmark_environment_mismatch` 失败，不降级为通过
   - 为新画像冻结：所在提交先在已冻结画像上过门禁，再推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`（或手动触发 `bench-freeze` workflow），下载 artifact 检查后签入；本机则是 `node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"`

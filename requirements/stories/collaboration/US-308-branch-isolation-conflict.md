@@ -1,11 +1,11 @@
 ---
 id: US-308
 title: 分支隔离与跨 realm 冲突检测
-status: In Review
+status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-20
+updated: 2026-09-25
 tags: [collaboration, branch, concurrency, conflict]
 inherited_acs:
   - from: US-306

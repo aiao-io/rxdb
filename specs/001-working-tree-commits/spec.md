@@ -259,7 +259,7 @@
 - **FR-011**（阶段 B）：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
 - **FR-016**（阶段 B）：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。
 - **FR-023**（阶段 C）：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
-- **FR-026**（阶段 C，口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-026**（阶段 C，口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median × 该项容差为硬门禁（status / diff 130%，commit 110%，契约 §3.1）；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
 - **FR-031**（阶段 B）：所有操作 MUST 遵守 revision 矩阵：commit 校验 active branch token、expected head 与 expected working-tree revision，三者任一不匹配即全量回滚并返回 `CommitConflict`。`workingTreeRevision` 采用**调用方捕获型** CAS：调用方读到 status 之后、commit 落盘之前的任何一次工作树写入都 MUST 让本次 commit 失败，**不得**为了提高成功率而放宽为只校验 head——那等于提交调用方没有看过的变更。discard 同样校验 active token 与 expected working-tree revision。
 - **FR-032**（阶段 B）：工作树中的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 平等地成为同一份工作树的未提交变更。writer 身份不得成为提交正确性的必要条件；并发保护只由 FR-031 的 revision CAS 提供。
 - **FR-039**（阶段 A）：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
@@ -397,13 +397,13 @@
 - **基准环境固定**为 Node + PGlite memory；「响应」定义为 **API promise resolve**（操作完成），不把三框架首次绘制混入核心 benchmark。
 - **采样固定** `WARMUP = 5`、`SAMPLES = 50`。每个 sample 前在计时外恢复同一 fixture：**10,000 条实体、100 个 commit**（每个 commit 100 个完整变更单元），当前工作树 **100 个未提交单元**。fixture 内容与 hash 必须写入 JSON，**禁止只固定总行数**。
 - **环境指纹**：benchmark JSON 必须记录运行时版本、OS、CPU 型号、逻辑核数、内存、runner ID 与并发度并计算 `runnerProfileHash`；profile 不匹配 reference 时返回 `benchmark_environment_mismatch`，**不得伪装成性能回归**。
-- **相对门禁（普通 PR CI 的唯一硬门禁）**：每项 control CRUD 使用相同实体数量和事务边界，比较「被测操作 p95 / 同次 control CRUD p95」。首个绿色实现先归档 reference commit 的 **10 次独立运行**并冻结各项 median ratio；候选版本不得超过该 ratio 的 **110%**。reference JSON 与阈值必须**先于**发布候选签入，不能在失败后重算基线。
+- **相对门禁（普通 PR CI 的唯一硬门禁）**：每项 control CRUD 使用相同实体数量和事务边界，比较「被测操作 p95 / 同次 control CRUD p95」。首个绿色实现先归档 reference commit 的 **10 次独立运行**并冻结各项 median ratio；候选版本不得超过该 ratio × 该项容差：读项 status / diff **130%**，写项 restore / commit **110%**（读项 p95 只有两三毫秒，同画像内噪声就有 ±20%，依据见契约 §3.1）。reference JSON 与阈值必须**先于**发布候选签入，不能在失败后重算基线。
 - **绝对门禁（仅发布）**：只在与 reference `runnerProfileHash` 相同的固定性能 runner 上作为硬门禁。
 
 ### Measurable Outcomes
 
-- **SC-001**：在固定基准环境与 fixture 下，完整 status 摘要的归一化 ratio 不超过冻结 reference median 的 110%；在 profile 匹配的固定性能 runner 上，其 p95 不高于 **100 ms**。
-- **SC-002**：无 scope 的完整 `HEAD ↔ 工作树` diff 满足与 SC-001 相同的两道门禁（相对 110%，绝对 p95 ≤ **100 ms**）。
+- **SC-001**：在固定基准环境与 fixture 下，完整 status 摘要的归一化 ratio 不超过冻结 reference median 的 130%；在 profile 匹配的固定性能 runner 上，其 p95 不高于 **100 ms**。
+- **SC-002**：无 scope 的完整 `HEAD ↔ 工作树` diff 满足与 SC-001 相同的两道门禁（相对 130%，绝对 p95 ≤ **100 ms**）。
 - **SC-003**：一次提交 100 个单元的 commit 通过相对门禁（≤ reference median ratio 的 110%）；其**绝对预算由首个绿色实现的 reference 中位数冻结并与相对门禁同批签入**，**不套用 status / diff 的 100 ms**——它要把 100 个单元整体落盘并清空工作树，与只读摘要的操作量级不同。
 - **SC-004**：从 clean HEAD 恢复含 100 个完整变更单元的 `HEAD~1` 通过相对门禁；在 profile 匹配的固定性能 runner 上，promise resolve 的 p95 不高于 **1 s**。
 - **SC-005**：浏览器 OPFS / IDB **不承诺**相同绝对数字，但三端 E2E 必须记录**首次可见状态耗时**，防止核心 promise 很快而 UI 长时间无反馈。

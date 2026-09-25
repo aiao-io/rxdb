@@ -100,12 +100,12 @@ const canonicalize = (value: unknown): string => {
  *
  * **今天没有任何生产代码比较这一列**：冷重放、提交、diff 都不读它（见 `cold-replay.ts` 与
  * `commit-command.ts` 的 `toChangeUnit`），提交的内容指纹另走 `computeChangeUnitFingerprint`
- * 的 SHA-256。它等的是 US-308 的冲突检测——那里按身份**逐对**比较同一实体两侧的指纹，
- * 误判相等的概率每对约 2⁻³²，十万对合计约 2×10⁻⁵；「约 7.7 万条碰撞概率过半」的生日界
- * 只在拿指纹当跨实体的键时才成立。真要换成 SHA-256，不需要异步也不需要新依赖
+ * 的 SHA-256；US-308 交付的冲突检测也不读它，走的是 revision CAS 与 active branch token。
+ * 将来若有消费者按身份**逐对**比较同一实体两侧的这一列，误判相等的概率每对约 2⁻³²，十万对
+ * 合计约 2×10⁻⁵；「约 7.7 万条碰撞概率过半」的生日界只在拿指纹当跨实体的键时才成立。真要换成 SHA-256，不需要异步也不需要新依赖
  * （`@aiao/rxdb` 的 `sha256Hex` 是同步的，本插件已在用），代价是捕获热路径上每次写多算一遍
- * 纯 JS 摘要、列宽从 8 位变成 64 位。换不换留给 US-308 定，登记在 `requirements/roadmap.md`
- * 「epic-006 评审顺延的架构项」。
+ * 纯 JS 摘要、列宽从 8 位变成 64 位。换不换由首个比较这一列的消费者定，登记在
+ * `requirements/roadmap.md`「epic-006 评审顺延的架构项」。
  *
  * `operation` 参与哈希：同一份 patch 在 `insert` 与 `update` 下是两个不同的意图，
  * 只哈希 patch 会让两者指纹相同。

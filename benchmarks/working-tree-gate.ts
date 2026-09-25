@@ -29,7 +29,7 @@ import { availableParallelism, cpus, hostname, totalmem, type } from 'node:os';
 import { join } from 'node:path';
 
 import type { BenchEnvironment, BenchMeasurement, BenchReference } from './working-tree-report.ts';
-import { RELATIVE_GATE_TOLERANCE } from './working-tree-report.ts';
+import { RELATIVE_GATE_TOLERANCES } from './working-tree-report.ts';
 
 // ---------------------------------------------------------------------------
 // 运行环境
@@ -199,7 +199,9 @@ export interface RatioVerdict {
   readonly ratio: number;
   /** reference median；reference 里没有这一项时为 `null`，该项判失败 */
   readonly referenceRatio: number | null;
-  /** `referenceRatio × 110%`；同上 */
+  /** 本项容差倍数，见 `RELATIVE_GATE_TOLERANCES`；表里没有这一项时为 `null`，该项判失败 */
+  readonly tolerance: number | null;
+  /** `referenceRatio × tolerance`；两者任一为 `null` 时为 `null` */
   readonly budget: number | null;
   readonly passed: boolean;
 }
@@ -226,19 +228,20 @@ export type RelativeGateDecision =
  *
  * @remarks
  * reference 里缺这个测点时判**失败**而不是跳过：新增测点（如 T109 的 `restore`）必须伴随一次
- * 重新冻结，静默跳过等于让新测点在没有基线的情况下长期不设防。
+ * 重新冻结，静默跳过等于让新测点在没有基线的情况下长期不设防。容差表里缺这个测点时同理，
+ * 不借用别项的倍数。
  */
 const judgeRatio = (measurement: BenchMeasurement, reference: BenchReference): RatioVerdict => {
-  const referenceRatio = reference.medianRatios[measurement.id];
-  if (referenceRatio === undefined) {
-    return { id: measurement.id, ratio: measurement.ratio, referenceRatio: null, budget: null, passed: false };
-  }
-  const budget = referenceRatio * RELATIVE_GATE_TOLERANCE;
-  return { id: measurement.id, ratio: measurement.ratio, referenceRatio, budget, passed: measurement.ratio <= budget };
+  const referenceRatio = reference.medianRatios[measurement.id] ?? null;
+  const tolerance = RELATIVE_GATE_TOLERANCES[measurement.id] ?? null;
+  const base = { id: measurement.id, ratio: measurement.ratio, referenceRatio, tolerance };
+  if (referenceRatio === null || tolerance === null) return { ...base, budget: null, passed: false };
+  const budget = referenceRatio * tolerance;
+  return { ...base, budget, passed: measurement.ratio <= budget };
 };
 
 /**
- * 相对门禁：同画像下各项 ratio ≤ reference median 的 110%。
+ * 相对门禁：同画像下各项 ratio ≤ reference median × 该项容差（读项 130%，写项 110%）。
  *
  * @param references - 见 {@link readReferences}
  * @param profile - 本机画像
@@ -285,7 +288,8 @@ const decideForFrozenProfile = (profile: string, flags: FreezeFlags): FreezeDeci
     kind: 'refuse',
     message:
       `画像「${profile}」已有 reference。契约 §3.1：失败后重算基线 = 门禁自证其绿，禁止。` +
-      '若测点集合确实变了（例如 T109 加入 restore），用 --regenerate "理由" 显式重冻。'
+      '若测点集合确实变了（例如 T109 加入 restore），或旧基线冻结时机器带着负载（所在提交须先在旧基线上过门禁），' +
+      '用 --regenerate "理由" 显式重冻，理由里写明依据。'
   };
 };
 
@@ -321,9 +325,11 @@ const decideForNewProfile = (
  * @throws `Error` 两个参数同时给出
  *
  * @remarks
- * 首次冻结之外合法的只有两种：本画像测点集合变了（`--regenerate`），以及为一个还没有 reference
- * 的画像冻结（`--new-profile`）。后者**不能覆盖**已有的一份：CI 的冻结 workflow 开几个并行槽位去
- * 碰不同的 CPU，分到已冻结画像的槽位必须原样跳过，否则那次运行就成了一次「顺手重算」。
+ * 首次冻结之外合法的只有三种：本画像测点集合变了（`--regenerate`）；本画像旧基线冻结时机器带着
+ * 已知负载、所在提交已在旧基线上过相对门禁（`--regenerate`，理由写负载证据）；为一个还没有
+ * reference 的画像冻结（`--new-profile`）。前两种是否属实只有人能判断，工具只要求理由非空并把它
+ * 记进文件。`--new-profile` **不能覆盖**已有的一份：CI 的冻结 workflow 开几个并行槽位去碰不同的
+ * CPU，分到已冻结画像的槽位必须原样跳过，否则那次运行就成了一次「顺手重算」。
  */
 export const decideFreeze = (
   references: readonly BenchReference[],

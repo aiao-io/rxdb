@@ -192,7 +192,7 @@ node --test scripts/check-migration-release-gate.spec.mjs
 
 - 覆盖率：`rxdb` / `rxdb-angular` / `rxdb-react` / `rxdb-vue` 四指标 ≥ 90%，其余包 ≥ 80%。
 - 命名：核心新增导出全部 `Commit*` / `WorkingTree*`；无 `Index*`；三框架包无 `Workspace*`、不复用 `SwitchBranchOptions`；`useWorkingTree()` 合规。
-- 性能：普通 PR 只卡**归一化 ratio ≤ 冻结 median 的 110%**；绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上作为发布门禁；`commit` **不套用 100 ms**。profile 不匹配 → `benchmark_environment_mismatch`，**不得**当成性能回归。
+- 性能：普通 PR 只卡**归一化 ratio ≤ 冻结 median × 容差**（读项 status / diff 130%，写项 restore / commit 110%）；绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上作为发布门禁；`commit` **不套用 100 ms**。profile 不匹配 → `benchmark_environment_mismatch`，**不得**当成性能回归。
 - 发布门禁脚本已实现且 39/39 单测绿，**MUST NOT 重写**；只在真实 tag 与真实清单上复验。
 
 ### T045 执行记录：FR-030 迁移发布门禁复验（2026-09-13）

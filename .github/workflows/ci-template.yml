@@ -1065,9 +1065,10 @@ jobs:
   # 条件与 search-ci 逐字相同（need_benchmark），单开一个 job 只会把同一份 setup-workspace
   # 与 nx-cache-restore 再付一遍。它是 contracts/benchmark-report.md §3.1 指定的**普通 PR CI
   # 唯一硬门禁**：拿与本 runner 同比值画像（系统/架构 + CPU 型号 + Node 主版本）的 reference 比相对
-  # ratio（≤ 冻结 median 的 110%）。ubuntu-latest 随机分到的 CPU 若还没有同画像 reference，以
-  # benchmark_environment_mismatch 失败（不降级为通过），补冻走 bench-freeze.yml；一份 reference
-  # 都没冻结时打印提示以 0 退出。
+  # ratio（≤ 冻结 median × 容差：读项 status / diff 130%，写项 restore / commit 110%）。ubuntu-latest
+  # 随机分到的 CPU 若还没有同画像 reference，以 benchmark_environment_mismatch 失败（不降级为通过）：
+  # 先重跑该 job 一次，同一新型号反复出现再走 bench-freeze.yml 补冻。一份 reference 都没冻结时
+  # 打印提示以 0 退出。
   #
   # 两个 target 走一次 run-many 而不是两个 step：串成两步的话，search-ci 红了
   # bench-working-tree 就不跑了，而一轮 CI 本该同时看到两边的结论。run-many 默认不 bail。

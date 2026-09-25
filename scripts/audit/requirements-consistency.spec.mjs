@@ -152,6 +152,11 @@ test('--update 只改数字不动列宽，改完能过 check', async () => {
   );
   assert.equal(updateReadme('x [0/0 已交付] y', countStatuses(await collectStories(dir))), 'x [2/3 已交付] y');
   assert.equal(updateStatusOverview('| **合计**       | 63   |', { total: 7 }), '| **合计**       | 7    |');
+  // 行尾 `\s*$` 在 m 模式下会跨行吞掉表后的空行，表格与紧随的引用块就此粘连。
+  assert.equal(
+    updateStatusOverview('| **合计**       | 63   |\n\n> 注', { total: 7 }),
+    '| **合计**       | 7    |\n\n> 注'
+  );
   assert.match(
     updateRoadmap(roadmap(9, 4, 3, 2), { total: 3, Done: 2, 'In Progress': 0, 'In Review': 0, Backlog: 1 }),
     /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/

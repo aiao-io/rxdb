@@ -31,8 +31,24 @@ export const WARMUP = 5;
 /** 计入统计的采样数（契约 §1）。 */
 export const SAMPLES = 50;
 
-/** 相对门禁的容差：ratio 不得超过 reference median 的 110%（契约 §3.1）。 */
-export const RELATIVE_GATE_TOLERANCE = 1.1;
+/**
+ * 相对门禁的逐项容差：ratio 不得超过 reference median 乘以这里的倍数（契约 §3.1）。
+ *
+ * @remarks
+ * 读项（`status` / `diff`）130%，写项（`restore` / `commit`）110%。两类分开定，是因为它们的
+ * 噪声差一截：读项 p95 只有两三毫秒，同一画像冻结的十轮里就有高出 median 近 +20% 的
+ * （同画像换一台主机 +25%），按 110% 判，十轮里有两到四轮会误报；写项十几到几百毫秒，
+ * 最多高出 +7.7%。统一放宽到 130% 会让写项的真实回归漏过去，统一收紧到 110% 则让读项的
+ * PR 门禁看运气。数据见契约 §3.1。
+ *
+ * 表里没有的测点判**失败**，不给默认值：新增测点得先归到读或写，才能进门禁。
+ */
+export const RELATIVE_GATE_TOLERANCES: Readonly<Record<string, number>> = {
+  status: 1.3,
+  diff: 1.3,
+  restore: 1.1,
+  commit: 1.1
+};
 
 /** 绝对门禁里 `status` / `diff` 的 p95 上限，毫秒（契约 §3.2，SC-001 / SC-002）。 */
 export const ABSOLUTE_BUDGET_MS = 100;

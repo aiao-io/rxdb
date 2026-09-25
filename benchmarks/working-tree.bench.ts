@@ -37,8 +37,9 @@
  *
  * **门禁**（契约 §3）：
  *
- * - 相对门禁：各项 ratio ≤ **与本机同比值画像**的那份 reference median 的 110%，这是 PR CI 的
- *   **唯一**硬门禁。画像 = 系统/架构 + CPU 型号 + Node 主版本；为什么 ratio 只能在同画像内比，
+ * - 相对门禁：各项 ratio ≤ **与本机同比值画像**的那份 reference median × 该项容差（读项
+ *   `status` / `diff` 130%，写项 `restore` / `commit` 110%，见 `RELATIVE_GATE_TOLERANCES`），
+ *   这是 PR CI 的**唯一**硬门禁。画像 = 系统/架构 + CPU 型号 + Node 主版本；为什么 ratio 只能在同画像内比，
  *   见 `working-tree-gate.ts`。三种结局：
  *   - 一份 reference 都没冻结：打印提示并以 0 退出——首个绿色实现得先跑出数字，T097 才有东西可冻。
  *   - 有 reference 但没有同画像的：以 `benchmark_environment_mismatch` 失败，不降级为通过；
@@ -486,13 +487,18 @@ const runMeasurements = async (
 const printRelativeVerdicts = (verdicts: readonly RatioVerdict[]): void => {
   console.log('\n[bench:working-tree] === 相对门禁（PR CI 唯一硬门禁）===');
   for (const verdict of verdicts) {
-    if (verdict.referenceRatio === null || verdict.budget === null) {
+    if (verdict.referenceRatio === null) {
       console.log(`  [${verdict.id}] reference 里没有这一项 → ✗ FAIL（新增测点必须先重新冻结 reference）`);
+      continue;
+    }
+    if (verdict.tolerance === null || verdict.budget === null) {
+      console.log(`  [${verdict.id}] 没有定过容差 → ✗ FAIL（新增测点须先在 RELATIVE_GATE_TOLERANCES 归为读或写）`);
       continue;
     }
     console.log(
       `  [${verdict.id}] ratio=${verdict.ratio.toFixed(3)} ` +
-        `(reference median=${verdict.referenceRatio.toFixed(3)}, 上限=${verdict.budget.toFixed(3)}) → ` +
+        `(reference median=${verdict.referenceRatio.toFixed(3)}, ` +
+        `上限=${verdict.budget.toFixed(3)} = ${Math.round(verdict.tolerance * 100)}%) → ` +
         (verdict.passed ? '✓ PASS' : '✗ FAIL')
     );
   }
@@ -512,7 +518,8 @@ const printProfileMismatch = (decision: Extract<RelativeGateDecision, { kind: 'm
     `\n[bench:working-tree] ${ENVIRONMENT_MISMATCH_CODE}: 本机画像「${decision.profile}」没有冻结的 reference。\n` +
       `[bench:working-tree] 已冻结的画像：${decision.known.map(profile => `「${profile}」`).join('、')}\n` +
       '[bench:working-tree] ratio 只在同画像内可比，相对门禁不在此机上评估，也不降级为通过。\n' +
-      '[bench:working-tree] 补冻（所在提交须先在已冻结画像上过相对门禁，契约 §3.1）：\n' +
+      '[bench:working-tree] CI 偶然分到新型号：先重跑该 job 一次；同一型号反复出现再补冻（契约 §3.1）。\n' +
+      '[bench:working-tree] 补冻（所在提交须先在已冻结画像上过相对门禁）：\n' +
       '[bench:working-tree]   CI：推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`，或手动触发 bench-freeze workflow；\n' +
       '[bench:working-tree]   本机：node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"'
   );

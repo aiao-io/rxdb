@@ -3,9 +3,12 @@ name: Bench Freeze
 # 为 bench-working-tree 的相对门禁冻结**新比值画像**的 reference（contracts/benchmark-report.md §3.1）。
 #
 # 为什么需要它：ratio 只在同一种 CPU 内可比（见 benchmarks/working-tree-gate.ts 的文件头）。
-# `ubuntu-latest` 会随机分到 AMD EPYC 7763、Intel Xeon 8573C 等不同 CPU，每一种都得在 CI 上
-# 亲自冻一份 reference；一份都没有的画像上，PR CI 的 benchmark job 以
+# `ubuntu-latest` 会随机分到 AMD EPYC 7763 / 9V74、Intel Xeon 6973P-C / 8573C 等不同 CPU，每一种
+# 都得在 CI 上亲自冻一份 reference；一份都没有的画像上，PR CI 的 benchmark job 以
 # `benchmark_environment_mismatch` 失败（不降级为通过）。
+#
+# 什么时候推：PR CI 偶尔分到一种新型号时，先重跑那个 job 一次；同一新型号反复出现，才为它冻结
+# （契约 §3.1）。四个槽位碰不碰得到那种 CPU 看运气，没碰到就换个 tag 名再推一次。
 #
 # 触发：
 #   - 推注解 tag `bench-freeze/<任意后缀>`，理由写在 tag message 里：

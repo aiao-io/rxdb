@@ -187,7 +187,7 @@ export function checkFrontmatter(stories, epicIds) {
   return offenders;
 }
 
-const summaryRowRegex = row => new RegExp(`^(\\| ${escapeRegex(row)}\\s*\\| )(\\d+)(\\s*\\|)\\s*$`, 'm');
+const summaryRowRegex = row => new RegExp(`^(\\| ${escapeRegex(row)}\\s*\\| )(\\d+)(\\s*\\|)[ \\t]*$`, 'm');
 const escapeRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**

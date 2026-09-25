@@ -20,12 +20,20 @@ const M1 = 'Darwin darwin arm64 / Apple M1 Max / node 26';
 const EPYC = 'Linux linux x64 / AMD EPYC 7763 64-Core Processor / node 26';
 const XEON = 'Linux linux x64 / INTEL(R) XEON(R) PLATINUM 8573C / node 26';
 
-/** 签入的 M1 reference 的四个 median；数字逐字取自该文件。 */
+/** M1 首次冻结（9e5ddc92）的四个 median，数字逐字取自当时签入的 reference。 */
 const M1_MEDIANS = {
   status: 2.182196332248118,
   diff: 2.555241101149252,
   restore: 14.680941324859418,
   commit: 15.933321897335857
+};
+
+/** EPYC 7763 在 b1337e76 冻结（bench-freeze workflow）的四个 median，数字逐字取自当时签入的 reference。 */
+const EPYC_MEDIANS = {
+  status: 2.192780803185898,
+  diff: 2.500296291303735,
+  restore: 11.706411843864341,
+  commit: 13.890424786205845
 };
 
 const makeReference = (ratioProfile: string, medianRatios: Record<string, number> = M1_MEDIANS): BenchReference => ({
@@ -195,7 +203,7 @@ describe('decideRelativeGate', () => {
     expect(decision).toEqual({ kind: 'mismatch', profile: EPYC, known: [M1] });
   });
 
-  it('同画像下全部 ≤ median × 110% 时通过（M1 本机 HEAD 的实测）', () => {
+  it('同画像下全部在各自容差内时通过（M1 本机 HEAD 的实测）', () => {
     const decision = decideRelativeGate(
       [makeReference(M1)],
       M1,
@@ -208,8 +216,47 @@ describe('decideRelativeGate', () => {
     expect(decision.reference.ratioProfile).toBe(M1);
   });
 
-  it('恰好等于上限算通过', () => {
-    const decision = decideRelativeGate([makeReference(M1, { status: 2 })], M1, makeMeasurements({ status: 2 * 1.1 }));
+  it('读测点（status / diff）容差 130%：× 1.2 通过，× 1.31 失败', () => {
+    const reference = makeReference(M1, { status: 2, diff: 2 });
+    const decision = decideRelativeGate([reference], M1, makeMeasurements({ status: 2 * 1.2, diff: 2 * 1.31 }));
+
+    expect(decision.kind).toBe('evaluated');
+    if (decision.kind !== 'evaluated') return;
+    expect(decision.verdicts).toMatchObject([
+      { id: 'status', tolerance: 1.3, passed: true },
+      { id: 'diff', tolerance: 1.3, passed: false }
+    ]);
+  });
+
+  it('写测点（restore / commit）容差仍是 110%：× 1.2 失败', () => {
+    const reference = makeReference(M1, { restore: 10, commit: 10 });
+    const decision = decideRelativeGate([reference], M1, makeMeasurements({ restore: 10 * 1.05, commit: 10 * 1.2 }));
+
+    expect(decision.kind).toBe('evaluated');
+    if (decision.kind !== 'evaluated') return;
+    expect(decision.verdicts).toMatchObject([
+      { id: 'restore', tolerance: 1.1, passed: true },
+      { id: 'commit', tolerance: 1.1, passed: false }
+    ]);
+  });
+
+  it('恰好等于各自上限算通过', () => {
+    const reference = makeReference(M1, { status: 2, diff: 2, restore: 10, commit: 10 });
+    const decision = decideRelativeGate(
+      [reference],
+      M1,
+      makeMeasurements({ status: 2 * 1.3, diff: 2 * 1.3, restore: 10 * 1.1, commit: 10 * 1.1 })
+    );
+
+    expect(decision.kind === 'evaluated' && decision.passed).toBe(true);
+  });
+
+  it('回归（CI run 36070569734 的实测对 EPYC 7763 reference）：读项 +15% / +12% 是噪声，不判 FAIL', () => {
+    const decision = decideRelativeGate(
+      [makeReference(EPYC, EPYC_MEDIANS)],
+      EPYC,
+      makeMeasurements({ status: 2.515, diff: 2.796, restore: 11.89, commit: 13.35 })
+    );
 
     expect(decision.kind === 'evaluated' && decision.passed).toBe(true);
   });
@@ -218,17 +265,17 @@ describe('decideRelativeGate', () => {
     const decision = decideRelativeGate(
       [makeReference(M1)],
       M1,
-      makeMeasurements({ status: 2.515, diff: 2.118, restore: 12.95, commit: 15.54 })
+      makeMeasurements({ status: 2.101, diff: 2.118, restore: 12.95, commit: 18 })
     );
 
     expect(decision.kind).toBe('evaluated');
     if (decision.kind !== 'evaluated') return;
     expect(decision.passed).toBe(false);
     expect(decision.verdicts.map(verdict => [verdict.id, verdict.passed])).toEqual([
-      ['status', false],
+      ['status', true],
       ['diff', true],
       ['restore', true],
-      ['commit', true]
+      ['commit', false]
     ]);
   });
 
@@ -243,6 +290,21 @@ describe('decideRelativeGate', () => {
       budget: null,
       passed: false
     });
+  });
+
+  it('reference 里有、却没定过容差的测点判失败：新增测点还得先定读写归类', () => {
+    const decision = decideRelativeGate(
+      [makeReference(M1, { ...M1_MEDIANS, merge: 1 })],
+      M1,
+      makeMeasurements({ merge: 1 })
+    );
+
+    expect(decision.kind).toBe('evaluated');
+    if (decision.kind !== 'evaluated') return;
+    expect(decision.passed).toBe(false);
+    expect(decision.verdicts).toEqual([
+      { id: 'merge', ratio: 1, referenceRatio: 1, tolerance: null, budget: null, passed: false }
+    ]);
   });
 
   it('多份 reference 时只拿同画像那一份比', () => {

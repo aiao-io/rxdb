@@ -534,7 +534,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - 「不是新增危险面」这半句是**核过的**而不是抄任务文本：`git show v0.0.24:…/migration.ts` 与 `v0.0.25` 同处都是 `RXDB_SYSTEM_SCHEMA_VERSION = 3` 且守卫逐字节同形——当年 2 → 3 对停在 2 的客户端就是同一个拒绝。epic-006 改的是数字与撞上它的人数，不是机制。
   - 明确写了**不提供缓解措施**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，那正是 fail-closed 要挡的；说明里给出的动作只有「升级客户端」一个。
   - `node scripts/audit/requirements-consistency.mjs` 在改动后仍是 `✅ 60 Done / 1 In Progress / 4 In Review / 3 Backlog / 0 Blocked，合计 68`。
-- [ ] T134 `bench-working-tree` 相对门禁按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分别冻结 reference，找不到同画像的判 `benchmark_environment_mismatch`，不降级为通过。**代码与本机锚点已完成；CI 画像的 reference 签入后勾选**
+- [x] T134 `bench-working-tree` 相对门禁按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分别冻结 reference，找不到同画像的判 `benchmark_environment_mismatch`，不降级为通过。
   - **起因**：PR CI 在 `6fc5c665` 上红了，`status` ratio 2.515 > 上限 2.400（CI run 36070569734）。这不是回归：同一提交三种 CPU 的 ratio 如下，唯一一份 reference 冻在 M1 上，而 `ubuntu-latest` 随机分配 CPU，门禁过不过要看分到哪台。
 
     | CPU                      | status | diff  | restore | commit |
@@ -566,7 +566,26 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
     | Intel(R) Xeon(R) 6973P-C | 3    | 1.772  | 1.916 | 12.779  | 15.326 | 578.08ms              |
     - 槽位 2 同落 EPYC 9V74（status 1.992 / diff 2.366 / restore 12.103 / commit 13.977），按 workflow 约定只签一份：取先完成的槽位 4，不按数字挑。
     - 用 run 36077337412 的 EPYC 7763 读数回放新 reference：status 2.195 ≤ 2.412、diff 2.582 ≤ 2.750、restore 12.151 ≤ 12.877、commit 14.008 ≤ 15.279，四项均过。
-    - `ubuntu-latest` 的 CPU 池至少有 4 种：本轮碰到 EPYC 7763 / EPYC 9V74 / Xeon 6973P-C，起因里的 Xeon 8573C 仍没有 reference，分到它的 PR 仍会以 mismatch 失败，需要再补冻一轮。
+    - `ubuntu-latest` 的 CPU 池至少有 4 种：本轮碰到 EPYC 7763 / EPYC 9V74 / Xeon 6973P-C，起因里的 Xeon 8573C 仍没有 reference，分到它的 PR 会以 mismatch 失败；处理按 T135：重跑该 job 一次，同一型号反复出现再补冻。
+
+  - **转绿**：签入后的 PR CI run 36113726178（`3d2cf3d8`）分到 EPYC 7763，benchmark job 相对门禁四项 status 1.926 / diff 2.194 / restore 11.711 / commit 13.807 均低于上限，**✓ PASS**，据此勾选本条。Xeon 8573C 没有 reference 不影响本条：门禁逻辑已按画像判定，缺的只是一份数据。
+
+- [x] T135 相对门禁容差按读写分档：读项 `status` / `diff` 130%，写项 `restore` / `commit` 110%；容差表里没有的测点判失败。CI 分到没冻结过的 CPU 型号仍判 `benchmark_environment_mismatch`，处理是重跑一次，同一型号反复出现再补冻。
+  - **起因**：T132 留给评审的「`status` 相对门禁吃不下自身噪声」。T134 的四个冻结槽位第一次给出了 CI 上的数据：每槽 10 次独立运行，各项 ratio 高出本槽 median 的最大幅度——
+
+    | 画像                                        | status | diff   | restore | commit |
+    | ------------------------------------------- | ------ | ------ | ------- | ------ |
+    | AMD EPYC 7763（槽位 1）                     | +19.3% | +16.5% | +2.6%   | +4.6%  |
+    | Intel Xeon 6973P-C（槽位 3）                | +5.4%  | +19.7% | +7.4%   | +4.8%  |
+    | AMD EPYC 9V74（槽位 4，签入）               | +9.9%  | +5.7%  | +7.6%   | +2.9%  |
+    | AMD EPYC 9V74 槽位 2，对槽位 4 的 reference | +5.8%  | +25.1% | +7.7%   | +4.5%  |
+
+    读项按 110% 判，四组里三组会在代码不变时报红（每组 2–4 轮）；写项最大 +7.7%。CI run 36070569734 的 EPYC 7763 实测对签入的 EPYC reference 是 status +14.7% / diff +11.8%，110% 下红、130% 下过。
+
+  - **没有顺手放宽写项**：写项的噪声 110% 留得住，放宽只会让真实回归漏过去。也没有把 `status` 改成纯绝对门禁：绝对门禁只在发布、只在 `runnerProfileHash` 匹配的机器上评估，PR CI 就等于对读项不设防。
+  - **130% 不是噪声上界的保证**：本机一次被并发构建打断的 M1 复冻（8 轮，机器带负载）里 `diff` 有一轮 +32.7%。带负载的机器上读项仍可能越线，那时先查负载，不再放宽。
+  - **改动**：`RELATIVE_GATE_TOLERANCE`（单个 1.1）改为逐项表 `RELATIVE_GATE_TOLERANCES`；`RatioVerdict` 加 `tolerance`，bench 打印分开「reference 缺项」与「没定过容差」，上限后注明百分比；mismatch 提示加「先重跑一次」。契约 §3.1 写入分档、依据表与新型号处理；spec FR-026 / 相对门禁 / SC-001 / SC-002、plan、research、quickstart、checklist、US-306、epic-006、`benchmarks/README.md`、`ci-template.yml` 与 `bench-freeze.yml` 注释同步。FR-026b（restore）与 SC-003（commit）仍是 110%，未改。
+  - **验证**：`working-tree-gate.spec.ts` 先加 5 例红（读项 × 1.2 过 / × 1.31 不过、写项 × 1.2 不过、恰等各自上限过、run 36070569734 实测对 EPYC reference 过、有 reference 无容差判失败），改「任一项超限」一例为写项超限；实现后 `pnpm nx run-many -t typecheck lint test -p benchmarks` 91 例全绿、lint 零警告。
 
 ---
 

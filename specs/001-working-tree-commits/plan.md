@@ -34,7 +34,7 @@
 
 **Project Type**: Library monorepo（核心包 + 三框架绑定 + 多存储适配器）
 
-**Performance Goals**: 双门禁（R8）。普通 PR CI **唯一**硬门禁 = 归一化 ratio ≤ 冻结 reference median 的 110%。绝对 p95 **仅发布门禁**且仅在 `runnerProfileHash` 匹配的固定性能 runner 上：status / diff ≤ 100 ms、restore ≤ 1 s。**commit 不套用 100 ms**（已批准例外，见 Complexity Tracking）。
+**Performance Goals**: 双门禁（R8）。普通 PR CI **唯一**硬门禁 = 归一化 ratio ≤ 冻结 reference median × 该项容差（读项 status / diff 130%，写项 restore / commit 110%，依据见契约 §3.1）。绝对 p95 **仅发布门禁**且仅在 `runnerProfileHash` 匹配的固定性能 runner 上：status / diff ≤ 100 ms、restore ≤ 1 s。**commit 不套用 100 ms**（已批准例外，见 Complexity Tracking）。
 
 **Constraints**: 无暂存区；只有一条 diff 轴 `HEAD ↔ 工作树`；`commit()` 无 selection 入参；禁止 `Index*` / `Workspace*` 前缀导出；不得复活 `stagedChange` / `unstageChange` / `stagedCount` / `WorkspaceCacheEntry.staged`；`switchBranch()` 现有默认行为不变；加密 at-rest envelope 不降级；损坏分支 fail-closed。
 

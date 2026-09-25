@@ -180,7 +180,7 @@ spec.md 的 Key Entities 已把这条列为「两条不可让步的存储契约�
 - **基准环境**固定 Node + PGlite memory；「响应」定义为 **API promise resolve**。
 - `WARMUP = 5`、`SAMPLES = 50`；每 sample 前**在计时外**恢复同一 fixture：10,000 实体 / 100 commit（每 commit 100 单元）/ 工作树 100 未提交单元。fixture 内容与 hash 写入 JSON。
 - JSON 记录运行时版本、OS、CPU 型号、逻辑核数、内存、runner ID、并发度 → `runnerProfileHash`。不匹配返回 `benchmark_environment_mismatch`，**不得伪装成性能回归**。
-- **普通 PR CI 唯一硬门禁**：归一化 ratio（被测 p95 / 同次 control CRUD p95）≤ 冻结 reference median 的 **110%**。
+- **普通 PR CI 唯一硬门禁**：归一化 ratio（被测 p95 / 同次 control CRUD p95）≤ 冻结 reference median × 该项容差：读项 status / diff **130%**，写项 restore / commit **110%**（读项 p95 只有两三毫秒，同画像内噪声就有 ±20%，依据见契约 §3.1）。
 - **绝对 p95 仅发布门禁**，且仅在 `runnerProfileHash` 匹配的固定性能 runner 上：status / diff ≤ 100 ms、restore ≤ 1 s。**commit 不套用 100 ms**。
 
 **Rationale**：裸墙钟数字在 CI 机器上必然抖动。OPFS / IDB / wa-sqlite / PGlite 的差距是**数量级**，不指定后端的绝对断言没有意义。归一化到同次 control CRUD 可消掉机器整体快慢这一维。
