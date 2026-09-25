@@ -1,4 +1,4 @@
-import type { EntityType, TransactionExecutor } from '@aiao/rxdb';
+import type { EntityType, SwitchBranchOptions, TransactionExecutor } from '@aiao/rxdb';
 import { getEntityMetadata, quoteSqlIdentifier } from '@aiao/rxdb';
 import { vi } from 'vitest';
 
@@ -74,3 +74,30 @@ export const createTransactionExecutorStub = (host: RepositoryHost): Transaction
  */
 export const createTransactionStub = (host: RepositoryHost) =>
   vi.fn(async (fun: (executor: TransactionExecutor) => Promise<unknown>) => fun(createTransactionExecutorStub(host)));
+
+/**
+ * 一个**守契约**的假 `adapter.switchBranch` 实现。
+ *
+ * @param host - 提供仓库的宿主（一般是 mock 适配器）
+ * @param onSwitch - `prepare` 通过之后要顺带做的事，比如把分支的 `activated` 挪过去
+ *
+ * @remarks
+ * 真适配器必须在解析出目标分支之后、动第一行之前 await `options.prepare`
+ * （见 `rxdb-adapter.ts` › `SwitchBranchOptions.prepare`）。假适配器不调的话，每一条切换用例
+ * 都会在一个「前置校验被悄悄跳过」的世界里通过——而 `VersionManager.switchBranch` 现在会当场
+ * 拒绝这种适配器，于是那些用例只会以一条与被测行为无关的错误挂掉。
+ *
+ * @example
+ * ```ts
+ * switchBranch: vi.fn(createSwitchBranchStub({ getRepository }));
+ * ```
+ */
+export const createSwitchBranchStub =
+  (host: RepositoryHost, onSwitch?: (branchId: string) => void | Promise<void>) =>
+  async ({ branchId, prepare }: SwitchBranchOptions): Promise<void> => {
+    // `branchId` 省略表示「作用于当前激活分支」，由真适配器在事务内解析。这份替身没有库可查，
+    // 所以只服务显式传分支的调用点；省略分支的用例自己写实现，别让替身编一个出来。
+    if (branchId === undefined) throw new Error('createSwitchBranchStub 只服务显式传 branchId 的调用点');
+    await prepare({ executor: createTransactionExecutorStub(host), targetBranchId: branchId });
+    await onSwitch?.(branchId);
+  };

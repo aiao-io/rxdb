@@ -210,11 +210,17 @@ describe('数值主键实体的查询缓存合并（RXD-069）', () => {
       );
     });
 
-    it('数值 id 的 count 查询在删除后递减', () => {
-      const task = createMockQueryTask({
+    it('数值 id 的 count 查询在删除后应该触发 SQL 重数', () => {
+      // count 分支不再本地做 `current_count - matched.length`（见 merge_remove.ts 的
+      // count 分支注释），命中 where 的 DELETE 一律回 SQL 重数——这里用按调用次序
+      // 依次返回的 runner 模拟「每次重数都去库里读一遍」，固定返回 `of(2)` 会让
+      // refresh 后的第二次运行拿到同一个值，指纹未变不再发射，emission 序列止步于 [2]。
+      let call = 0;
+      const counts = [2, 1];
+      const task = createMockQueryTask<number>({
         type: 'count',
         options: { where: { combinator: 'and', rules: [] } },
-        runner: () => of(2)
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
       });
 
       return expectEmissions(task, [2, 1], () =>

@@ -4,11 +4,10 @@ import {
   type EntityType,
   type FindOptions,
   type HistoryScopeAPI,
-  type IRxDBAdapter,
   isEntityMatchWhere,
+  type LocalRxDBAdapter,
   type RuleGroup,
   RxDB,
-  type RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
   type RxDBChangeOrderByField,
@@ -28,7 +27,6 @@ import { rxDBPluginHistory } from '../plugin.js';
 const ADAPTER_NAME = 'history-clear-race';
 const CHANGE_KEY_PREFIX = 'rxdb:RxDBChange:';
 
-type LocalAdapter = IRxDBAdapter & RxDBAdapterLocalBase;
 type HistoryManagerBridge = Pick<HistoryManager, 'resetSyncCleared'>;
 type ChangeFindOptions = FindOptions<typeof RxDBChange, RxDBChangeRuleGroup, RxDBChangeOrderByField>;
 
@@ -95,7 +93,7 @@ async function createHarness(): Promise<TestHarness> {
 
   const changes: RxDBChange[] = [];
   let branch: RxDBBranch | null = null;
-  const connect = vi.fn<() => Promise<LocalAdapter>>();
+  const connect = vi.fn<() => Promise<LocalRxDBAdapter>>();
 
   const branchRepository = {
     find: vi.fn(async () => (branch ? [branch] : [])),
@@ -158,7 +156,7 @@ async function createHarness(): Promise<TestHarness> {
     removeMany: vi.fn(async <T extends EntityType>(entities: InstanceType<T>[]) => entities),
     mutations: vi.fn(async () => [])
   };
-  const adapter = adapterShape as unknown as LocalAdapter;
+  const adapter = adapterShape as unknown as LocalRxDBAdapter;
   connect.mockResolvedValue(adapter);
 
   rxdb.adapter(ADAPTER_NAME, () => adapter);

@@ -34,6 +34,14 @@
         "kind": "value"
       },
       {
+        "name": "BranchNotMaterializedError",
+        "kind": "both"
+      },
+      {
+        "name": "BranchNotMaterializedReason",
+        "kind": "type"
+      },
+      {
         "name": "buildVersionedDomain",
         "kind": "value"
       },
@@ -46,10 +54,6 @@
         "kind": "type"
       },
       {
-        "name": "CAPTURE_MOUNT_POINTS",
-        "kind": "value"
-      },
-      {
         "name": "captureChanges",
         "kind": "value"
       },
@@ -59,14 +63,6 @@
       },
       {
         "name": "CapturedWrite",
-        "kind": "type"
-      },
-      {
-        "name": "CaptureMountPoint",
-        "kind": "type"
-      },
-      {
-        "name": "CaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -210,6 +206,10 @@
         "kind": "value"
       },
       {
+        "name": "createWorkingTreeCaptureBatch",
+        "kind": "value"
+      },
+      {
         "name": "createWorkingTreeCapturePort",
         "kind": "value"
       },
@@ -250,6 +250,10 @@
         "kind": "value"
       },
       {
+        "name": "ExpectedActiveBranch",
+        "kind": "type"
+      },
+      {
         "name": "ExternalNotifyGateRequest",
         "kind": "type"
       },
@@ -282,10 +286,6 @@
         "kind": "value"
       },
       {
-        "name": "isCaptureMountPoint",
-        "kind": "value"
-      },
-      {
         "name": "isCommitChangeSetPageEmpty",
         "kind": "value"
       },
@@ -295,6 +295,10 @@
       },
       {
         "name": "isCommitLogPageEmpty",
+        "kind": "value"
+      },
+      {
+        "name": "isWorkingTreeCaptureMountPoint",
         "kind": "value"
       },
       {
@@ -343,6 +347,10 @@
       },
       {
         "name": "readActiveRestoreSession",
+        "kind": "value"
+      },
+      {
+        "name": "readBranchEntries",
         "kind": "value"
       },
       {
@@ -454,6 +462,14 @@
         "kind": "value"
       },
       {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
         "name": "WORKING_TREE_INITIAL_ASYNC_STATES",
         "kind": "value"
       },
@@ -470,7 +486,19 @@
         "kind": "both"
       },
       {
+        "name": "WorkingTreeCaptureBatch",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeCaptureHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -642,6 +670,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeWritePrimitiveSignature",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeWriteRejectedError",
         "kind": "both"
       },
@@ -670,10 +702,6 @@
         "kind": "type"
       },
       {
-        "name": "WritePrimitiveSignature",
-        "kind": "type"
-      },
-      {
         "name": "WriteTargetClass",
         "kind": "type"
       }
@@ -686,6 +714,54 @@
       {
         "name": "ConformanceNote",
         "kind": "both"
+      },
+      {
+        "name": "createWorkingTreeHookStubs",
+        "kind": "value"
+      },
+      {
+        "name": "CREDENTIALS",
+        "kind": "value"
+      },
+      {
+        "name": "deferred",
+        "kind": "value"
+      },
+      {
+        "name": "Deferred",
+        "kind": "type"
+      },
+      {
+        "name": "diffWith",
+        "kind": "value"
+      },
+      {
+        "name": "logWith",
+        "kind": "value"
+      },
+      {
+        "name": "REJECTED_RESTORES",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORE_OK",
+        "kind": "value"
+      },
+      {
+        "name": "RESTORE_TARGET",
+        "kind": "value"
+      },
+      {
+        "name": "sessionWith",
+        "kind": "value"
+      },
+      {
+        "name": "statusWith",
+        "kind": "value"
+      },
+      {
+        "name": "VersionManagerStub",
+        "kind": "type"
       },
       {
         "name": "WORKING_TREE_CONFORMANCE_ENTITIES",
@@ -713,6 +789,14 @@
       },
       {
         "name": "WorkingTreeConformanceSuiteContext",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeHookStubs",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeManagerStub",
         "kind": "type"
       }
     ]

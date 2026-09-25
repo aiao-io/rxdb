@@ -142,7 +142,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T047 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts`：冷重放不变量作为「捕获是否完备」的**唯一**判据，不靠计数相等（conformance-suites.md §1.1、SC-009）
 - [x] T048 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts`：spec.md「写入口语义矩阵」**每一行**至少一条用例，含「只更新 `remoteId` / 同步水位 / 审计时间 → 不创建单元、不递增 revision」与「`cleanupExpired()` 过期删除 → 落 `origin='remote_sync'` DELETE 单元并递增 revision」（FR-046、conformance-suites.md §1.2）
 - [x] T049 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/observable-gate.spec.ts`：`upsertMany()` / `deleteByIds()` 返回 `Observable<void>`，门禁必须在**返回 Observable 之前同步拒绝**，断言调用方从不订阅时业务表同样零变化（adapter-contract.md §1.1）
-- [x] T050 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：5 步判定每步一组用例；第 4 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
+- [x] T050 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts`：4 步判定每步一组用例；第 3 步断言**业务表零变化**（执行前拒绝，不是写完回滚）；用「列集无法解析」的语句断言 fail-closed（adapter-contract.md §2）
 - [x] T051 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/untracked-domain.spec.ts`：三类 untracked 各一组 + 「清单外的实体默认 tracked」；tracked 与 untracked 混进同一事务抛 `mixed_versioned_cache_transaction` 且**整事务回滚**；`origin='remote_sync'` **不是** untracked；untracked 是静态属性（conformance-suites.md §1.4）
 - [x] T052 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-fold.spec.ts`：同一实体多次写入的折叠规则——patch 取最新、**inversePatch 取首次捕获值**、INSERT+DELETE 相抵、origin 取最新、**不做值级归零**；`entryCount` 与实际条目数的不变量断言（data-model.md §2.7）
 - [x] T053 [P] [US2] 写红测试 `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts`：每次普通 CRUD 在同事务内校验 active branch token、写业务实体、写/合并完整 `WorkingTreeEntry`、递增 `workingTreeRevision`；任一步失败全部回滚；**禁止**只靠内存 dirty set 重建（FR-039）
@@ -157,7 +157,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
 - [x] T059 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的**本地** `mergeChanges(actions, localChanges?, disableTriggers?)`（:200）挂载捕获，按签名与远端重载（:322）区分；`disableTriggers` 为真时**仍**写 `origin='remote_sync'` 单元且不形成 push echo（FR-046、挂载点 2）
 - [x] T060 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `switchBranch(options)`（:182）挂载捕获：分支物化与 redo 失效**不产生**单元，undo/redo **产生**单元（挂载点 3）
 - [x] T061 [US2] 在 `packages/rxdb/src/rxdb-adapter.ts` 的 `upsertMany()`（:239）与 `deleteByIds()`（:255）显式挂门禁，并在**返回 Observable 之前同步拒绝**；入参是整行而非列集，故对版本化实体一律落第 4 步（挂载点 4、adapter-contract.md §1.1）
-- [x] T062 [US2] 实现**共享的** 5 步 bypass 判定于 `packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 4 步的保守口径处理）（R4、adapter-contract.md §2）
+- [x] T062 [US2] 实现**共享的** 4 步 bypass 判定于 `packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts`（含大小写 / 引号标识符 / schema 限定的词法归一化层，解析不出目标表或列集即按命中第 3 步的保守口径处理）（R4、adapter-contract.md §2）
 - [x] T063 [US2] 从 `packages/rxdb/src/index.ts` 导出 T062 的判定入口（`Commit*` / `WorkingTree*` 前缀），供适配器调用；`rawQuery?()` 在 `packages/rxdb/src/rxdb-adapter.ts:94` 是**可选方法**，判定不得假设它普遍存在
 - [x] T064 [US2] 在 6 个 v1 适配器各自的 `rawQuery` 实现中调用 T062 的共享判定（`packages/rxdb-adapter-pglite/src/`、`-wa-sqlite/src/`、`-sqlite-wasm/src/`、`-sqlite/src/`、`-sqliteai/src/`、`-electron/src/`）——**一份判定，六处调用**，不各写一份；没有 `rawQuery` 的适配器不因此获得豁免，其 `upsertMany` / `deleteByIds` 仍受 T061 约束
 - [x] T065 [US2] 给 9 个受信调用点加显式意图枚举（内部契约，**不进**公开 api-baseline）：`packages/rxdb-plugin-history/src/`（原 `packages/rxdb/src/version/`，de70a1a9 拆包后迁出）下的 `VersionManager.ts·switchBranch`、`restore-entity.ts·restore_entity`、`HistoryManager.ts·invalidateRedoStack`、`undo-redo-apply.ts·applyUndoRedoHistories`、`merge-branch.ts·merge_branch`（逐条与压缩**各一行**）、`pull-batch.ts·pullBatchOnce`、`pull-repository.ts·pullSingleRepository`、`cleanup-expired.ts·cleanupExpired`（adapter-contract.md §3）
@@ -334,7 +334,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - 17 条断言分 4 组：「九件事同属一道屏障」5 条、「依据不足全量回滚」5 条、「分页崩溃可恢复 / 按 attempt 清理」4 条、「成功后不留残留也不碰旁观分支」3 条。桩验证：完整桩 **17 绿**；换成不写库、不抛错、恒返回空结果的 no-op 桩 **14 红 3 绿**。
   - 3 条恒绿的是**防过度实现**的护栏，不是待实现项：判不可续用时**不**顺手删 staging、成功时旁观 attempt 一行不动、成功时来源分支 ref/工作树状态/未提交条目一格不动。剩下 14 条才是 T122 要变绿的。
   - 三个新缝与 T115 的两个同落 `working-tree/branch-materialization.ts`：`commitBranchMaterialization(entityManager, executor, input)`、`findResumableMaterializationAttempt(executor, criteria)`、`discardMaterializationAttempt(executor, attemptId)`，外加 `BranchNotMaterializedError` 与四个成因 `stage_missing | stage_incomplete | intent_drift | target_already_materialized`。成因枚举照 `BranchNotMaterializableError`（`enable-migration.ts`）那份形状抄：只带 identity 与枚举值，**不带内容**（FR-038）。
-  - **物化那一步由调用方注入 `applyPage`，模块本身不认识业务实体。** 内联的话，十张系统表的知识就与整个业务实体登记绑死；注入之后「完整物化排在建 baseline / 建 ref 之前」才是可观测的——用例在每次 `applyPage` 里回看 `rowsOf(Commit)` 与目标 ref，两者必须都还是空的。
+  - **物化那一步由调用方注入 `applyPage`，模块本身不认识业务实体。** 内联的话，十张系统表的知识就与整个业务实体登记绑死；注入之后「完整物化排在建 baseline / 建 ref 之前」才是可观测的——用例在每次 `applyPage` 里回看 `rowsOf(Commit)` 与目标 ref，两者必须都还是空的。（2026-09-26 起 `applyPage` 拆成来源的 `projectPage`（只算不写）加屏障批量 `applyMaterializedActions`，来源由 `@aiao/rxdb-plugin-sync` 自动登记进核心槽 `rxdb.branchMaterializationSource()`；「模块不认识业务实体」这条不变。）
   - **activation revision 的 CAS 机制留给 T119**（`bumpActivationRevision`，T113 已钉）。本文件只断言屏障交出的结果是 `expected + 1`、以及拒绝时 `probe.statements` 为空，不钉那条 UPDATE 的形状——否则会凭空多出第二个缺失模块，红的理由就不止一条了。
   - **复核比的是 staging 行上冻结下来的水位与 scope，不是重算指纹。** 拿调用方给的那两样重算一个再与自己比恒等；`intent_drift` 那条是唯一能把「复核回看了库」与「复核自证」分开的断言。指纹留在行上（T115 的幂等与去重用它），屏障不改用它当判据。
   - **代际现发不复用**（与 T114 同一条 ABA 理由），但 0004 留下的那行占位 ref（`headCommitId === null`）要**就地接管**：代际沿用它已经发过的那个、行数仍为 1。新写一行在真库上是唯一约束冲突，在探针上只是表里多一行——所以那条断言数的是行数。
@@ -406,7 +406,7 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - T122 的两份契约用例 `__tests__/version/materialization-barrier.spec.ts` 与 `__tests__/version/metadata-only-branch-switch.spec.ts` **33/33 全绿**，conformance §2.7 六条与新增的第四条 `switch-to` 腐坏入口在 PGlite 上也全绿。实现落在新文件 `working-tree/branch-materialization.ts`（735 行），**不进 `working-tree/index.ts`**：它是同步侧的编排入口，进桶文件等于让所有只想读工作树状态的调用点都把物化屏障拖进来。
   - **两段式：`stageBranchMaterialization` 把分页 payload 落两张表，`commitBranchMaterialization` 是唯一的提交屏障。** 边写边应用的写法在任一页崩掉时留下半份物化——而那份半成品与「物化完了」在库里一个字都不差。分页落库的代价换来的是「要么整条分支可见，要么它还是 metadata-only」这条二值性质。
     - **staging 只碰 `WorkingTreeMaterializationStage` / `WorkingTreeMaterializationPage`**：conformance §2.7 第 3 条把这件事钉成了 footprint 断言（`{stages:1, pages:3}`，来源分支的 ref / 条目 / 激活态一格不动，目标分支的 `CommitBranchRef` 仍是 0 行）。漏掉这条守卫的话，「staging」会一路漂成「边 staging 边写 ref」，而屏障还立在那儿看起来一切正常。
-    - **`applyPage` 由调用方传入、在屏障事务里逐页跑**：物化出来的行属于业务实体，本模块不认识它们。自己写的话这里要长出一份实体路由表，与 `commit-codec` 各认一套。
+    - **`applyPage` 由调用方传入、在屏障事务里逐页跑**：物化出来的行属于业务实体，本模块不认识它们。自己写的话这里要长出一份实体路由表，与 `commit-codec` 各认一套。（2026-09-26 起改为来源的 `projectPage` 只算动作、屏障统一落库，见 T116 的同一条注记。）
   - **`BranchNotMaterializedError` 的四个 `reason` 是判定，不是文案**（`stage_missing` / `stage_incomplete` / `intent_drift` / `target_already_materialized`）：调用方对四者的处置各不相同——缺 stage 要从头拉，半份 stage 要**续传**（`findResumableMaterializationAttempt` 交出 `nextPageIndex`），意图漂移要重算 scope，已物化则是一次无害的重复调用。压成一个码之后四条路只能靠 message 分辨。
   - **续传的判据是 `(targetBranchId, frozenRemoteWatermark, syncScope)` 三元组齐等**，任一不等就不是同一次意图（`intent_drift`）：水位或 scope 变了还接着用旧页，拼出来的是一份跨两个时点的混合快照，而它在库里与一份干净快照无从分辨。
   - **崩在半路的 staging 必须留在库里**，所以 §2.7 第 5 条的注入崩溃是在**事务边界之内**接住的（`stagePartially` 走 `captureRejection`）：让异常穿出事务会把已写的两页一起回滚，`stage_incomplete` 当场退化成 `stage_missing`，而那条续传路径就再也测不到了。清理由 `discardMaterializationAttempt` 显式做——不在判定时顺手删（T115 的 3 条防过度实现护栏正是钉这个）。
@@ -534,6 +534,58 @@ Nx 23 + pnpm 10 monorepo，沿用既有布局（见 plan.md「Project Structure�
   - 「不是新增危险面」这半句是**核过的**而不是抄任务文本：`git show v0.0.24:…/migration.ts` 与 `v0.0.25` 同处都是 `RXDB_SYSTEM_SCHEMA_VERSION = 3` 且守卫逐字节同形——当年 2 → 3 对停在 2 的客户端就是同一个拒绝。epic-006 改的是数字与撞上它的人数，不是机制。
   - 明确写了**不提供缓解措施**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，那正是 fail-closed 要挡的；说明里给出的动作只有「升级客户端」一个。
   - `node scripts/audit/requirements-consistency.mjs` 在改动后仍是 `✅ 60 Done / 1 In Progress / 4 In Review / 3 Backlog / 0 Blocked，合计 68`。
+- [x] T134 `bench-working-tree` 相对门禁按**比值画像**（系统/架构 + CPU 型号 + Node 主版本）分别冻结 reference，找不到同画像的判 `benchmark_environment_mismatch`，不降级为通过。
+  - **起因**：PR CI 在 `6fc5c665` 上红了，`status` ratio 2.515 > 上限 2.400（CI run 36070569734）。这不是回归：同一提交三种 CPU 的 ratio 如下，唯一一份 reference 冻在 M1 上，而 `ubuntu-latest` 随机分配 CPU，门禁过不过要看分到哪台。
+
+    | CPU                      | status | diff  | restore | commit |
+    | ------------------------ | ------ | ----- | ------- | ------ |
+    | Apple M1 Max（冻结基线） | 2.101  | 2.118 | 12.95   | 15.54  |
+    | Intel Xeon 8573C         | 1.960  | 1.893 | 12.39   | 13.93  |
+    | AMD EPYC 7763            | 2.515  | 2.796 | 11.89   | 13.35  |
+
+    读项（status / diff）在 EPYC 上整体偏高、写项（restore / commit）整体偏低，方向相反，说明契约 §0「机器快一倍时 ratio 不动」只在同一种 CPU 内成立，没有一个整体系数能校正。**不放宽 110%，不重算 M1 那份的数字。**
+
+  - **改动**：
+    - 新增纯逻辑模块 `benchmarks/working-tree-gate.ts`（环境采集、画像、reference 读取与选择、相对门禁判定、冻结准入）与 `working-tree-gate.spec.ts`（32 例，先红后绿）。`computeRunnerProfileHash` 原样搬出，golden 值钉住公式；`cpuModel` 取不到时抛错，不再记成 `unknown`。
+    - reference 从单文件 `reports/working-tree-reference.json` 迁到 `reports/working-tree-reference/<画像 slug>.json`，M1 那份 `git mv` 后只加 `ratioProfile`，数字一个不动；报告 `schemaVersion` 1 → 2。
+    - 冻结脚本加 `--new-profile "理由"`：只为没有 reference 的画像冻结，画像已有时以 0 跳过、不覆盖；准入规则（含 `--regenerate`）收进 `decideFreeze` 并有单测。
+    - 新增 `.github/workflows/bench-freeze.yml`：推注解 tag `bench-freeze/*`（理由取 tag message）或手动触发，4 个槽位并行碰不同 CPU，只上传 artifact，不自动提交。
+    - 契约 §2 / §3.1 / §3.2、`benchmarks/README.md`、`.gitignore`、`ci-template.yml` 注释同步。
+  - **验证**：
+    - `pnpm nx run-many -t typecheck lint test -p benchmarks`：87 例全绿，lint 零警告。
+    - 本机 `pnpm nx run benchmarks:bench-working-tree`（M1 画像，3m23s）：`runnerProfileHash` 仍是 `a9853503…f2ba`，与 reference 逐字相同，说明哈希公式没被搬坏。四项 ratio 为 status 2.128 / diff 2.157 / restore 14.033 / commit 15.374，均低于上限，**✓ PASS**。报告 `schemaVersion: 2`，带 `ratioProfile`。这一跑同时是新画像冻结的锚点：本提交已在已冻结画像上通过相对门禁。
+    - 冻结脚本在 M1 上：`--new-profile "x"` 以 0 跳过；不带参数以 1 拒绝并引用 §3.1；两个参数同时给出时抛错。三种情况都没写任何文件。
+  - **预期中的红**：CI 画像（EPYC / Xeon）的 reference 签入之前，PR 的 benchmark job 在任何 CI CPU 上都会以 mismatch 失败，包括之前碰巧过了的 Intel。这说明门禁不再拿 M1 的数字去判 CI 机器。
+  - **后续**：推注解 tag `bench-freeze/<日期>` → 下载 `working-tree-reference-slot-N` artifact → 检查 commit / runs / ratioProfile / regeneratedBecause → 签入 → 重跑 PR CI，确认 benchmark job 转绿后勾选本条。
+  - **CI 画像冻结（2026-09-25）**：PR CI run 36077337412 在 `b1337e76` 上按预期以 mismatch 失败（EPYC 7763）。同一提交先在本机 M1 画像上复跑相对门禁，四项 status 2.158 / diff 2.536 / restore 11.009 / commit 16.430 均 **✓ PASS**，满足 §3.1 前置条件，再推注解 tag `bench-freeze/2026-09-25`，冻结 run 36106968538 四个槽位全绿。签入 3 份，均为 `commit b1337e76`、`runs 10`：
+
+    | 画像（CPU）              | 槽位 | status | diff  | restore | commit | frozenAbsolute.commit |
+    | ------------------------ | ---- | ------ | ----- | ------- | ------ | --------------------- |
+    | AMD EPYC 7763 64-Core    | 1    | 2.193  | 2.500 | 11.706  | 13.890 | 726.98ms              |
+    | AMD EPYC 9V74 80-Core    | 4    | 2.045  | 2.206 | 12.027  | 14.125 | 567.89ms              |
+    | Intel(R) Xeon(R) 6973P-C | 3    | 1.772  | 1.916 | 12.779  | 15.326 | 578.08ms              |
+    - 槽位 2 同落 EPYC 9V74（status 1.992 / diff 2.366 / restore 12.103 / commit 13.977），按 workflow 约定只签一份：取先完成的槽位 4，不按数字挑。
+    - 用 run 36077337412 的 EPYC 7763 读数回放新 reference：status 2.195 ≤ 2.412、diff 2.582 ≤ 2.750、restore 12.151 ≤ 12.877、commit 14.008 ≤ 15.279，四项均过。
+    - `ubuntu-latest` 的 CPU 池至少有 4 种：本轮碰到 EPYC 7763 / EPYC 9V74 / Xeon 6973P-C，起因里的 Xeon 8573C 仍没有 reference，分到它的 PR 会以 mismatch 失败；处理按 T135：重跑该 job 一次，同一型号反复出现再补冻。
+
+  - **转绿**：签入后的 PR CI run 36113726178（`3d2cf3d8`）分到 EPYC 7763，benchmark job 相对门禁四项 status 1.926 / diff 2.194 / restore 11.711 / commit 13.807 均低于上限，**✓ PASS**，据此勾选本条。Xeon 8573C 没有 reference 不影响本条：门禁逻辑已按画像判定，缺的只是一份数据。
+
+- [x] T135 相对门禁容差按读写分档：读项 `status` / `diff` 130%，写项 `restore` / `commit` 110%；容差表里没有的测点判失败。CI 分到没冻结过的 CPU 型号仍判 `benchmark_environment_mismatch`，处理是重跑一次，同一型号反复出现再补冻。
+  - **起因**：T132 留给评审的「`status` 相对门禁吃不下自身噪声」。T134 的四个冻结槽位第一次给出了 CI 上的数据：每槽 10 次独立运行，各项 ratio 高出本槽 median 的最大幅度——
+
+    | 画像                                        | status | diff   | restore | commit |
+    | ------------------------------------------- | ------ | ------ | ------- | ------ |
+    | AMD EPYC 7763（槽位 1）                     | +19.3% | +16.5% | +2.6%   | +4.6%  |
+    | Intel Xeon 6973P-C（槽位 3）                | +5.4%  | +19.7% | +7.4%   | +4.8%  |
+    | AMD EPYC 9V74（槽位 4，签入）               | +9.9%  | +5.7%  | +7.6%   | +2.9%  |
+    | AMD EPYC 9V74 槽位 2，对槽位 4 的 reference | +5.8%  | +25.1% | +7.7%   | +4.5%  |
+
+    读项按 110% 判，四组里三组会在代码不变时报红（每组 2–4 轮）；写项最大 +7.7%。CI run 36070569734 的 EPYC 7763 实测对签入的 EPYC reference 是 status +14.7% / diff +11.8%，110% 下红、130% 下过。
+
+  - **没有顺手放宽写项**：写项的噪声 110% 留得住，放宽只会让真实回归漏过去。也没有把 `status` 改成纯绝对门禁：绝对门禁只在发布、只在 `runnerProfileHash` 匹配的机器上评估，PR CI 就等于对读项不设防。
+  - **130% 不是噪声上界的保证**：本机一次被并发构建打断的 M1 复冻（8 轮，机器带负载）里 `diff` 有一轮 +32.7%。带负载的机器上读项仍可能越线，那时先查负载，不再放宽。
+  - **改动**：`RELATIVE_GATE_TOLERANCE`（单个 1.1）改为逐项表 `RELATIVE_GATE_TOLERANCES`；`RatioVerdict` 加 `tolerance`，bench 打印分开「reference 缺项」与「没定过容差」，上限后注明百分比；mismatch 提示加「先重跑一次」。契约 §3.1 写入分档、依据表与新型号处理；spec FR-026 / 相对门禁 / SC-001 / SC-002、plan、research、quickstart、checklist、US-306、epic-006、`benchmarks/README.md`、`ci-template.yml` 与 `bench-freeze.yml` 注释同步。FR-026b（restore）与 SC-003（commit）仍是 110%，未改。
+  - **验证**：`working-tree-gate.spec.ts` 先加 5 例红（读项 × 1.2 过 / × 1.31 不过、写项 × 1.2 不过、恰等各自上限过、run 36070569734 实测对 EPYC reference 过、有 reference 无容差判失败），改「任一项超限」一例为写项超限；实现后 `pnpm nx run-many -t typecheck lint test -p benchmarks` 91 例全绿、lint 零警告。
 
 ---
 
@@ -565,7 +617,7 @@ US-305 ──► US-306 阶段 A ──► US-306 阶段 B ──┬──► US
 - T019（schema 3→4 单条迁移）依赖 T018；全有或全无，任一分支初始化失败即停在 v3
 - T038（共享损坏守卫）是 T077 / T084 / T106 / T117 的共同前置——**四处复用同一份，不得各写一份**
 - T056（单一版本化域清单）是 T062 与 T067 的前置——**不得另建第二份清单**
-- T062（共享 5 步判定）是 T064 六处调用的前置
+- T062（共享 4 步判定）是 T064 六处调用的前置
 - T082（`CommitConflict` 定义）是 T119（activation 维度扩展）的前置——扩展既有类型，不新建并行类型
 - T042 / T067（两套套件）是 T043 / T068（6 适配器调用点）的前置；T044（调用点门禁）在两者之后
 - T097（reference 冻结）**必须先于任何发布候选签入**，且 T109 的 restore 测量项接入同一份 reference
@@ -613,12 +665,12 @@ Task: "声明 WorkingTreeMaterializationPage in packages/rxdb-plugin-working-tre
 ## Parallel Example: 6 适配器接入（Phase 4 / T064）
 
 ```bash
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-pglite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-wa-sqlite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqlite-wasm/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqlite/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-sqliteai/src/"
-Task: "在 rawQuery 中调用共享 5 步判定 in packages/rxdb-adapter-electron/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-pglite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-wa-sqlite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqlite-wasm/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqlite/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-sqliteai/src/"
+Task: "在 rawQuery 中调用共享 4 步判定 in packages/rxdb-adapter-electron/src/"
 ```
 
 ---

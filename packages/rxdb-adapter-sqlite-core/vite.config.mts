@@ -58,6 +58,9 @@ export default defineConfig(() => {
         checks: { pluginTimings: false },
         external: [
           '@aiao/rxdb',
+          // `src/testing.ts` 转出口 `cloneEntityClasses`。不列在这里，rolldown 会把核心那份
+          // 实现**复制进** `dist/testing.js`——单一实现当场变回两份，`.d.ts` 却仍写着转出口。
+          '@aiao/rxdb/testing',
           '@aiao/rxdb-adapter-encrypted',
           '@aiao/rxdb-adapter-sqlite-core',
           '@aiao/rxdb-plugin-tree',

@@ -340,7 +340,7 @@ describe('孤立损坏不拦路（§2.5 第一条）', () => {
 });
 
 describe('守卫跑在写事务内（T084）', () => {
-  it('门面 commit() 拒绝时也只开了一个事务', async () => {
+  it('门面 commit() 拒绝时校验与写共用一个事务，第二笔只用来落损坏标记', async () => {
     const scene = createChainScene();
     commitOf(scene, 'root').contentFingerprint = 'fp-tampered';
 
@@ -348,7 +348,17 @@ describe('守卫跑在写事务内（T084）', () => {
 
     // 校验单开一个只读事务、写另开一个，中间那段时间足够别人把图改坏；
     // 于是校验通过的是一张已经不存在的图。
-    expect(scene.adapter.transaction).toHaveBeenCalledTimes(1);
+    //
+    // 数到 2 的那一笔是**失败之后**才开的损坏闩（`runEnabled` 的 catch 里那句
+    // `latchBranchCorruption`），它必须跑在调用方那笔注定回滚的事务**之外**，
+    // 否则标记跟着回滚一起消失。两条断言缺一不可：只数事务的话，「校验先单开一笔
+    // 只读事务」这种退化同样数到 2；只看标记的话，闩被挪回事务内部也照样绿——
+    // 这里它留下来了，说明那一笔确实在外面。
+    expect(scene.adapter.transaction).toHaveBeenCalledTimes(2);
+    expect({ status: refRowOf(scene).status, corruptedAt: refRowOf(scene).corruptedAt }).toEqual({
+      status: 'corrupted_read_only',
+      corruptedAt: expect.any(Date)
+    });
   });
 
   it('校验读的是本事务的 executor', async () => {

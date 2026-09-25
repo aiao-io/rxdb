@@ -379,6 +379,14 @@ describe('Repository', () => {
     );
   });
 
+  it('offset 报错信息点名字段与实际取值', () => {
+    const { repository } = setupRepository();
+
+    expect(() => repository.find({ where: baseWhere(), offset: -1 } as FindOptions<TestEntityCtor>)).toThrow(
+      'offset must be a non-negative safe integer, received: -1'
+    );
+  });
+
   it('limit 缺省与显式非负安全整数照常放行', async () => {
     const { repository, localRepo } = setupRepository();
     localRepo.find.mockResolvedValue([]);

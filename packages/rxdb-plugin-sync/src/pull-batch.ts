@@ -41,6 +41,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 interface RepoSyncInfo {
@@ -304,44 +305,10 @@ async function pullBatchOnce(
 
       totalPulled += filteredChanges.length;
 
-      // 分离自己推送的变更和他人的变更
-      // 只按 clientId 识别：远端记录缺少 localId（如 push 走 actions-only 路径）时，
-      // 自己的变更也不能进入他人变更的 apply/conflict 链路
-      const ownChanges: RemoteChange[] = [];
-      const otherChanges: RemoteChange[] = [];
-
-      for (const rc of filteredChanges) {
-        if (rc.clientId != null && rc.clientId === clientId) {
-          ownChanges.push(rc);
-        } else {
-          otherChanges.push(rc);
-        }
-      }
-
-      // 批量更新自己推送变更的 remoteId（只有带 localId 的记录才能回填映射）
-      const mappableChanges = ownChanges.filter(c => c.localId != null);
-      if (mappableChanges.length > 0) {
-        const localIds = mappableChanges.map(c => c.localId!);
-        const locals = await changeRepo.find({
-          where: {
-            combinator: 'and',
-            rules: [
-              { field: 'id', operator: 'in', value: localIds },
-              { field: 'remoteId', operator: '=', value: null }
-            ]
-          }
-        });
-
-        if (locals.length > 0) {
-          const ownChangeMap = new Map(mappableChanges.map(c => [c.localId!, c.id]));
-          for (const local of locals) {
-            const remoteId = ownChangeMap.get(local.id);
-            if (remoteId != null) {
-              await changeRepo.update(local, { remoteId });
-            }
-          }
-        }
-      }
+      // 分离自己推送的变更和他人的变更，再把自推变更的 remoteId 回填到本地行上。
+      // 两步与 pull-repository.ts 共用同一份实现（见 pull-round.ts 的 @packageDocumentation）。
+      const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(filteredChanges, clientId);
+      await backfillOwnChangeRemoteIds(changeRepo, ownChanges);
 
       // 压缩并应用他人的变更
       if (otherChanges.length > 0) {

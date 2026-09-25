@@ -8,6 +8,7 @@ import { PropertyType, SyncType } from '../entity/metadata-options.interface.js'
 import { IRepository } from '../repository/repository.interface.js';
 import { IRxDBAdapter } from '../rxdb-adapter.js';
 import { IRxDBPlugin, Plugin, RxDBPluginBase } from '../rxdb-plugin.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
 
 /**
  * 本文件的用例只验证接口形状，不经宿主安装，`install()` 的形参给一个空作用域即可。
@@ -40,6 +41,8 @@ const createAdapter = (): IRxDBAdapter => {
   return adapter;
 };
 
+const { trackSharedRxDB } = registerRxDBTeardown();
+
 describe('rxdb-plugin', () => {
   @Entity({
     name: 'TestEntity',
@@ -52,16 +55,18 @@ describe('rxdb-plugin', () => {
   let rxdb: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'rxdb-plugin-test',
-      entities: [TestEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'rxdb-plugin-test',
+        entities: [TestEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter('sqlite', () => createAdapter());
     rxdb.init();
   });

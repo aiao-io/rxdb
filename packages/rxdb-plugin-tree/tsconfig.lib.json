@@ -29,6 +29,9 @@
       "path": "../utils/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-client-generator/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb/tsconfig.lib.json"
     }
   ]

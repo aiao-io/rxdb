@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 const triggerControl = vi.hoisted(() => ({
   mode: 'actual' as 'actual' | 'throw' | 'empty'
@@ -40,6 +40,22 @@ type MockAdapter = {
   transaction: ReturnType<typeof vi.fn>;
   rxdb: { config: { entities: unknown[] }; dispatchEvent: ReturnType<typeof vi.fn> };
 } & Record<string, unknown>;
+
+/**
+ * 一次 `switch_branch` 调用的选项，`prepare` 是可断言的 spy。
+ *
+ * @remarks
+ * 契约要求适配器在解析出目标分支之后、动第一行之前 `await options.prepare(...)`
+ * （见 `rxdb-adapter.ts` › `SwitchBranchOptions.prepare`）。这里**不**用
+ * `SKIP_BRANCH_SWITCH_PREPARE`：那个常量是给「分支不换、确实没有前置条件可校验」的调用点
+ * 用的，而本文件每条用例都在真的换分支——拿它顶上会把「switch_branch 到底调没调 prepare」
+ * 这件事本身从用例里抹掉。
+ */
+const switchOptions = (branchId: string): SwitchBranchOptions & { prepare: Mock<SwitchBranchOptions['prepare']> } => ({
+  branchId,
+  actions: { deletes: new Map(), updates: new Map(), inserts: new Map() },
+  prepare: vi.fn(async () => undefined)
+});
 
 const makeAdapter = (overrides: Record<string, unknown> = {}): MockAdapter => {
   const query = vi.fn().mockResolvedValue({ rows: [{ id: 'main', activated: true }], affectedRows: 1, fields: [] });
@@ -145,8 +161,10 @@ describe('switch_branch pure unit edges', () => {
     adapter.query.mockResolvedValue({ rows: [], affectedRows: 0, fields: [] });
     transactionResultMock.mockResolvedValue([]);
 
-    await switch_branch(adapter as never, { branchId: 'solo' } as SwitchBranchOptions);
+    const options = switchOptions('solo');
+    await switch_branch(adapter as never, options);
 
+    expect(options.prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'solo' });
     expect(adapter.query).toHaveBeenCalled();
     expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -155,7 +173,7 @@ describe('switch_branch pure unit edges', () => {
     const adapter = makeAdapter();
     transactionResultMock.mockResolvedValue([]);
 
-    await switch_branch(adapter as never, { branchId: 'feature' } as SwitchBranchOptions);
+    await switch_branch(adapter as never, switchOptions('feature'));
 
     expect(adapter.transaction).toHaveBeenCalledTimes(1);
   });
@@ -176,7 +194,7 @@ describe('switch_branch pure unit edges', () => {
       { id: 'feature', activated: true, updatedAt: now, createdAt: now }
     ]);
 
-    await switch_branch(adapter as never, { branchId: 'feature' } as SwitchBranchOptions);
+    await switch_branch(adapter as never, switchOptions('feature'));
 
     expect(transactionResultMock).toHaveBeenCalled();
     expect(adapter.rxdb.dispatchEvent).toHaveBeenCalled();
@@ -208,7 +226,7 @@ describe('switch_branch pure unit edges', () => {
       { id: 'solo', activated: true } // 没有 updatedAt/createdAt → new Date()
     ]);
 
-    await switch_branch(adapter as never, { branchId: 'solo' } as SwitchBranchOptions);
+    await switch_branch(adapter as never, switchOptions('solo'));
 
     expect(adapter.rxdb.dispatchEvent).toHaveBeenCalled();
     const event = adapter.rxdb.dispatchEvent.mock.calls[0][0];
@@ -222,13 +240,29 @@ describe('switch_branch pure unit edges', () => {
     Reflect.set(cause, 'code', '08006');
     adapter.query.mockRejectedValue(cause);
 
-    const promise = switch_branch(adapter as never, { branchId: 'bad' } as SwitchBranchOptions);
+    const promise = switch_branch(adapter as never, switchOptions('bad'));
     await expect(promise).rejects.toBeInstanceOf(RxdbAdapterPGliteError);
     await expect(promise).rejects.toMatchObject({
       message: 'switch branch bad failed: db down',
       originalError: cause,
       cause
     });
+  });
+
+  it('prepare 被拒时原样抛出，且一条语句都没执行过', async () => {
+    const adapter = makeAdapter();
+    adapter.query.mockResolvedValue({ rows: [], affectedRows: 0, fields: [] });
+    const options = switchOptions('feature');
+    const rejection = new Error('工作树不干净');
+    options.prepare.mockRejectedValue(rejection);
+
+    // 两条断言各管一件事：
+    // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorkingTreeDirtyError` 之类），
+    //    包成 RxdbAdapterPGliteError 会让调用方的 `instanceof` 全部落空。
+    // 2. **一条 SQL 都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
+    //    而那正是两事务版本留下的那个窗口。
+    await expect(switch_branch(adapter as never, options)).rejects.toBe(rejection);
+    expect(adapter.query).not.toHaveBeenCalled();
   });
 
   it('switch_branch transaction failure is wrapped', async () => {
@@ -238,8 +272,6 @@ describe('switch_branch pure unit edges', () => {
       })
     });
 
-    await expect(switch_branch(adapter as never, { branchId: 'tx' } as SwitchBranchOptions)).rejects.toThrow(
-      /switch branch tx failed/
-    );
+    await expect(switch_branch(adapter as never, switchOptions('tx'))).rejects.toThrow(/switch branch tx failed/);
   });
 });

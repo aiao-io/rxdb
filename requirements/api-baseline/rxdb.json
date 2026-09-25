@@ -38,11 +38,19 @@
         "kind": "value"
       },
       {
+        "name": "assertOptionalNonNegativeSafeInteger",
+        "kind": "value"
+      },
+      {
         "name": "assertSingleActiveBranch",
         "kind": "value"
       },
       {
         "name": "assertSupportedRxDBSystemVersions",
+        "kind": "value"
+      },
+      {
+        "name": "assertUsableBranchId",
         "kind": "value"
       },
       {
@@ -74,6 +82,38 @@
         "kind": "type"
       },
       {
+        "name": "BranchMaterializationBarrierContext",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationIntent",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationPage",
+        "kind": "type"
+      },
+      {
+        "name": "branchMaterializationPageFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "BranchMaterializationPagePayload",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationPageRequest",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationProjectionContext",
+        "kind": "type"
+      },
+      {
+        "name": "BranchMaterializationSource",
+        "kind": "type"
+      },
+      {
         "name": "buildOfflineWriteRepositoryRules",
         "kind": "value"
       },
@@ -84,6 +124,18 @@
       {
         "name": "calculateOrderBy",
         "kind": "value"
+      },
+      {
+        "name": "canonicalMaterializationJson",
+        "kind": "value"
+      },
+      {
+        "name": "CAPABILITY_ENABLED_EVENT",
+        "kind": "value"
+      },
+      {
+        "name": "CapabilityEnabledEvent",
+        "kind": "both"
       },
       {
         "name": "capabilityWatermarkName",
@@ -342,7 +394,15 @@
         "kind": "type"
       },
       {
+        "name": "EntityMetadataType",
+        "kind": "type"
+      },
+      {
         "name": "EntityMetadataValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "EntityMutationsOptions",
         "kind": "type"
       },
       {
@@ -494,14 +554,6 @@
         "kind": "type"
       },
       {
-        "name": "fillDefaultValue",
-        "kind": "value"
-      },
-      {
-        "name": "fillInitValue",
-        "kind": "value"
-      },
-      {
         "name": "FindAllOptions",
         "kind": "type"
       },
@@ -587,14 +639,6 @@
       },
       {
         "name": "getLocalSystemRepositories",
-        "kind": "value"
-      },
-      {
-        "name": "getNeedRemoveEntities",
-        "kind": "value"
-      },
-      {
-        "name": "getNeedSaveEntities",
         "kind": "value"
       },
       {
@@ -702,6 +746,10 @@
         "kind": "type"
       },
       {
+        "name": "InvalidBranchIdError",
+        "kind": "both"
+      },
+      {
         "name": "IQueryContext",
         "kind": "type"
       },
@@ -790,6 +838,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorkingTreeCaptureMountPoint",
+        "kind": "value"
+      },
+      {
         "name": "JSONProperty",
         "kind": "type"
       },
@@ -818,6 +870,10 @@
         "kind": "type"
       },
       {
+        "name": "LocalRxDBAdapter",
+        "kind": "type"
+      },
+      {
         "name": "LocalRxDBBranchRepository",
         "kind": "type"
       },
@@ -828,6 +884,10 @@
       {
         "name": "LWWConflictResolver",
         "kind": "both"
+      },
+      {
+        "name": "MAIN_BRANCH_ID",
+        "kind": "value"
       },
       {
         "name": "MalformedRxDBCapabilityWatermarkError",
@@ -912,6 +972,10 @@
       {
         "name": "NoActiveBranchError",
         "kind": "both"
+      },
+      {
+        "name": "normalizeCreateEntity",
+        "kind": "value"
       },
       {
         "name": "normalizeUpdateEntity",
@@ -1238,6 +1302,10 @@
         "kind": "type"
       },
       {
+        "name": "RemoteRxDBAdapter",
+        "kind": "type"
+      },
+      {
         "name": "RemoteRxDBBranchRepository",
         "kind": "type"
       },
@@ -1450,7 +1518,19 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBranchSwitchFailureContext",
+        "kind": "type"
+      },
+      {
         "name": "RxDBBranchSwitchPreconditions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchTakeover",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBranchSwitchTakeoverContext",
         "kind": "type"
       },
       {
@@ -1694,32 +1774,16 @@
         "kind": "type"
       },
       {
-        "name": "setRuntimeObjectGetter",
-        "kind": "value"
-      },
-      {
-        "name": "setRuntimeObjectKey",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectKey",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectKeyLazyInitOnce",
-        "kind": "value"
-      },
-      {
-        "name": "setSafeObjectWritableKey",
-        "kind": "value"
-      },
-      {
         "name": "sha256Hex",
         "kind": "value"
       },
       {
         "name": "SingleSelectFormat",
         "kind": "type"
+      },
+      {
+        "name": "SKIP_BRANCH_SWITCH_PREPARE",
+        "kind": "value"
       },
       {
         "name": "sqlBooleanLiteral",
@@ -1779,6 +1843,10 @@
       },
       {
         "name": "SwitchBranchOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SwitchBranchPrepareContext",
         "kind": "type"
       },
       {
@@ -2046,7 +2114,23 @@
         "kind": "value"
       },
       {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS",
+        "kind": "value"
+      },
+      {
+        "name": "WORKING_TREE_CAPTURE_MOUNT_POINTS",
+        "kind": "value"
+      },
+      {
         "name": "WorkingTreeCaptureHook",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPoint",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCaptureMountPointOrdinal",
         "kind": "type"
       },
       {
@@ -2055,6 +2139,10 @@
       },
       {
         "name": "WorkingTreeWriteHost",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeWritePrimitiveSignature",
         "kind": "type"
       },
       {
@@ -2067,6 +2155,10 @@
       }
     ],
     "./testing": [
+      {
+        "name": "cloneEntityClasses",
+        "kind": "value"
+      },
       {
         "name": "collectEmissions",
         "kind": "value"

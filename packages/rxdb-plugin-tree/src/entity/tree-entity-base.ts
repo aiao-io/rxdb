@@ -3,76 +3,11 @@
  * 提供基于邻接表模型的树形结构实体基类
  */
 
-import {
-  Entity,
-  EntityBase,
-  EntityMetadataOptions,
-  OnDeleteAction,
-  PropertyType,
-  RelationKind,
-  RxDBEntityId,
-  UUID
-} from '@aiao/rxdb';
+import { Entity, EntityBase, RxDBEntityId, UUID } from '@aiao/rxdb';
 import { Observable } from 'rxjs';
+import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS } from '../constants.js';
 import type { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import { ITreeEntity } from './tree-entity.interface.js';
-
-/**
- * `TreeAdjacencyListEntityBase` 的 `@Entity` 元数据。
- *
- * @remarks
- * 邻接表模型的那一份声明：`parentId` 外键、`children` 一对多自关联、
- * `hasChildren` 计算属性，以及 `repository: 'TreeRepository'`。子类沿原型链继承整份，
- * 所以 `@Entity({ name: 'Category' })` 不必重复声明任何一项就有树能力。
- *
- * 之所以导出而不是内联进装饰器：`@TreeEntity` 装饰器要拿它去合并用户自己的选项，
- * 手写实体（不继承基类、自己实现 {@link ITreeEntity}）也要靠它对齐字段，
- * 两条路径必须用同一份声明，否则「继承来的树」和「手写的树」在 schema 上会分叉。
- *
- * @see {@link TreeAdjacencyListEntityBase}
- */
-export const TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: EntityMetadataOptions = {
-  name: 'TreeAdjacencyListEntityBase',
-  abstract: true, // 标记为抽象类，不会直接创建此类的实例
-  // 基类声明了 findDescendants / countAncestors 等静态方法，而这些只由 TreeRepository 注入。
-  // 因此这里必须显式声明 —— 子类沿原型链继承到它，才不会「类型上有、运行时没有」。
-  // 不写 repository 的子类（`@Entity({ name: 'Category' })`）正是靠这一行拿到树查询能力。
-  repository: 'TreeRepository',
-  computedProperties: [
-    {
-      name: 'hasChildren', // 是否有子节点
-      displayName: '是否有子节点',
-      type: PropertyType.boolean, // 布尔类型
-      nullable: true,
-      readonly: true
-    }
-  ],
-  relations: [
-    {
-      name: 'children', // 子节点关系名称
-      displayName: '子节点',
-      kind: RelationKind.ONE_TO_MANY, // 一对多关系
-      mappedEntity: 'TreeAdjacencyListEntityBase', // 关联到同一实体类型
-      mappedProperty: 'parent' // 映射到子实体的 parent 属性
-    },
-    {
-      name: 'parent', // 父节点关系名称
-      columnName: 'parentId', // 外键列名
-      displayName: '父节点',
-      kind: RelationKind.MANY_TO_ONE, // 多对一关系
-      mappedEntity: 'TreeAdjacencyListEntityBase', // 关联到同一实体类型
-      mappedProperty: 'children', // 映射到父实体的 children 属性
-      nullable: true, // 允许根节点没有父节点
-      onDelete: OnDeleteAction.CASCADE // 删除父节点时级联删除子节点
-    }
-  ],
-  features: {
-    tree: {
-      type: 'adjacency-list', // 指定为邻接表树形结构
-      hasChildren: true // 启用 hasChildren 计算属性
-    }
-  }
-} as const;
 
 /**
  * 树形实体装饰器配置

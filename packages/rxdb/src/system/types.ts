@@ -61,7 +61,7 @@ declare type RxDBSyncRule =
   | RelationBooleanRules<'branch.remote', boolean>
   | RelationDateRules<'branch.createdAt', Date | null>
   | RelationDateRules<'branch.updatedAt', Date | null>
-  | StringRules<RxDBBranch, 'parentId'>
+  | RelationStringRules<'branch.parentId', string | null>
   | RelationNumberRules<'branch.changes.id', number>
   | RelationNumberRules<'branch.changes.remoteId', number | null>
   | RelationNumberRules<'branch.changes.localId', number | null>
@@ -75,7 +75,7 @@ declare type RxDBSyncRule =
   | RelationDateRules<'branch.changes.revertChangedAt', Date | null>
   | RelationNumberRules<'branch.changes.revertChangeId', number | null>
   | RelationDateRules<'branch.changes.redoInvalidatedAt', Date | null>
-  | StringRules<RxDBChange, 'branchId'>
+  | RelationStringRules<'branch.changes.branchId', string | null>
   | RelationStringRules<'branch.children.id', string>
   | RelationBooleanRules<'branch.children.activated', boolean>
   | RelationNumberRules<'branch.children.fromChangeId', number | null>
@@ -83,13 +83,15 @@ declare type RxDBSyncRule =
   | RelationBooleanRules<'branch.children.remote', boolean>
   | RelationDateRules<'branch.children.createdAt', Date | null>
   | RelationDateRules<'branch.children.updatedAt', Date | null>
+  | RelationStringRules<'branch.children.parentId', string | null>
   | RelationStringRules<'branch.parent.id', string>
   | RelationBooleanRules<'branch.parent.activated', boolean>
   | RelationNumberRules<'branch.parent.fromChangeId', number | null>
   | RelationBooleanRules<'branch.parent.local', boolean>
   | RelationBooleanRules<'branch.parent.remote', boolean>
   | RelationDateRules<'branch.parent.createdAt', Date | null>
-  | RelationDateRules<'branch.parent.updatedAt', Date | null>;
+  | RelationDateRules<'branch.parent.updatedAt', Date | null>
+  | RelationStringRules<'branch.parent.parentId', string | null>;
 
 /**
  * 规则组基类
@@ -116,7 +118,7 @@ export declare type RxDBSyncRuleGroup = RuleGroupBase<
   | 'branch.remote'
   | 'branch.createdAt'
   | 'branch.updatedAt'
-  | 'parentId'
+  | 'branch.parentId'
   | 'branch.changes.id'
   | 'branch.changes.remoteId'
   | 'branch.changes.localId'
@@ -130,7 +132,7 @@ export declare type RxDBSyncRuleGroup = RuleGroupBase<
   | 'branch.changes.revertChangedAt'
   | 'branch.changes.revertChangeId'
   | 'branch.changes.redoInvalidatedAt'
-  | 'branchId'
+  | 'branch.changes.branchId'
   | 'branch.children.id'
   | 'branch.children.activated'
   | 'branch.children.fromChangeId'
@@ -138,7 +140,7 @@ export declare type RxDBSyncRuleGroup = RuleGroupBase<
   | 'branch.children.remote'
   | 'branch.children.createdAt'
   | 'branch.children.updatedAt'
-  | 'parentId'
+  | 'branch.children.parentId'
   | 'branch.parent.id'
   | 'branch.parent.activated'
   | 'branch.parent.fromChangeId'
@@ -146,7 +148,7 @@ export declare type RxDBSyncRuleGroup = RuleGroupBase<
   | 'branch.parent.remote'
   | 'branch.parent.createdAt'
   | 'branch.parent.updatedAt'
-  | 'parentId',
+  | 'branch.parent.parentId',
   RxDBSyncRule
 >;
 
@@ -212,7 +214,7 @@ declare type RxDBChangeRule =
   | RelationBooleanRules<'branch.remote', boolean>
   | RelationDateRules<'branch.createdAt', Date | null>
   | RelationDateRules<'branch.updatedAt', Date | null>
-  | StringRules<RxDBBranch, 'parentId'>
+  | RelationStringRules<'branch.parentId', string | null>
   | RelationStringRules<'branch.syncs.id', string>
   | RelationStringRules<'branch.syncs.namespace', string>
   | RelationStringRules<'branch.syncs.entity', string>
@@ -224,7 +226,7 @@ declare type RxDBChangeRule =
   | RelationBooleanRules<'branch.syncs.enabled', boolean>
   | RelationDateRules<'branch.syncs.createdAt', Date | null>
   | RelationDateRules<'branch.syncs.updatedAt', Date | null>
-  | StringRules<RxDBSync, 'branchId'>
+  | RelationStringRules<'branch.syncs.branchId', string>
   | RelationStringRules<'branch.children.id', string>
   | RelationBooleanRules<'branch.children.activated', boolean>
   | RelationNumberRules<'branch.children.fromChangeId', number | null>
@@ -232,13 +234,15 @@ declare type RxDBChangeRule =
   | RelationBooleanRules<'branch.children.remote', boolean>
   | RelationDateRules<'branch.children.createdAt', Date | null>
   | RelationDateRules<'branch.children.updatedAt', Date | null>
+  | RelationStringRules<'branch.children.parentId', string | null>
   | RelationStringRules<'branch.parent.id', string>
   | RelationBooleanRules<'branch.parent.activated', boolean>
   | RelationNumberRules<'branch.parent.fromChangeId', number | null>
   | RelationBooleanRules<'branch.parent.local', boolean>
   | RelationBooleanRules<'branch.parent.remote', boolean>
   | RelationDateRules<'branch.parent.createdAt', Date | null>
-  | RelationDateRules<'branch.parent.updatedAt', Date | null>;
+  | RelationDateRules<'branch.parent.updatedAt', Date | null>
+  | RelationStringRules<'branch.parent.parentId', string | null>;
 
 /**
  * 规则组基类
@@ -267,7 +271,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'branch.remote'
   | 'branch.createdAt'
   | 'branch.updatedAt'
-  | 'parentId'
+  | 'branch.parentId'
   | 'branch.syncs.id'
   | 'branch.syncs.namespace'
   | 'branch.syncs.entity'
@@ -279,7 +283,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'branch.syncs.enabled'
   | 'branch.syncs.createdAt'
   | 'branch.syncs.updatedAt'
-  | 'branchId'
+  | 'branch.syncs.branchId'
   | 'branch.children.id'
   | 'branch.children.activated'
   | 'branch.children.fromChangeId'
@@ -287,7 +291,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'branch.children.remote'
   | 'branch.children.createdAt'
   | 'branch.children.updatedAt'
-  | 'parentId'
+  | 'branch.children.parentId'
   | 'branch.parent.id'
   | 'branch.parent.activated'
   | 'branch.parent.fromChangeId'
@@ -295,7 +299,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'branch.parent.remote'
   | 'branch.parent.createdAt'
   | 'branch.parent.updatedAt'
-  | 'parentId',
+  | 'branch.parent.parentId',
   RxDBChangeRule
 >;
 
@@ -345,7 +349,7 @@ declare type RxDBBranchRule =
   | RelationDateRules<'changes.revertChangedAt', Date | null>
   | RelationNumberRules<'changes.revertChangeId', number | null>
   | RelationDateRules<'changes.redoInvalidatedAt', Date | null>
-  | StringRules<RxDBChange, 'branchId'>
+  | RelationStringRules<'changes.branchId', string | null>
   | RelationExistsRules<'syncs', RxDBSyncRuleGroup>
   | RelationStringRules<'syncs.id', string>
   | RelationStringRules<'syncs.namespace', string>
@@ -358,7 +362,7 @@ declare type RxDBBranchRule =
   | RelationBooleanRules<'syncs.enabled', boolean>
   | RelationDateRules<'syncs.createdAt', Date | null>
   | RelationDateRules<'syncs.updatedAt', Date | null>
-  | StringRules<RxDBSync, 'branchId'>
+  | RelationStringRules<'syncs.branchId', string>
   | RelationExistsRules<'children', RxDBBranchRuleGroup>
   | RelationStringRules<'children.id', string>
   | RelationBooleanRules<'children.activated', boolean>
@@ -367,6 +371,7 @@ declare type RxDBBranchRule =
   | RelationBooleanRules<'children.remote', boolean>
   | RelationDateRules<'children.createdAt', Date | null>
   | RelationDateRules<'children.updatedAt', Date | null>
+  | RelationStringRules<'children.parentId', string | null>
   | RelationExistsRules<'parent', RxDBBranchRuleGroup>
   | RelationStringRules<'parent.id', string>
   | RelationBooleanRules<'parent.activated', boolean>
@@ -374,7 +379,8 @@ declare type RxDBBranchRule =
   | RelationBooleanRules<'parent.local', boolean>
   | RelationBooleanRules<'parent.remote', boolean>
   | RelationDateRules<'parent.createdAt', Date | null>
-  | RelationDateRules<'parent.updatedAt', Date | null>;
+  | RelationDateRules<'parent.updatedAt', Date | null>
+  | RelationStringRules<'parent.parentId', string | null>;
 
 /**
  * 规则组基类
@@ -403,7 +409,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   | 'changes.revertChangedAt'
   | 'changes.revertChangeId'
   | 'changes.redoInvalidatedAt'
-  | 'branchId'
+  | 'changes.branchId'
   | 'syncs'
   | 'syncs.id'
   | 'syncs.namespace'
@@ -416,7 +422,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   | 'syncs.enabled'
   | 'syncs.createdAt'
   | 'syncs.updatedAt'
-  | 'branchId'
+  | 'syncs.branchId'
   | 'children'
   | 'children.id'
   | 'children.activated'
@@ -425,7 +431,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   | 'children.remote'
   | 'children.createdAt'
   | 'children.updatedAt'
-  | 'parentId'
+  | 'children.parentId'
   | 'parent'
   | 'parent.id'
   | 'parent.activated'
@@ -434,7 +440,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   | 'parent.remote'
   | 'parent.createdAt'
   | 'parent.updatedAt'
-  | 'parentId',
+  | 'parent.parentId',
   RxDBBranchRule
 >;
 
@@ -443,33 +449,6 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
  */
 export declare type RxDBBranchOrderByField =
   'id' | 'activated' | 'fromChangeId' | 'local' | 'remote' | 'createdAt' | 'updatedAt';
-
-/**
- * rxdb
- */
-declare module '@aiao/rxdb' {
-  /**
-   * RxDB
-   */
-  interface RxDB {
-    /**
-     * RxDBSync
-     */
-    RxDBSync: typeof RxDBSync;
-    /**
-     * RxDBMigration
-     */
-    RxDBMigration: typeof RxDBMigration;
-    /**
-     * RxDBChange
-     */
-    RxDBChange: typeof RxDBChange;
-    /**
-     * RxDBBranch
-     */
-    RxDBBranch: typeof RxDBBranch;
-  }
-}
 
 /**
  * 静态类型

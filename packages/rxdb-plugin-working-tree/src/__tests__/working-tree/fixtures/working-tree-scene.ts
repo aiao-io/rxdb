@@ -45,6 +45,7 @@ import { WorkingTreeEntry } from '../../../working-tree/working-tree-entry.entit
 import type { WorkingTreeManager } from '../../../working-tree/working-tree-facade.js';
 import { WorkingTreeRestoreSession } from '../../../working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../../../working-tree/working-tree-state.entity.js';
+import type { CommitGraphProbeOptions } from '../../commit/fixtures/commit-graph-probe.js';
 import { createCommitGraphProbe } from '../../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter, type MockLocalAdapter } from '../../fixtures/test-db-setup.js';
 
@@ -137,6 +138,18 @@ export interface WorkingTreeSceneOptions {
   readonly entries?: readonly Partial<WorkingTreeEntrySeed>[];
   /** `executor.query()` 的固定 `rowsAffected`；CAS 命不命中由它决定，默认 1（命中） */
   readonly rowsAffected?: number;
+  /**
+   * 原样透传给探针的 `executor.query()` 旁路钩子；默认不挂
+   *
+   * @remarks
+   * 走到**代际发放**（`allocateBranchGeneration`）的场景必须给一个
+   * （`activation-sql.ts` › `runBranchGenerationSql`）：那一步把加法交给库做、又从库里把号读回来，
+   * 而探针不执行 SQL——不补这两下，单调源永远停在原地、读回来永远是 0 行，发放当场就抛。
+   *
+   * 透传而不是在本工厂里默认挂上：挂上之后，每一个**不该**走到发放的场景都会在实现某天
+   * 多发一次号时照常绿，而「这条路上一次都没发号」正是其中几条用例要钉的性质。
+   */
+  readonly onQuery?: CommitGraphProbeOptions['onQuery'];
 }
 
 /** 一条工作树条目的可拨字段，其余字段由 {@link seedWorkingTreeEntry} 给默认值。 */
@@ -220,7 +233,7 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   database.use(rxDBPluginWorkingTree);
   database.init();
 
-  const probe = createCommitGraphProbe({ rowsAffected: options.rowsAffected ?? 1 });
+  const probe = createCommitGraphProbe({ onQuery: options.onQuery, rowsAffected: options.rowsAffected ?? 1 });
   const { entityManager } = database;
 
   const capability = entityManager.instantiate(CommitCapabilityState);
@@ -266,6 +279,13 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   state.updatedAt = new Date('2026-01-01T00:00:00.000Z');
   probe.seed(WorkingTreeState, [state]);
 
+  // 场景是「能力已启用、适配器上还没有捕获钩子」——种子直接写进探针，没走过 `connect()`，
+  // 于是 `bootstrapExisting()` 那次装载一次都没发生。生产里这个组合只有一种成因（漏掉了
+  // 能力启用广播），所以门面的 `runEnabled()` 会在事务提交后自愈补装。补装用的是
+  // `installWorkingTreeCapture()`，而它经 `define()` **覆写实例成员**：第一次受管调用之后，
+  // `adapter.transaction` 不再是下面这个 spy，而是转发回它的拦截包装。
+  //
+  // 要数开事务次数的用例因此得**先取引用再调用**。包装转发回原件，引用上的计数仍然是真的。
   adapter.transaction.mockImplementation(async fun => fun(probe.executor));
 
   let nextIndex = 0;

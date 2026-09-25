@@ -3,6 +3,9 @@
  *
  * 提供用于测试的标准实体：User, Post, Category, Tag
  * 覆盖基础 CRUD 与关系场景
+ *
+ * 本包与其他插件包里的这份副本逐字相同，这是**有意**的重复，不要往 `@aiao/rxdb-test` 收敛——
+ * 理由见该包 README 的「什么不搬进来」。
  */
 
 import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';

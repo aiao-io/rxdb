@@ -24,13 +24,13 @@ owner: jimmy
 
 用户视角的最终能力，每条标注归属故事；**没有归属的条目就是本 Epic 的缺口**，不得靠"发布前统一补"消化。
 
-- [ ] 提交历史与 HEAD 在刷新、重启、崩溃后完整可查（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
-- [ ] 已在用的数据库能一次性、可重试地打开 commit 能力而不丢数据（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
-- [ ] 任何入口写入的业务变更都被工作树捕获，刷新后可仅凭 HEAD + 工作树重放（[US-306 阶段 A](../stories/collaboration/US-306-working-tree-commits.md)）
-- [ ] 用户能查看 status/diff 并把当前工作树的全部变更带消息提交成一个提交点（[US-306 阶段 B](../stories/collaboration/US-306-working-tree-commits.md)）
+- [x] 提交历史与 HEAD 在刷新、重启、崩溃后完整可查（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
+- [x] 已在用的数据库能一次性、可重试地打开 commit 能力而不丢数据（[US-305](../stories/collaboration/US-305-commit-graph-head.md)）
+- [x] 任何入口写入的业务变更都被工作树捕获，刷新后可仅凭 HEAD + 工作树重放（[US-306 阶段 A](../stories/collaboration/US-306-working-tree-commits.md)）
+- [x] 用户能查看 status/diff 并把当前工作树的全部变更带消息提交成一个提交点（[US-306 阶段 B](../stories/collaboration/US-306-working-tree-commits.md)）
 - [ ] Angular / React / Vue 三端以对称 API 完成上述操作，且 UI 达到 WCAG 2.1 AA（[US-306 阶段 C](../stories/collaboration/US-306-working-tree-commits.md)）
-- [ ] 用户能把数据恢复到任意可达 commit，且不改写历史、不移动 HEAD（[US-307](../stories/collaboration/US-307-restore-session.md)）
-- [ ] 每个分支拥有独立的 HEAD 与工作树，跨标签页并发不静默覆盖（[US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)）
+- [x] 用户能把数据恢复到任意可达 commit，且不改写历史、不移动 HEAD（[US-307](../stories/collaboration/US-307-restore-session.md)）
+- [x] 每个分支拥有独立的 HEAD 与工作树，跨标签页并发不静默覆盖（[US-308](../stories/collaboration/US-308-branch-isolation-conflict.md)）
 - [ ] 公开文档讲清启用方式、工作树与草稿缓存的区别、恢复语义、历史保留旧值的风险、加密边界、
       不改写历史的承诺，并明示远端同步会产生 `origin=remote_sync` 的未提交变化
       （[US-306 阶段 C](../stories/collaboration/US-306-working-tree-commits.md)，对应发布门禁 9）
@@ -267,16 +267,16 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | branch switch、baseline/restore 物化、commit 后的工作树清空                                | 由对应领域操作显式维护工作树；底层投影重写不得被 trigger 二次记录                                                                                                                                                                                                                                                                      |
 | metadata-only 目标分支的远端预取                                                           | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                                                                                                                                                                                                                                   |
 | QueryCache 的 upsert/delete/孤儿清理与离线出站重放（见下注）                               | QueryCache 实体不进入 baseline、status、diff 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中                                                                                                                                                                                                                           |
-| raw SQL、adapter 直写或其他 trigger bypass                                                 | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表**判定 + 受信 intent 豁免，非「rawQuery 整体只读」）与其能力边界见下文「raw SQL / adapter 直写的 bypass 门禁判定」                                                                           |
+| raw SQL、adapter 直写或其他 trigger bypass                                                 | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表 + 目标列**判定，非「rawQuery 整体只读」）与其能力边界见下文「raw SQL / adapter 直写的 bypass 门禁判定」                                                                                     |
 | `upsertMany()` / `deleteByIds()` 等 adapter 公开批量写方法                                 | 与上一行同判定：目标是版本化业务实体表即拒绝，目标是 QueryCache 实体表即放行。**这两个方法不经 `rawQuery`**，US-306 阶段 A 必须显式把门禁挂到它们上，见下注                                                                                                                                                                            |
 | [`EntityManager.notifyExternalUpdate()`](../../packages/rxdb/src/entity/entity-manager.ts) | 它是「先绕过 ORM 写库、再补发标准事件」这条既有工作流的**后半段**，而前半段对版本化实体已被上两行拒绝。启用后它对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出一个没有工作树单元支撑的 `EntityLocalUpdatedEvent`——那会让事件流与工作树永久分叉；对 QueryCache 实体行为不变。这条 MUST 写进下文「能力边界」那句公开声明里 |
 
 **`upsertMany` / `deleteByIds` 是门禁的结构性缺口，阶段 A 必须显式补上。** 下文「raw SQL / adapter 直写的 bypass 门禁判定」
-的五步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
+的四步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
 既不是 `rawQuery` 也不是外部句柄——它落在那条能力边界声明的空隙里：实现走
 `transaction(executor => executor.query(...))`（见 [RxDBAdapterPGlite.ts](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts)），
-门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 5 步本来就该放行，
+门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 4 步本来就该放行，
 所以缺口暂时不可见；但方法签名 `upsertMany(entityName, data)` 不带意图，**任何调用方传一个 Full/Filter 实体名
 就能写版本化业务表且不产生工作树单元、也不被任何门禁拦下**，直接违反发布门禁 10 的「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」。
 阶段 A 的判定必须按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（判定明令不得另建第二份），
@@ -398,25 +398,29 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
 `UPDATE <业务表> SET "<pk>" = "<pk>" WHERE …`（借 trigger 重算的空更新），`resetFts` 则是
 `UPDATE <业务表> SET "_fts" = NULL`——三条都经 `rawQuery` 下发，目标表就是版本化业务实体表本身。
 纯按表判定会让启用提交能力的 PGlite 数据库**装不上全文检索**，正是上一段用来否决「整体只读」的那个后果，
-只是把打击面从 6 个后端缩到 1 个。因此第 4 步 MUST 是**列粒度**的。
+只是把打击面从 6 个后端缩到 1 个。因此第 3 步 MUST 是**列粒度**的。
 
-**判定 = 按目标表 + 目标列判定 + 受信 intent 豁免。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
+**判定 = 按目标表 + 目标列判定。** 每次 `rawQuery` 调用在**语句执行前**按下列顺序判定：
 
 1. commit 能力**未启用** → 原样放行，零行为差异。
-2. 调用携带内部受信 `intent`（非公开参数，仅登记表内的路径可传）→ 放行。
-3. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
-4. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，
+2. 非写语句（`SELECT` / `EXPLAIN` / 只读 `PRAGMA` / `WITH … SELECT`）→ 放行。
+3. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，
    **业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理（同下方 fail-closed 口径）。
-5. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表），以及第 4 步中**只**触及
+4. 其余写目标（FTS5 虚拟表与影子表、`rxdb_*` 系统表、查询缓存实体表、临时表），以及第 3 步中**只**触及
    untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 working-tree revision。
+
+**判定里没有「受信 `intent` 豁免」这一步。** 曾有过一步「携带内部受信 `intent` → 放行」，2026-09-23 连同上下文槽位
+一并删除：受信调用点全部走 `switchBranch` / `mergeChanges` 这两个带类型的写原语，raw 通道上一个都没有，那一步在
+生产里永远取不到真值，却是整条防线上唯一无条件放行的一步。判据见
+[threat-model.md](../../specs/001-working-tree-commits/threat-model.md) §3。
 
 「版本化业务实体表」= 已注册实体中 `sync.type !== SyncType.QueryCache` 的那些的 SQL 表名；「untracked 字段域」=
 「版本化域」untracked 表第 2、3 行列出的那些列（`remoteId`、同步水位、审计时间、已登记的插件派生索引列）。
 两者都与「版本化域」引用**同一个集合**，**不得另建第二份清单**。`upsertMany()` / `deleteByIds()` 复用同一份清单与
-同一个第 4 / 第 5 步判定——但它们的入参是**整行**而不是列集，因此对版本化实体一律落第 4 步的拒绝分支。
+同一个第 3 / 第 4 步判定——但它们的入参是**整行**而不是列集，因此对版本化实体一律落第 3 步的拒绝分支。
 
 列粒度豁免只补齐「表粒度会误伤 untracked 列」这一个缺口，**不放宽能力边界**：写入口矩阵里「只更新 remoteId、
-同步水位或审计时间不构成净变化」本来就是字段粒度的判定，第 4 步是跟它对齐，而不是新开一个豁免维度。
+同步水位或审计时间不构成净变化」本来就是字段粒度的判定，第 3 步是跟它对齐，而不是新开一个豁免维度。
 
 解析取保守口径（fail-closed）：目标表**无法确定**（动态拼接、多语句串、方言不认识的构造）→ 按**拒绝**处理，宁可误伤，
 不可放过；大小写、引号标识符（SQLite 的 `` ` `` / `[]`、PG 的 `""`）、schema 限定（`public.x`）在比对前归一化；
@@ -599,13 +603,15 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
   与只读摘要的操作量级不同；它的绝对预算由首个绿色实现的 reference 中位数冻结，
   与相对门禁同批签入，不在此凭空指定
 
-> **当前 reference 状态**：现有 reference 是带负载的初版（`frozenAbsolute.commit` 因后 4 轮 restore 离群值虚高
-> 约 29%，`status` 上限抬到 2.400 且自身十轮极差 ±19%）。发布用的绝对门禁在机器静默复冻之前不得据此放行；
-> `status` 的「4ms 量级读 ÷ 2.5ms 量级对照」比值对噪声没有抵抗力，容差口径仍归评审。留证见
-> `specs/001-working-tree-commits/tasks.md` T132 与 [status-overview](../status-overview.md)。
+> **当前 reference 状态**：reference 按比值画像分份，CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 /
+> Intel Xeon 6973P-C）已签入，`ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，
+> 重跑一次，同一型号反复出现再补冻。读项 status / diff 的比值是「几毫秒 ÷ 几毫秒」，同画像十轮里就高出 median 近
+> +20%，容差因此按读写分档（读 130%、写 110%，数据见契约 §3.1）。M1 的 reference 是带负载的初版
+> （`frozenAbsolute.commit` 因后 4 轮 restore 离群值虚高约 29%），发布用的绝对门禁在机器静默复冻之前不得据此放行。
+> 留证见 `specs/001-working-tree-commits/tasks.md` T132 / T134 / T135 与 [status-overview](../status-overview.md)。
 
 - 每项 control CRUD 使用相同实体数量和事务边界；相对门禁比较“被测操作 p95 / 同次 control CRUD p95”。
-  首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio 的 110%；
+  首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio × 该项容差（读项 status / diff 130%，写项 restore / commit 110%）；
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
 - 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
@@ -628,6 +634,12 @@ patch / inverse patch 换成新的完整快照、`type` 按 baseline 与新值�
      与今天的 HEAD 完全相同，所以在 `systemSchemaUpgrade: false` 的发布里这条判据对空桥恒真
      两条判据（以及四条 tag 钩子）**只在 `release.kind === "migration"` 分支内执行**；桥接发布自己
      （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线，见 [release-plan 硬前提 1](../release-plan.md)
+
+   本条的真实 tag 验收（US-305 AC US2-14 的绿半边）由
+   [release-plan「迁移发布的关闭条件」](../release-plan.md#迁移发布的关闭条件)承接，US-305 按代码 AC 关闭、不再承载它。
+   当前卡在 [桥接锚点开项](../release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)：
+   `main` 自 #55 起已是 schema 6，没有一个提交能同时满足祖先性、版本号与常量三条，出路待 owner 选。
+
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-commits.md#交付阶段与边界) 逐条有归属，跨故事的半边以收口故事的场景为准，
    US-306 阶段 C / US-307 / US-308 的三框架对称与 a11y 条件满足

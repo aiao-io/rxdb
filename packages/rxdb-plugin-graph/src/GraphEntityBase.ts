@@ -3,8 +3,9 @@
  * 提供基于图数据结构的实现
  */
 
-import { Entity, EntityBase, EntityMetadataOptions } from '@aiao/rxdb';
+import { Entity, EntityBase } from '@aiao/rxdb';
 import { Observable } from 'rxjs';
+import { GRAPH_ENTITY_BASE_OPTIONS } from './constants.js';
 import {
   EdgeFilterOptions,
   FindNeighborsOptions,
@@ -16,11 +17,6 @@ import {
   GraphWhere,
   NeighborResult
 } from './graph-repository.interface.js';
-
-export const GRAPH_ENTITY_BASE_OPTIONS: EntityMetadataOptions = {
-  name: 'GraphEntityBase',
-  abstract: true
-} as const;
 
 /**
  * 图实体装饰器配置

@@ -23,6 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { PGliteRepository } from '../repository/PGliteRepository.js';
 
 const adapters = new Set<RxDBAdapterPGlite>();
 const databases = new Set<RxDB>();
@@ -263,9 +264,11 @@ describe('PGlite system schema migration', () => {
 
     const reopened = await createDatabase();
     expect(await getEntityIdColumnType(reopened.adapter)).toBe('text');
-    const changes = await reopened.adapter.localRxDBChange().findAll({
-      where: { combinator: 'and', rules: [{ field: 'entityId', operator: '=', value: todo.id }] }
-    });
+    const changes = await reopened.adapter
+      .getRepository<typeof RxDBChange, PGliteRepository<typeof RxDBChange>>(RxDBChange)
+      .findAll({
+        where: { combinator: 'and', rules: [{ field: 'entityId', operator: '=', value: todo.id }] }
+      });
     expect(changes).toHaveLength(1);
     expect(changes[0].patch).toEqual({ title: 'legacy' });
 

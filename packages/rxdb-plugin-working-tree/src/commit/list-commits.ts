@@ -167,6 +167,15 @@ export const nextFrontier = (level: readonly Commit[], seen: Set<string>): strin
  * `seen` 既去重也断环：提交图理论上无环，但一个被篡改过的库可以有环，逐父递归会直接栈溢出。
  *
  * 逐层取而不是逐个取：100 个 commit 的线性历史逐个取就是 100 次往返。
+ *
+ * **剩下的「每层一次往返」是 BFS 本身，不是没做批量。** 同层的批量 `in` 早就在了
+ * （见 {@link loadCommitsByIds}），而线性历史的每一层只有一个节点，于是往返数仍等于提交数。
+ * 要省掉它得能「一次查回整条分支」，而 `Commit` 上**没有** `branchId` 列——提交属于哪条分支
+ * 是从 ref 的 HEAD 沿父链推出来的，不是存着的，所以那个查询无从写起。前提是先有一份按分支
+ * 存的派生结构，而那份结构与 `commit-graph-guard.ts` 里「最后已验证 HEAD」水位是同一份状态
+ * （那边的 `assertCommitGraphIntact` @remarks 写了为什么水位本身是一次规格变更）：
+ * 两条一起做才不会把状态机扩张两遍。顺延记录见 `requirements/roadmap.md`
+ * 的「epic-006 评审顺延的架构项」。
  */
 const traverseFromHead = async (
   executor: TransactionExecutor,

@@ -1,11 +1,11 @@
 ---
 id: US-506
 title: website 插件文档补齐（history / sync / querycache）
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-09-18
+updated: 2026-09-25
 tags: [plugin, documentation, website]
 ---
 
@@ -54,6 +54,8 @@ INVEST 检查清单:
 | 6   | 无                                                                    | 打开 `website/docs/collaboration/undo-redo.md`                                                                     | 顶部有「插件依赖」info：Undo/Redo 由 `@aiao/rxdb-plugin-history` 提供，不装则 `rxdb.versionManager` 不存在                                                                                                                                                                    | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+已随 #55（`2132c30d`）合入 main。
 
 ## 技术笔记
 

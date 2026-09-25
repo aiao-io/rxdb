@@ -96,6 +96,17 @@ Category.findDescendants({ entityId: root.id, level: 2 }).subscribe(nodes => {
 
 从内置树升级见 [tree-split 迁移说明](https://github.com/aiao-io/rxdb/blob/main/website/docs/migration/tree-split.md)。
 
+## 开发命令
+
+```bash
+pnpm nx test rxdb-plugin-tree              # node 环境，只跑构建期生成器 spec
+pnpm nx run rxdb-plugin-tree:test-browser  # 先跑 node 趟（依赖 coverage target），再在真实 chromium 里跑运行时 spec
+```
+
+`vite.config.mts` 按 `VITEST_BROWSER` 环境变量把测试拆成两趟：不设该变量时（`nx test` 走的路径）排除全部 `*.browser.spec.ts`，只剩 `src/__tests__/generator/` 下的构建期生成器 spec；查询 / 合并 / 仓储等运行时 spec 都以 `.browser.spec.ts` 结尾，只有 `VITEST_BROWSER=true`（即 `test-browser`）才会执行。
+
+所以 `pnpm nx test rxdb-plugin-tree --watch` 做 TDD 会**静默**跳过全部运行时 spec——改了查询 / 合并 / 仓储代码，红没红只有 `test-browser` 看得到。
+
 ## License
 
 [MIT](https://github.com/aiao-io/rxdb/blob/main/LICENSE)

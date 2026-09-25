@@ -1,4 +1,11 @@
-import { EntityStaticType, getRxDBChangeKey, RxDBChange, RxDBError, SwitchVersionActions } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  getRxDBChangeKey,
+  RxDBBranch,
+  RxDBChange,
+  RxDBError,
+  SwitchVersionActions
+} from '@aiao/rxdb';
 import { find_switch_branch_step } from './find-switch-branch-step.js';
 import { VersionManager } from './VersionManager.js';
 /**
@@ -7,8 +14,53 @@ import { VersionManager } from './VersionManager.js';
  * @param branchId 要切换到的分支ID
  * @returns 返回切换分支所需的操作序列
  */
-export const switch_branch_actions = async (version: VersionManager, branchId: string) => {
-  const { branchRepository, changeRepository } = await version.getLocalRepositories();
+export const switch_branch_actions = async (version: VersionManager, branchId: string) =>
+  compute_switch_branch_actions(await version.getLocalRepositories(), branchId);
+
+/**
+ * 算切换分支所需操作要用到的最小仓库能力。
+ *
+ * @remarks
+ * 与 {@link BranchChangeReader} 同一个理由写成结构化接口：本地仓库与事务执行器给出的
+ * `IRepository` 都接得住，两边的 `find` 入参本就是同一个类型。
+ */
+export interface SwitchBranchActionReaders {
+  /** 读分支行 */
+  readonly branchRepository: {
+    /**
+     * 按条件查分支
+     *
+     * @param options - 查询选项
+     * @returns 命中的分支行
+     */
+    find(options: EntityStaticType<typeof RxDBBranch, 'findOptions'>): Promise<RxDBBranch[]>;
+  };
+
+  /** 读变更行；见 {@link BranchChangeReader} */
+  readonly changeRepository: BranchChangeReader;
+}
+
+/**
+ * 用给定的仓库算「从当前 active 分支切到 `branchId`」要落的增删改——
+ * {@link switch_branch_actions} 的本体。
+ *
+ * @param readers - 见 {@link SwitchBranchActionReaders}
+ * @param branchId - 要切换到的分支 id
+ * @returns 切换分支所需的操作序列
+ *
+ * @remarks
+ * 拆出来是给 `@aiao/rxdb-plugin-working-tree` 的物化屏障用的：屏障要先把来源分支的投影撤掉，
+ * 再铺目标分支的快照，而它跑在 `switchBranch` 的 `prepare` 里，手上只有事务执行器的仓库——
+ * 绑在适配器上的本地仓库会在同一条连接上等屏障自己那笔事务，死锁。另写一份同义计算，
+ * 迟早会在「回滚标记算不算」上与普通切换分叉。
+ *
+ * @internal
+ */
+export const compute_switch_branch_actions = async (
+  readers: SwitchBranchActionReaders,
+  branchId: string
+): Promise<SwitchVersionActions> => {
+  const { branchRepository, changeRepository } = readers;
   const current_branch = (
     await branchRepository.find({
       where: {

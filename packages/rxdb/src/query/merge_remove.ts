@@ -4,7 +4,7 @@ import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalRemovedEventData } from '../rxdb-events.js';
 import { query_need_refresh_remove } from './need_refresh_remove.js';
-import { calculateOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
+import { calculateOrderBy } from './query-matching.utils.js';
 import { isStaleEntityRemoveEvent } from './stale-event.utils.js';
 
 /**
@@ -15,6 +15,22 @@ import { isStaleEntityRemoveEvent } from './stale-event.utils.js';
  * `find` / `findOne` / `findOneOrFail` 只往 `refresh_rules` 推规则，
  * `recalculate_rules` 为空时 `runMatches` 恒返回 `recalculate: false`——
  * 给它们留 case 只是死码。
+ *
+ * 同理，`findAll` / `findByCursor` 分支里**不再判「什么都没删掉」**：这两类的
+ * `recalculate_rules` 只有 `['result_contains']`，而 `result_contains` 查的是
+ * `task.resultEntityIds`，它与 `task.resultEntitySet` 由 `QueryTask#next` 在
+ * 同一个 `autoCache` 分支里一起清、一起填，不存在只进其一的路径。于是
+ * 「走到这里」本身就意味着 `data` 里至少有一个 id 在结果集内，过滤后必然变短，
+ * `filtered.length === old_result.length` 恒为假。留着那行 `return` 只会是一条
+ * 永远测不到的死分支。
+ *
+ * `count` 同样不再留 case：它和 CREATE（见 merge_create.ts 对应分支的注释）是同一条
+ * 原则——count 结果只是个裸 number，没有 id 级基线可比对，「这条 DELETE 是否已经被
+ * 当前快照数出去了」在 JS 侧根本判断不了。原先这里靠 `current_count - matched.length`
+ * 在本地减，一旦同一条 DELETE 被重复派发（例如分支合并产生的双重事件），或者快照本就
+ * 取自这条删除提交之后、事件却姗姗来迟，就会把已经不含这行的计数继续减小，且没有下一次
+ * 整查之前不会纠回来。现在这条路径整段并进 `refresh_rules`，`recalculate_rules` 对
+ * count 恒为空，走不到这个 switch。
  */
 const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntityLocalRemovedEventData<T>[]) => {
   const removed_ids = new Set(data.map(e => e.id));
@@ -22,35 +38,15 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
   switch (task.type) {
     case 'findAll': {
       const options = task.options as FindAllOptions<T>;
-      const old_result = Array.from(task.resultEntitySet.values());
-      const filtered = old_result.filter(e => !removed_ids.has(e.id));
-      if (filtered.length === old_result.length) return;
-
+      const filtered = Array.from(task.resultEntitySet.values()).filter(e => !removed_ids.has(e.id));
       const new_result = options.orderBy?.length ? calculateOrderBy(filtered, options.orderBy) : filtered;
       task.next(new_result, true);
       break;
     }
 
     case 'findByCursor': {
-      const old_result = Array.from(task.resultEntitySet.values());
-      const filtered = old_result.filter(e => !removed_ids.has(e.id));
-      if (filtered.length === old_result.length) return;
+      const filtered = Array.from(task.resultEntitySet.values()).filter(e => !removed_ids.has(e.id));
       task.next(filtered, true);
-      break;
-    }
-
-    case 'count': {
-      const current_count = (task.result as number) || 0;
-      const where = (task.options as FindAllOptions<T>)?.where;
-      const matched = where ? data.filter(e => isEntityMatchWhere(e.inversePatch, where)) : data;
-      if (matched.length === 0) break;
-      // 与 merge_create.ts 的 count 分支对称清理：那边把已计数的 id 记进
-      // resultEntityIds 去重，这里删除时要同步摘掉，否则被删 id 会一直卡在去重集合里，
-      // 之后同 id 重建（如 undo/redo 撤销删除）时会被误判成「已经计过数的重复事件」而漏计数。
-      matched.forEach(e => task.resultEntityIds.delete(e.id));
-      // autoCache=false 原因同 merge_create.ts 的 count 分支：next() 在 autoCache=true 时
-      // 无条件清空 resultEntityIds，会把上面刚做的精确删除以及其它未被本批触及的 id 一并清掉。
-      task.next(Math.max(0, current_count - matched.length), false);
       break;
     }
   }
@@ -58,7 +54,7 @@ const _recalculate = <T extends EntityType>(task: QueryTask<T>, data: RxDBEntity
 
 export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLocalRemovedEventData<T>[]) => {
   // 与 merge_create / merge_update 的同款守卫：首个权威结果落地前不做增量。
-  // count 分支会用 `(result || 0) - matched` 伪造出首发结果 0；其余分支虽是空转，
+  // 这里的各分支此时都还是空转（count 也一样，已经没有本地加减能伪造出首发结果），
   // 但 runner 的快照可能取自删除提交之前，静默丢弃会让这行死数据永远留在活查询里。
   // 交给 refresh() 重跑一次，两种情况都对。
   if (task.result === undefined) {
@@ -99,13 +95,14 @@ export default <T extends EntityType>(task: QueryTask<T>, entities: RxDBEntityLo
       break;
 
     case 'count':
-      // recalculate 分支此前只看 match_where，与 where 是否依赖关系字段无关——
-      // 当前实体自身的 DELETE 事件负载是扁平快照（inversePatch 不含已加载的关系对象），
-      // where 一旦用了关系字段，notExists/exists 之类的判断在快照上就不可信，必须像
-      // merge_create.ts / merge_update.ts 的对应分支一样要求 not_match_relation_where，
-      // 命中关系条件时交给 refresh_rules 走 SQL 刷新，而不是继续用扁平快照做 JS 计数。
-      recalculate_rules.push(['match_where', 'not_match_relation_where']);
-      refresh_rules.push(['match_relation_where']);
+      // 与 merge_create.ts 的 count 分支同一条原则：没有 id 级基线、没有可对齐的水位，
+      // 命中 where 的 DELETE 一律回 SQL 重数，不再用 `match_where` 门槛去 JS 本地减。
+      // DELETE 天然没有「更新前后」的区分——一条事件要么命中 where 要么不命中，
+      // `match_where` 本身就是精确判据，不存在「变更但计数不受影响」需要额外排除的情形
+      // （这点与下面 merge_update.ts 的 count 分支不同，UPDATE 有前后两态，判据要更严）。
+      // not_match_relation_where 与 findAll/find 同款：DELETE 事件负载是扁平快照，
+      // where 一旦用了关系字段就不可信，命中关系条件时交给下一条规则回 SQL。
+      refresh_rules.push(['match_where', 'not_match_relation_where'], ['match_relation_where']);
       break;
   }
 

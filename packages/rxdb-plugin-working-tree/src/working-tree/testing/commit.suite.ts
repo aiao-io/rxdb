@@ -50,8 +50,14 @@
 import { firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
+import type {
+  BranchMaterializationPage,
+  BranchMaterializationPagePayload,
+  LocalRxDBAdapter,
+  RxDB,
+  TransactionExecutor
+} from '@aiao/rxdb';
+import { branchMaterializationPageFingerprint, getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -67,18 +73,15 @@ import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/
 import type { WriteCommitOutcome } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import * as workingTreePublicSurface from '../../index.js';
-import type {
-  BranchMaterializationPage,
-  BranchMaterializationPagePayload,
-  BranchMaterializationResult,
-  BranchMaterializationStaging
-} from '../branch-materialization.js';
+import type { BranchMaterializationResult, BranchMaterializationStaging } from '../branch-materialization.js';
 import {
+  appendBranchMaterializationPage,
+  beginBranchMaterializationStage,
   BranchNotMaterializedError,
   commitBranchMaterialization,
   discardMaterializationAttempt,
-  findResumableMaterializationAttempt,
-  stageBranchMaterialization
+  findLatestMaterializationAttempt,
+  sealBranchMaterializationStage
 } from '../branch-materialization.js';
 import type { ChangeCaptureSource } from '../capture-runtime.js';
 import { captureChanges, readActiveBranchToken } from '../capture-runtime.js';
@@ -97,6 +100,7 @@ import { WorkingTreeMaterializationPage } from '../working-tree-materialization-
 import { WorkingTreeMaterializationStage } from '../working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
+import { StaleActiveBranchError } from '../write-entry.js';
 import { ConformanceNote } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
@@ -134,7 +138,7 @@ interface CommitCorruptionEntryContext {
   readonly database: RxDB;
 
   /** 开出 {@link CommitCorruptionEntryContext.executor} 的那个本地适配器 */
-  readonly adapter: IRxDBAdapter & RxDBAdapterLocalBase;
+  readonly adapter: LocalRxDBAdapter;
 
   /** 调用方那个写事务的执行器 */
   readonly executor: TransactionExecutor;
@@ -144,8 +148,7 @@ interface CommitCorruptionEntryContext {
 }
 
 /** 取当前库的本地适配器；提交上下文与写事务都从它来。 */
-const localAdapterOf = (database: RxDB): Promise<IRxDBAdapter & RxDBAdapterLocalBase> =>
-  firstValueFrom(database.localAdapter$);
+const localAdapterOf = (database: RxDB): Promise<LocalRxDBAdapter> => firstValueFrom(database.localAdapter$);
 
 /**
  * 开一个写事务跑一段命令体，语义与门面 `runEnabled()` 走的是同一条路。
@@ -157,7 +160,7 @@ const localAdapterOf = (database: RxDB): Promise<IRxDBAdapter & RxDBAdapterLocal
  */
 const withTransaction = async <T>(
   database: RxDB,
-  run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+  run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
 ): Promise<T> => {
   const adapter = await localAdapterOf(database);
   return adapter.transaction(async executor => run(executor, adapter));
@@ -562,6 +565,12 @@ const REMOTE_TARGET_ID = 'conformance-remote-target';
 /** §2.7 的 ABA 用例那条被删掉又同名重建的分支。 */
 const ABA_BRANCH_ID = 'conformance-aba';
 
+/** §2.7 的代际用例那条来回切的分支：`A → B → A` 里的 B。 */
+const ACTIVATION_BRANCH_ID = 'conformance-activation';
+
+/** §2.7 那条**切不过去**的分支：前置校验会把这次切换拒掉。 */
+const REFUSED_BRANCH_ID = 'conformance-refused';
+
 /** 物化 attempt 冻结下来的远端水位；内容不重要，「冻结的是哪一份」才重要。 */
 const MATERIALIZATION_WATERMARK: Record<string, unknown> = { changeId: 7 };
 
@@ -594,10 +603,10 @@ const materializationPagesOf = (pageCount: number, crashAt?: number): AsyncItera
   (async function* () {
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
       if (pageIndex === crashAt) throw new InjectedStagingCrash(pageIndex);
-      yield {
-        payload: { rows: [{ entity: UNIT_TARGET.name, id: `materialized-${pageIndex}` }] },
-        fingerprint: `conformance-page-${pageIndex}`
-      };
+      const payload = { rows: [{ entity: UNIT_TARGET.name, id: `materialized-${pageIndex}` }] };
+      // 指纹现算而不是写 `page-${pageIndex}` 之类的占位串：落库那一步会复算一遍，占位串
+      // 一律进不去，而改成「实现怎么算、这里就抄一遍」又会让指纹成为恒等式。
+      yield { payload, fingerprint: branchMaterializationPageFingerprint(payload) };
     }
   })();
 
@@ -627,21 +636,69 @@ const injectRemoteOnlyBranch = async (database: RxDB): Promise<string> => {
   return REMOTE_TARGET_ID;
 };
 
-/** 开一次 staging：三条物化用例共用这一份意图，只有页数与崩溃点不同。 */
-const stageOnce = (
+/**
+ * 走一趟完整 staging：开头行、逐页追加、封口，**每一步各一个事务**。
+ *
+ * @param database - 本条用例的数据库
+ * @param attemptId - 本次 attempt id
+ * @param pages - 远端快照的分页来源
+ * @returns 封口那一步的交代
+ *
+ * @remarks
+ * 三个 `withTransaction` 而不是一个：一个事务装完全程的话，「崩在第 N 页时前 N 页还在」
+ * 这条性质在套件里恒不成立，而它正是 {@link stagePartially} 那几条断言的全部内容。
+ * 这也是真实调用方的形状——分页之间要发网络请求，不能把写事务一直攥着。
+ */
+const stageOnce = async (
   database: RxDB,
   attemptId: string,
   pages: AsyncIterable<BranchMaterializationPagePayload>
-): Promise<BranchMaterializationStaging> =>
-  withTransaction(database, executor =>
-    stageBranchMaterialization(database.entityManager, executor, {
+): Promise<BranchMaterializationStaging> => {
+  await withTransaction(database, executor =>
+    beginBranchMaterializationStage(database.entityManager, executor, {
       attemptId,
       targetBranchId: REMOTE_TARGET_ID,
       frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-      syncScope: MATERIALIZATION_SCOPE,
-      pages
+      syncScope: MATERIALIZATION_SCOPE
     })
   );
+  await appendPagesFrom(database, attemptId, 0, pages);
+  return withTransaction(database, executor =>
+    sealBranchMaterializationStage(executor, { attemptId, targetBranchId: REMOTE_TARGET_ID })
+  );
+};
+
+/**
+ * 把一个来源里的页逐个追加进已经开着的 staging，页号从 `firstPageIndex` 起。
+ *
+ * @param database - 本条用例的数据库
+ * @param attemptId - 页挂在哪条 attempt 上
+ * @param firstPageIndex - 这一趟的第一页算第几页
+ * @param pages - 分页来源
+ *
+ * @remarks
+ * 页号由这里发而不是由 `appendBranchMaterializationPage` 自己数，与真实调用方同形：
+ * 续传那一趟接着上次的页号往下发，而不是从 0 重新发一遍。
+ */
+const appendPagesFrom = async (
+  database: RxDB,
+  attemptId: string,
+  firstPageIndex: number,
+  pages: AsyncIterable<BranchMaterializationPagePayload>
+): Promise<void> => {
+  let pageIndex = firstPageIndex;
+  for await (const page of pages) {
+    await withTransaction(database, executor =>
+      appendBranchMaterializationPage(database.entityManager, executor, {
+        attemptId,
+        targetBranchId: REMOTE_TARGET_ID,
+        pageIndex,
+        page
+      })
+    );
+    pageIndex += 1;
+  }
+};
 
 /**
  * 开一次崩在中途的 staging，并让**崩之前那几页留在库里**。
@@ -649,23 +706,26 @@ const stageOnce = (
  * @returns 那次崩溃
  *
  * @remarks
- * 崩溃在事务边界**之内**接住。真实调用方每页各开一个事务（模块那条「逐页可恢复」就是这么来的），
- * 而套件只有 `withTransaction` 一个口子：让异常穿出去的话回滚会连已落的页一起抹掉，
- * `findResumableMaterializationAttempt()` 随后返回 `null`，屏障也从 `stage_incomplete` 变成
- * `stage_missing`——两条断言一起变绿，测的却不再是「半份 payload 不得被当成完整快照」。
+ * 崩溃就这么穿出去，不在事务里接住：头行与每一页各自提交过了，穿出去的异常回滚的只是
+ * 「正要开始的下一页」那个空事务。接住它反而会让这条用例说谎——接住等于宣称崩溃点之后
+ * 还有代码在跑。
+ *
+ * 封口那一步自然到不了，于是头行停在 `pending`：屏障随后报 `stage_incomplete`，
+ * 报的是真实成因而不是布景摆出来的成因。
  */
-const stagePartially = (database: RxDB, attemptId: string, crashAt: number): Promise<unknown> =>
-  withTransaction(database, executor =>
-    captureRejection(
-      stageBranchMaterialization(database.entityManager, executor, {
-        attemptId,
-        targetBranchId: REMOTE_TARGET_ID,
-        frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-        syncScope: MATERIALIZATION_SCOPE,
-        pages: materializationPagesOf(MATERIALIZATION_PAGES, crashAt)
-      })
-    )
+const stagePartially = async (database: RxDB, attemptId: string, crashAt: number): Promise<unknown> => {
+  await withTransaction(database, executor =>
+    beginBranchMaterializationStage(database.entityManager, executor, {
+      attemptId,
+      targetBranchId: REMOTE_TARGET_ID,
+      frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
+      syncScope: MATERIALIZATION_SCOPE
+    })
   );
+  return captureRejection(
+    appendPagesFrom(database, attemptId, 0, materializationPagesOf(MATERIALIZATION_PAGES, crashAt))
+  );
+};
 
 /** 数一遍某个 attempt 在 staging 两张表上各留了几行。 */
 const stagingFootprintOf = (database: RxDB, attemptId: string): Promise<{ stages: number; pages: number }> =>
@@ -695,8 +755,8 @@ const countRefs = (database: RxDB, branchId: string): Promise<number> =>
  *
  * @remarks
  * 激活位与屏障在**同一个事务**里读，于是那道 CAS 必然命中——这一层把变量压到只剩「依据足不足」
- * 一个；激活态 CAS 自己由 §2.3 单独盯。`applyPage` 只记页号：投影怎么写归宿主，本套件验的是
- * 屏障的次序与收尾。
+ * 一个；激活态 CAS 自己由 §2.3 单独盯。`materialize` 只记页号：投影怎么写归来源方，本套件验的是
+ * 屏障的次序与收尾。来源方的漂移判定恒答「没漂」——漂移那条出口由单元测试单独盯。
  */
 const commitMaterialization = (
   database: RxDB,
@@ -711,8 +771,9 @@ const commitMaterialization = (
       expectedActiveBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
       frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
       syncScope: MATERIALIZATION_SCOPE,
-      applyPage: (page: BranchMaterializationPage) => {
-        applied.push(page.pageIndex);
+      resolveIntentDrift: () => Promise.resolve(undefined),
+      materialize: (pages: readonly BranchMaterializationPage[]) => {
+        applied.push(...pages.map(page => page.pageIndex));
         return Promise.resolve();
       }
     });
@@ -778,7 +839,7 @@ const CORRUPTION_ENTRY_POINTS: readonly CommitCorruptionEntryPoint[] = [
       // `preconditions` 传 `undefined`：这一行只问损坏，条件那一半归 §2.7。而次序正好是
       // 插件承诺的那一条——损坏优先于调用方提出的条件，于是不表态也拦得住。
       for (const contribution of database.systemContributions) {
-        await contribution.assertBranchSwitchable({
+        await contribution.prepareBranchSwitch({
           executor,
           currentBranchId: branchId,
           targetBranchId: branchId,
@@ -1539,6 +1600,11 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         const older = await seedTwoCommits(database, branchId);
         await restoreOnce(database, older.id);
         const before = await withTransaction(database, snapshotCommits);
+        // 丢弃**前**的 revision：期望值必须从这里推，不能拿事后重读的那个数回填。
+        // `result.workingTreeRevision` 与 `status.workingTreeRevision` 是同一次写的两个出口，
+        // 互相比对只证明「返回值等于落库值」——`discard-command.ts` 那句 `+ 1` 删掉之后两边
+        // 一起停在原地，断言照样绿。真正要钉的是「这次丢弃把 revision 推进了一格」。
+        const revisionBefore = (await readStatus(database)).workingTreeRevision;
 
         const result = await discardWithFreshCredentials(database);
 
@@ -1548,11 +1614,13 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect([...after.keys()], 'discard 动了历史').toEqual([...before.keys()]);
         expect({
           result,
+          revision: status.workingTreeRevision,
           bits: restoreBitsOf(status),
           clean: status.clean,
           entries: await countEntries(database, branchId)
         }).toEqual({
-          result: { ok: true, discardedCount: 1, workingTreeRevision: status.workingTreeRevision },
+          result: { ok: true, discardedCount: 1, workingTreeRevision: revisionBefore + 1 },
+          revision: revisionBefore + 1,
           bits: { restoring: false, conflicted: false },
           clean: true,
           entries: 0
@@ -1614,6 +1682,88 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
       });
 
+      it('每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await database.versionManager.createBranch(ACTIVATION_BRANCH_ID);
+        // 这就是调用方从 `status()` 拿到的那份凭据：`commit()` 与捕获路径都按它仲裁。
+        const captured = await readStatus(database);
+
+        await database.versionManager.switchBranch(ACTIVATION_BRANCH_ID);
+        const onTarget = await readStatus(database);
+        await database.versionManager.switchBranch(sourceBranchId);
+        const backOnSource = await readStatus(database);
+
+        // 一次切换推一格，来回两次推两格。推进漏接线时这两个数都停在捕获值上——而
+        // `advanceActivationRevision()` 自己那组单测照样全绿：它们喂的是一个直接构造出来的
+        // executor，证不了 `switchBranch()` 这条路**走到过**那一行。
+        expect({ target: onTarget.activationRevision, back: backOnSource.activationRevision }).toEqual({
+          target: captured.activationRevision + 1,
+          back: captured.activationRevision + 2
+        });
+
+        // 走回来之后 `branchId` 与走之前**逐字相同**，三位仲裁里只剩代际这一位认得出
+        // 「你看的不是这个工作树」。它不推进的话，用户在 B 上改完切回 A，A 上那个早就把实体
+        // 读进内存的 Tab 会把基于旧投影算出来的 patch 原样写进来，全程零报错。
+        expect(backOnSource.branchId).toBe(sourceBranchId);
+        const stale = await captureRejection(
+          withTransaction(database, executor =>
+            captureChanges(executor, database, {
+              token: { branchId: sourceBranchId, activationRevision: captured.activationRevision },
+              unitId: uuid(),
+              origin: 'local',
+              changes: [changeOf('note-aba-token')],
+              shouldCapture: () => true
+            })
+          )
+        );
+        expect(stale).toBeInstanceOf(StaleActiveBranchError);
+        // `actual` 现读库：它与 `backOnSource` 对得上，才说明捕获路径仲裁用的就是切换推进的那一格，
+        // 而不是另有一处各自记账。
+        expect((stale as StaleActiveBranchError).actual).toEqual({
+          branchId: sourceBranchId,
+          activationRevision: backOnSource.activationRevision
+        });
+        // 拒绝排在写之前（`write-entry.ts` › `captureCrudWrite` 第一步），条目一行都不许落。
+        expect(await countEntries(database, sourceBranchId)).toBe(0);
+      });
+
+      it('前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
+        await database.versionManager.createBranch(REFUSED_BRANCH_ID);
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-refused'));
+        const captured = await readStatus(database);
+
+        const dirty = await captureRejection(
+          database.versionManager.switchBranch(REFUSED_BRANCH_ID, { requireClean: true })
+        );
+
+        expect(dirty).toBeInstanceOf(WorkingTreeDirtyError);
+        // 这一条是上一条用例的另一半：**没切成就一格都不动**——分支、条目、代际全部原样。
+        // 代际单列一条断言，是因为它是这三样里唯一可能与切换分家的：推进跑在切换事务内部
+        // （`plugin.ts` › `prepareBranchSwitch`），只要它逃出这个回滚单元（自己开一个事务、
+        // 或者被挪到调用方那一侧先跑），被拒的切换就会烧掉一代；而工作树一脏就拒，
+        // 被拒在日常使用里很常见，代价是每拒一次就把全库所有 Tab 手上的 token 一起作废。
+        //
+        // 本条钉的是**回滚单元**，不是次序：把推进挪到两道校验之前不会让它变红——
+        // 拒绝会把整个事务连推进一起回滚，那个次序在事务内本就不可观测。
+        expect((await readStatus(database)).activationRevision).toBe(captured.activationRevision);
+        // 上一条是库里那个计数，这一条是它的用户可见后果：被拒的切换不连坐已经在手的凭据。
+        await withTransaction(database, executor =>
+          captureChanges(executor, database, {
+            token: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+            unitId: uuid(),
+            origin: 'local',
+            changes: [changeOf('note-refused')],
+            shouldCapture: () => true
+          })
+        );
+        // 同一个 entityId 折进同一条条目，所以仍是 1——数字变成 2 说明折叠没走，那是另一回事。
+        expect({
+          active: await activeBranchIdsOf(database),
+          entries: await countEntries(database, sourceBranchId)
+        }).toEqual({ active: [sourceBranchId], entries: 1 });
+      });
+
       it('物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动', async () => {
         const sourceBranchId = await readActiveBranchId(database);
         await injectRemoteOnlyBranch(database);
@@ -1641,7 +1791,8 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(await activeBranchIdsOf(database)).toEqual([sourceBranchId]);
       });
 
-      it('屏障成功一次：目标分支拿到 baseline 并接过 active，本次 staging 整体删除', async () => {
+      it('屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除', async () => {
+        const sourceBranchId = await readActiveBranchId(database);
         await injectRemoteOnlyBranch(database);
         const attemptId = uuid();
         const generationsBefore = (await withTransaction(database, readAllRefs)).map(ref => ref.generation);
@@ -1663,9 +1814,11 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(history.map(commit => commit.kind)).toEqual(['branch_baseline']);
         // 代际从单调源现发：撞上既有分支的号，两条分支的提交 CAS 与幂等键会互相命中。
         expect(generationsBefore).not.toContain(result.generation);
+        // 屏障只推代际、不翻 active：翻 active 是适配器 `switchBranch` 在 `prepare` 之后的那一步，
+        // 屏障自己翻的话，适配器随后再切一次会撞上「切到同一条分支」。
         expect({ activation: result.activationRevision, active: await activeBranchIdsOf(database) }).toEqual({
           activation: activationBefore + 1,
-          active: [REMOTE_TARGET_ID]
+          active: [sourceBranchId]
         });
         // 留着的话，下一次同一目标分支的物化会把它当成「上次崩在中途的现场」接着往下走。
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
@@ -1693,17 +1846,40 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         // 崩之前那两页**留在库里**，这正是 FR-044 说的可恢复：判不可用不等于顺手删。
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
         expect(
-          await withTransaction(database, executor =>
-            findResumableMaterializationAttempt(executor, {
-              targetBranchId: REMOTE_TARGET_ID,
-              frozenRemoteWatermark: { ...MATERIALIZATION_WATERMARK },
-              syncScope: MATERIALIZATION_SCOPE
-            })
-          )
-        ).toEqual({ attemptId, nextPageIndex: 2 });
+          await withTransaction(database, executor => findLatestMaterializationAttempt(executor, REMOTE_TARGET_ID))
+          // `sealed: false` 是这里最要紧的一格：本次崩在分页中途，头行还停在 `pending`。
+          // 续用方要据此接着拉第 2 页再封口；把它读成已封口会让屏障当场判 `stage_incomplete`，
+          // 而那条错误说的不是真正发生的事（见 `LatestMaterializationAttempt.sealed`）。
+        ).toMatchObject({ attemptId, nextPageIndex: 2, sealed: false, lastPage: { pageIndex: 1 } });
 
         await withTransaction(database, executor => discardMaterializationAttempt(executor, attemptId));
         expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 0, pages: 0 });
+      });
+
+      it('两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续', async () => {
+        await injectRemoteOnlyBranch(database);
+        const attemptId = uuid();
+        await stagePartially(database, attemptId, 1);
+        // 两个标签页判出同一个续用位置（第 1 页）。页号在事务**之外**发放，事务再怎么串行，
+        // 后到的那一路手上的号也已经被先到的那一路占了。
+        await appendPagesFrom(database, attemptId, 1, materializationPagesOf(1));
+
+        const rejection = await captureRejection(appendPagesFrom(database, attemptId, 1, materializationPagesOf(1)));
+
+        // 裸唯一约束错误只说「某个索引撞了」，调用方分不出这是另一路在续同一份 staging
+        // （重判续用位置接着拉即可），还是这份 staging 坏了（该丢掉重拉）。
+        expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+        const { reason, attemptId: rejectedAttemptId, branchId } = rejection as BranchNotMaterializedError;
+        expect({ reason, attemptId: rejectedAttemptId, branchId }).toEqual({
+          reason: 'page_conflict',
+          attemptId,
+          branchId: REMOTE_TARGET_ID
+        });
+        // 先到的那一页原样留着，后到的那一页随自己的事务回滚：staging 没坏，重判一次就能接着拉。
+        expect(await stagingFootprintOf(database, attemptId)).toEqual({ stages: 1, pages: 2 });
+        expect(
+          await withTransaction(database, executor => findLatestMaterializationAttempt(executor, REMOTE_TARGET_ID))
+        ).toMatchObject({ attemptId, nextPageIndex: 2, sealed: false, lastPage: { pageIndex: 1 } });
       });
 
       it('删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败', async () => {

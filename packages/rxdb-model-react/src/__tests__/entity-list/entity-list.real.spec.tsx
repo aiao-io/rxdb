@@ -184,6 +184,17 @@ describe('EntityList（真实组件）', () => {
     });
   });
 
+  /**
+   * 弹层内被 aria-hidden 祖先遮蔽的可聚焦控件（正常必须为空）。
+   *
+   * @remarks aria-hidden 会把整棵子树从无障碍树里摘掉：屏幕阅读器读不到、
+   * axe 的 aria-hidden-focus 判违规、基于 role 的定位（含 e2e getByRole）也全部落空。
+   */
+  const hiddenFocusablesIn = (root: ParentNode): string[] =>
+    [...root.querySelectorAll('button, input, select, textarea, [tabindex]')]
+      .filter(el => el.closest('[aria-hidden="true"]') !== null)
+      .map(el => el.outerHTML.slice(0, 80));
+
   /** 在筛选弹层里把首条规则的字段切成 title 并把操作符设为「包含」（Todo 首字段是布尔 completed）。 */
   function configureContainsRule(container: HTMLElement): void {
     fireEvent.click(container.querySelector('[aria-label="添加第一个条件"]') as HTMLElement);
@@ -246,6 +257,16 @@ describe('EntityList（真实组件）', () => {
     await waitFor(() => {
       expect(tableOf().records).toHaveLength(3);
     });
+  });
+
+  it('筛选弹层的可聚焦控件必须留在无障碍树内', async () => {
+    const { container } = await renderList();
+    fireEvent.click([...container.querySelectorAll('button')].find(b => b.textContent?.includes('筛选'))!);
+
+    const backdrop = container.querySelector('.rxdb-filter-backdrop') as HTMLElement;
+    const focusables = backdrop.querySelectorAll('button, input, select, textarea, [tabindex]');
+    expect(focusables.length).toBeGreaterThan(0);
+    expect(hiddenFocusablesIn(backdrop)).toEqual([]);
   });
 
   it('选择模式：勾选后 onSelectionConfirmed 输出真实实体实例', async () => {

@@ -1,6 +1,7 @@
 import {
   type EntityManager,
   type EntityType,
+  InvalidBranchIdError,
   type LocalRxDBChangeRepository,
   RxDB,
   RxDBBranch,
@@ -63,7 +64,9 @@ function createRecordingContribution(
     // 本文件只压 `create_branch` 那一侧的接缝；删分支的清理与切换分支的前置判定分别由
     // `remove_branch` 与 `VersionManager.switchBranch` 调，各自有 spec 守。
     removeBranchRows: async () => undefined,
-    assertBranchSwitchable: async () => undefined
+    prepareBranchSwitch: async () => undefined,
+    takeOverBranchSwitch: async () => 'not_applicable' as const,
+    settleBranchSwitchFailure: async () => undefined
   };
 }
 
@@ -134,6 +137,14 @@ describe('create_branch', () => {
       }),
       getRemoteRepositories: getRemoteRepositoriesMock
     } as unknown as VersionManager;
+  });
+
+  // 哨兵 `'*active*'` 与用户分支 id 同处 `rxdb_branch.id` 一列。校验挡在**最前面**：
+  // 排在查重之后的话，一条叫 `*active*` 的分支会先跑完本地查重、再跑一趟远端 RTT，
+  // 最后才被拒——而它从第一个字符起就不可能可用。
+  it('拒绝含 active 哨兵保留字符的分支 id，且不查库', async () => {
+    await expect(create_branch(mockVersion, '*active*')).rejects.toThrow(InvalidBranchIdError);
+    expect(mockBranchRepository.find).not.toHaveBeenCalled();
   });
 
   it('should throw error if branch id already exists', async () => {

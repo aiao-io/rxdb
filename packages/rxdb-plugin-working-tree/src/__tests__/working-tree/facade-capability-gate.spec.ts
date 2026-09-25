@@ -51,7 +51,17 @@ import {
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
-/** 门面上**不**受门禁管辖的三个成员，出处是 contracts/core-api.md §1 那一句。 */
+/**
+ * 门面上**不**受门禁管辖的成员。
+ *
+ * @remarks
+ * 出处是 contracts/core-api.md §1 那一句：未启用的库上只有它们可用，
+ * 其中任一个受门禁管辖都会变成「只有启用的库才能查自己启没启用」。
+ *
+ * 2026-09-26 之前这里还有两个装配期接线（登记与取分支物化来源）。来源槽位已搬到核心
+ * `rxdb.branchMaterializationSource()`——同步插件与本插件互不依赖，槽位只能落在两者共同的
+ * 下游——门面上于是不再有任何豁免于门禁的非能力成员。
+ */
 const UNGATED_MEMBERS = ['isEnabled', 'enable', 'enableIfEmpty'] as const;
 
 /**
@@ -138,6 +148,10 @@ function createScene(capability: { enabled: boolean } | null): Scene {
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
 
+  // 这个替身上没有捕获钩子（种子直接进探针，没走过 `connect()`）。已启用 + 无钩子
+  // 在生产里只意味着漏掉了能力启用广播，于是 `runEnabled()` 提交后会自愈补装，而补装经
+  // `define()` **覆写实例成员**——下面这个 spy 在第一次受管调用之后就不再是
+  // `adapter.transaction` 本身了。要数开事务次数就得先取引用，包装会转发回它。
   adapter.transaction.mockImplementation(async fun => fun(probe.executor));
 
   return { database, adapter, manager: new ProbeWorkingTreeManager(database), probe };
@@ -225,11 +239,12 @@ describe('未启用的库：isEnabled / enable 照常，其余一律拒绝', () 
 
   it('启用之后同一个成员放行，并且拿到的是事务执行器', async () => {
     const { manager, adapter, probe } = createScene({ enabled: true });
+    const openTransaction = adapter.transaction;
 
     await expect(manager.probe()).resolves.toBe(probe.executor.id);
     // 受管命令必须跑在写事务里：门禁读到的启用态与命令的写入必须同进同出，
     // 否则「读到已启用」和「写入」之间隔着一个别人可以 disable 的窗口。
-    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(openTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('能力行缺失时抛的是迁移缺失，不是「未启用」', async () => {
@@ -315,21 +330,21 @@ describe('enableIfEmpty：空库自动启用，有内容的库一行不写', () 
 });
 
 describe('门禁覆盖门面上的全部成员（后续阶段自动纳管）', () => {
-  /** 原型上除构造器与两个豁免成员之外的全部方法名。 */
+  /** 原型上除构造器与豁免成员之外的全部方法名。 */
   const gatedMemberNames = (): string[] =>
     Object.getOwnPropertyNames(WorkingTreeManager.prototype).filter(
       name => name !== 'constructor' && !(UNGATED_MEMBERS as readonly string[]).includes(name)
     );
 
-  it('豁免名单恰好是 isEnabled、enable 与 enableIfEmpty', () => {
+  it('豁免名单恰好是那三个能力成员', () => {
     const own = new Set(Object.getOwnPropertyNames(WorkingTreeManager.prototype));
     // 名单长胖一格，就有一个成员永久绕过门禁。
     for (const name of UNGATED_MEMBERS) expect(own.has(name)).toBe(true);
     expect(UNGATED_MEMBERS).toHaveLength(3);
   });
 
-  it('原型上没有非方法的自有属性——getter 绕不过门禁', () => {
-    const nonMethods = Object.getOwnPropertyNames(WorkingTreeManager.prototype).filter(name => {
+  it('受管成员里没有非方法的自有属性——getter 绕不过门禁', () => {
+    const nonMethods = gatedMemberNames().filter(name => {
       const descriptor = Object.getOwnPropertyDescriptor(WorkingTreeManager.prototype, name);
       return typeof descriptor?.value !== 'function';
     });

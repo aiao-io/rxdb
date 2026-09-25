@@ -86,7 +86,9 @@ const probeContribution: RxDBSystemContribution = {
   bootstrapExisting: async () => undefined,
   writeBranchRows: async () => undefined,
   removeBranchRows: async () => undefined,
-  assertBranchSwitchable: async () => undefined
+  prepareBranchSwitch: async () => undefined,
+  takeOverBranchSwitch: async () => 'not_applicable' as const,
+  settleBranchSwitchFailure: async () => undefined
 };
 
 const probePlugin: Plugin = () => ({

@@ -1,5 +1,5 @@
 /**
- * @fileoverview raw 写路径的 5 步 bypass 判定（spec.md「raw 写路径的 bypass 判定」、adapter-contract.md §2）。
+ * @fileoverview raw 写路径的 4 步 bypass 判定（spec.md「raw 写路径的 bypass 判定」、adapter-contract.md §2）。
  *
  * @remarks
  * **一份判定，两处调用。** 实现了 `rawQuery` 的 2 个适配器（PGlite / SQLite 家族基类）各自调
@@ -11,14 +11,21 @@
  *
  * **核心那一侧只有分派，判定整段在这里。** `@aiao/rxdb` 的 `gateRawWrite(sql, ctx, execute)`
  * 在能力位为假时直接放行，为真时转交给装在适配器上的捕获运行时——也就是
- * {@link applyRawWriteJudgment}。核心因此不认识域、不认识受信意图、不认识表名在六种后端上的
- * 物理形态，这三样随捕获规则变的东西整套随本包走。
+ * {@link applyRawWriteJudgment}。核心因此不认识域、不认识表名在六种后端上的
+ * 物理形态，这两样随捕获规则变的东西整套随本包走。
  *
- * **五步的顺序本身就是契约。** 同一条语句可能同时满足第 1 步与第 4 步；落哪一步决定了未启用提交
+ * **四步的顺序本身就是契约。** 同一条语句可能同时满足第 1 步与第 3 步；落哪一步决定了未启用提交
  * 能力的库是照常工作还是开始报错。
+ *
+ * **没有「受信 intent 豁免」这一步，是刻意的。** 判定曾有过第 2 步「携带内部受信 `intent` → 放行」，
+ * 2026-09-23 连同 {@link RawWriteJudgmentContext} 上的槽位一起删除：`TRUSTED_CALLSITE_REGISTRY`
+ * 的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语，一个 raw 调用点都没有，
+ * 于是那一步在生产里永远取不到真值——它只是一条无条件放行的死分支，却是整条防线上唯一无条件放行的
+ * 一步。未来真需要内部受信 raw 写路径时，要做的是补一条能证明身份的传递通道（见
+ * `threat-model.md` §3），不是把槽位留在这儿等人填。2026-09-26 登记的 #10 / #11（分支物化）
+ * 分别走 `switchBranch` 与 `mergeChanges`，仍是带类型的写原语，这个结论不变。
  */
 
-import type { TrustedWriteIntent } from '@aiao/rxdb';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import type { VersionedDomainView } from './versioned-domain.js';
 import {
@@ -38,7 +45,7 @@ export type { VersionedDomainView } from './versioned-domain.js';
  * 「哪些表受保护」的定义，漂移的代价是静默放行。
  *
  * **与核心的 `RawWriteContext` 不是一回事，所以不同名。** 那一个是适配器与核心之间的**接缝**
- * （能力位 + 一个转交入口），这一个是判定的**输入**（域 + 受信意图）。同名会让「适配器交出来的
+ * （能力位 + 一个转交入口），这一个是判定的**输入**（域）。同名会让「适配器交出来的
  * 那份能不能直接喂给判定」变成要逐字段回忆的问题，而两者恰好都有 `capabilityEnabled`——
  * 结构类型于是会在某些方向上悄悄放行。
  */
@@ -48,43 +55,34 @@ export interface RawWriteJudgmentContext {
 
   /** 版本化域视图，来自 `buildVersionedDomain()` 的同一份清单 */
   readonly domain: VersionedDomainView;
-
-  /**
-   * 内部受信意图；**非公开参数**，只有 `TRUSTED_CALLSITE_REGISTRY` 里的路径可传
-   *
-   * @see {@link TrustedWriteIntent}
-   */
-  readonly intent?: TrustedWriteIntent;
 }
 
-/** 放行的理由；每一条对应五步里的一步。 */
+/** 放行的理由；每一条对应四步里的一步。 */
 export type RawWriteAllowReason =
   /** 第 1 步：提交能力未启用，零行为差异 */
   | 'capability_disabled'
-  /** 第 2 步：携带受信 intent */
-  | 'trusted_intent'
-  /** 第 3 步：不是写语句 */
+  /** 第 2 步：不是写语句 */
   | 'not_a_write'
-  /** 第 5 步：写的是版本化表，但只触及 untracked 字段域 */
+  /** 第 4 步：写的是版本化表，但只触及 untracked 字段域 */
   | 'untracked_only'
-  /** 第 5 步：写的是域外目标（FTS 影子表、系统表、QueryCache 表、临时表） */
+  /** 第 4 步：写的是域外目标（FTS 影子表、系统表、QueryCache 表、临时表） */
   | 'out_of_domain';
 
-/** 判定落在第几步；第 4 步是唯一会拒绝的一步。 */
+/** 判定落在第几步；第 3 步是唯一会拒绝的一步。 */
 export type RawWriteJudgment =
   | {
       /** 放行：语句照常执行 */
       readonly kind: 'allow';
       /** 落在第几步 */
-      readonly step: 1 | 2 | 3 | 5;
+      readonly step: 1 | 2 | 4;
       /** 为什么放行 */
       readonly reason: RawWriteAllowReason;
     }
   | {
       /** 拒绝：语句**根本不下发** */
       readonly kind: 'reject';
-      /** 恒为 4 */
-      readonly step: 4;
+      /** 恒为 3 */
+      readonly step: 3;
       /** epic-006 的稳定错误码 */
       readonly code: typeof CommitErrorCode.commit_capability_mismatch;
       /** 被命中的版本化表；解析不出目标表时为空数组 */
@@ -104,7 +102,7 @@ const LITERAL_PLACEHOLDER = ' _lit_ ';
  *
  * - **剥注释在前**：`SET remote_id = '/*', title = 'x', synced_at = '…'` 里那一趟会从第一个
  *   字面量内部的 `/*` 一路吃到第三个字面量里的块注释收尾记号，把中间那段 `title = …` 整段吞掉。
- *   剩下的列集恰好还是一个良构的、只含 untracked 列的子集，第 5 步于是给出 `untracked_only`——
+ *   剩下的列集恰好还是一个良构的、只含 untracked 列的子集，第 4 步于是给出 `untracked_only`——
  *   **被跟踪列的赋值就这样藏在一个字符串值里绕过了门禁**。
  * - **掩字面量在前**：`-- don't` 里的撇号开出一个假字面量，一路吃到下一条语句里真正的引号为止，
  *   注释后面那条真写随之从视野里消失。
@@ -490,9 +488,9 @@ function operationOf(words: readonly string[]): WriteOperation | 'schema_change'
  * @remarks
  * 终止关键字必须按括号深度找，不能用正则的「第一个 `from`/`where`/`returning`」。
  * `UPDATE post SET a = (SELECT x FROM y), b = 'v'` 里那个 `from` 在子查询内部，按正则找会把
- * 子句截到 `a = (select x ` 就停，**`b` 整列从被写列集里消失**——于是第 5 步拿一个残缺的列集去
+ * 子句截到 `a = (select x ` 就停，**`b` 整列从被写列集里消失**——于是第 4 步拿一个残缺的列集去
  * 问 untracked 域，一条真在改 tracked 列的语句被判成「只碰 untracked 列」而放行。这类漏判不报错、
- * 不留痕，是五步门禁里最难在事后发现的一种。
+ * 不留痕，是四步门禁里最难在事后发现的一种。
  *
  * 深度跟踪在归一化文本上是安全的：{@link normalizeSql} 已经剥掉注释、并把字符串字面量整体换成
  * 不含括号的 {@link LITERAL_PLACEHOLDER}，所以此时的每一个括号都是真语法括号。
@@ -598,8 +596,8 @@ type StatementVerdict =
  *
  * **列名在这里压成小写，因为语句那一侧已经被 {@link normalizeSql} 压过了。** 域给的是实体
  * 属性名（`remoteId` / `createdAt` / `updatedAt`，驼峰），矩阵做的是精确字符串子集判定——
- * 原样递过去的话 `remoteid` 永远不等于 `remoteId`，第 5 步的 `untracked_only` 在任何真实
- * 数据库上都不可达，一条只改审计时间的簿记写会被第 4 步拦成 `commit_capability_mismatch`。
+ * 原样递过去的话 `remoteid` 永远不等于 `remoteId`，第 4 步的 `untracked_only` 在任何真实
+ * 数据库上都不可达，一条只改审计时间的簿记写会被第 3 步拦成 `commit_capability_mismatch`。
  *
  * 压小写只发生在**表 / 列平面**，域本身不动：实体平面的 `isUntrackedField()` 必须保持大小写
  * 精确（`remoteId` 与 `remoteid` 在 JS 里是两个不同的属性）。归一化是判定对 SQL 做的事，
@@ -651,21 +649,21 @@ function combine(verdicts: readonly StatementVerdict[]): RawWriteJudgment {
   if (anyRejected) {
     return {
       kind: 'reject',
-      step: 4,
+      step: 3,
       code: CommitErrorCode.commit_capability_mismatch,
       tables: [...new Set(rejected)]
     };
   }
   const reason: RawWriteAllowReason =
     verdicts.some(verdict => verdict.kind === 'untracked_only') ? 'untracked_only' : 'out_of_domain';
-  return { kind: 'allow', step: 5, reason };
+  return { kind: 'allow', step: 4, reason };
 }
 
 /**
  * 判定一次 raw 调用该不该下发
  *
  * @param sql - 原始语句，可以是以分号分隔的语句批
- * @param context - 能力位、版本化域与可选的受信意图
+ * @param context - 能力位与版本化域
  * @returns 落在第几步、放行还是拒绝；**纯函数**，不读全局状态、不改 `context`
  *
  * @remarks
@@ -675,18 +673,17 @@ function combine(verdicts: readonly StatementVerdict[]): RawWriteJudgment {
  * @example
  * ```ts
  * judgeRawWrite('UPDATE post SET "remoteId" = \'r1\'', { capabilityEnabled: true, domain });
- * // → { kind: 'allow', step: 5, reason: 'untracked_only' }
+ * // → { kind: 'allow', step: 4, reason: 'untracked_only' }
  * ```
  */
 export function judgeRawWrite(sql: string, context: RawWriteJudgmentContext): RawWriteJudgment {
   if (!context.capabilityEnabled) return { kind: 'allow', step: 1, reason: 'capability_disabled' };
-  if (context.intent !== undefined) return { kind: 'allow', step: 2, reason: 'trusted_intent' };
   const statements = normalizeSql(sql)
     .split(';')
     .map(statement => statement.trim())
     .filter(statement => statement.length > 0);
   const writes = statements.filter(statement => isWriteStatement(wordsOf(statement)));
-  if (writes.length === 0) return { kind: 'allow', step: 3, reason: 'not_a_write' };
+  if (writes.length === 0) return { kind: 'allow', step: 2, reason: 'not_a_write' };
   return combine(writes.map(statement => judgeStatement(statement, context.domain)));
 }
 
@@ -698,7 +695,7 @@ export function judgeRawWrite(sql: string, context: RawWriteJudgmentContext): Ra
  * @param context - 判定上下文
  * @param execute - 真正下发语句的执行器
  * @returns 执行器的返回值原样透传
- * @throws {@link WorkingTreeWriteRejectedError} 落第 4 步时抛出，**执行器一次都不会被调用**
+ * @throws {@link WorkingTreeWriteRejectedError} 落第 3 步时抛出，**执行器一次都不会被调用**
  *
  * @remarks
  * 拒绝发生在语句下发**之前**，业务表零变化——不是写完再回滚。raw 通道上根本没有事务可回滚，

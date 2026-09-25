@@ -1,7 +1,11 @@
 import {
+  Entity,
+  EntityBase,
+  PropertyType,
   RxDB,
   RxDBBranch,
   RxDBChange,
+  SKIP_BRANCH_SWITCH_PREPARE,
   SwitchVersionActions,
   getEntityMetadata,
   type SwitchVersionChange
@@ -14,6 +18,24 @@ import { convertSwitchResultToSql } from '../version/switch-result.utils.js';
 import { generateSwitchBranchSql } from '../version/switch_branch.js';
 import type { AdapterFactory } from './adapter-factory.js';
 import { cleanup_db } from './test-utils.js';
+
+/**
+ * 「createTables 建表触发器」用例专用夹具：模拟 `RxDB.#ensureEntityTables` 补建缺失实体表的场景。
+ *
+ * @remarks
+ * 不复用套件顶层的 `Todo`：`Todo` 的表已经在 `beforeAll` 里随 `factory.createAdapter` 建过，
+ * 同一张表不能被 `createTables` 二次 `CREATE TABLE`（`create_table_sql.ts` 不带
+ * `IF NOT EXISTS`）。这里单独放一个从未建过表的实体，留给下面「9. createTables 建表触发器」
+ * 一次性调用 `adapter.createTables([LateBranchTodo])`。
+ */
+@Entity({
+  name: 'LateBranchTodo',
+  tableName: 'late_branch_todo',
+  properties: [{ name: 'title', type: PropertyType.string, nullable: true }]
+})
+class LateBranchTodo extends EntityBase {
+  title?: string | null;
+}
 
 /** Version Branch 测试：分支切换动作的生成与执行。 */
 export function versionBranchSuite(factory: AdapterFactory) {
@@ -823,7 +845,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
         await todo.save();
         await rxdb.versionManager.createBranch('branch_01');
         await rxdb.versionManager.removeBranch('branch_01');
-        const branches = await adapter.localRxDBBranch().find({
+        const branches = await adapter.getRepository(RxDBBranch).find({
           where: {
             combinator: 'and',
             rules: [{ field: 'id', operator: '=', value: 'branch_01' }]
@@ -1891,7 +1913,9 @@ export function versionBranchSuite(factory: AdapterFactory) {
           await rxdb.versionManager.switchBranch('stay-branch');
 
           await adapter.switchBranch({
-            actions: { deletes: new Map(), inserts: new Map(), updates: new Map() }
+            actions: { deletes: new Map(), inserts: new Map(), updates: new Map() },
+            // 这条调用的全部意义就是「分支不换」，没有前置条件可校验。
+            prepare: SKIP_BRANCH_SWITCH_PREPARE
           });
 
           const branchesAfter = await adapter.getRepository(RxDBBranch).find({
@@ -1907,6 +1931,54 @@ export function versionBranchSuite(factory: AdapterFactory) {
           const { rows } = await adapter.rawQuery(`SELECT branchId FROM "rxdb$rxdb_change" ORDER BY id DESC LIMIT 1;`);
           expect(rows[0][0]).toBe('stay-branch');
         });
+      });
+    });
+
+    // ================================================================
+    // 9. createTables 建表触发器
+    // ================================================================
+    describe('createTables 补建的表，变更触发器挂在哪条分支上', () => {
+      afterEach(async () => {
+        // `LateBranchTodo` 从没进过 `adapter.rxdb.config.entities`：`cleanup_db` 交给共享清库
+        // 工具的两段方言 SQL（`remove_all_triggers_sql`、`resetToMainBranchSql` 背后的
+        // `generateSwitchBranchSql`）都只按这份配置枚举实体，天生够不到这张临时补建的表——
+        // 它的删除触发器烙的是 'late-table-branch'，清库既不会撤掉它，也不会把它重装回 main。
+        //
+        // 留给共享工具那段逐表 DELETE 循环去清这一行会出事：循环按 `sqlite_master` 的建表
+        // 顺序走（无 ORDER BY），系统表 `rxdb$rxdb_change` 建于 bootstrap、排在前面，这张表是
+        // 本用例才临时补建的、天然排在后面。轮到这张表时那个还活着的删除触发器会向
+        // `rxdb$rxdb_change` 级联插入一条 branchId = 'late-table-branch' 的新行——而
+        // `rxdb$rxdb_change` 自己那一轮 DELETE 早就轮过了，不会回头再清一次。等循环清完
+        // `rxdb$rxdb_branch` 并只补回 main，这条级联行就成了悬空引用，COMMIT 时被 deferred FK
+        // 检查逮住（`FOREIGN KEY constraint failed`）。
+        //
+        // 直接 DROP TABLE 绕开整条链路：SQLite 官方文档（sqlite.org/foreignkeys.html）写明
+        // DROP TABLE 内部等价于一次 implicit DELETE，但"the implicit DELETE does not cause
+        // any SQL triggers to fire"。整张表连同那一行、连同三个触发器一起消失，之后
+        // `sqlite_master` 也不会再报出这张表，共享工具的逐表循环根本碰不到它。
+        await adapter.internalQuery('DROP TABLE IF EXISTS "public$late_branch_todo";');
+        await cleanup_db(adapter);
+      });
+
+      // 库停在非 main 分支时创建新表，触发器必须直接烙上这条真实分支，而不是先写 main
+      // 再指望别的机制回头纠正：不经 transaction() 的裸写不会触发「下一个默认事务重建
+      // 全部触发器」的自愈，这里直接用一次裸写把结果照出来，不给自愈遮掩问题的机会。
+      it('库停在非 main 分支时，补建的表要把变更记在当前分支名下', async () => {
+        await rxdb.versionManager.createBranch('late-table-branch');
+        await rxdb.versionManager.switchBranch('late-table-branch');
+
+        await adapter.createTables([LateBranchTodo]);
+
+        // 不经 transaction()：内部直连客户端执行，既不入队也不开事务，因此不会触发
+        // 「下一个默认事务重建全部触发器」的自愈，直接暴露建表期挂错分支的触发器。
+        await adapter.internalQuery(
+          `INSERT INTO "public$late_branch_todo" ("id", "title", "createdAt", "updatedAt") ` +
+            `VALUES ('late-1', 'late', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);`
+        );
+
+        const { results } = await adapter.internalQuery(`SELECT "branchId" FROM "rxdb$rxdb_change";`);
+        const branchIds = results[0].rows.map(row => row[0]);
+        expect(branchIds).toEqual(['late-table-branch']);
       });
     });
   });

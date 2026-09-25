@@ -20,10 +20,11 @@ import {
 import {
   AdapterFactory,
   IRxDBAdapter,
+  LocalRxDBAdapter,
+  RemoteRxDBAdapter,
   RepositoryInstance,
   RxDBAdapterLocalBase,
   RxDBAdapterName,
-  RxDBAdapterRemoteBase,
   RxDBAdapters
 } from './rxdb-adapter.js';
 import {
@@ -62,16 +63,15 @@ import {
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
+import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
 import { SyncStateHub } from './sync-state.js';
-import { ACTIVE_BRANCH_KEY } from './system/active-branch-guard.js';
+import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
-import { RxDBChange } from './system/change.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
-import { RxDBSync } from './system/sync.js';
-import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
+import { CORE_SYSTEM_ENTITIES, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -133,6 +133,16 @@ export class RxDB {
    */
   #query_cache_outbox: QueryCacheOutboxProvider | undefined;
 
+  /**
+   * metadata-only 分支的首次物化来源 —— 由 `@aiao/rxdb-plugin-sync` 经
+   * {@link RxDB.branchMaterializationSource} 填入。
+   *
+   * @remarks
+   * 工作树插件切到 metadata-only 分支时来这里取。两个插件互不依赖，这一格是它们唯一的会合点；
+   * 一条连接至多一个来源，见 {@link RxDB.branchMaterializationSource}。
+   */
+  #branch_materialization_source: BranchMaterializationSource | undefined;
+
   #plugin_map = new Map<Plugin, IRxDBPlugin>();
 
   /**
@@ -150,7 +160,7 @@ export class RxDB {
    *
    * @remarks
    * 与模块级登记簿（`system-entities.ts`）分开的理由是两者回答的问题不同：登记簿回答
-   * 「这个类是不是系统表」，必须是模块级的——{@link isSystemEntity} 有跨包消费者，它们
+   * 「这个类是不是系统表」，必须是模块级的——`isSystemEntity()`（`system/system-entities.ts`）有跨包消费者，它们
    * 手里没有 RxDB 实例。这份则回答「**这个库**该建哪些系统表」，而那必须按实例算。
    *
    * 混用的代价是跨实例污染：登记簿只增不减，拿它去注入会让进程里任何一个库 `use()` 过的
@@ -342,16 +352,14 @@ export class RxDB {
    * 只有让这个空值参与去重，重连时同名的适配器才会被认作一次变化并重新求值。反过来先 filter，
    * 空值被吞掉，去重看到的永远是同一个名字，仍在订阅中的实时查询就会一直挂在已断开的适配器上。
    */
-  public readonly localAdapter$: Observable<IRxDBAdapter & RxDBAdapterLocalBase> = this.#local_adapter_sub
-    .asObservable()
-    .pipe(
-      distinctUntilChanged(),
-      filter(Boolean),
-      switchMap(localAdapter =>
-        defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as IRxDBAdapter & RxDBAdapterLocalBase))
-      ),
-      shareReplay({ bufferSize: 1, refCount: true })
-    );
+  public readonly localAdapter$: Observable<LocalRxDBAdapter> = this.#local_adapter_sub.asObservable().pipe(
+    distinctUntilChanged(),
+    filter(Boolean),
+    switchMap(localAdapter =>
+      defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as LocalRxDBAdapter))
+    ),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
   /**
    * 远程适配器
@@ -359,16 +367,14 @@ export class RxDB {
    * @remarks
    * 缓存语义同 {@link RxDB.localAdapter$}。
    */
-  public readonly remoteAdapter$: Observable<IRxDBAdapter & RxDBAdapterRemoteBase> = this.#remote_adapter_sub
-    .asObservable()
-    .pipe(
-      distinctUntilChanged(),
-      filter(Boolean),
-      switchMap(localAdapter =>
-        defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as IRxDBAdapter & RxDBAdapterRemoteBase))
-      ),
-      shareReplay({ bufferSize: 1, refCount: true })
-    );
+  public readonly remoteAdapter$: Observable<RemoteRxDBAdapter> = this.#remote_adapter_sub.asObservable().pipe(
+    distinctUntilChanged(),
+    filter(Boolean),
+    switchMap(localAdapter =>
+      defer(() => this.getAdapter(localAdapter)).pipe(map(adapter => adapter as RemoteRxDBAdapter))
+    ),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
 
   /**
    * 连接状态 Observable
@@ -429,7 +435,7 @@ export class RxDB {
    * 未连接时**抛错而不是返回 `undefined`**：没有依赖声明就来同步取适配器是调用方的时序
    * 错误，返回空值只会把它推迟到某个更远的地方再炸。
    */
-  public get localAdapterSync(): IRxDBAdapter & RxDBAdapterLocalBase {
+  public get localAdapterSync(): LocalRxDBAdapter {
     const adapterName = this.#config.sync.local?.adapter;
     if (adapterName === undefined) {
       throw new Error('[RxDB] local adapter is not configured (sync.local.adapter)');
@@ -440,7 +446,7 @@ export class RxDB {
     }
     // 这里不重复判定：能进 #connected_adapter_instances 就说明 `connect()` 的 local 分支
     // 已经过了 assertLocalAdapterCapabilities，缺成员的适配器在那一步就抛掉了。
-    return adapter as IRxDBAdapter & RxDBAdapterLocalBase;
+    return adapter as LocalRxDBAdapter;
   }
 
   get context() {
@@ -527,7 +533,37 @@ export class RxDB {
     const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
     // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
     // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
-    return (adapter as (IRxDBAdapter & RxDBAdapterLocalBase) | undefined)?.workingTreeCaptureHook;
+    return (adapter as LocalRxDBAdapter | undefined)?.workingTreeCaptureHook;
+  }
+
+  /**
+   * 已连接的本地适配器实例；未配置或尚未连接时为 `undefined`
+   *
+   * @remarks
+   * **这条路不抛**，与 {@link RxDB.localAdapterSync} 的分工只在这一点上：那个服务的是
+   * 声明了 `inject: ['adapter:local']` 的插件，被调用时依赖必然已就绪，取不到就是调用方
+   * 的时序错误，该炸；这个服务的是**事件到达时**才执行的代码 —— 事件什么时候来不由接收方
+   * 决定，一条在断连期间飘到的通知不该变成一次异常。
+   *
+   * 今天的唯一消费方是能力插件的 {@link CAPABILITY_ENABLED_EVENT} 处理器（FR-037）：
+   * 处理器本身**同步**把捕获钩子装到本纪元的适配器上——不 `await`，走
+   * `await firstValueFrom(localAdapter$)` 会让出一个微任务，而那个缝隙里的写入不留痕迹。
+   *
+   * 但这只保证处理器自己不让出，不保证处理器**何时**跑：接收端若正处于一笔打开的事务中，
+   * {@link RxDB.dispatchEvent} 会把这条非事务事件压进队列，直到那笔事务 COMMIT 才派发，
+   * 钩子的安装随之延后一个事务窗口。事件不会丢，而且那笔事务本就开始于能力启用之前——
+   * 它不需要被新装的钩子看见。
+   *
+   * 读的是**调度器为本纪元绑定的那个实例**（与 `localAdapterSync` 同一份来源），不是按名字
+   * 重新解析：纪元交替时两者可能指向不同对象，而钩子必须装在当前纪元的那一个上。
+   *
+   * @internal
+   */
+  get localAdapterIfConnected(): LocalRxDBAdapter | undefined {
+    const adapter = this.#resolve_adapter_instance(this.#config.sync.local?.adapter);
+    // 与 localAdapterSync 同一条理由不重复判定：能进 #connected_adapter_instances 就说明
+    // `connect()` 的 local 分支已经过了 assertLocalAdapterCapabilities。
+    return adapter as LocalRxDBAdapter | undefined;
   }
 
   /**
@@ -731,6 +767,40 @@ export class RxDB {
   }
 
   /**
+   * 登记 metadata-only 分支的首次物化来源
+   *
+   * @param source - 物化来源，见 {@link BranchMaterializationSource}
+   * @param scope - 传入时，本次登记会随作用域释放而撤销；不传则永久有效
+   * @throws Error 这条连接上已经登记了另一个来源
+   *
+   * @remarks
+   * 形状与 {@link RxDB.queryCacheOutbox} 相同（身份守卫撤销、写槽放在 `setup` 里），多一道
+   * 冲突检查：一条连接**至多一个**来源。两个来源意味着同一条分支可以被两份互不相识的快照
+   * 各物化一次，所以后到的那个当场抛错，而不是静默顶掉前一个；同一个来源重复登记是幂等的。
+   *
+   * 官方同步插件在每个连接期的 `install` 里登记：断连时随作用域撤销，重连时重新登记，
+   * 重复 `use()` 由插件去重、走不到第二次登记。业务代码不需要调它。
+   *
+   * @example
+   * ```typescript
+   * import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+   *
+   * rxdb.use(rxDBPluginSync); // 装配时自动登记
+   * ```
+   */
+  public branchMaterializationSource(source: BranchMaterializationSource, scope?: LifecycleScope): this {
+    if (scope === undefined) {
+      this.#assign_branch_materialization_source(source);
+      return this;
+    }
+    scope.acquire(() => {
+      this.#assign_branch_materialization_source(source);
+      return () => this.#unregister_branch_materialization_source(source);
+    }, 'rxdb:branch-materialization-source');
+    return this;
+  }
+
+  /**
    * 注册 adapter
    * @param adapterName - 适配器名称
    * @param adapter - 适配器工厂函数
@@ -886,6 +956,19 @@ export class RxDB {
   }
 
   /**
+   * 取已登记的首次物化来源
+   *
+   * @returns 装了同步插件且处于连接期时是来源本身，否则 `undefined`
+   *
+   * @remarks
+   * `undefined` 交给工作树插件去抛 `branch_not_materialized`（`source_unavailable`）——
+   * 点名哪条分支这一层不知道。
+   */
+  getBranchMaterializationSource(): BranchMaterializationSource | undefined {
+    return this.#branch_materialization_source;
+  }
+
+  /**
    * 连接适配器
    * @param adapterName - 适配器名称
    * @returns 返回连接的适配器实例
@@ -978,7 +1061,7 @@ export class RxDB {
         } else {
           // 创建表结构
           const branch = this.entityManager.instantiate(RxDBBranch);
-          branch.id = 'main';
+          branch.id = MAIN_BRANCH_ID;
           branch.activated = true;
           // 冗余列与 `activated` 必须同写（`system/branch.ts` 的可空唯一列就架在它上面）。
           // 漏写这一处，新库的 main 从第一天起就不受「至多一个 active」约束，且不报任何错。
@@ -1221,6 +1304,30 @@ export class RxDB {
    */
   invalidateRemoteEntity(entity: string, namespace = 'public'): void {
     this.dispatchEvent(new RemoteEntityInvalidatedEvent(namespace, entity));
+  }
+
+  /**
+   * 通知同源的其他连接：某个能力刚在本连接上被启用（FR-037）。
+   *
+   * @param capability - 能力名，与 `RxDBSystemContribution.capability` 同值
+   *
+   * @remarks
+   * 能力位只在**连接期**读一次（见 {@link RxDBSystemContribution.bootstrapExisting}），
+   * 于是「A 启用、B 早已连上」这一种排列下，B 此后的每一次写都绕开该能力，**一条错误都不会有**。
+   * 本方法就是那条补齐用的通道：启用方发一次，同源的其他连接收到
+   * {@link CAPABILITY_ENABLED_EVENT} 后自行接通。
+   *
+   * **只覆盖同源的 BroadcastChannel 可达范围。** 跨进程（Electron 主/渲染、Tauri、Node 多进程）
+   * 与 `multiInstance: false` 的实例收不到 —— 那两种情形由能力插件自己的自愈路径收窄，
+   * 见 `specs/001-working-tree-commits/threat-model.md` §6。
+   *
+   * 发起方自己收不到这条事件（网关按 `clientId` 忽略自己发的消息），这是对的：
+   * 它在 `enable()` 里已经同步接通过了，再收一次只会让接通发生两遍。
+   *
+   * 网关未启用（`multiInstance: false`）时是无操作，不抛。
+   */
+  broadcastCapabilityEnabled(capability: string): void {
+    this.#gateway?.broadcastCapabilityEnabled(capability);
   }
 
   addEventListener<T extends keyof RxDBEventMap>(type: T, listener: EventListener<RxDBEventMap[T]>): void {
@@ -1600,6 +1707,21 @@ export class RxDB {
     this.#query_cache_outbox = undefined;
   }
 
+  /** 写入物化来源槽；已被另一个来源占着时抛错（一条连接至多一个）。 */
+  #assign_branch_materialization_source(source: BranchMaterializationSource): void {
+    const current = this.#branch_materialization_source;
+    if (current !== undefined && current !== source) {
+      throw new Error('[RxDB] 这条连接已经登记了一个分支物化来源；一条连接至多一个，先撤销前一个再登记。');
+    }
+    this.#branch_materialization_source = source;
+  }
+
+  /** 撤销 {@link RxDB.branchMaterializationSource} 的一次登记，按来源对象身份守卫。 */
+  #unregister_branch_materialization_source(source: BranchMaterializationSource): void {
+    if (this.#branch_materialization_source !== source) return;
+    this.#branch_materialization_source = undefined;
+  }
+
   /**
    * 引导收尾时点名检查：声明了 `SyncType.QueryCache` 的实体是否都有引擎可用。
    *
@@ -1797,6 +1919,12 @@ export class RxDB {
    * `IF NOT EXISTS`（`sqlite-core/src/table/create_table_sql.ts`、`pglite/src/table/create_table_sql.ts`
    * 都是裸 `CREATE TABLE`；该子句只出现在建索引那一句上）。把一张已存在的表送进 `createTables()`
    * 会直接报错，于是整条 `connect()` 在既有库上炸掉。
+   *
+   * **探测是逐张顺序发的，两个循环加起来每次 `connect()` 约十几次往返。** 一次元数据查询
+   * （`sqlite_master` / `information_schema.tables` 各一句）就能把这批答案一起取回来，但那要求
+   * 适配器长出「批量取现存表名」这个公开能力，六个后端两种方言各实现一遍——是一次适配器公开面
+   * 扩张，而且落在 `connect()` 这条全仓都走的路径上。顺延记录见 `requirements/roadmap.md`
+   * 的「epic-006 评审顺延的架构项」。
    */
   async #ensureSystemTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
@@ -1824,12 +1952,22 @@ export class RxDB {
    * ——刚建完的表查出来就是存在的——但那是一个**跨方法的巧合**：它依赖「系统表先建」这一执行
    * 顺序，而这里显式摘出去不依赖任何顺序。差别在 `CREATE TABLE` 没有 `IF NOT EXISTS`
    * （见 {@link RxDB.#ensureSystemTables}）：一旦顺序被调换，重复下发就不是多跑一趟，是直接报错。
+   *
+   * **摘系统表按 {@link RxDB.systemEntities}（本实例的清单），不用模块级的 `isSystemEntity()`。**
+   * 这是建表侧，与 {@link SchemaManager.init} / {@link RxDB.#ensureSystemTables} 同一条口径
+   * （`systemEntities` 的 `@remarks` 把这条写成了不变量）。模块级登记簿是只增不减的活视图，
+   * 认得进程里**任何一个**库登记过的身份：同进程里只要有别的库 `use()` 过某插件，本库一个
+   * 身份撞上贡献表的接入方实体（`@Entity({namespace:'rxdb', name:'Commit'})` 是合法声明，
+   * `namespace` 无人校验）就会在这里被判成「系统表」而静默跳过建表——首次查询报 `no such table`，
+   * 错误里没有一个字指向实体注册。按类引用比而不是按 `namespace:name` 比也是刻意的：
+   * 这里要回答的正是「**是不是同一个类**」，撞名的两个类必须分开。
    */
   async #ensureEntityTables(adapter: RxDBAdapterLocalBase): Promise<void> {
     const missingEntities: EntityType[] = [];
+    const systemEntities = new Set<EntityType>(this.systemEntities);
 
     for (const entityType of this.#config.entities) {
-      if (isSystemEntity(entityType)) continue;
+      if (systemEntities.has(entityType)) continue;
       const existed = await adapter.isTableExisted(entityType);
       if (!existed) {
         missingEntities.push(entityType);
@@ -1839,15 +1977,5 @@ export class RxDB {
     if (missingEntities.length > 0) {
       await adapter.createTables(missingEntities);
     }
-  }
-}
-
-// 扩展模块以包含 RxDB 系统实体
-declare module '@aiao/rxdb' {
-  interface RxDB {
-    RxDBChange: typeof RxDBChange;
-    RxDBBranch: typeof RxDBBranch;
-    RxDBMigration: typeof RxDBMigration;
-    RxDBSync: typeof RxDBSync;
   }
 }

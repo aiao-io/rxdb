@@ -5,6 +5,9 @@
  * 直接 `new ReachabilityMonitor()` 会去探测宿主的 `navigator.onLine` 与全局
  * `addEventListener` —— 在 Vitest 的浏览器模式下这意味着用例的可达性判定挂在真实网卡上，
  * 而且注册的监听器活过用例本身。这里把两个来源都钉死：状态只由 `report()` 驱动。
+ *
+ * 本包与其他插件包里的这份副本逐字相同，这是**有意**的重复，不要往 `@aiao/rxdb-test` 收敛——
+ * 理由见该包 README 的「什么不搬进来」。
  */
 
 import { ReachabilityMonitor, type ReachabilityOptions } from '@aiao/rxdb';

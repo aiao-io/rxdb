@@ -129,7 +129,7 @@ benchmarks/reports/rxdb-plugin-search-latest.json
 benchmarks/reports/rxdb-plugin-search-*.md
 
 # Working-tree benchmark 的单次运行产物（benchmarks/working-tree.bench.ts 每跑一次重写）。
-# 需要签入的是冻结基线 working-tree-reference.json，不是它。
+# 需要签入的是 working-tree-reference/ 下按比值画像分份的冻结基线，不是它。
 benchmarks/reports/working-tree-latest.json
 
 __screenshots__/

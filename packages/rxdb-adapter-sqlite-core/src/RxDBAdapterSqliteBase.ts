@@ -8,6 +8,7 @@ import {
   getEntityMutations,
   getRxDBSystemVersionState,
   isCurrentRxDBSystemVersion,
+  MAIN_BRANCH_ID,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
@@ -90,11 +91,59 @@ import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
-import { withTriggersDisabled } from './version/with_triggers_disabled.js';
+import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
-/** 零 active 时的恢复目标；与 `system/active-branch-guard.ts` 用的是同一个名字。 */
-const MAIN_BRANCH_ID = 'main';
+/**
+ * 读出当前库该把变更触发器挂到哪条分支上：优先取真实激活分支，读不到时回退根分支。
+ *
+ * @param tx - 当前事务的执行器（调用方已 `BEGIN`，或等价的引导期事务）
+ * @returns 活动分支 id；分支表还不存在、或一行 active 都没有时返回根分支
+ *
+ * @remarks
+ * 两处调用：{@link RxDBAdapterSqliteBase.migrateSystemSchema} 迁移收尾重建触发器时用它决定挂到
+ * 哪条分支；{@link RxDBAdapterSqliteBase.createTables} 建表前同样用它决定新表的触发器要挂到
+ * 哪条分支——两处问的是同一个问题「这条连接此刻停在哪条分支」，写成两份的风险与
+ * `readCurrentBranchId`（`version/read_current_branch_id.ts`）的 TSDoc 描述的是同一种：判定逻辑
+ * 漂移只会落在改到的那一份上。
+ *
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同一步逐语义对齐——触发器把 `branchId`
+ * 烙成 SQL 字面量，两端读法不一致就意味着同一个库换个后端打开，窗口期的裸写会记到不同分支名下。
+ *
+ * 只读 `activated`，不读 `activeKey`：后者是迁移**稍后**才补出来的列
+ * （见 {@link ensureBranchActiveKey}），而 `activated` 在所有受支持的旧版本里都在——
+ * 迁移里的那一步也正是靠读它来决定点亮谁，所以这次读在迁移的任何中途、以及迁移完成后的
+ * 建表路径上都成立。
+ *
+ * 三种「读不到」都归根分支，且都不是兜底——它们问的不是「出错了怎么办」，而是「库里此刻有没有
+ * 这个答案」：分支表还不存在（迁移中途的旧库、或全新库第一次 `createTables` 正在建它自己）；
+ * 分支表在但是空的；有行但零 active——零 active 的恢复目标本就是根分支，与
+ * {@link ensureBranchActiveKey} 的同名分支是同一个判断。
+ *
+ * 多行 active 不在这里判：迁移路径上紧随其后的 {@link ensureBranchActiveKey} 会抛
+ * `AmbiguousActiveBranchError`，按 `LIMIT 1` 取到的那一行重建的触发器随整段迁移一起回滚；
+ * 迁移完成之后，`activeKey` 那条唯一索引按写点约定把 active 行压到至多一行（改由 schema 表达
+ * 是 roadmap 顺延项，判据见 `RxDBBranch` 的 `@remarks`）。PGlite 建表侧的
+ * `readBranchIdForNewTables` 同样 `LIMIT 1` 取一行。
+ *
+ * 没有直接用 {@link read_current_branch_id}：那一份读不到激活分支、也没有 `main` 行时会抛错
+ * （见其 TSDoc），语义是「事务内必须要有答案」；这里的两处调用方都可能撞见「分支表还不存在」这种
+ * 更早的库状态（全新库建表、旧库迁移中途），读不到是合法结果，要回退根分支而不是抛错中断整条
+ * 引导链路。
+ */
+const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
+  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch));
+  const tableResult = await tx.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return MAIN_BRANCH_ID;
+
+  const activeResult = await tx.execute(
+    `SELECT "id" FROM ${quote_sql_identifier(branchTableName)} WHERE "activated" = 1 LIMIT 1`
+  );
+  const activeBranchId = activeResult.results.flatMap(result => result.rows)[0]?.[0];
+  return typeof activeBranchId === 'string' ? activeBranchId : MAIN_BRANCH_ID;
+};
 
 /**
  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
@@ -104,7 +153,9 @@ const MAIN_BRANCH_ID = 'main';
  *
  * @remarks
  * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
- * 否则同一个库换个后端打开就是另一套约束。顺序同样是**先建索引、后回填**：
+ * 否则同一个库换个后端打开就是另一套约束。**两份没有合一的判据写在那一端的 @remarks 里**
+ * （客户端协议与 DDL 方言都不同，抽完只剩骨架）；在合一之前，这里的任何改动都必须两端同改。
+ * 顺序同样是**先建索引、后回填**：
  * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
  * 但两端走不同顺序等于给自己留两条要分别验证的路径。
  *
@@ -546,16 +597,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: entities,
-      need_remove_entities: []
+      needSaveEntities: entities,
+      needRemoveEntities: []
     });
     return this.mutations(options);
   }
 
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: [],
-      need_remove_entities: entities
+      needSaveEntities: [],
+      needRemoveEntities: entities
     });
     return this.mutations(options);
   }
@@ -576,10 +627,21 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
-    const sql = await create_tables_sql(this, EntityTypes, entities);
     // 建表也在引导链路上（RxDB.#ensureEntityTables 补建缺失的实体表），同样不能等就绪门；
     // 何况「表就绪」正是本方法要建立的前提，让它反过来等就绪是循环依赖。
-    await this.bootstrapTransaction(executor => executor.execute(sql), false);
+    await this.bootstrapTransaction(async executor => {
+      // 建表前先读一次真实活动分支，把结果直接传给 create_tables_sql 去拼「建表 + 建触发器」——
+      // 库创建新表时可能已经停在非 main 分支上（RxDB.#ensureEntityTables 补建缺失表时尤其常见），
+      // 触发器要从一开始就烙对分支，而不是先写占位分支、指望别的机制回头纠正：不经
+      // transaction() 的裸写根本等不到「下一个默认事务重建全部触发器」的自愈时机。
+      //
+      // 触发器只在这里烙一次：先读分支再拼 SQL，不走「先按占位分支建、建完在同一事务里
+      // 对刚建出的同一批表再做一遍 DROP+CREATE 重建」的两阶段写法——省掉一次重复 DDL，
+      // 也不会让触发器在事务内出现过写着错误分支的中间状态（哪怕最终会被覆盖）。
+      const branchId = await readActiveBranchIdOrMain(executor);
+      const sql = await create_tables_sql(this, EntityTypes, branchId, entities);
+      await executor.execute(sql);
+    }, false);
     return true;
   }
 
@@ -631,11 +693,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             }
           }
 
+          // 重建的触发器必须按库此刻停在的分支写。自愈只能兜住一部分：下一个默认事务 COMMIT 时
+          // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
+          // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
+          const migrationBranchId = await readActiveBranchIdOrMain(client);
           const removeTriggersSql = remove_all_triggers_sql(this);
           if (removeTriggersSql) await client.execute(removeTriggersSql);
           for (const metadata of existingLoggedMetadata) {
             await client.execute(
               generate_table_trigger_sql(metadata, {
+                branchId: migrationBranchId,
                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
               })
             );
@@ -686,6 +753,25 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         throw error;
       }
     });
+  }
+
+  /**
+   * SQLite 家族把命名空间折进表名：`public$todos`。
+   *
+   * @param metadata - 实体元数据
+   * @returns 逻辑名（基类那一份）加上本家族真正建出来的那个名字
+   *
+   * @remarks
+   * 覆写的全部意义是**让规则只有一份**：名字由 {@link get_table_name_by_metadata} 给出，
+   * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-working-tree` 的
+   * 版本化域按 `'$'` 自己拼了一份；拼法一改，那份不会报错，只会开始认不出这张表，于是
+   * raw 写门禁对它静默放行。
+   *
+   * 保留基类给的逻辑名而不是只交折叠名：raw 判定宁可**多认**一个名字——多认只是多挡下
+   * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
+   */
+  override physicalTableNames(metadata: EntityMetadata): readonly string[] {
+    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata)];
   }
 
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
@@ -840,16 +926,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.transaction(transactionFun, transactionLog);
   }
 
-  localRxDBBranch() {
-    return this.getRepository(RxDBBranch) as SqliteRepository<typeof RxDBBranch>;
-  }
-
   internalQuery(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
     return this.#internal_exec(sql, bindings);
-  }
-
-  localRxDBChange() {
-    return this.getRepository(RxDBChange) as SqliteRepository<typeof RxDBChange>;
   }
 
   async getRxDBChangeSequence() {

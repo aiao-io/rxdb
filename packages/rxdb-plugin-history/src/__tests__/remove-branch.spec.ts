@@ -63,7 +63,9 @@ function createRecordingContribution(
       calls.push({ branchId, executor, removalsBefore: countRemovals() });
       await impl?.();
     },
-    assertBranchSwitchable: async () => undefined
+    prepareBranchSwitch: async () => undefined,
+    takeOverBranchSwitch: async () => 'not_applicable' as const,
+    settleBranchSwitchFailure: async () => undefined
   };
 }
 

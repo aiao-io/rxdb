@@ -83,12 +83,26 @@ export async function restore_entity<T extends EntityType>(
   // 改走 mergeChanges(actions, undefined, false)：与 merge_branch 的 squash 出口同路，
   // disableTriggers=false 让数据库触发器照常记账。
   // 恢复是重算领域状态，不是一次新的用户编辑。
-  declareTrustedWrite(adapter, {
-    file: 'restore-entity.ts',
-    symbol: 'restore_entity',
-    intent: TrustedWriteIntent.restore_entity
-  });
-  await adapter.mergeChanges(actions, undefined, false);
+  //
+  // 只有一次写，本来不需要事务。开事务是为了**拿到一个执行器当声明的作用域**：声明存在一个
+  // WeakMap 里，每个作用域只存一条（`trusted-write-scope.ts`），而工作树的
+  // `interceptMergeChanges()` 是排队拿到事务之后才取声明的（`capture-hook.ts`）。绑在适配器
+  // 实例上时，一次恢复与一次并发的压缩合并会互相覆盖：先执行的取到后声明者的意图，
+  // 后执行的取不到声明被当作未知入口拒绝（`merge-branch.ts` 的压缩出口同理，两边的并发用例在
+  // `__tests__/trusted-write-concurrency.spec.ts`）。执行器是「这一次写」独有的对象。
+  //
+  // 第二个参数（transactionLog）显式传 false，理由同 `merge-branch.ts` 的压缩出口：这一层只借
+  // 执行器当声明作用域。默认 true 会给这次写出的 change 行盖上 transactionId，
+  // `history-item-builder.ts` 于是把这条恢复显示成 `'TRANSACTION'` 而不是它自己的类型（如
+  // INSERT）——TSDoc 承诺的是一条普通的 RxDBChange 记录，不是被特殊分组的事务记录。
+  await adapter.transaction(async executor => {
+    declareTrustedWrite(executor, {
+      file: 'restore-entity.ts',
+      symbol: 'restore_entity',
+      intent: TrustedWriteIntent.restore_entity
+    });
+    await executor.mergeChanges(actions, undefined, false);
+  }, false);
 
   const repo = adapter.getRepository(EntityType);
   const restored = await repo.find({

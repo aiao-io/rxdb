@@ -8,6 +8,8 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
+      "//dependsOn": "tsconfig.base.json 把 @aiao/rxdb-test/entities、/shop 映射到 packages/rxdb-test/dist，typecheck 读的是依赖的构建产物而不是源码。不声明 ^build 时，`nx affected -t typecheck build --parallel` 会把本目标和 rxdb-test:build 排进同一批，后者写 dist 前先清空，tsc 正好读到空目录，报出一串 TS2307 以及由未解析类型级联出的 TS2345/TS18046。全仓所有其它 typecheck 目标都声明了 build 依赖，只有这里漏了。",
+      "dependsOn": ["^build"],
       "options": {
         "cwd": "benchmarks",
         "command": "pnpm run typecheck"
@@ -15,6 +17,7 @@
     },
     "build-website": {
       "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
       "options": {
         "cwd": "benchmarks",
         "commands": [

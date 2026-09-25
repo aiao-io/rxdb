@@ -27,7 +27,15 @@ import {
   REPOSITORY_TYPE_REPOSITORY,
   REPOSITORY_TYPE_TREE_REPOSITORY
 } from '../core/RxDBClientGenerator.js';
-import { getEntityMetadataOptions, getTreeEntityMetadataOptions } from '../core/metadata.utils.js';
+import { describeMissingGeneratorForPackage } from '../core/known-repository-generators.js';
+import { getEntityMetadataOptions } from '../core/metadata.utils.js';
+import type { IRepositoryGenerator } from '../generators/RepositoryGenerator.interface.js';
+
+/** 分析实体文件的可选上下文。 */
+export interface AnalyzeFileOptions {
+  /** 已装载的 Repository 生成器，用于补齐它们自带的抽象基类元数据。 */
+  repositoryGenerators?: readonly IRepositoryGenerator[];
+}
 
 interface AnalyzeFileResult {
   decoratorName: string;
@@ -141,13 +149,22 @@ export const createAnalysisProject = (filePaths: readonly string[]): Project => 
   return project;
 };
 
+/**
+ * 求值失败时，若该节点来自某个已知插件包，顺带提示要装载的生成器。
+ *
+ * @remarks
+ * 插件包的抽象基类（树的 `TreeAdjacencyListEntityBase`）元数据由生成器自带，
+ * 没装载生成器时这里只能看到一个无法静态求值的装饰器参数 —— 光报「求不出来」
+ * 会把人引向「是不是我的常量写错了」，所以要点破真正的原因。
+ */
 const createEvaluationError = (node: Node, reason: string): Error => {
   const sourceFile = node.getSourceFile();
   const { column, line } = sourceFile.getLineAndColumnAtPos(node.getStart());
   const expression = node.getText().replaceAll(/\s+/g, ' ').slice(0, 200);
+  const packageName = getPackageName(sourceFile.getFilePath());
   return new Error(
     `Cannot statically evaluate entity metadata at ${sourceFile.getFilePath()}:${line}:${column}: ${reason} ` +
-      `[${node.getKindName()}: ${expression}]`
+      `[${node.getKindName()}: ${expression}]${packageName === undefined ? '' : describeMissingGeneratorForPackage(packageName)}`
   );
 };
 
@@ -277,17 +294,50 @@ const getPackageName = (filePath: string): string | undefined => {
  * 内置实体基类的元数据由生成器直接持有，不再静态求值它们的装饰器实参。
  *
  * @remarks
- * 基类按所属包分流：`EntityBase` 在 `@aiao/rxdb`，树基类自 US-025 阶段 E 起在
- * `@aiao/rxdb-plugin-tree`。不在表里的包一律走常规静态求值。
+ * 只有 `@aiao/rxdb` 的 `EntityBase` 是内置的；插件包的抽象基类由生成器自带的
+ * {@link IRepositoryGenerator.abstractEntityMetadata} 在 {@link createMetadataResolvers} 里并进来。
+ * 不在表里的包一律走常规静态求值。
  */
 const BUILTIN_METADATA_RESOLVERS = new Map<string, (className: string) => EntityMetadataOptions[] | undefined>([
-  ['@aiao/rxdb', getEntityMetadataOptions],
-  ['@aiao/rxdb-plugin-tree', getTreeEntityMetadataOptions]
+  ['@aiao/rxdb', getEntityMetadataOptions]
 ]);
 
-const getBuiltinMetadataOptions = (declaration: ClassDeclaration): EntityMetadataOptions[] | undefined => {
+type MetadataResolver = (className: string) => EntityMetadataOptions[] | undefined;
+
+/**
+ * 把生成器自带的抽象基类元数据并入内置表，键为生成器声明的包名。
+ *
+ * @remarks
+ * 只认同时给出 {@link IRepositoryGenerator.entityBaseModuleSpecifier} 与
+ * {@link IRepositoryGenerator.abstractEntityMetadata} 的生成器：少了包名就只能按类名匹配，
+ * 用户自己写的同名类会被插件的元数据顶替。
+ *
+ * 同一包名上叠加时保留原解析器兜底 —— 这不是错误兜底，而是让插件补充自己的基类
+ * 而不必重述该包里已内置的那些。
+ */
+const createMetadataResolvers = (
+  repositoryGenerators: readonly IRepositoryGenerator[]
+): ReadonlyMap<string, MetadataResolver> => {
+  if (repositoryGenerators.length === 0) return BUILTIN_METADATA_RESOLVERS;
+
+  const resolvers = new Map(BUILTIN_METADATA_RESOLVERS);
+  for (const { abstractEntityMetadata, entityBaseModuleSpecifier } of repositoryGenerators) {
+    if (!abstractEntityMetadata || !entityBaseModuleSpecifier) continue;
+    const previous = resolvers.get(entityBaseModuleSpecifier);
+    resolvers.set(
+      entityBaseModuleSpecifier,
+      className => abstractEntityMetadata.get(className) ?? previous?.(className)
+    );
+  }
+  return resolvers;
+};
+
+const getBuiltinMetadataOptions = (
+  declaration: ClassDeclaration,
+  resolvers: ReadonlyMap<string, MetadataResolver>
+): EntityMetadataOptions[] | undefined => {
   const packageName = getPackageName(declaration.getSourceFile().getFilePath());
-  const resolve = packageName ? BUILTIN_METADATA_RESOLVERS.get(packageName) : undefined;
+  const resolve = packageName ? resolvers.get(packageName) : undefined;
   const className = declaration.getName();
   return resolve && className ? resolve(className) : undefined;
 };
@@ -449,7 +499,8 @@ const transpileGetter = (source: string): string => {
 };
 
 /** 分析实体文件并返回可生成的静态元数据。 */
-export default (filePath: string, project?: Project): AnalyzeFileResult[] => {
+export default (filePath: string, project?: Project, options?: AnalyzeFileOptions): AnalyzeFileResult[] => {
+  const metadataResolvers = createMetadataResolvers(options?.repositoryGenerators ?? []);
   if (!project) {
     globalProject ??= createAnalysisProject([filePath]);
     project = globalProject;
@@ -464,7 +515,7 @@ export default (filePath: string, project?: Project): AnalyzeFileResult[] => {
     visited = new Set<string>()
   ): EntityMetadataOptions[] => {
     const className = declaration.getName();
-    const builtinMetadata = getBuiltinMetadataOptions(declaration);
+    const builtinMetadata = getBuiltinMetadataOptions(declaration, metadataResolvers);
     if (builtinMetadata) return builtinMetadata;
 
     const key = `${declaration.getSourceFile().getFilePath()}:${declaration.getStart()}`;

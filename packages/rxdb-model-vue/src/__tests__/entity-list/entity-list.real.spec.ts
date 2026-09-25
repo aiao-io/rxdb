@@ -252,6 +252,17 @@ describe('EntityList（真实组件）', () => {
     });
   });
 
+  /**
+   * 弹层内被 aria-hidden 祖先遮蔽的可聚焦控件（正常必须为空）。
+   *
+   * @remarks aria-hidden 会把整棵子树从无障碍树里摘掉：屏幕阅读器读不到、
+   * axe 的 aria-hidden-focus 判违规、基于 role 的定位（含 e2e getByRole）也全部落空。
+   */
+  const hiddenFocusablesIn = (root: ParentNode): string[] =>
+    [...root.querySelectorAll('button, input, select, textarea, [tabindex]')]
+      .filter(el => el.closest('[aria-hidden="true"]') !== null)
+      .map(el => el.outerHTML.slice(0, 80));
+
   it('筛选弹层：query-builder 条件应用后列表按 where 重查', async () => {
     await seedTodo('match-alpha');
     await seedTodo('match-beta');
@@ -289,6 +300,20 @@ describe('EntityList（真实组件）', () => {
     await vi.waitFor(() => {
       expect(component.tableRecords).toHaveLength(3);
     });
+  });
+
+  it('筛选弹层的可聚焦控件必须留在无障碍树内', async () => {
+    const { wrapper, component } = await renderList();
+    await FLUSH();
+
+    component.toggleFilterPopover();
+    await wrapper.vm.$nextTick();
+
+    // backdrop 与面板是 Teleport 下的兄弟节点，可聚焦控件都在面板里
+    const panel = document.body.querySelector('.rxdb-filter-popover-panel') as HTMLElement;
+    const focusables = panel.querySelectorAll('button, input, select, textarea, [tabindex]');
+    expect(focusables.length).toBeGreaterThan(0);
+    expect(hiddenFocusablesIn(panel)).toEqual([]);
   });
 
   it('选择模式：勾选后 selectionConfirmed 输出真实实体实例', async () => {

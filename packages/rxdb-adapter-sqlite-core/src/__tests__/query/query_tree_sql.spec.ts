@@ -113,6 +113,9 @@ describe('generate_tree_sql', () => {
 
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: injection })).toThrow(RxDBError);
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: -1 })).toThrow(RxDBError);
+    expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: -1 })).toThrow(
+      "tree query 'level' must be a non-negative integer, received: -1"
+    );
     expect(() => generate_tree_sql(adapter, metadata, { entityId: 'n1', level: 1.5 })).toThrow(RxDBError);
   });
 

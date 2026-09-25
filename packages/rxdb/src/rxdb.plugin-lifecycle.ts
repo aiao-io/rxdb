@@ -41,6 +41,24 @@ export function installPlugin(host: PluginLifecycleHost): void {
  * 依赖来源尘埃落定之后，把始终没装上的插件点名一次。
  *
  * 两个条件缺一不可：`bootstrappingConnects === 0` 且已有适配器连上。
+ *
+ * @remarks
+ * **已知噪声**：顺序 `await connect('local'); await connect('remote')` 会在第一条落地时
+ * 结算一次，此刻只有 `local` 的插件在场，依赖 `remote` 侧插件的那些会被点名一次
+ * （warn-once，第二条落地后不再重复）。`#bootstrapping_connects` 只挡得住**并行**
+ * connect（`Promise.all([connect('local'), connect('remote')])`）。
+ *
+ * 这是刻意留着的：US-015 AC#11 的契约就是「每次 connect 落地就结算一次未满足依赖」，
+ * 对应不变量 INV-5「未满足不静默」。评审提过一条改法——闸门换成「全部已注册适配器
+ * 都连上才结算」——实测**不可行**：`connectedAdapters.size === 已注册数` 这条判据下，
+ * 只要有一个适配器注册了却永不连接（完全合法的用法），闸门就再也不会开，
+ * 于是**所有**未满足依赖永久静默，INV-5 直接失效；连与适配器无关的 AC#15
+ * （依赖的插件名根本不存在）也会一并被静音。同理，任何「等等看」的延迟结算都分不出
+ * 「顺序 connect 的下一条还没发出」与「再也不会有下一条」——这两种状态在同步点上同形。
+ *
+ * 于是取舍是：宁可让顺序 connect 多一条 warn，也不让真正的未满足依赖变哑。
+ * 调用方要消掉这条噪声，就把多个 connect 并到一起发（`Promise.all`），
+ * `#bootstrapping_connects` 会把结算压到最后一条落地之后。
  */
 export function reportUnsatisfiedPlugins(host: PluginLifecycleHost): void {
   if (host.bootstrappingConnects > 0 || host.connectedAdapters.size === 0) return;

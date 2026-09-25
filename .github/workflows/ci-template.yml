@@ -1060,8 +1060,20 @@ jobs:
   # benchmarks/scripts/search-ci.mjs 自己起 vite dev server 再用 Playwright 驱动页面，
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
   # 白蹭了前面装好的浏览器，拆出来后必须自己装。
+  #
+  # bench-working-tree 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
+  # 条件与 search-ci 逐字相同（need_benchmark），单开一个 job 只会把同一份 setup-workspace
+  # 与 nx-cache-restore 再付一遍。它是 contracts/benchmark-report.md §3.1 指定的**普通 PR CI
+  # 唯一硬门禁**：拿与本 runner 同比值画像（系统/架构 + CPU 型号 + Node 主版本）的 reference 比相对
+  # ratio（≤ 冻结 median × 容差：读项 status / diff 130%，写项 restore / commit 110%）。ubuntu-latest
+  # 随机分到的 CPU 若还没有同画像 reference，以 benchmark_environment_mismatch 失败（不降级为通过）：
+  # 先重跑该 job 一次，同一新型号反复出现再走 bench-freeze.yml 补冻。一份 reference 都没冻结时
+  # 打印提示以 0 退出。
+  #
+  # 两个 target 走一次 run-many 而不是两个 step：串成两步的话，search-ci 红了
+  # bench-working-tree 就不跑了，而一轮 CI 本该同时看到两边的结论。run-many 默认不 bail。
   benchmark:
-    name: search benchmark
+    name: benchmarks
     needs: setup
     if: needs.setup.outputs.need_benchmark == 'true'
     runs-on: ubuntu-latest
@@ -1075,7 +1087,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run benchmarks:search-ci
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree -p benchmarks --output-style=stream
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

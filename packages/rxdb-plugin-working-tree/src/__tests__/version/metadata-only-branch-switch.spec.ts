@@ -7,11 +7,16 @@
  * MUST 用**独立 durable staging** 冻结目标分支、终止水位和**完整配置** sync scope，逐页持久化
  * payload/fingerprint 且**不触碰当前投影**。
  *
- * **两个入口钉在 `working-tree/branch-materialization.ts`（T122 的落点）**：
- * `classifyBranchMaterialization(executor, branchId)` 与
- * `stageBranchMaterialization(entityManager, executor, input)`。第一个参数是 `EntityManager` 而不是
- * 从 executor 上摸，与 `createBranchCommitRows` / `writeBranchRows` 同一个手法——多个库共用同一个
- * 实体类时 `new WorkingTreeMaterializationStage()` 判断不出目标库。
+ * **入口钉在 `working-tree/branch-materialization.ts`（T122 的落点）**：
+ * `classifyBranchMaterialization(executor, branchId)`，外加三段式 staging 的
+ * `beginBranchMaterializationStage` / `appendBranchMaterializationPage` / `sealBranchMaterializationStage`。
+ * 写入那几个的第一个参数是 `EntityManager` 而不是从 executor 上摸，与 `createBranchCommitRows` /
+ * `writeBranchRows` 同一个手法——多个库共用同一个实体类时
+ * `new WorkingTreeMaterializationStage()` 判断不出目标库。
+ *
+ * **staging 拆成三个入口而不是一个**，因为它们必须分属三个事务：分页之间要发网络请求，不能把
+ * 写事务一直攥着；而「崩在第 7 页时前 7 页还在」这条 FR-044 的核心性质，在一个从头行装到封口的
+ * 大事务里恒不成立——回滚会把 7 页连头行一起抹掉。
  *
  * **本文件不 import `@aiao/rxdb-plugin-sync`。** `syncBranches()` 长在那个包里，而本包不依赖它；
  * 为一个测试加一条包依赖会在 nx 图上多出一条真实的边（图插件把静态 import 映射成依赖边），
@@ -33,24 +38,36 @@
  * 3. **把整份快照攒在内存里，最后一把 `saveMany`**。所有断言（页都在、`pageCount` 对、指纹对）
  *    照样全绿，代价要到分页崩溃那天才显形：FR-044 要求「分页崩溃可恢复」，而没落库的页恢复不了。
  *    同一条线上还有 `status`：全部页落库**之前**写 `staged`，等于宣布一份半截 payload 可用，
- *    正是 data-model.md §2.9 那句「不允许把半份 payload 当成完整快照物化」。
+ *    正是 data-model.md §2.9 那句「不允许把半份 payload 当成完整快照物化」。第三种同源退化是
+ *    **指纹与页号无人复核**：指纹只当成一列跟着 payload 一起被改的字符串、页号缺了一格照样封口，
+ *    于是屏障逐页交给宿主时那一格静默消失，而物化宣布成功。
  * 4. **水位与 scope 现读而不是冻结**。「冻结终止水位」写成存一个引用，调用方那份水位在分页期间
  *    照常推进，staging 就变成一份跨越多个水位的拼接；而 `scopeManifest` 写成「这次有页的那几个
  *    实体」时，一个当时恰好没有行的实体会从清单里消失，续用判定于是把一份**范围更窄**的旧 attempt
  *    判成可续用。
  */
 
-import type { EntityManager, TransactionExecutor } from '@aiao/rxdb';
-import { ACTIVE_BRANCH_KEY, RxDB, RxDBBranch, RxDBError, SyncType } from '@aiao/rxdb';
+import type { BranchMaterializationPagePayload, EntityManager, TransactionExecutor } from '@aiao/rxdb';
+import {
+  ACTIVE_BRANCH_KEY,
+  branchMaterializationPageFingerprint,
+  RxDB,
+  RxDBBranch,
+  RxDBError,
+  SyncType
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { RxDBPluginWorkingTree } from '../../plugin.js';
 import {
+  appendBranchMaterializationPage,
+  beginBranchMaterializationStage,
+  BranchNotMaterializedError,
   classifyBranchMaterialization,
-  stageBranchMaterialization,
-  type BranchMaterializationPagePayload
+  sealBranchMaterializationStage,
+  type BranchMaterializationStaging
 } from '../../working-tree/branch-materialization.js';
 import {
   WORKING_TREE_ACTIVATION_STATE_ID,
@@ -214,6 +231,35 @@ function createCommitRows(entityManager: EntityManager, branchId: string): [Comm
   return [commit, changeSet];
 }
 
+/** 第 `pageIndex` 页的 payload；页内容与页号一一对应，好让断言指名道姓。 */
+const payloadOf = (pageIndex: number): Record<string, unknown> => ({
+  rows: [{ entity: 'Note', id: `note-${pageIndex}` }]
+});
+
+/**
+ * 接住一个必定拒绝的调用，交回那个拒绝。
+ *
+ * @param run - 要跑的那一次调用
+ * @returns 它抛出来的东西；**没抛**时交回 `undefined`
+ *
+ * @remarks
+ * 不用 `rejects.toBeInstanceOf`：这几条用例除了「抛的是哪一类」还要接着问成因码，
+ * 而 `rejects` 那条链上拿不到错误对象本身。交回 `undefined` 而不是让「没抛」也算过，
+ * 是为了让断言那一行同时钉住「它确实抛了」。
+ */
+const rejectionOf = (run: Promise<unknown>): Promise<unknown> => run.then(() => undefined).catch(error => error);
+
+/** 一页内容与它声明的指纹对不上的快照：模拟来源方传坏了一页。 */
+async function* tamperedPageSource(): AsyncGenerator<BranchMaterializationPagePayload> {
+  yield { payload: payloadOf(9), fingerprint: branchMaterializationPageFingerprint(payloadOf(8)) };
+}
+
+/** 一页现成的快照：内容与它自己**算出来**的指纹。 */
+const pageOf = (pageIndex: number): BranchMaterializationPagePayload => {
+  const payload = payloadOf(pageIndex);
+  return { payload, fingerprint: branchMaterializationPageFingerprint(payload) };
+};
+
 /**
  * 一个分页来源。
  *
@@ -231,28 +277,31 @@ async function* pageSource(
 ): AsyncGenerator<BranchMaterializationPagePayload> {
   for (let pageIndex = 0; pageIndex < count; pageIndex += 1) {
     onPull(pageIndex);
-    yield {
-      payload: { rows: [{ entity: 'Note', id: `note-${pageIndex}` }] },
-      fingerprint: `page-fingerprint-${pageIndex}`
-    };
+    yield pageOf(pageIndex);
   }
 }
 
-/** `stageBranchMaterialization` 的入参覆盖位；没写的走 {@link createScene} 的默认值。 */
+/** 三段式 staging 的入参覆盖位；没写的走 {@link createScene} 的默认值。 */
 interface StageOverrides {
   readonly attemptId?: string;
   readonly targetBranchId?: string;
   readonly frozenRemoteWatermark?: Record<string, unknown>;
   readonly syncScope?: readonly string[];
   readonly pages?: AsyncIterable<BranchMaterializationPagePayload>;
+
+  /** 这一趟的第一页算第几页；续传场景用 */
+  readonly firstPageIndex?: number;
 }
 
 interface Scene {
   readonly probe: ReturnType<typeof createCommitGraphProbe>;
   readonly executor: TransactionExecutor;
-  readonly activation: WorkingTreeActivationState;
+  activationRow(): WorkingTreeActivationState | undefined;
   classify(branchId: string): ReturnType<typeof classifyBranchMaterialization>;
-  stage(overrides?: StageOverrides): ReturnType<typeof stageBranchMaterialization>;
+  begin(overrides?: StageOverrides): Promise<string>;
+  append(overrides?: StageOverrides): Promise<void>;
+  seal(overrides?: StageOverrides): Promise<BranchMaterializationStaging>;
+  stage(overrides?: StageOverrides): Promise<BranchMaterializationStaging>;
   stageRow(attemptId?: string): WorkingTreeMaterializationStage | undefined;
   pageRows(attemptId?: string): WorkingTreeMaterializationPage[];
   refOf(branchId: string): CommitBranchRef | undefined;
@@ -307,19 +356,48 @@ function createScene(
 
   const rowsOf = <T>(EntityClass: Parameters<typeof probe.rowsOf>[0]): T[] => probe.rowsOf(EntityClass) as T[];
 
-  return {
+  const scene: Scene = {
     probe,
     executor: probe.executor,
-    activation,
+    // 现读而不是把种子期那个实例挂出去：staging 真要动激活行的话，走的是 `removeMany` + `saveMany`
+    // ——换行之后种子实例仍停在 7/2，断言照样绿。
+    // 兄弟的 `refOf` / `stateOf` / `activeBranchIds` 全是现读，这一格不能例外。
+    activationRow: () =>
+      rowsOf<WorkingTreeActivationState>(WorkingTreeActivationState).find(
+        row => row.id === WORKING_TREE_ACTIVATION_STATE_ID
+      ),
     classify: branchId => classifyBranchMaterialization(probe.executor, branchId),
-    stage: (overrides = {}) =>
-      stageBranchMaterialization(entityManager, probe.executor, {
+    begin: (overrides = {}) =>
+      beginBranchMaterializationStage(entityManager, probe.executor, {
         attemptId: overrides.attemptId ?? ATTEMPT_ID,
         targetBranchId: overrides.targetBranchId ?? REMOTE_BRANCH_ID,
         frozenRemoteWatermark: overrides.frozenRemoteWatermark ?? { ...FROZEN_WATERMARK },
-        syncScope: overrides.syncScope ?? SYNC_SCOPE,
-        pages: overrides.pages ?? pageSource(PAGE_COUNT)
+        syncScope: overrides.syncScope ?? SYNC_SCOPE
       }),
+    append: async (overrides = {}) => {
+      let pageIndex = overrides.firstPageIndex ?? 0;
+      for await (const page of overrides.pages ?? pageSource(PAGE_COUNT)) {
+        await appendBranchMaterializationPage(entityManager, probe.executor, {
+          attemptId: overrides.attemptId ?? ATTEMPT_ID,
+          targetBranchId: overrides.targetBranchId ?? REMOTE_BRANCH_ID,
+          pageIndex,
+          page
+        });
+        pageIndex += 1;
+      }
+    },
+    seal: (overrides = {}) =>
+      sealBranchMaterializationStage(probe.executor, {
+        attemptId: overrides.attemptId ?? ATTEMPT_ID,
+        targetBranchId: overrides.targetBranchId ?? REMOTE_BRANCH_ID
+      }),
+    // 顺次调三格，不是第四个入口：这三步在真实调用方那里各占一个事务，合成一格只是
+    // 为了让「跑完整趟」的用例少写两行。要验分步性质的用例照样各自调 begin/append/seal。
+    stage: async (overrides = {}) => {
+      await scene.begin(overrides);
+      await scene.append(overrides);
+      return scene.seal(overrides);
+    },
     stageRow: (attemptId = ATTEMPT_ID) =>
       rowsOf<WorkingTreeMaterializationStage>(WorkingTreeMaterializationStage).find(row => row.id === attemptId),
     pageRows: (attemptId = ATTEMPT_ID) =>
@@ -333,6 +411,7 @@ function createScene(
         .filter(row => row.activated)
         .map(row => row.id)
   };
+  return scene;
 }
 
 /** 九张表各自还剩几行；一次读出来才好整份比对，逐张断言会漏掉刚加的第十张表。 */
@@ -421,36 +500,33 @@ describe('「没有 ref」不等于空历史，也不等于损坏（FR-049）', 
 });
 
 describe('首次 switch 的独立 durable staging（FR-044）', () => {
-  it('attempt 头行先落，payload 逐页落——不是攒在内存里最后一把写', async () => {
+  it('begin() 只落头行：页数记 0、status 是 pending，一页都还没有', async () => {
     const scene = createScene();
-    const seenPages: number[] = [];
-    const seenStages: number[] = [];
 
-    await scene.stage({
-      pages: pageSource(PAGE_COUNT, () => {
-        seenPages.push(scene.probe.rowsOf(WorkingTreeMaterializationPage).length);
-        seenStages.push(scene.probe.rowsOf(WorkingTreeMaterializationStage).length);
-      })
+    await scene.begin();
+
+    // 头行先落，是为了让崩在第一页之前的那次尝试也留下一条**可按 attempt 清理**的记录：
+    // 没有它，那批页无主，而按目标分支清理会把旁观的另一次尝试一起带走。
+    expect({ status: scene.stageRow()?.status, pageCount: scene.stageRow()?.pageCount }).toEqual({
+      status: 'pending',
+      pageCount: 0
     });
-
-    // 产第 k 页之前，前 k 页必须已经在库里；攒在内存里最后一把写的实现在这里恒是 [0,0,0]。
-    // 它照样能让下面「页都在、pageCount 对」的断言全绿，代价要到分页崩溃那天才显形。
-    expect(seenPages).toEqual([0, 1, 2]);
-    // 头行先落：崩在第一页之前也要留下一条可按 attempt 清理的记录，否则这批页无主。
-    expect(seenStages).toEqual([1, 1, 1]);
+    expect(scene.pageRows()).toEqual([]);
   });
 
   it('全部页落库之前 status 不得是 staged——半份 payload 不是完整快照', async () => {
     const scene = createScene();
     const seenStatuses: (string | undefined)[] = [];
 
-    const staging = await scene.stage({
-      pages: pageSource(PAGE_COUNT, () => seenStatuses.push(scene.stageRow()?.status))
-    });
+    await scene.begin();
+    await scene.append({ pages: pageSource(PAGE_COUNT, () => seenStatuses.push(scene.stageRow()?.status)) });
+    const beforeSeal = { status: scene.stageRow()?.status, pageCount: scene.stageRow()?.pageCount };
+    const staging = await scene.seal();
 
-    // 最后一页产出时已经落了两页，status 仍必须是 pending：提前写 staged 等于宣布一份
-    // 半截 payload 可用（data-model.md §2.9）。
+    // 每一页产出时 status 都必须还是 pending，最后一页落库之后**依然**是——封口是单独一步，
+    // 提前写 staged 等于宣布一份半截 payload 可用（data-model.md §2.9）。
     expect(seenStatuses).toEqual(['pending', 'pending', 'pending']);
+    expect(beforeSeal).toEqual({ status: 'pending', pageCount: 0 });
     expect({ status: scene.stageRow()?.status, pageCount: scene.stageRow()?.pageCount }).toEqual({
       status: 'staged',
       pageCount: PAGE_COUNT
@@ -461,6 +537,75 @@ describe('首次 switch 的独立 durable staging（FR-044）', () => {
     });
   });
 
+  it('封口之后不再收页：往 staged 的 attempt 里追加一页要拒', async () => {
+    const scene = createScene();
+    await scene.stage();
+
+    const rejection = await rejectionOf(scene.append({ pages: pageSource(1), firstPageIndex: PAGE_COUNT }));
+
+    // 收下的话页数就与封口时写下的 pageCount 对不上，而屏障报出来的成因会是 stage_incomplete
+    // ——一个把「有人往封好的 staging 里塞东西」说成「这份 staging 没落全」的成因。
+    expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+    expect((rejection as BranchNotMaterializedError).reason).toBe('stage_incomplete');
+    expect(scene.pageRows()).toHaveLength(PAGE_COUNT);
+  });
+
+  it('头行不在就不收页：无主的页不许落库', async () => {
+    const scene = createScene();
+
+    const rejection = await rejectionOf(scene.append({ pages: pageSource(1) }));
+
+    expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+    expect((rejection as BranchNotMaterializedError).reason).toBe('stage_missing');
+    expect(scene.pageRows()).toEqual([]);
+  });
+
+  it('页内容与它声明的指纹对不上，落库那一刻就拒', async () => {
+    const scene = createScene();
+    await scene.begin();
+    await scene.append({ pages: pageSource(1) });
+
+    const rejection = await rejectionOf(scene.append({ pages: tamperedPageSource(), firstPageIndex: 1 }));
+
+    // 拒在这里，重拉的是这一页；留到屏障再拒，重拉的是整份快照。
+    expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+    expect((rejection as BranchNotMaterializedError).reason).toBe('stage_tampered');
+    // 坏页一行都不许留：留下来的话续传会把它当成「已经确认落盘的前缀」接着往下发。
+    expect(scene.pageRows().map(row => row.pageIndex)).toEqual([0]);
+  });
+
+  it('页号缺一格就不许封口——唯一索引只保证不重号，不保证连续', async () => {
+    const scene = createScene();
+    await scene.begin();
+    await scene.append({ pages: pageSource(2) });
+    // 跳过第 2 页直接落第 3 页：`(stageId, pageIndex)` 上的唯一索引对这一手一无所知。
+    await scene.append({ pages: pageSource(1), firstPageIndex: 3 });
+
+    const rejection = await rejectionOf(scene.seal());
+
+    // 封口成功的话，屏障是按取回顺序逐页交给 projectPage 的——缺口那一页的内容就此静默消失，
+    // 物化却宣布成功。
+    expect(rejection).toBeInstanceOf(BranchNotMaterializedError);
+    expect((rejection as BranchNotMaterializedError).reason).toBe('stage_tampered');
+    expect(scene.stageRow()?.status).toBe('pending');
+  });
+
+  it('封口记的是库里现在有几页，不是这一趟追加了几页——续传后两者本就不同', async () => {
+    const scene = createScene();
+    await scene.begin();
+    await scene.append({ pages: pageSource(1) });
+    // 「崩在第 1 页之后」的现场：下一趟从第 1 页接着发，只追加剩下的两页。
+    await scene.append({ pages: pageSource(PAGE_COUNT - 1), firstPageIndex: 1 });
+
+    const staging = await scene.seal();
+
+    expect({ pageCount: staging.pageCount, rows: scene.pageRows().length }).toEqual({
+      pageCount: PAGE_COUNT,
+      rows: PAGE_COUNT
+    });
+    expect(scene.pageRows().map(row => row.pageIndex)).toEqual([0, 1, 2]);
+  });
+
   it('逐页 payload 与 fingerprint 原样落库，页序连续', async () => {
     const scene = createScene();
 
@@ -468,13 +613,7 @@ describe('首次 switch 的独立 durable staging（FR-044）', () => {
 
     expect(
       scene.pageRows().map(row => ({ pageIndex: row.pageIndex, payload: row.payload, fingerprint: row.fingerprint }))
-    ).toEqual(
-      [0, 1, 2].map(pageIndex => ({
-        pageIndex,
-        payload: { rows: [{ entity: 'Note', id: `note-${pageIndex}` }] },
-        fingerprint: `page-fingerprint-${pageIndex}`
-      }))
-    );
+    ).toEqual([0, 1, 2].map(pageIndex => ({ pageIndex, ...pageOf(pageIndex) })));
   });
 
   it('终止水位在 attempt 开始那一刻冻结，分页期间调用方那份再动也不跟', async () => {
@@ -565,8 +704,8 @@ describe('staging 不触碰当前投影（FR-044）', () => {
     // 切换 active 与递增 activation revision 都在 T116 那道提交屏障里，staging 这一步一格都不该动。
     expect(scene.activeBranchIds()).toEqual([SOURCE_BRANCH_ID]);
     expect({
-      activationRevision: scene.activation.activationRevision,
-      branchGenerationSeq: scene.activation.branchGenerationSeq
+      activationRevision: scene.activationRow()?.activationRevision,
+      branchGenerationSeq: scene.activationRow()?.branchGenerationSeq
     }).toEqual({ activationRevision: 7, branchGenerationSeq: 2 });
   });
 

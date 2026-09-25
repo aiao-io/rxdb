@@ -12,28 +12,25 @@ import {
 } from 'rxjs';
 import type { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import query_entity_type_dependencies from '../query/entity_type_dependencies.js';
+import { isRule, isRuleGroup } from '../query/query-matching.utils.js';
 import type { RxDBEntityLocalEventData } from '../rxdb-events.js';
 import { RxDB } from '../RxDB.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import type { RuleGroup } from './query.interface.js';
 import { QueryOptions } from './QueryManager.interface.js';
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
-
-const isRule = (value: unknown): boolean =>
-  isRecord(value) && typeof value['field'] === 'string' && typeof value['operator'] === 'string';
-
-const isRuleGroup = <T extends object>(value: unknown): value is RuleGroup<T> => {
-  if (!isRecord(value)) return false;
-
-  const combinator = value['combinator'];
-  const rules = value['rules'];
-  return (
-    (combinator === 'and' || combinator === 'or') &&
-    Array.isArray(rules) &&
-    rules.every(rule => isRule(rule) || isRuleGroup<T>(rule))
-  );
-};
+/**
+ * 深校验版的 RuleGroup 判断：在 {@link isRuleGroup} 的浅层形状之上，
+ * 逐条递归校验 `rules` 的每个元素要么是 rule、要么是合法的嵌套组。
+ *
+ * @remarks
+ * `run()` 拿到的 `where` 是从 `options` 上原样取下来的任意值，没有别处替它把过关，
+ * 而 `query_entity_type_dependencies()` 会一路下钻到每条 rule 的 `field`——
+ * 只验本层放不住。浅层那份公开导出、用在两个分支判别的场景（输入已知是二者之一），
+ * 递归校验在那里是每层一次的 O(n²)，所以两份职责分开，共用同一套形状判据。
+ */
+const isDeepRuleGroup = <T extends object>(value: unknown): value is RuleGroup<T> =>
+  isRuleGroup(value) && value.rules.every(rule => isRule(rule) || isDeepRuleGroup<T>(rule));
 
 /**
  * 查询任务选项接口
@@ -140,18 +137,35 @@ export class QueryTask<T extends EntityType, RT = unknown> {
   private readonly runner: () => Observable<RT>;
   private readonly onClean!: (cacheKey: string) => void;
   /**
+   * 本任务依赖的实体类型引用计数
+   *
+   * @remarks
+   * `private`：它是订阅登记与清理的内部账本，`addDepEntityType` 加、事件路径减、
+   * 归零时 `onClean` 撤掉整个任务。包外拿到这张表就能改计数而不动订阅，
+   * 于是要么任务永远清不掉（计数虚高），要么还有人订阅时就被撤（计数虚低）。
+   * 它此前只是随 `QueryTask` 类一起漏在公开面上——全仓没有任何包外读写点。
+   */
+  private readonly depEntityTypeMap!: Map<EntityType, number>;
+  /**
    * 观察者集合
    * 存储所有订阅此查询结果的观察者
    */
   readonly observers = new Set<Observer<RT>>();
 
   // 输入。
+  /**
+   * 把一条本地实体事件的载荷还原成实体实例
+   *
+   * @remarks
+   * 公开是因为自带合并管线的插件要用：`@aiao/rxdb-plugin-tree` 的 `merge_create` 直接调它
+   * 把命中的事件数据转成实体（`query/merge_create.ts`）。各插件自己写一份的代价不是重复，
+   * 是**两套还原语义**——本函数走的是 `createEntityRef`，认实体缓存，同一 id 还是同一个对象；
+   * 手搓一份 `Object.assign` 出来的实例绕过缓存，于是同一行在不同查询里成了两个对象。
+   */
   readonly serialize!: (data: RxDBEntityLocalEventData<T>) => InstanceType<T>;
   readonly cacheKey!: string;
   readonly entityType!: T;
   readonly rxdb!: RxDB;
-  readonly depEntityTypeMap!: Map<EntityType, number>;
-
   /**
    * 是否把查询结果按实体或实体数组自动缓存
    */
@@ -294,7 +308,7 @@ export class QueryTask<T extends EntityType, RT = unknown> {
       this.options && typeof this.options === 'object' && 'where' in this.options ? this.options.where : undefined;
 
     // 分析查询依赖的实体类型
-    if (isRuleGroup<InstanceType<T>>(where)) {
+    if (isDeepRuleGroup<InstanceType<T>>(where)) {
       query_entity_type_dependencies(this.rxdb, where, this.entityType, this.relationEntityTypes);
     }
     // 插件可在首次订阅前追加不来自 where 的物理依赖（例如图边表）。无 where 时也必须计数。

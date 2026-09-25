@@ -14,7 +14,7 @@ import { EncryptedDecryptError, EncryptedLockedError, type Keyring } from '@aiao
 import { isNil, isString } from '@aiao/utils';
 import type { SQLiteCompatibleType, SqliteDataType, SqliteResult } from './sqlite-core.interface.js';
 
-export { normalizeUpdateEntity } from '@aiao/rxdb';
+export { normalizeCreateEntity, normalizeUpdateEntity } from '@aiao/rxdb';
 export { deserializeFromEnvelope, serializeForEnvelope } from '@aiao/rxdb-adapter-encrypted';
 
 /**
@@ -463,44 +463,6 @@ export const transformEntityValueToSql = async (
   }
 
   return needSave;
-};
-
-/**
- * 规范化创建时的实体数据
- * @param metadata 实体元数据
- * @param entity 实体对象
- * @returns 过滤后的实体对象，键为数据库列名
- *
- * @remarks
- * 判定看的是**值不为 `undefined`**，不是 `key in entity`：`target: es2025` 下
- * `useDefineForClassFields` 默认开启，`capturedAt?: Date` 这行字段声明本身就会在实例上装出一个
- * 值为 `undefined` 的自有属性，键恒在。按键判定等于把「没赋值」也写进 INSERT 的列清单，
- * 建表时那句 `DEFAULT (strftime(...))` 于是永远不生效——SQLite 是动态类型，不会像 PG 那样报错，
- * 只是把 NULL 收下，时间戳一声不响地丢掉。
- *
- * 显式的 `null` 照常写：「没给值」与「就是要清空」是两件事，只有后者该压过 DB 端默认值。
- */
-export const normalizeCreateEntity = (metadata: EntityMetadata, entity: EntityData): EntityData => {
-  const result: EntityData = {};
-
-  // 处理属性
-  for (const [key, property] of metadata.propertyMap) {
-    if (entity[key] !== undefined) {
-      result[property.columnName] = entity[key];
-    }
-  }
-
-  // 处理外键 - 兼容没有 foreignKeyColumnNames 的情况
-  const foreignKeyNames = metadata.foreignKeyNames || [];
-  const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
-  for (let i = 0; i < foreignKeyNames.length; i++) {
-    const key = foreignKeyNames[i];
-    if (entity[key] !== undefined) {
-      result[foreignKeyColumnNames[i]] = entity[key];
-    }
-  }
-
-  return result;
 };
 
 /** 把 Date / ISO 字符串 / 毫秒数归一成时间戳；无法解析时返回 undefined。 */

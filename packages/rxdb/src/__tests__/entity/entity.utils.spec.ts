@@ -3,10 +3,12 @@ import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import {
+  entityDefaultNow,
   fillDefaultValue,
   fillInitValue,
   getNeedSaveEntities,
   isEntityInternalName,
+  normalizeCreateEntity,
   normalizeUpdateEntity,
   setSafeObjectKey,
   setSafeObjectKeyLazyInitOnce,
@@ -16,6 +18,9 @@ import { PropertyType, SyncType } from '../../entity/metadata-options.interface.
 import type { EntityMetadata } from '../../entity/metadata.interface.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('entity.utils', () => {
   @Entity({
@@ -56,18 +61,58 @@ describe('entity.utils', () => {
     startAt!: Date;
   }
 
+  /** 重入夹具的「内层行」：被外层实体的默认值工厂同步 `new` 出来。 */
+  @Entity({
+    name: 'ReentrantChildEntity',
+    properties: [{ name: 'label', type: PropertyType.string, default: 'child' }]
+  })
+  class ReentrantChildEntity extends EntityBase {
+    label!: string;
+  }
+
+  /** 上一次重入建出来的那一行；实体只存 id（实例进不了 `structuredClone`），留个引用给断言看。 */
+  let reentrantChild: ReentrantChildEntity | undefined;
+
+  /**
+   * 默认值工厂同步 `new` 另一个实体的实体。
+   *
+   * 属性顺序是这条规则的全部要害：祖先（`EntityBase` 的 `createdAt` / `updatedAt`）先合并，
+   * 自有属性在后，于是 `childId` 的重入正好夹在 `createdAt` 与 `stampedAt` 之间 ——
+   * 标准实体的两个审计字段反而连着跑、测不出问题。
+   */
+  @Entity({
+    name: 'ReentrantParentEntity',
+    properties: [
+      {
+        name: 'childId',
+        type: PropertyType.string,
+        default: () => {
+          reentrantChild = new ReentrantChildEntity();
+          return reentrantChild.id;
+        }
+      },
+      { name: 'stampedAt', type: PropertyType.date, default: () => entityDefaultNow() }
+    ]
+  })
+  class ReentrantParentEntity extends EntityBase {
+    childId!: string;
+    stampedAt!: Date;
+  }
+
   beforeAll(async () => {
     // 初始化 RxDB 用于注册实体
-    const rxdb = new RxDB({
-      dbName: 'entity-utils-test',
-      entities: [TestEntity, TimestampSentinelEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    const rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'entity-utils-test',
+        entities: [TestEntity, TimestampSentinelEntity, ReentrantChildEntity, ReentrantParentEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>
@@ -379,6 +424,36 @@ describe('entity.utils', () => {
         vi.unstubAllGlobals();
       }
     });
+
+    // 时刻作用域按栈进出的判据。内层实体填完自己那一轮后若把作用域**清空**而不是还给外层，
+    // 外层剩下的字段就掉回「读当下时钟」——真实时钟下表现为「嵌套构造稍慢一点就错开」的 flake。
+    it('默认值工厂里嵌套建实体，外层剩余字段仍拿外层那一刻', () => {
+      const RealDate = Date;
+      let tick = 0;
+      class TickingDate extends RealDate {
+        constructor(...args: [] | ConstructorParameters<typeof Date>) {
+          if (args.length === 0) super(RealDate.UTC(2026, 0, 1) + tick++);
+          else super(...args);
+        }
+      }
+      vi.stubGlobal('Date', TickingDate);
+      try {
+        const metadata = getEntityMetadata(ReentrantParentEntity);
+        const entity = new ReentrantParentEntity();
+        const bare = Object.create(Object.getPrototypeOf(entity) as object) as ReentrantParentEntity;
+        fillDefaultValue(metadata, bare);
+
+        // 内层确实跑过（否则这条用例什么也没验）
+        expect(bare.childId).toBe(reentrantChild?.id);
+        // 内层是另一行，拿自己的时刻，不该被外层那一刻追认
+        expect(reentrantChild?.createdAt.getTime()).not.toBe(bare.createdAt.getTime());
+        // 外层的 createdAt 在重入之前、stampedAt 在重入之后，两者必须仍是同一刻
+        expect(bare.stampedAt.getTime()).toBe(bare.createdAt.getTime());
+        expect(bare.updatedAt.getTime()).toBe(bare.createdAt.getTime());
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   describe('fillInitValue', () => {
@@ -456,7 +531,7 @@ describe('entity.utils', () => {
 
     // 列名从关系对象上取，不再按下标去 foreignKeyColumnNames 里配对 ——
     // 那两个平行数组长度一旦不等就会把值写进相邻的列，且完全无声。
-    it('使用物理列名并过滤 readonly 外键', () => {
+    it('使用物理列名，过滤属性的 readonly', () => {
       const metadata = {
         namespace: 'public',
         name: 'Fixture',
@@ -464,20 +539,31 @@ describe('entity.utils', () => {
           ['displayName', { columnName: 'display_name', readonly: false }],
           ['immutable', { columnName: 'immutable', readonly: true }]
         ]),
-        foreignKeyRelationMap: new Map([
-          ['ownerId', { columnName: 'owner_id' }],
-          ['reviewerId', { columnName: 'reviewer_id', readonly: true }]
-        ])
+        foreignKeyRelationMap: new Map([['ownerId', { columnName: 'owner_id' }]])
       } as unknown as EntityMetadata;
 
       expect(
         normalizeUpdateEntity(metadata, {
           displayName: 'updated',
           immutable: 'ignored',
-          ownerId: 'owner-1',
-          reviewerId: 'reviewer-1'
+          ownerId: 'owner-1'
         })
       ).toEqual({ display_name: 'updated', owner_id: 'owner-1' });
+    });
+
+    // 关系不会带 readonly 键——`relation-types.interface.ts` 在类型层就不让声明，
+    // `EntityManager.init()` 会用 readonlyOnRelation 规则把任何带 readonly 键的关系
+    // 当场拒绝注册。即便手工构造出这种（现实中不可达的）元数据，UPDATE 侧也不再单独
+    // 过滤，与 CREATE 侧（见 normalizeCreateEntity 的同名用例）保持对称。
+    it('关系上的 readonly 键不再被单独过滤', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['reviewerId', { columnName: 'reviewer_id', readonly: true }]])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeUpdateEntity(metadata, { reviewerId: 'reviewer-1' })).toEqual({ reviewer_id: 'reviewer-1' });
     });
 
     it('未出现在更新数据里的外键不写入结果', () => {
@@ -545,6 +631,109 @@ describe('entity.utils', () => {
 
       // 应该去重，最多只有一个实体
       expect(needSave.length).toBeLessThanOrEqual(1);
+    });
+  });
+
+  // INSERT 侧与 UPDATE 侧是同一个缺陷形态的两面：两个适配器各带一份按下标配对
+  // `foreignKeyNames` / `foreignKeyColumnNames` 的实现，长度一旦不等就把 A 的值写进 B 的列，
+  // 且完全无声。UPDATE 侧已经改成走 keyed 的 foreignKeyRelationMap，这里把 INSERT 侧也收进来。
+  describe('normalizeCreateEntity', () => {
+    it('按物理列名输出，且 readonly 字段照常写入', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map([
+          ['displayName', { columnName: 'display_name', readonly: false }],
+          ['createdAt', { columnName: 'created_at', readonly: true }]
+        ]),
+        foreignKeyRelationMap: new Map()
+      } as unknown as EntityMetadata;
+
+      // 与 UPDATE 侧相反：INSERT 必须写 readonly 列。主键、createdAt 都是 readonly，
+      // 照 UPDATE 的口径过滤会让每一行都缺主键。
+      expect(normalizeCreateEntity(metadata, { displayName: 'n', createdAt: '2020-01-01' })).toEqual({
+        display_name: 'n',
+        created_at: '2020-01-01'
+      });
+    });
+
+    // 关系不会带 readonly 键（理由见 normalizeUpdateEntity 的同名用例）；这里同样验证
+    // CREATE 侧不为此单独判断，与 UPDATE 侧保持对称。
+    it('关系上的 readonly 键不影响写入', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['reviewerId', { columnName: 'reviewer_id', readonly: true }]])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { reviewerId: 'reviewer-1' })).toEqual({ reviewer_id: 'reviewer-1' });
+    });
+
+    it('按「值不为 undefined」判定，不按 key in entity', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map([
+          ['displayName', { columnName: 'display_name' }],
+          ['updatedAt', { columnName: 'updated_at' }],
+          ['cleared', { columnName: 'cleared' }]
+        ]),
+        foreignKeyRelationMap: new Map()
+      } as unknown as EntityMetadata;
+
+      // `useDefineForClassFields` 下 `updatedAt!: Date` 这行声明本身就在实例上装出一个值为
+      // undefined 的自有属性，键恒在；按键判定会把它写进 INSERT，建表时的 DEFAULT 于是永不生效。
+      // 显式 null 照常写：「没给值」与「就是要清空」是两件事。
+      expect(normalizeCreateEntity(metadata, { displayName: 'n', updatedAt: undefined, cleared: null })).toEqual({
+        display_name: 'n',
+        cleared: null
+      });
+    });
+
+    it('外键列名从关系上取，不按下标配对平行数组', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        // 两个平行数组在这里被故意写反：按下标配对的实现会把 owner 的值写进 reviewer 的列。
+        foreignKeyNames: ['ownerId', 'reviewerId'],
+        foreignKeyColumnNames: ['reviewer_id', 'owner_id'],
+        foreignKeyRelationMap: new Map([
+          ['ownerId', { columnName: 'owner_id' }],
+          ['reviewerId', { columnName: 'reviewer_id' }]
+        ])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { ownerId: 'owner-1', reviewerId: 'reviewer-1' })).toEqual({
+        owner_id: 'owner-1',
+        reviewer_id: 'reviewer-1'
+      });
+    });
+
+    it('未赋值的外键不写入结果', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([
+          ['ownerId', { columnName: 'owner_id' }],
+          ['absentId', { columnName: 'absent_id' }]
+        ])
+      } as unknown as EntityMetadata;
+
+      expect(normalizeCreateEntity(metadata, { ownerId: 'owner-1' })).toEqual({ owner_id: 'owner-1' });
+    });
+
+    it('外键关系缺少 columnName 时抛错并点名该关系', () => {
+      const metadata = {
+        namespace: 'public',
+        name: 'Fixture',
+        propertyMap: new Map(),
+        foreignKeyRelationMap: new Map([['brokenId', {}]])
+      } as unknown as EntityMetadata;
+
+      expect(() => normalizeCreateEntity(metadata, { brokenId: 'x' })).toThrow(/brokenId/);
     });
   });
 });

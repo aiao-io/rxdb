@@ -1,12 +1,6 @@
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  handleCountUpdate,
-  handleFindAllUpdate,
-  handleFindByCursorUpdate,
-  handleFindOneUpdate,
-  handleFindUpdate
-} from '../../query/merge-update-basic.js';
+import { handleFindAllUpdate, handleFindOneUpdate } from '../../query/merge-update-basic.js';
 import { UpdateDataCache, type UpdateClassification } from '../../query/merge-update.utils.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
 import type { QueryOptions } from '../../repository/QueryManager.interface.js';
@@ -104,60 +98,6 @@ describe('merge-update-basic', () => {
     expect(removed.status).toBe('inactive');
   });
 
-  it('refreshes find when an existing result is updated', () => {
-    const task = createTask({ type: 'find', options: { where: activeWhere } });
-    task.next([createItem('a', 'active', 1)]);
-    const refresh = vi.spyOn(task, 'refresh');
-
-    handleFindUpdate(task, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it('refreshes find when a new entity matches and ignores unrelated updates', () => {
-    const affected = createTask({ type: 'find', options: { where: activeWhere } });
-    const unaffected = createTask({ type: 'find', options: { where: activeWhere } });
-    affected.next([createItem(undefined, 'active', 1)]);
-    unaffected.next([createItem(undefined, 'active', 1)]);
-    const affectedRefresh = vi.spyOn(affected, 'refresh');
-    const unaffectedRefresh = vi.spyOn(unaffected, 'refresh');
-
-    handleFindUpdate(affected, createClassification({ newlyMatchedIds: new Set(['a']) }));
-    handleFindUpdate(unaffected, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(affectedRefresh).toHaveBeenCalledOnce();
-    expect(unaffectedRefresh).not.toHaveBeenCalled();
-  });
-
-  it('refreshes cursor results for updated rows or new matches', () => {
-    const updatedTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    const newMatchTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    const unaffectedTask = createTask({
-      type: 'findByCursor',
-      options: { where: activeWhere, orderBy: [{ field: 'id', sort: 'asc' }] }
-    });
-    updatedTask.next([createItem('a', 'active', 1)]);
-    newMatchTask.next([]);
-    unaffectedTask.next([createItem(undefined, 'active', 1)]);
-    const updatedRefresh = vi.spyOn(updatedTask, 'refresh');
-    const newMatchRefresh = vi.spyOn(newMatchTask, 'refresh');
-    const unaffectedRefresh = vi.spyOn(unaffectedTask, 'refresh');
-
-    handleFindByCursorUpdate(updatedTask, createClassification({ updatedIds: new Set(['a']) }));
-    handleFindByCursorUpdate(newMatchTask, createClassification({ newlyMatchedIds: new Set(['b']) }));
-    handleFindByCursorUpdate(unaffectedTask, createClassification({ updatedIds: new Set(['a']) }));
-
-    expect(updatedRefresh).toHaveBeenCalledOnce();
-    expect(newMatchRefresh).toHaveBeenCalledOnce();
-    expect(unaffectedRefresh).not.toHaveBeenCalled();
-  });
-
   it('refreshes an empty findOne only when a new entity matches', () => {
     const affected = createTask({ type: 'findOne', options: { where: activeWhere } });
     const unaffected = createTask({ type: 'findOne', options: { where: activeWhere } });
@@ -246,43 +186,5 @@ describe('merge-update-basic', () => {
     );
 
     expect(refresh).toHaveBeenCalledOnce();
-  });
-
-  it('updates and clamps count results only when the classification changes the count', () => {
-    const changed = createTask({ type: 'count', options: { where: activeWhere } });
-    const unchanged = createTask({ type: 'count', options: { where: activeWhere } });
-    changed.next(1);
-    unchanged.next(5);
-    const unchangedNext = vi.spyOn(unchanged, 'next');
-
-    handleCountUpdate(
-      changed,
-      createClassification({ newlyMatchedIds: new Set(['a']), newlyUnmatchedIds: new Set(['b', 'c', 'd']) })
-    );
-    handleCountUpdate(unchanged, createClassification());
-
-    expect(changed.result).toBe(0);
-    expect(unchanged.result).toBe(5);
-    expect(unchangedNext).not.toHaveBeenCalled();
-  });
-
-  /**
-   * count 模式下 `resultEntityIds` 是**跨批次的去重集合**，不是结果集镜像。
-   *
-   * `QueryTask#next` 在 `autoCache=true` 时无条件 `resultEntityIds.clear()`，而 count 的
-   * 结果是个 number，清空后不会被重新填充。`merge_create` / `merge_remove` 的 count 分支
-   * 为此都显式传了 `false`；update 分支漏传，于是一次计数更新就把去重记录抹干净，
-   * 同一个实体的后续 CREATE 会被重复计入。
-   */
-  it('count 更新不清空跨批次去重集合', () => {
-    const task = createTask({ type: 'count', options: { where: activeWhere } });
-    task.next(2, false);
-    task.resultEntityIds.add('a');
-    task.resultEntityIds.add('b');
-
-    handleCountUpdate(task, createClassification({ newlyMatchedIds: new Set(['c']) }));
-
-    expect(task.result).toBe(3);
-    expect([...task.resultEntityIds]).toEqual(['a', 'b']);
   });
 });

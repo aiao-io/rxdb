@@ -6,10 +6,11 @@
  * 的三件事：生命周期、本地事件过滤、分支编排。
  */
 
-import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange } from '@aiao/rxdb';
+import { ENTITY_LOCAL_CREATE_EVENT, RxDB, RxDBBranch, RxDBChange, type EntityType } from '@aiao/rxdb';
 import { of } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { VersionManager } from '../VersionManager.js';
+import { createSwitchBranchStub } from './fixtures/transaction-executor-stub.js';
 
 type DetachedOperation = () => Promise<unknown>;
 type EventListener = (event: unknown) => void;
@@ -120,7 +121,8 @@ type RepositoryStub = {
 };
 
 type AdapterStub = {
-  getRepository: ReturnType<typeof vi.fn>;
+  // 可调用签名是必须的：这一格要当仓库宿主交给 `createSwitchBranchStub`。
+  getRepository: Mock<(EntityType: EntityType) => unknown>;
   switchBranch: ReturnType<typeof vi.fn>;
 };
 
@@ -154,17 +156,21 @@ function createHarness(): Harness {
   const localChangeRepository = createRepository();
   const remoteBranchRepository = createRepository();
   const remoteChangeRepository = createRepository();
+  const localGetRepository = vi
+    .fn<(entity: unknown) => unknown>()
+    .mockImplementation(entity => (entity === RxDBBranch ? localBranchRepository : localChangeRepository));
+  const remoteGetRepository = vi
+    .fn<(entity: unknown) => unknown>()
+    .mockImplementation(entity => (entity === RxDBBranch ? remoteBranchRepository : remoteChangeRepository));
+  // 假适配器也得守契约：真适配器在动第一行之前必须 await `options.prepare`
+  // （见 rxdb-adapter.ts › SwitchBranchOptions.prepare），不调的话 switchBranch 会当场拒绝这次切换。
   const localAdapter = {
-    getRepository: vi
-      .fn<(entity: unknown) => unknown>()
-      .mockImplementation(entity => (entity === RxDBBranch ? localBranchRepository : localChangeRepository)),
-    switchBranch: vi.fn<(options: unknown) => Promise<void>>().mockResolvedValue(undefined)
+    getRepository: localGetRepository,
+    switchBranch: vi.fn(createSwitchBranchStub({ getRepository: localGetRepository }))
   };
   const remoteAdapter = {
-    getRepository: vi
-      .fn<(entity: unknown) => unknown>()
-      .mockImplementation(entity => (entity === RxDBBranch ? remoteBranchRepository : remoteChangeRepository)),
-    switchBranch: vi.fn<(options: unknown) => Promise<void>>().mockResolvedValue(undefined)
+    getRepository: remoteGetRepository,
+    switchBranch: vi.fn(createSwitchBranchStub({ getRepository: remoteGetRepository }))
   };
   const rxdb = {
     config: {
@@ -363,7 +369,13 @@ describe('VersionManager 对协作模块的编排契约', () => {
     await harness.manager.switchBranch('feature');
 
     expect(doubles.delegates.switchBranchActions).toHaveBeenCalledWith(harness.manager, 'feature');
-    expect(harness.localAdapter.switchBranch).toHaveBeenCalledWith({ branchId: 'feature', actions });
+    expect(harness.localAdapter.switchBranch).toHaveBeenCalledWith({
+      branchId: 'feature',
+      actions,
+      // 前置校验以回调形式搭在这次切换的事务上；本用例只验它确实被交了出去，
+      // 回调里跑什么由 VersionManager.spec.ts 的「前置校验跑在切换事务内部」那组验。
+      prepare: expect.any(Function)
+    });
     expect(doubles.history.clearRedoStack).toHaveBeenCalledOnce();
     // RXD-026：undo session 按分支存放，切分支必须在这里同步把视图带过去
     expect(doubles.history.setUndoBranch).toHaveBeenCalledWith('feature');
@@ -381,7 +393,9 @@ describe('VersionManager 对协作模块的编排契约', () => {
     // 适配器 switchBranch 已成功（内部事务已提交）之后的收尾动作失败时，
     // 不得再发 Rollback —— 分支确实切过去了，发回滚是假信号
     harness.dispatchEvent.mockClear();
-    harness.localAdapter.switchBranch.mockResolvedValueOnce(undefined);
+    harness.localAdapter.switchBranch.mockImplementationOnce(
+      createSwitchBranchStub({ getRepository: harness.localAdapter.getRepository })
+    );
     doubles.history.clearRedoStack.mockImplementationOnce(() => {
       throw new Error('clearRedoStack failed');
     });

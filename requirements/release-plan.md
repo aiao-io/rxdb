@@ -13,6 +13,9 @@
   不得移动或重打，也**不能再作为 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 migration bridge**。
 - 因此下一次 schema migration 之前，**必须先从届时的发布主线重新发布一个 `kind=bridge` 的非迁移版本**。
   实际 tag/version 由 release manifest 冻结，不在需求里预猜。
+- ⚠️ **这个桥接版本眼下在 `main` 上无处可切**：#55 已把 `RXDB_SYSTEM_SCHEMA_VERSION` 3 → 6 合进 `main`，
+  下面「桥接先发、schema 升级后合」的四段顺序已被打破。出路要 owner 选，见
+  [桥接锚点开项](#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
 - 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，且 `v0.0.25` 的 tag 树与已发布产物**内容对不上**，
   见下方[版本漂移开项](#开项0025-遗留的三条版本漂移)。
 - **自动生成的 changelog 会同时多报和漏报，必须人工过一遍**：既会把 0.0.25 已发过的内容再写一遍，
@@ -66,6 +69,8 @@
 （「桥接版本不得抬升系统版本常量」），抽包只是把数字从 5 改成 6。结论仍是本文已经写下的那条——
 桥接锚点必须由**另一条不动系统版本常量的纯功能/适配器路径**落成，不能从这条分支上切。
 ⚠️ 这条**没有任何自动化防线**：门禁只比对清单里的布尔位、从不读源码（见「门禁 tag 钩子的状态」末段）。
+这条分支已随 #55 合进 `main`，「另一条路径」在 `main` 上因此不复存在，见
+[桥接锚点开项](#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
 
 ### ② 有一类库「未认领能力守卫」**接不住**，必须写进 release note
 
@@ -94,7 +99,7 @@
 [`UnsupportedRxDBSystemVersionError`](../packages/rxdb/src/system/migration.ts#L95)，消息形如
 `Unsupported RxDB system schema version: stored=6, supported=3`。两个适配器家族各有一处调用点
 （[pglite](../packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts#L189)、
-[sqlite-core](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L617)），
+[sqlite-core](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts#L679)），
 都排在迁移阶梯之前。
 
 **影响面恰好是一个方向**：升级过的库 + 旧客户端。反过来（旧库 + 新客户端）走 `<` 那一侧，由迁移阶梯
@@ -112,6 +117,44 @@
 
 **没有缓解措施，也不该造一个**：让新库对旧客户端「看起来能打开」需要向下兼容地写系统表，那正是
 fail-closed 要挡的事。说明里给出的动作只有一个——**升级客户端**。
+
+## 开项：main 自 #55 起已是 schema 6，桥接锚点无处可切
+
+**待 owner 决定**。它挡的是线 A（桥接发布）与其后的迁移发布，不挡任何故事的代码与合入。
+
+**事实**（2026-09-25 实测）：
+
+```text
+de70a1a9 (#61)  → RXDB_SYSTEM_SCHEMA_VERSION = 3，packages/rxdb/package.json = 0.0.25   ← main 上最后一个 schema 3 的提交
+2132c30d (#55)  → RXDB_SYSTEM_SCHEMA_VERSION = 6，packages/rxdb/package.json = 0.0.25   ← 一次 squash 抬 3 → 6
+origin/main     → RXDB_SYSTEM_SCHEMA_VERSION = 6，RXDB_CHANGE_CODEC_VERSION = 1，全历史 0 个 merge commit
+```
+
+`git log v0.0.24..origin/main -G"RXDB_SYSTEM_SCHEMA_VERSION = "` 只报 `2132c30d` 一条。下文「下一次发布」
+四段的顺序是**桥接先发、schema 升级后合**，#55 把本该排在第 3 段之后的升级先合进了 `main`，
+上面 ① 写的「桥接锚点必须由另一条不动系统版本常量的路径落成」因此在 `main` 上已经不可能满足。
+
+**为什么没有一个提交能当锚点**：迁移发布要求桥接 tag 同时满足三条，`main` 上两类提交各缺一条。
+
+| 条件                                                                                | `de70a1a9` 及更早（schema 3）                                       | `2132c30d` 及之后（schema 6）                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 是 `main` 祖先（`bridgeTagIsAncestor`）                                             | ✅                                                                  | ✅                                                                                                                                                                                                                                 |
+| 包版本 = tag 版本，且严格新于 `0.0.25`                                              | ❌ 全是 `0.0.25`；bump 提交只能是它的子提交，squash 下进不了 `main` | 可以做到                                                                                                                                                                                                                           |
+| 系统常量低于迁移版本（`bridgeTagVersionConstants`），且桥接本身不抬常量（硬前提 1） | ✅                                                                  | ❌ 桥接版本会把 3 → 6 直接发出去（门禁只看布尔位，**察觉不到**）；之后的迁移发布比对是 6 → 6，`systemSchemaUpgrade=true` 报 `did not advance`。旧客户端撞的 `UnsupportedRxDBSystemVersionError` 提前到桥接那一版，桥接的意义就没了 |
+
+**可选出路**（本文不替 owner 选，按改动面从小到大排）：
+
+1. **为桥接开一次非 squash 的例外**：从 `de70a1a9` 切发布分支，只提交版本 bump（`nx release version <新版本>`，
+   不得为 `0.0.25`）与清单，在该提交上打桥接 tag 并发布，再用**真 merge**（不是 squash）把它并回 `main`，
+   让 tag 提交进入 `main` 祖先链。代价：打破「全历史零 merge commit」，且桥接版本不含 #61 之后的功能（它只是锚点，这可以接受）；
+   合并时 `package.json` 的版本冲突要按新版本解。
+2. **把 schema 抬升移出 `main` 再按原顺序走**：revert `2132c30d` 里的常量与迁移部分，先发桥接，再重新合入。
+   代价最大——3 → 6 连着十张表与抽包，revert 等于把 epic-006 从 `main` 拆出去。
+3. **承认这一轮没有桥接**：直接发 `kind=migration` 不可行（`bridge.tag` 必填）；要走这条就得改清单协议与门禁
+   （例如把首个迁移发布声明为「无桥接、强制 `oldBundlePolicy`」）。这改的是 FR-030 本身，须回到 spec 评审。
+
+owner 选定出路之后，「下一次发布」的四段与执行顺序第 1～6 步按选定路径重写，本开项随之关闭。
+在那之前，**不要**在 `main` 现有任何提交上打桥接 tag——打上去的 tag 只能是上表两列中的一种，都会让将来的迁移发布卡死或失去桥接语义。
 
 ## 下一次发布：重新打一个桥接版本
 
@@ -159,21 +202,22 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    grep 'RXDB_SYSTEM_SCHEMA_VERSION = ' packages/rxdb/src/system/migration.ts
    ```
 
-   **当前取值**：两个常量在 `v0.0.24` 与 `main` 上同为 `RXDB_SYSTEM_SCHEMA_VERSION = 3` /
-   `RXDB_CHANGE_CODEC_VERSION = 1`。启动线 A 前按上面四条命令复测：只要两端取值相等，
-   清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 就该保持 `false`。
+   **当前取值**（2026-09-25 复测）：`v0.0.24` 上是 `RXDB_SYSTEM_SCHEMA_VERSION = 3` /
+   `RXDB_CHANGE_CODEC_VERSION = 1`；`main` 自 #55（`2132c30d`）起是 **6** / 1。两端取值已经**不相等**，
+   上面两条 `git log -G` 也不再为空——`main` 现在**不满足**这条前提，处置见
+   [桥接锚点开项](#开项main-自-55-起已是-schema-6桥接锚点无处可切)。只有两端取值相等时，
+   清单里的 `systemSchemaUpgrade` / `changeCodecUpgrade` 才该保持 `false`。
 
-   **`next-0912` 上这一前提不成立**：该分支把 `RXDB_SYSTEM_SCHEMA_VERSION` 抬到了
-   **6**（3 → 4 是 epic-006 的 10 张工作树/提交图表；4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，
-   FR-048 的「至多一个 active」那一半；5 → 6 是抽包后 `activeKey` 就位、十张表不再归核心管）。
+   抬到 **6** 的来历（原在 `next-0912` 分支上，已随 #55 进入 `main`）：3 → 4 是 epic-006 的 10 张工作树/提交图表；
+   4 → **5** 是 `rxdb_branch.activeKey` 可空唯一列，FR-048 的「至多一个 active」那一半；5 → 6 是抽包后
+   `activeKey` 就位、十张表不再归核心管。
    这些都是**单向操作**：标成 6 的库再打开于旧客户端会按 `UnsupportedRxDBSystemVersionError` 拒绝
    ——不是新增的危险面（2 → 3 同样如此），但**必须进发布说明**。两条实际后果：
 
-   - **`next-0912` 合入 `main` 之后，它不能充当桥接版本**（见本条第一段：`kind=bridge` 撞上
+   - **#55 之后的 `main` 不能充当桥接版本**（见本条第一段：`kind=bridge` 撞上
      `systemSchemaUpgrade=true` 会被门禁直接拒）。桥接锚点必须从一条不动这两个常量的路径上先发出去，
-     这次 schema 升级排在其**之后**，清单切 `kind=migration`。
-   - 复测那两条 `git log -G` 命令时，区间一旦覆盖本次合入就**不再为空**；届时清单里的
-     `systemSchemaUpgrade` 必须置 `true`，而不是沿用上面那句「保持 `false`」。
+     这次 schema 升级排在其**之后**，清单切 `kind=migration`——这条路径今天在 `main` 上不存在，见上面的开项。
+   - 迁移发布时清单里的 `systemSchemaUpgrade` 必须置 `true`，而不是沿用「保持 `false`」。
 
    `activeKey` 是在 v4 水位线**之后**才进 schema 的，而版本号是升级路径唯一的触发条件、列本身不是——
    已被标成 4 的库（开发机上的那批）不 bump 就永远补不出这一列。它是补记，不是新增能力；v4 从未发布，
@@ -310,8 +354,10 @@ fail-closed 要挡的事。说明里给出的动作只有一个——**升级客
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<实际版本>"` 全绿后才允许提交。
 5. **提交并打 tag 推送**：package.json 与清单在同一个提交里，tag 指向 `main` 上的该提交。
    推送 tag 不会触发任何发布——发布是手工执行 `pnpm publish`，由执行者自行确保第 4 步已跑绿。
-6. **回写 US-305**：把该桥接 tag 记进 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC US2-14 证据，
-   依据是「桥接 tag 已推送、是 `main` 祖先、清单声明 `kind=bridge` 且通过门禁」。US-305 的迁移发布从此有了合法锚点。
+6. **回写下方「迁移发布的关闭条件」**：把该桥接 tag 记进那一节的 AC US2-14 绿半边证据，
+   依据是「桥接 tag 已推送、是 `main` 祖先、清单声明 `kind=bridge` 且通过门禁」。迁移发布从此有了合法锚点。
+   （AC US2-14 的绿半边由本文承接；[US-305](stories/collaboration/US-305-commit-graph-head.md) 按代码 AC 关闭，
+   不回写故事。）
 
 ### 门禁 tag 钩子的状态
 
@@ -371,9 +417,21 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 清单切 `kind=migration`、`bridge.tag` / `bridge.version` 指向该次桥接版本、`oldBundlePolicy.strategy` 四选一、
 `minimumVersion` 不低于桥接版本、`enforced=true`。
 
-**这条门禁由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 / AC US2-14 承接**（其范围含「每分支 baseline commit 与一次性迁移」）。
-US-305 在 schema 迁移前先验证当前主线存在有效 bridge ancestor，随后用首个真实迁移发布验收该 bridge manifest、
-`oldBundlePolicy` 和 migration release gate，不形成循环依赖。
+**这条门禁的代码由 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 交付**（其范围含「每分支 baseline commit 与一次性迁移」）：
+清单协议、四条 tag 钩子、`bridge.version` 下限与 `oldBundlePolicy` 校验都已在 `check-migration-release-gate.mjs` 里，
+由 `check-migration-release-gate.spec.mjs` 的 39 条注入钩子单测覆盖，并已挂进 PR CI。
+
+**AC US2-14 的绿半边在这里关闭，不在 US-305 里关**。
+红半边（`bridge.tag` 为 `null` / 为 `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上成立并留证；
+绿半边要的是「补齐真实桥接 tag 后重跑通过」，它只能由发布动作产出，属于发布而不属于代码交付，US-305 因此按代码 AC 关闭。本节承接的内容：
+
+| 项                                                                                                    | 状态                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 真实桥接 tag 存在、是 `main` 祖先、版本严格新于 `0.0.25`、常量低于迁移版本                            | ⬜ 卡在[桥接锚点开项](#开项main-自-55-起已是-schema-6桥接锚点无处可切)，待 owner 选出路 |
+| 清单切 `kind=migration` 且 `bridge.*` 指向该 tag，`pnpm check-migration-release-gate` 在真实 tag 上绿 | ⬜ 依赖上一行                                                                           |
+| `oldBundlePolicy` 四选一、`minimumVersion` ≥ 桥接版本、`enforced=true`                                | ⬜ 依赖上一行                                                                           |
+
+三行全 ✅ 时在此记录 tag、命令与输出，AC US2-14 随之关闭；[epic-006](epics/epic-006-working-tree-commits.md) 的发布判据引用本节。
 
 不要用「推一个废弃 tag」来充当证据：tag 是桥接声明本身，
 试探性 tag 会污染 `nx release` 的版本计算基准，也会让后续读历史的人分不清哪个 tag 是真的。

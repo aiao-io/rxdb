@@ -20,6 +20,7 @@ import type { EntityType } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import type { RxDBRepositories, RxDBRepositoryName } from '../../rxdb-adapter.js';
 import { RxDB } from '../../RxDB.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 /** 假装自己是个插件包：这正是 `rxdb-plugin-graph` 对 `GraphRepository` 做的事。 */
@@ -37,6 +38,8 @@ declare module '../../rxdb-adapter.js' {
 class UnregisteredRepositoryEntity extends EntityBase {
   title?: string;
 }
+
+const { trackRxDB } = registerRxDBTeardown();
 
 describe('RxDBRepositories 门面轴注册表', () => {
   it('A1 注册表无索引签名，核心门面与插件合并进来的成员同为一等公民', () => {
@@ -56,11 +59,13 @@ describe('RxDBRepositories 门面轴注册表', () => {
   });
 
   it('A2 类型放宽不削弱运行期护栏：未注册的仓储名仍在 init() 阶段抛错', () => {
-    const rxdb = new RxDB({
-      dbName: 'repository-registry-guard',
-      entities: [UnregisteredRepositoryEntity] as EntityType[],
-      sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-    });
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'repository-registry-guard',
+        entities: [UnregisteredRepositoryEntity] as EntityType[],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      })
+    );
     rxdb.adapter('sqlite', createMockAdapter);
 
     expect(() => rxdb.init()).toThrow(

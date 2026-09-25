@@ -160,14 +160,32 @@ export const merge_branch = async (
 
     // 应用变更到当前分支的实体表
     // disableTriggers=false：让数据库触发器自动生成目标分支的 RxDBChange 记录
-    // 与逐条出口同一个符号、不同意图：登记表把它们分成两行，因为写原语不同
-    // （事务内的 executor vs 适配器级的 adapter），作用域对象也就不是同一个。
-    declareTrustedWrite(adapter, {
-      file: 'merge-branch.ts',
-      symbol: 'merge_branch',
-      intent: TrustedWriteIntent.merge_squash
-    });
-    await adapter.mergeChanges(actions, undefined, false);
+    //
+    // 压缩只有一次写，本来不需要事务。开事务是为了**拿到一个执行器当声明的作用域**：
+    // 声明存在一个 WeakMap 里，每个作用域只存一条（`trusted-write-scope.ts`），而工作树的
+    // `interceptMergeChanges()` 是排队拿到事务之后才取声明的（`capture-hook.ts`）。绑在
+    // 适配器实例上时，两个并发的适配器级写会互相覆盖：先执行的取到后声明者的意图，
+    // 后执行的取不到声明被当作未知入口拒绝（`__tests__/trusted-write-concurrency.spec.ts`）。
+    // 执行器是「这一次写」独有的对象，于是并发与否都不会串台。
+    //
+    // 与逐条出口同一个符号、不同意图：登记表把它们分成两行，因为压缩与逐条的判定不同，
+    // 合成一行会让其中一条策略失去登记。
+    //
+    // 第二个参数（transactionLog）显式传 false：这一层只借执行器当声明作用域，不该把合并记成
+    // 一次事务化的历史条目。默认 true 会为本次事务启用一个 transactionId（SQLite 系后端按分支
+    // 重建全部触发器，PGlite 设一个事务局部变量），写出的每条 change 行都盖上它，
+    // `history-item-builder.ts` 的 `type = transactionId ? 'TRANSACTION' : first_change.type`
+    // 随即把 squash 产生的多条 change 折叠成一条 `'TRANSACTION'`——undo 粒度从「按实体」
+    // 变成「整次合并一起撤销」。传 false，历史记账与不包这层事务时一致（调用契约锁在
+    // `__tests__/merge-branch.spec.ts`，分组结果锁在 pglite 的 `version/merge_branch.spec.ts`）。
+    await adapter.transaction(async executor => {
+      declareTrustedWrite(executor, {
+        file: 'merge-branch.ts',
+        symbol: 'merge_branch',
+        intent: TrustedWriteIntent.merge_squash
+      });
+      await executor.mergeChanges(actions, undefined, false);
+    }, false);
   }
 
   return toResult(merged, await doDeleteSource());

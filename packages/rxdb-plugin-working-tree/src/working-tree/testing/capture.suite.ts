@@ -3,7 +3,7 @@
  *
  * @remarks
  * 覆盖范围见 `specs/001-working-tree-commits/contracts/conformance-suites.md` §1：
- * 四个挂载点的捕获完备性、写入口语义矩阵、raw 通道 bypass 五步判定、untracked 域、
+ * 四个挂载点的捕获完备性、写入口语义矩阵、raw 通道 bypass 四步判定、untracked 域、
  * 存储契约静态断言。
  *
  * **每组末尾都跑冷重放不变量**（§1.1 明文要求）。判据只有这一条：
@@ -27,19 +27,20 @@
  */
 
 import { firstValueFrom } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+  BranchMaterializationSource,
   EntityType,
-  IRxDBAdapter,
   IRxDBChange,
+  LocalRxDBAdapter,
   RxDB,
-  RxDBAdapterLocalBase,
   SwitchVersionActions,
   TransactionExecutor,
   UUID
 } from '@aiao/rxdb';
 import {
+  branchMaterializationPageFingerprint,
   declareTrustedWrite,
   gateRawWrite,
   getEntityMetadata,
@@ -50,6 +51,7 @@ import {
   RxDBMigration,
   RxDBMixedVersionedCacheTransactionError,
   RxDBSync,
+  SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
   SYSTEM_ENTITIES,
   TrustedWriteIntent,
@@ -77,11 +79,8 @@ import { classifyWriteEntrance, WorkingTreeWriteRejectedError } from '../write-e
 import { ConformanceCache, ConformanceNote, WORKING_TREE_CONFORMANCE_ENTITIES } from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
-/** 被测库的本地适配器；四个挂载点都装在它的实例上。 */
-type LocalAdapter = IRxDBAdapter & RxDBAdapterLocalBase;
-
 /** 取本地适配器；受信写声明与 raw 判定上下文都挂在这个实例上。 */
-const localAdapterOf = (database: RxDB): Promise<LocalAdapter> => firstValueFrom(database.localAdapter$);
+const localAdapterOf = (database: RxDB): Promise<LocalRxDBAdapter> => firstValueFrom(database.localAdapter$);
 
 /**
  * 取本地适配器上的捕获运行时
@@ -101,7 +100,7 @@ const localAdapterOf = (database: RxDB): Promise<LocalAdapter> => firstValueFrom
  * 钩子缺席时抛而不是跳过：`workingTree.enable()` 没生效的库上，本节全部断言都会以
  * 「归类为 versioned」的形态假绿。
  */
-const hookOf = (adapter: LocalAdapter): WorkingTreeCaptureRuntime => {
+const hookOf = (adapter: LocalRxDBAdapter): WorkingTreeCaptureRuntime => {
   const hook = adapter.workingTreeCaptureHook;
   if (!hook) throw new Error('本地适配器上没有捕获钩子：工作树没有启用，本节的全部前置都无从谈起');
   if (!(hook instanceof WorkingTreeCaptureRuntime)) {
@@ -120,7 +119,7 @@ const hookOf = (adapter: LocalAdapter): WorkingTreeCaptureRuntime => {
  * **不从 `adapter.workingTreeRawWriteContext` 上取**：那是适配器与核心之间的接缝，未启用形态在
  * 类型上就没有域可读（{@link RawWriteContext} 是个判别联合）。域是判定的输入，只在运行时手上。
  */
-const domainOf = (adapter: LocalAdapter): VersionedDomainView => hookOf(adapter).domain;
+const domainOf = (adapter: LocalRxDBAdapter): VersionedDomainView => hookOf(adapter).domain;
 
 /**
  * 凑一份「已启用」的判定上下文
@@ -132,7 +131,7 @@ const domainOf = (adapter: LocalAdapter): VersionedDomainView => hookOf(adapter)
  * 能力位恒为真：本套件只跑在已启用提交能力的库上。唯一的例外是 §1.3 第 1 步——它要的正是
  * 能力位为假，所以那一条自己现造，不走这里。
  */
-const judgmentContextOf = (adapter: LocalAdapter): RawWriteJudgmentContext => ({
+const judgmentContextOf = (adapter: LocalRxDBAdapter): RawWriteJudgmentContext => ({
   capabilityEnabled: true,
   domain: domainOf(adapter)
 });
@@ -523,7 +522,13 @@ const headRowOf = (EntityClass: EntityType, entityId: string, fields: Record<str
   return { namespace: metadata.namespace, entity: metadata.name, entityId, fields };
 };
 
-/** 登记表里那 9 行的三段身份，按 `文件·符号·意图` 原样抄。 */
+/**
+ * 本套件要冒充的登记表行，三段身份按 `文件·符号·意图` 原样抄
+ *
+ * @remarks
+ * 不是整表：#8 `pullSingleRepository` 用不上；#10 接管屏障也不抄——接管用例走的是真实的
+ * `switchBranch()`，那一行由生产代码自己声明。
+ */
 const CALLSITE = {
   branch_materialization: {
     file: 'VersionManager.ts',
@@ -542,6 +547,71 @@ const CALLSITE = {
   pull_batch: { file: 'pull-batch.ts', symbol: 'pullBatchOnce', intent: TrustedWriteIntent.remote_sync },
   cleanup_expired: { file: 'cleanup-expired.ts', symbol: 'cleanupExpired', intent: TrustedWriteIntent.remote_sync }
 } as const satisfies Readonly<Record<string, TrustedWriteDeclaration>>;
+
+/**
+ * 接管切换那条用例的目标分支
+ *
+ * @remarks
+ * 只有一行远端元数据：没有 ref、没有工作树状态行。只有这种分支会让
+ * `VersionManager.switchBranch()` 真的走进接管路径——`classifyBranchMaterialization()`
+ * 判出 `metadata_only` 才接管，其余一律照常走普通切换。
+ */
+const METADATA_ONLY_BRANCH_ID = 'conformance-capture-metadata-only';
+
+/**
+ * 注入一条只有元数据的远端分支
+ *
+ * @param database - 被测库
+ * @returns 注入的分支 id
+ *
+ * @remarks
+ * 不能用 `createBranch()`：那条路会连 ref、工作树状态行一起写下，目标于是被判成已物化，
+ * 切换照常走普通路径，屏障一行都不会跑。提交侧套件里那一份同理由、同写法。
+ */
+const injectMetadataOnlyBranch = async (database: RxDB): Promise<string> => {
+  await withTransaction(database, async executor => {
+    const branch = database.entityManager.instantiate(RxDBBranch);
+    branch.id = METADATA_ONLY_BRANCH_ID;
+    branch.parentId = null;
+    branch.activated = false;
+    branch.activeKey = null;
+    branch.local = false;
+    branch.remote = true;
+    branch.fromChangeId = null;
+    await executor.saveMany([branch]);
+  });
+  return METADATA_ONLY_BRANCH_ID;
+};
+
+/**
+ * 造一个只有一页、`projectPage` 只投影一条 {@link ConformanceNote} 的快照来源
+ *
+ * @param title - 投影出来那一行的标题；断言靠它认出这一行确实是屏障写的
+ * @returns 交给屏障用的来源；用法见调用处——不经登记槽，替换的是屏障读来源的那一跳
+ *
+ * @remarks
+ * 投影经屏障落在切换事务里的 `executor.mergeChanges()` 上（登记表 #11），而那次切换本身是 #10。
+ * 两张声明任何一张没被挂载点取对，症状都是「切了个分支，工作树里多出一条用户没做过的编辑」
+ * 或者整次切换被当成未知入口拒绝。
+ *
+ * 页 payload 不参与投影：本节只问屏障里的写会不会被当成用户编辑，不问来源怎么把 payload
+ * 翻成行——那是官方同步来源（`@aiao/rxdb-plugin-sync`）自己的事，真实后端的端到端回归在
+ * `rxdb-adapter-sqlite-wasm` 的 `branch-materialization-sync.spec.ts`。
+ */
+const singleNoteMaterializationSource = (title: string): BranchMaterializationSource => {
+  const entity = getEntityMetadata(ConformanceNote).name;
+  return {
+    freezeIntent: async () => ({ frozenRemoteWatermark: { changeId: 1 }, syncScope: [entity] }),
+    pages: () =>
+      (async function* () {
+        const payload = { rows: [{ entity, title }] };
+        yield { payload, fingerprint: branchMaterializationPageFingerprint(payload) };
+      })(),
+    resolveIntentDrift: async () => undefined,
+    projectPage: async () => insertActions(ConformanceNote, newEntityId(), noteFields(title, null)),
+    settle: async () => undefined
+  };
+};
 
 /**
  * 一张表在系统表判定里的身份键
@@ -608,7 +678,12 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
       const adapter = await localAdapterOf(database);
       const branchId = await withTransaction(database, readActiveBranchId);
       declareTrustedWrite(adapter, CALLSITE.branch_materialization);
-      await adapter.switchBranch({ branchId, actions: insertActions(ConformanceNote, entityId, fields) });
+      await adapter.switchBranch({
+        branchId,
+        actions: insertActions(ConformanceNote, entityId, fields),
+        // `branchId` 取自 `readActiveBranchId()`，分支不换，没有前置条件可校验。
+        prepare: SKIP_BRANCH_SWITCH_PREPARE
+      });
       return headRowOf(ConformanceNote, entityId, fields);
     };
 
@@ -703,13 +778,56 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
+      it('切到 metadata-only 分支时屏障里的物化不产生单元：走真实 switchBranch，切完每条分支 entryCount 仍为 0', async () => {
+        // 上一条用例直接调 `adapter.switchBranch()`，证的是 #1 那一行；接管路径是 #10 + #11——
+        // 它自己发起切换、在 `prepare` 里经执行器落投影，只有从 VersionManager 走进去才测得到。
+        const targetBranchId = await injectMetadataOnlyBranch(database);
+        const title = '屏障物化写下的';
+        // 不往槽位里登记：宿主装了同步插件（出站队列要它），它已经占住了唯一的来源槽，
+        // 再登记一个会撞「至多一个」。本节只问屏障里的写会不会被当成用户编辑，来源是谁无关紧要，
+        // 于是替换屏障读来源的那一跳，换成投影确定的桩。
+        const readSource = vi
+          .spyOn(database, 'getBranchMaterializationSource')
+          .mockReturnValue(singleNoteMaterializationSource(title));
+        try {
+          await database.versionManager.switchBranch(targetBranchId);
+        } finally {
+          readSource.mockRestore();
+        }
+
+        expect(await withTransaction(database, readActiveBranchId), '接管路径没有把 active 切过去').toBe(
+          targetBranchId
+        );
+        const titles = await withTransaction(database, executor =>
+          readColumnValues(executor, ConformanceNote, 'title')
+        );
+        // 这一条是下面两条的前提：投影一行都没写的话，「零单元」是空转出来的。
+        expect(titles, '投影没有经屏障事务写下业务行').toEqual([title]);
+        const entries = await withTransaction(database, readAllEntries);
+        expect(entries, '屏障里的投影重写被记成了工作树单元').toHaveLength(0);
+        const counts = await withTransaction(database, async executor => {
+          const states = await executor
+            .getRepository(WorkingTreeState)
+            .find({ where: { combinator: 'and', rules: [] } });
+          return states.map(({ branchId, entryCount }) => ({ branchId, entryCount }));
+        });
+        expect(
+          counts.filter(({ entryCount }) => entryCount !== 0),
+          '屏障里的投影重写改了 entryCount'
+        ).toEqual([]);
+      });
+
       it('redo 失效不产生单元，冷重放以物化结果为 HEAD 成立', async () => {
         const adapter = await localAdapterOf(database);
         const branchId = await withTransaction(database, readActiveBranchId);
         const noteId = newEntityId();
         const fields = noteFields('redo 失效写下的', null);
         declareTrustedWrite(adapter, CALLSITE.redo_invalidation);
-        await adapter.switchBranch({ branchId, actions: insertActions(ConformanceNote, noteId, fields) });
+        await adapter.switchBranch({
+          branchId,
+          actions: insertActions(ConformanceNote, noteId, fields),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
+        });
 
         const entries = await withTransaction(database, readEntries);
         expect(entries, 'redo 失效被记成了工作树单元').toHaveLength(0);
@@ -725,7 +843,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         declareTrustedWrite(adapter, CALLSITE.undo_redo);
         await adapter.switchBranch({
           branchId,
-          actions: updateActions(ConformanceNote, noteId, { title: '撤销后' }, { title: '原值' })
+          actions: updateActions(ConformanceNote, noteId, { title: '撤销后' }, { title: '原值' }),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
         });
 
         const entries = await withTransaction(database, readEntries);
@@ -740,7 +859,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expect(
           adapter.switchBranch({
             branchId,
-            actions: insertActions(ConformanceNote, newEntityId(), noteFields('不该落地', null))
+            actions: insertActions(ConformanceNote, newEntityId(), noteFields('不该落地', null)),
+            prepare: SKIP_BRANCH_SWITCH_PREPARE
           })
         ).rejects.toThrow(WorkingTreeWriteRejectedError);
 
@@ -907,7 +1027,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         declareTrustedWrite(adapter, CALLSITE.branch_materialization);
         await adapter.switchBranch({
           branchId,
-          actions: updateActions(ConformanceNote, noteId, { title: '投影重写后' }, { title: '投影原值' })
+          actions: updateActions(ConformanceNote, noteId, { title: '投影重写后' }, { title: '投影原值' }),
+          prepare: SKIP_BRANCH_SWITCH_PREPARE
         });
 
         const entries = await withTransaction(database, readEntries);
@@ -1030,8 +1151,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
       });
     });
 
-    describe('§1.3 raw 通道 bypass 五步判定', () => {
-      /** 一条打在版本化业务表 tracked 列上的 raw 写；第 1 / 2 / 4 步共用它，只换上下文。 */
+    describe('§1.3 raw 通道 bypass 四步判定', () => {
+      /** 一条打在版本化业务表 tracked 列上的 raw 写；第 1 / 3 步共用它，只换上下文。 */
       const trackedRawWrite = (): Promise<string> =>
         withTransaction(
           database,
@@ -1052,20 +1173,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database);
       });
 
-      it('第 2 步 携带受信 intent：放行，且不必再看语句写了什么', async () => {
-        const adapter = await localAdapterOf(database);
-        const sql = await trackedRawWrite();
-
-        // 同一条语句在第 4 步会被拒（下一组用例就是它）；这里放行的唯一理由是 intent。
-        expect(judgeRawWrite(sql, { ...judgmentContextOf(adapter), intent: TrustedWriteIntent.remote_sync })).toEqual({
-          kind: 'allow',
-          step: 2,
-          reason: 'trusted_intent'
-        });
-        await expectColdReplayIntact(database);
-      });
-
-      it('第 3 步 不是写语句：放行', async () => {
+      it('第 2 步 不是写语句：放行', async () => {
         const adapter = await localAdapterOf(database);
         const sql = await withTransaction(
           database,
@@ -1074,25 +1182,25 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(sql, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 3,
+          step: 2,
           reason: 'not_a_write'
         });
         await expectColdReplayIntact(database);
       });
 
-      it('第 4 步 打在 tracked 列上：语句执行之前被拒，业务表零变化', async () => {
+      it('第 3 步 打在 tracked 列上：语句执行之前被拒，业务表零变化', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         const noteId = newEntityId();
-        const fields = noteFields('第 4 步之前的值', null);
+        const fields = noteFields('第 3 步之前的值', null);
         const head = await materializeNote(noteId, fields);
         const sql = await trackedRawWrite();
 
         const judgment = judgeRawWrite(sql, judgmentContextOf(adapter));
         if (judgment.kind !== 'reject') {
-          throw new Error(`第 4 步没有拒绝：落在第 ${judgment.step} 步（${judgment.reason}）`);
+          throw new Error(`第 3 步没有拒绝：落在第 ${judgment.step} 步（${judgment.reason}）`);
         }
-        expect(judgment.step).toBe(4);
+        expect(judgment.step).toBe(3);
         expect(judgment.code).toBe(CommitErrorCode.commit_capability_mismatch);
         // 被点名的表名按后端归一（PGlite 的 `conformance_notes` 与 SQLite 家族的
         // `public$conformance_notes`），两种形态都在域里登记过，所以断言只问「在不在域里」。
@@ -1118,7 +1226,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 语句批里的第二条也要拦住整批', async () => {
+      it('第 3 步 语句批里的第二条也要拦住整批', async () => {
         const adapter = await localAdapterOf(database);
         const noteId = newEntityId();
         const fields = noteFields('语句批之前的值', null);
@@ -1144,7 +1252,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 列集解析不出：fail-closed，同样在执行前拒绝', async () => {
+      it('第 3 步 列集解析不出：fail-closed，同样在执行前拒绝', async () => {
         const adapter = await localAdapterOf(database);
         const noteId = newEntityId();
         const fields = noteFields('解析不出之前的值', null);
@@ -1174,7 +1282,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 4 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句', async () => {
+      it('第 3 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         const noteId = newEntityId();
@@ -1182,7 +1290,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const head = await materializeNote(noteId, fields);
         // PG 的 `$$…$$` 是第五类定界符。不认它的话，字面量里的 `WHERE` 会被当成真子句，
         // 后面的 `title` 就被切进「条件」里丢掉，判定只看见簿记列 `updatedAt`——
-        // 于是这条改 tracked 列的语句在第 5 步以 untracked_only 放行，捕获被整条绕过。
+        // 于是这条改 tracked 列的语句在第 4 步以 untracked_only 放行，捕获被整条绕过。
         const sql = await withTransaction(
           database,
           async executor =>
@@ -1193,7 +1301,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         if (judgment.kind !== 'reject') {
           throw new Error(`dollar-quote 绕过没被拦住：落在第 ${judgment.step} 步（${judgment.reason}）`);
         }
-        expect(judgment.step).toBe(4);
+        expect(judgment.step).toBe(3);
         expect(judgment.code).toBe(CommitErrorCode.commit_capability_mismatch);
         expect(
           judgment.tables.filter(table => !domain.versionedTables.has(table)),
@@ -1216,10 +1324,10 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database, [head]);
       });
 
-      it('第 5 步 只改簿记字段：放行，理由是 untracked_only', async () => {
+      it('第 4 步 只改簿记字段：放行，理由是 untracked_only', async () => {
         const adapter = await localAdapterOf(database);
         // 列名带引号是故意的：判定先压小写、后拆引号，`"updatedAt"` 要能归到域里的 `updatedAt`。
-        // 这一步归不到位的话，一次只改审计时间的簿记写会被第 4 步拦成能力不匹配。
+        // 这一步归不到位的话，一次只改审计时间的簿记写会被第 3 步拦成能力不匹配。
         const sql = await withTransaction(
           database,
           async executor => `UPDATE ${executor.tableRef(ConformanceNote)} SET "updatedAt" = '2026-01-01T00:00:00.000Z'`
@@ -1227,13 +1335,13 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(sql, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 5,
+          step: 4,
           reason: 'untracked_only'
         });
         await expectColdReplayIntact(database);
       });
 
-      it('第 5 步 写域外目标：放行，理由是 out_of_domain', async () => {
+      it('第 4 步 写域外目标：放行，理由是 out_of_domain', async () => {
         const adapter = await localAdapterOf(database);
         const domain = domainOf(adapter);
         // 影子表这类域外目标的代表。名字在 `versionedTables` 之外即为域外——判定不按 `$`
@@ -1243,7 +1351,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
 
         expect(judgeRawWrite(`UPDATE ${outOfDomainTable} SET title = '域外改的'`, judgmentContextOf(adapter))).toEqual({
           kind: 'allow',
-          step: 5,
+          step: 4,
           reason: 'out_of_domain'
         });
         await expectColdReplayIntact(database);
@@ -1258,7 +1366,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('query_cache');
         expect(hook.targetClassOf(getEntityMetadata(ConformanceNote).name)).toBe('versioned');
         // 表平面必须跟着实体平面走：缓存表不在 `versionedTables` 里，于是一条打在它上面的 raw 写
-        // 在第 5 步就以 out_of_domain 放行，根本走不到第 4 步的列级判定。两个平面分叉的话，
+        // 在第 4 步就以 out_of_domain 放行，根本走不到第 3 步的列级判定。两个平面分叉的话，
         // 同一张缓存表会「实体入口放行、raw 入口拒绝」，而调用方无从知道自己踩的是哪一条。
         expect(domain.versionedTables.has(getEntityMetadata(ConformanceCache).tableName)).toBe(false);
         expect(domain.versionedTables.has(getEntityMetadata(ConformanceNote).tableName)).toBe(true);
@@ -1284,7 +1392,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         const domain = domainOf(adapter);
         // 「全局」是这一类的全部内容：豁免不挑实体、也不挑表名的书写形态。逐个可寻址名字都问一遍
         // 而不是只问逻辑名——漏掉 SQLite 家族的 `public$conformance_notes`，一次只改审计时间的
-        // 簿记写会在那 5 个后端上被第 4 步拦成 `commit_capability_mismatch`，而那是在拦错了人。
+        // 簿记写会在那 5 个后端上被第 3 步拦成 `commit_capability_mismatch`，而那是在拦错了人。
         for (const table of domain.versionedTables) {
           const untracked = domain.untrackedFieldsOf(table);
           for (const field of UNTRACKED_BOOKKEEPING_FIELDS) {

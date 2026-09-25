@@ -34,6 +34,7 @@
  *    调的）会顺带把损坏守卫一起关掉，于是那条路径可以切进一份重放不出来的历史。
  */
 
+import { RxDBBranch } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -125,6 +126,19 @@ const createSwitchScene = (): WorkingTreeScene => {
   seedCommit(scene, TARGET_HEAD, ['target-mid']);
 
   const { entityManager } = scene.database;
+  // 分支行本身也要布：`assertSwitchTargetIntact()` 先判物化状态（FR-049），而那一步读的是
+  // `RxDBBranch` 上的 `local` / `remote`。缺这一行时它抛的是「这条分支不存在」，
+  // 于是四种损坏形态全部红在一个与损坏无关的成因上。`local: true` 是本地分支——
+  // 远端那一支是 metadata-only 的题面，不在本文件。
+  const branch = entityManager.instantiate(RxDBBranch);
+  branch.id = TARGET_BRANCH_ID;
+  branch.activated = false;
+  branch.local = true;
+  branch.remote = false;
+  branch.parentId = SCENE_BRANCH_ID;
+  branch.fromChangeId = null;
+  scene.probe.seed(RxDBBranch, [branch]);
+
   const ref = entityManager.instantiate(CommitBranchRef);
   ref.id = TARGET_BRANCH_ID;
   ref.branchId = TARGET_BRANCH_ID;

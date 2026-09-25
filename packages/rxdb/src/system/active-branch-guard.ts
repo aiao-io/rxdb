@@ -47,14 +47,85 @@ import { RxDBBranch } from './branch.js';
 export const ACTIVE_BRANCH_KEY = '*active*';
 
 /**
- * 零 active 时的恢复目标分支 id。
+ * 分支 id 里被保留、因而一律不许出现的字符。
  *
  * @remarks
- * 与 `version/resolve-current-branch.ts`、`RxDB.ts:733`、`version/remove-branch.ts` 用的
- * 是同一个名字。恢复目标必须是**确定**的：库里通常有 `feature-x`，挑它比建 `main` 更
- * 「聪明」，但那是在替用户做一次分支切换。
+ * {@link ACTIVE_BRANCH_KEY} 的安全性建立在「分支 id 里不会出现 `*`」之上。这句话在
+ * 加校验之前**只是注释**：创建与导入路径没有任何一处兑现它，一条名叫 `*active*`
+ * 的用户分支能直接写进 `id` 列，再由 `activeKey` 的唯一约束把两件毫不相干的事
+ * 撞在一起——错误信息会指向唯一约束，而真正的原因在几百行外的哨兵形状上。
+ *
+ * 禁的是**字符**不是那一个值：只拒 `'*active*'` 的话，`'*active'` / `'active*'`
+ * 照样进得来，它们撞不上唯一约束，但会让任何按「带不带 `*`」区分哨兵与用户数据的
+ * 读者（含两个后端 `switch_branch` 里对 `activeKey` 的裸 SQL 比较）读出两种答案。
+ *
+ * 它防的是**碰撞**（用户无意间起了个撞车的名字），不是**攻击**（存心去撞哨兵的调用方）：
+ * 后者的前提是已经能直写系统表，到那一步唯一约束是谁都无所谓了
+ * （`specs/001-working-tree-commits/threat-model.md` §5）。
  */
-const MAIN_BRANCH_ID = 'main';
+const RESERVED_BRANCH_ID_CHAR = '*';
+
+/**
+ * 分支 id 不可用时抛出。
+ *
+ * @remarks
+ * 独立错误类型而不是裸 {@link RxDBError}：调用方要能把「这个名字不能用」与
+ * 「这个名字已经被占了」分开处理——前者改名就行，后者得先问清楚占用它的是谁。
+ */
+export class InvalidBranchIdError extends RxDBError {
+  constructor(
+    /** 被拒的分支 id，原样带上 */
+    readonly branchId: string,
+    reason: string
+  ) {
+    super(`Branch id (${branchId}) is not usable: ${reason}`);
+    this.name = 'InvalidBranchIdError';
+    // `RxDBError` 的构造器把原型钉回 `RxDBError.prototype`，子类必须在自己这边钉回来，
+    // 否则 `instanceof InvalidBranchIdError` 恒为 false。同文件另两个错误类同此手法。
+    Object.setPrototypeOf(this, InvalidBranchIdError.prototype);
+  }
+}
+
+/**
+ * 校验分支 id 可用，不可用即抛。
+ *
+ * @param branchId - 待校验的分支 id
+ *
+ * @throws {@link InvalidBranchIdError} id 为空 / 纯空白 / 含保留字符 `*` 时
+ *
+ * @remarks
+ * 放在哨兵常量**同一个文件**里，是因为它兑现的正是 {@link ACTIVE_BRANCH_KEY} 那段
+ * TSDoc 立下的承诺。拆到 `version/create-branch.ts` 之类的调用点旁边，改哨兵形状的人
+ * 就看不到这条规则了，而那恰恰是唯一需要同步改的时刻。
+ *
+ * 校验点是**创建与导入边界**，不是每次读写：id 一旦落库就不再变，在读路径上重复校验
+ * 只会把「历史遗留的坏数据」变成「整个库打不开」。已经躺在库里的坏 id 由
+ * {@link assertSingleActiveBranch} 那条基数不变量兜底。
+ */
+export const assertUsableBranchId = (branchId: string): void => {
+  if (branchId.trim().length === 0) throw new InvalidBranchIdError(branchId, 'id 不能为空或纯空白');
+  if (branchId.includes(RESERVED_BRANCH_ID_CHAR)) {
+    throw new InvalidBranchIdError(branchId, `'${RESERVED_BRANCH_ID_CHAR}' 是 active 哨兵保留字符`);
+  }
+};
+
+/**
+ * 根分支（也是零 active 时的恢复目标）的分支 id。
+ *
+ * @remarks
+ * 恢复目标必须是**确定**的：库里通常有 `feature-x`，挑它比建 `main` 更「聪明」，
+ * 但那是在替用户做一次分支切换。
+ *
+ * 与 {@link ACTIVE_BRANCH_KEY} 一样**必须**出现在公开面上，理由也一样：认这个 id 的地方
+ * 有一半是裸 SQL——两个后端的 `read_current_branch_id` 把它当零 active 时的兜底谓词
+ * （`WHERE id = 'main'`）、`create_tables_sql` 把它拼进新表的变更触发器、`migrate_system_schema`
+ * 用它收敛 activeKey 基数。各自抄一份字面量的话，某一端拼错了不会有编译错误，只会让那一端
+ * 认另一条分支当根：变更记到不存在的分支名下、零 active 的库恢复出第二个 main。
+ *
+ * 值本身不参与任何格式约定（不像哨兵键那样架在「分支 id 里没有 `*`」之上）：
+ * 它就是一个普通的合法分支 id，只是被默认占用了。
+ */
+export const MAIN_BRANCH_ID = 'main';
 
 /**
  * {@link resolveSingleActiveBranch} 建 `main` 时需要的最小能力。

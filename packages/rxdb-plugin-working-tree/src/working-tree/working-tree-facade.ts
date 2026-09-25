@@ -14,9 +14,10 @@
  * 说的是**不调用它就什么都没发生**，不是调用了要假装成功。
  */
 
-import type { IRxDBAdapter, RxDB, RxDBAdapterLocalBase, TransactionExecutor } from '@aiao/rxdb';
+import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
+import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import {
   assertSupportedCommitCapability,
@@ -27,6 +28,7 @@ import {
 import { readCommitChangeSetPage, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
+import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import { installWorkingTreeCapture } from './capture-install.js';
@@ -189,6 +191,10 @@ export class WorkingTreeManager {
       return enabled;
     });
     installWorkingTreeCapture(this.#rxdb, adapter);
+    // 同源的其他连接此刻还停在「连接期读到的未启用」上，它们的每一次写都绕开捕获且不留痕迹
+    // （FR-037）。这一句是它们唯一的通知来源。**无条件发**，包括幂等重调的那一次：
+    // `enable()` 是用户显式发起的、稀少的动作，而重发一次正好是「让所有连接重新对齐」的手动杠杆。
+    this.#rxdb.broadcastCapabilityEnabled(WORKING_TREE_CAPABILITY);
     return info;
   }
 
@@ -232,6 +238,10 @@ export class WorkingTreeManager {
       return { kind: 'enabled', capability } as const;
     });
     if (result.kind !== 'not_empty') installWorkingTreeCapture(this.#rxdb, adapter);
+    // 只有**这一次调用真的翻了能力位**才广播。`already_enabled` 不发：自动启用是应用每次
+    // 启动都会走的入口，在那一支上广播等于每开一次应用就往频道里丢一条谁都不需要的通知
+    // ——那时能力早已是开的，后连上的实例在 `bootstrapExisting()` 里自己就读到了。
+    if (result.kind === 'enabled') this.#rxdb.broadcastCapabilityEnabled(WORKING_TREE_CAPABILITY);
     return result;
   }
 
@@ -424,6 +434,20 @@ export class WorkingTreeManager {
    *    而不是「你的 codec 版本是 1、本进程要 2」——后者对它毫无可操作性。
    * 4. **版本比对复用 `assertSupportedCommitCapability()`**，不在这里另写一遍比较。
    *    两份比较逻辑迟早会在某次 bump 时分岔，而 fail-closed 恰恰依赖它们一致。
+   * 5. **提交之后补一次捕获自愈**（`#healCapture()`，理由见它自己的 @remarks）。
+   *    它排在事务**外面**，与 `enable()` 里那一句同理由：装在事务里的话，
+   *    捕获会开始拦截这同一笔事务余下的写。
+   * 6. **回滚之后补一次损坏闩**（`latchBranchCorruption()`）。`commit()` / `restore()` /
+   *    `discard()` 三条路径都在这笔事务里跑 `assertCommitGraphIntact()`，而命中损坏的那一笔
+   *    注定回滚——标记写在里面等于写完就没。于是三条路径各自去 catch 一次？那三份 catch
+   *    会在下一条受管成员加进来时漏掉第四份。放在唯一入口上，新成员**天然**带着这条闩。
+   *
+   * 那个 catch 只补一件事就把原错**原样**抛回去：它不认识的错误一个字都不改（`latchBranchCorruption`
+   * 自己判类型），也绝不让落标记这一步的失败顶替掉手上那个真正的错误。
+   *
+   * 不再经 `#runInTransaction()`，虽然前三行与它逐字相同：自愈要拿到**这一笔事务用的那个**
+   * 适配器，而那个方法只交出命令体的返回值。再走一次 `localAdapter$` 可能取到另一个纪元的
+   * 实例——给那一个装钩子，本纪元照旧不捕获。
    *
    * 受管成员的**参数校验必须写在 `run` 里面**：写在调用 `runEnabled()` 之前的话，
    * 未启用的库会先回答「message 不能为空」——一个在这个库上根本无从谈起的问题。
@@ -435,19 +459,80 @@ export class WorkingTreeManager {
    * 少写形参的回调在 TS 里仍然可赋值，不需要它的成员一个字都不用改。
    */
   protected async runEnabled<T>(
-    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
   ): Promise<T> {
-    return this.#runInTransaction(async (executor, adapter) => {
-      const info = await readCommitCapability(executor);
-      if (!info.enabled) throw new WorkingTreeCapabilityDisabledError();
-      assertSupportedCommitCapability(info);
-      return run(executor, adapter);
-    });
+    const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
+    const result = await this.#runEnabledOnce(adapter, run);
+    // 事务已提交，这里才自愈——理由与 `enable()` 那一句完全相同：装在事务里的话，
+    // 捕获会立刻开始拦截这同一个事务余下的写。
+    this.#healCapture(adapter);
+    return result;
+  }
+
+  /**
+   * 把「能力已启用、这条连接却没有捕获」这个状态修回去。
+   *
+   * @param adapter - 本纪元的本地适配器；调用方已经确认能力位是开的
+   *
+   * @remarks
+   * **这是自愈，不是修复。** 它只让**今后**的写留下痕迹；此前那些绕开捕获的写不会被追认，
+   * 它们已经落进业务表、而工作树里没有对应单元，从这里看不出来也补不回来。
+   *
+   * 跑这一句的前提由调用方给：{@link runEnabled} 的门禁刚刚在**同一笔事务**里读到
+   * `enabled === true`。生产代码里没有任何一处卸载钩子（`setWorkingTreeCaptureHook` 的全部
+   * 调用都是装），所以「过了门禁却没有钩子」不存在良性解释，只有一种成因——本连接漏掉了
+   * 那条启用通知。
+   *
+   * 于是它补的正是 {@link RxDB.broadcastCapabilityEnabled} 够不着的那些 realm：跨进程
+   * （Electron 主/渲染、Tauri、Node 多进程）与 `multiInstance: false` 的实例。它们收不到
+   * BroadcastChannel，但只要调一次工作树 API 就会经过这里。
+   *
+   * 补不上的仍然记在 `specs/001-working-tree-commits/threat-model.md` §6：一条从不调用工作树
+   * API、只顾着写业务表的跨进程连接，这条路也够不着它。
+   *
+   * 判 `workingTreeCaptureHook` 再装而不是无条件装：{@link installWorkingTreeCapture} 本身是幂等的
+   * （先卸后装），但无条件调会让**每一次** `status()` 都换掉一个还在服役的运行时实例，
+   * 而换掉的那一刻恰好有别的事务正握着旧实例的话，那笔事务余下的写会记在一个已经被丢弃的
+   * 运行时上。
+   */
+  #healCapture(adapter: LocalRxDBAdapter): void {
+    if (adapter.workingTreeCaptureHook) return;
+    installWorkingTreeCapture(this.#rxdb, adapter);
+  }
+
+  /**
+   * 开那笔受管事务；回滚时把损坏闩补上，再把原错原样抛回去。
+   *
+   * @param adapter - 调用方已经解析好的本纪元适配器；闩要落在**同一个**实例上
+   * @param run - 命令体
+   * @returns 命令体的返回值
+   *
+   * @remarks
+   * 拆出来只为一件事：{@link runEnabled} 的 `#healCapture()` 必须在**成功**路径上跑，
+   * 而这里的 catch 在**失败**路径上跑。写成一个 `try/catch/finally` 的话，自愈会跟着
+   * 命中损坏的那一次一起跑——那一次的事务已经回滚，自愈装上的钩子却留了下来，
+   * 时点从「提交之后」漂成了「无论提交与否」。
+   */
+  async #runEnabledOnce<T>(
+    adapter: LocalRxDBAdapter,
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
+  ): Promise<T> {
+    try {
+      return await adapter.transaction(async executor => {
+        const info = await readCommitCapability(executor);
+        if (!info.enabled) throw new WorkingTreeCapabilityDisabledError();
+        assertSupportedCommitCapability(info);
+        return run(executor, adapter);
+      });
+    } catch (error) {
+      await latchBranchCorruption(adapter, error);
+      throw error;
+    }
   }
 
   /** 取本地适配器并开一个写事务；适配器一并交给命令体，理由见 {@link runEnabled}。 */
   async #runInTransaction<T>(
-    run: (executor: TransactionExecutor, adapter: IRxDBAdapter & RxDBAdapterLocalBase) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
   ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
     return adapter.transaction(async executor => run(executor, adapter));

@@ -995,9 +995,15 @@ defineExpose({
           class="rxdb-filter-popover-backdrop"
           @click="closeFilterPopover"
         />
+        <!--
+          面板**不能**带 aria-hidden：里面全是可聚焦控件（字段树选择、操作符、值输入、
+          重置 / 确定），aria-hidden 会把它们整片从无障碍树里摘掉 —— 屏幕阅读器读不到、
+          axe 的 aria-hidden-focus 判违规，基于 role 的定位（含 e2e 的 getByRole）也全部落空。
+          backdrop 与面板是 Teleport 下的**兄弟节点**而非祖先，面板内的点击到不了 backdrop
+          的 @click，所以也不需要 .stop（只有 React 端面板套在 backdrop 里才需要）。
+        -->
         <div
           class="border-base-300 bg-base-100 rxdb-filter-popover-panel rounded-lg border p-3 shadow-lg"
-          @click.stop
           ref="filterPanel"
         >
           <QueryBuilder

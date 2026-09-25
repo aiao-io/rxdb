@@ -2,6 +2,10 @@
   "entries": {
     ".": [
       {
+        "name": "compute_switch_branch_actions",
+        "kind": "value"
+      },
+      {
         "name": "find_branch_path_to_root",
         "kind": "value"
       },
@@ -39,6 +43,10 @@
       },
       {
         "name": "RxDBPluginHistoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SwitchBranchActionReaders",
         "kind": "type"
       },
       {

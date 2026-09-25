@@ -1309,9 +1309,6 @@ importers:
       '@aiao/rxdb-adapter-encrypted':
         specifier: workspace:*
         version: link:../rxdb-adapter-encrypted
-      '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1334,6 +1331,9 @@ importers:
       '@aiao/rxdb-plugin-sync':
         specifier: workspace:*
         version: link:../rxdb-plugin-sync
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../rxdb-plugin-working-tree
@@ -1386,9 +1386,6 @@ importers:
       '@aiao/rxdb-adapter-encrypted':
         specifier: workspace:*
         version: link:../rxdb-adapter-encrypted
-      '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1402,6 +1399,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1491,9 +1491,6 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
-      '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-tree
       '@supabase/supabase-js':
         specifier: ^2.88.0
         version: 2.116.0
@@ -1513,6 +1510,9 @@ importers:
       '@aiao/rxdb-plugin-sync':
         specifier: workspace:*
         version: link:../rxdb-plugin-sync
+      '@aiao/rxdb-plugin-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-tree
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
@@ -1609,9 +1609,6 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
-      '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
-        version: link:../rxdb-plugin-tree
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -1963,6 +1960,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../rxdb
+      '@aiao/rxdb-client-generator':
+        specifier: workspace:*
+        version: link:../rxdb-client-generator
       '@aiao/utils':
         specifier: workspace:*
         version: link:../utils
@@ -2047,6 +2047,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../rxdb-plugin-history
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2

@@ -15,14 +15,18 @@
  * 2. **落空是一个值，不是异常，也不重试。** 拿第二次读到的值再打一次 CAS，那一次必然成功，
  *    而它盖掉的正是别人刚做完的那次切换。诊断走**已有的** {@link CommitConflict}，
  *    不新建并行诊断类型：并行类型一旦出现，调用方要分两路处理同一件事，两路迟早各自漂移。
- * 3. **入参只收一个数字，不收整个 token。** 一次 switch 在同一个事务里先把
- *    `rxdb_branch.activated` 挪到目标分支、再推进 revision；期望值里带上源分支 id 的话，
- *    落到这一步时库里的 active 分支已经是目标分支，CAS 会对着一个自己刚写下的值报冲突。
- *    分支身份那一半由写路径的 token 校验（`write-entry.ts` › `assertActiveBranch`）负责。
+ * 3. **入参只收一个数字，不收整个 token。** 这是一条打在激活态单例行上的
+ *    `UPDATE ... WHERE revision = ?`，它能比的只有这张表自己的列；分支 id 住在 `rxdb_branch`，
+ *    要把它也纳入期望值就得先单独读一次那张表再比——那一次比较落在 CAS 之外，
+ *    两者之间照样插得进别人的切换，于是多出来的只有「看起来比过了」。分支身份那一半
+ *    由写路径的 token 校验（`write-entry.ts` › `assertActiveBranch`）负责，它每次现读库。
+ *
+ * 本文件另有一支 {@link advanceActivationRevision}：它管的是**切换事务内部**那一次推进，
+ * 不是 CAS，理由写在它自己的 TSDoc 里。两者名字相近而语义相反，别在调用点上互换。
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, sqlIntegerLiteral, sqlStringLiteral } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBError, sqlIntegerLiteral, sqlStringLiteral } from '@aiao/rxdb';
 import { createColumnOf } from '../entity-column.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import type { CommitConflict } from './commit-conflict.js';
@@ -100,4 +104,56 @@ export const bumpActivationRevision = async (
       branchId: token.branchId
     }
   };
+};
+
+/**
+ * 拼那条无条件的推进：把 revision 就地 +1。
+ *
+ * @remarks
+ * `SET revision = revision + 1` 而不是 `SET revision = <算好的数>`：后者那个数只能来自一次自读，
+ * 于是两条并发切换会读到同一个当前值、写下同一个新号，`A → B → A` 走完之后旧凭据仍然认得出这个库。
+ * 让库自己做那一步加法，新号是什么由行锁决定，与调用方读到过什么无关。
+ *
+ * WHERE 里只有主键那一条。多钉一条 `revision = ?` 就退回成 CAS，而这里没有调用方给的期望值可用
+ * （见 {@link advanceActivationRevision}）。
+ */
+const buildActivationAdvance = (tableRef: string): string => {
+  const metadata = getEntityMetadata(WorkingTreeActivationState);
+  const revision = columnOf(metadata, 'activationRevision');
+  return [
+    `UPDATE ${tableRef}`,
+    `SET ${revision} = ${revision} + 1`,
+    `WHERE ${columnOf(metadata, 'id')} = ${sqlStringLiteral(WORKING_TREE_ACTIVATION_STATE_ID)}`
+  ].join(' ');
+};
+
+/**
+ * 无条件推进激活态 revision——每一次真正发生的分支切换都要走这一步（FR-020）。
+ *
+ * @param executor - **切换事务**的执行器；本函数不自己开事务
+ * @throws {@link RxDBError} 单例行不存在（`rowsAffected !== 1`）时
+ *
+ * @remarks
+ * 与 {@link bumpActivationRevision} 的分工，一句话：**那一支替调用方仲裁，这一支不仲裁。**
+ *
+ * 这一支跑在适配器 `switchBranch()` 的写事务内部，紧接着系统贡献点把前置条件判完的那一刻
+ * （`plugin.ts` › `prepareBranchSwitch`）。此刻能当「期望值」用的只有它自己读出来的数，
+ * 而自读的期望值恒等于当前值、CAS 于是永远命中——那正是本文件第 1 条点名的失效形态。
+ * 真正的仲裁由外面那个独占事务做掉了：并发的第二条切换根本进不到这一行。
+ *
+ * 所以调用点的义务反过来：**必须**在切换事务里调它，且只调一次。漏掉这一步的代价是
+ * `main → feature → main` 走一个来回之后 revision 原地不动，于是走之前捕获的 token
+ * 在走回来之后仍然校验通过——`findCommitConflict()` 的第一位仲裁位就此变成常数。
+ *
+ * `rowsAffected !== 1` 当场抛，不静默走过去：激活态是单例行，它不在意味着装载期迁移没跑完，
+ * 而放行等于让接下来整条切换在一个没有仲裁位的库上完成，事后无从分辨。
+ */
+export const advanceActivationRevision = async (executor: TransactionExecutor): Promise<void> => {
+  const { rowsAffected } = await executor.query(buildActivationAdvance(executor.tableRef(WorkingTreeActivationState)));
+  if (rowsAffected === 1) return;
+  throw new RxDBError(
+    `推进 activation revision 时命中 ${rowsAffected} 行，期望恰好 1 行：` +
+      '激活态是单例行，它不在意味着迁移 0004-working-tree-commits 没跑完。' +
+      '这不是「没什么要推进的」，不能按成功继续——那会让这条分支切换在一个没有代际仲裁位的库上完成。'
+  );
 };

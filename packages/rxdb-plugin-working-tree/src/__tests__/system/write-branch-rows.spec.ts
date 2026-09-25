@@ -24,6 +24,7 @@ import { WorkingTreeActivationState } from '../../working-tree/working-tree-acti
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { fakeTableRef } from '../fixtures/fake-table-ref.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import { applyBranchGenerationAdvance, readBranchGenerationRows } from '../working-tree/fixtures/activation-sql.js';
 
 /** 一个挂了 mock 适配器、尚未 `init()` 的宿主。 */
 function createDatabase(): RxDB {
@@ -40,6 +41,8 @@ describe('writeBranchRows', () => {
   let entityManager: EntityManager;
   let contribution: RxDBPluginWorkingTree['system'];
   let activationRow: WorkingTreeActivationState;
+  /** 单例行所在的「表」；`find()` 与那条 UPDATE 读的是同一份，缺行与 `rowsAffected: 0` 因此不会各说各的。 */
+  let activationRows: WorkingTreeActivationState[];
   let activationRepository: { find: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
   let branchRepository: { find: ReturnType<typeof vi.fn> };
   let saved: InstanceType<EntityType>[];
@@ -60,8 +63,9 @@ describe('writeBranchRows', () => {
     // 非 0 起点：从 0 起的话「发放 seq + 1」与「发放当前分支数 + 1」会给出同一个答案，
     // 而本文件正是要把这两种写法分开（见下方 ABA 那条注释）。
     activationRow.branchGenerationSeq = 3;
+    activationRows = [activationRow];
     activationRepository = {
-      find: vi.fn(async () => [activationRow]),
+      find: vi.fn(async () => activationRows),
       update: vi.fn(async (entity: object, patch: object) => Object.assign(entity, patch))
     };
 
@@ -83,7 +87,16 @@ describe('writeBranchRows', () => {
     executor = {
       id: 'probe-executor',
       state: 'active',
-      query: vi.fn(async () => ({ rowsAffected: 0, rows: [], columns: [] })),
+      // 这个替身只执行代际发放那两条语句：就地 +1，以及紧跟着把号读回来。报出去的
+      // `rowsAffected` 就是它真的改动的行数——两者各说各的时，一个「行根本不在、却报命中
+      // 1 行」的布景能把 `allocateBranchGeneration` 的缺行守卫整个绕过去，而下面第三条用例
+      // 守的正是那道守卫。
+      query: vi.fn(async (sql: string) => {
+        // 先改后读：反过来的话读回来的是加法之前的数，而那个数正是 `SET seq = seq + 1`
+        // 要躲开的——一条语句只会命中其中之一，所以这里的先后只是与真实顺序同向。
+        const rowsAffected = applyBranchGenerationAdvance(sql, () => activationRows);
+        return { rowsAffected, rows: readBranchGenerationRows(sql, () => activationRows), columns: [] };
+      }),
       tableRef: fakeTableRef,
       mutations: vi.fn(async () => []),
       getRepository: (EntityClass: unknown) =>
@@ -147,12 +160,15 @@ describe('writeBranchRows', () => {
     // 也正是删过分支之后会复用旧号的那一种。
     const ref = saved.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
     expect(ref?.generation).toBe(4);
-    // 写回与取号必须同属这一个事务：分开则两个并发的 create branch 拿到同一个号。
-    expect(activationRepository.update).toHaveBeenCalledWith(activationRow, { branchGenerationSeq: 4 });
+    // 写回与取号必须同属这一个事务，而且那一步加法得由库来做：读出来加一再写回去的话，
+    // 两条并发的 create branch 会读到同一个当前值、写下同一个新号（`activation-state.ts`）。
+    // 所以既要看到单调源真的前进了，也要看到它不是经 ORM 前进的。
+    expect(activationRow.branchGenerationSeq).toBe(4);
+    expect(activationRepository.update).not.toHaveBeenCalled();
   });
 
   it('激活态行缺失时抛错，不凭空补一行', async () => {
-    activationRepository.find.mockResolvedValue([]);
+    activationRows.length = 0;
 
     // 补一行的话 `branchGenerationSeq` 只能从 0 起，于是这条新分支与既有分支撞号——
     // 而撞号的两条分支在形状上分辨不出来，要到幂等键失效时才显形。

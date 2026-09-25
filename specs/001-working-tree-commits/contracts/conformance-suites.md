@@ -52,9 +52,9 @@ spec.md「写入口语义矩阵」的**每一行**对应至少一条用例，包
 - `EntityManager.notifyExternalUpdate()` 对版本化实体 → 抛 `commit_capability_mismatch`；对 QueryCache 实体行为不变。
 - 未知入口 → **默认拒绝**（不能先改业务表再靠事件补记）。
 
-### 1.3 bypass 判定 5 步
+### 1.3 bypass 判定 4 步
 
-每一步一组用例；第 4 步必须断言**业务表零变化**（执行前拒绝，不是写完回滚），并且用「列集无法解析」的语句断言 fail-closed。
+每一步一组用例；第 3 步（唯一会拒绝的一步）必须断言**业务表零变化**（执行前拒绝，不是写完回滚），并且用「列集无法解析」的语句断言 fail-closed。
 
 ### 1.4 untracked 域
 

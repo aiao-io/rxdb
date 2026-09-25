@@ -43,7 +43,7 @@
 - [x] **调用方捕获型 vs 事务内读改写型**两类 CAS 已分开，普通 CRUD 明确不得用捕获型（FR-031 / FR-039 / revision 校验矩阵）
 - [x] **`origin=remote_sync` 不按来源豁免**已在写入口矩阵、Edge Cases、FR-046 与 SC-015 四处一致
 - [x] **6 个 v1 后端 + Tauri Rust host 不入矩阵**已入 Assumptions 与 SC-006
-- [x] **性能口径而非裸墙钟数字**：相对门禁（≤ reference median 110%）是普通 CI 唯一硬门禁，绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上生效，commit 不套用 100 ms（SC-001…SC-004）
+- [x] **性能口径而非裸墙钟数字**：相对门禁（≤ reference median × 容差：读项 130%，写项 110%）是普通 CI 唯一硬门禁，绝对 p95 仅在 `runnerProfileHash` 匹配的 runner 上生效，commit 不套用 100 ms（SC-001…SC-004）
 - [x] **FR-030 明确 MUST NOT 重写 [check-migration-release-gate.mjs](../../../scripts/check-migration-release-gate.mjs)**，且不得重打 / 移动 / 伪造已发布 tag
 - [x] **损坏守卫是同一份共享实现**（FR-051 + 横切约束 6 + SC-013），三条入口各自复用而非各写一份
 - [x] **非目标照抄 epic-006 全部条目**，含三条显式裁决的「要改结论必须先改 epic-006 非目标一节」条款

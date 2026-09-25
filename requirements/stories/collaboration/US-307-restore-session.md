@@ -1,11 +1,11 @@
 ---
 id: US-307
 title: 历史恢复会话
-status: In Review
+status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-20
+updated: 2026-09-25
 tags: [collaboration, restore, history, persistence, angular, react, vue]
 ---
 

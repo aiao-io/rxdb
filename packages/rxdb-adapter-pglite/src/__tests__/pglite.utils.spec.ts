@@ -303,7 +303,14 @@ describe('pglite.utils', () => {
         ['title', { name: 'title', columnName: 'title' } as EntityPropertyMetadata],
         ['completed', { name: 'completed', columnName: 'completed' } as EntityPropertyMetadata]
       ]);
-      const metadata = { propertyMap, foreignKeyNames: ['userId'] } as EntityMetadata;
+      // 外键走 keyed 的 foreignKeyRelationMap（列名从关系上取），不是 foreignKeyNames /
+      // foreignKeyColumnNames 两个平行数组按下标配对——夹具照真实元数据的形状给。
+      const metadata = {
+        propertyMap,
+        foreignKeyNames: ['userId'],
+        foreignKeyColumnNames: ['userId'],
+        foreignKeyRelationMap: new Map([['userId', { columnName: 'userId' }]])
+      } as unknown as EntityMetadata;
       const entity = { id: '123', title: 'Test', completed: false, extra: 'ignore', userId: '456' };
 
       const result = normalizeCreateEntity(metadata, entity);

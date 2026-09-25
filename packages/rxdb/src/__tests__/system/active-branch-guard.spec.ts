@@ -17,6 +17,8 @@ import {
   type ActiveBranchEntityHost,
   AmbiguousActiveBranchError,
   assertSingleActiveBranch,
+  assertUsableBranchId,
+  InvalidBranchIdError,
   NoActiveBranchError,
   resolveSingleActiveBranch
 } from '../../system/active-branch-guard.js';
@@ -160,5 +162,38 @@ describe('守卫错误', () => {
 
   it('哨兵键不是分支 id：它含有不合法的命名字符，不可能与任何分支撞上', () => {
     expect(ACTIVE_BRANCH_KEY).toBe('*active*');
+  });
+});
+
+// 哨兵 `'*active*'` 与用户分支 id 同处一列。它的安全性此前**只有注释**在保证
+// （「`*` 不是合法的命名字符」），创建与导入路径上都没有任何一处校验去兑现这句话。
+// 校验点必须和哨兵常量放在一起：分成两个文件，改哨兵形状的人看不到那条规则。
+describe('assertUsableBranchId', () => {
+  it('放行普通分支 id', () => {
+    expect(() => assertUsableBranchId('main')).not.toThrow();
+    expect(() => assertUsableBranchId('feature/login-v2')).not.toThrow();
+    expect(() => assertUsableBranchId('发布-2026.09')).not.toThrow();
+  });
+
+  it('拒绝哨兵值本身', () => {
+    expect(() => assertUsableBranchId(ACTIVE_BRANCH_KEY)).toThrow(InvalidBranchIdError);
+  });
+
+  // 只拒哨兵那一个字符串的话，`'*active'` / `'active*'` 照样进得来——它们不会撞上
+  // 唯一约束，但会让任何按「带不带 `*`」区分哨兵与用户数据的读者（含裸 SQL 里的
+  // `activeKey` 比较）读出两种答案。禁的是字符，不是那一个值。
+  it('拒绝任何含 * 的 id', () => {
+    for (const id of ['*', '*active', 'active*', 'fea*ture']) {
+      expect(() => assertUsableBranchId(id), id).toThrow(InvalidBranchIdError);
+    }
+  });
+
+  it('拒绝空 id 与纯空白 id', () => {
+    expect(() => assertUsableBranchId('')).toThrow(InvalidBranchIdError);
+    expect(() => assertUsableBranchId('   ')).toThrow(InvalidBranchIdError);
+  });
+
+  it('错误里点名被拒的 id', () => {
+    expect(() => assertUsableBranchId('fea*ture')).toThrow(/fea\*ture/);
   });
 });

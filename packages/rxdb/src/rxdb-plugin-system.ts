@@ -19,7 +19,8 @@
 
 import type { EntityManager } from './entity/entity-manager.js';
 import type { EntityType } from './entity/entity.interface.js';
-import type { RxDBAdapterLocalBase } from './rxdb-adapter.js';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- SwitchBranchOptions 只被 TSDoc 的 {@link} 引用；删掉它文档里那条链接就断了
+import type { RxDBAdapterLocalBase, SwitchBranchOptions } from './rxdb-adapter.js';
 import type { MigrationType } from './rxdb.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
@@ -91,7 +92,7 @@ export interface RxDBBranchRemovalContext {
  *
  * @remarks
  * **字段的形状在核心，字段的含义在能力插件。** 核心一个字段都不读，原样转交
- * {@link RxDBSystemContribution.assertBranchSwitchable}——`requireClean` 的判据是
+ * {@link RxDBSystemContribution.prepareBranchSwitch}——`requireClean` 的判据是
  * `WorkingTreeState.entryCount`、`expectedActivationRevision` 的判据是工作树的激活行，
  * 两张表都由 `@aiao/rxdb-plugin-working-tree` 贡献，核心不认识它们。这与
  * {@link RxDBSystemContribution.version} 是同一个分工：核心搬运，插件解释。
@@ -114,10 +115,16 @@ export type RxDBBranchSwitchPreconditions = {
 };
 
 /**
- * {@link RxDBSystemContribution.assertBranchSwitchable} 拿到的上下文
+ * {@link RxDBSystemContribution.prepareBranchSwitch} 拿到的上下文
  */
 export interface RxDBBranchSwitchContext {
-  /** 校验所在的事务执行器；这个事务**只读**，一行都不许写 */
+  /**
+   * **切换事务本身**的执行器
+   *
+   * @remarks
+   * 这里读到的与写下的，跟接下来那次切换同生共死：抛出即整次回滚，不会留下半棵切过去的工作树。
+   * 能写并不意味着该写——见 {@link RxDBSystemContribution.prepareBranchSwitch}。
+   */
   readonly executor: TransactionExecutor;
 
   /** 当前分支 id；一条 active 分支都没有时为 `null` */
@@ -131,10 +138,60 @@ export interface RxDBBranchSwitchContext {
 }
 
 /**
+ * {@link RxDBSystemContribution.takeOverBranchSwitch} 拿到的上下文
+ *
+ * @remarks
+ * 与 {@link RxDBBranchSwitchContext} 的差别只有一处，而那一处决定了两个钩子的分工：
+ * **这里没有 `executor`**。接管方要做的前两件事（拉远端快照、逐页落库）塞不进任何一次
+ * 切换事务——网络 I/O 握着写事务不放会把整个库锁到超时，而逐页落库的全部意义就是
+ * 「崩在中途也留得住」，与「同生共死」正相反。所以接管方先在事务外把它们做完，最后一步
+ * 再由它自己发起 `adapter.switchBranch()`，把提交屏障放进那次切换的 `prepare` 里——
+ * 物化与切 active 同一个事务，要么都落、要么都不落。
+ */
+export interface RxDBBranchSwitchTakeoverContext {
+  /** 当前分支 id；一条 active 分支都没有时为 `null` */
+  readonly currentBranchId: string | null;
+
+  /** 要切过去的分支 id */
+  readonly targetBranchId: string;
+
+  /** 调用方提出的前置条件；没提出时是 `undefined`，与空对象是同一件事 */
+  readonly preconditions: RxDBBranchSwitchPreconditions | undefined;
+}
+
+/**
+ * 一次接管表态
+ *
+ * @remarks
+ * 做成两个字面量而不是 `boolean`：调用点上 `if (await c.takeOverBranchSwitch(ctx))` 读起来像
+ * 「能不能切」，而它答的是「这次切换还要不要我做」——两种读法在漏掉 `!` 那天给出相反的行为，
+ * 且都不报错。
+ */
+export type RxDBBranchSwitchTakeover =
+  /** 本贡献方已经把 active 切到目标分支了；调用方**不要**再走普通切换 */
+  | 'switched'
+  /** 本次切换与本贡献方无关，照常走普通路径 */
+  | 'not_applicable';
+
+/**
+ * {@link RxDBSystemContribution.settleBranchSwitchFailure} 拿到的上下文
+ */
+export interface RxDBBranchSwitchFailureContext {
+  /** 当前分支 id；这次失败没有切走，它仍然是 active 的那一条 */
+  readonly currentBranchId: string | null;
+
+  /** 这次没切成的目标分支 id */
+  readonly targetBranchId: string;
+
+  /** 让这次切换失败的那个错误；贡献方按自己认识的类型去认，认不出就什么都不做 */
+  readonly error: unknown;
+}
+
+/**
  * 插件对系统层的贡献
  *
  * @remarks
- * 七个注册点缺一不可，各自防一种不会编译报错的事故：
+ * 九个注册点缺一不可，各自防一种不会编译报错的事故：
  *
  * - {@link RxDBSystemContribution.entities} 漏接 → 表建不出来，首次用到时抛一条读不出主语的错；
  * - {@link RxDBSystemContribution.createInitialRows} 没进同一次 `createTables()` → 新库第一次
@@ -149,11 +206,18 @@ export interface RxDBBranchSwitchContext {
  * - {@link RxDBSystemContribution.removeBranchRows} 漏接 → 分支删了、贡献行留着，而留下来的行
  *   按 id 挂靠，同名重建之后会被新分支**逐字命中**——一条刚建出来的分支于是带着上一条的
  *   HEAD、上一条的未提交条目、上一条崩在半路的物化现场；
- * - {@link RxDBSystemContribution.assertBranchSwitchable} 漏接 → `switchBranch()` 收下了调用方的
+ * - {@link RxDBSystemContribution.prepareBranchSwitch} 漏接 → `switchBranch()` 收下了调用方的
  *   前置条件却没人校验，**一条错误都不会有**：用户显式要求「工作树不干净就别切」，切换照样
- *   发生，而那正是他刚刚说要避免的事。
+ *   发生，而那正是他刚刚说要避免的事；随切换而来的那些行（激活代际 +1）也一并不落，
+ *   于是 `main → feature → main` 走一个来回之后，走之前捕获的凭据仍然验得过。
+ * - {@link RxDBSystemContribution.takeOverBranchSwitch} 漏接 → 普通切换会照常跑在一条本地还
+ *   没有历史的分支上：它没有 ref、没有工作树状态行，切过去之后投影是上一条分支的内容，
+ *   而用户看见的是一次成功的切换；
+ * - {@link RxDBSystemContribution.settleBranchSwitchFailure} 漏接 → 失败诊断永远落不了盘。
+ *   本钩子是**回滚之后**唯一还能写库的时点：失败的判定发生在那次切换事务里，而那次事务
+ *   注定回滚，写在里面的诊断会跟着一起消失。
  *
- * 七个都是**必填**，没有一个带 `?`。没有可写之物的贡献方写一个空实现——那是一句
+ * 九个都是**必填**，没有一个带 `?`。没有可写之物的贡献方写一个空实现——那是一句
  * 「我确实不需要」的明示，而 `?` 让「不需要」与「忘了」变成同一种东西。
  *
  * {@link RxDBSystemContribution.capability} 与 {@link RxDBSystemContribution.packageSpecifier}
@@ -264,26 +328,89 @@ export interface RxDBSystemContribution {
   removeBranchRows(context: RxDBBranchRemovalContext): Promise<void>;
 
   /**
-   * 每次切分支前，在**调用方开的只读事务里**校验本能力的前置条件
+   * 在**切换事务内部**校验本能力的前置条件，并落下本能力在一次切换中该落的行
    *
-   * @param context - 只读执行器、当前/目标分支 id，以及调用方提出的前置条件
-   * @returns 校验通过；没有前置条件要查的贡献方返回一个已决 promise
-   * @throws 任何前置条件不成立；抛出即中止本次切换
+   * @param context - 切换事务的执行器、当前/目标分支 id，以及调用方提出的前置条件
+   * @returns 做完；没有前置条件要查、也没有行要落的贡献方返回一个已决 promise
+   * @throws 任何前置条件不成立；抛出即回滚整次切换
    *
    * @remarks
-   * 排在 `adapter.switchBranch()` **之前**，而不是包在它的事务里：那次调用内部自带事务
-   * （见各适配器 `version/switch_branch.ts`），把校验塞进去要么得让六个适配器各开一个口子，
-   * 要么得把「切换」拆成两个事务——而拆开之后，中间失败留下的是半棵切过去的工作树。
-   * 排在前面的代价是一个「校验通过到真正切换」之间的窗口，那个窗口由
-   * `expectedActivationRevision` 这类 CAS 字段自己兜住，不由事务边界兜。
+   * **跑在 `adapter.switchBranch()` 的写事务里**，由适配器经
+   * {@link SwitchBranchOptions.prepare} 在解析出目标分支之后、动第一行之前回调，
+   * 每次切换恰好一次。
    *
-   * 拿到的执行器**只读**。这不是建议：调用方为它传的是 `transactionLog = false`，
-   * 在这里写下的行不会进事务日志，于是那些写入对同步与 undo 双双不可见。
+   * 它曾经排在那次调用**之前**、自己开一个只读事务，理由写的是「塞进去要让每个适配器各开一个
+   * 口子」。那个理由不成立：真正实现 SQL 切换的只有 `rxdb-adapter-pglite` 与
+   * `rxdb-adapter-sqlite-core` 两处（sqlite 家族的五个后端共用后者），开的是两个口子，
+   * 而且开的方式是入参上多一个必填回调，不是每个适配器各写一遍校验。
+   * 代价那一侧则被低估了：两个事务之间有一个窗口，校验说「干净」，窗口里的一次写让它变脏，
+   * 切换照样完成。当时写着这个窗口「由 `expectedActivationRevision` 这类 CAS 字段自己兜住」——
+   * 而那个字段恰恰也是在只读事务里比的，它不是 CAS，只是一次读后比较，兜不住任何东西。
    *
-   * 名字不叫 `canSwitchBranch`：`can*` 读起来像返回 `boolean`，而「不能切」的原因
+   * 拿到的执行器**可写**，写下的行与这次切换同生共死。能写并不意味着该写：这里该落的只有
+   * 「一次切换本身必然带来的那些行」（例如激活代际 +1），业务数据不在此列。
+   *
+   * 名字里是 `prepare` 而不是 `assert`：它的职责从「只判断」扩成了「判断 + 落下随切换而来的行」，
+   * 而 `assert*` 读起来像一个不留痕迹的检查，会让下一个人把那一次写挪出去。
+   * 也不叫 `canSwitchBranch`：`can*` 读起来像返回 `boolean`，而「不能切」的原因
    * 必须能带着分支 id、条目数、expected/actual revision 一起报给用户——那只有异常带得动。
    */
-  assertBranchSwitchable(context: RxDBBranchSwitchContext): Promise<void>;
+  prepareBranchSwitch(context: RxDBBranchSwitchContext): Promise<void>;
+
+  /**
+   * 在普通切换开始**之前**，问一句本次切换要不要由本能力整个接管
+   *
+   * @param context - 当前/目标分支 id 与调用方提出的前置条件；**没有执行器**，见 {@link RxDBBranchSwitchTakeoverContext}
+   * @returns `'switched'` 表示 active 已经由本贡献方切过去了；`'not_applicable'` 表示照常走普通路径
+   * @throws 本次切换不该发生时；抛出即整次切换失败，且 active 仍停在原处
+   *
+   * @remarks
+   * 存在的理由只有一个：**有些切换的目标在本地还不是一条可切的分支**。`syncBranches()` 收下的
+   * 远端分支只有 metadata，第一次切过去要先把远端快照拉下来物化成本地历史（FR-044/049），
+   * 而那条流水线的三段——预取、分页落库、提交屏障——没有一段能跑在
+   * {@link RxDBSystemContribution.prepareBranchSwitch} 里：预取是网络 I/O，分页落库要求每页
+   * 各自可提交，而屏障必须与切 active 落在同一个事务里，只能由接管方自己发起那次切换。
+   *
+   * 于是分工是：接管方把这次切换**整个**做完（含自己调 `adapter.switchBranch()`、把屏障放进
+   * 它的 `prepare`），核心这边跳过普通路径，只补上与切换无关的记账（redo 栈、undo 视图、
+   * `SwitchBranchCommitEvent`）。
+   *
+   * **第一个答 `'switched'` 的就是最后一个**：核心问到它为止，后面的贡献方一个都不再问。
+   * 两个贡献方都接管等于 active 被切两次，而第二次看到的现场已经是第一次的结果。
+   *
+   * 预取与分页落库跑在切换事务**之外**，与那次切换不同生共死：接管失败时已落库的 staging
+   * 留给下一次续用（按 attempt 可续、可作废，见 FR-044），核心不会替它回滚；屏障那一段则随
+   * 切换事务一起回滚，active 仍停在原处。
+   *
+   * 名字里是 `takeOver` 而不是 `beforeSwitch`：`before*` 读起来像一个不改变主流程的前置钩子，
+   * 而这个钩子的返回值**决定主流程还跑不跑**。
+   */
+  takeOverBranchSwitch(context: RxDBBranchSwitchTakeoverContext): Promise<RxDBBranchSwitchTakeover>;
+
+  /**
+   * 切换事务**回滚之后**，落下本次失败的持久诊断
+   *
+   * @param context - 当前/目标分支 id 与那个错误
+   * @returns 落完；没有诊断要落的贡献方返回一个已决 promise
+   *
+   * @remarks
+   * 时点是它的全部：判定失败发生在切换事务里（{@link RxDBSystemContribution.prepareBranchSwitch}
+   * 抛出），而那次事务注定回滚——把诊断写在里面等于写完就没。回滚之后本函数才跑，
+   * 它自己开事务，写下的行留得住。
+   *
+   * 具体到工作树：`assertCommitGraphIntact()` 命中损坏时，`CommitBranchRef.status` 要落成
+   * `corrupted_read_only`（FR-051）。不落的话每次重试都重新扫整张图，而「什么时候开始坏的」
+   * 这个诊断永远缺席。
+   *
+   * **不得抛出。** 本函数跑在 `catch` 里，紧接着要把原始错误重新抛出去——从这里抛出的任何
+   * 东西都会顶替掉那个错误，于是用户拿到的是「落诊断时数据库忙」，而不是「目标分支的历史
+   * 重放不出来」。贡献方自己把失败包住：诊断是**附加**的，落不下来不改变这次切换已经失败
+   * 这件事，而它把原始错误盖掉才是真正的损失。
+   *
+   * 只在**回滚**路径上调。切换已经提交之后再失败（记账那几步）不调：那时 active 已经切过去了，
+   * 这不是一次「没切成」。
+   */
+  settleBranchSwitchFailure(context: RxDBBranchSwitchFailureContext): Promise<void>;
 }
 
 /**

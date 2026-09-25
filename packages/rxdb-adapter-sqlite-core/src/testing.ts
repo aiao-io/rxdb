@@ -1,4 +1,4 @@
-import type { EntityType, RxDB } from '@aiao/rxdb';
+import type { RxDB } from '@aiao/rxdb';
 
 /**
  * 适配器清理的目标对象：清理回调只需拿到 RxDB 实例。
@@ -62,52 +62,17 @@ const getSharedSuite = (modulePath: string, exportName: SuiteExportName): Adapte
   return suite;
 };
 
-const findMetadata = (EntityClass: EntityType): { symbol: symbol; value: object } | undefined => {
-  let currentConstructor: object | null = EntityClass;
-  while (currentConstructor) {
-    const symbol = Object.getOwnPropertySymbols(currentConstructor).find(item => item.description === 'ɵMetadata');
-    if (symbol) {
-      const value: unknown = Object.getOwnPropertyDescriptor(currentConstructor, symbol)?.value;
-      return value !== null && typeof value === 'object' ? { symbol, value } : undefined;
-    }
-    currentConstructor = Reflect.getPrototypeOf(currentConstructor);
-  }
-  return undefined;
-};
-
-const copyStaticProperties = (source: EntityType, target: EntityType, metadataSymbol?: symbol): void => {
-  for (const key of Object.getOwnPropertyNames(source)) {
-    if (key === 'prototype' || key === 'length' || key === 'name') continue;
-    const descriptor = Object.getOwnPropertyDescriptor(source, key);
-    if (descriptor) Object.defineProperty(target, key, descriptor);
-  }
-
-  for (const symbol of Object.getOwnPropertySymbols(source)) {
-    if (symbol === metadataSymbol || symbol.description?.startsWith('ɵ')) continue;
-    const descriptor = Object.getOwnPropertyDescriptor(source, symbol);
-    if (descriptor) Object.defineProperty(target, symbol, { ...descriptor, configurable: true });
-  }
-};
-
 /**
  * 克隆一组实体类（继承原型并复制静态元数据），隔离跨套件的装饰器元数据变更。
+ *
+ * @remarks
+ * **是核心 {@link https://github.com/aiao-io/rxdb | `@aiao/rxdb/testing`} 那一份的转出口，
+ * 不是第二份实现。** 本包与 `@aiao/rxdb-adapter-pglite` 曾各写一遍逐字等价的副本，两份都靠
+ * `symbol.description === 'ɵMetadata'` 找元数据槽位——而核心的槽位描述是
+ * `'@aiao/rxdb/ɵMetadata'`，那个字面量从来没匹配上过。核心那一份按 `METADATA` 符号本身认，
+ * 核心改名即编译错误。
  */
-export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
-  return entities.map(EntityClass => {
-    const Clone: EntityType = class extends EntityClass {};
-    const metadata = findMetadata(EntityClass);
-    if (metadata) {
-      Object.defineProperty(Clone, metadata.symbol, {
-        value: Object.create(metadata.value),
-        enumerable: false,
-        configurable: true,
-        writable: false
-      });
-    }
-    copyStaticProperties(EntityClass, Clone, metadata?.symbol);
-    return Clone;
-  });
-}
+export { cloneEntityClasses } from '@aiao/rxdb/testing';
 
 export const adapterConstructionSuite = getSharedSuite(
   './__tests__/shared-adapter-construction.suite.ts',

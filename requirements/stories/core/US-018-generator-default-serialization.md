@@ -69,7 +69,7 @@ return renderMetadataValue(plainMetadata, 0, 'metadata');
 `id` / `createdAt` / `updatedAt` 全是 `() => uuid()` / `() => new Date()`，每个实体都继承。若实现时把遍历源
 换成"更直觉"的 `propertyMap`（那才是全部属性的入口），G2 的函数工厂规则会让**每一个实体**生成失败。
 
-同理，`registerAbstractMetadata()`（[RxDBClientGenerator.ts:357](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L357)）
+同理，`registerAbstractMetadata()`（[RxDBClientGenerator.ts:346](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L346)）
 登记的抽象元数据只进 `metadataMap`、不进 `metadataSet`，因此不被序列化。这两条都由 AC#7 显式验证。
 
 ### G2 — `default` 值到生成字面量的映射表
@@ -221,9 +221,9 @@ G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该
   把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。两者已经在同一个文件里碰面：
   `RxDBClientGenerator.ts` 同时导入两个，靠 [L29](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L29)
   的 `transitionMetadata as transitionMetadataUtil` 别名区分——**本故事要改的是带 `Util` 后缀的那个**
-  （调用点 [L492](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L492) /
-  [L532](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L532)），
-  L302 的 `transitionMetadata(meta_options, options)` 是 core 的那个，不要动。
+  （调用点 [L499](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L499) /
+  [L537](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L537)），
+  L291 的 `transitionMetadata(meta_options, options)` 是 core 的那个，不要动。
 - 渲染入口 `renderMetadataValue()` 目前假定输入已是 plain 值；改成类型分派后，`renderToken()` 的
   `PropertyType.*` / `RelationKind.*` 还原逻辑必须继续生效，不得因为遍历顺序调整而丢失。
 - AC#5 与 AC#1/#2 是**互为前提**的两条路径：往返存在时函数已被 `JSON.stringify` 丢弃，AC#5 的失败分支结构上跑不到。

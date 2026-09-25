@@ -13,7 +13,7 @@
  * 条目随作用域对象一起被 GC。
  *
  * 三块内容的分工：`write-entrance.ts` 是入口词汇表，`trusted-write-intent.ts` 是意图枚举与
- * 9 行调用点登记表，`trusted-write-scope.ts` 是作用域化的声明/取用。
+ * 11 行调用点登记表，`trusted-write-scope.ts` 是作用域化的声明/取用。
  */
 export * from './trusted-write-intent.js';
 export * from './trusted-write-scope.js';

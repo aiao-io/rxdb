@@ -2,7 +2,7 @@
  * @fileoverview `upsertMany()` / `deleteByIds()` 的写门禁（adapter-contract.md §1.1、挂载点 4）。
  *
  * @remarks
- * 这两个方法**不经 `rawQuery`**，5 步 bypass 判定够不到它们；不显式挂载就是一个敞口。
+ * 这两个方法**不经 `rawQuery`**，4 步 bypass 判定够不到它们；不显式挂载就是一个敞口。
  *
  * 它们又是四个捕获挂载点里唯一返回 `Observable<void>` 的，于是「先判定再执行」不再是自然而然的：
  * 把判定写进 `defer(() => …)` 里同样能编译、同样能在订阅时抛出正确的错误，单看错误类型的测试也会绿。
@@ -14,10 +14,22 @@
  * 的话，六个适配器里少写一次、写晚一次都没有任何东西能发现。
  */
 
+import type { InterceptedBulkWrite } from '@aiao/rxdb';
 import { classifyWriteEntrance, WorkingTreeWriteRejectedError, type WriteTargetClass } from './write-entry-matrix.js';
 
-/** 受门禁约束的两个 adapter 公开批量写方法。 */
-export type BulkWriteOperation = 'upsert_many' | 'delete_by_ids';
+/**
+ * 受门禁约束的两个 adapter 公开批量写方法。
+ *
+ * @remarks
+ * **是核心 {@link InterceptedBulkWrite} 的别名，不是第二份声明。** 这个集合随**核心的写原语**变
+ * （多一个批量写方法就多一个挂载点），按 `capture/index.ts` 立的那条线它归核心；插件这边只是把
+ * 同一个集合换个本地名字用。
+ *
+ * 各写一遍的形态下，核心加第三个操作**不会有任何编译错误**——插件的副本照旧只有两项，门禁于是
+ * 对新方法一律按「不认识」处理，敞口静默出现。改成别名之后，本文件下方三张 `Record<…>` 查找表
+ * 的穷尽性检查会当场变红，漏改改不过去。
+ */
+export type BulkWriteOperation = InterceptedBulkWrite;
 
 /**
  * 一次批量写的判定输入

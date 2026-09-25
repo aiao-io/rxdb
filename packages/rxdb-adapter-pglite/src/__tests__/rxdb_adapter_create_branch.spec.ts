@@ -1,7 +1,7 @@
 /**
  * T072: 分支创建测试
  *
- * 测试 rxdb_adapter_create_branch 功能，确保与 SQLite 行为一致
+ * 测试 PGlite 后端下的 `versionManager.createBranch`，确保与 SQLite 行为一致
  */
 
 import { RxDB, SyncType } from '@aiao/rxdb';
@@ -13,7 +13,6 @@ import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 describe('分支创建 (createBranch)', () => {
   let rxdb: RxDB;
-  let adapter: RxDBAdapterPGlite;
   const dbName = `branch-test-${Date.now()}`;
 
   beforeAll(async () => {
@@ -27,10 +26,7 @@ describe('分支创建 (createBranch)', () => {
       }
     });
 
-    rxdb.adapter('pglite', async db => {
-      adapter = new RxDBAdapterPGlite(db, { store: 'memory' });
-      return adapter;
-    });
+    rxdb.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));
 
     rxdb.use(rxDBPluginHistory);
     await rxdb.connect('pglite');

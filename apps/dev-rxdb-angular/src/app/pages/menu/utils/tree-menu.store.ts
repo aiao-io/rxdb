@@ -288,8 +288,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     });
 
     const options = getEntityMutations<C>({
-      need_save_entities: children,
-      need_remove_entities: [menu]
+      needSaveEntities: children,
+      needRemoveEntities: [menu]
     });
 
     await this.rxdb.entityManager.mutations(options);

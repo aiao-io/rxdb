@@ -19,7 +19,7 @@ import {
 
 // 更新路径的实体归一化走核心的唯一一份实现（sqlite-core 同样再导出这一份）：本地再写一遍
 // 就是第二份真相，而这一份决定的是「值落到哪个列」——两份分家的代价是把数据写到相邻的列上。
-export { normalizeUpdateEntity } from '@aiao/rxdb';
+export { normalizeCreateEntity, normalizeUpdateEntity } from '@aiao/rxdb';
 
 /**
  * 加密上下文，贯穿所有可能接触加密列的 PGlite 辅助函数。
@@ -489,43 +489,6 @@ export const transformEntityValueToSql = async (
   }
 
   return needSave;
-};
-
-/**
- * 规范化创建实体的字段（过滤可写字段）
- *
- * @remarks
- * 判定看的是**值不为 `undefined`**，不是 `key in entity`：`target: es2025` 下
- * `useDefineForClassFields` 默认开启，`updatedAt!: Date` 这行字段声明本身就会在实例上装出一个
- * 值为 `undefined` 的自有属性，键恒在。按键判定等于把「没赋值」也写进 INSERT，
- * 而 {@link transformValueJsToPGlite} 把 `undefined` 归一成 `null`——建表时那句 `DEFAULT now()`
- * 于是永远不生效，`rxdb_working_tree_state.updatedAt` 这类 NOT NULL + DEFAULT 的列直接 23502。
- *
- * 显式的 `null` 照常写：「没给值」与「就是要清空」是两件事，只有后者该压过 DB 端默认值。
- */
-export const normalizeCreateEntity = (metadata: EntityMetadata, entity: object): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-
-  // 处理属性
-  for (const [key, property] of metadata.propertyMap) {
-    const value = Reflect.get(entity, key);
-    if (value !== undefined) {
-      result[property.columnName] = value;
-    }
-  }
-
-  // 处理外键 - 兼容没有 foreignKeyColumnNames 的情况
-  const foreignKeyNames = metadata.foreignKeyNames || [];
-  const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
-  for (let i = 0; i < foreignKeyNames.length; i++) {
-    const key = foreignKeyNames[i];
-    const value = Reflect.get(entity, key);
-    if (value !== undefined) {
-      result[foreignKeyColumnNames[i]] = value;
-    }
-  }
-
-  return result;
 };
 
 /**

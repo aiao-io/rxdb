@@ -48,15 +48,66 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 不要顺手改成取常量。
  */
 export const RXDB_SYSTEM_SCHEMA_VERSION = 6 as const;
+
+/**
+ * 系统表结构水位行的名字前缀
+ *
+ * @remarks
+ * 水位不单开一张表，而是**借 `rxdb_migration` 的一行**记录：名字形如
+ * `__rxdb_system_schema__:6`，版本号编码在前缀之后。这样「读版本」和「记版本」天然复用
+ * 迁移表已有的唯一索引与事务语义——版本推进和产生它的那批 DDL 在同一个事务里落盘，
+ * 不存在「DDL 成功但版本没记上」的中间态。
+ *
+ * 代价是这个前缀落在了用户迁移的命名空间里：双下划线包裹是为了不与用户迁移名相撞。
+ * {@link getRxDBSystemVersionState} 按 `startsWith` 认它，所以**前缀一旦发布就不能改**——
+ * 改了等于既有库的水位行集体失踪，{@link isCurrentRxDBSystemVersion} 会把一个已经是最新的库
+ * 判成需要迁移，并在补记时撞上唯一索引。
+ */
 export const RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX = '__rxdb_system_schema__:' as const;
+
+/**
+ * 变更编解码版本水位行的名字前缀
+ *
+ * @remarks
+ * 与 {@link RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX} 同一套机制、同一条「发布后不可改」的约束，
+ * 但两个号**必须各占一行**：codec 版本管的是 `rxdb_change` 里已落盘负载的解码方式，
+ * 没有迁移阶梯（旧客户端读不懂新负载，只能升客户端）；schema 版本管的是表结构，落后可补。
+ * 合成一行就没法让 {@link UnsupportedRxDBSystemVersionError} 回答「该升客户端还是该跑迁移」。
+ */
 export const RXDB_CHANGE_CODEC_WATERMARK_PREFIX = '__rxdb_change_codec__:' as const;
 
+/**
+ * 当前系统表结构水位行的完整名字，适配器 `migrateSystemSchema()` 补记时写入这一条
+ *
+ * @remarks
+ * 由前缀与 {@link RXDB_SYSTEM_SCHEMA_VERSION} 模板拼接而成，因此 bump 版本号会自动带着它走——
+ * 这也是「常量停在旧值不会让任何一处编译失败」的来源，见 {@link RXDB_SYSTEM_SCHEMA_VERSION} 的说明。
+ */
 export const RXDB_SYSTEM_SCHEMA_WATERMARK =
   `${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}${RXDB_SYSTEM_SCHEMA_VERSION}` as const;
+
+/**
+ * 当前变更编解码水位行的完整名字
+ *
+ * @remarks
+ * 版本号取自 `change-codec.ts` 的 `RXDB_CHANGE_CODEC_VERSION`，与本文件的 schema 版本各自演进。
+ */
 export const RXDB_CHANGE_CODEC_WATERMARK = `${RXDB_CHANGE_CODEC_WATERMARK_PREFIX}${RXDB_CHANGE_CODEC_VERSION}` as const;
 
+/**
+ * 从迁移记录里读出来的两个版本号
+ *
+ * @remarks
+ * 全新库读到的是 `{ schemaVersion: 0, codecVersion: 0 }`——**0 表示「没有水位行」而不是「版本 0」**，
+ * 因为水位号从 1 起编（{@link getRxDBSystemVersionState} 拒绝 `0` 前缀的编码）。于是
+ * 「未初始化」和「落后」在下游是同一条路径：都不满足 {@link isCurrentRxDBSystemVersion}，
+ * 都走那一整块幂等的 `migrateSystemSchema()`。
+ */
 export interface RxDBSystemVersionState {
+  /** 系统表结构版本，`0` 表示库里还没有水位行 */
   schemaVersion: number;
+
+  /** 变更编解码版本，`0` 表示库里还没有水位行 */
   codecVersion: number;
 }
 
@@ -92,6 +143,22 @@ export interface RxDBCapabilityVersionKind {
   readonly kind: string;
 }
 
+/**
+ * 库里存着的版本号高于本进程支持的版本
+ *
+ * @remarks
+ * 这是**降级保护**，方向是单向的：只有「库比客户端新」才抛，「库比客户端旧」是正常的待迁移状态。
+ * 因为迁移阶梯只朝一个方向铺——新客户端认得怎么把旧库补上来，旧客户端不可能认得未来的表结构，
+ * 让它继续读写等于按一份自己读不懂的 schema 写数据。
+ *
+ * 除了水位比较，{@link getRxDBSystemVersionState} 在**水位行本身畸形**时也抛它
+ * （版本段不是正整数、或超出安全整数范围），同样是 fail-closed：一行认不出来的水位
+ * 说明这个库不是本实现写的，猜不得。
+ *
+ * `kind` 收两种形态：核心自己的两个号传字符串（见 {@link RxDBSystemVersionKind}），
+ * 插件能力的号传 {@link RxDBCapabilityVersionKind} 以便消息里带上该升哪个包。
+ * **核心两个号的消息逐字节不可变**——`migration.spec.ts` 按 `stringContaining` 认它们。
+ */
 export class UnsupportedRxDBSystemVersionError extends Error {
   override readonly name = 'UnsupportedRxDBSystemVersionError';
 
@@ -107,6 +174,18 @@ export class UnsupportedRxDBSystemVersionError extends Error {
   }
 }
 
+/**
+ * 拿不到系统迁移所需的排他锁，本次迁移整体未执行
+ *
+ * @remarks
+ * 由适配器抛出，触发条件是「此刻改 schema 不安全」而不是「改失败了」：PGlite 走
+ * `LOCK TABLE ... NOWAIT` 拿不到锁、或 `hasStoragePeer()` 报告另一个客户端正持有同一份持久化存储；
+ * sqlite 系走各自绑定的等价判据。两种情况下 DDL 一行都没落地——检查在事务里、抢先返回，
+ * 所以收到它时库还停在迁移前的完整状态，**不需要任何回滚补偿**。
+ *
+ * 不做自动重试是有意的：持有方通常是用户的另一个标签页或另一个进程，重试只会在锁上空转。
+ * 调用方应把它当作「请关掉另一个打开该库的窗口后重开」报给用户。
+ */
 export class RxDBSystemMigrationLockError extends Error {
   override readonly name = 'RxDBSystemMigrationLockError';
 
@@ -177,6 +256,20 @@ const readWatermarkVersion = (
   return version;
 };
 
+/**
+ * 从迁移名集合里解出两个版本号。
+ *
+ * @param migrationNames - `rxdb_migration` 全表的 `name` 列，顺序无关
+ * @returns 两个号各自的最大值；没有对应水位行时为 `0`
+ * @throws {@link UnsupportedRxDBSystemVersionError} 任一水位行的版本段畸形时
+ *
+ * @remarks
+ * 取 `max` 而不是「最后一条」：水位行是历次迁移累积下来的，一个升到 6 的库里
+ * `__rxdb_system_schema__:4` 那行仍在（迁移记录不删，删了等于丢掉执行历史），
+ * 而迁移表的读取顺序不保证。
+ *
+ * 用户自己的迁移名一律被跳过（前缀不匹配即 `undefined`），不会误判成水位。
+ */
 export const getRxDBSystemVersionState = (migrationNames: Iterable<string>): RxDBSystemVersionState => {
   let schemaVersion = 0;
   let codecVersion = 0;
@@ -193,6 +286,17 @@ export const getRxDBSystemVersionState = (migrationNames: Iterable<string>): RxD
   return { schemaVersion, codecVersion };
 };
 
+/**
+ * 断言库的版本不高于本进程支持的版本，否则拒绝打开。
+ *
+ * @param state - {@link getRxDBSystemVersionState} 的结果
+ * @throws {@link UnsupportedRxDBSystemVersionError} 任一号高于本进程常量时
+ *
+ * @remarks
+ * 只拦「库比客户端新」。落后（含全新库的 `0`）在这里一律放行——那是
+ * {@link isCurrentRxDBSystemVersion} 接手、由适配器补迁移的正常路径，
+ * 在这里拦住会让所有需要升级的库都打不开。
+ */
 export const assertSupportedRxDBSystemVersions = (state: RxDBSystemVersionState): void => {
   if (state.schemaVersion > RXDB_SYSTEM_SCHEMA_VERSION) {
     throw new UnsupportedRxDBSystemVersionError('system schema', state.schemaVersion, RXDB_SYSTEM_SCHEMA_VERSION);
@@ -202,6 +306,21 @@ export const assertSupportedRxDBSystemVersions = (state: RxDBSystemVersionState)
   }
 };
 
+/**
+ * 判断库是否已经停在当前水位，两个号都相等才算。
+ *
+ * @param state - {@link getRxDBSystemVersionState} 的结果
+ * @returns 两个号都与本进程常量相等时返回 `true`
+ *
+ * @remarks
+ * 各适配器 `migrateSystemSchema()` 唯一的门：`true` 直接返回，`false` 走那一整块**幂等**修复。
+ * 因为幂等，停在 4、停在 5、和全新的 `0` 共用同一条路径，适配器不需要按版本分支
+ * （见 {@link RXDB_SYSTEM_SCHEMA_VERSION} 里 6 号水位的说明）。
+ *
+ * 用**相等**而不是 `>=`：库比进程新时这里返回 `false` 会把它推进迁移路径，
+ * 而那份 DDL 只认得往当前水位补。该情况由 {@link assertSupportedRxDBSystemVersions} 在更早处拦掉，
+ * 两者必须成对调用。
+ */
 export const isCurrentRxDBSystemVersion = (state: RxDBSystemVersionState): boolean =>
   state.schemaVersion === RXDB_SYSTEM_SCHEMA_VERSION && state.codecVersion === RXDB_CHANGE_CODEC_VERSION;
 

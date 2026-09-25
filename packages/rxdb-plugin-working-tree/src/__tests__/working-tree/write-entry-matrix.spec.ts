@@ -5,7 +5,7 @@
  * 实现目标是 `src/working-tree/write-entry-matrix.ts` 里的一个纯判定：给定「谁在写、写哪张表、
  * 写了哪些列」，回答「这次写要不要落工作树单元、要不要递增 revision、还是干脆不许写」。
  * 四个挂载点（T058–T061）与六个适配器的 `rawQuery`（T064）都调它，**一份判定，多处调用**——
- * 与 5 步 bypass 判定同一个理由：同一张表在十处各解释一遍，十处就会慢慢解释成十个样子。
+ * 与 4 步 bypass 判定同一个理由：同一张表在十处各解释一遍，十处就会慢慢解释成十个样子。
  *
  * 为什么这些断言值得写：
  *
@@ -318,7 +318,7 @@ describe('行 9 — raw SQL / adapter 直写 / 其他 trigger bypass', () => {
   });
 
   matrixCase(MATRIX_ROW.rawWrite, '只触及 untracked 字段域 → 放行，且同样不建单元', () => {
-    // 5 步判定第 5 步：放行的 raw 元数据写不会因为「是 raw」而获得一个单元，也不会递增 revision。
+    // 4 步判定第 4 步：放行的 raw 元数据写不会因为「是 raw」而获得一个单元，也不会递增 revision。
     expect(classifyWriteEntrance(request({ entrance: 'raw_write', columns: columns('remoteId') }))).toEqual({
       kind: 'no_capture',
       reason: 'no_net_change',

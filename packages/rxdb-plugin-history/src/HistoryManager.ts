@@ -9,6 +9,7 @@ import {
   RxDB,
   RxDBBranch,
   RxDBChange,
+  SKIP_BRANCH_SWITCH_PREPARE,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import {
@@ -499,13 +500,18 @@ export class HistoryManager {
   /**
    * 使 redo 栈失效。全部 trigger id ≤ {@link #redoInvalidationFloor} 视为迟到通知，跳过。
    *
+   * @remarks
+   * 这里**不查** `isUndoRedoInProgress` / `isInvalidatingRedo`：undo、redo 与本方法三个入口
+   * 全部排进 {@link HistoryManager.#runSerialized}，两个标志又只在同一个序列化任务内部置起
+   * 再复位，因此轮到本任务时它们必然已复位——查了也是一条走不到的分支。下面那句
+   * `isInvalidatingRedo = true` 留着是给 {@link HistoryManager.isExecutingUndoRedo} 读的，
+   * 真正生效的守卫在调用方 `VersionManager` 的 `if (!historyManager.isExecutingUndoRedo())`，
+   * 它连 `syncDepth` 一起看，覆盖比这里严。
+   *
    * @internal
    */
   async invalidateRedoStack(triggerChangeIds?: readonly number[]): Promise<void> {
     return this.#runSerialized(async () => {
-      if (this.isUndoRedoInProgress || this.isInvalidatingRedo) {
-        return;
-      }
       if (triggerChangeIds?.length && triggerChangeIds.every(id => id <= this.#redoInvalidationFloor)) {
         return;
       }
@@ -542,7 +548,8 @@ export class HistoryManager {
         // 不传 branchId：这里只想把 actions 套用在**当前**分支上。自己先查再传会留下一个
         // 采样窗口——本方法是 detached 任务（变更通知还会被批处理 / 跨进程延迟），窗口内的一次
         // 真实 switchBranch 会让这条调用把 activated 与全部触发器倒回旧分支。
-        await adapter.switchBranch({ actions });
+        // 同上：分支不换，没有前置条件可校验。
+        await adapter.switchBranch({ actions, prepare: SKIP_BRANCH_SWITCH_PREPARE });
 
         this.clearRedoStack();
       } catch (error) {

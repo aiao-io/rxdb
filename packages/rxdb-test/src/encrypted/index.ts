@@ -10,5 +10,6 @@ export { runChangeLogSuite } from './change-log.suite.js';
 export { runCrudSuite, runQueryValidationSuite } from './crud.suite.js';
 export * from './fixtures.js';
 export { runLifecycleSuite } from './lifecycle.suite.js';
+export { queryCountOf, registerQueryCount } from './query-count.js';
 export { runTamperSuite } from './tamper.suite.js';
 export * from './types.js';

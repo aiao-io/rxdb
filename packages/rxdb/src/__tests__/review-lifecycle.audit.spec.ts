@@ -2,16 +2,21 @@ import { firstValueFrom } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { RxDB } from '../RxDB.js';
 import { SyncType } from '../entity/metadata-options.interface.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 function createDatabase() {
-  return new RxDB({
-    dbName: `review-lifecycle-${crypto.randomUUID()}`,
-    entities: [],
-    multiInstance: false,
-    sync: { type: SyncType.None, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
-  });
+  return trackRxDB(
+    new RxDB({
+      dbName: `review-lifecycle-${crypto.randomUUID()}`,
+      entities: [],
+      multiInstance: false,
+      sync: { type: SyncType.None, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
+    })
+  );
 }
+
+const { trackRxDB } = registerRxDBTeardown();
 
 describe('review 生命周期边界', () => {
   it('只重连一个适配器也应更新持续订阅持有的实例', async () => {

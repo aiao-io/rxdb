@@ -18,190 +18,37 @@
  * `VersionManager` 上），三端入口因此都改成收整个库。末尾的清单守卫把这件事写成断言而不是
  * 注释：哪一项现在该在、哪一项现在不该在，都由 `deliveredIn` 一列说了算 —— `switchBranch`
  * 那一行今天就是被它逼着从「不该有」翻成「该有」的，而不是被想起来的。
+ *
+ * **载荷与桩在 `@aiao/rxdb-plugin-working-tree/testing`。** 三端断言的是同一份契约，那份契约的
+ * 形状就只该有一处：核心里改一个字段名时三端一起红，而不是漏掉的那一端继续拿一份过期载荷
+ * 去调用一个什么都不校验的桩。留在本文件里的是三端**真正**不同的那一半 —— 容器形态与挂载
+ * 方式。
  */
 import type { RxDB } from '@aiao/rxdb';
 import {
   CommitValidationError,
   WorkingTreeDirtyError,
-  type CommitCapabilityInfo,
-  type CommitChangeSetPage,
-  type CommitLogPage,
   type CommitResult,
-  type WorkingTreeCredentials,
-  type WorkingTreeDiff,
-  type WorkingTreeDiscardResult,
-  type WorkingTreeManager,
   type WorkingTreeRestoreResult,
-  type WorkingTreeRestoreSessionInfo,
-  type WorkingTreeRestoreTarget,
   type WorkingTreeStatus,
   type WorkingTreeSwitchBranchOptions
 } from '@aiao/rxdb-plugin-working-tree';
+import {
+  createWorkingTreeHookStubs,
+  CREDENTIALS,
+  deferred,
+  diffWith,
+  logWith,
+  REJECTED_RESTORES,
+  RESTORE_OK,
+  RESTORE_TARGET,
+  sessionWith,
+  statusWith
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, renderHook, type RenderHookResult } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { useWorkingTree, type WorkingTreeResource } from '../use-working-tree.js';
-
-/** 手控的 promise：不控住它，`loading` 在第一个 await 之前就已经翻过去了。 */
-// `.tsx` 里裸 `<T>` 会被当成 JSX 开标签，拖尾逗号是消歧义的标准写法。
-const deferred = <T,>() => {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-};
-
-const statusWith = (entryCount: number): WorkingTreeStatus => ({
-  branchId: 'main',
-  entryCount,
-  clean: entryCount === 0,
-  restoring: false,
-  conflicted: false,
-  byOrigin: { local: entryCount, remote_sync: 0 },
-  activationRevision: 1,
-  headRevision: 2,
-  workingTreeRevision: 3
-});
-
-const diffWith = (entryCount: number): WorkingTreeDiff => ({
-  branchId: 'main',
-  baseHeadCommitId: 'commit-1',
-  workingTreeRevision: 3,
-  granularity: 'entity',
-  entries: Array.from({ length: entryCount }, (_, index) => ({
-    unitId: `unit-${index}`,
-    transactionId: null,
-    namespace: 'app',
-    entity: 'Note',
-    entityId: `note-${index}`,
-    operation: 'update' as const,
-    patch: { title: '改后' },
-    inversePatch: { title: '改前' },
-    origin: 'local' as const
-  })),
-  transactions: [],
-  nextCursor: null
-});
-
-const logWith = (entryCount: number): CommitLogPage => ({
-  branchId: 'main',
-  headCommitId: entryCount === 0 ? null : 'commit-1',
-  entries: Array.from({ length: entryCount }, (_, index) => ({
-    commitId: `commit-${index}`,
-    parentIds: [],
-    firstParentId: null,
-    kind: 'normal' as const,
-    message: `提交 ${index}`,
-    authorId: 'alice',
-    createdAt: new Date(0),
-    changeSetCount: 1
-  }))
-});
-
-/**
- * 一行未结束的恢复会话。
- *
- * @remarks
- * `status` 由调用方给：`conflicted` 也是「还在」的一种，而它必须照样落在 `success`——
- * 那种会话仍占着 `activeKey` 的唯一索引、仍拦着下一次 restore、仍要用户处理掉。
- */
-const sessionWith = (status: WorkingTreeRestoreSessionInfo['status']): WorkingTreeRestoreSessionInfo => ({
-  id: 'session-1',
-  branchId: 'main',
-  targetCommitId: 'commit-1',
-  status
-});
-
-/** 一次写进三条条目的成功恢复。 */
-const RESTORE_OK = {
-  ok: true,
-  restoredCount: 3,
-  sessionId: 'session-1',
-  workingTreeRevision: 4
-} satisfies WorkingTreeRestoreResult;
-
-/**
- * 四个被拒出口各一份**完整**载荷。
- *
- * @remarks
- * 四种全列而不是挑一种代表：`reason` 是判别位，而 `conflict` / `incompatible` 只挂在其中两个
- * 分支上。只测 `dirty_working_tree` 的话，「带载荷的那两种有没有被原样带到 `success` 相位里」
- * 在本端永远没人问过——而界面要显示的恰恰是那两份载荷。
- */
-const REJECTED_RESTORES = [
-  {
-    ok: false,
-    reason: 'conflict',
-    conflict: { kind: 'working_tree_revision', expected: 3, actual: 4, branchId: 'main' }
-  },
-  { ok: false, reason: 'dirty_working_tree' },
-  {
-    ok: false,
-    reason: 'incompatible_schema',
-    incompatible: {
-      commitId: 'commit-1',
-      direction: 'reverse',
-      namespace: 'app',
-      entity: 'Note',
-      manifest: { codecVersion: 1, entityResolved: false }
-    }
-  },
-  { ok: false, reason: 'unreachable_target' }
-] as const satisfies readonly WorkingTreeRestoreResult[];
-
-/**
- * 一组调用方捕获的凭据。
- *
- * @remarks
- * `satisfies` 不是装饰：三个捕获位的形状一旦在核心里变了，这里必须先红。写成裸对象
- * 字面量的话，spec 会继续拿一份早已过期的凭据调用桩，而桩什么都不校验 —— 于是
- * 「三端传的凭据还对不对」这件事在本文件里永远绿。
- *
- * `expectedBranch` 是**令牌**而不是一个 `branchId` 字符串：`main → feature → main`
- * 一个来回之后分支 id 又「对上了」，而工作树已经换过两轮（`ActiveBranchToken`）。
- */
-const CREDENTIALS = {
-  expectedBranch: { branchId: 'main', activationRevision: 1 },
-  expectedHeadRevision: 2,
-  expectedWorkingTreeRevision: 3
-} satisfies WorkingTreeCredentials;
-
-/** 整份恢复：`entities` 缺省即目标 commit 的全部单元。 */
-const RESTORE_TARGET: WorkingTreeRestoreTarget = { commitId: 'commit-1' };
-
-/** 桩到 `RxDB.workingTree` 那一层；再往下是核心自己的事，不在本端重测。 */
-const createStub = () => {
-  const workingTree = {
-    isEnabled: vi.fn<() => Promise<boolean>>(),
-    enable: vi.fn<() => Promise<CommitCapabilityInfo>>(),
-    status: vi.fn<() => Promise<WorkingTreeStatus>>(),
-    diff: vi.fn<() => Promise<WorkingTreeDiff>>(),
-    listCommits: vi.fn<() => Promise<CommitLogPage>>(),
-    commitChanges: vi.fn<() => Promise<CommitChangeSetPage>>(),
-    commit: vi.fn<() => Promise<CommitResult>>(),
-    discard: vi.fn<() => Promise<WorkingTreeDiscardResult>>(),
-    restore: vi.fn<() => Promise<WorkingTreeRestoreResult>>(),
-    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>()
-  };
-  workingTree.status.mockResolvedValue(statusWith(0));
-  return workingTree;
-};
-
-/**
- * 桩到 `RxDB.versionManager` 那一层 —— 清单第十项 `switchBranch` 挂在这里，不在 `workingTree`
- * 上（contracts/core-api.md §6）。两个门面分开桩而不是合成一个对象：合起来之后
- * 「入口从哪个门面取这个方法」在本端就没人问过了，而那正是 T123 唯一改动的接线。
- */
-const createVersionManagerStub = () => {
-  const versionManager = {
-    switchBranch: vi.fn<(branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>>()
-  };
-  versionManager.switchBranch.mockResolvedValue(undefined);
-  return versionManager;
-};
 
 const renderWithProvider = (rxdb: RxDB): RenderHookResult<WorkingTreeResource, unknown> =>
   renderHook(() => useWorkingTree(), {
@@ -209,12 +56,7 @@ const renderWithProvider = (rxdb: RxDB): RenderHookResult<WorkingTreeResource, u
   });
 
 const createFixture = () => {
-  const workingTree = createStub();
-  const versionManager = createVersionManagerStub();
-  const rxdb = {
-    workingTree: workingTree as unknown as WorkingTreeManager,
-    versionManager
-  } as unknown as RxDB;
+  const { workingTree, versionManager, rxdb } = createWorkingTreeHookStubs();
   const rendered = renderWithProvider(rxdb);
   // 方法引用跨 render 稳定，状态字段不稳定 —— 读状态必须每次重新取 `result.current`。
   return { workingTree, versionManager, tree: () => rendered.result.current };
@@ -222,6 +64,10 @@ const createFixture = () => {
 
 /** 让已经 resolve 的微任务跑完；不做真实计时。 */
 const flush = () => act(async () => undefined);
+
+/** 取出资源上的**方法**那一半；状态字段一律以 `State` 结尾，按后缀分开就够。 */
+const commandsOf = (resource: WorkingTreeResource): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(resource).filter(([key]) => !key.endsWith('State')));
 
 afterEach(cleanup);
 
@@ -656,6 +502,28 @@ describe('tri-framework-api.md §3 清单守卫', () => {
       'statusState',
       'switchBranchState'
     ]);
+  });
+
+  // 「方法引用跨 render 稳定」是 `use-working-tree.ts` 的 TSDoc 明文写下的契约，消费者会照着
+  // 把这些方法放进 `useEffect` / `useMemo` 的依赖数组。没有这条断言的话，摘掉那两个
+  // `useMemo` / `useCallback`（或给依赖数组多塞一个每次 render 都换的值）本文件一条都不会红——
+  // 红的是消费者那边一个永远重跑的 effect，而那时问题已经不在本包里了。
+  it('十二个方法的引用跨 render 稳定，状态字段则换新', async () => {
+    const { workingTree, tree } = createFixture();
+    workingTree.status.mockResolvedValue(statusWith(1));
+    const before = tree();
+    const commandsBefore = commandsOf(before);
+
+    await act(async () => void (await tree().status()));
+
+    const after = tree();
+    // 先确认这一轮真的重渲染过：状态字段没换新的话，下面那条「引用没变」是空过的。
+    expect(after.statusState).not.toBe(before.statusState);
+    expect(after).not.toBe(before);
+    const drifted = Object.keys(commandsBefore).filter(name => commandsOf(after)[name] !== commandsBefore[name]);
+    expect(drifted, '这些方法的引用在重渲染后换了新闭包').toEqual([]);
+    // 十二个方法一个不少地被比过——漏掉一半的话「全都稳定」这句话只覆盖了另一半。
+    expect(Object.keys(commandsBefore)).toHaveLength(12);
   });
 
   // 第十项的清单文字是「`switchBranch` 的 `WorkingTreeSwitchBranchOptions`」——在场还不够，

@@ -1,11 +1,11 @@
 ---
 id: US-305
 title: 提交图与 HEAD 持久化
-status: In Review
+status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-09
-updated: 2026-09-20
+updated: 2026-09-25
 tags: [collaboration, commit, head, persistence, migration]
 inherited_acs:
   - from: US-306
@@ -64,8 +64,8 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 | 阶段 | 交付                                                                                                                          | 直接前置                                                                                                               | 验收区段                | 状态 |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
-| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | 👀   |
-| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | 👀   |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ✅   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | ✅   |
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
@@ -73,11 +73,12 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   `RxDBIndexEntry` / `index_dependency_cycle` 的命中数现在都是 0，v1 的无暂存区模型已就位。两个阶段随后
   由 `specs/001-working-tree-commits/tasks.md` 的 T022～T045 落地，实现全部落在
   `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
-  状态记 👀 而不是 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已全部关闭——
+  两阶段 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已全部关闭——
   T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)` 按规格就该共享当前 HEAD），
   按规格收紧断言后 6 后端 5031 条零失败；T132 已随 reference 重新冻结复跑 ✓ PASS（四项 ratio 均 ≤110%）。
-  但重冻基线带机器负载（`frozenAbsolute.commit` 虚高约 29%），发布用的绝对门禁待机器静默复冻，`status` 容差口径
-  待评审（过程与数字留证见 [tasks.md T132](../../../specs/001-working-tree-commits/tasks.md)）。
+  性能基线的收尾归 `bench-working-tree` 的拥有者
+  [US-306 阶段 C](US-306-working-tree-commits.md)，本故事不含性能 AC，不因它们挂起
+  （过程与数字留证见 [tasks.md T132](../../../specs/001-working-tree-commits/tasks.md)）。
 - **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
   [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
   [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
@@ -87,13 +88,17 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   AC US2-14 的**红半边**（`bridge.tag` 为 `null` / 为 `v0.0.25` / 版本常量不吻合时必红）已在真实仓库上成立；
   **绿半边**（补齐后重跑通过）当前无法用真实 tag 走通——下限要求 `bridge.version` 严格大于 `0.0.25`，
   仓库里不存在这样的 tag，造一个等于伪造发布锚点。它由 `check-migration-release-gate.spec.mjs` 的 39 条
-  注入钩子单测覆盖，并等线 A 的桥接发布真实关闭，不靠这里的文字关闭（四条结论记在
-  [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)）。
+  注入钩子单测覆盖（四条结论记在 [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)）；
+  真实 tag 上的那一次重跑是发布动作的产物、不是代码交付，**由
+  [release-plan「迁移发布的关闭条件」](../../release-plan.md#迁移发布的关闭条件)承接关闭**，本故事按代码 AC 关闭，
+  不靠这里的文字宣告绿半边成立。`main` 自 #55 起已是 schema 6，桥接锚点在 `main` 上无处可切，
+  已登记为 [release-plan 开项](../../release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)，出路归 owner。
 - **发布前置核对结论**：按 [release-plan](../../release-plan.md) 逐条实测，`pnpm check-migration-release-gate` 绿
   （`bridge 0.0.25`）、`v0.0.25` 仍脱离主线、`origin/main` 上非规范标题零条且零 merge commit、bump 量 23 `feat`
   - 3 `fix`（默认推算仍落在禁用值 `0.0.25`，线 A 必须显式传版本号）。复测命令固定为 `git log -G` 而不是 `-S`
     （`-S` 比的是字符串出现次数，常量计数不变时命令恒空），定论以两端取值为准——这是门禁只比对布尔位、
-    从不读源码常量之下唯一的人工防线。**发布动作本身留给 owner**，本条不关闭 AC US2-14。
+    从不读源码常量之下唯一的人工防线。**发布动作本身留给 owner**，AC US2-14 的绿半边随之移交 release-plan。
+    （#55 合入后 `main` 两端取值为 3 → 6，已不满足硬前提 1，见上一条的开项。）
 - 阶段 A 可以在**空数据库**上独立验收（写 commit → 刷新 → 读回 log/show），不依赖迁移；阶段 B 才碰既有数据。
 - 阶段 B 的 conformance 断言并入 `workingTreeCommitConformanceSuite`（归 US-306 阶段 B 收口），本故事只落 commit 图部分的用例。
 
@@ -179,7 +184,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 11. **Given** `syncBranches()` 已建立 `local=false, remote=true` 但本地没有完整实体状态的分支，**When** 首次启用，**Then** 不为它伪造空 baseline 或 branch ref；健康本地分支照常迁移，该远端分支由 US-308 首次成功物化时原子建立 `kind=branch_baseline`。
 12. **Given** 迁移前没有 active 分支且 `main` 存在，**When** 首次启用，**Then** 沿用既有语义激活 `main` 后建立 baseline；**Given** 存在多个 `activated=true` 分支，**Then** 以 `ambiguous_active_branch` 整体失败，所有 commit capability 状态零变化，不按查询顺序任选一个——现有 `resolve_current_branch()` 的 `limit: 1` 静默取首行行为 MUST NOT 被迁移路径复用。
 13. **Given** 数据库首次启用 commit 能力，**When** 迁移事务提交，**Then** 存在唯一一行 `WorkingTreeActivationState` 且 `activationRevision = 0`，重启后可读、值不变，且其中不含第二份 active branch ID；**Given** 应用未显式启用 commit 能力，**Then** 该表不被创建。
-14. **Given** `requirements/migration-release.json` 当前为 `bridge.tag = null` / `bridge.version = null`，且历史 bridge 发布 `v0.0.25` 的 tagged commit 因 squash 已不在发布主线上（`git merge-base --is-ancestor v0.0.25 HEAD` 为 false），**When** 本故事的 system schema 迁移发布进入门禁，**Then** 门禁必须失败，直到发布主线上产出一个新的**非迁移** bridge 版本并把它的真实 tag 写入 `bridge.tag`；该 tag 必须满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 且不得是 `v0.0.25`。**Then** 补齐后重跑门禁通过，且全程不重打、移动或伪造任何已发布 tag。
+14. **Given** `requirements/migration-release.json` 当前为 `bridge.tag = null` / `bridge.version = null`，且历史 bridge 发布 `v0.0.25` 的 tagged commit 因 squash 已不在发布主线上（`git merge-base --is-ancestor v0.0.25 HEAD` 为 false），**When** 本故事的 system schema 迁移发布进入门禁，**Then** 门禁必须失败，直到发布主线上产出一个新的**非迁移** bridge 版本并把它的真实 tag 写入 `bridge.tag`；该 tag 必须满足 `git merge-base --is-ancestor <bridge-tag> <release-commit>` 且不得是 `v0.0.25`。**Then** 补齐后重跑门禁通过，且全程不重打、移动或伪造任何已发布 tag。（红半边已在真实仓库成立；「补齐后重跑通过」的绿半边由 [release-plan「迁移发布的关闭条件」](../../release-plan.md#迁移发布的关闭条件)承接，见「交付阶段与边界」。）
 15. **Given** 某个 `local=true` 分支的历史无法完整物化（所需 `RxDBChange` 已被 `cleanupExpired()` 删除、被压缩，或链上存在无法配平的 `revertChangeId`），**When** 首次启用，**Then** 迁移以稳定错误 `branch_not_materializable` 整体失败并回滚，错误指名该分支与首个断链位置；不得为它伪造 baseline、不得跳过该分支继续迁移其余分支（FR-049）。
 16. **Given** 数据库已启用 commit 能力，**When** 任一 writer 连接，**Then** 连接握手校验 `RxDBBranch.activated = true` 至少存在一行，缺失时以 `ambiguous_active_branch` 同族的稳定错误拒绝连接而非静默激活；至多一行由系统 schema 约束保证，绕过该约束的写入被数据库层拒绝（FR-048）。
 

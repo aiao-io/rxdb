@@ -34,18 +34,41 @@ const isObject = (value: unknown): value is object => typeof value === 'object' 
 
 /**
  * 判断是否是 RuleGroup
+ *
  * @param value - 要检查的值
  * @returns 如果是 RuleGroup 则返回 true，否则返回 false
+ *
+ * @remarks
+ * **浅层**判断：只校验本层的 `combinator` 与 `rules`，不递归进 `rules` 的元素。
+ * 这一层必须校验完整——谓词断言的 `RuntimeRuleGroup` 要求 `combinator` 只取
+ * `'and' | 'or'`、`rules` 是数组，谓词比断言宽的话，下游就会拿着一个类型系统
+ * 说「已经验过」的值去访问不存在的成员（`whereUsesRelations` 的
+ * `for (const rule of rg.rules)` 会直接抛 `TypeError`）。
+ *
+ * 需要连 `rules` 的每个元素一起校验的场景（`where` 来自调用方传进来的任意值，
+ * 没有别处替它把关），用 `QueryTask` 里的深校验版，它以本函数为第一步。
  */
-export const isRuleGroup = (value: unknown): value is RuntimeRuleGroup =>
-  isObject(value) && Boolean(Reflect.get(value, 'combinator'));
+export const isRuleGroup = (value: unknown): value is RuntimeRuleGroup => {
+  if (!isObject(value)) return false;
+  const combinator = Reflect.get(value, 'combinator');
+  return (combinator === 'and' || combinator === 'or') && Array.isArray(Reflect.get(value, 'rules'));
+};
 
 /**
  * 判断是否是 Rule
+ *
  * @param value - 要检查的值
  * @returns 如果是 Rule 则返回 true，否则返回 false
+ *
+ * @remarks
+ * 同 {@link isRuleGroup}：`RuntimeRule` 的 `field` / `operator` 都声明成 `string`，
+ * 谓词就得照着校验。只看 `field` 真不真会放行 `{ field: 1 }`，
+ * 而下游 `field.includes('.')`、`switch (operator)` 都按 `string` 用它。
  */
-export const isRule = (value: unknown): value is RuntimeRule => isObject(value) && Boolean(Reflect.get(value, 'field'));
+export const isRule = (value: unknown): value is RuntimeRule =>
+  isObject(value) &&
+  typeof Reflect.get(value, 'field') === 'string' &&
+  typeof Reflect.get(value, 'operator') === 'string';
 
 /**
  * 判断是否是 EXISTS/NOT EXISTS 规则

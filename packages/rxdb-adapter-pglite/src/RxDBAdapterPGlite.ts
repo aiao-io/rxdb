@@ -12,9 +12,9 @@ import {
   gateRawWrite,
   getEntityMetadata,
   getEntityStatus,
+  MAIN_BRANCH_ID,
   RxDB,
   RxDBAdapterLocalBase,
-  RxDBBranch,
   RxDBChange,
   TransactionFun
 } from '@aiao/rxdb';
@@ -56,10 +56,11 @@ import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
-import rxdb_adapter_create_branch from './version/create_branch.js';
 import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { executeSwitchStatements } from './version/execute_switch_statements.js';
+import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
-import { switch_branch } from './version/switch_branch.js';
+import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
 
 /**
@@ -412,13 +413,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }
   }
 
-  /** 创建分支后冲刷 NOTIFY。 */
-  async createBranch(branchId: string, fromChangeId?: number): Promise<InstanceType<typeof RxDBBranch>> {
-    const branch = await rxdb_adapter_create_branch(this, branchId, fromChangeId);
-    await this.#flushPendingChangePipeline();
-    return branch;
-  }
-
   /** 切换分支期间抑制 `rxdb_branch` NOTIFY。 */
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
     this.#suppressedChangeTables.add('rxdb_branch');
@@ -496,6 +490,14 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @param EntityTypes - 实体类型数组
    * @param entities - 初始化数据（可选）
    * @returns 是否成功创建
+   *
+   * @remarks
+   * 变更触发器分两步：`create_tables_statements` 先按根分支生成（纯生成器，没有连接，读不到当前
+   * 分支），跑完之后再由本方法按库此刻停在的分支重挂一次。两步都在**同一个**事务里，外面看不到
+   * 中间态。合成一步要么让纯生成器长出一次数据库读，要么让调用方先读——而能读到答案的时刻恰好
+   * 在建表语句之后（见 {@link readBranchIdForNewTables}）。
+   *
+   * 重挂范围收窄到 `EntityTypes`，理由见 {@link generateBranchTriggerSqlFor}。
    */
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
     return this.bootstrapTransaction(async executor => {
@@ -505,6 +507,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       }
       for (const tableName of ['rxdb_change', 'rxdb_branch', 'rxdb_migration']) {
         await (executor as PGliteTransactionExecutor).queryRaw(generateNotifyTriggerSQL(tableName));
+      }
+      // 必须用 executor 的门面读写，不能用 `this`：队列只有一个槽位，正被本事务占着，
+      // 从 `this` 发出去的查询会重新入队排在自己身后，永久挂起（同 execute_switch_actions）。
+      const sink = (executor as PGliteTransactionExecutor).adapter;
+      const branchId = await readBranchIdForNewTables(sink);
+      if (branchId !== MAIN_BRANCH_ID) {
+        await executeSwitchStatements(sink, generateBranchTriggerSqlFor(this, branchId, EntityTypes));
       }
       return true;
     }, false);
@@ -568,24 +577,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       [metadata.namespace, metadata.tableName]
     );
     return result.rows as PgliteTableColumn[];
-  }
-
-  /**
-   * 获取本地分支仓库
-   *
-   * @returns 分支仓库实例
-   */
-  localRxDBBranch() {
-    return this.getRepository<typeof RxDBBranch, PGliteRepository<typeof RxDBBranch>>(RxDBBranch);
-  }
-
-  /**
-   * 获取本地变更仓库
-   *
-   * @returns 变更仓库实例
-   */
-  localRxDBChange() {
-    return this.getRepository<typeof RxDBChange, PGliteRepository<typeof RxDBChange>>(RxDBChange);
   }
 
   /**

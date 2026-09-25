@@ -16,9 +16,10 @@
  *    §3 改一格两边同时红；抄一份过来的话，改契约只会红在核心那一侧，这一侧照旧全绿——
  *    而全绿的那一侧恰好是判「捕获规则要不要跟着改」的那一侧。
  *
- * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**9 行里恰好 2 行不产生单元**——
- * #1 分支物化与 #3 redo 失效。这两条是「受信写不一定进工作树」的全部证据；多出第三行
- * 意味着某条真实编辑路径的痕迹被悄悄咽掉了，少一行则意味着库自己的簿记开始落进用户的工作树。
+ * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**10 行里恰好 3 行不产生单元**——
+ * #1 分支物化、#3 redo 失效与 #10 metadata-only 接管路径的物化屏障。这三条是「受信写不一定进
+ * 工作树」的全部证据；多出一行意味着某条真实编辑路径的痕迹被悄悄咽掉了，少一行则意味着库自己的
+ * 簿记开始落进用户的工作树。
  */
 
 import { TRUSTED_CALLSITE_REGISTRY } from '@aiao/rxdb';
@@ -59,17 +60,22 @@ const CONTRACT_PRODUCES_ENTRY: readonly boolean[] = sectionOf(ADAPTER_CONTRACT, 
 
 describe('adapter-contract.md §3 第 7 列：产生工作树单元', () => {
   it('这一列由矩阵算出，不从登记表字段里读', () => {
-    // 前置：契约那张表确实解析出了 9 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
-    // 全绿——被守住的就从「9 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
+    // 前置：契约那张表确实解析出了 11 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
+    // 全绿——被守住的就从「11 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
     expect(CONTRACT_PRODUCES_ENTRY).toHaveLength(TRUSTED_CALLSITE_REGISTRY.length);
     const computed = TRUSTED_CALLSITE_REGISTRY.map(row => producesWorkingTreeEntry(row));
     expect(computed).toEqual(CONTRACT_PRODUCES_ENTRY);
   });
 
-  it('不产生单元的恰好是 #1 分支物化与 #3 redo 失效', () => {
+  it('不产生单元的恰好是 #1 分支物化、#3 redo 失效与 #10 / #11 接管路径的分支物化', () => {
     const notProducing = TRUSTED_CALLSITE_REGISTRY.filter(row => !producesWorkingTreeEntry(row)).map(
       row => `${row.file}·${row.symbol}`
     );
-    expect(notProducing).toEqual(['VersionManager.ts·switchBranch', 'HistoryManager.ts·invalidateRedoStack']);
+    expect(notProducing).toEqual([
+      'VersionManager.ts·switchBranch',
+      'HistoryManager.ts·invalidateRedoStack',
+      'materialize-branch.ts·switchWithMaterialization',
+      'materialize-branch.ts·applyMaterializedActions'
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 import { EntityType } from '@aiao/rxdb';
-import { FindTreeOptions, ITreeRepository } from '@aiao/rxdb-plugin-tree';
+import type { FindTreeOptions, ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import {
   generate_entity_count_ancestors_sql,
   generate_entity_count_descendants_sql,

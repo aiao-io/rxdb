@@ -7,6 +7,9 @@ import { createEntityProxy as createProxy } from '../../entity/proxy.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('proxy', () => {
   @Entity({
@@ -54,16 +57,18 @@ describe('proxy', () => {
     createProxy<typeof ProxyTestEntity>(entity) as unknown as ProxyTestEntity;
 
   beforeAll(async () => {
-    const rxdb = new RxDB({
-      dbName: 'proxy-test',
-      entities: [ProxyTestEntity, ProxyRelationOwner, ProxyRelationTarget],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    const rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'proxy-test',
+        entities: [ProxyTestEntity, ProxyRelationOwner, ProxyRelationTarget],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

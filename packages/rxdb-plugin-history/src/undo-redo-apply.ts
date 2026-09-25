@@ -13,6 +13,7 @@ import {
   RxDBSync,
   type RxDBSyncOrderByField,
   type RxDBSyncRuleGroup,
+  SKIP_BRANCH_SWITCH_PREPARE,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
@@ -175,7 +176,8 @@ export async function applyUndoRedoHistories(
     });
     // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
     // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
-    await adapter.switchBranch({ actions });
+    // 分支一动不动，所以没有前置条件可校验——这里的豁免是一句「我确实不需要」，不是漏传。
+    await adapter.switchBranch({ actions, prepare: SKIP_BRANCH_SWITCH_PREPARE });
 
     host.pushableCountTrigger$.next(Date.now());
     host.setRevertStateWatermarks(changes, operation === 'undo', stateUpdatedAt);

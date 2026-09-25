@@ -259,14 +259,14 @@
 - **FR-011**（阶段 B）：系统 MUST 在 commit 成功后清除**全部**已提交的工作树单元，使工作树回到 clean 并以新 commit 为基线；不存在提交后的残量与 rebase。
 - **FR-016**（阶段 B）：系统 MUST 支持 `discardWorkingTree()`，范围是把当前分支工作树整体回到当前 HEAD；工作树已 clean 时是 no-op。
 - **FR-023**（阶段 C）：系统 MUST 为异步命令提供 loading、success、error，为查询额外提供 empty；错误必须说明操作、对象和恢复建议。
-- **FR-026**（阶段 C，口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median 的 110% 为硬门禁；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
+- **FR-026**（阶段 C，口径见 Success Criteria）：`bench-working-tree` MUST 在 Node + PGlite memory、10,000 条实体 / 100 个 commit、当前工作树 100 个未提交单元的固定 fixture 下，以 5 次 warmup、50 次采样测完整 status、完整 diff 和一次提交 100 个单元的 commit 并输出 p50/p95、runner profile 与 JSON。普通 CI 以归一化 ratio 不超过已签入 reference median × 该项容差为硬门禁（status / diff 130%，commit 110%，契约 §3.1）；绝对 p95 只在 `runnerProfileHash` 匹配 reference 的固定性能 runner 上作为发布硬门禁，其中 status / diff 为 100 ms，commit 的阈值由首个绿色实现的 reference 中位数冻结（不套用 status / diff 的 100 ms，量级不同）。浏览器 OPFS / IDB 不承诺相同绝对数字。
 - **FR-031**（阶段 B）：所有操作 MUST 遵守 revision 矩阵：commit 校验 active branch token、expected head 与 expected working-tree revision，三者任一不匹配即全量回滚并返回 `CommitConflict`。`workingTreeRevision` 采用**调用方捕获型** CAS：调用方读到 status 之后、commit 落盘之前的任何一次工作树写入都 MUST 让本次 commit 失败，**不得**为了提高成功率而放宽为只校验 head——那等于提交调用方没有看过的变更。discard 同样校验 active token 与 expected working-tree revision。
 - **FR-032**（阶段 B）：工作树中的实体编辑不按 writer 身份分叉处理；无论来自当前 realm 还是其他 realm，都 MUST 平等地成为同一份工作树的未提交变更。writer 身份不得成为提交正确性的必要条件；并发保护只由 FR-031 的 revision CAS 提供。
 - **FR-039**（阶段 A）：每次普通 CRUD MUST 在同一事务内校验 active branch token、写入业务实体、写入或合并完整 `WorkingTreeEntry` 并递增 `workingTreeRevision`。任一步失败全部回滚；禁止只靠内存 dirty set 重建。
 - **FR-040**：_（已裁撤，编号不得复用。）_ 原条目定义 stage/re-stage 的 CAS 与事务扩展规则，随暂存区一并作废；commit 的 CAS 见 FR-031。
 - **FR-041**（阶段 B）：普通提交 MUST 接收 trim 后非空 message 与必填 `CommitOptions.authorId`、`CommitOptions.operationId`；调用方 metadata 只能放扩展审计字段，不得覆盖 parent、时间、作者、operation ID、schema/codec manifest 或变更数量。**`commit()` 不接受变更选择参数**——它没有 selection 入参，提交范围恒为当前分支工作树的全部未提交单元。
 - **FR-045**（阶段 A）：`WorkingTreeEntry` MUST 延续字段加密 at-rest 契约；读取可在解锁后返回明文业务值，但任何持久化 dump、错误和摘要不得出现加密字段明文。
-- **FR-046**（阶段 A）：所有业务实体写入口 MUST 遵守写入口语义矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，五步 bypass 判定够不到，必须在阶段 A 显式挂载。
+- **FR-046**（阶段 A）：所有业务实体写入口 MUST 遵守写入口语义矩阵。full/filter 远端实体应用即使关闭 `RxDBChange` trigger，也 MUST 在同一事务写入 `origin=remote_sync` 的工作树单元且不得形成 push echo；纯同步元数据更新不改变工作树。QueryCache 实体 MUST 完整排除；callback transaction 在任意时点检测到 QueryCache/版本化实体混用时 MUST 抛 `mixed_versioned_cache_transaction` 并回滚整个事务，不能要求事务系统预知回调未来操作。raw/未知绕过路径 MUST fail-fast，且门禁 MUST 覆盖 adapter 的公开批量写方法 `upsertMany()` / `deleteByIds()`——它们不经 `rawQuery`，四步 bypass 判定够不到，必须在阶段 A 显式挂载。
 - **FR-047**：_（已裁撤，编号不得复用。）_ 原条目要求 index 自包含可重放及其依赖闭包与 `index_dependency_cycle`。
 
 > **FR-024 / FR-025 / FR-028 三个编号同样已作废**，不在任何故事中承接，也不得被新条目复用——对应内容整体转为「横切约束」一节，按故事适用。
@@ -373,19 +373,20 @@
 
 **受信路径登记键固定为「文件 + 符号 + 意图」**，符号取**实际发起该次批量重写的最内层具名函数**，不是委托门面方法，也不是行号。同一文件里语义不同的两个策略分支各占一行；被重载的传输层函数名必须按签名区分（写本地业务投影的重载属于本表，推送到远端的重载不属于）；静态扫描必须排除构建产物目录与测试夹具 / 共享测试套件。写路径必须携带显式意图枚举（内部契约，不进公开 api-baseline），未携带标记的批量重写一律按未知入口拒绝。
 
-#### raw 写路径的 bypass 判定（按目标表 + 目标列 + 受信 intent 豁免）
+#### raw 写路径的 bypass 判定（按目标表 + 目标列）
 
 每次 raw 调用在**语句执行前**按下列顺序判定：
 
 1. 提交能力**未启用** → 原样放行，零行为差异。
-2. 调用携带内部受信 `intent`（非公开参数，仅登记表内的路径可传）→ 放行。
-3. 非写语句 → 放行。
-4. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理。
-5. 其余写目标（全文检索虚拟表与影子表、系统表、查询缓存实体表、临时表），以及第 4 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 revision。
+2. 非写语句 → 放行。
+3. 写目标表 ∩ **版本化业务实体表** ≠ ∅，**且**被写列集 ⊄ **untracked 字段域** → 抛 `commit_capability_mismatch`，**业务表零变化**（拒绝发生在执行前，不是写完回滚）。被写列集无法确定时按「不是子集」处理。
+4. 其余写目标（全文检索虚拟表与影子表、系统表、查询缓存实体表、临时表），以及第 3 步中**只**触及 untracked 字段域的写入 → 放行；后者放行后同样不创建工作树单元、不递增 revision。
 
-「版本化业务实体表」与「untracked 字段域」两个集合与「版本化域」引用**同一份清单**，**不得另建第二份**。`upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而不是列集，因此对版本化实体一律落第 4 步。解析取保守口径（**fail-closed**）；大小写、引号标识符与 schema 限定在比对前归一化；6 个后端共用**同一份**判定实现，方言差异只体现在词法层。
+**判定里没有「受信 `intent` 豁免」这一步**，这是刻意的：受信路径全部走 `switchBranch` / `mergeChanges` 这两个带类型的写原语，raw 通道上一个受信调用点都没有，而 raw 通道也拿不出任何能证明发起方身份的东西。判据见 [threat-model.md](./threat-model.md) §3。
 
-**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 raw 写路径与 adapter 公开批量写方法**。绕过 adapter 的外部数据库句柄**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。
+「版本化业务实体表」与「untracked 字段域」两个集合与「版本化域」引用**同一份清单**，**不得另建第二份**。`upsertMany()` / `deleteByIds()` 复用同一份清单与同一判定，但入参是**整行**而不是列集，因此对版本化实体一律落第 3 步。解析取保守口径（**fail-closed**）；大小写、引号标识符与 schema 限定在比对前归一化；6 个后端共用**同一份**判定实现，方言差异只体现在词法层。
+
+**能力边界（写进公开文档，不假装拦得住）**：本门禁只覆盖**经 adapter 的 raw 写路径与 adapter 公开批量写方法**。绕过 adapter 的外部数据库句柄**拦不住**，v1 也不承诺拦得住；启用提交能力的数据库必须在文档中声明「业务表只能经 RxDB 写入」。门禁各自挡谁、不挡谁，见 [threat-model.md](./threat-model.md)。
 
 ## Success Criteria _(mandatory)_
 
@@ -396,13 +397,13 @@
 - **基准环境固定**为 Node + PGlite memory；「响应」定义为 **API promise resolve**（操作完成），不把三框架首次绘制混入核心 benchmark。
 - **采样固定** `WARMUP = 5`、`SAMPLES = 50`。每个 sample 前在计时外恢复同一 fixture：**10,000 条实体、100 个 commit**（每个 commit 100 个完整变更单元），当前工作树 **100 个未提交单元**。fixture 内容与 hash 必须写入 JSON，**禁止只固定总行数**。
 - **环境指纹**：benchmark JSON 必须记录运行时版本、OS、CPU 型号、逻辑核数、内存、runner ID 与并发度并计算 `runnerProfileHash`；profile 不匹配 reference 时返回 `benchmark_environment_mismatch`，**不得伪装成性能回归**。
-- **相对门禁（普通 PR CI 的唯一硬门禁）**：每项 control CRUD 使用相同实体数量和事务边界，比较「被测操作 p95 / 同次 control CRUD p95」。首个绿色实现先归档 reference commit 的 **10 次独立运行**并冻结各项 median ratio；候选版本不得超过该 ratio 的 **110%**。reference JSON 与阈值必须**先于**发布候选签入，不能在失败后重算基线。
+- **相对门禁（普通 PR CI 的唯一硬门禁）**：每项 control CRUD 使用相同实体数量和事务边界，比较「被测操作 p95 / 同次 control CRUD p95」。首个绿色实现先归档 reference commit 的 **10 次独立运行**并冻结各项 median ratio；候选版本不得超过该 ratio × 该项容差：读项 status / diff **130%**，写项 restore / commit **110%**（读项 p95 只有两三毫秒，同画像内噪声就有 ±20%，依据见契约 §3.1）。reference JSON 与阈值必须**先于**发布候选签入，不能在失败后重算基线。
 - **绝对门禁（仅发布）**：只在与 reference `runnerProfileHash` 相同的固定性能 runner 上作为硬门禁。
 
 ### Measurable Outcomes
 
-- **SC-001**：在固定基准环境与 fixture 下，完整 status 摘要的归一化 ratio 不超过冻结 reference median 的 110%；在 profile 匹配的固定性能 runner 上，其 p95 不高于 **100 ms**。
-- **SC-002**：无 scope 的完整 `HEAD ↔ 工作树` diff 满足与 SC-001 相同的两道门禁（相对 110%，绝对 p95 ≤ **100 ms**）。
+- **SC-001**：在固定基准环境与 fixture 下，完整 status 摘要的归一化 ratio 不超过冻结 reference median 的 130%；在 profile 匹配的固定性能 runner 上，其 p95 不高于 **100 ms**。
+- **SC-002**：无 scope 的完整 `HEAD ↔ 工作树` diff 满足与 SC-001 相同的两道门禁（相对 130%，绝对 p95 ≤ **100 ms**）。
 - **SC-003**：一次提交 100 个单元的 commit 通过相对门禁（≤ reference median ratio 的 110%）；其**绝对预算由首个绿色实现的 reference 中位数冻结并与相对门禁同批签入**，**不套用 status / diff 的 100 ms**——它要把 100 个单元整体落盘并清空工作树，与只读摘要的操作量级不同。
 - **SC-004**：从 clean HEAD 恢复含 100 个完整变更单元的 `HEAD~1` 通过相对门禁；在 profile 匹配的固定性能 runner 上，promise resolve 的 p95 不高于 **1 s**。
 - **SC-005**：浏览器 OPFS / IDB **不承诺**相同绝对数字，但三端 E2E 必须记录**首次可见状态耗时**，防止核心 promise 很快而 UI 长时间无反馈。

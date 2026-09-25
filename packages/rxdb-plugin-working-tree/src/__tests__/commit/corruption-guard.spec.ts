@@ -23,7 +23,7 @@
  */
 
 import type { EntityManager } from '@aiao/rxdb';
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import type { CommitChangeUnit } from '../../commit/change-unit.js';
 import { computeChangeUnitFingerprint } from '../../commit/change-unit.js';
@@ -31,14 +31,15 @@ import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
-  CommitGraphCorruptedError,
   assertCommitGraphIntact,
+  CommitGraphCorruptedError,
   markBranchCorrupted
 } from '../../commit/commit-graph-guard.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { buildCommitRows } from '../../commit/write-commit.js';
 import { rxDBPluginWorkingTree } from '../../plugin.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import type { ProbeFindCall } from './fixtures/commit-graph-probe.js';
 import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
 
 function createEntityManager(): EntityManager {
@@ -420,5 +421,78 @@ describe('拒绝码三入口同一份（SC-013）', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).name).toBe('CommitGraphCorruptedError');
+  });
+});
+
+/**
+ * 一层四个 merge 父：`head` ← {p0,p1,p2,p3} ← `root`。三层六个节点，全部自洽。
+ *
+ * @remarks
+ * 四个父的单元数**刻意各不相同**（1/2/3/4）。同层合成一次批量查之后，行要按 `commitId`
+ * 分回各自的桶里；分组串了行的实现会拿整层的行去比每个节点的 `changeSetCount`，
+ * 于是这个完全健康的布景会被判成损坏——单元数都一样的话，串行反而看不出来。
+ */
+function createWideScene(): Scene {
+  const scene = createScene();
+  const parents = ['p0', 'p1', 'p2', 'p3'];
+  scene.addCommit('root', []);
+  parents.forEach((id, index) => scene.addCommit(id, ['root'], index + 1));
+  scene.addCommit('head', parents);
+  scene.addBranch('main', 'head');
+  return scene;
+}
+
+/** 守卫发出的 `CommitChangeSet` 查询，按调用顺序。 */
+function changeSetFinds(scene: Scene): ProbeFindCall[] {
+  const { name } = getEntityMetadata(CommitChangeSet);
+  return scene.probe.finds.filter(call => call.entity === name);
+}
+
+describe('同层的 ChangeSet 合成一次批量查（FR-051 性能）', () => {
+  it('六个节点三层，只发三次 ChangeSet 查询', async () => {
+    const scene = createWideScene();
+
+    await assertCommitGraphIntact(scene.probe.executor, 'main');
+
+    // 逐个查是每个 commit 一次往返，逐层查是每层一次。守卫在 commit / restore /
+    // switch-to 三条写路径上都要跑一遍全图，这个差值直接乘到每一次提交上。
+    expect(changeSetFinds(scene)).toHaveLength(3);
+  });
+
+  it('批量查按整层的 id 走 `in`，不是逐个 `=`', async () => {
+    const scene = createWideScene();
+
+    await assertCommitGraphIntact(scene.probe.executor, 'main');
+
+    expect(changeSetFinds(scene)[1]?.where).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'commitId', operator: 'in', value: ['p0', 'p1', 'p2', 'p3'] }]
+    });
+  });
+
+  it('同层各节点的行分回各自的桶——单元数各不相同也全部通过', async () => {
+    const scene = createWideScene();
+
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).resolves.toBeUndefined();
+  });
+
+  it('同层里坏掉的那个节点被准确点名', async () => {
+    const scene = createWideScene();
+    scene.commitOf('p2').changeSetCount = 99;
+
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).rejects.toMatchObject({
+      commitId: 'p2',
+      reason: 'change_set_count_mismatch'
+    });
+  });
+
+  it('一个 ChangeSet 都没有的节点不因为「批量查里分不到行」被判成损坏', async () => {
+    const scene = createScene();
+    // `changeSetCount` 为 0 的节点合法：启用提交能力时写下的基线根就是这个形状。
+    // 批量查的结果里它一行都没有，分组必须给它一个空桶，而不是「查不到就当没查过」。
+    scene.addCommit('root', [], 0);
+    scene.addBranch('main', 'root');
+
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).resolves.toBeUndefined();
   });
 });

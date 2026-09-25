@@ -58,6 +58,7 @@ import {
 } from '../../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
+import { runBranchGenerationSql } from '../working-tree/fixtures/activation-sql.js';
 import { createCommitGraphProbe, normalizeSql } from './fixtures/commit-graph-probe.js';
 import { plainCommitWriteContext } from './fixtures/commit-write-context.js';
 
@@ -105,7 +106,12 @@ interface Scene {
  */
 function createScene(branchSpecs: readonly BranchSpec[], changeIds: readonly number[] = []): Scene {
   const entityManager = createEntityManager();
-  const probe = createCommitGraphProbe({ rowsAffected: 1 });
+  const probe = createCommitGraphProbe({
+    rowsAffected: 1,
+    // 代际发放的加法在库里做，紧接着的读回来也走原始语句（`activation-state.ts`），
+    // 而替身不执行 SQL；不补这两下，发放当场就会因为「读回 0 行」抛错。见 `activation-sql.ts`。
+    onQuery: runBranchGenerationSql
+  });
 
   const branches = branchSpecs.map(spec => {
     const branch = entityManager.instantiate(RxDBBranch);

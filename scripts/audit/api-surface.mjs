@@ -305,6 +305,13 @@ const NAMING = {
     'RxDBBranchRemovalContext',
     'RxDBBranchSwitchContext',
     'RxDBBranchSwitchPreconditions',
+    // `SwitchBranchOptions`（已在 grandfathered 名单里）的两个伴生名：`prepare` 的入参形状，
+    // 与「这次调用没有分支要校验」的具名空实现。理由与上面三个同族：适配器契约刻意不认识工作树，
+    // 叫 `WorkingTree*` 会让 `IRxDBAdapter` 看起来知道谁在用它。
+    // `SKIP_BRANCH_SWITCH_PREPARE` 另有一层：它是 SCREAMING 形，而前缀判定是大小写敏感的
+    // `startsWith('WorkingTree')`——任何常量名都不可能满足它，只能逐名登记。
+    'SwitchBranchPrepareContext',
+    'SKIP_BRANCH_SWITCH_PREPARE',
     // US-025 阶段 E 的增量合并原语。正向前缀规则的适用范围写的是「核心共享契约」，
     // 实现上却读整个 diff —— 于是任何与工作树无关的核心新增导出都会撞上它。
     // 这十二个是树查询外移到 `@aiao/rxdb-plugin-tree` 所需的 merge 引擎入口，
@@ -318,6 +325,27 @@ const NAMING = {
     'prepareIncrementalUpdate',
     'UpdateClassification',
     'UpdateDataCache',
+    // active 哨兵 `'*active*'` 的分支 id 校验。它兑现的是 `ACTIVE_BRANCH_KEY` 那段 TSDoc
+    // 立下的「`*` 不是合法命名字符」——此前只是注释，创建与导入路径没有一处兑现它。
+    // 三条创建路径（`version/create-branch.ts` / `syncBranches` / pglite 适配器）都要调，
+    // 必须在公开面上。与工作树无关，叫 `Commit*` / `WorkingTree*` 只会让核心看起来
+    // 把「分支名合法性」当成提交能力的一部分。
+    'assertUsableBranchId',
+    'InvalidBranchIdError',
+    // 创建边界的字段规范化。与早已在基线里的 `normalizeUpdateEntity` 是同一件事的两侧：
+    // 两个适配器各带过一份按下标配对 `foreignKeyNames` / `foreignKeyColumnNames` 平行数组的
+    // 副本，两边长度不等就把 A 的值写进 B 的列且完全无声。收进核心走 keyed 的
+    // `foreignKeyRelationMap` 之后，适配器只剩 re-export。与工作树无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称核心把「写 INSERT 前整理字段」当成提交能力。
+    'normalizeCreateEntity',
+    // 捕获挂载点注册表（`capture/capture-mount-points.ts`）。同族的三个类型
+    // （`WorkingTreeCaptureMountPoint` / `...Ordinal` / `WorkingTreeWritePrimitiveSignature`）
+    // 已按本规则改名带上前缀，不在这里；下面三个是**同一张表**的常量与谓词，形态上
+    // 满足不了大小写敏感的 `startsWith('WorkingTree')`——SCREAMING 与 camelCase 都不行。
+    // 登记的是形态豁免，不是「与工作树无关」：它们恰恰是工作树的表面。
+    'WORKING_TREE_CAPTURE_MOUNT_POINTS',
+    'WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS',
+    'isWorkingTreeCaptureMountPoint',
     // 指纹计算。自带 Repository 的插件必须给 `createTask` 传 `getFingerprint`，
     // 而指纹正是 QueryManager 判定「结果变没变」的依据——各写一份就是两套「变了」的定义。
     'Fingerprint',
@@ -328,11 +356,65 @@ const NAMING = {
     // 也就不在「核心共享契约」的射程内——而正向规则读的是整个 diff，照样会把它们捞上来。
     // 叫成 `Commit*` / `WorkingTree*` 等于宣称核心把「造一个合并测试任务」当成提交能力。
     'collectEmissions',
+    'cloneEntityClasses',
     'createHarnessQueryTask',
     'EntityCache',
     'HarnessSchemaOverrides',
     'HarnessTaskOptions',
-    'METADATA'
+    'METADATA',
+    // 分支切换接管钩子的三个伴生名。与上面 T126 那三项同族、同文件：
+    // `RxDBBranchSwitchTakeoverContext` 与 `RxDBBranchSwitchContext` 逐字段同形，差别只有
+    // 「没有 `executor`」——接管方要拉远端快照、逐页落库，那些塞不进那次切换事务，
+    // 必须自己开事务，这正是它不能共用前者的原因。理由与 T126 那三项一字不差：核心只搬运，
+    // 叫 `WorkingTree*` 会让 `RxDBSystemContribution` 看起来认识工作树，而九个注册点没有一个提到它。
+    // 这份名单当初写明「加前缀之后第四个同族名字会静默通过，而这份名单逼着下一个人把理由
+    // 重讲一遍」——这就是那第四、五、六个，理由已重讲于上。
+    'RxDBBranchSwitchTakeoverContext',
+    'RxDBBranchSwitchTakeover',
+    'RxDBBranchSwitchFailureContext',
+    // FR-037 的能力闩。能力位是 `RxDBSystemContribution.capability` 的通用机制，工作树只是
+    // 它的使用者之一；叫 `WorkingTree*` 等于宣称核心把「能力启用」当成提交能力专有的事。
+    // `CAPABILITY_ENABLED_EVENT` 另有一层与 `WORKING_TREE_CAPTURE_MOUNT_POINTS` 相同的形态豁免：
+    // SCREAMING 形永远满足不了大小写敏感的 `startsWith('WorkingTree')`。
+    'CAPABILITY_ENABLED_EVENT',
+    'CapabilityEnabledEvent',
+    // `getEntityMutations` 的入参形状。那个函数本就在基线里（grandfathered 之前就公开），
+    // 而它的选项类型此前没导出——包外要给这个对象起名只能写
+    // `Parameters<typeof getEntityMutations>[0]`，或者照抄一份结构。抄出来的那份不会跟着改，
+    // 于是字段改名的那天，抄件在类型层仍然绿。与工作树、提交能力都无关：
+    // 它装的是「这批要写、那批要删」，叫 `Commit*` 等于宣称核心把批量写盘当成提交能力。
+    'EntityMutationsOptions',
+    // 本地 / 远端适配器的具名交集（`IRxDBAdapter & RxDBAdapterLocalBase` 与其远端对偶）。
+    // 上不上公开面不是风格问题，是编译期的硬约束：这个交集会经**推断**出来的返回类型跨包传播，
+    // 而匿名交集在下游包做声明发射时没法经 `@aiao/rxdb` 命名——`@aiao/source` 条件把裸说明符
+    // 解析到 `src/index.ts`，发射器于是退回一条指向 `packages/rxdb/src/` 的相对路径，把核心包
+    // 源码拽进下游的编译程序（ng-packagr 给每个入口点强制 `rootDir`，当场判 TS6059，一次 181 条）。
+    // 具名别名让发射器有一个可经 barrel 命名的符号，逃逸不再发生。
+    // 理由与 T126 那三项同族：适配器契约刻意不认识工作树，叫 `WorkingTree*` 会让 `IRxDBAdapter`
+    // 看起来知道谁在用它。逐名登记，不放宽成 `RxDBAdapter` 前缀。
+    'LocalRxDBAdapter',
+    'RemoteRxDBAdapter',
+    // `EntityMetadata` 背后的那个接口。它**事实上早已在公开面上**——`EntityMetadata` 就是
+    // `Readonly<EntityMetadataType>`，这里只是让它可被命名。必须可命名的理由与上面两个同源：
+    // `Readonly<…>` 这层别名在进入联合或被泛型实例化时会丢掉，展开成对底层接口的引用，
+    // 届时底层接口若不能经本 barrel 命名，下游的声明发射同样退回 `packages/rxdb/src/` 的相对路径。
+    // 装的是实体元数据，与提交能力毫无关系，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    'EntityMetadataType',
+    // metadata-only 分支首次物化的来源契约（2026-09-26 评审 P1）。同步插件实现、
+    // 工作树插件消费，两者互不依赖，于是接口、登记槽与两端必须逐字相同的分页指纹只能住在核心。
+    // 理由与 `RxDBBranchSwitchTakeover` 那三项同族：核心只搬运，叫 `WorkingTree*` 会让实现方
+    // （同步插件）看起来认识工作树，而它只认识「冻结一个水位、分页交出、在屏障里结算」。
+    // `canonicalMaterializationJson` 是两端比对意图、复算指纹的同一把尺：工作树判续用、
+    // 同步插件判漂移都用它，各写一份就是两种「同一份意图」。
+    'BranchMaterializationBarrierContext',
+    'BranchMaterializationIntent',
+    'BranchMaterializationPage',
+    'BranchMaterializationPagePayload',
+    'BranchMaterializationPageRequest',
+    'BranchMaterializationProjectionContext',
+    'BranchMaterializationSource',
+    'branchMaterializationPageFingerprint',
+    'canonicalMaterializationJson'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

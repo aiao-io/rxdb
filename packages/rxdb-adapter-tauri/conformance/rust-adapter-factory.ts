@@ -19,7 +19,7 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
+import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -103,8 +103,6 @@ class QueryCountingRustAdapter extends RxDBAdapterTauri {
   }
 }
 
-const encryptedQueryCounts = new WeakMap<object, () => number>();
-
 async function createRustAdapter(options?: Record<string, unknown>): Promise<QueryCountingRustAdapter> {
   const rawOptions = (options ?? {}) as {
     entities?: EntityType[];
@@ -169,11 +167,10 @@ export const rustAdapterFactory: AdapterFactory = {
 /** 驱动 `@aiao/rxdb-test/encrypted` 五套加密契约套件的 Rust 宿主适配器工厂。 */
 export const rustEncryptedAdapterFactory: EncryptedAdapterFactory = {
   name: TAURI_ADAPTER_NAME,
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
   createAdapter: async options => {
     const adapter = await createRustAdapter(options);
-    encryptedQueryCounts.set(adapter, () => adapter.queryCount);
-    return adapter;
+    return registerQueryCount(adapter, () => adapter.queryCount);
   }
 };
 

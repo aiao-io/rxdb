@@ -3,7 +3,7 @@
  *
  * @remarks
  * 单独成文件，因为有**两个**脚本读它：跑数字的 `working-tree.bench.ts` 与冻结基线的
- * `freeze-working-tree-reference.ts`。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
+ * `freeze-working-tree-reference.ts`（门禁判定本身在 `working-tree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
  * benchmark——共享的定义因此不能住在那里。
  *
  * 契约本体在 specs/001-working-tree-commits/contracts/benchmark-report.md §2 / §3。
@@ -17,8 +17,13 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** 报告 JSON 的版本（契约 §2）；改字段集必须同时推进它。 */
-export const SCHEMA_VERSION = 1;
+/**
+ * 报告 JSON 的版本（契约 §2）；改字段集必须同时推进它。
+ *
+ * @remarks
+ * 2：`environment` 与 `reference` 加入 `ratioProfile`，reference 由单文件改为按画像分文件。
+ */
+export const SCHEMA_VERSION = 2;
 
 /** 预热轮数（契约 §1），不计入统计。 */
 export const WARMUP = 5;
@@ -26,8 +31,24 @@ export const WARMUP = 5;
 /** 计入统计的采样数（契约 §1）。 */
 export const SAMPLES = 50;
 
-/** 相对门禁的容差：ratio 不得超过 reference median 的 110%（契约 §3.1）。 */
-export const RELATIVE_GATE_TOLERANCE = 1.1;
+/**
+ * 相对门禁的逐项容差：ratio 不得超过 reference median 乘以这里的倍数（契约 §3.1）。
+ *
+ * @remarks
+ * 读项（`status` / `diff`）130%，写项（`restore` / `commit`）110%。两类分开定，是因为它们的
+ * 噪声差一截：读项 p95 只有两三毫秒，同一画像冻结的十轮里就有高出 median 近 +20% 的
+ * （同画像换一台主机 +25%），按 110% 判，十轮里有两到四轮会误报；写项十几到几百毫秒，
+ * 最多高出 +7.7%。统一放宽到 130% 会让写项的真实回归漏过去，统一收紧到 110% 则让读项的
+ * PR 门禁看运气。数据见契约 §3.1。
+ *
+ * 表里没有的测点判**失败**，不给默认值：新增测点得先归到读或写，才能进门禁。
+ */
+export const RELATIVE_GATE_TOLERANCES: Readonly<Record<string, number>> = {
+  status: 1.3,
+  diff: 1.3,
+  restore: 1.1,
+  commit: 1.1
+};
 
 /** 绝对门禁里 `status` / `diff` 的 p95 上限，毫秒（契约 §3.2，SC-001 / SC-002）。 */
 export const ABSOLUTE_BUDGET_MS = 100;
@@ -45,8 +66,16 @@ export const ABSOLUTE_BUDGET_MS = 100;
  */
 export const RESTORE_ABSOLUTE_BUDGET_MS = 1_000;
 
-/** reference 文件路径；T097 冻结它，本文件只读。 */
-export const REFERENCE_PATH = resolve(__dirname, 'reports', 'working-tree-reference.json');
+/**
+ * reference 目录：每种比值画像一份，文件名由 `ratioProfileFileName()` 从画像导出。
+ *
+ * @remarks
+ * 不再是单个文件：ratio 并不像契约最初假设的那样跨 CPU 不变（CI run 36070569734：同一提交在
+ * M1 上 `status` = 2.101，在 AMD EPYC 7763 上 = 2.515，读项与写项还朝相反方向偏）。
+ * 只有一份 reference 时，PR 能不能过要看 `ubuntu-latest` 这一次分到哪种 CPU。冻结脚本写它，
+ * bench 只读。
+ */
+export const REFERENCE_DIR = resolve(__dirname, 'reports', 'working-tree-reference');
 
 /**
  * 每次运行都覆盖的最新报告；T097 的冻结脚本按这个稳定路径收集十次运行。
@@ -58,7 +87,7 @@ export const REFERENCE_PATH = resolve(__dirname, 'reports', 'working-tree-refere
  */
 export const LATEST_PATH = resolve(__dirname, 'reports', 'working-tree-latest.json');
 
-/** `runnerProfileHash` 对不上时的稳定错误码（契约 §3.2）。 */
+/** 本机没有可比的 reference 时的稳定错误码：相对门禁找不到同画像（§3.1），绝对门禁 profile 对不上（§3.2）。 */
 export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';
 
 // ---------------------------------------------------------------------------
@@ -75,7 +104,7 @@ export interface BenchFixture {
   readonly contentHash: string;
 }
 
-/** 运行环境；最后一个字段由前七个算出。 */
+/** 运行环境；最后两个字段由前七个导出。 */
 export interface BenchEnvironment {
   readonly runtime: string;
   readonly os: string;
@@ -84,8 +113,10 @@ export interface BenchEnvironment {
   readonly memoryBytes: number;
   readonly runnerId: string;
   readonly concurrency: number;
-  /** 绝对门禁的准入判据；见 {@link computeRunnerProfileHash} */
+  /** 绝对门禁的准入判据：七个字段全参与，含主机名，所以 GitHub 托管 runner 上每个 job 都不同 */
   readonly runnerProfileHash: string;
+  /** 相对门禁选 reference 的键：`<os> / <cpuModel> / node <主版本>`，不含主机名、内存与核数 */
+  readonly ratioProfile: string;
 }
 
 /** 采样口径。 */
@@ -120,6 +151,10 @@ export interface BenchReference {
   readonly frozenAbsolute: { readonly commit: number };
   /** 冻结时的 runner profile；绝对门禁只在相等时评估 */
   readonly runnerProfileHash: string;
+  /** 冻结时的比值画像；相对门禁只拿同画像的 reference 比，文件名也由它导出 */
+  readonly ratioProfile: string;
+  /** 首次冻结之外的每一次冻结都要写下理由（契约 §3.1）；首次冻结时不出现 */
+  readonly regeneratedBecause?: string;
 }
 
 /** 一次运行的完整报告。 */
@@ -129,6 +164,6 @@ export interface WorkingTreeBenchReport {
   readonly environment: BenchEnvironment;
   readonly sampling: BenchSampling;
   readonly measurements: readonly BenchMeasurement[];
-  /** 本次比对的 reference；还没冻结时为 `null` */
+  /** 与本机同画像的 reference；一份都没冻结或没有同画像的时为 `null` */
   readonly reference: BenchReference | null;
 }

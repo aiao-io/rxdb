@@ -30,8 +30,16 @@ import type { Observable } from 'rxjs';
 import type { SwitchBranchOptions, TransactionFun } from '../rxdb-adapter.js';
 import type { SwitchVersionActions } from '../sync-contract/VersionManager.interface.js';
 import type { RxDBChange } from '../system/change.js';
+import { WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS } from './capture-mount-points.js';
 
-/** 被拦截的批量写方法，与 {@link BulkWriteOperation} 同集合。 */
+/**
+ * 被拦截的批量写方法。
+ *
+ * @remarks
+ * 这个集合随核心的写原语变，所以它归核心——`@aiao/rxdb-plugin-working-tree` 的
+ * `BulkWriteOperation` 是本类型的**别名**，不是平行的第二份声明。加第四个批量写原语时，
+ * 改这里一处，插件侧按操作键的查找表会因穷尽性检查一并变红。
+ */
 export type InterceptedBulkWrite = 'upsert_many' | 'delete_by_ids';
 
 /**
@@ -160,7 +168,7 @@ export interface WorkingTreeCaptureHook {
   ): Observable<void>;
 
   /**
-   * 转交门 1：一条 raw 写语句（adapter-contract.md §2 的 5 步判定）
+   * 转交门 1：一条 raw 写语句（adapter-contract.md §2 的 4 步判定）
    *
    * @typeParam T - 语句执行体的返回类型；放行时原样透传
    * @param sql - 待判定的语句原文
@@ -201,10 +209,7 @@ export interface WorkingTreeCaptureHook {
 export type WorkingTreeCaptureMountTarget = RawWritePrimitives & WorkingTreeWriteHost;
 
 /** 安装前五个方法各自的属性描述符；`undefined` 表示当时是从原型上继承来的。 */
-type SavedDescriptors = Readonly<Record<keyof RawWritePrimitives, PropertyDescriptor | undefined>>;
-
-/** 被改写的五个方法名；安装与卸载共用一份，少写一个就是一个永久敞口。 */
-const PRIMITIVE_NAMES = ['transaction', 'mergeChanges', 'switchBranch', 'upsertMany', 'deleteByIds'] as const;
+type SavedDescriptors = Readonly<Partial<Record<keyof RawWritePrimitives, PropertyDescriptor>>>;
 
 /** 安装时留存的属性描述符；卸载要按「当时是自有属性还是继承来的」分别还原。 */
 const SAVED = new WeakMap<WorkingTreeCaptureMountTarget, SavedDescriptors>();
@@ -219,7 +224,7 @@ const define = (target: object, name: string, value: unknown): void => {
  *
  * @param target - 适配器实例
  * @param hook - 接管四个挂载点的捕获运行时
- * @returns 未经拦截的五个写原语；传给 {@link uninstallWorkingTreeCapture} 原样撤销
+ * @returns 未经拦截的五个写原语；交给捕获运行时的 {@link WorkingTreeCaptureHook.bindMountTarget}
  *
  * @remarks
  * **安装时机是「装钩子的那一刻」，不是构造函数。** 构造函数里装会被子类的类字段覆盖回去——
@@ -239,7 +244,7 @@ const define = (target: object, name: string, value: unknown): void => {
  * @example
  * ```ts
  * setWorkingTreeCaptureHook(hook: WorkingTreeCaptureHook): void {
- *   this.raw = installWorkingTreeCapture(this, hook);
+ *   hook.bindMountTarget(this, installWorkingTreeCapture(this, hook));
  * }
  * ```
  */
@@ -254,13 +259,14 @@ export function installWorkingTreeCapture(
     upsertMany: target.upsertMany,
     deleteByIds: target.deleteByIds
   };
-  SAVED.set(target, {
-    transaction: Object.getOwnPropertyDescriptor(target, 'transaction'),
-    mergeChanges: Object.getOwnPropertyDescriptor(target, 'mergeChanges'),
-    switchBranch: Object.getOwnPropertyDescriptor(target, 'switchBranch'),
-    upsertMany: Object.getOwnPropertyDescriptor(target, 'upsertMany'),
-    deleteByIds: Object.getOwnPropertyDescriptor(target, 'deleteByIds')
-  });
+  // 留存与还原遍历**同一份**清单（{@link WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS}）：各写一遍的形态下，
+  // 留存少一个名字会让卸载在那一格上查不到描述符，于是包装被永久留在实例上。
+  const saved: Partial<Record<keyof RawWritePrimitives, PropertyDescriptor>> = {};
+  for (const name of WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS) {
+    const descriptor = Object.getOwnPropertyDescriptor(target, name);
+    if (descriptor) saved[name] = descriptor;
+  }
+  SAVED.set(target, saved);
 
   const raw: RawWritePrimitives = {
     transaction: original.transaction.bind(target),
@@ -333,7 +339,6 @@ export function installWorkingTreeCapture(
  * 卸载捕获挂载点，把五个写原语恢复到安装前的样子
  *
  * @param target - 之前被 {@link installWorkingTreeCapture} 改写过的适配器实例
- * @param raw - 那一次安装返回的原语集合；没有留存描述符时的兜底来源
  *
  * @remarks
  * **还原的是「属性描述符」，不是一律装回绑定函数。** 原语在正常适配器上来自原型，删掉自有属性
@@ -341,14 +346,18 @@ export function installWorkingTreeCapture(
  * `bind(target)` 的版本会把那个多态永久焊死在真实适配器上：卸载之后的 `executor.mergeChanges`
  * 会去排队等一个自己正占着的槽位。类字段形态的实现（测试替身）安装前就有自有属性，此时按
  * 留存的描述符原样写回。
+ *
+ * **没装过就什么都不做，不接受一份「原语兜底」。** 上一段说明了装回绑定函数正是要避免的那件事，
+ * 所以一旦描述符表查不到，唯一正确的动作是不动——此时目标本来就处于安装前的样子。早先的形态
+ * 多收一个 `raw` 参数，在查不到时把绑定函数焊上去，等于在唯一能触发它的路径上做恰好相反的事。
  */
-export function uninstallWorkingTreeCapture(target: WorkingTreeCaptureMountTarget, raw: RawWritePrimitives): void {
+export function uninstallWorkingTreeCapture(target: WorkingTreeCaptureMountTarget): void {
   const saved = SAVED.get(target);
+  if (!saved) return;
   SAVED.delete(target);
-  for (const name of PRIMITIVE_NAMES) {
-    const descriptor = saved?.[name];
+  for (const name of WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS) {
+    const descriptor = saved[name];
     if (descriptor) Object.defineProperty(target, name, descriptor);
-    else if (saved) delete (target as unknown as Record<string, unknown>)[name];
-    else define(target, name, raw[name]);
+    else delete (target as unknown as Record<string, unknown>)[name];
   }
 }

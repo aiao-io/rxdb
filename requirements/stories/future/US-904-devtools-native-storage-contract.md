@@ -887,7 +887,7 @@ AC#45～#53 全部关闭，判据落在以下 spec：
 - **AC#46** — `apps/dev-rxdb-electron-e2e/src/devtools-database-events-branch.spec.ts`（1 例）。三路证据各自独立：
   **数据**全链核对（后端确认为 `sqlite-electron`，面板读到真实 `DesktopLaunch` 行）；**事件全集**由新增的
   `apps/dev-rxdb-electron/src/app/devtools-event-probe.ts` 在应用自己的 `RxDB.dispatchEvent()`（公开成员，不是测试
-  后门）上逐类派发 25 类——本 demo 没有远端，`SYNC_*` / `CONFLICT_*` / `REPOSITORY_SYNC_*` / `ENTITY_REMOTE_*` /
+  后门）上逐类派发 26 类——本 demo 没有远端，`SYNC_*` / `CONFLICT_*` / `REPOSITORY_SYNC_*` / `ENTITY_REMOTE_*` /
   `MERGE_BRANCH_*` 靠真实操作永远不会发生（探针里事务三类排在最后且成对闭合：`dispatchEvent()` 在事务打开期间会把
   非事务事件压进队列等 COMMIT 才排空，顺序写错的表征是「面板少几类事件、但没有任何报错」）；**branch** 在面板里建
   分支、切分支，再回到应用侧的独立读数（首页 `rxdb-current-branch`，直接来自 `versionManager.getCurrentBranch()`）

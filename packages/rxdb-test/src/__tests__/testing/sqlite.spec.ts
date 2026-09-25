@@ -297,3 +297,168 @@ describe('cleanupSqliteTestAdapter edge cases', () => {
     ]);
   });
 });
+
+/** 真实事务句柄（`SqliteTransactionExecutor`）带 `saveMany`；共享最小结构里只有 `execute`。 */
+type TxWithSaveMany = {
+  execute: Execute;
+  saveMany: (rows: unknown[]) => Promise<unknown[]>;
+};
+
+describe('cleanupSqliteTestAdapter 初始行回放', () => {
+  // 清库要回到的是**新库形态**，而新库形态由 `RxDB.createTables()` 定义：main 分支行
+  // **加上**每个系统能力贡献的初始行。逐表 DELETE 把后半截一并清掉了，补回来的时机
+  // 卡得很死，两头都不能挪：
+  //
+  // - 必须在 main 分支行**之后**：那些行按分支挂靠，main 还不存在时写它们是悬空外键。
+  // - 必须在 `resetToMainBranchSql` **之前**：那段 SQL 把触发器装回去了，之后再写行
+  //   就会被记成一次用户编辑，清理动作自己在下一个用例的 undo 栈里留下一格。
+  //
+  // 后一条也正是这个钩子存在的理由 —— 调用方拿不到这个窗口，`cleanupSqliteTestAdapter`
+  // 返回时触发器已经挂回去了。
+  it('在补回 main 之后、重装触发器之前写初始行', async () => {
+    const executedSql: string[] = [];
+    const savedRows: unknown[] = [];
+
+    await cleanupSqliteTestAdapter(
+      {
+        transaction: async callback =>
+          callback({
+            execute: async sql => {
+              executedSql.push(sql.trim());
+              if (sql.includes('sqlite_master')) {
+                return tableResult([['rxdb$rxdb_branch', 'CREATE TABLE "rxdb$rxdb_branch" (...)']]);
+              }
+              return tableResult([]);
+            },
+            saveMany: async (rows: unknown[]) => {
+              executedSql.push('<saveMany>');
+              savedRows.push(...rows);
+              return rows;
+            }
+          })
+      },
+      {
+        removeTriggersSql: 'DROP TRIGGER todo_insert;',
+        resetToMainBranchSql: () => 'CREATE TRIGGER todo_insert_main;',
+        // 钩子形参标注成夹具自己的句柄类型 —— `TTx` 就是从这里推出来的，随后适配器的
+        // `transaction` 反过来被**检查**是否真交得出这种句柄。写实体要用的 `saveMany`
+        // 不在共享最小结构里，这条断言正是「共享工具不认识它、调用方认识」的分工本身。
+        restoreInitialRows: async (tx: TxWithSaveMany) => {
+          await tx.saveMany([{ id: 'wt-main' }]);
+        }
+      }
+    );
+
+    expect(savedRows).toEqual([{ id: 'wt-main' }]);
+    expect(executedSql).toEqual([
+      'PRAGMA defer_foreign_keys = ON;',
+      'DROP TRIGGER todo_insert;',
+      "SELECT name, sql FROM sqlite_master WHERE type='table';",
+      'DELETE FROM "rxdb$rxdb_branch";',
+      `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`,
+      '<saveMany>',
+      'CREATE TRIGGER todo_insert_main;'
+    ]);
+  });
+
+  // 钩子抛错必须掀掉整个清理事务，不能被吞掉：初始行没补上的库是「有 main、没有工作树
+  // 单例」的半残形态，让它悄悄进入下一个用例，症状会落在那个用例的第一次 `createBranch()`
+  // 上 —— 离真正的原因隔着一整条用例。
+  it('钩子抛错时整体失败，不留半残库', async () => {
+    const executedSql: string[] = [];
+
+    await expect(
+      cleanupSqliteTestAdapter(
+        {
+          transaction: async callback =>
+            callback({
+              execute: async sql => {
+                executedSql.push(sql.trim());
+                if (sql.includes('sqlite_master')) {
+                  return tableResult([['rxdb$rxdb_branch', 'CREATE TABLE "rxdb$rxdb_branch" (...)']]);
+                }
+                return tableResult([]);
+              }
+            })
+        },
+        {
+          resetToMainBranchSql: () => 'CREATE TRIGGER todo_insert_main;',
+          restoreInitialRows: async () => {
+            throw new Error('initial rows failed');
+          }
+        }
+      )
+    ).rejects.toThrow('initial rows failed');
+
+    // 触发器没被装回去 —— 事务本身要回滚，这里只确认失败点之后不再继续往下走。
+    expect(executedSql).not.toContain('CREATE TRIGGER todo_insert_main;');
+  });
+
+  // restoreInitialRows 写的是按分支挂靠的行，前提是 rxdb$rxdb_branch 本轮被清空、只剩 main
+  // 一行。分支表在库里、却被 shouldDeleteTable 留下时，它可能残留上一轮任意分支组合的旧行，
+  // 钩子写进去轻则撞唯一约束、报一条读不出原因的底层 SQL 错误，重则在没有唯一约束的表上
+  // 悄悄产出重复行。这是清理配置自相矛盾，与缺 resetToMainBranchSql 同类，必须在任何 DELETE
+  // 之前拒绝——所以这里让 shouldDeleteTable 只留分支表、照常清 public$todos，只放行
+  // 「钩子没被调用」而放过半截清理的实现会在 executedSql 上露馅。
+  it('分支表被 shouldDeleteTable 留下时拒绝 restoreInitialRows，且在任何 DELETE 之前', async () => {
+    const executedSql: string[] = [];
+    let restoreInitialRowsCalled = false;
+
+    await expect(
+      cleanupSqliteTestAdapter(
+        {
+          transaction: async callback =>
+            callback({
+              execute: async sql => {
+                executedSql.push(sql.trim());
+                if (sql.includes('sqlite_master')) {
+                  return tableResult([
+                    ['public$todos', 'CREATE TABLE "public$todos" (...)'],
+                    ['rxdb$rxdb_branch', 'CREATE TABLE "rxdb$rxdb_branch" (...)']
+                  ]);
+                }
+                return tableResult([]);
+              }
+            })
+        },
+        {
+          shouldDeleteTable: tableName => tableName !== 'rxdb$rxdb_branch',
+          restoreInitialRows: async () => {
+            restoreInitialRowsCalled = true;
+          }
+        }
+      )
+    ).rejects.toThrow(/restoreInitialRows requires rxdb\$rxdb_branch to be cleared/);
+
+    expect(restoreInitialRowsCalled).toBe(false);
+    expect(executedSql).toEqual([
+      'PRAGMA defer_foreign_keys = ON;',
+      "SELECT name, sql FROM sqlite_master WHERE type='table';"
+    ]);
+  });
+
+  // 库里压根没有分支表（只聚焦单表行为的夹具）时无旧行可残留，钩子照常调用，不能与
+  // 「分支表在、却被留下」一概而论地拒绝。
+  it('库里没有分支表时照常调用 restoreInitialRows', async () => {
+    let restoreInitialRowsCalled = false;
+
+    await cleanupSqliteTestAdapter(
+      {
+        transaction: async callback =>
+          callback({
+            execute: async sql =>
+              sql.includes('sqlite_master') ?
+                tableResult([['public$todos', 'CREATE TABLE "public$todos" (...)']])
+              : tableResult([])
+          })
+      },
+      {
+        restoreInitialRows: async () => {
+          restoreInitialRowsCalled = true;
+        }
+      }
+    );
+
+    expect(restoreInitialRowsCalled).toBe(true);
+  });
+});

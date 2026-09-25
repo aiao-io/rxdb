@@ -1,7 +1,7 @@
 import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import type { EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
+import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
 import { createSqliteClient } from '../create_sqlite_client.js';
 import { RxDBAdapterSqliteai } from '../RxDBAdapterSqliteai.js';
 import type { SqliteaiOptions } from '../sqliteai.interface.js';
@@ -14,8 +14,6 @@ class QueryCountingSqliteaiAdapter extends RxDBAdapterSqliteai {
     return super.query(...args);
   }
 }
-
-const encryptedQueryCounts = new WeakMap<object, () => number>();
 
 const silentPrintErr = (): void => undefined;
 const workers = new WeakMap<RxDB, Worker>();
@@ -117,10 +115,9 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
 
 export const sqliteaiEncryptedFactory: EncryptedAdapterFactory = {
   name: 'sqliteai',
-  getQueryCount: adapter => encryptedQueryCounts.get(adapter)?.() ?? 0,
+  getQueryCount: queryCountOf,
   createAdapter: async options => {
     const adapter = await createSqliteaiAdapter(options);
-    encryptedQueryCounts.set(adapter, () => adapter.queryCount);
-    return adapter;
+    return registerQueryCount(adapter, () => adapter.queryCount);
   }
 };

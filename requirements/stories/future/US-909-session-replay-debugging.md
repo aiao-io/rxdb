@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-09-18
+updated: 2026-09-25
 tags: [future, replay, debugging, e2e, working-tree, rrweb]
 ---
 
@@ -33,10 +33,10 @@ INVEST 检查清单:
    `trace: 'on-first-retry'`，`retries` 为 `isCI ? 2 : 0`，注释明确「正确动作是用 `--retries=0 --repeat-each=N`
    把它钉成确定性复现，再查产品代码」。Playwright trace 记录浏览器动作、网络与 console，但**不含**应用级
    DOM 语义回放，也**不含**失败时刻的应用数据状态——trace 定位到失败后，仍需手工构造数据场景复现。
-2. **数据版本控制基建已存在**：working-tree 已提供写捕获与提交（US-305 / US-306，`In Review`），
+2. **数据版本控制基建已存在**：working-tree 已提供写捕获与提交（US-305 `Done`、US-306 `In Review`），
    [`capture-interceptor.ts`](../../../packages/rxdb/src/capture/capture-interceptor.ts) 拦截写入；
    `restoreSession` 已在 [`use-working-tree.ts`](../../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts)
-   暴露（US-307，`In Review`）。数据侧「回到任意提交」的基建存在，但没有任何东西把「界面发生了什么」和
+   暴露（US-307，`Done`）。数据侧「回到任意提交」的基建存在，但没有任何东西把「界面发生了什么」和
    「数据在哪个提交」连起来。
 3. **冲突粒度决定数据模型**：同步冲突按整文档 LWW 处理（[`LWWConflictResolver`](../../../packages/rxdb/src/sync-contract/VersionManager.interface.ts)）。
    录制事件若内嵌进 session 大数组，单事件写入会整文档覆盖冲突、并破坏增量拉取粒度——因此

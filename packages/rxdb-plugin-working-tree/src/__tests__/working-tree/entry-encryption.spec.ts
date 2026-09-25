@@ -425,13 +425,13 @@ describe('错误不含字段值（FR-045）', () => {
     expect(errorSurfaceOf(error)).not.toContain(SENTINEL);
   });
 
-  it('折叠判定要删的行不在库里时，错误里只有身份没有内容', async () => {
+  it('折叠依据不是端口自己读到的那一行时，错误里只有身份没有内容', async () => {
     const stage = scene();
     const patch = encodedPatch({ title: SENTINEL });
 
-    // `readEntry` 报「有一条 insert 条目」而库里其实没有——折叠于是判 `remove`，
-    // 而 `persistEntry` 自己再查一次查不到，落到那个抛点上。这是这条路上唯一一个
-    // 「`row` 是 undefined、patch 却仍在 `captureCrudWrite` 手里」的抛点。
+    // 外面塞进来的 `readEntry` 报「有一条 insert 条目」，折叠于是判 `remove`；而端口手上
+    // 没有自己读到的既有行，于是 `persistEntry` 拒绝落盘。这是这条路上唯一一个
+    // 「`row` 是 undefined、patch 却仍在 `captureCrudWrite` 手里」的抛点——错误里只该有身份。
     const port = stage.port({ operation: 'delete', patch: null, inversePatch: patch });
     const detached: WorkingTreeCapturePort = { ...port, readEntry: async () => row({ operation: 'insert' }) };
 

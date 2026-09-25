@@ -103,7 +103,18 @@ export const generateSwitchBranchStatements = (adapter: RxDBAdapterSqliteBase, b
  *
  * @remarks
  * 只适用于**不读结果集**的调用方：拼接会让第二条 `RETURNING` 的行在部分后端上收不回来，
- * 理由见 {@link generateSwitchBranchStatements}。要行就逐条执行。
+ * 理由见 {@link generateSwitchBranchStatements}。要行就逐条执行。 *
+ * **另一个后端有一份平行实现**（`packages/rxdb-adapter-pglite/src/version/switch_branch.ts`）。
+ * 两端的**机制已经一致**（都是「先熄灭、后点亮」两条带 `RETURNING` 的 UPDATE，理由见上），
+ * 剩下的分歧只在**语句收集协议**：sqlite 侧交出语句数组（要行的调用方逐条执行，不要行的才用
+ * `join('')` 的那个变体），pglite 侧交出一整段 `---STATEMENT_SEPARATOR---` 分隔的字符串。
+ * 合一的前提是先统一这个协议，而两个适配器互不依赖、公共层该落在哪个包本身未定——
+ * 与 `version/switch-result.utils.ts` 的判定是同一件事（那两份文件的 `@fileoverview` 里写了
+ * 「抽完只剩壳」的具体理由）。顺延记录见 `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ *
+ * 在合一之前，这两条 UPDATE 的**任何**改动都必须两端同改：`activeKey` 的唯一索引是
+ * 「至多一条激活分支」的唯一机械保证（口径见 `packages/rxdb/src/system/branch.ts`），
+ * 而 `RETURNING` 少一条就意味着那一侧翻转过的行不进事件派发。
  */
 export const generateSwitchBranchSql = (adapter: RxDBAdapterSqliteBase, branchId: string): string =>
   generateSwitchBranchStatements(adapter, branchId).join('');
@@ -135,25 +146,35 @@ const _dispatch_branch_update_event = (
 /**
  * 切换当前活跃分支并应用所需的数据迁移。
  *
- * 整个流程在单事务内完成：移除触发器 → 数据迁移 → 更新 RxDBChange 序列 →
- * 重建触发器 + 更新 activated 标志，保证原子性；事件在提交成功后派发。
+ * 整个流程在单事务内完成：解析目标分支 → {@link SwitchBranchOptions.prepare} 前置校验 →
+ * 移除触发器 → 数据迁移 → 更新 RxDBChange 序列 → 重建触发器 + 更新 activated 标志，
+ * 保证原子性；事件在提交成功后派发。
  *
  * @param adapter - SQLite 适配器
  * @param options - 包含可选的目标 branchId（省略即「留在当前激活分支」）与 SwitchVersionActions
  * @throws 任意事务内 SQL 错误（触发回滚）
  */
 export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: SwitchBranchOptions) => {
-  const { branchId, actions } = options;
+  const { branchId, actions, prepare } = options;
 
   const switchAction = actions && (await convertSwitchResultToSql(adapter, actions));
   const branchSwitchResults: SqliteSuccessResult[] = [];
   let targetBranchId = branchId;
+  // 前置校验被拒是一条日常路径，不是适配器故障；下面的 catch 靠它决定包不包。
+  let prepareRejected = false;
   try {
     // switch_branch 自己管理触发器和变更日志，因此跳过事务日志记录。
     await adapter.transaction(async tx => {
       // 省略 branchId = 「作用于当前激活分支」，必须在本事务内解析：在事务外采样再传进来，
       // 采样与提交之间的一次真实切换会让这条调用把 activated 与全部触发器倒回旧分支。
       targetBranchId ??= await read_current_branch_id(tx);
+      // 前置校验排在这里而不是本事务之外：外面那一版留下一个「校验通过到真正切换」的窗口，
+      // 窗口里的一次写能让刚判过的「工作树干净」变成假的，而切换照样完成。
+      // 抛出即整次回滚——此刻一行都还没动，连触发器都还在。
+      await prepare({ executor: tx, targetBranchId }).catch((error: unknown) => {
+        prepareRejected = true;
+        throw error;
+      });
       // 移除所有表触发器，避免触发器在批量操作时干扰数据
       const remove_all_triggers = remove_all_triggers_sql(adapter);
       if (remove_all_triggers) {
@@ -205,6 +226,10 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       await dispatch_switch_events(adapter, switchAction);
     }
   } catch (error) {
+    // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
+    // 包进 RxDBAdapterSqliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
+    // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
+    if (prepareRejected) throw error;
     throw new RxDBAdapterSqliteError(`switch branch ${targetBranchId ?? '<current>'} failed`, { cause: error });
   }
 };

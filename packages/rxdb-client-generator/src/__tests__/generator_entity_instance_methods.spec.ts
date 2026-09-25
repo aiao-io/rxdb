@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import type { GeneratorContext } from '../generators/RepositoryGenerator.interface.js';
 import { RepositoryGeneratorBase } from '../generators/RepositoryGeneratorBase.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
 
 class CustomRepositoryGenerator extends RepositoryGeneratorBase {
   readonly name = 'CustomRepository';

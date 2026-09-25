@@ -1,3 +1,30 @@
+/**
+ * @fileoverview 把 {@link SwitchVersionActions} 翻成本后端可执行的 SQL（undo/redo/切分支共用）。
+ *
+ * @remarks
+ * **这份文件与另一个后端的同名文件形状几乎一样，是刻意保留的两份，不是漏抽的重复。**
+ * 对照的是 `packages/rxdb-adapter-sqlite-core/src/version/switch-result.utils.ts`。
+ * 两边的**控制流**确实平行（按 action 分类 → 解信封 → 生成 insert/update/delete → 拼结果），
+ * 但每一步用的都是本后端的方言原语，抽出去只剩一个壳：
+ *
+ * - **类型口径相反**：Postgres 是强类型的，`'42'` 进 `integer` 列直接报错，所以 pglite 侧带着
+ *   `normalizeLegacyEntityId` 把历史行里的 id 按列类型归一；SQLite 有列亲和性，`'42'` 会被
+ *   悄悄转成 `42`，那一步在 sqlite 侧既不需要也不该有（它会把一个本来合法的字符串 id 改掉）。
+ * - **绑定与批量不同**：sqlite 侧要按 `chunkBySqliteBindLimit` 切批（SQLITE_MAX_VARIABLE_NUMBER），
+ *   还要用 `ROWID` 定位无主键行；pglite 侧走 `getSqlWithParams`，两者都没有对应物。
+ * - **值编解码不同**：`transformValueSqliteToJs` 与 `transformValuePGliteToJs` 读回来的原始表示
+ *   不一样（bigint / bytea / boolean 各有各的形态）。
+ *
+ * 于是「抽公共层」实际能抽走的只有那个 switch 骨架，而它本身不承载任何判断——抽完两边仍各写
+ * 一份方言实现，多出来的是一个所有人都得跳过去看的间接层。这批 SQL 若要真的合一，前提是先有
+ * 一层「方言无关的语句 IR」，那是另一个量级的工程（且两个适配器互不依赖，公共层落在哪个包
+ * 本身也是未定的适配器公开面决策）。判定与顺延记录见 `requirements/roadmap.md`
+ * 的「epic-006 评审顺延的架构项」。
+ *
+ * **两边共享的那一格已经是真的共享的**：`normalizeUpdateEntity` 与
+ * `unenvelopePlaintextPatches` 都指向核心 / `@aiao/rxdb-adapter-encrypted` 的同一份实现，
+ * 不是各写一遍。新增逻辑先问一句「这一格与方言有关吗」——无关的往那两处放。
+ */
 import {
   EntityData,
   EntityMetadata,

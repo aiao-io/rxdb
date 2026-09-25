@@ -1,4 +1,4 @@
-import { EntityMetadata, EntityType, getEntityMetadata } from '@aiao/rxdb';
+import { EntityMetadata, EntityType, getEntityMetadata, MAIN_BRANCH_ID } from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import inserts_sql from '../entity/inserts_sql.js';
 import create_table_sql from './create_table_sql.js';
@@ -107,7 +107,15 @@ export async function create_tables_statements<T extends EntityType>(
 
     // 2. 触发器（仅对 log !== false 的实体）
     if (metadata.log !== false) {
+      // 这里固定写根分支，因为本函数是纯生成器：没有连接可读，而且新库走到这里时 `rxdb_branch`
+      // 表**正在**本次调用里被建出来（阶段顺序是「建表 → 触发器 → 初始行」），还没有行可读。
+      //
+      // 库停在非根分支时（`RxDB.#ensureEntityTables` 补建缺失实体表），由调用方
+      // `RxDBAdapterPGlite.createTables` 在这批语句跑完之后、同一个事务里按当前分支重挂一次
+      // ——PG 侧**没有** sqlite 那样的每事务自愈（事务只设 `rxdb.transaction_id`，不碰分支），
+      // 这一步漏掉就会让新实体的变更一直记在 `main` 名下，直到下次切分支。
       const triggerSQL = generate_trigger_sql(metadata, {
+        branchId: MAIN_BRANCH_ID,
         resolveEntityMetadata: adapter.encryptionContext.resolveEntityMetadata
       });
       // 哨兵是给拆分用的，绝不能原样留在返回值里 —— 送进 PG 就是 42601

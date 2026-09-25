@@ -14,10 +14,6 @@
         "kind": "type"
       },
       {
-        "name": "cleanupExpired",
-        "kind": "value"
-      },
-      {
         "name": "CleanupExpiredOptions",
         "kind": "type"
       },
@@ -70,11 +66,11 @@
         "kind": "type"
       },
       {
-        "name": "syncBranches",
-        "kind": "value"
+        "name": "SyncBranchesResult",
+        "kind": "type"
       },
       {
-        "name": "SyncBranchesResult",
+        "name": "SyncBranchSkipReason",
         "kind": "type"
       },
       {

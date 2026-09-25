@@ -49,6 +49,16 @@ export * from './status.js';
 // 公开面上，与 `working-tree-state-sql.ts` / `restore-session-transitions.ts` 同一条线：
 // 语句形状是实现细节，调用方拿到手也没有能安全使用它的事务。
 export * from './switch-branch-options.js';
+// 目标分支物化（US-309 / FR-044/049）：**只出失败出口，不出原语**。
+// 来源契约（`BranchMaterializationSource` 与页指纹）住在核心 `@aiao/rxdb`：实现方是同步插件，
+// 它与本包互不依赖，接缝只能落在两者共同的下游。编排本身由插件的 `takeOverBranchSwitch`
+// 接线，调用方经 `versionManager.switchBranch()` 触发，用不到它。
+//
+// `branch-materialization.js` 的四段原语（开头行 / 追页 / 封口 / 屏障）拿到手也没有能安全使用
+// 它们的事务——页序、续用判定与屏障里那几件事的次序缺一不可，散着调等于让调用方自己重写
+// 一遍流水线。挑出来的两样是**契约载荷**：失败出口那个错误类与它的成因枚举——少一样，
+// 调用方就只能靠 `error.message` 认成因。
+export { BranchNotMaterializedError, type BranchNotMaterializedReason } from './branch-materialization.js';
 export * from './trusted-callsite-capture.js';
 export * from './versioned-domain.js';
 export * from './working-tree-commands.js';

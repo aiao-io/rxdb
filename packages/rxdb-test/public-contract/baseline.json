@@ -20,6 +20,7 @@
     "makeEntityFieldsWireDraft": "function",
     "makeSearchParityArticles": "function",
     "makeSearchParityComments": "function",
+    "mergeCreatedIntoCursorPage": "function",
     "version": "string",
     "withSeedLock": "function"
   },
@@ -31,6 +32,8 @@
     "SENTINEL_CC": "string",
     "SENTINEL_CC_ROTATED": "string",
     "SENTINEL_JSON": "string",
+    "queryCountOf": "function",
+    "registerQueryCount": "function",
     "runBigIntBinaryEncryptedSuite": "function",
     "runChangeLogSuite": "function",
     "runCrudSuite": "function",

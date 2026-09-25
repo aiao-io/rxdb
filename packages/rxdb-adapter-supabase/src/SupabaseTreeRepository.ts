@@ -3,8 +3,8 @@
  * 提供树形结构的查询功能（邻接表模型）
  */
 
-import { type EntityType, type RuleGroup } from '@aiao/rxdb';
-import { assertTreeLevel, type FindTreeOptions, type ITreeRepository } from '@aiao/rxdb-plugin-tree';
+import { assertOptionalNonNegativeSafeInteger, type EntityType, type RuleGroup } from '@aiao/rxdb';
+import type { FindTreeOptions, ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import { chunk_values, select_all_pages, SUPABASE_PAGE_SIZE } from './pagination.js';
 import { assert_postgrest_ok } from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
@@ -100,7 +100,10 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
    */
   private async findDescendantsFromTable(options: FindTreeOptions<T>): Promise<InstanceType<T>[]> {
     const { entityId, where } = options;
-    const level = assertTreeLevel(options.level);
+    const level = assertOptionalNonNegativeSafeInteger(
+      options.level,
+      `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
+    );
     const tableName = this.metadata.tableName;
     const hasChildrenFeature = this.metadata.features?.tree?.hasChildren;
     const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
@@ -228,7 +231,10 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
    */
   private async findAncestorsFromTable(options: FindTreeOptions<T>): Promise<InstanceType<T>[]> {
     const { entityId, where } = options;
-    const level = assertTreeLevel(options.level);
+    const level = assertOptionalNonNegativeSafeInteger(
+      options.level,
+      `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
+    );
 
     if (!entityId) {
       return [];

@@ -1,4 +1,5 @@
 import {
+  assertUsableBranchId,
   type LocalRxDBBranchRepository,
   type LocalRxDBChangeRepository,
   resolve_current_branch,
@@ -30,6 +31,10 @@ import { VersionManager } from './VersionManager.js';
  * 在形状上分辨不出来，只会在下一次用到它时抛一句读不出主语的错。
  */
 export const create_branch = async (version: VersionManager, branchId: string, fromChangeId?: number) => {
+  // 挡在所有 I/O 之前。排在查重之后的话，一条从第一个字符起就不可用的 id 会先跑完本地
+  // 查重、再跑一趟远端 RTT 才被拒——而这两趟的答案与结论无关。
+  assertUsableBranchId(branchId);
+
   const { branchRepository: queuedBranchRepository, adapter } = await version.getLocalRepositories();
   // 检查分支 ID 是否存在（本地）
   //

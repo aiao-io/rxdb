@@ -18,7 +18,7 @@
  * `switch_branch()` 内部直接调 `adapter.transaction()`（还要在前后各刷一次变更管道），
  * 嵌进一个已开的事务就是等自己占着的队列槽位。所以 `switchBranch` 的捕获是**后继事务**，
  * 与业务写之间存在一个崩溃窗口——这是 adapter-contract.md §5 的一处已知偏离，仅影响
- * 登记表第 4 行（undo/redo）：第 1、3 行是 `projection_rewrite`，本来就不产生单元。
+ * 登记表第 4 行（undo/redo）：第 1、3、10 行是 `projection_rewrite`，本来就不产生单元。
  */
 
 import type {
@@ -27,6 +27,7 @@ import type {
   InterceptedBulkWrite,
   MergeChangesNext,
   RawWritePrimitives,
+  RxDBAdapterLocalBase,
   SwitchBranchOptions,
   SwitchVersionActions,
   SwitchVersionChange,
@@ -535,9 +536,11 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @throws {@link WorkingTreeWriteRejectedError} 两个作用域上都没有声明时
    *
    * @remarks
-   * 先问 executor 再问适配器：事务内的调用（登记表 #5/#7/#8/#9）把声明放在 executor 上，
-   * 适配器级调用（#1/#2/#3/#4/#6）放在适配器上。反过来先问适配器的话，一次适配器级声明会被
-   * 紧随其后的事务内写取走。
+   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11，全是 `mergeChanges`）
+   * 把声明放在 executor 上，适配器级调用（#1/#3/#4/#10，全是 `switchBranch`）放在适配器上。
+   * 反过来先问适配器的话，一次适配器级声明会被紧随其后的事务内写取走。
+   * 接管路径的物化正是两者叠在一起的那一处：#10 由挂载点 3 在调 `prepare` **之前**同步取走，
+   * 屏障里的每一批 #11 再由挂载点 2 各自当场取走，两张声明互不相碰。
    */
   #requireEntrance(executor: TransactionExecutor | undefined, method: string): WriteEntrance {
     const declared = this.#takeDeclaration(executor);
@@ -642,11 +645,12 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  *
  * **系统表先摘出去再建域。** 传进来的 `rxdb.config.entities` 已经被 `SchemaManager.init()`
  * 补过系统表，照单全收会让 `rxdb_branch` / `rxdb_change` 这些表落进 `versionedTables`，
- * 于是 raw 写五步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
+ * 于是 raw 写四步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
  * 摘干净之后还多一层作用：域认得的名字必定是业务实体，{@link WorkingTreeCaptureRuntime.targetClassOf}
  * 正是靠这一点先问域再问系统表清单。
  */
 export const createWorkingTreeCaptureRuntime = (
+  adapter: PhysicalTableNameSource,
   entityManager: EntityManager,
   entities: readonly EntityType[],
   databaseSync: SyncOptions
@@ -654,21 +658,42 @@ export const createWorkingTreeCaptureRuntime = (
   new WorkingTreeCaptureRuntime({
     entityManager,
     domain: buildVersionedDomain(
-      entities.filter(EntityType => !isSystemEntity(EntityType)).map(toVersionedDomainEntityInput(databaseSync))
+      entities
+        .filter(EntityType => !isSystemEntity(EntityType))
+        .map(toVersionedDomainEntityInput(adapter, databaseSync))
     ),
     systemEntityNames: getSystemEntityNames(),
     systemEntityIdentities: getSystemEntityIdentities()
   });
 
 /**
+ * 建域时唯一要向适配器问的那件事：这张表在它发出的 SQL 里叫什么
+ *
+ * @remarks
+ * 收窄到一个成员而不是整个 `RxDBAdapterLocalBase`，是因为建域只读这一项——收整个适配器会让
+ * 「建域还依赖适配器的什么」变成要逐行读实现才能回答的问题。
+ *
+ * 不收一个裸的 `(metadata) => string[]`：那样任何一处都能就地塞一份自己拼的规则进来，
+ * 而这次改动的全部意义正是让规则只有一份、且归写表的那一方所有。要求**有这个方法的对象**，
+ * 生产路径上就只有适配器本身能交得出。
+ */
+type PhysicalTableNameSource = Pick<RxDBAdapterLocalBase, 'physicalTableNames'>;
+
+/**
  * 把一个实体类折成域的登记项
  *
+ * @param adapter - 物理表名的唯一出处
  * @param databaseSync - 库级同步配置；实体自身没登记 `sync` 时由它生效
  * @returns 可直接喂给 `Array.prototype.map` 的折叠函数
  * @throws RxDBError 实体解析不出生效的同步配置时
+ *
+ * @remarks
+ * 表名问适配器而不是读 `metadata.tableName`：后者是**逻辑**名，而 SQLite 家族真正建出来的是
+ * `public$post`，那也是它们唯一能用的表名。在这里只登记逻辑名的话，raw 门禁在 5/6 的后端上
+ * 整条失效，且没有报错形态。
  */
 const toVersionedDomainEntityInput =
-  (databaseSync: SyncOptions) =>
+  (adapter: PhysicalTableNameSource, databaseSync: SyncOptions) =>
   (EntityType: EntityType): VersionedDomainEntityInput => {
     const metadata = getEntityMetadata(EntityType);
     const sync = getEntitySync(EntityType, databaseSync);
@@ -676,7 +701,7 @@ const toVersionedDomainEntityInput =
     return {
       entityName: metadata.name,
       namespace: metadata.namespace,
-      tableName: metadata.tableName,
+      physicalTableNames: adapter.physicalTableNames(metadata),
       syncType: sync.type
     };
   };

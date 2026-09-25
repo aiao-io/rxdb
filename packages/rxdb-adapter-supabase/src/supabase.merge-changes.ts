@@ -5,7 +5,7 @@
  * 翻译为 `rxdb_mutations` RPC 所需的 `p_upserts` / `p_deletes` / `p_changes` 载荷。
  */
 
-import { parseRxDBChangeKey, type IRxDBChange, type SwitchVersionActions } from '@aiao/rxdb';
+import { MAIN_BRANCH_ID, parseRxDBChangeKey, type IRxDBChange, type SwitchVersionActions } from '@aiao/rxdb';
 
 export interface MergeChangesUpsertPayload {
   table: string;
@@ -44,7 +44,7 @@ export function build_merge_changes_payload(
   resolveTableKey: (namespace: string, entityName: string) => string
 ): MergeChangesPayload {
   const now = new Date().toISOString();
-  const effectiveBranchId = branchId ?? 'main';
+  const effectiveBranchId = branchId ?? MAIN_BRANCH_ID;
 
   const resolveChangeTable = (namespace: string, entityName: string) => {
     const [schema, table] = resolveTableKey(namespace, entityName).split('.');
@@ -161,11 +161,15 @@ export function build_merge_changes_payload(
     upsertsByTable.set(table, data);
   }
 
-  // 非激活分支只写 RxDBChange 记录，不修改实体表
-  const isActiveBranch = effectiveBranchId === 'main';
+  // 只有 main 的变更落实体表，其余分支只写 RxDBChange 记录。
+  // 判的是「是不是 main」，与本地哪条分支激活无关：本地两端早已允许任意分支激活，于是在
+  // feature 分支上激活时的编辑推到这里只留变更记录、不进实体表，与本地分支语义不一致。
+  // 要对齐，得先定服务端按什么判定「激活」（按连接、按用户还是全局）——登记在
+  // requirements/roadmap.md「epic-006 评审顺延的架构项」。
+  const isMainBranch = effectiveBranchId === MAIN_BRANCH_ID;
 
   const p_upserts =
-    isActiveBranch ?
+    isMainBranch ?
       Array.from(upsertsByTable.entries()).map(([table, data]) => {
         const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
         return { table: tableName, schema, data };
@@ -173,7 +177,7 @@ export function build_merge_changes_payload(
     : [];
 
   const p_deletes =
-    isActiveBranch ?
+    isMainBranch ?
       Array.from(deletesByTable.entries()).map(([table, ids]) => {
         const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
         return { table: tableName, schema, ids };

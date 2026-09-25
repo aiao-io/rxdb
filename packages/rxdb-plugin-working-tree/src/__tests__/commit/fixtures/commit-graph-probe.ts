@@ -126,6 +126,18 @@ export interface CommitGraphProbe {
   readonly finds: ProbeFindCall[];
   /** 经 `executor.query()` 发出的原始语句 */
   readonly statements: string[];
+  /**
+   * executor 上**每一次**调用的类型标记，按发生顺序。
+   *
+   * @remarks
+   * `finds` 与 `statements` 各自成序，两者之间却没有先后：一个「先发 UPDATE 再读回来」的
+   * 实现与一个「先读一遍再发 UPDATE」的实现，在那两个数组上留下的痕迹一模一样，而两者的
+   * 区别正是并发下号会不会撞（见 `activation-state.ts` › `allocateBranchGeneration`）。
+   *
+   * 每一个入口都记，不挑着记：漏掉的那几个会让 `toEqual([...])` 这种全序断言在别人加了一次
+   * 调用之后依然通过，而全序断言的全部价值就是不通过。
+   */
+  readonly trace: string[];
   /** 经 `saveMany()` 落库的行，按调用顺序摊平 */
   readonly saved: InstanceType<EntityType>[];
   /** 往某张表里塞行（测试布景用） */
@@ -140,6 +152,21 @@ export interface CommitGraphProbeOptions {
   readonly rowsAffected?: number;
   /** 覆盖写入行为，用于「INSERT 撞唯一约束」这一支 */
   readonly saveMany?: (entities: InstanceType<EntityType>[]) => Promise<InstanceType<EntityType>[]>;
+  /**
+   * 每条 `executor.query()` 发出之后的旁路钩子，拿得到语句与各表当前的行，交回这条语句读到的行。
+   *
+   * @remarks
+   * 替身**不执行 SQL**，这一点不变：钩子不是解释器的入口，而是让**布景**为它认得的那一条
+   * 语句补上行的变化、并替它答出结果。谁需要哪条语句留下痕迹，谁自己在自己的布景里写，
+   * 替身照旧什么都不懂——没挂钩子、或钩子不认得这一条时，交回去的仍是空结果集。
+   *
+   * 逼出它的是 `allocateBranchGeneration`：那条 `SET seq = seq + 1` 把加法交给库做，
+   * 紧跟着的 SELECT 又把号从库里取回来（见 `activation-state.ts`），于是替身这边单调源永远
+   * 停在原地、读回来的永远是 0 行，而下游那几个建分支的用例断言的恰恰是「单调源真的往前走了
+   * 一格」。把这两条认进替身里就等于开始长成数据库——语句形状换一种它就得多认一种，
+   * `@fileoverview` 里那条「只支持一点点」立刻失守。
+   */
+  readonly onQuery?: (sql: string, rowsOf: (EntityClass: EntityType) => object[]) => unknown[][];
 }
 
 /**
@@ -152,6 +179,7 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
   const tables = new Map<string, object[]>();
   const finds: ProbeFindCall[] = [];
   const statements: string[] = [];
+  const trace: string[] = [];
   const saved: InstanceType<EntityType>[] = [];
 
   const tableOf = (EntityClass: EntityType): object[] => {
@@ -165,16 +193,21 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
     id: 'commit-graph-probe',
     state: 'active',
     query: vi.fn(async (sql: string) => {
+      trace.push('query');
       statements.push(sql);
-      return { ...rawQueryResult, rows: [], columns: [] };
+      return { ...rawQueryResult, rows: options.onQuery?.(sql, tableOf) ?? [], columns: [] };
     }),
     tableRef: fakeTableRef,
-    mutations: vi.fn(async () => []),
+    mutations: vi.fn(async () => {
+      trace.push('mutations');
+      return [];
+    }),
     getRepository: <T extends EntityType>(EntityClass: T): IRepository<T> => {
       const { name } = getEntityMetadata(EntityClass);
       const rows = tableOf(EntityClass);
       return {
         find: vi.fn(async options => {
+          trace.push(`find:${name}`);
           finds.push({ entity: name, where: options.where as RuleGroup });
           const hits = rows.filter(row =>
             matches(row as Record<string, unknown>, options.where as unknown as ProbeGroup)
@@ -183,34 +216,44 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
           return ordered.slice(0, options.limit ?? ordered.length) as InstanceType<T>[];
         }),
         count: vi.fn(async options => {
+          trace.push(`count:${name}`);
           finds.push({ entity: name, where: options.where as RuleGroup });
           return rows.filter(row => matches(row as Record<string, unknown>, options.where as unknown as ProbeGroup))
             .length;
         }),
         create: vi.fn(async entity => {
+          trace.push(`create:${name}`);
           rows.push(entity as object);
           return entity;
         }),
-        update: vi.fn(async (entity, patch) => Object.assign(entity as object, patch) as InstanceType<T>),
+        update: vi.fn(async (entity, patch) => {
+          trace.push(`update:${name}`);
+          return Object.assign(entity as object, patch) as InstanceType<T>;
+        }),
         remove: vi.fn(async entity => {
+          trace.push(`remove:${name}`);
           const index = rows.indexOf(entity as object);
           if (index >= 0) rows.splice(index, 1);
           return entity;
         })
       };
     },
-    saveMany: (options.saveMany ??
-      (async (entities: InstanceType<EntityType>[]) => {
-        for (const entity of entities) {
-          tableOf(entity.constructor as EntityType).push(entity);
-          saved.push(entity);
-        }
-        return entities;
-      })) as TransactionExecutor['saveMany'],
+    saveMany: (async (entities: InstanceType<EntityType>[]) => {
+      trace.push('saveMany');
+      // 记轨迹这一步包在外面，不写进默认实现里：`options.saveMany` 覆盖掉的正是默认实现，
+      // 于是「INSERT 撞唯一约束」那一支会在轨迹上凭空少一行。
+      if (options.saveMany) return options.saveMany(entities);
+      for (const entity of entities) {
+        tableOf(entity.constructor as EntityType).push(entity);
+        saved.push(entity);
+      }
+      return entities;
+    }) as TransactionExecutor['saveMany'],
     // 真的把行从表里摘掉。返回入参却不动表的桩会让「提交后工作树清空」这类断言
     // 在实现根本没删干净时照样绿——批量删除是 commit / discard 的收尾动作，
     // 这里说谎，整个阶段 B 的原子性用例就都是空转。
     removeMany: vi.fn(async (entities: InstanceType<EntityType>[]) => {
+      trace.push('removeMany');
       for (const entity of entities) {
         const rows = tableOf(entity.constructor as EntityType);
         const index = rows.indexOf(entity as object);
@@ -218,7 +261,10 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
       }
       return entities;
     }) as TransactionExecutor['removeMany'],
-    mergeChanges: vi.fn(async () => undefined),
+    mergeChanges: vi.fn(async () => {
+      trace.push('mergeChanges');
+      return undefined;
+    }),
     run: fn => fn(executor)
   };
 
@@ -226,6 +272,7 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
     executor,
     finds,
     statements,
+    trace,
     saved,
     seed(EntityClass, rows) {
       tableOf(EntityClass).push(...(rows as object[]));

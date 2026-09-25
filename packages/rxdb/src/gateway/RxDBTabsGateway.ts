@@ -1,6 +1,7 @@
 import { BroadcastTopic, createBroadcastTopic, LeaderElection } from '@aiao/utils';
 import { Subscription } from 'rxjs';
 import {
+  CapabilityEnabledEvent,
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
   ENTITY_LOCAL_UPDATE_EVENT,
@@ -8,6 +9,7 @@ import {
   RxDBEvent
 } from '../rxdb-events.js';
 import {
+  GATEWAY_MESSAGE_CAPABILITY_ENABLED,
   GATEWAY_MESSAGE_ENTITY_EVENT,
   GATEWAY_MESSAGE_FIRST_CONNECTED_AT,
   GATEWAY_MESSAGE_HELLO,
@@ -163,6 +165,32 @@ export class RxDBTabsGateway {
   }
 
   /**
+   * 广播「某个能力刚被启用」，让同源的其他连接接通它（FR-037）
+   *
+   * @param capability - 能力名，与 `RxDBSystemContribution.capability` 同值
+   *
+   * @remarks
+   * **这是一条显式的、单向的消息，不走 {@link RxDBTabsGateway.#setupLocalEventForwarding}。**
+   * 那条路转发的是实体事件，防回声靠两道闸：瞬时的 `#processingRemoteEvent`，以及事件自身的
+   * `origin: 'cross-tab'` 标记。两道对本消息都不成立 —— 它不带 `entities`，
+   * {@link isCrossTabEvent} 对它恒为 `false`；而瞬时标志在事务期间入队、到 COMMIT 才重放的
+   * 那条路上早已复位。于是两个 tab 会开始互相回声，且每次回声都换一个 `messageId`，
+   * 去重窗口一条都拦不住。所以接收端收到之后**不再广播**（见 {@link RxDBTabsGateway.#setupMessageHandler}）。
+   *
+   * 销毁后调用是安全的 no-op：`#topic.close()` 之后没有订阅者，发出去也没人收。
+   */
+  broadcastCapabilityEnabled(capability: string): void {
+    if (this.#destroyed) return;
+
+    this.#topic.emit({
+      type: GATEWAY_MESSAGE_CAPABILITY_ENABLED,
+      messageId: this.#generateMessageId(),
+      clientId: this.#clientId,
+      capability
+    });
+  }
+
+  /**
    * 销毁网关，释放资源；幂等 —— 重复调用是安全的 no-op
    */
   destroy(): void {
@@ -284,6 +312,16 @@ export class RxDBTabsGateway {
         case GATEWAY_MESSAGE_FIRST_CONNECTED_AT:
           if (typeof message.firstConnectedAt !== 'string') break;
           this.#updateFirstConnectedAt(new Date(message.firstConnectedAt));
+          break;
+
+        case GATEWAY_MESSAGE_CAPABILITY_ENABLED:
+          // 载荷是不可信输入：能力名不是字符串就整条丢掉，而不是派发一个 capability 为
+          // undefined 的事件 —— 那会让接收端拿它去比对能力名，比出一个恒假的结果，
+          // 于是钩子永远装不上，且一条错误都不会有。
+          if (typeof message.capability !== 'string') break;
+          // 不置 #processingRemoteEvent，也不再广播：防回声在这条路上靠单向（见
+          // broadcastCapabilityEnabled 的 @remarks）。
+          dispatchEvent(new CapabilityEnabledEvent(message.capability));
           break;
       }
     });

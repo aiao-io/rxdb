@@ -1,6 +1,7 @@
 import {
   type LocalRxDBBranchRepository,
   type LocalRxDBChangeRepository,
+  MAIN_BRANCH_ID,
   RxDBBranch,
   RxDBChange,
   RxDBError
@@ -23,7 +24,7 @@ import { VersionManager } from './VersionManager.js';
 export const remove_branch = async (version: VersionManager, branchId: string) => {
   const { adapter } = await version.getLocalRepositories();
   // 检查是否为主分支
-  if (branchId === 'main') {
+  if (branchId === MAIN_BRANCH_ID) {
     throw new RxDBError(`Cannot remove main branch`);
   }
 

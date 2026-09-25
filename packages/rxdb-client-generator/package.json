@@ -40,6 +40,11 @@
       "types": "./dist/cli/cli.d.ts",
       "import": "./dist/cli.js"
     },
+    "./testing": {
+      "@aiao/source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing.js"
+    },
     "./vite": {
       "@aiao/source": "./src/plugins/vite.ts",
       "types": "./dist/plugins/vite.d.ts",
@@ -65,7 +70,6 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/utils": "workspace:*",
     "glob": "^13.0.6",
     "jiti": "^2.7.0",
