@@ -120,7 +120,7 @@ export async function getRepositoriesToSync(rxdb: RxDB, options: BulkSyncOptions
     const metadata = getEntityMetadata(EntityClass);
 
     // 检查 syncType（支持全局配置回退）
-    const capability = getSyncCapability(getSyncType(metadata, rxdb.config.sync));
+    const capability = getSyncCapability(getSyncType(metadata, rxdb.entitySync));
     if (!capability.pull && !capability.push) {
       continue;
     }

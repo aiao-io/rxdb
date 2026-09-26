@@ -1,5 +1,5 @@
 /**
- * 后端 RxDB 装配：pglite 文件落盘 + ServerRecipe 单实体。
+ * 后端 RxDB 装配：pglite 文件落盘 + 共享 Recipe 单实体（实例级同步覆盖为纯本地）。
  *
  * @remarks
  * 阶段 B 在 A2 的基础上把 `store: 'memory'` 换成 pglite 的 Node `dataDir`（B3）：
@@ -9,12 +9,16 @@
  * `multiInstance: false` 显式关掉跨 tab 协调（RxDBTabsGateway 依赖 BroadcastChannel / Web Locks，
  * Node 后端没有这些 Web API，与微信小程序逻辑层是同一情形）。
  * `SyncType.None + local: pglite`：后端是全租户共享的权威库，不触发任何远端路径。
+ *
+ * 实体类与前端是**同一个** {@link Recipe}（US-026 AC#13）：装饰器上的 QueryCache + http 声明
+ * 是给前端的，后端经 `syncOverrides` 把它整体替换为 {@link SERVER_RECIPE_SYNC}，
+ * 不需要 http 适配器、也不需要 QueryCache 插件；共享类的原声明不被改写。
  */
 
-import type { Repository, RuleGroup } from '@aiao/rxdb';
+import type { Repository, RuleGroup, SyncOptions } from '@aiao/rxdb';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { ServerRecipe } from '@modules/recipes-domain';
+import { Recipe } from '@modules/recipes-domain';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { firstValueFrom } from 'rxjs';
@@ -23,8 +27,8 @@ import type { RecipeRow } from './seed.ts';
 
 /** 后端 RxDB 食谱存储。 */
 export interface RxdbRecipeStore {
-  /** ServerRecipe 的仓储，七个协议端点都从它读写。 */
-  readonly repo: Repository<typeof ServerRecipe>;
+  /** Recipe 的仓储，七个协议端点都从它读写。 */
+  readonly repo: Repository<typeof Recipe>;
   /** RxDB 实例（取 entityManager / 挂事件监听用）。 */
   readonly rxdb: RxDB;
   /** 释放 pglite 句柄。关服 / reset 前必须调用。 */
@@ -33,8 +37,11 @@ export interface RxdbRecipeStore {
 
 const SERVER_DB_NAME = 'rxdb-http-demo-server';
 
+/** 后端对共享 {@link Recipe} 的生效同步策略：纯本地 pglite，库级默认与之相同。 */
+export const SERVER_RECIPE_SYNC = { type: SyncType.None, local: { adapter: 'pglite' } } satisfies SyncOptions;
+
 /** 无过滤的空 where（引擎的 `find` 要求 `where` 非空）。 */
-const EMPTY_WHERE: RuleGroup<ServerRecipe> = { combinator: 'and', rules: [] };
+const EMPTY_WHERE: RuleGroup<Recipe> = { combinator: 'and', rules: [] };
 
 /**
  * 建后端 RxDB（pglite `dataDir` 文件落盘）+ 连接，Recipe 表由 `connect()` 的建表链路建成。
@@ -48,14 +55,15 @@ export const createRxdbRecipeStore = async (dataDir: string): Promise<RxdbRecipe
     dbName: SERVER_DB_NAME,
     // D9：后端实例是全租户共享，`context` 填服务器身份（不是任何用户），引擎拿它盖审计字段。
     context: { userId: 'server' },
-    entities: [ServerRecipe],
+    entities: [Recipe],
     multiInstance: false,
-    sync: { type: SyncType.None, local: { adapter: 'pglite' } }
+    sync: SERVER_RECIPE_SYNC,
+    syncOverrides: [{ entity: Recipe, sync: SERVER_RECIPE_SYNC }]
   });
   rxdb.adapter('pglite', async db => new RxDBAdapterPGlite(db, { dataDir }));
   await rxdb.connect('pglite');
   return {
-    repo: rxdb.entityManager.getRepository(ServerRecipe),
+    repo: rxdb.entityManager.getRepository(Recipe),
     rxdb,
     // 终态出口而非 `disconnectAll()`：实例是这里 new 的，出去只有 `store.destroy()` 一个口子，
     // 之后要么关服、要么 reset（destroy → 删 dataDir → 重新建一个），没有复用同一实例重连的路径。
@@ -95,7 +103,7 @@ export const isEmptyRxdbStore = async (store: RxdbRecipeStore): Promise<boolean>
  */
 export const seedRxdbStore = async (store: RxdbRecipeStore, rows: readonly RecipeRow[]): Promise<number> => {
   const entities = rows.map(row =>
-    store.rxdb.entityManager.instantiate(ServerRecipe, {
+    store.rxdb.entityManager.instantiate(Recipe, {
       id: row.id,
       title: row.title,
       status: row.status,

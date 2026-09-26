@@ -36,7 +36,7 @@ export const RECIPE_ORDER_BY = [
   { field: 'id', sort: 'asc' }
 ] as const;
 
-/** 能读出 Recipe 行的最小形状（前端 {@link Recipe} 与后端 {@link ServerRecipe} 都满足）。 */
+/** 能读出 Recipe 行的最小形状（{@link Recipe} 实体与 wire 行都满足）。 */
 export interface RecipeRowLike {
   readonly id: string;
   readonly title: string;

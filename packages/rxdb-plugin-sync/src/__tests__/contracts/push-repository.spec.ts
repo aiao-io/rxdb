@@ -1,5 +1,6 @@
 import type { EntityType, IRepository, RxDBEvent } from '@aiao/rxdb';
 import {
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   PropertyType,
@@ -63,6 +64,7 @@ function createValidationHarness(options: ValidationHarnessOptions = {}) {
   };
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(options.sync),
       config: {
         entities: options.entities ?? [User],
         sync: options.sync
@@ -120,6 +122,7 @@ function createEmptyPushHarness() {
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(fullSync()),
       config: { entities: [User], sync: fullSync() },
       context: { clientId: 'contract-client' },
       dispatchEvent,

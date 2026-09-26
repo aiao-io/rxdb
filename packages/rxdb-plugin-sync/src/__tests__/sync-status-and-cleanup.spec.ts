@@ -1,6 +1,8 @@
 import {
+  createEntitySyncResolver,
   type EntityMetadata,
   type EntityType,
+  getEntityMetadata,
   getRxDBEntityIdentityKey,
   type OperatorName,
   type Rule,
@@ -70,11 +72,21 @@ interface StatusHarnessOptions {
   remoteConfigured?: boolean;
   branchId?: string;
   globalSync?: SyncOptions;
+  syncOverrides?: SyncOverridePairs;
 }
 
 type SyncFind = (options: QueryOptions) => Promise<RxDBSync[]>;
 type ChangeFind = (options: QueryOptions) => Promise<RxDBChange[]>;
 type GetChangeCount = (sinceId: number, repositoryFilter?: string[], branchId?: string) => Promise<RemoteCount>;
+
+/** 实例覆盖：`[实体, 生效配置]`，按元数据身份建索引，与 `RxDB` 构造时的 `indexSyncOverrides` 同口径 */
+type SyncOverridePairs = ReadonlyArray<readonly [EntityType, SyncOptions]>;
+
+const createResolver = (sync: SyncOptions | undefined, overrides: SyncOverridePairs = []) =>
+  createEntitySyncResolver(
+    sync,
+    new Map(overrides.map(([EntityClass, override]) => [getEntityMetadata(EntityClass), override]))
+  );
 
 function createEntityType(name: string, sync?: SyncOptions, namespace = 'public'): EntityType {
   class CoverageEntity {
@@ -162,6 +174,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));
   const rxdb = {
+    entitySync: createResolver(options.globalSync, options.syncOverrides),
     config: {
       entities: options.entities,
       sync: options.globalSync
@@ -192,6 +205,8 @@ interface CleanupHarnessOptions {
   entities?: EntityType[];
   records?: CleanupRecord[];
   sync?: SyncOptions;
+  /** 对 `Order` 的实例覆盖 */
+  override?: SyncOptions;
 }
 
 type CleanupFind = (options: { where: RuleGroup }) => Promise<CleanupRecord[]>;
@@ -223,6 +238,7 @@ function createCleanupHarness(options: CleanupHarnessOptions = {}) {
   const getLocalRepositories = vi.fn(async () => ({ adapter }));
   const vm = {
     rxdb: {
+      entitySync: createResolver(undefined, options.override ? [[Entity, options.override]] : []),
       config: {
         entities,
         sync: undefined
@@ -513,6 +529,54 @@ describe('仓库同步状态查询', () => {
       expect.objectContaining({ field: 'id' })
     );
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:InheritedSync'], 'main');
+  });
+});
+
+describe('US-026 AC#10：状态统计与清理认实例覆盖后的生效策略', () => {
+  it('装饰器声明纯本地、实例覆盖为 Full：状态按 full 统计待拉取数', async () => {
+    const Overridden = createEntityType('Overridden', LOCAL_SYNC);
+    const harness = createStatusHarness({
+      changeCounts: new Map([['Overridden', 0]]),
+      entities: [Overridden],
+      remoteCounts: new Map([['public:Overridden', { count: 2, latestChangeId: 7 }]]),
+      syncOverrides: [[Overridden, FULL_SYNC]]
+    });
+
+    await expect(getRepositorySyncStatus(harness.rxdb, 'public', 'Overridden')).resolves.toMatchObject({
+      syncType: 'full',
+      pullableCount: 2
+    });
+    expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:Overridden'], 'main');
+  });
+
+  it('装饰器声明 Full、实例覆盖为纯本地：更新检查短路，不查分支也不碰远端', async () => {
+    const Overridden = createEntityType('Overridden', FULL_SYNC);
+    const harness = createStatusHarness({ entities: [Overridden], syncOverrides: [[Overridden, LOCAL_SYNC]] });
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'Overridden')).resolves.toMatchObject({
+      hasUpdates: false,
+      pendingCount: 0
+    });
+    expect(harness.getCurrentBranch).not.toHaveBeenCalled();
+    expect(harness.getChangeCount).not.toHaveBeenCalled();
+  });
+
+  it('清理取覆盖里的 filter，而不是装饰器原值', async () => {
+    const declaredFilter = vi.fn<() => RuleGroup>(() => createFilter('='));
+    const overrideFilter = vi.fn<() => RuleGroup>(() => createFilter('>='));
+    const harness = createCleanupHarness({
+      records: [{ id: 'expired-1' }],
+      sync: createFilterSync(declaredFilter),
+      override: createFilterSync(overrideFilter)
+    });
+
+    await cleanupExpired(harness.vm, 'public', 'Order', { dryRun: true });
+
+    expect(declaredFilter).not.toHaveBeenCalled();
+    expect(overrideFilter).toHaveBeenCalledTimes(1);
+    expect(harness.find).toHaveBeenCalledWith({
+      where: { combinator: 'or', rules: [{ field: 'value', operator: '<', value: 'sample' }] }
+    });
   });
 });
 

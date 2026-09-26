@@ -15,6 +15,7 @@
  */
 
 import {
+  createEntitySyncResolver,
   Entity,
   ENTITY_STATIC_TYPES,
   EntityBase,
@@ -24,6 +25,7 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBSync,
+  type SyncOptions,
   SyncType
 } from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
@@ -102,6 +104,8 @@ interface SetupOptions {
   /** 预置的同步水位记录；不给就走懒创建 */
   sync?: Partial<RxDBSync>;
   entityType?: typeof CachedRecipe | typeof VersionedRecipe;
+  /** 实例对 `entityType` 的同步覆盖（US-026） */
+  syncOverride?: SyncOptions;
 }
 
 const setup = (options: SetupOptions = {}) => {
@@ -179,8 +183,11 @@ const setup = (options: SetupOptions = {}) => {
     return of(options.changeCount ?? 0);
   });
 
+  const entityType = options.entityType ?? CachedRecipe;
+  const overrides = new Map(options.syncOverride ? [[getEntityMetadata(entityType), options.syncOverride]] : []);
   const rxdb = {
-    config: { entities: [options.entityType ?? CachedRecipe], sync: undefined },
+    config: { entities: [entityType], sync: undefined },
+    entitySync: createEntitySyncResolver(undefined, overrides),
     entityManager: {
       instantiate: () => ({ enabled: true }) as RxDBSync,
       getRepository: vi.fn(() => ({ count: countChanges }))
@@ -692,6 +699,29 @@ describe('flushQueryCacheOutbox', () => {
       const ctx = setup({ entityType: VersionedRecipe });
 
       await expect(flushQueryCacheOutbox(ctx.rxdb, NAMESPACE, 'VersionedRecipe')).rejects.toThrow(/querycache/);
+    });
+
+    // US-026 AC#10：入口按生效策略判定，不看装饰器原值
+    it('装饰器声明 Full、实例覆盖为 QueryCache：照常重放', async () => {
+      const ctx = setup({
+        entityType: VersionedRecipe,
+        syncOverride: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
+        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1' } })]
+      });
+
+      await flushQueryCacheOutbox(ctx.rxdb, NAMESPACE, 'VersionedRecipe');
+
+      expect(ctx.remoteAdapter.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('装饰器声明 QueryCache、实例覆盖为纯本地：拒绝进入出站管道', async () => {
+      const ctx = setup({
+        syncOverride: { type: SyncType.None, local: { adapter: 'sqlite' } },
+        changes: [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1' } })]
+      });
+
+      await expect(flush(ctx)).rejects.toThrow(/querycache/);
+      expect(ctx.remoteAdapter.create).not.toHaveBeenCalled();
     });
 
     it('同步开关关掉时什么都不做', async () => {

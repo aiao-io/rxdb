@@ -2,6 +2,7 @@ import {
   ConflictDetectedEvent,
   ConflictPendingEvent,
   type ConflictResolver,
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   LWWConflictResolver,
@@ -198,6 +199,11 @@ function createSyncManager(remoteChanges: RemoteChange[], localChanges: RxDBChan
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver({
+        type: SyncType.Full,
+        local: { adapter: 'sqlite' },
+        remote: { adapter: 'remote' }
+      }),
       config: {
         entities: [PullConflictUser],
         sync: {

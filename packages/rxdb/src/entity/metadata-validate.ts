@@ -24,6 +24,7 @@ import {
   SyncType
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
+import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 
 /**
  * 注册期元数据校验规则。
@@ -427,7 +428,7 @@ const missingQueryCacheAdapterSides = (databaseSync: SyncOptions | undefined): r
  *
  * @param collector - 违规收集器
  * @param metadata - 实体元数据
- * @param databaseSync - 数据库级 `rxdb.config.sync`；实体自己没写 `sync` 时生效
+ * @param resolver - 实体同步配置解析器；按它给出的**生效**配置校验
  * @param isSyncTypeUnsupported - 仓储级限制查询；省略即「核心不认识任何仓储限制」
  *
  * @remarks
@@ -443,16 +444,17 @@ const missingQueryCacheAdapterSides = (databaseSync: SyncOptions | undefined): r
 const validateSyncStrategy = (
   collector: ViolationCollector,
   metadata: EntityMetadata,
-  databaseSync: SyncOptions | undefined,
+  resolver: EntitySyncResolver,
   isSyncTypeUnsupported: SyncTypeRestrictionLookup | undefined
 ): void => {
-  const sync = metadata.sync ?? databaseSync;
+  const sync = resolver.resolve(metadata);
   if (!sync) return;
 
   validateRepositorySyncSupport(collector, metadata, sync.type, isSyncTypeUnsupported);
   if (sync.type !== SyncType.QueryCache) return;
 
-  const missing = missingQueryCacheAdapterSides(databaseSync);
+  // 适配器只从库级 sync 注册，实例覆盖与实体声明一样不参与注册
+  const missing = missingQueryCacheAdapterSides(resolver.databaseSync);
   if (missing.length > 0) {
     const sides = missing.join(' 与 ');
     const streams = missing.map(side => `${side}Adapter$`).join(' / ');
@@ -525,6 +527,7 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  *
  * @param metadata - `transitionMetadata()` 产出的实体元数据
  * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效。
+ *   也可以传实例的解析器 `rxdb.entitySync`，此时连同实例覆盖一起按生效配置校验。
  *   省略即只看实体自己的声明
  * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}。
  *   省略即核心不认识任何仓储限制
@@ -538,14 +541,14 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
  */
 export function validateEntityMetadata(
   metadata: EntityMetadata,
-  databaseSync?: SyncOptions,
+  databaseSync?: SyncOptions | EntitySyncResolver,
   isSyncTypeUnsupported?: SyncTypeRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
   const collector = new ViolationCollector(metadata.namespace, metadata.name);
   metadata.propertyMap.forEach(property => validateProperty(collector, property));
   metadata.computedPropertyMap.forEach(property => validateProperty(collector, property));
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
-  validateSyncStrategy(collector, metadata, databaseSync, isSyncTypeUnsupported);
+  validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
   return collector.drain().sort(compareViolations);
 }
 
@@ -565,12 +568,12 @@ export function formatMetadataViolations(errors: readonly EntityMetadataValidati
  * 跨实体聚合校验，并把全部违规排序后一次性返回。
  *
  * @param metadataList - 待校验的实体元数据集合
- * @param databaseSync - 数据库级 `rxdb.config.sync`；实体没写 `sync` 时由它生效
+ * @param databaseSync - 数据库级 `rxdb.config.sync`，或实例解析器 `rxdb.entitySync`（含实例覆盖）
  * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}
  */
 export function validateEntityMetadataSet(
   metadataList: readonly EntityMetadata[],
-  databaseSync?: SyncOptions,
+  databaseSync?: SyncOptions | EntitySyncResolver,
   isSyncTypeUnsupported?: SyncTypeRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
   return metadataList

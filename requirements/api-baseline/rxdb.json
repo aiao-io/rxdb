@@ -190,6 +190,10 @@
         "kind": "type"
       },
       {
+        "name": "createEntitySyncResolver",
+        "kind": "value"
+      },
+      {
         "name": "CurrencyFormat",
         "kind": "type"
       },
@@ -467,6 +471,18 @@
       },
       {
         "name": "EntityStatus",
+        "kind": "type"
+      },
+      {
+        "name": "EntitySyncOverride",
+        "kind": "type"
+      },
+      {
+        "name": "EntitySyncResolver",
+        "kind": "type"
+      },
+      {
+        "name": "EntitySyncTarget",
         "kind": "type"
       },
       {
@@ -795,6 +811,10 @@
       },
       {
         "name": "isEntityMatchWhere",
+        "kind": "value"
+      },
+      {
+        "name": "isEntitySyncResolver",
         "kind": "value"
       },
       {
@@ -1738,6 +1758,14 @@
         "kind": "type"
       },
       {
+        "name": "RxDBSyncOverrideError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBSyncOverrideErrorReason",
+        "kind": "type"
+      },
+      {
         "name": "RxDBSyncRuleGroup",
         "kind": "type"
       },
@@ -1963,6 +1991,10 @@
       },
       {
         "name": "takeDeclaredWrite",
+        "kind": "value"
+      },
+      {
+        "name": "toEntitySyncResolver",
         "kind": "value"
       },
       {

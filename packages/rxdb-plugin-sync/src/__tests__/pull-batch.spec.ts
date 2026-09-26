@@ -1,5 +1,6 @@
 import {
   ConflictDetectedEvent,
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   type EntityType,
@@ -331,6 +332,7 @@ function createHarness(options: HarnessOptions) {
   const branchId = options.branchId ?? 'main';
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(options.sync ?? FULL_SYNC),
       config: {
         entities: options.entities,
         sync: options.sync ?? FULL_SYNC

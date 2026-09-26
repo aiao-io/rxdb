@@ -1,5 +1,6 @@
-import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
+import type { SyncOptions } from '../entity/metadata-options.interface.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
+import { toEntitySyncResolver, type EntitySyncResolver } from './entity-sync-resolver.js';
 
 /**
  * @fileoverview 同步策略识别工具
@@ -23,18 +24,21 @@ export type RepositorySyncType = 'full' | 'filter' | 'querycache' | 'remote' | '
  * 获取实体的有效同步配置（支持全局配置回退）
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 实体的有效同步配置，如果没有任何配置则返回 undefined
  */
-export function getSyncConfig(metadata: EntityMetadata, globalSync?: SyncOptions): SyncOptions | undefined {
-  return metadata.sync || globalSync;
+export function getSyncConfig(
+  metadata: EntityMetadata,
+  globalSync?: SyncOptions | EntitySyncResolver
+): SyncOptions | undefined {
+  return toEntitySyncResolver(globalSync).resolve(metadata);
 }
 
 /**
  * 从 EntityMetadata 获取同步类型
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选，作为回退）
+ * @param globalSync - 全局同步配置（可选，作为回退）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 同步类型
  *
  * @example
@@ -77,63 +81,14 @@ export function getSyncConfig(metadata: EntityMetadata, globalSync?: SyncOptions
  * getSyncType(metadata, globalSync); // 'full'
  * ```
  */
-export function getSyncType(metadata: EntityMetadata, globalSync?: SyncOptions): RepositorySyncType {
-  // 获取有效的 sync 配置（实体配置 > 全局配置）
-  const sync = getSyncConfig(metadata, globalSync);
-
-  // 如果没有任何 sync 配置，默认为 none
-  if (!sync) {
-    return 'none';
-  }
-
-  // SyncFilter: 条件同步（只同步满足 filter 条件的数据子集）
-  if (sync.type === SyncType.Filter) {
-    return 'filter';
-  }
-
-  // QueryCache: 查询缓存同步（按需拉取并缓存远程数据）
-  if (sync.type === SyncType.QueryCache) {
-    return 'querycache';
-  }
-
-  // Full sync: 双向同步
-  if (sync.type === SyncType.Full) {
-    return 'full';
-  }
-
-  // SyncType.None: 根据 local/remote 配置判断
-  if (sync.type === SyncType.None) {
-    const hasLocal = !!sync.local;
-    const hasRemote = !!sync.remote;
-
-    // 特殊情况：实体继承全局配置时，如果全局有 local + remote，默认使用 full 同步
-    // 这允许全局配置 `type: SyncType.None` 作为"让实体自己决定"的语义
-    if (!metadata.sync && hasLocal && hasRemote) {
-      return 'full';
-    }
-
-    if (hasLocal && hasRemote) {
-      // 两者都有但 type = None，意味着不同步（系统表）
-      return 'none';
-    }
-
-    if (hasRemote && !hasLocal) {
-      // 只有 remote: 只读远程数据
-      return 'remote';
-    }
-
-    if (hasLocal && !hasRemote) {
-      // 只有 local: 只在本地
-      return 'local';
-    }
-
-    // 两者都没有: 不同步
-    return 'none';
-  }
-
-  // 默认为 none（不应该到达这里）
-  return 'none';
+export function getSyncType(
+  metadata: EntityMetadata,
+  globalSync?: SyncOptions | EntitySyncResolver
+): RepositorySyncType {
+  // 获取有效的 sync 配置（实例覆盖 > 实体配置 > 全局配置）
+  return toEntitySyncResolver(globalSync).resolveType(metadata);
 }
+
 
 /**
  * 某个同步类型的同步能力
@@ -285,7 +240,7 @@ export function isRepositorySyncEnabled(repoSync?: RepositorySyncSwitch | null):
  * 检查 repository 是否需要 pull
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 是否需要 pull
  *
  * @remarks
@@ -303,7 +258,7 @@ export function isRepositorySyncEnabled(repoSync?: RepositorySyncSwitch | null):
  * needsPull(metadataNone);       // false (none)
  * ```
  */
-export function needsPull(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
+export function needsPull(metadata: EntityMetadata, globalSync?: SyncOptions | EntitySyncResolver): boolean {
   return getSyncCapability(getSyncType(metadata, globalSync)).pull;
 }
 
@@ -311,7 +266,7 @@ export function needsPull(metadata: EntityMetadata, globalSync?: SyncOptions): b
  * 检查 repository 是否需要 push
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 是否需要 push
  *
  * @example
@@ -330,7 +285,7 @@ export function needsPull(metadata: EntityMetadata, globalSync?: SyncOptions): b
  *
  * 与 {@link needsPull} 一样只看 `syncType`，不看 `RxDBSync.enabled`。
  */
-export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
+export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions | EntitySyncResolver): boolean {
   return getSyncCapability(getSyncType(metadata, globalSync)).push;
 }
 
@@ -338,7 +293,7 @@ export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions): b
  * 检查 repository 在远端不可达时是否接受本地写（并在恢复连接后重放）
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 是否支持离线写
  *
  * @example
@@ -355,7 +310,7 @@ export function needsPush(metadata: EntityMetadata, globalSync?: SyncOptions): b
  * `true`、在 `needsPush` 是 `false`。回推驱动按这两个字段分派 ——
  * `push` 的走 `syncManager.push()`，`offlineWrite && !push` 的走 QueryCache 出站重放。
  */
-export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
+export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOptions | EntitySyncResolver): boolean {
   return getSyncCapability(getSyncType(metadata, globalSync)).offlineWrite;
 }
 
@@ -363,7 +318,7 @@ export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOpt
  * 检查 repository 是否完全不同步
  *
  * @param metadata - 实体元数据
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 是否不同步
  *
  * @example
@@ -374,7 +329,7 @@ export function needsOfflineWrite(metadata: EntityMetadata, globalSync?: SyncOpt
  * isNoSync(metadataNone);   // true (系统表)
  * ```
  */
-export function isNoSync(metadata: EntityMetadata, globalSync?: SyncOptions): boolean {
+export function isNoSync(metadata: EntityMetadata, globalSync?: SyncOptions | EntitySyncResolver): boolean {
   const syncType = getSyncType(metadata, globalSync);
   return syncType === 'none';
 }
@@ -383,7 +338,7 @@ export function isNoSync(metadata: EntityMetadata, globalSync?: SyncOptions): bo
  * 获取需要同步的 repository 列表
  *
  * @param entities - 实体元数据数组
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 需要同步的实体列表
  *
  * @example
@@ -393,7 +348,7 @@ export function isNoSync(metadata: EntityMetadata, globalSync?: SyncOptions): bo
  * // 返回: [todoMetadata, userMetadata] (排除 systemMetadata)
  * ```
  */
-export function getSyncableRepositories(entities: EntityMetadata[], globalSync?: SyncOptions): EntityMetadata[] {
+export function getSyncableRepositories(entities: EntityMetadata[], globalSync?: SyncOptions | EntitySyncResolver): EntityMetadata[] {
   return entities.filter(entity => !isNoSync(entity, globalSync));
 }
 
@@ -401,7 +356,7 @@ export function getSyncableRepositories(entities: EntityMetadata[], globalSync?:
  * 按同步类型分组 repositories
  *
  * @param entities - 实体元数据数组
- * @param globalSync - 全局同步配置（可选）
+ * @param globalSync - 全局同步配置（可选）；传实例解析器 `rxdb.entitySync` 时连同实例覆盖一起解析
  * @returns 按同步类型分组的实体
  *
  * @example
@@ -418,7 +373,7 @@ export function getSyncableRepositories(entities: EntityMetadata[], globalSync?:
  */
 export function groupBySyncType(
   entities: EntityMetadata[],
-  globalSync?: SyncOptions
+  globalSync?: SyncOptions | EntitySyncResolver
 ): Record<RepositorySyncType, EntityMetadata[]> {
   const result: Record<RepositorySyncType, EntityMetadata[]> = {
     full: [],
