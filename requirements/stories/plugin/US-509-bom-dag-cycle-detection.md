@@ -32,7 +32,8 @@ tags: [plugin, bom, graph, integrity]
 - 闭包表的建立与增量维护（→ US-510 阶段 B；本故事只在闭包存在时用它加速）
 - 联产品/副产品语义本身（→ US-513；本故事只负责把非 consume 边排除在检测外）
 - 元数据层的声明式约束 DSL（→ [US-030](../core/US-030-declarative-storage-constraints.md)；
-  可达性要读整张边表，装不进声明式约束，本故事自己发 DDL）
+  AC#2 的自反边 CHECK 只看单行，通过它声明，不自己发 DDL。可达性要读整张边表，装不进声明式约束，
+  其触发器由本故事自己发 DDL）
 
 ## 验收标准
 
