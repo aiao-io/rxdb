@@ -592,7 +592,12 @@ export class RxDB {
     };
     // 覆盖在这里就校验并快照：早于实体绑定与任何数据库写入，之后调用方改原对象也影响不到本实例。
     if (options.syncOverrides !== undefined) {
-      this.#config.syncOverrides = snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity);
+      this.#config.syncOverrides = snapshotSyncOverrides(
+        options.syncOverrides,
+        options.entities,
+        isSystemEntity,
+        this.#config.sync
+      );
     }
     this.entitySync = createEntitySyncResolver(this.#config.sync, indexSyncOverrides(this.#config.syncOverrides ?? []));
     this.schemaManager = new SchemaManager(this);

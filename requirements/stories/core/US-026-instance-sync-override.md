@@ -139,7 +139,7 @@ INVEST 检查清单:
 - AC#4：「AC#4」：两实例交替读写、销毁其一后另一个继续；共享元数据不变
 - AC#5：「AC#5」：构造期深拷贝快照，改调用方对象与重连后策略稳定
 - AC#6：「AC#6」：同名不同 namespace 分别命中，未覆盖实体与关系中间实体不受影响
-- AC#7：「AC#7」：`RxDBSyncOverrideError` 五种 reason（unregistered / system-entity / duplicate / invalid-entry / invalid-sync），构造期抛出
+- AC#7：「AC#7」：`RxDBSyncOverrideError` 五种 reason（unregistered / system-entity / duplicate / invalid-entry / invalid-sync），构造期抛出；`invalid-sync` 还拦 Full / Filter / QueryCache 缺侧、Filter 缺 `remote.filter` 函数、适配器名与库级同侧不同，稀疏数组空位按 `invalid-entry` 报
 - AC#8：「AC#8」：缺 remote、缺插件、adapter 不支持 QueryCache 均按生效配置 fail-fast
 - AC#9：「AC#9」：单条 / 批量 / 事务入口共用 `rxdb.entitySync.resolve`，批量混合策略按既有契约拒绝
 - AC#10：`rxdb-plugin-sync` 的 `sync-status-and-cleanup.spec.ts` / `query-cache-outbox.spec.ts` 与 `rxdb-plugin-querycache` 的 `querycache-production-path.spec.ts` 覆盖出站重放、失效刷新与状态统计；纯本地覆盖不进管道

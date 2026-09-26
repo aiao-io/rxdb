@@ -37,7 +37,8 @@ export interface EntitySyncOverride {
  * - `system-entity`：目标是 RxDB 或插件注入的系统表
  * - `duplicate`：同一实体出现多条覆盖
  * - `invalid-entry`：条目本身不是对象，或 `entity` 不是实体类
- * - `invalid-sync`：`sync` 为 `null`、非对象、缺少或写错 `type`、适配器选项形状不对
+ * - `invalid-sync`：`sync` 为 `null`、非对象、缺少或写错 `type`、适配器选项形状不对，
+ *   Full / Filter / QueryCache 缺一侧，Filter 的 `remote.filter` 不是函数，或某侧适配器名与库级同侧不同
  */
 export type RxDBSyncOverrideErrorReason =
   'unregistered' | 'system-entity' | 'duplicate' | 'invalid-entry' | 'invalid-sync';
@@ -79,13 +80,53 @@ const entityLabel = (metadata: EntityMetadata): string => `${metadata.namespace}
 const isAdapterSideValid = (side: unknown): boolean =>
   side === undefined || (isRecord(side) && typeof side['adapter'] === 'string');
 
+/** 除 `None` 外的策略都跨两侧，判别联合里 local / remote 都是必填 */
+const BOTH_SIDES_REQUIRED: ReadonlySet<unknown> = new Set([SyncType.Full, SyncType.Filter, SyncType.QueryCache]);
+
+/**
+ * 判别联合的必填约束：TS 只管得住字面量，JS 调用方传进来的对象要在这里补上。
+ * 形状已由 {@link describeInvalidSync} 前几条确认，这里只看有没有。
+ */
+const describeMissingRequired = (sync: Record<string, unknown>): string | undefined => {
+  const type = sync['type'];
+  if (BOTH_SIDES_REQUIRED.has(type) && (sync['local'] === undefined || sync['remote'] === undefined)) {
+    return `SyncType.${String(type)} 必须同时配置 local 与 remote`;
+  }
+  // 缺 filter 时拉取会退化成不带条件的全量拉取，与「只同步子集」的声明相反
+  if (type === SyncType.Filter && typeof (sync['remote'] as Record<string, unknown>)['filter'] !== 'function') {
+    return 'SyncType.Filter 的 remote.filter 必须是返回 RuleGroup 的函数';
+  }
+  return undefined;
+};
+
+/**
+ * 覆盖里出现的一侧，库级同侧也有时名字必须一致。
+ *
+ * @remarks
+ * 适配器只从库级 `sync` 注册，仓储、批量写与同步管道都按**侧别**取库级那条流；名字不同的覆盖
+ * 会被静默送进库级那个适配器。库级没有的一侧不在这里判：覆盖不创建适配器，缺侧交给既有的
+ * fail-fast（如 QueryCache 的 `missingQueryCacheAdapter`）按生效配置报。
+ */
+const describeAdapterMismatch = (
+  sync: Record<string, unknown>,
+  databaseSync: SyncOptions | undefined
+): string | undefined => {
+  for (const side of ['local', 'remote'] as const) {
+    const declared = (sync[side] as SyncAdapterOptions | undefined)?.adapter;
+    const registered = databaseSync?.[side]?.adapter;
+    if (declared === undefined || registered === undefined || declared === registered) continue;
+    return `sync.${side}.adapter 为 '${declared}'，但库级 sync.${side} 注册的是 '${registered}'；覆盖不能换适配器`;
+  }
+  return undefined;
+};
+
 /** 返回 `sync` 的问题描述；合法时返回 `undefined` */
-const describeInvalidSync = (sync: unknown): string | undefined => {
+const describeInvalidSync = (sync: unknown, databaseSync: SyncOptions | undefined): string | undefined => {
   if (!isRecord(sync)) return `sync 必须是完整的 SyncOptions 对象，收到 ${sync === null ? 'null' : typeof sync}`;
   if (!SYNC_TYPES.has(sync['type'])) return `sync.type 必须是 SyncType 之一，收到 ${String(sync['type'])}`;
   if (!isAdapterSideValid(sync['local'])) return 'sync.local 必须是 { adapter: string }';
   if (!isAdapterSideValid(sync['remote'])) return 'sync.remote 必须是 { adapter: string }';
-  return undefined;
+  return describeMissingRequired(sync) ?? describeAdapterMismatch(sync, databaseSync);
 };
 
 /** 读条目里的实体元数据；不是实体类时返回 `undefined` */
@@ -118,13 +159,15 @@ const snapshotSync = (sync: SyncOptions): SyncOptions => {
  * @param overrides - `RxDBOptions.syncOverrides`，可能来自 JS 调用方，形状不可信
  * @param entities - 本实例注册的业务实体（调用方传入的 `entities`）
  * @param isSystem - 系统表判定
+ * @param databaseSync - 库级 `sync`：覆盖的适配器名要与它的同侧一致
  * @returns 本实例自有的冻结副本：数组、条目与 `sync` 两层纯数据都是新对象，实体类与函数保留原引用
  * @throws {@link RxDBSyncOverrideError} 任一条目非法时；不跳过、不取其中一条
  */
 export function snapshotSyncOverrides(
   overrides: readonly EntitySyncOverride[],
   entities: readonly EntityType[],
-  isSystem: (EntityClass: EntityType) => boolean
+  isSystem: (EntityClass: EntityType) => boolean,
+  databaseSync: SyncOptions | undefined
 ): readonly EntitySyncOverride[] {
   const snapshot = new Map<EntityMetadata, SyncOptions>();
   const entries: EntitySyncOverride[] = [];
@@ -132,7 +175,9 @@ export function snapshotSyncOverrides(
     throw new RxDBSyncOverrideError('invalid-entry', 0, undefined, 'syncOverrides 必须是数组');
   }
   const registered = new Set(entities);
-  overrides.forEach((entry: unknown, index) => {
+  // 按下标走而不是 forEach：稀疏数组的空位要落到 invalid-entry，不能被跳过
+  for (let index = 0; index < overrides.length; index++) {
+    const entry: unknown = overrides[index];
     const metadata = metadataOfEntry(entry);
     if (!metadata) {
       throw new RxDBSyncOverrideError('invalid-entry', index, undefined, '条目必须是 { entity: 实体类, sync }');
@@ -140,12 +185,12 @@ export function snapshotSyncOverrides(
     const { entity, sync } = entry as EntitySyncOverride;
     const label = entityLabel(metadata);
     assertTarget(entity, metadata, index, label, registered, isSystem, snapshot);
-    const problem = describeInvalidSync(sync);
+    const problem = describeInvalidSync(sync, databaseSync);
     if (problem) throw new RxDBSyncOverrideError('invalid-sync', index, label, problem);
     const copy = snapshotSync(sync);
     snapshot.set(metadata, copy);
     entries.push(Object.freeze({ entity, sync: copy }));
-  });
+  }
   return Object.freeze(entries);
 }
 

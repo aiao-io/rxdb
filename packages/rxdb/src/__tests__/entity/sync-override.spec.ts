@@ -402,7 +402,52 @@ describe('US-026 实例级实体同步覆盖', () => {
         0,
         'public.Recipe'
       ],
+      ['Full 缺两侧', [{ entity: Recipe, sync: { type: SyncType.Full } }], 'invalid-sync', 0, 'public.Recipe'],
+      [
+        'QueryCache 缺 remote',
+        [{ entity: Recipe, sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' } } }],
+        'invalid-sync',
+        0,
+        'public.Recipe'
+      ],
+      [
+        'Filter 缺 remote.filter',
+        [
+          { entity: Recipe, sync: { type: SyncType.Filter, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } } }
+        ],
+        'invalid-sync',
+        0,
+        'public.Recipe'
+      ],
+      [
+        'Filter 的 remote.filter 不是函数',
+        [
+          {
+            entity: Recipe,
+            sync: { type: SyncType.Filter, local: { adapter: 'sqlite' }, remote: { adapter: 'http', filter: {} } }
+          }
+        ],
+        'invalid-sync',
+        0,
+        'public.Recipe'
+      ],
+      [
+        'local 适配器名与库级不同',
+        [{ entity: Recipe, sync: { type: SyncType.None, local: { adapter: 'pglite' } } }],
+        'invalid-sync',
+        0,
+        'public.Recipe'
+      ],
       ['条目不是对象', [null], 'invalid-entry', 0, undefined],
+      ['稀疏数组的空位', Array(1), 'invalid-entry', 0, undefined],
+      [
+        '空位排在合法条目之后',
+        // eslint-disable-next-line no-sparse-arrays
+        [{ entity: Recipe, sync: LOCAL_ONLY }, ,],
+        'invalid-entry',
+        1,
+        undefined
+      ],
       ['entity 不是实体类', [{ entity: class NotAnEntity {}, sync: LOCAL_ONLY }], 'invalid-entry', 0, undefined],
       ['容器不是数组', null, 'invalid-entry', 0, undefined]
     ])('%s → %s', (_label, overrides, reason, index, entity) => {
@@ -413,6 +458,40 @@ describe('US-026 实例级实体同步覆盖', () => {
       expect(error).toMatchObject({ name: 'RxDBSyncOverrideError', reason, index });
       if (entity) expect((error as RxDBSyncOverrideError).entity).toBe(entity);
       expect((error as Error).message).toContain(`[${reason}]`);
+    });
+
+    it('remote 适配器名与库级不同：构造期拒绝，不让写入落到库级那一个适配器', () => {
+      const error = catchError(
+        () =>
+          new RxDB({
+            dbName: 'override-remote-mismatch',
+            entities: [Plain],
+            sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
+            syncOverrides: [{ entity: Plain, sync: { type: SyncType.None, remote: { adapter: 'supabase' } } }]
+          })
+      );
+
+      expect(error).toMatchObject({ reason: 'invalid-sync', index: 0, entity: 'public.Plain' });
+      expect((error as Error).message).toMatch(/supabase/);
+      expect((error as Error).message).toMatch(/http/);
+    });
+
+    it.each<[string, SyncOptions]>([
+      ['SyncDisabled：None 不带任何一侧', { type: SyncType.None }],
+      [
+        '库级没有的一侧不做名字比对，交给既有 fail-fast',
+        { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+      ],
+      [
+        'Filter 带 filter 函数',
+        {
+          type: SyncType.Filter,
+          local: { adapter: 'sqlite' },
+          remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
+        }
+      ]
+    ])('合法覆盖照常构造：%s', (_label, sync) => {
+      expect(() => construct([{ entity: Recipe, sync }])()).not.toThrow();
     });
 
     it('子类不继承基类的覆盖资格：未注册的子类被拒', () => {
