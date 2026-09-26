@@ -9,13 +9,14 @@ import {
   type WaSqliteClientRuntime
 } from '@aiao/rxdb-adapter-wa-sqlite/client';
 import { Factory, SQLITE_OK } from 'wa-sqlite';
+import { resolveMiniProgramHost } from './host.js';
 import { loadWaSqliteMiniProgramModule } from './loader.js';
 import type { WaSqliteMiniProgramOptions } from './mini-program.interface.js';
 import { DEFAULT_WASM_PATH } from './mini-program.interface.js';
 import { assertMiniProgramRuntimeCapabilities } from './runtime-capabilities.js';
 import { finalizeWaSqliteOpenStatements } from './statement-cleanup.js';
 import { hardenWaSqliteSynchronousCallbacks } from './synchronous-callbacks.js';
-import { createWechatFileVFS } from './wechat-file-vfs.js';
+import { createMiniProgramFileVFS } from './wechat-file-vfs.js';
 
 function resolveClientOptions(dbName: string, options: WaSqliteMiniProgramOptions): ResolvedWaSqliteClientOptions {
   assertMiniProgramRuntimeCapabilities(options);
@@ -30,7 +31,8 @@ function resolveClientOptions(dbName: string, options: WaSqliteMiniProgramOption
       moduleFactory: options.moduleFactory,
       wasmPath: options.wasmPath ?? DEFAULT_WASM_PATH,
       wasmRuntime: options.wasmRuntime,
-      wechat: options.wechat
+      wechat: options.wechat,
+      host: options.host
     }
   };
 }
@@ -45,16 +47,19 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramOptions> = 
     PRAGMA cache_size = -${cacheSizeKb};
   `,
   async load(dbName, options) {
-    const module = hardenWaSqliteSynchronousCallbacks(await loadWaSqliteMiniProgramModule(options));
+    const host = resolveMiniProgramHost(options);
+    const module = hardenWaSqliteSynchronousCallbacks(
+      await loadWaSqliteMiniProgramModule(options, host.wasmRuntimeName)
+    );
     const sqlite3 = hardenWaSqliteSynchronousCallbacks(Factory(module));
-    const vfsHandle = createWechatFileVFS(module, {
+    const vfsHandle = createMiniProgramFileVFS(module, {
       databaseName: `${dbName}.sqlite`,
       root: options.databaseRoot,
-      wechat: options.wechat
+      host
     });
     try {
       const result = sqlite3.vfs_register(vfsHandle.vfs, true);
-      if (result !== SQLITE_OK) throw new Error(`wa-sqlite 微信 VFS 注册失败: ${result}`);
+      if (result !== SQLITE_OK) throw new Error(`wa-sqlite ${host.shortName} VFS 注册失败: ${result}`);
     } catch (error) {
       try {
         await vfsHandle.vfs.close();
@@ -71,14 +76,14 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramOptions> = 
   }
 };
 
-/** 微信小程序专用 wa-sqlite 客户端。 */
+/** 小程序专用 wa-sqlite 客户端（宿主由 `wechat` 或 `host` 注入）。 */
 export class WaSqliteMiniProgramClient extends WaSqliteClientBase<WaSqliteMiniProgramOptions> {
   constructor() {
     super(MINI_PROGRAM_RUNTIME);
   }
 }
 
-/** 创建并初始化微信小程序专用 wa-sqlite 客户端。 */
+/** 创建并初始化小程序专用 wa-sqlite 客户端。 */
 export async function createWaSqliteMiniProgramClient(
   dbName: string,
   options: WaSqliteMiniProgramOptions

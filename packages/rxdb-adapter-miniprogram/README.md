@@ -72,6 +72,19 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 `queueMicrotask`。
 `checkMiniProgramRuntimeCapabilities()` 可在连接前显示完整能力矩阵和能力来源。
 
+## 宿主契约
+
+`wechat: wx` 是 `host: createWechatMiniProgramHost(wx)` 的便利形状，二者恰好传一个。
+`MiniProgramHost` 把平台相关的部分收成一个注入点：平台 id、同步文件系统、用户数据目录、
+安全随机源，以及报错里使用的能力名。运行时引导对应 `prepareMiniProgramHostRuntime(host)`，
+文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`。
+所有宿主共享同一张单连接表，同一数据库文件的第二个连接一律拒绝。
+
+**目前登记的平台只有 `wechat`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 会抛
+`MiniProgramUnknownPlatformError`，不会回退到 `wx`。这个契约的存在不代表支持支付宝、抖音、
+百度或 QQ 小程序；各平台的可行性结论见
+[miniprogram-platform-feasibility.md](../../requirements/stories/adapter/miniprogram-platform-feasibility.md)。
+
 ## 打包器注意事项
 
 glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和

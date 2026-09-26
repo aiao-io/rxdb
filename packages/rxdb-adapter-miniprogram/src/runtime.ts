@@ -1,4 +1,14 @@
+export {
+  MINI_PROGRAM_PLATFORM_IDS,
+  MiniProgramUnknownPlatformError,
+  createWechatMiniProgramHost,
+  isMiniProgramPlatformId
+} from './host.js';
 export type {
+  MiniProgramFileSystemManager,
+  MiniProgramHost,
+  MiniProgramHostCapabilityNames,
+  MiniProgramPlatformId,
   MiniProgramRandomValuesOptions,
   MiniProgramRandomValuesResult,
   MiniProgramWechatApi
@@ -9,6 +19,7 @@ export {
   fillMiniProgramRandomValues,
   getMiniProgramRuntimeSources,
   installMiniProgramRuntimePolyfills,
+  prepareMiniProgramHostRuntime,
   prepareMiniProgramRuntime
 } from './runtime-polyfills.js';
 export type {

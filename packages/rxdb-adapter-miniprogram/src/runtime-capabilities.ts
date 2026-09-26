@@ -1,4 +1,5 @@
-import type { WaSqliteMiniProgramOptions } from './mini-program.interface.js';
+import { isMiniProgramPlatformId, resolveMiniProgramHost } from './host.js';
+import type { MiniProgramHostSelection, WaSqliteMiniProgramBaseOptions } from './mini-program.interface.js';
 import type { MiniProgramRuntimeSource } from './runtime-polyfills.js';
 
 const RUNTIME_SOURCE_MARKER = '__aiaoMiniProgramRuntimeSource';
@@ -6,7 +7,7 @@ const RUNTIME_SOURCE_MARKER = '__aiaoMiniProgramRuntimeSource';
 function runtimeSource(value: unknown): MiniProgramRuntimeSource | undefined {
   if (typeof value !== 'function') return undefined;
   const source = (value as unknown as Record<string, unknown>)[RUNTIME_SOURCE_MARKER];
-  return source === 'polyfill' || source === 'wechat' ? source : undefined;
+  return source === 'polyfill' || isMiniProgramPlatformId(source) ? source : undefined;
 }
 
 function getRuntimeSources(): {
@@ -37,17 +38,32 @@ export interface MiniProgramRuntimeCapability {
   readonly source?: MiniProgramRuntimeSource;
 }
 
-/** 检查微信小程序逻辑层运行完整 RxDB/wa-sqlite 所需的能力。 */
+/** 运行时预检需要的配置：模块工厂、WASM 运行时与宿主。 */
+export type MiniProgramRuntimeCapabilityOptions = Pick<
+  WaSqliteMiniProgramBaseOptions,
+  'moduleFactory' | 'wasmRuntime'
+> &
+  MiniProgramHostSelection;
+
+/**
+ * 检查小程序逻辑层运行完整 RxDB/wa-sqlite 所需的能力。
+ *
+ * 平台相关能力名取自宿主（微信为 `WXWebAssembly.instantiate` / `wx.*`）；
+ * 未知平台 id 直接抛 `MiniProgramUnknownPlatformError`。
+ */
 export function checkMiniProgramRuntimeCapabilities(
-  options: Pick<WaSqliteMiniProgramOptions, 'moduleFactory' | 'wasmRuntime' | 'wechat'>
+  options: MiniProgramRuntimeCapabilityOptions
 ): readonly MiniProgramRuntimeCapability[] {
-  const fileSystem = options.wechat?.getFileSystemManager?.();
+  const host = resolveMiniProgramHost(options);
   const sources = getRuntimeSources();
   return [
     { name: 'moduleFactory', available: typeof options.moduleFactory === 'function' },
-    { name: 'WXWebAssembly.instantiate', available: typeof options.wasmRuntime?.instantiate === 'function' },
-    { name: 'wx.getFileSystemManager', available: !!fileSystem },
-    { name: 'wx.env.USER_DATA_PATH', available: typeof options.wechat?.env?.USER_DATA_PATH === 'string' },
+    {
+      name: `${host.wasmRuntimeName}.instantiate`,
+      available: typeof options.wasmRuntime?.instantiate === 'function'
+    },
+    { name: host.capabilityNames.fileSystem, available: !!host.getFileSystemManager() },
+    { name: host.capabilityNames.userDataPath, available: typeof host.userDataPath === 'string' },
     { name: 'BigInt', available: typeof globalThis.BigInt === 'function' },
     { name: 'crypto.getRandomValues', available: sources.random !== 'missing', source: sources.random },
     {
@@ -63,10 +79,9 @@ export function checkMiniProgramRuntimeCapabilities(
 }
 
 /** 缺少硬依赖时在加载 WASM 前给出完整能力清单。 */
-export function assertMiniProgramRuntimeCapabilities(
-  options: Pick<WaSqliteMiniProgramOptions, 'moduleFactory' | 'wasmRuntime' | 'wechat'>
-): void {
+export function assertMiniProgramRuntimeCapabilities(options: MiniProgramRuntimeCapabilityOptions): void {
+  const { displayName } = resolveMiniProgramHost(options);
   const missing = checkMiniProgramRuntimeCapabilities(options).filter(capability => !capability.available);
   if (missing.length === 0) return;
-  throw new Error(`微信小程序运行时缺少 RxDB 必需能力: ${missing.map(item => item.name).join(', ')}`);
+  throw new Error(`${displayName}运行时缺少 RxDB 必需能力: ${missing.map(item => item.name).join(', ')}`);
 }

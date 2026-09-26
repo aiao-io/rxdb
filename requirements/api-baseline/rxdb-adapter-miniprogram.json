@@ -14,6 +14,10 @@
         "kind": "value"
       },
       {
+        "name": "createMiniProgramFileVFS",
+        "kind": "value"
+      },
+      {
         "name": "createWaSqliteMiniProgramClient",
         "kind": "value"
       },
@@ -22,7 +26,15 @@
         "kind": "value"
       },
       {
+        "name": "createWechatMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "DEFAULT_WASM_PATH",
+        "kind": "value"
+      },
+      {
+        "name": "isMiniProgramPlatformId",
         "kind": "value"
       },
       {
@@ -34,12 +46,48 @@
         "kind": "value"
       },
       {
+        "name": "MINI_PROGRAM_PLATFORM_IDS",
+        "kind": "value"
+      },
+      {
         "name": "MiniProgramFileSystemManager",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileVFS",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileVFSOptions",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramHost",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramHostCapabilityNames",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramHostSelection",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramPlatformId",
         "kind": "type"
       },
       {
         "name": "MiniProgramRuntimeCapability",
         "kind": "type"
+      },
+      {
+        "name": "MiniProgramRuntimeCapabilityOptions",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramUnknownPlatformError",
+        "kind": "both"
       },
       {
         "name": "MiniProgramWasmInstance",
@@ -58,6 +106,10 @@
         "kind": "type"
       },
       {
+        "name": "resolveMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "RxDBAdapterWaSqliteMiniprogram",
         "kind": "both"
       },
@@ -71,6 +123,10 @@
       },
       {
         "name": "WaSqliteEmscriptenModule",
+        "kind": "type"
+      },
+      {
+        "name": "WaSqliteMiniProgramBaseOptions",
         "kind": "type"
       },
       {
@@ -108,6 +164,10 @@
     ],
     "./runtime": [
       {
+        "name": "createWechatMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE",
         "kind": "value"
       },
@@ -124,8 +184,32 @@
         "kind": "value"
       },
       {
+        "name": "isMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
         "name": "MAX_MINI_PROGRAM_RANDOM_POOL_SIZE",
         "kind": "value"
+      },
+      {
+        "name": "MINI_PROGRAM_PLATFORM_IDS",
+        "kind": "value"
+      },
+      {
+        "name": "MiniProgramFileSystemManager",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramHost",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramHostCapabilityNames",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramPlatformId",
+        "kind": "type"
       },
       {
         "name": "MiniProgramRandomValuesOptions",
@@ -144,8 +228,16 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramUnknownPlatformError",
+        "kind": "both"
+      },
+      {
         "name": "MiniProgramWechatApi",
         "kind": "type"
+      },
+      {
+        "name": "prepareMiniProgramHostRuntime",
+        "kind": "value"
       },
       {
         "name": "prepareMiniProgramRuntime",
