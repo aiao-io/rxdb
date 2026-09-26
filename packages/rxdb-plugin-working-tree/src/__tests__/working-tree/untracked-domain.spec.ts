@@ -1,5 +1,5 @@
 /**
- * @fileoverview T051 红测试：版本化域的 tracked / untracked 判定（spec.md「版本化域」、conformance-suites.md §1.4）。
+ * @fileoverview T051 红测试：版本化域的 tracked / untracked 判定（epic-006「版本化域」、conformance-suites.md §1.4）。
  *
  * @remarks
  * 这份清单是**唯一**的一份：raw 通道的 4 步判定（T050/T062）、批量写门禁（T049/T061）、捕获挂载点

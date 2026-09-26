@@ -5,7 +5,7 @@ import QueryGroup from '../../../query-builder/query-group/QueryGroup.vue';
 import { QueryDragDropHandler, type UIRuleGroup } from '../../../query-builder/query-group/query-drag-drop';
 
 /**
- * QueryGroup + QueryDragDropHandler —— **真实加载源码**（对齐 Angular 侧 specs/027 T025a）。
+ * QueryGroup + QueryDragDropHandler —— **真实加载源码**（对齐 Angular 侧）。
  *
  * 拖拽路径此前零覆盖：`onItemDrop` 的索引调整（同组内向后拖要 -1）、
  * 「拖进子组」与「拖到前/后」两条分支都是真实缺陷高发区。

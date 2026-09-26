@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-20
+updated: 2026-09-26
 tags: [core, sync, model, server, cross-framework]
 ---
 
@@ -38,10 +38,18 @@ INVEST 检查清单:
    实体上已有 `sync` 时，实例的数据库默认配置无法覆盖它。复验方式是读取该函数，以及
    [`RxDBOptions`](../../../packages/rxdb/src/rxdb.interface.ts) 的 `sync` 配置入口。
 
+   解析也不止这一处。核心里各自独立解析的入口有：[`primary-adapter.ts`](../../../packages/rxdb/src/entity/primary-adapter.ts)
+   的 `getEntitySync`（主适配器选择，`RxDB.ts` 的 QueryCache 依赖检查也走它）、`Repository` 构造函数里的
+   `metadata.sync || rxdb.config.sync`、`metadata-validate.ts` 的 `validateSyncStrategy`、`EntityManager` 的 `init()`
+   不支持组合校验与批量写路由、`pushable-repository-rules.ts`。插件侧 `rxdb-plugin-sync` 的 `pull-repository.ts` /
+   `cleanup-expired.ts` 取 filter 函数时直接读 `metadata.sync`，连解析函数都不经过。
+   复验：`grep -rlE 'metadata\??\.sync\b|getSyncConfig|getSyncType|getEntitySync|config\.sync\b' packages/*/src --include='*.ts'`，
+   排除测试、`testing/` 夹具与 `index.ts` 后是 9 个包里的 32 个文件。
+
 2. [`Recipe` 与 `ServerRecipe`](../../../modules/recipes-domain/src/recipe-entity.ts) 共享
-   `RECIPE_SCHEMA`，但仍声明两套相同业务字段。前者声明 `SyncType.QueryCache`，使用
-   `wa-sqlite` 与 `http`；后者声明 `SyncType.None`，仅使用 `pglite`。复验方式是对照两个类的
-   `@Entity()` 参数与字段声明。这个重复是本故事要消除的具体接入成本。
+   `RECIPE_SCHEMA`，属性元数据只有一份；重复的是两个类外壳与 4 个 `declare` 类型字段。前者声明
+   `SyncType.QueryCache`，使用 `wa-sqlite` 与 `http`；后者声明 `SyncType.None`，仅使用 `pglite`。
+   复验方式是对照两个类的 `@Entity()` 参数与字段声明。这个重复是本故事要消除的具体接入成本。
 
 3. [US-216 的单实体类收敛边界](../adapter/US-216-server-side-rxdb.md#范围边界) 明确将实例级
    sync 覆盖留给独立 core 故事。本故事承接该能力缺口，不转移 US-216 已验收的 AC，
@@ -99,27 +107,27 @@ INVEST 检查清单:
 - 每请求身份与租户上下文、权限模型、服务端水平扩展。
 - 跨策略关系的自动适配；不改变关系中间实体的既有同步规则。
 - 实体装饰器 API、生成器输出默认语义或现有未配置覆盖的应用行为变更。
-- US-025 的剩余插件拆分、epic-006 的工作树与提交历史。
+- epic-006 工作树与提交历史的新能力；其中读取同步配置的消费者（`capture-hook.ts` 等）仍按 In Scope 接入生效配置。
 
 ## 验收标准
 
-|   # | 前置条件                                                                                                          | 操作                                                                | 预期结果                                                                                                                   | 状态 |
-| --: | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | :--: |
-|   1 | 实体声明 QueryCache，数据库默认策略与之不同，实例显式覆盖为 `None + local: pglite`                                | 初始化并对该实体查询、创建、更新、删除                              | 使用 PGlite；不要求原声明中的 HTTP adapter 或 QueryCache 插件；不产生远端请求                                              |  ⬜  |
-|   2 | 实例未提供覆盖或覆盖列表为空；夹具包含实体有声明与无声明两种情况                                                  | 执行既有配置、查询与写入用例                                        | 解析结果、返回值和错误行为与变更前相同；保留现有 `SyncType.None` 与数据库默认配置的判定规则                                |  ⬜  |
-|   3 | 实体原声明包含 remote、QueryCache 缓存选项；覆盖仅有合法的纯本地配置                                              | 检查解析结果并运行 CRUD                                             | 低优先级的 remote、adapter 名和缓存选项均不残留；没有深合并形成的混合配置                                                  |  ⬜  |
-|   4 | 两个不同数据库实例在同一 realm 注册同一个实体类，分别覆盖为本地与 QueryCache；后者配置独立的 local、remote 与插件 | 交替初始化、通过各自 Repository 读写；销毁其中一个后继续操作另一个  | 数据和网络请求只进入各自实例；剩余实例继续使用自己的策略；共享实体原始元数据不变                                           |  ⬜  |
-|   5 | 某实例已初始化，调用方仍持有传入的覆盖条目与嵌套 local/remote 选项                                                | 修改调用方对象，再查询及关闭重连；读取原实体字段描述                | 运行中与重连后的策略稳定；原实体模型描述不受覆盖影响；不冻结调用方的实体类                                                 |  ⬜  |
-|   6 | 注册两个 namespace 不同、name 相同的实体，另有未覆盖实体                                                          | 分别配置不同覆盖并读写                                              | 覆盖精确命中目标；其他实体和生成的关系中间实体继续按既有配置规则工作                                                       |  ⬜  |
-|   7 | 分别构造未注册目标、系统实体目标、重复条目、`null` 配置和缺少 `type` 的配置                                       | 初始化                                                              | 在建立实体绑定与执行数据库写入前失败；错误可判别并指出目标及原因，不静默忽略条目或选取其中一条                             |  ⬜  |
-|   8 | 实体原声明为本地，覆盖为 QueryCache；分别缺 remote、缺插件或选择不支持该模式的 adapter                            | 初始化或调用既有能力校验入口                                        | 按生效配置触发现有对应的 fail-fast 错误；不沿用原声明绕过校验，也不自动创建依赖                                            |  ⬜  |
-|   9 | 同一覆盖实体具备单条、批量与事务写入夹具                                                                          | 经 Repository、实体保存入口、EntityManager 批量入口及事务执行器操作 | 所有入口选择同一生效策略；既有批量与事务边界不放宽；失败按既有原子性契约回滚                                               |  ⬜  |
-|  10 | 覆盖为 QueryCache，已配置可用 adapter 与插件                                                                      | 离线写入、恢复连接、接收远端变更通知并观察同步状态                  | 现有出站重放、缓存刷新和状态统计均针对生效策略工作；覆盖为纯本地的实体不进入该管道                                         |  ⬜  |
-|  11 | 使用现有 Full、Filter 与关系夹具；另含 Tree/Graph 与 QueryCache 不支持组合                                        | 对合法覆盖执行同步与关系操作，对非法组合初始化                      | 已支持组合通过共享契约；非法组合按生效策略被拒绝，不因只检查装饰器原值而漏检                                               |  ⬜  |
-|  12 | Angular、React、Vue 分别使用同一个带同步声明的实体及相同 core 覆盖配置                                            | 通过各框架现有查询与写入入口运行共享夹具                            | 三端路由、数据与错误语义一致；类型支持一致，不引入单端配置语义                                                             |  ⬜  |
-|  13 | HTTP demo 的前后端使用共享领域模块                                                                                | 收敛为同一个 `Recipe` 类，后端通过实例覆盖运行                      | 删除仅为同步策略存在的第二个实体类及重复字段；前后端继续实际复用领域查询；后端保持纯本地                                   |  ⬜  |
-|  14 | demo 完成单类收敛                                                                                                 | 运行 HTTP server 端点契约、HTTP 浏览器 e2e 及独立 wire 集成套件     | 现有协议、CORS、分页与 SSE 断言保持通过；不得修改协议断言来迁就新配置                                                      |  ⬜  |
-|  15 | 新增公开配置已实现                                                                                                | 校验类型兼容、TSDoc、API baseline、文档与覆盖率                     | 旧配置调用继续编译；公开 API 仅增量扩展；核心与三框架包覆盖率达 90%，其他受影响包达 80%；相关 lint/typecheck/test 门禁全绿 |  ⬜  |
+|   # | 前置条件                                                                                                                                      | 操作                                                                | 预期结果                                                                                                                   | 状态 |
+| --: | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | :--: |
+|   1 | 实体声明 QueryCache，数据库默认策略与之不同，实例显式覆盖为 `None + local: pglite`                                                            | 初始化并对该实体查询、创建、更新、删除                              | 使用 PGlite；不要求原声明中的 HTTP adapter 或 QueryCache 插件；不产生远端请求                                              |  ⬜  |
+|   2 | 实例未提供覆盖或覆盖列表为空；夹具包含实体有声明与无声明两种情况                                                                              | 执行既有配置、查询与写入用例                                        | 解析结果、返回值和错误行为与变更前相同；保留现有 `SyncType.None` 与数据库默认配置的判定规则                                |  ⬜  |
+|   3 | 实体原声明包含 remote、QueryCache 缓存选项；覆盖仅有合法的纯本地配置                                                                          | 检查解析结果并运行 CRUD                                             | 低优先级的 remote、adapter 名和缓存选项均不残留；没有深合并形成的混合配置                                                  |  ⬜  |
+|   4 | 两个不同数据库实例在同一 realm 注册同一个实体类，分别覆盖为本地与 QueryCache；后者配置独立的 local、remote 与插件                             | 交替初始化、通过各自 Repository 读写；销毁其中一个后继续操作另一个  | 数据和网络请求只进入各自实例；剩余实例继续使用自己的策略；共享实体原始元数据不变                                           |  ⬜  |
+|   5 | 某实例已初始化，调用方仍持有传入的覆盖条目与嵌套 local/remote 选项                                                                            | 修改调用方对象，再查询及关闭重连；读取原实体字段描述                | 运行中与重连后的策略稳定；原实体模型描述不受覆盖影响；不冻结调用方的实体类                                                 |  ⬜  |
+|   6 | 注册两个 namespace 不同、name 相同的实体，另有未覆盖实体                                                                                      | 分别配置不同覆盖并读写                                              | 覆盖精确命中目标；其他实体和生成的关系中间实体继续按既有配置规则工作                                                       |  ⬜  |
+|   7 | 分别构造未注册目标、系统实体目标、重复条目、`null` 配置和缺少 `type` 的配置                                                                   | 初始化                                                              | 在建立实体绑定与执行数据库写入前失败；错误可判别并指出目标及原因，不静默忽略条目或选取其中一条                             |  ⬜  |
+|   8 | 实体原声明为本地，覆盖为 QueryCache；分别缺 remote、缺插件或选择不支持该模式的 adapter                                                        | 初始化或调用既有能力校验入口                                        | 按生效配置触发现有对应的 fail-fast 错误；不沿用原声明绕过校验，也不自动创建依赖                                            |  ⬜  |
+|   9 | 同一覆盖实体具备单条、批量与事务写入夹具                                                                                                      | 经 Repository、实体保存入口、EntityManager 批量入口及事务执行器操作 | 所有入口选择同一生效策略；既有批量与事务边界不放宽；失败按既有原子性契约回滚                                               |  ⬜  |
+|  10 | 覆盖为 QueryCache，已配置可用 adapter 与插件                                                                                                  | 离线写入、恢复连接、接收远端变更通知并观察同步状态                  | 现有出站重放、缓存刷新和状态统计均针对生效策略工作；覆盖为纯本地的实体不进入该管道                                         |  ⬜  |
+|  11 | 使用现有 Full、Filter 与关系夹具；另含 Tree 与 QueryCache 的不支持组合（`rxdb-plugin-tree` 经 `IRepositoryConfig.unsupportedSyncTypes` 声明） | 对合法覆盖执行同步与关系操作，对非法组合初始化                      | 已支持组合通过共享契约；非法组合按生效策略被拒绝，不因只检查装饰器原值而漏检                                               |  ⬜  |
+|  12 | Angular、React、Vue 分别使用同一个带同步声明的实体及相同 core 覆盖配置                                                                        | 通过各框架现有查询与写入入口运行共享夹具                            | 三端路由、数据与错误语义一致；类型支持一致，不引入单端配置语义                                                             |  ⬜  |
+|  13 | HTTP demo 的前后端使用共享领域模块                                                                                                            | 收敛为同一个 `Recipe` 类，后端通过实例覆盖运行                      | 删除仅为同步策略存在的第二个实体类及重复字段；前后端继续实际复用领域查询；后端保持纯本地                                   |  ⬜  |
+|  14 | demo 完成单类收敛                                                                                                                             | 运行 HTTP server 端点契约、HTTP 浏览器 e2e 及独立 wire 集成套件     | 现有协议、CORS、分页与 SSE 断言保持通过；不得修改协议断言来迁就新配置                                                      |  ⬜  |
+|  15 | 新增公开配置已实现                                                                                                                            | 校验类型兼容、TSDoc、API baseline、文档与覆盖率                     | 旧配置调用继续编译；公开 API 仅增量扩展；核心与三框架包覆盖率达 90%，其他受影响包达 80%；相关 lint/typecheck/test 门禁全绿 |  ⬜  |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -131,23 +139,26 @@ INVEST 检查清单:
   也消费数据库默认配置和实体元数据。
 - plan 阶段冻结配置字段名、实体条目容器、实例生效配置的归属与诊断错误形状。
   配置优先级、整体替换、无覆盖兼容与实例隔离属于本故事固定约束。
-- [US-025](./US-025-core-plugin-extraction.md) 正在移动同步消费者；本故事沿用实现时的插件边界，
-  不将配置规则复制到各插件，也不以 US-025 阶段 C～E 完成为能力前置。
+- [US-025](./US-025-core-plugin-extraction.md) 已把同步消费者外移到插件包。生效配置必须由核心给出单一解析入口，
+  插件只调用它，不各自复制优先级规则；`pull-repository.ts` / `cleanup-expired.ts` 直接读 `metadata.sync` 的两处要改成走这个入口。
+- 改动面：现状与证据第 1 条的 grep 列出的 32 个文件 / 9 个包是上限（`system-entities.ts` 只是注释命中），外加三框架绑定与 demo。
 - 本故事新增配置能力，不引入数据库 schema 或 change-codec 迁移，不依赖 epic-006 的桥接发布。
 
 ## 实现文件
 
 以下为实现落点，不表示本需求提交已经修改产品代码；新增文件名由 plan 冻结。
 
-| 路径                                                                                                                                                            | 职责                                        |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `packages/rxdb/src/rxdb.interface.ts`、`packages/rxdb/src/RxDB.ts`                                                                                              | 可选实例配置与配置生命周期                  |
-| `packages/rxdb/src/sync-contract/`、`packages/rxdb/src/entity/`、`packages/rxdb/src/repository/`、`packages/rxdb-plugin-sync/`、`packages/rxdb-plugin-history/` | 生效配置解析、校验与全部读写/同步消费者接入 |
-| `packages/rxdb-plugin-querycache/`                                                                                                                              | QueryCache 插件按实例生效配置消费依赖       |
-| `packages/rxdb-angular/`、`packages/rxdb-react/`、`packages/rxdb-vue/`、`packages/rxdb-test/`                                                                   | 三框架配置类型与共享行为夹具                |
-| `modules/recipes-domain/`、`apps/dev-rxdb-http/`、`apps/dev-rxdb-http-server/`                                                                                  | 单实体类与前后端配置收敛                    |
-| `packages/rxdb-adapter-http/`、`apps/dev-rxdb-http-e2e/`                                                                                                        | 协议与真实浏览器回归                        |
-| `requirements/api-baseline/`、`website/docs/`                                                                                                                   | 增量 API 基线与接入文档                     |
+| 路径                                                                                                                                                                                                                                | 职责                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `packages/rxdb/src/rxdb.interface.ts`、`packages/rxdb/src/RxDB.ts`                                                                                                                                                                  | 可选实例配置与配置生命周期                  |
+| `packages/rxdb/src/sync-contract/`（含 `pushable-repository-rules.ts`）、`packages/rxdb/src/entity/`（含 `metadata-transition.ts`）、`packages/rxdb/src/repository/`、`packages/rxdb-plugin-sync/`、`packages/rxdb-plugin-history/` | 生效配置解析、校验与全部读写/同步消费者接入 |
+| `packages/rxdb-plugin-working-tree/`、`packages/rxdb-plugin-search/`、`packages/rxdb-plugin-storage/`、`packages/rxdb-devtools/`、`packages/rxdb-adapter-supabase/`                                                                 | 其余读取同步配置的消费者改走生效配置        |
+| `packages/rxdb-plugin-tree/`                                                                                                                                                                                                        | AC#11 不支持组合的回归夹具                  |
+| `packages/rxdb-plugin-querycache/`                                                                                                                                                                                                  | QueryCache 插件按实例生效配置消费依赖       |
+| `packages/rxdb-angular/`、`packages/rxdb-react/`、`packages/rxdb-vue/`、`packages/rxdb-test/`                                                                                                                                       | 三框架配置类型与共享行为夹具                |
+| `modules/recipes-domain/`、`apps/dev-rxdb-http/`、`apps/dev-rxdb-http-server/`                                                                                                                                                      | 单实体类与前后端配置收敛                    |
+| `packages/rxdb-adapter-http/`、`apps/dev-rxdb-http-e2e/`                                                                                                                                                                            | 协议与真实浏览器回归                        |
+| `requirements/api-baseline/`、`website/docs/`                                                                                                                                                                                       | 增量 API 基线与接入文档                     |
 
 ## References
 

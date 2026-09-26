@@ -1,5 +1,5 @@
 /**
- * @fileoverview T094 —— 工作树 benchmark 的固定 fixture（contracts/benchmark-report.md §1）。
+ * @fileoverview T094 —— 工作树 benchmark 的固定 fixture（契约 §1）。
  *
  * @remarks
  * 形状由契约钉死，不是可调参数：10,000 实体 / 100 commit（每 commit 100 单元）/
@@ -33,8 +33,8 @@
  * 运行环境固定为 Node + PGlite **memory**（契约 §1）：不选盘上后端，是因为绝对数字一旦
  * 掺进磁盘抖动就没法在 CI 上比。
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md
- * @see specs/001-working-tree-commits/tasks.md T094
+ * @see requirements/epics/epic-006-working-tree-commits.md「性能预算的口径」（现行口径）
+ * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md`（文中的「契约 §N」）
  */
 
 import { createHash } from 'node:crypto';

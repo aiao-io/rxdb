@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-26
 tags: [plugin, bom, schema]
 ---
 
@@ -93,7 +93,7 @@ multigraph + 富边属性（后者是破坏性变更，需过 api-baseline）。
 
 ## 价值待证
 
-本故事与 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 其余 16 条同标
+本故事与 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 其余 18 条同标
 **价值待证**：新增 `item_revision` 等抽象，对应零个已知病灶。解锁条件见 epic。
 
 ## 实现文件

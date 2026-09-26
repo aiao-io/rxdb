@@ -6,7 +6,7 @@ import { OperatorSelectorComponent } from '../../../query-builder/operator-selec
  * OperatorSelectorComponent —— **真实加载组件源码**的测试。
  *
  * ⚠️ 本包此前 6 个 spec 全是 `import { describe, expect, it } from 'vitest'`
- * 后在文件内**内联复制**被测逻辑，4,658 LOC 实测覆盖率 0%（specs/027 T025a）。
+ * 后在文件内**内联复制**被测逻辑，4,658 LOC 实测覆盖率 0%。
  * 复制品可以与真实实现静默漂移——这是「测试写了，但测的不是被测代码」。
  * 新增测试一律 import 真实组件并用 TestBed 渲染。
  */

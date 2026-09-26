@@ -2,7 +2,7 @@
  * @fileoverview T005 红测试：10 张工作树/提交物理表必须进得了核心的系统表登记簿。
  *
  * @remarks
- * 契约见 `specs/001-working-tree-commits/data-model.md` §1 与 §0。
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/data-model.md` §1 与 §0。
  *
  * 抽包之后这份守的东西变了一处，其余三处原样。从前它断言「10 个类在核心的
  * `SYSTEM_ENTITIES` 里」——那时核心自己写着这 10 行。现在核心只剩 4 张，这 10 张由本包经

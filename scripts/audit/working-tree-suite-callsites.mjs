@@ -3,7 +3,7 @@
  *
  * 工作树一致性套件的**调用点**门禁：6 个 v1 适配器包各自都必须实际调用
  * `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 两套套件，
- * 缺一即失败（`specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
+ * 缺一即失败（`git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
  *
  * 触发路径：`pnpm audit:suite-callsites`。
  *
@@ -41,7 +41,7 @@ export const CONFORMANCE_SUITE_NAMES = Object.freeze([
   'workingTreeCommitConformanceSuite'
 ]);
 
-/** v1 运行矩阵的 6 个后端，见 spec.md「范围边界」。Tauri Rust host 不在 v1 内。 */
+/** v1 运行矩阵的 6 个后端，见 epic-006「启用与存储边界」。Tauri Rust host 不在 v1 内。 */
 export const V1_ADAPTER_PACKAGES = Object.freeze([
   'rxdb-adapter-pglite',
   'rxdb-adapter-wa-sqlite',

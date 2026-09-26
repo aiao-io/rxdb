@@ -57,7 +57,7 @@ type QueryTableVM = InstanceType<typeof QueryTable> & {
 };
 
 /**
- * QueryTable —— **真实组件源码**（对齐 Angular 侧 specs/027 T025a）。
+ * QueryTable —— **真实组件源码**（对齐 Angular 侧）。
  *
  * 覆盖 statusText（filtered/total）、filterBar / emptyState 内容投影、
  * 状态栏显隐与真实 EntityTable 组件的事件透传链路。

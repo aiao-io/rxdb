@@ -1,5 +1,5 @@
 /**
- * @fileoverview 受信调用点的写意图声明通道（adapter-contract.md §3）。
+ * @fileoverview 受信调用点的写意图声明通道（epic-006「受信调用点登记表」）。
  *
  * @remarks
  * 挂载点拿到的只有「有人在调 `switchBranch`」，拿不到「谁在调、为了什么」。而矩阵的行 4 与行 6
@@ -92,14 +92,15 @@ const DECLARED = new WeakMap<TrustedWriteScope, ResolvedTrustedWrite>();
  * 不是遗漏。** 它挡的是**漂移**：新写一处批量重写却忘了登记，在这儿当场抛错（fail-closed）。
  * 它挡不住**仿冒**：一个照着登记表填三段字符串的调用方会被放行。但能走到这一步的代码已经
  * `import` 了核心包、拿到了 adapter 实例，它直接调 `adapter.mergeChanges()` 比仿冒一个键更省事
- * ——这道门禁不是防御边界，是一致性契约（`specs/001-working-tree-commits/threat-model.md` §4）。
+ * ——这道门禁不是防御边界，是一致性契约（epic-006「受信调用点登记表」；威胁推演归档在
+ * `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §4）。
  */
 export function declareTrustedWrite(scope: TrustedWriteScope, declaration: TrustedWriteDeclaration): void {
   const entrance = ENTRANCE_BY_KEY.get(trustedCallsiteKey(declaration));
   if (!entrance) {
     throw new RxDBError(
       `未登记的受信写调用点 ${declaration.file}·${declaration.symbol}·${declaration.intent}：` +
-        '先把它加进 TRUSTED_CALLSITE_REGISTRY（adapter-contract.md §3），再声明意图。'
+        '先把它加进 TRUSTED_CALLSITE_REGISTRY（epic-006「受信调用点登记表」），再声明意图。'
     );
   }
   DECLARED.set(scope, { ...declaration, entrance });

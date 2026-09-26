@@ -487,7 +487,7 @@ export class WorkingTreeManager {
    * （Electron 主/渲染、Tauri、Node 多进程）与 `multiInstance: false` 的实例。它们收不到
    * BroadcastChannel，但只要调一次工作树 API 就会经过这里。
    *
-   * 补不上的仍然记在 `specs/001-working-tree-commits/threat-model.md` §6：一条从不调用工作树
+   * 补不上的仍然记在 `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §6：一条从不调用工作树
    * API、只顾着写业务表的跨进程连接，这条路也够不着它。
    *
    * 判 `workingTreeCaptureHook` 再装而不是无条件装：{@link installWorkingTreeCapture} 本身是幂等的

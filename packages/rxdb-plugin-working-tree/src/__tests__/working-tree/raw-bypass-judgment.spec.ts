@@ -29,7 +29,8 @@
  * 6. **没有「受信 intent 豁免」可测，因为判定里没有这一步。** 判定曾有过一步「携带内部受信 `intent`
  *    → 放行」，2026-09-23 连同上下文槽位一起删除：`TRUSTED_CALLSITE_REGISTRY` 的 9 个条目全部走
  *    `switchBranch` / `mergeChanges` 这两个带类型的写原语，一个 raw 调用点都没有，那一步在生产里
- *    永远取不到真值——却是整条防线上唯一无条件放行的一步（threat-model.md §3）。这里记下它，是因为
+ *    永远取不到真值——却是整条防线上唯一无条件放行的一步
+ *    （`git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §3）。这里记下它，是因为
  *    「某处曾有一张万能豁免票」这件事，删掉之后在代码里就再也看不出来了。2026-09-25 补登的 #10 走
  *    `transaction()` 事务体末尾的自报，同样不经 raw 通道，结论不变。
  * 7. **判定是纯的。** 同一条语句判两次结果相同，且不动传进来的域集合——域是 T056 那一份清单的视图，
@@ -57,7 +58,7 @@ import { WorkingTreeWriteRejectedError } from '../../working-tree/write-entry-ma
 const domain = (): VersionedDomainView => ({
   versionedTables: new Set(['post', 'comment']),
   // 按表取而不是一个全表通用集合：簿记字段（`remote_id` 等）确实全域通用，但派生索引列是
-  // 插件**在某张业务表上**登记的（spec.md「版本化域」第三类）。压成一个集合的话，`post` 上
+  // 插件**在某张业务表上**登记的（epic-006「版本化域」第三类）。压成一个集合的话，`post` 上
   // 登记的 `title_norm` 会连带让 `comment` 的同名列获得豁免。
   untrackedFieldsOf: (table: string) =>
     new Set(

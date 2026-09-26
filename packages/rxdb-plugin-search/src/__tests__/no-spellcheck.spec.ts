@@ -6,7 +6,7 @@
  *      不会扩展到 'rxdb123' 这类无关变体（前缀匹配与拼写纠错的边界）。
  *  (b) FTS5 tokenizer 配置中未开启 `spellfix`、`spellfix1` 或任何外部纠错模块。
  *
- * @see specs/001-add-global-search/spec.md FR-015
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import { describe, expect, it } from 'vitest';
 

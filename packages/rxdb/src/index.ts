@@ -194,7 +194,7 @@ export * from './system/types.js';
 export * from './system/types.local.js';
 export * from './system/types.remote.js';
 export * from './transaction/transaction-executor.interface.js';
-// 受信写声明通道（adapter-contract.md §3）。**整条留在核心**：`declareTrustedWrite` 对未登记的
+// 受信写声明通道（epic-006「受信调用点登记表」）。**整条留在核心**：`declareTrustedWrite` 对未登记的
 // 三段身份当场抛错，这道 fail-closed 门必须对所有用户无条件生效，不能变成「装了插件才有」。
 export * from './trusted-write/index.js';
 // 级联调度契约里进公开 API 的只有这两项 —— 抛给调用方的结构化错误，

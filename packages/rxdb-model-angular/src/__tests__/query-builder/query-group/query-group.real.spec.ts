@@ -8,7 +8,7 @@ import {
 } from '../../../query-builder/query-group/query-group.component';
 
 /**
- * QueryGroupComponent + QueryDragDropHandler —— **真实加载源码**（specs/027 T025a）。
+ * QueryGroupComponent + QueryDragDropHandler —— **真实加载源码**。
  *
  * 拖拽路径此前零覆盖：`onItemDrop` 的索引调整（同组内向后拖要 -1）、
  * 「拖进子组」与「拖到前/后」两条分支都是真实缺陷高发区。

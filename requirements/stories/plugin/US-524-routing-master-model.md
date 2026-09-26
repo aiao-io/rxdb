@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-26
 tags: [plugin, bom, routing, cost]
 ---
 
@@ -94,3 +94,4 @@ tags: [plugin, bom, routing, cost]
 - [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 消费 `(routing_id, operation_seq)` 的引用完整性
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 消费工时与费率
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 工序损耗记法的共用来源
+- [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#3 的区间排他落点（阶段 C）

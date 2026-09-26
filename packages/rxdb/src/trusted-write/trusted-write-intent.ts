@@ -1,5 +1,5 @@
 /**
- * @fileoverview 受信写意图与 11 行调用点登记表（spec.md「受信路径登记键」、adapter-contract.md §3）。
+ * @fileoverview 受信写意图与 11 行调用点登记表（epic-006「受信调用点登记表」）。
  *
  * @remarks
  * 意图是「我知道我在重写业务投影，并且我会自己维护工作树」
@@ -9,7 +9,8 @@
  * **它不是 raw 通道的豁免票；那一步已经不存在了。** raw 的 bypass 判定曾有过「携带受信 `intent`
  * → 放行」的一步，2026-09-23 连同上下文槽位一起删除：本表的条目全部走**带类型的**写原语
  * （`switchBranch` / `mergeChanges` / `transaction`），一个 raw 调用点都没有，于是那一步在生产里
- * 永远取不到真值——却是整条防线上唯一无条件放行的一步（threat-model.md §3）。
+ * 永远取不到真值——却是整条防线上唯一无条件放行的一步
+ * （`git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §3）。
  *
  * **登记键是「文件 + 符号 + 意图」，不是行号。** 行号每次格式化都在变，登记表会在第一次 prettier
  * 之后全面失配；而符号取的是**实际发起那次批量重写的最内层具名函数**，不是委托门面——门面会被重构
@@ -40,7 +41,7 @@
  * 那一半核对交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066）：它跑在 node 里，
  * 扫整个 `packages/`，双向比对登记键、自报符号与存档行号。核心那份
  * （`__tests__/trusted-write/trusted-callsite-registry.spec.ts`）改守两件核心自己看得见的事——
- * 这张表与 adapter-contract.md §3 逐格一致，以及**核心自身一处受信写、一处批量写都没有**。
+ * 这张表与 epic-006「受信调用点登记表」逐格一致，以及**核心自身一处受信写、一处批量写都没有**。
  *
  * 「这一行会不会产生工作树单元」是插件的问题，那个函数（`producesWorkingTreeEntry`）留在插件侧。
  */
@@ -131,7 +132,7 @@ export interface TrustedCallsite {
  * 与真实代码核对过的 11 行受信调用点（整表核对日期 2026-09-16）
  *
  * @remarks
- * 顺序与 adapter-contract.md §3 的表格逐行一致，便于漂移扫描双向比对。
+ * 顺序与 epic-006「受信调用点登记表」的表格逐行一致，便于漂移扫描双向比对。
  *
  * 2026-09-16 这次核对是跟着 US-025 抽包做的：9 处声明整体从核心 `version/` 搬进了
  * history / sync 两个插件，键（文件基名 + 符号 + 意图）一个没变，`verifiedAtLine` 九行全变了。

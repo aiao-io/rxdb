@@ -226,8 +226,9 @@ const allocationMissMessage = (rowsAffected: number): string =>
  * @remarks
  * **加法在库里做，不在 JS 里做**（见 {@link buildBranchGenerationAdvance}）。这里曾经是一次
  * 同事务内的读—改—写，靠一句「本地写队列并发度为 1，同事务内的读—改—写因此是原子的」自辩；
- * 那句话把「一个库只有一个连接在写」当成前提，而 `threat-model.md` §6 已经把跨连接明确划进
- * 模型内——同一个库可以有第二个标签页、第二个 worker 在写，写队列只排得住自己进程里的那些。
+ * 那句话把「一个库只有一个连接在写」当成前提，而
+ * `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §6
+ * 已经把跨连接明确划进模型内——同一个库可以有第二个标签页、第二个 worker 在写，写队列只排得住自己进程里的那些。
  *
  * **返回值现读库，不是 `读到的 + 1`。** 读回来那一次落在同一个事务里，它看得见自己刚写下的
  * 那一步加法；并发的第二条发放此刻正卡在这一行的行锁上（SQLite 家族则整条写事务串行），

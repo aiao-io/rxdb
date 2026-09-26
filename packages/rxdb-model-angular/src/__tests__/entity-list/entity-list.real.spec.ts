@@ -17,7 +17,7 @@ vi.mock('@visactor/vtable-editors', () => import('../testing/fake-vtable-editors
 const FLUSH = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
 /**
- * EntityListComponent —— **真实组件源码**（specs/027 T025a）。
+ * EntityListComponent —— **真实组件源码**。
  *
  * 覆盖 namespace/name → InfiniteScrollingList 无限滚动加载、行内编辑批量合并
  * （真实 VTable 事件 → cellChanged → #enqueue → entityManager.mutations）、
@@ -462,6 +462,26 @@ describe('EntityListComponent（真实组件）', () => {
 
     expect(() => component.openCreateDialog()).not.toThrow();
     expect(document.body.querySelector('.cdk-overlay-container')).toBeNull();
+  });
+
+  it('行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读', async () => {
+    await seedTodo('no-drag');
+    const { fixture, component } = await renderList();
+    await FLUSH();
+
+    expect(tableOf(fixture).options['rowSeriesNumber']).toEqual({ title: '', width: 40, dragOrder: false });
+    expect(component.tableRecords()).toHaveLength(1);
+    expect(component.tableRecords().some(r => r['_readonly'] === true)).toBe(false);
+  });
+
+  it('系统表整表只读：不提供新增，每一行都标 _readonly', async () => {
+    const { fixture, component } = await renderList({ namespace: 'rxdb', name: 'RxDBBranch' });
+    await FLUSH();
+
+    expect(component.isCreateBlocked()).toBe(true);
+    expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
+    expect(component.tableRecords().length).toBeGreaterThan(0);
+    expect(component.tableRecords().every(r => r['_readonly'] === true)).toBe(true);
   });
 
   it('onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性', async () => {

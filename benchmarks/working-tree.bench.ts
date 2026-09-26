@@ -1,5 +1,5 @@
 /**
- * @fileoverview T095 —— 工作树三项核心操作的 benchmark（contracts/benchmark-report.md §1–§3）。
+ * @fileoverview T095 —— 工作树三项核心操作的 benchmark（契约 §1–§3）。
  *
  * @remarks
  * 测四项：完整 `status()`、完整 `diff()`（无 scope）、从 clean HEAD 恢复 `HEAD~1` 的
@@ -52,8 +52,8 @@
  * 运行：
  *   node --experimental-strip-types benchmarks/working-tree.bench.ts [--release]
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md
- * @see specs/001-working-tree-commits/tasks.md T095、T109
+ * @see requirements/epics/epic-006-working-tree-commits.md「性能预算的口径」与「reference 的冻结与复冻」（现行规则）
+ * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md`（文中的「契约 §N」）
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -657,7 +657,7 @@ const decision = decideRelativeGate(references, report.environment.ratioProfile,
 if (decision.kind === 'unfrozen') {
   console.log(
     '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
-      '本次只产出数字，不做门禁判定。冻结见 tasks.md T097。'
+      '本次只产出数字，不做门禁判定。冻结用 benchmarks/freeze-working-tree-reference.ts。'
   );
   process.exit(0);
 }

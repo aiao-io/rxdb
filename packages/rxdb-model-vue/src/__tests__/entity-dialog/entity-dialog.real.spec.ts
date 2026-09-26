@@ -5,7 +5,7 @@ import EntityDialog from '../../entity-dialog/EntityDialog.vue';
 import { ENTITY_DIALOG_CONTEXT } from '../../entity-dialog/dialog-context';
 
 /**
- * EntityDialog —— **真实组件源码**（对齐 Angular 侧 specs/027 T025a 覆盖率补充）。
+ * EntityDialog —— **真实组件源码**（对齐 Angular 侧，覆盖率补充）。
  *
  * EntityDetail 的模板宿主组件：覆盖对话框模式（注入对话框上下文）下的
  * 标题栏渲染、全屏切换（真实 `.rxdb-dialog-pane` 样式写入）、边缘拖拽缩放、

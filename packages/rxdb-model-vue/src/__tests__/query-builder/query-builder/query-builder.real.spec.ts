@@ -8,7 +8,7 @@ import type { RxDBQueryOutput } from '../../../query-builder/query-builder/query
 /**
  * QueryBuilder —— **真实加载组件源码 + 真实 QueryBuilderService**（对齐 Angular 侧）。
  *
- * 与旧版「把逻辑内联复制一份来测」的做法不同（specs/027 T025a），
+ * 与旧版「把逻辑内联复制一份来测」的做法不同，
  * 这里 import 真实组件、渲染、断言真实的 service ↔ ref ↔ emit 链路。
  */
 

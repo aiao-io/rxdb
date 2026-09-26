@@ -6,10 +6,9 @@
  * `packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-crud.spec.ts`
  * 与 `packages/rxdb-adapter-pglite/src/__tests__/encrypted-crud.spec.ts`，
  * 用各自的 adapter factory 和后端专有的 `readDatabaseFile` 读取器调用
- * `runCrudSuite` + `runQueryValidationSuite`。套件断言以下契约：
- * `specs/004-local-field-encryption/contracts/adapter-hooks.md`
- * （encrypt / decrypt hooks、patch walker、encryption 门面）
- * 与 `contracts/package-api.md`（信封形态）。
+ * `runCrudSuite` + `runQueryValidationSuite`。套件断言 spec 004 的两份契约：
+ * adapter-hooks（encrypt / decrypt hooks、patch walker、encryption 门面）
+ * 与 package-api（信封形态）；spec 004 的出处见 `requirements/stories/future/US-803-local-encryption.md`「参考」。
  *
  * 套件刻意保持实现无关：只触及面向开发者的 API（`adapter.encryption`、
  * repository statics）以及用于原始信封检视的 `adapter.query(...)`。

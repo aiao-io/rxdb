@@ -26,10 +26,10 @@
  * data-model.md §5 给 discard 列出的效果也恰好是三条簿记（`2.6 revision +1、删条目、entryCount 归零`）。
  * 物理上也走不通：投影重写只能经 `mergeChanges` / `switchBranch` 两个原语，而
  * `WorkingTreeCaptureRuntime.#requireEntrance()` 对没有意图声明的调用**直接拒绝**，
- * 而 `TrustedCallsite.file` 是「相对 `packages/rxdb/src/version/` 的文件名」——
- * `working-tree/discard-command.ts` 这个调用点根本登记不进去。
+ * 而 `TRUSTED_CALLSITE_REGISTRY` 里没有 `discard-command.ts` 的登记行，`TrustedWriteIntent` 里
+ * 也没有「丢弃」这一项——这个调用点没有可声明的意图。
  * 哪天 v1 改主意要在同一事务里连投影一起回滚，要同时改的是
- * adapter-contract.md §3、`TRUSTED_CALLSITE_REGISTRY`、`TrustedWriteIntent` 与 T055 的漂移用例——
+ * epic-006「受信调用点登记表」、`TRUSTED_CALLSITE_REGISTRY`、`TrustedWriteIntent` 与 T055 的漂移用例——
  * 本文件那条 `mergeChanges` 断言就是逼着人去改那四处，而不是在这里偷偷加一句 `declareTrustedWrite()`。
  */
 
@@ -378,9 +378,9 @@ describe('v1 的 discard 只回滚逻辑工作树（spec.md 写入口语义矩�
     expectOk(await discardOnce(scene));
 
     // 见文件头：投影重写只能经 mergeChanges / switchBranch 两个原语，而这两个原语
-    // 都要求调用点在 TRUSTED_CALLSITE_REGISTRY 里——那张表的 `file` 是
-    // 「相对 packages/rxdb/src/version/ 的文件名」，discard-command.ts 登记不进去。
-    // 要跨这条线，就得连同 adapter-contract.md §3、登记表、意图枚举与 T055 的漂移用例
+    // 都要求调用点在 TRUSTED_CALLSITE_REGISTRY 里——discard-command.ts 没有登记行，
+    // 意图枚举里也没有「丢弃」。
+    // 要跨这条线，就得连同 epic-006「受信调用点登记表」、登记表、意图枚举与 T055 的漂移用例
     // 一起改；这条断言的作用是让那件事必须被显式做掉，而不是在这里加一句声明了事。
     expect(scene.probe.executor.mergeChanges).not.toHaveBeenCalled();
   });

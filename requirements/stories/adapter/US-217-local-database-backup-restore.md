@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-09-26
 tags: [adapter, backup, restore, local-first]
 ---
 
@@ -34,6 +34,13 @@ Electron SQLite、Electron PGlite 与 Tauri SQLite 的故事均将数据库导�
 [US-210](./US-210-tauri-sqlite-local-database.md)。桌面文件存储的验收路径是退出应用后复制整个应用数据目录，
 见 [US-504](../plugin/US-504-electron-local-file-storage.md) AC#3 与
 [US-505](../plugin/US-505-tauri-local-file-storage.md) AC#3；这不是可由应用调用的一致性备份接口。
+
+浏览器侧连这条路都没有。仓库里唯一的数据库导出入口曾是 DevTools Settings 的数据库下载：它在 OPFS 里搜索 SQLite 文件直接热拷贝。
+[US-904](../future/US-904-devtools-native-storage-contract.md)（`Done`）把它作为不安全入口停用，browser / Electron / Tauri 的
+`settings` provider 对 `export` 恒回 `export_unsupported`（[`read-only-settings.ts`](../../../packages/rxdb-devtools/src/provider/read-only-settings.ts)），
+并在 Out of Scope 写明「可靠导出需要 adapter 参与阻止重连并生成一致快照，必须另立故事」——本故事就是那条故事。
+PGlite 自带的 `dumpDataDir()` / `loadDataDir` 在仓内也没有调用方，复验：
+`grep -rlE 'dumpDataDir|loadDataDir' packages/*/src apps/*/src --include='*.ts'` 无结果。
 
 本故事只认领数据库快照与恢复。`rxdb-plugin-storage` 管理的外置文件内容不属于数据库归档；
 调用方必须能识别该限制，不能在外置文件未备份时报告“完整应用备份成功”。
@@ -185,3 +192,4 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
 - [US-504 Electron 文件存储](../plugin/US-504-electron-local-file-storage.md) — 外置文件与数据库的备份域边界
 - [US-505 Tauri 文件存储](../plugin/US-505-tauri-local-file-storage.md) — Tauri 应用目录复制验证
 - [US-803 本地字段级加密](../future/US-803-local-encryption.md) — 加密字段与密钥生命周期
+- [US-904 DevTools 原生本地存储调试](../future/US-904-devtools-native-storage-contract.md) — 停用不安全的数据库下载，把一致性导出留给本故事

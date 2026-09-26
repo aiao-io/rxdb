@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import EntityForm from '../../entity-form/EntityForm.vue';
 
 /**
- * EntityForm —— **真实组件源码**（对齐 Angular 侧 specs/027 T025a）。
+ * EntityForm —— **真实组件源码**（对齐 Angular 侧）。
  *
  * 覆盖 12 类字段渲染、view 模式只读展示、fieldChanged / formSubmitted /
  * formCancelled / validationErrors 四条输出链路；解析与校验全部走

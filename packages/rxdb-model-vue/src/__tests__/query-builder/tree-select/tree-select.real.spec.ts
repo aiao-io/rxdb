@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TreeSelect from '../../../query-builder/tree-select/TreeSelect.vue';
 
 /**
- * TreeSelect —— **真实加载组件源码**（对齐 Angular 侧 specs/027 T025a）。
+ * TreeSelect —— **真实加载组件源码**（对齐 Angular 侧）。
  *
  * happy-dom 无原生 Popover API，`showPopover`/`hidePopover` 需打桩；
  * 除此之外全部走真实的树展开 / 过滤 / 键盘导航实现（CDK KeyManager 由包内实现替代）。

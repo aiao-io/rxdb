@@ -7,8 +7,8 @@
 - **发布已改为手工执行，由 owner 自己控制时点**：不进 CI、没有任何自动化触发，也没有自动门禁兜底——
   **发布前必须先跑绿 `pnpm test-all`**。仓库里不存在自动发布 workflow，不要再为「什么时候发」反复请示。
 - **发布不是开发的闸门**：桥接发布只挡 [epic-006](epics/epic-006-working-tree-commits.md) 的**迁移发布**
-  （`bridge.tag` 为 `null` 时 `kind=migration` 门禁必红），不挡 US-305 及其后续故事的编码、测试与合入。
-  epic-006 唯一的真开工前置是 `specs/001-working-tree-commits/` 的重生成。
+  （`bridge.tag` 为 `null` 时 `kind=migration` 门禁必红），不挡任何故事的编码、测试与合入——epic-006 的代码已全部合入，
+  挡住的只是把它发出去这一步。
 - 历史桥接 tag `v0.0.25` 的 commit 已因后续 squash **脱离当前发布主线**（`git merge-base --is-ancestor v0.0.25 HEAD` 失败），
   不得移动或重打，也**不能再作为 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 migration bridge**。
 - 因此下一次 schema migration 之前，**必须先从届时的发布主线重新发布一个 `kind=bridge` 的非迁移版本**。
@@ -20,7 +20,7 @@
   见下方[版本漂移开项](#开项0025-遗留的三条版本漂移)。
 - **自动生成的 changelog 会同时多报和漏报，必须人工过一遍**：既会把 0.0.25 已发过的内容再写一遍，
   也会漏掉被 squash 进 `chore(aiao): update deps (#53)` 的 US-908 两条缺陷修复。见硬前提 2 的 ② 与 ④。
-- 按 [roadmap](roadmap.md) 排期，桥接发布已随 epic-006 链**整体压后到批次 4**；本计划在 owner 决定启动线 A 时执行，
+- 按 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控) 排期，桥接发布的执行**排在所有批次之后**；本计划在 owner 决定启动线 A 时执行，
   动手前重跑下方「硬前提 2」的当前状态实测。
 
 ## 开项：0.0.25 遗留的三条版本漂移
@@ -151,7 +151,7 @@ origin/main     → RXDB_SYSTEM_SCHEMA_VERSION = 6，RXDB_CHANGE_CODEC_VERSION =
 2. **把 schema 抬升移出 `main` 再按原顺序走**：revert `2132c30d` 里的常量与迁移部分，先发桥接，再重新合入。
    代价最大——3 → 6 连着十张表与抽包，revert 等于把 epic-006 从 `main` 拆出去。
 3. **承认这一轮没有桥接**：直接发 `kind=migration` 不可行（`bridge.tag` 必填）；要走这条就得改清单协议与门禁
-   （例如把首个迁移发布声明为「无桥接、强制 `oldBundlePolicy`」）。这改的是 FR-030 本身，须回到 spec 评审。
+   （例如把首个迁移发布声明为「无桥接、强制 `oldBundlePolicy`」）。这改的是 [US-305](stories/collaboration/US-305-commit-graph-head.md) 的 FR-030 本身，须先改该故事与 epic-006 的验收再评审。
 
 owner 选定出路之后，「下一次发布」的四段与执行顺序第 1～6 步按选定路径重写，本开项随之关闭。
 在那之前，**不要**在 `main` 现有任何提交上打桥接 tag——打上去的 tag 只能是上表两列中的一种，都会让将来的迁移发布卡死或失去桥接语义。
@@ -252,7 +252,7 @@ owner 选定出路之后，「下一次发布」的四段与执行顺序第 1～
      `adjustSemverBumpsForZeroMajorVersion` **默认为 `true`**
      （`nx/dist/src/command-line/release/config/config.js` 的 `?? true`），major 为 0 时把
      `minor` 降级成 `patch`、`major` 降级成 `minor`，于是 `0.0.24 --minor--> 0.0.25` 而**不是 `0.1.0`**。
-     两个后果叠在一起：该值撞上[线 A 关闭判据 ①](roadmap.md#批次-4epic-006-链整体压后)的
+     两个后果叠在一起：该值撞上[线 A 关闭判据 ①](roadmap.md#线-a桥接版本发布owner-门控)的
      `release.version ≠ 0.0.25`，且 `@aiao/rxdb@0.0.25` **已在 registry 上**（`npm view @aiao/rxdb versions` 实测），
      `pnpm publish` 会以版本重复被拒。**所以线 A 必须显式指定版本号**（`nx release version <显式版本>`），
      不能听任推算；取 `0.0.26` 还是 `0.1.0` 是一次人工决定，但**不得**是 `0.0.25`。
@@ -273,9 +273,11 @@ owner 选定出路之后，「下一次发布」的四段与执行顺序第 1～
      `pagehide → dispose()`——外加 [US-906](stories/future/US-906-electron-devtools-developer-path.md) 的交付、
      三份新测试与 `scripts/audit/requirements-consistency.mjs`。因为标题是 `chore`，
      **这两条 `fix` 既不贡献 bump，也不会出现在 changelog 的 Bug Fixes 里**；实测该区间被识别出的 3 条 `fix`
-     （`2bc4f6a` / `5e129fc` / `5044dad`）全是 8 月的 CI 与打包修复，**与昨夜这两条无关**。
+     （`2bc4f6a` / `5e129fc` / `5044dad`）全是 8 月的 CI 与打包修复，**与 US-908 这两条无关**。
      `f4e0778` 已在 `origin/main` 上，**不得重写**——只能在 changelog 生成后**人工补写**这两条。
      ② 是多报、④ 是漏报，定稿前两边都要人工过一遍；判断某条到底发没发过，仍按上方开项第三条只认 `npm pack`。
+     反方向的一条：`a63321c`（标题 `feat(rxdb): 添加 rxdb-adapter-http 适配器 (#39)`）同样埋着 US-018 的
+     `BREAKING CHANGE` 实现，但它已随 0.0.25 的产物发出，**不补**——定案见 [roadmap 排期约束 12](roadmap.md#排期约束)。
 
      ⑤ **非规范标题会以 `__INVALID__` 原样进 changelog，且本仓库在持续产生新的。**
      非规范提交（`123` / `213213` 这类）nx 解析不到、一律记为 `none`，一批非规范提交等于零 bump 量、发不出版本；
@@ -398,7 +400,7 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 把第 0 步的 `migration-release-gate` 挂进 PR CI 也守不到它们。
 `bridge.version` 下限只提供**延迟**防线：桥接真发成 `0.0.25`，要到下一次 migration 引用它时才会红。
 第三条同样无自动化：桥接发布**不得抬升系统版本常量**这一条，门禁只看布尔位、从不读源码（见执行顺序第 1 步的 ⚠️）。
-这也是 [roadmap 批次 4 线 A](roadmap.md#批次-4epic-006-链整体压后) 的关闭判据要写五条、
+这也是 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控) 的关闭判据要写五条、
 并特别标出「④ 单独没有区分力」的原因。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，

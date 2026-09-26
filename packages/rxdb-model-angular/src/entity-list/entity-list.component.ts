@@ -1,4 +1,11 @@
-import { getEntityMetadata, RelationKind, RxDB, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  isSystemEntity,
+  RelationKind,
+  RxDB,
+  type EntityType,
+  type FindByCursorOptions
+} from '@aiao/rxdb';
 import { InfiniteScrollingList } from '@aiao/rxdb-angular';
 import {
   actionsColumn,
@@ -44,7 +51,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { LucideFunnel as Funnel, LucideDynamicIcon, LucideRedo2 as Redo2, LucideUndo2 as Undo2 } from '@lucide/angular';
-import type { ColumnsDefine } from '@visactor/vtable';
+import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of } from 'rxjs';
 import type { EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
@@ -75,6 +82,18 @@ const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
+
+/**
+ * 实体列表的表格选项：关掉行序号列的拖拽手柄
+ *
+ * @remarks
+ * `buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，而列表不接 `rowReordered`，拖完不落库。
+ * 排序持久化属 US-028 阶段 B，届时只对可排序实体重新打开。`buildTableOptions()` 对 `rowSeriesNumber`
+ * 整体覆盖，`title` / `width` 要照默认值一并带上。
+ */
+const LIST_TABLE_OPTIONS: Partial<ListTableConstructorOptions> = {
+  rowSeriesNumber: { title: '', width: 40, dragOrder: false }
+};
 
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段 */
 function normalizeSortField(field: unknown): string | undefined {
@@ -240,6 +259,12 @@ export class EntityListComponent {
 
   readonly #entityCls = computed(() => this.#entityClsMap.get(this.#entityKey()));
 
+  /** 当前实体是否为 RxDB 注入的系统表（整表只读） */
+  readonly #isSystemTable = computed(() => {
+    const cls = this.#entityCls();
+    return cls !== undefined && isSystemEntity(cls);
+  });
+
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */
   readonly #localDraftItems = signal<EntityInstance[]>([]);
 
@@ -254,6 +279,7 @@ export class EntityListComponent {
   protected readonly Undo2 = Undo2;
   protected readonly Redo2 = Redo2;
   protected readonly Funnel = Funnel;
+  protected readonly listTableOptions = LIST_TABLE_OPTIONS;
 
   /** CDK Overlay 定位策略：优先下方右对齐，其次上方右对齐 */
   protected readonly overlayPositions = [
@@ -352,8 +378,8 @@ export class EntityListComponent {
     return meta.displayName ?? meta.name;
   });
 
-  /** 当前实体是否存在于祖先创建链路中（循环创建检测） */
-  readonly isCreateBlocked = computed(() => this.creationChain().includes(this.#entityKey()));
+  /** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测） */
+  readonly isCreateBlocked = computed(() => this.#isSystemTable() || this.creationChain().includes(this.#entityKey()));
 
   readonly isQueryActive = computed(() => this.filterQuery().rules.length > 0);
   readonly filteredCount = computed(() => this.#instances().length + this.#localDraftItems().length);
@@ -390,6 +416,9 @@ export class EntityListComponent {
         .filter(r => !linkedIds.has(r['id'] as string))
         .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
     }
+    // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
+    // 操作列对只读行不出图标，「查看」也随之隐藏
+    if (this.#isSystemTable()) records = records.map(r => ({ ...r, _readonly: true }));
     return records;
   });
 

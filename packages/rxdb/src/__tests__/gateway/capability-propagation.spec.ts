@@ -4,7 +4,7 @@
  * @remarks
  * 被测的是网关这一半——**把「某个能力刚被启用」这件事送到同源的其他连接**。
  * 收到之后装钩子那一半在 `@aiao/rxdb-plugin-working-tree`，理由见
- * `specs/001-working-tree-commits/threat-model.md` §6。
+ * `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §6。
  *
  * 为什么这几组断言值得写：
  *

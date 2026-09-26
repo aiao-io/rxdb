@@ -9,7 +9,7 @@
  *  - snippet 不含 HTML 标记（FR-003、FR-004）
  *  - matchedField 字段名映射正确
  *
- * @see specs/001-add-global-search/data-model.md §4.1, §4.2
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import { describe, expect, it } from 'vitest';
 

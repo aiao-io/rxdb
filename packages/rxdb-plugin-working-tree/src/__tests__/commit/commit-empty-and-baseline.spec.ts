@@ -2,7 +2,7 @@
  * @fileoverview T025 红测试：普通 commit 的必填项与空提交门禁，以及两种系统根节点的例外（FR-008/009）。
  *
  * @remarks
- * 契约见 `specs/001-working-tree-commits/spec.md` FR-008 / FR-009 与
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/spec.md` FR-008 / FR-009 与
  * `src/commit/commit.entity.ts` 里 {@link CommitKind} 的 TSDoc。实现目标是
  * `src/commit/write-commit.ts`（T035）。
  *

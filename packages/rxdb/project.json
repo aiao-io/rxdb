@@ -11,6 +11,10 @@
       "// inputs": "@nx/js/typescript 推断出的 inputs 是 production，把 spec 全排除了——src/__tests__/contracts/ 的编译期契约改一行也命中缓存，等于没有门禁。这里换成 default 把 spec 纳入哈希。",
       "inputs": ["default", "^production", { "externalDependencies": ["typescript"] }]
     },
+    "test": {
+      "// inputs": "trusted-callsite-registry.spec.ts 用 `?raw` 当场解析 epic-006 的「受信调用点登记表」。那个文件不在 {projectRoot} 里，默认 inputs 看不见它——改表格措辞会命中旧缓存报绿，而这条测试存在的意义正是让改措辞变红。",
+      "inputs": ["default", "^production", "{workspaceRoot}/requirements/epics/epic-006-working-tree-commits.md"]
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {

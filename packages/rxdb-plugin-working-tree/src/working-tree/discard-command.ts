@@ -17,13 +17,12 @@
  * 4. **HEAD 一列都不动。** discard 不是 `reset --hard HEAD~1`：它不写提交历史，也不挪
  *    `baseHeadCommitId`。
  *
- * **v1 的 discard 只回滚「逻辑工作树」，不在本命令内重写业务投影。** spec.md 的写入口
+ * **v1 的 discard 只回滚「逻辑工作树」，不在本命令内重写业务投影。** epic-006 的写入口
  * 语义矩阵把两件事分成两行，而 data-model.md §5 给 discard 列出的效果恰好是三条簿记
- * （revision +1、删条目、`entryCount` 归零）。物理上也走不通：投影重写只能经
- * `mergeChanges` / `switchBranch` 两个原语，而它们要求调用点登记在
- * `TRUSTED_CALLSITE_REGISTRY` 里——那张表的 `file` 是「相对 `packages/rxdb/src/version/`
- * 的文件名」，本文件登记不进去。要跨这条线，得连同 adapter-contract.md §3、登记表、
- * 意图枚举与漂移用例一起显式改掉。
+ * （revision +1、删条目、`entryCount` 归零）。投影重写只能经 `mergeChanges` / `switchBranch`
+ * 两个原语，而它们要求调用点以「文件基名 + 符号 + 意图」登记在 `TRUSTED_CALLSITE_REGISTRY` 里——
+ * 本文件没有登记行，`TrustedWriteIntent` 里也没有「丢弃」这一项。要跨这条线，得连同
+ * epic-006「受信调用点登记表」、登记表、意图枚举与漂移用例一起显式改掉。
  *
  * 损坏守卫复用 `commit/commit-graph-guard.ts` 那一份（T038/T084），不在这里另写判定：
  * 三个入口拒绝码相同，调用方才有一个稳定的 catch 分支（FR-051）。

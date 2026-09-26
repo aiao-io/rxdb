@@ -549,7 +549,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
       entrance: 'raw_write',
       message:
         `${method}() 没有声明受信写意图：工作树无法判断这次批量重写该不该产生单元。` +
-        '在调用点先调 declareTrustedWrite()，并把它加进 TRUSTED_CALLSITE_REGISTRY（adapter-contract.md §3）。'
+        '在调用点先调 declareTrustedWrite()，并把它加进 TRUSTED_CALLSITE_REGISTRY（epic-006「受信调用点登记表」）。'
     });
   }
 

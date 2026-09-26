@@ -36,7 +36,6 @@ export function getSyncConfig(metadata: EntityMetadata, globalSync?: SyncOptions
  * @param metadata - 实体元数据
  * @param globalSync - 全局同步配置（可选，作为回退）
  * @returns 同步类型
- * @throws {RxDBError} 如果 sync.type === 'filter'（不支持）
  *
  * @example
  * ```ts

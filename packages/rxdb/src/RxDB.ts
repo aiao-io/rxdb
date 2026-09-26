@@ -1319,7 +1319,7 @@ export class RxDB {
    *
    * **只覆盖同源的 BroadcastChannel 可达范围。** 跨进程（Electron 主/渲染、Tauri、Node 多进程）
    * 与 `multiInstance: false` 的实例收不到 —— 那两种情形由能力插件自己的自愈路径收窄，
-   * 见 `specs/001-working-tree-commits/threat-model.md` §6。
+   * 见 `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §6。
    *
    * 发起方自己收不到这条事件（网关按 `clientId` 忽略自己发的消息），这是对的：
    * 它在 `enable()` 里已经同步接通过了，再收一次只会让接通发生两遍。

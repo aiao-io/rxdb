@@ -1,5 +1,5 @@
 /**
- * @fileoverview raw 写路径的 4 步 bypass 判定（spec.md「raw 写路径的 bypass 判定」、adapter-contract.md §2）。
+ * @fileoverview raw 写路径的 4 步 bypass 判定（epic-006「raw SQL / adapter 直写的 bypass 门禁判定」、adapter-contract.md §2）。
  *
  * @remarks
  * **一份判定，两处调用。** 实现了 `rawQuery` 的 2 个适配器（PGlite / SQLite 家族基类）各自调
@@ -22,7 +22,8 @@
  * 的 9 个条目全部走 `switchBranch` / `mergeChanges` 这两个**带类型的**写原语，一个 raw 调用点都没有，
  * 于是那一步在生产里永远取不到真值——它只是一条无条件放行的死分支，却是整条防线上唯一无条件放行的
  * 一步。未来真需要内部受信 raw 写路径时，要做的是补一条能证明身份的传递通道（见
- * `threat-model.md` §3），不是把槽位留在这儿等人填。2026-09-26 登记的 #10 / #11（分支物化）
+ * `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §3），
+ * 不是把槽位留在这儿等人填。2026-09-26 登记的 #10 / #11（分支物化）
  * 分别走 `switchBranch` 与 `mergeChanges`，仍是带类型的写原语，这个结论不变。
  */
 
