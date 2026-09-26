@@ -1,6 +1,6 @@
 import { createEntitySyncResolver, ENTITY_STATIC_TYPES, RxDBError, SyncType, type RxDB, type UUID } from '@aiao/rxdb';
 import { METADATA } from '@aiao/rxdb/testing';
-import { BehaviorSubject, NEVER, Observable, firstValueFrom, of } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, NEVER, Observable, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FindTreeOptions } from '../../repository/tree-repository.interface.js';
 import { TreeRepository } from '../../repository/TreeRepository.js';
