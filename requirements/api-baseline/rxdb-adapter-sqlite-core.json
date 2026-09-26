@@ -58,6 +58,10 @@
         "kind": "type"
       },
       {
+        "name": "cleanupIncompleteSqliteRestore",
+        "kind": "value"
+      },
+      {
         "name": "compileCjkToken",
         "kind": "value"
       },
@@ -95,6 +99,10 @@
       },
       {
         "name": "defaultWarn",
+        "kind": "value"
+      },
+      {
+        "name": "describeSqliteDatabase",
         "kind": "value"
       },
       {
@@ -426,6 +434,10 @@
         "kind": "value"
       },
       {
+        "name": "restoreSqliteDatabase",
+        "kind": "value"
+      },
+      {
         "name": "rewriteOpfsProxyWorkerUrl",
         "kind": "value"
       },
@@ -478,6 +490,18 @@
         "kind": "type"
       },
       {
+        "name": "SQLITE_BACKUP_ENGINE",
+        "kind": "value"
+      },
+      {
+        "name": "SQLITE_BACKUP_ENGINE_COMPATIBILITY",
+        "kind": "value"
+      },
+      {
+        "name": "SQLITE_BACKUP_LOCK_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
         "name": "SQLITE_MAX_BIND_VARIABLES",
         "kind": "value"
       },
@@ -490,7 +514,19 @@
         "kind": "type"
       },
       {
+        "name": "SqliteBackupInput",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteBackupStorage",
+        "kind": "type"
+      },
+      {
         "name": "SqliteBaseOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteBlankDatabase",
         "kind": "type"
       },
       {
@@ -546,6 +582,22 @@
         "kind": "both"
       },
       {
+        "name": "SqliteRestoreInput",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteRestoreOutcome",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteRestoreStage",
+        "kind": "type"
+      },
+      {
         "name": "SqliteResult",
         "kind": "type"
       },
@@ -554,7 +606,15 @@
         "kind": "type"
       },
       {
+        "name": "sqliteStorageLockName",
+        "kind": "value"
+      },
+      {
         "name": "SqliteSuccessResult",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteSupportedBackupStorage",
         "kind": "type"
       },
       {
@@ -667,6 +727,10 @@
       },
       {
         "name": "wrapWithComlinkEndpoint",
+        "kind": "value"
+      },
+      {
+        "name": "writeSqliteBackup",
         "kind": "value"
       }
     ],
@@ -1050,6 +1114,30 @@
         "kind": "type"
       },
       {
+        "name": "backupConcurrencySuite",
+        "kind": "value"
+      },
+      {
+        "name": "backupEncryptionSuite",
+        "kind": "value"
+      },
+      {
+        "name": "backupFailureSuite",
+        "kind": "value"
+      },
+      {
+        "name": "backupInterruptSuite",
+        "kind": "value"
+      },
+      {
+        "name": "backupRoundtripSuite",
+        "kind": "value"
+      },
+      {
+        "name": "BackupSuite",
+        "kind": "type"
+      },
+      {
         "name": "bigintBinaryClientSuite",
         "kind": "value"
       },
@@ -1094,8 +1182,36 @@
         "kind": "value"
       },
       {
+        "name": "RestoreInterruptPoint",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreInterruptReply",
+        "kind": "type"
+      },
+      {
+        "name": "RestoreInterruptRequest",
+        "kind": "type"
+      },
+      {
         "name": "rxdbAdapterSuite",
         "kind": "value"
+      },
+      {
+        "name": "serveInterruptedRestore",
+        "kind": "value"
+      },
+      {
+        "name": "SqliteBackupEngineObjects",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteBackupHarness",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteBackupStorageKind",
+        "kind": "type"
       },
       {
         "name": "sqliteClientBatchTimeoutSuite",

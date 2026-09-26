@@ -4,7 +4,7 @@ import type { SqliteaiOptions } from '../sqliteai.interface.js';
 const mockState = vi.hoisted(() => ({
   directInit: vi.fn(),
   wrappedInit: vi.fn(),
-  wrapWithComlink: vi.fn(),
+  wrapWithComlinkEndpoint: vi.fn(),
   releaseComlinkProxy: vi.fn()
 }));
 
@@ -12,7 +12,7 @@ vi.mock('@aiao/rxdb-adapter-sqlite-core', async importOriginal => {
   const original = await importOriginal<typeof import('@aiao/rxdb-adapter-sqlite-core')>();
   return {
     ...original,
-    wrapWithComlink: mockState.wrapWithComlink,
+    wrapWithComlinkEndpoint: mockState.wrapWithComlinkEndpoint,
     releaseComlinkProxy: mockState.releaseComlinkProxy
   };
 });
@@ -28,9 +28,11 @@ describe('createSqliteClient options', () => {
     vi.clearAllMocks();
   });
 
-  it('应该把 transport options 原样交给 Comlink，并只把 load options 传给远端 init', async () => {
+  // 走每次连接一条子端口的 transport：根代理释放后 Worker 侧 `expose()` 永久摘掉监听，同一个 Worker 无法再连，
+  // 而恢复先用一条连接写库、之后的 `connect()` 再开一条。
+  it('应该把 transport options 原样交给按连接租用子端口的 Comlink transport，并只把 load options 传给远端 init', async () => {
     const wrappedClient = { init: mockState.wrappedInit };
-    mockState.wrapWithComlink.mockReturnValue(wrappedClient);
+    mockState.wrapWithComlinkEndpoint.mockResolvedValue(wrappedClient);
     mockState.wrappedInit.mockResolvedValue(undefined);
 
     const workerInstance = Object.create(null) as Worker;
@@ -48,8 +50,8 @@ describe('createSqliteClient options', () => {
     const { createSqliteClient } = await import('../create_sqlite_client.js');
     const result = await createSqliteClient('options-db', options);
 
-    expect(mockState.wrapWithComlink).toHaveBeenCalledOnce();
-    expect(mockState.wrapWithComlink).toHaveBeenCalledWith(expect.anything(), options);
+    expect(mockState.wrapWithComlinkEndpoint).toHaveBeenCalledOnce();
+    expect(mockState.wrapWithComlinkEndpoint).toHaveBeenCalledWith(expect.anything(), options);
     expect(mockState.directInit).not.toHaveBeenCalled();
     expect(mockState.wrappedInit).toHaveBeenCalledWith('options-db', {
       opfs: true,
@@ -68,7 +70,7 @@ describe('createSqliteClient options', () => {
   it('worker 模式下函数型选项应该显式抛错，而不是留到 Comlink 抛 DataCloneError', async () => {
     // 原先这里断言 locateFile / print / printErr 会被原样交给远端 init —— 那是把缺陷
     // 写进了测试：函数无法结构化克隆，postMessage 必抛 DataCloneError。
-    mockState.wrapWithComlink.mockReturnValue({ init: mockState.wrappedInit });
+    mockState.wrapWithComlinkEndpoint.mockResolvedValue({ init: mockState.wrappedInit });
     const options: SqliteaiOptions = {
       wasmPath: '/assets/sqlite3.wasm',
       locateFile: (name: string) => `/assets/${name}`,
@@ -87,7 +89,7 @@ describe('createSqliteClient options', () => {
   // 断线重连循环里端口只增不减，worker 侧那个 init 失败的客户端也一直可达、永不回收。
   it('init 失败时释放 Comlink 代理，并把原始错误原样抛出', async () => {
     const wrappedClient = { init: mockState.wrappedInit };
-    mockState.wrapWithComlink.mockReturnValue(wrappedClient);
+    mockState.wrapWithComlinkEndpoint.mockResolvedValue(wrappedClient);
     const failure = new Error('init failed');
     mockState.wrappedInit.mockRejectedValue(failure);
 
@@ -101,7 +103,7 @@ describe('createSqliteClient options', () => {
 
   it('init 成功时不释放代理', async () => {
     const wrappedClient = { init: mockState.wrappedInit };
-    mockState.wrapWithComlink.mockReturnValue(wrappedClient);
+    mockState.wrapWithComlinkEndpoint.mockResolvedValue(wrappedClient);
     mockState.wrappedInit.mockResolvedValue(undefined);
 
     const { createSqliteClient } = await import('../create_sqlite_client.js');

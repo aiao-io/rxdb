@@ -1,6 +1,7 @@
 import type { RxDB } from '@aiao/rxdb';
-import { RxDBAdapterSqliteBase, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
+import { RxDBAdapterSqliteBase, type SqliteBackupStorage, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
 import { createSqliteClient } from './create_sqlite_client.js';
+import { DEFAULT_VFS } from './sqlite-load.utils.js';
 import { ADAPTER_NAME, type WaSqliteOptions } from './sqlite.interface.js';
 
 /**
@@ -21,6 +22,17 @@ export class RxDBAdapterWaSqlite extends RxDBAdapterSqliteBase {
   ) {
     super(rxdb, options);
     this.#dbName = rxdb.config.dbName;
+  }
+
+  /**
+   * 备份 / 恢复支持的 VFS：`MemoryVFS` / `MemoryAsyncVFS`（内存）与 `IDBBatchAtomicVFS`（IndexedDB）。
+   * 其余 VFS 报 `unsupported_combination`。
+   */
+  protected override backupStorage(): SqliteBackupStorage {
+    const vfs = this.options.vfs ?? DEFAULT_VFS;
+    if (vfs === 'MemoryVFS' || vfs === 'MemoryAsyncVFS') return { kind: 'memory', label: 'memory' };
+    if (vfs === 'IDBBatchAtomicVFS') return this.persistentBackupStorage('idb');
+    return { kind: 'unsupported', field: 'vfs', actual: vfs };
   }
 
   protected override async createClient(): Promise<SqliteClientLike> {

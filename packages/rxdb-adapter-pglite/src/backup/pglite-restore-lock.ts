@@ -10,11 +10,6 @@
 export const PGLITE_RESTORE_MARKER_DATABASE = 'rxdb-pglite-restore';
 const MARKER_STORE = 'markers';
 
-/** 已获得的 Web Lock；`release()` 幂等。 */
-export interface HeldLock {
-  release(): void;
-}
-
 /**
  * 保护同一份 PGlite 持久化存储的锁名。
  *
@@ -22,42 +17,6 @@ export interface HeldLock {
  * @returns 锁名
  */
 export const pgliteStorageLockName = (storageKey: string): string => `rxdb-pglite-storage:${storageKey}`;
-
-/** 当前环境是否提供 Web Locks。 */
-export const hasWebLocks = (): boolean => typeof navigator !== 'undefined' && navigator.locks !== undefined;
-
-/**
- * 立即尝试获取锁，拿不到就返回 `null`，不排队。
- *
- * @remarks
- * Web Locks 的锁在回调返回的 promise settle 时释放，所以这里交出去一个不会自己结束的 promise，
- * 由 `release()` 手动 resolve。
- *
- * @param name - 锁名
- * @param mode - `exclusive` 给恢复，`shared` 给正常连接
- * @returns 持有的锁，或 `null`
- */
-export const tryAcquireLock = (name: string, mode: LockMode): Promise<HeldLock | null> =>
-  new Promise<HeldLock | null>((resolve, reject) => {
-    navigator.locks
-      .request(name, { mode, ifAvailable: true }, lock => {
-        if (!lock) {
-          resolve(null);
-          return undefined;
-        }
-        return new Promise<void>(release => {
-          let released = false;
-          resolve({
-            release: () => {
-              if (released) return;
-              released = true;
-              release();
-            }
-          });
-        });
-      })
-      .catch(reject);
-  });
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise<T>((resolve, reject) => {

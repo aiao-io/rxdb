@@ -2,9 +2,12 @@ import type { RxDB, RxDBRestoreOptions, RxDBRestoreResult } from '@aiao/rxdb';
 import {
   assertRxDBBackupCompatible,
   classifyBackupIoError,
+  hasRxDBBackupWebLocks,
   isRxDBBackupError,
   RxDBBackupArchiveReader,
   RxDBBackupError,
+  tryAcquireRxDBBackupLock,
+  type RxDBBackupHeldLock,
   type RxDBBackupManifest,
   type RxDBBackupTrailer
 } from '@aiao/rxdb';
@@ -25,12 +28,9 @@ import {
   deleteIdbDatabase,
   deleteRestoreMarker,
   hasRestoreMarker,
-  hasWebLocks,
   isIdbStorageEmpty,
   pgliteStorageLockName,
-  tryAcquireLock,
-  writeRestoreMarker,
-  type HeldLock
+  writeRestoreMarker
 } from './pglite-restore-lock.js';
 import { PGliteRestoredDatabase } from './pglite-restored-database.js';
 
@@ -91,7 +91,7 @@ const throwIfAborted = (signal: AbortSignal | undefined): void => {
 };
 
 const requireWebLocks = (operation: string): void => {
-  if (hasWebLocks()) return;
+  if (hasRxDBBackupWebLocks()) return;
   throw new RxDBBackupError('unsupported_combination', `PGlite ${operation} to IndexedDB requires Web Locks`, {
     details: { field: 'navigator.locks' }
   });
@@ -110,8 +110,8 @@ const assertTargetDisconnected = async (rxdb: RxDB): Promise<void> => {
   });
 };
 
-const acquireExclusive = async (storageKey: string): Promise<HeldLock> => {
-  const lock = await tryAcquireLock(pgliteStorageLockName(storageKey), 'exclusive');
+const acquireExclusive = async (storageKey: string): Promise<RxDBBackupHeldLock> => {
+  const lock = await tryAcquireRxDBBackupLock(pgliteStorageLockName(storageKey), 'exclusive');
   if (lock) return lock;
   throw new RxDBBackupError('target_busy', `PGlite storage "${storageKey}" is in use`, {
     details: { field: 'dataDir', actual: storageKey }
@@ -340,7 +340,7 @@ const restoreLocked = async (
     const session = await openSession(source, target, options.signal);
     return await restoreToIdb(session, target, storage, options);
   } finally {
-    lock.release();
+    await lock.release();
   }
 };
 
@@ -434,6 +434,6 @@ export const cleanupIncompletePGliteRestore = async (target: PGliteRestoreTarget
       cause: error
     });
   } finally {
-    lock.release();
+    await lock.release();
   }
 };

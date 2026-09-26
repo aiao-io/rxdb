@@ -8,7 +8,10 @@
 // 得出不同的兼容结论。
 export * from './backup/backup-archive.js';
 export * from './backup/backup-error.js';
+export * from './backup/backup-lock.js';
 export * from './backup/backup-manifest.js';
+export * from './backup/backup-queue.js';
+export * from './backup/backup-target.js';
 export * from './backup/backup.interface.js';
 export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 写捕获接缝（adapter-contract.md §1/§2）。**整条留在核心**：装卸口就在 `RxDBAdapterLocalBase`

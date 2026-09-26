@@ -1,9 +1,15 @@
-import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '@aiao/rxdb-adapter-sqlite-core';
+import type {
+  SqliteBlankDatabase,
+  SqliteChangeEvent,
+  SQLiteCompatibleType,
+  SqliteResult
+} from '@aiao/rxdb-adapter-sqlite-core';
 import {
   BATCH_TIMEOUT,
   type ChangeRecordEvent,
   DEFAULT_BATCH_TIMEOUT,
   DEFAULT_CACHE_SIZE_KB,
+  describeSqliteDatabase,
   FTS_BIGRAM_SQL_FUNCTION,
   get_cached_regexp,
   indexTextForFts,
@@ -53,6 +59,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   #init_promise?: Promise<void>;
   readonly #queue = new AsyncQueueExecutor(1);
   #pending_events: ChangeRecordEvent[] = [];
+  #change_events_muted = false;
   #batch_timer?: ReturnType<typeof setTimeout>;
   #max_wait_timer?: ReturnType<typeof setTimeout>;
   #batch_timeout: number = DEFAULT_BATCH_TIMEOUT;
@@ -101,6 +108,33 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   async version(): Promise<string> {
     const version = await this.execute('SELECT sqlite_version()');
     return get(version, 'results[0].rows[0][0]');
+  }
+
+  /**
+   * 暂停 / 恢复变更事件采集。
+   *
+   * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+   */
+  setChangeEventsMuted(muted: boolean): void {
+    this.#change_events_muted = muted;
+  }
+
+  /**
+   * 在同一个模块上开一条临时 `:memory:` 连接，描述引擎新建空库本来的样子。
+   *
+   * @returns 空库的对象列表与描述
+   * @throws Error 客户端未初始化
+   */
+  async describeBlankDatabase(): Promise<SqliteBlankDatabase> {
+    const connection = this.#connection;
+    if (!connection) throw new Error('SqliteClient is not initialized');
+    const { sqlite } = connection;
+    const blank = await sqlite.open_v2(':memory:');
+    try {
+      return await describeSqliteDatabase({ execute: (sql, bindings) => executeHelper(sqlite, blank, sql, bindings) });
+    } finally {
+      await sqlite.close(blank);
+    }
   }
 
   beginTransactionSql(): string {
@@ -207,7 +241,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
       );
 
       sqlite.update_hook(db, (type, dbName, tableName, rowId) => {
-        if (!dbName || !tableName || !WATCH_TABLES.has(tableName)) return;
+        if (this.#change_events_muted || !dbName || !tableName || !WATCH_TABLES.has(tableName)) return;
 
         this.#pending_events.push({ type, dbName, tableName, rowId });
         this.#schedule_batch_send();

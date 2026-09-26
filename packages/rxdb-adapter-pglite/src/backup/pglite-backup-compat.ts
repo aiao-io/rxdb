@@ -1,7 +1,8 @@
 import type { RxDB } from '@aiao/rxdb';
 import {
-  computeRxDBSchemaFingerprint,
   getEntityMetadata,
+  getRxDBBackupAuthDomain,
+  getRxDBBackupSchemaFingerprint,
   getRxDBSystemVersionState,
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
@@ -133,31 +134,6 @@ export const pgliteBackupExtensions = (options: PGliteClientOptions): string[] =
     .sort();
 
 /**
- * 加密认证域：有实体声明加密列时为库名（与 keyring 的 namespace 同源），否则 `null`。
- *
- * @param rxdb - 已 `init()` 的实例
- * @returns 认证域
- */
-export const pgliteBackupAuthDomain = (rxdb: RxDB): string | null => {
-  const encrypted = rxdb.config.entities.some(
-    entity => (getEntityMetadata(entity).encryptedPropertyMap?.size ?? 0) > 0
-  );
-  return encrypted ? rxdb.config.dbName : null;
-};
-
-/**
- * 实体结构指纹。
- *
- * @remarks
- * 取的是 `init()` 之后的实体集合：多对多中间表、仓库生成的实体都在 `SchemaManager.init()` 里补进
- * `config.entities`，源库连过，目标还没连——两边都以「初始化后」为准才可比。
- *
- * @param rxdb - 已 `init()` 的实例
- * @returns 指纹
- */
-export const pgliteBackupFingerprint = (rxdb: RxDB): string => computeRxDBSchemaFingerprint(rxdb.config.entities);
-
-/**
  * 目标侧的兼容性期望。
  *
  * @param rxdb - 目标实例（会被 `init()`，但不会连接）
@@ -177,7 +153,7 @@ export const pgliteTargetCompatibility = async (
     extensions: pgliteBackupExtensions(options),
     systemSchemaVersion: RXDB_SYSTEM_SCHEMA_VERSION,
     changeCodecVersion: RXDB_CHANGE_CODEC_VERSION,
-    schemaFingerprint: pgliteBackupFingerprint(rxdb),
-    authDomain: pgliteBackupAuthDomain(rxdb)
+    schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    authDomain: getRxDBBackupAuthDomain(rxdb)
   };
 };

@@ -1,7 +1,13 @@
-import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '@aiao/rxdb-adapter-sqlite-core';
+import type {
+  SqliteBlankDatabase,
+  SqliteChangeEvent,
+  SQLiteCompatibleType,
+  SqliteResult
+} from '@aiao/rxdb-adapter-sqlite-core';
 import {
   type ChangeRecordEvent,
   DEFAULT_BATCH_TIMEOUT,
+  describeSqliteDatabase,
   FTS_BIGRAM_SQL_FUNCTION,
   get_cached_regexp,
   indexTextForFts,
@@ -74,6 +80,7 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
   #batchTimer?: ReturnType<typeof setTimeout>;
   #maxWaitTimer?: ReturnType<typeof setTimeout>;
   #batchTimeout: number = DEFAULT_BATCH_TIMEOUT;
+  #changeEventsMuted = false;
 
   constructor(private readonly runtime: WaSqliteClientRuntime<TOptions>) {
     super();
@@ -109,6 +116,15 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
     return get(version, 'results[0].rows[0][0]');
   }
 
+  /**
+   * 暂停 / 恢复变更事件采集。
+   *
+   * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+   */
+  setChangeEventsMuted(muted: boolean): void {
+    this.#changeEventsMuted = muted;
+  }
+
   /** 获取当前 VFS 所需的事务开始语句。 */
   beginTransactionSql(): string {
     const state = this.#state;
@@ -125,6 +141,24 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
       return WRITE_HINT_SYSTEM_MIGRATION_BEGIN_SQL;
     }
     return 'BEGIN EXCLUSIVE;';
+  }
+
+  /**
+   * 在同一个模块上开一条临时 `:memory:` 连接，描述引擎新建空库本来的样子。
+   *
+   * @returns 空库的对象列表与描述
+   * @throws Error 客户端未就绪
+   */
+  async describeBlankDatabase(): Promise<SqliteBlankDatabase> {
+    const state = this.#state;
+    if (state.status !== 'ready') throw new Error(`${this.runtime.clientName} client is not initialized`);
+    const { sqlite } = state.connection;
+    const blank = await sqlite.open_v2(':memory:');
+    try {
+      return await describeSqliteDatabase({ execute: (sql, bindings) => executeHelper(sqlite, blank, sql, bindings) });
+    } finally {
+      await sqlite.close(blank);
+    }
   }
 
   /** 等待现有任务结束并关闭数据库与 VFS。 */
@@ -202,7 +236,7 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
         `;
       await executeHelper(sqlite, db, initializationSql);
       sqlite.update_hook(db, (type, databaseName, tableName, rowId) => {
-        if (!databaseName || !tableName || !WATCH_TABLES.has(tableName)) return;
+        if (this.#changeEventsMuted || !databaseName || !tableName || !WATCH_TABLES.has(tableName)) return;
         this.#pendingEvents.push({ type, dbName: databaseName, tableName, rowId: normalizeRowId(rowId) });
         this.#scheduleBatch();
       });

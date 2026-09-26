@@ -1,5 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import { RxDBAdapterSqliteBase, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
+import { RxDBAdapterSqliteBase, type SqliteBackupStorage, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
 import { createSqliteClient } from './create_sqlite_client.js';
 import { ADAPTER_NAME, type SqliteOptions } from './sqlite.interface.js';
 
@@ -21,6 +21,17 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
   ) {
     super(rxdb, options);
     this.#dbName = rxdb.config.dbName;
+  }
+
+  /**
+   * 备份 / 恢复支持的 VFS：`memory`（内存）与 `idb`（IndexedDB）。
+   * 其余 VFS 报 `unsupported_combination`。
+   */
+  protected override backupStorage(): SqliteBackupStorage {
+    const vfs = this.options.vfs ?? 'idb';
+    if (vfs === 'memory') return { kind: 'memory', label: 'memory' };
+    if (vfs === 'idb') return this.persistentBackupStorage('idb');
+    return { kind: 'unsupported', field: 'vfs', actual: vfs };
   }
 
   protected override async createClient(): Promise<SqliteClientLike> {
