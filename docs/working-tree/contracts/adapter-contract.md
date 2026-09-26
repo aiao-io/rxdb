@@ -1,6 +1,6 @@
 # Contract: 适配器义务
 
-**Feature**: [../spec.md](../spec.md) | **Plan**: [../plan.md](../plan.md) | **Research**: [../research.md](../research.md)
+**Feature**: [../spec.md](../spec.md) | **Research**: [../research.md](../research.md)
 
 本文件冻结 6 个 v1 适配器必须履行的义务。**能履行 = 通过 [conformance-suites.md](./conformance-suites.md) 的两套套件**，不靠自述。
 

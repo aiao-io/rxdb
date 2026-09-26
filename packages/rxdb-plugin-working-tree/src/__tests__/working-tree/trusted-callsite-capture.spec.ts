@@ -24,8 +24,8 @@
 
 import { TRUSTED_CALLSITE_REGISTRY } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- specs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
-import ADAPTER_CONTRACT from '../../../../../specs/001-working-tree-commits/contracts/adapter-contract.md?raw';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- docs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
+import ADAPTER_CONTRACT from '../../../../../docs/working-tree/contracts/adapter-contract.md?raw';
 import { producesWorkingTreeEntry } from '../../working-tree/trusted-callsite-capture.js';
 
 /** 取 markdown 里两个标题之间那一段；取不到就抛，不给静默的空串。 */

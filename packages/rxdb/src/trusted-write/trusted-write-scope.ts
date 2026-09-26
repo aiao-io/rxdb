@@ -92,7 +92,7 @@ const DECLARED = new WeakMap<TrustedWriteScope, ResolvedTrustedWrite>();
  * 不是遗漏。** 它挡的是**漂移**：新写一处批量重写却忘了登记，在这儿当场抛错（fail-closed）。
  * 它挡不住**仿冒**：一个照着登记表填三段字符串的调用方会被放行。但能走到这一步的代码已经
  * `import` 了核心包、拿到了 adapter 实例，它直接调 `adapter.mergeChanges()` 比仿冒一个键更省事
- * ——这道门禁不是防御边界，是一致性契约（`specs/001-working-tree-commits/threat-model.md` §4）。
+ * ——这道门禁不是防御边界，是一致性契约（`docs/working-tree/threat-model.md` §4）。
  */
 export function declareTrustedWrite(scope: TrustedWriteScope, declaration: TrustedWriteDeclaration): void {
   const entrance = ENTRANCE_BY_KEY.get(trustedCallsiteKey(declaration));

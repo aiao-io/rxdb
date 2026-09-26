@@ -2,7 +2,7 @@
 
 **Feature**: [spec.md](./spec.md) | **Branch**: `next-0912` | **Date**: 2026-09-12
 
-本文件解决 [plan.md](./plan.md) Technical Context 中的全部 NEEDS CLARIFICATION，并冻结实现前必须先定的技术选型。每条格式固定为 **Decision / Rationale / Alternatives considered**。
+本文件冻结实现前必须先定的技术选型。每条格式固定为 **Decision / Rationale / Alternatives considered**。
 
 > **前置**：本轮是**就地重生成**。旧 research.md 按已作废的「工作树 → 缓存区 → 提交」三层模型写成，其中关于 index 自包含重放、依赖闭包与环检测的全部结论**作废**，不在本文件中承接。
 
@@ -185,7 +185,7 @@ spec.md 的 Key Entities 已把这条列为「两条不可让步的存储契约�
 
 **Rationale**：裸墙钟数字在 CI 机器上必然抖动。OPFS / IDB / wa-sqlite / PGlite 的差距是**数量级**，不指定后端的绝对断言没有意义。归一化到同次 control CRUD 可消掉机器整体快慢这一维。
 
-**commit 免除 100 ms 预算是 constitution 第四条的已批准例外**，理由见 [plan.md](./plan.md) 的 Complexity Tracking：commit 要把 100 个单元整体落盘并清空工作树，与只读摘要的 status / diff 不是同一量级；其绝对预算由**首个绿色实现的 reference 中位数冻结**，与相对门禁同批签入。
+**commit 免除 100 ms 预算是 constitution 第四条的已批准例外**，理由见 [contracts/benchmark-report.md](./contracts/benchmark-report.md) §4：commit 要把 100 个单元整体落盘并清空工作树，与只读摘要的 status / diff 不是同一量级；其绝对预算由**首个绿色实现的 reference 中位数冻结**，与相对门禁同批签入。
 
 **reference 必须先于发布候选签入**，不能在失败后重算基线——否则门禁自证其绿。
 

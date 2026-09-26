@@ -1,6 +1,6 @@
 # Contract: 核心公开 API
 
-**Feature**: [../spec.md](../spec.md) | **Plan**: [../plan.md](../plan.md) | **Data model**: [../data-model.md](../data-model.md)
+**Feature**: [../spec.md](../spec.md) | **Data model**: [../data-model.md](../data-model.md)
 
 本文件冻结对外暴露的**形状与语义**，不含实现。类型签名用 TypeScript 表达，因为它**就是**本库的用户契约。
 

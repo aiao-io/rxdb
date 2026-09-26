@@ -3,7 +3,7 @@
  * 历史与会话级 redo 栈彼此正交（FR-018/019）。
  *
  * @remarks
- * 契约见 `specs/001-working-tree-commits/spec.md` FR-018「已有 API 的行为不能因为 commit
+ * 契约见 `docs/working-tree/spec.md` FR-018「已有 API 的行为不能因为 commit
  * 功能而改变」与 FR-019「刷新后 redo 可清空，但 commit 与 HEAD 不得清空」。实现目标是
  * `src/commit/commit-capability.ts`（T031）与 `src/commit/write-commit.ts`（T035）。
  *

@@ -44,8 +44,8 @@ import { describe, expect, it } from 'vitest';
 // 本包的测试跑在 chromium 里，没有 node:fs。要拿 spec.md 的**原文**做逐行核对，唯一的办法是
 // Vite 的 `?raw`——比对的是仓库里那份规格，而不是「我记得它写了 11 行」。
 import { WRITE_ENTRANCES } from '@aiao/rxdb';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- specs/ 不是 Nx 项目，是这条判定的规格原文，越过包边界读的正是它
-import SPEC_MARKDOWN from '../../../../../specs/001-working-tree-commits/spec.md?raw';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- docs/ 不是 Nx 项目，是这条判定的规格原文，越过包边界读的正是它
+import SPEC_MARKDOWN from '../../../../../docs/working-tree/spec.md?raw';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
   classifyWriteEntrance,

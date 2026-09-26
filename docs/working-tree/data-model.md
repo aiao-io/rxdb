@@ -1,6 +1,6 @@
 # Data Model: 本地工作树与提交历史
 
-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Date**: 2026-09-12
+**Feature**: [spec.md](./spec.md) | **Date**: 2026-09-12
 
 本文件把 spec.md「Key Entities」的 **9 行逻辑契约**冻结成物理落地。spec.md 只说「必须持久化什么、按什么粒度隔离」；表名、字段、索引、约束、编解码与迁移版本在这里定死。**两者冲突以 spec.md 为准。**
 

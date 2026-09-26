@@ -2,7 +2,7 @@
  * scripts/audit/working-tree-callsite-drift.mjs
  *
  * 受信写调用点的**漂移门禁**：仓库里每一处批量重写，要么带着登记在案的意图，要么就是一个
- * 未知入口（`specs/001-working-tree-commits/contracts/adapter-contract.md` §3、R5、SC-010）。
+ * 未知入口（`docs/working-tree/contracts/adapter-contract.md` §3、R5、SC-010）。
  *
  * 触发路径：`pnpm audit:callsite-drift`。
  *

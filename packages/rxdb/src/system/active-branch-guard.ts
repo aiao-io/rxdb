@@ -61,7 +61,7 @@ export const ACTIVE_BRANCH_KEY = '*active*';
  *
  * 它防的是**碰撞**（用户无意间起了个撞车的名字），不是**攻击**（存心去撞哨兵的调用方）：
  * 后者的前提是已经能直写系统表，到那一步唯一约束是谁都无所谓了
- * （`specs/001-working-tree-commits/threat-model.md` §5）。
+ * （`docs/working-tree/threat-model.md` §5）。
  */
 const RESERVED_BRANCH_ID_CHAR = '*';
 

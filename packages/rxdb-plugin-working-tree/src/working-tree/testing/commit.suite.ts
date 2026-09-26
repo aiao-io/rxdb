@@ -2,7 +2,7 @@
  * @fileoverview `workingTreeCommitConformanceSuite` —— 提交侧一致性套件。
  *
  * @remarks
- * 覆盖范围见 `specs/001-working-tree-commits/contracts/conformance-suites.md` §2：
+ * 覆盖范围见 `docs/working-tree/contracts/conformance-suites.md` §2：
  * commit 图与 HEAD 持久化、一次性启用迁移、两类 CAS 分开断言、commit 原子性、
  * 损坏守卫三入口、restore、分支隔离与跨 realm 冲突。
  *

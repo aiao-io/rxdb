@@ -33,8 +33,7 @@
  * 运行环境固定为 Node + PGlite **memory**（契约 §1）：不选盘上后端，是因为绝对数字一旦
  * 掺进磁盘抖动就没法在 CI 上比。
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md
- * @see specs/001-working-tree-commits/tasks.md T094
+ * @see docs/working-tree/contracts/benchmark-report.md
  */
 
 import { createHash } from 'node:crypto';

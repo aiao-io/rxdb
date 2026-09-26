@@ -2,7 +2,7 @@
  * @fileoverview T007 红测试：两条「独立完整复制」存储契约的可执行门禁。
  *
  * @remarks
- * 契约见 `specs/001-working-tree-commits/data-model.md` §3，源头是 spec.md 的两条硬裁决：
+ * 契约见 `docs/working-tree/data-model.md` §3，源头是 spec.md 的两条硬裁决：
  * `WorkingTreeEntry` 独立完整复制，不复用也不只引用 `RxDBChange`；`CommitChangeSet`
  * 复制完整不可变恢复数据。
  *

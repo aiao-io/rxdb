@@ -1,6 +1,6 @@
 # Contract: Benchmark 报告与性能门禁
 
-**Feature**: [../spec.md](../spec.md) | **Plan**: [../plan.md](../plan.md)
+**Feature**: [../spec.md](../spec.md)
 
 本文件冻结 benchmark 产出的 **JSON 契约**与**两道门禁的判定规则**。数字本身不在这里——它们由首个绿色实现归档并冻结。
 
@@ -134,7 +134,11 @@ Nx target：`benchmarks` 项目（`benchmarks/project.json`，sourceRoot `benchm
 - **理由**：它要在单个事务内落盘 100 个单元、CAS 推进 branch ref、并清空 100 个工作树条目；100 ms 是为单次实体读写设定的预算，量级不同。
 - **替代预算**：由**首个绿色实现的 reference 中位数冻结**，与相对门禁**同批签入**，因此仍是硬数字，不是「不设限」。
 - **不适用范围**：`status` / `diff` / `restore` 照常受 §3.2 约束。
-- 完整论证与被拒绝的更简单方案见 [../plan.md](../plan.md) 的 Complexity Tracking。
+- **被拒绝的更简单方案**：
+  1. 让 commit 也进 100 ms：会逼实现把工作树清空改成异步或延迟，直接违反 FR-011 的同事务语义与 SC-007 的「不出现半清空的工作树」——把性能数字买在正确性头上。
+  2. 缩小 fixture 让数字好看：违反 §1 的固定 fixture 口径（R8），门禁自证其绿。
+  3. commit 不设绝对预算，只看相对门禁：会漏掉「所有操作一起变慢」的整体回归，故仍冻结绝对中位数。
+- **批准路径**：本例外由 epic-006「性能预算的口径」一节授权，并在 spec.md SC-003 固化为可验收判据。reference JSON 随实现一并提交 review；review 不接受该中位数时，改本节的例外或改设计，不得在失败后重算基线。
 
 ## 5. 浏览器端（SC-005）
 

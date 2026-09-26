@@ -1,8 +1,8 @@
 # Quickstart: 验证「本地工作树与提交历史」
 
-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Contracts**: [contracts/](./contracts/)
+**Feature**: [spec.md](./spec.md) | **Contracts**: [contracts/](./contracts/)
 
-本文件是**验证指南**，不是实现指南。每个场景给出：怎么跑、看什么、绿的判据是什么。实现细节属于 `tasks.md` 与实现阶段。
+本文件是**验证指南**，不是实现指南。每个场景给出：怎么跑、看什么、绿的判据是什么。
 
 > 旧 quickstart.md 里的 `stage` / `unstage` / 部分提交流程**全部作废**——v1 没有暂存区。
 
@@ -158,7 +158,7 @@ pnpm nx run-many -t test --projects=rxdb,rxdb-adapter-pglite,rxdb-adapter-wa-sql
 创建的行为，复制独立 working-tree snapshot 并**共享当前 HEAD**」，而 `src/commit/branch-commit-rows.ts`
 的 `copyCurrentMaterialization()` 正是这么落的；那条断言写于 `head` 仍恒为 `null` 的年代。断言已按
 FR-017 收紧成 `head: sourceRef.headCommitId`，并另加一条「源 HEAD 非空」挡住空过，6 后端复跑全绿
-（详见 `tasks.md` T130）。
+（过程见 `git show f9528e8f:specs/001-working-tree-commits/tasks.md` 的 T130）。
 
 **因此本条的结论**：十个场景逐条绿。第 1 个场景在它自己写明的那一格从未红过；紧邻那一格的红是
 US-305 启用面上套件与实现的一处未对齐，已按规格判归属并修正，不是把期望放宽换来的绿。

@@ -20,7 +20,7 @@
  * CPU 型号、Node 主版本（V8 的大版本才会改变 JIT 的相对开销；CI 跟 `.nvmrc` 的 `26`
  * 浮动到 26.10，本机是 26.7，两者必须算同一画像）。
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md §3
+ * @see docs/working-tree/contracts/benchmark-report.md §3
  */
 
 import { createHash } from 'node:crypto';

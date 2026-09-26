@@ -57,8 +57,8 @@
 import { describe, expect, it } from 'vitest';
 // 本包的测试跑在 chromium 里，没有 node:fs。要拿契约原文与真实源码做逐行核对，唯一的办法是
 // Vite 的 `?raw` / `import.meta.glob`——它们在构建期把内容内联成字符串。
-// eslint-disable-next-line @nx/enforce-module-boundaries -- specs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
-import ADAPTER_CONTRACT from '../../../../../specs/001-working-tree-commits/contracts/adapter-contract.md?raw';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- docs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
+import ADAPTER_CONTRACT from '../../../../../docs/working-tree/contracts/adapter-contract.md?raw';
 import {
   TRUSTED_CALLSITE_REGISTRY,
   trustedCallsiteKey,

@@ -6,10 +6,10 @@
  * `freeze-working-tree-reference.ts`（门禁判定本身在 `working-tree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
  * benchmark——共享的定义因此不能住在那里。
  *
- * 契约本体在 specs/001-working-tree-commits/contracts/benchmark-report.md §2 / §3。
+ * 契约本体在 docs/working-tree/contracts/benchmark-report.md §2 / §3。
  * 本文件是它的 TypeScript 投影，字段集必须逐条对齐；改这里之前先改那里。
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md
+ * @see docs/working-tree/contracts/benchmark-report.md
  */
 
 import { dirname, resolve } from 'node:path';

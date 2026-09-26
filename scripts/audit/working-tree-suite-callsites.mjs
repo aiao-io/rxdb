@@ -3,7 +3,7 @@
  *
  * 工作树一致性套件的**调用点**门禁：6 个 v1 适配器包各自都必须实际调用
  * `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 两套套件，
- * 缺一即失败（`specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
+ * 缺一即失败（`docs/working-tree/contracts/conformance-suites.md` §0、SC-006）。
  *
  * 触发路径：`pnpm audit:suite-callsites`。
  *

@@ -1,6 +1,6 @@
 # Threat Model: 提交能力的防线边界
 
-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Adapter Contract**: [contracts/adapter-contract.md](./contracts/adapter-contract.md)
+**Feature**: [spec.md](./spec.md) | **Adapter Contract**: [contracts/adapter-contract.md](./contracts/adapter-contract.md)
 
 启用提交能力后，仓库里多出一批「门禁」：raw 写判定、bulk-write 门禁、捕获挂载点、受信写登记表、`'*active*'` 哨兵、active branch token。它们看起来像一条安全防线，于是每次评审都会有人问同一个问题的不同变体——第三方适配器能不能仿冒受信键？用户能不能建一个叫 `*active*` 的分支？另开一个 `sqlite3` 连接直接写表怎么办？
 
@@ -126,7 +126,7 @@ raw 判定、bulk-write 门禁、捕获钩子**全部由适配器自己调用**�
 
 回归用例：`packages/rxdb/src/__tests__/gateway/capability-propagation.spec.ts`（发、收、不回声、坏载荷）、`packages/rxdb-plugin-working-tree/src/__tests__/system/capability-enabled-listener.spec.ts`（同步装、认能力名、幂等、随纪元退场）、`packages/rxdb-adapter-wa-sqlite/src/__tests__/working-tree-cross-connection.spec.ts`（**两个真实适配器实例共享同一个持久库**的端到端，含 §6.2 的自愈）。最后一条选 wa-sqlite 不是偏好：六个 v1 后端里只有它的 `IDBBatchAtomicVFS` 支持多个真实连接同时打开同一个持久库。
 
-接线状态另见 [tasks.md](./tasks.md) 与 [contracts/adapter-contract.md](./contracts/adapter-contract.md)。
+接线状态另见 [contracts/adapter-contract.md](./contracts/adapter-contract.md)。
 
 ## 7. 门禁一览
 

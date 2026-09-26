@@ -52,8 +52,7 @@
  * 运行：
  *   node --experimental-strip-types benchmarks/working-tree.bench.ts [--release]
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md
- * @see specs/001-working-tree-commits/tasks.md T095、T109
+ * @see docs/working-tree/contracts/benchmark-report.md
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -657,7 +656,7 @@ const decision = decideRelativeGate(references, report.environment.ratioProfile,
 if (decision.kind === 'unfrozen') {
   console.log(
     '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
-      '本次只产出数字，不做门禁判定。冻结见 tasks.md T097。'
+      '本次只产出数字，不做门禁判定。冻结用 benchmarks/freeze-working-tree-reference.ts。'
   );
   process.exit(0);
 }

@@ -7,7 +7,7 @@
  * 就只能让冻结脚本自己再写一遍中位数，于是「冻结用的中位数」与「门禁用的中位数」开始
  * 各自演化，而两者对不上时报出来的是一次性能回归。
  *
- * @see specs/001-working-tree-commits/contracts/benchmark-report.md §2
+ * @see docs/working-tree/contracts/benchmark-report.md §2
  */
 
 /** 一组样本的三个统计量（契约 §2 的 `p50` / `p95` / `max`）。 */
