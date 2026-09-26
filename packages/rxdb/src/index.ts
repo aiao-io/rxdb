@@ -75,16 +75,16 @@ export type { EntityMetadata, EntityMetadataType } from './entity/metadata.inter
 // 包外另算一遍不会有编译错误，只会让核心与插件对同一个实体给出两种归属。
 // 实例级同步覆盖的条目形状与配置期错误（US-026）。
 export {
-  RxDBSyncOverrideError,
-  type EntitySyncOverride,
-  type RxDBSyncOverrideErrorReason
-} from './entity/sync-override.js';
-export {
   RxDBMissingPrimaryAdapterError,
   RxDBMixedPrimaryAdapterError,
   getEntitySync,
   type PrimaryAdapterKind
 } from './entity/primary-adapter.js';
+export {
+  RxDBSyncOverrideError,
+  type EntitySyncOverride,
+  type RxDBSyncOverrideErrorReason
+} from './entity/sync-override.js';
 export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';

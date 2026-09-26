@@ -7,6 +7,7 @@
  * 不因输入形状畸形而自身抛出非聚合异常。
  */
 
+import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 import {
   formatConfigLiteralsOf,
   isStepAligned,
@@ -24,7 +25,6 @@ import {
   SyncType
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
-import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 
 /**
  * 注册期元数据校验规则。

@@ -18,7 +18,7 @@ import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError, RxDBMixedVersionedCacheTransactionError } from '../RxDBError.js';
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 import type { EntityType } from './entity.interface.js';
-import { type SyncOptions, SyncType } from './metadata-options.interface.js';
+import { SyncType, type SyncOptions } from './metadata-options.interface.js';
 
 /** 写入落到哪一侧适配器 */
 export type PrimaryAdapterKind = 'local' | 'remote';

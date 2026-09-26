@@ -4,11 +4,7 @@ import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
-import {
-  assertNoSystemEntityOverride,
-  indexSyncOverrides,
-  snapshotSyncOverrides
-} from './entity/sync-override.js';
+import { assertNoSystemEntityOverride, indexSyncOverrides, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
@@ -68,6 +64,7 @@ import {
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
+import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';
 import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
@@ -75,7 +72,6 @@ import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
-import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';

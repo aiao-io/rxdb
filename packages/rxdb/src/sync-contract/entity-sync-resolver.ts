@@ -89,7 +89,9 @@ export function createEntitySyncResolver(
  *
  * @param source - 解析器或数据库级配置
  */
-export function isEntitySyncResolver(source: SyncOptions | EntitySyncResolver | undefined): source is EntitySyncResolver {
+export function isEntitySyncResolver(
+  source: SyncOptions | EntitySyncResolver | undefined
+): source is EntitySyncResolver {
   return typeof source === 'object' && source !== null && 'resolveType' in source;
 }
 

@@ -40,11 +40,7 @@ export interface EntitySyncOverride {
  * - `invalid-sync`：`sync` 为 `null`、非对象、缺少或写错 `type`、适配器选项形状不对
  */
 export type RxDBSyncOverrideErrorReason =
-  | 'unregistered'
-  | 'system-entity'
-  | 'duplicate'
-  | 'invalid-entry'
-  | 'invalid-sync';
+  'unregistered' | 'system-entity' | 'duplicate' | 'invalid-entry' | 'invalid-sync';
 
 /**
  * 实例级同步覆盖配置非法。

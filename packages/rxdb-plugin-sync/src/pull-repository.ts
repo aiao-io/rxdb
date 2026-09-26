@@ -205,7 +205,10 @@ async function _pullRepositoryImpl(
   let effectiveFilter = opts.filter;
   if (syncType === 'filter' && !effectiveFilter) {
     // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
-    const syncConfig = getSyncConfig(metadata, sm.rxdb.entitySync) as { type: string; remote?: { filter?: () => RuleGroup } };
+    const syncConfig = getSyncConfig(metadata, sm.rxdb.entitySync) as {
+      type: string;
+      remote?: { filter?: () => RuleGroup };
+    };
     if (syncConfig?.remote?.filter) {
       // T022: filter 函数执行错误处理
       try {

@@ -89,7 +89,6 @@ export function getSyncType(
   return toEntitySyncResolver(globalSync).resolveType(metadata);
 }
 
-
 /**
  * 某个同步类型的同步能力
  */
@@ -348,7 +347,10 @@ export function isNoSync(metadata: EntityMetadata, globalSync?: SyncOptions | En
  * // 返回: [todoMetadata, userMetadata] (排除 systemMetadata)
  * ```
  */
-export function getSyncableRepositories(entities: EntityMetadata[], globalSync?: SyncOptions | EntitySyncResolver): EntityMetadata[] {
+export function getSyncableRepositories(
+  entities: EntityMetadata[],
+  globalSync?: SyncOptions | EntitySyncResolver
+): EntityMetadata[] {
   return entities.filter(entity => !isNoSync(entity, globalSync));
 }
 
