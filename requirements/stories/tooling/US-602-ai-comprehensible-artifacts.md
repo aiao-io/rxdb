@@ -97,7 +97,7 @@ INVEST 检查清单:
   适配器互斥组、框架绑定与框架版本的对齐关系、组合时序约束（`use()` → `init()`，`connect()` 同步调用 `init()`）
 - **A 阶段**：`scripts/audit/` 新增门禁，校验三件事：非 private 包全部登记（新增包漏登 = CI 红）、
   图中依赖边与各 `package.json` 的 `dependencies` / `peerDependencies` 实际一致、互斥组内成员不互相依赖
-- **A 阶段**：统一「需要兄弟包」的声明方式为 `peerDependencies`，消除病灶 2 的自相矛盾
+- **A 阶段**：`@aiao/rxdb` 一律声明为 `peerDependencies`，消除病灶 2 的自相矛盾；`@aiao/*` 之间的 peer 版本写法统一为 `workspace:^`
 - **B 阶段**：文档站构建产出 `https://rxdb.netlify.app/llms.txt`（分节索引）与 `llms-full.txt`（全文）
 - **B 阶段**：`llms.txt` 的头部由 A 阶段真相源生成，含分层选型表与最小可运行样例
 - **C 阶段**：`@aiao/rxdb` 主包内 `skills/aiao-rxdb/SKILL.md`（YAML frontmatter + 正文），
@@ -126,7 +126,7 @@ INVEST 检查清单:
 | 1   | A：真相源已建立       | 在 `packages/` 下新增一个非 private 包但不登记进真相源 | 门禁脚本非零退出，错误信息指出缺失的包名                                                                                                  | ⬜   |
 | 2   | A：真相源已建立       | 把某包的 `peerDependencies` 改成与真相源声明不一致     | 门禁非零退出，错误信息同时给出「图中声明」与「package.json 实际」两侧                                                                     | ⬜   |
 | 3   | A：真相源已建立       | 让同一互斥组内两个 adapter 互相依赖                    | 门禁非零退出并指明互斥组名                                                                                                                | ⬜   |
-| 4   | 病灶 2 的两种写法并存 | 跑门禁                                                 | 把 `@aiao/rxdb` 放在 `dependencies` 的包（含 `rxdb-adapter-wa-sqlite`、`rxdb-react`、`rxdb-vue`）被拦下；统一为 `peerDependencies` 后通过 | ⬜   |
+| 4   | 病灶 2 的两种写法并存 | 跑门禁                                                 | 把 `@aiao/rxdb` 放在 `dependencies` 的包（含 `rxdb-adapter-wa-sqlite`、`rxdb-react`、`rxdb-vue`）被拦下，peer 写成 `*` 或 `workspace:*` 的同样被拦下；统一为 `peerDependencies` + `workspace:^` 后通过 | ⬜   |
 | 5   | A 阶段合并后          | `pnpm nx run-many -t build --projects=tag:js-lib`      | 全部包构建通过，无任何运行时代码变更导致的回归                                                                                            | ⬜   |
 | 6   | B：插件已接入         | `pnpm nx build website`                                | 构建输出含 `llms.txt` 与 `llms-full.txt`，前者每个文档分节均有链接与一句话描述                                                            | ⬜   |
 | 7   | B：站点已部署         | 请求 `https://rxdb.netlify.app/llms.txt`               | 返回 `text/plain`，头部含分层选型表与一段含完整 import 的最小可运行样例                                                                   | ⬜   |
@@ -152,16 +152,27 @@ INVEST 检查清单:
 但那里的单位是**入口**，天然属于单个包；本故事的单位是**包之间的关系**，不属于任何单个包。
 
 **包发现逻辑复用** `api-surface.mjs` 的现成实现（非 private、有 `src/index.ts`），
-不新写一套扫描，否则两处对「什么算公开包」的判定会分叉。但两者的范围今天就不一致，plan 阶段须显式定：
+不新写一套扫描，否则两处对「什么算公开包」的判定会分叉。已定案：关系图的边界是**发布范围**，`rxdb-test` 进图，层级为 tool。
 
-- `listPublicPackages()` 还经 `EXCLUDED` 排除了 `rxdb-test`，返回 45 个；而 `nx.json` 的
-  `release.projects` 是 `packages/*`，`@aiao/rxdb-test` 照常发布。测试夹具包进不进关系图要选一边。
+- `@aiao/rxdb-test@0.0.25` 已在 npm 上，`nx.json` 的 `release.projects` 是 `packages/*`。消费者装得到的包就会被问到，图里缺它，等于替它回答「不存在」。
+- `listPublicPackages()` 经 `EXCLUDED` 排除 `rxdb-test`、返回 45 个，这是 **API 基线范围**的裁剪（[versioning-policy](../../versioning-policy.md) 把它定为非产品 API），
+  不是「是否公开」的判定，保持不变。plan 阶段把包发现拆成「发布范围」与「基线范围」两个出口，共用同一次扫描。
 - 边界是 `packages/` 目录，不是 `private` 标记：`apps/dev-rxdb-react`、`apps/dev-rxdb-vue` 的
   `package.json` 同样叫 `@aiao/*` 且未标 `private`，只是不在发布范围内。
 
-**`peerDependencies` 迁移的影响面**：属 breaking-ish，消费者需显式安装核心包。
-按 [versioning-policy](../../versioning-policy.md) 判定发布级别，并在
-`website/docs/migration/` 留一条迁移说明——这正是病灶 2 的根因值得留档的部分。
+**依赖写法**（已定案）：`@aiao/rxdb` 一律进 `peerDependencies`，写 `workspace:^`。
+
+- 发布产物今天对核心包给出三种关系（`npm view` 核对 0.0.25 产物）：`workspace:*` 不论在 `dependencies` 还是 peer 里都被改写成精确版本 `0.0.25`
+  （23 个包精确依赖、3 个包精确 peer），`*` 原样发布（14 个包的 peer 没有任何版本约束，哪个版本的核心都算满足）。
+- `workspace:^` 发布时改写成 `^<版本>`（pnpm 的改写规则；本仓发布链未实测，A 阶段用 `pnpm pack` 核对产物）。它在 0.0.x 下等于精确版本，
+  从 0.1 起是「同一 minor 内的 patch 都兼容」，与 [versioning-policy](../../versioning-policy.md) 的 0.x 口径（minor 可能含破坏性变更）一致。
+- 工作区内 peer 写法可行：`rxdb-adapter-encrypted` / `-http` / `-supabase` 今天就只有 peer、没有 devDependencies，
+  本地靠 `.npmrc` 的 `auto-install-peers=true` 解析。
+- `@aiao/*` 之间其余的 peer 边（各插件、`rxdb-model`、框架绑定被上层 peer 的那一侧）同样统一为 `workspace:^`，理由相同。
+  放在 `dependencies` 的兄弟边（`@aiao/utils`、`rxdb-adapter-sqlite-core` 之于各 SQLite 适配器等）照实登记进真相源，
+  是否改成 peer 按「消费者会不会直接 import、是否必须单实例」逐条判，plan 阶段列清。
+- 影响面：消费者需显式安装核心包。提交标注 `BREAKING CHANGE`（0.x 下的级别换算见 versioning-policy §5），
+  并在 `website/docs/migration/v1.md` 留一条迁移说明——这正是病灶 2 的根因值得留档的部分。AC#4 的门禁只认这一种写法。
 
 **Skill 的现实定位**：`agents` 字段与 `skills/` 目录约定尚未定标准
 （[skills-npm PROPOSAL](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md) 仍在提案阶段），
@@ -179,7 +190,8 @@ Copilot 读 `.github/`，消费者必须先跑一次导出工具。C 阶段因�
 | ---- | ------------------------------------------------------- | ------------------------------------------ |
 | A    | `requirements/package-graph.json`                       | 包关系真相源（若 plan 选方案 a）           |
 | A    | `scripts/audit/package-graph.mjs` + `.spec.mjs`         | 漂移门禁，复用 api-surface 的包发现        |
-| A    | `packages/*/package.json`                               | 统一兄弟包声明为 `peerDependencies`        |
+| A    | `packages/*/package.json`                               | `@aiao/rxdb` 统一为 peer + `workspace:^`   |
+| A    | `website/docs/migration/v1.md`                          | 核心包改 peer 的迁移说明                   |
 | A    | `requirements/epics/epic-007-public-api-gates.md`       | 愿景补一句 + 目标清单加本故事（AC#11）     |
 | B    | `website/docusaurus.config.ts` / `website/package.json` | 接入 llms.txt 插件                         |
 | B    | `website/src/`                                          | `llms.txt` 头部（由真相源生成）            |
