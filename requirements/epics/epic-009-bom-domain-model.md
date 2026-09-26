@@ -57,7 +57,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](../stories/plugin/US-507-bom-graph-skeleton.md) (Low)
-- [US-508 BOM 视图解析：类型/组织/版本/生效期过滤](../stories/plugin/US-508-bom-view-resolution.md) (Low)
+- [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](../stories/plugin/US-508-bom-view-resolution.md) (Low)
 - [US-509 DAG 约束与环路检测下沉存储层](../stories/plugin/US-509-bom-dag-cycle-detection.md) (Low)
 - [US-510 多级展开与 where-used 反查](../stories/plugin/US-510-bom-multilevel-explosion.md) (Low)
 - [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](../stories/plugin/US-511-bom-quantity-semantics.md) (Low)
@@ -90,9 +90,10 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 **解锁条件**：出现一个真实的驱动场景——客户 BOM 数据集，或一个要上线的 BOM 应用。
 在那之前 epic 的 `startDate` / `targetDate` 保持 `TBD`：填日期就是本条款禁止的「凭 Epic 惯性排期」。
 
-唯一带独立病灶的是 [US-509](../stories/plugin/US-509-bom-dag-cycle-detection.md)，
-它同时补 `@aiao/rxdb-plugin-graph` 的一个现存缺口（图插件只保证 `findPaths` 返回非循环路径，
-**不阻止**成环边写入）。该条可脱离本 Epic 单独评审。
+本 Epic 没有一条带脱离 BOM 场景的独立病灶。[US-509](../stories/plugin/US-509-bom-dag-cycle-detection.md)
+的「写入期拒绝成环」不是在补 `@aiao/rxdb-plugin-graph` 的缺口：图插件允许成环与自环是**既定语义**，
+`directed-weighted.spec.ts`「查找循环交易」与 `graph-semantics.spec.ts`「自环边」等用例把它钉住，
+读侧由路径查询的 `cycle` 判定与 `GRAPH_MAX_PATH_EXPANSIONS` 保证终止。无环是 BOM 的领域约束。
 
 从本 Epic 拆出去的 [US-030](../stories/core/US-030-declarative-storage-constraints.md) 同样待证，
 但**解锁条件低一档**：任意一条需要「不变量在存储层成立」的故事即可解锁它，不必等 BOM 驱动场景。
@@ -102,10 +103,39 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 驱动场景一旦出现，最小可演示闭环是 **US-507 + US-508 + US-509 + US-510 阶段 A**：
 建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环。四条都不预设行业。
 US-511 必须紧随——数量对不上，前面四条没有业务意义。
+按各故事现在的写法，这个切片关不掉 US-509，US-511 也只有一部分能紧随，见[解锁前须先处理](#解锁前须先处理)。
 
 这个闭环的**验收手段**是 [US-525](../stories/plugin/US-525-bom-end-to-end-demo.md) 阶段 A：
 五条故事各自的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。
 它不是解锁依据——demo 需要插件存在，拿它当启动理由是循环论证，见该故事的「价值待证」。
+
+## 解锁前须先处理
+
+驱动场景出现后、开第一个 PR 之前，先改掉下面几处 Epic 内部的矛盾。它们今天不挡任何事，
+但照现在的写法排期，首轮切片关不掉自己承诺的故事，后续故事也会在没声明的前置上卡住。
+
+1. **首轮切片关不掉 US-509**：AC#2 的 CHECK 落点是 [US-030](../stories/core/US-030-declarative-storage-constraints.md)
+   阶段 A，AC#4 的 `flow_direction` 由 [US-513](../stories/plugin/US-513-bom-coproduct-byproduct.md) 引入，
+   AC#8 依赖 [US-510](../stories/plugin/US-510-bom-multilevel-explosion.md) 阶段 B。切片能演示「拒绝成环」，
+   US-509 却要等这三处都落地才能关闭。二选一：把这三处拉进切片，或让切片只交付 US-509 不依赖它们的
+   AC#1 / #3 / #5~#7，其余等前置落地后再关。
+2. **US-511 能紧随的只有阶段 A 与 C**：阶段 B 的 AC#1 含工序损耗（七步公式第 5 步），要
+   [US-520](../stories/plugin/US-520-bom-routing-operation.md) 的 `operation_seq` 与
+   [US-524](../stories/plugin/US-524-routing-master-model.md) 阶段 D 的 `operation_scrap`；
+   In Scope 的「只有 `consume` 行进入需求展开」同样依赖 US-513 的 `flow_direction`。
+3. **三条「保存即拒绝」的跨行约束没有落点**：[US-507](../stories/plugin/US-507-bom-graph-skeleton.md)
+   AC#5（位号子表行数与 `qty` 一致）、[US-512](../stories/plugin/US-512-bom-substitute-group.md) AC#5
+   （组内 `usage_probability` 合计为 1）、US-520 AC#4（分摊比例合计为 1）都是跨行或跨表聚合。
+   US-507 与 US-512 把落点指向 US-030 的 CHECK，但 CHECK 只看单行，US-030 又把跨表断言与延迟约束列为
+   Out of Scope；US-509 的插件触发器只管可达性。三条要么按 US-509 的先例各自发触发器
+   （逐行写入时合计必然暂时不满足，只能在事务提交时判定，而 SQLite 在 SQL 层没有提交期触发器），要么明确降为仓储层校验。
+   另有 US-524 AC#3（费率区间重叠在存储层被拒）落点是 US-030 阶段 C，但不在 US-030 的消费方清单里。
+4. **未声明的前置**：下列故事用到了别的故事引入的表、列或查询，References 里没有标「前置」——
+   US-510 → US-507；US-511 → US-513、US-520、US-524；US-513 → US-507；US-514 → US-512、US-513；
+   US-515 → US-510；US-516 → US-507；US-520 → US-507；US-523 → US-507。
+5. **US-525 AC#10 没有归属 AC**：「展开不读系统时钟、评估日是显式入参」在其余 18 条里没有任何一条 AC 写过
+   （US-525 技术笔记自述），与它「全部行为都归属到已有的 18 条故事」相抵。应补成
+   [US-508](../stories/plugin/US-508-bom-view-resolution.md) 的一条 AC。
 
 ## 非目标
 

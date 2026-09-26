@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-26
 tags: [plugin, bom, graph, integrity]
 ---
 
@@ -51,18 +51,21 @@ tags: [plugin, bom, graph, integrity]
 
 ## 技术笔记
 
-**本故事是 epic-009 里唯一带独立病灶的一条**，可脱离 BOM 场景单独评审。
+**本故事没有脱离 BOM 场景的独立病灶**：无环是 BOM 的领域约束，不是 `@aiao/rxdb-plugin-graph` 的缺陷。
+图插件的 `type: 'directed-graph'` 声明的是有向，不是无环；`addEdge` 按 `(sourceId, targetId)` upsert，
+成环与自环都能写入，这是**既定语义**——`directed-weighted.spec.ts`「查找循环交易」、
+`directed-unweighted.spec.ts` / `undirected-unweighted.spec.ts`「自环边场景（当前实现允许）」与
+`graph-semantics.spec.ts`「自环边」等用例把它钉住。读侧由
+[`query_graph_sql.ts`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts) 的 `cycle` 判定与
+`GRAPH_MAX_PATH_EXPANSIONS` 保证终止，`findPaths` 只返回非循环路径。BOM 需要的是在这之上**再加**一条写入期约束。
 
-`@aiao/rxdb-plugin-graph` 的现状：`findPaths` 只保证**返回**非循环路径
-（[README](../../../packages/rxdb-plugin-graph/README.md) 自述「路径查询返回非循环路径及对应边信息」），
-但 `addEdge` 不阻止成环边**写入**。图插件的 `type: 'directed-graph'` 声明的是有向，不是无环——
-调用方若假设 DAG，这个假设没有任何机制保证。
-
-**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 本仓有 13 个适配器包，按 DDL 归谁掌控分三档：
+**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 本仓有 10 个适配器
+（`rxdb-adapter-*` 目录共 12 个，其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，
+都没有 `IRxDBAdapter` 实现），按 DDL 归谁掌控分三档：
 
 | 档           | 适配器                                                                                                               | 环约束落在哪  | AC#5 是否成立           |
 | ------------ | -------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- |
-| DDL 本仓掌控 | `sqlite` / `sqlite-wasm` / `wa-sqlite` / `sqliteai` / `electron` / `tauri` / `desktop` / `miniprogram` / `encrypted` | SQLite 触发器 | ✅                      |
+| DDL 本仓掌控 | `sqlite` / `sqlite-wasm` / `wa-sqlite` / `sqliteai` / `electron` / `tauri` / `miniprogram`（DDL 由 `sqlite-core` 生成） | SQLite 触发器 | ✅                      |
 | DDL 本仓掌控 | `pglite`                                                                                                             | PG 触发器     | ✅                      |
 | DDL 在远端   | `supabase` / `http`                                                                                                  | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
 
@@ -90,19 +93,24 @@ SELECT 1 FROM bom_closure
 在其余适配器上，能力缺席被显式声明（AC#6）。多写入端是本故事存在的全部理由——
 只在仓储层校验等于没校验，而声称在每个后端都校验到了，比没校验更坏。
 
+**首轮切片内关不掉**：AC#2 等 US-030 阶段 A 的 CHECK，AC#4 等 US-513 引入 `flow_direction`，
+AC#8 等 US-510 阶段 B 的闭包表，见 [epic-009 解锁前须先处理](../../epics/epic-009-bom-domain-model.md#解锁前须先处理)。
+
 ## 价值待证
 
-本故事的独立病灶见技术笔记；BOM 语境部分同
-[epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。图插件允许成环是既定语义（见技术笔记），
+本故事的价值完全取决于 BOM 驱动场景，不能脱离 Epic 单独解锁。
 
 ## 实现文件
 
 - `packages/rxdb-plugin-bom/` — 待建；可达性校验
-- `packages/rxdb-plugin-graph/` — 可选：给有向图补写入期无环约束
+- `packages/rxdb-plugin-graph/` — 可选：给图插件加 opt-in 的写入期无环约束，默认行为不变
 
 ## References
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-503 图数据插件](US-503-graph-data.md) — 现有图能力与其边界
+- [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；`bom_line` 的来源
+- [US-513 联产品与副产品](US-513-bom-coproduct-byproduct.md) — AC#4 的前置；`flow_direction` 的来源
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — AC#8 依赖其阶段 B
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#2 的 CHECK 落点

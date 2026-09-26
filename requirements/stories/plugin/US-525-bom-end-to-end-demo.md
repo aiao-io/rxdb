@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-26
 tags: [plugin, bom, demo, e2e, angular]
 ---
 
@@ -79,7 +79,7 @@ INVEST 检查清单:
 | 2   | PCBA 下同一只 10kΩ 电阻分属三组位号、`qty` 各不同 | 展开 PCBA                                       | **三行独立可见可编辑**，不按物料合并；三行的 `line_no` 与位号清单各自完整（[US-507](US-507-bom-graph-skeleton.md) AC#1）                                                            | ⬜   |
 | 3   | 某行 `qty = 100`、位号清单 39 个                  | 保存                                            | 拒绝，错误消息**同时给出 39 与 100 两个数**（US-507 AC#5）；页面不自动补位号、也不把 `qty` 改成 39                                                                                  | ⬜   |
 | 4   | 线束 `WH-01` 的 D 版 `default_phantom = true`     | 展开整机，选中线束下的导线行                    | 展开结果里**没有 `WH-01` 的需求行**，导线/端子/热缩管按 `G''` 作为 `P` 继续下钻；算式面板第 6 步显示 `COALESCE(l.phantom_override, r.default_phantom)` 的取值与来源修订号           | ⬜   |
-| 5   | demo 已起                                         | 用**直连写入**按钮插入一条 `SC-100 → SC-100` 边 | 写入被**存储层**拒绝，页面显示的是数据库抛出的错误（US-509 AC#5）。对照一条：走正常表单同样被拒，但错误来自应用层——两条消息可区分，否则证不出约束下沉                               | ⬜   |
+| 5   | demo 已起                                         | 用**直连写入**按钮插入一条从 `SC-100` 的下级件指回 `SC-100` 的边（闭合多跳环） | 写入被**存储层**拒绝，页面显示的是数据库抛出的错误（US-509 AC#5）。对照一条：走正常表单同样被拒，但错误来自应用层——两条消息可区分，否则证不出约束下沉。自反边代替不了这条：它由 US-509 AC#2 的 CHECK 拦下，证不出可达性触发器 | ⬜   |
 | 6   | 整机展开已渲染                                    | 对某颗 M3 螺钉做 where-used 反查                | 列出全部父件与**每条路径**（`line_path`），含经由虚拟件的那条；路径上的每一跳可点回展开树（[US-510](US-510-bom-multilevel-explosion.md)）                                           | ⬜   |
 
 ### 阶段 B：数量的三个硬用例
@@ -170,4 +170,5 @@ demo 单端即可，先例是 US-214（`status: Done`，只有 Angular 前端）
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-214 HTTP 适配器浏览器端到端 demo](../adapter/US-214-http-browser-demo.md) — demo 故事的形态先例；单端 demo 的先例
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 算式面板摊开的那七步
+- [US-524 工艺路线本体](US-524-routing-master-model.md) — 前置：阶段 B 的 AC#9 用它的工序损耗，阶段 D 的 AC#14 经 US-514 以它为前置
 - [US-522 三框架 BOM 编辑与展开视图](US-522-bom-tri-framework-ui.md) — 绑定与应用的分工

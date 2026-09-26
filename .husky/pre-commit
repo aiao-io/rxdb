@@ -1,1 +1,2 @@
-pnpm exec nx format:check --uncommitted
+# commit 的时候不检查 ，push 的时候检查
+# pnpm exec nx format:check --uncommitted

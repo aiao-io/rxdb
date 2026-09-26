@@ -20,7 +20,7 @@
   见下方[版本漂移开项](#开项0025-遗留的三条版本漂移)。
 - **自动生成的 changelog 会同时多报和漏报，必须人工过一遍**：既会把 0.0.25 已发过的内容再写一遍，
   也会漏掉被 squash 进 `chore(aiao): update deps (#53)` 的 US-908 两条缺陷修复。见硬前提 2 的 ② 与 ④。
-- 按 [roadmap](roadmap.md) 排期，桥接发布已随 epic-006 链**整体压后到批次 4**；本计划在 owner 决定启动线 A 时执行，
+- 按 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控) 排期，桥接发布的执行**排在所有批次之后**；本计划在 owner 决定启动线 A 时执行，
   动手前重跑下方「硬前提 2」的当前状态实测。
 
 ## 开项：0.0.25 遗留的三条版本漂移
@@ -252,7 +252,7 @@ owner 选定出路之后，「下一次发布」的四段与执行顺序第 1～
      `adjustSemverBumpsForZeroMajorVersion` **默认为 `true`**
      （`nx/dist/src/command-line/release/config/config.js` 的 `?? true`），major 为 0 时把
      `minor` 降级成 `patch`、`major` 降级成 `minor`，于是 `0.0.24 --minor--> 0.0.25` 而**不是 `0.1.0`**。
-     两个后果叠在一起：该值撞上[线 A 关闭判据 ①](roadmap.md#批次-4epic-006-链整体压后)的
+     两个后果叠在一起：该值撞上[线 A 关闭判据 ①](roadmap.md#线-a桥接版本发布owner-门控)的
      `release.version ≠ 0.0.25`，且 `@aiao/rxdb@0.0.25` **已在 registry 上**（`npm view @aiao/rxdb versions` 实测），
      `pnpm publish` 会以版本重复被拒。**所以线 A 必须显式指定版本号**（`nx release version <显式版本>`），
      不能听任推算；取 `0.0.26` 还是 `0.1.0` 是一次人工决定，但**不得**是 `0.0.25`。
@@ -398,7 +398,7 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 把第 0 步的 `migration-release-gate` 挂进 PR CI 也守不到它们。
 `bridge.version` 下限只提供**延迟**防线：桥接真发成 `0.0.25`，要到下一次 migration 引用它时才会红。
 第三条同样无自动化：桥接发布**不得抬升系统版本常量**这一条，门禁只看布尔位、从不读源码（见执行顺序第 1 步的 ⚠️）。
-这也是 [roadmap 批次 4 线 A](roadmap.md#批次-4epic-006-链整体压后) 的关闭判据要写五条、
+这也是 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控) 的关闭判据要写五条、
 并特别标出「④ 单独没有区分力」的原因。
 
 注意 `bridgeTagSupportsProtocol` 只用 `git cat-file -e` 校验文件存在、不校验内容，

@@ -67,8 +67,8 @@
  * 换成 AST 能多得到的只有「类型层面确认这个接收者真是 RxDBAdapterLocalBase」，而代价是让一条
  * 秒级的门禁依赖一份覆盖全仓的类型化 Program（跨 `packages/` 并没有这么一份，得现搭）——
  * 把 pre-commit 级的检查绑上一次全量 typecheck。收益与代价不成比例，**判定不做**；真要重提，
- * 先给出一处「现有词法判据放过了、AST 能拦住」的实例。顺延记录见
- * `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
+ * 先给出一处「现有词法判据放过了、AST 能拦住」的实例。判定记录见
+ * `requirements/roadmap.md` 的「明确不排期」。
  */
 
 import { readdir, readFile } from 'node:fs/promises';
