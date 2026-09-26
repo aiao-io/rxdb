@@ -1,5 +1,7 @@
+import { assertMiniProgramHostPlatform, createWechatMiniProgramHost } from './host.js';
 import type {
   MiniProgramFileSystemManager,
+  MiniProgramHost,
   MiniProgramWechatApi,
   WaSqliteEmscriptenModule
 } from './mini-program.interface.js';
@@ -35,10 +37,10 @@ const SAFE_FILENAME_CHARACTER_PATTERN = /^[a-zA-Z0-9._-]$/;
 const ACTIVE_DATABASES = new Set<string>();
 
 /** 从已引导的 `crypto.getRandomValues` 填充安全随机数。 */
-function fillSecureRandomValues(target: Uint8Array<ArrayBuffer>): void {
+function fillSecureRandomValues(host: MiniProgramHost, target: Uint8Array<ArrayBuffer>): void {
   const cryptoApi = globalThis.crypto;
   if (typeof cryptoApi?.getRandomValues !== 'function') {
-    throw new Error('微信小程序安全随机源尚未引导');
+    throw new Error(`${host.displayName}安全随机源尚未引导`);
   }
   cryptoApi.getRandomValues(target);
 }
@@ -77,13 +79,30 @@ export interface WechatFileVFSOptions {
   fileSystem?: MiniProgramFileSystemManager;
 }
 
-/** 微信同步文件 VFS 句柄。 */
-export interface WechatFileVFS {
+/** 平台无关的小程序文件 VFS 配置。 */
+export interface MiniProgramFileVFSOptions {
+  /** 小程序宿主，提供同步文件系统、默认目录与报错名称。 */
+  host: MiniProgramHost;
+  /** 数据库文件目录。默认 `${host.userDataPath}/rxdb-wa-sqlite`。 */
+  root?: string;
+  /** 用于清理数据库文件的名称。 */
+  databaseName: string;
+  /** VFS 名称。默认 `${host.platform}-file`。 */
+  name?: string;
+  /** 测试或宿主注入的文件系统，优先于 `host.getFileSystemManager()`。 */
+  fileSystem?: MiniProgramFileSystemManager;
+}
+
+/** 小程序同步文件 VFS 句柄。 */
+export interface MiniProgramFileVFS {
   readonly vfs: SQLiteVFS;
   readonly root: string;
   readonly lastError: Error | null;
   clear(): void;
 }
+
+/** 微信同步文件 VFS 句柄。 */
+export type WechatFileVFS = MiniProgramFileVFS;
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
@@ -294,10 +313,41 @@ function combineUint64(low: number, high: number): number {
   return high * 0x100000000 + low + (low < 0 ? 0x100000000 : 0);
 }
 
-/** 创建单连接、回滚日志模式的微信同步文件 VFS。 */
+/** 创建单连接、回滚日志模式的微信同步文件 VFS；`createMiniProgramFileVFS` 的微信封装。 */
 export function createWechatFileVFS(module: WaSqliteEmscriptenModule, options: WechatFileVFSOptions): WechatFileVFS {
-  const fileSystem = options.fileSystem ?? options.wechat.getFileSystemManager();
-  const root = options.root ?? `${options.wechat.env.USER_DATA_PATH}/rxdb-wa-sqlite`;
+  const { wechat, ...rest } = options;
+  return createMiniProgramFileVFS(module, { ...rest, host: createWechatMiniProgramHost(wechat) });
+}
+
+function resolveFileSystem(options: MiniProgramFileVFSOptions): MiniProgramFileSystemManager {
+  const fileSystem = options.fileSystem ?? options.host.getFileSystemManager();
+  if (fileSystem) return fileSystem;
+  throw new Error(`${options.host.displayName}缺少 ${options.host.capabilityNames.fileSystem}`);
+}
+
+function resolveRoot(options: MiniProgramFileVFSOptions): string {
+  if (options.root !== undefined) return options.root;
+  const { host } = options;
+  if (host.userDataPath === undefined) {
+    throw new Error(`${host.displayName}缺少 ${host.capabilityNames.userDataPath}，无法推导数据库目录`);
+  }
+  return `${host.userDataPath}/rxdb-wa-sqlite`;
+}
+
+/**
+ * 创建单连接、回滚日志模式的小程序同步文件 VFS。
+ *
+ * 整库缓冲在内存、落盘走 `writeFileSync`；所有宿主共享同一张模块级单连接表，
+ * 同一数据库文件的第二个连接直接拒绝，不指望小程序提供文件锁。
+ */
+export function createMiniProgramFileVFS(
+  module: WaSqliteEmscriptenModule,
+  options: MiniProgramFileVFSOptions
+): MiniProgramFileVFS {
+  const { host } = options;
+  assertMiniProgramHostPlatform(host);
+  const fileSystem = resolveFileSystem(options);
+  const root = resolveRoot(options);
   const databaseName = basename(options.databaseName);
   const activeDatabase = makeFilePath(databaseName, root);
   const files = new Map<number, BufferedFile>();
@@ -307,12 +357,12 @@ export function createWechatFileVFS(module: WaSqliteEmscriptenModule, options: W
 
   mkdirRecursive(fileSystem, root);
   if (ACTIVE_DATABASES.has(activeDatabase)) {
-    throw new Error(`微信文件 VFS 不支持同一数据库的并发连接: ${activeDatabase}`);
+    throw new Error(`${host.shortName}文件 VFS 不支持同一数据库的并发连接: ${activeDatabase}`);
   }
   ACTIVE_DATABASES.add(activeDatabase);
 
   const vfs: MiniProgramSQLiteVFS = {
-    name: options.name ?? 'wechat-file',
+    name: options.name ?? `${host.platform}-file`,
     mxPathname: VFS_MAX_PATHNAME,
     close: () => {
       if (closed) return;
@@ -496,7 +546,7 @@ export function createWechatFileVFS(module: WaSqliteEmscriptenModule, options: W
     },
 
     xRandomness(_pVfs, length, output) {
-      fillSecureRandomValues(module.HEAPU8.subarray(output, output + length));
+      fillSecureRandomValues(host, module.HEAPU8.subarray(output, output + length));
       return length;
     },
     xSleep: () => 0,
@@ -527,7 +577,7 @@ export function createWechatFileVFS(module: WaSqliteEmscriptenModule, options: W
       return lastError;
     },
     clear() {
-      if (files.size > 0) throw new Error('关闭数据库后才能清理微信 VFS 文件');
+      if (files.size > 0) throw new Error(`关闭数据库后才能清理${host.shortName} VFS 文件`);
       for (const suffix of ['', '-journal', '-wal', '-shm']) {
         try {
           fileSystem.unlinkSync(makeFilePath(`${databaseName}${suffix}`, root));

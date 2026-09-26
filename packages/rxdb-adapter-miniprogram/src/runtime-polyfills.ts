@@ -1,12 +1,13 @@
 import { deserialize, serialize } from '@ungap/structured-clone';
-import type { MiniProgramRandomValuesResult, MiniProgramWechatApi } from './mini-program.interface.js';
+import { assertMiniProgramHostPlatform, createWechatMiniProgramHost, isMiniProgramPlatformId } from './host.js';
+import type { MiniProgramHost, MiniProgramPlatformId, MiniProgramWechatApi } from './mini-program.interface.js';
 import { textDecoderPolyfill, textEncoderPolyfill } from './text-encoding-polyfills.js';
 
 const structuredClonePolyfill = <T>(value: T): T => deserialize<T>(serialize(value));
 const WEB_CRYPTO_MAX_REQUEST_BYTES = 65_536;
 const RUNTIME_SOURCE_MARKER = '__aiaoMiniProgramRuntimeSource';
 
-/** `wx.getRandomValues` 单次允许的最大字节数。 */
+/** 单次向平台申请随机数的最大字节数（取自 `wx.getRandomValues` 的上限）。 */
 export const MAX_MINI_PROGRAM_RANDOM_POOL_SIZE = 1_048_576;
 
 /**
@@ -20,16 +21,14 @@ export const DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE = 65_536;
 /** 剩余量跌到池大小的这个比例时预约补给。 */
 const RANDOM_POOL_REFILL_WATERMARK = 0.25;
 
-const RANDOM_POOL_EXHAUSTED_MESSAGE = '微信小程序安全随机池已耗尽，请重新引导运行时';
-
 /** 小程序运行时引导选项。 */
 export interface PrepareMiniProgramRuntimeOptions {
   /** 单个同步安全随机池的字节数；后台补给也按这个大小申请。 */
   readonly randomPoolSize?: number;
 }
 
-/** 能力的实际来源。 */
-export type MiniProgramRuntimeSource = 'missing' | 'native' | 'polyfill' | 'wechat';
+/** 能力的实际来源；由宿主随机源提供时为该宿主的平台 id。 */
+export type MiniProgramRuntimeSource = 'missing' | 'native' | 'polyfill' | MiniProgramPlatformId;
 
 /** 小程序运行时能力来源。 */
 export interface MiniProgramRuntimeSources {
@@ -63,13 +62,7 @@ function markRuntimeSource(target: object, source: MiniProgramRuntimeSource): vo
 function readRuntimeSource(value: unknown): MiniProgramRuntimeSource | undefined {
   if (typeof value !== 'function') return undefined;
   const source = (value as unknown as Record<string, unknown>)[RUNTIME_SOURCE_MARKER];
-  return source === 'polyfill' || source === 'wechat' ? source : undefined;
-}
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error && 'errMsg' in error) return String(error.errMsg);
-  return String(error);
+  return source === 'polyfill' || isMiniProgramPlatformId(source) ? source : undefined;
 }
 
 function validateRandomPoolSize(value: number | undefined): number {
@@ -78,32 +71,13 @@ function validateRandomPoolSize(value: number | undefined): number {
   throw new RangeError(`randomPoolSize 必须是 1-${MAX_MINI_PROGRAM_RANDOM_POOL_SIZE} 的安全整数`);
 }
 
-function requestWechatRandomPool(wechat: MiniProgramWechatApi, length: number): Promise<Uint8Array> {
-  const getRandomValues = wechat.getRandomValues;
-  if (typeof getRandomValues !== 'function') {
-    return Promise.reject(new Error('微信运行时缺少 wx.getRandomValues'));
-  }
-  return new Promise((resolve, reject) => {
-    const success = (result: MiniProgramRandomValuesResult): void => {
-      const pool = new Uint8Array(result.randomValues);
-      if (pool.byteLength !== length) {
-        reject(new Error(`wx.getRandomValues 返回 ${pool.byteLength} bytes，期望 ${length} bytes`));
-        return;
-      }
-      resolve(pool);
-    };
-    const fail = (error: { readonly errMsg?: string }): void => {
-      reject(new Error(`wx.getRandomValues 失败: ${errorMessage(error)}`, { cause: error }));
-    };
-    try {
-      getRandomValues.call(wechat, { length, success, fail });
-    } catch (error) {
-      fail({ errMsg: errorMessage(error) });
-    }
-  });
+/** 宿主返回的字节数必须恰好等于申请量，否则视为失败。 */
+function assertPoolLength(host: MiniProgramHost, pool: Uint8Array, length: number): Uint8Array {
+  if (pool.byteLength === length) return pool;
+  throw new Error(`${host.displayName}随机源返回 ${pool.byteLength} bytes，期望 ${length} bytes`);
 }
 
-function installSecureRandomPool(wechat: MiniProgramWechatApi, initialPool: Uint8Array, poolSize: number): void {
+function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array, poolSize: number): void {
   let pool = initialPool;
   let offset = 0;
   let spare: Uint8Array | undefined;
@@ -115,11 +89,16 @@ function installSecureRandomPool(wechat: MiniProgramWechatApi, initialPool: Uint
     if (refilling || spare) return;
     if (pool.byteLength - offset > poolSize * RANDOM_POOL_REFILL_WATERMARK) return;
     refilling = true;
-    requestWechatRandomPool(wechat, poolSize).then(
+    // 长度校验放在同一个 then 里：多包一层 Promise 会推迟补给落地的时机
+    host.requestRandomValues(poolSize).then(
       next => {
-        spare = next;
         refilling = false;
-        refillError = undefined;
+        try {
+          spare = assertPoolLength(host, next, poolSize);
+          refillError = undefined;
+        } catch (error) {
+          refillError = error;
+        }
       },
       error => {
         refilling = false;
@@ -133,7 +112,7 @@ function installSecureRandomPool(wechat: MiniProgramWechatApi, initialPool: Uint
   const rotate = (byteLength: number): void => {
     if (offset + byteLength <= pool.byteLength) return;
     if (!spare || byteLength > spare.byteLength) {
-      throw new Error(RANDOM_POOL_EXHAUSTED_MESSAGE, { cause: refillError });
+      throw new Error(`${host.displayName}安全随机池已耗尽，请重新引导运行时`, { cause: refillError });
     }
     pool.fill(0, offset);
     pool = spare;
@@ -170,10 +149,10 @@ function installSecureRandomPool(wechat: MiniProgramWechatApi, initialPool: Uint
       writable: true
     });
   }
-  markRuntimeSource(getRandomValues, 'wechat');
+  markRuntimeSource(getRandomValues, host.platform);
 }
 
-/** 补齐微信小程序逻辑层缺失的同步运行时能力。 */
+/** 补齐小程序逻辑层缺失的同步运行时能力。 */
 export function installMiniProgramRuntimePolyfills(): void {
   if (typeof globalThis.structuredClone !== 'function') {
     Object.defineProperty(globalThis, 'structuredClone', {
@@ -214,15 +193,30 @@ export function installMiniProgramRuntimePolyfills(): void {
   }
 }
 
-/** 在加载 RxDB 主包前引导微信小程序运行时。 */
-export async function prepareMiniProgramRuntime(
+/** 在加载 RxDB 主包前引导微信小程序运行时；等价于 `prepareMiniProgramHostRuntime(createWechatMiniProgramHost(wx))`。 */
+export function prepareMiniProgramRuntime(
   wechat: MiniProgramWechatApi,
   options: PrepareMiniProgramRuntimeOptions = {}
 ): Promise<MiniProgramRuntimeSources> {
+  return prepareMiniProgramHostRuntime(createWechatMiniProgramHost(wechat), options);
+}
+
+/**
+ * 在加载 RxDB 主包前按宿主引导小程序运行时。
+ *
+ * 缺原生 `crypto.getRandomValues` 时用宿主随机源装一个同步安全随机池；
+ * 宿主拿不出随机数就 reject，绝不降级到 `Math.random`。未知平台 id 在申请随机数前失败。
+ */
+export async function prepareMiniProgramHostRuntime(
+  host: MiniProgramHost,
+  options: PrepareMiniProgramRuntimeOptions = {}
+): Promise<MiniProgramRuntimeSources> {
+  assertMiniProgramHostPlatform(host);
   installMiniProgramRuntimePolyfills();
   if (getMiniProgramRuntimeSources().random === 'native') return getMiniProgramRuntimeSources();
   const poolSize = validateRandomPoolSize(options.randomPoolSize);
-  installSecureRandomPool(wechat, await requestWechatRandomPool(wechat, poolSize), poolSize);
+  const initialPool = assertPoolLength(host, await host.requestRandomValues(poolSize), poolSize);
+  installSecureRandomPool(host, initialPool, poolSize);
   return getMiniProgramRuntimeSources();
 }
 

@@ -11,9 +11,10 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   MiniProgramFileSystemManager,
+  MiniProgramHost,
   MiniProgramWechatApi,
   WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
@@ -66,6 +67,7 @@ async function connectAdapter(dbName: string, options: WaSqliteMiniProgramOption
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const root of roots.splice(0)) rmSync(root, { force: true, recursive: true });
 });
 
@@ -95,5 +97,38 @@ describe('RxDBAdapterWaSqliteMiniProgram', () => {
     const rows = await second.adapter.query('SELECT title FROM probe ORDER BY id;');
     expect(rows.results[0].rows).toEqual([['from-adapter']]);
     await second.rxdb.disconnectAll();
+  });
+
+  it('只注入 host（不传 wechat）时走 host 的用户目录与文件系统，不读 wx 全局', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'aiao-miniprogram-host-'));
+    roots.push(userDataPath);
+    const wxTrap = { getFileSystemManager: vi.fn(), env: { USER_DATA_PATH: '/must-not-be-used' } };
+    vi.stubGlobal('wx', wxTrap);
+    const host: MiniProgramHost = {
+      platform: 'wechat',
+      displayName: '测试小程序',
+      shortName: '测试',
+      wasmRuntimeName: 'FakeWebAssembly',
+      capabilityNames: { fileSystem: 'fake.getFileSystemManager', userDataPath: 'fake.env.USER_DATA_PATH' },
+      userDataPath,
+      getFileSystemManager: () => new NodeFileSystem(),
+      requestRandomValues: length => Promise.resolve(new Uint8Array(length))
+    };
+    const options: WaSqliteMiniProgramOptions = { host, moduleFactory, wasmRuntime };
+
+    const first = await connectAdapter('adapter-host', options);
+    await first.adapter.writeQuery('CREATE TABLE probe (id INTEGER PRIMARY KEY, title TEXT NOT NULL);');
+    await first.adapter.writeQuery('INSERT INTO probe (title) VALUES (?);', ['from-host']);
+    await first.rxdb.disconnectAll();
+
+    expect(readdirSync(join(userDataPath, 'rxdb-wa-sqlite'))).toEqual([
+      expect.stringMatching(/^rxdb-adapter-host.*\.sqlite$/)
+    ]);
+
+    const second = await connectAdapter('adapter-host', options);
+    const rows = await second.adapter.query('SELECT title FROM probe ORDER BY id;');
+    expect(rows.results[0].rows).toEqual([['from-host']]);
+    await second.rxdb.disconnectAll();
+    expect(wxTrap.getFileSystemManager).not.toHaveBeenCalled();
   });
 });
