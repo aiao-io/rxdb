@@ -103,7 +103,7 @@
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
 - ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
-- ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵：引擎写边界强制（fail-closed）+ rxdb-model UI 能力派生 + 系统实体迁移；三阶段交付。背景前提有误（`readonly` 更新侧已强制），价值待 owner 重评，见 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
+- ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵，三阶段交付：A 判定原语与 14 张系统表的矩阵声明；B 所有公开写入口强制，越权抛 `PermissionDeniedError`；C 三框架 UI 能力派生（B、C 都只依赖 A）。**价值待证**：今天的症状只在 demo（目录能新建 / 删除 / 改写系统表），[roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 4 条零抽象可修；本故事作为 US-029 阶段 B 的判定原语上游留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
 - ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；三框架实体列表今天有拖拽手柄、重排不落库，排在 [roadmap 批次 3](roadmap.md#批次-3能力补齐与在出货缺陷无硬前置可并行开-pr)
 - ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 字段预留与权限谓词扩展：pull 过滤 / push 裁决配合点与三框架行级只读派生；四阶段交付，阶段 A 的迁移负担待核实，阶段 B 依赖 US-027
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM

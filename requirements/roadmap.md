@@ -37,7 +37,7 @@
 | [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog   | 未开工；三框架实体列表今天都有拖拽手柄、重排不落库。无前置，不等 US-027                          | 批次 3   |
 | [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog   | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力       | 批次 3   |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog   | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                        | 批次 3   |
-| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog   | 未立项；背景前提有误（`readonly` 更新侧已强制），价值待 owner 重评                                | 立项池   |
+| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog   | 未立项；价值待证。今天的症状只在 demo（目录能新建 / 删除 / 改写系统表），零散收尾项第 4 条零抽象可修 | 立项池   |
 | [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog   | 未立项；阶段 A 的迁移负担待核实，阶段 B 依赖 US-027 判定原语                                      | 立项池   |
 | [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)   | 📝 Backlog   | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的前置 US-307 已 `Done`，阶段 C 价值待证 | 立项池   |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)   | 📝 Backlog   | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，B/C 只吃 A 的真相源                | 立项池   |
@@ -108,7 +108,7 @@
 
 | 故事                                                                                       | 依赖                                            | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）     | **价值待 owner 重评**。背景第 1 条前提不成立：`readonly` 在更新侧已强制（`normalizeUpdateEntity` 静默丢弃，适配器的 update 与切分支路径都走它），剩下的问题只是「拒绝还是静默丢弃」；系统实体也不进 demo 实体列表（页面只列 `rxdb.config.entities`）。今天能复现的只有一处潜在病灶——用户代码能改写 `RxDBChange` 的 6 个非只读列、能删行——而新增抽象至少四项（权限配置、系统写作用域原语、UI 能力派生、错误码形态）。**入场条件 = 背景按现状重写，并写出「今天用户踩得到的具体症状」**，写不出就按 [CONVENTIONS 价值待证](CONVENTIONS.md#价值待证) 留在 Backlog。它仍是 US-029 阶段 B 的判定原语上游（约束 4） |
+| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）     | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)）。今天用户踩得到的症状只在 demo：`SchemaManager.init()` 把 14 张系统表（核心 4 张 + working-tree 贡献 10 张）并进 `config.entities`，三个 demo 的实体目录因此列出 `rxdb` 分组，`EntityList` 照常给「+ 新增」、删除与可编辑单元格，引擎没有守卫（Angular demo 实测，React / Vue 同构）。这个症状有零抽象修法，见[零散收尾项](#零散收尾项不成故事随手可带)第 4 条；那条落地后剩下的是程序化写系统表的潜在风险，而新增抽象至少四项（权限配置与判定原语、系统写作用域、`PermissionDeniedError`、UI 能力派生），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项——本故事是 US-029 阶段 B 的判定原语上游（约束 4） |
 | [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语（约束 4）           | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）按故事写法独立可交付，但立项前要先解两处冲突：① 仓内没有给用户表补列的通用迁移，给 `EntityBase` 加列可能迫使每个已部署应用迁表，与 AC#1 的「零变化」相抵（**推断**，plan 阶段实测）；② AC#4 要服务端落 `ownerId`，得改仓内 RPC SQL，与 Out of Scope 相抵。INVEST 尚未逐项勾选。按 A → B → C → D 排，一阶段一 PR |
 | [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 的前置 US-307 已 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**；阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                   |
 | [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无                                              | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除兄弟包声明的不一致——最显眼的是一处三框架不对称：`rxdb-react` / `rxdb-vue` 把 `@aiao/rxdb` 放 `dependencies`（`workspace:*`），`rxdb-angular` 放 `peerDependencies`（`*`）；B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
@@ -167,6 +167,16 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
      两种同步类型都已实现；
    - `getSyncType`（`packages/rxdb/src/sync-contract/sync-type-utils.ts`）写着
      `@throws … sync.type === 'filter'（不支持）`，实现是返回 `'filter'`。
+4. **三框架 `EntityList` 对系统表关掉新增、编辑与删除。** 三个 demo 的实体目录都从 `config.entities` 构建，
+   而 `SchemaManager.init()` 把 `rxdb.systemEntities`（核心 4 张 + working-tree 贡献 10 张）并了进去，
+   于是 demo 用户能新建 `RxDBBranch` 行、删掉 `RxDBChange` 行、改写撤销标记（Angular demo 实测，React / Vue 同构）。
+   三端 `EntityList` 用 `isSystemEntity()`（`@aiao/rxdb` 已公开导出）把系统表并进 `isCreateBlocked` 以隐藏「+ 新增」，
+   并给行挂 `_readonly`——`isReadonly` 与 `table-operations.ts` / `table-clipboard.ts` / `table-keyboard.ts` 的现成守卫
+   随之挡住编辑、粘贴、拖拽与删除，不新增公开 API。代价是 `actionsColumn()` 对 `_readonly` 行连「查看」一起藏掉；
+   表格本身已列出全部列，可以接受，要保留就顺手把两者的只读判断拆开（即 US-027 AC#14 的一部分）。
+   只在 demo 目录里滤掉系统表更省，但照 demo 构建目录的应用照样继承问题，放在 `EntityList` 才覆盖出货包。
+   三端同改，单端缺失 = 未完成。它就是 [US-027](stories/core/US-027-entity-permission-model.md) AC#16 的提前交付，
+   US-027 阶段 C 再把判断换成权限派生。
 
 ## 排期约束
 
