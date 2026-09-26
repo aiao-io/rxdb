@@ -244,7 +244,7 @@ describe('随机池补给', () => {
     expect(() => globalThis.crypto.getRandomValues(new Uint8Array(8))).toThrow('安全随机池已耗尽');
   });
 
-  it('发出去的字节立即从池里擦除，未使用部分原样保留', async () => {
+  it('宿主交来的随机字节复制进池后原件立即擦零，池内未使用部分按序续发', async () => {
     vi.stubGlobal('crypto', undefined);
     const source = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
     await prepareMiniProgramRuntime(
@@ -252,12 +252,12 @@ describe('随机池补给', () => {
       { randomPoolSize: 16 }
     );
 
+    expect([...source]).toEqual(Array.from({ length: 16 }, () => 0));
     const target = new Uint8Array(4);
     globalThis.crypto.getRandomValues(target);
-
     expect([...target]).toEqual([1, 2, 3, 4]);
-    expect([...source.subarray(0, 4)]).toEqual([0, 0, 0, 0]);
-    expect([...source.subarray(4, 8)]).toEqual([5, 6, 7, 8]);
+    globalThis.crypto.getRandomValues(target);
+    expect([...target]).toEqual([5, 6, 7, 8]);
   });
 });
 

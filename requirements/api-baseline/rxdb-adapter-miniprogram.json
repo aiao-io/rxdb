@@ -126,12 +126,20 @@
         "kind": "type"
       },
       {
+        "name": "WaSqliteMiniProgramAdapterOptions",
+        "kind": "type"
+      },
+      {
         "name": "WaSqliteMiniProgramBaseOptions",
         "kind": "type"
       },
       {
         "name": "WaSqliteMiniProgramClient",
         "kind": "both"
+      },
+      {
+        "name": "WaSqliteMiniProgramHostOptions",
+        "kind": "type"
       },
       {
         "name": "WaSqliteMiniprogramOptions",

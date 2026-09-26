@@ -75,6 +75,9 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 ## 宿主契约
 
 `wechat: wx` 是 `host: createWechatMiniProgramHost(wx)` 的便利形状，二者恰好传一个。
+对应的配置类型是 `WaSqliteMiniProgramOptions`（微信形状，仍是 interface，可被 `extends`）与
+`WaSqliteMiniProgramHostOptions`，adapter 与客户端接收二者的联合 `WaSqliteMiniProgramAdapterOptions`。
+宿主的 `requestRandomValues` 可以复用同一块缓冲区重填后返回，运行时会立即复制并擦掉原件。
 `MiniProgramHost` 把平台相关的部分收成一个注入点：平台 id、同步文件系统、用户数据目录、
 安全随机源，以及报错里使用的能力名。运行时引导对应 `prepareMiniProgramHostRuntime(host)`，
 文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`。

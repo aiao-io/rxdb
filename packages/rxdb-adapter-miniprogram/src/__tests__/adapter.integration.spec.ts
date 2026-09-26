@@ -16,6 +16,8 @@ import type {
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramWechatApi,
+  WaSqliteMiniProgramAdapterOptions,
+  WaSqliteMiniProgramHostOptions,
   WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
 import { ADAPTER_NAME } from '../mini-program.interface.js';
@@ -47,7 +49,7 @@ class NodeFileSystem implements MiniProgramFileSystemManager {
 }
 
 /** 建一个已连上的小程序 adapter，并把它挂到 RxDB 上。 */
-async function connectAdapter(dbName: string, options: WaSqliteMiniProgramOptions) {
+async function connectAdapter(dbName: string, options: WaSqliteMiniProgramAdapterOptions) {
   const rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
@@ -114,7 +116,7 @@ describe('RxDBAdapterWaSqliteMiniProgram', () => {
       getFileSystemManager: () => new NodeFileSystem(),
       requestRandomValues: length => Promise.resolve(new Uint8Array(length))
     };
-    const options: WaSqliteMiniProgramOptions = { host, moduleFactory, wasmRuntime };
+    const options: WaSqliteMiniProgramHostOptions = { host, moduleFactory, wasmRuntime };
 
     const first = await connectAdapter('adapter-host', options);
     await first.adapter.writeQuery('CREATE TABLE probe (id INTEGER PRIMARY KEY, title TEXT NOT NULL);');

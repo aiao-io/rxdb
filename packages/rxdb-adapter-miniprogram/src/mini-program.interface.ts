@@ -70,7 +70,10 @@ export interface MiniProgramHost {
   readonly userDataPath: string | undefined;
   /** 同步文件系统；平台不提供时返回 `undefined`，由预检报缺失。 */
   getFileSystemManager(): MiniProgramFileSystemManager | undefined;
-  /** 向平台申请恰好 `length` 字节的密码学安全随机数；做不到必须 reject，不许降级。 */
+  /**
+   * 向平台申请恰好 `length` 字节的密码学安全随机数；做不到必须 reject，不许降级。
+   * 可以复用同一块缓冲区重填后返回——调用方拿到后立即复制并把返回值擦零，不持有它。
+   */
   requestRandomValues(length: number): Promise<Uint8Array>;
 }
 
@@ -78,19 +81,7 @@ export interface MiniProgramHost {
  * 宿主注入方式：微信便利形状 `wechat`，或平台无关的 `host`，二者恰好其一。
  */
 export type MiniProgramHostSelection =
-  | {
-      /**
-       * 微信小程序全局 `wx`，是 `host: createWechatMiniProgramHost(wx)` 的便利形状。
-       * 显式注入，避免把平台全局藏进库内部。
-       */
-      wechat: MiniProgramWechatApi;
-      host?: never;
-    }
-  | {
-      /** 平台无关的小程序宿主。 */
-      host: MiniProgramHost;
-      wechat?: never;
-    };
+  Pick<WaSqliteMiniProgramOptions, 'wechat' | 'host'> | Pick<WaSqliteMiniProgramHostOptions, 'wechat' | 'host'>;
 
 /** `WXWebAssembly.instantiate` 返回的最小实例结构。 */
 export interface MiniProgramWasmInstance {
@@ -162,11 +153,32 @@ export interface WaSqliteMiniProgramBaseOptions extends IRxDBAdapterOptions {
 }
 
 /**
- * 小程序版 wa-sqlite adapter 配置。
+ * 微信小程序版 wa-sqlite adapter 配置（微信便利形状）。
  *
- * 宿主二选一：`wechat`（微信便利形状）或 `host`（平台无关注入点）。
+ * 保持为 interface，下游可以继续 `extends` / `implements`。平台无关的注入方式见
+ * {@link WaSqliteMiniProgramHostOptions}，adapter 与客户端接收二者的联合
+ * {@link WaSqliteMiniProgramAdapterOptions}。
  */
-export type WaSqliteMiniProgramOptions = WaSqliteMiniProgramBaseOptions & MiniProgramHostSelection;
+export interface WaSqliteMiniProgramOptions extends WaSqliteMiniProgramBaseOptions {
+  /**
+   * 微信小程序全局 `wx`，是 `host: createWechatMiniProgramHost(wx)` 的便利形状。
+   * 显式注入，避免把平台全局藏进库内部。
+   */
+  wechat: MiniProgramWechatApi;
+  /** 与 `wechat` 互斥。 */
+  host?: never;
+}
+
+/** 以平台无关的 {@link MiniProgramHost} 注入宿主的 adapter 配置。 */
+export interface WaSqliteMiniProgramHostOptions extends WaSqliteMiniProgramBaseOptions {
+  /** 平台无关的小程序宿主。 */
+  host: MiniProgramHost;
+  /** 与 `host` 互斥。 */
+  wechat?: never;
+}
+
+/** adapter 与客户端接收的配置：`wechat` 与 `host` 二选一。 */
+export type WaSqliteMiniProgramAdapterOptions = WaSqliteMiniProgramOptions | WaSqliteMiniProgramHostOptions;
 
 /** adapter 名称。 */
 export const ADAPTER_NAME = 'wa-sqlite-miniprogram' as const;

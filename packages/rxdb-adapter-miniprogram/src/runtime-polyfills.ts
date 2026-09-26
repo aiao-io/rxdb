@@ -71,10 +71,22 @@ function validateRandomPoolSize(value: number | undefined): number {
   throw new RangeError(`randomPoolSize 必须是 1-${MAX_MINI_PROGRAM_RANDOM_POOL_SIZE} 的安全整数`);
 }
 
-/** 宿主返回的字节数必须恰好等于申请量，否则视为失败。 */
-function assertPoolLength(host: MiniProgramHost, pool: Uint8Array, length: number): Uint8Array {
-  if (pool.byteLength === length) return pool;
-  throw new Error(`${host.displayName}随机源返回 ${pool.byteLength} bytes，期望 ${length} bytes`);
+/**
+ * 宿主返回的字节数必须恰好等于申请量，否则视为失败；通过后复制成库自己持有的池，
+ * 并擦掉宿主那一份。
+ *
+ * 契约不要求宿主每次分配新缓冲区，复用同一块工作缓冲区重填是合法实现。不复制的话
+ * 旧池与备池会指向同一块内存：补池覆盖旧池未消费的字节（同一批字节发两次），
+ * 旧池的擦零又把备池清成确定性的零。擦掉宿主那一份，「发出即擦除」才不会被外面
+ * 残留的副本架空。
+ */
+function takePoolOwnership(host: MiniProgramHost, pool: Uint8Array, length: number): Uint8Array {
+  if (pool.byteLength !== length) {
+    throw new Error(`${host.displayName}随机源返回 ${pool.byteLength} bytes，期望 ${length} bytes`);
+  }
+  const owned = pool.slice();
+  pool.fill(0);
+  return owned;
 }
 
 function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array, poolSize: number): void {
@@ -94,7 +106,7 @@ function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array,
       next => {
         refilling = false;
         try {
-          spare = assertPoolLength(host, next, poolSize);
+          spare = takePoolOwnership(host, next, poolSize);
           refillError = undefined;
         } catch (error) {
           refillError = error;
@@ -215,7 +227,7 @@ export async function prepareMiniProgramHostRuntime(
   installMiniProgramRuntimePolyfills();
   if (getMiniProgramRuntimeSources().random === 'native') return getMiniProgramRuntimeSources();
   const poolSize = validateRandomPoolSize(options.randomPoolSize);
-  const initialPool = assertPoolLength(host, await host.requestRandomValues(poolSize), poolSize);
+  const initialPool = takePoolOwnership(host, await host.requestRandomValues(poolSize), poolSize);
   installSecureRandomPool(host, initialPool, poolSize);
   return getMiniProgramRuntimeSources();
 }

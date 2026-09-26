@@ -11,6 +11,7 @@ import type {
   MiniProgramWasmRuntime,
   MiniProgramWechatApi,
   WaSqliteEmscriptenModule,
+  WaSqliteMiniProgramAdapterOptions,
   WaSqliteMiniProgramOptions,
   WaSqliteModuleFactory
 } from '../mini-program.interface.js';
@@ -120,15 +121,29 @@ describe('MiniProgramHost 平台 id', () => {
     expect(() => resolveMiniProgramHost({} as never)).toThrow('必须提供 wechat 或 host 其中之一');
   });
 
+  it('下游接口仍可继承微信形状的 WaSqliteMiniProgramOptions', () => {
+    interface DownstreamOptions extends WaSqliteMiniProgramOptions {
+      appTag: string;
+    }
+    const options: DownstreamOptions = {
+      moduleFactory,
+      wasmRuntime,
+      wechat: withRandomValues(length => new ArrayBuffer(length)),
+      appTag: 'demo'
+    };
+
+    expect(resolveMiniProgramHost(options).platform).toBe('wechat');
+  });
+
   it('类型上 wechat 与 host 互斥', () => {
     const base = { moduleFactory, wasmRuntime };
     // @ts-expect-error 同时传 wechat 与 host 不是合法配置
-    const both: WaSqliteMiniProgramOptions = {
+    const both: WaSqliteMiniProgramAdapterOptions = {
       ...base,
       host: createFakeHost(),
       wechat: withRandomValues(() => new ArrayBuffer(0))
     };
-    const hostOnly: WaSqliteMiniProgramOptions = { ...base, host: createFakeHost() };
+    const hostOnly: WaSqliteMiniProgramAdapterOptions = { ...base, host: createFakeHost() };
 
     expect(both).toBeDefined();
     expect(hostOnly.host?.platform).toBe('wechat');
@@ -244,6 +259,26 @@ describe('prepareMiniProgramHostRuntime', () => {
     await expect(prepareMiniProgramHostRuntime(host, { randomPoolSize: 8 })).rejects.toThrow(
       '测试小程序随机源返回 3 bytes，期望 8 bytes'
     );
+  });
+
+  it('host 复用同一块缓冲区重填时，未消费的池字节不被覆盖或擦零', async () => {
+    vi.stubGlobal('crypto', undefined);
+    // 合法宿主：每次都把同一块工作缓冲区整片重填后返回；第 n 次申请填 n，便于反查字节出自哪一池
+    const shared = new Uint8Array(4);
+    let generation = 0;
+    const requestRandomValues = vi.fn((length: number) => {
+      generation += 1;
+      return Promise.resolve(shared.subarray(0, length).fill(generation));
+    });
+
+    await prepareMiniProgramHostRuntime(createFakeHost({ requestRandomValues }), { randomPoolSize: 4 });
+    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(3)))).toEqual([1, 1, 1]);
+    await vi.waitFor(() => expect(requestRandomValues).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+
+    // 补池落地后，旧池最后一字节仍出自首池；交接到备池后 4 字节都出自第二池，一个零都不能有
+    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(1)))).toEqual([1]);
+    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(4)))).toEqual([2, 2, 2, 2]);
   });
 
   it('host 补池长度不符时不采纳，耗尽后把原因挂在 cause 上', async () => {
