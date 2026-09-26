@@ -172,7 +172,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 
 - ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、无独立 `version` 轴；关闭条件是 `(bom_header_id, line_no)` 唯一而 `(parent_revision_id, child_item_id)` 不唯一
 - ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — 日期生效期与替代方案不重叠约束；区间排他落 US-030
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
+- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；AC#2 依赖 US-030 阶段 A、AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
 - ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；闭包表不存累计用量、不含生效期，删边按 `line_path` 增量维护
 - ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 三阶段；七步有序公式，损耗制式必须记录
 - ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化

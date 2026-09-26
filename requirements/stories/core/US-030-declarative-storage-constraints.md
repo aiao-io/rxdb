@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-26
 tags: [core, schema, integrity]
 ---
 
@@ -73,8 +73,9 @@ export interface EntityIndexMetadataOptions extends IEntityObject {
 「NULL 让唯一索引整条失效」与「大小写变体绕过重名校验」。本故事是同一类问题的通解。
 
 **阶段 C 的双后端等价是最贵的一段。** PGlite 有 `daterange` + GiST `EXCLUDE`；SQLite 没有，
-必须用触发器补。触发器生成在本仓有现成先例——[`build-fts-triggers.ts`](../../../packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts)
-按方言各生成一份 DDL。可复用的是**机制**，不是那份 SQL。
+必须用触发器补。触发器生成在本仓有现成先例——FTS 按方言各有一份生成器：PGlite 的
+[`fts/build-fts-triggers.ts`](../../../packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts) 与 SQLite 共享层的
+[`fts5/build-fts-triggers.ts`](../../../packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts)。可复用的是**机制**，不是那份 SQL。
 
 **插件自有触发器不在本故事内。** 图可达性这类判定要读整张边表，装不进声明式约束；
 它按 FTS 的先例由插件自己发 DDL，归 [US-509](../plugin/US-509-bom-dag-cycle-detection.md)。
@@ -87,7 +88,7 @@ export interface EntityIndexMetadataOptions extends IEntityObject {
 
 消费方目前全部集中在 [epic-009](../../epics/epic-009-bom-domain-model.md)：
 阶段 A 被 US-511 AC#7 / US-513 AC#5 / US-518 AC#4 / US-509 AC#2 消费，
-阶段 B、C 被 US-508 AC#2 与 US-518 AC#5 消费，阶段 D 被 US-519 AC#3 / AC#4 消费。
+阶段 B、C 被 US-508 AC#2、US-518 AC#5 与 US-524 AC#3 消费，阶段 D 被 US-519 AC#3 / AC#4 消费。
 
 **解锁条件比 epic-009 低一档**：任意一条需要「不变量在存储层成立」的故事即可解锁，
 不限 BOM 场景。本故事单列的理由也在这里——它的价值不依赖 BOM，

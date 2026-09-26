@@ -69,8 +69,9 @@ tags: [plugin, bom, graph, integrity]
 | DDL 本仓掌控 | `pglite`                                                                                                             | PG 触发器     | ✅                      |
 | DDL 在远端   | `supabase` / `http`                                                                                                  | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
 
-触发器生成有现成先例：[`build-fts-triggers.ts`](../../../packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts)
-按方言各生成一份 DDL。可复用的是机制，不是那份 SQL。
+触发器生成有现成先例：FTS 按方言各有一份生成器，PGlite 的
+[`fts/build-fts-triggers.ts`](../../../packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts) 与 SQLite 共享层的
+[`fts5/build-fts-triggers.ts`](../../../packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts)。可复用的是机制，不是那份 SQL。
 
 **降级必须是显式的，这是本仓已经付过一次学费的地方。**
 [`@aiao/rxdb-plugin-working-tree` 的 README](../../../packages/rxdb-plugin-working-tree/README.md)
