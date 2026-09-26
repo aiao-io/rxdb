@@ -4,7 +4,7 @@ import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
-import { getEntitySync } from './entity/primary-adapter.js';
+import { assertNoSystemEntityOverride, indexSyncOverrides, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
@@ -64,6 +64,7 @@ import {
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
+import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';
 import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
@@ -71,7 +72,7 @@ import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
-import { CORE_SYSTEM_ENTITIES, registerSystemEntities } from './system/system-entities.js';
+import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
 import { RXDB_DB_NAME_SUFFIX, RXDB_VERSION } from './version.js';
 export type { IRepositoryConfig } from './rxdb.types.js';
 
@@ -418,6 +419,16 @@ export class RxDB {
   public readonly syncState!: SyncStateHub;
 
   /**
+   * 本实例的实体同步配置解析器 —— 「某个实体在这个库里走哪种同步策略」的唯一答案。
+   *
+   * @remarks
+   * 优先级：`syncOverrides` 里的实例覆盖 > 实体装饰器 `sync` > 库级 `sync`。核心与插件的
+   * 同步消费者都必须经它取值，不能自己回读 `metadata.sync`：同一实体在两个实例里可以走
+   * 不同策略，元数据上那一份只是装饰器的声明，不是本库的生效配置。
+   */
+  public readonly entitySync: EntitySyncResolver;
+
+  /**
    * 当前已连接的本地适配器实例，**同步**读取。
    *
    * @returns 本地适配器实例
@@ -579,6 +590,11 @@ export class RxDB {
       dbName: `${options.dbName}@${RXDB_DB_NAME_SUFFIX}`,
       entities: [...options.entities]
     };
+    // 覆盖在这里就校验并快照：早于实体绑定与任何数据库写入，之后调用方改原对象也影响不到本实例。
+    if (options.syncOverrides !== undefined) {
+      this.#config.syncOverrides = snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity);
+    }
+    this.entitySync = createEntitySyncResolver(this.#config.sync, indexSyncOverrides(this.#config.syncOverrides ?? []));
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经
@@ -638,6 +654,8 @@ export class RxDB {
     this.#ensure_connection_scope();
     this.#install_plugin();
     try {
+      // 插件贡献的系统表要等 use() 之后才认得出来，构造期那一轮只核得了模块级登记簿
+      assertNoSystemEntityOverride(this.#config.syncOverrides ?? [], this.systemEntities);
       this.schemaManager.init();
       this.entityManager.init();
       if (this.#config.multiInstance !== false) this.#init_gateway();
@@ -1737,7 +1755,7 @@ export class RxDB {
   #assert_query_cache_engine(): void {
     if (this.#query_cache_engine !== undefined) return;
     for (const EntityType of this.#config.entities) {
-      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      if (this.entitySync.resolve(EntityType)?.type !== SyncType.QueryCache) continue;
       throw missingQueryCacheEngineError(getEntityMetadata(EntityType).name);
     }
   }
@@ -1758,7 +1776,7 @@ export class RxDB {
   #assert_query_cache_outbox(): void {
     if (this.#query_cache_outbox !== undefined) return;
     for (const EntityType of this.#config.entities) {
-      if (getEntitySync(EntityType, this.#config.sync)?.type !== SyncType.QueryCache) continue;
+      if (this.entitySync.resolve(EntityType)?.type !== SyncType.QueryCache) continue;
       throw missingQueryCacheOutboxError(getEntityMetadata(EntityType).name);
     }
   }

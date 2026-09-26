@@ -9,13 +9,13 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 66     |
+| ✅ Done        | 67     |
 | 🚧 In Progress | 0      |
 | 👀 In Review   | 0      |
-| 📝 Backlog     | 28     |
-| **未完成合计** | **28** |
+| 📝 Backlog     | 27     |
+| **未完成合计** | **27** |
 
-仓库还剩 **28 条**未关闭故事（0 In Progress + 0 In Review + 28 Backlog）。
+仓库还剩 **27 条**未关闭故事（0 In Progress + 0 In Review + 27 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -32,7 +32,6 @@
 
 | Story                                                                                        | 状态       | 剩什么                                                                                                                                                                      | 排期位置 |
 | -------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                                                                                               | 批次 3   |
 | [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力                                                                                 | 批次 3   |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                                                                                                  | 批次 3   |
 | [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog | 未立项；价值待证。demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险                                             | 立项池   |
@@ -60,7 +59,7 @@
 
 | 故事                                                                                                    | 为什么排这里                                                                                                                                                                                                                                                                                                                                                                                                                         | 关闭判据                                                                                                             |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| [US-026](stories/core/US-026-instance-sync-override.md) 实例级实体同步配置覆盖（建议 P1）               | HTTP demo 的前后端仍以两个实体类表达不同同步策略（schema 已共用 `RECIPE_SCHEMA`，重复的是类壳与 `declare` 字段类型），存在可复验的重复；无桥接发布前置。**改动面比标题大**：同步配置由 core（`getEntitySync`、`Repository` 构造、`validateSyncStrategy`、`EntityManager.init()`）与 sync / working-tree / history / search / storage / devtools / http / supabase 共 9 个包直接读取，实例覆盖要收口到单一解析点                      | 实例隔离、三框架契约和前后端单类 demo 全部通过                                                                       |
+| [US-026](stories/core/US-026-instance-sync-override.md) 实例级实体同步配置覆盖（✅ Done 2026-09-27）    | HTTP demo 的前后端仍以两个实体类表达不同同步策略（schema 已共用 `RECIPE_SCHEMA`，重复的是类壳与 `declare` 字段类型），存在可复验的重复；无桥接发布前置。**改动面比标题大**：同步配置由 core（`getEntitySync`、`Repository` 构造、`validateSyncStrategy`、`EntityManager.init()`）与 sync / working-tree / history / search / storage / devtools / http / supabase 共 9 个包直接读取，实例覆盖要收口到单一解析点                      | 实例隔离、三框架契约和前后端单类 demo 全部通过                                                                       |
 | [US-217](stories/adapter/US-217-local-database-backup-restore.md) 本地数据库一致性备份与恢复（建议 P2） | US-207 / US-208 / US-210 都把导入导出与热备份排除在范围外，桌面端唯一路径是退出应用后整目录复制，不是可由应用调用的一致性备份接口；浏览器侧连这条路都没有——DevTools 的数据库下载已被 US-904 作为不安全热拷贝停用，并写明一致性导出须另立故事，即本故事。不依赖工作树 / commit graph，无桥接发布前置。阶段 A 的第一件事是验证 PGlite 的 `dumpDataDir()` 能否满足有界内存、事务一致与原子恢复——故事 INVEST 的 Estimable 未勾就卡在这里 | 阶段 A → B → C；一个 PR 只交付一个阶段；尚未交付的组合必须**明确拒绝**备份与恢复，拒绝行为通过测试不等于该组合已支持 |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 多端小程序宿主（建议 P3）               | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**                                                                                                                                                                                                                                                                                                                          | 阶段 A 单独可合并；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）；未关闭的阶段不得改支持声明                 |
 

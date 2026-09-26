@@ -6,9 +6,8 @@ import { PropertyType, uuid } from '@aiao/rxdb';
  *
  * @remarks
  * `name` / `tableName` 与四个业务字段名逐字取自 `website/docs/adapters/http-protocol.md`
- * 的端到端示例（`Recipe` → `recipes`）。前端 {@link Recipe} 与后端 {@link ServerRecipe}
- * 都用这一份 schema 装饰，字段名漂移由 `recipe-schema.spec.ts` 的一致性测试在 CI 里变红，
- * 而不是在协议文档里被遗忘。
+ * 的端到端示例（`Recipe` → `recipes`）。前后端共用的 {@link Recipe} 用这一份 schema 装饰，
+ * 字段名与 wire 的漂移由 `recipe-schema.spec.ts` 在 CI 里变红，而不是在协议文档里被遗忘。
  *
  * `id` 刻意覆写为 {@link PropertyType.string}，而不是沿用 `EntityBase` 的
  * {@link PropertyType.uuid}：wire 协议把 `id` 定义成普通 string（http-protocol.md「通用约定」），

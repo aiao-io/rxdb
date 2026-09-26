@@ -4,13 +4,14 @@ import type { RuleGroup } from '../repository/query.interface.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import type { RxDBChange } from '../system/change.js';
 import type { RxDBSync } from '../system/sync.js';
-import { getSyncCapability, getSyncType, isRepositorySyncEnabled } from './sync-type-utils.js';
+import { toEntitySyncResolver, type EntitySyncResolver } from './entity-sync-resolver.js';
+import { getSyncCapability, isRepositorySyncEnabled } from './sync-type-utils.js';
 
 /**
  * 按「当前配置里有推送资格的仓库」构造 OR 组，同步记录只提供水位线。
  *
  * @param entities - `config.entities`，仓库集合真源
- * @param syncConfig - `config.sync`，全局同步回退
+ * @param syncConfig - 实例解析器 `rxdb.entitySync`（含实例覆盖）；传 `config.sync` 时只按实体声明 > 全局回退解析
  * @param repoSyncs - 当前分支上已存在的同步记录
  * @returns 每个可推送仓库一条 AND 规则；没有仓库可推送时返回空数组
  *
@@ -21,7 +22,7 @@ import { getSyncCapability, getSyncType, isRepositorySyncEnabled } from './sync-
  */
 export function buildPushableRepositoryRules(
   entities: readonly EntityType[],
-  syncConfig: SyncOptions,
+  syncConfig: SyncOptions | EntitySyncResolver,
   repoSyncs: RxDBSync[]
 ): RuleGroup<RxDBChange>['rules'] {
   return buildRepositoryRules(entities, syncConfig, repoSyncs, capability => capability.push);
@@ -32,7 +33,7 @@ export function buildPushableRepositoryRules(
  * {@link buildPushableRepositoryRules} 完全一致。
  *
  * @param entities - `config.entities`，仓库集合真源
- * @param syncConfig - `config.sync`，全局同步回退
+ * @param syncConfig - 实例解析器 `rxdb.entitySync`（含实例覆盖）；传 `config.sync` 时只按实体声明 > 全局回退解析
  * @param repoSyncs - 当前分支上已存在的同步记录
  * @returns 每个待重放仓库一条 AND 规则；没有这类仓库时返回空数组
  *
@@ -43,7 +44,7 @@ export function buildPushableRepositoryRules(
  */
 export function buildOfflineWriteRepositoryRules(
   entities: readonly EntityType[],
-  syncConfig: SyncOptions,
+  syncConfig: SyncOptions | EntitySyncResolver,
   repoSyncs: RxDBSync[]
 ): RuleGroup<RxDBChange>['rules'] {
   return buildRepositoryRules(
@@ -57,16 +58,17 @@ export function buildOfflineWriteRepositoryRules(
 /** 两个导出共用的规则构造：只有仓库筛选谓词不同 */
 function buildRepositoryRules(
   entities: readonly EntityType[],
-  syncConfig: SyncOptions,
+  syncConfig: SyncOptions | EntitySyncResolver,
   repoSyncs: RxDBSync[],
   accepts: (capability: ReturnType<typeof getSyncCapability>) => boolean
 ): RuleGroup<RxDBChange>['rules'] {
+  const resolver = toEntitySyncResolver(syncConfig);
   const syncByRepository = new Map(repoSyncs.map(repoSync => [`${repoSync.namespace}:${repoSync.entity}`, repoSync]));
   const rules: RuleGroup<RxDBChange>['rules'] = [];
 
   for (const EntityClass of entities) {
     const metadata = getEntityMetadata(EntityClass);
-    if (!accepts(getSyncCapability(getSyncType(metadata, syncConfig)))) continue;
+    if (!accepts(getSyncCapability(resolver.resolveType(metadata)))) continue;
 
     const repoSync = syncByRepository.get(`${metadata.namespace}:${metadata.name}`);
     if (!isRepositorySyncEnabled(repoSync)) continue;

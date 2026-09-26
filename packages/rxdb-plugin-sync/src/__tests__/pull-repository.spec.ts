@@ -1,5 +1,6 @@
 import {
   type ConflictResolver,
+  createEntitySyncResolver,
   encodeRxDBChangeEntityId,
   Entity,
   EntityBase,
@@ -339,6 +340,7 @@ function createHarness(options: HarnessOptions = {}) {
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(sync),
       config: { entities, sync },
       context: { clientId: options.clientId ?? 'local-client' },
       dispatchEvent,

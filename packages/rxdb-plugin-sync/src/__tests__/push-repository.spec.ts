@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   type EntityType,
@@ -257,6 +258,7 @@ function createHarness(options: HarnessOptions = {}) {
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(options.sync ?? fullSync()),
       config: {
         entities: options.entities ?? [User],
         sync: options.sync ?? fullSync()

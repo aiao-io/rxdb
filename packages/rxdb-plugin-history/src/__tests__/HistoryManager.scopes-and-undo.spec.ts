@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   type EntityType,
@@ -167,12 +168,14 @@ const createHarness = (
     if (entity === RxDBChange) return changeRepository;
     return null;
   });
+  const PUSHABLE_SYNC = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } } as const;
   const rxdb = {
     addEventListener,
+    entitySync: createEntitySyncResolver(PUSHABLE_SYNC),
     config: {
       // RXD-034：可推送仓库集合来自 config.entities × syncType，而不是「已有 RxDBSync 记录的仓库」
       entities: options.entities ?? PUSHABLE_ENTITIES,
-      sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
+      sync: PUSHABLE_SYNC
     },
     connected$,
     entityManager: { getRepository },

@@ -1,5 +1,6 @@
 import { EntityType } from './entity/entity.interface.js';
 import { SyncOptions } from './entity/metadata-options.interface.js';
+import type { EntitySyncOverride } from './entity/sync-override.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
 /**
@@ -121,6 +122,23 @@ export interface RxDBOptions {
    * 各仓库的 {@link SyncType} 会从这里继承，未声明的字段落到全局兜底。
    */
   sync: SyncOptions;
+
+  /**
+   * 本实例对指定实体的同步配置覆盖
+   *
+   * @remarks
+   * 生效优先级：**本条覆盖 > 实体装饰器的 `sync` > 上面的默认 `sync`**。每条覆盖提供完整的
+   * `SyncOptions`，选中后整体替换，不做字段合并。覆盖只属于本实例，不修改实体元数据，
+   * 同一实体类可以在不同实例里走不同策略（如浏览器 QueryCache、服务端纯本地）。
+   *
+   * 构造时校验并快照：目标必须是 `entities` 里的业务实体（系统表、自动生成的中间实体、
+   * 未注册实体都拒绝），同一实体不能出现两次，`sync` 必须带合法 `type`；违规抛
+   * {@link RxDBSyncOverrideError}。之后改动传入的对象不影响本实例。
+   *
+   * 覆盖不创建适配器、不安装插件：适配器仍只从默认 `sync` 注册，覆盖里的
+   * QueryCache 等策略照常要求库级两侧适配器与对应插件。
+   */
+  syncOverrides?: readonly EntitySyncOverride[];
 
   /**
    * 环境上下文

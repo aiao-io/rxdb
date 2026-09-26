@@ -241,7 +241,7 @@ async function _syncRepositoryImpl(
   const metadata = getEntityMetadata(EntityType);
 
   // 检查同步类型（支持全局配置回退）
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
   if (syncType === 'none') {
     throw new RxDBError(
       `Cannot sync repository ${namespace}:${entity}: syncType is 'none'. ` +

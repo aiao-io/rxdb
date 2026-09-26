@@ -34,6 +34,6 @@ import { createWorkingTreeCaptureRuntime } from './capture-hook.js';
  */
 export const installWorkingTreeCapture = (rxdb: RxDB, adapter: RxDBAdapterLocalBase): void => {
   adapter.setWorkingTreeCaptureHook(
-    createWorkingTreeCaptureRuntime(adapter, rxdb.entityManager, rxdb.config.entities, rxdb.config.sync)
+    createWorkingTreeCaptureRuntime(adapter, rxdb.entityManager, rxdb.config.entities, rxdb.entitySync)
   );
 };

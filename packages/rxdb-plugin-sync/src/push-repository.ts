@@ -227,7 +227,7 @@ async function _pushRepositoryImpl(
     sm.rxdb,
     namespace,
     entity,
-    getSyncType(metadata, sm.rxdb.config.sync)
+    getSyncType(metadata, sm.rxdb.entitySync)
   );
 
   if (ineligible) {
@@ -458,7 +458,7 @@ async function cascadeNodeIneligibility(sm: SyncManager, repo: RepositoryIdentif
     sm.rxdb,
     repo.namespace,
     repo.entity,
-    getSyncType(getEntityMetadata(EntityType), sm.rxdb.config.sync)
+    getSyncType(getEntityMetadata(EntityType), sm.rxdb.entitySync)
   );
 }
 
@@ -700,7 +700,7 @@ async function planRepositoryPush(
     return meta.namespace === namespace && meta.name === entity;
   });
   const metadata = getEntityMetadata(EntityType!);
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
 
   const repoSync = await getOrCreateSyncRecord(
     repoSyncRepo,
