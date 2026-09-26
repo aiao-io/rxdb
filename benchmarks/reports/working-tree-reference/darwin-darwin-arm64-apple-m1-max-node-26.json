@@ -1,16 +1,16 @@
 {
   "commit": "6dd064512e42e0432eb044423d258c1459d2c6c2",
-  "runs": 10,
+  "frozenAbsolute": {
+    "commit": 393.532166999983
+  },
   "medianRatios": {
     "status": 1.9723438747769477,
     "diff": 2.3643385655369684,
     "restore": 13.80345255307575,
     "commit": 15.651571987185967
   },
-  "frozenAbsolute": {
-    "commit": 393.532166999983
-  },
-  "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba",
   "ratioProfile": "Darwin darwin arm64 / Apple M1 Max / node 26",
-  "regeneratedBecause": "已知带负载的基线复冻（契约 §3.1）：旧基线冻结时 1 分钟负载 44，后 4 轮 restore 离群，frozenAbsolute.commit 虚高约 29%（425.85→550.53ms）；本次起跑 1 分钟负载 9.31（10 核，常驻 WindowServer、Docker VM 与三个 Nx daemon）；6dd06451 已在旧基线上过相对门禁（status 1.947 / diff 1.872 / restore 13.865 / commit 15.364，四项 PASS）"
+  "regeneratedBecause": "已知带负载的基线复冻（契约 §3.1）：旧基线冻结时 1 分钟负载 44，后 4 轮 restore 离群，frozenAbsolute.commit 虚高约 29%（425.85→550.53ms）；本次起跑 1 分钟负载 9.31（10 核，常驻 WindowServer、Docker VM 与三个 Nx daemon）；6dd06451 已在旧基线上过相对门禁（status 1.947 / diff 1.872 / restore 13.865 / commit 15.364，四项 PASS）",
+  "runnerProfileHash": "a9853503b18ac5db8295db17cc3f73c023b2e5e9d4aa0309fe3bfe0c25ddf2ba",
+  "runs": 10
 }
