@@ -10,7 +10,7 @@
  * Angular 侧的 `InfiniteScrollingList` 由 `@aiao/rxdb-vue` 的 `useInfiniteScroll` 替代，
  * 行为一致：各页活查询、触底 loadMore、选项变化重置重查、refresh 从首页重来。
  */
-import { getEntityMetadata, RelationKind, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
+import { getEntityMetadata, isSystemEntity, RelationKind, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
 import {
   actionsColumn,
   buildEditableColumns,
@@ -31,7 +31,7 @@ import {
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-vue';
 import { Funnel as FunnelIcon, Redo2 as Redo2Icon, Undo2 as Undo2Icon } from '@lucide/vue';
-import type { ColumnsDefine } from '@visactor/vtable';
+import type { ColumnsDefine, ListTableConstructorOptions } from '@visactor/vtable';
 import { of, type Observable } from 'rxjs';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from 'vue';
 import DialogPortal from '../entity-dialog/DialogPortal.vue';
@@ -66,6 +66,18 @@ const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
+
+/**
+ * 实体列表的表格选项：关掉行序号列的拖拽手柄
+ *
+ * @remarks
+ * `buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，而列表不接 `rowReordered`，拖完不落库。
+ * 排序持久化属 US-028 阶段 B，届时只对可排序实体重新打开。`buildTableOptions()` 对 `rowSeriesNumber`
+ * 整体覆盖，`title` / `width` 要照默认值一并带上。
+ */
+const LIST_TABLE_OPTIONS: Partial<ListTableConstructorOptions> = {
+  rowSeriesNumber: { title: '', width: 40, dragOrder: false }
+};
 
 /** 历史 API 的最小面（versionManager 缺省时退回 no-op） */
 interface HistoryLike {
@@ -274,6 +286,9 @@ const localDraftItems = ref<EntityInstance[]>([]);
 
 const entityCls = computed(() => entityClsMap.get(entityKey.value));
 
+/** 当前实体是否为 RxDB 注入的系统表（整表只读） */
+const isSystemTable = computed(() => entityCls.value !== undefined && isSystemEntity(entityCls.value));
+
 // ── History (undo/redo) ───────────────────────────────────────────────
 const vHistory =
   (rxdb as unknown as { versionManager?: VersionManager }).versionManager?.history() ??
@@ -355,8 +370,8 @@ const displayName = computed(() => {
   return meta.displayName ?? meta.name;
 });
 
-/** 当前实体是否存在于祖先创建链路中（循环创建检测） */
-const isCreateBlocked = computed(() => props.creationChain.includes(entityKey.value));
+/** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测） */
+const isCreateBlocked = computed(() => isSystemTable.value || props.creationChain.includes(entityKey.value));
 
 const queryBuilderFields = computed<FieldMetadata[]>(() => {
   const cls = entityCls.value;
@@ -388,6 +403,9 @@ const tableRecords = computed<EntityTableRecord[]>(() => {
       .filter(r => !linkedIds.has(r['id'] as string))
       .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
   }
+  // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
+  // 操作列对只读行不出图标，「查看」也随之隐藏
+  if (isSystemTable.value) records = records.map(r => ({ ...r, _readonly: true }));
   return records;
 });
 
@@ -1045,6 +1063,7 @@ defineExpose({
         :loading-more="isLoadingMore"
         :query-active="isQueryActive"
         :records="tableRecords"
+        :table-options="LIST_TABLE_OPTIONS"
         @batch-updated="onBatchUpdated"
         @cell-changed="onCellChanged"
         @icon-clicked="onIconClicked"

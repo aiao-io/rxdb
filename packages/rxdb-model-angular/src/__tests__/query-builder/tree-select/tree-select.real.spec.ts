@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TreeSelectComponent } from '../../../query-builder/tree-select/tree-select.component';
 
 /**
- * TreeSelectComponent —— **真实加载组件源码**（specs/027 T025a）。
+ * TreeSelectComponent —— **真实加载组件源码**。
  *
  * happy-dom 无原生 Popover API，`showPopover`/`hidePopover` 需打桩；
  * 除此之外全部走真实的树展开 / 过滤 / 键盘导航实现。

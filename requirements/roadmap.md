@@ -9,79 +9,75 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 65     |
+| ✅ Done        | 66     |
 | 🚧 In Progress | 0      |
-| 👀 In Review   | 1      |
+| 👀 In Review   | 0      |
 | 📝 Backlog     | 28     |
-| **未完成合计** | **29** |
+| **未完成合计** | **28** |
 
-仓库还剩 **29 条**未关闭故事（0 In Progress + 1 In Review + 28 Backlog）。
+仓库还剩 **28 条**未关闭故事（0 In Progress + 0 In Review + 28 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
-> 另有一项**规格收尾不在故事计数内**：[specs/002-rxdb-model-port](../specs/002-rxdb-model-port/spec.md)
-> （rxdb-model 实体模型库 + 三框架 UI 组件集）的三框架代码已随 #62 合入，剩 T049 跨框架对拍、T050 三端对称复核、
-> T051 文档与 T053 规格状态收尾（`spec.md` 仍为 Draft）。US-027 / US-028 / US-029 的 UI 侧改动都落在这组包上，
+> rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
+> 不在故事计数内，登记在[零散收尾项](#零散收尾项不成故事随手可带)第 2～4 条，原规格见
+> `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。US-027 / US-028 / US-029 的 UI 侧改动都落在这组包上，
 > 一律三端对称交付，见[排期约束](#排期约束)第 4 条。
 
 ## 未完成需求全景
 
-下表只列**已立项**的未完成故事的「剩什么」与「排期位置」。
+下表只列**进了批次或立项池**的未完成故事的「剩什么」与「排期位置」。
 [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 的 19 条整体标价值待证、不进任何批次，
 与同标价值待证的 [US-030](stories/core/US-030-declarative-storage-constraints.md) 一起
 单独列在[明确不排期](#明确不排期)里，不混进本表。
 
-| Story                                                                                        | 状态         | 剩什么                                                                                               | 排期位置 |
-| -------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------- | -------- |
-| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)              | 👀 In Review | 任务侧全关；阶段 C 只剩 M1 基线静默复冻                                                              | 即办     |
-| [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog   | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                        | 批次 3   |
-| [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog   | 未开工；三框架实体列表今天都有拖拽手柄、重排不落库。无前置，不等 US-027                              | 批次 3   |
-| [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog   | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力          | 批次 3   |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog   | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                           | 批次 3   |
-| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog   | 未立项；价值待证。今天的症状只在 demo（目录能新建 / 删除 / 改写系统表），零散收尾项第 4 条零抽象可修 | 立项池   |
-| [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog   | 未立项；阶段 A 要给存量库补列，阶段 B 依赖 US-027 判定原语                                           | 立项池   |
-| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)   | 📝 Backlog   | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的前置 US-307 已 `Done`，阶段 C 价值待证    | 立项池   |
-| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)   | 📝 Backlog   | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，B/C 只吃 A 的真相源                   | 立项池   |
+| Story                                                                                        | 状态       | 剩什么                                                                                                                                                                      | 排期位置 |
+| -------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                                                                                               | 批次 3   |
+| [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力                                                                                 | 批次 3   |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                                                                                                  | 批次 3   |
+| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog | 未立项；价值待证。demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险                                             | 立项池   |
+| [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog | 未立项；阶段 A 的存量库补列已定案由引擎在连接时自带，阶段 B 依赖 US-027 判定原语                                                                                            | 立项池   |
+| [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog | 未立项；价值待证。三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），剩下的是扁平实体手动排序的能力缺口，没有具名使用方；解锁后阶段 B 只对可排序实体重新打开，不等 US-027 | 立项池   |
+| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)   | 📝 Backlog | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的两个前提已定案、导出通道等 US-217 阶段 B，阶段 C 价值待证                                                        | 立项池   |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)   | 📝 Backlog | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，`@aiao/rxdb` 统一改 peer 已定案（`BREAKING CHANGE`，合入时点受约束 12 牵制），B/C 只吃 A 的真相源            | 立项池   |
 
 ## 即办清单
 
 不进批次、随手可完成的事：
 
-1. **epic-006 链收尾**（只剩 US-306 👀，代码侧已完成）：M1 基线在**机器静默时重新冻结**——初版冻在
-   1 分钟负载冲到 44 的机器上，`frozenAbsolute.commit` 虚高 29%，发布用的绝对门禁不得据此放行。
-   复冻走契约 §3.1 的「已知带负载的基线复冻」，由操作者在静默机器上执行，做完 US-306 关闭。CI 画像
-   reference 签入（T134）与读项容差（T135）已收口，US-307 / US-308 已关闭。
-2. **桥接锚点出路由 owner 先定**（只定出路、不执行线 A）：`main` 自 #55 起已是 schema 6，锚点在 `main`
+1. **桥接锚点出路由 owner 先定**（只定出路、不执行线 A）：`main` 自 #55 起已是 schema 6，锚点在 `main`
    现有提交上无处可切，三条出路见
    [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
-   这是线 A 与迁移发布上唯一不需要工程量的阻塞项；出路 2（回退 #55 的常量与迁移部分）的代价随 schema 6
-   之上每一个新提交增长（**推断**），越晚定越贵。线 A 的执行时点不变，仍排在所有批次之后。
+   这是线 A 三项启动前置里唯一越晚定越贵的一项：出路 2（回退 #55 的常量与迁移部分）的代价随 schema 6
+   之上每一个新提交增长（**推断**）。[US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A
+   的合入时点也要看它（见[立项池](#立项池待-owner-决策未进任何批次)）。线 A 的执行仍排在所有批次之后。
 
 ## 排期批次
 
-### 批次 3：能力补齐与在出货缺陷（无硬前置，可并行开 PR）
+### 批次 3：能力补齐（无硬前置，可并行开 PR）
 
 同一批内的行彼此无依赖，可各开各的 PR；批次之间才是顺序。
 
-| 故事                                                                                                    | 为什么排这里                                                                                                                                                                                                                                                                                                                                                                                                                         | 关闭判据                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-026](stories/core/US-026-instance-sync-override.md) 实例级实体同步配置覆盖（建议 P1）               | HTTP demo 的前后端仍以两个实体类表达不同同步策略（schema 已共用 `RECIPE_SCHEMA`，重复的是类壳与 `declare` 字段类型），存在可复验的重复；无桥接发布前置。**改动面比标题大**：同步配置由 core（`getEntitySync`、`Repository` 构造、`validateSyncStrategy`、`EntityManager.init()`）与 sync / working-tree / history / search / storage / devtools / http / supabase 共 9 个包直接读取，实例覆盖要收口到单一解析点                      | 实例隔离、三框架契约和前后端单类 demo 全部通过                                                                                                                                                                                                               |
-| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体（建议 P1）                                  | **唯一在出货的用户可见缺陷**：`buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，三框架 `EntityTable` / `QueryTable` 都抛 `rowReordered`，三框架 `EntityList` 却都不接——每个实体列表都显示拖拽手柄、拖完不落库。排序键复用 `@aiao/utils` 已有的 `generateKeyBetween` / `generateKeysBetween`；`RxDBBranch` 是普通实体、树实体在 `rxdb-plugin-tree`，无硬前置                                                                  | 阶段 A 先行，B（三框架同交，含三端 e2e）与 C 都只依赖 A，一阶段一 PR。权限不在本故事：US-027 阶段 C 给无权行挂 `_readonly`，直接落进 AC#7 的现有守卫，本故事不等 US-027（约束 4）。阶段 B 合入前先按[零散收尾项](#零散收尾项不成故事随手可带)第 2 条关掉手柄 |
-| [US-217](stories/adapter/US-217-local-database-backup-restore.md) 本地数据库一致性备份与恢复（建议 P2） | US-207 / US-208 / US-210 都把导入导出与热备份排除在范围外，桌面端唯一路径是退出应用后整目录复制，不是可由应用调用的一致性备份接口；浏览器侧连这条路都没有——DevTools 的数据库下载已被 US-904 作为不安全热拷贝停用，并写明一致性导出须另立故事，即本故事。不依赖工作树 / commit graph，无桥接发布前置。阶段 A 的第一件事是验证 PGlite 的 `dumpDataDir()` 能否满足有界内存、事务一致与原子恢复——故事 INVEST 的 Estimable 未勾就卡在这里 | 阶段 A → B → C；一个 PR 只交付一个阶段；尚未交付的组合必须**明确拒绝**备份与恢复，拒绝行为通过测试不等于该组合已支持                                                                                                                                         |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 多端小程序宿主（建议 P3）               | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**                                                                                                                                                                                                                                                                                                                          | 阶段 A 单独可合并；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）；未关闭的阶段不得改支持声明                                                                                                                                                         |
+| 故事                                                                                                    | 为什么排这里                                                                                                                                                                                                                                                                                                                                                                                                                         | 关闭判据                                                                                                             |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| [US-026](stories/core/US-026-instance-sync-override.md) 实例级实体同步配置覆盖（建议 P1）               | HTTP demo 的前后端仍以两个实体类表达不同同步策略（schema 已共用 `RECIPE_SCHEMA`，重复的是类壳与 `declare` 字段类型），存在可复验的重复；无桥接发布前置。**改动面比标题大**：同步配置由 core（`getEntitySync`、`Repository` 构造、`validateSyncStrategy`、`EntityManager.init()`）与 sync / working-tree / history / search / storage / devtools / http / supabase 共 9 个包直接读取，实例覆盖要收口到单一解析点                      | 实例隔离、三框架契约和前后端单类 demo 全部通过                                                                       |
+| [US-217](stories/adapter/US-217-local-database-backup-restore.md) 本地数据库一致性备份与恢复（建议 P2） | US-207 / US-208 / US-210 都把导入导出与热备份排除在范围外，桌面端唯一路径是退出应用后整目录复制，不是可由应用调用的一致性备份接口；浏览器侧连这条路都没有——DevTools 的数据库下载已被 US-904 作为不安全热拷贝停用，并写明一致性导出须另立故事，即本故事。不依赖工作树 / commit graph，无桥接发布前置。阶段 A 的第一件事是验证 PGlite 的 `dumpDataDir()` 能否满足有界内存、事务一致与原子恢复——故事 INVEST 的 Estimable 未勾就卡在这里 | 阶段 A → B → C；一个 PR 只交付一个阶段；尚未交付的组合必须**明确拒绝**备份与恢复，拒绝行为通过测试不等于该组合已支持 |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 多端小程序宿主（建议 P3）               | Taro 有 `build:alipay/tt/qq/swan`，适配器只认 `wx`；阶段 A 只抽 host + 写可行性矩阵，**不扩大公开支持声明**                                                                                                                                                                                                                                                                                                                          | 阶段 A 单独可合并；B/C 只吃矩阵里 `decision: supported` 的平台（约束 7）；未关闭的阶段不得改支持声明                 |
 
 ### 线 A：桥接版本发布（owner 门控）
 
 > 线 A 是一次对外的不可逆动作（推 tag + `pnpm publish`），由 owner 手动发起、手动决定时点；
-> 本节只做排期，不代表已获授权执行。**执行排在所有批次之后**——epic-006 链今天不是优先交付项。
+> 本节只做排期，不代表已获授权执行。**执行排在所有批次之后**。
 > 线 A 只挡**迁移发布**，不挡任何故事的代码与合入；`migration-release.json` 的 `bridge.tag` 依旧是 `null`。
 > 执行时按 [release-plan.md](release-plan.md) 的执行顺序与两条硬前提走（执行顺序在锚点出路选定后按选定路径重写）。
 
-**启动前置**——三项都是 owner 决定，任一项未定都不得启动：
+**启动前置**——三项都是 owner 决定，任一项未定都不得启动（第 2 项已定案）：
 
 1. **桥接锚点出路**：`main` 自 #55 起已是 schema 6，锚点在 `main` 现有提交上无处可切，三条出路见
    [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
-   这一项只是决定、不是执行，建议提前做，理由见[即办清单](#即办清单)第 2 条。
-2. **[约束 12](#排期约束) 三选一并留证**：US-018 的 `BREAKING CHANGE` 在发布区间内，但已随 0.0.25 的产物发出。
+   这一项只是决定、不是执行，建议提前做，理由见[即办清单](#即办清单)第 1 条。
+2. **[约束 12](#排期约束) 已定案**：US-018 的 `BREAKING CHANGE` 已随 0.0.25 的产物发出，桥接版本的 changelog
+   不宣告它——人工补漏报时不补 US-018，`a63321c` 的 HTTP 适配器那一行照留；执行与留证见约束 12。
 3. **显式版本号**：取 `0.0.26` 还是 `0.1.0` 是人工决定，**不得**为 `0.0.25`——`--dry-run` 推算出来的恰是它，
    见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条。
 
@@ -106,12 +102,13 @@
 
 ### 立项池（待 owner 决策，未进任何批次）
 
-| 故事                                                                                       | 依赖                                            | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）     | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)）。今天用户踩得到的症状只在 demo：`SchemaManager.init()` 把 14 张系统表（核心 4 张 + working-tree 贡献 10 张）并进 `config.entities`，三个 demo 的实体目录因此列出 `rxdb` 分组，`EntityList` 照常给「+ 新增」、删除与可编辑单元格，引擎没有守卫（Angular demo 实测，React / Vue 同构）。这个症状有零抽象修法，见[零散收尾项](#零散收尾项不成故事随手可带)第 4 条；那条落地后剩下的是程序化写系统表的潜在风险，而新增抽象至少四项（权限配置与判定原语、系统写作用域、`PermissionDeniedError`、UI 能力派生），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项——本故事是 US-029 阶段 B 的判定原语上游（约束 4） |
-| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语（约束 4）           | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付，但存量库要补列：`RxDB.#ensureEntityTables` 只补表不补列，故事已把补列迁移纳入 In Scope、AC#1 限定为新库或已补列的存量库，补列由引擎自带还是使用方逐表写留给 plan 阶段实测后定。AC#4 只验客户端半边，服务端戳记属 Out of Scope。阶段 C 的租户过滤今天只有 Supabase 有通道，批量拉取没有 filter 槽。INVEST 尚未逐项勾选。按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                                                                              |
-| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 的前置 US-307 已 `Done`；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**，病灶是实的：`retries: isCI ? 2 : 0` 叠 `trace: 'on-first-retry'`，本地失败从不产生 trace。阶段 B 除 US-307 外还有两个 plan 期前提未定：e2e 的库随 Playwright 临时上下文一起丢弃，失败现场的库怎么带出来；失败时刻工作树里未提交的那部分怎么算。阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                                                                                                                                                 |
-| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无                                              | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除兄弟包声明的不一致——最显眼的是一处三框架不对称：`rxdb-react` / `rxdb-vue` 把 `@aiao/rxdb` 放 `dependencies`（`workspace:*`），`rxdb-angular` 放 `peerDependencies`（`*`）；B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置                                                                                                                                                                                                                                                                      |
+| 故事                                                                                       | 依赖                                                           | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）                    | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。`SchemaManager.init()` 把 14 张系统表（核心 4 张 + working-tree 贡献 10 张）并进 `config.entities`，三个 demo 的实体目录因此列出 `rxdb` 分组；三框架 `EntityList` 已对系统表整表只读（隐藏「+ 新增」、行挂 `_readonly`，AC#16 列表侧提前交付），引擎仍没有守卫。剩下的是程序化写系统表的潜在风险，而新增抽象至少四项（权限配置与判定原语、系统写作用域、`PermissionDeniedError`、UI 能力派生），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项——本故事是 US-029 阶段 B 的判定原语上游（约束 4），立项时再上调优先级                                                                                                                                                                                                                                                                   |
+| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语（约束 4）                          | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付。存量库补列已定案由引擎自带：`RxDB.#ensureEntityTables` 只补表不补列，改为连接时、排在使用方迁移之后补 `EntityBase` 的两列，落点是 SQLite 系与 PGlite 各一份的适配器能力（先例 `ensureBranchActiveKey`），`docker/sql/03-business-tables.sql` 同 PR 改并附迁移说明。AC#4 只验客户端半边，服务端戳记属 Out of Scope。阶段 C 的租户过滤今天只有 Supabase 有通道；没有过滤通道的适配器在配置期报错（已定案），批量拉取是强制 `SyncType.Filter` 还是给 `PullBatchRequest` 加 filter 槽留给 plan。INVEST 尚未逐项勾选。按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                                                                                  |
+| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                                | 无；不等 US-027（[约束 4](#排期约束)）                         | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。用户踩得到的症状只有三框架 `EntityList` 的拖拽手柄拖完不落库，已由 AC#6 提前交付关掉，没用到本故事的抽象；剩下的是扁平实体手动排序的能力缺口：仓内没有直接渲染 `EntityTable` / `QueryTable` 的调用方，三个 demo 各自算排序键的重复不在本故事验收范围。新增抽象至少三项（`ISortableEntity` 与实体级可排序声明、core 排序键封装与默认排序、rxdb-model 重排写入协调），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要手动排序的扁平实体（demo 或外部 issue）；或有调用方直接渲染 `EntityTable` / `QueryTable` 并要把 `rowReordered` 落库。解锁后沿用已定案的排序模块放核心、复用 `@aiao/utils` 的 `generateKeyBetween`；阶段 A 先行，B（三框架同交，含三端 e2e）与 C 都只依赖 A，一阶段一 PR，阶段 B 只对可排序实体重新打开手柄                                                                                                  |
+| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 依赖 US-217 阶段 B（US-307 已 `Done`）；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**，病灶是实的：`retries: isCI ? 2 : 0` 叠 `trace: 'on-first-retry'`，本地失败从不产生 trace。阶段 B 的两个前提已定案：失败现场的库走导出带出来（不改持久上下文），所以等 US-217 阶段 B 的 SQLite 共享层导出；失败时刻未提交的部分由 fixture 先做一次标记为失败快照的 commit 再导出。阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无硬前置；合入时点受[约束 12](#排期约束) 牵制                  | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除兄弟包声明的不一致——最显眼的是一处三框架不对称：`rxdb-react` / `rxdb-vue` 把 `@aiao/rxdb` 放 `dependencies`（`workspace:*`），`rxdb-angular` 放 `peerDependencies`（`*`）。已定案：`@aiao/rxdb` 一律进 `peerDependencies`、写 `workspace:^`，提交标注 `BREAKING CHANGE` 并在 `website/docs/migration/v1.md` 留迁移说明；关系图边界是发布范围，`rxdb-test` 以 tool 层进图，`listPublicPackages()` 仍只管 API 基线范围。**阶段 A 是真正首发的破坏性改动**，落进线 A 桥接版本的发布区间就违反[约束 12](#排期约束)，而且没有 US-018 那种「已随 0.0.25 发出」的余地；区间取决于桥接锚点出路（[即办清单](#即办清单)第 1 条），立项排期时两者一起定。B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
 
 ### epic-006 评审顺延的架构项
 
@@ -119,19 +116,19 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 **每一项的判据、修法与「不做的理由」都写在对应代码的 TSDoc 里**，这里只登记「它挡着什么」和「谁来定」。
 两份报告都已删除，代码注释是唯一副本。
 
-| 项                                                                                | 挡着                                                                                                                                                                           | 前置决策 / 判据位置                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 提交图校验的「最后已验证 HEAD」水位（BFS 剪枝）＋ `list-commits` 的按分支派生结构 | 每次 commit / discard / restore / 切分支都全量重哈希整张可达图，O(N)                                                                                                           | **这是一次规格变更，不是性能重构**：剪枝直接违反 FR-051「MUST 遍历**完整**可达父链」与 SC-013「可达祖先损坏时三条入口各自报 `commit_graph_corrupted`」，要先改 spec 与验收（`/speckit-specify`）。两条共用同一份 ref 状态，必须一起做。判据见 `packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts` 与 `commit/list-commits.ts` 的 `@remarks`                 |
-| `IRepository` 要不要长出聚合能力（`GROUP BY` / `COUNT`）                          | `working-tree/status.ts` 的两次顺序 `COUNT(*)`                                                                                                                                 | core ↔ plugin 公开面决策。另一条路（插件走 `executor.query()` 裸 SQL）会是本插件第一处生产裸读，方言返回类型与列名大小写不一致、测试替身只认结构化查询。判据见 `status.ts` 的 `readOriginBreakdown` `@remarks`                                                                                                                                                               |
-| 跨后端公共层落在哪个包 ＋ 语句收集协议统一（数组 vs `---STATEMENT_SEPARATOR---`） | 两个 `version/switch-result.utils.ts`、两个 `version/switch_branch.ts`、两处 `ensureBranchActiveKey`                                                                           | 两个适配器互不依赖，公共层放任一端都新增跨适配器边；核心拥有方言 SQL 等于让核心知道方言。**抽完只剩骨架**（类型口径、绑定与批量、值编解码、客户端协议四处都是方言原语），判据逐条写在这四个文件的 `@fileoverview` / `@remarks` 里。合一之前**任何改动必须两端同改**                                                                                                          |
-| `activeKey` 改由 schema 表达（生成列或 `WHERE activated` 部分唯一索引）           | 约 10 处生产写点手工共写 `activated ? '*active*' : null`                                                                                                                       | 要动 6 个适配器的 system schema 迁移并给既有库写迁移步骤；只改写点不改 schema 等于把十处手写换成十处调用。判据见 `packages/rxdb/src/system/branch.ts` 的 `RxDBBranch` `@remarks`                                                                                                                                                                                             |
-| 适配器长出「批量取现存表名」的公开能力                                            | `RxDB.ts` 每次 `connect()` 十几次顺序 `isTableExisted` 探测                                                                                                                    | 一次适配器公开面扩张（6 个后端两种方言各一遍），且落在全仓都走的连接路径上。判据见 `#ensureSystemTables` 的 `@remarks`                                                                                                                                                                                                                                                       |
-| 物化 staging 页 payload 的加密信封校验                                            | 来源方把加密列交成明文时，明文照样落进 `rxdb_working_tree_materialization_page.payload`；失败 / 中断的 attempt 刻意不删，残留到调用方 `discardMaterializationAttempt` 为止     | 本模块不认识业务实体、分不出哪一格该是加密包，校验只能落在来源方的 `projectPage` 一侧或快照来源的登记处；今天来源是同步插件自动登记的那一个，页里是远端变更记录的原样 patch。判据见 `packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts` 的 `payload` `@remarks`，门禁边界见 `specs/001-working-tree-commits/threat-model.md` §7 |
-| `WorkingTreeEntry.fingerprint` 要不要从 FNV-1a/32 换成 SHA-256                    | 今天不挡——没有生产代码比较这一列（US-308 交付的冲突检测也不读它）；有消费者按身份逐对比较之后才生效，误判相等约 2⁻³² / 对                                                      | 由首个比较这一列的消费者定。代价是捕获热路径上每次写多算一遍纯 JS 摘要、列宽 8 → 64 位；同步的 `sha256Hex` 现成，不需要异步也不需要新依赖。判据见 `packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts` 的 `fingerprintOf` `@remarks`                                                                                                                      |
-| 活 count 查询的刷新成本                                                           | 热表上每一条命中 where 的 CREATE / REMOVE 与跨 where 边界的 UPDATE 都打一次整表 `COUNT`；`refresh$` 走 `switchMap`，只丢弃过时那一轮、不合并刷新                               | count 结果没有 id 级基线，本地 ± 调整不安全；要降成本得先给 count 结果配一个能与事件对齐的水位，或者给刷新加合并窗口。判据见 `packages/rxdb/src/query/merge_create.ts` 的 count 分支注释                                                                                                                                                                                     |
-| 同步跳过的远端分支没有持久标记                                                    | 远端不修，`invalid-id` 的分支连同它的子孙每轮重拉、重跳，一直占位                                                                                                              | 要不要记「已知坏行」、记在本地还是只上报，由同步层定；调用方今天已能用 `SyncBranchesResult.skipReasons` 区分会自愈的跳过与永久跳过。判据见 `packages/rxdb-plugin-sync/src/sync-branches.ts` 的 `skipped` TSDoc                                                                                                                                                               |
-| supabase 只把 main 的变更落实体表                                                 | 在 feature 分支上激活时的编辑推上去只留 `RxDBChange` 记录、不进实体表，与本地「任意分支可激活」的语义不一致                                                                    | 先定服务端按什么判定「激活」（按连接、按用户还是全局）。判据见 `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts` 的 `isMainBranch` 注释                                                                                                                                                                                                                         |
-| UPDATE 门控在实体缓存未命中时判不出 where 跨界                                    | 他 tab 转来的增量 UPDATE 落到没缓存该实体的 tab（只挂 count 的 tab 最典型）时，复合 where 的其余字段两侧同为缺失：count 跨界与 find 系的「新匹配」都判不出来，结果静默停在旧值 | 修法二选一：门控改判「where 用到的字段是否齐全」，或跨 tab 事件改带整行。「缓存命中与否」当不了判据——未命中时 `serialize` 会把残缺实体写进缓存。判据见 `packages/rxdb/src/query/need_refresh_update.ts` 的 `count_boundary_crossed` 注释                                                                                                                                     |
+| 项                                                                                | 挡着                                                                                                                                                                           | 前置决策 / 判据位置                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 提交图校验的「最后已验证 HEAD」水位（BFS 剪枝）＋ `list-commits` 的按分支派生结构 | 每次 commit / discard / restore / 切分支都全量重哈希整张可达图，O(N)                                                                                                           | **这是一次规格变更，不是性能重构**：剪枝直接违反 [US-305](stories/collaboration/US-305-commit-graph-head.md) FR-051「MUST 遍历**完整**可达父链」与原规格 SC-013「可达祖先损坏时三条入口各自报 `commit_graph_corrupted`」（`git show f9528e8f:specs/001-working-tree-commits/spec.md`），要先改 US-305 的 FR-051 与 epic-006 的验收。两条共用同一份 ref 状态，必须一起做。判据见 `packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts` 与 `commit/list-commits.ts` 的 `@remarks` |
+| `IRepository` 要不要长出聚合能力（`GROUP BY` / `COUNT`）                          | `working-tree/status.ts` 的两次顺序 `COUNT(*)`                                                                                                                                 | core ↔ plugin 公开面决策。另一条路（插件走 `executor.query()` 裸 SQL）会是本插件第一处生产裸读，方言返回类型与列名大小写不一致、测试替身只认结构化查询。判据见 `status.ts` 的 `readOriginBreakdown` `@remarks`                                                                                                                                                                                                                                                                                 |
+| 跨后端公共层落在哪个包 ＋ 语句收集协议统一（数组 vs `---STATEMENT_SEPARATOR---`） | 两个 `version/switch-result.utils.ts`、两个 `version/switch_branch.ts`、两处 `ensureBranchActiveKey`                                                                           | 两个适配器互不依赖，公共层放任一端都新增跨适配器边；核心拥有方言 SQL 等于让核心知道方言。**抽完只剩骨架**（类型口径、绑定与批量、值编解码、客户端协议四处都是方言原语），判据逐条写在这四个文件的 `@fileoverview` / `@remarks` 里。合一之前**任何改动必须两端同改**                                                                                                                                                                                                                            |
+| `activeKey` 改由 schema 表达（生成列或 `WHERE activated` 部分唯一索引）           | 约 10 处生产写点手工共写 `activated ? '*active*' : null`                                                                                                                       | 要动 6 个适配器的 system schema 迁移并给既有库写迁移步骤；只改写点不改 schema 等于把十处手写换成十处调用。判据见 `packages/rxdb/src/system/branch.ts` 的 `RxDBBranch` `@remarks`                                                                                                                                                                                                                                                                                                               |
+| 适配器长出「批量取现存表名」的公开能力                                            | `RxDB.ts` 每次 `connect()` 十几次顺序 `isTableExisted` 探测                                                                                                                    | 一次适配器公开面扩张（6 个后端两种方言各一遍），且落在全仓都走的连接路径上。判据见 `#ensureSystemTables` 的 `@remarks`                                                                                                                                                                                                                                                                                                                                                                         |
+| 物化 staging 页 payload 的加密信封校验                                            | 来源方把加密列交成明文时，明文照样落进 `rxdb_working_tree_materialization_page.payload`；失败 / 中断的 attempt 刻意不删，残留到调用方 `discardMaterializationAttempt` 为止     | 本模块不认识业务实体、分不出哪一格该是加密包，校验只能落在来源方的 `projectPage` 一侧或快照来源的登记处；今天来源是同步插件自动登记的那一个，页里是远端变更记录的原样 patch。判据见 `packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts` 的 `payload` `@remarks`，门禁边界见 `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §7                                                                                                 |
+| `WorkingTreeEntry.fingerprint` 要不要从 FNV-1a/32 换成 SHA-256                    | 今天不挡——没有生产代码比较这一列（US-308 交付的冲突检测也不读它）；有消费者按身份逐对比较之后才生效，误判相等约 2⁻³² / 对                                                      | 由首个比较这一列的消费者定。代价是捕获热路径上每次写多算一遍纯 JS 摘要、列宽 8 → 64 位；同步的 `sha256Hex` 现成，不需要异步也不需要新依赖。判据见 `packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts` 的 `fingerprintOf` `@remarks`                                                                                                                                                                                                                                        |
+| 活 count 查询的刷新成本                                                           | 热表上每一条命中 where 的 CREATE / REMOVE 与跨 where 边界的 UPDATE 都打一次整表 `COUNT`；`refresh$` 走 `switchMap`，只丢弃过时那一轮、不合并刷新                               | count 结果没有 id 级基线，本地 ± 调整不安全；要降成本得先给 count 结果配一个能与事件对齐的水位，或者给刷新加合并窗口。判据见 `packages/rxdb/src/query/merge_create.ts` 的 count 分支注释                                                                                                                                                                                                                                                                                                       |
+| 同步跳过的远端分支没有持久标记                                                    | 远端不修，`invalid-id` 的分支连同它的子孙每轮重拉、重跳，一直占位                                                                                                              | 要不要记「已知坏行」、记在本地还是只上报，由同步层定；调用方今天已能用 `SyncBranchesResult.skipReasons` 区分会自愈的跳过与永久跳过。判据见 `packages/rxdb-plugin-sync/src/sync-branches.ts` 的 `skipped` TSDoc                                                                                                                                                                                                                                                                                 |
+| supabase 只把 main 的变更落实体表                                                 | 在 feature 分支上激活时的编辑推上去只留 `RxDBChange` 记录、不进实体表，与本地「任意分支可激活」的语义不一致                                                                    | 先定服务端按什么判定「激活」（按连接、按用户还是全局）。判据见 `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts` 的 `isMainBranch` 注释                                                                                                                                                                                                                                                                                                                                           |
+| UPDATE 门控在实体缓存未命中时判不出 where 跨界                                    | 他 tab 转来的增量 UPDATE 落到没缓存该实体的 tab（只挂 count 的 tab 最典型）时，复合 where 的其余字段两侧同为缺失：count 跨界与 find 系的「新匹配」都判不出来，结果静默停在旧值 | 修法二选一：门控改判「where 用到的字段是否齐全」，或跨 tab 事件改带整行。「缓存命中与否」当不了判据——未命中时 `serialize` 会把残缺实体写进缓存。判据见 `packages/rxdb/src/query/need_refresh_update.ts` 的 `count_boundary_crossed` 注释                                                                                                                                                                                                                                                       |
 
 ## 零散收尾项（不成故事，随手可带）
 
@@ -146,7 +143,8 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
      `code-editor-angular:build` 会因本机 `node_modules` 残留 codemirror 旧副本而红
      （lockfile 是干净的，属安装态漂移）；`pnpm install --frozen-lockfile` 会跳过，需要加 `--force`。
      别把这种红误读成「没有可发布的变更」。
-   - 区间（`v0.0.24..main`）**包含已随 0.0.25 发布过的内容**，changelog 会再写一遍，需要决定是否手工裁剪。
+   - 区间（`v0.0.24..main`）**包含已随 0.0.25 发布过的内容**，changelog 会再写一遍，定稿前需人工裁剪
+     （[release-plan.md 硬前提 2](release-plan.md) 的 ②）。
      判断「发没发过」**不能看 tag 祖先链**——`v0.0.25` 的 tag 树与已发布产物对不上，
      唯一可信口径是 `npm pack` 拉产物搜，见 [release-plan.md 版本漂移开项第三条](release-plan.md)。
    - **同一份 changelog 还会漏报**：`f4e0778 chore(aiao): update deps (#53)` 是一次 squash 合并，
@@ -154,29 +152,18 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
      的**两条缺陷修复**与 [US-906](stories/future/US-906-electron-devtools-developer-path.md) 的交付。
      标题是 `chore`，这两条 `fix` 既不贡献 bump 也不进 Bug Fixes。该提交已推送**不得重写**，
      只能在 changelog 生成后人工补写。**多报和漏报要一起过**，细则见 [release-plan.md 硬前提 2](release-plan.md) 的 ② 与 ④。
+     US-018 是反方向的一条：自动 changelog 里本来没有它，补漏报时也不补，定案见[约束 12](#排期约束)。
 
-2. **US-028 阶段 B 合入前，先关掉三框架 `EntityList` 的拖拽手柄。** 今天每个实体列表都显示拖拽手柄、
-   拖完不落库（见[批次 3](#批次-3能力补齐与在出货缺陷无硬前置可并行开-pr) US-028 行）。三框架的 `QueryTable`
-   都已透传 `tableOptions`，`EntityList` 传一份 `rowSeriesNumber`（`dragOrder: false`）即可，不新增公开 API；
-   `buildTableOptions()` 对 `rowSeriesNumber` 是整体覆盖，`title` / `width` 要一并带上。三端同改，单端缺失 = 未完成。
-   这不是一次性补丁：它就是 US-028 AC#6「不可排序实体不显示拖拽手柄」提前交付，阶段 B 只对可排序实体重新打开。
-3. **四处 TSDoc 与实现不符**，随手改注释即可：
-   - `RxDBContext.userId`（`packages/rxdb/src/rxdb.interface.ts`）写着「pull / push 时按 `userId` 做行级过滤」，
-     没有任何适配器这样做；它今天只用于写 `createdBy` / `updatedBy`；
-   - `SyncFilter` 与 `SyncQueryCache`（`packages/rxdb/src/entity/sync-options.interface.ts`）都标着「（未实现）」，
-     两种同步类型都已实现；
-   - `getSyncType`（`packages/rxdb/src/sync-contract/sync-type-utils.ts`）写着
-     `@throws … sync.type === 'filter'（不支持）`，实现是返回 `'filter'`。
-4. **三框架 `EntityList` 对系统表关掉新增、编辑与删除。** 三个 demo 的实体目录都从 `config.entities` 构建，
-   而 `SchemaManager.init()` 把 `rxdb.systemEntities`（核心 4 张 + working-tree 贡献 10 张）并了进去，
-   于是 demo 用户能新建 `RxDBBranch` 行、删掉 `RxDBChange` 行、改写撤销标记（Angular demo 实测，React / Vue 同构）。
-   三端 `EntityList` 用 `isSystemEntity()`（`@aiao/rxdb` 已公开导出）把系统表并进 `isCreateBlocked` 以隐藏「+ 新增」，
-   并给行挂 `_readonly`——`isReadonly` 与 `table-operations.ts` / `table-clipboard.ts` / `table-keyboard.ts` 的现成守卫
-   随之挡住编辑、粘贴、拖拽与删除，不新增公开 API。代价是 `actionsColumn()` 对 `_readonly` 行连「查看」一起藏掉；
-   表格本身已列出全部列，可以接受，要保留就顺手把两者的只读判断拆开（即 US-027 AC#14 的一部分）。
-   只在 demo 目录里滤掉系统表更省，但照 demo 构建目录的应用照样继承问题，放在 `EntityList` 才覆盖出货包。
-   三端同改，单端缺失 = 未完成。它就是 [US-027](stories/core/US-027-entity-permission-model.md) AC#16 的提前交付，
-   US-027 阶段 C 再把判断换成权限派生。
+2. **rxdb-model 跨框架对拍补上「查看 / 编辑已有记录」**（T049）。三个 e2e 应用跑的是同一份
+   `entity-model.spec.ts`（Angular 那份只多一行注释），已覆盖目录切换、新建对话框、undo / redo 与筛选；
+   缺的是在表单里查看与编辑一条已有记录。VTable 的行画在 canvas 上、DOM 定位不到，先要定一个 DOM 可达的入口，
+   再三端同改。
+3. **rxdb-model 三端对称复核**（T050）：对 `rxdb-model-angular` / `-react` / `-vue` 跑一遍
+   `.claude/skills/tri-framework-check`，核对命名、签名与行为。
+4. **rxdb-model 文档页**（T051）：`website/docs/` 还没有 rxdb-model 的使用文档
+   （`grep -rl rxdb-model website/docs | grep -v /api/` 无输出），补核心、三框架用法、样式接入与迁移说明。
+
+第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
 
 ## 排期约束
 
@@ -194,7 +181,6 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 5. US-305 的提交竞争只使用领域 `headRevision` CAS，不引入 writer lease 或迁移 epoch。US-305 的
    schema migration 前必须从当前发布主线产生新的有效 bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry；`main` 自 #55 起已是 schema 6，
    锚点从哪里切见 [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
-   epic-006 内部顺序为 **US-305 → US-306 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**。
 6. 搜索改动复用现有搜索公开 API 和跨框架 parity fixture，不为某个后端借用另一后端专属的 fallback
    （US-703 的 PGlite 全文搜索按此交付）。
 7. **小程序路径的能力上限**（US-209）：WAL、多页面并发、崩溃恢复保证在微信路径上不得扩大；
@@ -216,22 +202,30 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     > MUST NOT 持有任何 `QueryCacheLocalAdapter`，构造函数 MUST NOT `new` 任何本地存储。**
     > 该不变量由 US-212 阶段 A 的 AC#19 契约测试冻结。SC-004 漂移扫描（`pnpm audit:callsite-drift`）
     > 递归扫整个 `packages/`，HTTP 包在其核对范围内。
-12. **US-018 不得与线 A 的桥接版本同批发。** 一个「不改 schema、只做迁移锚点」的桥接版本带着
-    `BREAKING CHANGE` 是错误的对外信号。US-018 排在桥接版本**之后**单独发。**本条不随 US-018 关闭而失效**：
-    线 A 发布前必须先确认这批破坏性改动不在同一发布区间内——判据是发布区间的提交范围，不是故事状态。
+12. **线 A 的桥接版本不得对外宣告破坏性改动。** 一个「不改 schema、只做迁移锚点」的桥接版本带着
+    `BREAKING CHANGE` 是错误的对外信号。判据是发布区间的提交范围，不是故事状态：线 A 发布前必须确认区间内的
+    破坏性改动逐条有处置。区间内新增的破坏性提交没有「已随 0.0.25 发出」这层余地，只能不进区间——
+    [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A 即是一例，见[立项池](#立项池待-owner-决策未进任何批次)。
 
-    **本条当前处于「已触发、待人工决定」，不要当成自动满足。** 两个事实同时成立：
-    ① US-018 的破坏性实现（`unsupportedDefaultFactory`）落在 `a63321c`，**在 `v0.0.24..main` 区间内**，
-    按本条的字面判据（发布区间的提交范围）即为触发；
-    ② 但它**已经随 `0.0.25` 的产物发出去了**——`npm pack @aiao/rxdb-client-generator@0.0.25` 拉下来的包里
+    **US-018 这一条已触发，已定案：桥接版本的 changelog 不宣告它。** 三个事实同时成立：
+    ① US-018 的破坏性实现（`unsupportedDefaultFactory`）落在 `a63321c`，**在 `v0.0.24..main` 区间内**；
+    ② 它**已经随 `0.0.25` 的产物发出去了**——`npm pack @aiao/rxdb-client-generator@0.0.25` 拉下来的包里
     含该实现。注意 `git merge-base --is-ancestor a63321c v0.0.25^{commit}` 为 **false**，据此会得出
     「尚未发布」的**错误**结论，原因是 tag 树与已发布产物对不上（见
-    [release-plan.md 版本漂移开项第三条](release-plan.md)）。
+    [release-plan.md 版本漂移开项第三条](release-plan.md)）；
+    ③ `a63321c` 的提交信息只有一行 `feat(rxdb): 添加 rxdb-adapter-http 适配器 (#39)`，没有 `!` 也没有
+    `BREAKING CHANGE:` 脚注，而 nx 只凭这两处判破坏性（`nx/dist/src/command-line/release/utils/git.js` 的
+    `isBreaking`）：自动生成的 changelog 里**没有** US-018 的条目，也不因它抬 bump；它生成的是 HTTP 适配器那一行，
+    `@aiao/rxdb-adapter-http` 从未发布过（`npm view @aiao/rxdb-adapter-http versions` 返回 404），那一行是真新增，照留。
 
-    也就是说「桥接版本会把破坏性改动首次推给用户」这个原始担忧**已不成立**（用户手上的 `0.0.25` 早就有了），
-    但 changelog 仍会把它当成新变更宣告一次。**需要 owner 在线 A 启动时三选一并留证**：
-    裁剪 changelog 中的该条目 / 接受重复宣告并在 release note 里说明它实际随 0.0.25 已发 /
-    把该提交移出发布区间。**不得**以「tag 祖先链显示未发布」为由跳过这次决定。
+    所以桥接版本不会把这条破坏性改动首次推给用户，自动生成的 changelog 也不会宣告它；唯一会把它写进去的是
+    [release-plan 硬前提 2](release-plan.md) ④ 的人工补漏报——`a63321c` 的标题恰好盖住了 US-018，补漏报时最容易顺手补上。
+    **定案：④ 不补 US-018。** 另两条出路否决：当成新变更再宣告一次，是把假事实写进公开记录；
+    把该提交移出发布区间，要改写已推送历史或 revert。
+    **执行**：owner 在 changelog 生成后、发布前核对——没有 US-018 / `unsupportedDefaultFactory` 的破坏性条目，
+    `a63321c` 的 HTTP 适配器那一行保留；留证为定稿 changelog 的相应片段与
+    `npm pack @aiao/rxdb-client-generator@0.0.25` 产物里 `unsupportedDefaultFactory` 的 grep 输出。
+    **不得**以「tag 祖先链显示未发布」为由把 US-018 当漏报补回去。
 
 13. **US-213 暴露的协议缺陷不在该故事内修。** 若参考后端按文档逐字实现后暴露出协议本身不自洽，US-213
     MUST NOT 改 `src/`、也 MUST NOT 改参考后端去迁就客户端。处置是：该用例标 `it.fails` 或单列

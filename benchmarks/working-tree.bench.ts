@@ -1,5 +1,5 @@
 /**
- * @fileoverview T095 —— 工作树三项核心操作的 benchmark（contracts/benchmark-report.md §1–§3）。
+ * @fileoverview T095 —— 工作树三项核心操作的 benchmark（契约 §1–§3）。
  *
  * @remarks
  * 测四项：完整 `status()`、完整 `diff()`（无 scope）、从 clean HEAD 恢复 `HEAD~1` 的
@@ -52,7 +52,8 @@
  * 运行：
  *   node --experimental-strip-types benchmarks/working-tree.bench.ts [--release]
  *
- * @see docs/working-tree/contracts/benchmark-report.md
+ * @see requirements/epics/epic-006-working-tree-commits.md「性能预算的口径」与「reference 的冻结与复冻」（现行规则）
+ * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md`（文中的「契约 §N」）
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';

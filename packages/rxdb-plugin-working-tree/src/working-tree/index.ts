@@ -8,7 +8,7 @@
  * 与之相对的不可变一面在 `../commit/`。
  *
  * v1 只有**一条 diff 轴**：`HEAD ↔ 工作树`。没有 `HEAD ↔ index` 的第二条轴，
- * 因为没有 index。详见 `docs/working-tree/spec.md` 硬裁决 2。
+ * 因为没有 index。详见 `git show f9528e8f:specs/001-working-tree-commits/spec.md` 硬裁决 2。
  */
 export * from './activation-state.js';
 export * from './working-tree-facade.js';

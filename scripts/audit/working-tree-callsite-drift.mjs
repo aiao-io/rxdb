@@ -2,7 +2,7 @@
  * scripts/audit/working-tree-callsite-drift.mjs
  *
  * 受信写调用点的**漂移门禁**：仓库里每一处批量重写，要么带着登记在案的意图，要么就是一个
- * 未知入口（`docs/working-tree/contracts/adapter-contract.md` §3、R5、SC-010）。
+ * 未知入口（`requirements/epics/epic-006-working-tree-commits.md`「受信调用点登记表」、R5、SC-010）。
  *
  * 触发路径：`pnpm audit:callsite-drift`。
  *
@@ -16,7 +16,7 @@
  * 2. **批量写** `upsertMany` / `deleteByIds` ——只有 QueryCache 那两处本地缓存路径可以调；
  *    版本化业务实体走这两个方法就绕开了工作树捕获（`bulk-write-gate.ts`）。
  * 3. **门面与远端重载** ——`versionManager.switchBranch()` 是 VersionManager 的公开 API，
- *    `remoteAdapter.mergeChanges()` 是 adapter-contract.md §1 明确排除在挂载点表外的远端重载。
+ *    `remoteAdapter.mergeChanges()` 是 epic-006「受信调用点登记表」明确排除在 4 个挂载点之外的远端重载。
  *    它们登记在 {@link KNOWN_NON_PRIMITIVE_RECEIVERS} 里，**连同理由**。
  *
  * 为什么第 3 类要写成一张带理由的登记表，而不是「不认识的接收者就跳过」：跳过是静默的。
@@ -25,7 +25,7 @@
  *
  * **与 `packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts` 的分工**：
  * 那份跑在 chromium 里，够得着 `TRUSTED_CALLSITE_REGISTRY` 这个 TS 值，能断言它与
- * adapter-contract.md §3 的表格逐格一致；但它只看得见 `packages/rxdb/src`，而且 vitest 的
+ * epic-006「受信调用点登记表」的表格逐格一致；但它只看得见 `packages/rxdb/src`，而且 vitest 的
  * `import.meta.glob` 本来就进不了 `dist/` 与别的包。这一份跑在 node 里，看得见整个
  * `packages/`（含 rxdb-devtools 那两处门面调用），但读不到 TS 导出，只能把登记表从源码里**词法解析**
  * 出来。两者互不覆盖，**不要合并**。
@@ -136,7 +136,7 @@ export const QUERY_CACHE_BULK_WRITE_CALLSITES = Object.freeze([
  * @remarks
  * 存档行号唯一的用处是回答「上次核对的是不是同一段代码」。放任它漂，
  * 登记表上那句「已与真实代码核对」就只是一个日期——US-025 抽包时 #1 一次漂了 471 行，
- * 而当时守这条的那份测试正好跟着搬迁失明了。40 行是 adapter-contract.md §3 的既定口径：
+ * 而当时守这条的那份测试正好跟着搬迁失明了。40 行是 epic-006「受信调用点登记表」的既定口径：
  * 够一次重构在函数内挪位置，不够它挪出一个函数。
  */
 export const LINE_DRIFT_TOLERANCE = 40;
@@ -151,10 +151,10 @@ export const LINE_DRIFT_TOLERANCE = 40;
 export const KNOWN_NON_PRIMITIVE_RECEIVERS = Object.freeze({
   versionManager: 'VersionManager 的公开 API，不是适配器写原语；它内部那次 adapter.switchBranch 才是（登记表 #1）',
   'rxdb.versionManager': '同上，经 RxDB 门面拿到的 VersionManager',
-  remoteAdapter: '远端 mergeChanges 重载；adapter-contract.md §1 明确把它排除在 4 个挂载点之外'
+  remoteAdapter: '远端 mergeChanges 重载；epic-006「受信调用点登记表」明确把它排除在 4 个挂载点之外'
 });
 
-/** 静态扫描不进的目录名（adapter-contract.md §3 末段，外加构建与缓存产物）。 */
+/** 静态扫描不进的目录名（epic-006「受信调用点登记表」的排除段，外加构建与缓存产物）。 */
 export const SCAN_EXCLUDED_DIRS = Object.freeze([
   '.angular',
   '.nx',
@@ -166,7 +166,7 @@ export const SCAN_EXCLUDED_DIRS = Object.freeze([
   '__tests__'
 ]);
 
-/** 静态扫描不进的文件后缀（adapter-contract.md §3 末段；`.d.ts` 里没有函数体）。 */
+/** 静态扫描不进的文件后缀（epic-006「受信调用点登记表」的排除段；`.d.ts` 里没有函数体）。 */
 export const SCAN_EXCLUDED_SUFFIXES = Object.freeze(['.spec.ts', '.suite.ts', '.d.ts']);
 
 /**
@@ -763,7 +763,7 @@ export const auditSource = ({ relPath, source, registryByKey, seenKeys }) => {
       );
     } else if (Math.abs(declaration.line - registered.verifiedAtLine) > LINE_DRIFT_TOLERANCE) {
       offenders.push(
-        `${where} 与存档行号 ${registered.verifiedAtLine} 相差 ${Math.abs(declaration.line - registered.verifiedAtLine)} 行（上限 ${LINE_DRIFT_TOLERANCE}）：把 verifiedAtLine 与 adapter-contract.md §3 的「行」一起刷新`
+        `${where} 与存档行号 ${registered.verifiedAtLine} 相差 ${Math.abs(declaration.line - registered.verifiedAtLine)} 行（上限 ${LINE_DRIFT_TOLERANCE}）：把 verifiedAtLine 与 epic-006「受信调用点登记表」的「行」一起刷新`
       );
     }
     if (!TRUSTED_PRIMITIVE_SCOPES.includes(declaration.scope)) {
@@ -850,11 +850,11 @@ const main = async () => {
   }
 
   if (result.offenders.length > 0) {
-    console.error('❌ 受信写调用点漂移（adapter-contract.md §3、R5、SC-010）：');
+    console.error('❌ 受信写调用点漂移（epic-006「受信调用点登记表」、R5、SC-010）：');
     for (const offender of result.offenders) console.error(`   ${offender}`);
     console.error(
       '\n修法：受信路径在**发起写的那个具名函数**里调 declareTrustedWrite()，' +
-        `并把「文件 + 符号 + 意图」这一行加进 ${REGISTRY_SOURCE_FILE} 与 contracts/adapter-contract.md §3；` +
+        `并把「文件 + 符号 + 意图」这一行加进 ${REGISTRY_SOURCE_FILE} 与 requirements/epics/epic-006-working-tree-commits.md「受信调用点登记表」；` +
         '\n批量写请改用 Repository 的写入 API，使其经过工作树捕获。'
     );
     process.exit(1);

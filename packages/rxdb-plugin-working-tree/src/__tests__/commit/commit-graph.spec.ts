@@ -2,7 +2,7 @@
  * @fileoverview T023 红测试：提交图的落库形状与可达性遍历（FR-002/003/027）。
  *
  * @remarks
- * 契约见 `docs/working-tree/data-model.md` §2.3 / §2.4 与
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/data-model.md` §2.3 / §2.4 与
  * `contracts/core-api.md` §3。实现目标是 `src/commit/change-unit.ts`（T034）、
  * `src/commit/write-commit.ts`（T035）与 `src/commit/list-commits.ts`（T037）。
  *

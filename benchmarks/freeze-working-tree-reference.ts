@@ -18,8 +18,8 @@
  * 这个脚本因此只在四种时刻跑：首次冻结；本画像测点集合发生变化（如加入 `restore` 测点）后的
  * 重新冻结（`--regenerate`）；本画像旧基线冻结时机器带着已知负载，而所在提交已在旧基线上过
  * 相对门禁（`--regenerate`，理由写负载证据）；为一个还没有 reference 的画像冻结（`--new-profile`，
- * 所在提交须先在已冻结画像上过相对门禁）。候选版本没过门禁时，该动的是实现或者契约 §4 的例外，
- * 不是这里。
+ * 所在提交须先在已冻结画像上过相对门禁）。候选版本没过门禁时，该动的是实现或者 epic-006
+ * 「reference 的冻结与复冻」里 commit 的预算例外，不是这里。
  * 准入规则见 `decideFreeze`，理由会被记进文件。
  *
  * **`frozenAbsolute.commit` 取十次 p95 的中位数，不加余量。** 契约 §4 说的是「由首个绿色
@@ -33,7 +33,8 @@
  * `--new-profile` 在本画像已有 reference 时以 0 退出、什么都不跑：CI 的冻结 workflow
  * （`.github/workflows/bench-freeze.yml`）开几个并行槽位去碰不同的 CPU，落到已冻结画像的槽位靠它跳过。
  *
- * @see docs/working-tree/contracts/benchmark-report.md
+ * @see requirements/epics/epic-006-working-tree-commits.md「reference 的冻结与复冻」（现行规则）
+ * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md` §3.1 / §4（文中的「契约 §N」）
  */
 
 import { execFileSync } from 'node:child_process';
@@ -262,5 +263,6 @@ await mkdir(REFERENCE_DIR, { recursive: true });
 await writeFile(target, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 console.log(`\n[freeze] ✓ 已写入 ${target}`);
 console.log(
-  '[freeze] 契约 §3.1：本文件必须先于发布候选签入；review 不接受该中位数时改契约 §4 的例外或改设计，不得重跑本脚本。'
+  '[freeze] 本文件必须先于发布候选签入（契约 §3.1）；review 不接受该中位数时改 epic-006「reference 的冻结与复冻」' +
+    '里 commit 的预算例外或改设计，不得重跑本脚本。'
 );

@@ -2,7 +2,7 @@
  * @fileoverview T020 红测试：新表的 patch / inversePatch 复用同一份 change codec。
  *
  * @remarks
- * 契约见 `docs/working-tree/data-model.md` §4。
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/data-model.md` §4。
  *
  * 「不写第二份编解码器」这句话没法靠读代码守住——抄一份改两行也编译得过。
  * 能守住它的只有一条可执行断言：**同一份元数据、同一份 patch，两边产物逐字节相等**。

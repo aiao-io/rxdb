@@ -8,9 +8,9 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 65   |
+| ✅ Done        | 66   |
 | 🚧 In Progress | 0    |
-| 👀 In Review   | 1    |
+| 👀 In Review   | 0    |
 | 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 94   |
@@ -18,7 +18,7 @@
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **28 条 Backlog 里只有 8 条是可开工的**：另外 20 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md)）
+> **28 条 Backlog 里只有 6 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
@@ -28,13 +28,9 @@
 
 当前没有进行中的故事。
 
-## 待评审（1 条）
+## 待评审（0 条）
 
-属 [epic-006](epics/epic-006-working-tree-commits.md)，代码 AC 已全部通过，只剩 `bench-working-tree` 的一件收尾；理由见[按 Epic 索引里的该节](#本地工作树与提交历史)。
-
-| Story                                                                           | 待收尾的是什么                                                                                      |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md) | 阶段 A / B 已关；阶段 C 只剩 M1 基线静默复冻（CI 画像 reference 已签入、读项容差已定，T134 / T135） |
+当前没有待评审的故事。
 
 ## 按 Epic 索引
 
@@ -79,7 +75,7 @@
 - ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）不在承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
-> 🚧 US-401 / US-701 查询构建器系列无故事文件；该范围由 `specs/002-rxdb-model-port`（rxdb-model 实体模型库：框架无关核心 + 三框架 UI 组件集，含可视化查询构建器）引入。三框架代码已随 #62 合入，剩跨框架对拍、三端对称复核、文档与规格状态收尾（T049 / T050 / T051 / T053，`spec.md` 仍为 Draft）。
+> 🚧 US-401 / US-701 查询构建器系列无故事文件；该范围是 rxdb-model 实体模型库（框架无关核心 + 三框架 UI 组件集，含可视化查询构建器），原规格见 `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。三框架代码已随 #62 合入，剩跨框架对拍、三端对称复核与文档（T049 / T050 / T051），登记在 [roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 2～4 条。
 
 ### [未来功能](epics/epic-004-future-features.md)
 
@@ -103,12 +99,12 @@
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛由 US-026 承接
 - ⬜ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
-- ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵，三阶段交付：A 判定原语与 14 张系统表的矩阵声明；B 所有公开写入口强制，越权抛 `PermissionDeniedError`；C 三框架 UI 能力派生（B、C 都只依赖 A）。**价值待证**：今天的症状只在 demo（目录能新建 / 删除 / 改写系统表），[roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 4 条零抽象可修；本故事作为 US-029 阶段 B 的判定原语上游留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
-- ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；三框架实体列表今天有拖拽手柄、重排不落库，排在 [roadmap 批次 3](roadmap.md#批次-3能力补齐与在出货缺陷无硬前置可并行开-pr)
+- ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete × user/system 权限矩阵，三阶段交付：A 判定原语与 14 张系统表的矩阵声明；B 所有公开写入口强制，越权抛 `PermissionDeniedError`；C 三框架 UI 能力派生（B、C 都只依赖 A）。**价值待证**，`priority: Low`：demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险；本故事作为 US-029 阶段 B 的判定原语上游留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
+- ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化。**价值待证**，`priority: Low`：三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），用户踩得到的症状随之消失，剩下的是没有具名使用方的扁平实体手动排序；解锁后阶段 B 只对可排序实体重新打开手柄，留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
 - ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 字段预留与权限谓词扩展：pull 过滤 / push 裁决配合点与三框架行级只读派生；四阶段交付。阶段 A 要给存量库补列（`#ensureEntityTables` 只补表不补列），阶段 B 依赖 US-027，阶段 C 的租户过滤今天只有 Supabase 有通道
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ⬜ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — 按 PGlite、SQLite 共享层、桌面 host 分阶段交付；仅恢复兼容 adapter 的完整数据库状态
-- ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A e2e 失败现场录制回放；阶段 B 关联 commit 还原数据状态（前置 US-307 已 Done）；阶段 C 插件与三框架组件价值待证
+- ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A e2e 失败现场录制回放；阶段 B 关联 commit 还原数据状态（前置 US-307 已 Done，另等 US-217 阶段 B 的 SQLite 共享层导出；两个前提已定案）；阶段 C 插件与三框架组件价值待证
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
 
@@ -127,28 +123,28 @@
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
-US-305 / US-307 / US-308 已 Done，只剩 US-306 👀 In Review。交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，6 后端 5031 条零失败，SC-006 的 12 个调用点齐全，分支评审的架构级 P1 已清零。US-306 不写 Done 的理由只剩 `bench-working-tree` 的一件：
+US-305 / US-306 / US-307 / US-308 全部 Done。交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，6 后端 5031 条零失败，捕获与提交两套 conformance 在 6 个后端上共 12 个调用点齐全，分支评审的架构级 P1 已清零。
 
-- **M1 基线是带负载的初版**——`frozenAbsolute.commit` 因后 4 轮 `restore` 离群值虚高约 29%（425.85→550.53ms），**发布用的绝对门禁在静默复冻之前不得据此放行**。复冻走契约 §3.1 的「已知带负载的基线复冻」，做完 US-306 关闭。
+`bench-working-tree` 的 reference 覆盖 CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）与 Apple M1 Max，PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
 
-另两件已收口：CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）reference 已签入，PR 的 `ci / benchmarks` 转绿（T134），US-307 / US-308 随之关闭；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%（T135，[契约 §3.1](../specs/001-working-tree-commits/contracts/benchmark-report.md)）。
-
-US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；`main` 自 #55 起已是 schema 6，桥接锚点无处可切，见 [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。评审顺延的架构项不挡关闭，登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
+US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；`main` 自 #55 起已是 schema 6，桥接锚点无处可切，见 [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。评审顺延的架构项登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
 
 排期上桥接发布是 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控)，执行排在所有批次之后——**代码先落地不等于排期提前**。
 
+下列 T 编号指 `git show f9528e8f:specs/001-working-tree-commits/tasks.md` 里的任务。
+
 - ✅ [US-305 提交图与 HEAD 持久化](stories/collaboration/US-305-commit-graph-head.md) — 阶段 A / B 的代码与 6 后端 conformance 调用点（T022～T045）；AC US2-14 的绿半边移交 release-plan
-- 👀 [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
+- ✅ [US-306 工作树与提交操作](stories/collaboration/US-306-working-tree-commits.md)
   - ✅ 阶段 A 工作树写入捕获与持久化 — T046～T068
   - ✅ 阶段 B 提交状态机（status / diff / commit / discard，无暂存区）— T069～T085
-  - 👀 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板与 a11y E2E 已交付，只剩 M1 基线静默复冻
+  - ✅ 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板、a11y E2E 与 `bench-working-tree` 门禁
 - ✅ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 全部关闭；`restore` 测点在 CI 画像上过相对门禁
 - ✅ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；原落在本故事的 3 条 P1（FR-020 的 activation revision 未推进与切换 TOCTOU、FR-044 的物化未接公开入口）已全部落地
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
-- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 包关系真相源 + 漂移门禁（阶段 A）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C）；MCP 另立故事
+- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 包关系真相源 + 漂移门禁（阶段 A）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C）；MCP 另立故事。阶段 A 把 `@aiao/rxdb` 统一改 peer 是 `BREAKING CHANGE`，合入时点受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 

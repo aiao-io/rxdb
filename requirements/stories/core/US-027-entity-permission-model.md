@@ -2,7 +2,7 @@
 id: US-027
 title: 实体操作权限模型
 status: Backlog
-priority: High
+priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
 updated: 2026-09-26
@@ -19,17 +19,16 @@ tags: [core, permission, model, rxdb-model]
 
 ## 背景与动机
 
-- **demo 里的系统表能被新建、删除、改写。** `SchemaManager.init()` 把 `rxdb.systemEntities` 并进 `config.entities`：
-  核心 4 张（`CORE_SYSTEM_ENTITIES`）加 working-tree 插件经 `createSystemContribution()` 贡献的 10 张，都在 `rxdb` 命名空间。
-  三个 demo 的实体目录都从 `config.entities` 构建，于是目录里多出一个 `rxdb` 分组、14 张表。
-  Angular demo 实测：`RxDBBranch` / `RxDBChange` 的列表照常显示「+ 新增」与操作列（查看 / 删除）；
-  按 `buildEditableColumns()` 的规则，属性列只要没标 `readonly` 就可编辑，`RxDBChange` 的
-  `remoteId` / `revertChangedAt` / `revertChangeId` / `redoInvalidatedAt` 都在其列。
-  React / Vue 的目录构建与 `EntityList` 同构，按代码阅读同样成立（**推断**，未实测）。
-  引擎一侧没有守卫：`isSystemEntity()` 是公开导出，但它的消费方（sync 监听、working-tree 捕获、HTTP 适配器）
-  都拿它做**排除**，没有一条写路径拿它拒绝。
-  结果是 demo 用户能绕过分支 API 新建 `RxDBBranch` 行、删掉 undo/redo 读取的 `RxDBChange` 行、改写撤销标记。
-  症状只在 demo 可见，不在出货包里；任何照 demo 从 `config.entities` 构建目录的应用都会继承它。
+- **系统表进了 demo 的实体目录，挡住写入的只有列表侧。** `SchemaManager.init()` 把 `rxdb.systemEntities` 并进
+  `config.entities`：核心 4 张（`CORE_SYSTEM_ENTITIES`）加 working-tree 插件经 `createSystemContribution()` 贡献的 10 张，
+  都在 `rxdb` 命名空间。三个 demo 的实体目录都从 `config.entities` 构建，于是目录里多出一个 `rxdb` 分组、14 张表。
+  三框架 `EntityList` 用 `isSystemEntity()` 把系统表并进 `isCreateBlocked`（隐藏「+ 新增」）并给行挂 `_readonly`，
+  `table-operations.ts` / `table-clipboard.ts` / `table-keyboard.ts` 的现成守卫随之挡住编辑、粘贴、拖拽与删除
+  （三端 `entity-list.real.spec` 的「系统表整表只读」用例）；代价是 `actionsColumn()` 对 `_readonly` 行连「查看」一起藏掉。
+  这是 AC#16 列表侧的提前交付；详情视图没有单独处理，三端 e2e 未做。
+  引擎一侧没有守卫：`isSystemEntity()` 的消费方（sync 监听、working-tree 捕获、HTTP 适配器、三框架 `EntityList`）
+  都拿它做**排除**或 UI 只读，没有一条写路径拿它拒绝。经 `Repository` / `EntityManager` 的程序化写照样能新建
+  `RxDBBranch` 行（绕过分支 API）、删掉 undo/redo 读取的 `RxDBChange` 行、改写撤销标记。
 - **字段级 `readonly` 只管「更新时不改写」。** `normalizeUpdateEntity()` 在更新侧静默剔除 readonly 键，
   sqlite-core / pglite 的 `update_sql.ts`、`SupabaseRepository` 与两份 `switch-result.utils.ts` 都走它；插入不过滤。
   它不拒绝、不报错，拦不住新建与删除；`property-types.interface.ts` 的 TSDoc 与这个行为一致。
@@ -96,8 +95,8 @@ interface EntityPermissionOptions {
 
 AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住。B 与 C 都只依赖 A，可以并行。
 
-[roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带)第 4 条是 AC#16 的提前交付：阶段 C 合入前，
-三框架 `EntityList` 先按 `isSystemEntity()` 隐藏「+ 新增」并给行挂 `_readonly`，阶段 C 再把这个判断换成权限派生。
+AC#16 的列表侧已提前交付：三框架 `EntityList` 按 `isSystemEntity()` 隐藏「+ 新增」并给行挂 `_readonly`，
+阶段 C 再把这个判断换成权限派生。
 
 ## 范围边界
 
@@ -138,9 +137,11 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住。B
 | 13  | 实体 `update: 'system'`                          | 三框架 UI 编辑                                                                                                                    | 表格单元格只读、行挂 `_readonly`、详情弹窗为 view 模式、表单字段全部只读                                 | ⬜   |
 | 14  | 实体 `delete: 'none'` 或 `'system'`              | 三框架 UI 打开列表                                                                                                                | 操作列只留「查看」，不显示「删除」                                                                       | ⬜   |
 | 15  | 可编辑实体内某字段 `readonly: true`              | 三框架 UI 编辑该实体                                                                                                              | 字段级只读继续生效，实体级权限不覆盖字段级配置                                                           | ⬜   |
-| 16  | 三个 dev app 的 `rxdb` 分组                      | 打开任一系统表的列表与详情                                                                                                        | 无新增 / 删除入口、不可编辑；三端 e2e 覆盖                                                               | ⬜   |
+| 16  | 三个 dev app 的 `rxdb` 分组                      | 打开任一系统表的列表与详情                                                                                                        | 无新增 / 删除入口、不可编辑；三端 e2e 覆盖                                                               | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+AC#16 的保留：列表侧已交付，三端单测覆盖（背景第 1 条）；详情视图与三端 e2e 未做。
 
 ## 技术笔记
 
@@ -162,23 +163,24 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住。B
 - **UI 派生**：从元数据派生 UI 能力（如 `deriveUiCapabilities(metadata) → { canCreate, canEdit, canDelete }`）。
   `canCreate=false` 并进三端 `EntityList` 的 `isCreateBlocked`；`canEdit=false` 给行挂 `_readonly`，
   激活 `table-operations.ts` / `table-clipboard.ts` / `table-keyboard.ts` 现成的拖拽、粘贴、键盘守卫，详情弹窗走 `formMode: 'view'`。
-  `actionsColumn()` 对 `_readonly` 行把「查看」与「删除」一起藏掉，AC#14 要把两者的判断拆开。关系 Tab 内嵌列表同路径派生。
+  `actionsColumn()` 对 `_readonly` 行把「查看」与「删除」一起藏掉，AC#14 要把两者的判断拆开；但三端 `openViewDialog`
+  今天固定用 `buildFormFields(meta, 'edit')` + `formMode: 'edit'` 打开可保存的详情，拆开判断必须与 AC#13 的 view 态
+  同一 PR 交付，否则只读行的「查看」就是一条写入口。关系 Tab 内嵌列表同路径派生。
 - **与字段级 readonly 的分工**：实体级权限是「门」（能不能动这个实体的写路径），字段级 readonly 是「栅」
   （可编辑实体内哪些字段更新时不改写）。本故事不改字段级 readonly 的语义。
 - **向后兼容**：默认 `both` 三元组 = 现状，未配置实体的所有写路径与 UI 行为零变化。
 
 ## 价值待证
 
-本故事**价值待证**。今天用户踩得到的症状只有一个，而且只在 demo：三个 demo 的实体目录能新建、删除、改写系统表
-（背景第 1 条）。它有零抽象的修法——[roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带)第 4 条：
-三框架 `EntityList` 按 `isSystemEntity()` 隐藏「+ 新增」并给行挂 `_readonly`，现成的编辑、粘贴、拖拽、删除守卫随之生效，
-代价是「查看」也被藏掉（见技术笔记「UI 派生」）。那条落地后，剩下的是程序化写系统表的潜在风险。
+本故事**价值待证**。用户踩得到的系统表写入口只有 demo 的实体目录，三框架 `EntityList` 已对系统表整表只读
+（背景第 1 条），不需要本故事的任何抽象；代价是「查看」也被藏掉（见技术笔记「UI 派生」）。
+剩下的是程序化写系统表的潜在风险。
 
 本故事要新增的抽象至少 4 个：`permissions` 配置与判定原语、系统写作用域与 actor 归类、`PermissionDeniedError`、
-UI 能力派生。病灶数 < 抽象数。
+UI 能力派生。病灶数 < 抽象数，`priority` 因此为 Low。
 
 它的主要价值在下游：[US-029](US-029-rbac-tenant-permission-design.md) 阶段 B 依赖本故事阶段 A / B 的判定原语与错误类型。
-**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项。
+**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项，届时一并上调优先级。
 
 ## 实现文件
 

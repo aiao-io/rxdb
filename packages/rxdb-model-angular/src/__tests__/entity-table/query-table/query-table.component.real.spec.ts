@@ -51,7 +51,7 @@ class QueryTableHost {
 }
 
 /**
- * QueryTableComponent —— **真实组件源码**（specs/027 T025a）。
+ * QueryTableComponent —— **真实组件源码**。
  *
  * 覆盖 statusText（filtered/total）、filterBar / emptyState 内容投影、
  * 状态栏显隐与真实 EntityTableComponent 的事件透传链路。

@@ -2,7 +2,7 @@
  * @fileoverview `0004-working-tree-commits`：本插件在**既有库**上的迁移，与在**新库**上的初始行。
  *
  * @remarks
- * 契约见 `docs/working-tree/data-model.md` §8。
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/data-model.md` §8。
  *
  * 本文件守的是**顺序与原子性**，不是 SQL。真实建表行为在各 adapter 包的集成层验证
  * （见 `__tests__/fixtures/test-db-setup.ts` 的分层说明），unit 层再复制一份内存存储

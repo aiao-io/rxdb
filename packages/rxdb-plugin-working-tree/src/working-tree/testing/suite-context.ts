@@ -2,7 +2,7 @@
  * @fileoverview 两套 conformance 套件共享的调用上下文。
  *
  * @remarks
- * 契约见 `docs/working-tree/contracts/conformance-suites.md` §0：
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0：
  * **两套具名套件，没有第三套**，两套的调用形状**完全一致**。形状一致不是美学要求——
  * 6 个适配器包各自要写两个调用点，形状一旦分叉，写调用点的人就得逐套件回忆参数名，
  * 而回忆错的代价是「套件导出了但没人跑」，那等于没覆盖。

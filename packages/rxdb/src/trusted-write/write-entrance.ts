@@ -1,5 +1,5 @@
 /**
- * @fileoverview 写入口词汇表：核心有哪些写入口身份（spec.md「写入口语义矩阵」、adapter-contract.md §3）。
+ * @fileoverview 写入口词汇表：核心有哪些写入口身份（epic-006「写入口语义矩阵」与「受信调用点登记表」）。
  *
  * @remarks
  * **只有词汇表，没有语义。** 「每个入口对捕获意味着什么」归 `@aiao/rxdb-plugin-working-tree`

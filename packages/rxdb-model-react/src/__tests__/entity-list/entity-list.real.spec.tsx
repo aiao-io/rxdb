@@ -482,6 +482,27 @@ describe('EntityList（真实组件）', () => {
     expect(document.querySelector('.rxdb-dialog-pane')).toBeNull();
   });
 
+  it('行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读', async () => {
+    await seedTodo('no-drag');
+    await renderList();
+    await waitFor(() => {
+      expect(tableOf().records).toHaveLength(1);
+    });
+
+    expect(tableOf().options['rowSeriesNumber']).toEqual({ title: '', width: 40, dragOrder: false });
+    expect(tableOf().records.some(r => r['_readonly'] === true)).toBe(false);
+  });
+
+  it('系统表整表只读：不提供新增，每一行都标 _readonly', async () => {
+    const { container } = await renderList({ namespace: 'rxdb', name: 'RxDBBranch' });
+    await waitFor(() => {
+      expect(tableOf().records.length).toBeGreaterThan(0);
+    });
+
+    expect(container.textContent).not.toContain('+ 新增');
+    expect(tableOf().records.every(r => r['_readonly'] === true)).toBe(true);
+  });
+
   it('initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略', async () => {
     await seedTodo('initial-filter-a');
     await seedTodo('initial-filter-b');

@@ -8,7 +8,7 @@
  *
  * `snippet` 不含 HTML / Markdown 标记；高亮渲染由宿主应用负责。
  *
- * @see specs/001-add-global-search/data-model.md §4.1, §4.2
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import type { ResultWithPenalty } from './aggregator.js';
 

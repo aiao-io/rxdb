@@ -16,8 +16,8 @@
  *   # or:
  *   pnpm tsx benchmarks/non-encrypted-hot-path.bench.ts
  *
- * @see specs/004-local-field-encryption/tasks.md T082
- * @see specs/004-local-field-encryption/plan.md Constitution IV
+ * @see requirements/stories/future/US-803-local-encryption.md
+ * @see .specify/memory/constitution.md「IV. Performance Requirements」
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';

@@ -1,5 +1,5 @@
 /**
- * @fileoverview 写入口语义矩阵：一次写要不要落工作树单元（spec.md「写入口语义矩阵」、FR-046）。
+ * @fileoverview 写入口语义矩阵：一次写要不要落工作树单元（epic-006「写入口语义矩阵」、FR-046）。
  *
  * @remarks
  * 四个捕获挂载点与六个适配器的 `rawQuery` 调的都是这里的 {@link classifyWriteEntrance}。

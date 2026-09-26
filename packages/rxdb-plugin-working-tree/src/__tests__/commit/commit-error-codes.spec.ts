@@ -2,7 +2,7 @@
  * @fileoverview T021 红测试：跨故事共享的提交错误码常量。
  *
  * @remarks
- * 契约见 `docs/working-tree/contracts/core-api.md` §7，以及 spec.md 中
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/contracts/core-api.md` §7，以及 spec.md 中
  * 逐条点名该码的验收场景 / FR（见各用例内注释）。
  *
  * 一份只有常量的模块值不值得写测试？这里值得，理由是三条**编译期抓不到**的漂移：

@@ -93,7 +93,7 @@ type DetailVM = InstanceType<typeof EntityDetail> & {
 };
 
 /**
- * EntityDetail —— **真实组件源码**（对齐 Angular 侧 specs/027 T025a）。
+ * EntityDetail —— **真实组件源码**（对齐 Angular 侧）。
  *
  * 覆盖 create 模式草稿实体生命周期（内存草稿 → 校验拦截 → 保存才落库）、
  * 对话框数据语境（fixedFormData 只读合并、delegateSave、creationChain 循环创建阻断）、

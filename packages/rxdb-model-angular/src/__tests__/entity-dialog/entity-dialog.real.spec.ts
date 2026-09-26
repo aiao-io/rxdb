@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityDialogComponent } from '../../entity-dialog/entity-dialog.component';
 
 /**
- * EntityDialogComponent —— **真实组件源码**（specs/027 T025a 覆盖率补充）。
+ * EntityDialogComponent —— **真实组件源码**（覆盖率补充）。
  *
  * EntityDetailComponent 的模板宿主组件：覆盖对话框模式（DIALOG 语境）下的
  * 标题栏渲染、全屏切换（真实 .cdk-overlay-pane 样式写入）、边缘拖拽缩放、

@@ -1,8 +1,8 @@
 /**
- * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、adapter-contract.md §3）。
+ * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、epic-006「受信调用点登记表」）。
  *
  * @remarks
- * 这个文件守的是**两张表之间的距离**：`adapter-contract.md` §3 的 11 行表格，与
+ * 这个文件守的是**两张表之间的距离**：epic-006「受信调用点登记表」的 11 行表格，与
  * `TRUSTED_CALLSITE_REGISTRY` 的 11 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
  * 在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
  *
@@ -20,9 +20,9 @@
  *
  * 留在这里的是核心看得见、而且**只有**核心看得见的三件事：
  *
- * 1. **登记表与 §3 逐格一致。** 契约表格是从 markdown 现场解析出来的，不是抄进来的常量。抄一份进
- *    测试，改契约时只要顺手把测试里那份也改了就仍然全绿——被守住的从来只有「我抄得一致」，不是
- *    「登记表跟契约一致」。§3 那张表是六个适配器作者读的那一份，它变了就必须有人重新核对代码。
+ * 1. **登记表与 epic-006 那张表逐格一致。** 契约表格是从 markdown 现场解析出来的，不是抄进来的常量。
+ *    抄一份进测试，改契约时只要顺手把测试里那份也改了就仍然全绿——被守住的从来只有「我抄得一致」，
+ *    不是「登记表跟契约一致」。那张表是六个适配器作者读的那一份，它变了就必须有人重新核对代码。
  *    这一条留在核心，因为登记表这个 TS 值在核心，而 T066 只能把它从源码里词法解析出来。
  * 2. **核心自身一处受信写、一处批量写都没有。** 这是抽包立起来的那条边界的可判定形式：受信写与
  *    批量写全部住在插件里，核心只留门禁本身（`declareTrustedWrite` 与 4 步判定）。有人往核心加回
@@ -57,8 +57,8 @@
 import { describe, expect, it } from 'vitest';
 // 本包的测试跑在 chromium 里，没有 node:fs。要拿契约原文与真实源码做逐行核对，唯一的办法是
 // Vite 的 `?raw` / `import.meta.glob`——它们在构建期把内容内联成字符串。
-// eslint-disable-next-line @nx/enforce-module-boundaries -- docs/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
-import ADAPTER_CONTRACT from '../../../../../docs/working-tree/contracts/adapter-contract.md?raw';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- requirements/ 不是 Nx 项目，是这张登记表的契约原文，越过包边界读的正是它
+import EPIC_MARKDOWN from '../../../../../requirements/epics/epic-006-working-tree-commits.md?raw';
 import {
   TRUSTED_CALLSITE_REGISTRY,
   trustedCallsiteKey,
@@ -68,12 +68,12 @@ import {
 import { WRITE_ENTRANCES } from '../../trusted-write/write-entrance.js';
 
 // ---------------------------------------------------------------------------
-// 源码快照：`src/**` 下的全部核心源码。10 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
+// 源码快照：`src/**` 下的全部核心源码。11 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
 // （文件头），所以这份快照如今只用来证明**核心自己一处都没有**。
 // 负向 glob 与 {@link isScannedSourcePath} 一一对应，下面有一条用例把两者钉在一起。
 // ---------------------------------------------------------------------------
 
-/** 参与漂移扫描的全部包内源码；排除项见 adapter-contract.md §3 末段。 */
+/** 参与漂移扫描的全部包内源码；排除项见 epic-006「受信调用点登记表」重载表之后的排除段。 */
 const PACKAGE_SOURCES = import.meta.glob<string>(
   ['../../**/*.ts', '!../../__tests__/**', '!../../**/*.spec.ts', '!../../**/*.suite.ts'],
   { query: '?raw', import: 'default', eager: true }
@@ -258,10 +258,10 @@ const blankNonCode = (source: string): BlankedSource => {
 const lineAt = (code: string, offset: number): number => code.slice(0, offset).split('\n').length;
 
 // ---------------------------------------------------------------------------
-// adapter-contract.md §3 的表格解析
+// epic-006「受信调用点登记表」的表格解析
 // ---------------------------------------------------------------------------
 
-/** §3 表格的一行，逐格保留原文。 */
+/** 登记表表格的一行，逐格保留原文。 */
 interface ContractRow {
   /** 表格第一列的序号 */
   readonly index: number;
@@ -292,7 +292,7 @@ interface ContractRow {
 /** 取 markdown 里两个标题之间那一段；取不到就抛，不给静默的空串。 */
 const sectionOf = (markdown: string, heading: string, nextHeading: string): string => {
   const after = markdown.split(heading)[1];
-  if (after === undefined) throw new Error(`adapter-contract.md 里找不到标题「${heading}」`);
+  if (after === undefined) throw new Error(`epic-006 里找不到标题「${heading}」`);
   const body = after.split(nextHeading)[0];
   if (body === undefined) throw new Error(`「${heading}」之后找不到「${nextHeading}」`);
   return body;
@@ -305,8 +305,8 @@ const backticked = (cell: string): string => {
   return matched[1];
 };
 
-/** §3 的 11 行，现场从契约原文解析。 */
-const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(ADAPTER_CONTRACT, '## 3. 受信调用点登记表', '\n## 4.')
+/** 那张表的 11 行，现场从 epic-006 原文解析。 */
+const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(EPIC_MARKDOWN, '#### 受信调用点登记表', '\n### ')
   .split('\n')
   .filter(line => line.trimStart().startsWith('|'))
   .map(line =>
@@ -460,7 +460,7 @@ const locate = (callsite: BulkWriteCallsite): string =>
  * 这个路径进不进静态扫描
  *
  * @param path - 仓库相对路径
- * @returns 五类排除项都不命中时为 `true`（adapter-contract.md §3 末段）
+ * @returns 五类排除项都不命中时为 `true`（epic-006「受信调用点登记表」的排除段）
  */
 const isScannedSourcePath = (path: string): boolean => {
   const segments = path.split('/');
@@ -470,7 +470,7 @@ const isScannedSourcePath = (path: string): boolean => {
 
 // ---------------------------------------------------------------------------
 
-describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
+describe('登记表与 epic-006「受信调用点登记表」的表格逐行一致', () => {
   it('契约表格解析出 11 行，与登记表长度一致', () => {
     expect(CONTRACT_ROWS).toHaveLength(11);
     expect(TRUSTED_CALLSITE_REGISTRY).toHaveLength(CONTRACT_ROWS.length);
@@ -535,7 +535,7 @@ describe('登记表与 adapter-contract.md §3 的表格逐行一致', () => {
 describe('核心自身既不受信写，也不批量写', () => {
   it('核心源码里一处 declareTrustedWrite 都没有', () => {
     // 11 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
-    // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先过 §3。
+    // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先在 epic-006 那张表里登记。
     expect(DECLARED_CALLSITES.map(declared => `${declared.path}:${declared.line}`)).toEqual([]);
   });
 
@@ -681,11 +681,11 @@ describe('批量写扫描器：认得出，也不误报', () => {
   });
 });
 
-describe('扫描排除（adapter-contract.md §3 末段）', () => {
+describe('扫描排除（epic-006「受信调用点登记表」的排除段）', () => {
   it('五类排除项都不进扫描', () => {
     // `*.suite.ts` 与并排的 `*.spec.ts` 这两类今天在核心里一个实例都没有（一致性套件随
     // epic-006 去了插件包，核心的 spec 一律在 `__tests__/` 下）。规则照留：排除集是
-    // adapter-contract.md §3 末段定死的五类，而下面那条负向 glob 仍然带着它们——
+    // epic-006「受信调用点登记表」排除段定死的五类，而下面那条负向 glob 仍然带着它们——
     // 判定函数先把某一类放掉，等哪天核心重新有了这类文件，漏的是扫描而不是这条用例。
     const excluded = [
       'packages/rxdb/dist/repository/QueryCacheRepository.js',

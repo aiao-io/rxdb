@@ -11,7 +11,7 @@ import {
  * QueryBuilderComponent —— **真实加载组件源码 + 真实 QueryBuilderService**。
  *
  * 与同目录的 `query-builder.component.spec.ts` 的区别：那个文件把逻辑内联复制了一份来测
- * （specs/027 T025a 记录的「测试写了，但测的不是被测代码」），这里 import 真实组件、
+ * （「测试写了，但测的不是被测代码」），这里 import 真实组件、
  * 用 TestBed 渲染、断言真实的 service ↔ signal ↔ output 链路。
  */
 

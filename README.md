@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [65/94 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [66/94 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -234,19 +234,19 @@ aiao/
 
 ### 进行中
 
-- 🚧 **Tauri DevTools 调试窗口**（[US-905](requirements/stories/future/US-905-tauri-native-devtools.md)）— 阶段 1 代码侧收尾完成，差驱动两个真实 WebView 的 harness；阶段 2 前置已齐
-- 🚧 **Electron 桌面端 DevTools 面板的开发者可用路径**（[US-906](requirements/stories/future/US-906-electron-devtools-developer-path.md)）— 6 条 AC 关 5，剩人工验收
-- 👀 **插件依赖声明与按需装卸**（[US-015](requirements/stories/core/US-015-plugin-inject-dependency.md)）— 阶段 A 已交付，停在 In Review，解锁条件 = 出现第一个 `plugin:*` 依赖声明
+当前没有进行中的故事。本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，对外发布前还差一次桥接版本，见 [release-plan](requirements/release-plan.md)。
 
 ### 待办
 
-- ⬜ **提交图与 HEAD 持久化**（[US-305](requirements/stories/collaboration/US-305-commit-graph-head.md)）— epic-006 链首，卡在一次桥接发布而非代码，见 [release-plan](requirements/release-plan.md)
+下一批可并行开工的能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐无硬前置可并行开-pr)：
+
+- ⬜ **实例级实体同步配置覆盖**（[US-026](requirements/stories/core/US-026-instance-sync-override.md)）— 初始化时按实体整体覆盖同步配置，收掉 HTTP demo 前后端两个实体类的重复
+- ⬜ **本地数据库一致性备份与恢复**（[US-217](requirements/stories/adapter/US-217-local-database-backup-restore.md)）— 按 PGlite、SQLite 共享层、桌面 host 分阶段交付
 - ⬜ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 先抽宿主契约与可行性矩阵，再按门禁放行支付宝 / 抖音 / 百度 / QQ
-- ⬜ **PGlite 侧 QueryCache 行契约**（[US-024](requirements/stories/core/US-024-pglite-querycache-row-contract.md)）— sqlite-core 已有的缺列诊断补到 PGlite 落地路径
 
 ## 路线图
 
-路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
+路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)、[Epic 3（UI 与开发者工具）](requirements/epics/epic-003-ui-developer-tools.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md)、[Epic 6（本地工作树与提交历史）](requirements/epics/epic-006-working-tree-commits.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中，[Epic 9（BOM 领域模型）](requirements/epics/epic-009-bom-domain-model.md) 价值待证、不进排期。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
 
 ### 阶段 1 → 1.0 发布
 

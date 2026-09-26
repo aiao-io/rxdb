@@ -14,6 +14,7 @@
 import {
   RelationKind,
   getEntityMetadata,
+  isSystemEntity,
   type EntityType,
   type FindByCursorOptions,
   type HistoryScopeAPI
@@ -37,6 +38,7 @@ import {
   type ValidationResult
 } from '@aiao/rxdb-model';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-react';
+import type { ListTableConstructorOptions } from '@visactor/vtable';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import { Funnel, Redo2, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react';
@@ -65,6 +67,18 @@ const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
+
+/**
+ * 实体列表的表格选项：关掉行序号列的拖拽手柄。
+ *
+ * @remarks
+ * `buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，而列表不接 `rowReordered`，拖完不落库。
+ * 排序持久化属 US-028 阶段 B，届时只对可排序实体重新打开。`buildTableOptions()` 对 `rowSeriesNumber`
+ * 整体覆盖，`title` / `width` 要照默认值一并带上。
+ */
+const LIST_TABLE_OPTIONS: Partial<ListTableConstructorOptions> = {
+  rowSeriesNumber: { title: '', width: 40, dragOrder: false }
+};
 
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段。 */
 function normalizeSortField(field: unknown): string | undefined {
@@ -266,6 +280,9 @@ export function EntityList({
   // Map.has 先验证再取值：与 Angular 侧 #entityCls 同语义，且满足 CodeQL CWE-915 的白名单取值模式
   const entityCls = entityClsMap.has(entityKey) ? entityClsMap.get(entityKey) : undefined;
 
+  /** 当前实体是否为 RxDB 注入的系统表（整表只读）。 */
+  const isSystemTable = entityCls !== undefined && isSystemEntity(entityCls);
+
   // ── 历史 / 撤销重做（@aiao/rxdb-plugin-history 装配的 versionManager）──
   const vHistory = useMemo<HistoryScopeAPI>(() => {
     const vm = (rxdb as unknown as { versionManager?: { history(): HistoryScopeAPI } }).versionManager;
@@ -353,8 +370,8 @@ export function EntityList({
     return meta.displayName ?? meta.name;
   }, [entityCls, name]);
 
-  /** 当前实体是否存在于祖先创建链路中（循环创建检测）。 */
-  const isCreateBlocked = creationChain.includes(entityKey);
+  /** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测）。 */
+  const isCreateBlocked = isSystemTable || creationChain.includes(entityKey);
 
   const queryBuilderFields = useMemo<FieldMetadata[]>(() => {
     if (!entityCls) return [];
@@ -370,8 +387,11 @@ export function EntityList({
         .filter(record => !alreadyLinkedIds.has(record['id'] as string))
         .map(record => ({ ...record, __selected: selectedIds.has(record['id'] as string) }));
     }
+    // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
+    // 操作列对只读行不出图标，「查看」也随之隐藏
+    if (isSystemTable) records = records.map(record => ({ ...record, _readonly: true }));
     return records;
-  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds]);
+  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isSystemTable]);
 
   const columnsCache = useMemo(() => {
     const cache = new Map<string, ColumnDefine[]>();
@@ -906,6 +926,7 @@ export function EntityList({
             loadMore={loadMore}
             queryActive={isQueryActive}
             records={tableRecords}
+            tableOptions={LIST_TABLE_OPTIONS}
             onBatchUpdated={onBatchUpdated}
             onCellChanged={onCellChanged}
             onIconClicked={event => void onIconClicked(event)}

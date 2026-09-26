@@ -81,7 +81,8 @@ export class WorkingTreeMaterializationPage {
    * （诊断用，见 `BranchNotMaterializedError`），于是这份明文会以残留的形态一直留到调用方
    * `discardMaterializationAttempt` 为止。今天的快照来源是同步插件自动登记的那一个，页里装的是
    * 远端变更记录的原样 patch——与 `pull()` 拉到的是同一份内容，风险有限；
-   * 信封校验记在 `requirements/roadmap.md`「epic-006 评审顺延的架构项」，门禁边界见 threat-model §7。
+   * 信封校验记在 `requirements/roadmap.md`「epic-006 评审顺延的架构项」，门禁边界见
+   * `git show f9528e8f:specs/001-working-tree-commits/threat-model.md` §7。
    */
   payload!: Record<string, unknown>;
 

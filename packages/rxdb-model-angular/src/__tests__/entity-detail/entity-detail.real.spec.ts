@@ -62,7 +62,7 @@ class DetailChild extends EntityBase {
 const FLUSH = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
 /**
- * EntityDetailComponent —— **真实组件源码**（specs/027 T025a）。
+ * EntityDetailComponent —— **真实组件源码**。
  *
  * 覆盖 create 模式草稿实体生命周期（内存草稿 → 校验拦截 → 保存才落库）、
  * DIALOG_DATA 语境（fixedFormData 只读合并、delegateSave、creationChain 循环创建阻断）、

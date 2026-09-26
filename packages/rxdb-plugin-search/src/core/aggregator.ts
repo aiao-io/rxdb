@@ -8,8 +8,7 @@
  *  - 不去重：不同 collection 的同 id 视为不同实体
  *  - 内部 `_prefixPenalty` / `_rrfScore` 字段不暴露到对外 `SearchResult`
  *
- * @see specs/001-add-global-search/research.md §5
- * @see specs/001-add-global-search/data-model.md §4.2
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import type { SearchResult } from '../types.js';
 

@@ -2,7 +2,7 @@
 id: US-028
 title: 可排序实体（普通实体手动排序）
 status: Backlog
-priority: Medium
+priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
 updated: 2026-09-26
@@ -19,12 +19,12 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 ## 背景与动机
 
-- **今天用户踩得到的症状：三框架的实体列表都显示拖拽手柄，拖完不落库。** `buildTableOptions()`（`table-factory.ts`）
-  默认开 `rowSeriesNumber.dragOrder`；三框架的 `EntityTable` 监听 `change_header_position`、经 `collectReorderedIds`
-  抛出 `rowReordered`，`QueryTable` 原样透传；三框架的 `EntityList` 渲染 `QueryTable`，却既不接 `rowReordered`，
-  也不传 `tableOptions`。`patchDragIconForReadonlyRows` 只隐藏 `_readonly` 行与新增行的手柄，而生产代码里没有任何地方
-  给行挂 `_readonly`，所以每条已有记录都能拖。重排没有写入路径，重查后必然回到原序；拖放之后、下一次 `records`
-  更新之前表格显示哪个顺序，未实测。
+- **表格的拖拽重排没有写入路径。** `buildTableOptions()`（`table-factory.ts`）默认开 `rowSeriesNumber.dragOrder`；
+  三框架的 `EntityTable` 监听 `change_header_position`、经 `collectReorderedIds` 抛出 `rowReordered`，`QueryTable`
+  原样透传，但没有任何组件接它。三框架的 `EntityList` 因此经 `tableOptions` 传 `LIST_TABLE_OPTIONS`
+  （`dragOrder: false`）关掉了手柄，即 AC#6 的提前交付；直接渲染 `EntityTable` / `QueryTable` 又不传 `tableOptions`
+  的调用方仍拿到默认的拖拽手柄，拖完不落库。`patchDragIconForReadonlyRows` 隐藏 `_readonly` 行与新增行的手柄；
+  `EntityList` 给系统表的行挂 `_readonly`（[US-027](US-027-entity-permission-model.md) AC#16 的列表侧）。
 - **排序只存在于树形实体与应用层。** `ISortableTreeEntity`（`@aiao/rxdb-plugin-tree` 的 `tree-entity.interface.ts`：
   `ITreeEntity` 加 `sortOrder?: string | null`）是仓库里唯一的排序类型；`sortOrder` 在 `@aiao/rxdb` 与
   `@aiao/rxdb-model` 中零实现、零读取。三个 demo 应用的树菜单与文件管理页各自调 `@aiao/utils` 的
@@ -32,8 +32,8 @@ tags: [core, sortable, model, rxdb-model, tree]
   「新建追加到末尾」「拖放插到两邻之间」三端各写一遍；`rxdb-test` 的 `MenuSimple` / `MenuLarge` / `FileNode` /
   `FileLarge` 声明 `sortOrder` 并建 `(parentId, sortOrder)` 索引。
 - **排序要在树之外独立成模块。** 树实体在 `@aiao/rxdb-plugin-tree`，`RxDBBranch` 是普通实体；排序若只挂在
-  `ISortableTreeEntity` 下，扁平列表要排序就得装树插件。依赖方向应是树插件依赖排序模块，而不是反过来——
-  [US-025](US-025-core-plugin-extraction.md) 把排序模块的归属留给本故事定。
+  `ISortableTreeEntity` 下，扁平列表要排序就得装树插件。依赖方向应是树插件依赖排序模块，而不是反过来；
+  排序模块放在核心（见技术笔记「排序模块归属与依赖方向」），[US-025](US-025-core-plugin-extraction.md) 阶段 E 与此没有先后约束。
 - 普通实体同样需要手动排序：菜单顺序、看板列序、清单拖拽。US-010 的 AC#2/#3 只覆盖了树形节点排序，扁平列表是空白。
 
 ## 核心设计方向（待 `/speckit-plan` 细化）
@@ -58,8 +58,7 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B 与 C 都只依赖 A，可以并行。
 
-[roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带)第 2 条是 AC#6 的提前交付：阶段 B 合入前，
-三框架 `EntityList` 先经 `tableOptions` 关掉拖拽手柄，阶段 B 只对可排序实体重新打开。
+AC#6 已提前交付：三框架 `EntityList` 经 `tableOptions` 关掉了拖拽手柄，阶段 B 只对可排序实体重新打开。
 
 ## 范围边界
 
@@ -90,13 +89,17 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B �
 | 3   | 可排序实体列表                            | 拖拽一行到新位置           | 仅受影响行的 sortOrder 被重写（批量更新），其余行不变                                                                             | ⬜   |
 | 4   | 同一序列                                  | 连续快速拖拽多次           | 键值始终严格有序且不耗尽精度（fractional indexing 基本性质）                                                                      | ⬜   |
 | 5   | 三框架 rxdb-model 实体列表（可排序实体）  | 拖拽行并刷新页面           | 顺序持久化，重查后仍保持                                                                                                          | ⬜   |
-| 6   | 三框架实体列表（不可排序实体）            | 打开实体列表               | 不显示拖拽手柄，`rowReordered` 不触发                                                                                             | ⬜   |
+| 6   | 三框架实体列表（不可排序实体）            | 打开实体列表               | 不显示拖拽手柄，`rowReordered` 不触发                                                                                             | ⚠️   |
 | 7   | 可排序实体含只读行（`_readonly`）         | 拖拽该行，或把其他行拖过它 | 只读行无拖拽手柄、不进 `rowReordered` 载荷；重排写入不改写只读行的 `sortOrder`                                                    | ⬜   |
 | 8   | 树形实体（含 `ISortableTreeEntity` 引用） | 执行排序相关操作           | 行为与普通实体一致（同一套工具），现有接口引用不破坏                                                                              | ⬜   |
 | 9   | `@aiao/rxdb-plugin-tree` 与排序模块       | 类型检查 + 依赖分析        | `sortOrder` 的类型只在排序模块声明一处，`ISortableTreeEntity` 由它组合而成；排序模块不 import 树插件（依赖方向：tree → sortable） | ⬜   |
-| 10  | 未声明可排序的现有实体                    | 原有查询、写入与 UI 操作   | 查询顺序、schema 与写入行为不变；UI 上唯一的变化是拖拽手柄消失（AC#6）                                                            | ⬜   |
+| 10  | 未声明可排序的现有实体                    | 原有查询、写入与 UI 操作   | 查询顺序、schema、写入与 UI 行为不变（拖拽手柄已按 AC#6 关闭）                                                                    | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `entity-list.real.spec` 的
+「行序号列不带拖拽手柄…」用例断言了传给表格的 `rowSeriesNumber`；三端 e2e 未做——行画在 canvas 上，
+随阶段 B 的拖拽 e2e 一起补。
 
 ## 技术笔记
 
@@ -118,6 +121,19 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B �
 - **现有树拖放是阶段 C 的对照**：三个 demo 应用的树菜单 / 文件管理页已按 fractional indexing 实现拖放插位与追加
   （见背景第 2 条），AC#8 的「同一套工具」以它们的行为为基准。
 
+## 价值待证
+
+本故事**价值待证**。用户踩得到的症状只有一处：三框架 `EntityList` 显示拖拽手柄、拖完不落库。AC#6 已经提前交付，
+不靠本故事的任何抽象就把它关掉了（背景第 1 条）。剩下的都不是今天有人踩到的症状：直接渲染 `EntityTable` /
+`QueryTable` 的调用方默认仍有手柄，但 `rowReordered` 本就是交给调用方处理的输出，仓内 apps / modules / website
+没有这样的调用方；三个 demo 的树拖放各自算排序键（背景第 2 条），但 demo 拖放服务的重构在 Out of Scope，本故事不验收它。
+
+本故事要新增的抽象至少 3 个：`ISortableEntity` 与实体级可排序声明、core 的排序键封装与查询默认排序、
+rxdb-model 的重排写入协调。病灶数 < 抽象数，`priority` 因此为 Low。
+
+**解锁条件**（满足其一）：出现需要手动排序的扁平实体（demo 或外部 issue）；或有调用方直接渲染
+`EntityTable` / `QueryTable` 并要把 `rowReordered` 落库。届时一并上调优先级，交付阶段与技术笔记里的定案不变。
+
 ## 实现文件
 
 | 阶段 | 文件                                                                                                                                                                                          | 说明                                         |
@@ -134,10 +150,10 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B �
 ## References
 
 - [US-010 树形实体](US-010-tree-entity.md) — 树节点排序的原始验收（AC#2/#3）
-- [US-025 核心包子系统按插件边界外移](US-025-core-plugin-extraction.md) — 树实体已外移到 `@aiao/rxdb-plugin-tree`，排序模块的归属留给本故事
+- [US-025 核心包子系统按插件边界外移](US-025-core-plugin-extraction.md) — 树实体已外移到 `@aiao/rxdb-plugin-tree`；排序模块由本故事定为 core
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) — 无 update 权限的行经其阶段 C 挂 `_readonly`，落进 AC#7 的守卫
 - [tree-entity.interface.ts](../../../packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts) — `ISortableTreeEntity` 现状
 - [fractional-indexing.ts](../../../packages/utils/src/indexing/fractional-indexing.ts) — `generateKeyBetween` / `generateKeysBetween`
 - [table-factory.ts](../../../packages/rxdb-model/src/entity-table/vtable/table-factory.ts) — `buildTableOptions()` 默认开 `dragOrder`
 - [entity-table.component.ts](../../../packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts) — 已有 dragOrder / rowReordered 半成品
-- [roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带) — 第 2 条：阶段 B 合入前先关手柄
+- [entity-list.component.ts](../../../packages/rxdb-model-angular/src/entity-list/entity-list.component.ts) — `LIST_TABLE_OPTIONS` 关手柄（React `entity-list.tsx`、Vue `EntityList.vue` 同构）

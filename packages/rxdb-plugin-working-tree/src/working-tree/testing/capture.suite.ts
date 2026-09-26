@@ -2,7 +2,7 @@
  * @fileoverview `workingTreeCaptureConformanceSuite` —— 捕获侧一致性套件。
  *
  * @remarks
- * 覆盖范围见 `docs/working-tree/contracts/conformance-suites.md` §1：
+ * 覆盖范围见 `git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §1：
  * 四个挂载点的捕获完备性、写入口语义矩阵、raw 通道 bypass 四步判定、untracked 域、
  * 存储契约静态断言。
  *

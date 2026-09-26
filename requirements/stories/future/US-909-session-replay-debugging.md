@@ -11,7 +11,7 @@ tags: [future, replay, debugging, e2e, working-tree, rrweb]
 
 <!--
 INVEST 检查清单:
-- [x] Independent (独立): 阶段 A 不依赖 epic-006；阶段 B 的前置（US-307）在交付阶段门禁列单独声明
+- [x] Independent (独立): 阶段 A 不依赖 epic-006；阶段 B 的前置（US-307、US-217 阶段 B）在交付阶段门禁列单独声明
 - [x] Negotiable (可协商): 录制注入点、保留策略、体积预算与回放页技术栈在 plan 阶段冻结
 - [x] Valuable (有价值): 阶段 A 关闭「e2e 失败无应用级现场、无数据状态」的既有诊断缺口；阶段 C 需价值待证证据
 - [x] Estimable (可估算): 阶段 A 是 fixture 注入 + 回放单页 + 本地库写入，可估算
@@ -35,7 +35,7 @@ INVEST 检查清单:
    first retry），CI 上也只录重试那一次、不录首次失败。即便录到，Playwright trace 记录的是浏览器动作、
    网络与 console，**不含**应用级 DOM 语义回放，也**不含**失败时刻的应用数据状态——trace 定位到失败后，
    仍需手工构造数据场景复现。
-2. **数据版本控制基建已存在**：working-tree 已提供写捕获与提交（US-305 `Done`、US-306 `In Review`），
+2. **数据版本控制基建已存在**：working-tree 已提供写捕获与提交（US-305 / US-306 `Done`），
    [`capture-interceptor.ts`](../../../packages/rxdb/src/capture/capture-interceptor.ts) 拦截写入。
    「回到某个提交」的是 `restore({ commitId }, credentials)`（US-307，`Done`）：把一个**当前分支 HEAD 可达**的
    历史 commit 的内容作为新的未提交变更写回工作树，HEAD 不动。它与只读当前恢复会话的 `restoreSession()`
@@ -53,11 +53,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                               | 必过 AC          | 门禁                                                                                                      |
-| ---- | ---- | ------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| A    | ⬜   | e2e 失败现场录制 + 本地回放页（直用 rrweb Replayer，不建框架组件） | AC#1～7          | 体积预算与保留策略冻结；不破坏 BASE_URL 8200 端口的 e2e DB 隔离                                           |
-| B    | ⬜   | 事件流与 working-tree commit 的关联标记 + 失败时刻数据状态还原     | AC#1～7、8～10   | US-307 `Done`（`restore()` 已交付）；技术笔记「阶段 B 的前提」三条在 plan 阶段定案                        |
-| C    | ⬜   | `rxdb-plugin-replay` 通用插件 + 三框架 Replayer 组件 + demo 集成   | AC#1～10、11～14 | 价值待证：须写出「今天用户踩得到的具体症状」才允许排期（CONVENTIONS 病灶数 ≥ 抽象数）；三框架 parity 铁律 |
+| 阶段 | 状态 | 交付                                                               | 必过 AC          | 门禁                                                                                                            |
+| ---- | ---- | ------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| A    | ⬜   | e2e 失败现场录制 + 本地回放页（直用 rrweb Replayer，不建框架组件） | AC#1～7          | 体积预算与保留策略冻结；不破坏 BASE_URL 8200 端口的 e2e DB 隔离                                                 |
+| B    | ⬜   | 事件流与 working-tree commit 的关联标记 + 失败时刻数据状态还原     | AC#1～7、8～10   | US-307 `Done`（`restore()` 已交付）；US-217 阶段 B（SQLite 共享层导出 / 导入）；技术笔记「阶段 B 的前提」已定案 |
+| C    | ⬜   | `rxdb-plugin-replay` 通用插件 + 三框架 Replayer 组件 + demo 集成   | AC#1～10、11～14 | 价值待证：须写出「今天用户踩得到的具体症状」才允许排期（CONVENTIONS 病灶数 ≥ 抽象数）；三框架 parity 铁律       |
 
 AC#1～6 是公共契约，从阶段 A 起执行，后续每个阶段都必须继续通过。一个 PR 只交付一个阶段。
 阶段 B 的 commit 关联不得伪造数据侧标记：标记必须来自真实 commit 生命周期，不能靠时间戳事后反查。
@@ -109,16 +109,25 @@ AC#1～6 是公共契约，从阶段 A 起执行，后续每个阶段都必须�
 - **回放与还原分工**：rrweb 回放 = 观察级；`restore()` = 状态级。本故事的调试闭环是
   「看回放定位 → 恢复数据 → 活应用交互调试」，不是「在回放里复现 bug」。非确定性问题（竞态 / 随机 / 时序）
   不承诺复现。
-- **阶段 B 的前提**（plan 阶段定案）：
-  - **库在哪**：e2e 跑在 Playwright 默认的临时浏览器上下文里（仓内没有 `launchPersistentContext`），上下文关闭时
-    OPFS 里的库连同提交历史一起丢弃；`restore()` 只能在持有同一份提交历史的库上调用。失败现场的库怎么带出来
-    （导出 / 持久上下文）要先定，否则回放页没有可 restore 的对象。
-  - **未提交的那部分**：commit 标记只覆盖已提交状态，失败时刻工作树里的未提交条目不在任何 commit 里；
-    `restore()` 还要求工作树干净，否则返回 `dirty_working_tree`。「失败时刻」取「失败前最后一个 commit」，
-    还是由 fixture 在失败时补一次快照提交，二选一。
-  - **调用约束**：目标必须在当前分支 HEAD 的可达父链上（FR-033），其他分支上的 commit 要先 `switchBranch`；
-    三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；被拒走返回值（`conflict` /
-    `dirty_working_tree` / `incompatible_schema` / `unreachable_target`），回放页要逐个给出可操作提示。
+- **阶段 B 的前提**（已定案）：
+  - **库怎么带出来：导出，不用持久上下文。** e2e 跑在 Playwright 默认的临时浏览器上下文里（三个 demo 的 e2e
+    都没有 `launchPersistentContext`，也没有 `test.extend` 共享 fixture；仓内唯一的持久上下文在
+    `rxdb-devtools-extension-e2e` 的扩展 fixture 里，给加载扩展用），上下文关闭时 OPFS 里的库连同提交历史一起丢弃；
+    `restore()` 只能在持有同一份提交历史的库上调用。已定案：失败时经
+    [US-217](../adapter/US-217-local-database-backup-restore.md) 阶段 B 的 SQLite 共享层导出把库带出来，回放页导入后再
+    `restore()`。不选的路：每个 test 一份持久 profile 带不出这台机器（**推断**，未实测）；直接拷 OPFS 文件是
+    [US-904](US-904-devtools-native-storage-contract.md) 已停用的热拷贝；fixture 自己拷文件等于在 e2e 里复刻一份
+    适配器的存储布局；按实体导出 JSON 带不走提交历史。
+  - **未提交的那部分：失败时补一次快照提交。** commit 标记只覆盖已提交状态，失败时刻工作树里的未提交条目不在
+    任何 commit 里；`restore()` 还要求工作树干净，否则返回 `dirty_working_tree`。已定案：fixture 在失败时补一次
+    标成失败快照的提交再导出。提交后工作树干净，回放页的 `restore()` 不撞 `dirty_working_tree`，失败时刻的全部数据
+    都在时间轴的最后一个 commit 里。补提交失败就显式报告、照常导出，不退回「失败前最后一个 commit」；
+    失败时工作树未启用（用 `rxdb-e2e-skip-working-tree-auto-enable` 跳过自动启用、还没手动启用的用例，
+    键定义在三个 demo 的 `setup_rxdb_sqlite-wasm.ts`）就走这条路，只有导出、没有时间轴。
+  - **调用约束**：目标必须在当前分支 HEAD 的可达父链上（[US-307](../collaboration/US-307-restore-session.md) FR-033），
+    其他分支上的 commit 要先 `switchBranch`；三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；
+    被拒走返回值（`conflict` / `dirty_working_tree` / `incompatible_schema` / `unreachable_target`），
+    回放页要逐个给出可操作提示。
 - **体积**：阶段 A 预算按 e2e session 时长（分钟级）冻结；事件批量 mutation 写入；无压缩 / 采样算法承诺，
   超限显式报告。会话数保留上限与清理时机进保留策略。
 - **依赖**：`@rrweb/record` / `@rrweb/replay`（MIT）；版本以 lockfile 为准，不 fork 上游。新依赖过审计门禁，
@@ -144,6 +153,7 @@ AC#1～6 是公共契约，从阶段 A 起执行，后续每个阶段都必须�
 - [US-305 提交图与 HEAD 持久化](../collaboration/US-305-commit-graph-head.md)
 - [US-306 工作树与提交操作](../collaboration/US-306-working-tree-commits.md)
 - [US-307 会话恢复](../collaboration/US-307-restore-session.md) — 阶段 B 前置
+- [US-217 本地数据库一致性备份与恢复](../adapter/US-217-local-database-backup-restore.md) — 阶段 B 前置（SQLite 共享层导出 / 导入）
 - [playwright.config.ts](../../../apps/dev-rxdb-angular-e2e/playwright.config.ts)
 - [rrweb](https://github.com/rrweb-io/rrweb)
 - [vision.md 阶段 2 生产可靠性 / 阶段 6 搜索与本地 AI](../../vision.md)

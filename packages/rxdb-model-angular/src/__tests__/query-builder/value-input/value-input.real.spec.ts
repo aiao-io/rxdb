@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ValueInputComponent } from '../../../query-builder/value-input/value-input.component';
 
 /**
- * ValueInputComponent —— **真实加载组件源码**（specs/027 T025a）。
+ * ValueInputComponent —— **真实加载组件源码**。
  *
  * 每个 handler 都走「更新内部 signal + emit output + 调 xxxFn 回调」三件事，
  * 这里同时断言 output 与回调，覆盖 NgComponentOutlet 注入路径。

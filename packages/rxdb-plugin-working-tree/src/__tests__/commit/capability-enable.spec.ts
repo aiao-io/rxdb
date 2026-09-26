@@ -2,7 +2,7 @@
  * @fileoverview T022 红测试：数据库级提交能力的一次性启用与版本协商（FR-037）。
  *
  * @remarks
- * 契约见 `docs/working-tree/contracts/core-api.md` §2 与
+ * 契约见 `git show f9528e8f:specs/001-working-tree-commits/contracts/core-api.md` §2 与
  * `data-model.md` §2.1。实现目标是 `src/commit/commit-capability.ts`（T031）。
  *
  * 本文件守的是**仲裁者只有一个**这件事，不是 SQL 方言。真实建表与执行行为由

@@ -6,10 +6,12 @@
  * `freeze-working-tree-reference.ts`（门禁判定本身在 `working-tree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
  * benchmark——共享的定义因此不能住在那里。
  *
- * 契约本体在 docs/working-tree/contracts/benchmark-report.md §2 / §3。
- * 本文件是它的 TypeScript 投影，字段集必须逐条对齐；改这里之前先改那里。
+ * 字段集逐条出自 spec-kit 阶段的报告契约 §2 / §3（文中的「契约 §N」）；仍然生效的必填项与门禁规则
+ * 以 epic-006「性能预算的口径」「reference 的冻结与复冻」为准。本文件是它们的 TypeScript 投影：
+ * 改门禁语义先改 epic，再改这里。
  *
- * @see docs/working-tree/contracts/benchmark-report.md
+ * @see requirements/epics/epic-006-working-tree-commits.md
+ * @see `git show f9528e8f:specs/001-working-tree-commits/contracts/benchmark-report.md`
  */
 
 import { dirname, resolve } from 'node:path';
@@ -91,7 +93,7 @@ export const LATEST_PATH = resolve(__dirname, 'reports', 'working-tree-latest.js
 export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';
 
 // ---------------------------------------------------------------------------
-// 报告契约（contracts/benchmark-report.md §2）
+// 报告 JSON（契约 §2）
 // ---------------------------------------------------------------------------
 
 /** 报告里的 fixture 段；逐字段取自 {@link WorkingTreeFixturePlan}。 */

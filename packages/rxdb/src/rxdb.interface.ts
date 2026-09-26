@@ -55,9 +55,8 @@ export interface RxDBContext {
   /**
    * 当前登录用户 ID
    *
-   * 用于：
-   * - 在变更日志里写入 `createdBy` / `updatedBy`；
-   * - 在 pull / push 时按 `userId` 做行级过滤（依赖具体适配器实现）。
+   * 适配器写实体行时用它填 `createdBy` / `updatedBy` 审计字段（实体声明了这两列才写）。
+   * 同步不按它做行级过滤；只同步一部分行要用 `SyncType.Filter` 的 `remote.filter()`。
    */
   userId?: string;
 
@@ -126,7 +125,7 @@ export interface RxDBOptions {
   /**
    * 环境上下文
    *
-   * 用于写入 `createdBy` 等审计字段、以及行级过滤时的环境变量。
+   * `userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更。
    * 运行时可通过 `RxDB.context` setter 整体替换（`clientId` 会被合并保留）。
    */
   context?: RxDBContext;

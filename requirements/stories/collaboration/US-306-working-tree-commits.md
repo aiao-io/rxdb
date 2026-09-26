@@ -1,11 +1,11 @@
 ---
 id: US-306
 title: 工作树与提交操作
-status: In Review
+status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-25
+updated: 2026-09-26
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
@@ -80,9 +80,9 @@ INVEST 检查清单:
 | ---- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | A    | CRUD / sync 写入 → 刷新 → 工作树重建 | 写入口矩阵、active token、working-tree revision、受信意图登记、加密与后端 conformance                                | FR-039、FR-046、FR-045                                 | US1-AC1（工作树半边）、US1-AC3（工作树半边）、US1-AC4（持久层半边）、US2-AC14、US2-AC17（刷新重放半边）、US2-AC18～19、US2-AC23、US4-AC1～7 | ✅   |
 | B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC9、US2-AC12～AC13、US2-AC20～22、US3-AC1～AC3                                                     | ✅   |
-| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                | 👀   |
+| C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                | ✅   |
 
-阶段 A / B ✅：代码已完成、任务侧全部关闭。阶段 C 👀：`bench-working-tree` 只剩 M1 基线静默复冻一件（见「性能门禁」节）；CI 画像 reference 已签入（T134），读项容差已定（T135）。
+阶段 A / B / C ✅：代码与任务侧全部关闭。CI 三种托管 runner 画像与 M1 的 reference 均已签入，读项容差已定（见「性能门禁」节）。
 
 阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
@@ -147,7 +147,8 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
   `restoring`，并从已存在 session 派生 conflicted）
 - 分支切换入口、冲突记录和三端冲突提示 —— 属 [US-308](./US-308-branch-isolation-conflict.md)；底层 revision CAS 不在其范围
 - Workspace 插件 NEW 草稿本身：草稿留在插件独立 IndexedDB，不进工作树；`save()` 后才作为普通 INSERT 捕获
-- Tauri Rust host 的 conformance —— 待 US-210 Done 后按 epic 统一补入
+- Tauri Rust host 的 conformance —— v1 不承诺，补入条件见
+  [epic-006 启用与存储边界](../../epics/epic-006-working-tree-commits.md#启用与存储边界)
 - **暂存区与任何形式的选择性提交**（stage / unstage / clear index / 字段级或行级部分暂存）——
   epic 级已裁决不做，隔离工作线走分支，见
   [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)
@@ -271,10 +272,11 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - `WorkingTreeState` 只存 revision/计数不算完成；条目必须可枚举、可重放并按分支隔离。
 - 受信路径登记 MUST 与 bypass 拒绝门禁同批交付：既有 switch / baseline 物化在门禁启用后 MUST 继续可用，
   且 MUST NOT 产生工作树单元或递增 `workingTreeRevision`。未登记的批量重写 MUST 仍被拒绝。
-- 登记的键 MUST 是调用方意图，不是底层函数。每个关 trigger 的写路径 MUST 在事务上下文中携带一个显式意图枚举
-  （`RxDBWriteIntent`，内部契约），由调用点一直传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
-  [epic-006 调用点登记表](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)为准，新增
-  `disableTriggers` 调用点 MUST 先登记再实现，未登记即拒绝。
+- 登记的键 MUST 是调用方意图，不是底层函数。每个受信批量重写（本地重载 `mergeChanges`，`disableTriggers` 真假都算，
+  以及 `switchBranch`）MUST 经 `declareTrustedWrite()` 以「文件 + 符号 + 意图」声明显式意图枚举 `TrustedWriteIntent`，
+  声明一直透传到事务体；同一函数的不同意图 MUST 得到不同处置。登记表以
+  [epic-006 受信调用点登记表](../../epics/epic-006-working-tree-commits.md#受信调用点登记表)为准，新增调用点
+  MUST 先登记再实现，未登记即拒绝。
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
   MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
   **MUST NOT 新增 `Index*` 前缀的导出**：该前缀随暂存区一并裁撤。
@@ -359,11 +361,12 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - 普通 CI 的归一化 ratio 不得超过冻结 reference median × 该项容差（读项 130%，写项 110%）；绝对 p95 只在 profile 匹配的固定 runner 上作为发布门禁
   （status / diff 为 100 ms，commit 的阈值随首个 reference 冻结）。
 - 三端 E2E 记录首次可见状态耗时，但浏览器 OPFS/IDB 不承诺相同绝对数字。
-- **当前结论**：CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）已有签入的 reference，
-  `ci / benchmarks` 在其上转绿（T134）；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，
-  同一型号反复出现再补冻（契约 §3.1）。读项 `status` / `diff` 的容差定为 130%，写项保持 110%（T135）。
-  M1 reference 是带负载的初版（`frozenAbsolute.commit` 虚高约 29%），发布用绝对门禁待机器静默复冻。过程与数字留证见
-  [tasks.md T132 / T134 / T135](../../../specs/001-working-tree-commits/tasks.md)。
+- **当前结论**：CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）与 Apple M1 Max 均有签入的
+  reference，`ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，
+  同一型号反复出现再补冻。读项 `status` / `diff` 的容差定为 130%，写项保持 110%。M1 那份按「已知带负载的基线复冻」
+  重冻，`frozenAbsolute.commit` 为 393.53 ms。冻结与复冻规则见
+  [epic-006 reference 的冻结与复冻](../../epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)，执行留证见
+  `git show f9528e8f:specs/001-working-tree-commits/tasks.md` T132 / T134 / T135。
 
 ### 边界情况
 

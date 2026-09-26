@@ -1,6 +1,6 @@
 name: Bench Freeze
 
-# 为 bench-working-tree 的相对门禁冻结**新比值画像**的 reference（contracts/benchmark-report.md §3.1）。
+# 为 bench-working-tree 的相对门禁冻结**新比值画像**的 reference（epic-006「reference 的冻结与复冻」）。
 #
 # 为什么需要它：ratio 只在同一种 CPU 内可比（见 benchmarks/working-tree-gate.ts 的文件头）。
 # `ubuntu-latest` 会随机分到 AMD EPYC 7763 / 9V74、Intel Xeon 6973P-C / 8573C 等不同 CPU，每一种
@@ -8,7 +8,7 @@ name: Bench Freeze
 # `benchmark_environment_mismatch` 失败（不降级为通过）。
 #
 # 什么时候推：PR CI 偶尔分到一种新型号时，先重跑那个 job 一次；同一新型号反复出现，才为它冻结
-# （契约 §3.1）。四个槽位碰不碰得到那种 CPU 看运气，没碰到就换个 tag 名再推一次。
+# （epic-006「reference 的冻结与复冻」）。四个槽位碰不碰得到那种 CPU 看运气，没碰到就换个 tag 名再推一次。
 #
 # 触发：
 #   - 推注解 tag `bench-freeze/<任意后缀>`，理由写在 tag message 里：
@@ -17,7 +17,7 @@ name: Bench Freeze
 #     tag 触发用的是 tag 所指提交里的这份 workflow，所以不必先合进 main。
 #   - 手动触发（workflow_dispatch，需先在默认分支上）：理由填在 reason 输入里。
 #
-# 契约 §3.1 的前置条件由人把关：所在提交必须已在某个已冻结画像上通过相对门禁（例如本机 M1
+# 新画像冻结的前置条件由人把关：所在提交必须已在某个已冻结画像上通过相对门禁（例如本机 M1
 # 跑一遍 `pnpm nx run benchmarks:bench-working-tree` 是 PASS），并在理由里写明。
 #
 # 四个槽位并行，是为了在一轮里尽量碰到不同的 CPU。落到已冻结画像的槽位由
@@ -86,7 +86,7 @@ jobs:
           fi
           reason="$(printf '%s' "$reason" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')"
           if [ -z "$reason" ]; then
-            echo "::error::冻结理由为空（契约 §3.1 要求记进 regeneratedBecause）"
+            echo "::error::冻结理由为空（epic-006「reference 的冻结与复冻」要求记进 regeneratedBecause）"
             exit 1
           fi
           echo "value=${reason}" >> "$GITHUB_OUTPUT"

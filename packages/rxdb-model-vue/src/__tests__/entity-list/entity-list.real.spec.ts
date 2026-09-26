@@ -59,7 +59,7 @@ type ListVM = InstanceType<typeof EntityList> & {
 };
 
 /**
- * EntityList —— **真实组件源码**（对齐 Angular 侧 specs/027 T025a）。
+ * EntityList —— **真实组件源码**（对齐 Angular 侧）。
  *
  * 覆盖 namespace/name → useInfiniteScroll 无限滚动加载、行内编辑批量合并
  * （真实 VTable 事件 → cellChanged → enqueue → entityManager.mutations）、
@@ -509,6 +509,26 @@ describe('EntityList（真实组件）', () => {
     expect(() => component.openCreateDialog()).not.toThrow();
     await wrapper.vm.$nextTick();
     expect(document.body.querySelector('.rxdb-dialog-pane')).toBeNull();
+  });
+
+  it('行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读', async () => {
+    await seedTodo('no-drag');
+    const { child, component } = await renderList();
+    await FLUSH();
+
+    expect(tableOf(child).options['rowSeriesNumber']).toEqual({ title: '', width: 40, dragOrder: false });
+    expect(component.tableRecords).toHaveLength(1);
+    expect(component.tableRecords.some(r => r['_readonly'] === true)).toBe(false);
+  });
+
+  it('系统表整表只读：不提供新增，每一行都标 _readonly', async () => {
+    const { wrapper, component } = await renderList({ namespace: 'rxdb', name: 'RxDBBranch' });
+    await FLUSH();
+
+    expect(component.isCreateBlocked).toBe(true);
+    expect(wrapper.element.textContent).not.toContain('+ 新增');
+    expect(component.tableRecords.length).toBeGreaterThan(0);
+    expect(component.tableRecords.every(r => r['_readonly'] === true)).toBe(true);
   });
 
   it('onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性', async () => {

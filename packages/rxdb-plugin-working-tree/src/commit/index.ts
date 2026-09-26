@@ -11,7 +11,7 @@
  * 混在一起会让「这张表能不能改」变成要逐字段回忆的问题。
  *
  * v1 **没有暂存区**：这里不存在 index / staging / 部分提交的任何形态。
- * 详见 `docs/working-tree/spec.md` 硬裁决 1–2。
+ * 详见 `git show f9528e8f:specs/001-working-tree-commits/spec.md` 硬裁决 1–2。
  */
 export * from './commit-codec.js';
 // 提交历史的公开面（FR-012）。遍历本身（`list-commits.ts`）与 `Commit` 实体都留在包内：

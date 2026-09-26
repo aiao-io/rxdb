@@ -29,8 +29,8 @@ INVEST 检查清单:
 
 ## 背景与动机
 
-- [`RxDBContext.userId`](../../../packages/rxdb/src/rxdb.interface.ts) 的 TSDoc 承诺「在 pull / push 时按 `userId` 做行级过滤（依赖具体适配器实现）」，但现状只有审计字段注入（Supabase 适配器的 [`applyAuditFields`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) 写入 `createdBy` / `updatedBy`），**没有任何适配器按身份过滤 pull / push**——文档承诺与实现之间存在缺口，多用户场景下这条 TSDoc 会误导使用者以为引擎已经做了行级隔离。
-- `createdBy` / `updatedBy` 是**审计字段，不能当授权锚点**：[`ENTITY_BASE_METADATA_OPTIONS`](../../../packages/rxdb/src/entity/entity-base.ts) 里两者 `nullable`；[`fillInitValue`](../../../packages/rxdb/src/entity/entity.utils.ts) 允许构造期传入 readonly 字段。Supabase 侧两条写路径（批量 [`build_upsert_params`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) → `applyAuditFields`、单条 [`SupabaseRepository.create`](../../../packages/rxdb-adapter-supabase/src/SupabaseRepository.ts)）只在 `rxdb.context.userId` 存在时才覆盖这两列。更新路径已经不下发 `createdBy`（`applyAuditFields` 的 `@remarks` 写了原因：服务端 upsert 的 `SET` 子句会把原作者覆写掉），但 `userId` 缺席时客户端构造的值原样上行，而 `userId` 本身也是客户端在 `RxDBContext` 里自报的。
+- [`RxDBContext.userId`](../../../packages/rxdb/src/rxdb.interface.ts) 只用于审计：适配器写实体行时拿它填 `createdBy` / `updatedBy`（实体声明了这两列才写）——本地的 sqlite-core / pglite 在 `insert_sql` / `inserts_sql` / `update_sql` 里注入，Supabase 在 [`applyAuditFields`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) 等写路径里注入；它的 TSDoc 也写明同步不按它做行级过滤。**没有任何适配器按身份过滤 pull / push**，多用户隔离在引擎侧没有数据锚点。
+- `createdBy` / `updatedBy` 是**审计字段，不能当授权锚点**：[`ENTITY_BASE_METADATA_OPTIONS`](../../../packages/rxdb/src/entity/entity-base.ts) 里两者 `nullable`；[`fillInitValue`](../../../packages/rxdb/src/entity/entity.utils.ts) 允许构造期传入 readonly 字段。Supabase 侧四条写路径（`mutations` 经 [`build_upsert_params`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) → `applyAuditFields`、`saveMany` 的 `executeUpsert`、`mergeChanges` 的 [`build_merge_changes_payload`](../../../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts)、单条 [`SupabaseRepository.create`](../../../packages/rxdb-adapter-supabase/src/SupabaseRepository.ts)）都只在 `rxdb.context.userId` 存在时才覆盖这两列。更新路径已经不下发 `createdBy`（`applyAuditFields` 的 `@remarks` 写了原因：服务端 upsert 的 `SET` 子句会把原作者覆写掉），但 `userId` 缺席时客户端构造的值原样上行，而 `userId` 本身也是客户端在 `RxDBContext` 里自报的。
 - 服务端没有戳记：参考 SQL [`docker/sql/`](../../../docker/sql/) 里没有 `auth.uid()`、没有 RLS 策略；写入 RPC（[`04-rxdb-utils-functions.sql`](../../../docker/sql/04-rxdb-utils-functions.sql) 的 `rxdb_batch_upsert` / `rxdb_mutations` 等）是 `SECURITY INVOKER`，RLS 只在部署方自己写了策略时才生效。[`remote-security-notice.ts`](../../../apps/dev-rxdb-supabase/src/app/remote-security-notice.ts) 在 demo 里向用户明示了这一点。
 - 选择性同步的原语已经存在但**与身份无关**：[`SyncType.Filter`](../../../packages/rxdb/src/entity/sync-options.interface.ts) 的 `remote.filter` 是 `() => RuleGroup` 函数，[`pull-repository.ts`](../../../packages/rxdb-plugin-sync/src/pull-repository.ts) 每次拉取时求值——应用可以在闭包里读当前租户自己拼条件，但引擎不从 `RxDBContext` 派生它。这条通道今天只有一处落地：Supabase 的 [`pullChanges`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) 把 `filter` 送进 `rxdb_pull_changes` RPC，且要求恰好一个仓库范围；批量拉取 [`pull-batch.ts`](../../../packages/rxdb-plugin-sync/src/pull-batch.ts) 跳过 `filter` 型仓库，`PullBatchRequest` 没有 filter 槽；HTTP 适配器的 `pullChanges` 恒抛 `HttpChangelogUnsupportedError`。
 - Supabase 适配器已经在提示使用者服务端侧必须自己配 RLS（`RxDBAdapterSupabase` 中「`RLS is disabled for tables: …` Fix the policies before exposing this adapter to untrusted clients.」），说明「本地引擎 + 服务端权威」的分工是既定方向，但引擎侧缺配套的**数据锚点字段、权限上下文与派生原语**。
@@ -113,21 +113,21 @@ rxdb-model 的能力派生从「实体级三元组」扩展到**行级**：`owne
 
 ## 验收标准
 
-| #   | 前置条件                                               | 操作                                         | 预期结果                                                                                          | 状态 |
-| --- | ------------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 实体未声明任何租户 / 角色配置；新库，或业务表缺这两列的存量库 | connect 后任意读写与同步 | 存量库由引擎在连接期补齐两列（nullable，既有行为 `NULL`，重复 connect 不重复补）；两列存在于表结构，行为与现状零变化，现有测试不回归；六个本地后端一致 | ⬜   |
-| 2   | 实体声明租户隔离，`rxdb.context.tenantId` 已设置       | create                                       | `tenantId` 由引擎 / 适配器从上下文注入，写入成功                                                  | ⬜   |
-| 3   | 同上，但 `context.tenantId` 未设置                     | create                                       | 配置期或写入期报错（fail-closed），不产生 `tenantId` 为空的孤立行                                 | ⬜   |
-| 4   | create 时按构造期预填约定把 `ownerId` 填成 `userId`    | 本地渲染后 push                              | 本地立即渲染；权威端对 `ownerId` 的戳记与校验属服务端策略（Out of Scope），其拒绝按 AC#11 可观测  | ⬜   |
-| 5   | `rxdb.context.roles` 未设置                            | 一切权限判定                                 | 退化为 US-027 的 user / system 二元语义，行为与该故事一致                                         | ⬜   |
-| 6   | 实体 `update: { actors: ['user'], roles: ['editor'] }` | 带 `editor` 角色的用户 update                | 放行；不带该角色的用户被拒并抛 `PermissionDeniedError`（US-027 阶段 B 的错误类型）                | ⬜   |
-| 7   | 实体 `update: { actors: ['user'], ownerOnly: true }`   | 行 `ownerId` 等于当前 `userId` 的用户 update | 放行；非 owner 被拒                                                                               | ⬜   |
-| 8   | 实体 `update: 'user'`（简写）                          | update                                       | 等价 `{ actors: ['user'] }`，与 US-027 定义的语义完全一致                                         | ⬜   |
-| 9   | `permissions` 含未知角色名或非法谓词结构               | 实体定义校验（metadata-validate）            | 配置期报错，指出实体名与非法值                                                                    | ⬜   |
-| 10  | 实体声明租户隔离                                       | pull                                         | 引擎按上下文生成含 `tenantId` 等值条件的过滤并经 `pullChanges` 的 `filter` 通道执行，只拉本租户行 | ⬜   |
-| 11  | 权威端拒绝一次 push（RLS / 越权）                      | 观察 sync 状态                               | 拒绝可观测（错误回传、行不进入已同步状态），不静默吞掉                                            | ⬜   |
-| 12  | 运行时切换 `rxdb.context`（换角色 / 换租户）           | 重新判定与重新拉取                           | 判定原语与 UI 派生随新上下文刷新，不需要重启 RxDB                                                 | ⬜   |
-| 13  | `ownerOnly` 实体列表                                   | 三端 demo 打开                               | 非 owner 行只读、编辑入口隐藏；Angular / React / Vue 行为一致（e2e 覆盖）                         | ⬜   |
+| #   | 前置条件                                                      | 操作                                         | 预期结果                                                                                                                                               | 状态 |
+| --- | ------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 实体未声明任何租户 / 角色配置；新库，或业务表缺这两列的存量库 | connect 后任意读写与同步                     | 存量库由引擎在连接期补齐两列（nullable，既有行为 `NULL`，重复 connect 不重复补）；两列存在于表结构，行为与现状零变化，现有测试不回归；六个本地后端一致 | ⬜   |
+| 2   | 实体声明租户隔离，`rxdb.context.tenantId` 已设置              | create                                       | `tenantId` 由引擎 / 适配器从上下文注入，写入成功                                                                                                       | ⬜   |
+| 3   | 同上，但 `context.tenantId` 未设置                            | create                                       | 配置期或写入期报错（fail-closed），不产生 `tenantId` 为空的孤立行                                                                                      | ⬜   |
+| 4   | create 时按构造期预填约定把 `ownerId` 填成 `userId`           | 本地渲染后 push                              | 本地立即渲染；权威端对 `ownerId` 的戳记与校验属服务端策略（Out of Scope），其拒绝按 AC#11 可观测                                                       | ⬜   |
+| 5   | `rxdb.context.roles` 未设置                                   | 一切权限判定                                 | 退化为 US-027 的 user / system 二元语义，行为与该故事一致                                                                                              | ⬜   |
+| 6   | 实体 `update: { actors: ['user'], roles: ['editor'] }`        | 带 `editor` 角色的用户 update                | 放行；不带该角色的用户被拒并抛 `PermissionDeniedError`（US-027 阶段 B 的错误类型）                                                                     | ⬜   |
+| 7   | 实体 `update: { actors: ['user'], ownerOnly: true }`          | 行 `ownerId` 等于当前 `userId` 的用户 update | 放行；非 owner 被拒                                                                                                                                    | ⬜   |
+| 8   | 实体 `update: 'user'`（简写）                                 | update                                       | 等价 `{ actors: ['user'] }`，与 US-027 定义的语义完全一致                                                                                              | ⬜   |
+| 9   | `permissions` 含未知角色名或非法谓词结构                      | 实体定义校验（metadata-validate）            | 配置期报错，指出实体名与非法值                                                                                                                         | ⬜   |
+| 10  | 实体声明租户隔离                                              | pull                                         | 引擎按上下文生成含 `tenantId` 等值条件的过滤并经 `pullChanges` 的 `filter` 通道执行，只拉本租户行                                                      | ⬜   |
+| 11  | 权威端拒绝一次 push（RLS / 越权）                             | 观察 sync 状态                               | 拒绝可观测（错误回传、行不进入已同步状态），不静默吞掉                                                                                                 | ⬜   |
+| 12  | 运行时切换 `rxdb.context`（换角色 / 换租户）                  | 重新判定与重新拉取                           | 判定原语与 UI 派生随新上下文刷新，不需要重启 RxDB                                                                                                      | ⬜   |
+| 13  | `ownerOnly` 实体列表                                          | 三端 demo 打开                               | 非 owner 行只读、编辑入口隐藏；Angular / React / Vue 行为一致（e2e 覆盖）                                                                              | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -135,7 +135,7 @@ rxdb-model 的能力派生从「实体级三元组」扩展到**行级**：`owne
 
 | 阶段 | 交付                                                                                                    | AC 区段   | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------- | --------- | ---- |
-| A    | 字段预留与注入：`EntityBase` 两字段、存量库补列、注入点、生成器 / 基线回归 | AC#1～4   | ⬜   |
+| A    | 字段预留与注入：`EntityBase` 两字段、存量库补列、注入点、生成器 / 基线回归                              | AC#1～4   | ⬜   |
 | B    | 上下文与判定原语：`RxDBContext` 扩展、谓词判定、metadata-validate（依赖 US-027 阶段 A/B 的 actor 判定） | AC#5～9   | ⬜   |
 | C    | 同步配合点：pull 过滤生成原语、远端拒绝契约与适配器落点                                                 | AC#10～11 | ⬜   |
 | D    | 三框架行级 UI 派生                                                                                      | AC#12～13 | ⬜   |
@@ -178,21 +178,21 @@ INSERT 就会列出表里没有的列。
 
 ## 实现文件
 
-| 阶段 | 文件                                                                         | 改动                                                       |
-| ---- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| A    | `packages/rxdb/src/entity/entity-base.ts`                                    | `ENTITY_BASE_METADATA_OPTIONS` 新增 `ownerId` / `tenantId` |
-| A    | `packages/rxdb/src/entity/entity.utils.ts` 与各 adapter 注入点               | `tenantId` / `ownerId` 注入与预填约定                      |
-| A    | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb-adapter.ts` | 连接期在 `#ensureEntityTables` 之后调用适配器的补列能力 |
-| A    | `packages/rxdb-adapter-sqlite-core/src/`、`packages/rxdb-adapter-pglite/src/` | 两个方言的探列与 `ADD COLUMN` |
-| A    | `docker/sql/03-business-tables.sql` | 远端业务表补列 |
-| B    | `packages/rxdb/src/entity/entity-options.interface.ts`                       | 租户 / 所有权声明与 `EntityPermissionRule` 类型及 TSDoc    |
-| B    | `packages/rxdb/src/entity/metadata-validate.ts`                              | 谓词与声明校验                                             |
-| B    | `packages/rxdb/src/rxdb.interface.ts`                                        | `RxDBContext` 扩展 `tenantId` / `roles`                    |
-| C    | `packages/rxdb-plugin-sync/src/pull-repository.ts`、`pull-batch.ts`          | 权限上下文 → pull 过滤条件生成原语与拉取路径落点           |
-| C    | `packages/rxdb-adapter-supabase/`、`packages/rxdb-adapter-http/`             | 过滤通道落地与缺席时的配置期报错；远端拒绝的可观测契约     |
-| D    | `packages/rxdb-model/src/entity-table/columns/`                              | 行级只读派生（框架无关部分）                               |
-| D    | `packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/` | 行级只读派生（三端）                                       |
-| D    | `apps/dev-rxdb-{angular,react,vue}-e2e/`                                     | 多角色 / 多租户场景 e2e                                    |
+| 阶段 | 文件                                                                          | 改动                                                       |
+| ---- | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| A    | `packages/rxdb/src/entity/entity-base.ts`                                     | `ENTITY_BASE_METADATA_OPTIONS` 新增 `ownerId` / `tenantId` |
+| A    | `packages/rxdb/src/entity/entity.utils.ts` 与各 adapter 注入点                | `tenantId` / `ownerId` 注入与预填约定                      |
+| A    | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb-adapter.ts`              | 连接期在 `#ensureEntityTables` 之后调用适配器的补列能力    |
+| A    | `packages/rxdb-adapter-sqlite-core/src/`、`packages/rxdb-adapter-pglite/src/` | 两个方言的探列与 `ADD COLUMN`                              |
+| A    | `docker/sql/03-business-tables.sql`                                           | 远端业务表补列                                             |
+| B    | `packages/rxdb/src/entity/entity-options.interface.ts`                        | 租户 / 所有权声明与 `EntityPermissionRule` 类型及 TSDoc    |
+| B    | `packages/rxdb/src/entity/metadata-validate.ts`                               | 谓词与声明校验                                             |
+| B    | `packages/rxdb/src/rxdb.interface.ts`                                         | `RxDBContext` 扩展 `tenantId` / `roles`                    |
+| C    | `packages/rxdb-plugin-sync/src/pull-repository.ts`、`pull-batch.ts`           | 权限上下文 → pull 过滤条件生成原语与拉取路径落点           |
+| C    | `packages/rxdb-adapter-supabase/`、`packages/rxdb-adapter-http/`              | 过滤通道落地与缺席时的配置期报错；远端拒绝的可观测契约     |
+| D    | `packages/rxdb-model/src/entity-table/columns/`                               | 行级只读派生（框架无关部分）                               |
+| D    | `packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/`  | 行级只读派生（三端）                                       |
+| D    | `apps/dev-rxdb-{angular,react,vue}-e2e/`                                      | 多角色 / 多租户场景 e2e                                    |
 
 ## References
 
@@ -200,7 +200,7 @@ INSERT 就会列出表里没有的列。
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) — 执行者轴扩展的基线
 - [US-501 Workspace 插件](../plugin/US-501-workspace-plugin.md) — `workspace` 命名占用的依据
 - [`ENTITY_BASE_METADATA_OPTIONS`](../../../packages/rxdb/src/entity/entity-base.ts) — 现有审计字段预留方式
-- [`RxDBContext`](../../../packages/rxdb/src/rxdb.interface.ts) — 上下文现状与 TSDoc 承诺缺口
+- [`RxDBContext`](../../../packages/rxdb/src/rxdb.interface.ts) — 上下文现状
 - [`applyAuditFields`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) — createdBy 覆写风险注释
 - [`pullChanges`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) — 行级过滤通道现状
 - [EpicenterHQ — Conflict Resolution Gets All the Attention](https://github.com/EpicenterHQ/epicenter/blob/main/docs/articles/conflict-resolution-is-the-least-of-your-problems.md) — 权限是本地优先生产阻塞项；部分复制为主流路线

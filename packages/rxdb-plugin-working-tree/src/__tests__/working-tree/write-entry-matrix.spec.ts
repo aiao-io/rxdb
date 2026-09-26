@@ -1,5 +1,5 @@
 /**
- * @fileoverview T048 红测试：写入口语义矩阵（spec.md「写入口语义矩阵」、FR-046、conformance-suites.md §1.2）。
+ * @fileoverview T048 红测试：写入口语义矩阵（epic-006「写入口语义矩阵」、FR-046、conformance-suites.md §1.2）。
  *
  * @remarks
  * 实现目标是 `src/working-tree/write-entry-matrix.ts` 里的一个纯判定：给定「谁在写、写哪张表、
@@ -25,7 +25,7 @@
  * 5. **`origin` 与「要不要进 changelog」是两个问题**，即使今天答案一一对应。FR-046 点名的失败形态是
  *    pull 写进来的实体被当成本地编辑再 push 回去（push echo）。两者合成一个字段之后，「`remote_sync`
  *    的单元要不要 push」就没有代码位置可改了，下一个人只能在调用点上补 `if`。
- * 6. **untracked 字段域是注入的，不是这里内建的。** spec.md 要求它与「版本化业务实体表」跟版本化域引用
+ * 6. **untracked 字段域是注入的，不是这里内建的。** epic-006 要求它与「版本化业务实体表」跟版本化域引用
  *    **同一份**清单、不得另建第二份（T056）。判定自带一份清单就是在建第二份，所以这里连查表都不做，
  *    只做子集比较——「第二份」在类型上无处可放。
  * 7. **无法确定的列集不是空集。** 解析不出被写列时按「不是 untracked 子集」处理（fail-closed）。反过来
@@ -35,17 +35,17 @@
  *    入口、`notifyExternalUpdate()` 都必须与没装这个特性时逐字节一致。把能力位放在入口许可之后判断，
  *    未启用的库会开始拒绝它一直允许的写法——升级即故障，而且故障点在完全没打算用这个功能的用户那里。
  * 9. **「每一行至少一条用例」是机器核对的，不是声明的。** 用例在**收集期**登记自己覆盖的行，文件末尾把
- *    登记结果与 spec.md 里那张表**当场解析出来的**行文本逐字比对。spec.md 加一行而没人加用例 → 红；
+ *    登记结果与 epic-006 里那张表**当场解析出来的**行文本逐字比对。表里加一行而没人加用例 → 红；
  *    改一行措辞 → 也红。后者是刻意的：这张表是契约，措辞变了通常意味着语义变了，红一次逼一次复核，
  *    比某一行悄悄失去覆盖便宜得多。
  */
 
 import { describe, expect, it } from 'vitest';
-// 本包的测试跑在 chromium 里，没有 node:fs。要拿 spec.md 的**原文**做逐行核对，唯一的办法是
-// Vite 的 `?raw`——比对的是仓库里那份规格，而不是「我记得它写了 11 行」。
+// 本包的测试跑在 chromium 里，没有 node:fs。要拿 epic-006 的**原文**做逐行核对，唯一的办法是
+// Vite 的 `?raw`——比对的是仓库里那份需求，而不是「我记得它写了 11 行」。
 import { WRITE_ENTRANCES } from '@aiao/rxdb';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- docs/ 不是 Nx 项目，是这条判定的规格原文，越过包边界读的正是它
-import SPEC_MARKDOWN from '../../../../../docs/working-tree/spec.md?raw';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- requirements/ 不是 Nx 项目，是这条判定的需求原文，越过包边界读的正是它
+import EPIC_MARKDOWN from '../../../../../requirements/epics/epic-006-working-tree-commits.md?raw';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import {
   classifyWriteEntrance,
@@ -54,11 +54,11 @@ import {
   type WriteEntranceRequest
 } from '../../working-tree/write-entry-matrix.js';
 
-/** spec.md「写入口语义矩阵」第一列的行文本，逐字抄录——与 `?raw` 解析结果的比对键。 */
+/** epic-006「写入口语义矩阵」第一列的行文本，逐字抄录——与 `?raw` 解析结果的比对键。 */
 const MATRIX_ROW = {
   crud: '普通 CRUD、显式事务、Workspace 草稿 `save()`',
   domainRecompute: '`mergeBranch()`、undo/redo、restore/discard',
-  remoteApply: '`pull()` / autoSync / `pullRepository()` / `sync()` 的实体应用',
+  remoteApply: '`pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用',
   syncMetadata: '只更新 `remoteId`、同步水位或审计时间',
   cleanupExpired: '`cleanupExpired()` 的过期删除',
   projectionRewrite: 'branch switch、baseline/restore 物化、commit 后的工作树清空',
@@ -69,7 +69,7 @@ const MATRIX_ROW = {
   notifyExternalUpdate: '`EntityManager.notifyExternalUpdate()`'
 } as const;
 
-/** 收集期累积的覆盖登记，供文件末尾与 spec.md 的解析结果比对。 */
+/** 收集期累积的覆盖登记，供文件末尾与 epic-006 的解析结果比对。 */
 const coveredRows = new Set<string>();
 
 /**
@@ -492,19 +492,25 @@ describe('跨全部组合的结构不变量', () => {
   });
 });
 
-describe('每一行至少一条用例（与 spec.md 当场比对）', () => {
-  /** 从 spec.md 里把「写入口语义矩阵」那张表的第一列抽出来。 */
+describe('每一行至少一条用例（与 epic-006 当场比对）', () => {
+  /**
+   * 从 epic-006 里把「写入口语义矩阵」那张表的第一列抽出来
+   *
+   * @remarks
+   * 只认紧跟标题的第一张表：同一小节里还有 `mergeChanges` 重载表与受信调用点登记表，
+   * 它们的首列同样以 `|` 开头，读过界就会把别的表的行当成矩阵行。
+   */
   function parseMatrixEntrances(markdown: string): readonly string[] {
-    const heading = '#### 写入口语义矩阵';
-    const start = markdown.indexOf(heading);
-    if (start < 0) throw new Error(`spec.md 里找不到「${heading}」小节`);
-    const rest = markdown.slice(start + heading.length);
-    const end = rest.indexOf('\n#### ');
-    const section = end < 0 ? rest : rest.slice(0, end);
+    const heading = '### 写入口语义矩阵';
+    const start = markdown.indexOf(`\n${heading}\n`);
+    if (start < 0) throw new Error(`epic-006 里找不到「${heading}」小节`);
+    const lines = markdown.slice(start + heading.length + 2).split('\n');
+    const first = lines.findIndex(line => line.trim().startsWith('|'));
+    if (first < 0) throw new Error(`「${heading}」小节下没有表格`);
     const rows: string[] = [];
-    for (const line of section.split('\n')) {
+    for (const line of lines.slice(first)) {
       const trimmed = line.trim();
-      if (!trimmed.startsWith('|')) continue;
+      if (!trimmed.startsWith('|')) break;
       const cells = trimmed
         .split('|')
         .slice(1, -1)
@@ -517,16 +523,16 @@ describe('每一行至少一条用例（与 spec.md 当场比对）', () => {
     return rows;
   }
 
-  it('spec.md 的矩阵是 11 行且行文本互不相同', () => {
-    const parsed = parseMatrixEntrances(SPEC_MARKDOWN);
+  it('epic-006 的矩阵是 11 行且行文本互不相同', () => {
+    const parsed = parseMatrixEntrances(EPIC_MARKDOWN);
     expect(parsed).toHaveLength(11);
     expect(new Set(parsed).size).toBe(parsed.length);
   });
 
-  it('登记的覆盖行与 spec.md 解析出的行逐字相等', () => {
-    // 两个方向都会红：spec.md 多一行而没人加用例 → 左边少；用例登记了一个表里没有的键（改名、
+  it('登记的覆盖行与 epic-006 解析出的行逐字相等', () => {
+    // 两个方向都会红：表里多一行而没人加用例 → 左边少；用例登记了一个表里没有的键（改名、
     // 手抄漂移）→ 右边少。只比数量的话两种漂移可以互相抵消。
-    const parsed = [...parseMatrixEntrances(SPEC_MARKDOWN)].sort();
+    const parsed = [...parseMatrixEntrances(EPIC_MARKDOWN)].sort();
     expect([...coveredRows].sort()).toEqual(parsed);
   });
 

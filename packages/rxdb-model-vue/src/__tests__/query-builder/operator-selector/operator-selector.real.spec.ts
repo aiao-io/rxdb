@@ -5,7 +5,7 @@ import OperatorSelector from '../../../query-builder/operator-selector/OperatorS
 /**
  * OperatorSelector —— **真实加载组件源码**的测试（对齐 Angular 侧）。
  *
- * 本包此前 6 个 spec 全是文件内**内联复制**被测逻辑（specs/027 T025a）；
+ * 本包此前 6 个 spec 全是文件内**内联复制**被测逻辑；
  * 新增测试一律 import 真实组件并渲染，断言真实的操作符注册表链路。
  */
 

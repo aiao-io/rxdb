@@ -392,9 +392,9 @@ sync 插件必须排在 history 插件之后——两者共用 changelog 水位�
 迁走的只是一个类型声明。
 
 [US-028](./US-028-sortable-entity.md)（Backlog）要新增与 `ITreeEntity` 平行的
-`ISortableEntity`，把 `ISortableTreeEntity` 降为两者的交叉别名。它落地时的依赖方向是
-树插件**依赖**排序模块，而排序模块的归属（核心还是独立包）由 US-028 自己定——
-阶段 E 已经把树搬出核心，这一步不再受阶段 E 牵制。
+`ISortableEntity`，`ISortableTreeEntity` 改为同时继承两者、名字不变。排序模块已定案放在核心
+（查询默认排序与 create 追加键都在引擎写路径上），树插件本来就依赖 `@aiao/rxdb`，依赖方向天然是
+树 → 核心，与阶段 E 没有先后约束。
 
 ## 技术笔记
 

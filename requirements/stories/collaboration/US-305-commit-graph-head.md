@@ -62,23 +62,23 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 交付阶段与边界
 
-| 阶段 | 交付                                                                                                                          | 直接前置                                                                                                               | 验收区段                | 状态 |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
-| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | `specs/001-working-tree-commits/` 已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ✅   |
-| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                 | User Story 2 场景 1～16 | ✅   |
+| 阶段 | 交付                                                                                                                          | 直接前置                                                                                                                                                      | 验收区段                | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- |
+| A    | commit 图与 HEAD 底座：存储布局、`CommitBranchRef` / `headRevision` CAS、幂等 `operationId`、log/show 查询                    | 规格集 `specs/001-working-tree-commits/`（已删除，取回方式见表下第 2 条）已按 [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md) 第 2 步重生成 | User Story 1 场景 1～14 | ✅   |
+| B    | 已有数据库首次启用：baseline / `branch_baseline`、迁移幂等与失败重试、损坏隔离、`WorkingTreeActivationState`、bridge 血统门禁 | 阶段 A                                                                                                                                                        | User Story 2 场景 1～16 | ✅   |
 
 - 阶段 A 对应 FR-001 / 002 / 003 / 008 / 009 / 010 / 012 / 018 / 019 / 027 / 029 / 036 / 038；阶段 B 对应
   FR-021 / 022 / 030 / 037 / 048 / 049 / 051 / 052。两段都是无 UI 的核心底座，只要求公开类型、TSDoc 与类型契约测试。
-- 上述前置**已满足**：`data-model.md` 与 `quickstart.md` 里 `RxDBIndexState` /
-  `RxDBIndexEntry` / `index_dependency_cycle` 的命中数现在都是 0，v1 的无暂存区模型已就位。两个阶段随后
-  由 `specs/001-working-tree-commits/tasks.md` 的 T022～T045 落地，实现全部落在
+- 上述前置**已满足**：重生成的规格集（`git show f9528e8f:specs/001-working-tree-commits/<文件>` 取回）里，
+  `data-model.md` 与 `quickstart.md` 对 `RxDBIndexState` / `RxDBIndexEntry` 零命中，`index_dependency_cycle`
+  只剩 `data-model.md` 一行「已裁撤」，v1 的无暂存区模型已就位。两个阶段随后由其 `tasks.md` 的 T022～T045 落地，实现全部落在
   `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
   两阶段 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已全部关闭——
   T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)` 按规格就该共享当前 HEAD），
   按规格收紧断言后 6 后端 5031 条零失败；T132 已随 reference 重新冻结复跑 ✓ PASS（四项 ratio 均 ≤110%）。
   性能基线的收尾归 `bench-working-tree` 的拥有者
   [US-306 阶段 C](US-306-working-tree-commits.md)，本故事不含性能 AC，不因它们挂起
-  （过程与数字留证见 [tasks.md T132](../../../specs/001-working-tree-commits/tasks.md)）。
+  （过程与数字留证见 `git show f9528e8f:specs/001-working-tree-commits/tasks.md` 的 T132）。
 - **桥接发布不是开工前置，是发布前置**：它由 owner 手动发起、手动决定时点（见
   [epic-006 依赖顺序](../../epics/epic-006-working-tree-commits.md#依赖顺序) 第 1 步与
   [release-plan](../../release-plan.md)）。`migration-release.json` 的 `bridge.tag` 为 `null` 时，
@@ -88,7 +88,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   AC US2-14 的**红半边**（`bridge.tag` 为 `null` / 为 `v0.0.25` / 版本常量不吻合时必红）已在真实仓库上成立；
   **绿半边**（补齐后重跑通过）当前无法用真实 tag 走通——下限要求 `bridge.version` 严格大于 `0.0.25`，
   仓库里不存在这样的 tag，造一个等于伪造发布锚点。它由 `check-migration-release-gate.spec.mjs` 的 39 条
-  注入钩子单测覆盖（四条结论记在 [quickstart §5](../../../specs/001-working-tree-commits/quickstart.md)）；
+  注入钩子单测覆盖（四条结论记在 `git show f9528e8f:specs/001-working-tree-commits/quickstart.md` §5）；
   真实 tag 上的那一次重跑是发布动作的产物、不是代码交付，**由
   [release-plan「迁移发布的关闭条件」](../../release-plan.md#迁移发布的关闭条件)承接关闭**，本故事按代码 AC 关闭，
   不靠这里的文字宣告绿半边成立。`main` 自 #55 起已是 schema 6，桥接锚点在 `main` 上无处可切，

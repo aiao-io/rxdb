@@ -12,7 +12,7 @@ vi.mock('@visactor/vtable-editors', () => import('../../testing/fake-vtable-edit
 import { FakeListTable } from '../../testing/fake-vtable';
 
 /**
- * EntityTableComponent —— **真实组件源码**（specs/027 T025a）。
+ * EntityTableComponent —— **真实组件源码**。
  *
  * 通过 FakeListTable 按真实事件名驱动 VTable 事件 → 组件 output 桥接
  * （cellChanged / batchUpdated / rowDeleted / sortClicked / rowReordered / iconClicked），
