@@ -121,20 +121,20 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件              | 操作                                                   | 预期结果                                                                                   | 状态 |
-| --- | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ---- |
-| 1   | A：真相源已建立       | 在 `packages/` 下新增一个非 private 包但不登记进真相源 | 门禁脚本非零退出，错误信息指出缺失的包名                                                   | ⬜   |
-| 2   | A：真相源已建立       | 把某包的 `peerDependencies` 改成与真相源声明不一致     | 门禁非零退出，错误信息同时给出「图中声明」与「package.json 实际」两侧                      | ⬜   |
-| 3   | A：真相源已建立       | 让同一互斥组内两个 adapter 互相依赖                    | 门禁非零退出并指明互斥组名                                                                 | ⬜   |
+| #   | 前置条件              | 操作                                                   | 预期结果                                                                                                                                  | 状态 |
+| --- | --------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | A：真相源已建立       | 在 `packages/` 下新增一个非 private 包但不登记进真相源 | 门禁脚本非零退出，错误信息指出缺失的包名                                                                                                  | ⬜   |
+| 2   | A：真相源已建立       | 把某包的 `peerDependencies` 改成与真相源声明不一致     | 门禁非零退出，错误信息同时给出「图中声明」与「package.json 实际」两侧                                                                     | ⬜   |
+| 3   | A：真相源已建立       | 让同一互斥组内两个 adapter 互相依赖                    | 门禁非零退出并指明互斥组名                                                                                                                | ⬜   |
 | 4   | 病灶 2 的两种写法并存 | 跑门禁                                                 | 把 `@aiao/rxdb` 放在 `dependencies` 的包（含 `rxdb-adapter-wa-sqlite`、`rxdb-react`、`rxdb-vue`）被拦下；统一为 `peerDependencies` 后通过 | ⬜   |
-| 5   | A 阶段合并后          | `pnpm nx run-many -t build --projects=tag:js-lib`      | 全部包构建通过，无任何运行时代码变更导致的回归                                             | ⬜   |
-| 6   | B：插件已接入         | `pnpm nx build website`                                | 构建输出含 `llms.txt` 与 `llms-full.txt`，前者每个文档分节均有链接与一句话描述             | ⬜   |
-| 7   | B：站点已部署         | 请求 `https://rxdb.netlify.app/llms.txt`               | 返回 `text/plain`，头部含分层选型表与一段含完整 import 的最小可运行样例                    | ⬜   |
-| 8   | C：主包已加 `skills/` | `npm pack --dry-run` on `packages/rxdb`                | tarball 含 `skills/aiao-rxdb/SKILL.md`；`files` 未加 `"skills"` 时该文件不出现（反向用例） | ⬜   |
-| 9   | C：主包已发布形态     | 在空项目装主包后跑 `npx skills-npm` 一类导出工具       | Skill 出现在 `.claude/skills/`，内容与真相源一致                                           | ⬜   |
-| 10  | 病灶 3 的两条时序约束 | 构建后读 `dist/**/*.d.ts`                              | `use` / `connect` / `transaction` 的声明上方含标注 ❌ 错误写法的 `@example`                | ⬜   |
-| 11  | 本故事 A 阶段合并     | 读 epic-007 愿景段                                     | 愿景已含「公开 API 的对外表达同样有真相源与门禁」一句，且本故事列入其目标清单              | ⬜   |
-| 12  | 全部阶段合并          | `pnpm test-all`                                        | 绿；新增脚本的 `*.spec.mjs` 全部基于 `__fixtures__/` 假包，不断言真实 `packages/` 内容     | ⬜   |
+| 5   | A 阶段合并后          | `pnpm nx run-many -t build --projects=tag:js-lib`      | 全部包构建通过，无任何运行时代码变更导致的回归                                                                                            | ⬜   |
+| 6   | B：插件已接入         | `pnpm nx build website`                                | 构建输出含 `llms.txt` 与 `llms-full.txt`，前者每个文档分节均有链接与一句话描述                                                            | ⬜   |
+| 7   | B：站点已部署         | 请求 `https://rxdb.netlify.app/llms.txt`               | 返回 `text/plain`，头部含分层选型表与一段含完整 import 的最小可运行样例                                                                   | ⬜   |
+| 8   | C：主包已加 `skills/` | `npm pack --dry-run` on `packages/rxdb`                | tarball 含 `skills/aiao-rxdb/SKILL.md`；`files` 未加 `"skills"` 时该文件不出现（反向用例）                                                | ⬜   |
+| 9   | C：主包已发布形态     | 在空项目装主包后跑 `npx skills-npm` 一类导出工具       | Skill 出现在 `.claude/skills/`，内容与真相源一致                                                                                          | ⬜   |
+| 10  | 病灶 3 的两条时序约束 | 构建后读 `dist/**/*.d.ts`                              | `use` / `connect` / `transaction` 的声明上方含标注 ❌ 错误写法的 `@example`                                                               | ⬜   |
+| 11  | 本故事 A 阶段合并     | 读 epic-007 愿景段                                     | 愿景已含「公开 API 的对外表达同样有真相源与门禁」一句，且本故事列入其目标清单                                                             | ⬜   |
+| 12  | 全部阶段合并          | `pnpm test-all`                                        | 绿；新增脚本的 `*.spec.mjs` 全部基于 `__fixtures__/` 假包，不断言真实 `packages/` 内容                                                    | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

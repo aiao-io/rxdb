@@ -63,11 +63,11 @@ tags: [plugin, bom, graph, integrity]
 （`rxdb-adapter-*` 目录共 12 个，其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，
 都没有 `IRxDBAdapter` 实现），按 DDL 归谁掌控分三档：
 
-| 档           | 适配器                                                                                                               | 环约束落在哪  | AC#5 是否成立           |
-| ------------ | -------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- |
+| 档           | 适配器                                                                                                                  | 环约束落在哪  | AC#5 是否成立           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- |
 | DDL 本仓掌控 | `sqlite` / `sqlite-wasm` / `wa-sqlite` / `sqliteai` / `electron` / `tauri` / `miniprogram`（DDL 由 `sqlite-core` 生成） | SQLite 触发器 | ✅                      |
-| DDL 本仓掌控 | `pglite`                                                                                                             | PG 触发器     | ✅                      |
-| DDL 在远端   | `supabase` / `http`                                                                                                  | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
+| DDL 本仓掌控 | `pglite`                                                                                                                | PG 触发器     | ✅                      |
+| DDL 在远端   | `supabase` / `http`                                                                                                     | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
 
 触发器生成有现成先例：FTS 按方言各有一份生成器，PGlite 的
 [`fts/build-fts-triggers.ts`](../../../packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts) 与 SQLite 共享层的

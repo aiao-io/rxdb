@@ -50,11 +50,11 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                        | 直接前置 | AC 区段 | 状态 |
-| ---- | --------------------------------------------------------------------------------------------------------------------------- | -------- | ------- | ---- |
+| 阶段 | 交付                                                                                                                              | 直接前置 | AC 区段 | 状态 |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- | ---- |
 | A    | core 排序语义：`ISortableEntity`、实体级声明与元数据校验、查询默认按 `sortOrder` 升序、create 追加键、基于 `@aiao/utils` 的键计算 | 无       | AC#1～4 | ⬜   |
-| B    | 三框架 `EntityList` 拖放持久化：接 `rowReordered` → 算新键 → 批量写入 → 刷新；只对可排序实体开拖拽；三端 e2e 同交           | 阶段 A   | AC#5～7 | ⬜   |
-| C    | 树兼容：`ISortableTreeEntity` 由排序模块的类型组合而成，依赖方向测试                                                        | 阶段 A   | AC#8～9 | ⬜   |
+| B    | 三框架 `EntityList` 拖放持久化：接 `rowReordered` → 算新键 → 批量写入 → 刷新；只对可排序实体开拖拽；三端 e2e 同交                 | 阶段 A   | AC#5～7 | ⬜   |
+| C    | 树兼容：`ISortableTreeEntity` 由排序模块的类型组合而成，依赖方向测试                                                              | 阶段 A   | AC#8～9 | ⬜   |
 
 AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B 与 C 都只依赖 A，可以并行。
 
@@ -83,18 +83,18 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B �
 
 ## 验收标准
 
-| #   | 前置条件                                 | 操作                       | 预期结果                                                                                                                   | 状态 |
-| --- | ---------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 普通（非树）实体声明可排序               | 创建若干记录并查询         | schema 含 sortOrder；查询结果默认按 sortOrder 升序                                                                         | ⬜   |
-| 2   | 同上，创建时未提供 sortOrder             | create 一条新记录          | 自动生成排序键，追加到序列末尾                                                                                             | ⬜   |
-| 3   | 可排序实体列表                           | 拖拽一行到新位置           | 仅受影响行的 sortOrder 被重写（批量更新），其余行不变                                                                      | ⬜   |
-| 4   | 同一序列                                 | 连续快速拖拽多次           | 键值始终严格有序且不耗尽精度（fractional indexing 基本性质）                                                               | ⬜   |
-| 5   | 三框架 rxdb-model 实体列表（可排序实体） | 拖拽行并刷新页面           | 顺序持久化，重查后仍保持                                                                                                   | ⬜   |
-| 6   | 三框架实体列表（不可排序实体）           | 打开实体列表               | 不显示拖拽手柄，`rowReordered` 不触发                                                                                      | ⬜   |
-| 7   | 可排序实体含只读行（`_readonly`）        | 拖拽该行，或把其他行拖过它 | 只读行无拖拽手柄、不进 `rowReordered` 载荷；重排写入不改写只读行的 `sortOrder`                                             | ⬜   |
-| 8   | 树形实体（含 `ISortableTreeEntity` 引用） | 执行排序相关操作           | 行为与普通实体一致（同一套工具），现有接口引用不破坏                                                                       | ⬜   |
-| 9   | `@aiao/rxdb-plugin-tree` 与排序模块      | 类型检查 + 依赖分析        | `sortOrder` 的类型只在排序模块声明一处，`ISortableTreeEntity` 由它组合而成；排序模块不 import 树插件（依赖方向：tree → sortable） | ⬜   |
-| 10  | 未声明可排序的现有实体                   | 原有查询、写入与 UI 操作   | 查询顺序、schema 与写入行为不变；UI 上唯一的变化是拖拽手柄消失（AC#6）                                                     | ⬜   |
+| #   | 前置条件                                  | 操作                       | 预期结果                                                                                                                          | 状态 |
+| --- | ----------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 普通（非树）实体声明可排序                | 创建若干记录并查询         | schema 含 sortOrder；查询结果默认按 sortOrder 升序                                                                                | ⬜   |
+| 2   | 同上，创建时未提供 sortOrder              | create 一条新记录          | 自动生成排序键，追加到序列末尾                                                                                                    | ⬜   |
+| 3   | 可排序实体列表                            | 拖拽一行到新位置           | 仅受影响行的 sortOrder 被重写（批量更新），其余行不变                                                                             | ⬜   |
+| 4   | 同一序列                                  | 连续快速拖拽多次           | 键值始终严格有序且不耗尽精度（fractional indexing 基本性质）                                                                      | ⬜   |
+| 5   | 三框架 rxdb-model 实体列表（可排序实体）  | 拖拽行并刷新页面           | 顺序持久化，重查后仍保持                                                                                                          | ⬜   |
+| 6   | 三框架实体列表（不可排序实体）            | 打开实体列表               | 不显示拖拽手柄，`rowReordered` 不触发                                                                                             | ⬜   |
+| 7   | 可排序实体含只读行（`_readonly`）         | 拖拽该行，或把其他行拖过它 | 只读行无拖拽手柄、不进 `rowReordered` 载荷；重排写入不改写只读行的 `sortOrder`                                                    | ⬜   |
+| 8   | 树形实体（含 `ISortableTreeEntity` 引用） | 执行排序相关操作           | 行为与普通实体一致（同一套工具），现有接口引用不破坏                                                                              | ⬜   |
+| 9   | `@aiao/rxdb-plugin-tree` 与排序模块       | 类型检查 + 依赖分析        | `sortOrder` 的类型只在排序模块声明一处，`ISortableTreeEntity` 由它组合而成；排序模块不 import 树插件（依赖方向：tree → sortable） | ⬜   |
+| 10  | 未声明可排序的现有实体                    | 原有查询、写入与 UI 操作   | 查询顺序、schema 与写入行为不变；UI 上唯一的变化是拖拽手柄消失（AC#6）                                                            | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -120,16 +120,16 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B �
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                                                                                                         | 说明                                        |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| A    | `packages/rxdb/src/entity/sortable-entity.interface.ts`                                                                                                                      | `ISortableEntity`（新）                     |
-| A    | `packages/rxdb/src/entity/`                                                                                                                                                  | 基于 `@aiao/utils` 的排序键薄封装（新）     |
-| A    | `packages/rxdb/src/entity/entity-options.interface.ts` / `metadata-validate.ts`                                                                                              | 可排序声明与校验                            |
-| A    | `packages/rxdb/src/repository/`                                                                                                                                              | 查询默认排序接线                            |
-| B    | `packages/rxdb-model/src/entity-table/`                                                                                                                                      | 重排键计算与写入协调                        |
-| B    | `packages/rxdb-model-angular/src/entity-list/entity-list.component.ts`、`packages/rxdb-model-react/src/entity-list/entity-list.tsx`、`packages/rxdb-model-vue/src/entity-list/EntityList.vue` | 拖拽持久化接线，三端同交                    |
-| B    | `apps/dev-rxdb-angular-e2e/`、`apps/dev-rxdb-react-e2e/`、`apps/dev-rxdb-vue-e2e/`                                                                                           | 拖拽排序 e2e                                |
-| C    | `packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts`                                                                                                              | `ISortableTreeEntity` 改由排序模块的类型组合 |
+| 阶段 | 文件                                                                                                                                                                                          | 说明                                         |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| A    | `packages/rxdb/src/entity/sortable-entity.interface.ts`                                                                                                                                       | `ISortableEntity`（新）                      |
+| A    | `packages/rxdb/src/entity/`                                                                                                                                                                   | 基于 `@aiao/utils` 的排序键薄封装（新）      |
+| A    | `packages/rxdb/src/entity/entity-options.interface.ts` / `metadata-validate.ts`                                                                                                               | 可排序声明与校验                             |
+| A    | `packages/rxdb/src/repository/`                                                                                                                                                               | 查询默认排序接线                             |
+| B    | `packages/rxdb-model/src/entity-table/`                                                                                                                                                       | 重排键计算与写入协调                         |
+| B    | `packages/rxdb-model-angular/src/entity-list/entity-list.component.ts`、`packages/rxdb-model-react/src/entity-list/entity-list.tsx`、`packages/rxdb-model-vue/src/entity-list/EntityList.vue` | 拖拽持久化接线，三端同交                     |
+| B    | `apps/dev-rxdb-angular-e2e/`、`apps/dev-rxdb-react-e2e/`、`apps/dev-rxdb-vue-e2e/`                                                                                                            | 拖拽排序 e2e                                 |
+| C    | `packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts`                                                                                                                               | `ISortableTreeEntity` 改由排序模块的类型组合 |
 
 ## References
 

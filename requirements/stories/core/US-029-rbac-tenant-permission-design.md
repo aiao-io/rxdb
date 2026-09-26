@@ -119,7 +119,7 @@ rxdb-model 的能力派生从「实体级三元组」扩展到**行级**：`owne
 | 3   | 同上，但 `context.tenantId` 未设置                     | create                                       | 配置期或写入期报错（fail-closed），不产生 `tenantId` 为空的孤立行                                 | ⬜   |
 | 4   | create 时按构造期预填约定把 `ownerId` 填成 `userId`    | 本地渲染后 push                              | 本地立即渲染；权威端对 `ownerId` 的戳记与校验属服务端策略（Out of Scope），其拒绝按 AC#11 可观测  | ⬜   |
 | 5   | `rxdb.context.roles` 未设置                            | 一切权限判定                                 | 退化为 US-027 的 user / system 二元语义，行为与该故事一致                                         | ⬜   |
-| 6   | 实体 `update: { actors: ['user'], roles: ['editor'] }` | 带 `editor` 角色的用户 update                | 放行；不带该角色的用户被拒并抛 `PermissionDeniedError`（US-027 阶段 B 的错误类型）                 | ⬜   |
+| 6   | 实体 `update: { actors: ['user'], roles: ['editor'] }` | 带 `editor` 角色的用户 update                | 放行；不带该角色的用户被拒并抛 `PermissionDeniedError`（US-027 阶段 B 的错误类型）                | ⬜   |
 | 7   | 实体 `update: { actors: ['user'], ownerOnly: true }`   | 行 `ownerId` 等于当前 `userId` 的用户 update | 放行；非 owner 被拒                                                                               | ⬜   |
 | 8   | 实体 `update: 'user'`（简写）                          | update                                       | 等价 `{ actors: ['user'] }`，与 US-027 定义的语义完全一致                                         | ⬜   |
 | 9   | `permissions` 含未知角色名或非法谓词结构               | 实体定义校验（metadata-validate）            | 配置期报错，指出实体名与非法值                                                                    | ⬜   |
@@ -165,19 +165,19 @@ rxdb-model 的能力派生从「实体级三元组」扩展到**行级**：`owne
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                         | 改动                                                             |
-| ---- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| A    | `packages/rxdb/src/entity/entity-base.ts`                                                    | `ENTITY_BASE_METADATA_OPTIONS` 新增 `ownerId` / `tenantId`       |
-| A    | `packages/rxdb/src/entity/entity.utils.ts` 与各 adapter 注入点                               | `tenantId` / `ownerId` 注入与预填约定                            |
-| A    | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/system/`                                     | 存量库补列迁移（若由引擎自带）                                   |
-| B    | `packages/rxdb/src/entity/entity-options.interface.ts`                                       | 租户 / 所有权声明与 `EntityPermissionRule` 类型及 TSDoc          |
-| B    | `packages/rxdb/src/entity/metadata-validate.ts`                                              | 谓词与声明校验                                                   |
-| B    | `packages/rxdb/src/rxdb.interface.ts`                                                        | `RxDBContext` 扩展 `tenantId` / `roles`                          |
-| C    | `packages/rxdb-plugin-sync/src/pull-repository.ts`、`pull-batch.ts`                          | 权限上下文 → pull 过滤条件生成原语与拉取路径落点                 |
-| C    | `packages/rxdb-adapter-supabase/`、`packages/rxdb-adapter-http/`                             | 过滤通道落地与缺席时的配置期报错；远端拒绝的可观测契约           |
-| D    | `packages/rxdb-model/src/entity-table/columns/`                                              | 行级只读派生（框架无关部分）                                     |
-| D    | `packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/`                 | 行级只读派生（三端）                                             |
-| D    | `apps/dev-rxdb-{angular,react,vue}-e2e/`                                                     | 多角色 / 多租户场景 e2e                                          |
+| 阶段 | 文件                                                                         | 改动                                                       |
+| ---- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| A    | `packages/rxdb/src/entity/entity-base.ts`                                    | `ENTITY_BASE_METADATA_OPTIONS` 新增 `ownerId` / `tenantId` |
+| A    | `packages/rxdb/src/entity/entity.utils.ts` 与各 adapter 注入点               | `tenantId` / `ownerId` 注入与预填约定                      |
+| A    | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/system/`                     | 存量库补列迁移（若由引擎自带）                             |
+| B    | `packages/rxdb/src/entity/entity-options.interface.ts`                       | 租户 / 所有权声明与 `EntityPermissionRule` 类型及 TSDoc    |
+| B    | `packages/rxdb/src/entity/metadata-validate.ts`                              | 谓词与声明校验                                             |
+| B    | `packages/rxdb/src/rxdb.interface.ts`                                        | `RxDBContext` 扩展 `tenantId` / `roles`                    |
+| C    | `packages/rxdb-plugin-sync/src/pull-repository.ts`、`pull-batch.ts`          | 权限上下文 → pull 过滤条件生成原语与拉取路径落点           |
+| C    | `packages/rxdb-adapter-supabase/`、`packages/rxdb-adapter-http/`             | 过滤通道落地与缺席时的配置期报错；远端拒绝的可观测契约     |
+| D    | `packages/rxdb-model/src/entity-table/columns/`                              | 行级只读派生（框架无关部分）                               |
+| D    | `packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/` | 行级只读派生（三端）                                       |
+| D    | `apps/dev-rxdb-{angular,react,vue}-e2e/`                                     | 多角色 / 多租户场景 e2e                                    |
 
 ## References
 

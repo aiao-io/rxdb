@@ -88,10 +88,10 @@ interface EntityPermissionOptions {
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                   | 直接前置 | AC 区段   | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------ | -------- | --------- | ---- |
-| A    | 元数据与判定原语：`permissions` 配置与默认三元组、metadata-validate 校验、判定原语、14 张系统表的矩阵 | 无       | AC#1～4   | ⬜   |
-| B    | 写边界强制：系统写作用域原语、背景第 4 条列出的每个公开写入口在写前判定、`PermissionDeniedError`      | 阶段 A   | AC#5～11  | ⬜   |
+| 阶段 | 交付                                                                                                     | 直接前置 | AC 区段   | 状态 |
+| ---- | -------------------------------------------------------------------------------------------------------- | -------- | --------- | ---- |
+| A    | 元数据与判定原语：`permissions` 配置与默认三元组、metadata-validate 校验、判定原语、14 张系统表的矩阵    | 无       | AC#1～4   | ⬜   |
+| B    | 写边界强制：系统写作用域原语、背景第 4 条列出的每个公开写入口在写前判定、`PermissionDeniedError`         | 阶段 A   | AC#5～11  | ⬜   |
 | C    | 三框架 UI 派生：rxdb-model 与 Angular / React / Vue 绑定的按钮显隐、单元格与表单只读、弹窗模式；三端 e2e | 阶段 A   | AC#12～16 | ⬜   |
 
 AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住。B 与 C 都只依赖 A，可以并行。
@@ -121,24 +121,24 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住。B
 
 ## 验收标准
 
-| #   | 前置条件                                   | 操作                                                                                                           | 预期结果                                                                                         | 状态 |
-| --- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 实体未配置 `permissions`                   | 用户与系统执行 create / update / delete；三框架 UI 打开其列表                                                  | 全部放行，写入与 UI 行为与现状一致（现有测试不回归）                                             | ⬜   |
-| 2   | `permissions` 含非法枚举值                 | 实体定义校验（metadata-validate）                                                                              | 配置期报错，指出实体名与非法值                                                                   | ⬜   |
-| 3   | 判定原语                                   | 对 4 权限值 × 2 执行者 × 3 操作逐格断言                                                                        | 与权限矩阵一致；`none` 对系统同样拒绝                                                            | ⬜   |
-| 4   | `rxdb.systemEntities` 里的全部系统表       | 读取各自运行期元数据                                                                                           | 都带 `permissions`；矩阵与背景第 3 条的真实系统写路径一致（如 `RxDBChange` 的 update / delete 放行系统） | ⬜   |
-| 5   | 实体 `create: 'system'`                    | 用户经任一公开写入口（`Repository.create()` / `EntityManager.create()` / `EntityManager.mutations()` / 实体 `save()`）执行 create | 被拒并抛 `PermissionDeniedError`（`RxDBError` 子类，带实体名、操作与执行者），库里没有新行 | ⬜   |
-| 6   | 同上                                       | 系统写作用域内执行 create                                                                                      | 创建成功                                                                                         | ⬜   |
-| 7   | 实体 `update: 'system'`                    | 用户经任一公开写入口执行 update                                                                                | 被拒并抛 `PermissionDeniedError`                                                                 | ⬜   |
-| 8   | 同上                                       | 系统写（sync 回写 / migration / 工作树物化 / 历史回放）执行 update                                             | 更新成功                                                                                         | ⬜   |
-| 9   | 实体 `update: 'none'`                      | 用户或系统执行 update                                                                                          | 一律被拒（创建后不可变，audit 语义）                                                             | ⬜   |
-| 10  | 实体 `delete: 'none'` 或 `'system'`        | 用户执行 delete                                                                                                | 被拒并抛 `PermissionDeniedError`                                                                 | ⬜   |
-| 11  | 插件 / 内部代码未声明系统写作用域          | 对 `update: 'system'` 实体执行写                                                                               | 按用户计并被拒（fail-closed）                                                                    | ⬜   |
-| 12  | 实体 `create: 'system'` 与 `create: 'user'` 各一 | 三框架 UI 打开两者的列表                                                                                 | 前者不显示「+ 新增」；后者显示，且创建成功                                                       | ⬜   |
-| 13  | 实体 `update: 'system'`                    | 三框架 UI 编辑                                                                                                 | 表格单元格只读、行挂 `_readonly`、详情弹窗为 view 模式、表单字段全部只读                         | ⬜   |
-| 14  | 实体 `delete: 'none'` 或 `'system'`        | 三框架 UI 打开列表                                                                                             | 操作列只留「查看」，不显示「删除」                                                               | ⬜   |
-| 15  | 可编辑实体内某字段 `readonly: true`        | 三框架 UI 编辑该实体                                                                                           | 字段级只读继续生效，实体级权限不覆盖字段级配置                                                   | ⬜   |
-| 16  | 三个 dev app 的 `rxdb` 分组                | 打开任一系统表的列表与详情                                                                                     | 无新增 / 删除入口、不可编辑；三端 e2e 覆盖                                                       | ⬜   |
+| #   | 前置条件                                         | 操作                                                                                                                              | 预期结果                                                                                                 | 状态 |
+| --- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 实体未配置 `permissions`                         | 用户与系统执行 create / update / delete；三框架 UI 打开其列表                                                                     | 全部放行，写入与 UI 行为与现状一致（现有测试不回归）                                                     | ⬜   |
+| 2   | `permissions` 含非法枚举值                       | 实体定义校验（metadata-validate）                                                                                                 | 配置期报错，指出实体名与非法值                                                                           | ⬜   |
+| 3   | 判定原语                                         | 对 4 权限值 × 2 执行者 × 3 操作逐格断言                                                                                           | 与权限矩阵一致；`none` 对系统同样拒绝                                                                    | ⬜   |
+| 4   | `rxdb.systemEntities` 里的全部系统表             | 读取各自运行期元数据                                                                                                              | 都带 `permissions`；矩阵与背景第 3 条的真实系统写路径一致（如 `RxDBChange` 的 update / delete 放行系统） | ⬜   |
+| 5   | 实体 `create: 'system'`                          | 用户经任一公开写入口（`Repository.create()` / `EntityManager.create()` / `EntityManager.mutations()` / 实体 `save()`）执行 create | 被拒并抛 `PermissionDeniedError`（`RxDBError` 子类，带实体名、操作与执行者），库里没有新行               | ⬜   |
+| 6   | 同上                                             | 系统写作用域内执行 create                                                                                                         | 创建成功                                                                                                 | ⬜   |
+| 7   | 实体 `update: 'system'`                          | 用户经任一公开写入口执行 update                                                                                                   | 被拒并抛 `PermissionDeniedError`                                                                         | ⬜   |
+| 8   | 同上                                             | 系统写（sync 回写 / migration / 工作树物化 / 历史回放）执行 update                                                                | 更新成功                                                                                                 | ⬜   |
+| 9   | 实体 `update: 'none'`                            | 用户或系统执行 update                                                                                                             | 一律被拒（创建后不可变，audit 语义）                                                                     | ⬜   |
+| 10  | 实体 `delete: 'none'` 或 `'system'`              | 用户执行 delete                                                                                                                   | 被拒并抛 `PermissionDeniedError`                                                                         | ⬜   |
+| 11  | 插件 / 内部代码未声明系统写作用域                | 对 `update: 'system'` 实体执行写                                                                                                  | 按用户计并被拒（fail-closed）                                                                            | ⬜   |
+| 12  | 实体 `create: 'system'` 与 `create: 'user'` 各一 | 三框架 UI 打开两者的列表                                                                                                          | 前者不显示「+ 新增」；后者显示，且创建成功                                                               | ⬜   |
+| 13  | 实体 `update: 'system'`                          | 三框架 UI 编辑                                                                                                                    | 表格单元格只读、行挂 `_readonly`、详情弹窗为 view 模式、表单字段全部只读                                 | ⬜   |
+| 14  | 实体 `delete: 'none'` 或 `'system'`              | 三框架 UI 打开列表                                                                                                                | 操作列只留「查看」，不显示「删除」                                                                       | ⬜   |
+| 15  | 可编辑实体内某字段 `readonly: true`              | 三框架 UI 编辑该实体                                                                                                              | 字段级只读继续生效，实体级权限不覆盖字段级配置                                                           | ⬜   |
+| 16  | 三个 dev app 的 `rxdb` 分组                      | 打开任一系统表的列表与详情                                                                                                        | 无新增 / 删除入口、不可编辑；三端 e2e 覆盖                                                               | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -182,21 +182,21 @@ UI 能力派生。病灶数 < 抽象数。
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                                                                                              | 说明                                                   |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| A    | `packages/rxdb/src/entity/entity-options.interface.ts`                                                                                                            | `EntityMetadataOptions.permissions` 配置类型与 TSDoc   |
-| A    | `packages/rxdb/src/entity/metadata-transition.ts`                                                                                                                 | `transitionMetadata()` 把配置带进运行期元数据，填默认三元组 |
-| A    | `packages/rxdb/src/entity/metadata-validate.ts`                                                                                                                   | 枚举值校验                                             |
-| A    | `packages/rxdb/src/system/{change,migration,branch,sync}.ts`                                                                                                      | 核心 4 张系统表的矩阵                                  |
-| A    | `packages/rxdb-plugin-working-tree/src/commit/*.entity.ts`、`packages/rxdb-plugin-working-tree/src/working-tree/*.entity.ts`（或 `system-entities.ts` 的默认矩阵） | 插件贡献的 10 张系统表的矩阵                           |
-| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`、`packages/rxdb/src/rxdb-adapter.ts`                                   | 公开写入口判定（落点由 plan 定）                       |
-| B    | `packages/rxdb/src/trusted-write/`                                                                                                                                | 系统写作用域原语（或独立新模块）；`write-entrance.ts` 的入口词表 |
-| B    | `packages/rxdb/src/RxDBError.ts` 或新文件                                                                                                                         | `PermissionDeniedError`                                |
-| C    | `packages/rxdb-model/src/entity-form/form-fields.ts`、`packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts`                                    | UI 能力派生                                            |
-| C    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                                    | `actionsColumn()` 拆开「查看」与「删除」的判断         |
-| C    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                           | 「+ 新增」显隐、行 `_readonly`，三端同交               |
-| C    | `packages/rxdb-model-angular/src/entity-detail/`、`packages/rxdb-model-react/src/entity-detail/`、`packages/rxdb-model-vue/src/entity-detail/`                     | 详情弹窗模式，三端同交                                 |
-| C    | `apps/dev-rxdb-angular-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-react-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-vue-e2e/src/entity-model.spec.ts`         | 权限场景 e2e                                           |
+| 阶段 | 文件                                                                                                                                                               | 说明                                                             |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| A    | `packages/rxdb/src/entity/entity-options.interface.ts`                                                                                                             | `EntityMetadataOptions.permissions` 配置类型与 TSDoc             |
+| A    | `packages/rxdb/src/entity/metadata-transition.ts`                                                                                                                  | `transitionMetadata()` 把配置带进运行期元数据，填默认三元组      |
+| A    | `packages/rxdb/src/entity/metadata-validate.ts`                                                                                                                    | 枚举值校验                                                       |
+| A    | `packages/rxdb/src/system/{change,migration,branch,sync}.ts`                                                                                                       | 核心 4 张系统表的矩阵                                            |
+| A    | `packages/rxdb-plugin-working-tree/src/commit/*.entity.ts`、`packages/rxdb-plugin-working-tree/src/working-tree/*.entity.ts`（或 `system-entities.ts` 的默认矩阵） | 插件贡献的 10 张系统表的矩阵                                     |
+| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`、`packages/rxdb/src/rxdb-adapter.ts`                                    | 公开写入口判定（落点由 plan 定）                                 |
+| B    | `packages/rxdb/src/trusted-write/`                                                                                                                                 | 系统写作用域原语（或独立新模块）；`write-entrance.ts` 的入口词表 |
+| B    | `packages/rxdb/src/RxDBError.ts` 或新文件                                                                                                                          | `PermissionDeniedError`                                          |
+| C    | `packages/rxdb-model/src/entity-form/form-fields.ts`、`packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts`                                     | UI 能力派生                                                      |
+| C    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                                     | `actionsColumn()` 拆开「查看」与「删除」的判断                   |
+| C    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                           | 「+ 新增」显隐、行 `_readonly`，三端同交                         |
+| C    | `packages/rxdb-model-angular/src/entity-detail/`、`packages/rxdb-model-react/src/entity-detail/`、`packages/rxdb-model-vue/src/entity-detail/`                     | 详情弹窗模式，三端同交                                           |
+| C    | `apps/dev-rxdb-angular-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-react-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-vue-e2e/src/entity-model.spec.ts`         | 权限场景 e2e                                                     |
 
 ## References
 
