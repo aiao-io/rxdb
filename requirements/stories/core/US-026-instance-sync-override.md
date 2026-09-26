@@ -141,7 +141,7 @@ INVEST 检查清单:
   配置优先级、整体替换、无覆盖兼容与实例隔离属于本故事固定约束。
 - [US-025](./US-025-core-plugin-extraction.md) 已把同步消费者外移到插件包。生效配置必须由核心给出单一解析入口，
   插件只调用它，不各自复制优先级规则；`pull-repository.ts` / `cleanup-expired.ts` 直接读 `metadata.sync` 的两处要改成走这个入口。
-- 改动面：现状与证据第 1 条的 grep 列出的 32 个文件 / 9 个包，外加三框架绑定与 demo。
+- 改动面：现状与证据第 1 条的 grep 列出的 32 个文件 / 9 个包是上限（`system-entities.ts` 只是注释命中），外加三框架绑定与 demo。
 - 本故事新增配置能力，不引入数据库 schema 或 change-codec 迁移，不依赖 epic-006 的桥接发布。
 
 ## 实现文件

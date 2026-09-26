@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-16
-updated: 2026-09-20
+updated: 2026-09-26
 tags: [adapter, miniprogram, alipay, douyin, baidu, qq, wa-sqlite, experimental, multi-platform]
 ---
 
@@ -51,14 +51,15 @@ INVEST 检查清单:
 这些不是规划冲动，是仓库里已经写在纸面上的口是心非：
 
 1. [apps/dev-rxdb-miniprogram/package.json](../../../apps/dev-rxdb-miniprogram/package.json) 保留
-   `build:alipay` / `build:tt` / `build:qq` / `build:swan`，但只有 `build:weapp` 进 Nx 的 `build`
-   target、也只有它经过验证（见 [examples/README.md](../../../examples/README.md) 的「已迁出」一节）。
-   多端命令在，数据层不在。2026-09-12 把项目迁进 `apps/` 时特意**没删**这些脚本：删掉只是把症状
-   盖住，能力并没有交付。
-2. 公开构造函数仍要求 `wechat: MiniProgramWechatApi` 与 `wasmRuntime: WXWebAssembly`，见
-   `WaSqliteMiniProgramOptions`
-   （[mini-program.interface.ts](../../../packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts)）。
-   支付宝全局是 `my`，抖音是 `tt`，没有合法的注入点。
+   `build:alipay` / `build:tt` / `build:qq` / `build:swan`，但 Nx 的 `build` / `serve` target 直接跑
+   `taro build --type weapp`（不经 npm 脚本，见 [project.json](../../../apps/dev-rxdb-miniprogram/project.json)），
+   也只有微信经过验证（见 [examples/README.md](../../../examples/README.md) 的「已迁出」一节）。
+   多端命令在，数据层不在。这些脚本刻意保留：删掉只是把症状盖住，能力并没有交付。
+2. 公开构造选项 `WaSqliteMiniProgramOptions`
+   （[mini-program.interface.ts](../../../packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts)）
+   要求 `wechat: MiniProgramWechatApi` 与 `wasmRuntime: MiniProgramWasmRuntime`，TSDoc 分别写明是微信全局
+   `wx` 与 `WXWebAssembly`（另一必填项 `moduleFactory` 与平台无关）。两个类型都是结构化的，支付宝的 `my`、
+   抖音的 `tt` 只要形状吻合就能塞进去——这不是按平台声明的注入点，是碰运气。
 3. 运行时预检与错误文案绑死微信：
    `assertMiniProgramRuntimeCapabilities()` 抛
    `微信小程序运行时缺少 RxDB 必需能力: …`，能力名是
