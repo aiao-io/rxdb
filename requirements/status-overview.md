@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 66   |
-| 🚧 In Progress | 0    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 94   |
 
@@ -24,7 +24,7 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（0 条）
+## 进行中（1 条）
 
 当前没有进行中的故事。
 
@@ -81,7 +81,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
-- ⬜ [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 抽 host + 可行性矩阵；B/C 按门禁放行支付宝 / 抖音 / 百度 / QQ
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)
