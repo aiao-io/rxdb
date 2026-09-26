@@ -30,6 +30,10 @@
         "kind": "value"
       },
       {
+        "name": "cleanupIncompletePGliteRestore",
+        "kind": "value"
+      },
+      {
         "name": "create_tables_sql",
         "kind": "value"
       },
@@ -162,6 +166,22 @@
         "kind": "value"
       },
       {
+        "name": "PGLITE_BACKUP_ENGINE",
+        "kind": "value"
+      },
+      {
+        "name": "PGLITE_BACKUP_LOCK_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "PGLITE_EXCLUDED_FILES",
+        "kind": "value"
+      },
+      {
+        "name": "PGliteBackupStorage",
+        "kind": "type"
+      },
+      {
         "name": "PGliteChangeEvent",
         "kind": "type"
       },
@@ -186,6 +206,10 @@
         "kind": "type"
       },
       {
+        "name": "PGliteEngineInfo",
+        "kind": "type"
+      },
+      {
         "name": "PGliteNotificationBatcher",
         "kind": "both"
       },
@@ -195,6 +219,26 @@
       },
       {
         "name": "PGliteNotifyPayload",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoredDatabase",
+        "kind": "both"
+      },
+      {
+        "name": "PGliteRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreResult",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreStage",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreTarget",
         "kind": "type"
       },
       {
@@ -231,6 +275,10 @@
       },
       {
         "name": "resolvePGliteInitOptions",
+        "kind": "value"
+      },
+      {
+        "name": "restorePGliteDatabase",
         "kind": "value"
       },
       {

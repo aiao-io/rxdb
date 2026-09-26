@@ -3,6 +3,14 @@
  * RxDB 核心包 - 响应式数据库客户端
  * 提供实体管理、版本控制、查询管理等功能
  */
+// 备份 / 恢复的 adapter 无关契约（US-217）：错误分类、manifest、流式归档编解码、实体结构指纹。
+// 各 adapter 的 backup/restore 在包外实现，必须共用这一份格式与判定，否则同一个归档在两端
+// 得出不同的兼容结论。
+export * from './backup/backup-archive.js';
+export * from './backup/backup-error.js';
+export * from './backup/backup-manifest.js';
+export * from './backup/backup.interface.js';
+export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 写捕获接缝（adapter-contract.md §1/§2）。**整条留在核心**：装卸口就在 `RxDBAdapterLocalBase`
 // 上，搬走等于核心反向依赖插件。这里只有机制与两道转交门，一个捕获语义都不认识——
 // 判定实现随 `@aiao/rxdb-plugin-working-tree` 走。`gateRawWrite` 必须出现在公开面上：
@@ -180,7 +188,7 @@ export * from './system/migration.js';
 // 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-working-tree` 在包外，它的变更单元
 // 指纹与提交幂等键都按它算，而这两个 hex 是**落库**的。插件自带一份实现不产生编译错误，
 // 只会让同一份数据在两处得出两个 id，症状要到下一次幂等本该命中却没命中时才显形。
-export { sha256Hex } from './system/sha256.js';
+export { createSha256, sha256Hex, type Sha256Hasher } from './system/sha256.js';
 // 单条、无占位符的条件写入（CAS）所需的字面量拼装，五个 helper 整桶转出。必须在公开面上：
 // epic-006 里那两条 CAS 语句（能力启用、HEAD 推进）随插件走，而「判据与写入必须落在同一条
 // 语句里」这个约束不允许它们退回参数化路径。转出的是**拒绝转不动的输入**的那一份实现——

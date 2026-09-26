@@ -414,7 +414,37 @@ const NAMING = {
     'BranchMaterializationProjectionContext',
     'BranchMaterializationSource',
     'branchMaterializationPageFingerprint',
-    'canonicalMaterializationJson'
+    'canonicalMaterializationJson',
+    // US-217 本地数据库备份 / 恢复的共享契约。manifest、归档帧格式、兼容性判定与错误码必须
+    // 被 PGlite 与 SQLite 系各适配器逐字共用——各写一份就是几种互不相认的备份格式，所以只能住在核心。
+    // 备份与提交能力、工作树都无关，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    // `createSha256` / `Sha256Hasher` 是归档校验要的增量哈希，核心原有的一次性 sha256 满足不了流式输入。
+    'assertRxDBBackupCompatible',
+    'classifyBackupIoError',
+    'computeRxDBSchemaFingerprint',
+    'createSha256',
+    'isRxDBBackupError',
+    'parseRxDBBackupManifest',
+    'RXDB_BACKUP_CHUNK_SIZE',
+    'RXDB_BACKUP_FORMAT',
+    'RXDB_BACKUP_FORMAT_VERSION',
+    'RXDB_BACKUP_SCOPE',
+    'RxDBBackupArchiveItem',
+    'RxDBBackupArchiveReader',
+    'RxDBBackupArchiveWriter',
+    'RxDBBackupCompatibility',
+    'RxDBBackupEntryHeader',
+    'RxDBBackupError',
+    'RxDBBackupErrorCode',
+    'RxDBBackupErrorDetails',
+    'RxDBBackupManifest',
+    'RxDBBackupOptions',
+    'RxDBBackupResult',
+    'RxDBBackupScope',
+    'RxDBBackupTrailer',
+    'RxDBRestoreOptions',
+    'RxDBRestoreResult',
+    'Sha256Hasher'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

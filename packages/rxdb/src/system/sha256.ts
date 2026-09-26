@@ -149,3 +149,83 @@ export const sha256Hex = (message: Uint8Array): string => {
   }
   return hex;
 };
+
+/**
+ * 增量 SHA-256 摘要器。
+ *
+ * @remarks
+ * 与 {@link sha256Hex} 是同一个函数，只是可以分多次喂字节：备份归档（US-217）可能远大于
+ * 内存预算，摘要必须随流计算，不能先把整份归档拼进一块缓冲。
+ */
+export interface Sha256Hasher {
+  /** 追加一段字节；入参不被改动，也不被持有。 */
+  update(bytes: Uint8Array): void;
+  /** 结束摘要并返回 64 位小写 hex；之后再调用任一方法都会抛错。 */
+  digestHex(): string;
+}
+
+/**
+ * 创建增量 SHA-256 摘要器。
+ *
+ * @returns 新的摘要器，状态与其他实例互不影响
+ *
+ * @remarks
+ * 结果与 {@link sha256Hex} 对同一段拼接字节的结果逐位相同；内部只缓存不足 64 字节的尾块，
+ * 常驻内存与输入总长无关。
+ */
+export const createSha256 = (): Sha256Hasher => {
+  const state = Uint32Array.from(INITIAL_STATE);
+  const schedule = new Uint32Array(64);
+  const block = new Uint8Array(64);
+  const blockView = new DataView(block.buffer);
+  let blockLength = 0;
+  let totalLength = 0;
+  let finalized = false;
+
+  const assertOpen = (): void => {
+    if (finalized) throw new Error('SHA-256 hasher already finalized');
+  };
+
+  const compressCurrentBlock = (): void => {
+    loadBlock(blockView, 0, schedule);
+    expandSchedule(schedule);
+    compressBlock(state, schedule);
+    blockLength = 0;
+  };
+
+  return {
+    update(bytes: Uint8Array): void {
+      assertOpen();
+      totalLength += bytes.length;
+      let offset = 0;
+      while (offset < bytes.length) {
+        const take = Math.min(64 - blockLength, bytes.length - offset);
+        block.set(bytes.subarray(offset, offset + take), blockLength);
+        blockLength += take;
+        offset += take;
+        if (blockLength === 64) compressCurrentBlock();
+      }
+    },
+    digestHex(): string {
+      assertOpen();
+      finalized = true;
+      // 补位规则同 padMessage：0x80、若干 0x00、末尾八字节大端比特长度。
+      block[blockLength] = 0x80;
+      block.fill(0, blockLength + 1);
+      if (blockLength + 1 > 56) {
+        compressCurrentBlock();
+        block.fill(0);
+      }
+      blockView.setUint32(56, Math.floor(totalLength / 0x20000000), false);
+      blockView.setUint32(60, (totalLength * 8) >>> 0, false);
+      compressCurrentBlock();
+
+      let hex = '';
+      for (const word of state) {
+        hex += HEX_BYTE[(word >>> 24) & 0xff] + HEX_BYTE[(word >>> 16) & 0xff];
+        hex += HEX_BYTE[(word >>> 8) & 0xff] + HEX_BYTE[word & 0xff];
+      }
+      return hex;
+    }
+  };
+};

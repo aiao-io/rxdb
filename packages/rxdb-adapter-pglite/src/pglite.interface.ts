@@ -1,4 +1,5 @@
 import { PGliteOptions } from '@electric-sql/pglite';
+import type { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
 
 /**
  * PGlite 适配器名称常量
@@ -57,6 +58,14 @@ export interface PGliteClientOptions extends PGliteOptions {
    * 显式传入 dataDir 时，优先使用 dataDir
    */
   store?: 'memory' | 'idb';
+
+  /**
+   * 领取 {@link restorePGliteDatabase} 恢复到内存目标得到的数据库，代替新建空库。
+   *
+   * @remarks
+   * 只能配合内存存储使用；句柄只能被领取一次，且只能被恢复时指定的那个库领取。
+   */
+  restoredDatabase?: PGliteRestoredDatabase;
 }
 
 /**

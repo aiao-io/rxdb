@@ -42,6 +42,10 @@
         "kind": "value"
       },
       {
+        "name": "assertRxDBBackupCompatible",
+        "kind": "value"
+      },
+      {
         "name": "assertSingleActiveBranch",
         "kind": "value"
       },
@@ -142,6 +146,10 @@
         "kind": "value"
       },
       {
+        "name": "classifyBackupIoError",
+        "kind": "value"
+      },
+      {
         "name": "CodeFormat",
         "kind": "type"
       },
@@ -151,6 +159,10 @@
       },
       {
         "name": "compactChanges",
+        "kind": "value"
+      },
+      {
+        "name": "computeRxDBSchemaFingerprint",
         "kind": "value"
       },
       {
@@ -188,6 +200,10 @@
       {
         "name": "CountOptions",
         "kind": "type"
+      },
+      {
+        "name": "createSha256",
+        "kind": "value"
       },
       {
         "name": "CurrencyFormat",
@@ -818,6 +834,10 @@
         "kind": "value"
       },
       {
+        "name": "isRxDBBackupError",
+        "kind": "value"
+      },
+      {
         "name": "isRxDBEntity",
         "kind": "value"
       },
@@ -1031,6 +1051,10 @@
       },
       {
         "name": "parseEntityRecordValues",
+        "kind": "value"
+      },
+      {
+        "name": "parseRxDBBackupManifest",
         "kind": "value"
       },
       {
@@ -1426,6 +1450,22 @@
         "kind": "both"
       },
       {
+        "name": "RXDB_BACKUP_CHUNK_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_FORMAT",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_FORMAT_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_SCOPE",
+        "kind": "value"
+      },
+      {
         "name": "RXDB_CAPABILITY_WATERMARK_PREFIX",
         "kind": "value"
       },
@@ -1483,6 +1523,58 @@
       },
       {
         "name": "RxDBAdapters",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupArchiveItem",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupArchiveReader",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupArchiveWriter",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupCompatibility",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupEntryHeader",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupErrorDetails",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupManifest",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupResult",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupScope",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupTrailer",
         "kind": "type"
       },
       {
@@ -1722,6 +1814,14 @@
         "kind": "type"
       },
       {
+        "name": "RxDBRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBRestoreResult",
+        "kind": "type"
+      },
+      {
         "name": "RxDBScalar",
         "kind": "type"
       },
@@ -1771,6 +1871,10 @@
       },
       {
         "name": "SchemaManager",
+        "kind": "type"
+      },
+      {
+        "name": "Sha256Hasher",
         "kind": "type"
       },
       {

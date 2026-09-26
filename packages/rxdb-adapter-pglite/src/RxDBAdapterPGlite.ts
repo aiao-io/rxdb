@@ -4,6 +4,8 @@ import type {
   IRxDBAdapter,
   RawQueryResult,
   RestoreEntityOptions,
+  RxDBBackupOptions,
+  RxDBBackupResult,
   RxDBMutationsMap,
   SwitchBranchOptions,
   SwitchVersionActions
@@ -15,6 +17,7 @@ import {
   MAIN_BRANCH_ID,
   RxDB,
   RxDBAdapterLocalBase,
+  RxDBBackupError,
   RxDBChange,
   TransactionFun
 } from '@aiao/rxdb';
@@ -29,6 +32,8 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
+import { resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
+import { writePGliteBackup } from './backup/pglite-backup.js';
 import {
   type ChangePipelineHost,
   drainPendingChangeHandlers,
@@ -46,7 +51,7 @@ import {
   PgliteTableColumn
 } from './pglite.interface.js';
 import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
-import { asPGliteChangeEventSource, IPGliteClient, PGliteClient } from './PGliteClient.js';
+import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
@@ -613,6 +618,46 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
     return this.transaction(transactionFun, transactionLog);
+  }
+
+  /**
+   * 把整个数据库写成一份可恢复的归档。
+   *
+   * @remarks
+   * 快照在 adapter 的串行队列里、以 PGlite 独占锁 + `CHECKPOINT` 取得，所以归档与某一次事务提交
+   * 边界一致。**整个写出过程都占着数据库**：输出流有背压时（慢速磁盘、网络上传），这段时间内的
+   * 读写都会排队，调用方应把输出接到足够快的目标上。在本 adapter 的事务回调里调用会等待自己，
+   * 直到 `lockTimeoutMs` 后报 `lock_timeout`。
+   *
+   * 归档包含整个数据目录（业务表、系统表、keyring 的密文），加密列保持密文，不需要解锁。
+   * 目前支持 `memory` 与 `idb://` 存储；OPFS-AHP（Worker）与桌面代理客户端报 `unsupported_combination`。
+   *
+   * @param sink - 输出流；成功时被 close，失败时被 abort
+   * @param options - 取消信号与排队时限
+   * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
+   * @throws RxDBBackupError `unsupported_combination` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+   *
+   * @example
+   * ```typescript
+   * const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+   * const result = await adapter.backup(await handle.createWritable());
+   * console.log(result.sha256);
+   * ```
+   */
+  async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
+    const dataDir = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir;
+    const storage = resolvePGliteBackupStorage(dataDir, 'backup');
+    if (options.signal?.aborted) {
+      throw new RxDBBackupError('aborted', 'PGlite backup was aborted', { cause: options.signal.reason });
+    }
+    this.#assertWritable();
+    await this.ready();
+    const client = await this.#getClient();
+    return writePGliteBackup(
+      { rxdb: this.rxdb, options: this.options, client, storage, queue: this.#queue },
+      sink,
+      options
+    );
   }
 
   /** 查询入口。引导窗外走 writeQuery；引导窗就绪后再入队。 */

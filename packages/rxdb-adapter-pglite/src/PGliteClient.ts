@@ -1,8 +1,17 @@
+import { RxDBBackupError } from '@aiao/rxdb';
 import { EventDispatcher, nextMicroTask } from '@aiao/utils';
-import { DescribeQueryResult, PGlite, QueryOptions, Results, Transaction } from '@electric-sql/pglite';
+import { DescribeQueryResult, PGlite, protocol, QueryOptions, Results, Transaction } from '@electric-sql/pglite';
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
+import type { EmscriptenFS } from './backup/pglite-data-dir.js';
+import {
+  hasRestoreMarker,
+  hasWebLocks,
+  pgliteStorageLockName,
+  tryAcquireLock,
+  type HeldLock
+} from './backup/pglite-restore-lock.js';
 import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
 import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
@@ -21,7 +30,7 @@ interface PGliteRuntime {
   live: LiveNamespace;
 }
 
-type ResolvedPGliteClientOptions = Omit<PGliteClientOptions, 'store'> & {
+type ResolvedPGliteClientOptions = Omit<PGliteClientOptions, 'store' | 'restoredDatabase'> & {
   dataDir?: string;
   relaxedDurability: boolean;
   extensions: NonNullable<PGliteClientOptions['extensions']>;
@@ -48,6 +57,8 @@ const runtimeWorkers = new WeakMap<PGliteRuntime, Worker>();
  */
 export function resolvePGliteInitOptions(dbName: string, options: PGliteClientOptions): ResolvedPGliteClientOptions {
   const { store, dataDir, relaxedDurability, extensions, ...restOptions } = options;
+  // restoredDatabase 是交给客户端的句柄，不是 PGlite 构造参数。
+  delete restOptions.restoredDatabase;
 
   return {
     ...restOptions,
@@ -74,8 +85,23 @@ export function shouldUsePGliteWorker(options: Pick<ResolvedPGliteClientOptions,
   return options.dataDir?.startsWith('opfs-ahp://') ?? false;
 }
 
+/** PGlite 在运行时存在、但 d.ts 没有声明的两把互斥锁。 */
+interface PGliteExclusiveInternals {
+  _runExclusiveQuery<T>(fn: () => Promise<T>): Promise<T>;
+  _runExclusiveTransaction<T>(fn: () => Promise<T>): Promise<T>;
+}
+
 async function createPGliteRuntime(dbName: string, options: PGliteClientOptions): Promise<PGliteRuntime> {
   const initOptions = resolvePGliteInitOptions(dbName, options);
+
+  if (options.restoredDatabase) {
+    if (initOptions.dataDir !== undefined && initOptions.dataDir !== 'memory://') {
+      throw new RxDBBackupError('unsupported_combination', 'restoredDatabase can only be adopted by a memory store', {
+        details: { field: 'dataDir', expected: 'memory://', actual: initOptions.dataDir }
+      });
+    }
+    return options.restoredDatabase.take(dbName) as unknown as PGliteRuntime;
+  }
 
   if (shouldUsePGliteWorker(initOptions)) {
     if (typeof Worker === 'undefined') {
@@ -107,6 +133,39 @@ async function createPGliteRuntime(dbName: string, options: PGliteClientOptions)
     return runtime;
   } catch (error) {
     await runtime.close().catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
+ * 正常连接 IndexedDB 存储前的准入检查：与恢复互斥，并拒绝打开半截恢复的库。
+ *
+ * @remarks
+ * 共享锁让同一个库可以被多个标签页同时打开，却能挡住独占的恢复；锁随持有者消失而释放。
+ * 标记检查必须在拿到锁之后：此时不可能有恢复正在进行，标记存在只能是上次恢复没做完。
+ *
+ * @param dataDir - 规范化后的 `dataDir`
+ * @returns 持有的共享锁；非 IndexedDB 存储或环境没有 Web Locks 时为 `undefined`
+ */
+async function acquireStorageLock(dataDir: string | undefined): Promise<HeldLock | undefined> {
+  if (!dataDir?.startsWith('idb://')) return undefined;
+  const lock = hasWebLocks() ? await tryAcquireLock(pgliteStorageLockName(dataDir), 'shared') : undefined;
+  if (lock === null) {
+    throw new RxDBBackupError('restore_in_progress', `PGlite storage "${dataDir}" is being restored`, {
+      details: { field: 'dataDir', actual: dataDir }
+    });
+  }
+  try {
+    if (await hasRestoreMarker(dataDir)) {
+      throw new RxDBBackupError(
+        'restore_incomplete',
+        `A previous restore into "${dataDir}" did not finish; call cleanupIncompletePGliteRestore()`,
+        { details: { field: 'dataDir', actual: dataDir } }
+      );
+    }
+    return lock;
+  } catch (error) {
+    lock?.release();
     throw error;
   }
 }
@@ -203,6 +262,15 @@ export interface IPGliteClient {
   /** 当前 realm 中是否有其他客户端持有同一份持久化存储。 */
   hasStoragePeer?(): boolean;
 
+  /**
+   * 在一致快照上读取数据目录。
+   *
+   * @remarks
+   * 可选：只有主线程 PGlite 能直接访问 Emscripten 文件系统；Worker 与桌面代理客户端不提供，
+   * {@link RxDBAdapterPGlite.backup} 据此报 `unsupported_combination`。
+   */
+  snapshotDataDir?<T>(fn: (FS: EmscriptenFS) => Promise<T>): Promise<T>;
+
   /** 尚未分发的 NOTIFY 行事件数量。 */
   readonly pendingNotificationCount?: number;
 
@@ -292,6 +360,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   #notificationUnsubscribes: Array<() => Promise<void>> = [];
   #isDisconnecting = false;
   #storageKey?: string;
+  #storageLock?: HeldLock;
   #state: PGliteClientState = 'idle';
   #lifecycleQueue = Promise.resolve();
   #lifecycleVersion = 0;
@@ -363,6 +432,33 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   }
 
   /**
+   * 独占运行时、做一次 `CHECKPOINT`，然后把 Emscripten 文件系统交给 `fn`。
+   *
+   * @remarks
+   * 同时拿住 PGlite 的查询锁与事务锁：`fn` 运行期间没有任何语句能改动数据目录，
+   * 于是它看到的就是 checkpoint 之后的一致快照。`fn` 越慢，数据库被挡住越久。
+   *
+   * @param fn - 读取数据目录的回调
+   * @returns `fn` 的结果
+   * @throws RxDBBackupError `unsupported_combination` 运行时不在当前线程（OPFS-AHP Worker）
+   */
+  async snapshotDataDir<T>(fn: (FS: EmscriptenFS) => Promise<T>): Promise<T> {
+    const runtime: unknown = this.#getRuntime();
+    if (!(runtime instanceof PGlite)) {
+      throw new RxDBBackupError('unsupported_combination', 'PGlite backup requires an in-thread runtime', {
+        details: { field: 'dataDir', actual: this.#storageKey }
+      });
+    }
+    const pg = runtime as PGlite & PGliteExclusiveInternals;
+    return pg._runExclusiveTransaction(() =>
+      pg._runExclusiveQuery(async () => {
+        await pg.execProtocol(protocol.serialize.query('CHECKPOINT'), { syncToFs: false });
+        return fn(pg.Module.FS as EmscriptenFS);
+      })
+    );
+  }
+
+  /**
    * 创建 live query，借助 @electric-sql/pglite/live 插件。
    * 依赖 init() 时已加载的 `live` extension。
    */
@@ -428,6 +524,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
     this.#dbName = dbName;
     this.#isDisconnecting = false;
     try {
+      this.#storageLock = await acquireStorageLock(resolvePGliteInitOptions(dbName, options).dataDir);
       const runtime = await createPGliteRuntime(dbName, options);
       this.#pglite = runtime;
 
@@ -508,6 +605,8 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
       }
       if (this.#pglite === runtime) this.#pglite = undefined;
       this.#removeStorageClient();
+      this.#storageLock?.release();
+      this.#storageLock = undefined;
       this.#state = 'closed';
     }
 

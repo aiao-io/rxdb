@@ -56,7 +56,9 @@ vi.mock('../handle_rxdb_change.js', () => ({
   handle_rxdb_change: state.handleRxdbChange
 }));
 
-vi.mock('../PGliteClient.js', () => ({
+vi.mock('../PGliteClient.js', async importOriginal => ({
+  // 纯函数（初始化选项解析等）沿用真实实现，只替换客户端本身。
+  ...(await importOriginal<typeof import('../PGliteClient.js')>()),
   // 结构化判定与真实实现保持一致：mock 客户端只要有这对方法就算变更事件源。
   asPGliteChangeEventSource: (client: unknown) => {
     const candidate = client as { addEventListener?: unknown; removeEventListener?: unknown } | null;
