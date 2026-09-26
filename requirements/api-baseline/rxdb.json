@@ -666,6 +666,14 @@
         "kind": "value"
       },
       {
+        "name": "getRxDBBackupAuthDomain",
+        "kind": "value"
+      },
+      {
+        "name": "getRxDBBackupSchemaFingerprint",
+        "kind": "value"
+      },
+      {
         "name": "getRxDBChangeEntityIdQueryValues",
         "kind": "value"
       },
@@ -707,6 +715,10 @@
       },
       {
         "name": "groupBySyncType",
+        "kind": "value"
+      },
+      {
+        "name": "hasRxDBBackupWebLocks",
         "kind": "value"
       },
       {
@@ -1446,6 +1458,10 @@
         "kind": "type"
       },
       {
+        "name": "runRxDBBackupWhenQueued",
+        "kind": "value"
+      },
+      {
         "name": "RxDB",
         "kind": "both"
       },
@@ -1558,11 +1574,19 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBackupHeldLock",
+        "kind": "type"
+      },
+      {
         "name": "RxDBBackupManifest",
         "kind": "type"
       },
       {
         "name": "RxDBBackupOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupQueueOptions",
         "kind": "type"
       },
       {
@@ -2144,6 +2168,10 @@
       {
         "name": "TrustedWriteScope",
         "kind": "type"
+      },
+      {
+        "name": "tryAcquireRxDBBackupLock",
+        "kind": "value"
       },
       {
         "name": "tryGetEntityMetadata",

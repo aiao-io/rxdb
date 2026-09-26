@@ -2,7 +2,7 @@ import {
   assertLoadOptionsTransferable,
   releaseComlinkProxy,
   type SqliteClientLike,
-  wrapWithComlink
+  wrapWithComlinkEndpoint
 } from '@aiao/rxdb-adapter-sqlite-core';
 import type { SqliteLoadOptions, SqliteOptions } from './sqlite-official.interface.js';
 import { SqliteClient } from './SqliteOfficialClient.js';
@@ -15,6 +15,9 @@ import { SqliteClient } from './SqliteOfficialClient.js';
  * 配置了 worker / sharedWorker 时拿到的是 Comlink 远端代理，
  * 它的每个方法都被 Promise 化，声明成 `SqliteClient` 会让
  * `beginTransactionSql(): string` 这类同步签名在跨线程模式下变成谎报（SQLC-040）。
+ *
+ * 每次连接租用 Worker 的一条独立子端口，释放后同一个 Worker 可以再连：恢复先用一条连接写库，
+ * 之后的 `connect()` 再开一条。
  *
  * @param dbName - 数据库名
  * @param options - 官方 sqlite-wasm 适配器选项
@@ -35,7 +38,7 @@ export async function createSqliteClient(dbName: string, options: SqliteOptions)
 
   assertLoadOptionsTransferable(loadOptions, options);
 
-  const client = wrapWithComlink(new SqliteClient(), options);
+  const client = await wrapWithComlinkEndpoint(new SqliteClient(), options);
   try {
     await client.init(dbName, loadOptions);
     return client;

@@ -1,17 +1,11 @@
-import { RxDBBackupError } from '@aiao/rxdb';
+import { hasRxDBBackupWebLocks, RxDBBackupError, tryAcquireRxDBBackupLock, type RxDBBackupHeldLock } from '@aiao/rxdb';
 import { EventDispatcher, nextMicroTask } from '@aiao/utils';
 import { DescribeQueryResult, PGlite, protocol, QueryOptions, Results, Transaction } from '@electric-sql/pglite';
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
 import type { EmscriptenFS } from './backup/pglite-data-dir.js';
-import {
-  hasRestoreMarker,
-  hasWebLocks,
-  pgliteStorageLockName,
-  tryAcquireLock,
-  type HeldLock
-} from './backup/pglite-restore-lock.js';
+import { hasRestoreMarker, pgliteStorageLockName } from './backup/pglite-restore-lock.js';
 import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
 import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
@@ -147,9 +141,10 @@ async function createPGliteRuntime(dbName: string, options: PGliteClientOptions)
  * @param dataDir - 规范化后的 `dataDir`
  * @returns 持有的共享锁；非 IndexedDB 存储或环境没有 Web Locks 时为 `undefined`
  */
-async function acquireStorageLock(dataDir: string | undefined): Promise<HeldLock | undefined> {
+async function acquireStorageLock(dataDir: string | undefined): Promise<RxDBBackupHeldLock | undefined> {
   if (!dataDir?.startsWith('idb://')) return undefined;
-  const lock = hasWebLocks() ? await tryAcquireLock(pgliteStorageLockName(dataDir), 'shared') : undefined;
+  const lock =
+    hasRxDBBackupWebLocks() ? await tryAcquireRxDBBackupLock(pgliteStorageLockName(dataDir), 'shared') : undefined;
   if (lock === null) {
     throw new RxDBBackupError('restore_in_progress', `PGlite storage "${dataDir}" is being restored`, {
       details: { field: 'dataDir', actual: dataDir }
@@ -165,7 +160,7 @@ async function acquireStorageLock(dataDir: string | undefined): Promise<HeldLock
     }
     return lock;
   } catch (error) {
-    lock?.release();
+    await lock?.release();
     throw error;
   }
 }
@@ -360,7 +355,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   #notificationUnsubscribes: Array<() => Promise<void>> = [];
   #isDisconnecting = false;
   #storageKey?: string;
-  #storageLock?: HeldLock;
+  #storageLock?: RxDBBackupHeldLock;
   #state: PGliteClientState = 'idle';
   #lifecycleQueue = Promise.resolve();
   #lifecycleVersion = 0;
@@ -605,7 +600,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
       }
       if (this.#pglite === runtime) this.#pglite = undefined;
       this.#removeStorageClient();
-      this.#storageLock?.release();
+      await this.#storageLock?.release();
       this.#storageLock = undefined;
       this.#state = 'closed';
     }

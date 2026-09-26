@@ -1,0 +1,236 @@
+import type { RxDB, RxDBBackupManifest, RxDBBackupOptions, RxDBBackupResult, RxDBBackupTrailer } from '@aiao/rxdb';
+import {
+  classifyBackupIoError,
+  getRxDBBackupAuthDomain,
+  getRxDBBackupSchemaFingerprint,
+  runRxDBBackupWhenQueued,
+  RXDB_BACKUP_FORMAT,
+  RXDB_BACKUP_FORMAT_VERSION,
+  RXDB_BACKUP_SCOPE,
+  RxDBBackupArchiveWriter,
+  RxDBBackupError
+} from '@aiao/rxdb';
+import type { AsyncQueueExecutor } from '@aiao/utils';
+import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
+import {
+  readSqliteBackupSchema,
+  readSqliteEngineVersion,
+  readSqliteSystemVersionState,
+  runSqliteBackupSql,
+  selectSqliteRows,
+  sqliteArchiveExtensions,
+  sqliteTextValue,
+  type SqliteBackupExecutor,
+  type SqliteTableDump
+} from './sqlite-backup-schema.js';
+import {
+  SQLITE_BACKUP_MAX_ENTRY_BYTES,
+  SQLITE_BACKUP_SCHEMA_ENTRY,
+  SQLITE_BACKUP_SUMMARY_ENTRY,
+  sqliteRowsEntryPath
+} from './sqlite-backup-sql.js';
+import {
+  SQLITE_BACKUP_ENGINE,
+  SQLITE_BACKUP_ENGINE_COMPATIBILITY,
+  SQLITE_BACKUP_LOCK_TIMEOUT_MS,
+  type SqliteSupportedBackupStorage
+} from './sqlite-backup.interface.js';
+
+/** 行条目攒到这么大就落一个条目；单行更大时独占一个条目。 */
+const ENTRY_TARGET_BYTES = 1024 * 1024;
+/** 每页查询的字节预算，按上一页最大的一行折算行数。 */
+const PAGE_BUDGET_BYTES = 256 * 1024;
+const MAX_PAGE_ROWS = 512;
+
+const COMMA = 0x2c;
+const encoder = new TextEncoder();
+
+/** 备份一次需要的全部上下文。 */
+export interface SqliteBackupInput {
+  readonly rxdb: RxDB;
+  readonly adapterName: string;
+  readonly client: SqliteBackupExecutor;
+  readonly storage: SqliteSupportedBackupStorage;
+  readonly queue: AsyncQueueExecutor;
+}
+
+/** 把一张表的行字面量攒成约 1 MiB 的条目，行与行之间用逗号连接，恰好是 `VALUES` 之后的文本。 */
+class SqliteRowEntries {
+  readonly #archive: RxDBBackupArchiveWriter;
+  readonly #table: number;
+  #parts: Uint8Array[] = [];
+  #bytes = 0;
+  #seq = 0;
+
+  constructor(archive: RxDBBackupArchiveWriter, table: number) {
+    this.#archive = archive;
+    this.#table = table;
+  }
+
+  /** 追加一行，返回它的字节数。 */
+  async add(literal: string, tableName: string): Promise<number> {
+    const bytes = encoder.encode(literal);
+    if (bytes.length > SQLITE_BACKUP_MAX_ENTRY_BYTES) {
+      throw new RxDBBackupError('unsupported_combination', `A row of table "${tableName}" is too large to back up`, {
+        details: { field: 'rowBytes', expected: SQLITE_BACKUP_MAX_ENTRY_BYTES, actual: bytes.length }
+      });
+    }
+    if (this.#parts.length > 0 && this.#bytes + 1 + bytes.length > ENTRY_TARGET_BYTES) await this.flush();
+    this.#bytes += this.#parts.length > 0 ? bytes.length + 1 : bytes.length;
+    this.#parts.push(bytes);
+    return bytes.length;
+  }
+
+  async flush(): Promise<void> {
+    if (this.#parts.length === 0) return;
+    const data = new Uint8Array(this.#bytes);
+    let at = 0;
+    for (const part of this.#parts) {
+      if (at > 0) data[at++] = COMMA;
+      data.set(part, at);
+      at += part.length;
+    }
+    this.#parts = [];
+    this.#bytes = 0;
+    await this.#archive.beginEntry({
+      path: sqliteRowsEntryPath(this.#table, this.#seq++),
+      kind: 'file',
+      size: data.length
+    });
+    await this.#archive.writeData(data);
+  }
+}
+
+const dumpTable = async (
+  executor: SqliteBackupExecutor,
+  archive: RxDBBackupArchiveWriter,
+  dump: SqliteTableDump,
+  tableName: string
+): Promise<number> => {
+  const entries = new SqliteRowEntries(archive, dump.table);
+  // 第一页只取一行：行的大小事先不知道，一页几百个大 blob 会把内存撑爆
+  let limit = 1;
+  let keys: SQLiteCompatibleType[] | null = null;
+  let count = 0;
+  for (;;) {
+    const page = await selectSqliteRows(
+      executor,
+      keys === null ? dump.firstPageSql : dump.nextPageSql,
+      keys === null ? [limit] : [...keys, limit],
+      'io_error'
+    );
+    let largest = 1;
+    for (const row of page) {
+      largest = Math.max(largest, await entries.add(sqliteTextValue(row[0], 'row literal'), tableName));
+    }
+    count += page.length;
+    if (page.length < limit) break;
+    keys = page[page.length - 1].slice(1, 1 + dump.keyCount);
+    limit = Math.min(MAX_PAGE_ROWS, Math.max(1, Math.floor(PAGE_BUDGET_BYTES / largest)));
+  }
+  await entries.flush();
+  return count;
+};
+
+const writeJsonEntry = async (archive: RxDBBackupArchiveWriter, path: string, value: unknown): Promise<void> => {
+  const data = encoder.encode(JSON.stringify(value));
+  await archive.beginEntry({ path, kind: 'file', size: data.length });
+  await archive.writeData(data);
+};
+
+const dumpDatabase = async (
+  input: SqliteBackupInput,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  signal: AbortSignal | undefined
+): Promise<{ trailer: RxDBBackupTrailer; manifest: RxDBBackupManifest }> => {
+  const { client, rxdb } = input;
+  const plan = await readSqliteBackupSchema(client);
+  const versions = await readSqliteSystemVersionState(client, 'io_error');
+  const authDomain = getRxDBBackupAuthDomain(rxdb);
+  const manifest: RxDBBackupManifest = {
+    format: RXDB_BACKUP_FORMAT,
+    formatVersion: RXDB_BACKUP_FORMAT_VERSION,
+    createdAt: new Date().toISOString(),
+    scope: RXDB_BACKUP_SCOPE,
+    adapter: {
+      name: input.adapterName,
+      engine: SQLITE_BACKUP_ENGINE,
+      engineVersion: await readSqliteEngineVersion(client),
+      engineCompatibility: SQLITE_BACKUP_ENGINE_COMPATIBILITY,
+      extensions: sqliteArchiveExtensions(plan.schema),
+      storage: input.storage.label
+    },
+    rxdb: {
+      version: rxdb.version,
+      systemSchemaVersion: versions.schemaVersion,
+      changeCodecVersion: versions.codecVersion
+    },
+    schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    encryption: authDomain === null ? null : { authDomain }
+  };
+  const archive = new RxDBBackupArchiveWriter(writer, signal);
+  await archive.writeManifest(manifest);
+  await writeJsonEntry(archive, SQLITE_BACKUP_SCHEMA_ENTRY, plan.schema);
+  const rows = plan.schema.tables.map(() => 0);
+  for (const dump of plan.dumps) {
+    rows[dump.table] = await dumpTable(client, archive, dump, plan.schema.tables[dump.table].name);
+  }
+  await writeJsonEntry(archive, SQLITE_BACKUP_SUMMARY_ENTRY, { rows });
+  return { trailer: await archive.finish(), manifest };
+};
+
+/** 整个转储在一个读事务里完成：结构、水位与全部行来自同一个快照。 */
+const snapshot = async (
+  input: SqliteBackupInput,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  signal: AbortSignal | undefined
+): Promise<{ trailer: RxDBBackupTrailer; manifest: RxDBBackupManifest }> => {
+  await runSqliteBackupSql(input.client, 'BEGIN;', undefined, 'io_error');
+  try {
+    const result = await dumpDatabase(input, writer, signal);
+    await runSqliteBackupSql(input.client, 'COMMIT;', undefined, 'io_error');
+    return result;
+  } catch (error) {
+    // 只读事务回滚失败不影响库；吞掉它，让调用方看到真正的失败原因
+    await input.client.execute('ROLLBACK;').catch(() => undefined);
+    throw error;
+  }
+};
+
+/**
+ * 把已连接的 SQLite 库写成一份归档。
+ *
+ * @remarks
+ * 归档是逻辑转储：`sqlite/schema.json`（全部建表 / 索引 / 视图 / 触发器语句、`user_version`、
+ * `application_id`、`sqlite_sequence`），按表分段的 `sqlite/rows/<表>/<序号>`（`quote()` 行字面量），
+ * 最后是 `sqlite/summary.json`（每张表的行数）。虚表只记建表语句，数据随它的影子表一起转储。
+ *
+ * @param input - adapter 上下文
+ * @param sink - 输出流；成功时被 close，失败时被 abort
+ * @param options - 取消信号与排队时限
+ * @returns 结束标记与 manifest
+ */
+export const writeSqliteBackup = async (
+  input: SqliteBackupInput,
+  sink: WritableStream<Uint8Array>,
+  options: RxDBBackupOptions
+): Promise<RxDBBackupResult> => {
+  const signal = options.signal;
+  const writer = sink.getWriter();
+  try {
+    const { trailer, manifest } = await runRxDBBackupWhenQueued(input.queue, () => snapshot(input, writer, signal), {
+      signal,
+      timeoutMs: options.lockTimeoutMs ?? SQLITE_BACKUP_LOCK_TIMEOUT_MS,
+      label: 'SQLite backup'
+    });
+    await writer.close().catch((error: unknown) => {
+      throw classifyBackupIoError(error, 'Failed to close the backup output');
+    });
+    return { ...trailer, manifest, scope: manifest.scope };
+  } catch (error) {
+    await writer.abort(error).catch(() => undefined);
+    throw error;
+  } finally {
+    writer.releaseLock();
+  }
+};

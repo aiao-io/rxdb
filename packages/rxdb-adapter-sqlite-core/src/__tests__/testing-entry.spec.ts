@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest';
 import packageJson from '../../package.json';
 import {
   adapterConstructionSuite,
+  backupConcurrencySuite,
+  backupEncryptionSuite,
+  backupFailureSuite,
+  backupInterruptSuite,
+  backupRoundtripSuite,
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
@@ -16,6 +21,7 @@ import {
   querySqlSuite,
   relationIntegrationSuite,
   rxdbAdapterSuite,
+  serveInterruptedRestore,
   sqliteClientBatchTimeoutSuite,
   sqliteClientSuite,
   sqliteRepositorySuite,
@@ -49,6 +55,14 @@ const suiteExports = [
   treeIntegrationSuite,
   undoRedoSuite,
   versionBranchSuite
+];
+
+const backupSuiteExports = [
+  backupConcurrencySuite,
+  backupEncryptionSuite,
+  backupFailureSuite,
+  backupInterruptSuite,
+  backupRoundtripSuite
 ];
 
 describe('testing subpath', () => {
@@ -85,6 +99,12 @@ describe('testing subpath', () => {
   it('exports every shared suite as a function', () => {
     expect(suiteExports).toHaveLength(21);
     for (const suite of suiteExports) expect(suite).toBeTypeOf('function');
+  });
+
+  it('exports every backup suite and the interrupt-worker entry as functions', () => {
+    expect(backupSuiteExports).toHaveLength(5);
+    for (const suite of backupSuiteExports) expect(suite).toBeTypeOf('function');
+    expect(serveInterruptedRestore).toBeTypeOf('function');
   });
 
   it('clones entity classes without reusing constructors', () => {

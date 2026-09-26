@@ -98,6 +98,16 @@ rxdb.adapter(
 直接调用 `createSqliteClient` 时，先 `await client.disconnect()`，再调用包根入口导出的
 `releaseComlinkProxy(client)`；`RxDBAdapterSqlite` 已在 `disconnect()` 内自动完成代理释放。
 
+## 备份与恢复
+
+`backup()` / `restore()` / `cleanupIncompleteRestore()` 由 [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core#备份与恢复) 提供，语义与错误码见那里。
+
+| VFS      | 备份 / 恢复                                     |
+| -------- | ----------------------------------------------- |
+| `memory` | ✅ 内存库                                       |
+| `idb`    | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
+| 其余 VFS | ❌ `unsupported_combination`（`vfs`）           |
+
 ## 完整示例
 
 参考 [dev-rxdb-angular](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-angular) 中的集成示例。

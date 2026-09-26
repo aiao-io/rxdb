@@ -1,4 +1,9 @@
-import { releaseComlinkProxy, type SqliteClientLike, wrapWithComlinkEndpoint } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  releaseComlinkProxy,
+  type SqliteBlankDatabase,
+  type SqliteClientLike,
+  wrapWithComlinkEndpoint
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { LoadModuleOptions, SqliteOptions } from './sqlite.interface.js';
 import { SqliteClient } from './SqliteClient.js';
 
@@ -12,7 +17,7 @@ import { SqliteClient } from './SqliteClient.js';
 interface SqliteWasmClientLike extends SqliteClientLike {
   init(dbName: string, options: LoadModuleOptions): Promise<void>;
   /**
-   * 本包的 {@link SqliteClient} 必然实现这两个方法，因此在这里收窄成必选。
+   * 本包的 {@link SqliteClient} 必然实现下面这几个方法，因此在这里收窄成必选。
    *
    * @remarks
    * 不能沿用 `SqliteClientLike` 的可选声明：Comlink 的 `Remote<T>` 分不清
@@ -23,6 +28,8 @@ interface SqliteWasmClientLike extends SqliteClientLike {
    */
   beginTransactionSql(): string | Promise<string>;
   beginSystemMigrationTransactionSql(): string | Promise<string>;
+  setChangeEventsMuted(muted: boolean): void | Promise<void>;
+  describeBlankDatabase(): Promise<SqliteBlankDatabase>;
 }
 
 async function createSqliteClient(dbName: string, options: SqliteOptions): Promise<SqliteClientLike> {

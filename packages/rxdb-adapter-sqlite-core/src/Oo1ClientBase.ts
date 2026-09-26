@@ -1,4 +1,5 @@
 import { AsyncQueueExecutor, EventDispatcher, get } from '@aiao/utils';
+import { describeSqliteDatabase } from './backup/sqlite-blank-database.js';
 import { executeOo1Helper } from './execute_oo1_helper.js';
 import { FTS_BIGRAM_SQL_FUNCTION, indexTextForFts } from './fts5/cjk-bigram.js';
 import type { Oo1Database, Oo1Static } from './oo1-types.js';
@@ -16,6 +17,7 @@ import {
   WATCH_TABLES
 } from './sqlite-client.utils.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from './sqlite-core.interface.js';
+import type { SqliteBlankDatabase } from './sqlite-core.types.js';
 import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
 
 /**
@@ -93,6 +95,7 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
   #batch_timer?: ReturnType<typeof setTimeout>;
   #max_wait_timer?: ReturnType<typeof setTimeout>;
   #batch_timeout: number = DEFAULT_BATCH_TIMEOUT;
+  #change_events_muted = false;
   protected sqlite3!: Oo1Static;
   protected db!: Oo1Database;
 
@@ -145,8 +148,33 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
     return 'BEGIN;';
   }
 
+  /**
+   * 暂停 / 恢复变更事件采集。
+   *
+   * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+   */
+  setChangeEventsMuted(muted: boolean): void {
+    this.#change_events_muted = muted;
+  }
+
   beginSystemMigrationTransactionSql(): string {
     return 'BEGIN EXCLUSIVE;';
+  }
+
+  /**
+   * 在同一个模块上开一条临时 `:memory:` 连接，描述引擎新建空库本来的样子。
+   *
+   * @returns 空库的对象列表与描述
+   */
+  async describeBlankDatabase(): Promise<SqliteBlankDatabase> {
+    const blank = new this.sqlite3.oo1.DB(':memory:');
+    try {
+      return await describeSqliteDatabase({
+        execute: async (sql, bindings) => executeOo1Helper(this.clientName, blank, sql, bindings)
+      });
+    } finally {
+      blank.close();
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -262,7 +290,7 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
     this.sqlite3.capi.sqlite3_update_hook(
       this.db,
       (_userCtx, op, dbName, tableName, rowId) => {
-        if (!dbName || !tableName || !WATCH_TABLES.has(tableName)) return;
+        if (this.#change_events_muted || !dbName || !tableName || !WATCH_TABLES.has(tableName)) return;
 
         this.#pending_events.push({
           type: op as SQLiteChangeType,

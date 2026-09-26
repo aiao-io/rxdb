@@ -222,3 +222,23 @@ export { Oo1ClientBase } from './Oo1ClientBase.js';
 export type { Oo1ClientEvents, Oo1ClientLoadOptions, OpfsFallback } from './Oo1ClientBase.js';
 
 export { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
+
+// 一致性备份与恢复（US-217 阶段 B）
+export { cleanupIncompleteSqliteRestore, restoreSqliteDatabase } from './backup/restore-sqlite-database.js';
+export type { SqliteRestoreInput, SqliteRestoreOutcome } from './backup/restore-sqlite-database.js';
+export {
+  SQLITE_BACKUP_ENGINE,
+  SQLITE_BACKUP_ENGINE_COMPATIBILITY,
+  SQLITE_BACKUP_LOCK_TIMEOUT_MS,
+  sqliteStorageLockName
+} from './backup/sqlite-backup.interface.js';
+export type {
+  SqliteBackupStorage,
+  SqliteRestoreOptions,
+  SqliteRestoreStage,
+  SqliteSupportedBackupStorage
+} from './backup/sqlite-backup.interface.js';
+export { writeSqliteBackup } from './backup/sqlite-backup.js';
+export type { SqliteBackupInput } from './backup/sqlite-backup.js';
+export { describeSqliteDatabase } from './backup/sqlite-blank-database.js';
+export type { SqliteBlankDatabase } from './sqlite-core.types.js';

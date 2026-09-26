@@ -18,7 +18,8 @@ export default [
             '{projectRoot}/vitest.coverage-acceptance.config.{js,ts,mjs,mts}',
             '{projectRoot}/scripts/*.{js,cjs,mjs,ts,cts,mts}'
           ],
-          ignoredDependencies: ['type-fest', '@aiao/rxdb-test']
+          // @sqlite.org/sqlite-wasm 只被测试专用的 memdb 备份 harness 加载，装在 devDependencies
+          ignoredDependencies: ['type-fest', '@aiao/rxdb-test', '@sqlite.org/sqlite-wasm']
         }
       ]
     },

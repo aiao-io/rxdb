@@ -92,7 +92,9 @@ export default defineConfig(() => {
         '@aiao/rxdb',
         '@aiao/utils',
         'comlink',
-        'rxjs'
+        'rxjs',
+        // 备份 / 恢复用例用真实引擎跑（仅测试依赖）；预构建会把 wasm 的相对 URL 打断
+        '@sqlite.org/sqlite-wasm'
       ]
     },
     test: {

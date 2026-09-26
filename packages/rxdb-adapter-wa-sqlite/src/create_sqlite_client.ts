@@ -4,6 +4,7 @@ import {
   DEFAULT_CACHE_SIZE_KB,
   releaseComlinkProxy,
   RxDBAdapterSqliteError,
+  type SqliteBlankDatabase,
   type SqliteClientLike,
   validateSqliteNumericOption,
   wrapWithComlinkEndpoint
@@ -12,10 +13,13 @@ import { checkVFSConfig } from './sqlite-load.utils.js';
 import type { LoadModuleOptions, WaSqliteOptions } from './sqlite.interface.js';
 import { assertWaSqliteDatabaseName, WaSqliteClient } from './SqliteClient.js';
 
+/** 本包客户端必然实现的方法收窄成必选，否则 Comlink 的 `Remote<T>` 会把可选方法映射坏。 */
 interface WaSqliteClientLike extends SqliteClientLike {
   init(dbName: string, options: LoadModuleOptions): Promise<void>;
   beginTransactionSql(): string | Promise<string>;
   beginSystemMigrationTransactionSql(): string | Promise<string>;
+  setChangeEventsMuted(muted: boolean): void | Promise<void>;
+  describeBlankDatabase(): Promise<SqliteBlankDatabase>;
 }
 
 function validateTransport(options: WaSqliteOptions): void {

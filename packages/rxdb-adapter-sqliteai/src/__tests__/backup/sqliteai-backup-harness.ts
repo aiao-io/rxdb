@@ -1,0 +1,52 @@
+/**
+ * sqliteai 接入备份共享套件：内存库直接在当前线程打开，持久化走专用 Worker 里的 OPFS。
+ */
+import type { RxDB } from '@aiao/rxdb';
+import type { RxDBAdapterSqliteBase } from '@aiao/rxdb-adapter-sqlite-core';
+import type { SqliteBackupHarness, SqliteBackupStorageKind } from '@aiao/rxdb-adapter-sqlite-core/testing';
+import { RxDBAdapterSqliteai } from '../../RxDBAdapterSqliteai.js';
+import type { SqliteaiOptions } from '../../sqliteai.interface.js';
+
+const workers = new Map<RxDB, Worker>();
+
+const create = (rxdb: RxDB, options: Omit<SqliteaiOptions, 'batchTimeout'>): RxDBAdapterSqliteBase =>
+  // 基类的 `repository_map` 以 `this` 为泛型参数，Map 不变让任何子类都不能直接当基类用，只能经 unknown 上转。
+  new RxDBAdapterSqliteai(rxdb, { ...options, batchTimeout: 1 }) as unknown as RxDBAdapterSqliteBase;
+
+/** OPFS 的同步访问句柄只在 Worker 里可用：每个实例一个客户端 Worker，实例释放时终止。 */
+const createPersistent = (rxdb: RxDB): RxDBAdapterSqliteBase => {
+  const worker = new Worker(new URL('../sqliteai-test.worker', import.meta.url), { type: 'module' });
+  workers.set(rxdb, worker);
+  return create(rxdb, { opfs: true, opfsFallback: 'throw', worker: true, workerInstance: worker });
+};
+
+/** sqliteai 的备份后端契约。 */
+export const sqliteaiBackupHarness: SqliteBackupHarness = {
+  adapterName: 'sqliteai',
+  persistentLabel: 'opfs',
+  createAdapter: (rxdb: RxDB, kind: SqliteBackupStorageKind) =>
+    kind === 'persistent' ? createPersistent(rxdb) : create(rxdb, {}),
+  // OPFS 打不开时静默落到内存，恢复目标不确定。
+  createUnsupportedAdapter: (rxdb: RxDB) => create(rxdb, { opfs: true, opfsFallback: 'memory' }),
+  unsupportedField: 'opfsFallback',
+  fts5: true,
+  // opfs VFS 不提供 WAL 需要的共享内存，连接初始化请求的 WAL 被静默保留为默认的 delete。
+  persistentJournalMode: 'delete',
+  // 内置的 vector 与 memory 扩展在每条新连接上建出自己的表（dbmem_settings 与 FTS5 影子表带初始行）
+  engineObjects: {
+    names: [
+      '_sqliteai_vector',
+      ...['settings', 'content', 'content_source', 'vault', 'cache'].map(table => `dbmem_${table}`),
+      'dbmem_vault_fts',
+      ...['data', 'idx', 'content', 'docsize', 'config'].map(shadow => `dbmem_vault_fts_${shadow}`)
+    ].map(name => `table:${name}`),
+    write:
+      "INSERT INTO _sqliteai_vector (tblname, colname, key, value) VALUES ('notes', 'embedding', 'type', 'FLOAT32')",
+    read: 'SELECT tblname, colname, key, value FROM _sqliteai_vector ORDER BY tblname, colname, key'
+  },
+  interruptWorker: () => new Worker(new URL('./backup-interrupt.worker.ts', import.meta.url), { type: 'module' }),
+  release: (rxdb: RxDB) => {
+    workers.get(rxdb)?.terminate();
+    workers.delete(rxdb);
+  }
+};
