@@ -161,8 +161,10 @@ test('两个页面都用默认设置：A 改一条，B 不做任何交互也在 
 test('别人新建的行落在当前页之外：这一页一字未变，但总行数自己长上去', async ({ page, request }) => {
   await openDemo(page);
   await expectRowCount(page, SEED_ROW_COUNT);
+  // 总数与行是两条异步路：`row-count` 问本地 COUNT，行来自 `useFind` 的发射，总数常常先到。
+  // 读一次就比会在慢机器上读到空表（CI 上三次重试都是 0 行），先等行铺满再取基准。
+  await expect(page.locator('[data-row-id]'), '前提：停在第 1 页，满页').toHaveCount(DEFAULT_PAGE_SIZE);
   const firstPage = await readRowIds(page);
-  expect(firstPage, '前提：停在第 1 页，满页').toHaveLength(DEFAULT_PAGE_SIZE);
 
   // 列表按 `updatedAt, id` 升序（前后端同序），新建的行 `updatedAt` 最大，必然落到末页。
   await seedMarkedRow(request, `${MARKER} 页外新增`);
