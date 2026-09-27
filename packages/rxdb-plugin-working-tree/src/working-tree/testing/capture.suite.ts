@@ -52,7 +52,6 @@ import {
   RxDBMixedVersionedCacheTransactionError,
   RxDBSync,
   SKIP_BRANCH_SWITCH_PREPARE,
-  SyncType,
   SYSTEM_ENTITIES,
   TrustedWriteIntent,
   uuid,
@@ -378,12 +377,19 @@ const readColumnValues = async (
  * 把 QueryCache 实体也拉进来的话，一次合法的 `upsertMany('ConformanceCache', …)` 会立刻被报成
  * `business_only_row`——而「QueryCache 写不进工作树」恰恰是 §1.4 要求的行为。
  *
- * 用 `sync.type` 现算而不是另写一份清单：清单里哪天多一个实体，这里自动跟上；手写第二份的话，
+ * 用同步类型现算而不是另写一份清单：清单里哪天多一个实体，这里自动跟上；手写第二份的话，
  * 漏改的那天不会有任何编译错误，只会让新实体悄悄退出唯一判据。
+ *
+ * 按被测库的 `entitySync` 解析而不是读装饰器：生产 capture 就是这么分类的，
+ * 带 `syncOverrides` 的库里两者会分歧（US-026）。
+ *
+ * @param database - 被测库
+ * @returns 该库里受工作树跟踪的一致性实体
  */
-const TRACKED_CONFORMANCE_ENTITIES: readonly EntityType[] = WORKING_TREE_CONFORMANCE_ENTITIES.filter(
-  EntityClass => getEntityMetadata(EntityClass).sync?.type !== SyncType.QueryCache
-);
+const trackedConformanceEntitiesOf = (database: RxDB): readonly EntityType[] =>
+  WORKING_TREE_CONFORMANCE_ENTITIES.filter(
+    EntityClass => database.entitySync.resolveType(EntityClass) !== 'querycache'
+  );
 
 /**
  * 冷重放不变量——每组末尾都跑这一条
@@ -399,7 +405,7 @@ const expectColdReplayIntact = async (database: RxDB, head: ColdReplaySnapshot =
   await withTransaction(database, async executor => {
     const entries = await readEntries(executor);
     const actual: ColdReplayRow[] = [];
-    for (const EntityClass of TRACKED_CONFORMANCE_ENTITIES) {
+    for (const EntityClass of trackedConformanceEntitiesOf(database)) {
       const metadata = getEntityMetadata(EntityClass);
       actual.push(...(await readBusinessRows(executor, EntityClass, exclusions.get(metadata.name) ?? new Set())));
     }

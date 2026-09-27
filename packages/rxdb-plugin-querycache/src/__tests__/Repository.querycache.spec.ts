@@ -6,6 +6,7 @@
  */
 import type { QueryOptions, RuleGroup, RxDB, SyncStats } from '@aiao/rxdb';
 import {
+  createEntitySyncResolver,
   deterministicStringify,
   ENTITY_STATIC_TYPES,
   Repository,
@@ -183,6 +184,7 @@ const setup = (
   const rxdb = {
     localAdapter$,
     remoteAdapter$,
+    entitySync: createEntitySyncResolver(undefined),
     config: { sync: undefined },
     addEventListener: vi.fn(),
     // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经

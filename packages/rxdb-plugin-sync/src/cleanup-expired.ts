@@ -10,6 +10,7 @@ import {
   getEntityMetadata,
   getRxDBChangeEntityIdQueryValues,
   getRxDBEntityIdentityKey,
+  getSyncConfig,
   getSyncType,
   type OperatorName,
   type Rule,
@@ -106,12 +107,13 @@ export async function cleanupExpired(
   }
 
   const metadata = getEntityMetadata(EntityType);
-  const syncType = getSyncType(metadata, rxdb.config.sync);
+  const syncType = getSyncType(metadata, rxdb.entitySync);
 
   // 获取 filter 条件
   let filter = options?.filter;
   if (!filter && syncType === 'filter') {
-    const syncConfig = metadata.sync as { remote?: { filter?: () => RuleGroup } };
+    // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
+    const syncConfig = getSyncConfig(metadata, rxdb.entitySync) as { remote?: { filter?: () => RuleGroup } };
     if (syncConfig?.remote?.filter) {
       try {
         filter = syncConfig.remote.filter();

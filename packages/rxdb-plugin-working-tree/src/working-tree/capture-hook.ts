@@ -23,6 +23,7 @@
 
 import type {
   EntityManager,
+  EntitySyncResolver,
   EntityType,
   InterceptedBulkWrite,
   MergeChangesNext,
@@ -629,7 +630,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  *
  * @param entityManager - 捕获时用来实例化工作树单元
  * @param entities - 这个库注册的全部业务实体（`rxdb.config.entities`）
- * @param databaseSync - 库级同步配置（`rxdb.config.sync`）；实体自身没登记 `sync` 时由它生效
+ * @param databaseSync - 实例解析器 `rxdb.entitySync`（含实例覆盖）；传库级 `rxdb.config.sync` 时只按「实体优先、否则继承库级」解析
  * @returns 可直接交给 `adapter.setWorkingTreeCaptureHook()` 的运行时
  * @throws RxDBError 某个实体解析不出生效的同步配置时
  *
@@ -653,7 +654,7 @@ export const createWorkingTreeCaptureRuntime = (
   adapter: PhysicalTableNameSource,
   entityManager: EntityManager,
   entities: readonly EntityType[],
-  databaseSync: SyncOptions
+  databaseSync: SyncOptions | EntitySyncResolver
 ): WorkingTreeCaptureRuntime =>
   new WorkingTreeCaptureRuntime({
     entityManager,
@@ -683,7 +684,7 @@ type PhysicalTableNameSource = Pick<RxDBAdapterLocalBase, 'physicalTableNames'>;
  * 把一个实体类折成域的登记项
  *
  * @param adapter - 物理表名的唯一出处
- * @param databaseSync - 库级同步配置；实体自身没登记 `sync` 时由它生效
+ * @param databaseSync - 实例解析器或库级同步配置，见 {@link createWorkingTreeCaptureRuntime}
  * @returns 可直接喂给 `Array.prototype.map` 的折叠函数
  * @throws RxDBError 实体解析不出生效的同步配置时
  *
@@ -693,7 +694,7 @@ type PhysicalTableNameSource = Pick<RxDBAdapterLocalBase, 'physicalTableNames'>;
  * 整条失效，且没有报错形态。
  */
 const toVersionedDomainEntityInput =
-  (adapter: PhysicalTableNameSource, databaseSync: SyncOptions) =>
+  (adapter: PhysicalTableNameSource, databaseSync: SyncOptions | EntitySyncResolver) =>
   (EntityType: EntityType): VersionedDomainEntityInput => {
     const metadata = getEntityMetadata(EntityType);
     const sync = getEntitySync(EntityType, databaseSync);

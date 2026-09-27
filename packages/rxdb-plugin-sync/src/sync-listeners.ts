@@ -80,7 +80,7 @@ function queryCacheRepositories(sm: SyncManager): RepositoryIdentifier[] {
 
   for (const EntityClass of consumerEntities(sm)) {
     const metadata = getEntityMetadata(EntityClass);
-    const capability = getSyncCapability(getSyncType(metadata, sm.rxdb.config.sync));
+    const capability = getSyncCapability(getSyncType(metadata, sm.rxdb.entitySync));
     if (capability.offlineWrite && !capability.push) {
       repositories.push({ namespace: metadata.namespace, entity: metadata.name });
     }

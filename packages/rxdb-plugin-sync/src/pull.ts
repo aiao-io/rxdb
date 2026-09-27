@@ -89,7 +89,7 @@ async function pullFilterRepositories(sm: SyncManager, options: PullOptions | un
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
-    const syncType = getSyncType(metadata, rxdb.config.sync);
+    const syncType = getSyncType(metadata, rxdb.entitySync);
     if (syncType !== 'filter' || !getSyncCapability(syncType).pull) continue;
 
     const repoSync = await findCurrentSyncRecord(sm.rxdb, metadata.namespace, metadata.name);

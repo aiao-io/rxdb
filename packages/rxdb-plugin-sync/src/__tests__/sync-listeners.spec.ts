@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   Entity,
   ENTITY_REMOTE_CREATE_EVENT,
   ENTITY_REMOTE_REMOVE_EVENT,
@@ -250,14 +251,14 @@ const createHarness = (options: HarnessOptions = {}): SyncListenerHarness => {
   const syncState = new SyncStateHub({ online$: reachability.online$ });
   // 待推数不再是构造参数：本插件在 `install()` 里 `bindPushableCount()` 接上它（US-025 阶段 C）。
   syncState.bindPushableCount(new BehaviorSubject(0));
+  // 默认的 `{ remote }` 故意不写 type：生效类型由「只配 remote」推导出来
+  const configSync =
+    options.hasRemoteAdapter === false ?
+      undefined
+    : (options.sync ?? ({ remote: { adapter: 'remote' } } as SyncOptions));
   const rxdb = {
-    config:
-      options.hasRemoteAdapter === false ?
-        { entities }
-      : {
-          entities,
-          sync: options.sync ?? { remote: { adapter: 'remote' } }
-        },
+    entitySync: createEntitySyncResolver(configSync),
+    config: configSync === undefined ? { entities } : { entities, sync: configSync },
     connected$: connected$.asObservable(),
     reachability,
     syncState,

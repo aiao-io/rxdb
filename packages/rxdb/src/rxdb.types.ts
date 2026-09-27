@@ -18,11 +18,14 @@ export type RxDBConfig = RxDBOptions;
  *   抛 `need init rxdb`。
  * - `migrations`：`up` / `down` 是调用方的回调。深冻结连函数自身的属性一起冻住
  *   （闭包状态、测试替身的调用记录），首次调用即抛 `object is not extensible`。
+ * - `syncOverrides`：条目里装的是调用方的实体**类**与 Filter 的 `filter` 函数，理由同上两条。
+ *   构造函数已经把它换成本实例自有的快照（数组与条目、`sync` 两层纯数据各自浅冻结），
+ *   只是不顺着实体类与函数往下冻。
  *
  * 其余字段（`sync` / `context` 等）是声明式数据，仍然深冻结；新增声明式字段自动受保护。
  * 契约由 `__tests__/RxDB.config-freeze.spec.ts` 锁定。
  */
-export const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations']);
+export const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations', 'syncOverrides']);
 
 /**
  * 一个打开中的事务上下文

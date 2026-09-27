@@ -12,7 +12,7 @@
  * 这份用例补的就是那半边：断言经由**真实**的 `rxDBPluginTree` 安装后，树实体 + QueryCache
  * 在 `init()` 同步抛错。它住在插件包，因为只有这里同时拿得到 `@TreeEntity` 和核心。
  */
-import { RxDB, SyncType, type EntityType, type IRxDBAdapter } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntitySyncOverride, type EntityType, type IRxDBAdapter } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { TreeEntity } from '../../entity/tree-entity.decorator.js';
 import { rxDBPluginTree } from '../../plugin.js';
@@ -43,12 +43,13 @@ const createRxDB = (
   dbName: string,
   entities: EntityType[],
   type: SyncType.Full | SyncType.QueryCache,
-  { withPlugin = true }: { withPlugin?: boolean } = {}
+  { withPlugin = true, syncOverrides }: { withPlugin?: boolean; syncOverrides?: EntitySyncOverride[] } = {}
 ) => {
   const rxdb = new RxDB({
     dbName,
     entities,
-    sync: { type, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+    sync: { type, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } },
+    syncOverrides
   });
   rxdb.adapter('sqlite', () => createMockAdapter('sqlite'));
   rxdb.adapter('supabase', () => createMockAdapter('supabase'));
@@ -96,5 +97,37 @@ describe('TreeRepository 不支持 SyncType.QueryCache', () => {
     expect(() => createRxDB('tree-no-plugin', entities, SyncType.Full, { withPlugin: false }).init()).toThrow(
       /Repository 'TreeRepository' not found/
     );
+  });
+});
+
+/**
+ * 实例级覆盖（US-026 AC#11）：护栏认的是**生效**策略，不是装饰器原值。
+ *
+ * 核心那份 `sync-override.spec.ts` 用的是替身仓储；这里经由真实的 `rxDBPluginTree` 再钉一次，
+ * 防止树插件的声明与核心的生效配置解析之间出现只查原值的漏洞。
+ */
+describe('TreeRepository 按实例覆盖后的生效策略校验', () => {
+  const QUERY_CACHE = {
+    type: SyncType.QueryCache,
+    local: { adapter: 'sqlite' },
+    remote: { adapter: 'supabase' }
+  } as const;
+  const FULL = { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } } as const;
+
+  it('原声明合法、覆盖成 QueryCache：init() 拒绝', () => {
+    const entities = [InheritedTreeNode] as unknown as EntityType[];
+    const syncOverrides = [{ entity: InheritedTreeNode as unknown as EntityType, sync: QUERY_CACHE }];
+
+    expect(() => createRxDB('tree-override-to-qc', entities, SyncType.Full, { syncOverrides }).init()).toThrow(
+      /InheritedTreeNode.*TreeRepository 不支持 SyncType\.QueryCache/s
+    );
+  });
+
+  it('原声明 QueryCache、覆盖成 Full：init() 放行', () => {
+    const entities = [CachedTreeNode] as unknown as EntityType[];
+    const syncOverrides = [{ entity: CachedTreeNode as unknown as EntityType, sync: FULL }];
+
+    // 少了这条，只查装饰器原值的实现会在这里误报。
+    expect(() => createRxDB('tree-override-to-full', entities, SyncType.Full, { syncOverrides }).init()).not.toThrow();
   });
 });

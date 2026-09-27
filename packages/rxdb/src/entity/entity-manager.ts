@@ -95,10 +95,11 @@ export class EntityManager {
 
   init() {
     // 跨实体聚合校验前置：违规时一条都不绑定，`resolveEntityManager()` 对所有实体一致失败。
-    // 传数据库级 sync：实体不写 `sync` 时生效的是它，只看元数据会漏掉库级 QueryCache 的组合违规。
+    // 传实例的解析器：校验针对**生效**配置——实例覆盖、实体声明、库级默认三者择一。
+    // 只看元数据会漏掉库级 QueryCache 的组合违规，也会让覆盖成纯本地的实体被原声明的 remote 卡住。
     const violations = validateEntityMetadataSet(
       this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
-      this.rxdb.config.sync,
+      this.rxdb.entitySync,
       (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type]
     );
     if (violations.length > 0) {
@@ -425,11 +426,11 @@ export class EntityManager {
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
     // 主端缺适配器或批内主端不一致时就地抛错，不再让它挂着。
     const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
-    const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.config.sync);
+    const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.entitySync);
     if (primary === null) return [];
     // 主端判定在前：这样「QueryCache + remote-only」报的是主端不一致，
     // 而不是被 `isQueryCacheBatch` 当成「版本化实体」误报（US-020 AC#5 / AC#6）。
-    if (isQueryCacheBatch(EntityTypes, this.rxdb.config.sync)) {
+    if (isQueryCacheBatch(EntityTypes, this.rxdb.entitySync)) {
       return this.#mutations_query_cache(options);
     }
     const adapter$: Observable<IRxDBAdapter> =

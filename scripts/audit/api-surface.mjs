@@ -414,7 +414,20 @@ const NAMING = {
     'BranchMaterializationProjectionContext',
     'BranchMaterializationSource',
     'branchMaterializationPageFingerprint',
-    'canonicalMaterializationJson'
+    'canonicalMaterializationJson',
+    // US-026 实例级实体同步覆盖。`RxDBOptions.syncOverrides` 的条目形状、配置错误与判别原因
+    // 是调用方写配置、按原因分支时必须能命名的符号；解析器（`rxdb.entitySync`）是核心与
+    // 七个同步 / 缓存 / 历史插件共用的「这个实体按什么策略走」的唯一来源——插件各自读装饰器
+    // 正是本故事要消灭的旁路。它们是同步配置的契约，与工作树、提交能力都无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称实例覆盖是提交能力的一部分。
+    'EntitySyncOverride',
+    'EntitySyncTarget',
+    'EntitySyncResolver',
+    'createEntitySyncResolver',
+    'isEntitySyncResolver',
+    'toEntitySyncResolver',
+    'RxDBSyncOverrideError',
+    'RxDBSyncOverrideErrorReason'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

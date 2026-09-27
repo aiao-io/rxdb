@@ -10,6 +10,7 @@ import { deterministicStringify, getEntityStatus } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBError } from '../../RxDBError.js';
+import { createEntitySyncResolver } from '../../sync-contract/entity-sync-resolver.js';
 
 class TestEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -110,6 +111,7 @@ const setupRepository = (): Setup => {
         local: { adapter: 'local' }
       }
     },
+    entitySync: createEntitySyncResolver({ type: SyncType.None, local: { adapter: 'local' } }),
     getAdapter: vi.fn(async (adapterName: string) => {
       if (adapterName !== 'local') throw new Error('Unknown adapter');
       return localAdapter;

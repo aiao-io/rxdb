@@ -73,12 +73,18 @@ export type { EntityMetadata, EntityMetadataType } from './entity/metadata.inter
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，
 // 而 `@aiao/rxdb-plugin-working-tree` 的捕获要按同一条规则判「这张表是不是查询缓存」。
 // 包外另算一遍不会有编译错误，只会让核心与插件对同一个实体给出两种归属。
+// 实例级同步覆盖的条目形状与配置期错误（US-026）。
 export {
   RxDBMissingPrimaryAdapterError,
   RxDBMixedPrimaryAdapterError,
   getEntitySync,
   type PrimaryAdapterKind
 } from './entity/primary-adapter.js';
+export {
+  RxDBSyncOverrideError,
+  type EntitySyncOverride,
+  type RxDBSyncOverrideErrorReason
+} from './entity/sync-override.js';
 export * from './network/reachability.js';
 export { query_need_refresh_create as queryNeedRefreshCreate } from './query/need_refresh_create.js';
 export { query_need_refresh_remove as queryNeedRefreshRemove } from './query/need_refresh_remove.js';
@@ -223,6 +229,14 @@ export {
   resolvePushIneligibility
 } from './sync-contract/sync-record-utils.js';
 export * from './sync-contract/sync-type-utils.js';
+// 实体生效同步配置的唯一解析入口（US-026）：优先级规则只写在这里，插件经 `rxdb.entitySync` 取值。
+export {
+  createEntitySyncResolver,
+  isEntitySyncResolver,
+  toEntitySyncResolver,
+  type EntitySyncResolver,
+  type EntitySyncTarget
+} from './sync-contract/entity-sync-resolver.js';
 // 同步子系统的公开契约形状：推拉选项、结果与历史项。
 // 实现在 `@aiao/rxdb-plugin-history`，契约留在核心供适配器与 QueryCache 共用。
 export * from './sync-contract/VersionManager.interface.js';

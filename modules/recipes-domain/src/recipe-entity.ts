@@ -3,9 +3,12 @@ import { Entity, EntityBase, SyncType } from '@aiao/rxdb';
 import { RECIPE_SCHEMA } from './recipe-schema.js';
 
 /**
- * 前端 Recipe —— QueryCache 策略，行为与迁移前逐字一致。
+ * Recipe —— 前后端共用的唯一实体类，装饰器声明的是前端的 QueryCache 策略。
  *
  * @remarks
+ * 后端（`apps/dev-rxdb-http-server`）不另开实体类：它在自己的 `RxDB` 实例上用
+ * `syncOverrides` 把本类整体替换为 `None + local: pglite`（US-026），本声明原样不动。
+ *
  * `syncStaleTime: 0` 关掉「刚同步过」记忆：默认的 1000ms 窗口是给翻页交互省 round-trip 用的，
  * 完全合理——但 demo 的全部意义是**把协议流量摆出来看**，而「重新查询」若落在窗口内
  * 就直接读本地投影：一次请求都不发、也不报错，页面上什么都没变。配 `0` 后每次读都回远端校验。
@@ -34,24 +37,5 @@ export class Recipe extends EntityBase<string> {
   /** 单价（分）。`between` 算子的靶子。 */
   declare price: number;
   /** 分类标签，可为空。`in` 与 `null` 两个算子共用的靶子。 */
-  declare tag: string | null;
-}
-
-/**
- * 后端 ServerRecipe —— 本地 pglite，无远端同步。
- *
- * @remarks
- * `SyncType.None + local: pglite`：后端实例是全租户共享的权威库，不触发任何远端路径。
- * 与前端 {@link Recipe} 用同一份 {@link RECIPE_SCHEMA}，只差同步策略——这是 D1 的
- * 「一份 schema 常量装饰出两个类」的路，等核心的实例级 sync 覆盖能力落地后收敛为单类。
- */
-@Entity({
-  ...RECIPE_SCHEMA,
-  sync: { type: SyncType.None, local: { adapter: 'pglite' } }
-})
-export class ServerRecipe extends EntityBase<string> {
-  declare title: string;
-  declare status: string;
-  declare price: number;
   declare tag: string | null;
 }
