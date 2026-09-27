@@ -9,8 +9,10 @@ import type { RepositorySyncType } from './sync-type-utils.js';
  *
  * @remarks
  * 两种形态都收：调用点手上有什么就传什么。同步插件多半只握着元数据（从 schema 管理器
- * 取出来的），而仓储、批量写入握着的是实体类。按元数据**对象身份**命中，不按名字 ——
- * 不同 namespace 的同名实体是两个目标（US-026）。
+ * 取出来的），而仓储、批量写入握着的是实体类。按 `namespace` + `name` 命中，不按元数据
+ * 对象身份：`transitionMetadata()` 之类的调用每次都产出新对象，按身份查会静默丢掉覆盖。
+ * 不同 namespace 的同名实体仍是两个目标（US-026）；同一实例内两者组合唯一，
+ * 由 schema 管理器的命名冲突校验保证。
  */
 export type EntitySyncTarget = EntityType | EntityMetadata;
 
@@ -34,6 +36,11 @@ export interface EntitySyncResolver {
    *
    * @param target - 实体类或实体元数据
    * @returns 生效配置；实体与数据库都没有配置时为 `undefined`
+   *
+   * @remarks
+   * 返回的是选中的那份配置原样，不含 {@link EntitySyncResolver.resolveType} 的继承特例：
+   * 继承数据库默认 `None + local + remote` 时这里的 `type` 仍是 `None`，而 `resolveType`
+   * 判为 `full`。要判同步类型用 `resolveType`，别读这里的 `.type`。
    */
   resolve(target: EntitySyncTarget): SyncOptions | undefined;
 
@@ -53,11 +60,14 @@ export interface EntitySyncResolver {
 const metadataOf = (target: EntitySyncTarget): EntityMetadata =>
   typeof target === 'function' ? getEntityMetadata(target) : target;
 
+/** 覆盖索引键：见 {@link EntitySyncTarget} 为什么不按对象身份 */
+const overrideKey = ({ namespace, name }: EntityMetadata): string => `${namespace}:${name}`;
+
 /**
  * 构造实体同步配置解析器。
  *
  * @param databaseSync - 数据库级默认 `sync`
- * @param overrides - 实例级覆盖，按实体元数据身份索引；省略即没有覆盖
+ * @param overrides - 实例级覆盖，以实体元数据为键；内部改按 `namespace:name` 查，省略即没有覆盖
  * @returns 解析器
  *
  * @example
@@ -70,15 +80,16 @@ export function createEntitySyncResolver(
   databaseSync: SyncOptions | undefined,
   overrides: ReadonlyMap<EntityMetadata, SyncOptions> = new Map()
 ): EntitySyncResolver {
+  const byName = new Map([...overrides].map(([metadata, sync]) => [overrideKey(metadata), sync]));
   return {
     databaseSync,
     resolve: target => {
       const metadata = metadataOf(target);
-      return overrides.get(metadata) ?? metadata.sync ?? databaseSync;
+      return byName.get(overrideKey(metadata)) ?? metadata.sync ?? databaseSync;
     },
     resolveType: target => {
       const metadata = metadataOf(target);
-      const explicit = overrides.get(metadata) ?? metadata.sync;
+      const explicit = byName.get(overrideKey(metadata)) ?? metadata.sync;
       return explicit ? syncTypeOf(explicit, false) : syncTypeOf(databaseSync, true);
     }
   };
@@ -92,7 +103,10 @@ export function createEntitySyncResolver(
 export function isEntitySyncResolver(
   source: SyncOptions | EntitySyncResolver | undefined
 ): source is EntitySyncResolver {
-  return typeof source === 'object' && source !== null && 'resolveType' in source;
+  if (typeof source !== 'object' || source === null) return false;
+  // JS 调用方可能传形似的对象：两个方法都得是函数，否则下游 `.resolve()` 的 TypeError 离成因太远
+  const candidate = source as Partial<EntitySyncResolver>;
+  return typeof candidate.resolve === 'function' && typeof candidate.resolveType === 'function';
 }
 
 /**

@@ -4,7 +4,7 @@ import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
-import { assertNoSystemEntityOverride, indexSyncOverrides, snapshotSyncOverrides } from './entity/sync-override.js';
+import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
@@ -591,15 +591,13 @@ export class RxDB {
       entities: [...options.entities]
     };
     // 覆盖在这里就校验并快照：早于实体绑定与任何数据库写入，之后调用方改原对象也影响不到本实例。
-    if (options.syncOverrides !== undefined) {
-      this.#config.syncOverrides = snapshotSyncOverrides(
-        options.syncOverrides,
-        options.entities,
-        isSystemEntity,
-        this.#config.sync
+    // 冻结数组与解析器索引出自同一次快照，共用同一批 `sync` 副本
+    const overrides =
+      options.syncOverrides === undefined ? undefined : (
+        snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync)
       );
-    }
-    this.entitySync = createEntitySyncResolver(this.#config.sync, indexSyncOverrides(this.#config.syncOverrides ?? []));
+    if (overrides) this.#config.syncOverrides = overrides.entries;
+    this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index);
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经

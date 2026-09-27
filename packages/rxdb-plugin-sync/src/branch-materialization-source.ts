@@ -25,6 +25,7 @@ import {
   getEntityMetadata,
   getOrCreateSyncRecord,
   getSyncCapability,
+  getSyncConfig,
   getSyncType,
   isRepositorySyncEnabled,
   type RemoteChange,
@@ -221,7 +222,7 @@ const readLocalScope = async (rxdb: RxDB, readers: ScopeReaders, targetBranchId:
     const record = await findSyncRecord(readers.syncRepository, `${key}:${targetBranchId}`);
     if (!isRepositorySyncEnabled(record)) continue;
     syncScope.push(key);
-    filters[key] = resolveCascadeFilter(key, metadata, syncType, undefined) ?? null;
+    filters[key] = resolveCascadeFilter(key, getSyncConfig(metadata, rxdb.entitySync), syncType, undefined) ?? null;
   }
   return { lineage, syncScope, filters };
 };

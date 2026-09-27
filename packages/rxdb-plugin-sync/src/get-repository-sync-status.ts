@@ -9,8 +9,6 @@ import {
   getSyncCapability,
   getSyncType,
   isRepositorySyncEnabled,
-  needsPull,
-  needsPush,
   type RepositoryIdentifier,
   type RxDB,
   RxDBChange,
@@ -209,13 +207,12 @@ export async function getRepositorySyncStatus(
   let pushableCount = 0;
   let pullableCount = 0;
 
-  // 如果该实体需要推送，则计算 pushableCount（与 syncType 一致地传入全局 sync 回退）
-  if (needsPush(metadata, rxdb.entitySync)) {
+  // 推拉能力取开头那一次解析的结果：中间隔着几个 await，重新解析可能与返回的 syncType 不一致
+  if (syncCapability.push) {
     pushableCount = await calculatePushableCount(sm, namespace, entity, branchId, repoSync?.lastPushedChangeId ?? null);
   }
 
-  // 如果该实体需要拉取，则计算 pullableCount（与 syncType 一致地传入全局 sync 回退）
-  if (needsPull(metadata, rxdb.entitySync)) {
+  if (syncCapability.pull) {
     pullableCount = await calculatePullableCount(rxdb, namespace, entity);
   }
 

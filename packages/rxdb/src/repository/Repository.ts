@@ -140,7 +140,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   protected readonly queryManager!: QueryManager<T>;
 
   /**
-   * 同步配置
+   * 本实例对该实体的生效同步配置（经 `rxdb.entitySync.resolve` 解析）
+   *
+   * @remarks
+   * 只读：被 `syncOverrides` 覆盖的实体拿到的是实例冻结的快照，运行时改它的字段会抛 `TypeError`。
+   * 未覆盖实体这里恰好是装饰器或库级配置原对象，同样不要改 —— 其他实例也在读它。
    */
   readonly sync!: SyncOptions;
 

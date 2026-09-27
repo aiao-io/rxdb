@@ -36,7 +36,7 @@ export interface EntitySyncOverride {
  * - `unregistered`：目标不在本实例的 `entities` 里（含自动生成的关系中间实体）
  * - `system-entity`：目标是 RxDB 或插件注入的系统表
  * - `duplicate`：同一实体出现多条覆盖
- * - `invalid-entry`：条目本身不是对象，或 `entity` 不是实体类
+ * - `invalid-entry`：`syncOverrides` 不是数组、数组里有空位，条目本身不是对象，或 `entity` 不是实体类
  * - `invalid-sync`：`sync` 为 `null`、非对象、缺少或写错 `type`、适配器选项形状不对，
  *   Full / Filter / QueryCache 缺一侧，Filter 的 `remote.filter` 不是函数，或覆盖声明的一侧未在库级注册同名适配器
  */
@@ -92,9 +92,10 @@ const describeMissingRequired = (sync: Record<string, unknown>): string | undefi
   if (BOTH_SIDES_REQUIRED.has(type) && (sync['local'] === undefined || sync['remote'] === undefined)) {
     return `SyncType.${String(type)} 必须同时配置 local 与 remote`;
   }
-  // 缺 filter 时拉取会退化成不带条件的全量拉取，与「只同步子集」的声明相反
+  // 缺 filter 时拉取会退化成不带条件的全量拉取，与「只同步子集」的声明相反。
+  // 构造期只能验它是函数；返回值要到拉取时才由 isValidRuleGroup 把关
   if (type === SyncType.Filter && typeof (sync['remote'] as Record<string, unknown>)['filter'] !== 'function') {
-    return 'SyncType.Filter 的 remote.filter 必须是返回 RuleGroup 的函数';
+    return 'SyncType.Filter 的 remote.filter 必须是函数';
   }
   return undefined;
 };
@@ -150,6 +151,14 @@ const snapshotSync = (sync: SyncOptions): SyncOptions => {
   return Object.freeze(copy) as unknown as SyncOptions;
 };
 
+/** {@link snapshotSyncOverrides} 的产物：同一份快照的两种形态 */
+export interface SyncOverrideSnapshot {
+  /** 冻结的条目数组，写回 `rxdb.config.syncOverrides` */
+  readonly entries: readonly EntitySyncOverride[];
+  /** 按实体元数据索引的生效配置，直接交给 `createEntitySyncResolver` */
+  readonly index: ReadonlyMap<EntityMetadata, SyncOptions>;
+}
+
 /**
  * 校验并快照实例级同步覆盖。
  *
@@ -157,7 +166,8 @@ const snapshotSync = (sync: SyncOptions): SyncOptions => {
  * @param entities - 本实例注册的业务实体（调用方传入的 `entities`）
  * @param isSystem - 系统表判定
  * @param databaseSync - 库级 `sync`：覆盖使用的每一侧必须已注册同名适配器
- * @returns 本实例自有的冻结副本：数组、条目与 `sync` 两层纯数据都是新对象，实体类与函数保留原引用
+ * @returns 本实例自有的冻结副本（数组、条目与 `sync` 两层纯数据都是新对象，实体类与函数保留原引用），
+ * 以及查重时顺手建好的索引 —— 两者共用同一批 `sync` 副本
  * @throws {@link RxDBSyncOverrideError} 任一条目非法时；不跳过、不取其中一条
  */
 export function snapshotSyncOverrides(
@@ -165,39 +175,30 @@ export function snapshotSyncOverrides(
   entities: readonly EntityType[],
   isSystem: (EntityClass: EntityType) => boolean,
   databaseSync: SyncOptions | undefined
-): readonly EntitySyncOverride[] {
-  const snapshot = new Map<EntityMetadata, SyncOptions>();
+): SyncOverrideSnapshot {
+  const index = new Map<EntityMetadata, SyncOptions>();
   const entries: EntitySyncOverride[] = [];
   if (!Array.isArray(overrides)) {
     throw new RxDBSyncOverrideError('invalid-entry', 0, undefined, 'syncOverrides 必须是数组');
   }
   const registered = new Set(entities);
   // 按下标走而不是 forEach：稀疏数组的空位要落到 invalid-entry，不能被跳过
-  for (let index = 0; index < overrides.length; index++) {
-    const entry: unknown = overrides[index];
+  for (let position = 0; position < overrides.length; position++) {
+    const entry: unknown = overrides[position];
     const metadata = metadataOfEntry(entry);
     if (!metadata) {
-      throw new RxDBSyncOverrideError('invalid-entry', index, undefined, '条目必须是 { entity: 实体类, sync }');
+      throw new RxDBSyncOverrideError('invalid-entry', position, undefined, '条目必须是 { entity: 实体类, sync }');
     }
     const { entity, sync } = entry as EntitySyncOverride;
     const label = entityLabel(metadata);
-    assertTarget(entity, metadata, index, label, registered, isSystem, snapshot);
+    assertTarget(entity, metadata, position, label, registered, isSystem, index);
     const problem = describeInvalidSync(sync, databaseSync);
-    if (problem) throw new RxDBSyncOverrideError('invalid-sync', index, label, problem);
+    if (problem) throw new RxDBSyncOverrideError('invalid-sync', position, label, problem);
     const copy = snapshotSync(sync);
-    snapshot.set(metadata, copy);
+    index.set(metadata, copy);
     entries.push(Object.freeze({ entity, sync: copy }));
   }
-  return Object.freeze(entries);
-}
-
-/**
- * 把快照后的覆盖条目按实体元数据身份建索引，供解析器查表。
- *
- * @param overrides - {@link snapshotSyncOverrides} 的产物
- */
-export function indexSyncOverrides(overrides: readonly EntitySyncOverride[]): ReadonlyMap<EntityMetadata, SyncOptions> {
-  return new Map(overrides.map(({ entity, sync }) => [getEntityMetadata(entity), sync]));
+  return { entries: Object.freeze(entries), index };
 }
 
 /** 目标必须是本实例注册的、非系统表、且尚未被覆盖过的实体 */
@@ -208,7 +209,7 @@ const assertTarget = (
   label: string,
   registered: ReadonlySet<EntityType>,
   isSystem: (EntityClass: EntityType) => boolean,
-  snapshot: ReadonlyMap<EntityMetadata, SyncOptions>
+  seen: ReadonlyMap<EntityMetadata, SyncOptions>
 ): void => {
   if (isSystem(entity)) {
     throw new RxDBSyncOverrideError('system-entity', index, label, '系统表的同步策略由 RxDB 决定，不接受实例覆盖');
@@ -221,7 +222,7 @@ const assertTarget = (
       '目标必须是本实例 entities 里注册的实体类；基类、子类与自动生成的关系中间实体都不算'
     );
   }
-  if (snapshot.has(metadata)) {
+  if (seen.has(metadata)) {
     throw new RxDBSyncOverrideError('duplicate', index, label, '同一实体只能有一条覆盖');
   }
 };

@@ -79,7 +79,7 @@ type SyncFind = (options: QueryOptions) => Promise<RxDBSync[]>;
 type ChangeFind = (options: QueryOptions) => Promise<RxDBChange[]>;
 type GetChangeCount = (sinceId: number, repositoryFilter?: string[], branchId?: string) => Promise<RemoteCount>;
 
-/** 实例覆盖：`[实体, 生效配置]`，按元数据身份建索引，与 `RxDB` 构造时的 `indexSyncOverrides` 同口径 */
+/** 实例覆盖：`[实体, 生效配置]`，以元数据为键传入，与 `RxDB` 构造时 `snapshotSyncOverrides` 产出的索引同口径 */
 type SyncOverridePairs = ReadonlyArray<readonly [EntityType, SyncOptions]>;
 
 const createResolver = (sync: SyncOptions | undefined, overrides: SyncOverridePairs = []) =>

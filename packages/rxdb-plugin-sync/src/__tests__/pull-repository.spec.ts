@@ -4,6 +4,7 @@ import {
   encodeRxDBChangeEntityId,
   Entity,
   EntityBase,
+  type EntityMetadata,
   type EntityType,
   getEntityMetadata,
   getRxDBChangeKey,
@@ -146,6 +147,9 @@ type MergeChangesImplementation = (
 interface HarnessOptions {
   entities?: EntityType[];
   sync?: SyncOptions;
+
+  /** 实例覆盖，以元数据为键传入，与 `RxDB` 构造时同口径 */
+  overrides?: ReadonlyMap<EntityMetadata, SyncOptions>;
   remoteChanges?: RemoteChange[];
   syncRecords?: RxDBSync[];
   localChanges?: RxDBChange[];
@@ -340,7 +344,7 @@ function createHarness(options: HarnessOptions = {}) {
 
   const vm = {
     rxdb: {
-      entitySync: createEntitySyncResolver(sync),
+      entitySync: createEntitySyncResolver(sync, options.overrides),
       config: { entities, sync },
       context: { clientId: options.clientId ?? 'local-client' },
       dispatchEvent,
@@ -583,6 +587,34 @@ describe('pullRepository', () => {
     });
     expect(result.success).toBe(true);
     expect(result.relatedResults?.[0]?.repository.entity).toBe('PullFilterParent');
+  });
+
+  it('级联按实例覆盖的生效 filter 拉取，不回读装饰器（US-026）', async () => {
+    cascadeFilter.mockClear();
+    const overrideRule = (value: string): RuleGroup => ({
+      combinator: 'and',
+      rules: [{ field: 'value', operator: '=', value }]
+    });
+    const filterSync = (value: string): SyncOptions => ({
+      type: SyncType.Filter,
+      local: { adapter: 'sqlite' },
+      remote: { adapter: 'remote', filter: () => overrideRule(value) }
+    });
+    const harness = createHarness({
+      entities: [PullFilterParent, PullFilterChild],
+      overrides: new Map([
+        [getEntityMetadata(PullFilterParent), filterSync('parent-override')],
+        [getEntityMetadata(PullFilterChild), filterSync('child-override')]
+      ])
+    });
+
+    await pullRepository(harness.vm, 'public', 'PullFilterChild', { includeRelated: true });
+
+    expect(harness.pullChanges.mock.calls.map(call => call[3])).toEqual([
+      overrideRule('parent-override'),
+      overrideRule('child-override')
+    ]);
+    expect(cascadeFilter).not.toHaveBeenCalled();
   });
 
   // RXD-030：级联里父仓的变更已经落库，目标仓自己却一条都没拉到。

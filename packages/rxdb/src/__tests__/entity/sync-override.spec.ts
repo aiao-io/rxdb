@@ -246,6 +246,14 @@ describe('US-026 实例级实体同步覆盖', () => {
       expect(isEntitySyncResolver(undefined)).toBe(false);
       expect(toEntitySyncResolver(databaseSync).resolve(Plain)).toBe(databaseSync);
     });
+
+    it('只带 resolveType 键、或键不是函数的对象不算解析器', () => {
+      const resolveTypeOnly = { resolveType: () => 'none' } as unknown as SyncOptions;
+      const notFunctions = { resolve: 1, resolveType: 1 } as unknown as SyncOptions;
+
+      expect(isEntitySyncResolver(resolveTypeOnly)).toBe(false);
+      expect(isEntitySyncResolver(notFunctions)).toBe(false);
+    });
   });
 
   describe('AC#3 整体替换，不深合并', () => {
@@ -365,6 +373,14 @@ describe('US-026 实例级实体同步覆盖', () => {
       expect(rxdb.entitySync.resolveType(BetaItem)).toBe('querycache');
       expect(rxdb.entitySync.resolveType(Plain)).toBe('full');
     });
+
+    it('元数据的拷贝（如 transitionMetadata 产出的新对象）同样命中覆盖', () => {
+      const rxdb = trackRxDB(new RxDB(serverOptions('override-metadata-copy', [{ entity: Recipe, sync: LOCAL_ONLY }])));
+      const copy = { ...getEntityMetadata(Recipe) };
+
+      expect(rxdb.entitySync.resolve(copy)).toEqual(LOCAL_ONLY);
+      expect(rxdb.entitySync.resolveType(copy)).toBe('local');
+    });
   });
 
   describe('AC#7 非法配置在构造期失败', () => {
@@ -373,7 +389,7 @@ describe('US-026 实例级实体同步覆盖', () => {
 
     it.each([
       ['未注册目标', [{ entity: AlphaItem, sync: LOCAL_ONLY }], 'unregistered', 0, 'alpha.Item'],
-      ['系统实体', [{ entity: RxDBChange, sync: LOCAL_ONLY }], 'system-entity', 0, undefined],
+      ['系统实体', [{ entity: RxDBChange, sync: LOCAL_ONLY }], 'system-entity', 0, 'rxdb.RxDBChange'],
       [
         '重复条目',
         [
@@ -590,7 +606,7 @@ describe('US-026 实例级实体同步覆盖', () => {
     });
   });
 
-  describe('AC#9 批量写与主端判定用同一份生效配置', () => {
+  describe('AC#9 单条写、批量写与主端判定用同一份生效配置', () => {
     const createDatabase = (dbName: string, overrides: RxDBOptions['syncOverrides']) => {
       const local = createRecordingAdapter('sqlite');
       const remote = createRecordingAdapter('http');
@@ -607,6 +623,28 @@ describe('US-026 实例级实体同步覆盖', () => {
       rxdb.init();
       return { rxdb, local, remote };
     };
+
+    it('单条 save()：remote-only 声明被覆盖成本地后写到本地', async () => {
+      const { rxdb, local, remote } = createDatabase('override-single-local', [{ entity: RemoteNote, sync: LOCAL_ONLY }]);
+      const note = rxdb.entityManager.createEntityRef(RemoteNote, { title: 'n', id: uuid() });
+
+      await dirty(note).save();
+
+      expect(local.create).toHaveBeenCalledTimes(1);
+      expect(remote.create).not.toHaveBeenCalled();
+    });
+
+    it('单条 save()：本地实体被覆盖成 remote-only 后写到 remote', async () => {
+      const { rxdb, local, remote } = createDatabase('override-single-remote', [
+        { entity: Plain, sync: { type: SyncType.None, remote: { adapter: 'http' } } }
+      ]);
+      const plain = rxdb.entityManager.createEntityRef(Plain, { title: 'p', id: uuid() });
+
+      await dirty(plain).save();
+
+      expect(remote.create).toHaveBeenCalledTimes(1);
+      expect(local.create).not.toHaveBeenCalled();
+    });
 
     it('remote-only 声明被覆盖成本地后，与本地实体同批写入同一个事务', async () => {
       const { rxdb, local, remote } = createDatabase('override-batch-local', [

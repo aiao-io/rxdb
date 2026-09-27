@@ -8,7 +8,6 @@
 import {
   compactChanges,
   declareTrustedWrite,
-  type EntityMetadata,
   type EntityType,
   getEntityMetadata,
   getOrCreateSyncRecord,
@@ -33,6 +32,7 @@ import {
   RxDBPartialSyncError,
   RxDBSync,
   type SyncFailure,
+  type SyncOptions,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
@@ -400,7 +400,12 @@ async function pullCascadeNode(
     const result = await pullSingleRepository(sm, repo.namespace, repo.entity, {
       ...options,
       // T039: 为每个实体独立提取 filter
-      filter: resolveCascadeFilter(repoKey, repoMetadata, repoSyncType, options.filter),
+      filter: resolveCascadeFilter(
+        repoKey,
+        getSyncConfig(repoMetadata, sm.rxdb.entitySync),
+        repoSyncType,
+        options.filter
+      ),
       includeRelated: false // 防止递归级联
     });
     result.success = true;
@@ -424,7 +429,8 @@ async function pullCascadeNode(
  * 解析级联节点自己的 filter
  *
  * @param repoKey - 仓库键（`namespace:entity`），用于错误消息
- * @param repoMetadata - 该仓库的实体元数据
+ * @param repoSync - 该仓库的**生效**同步配置（`getSyncConfig(metadata, rxdb.entitySync)`）；
+ *   不能传装饰器原值 `metadata.sync`：实例覆盖可能换掉了 filter，也可能把 Full 覆盖成 Filter
  * @param repoSyncType - 该仓库的有效同步类型
  * @param inheritedFilter - 调用方显式传入的 filter
  * @returns 该仓库实际生效的 filter
@@ -439,7 +445,7 @@ async function pullCascadeNode(
  */
 export function resolveCascadeFilter(
   repoKey: string,
-  repoMetadata: EntityMetadata,
+  repoSync: SyncOptions | undefined,
   repoSyncType: RepositorySyncType,
   inheritedFilter: RuleGroup | undefined
 ): RuleGroup | undefined {
@@ -447,8 +453,7 @@ export function resolveCascadeFilter(
   if (repoSyncType === 'full') return undefined;
   if (repoSyncType !== 'filter') return inheritedFilter;
 
-  const syncConfig = repoMetadata.sync as { type: string; remote?: { filter?: () => RuleGroup } };
-  const filterFn = syncConfig?.remote?.filter;
+  const filterFn = (repoSync as { remote?: { filter?: () => RuleGroup } } | undefined)?.remote?.filter;
   if (!filterFn) return inheritedFilter;
 
   let extractedFilter: RuleGroup;
