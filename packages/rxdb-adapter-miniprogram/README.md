@@ -65,8 +65,9 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 
 随机池默认 `DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE`（64 KiB），剩余量跌到四分之一时会在后台
 自动补给下一池，因此正常使用不会耗尽；`randomPoolSize` 可上调到 `wx.getRandomValues` 的单次
-上限 1 MiB。已发出的字节会立刻从池里擦除。若补给期间微信侧持续失败且余量用尽，抛出的错误会把
-微信的失败原因挂在 `cause` 上。
+上限 1 MiB。单次 `crypto.getRandomValues` 请求超过 `randomPoolSize` 时直接抛 `RangeError`，
+需要调大池子。已发出的字节会立刻从池里擦除。补给失败会在下一次取随机数时重试，连续失败 3 次后
+不再重试；若余量用尽时补给仍未成功，抛出的错误会把微信的失败原因挂在 `cause` 上。
 
 `wx.getRandomValues` 需要微信基础库 2.15.0 或更高版本。运行时还必须原生提供 `BigInt` 与
 `queueMicrotask`。
@@ -74,10 +75,14 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 
 ## 宿主契约
 
-`wechat: wx` 是 `host: createWechatMiniProgramHost(wx)` 的便利形状，二者恰好传一个。
+`wechat: wx` 是 `host: createWechatMiniProgramHost(wx)` 的便利形状，二者恰好传一个，都传或都不传
+直接报错。
 对应的配置类型是 `WaSqliteMiniProgramOptions`（微信形状，仍是 interface，可被 `extends`）与
 `WaSqliteMiniProgramHostOptions`，adapter 与客户端接收二者的联合 `WaSqliteMiniProgramAdapterOptions`。
-宿主的 `requestRandomValues` 可以复用同一块缓冲区重填后返回，运行时会立即复制并擦掉原件。
+宿主的 `requestRandomValues` 每次必须返回新分配的 `Uint8Array`，交出后不再读写：运行时直接把它
+当随机池，逐段发出并原地擦零；复用仍在使用的缓冲区会被识别为违约并拒绝。宿主缺少
+`requestRandomValues` 时引导直接失败。传了 `databaseRoot` 的配置不再要求宿主提供用户数据目录；
+空串目录一律按缺失处理。
 `MiniProgramHost` 把平台相关的部分收成一个注入点：平台 id、同步文件系统、用户数据目录、
 安全随机源，以及报错里使用的能力名。运行时引导对应 `prepareMiniProgramHostRuntime(host)`，
 文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`。

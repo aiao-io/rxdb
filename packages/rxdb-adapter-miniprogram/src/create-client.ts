@@ -13,7 +13,7 @@ import { resolveMiniProgramHost } from './host.js';
 import { loadWaSqliteMiniProgramModule } from './loader.js';
 import type { WaSqliteMiniProgramAdapterOptions } from './mini-program.interface.js';
 import { DEFAULT_WASM_PATH } from './mini-program.interface.js';
-import { assertMiniProgramRuntimeCapabilities } from './runtime-capabilities.js';
+import { assertMiniProgramHostCapabilities } from './runtime-capabilities.js';
 import { finalizeWaSqliteOpenStatements } from './statement-cleanup.js';
 import { hardenWaSqliteSynchronousCallbacks } from './synchronous-callbacks.js';
 import { createMiniProgramFileVFS } from './wechat-file-vfs.js';
@@ -22,7 +22,8 @@ function resolveClientOptions(
   dbName: string,
   options: WaSqliteMiniProgramAdapterOptions
 ): ResolvedWaSqliteClientOptions {
-  assertMiniProgramRuntimeCapabilities(options);
+  const host = resolveMiniProgramHost(options);
+  assertMiniProgramHostCapabilities(host, options);
   const cacheSizeKb = validateSqliteNumericOption('cacheSizeKb', options.cacheSizeKb, DEFAULT_CACHE_SIZE_KB);
   return {
     batchTimeout: DEFAULT_BATCH_TIMEOUT,
@@ -35,7 +36,9 @@ function resolveClientOptions(
       wasmPath: options.wasmPath ?? DEFAULT_WASM_PATH,
       wasmRuntime: options.wasmRuntime,
       wechat: options.wechat,
-      host: options.host
+      // 宿主按平台与用户目录比较：文档示范的写法每次 init 都现构造 host，引用比较会误报冲突
+      platform: host.platform,
+      userDataPath: host.userDataPath
     }
   };
 }

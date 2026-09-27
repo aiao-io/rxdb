@@ -8,6 +8,8 @@ import {
 import type {
   MiniProgramFileSystemManager,
   MiniProgramHost,
+  MiniProgramHostSelection,
+  MiniProgramRandomValuesResult,
   MiniProgramWasmRuntime,
   MiniProgramWechatApi,
   WaSqliteEmscriptenModule,
@@ -72,11 +74,19 @@ function withRandomValues(respond: (length: number) => ArrayBuffer): MiniProgram
   };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('MiniProgramHost 平台 id', () => {
   it('阶段 A 只登记微信一个平台', () => {
     expect(MINI_PROGRAM_PLATFORM_IDS).toEqual(['wechat']);
+  });
+
+  it('平台表已冻结，JS 调用方无法往里塞 id 绕过门禁', () => {
+    expect(Object.isFrozen(MINI_PROGRAM_PLATFORM_IDS)).toBe(true);
+    expect(() => (MINI_PROGRAM_PLATFORM_IDS as unknown as string[]).push('tt')).toThrow(TypeError);
   });
 
   it('未知平台 id 抛稳定错误，列出已知平台并指向可行性文件', () => {
@@ -114,11 +124,15 @@ describe('MiniProgramHost 平台 id', () => {
   it('wechat 与 host 同时传入时拒绝，而不是挑一个用', () => {
     const options = { host: createFakeHost(), wechat: withRandomValues(length => new ArrayBuffer(length)) };
 
-    expect(() => resolveMiniProgramHost(options as never)).toThrow('wechat 与 host 只能二选一');
+    expect(() => resolveMiniProgramHost(options as unknown as MiniProgramHostSelection)).toThrow(
+      'wechat 与 host 只能二选一'
+    );
   });
 
   it('wechat 与 host 都缺失时拒绝', () => {
-    expect(() => resolveMiniProgramHost({} as never)).toThrow('必须提供 wechat 或 host 其中之一');
+    expect(() => resolveMiniProgramHost({} as unknown as MiniProgramHostSelection)).toThrow(
+      '必须提供 wechat 或 host 其中之一'
+    );
   });
 
   it('下游接口仍可继承微信形状的 WaSqliteMiniProgramOptions', () => {
@@ -184,6 +198,35 @@ describe('createWechatMiniProgramHost', () => {
       }).requestRandomValues(8)
     ).rejects.toThrow('微信运行时缺少 wx.getRandomValues');
   });
+
+  it('wx.env.USER_DATA_PATH 为空串时视为缺失', () => {
+    const host = createWechatMiniProgramHost({ env: { USER_DATA_PATH: '' }, getFileSystemManager: () => undefined! });
+
+    expect(host.userDataPath).toBeUndefined();
+  });
+
+  it('success 回调拿到异常结构时 reject，而不是让引导永久挂起', async () => {
+    const host = createWechatMiniProgramHost({
+      env: { USER_DATA_PATH: '/x' },
+      getFileSystemManager: () => new MemoryFileSystem(),
+      // wx 在后续宏任务里分发回调，外层同步 try/catch 包不住回调体
+      getRandomValues: options => {
+        setTimeout(() => options.success?.(null as unknown as MiniProgramRandomValuesResult), 0);
+      }
+    });
+
+    await expect(host.requestRandomValues(8)).rejects.toThrow('wx.getRandomValues 失败: ');
+  });
+
+  it('fail 传来只带 message 的普通对象时，文案取 message 而不是 [object Object]', async () => {
+    const host = createWechatMiniProgramHost({
+      env: { USER_DATA_PATH: '/x' },
+      getFileSystemManager: () => new MemoryFileSystem(),
+      getRandomValues: options => options.fail?.({ message: 'bridge down' } as { errMsg?: string })
+    });
+
+    await expect(host.requestRandomValues(8)).rejects.toThrow('wx.getRandomValues 失败: bridge down');
+  });
 });
 
 describe('按 host 预检运行时能力', () => {
@@ -208,6 +251,32 @@ describe('按 host 预检运行时能力', () => {
     ).toThrow(
       '测试小程序运行时缺少 RxDB 必需能力: FakeWebAssembly.instantiate, fake.getFileSystemManager, fake.env.USER_DATA_PATH'
     );
+  });
+});
+
+describe('预检里的数据库目录', () => {
+  const findUserDataPath = (capabilities: readonly { name: string; available: boolean }[]) =>
+    capabilities.find(item => item.name === 'fake.env.USER_DATA_PATH');
+
+  it('显式 databaseRoot 时 host 缺少用户目录也放行', () => {
+    const host = createFakeHost({ userDataPath: undefined });
+
+    expect(() =>
+      assertMiniProgramRuntimeCapabilities({ moduleFactory, wasmRuntime, host, databaseRoot: '/custom/dir' })
+    ).not.toThrow();
+  });
+
+  it('空串用户目录或空串 databaseRoot 都报缺失', () => {
+    const host = createFakeHost({ userDataPath: '' });
+
+    expect(findUserDataPath(checkMiniProgramRuntimeCapabilities({ moduleFactory, wasmRuntime, host }))).toMatchObject({
+      available: false
+    });
+    expect(
+      findUserDataPath(
+        checkMiniProgramRuntimeCapabilities({ moduleFactory, wasmRuntime, host: createFakeHost(), databaseRoot: '' })
+      )
+    ).toMatchObject({ available: false });
   });
 });
 
@@ -261,24 +330,81 @@ describe('prepareMiniProgramHostRuntime', () => {
     );
   });
 
-  it('host 复用同一块缓冲区重填时，未消费的池字节不被覆盖或擦零', async () => {
+  it('host 复用仍在使用的缓冲区补池时不采纳，耗尽后 cause 点名契约', async () => {
     vi.stubGlobal('crypto', undefined);
-    // 合法宿主：每次都把同一块工作缓冲区整片重填后返回；第 n 次申请填 n，便于反查字节出自哪一池
     const shared = new Uint8Array(4);
-    let generation = 0;
-    const requestRandomValues = vi.fn((length: number) => {
-      generation += 1;
-      return Promise.resolve(shared.subarray(0, length).fill(generation));
-    });
+    const requestRandomValues = vi.fn((length: number) => Promise.resolve(shared.subarray(0, length).fill(1)));
 
     await prepareMiniProgramHostRuntime(createFakeHost({ requestRandomValues }), { randomPoolSize: 4 });
-    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(3)))).toEqual([1, 1, 1]);
+    fillMiniProgramRandomValues(new Uint8Array(4));
     await vi.waitFor(() => expect(requestRandomValues).toHaveBeenCalledTimes(2));
     await Promise.resolve();
 
-    // 补池落地后，旧池最后一字节仍出自首池；交接到备池后 4 字节都出自第二池，一个零都不能有
-    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(1)))).toEqual([1]);
-    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(4)))).toEqual([2, 2, 2, 2]);
+    let thrown: unknown;
+    try {
+      fillMiniProgramRandomValues(new Uint8Array(1));
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as Error).message).toBe('测试小程序安全随机池已耗尽，请重新引导运行时');
+    expect((thrown as Error).cause).toMatchObject({
+      message: '测试小程序随机源复用了仍在使用的缓冲区，每次必须返回新分配的缓冲区'
+    });
+  });
+
+  it('host 缺少 requestRandomValues 时点名报错，而不是抛裸 TypeError', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const host = createFakeHost({
+      requestRandomValues: undefined as unknown as MiniProgramHost['requestRandomValues']
+    });
+
+    await expect(prepareMiniProgramHostRuntime(host)).rejects.toThrow('测试小程序宿主缺少 requestRandomValues');
+  });
+
+  it('host 返回 ArrayBuffer 而不是视图时点名报错', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const host = createFakeHost({
+      requestRandomValues: length => Promise.resolve(new ArrayBuffer(length) as unknown as Uint8Array)
+    });
+
+    await expect(prepareMiniProgramHostRuntime(host, { randomPoolSize: 8 })).rejects.toThrow(
+      '测试小程序随机源必须返回 Uint8Array'
+    );
+  });
+
+  it('补池时 host 同步抛错不卡死补给，下一次消费会重新申请', async () => {
+    vi.stubGlobal('crypto', undefined);
+    let generation = 0;
+    const requestRandomValues = vi.fn((length: number) => {
+      generation += 1;
+      if (generation === 2) throw new Error('bridge crashed');
+      return Promise.resolve(new Uint8Array(length).fill(generation));
+    });
+
+    await prepareMiniProgramHostRuntime(createFakeHost({ requestRandomValues }), { randomPoolSize: 8 });
+    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(6)))).toEqual([1, 1, 1, 1, 1, 1]);
+    fillMiniProgramRandomValues(new Uint8Array(1));
+    await vi.waitFor(() => expect(requestRandomValues).toHaveBeenCalledTimes(3));
+    await Promise.resolve();
+
+    expect(Array.from(fillMiniProgramRandomValues(new Uint8Array(2)))).toEqual([3, 3]);
+  });
+
+  it('补池连续失败到上限后本轮不再向宿主申请', async () => {
+    vi.stubGlobal('crypto', undefined);
+    const requestRandomValues = vi
+      .fn<(length: number) => Promise<Uint8Array>>()
+      .mockResolvedValueOnce(new Uint8Array(16))
+      .mockRejectedValue(new Error('bridge down'));
+
+    await prepareMiniProgramHostRuntime(createFakeHost({ requestRandomValues }), { randomPoolSize: 16 });
+    fillMiniProgramRandomValues(new Uint8Array(12));
+    for (let index = 0; index < 4; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      fillMiniProgramRandomValues(new Uint8Array(1));
+    }
+
+    expect(requestRandomValues).toHaveBeenCalledTimes(4);
   });
 
   it('host 补池长度不符时不采纳，耗尽后把原因挂在 cause 上', async () => {
@@ -339,6 +465,15 @@ describe('createMiniProgramFileVFS', () => {
     expect(() => createMiniProgramFileVFS(module, { host, databaseName: 'no-root.sqlite' })).toThrow(
       '测试小程序缺少 fake.env.USER_DATA_PATH，无法推导数据库目录'
     );
+  });
+
+  it('空串用户目录或空串 root 都拒绝，而不是拼出 /rxdb-wa-sqlite 根路径', () => {
+    expect(() =>
+      createMiniProgramFileVFS(module, { host: createFakeHost({ userDataPath: '' }), databaseName: 'empty.sqlite' })
+    ).toThrow('测试小程序缺少 fake.env.USER_DATA_PATH，无法推导数据库目录');
+    expect(() =>
+      createMiniProgramFileVFS(module, { host: createFakeHost(), root: '', databaseName: 'empty-root.sqlite' })
+    ).toThrow('数据库目录不能为空串');
   });
 
   it('host 缺少同步文件系统时拒绝', () => {

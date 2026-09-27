@@ -36,7 +36,7 @@ export interface MiniProgramWechatApi {
  * 只有可行性矩阵判定 `supported` 且已实现 host 的平台才会进这张表；
  * 未登记的 id 一律按未知平台拒绝，不回退到微信全局。
  */
-export const MINI_PROGRAM_PLATFORM_IDS = ['wechat'] as const;
+export const MINI_PROGRAM_PLATFORM_IDS = Object.freeze(['wechat'] as const);
 
 /** 已登记的小程序平台 id。 */
 export type MiniProgramPlatformId = (typeof MINI_PROGRAM_PLATFORM_IDS)[number];
@@ -72,7 +72,9 @@ export interface MiniProgramHost {
   getFileSystemManager(): MiniProgramFileSystemManager | undefined;
   /**
    * 向平台申请恰好 `length` 字节的密码学安全随机数；做不到必须 reject，不许降级。
-   * 可以复用同一块缓冲区重填后返回——调用方拿到后立即复制并把返回值擦零，不持有它。
+   *
+   * 每次返回新分配的缓冲区，交出后宿主不再读写它：运行时直接把它当随机池，逐段发出并擦零。
+   * 复用仍在使用的缓冲区会被识别为违约并拒绝。
    */
   requestRandomValues(length: number): Promise<Uint8Array>;
 }

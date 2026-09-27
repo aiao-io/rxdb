@@ -1,5 +1,7 @@
+import { errorMessage } from './error-message.js';
 import type {
   MiniProgramHost,
+  MiniProgramHostSelection,
   MiniProgramPlatformId,
   MiniProgramRandomValuesResult,
   MiniProgramWechatApi
@@ -38,10 +40,12 @@ export function assertMiniProgramHostPlatform(host: MiniProgramHost): void {
   if (!isMiniProgramPlatformId(host.platform)) throw new MiniProgramUnknownPlatformError(host.platform);
 }
 
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error && 'errMsg' in error) return String(error.errMsg);
-  return String(error);
+function wechatRandomPool(result: MiniProgramRandomValuesResult, length: number): Uint8Array {
+  const pool = new Uint8Array(result.randomValues);
+  if (pool.byteLength !== length) {
+    throw new Error(`wx.getRandomValues 返回 ${pool.byteLength} bytes，期望 ${length} bytes`);
+  }
+  return pool;
 }
 
 function requestWechatRandomValues(wechat: MiniProgramWechatApi, length: number): Promise<Uint8Array> {
@@ -50,16 +54,16 @@ function requestWechatRandomValues(wechat: MiniProgramWechatApi, length: number)
     return Promise.reject(new Error('微信运行时缺少 wx.getRandomValues'));
   }
   return new Promise((resolve, reject) => {
-    const success = (result: MiniProgramRandomValuesResult): void => {
-      const pool = new Uint8Array(result.randomValues);
-      if (pool.byteLength !== length) {
-        reject(new Error(`wx.getRandomValues 返回 ${pool.byteLength} bytes，期望 ${length} bytes`));
-        return;
-      }
-      resolve(pool);
-    };
-    const fail = (error: { readonly errMsg?: string }): void => {
+    const fail = (error: unknown): void => {
       reject(new Error(`wx.getRandomValues 失败: ${errorMessage(error)}`, { cause: error }));
+    };
+    // wx 在异步分发器里调回调，回调体抛出的异常会被吞掉；不接住的话 Promise 永远不 settle
+    const success = (result: MiniProgramRandomValuesResult): void => {
+      try {
+        resolve(wechatRandomPool(result, length));
+      } catch (error) {
+        fail(error);
+      }
     };
     try {
       getRandomValues.call(wechat, { length, success, fail });
@@ -84,7 +88,7 @@ export function createWechatMiniProgramHost(wechat: MiniProgramWechatApi): MiniP
     capabilityNames: { fileSystem: 'wx.getFileSystemManager', userDataPath: 'wx.env.USER_DATA_PATH' },
     get userDataPath() {
       const path = wechat?.env?.USER_DATA_PATH;
-      return typeof path === 'string' ? path : undefined;
+      return typeof path === 'string' && path !== '' ? path : undefined;
     },
     getFileSystemManager: () => wechat?.getFileSystemManager?.(),
     requestRandomValues: length => requestWechatRandomValues(wechat, length)
@@ -96,10 +100,7 @@ export function createWechatMiniProgramHost(wechat: MiniProgramWechatApi): MiniP
  *
  * 两者都给或都不给都直接拒绝：挑一个用等于把配置错误藏起来。
  */
-export function resolveMiniProgramHost(options: {
-  readonly wechat?: MiniProgramWechatApi;
-  readonly host?: MiniProgramHost;
-}): MiniProgramHost {
+export function resolveMiniProgramHost(options: MiniProgramHostSelection): MiniProgramHost {
   if (options.host && options.wechat) throw new Error('wechat 与 host 只能二选一');
   if (options.wechat) return createWechatMiniProgramHost(options.wechat);
   if (!options.host) throw new Error('必须提供 wechat 或 host 其中之一');

@@ -1,3 +1,4 @@
+import { errorMessage } from './error-message.js';
 import { assertMiniProgramHostPlatform, createWechatMiniProgramHost } from './host.js';
 import type {
   MiniProgramFileSystemManager,
@@ -103,15 +104,6 @@ export interface MiniProgramFileVFS {
 
 /** 微信同步文件 VFS 句柄。 */
 export type WechatFileVFS = MiniProgramFileVFS;
-
-function errorMessage(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const candidate = error as { errMsg?: unknown; message?: unknown };
-    if (typeof candidate.errMsg === 'string') return candidate.errMsg;
-    if (typeof candidate.message === 'string') return candidate.message;
-  }
-  return String(error);
-}
 
 function isMissingFileError(error: unknown): boolean {
   return /no such|not exist|doesn['\u2019]?t exist|ENOENT|not found|\u4e0d\u5b58\u5728|\u627e\u4e0d\u5230/i.test(
@@ -326,9 +318,10 @@ function resolveFileSystem(options: MiniProgramFileVFSOptions): MiniProgramFileS
 }
 
 function resolveRoot(options: MiniProgramFileVFSOptions): string {
+  if (options.root === '') throw new Error('数据库目录不能为空串');
   if (options.root !== undefined) return options.root;
   const { host } = options;
-  if (host.userDataPath === undefined) {
+  if (!host.userDataPath) {
     throw new Error(`${host.displayName}缺少 ${host.capabilityNames.userDataPath}，无法推导数据库目录`);
   }
   return `${host.userDataPath}/rxdb-wa-sqlite`;

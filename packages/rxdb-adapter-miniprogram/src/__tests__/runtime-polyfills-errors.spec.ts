@@ -146,7 +146,7 @@ describe('同步随机源', () => {
 
   it('fillMiniProgramRandomValues 未引导时抛错，引导后原地填充并回传同一视图', async () => {
     vi.stubGlobal('crypto', undefined);
-    expect(() => fillMiniProgramRandomValues(new Uint8Array(4))).toThrow('微信小程序安全随机源尚未引导');
+    expect(() => fillMiniProgramRandomValues(new Uint8Array(4))).toThrow(/^小程序安全随机源尚未引导$/);
 
     const pool = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
     await prepareMiniProgramRuntime(
@@ -233,31 +233,42 @@ describe('随机池补给', () => {
     });
   });
 
-  it('备池装不下本次请求时抛错，而不是返回填了一半的零字节', async () => {
+  it('单次请求超过池大小时点名 randomPoolSize，而不是报「耗尽」让人重新引导', async () => {
     vi.stubGlobal('crypto', undefined);
     const getRandomValues = createMarkedPools();
     await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 4 });
 
-    globalThis.crypto.getRandomValues(new Uint8Array(4));
-    await vi.waitFor(() => expect(getRandomValues).toHaveBeenCalledTimes(2));
-
-    expect(() => globalThis.crypto.getRandomValues(new Uint8Array(8))).toThrow('安全随机池已耗尽');
+    const target = new Uint8Array(8);
+    expect(() => globalThis.crypto.getRandomValues(target)).toThrow(RangeError);
+    expect(() => globalThis.crypto.getRandomValues(target)).toThrow(
+      'getRandomValues 单次 8 bytes 超过 randomPoolSize 4，请调大 randomPoolSize'
+    );
+    expect([...target]).toEqual(Array.from({ length: 8 }, () => 0));
+    // 被拒的请求不消耗池：池里 4 字节原样可用
+    expect([...globalThis.crypto.getRandomValues(new Uint8Array(4))]).toEqual([1, 1, 1, 1]);
   });
 
-  it('宿主交来的随机字节复制进池后原件立即擦零，池内未使用部分按序续发', async () => {
+  it('发出去的字节立即在池里擦零，换池时旧池余量一并擦零', async () => {
     vi.stubGlobal('crypto', undefined);
-    const source = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
-    await prepareMiniProgramRuntime(
-      createWechat(options => options.success?.({ randomValues: source.buffer })),
-      { randomPoolSize: 16 }
-    );
+    // 微信 host 把 wx 交来的 ArrayBuffer 直接包成池（不复制），这两块内存就是池本身
+    const first = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
+    const second = Uint8Array.from({ length: 16 }, (_, index) => index + 101);
+    const deliveries = [first, second];
+    const getRandomValues = vi.fn((options: MiniProgramRandomValuesOptions) => {
+      options.success?.({ randomValues: deliveries[getRandomValues.mock.calls.length - 1].buffer });
+    });
+    await prepareMiniProgramRuntime(createWechat(getRandomValues), { randomPoolSize: 16 });
 
-    expect([...source]).toEqual(Array.from({ length: 16 }, () => 0));
-    const target = new Uint8Array(4);
-    globalThis.crypto.getRandomValues(target);
-    expect([...target]).toEqual([1, 2, 3, 4]);
-    globalThis.crypto.getRandomValues(target);
-    expect([...target]).toEqual([5, 6, 7, 8]);
+    expect([...globalThis.crypto.getRandomValues(new Uint8Array(4))]).toEqual([1, 2, 3, 4]);
+    expect([...first]).toEqual([0, 0, 0, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+
+    globalThis.crypto.getRandomValues(new Uint8Array(9));
+    expect([...first.subarray(13)]).toEqual([14, 15, 16]);
+    await vi.waitFor(() => expect(getRandomValues).toHaveBeenCalledTimes(2));
+
+    expect([...globalThis.crypto.getRandomValues(new Uint8Array(4))]).toEqual([101, 102, 103, 104]);
+    expect([...first]).toEqual(Array.from({ length: 16 }, () => 0));
+    expect([...second.subarray(0, 5)]).toEqual([0, 0, 0, 0, 105]);
   });
 });
 

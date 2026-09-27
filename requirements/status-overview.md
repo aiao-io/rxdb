@@ -26,7 +26,7 @@
 
 ## 进行中（1 条）
 
-当前没有进行中的故事。
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`
 
 ## 待评审（0 条）
 
