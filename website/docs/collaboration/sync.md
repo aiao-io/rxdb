@@ -467,11 +467,12 @@ const server = new RxDB({
 **只作用于本实例**：覆盖不改写实体类的元数据，也不冻结调用方传入的对象——构造时即拍快照，
 之后改动传入的条目不影响运行中或重连后的实例。另一个实例注册同一个类，照旧按自己的配置走。
 
-**不换适配器**：适配器只从库级 `sync` 注册，覆盖里某侧的适配器名必须与库级同侧一致——
-名字不同的覆盖在构造期就被拒绝，不会被静默送进库级那一个适配器。
+**不换适配器**：适配器只从库级 `sync` 注册。覆盖声明的每一侧都必须在库级注册同名适配器；
+库级缺侧或名字不同的覆盖在构造期就被拒绝，不会留下永不发射的适配器流。
 
-**生效配置决定校验**：QueryCache 缺 `remote`、缺插件、适配器不支持该模式等既有的 fail-fast 错误，
-按覆盖后的生效配置触发；覆盖成纯本地的实体既不需要远端适配器，也不进入出站重放与缓存刷新管道。
+**生效配置决定校验**：覆盖声明的 `remote` 若未在库级注册，构造期即报 `invalid-sync`；
+QueryCache 缺插件、适配器不支持该模式等 fail-fast 错误按覆盖后的生效配置触发；
+覆盖成纯本地的实体既不需要远端适配器，也不进入出站重放与缓存刷新管道。
 
 非法条目在建立实体绑定与任何数据库写入之前抛出 `RxDBSyncOverrideError`，按 `reason` 判别：
 
@@ -481,7 +482,7 @@ const server = new RxDB({
 | `system-entity` | 目标是 RxDB 或插件注入的系统表                                                                                                                         |
 | `duplicate`     | 同一实体出现多条覆盖                                                                                                                                   |
 | `invalid-entry` | 条目不是对象，或 `entity` 不是实体类                                                                                                                   |
-| `invalid-sync`  | `sync` 为 `null`、缺少或写错 `type`、适配器选项形状不对；Full / Filter / QueryCache 缺一侧，Filter 缺 `remote.filter` 函数；某侧适配器名与库级同侧不同 |
+| `invalid-sync`  | `sync` 为 `null`、缺少或写错 `type`、适配器选项形状不对；Full / Filter / QueryCache 缺一侧，Filter 缺 `remote.filter` 函数；覆盖声明的一侧未在库级注册同名适配器 |
 
 :::tip 插件作者
 读取实体策略一律经 `rxdb.entitySync.resolve(Entity)` / `resolveType(Entity)`，不要直接读

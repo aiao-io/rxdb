@@ -120,7 +120,7 @@ INVEST 检查清单:
 |   5 | 某实例已初始化，调用方仍持有传入的覆盖条目与嵌套 local/remote 选项                                                                            | 修改调用方对象，再查询及关闭重连；读取原实体字段描述                | 运行中与重连后的策略稳定；原实体模型描述不受覆盖影响；不冻结调用方的实体类                                                 |  ✅  |
 |   6 | 注册两个 namespace 不同、name 相同的实体，另有未覆盖实体                                                                                      | 分别配置不同覆盖并读写                                              | 覆盖精确命中目标；其他实体和生成的关系中间实体继续按既有配置规则工作                                                       |  ✅  |
 |   7 | 分别构造未注册目标、系统实体目标、重复条目、`null` 配置和缺少 `type` 的配置                                                                   | 初始化                                                              | 在建立实体绑定与执行数据库写入前失败；错误可判别并指出目标及原因，不静默忽略条目或选取其中一条                             |  ✅  |
-|   8 | 实体原声明为本地，覆盖为 QueryCache；分别缺 remote、缺插件或选择不支持该模式的 adapter                                                        | 初始化或调用既有能力校验入口                                        | 按生效配置触发现有对应的 fail-fast 错误；不沿用原声明绕过校验，也不自动创建依赖                                            |  ✅  |
+|   8 | 实体原声明为本地，覆盖为 QueryCache；分别缺库级 remote、缺插件或选择不支持该模式的 adapter                                                        | 构造实例、初始化或调用能力校验入口                              | 库级缺侧时构造期报 `invalid-sync`；缺插件或能力不支持按生效配置 fail-fast，不自动创建依赖                                            |  ✅  |
 |   9 | 同一覆盖实体具备单条、批量与事务写入夹具                                                                                                      | 经 Repository、实体保存入口、EntityManager 批量入口及事务执行器操作 | 所有入口选择同一生效策略；既有批量与事务边界不放宽；失败按既有原子性契约回滚                                               |  ✅  |
 |  10 | 覆盖为 QueryCache，已配置可用 adapter 与插件                                                                                                  | 离线写入、恢复连接、接收远端变更通知并观察同步状态                  | 现有出站重放、缓存刷新和状态统计均针对生效策略工作；覆盖为纯本地的实体不进入该管道                                         |  ✅  |
 |  11 | 使用现有 Full、Filter 与关系夹具；另含 Tree 与 QueryCache 的不支持组合（`rxdb-plugin-tree` 经 `IRepositoryConfig.unsupportedSyncTypes` 声明） | 对合法覆盖执行同步与关系操作，对非法组合初始化                      | 已支持组合通过共享契约；非法组合按生效策略被拒绝，不因只检查装饰器原值而漏检                                               |  ✅  |
@@ -139,8 +139,8 @@ INVEST 检查清单:
 - AC#4：「AC#4」：两实例交替读写、销毁其一后另一个继续；共享元数据不变
 - AC#5：「AC#5」：构造期深拷贝快照，改调用方对象与重连后策略稳定
 - AC#6：「AC#6」：同名不同 namespace 分别命中，未覆盖实体与关系中间实体不受影响
-- AC#7：「AC#7」：`RxDBSyncOverrideError` 五种 reason（unregistered / system-entity / duplicate / invalid-entry / invalid-sync），构造期抛出；`invalid-sync` 还拦 Full / Filter / QueryCache 缺侧、Filter 缺 `remote.filter` 函数、适配器名与库级同侧不同，稀疏数组空位按 `invalid-entry` 报
-- AC#8：「AC#8」：缺 remote、缺插件、adapter 不支持 QueryCache 均按生效配置 fail-fast
+- AC#7：「AC#7」：`RxDBSyncOverrideError` 五种 reason（unregistered / system-entity / duplicate / invalid-entry / invalid-sync），构造期抛出；`invalid-sync` 还拦 Full / Filter / QueryCache 缺侧、Filter 缺 `remote.filter` 函数、覆盖声明的一侧未在库级注册同名适配器，稀疏数组空位按 `invalid-entry` 报
+- AC#8：「AC#8」：库级缺 remote 构造期报 `invalid-sync`；缺插件与 adapter 不支持 QueryCache 仍按生效配置 fail-fast
 - AC#9：「AC#9」：单条 / 批量 / 事务入口共用 `rxdb.entitySync.resolve`，批量混合策略按既有契约拒绝
 - AC#10：`rxdb-plugin-sync` 的 `sync-status-and-cleanup.spec.ts` / `query-cache-outbox.spec.ts` 与 `rxdb-plugin-querycache` 的 `querycache-production-path.spec.ts` 覆盖出站重放、失效刷新与状态统计；纯本地覆盖不进管道
 - AC#11：核心「AC#11」替身仓储 + `rxdb-plugin-tree` 的 `querycache-ban.browser.spec.ts` 经真实插件验证：覆盖成 QueryCache 被拒、QueryCache 覆盖成 Full 放行

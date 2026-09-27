@@ -325,7 +325,12 @@ describe('US-026 实例级实体同步覆盖', () => {
         local: { adapter: 'sqlite' },
         remote: { adapter: 'http', filter }
       } as unknown as SyncOptions;
-      const rxdb = trackRxDB(new RxDB(serverOptions('override-filter-fn', [{ entity: Recipe, sync }])));
+      const rxdb = trackRxDB(
+        new RxDB({
+          ...serverOptions('override-filter-fn', [{ entity: Recipe, sync }]),
+          sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
+        })
+      );
 
       const effective = rxdb.entitySync.resolve(Recipe) as { remote: { filter: unknown } };
       expect(effective.remote.filter).toBe(filter);
@@ -460,6 +465,37 @@ describe('US-026 实例级实体同步覆盖', () => {
       expect((error as Error).message).toContain(`[${reason}]`);
     });
 
+    it.each<[string, SyncOptions]>([
+      ['remote-only', { type: SyncType.None, remote: { adapter: 'http' } }],
+      ['Full', { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }],
+      [
+        'Filter',
+        {
+          type: SyncType.Filter,
+          local: { adapter: 'sqlite' },
+          remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
+        }
+      ]
+    ])('库级只有 local 时拒绝 %s 覆盖声明的 remote', (_label, sync) => {
+      const error = catchError(construct([{ entity: Recipe, sync }]));
+      expect(error).toMatchObject({ reason: 'invalid-sync', index: 0, entity: 'public.Recipe' });
+      expect((error as Error).message).toMatch(/remote/);
+    });
+
+    it('库级只有 remote 时拒绝覆盖声明的 local', () => {
+      const error = catchError(
+        () =>
+          new RxDB({
+            dbName: 'override-missing-local',
+            entities: [Plain],
+            sync: { type: SyncType.None, remote: { adapter: 'http' } },
+            syncOverrides: [{ entity: Plain, sync: LOCAL_ONLY }]
+          })
+      );
+      expect(error).toMatchObject({ reason: 'invalid-sync', index: 0, entity: 'public.Plain' });
+      expect((error as Error).message).toMatch(/local/);
+    });
+
     it('remote 适配器名与库级不同：构造期拒绝，不让写入落到库级那一个适配器', () => {
       const error = catchError(
         () =>
@@ -478,20 +514,29 @@ describe('US-026 实例级实体同步覆盖', () => {
 
     it.each<[string, SyncOptions]>([
       ['SyncDisabled：None 不带任何一侧', { type: SyncType.None }],
-      [
-        '库级没有的一侧不做名字比对，交给既有 fail-fast',
-        { type: SyncType.None, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } }
-      ],
-      [
-        'Filter 带 filter 函数',
-        {
-          type: SyncType.Filter,
-          local: { adapter: 'sqlite' },
-          remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
-        }
-      ]
+      ['纯本地覆盖', LOCAL_ONLY]
     ])('合法覆盖照常构造：%s', (_label, sync) => {
       expect(() => construct([{ entity: Recipe, sync }])()).not.toThrow();
+    });
+
+    it('库级两侧都有同名适配器时允许 Filter 覆盖', () => {
+      expect(() =>
+        new RxDB({
+          dbName: 'override-filter-registered',
+          entities: [Plain],
+          sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
+          syncOverrides: [
+            {
+              entity: Plain,
+              sync: {
+                type: SyncType.Filter,
+                local: { adapter: 'sqlite' },
+                remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
+              }
+            }
+          ]
+        })
+      ).not.toThrow();
     });
 
     it('子类不继承基类的覆盖资格：未注册的子类被拒', () => {
@@ -513,18 +558,18 @@ describe('US-026 实例级实体同步覆盖', () => {
   });
 
   describe('AC#8 覆盖成 QueryCache 时既有 fail-fast 按生效配置触发', () => {
-    it('数据库没有 remote：init() 抛 missingQueryCacheAdapter，不沿用原声明放行', () => {
-      const rxdb = trackRxDB(
-        new RxDB({
-          dbName: 'override-qc-no-remote',
-          entities: [Plain],
-          sync: LOCAL_ONLY,
-          syncOverrides: [{ entity: Plain, sync: QUERY_CACHE_SYNC }]
-        })
+    it('库级没有 remote：构造期拒绝 QueryCache 覆盖，而非等到 init()', () => {
+      const error = catchError(
+        () =>
+          new RxDB({
+            dbName: 'override-qc-no-remote',
+            entities: [Plain],
+            sync: LOCAL_ONLY,
+            syncOverrides: [{ entity: Plain, sync: QUERY_CACHE_SYNC }]
+          })
       );
-      rxdb.adapter('sqlite', createMockAdapter);
-
-      expect(() => rxdb.init()).toThrow(/QueryCache/);
+      expect(error).toMatchObject({ reason: 'invalid-sync', index: 0, entity: 'public.Plain' });
+      expect((error as Error).message).toMatch(/remote/);
     });
 
     it('缺 QueryCache 插件：connect() 抛 RxDBMissingPluginError 并点名被覆盖的实体', async () => {

@@ -38,7 +38,7 @@ export interface EntitySyncOverride {
  * - `duplicate`：同一实体出现多条覆盖
  * - `invalid-entry`：条目本身不是对象，或 `entity` 不是实体类
  * - `invalid-sync`：`sync` 为 `null`、非对象、缺少或写错 `type`、适配器选项形状不对，
- *   Full / Filter / QueryCache 缺一侧，Filter 的 `remote.filter` 不是函数，或某侧适配器名与库级同侧不同
+ *   Full / Filter / QueryCache 缺一侧，Filter 的 `remote.filter` 不是函数，或覆盖声明的一侧未在库级注册同名适配器
  */
 export type RxDBSyncOverrideErrorReason =
   'unregistered' | 'system-entity' | 'duplicate' | 'invalid-entry' | 'invalid-sync';
@@ -100,12 +100,7 @@ const describeMissingRequired = (sync: Record<string, unknown>): string | undefi
 };
 
 /**
- * 覆盖里出现的一侧，库级同侧也有时名字必须一致。
- *
- * @remarks
- * 适配器只从库级 `sync` 注册，仓储、批量写与同步管道都按**侧别**取库级那条流；名字不同的覆盖
- * 会被静默送进库级那个适配器。库级没有的一侧不在这里判：覆盖不创建适配器，缺侧交给既有的
- * fail-fast（如 QueryCache 的 `missingQueryCacheAdapter`）按生效配置报。
+ * 覆盖声明的一侧必须已在库级注册同名适配器；覆盖本身不会创建适配器流。
  */
 const describeAdapterMismatch = (
   sync: Record<string, unknown>,
@@ -113,8 +108,10 @@ const describeAdapterMismatch = (
 ): string | undefined => {
   for (const side of ['local', 'remote'] as const) {
     const declared = (sync[side] as SyncAdapterOptions | undefined)?.adapter;
+    if (declared === undefined) continue;
     const registered = databaseSync?.[side]?.adapter;
-    if (declared === undefined || registered === undefined || declared === registered) continue;
+    if (registered === undefined) return `sync.${side}.adapter 为 '${declared}'，但库级 sync.${side} 未注册适配器`;
+    if (declared === registered) continue;
     return `sync.${side}.adapter 为 '${declared}'，但库级 sync.${side} 注册的是 '${registered}'；覆盖不能换适配器`;
   }
   return undefined;
@@ -159,7 +156,7 @@ const snapshotSync = (sync: SyncOptions): SyncOptions => {
  * @param overrides - `RxDBOptions.syncOverrides`，可能来自 JS 调用方，形状不可信
  * @param entities - 本实例注册的业务实体（调用方传入的 `entities`）
  * @param isSystem - 系统表判定
- * @param databaseSync - 库级 `sync`：覆盖的适配器名要与它的同侧一致
+ * @param databaseSync - 库级 `sync`：覆盖使用的每一侧必须已注册同名适配器
  * @returns 本实例自有的冻结副本：数组、条目与 `sync` 两层纯数据都是新对象，实体类与函数保留原引用
  * @throws {@link RxDBSyncOverrideError} 任一条目非法时；不跳过、不取其中一条
  */
