@@ -1,7 +1,7 @@
 import type { RxDB } from '@aiao/rxdb';
 import { RxDBAdapterSqliteBase, type SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
 import { createWaSqliteMiniProgramClient } from './create-client.js';
-import { ADAPTER_NAME, type WaSqliteMiniProgramOptions } from './mini-program.interface.js';
+import { ADAPTER_NAME, type WaSqliteMiniProgramAdapterOptions } from './mini-program.interface.js';
 
 /** 微信小程序单连接 wa-sqlite adapter。 */
 export class RxDBAdapterWaSqliteMiniProgram extends RxDBAdapterSqliteBase {
@@ -10,7 +10,7 @@ export class RxDBAdapterWaSqliteMiniProgram extends RxDBAdapterSqliteBase {
 
   constructor(
     rxdb: RxDB,
-    readonly options: WaSqliteMiniProgramOptions
+    readonly options: WaSqliteMiniProgramAdapterOptions
   ) {
     super(rxdb, options);
     this.#dbName = rxdb.config.dbName;

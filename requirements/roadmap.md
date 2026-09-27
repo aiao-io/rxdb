@@ -15,7 +15,7 @@
 | 📝 Backlog     | 28     |
 | **未完成合计** | **28** |
 
-仓库还剩 **28 条**未关闭故事（0 In Progress + 0 In Review + 28 Backlog）。
+仓库还剩 **28 条**未关闭故事（1 In Progress + 0 In Review + 27 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -30,16 +30,16 @@
 与同标价值待证的 [US-030](stories/core/US-030-declarative-storage-constraints.md) 一起
 单独列在[明确不排期](#明确不排期)里，不混进本表。
 
-| Story                                                                                        | 状态       | 剩什么                                                                                                                                                                      | 排期位置 |
-| -------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                                                                                               | 批次 3   |
-| [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力                                                                                 | 批次 3   |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                                                                                                  | 批次 3   |
-| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog | 未立项；价值待证。demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险                                             | 立项池   |
-| [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog | 未立项；阶段 A 的存量库补列已定案由引擎在连接时自带，阶段 B 依赖 US-027 判定原语                                                                                            | 立项池   |
-| [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog | 未立项；价值待证。三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），剩下的是扁平实体手动排序的能力缺口，没有具名使用方；解锁后阶段 B 只对可排序实体重新打开，不等 US-027 | 立项池   |
-| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)   | 📝 Backlog | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的两个前提已定案、导出通道等 US-217 阶段 B，阶段 C 价值待证                                                        | 立项池   |
-| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)   | 📝 Backlog | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，`@aiao/rxdb` 统一改 peer 已定案（`BREAKING CHANGE`，合入时点受约束 12 牵制），B/C 只吃 A 的真相源            | 立项池   |
+| Story                                                                                        | 状态           | 剩什么                                                                                                                                                                                                            | 排期位置 |
+| -------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog     | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                                                                                                                                     | 批次 3   |
+| [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 📝 Backlog     | 未开工；阶段 A（PGlite）→ B（SQLite 共享层）→ C（桌面 host），阶段 A 先验证 PGlite 导出能力                                                                                                                       | 批次 3   |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 🚧 In Progress | 阶段 A 已交付（宿主契约 + [可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)）；B/C 阻塞于外部实验：第一档无 `supported`，候选抖音待开发者工具与真机验证 WASM 与可信随机源，支付宝判 `unsupported` | 批次 3   |
+| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog     | 未立项；价值待证。demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险                                                                                   | 立项池   |
+| [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog     | 未立项；阶段 A 的存量库补列已定案由引擎在连接时自带，阶段 B 依赖 US-027 判定原语                                                                                                                                  | 立项池   |
+| [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog     | 未立项；价值待证。三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），剩下的是扁平实体手动排序的能力缺口，没有具名使用方；解锁后阶段 B 只对可排序实体重新打开，不等 US-027                                       | 立项池   |
+| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)   | 📝 Backlog     | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的两个前提已定案、导出通道等 US-217 阶段 B，阶段 C 价值待证                                                                                              | 立项池   |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)   | 📝 Backlog     | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，`@aiao/rxdb` 统一改 peer 已定案（`BREAKING CHANGE`，合入时点受约束 12 牵制），B/C 只吃 A 的真相源                                                  | 立项池   |
 
 ## 即办清单
 
