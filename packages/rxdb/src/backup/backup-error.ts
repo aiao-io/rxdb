@@ -14,7 +14,7 @@ import { RxDBError } from '../RxDBError.js';
  * | `corrupt_archive` | 格式损坏、摘要不符或声明与载荷不一致 |
  * | `truncated_archive` | 输入在归档结束标记之前就结束了 |
  * | `target_not_empty` | 目标已含任何数据库内容（包括仅初始化过的引擎目录） |
- * | `target_busy` | 目标正被其他连接或恢复操作占用 |
+ * | `target_busy` | 目标正被其他连接或恢复操作占用；或备份源的存储还被其他连接持有，快照看不到它们的提交 |
  * | `restore_in_progress` | 普通连接撞上正在进行的恢复 |
  * | `restore_incomplete` | 目标留有未完成恢复的标记，须先清理再恢复 |
  * | `cleanup_pending` | 失败后的清理本身失败；目标保持未完成状态，拒绝连接 |

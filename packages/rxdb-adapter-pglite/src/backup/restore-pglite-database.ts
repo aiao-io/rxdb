@@ -16,6 +16,7 @@ import { firstValueFrom } from 'rxjs';
 import type { PGliteClientOptions } from '../pglite.interface.js';
 import { resolvePGliteInitOptions } from '../PGliteClient.js';
 import {
+  pgliteBackupExtensions,
   pgliteTargetCompatibility,
   readPGliteEngineInfo,
   readPGliteSystemVersionState,
@@ -220,7 +221,11 @@ const restoreToMemory = async (
     await verifyRestored(pg, session.manifest);
     await options.onStage?.('verified');
     throwIfAborted(session.signal);
-    return resultOf(trailer, session.manifest, new PGliteRestoredDatabase(pg, dbName));
+    return resultOf(
+      trailer,
+      session.manifest,
+      new PGliteRestoredDatabase(pg, target.rxdb, pgliteBackupExtensions(target.options))
+    );
   } catch (error) {
     await pg.close().catch(() => undefined);
     throw error;

@@ -32,7 +32,7 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
-import { resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
+import { pgliteBackupExtensions, resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
 import { writePGliteBackup } from './backup/pglite-backup.js';
 import {
   type ChangePipelineHost,
@@ -631,11 +631,13 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    *
    * 归档包含整个数据目录（业务表、系统表、keyring 的密文），加密列保持密文，不需要解锁。
    * 目前支持 `memory` 与 `idb://` 存储；OPFS-AHP（Worker）与桌面代理客户端报 `unsupported_combination`。
+   * `idb://` 存储同时被其他连接（同页面另一个实例、其他标签页或 Worker）打开时报 `target_busy`：
+   * 每个连接各有一份内存视图，本连接的快照看不到它们的提交。
    *
    * @param sink - 输出流；成功时被 close，失败时被 abort
    * @param options - 取消信号与排队时限
    * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
-   * @throws RxDBBackupError `unsupported_combination` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+   * @throws RxDBBackupError `unsupported_combination` / `target_busy` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
    *
    * @example
    * ```typescript
@@ -876,6 +878,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /** 单例客户端。 */
   #getClient(): Promise<IPGliteClient> {
     if (!this.#client_promise) {
+      // 实例身份只有 adapter 知道；在客户端领取句柄前拦下，失败时句柄仍留给正确的实例。
+      try {
+        this.options.restoredDatabase?.assertAdoptableBy(this.rxdb, pgliteBackupExtensions(this.options));
+      } catch (error) {
+        return Promise.reject(error);
+      }
       const client = this.createClient();
       // 初始化客户端并缓存
       this.#client_promise = client

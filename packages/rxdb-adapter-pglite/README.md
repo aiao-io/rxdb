@@ -92,7 +92,7 @@ await restorePGliteDatabase(file.stream(), { rxdb: target, options: { store: 'id
 await target.connect('pglite');
 ```
 
-恢复到内存目标时，结果里的 `database` 句柄要交给 adapter 的 `restoredDatabase` 选项领取（只能领取一次）：
+恢复到内存目标时，结果里的 `database` 句柄要交给 adapter 的 `restoredDatabase` 选项领取（只能领取一次，且只能由恢复时传入的那个 RxDB 实例、以同一组扩展领取，否则报 `invalid_state`）：
 
 ```typescript
 const { database } = await restorePGliteDatabase(stream, { rxdb: target, options: { store: 'memory' } });
@@ -108,7 +108,7 @@ await target.connect('pglite');
 
 要点：
 
-- **一致性**：备份落在一个已提交事务边界上，备份期间的写入排在其后；锁等待上限由 `lockTimeoutMs`（默认 30s）控制，超时抛 `lock_timeout`。
+- **一致性**：备份落在一个已提交事务边界上，备份期间的写入排在其后；锁等待上限由 `lockTimeoutMs`（默认 30s）控制，超时抛 `lock_timeout`。`idb` 源库同时被其他连接（同页面另一个实例、其他标签页或 Worker）打开时报 `target_busy`——每个连接各有一份内存视图，看不到彼此的提交；关掉其他连接后再备份。
 - **先校验后写入**：manifest 在第一块里读出，引擎版本、schema 指纹、扩展、加密认证域不兼容时在写入目标之前拒绝（`incompatible_archive` / `auth_domain_mismatch`）；完整性（SHA-256）读到末尾才能确认，失败时已写的数据会被丢弃（`corrupt_archive` / `truncated_archive`）。
 - **加密库**：归档里只有密文和 keyring 元数据，不含口令与密钥；恢复后的库保持锁定，用原口令 `unlock()`。
 - **中断**：IndexedDB 目标在校验通过前不写 IndexedDB，并用持久标记记录「恢复进行中」。进程在恢复中途被杀后，连接与再次恢复都会报 `restore_incomplete`，调用 `cleanupIncompletePGliteRestore(target)` 清理后即可重新恢复；清理失败时报 `cleanup_pending`。

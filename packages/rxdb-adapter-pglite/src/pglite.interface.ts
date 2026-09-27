@@ -63,7 +63,7 @@ export interface PGliteClientOptions extends PGliteOptions {
    * 领取 {@link restorePGliteDatabase} 恢复到内存目标得到的数据库，代替新建空库。
    *
    * @remarks
-   * 只能配合内存存储使用；句柄只能被领取一次，且只能被恢复时指定的那个库领取。
+   * 只能配合内存存储使用；句柄只能被领取一次，且只能被恢复时校验过的那个 RxDB 实例、以同一组扩展领取。
    */
   restoredDatabase?: PGliteRestoredDatabase;
 }

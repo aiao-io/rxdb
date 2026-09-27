@@ -18,6 +18,23 @@ const MARKER_STORE = 'markers';
  */
 export const pgliteStorageLockName = (storageKey: string): string => `rxdb-pglite-storage:${storageKey}`;
 
+/**
+ * 此刻持有同一份存储的正常连接数（整个 origin，含其他标签页与 Worker）。
+ *
+ * @remarks
+ * 每个正常连接都持有一把 {@link pgliteStorageLockName} 共享锁，所以 `navigator.locks.query()` 里同名的
+ * 持有项数就是连接数。环境没有 Web Locks 时连接也不拿锁，这里无从得知，返回 `0`。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 持有者数量
+ */
+export const countPGliteStorageHolders = async (storageKey: string): Promise<number> => {
+  if (typeof navigator === 'undefined' || navigator.locks === undefined) return 0;
+  const name = pgliteStorageLockName(storageKey);
+  const { held = [] } = await navigator.locks.query();
+  return held.filter(lock => lock.name === name).length;
+};
+
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);

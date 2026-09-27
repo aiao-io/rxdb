@@ -7,7 +7,7 @@
  */
 import type { RxDB } from '@aiao/rxdb';
 import { afterEach, describe, expect, it } from 'vitest';
-import { writeRestoreMarker } from '../../backup/pglite-restore-lock.js';
+import { pgliteStorageLockName, writeRestoreMarker } from '../../backup/pglite-restore-lock.js';
 import { cleanupIncompletePGliteRestore, restorePGliteDatabase } from '../../backup/restore-pglite-database.js';
 import {
   backupErrorCode,
@@ -100,6 +100,67 @@ describe('PGlite backup captures a committed transaction boundary (AC#3)', () =>
     expect(restored.has('pair-a')).toBe(restored.has('pair-b'));
     const concurrent = [...restored].filter(title => !title.startsWith('before-'));
     expect(new Set(concurrent)).toEqual(new Set(committed.slice(0, concurrent.length)));
+  });
+});
+
+describe('PGlite backup refuses an IndexedDB source that other connections share (AC#3)', () => {
+  /** 备份应被拒绝，且输出流一个字节都没收到。 */
+  const expectRefused = async (adapter: Awaited<ReturnType<BackupRxDB['connect']>>) => {
+    const out = collectingSink();
+    expect(await backupErrorCode(adapter.backup(out.sink))).toBe('target_busy');
+    expect(out.bytes().byteLength).toBe(0);
+  };
+
+  it('rejects while another instance holds the storage, whose commits this runtime cannot see', async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const source = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const adapter = await source.connect();
+    await makeNote(source.entities, 'from-source').save();
+    // 每个实例有自己的内存文件系统：对端的提交同步进了 IndexedDB，却不在本运行时的视图里。
+    const peer = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' });
+    await peer.connect();
+    await makeNote(peer.entities, 'from-peer').save();
+    await expectRefused(adapter);
+    await peer.rxdb.disconnectAll();
+  });
+
+  it('rejects while another tab or worker holds the storage lock', async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const source = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const adapter = await source.connect();
+    // 别的标签页 / Worker 里的连接在本 realm 里只以一把共享锁的形式可见。
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      void navigator.locks.request(pgliteStorageLockName(idbStorageOf(source).storageKey), { mode: 'shared' }, () => {
+        resolve();
+        return new Promise<void>(done => (release = done));
+      });
+    });
+    await held;
+    try {
+      await expectRefused(adapter);
+    } finally {
+      release();
+    }
+  });
+
+  it("includes every connection's commits once a single holder backs the storage up", async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const writers = [createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' })];
+    await writers[0].connect();
+    await makeNote(writers[0].entities, 'from-first').save();
+    await writers[0].rxdb.disconnectAll();
+    writers.push(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    await writers[1].connect();
+    await makeNote(writers[1].entities, 'from-second').save();
+    await writers[1].rxdb.disconnectAll();
+
+    const source = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const out = collectingSink();
+    await (await source.connect()).backup(out.sink);
+    const target = createBackupRxDB(uniqueDbName('backup-cc-dst'), PLAIN_ENTITIES, { store: 'memory' });
+    const { database } = await restorePGliteDatabase(chunkedSource(out.bytes()).stream, target);
+    expect(await titlesOf(target, database)).toEqual(['from-first', 'from-second']);
   });
 });
 

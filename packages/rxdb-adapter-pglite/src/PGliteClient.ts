@@ -4,8 +4,9 @@ import { DescribeQueryResult, PGlite, protocol, QueryOptions, Results, Transacti
 import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
+import { pgliteBackupExtensions } from './backup/pglite-backup-compat.js';
 import type { EmscriptenFS } from './backup/pglite-data-dir.js';
-import { hasRestoreMarker, pgliteStorageLockName } from './backup/pglite-restore-lock.js';
+import { countPGliteStorageHolders, hasRestoreMarker, pgliteStorageLockName } from './backup/pglite-restore-lock.js';
 import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
 import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
@@ -94,7 +95,7 @@ async function createPGliteRuntime(dbName: string, options: PGliteClientOptions)
         details: { field: 'dataDir', expected: 'memory://', actual: initOptions.dataDir }
       });
     }
-    return options.restoredDatabase.take(dbName) as unknown as PGliteRuntime;
+    return options.restoredDatabase.take(dbName, pgliteBackupExtensions(options)) as unknown as PGliteRuntime;
   }
 
   if (shouldUsePGliteWorker(initOptions)) {
@@ -433,9 +434,15 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
    * 同时拿住 PGlite 的查询锁与事务锁：`fn` 运行期间没有任何语句能改动数据目录，
    * 于是它看到的就是 checkpoint 之后的一致快照。`fn` 越慢，数据库被挡住越久。
    *
+   * 这两把锁只管得住本运行时。IndexedDB 存储上每个连接各有一份内存文件系统，别的连接（同页面的
+   * 另一个实例、其他标签页或 Worker）提交后同步进 IndexedDB，却不会出现在本运行时的视图里，
+   * 所以存储还有别的持有者时快照不代表库的已提交状态，只能拒绝。SQLite 各后端没有这个问题：
+   * 所有连接共享同一个数据库文件。
+   *
    * @param fn - 读取数据目录的回调
    * @returns `fn` 的结果
-   * @throws RxDBBackupError `unsupported_combination` 运行时不在当前线程（OPFS-AHP Worker）
+   * @throws RxDBBackupError `unsupported_combination` 运行时不在当前线程（OPFS-AHP Worker）；
+   * `target_busy` 同一份 IndexedDB 存储还有其他连接
    */
   async snapshotDataDir<T>(fn: (FS: EmscriptenFS) => Promise<T>): Promise<T> {
     const runtime: unknown = this.#getRuntime();
@@ -447,6 +454,8 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
     const pg = runtime as PGlite & PGliteExclusiveInternals;
     return pg._runExclusiveTransaction(() =>
       pg._runExclusiveQuery(async () => {
+        // 在独占区里判定：之后才连上的实例从 IndexedDB 读到的状态不晚于本快照，它的提交都在备份点之后。
+        await this.#assertSoleStorageHolder();
         await pg.execProtocol(protocol.serialize.query('CHECKPOINT'), { syncToFs: false });
         return fn(pg.Module.FS as EmscriptenFS);
       })
@@ -622,6 +631,18 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
     clients?.delete(this);
     if (clients?.size === 0) storageClients.delete(this.#storageKey);
     this.#storageKey = undefined;
+  }
+
+  async #assertSoleStorageHolder(): Promise<void> {
+    const storageKey = this.#storageKey;
+    if (!storageKey?.startsWith('idb://')) return;
+    // 同 realm 的对端直接看登记表；其他标签页 / Worker 只能从共享锁的持有数看出来（本连接自己占一把）。
+    if (!this.hasStoragePeer() && (await countPGliteStorageHolders(storageKey)) <= 1) return;
+    throw new RxDBBackupError(
+      'target_busy',
+      `PGlite storage "${storageKey}" is open in another connection whose commits this backup cannot see`,
+      { details: { field: 'dataDir', actual: storageKey } }
+    );
   }
 
   #getRuntime(): PGliteRuntime {

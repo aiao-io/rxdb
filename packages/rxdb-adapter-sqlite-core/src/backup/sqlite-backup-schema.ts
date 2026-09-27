@@ -35,6 +35,9 @@ export type SqliteBackupSqlFailure = Extract<RxDBBackupErrorCode, 'corrupt_archi
 
 const STORAGE_FULL = /SQLITE_FULL|database or disk is full|QuotaExceeded/i;
 const IO_ERROR = /SQLITE_IOERR|disk I\/O error/i;
+/** SQLite 主结果码名：固定词表，放进脱敏后的信息里不会带出任何行内容。 */
+const RESULT_CODE =
+  /\bSQLITE_(?:ERROR|INTERNAL|PERM|ABORT|BUSY|LOCKED|NOMEM|READONLY|INTERRUPT|IOERR|CORRUPT|NOTFOUND|FULL|CANTOPEN|PROTOCOL|EMPTY|SCHEMA|TOOBIG|CONSTRAINT|MISMATCH|MISUSE|NOLFS|AUTH|FORMAT|RANGE|NOTADB)\b/g;
 const MAX_CAUSE_DEPTH = 8;
 
 /**
@@ -60,22 +63,34 @@ const failureReasons = (error: unknown, sql: string): string => {
 /**
  * 把一次 SQL 执行失败映射到稳定分类；已分类的原样返回。
  *
+ * @remarks
+ * 给了 `redactedAs` 时，信息里只有这段描述与 SQLite 结果码名，且不挂原始异常：恢复灌入的行 SQL 里是
+ * 归档的行字面量，客户端包装会原样复述整条 SQL，驱动自己的 `near "<token>"` 也会复述其中的片段，
+ * 任何一处进了日志或错误上报就等于把用户数据带了出去。
+ *
  * @param error - 客户端抛出的异常
  * @param sql - 失败的那条 SQL
  * @param otherwise - 既不是空间不足也不是 I/O 错误时的分类：恢复时 SQLite 拒绝归档内容报 `corrupt_archive`，
  * 备份时读库失败报 `io_error`
- * @returns 分类后的错误，原始异常挂在 `cause` 上
+ * @param redactedAs - SQL 含用户数据时代替它出现在信息里的描述（如 `rows of table "note"`）
+ * @returns 分类后的错误；未脱敏时原始异常挂在 `cause` 上
  */
 export const classifySqliteBackupFailure = (
   error: unknown,
   sql: string,
-  otherwise: SqliteBackupSqlFailure
+  otherwise: SqliteBackupSqlFailure,
+  redactedAs?: string
 ): RxDBBackupError => {
   if (error instanceof RxDBBackupError) return error;
   const reasons = failureReasons(error, sql);
   let code: RxDBBackupErrorCode = otherwise;
   if (STORAGE_FULL.test(reasons)) code = 'storage_full';
   else if (IO_ERROR.test(reasons)) code = 'io_error';
+  if (redactedAs !== undefined) {
+    const resultCodes = [...new Set(reasons.match(RESULT_CODE))];
+    const suffix = resultCodes.length > 0 ? ` (${resultCodes.join(', ')})` : '';
+    return new RxDBBackupError(code, `SQLite rejected ${redactedAs}${suffix}`);
+  }
   const statement = sql.length > 120 ? `${sql.slice(0, 120)}…` : sql;
   return new RxDBBackupError(code, `SQLite rejected "${statement}"`, { cause: error });
 };
@@ -87,18 +102,20 @@ export const classifySqliteBackupFailure = (
  * @param sql - SQL
  * @param bindings - 绑定参数
  * @param otherwise - 兜不住时的分类
+ * @param redactedAs - SQL 含用户数据时代替它出现在错误信息里的描述
  * @returns 执行结果
  */
 export const runSqliteBackupSql = async (
   executor: SqliteBackupExecutor,
   sql: string,
   bindings: SQLiteCompatibleType[] | undefined,
-  otherwise: SqliteBackupSqlFailure
+  otherwise: SqliteBackupSqlFailure,
+  redactedAs?: string
 ): Promise<SqliteResult> => {
   try {
     return await executor.execute(sql, bindings);
   } catch (error) {
-    throw classifySqliteBackupFailure(error, sql, otherwise);
+    throw classifySqliteBackupFailure(error, sql, otherwise, redactedAs);
   }
 };
 

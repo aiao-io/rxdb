@@ -15,6 +15,7 @@ import {
   collectingSink,
   createBackupRxDB,
   interceptSql,
+  makeNote,
   persistentTargetState,
   PLAIN_ENTITIES,
   readNotes,
@@ -54,6 +55,15 @@ const failOnce = (matches: (sql: string) => boolean, error: Error) => {
     armed = false;
     return error;
   };
+};
+
+/** 错误本身与整条 `cause` 链上能被日志 / 上报拿到的全部文字。 */
+const errorTexts = (error: unknown): string[] => {
+  const texts: string[] = [];
+  for (let current = error; current !== undefined; current = current instanceof Error ? current.cause : undefined) {
+    texts.push(String(current), current instanceof Error ? (current.stack ?? '') : '', JSON.stringify(current) ?? '');
+  }
+  return texts;
 };
 
 /**
@@ -179,6 +189,34 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         const { code, dbName } = await restorePersistent(stream);
         expect(code).toBe('corrupt_archive');
         expect(probe.pulledBytes).toBe(corrupt.byteLength);
+        await expectClean(dbName);
+      });
+
+      it('keeps archived row values out of the error when SQLite rejects a row', async () => {
+        const canary = 'leakcanary7f3a';
+        const source = open('memory', uniqueDbName('backup-fail-src'));
+        const sourceAdapter = await source.connect();
+        await makeNote(source.entities, canary).save();
+        const out = collectingSink();
+        await sourceAdapter.backup(out.sink);
+
+        // 让驱动真的拒绝这条行插入：客户端包装会把整条 SQL（含行字面量）写进错误信息，
+        // 驱动自己的「near "<token>"」也会复述行里的内容。
+        let fired = false;
+        const dbName = uniqueDbName('backup-fail-dst');
+        const adapter = await open('persistent', dbName).adapter();
+        interceptSql(adapter, sql => {
+          if (!sql.startsWith('INSERT INTO') || !sql.includes(`'${canary}'`)) return undefined;
+          fired = true;
+          return sql.replace(`'${canary}'`, `'${canary}' ${canary}`);
+        });
+        const error: unknown = await adapter.restore(chunkedSource(out.bytes()).stream).then(
+          () => undefined,
+          (failure: unknown) => failure
+        );
+        expect(fired).toBe(true);
+        expect(await backupErrorCode(Promise.reject(error))).toBe('corrupt_archive');
+        for (const text of errorTexts(error)) expect(text).not.toContain(canary);
         await expectClean(dbName);
       });
 

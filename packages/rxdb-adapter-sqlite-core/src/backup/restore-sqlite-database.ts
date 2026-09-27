@@ -316,7 +316,14 @@ const insertRows = async (
     }
     const text = await readEntryText(session.reader, next.header);
     rows[at.table] += countSqliteRowLiterals(text, table.columns.length + (table.rowid === null ? 0 : 1));
-    await archiveSql(client, insertPrefix(table) + text);
+    // 行 SQL 里是归档的行字面量，失败信息只能说是哪张表。
+    await runSqliteBackupSql(
+      client,
+      insertPrefix(table) + text,
+      undefined,
+      'corrupt_archive',
+      `rows of table "${table.name}"`
+    );
     last = at;
   }
 };

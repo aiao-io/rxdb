@@ -6,6 +6,7 @@
 import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
 import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import type { PGliteRestoredDatabase } from '../../backup/pglite-restored-database.js';
 import { cleanupIncompletePGliteRestore, restorePGliteDatabase } from '../../backup/restore-pglite-database.js';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
 import {
@@ -13,6 +14,7 @@ import {
   chunkedSource,
   collectingSink,
   createBackupRxDB,
+  ENCRYPTED_ENTITIES,
   idbDatabaseNameOf,
   idbTargetState,
   PLAIN_ENTITIES,
@@ -171,6 +173,52 @@ describe('PGlite restore only writes into empty, idle targets (AC#7)', () => {
     const { stream, probe } = chunkedSource(archive);
     expect(await backupErrorCode(restorePGliteDatabase(stream, idbTarget(dbName)))).toBe('target_busy');
     expect(probe.pulledBytes).toBe(0);
+  });
+});
+
+describe('PGlite memory restore hands its database only to the verified target (AC#5)', () => {
+  const restoreToMemory = async (dbName: string) => {
+    const { archive } = await sharedSource();
+    const target = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'memory' });
+    opened.push(target.rxdb);
+    const { database } = await restorePGliteDatabase(chunkedSource(archive).stream, target);
+    if (!database) throw new Error('memory restore must hand out a database');
+    return { target, database };
+  };
+
+  const expectStillAdoptableBy = async (target: BackupRxDB, database: PGliteRestoredDatabase) => {
+    expect(database.consumed).toBe(false);
+    const adapter = await target.connect(database);
+    expect(await readNotes(adapter, target.entities)).toEqual(SEEDED_NOTES);
+  };
+
+  it('refuses another RxDB instance with the same name but a different schema', async () => {
+    const dbName = uniqueDbName('backup-fail-dst');
+    const { target, database } = await restoreToMemory(dbName);
+    const impostor = createBackupRxDB(dbName, [...PLAIN_ENTITIES, BackupFailureTag], { store: 'memory' });
+    opened.push(impostor.rxdb);
+    expect(await backupErrorCode(impostor.connect(database))).toBe('invalid_state');
+    await expectStillAdoptableBy(target, database);
+  });
+
+  it('refuses another RxDB instance with the same name and an encrypted schema', async () => {
+    const dbName = uniqueDbName('backup-fail-dst');
+    const { target, database } = await restoreToMemory(dbName);
+    const impostor = createBackupRxDB(dbName, ENCRYPTED_ENTITIES, { store: 'memory' });
+    opened.push(impostor.rxdb);
+    expect(await backupErrorCode(impostor.connect(database))).toBe('invalid_state');
+    await expectStillAdoptableBy(target, database);
+  });
+
+  it('refuses the verified instance when its adapter loads different extensions', async () => {
+    const { target, database } = await restoreToMemory(uniqueDbName('backup-fail-dst'));
+    const adapter = new RxDBAdapterPGlite(target.rxdb, {
+      store: 'memory',
+      extensions: { uuid_ossp },
+      restoredDatabase: database
+    });
+    expect(await backupErrorCode(adapter.connect())).toBe('invalid_state');
+    await expectStillAdoptableBy(target, database);
   });
 });
 
