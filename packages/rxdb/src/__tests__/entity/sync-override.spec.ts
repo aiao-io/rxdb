@@ -520,22 +520,23 @@ describe('US-026 实例级实体同步覆盖', () => {
     });
 
     it('库级两侧都有同名适配器时允许 Filter 覆盖', () => {
-      expect(() =>
-        new RxDB({
-          dbName: 'override-filter-registered',
-          entities: [Plain],
-          sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
-          syncOverrides: [
-            {
-              entity: Plain,
-              sync: {
-                type: SyncType.Filter,
-                local: { adapter: 'sqlite' },
-                remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
+      expect(
+        () =>
+          new RxDB({
+            dbName: 'override-filter-registered',
+            entities: [Plain],
+            sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } },
+            syncOverrides: [
+              {
+                entity: Plain,
+                sync: {
+                  type: SyncType.Filter,
+                  local: { adapter: 'sqlite' },
+                  remote: { adapter: 'http', filter: () => ({ combinator: 'and', rules: [] }) }
+                }
               }
-            }
-          ]
-        })
+            ]
+          })
       ).not.toThrow();
     });
 
