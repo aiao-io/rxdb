@@ -387,7 +387,9 @@ const readColumnValues = async (
  * @returns 该库里受工作树跟踪的一致性实体
  */
 const trackedConformanceEntitiesOf = (database: RxDB): readonly EntityType[] =>
-  WORKING_TREE_CONFORMANCE_ENTITIES.filter(EntityClass => database.entitySync.resolveType(EntityClass) !== 'querycache');
+  WORKING_TREE_CONFORMANCE_ENTITIES.filter(
+    EntityClass => database.entitySync.resolveType(EntityClass) !== 'querycache'
+  );
 
 /**
  * 冷重放不变量——每组末尾都跑这一条

@@ -593,9 +593,9 @@ export class RxDB {
     // 覆盖在这里就校验并快照：早于实体绑定与任何数据库写入，之后调用方改原对象也影响不到本实例。
     // 冻结数组与解析器索引出自同一次快照，共用同一批 `sync` 副本
     const overrides =
-      options.syncOverrides === undefined ? undefined : (
-        snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync)
-      );
+      options.syncOverrides === undefined ?
+        undefined
+      : snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync);
     if (overrides) this.#config.syncOverrides = overrides.entries;
     this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index);
     this.schemaManager = new SchemaManager(this);

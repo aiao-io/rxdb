@@ -625,7 +625,9 @@ describe('US-026 实例级实体同步覆盖', () => {
     };
 
     it('单条 save()：remote-only 声明被覆盖成本地后写到本地', async () => {
-      const { rxdb, local, remote } = createDatabase('override-single-local', [{ entity: RemoteNote, sync: LOCAL_ONLY }]);
+      const { rxdb, local, remote } = createDatabase('override-single-local', [
+        { entity: RemoteNote, sync: LOCAL_ONLY }
+      ]);
       const note = rxdb.entityManager.createEntityRef(RemoteNote, { title: 'n', id: uuid() });
 
       await dirty(note).save();
