@@ -413,14 +413,17 @@ export class RxDBBackupArchiveReader {
     if (!(await this.#fill(length))) throw backupError('truncated_archive', 'Backup archive ended before its trailer');
     const out = new Uint8Array(length);
     let offset = 0;
+    let consumed = 0;
     while (offset < length) {
-      const head = this.#chunks[0];
+      const head = this.#chunks[consumed];
       const take = Math.min(head.length, length - offset);
       out.set(head.subarray(0, take), offset);
       offset += take;
-      if (take === head.length) this.#chunks.shift();
-      else this.#chunks[0] = head.subarray(take);
+      if (take === head.length) consumed += 1;
+      else this.#chunks[consumed] = head.subarray(take);
     }
+    // 逐个 shift 在小 chunk 输入下是 O(n²)（一帧可排入数万个 chunk），一次性移除
+    this.#chunks.splice(0, consumed);
     this.#buffered -= length;
     return out;
   }
