@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -79,6 +80,21 @@ test('`@aiao/rxdb/testing` 的测试台符号逐名放行，主入口同名照�
 
   const problems = auditNaming({ pkg: 'rxdb', currentNames: ['HarnessEntityMap'], addedNames: ['HarnessEntityMap'] });
   assert.equal(problems.length, 1);
+});
+
+test('US-217 备份契约的核心导出全部逐名登记——基线与导出同批提交时 diff 看不见它们', () => {
+  // 正向规则只在名字第一次出现的那次运行里有效；备份契约的导出和基线在同一个分支里一起落地，
+  // 门禁运行时 `added` 已经是空的。所以这里把基线里的备份族当成「新增」重判一次，
+  // 第 N+1 个没登记理由的备份导出会在这里红，而不是悄悄进表面。
+  const baseline = JSON.parse(
+    readFileSync(new URL('../../requirements/api-baseline/rxdb.json', import.meta.url), 'utf8')
+  );
+  const added = baseline.entries['.']
+    .map(entry => entry.name)
+    .filter(name => /backup|^RxDBRestore|SchemaFingerprint$|^createSha256$|^Sha256Hasher$/i.test(name));
+
+  assert.equal(added.length, 33);
+  assert.deepEqual(auditNaming({ pkg: 'rxdb', currentNames: added, addedNames: added }), []);
 });
 
 test('前缀规则只管核心；插件包的新增导出不受它约束', () => {

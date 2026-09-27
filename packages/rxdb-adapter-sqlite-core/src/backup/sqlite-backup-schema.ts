@@ -4,6 +4,7 @@ import {
   getRxDBBackupAuthDomain,
   getRxDBBackupSchemaFingerprint,
   getRxDBSystemVersionState,
+  isRxDBBackupError,
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_VERSION,
@@ -15,6 +16,7 @@ import type { SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interfac
 import type { SqliteClientLike } from '../sqlite-core.types.js';
 import { get_table_name_by_metadata, quote_sql_identifier, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import {
+  assertSqliteSchemaSql,
   SQLITE_BACKUP_SCHEMA_VERSION,
   SQLITE_RESTORE_MARKER_TABLE,
   SQLITE_ROWID_KEYWORDS,
@@ -23,7 +25,8 @@ import {
   type SqliteBackupSchema,
   type SqliteBackupSequence,
   type SqliteBackupTable,
-  type SqliteRowidKeyword
+  type SqliteRowidKeyword,
+  type SqliteSchemaSqlType
 } from './sqlite-backup-sql.js';
 import { SQLITE_BACKUP_ENGINE, SQLITE_BACKUP_ENGINE_COMPATIBILITY } from './sqlite-backup.interface.js';
 
@@ -154,6 +157,22 @@ export const sqliteTextValue = (value: SQLiteCompatibleType, what: string): stri
   return value;
 };
 
+/**
+ * 取转储查询返回的整行字面量字节。
+ *
+ * @remarks
+ * 字面量按 BLOB 取回而不是按文本：SQLite 不校验 TEXT 的编码，驱动把非法 UTF-8 解码成文本时
+ * 会悄悄换成 U+FFFD，调用方就无从发现这一行备份出去会走样。
+ *
+ * @param value - 转储查询结果的第一列
+ * @returns 原样的字节
+ */
+export const sqliteRowLiteralBytes = (value: SQLiteCompatibleType): Uint8Array => {
+  if (value instanceof Uint8Array) return value;
+  if (Array.isArray(value)) return Uint8Array.from(value);
+  throw new RxDBAdapterSqliteError('SQLite returned a non-blob row literal');
+};
+
 const integerOf = (value: SQLiteCompatibleType, what: string): number => {
   const number = typeof value === 'bigint' ? Number(value) : value;
   if (!Number.isSafeInteger(number)) throw new RxDBAdapterSqliteError(`SQLite returned a non-integer ${what}`);
@@ -273,7 +292,10 @@ export interface SqliteTableDump {
   /** 在 {@link SqliteBackupSchema.tables} 里的下标。 */
   readonly table: number;
   readonly keyCount: number;
-  /** 绑定参数：`[limit]`。 */
+  /**
+   * 绑定参数：`[limit]`。每行第一列是整行字面量的 UTF-8 字节（BLOB，见 {@link sqliteRowLiteralBytes}），
+   * 其后是键列。
+   */
   readonly firstPageSql: string;
   /** 绑定参数：`[...上一页最后一行的键, limit]`。 */
   readonly nextPageSql: string;
@@ -397,7 +419,7 @@ const planDump = (layout: TableLayout, index: number): SqliteTableDump => {
   const literals = [...table.columns.map(quote_sql_identifier), ...(table.rowid === null ? [] : [table.rowid])].map(
     literalOf
   );
-  const row = `'(' || ${literals.join(` || ',' || `)} || ')'`;
+  const row = `CAST('(' || ${literals.join(` || ',' || `)} || ')' AS BLOB)`;
   const keyList = keys.join(', ');
   const from = `SELECT ${row}, ${keyList} FROM ${quote_sql_identifier(table.name)}`;
   const order = `ORDER BY ${keyList} LIMIT ?`;
@@ -407,6 +429,28 @@ const planDump = (layout: TableLayout, index: number): SqliteTableDump => {
     firstPageSql: `${from} ${order}`,
     nextPageSql: `${from} WHERE (${keyList}) > (${keys.map(() => '?').join(', ')}) ${order}`
   };
+};
+
+/** 恢复端会拒绝的结构语句在备份时就拒绝，不产出一份恢复不了的归档。 */
+const assertRestorableSql = (sql: string, type: SqliteSchemaSqlType, name: string): void => {
+  try {
+    assertSqliteSchemaSql(sql, type);
+  } catch (error) {
+    if (!isRxDBBackupError(error) || error.code !== 'corrupt_archive') throw error;
+    throw unsupported(`Object "${name}" is not a single CREATE ${type.toUpperCase()} statement`, 'sql', name);
+  }
+};
+
+/**
+ * 文本转成 BLOB 得到的是库的原生编码字节，据此判断库编码（`PRAGMA encoding` 不返回结果集）。
+ * 转储把整行字面量转成 BLOB 当 UTF-8 字节读，恢复端也按 UTF-8 执行，所以只接受 UTF-8 库。
+ */
+const ENCODING_SQL =
+  "SELECT CASE hex(CAST('a' AS BLOB)) WHEN '61' THEN 'UTF-8' WHEN '6100' THEN 'UTF-16le' ELSE 'UTF-16be' END";
+
+const assertUtf8Database = async (executor: SqliteBackupExecutor): Promise<void> => {
+  const encoding = sqliteTextValue(await selectSingle(executor, ENCODING_SQL), 'encoding');
+  if (encoding !== 'UTF-8') throw unsupported('Only UTF-8 databases can be backed up', 'encoding', encoding);
 };
 
 const readTableListing = async (
@@ -462,10 +506,12 @@ const readSequences = async (
  *
  * @param executor - 客户端
  * @returns 结构与转储计划
- * @throws RxDBBackupError `unsupported_combination` 没有建表语句的对象、未知的表类型、rowid 关键字全被遮蔽
+ * @throws RxDBBackupError `unsupported_combination` 库不是 UTF-8 编码、没有建表语句的对象、恢复端会拒绝的结构语句、
+ * 未知的表类型、rowid 关键字全被遮蔽
  * @throws RxDBBackupError `restore_incomplete` 库里有未完成恢复的标记
  */
 export const readSqliteBackupSchema = async (executor: SqliteBackupExecutor): Promise<SqliteBackupPlan> => {
+  await assertUtf8Database(executor);
   const entries = await selectSqliteRows(
     executor,
     "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY rowid",
@@ -484,11 +530,13 @@ export const readSqliteBackupSchema = async (executor: SqliteBackupExecutor): Pr
     if (typeof rawSql !== 'string') throw unsupported(`Object "${name}" has no CREATE statement`, 'sql', rawSql);
     if (type !== 'table') {
       if (type !== 'index' && type !== 'view' && type !== 'trigger') throw unsupported('Unknown object', 'type', type);
+      assertRestorableSql(rawSql, type, name);
       objects.push({ type, name, tblName: sqliteTextValue(rawTblName, 'table name'), sql: rawSql });
       continue;
     }
     const entry = listing.get(name);
     if (entry?.kind === undefined) throw unsupported(`Table "${name}" has an unsupported type`, 'type', name);
+    if (entry.kind !== 'shadow') assertRestorableSql(rawSql, 'table', name);
     layouts.push(await readTableLayout(executor, name, rawSql, { kind: entry.kind, withoutRowid: entry.withoutRowid }));
   }
   const tables = layouts.map(layout => layout.table);

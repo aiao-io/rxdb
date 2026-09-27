@@ -254,6 +254,42 @@ describe('RxDBBackupArchiveWriter 拒绝违反契约的调用', () => {
     expect(sink.chunks.length).toBe(written);
   });
 
+  it('manifest 与 finish 都只能调用一次', async () => {
+    const writer = await started();
+    await expectBackupError(writer.writeManifest(sampleManifest()), 'invalid_state');
+    const again = await started();
+    await again.finish();
+    await expectBackupError(again.finish(), 'invalid_state');
+  });
+
+  it('JSON 帧超过 64 KiB 属于误用，且不写出该帧', async () => {
+    const sink = collectingSink();
+    const writer = new RxDBBackupArchiveWriter(sink.stream.getWriter());
+    await writer.writeManifest(sampleManifest());
+    const written = sink.chunks.length;
+    await expectBackupError(writer.beginEntry({ path: 'a'.repeat(64 * 1024), kind: 'file', size: 0 }), 'invalid_state');
+    expect(sink.chunks.length).toBe(written);
+    const oversized = sampleManifest({ schemaFingerprint: 'f'.repeat(64 * 1024) });
+    await expectBackupError(
+      new RxDBBackupArchiveWriter(collectingSink().stream.getWriter()).writeManifest(oversized),
+      'invalid_state'
+    );
+  });
+
+  it('QuotaExceededError 跨 realm 丢了原型也归类为 storage_full', async () => {
+    const foreign = Object.assign(new Error('full'), { name: 'QuotaExceededError' });
+    const stream = new WritableStream<Uint8Array>({
+      write() {
+        throw foreign;
+      }
+    });
+    const error = await expectBackupError(
+      new RxDBBackupArchiveWriter(stream.getWriter()).writeManifest(sampleManifest()),
+      'storage_full'
+    );
+    expect(error.cause).toBe(foreign);
+  });
+
   it('输出流卡住时取消也能返回', async () => {
     const stream = new WritableStream<Uint8Array>({ write: () => new Promise(() => undefined) });
     const controller = new AbortController();
@@ -350,6 +386,13 @@ describe('RxDBBackupArchiveReader 损坏分类（AC#6）', () => {
       'corrupt_archive',
       'frame'
     );
+  });
+
+  it('JSON 帧超过 64 KiB 时按长度拒绝，不解析内容', async () => {
+    const oversized = new Uint8Array(64 * 1024 + 1).fill(0x20);
+    await expectRead(concatBytes([MAGIC, frame(FRAME_MANIFEST, oversized)]), 'corrupt_archive', 'frame');
+    await expectRead(concatBytes([MAGIC, manifestFrame, frame(FRAME_ENTRY, oversized)]), 'corrupt_archive', 'frame');
+    await expectRead(concatBytes([MAGIC, manifestFrame, frame(FRAME_TRAILER, oversized)]), 'corrupt_archive', 'frame');
   });
 
   it('manifest 不是 JSON 或不是第一帧', async () => {
@@ -451,6 +494,14 @@ describe('RxDBBackupArchiveReader 输入流失败与取消', () => {
 
   it('readManifest 之前调用 next 属于误用', async () => {
     const reader = new RxDBBackupArchiveReader(sourceOf(await sampleArchive()).getReader());
+    await expectBackupError(reader.next(), 'invalid_state');
+  });
+
+  it('读到 end 之后再调用 next 属于误用', async () => {
+    const reader = new RxDBBackupArchiveReader(sourceOf(await sampleArchive()).getReader());
+    await reader.readManifest();
+    let item = await reader.next();
+    while (item.type !== 'end') item = await reader.next();
     await expectBackupError(reader.next(), 'invalid_state');
   });
 

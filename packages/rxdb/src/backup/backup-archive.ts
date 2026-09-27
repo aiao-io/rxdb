@@ -86,6 +86,7 @@ const raceAbort = <T>(promise: Promise<T>, signal: AbortSignal | undefined): Pro
  *
  * @remarks
  * `QuotaExceededError` → `storage_full`，其余 → `io_error`（原始异常挂在 `cause` 上）。
+ * 按 `name` 判别而不是 `instanceof DOMException`：Worker / Comlink 转发的异常跨 realm 后只剩 `name`。
  * adapter 在自己的存储读写点复用它，保证同一种失败在所有 adapter 上落到同一个 code。
  *
  * @param error - 原始异常
@@ -94,7 +95,7 @@ const raceAbort = <T>(promise: Promise<T>, signal: AbortSignal | undefined): Pro
  */
 export const classifyBackupIoError = (error: unknown, message: string): RxDBBackupError => {
   if (error instanceof RxDBBackupError) return error;
-  const quota = error instanceof DOMException && error.name === 'QuotaExceededError';
+  const quota = (error as { name?: unknown } | null | undefined)?.name === 'QuotaExceededError';
   return backupError(quota ? 'storage_full' : 'io_error', message, undefined, error);
 };
 

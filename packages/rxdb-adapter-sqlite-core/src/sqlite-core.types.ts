@@ -52,7 +52,9 @@ export interface SqliteClientLike {
 export interface SqliteBlankDatabase {
   /** 用户对象的 `type:name`（不含 `sqlite_` 开头的内部对象），按字典序。 */
   readonly objects: readonly string[];
-  /** 结构与全部行的描述；没有对象时为空串。两份描述相同即内容相同。 */
+  /** 结构与每张表行数的描述；没有对象时为空串。恢复先比它，相同才去读目标的行。 */
+  readonly shape: string;
+  /** 全部行的描述；没有对象时为空串。结构与行的描述都相同即内容相同。 */
   readonly description: string;
 }
 

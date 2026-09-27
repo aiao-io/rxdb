@@ -242,12 +242,23 @@ const skipComment = (sql: string, at: number): number => {
   return end < 0 ? -1 : end + 2;
 };
 
+/** 去掉外层引号；`[]` 没有转义，其余三种把重复引号还原成一个。 */
+const unquote = (token: string): string => {
+  const inner = token.slice(1, -1);
+  return token[0] === '[' ? inner : inner.replaceAll(token[0] + token[0], token[0]);
+};
+
 /**
  * 去掉字符串、带引号的标识符与注释，各替换成一个空格。
  *
+ * @param sql - 原文
+ * @param quoted - 传入时收集每段引号内容（已去引号、已反转义），原位置换成 ` \u0000序号\u0000 ` 占位
  * @returns 只剩关键字、裸标识符、数字与标点的文本；有未闭合的引号或注释时为 `null`
  */
-const stripSqlNoise = (sql: string): string | null => {
+/** 引号内容占位符的定界符；原文含 NUL 的语句在进入这里之前就被拒绝，占位符不会与原文相撞。 */
+const QUOTED_MARK = '\u0000';
+
+const stripSqlNoise = (sql: string, quoted?: string[]): string | null => {
   let out = '';
   let i = 0;
   while (i < sql.length) {
@@ -258,9 +269,10 @@ const stripSqlNoise = (sql: string): string | null => {
       i++;
       continue;
     }
-    i = isComment ? skipComment(sql, i) : skipQuoted(sql, i);
-    if (i < 0) return null;
-    out += ' ';
+    const end = isComment ? skipComment(sql, i) : skipQuoted(sql, i);
+    if (end < 0) return null;
+    out += isComment || !quoted ? ' ' : ` ${QUOTED_MARK}${quoted.push(unquote(sql.slice(i, end))) - 1}${QUOTED_MARK} `;
+    i = end;
   }
   return out;
 };
@@ -273,7 +285,11 @@ const HEADERS: Readonly<Record<SqliteSchemaSqlType, RegExp>> = {
 };
 
 /** 触发器体里 SQLite 允许的语句开头。 */
-const TRIGGER_COMMAND = /^\s*(SELECT|INSERT|UPDATE|DELETE|REPLACE)\b/i;
+const TRIGGER_COMMANDS = 'SELECT|VALUES|WITH|INSERT|UPDATE|DELETE|REPLACE';
+const TRIGGER_COMMAND = new RegExp(`^\\s*(${TRIGGER_COMMANDS})\\b`, 'i');
+
+/** 触发器体的开头：BEGIN 之后紧跟第一条语句。 */
+const TRIGGER_BODY_START = new RegExp(`\\bBEGIN\\s+(${TRIGGER_COMMANDS})\\b`, 'i');
 
 /**
  * 触发器体必须是 `BEGIN (cmd ;)+ END`，并且 END 就是全文结尾。
@@ -281,14 +297,13 @@ const TRIGGER_COMMAND = /^\s*(SELECT|INSERT|UPDATE|DELETE|REPLACE)\b/i;
  * @remarks
  * SQLite 以「分号之后紧跟的 END」结束触发器。每个分号之后的片段都必须以 DML 关键字开头，
  * 所以唯一一个紧跟分号的 END 就是最后那个，结尾之后不可能再藏第二条语句。表达式里的
- * `CASE … END` 不紧跟分号，不受影响。头部出现名为 begin 的裸标识符会被误切，结果是拒绝而不是放行。
+ * `CASE … END` 不紧跟分号，不受影响。第一个分号之前要有紧跟 DML 关键字的 BEGIN：表名、
+ * 触发器名、列名都可以是裸的 `begin`，但它们后面不会紧跟 DML 关键字，不会被当成触发器体的开头。
  */
 const isSingleTrigger = (stripped: string): boolean => {
-  const begin = /\bBEGIN\b/i.exec(stripped);
-  if (!begin || stripped.slice(0, begin.index).includes(';')) return false;
-  const segments = stripped.slice(begin.index + begin[0].length).split(';');
+  const [head, ...segments] = stripped.split(';');
   const last = segments.pop();
-  if (segments.length === 0 || last?.trim().toUpperCase() !== 'END') return false;
+  if (last?.trim().toUpperCase() !== 'END' || !TRIGGER_BODY_START.test(head)) return false;
   return segments.every(segment => TRIGGER_COMMAND.test(segment));
 };
 
@@ -304,7 +319,7 @@ const isSingleTrigger = (stripped: string): boolean => {
  * @throws RxDBBackupError `corrupt_archive`
  */
 export const assertSqliteSchemaSql = (sql: string, type: SqliteSchemaSqlType): void => {
-  const stripped = sql.includes('\u0000') ? null : stripSqlNoise(sql);
+  const stripped = sql.includes(QUOTED_MARK) ? null : stripSqlNoise(sql);
   const valid =
     stripped !== null &&
     HEADERS[type].test(stripped) &&
@@ -317,15 +332,25 @@ export const assertSqliteSchemaSql = (sql: string, type: SqliteSchemaSqlType): v
  *
  * @remarks
  * 先去掉字符串、带引号的标识符与注释再找 `USING`，表名或模块参数里的同名单词不会被误认。
+ * 模块名本身可以加引号（`USING "fts5"`），取引号里的内容。
  *
  * @param sql - `CREATE VIRTUAL TABLE` 原文
  * @returns 模块名；不是虚表语句或引号未闭合时为 `null`
  */
 export const sqliteVirtualTableModule = (sql: string): string | null => {
-  const stripped = stripSqlNoise(sql);
+  const quoted: string[] = [];
+  const stripped = sql.includes(QUOTED_MARK) ? null : stripSqlNoise(sql, quoted);
   if (stripped === null || !HEADERS.table.test(stripped)) return null;
-  const match = /\bUSING\s+(\w+)/i.exec(stripped);
-  return match ? match[1].toLowerCase() : null;
+  // 占位符里的 NUL 不写进正则（会触发 `no-control-regex`），按字符串切出来
+  for (const using of stripped.matchAll(/\bUSING\s+/gi)) {
+    const rest = stripped.slice(using.index + using[0].length);
+    const word = /^\w+/.exec(rest);
+    if (word) return word[0].toLowerCase();
+    const end = rest.startsWith(QUOTED_MARK) ? rest.indexOf(QUOTED_MARK, 1) : -1;
+    const index = rest.slice(1, end);
+    if (end > 1 && /^\d+$/.test(index)) return quoted[Number(index)].toLowerCase();
+  }
+  return null;
 };
 
 // ─── schema.json / summary.json ──────────────────────────────────────────────
@@ -441,7 +466,7 @@ const assertUniqueNames = (names: readonly string[]): void => {
  *
  * @remarks
  * 这里只核对结构；结构语句本身由 {@link assertSqliteSchemaSql} 在执行前逐条核对。
- * 对象名（表、索引、视图、触发器共用一个命名空间）大小写不敏感地唯一，不能以 `sqlite_` 开头，
+ * 对象名大小写不敏感地唯一（表、索引、视图共用一个命名空间，触发器另有一个），不能以 `sqlite_` 开头，
  * 也不能与恢复标记表同名。返回值是新对象，不引用输入。
  *
  * @param value - `JSON.parse` 的结果
@@ -455,7 +480,10 @@ export const parseSqliteBackupSchema = (value: unknown): SqliteBackupSchema => {
   }
   const tables = arrayAt(root, 'tables', 'tables').map(parseTable);
   const objects = arrayAt(root, 'objects', 'objects').map(parseObject);
-  assertUniqueNames([...tables.map(table => table.name), ...objects.map(object => object.name)]);
+  const namesOf = (triggers: boolean): string[] =>
+    objects.filter(object => (object.type === 'trigger') === triggers).map(object => object.name);
+  assertUniqueNames([...tables.map(table => table.name), ...namesOf(false)]);
+  assertUniqueNames(namesOf(true));
   const normalTables = new Set(tables.filter(table => table.kind === 'normal').map(table => table.name));
   return {
     version: SQLITE_BACKUP_SCHEMA_VERSION,

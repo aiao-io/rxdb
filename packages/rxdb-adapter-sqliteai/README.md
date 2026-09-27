@@ -35,6 +35,9 @@ import { createSqliteClient, RxDBAdapterSqliteai, sqliteaiLoad } from '@aiao/rxd
 这些表连同初始行就是「空库」本来的样子：恢复只把恰好等于新建空库的目标当作空的，写进这些表的用户数据随归档往返。
 
 在 Worker 里跑时，每次连接租用 Worker 的一条独立子端口：恢复用一条连接写库，之后的 `connect()` 在同一个 Worker 上再开一条。
+同一个 `workerInstance` 同一时间只借给一条连接：第二条并发连接会抛 `Worker transport already has an active SQLite client`。
+直接调用 `createSqliteClient` 时，先 `await client.disconnect()`，再调用 `@aiao/rxdb-adapter-sqlite-core` 导出的
+`releaseComlinkProxy(client)` 归还子端口，之后才能在同一个 Worker 上重连；适配器已在 `disconnect()` 内自动完成这一步。
 
 ## 文档
 

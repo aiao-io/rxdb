@@ -108,7 +108,11 @@ await target.connect('pglite');
 
 要点：
 
-- **一致性**：备份落在一个已提交事务边界上，备份期间的写入排在其后；锁等待上限由 `lockTimeoutMs`（默认 30s）控制，超时抛 `lock_timeout`。`idb` 源库同时被其他连接（同页面另一个实例、其他标签页或 Worker）打开时报 `target_busy`——每个连接各有一份内存视图，看不到彼此的提交；关掉其他连接后再备份。
+- **一致性**：备份落在一个已提交事务边界上，备份期间的写入排在其后；锁等待上限由 `lockTimeoutMs`（默认 30s）控制，超时抛 `lock_timeout`。`idb` 源库的每个连接只在打开时从 IndexedDB 读入一份内存视图，之后看不到别的连接的提交，所以备份要求本连接从打开到现在一直独占这份存储：
+  其他连接（同页面另一个实例、其他标签页或 Worker）此刻还开着，或本连接打开之后有别的连接来过——哪怕已经关掉——都报 `target_busy`。
+  这时先关掉其他连接，再让备份所用的实例 `disconnect()` 后重新 `connect()`，然后备份。
+- **运行环境**：`idb` 源库的备份靠 `navigator.locks.query()` 数出其他标签页 / Worker 里的连接，环境不提供时报 `unsupported_combination`（`navigator.locks.query`）。
+  一致快照用到 PGlite 未在类型声明里公开的运行时内部件（两把互斥锁与 Emscripten 文件系统）；升级 PGlite 后缺了任何一个，备份报 `unsupported_combination`（`pglite`），不会做到一半才失败。
 - **先校验后写入**：manifest 在第一块里读出，引擎版本、schema 指纹、扩展、加密认证域不兼容时在写入目标之前拒绝（`incompatible_archive` / `auth_domain_mismatch`）；完整性（SHA-256）读到末尾才能确认，失败时已写的数据会被丢弃（`corrupt_archive` / `truncated_archive`）。
 - **加密库**：归档里只有密文和 keyring 元数据，不含口令与密钥；恢复后的库保持锁定，用原口令 `unlock()`。
 - **中断**：IndexedDB 目标在校验通过前不写 IndexedDB，并用持久标记记录「恢复进行中」。进程在恢复中途被杀后，连接与再次恢复都会报 `restore_incomplete`，调用 `cleanupIncompletePGliteRestore(target)` 清理后即可重新恢复；清理失败时报 `cleanup_pending`。

@@ -85,6 +85,22 @@ describe('runRxDBBackupWhenQueued', () => {
     expect(task).not.toHaveBeenCalled();
   });
 
+  it('排队中被 clearQueue 清掉报 aborted，不挂死也不留未处理的拒绝', async () => {
+    const queue = new AsyncQueueExecutor(1);
+    const blocker = gate();
+    void queue.addTask(() => blocker.promise);
+    const task = vi.fn(async () => 1);
+    const pending = runRxDBBackupWhenQueued(queue, task, { timeoutMs: 10_000, label: 'Test backup' });
+    queue.clearQueue();
+    const error = await pending.catch((caught: unknown) => caught);
+    expect(isRxDBBackupError(error, 'aborted')).toBe(true);
+    expect((error as Error).message).toContain('Test backup');
+    expect((error as Error).cause).toBeInstanceOf(Error);
+    blocker.open();
+    await queue.waitForAll();
+    expect(task).not.toHaveBeenCalled();
+  });
+
   it('任务开始后超时与取消都不再生效', async () => {
     vi.useFakeTimers();
     const queue = new AsyncQueueExecutor(1);

@@ -19,7 +19,7 @@ import {
   runSqliteBackupSql,
   selectSqliteRows,
   sqliteArchiveExtensions,
-  sqliteTextValue,
+  sqliteRowLiteralBytes,
   type SqliteBackupExecutor,
   type SqliteTableDump
 } from './sqlite-backup-schema.js';
@@ -44,6 +44,8 @@ const MAX_PAGE_ROWS = 512;
 
 const COMMA = 0x2c;
 const encoder = new TextEncoder();
+/** 只用来校验行字面量：恢复端用同样严格的解码读条目。 */
+const utf8 = new TextDecoder('utf-8', { fatal: true });
 
 /** 备份一次需要的全部上下文。 */
 export interface SqliteBackupInput {
@@ -53,6 +55,16 @@ export interface SqliteBackupInput {
   readonly storage: SqliteSupportedBackupStorage;
   readonly queue: AsyncQueueExecutor;
 }
+
+const assertUtf8Row = (bytes: Uint8Array, tableName: string): void => {
+  try {
+    utf8.decode(bytes);
+  } catch {
+    throw new RxDBBackupError('unsupported_combination', `Table "${tableName}" has TEXT that is not valid UTF-8`, {
+      details: { field: 'rowText', actual: tableName }
+    });
+  }
+};
 
 /** 把一张表的行字面量攒成约 1 MiB 的条目，行与行之间用逗号连接，恰好是 `VALUES` 之后的文本。 */
 class SqliteRowEntries {
@@ -67,14 +79,19 @@ class SqliteRowEntries {
     this.#table = table;
   }
 
-  /** 追加一行，返回它的字节数。 */
-  async add(literal: string, tableName: string): Promise<number> {
-    const bytes = encoder.encode(literal);
+  /**
+   * 追加一行，返回它的字节数。
+   *
+   * @remarks
+   * TEXT 值里的非法 UTF-8 会原样出现在字面量里，恢复端严格解码时必然拒绝整个条目，所以在这里就拒绝备份。
+   */
+  async add(bytes: Uint8Array, tableName: string): Promise<number> {
     if (bytes.length > SQLITE_BACKUP_MAX_ENTRY_BYTES) {
       throw new RxDBBackupError('unsupported_combination', `A row of table "${tableName}" is too large to back up`, {
         details: { field: 'rowBytes', expected: SQLITE_BACKUP_MAX_ENTRY_BYTES, actual: bytes.length }
       });
     }
+    assertUtf8Row(bytes, tableName);
     if (this.#parts.length > 0 && this.#bytes + 1 + bytes.length > ENTRY_TARGET_BYTES) await this.flush();
     this.#bytes += this.#parts.length > 0 ? bytes.length + 1 : bytes.length;
     this.#parts.push(bytes);
@@ -121,7 +138,7 @@ const dumpTable = async (
     );
     let largest = 1;
     for (const row of page) {
-      largest = Math.max(largest, await entries.add(sqliteTextValue(row[0], 'row literal'), tableName));
+      largest = Math.max(largest, await entries.add(sqliteRowLiteralBytes(row[0]), tableName));
     }
     count += page.length;
     if (page.length < limit) break;

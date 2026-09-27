@@ -604,9 +604,23 @@ export const interceptSql = (adapter: RxDBAdapterSqliteBase, override: SqlOverri
 
 /** module Worker 全局里本工具用到的那一小部分；不引 webworker lib，免得和 DOM lib 打架。 */
 interface InterruptWorkerScope {
+  readonly location: { readonly origin: string };
   postMessage(message: RestoreInterruptReply): void;
-  onmessage: ((event: MessageEvent<RestoreInterruptRequest>) => void) | null;
+  onmessage: ((event: MessageEvent<unknown>) => void) | null;
 }
+
+/**
+ * 只接受创建本 Worker 的页面发来的任务：专用 Worker 的来信 `origin` 为空串，同源页面转交的则等于本源。
+ * 形状不对的消息一律忽略，免得把任意数据当成恢复任务。
+ */
+const isOwnerRequest = (
+  scope: InterruptWorkerScope,
+  event: MessageEvent<unknown>
+): event is MessageEvent<RestoreInterruptRequest> => {
+  if (event.origin !== '' && event.origin !== scope.location.origin) return false;
+  const data = event.data as Partial<RestoreInterruptRequest> | null;
+  return data?.archive instanceof Uint8Array && typeof data.dbName === 'string' && typeof data.stopAt === 'string';
+};
 
 /**
  * 在当前 module Worker 里接收恢复任务：把归档恢复到持久化目标，走到指定位置后停住，等主线程 terminate。
@@ -623,7 +637,8 @@ export const serveInterruptedRestore = (harness: SqliteBackupHarness): void => {
     scope.postMessage({ reached: point } satisfies RestoreInterruptReply);
     return new Promise<never>(() => undefined);
   };
-  scope.onmessage = async (event: MessageEvent<RestoreInterruptRequest>) => {
+  scope.onmessage = async (event: MessageEvent<unknown>) => {
+    if (!isOwnerRequest(scope, event)) return;
     const { archive, dbName, stopAt } = event.data;
     const target = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent');
     const half = archive.byteLength / 2;

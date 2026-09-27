@@ -444,7 +444,17 @@ const NAMING = {
     'RxDBBackupTrailer',
     'RxDBRestoreOptions',
     'RxDBRestoreResult',
-    'Sha256Hasher'
+    'Sha256Hasher',
+    // 同一契约里各适配器共用的执行件：从 RxDB 实例取认证域与结构指纹（写 manifest、判兼容都要），
+    // Web Locks 独占协议（备份源与恢复目标的「唯一持有者」判定），以及只让排队段受超时 / 取消控制
+    // 的串行执行。各适配器各写一份，同一种并发冲突就会在不同后端落到不同 code 或不同锁名上。
+    'getRxDBBackupAuthDomain',
+    'getRxDBBackupSchemaFingerprint',
+    'hasRxDBBackupWebLocks',
+    'RxDBBackupHeldLock',
+    'RxDBBackupQueueOptions',
+    'runRxDBBackupWhenQueued',
+    'tryAcquireRxDBBackupLock'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

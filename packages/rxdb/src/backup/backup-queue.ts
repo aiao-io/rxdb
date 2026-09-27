@@ -23,7 +23,7 @@ export interface RxDBBackupQueueOptions {
  * @param task - 轮到时执行的任务
  * @param options - 取消信号、排队时限与操作名
  * @returns 任务结果
- * @throws RxDBBackupError `aborted` 排队中被取消；`lock_timeout` 排队超时
+ * @throws RxDBBackupError `aborted` 排队中被取消或被 `clearQueue()` 清出队列；`lock_timeout` 排队超时
  */
 export const runRxDBBackupWhenQueued = <T>(
   queue: AsyncQueueExecutor,
@@ -60,9 +60,13 @@ export const runRxDBBackupWhenQueued = <T>(
       timeoutMs
     );
     signal?.addEventListener('abort', onAbort, { once: true });
-    void queue.addTask(async () => {
-      if (!waiting) return;
-      stopWaiting();
-      await task().then(resolve, reject);
-    });
+    queue
+      .addTask(async () => {
+        if (!waiting) return;
+        stopWaiting();
+        await task().then(resolve, reject);
+      })
+      .catch((cause: unknown) =>
+        giveUp(new RxDBBackupError('aborted', `${label} was removed from the queue`, { cause }))
+      );
   });

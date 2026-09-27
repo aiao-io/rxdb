@@ -42,7 +42,7 @@ import {
   type SqliteRestoreOptions,
   type SqliteSupportedBackupStorage
 } from './sqlite-backup.interface.js';
-import { describeSqliteDatabase, listSqliteObjects } from './sqlite-blank-database.js';
+import { listSqliteObjects, matchesSqliteBlankDatabase } from './sqlite-blank-database.js';
 
 /** 恢复一次需要的全部上下文，由 adapter 提供。 */
 export interface SqliteRestoreInput {
@@ -148,9 +148,7 @@ const assertTargetEmpty = async (
       { details: { field: 'storage', actual: storage.label } }
     );
   }
-  if (objects.join('\n') !== blank.objects.join('\n')) throw notEmpty(storage);
-  if (objects.length === 0) return;
-  if ((await describeSqliteDatabase(client)).description !== blank.description) throw notEmpty(storage);
+  if (!(await matchesSqliteBlankDatabase(client, blank))) throw notEmpty(storage);
 };
 
 const unsupportedClient = (adapterName: string, field: string): RxDBBackupError =>
@@ -160,7 +158,9 @@ const unsupportedClient = (adapterName: string, field: string): RxDBBackupError 
 
 /** 打开目标库：静音变更事件并确认它是空的；失败时关闭连接。 */
 const openTarget = async (input: SqliteRestoreInput): Promise<SqliteClientLike> => {
-  const client = await input.createClient();
+  const client = await input.createClient().catch((error: unknown) => {
+    throw classifyBackupIoError(error, `Failed to open the SQLite restore target "${input.storage.label}"`);
+  });
   try {
     if (!client.setChangeEventsMuted) throw unsupportedClient(input.adapterName, 'client.setChangeEventsMuted');
     if (!client.describeBlankDatabase) throw unsupportedClient(input.adapterName, 'client.describeBlankDatabase');
@@ -600,6 +600,15 @@ const discardTarget = async (client: SqliteClientLike, cause: unknown): Promise<
   throw cause;
 };
 
+/** 数据与标记都已提交，只是连接没关掉：调用方该重连使用，而不是再恢复一遍（目标已不空）。 */
+const closeFailed = (error: unknown): RxDBBackupError =>
+  new RxDBBackupError(
+    classifyBackupIoError(error, 'close').code,
+    'The SQLite database was fully restored and verified; only closing its connection failed. ' +
+      'Reconnect to use it instead of restoring again',
+    { details: { field: 'disconnect' }, cause: error }
+  );
+
 /**
  * 标记单独提交，之后才开始写：页面在恢复中途被关，下一次连接看到标记就拒绝打开这个半截库。
  * 数据提交之后才删标记，两次提交之间崩溃同样留下标记。
@@ -624,10 +633,13 @@ const restorePersistentLocked = async (
   } catch (error) {
     return discardTarget(client, error);
   }
-  await client.disconnect().catch((error: unknown) => {
-    throw classifyBackupIoError(error, 'The SQLite database was restored but its connection failed to close');
-  });
-  releaseComlinkProxy(client);
+  try {
+    await client.disconnect();
+  } catch (error) {
+    throw closeFailed(error);
+  } finally {
+    releaseComlinkProxy(client);
+  }
   return result;
 };
 
@@ -688,17 +700,24 @@ export const restoreSqliteDatabase = async (
   }
 };
 
+/** 存储层的失败（含打不开目标）都意味着残留还在，统一报 `cleanup_pending`；其余已分类的错误原样抛。 */
+const cleanupFailed = (storageKey: string, error: unknown): RxDBBackupError =>
+  isRxDBBackupError(error) && error.code !== 'io_error' && error.code !== 'storage_full' ?
+    error
+  : new RxDBBackupError('cleanup_pending', `Failed to clean up the incomplete restore of "${storageKey}"`, {
+      cause: error
+    });
+
 const cleanupLocked = async (input: SqliteRestoreInput, storageKey: string): Promise<boolean> => {
-  const client = await input.createClient();
+  const client = await input.createClient().catch((error: unknown) => {
+    throw cleanupFailed(storageKey, error);
+  });
   try {
     if (!(await hasSqliteRestoreMarker(client))) return false;
     await wipeTarget(client);
     return true;
   } catch (error) {
-    if (isRxDBBackupError(error) && error.code !== 'io_error' && error.code !== 'storage_full') throw error;
-    throw new RxDBBackupError('cleanup_pending', `Failed to clean up the incomplete restore of "${storageKey}"`, {
-      cause: error
-    });
+    throw cleanupFailed(storageKey, error);
   } finally {
     await disconnectQuietly(client);
   }

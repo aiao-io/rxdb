@@ -163,14 +163,19 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
 - AC#3：`backup-concurrency.spec.ts` 在排队中的多语句事务、回滚事务与单条写入之间发起备份。adapter 的串行队列加上快照期间持有的
   查询锁 / 事务锁，使边界落在队列里的一个确定位置；测试断言它是已知提交顺序的前缀、成对事务不被拆开、回滚内容不出现。
   这两把锁只管本运行时：`idb` 存储上每个连接各有一份内存视图，所以源库还被其他连接持有时（同页面另一个实例、或经 Web Locks
-  可见的其他标签页 / Worker）备份报 `target_busy`；唯一持有者备份时包含此前各连接的提交，同样由该文件断言。
+  可见的其他标签页 / Worker）备份报 `target_busy`。视图只在打开时从 IndexedDB 读入，所以「此刻没有对端」还不够：每次打开都在
+  标记库里把存储的世代号加一，备份要求本连接打开时独占、且此后世代号没变。长连接在后来的对端提交并关闭后被拒、重连后放行；
+  打开时有对端的连接即使对端已关也被拒；独占的长连接跨自身提交照常备份；环境不提供 `navigator.locks.query()` 时报
+  `unsupported_combination`。唯一持有者（打开晚于所有写连接）备份时包含此前各连接的提交，以上都由该文件断言。
+  快照依赖的 PGlite 未声明内部件（两把互斥锁与 `Module.FS`）在使用前探测，缺失即报 `unsupported_combination`（`pglite-exclusive.spec.ts`）。
 - AC#9 ⚠️：`backup-memory.spec.ts` 用按位置生成字节的虚拟文件系统跑完整流水线，数据量 4 MB → 32 MB 时在途字节恒定且不超过两帧
   （2 × 64 KiB）。这是结构性上界，没有测量进程级峰值内存（浏览器不暴露可靠的 WASM + JS 峰值）；PGlite 空闲时本就把整个数据目录放在
   WASM 堆里，这部分属于同规模空闲库的基线。
 - AC#10：取消、断流、源 / 目标 I/O 错误、`QuotaExceededError`（备份输出端与恢复的 IndexedDB 提交段各一例）、`lock_timeout` 与
   `cleanup_pending` 均在 `backup-failure.spec.ts`。
 - AC#11：`backup-interrupt.spec.ts` 在真实 module Worker 里恢复，到达 `streaming` / `marker-written` / `files-written` / `verified` /
-  `persisted` / `returned` 后由主线程 `terminate()`，再以新实例检查状态、清理并重新恢复。
+  `persisted` / `returned` 后由主线程 `terminate()`，再以新实例检查状态、清理并重新恢复；「提交之后、关闭落盘完成之前」被杀的
+  中间态以「部分文件 + 标记」构造，同样报 `restore_incomplete` 并可清理。
 - AC#12：竞争实例以同页面的第二个 RxDB 实例代表。独占依赖 Web Locks 与 IndexedDB 标记，两者都按 origin 生效，与请求来自哪个
   标签页无关；浏览器里没有跨进程访问同一 IndexedDB 的路径。
 - AC#14 ⚠️：`scope: { database: 'included', externalFiles: 'excluded' }` 是库级常量，写入结果与 manifest 并在往返测试中断言；
@@ -194,8 +199,17 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
   `journal_mode`，`wal` 时才跑「关掉自动 checkpoint、提交、备份、再确认日志里仍有帧」的用例——当前在任何浏览器后端上都被跳过。
   WAL 下的实跑留给阶段 C 的桌面 host。
 - AC#17：各 adapter 的能力差异写在 harness 与 README 的矩阵里，跳过的用例都对应声明过的「不适用」，不是承诺组合里的失败：
-  wa-sqlite 55 过 / 5 跳（WAL 1、FTS5 1、引擎自建对象 3）；sqlite-wasm 与官方 sqlite 各 56 过 / 4 跳（WAL 1、引擎自建对象 3）；
-  sqliteai 59 过 / 1 跳（WAL）。memdb 的强杀用例整组跳过（存储只活在页面的 WASM 实例里），由四个真实 adapter 覆盖。
+  wa-sqlite 56 过 / 5 跳（WAL 1、FTS5 1、引擎自建对象 3）；sqlite-wasm 与官方 sqlite 各 57 过 / 4 跳（WAL 1、引擎自建对象 3）；
+  sqliteai 60 过 / 1 跳（WAL）。memdb 的强杀用例整组跳过（存储只活在页面的 WASM 实例里），由四个真实 adapter 覆盖。
+  wa-sqlite 与 sqlite-wasm 只交付主线程连接：设置了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时
+  备份、恢复、清理都报 `unsupported_combination`（`transport`），由各自的 `*-backup-transport.spec.ts` 断言（2 / 3 例，
+  sqlite-wasm 多一例「只传实例、由连接推断传输」）；官方 sqlite 与 sqliteai 的 Worker 维度由 harness 的 `worker: true` 实测。
+- 逻辑转储的边角（`memdb-backup-edge.spec.ts`）：行字面量以 `CAST(… AS BLOB)` 读出原始字节，TEXT 不是合法 UTF-8 时在备份侧报
+  `unsupported_combination`（`rowText`），不产出恢复端会判 `corrupt_archive` 的归档；库编码不是 UTF-8 时同样拒绝（`encoding`）；
+  结构 SQL 在备份时就过一遍恢复端的单语句校验（`sql`），表名 `begin` 的触发器、以 `WITH` / `VALUES` 开头的触发器体、
+  `USING "fts5"` 的虚表照常往返。目标打不开按 `classifyBackupIoError` 落 `storage_full` / `io_error`，清理打不开落
+  `cleanup_pending`；恢复完整落盘后仅断开失败时，错误信息说明库已完整（`details.field` 为 `disconnect`）。
+  空目标判定先比对象清单，再比每表行数，都一致才读行内容，引擎表被写入大量行的目标不会被整库读进内存。
 - AC#9 ⚠️：分页读按上一页最大行折算行数（每页 256 KiB 预算、首页 1 行），行字面量攒到约 1 MiB 落一个条目，单行上限 32 MiB；
   恢复逐条目执行 `INSERT … VALUES`。与阶段 A 一样只有结构性上界，没有进程级峰值内存测量。
 - 官方 sqlite 与 sqliteai 的 Worker 传输改用 `wrapWithComlinkEndpoint`：每次连接租用 Worker 的一条独立子端口，

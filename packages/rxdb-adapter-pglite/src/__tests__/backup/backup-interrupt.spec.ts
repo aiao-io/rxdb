@@ -7,7 +7,7 @@
  */
 import type { RxDB } from '@aiao/rxdb';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
-import { pgliteStorageLockName } from '../../backup/pglite-restore-lock.js';
+import { pgliteStorageLockName, writeRestoreMarker } from '../../backup/pglite-restore-lock.js';
 import { cleanupIncompletePGliteRestore, restorePGliteDatabase } from '../../backup/restore-pglite-database.js';
 import type { RestoreInterruptPoint, RestoreInterruptReply } from './backup-interrupt.worker.js';
 import {
@@ -15,6 +15,7 @@ import {
   chunkedSource,
   collectingSink,
   createBackupRxDB,
+  idbDatabaseNameOf,
   idbStorageOf,
   idbTargetState,
   PLAIN_ENTITIES,
@@ -73,6 +74,29 @@ const killRestoreAt = async (archive: Uint8Array, dbName: string, stopAt: Restor
   );
 };
 
+/** 按 Emscripten IDBFS 的布局（库版本 21、`FILE_DATA` 存储、`timestamp` 索引）写入半截数据目录。 */
+const writePartialIdbFiles = (name: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, 21);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore('FILE_DATA').createIndex('timestamp', 'timestamp', { unique: false });
+    };
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction('FILE_DATA', 'readwrite');
+      const store = transaction.objectStore('FILE_DATA');
+      const timestamp = new Date();
+      store.put({ timestamp, mode: 0o40755 }, '/pglite/data');
+      store.put({ timestamp, mode: 0o100600, contents: new TextEncoder().encode('17\n') }, '/pglite/data/PG_VERSION');
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+    };
+  });
+
 const connectAndRead = async (dbName: string) => {
   const target = idbTarget(dbName);
   opened.push(target.rxdb);
@@ -111,6 +135,28 @@ describe('PGlite restore survives being killed mid-way (AC#11)', () => {
       expect(await connectAndRead(dbName)).toEqual(SEEDED_NOTES);
     });
   }
+
+  it('reports restore_incomplete when a kill leaves partially flushed files behind the marker', async () => {
+    // 提交点之后、close 把文件全部刷进 IndexedDB 之前被杀：库里只有一部分文件，标记还在。
+    // Worker 很难恰好停在刷盘中途，这里按 Emscripten IDBFS 的布局直接造出这个状态。
+    const archive = await seededArchive();
+    const dbName = uniqueDbName('backup-int-dst');
+    const target = idbTarget(dbName);
+    await writeRestoreMarker(idbStorageOf(target).storageKey);
+    await writePartialIdbFiles(idbDatabaseNameOf(target));
+    expect(await idbTargetState(target)).toEqual({ empty: false, marker: true });
+
+    const blocked = idbTarget(dbName);
+    opened.push(blocked.rxdb);
+    expect(await backupErrorCode(blocked.connect())).toBe('restore_incomplete');
+    // 被拒的连接不能读入半截文件，更不能把它们当成数据目录初始化。
+    expect(await idbTargetState(target)).toEqual({ empty: false, marker: true });
+
+    expect(await cleanupIncompletePGliteRestore(idbTarget(dbName))).toBe(true);
+    expect(await idbTargetState(target)).toEqual({ empty: true, marker: false });
+    await restorePGliteDatabase(chunkedSource(archive).stream, idbTarget(dbName));
+    expect(await connectAndRead(dbName)).toEqual(SEEDED_NOTES);
+  });
 
   it('keeps a finished restore when the worker is killed right after it returns', async () => {
     const archive = await seededArchive();

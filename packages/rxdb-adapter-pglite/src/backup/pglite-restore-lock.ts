@@ -1,3 +1,5 @@
+import { RxDBBackupError } from '@aiao/rxdb';
+
 /**
  * 恢复与正常连接之间的跨上下文互斥：Web Locks 管「此刻谁在用」，IndexedDB 标记管「上次恢复没做完」。
  *
@@ -23,17 +25,26 @@ export const pgliteStorageLockName = (storageKey: string): string => `rxdb-pglit
  *
  * @remarks
  * 每个正常连接都持有一把 {@link pgliteStorageLockName} 共享锁，所以 `navigator.locks.query()` 里同名的
- * 持有项数就是连接数。环境没有 Web Locks 时连接也不拿锁，这里无从得知，返回 `0`。
+ * 持有项数就是连接数。环境没有 `navigator.locks.query()` 时其他标签页 / Worker 的连接无从得知，
+ * 不能当成 0 个——那正是备份静默漏掉对端提交的场景，所以直接拒绝。
  *
  * @param storageKey - 规范化后的 `dataDir`
  * @returns 持有者数量
+ * @throws RxDBBackupError `unsupported_combination` 环境不提供 `navigator.locks.query()`
  */
 export const countPGliteStorageHolders = async (storageKey: string): Promise<number> => {
-  if (typeof navigator === 'undefined' || navigator.locks === undefined) return 0;
+  if (typeof navigator === 'undefined' || typeof navigator.locks?.query !== 'function') {
+    throw new RxDBBackupError('unsupported_combination', 'PGlite backup of IndexedDB storage requires Web Locks', {
+      details: { field: 'navigator.locks.query' }
+    });
+  }
   const name = pgliteStorageLockName(storageKey);
   const { held = [] } = await navigator.locks.query();
   return held.filter(lock => lock.name === name).length;
 };
+
+/** 世代计数与恢复标记同住一个 store；前缀不以 `idb://` 开头，不会与标记的键相撞。 */
+const generationKey = (storageKey: string): string => `generation:${storageKey}`;
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise<T>((resolve, reject) => {
@@ -73,20 +84,61 @@ const openMarkers = (): Promise<IDBDatabase> =>
 const inMarkerStore = async <T>(
   db: IDBDatabase,
   mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest<T>
+  run: (store: IDBObjectStore) => Promise<T>
 ): Promise<T> => {
   try {
     const transaction = db.transaction(MARKER_STORE, mode);
-    const result = await requestResult(run(transaction.objectStore(MARKER_STORE)));
-    await new Promise<void>((resolve, reject) => {
+    const completed = new Promise<void>((resolve, reject) => {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
     });
+    // 请求失败时事务随之中止：异常由 run 抛出，这里只防 completed 的拒绝无人接收。
+    completed.catch(() => undefined);
+    const result = await run(transaction.objectStore(MARKER_STORE));
+    await completed;
     return result;
   } finally {
     db.close();
   }
+};
+
+/**
+ * 登记一次对存储的打开，返回登记后的世代号。
+ *
+ * @remarks
+ * IndexedDB 存储上每个连接的内存文件系统只在打开时从 IndexedDB 读入一次，之后别的连接的提交
+ * 不会出现在它的视图里——哪怕那些连接早已关闭、锁也早已释放。世代号让备份能认出「本连接打开之后
+ * 还有别人打开过」：读改写在同一个事务里完成，两个连接不会拿到同一个号。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 本次打开的世代号（从 1 开始）
+ */
+export const enterPGliteStorageGeneration = async (storageKey: string): Promise<number> =>
+  inMarkerStore(await openMarkers(), 'readwrite', async store => {
+    const key = generationKey(storageKey);
+    const next = ((await requestResult<unknown>(store.get(key))) as number | undefined) ?? 0;
+    await requestResult(store.put(next + 1, key));
+    return next + 1;
+  });
+
+/**
+ * 读取存储当前的世代号；从未有连接打开过时为 `0`。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 世代号
+ */
+export const readPGliteStorageGeneration = async (storageKey: string): Promise<number> => {
+  const db = await openExisting(PGLITE_RESTORE_MARKER_DATABASE);
+  if (!db) return 0;
+  if (!db.objectStoreNames.contains(MARKER_STORE)) {
+    db.close();
+    return 0;
+  }
+  const value = await inMarkerStore(db, 'readonly', store =>
+    requestResult<unknown>(store.get(generationKey(storageKey)))
+  );
+  return (value as number | undefined) ?? 0;
 };
 
 /**
@@ -95,7 +147,7 @@ const inMarkerStore = async <T>(
  * @param storageKey - 目标的规范化 `dataDir`
  */
 export const writeRestoreMarker = async (storageKey: string): Promise<void> => {
-  await inMarkerStore(await openMarkers(), 'readwrite', store => store.put(Date.now(), storageKey));
+  await inMarkerStore(await openMarkers(), 'readwrite', store => requestResult(store.put(Date.now(), storageKey)));
 };
 
 /**
@@ -110,7 +162,7 @@ export const deleteRestoreMarker = async (storageKey: string): Promise<void> => 
     db.close();
     return;
   }
-  await inMarkerStore(db, 'readwrite', store => store.delete(storageKey));
+  await inMarkerStore(db, 'readwrite', store => requestResult(store.delete(storageKey)));
 };
 
 /**
@@ -129,7 +181,7 @@ export const hasRestoreMarker = async (storageKey: string): Promise<boolean> => 
     db.close();
     return false;
   }
-  const count = await inMarkerStore(db, 'readonly', store => store.count(storageKey));
+  const count = await inMarkerStore(db, 'readonly', store => requestResult(store.count(storageKey)));
   return count > 0;
 };
 

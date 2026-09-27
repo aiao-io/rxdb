@@ -64,11 +64,14 @@ const encode = (value: unknown, ancestors: Set<object>): string => {
   return body;
 };
 
+/** 用户键以 `$` 开头时再加一个 `$`：单个 `$` 开头的键只留给类型标签，编码保持单射。 */
+const escapeKey = (key: string): string => (key.startsWith('$') ? `$${key}` : key);
+
 const encodeObject = (node: Record<string, unknown>, ancestors: Set<object>): string => {
   const keys = Object.keys(node)
     .filter(key => !IGNORED_KEYS.has(key) && !isDropped(node[key]))
     .sort();
-  return `{${keys.map(key => `${JSON.stringify(key)}:${encode(node[key], ancestors)}`).join(',')}}`;
+  return `{${keys.map(key => `${JSON.stringify(escapeKey(key))}:${encode(node[key], ancestors)}`).join(',')}}`;
 };
 
 /**
@@ -77,7 +80,8 @@ const encodeObject = (node: Record<string, unknown>, ancestors: Set<object>): st
  * @remarks
  * 规则：对象键按码点排序；`displayName` / `description` 在任何深度都丢弃；函数、Symbol、
  * Map、Set、`undefined` 丢弃（数组里对应位置写 `null` 以保住下标）；bigint / 日期 / 二进制 /
- * 非有限数编码成带 `$` 标签的对象。循环引用直接抛错——静默截断会让两份不同的结构撞同一指纹。
+ * 非有限数编码成带 `$` 标签的对象；用户对象里以 `$` 开头的键多加一个 `$`，不会与标签同形。
+ * 循环引用直接抛错——静默截断会让两份不同的结构撞同一指纹。
  *
  * @param value - 任意值
  * @returns 规范化 JSON 文本

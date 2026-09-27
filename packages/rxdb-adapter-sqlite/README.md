@@ -32,6 +32,9 @@ import { createSqliteClient, RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite
 | `opfs: true, opfsFallback: 'memory'` | ❌ `unsupported_combination`（`opfsFallback`）：OPFS 打不开时静默落到内存，恢复目标不确定 |
 
 在 Worker 里跑时，每次连接租用 Worker 的一条独立子端口：恢复用一条连接写库，之后的 `connect()` 在同一个 Worker 上再开一条。
+同一个 `workerInstance` 同一时间只借给一条连接：第二条并发连接会抛 `Worker transport already has an active SQLite client`。
+直接调用 `createSqliteClient` 时，先 `await client.disconnect()`，再调用 `@aiao/rxdb-adapter-sqlite-core` 导出的
+`releaseComlinkProxy(client)` 归还子端口，之后才能在同一个 Worker 上重连；适配器已在 `disconnect()` 内自动完成这一步。
 
 ## 文档
 

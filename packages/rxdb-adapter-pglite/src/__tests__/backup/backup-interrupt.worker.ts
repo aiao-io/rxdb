@@ -30,7 +30,18 @@ const holdAt = (point: RestoreInterruptPoint): Promise<never> => {
   return new Promise<never>(() => undefined);
 };
 
-scope.onmessage = async (event: MessageEvent<RestoreInterruptRequest>) => {
+/**
+ * 只接受创建本 Worker 的页面发来的任务：专用 Worker 的来信 `origin` 为空串，同源页面转交的则等于本源。
+ * 形状不对的消息一律忽略，免得把任意数据当成恢复任务。
+ */
+const isOwnerRequest = (event: MessageEvent<unknown>): event is MessageEvent<RestoreInterruptRequest> => {
+  if (event.origin !== '' && event.origin !== scope.location.origin) return false;
+  const data = event.data as Partial<RestoreInterruptRequest> | null;
+  return data?.archive instanceof Uint8Array && typeof data.dbName === 'string' && typeof data.stopAt === 'string';
+};
+
+scope.onmessage = async (event: MessageEvent<unknown>) => {
+  if (!isOwnerRequest(event)) return;
   const { archive, dbName, stopAt } = event.data;
   const target = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' });
   const half = archive.byteLength / 2;

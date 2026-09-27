@@ -108,6 +108,8 @@ rxdb.adapter(
 | `idb`    | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
 | 其余 VFS | ❌ `unsupported_combination`（`vfs`）           |
 
+表中组合只在主线程连接下交付：设置了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时，三个入口都报 `unsupported_combination`（`transport`，`actual` 为 `worker` 或 `sharedWorker`），不碰输出流与归档源。
+
 ## 完整示例
 
 参考 [dev-rxdb-angular](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-angular) 中的集成示例。

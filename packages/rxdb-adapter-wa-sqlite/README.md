@@ -116,6 +116,8 @@ npm registry 没有本包所需的 wa-sqlite，因此依赖固定到上游不可
 | `IDBBatchAtomicVFS`            | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
 | 其余 VFS                       | ❌ `unsupported_combination`（`vfs`）           |
 
+表中组合只在主线程连接下交付：设置了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时，三个入口都报 `unsupported_combination`（`transport`，`actual` 为 `worker` 或 `sharedWorker`），不碰输出流与归档源。
+
 npm `wa-sqlite` 的预编译 wasm 没有编进 FTS5，库里不会有 FTS5 虚表；含 `fts5` 虚表的归档（来自其他构建）在写入前被拒绝。
 
 ## 完整示例

@@ -134,6 +134,16 @@ describe('canonicalSchemaJson', () => {
     );
   });
 
+  it('用户对象里的 $ 键与类型标签不会同形（编码单射）', () => {
+    expect(canonicalSchemaJson({ $bigint: '12' })).not.toBe(canonicalSchemaJson(12n));
+    expect(canonicalSchemaJson({ $date: '1970-01-01T00:00:00.000Z' })).not.toBe(canonicalSchemaJson(new Date(0)));
+    expect(canonicalSchemaJson({ $bytes: '00ff' })).not.toBe(canonicalSchemaJson(Uint8Array.of(0, 255)));
+    expect(canonicalSchemaJson({ $number: 'NaN' })).not.toBe(canonicalSchemaJson(Number.NaN));
+    expect(canonicalSchemaJson({ $bigint: '1' })).toBe('{"$$bigint":"1"}');
+    expect(canonicalSchemaJson({ $$bigint: '1' })).not.toBe(canonicalSchemaJson({ $bigint: '1' }));
+    expect(canonicalSchemaJson({ price: 1 })).toBe('{"price":1}');
+  });
+
   it('循环引用直接报错，不静默截断', () => {
     const node: Record<string, unknown> = {};
     node['self'] = node;

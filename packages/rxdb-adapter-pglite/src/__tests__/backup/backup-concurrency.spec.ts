@@ -144,6 +144,70 @@ describe('PGlite backup refuses an IndexedDB source that other connections share
     }
   });
 
+  it('rejects a long-lived connection after a later peer committed and closed, until it reconnects', async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const source = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' });
+    const adapter = await source.connect();
+    await makeNote(source.entities, 'from-source').save();
+    // 对端晚于本连接打开、提交后正常关闭：锁已释放、登记表已清空，但本运行时的视图停在打开那一刻。
+    const peer = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' });
+    await peer.connect();
+    await makeNote(peer.entities, 'from-peer').save();
+    await peer.rxdb.disconnectAll();
+    await expectRefused(adapter);
+    await source.rxdb.disconnectAll();
+
+    // 重连后视图重新从 IndexedDB 读入，备份与存储此刻的已提交状态一致（多连接同写一份 IdbFs 时
+    // 最后关闭的一方会覆盖对端的文件，这是 PGlite 的限制，与备份无关）。
+    const reopened = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const reopenedAdapter = await reopened.connect();
+    const persisted = (await readNotes(reopenedAdapter, reopened.entities)).map(note => note.title);
+    const out = collectingSink();
+    await reopenedAdapter.backup(out.sink);
+    const target = createBackupRxDB(uniqueDbName('backup-cc-dst'), PLAIN_ENTITIES, { store: 'memory' });
+    const { database } = await restorePGliteDatabase(chunkedSource(out.bytes()).stream, target);
+    expect(await titlesOf(target, database)).toEqual(persisted);
+  });
+
+  it('rejects a connection that opened while a peer still held the storage, even after the peer closed', async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const peer = createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' });
+    await peer.connect();
+    const source = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const adapter = await source.connect();
+    await makeNote(peer.entities, 'from-peer').save();
+    await peer.rxdb.disconnectAll();
+    await expectRefused(adapter);
+  });
+
+  it('keeps backing up a sole long-lived connection across its own commits', async () => {
+    const dbName = uniqueDbName('backup-cc-shared');
+    const source = track(createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' }));
+    const adapter = await source.connect();
+    await makeNote(source.entities, 'first').save();
+    await adapter.backup(collectingSink().sink);
+    await makeNote(source.entities, 'second').save();
+    const out = collectingSink();
+    await adapter.backup(out.sink);
+    const target = createBackupRxDB(uniqueDbName('backup-cc-dst'), PLAIN_ENTITIES, { store: 'memory' });
+    const { database } = await restorePGliteDatabase(chunkedSource(out.bytes()).stream, target);
+    expect(await titlesOf(target, database)).toEqual(['first', 'second']);
+  });
+
+  it('rejects with unsupported_combination when Web Locks cannot list the holders', async () => {
+    const source = track(createBackupRxDB(uniqueDbName('backup-cc-shared'), PLAIN_ENTITIES, { store: 'idb' }));
+    const adapter = await source.connect();
+    // 数不出其他标签页 / Worker 的持有者时不能当成没有：那正是备份静默漏掉对端提交的场景。
+    Object.defineProperty(navigator.locks, 'query', { value: undefined, configurable: true });
+    try {
+      const out = collectingSink();
+      expect(await backupErrorCode(adapter.backup(out.sink))).toBe('unsupported_combination');
+      expect(out.bytes().byteLength).toBe(0);
+    } finally {
+      Reflect.deleteProperty(navigator.locks, 'query');
+    }
+  });
+
   it("includes every connection's commits once a single holder backs the storage up", async () => {
     const dbName = uniqueDbName('backup-cc-shared');
     const writers = [createBackupRxDB(dbName, PLAIN_ENTITIES, { store: 'idb' })];
