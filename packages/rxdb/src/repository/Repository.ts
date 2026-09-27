@@ -140,7 +140,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   protected readonly queryManager!: QueryManager<T>;
 
   /**
-   * 同步配置
+   * 本实例对该实体的生效同步配置（经 `rxdb.entitySync.resolve` 解析）
+   *
+   * @remarks
+   * 只读：被 `syncOverrides` 覆盖的实体拿到的是实例冻结的快照，运行时改它的字段会抛 `TypeError`。
+   * 未覆盖实体这里恰好是装饰器或库级配置原对象，同样不要改 —— 其他实例也在读它。
    */
   readonly sync!: SyncOptions;
 
@@ -159,7 +163,10 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       shareReplay({ bufferSize: 1, refCount: true })
     );
     const metadata = getEntityMetadata(EntityType);
-    this.sync = metadata.sync || rxdb.config.sync;
+    // 生效配置只从实例解析器取：同一实体类在另一个实例里可能被覆盖成别的策略
+    const sync = rxdb.entitySync.resolve(EntityType);
+    if (!sync) throw new RxDBError(`Entity '${metadata.name}' has no effective sync config`);
+    this.sync = sync;
     // QueryCache 不是「选 local 还是 remote 一侧」的问题：它的读是 metadata-diff + 增量 pull，
     // 写是 remote-then-local，两者都跨两侧。因此在 `selectPrimaryAdapterKind` 之前分流，
     // 而不是给那个枚举加第三种 kind —— 适配器模型仍然只有两侧。

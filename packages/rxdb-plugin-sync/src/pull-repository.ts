@@ -8,10 +8,10 @@
 import {
   compactChanges,
   declareTrustedWrite,
-  type EntityMetadata,
   type EntityType,
   getEntityMetadata,
   getOrCreateSyncRecord,
+  getSyncConfig,
   getSyncType,
   LWWConflictResolver,
   type PullRepositoryOptions,
@@ -32,6 +32,7 @@ import {
   RxDBPartialSyncError,
   RxDBSync,
   type SyncFailure,
+  type SyncOptions,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
@@ -193,7 +194,7 @@ async function _pullRepositoryImpl(
   // 避免两条路径各写一份而漂移。
   // 同一处叠加 `RxDBSync.enabled` —— 显式点名单个仓库时抛错而非静默跳过，
   // 与 syncType 不合格时的行为一致；批量枚举路径（pullBatch）才是跳过。
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
   const ineligible = await resolvePullIneligibility(sm.rxdb, namespace, entity, syncType);
 
   if (ineligible) {
@@ -203,7 +204,11 @@ async function _pullRepositoryImpl(
   // 对于 Filter 同步类型，从配置中提取 filter 函数并执行
   let effectiveFilter = opts.filter;
   if (syncType === 'filter' && !effectiveFilter) {
-    const syncConfig = metadata.sync as { type: string; remote?: { filter?: () => RuleGroup } };
+    // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
+    const syncConfig = getSyncConfig(metadata, sm.rxdb.entitySync) as {
+      type: string;
+      remote?: { filter?: () => RuleGroup };
+    };
     if (syncConfig?.remote?.filter) {
       // T022: filter 函数执行错误处理
       try {
@@ -381,7 +386,7 @@ async function pullCascadeNode(
   }
 
   const repoMetadata = getEntityMetadata(EntityType);
-  const repoSyncType = getSyncType(repoMetadata, sm.rxdb.config.sync);
+  const repoSyncType = getSyncType(repoMetadata, sm.rxdb.entitySync);
 
   // 级联节点必须走和单仓路径同一份资格校验，否则 `local` / `none`
   // 的依赖仓会被拿去问远端要数据，绕过它自己声明的同步策略
@@ -395,7 +400,12 @@ async function pullCascadeNode(
     const result = await pullSingleRepository(sm, repo.namespace, repo.entity, {
       ...options,
       // T039: 为每个实体独立提取 filter
-      filter: resolveCascadeFilter(repoKey, repoMetadata, repoSyncType, options.filter),
+      filter: resolveCascadeFilter(
+        repoKey,
+        getSyncConfig(repoMetadata, sm.rxdb.entitySync),
+        repoSyncType,
+        options.filter
+      ),
       includeRelated: false // 防止递归级联
     });
     result.success = true;
@@ -419,7 +429,8 @@ async function pullCascadeNode(
  * 解析级联节点自己的 filter
  *
  * @param repoKey - 仓库键（`namespace:entity`），用于错误消息
- * @param repoMetadata - 该仓库的实体元数据
+ * @param repoSync - 该仓库的**生效**同步配置（`getSyncConfig(metadata, rxdb.entitySync)`）；
+ *   不能传装饰器原值 `metadata.sync`：实例覆盖可能换掉了 filter，也可能把 Full 覆盖成 Filter
  * @param repoSyncType - 该仓库的有效同步类型
  * @param inheritedFilter - 调用方显式传入的 filter
  * @returns 该仓库实际生效的 filter
@@ -434,7 +445,7 @@ async function pullCascadeNode(
  */
 export function resolveCascadeFilter(
   repoKey: string,
-  repoMetadata: EntityMetadata,
+  repoSync: SyncOptions | undefined,
   repoSyncType: RepositorySyncType,
   inheritedFilter: RuleGroup | undefined
 ): RuleGroup | undefined {
@@ -442,8 +453,7 @@ export function resolveCascadeFilter(
   if (repoSyncType === 'full') return undefined;
   if (repoSyncType !== 'filter') return inheritedFilter;
 
-  const syncConfig = repoMetadata.sync as { type: string; remote?: { filter?: () => RuleGroup } };
-  const filterFn = syncConfig?.remote?.filter;
+  const filterFn = (repoSync as { remote?: { filter?: () => RuleGroup } } | undefined)?.remote?.filter;
   if (!filterFn) return inheritedFilter;
 
   let extractedFilter: RuleGroup;
@@ -500,7 +510,7 @@ async function pullSingleRepository(
     return meta.namespace === namespace && meta.name === entity;
   });
   const metadata = getEntityMetadata(EntityType!);
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
 
   let repoSync = await getOrCreateSyncRecord(
     repoSyncRepo,

@@ -9,12 +9,15 @@
 
 import {
   branchMaterializationPageFingerprint,
+  createEntitySyncResolver,
   getEntityMetadata,
+  SyncType,
   type BranchMaterializationIntent,
   type BranchMaterializationPage,
   type BranchMaterializationPagePayload,
   type RemoteChange,
   type RuleGroup,
+  type SyncOptions,
   type TransactionExecutor
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
@@ -272,6 +275,40 @@ describe('同步插件的分支物化来源', () => {
           })
         )
       ).rejects.toThrow(/public:Gone/);
+    });
+  });
+
+  describe('冻结意图', () => {
+    // US-026：物化范围里的行级条件是租户边界，必须取实例覆盖后的生效 filter
+    it('filters 取实例覆盖的生效 filter，不回读装饰器', async () => {
+      const rule: RuleGroup = { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'mine' }] };
+      const databaseSync: SyncOptions = {
+        type: SyncType.Full,
+        local: { adapter: 'local' },
+        remote: { adapter: 'remote' }
+      };
+      const override: SyncOptions = {
+        type: SyncType.Filter,
+        local: { adapter: 'local' },
+        remote: { adapter: 'remote', filter: () => rule }
+      };
+      const reader = { find: async () => [] };
+      const remote = { getChangeCount: async () => ({ latestChangeId: 0 }) };
+      const sm = {
+        rxdb: {
+          config: { entities: [User, Tag], sync: databaseSync },
+          entitySync: createEntitySyncResolver(databaseSync, new Map([[getEntityMetadata(User), override]]))
+        },
+        getLocalRepositories: async () => ({ adapter: { getRepository: () => reader } }),
+        getRemoteRepositories: async () => ({ adapter: remote })
+      } as unknown as SyncManager;
+
+      const intent = await createSyncBranchMaterializationSource(sm).freezeIntent('main');
+
+      expect((intent.frozenRemoteWatermark as { filters: Record<string, unknown> }).filters).toEqual({
+        [USER]: rule,
+        [TAG]: null
+      });
     });
   });
 

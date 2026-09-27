@@ -236,7 +236,7 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
       }
     });
 
-    const repoRules = buildPushableRepositoryRules(host.rxdb.config.entities, host.rxdb.config.sync, repoSyncs);
+    const repoRules = buildPushableRepositoryRules(host.rxdb.config.entities, host.rxdb.entitySync, repoSyncs);
     if (repoRules.length === 0) {
       publish(0);
       return;

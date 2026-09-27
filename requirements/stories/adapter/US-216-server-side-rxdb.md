@@ -131,6 +131,9 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 两者用一条「元数据一致性」测试冻结（字段名、类型、nullable 逐项相等），漂移在 CI 里变红而不是在文档里被遗忘。
 core 覆盖故事落地后，本故事追加一个小收尾：删除第二个类，两端共用单类（该收尾单独一条 AC 评估，不进本故事承诺）。
 
+> **2026-09-27 更新**：US-026 已交付实例级覆盖，`ServerRecipe` 已删除，后端改用共享 `Recipe` + `syncOverrides`
+> （见 [US-026 AC#13](../core/US-026-instance-sync-override.md#验收标准)）。下文 A1 等处的 `ServerRecipe` 是本故事验收时的历史表述。
+
 ### D2 — 后端存储用 pglite，`memory` 起步
 
 PGlite 的 Node 可用性有本仓测试套件实证：`PGliteClient` 只在 `dataDir` 以 `opfs-ahp://` 开头时才创建
@@ -219,7 +222,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 前端实例是**一人一库**（每个浏览器 profile 一个实例，`context` 就是该用户）；后端实例是**全租户共享**——
 身份随请求来，不能进实例级 `context`（其契约是「`userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更」，
-[rxdb.interface.ts:128](../../../packages/rxdb/src/rxdb.interface.ts#L128)）。据此画线：
+[rxdb.interface.ts:146](../../../packages/rxdb/src/rxdb.interface.ts#L146)）。据此画线：
 
 **实例级**（后端合法持有）：schema、存储、事件流、`clientId`。后端 `context` 填服务器身份（不是任何用户），
 引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。
@@ -246,7 +249,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 **浏览器专属机制一律不生效**：跨 tab 协调（`RxDBTabsGateway`，BroadcastChannel + Web Locks）用
 `multiInstance: false` 显式关闭——该开关的既有先例就是「单 realm 且没有这些 Web API」的微信小程序逻辑层
-（[rxdb.interface.ts:108](../../../packages/rxdb/src/rxdb.interface.ts#L108)），Node 后端是同一情形；
+（[rxdb.interface.ts:109](../../../packages/rxdb/src/rxdb.interface.ts#L109)），Node 后端是同一情形；
 可达性检测有 `typeof` 守卫（`resolveGlobalNavigatorOnLine` 取不到 `navigator.onLine` 就返回 `undefined`，
 [reachability.ts:72-76](../../../packages/rxdb/src/network/reachability.ts#L72-L76)），Node 下自动失效不抛错；
 离线降级、QueryCache 出站队列、SSE 通道、DevTools 连接器则因后端 `SyncType.None + local` 根本不构造。

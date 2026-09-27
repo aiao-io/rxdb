@@ -16,8 +16,9 @@
 import type { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBError, RxDBMixedVersionedCacheTransactionError } from '../RxDBError.js';
+import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 import type { EntityType } from './entity.interface.js';
-import { type SyncOptions, SyncType } from './metadata-options.interface.js';
+import { SyncType, type SyncOptions } from './metadata-options.interface.js';
 
 /** 写入落到哪一侧适配器 */
 export type PrimaryAdapterKind = 'local' | 'remote';
@@ -56,13 +57,17 @@ export function selectPrimaryAdapter(sync: SyncOptions | undefined): PrimaryAdap
 }
 
 /**
- * 取实体生效的同步配置：实体元数据优先于数据库级配置。
+ * 取实体生效的同步配置。
  *
  * @param EntityType - 实体类
- * @param databaseSync - 数据库级 `rxdb.config.sync`
+ * @param source - 实例的解析器 `rxdb.entitySync`（含实例覆盖）；传数据库级 `sync` 时
+ *   只按「实体元数据优先于数据库级配置」解析，不认识任何实例覆盖
  */
-export function getEntitySync(EntityType: EntityType, databaseSync: SyncOptions | undefined): SyncOptions | undefined {
-  return getEntityMetadata(EntityType).sync ?? databaseSync;
+export function getEntitySync(
+  EntityType: EntityType,
+  source: EntitySyncResolver | SyncOptions | undefined
+): SyncOptions | undefined {
+  return toEntitySyncResolver(source).resolve(EntityType);
 }
 
 /**
@@ -82,7 +87,7 @@ export function collectMutationEntityTypes(options: RxDBMutationsMap): EntityTyp
  * 为一整批实体解析共同的主适配器。
  *
  * @param EntityTypes - 本批涉及的实体类型
- * @param databaseSync - 数据库级同步配置
+ * @param source - 实例的解析器 `rxdb.entitySync`；传数据库级 `sync` 时不认识实例覆盖
  * @returns 全批共用的主适配器；空批返回 `null`
  * @throws {@link RxDBMixedPrimaryAdapterError} 批内实体的主适配器不一致
  * @throws {@link RxDBMissingPrimaryAdapterError} 主端没有配置适配器
@@ -93,14 +98,15 @@ export function collectMutationEntityTypes(options: RxDBMutationsMap): EntityTyp
  */
 export function resolveBatchPrimaryAdapter(
   EntityTypes: readonly EntityType[],
-  databaseSync: SyncOptions | undefined
+  source: EntitySyncResolver | SyncOptions | undefined
 ): PrimaryAdapterSelection | null {
   if (EntityTypes.length === 0) return null;
+  const resolver = toEntitySyncResolver(source);
 
   const selections = EntityTypes.map(EntityType => ({
     EntityType,
-    selection: selectPrimaryAdapter(getEntitySync(EntityType, databaseSync)),
-    kind: selectPrimaryAdapterKind(getEntitySync(EntityType, databaseSync))
+    selection: selectPrimaryAdapter(resolver.resolve(EntityType)),
+    kind: selectPrimaryAdapterKind(resolver.resolve(EntityType))
   }));
 
   const kinds = new Set(selections.map(entry => entry.kind));
@@ -121,7 +127,7 @@ export function resolveBatchPrimaryAdapter(
  * 判定一批修改是否走 QueryCache 的写路径。
  *
  * @param EntityTypes - 本批涉及的实体类型
- * @param databaseSync - 数据库级同步配置
+ * @param source - 实例的解析器 `rxdb.entitySync`；传数据库级 `sync` 时不认识实例覆盖
  * @returns `true` 表示整批都是 QueryCache 实体，须走 remote-then-local
  * @throws {@link RxDBMixedVersionedCacheTransactionError} 批内混有 QueryCache 与非 QueryCache 实体
  *
@@ -137,11 +143,15 @@ export function resolveBatchPrimaryAdapter(
  * 调用点须先跑 {@link resolveBatchPrimaryAdapter}：那样「QueryCache + remote-only」报的是更准确的
  * {@link RxDBMixedPrimaryAdapterError}，而不是被这里当成「版本化实体」。
  */
-export function isQueryCacheBatch(EntityTypes: readonly EntityType[], databaseSync: SyncOptions | undefined): boolean {
+export function isQueryCacheBatch(
+  EntityTypes: readonly EntityType[],
+  source: EntitySyncResolver | SyncOptions | undefined
+): boolean {
+  const resolver = toEntitySyncResolver(source);
   const cacheEntities: string[] = [];
   const versionedEntities: string[] = [];
   for (const EntityType of EntityTypes) {
-    const isCache = getEntitySync(EntityType, databaseSync)?.type === SyncType.QueryCache;
+    const isCache = resolver.resolve(EntityType)?.type === SyncType.QueryCache;
     (isCache ? cacheEntities : versionedEntities).push(entityLabel(EntityType));
   }
   if (cacheEntities.length > 0 && versionedEntities.length > 0) {

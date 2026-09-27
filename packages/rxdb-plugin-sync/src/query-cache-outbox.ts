@@ -407,7 +407,7 @@ export async function countQueryCacheOutbox(rxdb: RxDB): Promise<number> {
     where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] }
   });
 
-  const repoRules = buildOfflineWriteRepositoryRules(rxdb.config.entities, rxdb.config.sync, repoSyncs);
+  const repoRules = buildOfflineWriteRepositoryRules(rxdb.config.entities, rxdb.entitySync, repoSyncs);
   if (repoRules.length === 0) {
     return 0;
   }
@@ -489,7 +489,7 @@ function resolveQueryCacheSyncType(rxdb: RxDB, namespace: string, entity: string
     throw new RxDBError(`Entity not found for QueryCache outbox flush: ${namespace}/${entity}`);
   }
 
-  const syncType = getSyncType(getEntityMetadata(EntityType), rxdb.config.sync);
+  const syncType = getSyncType(getEntityMetadata(EntityType), rxdb.entitySync);
   if (syncType !== 'querycache') {
     throw new RxDBError(
       `flushQueryCacheOutbox only handles syncType 'querycache'; ${namespace}/${entity} is '${syncType}'. ` +

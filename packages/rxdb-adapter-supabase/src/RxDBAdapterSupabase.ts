@@ -761,7 +761,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
   #assertEntitySupported(EntityType: EntityType): void {
     const metadata = getEntityMetadata(EntityType);
-    const sync = getSyncConfig(metadata, this.rxdb.config.sync);
+    const sync = getSyncConfig(metadata, this.rxdb.entitySync);
     if (sync?.remote?.adapter !== ADAPTER_NAME) return;
 
     const property = getUnsupportedProperty(metadata, (entity, namespace) =>

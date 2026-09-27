@@ -1,5 +1,6 @@
 import type { EntityType, RemoteChange, RuleGroup, SwitchVersionActions } from '@aiao/rxdb';
 import {
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   getEntityMetadata,
@@ -273,6 +274,7 @@ function createHarness(options: HarnessOptions = {}) {
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver(sync),
       config: { entities, sync },
       context: { clientId: 'contract-client' },
       dispatchEvent,

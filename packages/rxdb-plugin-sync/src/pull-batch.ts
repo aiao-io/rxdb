@@ -173,7 +173,7 @@ async function pullBatchOnce(
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
-    const syncType = getSyncType(metadata, rxdb.config.sync);
+    const syncType = getSyncType(metadata, rxdb.entitySync);
 
     // 跳过口径从内联的 `none | local` 换成能力矩阵，与单仓/级联路径同源
     if (!getSyncCapability(syncType).pull) continue;

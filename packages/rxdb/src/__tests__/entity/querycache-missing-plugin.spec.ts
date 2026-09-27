@@ -34,6 +34,7 @@ import type { QueryCacheOutboxProvider } from '../../repository/query-cache-outb
 import { Repository } from '../../repository/Repository.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMissingPluginError } from '../../RxDBError.js';
+import { createEntitySyncResolver } from '../../sync-contract/entity-sync-resolver.js';
 import { detachedReachability } from '../fixtures/reachability.js';
 import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
@@ -130,6 +131,7 @@ const slotStubRxDB = (
     localAdapter$: of(localAdapter),
     remoteAdapter$: of({ getRepository: () => ({}) }),
     config: { sync: undefined },
+    entitySync: createEntitySyncResolver(undefined),
     addEventListener: () => undefined,
     reachability: detachedReachability(),
     entityManager: { createEntityRef: (_type: unknown, entity: unknown) => entity },

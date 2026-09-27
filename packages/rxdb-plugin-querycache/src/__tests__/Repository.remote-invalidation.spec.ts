@@ -18,6 +18,7 @@ import type {
   RxDBEvent
 } from '@aiao/rxdb';
 import {
+  createEntitySyncResolver,
   ENTITY_STATIC_TYPES,
   RelationKind,
   REMOTE_ENTITY_INVALIDATED_EVENT,
@@ -223,6 +224,7 @@ const setup = (
   const rxdb = {
     localAdapter$,
     remoteAdapter$,
+    entitySync: createEntitySyncResolver(undefined),
     config: { sync: undefined },
     addEventListener,
     // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经

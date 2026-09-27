@@ -25,6 +25,7 @@ import {
   getEntityMetadata,
   getOrCreateSyncRecord,
   getSyncCapability,
+  getSyncConfig,
   getSyncType,
   isRepositorySyncEnabled,
   type RemoteChange,
@@ -216,12 +217,12 @@ const readLocalScope = async (rxdb: RxDB, readers: ScopeReaders, targetBranchId:
   for (const repository of ordered) {
     const key = repositoryKey(repository);
     const metadata = metadataOf(rxdb, key);
-    const syncType = getSyncType(metadata, rxdb.config.sync);
+    const syncType = getSyncType(metadata, rxdb.entitySync);
     if (!getSyncCapability(syncType).pull) continue;
     const record = await findSyncRecord(readers.syncRepository, `${key}:${targetBranchId}`);
     if (!isRepositorySyncEnabled(record)) continue;
     syncScope.push(key);
-    filters[key] = resolveCascadeFilter(key, metadata, syncType, undefined) ?? null;
+    filters[key] = resolveCascadeFilter(key, getSyncConfig(metadata, rxdb.entitySync), syncType, undefined) ?? null;
   }
   return { lineage, syncScope, filters };
 };
@@ -428,7 +429,7 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
             namespace: metadata.namespace,
             entity: metadata.name,
             branchId: context.targetBranchId,
-            syncType: getSyncType(metadata, rxdb.config.sync)
+            syncType: getSyncType(metadata, rxdb.entitySync)
           },
           () => rxdb.entityManager.instantiate(RxDBSync)
         );

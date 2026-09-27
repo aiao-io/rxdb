@@ -1,4 +1,4 @@
-import { EntityType, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { createEntitySyncResolver, EntityType, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { NEVER, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { GraphEntity } from '../@GraphEntity.js';
@@ -53,15 +53,12 @@ const setup = () => {
   const createEntityRef = vi.fn<CreateEntityRef>((_EntityType, data) =>
     Object.assign(Object.create(GraphRepositoryUnitNode.prototype) as GraphRepositoryUnitNode, data)
   );
+  const sync = { type: SyncType.None, local: { adapter: 'local' } } as const;
   const rxdb = {
     localAdapter$: of({ getRepository }),
     remoteAdapter$: NEVER,
-    config: {
-      sync: {
-        type: SyncType.None,
-        local: { adapter: 'local' }
-      }
-    },
+    entitySync: createEntitySyncResolver(sync),
+    config: { sync },
     entityManager: { createEntityRef },
     schemaManager: { getEntityType: vi.fn(() => undefined) },
     addEventListener: vi.fn(),
