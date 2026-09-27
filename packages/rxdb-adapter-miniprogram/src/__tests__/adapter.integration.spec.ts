@@ -11,10 +11,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createWaSqliteMiniProgramClient } from '../create-client.js';
 import type {
   MiniProgramFileSystemManager,
+  MiniProgramHost,
   MiniProgramWechatApi,
+  WaSqliteMiniProgramAdapterOptions,
+  WaSqliteMiniProgramHostOptions,
   WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
 import { ADAPTER_NAME } from '../mini-program.interface.js';
@@ -46,7 +50,7 @@ class NodeFileSystem implements MiniProgramFileSystemManager {
 }
 
 /** 建一个已连上的小程序 adapter，并把它挂到 RxDB 上。 */
-async function connectAdapter(dbName: string, options: WaSqliteMiniProgramOptions) {
+async function connectAdapter(dbName: string, options: WaSqliteMiniProgramAdapterOptions) {
   const rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
@@ -66,6 +70,7 @@ async function connectAdapter(dbName: string, options: WaSqliteMiniProgramOption
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const root of roots.splice(0)) rmSync(root, { force: true, recursive: true });
 });
 
@@ -95,5 +100,66 @@ describe('RxDBAdapterWaSqliteMiniProgram', () => {
     const rows = await second.adapter.query('SELECT title FROM probe ORDER BY id;');
     expect(rows.results[0].rows).toEqual([['from-adapter']]);
     await second.rxdb.disconnectAll();
+  });
+
+  it('只注入 host（不传 wechat）时走 host 的用户目录与文件系统，不读 wx 全局', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'aiao-miniprogram-host-'));
+    roots.push(userDataPath);
+    const wxTrap = { getFileSystemManager: vi.fn(), env: { USER_DATA_PATH: '/must-not-be-used' } };
+    vi.stubGlobal('wx', wxTrap);
+    const host: MiniProgramHost = {
+      platform: 'wechat',
+      displayName: '测试小程序',
+      shortName: '测试',
+      wasmRuntimeName: 'FakeWebAssembly',
+      capabilityNames: { fileSystem: 'fake.getFileSystemManager', userDataPath: 'fake.env.USER_DATA_PATH' },
+      userDataPath,
+      getFileSystemManager: () => new NodeFileSystem(),
+      requestRandomValues: length => Promise.resolve(new Uint8Array(length))
+    };
+    const options: WaSqliteMiniProgramHostOptions = { host, moduleFactory, wasmRuntime };
+
+    const first = await connectAdapter('adapter-host', options);
+    await first.adapter.writeQuery('CREATE TABLE probe (id INTEGER PRIMARY KEY, title TEXT NOT NULL);');
+    await first.adapter.writeQuery('INSERT INTO probe (title) VALUES (?);', ['from-host']);
+    await first.rxdb.disconnectAll();
+
+    expect(readdirSync(join(userDataPath, 'rxdb-wa-sqlite'))).toEqual([
+      expect.stringMatching(/^rxdb-adapter-host.*\.sqlite$/)
+    ]);
+
+    const second = await connectAdapter('adapter-host', options);
+    const rows = await second.adapter.query('SELECT title FROM probe ORDER BY id;');
+    expect(rows.results[0].rows).toEqual([['from-host']]);
+    await second.rxdb.disconnectAll();
+    expect(wxTrap.getFileSystemManager).not.toHaveBeenCalled();
+  });
+
+  it('同一客户端二次 init 传入重建的等价 host 不报冲突，换了用户目录才报', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'aiao-miniprogram-identity-'));
+    roots.push(userDataPath);
+    const createHost = (path: string): MiniProgramHost => ({
+      platform: 'wechat',
+      displayName: '测试小程序',
+      shortName: '测试',
+      wasmRuntimeName: 'FakeWebAssembly',
+      capabilityNames: { fileSystem: 'fake.getFileSystemManager', userDataPath: 'fake.env.USER_DATA_PATH' },
+      userDataPath: path,
+      getFileSystemManager: () => new NodeFileSystem(),
+      requestRandomValues: length => Promise.resolve(new Uint8Array(length))
+    });
+    const client = await createWaSqliteMiniProgramClient('client-identity', {
+      host: createHost(userDataPath),
+      moduleFactory,
+      wasmRuntime
+    });
+
+    await expect(
+      client.init('client-identity', { host: createHost(userDataPath), moduleFactory, wasmRuntime })
+    ).resolves.toBeUndefined();
+    await expect(
+      client.init('client-identity', { host: createHost(`${userDataPath}/other`), moduleFactory, wasmRuntime })
+    ).rejects.toThrow('rxdb-adapter-miniprogram conflicting initialization: userDataPath');
+    await client.disconnect();
   });
 });

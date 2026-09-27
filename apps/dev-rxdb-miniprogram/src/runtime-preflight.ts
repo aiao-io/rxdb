@@ -1,7 +1,7 @@
-export interface RuntimeCapability {
-  readonly name: string;
-  readonly available: boolean;
-  readonly source?: 'missing' | 'native' | 'polyfill' | 'wechat';
+import type { MiniProgramRuntimeCapability } from '@aiao/rxdb-adapter-miniprogram';
+
+/** demo 预检项：adapter 的能力项，外加「缺失但运行时可补齐」标记。 */
+export interface RuntimeCapability extends MiniProgramRuntimeCapability {
   readonly polyfillable?: boolean;
 }
 
