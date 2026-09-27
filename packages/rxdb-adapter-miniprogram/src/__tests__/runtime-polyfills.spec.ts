@@ -75,7 +75,8 @@ describe('微信小程序运行时引导', () => {
   it('随机池耗尽时立即失败', async () => {
     vi.stubGlobal('crypto', undefined);
     await prepareMiniProgramRuntime(createWechat(new Uint8Array(4)), { randomPoolSize: 4 });
-    expect(() => globalThis.crypto.getRandomValues(new Uint8Array(5))).toThrow('安全随机池已耗尽');
+    globalThis.crypto.getRandomValues(new Uint8Array(3));
+    expect(() => globalThis.crypto.getRandomValues(new Uint8Array(2))).toThrow('安全随机池已耗尽');
   });
 
   it('支持 wa-sqlite 使用的 UTF-16LE 解码', () => {

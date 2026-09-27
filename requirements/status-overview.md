@@ -9,26 +9,27 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 66   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 94   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **27 条 Backlog 里只有 5 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
+> **26 条 Backlog 里只有 4 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
 | Story                                                                                        | 当前进度                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 阶段 A（PGlite `memory` / `idb`）已交付：归档格式、manifest、兼容判定、错误码与 SHA-256 契约冻结在 `@aiao/rxdb` 核心，PGlite 侧备份 / 恢复 / 中断清理 / 独占 / 加密全部有浏览器实测；AC#9 峰值内存只有结构性证据（逐块流式、块大小上界），AC#14 未在启用 `rxdb-plugin-storage` 的库上实跑。阶段 B（SQLite 共享层）已交付：wa-sqlite / sqlite-wasm / 官方 sqlite / sqliteai 的内存与持久化存储共用一套逻辑转储与恢复，五个共享套件逐个 adapter 实跑；AC#16 带保留——四个持久化 VFS 都到不了 WAL，WAL 专属用例被跳过。阶段 C（桌面 host）阻塞于 AC#20 的三 OS packaged smoke |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## 待评审（0 条）
 
@@ -83,7 +84,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
-- ⬜ [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 抽 host + 可行性矩阵；B/C 按门禁放行支付宝 / 抖音 / 百度 / QQ
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)

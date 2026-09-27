@@ -10,12 +10,12 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 66     |
-| 🚧 In Progress | 1      |
+| 🚧 In Progress | 2      |
 | 👀 In Review   | 0      |
-| 📝 Backlog     | 27     |
+| 📝 Backlog     | 26     |
 | **未完成合计** | **28** |
 
-仓库还剩 **28 条**未关闭故事（1 In Progress + 0 In Review + 27 Backlog）。
+仓库还剩 **28 条**未关闭故事（2 In Progress + 0 In Review + 26 Backlog）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -34,7 +34,7 @@
 | -------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
 | [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)               | 📝 Backlog     | 未开工；无硬前置，同步配置的读取点分布在 9 个包，工作量按此估                                                                                                                                                      | 批次 3   |
 | [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) | 🚧 In Progress | 阶段 A（PGlite）与阶段 B（SQLite 共享层，四个浏览器 adapter）已交付；AC#9 峰值内存只有结构性证据、AC#14 未在启用 storage 插件的库上实跑、AC#16 的 WAL 用例在浏览器 VFS 上跑不到；阶段 C 阻塞于三 OS packaged smoke | 批次 3   |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 📝 Backlog     | 未开工；阶段 A（抽 host + 可行性矩阵）可单独合并，B/C 只吃矩阵 `supported`                                                                                                                                         | 批次 3   |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)               | 🚧 In Progress | 阶段 A 已交付（宿主契约 + [可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)）；B/C 阻塞于外部实验：第一档无 `supported`，候选抖音待开发者工具与真机验证 WASM 与可信随机源，支付宝判 `unsupported`  | 批次 3   |
 | [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)                    | 📝 Backlog     | 未立项；价值待证。demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化写系统表的潜在风险                                                                                    | 立项池   |
 | [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)    | 📝 Backlog     | 未立项；阶段 A 的存量库补列已定案由引擎在连接时自带，阶段 B 依赖 US-027 判定原语                                                                                                                                   | 立项池   |
 | [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                  | 📝 Backlog     | 未立项；价值待证。三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），剩下的是扁平实体手动排序的能力缺口，没有具名使用方；解锁后阶段 B 只对可排序实体重新打开，不等 US-027                                        | 立项池   |
