@@ -1182,6 +1182,10 @@
         "kind": "type"
       },
       {
+        "name": "backupChannelSuite",
+        "kind": "value"
+      },
+      {
         "name": "backupConcurrencySuite",
         "kind": "value"
       },
