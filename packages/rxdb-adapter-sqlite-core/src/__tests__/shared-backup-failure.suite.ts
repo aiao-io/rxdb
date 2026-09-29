@@ -7,24 +7,32 @@ import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteRestoreStage } from '../backup/sqlite-backup.interface.js';
-import type { SqliteBackupEngineObjects, SqliteBackupHarness, SqliteBackupStorageKind } from '../testing.js';
+import type {
+  SqliteBackupEngineObjects,
+  SqliteBackupHarness,
+  SqliteBackupUnsupportedConfiguration
+} from '../testing.js';
 import {
   backupErrorCode,
   chunkedSource,
   CLEAN_TARGET,
   collectingSink,
   createBackupRxDB,
+  hasMemoryStorage,
   interceptSql,
   makeNote,
+  memoryCaseTitle,
   persistentTargetState,
   PLAIN_ENTITIES,
   readNotes,
   restoreInto,
   rowsOf,
+  scratchLocation,
   SEEDED_NOTES,
   seedNotes,
   uniqueDbName,
   withRawClient,
+  type BackupLocation,
   type BackupRxDB
 } from './backup/sqlite-backup-fixture.js';
 
@@ -73,6 +81,19 @@ const errorTexts = (error: unknown): string[] => {
  */
 export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
   const engine = harness.engineObjects;
+  const memory = hasMemoryStorage(harness);
+  const scratch = scratchLocation(harness);
+  const { unsupportedConfiguration } = harness;
+  const unsupported = 'createAdapter' in unsupportedConfiguration ? unsupportedConfiguration : undefined;
+  const unsupportedTitle =
+    'createAdapter' in unsupportedConfiguration ?
+      `rejects ${unsupportedConfiguration.field} configurations outside the matrix (AC#8)`
+    : `rejects configurations outside the matrix (AC#8) — not applicable: ${unsupportedConfiguration.none}`;
+  const shadowTablesRejected = typeof harness.fts5 === 'object' ? harness.fts5.shadowTablesRejected : undefined;
+  const shadowTablesTitle =
+    shadowTablesRejected === undefined ?
+      'rejects databases with shadow tables it cannot write (AC#8) — not applicable: the backend writes shadow tables'
+    : `rejects databases with shadow tables it cannot write (AC#8): ${shadowTablesRejected}`;
   describe(`${harness.adapterName} backup / restore failures`, () => {
     const opened: BackupRxDB[] = [];
 
@@ -81,11 +102,11 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
     });
 
     const open = (
-      kind: SqliteBackupStorageKind,
+      location: BackupLocation,
       dbName = uniqueDbName('backup-fail-dst'),
       entities = PLAIN_ENTITIES
     ): BackupRxDB => {
-      const db = createBackupRxDB(harness, dbName, entities, kind);
+      const db = createBackupRxDB(harness, dbName, entities, location);
       opened.push(db);
       return db;
     };
@@ -95,7 +116,7 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
 
     const sharedSource = () => {
       seededSource ??= (async () => {
-        const source = createBackupRxDB(harness, uniqueDbName('backup-fail-src'), PLAIN_ENTITIES, 'memory');
+        const source = createBackupRxDB(harness, uniqueDbName('backup-fail-src'), PLAIN_ENTITIES, scratch);
         const adapter = await source.connect();
         await seedNotes(source.entities);
         const out = collectingSink();
@@ -150,20 +171,68 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         await expectClean(dbName);
       });
 
-      it.skipIf(!harness.fts5)('rejects an archive that needs a virtual-table module the target lacks', async () => {
-        const source = open('memory', uniqueDbName('backup-fail-src'));
-        const sourceAdapter = await source.connect();
-        await sourceAdapter.rawQuery('CREATE VIRTUAL TABLE backup_fts USING fts5(body)');
+      it.skipIf(harness.fts5 !== true)(
+        'rejects an archive that needs a virtual-table module the target lacks',
+        async () => {
+          const source = open(scratch, uniqueDbName('backup-fail-src'));
+          const sourceAdapter = await source.connect();
+          await sourceAdapter.rawQuery('CREATE VIRTUAL TABLE backup_fts USING fts5(body)');
+          const out = collectingSink();
+          const { manifest } = await sourceAdapter.backup(out.sink);
+          expect(manifest.adapter.extensions).toEqual(['fts5']);
+
+          const { stream, probe } = chunkedSource(out.bytes(), 512);
+          const { code, dbName } = await restorePersistent(stream, {}, adapter =>
+            interceptSql(adapter, sql =>
+              sql.includes('pragma_module_list') ? `${sql} WHERE name <> 'fts5'` : undefined
+            )
+          );
+          expect(code).toBe('incompatible_archive');
+          // manifest 在最前面：只读到它就拒绝，远没读到数据。
+          expect(probe.pulledBytes).toBeLessThan(out.bytes().byteLength);
+          await expectClean(dbName);
+        }
+      );
+    });
+
+    describe.skipIf(shadowTablesRejected === undefined)(shadowTablesTitle, () => {
+      /** 已播种、并建了一张 FTS5 虚表的源库；虚表的 `backup_fts_data` 等影子表只有引擎自己能写。 */
+      const searchSource = async () => {
+        const source = open(scratch, uniqueDbName('backup-fail-src'));
+        const adapter = await source.connect();
+        await seedNotes(source.entities);
+        await adapter.rawQuery('CREATE VIRTUAL TABLE backup_fts USING fts5(body)');
+        await adapter.rawQuery(`INSERT INTO backup_fts (body) VALUES ('restorable search row')`);
+        return { source, adapter };
+      };
+
+      it('refuses the backup before writing any bytes and keeps the source usable', async () => {
+        const { source, adapter } = await searchSource();
         const out = collectingSink();
-        const { manifest } = await sourceAdapter.backup(out.sink);
+        const error = await adapter.backup(out.sink).catch((caught: unknown) => caught);
+        expect(error).toMatchObject({
+          code: 'unsupported_combination',
+          details: { field: 'adapter.extensions', actual: ['fts5'] }
+        });
+        expect(out.chunkSizes).toEqual([]);
+        expect(out.aborted()).toBe(true);
+        // 转储的读事务已回滚：源库照常写
+        await makeNote(source.entities, 'after-refused-backup').save();
+        expect((await readNotes(adapter, source.entities)).map(note => note.title)).toContain('after-refused-backup');
+      });
+
+      it('refuses such an archive before touching the target', async () => {
+        const { adapter } = await searchSource();
+        // 转储只读影子表，读不受限制：放开源端的检查，造一份含影子表、名义上出自本 adapter 的归档
+        adapter['shadowTablesWritable'] = () => true;
+        const out = collectingSink();
+        const { manifest } = await adapter.backup(out.sink);
         expect(manifest.adapter.extensions).toEqual(['fts5']);
 
         const { stream, probe } = chunkedSource(out.bytes(), 512);
-        const { code, dbName } = await restorePersistent(stream, {}, adapter =>
-          interceptSql(adapter, sql => (sql.includes('pragma_module_list') ? `${sql} WHERE name <> 'fts5'` : undefined))
-        );
-        expect(code).toBe('incompatible_archive');
-        // manifest 在最前面：只读到它就拒绝，远没读到数据。
+        const { code, dbName } = await restorePersistent(stream);
+        expect(code).toBe('unsupported_combination');
+        // 结构条目紧跟在 manifest 之后：读到它就拒绝，远没读到数据
         expect(probe.pulledBytes).toBeLessThan(out.bytes().byteLength);
         await expectClean(dbName);
       });
@@ -194,7 +263,7 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
 
       it('keeps archived row values out of the error when SQLite rejects a row', async () => {
         const canary = 'leakcanary7f3a';
-        const source = open('memory', uniqueDbName('backup-fail-src'));
+        const source = open(scratch, uniqueDbName('backup-fail-src'));
         const sourceAdapter = await source.connect();
         await makeNote(source.entities, canary).save();
         const out = collectingSink();
@@ -220,15 +289,18 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         await expectClean(dbName);
       });
 
-      it('reports a damaged frame for a memory target without handing out a database', async () => {
-        const { archive } = await sharedSource();
-        const target = open('memory');
-        const corrupt = archive.slice();
-        corrupt[corrupt.byteLength - 64] ^= 0xff;
-        expect(await backupErrorCode(restoreInto(target, chunkedSource(corrupt).stream))).toBe('corrupt_archive');
-        // 失败的恢复不留下可被接管的连接：之后连接得到的是一个新的空库。
-        expect(await readNotes(await target.connect(), target.entities)).toEqual([]);
-      });
+      it.skipIf(!memory)(
+        memoryCaseTitle(harness, 'reports a damaged frame for a memory target without handing out a database'),
+        async () => {
+          const { archive } = await sharedSource();
+          const target = open('memory');
+          const corrupt = archive.slice();
+          corrupt[corrupt.byteLength - 64] ^= 0xff;
+          expect(await backupErrorCode(restoreInto(target, chunkedSource(corrupt).stream))).toBe('corrupt_archive');
+          // 失败的恢复不留下可被接管的连接：之后连接得到的是一个新的空库。
+          expect(await readNotes(await target.connect(), target.entities)).toEqual([]);
+        }
+      );
     });
 
     describe('only writes into empty, idle targets (AC#7)', () => {
@@ -276,7 +348,7 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         );
       });
 
-      for (const kind of ['memory', 'persistent'] as const) {
+      for (const kind of harness.storageKinds) {
         it(`refuses a connected ${kind} adapter`, async () => {
           const { archive } = await sharedSource();
           const target = open(kind);
@@ -298,24 +370,25 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
       });
     });
 
-    describe(`rejects ${harness.unsupportedField} configurations outside the matrix (AC#8)`, () => {
-      const unsupported = () => {
+    describe.skipIf(!unsupported)(unsupportedTitle, () => {
+      const configuration = unsupported as SqliteBackupUnsupportedConfiguration;
+      const unsupportedAdapter = () => {
         const rxdb = new RxDB({
           dbName: uniqueDbName('backup-unsupported'),
           context: { userId: 'backup-user' },
           entities: [],
           sync: { local: { adapter: harness.adapterName }, type: SyncType.None }
         });
-        return { rxdb, adapter: harness.createUnsupportedAdapter(rxdb) };
+        return { rxdb, adapter: configuration.createAdapter(rxdb) };
       };
 
       it('does not touch the sink when backing up', async () => {
-        const { rxdb, adapter } = unsupported();
+        const { rxdb, adapter } = unsupportedAdapter();
         const out = collectingSink();
         const error = await adapter.backup(out.sink).catch((caught: unknown) => caught);
         expect(error).toMatchObject({
           code: 'unsupported_combination',
-          details: { field: harness.unsupportedField }
+          details: { field: configuration.field }
         });
         expect(out.sink.locked).toBe(false);
         expect(out.aborted()).toBe(false);
@@ -325,7 +398,7 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
 
       it('does not read the source when restoring or cleaning up', async () => {
         const { archive } = await sharedSource();
-        const { rxdb, adapter } = unsupported();
+        const { rxdb, adapter } = unsupportedAdapter();
         const { stream, probe } = chunkedSource(archive);
         expect(await backupErrorCode(adapter.restore(stream))).toBe('unsupported_combination');
         expect(probe.pulledBytes).toBe(0);
@@ -416,7 +489,7 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         });
       }
 
-      it('aborts a memory target mid-stream', async () => {
+      it.skipIf(!memory)(memoryCaseTitle(harness, 'aborts a memory target mid-stream'), async () => {
         const { archive } = await sharedSource();
         const target = open('memory');
         const controller = new AbortController();

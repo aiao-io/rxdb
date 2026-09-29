@@ -154,4 +154,24 @@ describe('本地后端按需加载', () => {
     // 服务读候选是为了拿适配器名（`#backend`），到此为止；`create()` 只能由 `localDatabase()` 调。
     expect(service).not.toMatch(/#backend\.create\(|resolveLocalBackend\([^)]*\)\.create\(/);
   });
+
+  /**
+   * US-217 AC#18 的打包探针同样要守 E11：备份 / 恢复的实现住在两个桌面建库模块里，服务按选中的适配器名
+   * 动态加载，静态 import 会把适配器包拽回主 chunk。探针要在连接之前挂上——`restore` 模式下连接等恢复完成。
+   */
+  it('备份探针的桌面实现按适配器名动态加载，并挂在连接之前', () => {
+    const service = stripTsComments(read('services/local-database.service.ts'));
+    expect(service).toMatch(/await import\('\.\.\/setup_rxdb_desktop'\)\)\.archiveOps/);
+    expect(service).toMatch(/await import\('\.\.\/setup_rxdb_desktop_pglite'\)\)\.archiveOps/);
+    expect(service).not.toMatch(/^import .*setup_rxdb_desktop/m);
+    expect(service).not.toContain('@aiao/rxdb-adapter-electron');
+    expect(service).toContain('installBackupProbe(globalThis, mode, database');
+    // 调用点（`start()` 里的 `await this.#armBackupProbe(`）要排在连接之前。
+    const armed = service.indexOf('await this.#armBackupProbe(database)');
+    expect(armed).toBeGreaterThan(-1);
+    expect(armed).toBeLessThan(service.indexOf('connectLocalAdapter('));
+    for (const file of ['setup_rxdb_desktop.ts', 'setup_rxdb_desktop_pglite.ts']) {
+      expect(read(file), file).toMatch(/^export const archiveOps: BackupProbeArchiveOps = \{/m);
+    }
+  });
 });

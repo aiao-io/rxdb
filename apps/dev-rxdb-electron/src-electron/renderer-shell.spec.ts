@@ -216,8 +216,9 @@ describe('ELEC-10 file: 协议下的生产外壳', () => {
     const source = read('src-electron/main.ts');
     expect(source).toContain('registerSchemesAsPrivileged');
     expect(source).toContain('protocol.handle(APP_SCHEME');
-    // 生产入口仍是 APP_ENTRY_URL（US-208 起可带 ?pglite=1 查询参数），而不是回退到 loadFile。
-    expect(source).toContain('APP_ENTRY_URL');
+    // 生产入口仍是 APP_ENTRY_URL，而不是回退到 loadFile。e2e 开关（US-208 的 pglite=1、US-217 的
+    // backup-probe=）由 `resolveEntryUrl` 拼成查询参数，它以 APP_ENTRY_URL 为底由 main.utils.spec.ts 钉住。
+    expect(source).toContain('resolveEntryUrl(process.env)');
     expect(source).toMatch(/loadURL\(entryUrl\)/);
     expect(source).not.toMatch(/\bloadFile\(/);
   });

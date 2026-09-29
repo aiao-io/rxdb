@@ -45,6 +45,21 @@ export type PGliteBackupStorage =
     };
 
 /**
+ * 由 `SHOW server_version` 的原文算出引擎信息。
+ *
+ * @remarks
+ * 桌面 host 在目标库还不存在时就要回答引擎版本，拿到的是版本原文而不是可查询的运行时，
+ * 所以兼容键的算法单独导出，两端共用。
+ *
+ * @param version - `SHOW server_version` 的原文，例如 `17.5`
+ * @returns 引擎信息
+ */
+export const toPGliteEngineInfo = (version: string): PGliteEngineInfo => ({
+  version,
+  compatibility: `${PGLITE_BACKUP_ENGINE}-${version.split('.')[0]}`
+});
+
+/**
  * 读引擎版本并算出兼容键。
  *
  * @param db - 已就绪的 PGlite 或客户端
@@ -52,8 +67,7 @@ export type PGliteBackupStorage =
  */
 export const readPGliteEngineInfo = async (db: PGliteQueryable): Promise<PGliteEngineInfo> => {
   const result = await db.query<{ server_version: string }>('SHOW server_version');
-  const version = result.rows[0].server_version;
-  return { version, compatibility: `${PGLITE_BACKUP_ENGINE}-${version.split('.')[0]}` };
+  return toPGliteEngineInfo(result.rows[0].server_version);
 };
 
 let probe: Promise<PGliteEngineInfo> | undefined;

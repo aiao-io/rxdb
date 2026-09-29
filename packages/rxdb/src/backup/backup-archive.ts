@@ -85,8 +85,14 @@ const raceAbort = <T>(promise: Promise<T>, signal: AbortSignal | undefined): Pro
  * 把流 / 存储抛出的原始异常映射到稳定分类；已分类的原样返回。
  *
  * @remarks
- * `QuotaExceededError` → `storage_full`，其余 → `io_error`（原始异常挂在 `cause` 上）。
- * 按 `name` 判别而不是 `instanceof DOMException`：Worker / Comlink 转发的异常跨 realm 后只剩 `name`。
+ * 空间不足 → `storage_full`，其余 → `io_error`（原始异常挂在 `cause` 上）。空间不足认两种形态：
+ *
+ * - 浏览器存储的 `QuotaExceededError`：按 `name` 判别而不是 `instanceof DOMException`，
+ *   Worker / Comlink 转发的异常跨 realm 后只剩 `name`；
+ * - Node 文件流（如 `Writable.toWeb(createWriteStream(...))`）的 `code` 为 `ENOSPC` / `EDQUOT`。
+ *
+ * 错误经 Electron IPC 或 Tauri 命令转发时 `code` 会丢，跨进程的输出流应以
+ * `new DOMException(message, 'QuotaExceededError')` 报空间不足。
  * adapter 在自己的存储读写点复用它，保证同一种失败在所有 adapter 上落到同一个 code。
  *
  * @param error - 原始异常
@@ -95,8 +101,9 @@ const raceAbort = <T>(promise: Promise<T>, signal: AbortSignal | undefined): Pro
  */
 export const classifyBackupIoError = (error: unknown, message: string): RxDBBackupError => {
   if (error instanceof RxDBBackupError) return error;
-  const quota = (error as { name?: unknown } | null | undefined)?.name === 'QuotaExceededError';
-  return backupError(quota ? 'storage_full' : 'io_error', message, undefined, error);
+  const failure = error as { readonly name?: unknown; readonly code?: unknown } | null | undefined;
+  const full = failure?.name === 'QuotaExceededError' || failure?.code === 'ENOSPC' || failure?.code === 'EDQUOT';
+  return backupError(full ? 'storage_full' : 'io_error', message, undefined, error);
 };
 
 const encodeFrame = (type: number, payload: Uint8Array): Uint8Array => {

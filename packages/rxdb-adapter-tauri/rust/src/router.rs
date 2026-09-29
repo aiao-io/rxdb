@@ -476,6 +476,8 @@ mod tests {
         for request in [
             json!({ "kind": "execute", "sessionId": session, "sql": "SELECT 1", "bindings": [] }),
             json!({ "kind": "version", "sessionId": session }),
+            // 静音同样越权：它能让原窗口的响应式查询再也收不到变更。
+            json!({ "kind": "mute", "sessionId": session, "muted": true }),
             json!({ "kind": "close", "sessionId": session }),
         ] {
             let response = router.handle_owned(&request, "second");

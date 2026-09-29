@@ -51,6 +51,11 @@
 //! 改写只发生在这个**测试替身**里：`session.rs` / `protocol.rs` 一行不动。产品代码里出现
 //! 「版本可配置」的分支，等于给线协议开了一个降级口子——而版本号存在的意义正是不许降级。
 //!
+//! # 峰值内存探针（US-217 AC#9）
+//!
+//! `{ "id": 7, "probe": "peakRss" }` 不进路由器，直接答 `{ "id": 7, "payload": <字节数> }`：本进程自启动以来
+//! 由操作系统记账的峰值常驻内存（`getrusage` 的 `ru_maxrss`）。只在 unix 上实现，别处答一条协议错误。
+//!
 //! # 每条请求一个线程
 //!
 //! Tauri 把每次 `invoke` 派到自己的线程上，并发的 command 是真并发。这里必须照做：
@@ -171,6 +176,13 @@ fn handle_line(host: &DesktopRouter, line: &str, owner: &str, version_override: 
             "payload": { "kind": "error", "code": "protocol_violation", "message": "stdin line is not valid JSON" }
         });
     };
+    if request.get("probe").and_then(Value::as_str) == Some("peakRss") {
+        let payload = match peak_rss_bytes() {
+            Ok(bytes) => json!(bytes),
+            Err(message) => json!({ "kind": "error", "code": "protocol_violation", "message": message }),
+        };
+        return json!({ "id": request.get("id").cloned().unwrap_or(Value::Null), "payload": payload });
+    }
     let mut payload = host.handle_owned(request.get("payload").unwrap_or(&Value::Null), owner);
     if let Some(version) = version_override {
         // 按 JSON 指针改而不是按 `kind` 分支：`open` 与 `file.open` 两族应答都带这个字段，
@@ -180,6 +192,26 @@ fn handle_line(host: &DesktopRouter, line: &str, owner: &str, version_override: 
         }
     }
     json!({ "id": request.get("id").cloned().unwrap_or(Value::Null), "payload": payload })
+}
+
+/// 本进程自启动以来的峰值常驻内存（字节）。
+///
+/// `ru_maxrss` 的单位在 macOS 上是字节，在 Linux 等其余 unix 上是 KiB。
+#[cfg(unix)]
+fn peak_rss_bytes() -> Result<u64, String> {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
+    // SAFETY: `getrusage` 只写入调用方给的那一个 `rusage`，指针在调用期间有效。
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) } != 0 {
+        return Err(format!("getrusage failed: {}", std::io::Error::last_os_error()));
+    }
+    // SAFETY: 调用成功即已写满；`zeroed` 本身也是合法的 `rusage`。
+    let max_rss = u64::try_from(unsafe { usage.assume_init() }.ru_maxrss).map_err(|error| error.to_string())?;
+    Ok(if cfg!(target_os = "macos") { max_rss } else { max_rss * 1024 })
+}
+
+#[cfg(not(unix))]
+fn peak_rss_bytes() -> Result<u64, String> {
+    Err("the peak RSS probe is only implemented on unix".to_owned())
 }
 
 /// 把一条变更事件写到 stdout，规则与生产的 `commands.rs::deliver_change` 一致。

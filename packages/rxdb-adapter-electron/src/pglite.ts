@@ -24,6 +24,15 @@ export { RxDBAdapterElectronPGlite } from './pglite/RxDBAdapterElectronPGlite.js
 
 export { DesktopPGliteClient, type DesktopPGliteClientOptions } from './pglite/desktop-pglite-client.js';
 
+// 备份在 adapter 上；恢复的目标还没连接、没有 adapter 可调，只能是自由函数。
+// 选项与阶段沿用浏览器 PGlite 的类型，一并转出，调用方不必为签名再去 import 那个 peer。
+export type { PGliteRestoreOptions, PGliteRestoreStage } from '@aiao/rxdb-adapter-pglite';
+export {
+  cleanupIncompleteElectronPGliteRestore,
+  restoreElectronPGliteDatabase,
+  type ElectronPGliteRestoreTarget
+} from './pglite/restore-electron-pglite-database.js';
+
 // 协议常量与错误类型原样转出，理由与默认入口一致：下游按名字 import，
 // 实现搬到哪个共享包不该让用户改行。
 export {

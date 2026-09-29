@@ -345,6 +345,53 @@ describe('change notification', () => {
   });
 });
 
+/**
+ * 恢复整库时 renderer 让本会话静音（US-217）。
+ *
+ * @remarks
+ * 恢复写进去的系统表行不是新变更，推给窗口会让订阅者把整库当成刚发生的写入重放一遍。
+ */
+describe('mute', () => {
+  const createChangeTable = (sessionId: string): Promise<SqliteResult> =>
+    execute(sessionId, 'CREATE TABLE IF NOT EXISTS "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, payload TEXT)');
+
+  it('pushes nothing for a muted session until it is unmuted', async () => {
+    const sessionId = await openSession();
+    await createChangeTable(sessionId);
+    expect(await host.handle({ kind: 'mute', sessionId, muted: true })).toEqual({ kind: 'mute' });
+    await execute(sessionId, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['restored']);
+    expect(await host.handle({ kind: 'mute', sessionId, muted: false })).toEqual({ kind: 'mute' });
+    await execute(sessionId, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['live']);
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(1);
+    });
+    expect(changes[0]).toMatchObject({ sessionId, event: { rowIds: [2n] } });
+  });
+
+  // 静音的是恢复用的那条连接；同一个库文件上别的窗口照常收到自己的写入
+  it('keeps the other sessions on the same file audible', async () => {
+    const restoring = await openSession();
+    const other = await openSession();
+    await createChangeTable(restoring);
+    await host.handle({ kind: 'mute', sessionId: restoring, muted: true });
+    await execute(restoring, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['restored']);
+    await execute(other, 'INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['live']);
+    await vi.waitFor(() => {
+      expect(changes).toHaveLength(1);
+    });
+    expect(changes[0]).toMatchObject({ sessionId: other, event: { rowIds: [2n] } });
+  });
+
+  it('rejects muting an unknown session', async () => {
+    const response = await host.handle({
+      kind: 'mute',
+      sessionId: '7f1d2c3b-4a59-4e6f-8b0d-1e2f3a4b5c6d',
+      muted: true
+    });
+    expect(response).toMatchObject({ kind: 'error', code: 'session_closed' });
+  });
+});
+
 describe('close', () => {
   it('releases the session so later requests are rejected', async () => {
     const sessionId = await openSession();

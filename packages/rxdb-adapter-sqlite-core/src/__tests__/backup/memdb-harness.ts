@@ -117,16 +117,21 @@ class MemdbAdapter extends RxDBAdapterSqliteBase {
 const createMemdbHarness = (engine: boolean): SqliteBackupHarness => ({
   adapterName: 'memdb',
   persistentLabel: 'memdb',
+  storageKinds: ['memory', 'persistent'],
   // 基类的 `repository_map` 以 `this` 为泛型参数，Map 不变让任何子类都不能直接当基类用，只能经 unknown 上转。
   createAdapter: (rxdb: RxDB, kind: SqliteBackupStorageKind) =>
     new MemdbAdapter(rxdb, { opfs: kind === 'persistent', engine }) as unknown as RxDBAdapterSqliteBase,
-  createUnsupportedAdapter: (rxdb: RxDB) =>
-    new MemdbAdapter(rxdb, { opfs: true, opfsFallback: 'memory', engine }) as unknown as RxDBAdapterSqliteBase,
-  unsupportedField: 'opfsFallback',
+  unsupportedConfiguration: {
+    createAdapter: (rxdb: RxDB) =>
+      new MemdbAdapter(rxdb, { opfs: true, opfsFallback: 'memory', engine }) as unknown as RxDBAdapterSqliteBase,
+    field: 'opfsFallback'
+  },
   fts5: true,
   persistentJournalMode: 'memory',
   engineObjects: engine ? ENGINE_OBJECTS : null,
-  interruptWorker: { unsupported: 'memdb 只活在页面的 WASM 实例里，Worker 被强杀后存储随之消失' }
+  interruptWorker: { unsupported: 'memdb 只活在页面的 WASM 实例里，Worker 被强杀后存储随之消失' },
+  foreignHost: { unsupported: 'memdb 只活在页面的 WASM 实例里，没有别的进程能打开它' },
+  channelHost: { unsupported: 'memdb 与测试同在一个页面，没有 renderer / host 通道' }
 });
 
 /** sqlite-core 的备份后端契约。 */

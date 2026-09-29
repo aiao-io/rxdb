@@ -630,7 +630,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * 直到 `lockTimeoutMs` 后报 `lock_timeout`。
    *
    * 归档包含整个数据目录（业务表、系统表、keyring 的密文），加密列保持密文，不需要解锁。
-   * 目前支持 `memory` 与 `idb://` 存储；OPFS-AHP（Worker）与桌面代理客户端报 `unsupported_combination`。
+   * 目前支持 `memory` 与 `idb://` 存储，以及覆写了 {@link backupStorage} 的桌面代理子类；
+   * OPFS-AHP（Worker）报 `unsupported_combination`。
    * `idb://` 存储同时被其他连接（同页面另一个实例、其他标签页或 Worker）打开时报 `target_busy`：
    * 每个连接各有一份内存视图，本连接的快照看不到它们的提交。
    *
@@ -647,16 +648,16 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * ```
    */
   async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
-    const dataDir = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir;
-    const storage = resolvePGliteBackupStorage(dataDir, 'backup');
+    const storage = this.backupStorage();
     if (options.signal?.aborted) {
       throw new RxDBBackupError('aborted', 'PGlite backup was aborted', { cause: options.signal.reason });
     }
     this.#assertWritable();
     await this.ready();
     const client = await this.#getClient();
+    const extensions = await this.backupExtensions();
     return writePGliteBackup(
-      { rxdb: this.rxdb, options: this.options, client, storage, queue: this.#queue },
+      { rxdb: this.rxdb, adapterName: this.name, client, storage, extensions, queue: this.#queue },
       sink,
       options
     );
@@ -738,6 +739,33 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
+  }
+
+  /**
+   * 备份 manifest 记录的存储后端。
+   *
+   * @remarks
+   * 默认按 `dataDir` 解析，只接受 `memory` 与 `idb://`；桌面代理子类覆写为 host 上的目录存储。
+   * 在排队与连接之前调用，不支持的存储不会占用数据库。
+   *
+   * @returns 存储后端标识
+   * @throws RxDBBackupError `unsupported_combination` 当前存储不支持备份
+   */
+  protected backupStorage(): string {
+    const dataDir = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir;
+    return resolvePGliteBackupStorage(dataDir, 'backup').kind;
+  }
+
+  /**
+   * 备份 manifest 记录的扩展名（已排序）。
+   *
+   * @remarks
+   * 默认取 adapter 选项里注册的扩展；桌面代理子类覆写为 host 运行时实际加载的扩展。
+   *
+   * @returns 扩展名
+   */
+  protected backupExtensions(): Promise<readonly string[]> {
+    return Promise.resolve(pgliteBackupExtensions(this.options));
   }
 
   /** PGlite NOTIFY 事件监听器（INSERT/UPDATE/DELETE 共用） */

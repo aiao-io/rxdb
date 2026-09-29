@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 import packageJson from '../../package.json';
 import {
   adapterConstructionSuite,
+  backupChannelSuite,
   backupConcurrencySuite,
   backupEncryptionSuite,
   backupFailureSuite,
   backupInterruptSuite,
+  backupMemorySuite,
+  backupMemoryTools,
   backupRoundtripSuite,
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
@@ -16,6 +19,7 @@ import {
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  hostKillingRestoreWorker,
   joinSqlSuite,
   menuIntegrationSuite,
   querySqlSuite,
@@ -58,10 +62,12 @@ const suiteExports = [
 ];
 
 const backupSuiteExports = [
+  backupChannelSuite,
   backupConcurrencySuite,
   backupEncryptionSuite,
   backupFailureSuite,
   backupInterruptSuite,
+  backupMemorySuite,
   backupRoundtripSuite
 ];
 
@@ -101,10 +107,22 @@ describe('testing subpath', () => {
     for (const suite of suiteExports) expect(suite).toBeTypeOf('function');
   });
 
-  it('exports every backup suite and the interrupt-worker entry as functions', () => {
-    expect(backupSuiteExports).toHaveLength(5);
+  it('exports every backup suite and the interrupt entries as functions', () => {
+    expect(backupSuiteExports).toHaveLength(7);
     for (const suite of backupSuiteExports) expect(suite).toBeTypeOf('function');
     expect(serveInterruptedRestore).toBeTypeOf('function');
+    expect(hostKillingRestoreWorker).toBeTypeOf('function');
+  });
+
+  it('exports the backup memory tools with the frozen payload and size tiers', () => {
+    // 桌面 host（SQLite 与 Electron PGlite）的 AC#9 用例共用这一份工具：负载与两档库大小改了，
+    // story 里冻结的实测数字就不再对得上。
+    expect(backupMemoryTools.payloadBytes).toBe(256 * 1024);
+    expect(backupMemoryTools.sizesMib).toEqual([24, 96]);
+    const noise = backupMemoryTools.noise(64, 3);
+    expect(noise).toHaveLength(64);
+    expect(backupMemoryTools.noise(64, 3)).toEqual(noise);
+    expect(backupMemoryTools.noise(64, 4)).not.toEqual(noise);
   });
 
   it('clones entity classes without reusing constructors', () => {

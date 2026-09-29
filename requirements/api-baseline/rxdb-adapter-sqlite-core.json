@@ -752,6 +752,10 @@
         "kind": "value"
       },
       {
+        "name": "connectDesktopRestoreTarget",
+        "kind": "value"
+      },
+      {
         "name": "DEFAULT_DATABASE_SUFFIX",
         "kind": "value"
       },
@@ -808,7 +812,15 @@
         "kind": "value"
       },
       {
+        "name": "DESKTOP_PGLITE_EXCLUDED_FILES",
+        "kind": "value"
+      },
+      {
         "name": "DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES",
         "kind": "value"
       },
       {
@@ -908,6 +920,10 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostMuteRequest",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostOpenRequest",
         "kind": "type"
       },
@@ -936,6 +952,18 @@
         "kind": "type"
       },
       {
+        "name": "DesktopPgliteBackupBeginRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteBackupCursorRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteBackupItem",
+        "kind": "type"
+      },
+      {
         "name": "DesktopPgliteBeginRequest",
         "kind": "type"
       },
@@ -944,7 +972,23 @@
         "kind": "type"
       },
       {
+        "name": "DesktopPgliteDataDirEntry",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteDataDirItem",
+        "kind": "type"
+      },
+      {
         "name": "DesktopPgliteDirectoryStorage",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteEngineRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteEngineResult",
         "kind": "type"
       },
       {
@@ -993,6 +1037,22 @@
       },
       {
         "name": "DesktopPgliteResponse",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRestoreQueryRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRestoreStepRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRestoreTargetRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteRestoreWriteRequest",
         "kind": "type"
       },
       {
@@ -1068,6 +1128,14 @@
         "kind": "value"
       },
       {
+        "name": "parseDesktopPgliteBackupItem",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopPgliteEngineResult",
+        "kind": "value"
+      },
+      {
         "name": "parseDesktopPgliteHandshakeResult",
         "kind": "value"
       },
@@ -1130,6 +1198,34 @@
         "kind": "value"
       },
       {
+        "name": "BackupMemoryBudget",
+        "kind": "type"
+      },
+      {
+        "name": "BackupMemoryDelta",
+        "kind": "type"
+      },
+      {
+        "name": "BackupMemoryMeasurement",
+        "kind": "type"
+      },
+      {
+        "name": "backupMemorySuite",
+        "kind": "value"
+      },
+      {
+        "name": "backupMemoryTools",
+        "kind": "value"
+      },
+      {
+        "name": "BackupMemoryTools",
+        "kind": "type"
+      },
+      {
+        "name": "BackupRendererMeter",
+        "kind": "type"
+      },
+      {
         "name": "backupRoundtripSuite",
         "kind": "value"
       },
@@ -1166,8 +1262,20 @@
         "kind": "value"
       },
       {
+        "name": "ForeignSqliteHost",
+        "kind": "type"
+      },
+      {
+        "name": "hostKillingRestoreWorker",
+        "kind": "value"
+      },
+      {
         "name": "joinSqlSuite",
         "kind": "value"
+      },
+      {
+        "name": "KillableRestoreHost",
+        "kind": "type"
       },
       {
         "name": "menuIntegrationSuite",
@@ -1194,6 +1302,10 @@
         "kind": "type"
       },
       {
+        "name": "RestoreInterruptWorker",
+        "kind": "type"
+      },
+      {
         "name": "rxdbAdapterSuite",
         "kind": "value"
       },
@@ -1211,6 +1323,10 @@
       },
       {
         "name": "SqliteBackupStorageKind",
+        "kind": "type"
+      },
+      {
+        "name": "SqliteBackupUnsupportedConfiguration",
         "kind": "type"
       },
       {

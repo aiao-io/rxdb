@@ -129,6 +129,7 @@ impl Host {
             } => self.execute(&session_id, &sql, &bindings),
             Request::Version { session_id } => self.version(&session_id),
             Request::Close { session_id } => self.close(&session_id),
+            Request::Mute { session_id, muted } => self.mute(&session_id, muted),
         }
     }
 
@@ -169,6 +170,13 @@ impl Host {
         let engine = self.require_session(session_id)?;
         let version = lock_through_poison(&engine).version()?;
         Ok(json!({ "kind": "version", "result": version }))
+    }
+
+    /// 暂停 / 恢复一个会话的变更事件。只影响这一条连接，同一个库上别的会话照常推送。
+    fn mute(&self, session_id: &str, muted: bool) -> HostResult<Value> {
+        let engine = self.require_session(session_id)?;
+        lock_through_poison(&engine).set_change_events_muted(muted)?;
+        Ok(json!({ "kind": "mute" }))
     }
 
     /// 关闭会话。
@@ -487,6 +495,61 @@ mod tests {
         assert_eq!(event["tableName"], "rxdb$rxdb_change");
         assert_eq!(event["rowIds"], json!([{ "$bigint": "1" }]));
         assert!(event["recordAt"]["$date"].as_i64().unwrap() > 0);
+    }
+
+    /// 恢复整库时静音恢复用的会话（US-217）：静音期间的写入不推送，解除静音后照常推送。
+    #[test]
+    fn pushes_nothing_for_a_muted_session_until_it_is_unmuted() {
+        let harness = harness();
+        let session = open_session(&harness.host, "app.sqlite3");
+        run(&harness.host, &session, "CREATE TABLE \"rxdb$rxdb_change\" (a)");
+
+        let muted = harness
+            .host
+            .handle(&json!({ "kind": "mute", "sessionId": session, "muted": true }));
+        assert_eq!(muted, json!({ "kind": "mute" }));
+        run(&harness.host, &session, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+        let unmuted = harness
+            .host
+            .handle(&json!({ "kind": "mute", "sessionId": session, "muted": false }));
+        assert_eq!(unmuted, json!({ "kind": "mute" }));
+        run(&harness.host, &session, "INSERT INTO \"rxdb$rxdb_change\" VALUES (2)");
+        harness.host.close_all();
+
+        let delivered: Vec<Value> = harness.events.try_iter().collect();
+        assert_eq!(delivered.len(), 1, "{delivered:?}");
+        assert_eq!(delivered[0]["event"]["rowIds"], json!([{ "$bigint": "2" }]));
+    }
+
+    /// 静音按会话生效：同一个库上别的会话（别的窗口）照常收到自己的变更。
+    #[test]
+    fn keeps_the_other_sessions_on_the_same_file_audible() {
+        let harness = harness();
+        let restoring = open_session(&harness.host, "app.sqlite3");
+        let other = open_session(&harness.host, "app.sqlite3");
+        run(&harness.host, &restoring, "CREATE TABLE \"rxdb$rxdb_change\" (a)");
+        harness
+            .host
+            .handle(&json!({ "kind": "mute", "sessionId": restoring, "muted": true }));
+
+        run(&harness.host, &restoring, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+        run(&harness.host, &other, "INSERT INTO \"rxdb$rxdb_change\" VALUES (2)");
+        harness.host.close_all();
+
+        let delivered: Vec<Value> = harness.events.try_iter().collect();
+        assert_eq!(delivered.len(), 1, "{delivered:?}");
+        assert_eq!(delivered[0]["sessionId"], other.as_str());
+        assert_eq!(delivered[0]["event"]["rowIds"], json!([{ "$bigint": "2" }]));
+    }
+
+    #[test]
+    fn rejects_muting_an_unknown_session() {
+        let harness = harness();
+        let response = harness.host.handle(&json!({
+            "kind": "mute", "sessionId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "muted": true
+        }));
+        assert_eq!(response["kind"], "error");
+        assert_eq!(response["code"], "session_closed");
     }
 
     /// 库名校验发生在建目录之前，越界的名字不得在磁盘上留下任何痕迹。

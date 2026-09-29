@@ -165,11 +165,16 @@ struct PendingState {
     hard_deadline: Option<Instant>,
     /// 这条连接上是否有一次 `execute()` 正在跑。见 [`PendingState::due_in`]。
     execute_in_flight: bool,
+    /// 静音期间触发器报上来的变更直接丢弃，见 [`Engine::set_change_events_muted`]。
+    muted: bool,
     closed: bool,
 }
 
 impl PendingState {
     fn record(&mut self, change_type: i64, table_name: &str, row_id: i64) {
+        if self.muted {
+            return;
+        }
         let existing = self
             .groups
             .iter_mut()
@@ -397,6 +402,20 @@ impl Engine {
         self.db()
             .query_row("SELECT sqlite_version()", [], |row| row.get::<_, String>(0))
             .map_err(|error| self.statement_error("SELECT sqlite_version()", &error))
+    }
+
+    /// 暂停 / 恢复变更事件采集。
+    ///
+    /// 恢复整库时静音（US-217）：恢复写进去的系统表行不是新变更。静音前已经攒下的批次不丢，
+    /// 照常按截止时间发出——它们记录的是静音前真实发生的写入。
+    ///
+    /// 标志与批次在同一把锁下：触发器回调入批时要先拿这把锁，因此这里返回之后，
+    /// 本连接后续语句的变更一条都进不了批次。
+    pub fn set_change_events_muted(&mut self, muted: bool) -> HostResult<()> {
+        self.assert_open()?;
+        let mut pending = self.state.0.lock().expect("pending state mutex poisoned");
+        pending.muted = muted;
+        Ok(())
     }
 
     /// 断开连接并释放文件句柄。
@@ -1502,6 +1521,47 @@ mod tests {
             ErrorCode::SessionClosed
         );
         assert_eq!(harness.engine.version().unwrap_err().code, ErrorCode::SessionClosed);
+    }
+
+    /// 恢复整库时静音（US-217）：恢复写进去的系统表行不是新变更，不入批也不派发；解除静音后照常采集。
+    #[test]
+    fn drops_the_changes_written_while_muted_and_resumes_once_unmuted() {
+        let mut harness = harness(0);
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        harness.engine.set_change_events_muted(true).unwrap();
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+        harness.engine.set_change_events_muted(false).unwrap();
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (2)");
+        harness.engine.close().unwrap();
+
+        let delivered: Vec<ChangeEvent> = harness.events.try_iter().collect();
+        assert_eq!(delivered.len(), 1, "{delivered:?}");
+        assert_eq!(delivered[0].row_ids, [2]);
+    }
+
+    /// 静音前已经攒下的批次记录的是静音前真实发生的写入，照常发出。
+    #[test]
+    fn still_delivers_the_batch_recorded_before_muting() {
+        let mut harness = harness(1_000);
+        run(&mut harness.engine, "CREATE TABLE \"rxdb$rxdb_change\" (a INTEGER)");
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (1)");
+        harness.engine.set_change_events_muted(true).unwrap();
+        run(&mut harness.engine, "INSERT INTO \"rxdb$rxdb_change\" VALUES (2)");
+        harness.engine.close().unwrap();
+
+        let delivered: Vec<ChangeEvent> = harness.events.try_iter().collect();
+        assert_eq!(delivered.len(), 1, "{delivered:?}");
+        assert_eq!(delivered[0].row_ids, [1]);
+    }
+
+    #[test]
+    fn refuses_to_mute_a_closed_engine() {
+        let mut harness = harness(0);
+        harness.engine.close().unwrap();
+        assert_eq!(
+            harness.engine.set_change_events_muted(true).unwrap_err().code,
+            ErrorCode::SessionClosed
+        );
     }
 
     /// 同一个库上再开一条连接，用于验证跨连接的关闭行为。

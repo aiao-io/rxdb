@@ -7,7 +7,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import type { SqliteBackupHarness, SqliteBackupStorageKind } from '../testing.js';
+import type { SqliteBackupHarness } from '../testing.js';
 import {
   BACKUP_PASSPHRASE,
   backupErrorCode,
@@ -21,7 +21,9 @@ import {
   PLAIN_ENTITIES,
   restoreInto,
   rowsOf,
+  scratchLocation,
   uniqueDbName,
+  type BackupLocation,
   type BackupRxDB,
   type BackupSecret
 } from './backup/sqlite-backup-fixture.js';
@@ -57,6 +59,7 @@ const secretsOf = async (adapter: RxDBAdapterSqliteBase, entities: BackupRxDB['e
  * @param harness - 后端
  */
 export const backupEncryptionSuite = (harness: SqliteBackupHarness): void => {
+  const scratch = scratchLocation(harness);
   describe(`${harness.adapterName} backup encryption`, () => {
     const opened: BackupRxDB[] = [];
 
@@ -64,15 +67,18 @@ export const backupEncryptionSuite = (harness: SqliteBackupHarness): void => {
       await Promise.all(opened.splice(0).map(db => db.close()));
     });
 
-    const open = (dbName: string, kind: SqliteBackupStorageKind, entities = ENCRYPTED_ENTITIES): BackupRxDB => {
-      const db = createBackupRxDB(harness, dbName, entities, kind);
+    const open = (dbName: string, location: BackupLocation, entities = ENCRYPTED_ENTITIES): BackupRxDB => {
+      const db = createBackupRxDB(harness, dbName, entities, location);
       opened.push(db);
       return db;
     };
 
-    /** 建一个含哨兵密文的加密库并备份；`locked` 决定备份时 keyring 的状态。 */
+    /**
+     * 建一个含哨兵密文的加密库并备份；`locked` 决定备份时 keyring 的状态。
+     * 源库放在 scratch 位置，同名的持久化目标因此总是「新位置」。
+     */
     const encryptedBackup = async (dbName: string, locked: boolean) => {
-      const source = open(dbName, 'memory');
+      const source = open(dbName, scratch);
       const adapter = await source.connect();
       await adapter.encryption.unlock({ passphrase: BACKUP_PASSPHRASE });
       const Secret = source.entities[0] as typeof BackupSecret;
@@ -98,7 +104,7 @@ export const backupEncryptionSuite = (harness: SqliteBackupHarness): void => {
     }
 
     it('detects the sentinel in a control archive that stores it as plaintext', async () => {
-      const source = open(uniqueDbName('backup-enc-ctl'), 'memory', PLAIN_ENTITIES);
+      const source = open(uniqueDbName('backup-enc-ctl'), scratch, PLAIN_ENTITIES);
       const adapter = await source.connect();
       const note = makeNote(source.entities, 'control');
       note.remark = SENTINEL;
@@ -108,7 +114,7 @@ export const backupEncryptionSuite = (harness: SqliteBackupHarness): void => {
       expect(containsBytes(out.bytes(), SENTINEL)).toBe(true);
     });
 
-    for (const kind of ['memory', 'persistent'] as const) {
+    for (const kind of harness.storageKinds) {
       it(`restores into a new ${kind} location locked, with the keyring metadata unchanged`, async () => {
         const dbName = uniqueDbName('backup-enc');
         const { archive, keyring } = await encryptedBackup(dbName, true);
@@ -137,11 +143,14 @@ export const backupEncryptionSuite = (harness: SqliteBackupHarness): void => {
       expect(await persistentTargetState(harness, dbName)).toEqual(CLEAN_TARGET);
     });
 
-    it('rejects restoring an encrypted archive into an unencrypted schema', async () => {
-      const dbName = uniqueDbName('backup-enc');
-      const { archive } = await encryptedBackup(dbName, true);
-      const target = open(dbName, 'memory', PLAIN_ENTITIES);
-      expect(await backupErrorCode(restoreInto(target, chunkedSource(archive).stream))).toBe('incompatible_archive');
-    });
+    for (const kind of harness.storageKinds) {
+      it(`rejects restoring an encrypted archive into an unencrypted ${kind} schema`, async () => {
+        const dbName = uniqueDbName('backup-enc');
+        const { archive } = await encryptedBackup(dbName, true);
+        const target = open(dbName, kind, PLAIN_ENTITIES);
+        expect(await backupErrorCode(restoreInto(target, chunkedSource(archive).stream))).toBe('incompatible_archive');
+        if (kind === 'persistent') expect(await persistentTargetState(harness, dbName)).toEqual(CLEAN_TARGET);
+      });
+    }
   });
 };

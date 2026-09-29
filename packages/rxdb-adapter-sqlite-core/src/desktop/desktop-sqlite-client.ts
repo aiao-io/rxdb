@@ -7,6 +7,7 @@
 import type { SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from '../sqlite-core.interface.js';
+import type { SqliteBlankDatabase } from '../sqlite-core.types.js';
 import { RxDBAdapterDesktopError } from './desktop-error.js';
 import {
   assertDesktopHostResponse,
@@ -112,6 +113,16 @@ export function resolveDesktopHostTransport(): DesktopHostTransport {
   return injected;
 }
 
+/**
+ * 桌面 host 上新建空库的描述：没有任何用户对象。
+ *
+ * @remarks
+ * 两个 host 打开库时只装 TEMP 通知触发器，它们活在本连接的 temp schema 里，不进主库的 `sqlite_schema`；
+ * 主库里不建任何对象，也不写任何行。哪天 host 开始在主库里建对象，恢复会把新建的目标判成
+ * `target_not_empty` 而不是悄悄放过，共享备份套件的「目标仍干净」断言也会跟着红。
+ */
+const BLANK_DESKTOP_DATABASE: SqliteBlankDatabase = Object.freeze({ objects: [], shape: '', description: '' });
+
 const isChangeMessage = (message: unknown): message is { sessionId: string; event: unknown } =>
   typeof message === 'object' && message !== null && (message as { kind?: unknown }).kind === 'change';
 
@@ -190,6 +201,19 @@ const parseOpenResultOrClose = async (
     throw error;
   }
 };
+
+/** 把传输层的失败换成 `host_unavailable`；已经是桌面错误的原样抛出。 */
+const channelFailure =
+  (payload: DesktopHostRequest) =>
+  (error: unknown): never => {
+    if (error instanceof RxDBAdapterDesktopError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new RxDBAdapterDesktopError(
+      'host_unavailable',
+      `desktop host request "${payload.kind}" failed on the channel: ${message}`,
+      { cause: error }
+    );
+  };
 
 /**
  * 通过桌面 host 访问本地 SQLite 文件的客户端。
@@ -350,6 +374,35 @@ export class DesktopSqliteClient implements SqliteClientLike {
   }
 
   /**
+   * 暂停 / 恢复本会话的变更事件采集（US-217 恢复整库时静音）。
+   *
+   * @remarks
+   * 静音落在 host 侧（协议 v2 的 `mute`）：只在 renderer 丢弃的话，host 仍要为恢复写入的每一行
+   * 攒 rowId、把整批搬过 IPC，开销随库的大小线性增长。
+   *
+   * @param muted - `true` 时 host 不再采集本会话的变更
+   * @throws {@link RxDBAdapterDesktopError} 会话已断开，或 host 拒绝请求时
+   */
+  async setChangeEventsMuted(muted: boolean): Promise<void> {
+    this.#assertOpen();
+    assertDesktopHostResponse('mute', await this.#request({ kind: 'mute', sessionId: this.#sessionId, muted }));
+  }
+
+  /**
+   * 描述 host 上新建空库本来的样子。
+   *
+   * @remarks
+   * 不像 wasm 客户端那样开一条临时 `:memory:` 连接去量：线协议只能打开应用数据目录里的库文件，
+   * 为了量一次去建临时库反而会在目标旁边留下产物。桌面 host 新建的库恒为没有用户对象：
+   * 两个 host 都只装 TEMP 通知触发器，它们不进主库的 `sqlite_schema`。
+   *
+   * @returns 没有任何对象的描述
+   */
+  describeBlankDatabase(): Promise<SqliteBlankDatabase> {
+    return Promise.resolve(BLANK_DESKTOP_DATABASE);
+  }
+
+  /**
    * 断开会话。
    *
    * @remarks
@@ -448,11 +501,14 @@ export class DesktopSqliteClient implements SqliteClientLike {
    * 跨会话的写锁竞争仍由 host 侧的 `busy_timeout` 处理。同一条连接上的请求本来
    * 就会被 SQLite 串起来，这里只是把串行发生的位置提前到发出之前。
    *
+   * 传输层本身的失败（host 进程退出、IPC 断开）没有 host 错误码，这里统一换成 `host_unavailable`、
+   * 原始错误留在 `cause`；传输层已经抛出桌面错误时原样保留。host 报的 SQL 错误走错误应答，不经过这里。
+   *
    * @param payload - 待发送的请求
    * @returns host 的原始应答
    */
   #request(payload: DesktopHostRequest): Promise<unknown> {
-    const settled = this.#tail.then(() => this.#transport.request(payload));
+    const settled = this.#tail.then(() => this.#transport.request(payload).catch(channelFailure(payload)));
     this.#tail = settled.then(undefined, () => undefined);
     return settled;
   }

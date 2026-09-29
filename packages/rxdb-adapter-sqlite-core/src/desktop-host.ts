@@ -84,6 +84,7 @@ export {
   type DesktopHostFileWriteFinishRequest,
   type DesktopHostHandshakeRequest,
   type DesktopHostHandshakeResult,
+  type DesktopHostMuteRequest,
   type DesktopHostOpenRequest,
   type DesktopHostOpenResult,
   type DesktopHostRequest,
@@ -93,17 +94,28 @@ export {
 
 export {
   DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_EXCLUDED_FILES,
   DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES,
   DESKTOP_PGLITE_MAX_PARAM_DEPTH,
   DESKTOP_PGLITE_PROTOCOL_VERSION,
   assertDesktopPgliteResponse,
   isDesktopPgliteRequestKind,
+  parseDesktopPgliteBackupItem,
+  parseDesktopPgliteEngineResult,
   parseDesktopPgliteHandshakeResult,
   parseDesktopPgliteNotifyMessage,
   parseDesktopPgliteOpenResult,
   parseDesktopPgliteRequest,
+  type DesktopPgliteBackupBeginRequest,
+  type DesktopPgliteBackupCursorRequest,
+  type DesktopPgliteBackupItem,
   type DesktopPgliteBeginRequest,
   type DesktopPgliteCloseRequest,
+  type DesktopPgliteDataDirEntry,
+  type DesktopPgliteDataDirItem,
+  type DesktopPgliteEngineRequest,
+  type DesktopPgliteEngineResult,
   type DesktopPgliteExecRequest,
   type DesktopPgliteField,
   type DesktopPgliteHandshakeRequest,
@@ -116,9 +128,15 @@ export {
   type DesktopPgliteQueryResult,
   type DesktopPgliteRequest,
   type DesktopPgliteResponse,
+  type DesktopPgliteRestoreQueryRequest,
+  type DesktopPgliteRestoreStepRequest,
+  type DesktopPgliteRestoreTargetRequest,
+  type DesktopPgliteRestoreWriteRequest,
   type DesktopPgliteTransactionEndRequest,
   type DesktopPgliteVersionRequest
 } from './desktop/desktop-pglite-protocol.js';
+
+export { connectDesktopRestoreTarget } from './desktop/desktop-restore-target.js';
 
 export {
   DESKTOP_HOST_TRANSPORT_KEY,

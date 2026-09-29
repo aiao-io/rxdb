@@ -26,9 +26,11 @@ import type { RxDBAdapterSqliteBase } from '../../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../../sqlite-core.interface.js';
 import type { SqliteClientLike } from '../../sqlite-core.types.js';
 import type {
+  KillableRestoreHost,
   RestoreInterruptPoint,
   RestoreInterruptReply,
   RestoreInterruptRequest,
+  RestoreInterruptWorker,
   SqliteBackupHarness,
   SqliteBackupStorageKind
 } from '../../testing.js';
@@ -107,6 +109,51 @@ export const BACKUP_PASSPHRASE = 'backup-restore-passphrase';
 export const uniqueDbName = (prefix: string): string =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+/**
+ * 实例落在哪：后端的内存库、持久化库，或同库名的另一个持久化位置
+ * （{@link SqliteBackupHarness.createRelocatedAdapter}）。
+ */
+export type BackupLocation = SqliteBackupStorageKind | 'relocated';
+
+/**
+ * 后端能否开内存库。
+ *
+ * @param harness - 后端
+ * @returns `storageKinds` 是否含 `memory`
+ */
+export const hasMemoryStorage = (harness: SqliteBackupHarness): boolean => harness.storageKinds.includes('memory');
+
+/**
+ * 与 `persistent` 互不重叠的临时位置：源库、以及不关心存储种类的目标都放这里。
+ *
+ * @remarks
+ * 能开内存库的后端用内存库；只有持久化存储的后端（桌面 host）用同库名的另一个位置，
+ * 这样同库名的 `persistent` 目标仍是一个从未写过的空位置。
+ *
+ * @param harness - 后端
+ * @returns 位置
+ */
+export const scratchLocation = (harness: SqliteBackupHarness): BackupLocation =>
+  hasMemoryStorage(harness) ? 'memory' : 'relocated';
+
+/**
+ * 只对内存库成立的用例标题：后端没有内存库时写明跳过原因。
+ *
+ * @param harness - 后端
+ * @param title - 用例标题
+ * @returns 标题
+ */
+export const memoryCaseTitle = (harness: SqliteBackupHarness, title: string): string =>
+  hasMemoryStorage(harness) ? title : `${title} — not applicable: ${harness.adapterName} has no memory storage`;
+
+const adapterAt = (harness: SqliteBackupHarness, rxdb: RxDB, location: BackupLocation): RxDBAdapterSqliteBase => {
+  if (location !== 'relocated') return harness.createAdapter(rxdb, location);
+  if (!harness.createRelocatedAdapter) {
+    throw new Error(`${harness.adapterName} backup harness declares no memory storage but no relocated location`);
+  }
+  return harness.createRelocatedAdapter(rxdb);
+};
+
 /** 已注册 adapter、尚未连接的实例，连同它自己那份实体克隆。 */
 export interface BackupRxDB {
   readonly rxdb: RxDB;
@@ -125,14 +172,14 @@ export interface BackupRxDB {
  * @param harness - 后端
  * @param dbName - 库名
  * @param entities - 实体原型（会被克隆）
- * @param kind - 目标存储
+ * @param location - 目标存储
  * @returns 实例、克隆后的实体与生命周期入口
  */
 export const createBackupRxDB = (
   harness: SqliteBackupHarness,
   dbName: string,
   entities: EntityType[],
-  kind: SqliteBackupStorageKind
+  location: BackupLocation
 ): BackupRxDB => {
   const cloned = cloneEntityClasses(entities);
   const rxdb = new RxDB({
@@ -141,7 +188,7 @@ export const createBackupRxDB = (
     entities: cloned,
     sync: { local: { adapter: harness.adapterName }, type: SyncType.None }
   });
-  rxdb.adapter(harness.adapterName, db => harness.createAdapter(db, kind));
+  rxdb.adapter(harness.adapterName, db => adapterAt(harness, db, location));
   const adapter = async () => (await rxdb.getAdapter(harness.adapterName)) as RxDBAdapterSqliteBase;
   let closed = false;
   return {
@@ -553,12 +600,29 @@ export const writeRestoreMarker = (harness: SqliteBackupHarness, dbName: string)
 /**
  * 持久化目标的存储锁名。
  *
+ * @remarks
+ * 取 adapter 自己声明的 `storageKey`，不按 `<adapter>:<label>:<dbName>` 拼：桌面 adapter 按库文件名区分存储，
+ * 拼出来的名字与它实际争的锁对不上，等这把锁会直接放行。
+ *
  * @param harness - 后端
  * @param dbName - 库名
  * @returns 连接与恢复两侧共用的 Web Lock 名
  */
-export const storageLockNameOf = (harness: SqliteBackupHarness, dbName: string): string =>
-  sqliteStorageLockName(`${harness.adapterName}:${harness.persistentLabel}:${dbName}`);
+export const storageLockNameOf = async (harness: SqliteBackupHarness, dbName: string): Promise<string> => {
+  const rxdb = new RxDB({
+    dbName,
+    context: { userId: 'backup-probe' },
+    entities: [],
+    sync: { local: { adapter: harness.adapterName }, type: SyncType.None }
+  });
+  try {
+    const storage = harness.createAdapter(rxdb, 'persistent')['backupStorage']();
+    if (storage.kind !== 'persistent') throw new Error(`${harness.adapterName} declares no persistent backup storage`);
+    return sqliteStorageLockName(storage.storageKey);
+  } finally {
+    await harness.release?.(rxdb);
+  }
+};
 
 // ─── 故障注入 ────────────────────────────────────────────────────────────────
 
@@ -623,6 +687,40 @@ const isOwnerRequest = (
 };
 
 /**
+ * 把归档恢复到持久化目标，走到 `request.stopAt` 时交给 `stop` 强杀。
+ *
+ * @remarks
+ * 读流过半算 `streaming`，各阶段回调按阶段名，恢复返回之后是 `returned`；恢复在到达之前就返回，
+ * 同样以 `returned` 交给 `stop`，由驱动方的断言指出没走到。
+ *
+ * `stop` 返回时，本次恢复对目标的任何后续操作都必须已经不可能落地：module Worker 回报后停住等主线程 terminate，
+ * 桌面后端先杀掉恢复所连的 host 进程再抛错，让测试进程里的恢复带着失败退出、释放它持有的 Web Lock。
+ *
+ * @param harness - 后端；`createAdapter(…, 'persistent')` 给出的 adapter 就是被强杀的那一个
+ * @param request - 归档、库名与停止位置
+ * @param stop - 到达停止位置时调用，永不正常返回
+ * @returns 恒不 resolve：要么停住，要么随 `stop` 的失败或恢复自身的失败而 reject
+ */
+const restoreUntil = async (
+  harness: SqliteBackupHarness,
+  request: RestoreInterruptRequest,
+  stop: (point: RestoreInterruptPoint) => Promise<never>
+): Promise<never> => {
+  const { archive, dbName, stopAt } = request;
+  const target = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent');
+  const half = archive.byteLength / 2;
+  const { stream } = chunkedSource(archive, 1024, async pulled => {
+    if (stopAt === 'streaming' && pulled > half) await stop(stopAt);
+  });
+  await restoreInto(target, stream, {
+    onStage: async stage => {
+      if (stage === stopAt) await stop(stage);
+    }
+  });
+  return stop('returned');
+};
+
+/**
  * 在当前 module Worker 里接收恢复任务：把归档恢复到持久化目标，走到指定位置后停住，等主线程 terminate。
  *
  * @remarks
@@ -639,21 +737,49 @@ export const serveInterruptedRestore = (harness: SqliteBackupHarness): void => {
   };
   scope.onmessage = async (event: MessageEvent<unknown>) => {
     if (!isOwnerRequest(scope, event)) return;
-    const { archive, dbName, stopAt } = event.data;
-    const target = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent');
-    const half = archive.byteLength / 2;
-    const { stream } = chunkedSource(archive, 1024, async pulled => {
-      if (stopAt === 'streaming' && pulled > half) await holdAt(stopAt);
-    });
     try {
-      await restoreInto(target, stream, {
-        onStage: async stage => {
-          if (stage === stopAt) await holdAt(stage);
-        }
-      });
-      await holdAt('returned');
+      await restoreUntil(harness, event.data, holdAt);
     } catch (error) {
       scope.postMessage({ failed: String(error) } satisfies RestoreInterruptReply);
     }
   };
+};
+
+/**
+ * 桌面后端的恢复强杀执行者：结构上与 module Worker 相同，被杀的是持有目标库文件的 host 进程。
+ *
+ * @remarks
+ * 每个任务经 `startHost` 起一个专用 host，恢复在测试进程里驱动、经它写库文件，到达停止位置就 SIGKILL 它，再回报 `reached`。
+ * SIGKILL 让 host 来不及回滚事务、关连接或删临时文件，文件锁由操作系统随进程回收，与应用进程被系统杀掉一样。
+ *
+ * 杀掉之后，测试进程里的恢复只能对着死掉的 host 失败退出，并随之释放它持有的 Web Lock；那次失败正是预期，不再回报。
+ * 杀之前就失败的恢复回报 `failed`。
+ *
+ * @param startHost - 起一个专用 host，与后端的共用 host 开同一批库文件
+ * @returns 执行者
+ */
+export const hostKillingRestoreWorker = (startHost: () => KillableRestoreHost): RestoreInterruptWorker => {
+  let host: KillableRestoreHost | undefined;
+  const worker: RestoreInterruptWorker = {
+    onmessage: null,
+    onerror: null,
+    postMessage: request => {
+      const reply = (data: RestoreInterruptReply): void => worker.onmessage?.(new MessageEvent('message', { data }));
+      const target = startHost();
+      host = target;
+      let killed = false;
+      void restoreUntil(target.harness, request, async point => {
+        killed = true;
+        await target.kill();
+        reply({ reached: point });
+        throw new Error(`the host was killed at "${point}"`);
+      }).catch((error: unknown) => {
+        if (!killed) reply({ failed: String(error) });
+      });
+    },
+    terminate: () => {
+      void host?.kill();
+    }
+  };
+  return worker;
 };

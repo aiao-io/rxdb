@@ -15,6 +15,7 @@ import { releaseComlinkProxy } from '../create_sqlite_client.js';
 import type { SqliteBlankDatabase, SqliteClientLike } from '../sqlite-core.types.js';
 import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import {
+  assertNoSqliteShadowTables,
   readSqliteDumpColumns,
   readSqliteSystemVersionState,
   runSqliteBackupSql,
@@ -52,6 +53,8 @@ export interface SqliteRestoreInput {
   readonly storage: SqliteSupportedBackupStorage;
   /** 按 adapter 当前配置打开目标库的一个新连接。 */
   readonly createClient: () => Promise<SqliteClientLike>;
+  /** 目标能否写影子表；不能时含影子表的归档在写入目标之前被拒绝。 */
+  readonly shadowTablesWritable: boolean;
 }
 
 /** {@link restoreSqliteDatabase} 的结果。 */
@@ -156,16 +159,46 @@ const unsupportedClient = (adapterName: string, field: string): RxDBBackupError 
     details: { field }
   });
 
+/** 恢复要用到的客户端能力都已提供的连接。 */
+type RestorableSqliteClient = SqliteClientLike &
+  Required<Pick<SqliteClientLike, 'setChangeEventsMuted' | 'describeBlankDatabase'>>;
+
+function assertRestorableClient(
+  client: SqliteClientLike,
+  adapterName: string
+): asserts client is RestorableSqliteClient {
+  if (!client.setChangeEventsMuted) throw unsupportedClient(adapterName, 'client.setChangeEventsMuted');
+  if (!client.describeBlankDatabase) throw unsupportedClient(adapterName, 'client.describeBlankDatabase');
+}
+
+/**
+ * 执行一次客户端调用（不是 SQL），失败按 I/O 失败归类。
+ *
+ * @remarks
+ * SQL 的失败由 {@link runSqliteBackupSql} 归类；静音与描述空库是客户端自己的方法，桌面客户端的静音还是
+ * 一次 host 请求，失败时抛的是客户端自己的错误类型，原样漏出去调用方就只能按消息文本判断。
+ */
+const clientCall = async <T>(message: string, call: () => T | Promise<T>): Promise<T> => {
+  try {
+    return await call();
+  } catch (error) {
+    throw classifyBackupIoError(error, message);
+  }
+};
+
 /** 打开目标库：静音变更事件并确认它是空的；失败时关闭连接。 */
 const openTarget = async (input: SqliteRestoreInput): Promise<SqliteClientLike> => {
+  const target = `the SQLite restore target "${input.storage.label}"`;
   const client = await input.createClient().catch((error: unknown) => {
-    throw classifyBackupIoError(error, `Failed to open the SQLite restore target "${input.storage.label}"`);
+    throw classifyBackupIoError(error, `Failed to open ${target}`);
   });
   try {
-    if (!client.setChangeEventsMuted) throw unsupportedClient(input.adapterName, 'client.setChangeEventsMuted');
-    if (!client.describeBlankDatabase) throw unsupportedClient(input.adapterName, 'client.describeBlankDatabase');
-    await client.setChangeEventsMuted(true);
-    await assertTargetEmpty(client, input.storage, await client.describeBlankDatabase());
+    assertRestorableClient(client, input.adapterName);
+    await clientCall(`Failed to mute change events on ${target}`, () => client.setChangeEventsMuted(true));
+    const blank = await clientCall(`Failed to describe a blank database for ${target}`, () =>
+      client.describeBlankDatabase()
+    );
+    await assertTargetEmpty(client, input.storage, blank);
     return client;
   } catch (error) {
     await disconnectQuietly(client);
@@ -174,26 +207,6 @@ const openTarget = async (input: SqliteRestoreInput): Promise<SqliteClientLike> 
 };
 
 // ─── 归档读取 ────────────────────────────────────────────────────────────────
-
-interface RestoreSession {
-  readonly reader: RxDBBackupArchiveReader;
-  readonly manifest: RxDBBackupManifest;
-  readonly signal: AbortSignal | undefined;
-}
-
-const openSession = async (
-  source: ReadableStreamDefaultReader<Uint8Array>,
-  input: SqliteRestoreInput,
-  client: SqliteClientLike,
-  signal: AbortSignal | undefined
-): Promise<RestoreSession> => {
-  const expected = await sqliteTargetCompatibility(input.rxdb, input.adapterName, client);
-  throwIfAborted(signal);
-  const reader = new RxDBBackupArchiveReader(source, signal);
-  const manifest = await reader.readManifest();
-  assertRxDBBackupCompatible(manifest, expected);
-  return { reader, manifest, signal };
-};
 
 /** 读下一个条目头；归档已结束时为 `null`，结束标记挂在 `trailer` 上。 */
 const nextEntry = async (
@@ -240,11 +253,6 @@ const readJsonEntry = async (reader: RxDBBackupArchiveReader, path: string): Pro
   }
 };
 
-// ─── 写入目标 ────────────────────────────────────────────────────────────────
-
-const archiveSql = (client: SqliteClientLike, sql: string, bindings?: (string | number)[]) =>
-  runSqliteBackupSql(client, sql, bindings, 'corrupt_archive');
-
 /** 归档结构用到的虚表模块必须恰好是 manifest 声明的那些：兼容性判定只看 manifest。 */
 const assertArchiveModules = (schema: SqliteBackupSchema, manifest: RxDBBackupManifest): void => {
   let modules: string[];
@@ -260,6 +268,42 @@ const assertArchiveModules = (schema: SqliteBackupSchema, manifest: RxDBBackupMa
     throw corrupt('Backup schema uses modules the manifest does not declare', 'adapter.extensions', declared, modules);
   }
 };
+
+interface RestoreSession {
+  readonly reader: RxDBBackupArchiveReader;
+  readonly manifest: RxDBBackupManifest;
+  readonly schema: SqliteBackupSchema;
+  readonly signal: AbortSignal | undefined;
+}
+
+/**
+ * 读 manifest 与结构条目并做完全部兼容性判定。
+ *
+ * @remarks
+ * 两者都排在归档最前面，在写入目标的第一条语句（持久化目标的恢复标记）之前读完：
+ * 不兼容、结构损坏或目标写不了影子表的归档都不会碰到目标。
+ */
+const openSession = async (
+  source: ReadableStreamDefaultReader<Uint8Array>,
+  input: SqliteRestoreInput,
+  client: SqliteClientLike,
+  signal: AbortSignal | undefined
+): Promise<RestoreSession> => {
+  const expected = await sqliteTargetCompatibility(input.rxdb, input.adapterName, client);
+  throwIfAborted(signal);
+  const reader = new RxDBBackupArchiveReader(source, signal);
+  const manifest = await reader.readManifest();
+  assertRxDBBackupCompatible(manifest, expected);
+  const schema = parseSqliteBackupSchema(await readJsonEntry(reader, SQLITE_BACKUP_SCHEMA_ENTRY));
+  assertArchiveModules(schema, manifest);
+  if (!input.shadowTablesWritable) assertNoSqliteShadowTables(schema, input.adapterName);
+  return { reader, manifest, schema, signal };
+};
+
+// ─── 写入目标 ────────────────────────────────────────────────────────────────
+
+const archiveSql = (client: SqliteClientLike, sql: string, bindings?: (string | number)[]) =>
+  runSqliteBackupSql(client, sql, bindings, 'corrupt_archive');
 
 /**
  * 建表并核对列布局。
@@ -486,8 +530,7 @@ const writeTarget = async (
   session: RestoreSession,
   options: SqliteRestoreOptions
 ): Promise<RxDBBackupTrailer> => {
-  const schema = parseSqliteBackupSchema(await readJsonEntry(session.reader, SQLITE_BACKUP_SCHEMA_ENTRY));
-  assertArchiveModules(schema, session.manifest);
+  const { schema } = session;
   // 目标此刻恰好是引擎新建的空库；引擎自建的对象由归档里的那一份整体取代
   await dropUserObjects(client, [SQLITE_RESTORE_MARKER_TABLE]);
   await createTables(client, schema);

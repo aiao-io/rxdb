@@ -181,6 +181,8 @@ Electron 那侧的 IPC 是结构化克隆，搬得动非有限数，因此同样
 
 后六个只出现在文件存储（`@aiao/rxdb-plugin-storage` 的桌面后端）与事务这两条路径上。
 
+`RxDBAdapterDesktopErrorCode` 里另有五个码——`restore_in_progress` / `restore_incomplete` / `target_not_empty` / `cleanup_pending` / `unsupported_operation`——只属于 Electron 的 PGlite host（US-217），Rust 宿主从不发出。Tauri 这边备份与恢复的失败一律是 `RxDBBackupError`，见「备份与恢复」。
+
 错误码是**契约的一部分**：新增只能追加，不得复用或改写既有含义。
 
 `RxDBAdapterDesktopError` 这个类跨不过 `invoke` 的序列化，宿主侧的错误以 `{ kind: 'error', code, message }` 回到 WebView，由适配器按契约重新抛成 `RxDBAdapterDesktopError`——调用方写的仍是普通 `try/catch`。不在契约内的 `code` 一律按 `protocol_violation` 处理，不会被当成错误码原样上抛。
@@ -190,6 +192,35 @@ Electron 那侧的 IPC 是结构化克隆，搬得动非有限数，因此同样
 线协议版本号在 TS 与 Rust 两侧各存一份（`DESKTOP_HOST_PROTOCOL_VERSION` 与 `rust/src/protocol.rs` 的 `PROTOCOL_VERSION`）。两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`：它拿真进程报上来的数字与常量比对，改一侧忘了改另一侧时那条用例会红。
 
 renderer 在 `open` 之前先发一次无副作用的 `handshake` 协商版本，握手不过就不建库——版本不匹配时磁盘上不该多出一个空文件。
+
+当前版本是 2：US-217 为恢复加了 `mute` 请求，并把单条语句的长度上限放宽到 64 Mi。这两样 v1 宿主都要到恢复中途才会拒绝，那时目标库已经被写过了，所以版本必须抬，让恢复在写入目标之前就发现宿主太旧。`aiao-rxdb-tauri` 与本包要取同一个版本。
+
+## 备份与恢复
+
+`sqlite-tauri` 能把整个库写成一份 `.rxdb-backup` 归档流，再恢复进一个**空的、未连接的**目标。实现与浏览器端的 SQLite 适配器、Electron 的 `sqlite-electron` 共用，归档格式、兼容性判定、中断与清理语义见 [`@aiao/rxdb-adapter-sqlite-core` 的「备份与恢复」](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-sqlite-core#备份与恢复)。两端都逐块流式处理，失败一律抛可判别的 `RxDBBackupError`（按 `error.code` 分支），不会报告成功。
+
+> **外部文件不在备份范围内。** 归档只含数据库本身，结果与 manifest 的 `scope` 恒为 `{ database: 'included', externalFiles: 'excluded' }`。`@aiao/rxdb-plugin-storage` 桌面后端放在文件宿主根目录里的文件须另行备份与恢复。
+
+输入流与输出流由调用方提供（`ReadableStream<Uint8Array>` / `WritableStream<Uint8Array>`）：本包不弹文件选择器，也不替 WebView 授权任意路径，写到哪里、从哪里读由宿主应用决定。
+
+```typescript
+// 备份：sink 由宿主应用提供
+const adapter = await rxdb.getAdapter(TAURI_ADAPTER_NAME);
+const result = await adapter.backup(sink);
+
+// 恢复：target 已注册 adapter，但尚未 connect
+const restored = await target.getAdapter(TAURI_ADAPTER_NAME);
+await restored.restore(source);
+await target.connect(TAURI_ADAPTER_NAME);
+```
+
+与浏览器端相比多出来的三点：
+
+- **WAL**：Rust 宿主以 WAL 模式打开库文件。备份是一个读事务里的逻辑转储，快照边界前已提交、还没 checkpoint 回主文件的数据也在归档里，不会出现「只复制主文件、漏掉 WAL」。
+- **独占**：同一库文件可能被别的窗口、别的进程打开，Web Lock 挡不住它们。恢复与清理在检查目标是否为空之前，就让自己那条连接拿到 SQLite 的文件级独占锁，并一直持有到恢复完成或失败清理结束；库文件此刻开在任何别的连接上都报 `target_busy`（`details.field` 为 `storage`）。恢复期间别的进程也打不开它：Web Lock 管不到的连接等满 host 的 5 秒 busy 超时后报 `database_busy`。
+- **FTS5 可用**：Rust 宿主不以 defensive 模式运行，含 FTS5 虚表的库可以备份，恢复后照常能按词检索。这是与 `sqlite-electron` 的一处差异：那边的 host 开着 defensive，同样的库报 `unsupported_combination`。
+
+归档只恢复进**同一个 adapter**：`sqlite-tauri` 的归档不能恢复进 `sqlite-electron` 或浏览器里的 SQLite，反之亦然，都报 `incompatible_archive`。
 
 ## 完整示例
 

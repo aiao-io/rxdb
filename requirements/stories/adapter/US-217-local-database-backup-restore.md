@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-27
+updated: 2026-09-29
 tags: [adapter, backup, restore, local-first]
 ---
 
@@ -51,11 +51,11 @@ PGlite 自带的 `dumpDataDir()` / `loadDataDir` 在仓内也没有调用方，�
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                                                    | 必过 AC          | 门禁                                                                        |
-| ---- | ---- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------- |
-| A    | ⚠️   | PGlite 快照格式、导出与恢复，冻结公共契约。已交付；AC#9 / AC#14 带保留                                                                  | AC#1～15         | 先验证有界内存、事务一致性及目标存储的原子恢复；冻结首批兼容组合与资源预算  |
-| B    | ⚠️   | SQLite 共享层适配器（wa-sqlite / sqlite-wasm / sqlite / sqliteai）。已交付；AC#16 带保留：四个 adapter 的持久化 VFS 都到不了 WAL        | AC#1～14、16～17 | 复用 A 的公共契约；四个 adapter 的承诺组合通过 transaction / WAL 一致性验证 |
-| C    | ⬜   | Electron / Tauri SQLite 与 Electron PGlite host。阻塞：AC#20 的三 OS packaged smoke 需要 Linux / Windows 打包与运行环境，本机只有 macOS | AC#1～14、18～21 | host 一致快照及流传输通过公共契约；三 OS packaged smoke 全绿                |
+| 阶段 | 状态 | 交付                                                                                                                     | 必过 AC          | 门禁                                                                        |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------- |
+| A    | ✅   | PGlite 快照格式、导出与恢复，冻结公共契约。已交付；AC#9 / AC#14 的保留由阶段 C 关闭                                      | AC#1～15         | 先验证有界内存、事务一致性及目标存储的原子恢复；冻结首批兼容组合与资源预算  |
+| B    | ✅   | SQLite 共享层适配器（wa-sqlite / sqlite-wasm / sqlite / sqliteai）。已交付；AC#16 的 WAL 实跑由阶段 C 的桌面 host 关闭   | AC#1～14、16～17 | 复用 A 的公共契约；四个 adapter 的承诺组合通过 transaction / WAL 一致性验证 |
+| C    | ⚠️   | Electron / Tauri SQLite 与 Electron PGlite host。已实现；AC#20 待 `release-desktop.yml` 在三 OS 上跑绿（本机只有 macOS） | AC#1～14、18～21 | host 一致快照及流传输通过公共契约；三 OS packaged smoke 全绿                |
 
 AC#1～14 是公共契约，从阶段 A 起执行，后续每个新增支持组合都必须通过。一个 PR 只交付一个阶段。
 尚未交付的组合必须明确拒绝备份和恢复请求，不得回退成直接复制活动数据库文件。
@@ -138,19 +138,19 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
 |   6 | 公共 | 归档截断、内容与摘要不符、格式损坏，或声明与载荷不一致                    | 执行恢复，包括完整性问题直到流末尾才可发现的样本                                                       | 抛稳定错误；不对普通连接暴露恢复库；目标数据库内容保持恢复前状态，临时资源按失败语义清理                                     |  ✅  |
 |   7 | 公共 | 归档有效，但目标含业务数据、仅含引擎 / 系统初始化内容，或已被任一实例连接 | 执行恢复                                                                                               | 在写入目标库前拒绝，已有数据、连接和 adapter 状态不受影响                                                                    |  ✅  |
 |   8 | 公共 | adapter / 存储组合尚未实现备份或恢复能力，或不在兼容矩阵中                | 分别调用备份及恢复入口                                                                                 | 返回稳定的能力不支持或不兼容错误；不复制活动数据库文件，不产生成功结果或修改目标库                                           |  ✅  |
-|   9 | 公共 | 固定运行环境、行 / 字段大小及流缓冲预算，数据库总量逐级增大               | 测量备份和恢复相对同规模空闲数据库的新增峰值内存，包含 JS、WASM、Worker / host 及 IPC 缓冲             | 新增峰值不随数据库总量线性增长，满足 plan 冻结的预算；不能以完整 Blob / ArrayBuffer 包装成流通过验收                         |  ⚠️  |
+|   9 | 公共 | 固定运行环境、行 / 字段大小及流缓冲预算，数据库总量逐级增大               | 测量备份和恢复相对同规模空闲数据库的新增峰值内存，包含 JS、WASM、Worker / host 及 IPC 缓冲             | 新增峰值不随数据库总量线性增长，满足 plan 冻结的预算；不能以完整 Blob / ArrayBuffer 包装成流通过验收                         |  ✅  |
 |  10 | 公共 | 正在备份或恢复，尚未越过成功提交边界                                      | 在读取、写入及最终完成阶段注入取消、断流、I/O 错误、磁盘满或存储配额不足                               | 返回可判别失败，不报告成功；不完整归档被拒绝；目标遵守失败原子性；释放本操作资源，源库仍可读写；清理失败时明确报告待清理状态 |  ✅  |
 |  11 | 公共 | 有效归档正在恢复到持久化目标                                              | 在数据写入、验证、持久化及对外可见的边界前后强制结束进程或 Worker，再用新实例打开目标                  | 只能得到完整且已验证的数据库，或可判别的未完成状态；未完成状态能安全清理并重新恢复；半恢复库不会被连接或自动初始化掩盖       |  ✅  |
 |  12 | 公共 | 同一目标存在竞争访问                                                      | 测试两次恢复并发，以及取得独占权前、恢复期间其他实例 / 标签页 / 窗口 / 进程发起连接                    | 同时最多一个操作拥有目标；竞争请求明确拒绝；独占覆盖空状态检查到完成或失败处理，不存在检查后被连接的窗口                     |  ✅  |
 |  13 | 公共 | 加密归档含原认证域及 keyring 非秘密元数据                                 | 分别恢复到同认证域的新位置，以及认证域不同的目标                                                       | 前者恢复后保持锁定并可用原密钥解锁，salt / kid / verifier 等完整保留；后者在写入目标库前拒绝，不尝试重新加密                 |  ✅  |
-|  14 | 公共 | 数据库启用 rxdb-plugin-storage 且引用外置文件                             | 请求备份，读取结果及归档元数据，再恢复数据库                                                           | API 结果和归档以可判别字段声明范围仅为数据库、外置文件未包含；文档说明文件须另行备份恢复；不报告完整应用备份成功             |  ⚠️  |
+|  14 | 公共 | 数据库启用 rxdb-plugin-storage 且引用外置文件                             | 请求备份，读取结果及归档元数据，再恢复数据库                                                           | API 结果和归档以可判别字段声明范围仅为数据库、外置文件未包含；文档说明文件须另行备份恢复；不报告完整应用备份成功             |  ✅  |
 |  15 |  A   | PGlite 的 memory / IndexedDB / OPFS-AHP 后端能力已逐项声明                | 对阶段承诺的源 / 目标组合运行公共契约；快照后关闭源实例，再从归档恢复                                  | 已支持组合全部通过，不依赖源实例、Worker 或原存储仍存在；未支持组合明确拒绝                                                  |  ✅  |
-|  16 |  B   | SQLite 使用 WAL，存在已提交但尚未 checkpoint 的数据及在途写入             | 创建并恢复快照，同时执行公共事务一致性契约                                                             | 保留快照边界前 WAL 中已提交的数据；不直接复制活动主文件而遗漏 WAL，不包含未提交数据                                          |  ⚠️  |
+|  16 |  B   | SQLite 使用 WAL，存在已提交但尚未 checkpoint 的数据及在途写入             | 创建并恢复快照，同时执行公共事务一致性契约                                                             | 保留快照边界前 WAL 中已提交的数据；不直接复制活动主文件而遗漏 WAL，不包含未提交数据                                          |  ✅  |
 |  17 |  B   | wa-sqlite、sqlite-wasm、sqlite、sqliteai 的能力矩阵已冻结                 | 四个 adapter 对承诺的组合运行公共契约及 SQLite 契约                                                    | 共享语义全部通过；差异由能力矩阵明确表达；跳过测试或返回不支持不能计为该组合通过                                             |  ✅  |
-|  18 |  C   | Electron / Tauri SQLite 或 Electron PGlite host 已连接                    | 创建快照，退出进程，在兼容的新数据位置恢复并启动打包应用                                               | 数据库状态及后续读写正常；归档不依赖源应用数据目录仍存在                                                                     |  ⬜  |
-|  19 |  C   | 桌面源库存在活动事务、WAL 或 host 侧句柄                                  | 创建快照，分别验证成功、失败和取消路径                                                                 | host 保证事务一致性；源库仍可读写；本操作临时文件、事务、锁和句柄均被释放，清理失败可判别                                    |  ⬜  |
-|  20 |  C   | Linux、macOS、Windows 打包产物及支持矩阵已就绪                            | 每个平台运行本平台备份恢复 smoke，并验证矩阵声明的跨 OS 组合                                           | 各承诺组合均可恢复，格式语义一致；不依赖开发机路径、未打包依赖或未授权文件系统访问                                           |  ⬜  |
-|  21 |  C   | 大型归档通过 renderer / host 通道传输，消费者可能缓慢或断开               | 验证背压、取消及通道断开，并在 host / renderer 协议不兼容时发起操作                                    | 传输符合公共内存预算；断开时终止操作并遵守失败语义；错误可判别；协议不兼容时在修改目标前拒绝                                 |  ⬜  |
+|  18 |  C   | Electron / Tauri SQLite 或 Electron PGlite host 已连接                    | 创建快照，退出进程，在兼容的新数据位置恢复并启动打包应用                                               | 数据库状态及后续读写正常；归档不依赖源应用数据目录仍存在                                                                     |  ✅  |
+|  19 |  C   | 桌面源库存在活动事务、WAL 或 host 侧句柄                                  | 创建快照，分别验证成功、失败和取消路径                                                                 | host 保证事务一致性；源库仍可读写；本操作临时文件、事务、锁和句柄均被释放，清理失败可判别                                    |  ✅  |
+|  20 |  C   | Linux、macOS、Windows 打包产物及支持矩阵已就绪                            | 每个平台运行本平台备份恢复 smoke，并验证矩阵声明的跨 OS 组合                                           | 各承诺组合均可恢复，格式语义一致；不依赖开发机路径、未打包依赖或未授权文件系统访问                                           |  ⚠️  |
+|  21 |  C   | 大型归档通过 renderer / host 通道传输，消费者可能缓慢或断开               | 验证背压、取消及通道断开，并在 host / renderer 协议不兼容时发起操作                                    | 传输符合公共内存预算；断开时终止操作并遵守失败语义；错误可判别；协议不兼容时在修改目标前拒绝                                 |  ✅  |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -210,10 +210,52 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
   `USING "fts5"` 的虚表照常往返。目标打不开按 `classifyBackupIoError` 落 `storage_full` / `io_error`，清理打不开落
   `cleanup_pending`；恢复完整落盘后仅断开失败时，错误信息说明库已完整（`details.field` 为 `disconnect`）。
   空目标判定先比对象清单，再比每表行数，都一致才读行内容，引擎表被写入大量行的目标不会被整库读进内存。
-- AC#9 ⚠️：分页读按上一页最大行折算行数（每页 256 KiB 预算、首页 1 行），行字面量攒到约 1 MiB 落一个条目，单行上限 32 MiB；
-  恢复逐条目执行 `INSERT … VALUES`。与阶段 A 一样只有结构性上界，没有进程级峰值内存测量。
+- AC#9：分页前先用 `octet_length()`（SQLite 3.43+，只读记录头里的长度）探出下一批行字面量的字节上界，按每页 256 KiB 预算
+  决定取多少行（至少 1 行），大行不会被整段读出来估算；行字面量攒到约 1 MiB 落一个条目，单行上限 32 MiB；恢复逐条目执行
+  `INSERT … VALUES`。浏览器后端的库与测试同在一个页面，量不出单独的进程峰值，冻结的预算就是这个结构性在途上界；
+  进程级峰值在阶段 C 的桌面 host 上实测。
 - 官方 sqlite 与 sqliteai 的 Worker 传输改用 `wrapWithComlinkEndpoint`：每次连接租用 Worker 的一条独立子端口，
   恢复用一条连接写库、释放后 `connect()` 在同一个 Worker 上再开一条。
+
+阶段 C 的验收记录。SQLite 的两个桌面 host 原样接入阶段 B 的共享套件：Electron `node:sqlite` host 起在子进程里
+（`packages/rxdb-adapter-electron/src/__tests__/backup/electron-sqlite-backup.spec.ts`），Tauri 用真实的 Rust stdio host
+（`packages/rxdb-adapter-tauri/conformance/tauri-sqlite-backup.spec.ts`）；共享套件新增 `shared-backup-channel.suite.ts`（AC#21）
+与 `shared-backup-memory.suite.ts`（AC#9），只在提供 `foreignHost` / `channelHost` 的桌面 harness 上跑。Electron PGlite host 的
+用例在 `packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-*.spec.ts` 与 `electron-pglite-host-backup.spec.ts`，
+与浏览器侧逐条对齐：
+
+- AC#1～8、10～13：两个 SQLite host 跑完整套共享断言；PGlite host 分在 `electron-pglite-restore.spec.ts`（往返，源 host 备份完连根目录
+  一起删掉）、`-restore-failure.spec.ts`（AC#5～7、10）、`-encryption.spec.ts`（AC#4、13）、`-restore-concurrency.spec.ts`
+  （窗口关闭 / 应用退出与跨 host 竞争，AC#11、12）、`-restore-kill.spec.ts`（host 子进程在各阶段被 SIGKILL，新 host 只凭盘上状态判定）。
+- AC#9：每档库在新起的 host 进程里先空闲打开读一次峰值常驻内存作基线，再跑备份或恢复读第二次，差值计入引擎页缓存、原生与 JS 分配、
+  待回收垃圾与 IPC 缓冲；renderer 一侧按块采样 GC 后仍存活的内存。库 24 / 96 MiB 两档，断言增量低于冻结预算，且大档比小档多出的增量
+  不到库增量的一半。SQLite 两个 host 共用 `shared-backup-memory.suite.ts`；PGlite 见 `electron-pglite-backup-memory.spec.ts`。
+  内存用例在 vitest 的独立 project 里文件串行、排在其余用例之后（`packages/rxdb-adapter-electron/vite.config.mts`）：
+  与别的文件并行时系统内存压力会改变 RSS 的回收时机，读数不可复现。
+- AC#14：`packages/rxdb-plugin-storage/src/__tests__/database-backup-scope.spec.ts` 在真实的桌面组合上跑（`RxDBAdapterElectron` →
+  `node:sqlite` host，文件经桌面文件 host 落在同一工作区的 `rxdb-files/`）：备份结果与 manifest 的 `scope` 声明外置文件未包含，
+  归档条目里没有文件内容，恢复到新位置后库里的引用还在、文件本体不在。三个 adapter 的 README 写明文件须另行备份。
+- AC#16：两个 SQLite host 都以 WAL 打开库文件，共享套件的「关掉自动 checkpoint、提交、备份、确认日志里仍有帧」在桌面上实跑，
+  另有跨进程用例：别的进程在 WAL 里提交的数据进归档，它开着的事务不进（`shared-backup-concurrency.suite.ts`）。PGlite host 在
+  读快照期间于本会话唯一的连接上挂一个空事务并先 `CHECKPOINT`，边界前已提交的 WAL 都已落进数据文件（`electron-pglite-host-backup.spec.ts`）。
+- AC#18：`apps/dev-rxdb-electron-e2e/src/backup-restore.spec.ts`（SQLite 与 PGlite 各一轮）与
+  `apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts` 驱动打包产物：源位置连接（启动计数 1）并经公共契约流式备份 → 进程正常退出 →
+  删掉整个源数据目录 → 在新建的空目录以 restore 模式启动、恢复、连接（计数 2）→ 普通模式再启动一次（计数 3）。计数只可能从归档里接上。
+  两个示例应用的探针只在对应环境变量打开时挂出（`apps/dev-rxdb-electron/src/app/backup-probe.ts`、`apps/dev-rxdb-tauri/src/app/backup-probe.ts`）；
+  Tauri 的归档由 Rust 自检命令逐块追加到应用数据目录之外的文件，已存在时在建窗之前以配置错误码退出。macOS arm64 本机通过。
+- AC#19：成功、失败与取消都断言源库照常读写、host 上不留快照 / 事务 / 目录锁：SQLite 走共享套件的失败与跨进程用例；PGlite 见
+  `desktop-pglite-client-backup.spec.ts`（消费方提前结束时 host 侧快照也结束；读完却结束不了快照时不返回成功）、
+  `electron-pglite-host-backup.spec.ts`（读取中途文件消失报 `file_not_found` 且快照自动结束；中止时删不掉半个目录报 `cleanup_pending`）
+  与 `electron-pglite-transport.spec.ts`。
+- AC#20 ⚠️：两个 e2e spec 各带一组「跨 OS 恢复其他平台的归档」用例，由 `RXDB_BACKUP_IMPORT_DIR` 打开。`release-desktop.yml` 里
+  electron-smoke / tauri-smoke 设 `RXDB_BACKUP_EXPORT_DIR`，把本平台的归档（`<平台>-<adapter>.rxdb-backup`）与打包产物上传；
+  `backup-cross-os` 在三个平台上取回本平台产物与全部归档，恢复其余两个平台产出的每一份（Electron 2 后端 × 2 + Tauri × 2），缺一份即红，
+  并挂进 `desktop-gate`。本机以 darwin 归档冒充 linux / win32 跑通了这组用例与 CI 里的命令行；三平台真实运行尚未发生，跑绿之前不标 ✅。
+- AC#21：`shared-backup-channel.suite.ts` 在两个 SQLite host 上用计量通道包住传输层：host 或 sink 慢时 renderer 不再取行 / 不再写，
+  恢复时 host 慢则输入流不被往下读，整份归档从不以一条消息出现；请求或应答丢失、host 被杀都以 `io_error` 结束，sink 被 abort，
+  源库照常读写，目标退回从未恢复过；通道彻底断开时报 `cleanup_pending`，host 退出后由别的连接清理；握手版本差 ±1 时在打开目标之前
+  拒绝，目标与输入流一个字节都没动。PGlite 见 `electron-pglite-transport.spec.ts`：任一时刻至多一个数据请求在途，单条消息的 buffer
+  不超过公共块大小且各自独占恰好大小的 `ArrayBuffer`（`pglite-host-data-dir.spec.ts`），协议不兼容时恢复在读归档之前拒绝。
 
 ## 技术笔记
 
@@ -268,6 +310,38 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
   官方 sqlite 与 sqliteai 的内存库与 `opfs: true`。其余 VFS 以及 `opfsFallback: 'memory'` 报 `unsupported_combination`。
   同一 adapter 的内存与持久化存储互为源 / 目标。
 
+### 阶段 C 冻结结论
+
+- **SQLite host 复用阶段 B 的逻辑转储**：renderer 侧的 `RxDBAdapterSqliteBase` 经桌面协议 v2 在 host 上执行同一套只读事务与分页 SQL，
+  恢复前先由 `connectDesktopRestoreTarget` 让本连接取得 SQLite 的文件级独占锁，持有到恢复完成或失败清理结束。协议 v2 为恢复新增 `mute`；
+  通道失败在恢复中归为 `io_error`，不与归档损坏混淆。Electron host 开着 defensive，含虚表的库备份与恢复都报 `unsupported_combination`；
+  Tauri 的 Rust host 不开，FTS5 照常往返。
+- **PGlite host**：`createElectronPgliteHost` 显式传 `backup` 才开启；快照在本会话连接上挂空事务、`CHECKPOINT` 后逐文件读数据目录，
+  64 KiB 一块、renderer 取一块 host 读一块；恢复在写第一个文件前落未完成标记，完整性核对、启动校验与逐一 fsync 通过后删除。
+  每个数据目录旁有一把跨进程目录锁。引擎版本由不落盘的探针实例回答（`pg.engine`）。
+- **资源预算（AC#9）**：新增峰值，单位 MiB。
+
+  | host                                | 备份 | 恢复 | renderer | 实测（macOS arm64）                                                             |
+  | ----------------------------------- | ---: | ---: | -------: | ------------------------------------------------------------------------------- |
+  | Electron `node:sqlite`              |  256 |  384 |       32 | 库 76 / 303 / 606 MB：备份 90 / 127 / 141，恢复 199 / 220 / 230；renderer 约 11 |
+  | Tauri Rust（rusqlite）              |  256 |  384 |       32 | 库 76 / 303 MB：备份 17 / 21，恢复 73 / 73                                      |
+  | Electron PGlite（操作本身）         |  256 |  512 |       32 | 库 24 / 96 MiB：备份 70 / 51，恢复 237 / 261；renderer ≤ 6                      |
+  | Electron PGlite（`pg.engine` 探针） | 1280 |    — |        — | 新起的 host 上 887～1027                                                        |
+
+  PGlite 探针是一个完整的内存 PGlite 实例，关掉之后 WASM 堆何时还给操作系统取决于 GC 与内核，与操作是否叠在一起不确定，
+  所以操作本身在探针被桩掉的 host 上量，探针单独量；最坏情况按两者之和计（备份 1536、恢复 1792）。
+
+- **支持矩阵（阶段 C）**：只承诺同一 adapter、同一 RxDB 版本线的组合，system schema 6、change-codec 1、归档格式 1、桌面协议 2。
+
+  | adapter           | 源 / 目标存储                | 运行环境                                   | 引擎 / 必需扩展                                          | 跨 OS                                     |
+  | ----------------- | ---------------------------- | ------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
+  | `sqlite-electron` | 应用数据目录下的库文件       | Electron 44 主进程 `node:sqlite`，WAL      | SQLite ≥ 3.43（Electron 44.4.3 内置 3.53.4）；无         | Linux / macOS / Windows 两两互通（AC#20） |
+  | `sqlite-tauri`    | 应用数据目录下的库文件       | Tauri 2 Rust host（rusqlite bundled），WAL | SQLite ≥ 3.43（rusqlite 0.32 内置 3.46.0）；FTS5         | 同上                                      |
+  | `pglite-electron` | 应用数据目录下的 PGlite 目录 | Electron 主进程 worker 线程里的 PGlite     | PGlite ^0.5.8（PostgreSQL 18）；扩展由宿主声明，示例为空 | 同上                                      |
+
+  内存目标、Electron 的虚表库、没有开 `backup` 的 PGlite host、以及协议版本不一致的 renderer / host 组合明确拒绝。
+  SQLite 引擎低于 3.43 时分页探测用的 `octet_length()` 不存在，备份以 `io_error` 失败，不产出归档。
+
 备份必须保留数据库内部状态，不能仅用 `findAll()` 导出实体后重建；否则会丢失 `rxdb_change` 等历史与同步语义。
 加密元数据结构以 [`KeyringRow`](../../../packages/rxdb-adapter-encrypted/src/keyring-storage.ts) 为依据，归档不导出 keyring secret。
 新增公开 API 时同步 TSDoc、API baseline、类型兼容测试与覆盖率；核心包覆盖率按 90% 门槛，其他包按 80% 门槛。
@@ -281,6 +355,7 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
 | B    | `packages/rxdb-adapter-wa-sqlite/`、`packages/rxdb-adapter-sqlite-wasm/`、`packages/rxdb-adapter-sqlite/`、`packages/rxdb-adapter-sqliteai/` | 后端接入、能力声明及独占 / 原子恢复实现                    |
 | C    | `packages/rxdb-adapter-electron/`、`packages/rxdb-adapter-tauri/`                                                                            | host 快照、恢复、流传输及中断清理                          |
 | C    | `packages/rxdb-adapter-sqlite-core/src/desktop/`、`apps/dev-rxdb-electron-e2e/`、`apps/dev-rxdb-tauri-e2e/`                                  | 桌面协议与 packaged smoke                                  |
+| C    | `.github/workflows/release-desktop.yml`                                                                                                      | 三 OS packaged smoke 与跨 OS 恢复（`backup-cross-os`）     |
 | 横切 | `requirements/api-baseline/`、`packages/rxdb-adapter-*/src/__tests__/`                                                                       | API 基线、公共契约与兼容矩阵验证；契约实现位置在 plan 冻结 |
 
 ## References

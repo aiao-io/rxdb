@@ -133,8 +133,9 @@ export class VersionManager {
    * `HistoryManager` 已经拆掉了订阅，这里重建一个而不是复用 —— 复用等于把新纪元的
    * 变更喂给一条已 complete 的流。
    *
-   * 不发任何适配器读写，因此可以（也必须）早于引导链跑：`HistoryManager` 的分支流
-   * 要赶在第一条 `rxdb_change` 事件之前订阅上，装晚了那一批变更就不进历史。
+   * 不发任何适配器读写，也不会把实例连起来（分支流等 `connected$` 为真才查），因此可以
+   * （也必须）早于引导链跑：`HistoryManager` 的分支流要赶在第一条 `rxdb_change` 事件之前
+   * 订阅上，装晚了那一批变更就不进历史。
    */
   init() {
     if (this.#historyManagerDestroyed) {

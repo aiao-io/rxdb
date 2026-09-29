@@ -16,8 +16,10 @@
 export {
   DESKTOP_PGLITE_WATCH_CHANNELS,
   createElectronPgliteHost,
+  type ElectronPgliteBackupOptions,
   type ElectronPgliteHost,
   type ElectronPgliteHostOptions,
+  type ElectronPgliteProbeRuntime,
   type ElectronPgliteRuntime,
   type ElectronPgliteRuntimeResult,
   type ElectronPgliteTransaction
@@ -27,7 +29,9 @@ export {
 // 就该拿全写一个 PGlite host 需要的全部东西。
 export {
   DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_EXCLUDED_FILES,
   DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES,
   DESKTOP_PGLITE_PROTOCOL_VERSION,
   RxDBAdapterDesktopError,
   // 宿主自己拼数据目录路径时要用：协议校验管的是「请求合法」，落盘前那次校验管的是
@@ -35,6 +39,9 @@ export {
   assertValidDesktopDatabaseName,
   isDesktopPgliteRequestKind,
   parseDesktopPgliteRequest,
+  type DesktopPgliteBackupItem,
+  type DesktopPgliteDataDirItem,
+  type DesktopPgliteEngineResult,
   type DesktopPgliteNotifyMessage,
   type DesktopPgliteQueryResult,
   type DesktopPgliteRequest,

@@ -228,6 +228,27 @@ export const sqliteArchiveExtensions = (schema: SqliteBackupSchema): string[] =>
 };
 
 /**
+ * 后端写不了影子表时，拒绝含影子表的结构。
+ *
+ * @remarks
+ * 影子表只能按行原样恢复（见 {@link SqliteBackupTable}）。以 defensive 模式运行 SQLite 的后端改不了影子表，
+ * 恢复不了这样的归档；备份端也据此拒绝，不产出一份同一 adapter 恢复不了的归档。
+ *
+ * @param schema - 源库或归档的结构
+ * @param adapterName - adapter 名，写进错误信息
+ * @throws RxDBBackupError `unsupported_combination`，`details.actual` 为结构里的虚表模块
+ */
+export const assertNoSqliteShadowTables = (schema: SqliteBackupSchema, adapterName: string): void => {
+  const shadows = schema.tables.filter(table => table.kind === 'shadow').map(table => table.name);
+  if (shadows.length === 0) return;
+  throw new RxDBBackupError(
+    'unsupported_combination',
+    `Adapter "${adapterName}" cannot write the shadow tables ${shadows.join(', ')} of its virtual tables`,
+    { details: { field: 'adapter.extensions', actual: sqliteArchiveExtensions(schema) } }
+  );
+};
+
+/**
  * 读库里的系统表结构 / 变更编码水位。
  *
  * @param executor - 客户端
@@ -299,6 +320,13 @@ export interface SqliteTableDump {
   readonly firstPageSql: string;
   /** 绑定参数：`[...上一页最后一行的键, limit]`。 */
   readonly nextPageSql: string;
+  /**
+   * 绑定参数同 {@link firstPageSql}。每行只有一列：该行字面量字节数的保守上界，不构造字面量本身；
+   * 转储据此决定下一页取几行，让单页回复不超过字节预算。
+   */
+  readonly firstSizeSql: string;
+  /** 绑定参数同 {@link nextPageSql}，结果同 {@link firstSizeSql}。 */
+  readonly nextSizeSql: string;
 }
 
 /** {@link readSqliteBackupSchema} 的结果。 */
@@ -414,20 +442,31 @@ const readTableLayout = async (
   return { table: table(keyword), keys: [keyword] };
 };
 
+/**
+ * 一列字面量字节数的上界：{@link literalOf} 的最长形式是十六进制（每字节两个字符）加定长外壳，
+ * `quote()` 转义单引号也不超过两倍。`octet_length()`（SQLite 3.43+）只读记录头里的长度，
+ * 不把 TEXT / BLOB 内容读出来，探测大行不会把它们整段读一遍。
+ */
+const literalBoundOf = (column: string): string => `(2 * ifnull(octet_length(${column}), 0) + 32)`;
+
 const planDump = (layout: TableLayout, index: number): SqliteTableDump => {
   const { table, keys } = layout;
-  const literals = [...table.columns.map(quote_sql_identifier), ...(table.rowid === null ? [] : [table.rowid])].map(
-    literalOf
-  );
-  const row = `CAST('(' || ${literals.join(` || ',' || `)} || ')' AS BLOB)`;
+  const columns = [...table.columns.map(quote_sql_identifier), ...(table.rowid === null ? [] : [table.rowid])];
+  const row = `CAST('(' || ${columns.map(literalOf).join(` || ',' || `)} || ')' AS BLOB)`;
+  const bound = columns.map(literalBoundOf).join(' + ');
   const keyList = keys.join(', ');
-  const from = `SELECT ${row}, ${keyList} FROM ${quote_sql_identifier(table.name)}`;
+  const tableName = quote_sql_identifier(table.name);
+  const after = `WHERE (${keyList}) > (${keys.map(() => '?').join(', ')})`;
   const order = `ORDER BY ${keyList} LIMIT ?`;
+  const from = `SELECT ${row}, ${keyList} FROM ${tableName}`;
+  const sizes = `SELECT ${bound} FROM ${tableName}`;
   return {
     table: index,
     keyCount: keys.length,
     firstPageSql: `${from} ${order}`,
-    nextPageSql: `${from} WHERE (${keyList}) > (${keys.map(() => '?').join(', ')}) ${order}`
+    nextPageSql: `${from} ${after} ${order}`,
+    firstSizeSql: `${sizes} ${order}`,
+    nextSizeSql: `${sizes} ${after} ${order}`
   };
 };
 

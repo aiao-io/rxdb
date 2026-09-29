@@ -73,6 +73,19 @@ export interface RustHostProcess {
   readonly stderr: () => string;
   /** 关掉子进程并让所有在途请求失败。 */
   readonly stop: () => void;
+  /**
+   * 以 SIGKILL 强杀子进程并等它退出：宿主来不及回滚事务、关连接或删临时文件，与用户进程被系统杀掉一样。
+   *
+   * @remarks
+   * 返回时在途请求都已失败，此后的请求也立刻失败，调用方再也碰不到库文件。已经退出时直接返回。
+   */
+  readonly kill: () => Promise<void>;
+  /**
+   * 宿主进程自启动以来的峰值常驻内存（US-217 AC#9），见 `rust/src/bin/rxdb_host_stdio.rs` 的探针一节。
+   *
+   * @returns 字节数
+   */
+  readonly peakRss: () => Promise<number>;
 }
 
 const requireBinary = (): string => {
@@ -155,25 +168,33 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
   child.on('exit', code => failAll(new Error(`the conformance host exited with code ${String(code)}: ${stderr}`)));
   child.on('error', error => failAll(error));
 
+  const send = (message: Record<string, unknown>): Promise<unknown> =>
+    new Promise((resolveRequest, rejectRequest) => {
+      if (exit) {
+        rejectRequest(exit);
+        return;
+      }
+      // 管子已关但进程还没报 exit 的那个窗口：直接拒绝，别再往里写。
+      if (!child.stdin.writable) {
+        rejectRequest(new Error('the conformance host stdin is already closed'));
+        return;
+      }
+      const id = nextId++;
+      pending.set(id, { resolve: resolveRequest, reject: rejectRequest });
+      child.stdin.write(`${JSON.stringify({ ...message, id })}\n`);
+    });
+
   return {
     // 刻意**不**在这里排队：Tauri 的 `invoke` 是真并发，测试替身一旦替被测代码把请求
     // 串起来，`DesktopSqliteClient` 里的顺序保证就再也验不到了——而那正是这条路径上
     // 最容易回归的性质。
-    invoke: (command, args) =>
-      new Promise((resolveRequest, rejectRequest) => {
-        if (exit) {
-          rejectRequest(exit);
-          return;
-        }
-        // 管子已关但进程还没报 exit 的那个窗口：直接拒绝，别再往里写。
-        if (!child.stdin.writable) {
-          rejectRequest(new Error('the conformance host stdin is already closed'));
-          return;
-        }
-        const id = nextId++;
-        pending.set(id, { resolve: resolveRequest, reject: rejectRequest });
-        child.stdin.write(`${JSON.stringify({ id, command, payload: args.payload })}\n`);
-      }),
+    invoke: (command, args) => send({ command, payload: args.payload }),
+
+    peakRss: async () => {
+      const bytes = await send({ probe: 'peakRss' });
+      if (typeof bytes !== 'number') throw new Error(`the conformance host has no peak RSS: ${JSON.stringify(bytes)}`);
+      return bytes;
+    },
 
     // 真 `listen` 要跨一次 IPC 才落定，而 `DesktopSqliteClient` 正是靠
     // `await client.#awaitSubscription()` 才能保证「open 之后的第一条写入不会漏掉事件」。
@@ -197,7 +218,18 @@ export function startRustHostProcess(root: string, env?: Readonly<Record<string,
     stop: () => {
       child.stdin.end();
       child.kill();
-    }
+    },
+
+    kill: () =>
+      new Promise<void>(resolveKill => {
+        if (child.exitCode !== null || child.signalCode !== null) {
+          resolveKill();
+          return;
+        }
+        // 'exit' 监听按注册顺序触发：上面那个 failAll 先跑，等这里 resolve 时在途请求已全部失败。
+        child.once('exit', () => resolveKill());
+        child.kill('SIGKILL');
+      })
   };
 }
 

@@ -82,6 +82,24 @@ describe('NodeSqliteEngine.open', () => {
     expect(engine.execute('PRAGMA foreign_keys').results[0]?.rows[0]?.[0]).toBe(1);
   });
 
+  // host 在特权主进程里执行 renderer 透传的 SQL：defensive 模式挡住直接改写影子表，
+  // 改坏的 FTS5 索引会让之后每次搜索都读到损坏的库（US-217 因此不备份含影子表的库）
+  it('runs in defensive mode, so SQL cannot rewrite shadow tables', () => {
+    const engine = openEngine();
+    engine.execute('CREATE VIRTUAL TABLE notes_fts USING fts5(body)');
+    engine.execute('INSERT INTO notes_fts (body) VALUES (?)', ['indexed']);
+    try {
+      engine.execute('DELETE FROM notes_fts_data');
+      expect.unreachable('should have refused to modify the shadow table');
+    } catch (error) {
+      expect((error as RxDBAdapterDesktopError).code).toBe('statement_failed');
+      expect((error as Error).message).toContain('may not be modified');
+    }
+    expect(engine.execute("SELECT body FROM notes_fts WHERE notes_fts MATCH 'indexed'").results[0]?.rows).toEqual([
+      ['indexed']
+    ]);
+  });
+
   // AC#4：打不开就报错，绝不静默降级到内存库让用户以为数据落了盘
   it('reports open_failed without leaving an empty database behind', () => {
     const filePath = join(workspace, 'missing-dir', 'app.sqlite3');
@@ -569,6 +587,35 @@ describe('NodeSqliteEngine change notification', () => {
     expect(events).toEqual([]);
     engine.close();
     expect(events).toHaveLength(1);
+  });
+
+  // 恢复整库时静音（US-217）：恢复写进去的系统表行不是新变更，不能广播给订阅者
+  it('drops the changes written while muted and resumes once unmuted', async () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.setChangeEventsMuted(true);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['restored']);
+    engine.setChangeEventsMuted(false);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['live']);
+    await flushed();
+    expect(events).toEqual([expect.objectContaining({ type: SQLiteChangeType.SQLITE_INSERT, rowIds: [2n] })]);
+  });
+
+  // 静音前攒下的批次记录的是静音前真实发生的写入，照常发出
+  it('still delivers the batch recorded before muting', async () => {
+    const engine = openEngine();
+    createChangeTable(engine);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['before']);
+    engine.setChangeEventsMuted(true);
+    engine.execute('INSERT INTO "rxdb$rxdb_change" (payload) VALUES (?)', ['restored']);
+    await flushed();
+    expect(events).toEqual([expect.objectContaining({ rowIds: [1n] })]);
+  });
+
+  it('refuses to mute a closed engine', () => {
+    const engine = openEngine();
+    engine.close();
+    expect(() => engine.setChangeEventsMuted(true)).toThrow(expect.objectContaining({ code: 'session_closed' }));
   });
 
   it('stops emitting once the engine is closed', async () => {

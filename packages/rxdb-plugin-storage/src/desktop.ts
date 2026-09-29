@@ -77,7 +77,14 @@ const BACKEND_ERROR_CODES: Readonly<
   // 真收到就说明 host 把应答串到了另一族上——那是 host 内部的错，不是调用方能修的。
   // 表本身是穷尽的（`Record<Exclude<...>>`），漏一条编译期就报，所以这里不能留空。
   transaction_not_found: 'backend_internal_error',
-  transaction_unavailable: 'backend_internal_error'
+  transaction_unavailable: 'backend_internal_error',
+  // 五条备份恢复错误码（US-217）同理：只有 PGlite 族的 `pg.restore.*` / `pg.backup.*` 发得出来，
+  // 文件族收到它们同样说明应答串了族。
+  restore_in_progress: 'backend_internal_error',
+  restore_incomplete: 'backend_internal_error',
+  target_not_empty: 'backend_internal_error',
+  cleanup_pending: 'backend_internal_error',
+  unsupported_operation: 'backend_internal_error'
 };
 
 /** 单帧上限；读写都按它切分，内容因此不会整块进 JS 堆。 */

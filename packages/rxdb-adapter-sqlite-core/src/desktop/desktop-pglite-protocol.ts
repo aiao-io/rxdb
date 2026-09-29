@@ -16,6 +16,10 @@
  * 与 SQLite 侧一样，只使用**结构化克隆**能原样搬运的类型，因此 `bigint`、`Uint8Array`、
  * `Date` 不经 JSON 编解码，跨 IPC 逐值保真（AC#1）。
  *
+ * v2 加入备份与恢复（US-217）：备份在 host 上占住连接后逐项读出数据目录，恢复在 host 上取得
+ * 跨进程独占后逐项写回、用私有实例校验，再落盘并对外可见。数据只以不超过
+ * {@link DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES} 的块过 IPC，且一问一答，两端都不缓存整个归档。
+ *
  * @module desktop-pglite-protocol
  */
 
@@ -46,12 +50,16 @@ import {
  * @remarks
  * 与 {@link DESKTOP_HOST_PROTOCOL_VERSION} 各自独立编号，因为两套协议会各自演进：
  * PGlite 加一个事务操作不该逼着已经稳定的 SQLite host 跟着跳版本，反之亦然。
- * 两者当前都是 1，纯属巧合，**不要**把它们绑成同一个常量。
+ * 两者当前都是 2，依旧纯属巧合（SQLite 为恢复放宽了 SQL 上限并加了 `mute`，PGlite 加了
+ * 数据目录的备份与恢复），**不要**把它们绑成同一个常量。
+ *
+ * v1 host 不认识 `pg.engine` / `pg.backup.*` / `pg.restore.*`；升版让 renderer 在握手时就拒绝它，
+ * 而不是等到备份或恢复进行到一半才收到 `protocol_violation`（US-217 AC#21）。
  *
  * 本协议没有 Rust 对偶：Tauri 永远不会有 PGlite host（没有 Node 主进程可服务 PGlite 的
  * 同步 filesystem 契约），所以这个数字只有 TypeScript 这一份真相源。
  */
-export const DESKTOP_PGLITE_PROTOCOL_VERSION = 1;
+export const DESKTOP_PGLITE_PROTOCOL_VERSION = 2;
 
 /**
  * 参数值允许的最大嵌套深度。
@@ -81,6 +89,32 @@ export const DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS = 5_000;
  * fail-fast 还原成了无限等待，AC#3 承诺的「不留下悬挂事务」随之失效。
  */
 export const DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS = 60_000;
+
+/**
+ * 备份与恢复时，单个数据块背后整块 `ArrayBuffer` 的字节上限。
+ *
+ * @remarks
+ * 与核心归档的 `RXDB_BACKUP_CHUNK_SIZE` 相等（本包不依赖核心归档，一致性由测试钉住）：
+ * 归档的 DATA 帧本来就不超过这个大小，一帧对应一条 IPC 消息，两端都不必为拼接或二次切分
+ * 预留缓冲（US-217 AC#9）。卡的是**整块 buffer** 而不是视图长度——结构化克隆搬运的是整块
+ * buffer，一个 1 字节的视图可以拖着 64 MiB 的 buffer 过 IPC。
+ */
+export const DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES = 64 * 1024;
+
+/**
+ * 数据目录里只属于运行态的文件名：备份不读，恢复不写。
+ *
+ * @remarks
+ * 与 `@aiao/rxdb-adapter-pglite` 的 `PGLITE_EXCLUDED_FILES` 是同一份清单（本包不依赖该适配器，
+ * 一致性由测试钉住）。`postmaster.pid` 会让恢复出的库以为另一个 postmaster 还活着；
+ * 另外两个是启动时重建的缓存，快照时刻的版本可能与数据文件不一致。清单作用于路径的
+ * **每一段**：host 与 renderer 各自按它拒绝，谁也不假设对端已经过滤过。
+ */
+export const DESKTOP_PGLITE_EXCLUDED_FILES: ReadonlySet<string> = new Set([
+  'postmaster.pid',
+  'postmaster.opts',
+  'pg_internal.init'
+]);
 
 /**
  * 参数值：结构化克隆能原样搬运，且 PGlite 能绑定的类型。
@@ -178,10 +212,104 @@ export interface DesktopPgliteVersionRequest {
   readonly sessionId: string;
 }
 
-/** 关闭会话；host 据此回滚该会话仍开着的事务并释放引用。 */
+/** 关闭会话；host 据此回滚该会话仍开着的事务、结束仍开着的备份并释放引用。 */
 export interface DesktopPgliteCloseRequest {
   readonly kind: 'pg.close';
   readonly sessionId: string;
+}
+
+/**
+ * 查询 host 上 PGlite 引擎的版本与已加载扩展（v2，US-217）。
+ *
+ * @remarks
+ * 不带会话：恢复目标在恢复完成前不许被连接，拿不到会话，而兼容性核对必须排在写入目标
+ * 之前（AC#5）。host 用一个不落盘的探针实例回答；同一个 host 打开的每个数据目录跑的都是
+ * 同一份 PGlite 与同一组扩展，所以答案对它们都成立。
+ */
+export interface DesktopPgliteEngineRequest {
+  readonly kind: 'pg.engine';
+}
+
+/**
+ * 在会话上开启一次数据目录快照（v2，US-217）。
+ *
+ * @remarks
+ * host 在该会话的实例上开一条事务并执行 `CHECKPOINT`，此后一直占着连接直到 `pg.backup.end`：
+ * PGlite 只有一条连接，占住它就没有任何写入能落进正在读的文件，快照边界前已提交的 WAL
+ * 也都已落进数据文件（AC#16）。等待连接空闲的上限与 `pg.begin` 同档，到期以
+ * `transaction_unavailable` 失败。
+ */
+export interface DesktopPgliteBackupBeginRequest {
+  readonly kind: 'pg.backup.begin';
+  readonly sessionId: string;
+  /** 等待连接空闲的上限（毫秒）。 */
+  readonly timeout: number;
+}
+
+/**
+ * 推进或结束一次快照读取（v2，US-217）。
+ *
+ * @remarks
+ * `pg.backup.next` 每次只取一项，背压因此天然成立：renderer 不来取，host 就不读下一块（AC#21）。
+ * `pg.backup.end` 无论读完与否都要发，host 据此关闭文件句柄并交还连接；会话关闭或 renderer
+ * 断开时 host 同样会收尾，源库始终可以继续读写（AC#19）。
+ */
+export interface DesktopPgliteBackupCursorRequest {
+  readonly kind: 'pg.backup.next' | 'pg.backup.end';
+  readonly sessionId: string;
+  /** `pg.backup.begin` 签发的快照 ID。 */
+  readonly backupId: string;
+}
+
+/**
+ * 为恢复取得一个数据目录的独占权，或清理它未完成的恢复（v2，US-217）。
+ *
+ * @remarks
+ * `pg.restore.begin` **先**取得跨进程独占锁，**再**检查未完成标记与目录是否为空——顺序反过来
+ * 就会留下「检查后被连接」的窗口（AC#12）。独占一直保持到 `pg.restore.commit` 或
+ * `pg.restore.abort`，期间 `pg.open` 与新的恢复请求都被拒绝。
+ *
+ * `pg.restore.cleanup` 同样先取锁，锁被占用时以 `database_busy` 拒绝，从不清理别人正在用的目录。
+ */
+export interface DesktopPgliteRestoreTargetRequest {
+  readonly kind: 'pg.restore.begin' | 'pg.restore.cleanup';
+  readonly storage: DesktopPgliteDirectoryStorage;
+}
+
+/**
+ * 推进一次已取得独占权的恢复（v2，US-217）。
+ *
+ * @remarks
+ * 顺序固定：`prepare`（持久化未完成标记，建出空目录）→ 若干 `pg.restore.write` → `open`
+ * （启动私有实例）→ 若干 `pg.restore.query`（校验）→ `persist`（关闭实例并逐一落盘）→
+ * `commit`（删除标记、释放独占）。任一步失败都以 `abort` 收尾；乱序请求由 host 以
+ * `protocol_violation` 拒绝。
+ */
+export interface DesktopPgliteRestoreStepRequest {
+  readonly kind:
+    'pg.restore.prepare' | 'pg.restore.open' | 'pg.restore.persist' | 'pg.restore.commit' | 'pg.restore.abort';
+  /** `pg.restore.begin` 签发的恢复 ID。 */
+  readonly restoreId: string;
+}
+
+/** 往恢复中的数据目录写入一项：条目头，或属于上一个文件条目的数据块（v2，US-217）。 */
+export interface DesktopPgliteRestoreWriteRequest {
+  readonly kind: 'pg.restore.write';
+  readonly restoreId: string;
+  readonly item: DesktopPgliteDataDirItem;
+}
+
+/**
+ * 在恢复出的私有实例上执行一条校验查询（v2，US-217）。
+ *
+ * @remarks
+ * 私有实例不登记会话，其他窗口与进程连不上它；校验通过并落盘之前，目标对外始终不可见（AC#11）。
+ */
+export interface DesktopPgliteRestoreQueryRequest {
+  readonly kind: 'pg.restore.query';
+  readonly restoreId: string;
+  readonly sql: string;
+  readonly params: readonly DesktopPgliteParam[];
 }
 
 /** renderer 可以发给 PGlite host 的全部请求。 */
@@ -193,7 +321,14 @@ export type DesktopPgliteRequest =
   | DesktopPgliteBeginRequest
   | DesktopPgliteTransactionEndRequest
   | DesktopPgliteVersionRequest
-  | DesktopPgliteCloseRequest;
+  | DesktopPgliteCloseRequest
+  | DesktopPgliteEngineRequest
+  | DesktopPgliteBackupBeginRequest
+  | DesktopPgliteBackupCursorRequest
+  | DesktopPgliteRestoreTargetRequest
+  | DesktopPgliteRestoreStepRequest
+  | DesktopPgliteRestoreWriteRequest
+  | DesktopPgliteRestoreQueryRequest;
 
 /** `pg.handshake` 的响应。 */
 export interface DesktopPgliteHandshakeResult {
@@ -237,6 +372,41 @@ export interface DesktopPgliteQueryResult {
   readonly affectedRows?: number;
 }
 
+/** `pg.engine` 的响应。 */
+export interface DesktopPgliteEngineResult {
+  /** PostgreSQL 的 `server_version`。 */
+  readonly serverVersion: string;
+  /** host 为每个实例加载的扩展名，已排序去重。 */
+  readonly extensions: readonly string[];
+}
+
+/**
+ * 数据目录中的一个条目。
+ *
+ * @remarks
+ * `path` 相对数据目录根、以 `/` 分隔，每一段都不能越出目录、不能是运行态文件；
+ * 目录条目的 `size` 恒为 0。
+ */
+export interface DesktopPgliteDataDirEntry {
+  readonly path: string;
+  readonly kind: 'file' | 'directory';
+  readonly size: number;
+}
+
+/**
+ * 数据目录快照里的一项。
+ *
+ * @remarks
+ * 文件条目之后紧跟若干数据块，块长之和等于条目的 `size`。每个数据块独占自己的
+ * `ArrayBuffer`，整块不超过 {@link DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES}。
+ */
+export type DesktopPgliteDataDirItem =
+  | { readonly type: 'entry'; readonly header: DesktopPgliteDataDirEntry }
+  | { readonly type: 'data'; readonly bytes: Uint8Array<ArrayBuffer> };
+
+/** `pg.backup.next` 的结果：快照的下一项，或表示读完的结束标记。 */
+export type DesktopPgliteBackupItem = DesktopPgliteDataDirItem | { readonly type: 'end' };
+
 /**
  * host 对一次 PGlite 请求的应答。
  *
@@ -254,6 +424,19 @@ export type DesktopPgliteResponse =
   | { readonly kind: 'pg.rollback' }
   | { readonly kind: 'pg.version'; readonly result: string }
   | { readonly kind: 'pg.close' }
+  | { readonly kind: 'pg.engine'; readonly result: DesktopPgliteEngineResult }
+  | { readonly kind: 'pg.backup.begin'; readonly result: { readonly backupId: string } }
+  | { readonly kind: 'pg.backup.next'; readonly result: DesktopPgliteBackupItem }
+  | { readonly kind: 'pg.backup.end' }
+  | { readonly kind: 'pg.restore.begin'; readonly result: { readonly restoreId: string } }
+  | { readonly kind: 'pg.restore.prepare' }
+  | { readonly kind: 'pg.restore.write' }
+  | { readonly kind: 'pg.restore.open' }
+  | { readonly kind: 'pg.restore.query'; readonly result: DesktopPgliteQueryResult }
+  | { readonly kind: 'pg.restore.persist' }
+  | { readonly kind: 'pg.restore.commit' }
+  | { readonly kind: 'pg.restore.abort' }
+  | { readonly kind: 'pg.restore.cleanup'; readonly result: { readonly cleaned: boolean } }
   | { readonly kind: 'error'; readonly code: RxDBAdapterDesktopErrorCode; readonly message: string };
 
 /**
@@ -277,6 +460,15 @@ export interface DesktopPgliteNotifyMessage {
   readonly payload: string;
 }
 
+/**
+ * PGlite 线协议上单条 SQL 文本的长度上限（UTF-16 码元）。
+ *
+ * @remarks
+ * SQLite 线协议为了恢复时整条下发一个行条目放宽到了 64 Mi，这里不跟：PGlite 的备份恢复
+ * 走 data directory 快照，从不把归档内容拼成 SQL。
+ */
+const PGLITE_MAX_SQL_LENGTH = 1_000_000;
+
 const PGLITE_REQUEST_KINDS: readonly DesktopPgliteRequest['kind'][] = [
   'pg.handshake',
   'pg.open',
@@ -286,8 +478,48 @@ const PGLITE_REQUEST_KINDS: readonly DesktopPgliteRequest['kind'][] = [
   'pg.commit',
   'pg.rollback',
   'pg.version',
-  'pg.close'
+  'pg.close',
+  'pg.engine',
+  'pg.backup.begin',
+  'pg.backup.next',
+  'pg.backup.end',
+  'pg.restore.begin',
+  'pg.restore.prepare',
+  'pg.restore.write',
+  'pg.restore.open',
+  'pg.restore.query',
+  'pg.restore.persist',
+  'pg.restore.commit',
+  'pg.restore.abort',
+  'pg.restore.cleanup'
 ];
+
+type RestoreRequest =
+  | DesktopPgliteRestoreTargetRequest
+  | DesktopPgliteRestoreStepRequest
+  | DesktopPgliteRestoreWriteRequest
+  | DesktopPgliteRestoreQueryRequest;
+
+/**
+ * 条目路径的长度上限（UTF-16 码元）。
+ *
+ * @remarks
+ * PG 数据目录里最深的路径也不过几十个字符；上限只为让一条超长路径在进 `path.join` 之前就被拒绝。
+ */
+const MAX_ENTRY_PATH_LENGTH = 1024;
+
+/**
+ * 条目路径段里不允许出现的可见字符：Windows 文件名的保留字符。
+ *
+ * @remarks
+ * `/` 是段分隔符，不会出现在段里；`\` 与 `:` 在 Windows 上分别是分隔符与盘符 / 流名，
+ * 放进来就能越出数据目录。其余几个在 Windows 上建不出文件，恢复会在写到一半时失败。
+ * 控制字符另按码位拒绝。
+ */
+const WINDOWS_RESERVED_CHARACTERS = '\\:*?"<>|';
+
+/** Windows 保留设备名：带不带扩展名都指向设备而不是文件。 */
+const WINDOWS_DEVICE_SEGMENT = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i;
 
 /** 结构化克隆产出的对象原型只可能是这两种；其余（Map/Set/类实例）不是 JSONB 参数。 */
 const isPlainObject = (value: object): boolean => {
@@ -366,7 +598,7 @@ const readBeginTimeout = (record: Record<string, unknown>): number => {
   return timeout as number;
 };
 
-const parseOpenRequest = (record: Record<string, unknown>): DesktopPgliteOpenRequest => {
+const readDirectoryStorage = (record: Record<string, unknown>): DesktopPgliteDirectoryStorage => {
   const storage = record['storage'];
   if (!isDesktopPgliteDirectoryStorage(storage)) {
     throw new RxDBAdapterDesktopError(
@@ -378,7 +610,140 @@ const parseOpenRequest = (record: Record<string, unknown>): DesktopPgliteOpenReq
   // data directory 名与 SQLite 逻辑库名共用同一套白名单：两者都是应用作用域内的逻辑名，
   // 都由 host 在自己的应用数据目录里解析，因此「不含路径分隔符」这条性质必须一样强。
   assertValidDesktopDatabaseName(storage.dataDirectoryName);
-  return { kind: 'pg.open', storage: { engine: 'pglite', dataDirectoryName: storage.dataDirectoryName } };
+  return { engine: 'pglite', dataDirectoryName: storage.dataDirectoryName };
+};
+
+const asObject = (value: unknown, name: string): Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw violation(`${name} must be a plain object`);
+  }
+  return value as Record<string, unknown>;
+};
+
+const hasUnsafeCharacter = (segment: string): boolean => {
+  for (const character of segment) {
+    if (character.charCodeAt(0) < 0x20 || WINDOWS_RESERVED_CHARACTERS.includes(character)) return true;
+  }
+  return false;
+};
+
+const isSafeEntrySegment = (segment: string): boolean =>
+  segment !== '' &&
+  !segment.endsWith('.') &&
+  !segment.endsWith(' ') &&
+  !hasUnsafeCharacter(segment) &&
+  !WINDOWS_DEVICE_SEGMENT.test(segment);
+
+/**
+ * 校验条目路径。
+ *
+ * @remarks
+ * 以 `.` 结尾的段一并拒绝，`.` 与 `..` 因此不必单列；Windows 会悄悄去掉结尾的点和空格，
+ * 放行它们等于让两个不同的条目写到同一个文件上。
+ */
+const readEntryPath = (value: unknown): string => {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_ENTRY_PATH_LENGTH) {
+    throw violation(`entry path must be a string of 1..${MAX_ENTRY_PATH_LENGTH} characters`);
+  }
+  for (const segment of value.split('/')) {
+    if (!isSafeEntrySegment(segment)) {
+      throw violation(`entry path ${JSON.stringify(value)} does not stay inside the data directory`);
+    }
+    if (DESKTOP_PGLITE_EXCLUDED_FILES.has(segment)) {
+      throw violation(`entry path ${JSON.stringify(value)} names a runtime-only file`);
+    }
+  }
+  return value;
+};
+
+const readEntryHeader = (value: unknown): DesktopPgliteDataDirEntry => {
+  const header = asObject(value, 'entry header');
+  const path = readEntryPath(header['path']);
+  const kind = header['kind'];
+  if (kind !== 'file' && kind !== 'directory') {
+    throw violation(`entry kind must be file or directory, got ${String(kind)}`);
+  }
+  const size = header['size'];
+  if (!Number.isSafeInteger(size) || (size as number) < 0) {
+    throw violation(`entry size must be a non-negative safe integer, got ${String(size)}`);
+  }
+  if (kind === 'directory' && size !== 0) throw violation('directory entries have no data; size must be 0');
+  return { path, kind, size: size as number };
+};
+
+const readChunk = (value: unknown): Uint8Array<ArrayBuffer> => {
+  if (!(value instanceof Uint8Array)) throw violation('data item bytes must be a Uint8Array');
+  if (!(value.buffer instanceof ArrayBuffer)) {
+    throw violation('data item bytes must be backed by a plain ArrayBuffer');
+  }
+  if (value.buffer.byteLength > DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES) {
+    throw violation(
+      `data item buffer of ${value.buffer.byteLength} bytes exceeds ${DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES}`
+    );
+  }
+  return value as Uint8Array<ArrayBuffer>;
+};
+
+const readDataDirItem = (record: Record<string, unknown>, expected: string): DesktopPgliteDataDirItem => {
+  const type = record['type'];
+  if (type === 'entry') return { type, header: readEntryHeader(record['header']) };
+  if (type === 'data') return { type, bytes: readChunk(record['bytes']) };
+  throw violation(`item type must be ${expected}, got ${String(type)}`);
+};
+
+const isRestoreKind = (kind: DesktopPgliteRequest['kind']): kind is RestoreRequest['kind'] =>
+  kind.startsWith('pg.restore.');
+
+const parseRestoreRequest = (kind: RestoreRequest['kind'], record: Record<string, unknown>): RestoreRequest => {
+  if (kind === 'pg.restore.begin' || kind === 'pg.restore.cleanup') {
+    return { kind, storage: readDirectoryStorage(record) };
+  }
+  const restoreId = readUuid(record, 'restoreId');
+  if (kind === 'pg.restore.write') {
+    return { kind, restoreId, item: readDataDirItem(asObject(record['item'], 'item'), 'entry or data') };
+  }
+  if (kind === 'pg.restore.query') {
+    return { kind, restoreId, sql: readSql(record, PGLITE_MAX_SQL_LENGTH), params: readParams(record) };
+  }
+  return { kind, restoreId };
+};
+
+type SessionRequest = Exclude<
+  DesktopPgliteRequest,
+  DesktopPgliteHandshakeRequest | DesktopPgliteOpenRequest | DesktopPgliteEngineRequest | RestoreRequest
+>;
+
+const parseSessionRequest = (
+  kind: SessionRequest['kind'],
+  sessionId: string,
+  record: Record<string, unknown>
+): SessionRequest => {
+  if (kind === 'pg.query') {
+    return {
+      kind,
+      sessionId,
+      sql: readSql(record, PGLITE_MAX_SQL_LENGTH),
+      params: readParams(record),
+      transactionId: readOptionalUuid(record, 'transactionId')
+    };
+  }
+  if (kind === 'pg.exec') {
+    return {
+      kind,
+      sessionId,
+      sql: readSql(record, PGLITE_MAX_SQL_LENGTH),
+      transactionId: readOptionalUuid(record, 'transactionId')
+    };
+  }
+  // 快照占着连接的时长与事务同理，等待上限沿用同一档位与同一套校验。
+  if (kind === 'pg.begin' || kind === 'pg.backup.begin') return { kind, sessionId, timeout: readBeginTimeout(record) };
+  if (kind === 'pg.commit' || kind === 'pg.rollback') {
+    return { kind, sessionId, transactionId: readUuid(record, 'transactionId') };
+  }
+  if (kind === 'pg.backup.next' || kind === 'pg.backup.end') {
+    return { kind, sessionId, backupId: readUuid(record, 'backupId') };
+  }
+  return { kind, sessionId };
 };
 
 /**
@@ -418,33 +783,12 @@ export function parseDesktopPgliteRequest(value: unknown): DesktopPgliteRequest 
   if (!isDesktopPgliteRequestKind(kind)) {
     throw violation(`unknown pglite request kind ${String(kind)}`);
   }
-  // 握手没有任何字段可读：重新构造的对象里因此只剩 kind。
-  if (kind === 'pg.handshake') return { kind };
-  if (kind === 'pg.open') return parseOpenRequest(record);
-
-  const sessionId = readSessionId(record);
-  if (kind === 'pg.query') {
-    return {
-      kind,
-      sessionId,
-      sql: readSql(record),
-      params: readParams(record),
-      transactionId: readOptionalUuid(record, 'transactionId')
-    };
-  }
-  if (kind === 'pg.exec') {
-    return {
-      kind,
-      sessionId,
-      sql: readSql(record),
-      transactionId: readOptionalUuid(record, 'transactionId')
-    };
-  }
-  if (kind === 'pg.begin') return { kind, sessionId, timeout: readBeginTimeout(record) };
-  if (kind === 'pg.commit' || kind === 'pg.rollback') {
-    return { kind, sessionId, transactionId: readUuid(record, 'transactionId') };
-  }
-  return { kind, sessionId };
+  // 握手与引擎查询没有任何字段可读：重新构造的对象里因此只剩 kind。
+  if (kind === 'pg.handshake' || kind === 'pg.engine') return { kind };
+  if (kind === 'pg.open') return { kind, storage: readDirectoryStorage(record) };
+  // 恢复不经会话：目标在恢复完成前不许被连接，推进凭的是 host 签发的 restoreId。
+  if (isRestoreKind(kind)) return parseRestoreRequest(kind, record);
+  return parseSessionRequest(kind, readSessionId(record), record);
 }
 
 /**
@@ -493,6 +837,43 @@ export function parseDesktopPgliteOpenResult(value: unknown): DesktopPgliteOpenR
   const resolvedLocation = record['resolvedLocation'];
   if (typeof resolvedLocation !== 'string') throw violation('resolvedLocation must be a string');
   return { sessionId, resolvedLocation, protocolVersion };
+}
+
+/**
+ * 校验 `pg.engine` 响应。
+ *
+ * @param value - host 返回的未校验负载
+ * @returns 校验通过的引擎信息
+ * @throws 形状非法时抛 `protocol_violation`
+ */
+export function parseDesktopPgliteEngineResult(value: unknown): DesktopPgliteEngineResult {
+  const record = asRecord(value);
+  const serverVersion = record['serverVersion'];
+  if (typeof serverVersion !== 'string' || serverVersion === '') {
+    throw violation('serverVersion must be a non-empty string');
+  }
+  const extensions = record['extensions'];
+  if (!Array.isArray(extensions) || !extensions.every(name => typeof name === 'string')) {
+    throw violation('extensions must be an array of strings');
+  }
+  return { serverVersion, extensions: [...(extensions as string[])] };
+}
+
+/**
+ * 校验 `pg.backup.next` 响应里的一项。
+ *
+ * @remarks
+ * 备份方向同样不信对端：条目路径与数据块走的是恢复写入的同一套校验，所以一份能被备份
+ * 出来的归档，其每一项也必然能被恢复接受——不会出现「备份成功、恢复时才发现条目非法」。
+ *
+ * @param value - host 返回的未校验负载
+ * @returns 校验通过的快照项或结束标记
+ * @throws 形状非法、路径越界、数据块超限时抛 `protocol_violation`
+ */
+export function parseDesktopPgliteBackupItem(value: unknown): DesktopPgliteBackupItem {
+  const record = asObject(value, 'backup item');
+  if (record['type'] === 'end') return { type: 'end' };
+  return readDataDirItem(record, 'entry, data or end');
 }
 
 /**

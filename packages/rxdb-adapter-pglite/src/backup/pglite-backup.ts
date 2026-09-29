@@ -11,15 +11,8 @@ import {
   RxDBBackupError
 } from '@aiao/rxdb';
 import type { AsyncQueueExecutor } from '@aiao/utils';
-import { ADAPTER_NAME, type PGliteClientOptions } from '../pglite.interface.js';
 import type { IPGliteClient } from '../PGliteClient.js';
-import {
-  PGLITE_BACKUP_ENGINE,
-  pgliteBackupExtensions,
-  readPGliteEngineInfo,
-  readPGliteSystemVersionState,
-  type PGliteBackupStorage
-} from './pglite-backup-compat.js';
+import { PGLITE_BACKUP_ENGINE, readPGliteEngineInfo, readPGliteSystemVersionState } from './pglite-backup-compat.js';
 import { writeDataDirSnapshot } from './pglite-data-dir.js';
 
 /** {@link RxDBBackupOptions.lockTimeoutMs} 的默认值。 */
@@ -28,9 +21,13 @@ export const PGLITE_BACKUP_LOCK_TIMEOUT_MS = 30_000;
 /** 备份一次需要的全部上下文。 */
 export interface PGliteBackupInput {
   readonly rxdb: RxDB;
-  readonly options: PGliteClientOptions;
+  /** 写进 manifest 的 adapter 标识；恢复只接受同一标识的归档。 */
+  readonly adapterName: string;
   readonly client: IPGliteClient;
-  readonly storage: PGliteBackupStorage;
+  /** 写进 manifest 的存储后端，例如 `memory` / `idb` / `directory`。 */
+  readonly storage: string;
+  /** 运行时加载的扩展名，已排序。 */
+  readonly extensions: readonly string[];
   readonly queue: AsyncQueueExecutor;
 }
 
@@ -53,12 +50,12 @@ const snapshot = async (
     createdAt: new Date().toISOString(),
     scope: RXDB_BACKUP_SCOPE,
     adapter: {
-      name: ADAPTER_NAME,
+      name: input.adapterName,
       engine: PGLITE_BACKUP_ENGINE,
       engineVersion: engine.version,
       engineCompatibility: engine.compatibility,
-      extensions: pgliteBackupExtensions(input.options),
-      storage: input.storage.kind
+      extensions: input.extensions,
+      storage: input.storage
     },
     rxdb: {
       version: rxdb.version,
@@ -68,10 +65,10 @@ const snapshot = async (
     schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
     encryption: authDomain === null ? null : { authDomain }
   };
-  const trailer = await snapshotDataDir(async FS => {
+  const trailer = await snapshotDataDir(async items => {
     const archive = new RxDBBackupArchiveWriter(writer, signal);
     await archive.writeManifest(manifest);
-    await writeDataDirSnapshot(FS, archive);
+    await writeDataDirSnapshot(items, archive);
     return archive.finish();
   });
   return { trailer, manifest };

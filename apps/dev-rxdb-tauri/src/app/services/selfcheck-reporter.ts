@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import type { BackupProbeMode, BackupProbeResult } from '../backup-probe';
 import type { DevToolsProbeResult } from '../devtools-probe';
 import type { StorageProbeResult } from '../storage-probe';
 import type { WebviewProbeResult } from '../webview-probe';
@@ -52,6 +53,13 @@ export interface SelfCheckOutcome {
    * 允许 `null` 的理由同 {@link SelfCheckOutcome.webview}：没开这条探针时它本来就不该跑。
    */
   readonly devtools?: DevToolsProbeResult | null;
+  /**
+   * 备份 / 恢复探针的结果（US-217 AC#18）；只有 `ok` 时有值。
+   *
+   * @remarks
+   * 允许 `null` 的理由同 {@link SelfCheckOutcome.webview}：没设 `DEV_RXDB_TAURI_BACKUP_PROBE` 时它本来就不该跑。
+   */
+  readonly backup?: BackupProbeResult | null;
 }
 
 /** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_report` 的函数名决定。 */
@@ -62,6 +70,15 @@ const PROBE_BASE_URL_COMMAND = 'rxdb_selfcheck_probe_base_url';
 
 /** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_devtools_probe` 的函数名决定。 */
 const DEVTOOLS_PROBE_COMMAND = 'rxdb_selfcheck_devtools_probe';
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_backup_probe` 的函数名决定。 */
+const BACKUP_PROBE_COMMAND = 'rxdb_selfcheck_backup_probe';
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_backup_archive_read` 的函数名决定。 */
+const BACKUP_ARCHIVE_READ_COMMAND = 'rxdb_selfcheck_backup_archive_read';
+
+/** Rust 侧命令名，由 `#[tauri::command] rxdb_selfcheck_backup_archive_append` 的函数名决定。 */
+const BACKUP_ARCHIVE_APPEND_COMMAND = 'rxdb_selfcheck_backup_archive_append';
 
 /**
  * 上报自检结论。**永不 reject。**
@@ -158,4 +175,41 @@ const PROBE_IMPOSTOR_COMMAND = 'rxdb_devtools_probe_impostor';
 export const probeImpostorWindow = async (runtime: unknown): Promise<number> => {
   if (!isTauriRuntime(runtime)) return 0;
   return await invoke<number>(PROBE_IMPOSTOR_COMMAND);
+};
+
+/**
+ * 问 Rust 侧「这次要不要跑备份探针，跑哪一半」（US-217 AC#18）。
+ *
+ * @param runtime - 运行时对象，实际调用传 `globalThis`
+ * @returns 模式；非自检模式、没设那个环境变量、或不在 Tauri 运行时都是 `null`
+ * @throws 命令调用失败时抛出
+ *
+ * @remarks
+ * 与 {@link readProbeBaseUrl} 同一取舍：不吞异常。吞成 `null` 的话，restore 那一跑会连上一个空库、
+ * 启动计数从 1 数起，报告却写着 `ok`。
+ */
+export const readBackupProbeMode = async (runtime: unknown): Promise<BackupProbeMode | null> => {
+  if (!isTauriRuntime(runtime)) return null;
+  return await invoke<BackupProbeMode | null>(BACKUP_PROBE_COMMAND);
+};
+
+/**
+ * 从备份归档的 `offset` 处读至多 `length` 字节；读到末尾时给空块。
+ *
+ * @param offset - 起始偏移
+ * @param length - 至多读多少字节（Rust 侧上限 1 MiB）
+ * @returns 这一块；Rust 侧以原始字节（`tauri::ipc::Response`）回应
+ * @throws 不在 restore 模式，或读文件失败时抛出
+ */
+export const readBackupArchiveChunk = async (offset: number, length: number): Promise<Uint8Array> =>
+  new Uint8Array(await invoke<ArrayBuffer>(BACKUP_ARCHIVE_READ_COMMAND, { offset, length }));
+
+/**
+ * 把一块追加到备份归档末尾。
+ *
+ * @param chunk - 这一块；作为原始请求体交出去，Rust 侧只收 `InvokeBody::Raw`
+ * @throws 不在 backup 模式，或写文件失败时抛出
+ */
+export const appendBackupArchiveChunk = async (chunk: Uint8Array): Promise<void> => {
+  await invoke(BACKUP_ARCHIVE_APPEND_COMMAND, chunk);
 };

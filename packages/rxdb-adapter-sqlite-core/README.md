@@ -43,7 +43,7 @@ const fun: TransactionFun = async executor => {
 
 ## 备份与恢复
 
-四个 SQLite 适配器共用这里的实现：`adapter.backup(sink)` 把整个数据库写成一个 `.rxdb-backup` 归档流，
+六个 SQLite 适配器（四个浏览器端，加上桌面的 `sqlite-electron` 与 `sqlite-tauri`）共用这里的实现：`adapter.backup(sink)` 把整个数据库写成一个 `.rxdb-backup` 归档流，
 `adapter.restore(source)` 把归档恢复进该 adapter 配置的**空**存储。两端都逐块流式处理，不会把整个库读进内存。
 
 > **外部文件不在备份范围内。** 归档只包含数据库本身（`scope: { database: 'included', externalFiles: 'excluded' }`）。`rxdb-plugin-storage` 等插件存放在数据库之外的文件需要另行备份。
@@ -75,25 +75,33 @@ await rxdb.connect('wa-sqlite');
   连接与再次恢复都会报 `restore_incomplete`，调用 `adapter.cleanupIncompleteRestore()` 清理后即可重新恢复；
   清理失败时报 `cleanup_pending`。内存目标没有残留，恢复出来的库由下一次 `connect()` 接管。
 - **独占**：持久化目标由 Web Lock `rxdb-sqlite-storage:<storageKey>` 保护；同一目标上并发的恢复只有一个能赢（`target_busy`），
-  恢复期间的连接尝试报 `restore_in_progress`。
+  恢复期间的连接尝试报 `restore_in_progress`。桌面的库文件还可能被别的窗口、别的进程打开，Web Lock 挡不住它们：
+  恢复与清理先让自己那条连接拿到 SQLite 的文件级独占锁（`locking_mode = EXCLUSIVE`），库文件开在别处时报 `target_busy`
+  （`details.field` 为 `storage`）。
 - **加密库**：归档里只有密文和 keyring 元数据，不含口令与密钥；恢复后的库保持锁定，用原口令 `unlock()`。
 - 恢复写入的行不产生变更历史。
 
 ### 能力矩阵
 
-| adapter                          | 内存存储                       | 持久化存储                   | 其余配置                                            | 持久化 `journal_mode` | FTS5 | 引擎自建对象             |
-| -------------------------------- | ------------------------------ | ---------------------------- | --------------------------------------------------- | --------------------- | :--: | ------------------------ |
-| `@aiao/rxdb-adapter-wa-sqlite`   | `MemoryVFS` / `MemoryAsyncVFS` | `IDBBatchAtomicVFS`（`idb`） | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ❌  | 无                       |
-| `@aiao/rxdb-adapter-sqlite-wasm` | `vfs: 'memory'`                | `vfs: 'idb'`                 | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ✅  | 无                       |
-| `@aiao/rxdb-adapter-sqlite`      | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | 无                       |
-| `@aiao/rxdb-adapter-sqliteai`    | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | vector / memory 扩展的表 |
+| adapter                                            | 内存存储                       | 持久化存储                   | 其余配置                                            | 持久化 `journal_mode` | FTS5 | 引擎自建对象             |
+| -------------------------------------------------- | ------------------------------ | ---------------------------- | --------------------------------------------------- | --------------------- | :--: | ------------------------ |
+| `@aiao/rxdb-adapter-wa-sqlite`                     | `MemoryVFS` / `MemoryAsyncVFS` | `IDBBatchAtomicVFS`（`idb`） | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ❌  | 无                       |
+| `@aiao/rxdb-adapter-sqlite-wasm`                   | `vfs: 'memory'`                | `vfs: 'idb'`                 | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ✅  | 无                       |
+| `@aiao/rxdb-adapter-sqlite`                        | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | 无                       |
+| `@aiao/rxdb-adapter-sqliteai`                      | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | vector / memory 扩展的表 |
+| `@aiao/rxdb-adapter-electron`（`sqlite-electron`） | 无                             | 库文件（`file`）             | 全部选项都在矩阵内                                  | `wal`                 |  ❌  | 无                       |
+| `@aiao/rxdb-adapter-tauri`（`sqlite-tauri`）       | 无                             | 库文件（`file`）             | 全部选项都在矩阵内                                  | `wal`                 |  ✅  | 无                       |
 
 - 同一 adapter 的内存与持久化存储互为源 / 目标；跨 adapter 的归档报 `incompatible_archive`。
-- **WAL**：连接初始化会请求 WAL，但四个 adapter 的持久化 VFS 都不提供 WAL 需要的共享内存，SQLite 静默保留 `delete`。
-  备份本身是 SQL 层的读事务，与日志模式无关；WAL 专属用例（已提交未 checkpoint 的帧进入快照）在当前任何浏览器后端上都跑不到。
+- **WAL**：连接初始化会请求 WAL。四个浏览器 adapter 的持久化 VFS 都不提供 WAL 需要的共享内存，SQLite 静默保留 `delete`；
+  两个桌面 adapter 开的是真实库文件，WAL 生效。备份本身是 SQL 层的读事务，与日志模式无关；WAL 专属用例
+  （关掉自动 checkpoint，已提交、只在 WAL 里的帧也要进快照）在两个桌面后端上跑。
+- **FTS5**：`sqlite-electron` 的 SQLite 编进了 FTS5，但 host 以 defensive 模式运行，写不回虚表的影子表，
+  含 FTS5 的库备份与恢复都报 `unsupported_combination`（`details.field` 为 `adapter.extensions`）；`sqlite-tauri` 的 Rust 宿主不开 defensive，FTS5 可用。
 - 所有错误都是 `RxDBBackupError`，按 `error.code` 分支处理（`isRxDBBackupError()` 可做类型收窄）。
 - 自定义后端要支持恢复，客户端需实现 `setChangeEventsMuted()` 与 `describeBlankDatabase()`（可用本包导出的
   `describeSqliteDatabase()`）；缺少时恢复报 `unsupported_combination`（`details.field` 为 `client.<方法名>`）。
+  这两个方法调用失败（例如请求被宿主应用的 kind 守卫挡下）报 `io_error`，原始错误在 `cause`，此时目标还没被写过。
 
 ## 文档
 

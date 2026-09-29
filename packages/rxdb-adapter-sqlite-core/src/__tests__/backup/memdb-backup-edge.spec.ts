@@ -13,9 +13,11 @@ import { memdbBackupHarness, memdbEngineBackupHarness } from './memdb-harness.js
 import {
   backupErrorCode,
   chunkedSource,
+  CLEAN_TARGET,
   collectingSink,
   createBackupRxDB,
   interceptSql,
+  persistentTargetState,
   PLAIN_ENTITIES,
   readNotes,
   restoreInto,
@@ -177,6 +179,112 @@ describe('memdb backup edge cases', () => {
     });
   });
 
+  describe('backends that cannot write shadow tables', () => {
+    /** 已播种、并建了一张 FTS5 虚表的内存源库。 */
+    const searchSource = async (): Promise<RxDBAdapterSqliteBase> => {
+      const source = open('shadow-src');
+      const adapter = await source.connect();
+      await seedNotes(source.entities);
+      await adapter.rawQuery('CREATE VIRTUAL TABLE edge_fts USING fts5(body)');
+      await adapter.rawQuery(`INSERT INTO edge_fts (body) VALUES ('restorable')`);
+      return adapter;
+    };
+
+    it('refuses the backup before writing any bytes', async () => {
+      const adapter = await searchSource();
+      adapter['shadowTablesWritable'] = () => false;
+      const out = collectingSink();
+      const error: unknown = await adapter.backup(out.sink).then(
+        () => undefined,
+        (failure: unknown) => failure
+      );
+      expect(error).toMatchObject({
+        code: 'unsupported_combination',
+        details: { field: 'adapter.extensions', actual: ['fts5'] }
+      });
+      expect((error as Error).message).toContain('edge_fts_data');
+      expect(out.chunkSizes).toEqual([]);
+    });
+
+    it('backs up a database without virtual tables as usual', async () => {
+      const source = open('shadow-free-src');
+      const adapter = await source.connect();
+      await seedNotes(source.entities);
+      adapter['shadowTablesWritable'] = () => false;
+      const { manifest } = await adapter.backup(collectingSink().sink);
+      expect(manifest.adapter.extensions).toEqual([]);
+    });
+
+    for (const kind of ['memory', 'persistent'] as const) {
+      it(`refuses an archive with shadow tables before writing a ${kind} target`, async () => {
+        const out = collectingSink();
+        await (await searchSource()).backup(out.sink);
+        const dbName = uniqueDbName('shadow-dst');
+        const target = open('shadow-dst', kind, dbName);
+        (await target.adapter())['shadowTablesWritable'] = () => false;
+        const { stream, probe } = chunkedSource(out.bytes(), 512);
+        expect(await backupErrorCode(restoreInto(target, stream))).toBe('unsupported_combination');
+        expect(probe.pulledBytes).toBeLessThan(out.bytes().byteLength);
+        if (kind === 'persistent')
+          expect(await persistentTargetState(memdbBackupHarness, dbName)).toEqual(CLEAN_TARGET);
+      });
+    }
+  });
+
+  describe('row pages', () => {
+    /** 每页查询回复的字节预算；与 `sqlite-backup.ts` 的 `PAGE_BUDGET_BYTES` 同值。 */
+    const PAGE_BUDGET = 256 * 1024;
+    const ROW_BLOB = 32 * 1024;
+
+    const rowPageBytes = (rows: readonly (readonly unknown[])[]): number =>
+      rows.reduce<number>(
+        (sum, row) =>
+          sum +
+          row.reduce<number>(
+            (cells, cell) =>
+              cells +
+              (cell instanceof Uint8Array ? cell.byteLength
+              : typeof cell === 'string' ? cell.length
+              : 8),
+            0
+          ),
+        0
+      );
+
+    // 页大小若只按上一页最大的一行折算，首行很小时下一页就是 512 个大行：一条回复远超预算，
+    // 桌面 host 通道上就是一条几 MiB 的消息（AC#9 / AC#21）。
+    it('keeps every page within the byte budget when rows grow after a small first row', async () => {
+      const source = open('page-src');
+      const pages: number[] = [];
+      patchClients(await source.adapter(), client => {
+        const execute = client.execute.bind(client);
+        client.execute = async (sql, bindings) => {
+          const result = await execute(sql, bindings);
+          if (sql.includes('"raw_blobs"') && sql.includes('LIMIT ?')) pages.push(rowPageBytes(result.results[0].rows));
+          return result;
+        };
+        return client;
+      });
+      const adapter = await source.connect();
+      await adapter.rawQuery('CREATE TABLE raw_blobs (id INTEGER PRIMARY KEY, body BLOB)');
+      await adapter.rawQuery(
+        `INSERT INTO raw_blobs (id, body) VALUES (1, X'00'); ` +
+          'WITH RECURSIVE n(i) AS (SELECT 2 UNION ALL SELECT i + 1 FROM n WHERE i < 64) ' +
+          `INSERT INTO raw_blobs (id, body) SELECT i, randomblob(${ROW_BLOB}) FROM n`
+      );
+      const out = collectingSink();
+      await adapter.backup(out.sink);
+      expect(pages.length).toBeGreaterThan(1);
+      expect(Math.max(...pages)).toBeLessThanOrEqual(PAGE_BUDGET);
+
+      const target = open('page-dst');
+      await restoreInto(target, chunkedSource(out.bytes()).stream);
+      const restored = await target.connect();
+      const digest = 'SELECT id, length(body), hex(substr(body, -8)) FROM raw_blobs ORDER BY id';
+      expect(rowsOf(await restored.query(digest))).toEqual(rowsOf(await adapter.query(digest)));
+    });
+  });
+
   describe('restore target that cannot be opened', () => {
     for (const kind of ['memory', 'persistent'] as const) {
       it(`reports storage_full for a ${kind} target when opening it runs out of quota`, async () => {
@@ -197,6 +305,28 @@ describe('memdb backup edge cases', () => {
         );
         expect(error).toMatchObject({ code: 'io_error', cause });
       });
+
+      // 连接打开之后、确认目标为空之前的两步同样要给出归档错误码：桌面客户端的静音是一次 host 请求，
+      // host 不认识该请求时抛的是桌面错误，原样漏出去调用方就只能按消息文本判断
+      for (const step of ['setChangeEventsMuted', 'describeBlankDatabase'] as const) {
+        it(`reports io_error for a ${kind} target whose ${step} fails, before writing`, async () => {
+          const archive = await seededArchive();
+          const dbName = uniqueDbName('prepare-fail-dst');
+          const target = open('prepare-fail-dst', kind, dbName);
+          const cause = new Error(`${step} failed`);
+          patchClients(await target.adapter(), client => {
+            client[step] = () => Promise.reject(cause);
+            return client;
+          });
+          const error: unknown = await restoreInto(target, chunkedSource(archive).stream).then(
+            () => undefined,
+            (failure: unknown) => failure
+          );
+          expect(error).toMatchObject({ code: 'io_error', cause });
+          if (kind === 'persistent')
+            expect(await persistentTargetState(memdbBackupHarness, dbName)).toEqual(CLEAN_TARGET);
+        });
+      }
     }
 
     it('reports cleanup_pending when the cleanup cannot open the target', async () => {

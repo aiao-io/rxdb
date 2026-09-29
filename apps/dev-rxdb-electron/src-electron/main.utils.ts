@@ -162,6 +162,45 @@ export const HIDE_WINDOW_ENV = 'DEV_RXDB_ELECTRON_HIDE_WINDOW';
  */
 export const shouldHideWindow = (env: Record<string, string | undefined>): boolean => env[HIDE_WINDOW_ENV] === '1';
 
+/**
+ * 打包产物上备份 / 恢复探针的环境变量名（US-217 AC#18 / AC#20，e2e 专用）。
+ *
+ * @remarks
+ * 取值 `backup` / `restore`，经 {@link resolveEntryUrl} 变成入口 URL 的 `backup-probe=` 查询参数，
+ * renderer 的 `backup-probe.ts` 据此在页面全局上挂出探针。与 {@link HIDE_WINDOW_ENV} 同为跨进程契约：
+ * e2e 的 `backup-restore.spec.ts` 写同一份字面量，`main.utils.spec.ts` 把它钉死。
+ */
+export const BACKUP_PROBE_ENV = 'DEV_RXDB_BACKUP_PROBE';
+
+/** {@link BACKUP_PROBE_ENV} 认得的取值。 */
+const BACKUP_PROBE_MODES: ReadonlySet<string> = new Set(['backup', 'restore']);
+
+/**
+ * 生产入口 URL：把 e2e 开关以查询参数带给 renderer。
+ *
+ * @param env - `process.env`
+ * @returns {@link APP_ENTRY_URL}，按需带上 `pglite=1` 与 `backup-probe=<mode>`
+ * @throws {@link RangeError} {@link BACKUP_PROBE_ENV} 取了不认识的值时
+ *
+ * @remarks
+ * renderer 在 sandbox 下读不到 `process.env`，只能经入口 URL 拿这些选择。
+ * 探针模式拼错时在这里报错，而不是静默当成「没开」：那样 e2e 只会等到一句与原因无关的超时。
+ */
+export const resolveEntryUrl = (env: Record<string, string | undefined>): string => {
+  const query = new URLSearchParams();
+  // US-208 AC#10：`DEV_RXDB_PGLITE=1` 让本次运行选 PGlite 桌面后端。
+  if (env['DEV_RXDB_PGLITE'] === '1') query.set('pglite', '1');
+  const probe = env[BACKUP_PROBE_ENV];
+  if (probe !== undefined && probe !== '') {
+    if (!BACKUP_PROBE_MODES.has(probe)) {
+      throw new RangeError(`${BACKUP_PROBE_ENV} 只认 backup / restore，收到：${probe}`);
+    }
+    query.set('backup-probe', probe);
+  }
+  const search = query.toString();
+  return search === '' ? APP_ENTRY_URL : `${APP_ENTRY_URL}?${search}`;
+};
+
 /** 端口取值范围（TCP 端口号，排除 0）。 */
 const MIN_PORT = 1;
 const MAX_PORT = 65535;

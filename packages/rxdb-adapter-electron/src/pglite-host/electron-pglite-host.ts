@@ -19,12 +19,38 @@ import {
   DESKTOP_PGLITE_PROTOCOL_VERSION,
   parseDesktopPgliteRequest,
   RxDBAdapterDesktopError,
+  type DesktopPgliteBackupBeginRequest,
+  type DesktopPgliteBackupCursorRequest,
+  type DesktopPgliteDataDirItem,
+  type DesktopPgliteEngineRequest,
+  type DesktopPgliteEngineResult,
   type DesktopPgliteNotifyMessage,
-  type DesktopPgliteQueryResult,
   type DesktopPgliteRequest,
   type DesktopPgliteResponse
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { randomUUID } from 'node:crypto';
+import { hasPgVersion, walkPgliteDataDirectory } from './pglite-host-data-dir.js';
+import { acquirePgliteDirectoryLock, type PgliteDirectoryLock } from './pglite-host-lock.js';
+import {
+  createPgliteRestoreCoordinator,
+  type DesktopPgliteRestoreRequest,
+  type PgliteRestoreCoordinator
+} from './pglite-host-restore.js';
+import {
+  runStatement,
+  suspendTransaction,
+  toWireResult,
+  type ElectronPgliteProbeRuntime,
+  type ElectronPgliteRuntime,
+  type SuspendedTransaction
+} from './pglite-host-runtime.js';
+
+export type {
+  ElectronPgliteProbeRuntime,
+  ElectronPgliteRuntime,
+  ElectronPgliteRuntimeResult,
+  ElectronPgliteTransaction
+} from './pglite-host-runtime.js';
 
 /**
  * 逻辑位置的 scheme。
@@ -50,34 +76,41 @@ export const DESKTOP_PGLITE_WATCH_CHANNELS: readonly string[] = Object.freeze([
   'rxdb_migration_notify'
 ]);
 
-/** 一条语句的结果；`ElectronPgliteRuntime` 与 PGlite 的 `Results` 在此结构相容。 */
-export interface ElectronPgliteRuntimeResult {
-  readonly rows: Record<string, unknown>[];
-  readonly fields: { name: string; dataTypeID: number }[];
-  readonly affectedRows?: number;
-}
-
-/** 事务句柄；对应 PGlite 的 `Transaction`，只声明 host 真正用到的两个操作。 */
-export interface ElectronPgliteTransaction {
-  query(sql: string, params?: unknown[]): Promise<ElectronPgliteRuntimeResult>;
-  exec(sql: string): Promise<ElectronPgliteRuntimeResult[]>;
-}
-
 /**
- * host 需要的 PGlite 能力子集。
+ * 备份与恢复所需的宿主配置（US-217）。
  *
  * @remarks
- * 刻意不写成 `PGliteInterface`：宿主应用极可能传进来的不是裸 `PGlite`，而是跑在 worker
- * 里的 `PGliteWorker`——PGlite 的 WASM 在主进程 JS 线程上是**同步**执行的，一条重查询会
- * 把整个窗口的 IPC 一起卡住（故事「冻结带来的三条实现约束」第 3 条）。声明成结构类型后，
- * 两者都能直接传入，而这份清单也顺便说清了 host 只需要这五个操作。
+ * 不传时 host 只提供连接：`pg.engine`、`pg.backup.*`、`pg.restore.*` 一律报 `unsupported_operation`，
+ * `pg.open` 也不取目录锁，与引入备份之前的行为逐项一致。传了之后每个打开的数据目录旁边都有一把
+ * 跨进程的目录锁：同一目录上的恢复与连接互斥，另一个进程里的 host 也不例外（AC#12）。
  */
-export interface ElectronPgliteRuntime {
-  query(sql: string, params?: unknown[]): Promise<ElectronPgliteRuntimeResult>;
-  exec(sql: string): Promise<ElectronPgliteRuntimeResult[]>;
-  transaction<T>(callback: (tx: ElectronPgliteTransaction) => Promise<T>): Promise<T>;
-  listen(channel: string, callback: (payload: string) => void): Promise<unknown>;
-  close(): Promise<void>;
+export interface ElectronPgliteBackupOptions {
+  /**
+   * 逻辑数据目录名到物理路径。
+   *
+   * @remarks
+   * **必须**就是 `createRuntime` 为同一个名字打开的目录：备份从这里读文件，恢复往这里写文件，
+   * 目录锁与恢复标记也建在它旁边。两者不一致时备份报 `host_internal_error`，而不是悄悄读出别的目录。
+   * 传进来的名字已过白名单校验，不含任何路径分隔符。
+   */
+  readonly resolveDataDirectory: (dataDirectoryName: string) => string;
+  /**
+   * 创建一个不落盘的探针运行时，用来回答 `pg.engine`。
+   *
+   * @remarks
+   * 例如 `new PGlite()`（内存实例）。必须与 `createRuntime` 用同一份 PGlite、带同一组扩展，
+   * 否则回答的引擎版本对真实数据目录不成立。探针用完即关，结果在 host 生命周期内缓存；
+   * 起不来时不缓存，下一次 `pg.engine` 重试。
+   */
+  readonly createProbeRuntime: () => Promise<ElectronPgliteProbeRuntime>;
+  /**
+   * `createRuntime` 为每个实例装载的扩展名。
+   *
+   * @remarks
+   * 只列影响数据兼容性的扩展，不含 `live`（它不改变数据目录）；没有扩展时传空数组。
+   * 归档据此声明所需扩展，恢复端不满足时在写入目标之前拒绝（AC#5）。
+   */
+  readonly extensions: readonly string[];
 }
 
 /** {@link createElectronPgliteHost} 的入参。 */
@@ -91,7 +124,7 @@ export interface ElectronPgliteHostOptions {
    * 数据会静默落在谁也没打算用的位置，而症状是「重启后数据没了」。
    *
    * 传进来的名字已过白名单校验，不含任何路径分隔符，因此 `join(root, name)` 不会越出 `root`。
-   * 同一个名字在 host 生命周期内只会被调用一次（AC#7）。
+   * 同一个名字同一时刻至多只有一个活着的运行时（AC#7）；恢复校验同样经它打开目标目录。
    */
   readonly createRuntime: (dataDirectoryName: string) => Promise<ElectronPgliteRuntime>;
   /** 把裸 NOTIFY 送达对应会话的 renderer，例如 `webContents.send`。 */
@@ -104,6 +137,8 @@ export interface ElectronPgliteHostOptions {
    * 把送达失败当成写失败回给调用方只会诱发一次重复写入。不传则丢弃。
    */
   readonly onDeliveryError?: (error: unknown) => void;
+  /** 备份与恢复支持；不传则不提供（见 {@link ElectronPgliteBackupOptions}）。 */
+  readonly backup?: ElectronPgliteBackupOptions;
 }
 
 /** 桌面 PGlite host 实例。 */
@@ -122,31 +157,43 @@ export interface ElectronPgliteHost {
   handle(request: unknown, ownerId: number): Promise<DesktopPgliteResponse>;
   /** 当前打开的会话数。 */
   readonly openSessionCount: number;
-  /** 当前活着的 PGlite 实例数；同一个数据目录上的多个会话只算一个。 */
+  /** 当前活着的 PGlite 实例数；同一个数据目录上的多个会话只算一个，恢复校验用的私有实例不计入。 */
   readonly openInstanceCount: number;
   /** 当前挂起的事务数；正常静止时应为 0。 */
   readonly openTransactionCount: number;
+  /** 当前进行中的备份快照数；快照同样占着连接，但不计入 `openTransactionCount`。 */
+  readonly openBackupCount: number;
+  /** 当前进行中的恢复数。 */
+  readonly openRestoreCount: number;
   /**
-   * 回收某个窗口名下的全部会话与事务。
+   * 回收某个窗口名下的全部会话、事务、快照与恢复。
    *
    * @remarks
    * 这是本方案的**前提而非收尾**：挂起的 callback 独占 PGlite 的连接锁，渲染进程崩在
    * 事务中间而没人回收的话，之后任何查询都会永远排队——表征是「数据库不响应」，
    * 与那次崩溃毫无关联线索。调用方必须把它挂到 `render-process-gone` 与 `destroyed`
-   * 两个事件上（AC#3）。
+   * 两个事件上（AC#3）。被打断的恢复保留恢复标记，之后的连接据此被拒绝（AC#11）。
    *
    * @param ownerId - 已崩溃或已销毁的 `webContents.id`
    * @returns 本次回滚掉的事务条数
    */
   releaseOwner(ownerId: number): Promise<number>;
-  /** 关闭全部会话与实例，通常在应用退出前调用。 */
+  /** 关闭全部会话与实例、打断全部恢复，通常在应用退出前调用。 */
   closeAll(): Promise<void>;
+}
+
+/** 一个已经起来的运行时，以及启用备份时它在数据目录上持有的锁。 */
+interface StartedRuntime {
+  readonly runtime: ElectronPgliteRuntime;
+  readonly lock: PgliteDirectoryLock | undefined;
 }
 
 /** 一个数据目录上的运行时及其会话。 */
 interface InstanceEntry {
   readonly sessions: Set<string>;
-  readonly ready: Promise<ElectronPgliteRuntime>;
+  /** 正在等 `ready` 的 `pg.open` 数；不为 0 时最后一条会话关掉也不释放实例。 */
+  pending: number;
+  readonly ready: Promise<StartedRuntime>;
 }
 
 /** 一条会话。 */
@@ -156,46 +203,30 @@ interface SessionEntry {
 }
 
 /** 一条挂起中的事务。 */
-interface TransactionEntry {
+type TransactionEntry = SuspendedTransaction & { readonly sessionId: string };
+
+/** 一次进行中的备份快照。 */
+interface BackupEntry {
   readonly sessionId: string;
-  readonly tx: ElectronPgliteTransaction;
-  readonly settle: { readonly resolve: () => void; readonly reject: (error: Error) => void };
-  /** `transaction(...)` 本身；等它落地才算真的提交/回滚完。 */
-  readonly finished: Promise<unknown>;
+  readonly iterator: AsyncGenerator<DesktopPgliteDataDirItem>;
+  /** 读快照期间占住连接的空事务：它不结束，任何语句都改不了文件（AC#16）。 */
+  readonly held: SuspendedTransaction;
 }
 
-/** `pg.begin` 等到超时的哨兵；用 Symbol 是因为任何合法的 `tx` 都不可能与它相等。 */
-const TIMED_OUT = Symbol('pg.begin timed out');
+/** 启用备份时的配置与状态。 */
+interface BackupSupport {
+  readonly options: ElectronPgliteBackupOptions;
+  /** 去重并排序后的扩展名。 */
+  readonly extensions: readonly string[];
+  readonly restores: PgliteRestoreCoordinator;
+}
 
-const raceTimeout = async <T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<typeof TIMED_OUT>(resolve => {
-        timer = setTimeout(() => resolve(TIMED_OUT), ms);
-      })
-    ]);
-  } finally {
-    // 不清掉的话，一次成功的 begin 也会让 Node 的事件循环多活 `ms` 毫秒，
-    // 于是应用退出被推迟——在测试里表现为「跑完了但进程不退」。
-    clearTimeout(timer);
-  }
-};
-
-/**
- * 把 PGlite 的结果收窄成能过结构化克隆的形状。
- *
- * @remarks
- * `fields` 上除了 `name` / `dataTypeID` 还挂着 PGlite 自己的解析器，整个丢给
- * `ipcRenderer.invoke` 会以 DataCloneError 失败——而报错点在 IPC 层，看上去与 SQL 毫无关系。
- * `rows` 里的 bigint / Uint8Array / Date 都是结构化克隆原生支持的，原样带走（AC#1）。
- */
-const toWireResult = (result: ElectronPgliteRuntimeResult): DesktopPgliteQueryResult => ({
-  rows: result.rows,
-  fields: result.fields.map(field => ({ name: field.name, dataTypeID: field.dataTypeID })),
-  affectedRows: result.affectedRows
-});
+/** 协议 v2 新增、只在启用备份时可用的请求。 */
+type DesktopPgliteBackupRequest =
+  | DesktopPgliteEngineRequest
+  | DesktopPgliteBackupBeginRequest
+  | DesktopPgliteBackupCursorRequest
+  | DesktopPgliteRestoreRequest;
 
 const toErrorResponse = (error: unknown): DesktopPgliteResponse => {
   if (error instanceof RxDBAdapterDesktopError) {
@@ -208,31 +239,23 @@ const toErrorResponse = (error: unknown): DesktopPgliteResponse => {
   };
 };
 
-/**
- * 跑一条语句，把引擎抛出的错误归一成 `statement_failed`。
- *
- * @remarks
- * 不归一的话，一条写错的 SQL 会以 `host_internal_error` 回到 renderer——那个码的含义是
- * 「host 有缺陷」，会把调用方的排查引向完全错误的方向。
- */
-const runStatement = async <T>(run: () => Promise<T>): Promise<T> => {
-  try {
-    return await run();
-  } catch (error) {
-    if (error instanceof RxDBAdapterDesktopError) throw error;
-    throw new RxDBAdapterDesktopError('statement_failed', error instanceof Error ? error.message : String(error), {
-      cause: error
-    });
-  }
-};
+const openFailed = (dataDirectoryName: string, cause: unknown): RxDBAdapterDesktopError =>
+  new RxDBAdapterDesktopError(
+    'open_failed',
+    `the application could not open a PGlite runtime for ${dataDirectoryName}`,
+    {
+      cause
+    }
+  );
 
 /**
  * 创建一个桌面 PGlite host。
  *
  * @remarks
  * 与 SQLite host 相反，同一个数据目录上的多个会话**共享一个** PGlite 实例（AC#7）：
- * PGlite 是嵌入式单写者，同一份数据目录被两个实例同时打开会直接损坏它。跨窗口的并发
- * 因此由这一条连接的排队来串行化，而不是交给文件锁。
+ * PGlite 是嵌入式单写者，同一份数据目录被两个实例同时打开会直接损坏它。同一 host 内跨窗口的
+ * 并发因此由这一条连接的排队来串行化；启用备份时每个实例还在数据目录旁持有一把跨进程的
+ * 目录锁，恢复据此确认目标没有被任何进程连着（AC#12）。
  *
  * @param options - host 配置
  * @returns host 实例
@@ -241,6 +264,30 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
   const instances = new Map<string, InstanceEntry>();
   const sessions = new Map<string, SessionEntry>();
   const transactions = new Map<string, TransactionEntry>();
+  const backups = new Map<string, BackupEntry>();
+  /** 正在关闭的实例：关完之前，同名的新连接与恢复都要等它交还目录锁。 */
+  const closing = new Map<string, Promise<void>>();
+  let engineProbe: Promise<DesktopPgliteEngineResult> | undefined;
+
+  /** 本 host 是否正连着该目录；正在关闭的实例先等它关完，免得恢复撞上自己 host 里的旧锁。 */
+  const isInUse = async (dataDirectoryName: string): Promise<boolean> => {
+    while (closing.has(dataDirectoryName)) await closing.get(dataDirectoryName);
+    return instances.has(dataDirectoryName);
+  };
+
+  const backupOptions = options.backup;
+  const support: BackupSupport | undefined =
+    backupOptions === undefined ? undefined : (
+      {
+        options: backupOptions,
+        extensions: [...new Set(backupOptions.extensions)].sort(),
+        restores: createPgliteRestoreCoordinator({
+          createRuntime: name => options.createRuntime(name),
+          resolveDataDirectory: name => backupOptions.resolveDataDirectory(name),
+          isInUse
+        })
+      }
+    );
 
   const deliver = (sessionId: string, channel: string, payload: string): void => {
     try {
@@ -250,20 +297,101 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     }
   };
 
+  /**
+   * 取数据目录锁，并确认目录上没有未完成的恢复。
+   *
+   * @remarks
+   * 同步完成：`pg.open` 因此在第一个 tick 里就占住目录，之后才开始的恢复必然撞锁，
+   * 不存在「恢复查完空状态、连接随即打开」的窗口（AC#12）。未启用备份时不取锁。
+   */
+  const lockDirectory = (dataDirectoryName: string): PgliteDirectoryLock | undefined => {
+    if (support === undefined) return undefined;
+    const lock = acquirePgliteDirectoryLock(support.options.resolveDataDirectory(dataDirectoryName));
+    let marked: boolean;
+    try {
+      marked = lock.hasMarker();
+    } catch (error) {
+      lock.release();
+      throw error;
+    }
+    if (!marked) return lock;
+    lock.release();
+    // 半恢复的目录一旦被 PGlite 打开，缺的文件会被当成「本来就没有」，于是连上一个看似正常的坏库（AC#11）。
+    throw new RxDBAdapterDesktopError(
+      'restore_incomplete',
+      `a restore of "${dataDirectoryName}" did not finish; run pg.restore.cleanup before connecting`
+    );
+  };
+
+  const subscribeChannels = async (runtime: ElectronPgliteRuntime, sessionIds: ReadonlySet<string>): Promise<void> => {
+    // 订阅在这里一次性建好，而不是每开一个会话建一次：LISTEN 是连接级的，
+    // 重复订阅只会让同一条 NOTIFY 被回调多次，进而让 renderer 侧的批量窗口收到重复事件。
+    for (const channel of DESKTOP_PGLITE_WATCH_CHANNELS) {
+      await runtime.listen(channel, payload => {
+        for (const sessionId of sessionIds) deliver(sessionId, channel, payload);
+      });
+    }
+  };
+
+  const launchRuntime = async (
+    dataDirectoryName: string,
+    sessionIds: ReadonlySet<string>
+  ): Promise<ElectronPgliteRuntime> => {
+    let runtime: ElectronPgliteRuntime;
+    try {
+      runtime = await options.createRuntime(dataDirectoryName);
+    } catch (error) {
+      throw openFailed(dataDirectoryName, error);
+    }
+    try {
+      await subscribeChannels(runtime, sessionIds);
+    } catch (error) {
+      // 订阅失败的运行时必须关掉：它开着数据目录，重试时起的新实例会与它争同一份文件。
+      await runtime.close().catch(() => undefined);
+      throw openFailed(dataDirectoryName, error);
+    }
+    return runtime;
+  };
+
+  const startRuntime = async (dataDirectoryName: string, sessionIds: ReadonlySet<string>): Promise<StartedRuntime> => {
+    const lock = lockDirectory(dataDirectoryName);
+    try {
+      return { runtime: await launchRuntime(dataDirectoryName, sessionIds), lock };
+    } catch (error) {
+      lock?.release();
+      throw error;
+    }
+  };
+
   const createInstance = (dataDirectoryName: string): InstanceEntry => {
     const sessionIds = new Set<string>();
-    const ready = (async (): Promise<ElectronPgliteRuntime> => {
-      const runtime = await options.createRuntime(dataDirectoryName);
-      // 订阅在这里一次性建好，而不是每开一个会话建一次：LISTEN 是连接级的，
-      // 重复订阅只会让同一条 NOTIFY 被回调多次，进而让 renderer 侧的批量窗口收到重复事件。
-      for (const channel of DESKTOP_PGLITE_WATCH_CHANNELS) {
-        await runtime.listen(channel, payload => {
-          for (const sessionId of sessionIds) deliver(sessionId, channel, payload);
-        });
-      }
-      return runtime;
-    })();
-    return { sessions: sessionIds, ready };
+    return { sessions: sessionIds, pending: 0, ready: startRuntime(dataDirectoryName, sessionIds) };
+  };
+
+  /** 关掉一个实例的运行时并交还目录锁；只有起来过、挂过会话的实例才会走到这里。 */
+  const shutdownInstance = async (instance: InstanceEntry): Promise<void> => {
+    const { runtime, lock } = await instance.ready;
+    try {
+      await runtime.close();
+    } finally {
+      lock?.release();
+    }
+  };
+
+  /** 从表里摘掉实例并关掉它；摘表与登记「正在关闭」之间没有 await，同名的请求不会漏看。 */
+  const releaseInstance = async (dataDirectoryName: string, instance: InstanceEntry): Promise<void> => {
+    instances.delete(dataDirectoryName);
+    const done = shutdownInstance(instance);
+    const settled = done.then(
+      () => undefined,
+      () => undefined
+    );
+    closing.set(dataDirectoryName, settled);
+    try {
+      await done;
+    } finally {
+      if (closing.get(dataDirectoryName) === settled) closing.delete(dataDirectoryName);
+    }
   };
 
   const requireSession = (sessionId: string, ownerId: number): SessionEntry => {
@@ -285,7 +413,7 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
         `session references a released instance for ${session.dataDirectoryName}`
       );
     }
-    return instance.ready;
+    return (await instance.ready).runtime;
   };
 
   /**
@@ -343,19 +471,23 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     ownerId: number
   ): Promise<DesktopPgliteResponse> => {
     const { dataDirectoryName } = request.storage;
+    while (closing.has(dataDirectoryName)) await closing.get(dataDirectoryName);
+    if (support?.restores.isReserved(dataDirectoryName)) {
+      throw new RxDBAdapterDesktopError('restore_in_progress', `"${dataDirectoryName}" is being restored`);
+    }
+    // 从上面的检查到登记实例之间没有 await：并发的恢复要么已经占了名字，要么会看见这个实例。
     const instance = instances.get(dataDirectoryName) ?? createInstance(dataDirectoryName);
     instances.set(dataDirectoryName, instance);
+    instance.pending += 1;
     try {
       await instance.ready;
     } catch (error) {
       // 起不来的实例不能留在表里：留着的话下一次 `pg.open` 会拿到同一个已经 reject 的
       // promise，于是「修好配置再试一次」永远不可能成功。
-      if (instance.sessions.size === 0) instances.delete(dataDirectoryName);
-      throw new RxDBAdapterDesktopError(
-        'open_failed',
-        `the application could not open a PGlite runtime for ${dataDirectoryName}`,
-        { cause: error }
-      );
+      if (instances.get(dataDirectoryName) === instance) instances.delete(dataDirectoryName);
+      throw error;
+    } finally {
+      instance.pending -= 1;
     }
     const sessionId = randomUUID();
     instance.sessions.add(sessionId);
@@ -370,7 +502,7 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     };
   };
 
-  /** 关掉一条会话；数据目录上最后一条会话消失时连实例一起释放。 */
+  /** 关掉一条会话；数据目录上最后一条会话消失、且没有正在加入的 `pg.open` 时连实例一起释放。 */
   const closeSession = async (sessionId: string): Promise<void> => {
     const session = sessions.get(sessionId);
     if (!session) return;
@@ -378,10 +510,8 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     const instance = instances.get(session.dataDirectoryName);
     if (!instance) return;
     instance.sessions.delete(sessionId);
-    if (instance.sessions.size > 0) return;
-    instances.delete(session.dataDirectoryName);
-    const runtime = await instance.ready.catch(() => undefined);
-    await runtime?.close();
+    if (instance.sessions.size > 0 || instance.pending > 0) return;
+    await releaseInstance(session.dataDirectoryName, instance);
   };
 
   /** 回滚一条会话名下全部挂起的事务，返回条数。 */
@@ -398,42 +528,9 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     ownerId: number
   ): Promise<DesktopPgliteResponse> => {
     const runtime = await requireRuntime(requireSession(request.sessionId, ownerId));
-
-    let settleHandles!: TransactionEntry['settle'];
-    const closed = new Promise<void>((resolve, reject) => {
-      settleHandles = { resolve, reject };
-    });
-    // 超时路径会在任何人 await 之前就 reject 它；先接住，免得变成未处理拒绝而打死进程。
-    closed.catch(() => undefined);
-
-    let markStarted!: (tx: ElectronPgliteTransaction) => void;
-    const started = new Promise<ElectronPgliteTransaction>(resolve => {
-      markStarted = resolve;
-    });
-    const finished = runtime.transaction(async tx => {
-      markStarted(tx);
-      // 事务从这里一直开着，直到 commit / rollback / 回收把 `closed` 结掉。
-      await closed;
-    });
-    finished.catch(() => undefined);
-
-    const tx = await raceTimeout(started, request.timeout);
-    if (tx === TIMED_OUT) {
-      // 关键在于 reject 而不是简单丢弃：被丢弃的 callback 迟早会在连接空出来的一瞬间
-      // 启动，然后永远挂在 `await closed` 上——于是「超时之后再也开不了事务」，
-      // 而现场看起来只是「数据库不响应」。reject 让它一进 callback 就抛，
-      // PGlite 随即回滚这条空事务并交还连接。
-      settleHandles.reject(
-        new RxDBAdapterDesktopError('transaction_unavailable', 'the begin that opened this transaction timed out')
-      );
-      throw new RxDBAdapterDesktopError(
-        'transaction_unavailable',
-        `waited ${request.timeout}ms for the PGlite connection but another transaction still holds it`
-      );
-    }
-
+    const held = await suspendTransaction(runtime, request.timeout);
     const transactionId = randomUUID();
-    transactions.set(transactionId, { sessionId: request.sessionId, tx, settle: settleHandles, finished });
+    transactions.set(transactionId, { ...held, sessionId: request.sessionId });
     return { kind: 'pg.begin', result: { transactionId } };
   };
 
@@ -492,13 +589,163 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     return { kind: 'pg.version', result: value };
   };
 
+  const requireBackupSupport = (): BackupSupport => {
+    if (support === undefined) {
+      throw new RxDBAdapterDesktopError('unsupported_operation', 'this host was created without backup support');
+    }
+    return support;
+  };
+
+  /** 起一个探针问出引擎版本；探针不碰任何数据目录，也不占任何会话的连接。 */
+  const probeEngine = async (backup: BackupSupport): Promise<DesktopPgliteEngineResult> => {
+    let probe: ElectronPgliteProbeRuntime;
+    try {
+      probe = await backup.options.createProbeRuntime();
+    } catch (error) {
+      throw new RxDBAdapterDesktopError('open_failed', 'the application could not start the PGlite probe runtime', {
+        cause: error
+      });
+    }
+    try {
+      const result = await runStatement(() => probe.query('SHOW server_version'));
+      const serverVersion = result.rows[0]?.['server_version'];
+      if (typeof serverVersion !== 'string' || serverVersion === '') {
+        throw new RxDBAdapterDesktopError('host_internal_error', 'PostgreSQL did not report server_version');
+      }
+      return { serverVersion, extensions: backup.extensions };
+    } finally {
+      await probe.close().catch(() => undefined);
+    }
+  };
+
+  const engine = async (backup: BackupSupport): Promise<DesktopPgliteResponse> => {
+    const probe = (engineProbe ??= probeEngine(backup));
+    try {
+      return { kind: 'pg.engine', result: await probe };
+    } catch (error) {
+      // 失败不缓存：探针起不来多半是环境问题（内存、WASM 加载），修好之后应当能重试。
+      if (engineProbe === probe) engineProbe = undefined;
+      throw error;
+    }
+  };
+
+  const backupBegin = async (
+    backup: BackupSupport,
+    request: DesktopPgliteBackupBeginRequest,
+    ownerId: number
+  ): Promise<DesktopPgliteResponse> => {
+    const session = requireSession(request.sessionId, ownerId);
+    // 先解析路径再占连接：解析抛错时不会留下一条没人收拾的挂起事务。
+    const directory = backup.options.resolveDataDirectory(session.dataDirectoryName);
+    const runtime = await requireRuntime(session);
+    const held = await suspendTransaction(runtime, request.timeout);
+    try {
+      // 挂起的空事务占住唯一的连接，此后没有语句能改动文件；CHECKPOINT 再把已提交的数据刷进
+      // 数据文件。目录树因此就是提交边界上的一致快照：在途事务要么已提交，要么还在排队（AC#16）。
+      await runStatement(() => held.tx.query('CHECKPOINT'));
+      if (!(await hasPgVersion(directory))) {
+        throw new RxDBAdapterDesktopError(
+          'host_internal_error',
+          `resolveDataDirectory does not point at the data directory of "${session.dataDirectoryName}"`
+        );
+      }
+    } catch (error) {
+      held.settle.reject(new RxDBAdapterDesktopError('write_aborted', 'the snapshot was aborted'));
+      await held.finished.catch(() => undefined);
+      throw error;
+    }
+    const backupId = randomUUID();
+    backups.set(backupId, { sessionId: request.sessionId, iterator: walkPgliteDataDirectory(directory), held });
+    return { kind: 'pg.backup.begin', result: { backupId } };
+  };
+
+  /** 取一次进行中的快照；核对会话的理由与 {@link requireTransaction} 相同。 */
+  const requireBackup = (backupId: string, sessionId: string): BackupEntry => {
+    const entry = backups.get(backupId);
+    if (!entry || entry.sessionId !== sessionId) {
+      throw new RxDBAdapterDesktopError(
+        'transaction_not_found',
+        `backup ${backupId} is unknown, already finished, or not owned by session ${sessionId}`
+      );
+    }
+    return entry;
+  };
+
+  /** 结束一次快照：先关遍历器（连同它开着的文件句柄），无论成败都放开连接。 */
+  const finishBackup = async (backupId: string): Promise<void> => {
+    const entry = backups.get(backupId);
+    if (!entry) return;
+    backups.delete(backupId);
+    try {
+      await entry.iterator.return(undefined);
+    } finally {
+      entry.held.settle.resolve();
+      await entry.held.finished.catch(() => undefined);
+    }
+  };
+
+  const backupNext = async (
+    request: DesktopPgliteBackupCursorRequest,
+    ownerId: number
+  ): Promise<DesktopPgliteResponse> => {
+    requireSession(request.sessionId, ownerId);
+    const entry = requireBackup(request.backupId, request.sessionId);
+    let next: IteratorResult<DesktopPgliteDataDirItem>;
+    try {
+      next = await entry.iterator.next();
+    } catch (error) {
+      // 读失败的快照续不下去：连接必须立刻交还，否则排在后面的写入会一直等。
+      await finishBackup(request.backupId);
+      throw error;
+    }
+    return { kind: 'pg.backup.next', result: next.done ? { type: 'end' } : next.value };
+  };
+
+  const backupEnd = async (
+    request: DesktopPgliteBackupCursorRequest,
+    ownerId: number
+  ): Promise<DesktopPgliteResponse> => {
+    requireSession(request.sessionId, ownerId);
+    requireBackup(request.backupId, request.sessionId);
+    await finishBackup(request.backupId);
+    return { kind: 'pg.backup.end' };
+  };
+
+  const dispatchBackup = async (
+    request: DesktopPgliteBackupRequest,
+    ownerId: number
+  ): Promise<DesktopPgliteResponse> => {
+    const backup = requireBackupSupport();
+    switch (request.kind) {
+      case 'pg.engine':
+        return engine(backup);
+      case 'pg.backup.begin':
+        return backupBegin(backup, request, ownerId);
+      case 'pg.backup.next':
+        return backupNext(request, ownerId);
+      case 'pg.backup.end':
+        return backupEnd(request, ownerId);
+      default:
+        return backup.restores.handle(request, ownerId);
+    }
+  };
+
+  /** 收掉一条会话：先结束它的快照，再回滚它的事务，最后关会话；返回回滚掉的事务条数。 */
+  const teardownSession = async (sessionId: string, reason: string): Promise<number> => {
+    const doomed = [...backups.entries()].filter(([, entry]) => entry.sessionId === sessionId).map(([id]) => id);
+    // 关遍历器失败只会漏一个只读句柄，连接在 finishBackup 里总会交还；不能因此把会话留着。
+    for (const backupId of doomed) await finishBackup(backupId).catch(() => undefined);
+    const rolledBack = await rollbackSessionTransactions(sessionId, reason);
+    await closeSession(sessionId);
+    return rolledBack;
+  };
+
   const close = async (
     request: Extract<DesktopPgliteRequest, { kind: 'pg.close' }>,
     ownerId: number
   ): Promise<DesktopPgliteResponse> => {
     requireSession(request.sessionId, ownerId);
-    await rollbackSessionTransactions(request.sessionId, `session ${request.sessionId} was closed`);
-    await closeSession(request.sessionId);
+    await teardownSession(request.sessionId, `session ${request.sessionId} was closed`);
     return { kind: 'pg.close' };
   };
 
@@ -506,8 +753,9 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
    * 按种类派发一条已通过协议校验的请求。
    *
    * @remarks
-   * 穷尽 `switch` 的理由与 SQLite host 完全一致：协议加了新种类而这里忘记补分支时，
-   * `_exhaustive: never` 让它在 `tsc` 阶段就红，而不是在运行期变成怪异失败。
+   * 协议加了新种类而这里忘记补分支时，`default` 把它交给 `dispatchBackup`，后者的参数类型
+   * 不接受它，于是在 `tsc` 阶段就红，而不是在运行期变成怪异失败——与 SQLite host 的穷尽
+   * `switch` 同一个目的。
    */
   const dispatch = (request: DesktopPgliteRequest, ownerId: number): Promise<DesktopPgliteResponse> => {
     switch (request.kind) {
@@ -534,13 +782,8 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
         return version(request, ownerId);
       case 'pg.close':
         return close(request, ownerId);
-      default: {
-        const _exhaustive: never = request;
-        throw new RxDBAdapterDesktopError(
-          'protocol_violation',
-          `unsupported pglite request kind: ${String((_exhaustive as { kind?: unknown }).kind)}`
-        );
-      }
+      default:
+        return dispatchBackup(request, ownerId);
     }
   };
 
@@ -561,20 +804,26 @@ export function createElectronPgliteHost(options: ElectronPgliteHostOptions): El
     get openTransactionCount(): number {
       return transactions.size;
     },
+    get openBackupCount(): number {
+      return backups.size;
+    },
+    get openRestoreCount(): number {
+      return support === undefined ? 0 : support.restores.openCount;
+    },
     releaseOwner: async (ownerId: number): Promise<number> => {
       const doomed = [...sessions.entries()].filter(([, session]) => session.owner === ownerId).map(([id]) => id);
       let rolledBack = 0;
       for (const sessionId of doomed) {
-        rolledBack += await rollbackSessionTransactions(sessionId, `owner ${ownerId} is gone`);
-        await closeSession(sessionId);
+        rolledBack += await teardownSession(sessionId, `owner ${ownerId} is gone`);
       }
+      await support?.restores.releaseOwner(ownerId);
       return rolledBack;
     },
     closeAll: async (): Promise<void> => {
       for (const sessionId of [...sessions.keys()]) {
-        await rollbackSessionTransactions(sessionId, 'the host is shutting down');
-        await closeSession(sessionId);
+        await teardownSession(sessionId, 'the host is shutting down');
       }
+      await support?.restores.closeAll();
     }
   };
 }

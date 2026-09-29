@@ -19,7 +19,7 @@
  */
 
 /** SQLite 族的请求 kind（`desktop-host-protocol.ts` 的 `REQUEST_KINDS`；协议未导出谓词，故此处内联）。 */
-const SQLITE_REQUEST_KINDS: readonly string[] = ['handshake', 'open', 'execute', 'version', 'close'];
+const SQLITE_REQUEST_KINDS: readonly string[] = ['handshake', 'open', 'execute', 'version', 'close', 'mute'];
 
 /** 文件族请求 kind（`desktop-host-protocol.ts` 的 `FILE_REQUEST_KINDS`）。 */
 const FILE_REQUEST_KINDS: readonly string[] = [
@@ -50,7 +50,20 @@ const PGLITE_REQUEST_KINDS: readonly string[] = [
   'pg.commit',
   'pg.rollback',
   'pg.version',
-  'pg.close'
+  'pg.close',
+  'pg.engine',
+  'pg.backup.begin',
+  'pg.backup.next',
+  'pg.backup.end',
+  'pg.restore.begin',
+  'pg.restore.prepare',
+  'pg.restore.write',
+  'pg.restore.open',
+  'pg.restore.query',
+  'pg.restore.persist',
+  'pg.restore.commit',
+  'pg.restore.abort',
+  'pg.restore.cleanup'
 ];
 
 /** 三族请求 kind 的闭集；分派与 preload 闸都只认这个集合。 */

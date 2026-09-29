@@ -661,7 +661,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     await this.ready();
     const client = await this.#client();
     return writeSqliteBackup(
-      { rxdb: this.rxdb, adapterName: this.name, client, storage, queue: this.#queue },
+      {
+        rxdb: this.rxdb,
+        adapterName: this.name,
+        client,
+        storage,
+        queue: this.#queue,
+        shadowTablesWritable: this.shadowTablesWritable()
+      },
       sink,
       options
     );
@@ -1207,6 +1214,34 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
+   * 本后端能否写虚表的影子表（FTS5 的 `_data`、`_idx` 等）。
+   *
+   * @remarks
+   * 归档按行原样保存影子表，恢复时要整表改写它们。默认可以；以 defensive 模式运行 SQLite 的后端改不了影子表，
+   * 覆盖为 `false`：含影子表的库备份与恢复都报 `unsupported_combination`，而不是产出一份自己恢复不了的归档，
+   * 或写到一半才失败。
+   *
+   * @returns 能写为 `true`
+   */
+  protected shadowTablesWritable(): boolean {
+    return true;
+  }
+
+  /**
+   * 打开恢复或清理用的目标连接。
+   *
+   * @remarks
+   * 默认就是 {@link createClient}：浏览器后端的库只会在同源上下文里被打开，恢复前拿到的独占 Web Lock
+   * 已经挡住了其余所有连接。库文件还可能被别的进程打开的后端（桌面 host）覆盖它，在返回前让这条连接
+   * 独占底层存储并一直持有到断开，保证从空状态检查到恢复结束都没有别人连得上。
+   *
+   * @returns 目标库的一条新连接
+   */
+  protected createRestoreTargetClient(): Promise<SqliteClientLike> {
+    return this.createClient();
+  }
+
+  /**
    * 就绪门：**必须在获取队列槽位之前调用，绝不能在队列任务内部调用**。
    *
    * @remarks
@@ -1495,7 +1530,13 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   #restoreInput(storage: SqliteSupportedBackupStorage): SqliteRestoreInput {
-    return { rxdb: this.rxdb, adapterName: this.name, storage, createClient: () => this.createClient() };
+    return {
+      rxdb: this.rxdb,
+      adapterName: this.name,
+      storage,
+      createClient: () => this.createRestoreTargetClient(),
+      shadowTablesWritable: this.shadowTablesWritable()
+    };
   }
 
   /**

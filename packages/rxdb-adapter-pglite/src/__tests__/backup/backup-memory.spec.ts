@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PGLITE_DATA_DIR,
   restoreDataDirEntries,
+  walkEmscriptenDataDir,
   writeDataDirSnapshot,
   type EmscriptenFS,
   type EmscriptenStream
@@ -119,7 +120,7 @@ const pipe = async (size: number): Promise<Meter> => {
     const writer = channel.writable.getWriter();
     const archive = new RxDBBackupArchiveWriter(writer);
     await archive.writeManifest(MANIFEST);
-    await writeDataDirSnapshot(virtualSourceFs(size, meter), archive);
+    await writeDataDirSnapshot(walkEmscriptenDataDir(virtualSourceFs(size, meter)), archive);
     const trailer = await archive.finish();
     await writer.close();
     return trailer;

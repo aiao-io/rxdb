@@ -206,6 +206,10 @@
         "kind": "type"
       },
       {
+        "name": "PGliteDataDirItem",
+        "kind": "type"
+      },
+      {
         "name": "PGliteEngineInfo",
         "kind": "type"
       },
@@ -219,6 +223,10 @@
       },
       {
         "name": "PGliteNotifyPayload",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteQueryable",
         "kind": "type"
       },
       {
@@ -318,6 +326,10 @@
         "kind": "value"
       },
       {
+        "name": "toPGliteEngineInfo",
+        "kind": "value"
+      },
+      {
         "name": "transformEntityValuePGliteToJs",
         "kind": "value"
       },
@@ -331,6 +343,10 @@
       },
       {
         "name": "transformValuePGliteToJs",
+        "kind": "value"
+      },
+      {
+        "name": "verifyPGliteRestored",
         "kind": "value"
       }
     ],

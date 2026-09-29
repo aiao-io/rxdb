@@ -17,13 +17,15 @@ const create = (rxdb: RxDB, vfs: NonNullable<SqliteOptions['vfs']>, wasmUrl: str
 export const sqliteWasmBackupHarness: SqliteBackupHarness = {
   adapterName: 'sqlite-wasm',
   persistentLabel: 'idb',
+  storageKinds: ['memory', 'persistent'],
   createAdapter: (rxdb: RxDB, kind: SqliteBackupStorageKind) =>
     kind === 'persistent' ? create(rxdb, 'idb', sqliteWasmAsyncUrl) : create(rxdb, 'memory', sqliteWasmUrl),
-  createUnsupportedAdapter: (rxdb: RxDB) => create(rxdb, 'opfs', sqliteWasmUrl),
-  unsupportedField: 'vfs',
+  unsupportedConfiguration: { createAdapter: (rxdb: RxDB) => create(rxdb, 'opfs', sqliteWasmUrl), field: 'vfs' },
   fts5: true,
   // idb VFS 不提供 WAL 需要的共享内存，连接初始化请求的 WAL 被静默保留为默认的 delete。
   persistentJournalMode: 'delete',
   engineObjects: null,
-  interruptWorker: () => new Worker(new URL('./backup-interrupt.worker.ts', import.meta.url), { type: 'module' })
+  interruptWorker: () => new Worker(new URL('./backup-interrupt.worker.ts', import.meta.url), { type: 'module' }),
+  foreignHost: { unsupported: '浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发' },
+  channelHost: { unsupported: '浏览器后端没有桌面 renderer / host 协议通道，Worker 被强杀的断开由强杀用例覆盖' }
 };

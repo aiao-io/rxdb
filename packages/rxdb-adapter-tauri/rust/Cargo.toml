@@ -35,3 +35,8 @@ serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled", "functions", "blob", "hooks"] }
 # sessionId 由 host 生成，形状必须匹配协议里的 UUID 正则。
 uuid = { version = "1", features = ["v4"] }
+
+# 只有 `src/bin/rxdb_host_stdio.rs` 用：`getrusage` 读宿主进程的峰值常驻内存，供 US-217 AC#9 的内存测量。
+# 标准库没有这个调用；libc 本来就在依赖树里（rusqlite），这里只是把它提成直接依赖。
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

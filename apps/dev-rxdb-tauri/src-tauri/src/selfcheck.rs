@@ -60,14 +60,36 @@ pub const PROBE_BASE_URL_ENV: &str = "DEV_RXDB_TAURI_PROBE_BASE_URL";
 /// 与 [`PROBE_BASE_URL_ENV`] 同规则：没开自检却设了它，是配置错误而不是「顺带开一下」。
 pub const DEVTOOLS_PROBE_ENV: &str = "DEV_RXDB_TAURI_DEVTOOLS_PROBE";
 
+/// 备份 / 恢复探针的模式（US-217 AC#18）：`backup` 或 `restore`；**可选**，须与 [`BACKUP_ARCHIVE_ENV`] 成对。
+///
+/// # 为什么归档要经 Rust 落盘，而不是交回 e2e
+///
+/// Tauri 的窗口里没有 CDP，e2e 摸不到 renderer 的任何全局——Electron 那边「探针把整份归档以 base64
+/// 交回测试进程」的做法在这里无路可走。于是 renderer 经 [`rxdb_selfcheck_backup_archive_append`] /
+/// [`rxdb_selfcheck_backup_archive_read`] 逐块写读一个由 e2e 指定、落在应用数据目录之外的文件。
+/// 逐块而不是整块：一次交出整份归档就把 AC#9 的「流」验成了一块 `ArrayBuffer`。
+pub const BACKUP_PROBE_ENV: &str = "DEV_RXDB_TAURI_BACKUP_PROBE";
+
+/// 备份归档的绝对路径；须与 [`BACKUP_PROBE_ENV`] 成对。
+///
+/// `backup` 模式下它必须**尚不存在**（探针逐块追加），`restore` 模式下它必须是已存在的文件，
+/// 见 [`SelfCheckPlan::ensure_backup_archive`]。
+pub const BACKUP_ARCHIVE_ENV: &str = "DEV_RXDB_TAURI_BACKUP_ARCHIVE";
+
+/// 单次读归档的块大小上限。
+///
+/// 与 renderer 侧的流帧（64 KiB）同一量级留出余量；不设上限的话，一次 `read(0, u32::MAX)` 就把
+/// 整份归档搬进一个 IPC 响应——那正是 AC#9 明令不能通过验收的形态。
+const ARCHIVE_READ_LIMIT: u32 = 1024 * 1024;
+
 /// 报告的结构版本。
 ///
 /// 读报告的一方（`apps/dev-rxdb-tauri-e2e`）先比这个数再读别的字段：字段改了名而读的一方
 /// 没跟上时，报出来的是「版本对不上」，而不是一个到处都是 `undefined` 的对象。
 ///
 /// v2 起多了 [`StorageProbe`]（US-505 AC#1 / AC#3）；v3 起多了 [`DevToolsProbe`] 与
-/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）；v10 加阶段 1 收尾的十六格（`descriptorKinds` / `descriptorRuntimes`、snapshot 走查五格、safe-integer 探针三格、`uploadHugeSize` / `invalidChunk`、`eventsSubscribe` / `eventFrames`、`databaseInspect` / `downloadByteCount`，AC#2 / #6 / #7）；v11 加 branch 探针三条（`branchesList` / `branchCount` / `branchSwitch`，AC#9）。
-pub const REPORT_SCHEMA_VERSION: u32 = 11;
+/// `windowLabels`（US-905 阶段 1）；v4 把 `devtools.sessionId` 换成 `sessionIds`（AC#4 要看轮换）；v5 加 `devtools.relayRejected`（AC#3）；v6 加 `devtools.native`（阶段 2 的 wire 结论）；v7 加它的写入两条（`createDirectory` / `deleteEntry`）；v8 加跨重启比对的三条（`keptDirSeen` / `databaseQuery` / `launchRowCount`，AC#9 / AC#15）；v9 加字节往返的九条（`uploadBytes` / `uploadChunks` / `downloadBytes` / `bytesMatch` / `emptyUpload` / `escapedUpload` / `cancelledUpload` / `cancelledFile` / `tempResidue`，AC#10）；v10 加阶段 1 收尾的十六格（`descriptorKinds` / `descriptorRuntimes`、snapshot 走查五格、safe-integer 探针三格、`uploadHugeSize` / `invalidChunk`、`eventsSubscribe` / `eventFrames`、`databaseInspect` / `downloadByteCount`，AC#2 / #6 / #7）；v11 加 branch 探针三条（`branchesList` / `branchCount` / `branchSwitch`，AC#9）；v12 加 `backup`（US-217 AC#18）。
+pub const REPORT_SCHEMA_VERSION: u32 = 12;
 
 /// 环境变量配错时的退出码。
 ///
@@ -382,6 +404,52 @@ pub struct DevToolsNativeProbe {
     pub failure: Option<String>,
 }
 
+/// 备份探针的运行模式，见 [`BACKUP_PROBE_ENV`]。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BackupProbeMode {
+    /// 照常连接并记一次启动，然后把库备份进归档。
+    Backup,
+    /// 连接之前先从归档恢复；恢复失败就不连接。
+    Restore,
+}
+
+/// 备份探针的计划：模式与归档位置。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupProbePlan {
+    /// 这一跑是备份还是恢复。
+    pub mode: BackupProbeMode,
+    /// 归档的绝对路径；落在应用数据目录之外。
+    pub archive_path: PathBuf,
+}
+
+/// 归档声明的范围（US-217 AC#14）：取值是 `RXDB_BACKUP_SCOPE` 的字面量，由 e2e 做等值断言。
+///
+/// 字段是字符串而不是枚举：这里只是**搬运** renderer 读到的声明，不替它判定——判定在 e2e 侧，
+/// Rust 这边若把未知值拒在反序列化上，诊断就退化成一次看门狗超时。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupScope {
+    /// 数据库是否包含在内。
+    pub database: String,
+    /// 外置文件是否包含在内。
+    pub external_files: String,
+}
+
+/// renderer 跑完备份 / 恢复之后回报的事实（US-217 AC#18）。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupProbe {
+    /// 跑的是哪一半。
+    pub mode: BackupProbeMode,
+    /// 经流写出（或读入）的归档字节数。
+    pub byte_length: u64,
+    /// API 结果上的范围声明。
+    pub scope: BackupScope,
+    /// 归档 manifest 里的范围声明。
+    pub manifest_scope: BackupScope,
+}
+
 /// renderer 上报的结论，[`rxdb_selfcheck_report`] 的入参。
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -403,6 +471,9 @@ pub struct SelfCheckOutcome {
     /// DevTools 双 WebView 探针的结果；release 构建里没有调试窗口，因此恒为 `None`。
     #[serde(default)]
     pub devtools: Option<DevToolsProbe>,
+    /// 备份 / 恢复探针的结果；只有设了 [`BACKUP_PROBE_ENV`] 且跑成功时有值。
+    #[serde(default)]
+    pub backup: Option<BackupProbe>,
 }
 
 /// 落盘的报告。
@@ -422,6 +493,7 @@ struct SelfCheckReport {
     storage: Option<StorageProbe>,
     webview: Option<WebviewProbe>,
     devtools: Option<DevToolsProbe>,
+    backup: Option<BackupProbe>,
     /// 结算时刻**实际存在**的窗口 label，已排序（US-905 AC#1）。
     ///
     /// 由 Rust 侧直接枚举，不听 renderer 的：AC#1 要的是「dev 只创建一个 `rxdb-devtools`
@@ -448,9 +520,40 @@ pub struct SelfCheckPlan {
     pub probe_base_url: Option<String>,
     /// 这次要不要跑 DevTools 握手探针，见 [`DEVTOOLS_PROBE_ENV`]。
     pub devtools_probe: bool,
+    /// 备份 / 恢复探针；`None` 表示这次不跑。
+    pub backup: Option<BackupProbePlan>,
 }
 
 impl SelfCheckPlan {
+    /// 检查归档与模式相符：备份的目标尚不存在且目录在，恢复的来源是已存在的文件。
+    ///
+    /// 与 [`Self::ensure_directories`] 同理从 [`plan_from_env`] 里拆出来，好让后者保持纯函数。
+    pub fn ensure_backup_archive(&self) -> Result<(), String> {
+        let Some(backup) = &self.backup else {
+            return Ok(());
+        };
+        let archive = &backup.archive_path;
+        match backup.mode {
+            BackupProbeMode::Restore if archive.is_file() => Ok(()),
+            BackupProbeMode::Restore => Err(format!(
+                "{BACKUP_ARCHIVE_ENV} points at {}, which is not an existing file to restore from",
+                archive.display()
+            )),
+            // 探针逐块追加：残留的旧归档会被接在新归档前面，得到一份两段拼接的坏归档。
+            BackupProbeMode::Backup if archive.exists() => Err(format!(
+                "{BACKUP_ARCHIVE_ENV} points at {}, which already exists; the backup probe appends to it",
+                archive.display()
+            )),
+            BackupProbeMode::Backup => match archive.parent() {
+                Some(parent) => require_directory(BACKUP_ARCHIVE_ENV, parent),
+                None => Err(format!(
+                    "{BACKUP_ARCHIVE_ENV} has no parent directory: {}",
+                    archive.display()
+                )),
+            },
+        }
+    }
+
     /// 检查两个目录确实存在。
     ///
     /// 与 [`plan_from_env`] 分开是为了让后者保持纯函数：解析规则能在单测里穷举，
@@ -498,16 +601,29 @@ where
     let app_data_dir = read_optional(&read, APP_DATA_DIR_ENV)?;
     let probe_base_url = read_optional(&read, PROBE_BASE_URL_ENV)?;
     let devtools_probe = read_optional(&read, DEVTOOLS_PROBE_ENV)?.is_some();
+    let backup_probe = read_optional(&read, BACKUP_PROBE_ENV)?;
+    let backup_archive = read_optional(&read, BACKUP_ARCHIVE_ENV)?;
     match (report, app_data_dir) {
-        (None, None) if probe_base_url.is_none() && !devtools_probe => Ok(None),
-        (None, None) if devtools_probe => Err(format!(
-            "{DEVTOOLS_PROBE_ENV} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
-        )),
-        (None, None) => Err(format!(
-            "{PROBE_BASE_URL_ENV} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
-        )),
+        (None, None) => {
+            let stray = [
+                (DEVTOOLS_PROBE_ENV, devtools_probe),
+                (PROBE_BASE_URL_ENV, probe_base_url.is_some()),
+                (BACKUP_PROBE_ENV, backup_probe.is_some()),
+                (BACKUP_ARCHIVE_ENV, backup_archive.is_some()),
+            ]
+            .into_iter()
+            .find_map(|(key, set)| set.then_some(key));
+            match stray {
+                None => Ok(None),
+                Some(key) => Err(format!(
+                    "{key} is set but self-check is off; it needs {REPORT_PATH_ENV} and {APP_DATA_DIR_ENV}"
+                )),
+            }
+        }
         (Some(report), Some(app_data_dir)) => {
-            Ok(Some(build_plan(&report, &app_data_dir, probe_base_url, devtools_probe)?))
+            let mut plan = build_plan(&report, &app_data_dir, probe_base_url, devtools_probe)?;
+            plan.backup = backup_plan(backup_probe, backup_archive)?;
+            Ok(Some(plan))
         }
         (Some(_), None) => Err(format!(
             "{REPORT_PATH_ENV} is set but {APP_DATA_DIR_ENV} is not; self-check needs both"
@@ -552,7 +668,42 @@ fn build_plan(
         app_data_dir: absolute(APP_DATA_DIR_ENV, app_data_dir)?,
         probe_base_url: probe_base_url.map(|raw| check_base_url(&raw)).transpose()?,
         devtools_probe,
+        backup: None,
     })
+}
+
+/// 备份那一对变量：同样成对出现，模式按字面解析，归档必须是绝对路径。
+fn backup_plan(
+    mode: Option<String>,
+    archive: Option<String>,
+) -> Result<Option<BackupProbePlan>, String> {
+    let (mode, archive) = match (mode, archive) {
+        (None, None) => return Ok(None),
+        (Some(mode), Some(archive)) => (mode, archive),
+        (Some(_), None) => {
+            return Err(format!(
+                "{BACKUP_PROBE_ENV} is set but {BACKUP_ARCHIVE_ENV} is not; the backup probe needs both"
+            ))
+        }
+        (None, Some(_)) => {
+            return Err(format!(
+                "{BACKUP_ARCHIVE_ENV} is set but {BACKUP_PROBE_ENV} is not; the backup probe needs both"
+            ))
+        }
+    };
+    let mode = match mode.as_str() {
+        "backup" => BackupProbeMode::Backup,
+        "restore" => BackupProbeMode::Restore,
+        other => {
+            return Err(format!(
+                "{BACKUP_PROBE_ENV} must be backup or restore, got {other:?}"
+            ))
+        }
+    };
+    Ok(Some(BackupProbePlan {
+        mode,
+        archive_path: absolute(BACKUP_ARCHIVE_ENV, &archive)?,
+    }))
 }
 
 /// renderer 会把它当成 `${base}/<route>` 的前缀直接拼接，所以这里就把两条前提定死。
@@ -602,6 +753,7 @@ fn resolve_plan() -> Result<Option<SelfCheckPlan>, String> {
         return Ok(None);
     };
     plan.ensure_directories()?;
+    plan.ensure_backup_archive()?;
     Ok(Some(plan))
 }
 
@@ -632,6 +784,7 @@ pub fn arm(app: &AppHandle, plan: SelfCheckPlan) {
                 storage: None,
                 webview: None,
                 devtools: None,
+                backup: None,
                 message: Some(format!(
                     "the renderer never reported within {}s",
                     WATCHDOG_TIMEOUT.as_secs()
@@ -670,6 +823,7 @@ fn finish(app: &AppHandle, outcome: SelfCheckOutcome) {
         storage: outcome.storage,
         webview: outcome.webview,
         devtools: outcome.devtools,
+        backup: outcome.backup,
         window_labels,
         app_data_dir: host.app_data_dir().to_string_lossy().into_owned(),
         identifier: app.config().identifier.clone(),
@@ -732,6 +886,96 @@ pub fn rxdb_selfcheck_probe_base_url(app: AppHandle) -> Option<String> {
 #[tauri::command]
 pub fn rxdb_selfcheck_devtools_probe(app: AppHandle) -> bool {
     devtools_probe_armed(&app)
+}
+
+/// renderer 问「这次要不要跑备份探针，跑哪一半」（US-217 AC#18）。
+///
+/// 与 [`rxdb_selfcheck_probe_base_url`] 同一形态：没开自检或没设 [`BACKUP_PROBE_ENV`] 都给 `None`。
+#[tauri::command]
+pub fn rxdb_selfcheck_backup_probe(app: AppHandle) -> Option<BackupProbeMode> {
+    let state = app.try_state::<SelfCheckState>()?;
+    state.plan.backup.as_ref().map(|backup| backup.mode)
+}
+
+/// 从归档的 `offset` 处读至多 `length` 字节；读到末尾时给空块，renderer 据此关流。
+///
+/// 只在 `restore` 模式下开门。响应走 [`tauri::ipc::Response`] 的原始字节：经 JSON 的话每一块都要
+/// 先在 Rust 侧膨胀成数字数组，再在 renderer 侧解析回来。
+#[tauri::command]
+pub async fn rxdb_selfcheck_backup_archive_read(
+    app: AppHandle,
+    offset: u64,
+    length: u32,
+) -> Result<tauri::ipc::Response, String> {
+    let path = archive_path_of(&app, BackupProbeMode::Restore)?;
+    read_archive_chunk(&path, offset, length).map(tauri::ipc::Response::new)
+}
+
+/// 把一块归档追加到文件末尾；请求体必须是原始字节（renderer 直接传 `Uint8Array`）。
+///
+/// 只在 `backup` 模式下开门。
+#[tauri::command]
+pub async fn rxdb_selfcheck_backup_archive_append(
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<(), String> {
+    let path = archive_path_of(&app, BackupProbeMode::Backup)?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("the archive chunk must be sent as raw bytes".to_string());
+    };
+    append_archive_chunk(&path, bytes)
+}
+
+fn archive_path_of(app: &AppHandle, mode: BackupProbeMode) -> Result<PathBuf, String> {
+    let state = app
+        .try_state::<SelfCheckState>()
+        .ok_or_else(|| format!("self-check is off; {BACKUP_PROBE_ENV} needs it"))?;
+    archive_path_for(&state.plan, mode)
+}
+
+/// 计划里的归档路径，前提是这一跑的模式正是 `mode`。
+fn archive_path_for(plan: &SelfCheckPlan, mode: BackupProbeMode) -> Result<PathBuf, String> {
+    let Some(backup) = &plan.backup else {
+        return Err(format!("{BACKUP_PROBE_ENV} is not set for this run"));
+    };
+    if backup.mode != mode {
+        return Err(format!(
+            "this run is in {:?} mode; the archive is not open for {mode:?}",
+            backup.mode
+        )
+        .to_lowercase());
+    }
+    Ok(backup.archive_path.clone())
+}
+
+fn read_archive_chunk(path: &Path, offset: u64, length: u32) -> Result<Vec<u8>, String> {
+    use std::io::{Read, Seek, SeekFrom};
+    if length == 0 || length > ARCHIVE_READ_LIMIT {
+        return Err(format!(
+            "an archive read must ask for 1..={ARCHIVE_READ_LIMIT} bytes, got {length}"
+        ));
+    }
+    let describe = |error: std::io::Error| format!("cannot read {}: {error}", path.display());
+    let mut file = std::fs::File::open(path).map_err(describe)?;
+    file.seek(SeekFrom::Start(offset)).map_err(describe)?;
+    let mut chunk = Vec::with_capacity(length as usize);
+    file.take(u64::from(length))
+        .read_to_end(&mut chunk)
+        .map_err(describe)?;
+    Ok(chunk)
+}
+
+fn append_archive_chunk(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let describe = |error: std::io::Error| format!("cannot append to {}: {error}", path.display());
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(describe)?;
+    file.write_all(bytes).map_err(describe)?;
+    // 进程在备份后立刻 `app.exit`：不落盘的话，e2e 读到的可能是一份截断的归档。
+    file.sync_data().map_err(describe)
 }
 
 /// 这次运行是否开着 DevTools 探针。
@@ -863,6 +1107,7 @@ mod tests {
             app_data_dir: root.clone(),
             probe_base_url: None,
             devtools_probe: false,
+            backup: None,
         };
         plan.ensure_directories().unwrap();
 
@@ -985,6 +1230,7 @@ mod tests {
                 storage: None,
                 webview: None,
                 devtools: None,
+                backup: None,
             }
         );
 
@@ -1072,6 +1318,7 @@ mod tests {
             app_data_dir: root.join("data"),
             probe_base_url: None,
             devtools_probe: false,
+            backup: None,
         };
         write_report(
             &plan,
@@ -1145,6 +1392,12 @@ mod tests {
                         failure: None,
                     }),
                 }),
+                backup: Some(BackupProbe {
+                    mode: BackupProbeMode::Backup,
+                    byte_length: 4096,
+                    scope: database_only(),
+                    manifest_scope: database_only(),
+                }),
                 window_labels: vec!["main".to_string(), "rxdb-devtools".to_string()],
                 app_data_dir: "/tmp/root".to_string(),
                 identifier: "io.aiao.dev-rxdb-tauri".to_string(),
@@ -1213,6 +1466,12 @@ mod tests {
                     "relayRejected": 1,
                     "native": native
                 },
+                "backup": {
+                    "mode": "backup",
+                    "byteLength": 4096,
+                    "scope": { "database": "included", "externalFiles": "excluded" },
+                    "manifestScope": { "database": "included", "externalFiles": "excluded" }
+                },
                 "windowLabels": ["main", "rxdb-devtools"],
                 "appDataDir": "/tmp/root",
                 "identifier": "io.aiao.dev-rxdb-tauri"
@@ -1231,9 +1490,243 @@ mod tests {
     ///
     /// v3 加的是 `devtools` 与 `windowLabels`（US-905 阶段 1）；v6 加的是 `devtools.native`（阶段 2）；
     /// v8 加的是它的跨重启三条（AC#9 / AC#15）；v9 加的是字节往返九条（AC#10）；
-    /// v10 加的是阶段 1 收尾的十六格（AC#2 / #6 / #7）；v11 加的是 branch 探针三条（AC#9）。
+    /// v10 加的是阶段 1 收尾的十六格（AC#2 / #6 / #7）；v11 加的是 branch 探针三条（AC#9）；
+    /// v12 加的是 `backup`（US-217 AC#18）。
     #[test]
     fn the_schema_version_covers_the_storage_probe() {
-        assert_eq!(REPORT_SCHEMA_VERSION, 11);
+        assert_eq!(REPORT_SCHEMA_VERSION, 12);
+    }
+
+    fn database_only() -> BackupScope {
+        BackupScope {
+            database: "included".to_string(),
+            external_files: "excluded".to_string(),
+        }
+    }
+
+    fn backup_plan(mode: &str, archive: &str) -> Result<Option<SelfCheckPlan>, String> {
+        plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (BACKUP_PROBE_ENV, mode),
+            (BACKUP_ARCHIVE_ENV, archive),
+        ]))
+    }
+
+    /// 两个备份变量随自检那一对出现；模式按字面解析，归档路径原样带进计划。
+    #[test]
+    fn the_backup_probe_rides_along_with_the_self_check_pair() {
+        let archive = absolute_path("desktop.rxdb-backup");
+        for (raw, mode) in [
+            ("backup", BackupProbeMode::Backup),
+            ("restore", BackupProbeMode::Restore),
+        ] {
+            let plan = backup_plan(raw, &archive).unwrap().unwrap();
+            assert_eq!(
+                plan.backup,
+                Some(BackupProbePlan {
+                    mode,
+                    archive_path: PathBuf::from(&archive),
+                })
+            );
+        }
+        let without = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(without.backup, None);
+    }
+
+    /// 只给模式不给归档（或反过来）与自检那一对只设其一是同一种打错字。
+    #[test]
+    fn half_of_the_backup_pair_is_an_error() {
+        let only_mode = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (BACKUP_PROBE_ENV, "backup"),
+        ]))
+        .unwrap_err();
+        assert!(only_mode.contains(BACKUP_ARCHIVE_ENV), "{only_mode}");
+
+        let only_archive = plan_from_env(reader(&[
+            (REPORT_PATH_ENV, &absolute_path("report.json")),
+            (APP_DATA_DIR_ENV, &absolute_path("root")),
+            (BACKUP_ARCHIVE_ENV, &absolute_path("a.rxdb-backup")),
+        ]))
+        .unwrap_err();
+        assert!(only_archive.contains(BACKUP_PROBE_ENV), "{only_archive}");
+    }
+
+    /// 拼错的模式不能当成「不跑」：e2e 会等一份永远不会出现的 `backup` 字段。
+    #[test]
+    fn an_unknown_backup_mode_is_rejected() {
+        let error = backup_plan("restroe", &absolute_path("a.rxdb-backup")).unwrap_err();
+        assert!(error.contains(BACKUP_PROBE_ENV), "{error}");
+        assert!(error.contains("restroe"), "{error}");
+    }
+
+    #[test]
+    fn a_relative_backup_archive_is_rejected() {
+        let error = backup_plan("backup", "archives/a.rxdb-backup").unwrap_err();
+        assert!(error.contains(BACKUP_ARCHIVE_ENV), "{error}");
+        assert!(error.contains("absolute"), "{error}");
+    }
+
+    /// 没开自检却设了备份变量：探针的输出无处可报，只能是漏设了另外两个。
+    #[test]
+    fn backup_variables_without_self_check_are_an_error() {
+        let error = plan_from_env(reader(&[(BACKUP_PROBE_ENV, "backup")])).unwrap_err();
+        assert!(error.contains(BACKUP_PROBE_ENV), "{error}");
+        assert!(error.contains(REPORT_PATH_ENV), "{error}");
+
+        let error = plan_from_env(reader(&[(
+            BACKUP_ARCHIVE_ENV,
+            &absolute_path("a.rxdb-backup"),
+        )]))
+        .unwrap_err();
+        assert!(error.contains(BACKUP_ARCHIVE_ENV), "{error}");
+    }
+
+    /// 备份模式逐块追加：残留的旧归档会被接在新归档前面，所以目标必须还不存在；
+    /// 恢复模式读的是上一次备份留下的文件，所以它必须已经在。
+    #[test]
+    fn the_archive_must_match_the_mode_before_the_window_opens() {
+        let root = temp_directory("archive");
+        let archive = root.join("desktop.rxdb-backup");
+        let plan_for = |mode| SelfCheckPlan {
+            report_path: root.join("report.json"),
+            report_temp_path: root.join("report.json.tmp"),
+            app_data_dir: root.clone(),
+            probe_base_url: None,
+            devtools_probe: false,
+            backup: Some(BackupProbePlan {
+                mode,
+                archive_path: archive.clone(),
+            }),
+        };
+
+        plan_for(BackupProbeMode::Backup)
+            .ensure_backup_archive()
+            .unwrap();
+        let missing = plan_for(BackupProbeMode::Restore)
+            .ensure_backup_archive()
+            .unwrap_err();
+        assert!(missing.contains(BACKUP_ARCHIVE_ENV), "{missing}");
+
+        std::fs::write(&archive, b"archive").unwrap();
+        plan_for(BackupProbeMode::Restore)
+            .ensure_backup_archive()
+            .unwrap();
+        let leftover = plan_for(BackupProbeMode::Backup)
+            .ensure_backup_archive()
+            .unwrap_err();
+        assert!(leftover.contains("already exists"), "{leftover}");
+
+        let orphan = SelfCheckPlan {
+            backup: Some(BackupProbePlan {
+                mode: BackupProbeMode::Backup,
+                archive_path: root.join("no-such-dir").join("a.rxdb-backup"),
+            }),
+            ..plan_for(BackupProbeMode::Backup)
+        };
+        assert!(orphan
+            .ensure_backup_archive()
+            .unwrap_err()
+            .contains(BACKUP_ARCHIVE_ENV));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 命令只在自己的模式下开门：备份那一跑读不到归档，恢复那一跑写不进归档。
+    #[test]
+    fn archive_access_is_gated_by_the_mode() {
+        let archive = PathBuf::from(absolute_path("gate.rxdb-backup"));
+        let plan = |backup| SelfCheckPlan {
+            report_path: PathBuf::from(absolute_path("report.json")),
+            report_temp_path: PathBuf::from(absolute_path("report.json.tmp")),
+            app_data_dir: PathBuf::from(absolute_path("root")),
+            probe_base_url: None,
+            devtools_probe: false,
+            backup,
+        };
+        let backup = plan(Some(BackupProbePlan {
+            mode: BackupProbeMode::Backup,
+            archive_path: archive.clone(),
+        }));
+        assert_eq!(
+            archive_path_for(&backup, BackupProbeMode::Backup).unwrap(),
+            archive
+        );
+        assert!(archive_path_for(&backup, BackupProbeMode::Restore)
+            .unwrap_err()
+            .contains("backup"));
+        assert!(archive_path_for(&plan(None), BackupProbeMode::Backup)
+            .unwrap_err()
+            .contains(BACKUP_PROBE_ENV));
+    }
+
+    /// 逐块追加再按偏移读回：字节不多不少，越过末尾读到空块（renderer 据此关流）。
+    #[test]
+    fn the_archive_round_trips_in_chunks() {
+        let root = temp_directory("chunks");
+        let archive = root.join("desktop.rxdb-backup");
+        let bytes: Vec<u8> = (0..200_000u32)
+            .map(|index| (index * 31 % 256) as u8)
+            .collect();
+        for chunk in bytes.chunks(70_000) {
+            append_archive_chunk(&archive, chunk).unwrap();
+        }
+
+        let mut read = Vec::new();
+        loop {
+            let chunk = read_archive_chunk(&archive, read.len() as u64, 65_536).unwrap();
+            if chunk.is_empty() {
+                break;
+            }
+            read.extend_from_slice(&chunk);
+        }
+        assert_eq!(read, bytes);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 读块大小有上限：一次要整份归档就是把「流」退化成整块缓冲（AC#9）。
+    #[test]
+    fn an_archive_read_is_bounded() {
+        let root = temp_directory("bounded");
+        let archive = root.join("desktop.rxdb-backup");
+        std::fs::write(&archive, b"archive").unwrap();
+        assert!(read_archive_chunk(&archive, 0, 0).is_err());
+        assert!(read_archive_chunk(&archive, 0, ARCHIVE_READ_LIMIT + 1).is_err());
+        assert_eq!(
+            read_archive_chunk(&archive, 3, ARCHIVE_READ_LIMIT).unwrap(),
+            b"hive"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// 备份探针的键名是跨语言契约的一半，另一半在 `src/app/backup-probe.ts` 里。
+    #[test]
+    fn the_backup_probe_payload_deserializes() {
+        let reported: SelfCheckOutcome = serde_json::from_value(serde_json::json!({
+            "status": "ok",
+            "launchCount": 1,
+            "backup": {
+                "mode": "restore",
+                "byteLength": 4096,
+                "scope": { "database": "included", "externalFiles": "excluded" },
+                "manifestScope": { "database": "included", "externalFiles": "excluded" }
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            reported.backup,
+            Some(BackupProbe {
+                mode: BackupProbeMode::Restore,
+                byte_length: 4096,
+                scope: database_only(),
+                manifest_scope: database_only(),
+            })
+        );
     }
 }

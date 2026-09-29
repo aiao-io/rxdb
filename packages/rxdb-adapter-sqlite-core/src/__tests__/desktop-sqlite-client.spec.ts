@@ -332,6 +332,63 @@ describe('DesktopSqliteClient 的会话请求', () => {
     await expect(client.execute('INSERT INTO todo VALUES (2)')).resolves.toMatchObject({ rowsAffected: 1 });
   });
 
+  /**
+   * 传输层在请求途中失败（host 进程退出、IPC 断开）与 host 报的 SQL 错误是两回事：
+   * 前者没有 host 错误码，原样抛出的话上层只看到一个普通 `Error`，恢复会把它当成归档里的坏语句。
+   */
+  it('reports a request the channel failed to deliver as host_unavailable and keeps the cause', async () => {
+    const lost = new Error('desktop host channel closed');
+    const host = createFakeHost({
+      execute: () => {
+        throw lost;
+      }
+    });
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    const reason = await client.execute('SELECT 1').then(
+      () => undefined,
+      (error: unknown) => error
+    );
+    expect(reason).toBeInstanceOf(RxDBAdapterDesktopError);
+    expect(reason).toMatchObject({ code: 'host_unavailable', cause: lost });
+    expect((reason as Error).message).toContain('desktop host channel closed');
+  });
+
+  it('passes a desktop error raised by the transport itself through unchanged', async () => {
+    const internal = new RxDBAdapterDesktopError('host_internal_error', 'invoke failed');
+    const host = createFakeHost({
+      execute: () => {
+        throw internal;
+      }
+    });
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await expect(client.execute('SELECT 1')).rejects.toBe(internal);
+  });
+
+  // 恢复整库时静音：恢复出来的行不是新变更，host 不该把它们当事件推回来
+  it('asks the host to mute and unmute change events for this session', async () => {
+    const host = createFakeHost({ mute: () => ({ kind: 'mute' }) });
+    const request = vi.spyOn(host.transport, 'request');
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await client.setChangeEventsMuted(true);
+    await client.setChangeEventsMuted(false);
+
+    expect(request.mock.calls.map(([payload]) => payload).filter(payload => payload.kind === 'mute')).toEqual([
+      { kind: 'mute', sessionId: SESSION_ID, muted: true },
+      { kind: 'mute', sessionId: SESSION_ID, muted: false }
+    ]);
+  });
+
+  it('describes a blank desktop database as having no objects, without asking the host', async () => {
+    const host = createFakeHost();
+    const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
+
+    await expect(client.describeBlankDatabase()).resolves.toEqual({ objects: [], shape: '', description: '' });
+    expect(host.kinds).toEqual(['handshake', 'open']);
+  });
+
   it('refuses new work once the session is disconnected', async () => {
     const host = createFakeHost();
     const client = await DesktopSqliteClient.connect(host.transport, sqliteStorage);
@@ -339,6 +396,7 @@ describe('DesktopSqliteClient 的会话请求', () => {
 
     await expectRejectedCode(client.execute('SELECT 1'), 'session_closed');
     await expectRejectedCode(client.version(), 'session_closed');
+    await expectRejectedCode(client.setChangeEventsMuted(true), 'session_closed');
   });
 
   // 并发的 disconnect 共享同一个流程：第二个调用方也必须等到句柄真的释放

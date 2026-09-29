@@ -14,15 +14,18 @@
 
 export {
   PGLITE_BACKUP_ENGINE,
+  toPGliteEngineInfo,
   type PGliteBackupStorage,
-  type PGliteEngineInfo
+  type PGliteEngineInfo,
+  type PGliteQueryable
 } from './backup/pglite-backup-compat.js';
 export { PGLITE_BACKUP_LOCK_TIMEOUT_MS } from './backup/pglite-backup.js';
-export { PGLITE_EXCLUDED_FILES } from './backup/pglite-data-dir.js';
+export { PGLITE_EXCLUDED_FILES, type PGliteDataDirItem } from './backup/pglite-data-dir.js';
 export { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
 export {
   cleanupIncompletePGliteRestore,
   restorePGliteDatabase,
+  verifyPGliteRestored,
   type PGliteRestoreOptions,
   type PGliteRestoreResult,
   type PGliteRestoreStage,

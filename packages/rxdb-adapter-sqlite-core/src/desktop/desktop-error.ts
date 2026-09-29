@@ -13,7 +13,8 @@
  *
  * - `unsupported_runtime_engine`：runtime 与 engine 的组合不在能力矩阵内
  * - `invalid_database_name`：逻辑数据库名非法，或试图越出应用作用域
- * - `host_unavailable`：renderer 侧拿不到桌面 host（未注入 transport / preload 未暴露）
+ * - `host_unavailable`：renderer 侧拿不到桌面 host（未注入 transport / preload 未暴露），
+ *   或通道在请求途中失败（host 进程退出、IPC 断开），`cause` 保留传输层原始错误
  * - `session_closed`：会话已断开后继续使用
  * - `protocol_violation`：请求或响应不符合协议形状
  * - `open_failed`：打开数据库失败，`cause` 保留原始原因
@@ -28,6 +29,12 @@
  * - `write_aborted`：写入令牌已失效（会话关闭、已提交或已丢弃），目标保持写入前的内容
  * - `transaction_not_found`：事务 ID 不存在、已结束，或不属于本会话；语句一条都没有执行
  * - `transaction_unavailable`：等待开启事务超时——另一个事务正占着连接；库无损，重试即可
+ * - `restore_in_progress`：目标正被同一 host 上的一次恢复独占，普通连接被拒绝；新的恢复与清理请求
+ *   与其他竞争访问一样报 `database_busy`（US-217）
+ * - `restore_incomplete`：目标留有未完成恢复的标记，须先清理再连接或重新恢复（US-217）
+ * - `target_not_empty`：恢复目标已经含有数据库内容，恢复拒绝覆盖（US-217）
+ * - `cleanup_pending`：恢复失败后的清理本身也失败，目标保持可判别的未完成状态（US-217）
+ * - `unsupported_operation`：host 未启用该操作，例如宿主没有配置备份与恢复
  */
 export type RxDBAdapterDesktopErrorCode =
   | 'unsupported_runtime_engine'
@@ -46,7 +53,12 @@ export type RxDBAdapterDesktopErrorCode =
   | 'disk_full'
   | 'write_aborted'
   | 'transaction_not_found'
-  | 'transaction_unavailable';
+  | 'transaction_unavailable'
+  | 'restore_in_progress'
+  | 'restore_incomplete'
+  | 'target_not_empty'
+  | 'cleanup_pending'
+  | 'unsupported_operation';
 
 const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'unsupported_runtime_engine',
@@ -65,7 +77,12 @@ const ERROR_CODES: readonly RxDBAdapterDesktopErrorCode[] = [
   'disk_full',
   'write_aborted',
   'transaction_not_found',
-  'transaction_unavailable'
+  'transaction_unavailable',
+  'restore_in_progress',
+  'restore_incomplete',
+  'target_not_empty',
+  'cleanup_pending',
+  'unsupported_operation'
 ];
 
 /**

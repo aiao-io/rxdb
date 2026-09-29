@@ -21,7 +21,8 @@ import {
   readPGliteEngineInfo,
   readPGliteSystemVersionState,
   resolvePGliteBackupStorage,
-  type PGliteBackupStorage
+  type PGliteBackupStorage,
+  type PGliteQueryable
 } from './pglite-backup-compat.js';
 import { restoreDataDirEntries } from './pglite-data-dir.js';
 import { pgliteIdbDatabaseName, RestoreIdbFs, RestoreMemoryFs, type PGliteRestoreFeed } from './pglite-restore-fs.js';
@@ -163,9 +164,19 @@ const startPostgres = async (
   return state.trailer;
 };
 
-/** 恢复出来的库必须真的是 manifest 声明的那个库，而不只是一堆摘要正确的字节。 */
-const verifyRestored = async (pg: PGlite, manifest: RxDBBackupManifest): Promise<void> => {
-  const engine = await readPGliteEngineInfo(pg);
+/**
+ * 校验恢复出来的库确实是 manifest 声明的那个库，而不只是一堆摘要正确的字节。
+ *
+ * @remarks
+ * 在恢复目标对外可见之前调用：引擎兼容键、系统表结构版本与变更编码版本都要与 manifest 一致。
+ * 桌面 host 上的恢复经 IPC 查询目标运行时，同样走这一份校验。
+ *
+ * @param db - 已在恢复出的数据目录上启动的 PGlite 或等价的查询入口
+ * @param manifest - 归档 manifest
+ * @throws RxDBBackupError `corrupt_archive`，`details.field` 指出不一致的字段
+ */
+export const verifyPGliteRestored = async (db: PGliteQueryable, manifest: RxDBBackupManifest): Promise<void> => {
+  const engine = await readPGliteEngineInfo(db);
   if (engine.compatibility !== manifest.adapter.engineCompatibility) {
     throw new RxDBBackupError('corrupt_archive', 'Restored database reports a different engine', {
       details: {
@@ -175,7 +186,7 @@ const verifyRestored = async (pg: PGlite, manifest: RxDBBackupManifest): Promise
       }
     });
   }
-  const state = await readPGliteSystemVersionState(pg);
+  const state = await readPGliteSystemVersionState(db);
   if (state.schemaVersion !== manifest.rxdb.systemSchemaVersion) {
     throw new RxDBBackupError('corrupt_archive', 'Restored database has a different system schema version', {
       details: {
@@ -218,7 +229,7 @@ const restoreToMemory = async (
     const trailer = await startPostgres(pg, state);
     await options.onStage?.('files-written');
     throwIfAborted(session.signal);
-    await verifyRestored(pg, session.manifest);
+    await verifyPGliteRestored(pg, session.manifest);
     await options.onStage?.('verified');
     throwIfAborted(session.signal);
     return resultOf(
@@ -269,7 +280,7 @@ const writeIdbTarget = async (
     const trailer = await startPostgres(pg, state);
     await options.onStage?.('files-written');
     throwIfAborted(session.signal);
-    await verifyRestored(pg, session.manifest);
+    await verifyPGliteRestored(pg, session.manifest);
     await options.onStage?.('verified');
     throwIfAborted(session.signal);
     // 提交点：此前 RestoreIdbFs 不写 IndexedDB；close 在 PostgreSQL 正常关闭后等待完整落盘。

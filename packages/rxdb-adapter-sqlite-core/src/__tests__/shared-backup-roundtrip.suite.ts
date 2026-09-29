@@ -8,40 +8,46 @@
 import { RXDB_BACKUP_FORMAT } from '@aiao/rxdb';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
-import type { SqliteBackupEngineObjects, SqliteBackupHarness, SqliteBackupStorageKind } from '../testing.js';
+import type { SqliteBackupEngineObjects, SqliteBackupHarness } from '../testing.js';
 import {
   chunkedSource,
   collectingSink,
   createBackupRxDB,
+  hasMemoryStorage,
   makeNote,
+  memoryCaseTitle,
   PLAIN_ENTITIES,
   readChanges,
   readNotes,
   readObjects,
   restoreInto,
   rowsOf,
+  scratchLocation,
   SEEDED_NOTES,
   seedNotes,
   uniqueDbName,
   type BackupAuthor,
+  type BackupLocation,
   type BackupRxDB,
   type ChangeRow
 } from './backup/sqlite-backup-fixture.js';
-
-const KINDS: readonly SqliteBackupStorageKind[] = ['memory', 'persistent'];
 
 /** FTS5 虚表里的全部行；虚表的影子表由引擎维护，恢复后能按词查回才算搜索对象可用。 */
 const readSearchHits = async (adapter: RxDBAdapterSqliteBase): Promise<unknown[][]> =>
   rowsOf(await adapter.query(`SELECT body FROM backup_fts WHERE backup_fts MATCH 'restorable' ORDER BY rowid`));
 
 /**
- * 备份矩阵：每个后端的内存 / 持久化源与目标四种组合，加上内存目标的实例隔离、源不受影响、
+ * 备份矩阵：每个后端所支持存储的源与目标两两组合，加上内存目标的实例隔离、源不受影响、
  * 分块无关。
  *
  * @param harness - 后端
  */
 export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
   const engine = harness.engineObjects;
+  // 改不了影子表的后端不在含虚表的矩阵里，往返只验证不含虚表的库
+  const fts5 = harness.fts5 === true;
+  const kinds = harness.storageKinds;
+  const scratch = scratchLocation(harness);
   describe(`${harness.adapterName} backup → restore round-trip`, () => {
     const opened: BackupRxDB[] = [];
 
@@ -49,18 +55,18 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       await Promise.all(opened.splice(0).map(db => db.close()));
     });
 
-    const open = (prefix: string, kind: SqliteBackupStorageKind, dbName = uniqueDbName(prefix)): BackupRxDB => {
-      const db = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, kind);
+    const open = (prefix: string, location: BackupLocation, dbName = uniqueDbName(prefix)): BackupRxDB => {
+      const db = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, location);
       opened.push(db);
       return db;
     };
 
     /** 从一个已播种的源库拿到归档字节；引擎有 FTS5 时顺带建一张搜索虚表。 */
-    const backupSeeded = async (kind: SqliteBackupStorageKind) => {
-      const source = open('backup-src', kind);
+    const backupSeeded = async (location: BackupLocation) => {
+      const source = open('backup-src', location);
       const adapter = await source.connect();
       await seedNotes(source.entities);
-      if (harness.fts5) {
+      if (fts5) {
         await adapter.rawQuery('CREATE VIRTUAL TABLE backup_fts USING fts5(body)');
         await adapter.rawQuery(`INSERT INTO backup_fts (body) VALUES ('restorable search row'), ('other')`);
       }
@@ -97,15 +103,15 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       expect(notes.map(note => note.title)).toContain('d-after-restore');
     };
 
-    for (const sourceKind of KINDS) {
-      for (const targetKind of KINDS) {
+    for (const sourceKind of kinds) {
+      for (const targetKind of kinds) {
         it(`restores a ${sourceKind} backup into an empty ${targetKind} target`, async () => {
           const { source, out, result, adapter: sourceAdapter } = await backupSeeded(sourceKind);
           expect(out.closed()).toBe(true);
           expect(result.manifest.format).toBe(RXDB_BACKUP_FORMAT);
           expect(result.manifest.adapter.name).toBe(harness.adapterName);
           expect(result.manifest.adapter.storage).toBe(sourceKind === 'memory' ? 'memory' : harness.persistentLabel);
-          expect(result.manifest.adapter.extensions).toEqual(harness.fts5 ? ['fts5'] : []);
+          expect(result.manifest.adapter.extensions).toEqual(fts5 ? ['fts5'] : []);
           // bytes 只数载荷，归档还多出帧头、manifest 与结束标记。
           expect(result.bytes).toBeGreaterThan(0);
           expect(result.bytes).toBeLessThan(out.bytes().byteLength);
@@ -131,7 +137,7 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
           // 历史逐行一致：恢复与连接都没有追加业务变更。
           expect(await readChanges(adapter)).toEqual(sourceChanges);
           expect(await readObjects(adapter)).toEqual(sourceObjects);
-          if (harness.fts5) expect(await readSearchHits(adapter)).toEqual([['restorable search row']]);
+          if (fts5) expect(await readSearchHits(adapter)).toEqual([['restorable search row']]);
 
           await expectWritable(target, adapter, sourceChanges);
           if (targetKind !== 'persistent') return;
@@ -148,11 +154,11 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       }
     }
 
-    for (const targetKind of KINDS) {
+    for (const targetKind of kinds) {
       // 目标一打开就带着引擎自建的表与初始行；它们要被归档里的那份整体取代，用户写进去的行随之回来
       it.skipIf(!engine)(`carries user data in engine-created tables into a ${targetKind} target`, async () => {
         const { write, read } = engine as SqliteBackupEngineObjects;
-        const source = open('backup-src', 'memory');
+        const source = open('backup-src', scratch);
         const sourceAdapter = await source.connect();
         await seedNotes(source.entities);
         await sourceAdapter.rawQuery(write);
@@ -169,20 +175,23 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       });
     }
 
-    it('restores the same archive into independent memory instances', async () => {
-      const { out } = await backupSeeded('memory');
-      const first = open('backup-dst', 'memory');
-      await restoreInto(first, chunkedSource(out.bytes()).stream);
-      const firstAdapter = await first.connect();
-      await makeNote(first.entities, 'only-in-first').save();
-      await first.close();
+    it.skipIf(!hasMemoryStorage(harness))(
+      memoryCaseTitle(harness, 'restores the same archive into independent memory instances'),
+      async () => {
+        const { out } = await backupSeeded('memory');
+        const first = open('backup-dst', 'memory');
+        await restoreInto(first, chunkedSource(out.bytes()).stream);
+        const firstAdapter = await first.connect();
+        await makeNote(first.entities, 'only-in-first').save();
+        await first.close();
 
-      const second = open('backup-dst', 'memory');
-      await restoreInto(second, chunkedSource(out.bytes()).stream);
-      const secondAdapter = await second.connect();
-      expect(await readNotes(secondAdapter, second.entities)).toEqual(SEEDED_NOTES);
-      expect(firstAdapter).not.toBe(secondAdapter);
-    });
+        const second = open('backup-dst', 'memory');
+        await restoreInto(second, chunkedSource(out.bytes()).stream);
+        const secondAdapter = await second.connect();
+        expect(await readNotes(secondAdapter, second.entities)).toEqual(SEEDED_NOTES);
+        expect(firstAdapter).not.toBe(secondAdapter);
+      }
+    );
 
     it('keeps the source usable and unchanged after backing it up', async () => {
       const { source, adapter } = await backupSeeded('persistent');
@@ -192,8 +201,8 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
     });
 
     it('does not depend on how the source stream is chunked', async () => {
-      const { out, result } = await backupSeeded('memory');
-      const target = open('backup-dst', 'memory');
+      const { out, result } = await backupSeeded(scratch);
+      const target = open('backup-dst', scratch);
       // 奇数块大小让帧头、数据与结束标记都被切在块中间。
       const restored = await restoreInto(target, chunkedSource(out.bytes(), 4093).stream);
       expect(restored.sha256).toBe(result.sha256);

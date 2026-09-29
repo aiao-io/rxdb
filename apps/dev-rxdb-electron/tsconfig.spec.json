@@ -12,6 +12,8 @@
     // desktop-sqlite-bridge.spec.ts 直接 import 这个脚本来断言 bundleOptions，
     // 不列进来 tsc 就报 TS6307（引用了不属于本 project 的文件）。
     "tools/**/*.mjs",
+    "src/app/backup-probe.spec.ts",
+    "src/app/backup-probe.ts",
     "src/app/connect-wa-sqlite-adapter.ts",
     "src/app/locale.ts",
     "src/app/rxdb-connection.ts"
@@ -26,6 +28,9 @@
     },
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
     }
   ]
 }

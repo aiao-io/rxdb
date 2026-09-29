@@ -290,6 +290,34 @@ describe('RxDBBackupArchiveWriter 拒绝违反契约的调用', () => {
     expect(error.cause).toBe(foreign);
   });
 
+  it.each(['ENOSPC', 'EDQUOT'])('Node 文件流报 %s 归类为 storage_full', async code => {
+    // `Writable.toWeb(createWriteStream(...))` 磁盘满或超配额时抛的是带 `code` 的普通 Error。
+    const full = Object.assign(new Error(`${code}: write failed`), { code });
+    const stream = new WritableStream<Uint8Array>({
+      write() {
+        throw full;
+      }
+    });
+    const error = await expectBackupError(
+      new RxDBBackupArchiveWriter(stream.getWriter()).writeManifest(sampleManifest()),
+      'storage_full'
+    );
+    expect(error.cause).toBe(full);
+  });
+
+  it('其他带 code 的 Node 错误仍归类为 io_error', async () => {
+    const failure = Object.assign(new Error('EIO: i/o error, write'), { code: 'EIO' });
+    const stream = new WritableStream<Uint8Array>({
+      write() {
+        throw failure;
+      }
+    });
+    await expectBackupError(
+      new RxDBBackupArchiveWriter(stream.getWriter()).writeManifest(sampleManifest()),
+      'io_error'
+    );
+  });
+
   it('输出流卡住时取消也能返回', async () => {
     const stream = new WritableStream<Uint8Array>({ write: () => new Promise(() => undefined) });
     const controller = new AbortController();

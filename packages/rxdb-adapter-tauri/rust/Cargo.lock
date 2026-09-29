@@ -33,6 +33,7 @@ dependencies = [
 name = "aiao-rxdb-tauri"
 version = "0.0.25"
 dependencies = [
+ "libc",
  "rusqlite",
  "serde",
  "serde_json",

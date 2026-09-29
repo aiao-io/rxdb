@@ -5,7 +5,7 @@ import type { LiveQuery } from '@electric-sql/pglite/live';
 import { live, LiveNamespace } from '@electric-sql/pglite/live';
 import { PGliteWorker } from '@electric-sql/pglite/worker';
 import { pgliteBackupExtensions } from './backup/pglite-backup-compat.js';
-import type { EmscriptenFS } from './backup/pglite-data-dir.js';
+import { walkEmscriptenDataDir, type PGliteDataDirItem } from './backup/pglite-data-dir.js';
 import { requirePGliteExclusiveInternals } from './backup/pglite-exclusive.js';
 import {
   countPGliteStorageHolders,
@@ -281,10 +281,11 @@ export interface IPGliteClient {
    * 在一致快照上读取数据目录。
    *
    * @remarks
-   * 可选：只有主线程 PGlite 能直接访问 Emscripten 文件系统；Worker 与桌面代理客户端不提供，
-   * {@link RxDBAdapterPGlite.backup} 据此报 `unsupported_combination`。
+   * 可选：主线程 PGlite 直接遍历 Emscripten 文件系统，桌面代理客户端由 host 在事务快照上逐块流回；
+   * Worker 客户端不提供，{@link RxDBAdapterPGlite.backup} 据此报 `unsupported_combination`。
+   * `fn` 返回之前快照一直有效，期间数据库被独占。
    */
-  snapshotDataDir?<T>(fn: (FS: EmscriptenFS) => Promise<T>): Promise<T>;
+  snapshotDataDir?<T>(fn: (items: AsyncIterable<PGliteDataDirItem>) => Promise<T>): Promise<T>;
 
   /** 尚未分发的 NOTIFY 行事件数量。 */
   readonly pendingNotificationCount?: number;
@@ -449,7 +450,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   }
 
   /**
-   * 独占运行时、做一次 `CHECKPOINT`，然后把 Emscripten 文件系统交给 `fn`。
+   * 独占运行时、做一次 `CHECKPOINT`，然后把 Emscripten 数据目录的遍历交给 `fn`。
    *
    * @remarks
    * 同时拿住 PGlite 的查询锁与事务锁：`fn` 运行期间没有任何语句能改动数据目录，
@@ -467,7 +468,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
    * `target_busy` 同一份 IndexedDB 存储还有其他连接，或本连接打开以来有过其他连接；
    * `unsupported_combination` IndexedDB 存储所在环境没有 `navigator.locks.query()`
    */
-  async snapshotDataDir<T>(fn: (FS: EmscriptenFS) => Promise<T>): Promise<T> {
+  async snapshotDataDir<T>(fn: (items: AsyncIterable<PGliteDataDirItem>) => Promise<T>): Promise<T> {
     const runtime: unknown = this.#getRuntime();
     if (!(runtime instanceof PGlite)) {
       throw new RxDBBackupError('unsupported_combination', 'PGlite backup requires an in-thread runtime', {
@@ -480,7 +481,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
         // 在独占区里判定：之后才连上的实例从 IndexedDB 读到的状态不晚于本快照，它的提交都在备份点之后。
         await this.#assertSoleStorageHolder();
         await pg.execProtocol(protocol.serialize.query('CHECKPOINT'), { syncToFs: false });
-        return fn(pg.Module.FS);
+        return fn(walkEmscriptenDataDir(pg.Module.FS));
       })
     );
   }

@@ -13,6 +13,7 @@ import {
 import type { AsyncQueueExecutor } from '@aiao/utils';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
+  assertNoSqliteShadowTables,
   readSqliteBackupSchema,
   readSqliteEngineVersion,
   readSqliteSystemVersionState,
@@ -38,7 +39,7 @@ import {
 
 /** 行条目攒到这么大就落一个条目；单行更大时独占一个条目。 */
 const ENTRY_TARGET_BYTES = 1024 * 1024;
-/** 每页查询的字节预算，按上一页最大的一行折算行数。 */
+/** 每页查询回复的字节预算：先取各行字面量的上界，累计不超过预算的行数就是这一页的行数。 */
 const PAGE_BUDGET_BYTES = 256 * 1024;
 const MAX_PAGE_ROWS = 512;
 
@@ -54,6 +55,8 @@ export interface SqliteBackupInput {
   readonly client: SqliteBackupExecutor;
   readonly storage: SqliteSupportedBackupStorage;
   readonly queue: AsyncQueueExecutor;
+  /** 同一 adapter 恢复时能否写影子表；不能时含影子表的库在写出任何字节前被拒绝。 */
+  readonly shadowTablesWritable: boolean;
 }
 
 const assertUtf8Row = (bytes: Uint8Array, tableName: string): void => {
@@ -80,12 +83,12 @@ class SqliteRowEntries {
   }
 
   /**
-   * 追加一行，返回它的字节数。
+   * 追加一行。
    *
    * @remarks
    * TEXT 值里的非法 UTF-8 会原样出现在字面量里，恢复端严格解码时必然拒绝整个条目，所以在这里就拒绝备份。
    */
-  async add(bytes: Uint8Array, tableName: string): Promise<number> {
+  async add(bytes: Uint8Array, tableName: string): Promise<void> {
     if (bytes.length > SQLITE_BACKUP_MAX_ENTRY_BYTES) {
       throw new RxDBBackupError('unsupported_combination', `A row of table "${tableName}" is too large to back up`, {
         details: { field: 'rowBytes', expected: SQLITE_BACKUP_MAX_ENTRY_BYTES, actual: bytes.length }
@@ -95,7 +98,6 @@ class SqliteRowEntries {
     if (this.#parts.length > 0 && this.#bytes + 1 + bytes.length > ENTRY_TARGET_BYTES) await this.flush();
     this.#bytes += this.#parts.length > 0 ? bytes.length + 1 : bytes.length;
     this.#parts.push(bytes);
-    return bytes.length;
   }
 
   async flush(): Promise<void> {
@@ -118,6 +120,16 @@ class SqliteRowEntries {
   }
 }
 
+/** 按行字面量上界累计，预算内能放下几行；单行超出预算时也取这一行。 */
+const rowsWithinBudget = (bounds: readonly SQLiteCompatibleType[][]): number => {
+  let total = 0;
+  for (let index = 0; index < bounds.length; index++) {
+    total += Number(bounds[index][0]);
+    if (total > PAGE_BUDGET_BYTES) return Math.max(1, index);
+  }
+  return bounds.length;
+};
+
 const dumpTable = async (
   executor: SqliteBackupExecutor,
   archive: RxDBBackupArchiveWriter,
@@ -125,25 +137,33 @@ const dumpTable = async (
   tableName: string
 ): Promise<number> => {
   const entries = new SqliteRowEntries(archive, dump.table);
-  // 第一页只取一行：行的大小事先不知道，一页几百个大 blob 会把内存撑爆
-  let limit = 1;
+  // 行的大小事先不知道，而且前面的行小不代表后面的行也小：每页先问上界再定行数，
+  // 否则小行之后的一页几百个大行会让一条回复（桌面上是一条 host 消息）远超预算。
+  // 探测的行数跟着上一页走（至多翻倍），大行表不会每页都把后面几百行的记录头再走一遍
   let keys: SQLiteCompatibleType[] | null = null;
+  let probe = MAX_PAGE_ROWS;
   let count = 0;
   for (;;) {
+    const after = keys ?? [];
+    const bounds = await selectSqliteRows(
+      executor,
+      keys === null ? dump.firstSizeSql : dump.nextSizeSql,
+      [...after, probe],
+      'io_error'
+    );
+    if (bounds.length === 0) break;
+    const limit = rowsWithinBudget(bounds);
     const page = await selectSqliteRows(
       executor,
       keys === null ? dump.firstPageSql : dump.nextPageSql,
-      keys === null ? [limit] : [...keys, limit],
+      [...after, limit],
       'io_error'
     );
-    let largest = 1;
-    for (const row of page) {
-      largest = Math.max(largest, await entries.add(sqliteRowLiteralBytes(row[0]), tableName));
-    }
+    for (const row of page) await entries.add(sqliteRowLiteralBytes(row[0]), tableName);
     count += page.length;
-    if (page.length < limit) break;
+    if (page.length < limit || (limit === bounds.length && bounds.length < probe)) break;
     keys = page[page.length - 1].slice(1, 1 + dump.keyCount);
-    limit = Math.min(MAX_PAGE_ROWS, Math.max(1, Math.floor(PAGE_BUDGET_BYTES / largest)));
+    probe = Math.min(MAX_PAGE_ROWS, limit * 2);
   }
   await entries.flush();
   return count;
@@ -162,6 +182,7 @@ const dumpDatabase = async (
 ): Promise<{ trailer: RxDBBackupTrailer; manifest: RxDBBackupManifest }> => {
   const { client, rxdb } = input;
   const plan = await readSqliteBackupSchema(client);
+  if (!input.shadowTablesWritable) assertNoSqliteShadowTables(plan.schema, input.adapterName);
   const versions = await readSqliteSystemVersionState(client, 'io_error');
   const authDomain = getRxDBBackupAuthDomain(rxdb);
   const manifest: RxDBBackupManifest = {

@@ -2,6 +2,7 @@ import {
   classifyBackupIoError,
   RXDB_BACKUP_CHUNK_SIZE,
   RxDBBackupError,
+  type RxDBBackupArchiveItem,
   type RxDBBackupArchiveReader,
   type RxDBBackupArchiveWriter,
   type RxDBBackupTrailer
@@ -46,6 +47,16 @@ export interface EmscriptenFS {
   close(stream: EmscriptenStream): void;
 }
 
+/**
+ * 数据目录快照里的一项：目录或文件的条目头，或紧随文件条目头的一块内容。
+ *
+ * @remarks
+ * 与归档读取器的产出同形（去掉结束标记）。浏览器端从 Emscripten 文件系统遍历得到，桌面端由 host
+ * 逐块流回 renderer，两边都交给 {@link writeDataDirSnapshot} 写进归档。`data` 的字节只在取下一项之前
+ * 有效：生产方可以复用同一块缓冲区。
+ */
+export type PGliteDataDirItem = Exclude<RxDBBackupArchiveItem, { type: 'end' }>;
+
 const fsError = (error: unknown, message: string): RxDBBackupError =>
   error instanceof RxDBBackupError ? error : classifyBackupIoError(error, message);
 
@@ -54,69 +65,88 @@ const childNames = (FS: EmscriptenFS, dir: string): string[] =>
     .filter(name => name !== '.' && name !== '..' && !PGLITE_EXCLUDED_FILES.has(name))
     .sort();
 
-const copyFile = async (
+async function* readFile(
   FS: EmscriptenFS,
   source: string,
   size: number,
-  writer: RxDBBackupArchiveWriter,
   buffer: Uint8Array
-): Promise<void> => {
+): AsyncGenerator<PGliteDataDirItem> {
   const stream = FS.open(source, 'r');
   try {
     let position = 0;
     while (position < size) {
       const length = FS.read(stream, buffer, 0, Math.min(buffer.length, size - position), position);
       if (length <= 0) throw new RxDBBackupError('io_error', `Data file shrank while being read: ${source}`);
-      // 归档写入器会把字节拷进自己的帧，所以同一块缓冲区可以立刻复用。
-      await writer.writeData(buffer.subarray(0, length));
+      // 消费方（归档写入器）会把字节拷进自己的帧，下一次 next() 之前缓冲区不会被改写。
+      yield { type: 'data', bytes: buffer.subarray(0, length) };
       position += length;
     }
   } finally {
     FS.close(stream);
   }
-};
+}
 
-const walk = async (
+async function* walk(
   FS: EmscriptenFS,
   dir: string,
   prefix: string,
-  writer: RxDBBackupArchiveWriter,
   buffer: Uint8Array
-): Promise<void> => {
+): AsyncGenerator<PGliteDataDirItem> {
   for (const name of childNames(FS, dir)) {
     const full = `${dir}/${name}`;
     const path = prefix === '' ? name : `${prefix}/${name}`;
     const stat = FS.lstat(full);
     if (FS.isDir(stat.mode)) {
-      await writer.beginEntry({ path, kind: 'directory', size: 0 });
-      await walk(FS, full, path, writer, buffer);
+      yield { type: 'entry', header: { path, kind: 'directory', size: 0 } };
+      yield* walk(FS, full, path, buffer);
       continue;
     }
     if (!FS.isFile(stat.mode)) {
       throw new RxDBBackupError('io_error', `Unsupported file type in the data directory: ${path}`);
     }
-    await writer.beginEntry({ path, kind: 'file', size: stat.size });
-    await copyFile(FS, full, stat.size, writer, buffer);
+    yield { type: 'entry', header: { path, kind: 'file', size: stat.size } };
+    yield* readFile(FS, full, stat.size, buffer);
   }
-};
+}
 
 /**
- * 把 PGlite 数据目录按确定顺序流式写进归档。
+ * 按确定顺序遍历 PGlite 运行时的 Emscripten 数据目录。
  *
  * @remarks
- * 调用方必须已经独占运行时且刚做完 `CHECKPOINT`：遍历期间没有别的语句能改动文件，
- * 于是目录树就是一个一致快照。逐块读取，复用同一块 {@link RXDB_BACKUP_CHUNK_SIZE} 缓冲，
- * 在途字节与库大小无关。目录名按码点排序，父目录总在子项之前。
+ * 调用方必须已经独占运行时且刚做完 `CHECKPOINT`：遍历期间没有别的语句能改动文件，于是目录树就是
+ * 一个一致快照。逐块读取并复用同一块 {@link RXDB_BACKUP_CHUNK_SIZE} 缓冲，在途字节与库大小无关。
+ * 目录名按码点排序，父目录总在子项之前；{@link PGLITE_EXCLUDED_FILES} 不产出。
  *
  * @param FS - PGlite 运行时的 Emscripten 文件系统
- * @param writer - 已写完 manifest 的归档写入器
- * @throws RxDBBackupError `io_error` / `storage_full` / `aborted`，以及写入器自身的错误
+ * @returns 数据目录各项；`data` 的字节在取下一项之前有效
+ * @throws RxDBBackupError `io_error` / `storage_full`：文件系统读取失败、文件读取中变短或遇到非常规文件
  */
-export const writeDataDirSnapshot = async (FS: EmscriptenFS, writer: RxDBBackupArchiveWriter): Promise<void> => {
+export async function* walkEmscriptenDataDir(FS: EmscriptenFS): AsyncGenerator<PGliteDataDirItem> {
   try {
-    await walk(FS, PGLITE_DATA_DIR, '', writer, new Uint8Array(RXDB_BACKUP_CHUNK_SIZE));
+    yield* walk(FS, PGLITE_DATA_DIR, '', new Uint8Array(RXDB_BACKUP_CHUNK_SIZE));
   } catch (error) {
     throw fsError(error, 'Failed to read the PGlite data directory');
+  }
+}
+
+/**
+ * 把数据目录快照流式写进归档。
+ *
+ * @remarks
+ * 条目顺序、声明大小与重复路径都由归档写入器校验，产出不合规时以 `invalid_state` 拒绝，
+ * 不会写出一份读不回来的归档。
+ *
+ * @param items - 数据目录各项，例如 {@link walkEmscriptenDataDir} 或桌面 host 流回的快照
+ * @param writer - 已写完 manifest 的归档写入器
+ * @throws RxDBBackupError 数据目录各项的读取错误，以及写入器自身的错误
+ */
+export const writeDataDirSnapshot = async (
+  items: AsyncIterable<PGliteDataDirItem>,
+  writer: RxDBBackupArchiveWriter
+): Promise<void> => {
+  for await (const item of items) {
+    if (item.type === 'entry') await writer.beginEntry(item.header);
+    else await writer.writeData(item.bytes);
   }
 };
 

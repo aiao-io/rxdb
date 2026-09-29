@@ -20,6 +20,7 @@ import {
   filter,
   firstValueFrom,
   map,
+  NEVER,
   Observable,
   ReplaySubject,
   shareReplay,
@@ -169,12 +170,21 @@ export class HistoryManager {
 
     const branchRepository = rxdb.entityManager.getRepository(RxDBBranch);
     const changeRepository = rxdb.entityManager.getRepository(RxDBChange);
-    const current_branch$ = branchRepository.findOne({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'activated', operator: '=', value: true }]
-      }
-    });
+    // 连上之后才查：仓库活查询会经适配器的就绪门把实例连起来，构造期直接订阅等于 `init()` 之后插件
+    // 自己把库连上了，「连接前先恢复」之类必须对着未连接实例做的操作就永远拿不到空目标。
+    // 断开时交 NEVER：丢掉挂在已断适配器上的查询，undo session 停在最后一个分支上，重连再查。
+    const current_branch$ = this.rxdb.connected$.pipe(
+      switchMap(connected =>
+        connected ?
+          branchRepository.findOne({
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'activated', operator: '=', value: true }]
+            }
+          })
+        : NEVER
+      )
+    );
 
     this.#subscriptions.push(
       current_branch$.pipe(takeUntil(this.#destroy$)).subscribe({
