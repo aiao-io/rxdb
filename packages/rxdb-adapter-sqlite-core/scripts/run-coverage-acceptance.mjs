@@ -1,9 +1,10 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnWithDeadline } from '../../../scripts/spawn-with-deadline.mjs';
 
 const require = createRequire(import.meta.url);
 const packageRoot = path.resolve(import.meta.dirname, '..');
@@ -24,6 +25,12 @@ const browserSuiteNames = ['wa-sqlite', 'sqlite', 'sqlite-wasm', 'sqliteai'];
 const excludedSourceFiles = new Set(['testing.ts', 'fts5/types.ts', 'oo1-types.ts']);
 const threshold = 80;
 const metrics = ['statements', 'branches', 'functions', 'lines'];
+// 单个 suite 的墙钟上限。五段并发时 CI 上最慢的一段约 2.5 min，留足余量；
+// 同时要比 ci-template.yml 里 coverage-acceptance 的 job 超时（30 min）扣掉装依赖与建 dist 后短，
+// 挂死才会以本脚本的汇总行收场，而不是被 Actions 静默取消。
+const SUITE_DEADLINE_MS = 15 * 60_000;
+// SIGTERM 后等 vitest 关浏览器的宽限期，过了就 SIGKILL。
+const SUITE_KILL_GRACE_MS = 10_000;
 /** 失败分类：测试环境缺能力，不代表产品有问题（SQLC-038）。 */
 const ENVIRONMENT_CAPABILITY = 'environment-capability';
 /** 失败分类：产品或门禁自身的问题，必须修。 */
@@ -88,9 +95,17 @@ function writeSummary(verdict, kind, suiteOutcomes) {
   );
 }
 
-function runSuite(suiteName) {
-  return new Promise(resolve => {
-    const child = spawn(process.execPath, [vitestBin, 'run', '--config', configFile], {
+/**
+ * 起一个 suite 的 vitest 进程，超过 {@link SUITE_DEADLINE_MS} 就杀掉。
+ *
+ * 浏览器页面或 Worker 卡死时 vitest 自己的 test / hook 超时触发不了，
+ * 没有这道时限，挂住的 suite 会静默拖到 CI job 超时被取消，看不出是哪一段挂了。
+ */
+async function runSuite(suiteName) {
+  const result = await spawnWithDeadline(
+    process.execPath,
+    [vitestBin, 'run', '--config', configFile],
+    {
       cwd: packageRoot,
       env: {
         ...process.env,
@@ -98,11 +113,22 @@ function runSuite(suiteName) {
         SQLITE_CORE_COVERAGE_SUITE: suiteName
       },
       stdio: 'inherit'
-    });
+    },
+    { deadlineMs: SUITE_DEADLINE_MS, graceMs: SUITE_KILL_GRACE_MS }
+  );
+  if (result.timedOut) {
+    process.stderr.write(
+      `Coverage acceptance suite "${suiteName}" timed out after ${String(SUITE_DEADLINE_MS / 1000)}s, killed\n`
+    );
+  }
+  return { suiteName, ...result };
+}
 
-    child.on('error', error => resolve({ suiteName, error }));
-    child.on('exit', (code, signal) => resolve({ suiteName, code, signal }));
-  });
+function describeOutcome(result) {
+  if (result.error) return `error: ${result.error.message}`;
+  if (result.timedOut)
+    return `timed-out: killed after ${String(SUITE_DEADLINE_MS / 1000)}s, exit ${String(result.code)}, signal ${String(result.signal)}`;
+  return result.code === 0 ? 'passed' : `failed: exit ${String(result.code)}, signal ${String(result.signal)}`;
 }
 
 function runMerge() {
@@ -259,16 +285,9 @@ try {
   verifyBrowserCapability();
 
   const suiteResults = await Promise.all(suiteNames.map(runSuite));
-  suiteOutcomes = Object.fromEntries(
-    suiteResults.map(result => [
-      result.suiteName,
-      result.error ? `error: ${result.error.message}`
-      : result.code === 0 ? 'passed'
-      : `failed: exit ${String(result.code)}, signal ${String(result.signal)}`
-    ])
-  );
+  suiteOutcomes = Object.fromEntries(suiteResults.map(result => [result.suiteName, describeOutcome(result)]));
 
-  const failedSuites = suiteResults.filter(result => result.error || result.code !== 0);
+  const failedSuites = suiteResults.filter(result => result.error || result.timedOut || result.code !== 0);
   if (failedSuites.length > 0) {
     const details = failedSuites.map(result => `${result.suiteName}: ${suiteOutcomes[result.suiteName]}`).join('\n');
     // 能力探测已经过了，此刻失败一律算产品失败（含门禁自身配置错误）。
