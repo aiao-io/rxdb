@@ -578,6 +578,38 @@ describe('restoreElectronPGliteDatabase over the host channel', { timeout: PGLIT
     expect(await readAll(host, dbName)).toEqual(SEEDED_NOTES);
   });
 
+  it('keeps the original failure and surfaces the abort failure when abort breaks before the marker', async () => {
+    const host = start();
+    const dbName = uniqueDbName('electron-pg-dst');
+    const channelError = new Error('the channel to the host is broken');
+    const target = instanceOn(
+      dbName,
+      interceptTransport(host.transportFor(OWNER), payload => {
+        if (payload.kind === 'pg.restore.abort') throw channelError;
+        return undefined;
+      })
+    );
+    const dataDirectoryName = dataDirectoryNameOf(target.rxdb);
+
+    const error = await restoreElectronPGliteDatabase(chunkedSource(new Uint8Array(64)).stream, target).catch(
+      (caught: unknown) => caught
+    );
+
+    // 标记还没写：盘上没有残留，不该报 cleanup_pending，原始失败的码照旧；abort 的失败也不能丢。
+    expect(isRxDBBackupError(error) && error.code).toBe('corrupt_archive');
+    const cause = isRxDBBackupError(error) ? error.cause : undefined;
+    expect(cause).toBeInstanceOf(AggregateError);
+    const [original, cleanup] = (cause as AggregateError).errors;
+    expect(isRxDBBackupError(original, 'corrupt_archive')).toBe(true);
+    expect(cleanup).toBe(channelError);
+    // abort 没送到：独占仍归这个窗口，窗口一走 host 就交还，目标照样是空的。
+    expect(host.host.openRestoreCount).toBe(1);
+
+    await host.host.releaseOwner(OWNER);
+
+    await expectCleanTarget(host, dataDirectoryName);
+  });
+
   for (const skew of [-1, 1]) {
     it(`refuses a host that speaks protocol ${DESKTOP_PGLITE_PROTOCOL_VERSION + skew} before reading the archive`, async () => {
       const { bytes } = await seededArchive();

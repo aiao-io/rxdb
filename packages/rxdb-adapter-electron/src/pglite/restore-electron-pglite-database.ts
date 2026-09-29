@@ -278,8 +278,9 @@ const runRestore = async (session: RestoreSession): Promise<RxDBBackupTrailer> =
  *
  * @remarks
  * 未完成标记已写下之后连 abort 都没成功（host 断开、删目录失败），目标上就留着一份需要清理的残留：
- * 此时报 `cleanup_pending`，原始失败与清理失败一起放进 `cause`。标记写下之前的 abort 失败不留残留，
- * 照原样报原始失败。
+ * 此时报 `cleanup_pending`。标记写下之前的 abort 失败不留残留，照原始失败的码报；但独占可能还在 host
+ * 上（直到这个窗口断开才交还），清理失败因此不能丢。两种情况下 `cause` 都是装着原始失败与清理失败的
+ * `AggregateError`。
  */
 const abandon = async (
   host: HostRestore,
@@ -290,13 +291,17 @@ const abandon = async (
   try {
     await host.abort();
   } catch (cleanupError) {
-    if (!marked) throw cause;
+    const both = new AggregateError([cause, cleanupError], 'Restore and cleanup both failed');
+    if (!marked) {
+      const failure = toElectronPGliteBackupError(cause, dataDirectoryName, 'restore');
+      throw new RxDBBackupError(failure.code, failure.message, { details: failure.details, cause: both });
+    }
     throw new RxDBBackupError(
       'cleanup_pending',
       `Desktop PGlite restore failed and its partial data could not be removed; call cleanupIncompleteElectronPGliteRestore()`,
       {
         details: { field: 'dataDirectoryName', actual: dataDirectoryName },
-        cause: new AggregateError([cause, cleanupError], 'Restore and cleanup both failed')
+        cause: both
       }
     );
   }

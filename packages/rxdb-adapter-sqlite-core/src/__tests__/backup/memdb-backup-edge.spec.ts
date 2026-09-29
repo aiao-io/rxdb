@@ -177,6 +177,34 @@ describe('memdb backup edge cases', () => {
         db.close();
       }
     });
+
+    /** 在一个内存库上读结构，`sqlite_version()` 换成给定的版本号。 */
+    const readSchemaAs = async (version: string): Promise<unknown> => {
+      const initFn = sqlite3InitModule as (options: Record<string, unknown>) => Promise<unknown>;
+      const module = await initFn({ print: () => undefined, printErr: () => undefined });
+      assertOo1Static(module);
+      const db = new module.oo1.DB(':memory:');
+      try {
+        const executor = {
+          execute: async (sql: string) => executeOo1Helper('probe', db, sql.replace('sqlite_version()', `'${version}'`))
+        };
+        return await readSqliteBackupSchema(executor);
+      } finally {
+        db.close();
+      }
+    };
+
+    // 转储的尺寸探测用 octet_length()（3.43+）；更老的引擎要在读结构时就判成组合不支持，而不是转储到一半报 io_error
+    it.each(['3.42.0', '2.99.99'])('refuses SQLite %s before planning the dump', async version => {
+      await expect(readSchemaAs(version)).rejects.toMatchObject({
+        code: 'unsupported_combination',
+        details: { field: 'adapter.engineVersion', expected: '>=3.43.0', actual: version }
+      });
+    });
+
+    it('accepts SQLite 3.43.0', async () => {
+      await expect(readSchemaAs('3.43.0')).resolves.toMatchObject({ dumps: [] });
+    });
   });
 
   describe('backends that cannot write shadow tables', () => {

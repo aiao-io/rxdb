@@ -492,6 +492,25 @@ const assertUtf8Database = async (executor: SqliteBackupExecutor): Promise<void>
   if (encoding !== 'UTF-8') throw unsupported('Only UTF-8 databases can be backed up', 'encoding', encoding);
 };
 
+/**
+ * 转储计划要求的最低 SQLite 版本：{@link literalBoundOf} 用到 `octet_length()`（3.43），
+ * 读结构用到的 `pragma_table_list`（3.37）也在其内。
+ */
+const MIN_ENGINE_VERSION = { major: 3, minor: 43 } as const;
+
+/** 更老的引擎在读结构时就判成组合不支持，而不是转储到一半因为缺函数被归成 `io_error`。 */
+const assertSupportedEngine = async (executor: SqliteBackupExecutor): Promise<void> => {
+  const version = await readSqliteEngineVersion(executor);
+  const match = /^(\d+)\.(\d+)\./.exec(version);
+  const major = match === null ? -1 : Number(match[1]);
+  const minor = match === null ? -1 : Number(match[2]);
+  const { major: minMajor, minor: minMinor } = MIN_ENGINE_VERSION;
+  if (major > minMajor || (major === minMajor && minor >= minMinor)) return;
+  throw new RxDBBackupError('unsupported_combination', `SQLite ${version} is too old to back up or restore`, {
+    details: { field: 'adapter.engineVersion', expected: `>=${minMajor}.${minMinor}.0`, actual: version }
+  });
+};
+
 const readTableListing = async (
   executor: SqliteBackupExecutor
 ): Promise<Map<string, { readonly kind: SqliteBackupTable['kind'] | undefined; readonly withoutRowid: boolean }>> => {
@@ -545,12 +564,13 @@ const readSequences = async (
  *
  * @param executor - 客户端
  * @returns 结构与转储计划
- * @throws RxDBBackupError `unsupported_combination` 库不是 UTF-8 编码、没有建表语句的对象、恢复端会拒绝的结构语句、
+ * @throws RxDBBackupError `unsupported_combination` 库不是 UTF-8 编码、引擎低于 SQLite 3.43、没有建表语句的对象、恢复端会拒绝的结构语句、
  * 未知的表类型、rowid 关键字全被遮蔽
  * @throws RxDBBackupError `restore_incomplete` 库里有未完成恢复的标记
  */
 export const readSqliteBackupSchema = async (executor: SqliteBackupExecutor): Promise<SqliteBackupPlan> => {
   await assertUtf8Database(executor);
+  await assertSupportedEngine(executor);
   const entries = await selectSqliteRows(
     executor,
     "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY rowid",
