@@ -2,12 +2,14 @@ name: Release Desktop
 
 # 桌面发布形态的门禁：US-207 AC#8 与 US-210 AC#1 / AC#9。
 #
-# 这里验的三件事，PR 门禁一件都验不到，而且**只有真的打包才验得到**：
+# 这里验的四件事，PR 门禁一件都验不到，而且**只有真的打包才验得到**：
 #
 #   1. Electron 打包产物在三个平台上都能起来、写库、重启后数据还在（US-207 AC#8）
 #   2. Tauri 打包产物同上（US-210 AC#1 + AC#9）
 #   3. `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri` 的发布 tarball
 #      可解析、可类型检查、可运行（US-207 的「三条发布性质」，E7 后两个包各跑一遍）
+#   4. 任一平台打包产物备份出的归档，能在其余两个平台的打包产物上恢复并启动
+#      （US-217 AC#20，见 backup-cross-os）
 #
 # 触发面（见 on:）：release published / workflow_dispatch / 改动桌面链路代码的 PR。
 # 为什么不并进 `pr.yml` / `main.yml`：三平台冷编译 Rust release + 解包 Electron
@@ -174,8 +176,36 @@ jobs:
       # 写下来是为了让排查下载失败的人不必再查一遍。
       # --excludeTaskDependencies：依赖已在上面建完，重跑 electron-package-dir 会抹掉
       # 刚配好的 SUID 助手（见 Build E2E dependencies 的注释）。
+      #
+      # US-217 AC#20：`backup-restore.spec.ts` 见到 RXDB_BACKUP_EXPORT_DIR 就把本平台两个后端的归档
+      # 另存进去，下面上传给 backup-cross-os。`--skipNxCache`：e2e 是缓存目标，nx-cache-restore
+      # 的前缀 restore-key 可能恢复出一份命中的结果，那样用例根本不跑、目录是空的。
       - name: Run Electron packaging smoke
-        run: pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream --excludeTaskDependencies
+        env:
+          RXDB_BACKUP_EXPORT_DIR: ${{ github.workspace }}/backup-archives
+        run: pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream --excludeTaskDependencies --skipNxCache
+
+      # 缺归档不在这里报错（if-no-files-found 默认只警告）：backup-cross-os 的用例对每个承诺组合
+      # 断言归档存在，缺一份会在那边以「缺少 <平台> 产出的归档」红掉，定位比这里更直接。
+      - name: Upload backup archives (US-217 AC#20)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: backup-archives-electron-${{ matrix.os }}
+          path: backup-archives/
+          retention-days: 1
+
+      # 打包产物原样交给本平台的 backup-cross-os，那边不再打包：恢复用的必须是与备份同一条
+      # 流水线产出的产物。先 tar 再上传——artifact 的 zip 会丢掉可执行位与 macOS .app 里的符号链接。
+      - name: Archive packaged app for backup-cross-os
+        shell: bash
+        run: tar -cf electron-app.tar -C dist/apps/dev-rxdb-electron release
+      - name: Upload packaged app for backup-cross-os
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: electron-app-${{ matrix.os }}
+          path: electron-app.tar
+          retention-days: 1
+          if-no-files-found: error
 
       # 失败复盘用：`trace: 'on-first-retry'` 开着，重试产生的 trace.zip 落在
       # test-output/playwright/output/ 下，`pnpm exec playwright show-trace <zip>` 打开。
@@ -279,8 +309,35 @@ jobs:
       # Nx 会自动先 `tauri build --ci --no-bundle`。
       # ⚠️ `--no-bundle` 意味着这条路**不验证安装包本身**（Info.plist / MSI / NSIS）；
       # 验的是 release 二进制的启动、写入、退出、再启动，正是 AC#9 的文本所要求的。
+      #
+      # US-217 AC#20：`desktop-backup-restore.spec.ts` 见到 RXDB_BACKUP_EXPORT_DIR 就把本平台的归档
+      # 另存进去；`--skipNxCache` 的理由同 electron-smoke。
       - name: Run Tauri packaging smoke
-        run: pnpm exec nx run dev-rxdb-tauri-e2e:desktop-smoke --output-style=stream
+        env:
+          RXDB_BACKUP_EXPORT_DIR: ${{ github.workspace }}/backup-archives
+        run: pnpm exec nx run dev-rxdb-tauri-e2e:desktop-smoke --output-style=stream --skipNxCache
+
+      # 两步的理由同 electron-smoke。release 二进制已内嵌前端（custom-protocol），单文件即完整产物。
+      - name: Upload backup archives (US-217 AC#20)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: backup-archives-tauri-${{ matrix.os }}
+          path: backup-archives/
+          retention-days: 1
+      - name: Archive packaged app for backup-cross-os
+        shell: bash
+        run: |
+          set -e
+          binary=dev-rxdb-tauri
+          if [ "$RUNNER_OS" = Windows ]; then binary=dev-rxdb-tauri.exe; fi
+          tar -cf tauri-app.tar -C apps/dev-rxdb-tauri/src-tauri/target/release "$binary"
+      - name: Upload packaged app for backup-cross-os
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: tauri-app-${{ matrix.os }}
+          path: tauri-app.tar
+          retention-days: 1
+          if-no-files-found: error
 
       # US-905 AC#17：三平台上开/关调试窗口、握手、session 释放。
       #
@@ -299,6 +356,91 @@ jobs:
       - name: Run Tauri devtools smoke
         if: ${{ !cancelled() }}
         run: pnpm exec nx run dev-rxdb-tauri-e2e:devtools-smoke --output-style=stream
+
+  # ---------------------------------------------------------------------------
+  # US-217 AC#20：支持矩阵承诺「任一平台的归档能在其余平台恢复」，每格都要有真实证据。
+  #
+  # 两段式：两个 smoke 在各自平台备份并上传归档与打包产物；这里在每个平台上取回**本平台**的
+  # 产物与**全部**归档，恢复其余两个平台产出的每一份（Electron 两个后端 × 2 + Tauri × 2），
+  # 恢复后以 restore 与普通模式各启动一次。不在这里重新打包：用的就是 smoke 验过的那份产物。
+  #
+  # 用例由 RXDB_BACKUP_IMPORT_DIR 打开（不设时整组跳过），`--grep` / `-t` 只挑 AC#20 那组，
+  # 本平台的 AC#18 已在 smoke 里跑过。`--skipNxCache` 同 smoke：命中缓存就等于没验。
+  #
+  # 不依赖 adapter-consumer；只要一个 smoke 红了这里就不跑，desktop-gate 把 skipped 记作失败。
+  # ---------------------------------------------------------------------------
+  backup-cross-os:
+    name: backup-cross-os (${{ matrix.os }})
+    needs: [electron-smoke, tauri-smoke]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      # 同 tauri-smoke：Xvfb 下 WebKitGTK 不退回软件渲染就白屏。
+      WEBKIT_DISABLE_DMABUF_RENDERER: 1
+      RXDB_BACKUP_IMPORT_DIR: ${{ github.workspace }}/backup-archives
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: tree:0
+
+      # 只要 node_modules（Playwright / Vitest 与 nx 本身），不建任何东西。
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: ${{ runner.os == 'Linux' }}
+
+      # Tauri 产物运行期要 WebKitGTK；清单与 tauri-smoke 逐字一致，-dev 包带着运行库。
+      - uses: ./.github/actions/configure-apt
+        if: runner.os == 'Linux'
+      - name: Install Tauri system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+
+      - uses: ./.github/actions/xvfb
+        if: runner.os == 'Linux'
+
+      - name: Download packaged apps
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: '*-app-${{ matrix.os }}'
+          path: packaged
+      - name: Download backup archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: backup-archives-*
+          path: backup-archives
+          merge-multiple: true
+
+      # 解回两个 e2e 套件的 resolveExecutable 找产物的原位置。
+      - name: Unpack packaged apps
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist/apps/dev-rxdb-electron apps/dev-rxdb-tauri/src-tauri/target/release
+          tar -xf "packaged/electron-app-${{ matrix.os }}/electron-app.tar" -C dist/apps/dev-rxdb-electron
+          tar -xf "packaged/tauri-app-${{ matrix.os }}/tauri-app.tar" -C apps/dev-rxdb-tauri/src-tauri/target/release
+          ls -l backup-archives
+
+      # Linux 上不必配 SUID 沙箱：这组用例全走 `_electron.launch()`，Playwright 会加 --no-sandbox。
+      - name: Restore other platforms' archives (Electron)
+        run: >-
+          pnpm exec nx run dev-rxdb-electron-e2e:e2e --output-style=stream
+          --excludeTaskDependencies --skipNxCache -- --grep "AC#20"
+
+      # `!cancelled()`：Electron 一红就跳过 Tauri 的话，矩阵里会毫无痕迹地缺掉一整列。
+      - name: Restore other platforms' archives (Tauri)
+        if: ${{ !cancelled() }}
+        run: >-
+          pnpm exec nx run dev-rxdb-tauri-e2e:desktop-smoke --output-style=stream
+          --excludeTaskDependencies --skipNxCache -- desktop-backup-restore -t "AC#20"
 
   # ---------------------------------------------------------------------------
   # US-207 的「三条发布性质」：只有对着 `pnpm pack` 的产物才验得到。
@@ -340,7 +482,7 @@ jobs:
   # ---------------------------------------------------------------------------
   desktop-gate:
     name: desktop-gate
-    needs: [electron-smoke, tauri-smoke, adapter-consumer]
+    needs: [electron-smoke, tauri-smoke, backup-cross-os, adapter-consumer]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -366,6 +508,7 @@ jobs:
           echo "job 结果："
           check electron-smoke   "${{ needs.electron-smoke.result }}"
           check tauri-smoke      "${{ needs.tauri-smoke.result }}"
+          check backup-cross-os  "${{ needs.backup-cross-os.result }}"
           check adapter-consumer "${{ needs.adapter-consumer.result }}"
 
           if [ ${#failed[@]} -gt 0 ]; then
@@ -375,4 +518,4 @@ jobs:
           fi
 
           echo
-          echo "✅ 桌面发布形态三项门禁全绿"
+          echo "✅ 桌面发布形态四项门禁全绿"

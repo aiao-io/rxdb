@@ -29,6 +29,33 @@ export interface SqliteClientLike {
   beginTransactionSql?(): string | Promise<string>;
   /** 获取系统 schema 升级时后端支持的最高强度锁。 */
   beginSystemMigrationTransactionSql?(): string | Promise<string>;
+  /**
+   * 暂停 / 恢复变更事件采集。
+   *
+   * @remarks
+   * 恢复整库时静音：恢复出来的系统表行不是新变更，不能在之后被当成事件派发给监听器。
+   * 不实现此方法的客户端不支持恢复。Comlink 远端客户端返回 Promise，调用方必须 await。
+   */
+  setChangeEventsMuted?(muted: boolean): void | Promise<void>;
+  /**
+   * 描述同一个引擎上新建空库本来的样子。
+   *
+   * @remarks
+   * 有的引擎（例如 sqliteai 的内置扩展）在每条新连接上自动建表并写入初始行，这样的库仍然是「空」的。
+   * 实现在同一个已加载的模块上开一条临时 `:memory:` 连接，用 `describeSqliteDatabase()` 描述后关闭。
+   * 恢复只把恰好等于这份描述的目标当作空库。不实现此方法的客户端不支持恢复。
+   */
+  describeBlankDatabase?(): Promise<SqliteBlankDatabase>;
+}
+
+/** {@link SqliteClientLike.describeBlankDatabase} 的结果。 */
+export interface SqliteBlankDatabase {
+  /** 用户对象的 `type:name`（不含 `sqlite_` 开头的内部对象），按字典序。 */
+  readonly objects: readonly string[];
+  /** 结构与每张表行数的描述；没有对象时为空串。恢复先比它，相同才去读目标的行。 */
+  readonly shape: string;
+  /** 全部行的描述；没有对象时为空串。结构与行的描述都相同即内容相同。 */
+  readonly description: string;
 }
 
 /**

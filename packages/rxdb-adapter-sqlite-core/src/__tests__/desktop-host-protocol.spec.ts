@@ -25,7 +25,9 @@ describe('parseDesktopHostRequest', () => {
     ['handshake', { kind: 'handshake' }],
     ['execute', executeRequest],
     ['version', { kind: 'version', sessionId }],
-    ['close', { kind: 'close', sessionId }]
+    ['close', { kind: 'close', sessionId }],
+    ['mute', { kind: 'mute', sessionId, muted: true }],
+    ['unmute', { kind: 'mute', sessionId, muted: false }]
   ])('accepts a well formed %s request', (_label, request) => {
     expect(parseDesktopHostRequest(request)).toEqual(request);
   });
@@ -74,6 +76,15 @@ describe('parseDesktopHostRequest', () => {
     ['a non-string sessionId', { kind: 'version', sessionId: 42 }],
     ['an empty sessionId', { kind: 'version', sessionId: '' }],
     ['a non-uuid sessionId', { kind: 'version', sessionId: 'not-a-uuid' }]
+  ])('rejects %s', (_label, value) => {
+    expect(() => parseDesktopHostRequest(value)).toThrowError(/protocol_violation/);
+  });
+
+  // 静音决定 host 是否广播变更：缺席或写错类型的开关不能被当成「不静音」放过
+  it.each([
+    ['a missing muted flag', { kind: 'mute', sessionId }],
+    ['a non-boolean muted flag', { kind: 'mute', sessionId, muted: 'true' }],
+    ['a mute without a session', { kind: 'mute', muted: true }]
   ])('rejects %s', (_label, value) => {
     expect(() => parseDesktopHostRequest(value)).toThrowError(/protocol_violation/);
   });

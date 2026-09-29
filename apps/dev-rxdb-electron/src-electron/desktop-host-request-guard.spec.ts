@@ -23,10 +23,31 @@ import {
 } from './desktop-host-request-guard';
 import { createDatabasePathResolver } from './desktop-sqlite-bridge';
 
-/** 文件族与 PGlite 族的 kind 数量；SQLite 族是 5。三者之和钉住闭集大小。 */
+/** 文件族与 PGlite 族的 kind 数量；SQLite 族逐个列出。三者之和钉住闭集大小。 */
 const FILE_KIND_COUNT = 15;
-const PGLITE_KIND_COUNT = 9;
-const SQLITE_KINDS = ['handshake', 'open', 'execute', 'version', 'close'] as const;
+const PGLITE_KIND_COUNT = 22;
+const SQLITE_KINDS = ['handshake', 'open', 'execute', 'version', 'close', 'mute'] as const;
+
+/**
+ * 备份与恢复用到的请求 kind（US-217，两族线协议 v2）。闸漏掉任何一个，对应操作都会在写入目标之前失败，
+ * 应用层看起来只是「备份 / 恢复不可用」，所以逐个钉住。
+ */
+const BACKUP_KINDS = [
+  'mute',
+  'pg.engine',
+  'pg.backup.begin',
+  'pg.backup.next',
+  'pg.backup.end',
+  'pg.restore.begin',
+  'pg.restore.prepare',
+  'pg.restore.write',
+  'pg.restore.open',
+  'pg.restore.query',
+  'pg.restore.persist',
+  'pg.restore.commit',
+  'pg.restore.abort',
+  'pg.restore.cleanup'
+] as const;
 
 /** 一个同源脚本可能塞进来的任意文本——它绝不能出现在拒绝应答里（脱敏）。 */
 const HOSTILE_KIND = '../../etc/passwd; DROP TABLE todos; secret=classified';
@@ -42,6 +63,10 @@ describe('desktop-host-request-guard', () => {
     expect(isKnownDesktopHostRequestKind({ kind: 'file.writeCommit' })).toBe(true);
     expect(isKnownDesktopHostRequestKind({ kind: 'pg.handshake' })).toBe(true);
     expect(isKnownDesktopHostRequestKind({ kind: 'pg.close' })).toBe(true);
+  });
+
+  it('接受备份与恢复用到的全部请求 kind', () => {
+    for (const kind of BACKUP_KINDS) expect(isKnownDesktopHostRequestKind({ kind }), kind).toBe(true);
   });
 
   it('file / pg 子集与协议包的谓词逐字一致', () => {

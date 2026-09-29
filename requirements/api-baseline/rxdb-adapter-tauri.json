@@ -94,6 +94,10 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostMuteRequest",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostOpenRequest",
         "kind": "type"
       },

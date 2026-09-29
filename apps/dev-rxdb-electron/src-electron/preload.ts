@@ -31,6 +31,7 @@ const DESKTOP_HOST_REQUEST_KINDS: ReadonlySet<string> = new Set<string>([
   'execute',
   'version',
   'close',
+  'mute',
   'file.open',
   'file.close',
   'file.stat',
@@ -54,7 +55,20 @@ const DESKTOP_HOST_REQUEST_KINDS: ReadonlySet<string> = new Set<string>([
   'pg.commit',
   'pg.rollback',
   'pg.version',
-  'pg.close'
+  'pg.close',
+  'pg.engine',
+  'pg.backup.begin',
+  'pg.backup.next',
+  'pg.backup.end',
+  'pg.restore.begin',
+  'pg.restore.prepare',
+  'pg.restore.write',
+  'pg.restore.open',
+  'pg.restore.query',
+  'pg.restore.persist',
+  'pg.restore.commit',
+  'pg.restore.abort',
+  'pg.restore.cleanup'
 ]);
 
 /** 读请求的 `kind` 字段；形状不符时返回 `undefined`。 */

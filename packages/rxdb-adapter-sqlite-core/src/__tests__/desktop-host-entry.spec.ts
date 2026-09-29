@@ -79,8 +79,8 @@ describe('desktop-host subpath', () => {
     // 选项与后缀
     expect(DEFAULT_DATABASE_SUFFIX).toBe('.sqlite3');
     // 线协议：SQLite / 文件 / PGlite 三族，版本号各自独立编号
-    expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(1);
-    expect(DESKTOP_PGLITE_PROTOCOL_VERSION).toBe(1);
+    expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(2);
+    expect(DESKTOP_PGLITE_PROTOCOL_VERSION).toBe(2);
     expect(isDesktopHostFileRequestKind('file.open')).toBe(true);
     expect(isDesktopPgliteRequestKind('pg.begin')).toBe(true);
     expect(parseDesktopHostRequest({ kind: 'handshake' })).toEqual({ kind: 'handshake' });

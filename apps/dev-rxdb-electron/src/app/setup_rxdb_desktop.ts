@@ -21,6 +21,7 @@ import {
 } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import type { BackupProbeArchiveOps } from './backup-probe';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
@@ -129,6 +130,22 @@ export const createDesktopDevToolsProviders = (options: DesktopDevToolsProviders
     settings: createDevToolsDesktopSettingsProvider('electron'),
     runtime: 'electron' as const
   };
+};
+
+/** 已注册的 Electron SQLite 适配器；备份时是已连接的那个，恢复时是尚未连接的那个。 */
+const electronAdapterOf = async (rxdb: RxDB): Promise<RxDBAdapterElectron> =>
+  (await rxdb.getAdapter(ELECTRON_ADAPTER_NAME)) as unknown as RxDBAdapterElectron;
+
+/**
+ * 本后端的备份与恢复（US-217 AC#18：打包 smoke 的探针经它走真实的 host 快照与流传输）。
+ *
+ * @remarks
+ * 两个方向都落在适配器上：备份读已连接实例的一致快照，恢复要求实例已注册、尚未连接——
+ * 探针在 `restore` 模式下正是把连接压到恢复成功之后。
+ */
+export const archiveOps: BackupProbeArchiveOps = {
+  backup: async (rxdb, sink) => (await electronAdapterOf(rxdb)).backup(sink),
+  restore: async (rxdb, source) => (await electronAdapterOf(rxdb)).restore(source)
 };
 
 /**

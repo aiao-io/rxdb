@@ -182,8 +182,12 @@ describe('createDesktopPgliteBridge', () => {
       if (opened.kind !== 'pg.open') throw new Error('second open failed');
       expect(opened.result.resolvedLocation).not.toContain(workspace);
       expect(opened.result.resolvedLocation).toContain(DATA_DIRECTORY);
-      // AC#7：同一个数据目录上的第二条会话复用同一个实例，磁盘上只有一棵树。
-      expect(readdirSync(resolvePgliteDataRoot(workspace))).toEqual([DATA_DIRECTORY]);
+      // AC#7：同一个数据目录上的第二条会话复用同一个实例，磁盘上只有一棵树。旁边那对
+      // `.<名字>.rxdb-lock*` 是开启备份后的跨进程目录锁（US-217），不是第二个实例。
+      const trees = readdirSync(resolvePgliteDataRoot(workspace), { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name);
+      expect(trees).toEqual([DATA_DIRECTORY]);
 
       await query(
         first,
@@ -407,5 +411,117 @@ describe('createDesktopPgliteBridge', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/** 恢复目标：与 {@link DATA_DIRECTORY} 同一数据根下的另一个目录。 */
+const RESTORED = { engine: 'pglite', dataDirectoryName: 'restored_pglite' } as const;
+
+type ReplyOf<K extends DesktopPgliteResponse['kind']> = Extract<DesktopPgliteResponse, { kind: K }>;
+
+const isReply = <K extends DesktopPgliteResponse['kind']>(
+  response: DesktopPgliteResponse,
+  kind: K
+): response is ReplyOf<K> => response.kind === kind;
+
+/** 发一条请求并断言应答是期望的 kind；不是的话把整条应答带进失败信息。 */
+const reply = async <K extends DesktopPgliteResponse['kind']>(
+  bridge: DesktopPgliteBridge,
+  target: DesktopPgliteEventTarget,
+  request: Record<string, unknown>,
+  kind: K
+): Promise<ReplyOf<K>> => {
+  const response = await bridge.handle(target, request);
+  if (!isReply(response, kind)) throw new Error(`expected ${kind}, got ${JSON.stringify(response)}`);
+  return response;
+};
+
+describe('createDesktopPgliteBridge：备份与恢复（US-217）', () => {
+  // worker 端点不给 host 开备份的话，这些请求一律报 unsupported_operation：打包出来的应用里
+  // Electron PGlite 既备不了份也恢复不了，而别处的单测照样全绿。这里把一次快照经由真的
+  // MessageChannel 逐项写进另一个目录，数据块走的是与 worker 同一套结构化克隆。
+  it(
+    '快照经由 worker 逐项写进新目录，校验、落盘后可以照常连接',
+    async () => {
+      const bridge = createBridge();
+      const owner = createTarget(81);
+      const intruder = createTarget(82);
+
+      const engine = await reply(bridge, owner, { kind: 'pg.engine' }, 'pg.engine');
+      expect(engine.result.extensions).toEqual([]);
+
+      const sessionId = await openSession(bridge, owner);
+      await query(bridge, owner, sessionId, 'CREATE TABLE backup_demo (id int PRIMARY KEY)');
+      await query(bridge, owner, sessionId, 'INSERT INTO backup_demo VALUES (1), (2)');
+
+      // 快照里是整个库：会话 id 不是凭证，别的窗口不能凭它开快照。
+      expect(await bridge.handle(intruder, { kind: 'pg.backup.begin', sessionId })).toMatchObject({
+        kind: 'error',
+        code: 'permission_denied'
+      });
+
+      const begun = await reply(bridge, owner, { kind: 'pg.restore.begin', storage: RESTORED }, 'pg.restore.begin');
+      const { restoreId } = begun.result;
+      await reply(bridge, owner, { kind: 'pg.restore.prepare', restoreId }, 'pg.restore.prepare');
+      // 恢复同样只认发起它的窗口。
+      expect(await bridge.handle(intruder, { kind: 'pg.restore.abort', restoreId })).toMatchObject({
+        kind: 'error',
+        code: 'permission_denied'
+      });
+
+      const snapshot = await reply(bridge, owner, { kind: 'pg.backup.begin', sessionId }, 'pg.backup.begin');
+      const { backupId } = snapshot.result;
+      const paths: string[] = [];
+      for (;;) {
+        const next = await reply(bridge, owner, { kind: 'pg.backup.next', sessionId, backupId }, 'pg.backup.next');
+        const item = next.result;
+        if (item.type === 'end') break;
+        if (item.type === 'entry') paths.push(item.header.path);
+        await reply(bridge, owner, { kind: 'pg.restore.write', restoreId, item }, 'pg.restore.write');
+      }
+      await reply(bridge, owner, { kind: 'pg.backup.end', sessionId, backupId }, 'pg.backup.end');
+      // 读的就是 createRuntime 为这个名字打开的目录，而不是别处。
+      expect(paths).toContain('PG_VERSION');
+      // 快照结束后连接已交还：源库照常可写，这一行也不会出现在已经读完的快照里。
+      await query(bridge, owner, sessionId, 'INSERT INTO backup_demo VALUES (3)');
+
+      await reply(bridge, owner, { kind: 'pg.restore.open', restoreId }, 'pg.restore.open');
+      const verified = await reply(
+        bridge,
+        owner,
+        { kind: 'pg.restore.query', restoreId, sql: 'SELECT id FROM backup_demo ORDER BY id', params: [] },
+        'pg.restore.query'
+      );
+      expect(verified.result.rows.map(row => row['id'])).toEqual([1, 2]);
+      await reply(bridge, owner, { kind: 'pg.restore.persist', restoreId }, 'pg.restore.persist');
+      await reply(bridge, owner, { kind: 'pg.restore.commit', restoreId }, 'pg.restore.commit');
+
+      const restored = await reply(bridge, owner, { kind: 'pg.open', storage: RESTORED }, 'pg.open');
+      const rows = await query(bridge, owner, restored.result.sessionId, 'SELECT id FROM backup_demo ORDER BY id');
+      expect(rows.map(row => row['id'])).toEqual([1, 2]);
+
+      await bridge.closeAll();
+    },
+    PGLITE_TIMEOUT
+  );
+
+  // 恢复的独占权挂在窗口名下，而那个窗口可能一条会话都没开过。回收若只在它名下有会话时才通知
+  // worker，这把独占就一直占到应用退出：目标目录谁也恢复不了、也连不上。
+  it('窗口销毁时收回它名下的恢复独占，即使它没开过会话', async () => {
+    const bridge = createBridge();
+    const doomed = createTarget(91);
+    const next = createTarget(92);
+
+    await reply(bridge, doomed, { kind: 'pg.restore.begin', storage: RESTORED }, 'pg.restore.begin');
+    expect(await bridge.handle(next, { kind: 'pg.restore.begin', storage: RESTORED })).toMatchObject({
+      kind: 'error',
+      code: 'database_busy'
+    });
+
+    doomed.alive = false;
+    expect(await bridge.releaseTarget(doomed)).toBe(0);
+
+    await reply(bridge, next, { kind: 'pg.restore.begin', storage: RESTORED }, 'pg.restore.begin');
+    await bridge.closeAll();
   });
 });

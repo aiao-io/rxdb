@@ -265,7 +265,12 @@ describe('历史流、作用域与撤销重做执行', () => {
       countMock.mockReturnValue(EMPTY);
       findAllMock.mockReturnValue(of([createChange(1)]));
       const harness = createHarness({ firstConnectedAt });
-      harness.branchFindOne.mockReturnValueOnce(of(null));
+      // 活跃分支流连上之后才查：undo session 跟随、待推数、历史流三条常驻订阅先各查一次（都得拿到分支，
+      // 历史流才会发出），此后 `undoHistories$` 自己那次查询才看到「没有活跃分支」。
+      const LONG_LIVED_BRANCH_STREAMS = 3;
+      harness.branchFindOne.mockImplementation(() =>
+        of(harness.branchFindOne.mock.calls.length > LONG_LIVED_BRANCH_STREAMS ? null : activeBranch)
+      );
       const undoPromise = firstValueFrom(harness.historyManager.undoHistories$);
 
       harness.connected$.next(true);

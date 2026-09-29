@@ -12,7 +12,7 @@
  */
 
 import { Entity, ENTITY_LOCAL_CREATE_EVENT, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import type { SqliteChangeEvent, SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
+import type { SqliteBlankDatabase, SqliteChangeEvent, SqliteClientLike } from '@aiao/rxdb-adapter-sqlite-core';
 import { releaseComlinkProxy, SQLiteChangeType, wrapWithComlink } from '@aiao/rxdb-adapter-sqlite-core';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
 import { proxy, releaseProxy } from 'comlink';
@@ -33,6 +33,8 @@ interface RemoteSqliteClient extends SqliteClientLike {
   /** 与 `create_sqlite_client.ts` 的 `SqliteWasmClientLike` 同因收窄成必选（见那里的 @remarks）。 */
   beginTransactionSql(): string | Promise<string>;
   beginSystemMigrationTransactionSql(): string | Promise<string>;
+  setChangeEventsMuted(muted: boolean): void | Promise<void>;
+  describeBlankDatabase(): Promise<SqliteBlankDatabase>;
 }
 
 /** WATCH_TABLES 里的表名之一——只有这三张表的写入才会触发 update_hook 派发。 */

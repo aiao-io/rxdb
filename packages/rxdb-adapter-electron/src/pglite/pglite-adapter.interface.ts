@@ -62,3 +62,17 @@ export interface ElectronPGliteOptions {
    */
   readonly batchTimeout?: number;
 }
+
+/**
+ * 解析实例对应的逻辑数据目录名。
+ *
+ * @remarks
+ * 适配器连接与恢复入口必须算出同一个名字：恢复写进的目录就是之后 `connect` 打开的目录，两处各写一遍
+ * 默认规则迟早会分叉。
+ *
+ * @param dbName - `rxdb.config.dbName`
+ * @param options - 适配器选项；只读取 `dataDirectoryName`
+ * @returns 显式给出的名字，否则为 `<dbName>-pgdata`；不做校验
+ */
+export const resolveDataDirectoryName = (dbName: string, options: ElectronPGliteOptions): string =>
+  options.dataDirectoryName ?? `${dbName}${DEFAULT_DATA_DIRECTORY_SUFFIX}`;

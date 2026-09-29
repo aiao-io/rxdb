@@ -12,6 +12,25 @@
  * @packageDocumentation
  */
 
+export {
+  PGLITE_BACKUP_ENGINE,
+  toPGliteEngineInfo,
+  type PGliteBackupStorage,
+  type PGliteEngineInfo,
+  type PGliteQueryable
+} from './backup/pglite-backup-compat.js';
+export { PGLITE_BACKUP_LOCK_TIMEOUT_MS } from './backup/pglite-backup.js';
+export { PGLITE_EXCLUDED_FILES, type PGliteDataDirItem } from './backup/pglite-data-dir.js';
+export { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
+export {
+  cleanupIncompletePGliteRestore,
+  restorePGliteDatabase,
+  verifyPGliteRestored,
+  type PGliteRestoreOptions,
+  type PGliteRestoreResult,
+  type PGliteRestoreStage,
+  type PGliteRestoreTarget
+} from './backup/restore-pglite-database.js';
 export * from './fts/index.js';
 // 批量窗口是**跨运行时共享**的语义：US-208 的桌面客户端把主进程转发来的裸 NOTIFY
 // 喂进同一个批量器，浏览器与 Electron 因此对「同一行在一个窗口内只派发一次」有完全

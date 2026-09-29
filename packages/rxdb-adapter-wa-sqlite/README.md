@@ -106,6 +106,20 @@ npm registry 没有本包所需的 wa-sqlite，因此依赖固定到上游不可
 `pnpm audit:wa-sqlite` 会校验所有直接消费者、commit URL 与 lockfile integrity；升级 commit 时必须
 重新审计 `src/examples/*` 的 9 个 VFS 内部路径和能力矩阵。
 
+## 备份与恢复
+
+`backup()` / `restore()` / `cleanupIncompleteRestore()` 由 [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core#备份与恢复) 提供，语义与错误码见那里。
+
+| VFS                            | 备份 / 恢复                                     |
+| ------------------------------ | ----------------------------------------------- |
+| `MemoryVFS` / `MemoryAsyncVFS` | ✅ 内存库                                       |
+| `IDBBatchAtomicVFS`            | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
+| 其余 VFS                       | ❌ `unsupported_combination`（`vfs`）           |
+
+表中组合只在主线程连接下交付：设置了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时，三个入口都报 `unsupported_combination`（`transport`，`actual` 为 `worker` 或 `sharedWorker`），不碰输出流与归档源。
+
+npm `wa-sqlite` 的预编译 wasm 没有编进 FTS5，库里不会有 FTS5 虚表；含 `fts5` 虚表的归档（来自其他构建）在写入前被拒绝。
+
 ## 完整示例
 
 参考 [dev-rxdb-angular](https://github.com/aiao-io/rxdb/tree/main/apps/dev-rxdb-angular) 中的集成示例。

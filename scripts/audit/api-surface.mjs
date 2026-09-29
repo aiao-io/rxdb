@@ -415,6 +415,46 @@ const NAMING = {
     'BranchMaterializationSource',
     'branchMaterializationPageFingerprint',
     'canonicalMaterializationJson',
+    // US-217 本地数据库备份 / 恢复的共享契约。manifest、归档帧格式、兼容性判定与错误码必须
+    // 被 PGlite 与 SQLite 系各适配器逐字共用——各写一份就是几种互不相认的备份格式，所以只能住在核心。
+    // 备份与提交能力、工作树都无关，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    // `createSha256` / `Sha256Hasher` 是归档校验要的增量哈希，核心原有的一次性 sha256 满足不了流式输入。
+    'assertRxDBBackupCompatible',
+    'classifyBackupIoError',
+    'computeRxDBSchemaFingerprint',
+    'createSha256',
+    'isRxDBBackupError',
+    'parseRxDBBackupManifest',
+    'RXDB_BACKUP_CHUNK_SIZE',
+    'RXDB_BACKUP_FORMAT',
+    'RXDB_BACKUP_FORMAT_VERSION',
+    'RXDB_BACKUP_SCOPE',
+    'RxDBBackupArchiveItem',
+    'RxDBBackupArchiveReader',
+    'RxDBBackupArchiveWriter',
+    'RxDBBackupCompatibility',
+    'RxDBBackupEntryHeader',
+    'RxDBBackupError',
+    'RxDBBackupErrorCode',
+    'RxDBBackupErrorDetails',
+    'RxDBBackupManifest',
+    'RxDBBackupOptions',
+    'RxDBBackupResult',
+    'RxDBBackupScope',
+    'RxDBBackupTrailer',
+    'RxDBRestoreOptions',
+    'RxDBRestoreResult',
+    'Sha256Hasher',
+    // 同一契约里各适配器共用的执行件：从 RxDB 实例取认证域与结构指纹（写 manifest、判兼容都要），
+    // Web Locks 独占协议（备份源与恢复目标的「唯一持有者」判定），以及只让排队段受超时 / 取消控制
+    // 的串行执行。各适配器各写一份，同一种并发冲突就会在不同后端落到不同 code 或不同锁名上。
+    'getRxDBBackupAuthDomain',
+    'getRxDBBackupSchemaFingerprint',
+    'hasRxDBBackupWebLocks',
+    'RxDBBackupHeldLock',
+    'RxDBBackupQueueOptions',
+    'runRxDBBackupWhenQueued',
+    'tryAcquireRxDBBackupLock',
     // US-026 实例级实体同步覆盖。`RxDBOptions.syncOverrides` 的条目形状、配置错误与判别原因
     // 是调用方写配置、按原因分支时必须能命名的符号；解析器（`rxdb.entitySync`）是核心与
     // 七个同步 / 缓存 / 历史插件共用的「这个实体按什么策略走」的唯一来源——插件各自读装饰器

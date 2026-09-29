@@ -8,7 +8,7 @@
  *
  * 与 Electron 传输层的唯一实质差别是**编码**：Tauri 的 IPC 是 JSON，
  * 协议里的 `bigint` / `Uint8Array` / `Date` 过不去，因此进出各加一层
- * {@link ./desktop-json-codec.js | 标签编码}。协议本身没变，`DESKTOP_HOST_PROTOCOL_VERSION` 仍是 1。
+ * {@link ./desktop-json-codec.js | 标签编码}。编码不改协议，`DESKTOP_HOST_PROTOCOL_VERSION` 与 Electron 路径是同一个值。
  *
  * @module tauri-host-transport
  */

@@ -42,6 +42,10 @@
         "kind": "value"
       },
       {
+        "name": "assertRxDBBackupCompatible",
+        "kind": "value"
+      },
+      {
         "name": "assertSingleActiveBranch",
         "kind": "value"
       },
@@ -142,6 +146,10 @@
         "kind": "value"
       },
       {
+        "name": "classifyBackupIoError",
+        "kind": "value"
+      },
+      {
         "name": "CodeFormat",
         "kind": "type"
       },
@@ -151,6 +159,10 @@
       },
       {
         "name": "compactChanges",
+        "kind": "value"
+      },
+      {
+        "name": "computeRxDBSchemaFingerprint",
         "kind": "value"
       },
       {
@@ -191,6 +203,10 @@
       },
       {
         "name": "createEntitySyncResolver",
+        "kind": "value"
+      },
+      {
+        "name": "createSha256",
         "kind": "value"
       },
       {
@@ -666,6 +682,14 @@
         "kind": "value"
       },
       {
+        "name": "getRxDBBackupAuthDomain",
+        "kind": "value"
+      },
+      {
+        "name": "getRxDBBackupSchemaFingerprint",
+        "kind": "value"
+      },
+      {
         "name": "getRxDBChangeEntityIdQueryValues",
         "kind": "value"
       },
@@ -707,6 +731,10 @@
       },
       {
         "name": "groupBySyncType",
+        "kind": "value"
+      },
+      {
+        "name": "hasRxDBBackupWebLocks",
         "kind": "value"
       },
       {
@@ -835,6 +863,10 @@
       },
       {
         "name": "isRuleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "isRxDBBackupError",
         "kind": "value"
       },
       {
@@ -1051,6 +1083,10 @@
       },
       {
         "name": "parseEntityRecordValues",
+        "kind": "value"
+      },
+      {
+        "name": "parseRxDBBackupManifest",
         "kind": "value"
       },
       {
@@ -1442,8 +1478,28 @@
         "kind": "type"
       },
       {
+        "name": "runRxDBBackupWhenQueued",
+        "kind": "value"
+      },
+      {
         "name": "RxDB",
         "kind": "both"
+      },
+      {
+        "name": "RXDB_BACKUP_CHUNK_SIZE",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_FORMAT",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_FORMAT_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "RXDB_BACKUP_SCOPE",
+        "kind": "value"
       },
       {
         "name": "RXDB_CAPABILITY_WATERMARK_PREFIX",
@@ -1503,6 +1559,66 @@
       },
       {
         "name": "RxDBAdapters",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupArchiveItem",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupArchiveReader",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupArchiveWriter",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupCompatibility",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupEntryHeader",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBBackupErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupErrorDetails",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupHeldLock",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupManifest",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupQueueOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupResult",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupScope",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBBackupTrailer",
         "kind": "type"
       },
       {
@@ -1742,6 +1858,14 @@
         "kind": "type"
       },
       {
+        "name": "RxDBRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBRestoreResult",
+        "kind": "type"
+      },
+      {
         "name": "RxDBScalar",
         "kind": "type"
       },
@@ -1799,6 +1923,10 @@
       },
       {
         "name": "SchemaManager",
+        "kind": "type"
+      },
+      {
+        "name": "Sha256Hasher",
         "kind": "type"
       },
       {
@@ -2072,6 +2200,10 @@
       {
         "name": "TrustedWriteScope",
         "kind": "type"
+      },
+      {
+        "name": "tryAcquireRxDBBackupLock",
+        "kind": "value"
       },
       {
         "name": "tryGetEntityMetadata",

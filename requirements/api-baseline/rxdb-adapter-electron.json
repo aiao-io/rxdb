@@ -86,6 +86,10 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostMuteRequest",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostOpenRequest",
         "kind": "type"
       },
@@ -252,6 +256,10 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostMuteRequest",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostOpenRequest",
         "kind": "type"
       },
@@ -338,6 +346,10 @@
     ],
     "./pglite": [
       {
+        "name": "cleanupIncompleteElectronPGliteRestore",
+        "kind": "value"
+      },
+      {
         "name": "DESKTOP_DEFAULT_DATA_DIRECTORY_SUFFIX",
         "kind": "value"
       },
@@ -394,7 +406,23 @@
         "kind": "type"
       },
       {
+        "name": "ElectronPGliteRestoreTarget",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreStage",
+        "kind": "type"
+      },
+      {
         "name": "resolveDesktopHostTransport",
+        "kind": "value"
+      },
+      {
+        "name": "restoreElectronPGliteDatabase",
         "kind": "value"
       },
       {
@@ -424,7 +452,15 @@
         "kind": "value"
       },
       {
+        "name": "DESKTOP_PGLITE_EXCLUDED_FILES",
+        "kind": "value"
+      },
+      {
         "name": "DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES",
         "kind": "value"
       },
       {
@@ -434,6 +470,18 @@
       {
         "name": "DESKTOP_PGLITE_WATCH_CHANNELS",
         "kind": "value"
+      },
+      {
+        "name": "DesktopPgliteBackupItem",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteDataDirItem",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopPgliteEngineResult",
+        "kind": "type"
       },
       {
         "name": "DesktopPgliteNotifyMessage",
@@ -452,11 +500,19 @@
         "kind": "type"
       },
       {
+        "name": "ElectronPgliteBackupOptions",
+        "kind": "type"
+      },
+      {
         "name": "ElectronPgliteHost",
         "kind": "type"
       },
       {
         "name": "ElectronPgliteHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ElectronPgliteProbeRuntime",
         "kind": "type"
       },
       {

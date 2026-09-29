@@ -1405,6 +1405,9 @@ importers:
       '@aiao/rxdb-test':
         specifier: workspace:*
         version: link:../rxdb-test
+      '@sqlite.org/sqlite-wasm':
+        specifier: 3.53.4-build1
+        version: 3.53.4-build1
       ms:
         specifier: ^2.1.3
         version: 2.1.3

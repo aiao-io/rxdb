@@ -14,11 +14,15 @@ import { RxDBAdapterDesktopError, isRxDBAdapterDesktopErrorCode } from '../deskt
 import { parseDesktopHostFileRequest, parseDesktopHostRequest } from '../desktop/desktop-host-protocol.js';
 import {
   DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_EXCLUDED_FILES,
   DESKTOP_PGLITE_MAX_BEGIN_TIMEOUT_MS,
+  DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES,
   DESKTOP_PGLITE_MAX_PARAM_DEPTH,
   DESKTOP_PGLITE_PROTOCOL_VERSION,
   assertDesktopPgliteResponse,
   isDesktopPgliteRequestKind,
+  parseDesktopPgliteBackupItem,
+  parseDesktopPgliteEngineResult,
   parseDesktopPgliteHandshakeResult,
   parseDesktopPgliteNotifyMessage,
   parseDesktopPgliteOpenResult,
@@ -27,6 +31,8 @@ import {
 
 const SESSION = '2f1f2b8a-1c1d-4a2b-9f3c-6d5e4f3a2b1c';
 const TRANSACTION = 'a0b1c2d3-e4f5-4a6b-8c9d-0e1f2a3b4c5d';
+const HANDLE = '5c4b3a29-1807-4f6e-9d5c-4b3a29180706';
+const storage = { engine: 'pglite', dataDirectoryName: 'app-pgdata' };
 
 const openRequest = { kind: 'pg.open', storage: { engine: 'pglite', dataDirectoryName: 'app-pgdata' } };
 
@@ -201,10 +207,214 @@ describe('desktop pglite protocol', () => {
         'pg.commit',
         'pg.rollback',
         'pg.version',
-        'pg.close'
+        'pg.close',
+        'pg.engine',
+        'pg.backup.begin',
+        'pg.backup.next',
+        'pg.backup.end',
+        'pg.restore.begin',
+        'pg.restore.prepare',
+        'pg.restore.write',
+        'pg.restore.open',
+        'pg.restore.query',
+        'pg.restore.persist',
+        'pg.restore.commit',
+        'pg.restore.abort',
+        'pg.restore.cleanup'
       ];
       for (const kind of kinds) expect(isDesktopPgliteRequestKind(kind)).toBe(true);
       expect(isDesktopPgliteRequestKind('pg.notify')).toBe(false);
+    });
+  });
+
+  describe('备份与恢复（v2，US-217）', () => {
+    it('pg.engine 不带会话：恢复目标还没有会话可用', () => {
+      expect(parseDesktopPgliteRequest({ kind: 'pg.engine', sessionId: 'x' })).toEqual({ kind: 'pg.engine' });
+    });
+
+    it('备份点名会话与游标，begin 沿用事务的超时档位', () => {
+      expect(parseDesktopPgliteRequest({ kind: 'pg.backup.begin', sessionId: SESSION })).toEqual({
+        kind: 'pg.backup.begin',
+        sessionId: SESSION,
+        timeout: DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS
+      });
+      expect(() => parseDesktopPgliteRequest({ kind: 'pg.backup.begin', sessionId: SESSION, timeout: 0 })).toThrowError(
+        /timeout must be an integer within/
+      );
+      for (const kind of ['pg.backup.next', 'pg.backup.end']) {
+        expect(parseDesktopPgliteRequest({ kind, sessionId: SESSION, backupId: HANDLE, extra: 1 })).toEqual({
+          kind,
+          sessionId: SESSION,
+          backupId: HANDLE
+        });
+        expect(() => parseDesktopPgliteRequest({ kind, sessionId: SESSION, backupId: 'b-1' })).toThrowError(
+          /backupId must be a UUID/
+        );
+      }
+    });
+
+    it('恢复目标与打开同一套存储校验：引擎不对、目录名越界都进不来', () => {
+      for (const kind of ['pg.restore.begin', 'pg.restore.cleanup']) {
+        expect(parseDesktopPgliteRequest({ kind, storage })).toEqual({ kind, storage });
+        expect(() =>
+          parseDesktopPgliteRequest({ kind, storage: { engine: 'sqlite', databaseName: 'a.sqlite3' } })
+        ).toThrowError(/^\[unsupported_runtime_engine\]/);
+        expect(() =>
+          parseDesktopPgliteRequest({ kind, storage: { engine: 'pglite', dataDirectoryName: '../x' } })
+        ).toThrowError(/^\[invalid_database_name\]/);
+      }
+    });
+
+    it('恢复的推进步骤只认 host 签发的 restoreId', () => {
+      for (const kind of [
+        'pg.restore.prepare',
+        'pg.restore.open',
+        'pg.restore.persist',
+        'pg.restore.commit',
+        'pg.restore.abort'
+      ]) {
+        expect(parseDesktopPgliteRequest({ kind, restoreId: HANDLE, sessionId: SESSION })).toEqual({
+          kind,
+          restoreId: HANDLE
+        });
+        expect(() => parseDesktopPgliteRequest({ kind, restoreId: 'r-1' })).toThrowError(/restoreId must be a UUID/);
+      }
+    });
+
+    it('pg.restore.query 与 pg.query 同一套 SQL 与参数校验', () => {
+      expect(
+        parseDesktopPgliteRequest({
+          kind: 'pg.restore.query',
+          restoreId: HANDLE,
+          sql: 'SELECT $1',
+          params: [undefined]
+        })
+      ).toEqual({ kind: 'pg.restore.query', restoreId: HANDLE, sql: 'SELECT $1', params: [null] });
+      expect(() =>
+        parseDesktopPgliteRequest({ kind: 'pg.restore.query', restoreId: HANDLE, sql: 1, params: [] })
+      ).toThrowError(/sql must be a string/);
+    });
+
+    it('pg.restore.write 重建条目头，契约之外的字段不进 host', () => {
+      const header = { path: 'base/1/1259', kind: 'file', size: 8192, mode: 0o777 };
+      expect(
+        parseDesktopPgliteRequest({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'entry', header } })
+      ).toEqual({
+        kind: 'pg.restore.write',
+        restoreId: HANDLE,
+        item: { type: 'entry', header: { path: 'base/1/1259', kind: 'file', size: 8192 } }
+      });
+      const bytes = new Uint8Array([1, 2, 3]);
+      expect(
+        parseDesktopPgliteRequest({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'data', bytes } })
+      ).toEqual({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'data', bytes } });
+    });
+
+    it('条目路径越不出数据目录，也带不进运行态文件', () => {
+      const write = (path: unknown) =>
+        parseDesktopPgliteRequest({
+          kind: 'pg.restore.write',
+          restoreId: HANDLE,
+          item: { type: 'entry', header: { path, kind: 'directory', size: 0 } }
+        });
+      expect(write('pg_wal/archive_status')).toMatchObject({ item: { header: { path: 'pg_wal/archive_status' } } });
+      const unsafe = [
+        '',
+        '/etc',
+        'a//b',
+        'a/',
+        '.',
+        'a/./b',
+        '..',
+        'base/../..',
+        'a\\b',
+        'C:',
+        'a\u0000b',
+        'a\nb',
+        'trailing.',
+        'trailing ',
+        'a*b',
+        'NUL',
+        'base/com1.txt',
+        'x'.repeat(5000),
+        42
+      ];
+      for (const path of unsafe) expect(() => write(path), String(path)).toThrowError(/^\[protocol_violation\]/);
+      for (const name of DESKTOP_PGLITE_EXCLUDED_FILES) {
+        expect(() => write(`global/${name}`)).toThrowError(/runtime-only/);
+        expect(() => write(`${name}/x`)).toThrowError(/runtime-only/);
+      }
+    });
+
+    it('条目的类型与大小必须自洽', () => {
+      const write = (header: unknown) =>
+        parseDesktopPgliteRequest({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'entry', header } });
+      expect(() => write({ path: 'a', kind: 'symlink', size: 0 })).toThrowError(/kind must be/);
+      expect(() => write({ path: 'a', kind: 'file', size: -1 })).toThrowError(/size must be/);
+      expect(() => write({ path: 'a', kind: 'file', size: 1.5 })).toThrowError(/size must be/);
+      expect(() => write({ path: 'a', kind: 'file', size: 2 ** 53 })).toThrowError(/size must be/);
+      expect(() => write({ path: 'a', kind: 'directory', size: 1 })).toThrowError(/directory entries have no data/);
+      expect(() => write(null)).toThrowError(/^\[protocol_violation\]/);
+    });
+
+    it('数据块有上限，且必须独占普通 ArrayBuffer：IPC 按整块 buffer 搬运', () => {
+      const write = (bytes: unknown) =>
+        parseDesktopPgliteRequest({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'data', bytes } });
+      expect(() => write(new Uint8Array(DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES + 1))).toThrowError(/exceeds/);
+      // 视图本身很小，背后的 buffer 却很大：结构化克隆会把整块 buffer 搬过 IPC。
+      expect(() => write(new Uint8Array(DESKTOP_PGLITE_MAX_DATA_CHUNK_BYTES * 2).subarray(0, 1))).toThrowError(
+        /exceeds/
+      );
+      expect(() => write(new Uint8Array(new SharedArrayBuffer(4)))).toThrowError(/plain ArrayBuffer/);
+      expect(() => write([1, 2])).toThrowError(/bytes must be a Uint8Array/);
+      expect(() =>
+        parseDesktopPgliteRequest({ kind: 'pg.restore.write', restoreId: HANDLE, item: { type: 'end' } })
+      ).toThrowError(/item type must be entry or data/);
+    });
+
+    it('备份游标的应答经同一套校验，另外认得结束标记', () => {
+      expect(parseDesktopPgliteBackupItem({ type: 'end', extra: 1 })).toEqual({ type: 'end' });
+      expect(
+        parseDesktopPgliteBackupItem({ type: 'entry', header: { path: 'PG_VERSION', kind: 'file', size: 3 } })
+      ).toEqual({ type: 'entry', header: { path: 'PG_VERSION', kind: 'file', size: 3 } });
+      const bytes = new Uint8Array([49, 55, 10]);
+      expect(parseDesktopPgliteBackupItem({ type: 'data', bytes })).toEqual({ type: 'data', bytes });
+      expect(() =>
+        parseDesktopPgliteBackupItem({ type: 'entry', header: { path: '../x', kind: 'file', size: 1 } })
+      ).toThrowError(/^\[protocol_violation\]/);
+      expect(() => parseDesktopPgliteBackupItem({ type: 'eof' })).toThrowError(/item type must be/);
+    });
+
+    it('引擎应答：版本非空，扩展是字符串数组', () => {
+      expect(parseDesktopPgliteEngineResult({ serverVersion: '17.5', extensions: ['vector'], x: 1 })).toEqual({
+        serverVersion: '17.5',
+        extensions: ['vector']
+      });
+      expect(() => parseDesktopPgliteEngineResult({ serverVersion: '', extensions: [] })).toThrowError(
+        /serverVersion must be a non-empty string/
+      );
+      expect(() => parseDesktopPgliteEngineResult({ serverVersion: '17', extensions: [1] })).toThrowError(
+        /extensions must be an array of strings/
+      );
+    });
+
+    it('协议升到 2：只会讲 v1 的 host 在握手时就被拒绝', () => {
+      expect(DESKTOP_PGLITE_PROTOCOL_VERSION).toBe(2);
+      expect(() => parseDesktopPgliteHandshakeResult({ protocolVersion: 1 })).toThrowError(
+        /host speaks pglite protocol 1 but this client speaks 2/
+      );
+    });
+
+    it('备份恢复的五个错误码都在契约内', () => {
+      for (const code of [
+        'restore_in_progress',
+        'restore_incomplete',
+        'target_not_empty',
+        'cleanup_pending',
+        'unsupported_operation'
+      ]) {
+        expect(isRxDBAdapterDesktopErrorCode(code)).toBe(true);
+      }
     });
   });
 
@@ -214,7 +424,7 @@ describe('desktop pglite protocol', () => {
         protocolVersion: DESKTOP_PGLITE_PROTOCOL_VERSION
       });
       expect(() => parseDesktopPgliteHandshakeResult({ protocolVersion: 99 })).toThrowError(
-        /host speaks pglite protocol 99 but this client speaks 1/
+        new RegExp(`host speaks pglite protocol 99 but this client speaks ${DESKTOP_PGLITE_PROTOCOL_VERSION}`)
       );
     });
 
@@ -232,7 +442,11 @@ describe('desktop pglite protocol', () => {
       });
 
       expect(() =>
-        parseDesktopPgliteOpenResult({ sessionId: SESSION, resolvedLocation: 1, protocolVersion: 1 })
+        parseDesktopPgliteOpenResult({
+          sessionId: SESSION,
+          resolvedLocation: 1,
+          protocolVersion: DESKTOP_PGLITE_PROTOCOL_VERSION
+        })
       ).toThrowError(/resolvedLocation must be a string/);
     });
 

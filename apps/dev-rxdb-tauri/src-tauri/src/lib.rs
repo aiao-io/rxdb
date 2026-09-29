@@ -380,6 +380,9 @@ pub fn run() {
             // 加了 cfg 的话 release 下这一问会变成 command-not-found，
             // renderer 就得 catch 一个异常来推断构建形态——那是拿异常当控制流。
             selfcheck::rxdb_selfcheck_devtools_probe,
+            selfcheck::rxdb_selfcheck_backup_probe,
+            selfcheck::rxdb_selfcheck_backup_archive_read,
+            selfcheck::rxdb_selfcheck_backup_archive_append,
             // US-905 AC#1：`devtools_message` 命令与它在 `generate_handler!` 里的臂一起
             // 只在 dev 构建中注册（`#[cfg(dev)]` 直接作用于生成出的 match 臂）。
             #[cfg(dev)]

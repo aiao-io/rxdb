@@ -17,8 +17,18 @@
 
 import { RxDBAdapterDesktopError } from './desktop-error.js';
 
-/** 单条 SQL 文本的长度上限。 */
-export const DESKTOP_HOST_MAX_SQL_LENGTH = 1_000_000;
+/**
+ * SQLite 线协议上单条 SQL 文本的长度上限（UTF-16 码元）。
+ *
+ * @remarks
+ * 恢复把归档里的一个行条目原样拼进一条 `INSERT … VALUES` 下发：条目按 1 MiB 切分，单行超过时
+ * 独占一个条目，最大到 32 MiB（`SQLITE_BACKUP_MAX_ENTRY_BYTES`）。UTF-8 字节数不小于 UTF-16 码元数，
+ * 所以 64 Mi 码元能装下最大的条目加上语句前缀。协议 v1 的 1_000_000 连一个常规条目都装不下，
+ * 放宽随协议 v2 一起生效，老 host 在握手时就被拒绝，而不是在恢复中途拒收一条语句。
+ *
+ * PGlite 线协议不跟着放宽，仍是它自己的 1_000_000。
+ */
+export const DESKTOP_HOST_MAX_SQL_LENGTH = 64 * 1024 * 1024;
 
 /** 单条请求允许的绑定参数个数上限。 */
 export const DESKTOP_HOST_MAX_BINDINGS = 100_000;
@@ -105,14 +115,13 @@ export const readSessionId = (record: Record<string, unknown>): string => readUu
  * 读取 SQL 文本。
  *
  * @param record - 已收窄的请求对象
+ * @param maxLength - 所在协议的长度上限（UTF-16 码元）
  * @returns 校验通过的 SQL
  * @throws 不是字符串或超长时抛 `protocol_violation`
  */
-export const readSql = (record: Record<string, unknown>): string => {
+export const readSql = (record: Record<string, unknown>, maxLength: number): string => {
   const sql = record['sql'];
   if (typeof sql !== 'string') throw violation('sql must be a string');
-  if (sql.length > DESKTOP_HOST_MAX_SQL_LENGTH) {
-    throw violation(`sql exceeds ${DESKTOP_HOST_MAX_SQL_LENGTH} characters`);
-  }
+  if (sql.length > maxLength) throw violation(`sql exceeds ${maxLength} characters`);
   return sql;
 };

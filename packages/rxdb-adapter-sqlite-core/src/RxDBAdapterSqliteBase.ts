@@ -1,4 +1,13 @@
-import type { EntityMetadata, EntityType, IRepository, IRxDBAdapter } from '@aiao/rxdb';
+import type {
+  EntityMetadata,
+  EntityType,
+  IRepository,
+  IRxDBAdapter,
+  RxDBBackupHeldLock,
+  RxDBBackupOptions,
+  RxDBBackupResult,
+  RxDBRestoreResult
+} from '@aiao/rxdb';
 import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
@@ -7,6 +16,7 @@ import {
   getEntityMetadata,
   getEntityMutations,
   getRxDBSystemVersionState,
+  hasRxDBBackupWebLocks,
   isCurrentRxDBSystemVersion,
   MAIN_BRANCH_ID,
   RxDB,
@@ -15,6 +25,7 @@ import {
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBAdapterLocalBase,
+  RxDBBackupError,
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
@@ -25,6 +36,7 @@ import {
   TransactionBeginEvent,
   TransactionCommitEvent,
   TransactionRollbackEvent,
+  tryAcquireRxDBBackupLock,
   uuid
 } from '@aiao/rxdb';
 import {
@@ -38,6 +50,19 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import { proxy } from 'comlink';
 import { defer, from, Observable, of } from 'rxjs';
+import {
+  cleanupIncompleteSqliteRestore,
+  hasSqliteRestoreMarker,
+  restoreSqliteDatabase,
+  type SqliteRestoreInput
+} from './backup/restore-sqlite-database.js';
+import {
+  type SqliteBackupStorage,
+  type SqliteRestoreOptions,
+  sqliteStorageLockName,
+  type SqliteSupportedBackupStorage
+} from './backup/sqlite-backup.interface.js';
+import { writeSqliteBackup } from './backup/sqlite-backup.js';
 import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
@@ -370,6 +395,11 @@ const assert_row_single_spelling = (
  */
 export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase implements IRxDBAdapter {
   #cached_client?: SqliteClientLike;
+  /** 恢复到内存目标得到的连接，下一次建连时代替 `createClient()` 被接管。 */
+  #adopted_client?: SqliteClientLike;
+  #restoring = false;
+  /** 持久化存储的共享锁：挡住连接期间的恢复与清理。 */
+  #storage_lock?: RxDBBackupHeldLock;
   #row_id_map = new Map<EntityType, Map<RowId, InstanceType<EntityType>>>();
   #entity_row_id_map = new WeakMap<InstanceType<EntityType>, RowId>();
   #queue = new AsyncQueueExecutor(1);
@@ -579,6 +609,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         await this.#cached_client.disconnect();
       }
     } finally {
+      await this.#releaseAdoptedClient();
+      await this.#releaseStorageLock();
       // client 是 Comlink 远端代理时必须显式释放根代理的 MessagePort：
       // 不释放则每轮断开/重连都留下一个活端口和 Worker 侧引用（SQLC-041）。
       // 排在 client.disconnect() 之后 —— 先释放代理，后续 RPC 会直接 reject。
@@ -593,6 +625,113 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   public async version(): Promise<string> {
     const client = await this.#client();
     return await client.version();
+  }
+
+  /**
+   * 把整个数据库写成一份可恢复的归档。
+   *
+   * @remarks
+   * 归档是逻辑转储：全部结构语句与行字面量，在 adapter 的串行队列里、同一个读事务中取得，所以与某一次
+   * 事务提交边界一致，WAL 里已提交的数据都在其中。**整个写出过程都占着数据库**：输出流有背压时，
+   * 这段时间内的读写都会排队。在本 adapter 的事务回调里调用会等待自己，直到 `lockTimeoutMs` 后报 `lock_timeout`。
+   *
+   * 归档包含业务表、系统表、变更历史与 keyring 的密文，加密列保持密文，不需要解锁；
+   * 外置文件不在其中（`scope.externalFiles === 'excluded'`）。支持的存储见各 adapter 的 README。
+   *
+   * @param sink - 输出流；成功时被 close，失败时被 abort
+   * @param options - 取消信号与排队时限
+   * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
+   * @throws RxDBBackupError `unsupported_combination` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+   *
+   * @example
+   * ```typescript
+   * const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+   * const result = await adapter.backup(await handle.createWritable());
+   * console.log(result.sha256);
+   * ```
+   */
+  async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
+    const storage = this.#supportedBackupStorage('backup');
+    if (options.signal?.aborted) {
+      throw new RxDBBackupError('aborted', 'SQLite backup was aborted', { cause: options.signal.reason });
+    }
+    if (this.#is_disconnected) {
+      throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+    }
+    await this.ready();
+    const client = await this.#client();
+    return writeSqliteBackup(
+      {
+        rxdb: this.rxdb,
+        adapterName: this.name,
+        client,
+        storage,
+        queue: this.#queue,
+        shadowTablesWritable: this.shadowTablesWritable()
+      },
+      sink,
+      options
+    );
+  }
+
+  /**
+   * 把 {@link backup} 产出的归档恢复进本 adapter 配置的空存储。
+   *
+   * @remarks
+   * 必须在 `rxdb.connect()` 之前调用（经 `rxdb.getAdapter(name)` 拿到尚未连接的实例）：已连接或正在恢复时
+   * 报 `target_busy`。只写入**空**目标，兼容性（adapter、引擎大版本、虚表模块、系统表 / 变更编码版本、
+   * 实体结构指纹、加密认证域）在写入第一条语句之前判定，全部核对通过后才提交。
+   *
+   * - 持久化存储：恢复完成后正常 `rxdb.connect()` 即可；恢复中途页面被关，之后的连接报 `restore_incomplete`，
+   *   需先 {@link cleanupIncompleteRestore}。
+   * - 内存存储：恢复出来的库只活在本实例里，由下一次 `rxdb.connect()` 接管；不连接时 {@link disconnect} 释放它。
+   *
+   * 恢复出来的行不产生变更历史；加密库保持锁定。输入流在失败时被取消，成功时只释放读锁。
+   *
+   * @param source - 归档字节流
+   * @param options - 取消信号与阶段回调
+   * @returns 结束标记与 manifest
+   * @throws RxDBBackupError 见 {@link RxDBBackupErrorCode}；`cleanup_pending` 表示失败后连清理也没做完
+   *
+   * @example
+   * ```typescript
+   * rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicVFS' }));
+   * const adapter = await rxdb.getAdapter('wa-sqlite');
+   * await adapter.restore(file.stream());
+   * await rxdb.connect('wa-sqlite');
+   * ```
+   */
+  async restore(source: ReadableStream<Uint8Array>, options: SqliteRestoreOptions = {}): Promise<RxDBRestoreResult> {
+    let storage: SqliteSupportedBackupStorage;
+    try {
+      storage = this.#supportedBackupStorage('restore');
+      this.#assertRestoreIdle();
+    } catch (error) {
+      await source.cancel(error).catch(() => undefined);
+      throw error;
+    }
+    this.#restoring = true;
+    try {
+      const outcome = await restoreSqliteDatabase(source, this.#restoreInput(storage), options);
+      this.#adopted_client = outcome.client;
+      return outcome.result;
+    } finally {
+      this.#restoring = false;
+    }
+  }
+
+  /**
+   * 清理一次没做完的恢复（页面在恢复中途关闭、或恢复失败后清理本身也失败）。
+   *
+   * @remarks
+   * 必须在连接之前调用。拿不到独占锁说明目标正被连接或正在恢复，报 `target_busy`；
+   * 没有未完成标记时什么都不做。内存存储没有残留可言，恒为 `false`。
+   *
+   * @returns 确实清理了残留时为 `true`
+   * @throws RxDBBackupError `target_busy` / `unsupported_combination` / `cleanup_pending`
+   */
+  async cleanupIncompleteRestore(): Promise<boolean> {
+    return cleanupIncompleteSqliteRestore(this.#restoreInput(this.#supportedBackupStorage('restore cleanup')));
   }
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
@@ -1052,6 +1191,57 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
+   * 当前配置对应的备份存储后端，决定 {@link backup} / {@link restore} 能否使用以及恢复走哪条路径。
+   *
+   * @remarks
+   * 基类默认不支持；已交付的 adapter 按自己的存储选项覆盖。持久化后端的 `storageKey` 用
+   * {@link persistentBackupStorage} 生成，保证同一份库在连接与恢复两侧用同一把锁。
+   *
+   * @returns 存储后端
+   */
+  protected backupStorage(): SqliteBackupStorage {
+    return { kind: 'unsupported', field: 'adapter', actual: this.name };
+  }
+
+  /**
+   * 生成持久化存储后端的描述。
+   *
+   * @param label - 写进 manifest 的存储名，例如 `idb` / `opfs`
+   * @returns `storageKey` 为 `<adapter>:<label>:<dbName>` 的持久化后端
+   */
+  protected persistentBackupStorage(label: string): SqliteBackupStorage {
+    return { kind: 'persistent', label, storageKey: `${this.name}:${label}:${this.rxdb.config.dbName}` };
+  }
+
+  /**
+   * 本后端能否写虚表的影子表（FTS5 的 `_data`、`_idx` 等）。
+   *
+   * @remarks
+   * 归档按行原样保存影子表，恢复时要整表改写它们。默认可以；以 defensive 模式运行 SQLite 的后端改不了影子表，
+   * 覆盖为 `false`：含影子表的库备份与恢复都报 `unsupported_combination`，而不是产出一份自己恢复不了的归档，
+   * 或写到一半才失败。
+   *
+   * @returns 能写为 `true`
+   */
+  protected shadowTablesWritable(): boolean {
+    return true;
+  }
+
+  /**
+   * 打开恢复或清理用的目标连接。
+   *
+   * @remarks
+   * 默认就是 {@link createClient}：浏览器后端的库只会在同源上下文里被打开，恢复前拿到的独占 Web Lock
+   * 已经挡住了其余所有连接。库文件还可能被别的进程打开的后端（桌面 host）覆盖它，在返回前让这条连接
+   * 独占底层存储并一直持有到断开，保证从空状态检查到恢复结束都没有别人连得上。
+   *
+   * @returns 目标库的一条新连接
+   */
+  protected createRestoreTargetClient(): Promise<SqliteClientLike> {
+    return this.createClient();
+  }
+
+  /**
    * 就绪门：**必须在获取队列槽位之前调用，绝不能在队列任务内部调用**。
    *
    * @remarks
@@ -1296,13 +1486,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       this.#client_promise = (async () => {
         let client: SqliteClientLike | undefined;
         try {
-          client = await this.createClient();
+          await this.#acquireStorageLock();
+          client = this.#adopted_client ?? (await this.createClient());
+          this.#adopted_client = undefined;
+          await this.#assertNoRestoreMarker(client);
           await this.#ensureClientEventListeners(client);
           this.#cached_client = client;
           return client;
         } catch (err) {
           this.#cached_client = undefined;
           this.#listeners_registered = false;
+          await this.#releaseStorageLock();
           if (client) {
             try {
               await client.disconnect();
@@ -1316,6 +1510,80 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       })();
     }
     return this.#client_promise;
+  }
+
+  #supportedBackupStorage(operation: string): SqliteSupportedBackupStorage {
+    const storage = this.backupStorage();
+    if (storage.kind !== 'unsupported') return storage;
+    throw new RxDBBackupError(
+      'unsupported_combination',
+      `SQLite ${operation} is not supported by "${this.name}" with ${storage.field} = ${storage.actual}`,
+      { details: { field: storage.field, actual: storage.actual } }
+    );
+  }
+
+  #assertRestoreIdle(): void {
+    if (!this.#restoring && !this.#client_promise && !this.#adopted_client) return;
+    throw new RxDBBackupError('target_busy', `Adapter "${this.name}" is already connected or restoring`, {
+      details: { field: 'adapter', actual: this.name }
+    });
+  }
+
+  #restoreInput(storage: SqliteSupportedBackupStorage): SqliteRestoreInput {
+    return {
+      rxdb: this.rxdb,
+      adapterName: this.name,
+      storage,
+      createClient: () => this.createRestoreTargetClient(),
+      shadowTablesWritable: this.shadowTablesWritable()
+    };
+  }
+
+  /**
+   * 连接持久化存储前取共享锁：恢复与清理要的是独占锁，拿不到共享锁说明正在恢复。
+   * 没有 Web Locks 的环境本就不支持持久化恢复，也就没有要挡的操作。
+   */
+  async #acquireStorageLock(): Promise<void> {
+    if (this.#restoring) {
+      throw new RxDBBackupError('restore_in_progress', `Adapter "${this.name}" is restoring`, {
+        details: { field: 'adapter', actual: this.name }
+      });
+    }
+    const storage = this.backupStorage();
+    if (this.#storage_lock || storage.kind !== 'persistent' || !hasRxDBBackupWebLocks()) return;
+    const lock = await tryAcquireRxDBBackupLock(sqliteStorageLockName(storage.storageKey), 'shared');
+    if (!lock) {
+      throw new RxDBBackupError('restore_in_progress', `SQLite storage "${storage.storageKey}" is being restored`, {
+        details: { field: 'storage', actual: storage.storageKey }
+      });
+    }
+    this.#storage_lock = lock;
+  }
+
+  async #releaseStorageLock(): Promise<void> {
+    const lock = this.#storage_lock;
+    this.#storage_lock = undefined;
+    await lock?.release();
+  }
+
+  /** 恢复中途被打断的库留着标记表，不能被当成正常库打开，更不能被引导链路在上面建表掩盖。 */
+  async #assertNoRestoreMarker(client: SqliteClientLike): Promise<void> {
+    const storage = this.backupStorage();
+    if (storage.kind !== 'persistent' || !(await hasSqliteRestoreMarker(client))) return;
+    throw new RxDBBackupError(
+      'restore_incomplete',
+      `A previous restore into "${storage.storageKey}" did not finish; call cleanupIncompleteRestore()`,
+      { details: { field: 'storage', actual: storage.storageKey } }
+    );
+  }
+
+  async #releaseAdoptedClient(): Promise<void> {
+    const client = this.#adopted_client;
+    this.#adopted_client = undefined;
+    if (!client) return;
+    // 没被接管的内存库随之丢弃，关闭失败不改变结论；吞掉它，别让它盖住 disconnect() 自身的清理
+    await client.disconnect().catch(() => undefined);
+    releaseComlinkProxy(client);
   }
 
   async #internal_exec(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {

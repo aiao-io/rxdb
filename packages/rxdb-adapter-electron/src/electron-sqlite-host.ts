@@ -266,6 +266,9 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
         return close(request.sessionId);
       case 'version':
         return { kind: 'version', result: requireSession(request.sessionId).version() };
+      case 'mute':
+        requireSession(request.sessionId).setChangeEventsMuted(request.muted);
+        return { kind: 'mute' };
       case 'execute':
         return execute(request);
       default: {

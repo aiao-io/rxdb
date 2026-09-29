@@ -21,6 +21,7 @@ import {
   asRecord,
   DESKTOP_HOST_MAX_BINDINGS,
   DESKTOP_HOST_MAX_BLOB_BYTES,
+  DESKTOP_HOST_MAX_SQL_LENGTH,
   readSessionId,
   readSql,
   readUuid,
@@ -48,8 +49,12 @@ export {
  * （`packages/rxdb-adapter-tauri/rust/src/protocol.rs` 的 `PROTOCOL_VERSION`）。
  * 两个常量之间唯一的机械联系是一致性套件的 `conformance/protocol-handshake.spec.ts`，
  * 它拿真进程报上来的数字与本常量比对；改这个值时那条用例会红。
+ *
+ * v2（US-217）加了 {@link DesktopHostMuteRequest}，并把 {@link DESKTOP_HOST_MAX_SQL_LENGTH} 放宽到 64 Mi。
+ * 与当初加握手不同，这次必须抬版本：v1 host 在恢复中途才会拒收超长语句或不认识的 `mute`，
+ * 那时目标库已经被写过了；抬版本后它在握手这一步就被拒绝，目标一个字节都没动（US-217 AC#21）。
  */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 1;
+export const DESKTOP_HOST_PROTOCOL_VERSION = 2;
 
 /**
  * 单帧文件读写的字节上限。
@@ -183,13 +188,28 @@ export interface DesktopHostCloseRequest {
   readonly sessionId: string;
 }
 
+/**
+ * 暂停 / 恢复会话的变更事件采集（协议 v2）。
+ *
+ * @remarks
+ * 恢复整库时静音：恢复写进去的系统表行不是新变更，不能被当成事件派发。静音必须落在 host 侧：
+ * 只在 renderer 丢弃的话，host 仍要为每一行攒 rowId、把整批搬过 IPC，这部分开销随库的大小线性增长，
+ * 越不过 US-217 AC#9 的内存预算。静音期间 host 不入批也不派发，与 wasm 客户端的同名方法同义。
+ */
+export interface DesktopHostMuteRequest {
+  readonly kind: 'mute';
+  readonly sessionId: string;
+  readonly muted: boolean;
+}
+
 /** renderer 可以发给 host 的全部请求。 */
 export type DesktopHostRequest =
   | DesktopHostHandshakeRequest
   | DesktopHostOpenRequest
   | DesktopHostExecuteRequest
   | DesktopHostVersionRequest
-  | DesktopHostCloseRequest;
+  | DesktopHostCloseRequest
+  | DesktopHostMuteRequest;
 
 /** `handshake` 请求的响应。 */
 export interface DesktopHostHandshakeResult {
@@ -244,6 +264,7 @@ export type DesktopHostResponse =
   | { readonly kind: 'execute'; readonly result: SqliteResult }
   | { readonly kind: 'version'; readonly result: string }
   | { readonly kind: 'close' }
+  | { readonly kind: 'mute' }
   | { readonly kind: 'error'; readonly code: RxDBAdapterDesktopErrorCode; readonly message: string };
 
 /**
@@ -395,7 +416,14 @@ export type DesktopHostFileResponse =
   | { readonly kind: 'file.lockRelease' }
   | { readonly kind: 'error'; readonly code: RxDBAdapterDesktopErrorCode; readonly message: string };
 
-const REQUEST_KINDS: readonly DesktopHostRequest['kind'][] = ['handshake', 'open', 'execute', 'version', 'close'];
+const REQUEST_KINDS: readonly DesktopHostRequest['kind'][] = [
+  'handshake',
+  'open',
+  'execute',
+  'version',
+  'close',
+  'mute'
+];
 
 const FILE_REQUEST_KINDS: readonly DesktopHostFileRequest['kind'][] = [
   'file.open',
@@ -495,6 +523,13 @@ const parseOpenRequest = (record: Record<string, unknown>): DesktopHostOpenReque
   return { kind: 'open', storage: { engine, databaseName }, batchTimeout: readBatchTimeout(record) };
 };
 
+/** `muted` 只收布尔：一个缺席或写错类型的值不能被当成「不静音」静默放过。 */
+const readMuted = (record: Record<string, unknown>): boolean => {
+  const muted = record['muted'];
+  if (typeof muted !== 'boolean') throw violation('muted must be a boolean');
+  return muted;
+};
+
 /**
  * 校验并归一化一条来自 renderer 的请求。
  *
@@ -517,8 +552,14 @@ export function parseDesktopHostRequest(value: unknown): DesktopHostRequest {
   if (kind === 'handshake') return { kind };
   if (kind === 'open') return parseOpenRequest(record);
   if (kind === 'execute') {
-    return { kind, sessionId: readSessionId(record), sql: readSql(record), bindings: readBindings(record) };
+    return {
+      kind,
+      sessionId: readSessionId(record),
+      sql: readSql(record, DESKTOP_HOST_MAX_SQL_LENGTH),
+      bindings: readBindings(record)
+    };
   }
+  if (kind === 'mute') return { kind, sessionId: readSessionId(record), muted: readMuted(record) };
   return { kind: kind as 'version' | 'close', sessionId: readSessionId(record) };
 }
 

@@ -4,6 +4,8 @@ import type {
   IRxDBAdapter,
   RawQueryResult,
   RestoreEntityOptions,
+  RxDBBackupOptions,
+  RxDBBackupResult,
   RxDBMutationsMap,
   SwitchBranchOptions,
   SwitchVersionActions
@@ -15,6 +17,7 @@ import {
   MAIN_BRANCH_ID,
   RxDB,
   RxDBAdapterLocalBase,
+  RxDBBackupError,
   RxDBChange,
   TransactionFun
 } from '@aiao/rxdb';
@@ -29,6 +32,8 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
+import { pgliteBackupExtensions, resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
+import { writePGliteBackup } from './backup/pglite-backup.js';
 import {
   type ChangePipelineHost,
   drainPendingChangeHandlers,
@@ -46,7 +51,7 @@ import {
   PgliteTableColumn
 } from './pglite.interface.js';
 import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
-import { asPGliteChangeEventSource, IPGliteClient, PGliteClient } from './PGliteClient.js';
+import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
@@ -615,6 +620,49 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return this.transaction(transactionFun, transactionLog);
   }
 
+  /**
+   * 把整个数据库写成一份可恢复的归档。
+   *
+   * @remarks
+   * 快照在 adapter 的串行队列里、以 PGlite 独占锁 + `CHECKPOINT` 取得，所以归档与某一次事务提交
+   * 边界一致。**整个写出过程都占着数据库**：输出流有背压时（慢速磁盘、网络上传），这段时间内的
+   * 读写都会排队，调用方应把输出接到足够快的目标上。在本 adapter 的事务回调里调用会等待自己，
+   * 直到 `lockTimeoutMs` 后报 `lock_timeout`。
+   *
+   * 归档包含整个数据目录（业务表、系统表、keyring 的密文），加密列保持密文，不需要解锁。
+   * 目前支持 `memory` 与 `idb://` 存储，以及覆写了 {@link backupStorage} 的桌面代理子类；
+   * OPFS-AHP（Worker）报 `unsupported_combination`。
+   * `idb://` 存储同时被其他连接（同页面另一个实例、其他标签页或 Worker）打开时报 `target_busy`：
+   * 每个连接各有一份内存视图，本连接的快照看不到它们的提交。
+   *
+   * @param sink - 输出流；成功时被 close，失败时被 abort
+   * @param options - 取消信号与排队时限
+   * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
+   * @throws RxDBBackupError `unsupported_combination` / `target_busy` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+   *
+   * @example
+   * ```typescript
+   * const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+   * const result = await adapter.backup(await handle.createWritable());
+   * console.log(result.sha256);
+   * ```
+   */
+  async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
+    const storage = this.backupStorage();
+    if (options.signal?.aborted) {
+      throw new RxDBBackupError('aborted', 'PGlite backup was aborted', { cause: options.signal.reason });
+    }
+    this.#assertWritable();
+    await this.ready();
+    const client = await this.#getClient();
+    const extensions = await this.backupExtensions();
+    return writePGliteBackup(
+      { rxdb: this.rxdb, adapterName: this.name, client, storage, extensions, queue: this.#queue },
+      sink,
+      options
+    );
+  }
+
   /** 查询入口。引导窗外走 writeQuery；引导窗就绪后再入队。 */
   public query<T = Record<string, unknown>>(sql: string, bindings?: unknown[]): Promise<Results<T>> {
     if (this.#lifecycle_state !== 'bootstrap') return this.writeQuery<T>(sql, bindings);
@@ -691,6 +739,33 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   protected ready(): Promise<void> {
     return this.rxdb.connect(this.name).then(() => undefined);
+  }
+
+  /**
+   * 备份 manifest 记录的存储后端。
+   *
+   * @remarks
+   * 默认按 `dataDir` 解析，只接受 `memory` 与 `idb://`；桌面代理子类覆写为 host 上的目录存储。
+   * 在排队与连接之前调用，不支持的存储不会占用数据库。
+   *
+   * @returns 存储后端标识
+   * @throws RxDBBackupError `unsupported_combination` 当前存储不支持备份
+   */
+  protected backupStorage(): string {
+    const dataDir = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir;
+    return resolvePGliteBackupStorage(dataDir, 'backup').kind;
+  }
+
+  /**
+   * 备份 manifest 记录的扩展名（已排序）。
+   *
+   * @remarks
+   * 默认取 adapter 选项里注册的扩展；桌面代理子类覆写为 host 运行时实际加载的扩展。
+   *
+   * @returns 扩展名
+   */
+  protected backupExtensions(): Promise<readonly string[]> {
+    return Promise.resolve(pgliteBackupExtensions(this.options));
   }
 
   /** PGlite NOTIFY 事件监听器（INSERT/UPDATE/DELETE 共用） */
@@ -831,6 +906,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   /** 单例客户端。 */
   #getClient(): Promise<IPGliteClient> {
     if (!this.#client_promise) {
+      // 实例身份只有 adapter 知道；在客户端领取句柄前拦下，失败时句柄仍留给正确的实例。
+      try {
+        this.options.restoredDatabase?.assertAdoptableBy(this.rxdb, pgliteBackupExtensions(this.options));
+      } catch (error) {
+        return Promise.reject(error);
+      }
       const client = this.createClient();
       // 初始化客户端并缓存
       this.#client_promise = client

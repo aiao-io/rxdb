@@ -224,6 +224,8 @@ export class NodeSqliteEngine {
   #maxWaitTimer?: BatchTimer;
   #changesStatement?: StatementSync;
   #totalChangesStatement?: StatementSync;
+  /** 为 `true` 时通知函数照常被触发器调用，但变更既不入批也不派发。 */
+  #muted = false;
   #closed = false;
 
   private constructor(db: DatabaseSync, options: NodeSqliteEngineOptions) {
@@ -249,7 +251,9 @@ export class NodeSqliteEngine {
   static open(options: NodeSqliteEngineOptions): NodeSqliteEngine {
     let db: DatabaseSync;
     try {
-      db = new DatabaseSync(options.filePath);
+      // defensive 显式钉住而不靠运行时默认值：host 在特权主进程里执行 renderer 透传的 SQL，
+      // 不能让它直接改写影子表或 schema 把库文件改坏。代价是恢复不了含影子表的库，备份侧因此整体拒绝这类库。
+      db = new DatabaseSync(options.filePath, { defensive: true });
     } catch (error) {
       throw new RxDBAdapterDesktopError(
         classify(error, 'open_failed'),
@@ -315,6 +319,20 @@ export class NodeSqliteEngine {
     this.#assertOpen();
     const [row] = this.#runSingleStatement('SELECT sqlite_version()', []);
     return String(row?.rows[0]?.[0]);
+  }
+
+  /**
+   * 暂停 / 恢复变更事件采集。
+   *
+   * @remarks
+   * 恢复整库时静音（US-217）：恢复写进去的系统表行不是新变更。静音前已经攒下的批次不丢，
+   * 照常按定时器发出——它们记录的是静音前真实发生的写入。
+   *
+   * @param muted - `true` 时触发器报上来的变更直接丢弃，不入批也不派发
+   */
+  setChangeEventsMuted(muted: boolean): void {
+    this.#assertOpen();
+    this.#muted = muted;
   }
 
   /**
@@ -470,6 +488,7 @@ export class NodeSqliteEngine {
   }
 
   #recordChange(type: SQLiteChangeType, tableName: string, rowId: bigint): void {
+    if (this.#muted) return;
     const key = `${type} ${tableName}`;
     const pending = this.#pendingChanges.get(key);
     if (pending) pending.rowIds.push(rowId);

@@ -4,6 +4,9 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
+/** 备份 / 恢复新增峰值内存的用例（US-217 AC#9），见下方 `projects`。 */
+const MEMORY_SPECS = 'src/**/*-backup-memory.spec.ts';
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-electron',
@@ -80,7 +83,28 @@ export default defineConfig(() => ({
     environment: 'node',
     testTimeout: process.env.CI ? 30000 : 10000,
     hookTimeout: process.env.CI ? 30000 : 10000,
-    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    // US-217 AC#9 的内存用例按子进程 host 的常驻内存判「不随库线性增长」，与其它文件并行时整机内存吃紧，
+    // 操作系统换出 / 压缩页面会让两档之间的 RSS 差值飘出几百 MiB。单独成一组、排在其它文件之后串行跑，
+    // 测量时整台机器归它。
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'rxdb-adapter-electron',
+          include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+          exclude: [MEMORY_SPECS]
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: 'rxdb-adapter-electron:memory',
+          include: [MEMORY_SPECS],
+          fileParallelism: false,
+          sequence: { groupOrder: 1 }
+        }
+      }
+    ],
     reporters: ['default', 'junit'],
     outputFile: {
       junit: '../../coverage/packages/rxdb-adapter-electron/junit.xml'

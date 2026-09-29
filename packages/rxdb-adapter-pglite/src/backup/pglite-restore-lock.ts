@@ -1,0 +1,245 @@
+import { RxDBBackupError } from '@aiao/rxdb';
+
+/**
+ * 恢复与正常连接之间的跨上下文互斥：Web Locks 管「此刻谁在用」，IndexedDB 标记管「上次恢复没做完」。
+ *
+ * @remarks
+ * 两者缺一不可。锁随持有者所在的标签页 / Worker 一起消失，能挡住并发却挡不住「恢复做到一半
+ * 页面被关掉」之后的下一次连接；标记是持久的，但单靠它无法判断写标记的那一方是否还活着。
+ */
+
+/** 恢复标记所在的 IndexedDB 库名。 */
+export const PGLITE_RESTORE_MARKER_DATABASE = 'rxdb-pglite-restore';
+const MARKER_STORE = 'markers';
+
+/**
+ * 保护同一份 PGlite 持久化存储的锁名。
+ *
+ * @param storageKey - 规范化后的 `dataDir`（如 `idb://notes@0_1`）
+ * @returns 锁名
+ */
+export const pgliteStorageLockName = (storageKey: string): string => `rxdb-pglite-storage:${storageKey}`;
+
+/**
+ * 此刻持有同一份存储的正常连接数（整个 origin，含其他标签页与 Worker）。
+ *
+ * @remarks
+ * 每个正常连接都持有一把 {@link pgliteStorageLockName} 共享锁，所以 `navigator.locks.query()` 里同名的
+ * 持有项数就是连接数。环境没有 `navigator.locks.query()` 时其他标签页 / Worker 的连接无从得知，
+ * 不能当成 0 个——那正是备份静默漏掉对端提交的场景，所以直接拒绝。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 持有者数量
+ * @throws RxDBBackupError `unsupported_combination` 环境不提供 `navigator.locks.query()`
+ */
+export const countPGliteStorageHolders = async (storageKey: string): Promise<number> => {
+  if (typeof navigator === 'undefined' || typeof navigator.locks?.query !== 'function') {
+    throw new RxDBBackupError('unsupported_combination', 'PGlite backup of IndexedDB storage requires Web Locks', {
+      details: { field: 'navigator.locks.query' }
+    });
+  }
+  const name = pgliteStorageLockName(storageKey);
+  const { held = [] } = await navigator.locks.query();
+  return held.filter(lock => lock.name === name).length;
+};
+
+/** 世代计数与恢复标记同住一个 store；前缀不以 `idb://` 开头，不会与标记的键相撞。 */
+const generationKey = (storageKey: string): string => `generation:${storageKey}`;
+
+const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+/**
+ * 打开一个**已存在**的 IndexedDB 库；库不存在时返回 `null` 且不留下空库。
+ *
+ * @remarks
+ * 不带版本号打开一个不存在的库会先触发 `upgradeneeded`，在那里 abort 升级事务，库就不会被创建。
+ */
+const openExisting = (name: string): Promise<IDBDatabase | null> =>
+  new Promise<IDBDatabase | null>((resolve, reject) => {
+    const request = indexedDB.open(name);
+    let absent = false;
+    request.onupgradeneeded = () => {
+      absent = true;
+      request.transaction?.abort();
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      if (absent) resolve(null);
+      else reject(request.error);
+    };
+  });
+
+const openMarkers = (): Promise<IDBDatabase> =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(PGLITE_RESTORE_MARKER_DATABASE, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(MARKER_STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+const inMarkerStore = async <T>(
+  db: IDBDatabase,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => Promise<T>
+): Promise<T> => {
+  try {
+    const transaction = db.transaction(MARKER_STORE, mode);
+    const completed = new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+    // 请求失败时事务随之中止：异常由 run 抛出，这里只防 completed 的拒绝无人接收。
+    completed.catch(() => undefined);
+    const result = await run(transaction.objectStore(MARKER_STORE));
+    await completed;
+    return result;
+  } finally {
+    db.close();
+  }
+};
+
+/**
+ * 登记一次对存储的打开，返回登记后的世代号。
+ *
+ * @remarks
+ * IndexedDB 存储上每个连接的内存文件系统只在打开时从 IndexedDB 读入一次，之后别的连接的提交
+ * 不会出现在它的视图里——哪怕那些连接早已关闭、锁也早已释放。世代号让备份能认出「本连接打开之后
+ * 还有别人打开过」：读改写在同一个事务里完成，两个连接不会拿到同一个号。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 本次打开的世代号（从 1 开始）
+ */
+export const enterPGliteStorageGeneration = async (storageKey: string): Promise<number> =>
+  inMarkerStore(await openMarkers(), 'readwrite', async store => {
+    const key = generationKey(storageKey);
+    const next = ((await requestResult<unknown>(store.get(key))) as number | undefined) ?? 0;
+    await requestResult(store.put(next + 1, key));
+    return next + 1;
+  });
+
+/**
+ * 读取存储当前的世代号；从未有连接打开过时为 `0`。
+ *
+ * @param storageKey - 规范化后的 `dataDir`
+ * @returns 世代号
+ */
+export const readPGliteStorageGeneration = async (storageKey: string): Promise<number> => {
+  const db = await openExisting(PGLITE_RESTORE_MARKER_DATABASE);
+  if (!db) return 0;
+  if (!db.objectStoreNames.contains(MARKER_STORE)) {
+    db.close();
+    return 0;
+  }
+  const value = await inMarkerStore(db, 'readonly', store =>
+    requestResult<unknown>(store.get(generationKey(storageKey)))
+  );
+  return (value as number | undefined) ?? 0;
+};
+
+/**
+ * 写入「恢复进行中」标记。必须在往目标写第一个字节之前完成。
+ *
+ * @param storageKey - 目标的规范化 `dataDir`
+ */
+export const writeRestoreMarker = async (storageKey: string): Promise<void> => {
+  await inMarkerStore(await openMarkers(), 'readwrite', store => requestResult(store.put(Date.now(), storageKey)));
+};
+
+/**
+ * 删除恢复标记。
+ *
+ * @param storageKey - 目标的规范化 `dataDir`
+ */
+export const deleteRestoreMarker = async (storageKey: string): Promise<void> => {
+  const db = await openExisting(PGLITE_RESTORE_MARKER_DATABASE);
+  if (!db) return;
+  if (!db.objectStoreNames.contains(MARKER_STORE)) {
+    db.close();
+    return;
+  }
+  await inMarkerStore(db, 'readwrite', store => requestResult(store.delete(storageKey)));
+};
+
+/**
+ * 目标上是否留有未完成的恢复。
+ *
+ * @remarks
+ * 只读探测，标记库不存在时不会顺手建出来——正常连接每次都要走这一步。
+ *
+ * @param storageKey - 目标的规范化 `dataDir`
+ * @returns 有标记为 `true`
+ */
+export const hasRestoreMarker = async (storageKey: string): Promise<boolean> => {
+  const db = await openExisting(PGLITE_RESTORE_MARKER_DATABASE);
+  if (!db) return false;
+  if (!db.objectStoreNames.contains(MARKER_STORE)) {
+    db.close();
+    return false;
+  }
+  const count = await inMarkerStore(db, 'readonly', store => requestResult(store.count(storageKey)));
+  return count > 0;
+};
+
+/**
+ * 探测 IdbFs 存储是否为空。
+ *
+ * @param databaseName - IdbFs 的 IndexedDB 库名
+ * @returns 库不存在或没有任何文件记录时为 `true`
+ */
+export const isIdbStorageEmpty = async (databaseName: string): Promise<boolean> => {
+  const db = await openExisting(databaseName);
+  if (!db) return true;
+  if (!db.objectStoreNames.contains('FILE_DATA')) {
+    db.close();
+    return true;
+  }
+  const count = await inMarkerStoreNamed(db, 'FILE_DATA');
+  return count === 0;
+};
+
+const inMarkerStoreNamed = async (db: IDBDatabase, storeName: string): Promise<number> => {
+  try {
+    return await requestResult(db.transaction(storeName, 'readonly').objectStore(storeName).count());
+  } finally {
+    db.close();
+  }
+};
+
+/**
+ * `blocked` 之后再等多久才认定库确实被别处占着。
+ *
+ * @remarks
+ * 已调用 `close()` 的连接要等手上的事务跑完才算真正关闭，在这之前 `deleteDatabase` 照样先报
+ * `blocked`，随后自行完成。负载高时这段收尾可达数百毫秒；立即判失败会把自己刚放掉的连接误报成占用。
+ */
+const IDB_DELETE_BLOCKED_GRACE_MS = 3000;
+
+/**
+ * 删除一个 IndexedDB 库，被其他连接挡住超过宽限期时报错而不是无限等待。
+ *
+ * @param name - 库名
+ */
+export const deleteIdbDatabase = (name: string): Promise<void> =>
+  new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    request.onerror = () => {
+      clearTimeout(timer);
+      reject(request.error);
+    };
+    request.onblocked = () => {
+      timer = setTimeout(
+        () => reject(new Error(`IndexedDB database "${name}" is still open elsewhere`)),
+        IDB_DELETE_BLOCKED_GRACE_MS
+      );
+    };
+  });

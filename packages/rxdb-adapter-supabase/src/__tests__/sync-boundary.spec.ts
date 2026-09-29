@@ -9,7 +9,7 @@
  *
  * 注意：RxDB 是单例模式，测试使用唯一的 dbName 避免干扰
  */
-import { RxDB, SyncType, uuid, type UUID } from '@aiao/rxdb';
+import { RxDB, RxDBChange, RxDBSync, SyncType, uuid, type UUID } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
@@ -66,11 +66,48 @@ describe('Push/Pull 边界行为测试', () => {
    * 固定 sleep 会在高负载下抢在重算落地之前读到上一次的值，必须轮询到收敛。
    */
   async function expectPushableCount(expected: number) {
-    await vi.waitFor(
-      async () => {
-        expect(await firstValueFrom(rxdb.versionManager.pushableCount$)).toBe(expected);
+    try {
+      await vi.waitFor(
+        async () => {
+          expect(await firstValueFrom(rxdb.versionManager.pushableCount$)).toBe(expected);
+        },
+        { timeout: 5000, interval: 25 }
+      );
+    } catch (error) {
+      throw new Error(`pushableCount$ 未收敛到 ${expected}\n${await describePushableState()}`, { cause: error });
+    }
+  }
+
+  /**
+   * CI 偶发「删除后计数停在 1」、本地压测复现不出：超时时把判定依据原样落进报错，
+   * 区分「重算没被触发」（直查计数已是期望值）与「变更行不满足条件」（remoteId / revertChangeId 被写）。
+   */
+  async function describePushableState(): Promise<string> {
+    const localAdapter = await firstValueFrom(rxdb.localAdapter$);
+    const branch = await rxdb.versionManager.getCurrentBranch();
+    const repoSyncs = await localAdapter.getRepository(RxDBSync).find({
+      where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] }
+    });
+    const changes = await localAdapter.getRepository(RxDBChange).find({
+      where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] },
+      orderBy: [{ field: 'id', sort: 'desc' }],
+      limit: 10
+    });
+    const rows = changes.map(({ id, type, entityId, remoteId, revertChangeId }) => ({
+      id,
+      type,
+      entityId,
+      remoteId,
+      revertChangeId
+    }));
+    return JSON.stringify(
+      {
+        pushableCount: await firstValueFrom(rxdb.versionManager.pushableCount$),
+        repoSyncs: repoSyncs.map(({ id, lastPushedChangeId }) => ({ id, lastPushedChangeId })),
+        recentChanges: rows
       },
-      { timeout: 5000, interval: 25 }
+      null,
+      2
     );
   }
 

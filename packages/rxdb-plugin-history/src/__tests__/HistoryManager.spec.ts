@@ -392,6 +392,27 @@ describe('HistoryManager - Class Methods', () => {
     });
   });
 
+  // 仓库活查询会经适配器的就绪门把实例连起来。构造期就订阅活跃分支，等于 `init()` 之后插件自己
+  // 把库连上了：「连接前先恢复」这类必须对着未连接实例做的操作，永远只看得到一个已连接的目标
+  // （US-217 桌面打包 smoke 的 restore 就是这样撞上 `target_busy` 的）。
+  describe('实例尚未连接时', () => {
+    it('不查活跃分支，连上之后才开始跟随', async () => {
+      // beforeEach 里那个已连接的实例已经查过一次，与本用例无关。
+      mockBranchRepository.findOne.mockClear();
+      const connected$ = new BehaviorSubject(false);
+      const manager = new HistoryManager({ ...mockRxDB, connected$ } as unknown as RxDB);
+      try {
+        await Promise.resolve();
+        expect(mockBranchRepository.findOne).not.toHaveBeenCalled();
+
+        connected$.next(true);
+        expect(mockBranchRepository.findOne).toHaveBeenCalled();
+      } finally {
+        manager.destroy();
+      }
+    });
+  });
+
   describe('undo() 入口规则', () => {
     const createChange = (overrides: Partial<RxDBChange> = {}): RxDBChange =>
       ({

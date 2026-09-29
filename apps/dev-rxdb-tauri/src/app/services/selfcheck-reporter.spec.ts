@@ -1,6 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readProbeBaseUrl, reportSelfCheck } from './selfcheck-reporter';
+import {
+  appendBackupArchiveChunk,
+  readBackupArchiveChunk,
+  readBackupProbeMode,
+  readProbeBaseUrl,
+  reportSelfCheck
+} from './selfcheck-reporter';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
@@ -73,5 +79,43 @@ describe('readProbeBaseUrl', () => {
   it('命令失败时向上抛，而不是伪装成「没开探针」', async () => {
     invokeMock.mockRejectedValue(new Error('command not found'));
     await expect(readProbeBaseUrl(tauriRuntime)).rejects.toThrow(/command not found/);
+  });
+});
+
+describe('备份探针的三个命令（US-217 AC#18）', () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  /** 命令名由 Rust 侧函数名 `rxdb_selfcheck_backup_probe` 决定；模式字面量由 `BackupProbeMode` 的 serde 名决定。 */
+  it('读模式：把 Rust 侧给的模式原样交出来', async () => {
+    invokeMock.mockResolvedValue('restore');
+    await expect(readBackupProbeMode(tauriRuntime)).resolves.toBe('restore');
+    expect(invokeMock).toHaveBeenCalledWith('rxdb_selfcheck_backup_probe');
+  });
+
+  it('读模式：非 Tauri 运行时下不去问，直接说没有', async () => {
+    await expect(readBackupProbeMode({})).resolves.toBeNull();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('读模式：命令失败时向上抛，而不是伪装成「没开探针」', async () => {
+    invokeMock.mockRejectedValue(new Error('command not found'));
+    await expect(readBackupProbeMode(tauriRuntime)).rejects.toThrow(/command not found/);
+  });
+
+  /** 参数名 `offset` / `length` 由 Rust 侧形参名决定；响应是原始字节（`tauri::ipc::Response`）。 */
+  it('读块：按偏移与长度要一块，把 ArrayBuffer 交成 Uint8Array', async () => {
+    invokeMock.mockResolvedValue(Uint8Array.of(1, 2, 3).buffer);
+    await expect(readBackupArchiveChunk(65_536, 4096)).resolves.toEqual(Uint8Array.of(1, 2, 3));
+    expect(invokeMock).toHaveBeenCalledWith('rxdb_selfcheck_backup_archive_read', { offset: 65_536, length: 4096 });
+  });
+
+  /** 请求体是原始字节：Rust 侧只收 `InvokeBody::Raw`，经 JSON 的数字数组会被拒。 */
+  it('追加：把块作为原始请求体交出去', async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const chunk = Uint8Array.of(9, 8, 7);
+    await appendBackupArchiveChunk(chunk);
+    expect(invokeMock).toHaveBeenCalledWith('rxdb_selfcheck_backup_archive_append', chunk);
   });
 });

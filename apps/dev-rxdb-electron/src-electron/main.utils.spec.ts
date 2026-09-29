@@ -4,12 +4,14 @@ import {
   APP_ENTRY_URL,
   APP_ORIGIN,
   APP_SCHEME,
+  BACKUP_PROBE_ENV,
   createWillQuitHandler,
   HIDE_WINDOW_ENV,
   isAllowedNavigation,
   parseDevServerPort,
   resolveAppAssetPath,
   resolveDevServerPort,
+  resolveEntryUrl,
   shouldHideWindow
 } from './main.utils';
 
@@ -163,6 +165,34 @@ describe('shouldHideWindow', () => {
   // 改名不会让任何单测变红，只会让窗口重新弹出来 —— 所以在这里把字面量钉住。
   it('环境变量名保持不变', () => {
     expect(HIDE_WINDOW_ENV).toBe('DEV_RXDB_ELECTRON_HIDE_WINDOW');
+  });
+});
+
+describe('resolveEntryUrl', () => {
+  // renderer 在 sandbox 下读不到 `process.env`，e2e 开关只能经入口 URL 的查询参数带过去。
+  it('没有开关时就是裸入口', () => {
+    expect(resolveEntryUrl({})).toBe(APP_ENTRY_URL);
+  });
+
+  it('DEV_RXDB_PGLITE=1 追加 pglite=1', () => {
+    expect(resolveEntryUrl({ DEV_RXDB_PGLITE: '1' })).toBe(`${APP_ENTRY_URL}?pglite=1`);
+  });
+
+  // US-217 AC#18：备份 / 恢复探针与后端选择互相独立，两个开关同时生效。
+  it.each(['backup', 'restore'])('备份探针模式 %s 原样带给 renderer', mode => {
+    expect(resolveEntryUrl({ [BACKUP_PROBE_ENV]: mode })).toBe(`${APP_ENTRY_URL}?backup-probe=${mode}`);
+    expect(resolveEntryUrl({ DEV_RXDB_PGLITE: '1', [BACKUP_PROBE_ENV]: mode })).toBe(
+      `${APP_ENTRY_URL}?pglite=1&backup-probe=${mode}`
+    );
+  });
+
+  // 拼错的模式不能静默变成「没开探针」：e2e 会一直等一个永远不出现的全局，只剩一句超时。
+  it('不认识的探针模式在主进程就报错', () => {
+    expect(() => resolveEntryUrl({ [BACKUP_PROBE_ENV]: 'restroe' })).toThrow(RangeError);
+  });
+
+  it('探针环境变量名保持不变', () => {
+    expect(BACKUP_PROBE_ENV).toBe('DEV_RXDB_BACKUP_PROBE');
   });
 });
 
