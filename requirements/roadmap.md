@@ -37,18 +37,15 @@
 | [US-029 多用户 RBAC 与租户隔离设计](stories/core/US-029-rbac-tenant-permission-design.md)  | 📝 Backlog     | 未立项；阶段 A 的存量库补列已定案由引擎在连接时自带，阶段 B 依赖 US-027 判定原语                                                                                                                                  | 立项池   |
 | [US-028 可排序实体](stories/core/US-028-sortable-entity.md)                                | 📝 Backlog     | 未立项；价值待证。三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），剩下的是扁平实体手动排序的能力缺口，没有具名使用方；解锁后阶段 B 只对可排序实体重新打开，不等 US-027                                       | 立项池   |
 | [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 📝 Backlog     | 未立项；阶段 A（e2e 失败现场录制回放）可单独评审，阶段 B 的两个前提已定案、导出通道等 US-217 阶段 B，阶段 C 价值待证                                                                                              | 立项池   |
-| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | 📝 Backlog     | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，`@aiao/rxdb` 统一改 peer 已定案（`BREAKING CHANGE`，合入时点受约束 12 牵制），B/C 只吃 A 的真相源                                                  | 立项池   |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | 📝 Backlog     | 未立项；阶段 A（包关系真相源 + 漂移门禁）无硬前置、可单独合并，`@aiao/rxdb` 统一改 peer 已定案（`BREAKING CHANGE`；桥接区间已冻结，合入时点不再受约束 12 牵制），B/C 只吃 A 的真相源                              | 立项池   |
 
 ## 即办清单
 
 不进批次、随手可完成的事：
 
-1. **桥接锚点出路由 owner 先定**（只定出路、不执行线 A）：`main` 自 #55 起已是 schema 6，锚点在 `main`
-   现有提交上无处可切，三条出路见
-   [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
-   这是线 A 三项启动前置里唯一越晚定越贵的一项：出路 2（回退 #55 的常量与迁移部分）的代价随 schema 6
-   之上每一个新提交增长（**推断**）。[US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A
-   的合入时点也要看它（见[立项池](#立项池待-owner-决策未进任何批次)）。线 A 的执行仍排在所有批次之后。
+当前无。上一条「桥接锚点出路由 owner 先定」已于 2026-10-01 定案（出路 1：从 `de70a1a9` 切发布分支、
+版本 `0.0.26`、真 merge 并回 `main`，同时修订[约束 12](#排期约束)），见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)；
+线 A 的执行仍排在所有批次之后。
 
 ## 排期批次
 
@@ -67,46 +64,47 @@
 > 线 A 是一次对外的不可逆动作（推 tag + `pnpm publish`），由 owner 手动发起、手动决定时点；
 > 本节只做排期，不代表已获授权执行。**执行排在所有批次之后**。
 > 线 A 只挡**迁移发布**，不挡任何故事的代码与合入；`migration-release.json` 的 `bridge.tag` 依旧是 `null`。
-> 执行时按 [release-plan.md](release-plan.md) 的执行顺序与两条硬前提走（执行顺序在锚点出路选定后按选定路径重写）。
+> 执行时按 [release-plan.md](release-plan.md) 的执行顺序与两条硬前提走（执行顺序已按出路 1 重写）。
 
-**启动前置**——三项都是 owner 决定，任一项未定都不得启动（第 2 项已定案）：
+**启动前置**——三项 owner 决定**均已定案**；启动线 A 本身（切分支、临时放开线性历史、推 tag、`pnpm publish`）仍需 owner 逐项确认：
 
-1. **桥接锚点出路**：`main` 自 #55 起已是 schema 6，锚点在 `main` 现有提交上无处可切，三条出路见
-   [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
-   这一项只是决定、不是执行，建议提前做，理由见[即办清单](#即办清单)第 1 条。
-2. **[约束 12](#排期约束) 已定案**：US-018 的 `BREAKING CHANGE` 已随 0.0.25 的产物发出，桥接版本的 changelog
-   不宣告它——人工补漏报时不补 US-018，`a63321c` 的 HTTP 适配器那一行照留；执行与留证见约束 12。
-3. **显式版本号**：取 `0.0.26` 还是 `0.1.0` 是人工决定，**不得**为 `0.0.25`——`--dry-run` 推算出来的恰是它，
+1. **桥接锚点出路（2026-10-01 定案）**：出路 1，从 `main` 上最后一个 schema 3 的提交 `de70a1a9` 切发布分支，
+   bump 提交 B 以**真 merge** 并回 `main`、tag 打在 B 上。代价是临时关一次 `main` 的线性历史保护，
+   见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
+2. **[约束 12](#排期约束) 已定案并修订**：US-018 的 `BREAKING CHANGE` 已随 0.0.25 的产物发出，桥接版本的 changelog
+   不宣告它；区间内六组**首发**的破坏性改动（writer lease / `RemoteSyncOptions` / US-025 抽包 / 桌面拆包 / 插件作用域 / Supabase 错误类型）则必须如实声明。
+3. **显式版本号（2026-10-01 定案）**：`0.0.26`。`--dry-run` 推算出来的是禁用的 `0.0.25`，必须显式传参，
    见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条。
 
 **关闭判据**——发一个 `kind=bridge` 的**非迁移**版本，下面五条**全部**成立才算完：
 
-- ① `release.version` **≠ `0.0.25`**。今天清单里的 `bridge/0.0.25` 是 0.0.25 那次发布的如实记录，不是本次成果，
+- ① `release.version` = **`0.0.26`**（**≠ `0.0.25`**）。今天清单里的 `bridge/0.0.25` 是 0.0.25 那次发布的如实记录，不是本次成果，
   不许当判据用、不许改写；
 - ② 与 `packages/rxdb/package.json` 同值；
-- ③ tag 已推送，且 `git merge-base --is-ancestor v<版本>^{commit} HEAD` 人工跑过并留证；
-- ④ `migration-release-gate --release-tag=v<版本>` 全绿；
+- ③ `v0.0.26` 打在 B（不是 merge commit）上并已推送，`git merge-base --is-ancestor v0.0.26^{commit} origin/main`
+  人工跑过并留证；`main` 的线性历史保护已恢复并用 `gh api` 复查留证；
+- ④ `migration-release-gate --release-tag=v0.0.26` 全绿；
 - ⑤ 回写 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)（US-305 AC14 的绿半边在那里关闭）。
 
 **④ 单独没有区分力**：四条 bridge 钩子只对 `kind=migration` 生效，桥接发布走不到它们。真正有区分力的是 ① 和 ③，
 这两条在**发布当下没有任何自动化在守**。另有一条隐含判据：桥接**不得抬升** `RXDB_SYSTEM_SCHEMA_VERSION` /
 `RXDB_CHANGE_CODEC_VERSION`。门禁只比对布尔位、从不读源码常量，须按 [release-plan 硬前提 1](release-plan.md) 的
-两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）。
+两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）；区间是 `v0.0.24..B`，在锚点 `de70a1a9` 上实测为空。
 
 **启动前必读**：changelog 会同时**多报**（0.0.25 已发内容再写一遍，判断发没发过只能 `npm pack` 拉产物搜）与
-**漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付）；非规范提交信息一律记为 `none`、
-等于零 bump 量。仓库仍在产生提交，动手前必须复测，细则见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条与
+**漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付，以及按[约束 12](#排期约束) 必须声明的六组破坏性改动）；非规范提交信息一律记为 `none`、
+等于零 bump 量。区间已冻结在 `de70a1a9`，但发布分支上为跑绿补的提交会进区间，补了就要复测，细则见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条与
 [release-plan.md 硬前提 2](release-plan.md)。
 
 ### 立项池（待 owner 决策，未进任何批次）
 
-| 故事                                                                                       | 依赖                                                           | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）                    | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。`SchemaManager.init()` 把 14 张系统表（核心 4 张 + working-tree 贡献 10 张）并进 `config.entities`，三个 demo 的实体目录因此列出 `rxdb` 分组；三框架 `EntityList` 已对系统表整表只读（隐藏「+ 新增」、行挂 `_readonly`，AC#16 列表侧提前交付），引擎仍没有守卫。剩下的是程序化写系统表的潜在风险，而新增抽象至少四项（权限配置与判定原语、系统写作用域、`PermissionDeniedError`、UI 能力派生），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项——本故事是 US-029 阶段 B 的判定原语上游（约束 4），立项时再上调优先级                                                                                                                                                                                                                                                                   |
-| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语（约束 4）                          | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付。存量库补列已定案由引擎自带：`RxDB.#ensureEntityTables` 只补表不补列，改为连接时、排在使用方迁移之后补 `EntityBase` 的两列，落点是 SQLite 系与 PGlite 各一份的适配器能力（先例 `ensureBranchActiveKey`），`docker/sql/03-business-tables.sql` 同 PR 改并附迁移说明。AC#4 只验客户端半边，服务端戳记属 Out of Scope。阶段 C 的租户过滤今天只有 Supabase 有通道；没有过滤通道的适配器在配置期报错（已定案），批量拉取是强制 `SyncType.Filter` 还是给 `PullBatchRequest` 加 filter 槽留给 plan。INVEST 尚未逐项勾选。按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                                                                                  |
-| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                                | 无；不等 US-027（[约束 4](#排期约束)）                         | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。用户踩得到的症状只有三框架 `EntityList` 的拖拽手柄拖完不落库，已由 AC#6 提前交付关掉，没用到本故事的抽象；剩下的是扁平实体手动排序的能力缺口：仓内没有直接渲染 `EntityTable` / `QueryTable` 的调用方，三个 demo 各自算排序键的重复不在本故事验收范围。新增抽象至少三项（`ISortableEntity` 与实体级可排序声明、core 排序键封装与默认排序、rxdb-model 重排写入协调），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要手动排序的扁平实体（demo 或外部 issue）；或有调用方直接渲染 `EntityTable` / `QueryTable` 并要把 `rowReordered` 落库。解锁后沿用已定案的排序模块放核心、复用 `@aiao/utils` 的 `generateKeyBetween`；阶段 A 先行，B（三框架同交，含三端 e2e）与 C 都只依赖 A，一阶段一 PR，阶段 B 只对可排序实体重新打开手柄                                                                                                  |
-| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 依赖 US-217 阶段 B（US-307 已 `Done`）；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**，病灶是实的：`retries: isCI ? 2 : 0` 叠 `trace: 'on-first-retry'`，本地失败从不产生 trace。阶段 B 的两个前提已定案：失败现场的库走导出带出来（不改持久上下文），所以等 US-217 阶段 B 的 SQLite 共享层导出；失败时刻未提交的部分由 fixture 先做一次标记为失败快照的 commit 再导出。阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无硬前置；合入时点受[约束 12](#排期约束) 牵制                  | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除兄弟包声明的不一致——最显眼的是一处三框架不对称：`rxdb-react` / `rxdb-vue` 把 `@aiao/rxdb` 放 `dependencies`（`workspace:*`），`rxdb-angular` 放 `peerDependencies`（`*`）。已定案：`@aiao/rxdb` 一律进 `peerDependencies`、写 `workspace:^`，提交标注 `BREAKING CHANGE` 并在 `website/docs/migration/v1.md` 留迁移说明；关系图边界是发布范围，`rxdb-test` 以 tool 层进图，`listPublicPackages()` 仍只管 API 基线范围。**阶段 A 是真正首发的破坏性改动**，落进线 A 桥接版本的发布区间就违反[约束 12](#排期约束)，而且没有 US-018 那种「已随 0.0.25 发出」的余地；区间取决于桥接锚点出路（[即办清单](#即办清单)第 1 条），立项排期时两者一起定。B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
+| 故事                                                                                       | 依赖                                                           | 入场条件 / 建议顺序                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-027](stories/core/US-027-entity-permission-model.md) 实体操作权限模型                  | 无（UI 侧落在已合入的 rxdb-model 三框架包）                    | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。`SchemaManager.init()` 把 14 张系统表（核心 4 张 + working-tree 贡献 10 张）并进 `config.entities`，三个 demo 的实体目录因此列出 `rxdb` 分组；三框架 `EntityList` 已对系统表整表只读（隐藏「+ 新增」、行挂 `_readonly`，AC#16 列表侧提前交付），引擎仍没有守卫。剩下的是程序化写系统表的潜在风险，而新增抽象至少四项（权限配置与判定原语、系统写作用域、`PermissionDeniedError`、UI 能力派生），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要声明实体级权限的业务实体；或 US-029 立项——本故事是 US-029 阶段 B 的判定原语上游（约束 4），立项时再上调优先级                                                                                                                                                                                                                                                                                                |
+| [US-029](stories/core/US-029-rbac-tenant-permission-design.md) RBAC 与租户隔离             | 阶段 B 依赖 US-027 判定原语（约束 4）                          | 阶段 A（`ownerId`/`tenantId` 字段预留与注入）独立可交付。存量库补列已定案由引擎自带：`RxDB.#ensureEntityTables` 只补表不补列，改为连接时、排在使用方迁移之后补 `EntityBase` 的两列，落点是 SQLite 系与 PGlite 各一份的适配器能力（先例 `ensureBranchActiveKey`），`docker/sql/03-business-tables.sql` 同 PR 改并附迁移说明。AC#4 只验客户端半边，服务端戳记属 Out of Scope。阶段 C 的租户过滤今天只有 Supabase 有通道；没有过滤通道的适配器在配置期报错（已定案），批量拉取是强制 `SyncType.Filter` 还是给 `PullBatchRequest` 加 filter 槽留给 plan。INVEST 尚未逐项勾选。按 A → B → C → D 排，一阶段一 PR                                                                                                                                                                                                                                                                                                                               |
+| [US-028](stories/core/US-028-sortable-entity.md) 可排序实体                                | 无；不等 US-027（[约束 4](#排期约束)）                         | **价值待证**（[CONVENTIONS](CONVENTIONS.md#价值待证)），`priority: Low`。用户踩得到的症状只有三框架 `EntityList` 的拖拽手柄拖完不落库，已由 AC#6 提前交付关掉，没用到本故事的抽象；剩下的是扁平实体手动排序的能力缺口：仓内没有直接渲染 `EntityTable` / `QueryTable` 的调用方，三个 demo 各自算排序键的重复不在本故事验收范围。新增抽象至少三项（`ISortableEntity` 与实体级可排序声明、core 排序键封装与默认排序、rxdb-model 重排写入协调），病灶数 < 抽象数。**解锁条件**（满足其一）：出现需要手动排序的扁平实体（demo 或外部 issue）；或有调用方直接渲染 `EntityTable` / `QueryTable` 并要把 `rowReordered` 落库。解锁后沿用已定案的排序模块放核心、复用 `@aiao/utils` 的 `generateKeyBetween`；阶段 A 先行，B（三框架同交，含三端 e2e）与 C 都只依赖 A，一阶段一 PR，阶段 B 只对可排序实体重新打开手柄                                                                                                                               |
+| [US-909](stories/future/US-909-session-replay-debugging.md) 会话录制回放                   | 阶段 B 依赖 US-217 阶段 B（US-307 已 `Done`）；阶段 C 价值待证 | 阶段 A（rrweb 注入 e2e fixture + 本地回放页）可作为**候选价值单独评审**，病灶是实的：`retries: isCI ? 2 : 0` 叠 `trace: 'on-first-retry'`，本地失败从不产生 trace。阶段 B 的两个前提已定案：失败现场的库走导出带出来（不改持久上下文），所以等 US-217 阶段 B 的 SQLite 共享层导出；失败时刻未提交的部分由 fixture 先做一次标记为失败快照的 commit 再导出。阶段 C 解锁条件 = 写出「今天用户踩得到的具体症状」（病灶数 ≥ 抽象数）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 发布产物面向 AI 的可理解性 | 无硬前置                                                       | 阶段 A（包关系真相源 + 漂移门禁）独立可交付，顺带消除兄弟包声明的不一致——最显眼的是一处三框架不对称：`rxdb-react` / `rxdb-vue` 把 `@aiao/rxdb` 放 `dependencies`（`workspace:*`），`rxdb-angular` 放 `peerDependencies`（`*`）。已定案：`@aiao/rxdb` 一律进 `peerDependencies`、写 `workspace:^`，提交标注 `BREAKING CHANGE` 并在 `website/docs/migration/v1.md` 留迁移说明；关系图边界是发布范围，`rxdb-test` 以 tool 层进图，`listPublicPackages()` 仍只管 API 基线范围。**阶段 A 是真正首发的破坏性改动**，但合入时点已不受[约束 12](#排期约束) 牵制：桥接区间冻结为 `v0.0.24..de70a1a9`（[桥接锚点定案](release-plan.md#桥接锚点定案)），之后合入 `main` 的提交进不了桥接版本，它的 `BREAKING CHANGE` 随其后的迁移发布声明。B（站点 `llms.txt`）/ C（主包单份 Skill）只吃 A 的真相源。C 阶段所依赖的 `agents` 字段约定[尚在提案阶段](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md)，定位为低成本期权，不构成 A/B 的前置 |
 
 ### epic-006 评审顺延的架构项
 
@@ -131,17 +129,17 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 ## 零散收尾项（不成故事，随手可带）
 
 1. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（[线 A](#线-a桥接版本发布owner-门控) 启动时执行）。
-   三条坑与处置（仓库仍在产生提交，动手前必须复测）：
+   几条坑与处置（区间已冻结为 `v0.0.24..de70a1a9`；发布分支上补了提交就要复测）：
 
    - **默认推算出来的就是 `0.0.25`**——正好是线 A 关闭判据 ① 的禁用值，且 npm 上已被占用。
      specifier 解析成 `minor`，但 nx 的 `adjustSemverBumpsForZeroMajorVersion` 默认 `true`，
      major 为 0 时把 `minor` 降级成 `patch`，于是 `0.0.24 → 0.0.25`。**线 A 必须显式指定版本号**，
-     取值是一次人工决定，但不得为 `0.0.25`。机制与命令见 [release-plan.md 硬前提 2](release-plan.md)。
+     已定案为 `0.0.26`。机制与命令见 [release-plan.md 硬前提 2](release-plan.md)。
    - **`preVersionCommand` 红了就跑不到版本计算**，只报一句 `The pre-version command failed`。
      `code-editor-angular:build` 会因本机 `node_modules` 残留 codemirror 旧副本而红
      （lockfile 是干净的，属安装态漂移）；`pnpm install --frozen-lockfile` 会跳过，需要加 `--force`。
      别把这种红误读成「没有可发布的变更」。
-   - 区间（`v0.0.24..main`）**包含已随 0.0.25 发布过的内容**，changelog 会再写一遍，定稿前需人工裁剪
+   - 区间（桥接定案后固定为 `v0.0.24..de70a1a9`）**包含已随 0.0.25 发布过的内容**，changelog 会再写一遍，定稿前需人工裁剪
      （[release-plan.md 硬前提 2](release-plan.md) 的 ②）。
      判断「发没发过」**不能看 tag 祖先链**——`v0.0.25` 的 tag 树与已发布产物对不上，
      唯一可信口径是 `npm pack` 拉产物搜，见 [release-plan.md 版本漂移开项第三条](release-plan.md)。
@@ -178,7 +176,7 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    不接受只交 Angular。
 5. US-305 的提交竞争只使用领域 `headRevision` CAS，不引入 writer lease 或迁移 epoch。US-305 的
    schema migration 前必须从当前发布主线产生新的有效 bridge ancestor；历史 `v0.0.25` 已脱离当前 ancestry；`main` 自 #55 起已是 schema 6，
-   锚点从哪里切见 [release-plan 开项](release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)。
+   锚点定为 #55 之前的 `de70a1a9`，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
 6. 搜索改动复用现有搜索公开 API 和跨框架 parity fixture，不为某个后端借用另一后端专属的 fallback
    （US-703 的 PGlite 全文搜索按此交付）。
 7. **小程序路径的能力上限**（US-209）：WAL、多页面并发、崩溃恢复保证在微信路径上不得扩大；
@@ -200,10 +198,15 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     > MUST NOT 持有任何 `QueryCacheLocalAdapter`，构造函数 MUST NOT `new` 任何本地存储。**
     > 该不变量由 US-212 阶段 A 的 AC#19 契约测试冻结。SC-004 漂移扫描（`pnpm audit:callsite-drift`）
     > 递归扫整个 `packages/`，HTTP 包在其核对范围内。
-12. **线 A 的桥接版本不得对外宣告破坏性改动。** 一个「不改 schema、只做迁移锚点」的桥接版本带着
-    `BREAKING CHANGE` 是错误的对外信号。判据是发布区间的提交范围，不是故事状态：线 A 发布前必须确认区间内的
-    破坏性改动逐条有处置。区间内新增的破坏性提交没有「已随 0.0.25 发出」这层余地，只能不进区间——
-    [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A 即是一例，见[立项池](#立项池待-owner-决策未进任何批次)。
+12. **线 A 的桥接版本如实声明区间内的破坏性改动（2026-10-01 修订）。** 原文是「桥接版本不得对外宣告破坏性改动」，
+    理由是「只做迁移锚点」的版本带着 `BREAKING CHANGE` 是错误的对外信号。它在**任何锚点上都满足不了**：
+    `v0.0.24..de70a1a9` 里已有六组首发的破坏性改动（`@aiao/rxdb` 导出删除：writer lease 16 个 / `RemoteSyncOptions` / US-025 抽包 13 个；包级：桌面拆包 / 插件作用域 / Supabase 错误类型），
+    都在锚点之前就进了 `main`，自动 changelog 却一字不提（区间内没有 `!` 或 `BREAKING CHANGE:` 脚注）。
+    owner 定案修订为：**桥接区间可以带锚点之前已在 `main` 上的破坏性改动，但定稿 changelog 必须逐条声明并附迁移说明**；
+    悄悄发出去比声明更糟。桥接的硬不变量仍然只有一条：**不抬系统版本常量**（[release-plan 硬前提 1](release-plan.md)）。
+    判据是发布区间的提交范围，不是故事状态；区间已冻结为 `v0.0.24..de70a1a9`，此后合入 `main` 的破坏性提交
+    （如 [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A）进不了桥接版本，随其后的迁移发布声明。
+    六组的名字、去向与迁移页见 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)。
 
     **US-018 这一条已触发，已定案：桥接版本的 changelog 不宣告它。** 三个事实同时成立：
     ① US-018 的破坏性实现（`unsupportedDefaultFactory`）落在 `a63321c`，**在 `v0.0.24..main` 区间内**；

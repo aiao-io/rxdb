@@ -207,6 +207,8 @@ const sidebars: SidebarsConfig = {
         'migration/plugin-scope',
         'migration/history-sync-plugins',
         'migration/querycache-plugin',
+        'migration/remote-sync-options',
+        'migration/writer-lease-removal',
         'migration/generator-default',
         'migration/schema'
       ]

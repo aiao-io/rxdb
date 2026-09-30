@@ -579,8 +579,9 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
    **这一步是排在 US-305 的「迁移发布」之前的独立发布事项，不是 US-305 的交付物**（见
    [release-plan](../release-plan.md) 的执行顺序）。理由是发布门禁本身：bridge 版本**不得抬升系统版本常量**，
    而 US-305 的范围含「已有数据库的一次性初始化」，必然是 `kind=migration`；把 bridge 塞进 US-305
-   会让 migration 依赖一个尚不存在的 bridge tag，形成自我死锁。桥接锚点必须由一条**不动
-   `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的纯功能/适配器路径**先行落成并打 tag。
+   会让 migration 依赖一个尚不存在的 bridge tag，形成自我死锁。桥接锚点必须落在一棵**不动
+   `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的树**上并先行打 tag：已定案为 #55 之前的
+   `de70a1a9`，版本 `0.0.26`，见 [release-plan 桥接锚点定案](../release-plan.md#桥接锚点定案)。
 
    US-305 在此只承接**门禁侧**（FR-030 + AC US2-14）：读取 manifest、校验 `bridge.tag` 是候选发布提交的
    真实祖先 tag、不满足时以门禁失败挡住迁移发布。manifest 的回填只能发生在真实 tag 产生之后。
@@ -729,8 +730,9 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 
    本条的真实 tag 验收（US-305 AC US2-14 的绿半边）由
    [release-plan「迁移发布的关闭条件」](../release-plan.md#迁移发布的关闭条件)承接，US-305 按代码 AC 关闭、不再承载它。
-   当前卡在 [桥接锚点开项](../release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)：
-   `main` 自 #55 起已是 schema 6，没有一个提交能同时满足祖先性、版本号与常量三条，出路待 owner 选。
+   `main` 自 #55 起已是 schema 6，现有提交没有一个能同时满足祖先性、版本号与常量三条；出路已定案（2026-10-01）：
+   从 `de70a1a9` 切发布分支发 `v0.0.26`，以真 merge 并回 `main`，见
+   [桥接锚点定案](../release-plan.md#桥接锚点定案)，执行排在线 A。
 
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-commits.md#交付阶段与边界) 逐条有归属，跨故事的半边以收口故事的场景为准，

@@ -91,8 +91,9 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
   注入钩子单测覆盖（四条结论记在 `git show f9528e8f:specs/001-working-tree-commits/quickstart.md` §5）；
   真实 tag 上的那一次重跑是发布动作的产物、不是代码交付，**由
   [release-plan「迁移发布的关闭条件」](../../release-plan.md#迁移发布的关闭条件)承接关闭**，本故事按代码 AC 关闭，
-  不靠这里的文字宣告绿半边成立。`main` 自 #55 起已是 schema 6，桥接锚点在 `main` 上无处可切，
-  已登记为 [release-plan 开项](../../release-plan.md#开项main-自-55-起已是-schema-6桥接锚点无处可切)，出路归 owner。
+  不靠这里的文字宣告绿半边成立。`main` 自 #55 起已是 schema 6，桥接锚点在 `main` 现有提交上无处可切；
+  owner 已定案（2026-10-01）从 `de70a1a9` 切发布分支发 `v0.0.26`、真 merge 并回 `main`，
+  见 [release-plan 桥接锚点定案](../../release-plan.md#桥接锚点定案)。
 - **发布前置核对结论**：按 [release-plan](../../release-plan.md) 逐条实测，`pnpm check-migration-release-gate` 绿
   （`bridge 0.0.25`）、`v0.0.25` 仍脱离主线、`origin/main` 上非规范标题零条且零 merge commit、bump 量 23 `feat`
   - 3 `fix`（默认推算仍落在禁用值 `0.0.25`，线 A 必须显式传版本号）。复测命令固定为 `git log -G` 而不是 `-S`
