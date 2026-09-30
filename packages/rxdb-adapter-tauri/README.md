@@ -24,7 +24,7 @@ Electron 请改用 [`@aiao/rxdb-adapter-electron`](https://www.npmjs.com/package
 ```toml
 # src-tauri/Cargo.toml
 [dependencies]
-aiao-rxdb-tauri = { git = "https://github.com/aiao-io/rxdb", tag = "v0.0.25" }
+aiao-rxdb-tauri = { git = "https://github.com/aiao-io/rxdb", tag = "v0.0.26" }
 ```
 
 限制说明与后续计划见 [`rust/README.md`](https://github.com/aiao-io/rxdb/blob/main/packages/rxdb-adapter-tauri/rust/README.md)。

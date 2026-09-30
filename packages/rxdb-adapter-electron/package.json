@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-electron",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Desktop host adapter for local SQLite files in Electron and Tauri applications.",
   "homepage": "https://rxdb.netlify.app/docs/adapters",
   "bugs": {

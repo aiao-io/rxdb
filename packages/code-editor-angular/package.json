@@ -1,6 +1,6 @@
 {
   "name": "@aiao/code-editor-angular",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Angular integration for the Aiao CodeMirror 6 editor.",
   "homepage": "https://rxdb.netlify.app/docs/code-editor",
   "bugs": {
@@ -29,13 +29,14 @@
     "codemirror": "^6.0.1"
   },
   "peerDependencies": {
-    "@aiao/code-editor": ">=0.0.25",
+    "@aiao/code-editor": ">=0.0.26",
     "@angular/common": "22.1.6",
     "@angular/core": "22.1.6",
     "@angular/forms": "22.1.6",
     "@angular/platform-browser": "22.1.6"
   },
   "devDependencies": {
+    "@aiao/code-editor": "workspace:*",
     "@angular/compiler": "22.1.6",
     "vitest": "4.1.11"
   },

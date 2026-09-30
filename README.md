@@ -10,7 +10,7 @@
 
 </div>
 
-RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.25`，仍处于 0.x 演进阶段。
+RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.26`，仍处于 0.x 演进阶段。
 
 > 本项目发布在 `@aiao/*` 作用域下，与 npm 上的 [`rxdb`](https://rxdb.info)（NoSQL 文档数据库）**无关**：这里是装饰器实体 + SQL 引擎（SQLite / PGlite）+ 三框架绑定，不是它的 fork 或插件。
 

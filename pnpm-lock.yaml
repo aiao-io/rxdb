@@ -1054,9 +1054,6 @@ importers:
 
   packages/code-editor-angular:
     dependencies:
-      '@aiao/code-editor':
-        specifier: '>=0.0.25'
-        version: 0.0.25
       '@angular/common':
         specifier: 22.1.6
         version: 22.1.6(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -1088,6 +1085,9 @@ importers:
         specifier: ^6.0.1
         version: 6.0.2
     devDependencies:
+      '@aiao/code-editor':
+        specifier: workspace:*
+        version: link:../code-editor
       '@angular/compiler':
         specifier: 22.1.6
         version: 22.1.6
@@ -1971,9 +1971,6 @@ packages:
 
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
-
-  '@aiao/code-editor@0.0.25':
-    resolution: {integrity: sha512-Vpynp2Keb+mkswdGGGc7kpF/DZOG5IAOUC2vpYr7SzK8nh+uINgRrDr7LrFxJmMNx4mbvH1ioExJ+hL86XZy6g==}
 
   '@aiao/rxdb@0.0.25':
     resolution: {integrity: sha512-eyCqAVszjocw1yVzzaHJhLumgLZjL9TuC1EtyJPGM5H9x6CkCTYFRHy56/VbiGYJeFXyznIs5tVL5wAtuLF9Vw==}
@@ -19274,20 +19271,6 @@ snapshots:
       undici: 6.28.1
 
   '@actions/io@3.0.2': {}
-
-  '@aiao/code-editor@0.0.25':
-    dependencies:
-      '@codemirror/lang-css': 6.3.1
-      '@codemirror/lang-html': 6.4.12
-      '@codemirror/lang-javascript': 6.2.5
-      '@codemirror/lang-json': 6.0.2
-      '@codemirror/lang-markdown': 6.5.2
-      '@codemirror/lang-python': 6.2.1
-      '@codemirror/lang-sass': 6.0.2
-      '@codemirror/lang-sql': 6.10.0
-      '@codemirror/lang-xml': 6.1.0
-      '@codemirror/language': 6.12.4
-      '@codemirror/language-data': 6.5.2
 
   '@aiao/rxdb@0.0.25':
     dependencies:
