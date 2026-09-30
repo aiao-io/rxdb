@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-working-tree-angular",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Angular bindings for the Aiao RxDB working tree and commit history plugin.",
   "homepage": "https://rxdb.netlify.app/docs/plugins",
   "bugs": {
@@ -30,6 +30,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-angular": "workspace:*",
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@angular/common": "22.1.6",

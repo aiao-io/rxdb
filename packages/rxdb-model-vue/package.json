@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-model-vue",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Vue UI components for Aiao RxDB Model: metadata-driven entity list, detail, form, dialog, editable table and query builder.",
   "homepage": "https://rxdb.netlify.app/docs",
   "bugs": {
