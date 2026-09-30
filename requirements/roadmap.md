@@ -72,7 +72,7 @@
    bump 提交 B 以**真 merge** 并回 `main`、tag 打在 B 上。代价是临时关一次 `main` 的线性历史保护，
    见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。
 2. **[约束 12](#排期约束) 已定案并修订**：US-018 的 `BREAKING CHANGE` 已随 0.0.25 的产物发出，桥接版本的 changelog
-   不宣告它；区间内三组**首发**的 API 删除（writer lease / `RemoteSyncOptions` / US-025 抽包）则必须如实声明。
+   不宣告它；区间内六组**首发**的破坏性改动（writer lease / `RemoteSyncOptions` / US-025 抽包 / 桌面拆包 / 插件作用域 / Supabase 错误类型）则必须如实声明。
 3. **显式版本号（2026-10-01 定案）**：`0.0.26`。`--dry-run` 推算出来的是禁用的 `0.0.25`，必须显式传参，
    见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条。
 
@@ -92,7 +92,7 @@
 两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）；区间是 `v0.0.24..B`，在锚点 `de70a1a9` 上实测为空。
 
 **启动前必读**：changelog 会同时**多报**（0.0.25 已发内容再写一遍，判断发没发过只能 `npm pack` 拉产物搜）与
-**漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付，以及按[约束 12](#排期约束) 必须声明的三组破坏性改动）；非规范提交信息一律记为 `none`、
+**漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付，以及按[约束 12](#排期约束) 必须声明的六组破坏性改动）；非规范提交信息一律记为 `none`、
 等于零 bump 量。区间已冻结在 `de70a1a9`，但发布分支上为跑绿补的提交会进区间，补了就要复测，细则见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条与
 [release-plan.md 硬前提 2](release-plan.md)。
 
@@ -200,13 +200,13 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     > 递归扫整个 `packages/`，HTTP 包在其核对范围内。
 12. **线 A 的桥接版本如实声明区间内的破坏性改动（2026-10-01 修订）。** 原文是「桥接版本不得对外宣告破坏性改动」，
     理由是「只做迁移锚点」的版本带着 `BREAKING CHANGE` 是错误的对外信号。它在**任何锚点上都满足不了**：
-    `v0.0.24..de70a1a9` 里已有三组首发的公开 API 删除（writer lease 16 个 / `RemoteSyncOptions` / US-025 抽包 13 个），
+    `v0.0.24..de70a1a9` 里已有六组首发的破坏性改动（`@aiao/rxdb` 导出删除：writer lease 16 个 / `RemoteSyncOptions` / US-025 抽包 13 个；包级：桌面拆包 / 插件作用域 / Supabase 错误类型），
     都在锚点之前就进了 `main`，自动 changelog 却一字不提（区间内没有 `!` 或 `BREAKING CHANGE:` 脚注）。
     owner 定案修订为：**桥接区间可以带锚点之前已在 `main` 上的破坏性改动，但定稿 changelog 必须逐条声明并附迁移说明**；
     悄悄发出去比声明更糟。桥接的硬不变量仍然只有一条：**不抬系统版本常量**（[release-plan 硬前提 1](release-plan.md)）。
     判据是发布区间的提交范围，不是故事状态；区间已冻结为 `v0.0.24..de70a1a9`，此后合入 `main` 的破坏性提交
     （如 [US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A）进不了桥接版本，随其后的迁移发布声明。
-    三组的名字、去向与迁移页见 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)。
+    六组的名字、去向与迁移页见 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)。
 
     **US-018 这一条已触发，已定案：桥接版本的 changelog 不宣告它。** 三个事实同时成立：
     ① US-018 的破坏性实现（`unsupportedDefaultFactory`）落在 `a63321c`，**在 `v0.0.24..main` 区间内**；

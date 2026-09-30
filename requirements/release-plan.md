@@ -182,13 +182,13 @@ origin/main     → RXDB_SYSTEM_SCHEMA_VERSION = 6，RXDB_CHANGE_CODEC_VERSION =
 ### 约束 12 修订：破坏性改动如实声明
 
 原[排期约束 12](roadmap.md#排期约束)「桥接版本不得对外宣告破坏性改动」在**任何锚点上都满足不了**：
-区间 `v0.0.24..de70a1a9` 里已有三组**首发**的公开 API 删除，它们在 `main` 上早于锚点，出路 1 也甩不掉。
+区间 `v0.0.24..de70a1a9` 里已有六组**首发**的破坏性改动（`@aiao/rxdb` 导出删除三组 + 包级三组），它们在 `main` 上早于锚点，出路 1 也甩不掉。
 owner 定案（2026-10-01）：**修订约束 12**——桥接区间可以带锚点之前已在 `main` 上的破坏性改动，但 changelog
 必须逐条如实声明并附迁移说明；桥接的硬不变量仍然只有「不抬系统版本常量」。US-018 的定案（不宣告）不变。
 
 证据口径按[版本漂移开项](#开项0025-遗留的三条版本漂移)第三条，只认 `npm pack`：下表每个名字在
 `@aiao/rxdb@0.0.25` 的产物里都能从 `dist/index.d.ts` 触达，在 `de70a1a9` 的 `requirements/api-baseline/rxdb.json` 里都已不在。
-区间内**没有**一条提交带 `!` 或 `BREAKING CHANGE:` 脚注，所以自动生成的 changelog 对这三组一个字都不会写，
+区间内**没有**一条提交带 `!` 或 `BREAKING CHANGE:` 脚注，所以自动生成的 changelog 对这六组一个字都不会写，
 只能人工补。
 
 | 组                    | 移除提交          | 名字                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 去向                                                                                                                                                                                                        | 迁移说明                                                                                                                                             |
@@ -199,6 +199,19 @@ owner 定案（2026-10-01）：**修订约束 12**——桥接区间可以带锚
 
 三个插件包在 npm 上都还没有任何版本（`npm view` 实测 404），会随 `0.0.26` 首发；声明时写「从 `@aiao/rxdb` 移出、改由插件包提供」，
 不要写成「插件包的破坏性变更」。
+
+**上表只覆盖 `@aiao/rxdb` 的导出面，不是全部。** 2026-10-01 执行线 A 时把 29 个已发布包的 0.0.25 产物与 B 的构建产物
+逐包比对导出名、再按迁移页逐条核对，另有三组同样是**首发**、同样没有 `!` 脚注的破坏性改动，也要进 changelog：
+
+| 组                    | 提交              | 影响                                                                                                  | 迁移页                                                                             |
+| --------------------- | ----------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 桌面适配器拆包        | `39dba16f`（#29） | `@aiao/rxdb-adapter-desktop@0.0.25` 在 B 上已无此包，由 `-electron` / `-tauri` 两个首发包取代         | [desktop-split.md](../website/docs/migration/desktop-split.md)                     |
+| 插件作用域契约        | `43d1a053`（#34） | `install()` 改收 `LifecycleScope`，插件自带 `destroy()` 拆卸改为宿主逆序释放；自写插件要改            | [plugin-scope.md](../website/docs/migration/plugin-scope.md)                       |
+| Supabase 传输失败错误 | `a63321c9`（#39） | 连不上远端时从 `SupabaseDataError` 改抛 core 的 `NetworkOfflineError`；按旧类型捕获网络失败的代码要改 | [supabase-network-errors.md](../website/docs/migration/supabase-network-errors.md) |
+
+writer lease 那组在 `@aiao/rxdb` 之外还带走两处：`@aiao/rxdb-adapter-sqlite-core/testing` 的 `rowsAffectedConformanceSuite`
+与 `RxDBAdapterLocalBase.startWriterLease()`，都已写进 writer-lease-removal 迁移页。
+`a63321c9` 里的 `http-page-token` 迁移页不算：`@aiao/rxdb-adapter-http` 本身就是 0.0.26 首发，对外没有旧名可迁。
 
 ## 下一次发布：桥接版本 `v0.0.26`
 
@@ -301,6 +314,9 @@ owner 定案（2026-10-01）：**修订约束 12**——桥接区间可以带锚
 
      ② 该区间**包含已随 0.0.25 发布过的内容**，**changelog 会把 0.0.25 已发的东西再写一遍**，需人工裁剪。
      注意这里不能按 tag 祖先链判断「发没发过」，原因见上方[版本漂移开项](#开项0025-遗留的三条版本漂移)的第三条。
+     2026-10-01 实测（逐提交取 `packages/*/src` 新增导出名，到对应包的 0.0.25 产物里搜）：**只有 `0123e127`
+     （`feat(aiao): 优化代码，添加 rxdb-adapter-desktop 包`）是整条已发**（43/43 命中），changelog 删掉它；其余提交命中率为 0
+     或只是 `cleanup` 搬文件带出的旧名，按新内容保留。US-018 那条不走导出名，按 ④ 单独处理。
 
      ③ `cleanup(...)` 已加进 `nx.json` 的 `release.conventionalCommits.types`：`semverBump: none`、changelog 单列一节，
      这 4 条对版本号仍贡献为零但不再从 changelog 消失；`__INVALID__`（非规范标题）同样只进 changelog 不 bump。
@@ -319,11 +335,11 @@ owner 定案（2026-10-01）：**修订约束 12**——桥接区间可以带锚
      反方向的一条：`a63321c`（标题 `feat(rxdb): 添加 rxdb-adapter-http 适配器 (#39)`）同样埋着 US-018 的
      `BREAKING CHANGE` 实现，但它已随 0.0.25 的产物发出，**不补**——定案见 [roadmap 排期约束 12](roadmap.md#排期约束)。
 
-     ⑥ **还有一类漏报是破坏性改动：三组首发的公开 API 删除，自动 changelog 一字不提。**
+     ⑥ **还有一类漏报是破坏性改动：六组首发的破坏性改动，自动 changelog 一字不提。**
      区间内没有一条提交带 `!` 或 `BREAKING CHANGE:` 脚注，nx 因此既不写 Breaking Changes 一节、也不因它们抬 bump。
      按修订后的约束 12，定稿时必须逐条声明并附迁移说明，清单与证据见
-     [约束 12 修订](#约束-12-修订破坏性改动如实声明)；三组都已有迁移页（writer lease 与 `RemoteSyncOptions` 两页 2026-10-01 补写）。
-     ④ 与 ⑥ 的方向相反：④ 不补 US-018，⑥ 必须补这三组——区别只在「是否已随 0.0.25 发出」，一律以 `npm pack` 为准。
+     [约束 12 修订](#约束-12-修订破坏性改动如实声明)；`@aiao/rxdb` 之外另有三组（桌面拆包 / 插件作用域 / Supabase 错误类型），六组都已有迁移页（writer lease 与 `RemoteSyncOptions` 两页 2026-10-01 补写）。
+     ④ 与 ⑥ 的方向相反：④ 不补 US-018，⑥ 必须补这六组——区别只在「是否已随 0.0.25 发出」，一律以 `npm pack` 为准。
 
      ⑦ **`@aiao/rxdb@0.0.25` 报假版本号要写进 release note**，见[版本漂移开项](#开项0025-遗留的三条版本漂移)第一条。
 
@@ -395,7 +411,7 @@ owner 定案（2026-10-01）：**修订约束 12**——桥接区间可以带锚
 3. **在 B 上本地预检并定稿 changelog**：`pnpm nx run @aiao/source:migration-release-gate-test` 与
    `pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v0.0.26"` 全绿，
    `pnpm test-all` 在 B 上仍绿。changelog 取 `v0.0.24..B` 生成草稿后人工定稿，按硬前提 2 过五项：
-   ② 裁多报、④ 补 US-908 / US-906（不补 US-018）、⑥ 声明三组破坏性改动并链接迁移页、⑦ 写明 0.0.25 的假版本号，
+   ② 裁多报、④ 补 US-908 / US-906（不补 US-018）、⑥ 声明六组破坏性改动并链接迁移页、⑦ 写明 0.0.25 的假版本号，
    以及 epic-006 抽包那一节**不适用**——B 上没有 epic-006，那四条随后面的迁移发布写。
 4. **开 PR，以真 merge 并回 `main`**。
    - 冲突与对齐放在发布分支上做：把 `main` 合进发布分支解冲突（`package.json` 一律取 `0.0.26`），再对合并后的树重跑

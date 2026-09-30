@@ -51,6 +51,8 @@ DROP TABLE IF EXISTS "rxdb"."rxdb_upgrade_guard";
 
 `RxDBAdapterLocalBase` 上的 `startWriterLease()` 同期删除，core 在 `connect()` 里也不再调用它。自定义本地适配器若 `override` 了它，删掉该方法与其中的心跳 / 围栏逻辑即可；`migrateSystemSchema()` 保留不变。
 
+`@aiao/rxdb-adapter-sqlite-core/testing` 导出的一致性套件 `rowsAffectedConformanceSuite` 也一并删除——它断言的正是 lease 心跳依赖的 `rowsAffected` 行为。在自己的适配器测试里调用过它的，删掉那一行即可，其余共享套件照旧。
+
 ## 相关
 
 - [Schema 迁移](./schema.md)：系统迁移的发布三道门与旧 bundle 门禁
