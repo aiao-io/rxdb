@@ -44,6 +44,7 @@ const SHARED_PACKAGE_DIRECTORIES = [
   'utils',
   'rxdb',
   'rxdb-adapter-encrypted',
+  'rxdb-client-generator',
   'rxdb-plugin-tree',
   'rxdb-adapter-sqlite-core'
 ];
