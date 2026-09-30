@@ -173,8 +173,9 @@ INVEST 检查清单:
   是否改成 peer 按「消费者会不会直接 import、是否必须单实例」逐条判，plan 阶段列清。
 - 影响面：消费者需显式安装核心包。提交标注 `BREAKING CHANGE`（0.x 下的级别换算见 versioning-policy §5），
   并在 `website/docs/migration/v1.md` 留一条迁移说明——这正是病灶 2 的根因值得留档的部分。AC#4 的门禁只认这一种写法。
-  它若先于线 A 的桥接版本合入 `main` 就落进发布区间，与 [roadmap 排期约束 12](../../roadmap.md#排期约束) 冲突，
-  合入时点见 roadmap 立项池。
+  桥接区间已冻结为 `v0.0.24..de70a1a9`（[release-plan 桥接锚点定案](../../release-plan.md#桥接锚点定案)），
+  本改动无论何时合入都进不了桥接版本，合入时点不受 [roadmap 排期约束 12](../../roadmap.md#排期约束) 牵制；
+  它的 `BREAKING CHANGE` 随其后的迁移发布声明。
 
 **Skill 的现实定位**：`agents` 字段与 `skills/` 目录约定尚未定标准
 （[skills-npm PROPOSAL](https://github.com/antfu/skills-npm/blob/main/PROPOSAL.md) 仍在提案阶段），

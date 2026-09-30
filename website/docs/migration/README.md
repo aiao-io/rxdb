@@ -14,6 +14,8 @@
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化
 - [历史与同步拆包](./history-sync-plugins.md)：历史/分支搬进 `@aiao/rxdb-plugin-history`、推拉同步搬进 `@aiao/rxdb-plugin-sync`，同步方法从 `versionManager` 移到 `syncManager`
 - [QueryCache 读引擎拆包](./querycache-plugin.md)：`SyncType.QueryCache` 的读路径搬进 `@aiao/rxdb-plugin-querycache`，用到该策略须装齐 history + sync + querycache 三个包
+- [`RemoteSyncOptions` 移除](./remote-sync-options.md)：孤立类型删除，冲突解决器改经 `PullOptions.conflictResolver` 传入，`autoSync` 无替代
+- [跨 realm writer lease 移除](./writer-lease-removal.md)：16 个 writer lease / upgrade guard 符号删除且无替代，跨 realm 排他交给发布系统
 - [`RxDBBranch` 去树化](./branch-detree.md)：分支系统表不再是树实体，四个树查询方法与 `RxDBBranchTreeRuleGroup` 移除，表结构不变
 - [生成器 `default` 语义迁移](./generator-default.md)：函数 `default` 从静默丢弃改为生成期报错，bigint / `Uint8Array` / `Date` 不再被改写
 - [Schema 迁移](./schema.md)：实体结构变更时的数据迁移
