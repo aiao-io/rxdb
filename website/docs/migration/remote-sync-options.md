@@ -25,7 +25,7 @@
 +await rxdb.syncManager.pull(options);
 ```
 
-`PullOptions` 仍从 `@aiao/rxdb` 导出；推拉方法本身已从 `rxdb.versionManager` 搬到同步插件挂的 `rxdb.syncManager`，装包与注册见[历史与同步拆包](./history-sync-plugins.md)。
+`PullOptions` 仍从 `@aiao/rxdb` 导出；推拉方法本身已从 `rxdb.versionManager`（现由 `@aiao/rxdb-plugin-history` 提供）搬到 `@aiao/rxdb-plugin-sync` 挂的 `rxdb.syncManager`，装包与注册见[历史与同步拆包](./history-sync-plugins.md)。
 
 批量路径（`pull()`）与逐仓库路径（`pullRepository()`）都会透传同一个解决器，对同一份冲突给出同样的结果。运行时能自动应用的解决结果只有 `KEEP_LOCAL` 与 `KEEP_REMOTE`。
 
