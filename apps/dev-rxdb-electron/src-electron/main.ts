@@ -13,12 +13,12 @@ import {
 } from './desktop-host-bridge.bundle.js';
 import { DEMO_RUN_CHANNEL, DESKTOP_HOST_REQUEST_CHANNEL, parseDemoRequest, type DemoResult } from './ipc-contract';
 import {
-  APP_ENTRY_URL,
   APP_SCHEME,
   createWillQuitHandler,
   isAllowedNavigation,
   resolveAppAssetPath,
   resolveDevServerPort,
+  resolveEntryUrl,
   shouldHideWindow
 } from './main.utils';
 
@@ -196,10 +196,9 @@ function createWindow(): BrowserWindow {
     // ELEC-22：生产模式走自定义协议而不是 loadFile。`file:` 下 Angular 的
     // ESM 入口会被当跨域拒绝、fetch 不可用、origin 不透明 —— 详见 main.utils.ts 里
     // APP_SCHEME 的注释，那里记着三条实测。
-    // US-208 AC#10：`DEV_RXDB_PGLITE=1` 让本次运行选 PGlite 桌面后端（e2e 专用），
-    // 以 `?pglite=1` 传给 renderer —— renderer 在 sandbox 下读不到 `process.env`，
-    // 只能经入口 URL 拿这个选择。
-    const entryUrl = process.env['DEV_RXDB_PGLITE'] === '1' ? `${APP_ENTRY_URL}?pglite=1` : APP_ENTRY_URL;
+    // US-208 AC#10 / US-217 AC#18：e2e 开关（PGlite 后端、备份恢复探针）以查询参数传给 renderer ——
+    // renderer 在 sandbox 下读不到 `process.env`，只能经入口 URL 拿这些选择。
+    const entryUrl = resolveEntryUrl(process.env);
     void win.loadURL(entryUrl).catch(reportLoadFailure);
   }
 

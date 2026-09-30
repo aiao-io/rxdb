@@ -5,10 +5,16 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 
 import {
+  acIdsOf,
+  checkAcSymbols,
   checkAnchorEvidence,
+  checkBigStoryList,
   checkEpics,
+  checkInheritedAcs,
   checkLinks,
+  checkPackageCounts,
   checkReadme,
+  checkRoadmap,
   checkStatusOverview,
   collectEpics,
   collectStories,
@@ -20,6 +26,7 @@ import {
   run,
   scanNarrative,
   updateReadme,
+  updateRoadmap,
   updateStatusOverview
 } from './requirements-consistency.mjs';
 
@@ -46,8 +53,23 @@ const overview = (done, wip, review, backlog, total, emojis) => `# 状态概览
 ${emojis.map(([e, id]) => `- ${e} [${id} 标题](stories/core/${id}-x.md)`).join('\n')}
 `;
 
-/** 搭一个最小仓库：三条 story、一个 epic、一份 overview、一份 README、一个被链接的源码文件。 */
-async function scaffold(dir, { epicStatus = 'In Progress', emojis, readme = '[2/3 已交付]' } = {}) {
+const roadmap = (open, wip, review, backlog, ids = ['US-003']) => `# 排期与约束
+
+## 完成计划
+
+仓库还剩 **${open} 条**未关闭故事（${wip} In Progress + ${review} In Review + ${backlog} Backlog，
+口径同 [status-overview](status-overview.md)）。
+
+### 批次 1
+
+${ids.map(id => `- [${id}](stories/core/${id}-x.md)`).join('\n')}
+`;
+
+/** 搭一个最小仓库：三条 story、一个 epic、一份 overview、一份 roadmap、一份 README、一个被链接的源码文件。 */
+async function scaffold(
+  dir,
+  { epicStatus = 'In Progress', emojis, readme = '[2/3 已交付]', roadmapText = roadmap(1, 0, 0, 1) } = {}
+) {
   await mkdir(path.join(dir, 'requirements/stories/core'), { recursive: true });
   await mkdir(path.join(dir, 'requirements/epics'), { recursive: true });
   await mkdir(path.join(dir, 'packages/x/src'), { recursive: true });
@@ -73,6 +95,7 @@ async function scaffold(dir, { epicStatus = 'In Progress', emojis, readme = '[2/
       ]
     )
   );
+  await writeFile(path.join(dir, 'requirements/roadmap.md'), roadmapText);
   await writeFile(path.join(dir, 'README.md'), `# x\n\n当前交付状态 ${readme}\n`);
   await writeFile(path.join(dir, 'packages/x/src/a.ts'), 'a\nb\nc\n');
 }
@@ -111,7 +134,7 @@ test('汇总表数字、标题条数、README 的 N/M 与 YAML 不符时被抓�
 });
 
 test('--update 只改数字不动列宽，改完能过 check', async () => {
-  await scaffold(dir, { readme: '[0/0 已交付]' });
+  await scaffold(dir, { readme: '[0/0 已交付]', roadmapText: roadmap(9, 4, 3, 2) });
   const overviewPath = path.join(dir, 'requirements/status-overview.md');
   const broken = (await readFile(overviewPath, 'utf8'))
     .replace('| 2    |', '| 7    |')
@@ -122,8 +145,40 @@ test('--update 只改数字不动列宽，改完能过 check', async () => {
   const fixed = await readFile(overviewPath, 'utf8');
   assert.match(fixed, /\| ✅ Done {8}\| 2 {4}\|/);
   assert.match(fixed, /## 进行中（0 条）/);
+  // roadmap 的未关闭计数与 overview 走同一条回写路径，漏了它 --update 之后 check 仍然红。
+  assert.match(
+    await readFile(path.join(dir, 'requirements/roadmap.md'), 'utf8'),
+    /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/
+  );
   assert.equal(updateReadme('x [0/0 已交付] y', countStatuses(await collectStories(dir))), 'x [2/3 已交付] y');
   assert.equal(updateStatusOverview('| **合计**       | 63   |', { total: 7 }), '| **合计**       | 7    |');
+  // 行尾 `\s*$` 在 m 模式下会跨行吞掉表后的空行，表格与紧随的引用块就此粘连。
+  assert.equal(
+    updateStatusOverview('| **合计**       | 63   |\n\n> 注', { total: 7 }),
+    '| **合计**       | 7    |\n\n> 注'
+  );
+  assert.match(
+    updateRoadmap(roadmap(9, 4, 3, 2), { total: 3, Done: 2, 'In Progress': 0, 'In Review': 0, Backlog: 1 }),
+    /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/
+  );
+});
+
+test('roadmap 的未关闭分项、以及「每条未关闭故事都排过期」都被校验', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  assert.deepEqual(checkRoadmap(roadmap(1, 0, 0, 1), stories), []);
+  assert.match(
+    checkRoadmap('# 排期与约束\n\n## 完成计划\n\n还有一些没做完。\n', stories).join('\n'),
+    /找不到「仓库还剩/
+  );
+
+  const offenders = checkRoadmap(roadmap(2, 1, 0, 1, ['US-001']), stories);
+  assert.match(offenders.join('\n'), /「未关闭合计」写 2，YAML 推导为 1/);
+  assert.match(offenders.join('\n'), /「In Progress」写 1，YAML 推导为 0/);
+  // 排期里压根没提的未关闭故事：frontmatter、索引、epic 反链可以全对，它照样没人认领。
+  assert.match(offenders.join('\n'), /US-003（Backlog）未关闭，却没有排进任何批次/);
+  // Done 的故事不必出现在排期里
+  assert.equal(offenders.filter(o => o.includes('US-002')).length, 0, JSON.stringify(offenders));
 });
 
 test('索引里状态符号与 YAML 不一致、或漏了故事，都被抓出', async () => {
@@ -425,4 +480,87 @@ test('code-scanning 是告警跟踪记录，与 reviews 同样不受叙述词约
     undefined,
     JSON.stringify(hits)
   );
+});
+
+test('Done 故事的 AC 表残留 ⬜ 被抓出；⚠️ 与 ✅ 放行；非 Done 不查', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story('US-001', 'Done') +
+      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n| 2 | a | b | c | ⚠️ 移出承诺范围 |\n| 3 | a | b | c | ✅ |\n'
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-003-x.md'),
+    story('US-003', 'Backlog') +
+      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n'
+  );
+  const stories = await collectStories(dir);
+  const offenders = checkAcSymbols(stories);
+  assert.match(offenders.join('\n'), /US-001-x\.md: Done 故事的 AC 行仍标 ⬜/);
+  assert.doesNotMatch(offenders.join('\n'), /US-003/);
+  assert.equal((offenders.join('\n').match(/仍标 ⬜/g) ?? []).length, 1);
+});
+
+test('acIdsOf 只数验收标准节里带编号的行，节外与 Given/When 行不算', () => {
+  const text =
+    '# x\n\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ✅ |\n| 2 | a | b | c | ✅ |\n\n## 技术笔记\n\n| 99 | 这不是 AC |\n';
+  assert.deepEqual(acIdsOf(text), [1, 2]);
+  assert.deepEqual(acIdsOf('# x\n\n## 验收标准\n\n**Given** a / **When** b / **Then** c\n'), []);
+});
+
+test('inherited_acs：from 指向不存在的故事、纯数字 ac 超出源 AC 行数，都被抓出', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    story('US-002', 'Done') +
+      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ✅ |\n'
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story(
+      'US-001',
+      'Done',
+      'inherited_acs:\n  - from: US-999\n    ac: 1\n    note: 幽灵\n  - from: US-002\n    ac: 9\n    note: 越界\n  - from: US-002\n    ac: US1-AC3\n    note: 复合编号留人工核对\n'
+    )
+  );
+  const offenders = checkInheritedAcs(await collectStories(dir));
+  assert.match(offenders.join('\n'), /US-001-x\.md: inherited_acs 的 from US-999 没有对应的故事文件/);
+  assert.match(offenders.join('\n'), /ac 9 超出 US-002 的 AC 编号行数 1/);
+  assert.doesNotMatch(offenders.join('\n'), /US1-AC3/);
+});
+
+test('README 大故事清单与「正文含交付阶段」的集合不一致时被抓出', async () => {
+  await scaffold(dir);
+  const stories = await collectStories(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story('US-001', 'Done') + '\n## 交付阶段\n\n| 阶段 | 范围 | 关闭判据 |\n| --- | --- | --- |\n| A | x | AC#1 |\n'
+  );
+  const actual = await collectStories(dir);
+  const readme = '# x\n\n现有 2 条：[US-001](stories/core/US-001-x.md)、[US-002](stories/core/US-002-x.md)\n';
+  const offenders = checkBigStoryList(readme, actual);
+  assert.match(offenders.join('\n'), /大故事清单写「现有 2 条」，实际 1 条/);
+  assert.match(offenders.join('\n'), /清单 US-001 US-002，实际 US-001/);
+  void stories;
+});
+
+test('capability-matrix / versioning-policy 的包计数与 packages/、api-baseline/ 实际不符时被抓出', async () => {
+  await scaffold(dir);
+  await writeFile(path.join(dir, 'packages/x/package.json'), JSON.stringify({ name: '@aiao/x' }));
+  await mkdir(path.join(dir, 'requirements/api-baseline'), { recursive: true });
+  await writeFile(path.join(dir, 'requirements/api-baseline/x.json'), '{}');
+  const right = await checkPackageCounts(dir);
+  assert.deepEqual(right, []);
+  await writeFile(
+    path.join(dir, 'requirements/capability-matrix.md'),
+    '| 总包目录 | **9 个** `packages/*`（有 `package.json` 的公开包）。其中 **8 个**受 API baseline 保护 |\n'
+  );
+  await writeFile(
+    path.join(dir, 'requirements/versioning-policy.md'),
+    '全部公开包同步发版（当前 **7 个**，其中 6 个受 API 基线保护）\n'
+  );
+  const offenders = await checkPackageCounts(dir);
+  assert.match(offenders.join('\n'), /capability-matrix\.md: 公开包写 9 个，实际 1 个/);
+  assert.match(offenders.join('\n'), /capability-matrix\.md: 受基线保护写 8 个，实际 1 个/);
+  assert.match(offenders.join('\n'), /versioning-policy\.md: 公开包写 7 个 \/ 受保护 6 个，实际 1 \/ 1/);
 });

@@ -36,7 +36,7 @@ describe('published model invariants', () => {
   it('exports at least the documented entity count', () => {
     // 防止 index.ts 的 `ENTITIES` 与目录里的文件脱节 —— 漏登记的实体不会被建表，
     // 症状是运行时「表不存在」，而不是编译错误。
-    expect(DEMO_ENTITIES).toHaveLength(8);
+    expect(DEMO_ENTITIES).toHaveLength(9);
     expect(SHOP_ENTITIES).toHaveLength(10);
   });
 

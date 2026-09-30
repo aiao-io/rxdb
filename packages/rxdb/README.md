@@ -108,10 +108,44 @@ const todos = await firstValueFrom(repository.find({ where: { combinator: 'and',
 
 实体定义、查询与变更的完整用法见文档站。
 
+## 可选能力：本地工作树与提交历史
+
+`@aiao/rxdb-plugin-working-tree` 给库加上「未提交的改动」与「提交历史」两个一等概念：用户的编辑先落进工作树而不是直接改主数据，`commit()` 一次性提交成快照，`restore()` 把历史版本的内容搬回工作树。
+
+**未装这个插件的库零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留装卸口与两道转交门。
+
+```typescript
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
+
+rxdb.use(rxDBPluginWorkingTree); // ← 必须在 connect() 之前
+await rxdb.connect('sqlite');
+await rxdb.workingTree.enable();
+```
+
+启用之后核心会在 `rxdb_migration` 里留下一行能力水位，**没装对应插件的客户端再打开这个库时，核心拒绝连接**，并把该装的包名原样报出来。这道守卫对第三方插件同样有效：包名是插件自己写进水位行的，核心不需要认识它。
+
+启用前要知道的六件事（完整版见文档站的[插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)）：
+
+1. **提交能力是数据库级的显式开关**——一次 `enable()` 之后整个库的所有实体、所有分支都按工作树语义运行；从此所有访问这个库的客户端都必须装上插件，包括旧版本的、你控制不到的那些。v1 没有 `disable()`。
+2. **工作树不是草稿缓存。** 工作树装的是「已经写进数据库、还没提交成快照」的变更，参与事务、被查询读到；`@aiao/rxdb-plugin-workspace` 的草稿缓存装的是「还没保存」的编辑器 buffer，根本没进主库。两层各管一件事，不能合并。
+3. **恢复不是 checkout。** `restore()` 把历史提交的内容作为**新的未提交变更**写回工作树：HEAD 不动、历史不删、工作树变脏，下一步是 `commit()` 或 `discard()`。没有 detached HEAD，也没有 `checkout()`。
+4. **历史会原样保留敏感旧值。** 写进过某次提交的字段永久留在那次提交里，之后改掉、清空、删行都不会动到它；v1 没有任何公开 API 能把它从历史里抠掉。**不要把不该留痕的东西写进启用了提交能力的库**——需要 right-to-erasure 的字段不适合直接存在这里。
+5. **加密边界。** 支持字段加密的后端上，提交、工作树与恢复会话里的加密字段仍以 versioned envelope 落盘，持久化路径不会先解密再写明文，错误与摘要也不带明文。但加密保护的是**落盘的字节**——解锁后的合法读取照常拿到旧值，所以它不消解第 4 条，第 4 条也不能替代它。
+6. **不改写历史。** 没有 amend / rebase / squash，没有「修改提交信息」，也没有 auto-baseline。提交图损坏时守卫只把分支置为 `corrupted_read_only` 并留下诊断，**不动 HEAD、不删记录**。
+
+还有一条容易漏掉的：**远端同步拉下来的变更和用户的编辑一样进工作树**，在 `status().byOrigin` 里计为 `origin = 'remote_sync'` 且**不豁免**——它会让 `clean` 变成 `false`，并被下一次 `commit()` 一并提交（提交者是这次 `commit()` 的 `authorId`，v1 不伪造远端作者身份）。「同步之后工作树突然脏了」是正常行为，不是缺陷。
+
+### 写捕获拦得住什么，拦不住什么
+
+写捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**。绕过 adapter 的外部数据库句柄——另一个进程直接打开同一个 SQLite 文件、另起一个 PGlite 实例、DevTools 里手写 SQL——**拦不住，v1 也不承诺拦得住**；这类写入不进工作树、不进历史、`status()` 看不见。
+
+因此启用了提交能力的数据库有一条硬约束：**业务表只能经 RxDB 写入**。这句话不是免责声明的注脚：不假装拦得住比拦不住更重要——一道号称拦得住却拦不住的门禁，会让人把「没报错」当成「没被绕过」。
+
 ## 文档
 
 - 仓库主页与路线图：[https://github.com/aiao-io/rxdb](https://github.com/aiao-io/rxdb)
 - API 参考、快速上手与框架集成指南见项目文档站
+- 工作树与提交历史：[`@aiao/rxdb-plugin-working-tree` 插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)
 
 ## License
 

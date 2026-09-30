@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-003-ui-developer-tools
 created: 2025-12-08
-updated: 2026-05-15
+updated: 2026-09-20
 tags: [tooling, devtools]
 ---
 
@@ -19,16 +19,16 @@ tags: [tooling, devtools]
 
 ## 验收标准
 
-| #   | 前置条件        | 操作          | 预期结果               | 状态 |
-| --- | --------------- | ------------- | ---------------------- | ---- |
-| 1   | Chrome 扩展安装 | 打开 DevTools | 显示 RxDB 面板         | ✅   |
-| 2   | RxDB 实例运行中 | 查看面板      | 展示所有实体和当前查询 | ✅   |
-| 3   | 实时查询监控    | 数据变更      | DevTools 面板实时更新  | ✅   |
-| 4   | 事件流追踪      | 查看事件面板  | 展示 17 种事件的实时流 | ✅   |
+| #   | 前置条件        | 操作          | 预期结果                                       | 状态 |
+| --- | --------------- | ------------- | ---------------------------------------------- | ---- |
+| 1   | Chrome 扩展安装 | 打开 DevTools | 显示 RxDB 面板                                 | ✅   |
+| 2   | RxDB 实例运行中 | 查看面板      | 展示所有实体和当前查询                         | ✅   |
+| 3   | 实时查询监控    | 数据变更      | DevTools 面板实时更新                          | ✅   |
+| 4   | 事件流追踪      | 查看事件面板  | 展示以 `RXDB_EVENT_TYPES` 为真相源的完整事件流 | ✅   |
 
 ## 技术笔记
 
-- 核心包 `@aiao/rxdb-devtools`（当前 v0.0.9）在本仓库 `packages/rxdb-devtools/`，提供 `connector` / `sequence` / `serializer` 等运行时基础设施
+- 核心包 `@aiao/rxdb-devtools`（版本见 `packages/rxdb-devtools/package.json`）在本仓库 `packages/rxdb-devtools/`，提供 `connector` / `sequence` / `serializer` 等运行时基础设施
 - 浏览器扩展工程在 `apps/rxdb-devtools-extension/`，技术栈：Chrome Extensions API + React/Preact
 - 集成方式：宿主应用调用 `openRxdbDevtools()` 建立 DevTools 通道（参考 React demo）
 

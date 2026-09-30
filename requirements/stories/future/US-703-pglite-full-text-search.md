@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-01
-updated: 2026-08-31
+updated: 2026-09-20
 tags: [search, plugin, pglite, postgresql, sqlite]
 inherited_acs:
   - from: US-702
@@ -21,7 +21,9 @@ inherited_acs:
 **我想要** 通过与 SQLite 相同的 `@aiao/rxdb-plugin-search` API 执行 PostgreSQL 全文搜索
 **以便** 更换本地适配器时不需要改写搜索 UI 和业务逻辑
 
-## 现状基线
+## 故事起点的基线（历史）
+
+以下为本故事**开工时**的现状与缺口，用于理解各条 AC 的动机；当前状态见各 AC 与「已冻结的决策」。
 
 `packages/rxdb-adapter-pglite/src/fts/` 已经存在并且是**公开 API**：`buildCreateFtsTableSql`、`buildFtsTriggersSql`、`FTS_COLUMN`、`DEFAULT_FTS_REGCONFIG`、`DEFAULT_FTS_ARRAY_KIND` 与 `FtsField` / `FtsOptions` / `FtsArrayKind` 经由 `src/index.ts` 的 `export * from './fts/index.js'` 导出，并已记录在 `requirements/api-baseline/rxdb-adapter-pglite.json`。
 
@@ -67,7 +69,7 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
 - 把已有 PGlite `tsvector` / GIN / trigger 能力接入搜索插件安装流程
 - 存量数据 backfill、schema drift 检测和幂等迁移记录
 - `tsquery` 编译、相关性排序、snippet、scope、分页和反应式刷新
-- Angular / React / Vue 保持现有 `useSearch` / `SearchController` API 不变
+- Angular / React / Vue 保持现有 `useSearch` API 不变
 - 将 `adapter-guard.ts` 的硬编码 adapter 名单换成 backend 能力查表，覆盖全部 `sqlite-core` 家族 adapter（AC#8）
 - 明确 backend 抽象对 `rxdb-plugin-search` api-baseline 的影响并完成处置（AC#9）
 
@@ -156,7 +158,6 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
 
 ### 决策 3（AC#7）：回填进度的哨兵是数据本身，不另建记账记录
 
-计划里原本写的是加一条 `backfill__<sig>__pending` 记录。实现时发现不需要，也不应该：
 PG 侧 `_fts IS NULL` 本身就是持久化的、由数据派生的进度哨兵——`ADD COLUMN` 给存量行留 NULL，
 trigger 装上后所有新写入立刻非 NULL。多一条记账记录就多一个会与真实数据不一致的来源，
 而且它盖不住「`ALTER TABLE` 与 `CREATE TRIGGER` 之间插进来的写入」这个窗口，哨兵能盖住。
@@ -164,11 +165,11 @@ trigger 装上后所有新写入立刻非 NULL。多一条记账记录就多一�
 FTS5 侧沿用同一模型的另一半：两条 migration 记录**只在全部完成后**才写，中断即整批重来。
 两侧各有一条对称的 spec 断言（`fts5-runtime.spec.ts` 的「回填中断」/ `pg-backend-integration.spec.ts` 的 AC#7 两条）。
 
-### 决策 4（实现期新增）：pglite 是**真**可选 peer，靠惰性加载兑现
+### 决策 4：pglite 是**真**可选 peer，靠惰性加载兑现
 
-`index.ts` 导出 `createPgTsvectorBackend`，而它静态引入 `@aiao/rxdb-adapter-pglite/fts` 时，
-只装了 SQLite adapter 的下游连 `import '@aiao/rxdb-plugin-search'` 都会失败——
-三个框架绑定包的 spec 整片变红就是这么暴露的，"optional" 成了一句空话。
+`index.ts` 导出 `createPgTsvectorBackend`，若它静态引入 `@aiao/rxdb-adapter-pglite/fts`，
+只装了 SQLite adapter 的下游连 `import '@aiao/rxdb-plugin-search'` 都会失败——"optional" 必须由
+安装期惰性加载兑现，而不是 `package.json` 里写一句 `peerDependencies`。
 
 处置（`packages/rxdb-plugin-search/src/backend/pg/pg-fts-contract.ts`）：
 三个字面量常量（`FTS_COLUMN` / `DEFAULT_FTS_REGCONFIG` / `DEFAULT_FTS_ARRAY_KIND`）本地声明，

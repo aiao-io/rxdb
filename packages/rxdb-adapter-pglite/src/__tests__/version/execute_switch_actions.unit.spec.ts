@@ -38,16 +38,26 @@ import {
   EntityLocalUpdatedEvent,
   getEntityMetadata,
   RxDB,
+  RxDBBranch,
   SyncType,
   type IRxDBAdapter,
   type RxDBEntityId
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { of } from 'rxjs';
+import { getTableNameByMetadata } from '../../pglite.utils.js';
 import { dispatch_switch_events, execute_switch_actions } from '../../version/execute_switch_actions.js';
 import type { SwitchVersionSqlResult } from '../../version/switch-result.interface.js';
 
 const metadata = getEntityMetadata(Todo);
+
+/**
+ * 分支表的物理名，向生产元数据现问。
+ *
+ * 替身靠它认出「重挂触发器前的那次分支读」。写死 `'rxdb_branch'` 的话，改了 `@Entity` 的
+ * `tableName` 之后替身会安静地退回 `rows: []`，而 `readCurrentBranchId` 的 fail-fast 抛出来
+ * 的是「currentBranch is undefined」——读起来像生产缺陷，其实是替身过期了。
+ */
+const BRANCH_TABLE = getTableNameByMetadata(getEntityMetadata(RxDBBranch));
 
 const baseAction = (overrides: Record<string, unknown> = {}) => ({
   metadata,
@@ -99,14 +109,8 @@ describe('execute_switch_actions unit edges', () => {
     vi.clearAllMocks();
   });
 
-  /** `getCurrentBranch()` 热路径要的那一条：查 `activated = true` 即答 `main`。 */
-  const makeBranchRepository = () => ({
-    find: vi.fn(async () => [{ id: 'main', activated: true }])
-  });
-
   const makeAdapter = () => {
     const dispatchEvent = vi.fn();
-    const branchRepository = makeBranchRepository();
     const adapter = {
       transaction: vi.fn(async (fn: () => Promise<void>) => {
         await fn();
@@ -119,16 +123,20 @@ describe('execute_switch_actions unit edges', () => {
         await fn({ adapter });
       }),
       // rows 显式声明元素类型：默认从 [] 推出 never[]，用例里的 mockResolvedValueOnce 就塞不进行数据
-      query: vi.fn(async (): Promise<{ rows: Record<string, unknown>[]; affectedRows: number; fields: unknown[] }> => ({
-        rows: [],
-        affectedRows: 0,
-        fields: []
-      })),
+      query: vi.fn(
+        async (sql: string): Promise<{ rows: Record<string, unknown>[]; affectedRows: number; fields: unknown[] }> =>
+          // 重挂触发器要的分支 id 现在经**本事务**读（见 read_current_branch_id.ts），
+          // 不再走 versionManager —— 替身因此必须回答这条 SELECT，否则 fail-fast 会直接抛。
+          sql.includes(BRANCH_TABLE) ?
+            { rows: [{ id: 'main' }], affectedRows: 0, fields: [] }
+          : { rows: [], affectedRows: 0, fields: [] }
+      ),
       rxdb: {
-        // 当前分支自 US-025 阶段 C 起由核心的 `getCurrentBranch(rxdb)` 解析，
-        // 它经 `localAdapter$` 取分支仓库再查 `activated = true`；
-        // 从前挂在 `versionManager.getCurrentBranch()` 上的替身已经拦不住这条路。
-        localAdapter$: of({ getRepository: () => branchRepository }),
+        // 留着是为了断言它**没**被调：那次调用正是 C2 下的自死锁源头（外层事务占着并发度 1 的
+        // 槽位，仓库读再入队等于排在自己身后），它一旦回来这条替身会立刻让用例变红。
+        versionManager: {
+          getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+        },
         dispatchEvent
       },
       encryptionContext: undefined
@@ -148,8 +156,11 @@ describe('execute_switch_actions unit edges', () => {
     expect(adapter.runInTransaction).toHaveBeenCalledTimes(1);
     expect(removeAllTriggersSqlMock).toHaveBeenCalledWith(adapter);
     expect(adapter.query).toHaveBeenCalledWith('DROP TRIGGER...');
-    // 下面这条同时证明「分支读过了」与「读出来的是 main」——从前那条
-    // `versionManager.getCurrentBranch` 的调用断言严格弱于它，随替身一起撤掉。
+    expect(
+      adapter.rxdb.versionManager.getCurrentBranch,
+      '分支 id 又走回了 versionManager：外层已开事务时这一读会排在自己身后永久挂起'
+    ).not.toHaveBeenCalled();
+    expect(adapter.query).toHaveBeenCalledWith(expect.stringContaining(BRANCH_TABLE), undefined);
     expect(generateSwitchBranchSqlMock).toHaveBeenCalledWith(adapter, 'main');
     expect(adapter.query).toHaveBeenCalledWith('CREATE TRIGGER...');
   });
@@ -161,7 +172,9 @@ describe('execute_switch_actions unit edges', () => {
     const adapter = makeAdapter();
     await execute_switch_actions(adapter as never, { deletes: [], inserts: [], updates: [] }, undefined, true);
 
-    expect(adapter.query).toHaveBeenCalledTimes(1);
+    // 两次：读分支 id + 重挂触发器。空的 DROP 一次都不该下发。
+    expect(adapter.query).toHaveBeenCalledTimes(2);
+    expect(adapter.query).not.toHaveBeenCalledWith('');
     expect(adapter.query).toHaveBeenCalledWith('CREATE TRIGGER...');
   });
 

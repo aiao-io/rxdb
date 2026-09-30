@@ -2,6 +2,22 @@
   "entries": {
     ".": [
       {
+        "name": "compute_switch_branch_actions",
+        "kind": "value"
+      },
+      {
+        "name": "find_branch_path_to_root",
+        "kind": "value"
+      },
+      {
+        "name": "find_switch_branch_step",
+        "kind": "value"
+      },
+      {
+        "name": "get_branch_max_change",
+        "kind": "value"
+      },
+      {
         "name": "isIgnorableDetachedVersionEventError",
         "kind": "value"
       },
@@ -27,6 +43,14 @@
       },
       {
         "name": "RxDBPluginHistoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SwitchBranchActionReaders",
+        "kind": "type"
+      },
+      {
+        "name": "SwitchBranchStep",
         "kind": "type"
       },
       {

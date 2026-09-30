@@ -104,7 +104,8 @@ export const transaction_pglite_result = async <T extends EntityType>(
 
     if (has) {
       // 实体已存在
-      entity = em.getEntityRef(EntityType, id)!;
+      // 边界同 `PGliteRepositoryBase`：上游已如实返回 `EntityInstanceType<T>`，本链仍说 `InstanceType<T>`。
+      entity = em.getEntityRef(EntityType, id)! as InstanceType<T>;
 
       // 始终更新计算属性（如 hasChildren），因为它们是从数据库动态计算的
       metadata.computedPropertyMap.forEach((prop, propName) => {
@@ -124,7 +125,7 @@ export const transaction_pglite_result = async <T extends EntityType>(
       // 不更新时，直接返回缓存实例
     } else {
       // 新实体：创建并加入缓存
-      entity = em.createEntityRef(EntityType, entityData);
+      entity = em.createEntityRef(EntityType, entityData) as InstanceType<T>;
     }
 
     const status = getEntityStatus(entity);

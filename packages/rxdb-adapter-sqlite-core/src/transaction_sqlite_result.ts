@@ -142,7 +142,9 @@ export const transaction_sqlite_result = async <T extends EntityType>(
         );
         const decodedData = decodeForeignKeyValues(adapter, metadata, rawData);
         const data = isRxDBChange ? decodeChangeResult(adapter, decodedData) : decodedData;
-        entity = em.createEntityRef(EntityType, data);
+        // 同 `rxdb_adapter_mutations`：`EntityInstanceType<T>` 与本文件通用的 `InstanceType<T>`
+        // 对具体 `T` 同解，泛型体内是两个延迟条件类型，这里桥接一次。
+        entity = em.createEntityRef(EntityType, data) as InstanceType<T>;
       } else {
         continue;
       }

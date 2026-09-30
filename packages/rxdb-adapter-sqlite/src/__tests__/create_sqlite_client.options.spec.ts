@@ -1,3 +1,4 @@
+import { releaseComlinkProxy } from '@aiao/rxdb-adapter-sqlite-core';
 import { expose } from 'comlink';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SqliteOptions } from '../sqlite-official.interface.js';
@@ -99,13 +100,18 @@ describe('createSqliteClient options', () => {
   // 代理在 worker / sharedWorker 模式下持有一个 MessageChannel。init 失败后不释放，
   // 断线重连循环里端口只增不减，worker 侧那个 init 失败的客户端也一直可达、永不回收。
   // 三个适配器（sqlite / sqlite-wasm / sqliteai）在这条清理契约上必须一致。
-  it('init 失败时释放 Comlink 代理，并把原始错误原样抛出', async () => {
-    const { workerInstance, released } = createComlinkBackend(() => Promise.reject(new Error('init failed')));
+  // 每次连接租用 Worker 的一条子端口：没还回去，同一个 Worker 上的下一次连接会被拒。
+  it('init 失败时归还子端口，并把原始错误原样抛出', async () => {
+    let attempts = 0;
+    const { workerInstance } = createComlinkBackend(() =>
+      ++attempts === 1 ? Promise.reject(new Error('init failed')) : Promise.resolve()
+    );
 
     const { createSqliteClient } = await import('../create_sqlite_client.js');
 
     await expect(createSqliteClient('fail-db', { worker: true, workerInstance })).rejects.toThrow('init failed');
-    await vi.waitFor(() => expect(released.value).toBe(true));
+    const retried = await createSqliteClient('fail-db', { worker: true, workerInstance });
+    await expect(retried.version()).resolves.toBe('3.53.0');
     expect(mockState.directInit).not.toHaveBeenCalled();
   });
 
@@ -118,6 +124,24 @@ describe('createSqliteClient options', () => {
     // 释放过的代理再调用会抛 'Proxy has been released and is not useable'，
     // 所以这行既证明端口还开着，也证明没被误释放。
     await expect(client.version()).resolves.toBe('3.53.0');
+    expect(released.value).toBe(false);
+    // 子端口还被这条连接占着：同一个 Worker 不能同时借给第二条连接。
+    await expect(createSqliteClient('ok-db', { worker: true, workerInstance })).rejects.toThrow(
+      'Worker transport already has an active SQLite client'
+    );
+  });
+
+  // 恢复先开一条连接写库、关掉，再由 connect 开第二条：根代理一释放，Worker 侧 `expose()`
+  // 就永久摘掉监听，同一个 Worker 上的第二条连接永远等不到回复。
+  it('释放上一条连接后，同一个调用方持有的 Worker 可以再连', async () => {
+    const { workerInstance, released } = createComlinkBackend(() => Promise.resolve());
+
+    const { createSqliteClient } = await import('../create_sqlite_client.js');
+    const first = await createSqliteClient('reconnect-db', { worker: true, workerInstance });
+    expect(releaseComlinkProxy(first)).toBe(true);
+
+    const second = await createSqliteClient('reconnect-db', { worker: true, workerInstance });
+    await expect(second.version()).resolves.toBe('3.53.0');
     expect(released.value).toBe(false);
   });
 });

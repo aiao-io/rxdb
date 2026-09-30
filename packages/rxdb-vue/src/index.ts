@@ -14,10 +14,6 @@
  * - useFindByCursor: 使用游标分页查找实体
  * - useFindAll: 查找所有实体
  * - useCount: 统计匹配条件的实体数量
- * - useFindDescendants: 查找树形结构的后代实体
- * - useCountDescendants: 统计后代实体数量
- * - useFindAncestors: 查找树形结构的祖先实体
- * - useCountAncestors: 统计祖先实体数量
  * - useGraphNeighbors: 查找图结构的邻居实体
  * - useCountNeighbors: 统计邻居实体数量
  * - useGraphPaths: 查找图中的路径

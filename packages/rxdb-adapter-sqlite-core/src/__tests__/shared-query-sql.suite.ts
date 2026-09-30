@@ -4,15 +4,13 @@ import {
   getEntityMetadata,
   PropertyType,
   RelationKind,
-  TreeAdjacencyListEntityBase,
-  TreeEntity,
   type EntityMetadata,
-  type FindTreeOptions,
   type RelationStringRules,
   type RuleGroup,
   type RuleGroupBase,
   type StringRules
 } from '@aiao/rxdb';
+import { rxDBPluginTree, TreeAdjacencyListEntityBase, TreeEntity, type FindTreeOptions } from '@aiao/rxdb-plugin-tree';
 import { TypeDemo, type TypeDemoRuleGroup } from '@aiao/rxdb-test/entities';
 import { Category, ENTITIES, Order, OrderItem, Product, User, UserRuleGroup } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, type Observable } from 'rxjs';
@@ -716,7 +714,8 @@ export function querySqlSuite(factory: AdapterFactory) {
 
       beforeAll(async () => {
         adapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
-          entities: [...ENTITIES, SqlcTreeOwner, SqlcTreeNode]
+          entities: [...ENTITIES, SqlcTreeOwner, SqlcTreeNode],
+          plugins: [rxDBPluginTree]
         });
         treeRepository = adapter.rxdb.entityManager.getRepository(SqlcTreeNode) as unknown as SqlcTreeNodeRepository;
 

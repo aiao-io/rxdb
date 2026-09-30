@@ -4,6 +4,10 @@
 
 Undo/Redo 功能基于 `RxDBChange` 变更记录实现，通过 `inversePatch` 和 `patch` 字段记录每次变更的逆向和正向操作，从而支持撤销和重做功能。
 
+:::info 插件依赖
+Undo/Redo 由 [@aiao/rxdb-plugin-history](../plugins/rxdb-plugin-history/README.md) 提供，不在 core 里——不装它，`rxdb.versionManager` 不存在。安装与用法见插件手册。
+:::
+
 :::info 开发状态
 本功能已在 `VersionManager` 和 `HistoryManager` 中实现核心逻辑。
 :::

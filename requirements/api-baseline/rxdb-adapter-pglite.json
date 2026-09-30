@@ -30,6 +30,10 @@
         "kind": "value"
       },
       {
+        "name": "cleanupIncompletePGliteRestore",
+        "kind": "value"
+      },
+      {
         "name": "create_tables_sql",
         "kind": "value"
       },
@@ -150,7 +154,7 @@
         "kind": "value"
       },
       {
-        "name": "normalizeEntity",
+        "name": "normalizeUpdateEntity",
         "kind": "value"
       },
       {
@@ -160,6 +164,22 @@
       {
         "name": "pgDialect",
         "kind": "value"
+      },
+      {
+        "name": "PGLITE_BACKUP_ENGINE",
+        "kind": "value"
+      },
+      {
+        "name": "PGLITE_BACKUP_LOCK_TIMEOUT_MS",
+        "kind": "value"
+      },
+      {
+        "name": "PGLITE_EXCLUDED_FILES",
+        "kind": "value"
+      },
+      {
+        "name": "PGliteBackupStorage",
+        "kind": "type"
       },
       {
         "name": "PGliteChangeEvent",
@@ -186,6 +206,14 @@
         "kind": "type"
       },
       {
+        "name": "PGliteDataDirItem",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteEngineInfo",
+        "kind": "type"
+      },
+      {
         "name": "PGliteNotificationBatcher",
         "kind": "both"
       },
@@ -195,6 +223,30 @@
       },
       {
         "name": "PGliteNotifyPayload",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteQueryable",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoredDatabase",
+        "kind": "both"
+      },
+      {
+        "name": "PGliteRestoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreResult",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreStage",
+        "kind": "type"
+      },
+      {
+        "name": "PGliteRestoreTarget",
         "kind": "type"
       },
       {
@@ -234,6 +286,10 @@
         "kind": "value"
       },
       {
+        "name": "restorePGliteDatabase",
+        "kind": "value"
+      },
+      {
         "name": "RxDBAdapterPGlite",
         "kind": "both"
       },
@@ -270,6 +326,10 @@
         "kind": "value"
       },
       {
+        "name": "toPGliteEngineInfo",
+        "kind": "value"
+      },
+      {
         "name": "transformEntityValuePGliteToJs",
         "kind": "value"
       },
@@ -283,6 +343,10 @@
       },
       {
         "name": "transformValuePGliteToJs",
+        "kind": "value"
+      },
+      {
+        "name": "verifyPGliteRestored",
         "kind": "value"
       }
     ],

@@ -5,6 +5,7 @@
  */
 
 import {
+  CapabilityEnabledEvent,
   ConflictDetectedEvent,
   ConflictPendingEvent,
   EntityLocalCreatedEvent,
@@ -98,6 +99,11 @@ function everyEvent(): readonly RxDBEvent[] {
     new RepositorySyncErrorEvent('push', PROBE_NAMESPACE, PROBE_ENTITY, error),
     new RemoteEntityInvalidatedEvent(PROBE_NAMESPACE, PROBE_ENTITY),
 
+    // 能力启用：能力名用探针自己的名字，不借 `workingTree` 之类的真能力名 ——
+    // 本 demo 没接 working-tree 插件，写真名会让面板上的读者以为这库真开过那个能力
+    // （同 PROBE_ENTITY 的理由）。
+    new CapabilityEnabledEvent('devtools-event-probe'),
+
     // 事务三类**必须排在最后，且成对闭合**，理由见 dispatchEveryRxDBEvent 的 @remarks
     new TransactionBeginEvent('devtools-event-probe-commit'),
     new TransactionCommitEvent('devtools-event-probe-commit'),
@@ -120,7 +126,7 @@ function everyEvent(): readonly RxDBEvent[] {
  * `ENTITY_REMOTE_*` / `MERGE_BRANCH_*` 在这里永远不会自然发生。要覆盖全集，只能显式派发。
  *
  * 派发口用的是 `RxDB.dispatchEvent()` —— 应用自己发事件走的同一个公开成员，**不是**测试专用
- * 后门。从这里往后（connector 的 25 条订阅 → 四段 relay → 面板 Events 页）全程是生产链路。
+ * 后门。从这里往后（connector 的 26 条订阅 → 四段 relay → 面板 Events 页）全程是生产链路。
  *
  * ## 顺序为什么是承重的
  *

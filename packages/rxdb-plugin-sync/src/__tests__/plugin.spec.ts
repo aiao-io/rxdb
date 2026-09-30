@@ -116,6 +116,41 @@ describe('rxDBPluginSync 装配', () => {
     expect(Reflect.has(rxdb, 'syncManager')).toBe(false);
   });
 
+  // 2026-09-26 评审 P1（记录见 requirements/reviews/README.md）：来源槽位此前没有任何生产代码登记，`syncBranches()` 拉下来的
+  // metadata-only 分支第一次 `switchBranch()` 必然 `source_unavailable`。登记是装配的一部分，
+  // 应用代码不该自己去接这根线。
+  describe('分支物化来源', () => {
+    it('装上插件就登记了来源', async () => {
+      const rxdb = await createDB([rxDBPluginHistory, rxDBPluginSync]);
+
+      expect(rxdb.getBranchMaterializationSource()).toBeDefined();
+      await rxdb.disconnectAll();
+    });
+
+    it('没装插件就没有来源', async () => {
+      const rxdb = await createDB([rxDBPluginHistory]);
+
+      expect(rxdb.getBranchMaterializationSource()).toBeUndefined();
+      await rxdb.disconnectAll();
+    });
+
+    // 撤不干净的症状是下一个纪元的同步插件登记时撞上「至多一个」——重连之后第一次装配就炸。
+    it('断连之后撤销，重连时重新登记的是新纪元的来源', async () => {
+      const rxdb = await createDB([rxDBPluginHistory, rxDBPluginSync]);
+      const first = rxdb.getBranchMaterializationSource();
+      await rxdb.disconnectAll();
+
+      expect(rxdb.getBranchMaterializationSource()).toBeUndefined();
+
+      await rxdb.connect('sqlite');
+      const second = rxdb.getBranchMaterializationSource();
+
+      expect(second).toBeDefined();
+      expect(second).not.toBe(first);
+      await rxdb.disconnectAll();
+    });
+  });
+
   // US-025 D2。判据走**真实的** `window` 事件而不是 spy `watch()`：要证的是「浏览器说
   // 网断了，库知道了」这条链通没通，而不是某个方法被调过。核心自己不消费这两个事件 ——
   // 唯一的消费者是本插件的同步监听器（`wakeup$` 驱动回推重试），所以宿主监听的开关

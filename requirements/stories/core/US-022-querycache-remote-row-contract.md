@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-09-20
 tags: [core, querycache, sqlite, contract, docs]
 ---
 
@@ -154,9 +154,9 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
   实现时注意 `columnNames`（字段名 → 列名映射）已在 `#resolveQueryCacheTarget` 里拿到。
 - AC#4 的异构行集今天的表现是**绑 `undefined`** 而不是报错——`data[0]` 定了列清单，
   后续行按同一批键取值，取不到就是 `undefined`。落到 SQLite 上是 NULL，可空列因此被静默清空。
-  这是同一处代码的相邻风险，一并收口（此段为源码推演，**推断**，实现时以用例证实）。
+  这是同一处代码的相邻风险，一并收口（AC#4 已由 `RxDBAdapterSqliteBase.spec.ts` 的真 `upsertMany` 用例证实）。
 - 判定放核心包还是 `rxdb-adapter-sqlite-core`：契约是 QueryCache 的（核心概念），
-  但可执行的判据（本地表的非空列集）在 sqlite-core 手里。倾向后者，实现时定。
+  但可执行的判据（本地表的非空列集）在 sqlite-core 手里——已定案后者，见「设计结论」。
 - 别把这条校验塞进 `metadata-validate`：远端行的形状是运行期才知道的，不是元数据（对照 US-021 D1）。
 
 ### 设计结论

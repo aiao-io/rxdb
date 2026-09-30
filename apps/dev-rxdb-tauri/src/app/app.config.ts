@@ -16,12 +16,16 @@ import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { appRoutes } from './app.routes';
+import { backupToArchive, restoreFromArchive, type BackupArchiveChannel } from './backup-probe';
 import { mergeDevToolsProbeRounds, watchDevToolsHandshake, type DevToolsProbeResult } from './devtools-probe';
 import { RxDBConnectionState } from './rxdb-connection-state';
 import { startLocalDatabase } from './rxdb-initializer';
 import { DesktopLaunchService } from './services/desktop-launch.service';
 import {
+  appendBackupArchiveChunk,
   probeImpostorWindow,
+  readBackupArchiveChunk,
+  readBackupProbeMode,
   readDevToolsProbeEnabled,
   readProbeBaseUrl,
   recycleDevToolsWindow,
@@ -172,6 +176,18 @@ const registerLocaleIfNeeded = async (localeId: string): Promise<void> => {
  * 它们之间也**没有先后顺序**：Angular 并发执行全部 initializer。有依赖关系的步骤必须
  * 写在同一个里，见下面数据库那一条。
  */
+/** US-217 AC#18：备份探针的归档落在 Rust 侧自检命令读写的那个文件里。 */
+const backupArchiveChannel: BackupArchiveChannel = { read: readBackupArchiveChunk, append: appendBackupArchiveChunk };
+
+/**
+ * 桌面后端的备份与恢复。
+ *
+ * @remarks
+ * 走动态 `import()`：`setup_rxdb_desktop.ts` 是桌面候选单独的 chunk（US-207 E11），静态引入会把
+ * Tauri 传输客户端拽回主 chunk。探针模式只在 Tauri 自检里非空，那时选中的正是桌面候选，模块早已加载。
+ */
+const desktopArchiveOps = async () => (await import('./setup_rxdb_desktop')).archiveOps;
+
 export const appConfig: ApplicationConfig = {
   providers: [
     {
@@ -230,6 +246,11 @@ export const appConfig: ApplicationConfig = {
         probe: probeStorage,
         probeWebview: probeWebviewCapabilities,
         probeDevTools: probeDevToolsWindow,
+        backupProbe: {
+          mode: () => readBackupProbeMode(globalThis),
+          backup: async database => backupToArchive(database, await desktopArchiveOps(), backupArchiveChannel),
+          restore: async database => restoreFromArchive(database, await desktopArchiveOps(), backupArchiveChannel)
+        },
         adapterName: resolveLocalBackend(globalThis).adapter,
         report: outcome => reportSelfCheck(outcome, globalThis)
       })

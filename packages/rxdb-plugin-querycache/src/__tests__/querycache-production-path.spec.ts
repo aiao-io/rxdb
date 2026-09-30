@@ -14,7 +14,7 @@
  *   在真实适配器里走的是 `transaction(..., false)`（不记事务日志）。所以断言口径是：
  *   QueryCache 只碰后两个 duck，前两条路一次都不亮。
  */
-import type { IRxDBAdapter, RuleGroup } from '@aiao/rxdb';
+import type { EntitySyncOverride, IRxDBAdapter, RuleGroup } from '@aiao/rxdb';
 import {
   Entity,
   ENTITY_STATIC_TYPES,
@@ -187,13 +187,20 @@ const createRemoteAdapter = (rows: Row[] = [], delayMs = 0) => {
   return { adapter };
 };
 
-const createDatabase = (dbName: string, localRows: Row[], remoteRows: Row[], remoteDelayMs = 0) => {
+const createDatabase = (
+  dbName: string,
+  localRows: Row[],
+  remoteRows: Row[],
+  remoteDelayMs = 0,
+  syncOverrides?: readonly EntitySyncOverride[]
+) => {
   const local = createLocalAdapter(localRows);
   const remote = createRemoteAdapter(remoteRows, remoteDelayMs);
   const rxdb = new RxDB({
     dbName,
     entities: [CachedArticle, VersionedArticle],
-    sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+    sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } },
+    syncOverrides
   });
   rxdb.adapter('sqlite', () => local.adapter as unknown as IRxDBAdapter);
   rxdb.adapter('supabase', () => remote.adapter as unknown as IRxDBAdapter);
@@ -357,6 +364,50 @@ describe('US-020 阶段 B：QueryCache 生产路径（AC#18 / AC#20）', () => {
       await ctx.rxdb.entityManager.getRepository(VersionedArticle).create(entity);
 
       expect(ctx.local.repository.create).toHaveBeenCalledTimes(1);
+      expect(ctx.local.adapter.upsertMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('US-026 AC#10 —— 读写管道认生效策略，不认装饰器原值', () => {
+    it('装饰器声明 Full、实例覆盖为 QueryCache：查询走元数据 diff，写入走可丢弃缓存', async () => {
+      const ctx = createDatabase('QueryCacheOverrideIn', [], [row('v1', '2026-08-01T00:00:00.000Z')], 0, [
+        {
+          entity: VersionedArticle,
+          sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+        }
+      ]);
+      const repository = ctx.rxdb.entityManager.getRepository(VersionedArticle);
+
+      await firstValueFrom(repository.find({ where: PUBLISHED as RuleGroup<VersionedArticle> }));
+      await repository.create(
+        ctx.rxdb.entityManager.createEntityRef(VersionedArticle, { id: 'v9', title: 'v9', status: 'published' })
+      );
+
+      expect(ctx.remote.adapter.fetchMetadata).toHaveBeenCalledWith('VersionedArticle', PUBLISHED);
+      expect(ctx.remote.adapter.findByIds).toHaveBeenCalledWith('VersionedArticle', ['v1']);
+      expect(ctx.remote.adapter.create).toHaveBeenCalledTimes(1);
+      // 进缓存而不是进版本化路径：本地行仓储的写与 mutations 都不亮
+      expect(ctx.local.adapter.upsertMany).toHaveBeenCalled();
+      expect(ctx.local.repository.create).not.toHaveBeenCalled();
+      expect(ctx.local.adapter.mutations).not.toHaveBeenCalled();
+    });
+
+    it('装饰器声明 QueryCache、实例覆盖为纯本地：不进缓存管道，一次远端请求都没有', async () => {
+      const ctx = createDatabase('QueryCacheOverrideOut', [], [row('a1', '2026-08-01T00:00:00.000Z')], 0, [
+        { entity: CachedArticle, sync: { type: SyncType.None, local: { adapter: 'sqlite' } } }
+      ]);
+      const repository = ctx.rxdb.entityManager.getRepository(CachedArticle);
+
+      await firstValueFrom(repository.find({ where: PUBLISHED }));
+      await repository.create(
+        ctx.rxdb.entityManager.createEntityRef(CachedArticle, { id: 'a9', title: 'a9', status: 'published' })
+      );
+
+      expect(ctx.local.repository.find).toHaveBeenCalled();
+      expect(ctx.local.repository.create).toHaveBeenCalledTimes(1);
+      expect(ctx.remote.adapter.fetchMetadata).not.toHaveBeenCalled();
+      expect(ctx.remote.adapter.findByIds).not.toHaveBeenCalled();
+      expect(ctx.remote.adapter.create).not.toHaveBeenCalled();
       expect(ctx.local.adapter.upsertMany).not.toHaveBeenCalled();
     });
   });

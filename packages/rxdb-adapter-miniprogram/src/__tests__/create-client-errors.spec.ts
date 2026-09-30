@@ -27,11 +27,11 @@ vi.mock('../wechat-file-vfs.js', async () => {
   const actual = await vi.importActual<typeof import('../wechat-file-vfs.js')>('../wechat-file-vfs.js');
   return {
     ...actual,
-    createWechatFileVFS: (
+    createMiniProgramFileVFS: (
       module: WaSqliteEmscriptenModule,
-      options: Parameters<typeof actual.createWechatFileVFS>[1]
+      options: Parameters<typeof actual.createMiniProgramFileVFS>[1]
     ) => {
-      const handle = actual.createWechatFileVFS(module, options);
+      const handle = actual.createMiniProgramFileVFS(module, options);
       const close = handle.vfs.close;
       handle.vfs.close = () => {
         close();

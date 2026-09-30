@@ -17,6 +17,13 @@ import {
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { getEntityPropertyTsType, getFlatMapInterfaceName } from '../core/RxDBClientGenerator.utils.js';
 
+/**
+ * 单条查询规则的类型描述。
+ *
+ * @remarks
+ * 由 {@link generateEntityRules} 产出、由 `buildRules` 渲染成
+ * `Eq<'name', string>` 这样的规则类型字面量。
+ */
 export interface RuleTypeData {
   rule: string;
   entity: string;
@@ -262,6 +269,22 @@ const processRelationRules = (
     });
 };
 
+/**
+ * 递归收集一个实体（含外键与关系对端）的全部查询规则。
+ *
+ * @param generator - 持有全部实体元数据的生成器实例，用于解析关系对端
+ * @param metadata - 当前递归层级的实体元数据
+ * @param firstMetadata - 递归起点的实体元数据，缺省时取 `metadata`
+ * @param ignoreKeys - 本层需要跳过的属性名，避免关系回环重复展开
+ * @param result - 累积结果数组，递归时透传
+ * @param patch - 从递归起点到当前层的路径片段，用于拼出 `a.b.c` 形式的规则键
+ * @returns 累积后的规则数组（与传入的 `result` 是同一个引用）
+ *
+ * @example
+ * ```ts
+ * const rules = generateEntityRules(generator, metadata);
+ * ```
+ */
 export const generateEntityRules = (
   generator: RxDBClientGenerator,
   metadata: EntityMetadata,

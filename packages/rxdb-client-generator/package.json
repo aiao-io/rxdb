@@ -40,6 +40,11 @@
       "types": "./dist/cli/cli.d.ts",
       "import": "./dist/cli.js"
     },
+    "./testing": {
+      "@aiao/source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing.js"
+    },
     "./vite": {
       "@aiao/source": "./src/plugins/vite.ts",
       "types": "./dist/plugins/vite.d.ts",

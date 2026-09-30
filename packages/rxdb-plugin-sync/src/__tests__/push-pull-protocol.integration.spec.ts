@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   type IRepository,
   type IRxDBChange,
   type RemoteChange,
@@ -206,6 +207,11 @@ function createProtocolHarness() {
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver({
+        type: SyncType.Full,
+        local: { adapter: 'local' },
+        remote: { adapter: 'remote' }
+      }),
       config: {
         entities: [User],
         sync: {

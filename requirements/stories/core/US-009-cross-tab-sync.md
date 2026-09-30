@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, sync, broadcast]
 ---
 
@@ -35,7 +35,7 @@ tags: [core, sync, broadcast]
 
 ## 实现文件
 
-- `packages/rxdb/src/tabs/` — TabsGateway 核心实现
+- `packages/rxdb/src/gateway/` — TabsGateway 核心实现
 
 ## 参考
 

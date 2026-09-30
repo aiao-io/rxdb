@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-25
-updated: 2026-08-27
+updated: 2026-09-20
 tags: [adapter, http, testing, integration, conformance]
 ---
 
@@ -300,9 +300,8 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 | `packages/rxdb-adapter-http/vite.config.mts`                | `coverage.exclude` 加 `'**/tests/**'`（`test.include` 已含 `tests/**`）                                                                                                            |
 | `website/docs/adapters/http-protocol.md`                    | 「条件请求（可选）」一节：服务端 `ETag` / `If-None-Match` / `304` 语义 + 验收清单一条。**本故事允许的唯一 docs 改动**，AC#16 的协议锚点（见 In Scope）；**已落地，开工时无需再改** |
 | `requirements/epics/epic-004-future-features.md`            | 故事清单条目 + 「另起故事不重开 US-212」理由（**已随本文件落地**）                                                                                                                 |
-| `requirements/status-overview.md`                           | 汇总表计数 Backlog 8 → 9、合计 55 → 56 + 未来功能段 ⬜ 条目（**已随本文件落地**）                                                                                                  |
 | `requirements/roadmap.md`                                   | 批次 3 排期行 + 约束 13「禁止改 `src/`」（**已随本文件落地**）                                                                                                                     |
-| 状态流转                                                    | 关闭时把上述三处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                                                   |
+| 状态流转                                                    | 关闭时把上述两处派生视图的 ⬜ / 未关闭计数改掉，story YAML `status` 是唯一真相源                                                                                                   |
 
 ## References
 
@@ -311,8 +310,3 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 - 桩测试（handler 输出层）：[integration.spec.ts](../../../packages/rxdb-adapter-http/src/__tests__/integration.spec.ts)
 - 少行不补空的桩用例（US-212 AC#9）：[chunking.spec.ts](../../../packages/rxdb-adapter-http/src/__tests__/chunking.spec.ts) 的 `describe('失败与少行是两件事（AC#9）')`
 - transport 实现：[transport.ts](../../../packages/rxdb-adapter-http/src/transport.ts) 的 `HttpTransport.#send` / `HttpTransport.classify`
-
----
-
-> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
-> [CONVENTIONS.md](../../CONVENTIONS.md)。

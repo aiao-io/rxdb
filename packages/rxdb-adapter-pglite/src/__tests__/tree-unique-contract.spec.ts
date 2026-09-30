@@ -1,4 +1,5 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { runTreeSiblingUniqueSuite, type TreeUniqueSuiteFactory } from '@aiao/rxdb-test/tree-unique';
 import { getTableNameByMetadata } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -22,6 +23,8 @@ const factory: TreeUniqueSuiteFactory = {
       entities: [...entities],
       sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
     rxdb.adapter(ADAPTER_NAME, async database => {
       adapter = new RxDBAdapterPGlite(database, { store: 'memory' });
       return adapter;

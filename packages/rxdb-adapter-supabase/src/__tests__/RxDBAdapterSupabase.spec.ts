@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
@@ -22,6 +23,8 @@ describe('RxDB Supabase 适配器', () => {
         type: SyncType.None
       }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
 
     rxdb.adapter(
       'supabase',

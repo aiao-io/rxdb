@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   type IRepository,
   type IRxDBChange,
   type RemoteMergeResult,
@@ -120,6 +121,11 @@ function createSyncManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdap
 
   const vm = {
     rxdb: {
+      entitySync: createEntitySyncResolver({
+        type: SyncType.Full,
+        local: { adapter: 'local' },
+        remote: { adapter: 'remote' }
+      }),
       config: {
         entities: [User],
         sync: {

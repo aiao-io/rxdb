@@ -7,10 +7,11 @@
 
 import {
   compactChanges,
-  type EntityMetadata,
+  declareTrustedWrite,
   type EntityType,
   getEntityMetadata,
   getOrCreateSyncRecord,
+  getSyncConfig,
   getSyncType,
   LWWConflictResolver,
   type PullRepositoryOptions,
@@ -30,7 +31,9 @@ import {
   type RxDBEvent,
   RxDBPartialSyncError,
   RxDBSync,
-  type SyncFailure
+  type SyncFailure,
+  type SyncOptions,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
@@ -45,6 +48,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 /**
@@ -190,7 +194,7 @@ async function _pullRepositoryImpl(
   // 避免两条路径各写一份而漂移。
   // 同一处叠加 `RxDBSync.enabled` —— 显式点名单个仓库时抛错而非静默跳过，
   // 与 syncType 不合格时的行为一致；批量枚举路径（pullBatch）才是跳过。
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
   const ineligible = await resolvePullIneligibility(sm.rxdb, namespace, entity, syncType);
 
   if (ineligible) {
@@ -200,7 +204,11 @@ async function _pullRepositoryImpl(
   // 对于 Filter 同步类型，从配置中提取 filter 函数并执行
   let effectiveFilter = opts.filter;
   if (syncType === 'filter' && !effectiveFilter) {
-    const syncConfig = metadata.sync as { type: string; remote?: { filter?: () => RuleGroup } };
+    // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
+    const syncConfig = getSyncConfig(metadata, sm.rxdb.entitySync) as {
+      type: string;
+      remote?: { filter?: () => RuleGroup };
+    };
     if (syncConfig?.remote?.filter) {
       // T022: filter 函数执行错误处理
       try {
@@ -378,7 +386,7 @@ async function pullCascadeNode(
   }
 
   const repoMetadata = getEntityMetadata(EntityType);
-  const repoSyncType = getSyncType(repoMetadata, sm.rxdb.config.sync);
+  const repoSyncType = getSyncType(repoMetadata, sm.rxdb.entitySync);
 
   // 级联节点必须走和单仓路径同一份资格校验，否则 `local` / `none`
   // 的依赖仓会被拿去问远端要数据，绕过它自己声明的同步策略
@@ -392,7 +400,12 @@ async function pullCascadeNode(
     const result = await pullSingleRepository(sm, repo.namespace, repo.entity, {
       ...options,
       // T039: 为每个实体独立提取 filter
-      filter: resolveCascadeFilter(repoKey, repoMetadata, repoSyncType, options.filter),
+      filter: resolveCascadeFilter(
+        repoKey,
+        getSyncConfig(repoMetadata, sm.rxdb.entitySync),
+        repoSyncType,
+        options.filter
+      ),
       includeRelated: false // 防止递归级联
     });
     result.success = true;
@@ -416,7 +429,8 @@ async function pullCascadeNode(
  * 解析级联节点自己的 filter
  *
  * @param repoKey - 仓库键（`namespace:entity`），用于错误消息
- * @param repoMetadata - 该仓库的实体元数据
+ * @param repoSync - 该仓库的**生效**同步配置（`getSyncConfig(metadata, rxdb.entitySync)`）；
+ *   不能传装饰器原值 `metadata.sync`：实例覆盖可能换掉了 filter，也可能把 Full 覆盖成 Filter
  * @param repoSyncType - 该仓库的有效同步类型
  * @param inheritedFilter - 调用方显式传入的 filter
  * @returns 该仓库实际生效的 filter
@@ -429,9 +443,9 @@ async function pullCascadeNode(
  *
  * @internal
  */
-function resolveCascadeFilter(
+export function resolveCascadeFilter(
   repoKey: string,
-  repoMetadata: EntityMetadata,
+  repoSync: SyncOptions | undefined,
   repoSyncType: RepositorySyncType,
   inheritedFilter: RuleGroup | undefined
 ): RuleGroup | undefined {
@@ -439,8 +453,7 @@ function resolveCascadeFilter(
   if (repoSyncType === 'full') return undefined;
   if (repoSyncType !== 'filter') return inheritedFilter;
 
-  const syncConfig = repoMetadata.sync as { type: string; remote?: { filter?: () => RuleGroup } };
-  const filterFn = syncConfig?.remote?.filter;
+  const filterFn = (repoSync as { remote?: { filter?: () => RuleGroup } } | undefined)?.remote?.filter;
   if (!filterFn) return inheritedFilter;
 
   let extractedFilter: RuleGroup;
@@ -497,7 +510,7 @@ async function pullSingleRepository(
     return meta.namespace === namespace && meta.name === entity;
   });
   const metadata = getEntityMetadata(EntityType!);
-  const syncType = getSyncType(metadata, sm.rxdb.config.sync);
+  const syncType = getSyncType(metadata, sm.rxdb.entitySync);
 
   let repoSync = await getOrCreateSyncRecord(
     repoSyncRepo,
@@ -558,20 +571,8 @@ async function pullSingleRepository(
       lastRemoteChange = remoteChanges[remoteChanges.length - 1];
       sinceId = lastRemoteChange.id;
 
-      // 分离自己 push 上去的变更和他人的变更
-      const clientId = rxdb.context.clientId;
-      const ownChanges: RemoteChange[] = [];
-      const otherChanges: RemoteChange[] = [];
-
-      // 只按 clientId 识别：远端记录缺少 localId（如 push 走 actions-only 路径）时，
-      // 自己的变更也不能进入他人变更的 apply/conflict 链路
-      for (const rc of remoteChanges) {
-        if (rc.clientId != null && rc.clientId === clientId) {
-          ownChanges.push(rc);
-        } else {
-          otherChanges.push(rc);
-        }
-      }
+      // 分离自己 push 上去的变更和他人的变更（与 pull-batch.ts 共用同一份实现）
+      const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(remoteChanges, rxdb.context.clientId);
 
       // remoteId 回填、实体应用、supersession 标记与水位线推进必须在**一个**事务里。
       //
@@ -586,24 +587,9 @@ async function pullSingleRepository(
         // 绑定在适配器上，其读写会重新排队并排在自己这个事务后面（队列并发度 1）。
         const txChangeRepo = executor.getRepository(RxDBChange);
         const txRepoSyncRepo = executor.getRepository(RxDBSync);
-        // 为自己 push 的变更更新本地 remoteId（只有带 localId 的记录才能回填映射）
-        const mappableChanges = ownChanges.filter(c => c.localId != null);
-        if (mappableChanges.length > 0) {
-          const localIds = mappableChanges.map(c => c.localId!);
-          const locals = await txChangeRepo.find({
-            where: {
-              combinator: 'and',
-              rules: [{ field: 'id', operator: 'in', value: localIds }]
-            }
-          });
-          const localMap = new Map(locals.map(l => [l.id, l]));
-          for (const ownChange of mappableChanges) {
-            const local = localMap.get(ownChange.localId!);
-            if (local && local.remoteId == null) {
-              await txChangeRepo.update(local, { remoteId: ownChange.id });
-            }
-          }
-        }
+        // 为自己 push 的变更更新本地 remoteId。此前这里把「只写没映射过的行」写成 JS 守卫，
+        // 而 pull-batch 写在 SQL 里——判据相同、写法不同，改一处漏一处不会红。现已共用。
+        await backfillOwnChangeRemoteIds(txChangeRepo, ownChanges);
 
         // 只对他人的变更执行压缩和应用
         if (otherChanges.length > 0) {
@@ -630,6 +616,13 @@ async function pullSingleRepository(
               conflictResolver,
               dispatchEvent: (event: RxDBEvent) => rxdb.dispatchEvent(event),
               repoLabel: `${namespace}:${entity}`,
+              // 推迟 supersession 标记，改由下面 `mergeChanges` 之后自己写。pull-batch 不传这一项、
+              // 走的是解冲突时就地标记——两条路径由此分叉，但分叉是**有意的**：本文件的写全在
+              // 一个事务里，把「这条本地变更已被远端取代」写在实体合并之后，失败回滚时二者同进同退。
+              //
+              // 这个位置不会漏标：`localChangeSupersessions` 只在 KEEP_REMOTE 分支 push，而那一支
+              // 必定同时 `setAction`，于是非空的 supersession 蕴含 `applyCount > 0`，
+              // 下面那道 `if` 永远不会把它挡在外面。
               deferLocalChangeSupersession: true,
               localClientId: rxdb.context.clientId
             }
@@ -640,6 +633,12 @@ async function pullSingleRepository(
           if (applyCount > 0) {
             // 先将实体变更应用到本地数据库（在更新 RxDBSync 之前）
             // disableTriggers=true 确保不生成本地 RxDBChange 记录
+            // 同 pull-batch：远端来的行进工作树，但不回流成一次可 push 的本地变更。
+            declareTrustedWrite(executor, {
+              file: 'pull-repository.ts',
+              symbol: 'pullSingleRepository',
+              intent: TrustedWriteIntent.remote_sync
+            });
             await executor.mergeChanges(applyActions, undefined, true);
             for (const supersession of localChangeSupersessions) {
               await markLocalChangesSuperseded(txChangeRepo, supersession.localChanges, supersession.remoteId);

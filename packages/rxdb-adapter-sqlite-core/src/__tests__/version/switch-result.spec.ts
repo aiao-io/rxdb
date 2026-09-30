@@ -94,4 +94,46 @@ describe('convertSwitchResultToSql structured statements', () => {
     expect(result.deletes[0].statements[0].params).toEqual([entityId]);
     expect(result.deletes[0].changes.has(entityId)).toBe(true);
   });
+
+  it('switch/merge 的 UPDATE 不把 context.userId 盖成 updatedBy', async () => {
+    const result = await convertSwitchResultToSql(createAdapter(), {
+      deletes: new Map(),
+      inserts: new Map(),
+      updates: new Map([['public:Todo:todo-1', change({ title: '撤销后' })]])
+    });
+
+    // 工作树在这条 SQL 生成之前就把调用方给的 patch 记下了。适配器此刻再从 rxdb.context
+    // 盖一列 updatedBy 上去，业务行就多出一列捕获侧永远看不见的净变化 —— updatedBy 是
+    // tracked 列（不在 UNTRACKED_BOOKKEEPING_FIELDS 里），冷重放必然当场对不上。
+    // 同文件的 INSERT 分支也不展开 context，PGlite 的同名文件同样不展开。
+    const statement = result.updates[0].statements[0];
+    expect(statement.sql).not.toContain('updatedBy');
+    expect(statement.params).not.toContain('review-user');
+  });
+
+  it('列集只剩 readonly 簿记列的那一行被跳过，同组里能写的那一行照常生成', async () => {
+    const result = await convertSwitchResultToSql(createAdapter(), {
+      deletes: new Map(),
+      inserts: new Map(),
+      updates: new Map([
+        ['public:Todo:todo-1', change({ updatedAt: new Date('2026-01-01T00:00:00.000Z') })],
+        ['public:Todo:todo-2', change({ title: '还有一列能写' })]
+      ])
+    });
+
+    // 跳过的那一行也不进 ids：它没被写过，就不该被 SELECT 回来当成「更新过」再发事件。
+    expect(result.updates[0].statements).toHaveLength(1);
+    expect(result.updates[0].statements[0].params).toContain('还有一列能写');
+    expect(result.updates[0].ids).toEqual(new Set(['todo-2']));
+  });
+
+  it('一组更新的列集全落在簿记列上时，这一组整个不进结果', async () => {
+    const result = await convertSwitchResultToSql(createAdapter(), {
+      deletes: new Map(),
+      inserts: new Map(),
+      updates: new Map([['public:Todo:todo-1', change({ updatedAt: new Date('2026-01-01T00:00:00.000Z') })]])
+    });
+
+    expect(result.updates).toHaveLength(0);
+  });
 });

@@ -1,16 +1,31 @@
-import type { EntityMetadata, EntityType, IRepository, IRxDBAdapter } from '@aiao/rxdb';
+import type {
+  EntityMetadata,
+  EntityType,
+  IRepository,
+  IRxDBAdapter,
+  RxDBBackupHeldLock,
+  RxDBBackupOptions,
+  RxDBBackupResult,
+  RxDBRestoreResult
+} from '@aiao/rxdb';
 import {
+  ACTIVE_BRANCH_KEY,
+  AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
+  gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
   getRxDBSystemVersionState,
+  hasRxDBBackupWebLocks,
   isCurrentRxDBSystemVersion,
+  MAIN_BRANCH_ID,
   RxDB,
   RXDB_CHANGE_CODEC_WATERMARK,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBAdapterLocalBase,
+  RxDBBackupError,
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
@@ -21,11 +36,13 @@ import {
   TransactionBeginEvent,
   TransactionCommitEvent,
   TransactionRollbackEvent,
+  tryAcquireRxDBBackupLock,
   uuid
 } from '@aiao/rxdb';
 import {
   createKeyring,
   EncryptedConfigurationError,
+  isEnvelope,
   type Keyring,
   type UnlockOptions,
   validateEncryptedPropertyMetadata
@@ -33,6 +50,19 @@ import {
 import { AsyncQueueExecutor } from '@aiao/utils';
 import { proxy } from 'comlink';
 import { defer, from, Observable, of } from 'rxjs';
+import {
+  cleanupIncompleteSqliteRestore,
+  hasSqliteRestoreMarker,
+  restoreSqliteDatabase,
+  type SqliteRestoreInput
+} from './backup/restore-sqlite-database.js';
+import {
+  type SqliteBackupStorage,
+  type SqliteRestoreOptions,
+  sqliteStorageLockName,
+  type SqliteSupportedBackupStorage
+} from './backup/sqlite-backup.interface.js';
+import { writeSqliteBackup } from './backup/sqlite-backup.js';
 import { releaseComlinkProxy } from './create_sqlite_client.js';
 import { generate_upsert_clause } from './entity/insert_sql.js';
 import { handle_rxdb_change } from './handle_rxdb_change.js';
@@ -73,7 +103,8 @@ import {
   isSqlResultEmpty,
   isTableExistedSql,
   quote_sql_identifier,
-  RxDBAdapterSqliteError
+  RxDBAdapterSqliteError,
+  rxDBColumnTypeToSqliteType
 } from './sqlite-core.utils.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
@@ -85,8 +116,153 @@ import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
-import { withTriggersDisabled } from './version/with_triggers_disabled.js';
+import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
+
+/**
+ * 读出当前库该把变更触发器挂到哪条分支上：优先取真实激活分支，读不到时回退根分支。
+ *
+ * @param tx - 当前事务的执行器（调用方已 `BEGIN`，或等价的引导期事务）
+ * @returns 活动分支 id；分支表还不存在、或一行 active 都没有时返回根分支
+ *
+ * @remarks
+ * 两处调用：{@link RxDBAdapterSqliteBase.migrateSystemSchema} 迁移收尾重建触发器时用它决定挂到
+ * 哪条分支；{@link RxDBAdapterSqliteBase.createTables} 建表前同样用它决定新表的触发器要挂到
+ * 哪条分支——两处问的是同一个问题「这条连接此刻停在哪条分支」，写成两份的风险与
+ * `readCurrentBranchId`（`version/read_current_branch_id.ts`）的 TSDoc 描述的是同一种：判定逻辑
+ * 漂移只会落在改到的那一份上。
+ *
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同一步逐语义对齐——触发器把 `branchId`
+ * 烙成 SQL 字面量，两端读法不一致就意味着同一个库换个后端打开，窗口期的裸写会记到不同分支名下。
+ *
+ * 只读 `activated`，不读 `activeKey`：后者是迁移**稍后**才补出来的列
+ * （见 {@link ensureBranchActiveKey}），而 `activated` 在所有受支持的旧版本里都在——
+ * 迁移里的那一步也正是靠读它来决定点亮谁，所以这次读在迁移的任何中途、以及迁移完成后的
+ * 建表路径上都成立。
+ *
+ * 三种「读不到」都归根分支，且都不是兜底——它们问的不是「出错了怎么办」，而是「库里此刻有没有
+ * 这个答案」：分支表还不存在（迁移中途的旧库、或全新库第一次 `createTables` 正在建它自己）；
+ * 分支表在但是空的；有行但零 active——零 active 的恢复目标本就是根分支，与
+ * {@link ensureBranchActiveKey} 的同名分支是同一个判断。
+ *
+ * 多行 active 不在这里判：迁移路径上紧随其后的 {@link ensureBranchActiveKey} 会抛
+ * `AmbiguousActiveBranchError`，按 `LIMIT 1` 取到的那一行重建的触发器随整段迁移一起回滚；
+ * 迁移完成之后，`activeKey` 那条唯一索引按写点约定把 active 行压到至多一行（改由 schema 表达
+ * 是 roadmap 顺延项，判据见 `RxDBBranch` 的 `@remarks`）。PGlite 建表侧的
+ * `readBranchIdForNewTables` 同样 `LIMIT 1` 取一行。
+ *
+ * 没有直接用 {@link read_current_branch_id}：那一份读不到激活分支、也没有 `main` 行时会抛错
+ * （见其 TSDoc），语义是「事务内必须要有答案」；这里的两处调用方都可能撞见「分支表还不存在」这种
+ * 更早的库状态（全新库建表、旧库迁移中途），读不到是合法结果，要回退根分支而不是抛错中断整条
+ * 引导链路。
+ */
+const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
+  const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch));
+  const tableResult = await tx.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return MAIN_BRANCH_ID;
+
+  const activeResult = await tx.execute(
+    `SELECT "id" FROM ${quote_sql_identifier(branchTableName)} WHERE "activated" = 1 LIMIT 1`
+  );
+  const activeBranchId = activeResult.results.flatMap(result => result.rows)[0]?.[0];
+  return typeof activeBranchId === 'string' ? activeBranchId : MAIN_BRANCH_ID;
+};
+
+/**
+ * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
+ *
+ * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ *
+ * @remarks
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
+ * 否则同一个库换个后端打开就是另一套约束。**两份没有合一的判据写在那一端的 @remarks 里**
+ * （客户端协议与 DDL 方言都不同，抽完只剩骨架）；在合一之前，这里的任何改动都必须两端同改。
+ * 顺序同样是**先建索引、后回填**：
+ * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
+ * 但两端走不同顺序等于给自己留两条要分别验证的路径。
+ *
+ * 探列在 SQLite 这边是**必需的而非优化**：`ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，
+ * 重复执行会直接报错。
+ *
+ * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ *
+ * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
+ * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。把同一个值
+ * 原样写回去仍然是一次 UPDATE，会沿变更派发链路冒出一条谁都没做过的 `RxDBBranch` 更新，
+ * 而且没有任何东西会报错。
+ *
+ * **零 active 且库里连 `main` 行都没有时，这里什么都不建。** 迁移 0004 的不变量是「新库与
+ * 升级库逐字段相同」——一个分支行必须连带 `rxdb_commit_branch_ref` 与 `rxdb_working_tree_state`
+ * 两行（见 `commit/branch-commit-rows.ts`），而这里是裸 SQL，造不出那两行。凭空插一行
+ * `main` 等于亲手制造一个原本不存在的不一致；这种库交给实体层的 `resolve_current_branch`
+ * 去建，它走的是能连带写全的那条路。空表本身不违反「至多一个」，索引照建不误。
+ */
+const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> => {
+  const branchMetadata = getEntityMetadata(RxDBBranch);
+  const branchTableName = get_table_name_by_metadata(branchMetadata);
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    branchTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return;
+
+  const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
+  if (!activeKeyProperty) {
+    throw new RxDBAdapterSqliteError('RxDBBranch metadata is missing the "activeKey" property.');
+  }
+  const branchTable = quote_sql_identifier(branchTableName);
+  const activeKeyColumn = quote_sql_identifier(activeKeyProperty.columnName);
+
+  const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
+    branchTableName,
+    activeKeyProperty.columnName
+  ]);
+  if (!columnResult.results.some(result => result.rows.length > 0)) {
+    // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
+    // 不会有编译错误，只会让两条路径悄悄分叉。
+    await client.execute(
+      `ALTER TABLE ${branchTable} ADD COLUMN ${activeKeyColumn} ${rxDBColumnTypeToSqliteType(activeKeyProperty)}`
+    );
+  }
+
+  const activeResult = await client.execute(`SELECT "id" FROM ${branchTable} WHERE "activated" = 1 ORDER BY "id"`);
+  const activeBranchIds = activeResult.results.flatMap(result => result.rows).map(row => String(row[0]));
+  if (activeBranchIds.length > 1) throw new AmbiguousActiveBranchError(activeBranchIds);
+
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
+      getTableColumnIndexName(branchMetadata, activeKeyProperty)
+    )} ON ${branchTable}(${activeKeyColumn})`
+  );
+
+  const activeBranchId = activeBranchIds[0];
+  // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
+  // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
+  // A 仍在清空范围内，索引照样不会瞬时自撞。
+  await client.execute(
+    `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
+     WHERE ${activeKeyColumn} IS NOT NULL AND "id" != ?`,
+    [activeBranchId ?? MAIN_BRANCH_ID]
+  );
+
+  if (activeBranchId !== undefined) {
+    // `IS NOT` 在 SQLite 里是 null 安全的比较，列为 NULL 时照样成立。
+    await client.execute(
+      `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NOT ?`,
+      [ACTIVE_BRANCH_KEY, activeBranchId, ACTIVE_BRANCH_KEY]
+    );
+    return;
+  }
+  // 零 active 这一支不需要守卫：`activated` 此刻必然为假（否则不会走到这里），这条 UPDATE
+  // 一定是真变更。
+  await client.execute(`UPDATE ${branchTable} SET "activated" = 1, ${activeKeyColumn} = ? WHERE "id" = ?`, [
+    ACTIVE_BRANCH_KEY,
+    MAIN_BRANCH_ID
+  ]);
+};
 
 /**
  * 事务回调。
@@ -219,6 +395,11 @@ const assert_row_single_spelling = (
  */
 export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase implements IRxDBAdapter {
   #cached_client?: SqliteClientLike;
+  /** 恢复到内存目标得到的连接，下一次建连时代替 `createClient()` 被接管。 */
+  #adopted_client?: SqliteClientLike;
+  #restoring = false;
+  /** 持久化存储的共享锁：挡住连接期间的恢复与清理。 */
+  #storage_lock?: RxDBBackupHeldLock;
   #row_id_map = new Map<EntityType, Map<RowId, InstanceType<EntityType>>>();
   #entity_row_id_map = new WeakMap<InstanceType<EntityType>, RowId>();
   #queue = new AsyncQueueExecutor(1);
@@ -289,6 +470,22 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     }
     this.repository('Repository', SqliteRepository);
     this.repository('TreeRepository', SqliteTreeRepository);
+  }
+
+  /**
+   * 判定一个落库值是否已处于加密后的 at-rest 形态（FR-038）。
+   *
+   * @param value - 落库列里的值
+   * @returns 是信封串时为 `true`
+   *
+   * @remarks
+   * 权威判定器只有一份，就是 `@aiao/rxdb-adapter-encrypted` 的 `isEnvelope`——本方法是
+   * 核心那个可选槽位（{@link RxDBAdapterLocalBase.isEncryptedAtRest}）到它的一句转发，
+   * 不在这里另认一套形状。`@aiao/rxdb` 不能依赖加密包（依赖方向是反的），所以这一句
+   * 只能落在适配器侧。
+   */
+  override isEncryptedAtRest(value: unknown): boolean {
+    return isEnvelope(value);
   }
 
   /**
@@ -412,6 +609,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         await this.#cached_client.disconnect();
       }
     } finally {
+      await this.#releaseAdoptedClient();
+      await this.#releaseStorageLock();
       // client 是 Comlink 远端代理时必须显式释放根代理的 MessagePort：
       // 不释放则每轮断开/重连都留下一个活端口和 Worker 侧引用（SQLC-041）。
       // 排在 client.disconnect() 之后 —— 先释放代理，后续 RPC 会直接 reject。
@@ -428,18 +627,125 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return await client.version();
   }
 
+  /**
+   * 把整个数据库写成一份可恢复的归档。
+   *
+   * @remarks
+   * 归档是逻辑转储：全部结构语句与行字面量，在 adapter 的串行队列里、同一个读事务中取得，所以与某一次
+   * 事务提交边界一致，WAL 里已提交的数据都在其中。**整个写出过程都占着数据库**：输出流有背压时，
+   * 这段时间内的读写都会排队。在本 adapter 的事务回调里调用会等待自己，直到 `lockTimeoutMs` 后报 `lock_timeout`。
+   *
+   * 归档包含业务表、系统表、变更历史与 keyring 的密文，加密列保持密文，不需要解锁；
+   * 外置文件不在其中（`scope.externalFiles === 'excluded'`）。支持的存储见各 adapter 的 README。
+   *
+   * @param sink - 输出流；成功时被 close，失败时被 abort
+   * @param options - 取消信号与排队时限
+   * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
+   * @throws RxDBBackupError `unsupported_combination` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+   *
+   * @example
+   * ```typescript
+   * const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+   * const result = await adapter.backup(await handle.createWritable());
+   * console.log(result.sha256);
+   * ```
+   */
+  async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
+    const storage = this.#supportedBackupStorage('backup');
+    if (options.signal?.aborted) {
+      throw new RxDBBackupError('aborted', 'SQLite backup was aborted', { cause: options.signal.reason });
+    }
+    if (this.#is_disconnected) {
+      throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+    }
+    await this.ready();
+    const client = await this.#client();
+    return writeSqliteBackup(
+      {
+        rxdb: this.rxdb,
+        adapterName: this.name,
+        client,
+        storage,
+        queue: this.#queue,
+        shadowTablesWritable: this.shadowTablesWritable()
+      },
+      sink,
+      options
+    );
+  }
+
+  /**
+   * 把 {@link backup} 产出的归档恢复进本 adapter 配置的空存储。
+   *
+   * @remarks
+   * 必须在 `rxdb.connect()` 之前调用（经 `rxdb.getAdapter(name)` 拿到尚未连接的实例）：已连接或正在恢复时
+   * 报 `target_busy`。只写入**空**目标，兼容性（adapter、引擎大版本、虚表模块、系统表 / 变更编码版本、
+   * 实体结构指纹、加密认证域）在写入第一条语句之前判定，全部核对通过后才提交。
+   *
+   * - 持久化存储：恢复完成后正常 `rxdb.connect()` 即可；恢复中途页面被关，之后的连接报 `restore_incomplete`，
+   *   需先 {@link cleanupIncompleteRestore}。
+   * - 内存存储：恢复出来的库只活在本实例里，由下一次 `rxdb.connect()` 接管；不连接时 {@link disconnect} 释放它。
+   *
+   * 恢复出来的行不产生变更历史；加密库保持锁定。输入流在失败时被取消，成功时只释放读锁。
+   *
+   * @param source - 归档字节流
+   * @param options - 取消信号与阶段回调
+   * @returns 结束标记与 manifest
+   * @throws RxDBBackupError 见 {@link RxDBBackupErrorCode}；`cleanup_pending` 表示失败后连清理也没做完
+   *
+   * @example
+   * ```typescript
+   * rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicVFS' }));
+   * const adapter = await rxdb.getAdapter('wa-sqlite');
+   * await adapter.restore(file.stream());
+   * await rxdb.connect('wa-sqlite');
+   * ```
+   */
+  async restore(source: ReadableStream<Uint8Array>, options: SqliteRestoreOptions = {}): Promise<RxDBRestoreResult> {
+    let storage: SqliteSupportedBackupStorage;
+    try {
+      storage = this.#supportedBackupStorage('restore');
+      this.#assertRestoreIdle();
+    } catch (error) {
+      await source.cancel(error).catch(() => undefined);
+      throw error;
+    }
+    this.#restoring = true;
+    try {
+      const outcome = await restoreSqliteDatabase(source, this.#restoreInput(storage), options);
+      this.#adopted_client = outcome.client;
+      return outcome.result;
+    } finally {
+      this.#restoring = false;
+    }
+  }
+
+  /**
+   * 清理一次没做完的恢复（页面在恢复中途关闭、或恢复失败后清理本身也失败）。
+   *
+   * @remarks
+   * 必须在连接之前调用。拿不到独占锁说明目标正被连接或正在恢复，报 `target_busy`；
+   * 没有未完成标记时什么都不做。内存存储没有残留可言，恒为 `false`。
+   *
+   * @returns 确实清理了残留时为 `true`
+   * @throws RxDBBackupError `target_busy` / `unsupported_combination` / `cleanup_pending`
+   */
+  async cleanupIncompleteRestore(): Promise<boolean> {
+    return cleanupIncompleteSqliteRestore(this.#restoreInput(this.#supportedBackupStorage('restore cleanup')));
+  }
+
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: entities,
-      need_remove_entities: []
+      needSaveEntities: entities,
+      needRemoveEntities: []
     });
     return this.mutations(options);
   }
 
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     const options = getEntityMutations({
-      need_save_entities: [],
-      need_remove_entities: entities
+      needSaveEntities: [],
+      needRemoveEntities: entities
     });
     return this.mutations(options);
   }
@@ -460,10 +766,21 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
-    const sql = await create_tables_sql(this, EntityTypes, entities);
     // 建表也在引导链路上（RxDB.#ensureEntityTables 补建缺失的实体表），同样不能等就绪门；
     // 何况「表就绪」正是本方法要建立的前提，让它反过来等就绪是循环依赖。
-    await this.bootstrapTransaction(executor => executor.execute(sql), false);
+    await this.bootstrapTransaction(async executor => {
+      // 建表前先读一次真实活动分支，把结果直接传给 create_tables_sql 去拼「建表 + 建触发器」——
+      // 库创建新表时可能已经停在非 main 分支上（RxDB.#ensureEntityTables 补建缺失表时尤其常见），
+      // 触发器要从一开始就烙对分支，而不是先写占位分支、指望别的机制回头纠正：不经
+      // transaction() 的裸写根本等不到「下一个默认事务重建全部触发器」的自愈时机。
+      //
+      // 触发器只在这里烙一次：先读分支再拼 SQL，不走「先按占位分支建、建完在同一事务里
+      // 对刚建出的同一批表再做一遍 DROP+CREATE 重建」的两阶段写法——省掉一次重复 DDL，
+      // 也不会让触发器在事务内出现过写着错误分支的中间状态（哪怕最终会被覆盖）。
+      const branchId = await readActiveBranchIdOrMain(executor);
+      const sql = await create_tables_sql(this, EntityTypes, branchId, entities);
+      await executor.execute(sql);
+    }, false);
     return true;
   }
 
@@ -515,11 +832,16 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
             }
           }
 
+          // 重建的触发器必须按库此刻停在的分支写。自愈只能兜住一部分：下一个默认事务 COMMIT 时
+          // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
+          // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
+          const migrationBranchId = await readActiveBranchIdOrMain(client);
           const removeTriggersSql = remove_all_triggers_sql(this);
           if (removeTriggersSql) await client.execute(removeTriggersSql);
           for (const metadata of existingLoggedMetadata) {
             await client.execute(
               generate_table_trigger_sql(metadata, {
+                branchId: migrationBranchId,
                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
               })
             );
@@ -541,6 +863,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
               getTableColumnIndexName(migrationMetadata, nameProperty)
             )} ON ${migrationTable}("name")`
           );
+
+          await ensureBranchActiveKey(client);
 
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(
@@ -568,6 +892,25 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         throw error;
       }
     });
+  }
+
+  /**
+   * SQLite 家族把命名空间折进表名：`public$todos`。
+   *
+   * @param metadata - 实体元数据
+   * @returns 逻辑名（基类那一份）加上本家族真正建出来的那个名字
+   *
+   * @remarks
+   * 覆写的全部意义是**让规则只有一份**：名字由 {@link get_table_name_by_metadata} 给出，
+   * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-working-tree` 的
+   * 版本化域按 `'$'` 自己拼了一份；拼法一改，那份不会报错，只会开始认不出这张表，于是
+   * raw 写门禁对它静默放行。
+   *
+   * 保留基类给的逻辑名而不是只交折叠名：raw 判定宁可**多认**一个名字——多认只是多挡下
+   * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
+   */
+  override physicalTableNames(metadata: EntityMetadata): readonly string[] {
+    return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata)];
   }
 
   async switchBranch(options: SwitchBranchOptions): Promise<void> {
@@ -633,14 +976,32 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.runInTransaction(executor => (executor as SqliteTransactionExecutor).execute(sql, bindings), false);
   }
 
+  /**
+   * 原始 SQL。
+   *
+   * @remarks
+   * **judgment 由核心包出，这里只负责接上**（adapter-contract.md §2）。`rawQuery?()` 在
+   * `IRxDBAdapter` 上是可选方法，核心包没法像四个捕获挂载点那样替适配器包住它，于是这一句
+   * `gateRawWrite` 是本类唯一要写对的地方。判定本身一个字都不在这里重写——六份实现里只要有一份
+   * 把词法归一化写松，整条防线就有洞，而那个洞不会在任何一个后端自己的测试里现形。
+   *
+   * 这一句覆盖 **5 个 v1 适配器**（wa-sqlite / sqlite-wasm / sqlite / sqliteai / electron）：
+   * 它们都继承本类且都不覆写 `rawQuery`。在五个子类里各写一遍是 T064「不各写一份」明确排除的
+   * 形态；哪天某个子类真的覆写了 `rawQuery`，它就得自己接上，这一点由 T068 的 6 个一致性调用点兜住。
+   *
+   * 门禁包在**整个方法体**外面，两条生命周期分支都在里面：拒绝发生在语句下发之前，连事务都不会开，
+   * 业务表零变化——不是写完再回滚。引导窗内捕获运行时还没装上，判定第 1 步放行，行为与接入前逐字一致。
+   */
   public async rawQuery(sql: string, params?: unknown[]) {
-    // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
-    // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
-    // 引导完成后仍走 transaction，保证正式写入等表就绪。
-    if (this.#lifecycle_state === 'bootstrap') {
-      return this.bootstrapTransaction(executor => executor.query(sql, params), false);
-    }
-    return this.transaction(executor => executor.query(sql, params), false);
+    return gateRawWrite(sql, this.workingTreeRawWriteContext, () => {
+      // 引导窗内的探测/DDL 不得再等 RxDB.connect()：
+      // adapter.connect() 刚返回、建表尚未完成时，等就绪门就是等自己。
+      // 引导完成后仍走 transaction，保证正式写入等表就绪。
+      if (this.#lifecycle_state === 'bootstrap') {
+        return this.bootstrapTransaction(executor => executor.query(sql, params), false);
+      }
+      return this.transaction(executor => executor.query(sql, params), false);
+    });
   }
 
   // transaction() 与 query() 共用 #queue（并发度 1）串行通道。真实适配器入口总是重新入队，
@@ -691,7 +1052,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 真实适配器入口总是新开事务；executor 门面会把事务内的 `runInTransaction()` 映射为
    * `executor.run()`，复用当前事务且不重新入队。
    */
-  public async runInTransaction<T extends TransactionFun>(
+  public override async runInTransaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true
   ): Promise<Awaited<ReturnType<T>>> {
@@ -704,16 +1065,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     return this.transaction(transactionFun, transactionLog);
   }
 
-  localRxDBBranch() {
-    return this.getRepository(RxDBBranch) as SqliteRepository<typeof RxDBBranch>;
-  }
-
   internalQuery(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
     return this.#internal_exec(sql, bindings);
-  }
-
-  localRxDBChange() {
-    return this.getRepository(RxDBChange) as SqliteRepository<typeof RxDBChange>;
   }
 
   async getRxDBChangeSequence() {
@@ -835,6 +1188,57 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         })
       );
     });
+  }
+
+  /**
+   * 当前配置对应的备份存储后端，决定 {@link backup} / {@link restore} 能否使用以及恢复走哪条路径。
+   *
+   * @remarks
+   * 基类默认不支持；已交付的 adapter 按自己的存储选项覆盖。持久化后端的 `storageKey` 用
+   * {@link persistentBackupStorage} 生成，保证同一份库在连接与恢复两侧用同一把锁。
+   *
+   * @returns 存储后端
+   */
+  protected backupStorage(): SqliteBackupStorage {
+    return { kind: 'unsupported', field: 'adapter', actual: this.name };
+  }
+
+  /**
+   * 生成持久化存储后端的描述。
+   *
+   * @param label - 写进 manifest 的存储名，例如 `idb` / `opfs`
+   * @returns `storageKey` 为 `<adapter>:<label>:<dbName>` 的持久化后端
+   */
+  protected persistentBackupStorage(label: string): SqliteBackupStorage {
+    return { kind: 'persistent', label, storageKey: `${this.name}:${label}:${this.rxdb.config.dbName}` };
+  }
+
+  /**
+   * 本后端能否写虚表的影子表（FTS5 的 `_data`、`_idx` 等）。
+   *
+   * @remarks
+   * 归档按行原样保存影子表，恢复时要整表改写它们。默认可以；以 defensive 模式运行 SQLite 的后端改不了影子表，
+   * 覆盖为 `false`：含影子表的库备份与恢复都报 `unsupported_combination`，而不是产出一份自己恢复不了的归档，
+   * 或写到一半才失败。
+   *
+   * @returns 能写为 `true`
+   */
+  protected shadowTablesWritable(): boolean {
+    return true;
+  }
+
+  /**
+   * 打开恢复或清理用的目标连接。
+   *
+   * @remarks
+   * 默认就是 {@link createClient}：浏览器后端的库只会在同源上下文里被打开，恢复前拿到的独占 Web Lock
+   * 已经挡住了其余所有连接。库文件还可能被别的进程打开的后端（桌面 host）覆盖它，在返回前让这条连接
+   * 独占底层存储并一直持有到断开，保证从空状态检查到恢复结束都没有别人连得上。
+   *
+   * @returns 目标库的一条新连接
+   */
+  protected createRestoreTargetClient(): Promise<SqliteClientLike> {
+    return this.createClient();
   }
 
   /**
@@ -1082,13 +1486,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       this.#client_promise = (async () => {
         let client: SqliteClientLike | undefined;
         try {
-          client = await this.createClient();
+          await this.#acquireStorageLock();
+          client = this.#adopted_client ?? (await this.createClient());
+          this.#adopted_client = undefined;
+          await this.#assertNoRestoreMarker(client);
           await this.#ensureClientEventListeners(client);
           this.#cached_client = client;
           return client;
         } catch (err) {
           this.#cached_client = undefined;
           this.#listeners_registered = false;
+          await this.#releaseStorageLock();
           if (client) {
             try {
               await client.disconnect();
@@ -1102,6 +1510,80 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       })();
     }
     return this.#client_promise;
+  }
+
+  #supportedBackupStorage(operation: string): SqliteSupportedBackupStorage {
+    const storage = this.backupStorage();
+    if (storage.kind !== 'unsupported') return storage;
+    throw new RxDBBackupError(
+      'unsupported_combination',
+      `SQLite ${operation} is not supported by "${this.name}" with ${storage.field} = ${storage.actual}`,
+      { details: { field: storage.field, actual: storage.actual } }
+    );
+  }
+
+  #assertRestoreIdle(): void {
+    if (!this.#restoring && !this.#client_promise && !this.#adopted_client) return;
+    throw new RxDBBackupError('target_busy', `Adapter "${this.name}" is already connected or restoring`, {
+      details: { field: 'adapter', actual: this.name }
+    });
+  }
+
+  #restoreInput(storage: SqliteSupportedBackupStorage): SqliteRestoreInput {
+    return {
+      rxdb: this.rxdb,
+      adapterName: this.name,
+      storage,
+      createClient: () => this.createRestoreTargetClient(),
+      shadowTablesWritable: this.shadowTablesWritable()
+    };
+  }
+
+  /**
+   * 连接持久化存储前取共享锁：恢复与清理要的是独占锁，拿不到共享锁说明正在恢复。
+   * 没有 Web Locks 的环境本就不支持持久化恢复，也就没有要挡的操作。
+   */
+  async #acquireStorageLock(): Promise<void> {
+    if (this.#restoring) {
+      throw new RxDBBackupError('restore_in_progress', `Adapter "${this.name}" is restoring`, {
+        details: { field: 'adapter', actual: this.name }
+      });
+    }
+    const storage = this.backupStorage();
+    if (this.#storage_lock || storage.kind !== 'persistent' || !hasRxDBBackupWebLocks()) return;
+    const lock = await tryAcquireRxDBBackupLock(sqliteStorageLockName(storage.storageKey), 'shared');
+    if (!lock) {
+      throw new RxDBBackupError('restore_in_progress', `SQLite storage "${storage.storageKey}" is being restored`, {
+        details: { field: 'storage', actual: storage.storageKey }
+      });
+    }
+    this.#storage_lock = lock;
+  }
+
+  async #releaseStorageLock(): Promise<void> {
+    const lock = this.#storage_lock;
+    this.#storage_lock = undefined;
+    await lock?.release();
+  }
+
+  /** 恢复中途被打断的库留着标记表，不能被当成正常库打开，更不能被引导链路在上面建表掩盖。 */
+  async #assertNoRestoreMarker(client: SqliteClientLike): Promise<void> {
+    const storage = this.backupStorage();
+    if (storage.kind !== 'persistent' || !(await hasSqliteRestoreMarker(client))) return;
+    throw new RxDBBackupError(
+      'restore_incomplete',
+      `A previous restore into "${storage.storageKey}" did not finish; call cleanupIncompleteRestore()`,
+      { details: { field: 'storage', actual: storage.storageKey } }
+    );
+  }
+
+  async #releaseAdoptedClient(): Promise<void> {
+    const client = this.#adopted_client;
+    this.#adopted_client = undefined;
+    if (!client) return;
+    // 没被接管的内存库随之丢弃，关闭失败不改变结论；吞掉它，别让它盖住 disconnect() 自身的清理
+    await client.disconnect().catch(() => undefined);
+    releaseComlinkProxy(client);
   }
 
   async #internal_exec(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
@@ -1212,8 +1694,18 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           console.error('[rxdb-adapter-sqlite-core] TRANSACTION_ROLLBACK listener threw:', listenerError);
         }
       }
-      const message = error instanceof Error ? error.message : 'Transaction Error';
-      throw new RxDBAdapterSqliteError(message, { cause: error });
+      // 事务体的错误**原样**冒泡。包装成 RxDBAdapterSqliteError 只保下文案，原型、`code`
+      // 与 stack 一并丢掉：调用方再也 `instanceof` 不到自己抛的领域错误，只能拿字符串匹配
+      // 错误消息。而 PGlite 那一端是原样抛的——同一段业务代码在两个后端上要走不同的 catch
+      // 分支，这正是 workingTreeCommitConformanceSuite 存在的理由。
+      //
+      // 驱动层的 SQL 错误不靠这里补类型：executeHelper 在 client 层就已经包成了
+      // RxDBAdapterSqliteError，再包一层只是把 cause 链拉长。
+      //
+      // 非 Error 拒绝（`Promise.reject('...')`）仍归一成 Error：调用方至少要拿到一个有
+      // message、有 stack 的东西，而不是一个裸字符串。
+      if (error instanceof Error) throw error;
+      throw new RxDBAdapterSqliteError('Transaction Error', { cause: error });
     } finally {
       // executor 必须自持状态并在这里翻成终态：逃逸出事务体后再使用它要能立刻抛错，
       // 而不是静默落到一个已提交/已回滚的连接上继续写。

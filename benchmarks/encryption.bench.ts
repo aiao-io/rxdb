@@ -14,8 +14,8 @@
  * Note: wa-sqlite requires a browser environment with OPFS / IDB and cannot
  * run in Node.js. PGlite (memory store) covers the Node-side baseline.
  *
- * @see specs/004-local-field-encryption/tasks.md T080
- * @see specs/004-local-field-encryption/plan.md Constitution IV performance
+ * @see requirements/stories/future/US-803-local-encryption.md
+ * @see .specify/memory/constitution.md「IV. Performance Requirements」
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';

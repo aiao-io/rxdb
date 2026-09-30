@@ -13,7 +13,6 @@ import {
   RelationKind,
   RxDB,
   RxDBBranch,
-  RxDBChange,
   SyncType,
   TRANSACTION_BEGIN,
   TRANSACTION_ROLLBACK,
@@ -31,7 +30,7 @@ import { SqliteRepository } from '../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteBaseOptions, type SqliteClientLike } from '../RxDBAdapterSqliteBase.js';
 import { SQLiteChangeType } from '../sqlite-backend.interface.js';
 import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteSuccessResult } from '../sqlite-core.interface.js';
-import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
+import { get_table_name_by_metadata, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { Todo } from './fixtures/Todo.js';
 
 @Entity({
@@ -172,16 +171,29 @@ const executedSqls = (client: SqliteClientLike): string[] =>
   vi.mocked(client.execute).mock.calls.map(([sql]) => String(sql));
 
 /**
- * 去掉事务序幕里那次「读当前分支」的 SQL。
+ * `readActiveBranchIdOrMain`（`createTables` 建表前、`migrateSystemSchema` 收尾时都要调用，
+ * 用来决定新/重建触发器该烙哪条分支）探测分支表是否存在的那次探针查询。与
+ * `BRANCH_TABLE_PATTERN` 同一类「序幕」：只是被测方法决定分支 id 的内部手段，不是它对外
+ * 承诺的业务 SQL，不该被按下标断言的用例固定住。
+ */
+const BRANCH_TABLE_EXISTENCE_PROBE_PATTERN = /^SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = \?/;
+
+/**
+ * 去掉事务序幕里那次「读当前分支」的 SQL，以及 `readActiveBranchIdOrMain` 建表/迁移前那次
+ * 「分支表是否存在」探针查询。
  *
  * @remarks
  * C2 起 `#run_transaction` 在 BEGIN 之前会先读一次当前分支（供 `switch_transaction_id` 用），
- * 于是它排在 `executedSqls()` 的最前面。断言 `sqls[0]` 是 BEGIN 的用例本意是「事务的第一条
- * 语句」，不是「client 收到的第一条语句」—— 用这个过滤器表达该本意，避免把序幕的调度
- * 细节固定在测试里。
+ * 于是它排在 `executedSqls()` 的最前面；`createTables` 在 BEGIN 之后、真正的建表 SQL 之前，
+ * 又会先经 `readActiveBranchIdOrMain` 探一次分支表是否存在（必要时再读一次活动分支）。
+ * 断言 `sqls[0]` 是 BEGIN、`sqls[1]` 是业务 SQL 的用例本意是「事务的第一条 / 第二条语句」，
+ * 不是「client 收到的第一条 / 第二条语句」—— 用这个过滤器表达该本意，避免把这些序幕与
+ * 探针的调度细节固定在测试里。
  */
 const transactionSqls = (client: SqliteClientLike): string[] =>
-  executedSqls(client).filter(sql => !BRANCH_TABLE_PATTERN.test(sql));
+  executedSqls(client).filter(
+    sql => !BRANCH_TABLE_PATTERN.test(sql) && !BRANCH_TABLE_EXISTENCE_PROBE_PATTERN.test(sql)
+  );
 
 const emptyMutations = (): RxDBMutationsMap => ({
   create: new Map(),
@@ -480,15 +492,6 @@ describe('RxDBAdapterSqliteBase', () => {
 
       expect(adapter.getRepository(CustomRepoEntity)).toBeInstanceOf(CustomRepository);
     });
-
-    it('localRxDBBranch 与 localRxDBChange 返回系统实体仓库', () => {
-      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
-
-      expect(adapter.localRxDBBranch()).toBeInstanceOf(SqliteRepository);
-      expect(adapter.localRxDBBranch().EntityType).toBe(RxDBBranch);
-      expect(adapter.localRxDBChange()).toBeInstanceOf(SqliteRepository);
-      expect(adapter.localRxDBChange().EntityType).toBe(RxDBChange);
-    });
   });
 
   describe('表与序列', () => {
@@ -740,7 +743,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const error = await adapter.transaction(callback, false).catch((cause: unknown) => cause);
 
-      expect(error).toMatchObject({ message: setupFailure.message, cause: setupFailure });
+      expect(error).toBe(setupFailure);
       expect(callback).not.toHaveBeenCalled();
       expect(transactionActive).toBe(false);
       expect(transactionSqls(client)).toHaveLength(2);
@@ -771,8 +774,7 @@ describe('RxDBAdapterSqliteBase', () => {
       await expect(adapter.transaction(async () => 'next', false)).resolves.toBe('next');
 
       const sqls = transactionSqls(client);
-      expect.soft(error).toBeInstanceOf(RxDBAdapterSqliteError);
-      expect.soft(error).toMatchObject({ message: beginFailure.message, cause: beginFailure });
+      expect.soft(error).toBe(beginFailure);
       expect.soft(rxdb.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'TRANSACTION_ROLLBACK' }));
       expect.soft(sqls[0]).toContain('BEGIN');
       expect.soft(sqls).toContain('UPDATE after_begin_listener_failure');
@@ -810,7 +812,7 @@ describe('RxDBAdapterSqliteBase', () => {
         const event = new EntityLocalCreatedEvent([]);
         rxdb.dispatchEvent(event);
 
-        expect(error).toMatchObject({ message: beginFailure.message, cause: beginFailure });
+        expect(error).toBe(beginFailure);
         expect(entityListener).toHaveBeenCalledWith(event);
         // 只断言**事务 SQL**：BEGIN listener 抛在派发 BEGIN 那一步，事务的任何语句都不该落库。
         // 不能断言 `executedSqls(client)` 整体为空 —— 版本管理的活分支查询
@@ -875,7 +877,7 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(sqls.at(-1)).toContain('COMMIT');
     });
 
-    it('事务函数抛错时执行 ROLLBACK 并包装为适配器错误', async () => {
+    it('事务函数抛错时执行 ROLLBACK 并原样抛出事务体的错误', async () => {
       const client = createClient();
       const rxdb = createRxdbMock();
       const adapter = new TestAdapter(rxdb, () => client);
@@ -887,8 +889,7 @@ describe('RxDBAdapterSqliteBase', () => {
         })
         .catch((err: unknown) => err);
 
-      expect(error).toBeInstanceOf(RxDBAdapterSqliteError);
-      expect(error).toMatchObject({ message: 'inner boom', cause: failure });
+      expect(error).toBe(failure);
       expect(executedSqls(client)).toContain('ROLLBACK');
       expect(rxdb.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'TRANSACTION_ROLLBACK' }));
     });
@@ -950,7 +951,7 @@ describe('RxDBAdapterSqliteBase', () => {
         })
         .catch((err: unknown) => err);
 
-      expect(error).toMatchObject({ message: transactionFailure.message, cause: transactionFailure });
+      expect(error).toBe(transactionFailure);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ROLLBACK failed'), expect.any(Error));
       expect(client.disconnect).toHaveBeenCalledTimes(1);
       await expect(adapter.query('SELECT after rollback failure')).rejects.toThrow('Adapter is disconnected');
@@ -993,6 +994,33 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(adapter.createClientCalls).toBe(1);
       expect(executedSqls(client)).not.toContain('SELECT queued after rollback failure');
       errorSpy.mockRestore();
+    });
+
+    it('事务体抛出的领域错误应该原样冒泡，保留类与判别位', async () => {
+      class BranchNotMaterializableError extends Error {
+        readonly code = 'branch_not_materializable';
+        readonly reason = 'branch_marked_corrupted';
+        constructor() {
+          super('Branch cannot be materialized');
+          this.name = 'BranchNotMaterializableError';
+          Object.setPrototypeOf(this, BranchNotMaterializableError.prototype);
+        }
+      }
+      const domainFailure = new BranchNotMaterializableError();
+      const client = createClient();
+      const adapter = new TestAdapter(createRxdbMock(), () => client);
+
+      const error = await adapter
+        .transaction(async () => {
+          throw domainFailure;
+        }, false)
+        .catch((err: unknown) => err);
+
+      // 包装成 RxDBAdapterSqliteError 会同时抹掉原型与 code/reason：调用方只剩文案可匹配，
+      // 而 PGlite 那一端是原样冒泡的——同一段业务代码在两个后端上要走不同的 catch 分支。
+      expect(error).toBe(domainFailure);
+      expect(error).toBeInstanceOf(BranchNotMaterializableError);
+      expect((error as BranchNotMaterializableError).code).toBe('branch_not_materializable');
     });
 
     it('非 Error 拒绝时使用默认事务错误消息', async () => {
@@ -1987,8 +2015,12 @@ describe('RxDBAdapterSqliteBase', () => {
       const rxdb = createRealRxdb('sqlite-core-base-switch-branch');
       const adapter = new TestAdapter(rxdb, () => client);
 
-      await adapter.switchBranch({ branchId: 'feature' });
+      // 契约要求适配器在事务内、动第一行之前 await 这个回调；这里顺手断一次，
+      // 免得「委托给 switch_branch」退化成「委托给一个不校验任何前置条件的 switch_branch」。
+      const prepare = vi.fn(async () => undefined);
+      await adapter.switchBranch({ branchId: 'feature', prepare });
 
+      expect(prepare).toHaveBeenCalledWith({ executor: expect.anything(), targetBranchId: 'feature' });
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN');
       expect(sqls.some(sql => sql.includes('"rxdb$rxdb_branch"') && sql.includes(`'feature'`))).toBe(true);
@@ -2004,7 +2036,9 @@ describe('RxDBAdapterSqliteBase', () => {
       });
       const adapter = new TestAdapter(createRxdbMock(), () => client);
 
-      await expect(adapter.switchBranch({ branchId: 'feature' })).rejects.toThrow('switch branch feature failed');
+      await expect(adapter.switchBranch({ branchId: 'feature', prepare: async () => undefined })).rejects.toThrow(
+        'switch branch feature failed'
+      );
     });
 
     it('mergeChanges 空 actions 也走完整事务提交', async () => {
@@ -2017,6 +2051,26 @@ describe('RxDBAdapterSqliteBase', () => {
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN');
       expect(sqls.at(-1)).toContain('COMMIT');
+    });
+  });
+
+  describe('physicalTableNames', () => {
+    it('把本家族的命名空间折叠规则说出来，而不是让调用方去猜', () => {
+      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
+
+      // `todos` 是 `@Entity({ tableName })` 给的逻辑名，`public$todos` 是本家族真正建出来的表。
+      // 两个都登记：raw 判定宁可多认一个名字（多认只是多挡一条本来也跑不通的语句），
+      // 也不能少认——少认那一个恰好是绕过捕获的写会用的名字。
+      expect(adapter.physicalTableNames(getEntityMetadata(Todo))).toEqual(['todos', 'public$todos']);
+    });
+
+    it('折叠出来的名字与本家族建表用的是同一个函数', () => {
+      const adapter = new TestAdapter(createRxdbMock(), () => createClient());
+      const metadata = getEntityMetadata(Todo);
+
+      // 这条断言是这次改动的**全部意义**：名字由 `get_table_name_by_metadata()` 给出，
+      // 而不是在别处按 `'$'` 再拼一遍。拼法一改，这里跟着变；抄来的那一份不会。
+      expect(adapter.physicalTableNames(metadata)).toContain(get_table_name_by_metadata(metadata));
     });
   });
 });

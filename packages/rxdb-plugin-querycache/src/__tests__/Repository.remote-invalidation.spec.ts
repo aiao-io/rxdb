@@ -18,6 +18,7 @@ import type {
   RxDBEvent
 } from '@aiao/rxdb';
 import {
+  createEntitySyncResolver,
   ENTITY_STATIC_TYPES,
   RelationKind,
   REMOTE_ENTITY_INVALIDATED_EVENT,
@@ -123,7 +124,11 @@ const row = (id: string, updatedAt: string, value = 0): RecipeEntity => {
   entity.id = id;
   entity.updatedAt = updatedAt;
   entity.value = value;
-  Object.assign(entity, { [STATUS]: { local: false, fingerprint: `${id}@${updatedAt}@${value}` } });
+  // patch 同 Repository.spec 的替身：_setLocal 会 `Object.keys(status.patch)` 判「无未保存改动」，
+  // 缺这个键就是替身比真实 EntityStatus 少一块。
+  Object.assign(entity, {
+    [STATUS]: { local: false, modified: false, patch: {}, fingerprint: `${id}@${updatedAt}@${value}` }
+  });
   return entity;
 };
 
@@ -219,6 +224,7 @@ const setup = (
   const rxdb = {
     localAdapter$,
     remoteAdapter$,
+    entitySync: createEntitySyncResolver(undefined),
     config: { sync: undefined },
     addEventListener,
     // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经

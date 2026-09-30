@@ -20,6 +20,7 @@
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDB } from '../../RxDB.js';
+import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
 import {
@@ -132,7 +133,12 @@ describe('resolve_current_branch', () => {
     expect(branch).toBe(main);
     // 实例上与库里都要置位：调用方拿到的就是这个对象，只写库会让它带着 false 回去。
     expect(main.activated).toBe(true);
-    expect(branchRepository.update).toHaveBeenCalledWith(main, { activated: true });
+    // `activeKey` 与 `activated` 同写：可空唯一列（`system/branch.ts`）就架在它上面，
+    // 漏写一处，那一行绕过唯一约束，schema 那一半的保护恰好在这种漏写上失效。
+    expect(branchRepository.update).toHaveBeenCalledWith(main, {
+      activated: true,
+      activeKey: ACTIVE_BRANCH_KEY
+    });
     expect(branchRepository.create).not.toHaveBeenCalled();
   });
 

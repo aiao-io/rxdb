@@ -190,6 +190,29 @@ describe('execute_switch_actions 单元测试', () => {
       expect(changes.rows).toHaveLength(1);
       expect(changes.rows[0].branchId).toBe('main');
     });
+
+    it('外层事务里 disableTriggers 重挂触发器不再自死锁', async () => {
+      const todo = new Todo({ title: 'nested-disable-triggers' });
+      const actions = emptyActions();
+      actions.inserts.set(generateKey(todo), { patch: { ...todo } as Partial<Todo>, inversePatch: null });
+
+      // `pull-batch.ts` 的真实形态：外层已经开着事务，事务内再调 disableTriggers 的写。
+      // 重挂触发器要读当前分支；那一步若走 `versionManager.getCurrentBranch()`，仓库读经真实
+      // 适配器重新入队，而并发度 1 的槽位正被外层事务占着 —— 排在自己身后，永久挂起。
+      await adapter.transaction(executor => executor.mergeChanges(actions, undefined, true), false);
+
+      const rows = await adapter.internalQuery(`SELECT id FROM "public"."todos" WHERE id = $1`, [todo.id]);
+      expect(rows.rows).toHaveLength(1);
+
+      // 触发器确实被重挂了：窗口之后的普通写仍然进变更日志。
+      const after = new Todo({ title: 'triggers-rebuilt' });
+      await after.save();
+      const changes = await adapter.internalQuery(
+        `SELECT "entityId" FROM "rxdb"."rxdb_change" WHERE "entity" = 'Todo' AND "entityId" = $1`,
+        [encodeRxDBChangeEntityId(after.id)]
+      );
+      expect(changes.rows).toHaveLength(1);
+    }, 15000);
   });
 
   describe('dispatch_switch_events', () => {

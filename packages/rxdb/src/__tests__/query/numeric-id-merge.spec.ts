@@ -7,8 +7,12 @@
  * 那只能证明内部函数能处理非法运行时对象，证明不了用户能以类型安全的方式走到这里。
  *
  * 本 spec 用**合法声明**的数值 ID 实体（`idType: number`）重跑三条合并路径，
- * 并把 `0` 这个假值边界覆盖到 `entityId` / `id` / `parentId` 三个位置 ——
+ * 并把 `0` 这个假值边界覆盖到 `entityId` / `id` 两个位置 ——
  * `0` 会被 `??` 之外的任何真值判断吃掉，是数值主键最容易出错的地方。
+ *
+ * 树查询（`findAncestors` / `findDescendants`）上同一批边界由
+ * `@aiao/rxdb-plugin-tree` 的 `numeric-id-tree-merge.spec.ts` 覆盖：US-025 阶段 E
+ * 之后那四个任务类型不再由核心的 merge 处理。
  */
 
 import { of } from 'rxjs';
@@ -23,7 +27,7 @@ import type {
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData
 } from '../../rxdb-events.js';
-import { createHarnessQueryTask, type HarnessTaskOptions } from '../fixtures/query-task-harness.js';
+import { createHarnessQueryTask, type HarnessTaskOptions } from '../../testing/query-task-harness.js';
 
 describe('数值主键实体的查询缓存合并（RXD-069）', () => {
   /**
@@ -124,54 +128,6 @@ describe('数值主键实体的查询缓存合并（RXD-069）', () => {
           ])
       );
     });
-
-    it('entityId=0 的 findAncestors 不会被当成「无 entityId」', () => {
-      // 目标节点 id=0、parentId=1；新建的 1 号节点必须被识别为它的祖先。
-      // 假值 id 一旦被 `if (entityId)` 之类的判断吃掉，这里会退化成「查所有根节点」。
-      const task = createMockQueryTask({
-        type: 'findAncestors',
-        options: { entityId: 0, where: { combinator: 'and', rules: [] } },
-        runner: () => of([{ id: 0, name: 'target-zero', parentId: 1 }])
-      });
-
-      return expectEmissions(
-        task,
-        [
-          [{ id: 0, name: 'target-zero', parentId: 1 }],
-          [
-            { id: 0, name: 'target-zero', parentId: 1 },
-            { id: 1, name: 'parent', parentId: null }
-          ]
-        ],
-        () =>
-          query_merge_create_cache_impl(task as unknown as QueryTask<NumericEntityType>, [
-            createEvent({ id: 1, name: 'parent', parentId: null })
-          ])
-      );
-    });
-
-    it('parentId=0 的子节点能挂到 id=0 的父节点下', () => {
-      const task = createMockQueryTask({
-        type: 'findDescendants',
-        options: { entityId: 0, where: { combinator: 'and', rules: [] } },
-        runner: () => of([{ id: 0, name: 'root-zero', parentId: null }])
-      });
-
-      return expectEmissions(
-        task,
-        [
-          [{ id: 0, name: 'root-zero', parentId: null }],
-          [
-            { id: 0, name: 'root-zero', parentId: null },
-            { id: 2, name: 'child', parentId: 0 }
-          ]
-        ],
-        () =>
-          query_merge_create_cache_impl(task as unknown as QueryTask<NumericEntityType>, [
-            createEvent({ id: 2, name: 'child', parentId: 0 })
-          ])
-      );
-    });
   });
 
   describe('UPDATE', () => {
@@ -224,38 +180,6 @@ describe('数值主键实体的查询缓存合并（RXD-069）', () => {
           ])
       );
     });
-
-    it('entityId=0 的 findDescendants 就地更新 parentId=0 的子节点', () => {
-      // scope 根是 id=0：`targetEntityId` 与子节点的 `parentId` 都是假值 0，
-      // 只要任何一处用真值判断代替 `!= null`，这里就会退化成「不在 scope 内」。
-      const task = createMockQueryTask({
-        type: 'findDescendants',
-        options: { entityId: 0, where: { combinator: 'and', rules: [] } },
-        runner: () =>
-          of([
-            { id: 0, name: 'root-zero', parentId: null },
-            { id: 3, name: 'child', parentId: 0 }
-          ])
-      });
-
-      return expectEmissions(
-        task,
-        [
-          [
-            { id: 0, name: 'root-zero', parentId: null },
-            { id: 3, name: 'child', parentId: 0 }
-          ],
-          [
-            { id: 0, name: 'root-zero', parentId: null },
-            { id: 3, name: 'child-renamed', parentId: 0 }
-          ]
-        ],
-        () =>
-          query_merge_update_cache_impl(task as unknown as QueryTask<NumericEntityType>, [
-            updateEvent({ id: 3, name: 'child-renamed', parentId: 0 }, { id: 3, name: 'child', parentId: 0 })
-          ])
-      );
-    });
   });
 
   describe('DELETE', () => {
@@ -286,38 +210,17 @@ describe('数值主键实体的查询缓存合并（RXD-069）', () => {
       );
     });
 
-    it('删除数值 id 的祖先会同时移除它在 findAncestors 结果中的位置', () => {
-      const task = createMockQueryTask({
-        type: 'findAncestors',
-        options: { entityId: 2, where: { combinator: 'and', rules: [] } },
-        runner: () =>
-          of([
-            { id: 2, name: 'target', parentId: 0 },
-            { id: 0, name: 'ancestor-zero', parentId: null }
-          ])
-      });
-
-      return expectEmissions(
-        task,
-        [
-          [
-            { id: 2, name: 'target', parentId: 0 },
-            { id: 0, name: 'ancestor-zero', parentId: null }
-          ],
-          [{ id: 2, name: 'target', parentId: 0 }]
-        ],
-        () =>
-          query_merge_remove_cache_impl(task as unknown as QueryTask<NumericEntityType>, [
-            removeEvent({ id: 0, name: 'ancestor-zero', parentId: null })
-          ])
-      );
-    });
-
-    it('数值 id 的 count 查询在删除后递减', () => {
-      const task = createMockQueryTask({
+    it('数值 id 的 count 查询在删除后应该触发 SQL 重数', () => {
+      // count 分支不再本地做 `current_count - matched.length`（见 merge_remove.ts 的
+      // count 分支注释），命中 where 的 DELETE 一律回 SQL 重数——这里用按调用次序
+      // 依次返回的 runner 模拟「每次重数都去库里读一遍」，固定返回 `of(2)` 会让
+      // refresh 后的第二次运行拿到同一个值，指纹未变不再发射，emission 序列止步于 [2]。
+      let call = 0;
+      const counts = [2, 1];
+      const task = createMockQueryTask<number>({
         type: 'count',
         options: { where: { combinator: 'and', rules: [] } },
-        runner: () => of(2)
+        runner: () => of(counts[Math.min(call++, counts.length - 1)])
       });
 
       return expectEmissions(task, [2, 1], () =>

@@ -1,0 +1,16 @@
+{
+  "commit": "c7d79611a69772c675fc2ba45e3191da683f1cc4",
+  "frozenAbsolute": {
+    "commit": 684.902874499996
+  },
+  "medianRatios": {
+    "status": 1.9884575669473854,
+    "diff": 2.4935745257343553,
+    "restore": 12.760673977764833,
+    "commit": 15.544838088937922
+  },
+  "ratioProfile": "Linux linux x64 / INTEL(R) XEON(R) PLATINUM 8573C / node 26",
+  "regeneratedBecause": "c7d79611 已在 Darwin arm64 / Apple M1 Max / node 26 画像上过相对门禁（本机 bench-working-tree PASS），INTEL(R) XEON(R) PLATINUM 8573C 在 PR CI 反复出现（runs 36251125711、36310421691），为其冻结 reference",
+  "runnerProfileHash": "56973f43e63300679af7eccc5542623ae470ad6dcf72ed3327f71bffc774b4d1",
+  "runs": 10
+}

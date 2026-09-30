@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, tree, entity]
 ---
 
@@ -39,7 +39,7 @@ tags: [core, tree, entity]
 
 ## 实现文件
 
-- `packages/rxdb/src/entity/@TreeEntity.ts` — 树形实体装饰器
+- `packages/rxdb/src/entity/tree-entity.decorator.ts` — 树形实体装饰器
 - `packages/rxdb/src/repository/TreeRepository.ts` — 树形仓库
 - `packages/rxdb-adapter-*/src/*TreeRepository.ts` — 各适配器实现
 

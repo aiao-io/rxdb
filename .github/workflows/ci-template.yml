@@ -121,13 +121,14 @@ jobs:
       has_extras: ${{ steps.plan.outputs.has_extras }}
       code_changed: ${{ steps.plan.outputs.code_changed }}
       need_benchmark: ${{ steps.plan.outputs.need_benchmark }}
+      desktop_chain_changed: ${{ steps.plan.outputs.desktop_chain_changed }}
       nx_no_cloud: ${{ steps.cloud.outputs.nx_no_cloud }}
     steps:
       # fetch-tags 必须显式打开：`fetch-depth: 0` 只保证**历史**完整，不保证 tag 存在。
       # actions/checkout 在 refspec 不含 `refs/tags/*` 时一律加 `--no-tags`（PR 事件的
       # refspec 是 `refs/pull/N/merge`，永远不含），于是 `git rev-parse refs/tags/vX` 在
-      # runner 上必然失败。下面「Migration release manifest gate」的三条 git 钩子
-      # （tag 存在 / 是祖先 / 含迁移面）全靠 tag，缺了就是一道恒假的门禁。
+      # runner 上必然失败。下面「Migration release manifest gate」的四条 git 钩子
+      # （tag 存在 / 是祖先 / 含迁移面 / 版本常量吻合）全靠 tag，缺了就是一道恒假的门禁。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           filter: tree:0
@@ -244,15 +245,15 @@ jobs:
         run: pnpm test-scripts
 
       # 发布清单门禁（release-plan.md 执行顺序第 0 步）。上一步的 `pnpm test-scripts`
-      # 只覆盖 `validateManifest` 的**纯结构**分支，三条 git 钩子在单测里被 `passingHooks`
-      # 桩掉；真实的「bridge.tag 存在 / 是发布提交的祖先 / 含系统迁移面」此前只在打 tag
-      # 时才跑过一次，等于下一个迁移周期（US-305）要在发布当天第一次面对它们。
+      # 只覆盖 `validateManifest` 的**纯结构**分支，四条 git 钩子在单测里被 `passingHooks`
+      # 桩掉；真实的「bridge.tag 存在 / 是发布提交的祖先 / 含系统迁移面 / 版本常量吻合」
+      # 此前只在打 tag 时才跑过一次，等于下一个迁移周期（US-305）要在发布当天第一次面对它们。
       #
       # 刻意**不传** `--release-tag`：PR 上没有发布 tag 可比。脚本按 `GITHUB_REF_TYPE`
       # 判定，branch/PR 事件下跳过 tag 比对，只校验清单本身与 `packages/rxdb/package.json`
       # 的一致性；tag 事件下才回落到 `GITHUB_REF_NAME`。
       #
-      # `kind=bridge` / `normal` 时三条钩子不参与判定（见脚本的 migration 分支），
+      # `kind=bridge` / `normal` 时四条钩子都不参与判定（见脚本的 migration 分支），
       # 所以这一步今天是绿的 —— 它守的是「清单变成 migration 的那次 PR」。
       - name: Migration release manifest gate
         run: pnpm check-migration-release-gate
@@ -306,6 +307,41 @@ jobs:
           AUDIT_SECRETS_JSON=$(projects_json audit-secrets)
           LAZY_BACKEND_JSON=$(projects_json audit-lazy-backend)
 
+          # 桌面链路是否被本次 diff 触碰。路径清单与 release-desktop.yml 的
+          # `on.pull_request.paths` 同源（少了 workflow 基建那几条：它们只用于触发，
+          # 不参与 PR 门禁的 job 过滤）。改清单必须两边同步改 —— 漂移会让
+          # 「无桌面变更却跑桌面 smoke」悄悄复发。
+          #
+          # 三个消费点：E2E_MATRIX 的 electron 条目、rust job 的 if、audit-lazy-backend
+          # 的过滤（见下）。全部是 AND 过滤而非替换 affected：桌面 job 要跑，必须
+          # affected 包含它**且**桌面链路变了。粒度免费：electron-only 的 PR 不会跑
+          # rust（affected 本就不含 tauri 项目），tauri-only 的 PR 不会跑 electron e2e，
+          # 核心-only 的 PR 三个全跳。run-many（main 分支）恒为 true，全量照旧。
+          DESKTOP_PATHS=(
+            'apps/dev-rxdb-tauri/' 'apps/dev-rxdb-tauri-e2e/'
+            'apps/dev-rxdb-electron/' 'apps/dev-rxdb-electron-e2e/'
+            'apps/rxdb-devtools-extension/' 'apps/rxdb-devtools-extension-e2e/'
+            'packages/rxdb-adapter-desktop/' 'packages/rxdb-adapter-tauri/'
+            'packages/rxdb-adapter-electron/' 'packages/rxdb-adapter-sqlite-core/'
+            'packages/rxdb-adapter-encrypted/' 'packages/rxdb-devtools/'
+            'packages/rxdb-plugin-storage/' 'modules/rxdb-devtools-panel/'
+          )
+          DESKTOP_CHANGED=false
+          if [ "${{ inputs.run_mode }}" = "run-many" ]; then
+            DESKTOP_CHANGED=true
+          elif [ "${{ inputs.is_pr }}" = "true" ] && \
+               [ -n "$(git diff --name-only "origin/$BASE_REF...HEAD" -- "${DESKTOP_PATHS[@]}")" ]; then
+            DESKTOP_CHANGED=true
+          fi
+
+          # 非桌面 PR 时 audit-lazy-backend 置空：它 dependsOn build，会把
+          # dev-rxdb-electron / dev-rxdb-tauri 两个 Angular 生产构建拉进 extras，
+          # 与桌面无关的 PR 白付几分钟。这里直接改采集值，union 和 summary
+          # 看到的都是实际会跑的项目，不会出现「表里列了但没跑」的假象。
+          if [ "$DESKTOP_CHANGED" != "true" ]; then
+            LAZY_BACKEND_JSON='[]'
+          fi
+
           # lint / typecheck / spec-typecheck 合成一个 job 跑，项目集取并集
           # （三者的 target 归属并不总是重合）。
           CHECK=$(jq -r -n --argjson a "$LINT_JSON" --argjson b "$TYPECHECK_JSON" --argjson c "$SPEC_TYPECHECK_JSON" \
@@ -331,15 +367,19 @@ jobs:
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
           #
+          # dev-rxdb-electron-e2e 是唯一的桌面 e2e（tauri 的 smoke target 刻意不叫
+          # e2e，只进发布链路），非桌面 PR 时被 DESKTOP_CHANGED 过滤掉 —— 它的
+          # dependsOn 里有 electron-builder 打包，是 e2e 矩阵里最贵的条目。
+          #
           # label 只是 job 名：`dev-rxdb-angular-e2e / e2e` 里三处都在说 e2e，
           # 在 PR 的 checks 列表（前缀已经占掉 `ci / e2e (`）里会被截断成 `…e2e)`，
           # 剩下的字全是废话。剥掉共有的 `dev-rxdb-` 前缀和 `-e2e` 后缀，
           # 只留真正区分彼此的那一段：angular / electron / react / supabase / vue。
           # 不匹配这套命名的新应用会原样保留全名 —— 名字长点，不会认错。
-          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" '
+          E2E_MATRIX=$(jq -c -n --argjson e "$E2E_JSON" --argjson r "$E2E_REMOTE_JSON" --argjson desktop "$DESKTOP_CHANGED" '
             def short_name: sub("^dev-rxdb-"; "") | sub("-e2e$"; "");
             {
-              include: (($e | sort | map({project: ., target: "e2e", label: short_name, supabase: false}))
+              include: (($e | sort | map(select(. != "dev-rxdb-electron-e2e" or $desktop)) | map({project: ., target: "e2e", label: short_name, supabase: false}))
                       + ($r | sort | map({project: ., target: "e2e-remote", label: (short_name + " remote"), supabase: true})))
             }')
 
@@ -385,12 +425,15 @@ jobs:
             echo "has_extras=$(nonempty "$EXTRAS")"
             echo "code_changed=$CODE_CHANGED"
             echo "need_benchmark=$NEED_BENCHMARK"
+            echo "desktop_chain_changed=$DESKTOP_CHANGED"
           } >> "$GITHUB_OUTPUT"
 
           # 写进 job summary：某个 job 显示 skipped 时，能一眼看出是「真的没受影响」
           # 还是「affected 算错了」。这是 gate 之外唯一能发现静默漏测的地方。
           {
             echo "### CI plan (\`${{ inputs.run_mode }}\`)"
+            echo
+            echo "affected base (nx-set-shas): \`${NX_BASE:-未设置}\`"
             echo
             echo "| job | num | projects |"
             echo "| --- | --- | --- |"
@@ -403,6 +446,7 @@ jobs:
             echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
             echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" --argjson d "$LAZY_BACKEND_JSON" '($a+$b+$c+$d)|unique|length') | \`$EXTRAS\` |"
             echo
+            echo "desktop_chain_changed: \`$DESKTOP_CHANGED\`（false 时 e2e (electron) / rust / audit-lazy-backend 不参与过滤）"
 
             # job 名里只有 label（`test (rxdb-adapter-pglite +8)`），lane 序号只在
             # artifact 名里（`coverage-lane-t1`）。这张表是两者唯一的映射，
@@ -527,7 +571,7 @@ jobs:
           filter: tree:0
       - uses: ./.github/actions/setup-workspace
         with:
-          # Supabase lane 要拉 Docker 镜像，其余 lane 不值得交那 60s。
+          # Supabase lane 要拉 Docker 镜像，其余 lane 没必要开删除开关。
           free-disk: ${{ matrix.supabase }}
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
@@ -616,8 +660,15 @@ jobs:
       # 的 test-browser 产出覆盖率，workspace / rxdb-react 那两个是裸 `vitest run`。
       # affected 模式下只命中后两个时，这里本来就该是空的 —— 那不是故障。
       # 对应地，coverage job 用 `pattern:` 而非 `name:` 下载，缺 artifact 不报错。
+      #
+      # continue-on-error 是刻意的：上传失败只可能是 GitHub artifact 后端的
+      # 瞬时故障（run 96566026767 里这里 502 重试 11 分钟后失败，把一次全绿的
+      # 测试变成 job 失败，并连锁染红 coverage / gate）。降级后浏览器侧覆盖率
+      # 数据缺失时，coverage gate 会拿 lane 的 node-only 数据判定 search/storage，
+      # 可能低估 —— 但「可能低估两个包」比「基础设施抖动红掉整个 PR」便宜。
       - name: Upload coverage
         if: ${{ !cancelled() }}
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-browser
@@ -781,7 +832,9 @@ jobs:
           # Electron 42+ 不再于 postinstall 下载二进制，改为首次 require 时懒下载，
           # 且下载进度会打进 stdout（"Downloading Electron binary..."）。先空跑一次
           # 触发下载并丢弃输出，下一行拿到的才是干净的可执行文件路径，不会污染命令替换。
-          node -e 'require("electron")' >/dev/null
+          # 走脚本而不是 `node -e`：`@electron/get` 不重试，一次 `TypeError: fetch failed`
+          # 就让整个 job 红掉，重试逻辑在 tools/ensure-electron-binary.mjs（唯一定义）。
+          node apps/dev-rxdb-electron/tools/ensure-electron-binary.mjs >/dev/null
           # 两份各管一段：前者是 MV3 门禁 spawn 的开发二进制，后者是面板用例经
           # _electron.launch() 拉起的打包产物。缺任一份都会让对应那组用例红。
           for helper in \
@@ -841,10 +894,15 @@ jobs:
   # 名字对不上，于是那几千行 Rust 在别的 job 里一行都不会被编译。
   # 单开一个 job 而不是并进 lint/test：它要 Rust 工具链和一整套 GTK/WebKit 系统库，
   # 让每条 test lane 都背上这份安装成本是纯亏。
+  #
+  # if 里的 desktop_chain_changed 是路径过滤：tauri crate 与 JS core 没有编译期耦合，
+  # 改 packages/rxdb/src 之类时 affected 会经 rxdb-adapter-tauri 的 test-conformance
+  # （dependsOn ^build）连坐到这里，白付一遍 cargo 编译。run-many（main）恒为 true，
+  # 判定逻辑与路径清单见 setup 的 plan step。
   rust:
     name: rust
     needs: setup
-    if: needs.setup.outputs.has_rust == 'true'
+    if: needs.setup.outputs.has_rust == 'true' && needs.setup.outputs.desktop_chain_changed == 'true'
     runs-on: ubuntu-latest
     # 冷跑要从零编译 tauri + rusqlite(bundled) 的依赖树，clippy 与 dev 两套产物各一遍。
     timeout-minutes: 45
@@ -1002,8 +1060,20 @@ jobs:
   # benchmarks/scripts/search-ci.mjs 自己起 vite dev server 再用 Playwright 驱动页面，
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
   # 白蹭了前面装好的浏览器，拆出来后必须自己装。
+  #
+  # bench-working-tree 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
+  # 条件与 search-ci 逐字相同（need_benchmark），单开一个 job 只会把同一份 setup-workspace
+  # 与 nx-cache-restore 再付一遍。它是 epic-006「性能预算的口径」指定的**普通 PR CI
+  # 唯一硬门禁**：拿与本 runner 同比值画像（系统/架构 + CPU 型号 + Node 主版本）的 reference 比相对
+  # ratio（≤ 冻结 median × 容差：读项 status / diff 130%，写项 restore / commit 110%）。ubuntu-latest
+  # 随机分到的 CPU 若还没有同画像 reference，以 benchmark_environment_mismatch 失败（不降级为通过）：
+  # 先重跑该 job 一次，同一新型号反复出现再走 bench-freeze.yml 补冻。一份 reference 都没冻结时
+  # 打印提示以 0 退出。
+  #
+  # 两个 target 走一次 run-many 而不是两个 step：串成两步的话，search-ci 红了
+  # bench-working-tree 就不跑了，而一轮 CI 本该同时看到两边的结论。run-many 默认不 bail。
   benchmark:
-    name: search benchmark
+    name: benchmarks
     needs: setup
     if: needs.setup.outputs.need_benchmark == 'true'
     runs-on: ubuntu-latest
@@ -1017,7 +1087,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run benchmarks:search-ci
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree -p benchmarks --output-style=stream
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。
@@ -1065,6 +1135,10 @@ jobs:
       # if-no-files-found: ignore 会让 artifact 根本不存在。`name:` 找不到会直接抛
       # `Artifact 'coverage-browser' not found`；`pattern:` 命中 0 个则正常返回
       # 「Total of 0 artifact(s) downloaded」。这不是兜底，是这两种参数的既定语义差异。
+      #
+      # 上传失败（test-browser 的 continue-on-error 路径）时这里同样命中 0 份，
+      # 且不会报错 —— gate 退化为拿 lane 的 node-only 数据判定 search/storage，
+      # 见 test-browser 上传步骤的注释。
       - name: Download browser coverage
         if: needs.test-browser.result == 'success'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1110,7 +1184,7 @@ jobs:
       # 之前挂在可变 tag `v7` 上，上游 tag 被强推就等于把 secret 和 OIDC 一起交出去。
       - name: Upload coverage to Codecov
         if: success()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -1119,7 +1193,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: success()
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}

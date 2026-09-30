@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-005-type-system-evolution
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-09-20
 tags: [core, model, metadata, field-type, validation]
 ---
 
@@ -49,14 +49,15 @@ const formatKey = (prop: EntityPropertyMetadata): { format?: FieldFormat } => {
 
 ### D1：判定为**拒绝**，不做归一化
 
-US-012 正文对同一行为给了两种互斥说法，本故事定死为**拒绝**：
+US-012 的 format 契约对同一行为给了两种互斥说法（契约原文已随实现归档，读取方式见 US-012 头部说明），
+本故事定死为**拒绝**：
 
-| US-012 位置 | 原说法                                                                 | 处置                 |
-| ----------- | ---------------------------------------------------------------------- | -------------------- |
-| L511        | 按小写判重、保留首次出现项、原值输出（`['HTTP','http']` → `['HTTP']`） | **改写**为拒绝       |
-| L565        | `invalidFormatConfig` 覆盖「scheme 语法及大小写去重非法」              | **保留**，本故事兑现 |
+| US-012 位置                                | 原说法                                                                 | 处置                 |
+| ------------------------------------------ | ---------------------------------------------------------------------- | -------------------- |
+| 阶段 A 契约的 schemes 去重描述             | 按小写判重、保留首次出现项、原值输出（`['HTTP','http']` → `['HTTP']`） | **改写**为拒绝       |
+| 阶段 A AC#11 的 `invalidFormatConfig` 规则 | `invalidFormatConfig` 覆盖「scheme 语法及大小写去重非法」              | **保留**，本故事兑现 |
 
-采纳 L565 的三条理由：
+采纳 AC#11 规则的三条理由：
 
 1. **铁律「无 fallback 兜底」**。把 `['HTTP','http']` 静默折叠成 `['HTTP']`，是系统替作者修复畸形声明，
    正是该铁律禁止的行为。声明写错就该报错，不该被悄悄改写。
@@ -65,7 +66,7 @@ US-012 正文对同一行为给了两种互斥说法，本故事定死为**拒�
    会让「这一层到底会不会改我的声明」变成逐键记忆。
 3. **改动面收敛**。拒绝只落在 `invalidSchemes` 内部；归一化则要求
    `describeEntityFields()` 与 `parseEntityFieldsDescriptor()` 用**完全一致**的规则各去重一次，
-   否则 US-012 AC#36 的往返断言 `parseEntityFieldsDescriptor(makeEntityFieldsWire())`
+   否则 US-012 AC#23 的往返断言 `parseEntityFieldsDescriptor(makeEntityFieldsWire())`
    `toStrictEqual` `makeEntityFieldsDescriptor()` 当场断裂，且可能顶动 AC#25 的冻结基线。
 
 ### D2：判重口径是 ASCII 小写，与值校验同源
@@ -94,7 +95,7 @@ const allowed = format.schemes.map(item => item.toLowerCase());
 - `invalidSchemes` 在语法校验通过后追加 ASCII 小写判重，命中报 `invalidFormatConfig`
 - `VALUE_SEMANTIC_CASES` 增补对应 fixture
 - 修复 `metadata-validate.ts` 的裸 NUL 字节，恢复该文件的代码检索可见性
-- 改写 US-012 L511 的归一化表述，消除其与 L565 的矛盾
+- 改写 US-012 阶段 A 契约的 schemes 归一化表述，消除其与 AC#11 `invalidFormatConfig` 规则的矛盾
 
 ### Out of Scope
 
@@ -106,12 +107,12 @@ const allowed = format.schemes.map(item => item.toLowerCase());
 
 ## 验收标准
 
-| #   | 前置条件                                                      | 操作                                      | 预期结果                                                                                                                                                          | 状态 |
-| --- | ------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 属性声明 `format: { kind: 'url', schemes: ['HTTP', 'http'] }` | 调用 `validateEntityMetadata()`           | 恰好一条违规，`rule` 为 `invalidFormatConfig`，`message` 指出重复的 scheme；`MetadataValidationRule` 联合成员数仍为 13                                            | ✅   |
-| 2   | 属性声明 `schemes: ['https', 'x-app+v1']`（无重复）           | 调用 `validateEntityMetadata()`           | 零违规；且 `schemes: ['https:']`、`['1http']` 仍按语法报 `invalidFormatConfig`，判重不吞掉语法错误                                                                | ✅   |
-| 3   | 仓库全部被 git 跟踪的非二进制文件                             | 逐文件扫描 0x00 字节                      | 源码零命中（`.icns` / `.bmp` 等真二进制除外）；`rg "validateEntityMetadata" packages/rxdb/src/entity/metadata-validate.ts` 返回文本匹配而非 `binary file matches` | ✅   |
-| 4   | US-012 正文                                                   | 通读 L511 与 `invalidFormatConfig` 规则行 | 两处对重复 scheme 的说法一致（均为拒绝），不再存在归一化表述                                                                                                      | ✅   |
+| #   | 前置条件                                                      | 操作                                                                 | 预期结果                                                                                                                                                          | 状态 |
+| --- | ------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 属性声明 `format: { kind: 'url', schemes: ['HTTP', 'http'] }` | 调用 `validateEntityMetadata()`                                      | 恰好一条违规，`rule` 为 `invalidFormatConfig`，`message` 指出重复的 scheme；`MetadataValidationRule` 联合成员数仍为 13                                            | ✅   |
+| 2   | 属性声明 `schemes: ['https', 'x-app+v1']`（无重复）           | 调用 `validateEntityMetadata()`                                      | 零违规；且 `schemes: ['https:']`、`['1http']` 仍按语法报 `invalidFormatConfig`，判重不吞掉语法错误                                                                | ✅   |
+| 3   | 仓库全部被 git 跟踪的非二进制文件                             | 逐文件扫描 0x00 字节                                                 | 源码零命中（`.icns` / `.bmp` 等真二进制除外）；`rg "validateEntityMetadata" packages/rxdb/src/entity/metadata-validate.ts` 返回文本匹配而非 `binary file matches` | ✅   |
+| 4   | US-012 契约                                                   | 通读阶段 A 的 schemes 去重描述与 AC#11 的 `invalidFormatConfig` 规则 | 两处对重复 scheme 的说法一致（均为拒绝），不再存在归一化表述                                                                                                      | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -143,8 +144,8 @@ NUL 字节位于 `ViolationCollector.add()` 的复合键构造中，源文件里
 
 - `packages/rxdb/src/entity/metadata-validate.ts` — `invalidSchemes` 判重；NUL 字节改为 `\0` 转义
 - `packages/rxdb/src/__tests__/fixtures/field-format-cases.ts` — `VALUE_SEMANTIC_CASES` 增补重复 scheme 用例
-- `requirements/stories/core/US-012-field-semantic-metadata.md` — L511 改写为拒绝口径
+- `requirements/stories/core/US-012-field-semantic-metadata.md` — schemes 去重表述改写为拒绝口径
 
 ## References
 
-- [US-012 扩展字段语义与前端通信契约](./US-012-field-semantic-metadata.md) — 缺口来源，其 L511/L565 的矛盾由本故事消解
+- [US-012 扩展字段语义与前端通信契约](./US-012-field-semantic-metadata.md) — 缺口来源，其阶段 A 契约与 AC#11 的去重口径矛盾由本故事消解

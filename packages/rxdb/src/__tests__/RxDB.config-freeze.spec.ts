@@ -10,6 +10,7 @@ import { RxDBBranch } from '../system/branch.js';
 import { RxDBChange } from '../system/change.js';
 import { RxDBMigration } from '../system/migration.js';
 import { RxDBSync } from '../system/sync.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
 
 const createMockAdapter = (): IRxDBAdapter =>
   ({
@@ -61,6 +62,8 @@ class FreezeProbeUser extends EntityBase {
  * 这三条是 deepFreeze 从「只冻纯对象子树」放宽到「冻整棵可达树」之后暴露出来的，
  * 因此在 rxdb 侧用契约测试锁死。
  */
+const { trackRxDB, trackSharedRxDB } = registerRxDBTeardown();
+
 describe('RxDB 配置冻结边界', () => {
   let options: RxDBOptions;
   let rxdb: RxDB;
@@ -74,7 +77,7 @@ describe('RxDB 配置冻结边界', () => {
         type: SyncType.None
       }
     };
-    rxdb = new RxDB(options);
+    rxdb = trackSharedRxDB(new RxDB(options));
     rxdb.adapter('mock', createMockAdapter);
     rxdb.init();
   });
@@ -95,15 +98,17 @@ describe('RxDB 配置冻结边界', () => {
 
   it('migrations 回调不被深冻结，函数自身的属性仍可写', () => {
     const up = Object.assign(async () => undefined, { invoked: [] as string[] });
-    const probe = new RxDB({
-      dbName: 'config-freeze-migrations',
-      entities: [] as EntityType[],
-      migrations: [{ name: 'probe', up, down: async () => undefined }],
-      sync: {
-        local: { adapter: 'mock' },
-        type: SyncType.None
-      }
-    });
+    const probe = trackRxDB(
+      new RxDB({
+        dbName: 'config-freeze-migrations',
+        entities: [] as EntityType[],
+        migrations: [{ name: 'probe', up, down: async () => undefined }],
+        sync: {
+          local: { adapter: 'mock' },
+          type: SyncType.None
+        }
+      })
+    );
 
     expect(Object.isFrozen(probe.config.migrations)).toBe(false);
     expect(() => up.invoked.push('called')).not.toThrow();
@@ -124,9 +129,9 @@ describe('RxDB 配置冻结边界', () => {
       sync: { local: { adapter: 'mock' }, type: SyncType.None }
     };
 
-    const first = new RxDB(shared);
-    expect(() => new RxDB(shared)).not.toThrow();
-    expect(first.config.dbName).toBe(new RxDB(shared).config.dbName);
+    const first = trackRxDB(new RxDB(shared));
+    expect(() => trackRxDB(new RxDB(shared))).not.toThrow();
+    expect(first.config.dbName).toBe(trackRxDB(new RxDB(shared)).config.dbName);
   });
 
   it('不就地修改也不冻结调用方持有的 options 对象', () => {
@@ -136,7 +141,7 @@ describe('RxDB 配置冻结边界', () => {
       sync: { local: { adapter: 'mock' }, type: SyncType.None }
     };
 
-    const probe = new RxDB(caller);
+    const probe = trackRxDB(new RxDB(caller));
 
     expect(caller.dbName).toBe('config-no-side-effect');
     expect(Object.isFrozen(caller)).toBe(false);

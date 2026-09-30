@@ -442,6 +442,57 @@ PGlite 侧**不作此要求**——它按列集把批分组，每组一条 INSER
 在这里补齐等于把它伪装成成功。
 :::
 
+## 实例级覆盖（`syncOverrides`）
+
+同一个实体类在不同的 `RxDB` 实例里可以走不同的策略。典型场景是前后端共享领域模块：
+浏览器端按装饰器声明的 QueryCache 走 HTTP，Node 后端是权威库，同一个类只需要纯本地。
+
+```ts
+import { RxDB, SyncType } from '@aiao/rxdb';
+import { Recipe } from '@modules/recipes-domain'; // 装饰器声明 QueryCache + http
+
+const server = new RxDB({
+  dbName: 'recipes-server',
+  entities: [Recipe],
+  sync: { type: SyncType.None, local: { adapter: 'pglite' } },
+  syncOverrides: [{ entity: Recipe, sync: { type: SyncType.None, local: { adapter: 'pglite' } } }]
+});
+```
+
+**优先级**：实例覆盖 > 实体装饰器 `sync` > 库级 `sync`。
+
+**整体替换，不深合并**：覆盖条目的 `sync` 是该实体在本实例里的完整配置，装饰器上的
+`remote`、适配器名与缓存选项（如 `syncStaleTime`）一个都不残留。
+
+**只作用于本实例**：覆盖不改写实体类的元数据，也不冻结调用方传入的对象——构造时即拍快照，
+之后改动传入的条目不影响运行中或重连后的实例。另一个实例注册同一个类，照旧按自己的配置走。
+
+**生效配置只读**：被覆盖实体的 `repository.sync` 与 `rxdb.entitySync.resolve(Entity)` 返回的是
+本实例冻结的快照，运行时给它赋值会抛 `TypeError`。要换策略就用新的 `syncOverrides` 重建实例，
+不要在运行中改配置对象。
+
+**不换适配器**：适配器只从库级 `sync` 注册。覆盖声明的每一侧都必须在库级注册同名适配器；
+库级缺侧或名字不同的覆盖在构造期就被拒绝，不会留下永不发射的适配器流。
+
+**生效配置决定校验**：覆盖声明的 `remote` 若未在库级注册，构造期即报 `invalid-sync`；
+QueryCache 缺插件、适配器不支持该模式等 fail-fast 错误按覆盖后的生效配置触发；
+覆盖成纯本地的实体既不需要远端适配器，也不进入出站重放与缓存刷新管道。
+
+非法条目在建立实体绑定与任何数据库写入之前抛出 `RxDBSyncOverrideError`，按 `reason` 判别：
+
+| `reason`        | 含义                                                                                                                                                                                               |
+| :-------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unregistered`  | 目标不在本实例的 `entities` 里（含自动生成的关系中间实体）                                                                                                                                         |
+| `system-entity` | 目标是 RxDB 或插件注入的系统表                                                                                                                                                                     |
+| `duplicate`     | 同一实体出现多条覆盖                                                                                                                                                                               |
+| `invalid-entry` | `syncOverrides` 不是数组、数组里有空位（稀疏数组）、条目不是对象，或 `entity` 不是实体类                                                                                                           |
+| `invalid-sync`  | `sync` 为 `null`、缺少或写错 `type`、适配器选项形状不对；Full / Filter / QueryCache 缺一侧，Filter 的 `remote.filter` 缺失或不是函数（返回值到拉取时才校验）；覆盖声明的一侧未在库级注册同名适配器 |
+
+:::tip 插件作者
+读取实体策略一律经 `rxdb.entitySync.resolve(Entity)` / `resolveType(Entity)`，不要直接读
+`getEntityMetadata(Entity).sync`——后者是装饰器原值，看不到实例覆盖。
+:::
+
 ## 关系查询与同步
 
 **核心规则**：外键只能从本地指向任意位置，不能从远程指向本地

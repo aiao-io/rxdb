@@ -1,8 +1,15 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { ELECTRON_PGLITE_ADAPTER_NAME, RxDBAdapterElectronPGlite } from '@aiao/rxdb-adapter-electron/pglite';
+import {
+  ELECTRON_PGLITE_ADAPTER_NAME,
+  restoreElectronPGliteDatabase,
+  RxDBAdapterElectronPGlite,
+  type ElectronPGliteOptions
+} from '@aiao/rxdb-adapter-electron/pglite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import type { BackupProbeArchiveOps } from './backup-probe';
 import { DESKTOP_PGLITE_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
@@ -19,6 +26,24 @@ import { DesktopLaunch } from './desktop-launch.entity';
  * 「数据目录」这个语义名，供 {@link setup_rxdb_desktop} 与 e2e 按物理位置读。
  */
 export const DESKTOP_PGLITE_DATA_DIRECTORY = DESKTOP_PGLITE_DB_NAME;
+
+/**
+ * 适配器选项：连接与恢复必须用同一份，否则恢复写进的数据目录不是之后连接打开的那个。
+ */
+const PGLITE_OPTIONS: ElectronPGliteOptions = { dataDirectoryName: DESKTOP_PGLITE_DATA_DIRECTORY };
+
+/**
+ * 本后端的备份与恢复（US-217 AC#18：打包 smoke 的探针经它走真实的 host 快照与流传输）。
+ *
+ * @remarks
+ * 备份落在已连接的适配器上；恢复走 `restoreElectronPGliteDatabase`——PGlite 的恢复目标是一个数据目录，
+ * 由 host 在其中重建集簇，不经过尚未连接的适配器实例。
+ */
+export const archiveOps: BackupProbeArchiveOps = {
+  backup: async (rxdb, sink) =>
+    ((await rxdb.getAdapter(ELECTRON_PGLITE_ADAPTER_NAME)) as unknown as RxDBAdapterElectronPGlite).backup(sink),
+  restore: (rxdb, source) => restoreElectronPGliteDatabase(source, { rxdb, options: PGLITE_OPTIONS })
+};
 
 /**
  * 构建一个走主进程 PGlite 的 RxDB 单例（US-208）。
@@ -60,10 +85,8 @@ export default () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
-    .adapter(
-      ELECTRON_PGLITE_ADAPTER_NAME,
-      async db => new RxDBAdapterElectronPGlite(db, { dataDirectoryName: DESKTOP_PGLITE_DATA_DIRECTORY })
-    );
+    .use(rxDBPluginTree)
+    .adapter(ELECTRON_PGLITE_ADAPTER_NAME, async db => new RxDBAdapterElectronPGlite(db, PGLITE_OPTIONS));
 
   rxdb.init();
   return rxdb;

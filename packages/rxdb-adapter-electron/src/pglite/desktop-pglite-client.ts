@@ -17,18 +17,22 @@ import {
   PGliteNotificationBatcher,
   type IPGliteClient,
   type PGliteClientEvents,
-  type PGliteClientOptions
+  type PGliteClientOptions,
+  type PGliteDataDirItem
 } from '@aiao/rxdb-adapter-pglite';
 import {
+  DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS,
   RxDBAdapterDesktopError,
   assertDesktopPgliteResponse,
+  parseDesktopPgliteBackupItem,
   parseDesktopPgliteHandshakeResult,
   parseDesktopPgliteNotifyMessage,
   parseDesktopPgliteOpenResult,
   type DesktopHostTransport,
   type DesktopPgliteParam,
-  type DesktopPgliteQueryResult,
-  type DesktopPgliteRequest
+  type DesktopPgliteRequest,
+  type DesktopPgliteResponse,
+  type RxDBAdapterDesktopErrorCode
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { EventDispatcher } from '@aiao/utils';
 import type { QueryOptions, Results, Transaction } from '@electric-sql/pglite';
@@ -36,6 +40,8 @@ import type { QueryOptions, Results, Transaction } from '@electric-sql/pglite';
 // `sql` 这些辅助器的语义只有原实现说了算，照抄一份的分叉表征是「同一个模板在桌面下
 // 少转义了一个标识符」。`/template` 是个独立子路径（约 2 KB），不带任何 WASM 进 renderer。
 import { query as compileTemplate } from '@electric-sql/pglite/template';
+import { toDesktopPGliteResults as toResults } from './desktop-pglite-results.js';
+import { toElectronPGliteBackupError } from './electron-pglite-backup-error.js';
 
 /** {@link DesktopPGliteClient} 的构造参数。 */
 export interface DesktopPGliteClientOptions {
@@ -49,18 +55,11 @@ export interface DesktopPGliteClientOptions {
   readonly batchTimeout?: number;
 }
 
-/**
- * 把 host 的应答还原成 PGlite 的 `Results`。
- *
- * @remarks
- * `rows` 里的值已经是 PG 的原生 JS 表示（bigint / `Uint8Array` / `Date` / 普通对象），
- * 结构化克隆逐值搬过来，这里不做任何再解析——多一层转换就多一处能悄悄丢精度的地方。
- */
-const toResults = <T>(result: DesktopPgliteQueryResult): Results<T> => ({
-  rows: result.rows as unknown as T[],
-  fields: result.fields.map(field => ({ name: field.name, dataTypeID: field.dataTypeID })),
-  affectedRows: result.affectedRows
-});
+/** `pg.open` 撞上恢复流程时的拒绝码，见 {@link DesktopPGliteClient.#assertOpened}。 */
+const RESTORE_CONFLICT_CODES: ReadonlySet<RxDBAdapterDesktopErrorCode> = new Set([
+  'restore_in_progress',
+  'restore_incomplete'
+]);
 
 /**
  * 拒绝本代理无法转发的 `QueryOptions`。
@@ -190,6 +189,8 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
    *
    * @param dbName - RxDB 逻辑库名；只用于变更事件的 `dbName` 字段，不参与落盘位置解析
    * @param options - PGlite 选项；**不得**含 `store` 或 `dataDir`
+   * @throws `RxDBBackupError` 数据目录正在被恢复（`restore_in_progress`）或留着未完成的恢复
+   * （`restore_incomplete`）时，见 {@link DesktopPGliteClient.#assertOpened}
    * @throws {@link RxDBAdapterDesktopError} 指定了落盘位置、协议版本不匹配或 host 打不开数据目录时
    */
   async init(dbName: string, options: PGliteClientOptions): Promise<void> {
@@ -208,8 +209,7 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
     );
     parseDesktopPgliteHandshakeResult(handshake.result);
 
-    const opened = assertDesktopPgliteResponse(
-      'pg.open',
+    const opened = this.#assertOpened(
       await this.#options.transport.request({
         kind: 'pg.open',
         storage: { engine: 'pglite', dataDirectoryName: this.#options.dataDirectoryName }
@@ -297,6 +297,61 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
   }
 
   /**
+   * 在 host 的一致快照上逐项读取数据目录（US-217）。
+   *
+   * @remarks
+   * host 在本会话那条唯一连接上开事务并 `CHECKPOINT`，`fn` 返回之前一直占着它：没有写入能落进
+   * 正在读的文件，快照边界前已提交的 WAL 也都已落进数据文件（AC#16）。
+   *
+   * - **独占**：整段排在本地互斥里，同一客户端的其他语句等快照结束再发。否则它们在 host 上
+   *   排在快照后面，而快照又在等 renderer 来取下一块——两边互等。
+   * - **背压**：`items` 每被取一项才发一次 `pg.backup.next`，同一时刻至多一个在途请求，
+   *   renderer 不取，host 就不读下一块（AC#21）。
+   * - **收尾**：无论 `fn` 读完、提前返回还是抛出，都发 `pg.backup.end` 交还连接（AC#19）。
+   *   `fn` 失败时收尾失败不覆盖原始错误；`fn` 成功而收尾失败则整体失败——快照没结束的
+   *   备份不能报成功。
+   *
+   * 等连接空闲的上限沿用构造参数里的 `beginTimeout`（与 `pg.begin` 同档）：契约方法不带
+   * 备份选项，`lockTimeoutMs` 传不到这里；到期由 host 以 `transaction_unavailable` 拒绝。
+   *
+   * @param fn - 消费快照的回调；`items` 只在回调返回之前有效
+   * @returns 回调的返回值
+   * @throws {@link RxDBAdapterDesktopError} 会话已关闭、host 不带备份能力（`unsupported_operation`）、
+   * 等不到连接或收尾失败时；`fn` 抛出的错误原样重抛
+   */
+  async snapshotDataDir<T>(fn: (items: AsyncIterable<PGliteDataDirItem>) => Promise<T>): Promise<T> {
+    this.#assertOpen();
+    return this.#exclusive(async () => {
+      const begun = assertDesktopPgliteResponse(
+        'pg.backup.begin',
+        await this.#send({
+          kind: 'pg.backup.begin',
+          sessionId: this.sessionId,
+          timeout: this.#options.beginTimeout ?? DESKTOP_PGLITE_DEFAULT_BEGIN_TIMEOUT_MS
+        })
+      );
+      const backupId = begun.result.backupId;
+      const end = async (): Promise<void> => {
+        assertDesktopPgliteResponse(
+          'pg.backup.end',
+          await this.#send({ kind: 'pg.backup.end', sessionId: this.sessionId, backupId })
+        );
+      };
+
+      let result: T;
+      try {
+        result = await fn(this.#backupItems(backupId));
+      } catch (error) {
+        // 收尾失败不覆盖原始错误：调用方要看的是消费方那条，而不是收摊那条。
+        await end().catch(() => undefined);
+        throw error;
+      }
+      await end();
+      return result;
+    });
+  }
+
+  /**
    * 断开会话。
    *
    * @remarks
@@ -318,6 +373,26 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
   async forceClose(): Promise<void> {
     this.#closePromise ??= this.#runClose(false);
     await this.#closePromise;
+  }
+
+  /**
+   * 校验 `pg.open` 应答；目标此刻归恢复流程所有时，改报备份契约里的码。
+   *
+   * @remarks
+   * `restore_in_progress` / `restore_incomplete` 说的不是「连接坏了」，而是「这个目录正被恢复
+   * 或留着一次没做完的恢复」（AC#11、#12）：调用方要么等，要么调
+   * `cleanupIncompleteElectronPGliteRestore()` 收拾，只有按备份契约写的判断接得住。
+   * 其余打不开的原因与恢复无关，仍是桌面错误。
+   */
+  #assertOpened(response: unknown): Extract<DesktopPgliteResponse, { kind: 'pg.open' }> {
+    try {
+      return assertDesktopPgliteResponse('pg.open', response);
+    } catch (error) {
+      if (error instanceof RxDBAdapterDesktopError && RESTORE_CONFLICT_CODES.has(error.code)) {
+        throw toElectronPGliteBackupError(error, this.#options.dataDirectoryName, 'restore');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -449,6 +524,25 @@ export class DesktopPGliteClient extends EventDispatcher<PGliteClientEvents> imp
       ...(transactionId === undefined ? {} : { transactionId })
     };
     return toResults<T>(assertDesktopPgliteResponse('pg.query', await this.#send(request)).result);
+  }
+
+  /**
+   * 快照的逐项迭代器。
+   *
+   * @remarks
+   * 异步生成器自带排队：消费方连调两次 `next()`，第二次也要等第一次的 `pg.backup.next`
+   * 回来才发，背压因此不依赖消费方守规矩。
+   */
+  async *#backupItems(backupId: string): AsyncGenerator<PGliteDataDirItem> {
+    for (;;) {
+      const next = assertDesktopPgliteResponse(
+        'pg.backup.next',
+        await this.#send({ kind: 'pg.backup.next', sessionId: this.sessionId, backupId })
+      );
+      const item = parseDesktopPgliteBackupItem(next.result);
+      if (item.type === 'end') return;
+      yield item;
+    }
   }
 
   async #execOn(transactionId: string | undefined, sql: string): Promise<Results[]> {

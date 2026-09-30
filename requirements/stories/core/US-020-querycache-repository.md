@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-08-22
+updated: 2026-09-20
 tags: [core, querycache, repository, sync, swr]
 ---
 
@@ -23,10 +23,10 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                                          | 直接前置 | AC 区段             | 状态 |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------- | ---- |
-| A    | 统一 Repository / EntityManager 在 `sync.type === QueryCache` 时走 `QueryCacheRepository`；写路径 remote-then-local；接口断层与能力 fail-fast | 无       | AC#1～10、AC#21～25 | ✅   |
-| B    | 生产缓存质量：orphan 删除、指纹含模式、SWR SQL、错误分类；去掉「不会生效」注释；公开文档不再撒谎                                              | 阶段 A   | AC#11～20           | ✅   |
+| 阶段 | 交付                                                                                                                                      | 直接前置 | AC 区段             | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------- | ---- |
+| A    | 统一 Repository / EntityManager 在 `sync.type === QueryCache` 时走 `QueryCacheEngine`；写路径 remote-then-local；接口断层与能力 fail-fast | 无       | AC#1～10、AC#21～25 | ✅   |
+| B    | 生产缓存质量：orphan 删除、指纹含模式、SWR SQL、错误分类；去掉「不会生效」注释；公开文档不再撒谎                                          | 阶段 A   | AC#11～20           | ✅   |
 
 阶段 A 曾挂的两条余项已在阶段 B 关闭：
 
@@ -35,19 +35,7 @@ INVEST 检查清单:
 
 阶段顺序有向：先让生产调用打到已有类，再修该类从未被真实 EntityManager 验证过的降级。反过来不成立——先打磨一个没有实例化路径的类，网站上的空操作谎言还在。
 
-**本故事的两个阶段各自解锁 HTTP 包（[US-212](../adapter/US-212-http-adapter.md)）发布门禁的一档**（[roadmap 约束 10](../../roadmap.md#排期约束)）：
-
-| 本故事阶段 | 解锁 US-212 的                                                                         |
-| ---------- | -------------------------------------------------------------------------------------- |
-| 阶段 A     | 以 `experimental` 发布（README / npm 描述必须写明 experimental，不得给缓存一致性承诺） |
-| 阶段 B     | 标 `stable`、给缓存一致性承诺                                                          |
-
-即：**阶段 A 关闭前 HTTP 包不得以任何形式标可发布；阶段 B 关闭前不得标 `stable`。** 代码可并行——门禁卡的是发布动作，不是开工。
-
-> **本节为留档。** 两档门禁**已全部解除**——US-212 现在零前置、关闭其阶段 A 即可直接发 `stable`，
-> README / npm 不再需要写 `experimental`。保留本节只为解释当初为何这样排；**不要照字面读成 US-212 仍被本故事挡着**。
->
-> **阶段边界不因实现顺手而移动。** [D8](#d8--本地读一律走-irepository不再依赖-findall--findbyids-两个-optional-duck) 会让 AC#14 / AC#15 在阶段 A 顺带满足。允许提前打勾，但**阶段 B 的门禁语义不变**：US-212 标 `stable` 仍要求 #11～20 全部关闭，不得因「A 已经把 14/15 关了」而认为 B 已过半。
+[US-212](../adapter/US-212-http-adapter.md) 现零前置（roadmap 约束 10）：其阶段 A 关闭即可直接标 `stable`，不再受本故事任何一档门禁。
 
 QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[US-203 AC#6](../adapter/US-203-supabase-adapter.md) ✅），缺的是引擎把它当生产路径。
 
@@ -59,7 +47,7 @@ QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[
 
 ## 问题现状
 
-这不是「类还没写」。`QueryCacheRepository` 存在，单测直接 `new` 它（[QueryCacheRepository.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts)）。**生产路径从不实例化它。**
+这不是「类还没写」。`QueryCacheRepository`（现名 `QueryCacheEngine`，US-025 改名）存在，单测直接 `new` 它（[QueryCacheEngine.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts)）。**生产路径从不实例化它。**
 
 ### 病灶 1：配置了也不会生效
 
@@ -67,7 +55,7 @@ QueryCache 接线独立有价值：supabase 已经声明了 QueryCache ducks（[
 
 > 统一 Repository 尚未接入 `QueryCacheRepository`，配置该模式当前不会生效。
 
-类上的 `@experimental` 把话说得更死（[QueryCacheRepository.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)）：
+类上的 `@experimental` 把话说得更死（[QueryCacheEngine.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)）：
 
 > 该类目前**没有生产实例化路径**：`SyncType.QueryCache` 可以配置，但统一 Repository 并未接入它，只有测试直接 `new` 它。
 
@@ -97,7 +85,7 @@ export function selectPrimaryAdapterKind(sync: SyncOptions | undefined): Primary
 
 `@experimental` 已经点名。但降级要分成两类看，**混为一谈会让阶段 B 去修一个编译器已经保证的东西**：
 
-**4a. 编译期已保证、不需要运行时 fail-fast 的**（2026-08-22 核对）：
+**4a. 编译期已保证、不需要运行时 fail-fast 的**：
 
 | duck                | 声明位置                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -123,7 +111,7 @@ export function selectPrimaryAdapterKind(sync: SyncOptions | undefined): Primary
 
 `deleteByIds` 只出现在公开 `delete()`。orphan 清理不是删除 API 的副作用，是 find 同步的一部分——今天缺了。
 
-### 病灶 5：`QueryCacheRepository` 与统一 Repository 存在三处接口断层
+### 病灶 5：`QueryCacheRepository`（现名 `QueryCacheEngine`）与统一 Repository 存在三处接口断层
 
 这是原文完全没写、但阶段 A 一动手就会撞上的部分。`getRepository(E)` 今天返回 `Repository<T>`，其公开面由 [repository.interface.ts](../../../packages/rxdb/src/repository/repository.interface.ts) 的 `IRepository` 与 `Repository._STATIC_METHODS` 定死：
 
@@ -149,7 +137,7 @@ export function selectPrimaryAdapterKind(sync: SyncOptions | undefined): Primary
 
 QueryCache 的 `find` 是 `fetchMetadata → diff → findByIds → upsertMany`，不是 `remote.find()`。只把 `primary$` 拨到 `remote$` 会跳过 sqlite 行缓存，也跳过类里已经写好的 remote-then-local 写路径。
 
-阶段 A 必须让 `getRepository` / `EntityManager.create|update|remove` 在 `sync.type === QueryCache` 时落到 `QueryCacheRepository`（或委托给它的包装）。**行为**是：读走 SWR/metadata-diff，写走类上已有的 remote-then-local。具体形态由 D9 收窄。
+阶段 A 必须让 `getRepository` / `EntityManager.create|update|remove` 在 `sync.type === QueryCache` 时落到 `QueryCacheEngine`（或委托给它的包装）。**行为**是：读走 SWR/metadata-diff，写走类上已有的 remote-then-local。具体形态由 D9 收窄。
 
 ### D2 — Full / Filter 的写本地契约永不破坏
 
@@ -157,7 +145,7 @@ QueryCache 的 `find` 是 `fetchMetadata → diff → findByIds → upsertMany`�
 
 ### D3 — QueryCache 批次不得走 `adapter.mutations()` 直写
 
-`resolveBatchPrimaryAdapter` 即使改成对 QueryCache 返回 `'remote'`，`remoteAdapter.mutations()` 仍不会 `upsertMany` 到 sqlite。QueryCache 的 save/mutations 必须进 `QueryCacheRepository.create/update/delete`。与 Full/Filter 实体不得同批；跨 primary kind 继续 `RxDBMixedPrimaryAdapterError`。
+`resolveBatchPrimaryAdapter` 即使改成对 QueryCache 返回 `'remote'`，`remoteAdapter.mutations()` 仍不会 `upsertMany` 到 sqlite。QueryCache 的 save/mutations 必须进 `QueryCacheEngine.create/update/delete`。与 Full/Filter 实体不得同批；跨 primary kind 继续 `RxDBMixedPrimaryAdapterError`。
 
 ### D4 — 能力校验分两层，不为编译期已保证的东西写运行时兜底
 
@@ -170,19 +158,13 @@ QueryCache 的 `find` 是 `fetchMetadata → diff → findByIds → upsertMany`�
 
 禁止再出现「缺能力 → `of([])`」。
 
-### D5 — 离线写默认 NO ⛔ 已反转（见 D5-R）
+### D5 — 离线可写，联网后按 REST 动词重放
 
-> **本决策已被推翻，保留原文存档。** 现行做法见下方 D5-R。
+`SyncType.QueryCache` 的 `create` / `update` / `remove` 在远端不可达时落本地、排队，联网后自动重放
+（local-first 定位：离线时写不进去等于只兑现了一半）。
 
-cache 模式离线只读。`offlineFallback` 只对**网络类**错误降级到本地缓存；无缓存则 `NetworkOfflineError`。401、校验、业务错误原样抛。不为 QueryCache 做乐观离线写。
-
-### D5-R — 离线可写，联网后按 REST 动词重放（反转 D5）
-
-**反转理由**：D5 把「离线只读」当成了 QueryCache 的性质，其实它只是当时没做。而本项目的定位是 **local-first**——离线时写不进去，等于 local-first 只兑现了一半：能看，不能改。用户在地铁里改的那一行必须留得住。
-
-**新决策**：`SyncType.QueryCache` 的 `create` / `update` / `remove` 在远端不可达时落本地、排队，联网后自动重放。
-
-保留 D5 的**分流口径**不变，它本来就是对的，只是从读路径扩到了写路径：只有**网络类**错误才降级，401 / 校验 / 业务错误照旧原样上抛、本地不落盘。把一个成功送达的 409 当成离线排队，用户会以为改动还在路上，而远端永远不会接受它。
+分流口径：只有**网络类**错误才降级，401 / 校验 / 业务错误照旧原样上抛、本地不落盘——
+把一个成功送达的 409 当成离线排队，用户会以为改动还在路上，而远端永远不会接受它。
 
 配套的四条约束：
 
@@ -218,9 +200,9 @@ cache 模式离线只读。`offlineFallback` 只对**网络类**错误降级到�
 
 针对病灶 5 的三处断层，`subclass` / `换 class` / `EntityManager 分支实例化` 三个候选里只剩一个可行：
 
-- **换 `config.class` 为 `QueryCacheRepository`**：静态入口从 8 个塌到 2 个，`await Entity.create()` 拿到 Observable。**否决**——直接破坏 AC#3 的比较基准与 `EntityManager.create/update/remove` 的 `await repository.create(...)` 契约。
-- **`QueryCacheRepository extends Repository`**：要同时满足两套 `find` 形参与两套返回类型，只能靠重载 + 运行时分支，把断层从调用方挪进类里。**否决**——违反「单一职责」，且 `_STATIC_METHODS` 的继承语义（每个子类自己写一份、不沿链累加）会让这层重载极易漏项。
-- **委托**：`meta.repository` 仍是 `'Repository'`，`config.class` 不变；统一 `Repository` 在构造期发现 `sync.type === QueryCache` 时持有一个内部 `QueryCacheRepository`，把 `find` 与写路径改道过去，返回值按 `IRepository` 的形状（Promise + 实体实例）适配。**采纳**。
+- **换 `config.class` 为 `QueryCacheEngine`**：静态入口从 8 个塌到 2 个，`await Entity.create()` 拿到 Observable。**否决**——直接破坏 AC#3 的比较基准与 `EntityManager.create/update/remove` 的 `await repository.create(...)` 契约。
+- **`QueryCacheEngine extends Repository`**：要同时满足两套 `find` 形参与两套返回类型，只能靠重载 + 运行时分支，把断层从调用方挪进类里。**否决**——违反「单一职责」，且 `_STATIC_METHODS` 的继承语义（每个子类自己写一份、不沿链累加）会让这层重载极易漏项。
+- **委托**：`meta.repository` 仍是 `'Repository'`，`config.class` 不变；统一 `Repository` 在构造期发现 `sync.type === QueryCache` 时持有一个内部 `QueryCacheEngine`，把 `find` 与写路径改道过去，返回值按 `IRepository` 的形状（Promise + 实体实例）适配。**采纳**。
 
 由此确定 QueryCache 实体的入口矩阵（AC#23）。**8 个入口全部支持**，不做 fail-fast：
 
@@ -277,24 +259,24 @@ AC#23 要求「对同一 `where` 翻第二页只发生一次远端同步」。�
 
 定的方案是一个**有失效路径**的记忆，而不是无界 memo：
 
-| 项       | 取值                                                                                           |
-| -------- | ---------------------------------------------------------------------------------------------- |
-| 归属     | `Repository` 门面（`QueryCacheSyncMemo`），不是 `QueryCacheRepository` —— 委托层随适配器换身份 |
-| 键       | AC#13 那把尺：`where` + `localCacheFirst` + `offlineFallback`，**不含** `limit`/`offset`       |
-| 窗口     | `sync.local.syncStaleTime`，毫秒，默认 `1000`；`0` 关闭记忆                                    |
-| 失效条件 | 到期、本实体发生写、`adapter$` 换出新适配器实例，三者任一立即清空                              |
+| 项       | 取值                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------ |
+| 归属     | `Repository` 门面（`QueryCacheSyncMemo`），不是 `QueryCacheEngine` —— 委托层随适配器换身份 |
+| 键       | AC#13 那把尺：`where` + `localCacheFirst` + `offlineFallback`，**不含** `limit`/`offset`   |
+| 窗口     | `sync.local.syncStaleTime`，毫秒，默认 `1000`；`0` 关闭记忆                                |
+| 失效条件 | 到期、本实体发生写、`adapter$` 换出新适配器实例，三者任一立即清空                          |
 
 窗口只**推迟**重新校验，不取消它。默认 `1000` 是可翻的取值：足够覆盖一次翻页交互，
 又短到不会让「换个标签页回来」读到明显陈旧的投影。配 `0` 恢复「每次读都向远端校验」的旧行为。
 
-### D14 — identity cache 的维护责任在适配器，不在 `QueryCacheRepository`
+### D14 — identity cache 的维护责任在适配器，不在 `QueryCacheEngine`
 
 QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQL 写**。写完之后，
 调用方手里那个已被物化的实体实例仍停在旧值：`SqliteRepository.find` 走
 `addQueryCache(result)`（`forcedUpdate = false`），命中 identity cache 时只刷新计算属性，
 不把列值盖回实例。于是远端更新确实落进了表，界面上却什么都没变 —— 静默、且查询本身不报错。
 
-修在**适配器**而不是 `QueryCacheRepository`：`saveMany` / `mutations` 本来就自带缓存维护，
+修在**适配器**而不是 `QueryCacheEngine`：`saveMany` / `mutations` 本来就自带缓存维护，
 `upsertMany` / `deleteByIds` 是同一层的写入口，缺的是同一份责任。放在仓储层修则修不动 ——
 `QueryCacheLocalReader` 只暴露 `find({ where })`，读回来的仍是同一批陈旧实例。
 
@@ -306,13 +288,13 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 
 ### In Scope
 
-- `sync.type === QueryCache` 时，`rxdb.getRepository(E)` 与 EntityManager 单条/批量写走到 `QueryCacheRepository`
+- `sync.type === QueryCache` 时，`rxdb.getRepository(E)` 与 EntityManager 单条/批量写走到 `QueryCacheEngine`
 - 只为 QueryCache 把写路径切到 remote-then-local；Full / Filter / None 行为不变
 - 缺必需能力时 fail-fast（按 D4 分层、D12 定时机）
 - 本地读改走 `IRepository`（D8）
 - 阶段 B 的缓存质量（orphan、指纹、SWR SQL、错误分类）与去掉「不会生效」注释
 - 关闭时更新公开文档，去掉 QueryCache 空操作/已可用的互斥谎言
-- 生产路径测试（经 `getRepository` / EntityManager），不是只 `new QueryCacheRepository`
+- 生产路径测试（经 `getRepository` / EntityManager），不是只 `new QueryCacheEngine`
 
 ### Out of Scope
 
@@ -333,7 +315,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 
 | #   | 前置条件                                                                                                                                                    | 操作                                                           | 预期结果                                                                                                                                                                                                                                                       | 状态 |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 实体 `sync.type === QueryCache`，local+remote 均已连接                                                                                                      | `rxdb.getRepository(E).find({ where })`                        | 走 `QueryCacheRepository.find` 的 metadata-diff / 增量 pull，不走统一 `Repository` 的本地 `find`                                                                                                                                                               | ✅   |
+| 1   | 实体 `sync.type === QueryCache`，local+remote 均已连接                                                                                                      | `rxdb.getRepository(E).find({ where })`                        | 走 `QueryCacheEngine.find` 的 metadata-diff / 增量 pull，不走统一 `Repository` 的本地 `find`                                                                                                                                                                   | ✅   |
 | 2   | 同上                                                                                                                                                        | `create` / `update` / `remove`（含 `EntityManager.save` 单条） | 先远程后本地；远程失败则本地不写；返回远端权威实体；返回类型仍是 `Promise<InstanceType<T>>`（不是 Observable）                                                                                                                                                 | ✅   |
 | 3   | 对照实体配置 `SyncType.Full` 或 `Filter`                                                                                                                    | 同一套 find / save / mutations                                 | 与本故事之前逐值一致；写入仍落 local                                                                                                                                                                                                                           | ✅   |
 | 4   | QueryCache 实体成功 `create`                                                                                                                                | 检查 local sqlite 的 changelog / `RxDBChange`                  | QueryCache 写不进 local changelog；本地只有行缓存                                                                                                                                                                                                              | ✅   |
@@ -342,7 +324,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 | 7   | QueryCache 实体注册的是**不继承 base** 的自定义适配器对象，且缺 `fetchMetadata` / 远程 `findByIds` / `getMetadataByIds` / `upsertMany` / `deleteByIds` 任一 | 首次 `find()` 或首次写                                         | 抛 `RxDBQueryCacheCapabilityError`，`missing` 列出缺失 duck 名；不降级成 `[]`、不静默改走统一 Repository。继承 base 的适配器**不做**这项运行时检查（D4）                                                                                                       | ✅   |
 | 8   | `TreeRepository` 实体配置 `SyncType.QueryCache`                                                                                                             | `EntityManager.init()`（连接期）                               | 配置期即 fail-fast（元数据校验 violation），一条违规则全部实体不绑定；不提供半套树 + 缓存                                                                                                                                                                      | ✅   |
 | 9   | supabase 适配器已注册                                                                                                                                       | 跑既有 supabase 测试与 RPC 路径                                | 不改 RPC / PostgREST / Realtime；QueryCache 生产路径复用已有 ducks                                                                                                                                                                                             | ✅   |
-| 10  | [QueryCacheRepository.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts) 已绿                                        | 补经 `getRepository` / `EntityManager` 的生产路径测试          | 旧单测不回退；新测试证明不再需要测试里手写 `new QueryCacheRepository` 才能打到该类                                                                                                                                                                             | ✅   |
+| 10  | [QueryCacheEngine.spec.ts](../../../packages/rxdb-plugin-querycache/src/__tests__/QueryCacheEngine.spec.ts) 已绿                                            | 补经 `getRepository` / `EntityManager` 的生产路径测试          | 旧单测不回退；新测试证明不再需要测试里手写 `new QueryCacheEngine` 才能打到该类                                                                                                                                                                                 | ✅   |
 | 21  | QueryCache 实体，本地已有缓存行                                                                                                                             | `getRepository(E).find({ where })` 的返回元素                  | 是**实体实例**：有状态机、进 identity cache、`entity.save()` / `remove()` 可用；同一 id 重复查询拿到同一实例。与 Full/Filter 的实例语义逐条一致                                                                                                                | ✅   |
 | 22  | QueryCache 实体已 find 过一次；随后断连并以新适配器实例重连                                                                                                 | 再次 `find()` / 写                                             | 打到**新**适配器实例；旧实例不被引用（构造期不得 `firstValueFrom(adapter$)` 固化，见 D10）                                                                                                                                                                     | ✅   |
 | 23  | QueryCache 实体，远端同一 `where` 命中 N（N > limit）条                                                                                                     | 逐个调用 D9 矩阵里的 8 个入口                                  | 全部工作，无一 fail-fast；`find({ where, limit, offset, orderBy })` 与 `findByCursor` 的结果与「同数据集配 Full 同步时」逐值一致（`limit`/`offset`/`orderBy` 下推本地 `IRepository`，不是内存切片）；对同一 `where` 翻第二页只发生一次远端同步                 | ✅   |
@@ -359,7 +341,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 | 14  | 本地缓存有匹配行                                                         | 需要读本地新鲜行的 `find` / `findById`                                                                                                                                                                                       | 经 `IRepository.find` 读到真实行（D8）；不得出现「读不到就当没有」的 `of([])` 路径                                                                                  | ✅   |
 | 15  | SWR（`localCacheFirst: true`）                                           | 带 `where` 的 `find`                                                                                                                                                                                                         | 本地读是 SQL 形态（`where` 下推给 `IRepository`），不是全量 + JS `isEntityMatchWhere`                                                                               | ✅   |
 | 16  | `offlineFallback: true`                                                  | 分别制造网络失败、HTTP 401、业务/校验错误                                                                                                                                                                                    | 仅网络类错误可降级到本地缓存（无缓存则 `NetworkOfflineError`）；401 与业务错误原样抛，不包成离线                                                                    | ✅   |
-| 17  | 阶段 A+B 行为已落地                                                      | 读 `SyncType.QueryCache` 与 `QueryCacheRepository` 的公开注释                                                                                                                                                                | 不再写「不会生效」「无生产实例化路径」；残留的实验标记（若有）不得与生产路径矛盾；`findAll?`/`findByIds?` 标 `@deprecated` 并指向 D8                                | ✅   |
+| 17  | 阶段 A+B 行为已落地                                                      | 读 `SyncType.QueryCache` 与 `QueryCacheEngine` 的公开注释                                                                                                                                                                    | 不再写「不会生效」「无生产实例化路径」；残留的实验标记（若有）不得与生产路径矛盾；`findAll?`/`findByIds?` 标 `@deprecated` 并指向 D8                                | ✅   |
 | 18  | supabase + sqlite 按 QueryCache 注册                                     | 走 `getRepository` 复现 US-203 AC#6 / US-006 AC#6 场景                                                                                                                                                                       | 两条 Done AC 在生产路径上可复现。不改 US-203 / US-006 的 ✅                                                                                                         | ✅   |
 | 19  | 本故事准备置 `Done`                                                      | 改 [website/docs/collaboration/sync.md](../../../website/docs/collaboration/sync.md) 与 [website/docs/adapters/supabase.md](../../../website/docs/adapters/supabase.md)（`website/docs/api/**` 由 typedoc 生成，**不手改**） | 不得再把 QueryCache 写成「已可用的空操作」或「配置了就会生效」却不提接线；写清远端权威、sqlite 行缓存、离线只读、排序分页可用但按 `where` 同步（D9 的拉取放大提示） | ✅   |
 | 20  | QueryCache 写与 orphan 清理发生                                          | 观察 changelog / 变更事件                                                                                                                                                                                                    | cache 仍是可丢弃投影，不产生 Full-sync 那种 local changelog 条目（兼容 US-306 FR-046，不实现 epic-006）                                                             | ✅   |
@@ -369,7 +351,7 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 ## 技术笔记
 
 - `SyncType` 本体在 [sync-options.interface.ts](../../../packages/rxdb/src/entity/sync-options.interface.ts)，不要到 `metadata-options.interface.ts` 里找。后者只 re-export。
-- `selectPrimaryAdapterKind` 的文件头写明它是「这个实体的写入该落到哪一侧」的**唯一**判定点。QueryCache 的「写」不是选 local 或 remote 一侧 `mutations()`，是 `QueryCacheRepository` 的 remote-then-local。不要为了省事在 kind 枚举上加第三种 `'cache'`——适配器模型仍是两个独立注册适配器 + `SyncType`。
+- `selectPrimaryAdapterKind` 的文件头写明它是「这个实体的写入该落到哪一侧」的**唯一**判定点。QueryCache 的「写」不是选 local 或 remote 一侧 `mutations()`，是 `QueryCacheEngine` 的 remote-then-local。不要为了省事在 kind 枚举上加第三种 `'cache'`——适配器模型仍是两个独立注册适配器 + `SyncType`。
 - 五个必需 duck 已是 `RxDBAdapterLocalBase` / `RxDBAdapterRemoteBase` 的 `abstract`（[rxdb-adapter.ts](../../../packages/rxdb/src/rxdb-adapter.ts)）。**先确认这一点再写能力检查**，否则会为编译期已保证的分支写永不执行的兜底，并把覆盖率拖下去。
 - 本地 `findByIds` / `findAll` 不在任何 base 上，只是 `QueryCacheLocalAdapter` 的 optional duck —— 这正是病灶 4b 的两条根因，按 D8 用 `IRepository` 替掉。
 - 401 vs 网络的分类在 Repository 层做，但必须落成 D11 表里的稳定类型，供 US-212 的 HTTP 适配器对齐。不要在 QueryCache 里 `catch (e)` 后猜。
@@ -396,6 +378,6 @@ QueryCache 的拉取落地走 `local.upsertMany`，那是**绕开仓储的裸 SQ
 
 - [US-203 Supabase 适配器](../adapter/US-203-supabase-adapter.md) — AC#6 QueryCache ducks 已 ✅；生产接线是本故事
 - [US-006 响应式查询](./US-006-reactive-queries.md) — AC#6 类级 SWR 已 ✅；生产接线是本故事
-- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — **前置已解除（US-212 现零前置）**；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
+- [US-212 HTTP 远程适配器](../adapter/US-212-http-adapter.md) — US-212 现零前置（roadmap 约束 10）；本故事不实现 HTTP。D11 的错误类型是两边的对齐点
 - [US-306 FR-046](../collaboration/US-306-working-tree-commits.md) — 兼容 cache 排除在 working tree 外，不实现 epic-006；`mixed_versioned_cache_transaction` 由本故事首次定义
 - [epic-004](../../epics/epic-004-future-features.md) — 归入理由：epic-002 已 Done，不得持有未完成故事

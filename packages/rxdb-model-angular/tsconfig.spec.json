@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "outDir": "../../dist/out-tsc/rxdb-model-angular/spec",
+    "types": ["vitest/globals"],
+    "rootDir": "."
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "references": [
+    {
+      "path": "../rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-model/tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-import type { ITreeEntity, RxDBEntityId } from '@aiao/rxdb';
+import type { RxDBEntityId } from '@aiao/rxdb';
+import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 
 interface TreeScopeNode {
   id: RxDBEntityId;

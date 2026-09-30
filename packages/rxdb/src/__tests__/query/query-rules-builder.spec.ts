@@ -136,9 +136,47 @@ describe('QueryRulesBuilder', () => {
     expect(rules.not_match_where_before()).toBe(false);
     expect(rules.match_relation_where()).toBe(true);
     expect(rules.not_match_relation_where()).toBe(false);
-    expect(rules.match_order_by()).toBe(true);
+    // 没有 orderBy 的查询不存在"排序位置变化"这回事，规则判否（此前是恒真占位）
+    expect(rules.match_order_by()).toBe(false);
     expect(rules.result_contains()).toBe(false);
     expect(rules.result_not_contains()).toBe(true);
+  });
+
+  it.each([
+    { score: 5, expected: true, why: '改小后排到当前首行之前，会挤进这一页' },
+    { score: 50, expected: false, why: '改大后仍排在当前页之后，页的构成不变' }
+  ])('evaluates UPDATE orderBy impact for order $score ($why)', ({ score, expected }) => {
+    const task = createTask(rxdb, Category, {
+      type: 'find',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        orderBy: [{ field: 'order', sort: 'asc' }],
+        limit: 1
+      }
+    });
+    task.resultEntitySet.add(new Category({ name: 'existing', order: 10, slug: `existing-${score}` }));
+    const changes: QueryRuleChange[] = [{ id: uuid(), patch: { order: score }, inversePatch: { order: 20 } }];
+    const rules = new QueryRulesBuilder(task, changes, false).buildUpdateRules();
+
+    expect(rules.match_order_by()).toBe(expected);
+  });
+
+  it('does not match UPDATE orderBy when the sort key itself did not change', () => {
+    const task = createTask(rxdb, Category, {
+      type: 'find',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        orderBy: [{ field: 'order', sort: 'asc' }],
+        limit: 1
+      }
+    });
+    task.resultEntitySet.add(new Category({ name: 'existing', order: 10, slug: 'existing-stable' }));
+    const changes: QueryRuleChange[] = [
+      { id: uuid(), patch: { order: 5, name: 'after' }, inversePatch: { order: 5, name: 'before' } }
+    ];
+    const rules = new QueryRulesBuilder(task, changes, false).buildUpdateRules();
+
+    expect(rules.match_order_by()).toBe(false);
   });
 
   it.each([
@@ -181,11 +219,32 @@ describe('QueryRulesBuilder', () => {
     // 同样需要触发刷新,否则缓存永久 stale。与 UPDATE 对齐使用 whereUsesRelations && hasRelationChanges。
     expect(rules.match_relation_where()).toBe(true);
     expect(rules.not_match_relation_where()).toBe(false);
-    expect(rules.match_order_by()).toBe(true);
+    // offset 为 0（未分页）时，页外被删的行影响不到这一页，规则判否（此前是恒真占位）
+    expect(rules.match_order_by()).toBe(false);
     expect(rules.match_where_before()).toBe(true);
     expect(rules.not_match_where_before()).toBe(true);
     expect(rules.result_contains()).toBe(true);
     expect(rules.result_not_contains()).toBe(false);
+  });
+
+  it.each([
+    { slug: 'before-page', order: 5, expected: true, why: '排在当前页之前，删掉后窗口整体前移' },
+    { slug: 'after-page', order: 50, expected: false, why: '排在当前页之后，删掉不影响这一页' }
+  ])('evaluates REMOVE orderBy impact for an offset page ($why)', ({ slug, order, expected }) => {
+    const task = createTask(rxdb, Category, {
+      type: 'find',
+      options: {
+        where: { combinator: 'and', rules: [] },
+        orderBy: [{ field: 'order', sort: 'asc' }],
+        offset: 1,
+        limit: 1
+      }
+    });
+    task.resultEntitySet.add(new Category({ name: 'page', order: 10, slug: `page-${slug}` }));
+    const changes: QueryRuleChange[] = [{ id: uuid(), patch: null, inversePatch: { order } }];
+    const rules = new QueryRulesBuilder(task, changes, false).buildRemoveRules();
+
+    expect(rules.match_order_by()).toBe(expected);
   });
 
   it.each([

@@ -28,10 +28,27 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
     return d[0];
   }
 
+  /**
+   * 按查询条件读实体，并把结果行合进身份映射。
+   *
+   * @param options - 查询条件
+   * @returns 结果行对应的实体（命中缓存的返回同一引用）
+   *
+   * @remarks
+   * 回填走 {@link SqliteRepositoryBase.mergeQueryCache} 而不是 `addQueryCache(result)`：
+   * 后者在 `forcedUpdate = false` 下**只建新实体、不碰已缓存的**，于是任何绕过 ORM 的写
+   * （提交图的 HEAD CAS、启用提交能力的 CAS）落库之后，本进程再怎么 `find()` 都只读得到
+   * 缓存里那份旧值——CAS 明明把 `headRevision` 推到了 1，读回来还是 0，下一次提交因此
+   * 永远撞 `head_revision_conflict`。PGlite 那一端每次读都回填，同一段代码在两个后端上
+   * 结果不同。
+   *
+   * 也不用 `addQueryCache(result, true)`：那是整行覆盖 + `modified` 归零，会把用户尚未
+   * 保存的编辑写进基线后静默清空（见 `entity-status.ts#applyExternal`）。
+   */
   async find(options: EntityStaticType<T, 'findOptions'>): Promise<InstanceType<T>[]> {
     const { sql, params } = generate_query_find_sql(this.adapter, this.metadata, options);
     const result = await this.adapter.query(sql, params);
-    const entities = await this.addQueryCache(result);
+    const entities = await this.mergeQueryCache(result);
     return entities;
   }
 

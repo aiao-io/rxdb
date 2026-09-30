@@ -67,7 +67,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 | #   | 病灶                                                             | 结算                                                                                                                                                                                                                                                                                                           |
 | --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称                                                                                                                                                          |
-| 2   | `RxDB.#event_initialized` 布尔守卫                               | **改判：不是病灶**——布尔守卫防的是重连时重复注册导致监听器集合膨胀，实例被回收时监听器一并消失，不占本 Epic 名额                                                                                                                                                                                               |
+| 2   | `RxDB.#event_initialized` 布尔守卫                               | 不是病灶——布尔守卫防的是重连时重复注册导致监听器集合膨胀，实例被回收时监听器一并消失                                                                                                                                                                                                                           |
 | 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                                                                                        |
 | 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                                                                                     |
 | 5   | search 的 `SearchPluginPhase` 五态枚举                           | 关闭（US-015 阶段 A）——枚举已删，`installing` / `failed` 由调度器持有                                                                                                                                                                                                                                          |
@@ -91,7 +91,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 - [x] `IRxDBPlugin` 契约改为 `install(scope)`，四个插件包全部迁移，`destroy()` 转为可选并进入废弃周期；
       **关闭结算表第 4 / 6 / 7 / 8 / 9 条**（[US-014](../stories/core/US-014-plugin-scope-contract.md)）
 - [x] 插件可声明 `inject` 依赖，依赖未就绪时不安装、依赖消失时自动释放作用域——**阶段 A 适配器依赖纪元**
-      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)，2026-08-21）：`inject: ['adapter:local']`、
+      （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）：`inject: ['adapter:local']`、
       `PluginDependencyScheduler` 与 `localAdapterSync`；**关闭结算表第 3 / 5 条**
 
 - [x] `init()` 失败回滚补齐与 `#shutdown()` 对称的资源三步（`versionManager` / `#gateway` / `entityManager`
@@ -101,11 +101,11 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 ## 已移出承诺范围
 
-三条曾被本 Epic 引用为后续故事，按收口判据改判。它们不是排期承诺，写明解锁条件后**未解锁不开工**：
+三条无故事文件、不在排期承诺中，写明解锁条件后**未解锁不开工**：
 
-| 条目                        | 改判理由                                                                                                                                                                                                                         | 解锁条件                     |
+| 条目                        | 判定理由                                                                                                                                                                                                                         | 解锁条件                     |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `US-016` 连接纪元与停机收敛 | 原始症状（`init()` 失败只复位 `#rxdb_initialized`）已随阶段 A 大部分修复；剩余部分降级为上方 bugfix。收益上限是「14 步变 11 步」，达不到一条故事的门槛                                                                           | 不再解锁——已被 bugfix 取代   |
+| `US-016` 连接纪元与停机收敛 | 症状（`init()` 失败只复位 `#rxdb_initialized`）已由阶段 A 修复，剩余部分按上方 bugfix 补齐；收益上限是「14 步变 11 步」，达不到一条故事的门槛                                                                                    | 不再解锁——已被 bugfix 取代   |
 | `US-017` 三框架宿主作用域   | 三端各自已有原生作用域并且在用：Angular `DestroyRef`、React `useEffect` cleanup、Vue `onScopeDispose`。抽第四层需要先有三端各自的泄漏证据，目前一条没有。**铁律「三框架对称」约束的是对外 API 对称，不是内部实现共用同一个原语** | 三端任一出现可复现的清理泄漏 |
 
 ## 设计依据：从 Cordis 迁移了什么
@@ -156,8 +156,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 - [US-014 插件作用域契约](../stories/core/US-014-plugin-scope-contract.md) (High)
 - [US-015 插件依赖声明与按需装卸](../stories/core/US-015-plugin-inject-dependency.md) (Medium) — 阶段 A / B 均已交付
 
-**US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的 `LifecycleScope` 类型。
-两条均已交付，硬序解除。
+**US-013 → US-014 是硬序**，不可交换：US-014 的 `install(scope)` 签名需要 US-013 冻结的 `LifecycleScope` 类型。两条均已交付。
 
 ## 与既有 Epic 的边界
 

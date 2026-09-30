@@ -1,15 +1,13 @@
 import { PropertyType, RelationKind, type EntityMetadata } from '@aiao/rxdb';
 import { isGeneratedComputedProperty } from '../generators/entity-properties.js';
-import { RepositoryMethodsGenerator } from '../generators/RepositoryGeneratorBase.js';
-import { TreeRepositoryGenerator } from '../generators/TreeRepositoryGenerator.js';
+import type { RepositoryGeneratorSymbols } from '../generators/RepositoryGenerator.interface.js';
 import type { RxDBClientGenerator } from './RxDBClientGenerator.js';
 import { getFlatMapInterfaceName } from './RxDBClientGenerator.utils.js';
 import type { MethodDeclarationStructure, OptionalKind, PropertyDeclarationStructure } from './ts-morph-browser.js';
 
 const NAMESPACE_PUBLIC = 'public';
 const REPOSITORY_TYPE_REPOSITORY = 'Repository';
-const REPOSITORY_TYPE_TREE_REPOSITORY = 'TreeRepository';
-const FIXED_RXDB_TYPE_IMPORTS = ['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID'];
+const FIXED_RXDB_TYPE_IMPORTS = ['EntityType', 'IEntity', 'RuleGroupBase', 'UUID'];
 const FIXED_RXJS_TYPE_IMPORTS = ['Observable'];
 
 interface GeneratedSymbol {
@@ -40,12 +38,28 @@ class GeneratedSymbolTable {
 const hasKeyValueInterface = (property: EntityMetadata['properties'][number]): boolean =>
   property.type === PropertyType.keyValue && 'properties' in property && property.properties.length > 0;
 
-const hasStandardRepositoryOutput = (generator: RxDBClientGenerator): boolean =>
-  generator.getRepositoryGenerator(REPOSITORY_TYPE_REPOSITORY)?.constructor === RepositoryMethodsGenerator;
+/**
+ * 收集一个实体上所有会被写入的生成器符号，按 `entity-definition` 的生成轮次取。
+ *
+ * @remarks
+ * 扩展类型的实体先跑一轮基类 `Repository` 再跑自身生成器，两轮各自报一次；
+ * 不实现 `declareSymbols` 的生成器不占名，其产物只在落盘阶段的成员校验里兜底。
+ */
+const declaredSymbols = (
+  generator: RxDBClientGenerator,
+  metadata: EntityMetadata
+): { generatorName: string; symbols: RepositoryGeneratorSymbols }[] => {
+  const repoType = metadata.repository || REPOSITORY_TYPE_REPOSITORY;
+  const rounds =
+    repoType === REPOSITORY_TYPE_REPOSITORY ?
+      [generator.getRepositoryGenerator(REPOSITORY_TYPE_REPOSITORY)]
+    : [generator.getRepositoryGenerator(REPOSITORY_TYPE_REPOSITORY), generator.getRepositoryGenerator(repoType)];
 
-const hasStandardTreeOutput = (generator: RxDBClientGenerator, metadata: EntityMetadata): boolean =>
-  metadata.repository === REPOSITORY_TYPE_TREE_REPOSITORY &&
-  generator.getRepositoryGenerator(REPOSITORY_TYPE_TREE_REPOSITORY)?.constructor === TreeRepositoryGenerator;
+  return rounds.flatMap(repoGenerator => {
+    const symbols = repoGenerator?.declareSymbols?.(metadata);
+    return symbols ? [{ generatorName: repoGenerator!.name, symbols }] : [];
+  });
+};
 
 const addEntityMemberSymbols = (
   table: GeneratedSymbolTable,
@@ -75,9 +89,10 @@ const addEntityMemberSymbols = (
     }
   });
 
-  if (!hasStandardRepositoryOutput(generator)) return;
-  ['save', 'remove', 'reset'].forEach(symbol =>
-    addMember(symbol, `Repository generator "Repository" instance property "${symbol}"`)
+  declaredSymbols(generator, metadata).forEach(({ generatorName, symbols }) =>
+    symbols.instanceMembers?.forEach(symbol =>
+      addMember(symbol, `Repository generator "${generatorName}" instance property "${symbol}"`)
+    )
   );
 };
 
@@ -105,15 +120,11 @@ const addEntityTypeSymbols = (
   addType(`${metadata.name}InitData`, `entity "${metadata.name}" initialization interface`, true);
   addType(`${metadata.name}StaticTypes`, `entity "${metadata.name}" static types interface`, true);
 
-  if (hasStandardRepositoryOutput(generator)) {
-    addType(`${metadata.name}Rule`, `Repository generator "Repository" rule type`);
-    addType(`${metadata.name}RuleGroup`, `Repository generator "Repository" rule group type`, true);
-    addType(`${metadata.name}OrderByField`, `Repository generator "Repository" order-by type`);
-  }
-  if (hasStandardTreeOutput(generator, metadata)) {
-    addType(`${metadata.name}TreeRule`, `Repository generator "TreeRepository" rule type`);
-    addType(`${metadata.name}TreeRuleGroup`, `Repository generator "TreeRepository" rule group type`, true);
-  }
+  declaredSymbols(generator, metadata).forEach(({ generatorName, symbols }) =>
+    symbols.types?.forEach(({ exported, name }) =>
+      addType(name, `Repository generator "${generatorName}" type "${name}"`, exported)
+    )
+  );
 
   const properties = [
     ...metadata.properties,
@@ -132,29 +143,24 @@ const addEntityTypeSymbols = (
 };
 
 const addFixedDeclarationImportSymbols = (table: GeneratedSymbolTable, generator: RxDBClientGenerator): void => {
-  const scopes =
+  // split 模式一个实体一个 `.d.ts` 作用域；合并模式所有实体共用 `types:index`。
+  const scopes: [string, EntityMetadata[]][] =
     generator.config.splitFiles ?
-      Array.from(generator.metadataSet, metadata => `types:${metadata.name}`)
-    : ['types:index'];
-  scopes.forEach(scope => {
-    FIXED_RXDB_TYPE_IMPORTS.forEach(symbol =>
-      table.add({
-        entity: symbol,
-        kind: 'declaration import',
-        scope,
-        source: `fixed RxDB import "${symbol}"`,
-        symbol
-      })
+      Array.from(generator.metadataSet, metadata => [`types:${metadata.name}`, [metadata]])
+    : [['types:index', Array.from(generator.metadataSet)]];
+  scopes.forEach(([scope, scopeMetadata]) => {
+    const addImport = (symbol: string, source: string): void =>
+      table.add({ entity: symbol, kind: 'declaration import', scope, source, symbol });
+    FIXED_RXDB_TYPE_IMPORTS.forEach(symbol => addImport(symbol, `fixed RxDB import "${symbol}"`));
+    FIXED_RXJS_TYPE_IMPORTS.forEach(symbol => addImport(symbol, `fixed RxJS import "${symbol}"`));
+    // 插件基类接口（如树的 `ITreeEntity`）不是固定的 RxDB 导入：它随生成器的
+    // `entityBaseModuleSpecifier` 从插件包取，只有该作用域里确实有这类实体时才占名。
+    const entityInterfaces = new Set(
+      scopeMetadata.flatMap(metadata =>
+        declaredSymbols(generator, metadata).flatMap(({ symbols }) => symbols.entityInterfaces ?? [])
+      )
     );
-    FIXED_RXJS_TYPE_IMPORTS.forEach(symbol =>
-      table.add({
-        entity: symbol,
-        kind: 'declaration import',
-        scope,
-        source: `fixed RxJS import "${symbol}"`,
-        symbol
-      })
-    );
+    entityInterfaces.forEach(symbol => addImport(symbol, `entity base interface import "${symbol}"`));
   });
 };
 

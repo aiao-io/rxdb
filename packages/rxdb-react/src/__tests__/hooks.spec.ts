@@ -11,14 +11,10 @@ import { EMPTY, Observable, Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useCount,
-  useCountAncestors,
-  useCountDescendants,
   useCountNeighbors,
   useFind,
   useFindAll,
-  useFindAncestors,
   useFindByCursor,
-  useFindDescendants,
   useFindOne,
   useFindOneOrFail,
   useGet,
@@ -49,7 +45,6 @@ interface TestEntityStaticTypes {
   findByCursorOptions: CursorOptions;
   findAllOptions: QueryOptions;
   countOptions: QueryOptions;
-  findTreeOptions: QueryOptions;
   findNeighborsOptions: QueryOptions;
   findPathsOptions: QueryOptions;
 }
@@ -62,10 +57,6 @@ const queryMocks = {
   findByCursor: vi.fn<(options: CursorOptions) => Observable<TestEntity[]>>(),
   findAll: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
   count: vi.fn<(options: QueryOptions) => Observable<number>>(),
-  findDescendants: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
-  countDescendants: vi.fn<(options: QueryOptions) => Observable<number>>(),
-  findAncestors: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
-  countAncestors: vi.fn<(options: QueryOptions) => Observable<number>>(),
   findNeighbors$: vi.fn<(options: QueryOptions) => Observable<GraphQueryResult<NeighborResult<typeof TestEntity>>>>(),
   countNeighbors$: vi.fn<(options: QueryOptions) => Observable<number>>(),
   findPaths$: vi.fn<(options: QueryOptions) => Observable<GraphQueryResult<GraphPath<typeof TestEntity>>>>()
@@ -81,12 +72,11 @@ class TestEntity {
     findByCursorOptions: { key: '' },
     findAllOptions: { key: '' },
     countOptions: { key: '' },
-    findTreeOptions: { key: '' },
     findNeighborsOptions: { key: '' },
     findPathsOptions: { key: '' }
   };
 
-  // RAN-014：树/图 hooks 已收紧到 TreeEntityType / GraphEntityType，
+  // RAN-014：图 hooks 已收紧到 GraphEntityType，
   // 实例必须满足 IEntity（id + createdAt + updatedAt）才能作为它们的实参
   readonly createdAt = new Date(0);
   readonly updatedAt = new Date(0);
@@ -122,22 +112,6 @@ class TestEntity {
 
   static count(options: QueryOptions): Observable<number> {
     return queryMocks.count(options);
-  }
-
-  static findDescendants(options: QueryOptions): Observable<TestEntity[]> {
-    return queryMocks.findDescendants(options);
-  }
-
-  static countDescendants(options: QueryOptions): Observable<number> {
-    return queryMocks.countDescendants(options);
-  }
-
-  static findAncestors(options: QueryOptions): Observable<TestEntity[]> {
-    return queryMocks.findAncestors(options);
-  }
-
-  static countAncestors(options: QueryOptions): Observable<number> {
-    return queryMocks.countAncestors(options);
   }
 
   static findNeighbors$(options: QueryOptions): Observable<GraphQueryResult<NeighborResult<typeof TestEntity>>> {
@@ -193,10 +167,6 @@ const setDefaultQueryResults = (): void => {
   queryMocks.findByCursor.mockReturnValue(of([new TestEntity('cursor')]));
   queryMocks.findAll.mockReturnValue(of([new TestEntity('find-all')]));
   queryMocks.count.mockReturnValue(of(7));
-  queryMocks.findDescendants.mockReturnValue(of([new TestEntity('descendant')]));
-  queryMocks.countDescendants.mockReturnValue(of(2));
-  queryMocks.findAncestors.mockReturnValue(of([new TestEntity('ancestor')]));
-  queryMocks.countAncestors.mockReturnValue(of(1));
   queryMocks.findNeighbors$.mockReturnValue(
     of(
       createGraphQueryResult(
@@ -517,10 +487,6 @@ describe('named repository hooks', () => {
       renderHook(() => useFindByCursor(TestEntity, cursorOptions)),
       renderHook(() => useFindAll(TestEntity, options)),
       renderHook(() => useCount(TestEntity, options)),
-      renderHook(() => useFindDescendants(TestEntity, options)),
-      renderHook(() => useCountDescendants(TestEntity, options)),
-      renderHook(() => useFindAncestors(TestEntity, options)),
-      renderHook(() => useCountAncestors(TestEntity, options)),
       renderHook(() => useGraphNeighbors(TestEntity, options)),
       renderHook(() => useCountNeighbors(TestEntity, options)),
       renderHook(() => useGraphPaths(TestEntity, options))
@@ -535,10 +501,6 @@ describe('named repository hooks', () => {
     expect(queryMocks.findByCursor).toHaveBeenCalledWith(cursorOptions);
     expect(queryMocks.findAll).toHaveBeenCalledWith(options);
     expect(queryMocks.count).toHaveBeenCalledWith(options);
-    expect(queryMocks.findDescendants).toHaveBeenCalledWith(options);
-    expect(queryMocks.countDescendants).toHaveBeenCalledWith(options);
-    expect(queryMocks.findAncestors).toHaveBeenCalledWith(options);
-    expect(queryMocks.countAncestors).toHaveBeenCalledWith(options);
     expect(queryMocks.findNeighbors$).toHaveBeenCalledWith(options);
     expect(queryMocks.countNeighbors$).toHaveBeenCalledWith(options);
     expect(queryMocks.findPaths$).toHaveBeenCalledWith(options);

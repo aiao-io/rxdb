@@ -62,51 +62,6 @@ export const handleFindAllUpdate = <T extends EntityType>(
 };
 
 /**
- * 处理 find 查询更新 (分页查询)
- */
-export const handleFindUpdate = <T extends EntityType>(task: QueryTask<T>, classification: UpdateClassification) => {
-  const oldResult = Array.from(task.resultEntitySet.values());
-
-  // 检查结果集是否受影响
-  const resultAffected = oldResult.some(entity => {
-    const entityId = getEntityId(entity);
-    return entityId !== undefined && classification.updatedIds.has(entityId);
-  });
-
-  // 如果有新匹配的实体,也可能影响分页结果
-  const hasNewMatches = classification.newlyMatchedIds.size > 0;
-
-  // 如果结果集受影响或有新匹配,需要刷新
-  if (resultAffected || hasNewMatches) {
-    task.refresh();
-  }
-};
-
-/**
- * 处理 findByCursor 查询更新
- */
-export const handleFindByCursorUpdate = <T extends EntityType>(
-  task: QueryTask<T>,
-  classification: UpdateClassification
-) => {
-  const oldResult = Array.from(task.resultEntitySet.values());
-
-  // 检查结果集是否受影响
-  const resultAffected = oldResult.some(entity => {
-    const entityId = getEntityId(entity);
-    return entityId !== undefined && classification.updatedIds.has(entityId);
-  });
-
-  // 如果有新匹配的实体,也可能影响游标范围
-  const hasNewMatches = classification.newlyMatchedIds.size > 0;
-
-  // 如果结果集受影响或有新匹配,需要刷新
-  if (resultAffected || hasNewMatches) {
-    task.refresh();
-  }
-};
-
-/**
  * 处理 findOne/findOneOrFail 查询更新
  *
  * 注意：patch 可能是增量数据（跨 Tab 场景），不是完整实体
@@ -159,24 +114,5 @@ export const handleFindOneUpdate = <T extends EntityType>(
   // 当前结果没有更新，但如果有新匹配的实体，可能影响结果
   if (classification.newlyMatchedIds.size > 0) {
     task.refresh();
-  }
-};
-
-/**
- * 处理 count 查询更新
- */
-export const handleCountUpdate = <T extends EntityType>(task: QueryTask<T>, classification: UpdateClassification) => {
-  const currentCount = (task.result as number) || 0;
-  const addedCount = classification.newlyMatchedIds.size;
-  const removedCount = classification.newlyUnmatchedIds.size;
-
-  // 只有计数真正变化时才更新
-  if (addedCount > 0 || removedCount > 0) {
-    const newCount = Math.max(0, currentCount + addedCount - removedCount);
-    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
-    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
-    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
-    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
-    task.next(newCount, false);
   }
 };

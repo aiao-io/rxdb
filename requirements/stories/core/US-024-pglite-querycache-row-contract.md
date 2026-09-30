@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-05
-updated: 2026-09-12
+updated: 2026-09-20
 tags: [core, querycache, pglite, contract]
 ---
 
@@ -167,6 +167,10 @@ join 落空时 `select('*')` 返回的就是这个形状，不是边角情况。
   `createdAt` 而非 `created_at`：写 fixture 时照 snake_case 猜会直接被契约拦下。
 - 契约装上之后，`EntityBase` 的子类**再也走不到** `ON CONFLICT DO NOTHING` 那一支（带齐必填列必然有可更新列），
   该分支的用例改用一个只有 uuid 主键、不继承 `EntityBase` 的实体来覆盖。
+- **复验方式**：用例——`query-cache-row-contract.spec.ts`（跨后端套件 + PG 专属两条分歧 + `default: null`）、
+  `query-cache-metadata.spec.ts` 的「远端行的列契约（US-024）」describe（AC#1/#2 真机）、
+  `upsert-many-sql.spec.ts`（F3 回归闸：异构分组保持绿）；验证——
+  `pnpm nx run-many -t lint typecheck test build --projects=rxdb-test,rxdb-adapter-pglite,rxdb-adapter-sqlite-core,rxdb-adapter-electron,rxdb-adapter-supabase`
 
 ## 实现文件
 
@@ -182,14 +186,6 @@ join 落空时 `select('*')` 返回的就是这个形状，不是边角情况。
 | [packages/rxdb-test/src/query-cache-contract/](../../../packages/rxdb-test/src/query-cache-contract/)                                                         | 新增：跨后端契约套件 + fixture，走 `./query-cache-contract` 子路径 |
 | [website/docs/collaboration/sync.md](../../../website/docs/collaboration/sync.md)                                                                             | AC#6：「哪些列可以省略」按后端拆开                                 |
 | [requirements/capability-matrix.md](../../capability-matrix.md)                                                                                               | AC#6：缺口条目删除                                                 |
-
-## 交付记录
-
-- 实现完成 2026-09-12，AC#1～#6 全部 ✅。
-- 用例：`query-cache-row-contract.spec.ts`（跨后端套件 + PG 专属两条分歧 + `default: null`）、
-  `query-cache-metadata.spec.ts` 的「远端行的列契约（US-024）」describe（AC#1/#2 真机）、
-  `upsert-many-sql.spec.ts`（F3 回归闸：异构分组保持绿）。
-- 验证：`pnpm nx run-many -t lint typecheck test build --projects=rxdb-test,rxdb-adapter-pglite,rxdb-adapter-sqlite-core,rxdb-adapter-electron,rxdb-adapter-supabase` 全绿。
 
 ## References
 

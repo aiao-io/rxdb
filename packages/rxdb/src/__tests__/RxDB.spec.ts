@@ -18,6 +18,7 @@ import { RxDBOptions } from '../rxdb.interface.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBMigration } from '../system/migration.js';
 import { RXDB_DB_NAME_SUFFIX } from '../version.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 
 const REBIND_USER_ID = '00000000-0000-0000-0000-000000000101';
@@ -116,6 +117,8 @@ class ConnectInitBrokenEntity extends EntityBase {
   name!: string;
 }
 
+const { trackRxDB, trackSharedRxDB } = registerRxDBTeardown();
+
 describe('RxDB', () => {
   let rxdbOptions: RxDBOptions;
   let rxdb: RxDB;
@@ -132,7 +135,7 @@ describe('RxDB', () => {
       }
     };
     // 创建一个全局 RxDB 实例供所有测试使用
-    rxdb = new RxDB(rxdbOptions);
+    rxdb = trackSharedRxDB(new RxDB(rxdbOptions));
     rxdb.adapter('sqlite', createMockAdapter);
     rxdb.init();
   });
@@ -167,16 +170,18 @@ describe('RxDB', () => {
     });
 
     it('应在 init 阶段拒绝无效 repository 配置', () => {
-      const invalidRxDB = new RxDB({
-        dbName: 'invalid-repository',
-        entities: [BrokenRepositoryEntity] as EntityType[],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      });
+      const invalidRxDB = trackRxDB(
+        new RxDB({
+          dbName: 'invalid-repository',
+          entities: [BrokenRepositoryEntity] as EntityType[],
+          sync: {
+            local: {
+              adapter: 'sqlite'
+            },
+            type: SyncType.None
+          }
+        })
+      );
       invalidRxDB.adapter('sqlite', createMockAdapter);
 
       expect(() => invalidRxDB.init()).toThrow(
@@ -185,16 +190,18 @@ describe('RxDB', () => {
     });
 
     it('init() 失败后修复配置重试，应该真正执行剩余初始化，而不是被首次失败时已置 true 的内部标记挡住悄悄空跑（RXD-002）', () => {
-      const localRxdb = new RxDB({
-        dbName: 'init-retry-after-failure',
-        entities: [BrokenRepositoryEntity] as EntityType[],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'init-retry-after-failure',
+          entities: [BrokenRepositoryEntity] as EntityType[],
+          sync: {
+            local: {
+              adapter: 'sqlite'
+            },
+            type: SyncType.None
+          }
+        })
+      );
       localRxdb.adapter('sqlite', createMockAdapter);
 
       expect(() => localRxdb.init()).toThrow(
@@ -212,16 +219,18 @@ describe('RxDB', () => {
 
     it('应允许注册同一实体类，但拒绝无上下文的类级构造', () => {
       const createInstance = (dbName: string) => {
-        const instance = new RxDB({
-          dbName,
-          entities: [TestUser] as EntityType[],
-          sync: {
-            local: {
-              adapter: 'sqlite'
-            },
-            type: SyncType.None
-          }
-        });
+        const instance = trackRxDB(
+          new RxDB({
+            dbName,
+            entities: [TestUser] as EntityType[],
+            sync: {
+              local: {
+                adapter: 'sqlite'
+              },
+              type: SyncType.None
+            }
+          })
+        );
         instance.adapter('sqlite', createMockAdapter);
         return instance;
       };
@@ -238,16 +247,18 @@ describe('RxDB', () => {
 
     it('同一实体类绑定多个数据库后，已有实例仍路由到原数据库且歧义入口 fail-fast（RXD-046）', async () => {
       const createInstance = (dbName: string) => {
-        const instance = new RxDB({
-          dbName,
-          entities: [RebindUser] as EntityType[],
-          sync: {
-            local: {
-              adapter: 'sqlite'
-            },
-            type: SyncType.None
-          }
-        });
+        const instance = trackRxDB(
+          new RxDB({
+            dbName,
+            entities: [RebindUser] as EntityType[],
+            sync: {
+              local: {
+                adapter: 'sqlite'
+              },
+              type: SyncType.None
+            }
+          })
+        );
         const adapter = createMockAdapter(instance);
         const repository = {
           find: vi.fn().mockResolvedValue([]),
@@ -289,16 +300,18 @@ describe('RxDB', () => {
 
     it('同一实体类绑定多个数据库后，已有实体的关系 getter 仍路由到原数据库（RXD-046）', async () => {
       const createInstance = (dbName: string) => {
-        const instance = new RxDB({
-          dbName,
-          entities: [RebindParent, RebindChild] as EntityType[],
-          sync: {
-            local: {
-              adapter: 'sqlite'
-            },
-            type: SyncType.None
-          }
-        });
+        const instance = trackRxDB(
+          new RxDB({
+            dbName,
+            entities: [RebindParent, RebindChild] as EntityType[],
+            sync: {
+              local: {
+                adapter: 'sqlite'
+              },
+              type: SyncType.None
+            }
+          })
+        );
         const adapter = createMockAdapter(instance);
         const repository = {
           find: vi.fn().mockResolvedValue([]),
@@ -412,11 +425,13 @@ describe('RxDB', () => {
     });
 
     it('connect() 返回后即可 new Entity()，不得等微任务才 bind manager', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'connect-sync-init',
-        entities: [ConnectInitUser] as EntityType[],
-        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'connect-sync-init',
+          entities: [ConnectInitUser] as EntityType[],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
       const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
@@ -430,11 +445,13 @@ describe('RxDB', () => {
     });
 
     it('插件 install 同步回呼 connect() 必须命中同一条 in-flight Promise', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'connect-plugin-reenter',
-        entities: [ConnectInitUser] as EntityType[],
-        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'connect-plugin-reenter',
+          entities: [ConnectInitUser] as EntityType[],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
       const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
@@ -454,11 +471,13 @@ describe('RxDB', () => {
     });
 
     it('connect() 期间 init() 失败应拒绝同一条 Promise，修复后可重试', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'connect-init-retry',
-        entities: [ConnectInitBrokenEntity] as EntityType[],
-        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'connect-init-retry',
+          entities: [ConnectInitBrokenEntity] as EntityType[],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
       const mockAdapterInstance = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
 
@@ -481,14 +500,16 @@ describe('RxDB', () => {
         name!: string;
       }
 
-      const localRxdb = new RxDB({
-        dbName: 'connect-sync-init',
-        entities: [ConnectSyncUser] as EntityType[],
-        sync: {
-          local: { adapter: 'sqlite' },
-          type: SyncType.None
-        }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'connect-sync-init',
+          entities: [ConnectSyncUser] as EntityType[],
+          sync: {
+            local: { adapter: 'sqlite' },
+            type: SyncType.None
+          }
+        })
+      );
       const adapter = createMockAdapter(localRxdb);
       localRxdb.adapter('sqlite', () => adapter);
 
@@ -514,14 +535,16 @@ describe('RxDB', () => {
     });
 
     it('connect() 触发的 init 失败应拒绝 Promise，而不是同步抛出', async () => {
-      const invalidRxdb = new RxDB({
-        dbName: 'connect-init-failure',
-        entities: [BrokenRepositoryEntity] as EntityType[],
-        sync: {
-          local: { adapter: 'sqlite' },
-          type: SyncType.None
-        }
-      });
+      const invalidRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'connect-init-failure',
+          entities: [BrokenRepositoryEntity] as EntityType[],
+          sync: {
+            local: { adapter: 'sqlite' },
+            type: SyncType.None
+          }
+        })
+      );
       invalidRxdb.adapter('sqlite', createMockAdapter);
 
       const connecting = invalidRxdb.connect('sqlite');
@@ -543,16 +566,18 @@ describe('RxDB', () => {
     });
 
     it('应该在已存在数据库时补建缺失的实体表', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'existing-db-missing-entity-table',
-        entities: [TestUser] as EntityType[],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'existing-db-missing-entity-table',
+          entities: [TestUser] as EntityType[],
+          sync: {
+            local: {
+              adapter: 'sqlite'
+            },
+            type: SyncType.None
+          }
+        })
+      );
       const mockAdapterInstance = createMockAdapter(localRxdb);
       mockAdapterInstance.isTableExisted.mockImplementation(async EntityType => EntityType === RxDBMigration);
       localRxdb.adapter('sqlite', () => mockAdapterInstance);
@@ -560,9 +585,19 @@ describe('RxDB', () => {
 
       await localRxdb.connect('sqlite');
 
-      expect(mockAdapterInstance.createTables).toHaveBeenCalledTimes(1);
-      const [missingEntities] = mockAdapterInstance.createTables.mock.calls[0] as [EntityType[]];
-      expect(missingEntities).toContain(TestUser);
+      // 补建分两批，顺序是硬约束：系统表必须先于系统迁移就位（迁移要往里写初始行），
+      // 接入方实体表则保持在接入方迁移之后。合成一次下发就等于把这个时机抹平。
+      expect(mockAdapterInstance.createTables).toHaveBeenCalledTimes(2);
+      const [systemBatch] = mockAdapterInstance.createTables.mock.calls[0] as [EntityType[]];
+      const [entityBatch] = mockAdapterInstance.createTables.mock.calls[1] as [EntityType[]];
+      // 这里只断言「除已存在的 RxDBMigration 外，系统表一张不漏」，不写死张数——
+      // 系统表每加一张都改一次数字，改到第三次就没人再看它到底该是几。
+      // 基准取**本实例**的清单而不是模块级的 `SYSTEM_ENTITIES`：后者只增不减，
+      // 同一进程里别的库 use() 过的贡献也在里面，拿它当基准等于把跨实例污染写进断言。
+      expect(systemBatch).toEqual(localRxdb.systemEntities.filter(entity => entity !== RxDBMigration));
+      // 接入方那批**只能**有接入方实体：系统表已在上一批建过，再送一遍等于同一张表被
+      // 下发两次，适配器无从分辨补建与重复下发。
+      expect(entityBatch).toEqual([TestUser]);
     });
 
     it('应该断开单个适配器', async () => {
@@ -592,16 +627,18 @@ describe('RxDB', () => {
 
     it('应在断开适配器前先销毁插件', async () => {
       const callOrder: string[] = [];
-      const localRxdb = new RxDB({
-        dbName: 'disconnect-plugin-order',
-        entities: [TestUser] as EntityType[],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'disconnect-plugin-order',
+          entities: [TestUser] as EntityType[],
+          sync: {
+            local: {
+              adapter: 'sqlite'
+            },
+            type: SyncType.None
+          }
+        })
+      );
       const disconnectAdapter = createMockAdapter(localRxdb);
       disconnectAdapter.disconnect.mockImplementation(async () => {
         callOrder.push('adapter-disconnect');
@@ -628,16 +665,18 @@ describe('RxDB', () => {
     it('应等待异步插件销毁完成后再断开适配器', async () => {
       const callOrder: string[] = [];
       let resolveDestroy!: () => void;
-      const localRxdb = new RxDB({
-        dbName: 'disconnect-plugin-await-order',
-        entities: [TestUser] as EntityType[],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'disconnect-plugin-await-order',
+          entities: [TestUser] as EntityType[],
+          sync: {
+            local: {
+              adapter: 'sqlite'
+            },
+            type: SyncType.None
+          }
+        })
+      );
       const disconnectAdapter = createMockAdapter(localRxdb);
       disconnectAdapter.disconnect.mockImplementation(async () => {
         callOrder.push('adapter-disconnect');
@@ -698,11 +737,13 @@ describe('RxDB', () => {
     });
 
     it('disconnect 时 adapter.disconnect() 抛错，不应残留死实例——重试应工厂重建而不是复用失败的旧实例（RXD-003）', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'disconnect-reject-reconnect',
-        entities: [TestUser] as EntityType[],
-        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'disconnect-reject-reconnect',
+          entities: [TestUser] as EntityType[],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
       const firstInstance = createMockAdapter(localRxdb);
       const secondInstance = createMockAdapter(localRxdb);
       firstInstance.disconnect.mockRejectedValueOnce(new Error('disconnect failed'));
@@ -724,11 +765,13 @@ describe('RxDB', () => {
     });
 
     it('disconnectAll 后再次 getAdapter 应工厂重建（清空 adapter 缓存）', async () => {
-      const localRxdb = new RxDB({
-        dbName: 'disconnect-all-reconnect',
-        entities: [TestUser] as EntityType[],
-        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-      });
+      const localRxdb = trackRxDB(
+        new RxDB({
+          dbName: 'disconnect-all-reconnect',
+          entities: [TestUser] as EntityType[],
+          sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+        })
+      );
       const firstInstance = createMockAdapter(localRxdb);
       const secondInstance = createMockAdapter(localRxdb);
       let callCount = 0;

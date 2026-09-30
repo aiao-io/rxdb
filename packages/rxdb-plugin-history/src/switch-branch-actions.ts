@@ -1,7 +1,7 @@
 import {
   EntityStaticType,
   getRxDBChangeKey,
-  LocalRxDBChangeRepository,
+  RxDBBranch,
   RxDBChange,
   RxDBError,
   SwitchVersionActions
@@ -14,8 +14,53 @@ import { VersionManager } from './VersionManager.js';
  * @param branchId 要切换到的分支ID
  * @returns 返回切换分支所需的操作序列
  */
-export const switch_branch_actions = async (version: VersionManager, branchId: string) => {
-  const { branchRepository, changeRepository } = await version.getLocalRepositories();
+export const switch_branch_actions = async (version: VersionManager, branchId: string) =>
+  compute_switch_branch_actions(await version.getLocalRepositories(), branchId);
+
+/**
+ * 算切换分支所需操作要用到的最小仓库能力。
+ *
+ * @remarks
+ * 与 {@link BranchChangeReader} 同一个理由写成结构化接口：本地仓库与事务执行器给出的
+ * `IRepository` 都接得住，两边的 `find` 入参本就是同一个类型。
+ */
+export interface SwitchBranchActionReaders {
+  /** 读分支行 */
+  readonly branchRepository: {
+    /**
+     * 按条件查分支
+     *
+     * @param options - 查询选项
+     * @returns 命中的分支行
+     */
+    find(options: EntityStaticType<typeof RxDBBranch, 'findOptions'>): Promise<RxDBBranch[]>;
+  };
+
+  /** 读变更行；见 {@link BranchChangeReader} */
+  readonly changeRepository: BranchChangeReader;
+}
+
+/**
+ * 用给定的仓库算「从当前 active 分支切到 `branchId`」要落的增删改——
+ * {@link switch_branch_actions} 的本体。
+ *
+ * @param readers - 见 {@link SwitchBranchActionReaders}
+ * @param branchId - 要切换到的分支 id
+ * @returns 切换分支所需的操作序列
+ *
+ * @remarks
+ * 拆出来是给 `@aiao/rxdb-plugin-working-tree` 的物化屏障用的：屏障要先把来源分支的投影撤掉，
+ * 再铺目标分支的快照，而它跑在 `switchBranch` 的 `prepare` 里，手上只有事务执行器的仓库——
+ * 绑在适配器上的本地仓库会在同一条连接上等屏障自己那笔事务，死锁。另写一份同义计算，
+ * 迟早会在「回滚标记算不算」上与普通切换分叉。
+ *
+ * @internal
+ */
+export const compute_switch_branch_actions = async (
+  readers: SwitchBranchActionReaders,
+  branchId: string
+): Promise<SwitchVersionActions> => {
+  const { branchRepository, changeRepository } = readers;
   const current_branch = (
     await branchRepository.find({
       where: {
@@ -222,7 +267,43 @@ export const get_switch_version_actions = (
   return actions;
 };
 
-const get_branch_max_change = async (changeRepository: LocalRxDBChangeRepository, branchId: string) => {
+/**
+ * 读一条分支 tip 所需要的最小仓库能力。
+ *
+ * @remarks
+ * 写成结构化的最小接口而不是直接用本地仓库类型，是为了让 {@link get_branch_max_change}
+ * 同时接得住事务执行器给出的 `IRepository<typeof RxDBChange>`——`enable-migration.ts`
+ * 跑在事务里，拿不到本地仓库。两边的 `find` 入参本就是同一个类型
+ * （`RxDBChangeStaticTypes['findOptions']`），所以这不是放宽，只是把已有的共同点写出来。
+ */
+export interface BranchChangeReader {
+  /**
+   * 按条件查变更
+   *
+   * @param options - 查询选项
+   * @returns 命中的变更行
+   */
+  find(options: EntityStaticType<typeof RxDBChange, 'findOptions'>): Promise<RxDBChange[]>;
+}
+
+/**
+ * 读一条分支当前的 tip：它自己那些未被回滚的变更里 id 最大的那条。
+ *
+ * @param changeRepository - 见 {@link BranchChangeReader}
+ * @param branchId - 分支 id
+ * @returns tip 变更行；该分支一条自有变更都没有时为 `undefined`（调用方据此退回分叉点）
+ *
+ * @remarks
+ * 导出是给 `enable-migration.ts` 复用的：「一条分支现在停在哪」这一问必须全局只有一个
+ * 答案（research.md R11）。迁移期另写一条同义查询，迟早会在「回滚标记算不算」
+ * 或「排序列是哪一个」上与切换路径分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支。
+ *
+ * @internal
+ */
+export const get_branch_max_change = async (
+  changeRepository: BranchChangeReader,
+  branchId: string
+): Promise<RxDBChange | undefined> => {
   const changes = await changeRepository.find({
     where: {
       combinator: 'and',

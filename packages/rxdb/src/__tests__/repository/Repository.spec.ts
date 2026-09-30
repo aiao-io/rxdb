@@ -10,6 +10,7 @@ import { deterministicStringify, getEntityStatus } from '../../rxdb-utils.js';
 import type { RxDB } from '../../RxDB.js';
 import { METADATA, STATUS } from '../../rxdb.private.js';
 import { RxDBError } from '../../RxDBError.js';
+import { createEntitySyncResolver } from '../../sync-contract/entity-sync-resolver.js';
 
 class TestEntity {
   static [ENTITY_STATIC_TYPES] = { idType: '' as string };
@@ -70,7 +71,9 @@ const createEntity = (id: string, extra: Partial<TestEntity> = {}): TestEntity =
   entity.createdAt = extra.createdAt || new Date('2024-01-01T00:00:00Z');
   entity.updatedAt = extra.updatedAt || new Date('2024-01-01T00:00:00Z');
   entity.value = extra.value;
-  Object.assign(entity, { [STATUS]: { local: false } });
+  // 这份替身要覆盖 Repository 实际读到的槽位：_setLocal 除了写 local 还会看 patch
+  // （只有「无未保存改动」才把 modified 归零），缺 patch 就是替身比真实 EntityStatus 少一块。
+  Object.assign(entity, { [STATUS]: { local: false, modified: false, patch: {} } });
   return entity;
 };
 
@@ -108,6 +111,7 @@ const setupRepository = (): Setup => {
         local: { adapter: 'local' }
       }
     },
+    entitySync: createEntitySyncResolver({ type: SyncType.None, local: { adapter: 'local' } }),
     getAdapter: vi.fn(async (adapterName: string) => {
       if (adapterName !== 'local') throw new Error('Unknown adapter');
       return localAdapter;
@@ -374,6 +378,14 @@ describe('Repository', () => {
 
     expect(() => repository.find({ where: baseWhere(), limit: -1 } as FindOptions<TestEntityCtor>)).toThrow(
       'limit must be a non-negative safe integer, received: -1'
+    );
+  });
+
+  it('offset 报错信息点名字段与实际取值', () => {
+    const { repository } = setupRepository();
+
+    expect(() => repository.find({ where: baseWhere(), offset: -1 } as FindOptions<TestEntityCtor>)).toThrow(
+      'offset must be a non-negative safe integer, received: -1'
     );
   });
 

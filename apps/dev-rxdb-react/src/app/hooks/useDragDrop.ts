@@ -1,4 +1,5 @@
-import { ITreeEntity, type RxDBEntityId } from '@aiao/rxdb';
+import { type RxDBEntityId } from '@aiao/rxdb';
+import { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 import { useCallback, useMemo, useState } from 'react';
 import { mergeById } from '../utils/tree-scope';
 import { DragDropState, DropMode } from './drag-drop-types';

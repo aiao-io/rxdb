@@ -4,12 +4,28 @@
  * @module local-database.service
  */
 
-import type { RxDB } from '@aiao/rxdb';
+import { RxDBBackupError, type RxDB } from '@aiao/rxdb';
 import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { backupProbeMode, installBackupProbe, type BackupProbeArchiveOps } from '../backup-probe';
 import { DesktopLaunch } from '../desktop-launch.entity';
 import { connectLocalAdapter, type RxDBConnectionStatus } from '../rxdb-connection';
-import { localDatabase, resolveLocalBackend } from '../setup_rxdb';
+import { ELECTRON_ADAPTER_NAME, ELECTRON_PGLITE_ADAPTER_NAME, localDatabase, resolveLocalBackend } from '../setup_rxdb';
+
+/**
+ * 按适配器名取备份探针用的备份与恢复（US-217 AC#18）。
+ *
+ * @remarks
+ * 实现住在两个桌面建库模块里，这里只经动态 `import()` 取——与建库本身同一条 US-207 E11 纪律，
+ * 适配器包不进主 chunk。浏览器预览的 wa-sqlite 不在本 demo 的打包 smoke 里，明确拒绝而不是空转。
+ */
+const loadArchiveOps = async (adapter: string): Promise<BackupProbeArchiveOps> => {
+  if (adapter === ELECTRON_ADAPTER_NAME) return (await import('../setup_rxdb_desktop')).archiveOps;
+  if (adapter === ELECTRON_PGLITE_ADAPTER_NAME) return (await import('../setup_rxdb_desktop_pglite')).archiveOps;
+  throw new RxDBBackupError('unsupported_combination', `the ${adapter} backend has no backup probe in this demo`, {
+    details: { field: 'adapter', actual: adapter }
+  });
+};
 
 /**
  * 把本次运行选中的本地后端连起来，并把「跑在哪个后端 / 连上了没有 / 累计启动几次」
@@ -85,6 +101,16 @@ export class LocalDatabaseService {
       return;
     }
 
+    try {
+      await this.#armBackupProbe(database);
+    } catch (error) {
+      // restore 模式下恢复失败，连接就不能再开：目标可能是半成品，照常连上等于在它上面继续写。
+      this.#status.set('failed');
+      this.#error.set(error);
+      console.error('backup probe failed', error);
+      return;
+    }
+
     let adapterConnected = false;
     await connectLocalAdapter(database, this.#backend.adapter, (status, error) => {
       adapterConnected = status === 'connected';
@@ -110,5 +136,18 @@ export class LocalDatabaseService {
       this.#error.set(error);
       console.error('launch record failed', error);
     }
+  }
+
+  /**
+   * 入口 URL 带 `backup-probe` 时挂出打包 smoke 的备份探针（US-217 AC#18）。
+   *
+   * @remarks
+   * 必须排在连接之前：`restore` 模式的恢复目标要求实例尚未连接，所以这里 await 的是探针的连接闸门——
+   * e2e 调一次成功的 `restore()` 才放行。`backup` 模式立即放行，照常连接。
+   */
+  async #armBackupProbe(database: RxDB): Promise<void> {
+    const mode = backupProbeMode(globalThis);
+    if (mode === undefined) return;
+    await installBackupProbe(globalThis, mode, database, await loadArchiveOps(this.#backend.adapter));
   }
 }

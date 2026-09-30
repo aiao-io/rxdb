@@ -58,8 +58,12 @@ export default defineConfig(() => {
         checks: { pluginTimings: false },
         external: [
           '@aiao/rxdb',
+          // `src/testing.ts` 转出口 `cloneEntityClasses`。不列在这里，rolldown 会把核心那份
+          // 实现**复制进** `dist/testing.js`——单一实现当场变回两份，`.d.ts` 却仍写着转出口。
+          '@aiao/rxdb/testing',
           '@aiao/rxdb-adapter-encrypted',
           '@aiao/rxdb-adapter-sqlite-core',
+          '@aiao/rxdb-plugin-tree',
           '@aiao/rxdb-test',
           '@aiao/rxdb-test/entities',
           '@aiao/rxdb-test/shop',
@@ -88,7 +92,9 @@ export default defineConfig(() => {
         '@aiao/rxdb',
         '@aiao/utils',
         'comlink',
-        'rxjs'
+        'rxjs',
+        // 备份 / 恢复用例用真实引擎跑（仅测试依赖）；预构建会把 wasm 的相对 URL 打断
+        '@sqlite.org/sqlite-wasm'
       ]
     },
     test: {

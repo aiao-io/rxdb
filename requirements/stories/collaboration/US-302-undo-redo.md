@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-02-28
+updated: 2026-09-20
 tags: [collaboration, undo]
 ---
 
@@ -16,6 +16,25 @@ tags: [collaboration, undo]
 **作为** 用户
 **我想要** 撤销和重做我的操作
 **以便** 我可以轻松纠正错误
+
+## 范围边界
+
+### In Scope
+
+- 事务级撤销/重做：按 `transactionId` 分组，同一事务内所有变更一起撤销或重做
+- 基于 `RxDBChange.inversePatch` 的 undo（durable，页面刷新后仍可撤销）
+- 会话级内存 redo 栈（页面刷新后清空，undo 仍可用）
+- 失效逻辑：undo 后执行新操作，清空 redo 栈
+- 与 commit 能力、`restoreEntity` 的兼容边界（undo 结果仍走普通 `RxDBChange` 路径）
+
+### Out of Scope
+
+- commit 图与 HEAD 持久化 —— 属 [US-305](./US-305-commit-graph-head.md)
+- 工作树与提交状态机 —— 属 [US-306](./US-306-working-tree-commits.md)
+- 恢复会话语义 —— 属 [US-307](./US-307-restore-session.md)
+- 分支切换与跨 realm 冲突检测 —— 属 [US-308](./US-308-branch-isolation-conflict.md)
+- change codec 的 bigint/binary 无损表示 —— 属 [US-303](./US-303-bigint-binary-change-codec.md)
+- redo 的 durable 化（redo 恒为会话级能力）
 
 ## 验收标准
 
@@ -38,16 +57,13 @@ tags: [collaboration, undo]
 
 ## 实现文件
 
-- `packages/rxdb/src/version/HistoryManager.ts` — undo/redo 主流程（`#apply_undo_redo_histories`、按 transactionId 分组、redo 失效）
-- `packages/rxdb/src/version/redo-stack.ts` — 会话级 redo 栈（内存 `BehaviorSubject`，上限 `MAX_REDO_STACK_SIZE`）
-- `packages/rxdb/src/version/VersionManager.interface.ts` — `undo(step?)` / `redo(step?)` 接口定义
+- `packages/rxdb-plugin-history/src/HistoryManager.ts` — undo/redo 主流程（`#apply_undo_redo_histories`、按 transactionId 分组、redo 失效）
+- `packages/rxdb-plugin-history/src/redo-stack.ts` — 会话级 redo 栈（内存 `BehaviorSubject`，上限 `MAX_REDO_STACK_SIZE`）
+- `packages/rxdb/src/sync-contract/VersionManager.interface.ts` — `undo(step?)` / `redo(step?)` 接口定义
 - `packages/rxdb/src/system/change.ts` — 变更记录（包含 inversePatch）
 
-## 测试文件
+## References
 
-- `packages/rxdb/src/__tests__/version/sync-undo.spec.ts` — Undo/Redo 测试
-- `packages/rxdb/src/__tests__/version/HistoryManager.spec.ts` — HistoryManager 主流程测试
-
-## 参考
-
+- 测试：`packages/rxdb-plugin-history/src/__tests__/sync-undo.spec.ts` — Undo/Redo 测试
+- 测试：`packages/rxdb-plugin-history/src/__tests__/HistoryManager.spec.ts` — HistoryManager 主流程测试
 - [文档: 撤销/重做](../../../website/docs/collaboration/undo-redo.md)

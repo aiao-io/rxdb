@@ -1,4 +1,4 @@
-import { EntityStaticType, EntityType, TreeEntityType } from '@aiao/rxdb';
+import { EntityStaticType, EntityType } from '@aiao/rxdb';
 import type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 import { GraphEntityType } from '@aiao/rxdb-plugin-graph';
 import { getRepositoryMethod } from '@aiao/utils';
@@ -268,68 +268,6 @@ export const useCount = <T extends EntityType>(
   options: UseOptions<EntityStaticType<T, 'countOptions'>>
 ): RxDBResource<number> =>
   useRepositoryQuery<T, EntityStaticType<T, 'countOptions'>, number>(EntityType, 'count', 0, options);
-
-/**
- * 查找树实体的全部后代。
- *
- * @param EntityType 树实体类型。
- * @param options 树查询选项或幂等 factory。
- * @returns 后代实体数组的查询资源。
- */
-export const useFindDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findDescendants',
-    [],
-    options
-  );
-
-/**
- * 统计树实体的后代数量。
- *
- * @param EntityType 树实体类型。
- * @param options 树查询选项或幂等 factory。
- * @returns 以 `0` 为初值的数量资源。
- */
-export const useCountDescendants = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countDescendants', 0, options);
-
-/**
- * 查找树实体的全部祖先。
- *
- * @param EntityType 树实体类型。
- * @param options 树查询选项或幂等 factory。
- * @returns 祖先实体数组的查询资源。
- */
-export const useFindAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<InstanceType<T>[]> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, InstanceType<T>[]>(
-    EntityType,
-    'findAncestors',
-    [],
-    options
-  );
-
-/**
- * 统计树实体的祖先数量。
- *
- * @param EntityType 树实体类型。
- * @param options 树查询选项或幂等 factory。
- * @returns 以 `0` 为初值的数量资源。
- */
-export const useCountAncestors = <T extends TreeEntityType>(
-  EntityType: T,
-  options: UseOptions<EntityStaticType<T, 'findTreeOptions'>>
-): RxDBResource<number> =>
-  useRepositoryQuery<T, EntityStaticType<T, 'findTreeOptions'>, number>(EntityType, 'countAncestors', 0, options);
 
 /**
  * 查找图实体的邻居。

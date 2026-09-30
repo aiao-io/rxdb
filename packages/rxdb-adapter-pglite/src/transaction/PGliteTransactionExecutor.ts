@@ -8,9 +8,9 @@ import type {
   TransactionExecutor,
   TransactionExecutorState
 } from '@aiao/rxdb';
-import { getEntityMutations } from '@aiao/rxdb';
+import { getEntityMetadata, getEntityMutations } from '@aiao/rxdb';
 import type { Results, Transaction } from '@electric-sql/pglite';
-import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { getTableNameByMetadata, RxdbAdapterPGliteError } from '../pglite.utils.js';
 import rxdb_adapter_mutations from '../rxdb_adapter_mutations.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
@@ -120,6 +120,17 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
     return { rowsAffected: result.affectedRows ?? 0, rows, columns };
   }
 
+  /**
+   * PGlite 的物理表引用：`namespace` 是 schema，拼成 `"rxdb"."rxdb_change"`。
+   *
+   * @remarks
+   * 与建表路径（`table/create_table_sql.ts`）取同一个 {@link getTableNameByMetadata}，
+   * 不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张不存在的表上。
+   */
+  tableRef(EntityType: EntityType): string {
+    return getTableNameByMetadata(getEntityMetadata(EntityType));
+  }
+
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
     this.#assertActive('mutations');
     return rxdb_adapter_mutations(this.#facade, options);
@@ -136,12 +147,12 @@ export class PGliteTransactionExecutor implements TransactionExecutor {
 
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     this.#assertActive('saveMany');
-    return this.mutations(getEntityMutations({ need_save_entities: entities, need_remove_entities: [] }));
+    return this.mutations(getEntityMutations({ needSaveEntities: entities, needRemoveEntities: [] }));
   }
 
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
     this.#assertActive('removeMany');
-    return this.mutations(getEntityMutations({ need_save_entities: [], need_remove_entities: entities }));
+    return this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: entities }));
   }
 
   async mergeChanges(

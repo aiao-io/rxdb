@@ -1,7 +1,7 @@
 import {
   assertLoadOptionsTransferable,
   releaseComlinkProxy,
-  wrapWithComlink,
+  wrapWithComlinkEndpoint,
   type SqliteClientLike
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { SqliteaiOptions, type SqliteaiLoadOptions } from './sqliteai.interface.js';
@@ -10,8 +10,9 @@ import { SqliteaiClient } from './SqliteaiClient.js';
 /**
  * 创建 SqliteAI 客户端实例并完成初始化。
  *
- * 如果 `options` 中指定了 worker / sharedWorker，会通过 `wrapWithComlink` 把客户端代理到 worker；
- * 否则在主线程直接 new。
+ * 如果 `options` 中指定了 worker / sharedWorker，会通过 `wrapWithComlinkEndpoint` 为这次连接租用
+ * worker 的一条独立子端口；否则在主线程直接 new。释放后同一个 worker 可以再连：恢复先用一条连接写库，
+ * 之后的 `connect()` 再开一条。
  *
  * 返回类型是 {@link SqliteClientLike} 而非具体的 `SqliteaiClient`：worker 模式下拿到的是
  * Comlink 远端代理，它把每个方法都 Promise 化，断言成实现类会让 `beginTransactionSql(): string`
@@ -37,7 +38,7 @@ export async function createSqliteClient(dbName: string, options: SqliteaiOption
 
   assertLoadOptionsTransferable(loadOptions, options);
 
-  const client = wrapWithComlink(new SqliteaiClient(), options);
+  const client = await wrapWithComlinkEndpoint(new SqliteaiClient(), options);
   try {
     await client.init(dbName, loadOptions);
     return client;

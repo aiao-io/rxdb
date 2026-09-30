@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-09-20
 tags: [core, model, entity, decorator]
 ---
 
@@ -34,14 +34,14 @@ tags: [core, model, entity, decorator]
 
 - 装饰器体系：`@Entity()` / `@TreeEntity()` / `@GraphEntity()` + 元数据描述
 - 基类：`EntityBase` 提供 5 个标准字段（id, createdAt, updatedAt, createdBy, updatedBy）
-- 元数据选项：`metadata-options.interface.ts` (921 LOC) 定义完整的属性/关系/索引配置
+- 元数据选项：`metadata-options.interface.ts` 定义完整的属性/关系/索引配置
 - Schema 初始化链：`RxDB.init()` → `SchemaManager.init()` → 解析元数据 + 生成 M:N 中间表 → 适配器 `createTables()`
 
 ## 实现文件
 
-- `packages/rxdb/src/entity/@Entity.ts` — 实体装饰器
-- `packages/rxdb/src/entity/EntityManager.ts` — 实体生命周期/缓存/代理 (455 LOC)
-- `packages/rxdb/src/entity/metadata-options.interface.ts` — 元数据选项定义 (921 LOC)
+- `packages/rxdb/src/entity/entity.decorator.ts` — 实体装饰器
+- `packages/rxdb/src/entity/entity-manager.ts` — 实体生命周期/缓存/代理
+- `packages/rxdb/src/entity/metadata-options.interface.ts` — 元数据选项定义
 - `packages/rxdb/src/schema/SchemaManager.ts` — Schema 管理
 
 ## 参考

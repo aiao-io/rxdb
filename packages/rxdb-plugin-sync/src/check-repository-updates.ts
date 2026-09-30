@@ -80,7 +80,7 @@ export async function checkRepositoryUpdates(
   const metadata = getEntityMetadata(EntityType);
 
   // 如果不需要 pull（Local 或 None），直接返回无更新
-  if (!needsPull(metadata, rxdb.config.sync)) {
+  if (!needsPull(metadata, rxdb.entitySync)) {
     return {
       repository,
       remoteLatestChangeId: 0,

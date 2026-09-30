@@ -7,6 +7,7 @@ import { IRepository } from '../../repository/repository.interface.js';
 import { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 const createRepository = <T extends EntityType>(): IRepository<T> => ({
   find: async () => [],
@@ -16,19 +17,23 @@ const createRepository = <T extends EntityType>(): IRepository<T> => ({
   remove: async entity => entity
 });
 
+const { trackSharedRxDB } = registerRxDBTeardown();
+
 describe('@Entity', () => {
   let rxdb: RxDB;
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'Todo',
-      entities: [Attribute, AttributeValue, Category, IdCard, Order, OrderItem, Product, SKU, SKUAttributes, User],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'Todo',
+        entities: [Attribute, AttributeValue, Category, IdCard, Order, OrderItem, Product, SKU, SKUAttributes, User],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     const adapter: IRxDBAdapter = {
       name: 'sqlite',
       connect: async () => adapter,
@@ -475,11 +480,13 @@ describe('RXD-056 反向关系必须两端一致', () => {
   let rxdb: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'DualRelations',
-      entities: [DualDoc, DualParty, DualTeam, DualMember],
-      sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'DualRelations',
+        entities: [DualDoc, DualParty, DualTeam, DualMember],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      })
+    );
     const adapter: IRxDBAdapter = {
       name: 'sqlite',
       connect: async () => adapter,

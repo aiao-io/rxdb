@@ -7,6 +7,7 @@
 
 import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
+import { createSyncBranchMaterializationSource } from './branch-materialization-source.js';
 import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
 import { SyncManager } from './SyncManager.js';
 
@@ -27,7 +28,7 @@ export type RxDBPluginSyncOptions = object;
  *   而 {@link SyncManager.init} 挂的 `connected$` 自动回推订阅必须在第一次连接就位之前
  *   就已经订阅上，声明适配器依赖会把安装推到引导链之后，第一次连接的那一跳回推就丢了。
  *
- * 五处宿主改动都登记在 `scope` 上，断开连接时由宿主逆序释放：
+ * 六处宿主改动都登记在 `scope` 上，断开连接时由宿主逆序释放：
  *
  * 1. `rxdb.syncManager` 这个实例槽位 —— 释放时连同 `destroy()` 一起撤掉，不给下一个纪元
  *    留一个指向已拆事件总线的管理器；
@@ -41,6 +42,10 @@ export type RxDBPluginSyncOptions = object;
  * 4. 宿主的 `online` / `offline` 监听 —— `ReachabilityMonitor` 只在有人 `watch()` 时才往
  *    `globalThis` 上挂，而这两个事件唯一的消费者是本包的同步监听器（`wakeup$` 驱动回推
  *    重试）。不同步的库不该因为 `new RxDB()` 就永久多一对活过实例的监听器（US-025 D2）。
+ * 5. {@link RxDB.branchMaterializationSource} 这个分支物化来源槽 —— `syncBranches()` 拉下来的
+ *    分支只有元数据，工作树插件第一次切过去之前要按来源交出的分页快照物化。远端是本插件的，
+ *    来源于是也只能由本插件交；槽空着时那次切换稳定抛 `branch_not_materialized`，
+ *    不存在「没装同步也能物化」的形态。槽位至多一个来源，本插件登记即占住。
  */
 export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
@@ -69,6 +74,9 @@ export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
       { pendingWriteIds: (namespace, entity) => pendingQueryCacheWriteIds(this.rxdb, namespace, entity) },
       scope
     );
+
+    // 传 scope：断开连接时撤销，下一个纪元登记的是指向新 syncManager 的那一个，不撞「至多一个」。
+    this.rxdb.branchMaterializationSource(createSyncBranchMaterializationSource(syncManager), scope);
 
     // 可达性监听：`watch()` 自己返回撤销函数，正好是 `acquire` 要的 setup 形状。
     // 引用计数在监视器一侧，所以同一个宿主上多装几个消费者也不会互相摘掉对方的监听。

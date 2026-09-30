@@ -9,14 +9,12 @@
  *   声明一个没人 emit 的类 —— 本文件未进 index.ts 的桶，够不着才没出事
  */
 import { CountOptions, FindOptions } from '../repository/query-options.interface.js';
-import type { FindTreeOptions } from '../repository/tree-repository.interface.js';
 import type { IRxDBAdapter, RxDBAdapterLocalBase } from '../rxdb-adapter.js';
 import type { RxDBBranch } from './branch.js';
 import type { RxDBChange } from './change.js';
 import type {
   RxDBBranchOrderByField,
   RxDBBranchRuleGroup,
-  RxDBBranchTreeRuleGroup,
   RxDBChangeOrderByField,
   RxDBChangeRuleGroup
 } from './types.js';
@@ -62,32 +60,6 @@ export interface LocalRxDBBranchRepository {
    * @returns 返回删除的实体
    */
   remove(entity: InstanceType<typeof RxDBBranch>): Promise<InstanceType<typeof RxDBBranch>>;
-
-  /**
-   * 查询祖先实体数量
-   * @param options - 查询选项
-   * @returns 返回祖先实体数量
-   */
-  countAncestors(options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>): Promise<number>;
-  /**
-   * 查询子孙实体数量
-   * @param options - 查询选项
-   * @returns 返回子孙实体数量
-   */
-  countDescendants(options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>): Promise<number>;
-
-  /**
-   * 查询祖先实体
-   * @param options - 查询选项
-   * @returns 返回祖先实体数组
-   */
-  findAncestors(options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>): Promise<RxDBBranch[]>;
-  /**
-   * 查询子孙实体
-   * @param options - 查询选项
-   * @returns 返回子孙实体数组
-   */
-  findDescendants(options?: FindTreeOptions<typeof RxDBBranch, RxDBBranchTreeRuleGroup>): Promise<RxDBBranch[]>;
 }
 
 /**

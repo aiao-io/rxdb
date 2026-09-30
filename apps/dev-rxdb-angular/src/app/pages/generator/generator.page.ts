@@ -1,6 +1,7 @@
 import { CodeEditor } from '@aiao/code-editor-angular';
 import { EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { RxDBClientGenerator, SourceFile } from '@aiao/rxdb-client-generator';
+import { TreeRepositoryGenerator } from '@aiao/rxdb-plugin-tree/generator';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -93,6 +94,8 @@ export default class GeneratorPage {
     try {
       const json = JSON.parse(value);
       const generator = new RxDBClientGenerator();
+      // 树的代码生成由插件包提供，生成器包不再内置（RV-015）
+      generator.registerRepositoryGenerator(new TreeRepositoryGenerator());
       generator.addEntity(json);
       generator.exec();
       const files = generator.project.getSourceFiles();

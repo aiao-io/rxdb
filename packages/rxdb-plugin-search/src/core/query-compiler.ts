@@ -10,7 +10,7 @@
  * 经归一化后 token 列表为空时返回 `null`，调用方据此跳过 SQL，
  * 状态机回到 `idle`（不视为错误）。
  *
- * @see specs/001-add-global-search/research.md §3
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 
 import { compileCjkToken } from '@aiao/rxdb-adapter-sqlite-core';

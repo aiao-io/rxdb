@@ -24,11 +24,16 @@ describe('RxDBBranch', () => {
       expect(meta.log).toBe(false);
     });
 
-    it('应当是树形实体', () => {
+    it('应当不是树形实体', () => {
+      // 分支不是树实体。它的四个树查询方法（findDescendants / findAncestors /
+      // countDescendants / countAncestors）在全仓零消费者，而且用了会错：递归 CTE 遇到
+      // 断链、成环只会静默截断，给不出分支遍历需要的「坏数据报错」「有序路径」
+      // 「按段读 fromChangeId」。正确走法是四处手写的 parentId 遍历
+      // （getPathToRoot / collectBranchChain / sync_branches / remove_branch）。
+      // 这条用例锁死它不会被重新挂上 @TreeEntity。
       const meta = getEntityMetadata(RxDBBranch);
-      // 树形实体应该有 parent 关系
-      const parentRelation = meta.relations.find(r => r.name === 'parent');
-      expect(parentRelation).toBeDefined();
+      expect(meta.repository).toBe('Repository');
+      expect(meta.features?.tree).toBeUndefined();
     });
   });
 
@@ -105,7 +110,7 @@ describe('RxDBBranch', () => {
       expect(syncsRelation?.mappedEntity).toBe('RxDBSync');
     });
 
-    it('应当有 children 一对多关系（树形）', () => {
+    it('应当有 children 一对多自引用关系', () => {
       const meta = getEntityMetadata(RxDBBranch);
       const childrenRelation = meta.relations.find(r => r.name === 'children');
       expect(childrenRelation).toBeDefined();
@@ -113,7 +118,7 @@ describe('RxDBBranch', () => {
       expect(childrenRelation?.mappedEntity).toBe('RxDBBranch');
     });
 
-    it('应当有 parent 多对一关系（树形）', () => {
+    it('应当有 parent 多对一自引用关系', () => {
       const meta = getEntityMetadata(RxDBBranch);
       const parentRelation = meta.relations.find(r => r.name === 'parent');
       expect(parentRelation).toBeDefined();

@@ -1,0 +1,16 @@
+{
+  "commit": "b1337e768fd716cc1d900e78162220af68141081",
+  "frozenAbsolute": {
+    "commit": 578.0767110000015
+  },
+  "medianRatios": {
+    "status": 1.7719658648838017,
+    "diff": 1.9157447509676921,
+    "restore": 12.778623949301283,
+    "commit": 15.326110549059166
+  },
+  "ratioProfile": "Linux linux x64 / Intel(R) Xeon(R) 6973P-C / node 26",
+  "regeneratedBecause": "b1337e76 已在 M1 Max 画像上过相对门禁（status 2.158 / diff 2.536 / restore 11.009 / commit 16.430 全 PASS），为 CI 画像冻结",
+  "runnerProfileHash": "dc2aea7b1eab58ce38f1adff0650eac49da4fd1db097486c9081747fd002f0c6",
+  "runs": 10
+}

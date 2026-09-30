@@ -8,8 +8,7 @@
  *  - 单 collection 入参直通
  *  - 空入参 → 空数组
  *
- * @see specs/001-add-global-search/research.md §5
- * @see specs/001-add-global-search/data-model.md §4.2
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import { describe, expect, it } from 'vitest';
 

@@ -8,10 +8,15 @@
 - [Supabase 传输失败错误类型迁移](./supabase-network-errors.md)：连不上远端时改抛 core 的 `NetworkOfflineError`，请用 `isNetworkError` 判离线
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
+- [工作树拆包](./working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-working-tree`，能力守卫取代版本号锁
+- [树结构拆包](./tree-split.md)：树实体、`TreeRepository` 与增量 merge 从核心拆成 `@aiao/rxdb-plugin-tree`，四个树 hook 搬进 `@aiao/rxdb-plugin-tree-{angular,react,vue}`
 - [插件升级与启用](./plugins.md)：启用/升级插件（如全文搜索）
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化
 - [历史与同步拆包](./history-sync-plugins.md)：历史/分支搬进 `@aiao/rxdb-plugin-history`、推拉同步搬进 `@aiao/rxdb-plugin-sync`，同步方法从 `versionManager` 移到 `syncManager`
 - [QueryCache 读引擎拆包](./querycache-plugin.md)：`SyncType.QueryCache` 的读路径搬进 `@aiao/rxdb-plugin-querycache`，用到该策略须装齐 history + sync + querycache 三个包
+- [`RemoteSyncOptions` 移除](./remote-sync-options.md)：孤立类型删除，冲突解决器改经 `PullOptions.conflictResolver` 传入，`autoSync` 无替代
+- [跨 realm writer lease 移除](./writer-lease-removal.md)：16 个 writer lease / upgrade guard 符号删除且无替代，跨 realm 排他交给发布系统
+- [`RxDBBranch` 去树化](./branch-detree.md)：分支系统表不再是树实体，四个树查询方法与 `RxDBBranchTreeRuleGroup` 移除，表结构不变
 - [生成器 `default` 语义迁移](./generator-default.md)：函数 `default` 从静默丢弃改为生成期报错，bigint / `Uint8Array` / `Date` 不再被改写
 - [Schema 迁移](./schema.md)：实体结构变更时的数据迁移
 

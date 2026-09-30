@@ -594,7 +594,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
     if (isSystemEntity(EntityClass)) {
       return false;
     }
-    const globalSync = this.rxdb.config.sync;
+    const globalSync = this.rxdb.entitySync;
     return (
       getSyncType(metadata, globalSync) === 'querycache' &&
       getSyncConfig(metadata, globalSync)?.remote?.adapter === ADAPTER_NAME
@@ -703,7 +703,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   }
 
   #assertEntitySupported(metadata: EntityMetadata, byName: Map<string, EntityMetadata>): void {
-    const sync = getSyncConfig(metadata, this.rxdb.config.sync);
+    const sync = getSyncConfig(metadata, this.rxdb.entitySync);
     // bigint 只有在**要过 HTTP 线**时才是问题：本地实体带 bigint 与本包无关
     if (sync?.remote?.adapter !== ADAPTER_NAME) {
       return;

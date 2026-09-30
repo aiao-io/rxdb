@@ -82,7 +82,12 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         const existing = em.getEntityRef(entityType, id) as InstanceType<T> | undefined;
         let entity: InstanceType<T> | undefined = existing ?? entityInstance;
         if (!entity) {
-          entity = em.createEntityRef(entityType, entityObjectData);
+          // `createEntityRef` 现在如实返回 `EntityInstanceType<T>`（从前是 `any`，什么都接得住）。
+          // 两者对任何**具体** `T` 都解析到同一个实例形状，但在 `T` 未定的泛型体内它们是两个
+          // 各自延迟的条件类型，互不可赋值。与上面 `getEntityRef` 那行同一种桥接，不是放宽：
+          // 本文件通篇说 `InstanceType<T>`，改用 `EntityInstanceType<T>` 会让 `T` 取默认
+          // `EntityType` 时实例退化成 `object`，`id` 当场消失。
+          entity = em.createEntityRef(entityType, entityObjectData) as InstanceType<T>;
         } else if (!existing) {
           em.addEntityCache(entity);
         }

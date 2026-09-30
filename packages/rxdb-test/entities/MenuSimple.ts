@@ -1,4 +1,5 @@
-import { PropertyType, TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb';
+import { PropertyType } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 
 /**
  * MenuSimple - 简单树结构菜单（适用于 Scenario 1）

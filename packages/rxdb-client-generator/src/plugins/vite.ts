@@ -74,9 +74,15 @@ const toViteError = (error: unknown) => {
 export function rxdbClientGeneratorVitePlugin(options: RxDBClientGeneratorVitePluginOptions): Plugin {
   const configs = Array.isArray(options) ? options : [options];
   validateUniqueConfigOutDirs(configs);
+  // Vite 没有配置文件这层概念，repositoryGenerators 里的裸包/子路径/相对路径统一按
+  // 调用方（用户工程）的 cwd 解析——和 cli.interface.ts 里 repositoryGenerators 字段
+  // TSDoc 记录的既有语义一致。这里只是把原先埋在 repository-generators.ts 模块级
+  // 单例 jiti 里的锚点，显式搬到这个插件自己的调用点：在插件创建时算一次并复用，
+  // 不再是模块加载时就已冻结、和 CLI 共享的那一份。
+  const repositoryGeneratorAnchor = resolve(process.cwd(), 'rxdb-client-generator.js');
   let command: 'build' | 'serve' = 'build';
   const buildAll = async (): Promise<void> => {
-    for (const config of configs) await buildClientLibrary(config);
+    for (const config of configs) await buildClientLibrary(config, repositoryGeneratorAnchor);
   };
 
   return {
@@ -105,7 +111,7 @@ export function rxdbClientGeneratorVitePlugin(options: RxDBClientGeneratorVitePl
           });
           filesByConfig = currentFilesByConfig;
           if (affectedConfigs.length === 0) continue;
-          for (const config of affectedConfigs) await buildClientLibrary(config);
+          for (const config of affectedConfigs) await buildClientLibrary(config, repositoryGeneratorAnchor);
           server.ws.send({ type: 'full-reload' });
         }
       };

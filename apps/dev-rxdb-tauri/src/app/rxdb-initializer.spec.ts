@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { BackupProbeMode, BackupProbeResult } from './backup-probe';
 import type { DevToolsProbeResult } from './devtools-probe';
 import { connectRxDB, startLocalDatabase, type LocalDatabaseStartup } from './rxdb-initializer';
 import type { SelfCheckOutcome } from './services/selfcheck-reporter';
@@ -54,6 +55,11 @@ describe('startLocalDatabase', () => {
     crossOriginDenied: 'StorageOfflineError'
   };
 
+  /** 备份 / 恢复探针的固定结果；同样只验它被原样带出去。 */
+  const scope = { database: 'included', externalFiles: 'excluded' } as const;
+  const backupResult: BackupProbeResult = { mode: 'backup', byteLength: 4096, scope, manifestScope: scope };
+  const restoreResult: BackupProbeResult = { ...backupResult, mode: 'restore' };
+
   /** 造一套协作方，并把连接失败真的反映到 `$error` 上（真实的 state 就是这么联动的）。 */
   const startup = (
     overrides: {
@@ -63,15 +69,21 @@ describe('startLocalDatabase', () => {
       probe?: () => Promise<StorageProbeResult>;
       webview?: () => Promise<WebviewProbeResult | null>;
       devtools?: () => Promise<DevToolsProbeResult | null>;
+      backupMode?: () => Promise<BackupProbeMode | null>;
+      backup?: () => Promise<BackupProbeResult>;
+      restore?: () => Promise<BackupProbeResult>;
     } = {}
   ): {
     startup: LocalDatabaseStartup;
     reports: SelfCheckOutcome[];
     order: string[];
     markFailed: ReturnType<typeof vi.fn>;
+    /** 每一步收到的库实例，按步骤名记；用来断言恢复与连接落在同一个实例上。 */
+    seen: Map<string, unknown>;
   } => {
     const reports: SelfCheckOutcome[] = [];
     const order: string[] = [];
+    const seen = new Map<string, unknown>();
     let error: unknown = null;
     const markFailed = vi.fn((reason: unknown) => {
       error = reason;
@@ -80,17 +92,20 @@ describe('startLocalDatabase', () => {
       reports,
       order,
       markFailed,
+      seen,
       startup: {
         openDatabase: async () => {
           order.push('open');
           await (overrides.open ?? (() => Promise.resolve({})))();
-          return {
+          const database = {
             connect: async () => {
               order.push('connect');
+              seen.set('connect', database);
               await (overrides.connect ?? (() => Promise.resolve({})))();
             },
             storage: {}
-          } as never;
+          };
+          return database as never;
         },
         state: { markFailed, $error: () => error },
         launches: {
@@ -110,6 +125,19 @@ describe('startLocalDatabase', () => {
         probeDevTools: async () => {
           order.push('devtools');
           return (overrides.devtools ?? (() => Promise.resolve(null)))();
+        },
+        backupProbe: {
+          mode: () => (overrides.backupMode ?? (() => Promise.resolve(null)))(),
+          backup: async database => {
+            order.push('backup');
+            seen.set('backup', database);
+            return (overrides.backup ?? (() => Promise.resolve(backupResult)))();
+          },
+          restore: async database => {
+            order.push('restore');
+            seen.set('restore', database);
+            return (overrides.restore ?? (() => Promise.resolve(restoreResult)))();
+          }
         },
         adapterName: 'desktop',
         report: async outcome => {
@@ -140,9 +168,80 @@ describe('startLocalDatabase', () => {
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.order).toEqual(['open', 'connect', 'record', 'probe', 'webview', 'devtools', 'report']);
     expect(context.reports).toEqual([
-      { status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult, devtools: null }
+      { status: 'ok', launchCount: 7, storage: probeResult, webview: webviewResult, devtools: null, backup: null }
     ]);
     expect(context.markFailed).not.toHaveBeenCalled();
+  });
+
+  /**
+   * US-217 AC#18：restore 模式下恢复排在**连接之前**——恢复的目标必须是尚未连接的空库，
+   * 连上之后 adapter 会以 `target_busy` 拒绝。恢复与连接落在同一个实例上（TAURI-07 同理）。
+   */
+  it('restore 模式：先恢复再连接，报告带上恢复结果', async () => {
+    const context = startup({ backupMode: () => Promise.resolve('restore'), record: () => Promise.resolve(2) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'restore', 'connect', 'record', 'probe', 'webview', 'devtools', 'report']);
+    expect(context.seen.get('restore')).toBe(context.seen.get('connect'));
+    expect(context.reports).toEqual([
+      {
+        status: 'ok',
+        launchCount: 2,
+        storage: probeResult,
+        webview: webviewResult,
+        devtools: null,
+        backup: restoreResult
+      }
+    ]);
+  });
+
+  /**
+   * 备份紧跟在 `record` 之后、存储探针之前：归档里因此只有启动记录，不带探针写下的文件元数据——
+   * 恢复那一跑的存储探针（`existedBefore`）才不会被归档里的旧记录干扰。
+   */
+  it('backup 模式：记完启动就备份，再跑其余探针，报告带上备份结果', async () => {
+    const context = startup({ backupMode: () => Promise.resolve('backup') });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'connect', 'record', 'backup', 'probe', 'webview', 'devtools', 'report']);
+    expect(context.seen.get('backup')).toBe(context.seen.get('connect'));
+    expect(context.reports).toEqual([
+      {
+        status: 'ok',
+        launchCount: 1,
+        storage: probeResult,
+        webview: webviewResult,
+        devtools: null,
+        backup: backupResult
+      }
+    ]);
+  });
+
+  /** 恢复失败就不连接：连上的会是一个空库，报告却可能写着 ok（启动计数从 1 重新数起）。 */
+  it('恢复失败时不连接，落到应用内状态并上报根因', async () => {
+    const failure = new Error('format_mismatch');
+    const context = startup({ backupMode: () => Promise.resolve('restore'), restore: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'restore', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'format_mismatch' }]);
+  });
+
+  it('备份失败时落到应用内状态并上报根因', async () => {
+    const failure = new Error('snapshot_failed');
+    const context = startup({ backupMode: () => Promise.resolve('backup'), backup: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'connect', 'record', 'backup', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'snapshot_failed' }]);
+  });
+
+  /** 问不到模式不能当成「没开探针」：那样 restore 那一跑会连上一个空库，从 1 数起。 */
+  it('读不到备份探针模式时不连接，上报根因', async () => {
+    const failure = new Error('command not found');
+    const context = startup({ backupMode: () => Promise.reject(failure) });
+    await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
+    expect(context.order).toEqual(['open', 'report']);
+    expect(context.markFailed).toHaveBeenCalledWith(failure);
+    expect(context.reports).toEqual([{ status: 'failed', message: 'command not found' }]);
   });
 
   /** 正常启动（两条可选探针都没开）时照样是一份 `ok`，两个字段都是 null。 */
@@ -150,7 +249,7 @@ describe('startLocalDatabase', () => {
     const context = startup({ webview: () => Promise.resolve(null) });
     await expect(startLocalDatabase(context.startup)).resolves.toBeUndefined();
     expect(context.reports).toEqual([
-      { status: 'ok', launchCount: 1, storage: probeResult, webview: null, devtools: null }
+      { status: 'ok', launchCount: 1, storage: probeResult, webview: null, devtools: null, backup: null }
     ]);
   });
 

@@ -9,7 +9,7 @@
  *  - 空字符串 / 纯空白 / 全保留字符 / 归一化后为空 → 返回 `null`，
  *    上层不触发 SQL，状态机回 `idle`（research.md §3、FR-014、FR-018、spec Edge Cases）
  *
- * @see specs/001-add-global-search/research.md §3
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import { describe, expect, it } from 'vitest';
 

@@ -1,5 +1,6 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { get_table_name_by_metadata, quote_sql_identifier } from '@aiao/rxdb-adapter-sqlite-core';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { runTreeSiblingUniqueSuite, type TreeUniqueSuiteFactory } from '@aiao/rxdb-test/tree-unique';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
 import { RxDBAdapterSqlite } from '../RxDBAdapterSqlite.js';
@@ -24,6 +25,8 @@ const factory: TreeUniqueSuiteFactory = {
       entities: [...entities],
       sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    rxdb.use(rxDBPluginTree);
     rxdb.adapter(ADAPTER_NAME, async database => {
       adapter = new RxDBAdapterSqlite(database, { vfs: 'memory', batchTimeout: 1, wasmUrl: sqliteWasmUrl });
       return adapter;

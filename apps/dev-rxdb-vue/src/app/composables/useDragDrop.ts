@@ -1,4 +1,5 @@
-import { ISortableTreeEntity, type RxDBEntityId } from '@aiao/rxdb';
+import { type RxDBEntityId } from '@aiao/rxdb';
+import { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
 import { computed, ref, unref, type MaybeRef } from 'vue';
 import { DragDropState, DropMode } from './drag-drop-types';
 import { useDragDropService } from './useDragDropService';

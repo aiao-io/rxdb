@@ -12,14 +12,23 @@ import {
   get_primary_key_column,
   get_sql_value,
   get_table_name_by_metadata,
-  quote_sql_identifier
+  quote_sql_identifier,
+  RxDBAdapterSqliteError
 } from '../sqlite-core.utils.js';
 
 interface TriggerOptions {
   /**
-   * 分支 ID
+   * 分支 ID —— **必填**。
+   *
+   * @remarks
+   * 这个值被硬编码进触发器的 `INSERT ... VALUES` 里，决定这张表**后续每一次写入**被记到哪条
+   * 分支名下。生成器替调用方填一个默认分支，等于在「这条历史算谁的」上替人做主，而做错了不报错：
+   * 库停在 `feature`、触发器写着 `main`，写入照样成功，只有事后审计历史才看得出来。
+   *
+   * 所以每个调用点都要自己说明写的是哪条分支——包括那些确实就该写 `main` 的（新库建表、
+   * 迁移中途重建），它们给出的是一个有理由的取值，不是一个没人填所以顶上来的取值。
    */
-  branchId?: string;
+  branchId: string;
   /**
    * 事务 ID
    */
@@ -30,8 +39,9 @@ interface TriggerOptions {
 /**
  * 生成表的触发器
  * @param metadata 实体元数据
+ * @param options 触发器选项，见 {@link TriggerOptions}
  */
-export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, options: TriggerOptions = {}) => {
+export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, options: TriggerOptions) => {
   const tableName = get_table_name_by_metadata(entityMetadata);
   const rxDBChangeMetadata = getEntityMetadata(RxDBChange);
   const rxDBChangeTableName = quote_sql_identifier(get_table_name_by_metadata(rxDBChangeMetadata));
@@ -94,9 +104,13 @@ export const generate_table_trigger_sql = (entityMetadata: EntityMetadata, optio
   }
   const columns = ` type, namespace, entity, branchId, transactionId, entityId, inversePatch, patch`;
   const { transactionId, branchId } = options;
+  // 类型上已经必填，这里挡的是绕过类型的 JS 调用方：本函数是包的公开导出。
+  if (!branchId) {
+    throw new RxDBAdapterSqliteError('generate_table_trigger_sql requires options.branchId.');
+  }
 
   const transaction_id = get_sql_value(transactionId);
-  const branch_id = get_sql_value(branchId || 'main');
+  const branch_id = get_sql_value(branchId);
   const namespace_sql = get_sql_value(namespace);
   const name_sql = get_sql_value(name);
 

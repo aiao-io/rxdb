@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-09-20
 tags: [core, querycache, fail-fast, adapter, dx]
 ---
 
@@ -144,20 +144,20 @@ if (metadata.repository !== 'TreeRepository') return;
 
 ## 验收标准
 
-| #   | 前置条件                                                                                | 操作                          | 预期结果                                                                                                | 状态 |
-| --- | --------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 实体 `sync.type === QueryCache`，库级 `rxdb.config.sync` **没有** `remote`              | `connect()`                   | `EntityManager.init()` 阶段报元数据违规，消息点名实体名与缺失的一侧；不进入任何查询即失败               | ✅   |
-| 2   | 同上，但缺的是 `local`                                                                  | `connect()`                   | 同样报违规，消息指明缺 `local`                                                                          | ✅   |
-| 3   | 违规消息                                                                                | 读消息文本                    | 含「实体级 `sync` 上的 adapter 名不被 `RxDB.init()` 读取，注册以库级 `sync` 为准」这一意思的说明（D3）  | ✅   |
-| 4   | QueryCache 实体，库级 `sync` 两侧齐全                                                   | `connect()` + `find()`        | 不报违规；行为与本故事之前逐值一致                                                                      | ✅   |
-| 5   | 对照：`SyncType.Full` / `Filter` / `None` 实体，以及合法的 remote-only、local-only 配置 | `connect()`                   | 一条都不被新规则判违规                                                                                  | ✅   |
-| 6   | 多个实体同时违规                                                                        | `connect()`                   | 违规按 `namespace/entity/field/rule` 稳定排序一次性列出（沿用 `compareViolations`），不是撞见第一条就抛 | ✅   |
-| 7   | [dev-rxdb-http](../../../apps/dev-rxdb-http/) 删掉库级 `sync.remote` 后                 | `pnpm nx serve dev-rxdb-http` | 页面报可读错误，**不再是无限加载态**——这是本故事的现场复验，不是单测替身                                | ⚠️   |
-| 8   | 实现完成                                                                                | 跑核心包门禁                  | `@aiao/rxdb` 覆盖率不回退（≥ 90%）；`MetadataValidationRule` 的 baseline 记录保持一致                   | ✅   |
+| #   | 前置条件                                                                                | 操作                          | 预期结果                                                                                                     | 状态 |
+| --- | --------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 实体 `sync.type === QueryCache`，库级 `rxdb.config.sync` **没有** `remote`              | `connect()`                   | `EntityManager.init()` 阶段报元数据违规，消息点名实体名与缺失的一侧；不进入任何查询即失败                    | ✅   |
+| 2   | 同上，但缺的是 `local`                                                                  | `connect()`                   | 同样报违规，消息指明缺 `local`                                                                               | ✅   |
+| 3   | 违规消息                                                                                | 读消息文本                    | 含「实体级 `sync` 上的 adapter 名不被 `RxDB.init()` 读取，注册以库级 `sync` 为准」这一意思的说明（D3）       | ✅   |
+| 4   | QueryCache 实体，库级 `sync` 两侧齐全                                                   | `connect()` + `find()`        | 不报违规；行为与本故事之前逐值一致                                                                           | ✅   |
+| 5   | 对照：`SyncType.Full` / `Filter` / `None` 实体，以及合法的 remote-only、local-only 配置 | `connect()`                   | 一条都不被新规则判违规                                                                                       | ✅   |
+| 6   | 多个实体同时违规                                                                        | `connect()`                   | 违规按 `namespace/entity/field/rule` 稳定排序一次性列出（沿用 `compareViolations`），不是撞见第一条就抛      | ✅   |
+| 7   | [dev-rxdb-http](../../../apps/dev-rxdb-http/) 删掉库级 `sync.remote` 后                 | `pnpm nx serve dev-rxdb-http` | 错误确实抛出且可读（报错落在**控制台**、页面空白），**不再是无限加载态**——这是本故事的现场复验，不是单测替身 | ⚠️   |
+| 8   | 实现完成                                                                                | 跑核心包门禁                  | `@aiao/rxdb` 覆盖率不回退（≥ 90%）；`MetadataValidationRule` 的 baseline 记录保持一致                        | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC#7 记 ⚠️ 而非 ✅：错误确实抛出且可读，无限加载态确实消失，但「页面报可读错误」这句只兑现了一半——错误落在**控制台**，页面是空白的（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
+AC#7 记 ⚠️ 而非 ✅：错误确实抛出且可读、无限加载态确实消失，但报错只落在**控制台**、页面空白（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
 
 AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合类型，但 api-baseline 只记 `{ name, kind }`、不记联合成员，故加 `missingQueryCacheAdapter` 无 baseline diff。联合类型加成员仍算公开 API 变更（见[技术笔记](#技术笔记)）。
 

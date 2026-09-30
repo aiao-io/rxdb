@@ -5,14 +5,33 @@
  * @module rxdb-client-generator/generators/repository-generator-base
  */
 
-import { PropertyType } from '@aiao/rxdb';
+import { type EntityMetadata, type EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
+import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
-import type { GeneratorContext, IRepositoryGenerator } from './RepositoryGenerator.interface.js';
+import type {
+  GeneratorContext,
+  IRepositoryGenerator,
+  RepositoryGeneratorSymbols
+} from './RepositoryGenerator.interface.js';
 import { getIdType, type IdType } from './utils.js';
 /** 匹配 `Partial<XxxKeyValue>` 里的接口名——关系递归下这个接口归对端实体所有。 */
 const KEY_VALUE_INTERFACE_PATTERN = /^Partial<(\w+KeyValue)>$/;
 
+/**
+ * 把规则数据渲染成规则类型字面量，并顺带登记所需的命名导入。
+ *
+ * @param entityRules - {@link generateEntityRules} 产出的规则数据
+ * @param rxdbNamedImports - 从 `@aiao/rxdb` 引入的规则名集合，渲染时就地补齐
+ * @param siblingNamedImports - 同目录实体文件的命名导入集合，关系递归产生的
+ *   `Partial<XxxKeyValue>` 会登记到对端实体名下；不传则跳过登记
+ * @returns 规则类型字面量数组，顺序与 `entityRules` 一致
+ *
+ * @example
+ * ```ts
+ * const rules = buildRules(generateEntityRules(generator, metadata), rxdbNamedImports);
+ * ```
+ */
 export const buildRules = (
   entityRules: RuleTypeData[],
   rxdbNamedImports: Set<string>,
@@ -59,6 +78,12 @@ export const buildRules = (
 export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
   abstract readonly name: string;
 
+  /** @inheritDoc */
+  readonly entityBaseModuleSpecifier?: string;
+
+  /** @inheritDoc */
+  readonly abstractEntityMetadata?: ReadonlyMap<string, EntityMetadataOptions[]>;
+
   generate(context: GeneratorContext): void {
     this.generateProperties(context);
     this.generateMethods(context);
@@ -90,6 +115,22 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
   protected abstract generateMethods(context: GeneratorContext): void;
 
   /**
+   * 登记一个类型导入，按本生成器的 {@link entityBaseModuleSpecifier} 分流。
+   *
+   * @remarks
+   * 树实体的基类与配套选项类型（`TreeAdjacencyListEntityBase` / `FindTreeOptions`）在
+   * `@aiao/rxdb-plugin-tree`；没有声明 specifier 的生成器一律落回 `@aiao/rxdb`。
+   */
+  protected addTypeImport(context: GeneratorContext, name: string): void {
+    addEntityBaseNamedImport(
+      context.namedImportsByModule,
+      context.rxdbNamedImports,
+      this.entityBaseModuleSpecifier,
+      name
+    );
+  }
+
+  /**
    * 共享工具：添加静态查询方法
    */
   protected addStaticMethod(
@@ -111,7 +152,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
       };
     }
   ): void {
-    const { classMethods, staticTypesInterface, rxdbNamedImports } = context;
+    const { classMethods, staticTypesInterface } = context;
 
     const docs = [config.metHodDoc || `${config.method} 查询`, '@param options 查询选项'];
     if (config.example) {
@@ -135,7 +176,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
     if (config.baseSignature) {
       const { entityBase, options, parameterName = 'options', returnType } = config.baseSignature;
       const entityBaseConstraint = getIdType(context.metadata) === 'bigint' ? `${entityBase}<bigint>` : entityBase;
-      rxdbNamedImports.add(entityBase);
+      this.addTypeImport(context, entityBase);
       classMethods.push({
         name: config.method,
         returnType: `Observable<${returnType}>`,
@@ -164,7 +205,7 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
         // 只添加标准的 RxDB Options 类型（以大写字母开头且不包含实体名）
         // 例如：FindOneOptions, CountOptions 等，但不包括 PersonFindOneOptions
         if (!/^[a-z]/.test(imp) && imp.match(/^(Find|Count|Get)/)) {
-          rxdbNamedImports.add(imp);
+          this.addTypeImport(context, imp);
         }
       });
     }
@@ -220,6 +261,18 @@ export abstract class RepositoryGeneratorBase implements IRepositoryGenerator {
  */
 export class RepositoryMethodsGenerator extends RepositoryGeneratorBase {
   readonly name: string = 'Repository';
+
+  /** @inheritDoc */
+  declareSymbols(metadata: EntityMetadata): RepositoryGeneratorSymbols {
+    return {
+      instanceMembers: ['save', 'remove', 'reset'],
+      types: [
+        { name: `${metadata.name}Rule` },
+        { exported: true, name: `${metadata.name}RuleGroup` },
+        { name: `${metadata.name}OrderByField` }
+      ]
+    };
+  }
 
   protected generateMethods(context: GeneratorContext): void {
     const { metadata, file, rxdbNamedImports, siblingNamedImports, staticTypesInterface } = context;

@@ -66,14 +66,6 @@
         "kind": "value"
       },
       {
-        "name": "useCountAncestors",
-        "kind": "value"
-      },
-      {
-        "name": "useCountDescendants",
-        "kind": "value"
-      },
-      {
         "name": "useCountNeighbors",
         "kind": "value"
       },
@@ -86,15 +78,7 @@
         "kind": "value"
       },
       {
-        "name": "useFindAncestors",
-        "kind": "value"
-      },
-      {
         "name": "useFindByCursor",
-        "kind": "value"
-      },
-      {
-        "name": "useFindDescendants",
         "kind": "value"
       },
       {

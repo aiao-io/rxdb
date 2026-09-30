@@ -6,7 +6,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
 
 const createEntityOptions = (overrides: Partial<EntityMetadataOptions> = {}): EntityMetadataOptions => ({
   name: 'User',

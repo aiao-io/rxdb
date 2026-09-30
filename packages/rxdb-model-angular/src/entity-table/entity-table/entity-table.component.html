@@ -1,0 +1,57 @@
+<div class="relative h-full w-full overflow-hidden">
+  <div class="absolute inset-0" #tableContainer></div>
+  @if (records().length === 0 && !loading()) {
+    <div
+      class="text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm"
+      [style.top.px]="headerHeight()"
+      aria-label="暂无数据"
+      role="status"
+    >
+      <div class="empty-slot">
+        <ng-content select="[emptyState]"></ng-content>
+      </div>
+      <div class="empty-default flex flex-col items-center gap-3">
+        <svg
+          aria-hidden="true"
+          fill="none"
+          height="40"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.2"
+          viewBox="0 0 24 24"
+          width="40"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect height="18" rx="2" width="18" x="3" y="3" />
+          <path d="M3 9h18" />
+          <path d="M9 9v12" />
+          <path d="M3 15h18" />
+        </svg>
+        <span>暂无数据</span>
+      </div>
+    </div>
+  }
+  @if (loading()) {
+    <div class="bg-base-100/60 absolute inset-0 z-10 flex items-center justify-center">
+      <span class="loading loading-spinner loading-md text-primary"></span>
+    </div>
+  }
+  @if (loadingMore()) {
+    <div class="pointer-events-none absolute right-0 bottom-0 left-0 z-10 flex justify-center py-1.5">
+      <span class="loading loading-dots loading-sm text-primary"></span>
+    </div>
+  }
+  @if (cellTooltip(); as tip) {
+    <div
+      class="bg-base-300 text-base-content border-base-300 pointer-events-none fixed z-[100] max-w-xs rounded border px-2 py-1.5 text-xs shadow-lg"
+      [style.left.px]="tip.x"
+      [style.top.px]="tip.y"
+      aria-atomic="true"
+      aria-live="assertive"
+      role="tooltip"
+    >
+      {{ tip.content }}
+    </div>
+  }
+</div>

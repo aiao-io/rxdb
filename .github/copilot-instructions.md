@@ -16,9 +16,7 @@ examples/
 modules/
 packages/
 requirements/
-research/
 scripts/
-specs/
 website/
 ```
 

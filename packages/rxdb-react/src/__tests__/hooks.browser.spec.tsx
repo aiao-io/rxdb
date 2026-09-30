@@ -467,7 +467,6 @@ describe('RRE-009 真实 Entity / Repository 集成', () => {
         findByCursorOptions: ProbeOptions;
         findAllOptions: ProbeOptions;
         countOptions: ProbeOptions;
-        findTreeOptions: ProbeOptions;
         findNeighborsOptions: ProbeOptions;
         findPathsOptions: ProbeOptions;
       } = {
@@ -479,7 +478,6 @@ describe('RRE-009 真实 Entity / Repository 集成', () => {
         findByCursorOptions: { seq: 0 },
         findAllOptions: { seq: 0 },
         countOptions: { seq: 0 },
-        findTreeOptions: { seq: 0 },
         findNeighborsOptions: { seq: 0 },
         findPathsOptions: { seq: 0 }
       };

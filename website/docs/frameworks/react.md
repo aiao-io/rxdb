@@ -325,12 +325,14 @@ function TodoList() {
 
 用于查询树形结构的实体（使用 `@TreeEntity` 定义）。
 
+> 这四个来自独立包 `@aiao/rxdb-plugin-tree-react`，不在 `@aiao/rxdb-react` 里。库侧还需 `rxdb.use(rxDBPluginTree)`，见[树结构拆包](../migration/tree-split.md)。
+
 #### useFindDescendants
 
 查找所有后代节点：
 
 ```tsx
-import { useFindDescendants } from '@aiao/rxdb-react';
+import { useFindDescendants } from '@aiao/rxdb-plugin-tree-react';
 
 function MenuTree({ rootId }: { rootId: string }) {
   const { value: descendants, isLoading } = useFindDescendants(Menu, {
@@ -355,7 +357,7 @@ function MenuTree({ rootId }: { rootId: string }) {
 统计后代节点数量：
 
 ```tsx
-import { useCountDescendants } from '@aiao/rxdb-react';
+import { useCountDescendants } from '@aiao/rxdb-plugin-tree-react';
 
 function MenuItemCount({ id }: { id: string }) {
   const { value: count } = useCountDescendants(Menu, { id });
@@ -368,7 +370,7 @@ function MenuItemCount({ id }: { id: string }) {
 查找所有祖先节点：
 
 ```tsx
-import { useFindAncestors } from '@aiao/rxdb-react';
+import { useFindAncestors } from '@aiao/rxdb-plugin-tree-react';
 
 function Breadcrumb({ currentId }: { currentId: string }) {
   const { value: ancestors } = useFindAncestors(Menu, { id: currentId });
@@ -391,7 +393,7 @@ function Breadcrumb({ currentId }: { currentId: string }) {
 统计祖先节点数量：
 
 ```tsx
-import { useCountAncestors } from '@aiao/rxdb-react';
+import { useCountAncestors } from '@aiao/rxdb-plugin-tree-react';
 
 function MenuLevel({ id }: { id: string }) {
   const { value: level } = useCountAncestors(Menu, { id });

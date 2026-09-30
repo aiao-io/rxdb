@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-08-01
+updated: 2026-09-20
 tags: [encryption, adapter, bigint, binary]
 ---
 
@@ -64,7 +64,7 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 技术约束
+## 技术笔记
 
 - bigint 不得经过 JSON number 或 `Number()`
 - binary 明文不能与调用方共享可变 backing buffer
@@ -75,7 +75,7 @@ INVEST 检查清单:
 
 - `packages/rxdb-adapter-encrypted/src/` — envelope 序列化、反序列化与 AAD
 - `packages/rxdb-adapter-encrypted/src/__tests__/` — 类型、安全和篡改测试
-- `packages/rxdb-test/src/testing/` — 跨 adapter encrypted fixture
+- `packages/rxdb-test/src/encrypted/` — 跨 adapter encrypted fixture
 
 ## References
 

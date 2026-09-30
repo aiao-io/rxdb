@@ -12,19 +12,19 @@ import {
   EntityType,
   getEntityMetadata,
   RelationKind,
-  transitionMetadata,
-  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS
+  transitionMetadata
 } from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import { generateEntityDefinition } from '../generators/entity-definition.js';
 import type { IRepositoryGenerator } from '../generators/RepositoryGenerator.interface.js';
 import { RepositoryMethodsGenerator } from '../generators/RepositoryGeneratorBase.js';
-import { TreeRepositoryGenerator } from '../generators/TreeRepositoryGenerator.js';
 import { validateGeneratedOutputSymbols } from './generated-symbols.js';
 import {
+  addNamedImport,
   assertGeneratedBindingIdentifier,
   assertGeneratedIdentifier,
   assertGeneratedNamespace,
+  DEFAULT_ENTITY_BASE_MODULE,
   isGeneratedIdentifier,
   transitionMetadata as transitionMetadataUtil
 } from './RxDBClientGenerator.utils.js';
@@ -35,13 +35,11 @@ import { Project, VariableDeclarationKind } from './ts-morph-browser.js';
 export const NAMESPACE_PUBLIC = 'public' as const;
 /** 内置普通 Repository 生成器的注册名称。 */
 export const REPOSITORY_TYPE_REPOSITORY = 'Repository' as const;
-/** 内置树 Repository 生成器的注册名称。 */
+/** 树 Repository 生成器的注册名称，供插件扩展使用。 */
 export const REPOSITORY_TYPE_TREE_REPOSITORY = 'TreeRepository' as const;
 /** 图 Repository 生成器的注册名称，供插件扩展使用。 */
 export const REPOSITORY_TYPE_GRAPH_REPOSITORY = 'GraphRepository' as const;
 const ENTITY_BASE_NAME = 'EntityBase' as const;
-const TREE_ADJACENCY_LIST_BASE_NAME = 'TreeAdjacencyListEntityBase' as const;
-const TREE_ENTITY_BASE_NAME = 'TreeEntityBase' as const;
 
 /** RxDB 客户端生成器的代码形态与查询类型配置。 */
 export interface RxDBClientGeneratorOptions {
@@ -85,12 +83,6 @@ const get_cache_key = (mappedEntity: string, mappedNamespace?: string) =>
   JSON.stringify([mappedNamespace || NAMESPACE_PUBLIC, mappedEntity]);
 
 const RESERVED_ENTITY_BINDINGS = new Set(['ENTITIES', 'Entity', 'PropertyType', 'RelationKind', '__decorateClass']);
-
-const addNamedImport = (imports: Map<string, Set<string>>, moduleSpecifier: string, name: string): void => {
-  const names = imports.get(moduleSpecifier) ?? new Set<string>();
-  names.add(name);
-  imports.set(moduleSpecifier, names);
-};
 
 const renderRuntimeImports = (imports: Map<string, Set<string>>): string =>
   Array.from(imports.entries())
@@ -239,9 +231,7 @@ export class RxDBClientGenerator {
   private pendingProject?: Project;
 
   entityMetadataOptionsMap = new Map<string, EntityMetadataOptions[]>([
-    [ENTITY_BASE_NAME, [ENTITY_BASE_METADATA_OPTIONS]],
-    [TREE_ADJACENCY_LIST_BASE_NAME, [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]],
-    [TREE_ENTITY_BASE_NAME, [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]]
+    [ENTITY_BASE_NAME, [ENTITY_BASE_METADATA_OPTIONS]]
   ]);
   metadataOptionsSet: Set<EntityMetadataOptions> = new Set();
   metadataSet: Set<EntityMetadata> = new Set();
@@ -269,9 +259,8 @@ export class RxDBClientGenerator {
       this.config.splitFiles = options.splitFiles;
     }
 
-    // 注册内置 Repository 生成器
+    // 注册唯一的内置 Repository 生成器；树、图等扩展由插件包经 `repositoryGenerators` 装载
     this.registerRepositoryGenerator(new RepositoryMethodsGenerator());
-    this.registerRepositoryGenerator(new TreeRepositoryGenerator());
   }
 
   /**
@@ -365,7 +354,17 @@ export class RxDBClientGenerator {
    * 注册 Repository 生成器
    * 用于扩展支持自定义 Repository 类型
    *
+   * 生成器声明的 {@link IRepositoryGenerator.abstractEntityMetadata} 会一并登记为抽象元数据，
+   * 调用方不必再手写一遍 {@link registerAbstractMetadata}。
+   *
+   * 重名一律拒绝，不会静默顶替。检查必须放在这里，不能只放在 CLI 装载路径
+   * （`cli/repository-generators.ts` 的 `registerRepositoryGenerators`）：直接
+   * `new RxDBClientGenerator()` 后手动注册的编程调用方（例如 `apps/dev-rxdb-angular` 的
+   * generator.page.ts）走不到 CLI 那一层，一个与已注册生成器同名的插件（比如也叫
+   * `Repository`）会静默顶掉它，用到这个名字的实体随之换掉方法集且不报错。
+   *
    * @param generator Repository 生成器实例
+   * @throws {Error} 已存在同名生成器时抛出
    * @example
    * ```typescript
    * const generator = new RxDBClientGenerator();
@@ -373,7 +372,15 @@ export class RxDBClientGenerator {
    * ```
    */
   registerRepositoryGenerator(generator: IRepositoryGenerator): void {
+    if (this.repositoryGenerators.has(generator.name)) {
+      throw new Error(
+        `Duplicate repository generator name ${JSON.stringify(generator.name)}: a generator with this name is already registered`
+      );
+    }
     this.repositoryGenerators.set(generator.name, generator);
+    generator.abstractEntityMetadata?.forEach((metadataOptions, abstractEntityName) => {
+      this.registerAbstractMetadata(abstractEntityName, metadataOptions);
+    });
   }
 
   /**
@@ -491,9 +498,7 @@ export class RxDBClientGenerator {
       const { name: className } = metadata;
       const decoratorArguments = transitionMetadataUtil(metadata);
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -535,9 +540,7 @@ ${className}
       ]);
 
       if (extendName) {
-        const moduleSpecifier =
-          this.getRepositoryGenerator(metadata.repository)?.entityBaseModuleSpecifier ?? '@aiao/rxdb';
-        addNamedImport(namedImportsByModule, moduleSpecifier, extendName);
+        addNamedImport(namedImportsByModule, this.#resolve_entity_base_module(metadata.repository), extendName);
       }
       if (metadata.properties.length || metadata.computedProperties?.length) {
         addNamedImport(namedImportsByModule, '@aiao/rxdb', 'PropertyType');
@@ -600,7 +603,7 @@ ${className}
     });
 
     // imports（导入）
-    const imports = new Set<string>(['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID']);
+    const imports = new Set<string>(['EntityType', 'IEntity', 'RuleGroupBase', 'UUID']);
     const namedImportsByModule = new Map<string, Set<string>>();
 
     // 生成所有 entity
@@ -692,7 +695,7 @@ ${className}
 
       // 生成独立 entity 定义文件
       const entityFile = project.createSourceFile(`${className}.d.ts`);
-      const entityImports = new Set<string>(['EntityType', 'IEntity', 'ITreeEntity', 'RuleGroupBase', 'UUID']);
+      const entityImports = new Set<string>(['EntityType', 'IEntity', 'RuleGroupBase', 'UUID']);
 
       const { rxdbNamedImports, namedImportsByModule, siblingNamedImports } = generateEntityDefinition(
         this,
@@ -742,5 +745,17 @@ ${className}
       isExported: true,
       declarations: [{ name: 'ENTITIES', type: `EntityType[]` }]
     });
+  }
+
+  /**
+   * 该实体的基类从哪个模块导入。
+   *
+   * @remarks
+   * 生成器没注册、或注册了但没声明 `entityBaseModuleSpecifier`，都落回
+   * {@link DEFAULT_ENTITY_BASE_MODULE} —— 前者对应用户写了个没人认的 `repository`，
+   * 后者对应核心实体。两种情形产出同一条 import，不必区分。
+   */
+  #resolve_entity_base_module(repository: string): string {
+    return this.getRepositoryGenerator(repository)?.entityBaseModuleSpecifier ?? DEFAULT_ENTITY_BASE_MODULE;
   }
 }

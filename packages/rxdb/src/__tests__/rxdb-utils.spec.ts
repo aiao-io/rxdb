@@ -14,6 +14,9 @@ import {
 } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { METADATA } from '../rxdb.private.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('rxdb-utils', () => {
   @Entity({
@@ -31,16 +34,18 @@ describe('rxdb-utils', () => {
   let rxdb!: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'rxdb-utils-test',
-      entities: [TestEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'rxdb-utils-test',
+        entities: [TestEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

@@ -1,4 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
+import type { BackupProbeDatabase, BackupProbeMode, BackupProbeResult } from './backup-probe';
 import type { DevToolsProbeResult } from './devtools-probe';
 import type { RxDBConnectionStateWriter } from './rxdb-connection-state';
 import type { LaunchRecordDatabase } from './services/desktop-launch.service';
@@ -19,6 +20,7 @@ import type { WebviewFetchSurface, WebviewProbeResult } from './webview-probe';
  * 断了的表现是这里突然报「RxDB 上没有 storage」，而与本模块毫无关系。
  */
 export type LocalDatabase = Pick<RxDB, 'connect'> &
+  BackupProbeDatabase &
   LaunchRecordDatabase & {
     /** 连接期间的文件存储服务，两条探针合起来只用得到它的四个方法。 */
     readonly storage: StorageProbeSurface & WebviewFetchSurface;
@@ -108,6 +110,18 @@ export interface LocalDatabaseStartup {
    * release 里根本没有调试窗口，跑它只会白等一个预算。
    */
   readonly probeDevTools: () => Promise<DevToolsProbeResult | null>;
+  /**
+   * 备份 / 恢复探针（US-217 AC#18）。
+   *
+   * @remarks
+   * `mode()` 给 `null` 表示这次不跑——开关在 Rust 侧（`DEV_RXDB_TAURI_BACKUP_PROBE`），**正常启动走的就是这条路**。
+   * `backup` / `restore` 收的是 `openDatabase()` 交出来的同一个实例（TAURI-07 同理）。
+   */
+  readonly backupProbe: {
+    readonly mode: () => Promise<BackupProbeMode | null>;
+    readonly backup: (database: LocalDatabase) => Promise<BackupProbeResult>;
+    readonly restore: (database: LocalDatabase) => Promise<BackupProbeResult>;
+  };
   /** 要连的本地适配器名。 */
   readonly adapterName: string;
   /** 自检结论的出口；非自检模式下是一次空操作。 */
@@ -115,6 +129,26 @@ export interface LocalDatabaseStartup {
 }
 
 const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/** {@link attempt} 已把失败写进状态并上报过，调用方只需停下。 */
+const FAILED = Symbol('failed');
+
+/**
+ * 跑一步；失败时落到应用内状态、上报根因，并交回 {@link FAILED}。
+ *
+ * @remarks
+ * `run()` 与 `report()` 分开：合在同一个 try 里的话，上报本身出错会被当成这一步失败，
+ * 于是报告里写的是一个从没发生过的原因。
+ */
+const attempt = async <T>(startup: LocalDatabaseStartup, run: () => Promise<T>): Promise<T | typeof FAILED> => {
+  try {
+    return await run();
+  } catch (error) {
+    startup.state.markFailed(error);
+    await startup.report({ status: 'failed', message: describeError(error) });
+    return FAILED;
+  }
+};
 
 /**
  * 建库、连接本地适配器、记一次启动、上报结论。**永不 reject。**
@@ -142,15 +176,20 @@ const describeError = (error: unknown): string => (error instanceof Error ? erro
  * 读回 `$error` 再显式报一次 `failed`，拿到的才是根因。
  */
 export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise<void> => {
-  let database: LocalDatabase;
-  try {
-    database = await startup.openDatabase();
-  } catch (error) {
-    // 建库失败时 `inject(RxDB)` 之后也会抛同一个错，但那要等到有人去注入；
-    // 状态与报告都得在**这一刻**就说明白，否则自检那条路径只剩看门狗超时。
-    startup.state.markFailed(error);
-    await startup.report({ status: 'failed', message: describeError(error) });
-    return;
+  // 建库失败时 `inject(RxDB)` 之后也会抛同一个错，但那要等到有人去注入；
+  // 状态与报告都得在**这一刻**就说明白，否则自检那条路径只剩看门狗超时。
+  const database = await attempt(startup, startup.openDatabase);
+  if (database === FAILED) return;
+  // 问不到模式不能当成「没开探针」：那样 restore 那一跑会连上一个空库，启动计数从 1 数起。
+  const backupMode = await attempt(startup, startup.backupProbe.mode);
+  if (backupMode === FAILED) return;
+
+  let backup: BackupProbeResult | null = null;
+  // US-217 AC#18：恢复的目标必须是尚未连接的空库，所以排在连接之前；恢复失败就不连接。
+  if (backupMode === 'restore') {
+    const restored = await attempt(startup, () => startup.backupProbe.restore(database));
+    if (restored === FAILED) return;
+    backup = restored;
   }
 
   await connectRxDB(database, startup.state, startup.adapterName);
@@ -159,51 +198,31 @@ export const startLocalDatabase = async (startup: LocalDatabaseStartup): Promise
     await startup.report({ status: 'failed', message: describeError(connectionError) });
     return;
   }
-  // `record()` 与 `report()` 分开 try：合在一起的话，上报本身出错会被当成写入失败，
-  // 于是报告里写的是一个从没发生过的原因。
-  let launchCount: number;
-  try {
-    launchCount = await startup.launches.record(database);
-  } catch (error) {
-    // 连上了却写不进去，对用户来说和没连上没有区别，因此照样落到失败态。
-    startup.state.markFailed(error);
-    await startup.report({ status: 'failed', message: describeError(error) });
-    return;
+  // 连上了却写不进去，对用户来说和没连上没有区别，因此照样落到失败态。
+  const launchCount = await attempt(startup, () => startup.launches.record(database));
+  if (launchCount === FAILED) return;
+  // 备份紧跟在 `record()` 之后、存储探针之前：归档里因此只有启动记录，恢复那一跑的
+  // `existedBefore` 不会被归档里带过去的探针文件元数据干扰。
+  if (backupMode === 'backup') {
+    const backedUp = await attempt(startup, () => startup.backupProbe.backup(database));
+    if (backedUp === FAILED) return;
+    backup = backedUp;
   }
   // US-505：探针排在 `record()` 之后而不是与它并发 —— 两者都要写库，并发起来
   // 第一次启动的 `launchCount` 与探针的 `existedBefore` 会互相干扰，
   // 而那正是 AC#1 用来排掉「内存实现」的两条判据。
-  let storage: StorageProbeResult;
-  try {
-    storage = await startup.probe(database.storage);
-  } catch (error) {
-    // 文件存储用不了和库用不了是同一类事，落到同一个失败态；抛出去就是白屏（TAURI-01）。
-    startup.state.markFailed(error);
-    await startup.report({ status: 'failed', message: describeError(error) });
-    return;
-  }
+  // 文件存储用不了和库用不了是同一类事，落到同一个失败态；抛出去就是白屏（TAURI-01）。
+  const storage = await attempt(startup, () => startup.probe(database.storage));
+  if (storage === FAILED) return;
   // US-505 AC#6：同样排在存储探针**之后**而不是与它并发 —— webview 探针自己要往存储里写
   // 三份缓存，与 `existedBefore` 并发起来会互相干扰。
-  let webview: WebviewProbeResult | null;
-  try {
-    webview = await startup.probeWebview(database.storage);
-  } catch (error) {
-    // 不吞成 `ok` + `webview: null`：那与「本来就没开探针」长得一模一样，
-    // e2e 侧只会看到一条「报告里没有 webview 探针结果」，查不到是哪一步坏了。
-    startup.state.markFailed(error);
-    await startup.report({ status: 'failed', message: describeError(error) });
-    return;
-  }
+  // 失败不吞成 `ok` + `webview: null`：那与「本来就没开探针」长得一模一样，
+  // e2e 侧只会看到一条「报告里没有 webview 探针结果」，查不到是哪一步坏了。
+  const webview = await attempt(startup, () => startup.probeWebview(database.storage));
+  if (webview === FAILED) return;
   // 排在最后：它要等调试窗口把握手发过来，而调试窗口是在 `setup` 里与主窗口一起建的，
-  // 握手时机与建库快慢无关。放前面只会把这段等待叠进建库路径。
-  let devtools: DevToolsProbeResult | null;
-  try {
-    devtools = await startup.probeDevTools();
-  } catch (error) {
-    // 与 webview 探针同一个理由：不吞成 `ok` + `devtools: null`，那与「没开探针」同形。
-    startup.state.markFailed(error);
-    await startup.report({ status: 'failed', message: describeError(error) });
-    return;
-  }
-  await startup.report({ status: 'ok', launchCount, storage, webview, devtools });
+  // 握手时机与建库快慢无关。放前面只会把这段等待叠进建库路径。失败不吞的理由同 webview 探针。
+  const devtools = await attempt(startup, startup.probeDevTools);
+  if (devtools === FAILED) return;
+  await startup.report({ status: 'ok', launchCount, storage, webview, devtools, backup });
 };

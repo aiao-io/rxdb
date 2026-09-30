@@ -121,6 +121,9 @@
 | CS-029 | `js/file-system-race`     | `apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts:291` | Dismissed | 写方 rename 原子提交，检查与读之间无竞争窗口 |
 | CS-028 | `js/missing-origin-check` | `apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:39`                     | Dismissed | 中继用例自建的 postMessage 桩，非产品代码    |
 
+> CS-024～CS-027 四个编号无归档条目。GitHub 告警编号会随滚动重报变化（固定告警修复后重报拿新编号，
+> 见 CS-016 备注），这四段空号的去向**推断**为编号滚动，待下次同步时按 GitHub 当前清单复核。
+
 ### 第二批处置要点
 
 **CS-029 / CS-030 / CS-031 三条 `js/file-system-race` 全是误报**，dismiss reason 取 `used in tests`：

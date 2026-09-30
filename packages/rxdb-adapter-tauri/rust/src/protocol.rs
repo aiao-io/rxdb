@@ -14,10 +14,18 @@ use super::paths::validate_database_name;
 use super::value::decode_binding;
 
 /// 线协议版本；renderer 在 `handshake` 应答里核对该值（`open` 应答里也带一份）。
-pub const PROTOCOL_VERSION: i64 = 1;
+///
+/// v2（US-217）加了 [`Request::Mute`]，并把 [`MAX_SQL_LENGTH`] 放宽到 64 Mi。与当初加握手不同，
+/// 这次必须抬版本：v1 host 在恢复中途才会拒收超长语句或不认识的 `mute`，那时目标库已经被写过了；
+/// 抬版本后它在握手这一步就被拒绝，目标一个字节都没动（US-217 AC#21）。
+pub const PROTOCOL_VERSION: i64 = 2;
 
-/// 单条 SQL 文本的长度上限。
-pub const MAX_SQL_LENGTH: usize = 1_000_000;
+/// 单条 SQL 文本的长度上限（UTF-16 码元）。
+///
+/// 恢复把归档里的一个行条目原样拼进一条 `INSERT … VALUES` 下发：条目按 1 MiB 切分，单行超过时
+/// 独占一个条目，最大到 32 MiB。UTF-8 字节数不小于 UTF-16 码元数，所以 64 Mi 码元能装下最大的条目
+/// 加上语句前缀。与 TS 侧 `DESKTOP_HOST_MAX_SQL_LENGTH` 同值。
+pub const MAX_SQL_LENGTH: usize = 64 * 1024 * 1024;
 
 /// 单条请求允许的绑定参数个数上限。
 pub const MAX_BINDINGS: usize = 100_000;
@@ -63,6 +71,16 @@ pub enum Request {
     Close {
         /// host 签发的会话 ID。
         session_id: String,
+    },
+    /// 暂停 / 恢复会话的变更事件采集（协议 v2）。
+    ///
+    /// 恢复整库时静音：恢复写进去的系统表行不是新变更。静音必须落在 host 侧——只在 renderer
+    /// 丢弃的话，host 仍要为每一行攒 rowId、把整批搬过 IPC，开销随库的大小线性增长（US-217 AC#9）。
+    Mute {
+        /// host 签发的会话 ID。
+        session_id: String,
+        /// `true` 时变更直接丢弃，不入批也不派发。
+        muted: bool,
     },
 }
 
@@ -189,6 +207,14 @@ fn read_storage(record: &Map<String, Value>) -> HostResult<String> {
     Ok(database_name.to_string())
 }
 
+/// `muted` 只收布尔：一个缺席或写错类型的值不能被当成「不静音」静默放过。
+fn read_muted(record: &Map<String, Value>) -> HostResult<bool> {
+    record
+        .get("muted")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| violation("muted must be a boolean"))
+}
+
 /// 校验并归一化一条来自 renderer 的请求。
 pub fn parse_request(value: &Value) -> HostResult<Request> {
     let record = as_object(value)?;
@@ -210,6 +236,10 @@ pub fn parse_request(value: &Value) -> HostResult<Request> {
         }),
         "close" => Ok(Request::Close {
             session_id: read_session_id(record)?,
+        }),
+        "mute" => Ok(Request::Mute {
+            session_id: read_session_id(record)?,
+            muted: read_muted(record)?,
         }),
         other => Err(violation(format!("unknown request kind {other}"))),
     }
@@ -369,6 +399,35 @@ mod tests {
     }
 
     #[test]
+    fn parses_mute_and_unmute_requests() {
+        for muted in [true, false] {
+            let request = parse_request(&json!({ "kind": "mute", "sessionId": SESSION, "muted": muted })).unwrap();
+            assert_eq!(
+                request,
+                Request::Mute {
+                    session_id: SESSION.into(),
+                    muted
+                }
+            );
+        }
+    }
+
+    /// 缺席或写错类型的 `muted` 不能被读成「不静音」。
+    #[test]
+    fn rejects_a_mute_request_without_a_boolean_flag_or_session() {
+        for request in [
+            json!({ "kind": "mute", "sessionId": SESSION }),
+            json!({ "kind": "mute", "sessionId": SESSION, "muted": "true" }),
+            json!({ "kind": "mute", "sessionId": SESSION, "muted": 1 }),
+            json!({ "kind": "mute", "sessionId": SESSION, "muted": null }),
+            json!({ "kind": "mute", "muted": true }),
+        ] {
+            let error = parse_request(&request).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProtocolViolation, "for {request}");
+        }
+    }
+
+    #[test]
     fn rejects_shapes_that_are_not_requests() {
         for value in [json!([]), json!("open"), json!(null), json!({ "kind": "explode" })] {
             let error = parse_request(&value).unwrap_err();
@@ -378,8 +437,9 @@ mod tests {
 
     #[test]
     fn enforces_the_sql_and_binding_limits() {
-        let long_sql = "-".repeat(MAX_SQL_LENGTH + 1);
-        let over_limit = json!({ "kind": "execute", "sessionId": SESSION, "sql": long_sql });
+        let at_limit = json!({ "kind": "execute", "sessionId": SESSION, "sql": "-".repeat(MAX_SQL_LENGTH) });
+        assert!(parse_request(&at_limit).is_ok());
+        let over_limit = json!({ "kind": "execute", "sessionId": SESSION, "sql": "-".repeat(MAX_SQL_LENGTH + 1) });
         assert_eq!(
             parse_request(&over_limit).unwrap_err().code,
             ErrorCode::ProtocolViolation

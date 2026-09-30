@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   type EntityMetadata,
   type EntityType,
   type IRepository,
@@ -146,6 +147,7 @@ function createCheckHarness(options: CheckHarnessOptions) {
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));
   const rxdb = {
+    entitySync: createEntitySyncResolver(options.globalSync ?? FULL_SYNC),
     config: {
       entities: options.entities,
       sync: options.globalSync ?? FULL_SYNC

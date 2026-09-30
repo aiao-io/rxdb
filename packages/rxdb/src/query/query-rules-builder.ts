@@ -2,7 +2,7 @@ import { once } from '@aiao/utils';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { FindOptions } from '../repository/query-options.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
-import { isEntityEffectOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
+import { isEntityEffectOrderBy, isEntityMatchWhere, isOrderByValueChanged } from './query-matching.utils.js';
 
 const _skip = once(() => true);
 
@@ -84,7 +84,7 @@ export class QueryRulesBuilder<T extends EntityType> {
     return {
       match_where: matchWhere,
       not_match_where: notMatchWhere,
-      match_order_by: _skip,
+      match_order_by: this.buildOrderByRuleForUpdate(),
       match_where_before: matchWhereBefore,
       not_match_where_before: notMatchWhereBefore,
       match_relation_where: matchRelationWhere,
@@ -110,7 +110,7 @@ export class QueryRulesBuilder<T extends EntityType> {
     return {
       match_where: matchWhere,
       not_match_where: notMatchWhere,
-      match_order_by: _skip,
+      match_order_by: this.buildOrderByRuleForRemove(),
       match_where_before: _skip,
       not_match_where_before: _skip,
       match_relation_where: matchRelationWhere,
@@ -214,5 +214,63 @@ export class QueryRulesBuilder<T extends EntityType> {
         isEntityEffectOrderBy(e.patch, Array.from(this.task.resultEntitySet), orderBy)
       );
     });
+  }
+
+  /**
+   * 构建排序规则（UPDATE）
+   *
+   * @remarks
+   * 回答的是「这次更新会不会改变当前这一页的构成」。既有规则覆盖不到这一维：
+   * `result_contains` 只看页内的行，`match_where + not_match_where_before` 只看
+   * 「从不匹配变成匹配」的行；一行**一直匹配**、只是把排序键改小从而挤进当前页
+   * （`orderBy score asc limit 1` 下 `score 20 → 5`），两条都判不出来，而此处原本是
+   * `_skip`（恒真占位）让排序维度整个缺席，活查询于是永久停在旧页上。
+   *
+   * 前后两侧都要看：新位置落进页内说明它要挤进来，旧位置落在页内说明它要挪出去。
+   * `isEntityEffectOrderBy` 判的是「是否排在结果集中某行之前或与之并列」，因此带
+   * `offset` 的页同样覆盖得到 —— 排在首行之前的行正是凑出 offset 的那一段。
+   *
+   * 先用 {@link isOrderByValueChanged} 门一道：排序键没动的更新不可能换页，
+   * 否则任何一次无关字段的更新都会把整页 SQL 重跑一遍。
+   */
+  private buildOrderByRuleForUpdate() {
+    const orderBy = this.getFindOptions()?.orderBy;
+
+    if (!orderBy?.length) return once(() => false);
+
+    return once(() => {
+      const result = Array.from(this.task.resultEntitySet);
+      return this.current_entities.some(
+        e =>
+          isOrderByValueChanged(e.inversePatch, e.patch, orderBy) &&
+          (isEntityEffectOrderBy(e.patch, result, orderBy) || isEntityEffectOrderBy(e.inversePatch, result, orderBy))
+      );
+    });
+  }
+
+  /**
+   * 构建排序规则（REMOVE）
+   *
+   * @remarks
+   * 删掉一行只会影响排在它**后面**的行。`offset` 为 0 时当前页就是最前面那一段，
+   * 页外被删的行要么排在页后（不影响页的构成）、要么根本不存在，`result_contains`
+   * 已经够用；`offset > 0` 时页前还压着一整段行，删掉其中一行会把整个窗口往前挪一格，
+   * 而那一行既不在 `resultEntitySet` 里、又没有「更新前后」可比，旧规则集完全看不见它。
+   *
+   * 没有 `orderBy` 时行序由适配器决定，删任意一行都可能换页；
+   * `isEntityEffectOrderBy` 对空排序数组恒返回 `true`，正是这里要的保守答案。
+   */
+  private buildOrderByRuleForRemove() {
+    const options = this.getFindOptions();
+    const offset = options?.offset ?? 0;
+
+    if (offset <= 0) return once(() => false);
+
+    const orderBy = options?.orderBy ?? [];
+    return once(() =>
+      this.current_entities.some(e =>
+        isEntityEffectOrderBy(e.inversePatch, Array.from(this.task.resultEntitySet), orderBy)
+      )
+    );
   }
 }

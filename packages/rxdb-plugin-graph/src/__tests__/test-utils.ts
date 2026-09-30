@@ -1,4 +1,4 @@
-import type { RxDB } from '@aiao/rxdb';
+import { ACTIVE_BRANCH_KEY, type RxDB } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { SqliteGraphRepository } from '../sqlite/SqliteGraphRepository.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
@@ -32,8 +32,10 @@ export const cleanup_db = async (adapter: RxDBAdapterWaSqlite) => {
     }
 
     try {
+      // 两列同进同出：写 `activated` 就必须写 `activeKey`，否则这一行退出
+      // 「至多一个 active」的唯一约束管辖，而且不报任何错。
       await tx.execute(
-        `INSERT INTO "rxdb$rxdb_branch" (id,activated,fromChangeId,local,remote) VALUES ('main',1,NULL,1,0);`
+        `INSERT INTO "rxdb$rxdb_branch" (id,activated,activeKey,fromChangeId,local,remote) VALUES ('main',1,'${ACTIVE_BRANCH_KEY}',NULL,1,0);`
       );
     } catch {
       //

@@ -34,7 +34,9 @@ import type { QueryCacheOutboxProvider } from '../../repository/query-cache-outb
 import { Repository } from '../../repository/Repository.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMissingPluginError } from '../../RxDBError.js';
+import { createEntitySyncResolver } from '../../sync-contract/entity-sync-resolver.js';
 import { detachedReachability } from '../fixtures/reachability.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
 @Entity({
@@ -90,11 +92,13 @@ const createOutboxStub = (): QueryCacheOutboxProvider => ({
  * 少这一侧会先撞 `missingQueryCacheAdapter`，本文件要盯的护栏一次都轮不到。
  */
 const createDatabase = (dbName: string): { rxdb: RxDB; local: () => MockLocalAdapter | undefined } => {
-  const rxdb = new RxDB({
-    dbName,
-    entities: [CachedProduct, PlainProduct],
-    sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
-  });
+  const rxdb = trackRxDB(
+    new RxDB({
+      dbName,
+      entities: [CachedProduct, PlainProduct],
+      sync: { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+    })
+  );
   // 取本地适配器要用函数而不是属性：实例是 `connect()` 里第一次 `getAdapter()` 才建的，
   // 在解构那一刻读到的只会是 undefined。
   let local: MockLocalAdapter | undefined;
@@ -127,12 +131,15 @@ const slotStubRxDB = (
     localAdapter$: of(localAdapter),
     remoteAdapter$: of({ getRepository: () => ({}) }),
     config: { sync: undefined },
+    entitySync: createEntitySyncResolver(undefined),
     addEventListener: () => undefined,
     reachability: detachedReachability(),
     entityManager: { createEntityRef: (_type: unknown, entity: unknown) => entity },
     getQueryCacheEngine: () => slots.engine,
     getQueryCacheOutbox: () => slots.outbox
   }) as unknown as RxDB;
+
+const { trackRxDB } = registerRxDBTeardown();
 
 describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
   it('connect() 直接失败，错误点名实体与要装的包', async () => {
@@ -176,11 +183,13 @@ describe('US-025 B3：没装 QueryCache 引擎时的启动护栏', () => {
   });
 
   it('库里没有 QueryCache 实体时护栏静默：两个插件都不装照样连得上', async () => {
-    const rxdb = new RxDB({
-      dbName: 'querycache-missing-plugin-irrelevant',
-      entities: [PlainProduct],
-      sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
-    });
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'querycache-missing-plugin-irrelevant',
+        entities: [PlainProduct],
+        sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+      })
+    );
     rxdb.adapter('sqlite', createMockAdapter);
 
     await expect(rxdb.connect('sqlite')).resolves.toBeDefined();

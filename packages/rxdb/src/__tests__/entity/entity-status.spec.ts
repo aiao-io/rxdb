@@ -15,6 +15,9 @@ import {
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { getRxDBEntityIdentityKey } from '../../system/change-codec.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('EntityStatus', () => {
   @Entity({
@@ -99,16 +102,18 @@ describe('EntityStatus', () => {
   let rxdb: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'entity-status-test',
-      entities: [TestEntity, RelatedEntity, TestRelatedJunction, DeepValueEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'entity-status-test',
+        entities: [TestEntity, RelatedEntity, TestRelatedJunction, DeepValueEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

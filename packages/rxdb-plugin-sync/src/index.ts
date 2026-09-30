@@ -31,7 +31,10 @@ export * from './plugin.js';
 export type { BulkSyncOptions, BulkSyncResult } from './bulk-sync.js';
 // `SyncManager.checkRepositoryUpdates()` 的返回值。函数本身是内部实现。
 export type { CheckRepositoryUpdatesResult } from './check-repository-updates.js';
-export * from './cleanup-expired.js';
+// `SyncManager.cleanupExpired()` 的形参与返回值。同名的自由函数是该方法的实现，
+// 全仓只有 `SyncManager.ts:427` 与本包测试相对 import 它——转出去等于多一个能绕开
+// `SyncManager` 自身前置校验的入口。
+export type { CleanupExpiredOptions, CleanupExpiredResult } from './cleanup-expired.js';
 // `SyncManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
 export type { DependencyGraph } from './dependency-graph.js';
 // `SyncManager.getAllRepositorySyncStatus()` 的可选过滤器。
@@ -48,6 +51,8 @@ export {
   type QueryCacheOutboxFailure,
   type QueryCacheOutboxResult
 } from './query-cache-outbox.js';
-export * from './sync-branches.js';
+// 同 `cleanup-expired`：只转 `SyncManager.syncBranches()` 的返回值（连同 `skipReasons` 的
+// 元素类型），自由函数收回。
+export type { SyncBranchSkipReason, SyncBranchesResult } from './sync-branches.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
 export type { SyncManager } from './SyncManager.js';

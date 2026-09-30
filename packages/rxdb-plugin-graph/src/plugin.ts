@@ -10,9 +10,6 @@ import type { LifecycleScope } from '@aiao/utils';
 import { GraphRepository } from './GraphRepository.js';
 import { graphEdgeEntityFactory } from './graph-edge-entity.factory.js';
 import { EntityMetadataGraphFeatures } from './graph-metadata.interface.js';
-import { merge_create } from './query/merge_create.js';
-import { merge_remove } from './query/merge_remove.js';
-import { merge_update } from './query/merge_update.js';
 
 type RxDBPluginGraphOptions = object;
 
@@ -27,12 +24,7 @@ export class RxDBPluginGraph extends RxDBPluginBase implements IRxDBPlugin {
       'GraphRepository',
       {
         entityGenerator: graphEdgeEntityFactory,
-        class: GraphRepository,
-        mergeOperations: {
-          create: merge_create,
-          update: merge_update,
-          remove: merge_remove
-        }
+        class: GraphRepository
       },
       scope
     );

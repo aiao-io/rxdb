@@ -15,7 +15,7 @@
  *
  * 2. **事件是推的，不是拉的。** `events` 操作只负责**建立**订阅，随后每条 RxDB 事件
  *    经 {@link DevToolsRxdbDatabaseProviderPorts.emitEvent} 走 v2 的 `EVENT` 帧出去。
- *    把事件塞进 `invoke` 的返回值等于把推送退化成轮询，25 类事件里的时序信息会全部丢失。
+ *    把事件塞进 `invoke` 的返回值等于把推送退化成轮询，26 类事件里的时序信息会全部丢失。
  *
  * 3. **平台来源固定为 `dom`，不做嗅探。** 本 provider 永远跑在文档上下文里（页内 connector），
  *    因此 IndexedDB 的 `QuotaExceededError`、OPFS 的 `NotFoundError` 能被正确归类；

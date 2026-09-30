@@ -10,8 +10,7 @@
  *
  * 执行层通过 {@link FtsExecutor} 注入，便于在无 SQLite 运行时的环境下单元测试。
  *
- * @see specs/001-add-global-search/research.md §3
- * @see specs/001-add-global-search/data-model.md §4.1
+ * @see requirements/stories/future/US-702-full-text-search.md
  */
 import { quote_sql_identifier, SQLITE_MAX_BIND_VARIABLES, type FtsField } from '@aiao/rxdb-adapter-sqlite-core';
 import { SearchExecutionError, SearchQueryLimitError } from '../types.js';

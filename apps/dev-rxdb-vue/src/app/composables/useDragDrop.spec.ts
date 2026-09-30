@@ -1,4 +1,5 @@
-import type { ISortableTreeEntity, UUID } from '@aiao/rxdb';
+import type { UUID } from '@aiao/rxdb';
+import type { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
 import { describe, expect, it, vi } from 'vitest';
 import { shallowRef } from 'vue';
 import { useDragDrop } from './useDragDrop.js';

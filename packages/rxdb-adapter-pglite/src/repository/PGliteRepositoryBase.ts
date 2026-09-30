@@ -49,7 +49,8 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
         const entityData = data as unknown as InstanceType<T>;
         let entity: InstanceType<T>;
         if (super.hasEntityRef(id)) {
-          entity = super.getEntityRef(id)!;
+          // 同下面那条边界：`getEntityRef` 也已如实返回 `EntityInstanceType<T>`。
+          entity = super.getEntityRef(id)! as InstanceType<T>;
           if (forcedUpdate) super.updateEntity(entity, entityData);
         } else {
           // `RepositoryBase.createEntityRef` 现在如实返回实例类型（从前是塌陷成 `any` 的

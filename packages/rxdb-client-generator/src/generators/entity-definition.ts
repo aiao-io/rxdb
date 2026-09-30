@@ -7,8 +7,10 @@
 
 import { EntityMetadata, RelationKind } from '@aiao/rxdb';
 import { unionBy } from '@aiao/utils';
-import { REPOSITORY_TYPE_REPOSITORY, RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { validateGeneratedClassMembers } from '../core/generated-symbols.js';
+import { describeMissingGeneratorForRepository } from '../core/known-repository-generators.js';
+import { REPOSITORY_TYPE_REPOSITORY, RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
+import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
 import type {
   MethodDeclarationStructure,
   OptionalKind,
@@ -53,17 +55,41 @@ export const generateEntityDefinition = (
   // 元数据。
   const { name: className } = metadata;
 
+  /**
+   * Repository 生成（插件化机制）
+   * 1. 如果有扩展 Repository（TreeRepository, GraphRepository），调用对应生成器
+   * 2. 扩展生成器不负责基类方法，所以需要先生成基类属性和方法
+   */
+  const repoType = metadata.repository || REPOSITORY_TYPE_REPOSITORY;
+  const repoGenerator = generator.getRepositoryGenerator(repoType);
+  // 拿不到生成器就必须炸：静默跳过会产出没有任何查询方法、也没有 XxxRuleGroup 的半成品类，
+  // 而别的实体只要关联到它就会引用这个从未声明的 RuleGroup（TS2304）。
+  if (!repoGenerator) {
+    throw new Error(
+      `No repository generator registered for "${repoType}" (entity ${className}).` +
+        describeMissingGeneratorForRepository(repoType)
+    );
+  }
+  const addEntityBaseImport = (name: string): void =>
+    addEntityBaseNamedImport(namedImportsByModule, rxdbNamedImports, repoGenerator.entityBaseModuleSpecifier, name);
+
   // 类。
   const extendClassImport = metadata.extends[0] || '';
   const extendClassName =
     extendClassImport === 'EntityBase' && getIdType(metadata) === 'bigint' ? 'EntityBase<bigint>' : extendClassImport;
-  const implementNames = [];
-  if (extendClassName.includes('TreeAdjacencyListEntityBase')) {
-    implementNames.push('ITreeEntity');
+  const implementNames: string[] = [];
+  // 插件基类要实现的接口（树的 `ITreeEntity`）由生成器自报，与符号预检取同一份声明；
+  // 没有自报的实体按 `EntityBase` 走默认的 `IEntity`。
+  const entityInterfaces = repoGenerator.declareSymbols?.(metadata).entityInterfaces ?? [];
+  if (entityInterfaces.length > 0) {
+    entityInterfaces.forEach(name => {
+      addEntityBaseImport(name);
+      implementNames.push(name);
+    });
   } else if (extendClassName.includes('EntityBase')) {
     implementNames.push('IEntity');
   }
-  if (extendClassImport) rxdbNamedImports.add(extendClassImport);
+  if (extendClassImport) addEntityBaseImport(extendClassImport);
   const classDecl = file.addClass({
     name: className,
     isExported: true,
@@ -168,19 +194,6 @@ export const generateEntityDefinition = (
     .forEach((property, index) =>
       memberSources.set(property, relationSources[index] ?? `relation derived member "${property.name}"`)
     );
-
-  /**
-   * Repository 生成（插件化机制）
-   * 1. 如果有扩展 Repository（TreeRepository, GraphRepository），调用对应生成器
-   * 2. 扩展生成器不负责基类方法，所以需要先生成基类属性和方法
-   */
-  const repoType = metadata.repository || REPOSITORY_TYPE_REPOSITORY;
-  const repoGenerator = generator.getRepositoryGenerator(repoType);
-  // 拿不到生成器就必须炸：静默跳过会产出没有任何查询方法、也没有 XxxRuleGroup 的半成品类，
-  // 而别的实体只要关联到它就会引用这个从未声明的 RuleGroup（TS2304）。
-  if (!repoGenerator) {
-    throw new Error(`No repository generator registered for "${repoType}" (entity ${className})`);
-  }
 
   // 如果是扩展 Repository（非基类），先生成基类属性和方法
   if (repoType !== REPOSITORY_TYPE_REPOSITORY) {

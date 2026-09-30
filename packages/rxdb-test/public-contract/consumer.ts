@@ -10,7 +10,9 @@
 import {
   cleanupSqliteTestAdapter,
   clearEntityRecords,
+  connectWithoutSyncOverride,
   createLockedSeeder,
+  defineSyncOverrideNote,
   ENTITY_FIELD_VALUE_CASES,
   ENTITY_FIELDS_EXPECTATIONS,
   ENTITY_FIELDS_FIXTURE_METADATA,
@@ -26,18 +28,35 @@ import {
   makeEntityFieldsWireDraft,
   makeSearchParityArticles,
   makeSearchParityComments,
+  mergeCreatedIntoCursorPage,
+  openSyncOverrideDatabase,
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
+  SingleTabBroadcastChannel,
+  SYNC_OVERRIDE_CONTROL_ERROR_PATTERN,
+  SYNC_OVERRIDE_DATABASE_SYNC,
+  SYNC_OVERRIDE_DECLARED,
+  SYNC_OVERRIDE_EFFECTIVE,
+  SYNC_OVERRIDE_LOCAL_ADAPTER,
+  SYNC_OVERRIDE_REMOTE_ADAPTER,
+  SYNC_OVERRIDE_SEED_TITLES,
+  SYNC_OVERRIDE_WRITE_TITLE,
   version,
   withSeedLock,
+  type CursorRowLike,
   type EntityFieldExpectation,
   type EntityFieldsParseRejection,
   type EntityFieldsWireDraft,
-  type EntityFieldValueCase
+  type EntityFieldValueCase,
+  type SyncOverrideHarness,
+  type SyncOverrideNoteLike,
+  type SyncOverrideNoteType
 } from '@aiao/rxdb-test';
 import {
   ENCRYPTED_SENTINELS,
   EncryptedUser,
+  queryCountOf,
+  registerQueryCount,
   runBigIntBinaryEncryptedSuite,
   runCrudSuite,
   runLifecycleSuite,
@@ -117,11 +136,19 @@ const treeUniqueOptions: TreeSiblingUniqueSuiteOptions = { factory: treeUniqueFa
 // query-cache-contract 的接入点类型同样要被真实消费，理由同上。
 declare const queryCacheContractImpl: QueryCacheRowContractImpl;
 
+// 游标窗口夹具的行结构类型，理由同上。
+declare const cursorRow: CursorRowLike;
+
 // US-012 字段描述夹具的四个类型导出同样要被真实消费，理由同上。
 declare const fieldExpectation: EntityFieldExpectation;
 declare const fieldValueCase: EntityFieldValueCase;
 declare const fieldsParseRejection: EntityFieldsParseRejection;
 declare const fieldsWireDraft: EntityFieldsWireDraft;
+
+// US-026 实例级同步覆盖夹具的三个类型导出，理由同上。
+declare const syncOverrideHarness: SyncOverrideHarness;
+const syncOverrideNote: SyncOverrideNoteType = defineSyncOverrideNote();
+const syncOverrideRow: SyncOverrideNoteLike = new syncOverrideNote();
 
 void [
   // root
@@ -136,6 +163,7 @@ void [
   withSeedLock,
   makeSearchParityArticles,
   makeSearchParityComments,
+  mergeCreatedIntoCursorPage([cursorRow], [cursorRow], undefined, 1),
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS,
   ENTITY_FIELDS_FIXTURE_METADATA.name,
@@ -150,6 +178,19 @@ void [
   fieldExpectation.valueType,
   fieldValueCase.rule,
   fieldsParseRejection.apply,
+  openSyncOverrideDatabase,
+  connectWithoutSyncOverride,
+  syncOverrideHarness.remoteFactoryCalls(),
+  syncOverrideRow.title,
+  new SingleTabBroadcastChannel(),
+  SYNC_OVERRIDE_CONTROL_ERROR_PATTERN,
+  SYNC_OVERRIDE_DATABASE_SYNC,
+  SYNC_OVERRIDE_DECLARED,
+  SYNC_OVERRIDE_EFFECTIVE,
+  SYNC_OVERRIDE_LOCAL_ADAPTER,
+  SYNC_OVERRIDE_REMOTE_ADAPTER,
+  SYNC_OVERRIDE_SEED_TITLES,
+  SYNC_OVERRIDE_WRITE_TITLE,
   // encrypted
   encryptedUser,
   ENCRYPTED_SENTINELS,
@@ -161,6 +202,8 @@ void [
   runLifecycleSuite,
   runQueryValidationSuite,
   runTamperSuite,
+  registerQueryCount,
+  queryCountOf,
   // entities
   todoFindOptions,
   entityTypes,

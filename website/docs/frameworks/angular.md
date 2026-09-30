@@ -382,13 +382,15 @@ export class TodoListComponent {
 
 用于查询树形结构的实体（使用 `@TreeEntity` 定义）。
 
+> 这四个来自独立包 `@aiao/rxdb-plugin-tree-angular`，不在 `@aiao/rxdb-angular` 里。库侧还需 `rxdb.use(rxDBPluginTree)`，见[树结构拆包](../migration/tree-split.md)。
+
 #### useFindDescendants
 
 查找所有后代节点：
 
 ```typescript
 import { Component, input } from '@angular/core';
-import { useFindDescendants } from '@aiao/rxdb-angular';
+import { useFindDescendants } from '@aiao/rxdb-plugin-tree-angular';
 import { Menu } from './entities/Menu';
 
 @Component({
@@ -424,7 +426,7 @@ export class MenuTreeComponent {
 
 ```typescript
 import { Component, input } from '@angular/core';
-import { useCountDescendants } from '@aiao/rxdb-angular';
+import { useCountDescendants } from '@aiao/rxdb-plugin-tree-angular';
 import { Menu } from './entities/Menu';
 
 @Component({
@@ -444,7 +446,7 @@ export class MenuItemCountComponent {
 
 ```typescript
 import { Component, input } from '@angular/core';
-import { useFindAncestors } from '@aiao/rxdb-angular';
+import { useFindAncestors } from '@aiao/rxdb-plugin-tree-angular';
 import { Menu } from './entities/Menu';
 
 @Component({
@@ -475,7 +477,7 @@ export class BreadcrumbComponent {
 
 ```typescript
 import { Component, input } from '@angular/core';
-import { useCountAncestors } from '@aiao/rxdb-angular';
+import { useCountAncestors } from '@aiao/rxdb-plugin-tree-angular';
 import { Menu } from './entities/Menu';
 
 @Component({

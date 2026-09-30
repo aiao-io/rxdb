@@ -1,4 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { describe, expect, it, vi } from 'vitest';
 import { RxdbAdapterPGliteError } from '../../pglite.utils.js';
@@ -11,6 +12,8 @@ const makeRepo = () => {
     entities: [MenuLarge],
     sync: { local: { adapter: 'pglite' }, type: SyncType.None }
   });
+  // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+  rxdb.use(rxDBPluginTree);
   rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' })).init();
   const query = vi.fn();
   const adapter = { query, rxdb, encryptionContext: undefined } as unknown as RxDBAdapterPGlite;

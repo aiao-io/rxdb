@@ -15,6 +15,64 @@ import {
 import { isNil, kebabCase, omit } from '@aiao/utils';
 import type { OptionalKind, PropertyDeclarationStructure } from './ts-morph-browser.js';
 
+/**
+ * 把一个命名导入登记到「模块 → 名字集合」表里。
+ *
+ * @remarks
+ * 生成的代码不再只从 `@aiao/rxdb` 取类型：实体基类与它配套的接口随
+ * {@link IRepositoryGenerator.entityBaseModuleSpecifier} 走（树实体在
+ * `@aiao/rxdb-plugin-tree`），所以收集导入时必须按模块分桶。
+ *
+ * @param imports - 模块到命名导入集合的映射，原地修改
+ * @param moduleSpecifier - 模块说明符
+ * @param name - 命名导入
+ */
+export const addNamedImport = (imports: Map<string, Set<string>>, moduleSpecifier: string, name: string): void => {
+  const names = imports.get(moduleSpecifier) ?? new Set<string>();
+  names.add(name);
+  imports.set(moduleSpecifier, names);
+};
+
+/**
+ * 没有声明 {@link IRepositoryGenerator.entityBaseModuleSpecifier} 时，实体基类所在的模块。
+ *
+ * @remarks
+ * 「核心实体的基类在 `@aiao/rxdb`」这件事此前写在四个地方（两处靠把名字塞进
+ * `rxdbNamedImports` 隐式表达、两处写成 `?? '@aiao/rxdb'`）。包名要改时四处都得跟，
+ * 漏一处产出的就是指向不存在模块的 import。
+ */
+export const DEFAULT_ENTITY_BASE_MODULE = '@aiao/rxdb';
+
+/**
+ * 按实体基类的归属模块登记一个命名导入。
+ *
+ * @remarks
+ * 实体基类与它配套的接口同属一个模块：核心实体在 `@aiao/rxdb`，树实体在
+ * `@aiao/rxdb-plugin-tree`。由 Repository 生成器用
+ * {@link IRepositoryGenerator.entityBaseModuleSpecifier} 声明，核心生成器不写死包名。
+ *
+ * 没声明时走 `rxdbNamedImports`（它最终被整桶写成一条 `@aiao/rxdb` import），
+ * 而不是在这里拼出 {@link DEFAULT_ENTITY_BASE_MODULE} —— 两条路径产出的 import
+ * 语句相同，但前者与其余 rxdb 导入合并成一条，后者会多出一条重复的 import。
+ *
+ * @param imports - 模块到命名导入集合的映射，原地修改
+ * @param rxdbNamedImports - `@aiao/rxdb` 的命名导入集合，原地修改
+ * @param entityBaseModuleSpecifier - 实体基类所在模块；未声明即落回 `@aiao/rxdb`
+ * @param name - 命名导入
+ */
+export const addEntityBaseNamedImport = (
+  imports: Map<string, Set<string>>,
+  rxdbNamedImports: Set<string>,
+  entityBaseModuleSpecifier: string | undefined,
+  name: string
+): void => {
+  if (entityBaseModuleSpecifier) {
+    addNamedImport(imports, entityBaseModuleSpecifier, name);
+    return;
+  }
+  rxdbNamedImports.add(name);
+};
+
 const IDENTIFIER_PATTERN = /^[$_\p{ID_Start}][$_\u200C\u200D\p{ID_Continue}]*$/u;
 const NAMESPACE_PATTERN = /^[\p{L}\p{N}_$][\p{L}\p{N}_$-]*$/u;
 const RESERVED_BINDINGS = new Set([

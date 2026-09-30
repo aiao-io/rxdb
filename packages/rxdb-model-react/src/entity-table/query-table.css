@@ -1,0 +1,9 @@
+/**
+ * 查询表格样式（Angular `query-table.component.scss` 的移植）。
+ */
+
+.rxdb-query-table {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

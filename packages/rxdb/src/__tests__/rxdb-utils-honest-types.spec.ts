@@ -5,6 +5,7 @@ import { PropertyType, SyncType } from '../entity/metadata-options.interface.js'
 import type { IRxDBAdapter } from '../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus, getEntityType, isRxDBEntity } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
+import { registerRxDBTeardown } from './fixtures/rxdb-lifecycle.js';
 
 /**
  * RXD-010 残留项：四个核心工具的返回类型对运行时撒谎。
@@ -25,6 +26,8 @@ import { RxDB } from '../RxDB.js';
  * `isRxDBEntity` 是唯一真正需要「探测」语义的入口，所以它不能再走 `getEntityStatus`，
  * 必须自己直接读 STATUS —— 并且返回真正的 `boolean`。
  */
+const { trackSharedRxDB } = registerRxDBTeardown();
+
 describe('RXD-010 · 核心工具的返回类型必须对运行时诚实', () => {
   @Entity({
     name: 'HonestTypesEntity',
@@ -37,14 +40,16 @@ describe('RXD-010 · 核心工具的返回类型必须对运行时诚实', () =>
   let rxdb!: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'rxdb-utils-honest-types',
-      entities: [HonestTypesEntity],
-      sync: {
-        local: { adapter: 'sqlite' },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'rxdb-utils-honest-types',
+        entities: [HonestTypesEntity],
+        sync: {
+          local: { adapter: 'sqlite' },
+          type: SyncType.None
+        }
+      })
+    );
     // 桩必须带 `getRepository`：`init()` 之后订阅链会去取仓库，
     // 缺了它会在别的测试文件跑到一半时冒出一条 unhandled error。
     rxdb.adapter(

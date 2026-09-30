@@ -12,6 +12,9 @@ import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityStatus, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { getRxDBEntityIdentityKey } from '../../system/change-codec.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('fingerprint.utils', () => {
   @Entity({
@@ -29,16 +32,18 @@ describe('fingerprint.utils', () => {
   let rxdb!: RxDB;
 
   beforeAll(async () => {
-    rxdb = new RxDB({
-      dbName: 'fingerprint-utils-test',
-      entities: [TestEntity],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'fingerprint-utils-test',
+        entities: [TestEntity],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>

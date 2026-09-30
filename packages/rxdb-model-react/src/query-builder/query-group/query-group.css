@@ -1,0 +1,48 @@
+/**
+ * 查询规则组样式（Angular 侧内联 styles 的移植）。
+ */
+
+.rxdb-drag-item {
+  position: relative;
+}
+
+.rxdb-drag-item.dragging {
+  opacity: 0.4;
+}
+
+.rxdb-drag-item.drop-target-before::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: oklch(0.6 0.2 250);
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.rxdb-drag-item.drop-target-after::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: oklch(0.6 0.2 250);
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.rxdb-drag-item.drop-target-into {
+  outline: 2px dashed oklch(0.6 0.2 250);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+  background: oklch(0.6 0.2 250 / 10%);
+}
+
+.rxdb-drag-item.drop-invalid {
+  outline: 2px dashed oklch(0.6 0.2 30);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}

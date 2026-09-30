@@ -4,17 +4,15 @@ import {
   type EntityType,
   type FindOptions,
   type HistoryScopeAPI,
-  type IRxDBAdapter,
   isEntityMatchWhere,
+  type LocalRxDBAdapter,
   type RuleGroup,
   RxDB,
-  type RxDBAdapterLocalBase,
   RxDBBranch,
   RxDBChange,
   type RxDBChangeOrderByField,
   type RxDBChangeRuleGroup,
   type RxDBEntityLocalCreatedEventData,
-  RxDBMigration,
   RxDBSync,
   type SwitchBranchOptions,
   SyncType,
@@ -29,7 +27,6 @@ import { rxDBPluginHistory } from '../plugin.js';
 const ADAPTER_NAME = 'history-clear-race';
 const CHANGE_KEY_PREFIX = 'rxdb:RxDBChange:';
 
-type LocalAdapter = IRxDBAdapter & RxDBAdapterLocalBase;
 type HistoryManagerBridge = Pick<HistoryManager, 'resetSyncCleared'>;
 type ChangeFindOptions = FindOptions<typeof RxDBChange, RxDBChangeRuleGroup, RxDBChangeOrderByField>;
 
@@ -84,7 +81,9 @@ function getLastUndoneChangeIds(harness: TestHarness): number[] {
 async function createHarness(): Promise<TestHarness> {
   const rxdb = new RxDB({
     dbName: `history-clear-race-${crypto.randomUUID()}`,
-    entities: [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync],
+    // 手写系统表清单在 epic-006 之后已经不可能写全（10 张不对外导出），
+    // 交给 `SchemaManager.init()` 注入；本文件只关心 RxDBChange 的读写口径。
+    entities: [],
     sync: {
       type: SyncType.None,
       local: { adapter: ADAPTER_NAME }
@@ -94,7 +93,7 @@ async function createHarness(): Promise<TestHarness> {
 
   const changes: RxDBChange[] = [];
   let branch: RxDBBranch | null = null;
-  const connect = vi.fn<() => Promise<LocalAdapter>>();
+  const connect = vi.fn<() => Promise<LocalRxDBAdapter>>();
 
   const branchRepository = {
     find: vi.fn(async () => (branch ? [branch] : [])),
@@ -140,6 +139,10 @@ async function createHarness(): Promise<TestHarness> {
     migrateSystemSchema: vi.fn(async () => undefined),
     completeBootstrap: vi.fn(() => undefined),
     transaction: vi.fn(async (run: () => Promise<unknown>) => run()),
+    // 引导期事务。本替身走的是首装路径（`isTableExisted` 恒 false），实际不会被调用，
+    // 但它在 `assertLocalAdapterCapabilities` 的必需成员里 —— 缺了连 connect() 都进不去。
+    // 委托 `transaction` 即基类默认实现的口径：没有就绪门就不需要单独一条引导通道。
+    bootstrapTransaction: vi.fn(async (run: () => Promise<unknown>) => run()),
     getRepository: vi.fn((EntityClass: EntityType) => {
       if (EntityClass === RxDBBranch) return branchRepository;
       if (EntityClass === RxDBChange) return changeRepository;
@@ -153,7 +156,7 @@ async function createHarness(): Promise<TestHarness> {
     removeMany: vi.fn(async <T extends EntityType>(entities: InstanceType<T>[]) => entities),
     mutations: vi.fn(async () => [])
   };
-  const adapter = adapterShape as unknown as LocalAdapter;
+  const adapter = adapterShape as unknown as LocalRxDBAdapter;
   connect.mockResolvedValue(adapter);
 
   rxdb.adapter(ADAPTER_NAME, () => adapter);

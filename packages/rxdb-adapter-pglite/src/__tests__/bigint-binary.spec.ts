@@ -6,6 +6,7 @@ import {
   PropertyType,
   RelationKind,
   RxDB,
+  RxDBChange,
   SyncType,
   transitionMetadata,
   type FindOptions
@@ -24,6 +25,7 @@ import {
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { buildRuleGroupPG, generate_find_sql } from '../query/query_sql.js';
+import { PGliteRepository } from '../repository/PGliteRepository.js';
 import create_table_sql from '../table/create_table_sql.js';
 
 const adapterStub = {
@@ -605,13 +607,15 @@ describe.sequential('PGlite bigint/binary integration', () => {
     child.parentId = safeParentId;
     await child.save();
 
-    const changes = await adapter.localRxDBChange().findAll({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'entity', operator: '=', value: 'PGliteBigIntRelationChild' }]
-      },
-      orderBy: [{ field: 'id', sort: 'asc' }]
-    });
+    const changes = await adapter
+      .getRepository<typeof RxDBChange, PGliteRepository<typeof RxDBChange>>(RxDBChange)
+      .findAll({
+        where: {
+          combinator: 'and',
+          rules: [{ field: 'entity', operator: '=', value: 'PGliteBigIntRelationChild' }]
+        },
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      });
     const childChanges = changes.filter(change => change.entityId === child.id);
     const inserted = childChanges.find(change => change.type === 'INSERT');
     const updated = childChanges.find(change => change.type === 'UPDATE');
@@ -666,7 +670,7 @@ describe.sequential('PGlite bigint/binary integration', () => {
 
   it('records INSERT/UPDATE/DELETE changes without losing typed values', async () => {
     const id = (1n << 63n) - 1n;
-    const repository = adapter.localRxDBChange();
+    const repository = adapter.getRepository<typeof RxDBChange, PGliteRepository<typeof RxDBChange>>(RxDBChange);
     const findChanges = () =>
       repository.findAll({
         where: {

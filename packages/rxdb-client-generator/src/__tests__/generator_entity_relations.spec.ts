@@ -10,7 +10,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { Project, SourceFile } from '../core/ts-morph-browser.js';
 import { generateEntityDefinition } from '../generators/entity-definition.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
 
 // 公共辅助：通过 addEntity 注册并返回完整初始化的 EntityMetadata
 const addSimpleEntity = (generator: RxDBClientGenerator, name: Capitalize<string>) => {

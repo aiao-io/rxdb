@@ -1,37 +1,39 @@
 import { getEntityMetadata, PropertyType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 
-import { Recipe, ServerRecipe } from '../recipe-entity.js';
+import { Recipe } from '../recipe-entity.js';
 import { RECIPE_SCHEMA } from '../recipe-schema.js';
 
 /**
  * 元数据一致性测试（A1 / A9）。
  *
  * @remarks
- * 前端 {@link Recipe} 与后端 {@link ServerRecipe} 用同一份 {@link RECIPE_SCHEMA} 装饰，
- * 只差 `sync` 策略。这份测试把「两个装饰类 name / tableName / 字段名 / 类型 / nullable
- * 逐项相等」钉死——schema 一旦漂移，这里在 CI 变红，而不是在协议文档里被遗忘。
+ * 前后端共用同一个 {@link Recipe} 类（US-026 AC#13 收敛后不再有第二个实体类），
+ * 后端只经 `RxDB` 实例的 `syncOverrides` 换同步策略。这份测试把「装饰出的 name / tableName /
+ * 业务字段与 {@link RECIPE_SCHEMA} 逐项相等」钉死——schema 一旦漂移，这里在 CI 变红，
+ * 而不是在协议文档里被遗忘。
  */
-describe('Recipe / ServerRecipe 元数据一致性', () => {
-  const frontend = getEntityMetadata(Recipe);
-  const backend = getEntityMetadata(ServerRecipe);
+describe('Recipe 元数据一致性', () => {
+  const metadata = getEntityMetadata(Recipe);
 
-  it('name / tableName 逐项相等', () => {
-    expect(frontend.name).toBe('Recipe');
-    expect(backend.name).toBe(frontend.name);
-    expect(frontend.tableName).toBe('recipes');
-    expect(backend.tableName).toBe(frontend.tableName);
+  it('name / tableName 取自 RECIPE_SCHEMA', () => {
+    expect(metadata.name).toBe('Recipe');
+    expect(metadata.tableName).toBe('recipes');
   });
 
-  it('字段名 / 类型 / nullable 逐项相等', () => {
-    const shape = (metadata: typeof frontend): Array<[string, PropertyType, boolean]> =>
-      [...metadata.propertyMap.entries()].map(([name, property]) => [
-        name,
-        property.type as PropertyType,
-        property.nullable ?? false
-      ]);
+  it('业务字段的类型 / nullable 与 RECIPE_SCHEMA 逐项相等', () => {
+    const declared = RECIPE_SCHEMA.properties.map((property): [string, PropertyType, boolean] => [
+      property.name,
+      property.type,
+      'nullable' in property && property.nullable === true
+    ]);
+    const decorated = declared.map(([name]): [string, PropertyType, boolean] => {
+      const property = metadata.propertyMap.get(name);
+      if (property === undefined) throw new Error(`Recipe 缺少字段 ${name}`);
+      return [name, property.type as PropertyType, property.nullable === true];
+    });
 
-    expect(shape(backend)).toEqual(shape(frontend));
+    expect(decorated).toEqual(declared);
   });
 
   it('RECIPE_SCHEMA 业务字段名与 wire 逐字一致', () => {

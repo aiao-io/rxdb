@@ -6,14 +6,10 @@ import { BehaviorSubject, EMPTY, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useCount,
-  useCountAncestors,
-  useCountDescendants,
   useCountNeighbors,
   useFind,
   useFindAll,
-  useFindAncestors,
   useFindByCursor,
-  useFindDescendants,
   useFindOne,
   useFindOneOrFail,
   useGet,
@@ -34,11 +30,11 @@ interface CursorOptions extends QueryOptions {
   limit?: number;
 }
 
-interface TreeOptions {
+interface EntityScopedOptions {
   entityId: string;
 }
 
-interface NeighborOptions extends TreeOptions {
+interface NeighborOptions extends EntityScopedOptions {
   direction?: 'in' | 'out';
   level?: number;
 }
@@ -58,7 +54,6 @@ interface TestEntityStaticTypes {
   findOneOrFailOptions: QueryOptions;
   findOptions: QueryOptions;
   findPathsOptions: PathOptions;
-  findTreeOptions: TreeOptions;
   getOptions: GetOptions;
   idType: string;
 }
@@ -73,7 +68,6 @@ class MockEntity {
     findOneOrFailOptions: {},
     findOptions: {},
     findPathsOptions: { fromId: '', toId: '' },
-    findTreeOptions: { entityId: '' },
     getOptions: { id: '' },
     idType: ''
   };
@@ -85,10 +79,6 @@ class MockEntity {
   static findByCursor = vi.fn();
   static findAll = vi.fn();
   static count = vi.fn();
-  static findDescendants = vi.fn();
-  static countDescendants = vi.fn();
-  static findAncestors = vi.fn();
-  static countAncestors = vi.fn();
   static findNeighbors$ = vi.fn();
   static countNeighbors$ = vi.fn();
   static findPaths$ = vi.fn();
@@ -544,70 +534,6 @@ describe('hooks', () => {
         TestBed.flushEffects();
 
         expect(resource.hasValue()).toBe(true);
-      });
-    });
-  });
-
-  describe('useFindDescendants', () => {
-    it('should call findDescendants method on entity', () => {
-      const mockSubject = new BehaviorSubject([{ id: '1', name: 'Child' }]);
-      MockEntity.findDescendants.mockReturnValue(mockSubject.asObservable());
-
-      TestBed.runInInjectionContext(() => {
-        const resource = useFindDescendants(TestEntity, { entityId: 'parent-1' });
-
-        resource.value();
-        TestBed.flushEffects();
-
-        expect(MockEntity.findDescendants).toHaveBeenCalledWith({ entityId: 'parent-1' });
-      });
-    });
-  });
-
-  describe('useCountDescendants', () => {
-    it('should call countDescendants method on entity', () => {
-      const mockSubject = new BehaviorSubject(3);
-      MockEntity.countDescendants.mockReturnValue(mockSubject.asObservable());
-
-      TestBed.runInInjectionContext(() => {
-        const resource = useCountDescendants(TestEntity, { entityId: 'parent-1' });
-
-        resource.value();
-        TestBed.flushEffects();
-
-        expect(MockEntity.countDescendants).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('useFindAncestors', () => {
-    it('should call findAncestors method on entity', () => {
-      const mockSubject = new BehaviorSubject([{ id: '1', name: 'Parent' }]);
-      MockEntity.findAncestors.mockReturnValue(mockSubject.asObservable());
-
-      TestBed.runInInjectionContext(() => {
-        const resource = useFindAncestors(TestEntity, { entityId: 'child-1' });
-
-        resource.value();
-        TestBed.flushEffects();
-
-        expect(MockEntity.findAncestors).toHaveBeenCalledWith({ entityId: 'child-1' });
-      });
-    });
-  });
-
-  describe('useCountAncestors', () => {
-    it('should call countAncestors method on entity', () => {
-      const mockSubject = new BehaviorSubject(2);
-      MockEntity.countAncestors.mockReturnValue(mockSubject.asObservable());
-
-      TestBed.runInInjectionContext(() => {
-        const resource = useCountAncestors(TestEntity, { entityId: 'child-1' });
-
-        resource.value();
-        TestBed.flushEffects();
-
-        expect(MockEntity.countAncestors).toHaveBeenCalled();
       });
     });
   });

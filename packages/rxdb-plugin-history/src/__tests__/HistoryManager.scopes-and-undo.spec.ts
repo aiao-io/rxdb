@@ -1,4 +1,5 @@
 import {
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   type EntityType,
@@ -167,12 +168,14 @@ const createHarness = (
     if (entity === RxDBChange) return changeRepository;
     return null;
   });
+  const PUSHABLE_SYNC = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } } as const;
   const rxdb = {
     addEventListener,
+    entitySync: createEntitySyncResolver(PUSHABLE_SYNC),
     config: {
       // RXD-034：可推送仓库集合来自 config.entities × syncType，而不是「已有 RxDBSync 记录的仓库」
       entities: options.entities ?? PUSHABLE_ENTITIES,
-      sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
+      sync: PUSHABLE_SYNC
     },
     connected$,
     entityManager: { getRepository },
@@ -262,7 +265,12 @@ describe('历史流、作用域与撤销重做执行', () => {
       countMock.mockReturnValue(EMPTY);
       findAllMock.mockReturnValue(of([createChange(1)]));
       const harness = createHarness({ firstConnectedAt });
-      harness.branchFindOne.mockReturnValueOnce(of(null));
+      // 活跃分支流连上之后才查：undo session 跟随、待推数、历史流三条常驻订阅先各查一次（都得拿到分支，
+      // 历史流才会发出），此后 `undoHistories$` 自己那次查询才看到「没有活跃分支」。
+      const LONG_LIVED_BRANCH_STREAMS = 3;
+      harness.branchFindOne.mockImplementation(() =>
+        of(harness.branchFindOne.mock.calls.length > LONG_LIVED_BRANCH_STREAMS ? null : activeBranch)
+      );
       const undoPromise = firstValueFrom(harness.historyManager.undoHistories$);
 
       harness.connected$.next(true);

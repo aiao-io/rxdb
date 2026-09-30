@@ -1,11 +1,7 @@
 import { nextMicroTask } from '@aiao/utils';
 import { firstValueFrom, Observable } from 'rxjs';
-import merge_create from '../query/merge_create.js';
-import merge_remove from '../query/merge_remove.js';
-import merge_update from '../query/merge_update.js';
 import { Repository } from '../repository/Repository.js';
 import { RepositoryBase } from '../repository/RepositoryBase.js';
-import { TreeRepository } from '../repository/TreeRepository.js';
 import { IRxDBAdapter, RxDBMutationsMap } from '../rxdb-adapter.js';
 import { EntityLocalNewEvent, EntityLocalUpdatedEvent } from '../rxdb-events.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
@@ -81,7 +77,7 @@ export class EntityManager {
    * 内层是 {@link EntityIdentityCache}（WeakRef）而非普通 Map：缓存只保证「同一条记录
    * 只有一个实例」，不负责让实例活着。详见该类的 说明。
    */
-  readonly #entity_cache_map = new Map<EntityType, EntityIdentityCache<InstanceType<EntityType>>>();
+  readonly #entity_cache_map = new Map<EntityType, EntityIdentityCache<EntityInstanceType<EntityType>>>();
 
   /**
    * 创建实体管理器实例
@@ -94,31 +90,17 @@ export class EntityManager {
    * @param rxdb - RxDB实例，提供数据库访问和事件分发
    */
   constructor(public readonly rxdb: RxDB) {
-    rxdb
-      .repository('Repository', {
-        class: Repository,
-        mergeOperations: {
-          create: merge_create,
-          update: merge_update,
-          remove: merge_remove
-        }
-      })
-      .repository('TreeRepository', {
-        class: TreeRepository,
-        mergeOperations: {
-          create: merge_create,
-          update: merge_update,
-          remove: merge_remove
-        }
-      });
+    rxdb.repository('Repository', { class: Repository });
   }
 
   init() {
     // 跨实体聚合校验前置：违规时一条都不绑定，`resolveEntityManager()` 对所有实体一致失败。
-    // 传数据库级 sync：实体不写 `sync` 时生效的是它，只看元数据会漏掉库级 QueryCache 的组合违规。
+    // 传实例的解析器：校验针对**生效**配置——实例覆盖、实体声明、库级默认三者择一。
+    // 只看元数据会漏掉库级 QueryCache 的组合违规，也会让覆盖成纯本地的实体被原声明的 remote 卡住。
     const violations = validateEntityMetadataSet(
       this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
-      this.rxdb.config.sync
+      this.rxdb.entitySync,
+      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type]
     );
     if (violations.length > 0) {
       throw new RxDBError(formatMetadataViolations(violations));
@@ -132,7 +114,16 @@ export class EntityManager {
         setRuntimeObjectKey(metadata, ENTITY_TYPE, EntityType);
         const config = this.rxdb.getRepositoryConfig(metadata.repository);
         if (!config) {
-          throw new RxDBError(`Repository '${metadata.repository}' not found for entity '${metadata.name}'`);
+          // 列出当前已注册的仓储名，而不是只说「没找到」：核心只自带 `Repository`，
+          // `TreeRepository` 这类全由插件在 `install()` 里注册。不列出来，调用方分不清
+          // 自己是把名字拼错了，还是漏了一句 `rxdb.use(...)`。这里不点名具体包——
+          // 核心不认识任何插件，写死包名等于把刚拆出去的耦合又焊回来。
+          const registered = this.rxdb.getRepositoryNames();
+          throw new RxDBError(
+            `Repository '${metadata.repository}' not found for entity '${metadata.name}'. ` +
+              `Registered repositories: ${registered.join(', ')}. ` +
+              `若该仓储由插件注册，请确认已调用 rxdb.use(...) 装上对应插件。`
+          );
         }
 
         registerEntityManager(EntityType, this);
@@ -252,21 +243,25 @@ export class EntityManager {
    * @param [status] - 可选的实体状态配置
    * @returns 创建或获取的实体实例
    */
-  createEntityRef<T extends EntityType>(EntityType: T, data: EntityUpdateData<T>, status?: EntityStatusOptions<T>) {
+  createEntityRef<T extends EntityType>(
+    EntityType: T,
+    data: EntityUpdateData<T>,
+    status?: EntityStatusOptions<T>
+  ): EntityInstanceType<T> {
     const cache = this.#get_entity_cache_map(EntityType);
-    let entity = cache.get(data.id);
-    if (entity) {
+    const cached = cache.get(data.id);
+    if (cached) {
       // 命中缓存不能无条件 replace：脏实体的本地编辑会被写进基线后清空，save() 随即静默 no-op。
       // 策略判定统一收在 EntityStatus.applyExternal 里（见其 remarks）。
-      getEntityStatus(entity).applyExternal(data);
-      return entity;
-    } else {
-      entity = Object.create(EntityType.prototype);
-      Object.assign(entity, data);
-      const proxyEntity = this.#init_entity(entity, status);
-      cache.set(entity.id, proxyEntity);
-      return proxyEntity;
+      getEntityStatus(cached).applyExternal(data);
+      return cached;
     }
+    // `Object.create` 的返回类型是 `any`，断言一次把它钉回 `T` 的实例形状；
+    // 之后 `Object.assign` 灌入的 `data` 已经带着 `id`，入缓存用的是与上面 `get` 同一个键。
+    const entity = Object.assign(Object.create(EntityType.prototype) as EntityInstanceType<T>, data);
+    const proxyEntity = this.#init_entity<T>(entity, status);
+    cache.set(data.id, proxyEntity);
+    return proxyEntity;
   }
 
   /**
@@ -278,7 +273,10 @@ export class EntityManager {
    * @param id - 实体ID
    * @returns 实体实例，如果不存在则返回 undefined
    */
-  getEntityRef<T extends EntityType>(EntityType: T, id: EntityStaticType<T, 'idType'>): InstanceType<T> | undefined {
+  getEntityRef<T extends EntityType>(
+    EntityType: T,
+    id: EntityStaticType<T, 'idType'>
+  ): EntityInstanceType<T> | undefined {
     return this.#get_entity_cache_map(EntityType).get(id);
   }
 
@@ -359,12 +357,12 @@ export class EntityManager {
    * @returns 保存后的实体实例
    */
   async save<T extends EntityType>(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const need_save_entities = getNeedSaveEntities([entity]);
-    const need_remove_entities = getNeedRemoveEntities([entity]);
+    const needSaveEntities = getNeedSaveEntities([entity]);
+    const needRemoveEntities = getNeedRemoveEntities([entity]);
     // 单条与批量都走同一套判定：`resolveBatchPrimaryAdapter` 选主端，
     // QueryCache 批次另走 remote-then-local（见 `mutations`）。
-    if (need_save_entities.length === 1 && need_remove_entities.length === 0) {
-      const single = need_save_entities[0];
+    if (needSaveEntities.length === 1 && needRemoveEntities.length === 0) {
+      const single = needSaveEntities[0];
       const status = getEntityStatus(single);
       if (status.local) {
         await this.update(single);
@@ -373,14 +371,14 @@ export class EntityManager {
       }
     }
     // 单个删除
-    else if (need_save_entities.length === 0 && need_remove_entities.length === 1) {
-      await this.remove(need_remove_entities[0]);
+    else if (needSaveEntities.length === 0 && needRemoveEntities.length === 1) {
+      await this.remove(needRemoveEntities[0]);
     }
     // 批量保存或删除
-    else if (need_save_entities.length || need_remove_entities.length) {
+    else if (needSaveEntities.length || needRemoveEntities.length) {
       const options = getEntityMutations({
-        need_save_entities,
-        need_remove_entities
+        needSaveEntities,
+        needRemoveEntities
       });
       await this.mutations(options);
     }
@@ -393,10 +391,14 @@ export class EntityManager {
    * @returns
    */
   async saveMany<T extends EntityType>(entities: InstanceType<T>[]) {
-    const need_save_entities = getNeedSaveEntities(entities);
+    const needSaveEntities = getNeedSaveEntities(entities);
+    // 与 {@link save} 同口径：解绑多对多关系产生的待删 Junction 也要一并提交。
+    // 从前这里硬写 `[]`，于是 `owner.tags$.remove(tag)` 之后走 saveMany 的批量路径
+    // 只写了实体本身，中间表那行原封不动留在库里 —— 关系在 UI 上断了，重新查又回来。
+    const needRemoveEntities = getNeedRemoveEntities(entities);
     const options = getEntityMutations({
-      need_save_entities,
-      need_remove_entities: []
+      needSaveEntities,
+      needRemoveEntities
     });
     return this.mutations(options);
   }
@@ -408,8 +410,8 @@ export class EntityManager {
    */
   async removeMany<T extends EntityType>(entities: InstanceType<T>[]) {
     const options = getEntityMutations({
-      need_save_entities: [],
-      need_remove_entities: entities
+      needSaveEntities: [],
+      needRemoveEntities: entities
     });
     return this.mutations(options);
   }
@@ -424,11 +426,11 @@ export class EntityManager {
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
     // 主端缺适配器或批内主端不一致时就地抛错，不再让它挂着。
     const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
-    const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.config.sync);
+    const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.entitySync);
     if (primary === null) return [];
     // 主端判定在前：这样「QueryCache + remote-only」报的是主端不一致，
     // 而不是被 `isQueryCacheBatch` 当成「版本化实体」误报（US-020 AC#5 / AC#6）。
-    if (isQueryCacheBatch(EntityTypes, this.rxdb.config.sync)) {
+    if (isQueryCacheBatch(EntityTypes, this.rxdb.entitySync)) {
       return this.#mutations_query_cache(options);
     }
     const adapter$: Observable<IRxDBAdapter> =
@@ -512,6 +514,21 @@ export class EntityManager {
    * @param EntityType 实体类型
    * @param id 实体 ID
    * @param patch 变更的字段
+   * @throws 已启用提交能力的库上、目标是版本化业务实体时，由捕获钩子抛出写拒绝错误；
+   *   此时一条事件都不会派发
+   *
+   * @remarks
+   * 写入口语义矩阵行 11：库外的那次改动不经任何捕获挂载点，业务表变了而工作树不会多出单元。
+   * 让它照常派发，下游 QueryCache 会照着 patch 改内存实体，于是工作树、业务表、内存三方各说各话。
+   *
+   * **核心一次都不做归类，整段判定转交钩子的
+   * `WorkingTreeCaptureHook.gateExternalNotify()`。** 从前这里要自己问一次「这张表算哪类」
+   * 再把结果送进门禁，等于核心侧留着半句捕获语义；捕获规则随插件走之后，那半句就成了第二份真相。
+   * 现在交出去的只有实体身份与还没被调用的派发体。
+   *
+   * 取钩子走 {@link RxDB.workingTreeCaptureHook} 而不是 `localAdapterSync`：后者在「没配本地
+   * 适配器」与「还没连上」两种情形下抛错，而本方法今天在这两种库上都能调（它只派发事件）。
+   * 给它们凭空加一个「未连接」异常，就违反了 FR-046 的零行为差异。
    */
   notifyExternalUpdate<T extends EntityType>(
     EntityType: T,
@@ -530,7 +547,13 @@ export class EntityManager {
         recordAt: new Date()
       }
     ]);
-    this.rxdb.dispatchEvent(event);
+    const hook = this.rxdb.workingTreeCaptureHook;
+    // 没有钩子就是没启用提交能力：照常派发，行为与接入前逐字一致（FR-046）。
+    if (!hook) {
+      this.rxdb.dispatchEvent(event);
+      return;
+    }
+    hook.gateExternalNotify(metadata.name, metadata.namespace, () => this.rxdb.dispatchEvent(event));
   }
 
   /**
@@ -596,11 +619,13 @@ export class EntityManager {
    * @param EntityType - 实体类型
    * @returns 实体缓存映射
    */
-  #get_entity_cache_map<T extends EntityType>(EntityType: T) {
+  #get_entity_cache_map<T extends EntityType>(EntityType: T): EntityIdentityCache<EntityInstanceType<T>> {
     if (this.#entity_cache_map.has(EntityType) === false) {
       this.#entity_cache_map.set(EntityType, new EntityIdentityCache());
     }
-    return this.#entity_cache_map.get(EntityType)!;
+    // 存储层按 `EntityType` 这一个键类型统一收口，取出来时才按调用方的 `T` 收窄。
+    // 键与值的对应关系由 `set` 的唯一写入点保证，类型系统表达不了，只能在这里断言一次。
+    return this.#entity_cache_map.get(EntityType)! as EntityIdentityCache<EntityInstanceType<T>>;
   }
 
   /**

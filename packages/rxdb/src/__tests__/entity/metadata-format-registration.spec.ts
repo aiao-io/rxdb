@@ -17,6 +17,7 @@ import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { RxDB } from '../../RxDB.js';
 import { ENTITY_MANAGER } from '../../rxdb.private.js';
 import { RxDBError } from '../../RxDBError.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 const stringProp = (name: string, extra: Partial<StringProperty> = {}): StringProperty =>
   ({ name, type: PropertyType.string, ...extra }) as StringProperty;
@@ -38,6 +39,8 @@ const mockAdapter = {
   mutations: async () => [],
   getRepository: () => mockAdapter
 } as unknown as IRxDBAdapter;
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('AC#1 — 未声明 format 的字段不出现 format 键', () => {
   it('propertyMap 条目上没有 format 键，也不填默认值', () => {
@@ -132,11 +135,13 @@ describe('AC#7 — 跨实体聚合校验', () => {
   let error: unknown;
 
   beforeAll(() => {
-    const rxdb = new RxDB({
-      dbName: 'US012PhaseA',
-      entities: [ValidFirst, BadSecond, BadThird],
-      sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-    });
+    const rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'US012PhaseA',
+        entities: [ValidFirst, BadSecond, BadThird],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      })
+    );
     rxdb.adapter('sqlite', () => mockAdapter);
     try {
       rxdb.entityManager.init();

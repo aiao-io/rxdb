@@ -248,6 +248,37 @@ describe('switch-result.utils', () => {
       expect(result.updates[0].sql).toContain('UPDATE');
     });
 
+    it('switch/merge 的 UPDATE 不把 context.userId 盖成 updatedBy', async () => {
+      const actions: SwitchVersionActions = {
+        deletes: new Map(),
+        inserts: new Map(),
+        updates: new Map([['public:Todo:todo-1', change({ title: '撤销后' })]])
+      };
+
+      const result = await convertSwitchResultToSql(adapter, actions);
+
+      // 建库时 context.userId 是 'userId'。工作树在这条 SQL 生成之前就记下了调用方的 patch；
+      // 适配器此刻再盖一列 updatedBy，业务行就多出一列捕获侧永远看不见的净变化 ——
+      // updatedBy 是 tracked 列（不在 UNTRACKED_BOOKKEEPING_FIELDS 里），冷重放当场对不上。
+      // 这条钉的是「别往回加」：sqlite-core 的同名文件曾经展开过 rxdb.context，就是这个缺陷。
+      expect(result.updates[0].sql).not.toContain('updatedBy');
+      expect(result.updates[0].sql).not.toContain("'userId'");
+    });
+
+    it('列集只剩 readonly 簿记列时整条 UPDATE 被跳过，不落一次只有 updatedAt 的空写', async () => {
+      const actions: SwitchVersionActions = {
+        deletes: new Map(),
+        inserts: new Map(),
+        updates: new Map([['public:Todo:todo-1', change({ updatedAt: new Date() })]])
+      };
+
+      const result = await convertSwitchResultToSql(adapter, actions);
+
+      // 恢复目标态在这一行上本来就无事可做：可写列一个不剩，写下去的只会是适配器自己注入的
+      // updatedAt —— 一次没有语义内容、却照样落触发器与变更日志的空写。
+      expect(result.updates).toHaveLength(0);
+    });
+
     it('应该返回包含 metadata 的结果', async () => {
       const actions: SwitchVersionActions = {
         deletes: new Map([['public:Todo:todo-1', change(null)]]),

@@ -4,6 +4,7 @@ import { getDevToolsConnector, resolveBrowserOpfsRoot } from '@aiao/rxdb-devtool
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { createWaSqliteDevToolsPorts } from '../devtools/tauri-vfs-providers';
@@ -94,6 +95,7 @@ export default async (forced?: DevToolsForcedVfs) => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .use(rxDBPluginStorage, storageOptions)
     .adapter('wa-sqlite', async db => {
       let options: WaSqliteOptions;

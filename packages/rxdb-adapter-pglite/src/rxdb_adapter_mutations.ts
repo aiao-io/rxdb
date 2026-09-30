@@ -27,7 +27,10 @@ const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, dat
   const entity = repo.getEntityRef(id);
   if (!entity) return;
 
-  repo.updateEntity(entity, data as unknown as InstanceType<T>);
+  // `getEntityRef` 如实返回 `EntityInstanceType<T>`，而 `updateEntity` 收的是 `InstanceType<T>`：
+  // 两者对具体 `T` 同解，泛型体内互不可赋值。核心那边两个签名不一致是 `EntityType` 形状本身的
+  // 问题（见 `PGliteRepositoryBase` 里那条边界注释），本轮只在调用点桥接。
+  repo.updateEntity(entity as InstanceType<T>, data as unknown as InstanceType<T>);
   const state = getEntityStatus(entity);
   state.local = true;
   state.modified = false;

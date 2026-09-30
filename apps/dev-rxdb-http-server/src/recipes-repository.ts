@@ -8,7 +8,7 @@
  *
  * wire 上的 `where` 是 JSON，`value` 一律是标量（`updatedAt` 也是 ISO 字符串而非 `Date`），
  * 因此本文件用默认的 {@link RuleGroup}（`EntityData`，允许 `value: unknown`）承载，
- * 只在传给 `repo.find` 的边界把它收窄成 {@link RuleGroup}<ServerRecipe>。
+ * 只在传给 `repo.find` 的边界把它收窄成 {@link RuleGroup}<Recipe>。
  */
 
 import type { Repository, RuleGroup } from '@aiao/rxdb';
@@ -17,7 +17,7 @@ import { INVALID_QUERY_ERROR_CODE } from '@aiao/rxdb-adapter-pglite';
 import type { RecipeMetadataRow, RecipeWireRow } from '@modules/recipes-domain';
 import {
   RECIPE_ORDER_BY,
-  ServerRecipe,
+  Recipe,
   buildRecipePageQuery,
   toRecipeMetadataRow,
   toRecipeWireRow
@@ -35,11 +35,11 @@ export interface TokenPage {
   nextPageToken?: string;
 }
 
-/** ServerRecipe 的仓储类型。 */
-type ServerRecipeRepository = Repository<typeof ServerRecipe>;
+/** 后端 Recipe 的仓储类型（生效策略由 `rxdb-store.ts` 的实例覆盖决定）。 */
+type RecipeRepository = Repository<typeof Recipe>;
 
 /** 引擎 `find` 吃的是类型化 RuleGroup；wire 的 `where` 在边界收窄进来。 */
-type TypedWhere = RuleGroup<ServerRecipe>;
+type TypedWhere = RuleGroup<Recipe>;
 
 /** 无过滤的空 where（引擎的 `find` 要求 `where` 非空）。 */
 const EMPTY_WHERE: RuleGroup = { combinator: 'and', rules: [] };
@@ -126,7 +126,7 @@ export const listMetadataByOffset = async (
 };
 
 /** 取当前过滤集合内的最大坐标，作为一次 token 翻页的读取水位线。 */
-const readWatermark = async (repo: ServerRecipeRepository, where: RuleGroup): Promise<RowCursor | undefined> => {
+const readWatermark = async (repo: RecipeRepository, where: RuleGroup): Promise<RowCursor | undefined> => {
   const rows = await firstValueFrom(
     repo.find({
       where: where as TypedWhere,
@@ -263,7 +263,7 @@ export const createRecipe = async (store: RxdbRecipeStore, input: unknown): Prom
   if (suppliedId !== undefined && suppliedId !== null) data['id'] = readString(suppliedId, 'id');
 
   try {
-    const created = await store.rxdb.entityManager.create(store.rxdb.entityManager.instantiate(ServerRecipe, data));
+    const created = await store.rxdb.entityManager.create(store.rxdb.entityManager.instantiate(Recipe, data));
     return toRecipeWireRow(created);
   } catch (error) {
     throw mapEngineError(error, 'create failed');
@@ -281,7 +281,7 @@ export const createRecipe = async (store: RxdbRecipeStore, input: unknown): Prom
 export const updateRecipe = async (store: RxdbRecipeStore, id: string, patch: unknown): Promise<RecipeWireRow> => {
   const body = readObject(patch, 'update');
 
-  let entity: ServerRecipe;
+  let entity: Recipe;
   try {
     entity = await firstValueFrom(
       store.repo.findOneOrFail({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] } })

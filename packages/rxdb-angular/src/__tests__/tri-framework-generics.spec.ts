@@ -13,45 +13,34 @@
  */
 import { ENTITY_STATIC_TYPES } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import {
-  useCountAncestors,
-  useCountDescendants,
-  useCountNeighbors,
-  useFindAncestors,
-  useFindDescendants,
-  useGraphNeighbors,
-  useGraphPaths
-} from '../hooks';
+import { useCountNeighbors, useGraphNeighbors, useGraphPaths } from '../hooks';
 import type { GraphPath, GraphQueryResult, NeighborResult, RxDBResource } from '../index';
 import type { InfiniteScrollOptions } from '../InfiniteScrollingList';
 
-interface TreeGraphStaticTypes {
-  findTreeOptions: { entityId: string };
+interface GraphStaticTypes {
   findNeighborsOptions: { entityId: string };
   findPathsOptions: { fromId: string; toId: string };
 }
 
-const treeGraphStaticTypes: TreeGraphStaticTypes = {
-  findTreeOptions: { entityId: '' },
+const graphStaticTypes: GraphStaticTypes = {
   findNeighborsOptions: { entityId: '' },
   findPathsOptions: { fromId: '', toId: '' }
 };
 
 /**
  * 满足 `EntityType`，但实例缺 `createdAt` / `updatedAt` ——
- * 因此既不是 `ITreeEntity` 也不是 `IGraphEntity`。
+ * 因此不是 `IGraphEntity`。
  */
 class PlainEntity {
-  static [ENTITY_STATIC_TYPES]: TreeGraphStaticTypes = treeGraphStaticTypes;
+  static [ENTITY_STATIC_TYPES]: GraphStaticTypes = graphStaticTypes;
   id = 'plain';
 }
 
-/** 完整实现 `IEntity`，可用于树/图 hooks。 */
-class TreeGraphEntity {
-  static [ENTITY_STATIC_TYPES]: TreeGraphStaticTypes = treeGraphStaticTypes;
+/** 完整实现 `IEntity`，可用于图 hooks。 */
+class GraphEntity {
+  static [ENTITY_STATIC_TYPES]: GraphStaticTypes = graphStaticTypes;
   createdAt = new Date(0);
   id = 'node';
-  parentId: string | null = null;
   updatedAt = new Date(0);
 }
 
@@ -71,33 +60,6 @@ class DeclaredCursorEntity {
 }
 
 describe('三端泛型契约（RAN-014）', () => {
-  describe('树 hooks 只接受树实体', () => {
-    it('非树实体被编译期拒绝', () => {
-      // 函数体永不执行：类型断言已由 @ts-expect-error 在编译期完成
-      const useMisuse = (): void => {
-        // @ts-expect-error PlainEntity 实例缺 createdAt/updatedAt，不满足 ITreeEntity
-        useFindDescendants(PlainEntity, { entityId: 'root' });
-        // @ts-expect-error PlainEntity 不满足 ITreeEntity，countDescendants 同样拒绝
-        useCountDescendants(PlainEntity, { entityId: 'root' });
-        // @ts-expect-error PlainEntity 不满足 ITreeEntity，findAncestors 同样拒绝
-        useFindAncestors(PlainEntity, { entityId: 'leaf' });
-        // @ts-expect-error PlainEntity 不满足 ITreeEntity，countAncestors 同样拒绝
-        useCountAncestors(PlainEntity, { entityId: 'leaf' });
-      };
-
-      expect(useMisuse).toBeTypeOf('function');
-    });
-
-    it('树实体被接受', () => {
-      const useUsage = (): void => {
-        useFindDescendants(TreeGraphEntity, { entityId: 'root' });
-        useCountAncestors(TreeGraphEntity, { entityId: 'leaf' });
-      };
-
-      expect(useUsage).toBeTypeOf('function');
-    });
-  });
-
   describe('图 hooks 只接受图实体', () => {
     it('非图实体被编译期拒绝', () => {
       const useMisuse = (): void => {
@@ -114,14 +76,14 @@ describe('三端泛型契约（RAN-014）', () => {
 
     it('图实体被接受', () => {
       const useUsage = (): void => {
-        const neighbors: RxDBResource<GraphQueryResult<NeighborResult<typeof TreeGraphEntity>>> = useGraphNeighbors(
-          TreeGraphEntity,
+        const neighbors: RxDBResource<GraphQueryResult<NeighborResult<typeof GraphEntity>>> = useGraphNeighbors(
+          GraphEntity,
           { entityId: 'a' }
         );
-        const paths: RxDBResource<GraphQueryResult<GraphPath<typeof TreeGraphEntity>>> = useGraphPaths(
-          TreeGraphEntity,
-          { fromId: 'a', toId: 'b' }
-        );
+        const paths: RxDBResource<GraphQueryResult<GraphPath<typeof GraphEntity>>> = useGraphPaths(GraphEntity, {
+          fromId: 'a',
+          toId: 'b'
+        });
 
         void neighbors;
         void paths;

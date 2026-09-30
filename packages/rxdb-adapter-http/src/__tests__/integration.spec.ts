@@ -46,9 +46,8 @@ const HTTP_QUERY_CACHE = {
  * 库级默认走 Full，QueryCache 只写在实体上。
  *
  * @remarks
- * 库级配 QueryCache 会连 core 的系统实体 `RxDBBranch` 一起罩进去，而它是树实体——
- * `init()` 当场以 `unsupportedTreeQueryCache` 拒绝。槽位名保持不变，`adapter:remote`
- * 仍然解析到本包（AC#17 要的就是这个）。
+ * 库级配 QueryCache 会把 core 的系统实体一起罩进去，那是另一条路径，本用例不验。
+ * 槽位名保持不变，`adapter:remote` 仍然解析到本包（AC#17 要的就是这个）。
  */
 const DATABASE_SYNC = {
   type: SyncType.Full,
@@ -276,6 +275,13 @@ const createLocalAdapter = (initial: Row[] = []) => {
     // 真适配器在这里排队并开事务；替身同步执行，本文件没有并发窗口要验。
     // 缺了它，`getCurrentBranch()` 的冷路径（本地一张分支表都没有）当场 TypeError
     transaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
+      Promise.resolve(fun({ getRepository }))
+    ),
+    // 引导期事务，与上面**同一个函数体**而不是委托 `transaction`：这个替身没有就绪门，
+    // 基类那条「跳过就绪门」的区别在它身上不存在（`RxDBAdapterLocalBase.bootstrapTransaction`
+    // 的默认实现也只是直调 `transaction`）。写成委托会让 `transaction` 的调用次数把引导期
+    // 也算进去，而本文件的断言面正是「谁在什么时候被调了」。
+    bootstrapTransaction: vi.fn((fun: (executor: { getRepository: (type: unknown) => object }) => unknown) =>
       Promise.resolve(fun({ getRepository }))
     ),
     getMetadataByIds: vi.fn((_entityName: string, ids: string[]) =>

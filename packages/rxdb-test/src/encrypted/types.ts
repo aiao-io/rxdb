@@ -94,7 +94,18 @@ export interface EncryptedTestAdapter {
 export interface EncryptedAdapterFactory {
   /** 显示名，会出现在 `describe` 块中。 */
   readonly name: string;
-  /** 返回真实 repository 路径已经执行的 SQL 数量。 */
+  /**
+   * 返回真实 repository 路径已经执行的 SQL 数量。
+   *
+   * @param adapter - 本工厂 `createAdapter()` 交还过的**那一个**对象
+   * @returns 该 adapter 到此刻累计执行的 SQL 条数
+   *
+   * @remarks
+   * 实现直接写 `getQueryCount: queryCountOf`，配套的登记在 `createAdapter()` 里用
+   * `registerQueryCount()`（见 `./query-count.js`）。读不到时**必须抛错，不许兜底成 0**：
+   * {@link runQueryValidationSuite} 的 `expectRejectedBeforeQuery` 断言的是「调用前后计数
+   * 不变」，兜底成 0 会让那批「加密列泄漏必须拦在 SQL 生成之前」的用例整片恒真。
+   */
   getQueryCount(adapter: EncryptedTestAdapter): number;
   /**
    * 构建一个准备好 CRUD 往返的 adapter。

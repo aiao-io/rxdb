@@ -19,7 +19,7 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
-    "src/__tests__/fixtures/**/*.ts",
+    "src/__tests__/**/fixtures/**/*.ts",
     "src/**/*.d.ts",
     "package.json"
   ],

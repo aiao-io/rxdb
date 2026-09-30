@@ -46,8 +46,26 @@ export const PROBE_BASE_URL_ENV = 'DEV_RXDB_TAURI_PROBE_BASE_URL';
  */
 export const DEVTOOLS_PROBE_ENV = 'DEV_RXDB_TAURI_DEVTOOLS_PROBE';
 
+/**
+ * 备份探针的模式，与 `selfcheck.rs` 的 `BACKUP_PROBE_ENV` 一致；**可选**，与 {@link BACKUP_ARCHIVE_ENV} 成对出现。
+ *
+ * @remarks
+ * `backup`：照常连接、记一次启动，再把库经流逐块备份进归档文件。
+ * `restore`：连接之前先从归档文件恢复进空库；恢复失败就不连接（US-217 AC#18）。
+ */
+export const BACKUP_PROBE_ENV = 'DEV_RXDB_TAURI_BACKUP_PROBE';
+
+/**
+ * 备份探针的归档文件绝对路径，与 `selfcheck.rs` 的 `BACKUP_ARCHIVE_ENV` 一致。
+ *
+ * @remarks
+ * 放在应用数据目录**之外**：AC#18 要的是「归档不依赖源应用数据目录仍存在」，归档落在源目录里，
+ * 删掉源目录就连归档一起删了。`backup` 模式要求文件尚不存在（探针是追加写），`restore` 模式要求它已存在。
+ */
+export const BACKUP_ARCHIVE_ENV = 'DEV_RXDB_TAURI_BACKUP_ARCHIVE';
+
 /** 本文件能读懂的报告结构版本，与 `selfcheck.rs` 的 `REPORT_SCHEMA_VERSION` 一致。 */
-export const REPORT_SCHEMA_VERSION = 11;
+export const REPORT_SCHEMA_VERSION = 12;
 
 /**
  * 自检环境变量配错时的退出码，与 `selfcheck.rs` 的 `CONFIG_EXIT_CODE` 一致。
@@ -323,6 +341,26 @@ export interface DevToolsNativeProbe {
   readonly failure?: string | null;
 }
 
+/** 备份结果与归档 manifest 上的范围声明（US-217 AC#14）。 */
+export interface BackupScope {
+  /** 数据库本身恒为 `included`。 */
+  readonly database: string;
+  /** 外置文件恒为 `excluded`：归档只含数据库，文件须另行备份。 */
+  readonly externalFiles: string;
+}
+
+/** 备份探针的结果；键名与 `selfcheck.rs` 的 `BackupProbe` 逐字对应（US-217 AC#18）。 */
+export interface BackupProbe {
+  /** 跑的是哪一半。 */
+  readonly mode: 'backup' | 'restore';
+  /** 经流写出（或读入）的归档字节数。 */
+  readonly byteLength: number;
+  /** API 结果上的范围声明。 */
+  readonly scope: BackupScope;
+  /** 归档 manifest 里的范围声明。 */
+  readonly manifestScope: BackupScope;
+}
+
 /** Rust 侧落盘的报告。 */
 export interface SelfCheckReport {
   /** 结构版本；读别的字段之前先比它。 */
@@ -339,6 +377,8 @@ export interface SelfCheckReport {
   readonly webview: WebviewProbe | null;
   /** DevTools 握手探针的结果；没设 {@link DEVTOOLS_PROBE_ENV} 时为 null（US-905 阶段 1）。 */
   readonly devtools: DevToolsProbe | null;
+  /** 备份探针的结果；没设 {@link BACKUP_PROBE_ENV} 时为 null（US-217 AC#18）。 */
+  readonly backup: BackupProbe | null;
   /**
    * 结算时刻实际存在的窗口 label，已排序。
    *
@@ -392,6 +432,11 @@ export interface SelfCheckOptions {
    * release 产物上开它只会白等一个预算——那边压根没有调试窗口。
    */
   readonly devtoolsProbe?: boolean;
+  /**
+   * 开启备份探针（US-217 AC#18）：模式与归档文件的绝对路径，分别传给 {@link BACKUP_PROBE_ENV}
+   * 与 {@link BACKUP_ARCHIVE_ENV}。
+   */
+  readonly backupProbe?: { readonly mode: BackupProbe['mode']; readonly archivePath: string };
   /** 用哪个剖面的产物；默认 `release`。 */
   readonly profile?: CargoProfile;
   /**
@@ -538,6 +583,9 @@ export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheck
       ...(options.probeBaseUrl === undefined ? {} : { [PROBE_BASE_URL_ENV]: options.probeBaseUrl }),
       // 同上：Rust 侧判的是「变量存不存在」，给空串会被当成设了一个不合法的值。
       ...(options.devtoolsProbe === true ? { [DEVTOOLS_PROBE_ENV]: '1' } : {}),
+      ...(options.backupProbe === undefined ?
+        {}
+      : { [BACKUP_PROBE_ENV]: options.backupProbe.mode, [BACKUP_ARCHIVE_ENV]: options.backupProbe.archivePath }),
       ...(options.env ?? {})
     },
     options.profile ?? 'release'

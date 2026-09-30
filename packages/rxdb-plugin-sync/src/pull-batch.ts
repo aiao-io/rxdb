@@ -13,6 +13,7 @@
 import {
   compactChanges,
   type ConflictResolver,
+  declareTrustedWrite,
   getEntityMetadata,
   getOrCreateSyncRecord,
   getSyncCapability,
@@ -26,7 +27,8 @@ import {
   RxDBError,
   type RxDBEvent,
   RxDBPartialSyncError,
-  RxDBSync
+  RxDBSync,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
@@ -39,6 +41,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 interface RepoSyncInfo {
@@ -170,7 +173,7 @@ async function pullBatchOnce(
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
-    const syncType = getSyncType(metadata, rxdb.config.sync);
+    const syncType = getSyncType(metadata, rxdb.entitySync);
 
     // 跳过口径从内联的 `none | local` 换成能力矩阵，与单仓/级联路径同源
     if (!getSyncCapability(syncType).pull) continue;
@@ -302,44 +305,10 @@ async function pullBatchOnce(
 
       totalPulled += filteredChanges.length;
 
-      // 分离自己推送的变更和他人的变更
-      // 只按 clientId 识别：远端记录缺少 localId（如 push 走 actions-only 路径）时，
-      // 自己的变更也不能进入他人变更的 apply/conflict 链路
-      const ownChanges: RemoteChange[] = [];
-      const otherChanges: RemoteChange[] = [];
-
-      for (const rc of filteredChanges) {
-        if (rc.clientId != null && rc.clientId === clientId) {
-          ownChanges.push(rc);
-        } else {
-          otherChanges.push(rc);
-        }
-      }
-
-      // 批量更新自己推送变更的 remoteId（只有带 localId 的记录才能回填映射）
-      const mappableChanges = ownChanges.filter(c => c.localId != null);
-      if (mappableChanges.length > 0) {
-        const localIds = mappableChanges.map(c => c.localId!);
-        const locals = await changeRepo.find({
-          where: {
-            combinator: 'and',
-            rules: [
-              { field: 'id', operator: 'in', value: localIds },
-              { field: 'remoteId', operator: '=', value: null }
-            ]
-          }
-        });
-
-        if (locals.length > 0) {
-          const ownChangeMap = new Map(mappableChanges.map(c => [c.localId!, c.id]));
-          for (const local of locals) {
-            const remoteId = ownChangeMap.get(local.id);
-            if (remoteId != null) {
-              await changeRepo.update(local, { remoteId });
-            }
-          }
-        }
-      }
+      // 分离自己推送的变更和他人的变更，再把自推变更的 remoteId 回填到本地行上。
+      // 两步与 pull-repository.ts 共用同一份实现（见 pull-round.ts 的 @packageDocumentation）。
+      const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(filteredChanges, clientId);
+      await backfillOwnChangeRemoteIds(changeRepo, ownChanges);
 
       // 压缩并应用他人的变更
       if (otherChanges.length > 0) {
@@ -375,6 +344,13 @@ async function pullBatchOnce(
         const applyCount = countActions(applyActions);
         if (applyCount > 0) {
           // disableTriggers=true 确保不生成本地 RxDBChange 记录
+          // disableTriggers=true 压掉的是变更日志行，不是工作树单元：FR-046 要求拉取
+          // 照样落一个 origin='remote_sync' 的单元，所以挂载点 2 从 actions 派生，不看日志。
+          declareTrustedWrite(executor, {
+            file: 'pull-batch.ts',
+            symbol: 'pullBatchOnce',
+            intent: TrustedWriteIntent.remote_sync
+          });
           await executor.mergeChanges(applyActions, undefined, true);
           totalApplied += applyCount;
         }

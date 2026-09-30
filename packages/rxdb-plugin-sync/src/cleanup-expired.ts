@@ -6,9 +6,11 @@
  */
 
 import {
+  declareTrustedWrite,
   getEntityMetadata,
   getRxDBChangeEntityIdQueryValues,
   getRxDBEntityIdentityKey,
+  getSyncConfig,
   getSyncType,
   type OperatorName,
   type Rule,
@@ -16,7 +18,8 @@ import {
   RxDBChange,
   type RxDBEntityId,
   RxDBError,
-  type SwitchVersionActions
+  type SwitchVersionActions,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 /**
  * 仅要求「能拿到 RxDBChange 仓库并 find」的最小结构 —— 适配器与
@@ -104,12 +107,13 @@ export async function cleanupExpired(
   }
 
   const metadata = getEntityMetadata(EntityType);
-  const syncType = getSyncType(metadata, rxdb.config.sync);
+  const syncType = getSyncType(metadata, rxdb.entitySync);
 
   // 获取 filter 条件
   let filter = options?.filter;
   if (!filter && syncType === 'filter') {
-    const syncConfig = metadata.sync as { remote?: { filter?: () => RuleGroup } };
+    // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
+    const syncConfig = getSyncConfig(metadata, rxdb.entitySync) as { remote?: { filter?: () => RuleGroup } };
     if (syncConfig?.remote?.filter) {
       try {
         filter = syncConfig.remote.filter();
@@ -202,6 +206,12 @@ export async function cleanupExpired(
       }
       const actions: SwitchVersionActions = { deletes, updates: new Map(), inserts: new Map() };
       // 使用 mergeChanges + disableTriggers 删除，避免生成 RxDBChange 记录
+      // 过期清理走 cleanup_expired 入口：删的是本地缓存副本，不是用户删的数据。
+      declareTrustedWrite(executor, {
+        file: 'cleanup-expired.ts',
+        symbol: 'cleanupExpired',
+        intent: TrustedWriteIntent.remote_sync
+      });
       await executor.mergeChanges(actions, undefined, true);
     }
 

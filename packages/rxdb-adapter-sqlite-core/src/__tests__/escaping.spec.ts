@@ -82,7 +82,7 @@ describe('SQL identifier escaping', () => {
   it('quotes metadata-derived table and column identifiers in DDL and triggers', () => {
     const adapter = createAdapter([]);
     const ddl = create_table_sql(adapter, identifierMetadata);
-    const triggers = generate_table_trigger_sql(identifierMetadata);
+    const triggers = generate_table_trigger_sql(identifierMetadata, { branchId: 'main' });
 
     expect(ddl).toContain('CREATE TABLE "public$order""line" (');
     expect(ddl).toContain('"order" TEXT');

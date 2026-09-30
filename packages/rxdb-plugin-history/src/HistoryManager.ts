@@ -1,4 +1,5 @@
 import {
+  declareTrustedWrite,
   EntityType,
   HistoryItem,
   HistoryScope,
@@ -7,7 +8,9 @@ import {
   REPOSITORY_SYNC_COMPLETE_EVENT,
   RxDB,
   RxDBBranch,
-  RxDBChange
+  RxDBChange,
+  SKIP_BRANCH_SWITCH_PREPARE,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import {
   BehaviorSubject,
@@ -17,6 +20,7 @@ import {
   filter,
   firstValueFrom,
   map,
+  NEVER,
   Observable,
   ReplaySubject,
   shareReplay,
@@ -166,12 +170,21 @@ export class HistoryManager {
 
     const branchRepository = rxdb.entityManager.getRepository(RxDBBranch);
     const changeRepository = rxdb.entityManager.getRepository(RxDBChange);
-    const current_branch$ = branchRepository.findOne({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'activated', operator: '=', value: true }]
-      }
-    });
+    // 连上之后才查：仓库活查询会经适配器的就绪门把实例连起来，构造期直接订阅等于 `init()` 之后插件
+    // 自己把库连上了，「连接前先恢复」之类必须对着未连接实例做的操作就永远拿不到空目标。
+    // 断开时交 NEVER：丢掉挂在已断适配器上的查询，undo session 停在最后一个分支上，重连再查。
+    const current_branch$ = this.rxdb.connected$.pipe(
+      switchMap(connected =>
+        connected ?
+          branchRepository.findOne({
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'activated', operator: '=', value: true }]
+            }
+          })
+        : NEVER
+      )
+    );
 
     this.#subscriptions.push(
       current_branch$.pipe(takeUntil(this.#destroy$)).subscribe({
@@ -497,13 +510,18 @@ export class HistoryManager {
   /**
    * 使 redo 栈失效。全部 trigger id ≤ {@link #redoInvalidationFloor} 视为迟到通知，跳过。
    *
+   * @remarks
+   * 这里**不查** `isUndoRedoInProgress` / `isInvalidatingRedo`：undo、redo 与本方法三个入口
+   * 全部排进 {@link HistoryManager.#runSerialized}，两个标志又只在同一个序列化任务内部置起
+   * 再复位，因此轮到本任务时它们必然已复位——查了也是一条走不到的分支。下面那句
+   * `isInvalidatingRedo = true` 留着是给 {@link HistoryManager.isExecutingUndoRedo} 读的，
+   * 真正生效的守卫在调用方 `VersionManager` 的 `if (!historyManager.isExecutingUndoRedo())`，
+   * 它连 `syncDepth` 一起看，覆盖比这里严。
+   *
    * @internal
    */
   async invalidateRedoStack(triggerChangeIds?: readonly number[]): Promise<void> {
     return this.#runSerialized(async () => {
-      if (this.isUndoRedoInProgress || this.isInvalidatingRedo) {
-        return;
-      }
       if (triggerChangeIds?.length && triggerChangeIds.every(id => id <= this.#redoInvalidationFloor)) {
         return;
       }
@@ -530,10 +548,18 @@ export class HistoryManager {
           });
         });
 
+        // 作废 redo 栈同样只重写投影（行 4）。这里与下面 undo-redo-apply 调的是同一个原语，
+        // 两者的结论相反，区别只在这条声明里。
+        declareTrustedWrite(adapter, {
+          file: 'HistoryManager.ts',
+          symbol: 'invalidateRedoStack',
+          intent: TrustedWriteIntent.redo_invalidation
+        });
         // 不传 branchId：这里只想把 actions 套用在**当前**分支上。自己先查再传会留下一个
         // 采样窗口——本方法是 detached 任务（变更通知还会被批处理 / 跨进程延迟），窗口内的一次
         // 真实 switchBranch 会让这条调用把 activated 与全部触发器倒回旧分支。
-        await adapter.switchBranch({ actions });
+        // 同上：分支不换，没有前置条件可校验。
+        await adapter.switchBranch({ actions, prepare: SKIP_BRANCH_SWITCH_PREPARE });
 
         this.clearRedoStack();
       } catch (error) {

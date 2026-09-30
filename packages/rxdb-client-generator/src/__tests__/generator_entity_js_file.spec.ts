@@ -2,6 +2,7 @@ import { PropertyType, RelationKind } from '@aiao/rxdb';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { Project } from '../core/ts-morph-browser.js';
+import { GEO_ENTITY_BASE, GEO_REPOSITORY, GeoRepositoryGenerator } from './helpers/fixture-repository-generator.js';
 
 describe('generator_entity_js_file', () => {
   beforeAll(() => {
@@ -223,8 +224,9 @@ describe('generator_entity_js_file', () => {
     expect(content).toContain('export { ENTITIES, Apple, Zebra };');
   });
 
-  it('should generate entity with multiple extends (Tree)', async () => {
+  it('should generate entity with multiple extends (plugin base class)', async () => {
     const generator = new RxDBClientGenerator();
+    generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
     generator.addEntity({
       name: 'Menu',
       namespace: 'public',
@@ -236,9 +238,9 @@ describe('generator_entity_js_file', () => {
           readonly: false
         }
       ],
-      extends: ['TreeAdjacencyListEntityBase', 'EntityBase'],
+      extends: [GEO_ENTITY_BASE, 'EntityBase'],
       displayName: 'Menu',
-      repository: 'TreeRepository'
+      repository: GEO_REPOSITORY
     });
     generator.project = new Project();
 
@@ -249,11 +251,11 @@ describe('generator_entity_js_file', () => {
     const content = indexJsFile!.getText();
 
     // 验证 import 包含了第一个 extends
-    expect(content).toContain('TreeAdjacencyListEntityBase');
+    expect(content).toContain(GEO_ENTITY_BASE);
     // 验证类继承了第一个 extends
-    expect(content).toContain('let Menu = class extends TreeAdjacencyListEntityBase {};');
+    expect(content).toContain(`let Menu = class extends ${GEO_ENTITY_BASE} {};`);
     // 验证装饰器参数中 extends 数组包含所有继承（多行格式）
-    expect(content).toContain('"TreeAdjacencyListEntityBase"');
+    expect(content).toContain(`"${GEO_ENTITY_BASE}"`);
     expect(content).toContain('"EntityBase"');
     // 验证 extends 数组不是空的
     expect(content).not.toContain('extends: []');

@@ -8,9 +8,6 @@ import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from
 import { generateBatchFiles } from '../utils/file-utils';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
 
-/** 子孙查询的层级上限，与 `FindTreeOptions.level` 的上限一致。 */
-const MAX_TREE_LEVEL = 100;
-
 /** 批量删除的单批条数 —— 一次性把整表读进内存正是 P0-1 要消灭的东西。 */
 const DELETE_BATCH_SIZE = 200;
 
@@ -519,9 +516,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     if (!selected) return;
 
     // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
-    const descendants = await firstValueFrom(
-      FileLarge.findDescendants({ entityId: selected.id, level: MAX_TREE_LEVEL })
-    );
+    // 不传 level 即不限深度，整棵子树一次取回
+    const descendants = await firstValueFrom(FileLarge.findDescendants({ entityId: selected.id }));
     const filesToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
     await rxdb.entityManager.removeMany(filesToRemove);
     setFileToDelete(null);

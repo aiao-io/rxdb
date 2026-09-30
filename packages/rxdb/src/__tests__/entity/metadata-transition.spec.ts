@@ -1,6 +1,6 @@
 /**
  * @fileoverview transitionMetadata 回归测试。
- * 1. 基类/树实体元数据合并 — 基类字段必须注入 propertyMap 且先于自有字段。
+ * 1. 基类元数据合并 — 基类字段必须注入 propertyMap 且先于自有字段。
  * 2. T017 — encryptedPropertyMap 派生。
  * 3. 实体级配置（features / repository / sync / log）沿原型链继承。
  */
@@ -17,7 +17,7 @@ import {
   SyncType
 } from '../../entity/metadata-options.interface.js';
 import { transitionMetadata } from '../../entity/metadata-transition.js';
-import { TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, TreeAdjacencyListEntityBase } from '../../entity/tree-entity-base.js';
+import { OnDeleteAction, RelationKind } from '../../entity/relation-types.interface.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
 
 const stringProp = (name: string, extra: Partial<StringProperty> = {}): StringProperty =>
@@ -45,6 +45,49 @@ const mkOptions = (overrides: Partial<EntityMetadataOptions> = {}): EntityMetada
     ...overrides
   }) as EntityMetadataOptions;
 
+/**
+ * 替身抽象基类选项：形状与插件侧的树基类逐项同构 —— 零自有属性、一个计算属性、
+ * 一对自指关系、一个 `features` 分支、一个 `repository`。
+ *
+ * @remarks
+ * 不从 `@aiao/rxdb-plugin-tree` 取那份真的：US-025 阶段 E 起树在插件里，核心测试
+ * 为一份样本数据反向依赖插件就是把刚拆开的边又接回去。被测的是 `transitionMetadata`
+ * 的合并规则 —— 「自有属性排在基类之后」「features 逐特性深合并」「repository 回退到
+ * 最近有值的祖先」—— 这些规则跟基类叫什么、特性叫什么毫无关系，换成任何同构的基类
+ * 都该一字不差地成立。
+ */
+const ADJACENCY_LIST_BASE_OPTIONS: EntityMetadataOptions = {
+  name: 'AdjacencyListBase' as Capitalize<string>,
+  namespace: 'public',
+  abstract: true,
+  repository: 'AdjacencyListRepository',
+  properties: [],
+  computedProperties: [
+    { name: 'hasChildren', displayName: '是否有子节点', type: PropertyType.boolean, nullable: true, readonly: true }
+  ],
+  relations: [
+    {
+      name: 'children',
+      displayName: '子节点',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'AdjacencyListBase',
+      mappedProperty: 'parent'
+    },
+    {
+      name: 'parent',
+      columnName: 'parentId',
+      displayName: '父节点',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'AdjacencyListBase',
+      mappedProperty: 'children',
+      nullable: true,
+      onDelete: OnDeleteAction.CASCADE
+    }
+  ],
+  indexes: [],
+  features: { tree: { type: 'adjacency-list', hasChildren: true } }
+} as EntityMetadataOptions;
+
 describe('transitionMetadata — 基类元数据合并', () => {
   it('injects ENTITY_BASE_METADATA_OPTIONS fields ahead of own properties', () => {
     const result = transitionMetadata(
@@ -65,13 +108,13 @@ describe('transitionMetadata — 基类元数据合并', () => {
     ]);
   });
 
-  it('merges the tree adjacency-list base chain into propertyMap', () => {
+  it('merges an abstract base chain (computed + relations, no own props) into propertyMap', () => {
     const result = transitionMetadata(
       mkOptions({
         name: 'Menu' as Capitalize<string>,
         properties: [stringProp('title')]
       }),
-      [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]
+      [ADJACENCY_LIST_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]
     );
 
     expect([...result.propertyMap.keys()]).toEqual(['id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy', 'title']);
@@ -131,7 +174,7 @@ describe('transitionMetadata — 实体级配置沿原型链继承', () => {
     mkOptions({ name: 'Base' as Capitalize<string>, properties: [], ...overrides });
 
   it('子类未声明 features 时继承祖先的 features', () => {
-    const meta = transitionMetadata(child(), [TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]);
+    const meta = transitionMetadata(child(), [ADJACENCY_LIST_BASE_OPTIONS, ENTITY_BASE_METADATA_OPTIONS]);
 
     // 适配器靠 features.tree 决定是否生成 hasChildren 子查询与树 SQL
     //（`rxdb-adapter-sqlite-core/src/query/query_sql.ts:96`）：继承断链 =
@@ -141,7 +184,7 @@ describe('transitionMetadata — 实体级配置沿原型链继承', () => {
 
   it('features 按特性逐层深合并，子类只覆盖自己写的字段', () => {
     const meta = transitionMetadata(child({ features: { tree: { hasChildren: false } } }), [
-      TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS
+      ADJACENCY_LIST_BASE_OPTIONS
     ]);
 
     // 只写 hasChildren 不该把祖先的 type 一起抹掉：整块替换会让 tree.type 丢失，
@@ -158,17 +201,17 @@ describe('transitionMetadata — 实体级配置沿原型链继承', () => {
   });
 
   it('repository 回退到最近有值的祖先', () => {
-    const meta = transitionMetadata(child(), [ancestor({ repository: 'TreeRepository' })]);
+    const meta = transitionMetadata(child(), [ancestor({ repository: 'AncestorRepository' })]);
 
-    // 兜底 `|| 'Repository'` 若发生在原型链合并之前，祖先的 TreeRepository 永远传不下来，
-    // 子类的 findDescendants / findAncestors 静默缺失
-    expect(meta.repository).toBe('TreeRepository');
+    // 兜底 `|| 'Repository'` 若发生在原型链合并之前，祖先声明的仓储永远传不下来，
+    // 子类靠那个仓储注入的查询方法静默缺失
+    expect(meta.repository).toBe('AncestorRepository');
   });
 
   it('更近的祖先覆盖更远的祖先', () => {
     const meta = transitionMetadata(child(), [
       ancestor({ name: 'Mid' as Capitalize<string>, repository: 'MidRepository' }),
-      ancestor({ repository: 'TreeRepository' })
+      ancestor({ repository: 'AncestorRepository' })
     ]);
 
     expect(meta.repository).toBe('MidRepository');
@@ -176,7 +219,7 @@ describe('transitionMetadata — 实体级配置沿原型链继承', () => {
 
   it('自身声明的 repository 覆盖祖先', () => {
     const meta = transitionMetadata(child({ repository: 'CustomRepository' }), [
-      ancestor({ repository: 'TreeRepository' })
+      ancestor({ repository: 'AncestorRepository' })
     ]);
 
     expect(meta.repository).toBe('CustomRepository');
@@ -209,27 +252,6 @@ describe('transitionMetadata — 实体级配置沿原型链继承', () => {
     const meta = transitionMetadata(child({ log: true }), [ancestor({ log: false })]);
 
     expect(meta.log).toBe(true);
-  });
-});
-
-/**
- * `tree-entity-base.ts` 与 `TreeRepository.ts` 的 TSDoc 都把
- * `@Entity({ name: 'Category' }) class Category extends TreeAdjacencyListEntityBase {}`
- * 写成推荐用法，却从没有测试跑过它。这个 describe 就是那份示例。
- */
-describe('TreeAdjacencyListEntityBase 的 @Entity 子类（TSDoc 示例）', () => {
-  @Entity({ name: 'Category' })
-  class Category extends TreeAdjacencyListEntityBase {}
-
-  it('继承到 TreeRepository 与 features.tree', () => {
-    const meta = getEntityMetadata(Category);
-
-    // 基类声明了 findDescendants / countAncestors 等静态方法，而这些只由
-    // TreeRepository 注入 —— 子类拿不到它就是「类型上有、运行时没有」
-    expect(meta.repository).toBe('TreeRepository');
-    expect(meta.features?.tree).toEqual({ type: 'adjacency-list', hasChildren: true });
-    expect(meta.computedPropertyMap.has('hasChildren')).toBe(true);
-    expect(meta.relationMap.has('parent')).toBe(true);
   });
 });
 

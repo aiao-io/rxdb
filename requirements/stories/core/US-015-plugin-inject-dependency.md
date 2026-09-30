@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-09-15
+updated: 2026-09-20
 tags: [lifecycle, plugin, public-api, dependency]
 ---
 
@@ -26,11 +26,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                     | 直接前置        | AC 区段   | 状态                                  |
-| ---- | ------------------------------------------------------------------------ | --------------- | --------- | ------------------------------------- |
-| A    | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 | US-014          | AC#1～12  | ✅ 已交付 2026-08-21                  |
-| B    | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    | 阶段 A          | AC#13～17 | ✅ 已交付 2026-09-15                  |
-| 横切 | 契约测试、覆盖率门禁与插件作者文档                                       | 阶段 A + 阶段 B | AC#18～20 | ✅ 已交付（#18 / #20 随 A，#19 随 B） |
+| 阶段 | 交付                                                                     | 直接前置        | AC 区段   | 状态 |
+| ---- | ------------------------------------------------------------------------ | --------------- | --------- | ---- |
+| A    | `adapter:local` / `adapter:remote` 依赖、纪元调度、释放时序、search 迁移 | US-014          | AC#1～12  | ✅   |
+| B    | `plugin:*` 依赖、名字索引与重名裁决、拓扑装卸、环检测                    | 阶段 A          | AC#13～17 | ✅   |
+| 横切 | 契约测试、覆盖率门禁与插件作者文档                                       | 阶段 A + 阶段 B | AC#18～20 | ✅   |
 
 阶段顺序是有向的：阶段 A 先落地调度骨架与适配器这一类依赖，阶段 B 在同一骨架上加入插件间依赖图。
 反过来不成立——没有调度器就没有地方接图。
@@ -389,27 +389,23 @@ async install(scope: LifecycleScope) {
 
 ### 阶段 A — 适配器依赖与纪元调度（AC#1～12）
 
-| #   | 前置条件                                                 | 操作                                                       | 预期结果                                                                                                                                                                                        | 状态 |
-| --- | -------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 插件声明 `inject: ['adapter:local']`，尚未 `connect()`   | `init()`                                                   | 该插件**不安装**，不产生作用域，不报错；不声明 `inject` 的插件照常立即安装                                                                                                                      | ✅   |
-| 2   | 同上                                                     | `connect('local')`                                         | 引导链（迁移、建表、索引 reconcile）全部跑完后该插件才安装（D2），拿到新的子作用域；安装完成早于 `connect()` resolve                                                                            | ✅   |
-| 3   | 插件声明 `inject: ['adapter:remote']`，只连本地          | `connect('local')`                                         | `connect()` **正常 resolve，不挂起**——`#await_plugin_installs()` 只等已经开始的安装（INV-4，防的正是 [`#runInstall()`](../../../packages/rxdb-plugin-search/src/plugin.ts) 记录的自等死锁）     | ✅   |
-| 4   | 本地 + 远端均已连接，某插件 `inject: ['adapter:remote']` | `disconnect('remote')`（本地仍连着，不触发 `#shutdown()`） | 该插件的作用域被释放；其余插件不受影响；实例本身保留在 `#plugin_map` 中；释放完成早于 `adapter.disconnect()`（INV-7）                                                                           | ✅   |
-| 5   | 承接 AC#4                                                | 重新 `connect('remote')`                                   | 该插件重新安装，拿到**全新**作用域；不出现双份注册与重复监听                                                                                                                                    | ✅   |
-| 6   | 适配器被替换为**同名新实例**，中途从未变为空             | 观察依赖方                                                 | 调度器按实例引用身份识别为一次纪元变化（INV-3），释放旧作用域并以新实例重装；只看名字或布尔位的实现会漏掉这一条                                                                                 | ✅   |
-| 7   | 插件 `install()` 挂起期间依赖被断开（并发测试 1）        | 等 `install()` settle                                      | 已登记的 scope 恰好释放一次；插件**不进入 `active`**；该纪元的成功结果被丢弃                                                                                                                    | ✅   |
-| 8   | `disposing` 期间依赖以新实例回来（并发测试 2）           | 观察调度                                                   | 旧 dispose 只执行一次，直接 reconcile 到最新 `targetEpoch`，不启动中间纪元，只安装新实例                                                                                                        | ✅   |
-| 9   | 某插件的延迟安装抛错（并发测试 3）                       | 依赖不变时观察；再断开并重连                               | 失败绑定当时的依赖 epoch，作用域被释放，同纪元内**不自动重试**（INV-6 / D5）；纪元变化后**恰好**重试一次                                                                                        | ✅   |
-| 10  | 同一插件重复 `disconnect` / `connect`（并发测试 4）      | 观察事件注册与 disposer                                    | 不重复注册事件（幂等 remover 保持 `Set` 单条目语义）；scope disposer 逆序、幂等、异步释放                                                                                                       | ✅   |
-| 11  | 插件 `inject: ['adapter:remote']`，远端永不连接          | `init()` + `connect('local')`                              | 该插件不安装；`connect()` 正常 resolve；`console.warn` **一次**说明「因依赖未满足而未安装」并列出缺失项；**不静默**（INV-5）                                                                    | ✅   |
-| 12  | search 已迁移到 `inject: ['adapter:local']`              | 全量回归                                                   | [`search.ready`](../../../packages/rxdb-plugin-search/src/plugin.ts) 对外语义不变；`await db.connect()` 返回即 FTS 可用（D2 附）；`SearchPluginPhase` 的 `installing` / `failed` 由宿主调度取代 | ⚠️   |
+| #   | 前置条件                                                 | 操作                                                       | 预期结果                                                                                                                                                                                                                                                                                                                       | 状态 |
+| --- | -------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 插件声明 `inject: ['adapter:local']`，尚未 `connect()`   | `init()`                                                   | 该插件**不安装**，不产生作用域，不报错；不声明 `inject` 的插件照常立即安装                                                                                                                                                                                                                                                     | ✅   |
+| 2   | 同上                                                     | `connect('local')`                                         | 引导链（迁移、建表、索引 reconcile）全部跑完后该插件才安装（D2），拿到新的子作用域；安装完成早于 `connect()` resolve                                                                                                                                                                                                           | ✅   |
+| 3   | 插件声明 `inject: ['adapter:remote']`，只连本地          | `connect('local')`                                         | `connect()` **正常 resolve，不挂起**——`#await_plugin_installs()` 只等已经开始的安装（INV-4，防的正是 [`#runInstall()`](../../../packages/rxdb-plugin-search/src/plugin.ts) 记录的自等死锁）                                                                                                                                    | ✅   |
+| 4   | 本地 + 远端均已连接，某插件 `inject: ['adapter:remote']` | `disconnect('remote')`（本地仍连着，不触发 `#shutdown()`） | 该插件的作用域被释放；其余插件不受影响；实例本身保留在 `#plugin_map` 中；释放完成早于 `adapter.disconnect()`（INV-7）                                                                                                                                                                                                          | ✅   |
+| 5   | 承接 AC#4                                                | 重新 `connect('remote')`                                   | 该插件重新安装，拿到**全新**作用域；不出现双份注册与重复监听                                                                                                                                                                                                                                                                   | ✅   |
+| 6   | 适配器被替换为**同名新实例**，中途从未变为空             | 观察依赖方                                                 | 调度器按实例引用身份识别为一次纪元变化（INV-3），释放旧作用域并以新实例重装；只看名字或布尔位的实现会漏掉这一条                                                                                                                                                                                                                | ✅   |
+| 7   | 插件 `install()` 挂起期间依赖被断开（并发测试 1）        | 等 `install()` settle                                      | 已登记的 scope 恰好释放一次；插件**不进入 `active`**；该纪元的成功结果被丢弃                                                                                                                                                                                                                                                   | ✅   |
+| 8   | `disposing` 期间依赖以新实例回来（并发测试 2）           | 观察调度                                                   | 旧 dispose 只执行一次，直接 reconcile 到最新 `targetEpoch`，不启动中间纪元，只安装新实例                                                                                                                                                                                                                                       | ✅   |
+| 9   | 某插件的延迟安装抛错（并发测试 3）                       | 依赖不变时观察；再断开并重连                               | 失败绑定当时的依赖 epoch，作用域被释放，同纪元内**不自动重试**（INV-6 / D5）；纪元变化后**恰好**重试一次                                                                                                                                                                                                                       | ✅   |
+| 10  | 同一插件重复 `disconnect` / `connect`（并发测试 4）      | 观察事件注册与 disposer                                    | 不重复注册事件（幂等 remover 保持 `Set` 单条目语义）；scope disposer 逆序、幂等、异步释放                                                                                                                                                                                                                                      | ✅   |
+| 11  | 插件 `inject: ['adapter:remote']`，远端永不连接          | `init()` + `connect('local')`                              | 该插件不安装；`connect()` 正常 resolve；`console.warn` **一次**说明「因依赖未满足而未安装」并列出缺失项；**不静默**（INV-5）                                                                                                                                                                                                   | ✅   |
+| 12  | search 已迁移到 `inject: ['adapter:local']`              | 全量回归                                                   | [`search.ready`](../../../packages/rxdb-plugin-search/src/plugin.ts) 按连接纪元一格的 deferred 口径：`connect()` 之前与安装期间 **pending**，成功 resolve、失败 reject 原始错误、纪元被释放后 reject `destroyed`；`await db.connect()` 返回即 FTS 可用（D2 附）；`SearchPluginPhase` 的 `installing` / `failed` 由宿主调度取代 | ✅   |
 
-> **AC#12 的保留**：`search.ready` 的对外语义**有意改变**，不是「不变」。原口径是「未安装即 reject」，
-> 现在改成一个连接纪元一格的 deferred：`connect()` 之前与安装期间 **pending**，成功 resolve、
-> 失败 reject 原始错误、纪元被释放后 reject `destroyed`。原因是宿主接管装载时机之后，旧口径会留下
-> 「`connect()` 还在飞、`ready` 已经 reject」的竞态窗口——调用方无从分辨「还没装」与「装不上」。
-> AC#12 的另外两项（`await db.connect()` 返回即 FTS 可用、phase 机由宿主调度取代）如实成立。
-> 这条可观察行为变化已写入[插件作用域契约迁移](../../../website/docs/migration/plugin-scope.md)。
+> **AC#12 的可观察行为变化**（`search.ready` 改为连接纪元 deferred）已写入
+> [插件作用域契约迁移](../../../website/docs/migration/plugin-scope.md)。
 
 ### 阶段 B — 插件间依赖图（AC#13～17；AC#18 已随阶段 A 交付）
 

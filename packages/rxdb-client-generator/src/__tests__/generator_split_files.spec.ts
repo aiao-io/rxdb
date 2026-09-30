@@ -7,7 +7,7 @@ import {
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
 import { Project } from '../core/ts-morph-browser.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
 
 describe('generator_split_files', () => {
   beforeAll(() => {

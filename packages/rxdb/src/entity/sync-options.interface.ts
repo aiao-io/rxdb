@@ -110,8 +110,9 @@ interface SyncFilterRemoteAdapterOptions extends SyncAdapterOptions {
 }
 
 /**
- * 条件同步配置接口（未实现）
- * 定义基于过滤条件的数据同步的配置
+ * 条件同步配置接口
+ * 定义基于过滤条件的数据同步的配置：拉取与过期清理都按 `remote.filter()` 取子集，
+ * 由 `@aiao/rxdb-plugin-sync` 执行
  */
 interface SyncFilter {
   type: SyncType.Filter;
@@ -142,7 +143,9 @@ interface SyncQueryCacheLocalAdapterOptions extends SyncAdapterOptions {
 type SyncQueryCacheRemoteAdapterOptions = SyncAdapterOptions;
 
 /**
- * 根据查询增量同步缓存配置接口（未实现）
+ * 根据查询增量同步缓存配置接口
+ *
+ * 读引擎在 `@aiao/rxdb-plugin-querycache`，推送走 `@aiao/rxdb-plugin-sync`，两个插件都要装配。
  *
  * 1. 查询到的内容，返回数组 [{ id:'xxx', updatedAt: Date }]
  * 2. 根据这些 id 看本地是否有这个数据，没有就拉取完整数据，有就对比 updatedAt 决定是否拉取

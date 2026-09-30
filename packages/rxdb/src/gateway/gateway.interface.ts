@@ -17,6 +17,8 @@ export const GATEWAY_MESSAGE_ENTITY_EVENT = 'entity_event' as const;
 export const GATEWAY_MESSAGE_HELLO = 'hello' as const;
 /** 当前 leader 应答的"首连时间"消息 */
 export const GATEWAY_MESSAGE_FIRST_CONNECTED_AT = 'first_connected_at' as const;
+/** 某个能力刚被启用，通知同源的其他连接接通它（FR-037） */
+export const GATEWAY_MESSAGE_CAPABILITY_ENABLED = 'capability_enabled' as const;
 
 /**
  * 网关消息基础接口
@@ -67,9 +69,24 @@ export interface GatewayFirstConnectedAtMessage extends GatewayMessageBase {
 }
 
 /**
+ * 能力启用消息（FR-037）
+ *
+ * 载荷只有能力名。与 {@link GatewayEntityEventMessage} 的关键差别是**方向**：
+ * 这条消息只出不进 —— 收到它的一端接通能力，但**不再转发**。实体事件靠
+ * `origin: 'cross-tab'` 标记防回声，而本消息不带 `entities`，
+ * {@link isCrossTabEvent} 对它恒为 `false`，所以防回声只能靠单向。
+ */
+export interface GatewayCapabilityEnabledMessage extends GatewayMessageBase {
+  type: typeof GATEWAY_MESSAGE_CAPABILITY_ENABLED;
+  /** 能力名，与 `RxDBSystemContribution.capability` 同值 */
+  capability: string;
+}
+
+/**
  * 网关消息联合类型（Discriminated Union）
  *
  * 用 `type` 字段做判别（不是 `instanceof`）：BroadcastChannel 的结构化克隆
  * 会丢原型，跨 tab 收到的消息 `constructor` 都是 `Object`，所以只信 `type`。
  */
-export type GatewayMessage = GatewayEntityEventMessage | GatewayHelloMessage | GatewayFirstConnectedAtMessage;
+export type GatewayMessage =
+  GatewayEntityEventMessage | GatewayHelloMessage | GatewayFirstConnectedAtMessage | GatewayCapabilityEnabledMessage;

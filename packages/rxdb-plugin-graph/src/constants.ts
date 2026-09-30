@@ -3,6 +3,20 @@
  * 图插件常量定义
  */
 
+import type { EntityMetadataOptions } from '@aiao/rxdb';
+
+/**
+ * 图实体基类的元数据选项
+ *
+ * @remarks
+ * 放在这个零依赖模块里，`/generator` 子路径才能读到它而不必导入 {@link GraphEntityBase}
+ * ——后者会连带求值装饰器与 rxjs，而生成器只在构建期跑。
+ */
+export const GRAPH_ENTITY_BASE_OPTIONS: EntityMetadataOptions = {
+  name: 'GraphEntityBase',
+  abstract: true
+} as const;
+
 /**
  * 图查询最大层级
  * 防止递归查询层级过深导致性能问题

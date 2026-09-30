@@ -2,6 +2,8 @@
 
 `findAncestors` 用于树结构实体的祖先查询。它返回的是响应式 `Observable`。
 
+> 四个树查询由插件包 `@aiao/rxdb-plugin-tree` 提供，库侧需先 `rxdb.use(rxDBPluginTree)`。见[树结构拆包](../migration/tree-split.md)。
+
 ## 树关系图
 
 ```mermaid
@@ -17,10 +19,10 @@ findAncestors(options: FindTreeOptions<T>): Observable<InstanceType<T>[]>
 
 ## level 语义
 
-- `level` 默认 `0`
-- `level < 0` 会被规范化为 `0`
-- `level > 100` 会被限制为 `100`
-- 层级数包含当前节点本身
+- **不传 `level`：不限制深度**，返回整条祖先链
+- 层级数从当前节点算起：当前节点为 `0`、父节点为 `1`
+- `level` 必须是非负安全整数，**不设上界**
+- 负数 / 小数 / 非数字一律同步抛 `RxDBError`，既不裁剪也不兜底
 
 ## 返回语义
 

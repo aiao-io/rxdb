@@ -142,7 +142,7 @@ export { generate_table_trigger_sql } from './table/trigger_sql.js';
 export { dispatch_switch_events, execute_switch_actions } from './version/execute_switch_actions.js';
 export { convertSwitchResultToSql } from './version/switch-result.utils.js';
 export type { SqliteStatement, SwitchVersionSqlItem, SwitchVersionSqlResult } from './version/switch-result.utils.js';
-export { generateSwitchBranchSql, switch_branch } from './version/switch_branch.js';
+export { generateSwitchBranchSql, generateSwitchBranchStatements, switch_branch } from './version/switch_branch.js';
 export { switch_transaction_id } from './version/switch_transaction_id.js';
 export { readCurrentBranchId, withTriggersDisabled, type SqlExecutor } from './version/with_triggers_disabled.js';
 
@@ -222,3 +222,23 @@ export { Oo1ClientBase } from './Oo1ClientBase.js';
 export type { Oo1ClientEvents, Oo1ClientLoadOptions, OpfsFallback } from './Oo1ClientBase.js';
 
 export { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
+
+// 一致性备份与恢复（US-217 阶段 B）
+export { cleanupIncompleteSqliteRestore, restoreSqliteDatabase } from './backup/restore-sqlite-database.js';
+export type { SqliteRestoreInput, SqliteRestoreOutcome } from './backup/restore-sqlite-database.js';
+export {
+  SQLITE_BACKUP_ENGINE,
+  SQLITE_BACKUP_ENGINE_COMPATIBILITY,
+  SQLITE_BACKUP_LOCK_TIMEOUT_MS,
+  sqliteStorageLockName
+} from './backup/sqlite-backup.interface.js';
+export type {
+  SqliteBackupStorage,
+  SqliteRestoreOptions,
+  SqliteRestoreStage,
+  SqliteSupportedBackupStorage
+} from './backup/sqlite-backup.interface.js';
+export { writeSqliteBackup } from './backup/sqlite-backup.js';
+export type { SqliteBackupInput } from './backup/sqlite-backup.js';
+export { describeSqliteDatabase } from './backup/sqlite-blank-database.js';
+export type { SqliteBlankDatabase } from './sqlite-core.types.js';

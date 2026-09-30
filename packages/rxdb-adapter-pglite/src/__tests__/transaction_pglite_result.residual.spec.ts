@@ -1,4 +1,5 @@
 import { getEntityMetadata, getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -18,6 +19,8 @@ describe('transaction_pglite_result residual computed/forcedUpdate', () => {
         type: SyncType.None
       }
     });
+    // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
+    db.use(rxDBPluginTree);
     db.adapter('pglite', async d => new RxDBAdapterPGlite(d, { store: 'memory' }));
     rxdb = db;
     adapter = await rxdb.getAdapter('pglite');

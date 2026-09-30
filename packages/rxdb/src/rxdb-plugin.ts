@@ -1,4 +1,5 @@
 import type { LifecycleScope } from '@aiao/utils';
+import type { RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { RxDB } from './RxDB.js';
 
 /**
@@ -62,6 +63,19 @@ export interface IRxDBPlugin {
 
   /** 插件名，用于日志与宿主侧的错误归因 */
   name: Uncapitalize<string>;
+
+  /**
+   * 本插件对系统层的贡献：系统实体、初始行、系统迁移与能力认领。
+   *
+   * @remarks
+   * 宿主在 `use()` 里**同步读**这个字段，早于一切适配器动作——它不能走 {@link IRxDBPlugin.install}，
+   * 理由见 {@link RxDBSystemContribution} 的 `@fileoverview`（声明了 `inject` 的插件必然跑在
+   * 建表之后，而系统表要跟建表同批出来）。
+   *
+   * 带本字段的插件必须在 `connect()` 之前 `use()`：晚了宿主会**抛错**而不是静默跳过。
+   * 静默跳过的后果是一个「装了插件、表却没建」的库，而那不产生任何编译错误。
+   */
+  readonly system?: RxDBSystemContribution;
 
   /**
    * 声明本插件需要哪些依赖就绪之后才能安装。

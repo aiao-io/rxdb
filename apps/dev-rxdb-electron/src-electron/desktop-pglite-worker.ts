@@ -51,19 +51,31 @@ export interface DesktopPgliteWorkerPort {
 }
 
 /**
- * 在给定数据根上创建 PGlite 运行时。
+ * 把逻辑数据目录名解析成数据根下的物理路径。
  *
  * @remarks
- * 目录名在协议层（`parseDesktopPgliteRequest`）已经校验过一次，这里落盘前再校验一次。
+ * 目录名在协议层（`parseDesktopPgliteRequest`）已经校验过一次，这里拼路径前再校验一次。
  * 不是冗余：协议校验管的是「renderer 发来的请求合法」，这里管的是「拼进 `join()` 的东西
  * 不会越出数据根」。漏一个 `../` 进来，数据目录的位置就由调用方而不是应用决定了。
  *
- * `mkdirSync` 放在校验**之后**——顺序反过来，一个非法名字也会先在磁盘上留下一个空目录。
+ * 运行时与备份恢复共用这一处解析：host 要求两者对同一个名字给出同一个目录，
+ * 备份从这里读文件、恢复往这里写文件，分开写就可能各拼各的。
+ */
+const resolveDataDirectory = (dataRoot: string, dataDirectoryName: string): string => {
+  assertValidDesktopDatabaseName(dataDirectoryName);
+  return join(dataRoot, dataDirectoryName);
+};
+
+/**
+ * 在给定数据根上创建 PGlite 运行时。
+ *
+ * @remarks
+ * `mkdirSync` 放在解析（连同校验）**之后**——顺序反过来，一个非法名字也会先在磁盘上留下一个空目录。
  */
 const createRuntime = async (dataRoot: string, dataDirectoryName: string): Promise<ElectronPgliteRuntime> => {
-  assertValidDesktopDatabaseName(dataDirectoryName);
+  const directory = resolveDataDirectory(dataRoot, dataDirectoryName);
   mkdirSync(dataRoot, { recursive: true });
-  return new PGlite(join(dataRoot, dataDirectoryName));
+  return new PGlite(directory);
 };
 
 /**
@@ -82,7 +94,14 @@ export function createPgliteWorkerEndpoint(port: DesktopPgliteWorkerPort, dataRo
     createRuntime: dataDirectoryName => createRuntime(dataRoot, dataDirectoryName),
     postNotify: message => port.postMessage({ op: 'notify', message }),
     // worker 的 stderr 由父进程接管，这里 console 出去就是主进程的日志。
-    onDeliveryError: error => console.error('[pglite-worker] failed to deliver a notification', error)
+    onDeliveryError: error => console.error('[pglite-worker] failed to deliver a notification', error),
+    // 不开的话 pg.engine / pg.backup.* / pg.restore.* 一律报 unsupported_operation（US-217）。
+    // 探针是内存实例，与 createRuntime 同一份 PGlite、同样不带扩展，回答的引擎版本才对真实目录成立。
+    backup: {
+      resolveDataDirectory: dataDirectoryName => resolveDataDirectory(dataRoot, dataDirectoryName),
+      createProbeRuntime: async () => new PGlite(),
+      extensions: []
+    }
   });
 
   const run = async (command: DesktopPgliteWorkerCommand): Promise<unknown> => {

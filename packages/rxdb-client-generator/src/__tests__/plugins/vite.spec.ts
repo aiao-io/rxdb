@@ -1,8 +1,14 @@
+import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import buildClientLibrary from '../../cli/build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from '../../cli/cli.interface.js';
 import { rxdbClientGeneratorVitePlugin } from '../../plugins/vite.js';
+
+// Vite 没有配置文件概念，repositoryGenerators 的裸包/子路径/相对路径统一按宿主 cwd 解析
+// （见 plugins/vite.ts 里的 repositoryGeneratorAnchor）——插件现在把这个锚点显式传给
+// buildClientLibrary，不再指望 build-client-lib.ts 内部悄悄猜一个全局单例。
+const EXPECTED_REPOSITORY_GENERATOR_ANCHOR = resolve(process.cwd(), 'rxdb-client-generator.js');
 
 vi.mock('../../cli/build-client-lib.js', () => ({
   default: vi.fn()
@@ -35,15 +41,15 @@ describe('rxdbClientGeneratorVitePlugin', () => {
     await runBuildStart(rxdbClientGeneratorVitePlugin(first));
 
     expect(buildClientLibraryMock).toHaveBeenCalledTimes(1);
-    expect(buildClientLibraryMock).toHaveBeenCalledWith(first);
+    expect(buildClientLibraryMock).toHaveBeenCalledWith(first, EXPECTED_REPOSITORY_GENERATOR_ANCHOR);
   });
 
   it('keeps array input support', async () => {
     await runBuildStart(rxdbClientGeneratorVitePlugin([first, second]));
 
     expect(buildClientLibraryMock).toHaveBeenCalledTimes(2);
-    expect(buildClientLibraryMock).toHaveBeenNthCalledWith(1, first);
-    expect(buildClientLibraryMock).toHaveBeenNthCalledWith(2, second);
+    expect(buildClientLibraryMock).toHaveBeenNthCalledWith(1, first, EXPECTED_REPOSITORY_GENERATOR_ANCHOR);
+    expect(buildClientLibraryMock).toHaveBeenNthCalledWith(2, second, EXPECTED_REPOSITORY_GENERATOR_ANCHOR);
   });
 
   it('does not defer generation to closeBundle', () => {

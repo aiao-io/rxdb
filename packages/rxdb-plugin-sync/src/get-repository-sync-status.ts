@@ -9,8 +9,6 @@ import {
   getSyncCapability,
   getSyncType,
   isRepositorySyncEnabled,
-  needsPull,
-  needsPush,
   type RepositoryIdentifier,
   type RxDB,
   RxDBChange,
@@ -181,7 +179,7 @@ export async function getRepositorySyncStatus(
   }
 
   const metadata = getEntityMetadata(EntityClass);
-  const syncType = getSyncType(metadata, rxdb.config.sync);
+  const syncType = getSyncType(metadata, rxdb.entitySync);
   const syncCapability = getSyncCapability(syncType);
 
   // 2. 获取当前分支
@@ -209,13 +207,12 @@ export async function getRepositorySyncStatus(
   let pushableCount = 0;
   let pullableCount = 0;
 
-  // 如果该实体需要推送，则计算 pushableCount（与 syncType 一致地传入全局 sync 回退）
-  if (needsPush(metadata, rxdb.config.sync)) {
+  // 推拉能力取开头那一次解析的结果：中间隔着几个 await，重新解析可能与返回的 syncType 不一致
+  if (syncCapability.push) {
     pushableCount = await calculatePushableCount(sm, namespace, entity, branchId, repoSync?.lastPushedChangeId ?? null);
   }
 
-  // 如果该实体需要拉取，则计算 pullableCount（与 syncType 一致地传入全局 sync 回退）
-  if (needsPull(metadata, rxdb.config.sync)) {
+  if (syncCapability.pull) {
     pullableCount = await calculatePullableCount(rxdb, namespace, entity);
   }
 

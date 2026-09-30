@@ -1,3 +1,4 @@
+import type { RxDB } from '@aiao/rxdb';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -21,6 +22,15 @@ import {
   type DesktopHostTransport,
   type DesktopOptions
 } from '../index.js';
+import {
+  cleanupIncompleteElectronPGliteRestore,
+  restoreElectronPGliteDatabase,
+  RxDBAdapterElectronPGlite,
+  type ElectronPGliteOptions,
+  type ElectronPGliteRestoreTarget,
+  type PGliteRestoreOptions,
+  type PGliteRestoreStage
+} from '../pglite.js';
 
 const SOURCE_ROOT = resolve(import.meta.dirname, '..');
 const IMPORT_PATTERN = /from\s+'([^']+)'/g;
@@ -63,7 +73,7 @@ describe('renderer entry', () => {
   it('exposes the adapter, the client and the transport contract', () => {
     expect(ELECTRON_ADAPTER_NAME).toBe('sqlite-electron');
     expect(DESKTOP_DEFAULT_DATABASE_SUFFIX).toBe('.sqlite3');
-    expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(1);
+    expect(DESKTOP_HOST_PROTOCOL_VERSION).toBe(2);
     expect(DESKTOP_HOST_TRANSPORT_KEY).toBe('__aiaoRxdbDesktopHost__');
     expect(typeof RxDBAdapterElectron).toBe('function');
     expect(typeof DesktopSqliteClient).toBe('function');
@@ -104,5 +114,29 @@ describe('host entry', () => {
     const rendererExports = Object.keys(await import('../index.js'));
     expect(rendererExports).not.toContain('createElectronSqliteHost');
     expect(rendererExports).not.toContain('createElectronFileHost');
+  });
+});
+
+describe('pglite entry', () => {
+  // US-217：恢复的目标还没连接、没有 adapter 可调，恢复与清理只能从入口直接拿到
+  it('exposes the restore and cleanup functions next to the adapter', () => {
+    expect(typeof RxDBAdapterElectronPGlite).toBe('function');
+    expect(typeof restoreElectronPGliteDatabase).toBe('function');
+    expect(typeof cleanupIncompleteElectronPGliteRestore).toBe('function');
+    expectTypeOf<ElectronPGliteRestoreTarget>().toEqualTypeOf<{
+      readonly rxdb: RxDB;
+      readonly options: ElectronPGliteOptions;
+    }>();
+    expectTypeOf(restoreElectronPGliteDatabase).parameter(2).toEqualTypeOf<PGliteRestoreOptions | undefined>();
+    expectTypeOf<Parameters<NonNullable<PGliteRestoreOptions['onStage']>>[0]>().toEqualTypeOf<PGliteRestoreStage>();
+  });
+
+  it('keeps every Node builtin behind the host entries', () => {
+    const rendererSpecifiers = [...collectSpecifiers(resolve(SOURCE_ROOT, 'pglite.ts'))];
+    expect(rendererSpecifiers.filter(specifier => specifier.startsWith('node:'))).toEqual([]);
+  });
+
+  it('does not re-export the PGlite host factory from the renderer entry', async () => {
+    expect(Object.keys(await import('../pglite.js'))).not.toContain('createElectronPgliteHost');
   });
 });

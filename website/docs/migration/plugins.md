@@ -52,6 +52,27 @@ export class Article extends EntityBase {
 | React   | `@aiao/rxdb-plugin-search-react`   | `useSearch()`                                              |
 | Vue     | `@aiao/rxdb-plugin-search-vue`     | `useSearch()`                                              |
 
+## 启用工作树插件
+
+工作树与提交历史（`@aiao/rxdb-plugin-working-tree`）的启用路径与搜索插件不同：它声明系统贡献，因此 **`use()` 必须排在 `connect()` 之前**，连接后还要 `enable()` 一次：
+
+```typescript
+// 1. 安装
+// pnpm add @aiao/rxdb-plugin-working-tree
+
+// 2. 注册——必须在 connect() 之前，否则核心在建表时抛错
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
+
+const db = new RxDB({ dbName: 'myapp', entities: [Todo] });
+db.use(rxDBPluginWorkingTree);
+await db.connect('sqlite-wasm');
+
+// 3. 启用能力（幂等）：既有库上翻能力位并补分支根节点，新库上是一次确认
+await db.workingTree.enable();
+```
+
+`enable()` 之后库里会留下能力水位行；**没装本插件的客户端再打开这个库会被拒绝连接**并报出该装的包名。从未启用过工作树的库不装本包零成本。完整流程见[工作树拆包](./working-tree-split.md)，API 见[工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)。
+
 ## 升级已启用的插件
 
 1. 所有 `@aiao/*` 包同步版本号，升级时**插件与核心保持同一版本**。

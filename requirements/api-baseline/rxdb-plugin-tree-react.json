@@ -1,0 +1,22 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "useCountAncestors",
+        "kind": "value"
+      },
+      {
+        "name": "useCountDescendants",
+        "kind": "value"
+      },
+      {
+        "name": "useFindAncestors",
+        "kind": "value"
+      },
+      {
+        "name": "useFindDescendants",
+        "kind": "value"
+      }
+    ]
+  }
+}

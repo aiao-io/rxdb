@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-plugin-working-tree-react",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-plugin-working-tree-react/src",
+  "tags": ["react-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
+}

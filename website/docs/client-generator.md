@@ -4,7 +4,7 @@
 
 ## 这页解决什么
 
-- 读取 `@aiao/rxdb` 装饰器定义（`@Entity` / `@TreeEntity` / `@GraphEntity`）
+- 读取实体装饰器定义（`@Entity` 来自 `@aiao/rxdb`，`@TreeEntity` 来自 `@aiao/rxdb-plugin-tree`，`@GraphEntity` 来自 `@aiao/rxdb-plugin-graph`）
 - 生成实体类型与静态类型映射
 - 生成 `Repository` 查询方法签名（`get/find/findAll/findByCursor/...`）
 - 生成关系字段的规则类型，支持点语法关系查询

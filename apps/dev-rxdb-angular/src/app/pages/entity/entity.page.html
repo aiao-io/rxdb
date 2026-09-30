@@ -1,0 +1,48 @@
+<!-- 壳页根容器：三端统一的 e2e 定位锚点（React/Vue 同款 data-testid="entity-shell"） -->
+<div class="flex h-full w-full" data-testid="entity-shell">
+  <!-- 左侧：实体目录（public 平铺，其余按 namespace 分组） -->
+  <div class="border-base-300 bg-base-100 flex h-full w-56 shrink-0 flex-col border-r">
+    <div class="border-base-300 text-base-content/70 flex h-10 min-h-10 items-center border-b px-3 text-xs font-medium">
+      实体类型
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <ul class="menu menu-sm w-full">
+        @for (entity of publicEntities; track entity.key) {
+          <li>
+            <a [routerLink]="[entity.namespace, entity.name]" routerLinkActive="menu-active">
+              <span class="truncate">{{ entity.displayName }}</span>
+              <span class="badge badge-ghost badge-xs">{{ entityCountSignals.get(entity.key)?.() ?? 0 }}</span>
+            </a>
+          </li>
+        }
+        @for (group of entityGroups; track group.namespace) {
+          <li>
+            <details open>
+              <summary class="text-base-content/50 text-xs font-semibold tracking-wide uppercase">
+                {{ group.namespace }}
+              </summary>
+              <ul>
+                @for (entity of group.entities; track entity.key) {
+                  <li>
+                    <a [routerLink]="[entity.namespace, entity.name]" routerLinkActive="menu-active">
+                      <span class="truncate">{{ entity.displayName }}</span>
+                      <span class="badge badge-ghost badge-xs">{{ entityCountSignals.get(entity.key)?.() ?? 0 }}</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </details>
+          </li>
+        }
+      </ul>
+    </div>
+    <div class="border-base-300 text-base-content/40 flex items-center border-t px-3 py-1.5 text-xs">
+      <span>共 {{ entityList.length }} 个实体</span>
+    </div>
+  </div>
+
+  <!-- 右侧：所选实体的列表（relative 把表格的加载/空态遮罩限制在面板内，不遮左侧目录） -->
+  <div class="relative flex flex-1 flex-col overflow-hidden">
+    <router-outlet />
+  </div>
+</div>

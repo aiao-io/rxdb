@@ -1,7 +1,7 @@
 import { PropertyType, RelationKind } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
-import { compileGeneratedConsumer } from './helpers/generated-consumer.js';
+import { compileGeneratedConsumer } from '../testing/generated-consumer.js';
 
 const createGenerator = (): RxDBClientGenerator => {
   const generator = new RxDBClientGenerator();

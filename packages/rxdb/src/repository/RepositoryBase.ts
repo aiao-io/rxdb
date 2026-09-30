@@ -5,8 +5,8 @@ import type { RxDB } from '../RxDB.js';
 /**
  * 数据仓库
  *
- * 所有 Repository（{@link Repository}、{@link TreeRepository}、以及适配器侧的
- * `AdapterRepository`）的公共基类。它只承担**实体引用的薄包装**：
+ * 所有 Repository（{@link Repository}、插件侧的 `TreeRepository` / `GraphRepository`、
+ * 以及适配器侧的 `AdapterRepository`）的公共基类。它只承担**实体引用的薄包装**：
  *
  * - 创建 / 查找 / 是否存在 —— 全部委托给 {@link EntityManager} 的 LRU 缓存；
  * - 更新 —— 走 {@link EntityStatus.replace}（有的话）或 fallback 到 `Object.assign`
@@ -65,7 +65,7 @@ export abstract class RepositoryBase<T extends EntityType> {
    * @param id - 实体主键
    * @returns 缓存命中则返回实例，未命中返回 `undefined`（**不**触发数据库查询）
    */
-  getEntityRef(id: EntityStaticType<T, 'idType'>): InstanceType<T> | undefined {
+  getEntityRef(id: EntityStaticType<T, 'idType'>): EntityInstanceType<T> | undefined {
     return this.rxdb.entityManager.getEntityRef(this.EntityType, id);
   }
 

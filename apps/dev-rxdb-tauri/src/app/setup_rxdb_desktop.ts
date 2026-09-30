@@ -24,11 +24,13 @@ import {
   createDevToolsStorageSnapshotPorts,
   type DevToolsStorageSnapshotPorts
 } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
+import type { BackupProbeArchiveOps, BackupProbeDatabase } from './backup-probe';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
 
@@ -217,6 +219,22 @@ export const createDesktopDevToolsProviders = (options: DesktopDevToolsProviders
   };
 };
 
+/** 已注册的 Tauri SQLite 适配器；备份时是已连接的那个，恢复时是尚未连接的那个。 */
+const tauriAdapterOf = async (rxdb: BackupProbeDatabase): Promise<RxDBAdapterTauri> =>
+  (await rxdb.getAdapter(TAURI_ADAPTER_NAME)) as unknown as RxDBAdapterTauri;
+
+/**
+ * 本后端的备份与恢复（US-217 AC#18：打包 smoke 的探针经它走真实的 host 快照与流传输）。
+ *
+ * @remarks
+ * 两个方向都落在适配器上：备份读已连接实例的一致快照，恢复要求实例已注册、尚未连接——
+ * 探针在 `restore` 模式下正是把连接压到恢复成功之后。
+ */
+export const archiveOps: BackupProbeArchiveOps = {
+  backup: async (rxdb, sink) => (await tauriAdapterOf(rxdb)).backup(sink),
+  restore: async (rxdb, source) => (await tauriAdapterOf(rxdb)).restore(source)
+};
+
 /**
  * 构建本 app 的 RxDB 单例（Tauri 宿主持有的应用作用域 SQLite 文件，无远端同步）。
  *
@@ -281,6 +299,7 @@ export default async () => {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
+    .use(rxDBPluginTree)
     .use(rxDBPluginStorage, createDesktopStorageOptions(transport))
     .adapter(TAURI_ADAPTER_NAME, async db => new RxDBAdapterTauri(db, { transport }));
 

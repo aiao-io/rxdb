@@ -227,6 +227,12 @@ rxdb.use(rxDBPluginStorage, {
 
 这不是跨进程的分布式事务。同一路径的并发修改由路径锁串行化：浏览器后端用 Web Locks（同 origin 内跨标签页有效），桌面后端用 host 仲裁的锁（跨窗口有效）。跨**应用实例**（各自独立进程、各自的 host）仍无保护。
 
+## 与数据库备份的关系
+
+数据库备份（[US-217](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/adapter/US-217-local-database-backup-restore.md) 的 `adapter.backup()` 与恢复）**不包含本插件存放的文件体**：归档只装数据库，结果与 manifest 的 `scope` 恒为 `{ database: 'included', externalFiles: 'excluded' }`。恢复一份归档只带回文件的元数据，文件体须另行备份与恢复——浏览器后端在 OPFS 的 `rootDir` 下，桌面后端在文件宿主根目录（示例应用为 `userData/rxdb-files`）下。只恢复数据库时，元数据指向的文件体在新位置并不存在。
+
+桌面后端「与桌面 SQLite 库同属一个备份域」说的是两者都落在应用数据目录里、可以一并处理，不是说数据库归档会带上文件。
+
 ## 开发命令
 
 ```bash

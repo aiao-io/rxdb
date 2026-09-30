@@ -16,6 +16,7 @@ import {
   isCurrentRxDBSystemVersion,
   RXDB_CHANGE_CODEC_WATERMARK_PREFIX,
   RXDB_SYSTEM_SCHEMA_VERSION,
+  RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBMigration,
   UnsupportedRxDBSystemVersionError
@@ -23,6 +24,22 @@ import {
 
 describe('RxDBMigration', () => {
   describe('系统 schema 水位', () => {
+    // 本节唯一写死版本号的一条，与紧随其后那些「取自常量」的断言是**两种**测试，不要合并：
+    //
+    // 下面那些验的是「给定当前版本，判定函数是否自洽」，写死会在下一次 bump 时把「当前版本」
+    // 测成「历史版本」——断言仍然绿，但已经不再验证 bump 后的契约。这一条验的是**当前值本身**，
+    // 只有写死才成立：`RXDB_SYSTEM_SCHEMA_WATERMARK` 是模板字符串拼出来的，bump 之后它自动
+    // 跟着变，正因为自动，**忘记 bump** 也一样自动——整份代码没有任何一处会因为常量停在旧值而
+    // 编译失败，而停住的后果是既有库永远不进升级路径，且没有任何报错。
+    //
+    // 它钉的是**当前值**，不是某一次 bump：改了常量就该来改这一行，这一行存在的意义就是
+    // 强迫那次改动被人看见一次。上一次是 5 → 6：epic-006 的十张表随
+    // `@aiao/rxdb-plugin-working-tree` 抽走，语义「activeKey 就位，且那十张表不再归核心管」。
+    it('系统 schema 版本常量与水位行停在当前值', () => {
+      expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(6);
+      expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`);
+    });
+
     // 版本号取自常量而非写死：写死会在下一次 bump 时把「当前版本」测成「历史版本」，
     // 断言仍然绿但已经不再验证 bump 后的契约
     it('同时识别 system schema 与 change codec 当前版本', () => {

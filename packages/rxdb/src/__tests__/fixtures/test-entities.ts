@@ -8,8 +8,6 @@
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { PropertyType, RelationKind } from '../../entity/metadata-options.interface.js';
-import { TreeAdjacencyListEntityBase } from '../../entity/tree-entity-base.js';
-import { TreeEntity } from '../../entity/tree-entity.decorator.js';
 
 /**
  * 用户实体 - 简单实体，用于基础 CRUD 和版本控制测试
@@ -59,9 +57,14 @@ export class Post extends EntityBase {
 }
 
 /**
- * 分类实体 - 树形结构，用于测试级联操作和分支管理
+ * 分类实体 - 普通实体，用于查询规则构建测试
+ *
+ * @remarks
+ * US-025 阶段 E 起树能力在 `@aiao/rxdb-plugin-tree`，核心测试 fixture 不再声明树实体：
+ * 唯一的消费方 `query-rules-builder.spec.ts` 用的是 `order` / `slug` 两个普通字段，
+ * 树性对它不承载任何语义。
  */
-@TreeEntity({
+@Entity({
   name: 'Category',
   properties: [
     { name: 'name', type: PropertyType.string },
@@ -69,7 +72,7 @@ export class Post extends EntityBase {
     { name: 'slug', type: PropertyType.string, unique: true }
   ]
 })
-export class Category extends TreeAdjacencyListEntityBase {
+export class Category extends EntityBase {
   name!: string;
   order!: number;
   slug!: string;

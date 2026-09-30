@@ -1,3 +1,4 @@
+import { MAIN_BRANCH_ID } from '@aiao/rxdb';
 import { toRemoteFromChangeId } from './branch-change-id.js';
 import type { SyncManager } from './SyncManager.js';
 
@@ -17,14 +18,14 @@ export interface PushBranchResult {
  * 将当前激活分支推送到远程
  *
  * 规则:
- * 1. 不推送 id='main' 的分支
+ * 1. 不推送根分支（{@link MAIN_BRANCH_ID}）
  * 2. 不修改远程分支的 activated 属性（由 SQL 函数保证）
  * 3. `fromChangeId` 翻译成远端 id 后再上行（见 {@link toRemoteFromChangeId}）
  */
 export async function pushBranch(sm: SyncManager): Promise<PushBranchResult> {
   const branch = await sm.getCurrentBranch();
-  if (!branch || branch.id === 'main') {
-    return { synced: 0, skipped: branch ? ['main'] : [], forkPointPending: false };
+  if (!branch || branch.id === MAIN_BRANCH_ID) {
+    return { synced: 0, skipped: branch ? [MAIN_BRANCH_ID] : [], forkPointPending: false };
   }
 
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();

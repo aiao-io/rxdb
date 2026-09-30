@@ -28,6 +28,9 @@
       "path": "../rxdb-client-generator/tsconfig.lib.json"
     },
     {
+      "path": "../rxdb-plugin-tree/tsconfig.lib.json"
+    },
+    {
       "path": "../rxdb/tsconfig.lib.json"
     },
     {

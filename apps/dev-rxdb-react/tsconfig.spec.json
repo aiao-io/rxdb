@@ -44,7 +44,16 @@
       "path": "../../packages/rxdb-react/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-model-react/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-storage/tsconfig.lib.json"

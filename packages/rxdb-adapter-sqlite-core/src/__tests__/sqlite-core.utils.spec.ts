@@ -723,7 +723,10 @@ describe('sqlite.utils', () => {
       expect(result).toEqual({ dept_id: 'd1' });
     });
 
-    it('应该过滤 readonly 的外键', () => {
+    // 关系不会带 readonly 键：类型层声明为 `readonly?: never`，`EntityManager.init()` 的
+    // readonlyOnRelation 规则也会拒绝注册。这里手工构造出这种不可达的元数据，只为钉住
+    // UPDATE 侧不再为它单独过滤（与 CREATE 侧对称），契约本身锁在 @aiao/rxdb 的 entity.utils.spec。
+    it('关系上的 readonly 键不再被单独过滤', () => {
       const metadata = createMetadata(
         [],
         [
@@ -740,7 +743,7 @@ describe('sqlite.utils', () => {
 
       const result = normalizeUpdateEntity(metadata, { deptId: 'd1' });
 
-      expect(result).toEqual({});
+      expect(result).toEqual({ dept_id: 'd1' });
     });
 
     it('foreignKeyRelationMap 缺失对应关系时应该忽略该外键', () => {
@@ -753,37 +756,6 @@ describe('sqlite.utils', () => {
       const result = normalizeUpdateEntity(metadata, { ghostId: 'x' });
 
       expect(result).toEqual({});
-    });
-  });
-
-  describe('normalizeCreateEntity 兼容分支', () => {
-    it('元数据缺失 foreignKeyNames 时应该只保留属性', () => {
-      const metadata = fakeMetadata({
-        propertyMap: new Map([['name', { name: 'name', columnName: 'name', type: PropertyType.string }]])
-      });
-
-      const result = normalizeCreateEntity(metadata, { name: 'John', fooId: 'x' });
-
-      expect(result).toEqual({ name: 'John' });
-    });
-
-    it('实体缺少外键字段时应该跳过外键', () => {
-      const metadata = createMetadata(
-        [{ name: 'name', type: PropertyType.string }],
-        [
-          {
-            name: 'dept',
-            kind: RelationKind.MANY_TO_ONE,
-            mappedEntity: 'Dept',
-            mappedProperty: 'items',
-            columnName: 'dept_id'
-          }
-        ]
-      );
-
-      const result = normalizeCreateEntity(metadata, { name: 'John' });
-
-      expect(result).toEqual({ name: 'John' });
     });
   });
 

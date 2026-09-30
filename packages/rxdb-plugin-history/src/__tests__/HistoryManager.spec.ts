@@ -284,32 +284,6 @@ describe('HistoryManager - Pure Functions', () => {
   });
 });
 
-interface MutableHistoryManagerState {
-  isUndoRedoInProgress: boolean;
-  isInvalidatingRedo: boolean;
-}
-
-/**
- * 直接写 `HistoryManager` 的两个执行中标志。**只给下面两条防御分支用例用**，别扩散。
- *
- * @remarks
- * 这两个标志正常只由 `applyUndoRedoHistories` / `invalidateRedoStack` 自己在**同一个
- * 序列化任务内部**置起再复位，而 `undo` / `redo` / `invalidateRedoStack` 三个入口全都
- * 走 `#runSerialized` 排队（`history-scope-api.ts` 的 undo/redo、`HistoryManager.ts` 的
- * invalidateRedoStack），任务之间不重叠——所以 `invalidateRedoStack` 开头那道
- * `isUndoRedoInProgress || isInvalidatingRedo` 检查，从任何公开入口都到不了。
- * 「持着 undo 不放再去 invalidate」也不行：后者只会排在 undo 后面，等它跑到时标志已复位。
- *
- * 真正生效、也真正被测的那道守卫在调用方 `VersionManager.ts` 的
- * `if (!this.historyManager.isExecutingUndoRedo())`，它连 `syncDepth` 一起看，
- * 由 `HistoryManager.scopes-and-undo.spec.ts` 经公开的 `syncing()` 与真实 undo 覆盖。
- *
- * 这里注入，是为了让那道**够不到的兜底分支**也有断言盯着；断言钉的是行为
- * （不调 `switchBranch`、redo 栈原样保留），不是标志本身。
- */
-const getMutableHistoryManagerState = (manager: HistoryManager): MutableHistoryManagerState =>
-  manager as unknown as MutableHistoryManagerState;
-
 describe('HistoryManager - Class Methods', () => {
   let mockRxDB: RxDB;
   let mockBranchRepository: {
@@ -414,6 +388,27 @@ describe('HistoryManager - Class Methods', () => {
       } finally {
         config.onUnhandledError = originalOnUnhandledError;
         consoleError.mockRestore();
+      }
+    });
+  });
+
+  // 仓库活查询会经适配器的就绪门把实例连起来。构造期就订阅活跃分支，等于 `init()` 之后插件自己
+  // 把库连上了：「连接前先恢复」这类必须对着未连接实例做的操作，永远只看得到一个已连接的目标
+  // （US-217 桌面打包 smoke 的 restore 就是这样撞上 `target_busy` 的）。
+  describe('实例尚未连接时', () => {
+    it('不查活跃分支，连上之后才开始跟随', async () => {
+      // beforeEach 里那个已连接的实例已经查过一次，与本用例无关。
+      mockBranchRepository.findOne.mockClear();
+      const connected$ = new BehaviorSubject(false);
+      const manager = new HistoryManager({ ...mockRxDB, connected$ } as unknown as RxDB);
+      try {
+        await Promise.resolve();
+        expect(mockBranchRepository.findOne).not.toHaveBeenCalled();
+
+        connected$.next(true);
+        expect(mockBranchRepository.findOne).toHaveBeenCalled();
+      } finally {
+        manager.destroy();
       }
     });
   });
@@ -877,68 +872,8 @@ describe('HistoryManager - Class Methods', () => {
   });
 
   describe('invalidateRedoStack', () => {
-    it('should skip if already executing undo/redo', async () => {
-      // 模拟正在执行 undo/redo
-      getMutableHistoryManagerState(historyManager).isUndoRedoInProgress = true;
-
-      const items: HistoryItem[] = [
-        {
-          transactionId: null,
-          changeId: 1,
-          fingerprint: 'test',
-          changes: [],
-          type: 'INSERT',
-          count: 1,
-          createdAt: new Date(),
-          description: 'test',
-          namespace: 'public',
-          entity: 'User',
-          reverted: false,
-          redoInvalidated: false
-        }
-      ];
-      historyManager.pushToRedoStack(items);
-
-      await historyManager.invalidateRedoStack();
-
-      // 跳过 = 一个字都没往库里写，redo 栈原样留着
-      expect(mockSwitchBranch).not.toHaveBeenCalled();
-      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
-
-      getMutableHistoryManagerState(historyManager).isUndoRedoInProgress = false;
-    });
-
-    it('should skip if already invalidating', async () => {
-      getMutableHistoryManagerState(historyManager).isInvalidatingRedo = true;
-
-      const items: HistoryItem[] = [
-        {
-          transactionId: null,
-          changeId: 1,
-          fingerprint: 'test',
-          changes: [],
-          type: 'INSERT',
-          count: 1,
-          createdAt: new Date(),
-          description: 'test',
-          namespace: 'public',
-          entity: 'User',
-          reverted: false,
-          redoInvalidated: false
-        }
-      ];
-      historyManager.pushToRedoStack(items);
-
-      await historyManager.invalidateRedoStack();
-
-      expect(mockSwitchBranch).not.toHaveBeenCalled();
-      expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(1);
-
-      getMutableHistoryManagerState(historyManager).isInvalidatingRedo = false;
-    });
-
-    // 空栈是**唯一一条公开可达**的跳过路径（另两条要注入标志才够得到）：没东西可失效时
-    // 不该为此开一次 switchBranch —— 那是一次真实的写事务，白跑一趟还会推进变更序列号
+    // 没东西可失效时不该为此开一次 switchBranch —— 那是一次真实的写事务，
+    // 白跑一趟还会推进变更序列号
     it('should skip if redo stack is empty', async () => {
       expect(await firstValueFrom(historyManager.redoHistories$)).toHaveLength(0);
 

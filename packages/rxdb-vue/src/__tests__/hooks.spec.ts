@@ -22,14 +22,10 @@ import {
 } from 'vue';
 import {
   useCount,
-  useCountAncestors,
-  useCountDescendants,
   useCountNeighbors,
   useFind,
   useFindAll,
-  useFindAncestors,
   useFindByCursor,
-  useFindDescendants,
   useFindOne,
   useFindOneOrFail,
   useGet,
@@ -62,7 +58,6 @@ interface TestEntityStaticTypes {
   findByCursorOptions: CursorOptions;
   findAllOptions: QueryOptions;
   countOptions: QueryOptions;
-  findTreeOptions: QueryOptions;
   findNeighborsOptions: QueryOptions;
   findPathsOptions: QueryOptions;
 }
@@ -75,10 +70,6 @@ const queryMocks = {
   findByCursor: vi.fn<(options: CursorOptions) => Observable<TestEntity[]>>(),
   findAll: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
   count: vi.fn<(options: QueryOptions) => Observable<number>>(),
-  findDescendants: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
-  countDescendants: vi.fn<(options: QueryOptions) => Observable<number>>(),
-  findAncestors: vi.fn<(options: QueryOptions) => Observable<TestEntity[]>>(),
-  countAncestors: vi.fn<(options: QueryOptions) => Observable<number>>(),
   findNeighbors$: vi.fn<(options: QueryOptions) => Observable<GraphQueryResult<NeighborResult<typeof TestEntity>>>>(),
   countNeighbors$: vi.fn<(options: QueryOptions) => Observable<number>>(),
   findPaths$: vi.fn<(options: QueryOptions) => Observable<GraphQueryResult<GraphPath<typeof TestEntity>>>>()
@@ -94,12 +85,11 @@ class TestEntity {
     findByCursorOptions: { key: '' },
     findAllOptions: { key: '' },
     countOptions: { key: '' },
-    findTreeOptions: { key: '' },
     findNeighborsOptions: { key: '' },
     findPathsOptions: { key: '' }
   };
 
-  // RAN-014：树/图 hooks 已收紧到 TreeEntityType / GraphEntityType，
+  // RAN-014：图 hooks 已收紧到 GraphEntityType，
   // 实例必须满足 IEntity（id + createdAt + updatedAt）才能作为它们的实参
   readonly createdAt = new Date(0);
   readonly updatedAt = new Date(0);
@@ -135,22 +125,6 @@ class TestEntity {
 
   static count(options: QueryOptions): Observable<number> {
     return queryMocks.count(options);
-  }
-
-  static findDescendants(options: QueryOptions): Observable<TestEntity[]> {
-    return queryMocks.findDescendants(options);
-  }
-
-  static countDescendants(options: QueryOptions): Observable<number> {
-    return queryMocks.countDescendants(options);
-  }
-
-  static findAncestors(options: QueryOptions): Observable<TestEntity[]> {
-    return queryMocks.findAncestors(options);
-  }
-
-  static countAncestors(options: QueryOptions): Observable<number> {
-    return queryMocks.countAncestors(options);
   }
 
   static findNeighbors$(options: QueryOptions): Observable<GraphQueryResult<NeighborResult<typeof TestEntity>>> {
@@ -208,10 +182,6 @@ const resetQueryMocks = (): void => {
   queryMocks.findByCursor.mockReturnValue(of([new TestEntity('cursor')]));
   queryMocks.findAll.mockReturnValue(of([new TestEntity('find-all')]));
   queryMocks.count.mockReturnValue(of(7));
-  queryMocks.findDescendants.mockReturnValue(of([new TestEntity('descendant')]));
-  queryMocks.countDescendants.mockReturnValue(of(2));
-  queryMocks.findAncestors.mockReturnValue(of([new TestEntity('ancestor')]));
-  queryMocks.countAncestors.mockReturnValue(of(1));
   queryMocks.findNeighbors$.mockReturnValue(
     of(
       createGraphQueryResult(
@@ -452,10 +422,6 @@ describe('RxDB Vue repository hooks', () => {
       findOneOrFail: useFindOneOrFail(TestEntity, { key: 'find-one-or-fail' }),
       findByCursor: useFindByCursor(TestEntity, { key: 'cursor', limit: 10 }),
       findAll: useFindAll(TestEntity, { key: 'find-all' }),
-      descendants: useFindDescendants(TestEntity, { key: 'descendants' }),
-      descendantCount: useCountDescendants(TestEntity, { key: 'descendant-count' }),
-      ancestors: useFindAncestors(TestEntity, { key: 'ancestors' }),
-      ancestorCount: useCountAncestors(TestEntity, { key: 'ancestor-count' }),
       neighbors: useGraphNeighbors(TestEntity, { key: 'neighbors' }),
       neighborCount: useCountNeighbors(TestEntity, { key: 'neighbor-count' }),
       paths: useGraphPaths(TestEntity, { key: 'paths' })
@@ -464,20 +430,12 @@ describe('RxDB Vue repository hooks', () => {
     expect(resources.findOneOrFail.value?.id).toBe('find-one-or-fail');
     expect(resources.findByCursor.value[0]?.id).toBe('cursor');
     expect(resources.findAll.value[0]?.id).toBe('find-all');
-    expect(resources.descendants.value[0]?.id).toBe('descendant');
-    expect(resources.descendantCount.value).toBe(2);
-    expect(resources.ancestors.value[0]?.id).toBe('ancestor');
-    expect(resources.ancestorCount.value).toBe(1);
     expect(resources.neighbors.value[0]?.node.id).toBe('neighbor');
     expect(resources.neighborCount.value).toBe(3);
     expect(resources.paths.value).toHaveLength(1);
     expect(queryMocks.findOneOrFail).toHaveBeenCalledOnce();
     expect(queryMocks.findByCursor).toHaveBeenCalledOnce();
     expect(queryMocks.findAll).toHaveBeenCalledOnce();
-    expect(queryMocks.findDescendants).toHaveBeenCalledOnce();
-    expect(queryMocks.countDescendants).toHaveBeenCalledOnce();
-    expect(queryMocks.findAncestors).toHaveBeenCalledOnce();
-    expect(queryMocks.countAncestors).toHaveBeenCalledOnce();
     expect(queryMocks.findNeighbors$).toHaveBeenCalledOnce();
     expect(queryMocks.countNeighbors$).toHaveBeenCalledOnce();
     expect(queryMocks.findPaths$).toHaveBeenCalledOnce();

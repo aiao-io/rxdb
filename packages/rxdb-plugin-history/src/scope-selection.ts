@@ -112,8 +112,9 @@ const describeOutsiders = (histories: readonly HistoryItem[], scope: HistoryScop
  *
  * @remarks
  * 拿到本错误说明选中的历史项里有事务同时改了作用域内外的数据。作用域**不会**替你决定
- * 是牺牲原子性还是越权撤销，改用不带参数的 `rxdb.versionManager.history()`
- * （database 作用域）可以完整撤销这个事务。`historyManager` 是私有字段，够不到。
+ * 是牺牲原子性还是越权撤销：要完整撤销这个事务，改用不带参数的
+ * `rxdb.versionManager.history()`（database 作用域）重新取一次历史再 undo。
+ * `VersionManager.historyManager` 是实现细节，不是绕开本错误的出口。
  */
 export class RxDBCrossScopeTransactionError extends RxDBError {
   constructor(

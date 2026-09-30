@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-08-18
+updated: 2026-09-20
 tags: [framework, vue]
 ---
 
@@ -49,10 +49,9 @@ tags: [framework, vue]
 
 ## 实现文件
 
-- `packages/rxdb-vue/src/rxdb.ts` — Composables 核心
 - `packages/rxdb-vue/src/rxdb-vue.ts` — Vue 响应式封装
-- `packages/rxdb-vue/src/rxdb-infinite-scroll.ts` — 无限滚动
-- `packages/rxdb-vue/src/rxdb-tree.ts` — Tree composables
+- `packages/rxdb-vue/src/hooks.ts` — Composables 核心（含 `useFindDescendants` 等 Tree/Graph composables，无独立 tree 文件）
+- `packages/rxdb-vue/src/useInfiniteScroll.ts` — 无限滚动
 
 ## 参考
 

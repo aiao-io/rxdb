@@ -1,13 +1,13 @@
 import {
   ENTITY_LOCAL_UPDATE_EVENT,
   EntityLocalUpdatedEvent,
-  EntityType,
   RxDB,
   RxDBEntityLocalUpdatedEventData,
   SyncType
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES } from '@aiao/rxdb-test/shop';
+import { cloneEntityClasses as coreCloneEntityClasses } from '@aiao/rxdb/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { cleanup_db, cloneEntityClasses, generateDbName } from '../testing.js';
@@ -94,48 +94,11 @@ describe('testing cleanup_db integration & cloneEntityClasses metadata', () => {
     expect(leaked).toEqual([]);
   });
 
-  it('cloneEntityClasses copies ɵMetadata and non-special statics', () => {
-    const meta = { name: 'Demo' };
-    const metaSym = Symbol('ɵMetadata');
-    class Demo {
-      static keep = 42;
-    }
-    Object.defineProperty(Demo, metaSym, {
-      value: meta,
-      enumerable: false,
-      configurable: true,
-      writable: false
-    });
-    const custom = Symbol('custom');
-    Object.defineProperty(Demo, custom, {
-      value: 'x',
-      enumerable: false,
-      configurable: true,
-      writable: true
-    });
-
-    const [Clone] = cloneEntityClasses([Demo as unknown as EntityType]);
-    expect(Clone).not.toBe(Demo);
-    expect((Clone as unknown as { keep: number }).keep).toBe(42);
-    const clonedMeta = Object.getOwnPropertyDescriptor(Clone, metaSym)?.value;
-    expect(clonedMeta).toBeTruthy();
-    expect(Object.getPrototypeOf(clonedMeta)).toBe(meta);
-    expect(Object.getOwnPropertyDescriptor(Clone, custom)?.value).toBe('x');
-  });
-
-  it('cloneEntityClasses walks prototype chain for ɵMetadata', () => {
-    const meta = { name: 'BaseMeta' };
-    const metaSym = Symbol('ɵMetadata');
-    class Base {}
-    Object.defineProperty(Base, metaSym, {
-      value: meta,
-      enumerable: false,
-      configurable: true,
-      writable: false
-    });
-    class Child extends Base {}
-    const [Clone] = cloneEntityClasses([Child as unknown as EntityType]);
-    const clonedMeta = Object.getOwnPropertyDescriptor(Clone, metaSym)?.value;
-    expect(Object.getPrototypeOf(clonedMeta)).toBe(meta);
+  it('cloneEntityClasses 是核心 @aiao/rxdb/testing 那一份，不是本包的副本', () => {
+    // 元数据槽位怎么找、原型链怎么上溯，判据全部归核心的
+    // `packages/rxdb/src/__tests__/testing/clone-entity-classes.spec.ts`。
+    // 这里原本用 `Symbol('ɵMetadata')` 造夹具自测一遍——而核心真正的槽位是
+    // `Symbol.for('@aiao/rxdb/ɵMetadata')`，那个夹具喂的是生产里不存在的输入。
+    expect(cloneEntityClasses).toBe(coreCloneEntityClasses);
   });
 });

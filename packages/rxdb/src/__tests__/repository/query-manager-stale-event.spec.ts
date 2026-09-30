@@ -24,6 +24,7 @@ import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import type { RxDBEntityLocalEventData } from '../../rxdb-events.js';
 import { getEntityStatus } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
 
 @Entity({
   name: 'Node',
@@ -65,16 +66,20 @@ const buildEvent = (patch: Record<string, unknown>, recordAt: Date): RxDBEntityL
     recordAt
   }) as unknown as RxDBEntityLocalEventData<typeof Node>;
 
+const { trackRxDB } = registerRxDBTeardown();
+
 describe('QueryManager 事件回写的单调性（P0-004）', () => {
   let rxdb: RxDB;
   let serialize: (data: RxDBEntityLocalEventData<typeof Node>) => Node;
 
   beforeEach(() => {
-    rxdb = new RxDB({
-      dbName: `p0-004-${Math.floor(performance.now() * 1000)}`,
-      entities: [Node],
-      sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
-    });
+    rxdb = trackRxDB(
+      new RxDB({
+        dbName: `p0-004-${Math.floor(performance.now() * 1000)}`,
+        entities: [Node],
+        sync: { local: { adapter: 'sqlite' }, type: SyncType.None }
+      })
+    );
     rxdb.adapter('sqlite', () => mockAdapter as unknown as IRxDBAdapter);
     rxdb.init();
 

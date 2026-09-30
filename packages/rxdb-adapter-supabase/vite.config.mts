@@ -55,7 +55,7 @@ export default defineConfig(() => ({
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
       // 不打进库里的外部依赖。
-      external: ['@aiao/rxdb', '@supabase/supabase-js', 'rxjs']
+      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-tree', '@supabase/supabase-js', 'rxjs']
     }
   },
   server: {

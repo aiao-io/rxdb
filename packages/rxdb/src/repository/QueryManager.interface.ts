@@ -7,7 +7,6 @@ import {
   FindOneOrFailOptions,
   FindOptions
 } from './query-options.interface.js';
-import { FindTreeOptions } from './tree-repository.interface.js';
 
 /**
  * Get 查询任务
@@ -72,42 +71,6 @@ export interface CountQuery<T extends EntityType> {
   options: CountOptions<T>;
 }
 
-/**
- * FindDescendants 查询任务
- * 查找指定实体的所有后代节点
- */
-export interface FindDescendantsQuery<T extends EntityType> {
-  type: 'findDescendants';
-  options: FindTreeOptions<T>;
-}
-
-/**
- * FindAncestors 查询任务
- * 查找指定实体的所有祖先节点
- */
-export interface FindAncestorsQuery<T extends EntityType> {
-  type: 'findAncestors';
-  options: FindTreeOptions<T>;
-}
-
-/**
- * CountDescendants 查询任务
- * 统计指定实体的后代节点数量
- */
-export interface CountDescendantsQuery<T extends EntityType> {
-  type: 'countDescendants';
-  options: FindTreeOptions<T>;
-}
-
-/**
- * CountAncestors 查询任务
- * 统计指定实体的祖先节点数量
- */
-export interface CountAncestorsQuery<T extends EntityType> {
-  type: 'countAncestors';
-  options: FindTreeOptions<T>;
-}
-
 /** 由 Repository 插件通过模块扩展追加的查询任务。 */
 export interface RepositoryQueryExtensions<T extends EntityType> {
   readonly __extensionBrand: { readonly entityType: T; readonly options: never; readonly type: never };
@@ -134,11 +97,6 @@ export type QueryOptions<T extends EntityType> =
   | FindAllQuery<T>
   | FindByCursorQuery<T>
   | CountQuery<T>
-  // 树形仓库查询任务选项
-  | CountAncestorsQuery<T>
-  | CountDescendantsQuery<T>
-  | FindAncestorsQuery<T>
-  | FindDescendantsQuery<T>
   | RepositoryQueryExtensions<T>[keyof RepositoryQueryExtensions<T>];
 
 /**

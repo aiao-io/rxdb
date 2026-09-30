@@ -175,6 +175,16 @@ export enum PropertyType {
   json = 'json'
 }
 
+/**
+ * UUID 属性
+ *
+ * @remarks
+ * 实体主键的默认选择：可离线生成，因此新建的行在还没碰到任何后端时就有稳定身份，
+ * 这是本地优先写入与后续同步对账的前提（自增整数做不到——两端各自分配会撞号）。
+ *
+ * 值按字符串持久化，`default` 通常传生成函数而非定值，
+ * 否则同一张表的所有新行会共用一个写死的 UUID。
+ */
 export interface UUIDProperty extends IEntityObject, ISortable {
   /**
    * 是否为主键
@@ -184,6 +194,14 @@ export interface UUIDProperty extends IEntityObject, ISortable {
   default?: UUID | (() => UUID);
 }
 
+/**
+ * 变长字符串属性
+ *
+ * @remarks
+ * 不带长度上限：各适配器落到 `TEXT`（SQLite 系无长度概念，PGlite 用无约束 `text`），
+ * 长度校验属于业务层。需要受控取值集合用 {@link EnumProperty}，
+ * 需要整段结构化数据用 {@link JSONProperty}，别拿字符串手动序列化。
+ */
 export interface StringProperty extends IEntityObject, ISortable {
   /**
    * 是否为主键
@@ -213,6 +231,16 @@ export interface StringProperty extends IEntityObject, ISortable {
     | import('./cascade-options.interface.js').ColorFormat;
 }
 
+/**
+ * 受控取值集合属性
+ *
+ * @remarks
+ * 存储形态就是字符串，和 {@link StringProperty} 在库里没有区别——`enum` 收窄的是
+ * **类型与元数据**，不是数据库层的约束。因此已经落盘的行不会因为后来从 `enum` 里删掉一个值
+ * 而变得读不出来；清理历史值是迁移的事。
+ *
+ * `enum` 声明为 `readonly string[]`，用 `as const` 传入才能让实体字段推断成字面量联合而非 `string`。
+ */
 export interface EnumProperty extends IEntityObject, ISortable {
   /**
    * 属性类型
@@ -245,11 +273,29 @@ export interface EnumProperty extends IEntityObject, ISortable {
   options?: import('./cascade-options.interface.js').FieldOptions;
 }
 
+/**
+ * 数字数组属性
+ *
+ * @remarks
+ * 整体序列化成一列，**不是**关联表：既不能按元素建索引，也无法只更新其中一项——
+ * 任何修改都要整体重新赋值（原地 `push` 不触发实体 Proxy，不会被持久化）。
+ * 需要按元素查询或索引就改用一对多关系。
+ */
 export interface NumberArrayProperty extends IEntityObject, ISortable {
   type: PropertyType.numberArray | `${PropertyType.numberArray}`;
   default?: number[] | (() => number[]);
 }
 
+/**
+ * 整数属性
+ *
+ * @remarks
+ * 与 {@link NumberProperty} 的区别在于存储类型而不仅是校验：整数落到整型列，
+ * 因此可以安全地当主键用（`primary` 仅在此与 UUID / string / bigint 上开放）。
+ * 值域受 JS `number` 的安全整数限制，超出请用 {@link BigIntProperty}。
+ *
+ * `format` 有意排除了 `currency` / `percentage`——那两种语义蕴含小数精度，落在整数列上会静默丢位。
+ */
 export interface IntegerProperty extends IEntityObject, ISortable {
   primary?: boolean;
   type: PropertyType.integer | `${PropertyType.integer}`;
@@ -291,6 +337,18 @@ export interface BinaryProperty extends IEntityObject {
   default?: Uint8Array | (() => Uint8Array);
 }
 
+/**
+ * 日期时间属性
+ *
+ * @remarks
+ * `default` 除了 `Date` 与生成函数，还接受哨兵字符串 `'CURRENT_TIMESTAMP'`，
+ * 它声明的是**建表时的数据库端 DEFAULT**（PGlite 落成 `now()`），而不是一个字符串字面量。
+ * 需要跨端可比较的时间戳时用它——客户端时钟各不相同。
+ *
+ * 注意它并非所有写入路径都由数据库求值：批量 insert 显式给出每一列、绕过了 DB DEFAULT，
+ * 适配器会在那里把哨兵就地换成客户端当前时间（见 `inserts_sql.ts`）。
+ * 哨兵**不可以**出现在读回来的值里——`new Date('CURRENT_TIMESTAMP')` 是 Invalid Date。
+ */
 export interface DateProperty extends IEntityObject, ISortable {
   type: PropertyType.date | `${PropertyType.date}`;
   default?: Date | (() => Date) | 'CURRENT_TIMESTAMP';
@@ -301,6 +359,13 @@ export interface DateProperty extends IEntityObject, ISortable {
   format?: import('./cascade-options.interface.js').DateTimeFormat;
 }
 
+/**
+ * 布尔属性
+ *
+ * @remarks
+ * SQLite 系没有原生布尔类型，落到 `0` / `1` 整数列并在读取时还原，
+ * 所以裸 SQL 查询（`rawQuery`）里要按整数比较，不能写 `= true`。
+ */
 export interface BooleanProperty extends IEntityObject, ISortable {
   type: PropertyType.boolean | `${PropertyType.boolean}`;
   default?: boolean | (() => boolean);
@@ -352,8 +417,11 @@ export interface NumberProperty extends IEntityObject, ISortable {
 /**
  * keyValue
  * 存储键值对的对象，适用于简单的配置项或动态属性集合
+ *
+ * @remarks
+ * 与 {@link JSONProperty} 的区别是它**要求预先声明** `properties`：值仍整体存一列，
+ * 但每个键的类型与默认值是已知的，于是能参与类型推断。结构不固定时才用 JSON。
  */
-
 export interface KeyValueProperty extends IEntityObject {
   type: PropertyType.keyValue | `${PropertyType.keyValue}`;
   default?: KeyValue | (() => KeyValue);
@@ -401,6 +469,17 @@ export type EntityPropertyMetadataOptions =
   | JSONProperty
   | KeyValueProperty;
 
+/**
+ * 归一化之后的字段元数据联合类型
+ *
+ * @remarks
+ * 与 {@link EntityPropertyMetadataOptions} 是同一组形状的**前后两态**：用户声明的是 Options 态，
+ * `transitionMetadata()` 处理后得到本类型，差别只在 `columnName` 从可选变必填（缺省时取 `name`）。
+ * 分成两个类型是为了让「读元数据的代码」不必在每个取列名的地方兜一次空。
+ *
+ * 因此凡是消费元数据的一侧都应该要本类型，而不是 Options——拿到 Options 意味着
+ * 上游漏了 `transitionMetadata()`。
+ */
 export type EntityPropertyMetadata =
   | SetRequired<UUIDProperty, 'columnName'>
   | SetRequired<StringProperty, 'columnName'>
@@ -472,4 +551,12 @@ export interface EntityForeignKeyMetadataOptions extends ICascadeOptions {
   mappedProperties: [string, ...string[]];
 }
 
+/**
+ * 归一化之后的实体级外键元数据
+ *
+ * @remarks
+ * 与 {@link EntityForeignKeyMetadataOptions} 的关系同 {@link EntityPropertyMetadata}：
+ * `transitionMetadata()` 把缺省的 `mappedNamespace` 填成当前实体的命名空间，
+ * 于是下游做跨命名空间解析时不需要再知道「缺省继承」这条规则。
+ */
 export type EntityForeignKeyMetadata = SetRequired<EntityForeignKeyMetadataOptions, 'mappedNamespace'>;

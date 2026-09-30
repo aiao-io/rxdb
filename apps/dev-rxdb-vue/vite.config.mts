@@ -34,7 +34,11 @@ const pwaOptions: Partial<VitePWAOptions> = {
   includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt'],
   devOptions: { enabled: false },
   registerType: 'autoUpdate',
-  workbox: { globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}', '**/*.{wasm,data}'] }
+  workbox: {
+    globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}', '**/*.{wasm,data}'],
+    // EntityDetail 等懒加载 chunk 已超过 Workbox 默认的 2 MiB 预缓存上限，放宽到 4 MiB。
+    maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
+  }
 };
 
 export default defineConfig(() => ({

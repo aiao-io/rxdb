@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runTypeScriptCompiler } from './typescript-compiler.js';
+import { runTypeScriptCompiler } from '../../testing/typescript-compiler.js';
 
 /**
  * 临时工程必须落在本包内部：`@aiao/rxdb` 靠 `node_modules` 逐级上溯解析，

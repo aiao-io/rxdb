@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-30
-updated: 2026-08-01
+updated: 2026-09-20
 tags: [core, model, entity, type-system, client-generator]
 ---
 
@@ -101,8 +101,9 @@ INVEST 检查清单:
 
 ## 实现文件
 
-- `packages/rxdb/src/entity/` — PropertyType、RxDBEntityId、元数据与默认值隔离
-- `packages/rxdb/src/repository/`、`packages/rxdb/src/version/` — ID 与查询公共类型
+- `packages/rxdb/src/entity/` — PropertyType、RxDBEntityId（`entity.interface.ts`）、元数据与默认值隔离
+- `packages/rxdb/src/repository/` — ID 与查询公共类型
+- `packages/rxdb/src/sync-contract/` 与 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-sync/` — 原 `version/` 的同步公共类型（已随 US-025 迁出）
 - `packages/rxdb-client-generator/src/` — ID、查询规则与关系类型生成
 - `packages/rxdb/src/__tests__/contracts/` — 合法与非法公共类型契约
 - `packages/rxdb-client-generator/src/__tests__/` — 生成快照与编译 fixture

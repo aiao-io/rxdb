@@ -1,5 +1,6 @@
 import { EntityType } from './entity/entity.interface.js';
 import { SyncOptions } from './entity/metadata-options.interface.js';
+import type { EntitySyncOverride } from './entity/sync-override.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
 /**
@@ -55,9 +56,8 @@ export interface RxDBContext {
   /**
    * 当前登录用户 ID
    *
-   * 用于：
-   * - 在变更日志里写入 `createdBy` / `updatedBy`；
-   * - 在 pull / push 时按 `userId` 做行级过滤（依赖具体适配器实现）。
+   * 适配器写实体行时用它填 `createdBy` / `updatedBy` 审计字段（实体声明了这两列才写）。
+   * 同步不按它做行级过滤；只同步一部分行要用 `SyncType.Filter` 的 `remote.filter()`。
    */
   userId?: string;
 
@@ -124,9 +124,27 @@ export interface RxDBOptions {
   sync: SyncOptions;
 
   /**
+   * 本实例对指定实体的同步配置覆盖
+   *
+   * @remarks
+   * 生效优先级：**本条覆盖 > 实体装饰器的 `sync` > 上面的默认 `sync`**。每条覆盖提供完整的
+   * `SyncOptions`，选中后整体替换，不做字段合并。覆盖只属于本实例，不修改实体元数据，
+   * 同一实体类可以在不同实例里走不同策略（如浏览器 QueryCache、服务端纯本地）。
+   *
+   * 构造时校验并快照：目标必须是 `entities` 里的业务实体（系统表、自动生成的中间实体、
+   * 未注册实体都拒绝），同一实体不能出现两次，`sync` 必须满足所选 `type` 的必填项（Full /
+   * Filter / QueryCache 两侧都要，Filter 要 `remote.filter` 函数）；违规抛
+   * {@link RxDBSyncOverrideError}。之后改动传入的对象不影响本实例。
+   *
+   * 覆盖不创建适配器、不安装插件：适配器仍只从默认 `sync` 注册，覆盖里某侧的适配器名
+   * 必须与默认 `sync` 同侧一致；覆盖里的 QueryCache 等策略照常要求库级两侧适配器与对应插件。
+   */
+  syncOverrides?: readonly EntitySyncOverride[];
+
+  /**
    * 环境上下文
    *
-   * 用于写入 `createdBy` 等审计字段、以及行级过滤时的环境变量。
+   * `userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更。
    * 运行时可通过 `RxDB.context` setter 整体替换（`clientId` 会被合并保留）。
    */
   context?: RxDBContext;

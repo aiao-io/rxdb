@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -55,7 +55,7 @@ describe('removeBranch', () => {
     await todo.save();
     await rxdb.versionManager.createBranch('branch_01');
     await rxdb.versionManager.removeBranch('branch_01');
-    const branches = await adapter.localRxDBBranch().find({
+    const branches = await adapter.getRepository(RxDBBranch).find({
       where: {
         combinator: 'and',
         rules: [{ field: 'id', operator: '=', value: 'branch_01' }]

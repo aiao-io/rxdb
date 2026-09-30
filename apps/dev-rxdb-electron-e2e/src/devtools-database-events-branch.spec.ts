@@ -24,7 +24,7 @@ import {
  * 2. **全部 `RXDB_EVENT_TYPES`**：本 demo 没有远端，`SYNC_*` / `CONFLICT_*` / `REPOSITORY_SYNC_*` /
  *    `ENTITY_REMOTE_*` / `MERGE_BRANCH_*` 靠真实操作永远不会发生。所以走应用自己的
  *    `RxDB.dispatchEvent()`（`devtools-event-probe.ts`）逐类派发一遍，再核对面板 Events 页
- *    **一类不少**。派发口是公开成员、不是测试后门；从 connector 的 25 条订阅往后全程生产链路。
+ *    **一类不少**。派发口是公开成员、不是测试后门；从 connector 的 26 条订阅往后全程生产链路。
  * 3. **branch**：在面板里建分支、切分支，再回到**应用自己**的读数上核对
  *    （首页 `rxdb-current-branch`，直接来自 `versionManager.getCurrentBranch()`）。
  *    只看面板自己的选中项证明不了应用真的切过去了——两条路互为对照才算数。
@@ -84,7 +84,8 @@ const EXPECTED_EVENT_TYPES = [
   'REPOSITORY_SYNC_BEGIN',
   'REPOSITORY_SYNC_COMPLETE',
   'REPOSITORY_SYNC_ERROR',
-  'REMOTE_ENTITY_INVALIDATED'
+  'REMOTE_ENTITY_INVALIDATED',
+  'CAPABILITY_ENABLED'
 ] as const;
 
 function launchApp(userDataDir: string, port: number): Promise<ElectronApplication> {
@@ -252,7 +253,7 @@ async function switchBranchInPanel(app: ElectronApplication, branchId: string): 
 test.describe('面板的数据、事件全集与 branch 都与应用一致（US-904 阶段 D AC#46）', () => {
   test.describe.configure({ timeout: 420000 });
 
-  test('desktop SQLite 下读到真实行、25 类事件一类不少、branch 切换与应用同步，且无 OPFS/IDB fallback', async () => {
+  test('desktop SQLite 下读到真实行、26 类事件一类不少、branch 切换与应用同步，且无 OPFS/IDB fallback', async () => {
     const userDataDir = mkdtempSync(join(tmpdir(), 'ac46-'));
     const renderer = await serveRendererDist(createServer);
     const app = await launchApp(userDataDir, renderer.port);
@@ -294,7 +295,7 @@ test.describe('面板的数据、事件全集与 branch 都与应用一致（US-
       expect(missing, `connector 没把这些类型发给面板；发出去的是：${seen.join(', ')}`).toEqual([]);
 
       // 判据二：**面板真的收下了**。计数是面板自己的状态（`eventIndexes().length`），
-      // 不受虚拟滚动影响；清空后只增不减，所以「至少 25 类各一条」是下界。
+      // 不受虚拟滚动影响；清空后只增不减，所以「至少 26 类各一条」是下界。
       await expect
         .poll(() => panelEventCount(app), { timeout: PANEL_BUDGET_MS })
         .toBeGreaterThanOrEqual(EXPECTED_EVENT_TYPES.length);

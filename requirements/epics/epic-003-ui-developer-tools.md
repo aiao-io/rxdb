@@ -30,9 +30,10 @@ owner: jimmy
   - 阶段 B DevTools v2 协议（控制面 + provider 数据面）
   - 阶段 C DevTools 共享面板与 Chrome v2 迁移 — C1 可与阶段 B 并行
   - 阶段 D Electron 原生存储 DevTools 集成 — 仅阶段 A supported 时开工
-- [US-905 Tauri DevTools 调试窗口与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D
+- [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](../stories/future/US-905-tauri-native-devtools.md) (Medium) — 不等待 US-904 阶段 D
 - [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](../stories/future/US-906-electron-devtools-developer-path.md) (Medium) — 承接 US-904 阶段 D 的实测结论，给桌面开发者一份可用的 dev 扩展产物与流程
 - [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](../stories/future/US-908-devtools-transfer-session-defects.md) (Medium) — US-905 阶段 2 读出但不在其范围内修的两条缺陷
 
-> 五条只能由人做的回归（US-904 AC#34/#38/#39/#42 四条真实 Chrome 回归 + US-906 AC#2 的人工半边）
-> 已**移出承诺范围**：项目处于早期，v2 迁移的行为中性由自动化证据承担；未来收尾需要时另立故事。
+> 七条只能由人做的回归（US-904 AC#34/#38/#39/#42 四条真实 Chrome 回归、AC#19 真实断连半边与
+> AC#40 OPFS conformance 半边，加 US-906 AC#2 的人工半边）**不在承诺范围**：项目早期暂不做，
+> v2 迁移的行为中性由自动化证据承担；收尾需要时另立故事。

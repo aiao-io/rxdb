@@ -6,6 +6,9 @@ import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBError } from '../../RxDBError.js';
+import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
+
+const { trackSharedRxDB } = registerRxDBTeardown();
 
 describe('@Entity', () => {
   @Entity({
@@ -18,16 +21,18 @@ describe('@Entity', () => {
   class Todo extends EntityBase {}
 
   beforeAll(async () => {
-    const rxdb = new RxDB({
-      dbName: 'Todo',
-      entities: [Todo],
-      sync: {
-        local: {
-          adapter: 'sqlite'
-        },
-        type: SyncType.None
-      }
-    });
+    const rxdb = trackSharedRxDB(
+      new RxDB({
+        dbName: 'Todo',
+        entities: [Todo],
+        sync: {
+          local: {
+            adapter: 'sqlite'
+          },
+          type: SyncType.None
+        }
+      })
+    );
     rxdb.adapter(
       'sqlite',
       () =>
