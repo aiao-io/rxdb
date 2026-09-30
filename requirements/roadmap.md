@@ -45,7 +45,7 @@
 
 当前无。上一条「桥接锚点出路由 owner 先定」已于 2026-10-01 定案（出路 1：从 `de70a1a9` 切发布分支、
 版本 `0.0.26`、真 merge 并回 `main`，同时修订[约束 12](#排期约束)），见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)；
-线 A 的执行仍排在所有批次之后。
+线 A 已于 2026-10-01 执行完毕，`v0.0.26` 已发布。
 
 ## 排期批次
 
@@ -61,9 +61,13 @@
 
 ### 线 A：桥接版本发布（owner 门控）
 
-> 线 A 是一次对外的不可逆动作（推 tag + `pnpm publish`），由 owner 手动发起、手动决定时点；
-> 本节只做排期，不代表已获授权执行。**执行排在所有批次之后**。
-> 线 A 只挡**迁移发布**，不挡任何故事的代码与合入；`migration-release.json` 的 `bridge.tag` 依旧是 `null`。
+> **✅ 已完成（2026-10-01）**：`v0.0.26` 打在 B = `852f3b20`，经 [#77](https://github.com/aiao-io/rxdb/pull/77) 的
+> merge commit `8597bddf` 并回 `main`，34 个包已发到 npm。五条关闭判据全部成立，证据与执行记录见
+> [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)。下面保留启动前的排期记录。
+>
+> 线 A 是一次对外的不可逆动作（推 tag + `pnpm publish`），由 owner 手动发起、手动决定时点。
+> 线 A 只挡**迁移发布**，不挡任何故事的代码与合入；桥接版本本身的清单 `bridge.tag` 保持 `null`，
+> 由下一次 `kind=migration` 发布填成 `v0.0.26`。
 > 执行时按 [release-plan.md](release-plan.md) 的执行顺序与两条硬前提走（执行顺序已按出路 1 重写）。
 
 **启动前置**——三项 owner 决定**均已定案**；启动线 A 本身（切分支、临时放开线性历史、推 tag、`pnpm publish`）仍需 owner 逐项确认：
@@ -76,20 +80,20 @@
 3. **显式版本号（2026-10-01 定案）**：`0.0.26`。`--dry-run` 推算出来的是禁用的 `0.0.25`，必须显式传参，
    见[零散收尾项](#零散收尾项不成故事随手可带)第 1 条。
 
-**关闭判据**——发一个 `kind=bridge` 的**非迁移**版本，下面五条**全部**成立才算完：
+**关闭判据**——发一个 `kind=bridge` 的**非迁移**版本，下面五条**全部**成立才算完（2026-10-01 五条全 ✅）：
 
-- ① `release.version` = **`0.0.26`**（**≠ `0.0.25`**）。今天清单里的 `bridge/0.0.25` 是 0.0.25 那次发布的如实记录，不是本次成果，
+- ✅ ① `release.version` = **`0.0.26`**（**≠ `0.0.25`**）。今天清单里的 `bridge/0.0.25` 是 0.0.25 那次发布的如实记录，不是本次成果，
   不许当判据用、不许改写；
-- ② 与 `packages/rxdb/package.json` 同值；
-- ③ `v0.0.26` 打在 B（不是 merge commit）上并已推送，`git merge-base --is-ancestor v0.0.26^{commit} origin/main`
+- ✅ ② 与 `packages/rxdb/package.json` 同值；
+- ✅ ③ `v0.0.26` 打在 B（不是 merge commit）上并已推送，`git merge-base --is-ancestor v0.0.26^{commit} origin/main`
   人工跑过并留证；`main` 的线性历史保护已恢复并用 `gh api` 复查留证；
-- ④ `migration-release-gate --release-tag=v0.0.26` 全绿；
-- ⑤ 回写 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)（US-305 AC14 的绿半边在那里关闭）。
+- ✅ ④ `migration-release-gate --release-tag=v0.0.26` 全绿；
+- ✅ ⑤ 回写 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)（US-305 AC14 的绿半边在那里关闭）。
 
 **④ 单独没有区分力**：四条 bridge 钩子只对 `kind=migration` 生效，桥接发布走不到它们。真正有区分力的是 ① 和 ③，
 这两条在**发布当下没有任何自动化在守**。另有一条隐含判据：桥接**不得抬升** `RXDB_SYSTEM_SCHEMA_VERSION` /
 `RXDB_CHANGE_CODEC_VERSION`。门禁只比对布尔位、从不读源码常量，须按 [release-plan 硬前提 1](release-plan.md) 的
-两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）；区间是 `v0.0.24..B`，在锚点 `de70a1a9` 上实测为空。
+两条 `git log -G` 人工复测（`-S` 恒空、会给出假清白）；区间是 `v0.0.24..B`，在锚点 `de70a1a9` 与 B 上实测均为空。
 
 **启动前必读**：changelog 会同时**多报**（0.0.25 已发内容再写一遍，判断发没发过只能 `npm pack` 拉产物搜）与
 **漏报**（squash 进 `chore(aiao): update deps (#53)` 的 US-908 修复与 US-906 交付，以及按[约束 12](#排期约束) 必须声明的六组破坏性改动）；非规范提交信息一律记为 `none`、
@@ -128,7 +132,7 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 
 ## 零散收尾项（不成故事，随手可带）
 
-1. **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（[线 A](#线-a桥接版本发布owner-门控) 启动时执行）。
+1. ✅ **线 A 启动前先跑 `nx release version --dry-run` 看真实版本号**（2026-10-01 已随[线 A](#线-a桥接版本发布owner-门控)执行，下次发布仍适用）。
    几条坑与处置（区间已冻结为 `v0.0.24..de70a1a9`；发布分支上补了提交就要复测）：
 
    - **默认推算出来的就是 `0.0.25`**——正好是线 A 关闭判据 ① 的禁用值，且 npm 上已被占用。
@@ -158,8 +162,16 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    `.claude/skills/tri-framework-check`，核对命名、签名与行为。
 4. **rxdb-model 文档页**（T051）：`website/docs/` 还没有 rxdb-model 的使用文档
    （`grep -rl rxdb-model website/docs | grep -v /api/` 无输出），补核心、三框架用法、样式接入与迁移说明。
+5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本**。`0.0.26` 的 `rxdb-angular` / `rxdb-plugin-search-angular` /
+   `code-editor-angular` 发出去的 peer 是 `"22.1.6"`，`0.0.25` 是 `^22.0.0`——消费者装 22.1.7 起即报 peer 冲突。
+   源头在各包 `package.json` 的 `peerDependencies`，改回 caret 区间随下一次发布生效。
+6. **`dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`「fake 档 expired 场景」偶发失败**。
+   `fake-provider-gear.ts` 的 `createScenarioClock` 把空闲计时器设成 `setTimeout(…, 0)`，与下一次分页请求竞态（#58 引入）；
+   线 A 的 PR 上重跑才过。修法是让场景时钟由测试显式推进，而不是赌事件循环顺序。
+7. **`ci / benchmarks` 缺 Xeon 8370C 的参考档**。该 CPU 上报 `benchmark_environment_mismatch`，线 A 的 PR 上重跑两次才落到
+   有档的机型；按 epic-006 的规则，同一机型再出现就冻结一份新档（`benchmarks/reports/working-tree-reference/`）。
 
-第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
+第 5～7 条是线 A 执行时发现的后续项。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
 
 ## 排期约束
 
