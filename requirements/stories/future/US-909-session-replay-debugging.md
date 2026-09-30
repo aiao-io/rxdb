@@ -11,10 +11,10 @@ tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 
 <!--
 INVEST 检查清单:
-- [x] Independent (独立): 阶段 A 无前置；阶段 B 的硬前置（🚧 Worker / SharedWorker 传输的备份恢复）与价值证据在交付阶段门禁列单独声明
-- [x] Negotiable (可协商): trace 保留模式与开销上限、归档从页面流回 Node 的方式、事件流的存放位置在各阶段 plan 冻结
-- [x] Valuable (有价值): 阶段 A 关闭「本地失败从不产生 trace、CI 只留第一次重试」的既有缺口；阶段 B / C 各需价值证据
-- [x] Estimable (可估算): 阶段 A 是五个 Playwright 配置各改一行 + CI 注释同步 + 开销实测
+- [x] Independent (独立): 阶段 A 无前置；阶段 B 以价值证据为门禁，传输限制经同库名的主线程 IDB 第二连接绕开（plan 前 spike，不过才依赖 🚧 Worker / SharedWorker 传输的备份恢复）
+- [x] Negotiable (可协商): trace 内容选项与开销上限、第二连接的导出细节与归档流回 Node 的方式、事件流的存放位置在各阶段 plan 冻结
+- [x] Valuable (有价值): 阶段 A 关闭「本地失败从不产生 trace、CI 只留第一次重试、devtools 扩展 e2e 从不录」的既有缺口；阶段 B / C 各需价值证据
+- [x] Estimable (可估算): 阶段 A 是六个 Playwright 配置各改一行 + CI 注释同步 + 开销实测
 - [ ] Small (小): 全故事不小，按 A / B / C 分阶段交付，不拆子故事文件；阶段 A 单 PR 可完成
 - [x] Testable (可测试): 各阶段 AC 以 e2e / 单测 / 契约测试可复验
 -->
@@ -33,36 +33,53 @@ INVEST 检查清单:
    `dev-rxdb-vue-e2e` / `dev-rxdb-supabase-e2e` / `dev-rxdb-http-e2e`）的 `playwright.config.ts` 都是
    `trace: 'on-first-retry'` 叠 `retries: isCI ? 2 : 0`。本地没有重试，失败**从不产生 trace**；CI 上只录第一次重试——
    flaky 用例在第一次重试就通过时，留下的是那次**通过**的 trace，首次失败没有任何记录。
+   [`rxdb-devtools-extension-e2e`](../../../apps/rxdb-devtools-extension-e2e/playwright.config.ts) 同样是 `retries: isCI ? 2 : 0`，
+   却没设 `trace`（默认 `off`），CI 重试也不录。
    [angular 的配置](../../../apps/dev-rxdb-angular-e2e/playwright.config.ts)在 `retries` 上方的注释把本地复现的正确动作
    定为 `--retries=0 --repeat-each=N`，这条路径上同样没有 trace。
 2. **界面现场不缺工具，缺配置**：Playwright 1.63 的 trace 含每个动作前后可检查的 DOM 快照、screencast、console、network
    与源码位置。`TraceMode` 的 `'retain-on-failure'` 每次尝试都录、只留失败的那次，且「A failed run's trace is kept even
    when a later retry passes」；`'retain-on-first-failure'` 只录首次尝试、失败才留（`playwright/types/test.d.ts` 的
-   `TraceMode` TSDoc）。trace 挂在 `runAfterCreateBrowserContext` 上，`browser.newContext()` 与 `launchPersistentContext()`
-   新建的上下文同样被录（读 `playwright-core` 1.63 源码确认，未实跑），`state-isolation.spec.ts` 这类自建上下文的用例也在内。
-   产物落 `nxE2EPreset` 的 `outputDir`（`test-output/playwright/output`）；[`ci-template.yml`](../../../.github/workflows/ci-template.yml)
-   的「Upload Playwright artifacts」步骤已按 `apps/${{ matrix.project }}/test-output/playwright/**` 上传、保留 7 天，
-   不需要新通道。该步骤上方的注释写着 `on-first-retry`，随配置一起改。
+   `TraceMode` TSDoc）。`use.trace` 也接受 `{ mode, snapshots, screenshots, sources, attachments }` 对象，可以按项关掉录制内容。
+   trace 挂在 `runAfterCreateBrowserContext` 上，`browser.newContext()` 与 `launchPersistentContext()` 新建的上下文同样被录
+   （读 `playwright-core` 1.63 源码确认，未实跑）：`state-isolation.spec.ts` 这类自建上下文的用例、devtools 扩展 e2e 在
+   `extension.fixture.ts` 里用 `chromium.launchPersistentContext()` 建的上下文都在内。六个配置都展开 `nxE2EPreset`，产物落它的
+   `outputDir`（`test-output/playwright/output`）；[`ci-template.yml`](../../../.github/workflows/ci-template.yml) 的
+   「Upload Playwright artifacts」步骤以 `!cancelled()` 为条件、按 `apps/${{ matrix.project }}/test-output/playwright/**`
+   上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。该步骤上方的注释写着 `on-first-retry`，随配置一起改。
 3. **trace 看不到的是库里的数据**：确定性失败不需要它——spec 本身就是数据场景的构造过程，本地带 trace 重跑即得同一状态；
    重跑拿不回来的只有非确定性失败（竞态 / 时序）在失败时刻的库内容。目前没有一条「trace 看完仍要失败时刻数据才能定位」
    的失败记录，阶段 B 因此以价值证据为门禁。
-4. **阶段 B 的硬阻塞：demo 用的传输组合备份不了**：[US-217](../adapter/US-217-local-database-backup-restore.md) 是 `Done`，
-   但 wa-sqlite 与 sqlite-wasm 只交付主线程连接的备份 / 恢复（US-217 验收标准 AC#17 的说明「wa-sqlite 与 sqlite-wasm
+4. **阶段 B 的传输限制：demo 的 adapter 实例备份不了，库本身够得着**：[US-217](../adapter/US-217-local-database-backup-restore.md)
+   是 `Done`，但 wa-sqlite 与 sqlite-wasm 只交付主线程连接的备份 / 恢复（US-217 验收标准 AC#17 的说明「wa-sqlite 与 sqlite-wasm
    只交付主线程连接」）。[`RxDBAdapterSqlite.backupStorage()`](../../../packages/rxdb-adapter-sqlite-wasm/src/RxDBAdapterSqlite.ts)
    （wa-sqlite 的同名方法同构）在设了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时返回
    `{ kind: 'unsupported', field: 'transport' }`，`backup()` / `restore()` / `cleanupIncompleteRestore()` 报
-   `unsupported_combination`，由两个适配器各自的 `*-backup-transport.spec.ts` 断言。三个 demo 的 `setup_rxdb_sqlite-wasm.ts`
-   只有两条分支：OPFS + dedicated Worker、IDB + SharedWorker，正是 [US-201](../adapter/US-201-sqlite-adapter.md) 的标准配置
-   「OPFS 优先 → IDB + SharedWorker 降级」，两条都在拒绝范围内；Angular e2e 走 8200 端口强制 IDB，即 SharedWorker 分支。
-   失败现场的导出与 dev 应用的导入两端都卡在这里。OPFS 的同步访问句柄只在 Worker 里可用，主线程连接绕不开 OPFS 这一档
-   （**推断**）。US-217 的 Out of Scope 没有列这个缺口。
+   `unsupported_combination`，由两个适配器各自的 `*-backup-transport.spec.ts` 断言；它的 TSDoc 给的理由是这两种传输「还没有实测」。
+   三个 demo 的 `setup_rxdb_sqlite-wasm.ts` 只有两条分支：OPFS + dedicated Worker、IDB + SharedWorker，正是
+   [US-201](../adapter/US-201-sqlite-adapter.md) 的「OPFS VFS (优先) → IDB VFS + SharedWorker (降级)」；Angular e2e 走 8200 端口强制 IDB，
+   即 SharedWorker 分支，demo 自己的 adapter 实例在导出、导入两端都被拒。被拒的是传输，不是库：
+   - [`buildStorageOptions()`](../../../packages/rxdb-adapter-sqlite-wasm/src/sqlite-load.utils.ts) 的 idb 档恒为
+     ``useIdbStorage(`${dbName}.sqlite`, { lockPolicy, lockTimeout })``（`IDBBatchAtomicVFS`），与连接跑在主线程还是
+     SharedWorker 无关（demo 的 SharedWorker 入口就是 `new SqliteClient()` 经 comlink 暴露）。同库名、`vfs: 'idb'`、不设 worker
+     的主线程连接打开的是同一份 IndexedDB 库（读源码确认，未实跑），而主线程 idb 正是 US-217 交付并测过的组合。
+   - 备份是经已连接 client 的逻辑转储（[`writeSqliteBackup`](../../../packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts)：
+     按 `sqlite_schema` 列出库里全部表，结构语句与行字面量在同一个读事务内取得），不要求独占，`backup()` 的 `@throws` 里没有
+     `target_busy`。归档的结构指纹取自发起备份那个实例的 `rxdb.config.entities`（`getRxDBBackupSchemaFingerprint`）。
+   - SharedWorker 传输不只是没实测：一个 SharedWorker 里只有一个 `SqliteClient`，被所有标签页的端口共用，转储的读事务
+     隔离不了别的标签页的语句（**推断**）。
+
+   OPFS 的同步访问句柄只在 dedicated Worker 里可用（`FileSystemFileHandle.createSyncAccessHandle()`），OPFS 档没有主线程绕行；
+   React / Vue demo 按 `checkOPFSAvailable()` 选分支，e2e 走的是这一档。US-217 的 Out of Scope 没有列传输这个缺口。
+
 5. **数据版本控制基建已存在**：working-tree 写捕获与提交（US-305 / US-306 `Done`）；`restore({ commitId }, credentials)`
    （[US-307](../collaboration/US-307-restore-session.md) `Done`）把当前分支 HEAD 可达的历史 commit 内容作为未提交变更写回
    工作树，HEAD 不动。门面 [`WorkingTreeManager`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts)
-   只有 Promise 方法，没有 commit 生命周期事件；[`commitWorkingTree()`](../../../packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts)
-   在干净工作树上抛 `CommitValidationError('empty_commit')`，不产生空提交。`dev-rxdb-angular` 的 working-tree 页已有
-   `listCommits` + `restore` 的界面（`working-tree.page.ts`，e2e `working-tree.spec.ts` 覆盖），导入归档后在 commit 之间
-   来回不需要新界面。
+   只有 Promise 方法，没有 commit 生命周期事件。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
+   未提交条目一起带走。Angular demo 在空库启动时 `enableIfEmpty()`，e2e 每个用例都是新库名；除了设
+   `rxdb-e2e-skip-working-tree-auto-enable` 的两个 working-tree spec，其余 spec 都不提交，失败时刻写下的数据都是未提交条目
+   （按 spec 源码判断）。`dev-rxdb-angular` 的 working-tree 页已有 `listCommits` + `restore`、提交与整棵工作树 `discard()` 的界面
+   （`working-tree.page.ts`，e2e `working-tree.spec.ts` 覆盖），导入归档后查看未提交条目、在 commit 之间来回不需要新界面。
 6. **同一个库里的新实体默认进版本化域**：[`versioned-domain.ts`](../../../packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts)
    默认 tracked，untracked 只有三类，新增第四类须先改 [epic-006](../../epics/epic-006-working-tree-commits.md)「版本化域」
    （硬规则）。录制事件若作为普通实体写进启用了 working-tree 的库，每条事件都是一条未提交条目。插件可在 `connect()`
@@ -74,23 +91,25 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                                                                                    | 必过 AC         | 门禁                                                                                                                                                                               |
-| ---- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A    | ⬜   | 五个 web e2e 配置的 `trace` 改为只留失败尝试（`retain-on-failure` 或 `retain-on-first-failure`，plan 按实测开销选）；CI 注释同步                                        | AC#1～3         | 无前置；plan 实测开销并冻结上限                                                                                                                                                    |
-| B    | ⬜   | Angular e2e 失败现场数据归档（工作树有未提交条目则先补失败快照提交 → `adapter.backup()` → 作为 test 附件）+ `dev-rxdb-angular` 导入入口（`connect()` 前恢复到新的空库） | AC#1～3、4～9   | 🚧 wa-sqlite / sqlite-wasm Worker / SharedWorker 传输的备份恢复（无故事文件）；价值证据：记录到至少一次「trace 看完仍需失败时刻数据才能定位」的真实 e2e 失败，写进本文件现状与证据 |
-| C    | ⬜   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                           | AC#1～3、10～17 | 价值待证：须写出「今天用户踩得到的具体症状」才允许排期（CONVENTIONS 病灶数 ≥ 抽象数）；三框架 parity 铁律                                                                          |
+| 阶段 | 状态 | 交付                                                                                                                                                                            | 必过 AC         | 门禁                                                                                                                                                                                                                                                   |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A    | ⬜   | 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 `trace` 改为 `retain-on-failure`；CI 注释同步                                                                   | AC#1～3         | 无前置；plan 实测开销并冻结上限                                                                                                                                                                                                                        |
+| B    | ⬜   | Angular e2e 失败现场数据归档（同库名的主线程 IDB 第二连接 `backup()`，原样导出，作为 test 附件）+ `dev-rxdb-angular` 导入入口（主线程 IDB 连接在 `connect()` 前恢复到新的空库） | AC#1～3、4～9   | 价值证据：阶段 A 交付后记录到至少一次「trace 看完仍需失败时刻数据才能定位」的真实 e2e 失败，写进本文件现状与证据；plan 前 spike 第二连接（技术笔记两项），不过则改为依赖 🚧 wa-sqlite / sqlite-wasm Worker / SharedWorker 传输的备份恢复（无故事文件） |
+| C    | ⬜   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                                   | AC#1～3、10～17 | 价值待证：须写出「今天用户踩得到的具体症状」才允许排期（CONVENTIONS 病灶数 ≥ 抽象数）；三框架 parity 铁律                                                                                                                                              |
 
 AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶段 B 的失败处理不得吞掉原始失败，也不得挤掉 trace。一个 PR 只交付一个阶段。
-阶段 B / C 不伪造数据侧关联：B 的数据来自真实库导出，C 的 commit 标记来自真实 commit 生命周期，都不按时间戳事后反查 commit。
+阶段 B / C 不伪造数据侧关联：B 的数据来自真实库导出、导出前不改动库，C 的 commit 标记来自真实 commit 生命周期，都不按时间戳事后反查 commit。
 
 ## 范围边界
 
 ### In Scope
 
-- 阶段 A：五个 web e2e 配置切换 trace 保留模式；`ci-template.yml` 里描述 trace 模式的注释同步；两种保留模式的开销实测与上限冻结。
+- 阶段 A：六个 Playwright 配置（五个 web demo e2e + `rxdb-devtools-extension-e2e`）切到 `retain-on-failure`；`ci-template.yml`
+  里描述 trace 模式的注释同步；录制开销实测与上限冻结。
 - 阶段 B：Angular e2e 共享 fixture（全部 spec 从它取 `test`，lint 禁止从 `@playwright/test` 直接取 `test`）；失败时经页内测试 API
-  补快照提交并 `adapter.backup()`，归档与摘要作为 test 附件；`dev-rxdb-angular` 导入入口：`connect()` 前恢复到新的空库，
-  之后用既有 working-tree 页在 HEAD 可达的 commit 之间恢复。
+  起同库名的主线程 IDB 第二连接并 `backup()`，原样导出，归档与摘要作为 test 附件；`dev-rxdb-angular` 导入入口：主线程 IDB 连接
+  在 `connect()` 前恢复到新的空库，dev 应用按 IDB 分支打开它，之后用既有 working-tree 页查看未提交条目、在 HEAD 可达的 commit
+  之间恢复。
 - 阶段 C：`rxdb-plugin-replay` 的录制 / 停止 / 导出 API 与生命周期；事件流每事件一文档；commit 自定义事件与 `restore()` 联动；
   脱敏选项透传（`maskAllInputs` / `blockSelector` 等）；三框架 Replayer 组件（parity）；`dev-rxdb-angular` 的 opt-in 录制演示。
 
@@ -98,9 +117,11 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 
 - `dev-rxdb-electron-e2e`：它的用例经 `_electron.launch()` 拉起应用，这条路不触发 `runAfterCreateBrowserContext`
   （`playwright-core` 1.63 里只有 `browser.newContext()`、`launchPersistentContext()` 与带默认上下文的 connect 三处调用，读源码确认），
-  `use.trace` 管不到，要录得手动开 `context.tracing`。`rxdb-devtools-extension-e2e`（未设 `trace`）与
-  `dev-rxdb-miniprogram-e2e`（`trace: 'off'`）维持现状。
-- 阶段 B 的 React / Vue e2e 数据归档：e2e 基础设施不属于三框架绑定 API，先在 Angular 一端证实价值再对称扩展。
+  配置里的 `trace: 'on-first-retry'` 实际不生效，要录得手动开 `context.tracing`。
+- `dev-rxdb-miniprogram-e2e`（`trace: 'off'`）：Playwright 只当测试运行器，miniprogram-automator 驱动微信开发者工具，没有浏览器
+  上下文可录。`dev-rxdb-tauri-e2e` 跑的是 vitest，不经 Playwright。
+- 阶段 B 的 React / Vue e2e 数据归档：e2e 基础设施不属于三框架绑定 API，先在 Angular 一端证实价值再对称扩展；两者的 e2e 走
+  OPFS + Worker 分支，没有主线程绕行，扩展时依赖 🚧 传输故事。
 - 阶段 B 归档用例自建上下文（`browser.newContext()`）里的库：只归档用例主 `page` 所在上下文的库。
 - rrweb 注入 e2e fixture：trace 已覆盖界面现场；出现「trace 看不出、需要动作之间连续 DOM」的失败症状再议。
 - 事件流云端上报与多端同步（`pushRepository` / HTTP / Supabase 通道）——价值待证，未来另立。
@@ -111,49 +132,63 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 
 ## 验收标准
 
-|   # | 阶段 | 前置条件                                                                   | 操作                                                                   | 预期结果                                                                                                                                                                                                                                                                          | 状态 |
-| --: | :--: | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--: |
-|   1 |  A   | 本地（无重试）跑 angular / react / vue 任一 demo e2e，临时加一条必失败断言 | 查看 `test-output/playwright/output`                                   | 失败用例留下 `trace.zip`，`playwright show-trace` 打开后能看到失败断言前后的 DOM 快照；通过的用例不留 trace                                                                                                                                                                       |  ⬜  |
-|   2 |  A   | CI（`retries: 2`）上一条首次失败的用例（可在临时分支上用必失败断言制造）   | 下载该 job 的 Playwright artifact                                      | 首次失败那次尝试的 trace 在 artifact 里，之后重试通过也不丢；五个 web e2e 配置都不再出现 `on-first-retry`                                                                                                                                                                         |  ⬜  |
-|   3 |  A   | plan 冻结的开销上限与轮数 N                                                | 同机、`--retries=0`，同一 demo e2e 全量在切换前后各跑 N 轮，比墙钟时长 | 增幅不超过冻结上限                                                                                                                                                                                                                                                                |  ⬜  |
-|   4 |  B   | 用例失败，失败时工作树有未提交条目（`status().clean === false`）           | fixture 的失败处理执行完                                               | 先补一次标成失败快照的提交，再 `adapter.backup()`；归档与摘要作为 test 附件出现在报告里；归档里的 HEAD 是该快照提交                                                                                                                                                               |  ⬜  |
-|   5 |  B   | 用例失败，失败时工作树干净 / 未启用 / 快照提交被拒                         | 同上                                                                   | 干净：不提交，HEAD 即失败时刻状态；未启用（`rxdb-e2e-skip-working-tree-auto-enable` 且未手动启用）：只导出；提交被拒：原因写进摘要后照常导出，不退回失败前的最后一个 commit                                                                                                       |  ⬜  |
-|   6 |  B   | 用例通过                                                                   | 同上                                                                   | 不导出、不留附件；Angular e2e 全部 spec 从共享 fixture 模块取 `test`，lint `no-restricted-imports` 禁止从 `@playwright/test` 直接取 `test`                                                                                                                                        |  ⬜  |
-|   7 |  B   | 一份失败归档                                                               | 在 `dev-rxdb-angular` 的导入入口导入                                   | `connect()` 前恢复到新的空库；各业务表行数与摘要一致；`listCommits` 完整、HEAD 与归档一致；在 working-tree 页恢复任一 HEAD 可达的历史 commit 返回 `ok: true`                                                                                                                      |  ⬜  |
-|   8 |  B   | 导出超时 / `unsupported_combination` / `lock_timeout` / `target_busy`      | 触发失败处理                                                           | 按原因写进摘要，不挂死 run、不吞掉原始失败与 trace；超时值由 plan 冻结                                                                                                                                                                                                            |  ⬜  |
-|   9 |  B   | 8200 端口的 e2e 隔离（`getE2eDbName` 独立库名、强制 IDB）                  | 跑带归档的全量 Angular e2e                                             | 归档只含被测用例自己的库；既有 e2e DB 隔离语义不破坏                                                                                                                                                                                                                              |  ⬜  |
-|  10 |  C   | 插件挂载（`rxdb.use(...)` 后 connect）                                     | 调用录制 / 停止 / 导出 API                                             | scoped lifecycle 正确（inject 依赖声明）；停止时缓冲区排空，已录事件全部落库                                                                                                                                                                                                      |  ⬜  |
-|  11 |  C   | 录制期间高频交互（拖拽、连续输入），中途刷新页面                           | 按 sessionId + 时间范围查询事件流                                      | 每事件一文档、批量事务写入（不逐条 `save()`）；sessionId + timestamp 索引命中；事件序号跨刷新单调递增、无丢失                                                                                                                                                                     |  ⬜  |
-|  12 |  C   | 录制期间 working-tree 已启用                                               | 录一段会话后看 `status()`                                              | 事件流写入不产生工作树条目（`entryCount` 不因录制增长）                                                                                                                                                                                                                           |  ⬜  |
-|  13 |  C   | 某 session 已入库                                                          | Replayer 跳到时刻 T                                                    | T 时刻应在的节点 / 文本出现在回放 DOM 中（用例冻结具体的 T 与断言节点）                                                                                                                                                                                                           |  ⬜  |
-|  14 |  C   | 录制期间 working-tree 产生多次 commit                                      | 检查事件流，再在时间轴选某个 commit 恢复                               | 每次 commit 留一条携带 `commitId` 的 `EventType.Custom` 事件，顺序与 commit 一致；选中后经 `restore({ commitId }, credentials)` 返回 `ok: true`、数据与该 commit 一致；四种拒绝（`conflict` / `dirty_working_tree` / `incompatible_schema` / `unreachable_target`）各给可操作提示 |  ⬜  |
-|  15 |  C   | plan 冻结的体积上限（具体数值）                                            | 注入超限事件量                                                         | 按冻结策略截断并显式报告，不静默丢弃、不无限增长                                                                                                                                                                                                                                  |  ⬜  |
-|  16 |  C   | 配置脱敏选项                                                               | 录制含敏感输入的表单                                                   | 敏感值不进事件流（`maskAllInputs` / `blockSelector` 生效）                                                                                                                                                                                                                        |  ⬜  |
-|  17 |  C   | 三框架宿主各自集成 Replayer 组件；`dev-rxdb-angular` 集成录制              | 组件测试、parity e2e、手动录制一段会话                                 | Angular / React / Vue 同 API 同功能、无单端缺失；demo 录制 → 入库 → 回放闭环，录制默认关闭（opt-in）                                                                                                                                                                              |  ⬜  |
+|   # | 阶段 | 前置条件                                                                                                      | 操作                                                                   | 预期结果                                                                                                                                                                                                                                                                          | 状态 |
+| --: | :--: | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--: |
+|   1 |  A   | 本地（无重试）跑 angular / react / vue 任一 demo e2e 与 `rxdb-devtools-extension-e2e`，各临时加一条必失败断言 | 查看各自的 `test-output/playwright/output`                             | 失败用例留下 `trace.zip`，`playwright show-trace` 打开后能看到失败断言前后的 DOM 快照；devtools 扩展 e2e 的 trace 来自 fixture 自建的持久上下文；通过的用例不留 trace                                                                                                             |  ⬜  |
+|   2 |  A   | CI（`retries: 2`）上一条首次失败、重试通过的用例（临时分支上在 `testInfo.retry === 0` 时断言失败制造）        | 下载该 job 的 Playwright artifact                                      | job 转绿，首次失败那次尝试的 trace 在 artifact 里；六个配置的 trace 模式都是 `retain-on-failure`                                                                                                                                                                                  |  ⬜  |
+|   3 |  A   | plan 冻结的开销上限与轮数 N                                                                                   | 同机、`--retries=0`，同一 demo e2e 全量在切换前后各跑 N 轮，比墙钟时长 | 增幅不超过冻结上限                                                                                                                                                                                                                                                                |  ⬜  |
+|   4 |  B   | 用例失败                                                                                                      | fixture 的失败处理执行完                                               | 经同库名的主线程 IDB 第二连接 `backup()`，导出前不改动库（不补提交、不丢弃）；归档与摘要作为 test 附件出现在报告里；摘要记各业务表行数与 `status()` 的 `clean` / `entryCount` / HEAD，working-tree 未启用时记「未启用」                                                           |  ⬜  |
+|   5 |  B   | 用例失败时主 `page` 已关闭或已崩溃                                                                            | 同上                                                                   | 在同一上下文新开页面导出同一库名（Angular 的隔离库名存在 `localStorage`，同上下文共享）；上下文已不可用时摘要写明原因，不导出                                                                                                                                                     |  ⬜  |
+|   6 |  B   | 用例通过                                                                                                      | 同上                                                                   | 不导出、不留附件；Angular e2e 全部 spec 从共享 fixture 模块取 `test`，lint `no-restricted-imports` 禁止从 `@playwright/test` 直接取 `test`                                                                                                                                        |  ⬜  |
+|   7 |  B   | 一份失败归档                                                                                                  | 在 `dev-rxdb-angular` 的导入入口导入                                   | 主线程 IDB 连接在 `connect()` 前恢复到新的空库，dev 应用随后打开该库；各业务表行数、工作树的 HEAD 与未提交条目数与摘要一致；归档含 HEAD 可达的历史 commit 时，先在 working-tree 页提交或丢弃未提交条目，再恢复该 commit 返回 `ok: true`                                           |  ⬜  |
+|   8 |  B   | 导出超时 / 第二连接 `connect()` 失败 / `backup()` 报 `RxDBBackupError`（`lock_timeout` / `io_error` 等）      | 触发失败处理                                                           | 按原因写进摘要，不挂死 run、不吞掉原始失败与 trace；超时值由 plan 冻结                                                                                                                                                                                                            |  ⬜  |
+|   9 |  B   | 8200 端口的 e2e 隔离（`getE2eDbName` 独立库名、强制 IDB）                                                     | 跑带归档的全量 Angular e2e                                             | 归档只含被测用例自己的库；既有 e2e DB 隔离语义不破坏                                                                                                                                                                                                                              |  ⬜  |
+|  10 |  C   | 插件挂载（`rxdb.use(...)` 后 connect）                                                                        | 调用录制 / 停止 / 导出 API                                             | scoped lifecycle 正确（inject 依赖声明）；停止时缓冲区排空，已录事件全部落库                                                                                                                                                                                                      |  ⬜  |
+|  11 |  C   | 录制期间高频交互（拖拽、连续输入），中途刷新页面                                                              | 按 sessionId + 时间范围查询事件流                                      | 每事件一文档、批量事务写入（不逐条 `save()`）；sessionId + timestamp 索引命中；事件序号跨刷新单调递增、无丢失                                                                                                                                                                     |  ⬜  |
+|  12 |  C   | 录制期间 working-tree 已启用                                                                                  | 录一段会话后看 `status()`                                              | 事件流写入不产生工作树条目（`entryCount` 不因录制增长）                                                                                                                                                                                                                           |  ⬜  |
+|  13 |  C   | 某 session 已入库                                                                                             | Replayer 跳到时刻 T                                                    | T 时刻应在的节点 / 文本出现在回放 DOM 中（用例冻结具体的 T 与断言节点）                                                                                                                                                                                                           |  ⬜  |
+|  14 |  C   | 录制期间 working-tree 产生多次 commit                                                                         | 检查事件流，再在时间轴选某个 commit 恢复                               | 每次 commit 留一条携带 `commitId` 的 `EventType.Custom` 事件，顺序与 commit 一致；选中后经 `restore({ commitId }, credentials)` 返回 `ok: true`、数据与该 commit 一致；四种拒绝（`conflict` / `dirty_working_tree` / `incompatible_schema` / `unreachable_target`）各给可操作提示 |  ⬜  |
+|  15 |  C   | plan 冻结的体积上限（具体数值）                                                                               | 注入超限事件量                                                         | 按冻结策略截断并显式报告，不静默丢弃、不无限增长                                                                                                                                                                                                                                  |  ⬜  |
+|  16 |  C   | 配置脱敏选项                                                                                                  | 录制含敏感输入的表单                                                   | 敏感值不进事件流（`maskAllInputs` / `blockSelector` 生效）                                                                                                                                                                                                                        |  ⬜  |
+|  17 |  C   | 三框架宿主各自集成 Replayer 组件；`dev-rxdb-angular` 集成录制                                                 | 组件测试、parity e2e、手动录制一段会话                                 | Angular / React / Vue 同 API 同功能、无单端缺失；demo 录制 → 入库 → 回放闭环，录制默认关闭（opt-in）                                                                                                                                                                              |  ⬜  |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ## 技术笔记
 
-- **阶段 A 的模式选择**：本地两种模式等价（本地没有重试）。CI 上 `retain-on-failure` 每次尝试都录，硬失败留三份；
-  `retain-on-first-failure` 只录首次尝试，重试不付录制开销。AC#2 只要求首次失败有 trace，两者都满足，plan 按 AC#3 的实测选。
-  保留期沿用既有产物通道：本地是 `outputDir`，CI 是 artifact 7 天。
-- **阶段 B 的数据怎么带出来：导出，不用持久上下文。** e2e 跑在 Playwright 默认的临时浏览器上下文里，上下文关闭时 IDB 里的库
-  连同提交历史一起丢弃；`restore({ commitId })` 只能在持有同一份提交历史的库上调用。失败处理经页内测试 API（仿
-  [`search-demo-api.ts`](../../../packages/rxdb-test/src/testing/search-demo-api.ts) 的 `installSearchDemoTestApi`）调
-  `adapter.backup()`，归档经 `page.evaluate` 分块或 `exposeBinding` 流回 Node，再 `testInfo.attach`；流回方式由 plan 冻结。
-  不选的路：
+- **阶段 A 的模式：`retain-on-failure`。** 两种只留失败的模式在首次尝试上开销相同（都录），差别只在 CI 的重试：
+  `retain-on-failure` 重试也录、每次失败都留；`retain-on-first-failure` 不录重试，首次失败后重试又以另一种方式失败时，第二种
+  失败没有 trace。重试只跟在失败后面，多录的开销只落在失败用例上，所以取前者，代价是硬失败在 CI 上留三份 trace。本地
+  `--retries=0` 下 `on-first-retry` 等于不录，AC#3 量的就是「录与不录」的差；超限时的调节杆是 trace 内容选项（`screenshots` /
+  `snapshots` / `sources`），不是保留模式。保留期沿用既有产物通道：本地是 `outputDir`，CI 是 artifact 7 天。
+- **阶段 B 的数据怎么带出来：原样导出，经第二个主线程连接。** e2e 跑在 Playwright 默认的临时浏览器上下文里，上下文关闭时
+  IDB 里的库连同提交历史一起丢弃，只能在上下文关闭前导出。demo 自己的 adapter 实例走 SharedWorker，`backup()` 被拒（现状与
+  证据第 4 条）；失败处理经页内测试 API（仿 [`search-demo-api.ts`](../../../packages/rxdb-test/src/testing/search-demo-api.ts) 的
+  `installSearchDemoTestApi`）在同一页面起第二个 RxDB 实例：同库名、`vfs: 'idb'`、不设 worker，`connect()` 后调
+  `getAdapter(name).backup(sink)`。这个 API 放在 `dev-rxdb-angular` 里：只有 Angular 一端用，不给公开包 `@aiao/rxdb-test`
+  加导出与 adapter 依赖，React / Vue 扩展时再上提。第二个实例必须与 dev 应用同配置——同一份实体、迁移与插件：归档的结构指纹由
+  `rxdb.config.entities` 算出，同一份列表才得出同一个指纹；`connect()` 在既有库上先过
+  [`RxDB`](../../../packages/rxdb/src/RxDB.ts) 的 `#assertClaimedCapabilities`，库里记过迁移的系统能力（working-tree 等）
+  本实例没挂就拒开，缺的表与迁移则会被补写进库。归档经 `page.evaluate` 分块或 `exposeBinding` 流回 Node，再 `testInfo.attach`；
+  流回方式由 plan 冻结。plan 之前先 spike 两件事（都是**推断**）：
+  1. 与 SharedWorker 的连接并存时，第二连接的 `connect()` 在既有库上全是空操作（系统表、迁移水位与 `migrateSystemSchema()`
+     都已到位，不写库），转储拿到一致快照、不挂死（adapter 的 `idbLockPolicy` / `idbLockTimeout`）；或先关主 `page`，让
+     SharedWorker 随最后一个文档退出，再在新页导出。
+  2. 导入入口用主线程 IDB 连接恢复出的库，dev 应用经 IDB + SharedWorker 分支能正常打开。
+
+  spike 不过，阶段 B 改为依赖 🚧 传输故事，由 demo 自己的 adapter 实例导出。不选的路：
+  - 失败时先补一次快照提交再导出：备份是全部表的逻辑转储，工作树的未提交条目本就在归档里；补提交反而抹掉「失败时哪些改动
+    还没提交」，还把 CAS 凭据、`operationId`、恢复会话中途的提交拒绝与干净工作树上的 `empty_commit` 带进失败处理。导入后要在
+    commit 之间恢复，由开发者在 working-tree 页先提交或丢弃。
   - 每个 test 一份持久 profile：带不出这台机器（**推断**，未实测）。
   - 直接拷 IDB / OPFS 文件：是 [US-904](US-904-devtools-native-storage-contract.md) 已停用的热拷贝，也等于在 e2e 里复刻一份适配器的存储布局。
-  - 按实体导出 JSON：带不走提交历史。
-  - 关页后在同源新页面用主线程 IDB 连接备份同一个库名：依赖 SharedWorker 与主线程两种传输的存储布局一致（**推断**，未实测），
-    且把一次失败处理变成第二次应用启动。
-- **快照提交的口径**：`status().clean === false` 才补提交（干净时 `commit()` 抛 `empty_commit`）。提交后工作树干净，导入后的
-  `restore()` 不撞 `dirty_working_tree`，失败时刻的全部数据都在 HEAD 里。三个 CAS 凭据取自一次新鲜的 `status()`；`authorId` /
-  `operationId` 的取值由 plan 冻结（同一次失败处理的重试必须带同一个 `operationId`）。失败发生在恢复会话中途
-  （`status().restoring` / `conflicted`）时提交是否被接受，由 plan 实测。
-- **导入的口径**：恢复要求空目标，且必须在 `connect()` 之前经 `rxdb.getAdapter(name)` 调用；导入入口用一个新库名，不覆盖 dev
-  应用正在用的库。中断的导入由 `cleanupIncompleteRestore()` 清理。
+  - 按实体导出 JSON：带不走提交历史与工作树状态。
+
+- **导入的口径**：恢复要求空目标，且必须在 `connect()` 之前经 `rxdb.getAdapter(name)` 调用；导入入口用主线程 `vfs: 'idb'` 连接
+  恢复到一个新库名，不覆盖 dev 应用正在用的库。dev 应用平时走 OPFS 分支，打开导入的库走 IDB 分支（与 8200 的强制 IDB 同一条路）。
+  中断的导入由 `cleanupIncompleteRestore()` 清理。
+- **共享 fixture 的改动面**：`apps/dev-rxdb-angular-e2e/src` 下 27 个 spec 从 `@playwright/test` 取 `test`，各改一行 import；
+  `e2e-utils.ts` / `search-test-api.ts` 只取类型与 `expect`，lint 规则只禁 `test` 这个具名导入，不影响它们。
 - **调用约束**：`restore({ commitId })` 的目标必须在当前分支 HEAD 的可达父链上（US-307 FR-033），其他分支上的 commit 先
   `switchBranch`；三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；被拒走返回值（`conflict` /
   `dirty_working_tree` / `incompatible_schema` / `unreachable_target`）。
@@ -175,17 +210,16 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 
 ## 实现文件
 
-| 阶段 | 路径                                                                       | 职责                                                  |
-| ---- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
-| A    | `apps/dev-rxdb-{angular,react,vue,supabase,http}-e2e/playwright.config.ts` | `use.trace` 切换保留模式                              |
-| A    | `.github/workflows/ci-template.yml`                                        | 「Upload Playwright artifacts」上方的 trace 模式注释  |
-| B    | `apps/dev-rxdb-angular-e2e/`                                               | 共享 fixture、失败处理与归档附件、lint 守卫           |
-| B    | `packages/rxdb-test/src/testing/`                                          | 页内测试 API（快照提交 + 备份），仿 `search-demo-api` |
-| B    | `apps/dev-rxdb-angular/`                                                   | 安装页内测试 API；导入入口                            |
-| C    | `packages/rxdb-plugin-replay/`                                             | 录制 / 存储 / 关联 / 脱敏插件包                       |
-| C    | `packages/rxdb-plugin-replay-angular/`、`-react/`、`-vue/`                 | 三框架 Replayer 组件（parity）                        |
-| C    | `apps/dev-rxdb-angular/`                                                   | opt-in 录制与回放演示                                 |
-| C    | `requirements/api-baseline/`                                               | 新增公开 API 基线                                     |
+| 阶段 | 路径                                                                                                                                | 职责                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A    | `apps/dev-rxdb-{angular,react,vue,supabase,http}-e2e/playwright.config.ts`、`apps/rxdb-devtools-extension-e2e/playwright.config.ts` | `use.trace` 切到 `retain-on-failure`                                                                       |
+| A    | `.github/workflows/ci-template.yml`                                                                                                 | 「Upload Playwright artifacts」上方的 trace 模式注释                                                       |
+| B    | `apps/dev-rxdb-angular-e2e/`                                                                                                        | 共享 fixture、失败处理与归档附件、lint 守卫                                                                |
+| B    | `apps/dev-rxdb-angular/`                                                                                                            | 页内测试 API（第二连接 + 备份，仿 `installSearchDemoTestApi`）；导入入口（主线程 IDB 恢复 + IDB 分支打开） |
+| C    | `packages/rxdb-plugin-replay/`                                                                                                      | 录制 / 存储 / 关联 / 脱敏插件包                                                                            |
+| C    | `packages/rxdb-plugin-replay-angular/`、`-react/`、`-vue/`                                                                          | 三框架 Replayer 组件（parity）                                                                             |
+| C    | `apps/dev-rxdb-angular/`                                                                                                            | opt-in 录制与回放演示                                                                                      |
+| C    | `requirements/api-baseline/`                                                                                                        | 新增公开 API 基线                                                                                          |
 
 ## References
 
