@@ -14,8 +14,11 @@
 - 因此下一次 schema migration 之前，**必须先重新发布一个 `kind=bridge` 的非迁移版本**。
 - **桥接锚点已定案（2026-10-01）**：`main` 自 #55 起已是 schema 6、现有提交上无处可切，owner 选了
   **出路 1**——从 `de70a1a9`（`main` 上最后一个 schema 3 的提交）切发布分支，版本定为 **`0.0.26`**，
-  用一次**真 merge**把 bump 提交并回 `main`；桥接版本的 changelog **如实声明**区间内两组破坏性改动。
-  见[桥接锚点定案](#桥接锚点定案)。本次只定案、改文档，执行仍按线 A 排在所有批次之后。
+  用一次**真 merge**把 bump 提交并回 `main`；桥接版本的 changelog **如实声明**区间内六组破坏性改动。
+  见[桥接锚点定案](#桥接锚点定案)。
+- **桥接版本 `v0.0.26` 已发布（2026-10-01）**：tag 打在 B = `852f3b20`，经 merge commit `8597bddf` 并入 `main`、
+  是 `main` 祖先；34 个包已发到 npm（6 个首发）。迁移发布从此有了合法锚点，
+  证据与执行中踩到的坑见[线 A 执行记录](#线-a-执行记录v0026)。
 - 已发布的 `@aiao/rxdb@0.0.25` 在报假版本号，且 `v0.0.25` 的 tag 树与已发布产物**内容对不上**，
   见下方[版本漂移开项](#开项0025-遗留的三条版本漂移)。
 - **自动生成的 changelog 会同时多报和漏报，必须人工过一遍**：既会把 0.0.25 已发过的内容再写一遍，
@@ -168,7 +171,7 @@ origin/main     → RXDB_SYSTEM_SCHEMA_VERSION = 6，RXDB_CHANGE_CODEC_VERSION =
 **路径 1 的副作用**，执行时逐条承接：
 
 - `main` 从此有了 merge commit，「全历史零 merge commit」不再成立。合入时产生的每个 merge commit
-  标题都要写成规范形式，例如 `chore(release): merge bridge v0.0.26 into main`。否则下一次 changelog 会以
+  标题都要写成规范形式，例如 `chore(aiao): merge bridge v0.0.26 into main`（scope 须在 commitlint 白名单内，`release` 不在）。否则下一次 changelog 会以
   `__INVALID__` 收进它，硬前提 2 ⑤ 的非规范标题检查也会报它。
 - 桥接版本不含 `de70a1a9` 之后的任何功能，它只是锚点。**只在 `main` 上存在的 12 个包**——`rxdb-model`、
   `rxdb-plugin-tree`、`rxdb-plugin-working-tree` 的核心包及各自的 `-angular` / `-react` / `-vue`——在 B 上不存在，
@@ -397,7 +400,7 @@ writer lease 那组在 `@aiao/rxdb` 之外还带走两处：`@aiao/rxdb-adapter-
    然后手改 `packages/rxdb/src/version.ts` 为 `RXDB_VERSION = '0.0.26'`（`version.spec.ts` 守着它，0.0.25 的假版本号就漏在这一步），
    再更新 `requirements/migration-release.json`：`release.version` = `0.0.26`，`release.kind` 确认为 `bridge`，
    两个升级位保持 `false`，`bridge.tag` / `bridge.version` 保持 `null`——桥接版本不引用桥接 tag，只有 migration 版本才填。
-   提交标题用规范形式，例如 `chore(release): bridge 0.0.26`。
+   提交标题用规范形式，例如 `chore(aiao): release bridge 0.0.26`。
 
    `v0.0.24` 就是栽在这一步：包版本停在 `0.0.24`，清单已经写成 `0.0.25`，两者从未对齐。
 
@@ -498,13 +501,74 @@ $ git merge-base --is-ancestor v0.0.25^{commit} HEAD      # 失败：v0.0.25 不
 红半边（`bridge.tag` 为 `null` / 为 `v0.0.25` / 版本常量不吻合时门禁必红）已在真实仓库上成立并留证；
 绿半边要的是「补齐真实桥接 tag 后重跑通过」，它只能由发布动作产出，属于发布而不属于代码交付，US-305 因此按代码 AC 关闭。本节承接的内容：
 
-| 项                                                                                                    | 状态                                                                                  |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 真实桥接 tag 存在、是 `main` 祖先、版本严格新于 `0.0.25`、常量低于迁移版本                            | ⬜ 出路已定案（`de70a1a9` + `v0.0.26`，见[桥接锚点定案](#桥接锚点定案)），待线 A 执行 |
-| 清单切 `kind=migration` 且 `bridge.*` 指向该 tag，`pnpm check-migration-release-gate` 在真实 tag 上绿 | ⬜ 依赖上一行                                                                         |
-| `oldBundlePolicy` 四选一、`minimumVersion` ≥ 桥接版本、`enforced=true`                                | ⬜ 依赖上一行                                                                         |
+| 项                                                                                                    | 状态                                              |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 真实桥接 tag 存在、是 `main` 祖先、版本严格新于 `0.0.25`、常量低于迁移版本                            | ✅ `v0.0.26` → `852f3b20`（2026-10-01），证据见下 |
+| 清单切 `kind=migration` 且 `bridge.*` 指向该 tag，`pnpm check-migration-release-gate` 在真实 tag 上绿 | ⬜ 依赖上一行                                     |
+| `oldBundlePolicy` 四选一、`minimumVersion` ≥ 桥接版本、`enforced=true`                                | ⬜ 依赖上一行                                     |
 
 三行全 ✅ 时在此记录 tag、命令与输出，AC US2-14 随之关闭；[epic-006](epics/epic-006-working-tree-commits.md) 的发布判据引用本节。
+
+**第一行的证据（2026-10-01）**：
+
+```text
+$ git ls-remote --tags origin 'v0.0.26*'
+6c9f875a75302ddf63a440a014b7c3e0d942913b  refs/tags/v0.0.26          # 带注释 tag
+852f3b2003d0040878c70f42bda2c3fd367e7d72  refs/tags/v0.0.26^{}       # B，不是 merge commit 8597bddf
+
+$ git merge-base --is-ancestor 'v0.0.26^{commit}' origin/main && echo OK
+OK
+
+$ node scripts/check-migration-release-gate.mjs --check --release-tag=v0.0.26
+Migration release gate passed for bridge 0.0.26.
+
+$ node scripts/check-migration-release-gate.mjs --check --release-tag=v9.9.9      # 反例
+- release.version 0.0.26 does not match tag v9.9.9
+
+$ git grep -E 'RXDB_(SYSTEM_SCHEMA|CHANGE_CODEC)_VERSION =' v0.0.26 -- packages    # 与 v0.0.24 相同
+packages/rxdb/src/system/change-codec.ts:33:export const RXDB_CHANGE_CODEC_VERSION = 1 as const;
+packages/rxdb/src/system/migration.ts:22:export const RXDB_SYSTEM_SCHEMA_VERSION = 3 as const;
+
+$ gh api repos/aiao-io/rxdb/branches/main/protection --jq .required_linear_history.enabled
+true                                                                               # 合入后已恢复，整份保护与合入前快照逐项一致
+```
+
+版本严格新于 `0.0.25`：清单 `release.version` 与 `packages/rxdb/package.json` 同为 `0.0.26`，npm 上 34 个包的
+`0.0.26` 与发布前在 B 干净检出上 `pnpm pack` 的 tarball shasum 逐个一致。第二、三行留给 epic-006 的首个迁移发布，
+届时 `bridge.tag` = `v0.0.26`、`bridge.version` = `0.0.26`。
+
+### 线 A 执行记录（v0.0.26）
+
+| 提交 / 动作   | 内容                                                                                                      |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `852f3b20` B  | 父提交 `de70a1a9`；bump 到 `0.0.26`、`RXDB_VERSION`、清单、CHANGELOG（六组破坏性改动）                    |
+| `627c602e`    | 把 `main`（`98ba8136`）合进发布分支解冲突                                                                 |
+| `26914edf`    | 只在 `main` 上的 12 个包对齐到 `0.0.26`，补 lockfile                                                      |
+| `2ce9f974`    | adapter-consumer 审计的依赖闭包补上 `rxdb-client-generator`                                               |
+| `8597bddf`    | [#77](https://github.com/aiao-io/rxdb/pull/77) 以 merge commit 并回 `main`，前后临时关、恢复线性历史      |
+| tag / Release | `v0.0.26` 打在 B；[GitHub Release](https://github.com/aiao-io/rxdb/releases/tag/v0.0.26) 正文取 CHANGELOG |
+| npm           | 从 B 的干净检出冻结安装、全量构建后 `pnpm pack`，按依赖拓扑序发布这批 tarball                             |
+
+执行中踩到、下次发布要预先处理的坑：
+
+1. **未发布的新版本号会打断 lockfile 生成**。`.npmrc` 开着 `auto-install-peers=true`，`@aiao/*` 之间的 peer
+   会去 registry 解析；对齐到尚未发布的 `0.0.26` 后 lockfile 生成不出来。
+   处置：给有 `@aiao/*` peer 的包补一条同名 `workspace:*` devDependency（发布产物不带 devDependencies，不影响消费者）。
+2. **adapter-consumer 审计的依赖闭包必须覆盖全部 `@aiao/*` 传递依赖**。
+   [scripts/audit/desktop-adapter-consumer.mjs](../scripts/audit/desktop-adapter-consumer.mjs) 只打包
+   `SHARED_PACKAGE_DIRECTORIES` 里的包并用 overrides 钉住，漏一个就静默回落到 registry 版本；
+   版本号新于 registry 时直接报 `ERR_PNPM_NO_MATCHING_VERSION`。本次补上了 `rxdb-client-generator`。
+3. **文档里写死的版本号也要随 bump 改**。`rxdb-adapter-tauri` 两份 README 的 Cargo `tag = "v0.0.25"`
+   是 review 发现的真缺陷，已在 B 上改为 `v0.0.26`；`packages/rxdb/src/version.ts` 里 `0.0.25` 的历史注释保留。
+4. **npm 发布要过网页两步验证**。账号的 `npm profile` 虽是 `auth-only`，发布仍会报 `EOTP`；npm 12 走
+   `--auth-type=web` 的浏览器验证，要求 npm 的 stdin 是终端——在 `while read … < 清单` 循环里调用会直接失败，
+   清单须改走其他 fd（`while read -r t <&3; … done 3< 清单`）。验证页勾「5 分钟内不再验证」可一次发完。
+5. **首发包在 registry 上有几分钟的传播延迟**，缩略文档（`npm view`）可能比完整文档晚；核对以完整文档的
+   `versions["0.0.26"].dist.shasum` 为准。
+6. **CI 两个非本次引入的波动**：`ci / benchmarks` 在未冻结参考档的 CPU（Xeon 8370C）上报
+   `benchmark_environment_mismatch`，重跑通过；`dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`
+   「fake 档 expired 场景」偶发失败，源于 `fake-provider-gear.ts` 的 `createScenarioClock` 用 `setTimeout(…, 0)`
+   与下一次分页请求竞态（#58 引入），重跑通过。两者都登记为后续项。
 
 不要用「推一个废弃 tag」来充当证据：tag 是桥接声明本身，
 试探性 tag 会污染 `nx release` 的版本计算基准，也会让后续读历史的人分不清哪个 tag 是真的。
