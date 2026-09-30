@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-working-tree",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Local working tree and commit history for RxDB: capture uncommitted edits, review diffs, and commit them onto a branch.",
   "homepage": "https://rxdb.netlify.app/docs/getting-started",
   "bugs": {

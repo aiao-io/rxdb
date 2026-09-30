@@ -20,7 +20,7 @@ WebView 那一半是同目录的 npm 包（`../src/`）。两半住在同一个�
 ```toml
 # git 依赖：仓库外的应用用这个
 [dependencies]
-aiao-rxdb-tauri = { git = "https://github.com/aiao-io/rxdb", tag = "v0.0.25" }
+aiao-rxdb-tauri = { git = "https://github.com/aiao-io/rxdb", tag = "v0.0.26" }
 
 # path 依赖：本仓库内的 demo 用这个
 [dependencies]

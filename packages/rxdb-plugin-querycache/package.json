@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-plugin-querycache",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Query-cache read engine (SyncType.QueryCache) for Aiao RxDB.",
   "homepage": "https://rxdb.netlify.app/docs/plugins",
   "bugs": {

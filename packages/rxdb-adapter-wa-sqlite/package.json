@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-wa-sqlite",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "wa-sqlite adapter for browser-local SQLite storage.",
   "homepage": "https://rxdb.netlify.app/docs/adapters",
   "bugs": {

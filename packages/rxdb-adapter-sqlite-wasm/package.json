@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-adapter-sqlite-wasm",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "SQLite WASM adapter with browser persistence for Aiao RxDB.",
   "homepage": "https://rxdb.netlify.app/docs/adapters/sqlite-wasm",
   "bugs": {
