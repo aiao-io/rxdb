@@ -8,7 +8,13 @@
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import type { DouyinApi, DouyinFileSystemManager, DouyinStat, DouyinStatEntry, DouyinWasmRuntime } from '../douyin-api.js';
+import type {
+  DouyinApi,
+  DouyinFileSystemManager,
+  DouyinStat,
+  DouyinStatEntry,
+  DouyinWasmRuntime
+} from '../douyin-api.js';
 
 /** 与真机一致的用户目录。 */
 export const FAKE_USER_DATA_PATH = 'ttfile://user';

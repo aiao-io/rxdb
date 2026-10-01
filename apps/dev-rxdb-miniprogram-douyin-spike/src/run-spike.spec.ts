@@ -99,7 +99,13 @@ describe('runSpike：全部实验跑通', () => {
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.quota.status).toBe('triggered');
     expect(core.quota.insertedRows).toBeGreaterThan(0);
-    expect(core.quota.failure?.error.cause).toMatchObject({ codes: { errNo: 108403 } });
+    // 现状刻画：VFS 把平台错误吞成 SQLITE_IOERR，调用方只看到 disk I/O error，108403 不在 cause 链上。
+    // 平台原文只留在 VFS 句柄的 lastError 里；adapter 改成透传后这条断言应当翻转。
+    expect(core.quota.failure?.error).toMatchObject({
+      name: 'RxDBAdapterSqliteError',
+      cause: { message: 'disk I/O error', codes: { code: 10 } }
+    });
+    expect(JSON.stringify(core.quota.failure)).not.toContain('108403');
     expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
     expect(core.quota.afterFailure?.reopenCount).toMatchObject({ ok: true, value: core.quota.insertedRows });
   });
@@ -146,7 +152,10 @@ describe('runSpike：失败与边界', () => {
   }, 60_000);
 
   it('同步方法抛 Error 实例时，判定照样成立', async () => {
-    const { report } = await run({ ...SMALL_QUOTA, errorShape: 'error' }, loadRealCore, { blobBytes: 1024, maxRows: 1 });
+    const { report } = await run({ ...SMALL_QUOTA, errorShape: 'error' }, loadRealCore, {
+      blobBytes: 1024,
+      maxRows: 1
+    });
     const access = report.fileSystem.probes.find(item => item.op === 'accessSync(不存在的文件)');
     expect(access).toMatchObject({ asExpected: true, outcome: { ok: false, error: { constructorName: 'Error' } } });
   }, 60_000);

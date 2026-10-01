@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { DEFAULT_WASM_PATH } from '@aiao/rxdb-adapter-miniprogram';
+import { readFileSync } from 'node:fs';
 import { ADAPTER_DEFAULT_WASM_PATH, VFS_ALREADY_EXISTS_PATTERN, VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
 const vfsSource = readFileSync(
@@ -13,7 +13,9 @@ describe('与 adapter 的判定逻辑逐字一致（防漂移）', () => {
   });
 
   it('「目录已存在」正则与 wechat-file-vfs.ts 相同', () => {
-    expect(vfsSource).toContain(`if (!${VFS_ALREADY_EXISTS_PATTERN.toString()}.test(errorMessage(error))) throw error;`);
+    expect(vfsSource).toContain(
+      `if (!${VFS_ALREADY_EXISTS_PATTERN.toString()}.test(errorMessage(error))) throw error;`
+    );
   });
 
   it('默认 wasm 路径与 adapter 的 DEFAULT_WASM_PATH 相同', () => {
