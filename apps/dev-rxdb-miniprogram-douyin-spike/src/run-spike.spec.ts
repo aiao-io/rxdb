@@ -50,7 +50,9 @@ describe('runSpike：全部实验跑通', () => {
       randomValues: { required: '2.87.0', met: true },
       wasm: { required: '2.34.0.0', met: true }
     });
-    expect(report.environment.globals).toMatchObject({ tt: 'object', TTWebAssembly: 'object', BigInt: 'function' });
+    expect(report.environment.freeGlobals).toMatchObject({ tt: 'object', TTWebAssembly: 'object' });
+    expect(report.environment.globalObject).toMatchObject({ ok: true, value: { BigInt: 'function' } });
+    expect(report.environment.sourcesBeforePrepare).toMatchObject({ ok: true });
     expect(report.environment.textDecoderLabels['latin1']).toMatchObject({ ok: true });
   });
 
@@ -116,6 +118,15 @@ describe('runSpike：全部实验跑通', () => {
     expect([...fake.directories].filter(path => path.startsWith(SPIKE_ROOT))).toEqual([]);
   });
 
+  it('⑤ 环境：首次运行的快照没有引导残留，原生 crypto 能直接取随机数', () => {
+    expect(report.environment.residue).toBe(false);
+    expect(report.environment.nativeRandom).toMatchObject({ ok: true, value: { byteLength: 4096, allZero: false } });
+  });
+
+  it('源码级运行没有构建 banner，垫片记录为空', () => {
+    expect(report.globalThisShim).toEqual({ page: null, core: null });
+  });
+
   it('findings 按矩阵行给出本次运行的判定', () => {
     expect(report.findings.map(item => item.matrixRow)).toEqual(['WASM', '同步 FS', '随机源', '用户目录', '持久化']);
     expect(report.findings.every(item => item.verdict === 'pass')).toBe(true);
@@ -133,6 +144,24 @@ describe('runSpike：失败与边界', () => {
     expect(finding(report, '持久化')).toMatchObject({ verdict: 'unknown' });
     expect(finding(report, '同步 FS')).toMatchObject({ verdict: 'pass' });
     expect([...fake.directories].filter(path => path.startsWith(SPIKE_ROOT))).toEqual([]);
+  }, 60_000);
+
+  it('同一 JS 上下文里再跑一次，环境快照标出上次引导的残留', async () => {
+    // 开发者工具「重新运行」或热重载不换 JS 上下文，上次 prepare 装上的补丁还在。
+    // Node 能力齐全，prepare 什么都不装；拿掉 structuredClone 逼它装一个 polyfill
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'structuredClone');
+    if (original === undefined) throw new Error('Node 应当有原生 structuredClone');
+    const skipCore = () => Promise.reject(new Error('跳过'));
+    try {
+      Reflect.deleteProperty(globalThis, 'structuredClone');
+      const first = await run(SMALL_QUOTA, skipCore);
+      expect(first.report.environment.residue).toBe(false);
+      const second = await run(SMALL_QUOTA, skipCore);
+      expect(second.report.environment.sourcesBeforePrepare).toMatchObject({ value: { structuredClone: 'polyfill' } });
+      expect(second.report.environment.residue).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, 'structuredClone', original);
+    }
   }, 60_000);
 
   it('配额没撞到时如实写「未触发」', async () => {

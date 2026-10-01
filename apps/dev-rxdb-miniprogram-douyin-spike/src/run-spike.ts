@@ -14,12 +14,13 @@ import { runFileSystemExperiment, type FileSystemReport } from './experiments/fs
 import { runRandomExperiment, type RandomSummary } from './experiments/random.js';
 import { runWasmPathExperiment, type WasmPathReport } from './experiments/wasm-path.js';
 import { buildFindings, type Finding } from './findings.js';
+import { readGlobalThisShim, shimApplied, type GlobalThisShimReport } from './global-this-shim.js';
 import { probe, type Probe, type Skipped } from './probe.js';
 import { createDouyinSpikeHost } from './spike-host.js';
 import { ADAPTER_DEFAULT_WASM_PATH, VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
 /** 报告格式版本；字段语义变了就升版本号。 */
-export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v1';
+export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v5';
 
 /** 实验目录名，位于 `tt.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';
@@ -28,6 +29,8 @@ const NOTES = [
   'host 借用已登记的 wechat 平台 id 通过 adapter 校验；正式接入需要 Phase B 登记 douyin id 与正式 host。',
   '实验 ② 直接调用 tt.getRandomValues，不经 host 包装，记录的是平台原始的成功与失败形态。',
   '实验 ③ 的 vfsSaysMissing / vfsSaysExists 是用 adapter 文件 VFS 的正则副本对 errMsg 的判定。',
+  '构建产物在 globalThis 不是对象时尝试换上真实全局对象（见 globalThisShim）；垫过时 ① ② ④ 的通过不代表 adapter 现状可用。',
+  'environment.residue 为 true 时，同一 JS 上下文里之前跑过引导，环境快照不是平台原生状态；要彻底重启开发者工具再跑。',
   'findings 只代表这一台设备的这一次运行；矩阵回填需要开发者工具、Android、iOS 三份报告。'
 ];
 
@@ -38,7 +41,7 @@ export interface SpikeOptions {
   readonly wasmRuntime: DouyinWasmRuntime | undefined;
   /** 加载核心包；真机上是 `require('../../spike-core.js')`。 */
   readonly loadCore: () => Promise<SpikeCore>;
-  /** 页面里以自由变量出现、不一定挂在 globalThis 上的全局的 `typeof`。 */
+  /** 以自由变量形式读到的全局 `typeof`，见 `captureFreeGlobals`。 */
   readonly freeGlobals: Readonly<Record<string, string>>;
   readonly quotaPlan?: QuotaPlan;
 }
@@ -56,6 +59,8 @@ export interface SpikeReport {
   readonly startedAt: string;
   readonly durationMs: number;
   readonly notes: readonly string[];
+  /** 各包构建 banner 的 `globalThis` 垫片记录；`environment.freeGlobals` 是垫过之后采的，原始形态看这里的 `before`。 */
+  readonly globalThisShim: GlobalThisShimReport;
   readonly environment: EnvironmentReport;
   readonly random: Readonly<Record<string, Probe<RandomSummary>>>;
   readonly prepare: Probe<MiniProgramRuntimeSources>;
@@ -86,6 +91,8 @@ function resetWorkspace(fileSystem: DouyinFileSystemManager, root: string): Work
 interface CoreSection {
   readonly coreLoad: SpikeReport['coreLoad'];
   readonly core: SpikeReport['core'];
+  /** 加载成功时核心包的 banner 记录。 */
+  readonly coreShim: GlobalThisShimReport['core'];
 }
 
 async function runCore(
@@ -95,7 +102,7 @@ async function runCore(
   const { wasmRuntime } = options;
   if (!wasmRuntime) {
     const skipped = '全局 TTWebAssembly 不存在，核心实验无法实例化 wasm';
-    return { coreLoad: { skipped }, core: { skipped } };
+    return { coreLoad: { skipped }, core: { skipped }, coreShim: null };
   }
   let core: SpikeCore | undefined;
   const coreLoad = await probe(async () => {
@@ -104,12 +111,13 @@ async function runCore(
   });
   if (!coreLoad.ok || !core) {
     const reason = coreLoad.ok ? '核心包为空' : coreLoad.error.text;
-    return { coreLoad, core: { skipped: `核心包加载失败：${reason}` } };
+    return { coreLoad, core: { skipped: `核心包加载失败：${reason}` }, coreShim: null };
   }
   const loaded = core;
+  const coreShim = loaded.globalThisShim;
   const result = await probe(() => loaded.runCoreExperiments({ ...input, wasmRuntime }));
-  if (result.ok) return { coreLoad, core: result.value };
-  return { coreLoad, core: { skipped: `核心实验中途抛错：${result.error.text}`, error: result.error } };
+  if (result.ok) return { coreLoad, core: result.value, coreShim };
+  return { coreLoad, core: { skipped: `核心实验中途抛错：${result.error.text}`, error: result.error }, coreShim };
 }
 
 /** 跑完全部实验并返回报告；本函数自身不抛错（`tt.getFileSystemManager` 不存在除外）。 */
@@ -126,7 +134,7 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
   const root = `${tt.env.USER_DATA_PATH}/${SPIKE_DIRECTORY}`;
   const workspace = await probe(() => resetWorkspace(fileSystem, root));
   const fileSystemReport = runFileSystemExperiment(fileSystem, `${root}/fs`);
-  const { coreLoad, core } = await runCore(options, {
+  const { coreLoad, core, coreShim } = await runCore(options, {
     host,
     fileSystem,
     wasmPath: wasmPath.workingPath ?? ADAPTER_DEFAULT_WASM_PATH,
@@ -137,12 +145,14 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
     fileSystem.rmdirSync(root, true);
     return null;
   });
+  const globalThisShim: GlobalThisShimReport = { page: readGlobalThisShim(), core: coreShim };
 
   return {
     schema: SPIKE_REPORT_SCHEMA,
     startedAt: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
     notes: NOTES,
+    globalThisShim,
     environment,
     random,
     prepare,
@@ -152,6 +162,13 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
     coreLoad,
     core,
     cleanup,
-    findings: buildFindings({ random, prepare, wasmPath, fileSystem: fileSystemReport, core })
+    findings: buildFindings({
+      random,
+      prepare,
+      wasmPath,
+      fileSystem: fileSystemReport,
+      core,
+      globalThisShimmed: shimApplied(globalThisShim)
+    })
   };
 }

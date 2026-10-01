@@ -8,6 +8,7 @@ import type { SpikeCore } from './core-contract.js';
 import { describeError } from './describe-error.js';
 import type { DouyinApi, DouyinWasmRuntime } from './douyin-api.js';
 import type { Finding } from './findings.js';
+import { captureFreeGlobals } from './free-globals.js';
 import { runSpike } from './run-spike.js';
 
 declare const tt: DouyinApi;
@@ -61,7 +62,7 @@ Page({
         tt,
         wasmRuntime: typeof TTWebAssembly === 'undefined' ? undefined : TTWebAssembly,
         loadCore,
-        freeGlobals: { tt: typeof tt, TTWebAssembly: typeof TTWebAssembly }
+        freeGlobals: captureFreeGlobals()
       });
       const reportText = JSON.stringify(report, null, 2);
       console.log('[douyin-spike] 报告：', reportText);

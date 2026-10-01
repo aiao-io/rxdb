@@ -31,7 +31,16 @@ export interface FindingsInput {
   readonly wasmPath: WasmPathReport;
   readonly fileSystem: FileSystemReport;
   readonly core: CoreExperimentReport | Skipped;
+  /** 构建 banner 是否垫过 `globalThis`；垫过时，经 adapter 的行在证据里标明前提。 */
+  readonly globalThisShimmed: boolean;
 }
+
+/** 垫片下取得的证据后缀：adapter 现状在同样环境里会因 `globalThis` 不是对象而 TypeError。 */
+const SHIM_CONDITION =
+  '；前提：globalThis 垫片（构建产物把 globalThis 换成了真实全局对象），adapter 现状在此环境会 TypeError';
+
+/** 不经 adapter、结论不受垫片影响的矩阵行。 */
+const SHIM_INDEPENDENT_ROWS: readonly MatrixRow[] = ['同步 FS'];
 
 function errorText(error: DescribedError): string {
   return error.errMsg ?? error.message ?? error.text;
@@ -135,11 +144,15 @@ function persistenceFinding({ core }: FindingsInput): Finding {
 
 /** 按 {@link MATRIX_ROWS} 的顺序给出判定。 */
 export function buildFindings(input: FindingsInput): Finding[] {
-  return [
+  const findings = [
     wasmFinding(input),
     fileSystemFinding(input),
     randomFinding(input),
     userDataFinding(input),
     persistenceFinding(input)
   ];
+  if (!input.globalThisShimmed) return findings;
+  return findings.map(item =>
+    SHIM_INDEPENDENT_ROWS.includes(item.matrixRow) ? item : { ...item, evidence: item.evidence + SHIM_CONDITION }
+  );
 }

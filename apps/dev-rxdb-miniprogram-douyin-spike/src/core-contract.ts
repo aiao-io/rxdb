@@ -8,6 +8,7 @@
 import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import type { DescribedError } from './describe-error.js';
 import type { DouyinFileSystemManager, DouyinWasmRuntime } from './douyin-api.js';
+import type { GlobalThisShimRecord } from './global-this-shim.js';
 import type { Probe } from './probe.js';
 
 /** 配额实验的写入计划：每行一个 `zeroblob(blobBytes)`，最多 `maxRows` 行。 */
@@ -89,5 +90,7 @@ export interface CoreExperimentReport {
 
 /** 核心包的导出面。 */
 export interface SpikeCore {
+  /** 核心包自己的 banner 记录；源码级运行时为 `null`。 */
+  readonly globalThisShim: GlobalThisShimRecord | null;
   runCoreExperiments(input: CoreExperimentInput): Promise<CoreExperimentReport>;
 }

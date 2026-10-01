@@ -21,8 +21,53 @@ interface PageInstance {
   setData(patch: Record<string, unknown>): void;
 }
 
-/** 平台之外、真机上不一定有的全局；`native` 模式补上，`bare` 模式不补。 */
+/** 平台之外、真机上不一定有的全局；`bare` 模式不补，其余模式补上。 */
 const HOST_ENCODING_GLOBALS = { TextDecoder, TextEncoder };
+
+/**
+ * - `native`：全局齐全
+ * - `bare`：没有 `TextDecoder` / `TextEncoder`
+ * - `shadowed-realm-reachable`：包装函数把 `globalThis` 遮成 `undefined`，`global` 是不含内置对象的另一个对象；
+ *   包装函数非严格模式，非严格函数的 `this` 能拿到真实全局对象
+ * - `shadowed-realm-unreachable`：同上，但包装函数是严格模式、`Function` 构造器被禁用，真实全局对象拿不到
+ *
+ * 抖音开发者工具实测 `typeof globalThis === 'undefined'`，`global` 是对象但上面没有 `BigInt` / `Promise` 等内置对象；
+ * 「遮蔽来自包装函数参数」与真实全局对象能不能拿到，都是**推断**，由报告的 `globalThisShim` 回答
+ */
+type DistMode = 'native' | 'bare' | 'shadowed-realm-reachable' | 'shadowed-realm-unreachable';
+
+interface WrapperShape {
+  readonly prologue: string;
+  readonly params: string;
+  readonly args: unknown[];
+}
+
+/** 各模式下包装函数的严格模式开关与额外形参、实参。 */
+function wrapperShape(mode: DistMode, context: object): WrapperShape {
+  const globalStub = runInContext('({})', context);
+  if (mode === 'shadowed-realm-reachable') {
+    // 照模拟器 v4 报告的形态：包装函数连 Promise、Function 也换掉了，Function('return this')() 拿到的是 global 那个空壳
+    const wrappedPromise = runInContext('(class WrappedPromise extends Promise {})', context);
+    const shadowFunction = runInContext(
+      '(stub => function () { return function () { return stub; }; })',
+      context
+    )(globalStub);
+    return {
+      prologue: '',
+      params: ', globalThis, global, Promise, Function',
+      args: [undefined, globalStub, wrappedPromise, shadowFunction]
+    };
+  }
+  if (mode === 'shadowed-realm-unreachable') {
+    const disabledFunction = runInContext("(function () { throw new EvalError('Function 构造器被禁用'); })", context);
+    return {
+      prologue: "'use strict';\n",
+      params: ', globalThis, global, Function',
+      args: [undefined, globalStub, disabledFunction]
+    };
+  }
+  return { prologue: '', params: '', args: [] };
+}
 
 let outDir: string;
 
@@ -34,18 +79,21 @@ afterAll(async () => {
   await rm(outDir, { recursive: true, force: true });
 });
 
-function evaluateCommonJs(code: string, context: object, require: (path: string) => unknown): unknown {
+function evaluateCommonJs(code: string, context: object, require: (path: string) => unknown, mode: DistMode): unknown {
   const module = { exports: {} };
-  const wrapper = runInContext(`(function (module, exports, require) {\n${code}\n})`, context) as (
+  const { prologue, params, args } = wrapperShape(mode, context);
+  const source = `(function (module, exports, require${params}) {\n${prologue}${code}\n})`;
+  const wrapper = runInContext(source, context) as (
     module: { exports: object },
     exports: object,
-    require: (path: string) => unknown
+    require: (path: string) => unknown,
+    ...extras: unknown[]
   ) => void;
-  wrapper(module, module.exports, require);
+  wrapper(module, module.exports, require, ...args);
   return module.exports;
 }
 
-async function runDist(mode: 'native' | 'bare'): Promise<Record<string, unknown>> {
+async function runDist(mode: DistMode): Promise<Record<string, unknown>> {
   const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024 });
   let page: CapturedPage | undefined;
   const context = createContext({
@@ -59,15 +107,15 @@ async function runDist(mode: 'native' | 'bare'): Promise<Record<string, unknown>
     Page: (options: CapturedPage) => {
       page = options;
     },
-    ...(mode === 'native' ? HOST_ENCODING_GLOBALS : {})
+    ...(mode === 'bare' ? {} : HOST_ENCODING_GLOBALS)
   });
   const coreCode = await readFile(join(outDir, 'spike-core.js'), 'utf8');
   const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
   const requireFromPage = (path: string): unknown => {
     if (path !== CORE_REQUEST) throw new Error(`页面包 require 了意料之外的路径：${path}`);
-    return evaluateCommonJs(coreCode, context, requireFromPage);
+    return evaluateCommonJs(coreCode, context, requireFromPage, mode);
   };
-  evaluateCommonJs(pageCode, context, requireFromPage);
+  evaluateCommonJs(pageCode, context, requireFromPage, mode);
   if (!page) throw new Error('页面包没有调用 Page()');
   const instance: PageInstance = {
     data: { ...page.data },
@@ -106,5 +154,63 @@ describe('dist 冒烟', () => {
     });
     expect(report['core']).toEqual({ skipped: expect.stringContaining('latin1') });
     expect(report['random']).toMatchObject({ '65536': { ok: true } });
+  }, 120_000);
+
+  it('全局正常时 banner 不动 globalThis，只留记录', async () => {
+    const report = await runDist('native');
+    const untouched = { before: 'object', candidates: {}, chosen: null, applied: false };
+    expect(report['globalThisShim']).toEqual({ page: untouched, core: untouched });
+    expect(JSON.stringify(report['findings'])).not.toContain('垫片');
+  }, 120_000);
+
+  it('globalThis 被遮、真实全局对象拿得到时，两个包各自换上它并记录，① ④ 照常跑通', async () => {
+    const report = await runDist('shadowed-realm-reachable');
+    const shimmed = {
+      before: 'undefined',
+      chosen: 'sloppyThis',
+      applied: true,
+      candidates: expect.objectContaining({
+        // 自由变量 Promise 被包装函数换掉，不能拿它判真实全局对象
+        sloppyThis: expect.objectContaining({ isRealm: true, promiseMatchesFree: false, BigInt: 'function' }),
+        Function: expect.objectContaining({ type: 'object', isRealm: false, BigInt: 'undefined' }),
+        global: expect.objectContaining({ type: 'object', isRealm: false, BigInt: 'undefined' })
+      })
+    };
+    expect(report['globalThisShim']).toEqual({ page: shimmed, core: shimmed });
+    expect(report['environment']).toMatchObject({ residue: false });
+    expect(report['prepare']).toMatchObject({ ok: true });
+    expect(report['coreLoad']).toMatchObject({ ok: true });
+    // 垫片下的通过不等于 adapter 现状可用：除了不经 adapter 的同步 FS，证据都要标明前提
+    expect(report['findings']).toEqual([
+      expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
+      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
+      expect.objectContaining({ matrixRow: '随机源', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
+      expect.objectContaining({ matrixRow: '用户目录', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
+      expect.objectContaining({ matrixRow: '持久化', verdict: 'pass', evidence: expect.stringContaining('垫片') })
+    ]);
+  }, 120_000);
+
+  it('真实全局对象拿不到时不垫，报告照样出完整，并记下每条路为什么不通', async () => {
+    const report = await runDist('shadowed-realm-unreachable');
+    expect(report).not.toHaveProperty('fatal');
+    const unshimmed = {
+      before: 'undefined',
+      chosen: null,
+      applied: false,
+      candidates: {
+        sloppyThis: expect.objectContaining({ type: 'undefined', isRealm: false }),
+        Function: { error: expect.stringContaining('Function 构造器被禁用') },
+        global: expect.objectContaining({ type: 'object', isRealm: false })
+      }
+    };
+    expect(report['globalThisShim']).toEqual({ page: unshimmed, core: unshimmed });
+    expect(report['environment']).toMatchObject({
+      freeGlobals: { globalThis: 'undefined', TextDecoder: 'function', queueMicrotask: 'function' },
+      globalObject: { ok: false, error: { name: 'TypeError' } },
+      textDecoderLabels: { latin1: { ok: true } }
+    });
+    // 现状刻画：adapter 的引导全靠 globalThis，拿不到全局对象时 prepare 直接失败
+    expect(report['prepare']).toMatchObject({ ok: false, error: { name: 'TypeError' } });
+    expect(JSON.stringify(report['findings'])).not.toContain('垫片');
   }, 120_000);
 });
