@@ -3,13 +3,14 @@
  *
  * install 后兜底（package.json#postinstall -> `pnpm check-workspace`）：
  *   1. 复制 `.env.example` → `.env`（仓库根 + docker/），首次克隆免去手动配置；
- *   2. 用 `nx run-many --target=build --no-cloud` 预构建 workspace.mjs#NEED_BUILDS，
+ *   2. 删掉 workspace 成员 `node_modules/.bin` 里指向已不存在 store 目录的陈旧 shim；
+ *   3. 用 `nx run-many --target=build --no-cloud` 预构建 workspace.mjs#NEED_BUILDS，
  *      关掉 daemon / Cloud；图损坏时 `nx reset` 后再试一次。
  *
  * CI 模式下整体跳过 —— 流水线环境里 .env 由部署系统注入、预构建由专用 job 完成。
  */
 
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ora from 'ora';
@@ -58,6 +59,62 @@ const checkEnvFiles = () => {
     check.succeed(`初始化 .env: ${initialized.join(', ')}`);
   } else {
     check.succeed('.env 配置已就绪');
+  }
+};
+
+/**
+ * workspace 成员目录（对应 pnpm-workspace.yaml 的 packages 列表；modules/ 多扫几个没有 node_modules 的目录无害）。
+ */
+const listMemberDirs = rootDir => [
+  ...['packages', 'apps', 'modules'].flatMap(group => {
+    const groupDir = join(rootDir, group);
+    if (!existsSync(groupDir)) return [];
+    return readdirSync(groupDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => join(groupDir, entry.name));
+  }),
+  join(rootDir, 'website'),
+  join(rootDir, 'benchmarks')
+];
+
+const STORE_DIR_PATTERN = /node_modules[\\/]\.pnpm[\\/]([^\\/:;"]+)/g;
+
+/**
+ * 删除 workspace 成员 `node_modules/.bin` 里引用了已不存在 `node_modules/.pnpm/<dir>` 的 shim。
+ *
+ * pnpm 只重写当前直接依赖的 shim，不清理已不再是直接依赖的旧 shim。store 目录 hash 一变
+ * （如 @types/node 升 patch 让 vite 的目录名跟着变），这些 shim 就指向空路径，
+ * 而 nx 在包目录里跑 `vite build` 时包内 .bin 排在根 .bin 之前，直接 MODULE_NOT_FOUND。
+ * 只按「引用的 store 目录是否还在」判断，sh / .cmd / .ps1 三种 shim 格式通用；
+ * 被删的 shim 本来就跑不起来，删掉不会让任何命令从能跑变成不能跑。
+ *
+ * @param {{ rootDir?: string, memberDirs?: string[] }} [options]
+ * @returns {string[]} 被删除的 shim 路径
+ */
+export const pruneDanglingBinShims = ({ rootDir = ROOT_DIR, memberDirs = listMemberDirs(rootDir) } = {}) => {
+  const storeRoot = join(rootDir, 'node_modules', '.pnpm');
+  const binDirs = memberDirs.map(dir => join(dir, 'node_modules', '.bin')).filter(dir => existsSync(dir));
+  const shims = binDirs.flatMap(binDir =>
+    readdirSync(binDir, { withFileTypes: true })
+      .filter(entry => entry.isFile())
+      .map(entry => join(binDir, entry.name))
+  );
+  const dangling = shims.filter(shim =>
+    [...readFileSync(shim, 'utf8').matchAll(STORE_DIR_PATTERN)].some(
+      ([, storeDir]) => !existsSync(join(storeRoot, storeDir))
+    )
+  );
+  dangling.forEach(shim => rmSync(shim));
+  return dangling;
+};
+
+const checkBinShims = () => {
+  const check = ora('清理陈旧 .bin shim').start();
+  const removed = pruneDanglingBinShims();
+  if (removed.length > 0) {
+    check.succeed(`删除 ${removed.length} 个陈旧 shim: ${removed.map(shim => shim.replace(ROOT_DIR, '.')).join(', ')}`);
+  } else {
+    check.succeed('.bin shim 均有效');
   }
 };
 
@@ -120,6 +177,7 @@ const checkLibBuild = async () => {
 // CI 下整体跳过：.env 由部署系统注入，dist 预构建由专用 job 完成。
 if (process.env.CI !== 'true' && process.argv[1] === THIS_FILE) {
   checkEnvFiles();
+  checkBinShims();
   await checkLibBuild();
 }
 
