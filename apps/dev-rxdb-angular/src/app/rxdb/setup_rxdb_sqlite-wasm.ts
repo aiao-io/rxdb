@@ -22,6 +22,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { GRAPH_REPOSITORY_NAME, withSqliteWasmRepository } from './sqlite-wasm-repositories';
+import { installUs909Spike } from './us909-spike';
 
 let rxdb: RxDB | null | undefined;
 const DEFAULT_DB_NAME = 'aiao';
@@ -122,6 +123,7 @@ export default () => {
     void rxdb.workingTree.enableIfEmpty().catch(() => undefined);
   }
   installSearchDemoTestApi(rxdb, { Article, Comment, seedData: seedSearchParityData });
+  installUs909Spike(rxdb, getAngularDbName(), baseHref);
 
   const devtools = getDevToolsConnector();
   devtools.init(rxdb, getEntityMetadata);
