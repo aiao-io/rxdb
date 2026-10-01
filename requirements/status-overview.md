@@ -18,7 +18,7 @@
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **25 条 Backlog 里只有 3 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
+> **25 条 Backlog 里只有 4 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 21 条（BOM 领域模型 19 条 + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
@@ -104,7 +104,7 @@
 - ⬜ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`，执行者按层区分（公开写入口判定，适配器 / 执行器层不判定），定位是快速失败而非防御边界；三阶段交付：A 声明、按操作就近继承、校验与 14 张系统表显式声明；B 门面 3 个写方法与 `mutations()` 整批预检，越权抛 `PermissionDeniedError`；C 三框架 UI 能力派生（B、C 都只依赖 A）。**价值待证**，`priority: Low`：demo 目录里的系统表已由三框架 `EntityList` 整表只读（AC#16 列表侧提前交付），剩下的是程序化误写系统表的潜在风险；解锁条件为 US-029 立项（本故事是其阶段 A / B / E 的上游），留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)。AC#13（只读行「查看」走 view 模式）不依赖权限抽象，可先行交付
 - ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化。**价值待证**，`priority: Low`：三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），用户踩得到的症状随之消失，剩下的是没有具名使用方的扁平实体手动排序；解锁后阶段 B 只在 UI 启用谓词成立（整表序列、完整加载、无筛选 / 只读 / 草稿）时重新打开手柄，留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
 - ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — 实体显式声明 `access`（tenant / owner 指向自有属性，不加 `EntityBase` 字段、引擎不补列，列由使用方迁移）+ US-027 操作权限扩展为角色 / 所有权谓词：本地读按租户收敛、作用域化复制与权威端确认、三框架操作级能力派生；A～E 五阶段交付，阶段 A / B / E 分别依赖 US-027 阶段 A / B / C；声明租户的实体只允许 `None` / `Filter` 同步，租户过滤今天只有 Supabase 有通道
-- ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
+- ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **阶段 A～C 已由 owner 于 2026-10-02 提前解锁（批次 3），阶段 D 仍价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；CHECK 复用 `RuleGroup` 形状并补字段对字段比较，已有表的约束漂移在 `init()` fail-fast、不自动补建；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A e2e 失败现场录制回放；阶段 B 关联 commit 还原数据状态（前置 US-307 已 Done，另等 US-217 阶段 B 的 SQLite 共享层导出；两个前提已定案）；阶段 C 插件与三框架组件价值待证
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）
@@ -166,11 +166,12 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 解锁条件见 [epic-009 价值待证](epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
 没有一条带脱离 BOM 场景的独立病灶：graph 插件允许成环是既定语义，「写入期拒绝成环」（US-509）是 BOM 的领域约束。
 解锁后先拿真实样本复核默认决策，见 [epic-009 解锁前须先处理](epics/epic-009-bom-domain-model.md#解锁前须先处理)。
-四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），解锁条件低一档。
+四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 已提前解锁；
+epic-009 默认决策 1～8 已于 2026-10-02 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，本 Epic 仍等驱动者，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
 
 - ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
 - ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；按 `(bom_type, org_id)` 并集无环；AC#2 依赖 US-030 阶段 A、AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
+- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；按 `(bom_type, org_id)` 并集无环，自反边由同一触发器拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
 - ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；展开预算与 `truncated`；可达性表 `bom_reach` 不存路径、用量与生效期
 - ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 四阶段（B 拆 B1 / B2）；七步有序公式，损耗制式必须记录
 - ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化

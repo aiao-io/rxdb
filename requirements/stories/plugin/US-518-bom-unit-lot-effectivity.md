@@ -87,3 +87,5 @@ MRP 拿去就是双份需求；「只要无序列约束的行」会让这个位�
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；有效性字段挂在行发生项上
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置，共用区间重叠判定与 `unresolved` 信号
+- [US-030 声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 日期 × 序列两维排他的落点（阶段 C，AC#13）；
+  批次集合维 `lot_codes` 不在其内（PG GiST 无数组运算符类，NULL 在 `EXCLUDE` 里永不冲突），AC#10 的批次维须在本故事启动时另定落点

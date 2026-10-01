@@ -28,7 +28,7 @@ tags: [plugin, bom, integration]
   两侧头的父件同一物料（修订可以不同，见技术笔记）
 - **跟进基线**：映射记录 `source_occurrence_id`（建映射 / 上次确认时所依据的源发生项）与 `target_occurrence_id`
   （目标侧确认跟进到的发生项）。源逻辑行当前有效发生项 ≠ 基线即为缺口；目标侧「确认跟进」把两个基线推进到当前发生项
-- 同步缺口查询：按 `ResolutionContext`（[US-508](US-508-bom-view-resolution.md)）求两侧当前发生项，与基线比较
+- 跟进缺口查询：按 `ResolutionContext`（[US-508](US-508-bom-view-resolution.md)）求两侧当前发生项，与基线比较
 - 源头出新修订、换头时：映射**不自动迁移**，按逻辑行身份不变者保留、新增行无映射（AC#6 报未覆盖），由人工补映射
 
 ### Out of Scope
@@ -43,7 +43,7 @@ tags: [plugin, bom, integration]
 | 1   | EBOM 一个钣金件                                              | MBOM 拆成板材 + 2 个工序件    | `relation = 'split'`，双向可追溯        | ⬜   |
 | 2   | MBOM 含 EBOM 不存在的包装材料                                | 建映射                        | `relation = 'added'`，source 侧为 NULL  | ⬜   |
 | 3   | 多个功能件在制造上一次注塑                                   | 建映射                        | `relation = 'merge'`                    | ⬜   |
-| 4   | EBOM 逻辑行 qty 2→3（新发生项），映射基线仍指旧发生项        | 查同步缺口                    | 列出需跟进的 MBOM 行，附源侧新旧发生项  | ⬜   |
+| 4   | EBOM 逻辑行 qty 2→3（新发生项），映射基线仍指旧发生项        | 查跟进缺口                    | 列出需跟进的 MBOM 行，附源侧新旧发生项  | ⬜   |
 | 5   | EBOM 按功能分层、MBOM 按装配顺序分层                         | 两侧各自展开                  | 层级结构不同且各自自洽，不互相污染      | ⬜   |
 | 6   | 某 EBOM 行无任何映射                                         | 查覆盖率                      | 报为未覆盖，不静默视作 `removed`        | ⬜   |
 | 7   | 接 #4                                                        | MBOM 改完后确认跟进，再查缺口 | 缺口消失；基线推进到当前源 / 目标发生项 | ⬜   |
@@ -63,7 +63,7 @@ tags: [plugin, bom, integration]
 这四种变换没有一种是子集。
 
 因此 EBOM 与 MBOM 是两张独立的 `bom_header` + `bom_line`，`bom_map` 是它们之间的第三张表。
-这张表是 PLM↔ERP 集成的核心资产，不是可选的便利设施——AC#4 的同步缺口查询完全依赖它。
+这张表是 PLM↔ERP 集成的核心资产，不是可选的便利设施——AC#4 的跟进缺口查询完全依赖它。
 
 两张头各自挂自己的 `parent_revision_id`（[US-507](US-507-bom-graph-skeleton.md)）：制造侧的分层
 与设计侧的修订不同步推进，共用一个修订会让 MBOM 的每次工艺调整都伪装成一次设计变更。

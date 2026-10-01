@@ -26,7 +26,7 @@ tags: [plugin, bom, routing, cost]
 | C    | 工时模型：`setup_time` / `run_time` / `time_basis`（每件 / 每批 / 固定）                                 | ⬜   |
 | D    | 工序损耗 `operation_scrap` 与**每道工序各自的** `scrap_convention`（与 US-511 同一记法）                 | ⬜   |
 
-AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8；B 关闭 AC#3 / #4；C 关闭 AC#5；D 关闭 AC#6 / #9。
+AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10；B 关闭 AC#3 / #4；C 关闭 AC#5；D 关闭 AC#6 / #9。
 
 ## 范围边界
 
