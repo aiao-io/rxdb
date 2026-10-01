@@ -22,10 +22,14 @@ import type {
 } from './core-contract.js';
 import { describeError } from './describe-error.js';
 import { readGlobalThisShim } from './global-this-shim.js';
+import { readLatin1Shim } from './latin1-shim.js';
 import { probe } from './probe.js';
 
 /** 核心包的 banner 记录，必须在本包内读：每个包的 banner 变量只在自己的模块作用域里。 */
 export const globalThisShim = readGlobalThisShim();
+
+/** 核心包的 latin1 垫片记录，同样只能在本包内读。 */
+export const latin1Shim = readLatin1Shim();
 
 /** 持久化实验写入的行：覆盖多字节中文、四字节 emoji 与引号。 */
 const SAMPLE_ROWS: readonly (readonly [number, string])[] = [

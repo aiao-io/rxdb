@@ -136,6 +136,8 @@ describe('runSpike：全部实验跑通', () => {
 
   it('源码级运行没有构建 banner，垫片记录为空', () => {
     expect(report.globalThisShim).toEqual({ page: null, core: null });
+    expect(report.latin1Shim).toBeNull();
+    expect(JSON.stringify(report.findings)).not.toContain('垫片');
   });
 
   it('findings 按矩阵行给出本次运行的判定', () => {
@@ -177,6 +179,16 @@ describe('runSpike：失败与边界', () => {
     expect(report.coreLoad).toMatchObject({ ok: false, error: { message: expect.stringContaining('半成品导出') } });
     expect(report.core).toEqual({ skipped: expect.stringContaining('半成品导出') });
     expect(runCoreExperiments).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('核心包的 latin1 垫片顶上过时，经核心包的行（WASM / 用户目录 / 持久化）标明前提，其余两行不标', async () => {
+    const real = await loadRealCore();
+    const latin1Shim = { engaged: 1, delegateError: 'RangeError: 不支持的 TextDecoder 编码: latin1' };
+    const { report } = await run(SMALL_QUOTA, async () => ({ ...real, latin1Shim }));
+    expect(report.latin1Shim).toEqual(latin1Shim);
+    const marked = report.findings.filter(item => item.evidence.includes('latin1 垫片')).map(item => item.matrixRow);
+    expect(marked).toEqual(['WASM', '用户目录', '持久化']);
+    expect(report.findings.every(item => item.verdict === 'pass')).toBe(true);
   }, 60_000);
 
   it('同一 JS 上下文里再跑一次，环境快照标出上次引导的残留', async () => {

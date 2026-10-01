@@ -35,6 +35,8 @@ export interface FindingsInput {
   readonly core: CoreExperimentReport | Skipped;
   /** 构建 banner 是否垫过 `globalThis`；垫过时，经 adapter 的行在证据里标明前提。 */
   readonly globalThisShimmed: boolean;
+  /** 核心包的 latin1 垫片顶上过；顶上过时，经核心包的行在证据里标明前提。 */
+  readonly latin1Shimmed: boolean;
 }
 
 /** 垫片下取得的证据后缀：adapter 现状在同样环境里会因 `globalThis` 不是对象而 TypeError。 */
@@ -43,6 +45,13 @@ const SHIM_CONDITION =
 
 /** 不经 adapter、结论不受垫片影响的矩阵行。 */
 const SHIM_INDEPENDENT_ROWS: readonly MatrixRow[] = ['同步 FS'];
+
+/** latin1 垫片下取得的证据后缀：adapter 现状在没有原生 TextDecoder 的设备上核心包加载即 RangeError。 */
+const LATIN1_CONDITION =
+  '；前提：latin1 垫片（构建产物替 adapter polyfill 解 latin1），adapter 现状在此设备上核心包加载即 RangeError';
+
+/** 结论来自核心包（持久化 / 配额实验）的矩阵行。 */
+const CORE_DEPENDENT_ROWS: readonly MatrixRow[] = ['WASM', '用户目录', '持久化'];
 
 function errorText(error: DescribedError): string {
   return error.errMsg ?? error.message ?? error.text;
@@ -157,6 +166,13 @@ function persistenceFinding({ core }: FindingsInput): Finding {
   return { matrixRow: row, verdict: 'fail', evidence };
 }
 
+/** 这一行证据要追加的垫片前提。 */
+function conditions(input: FindingsInput, row: MatrixRow): string {
+  const globalThisPart = input.globalThisShimmed && !SHIM_INDEPENDENT_ROWS.includes(row) ? SHIM_CONDITION : '';
+  const latin1Part = input.latin1Shimmed && CORE_DEPENDENT_ROWS.includes(row) ? LATIN1_CONDITION : '';
+  return globalThisPart + latin1Part;
+}
+
 /** 按 {@link MATRIX_ROWS} 的顺序给出判定。 */
 export function buildFindings(input: FindingsInput): Finding[] {
   const findings = [
@@ -166,8 +182,5 @@ export function buildFindings(input: FindingsInput): Finding[] {
     userDataFinding(input),
     persistenceFinding(input)
   ];
-  if (!input.globalThisShimmed) return findings;
-  return findings.map(item =>
-    SHIM_INDEPENDENT_ROWS.includes(item.matrixRow) ? item : { ...item, evidence: item.evidence + SHIM_CONDITION }
-  );
+  return findings.map(item => ({ ...item, evidence: item.evidence + conditions(input, item.matrixRow) }));
 }

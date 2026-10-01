@@ -109,7 +109,14 @@ function evaluateCommonJs(
   return module.exports;
 }
 
-async function runDist(mode: DistMode, onCoreInitError: InitErrorBehavior = 'throw'): Promise<Record<string, unknown>> {
+interface DistOptions {
+  readonly onCoreInitError?: InitErrorBehavior;
+  /** 默认只有 `bare` 模式不补宿主的编码全局。 */
+  readonly encodingGlobals?: boolean;
+}
+
+async function runDist(mode: DistMode, options: DistOptions = {}): Promise<Record<string, unknown>> {
+  const { onCoreInitError = 'throw', encodingGlobals = mode !== 'bare' } = options;
   const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024 });
   let page: CapturedPage | undefined;
   const context = createContext({
@@ -123,7 +130,7 @@ async function runDist(mode: DistMode, onCoreInitError: InitErrorBehavior = 'thr
     Page: (options: CapturedPage) => {
       page = options;
     },
-    ...(mode === 'bare' ? {} : HOST_ENCODING_GLOBALS)
+    ...(encodingGlobals ? HOST_ENCODING_GLOBALS : {})
   });
   const coreCode = await readFile(join(outDir, 'spike-core.js'), 'utf8');
   const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
@@ -160,31 +167,47 @@ describe('dist 冒烟', () => {
     );
   }, 120_000);
 
-  it('没有原生 TextDecoder 时，核心包在模块顶层被 latin1 卡住', async () => {
-    // 现状刻画：sqlite-core 的 sqlite-blank-database.ts 顶层 new TextDecoder('latin1')，
-    // adapter 的 polyfill 只认 utf-8 / utf-16le。修好之后这条应当翻转成全部通过。
+  it('没有原生 TextDecoder 时，latin1 垫片顶替 adapter polyfill 解 latin1，① ④ 跑通且经核心包的行标明前提', async () => {
+    // sqlite-core 的 sqlite-blank-database.ts 顶层 new TextDecoder('latin1')，adapter 的 polyfill 只认 utf-8 / utf-16le；
+    // 不垫时核心包在模块顶层 RangeError（iOS 真机 v6）。垫片只在委托拒绝 latin1 时顶上
     const report = await runDist('bare');
-    expect(report['coreLoad']).toMatchObject({
-      ok: false,
-      error: { name: 'RangeError', message: expect.stringContaining('latin1') }
-    });
-    expect(report['core']).toEqual({ skipped: expect.stringContaining('latin1') });
-    expect(report['random']).toMatchObject({ '65536': { ok: true } });
+    expect(report['coreLoad']).toMatchObject({ ok: true });
+    expect(report['latin1Shim']).toEqual({ engaged: 1, delegateError: expect.stringContaining('latin1') });
+    expect(report['findings']).toEqual([
+      expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass', evidence: expect.stringContaining('latin1 垫片') }),
+      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
+      expect.objectContaining({ matrixRow: '随机源', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
+      expect.objectContaining({
+        matrixRow: '用户目录',
+        verdict: 'pass',
+        evidence: expect.stringContaining('latin1 垫片')
+      }),
+      expect.objectContaining({
+        matrixRow: '持久化',
+        verdict: 'pass',
+        evidence: expect.stringContaining('latin1 垫片')
+      })
+    ]);
   }, 120_000);
 
-  it('平台 require 吞掉核心包顶层错误时，coreLoad 照样报出原始的 latin1 RangeError，而不是半成品导出引发的次生错误', async () => {
-    const report = await runDist('bare', 'swallow');
+  it('平台 require 吞掉核心包顶层错误时，coreLoad 照样报出原始错误，而不是半成品导出引发的次生错误', async () => {
+    // 拿不到真实全局对象 → prepare 失败、polyfill 没装；宿主又没有 TextDecoder → 核心包顶层 ReferenceError。
+    // 垫片不凭空造 TextDecoder，这个错误必须原样穿过
+    const report = await runDist('shadowed-realm-unreachable', { encodingGlobals: false, onCoreInitError: 'swallow' });
+    expect(report['prepare']).toMatchObject({ ok: false });
     expect(report['coreLoad']).toMatchObject({
       ok: false,
-      error: { name: 'RangeError', message: expect.stringContaining('latin1') }
+      error: { name: 'ReferenceError', message: expect.stringContaining('TextDecoder') }
     });
-    expect(report['core']).toEqual({ skipped: expect.stringContaining('latin1') });
+    expect(report['core']).toEqual({ skipped: expect.stringContaining('TextDecoder') });
+    expect(report['latin1Shim']).toBeNull();
   }, 120_000);
 
   it('全局正常时 banner 不动 globalThis，只留记录', async () => {
     const report = await runDist('native');
     const untouched = { before: 'object', candidates: {}, chosen: null, applied: false };
     expect(report['globalThisShim']).toEqual({ page: untouched, core: untouched });
+    expect(report['latin1Shim']).toEqual({ engaged: 0, delegateError: null });
     expect(JSON.stringify(report['findings'])).not.toContain('垫片');
   }, 120_000);
 

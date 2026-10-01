@@ -9,6 +9,7 @@ import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import type { DescribedError } from './describe-error.js';
 import type { DouyinFileSystemManager, DouyinWasmRuntime } from './douyin-api.js';
 import type { GlobalThisShimRecord } from './global-this-shim.js';
+import type { Latin1ShimRecord } from './latin1-shim.js';
 import type { Probe } from './probe.js';
 
 /** 配额实验的写入计划：每行一个 `zeroblob(blobBytes)`，最多 `maxRows` 行。 */
@@ -100,6 +101,8 @@ export interface CoreExperimentReport {
 export interface SpikeCore {
   /** 核心包自己的 banner 记录；源码级运行时为 `null`。 */
   readonly globalThisShim: GlobalThisShimRecord | null;
+  /** 核心包的 latin1 垫片记录（活引用）；源码级运行时为 `null`。 */
+  readonly latin1Shim: Latin1ShimRecord | null;
   /**
    * 构建包装接住的模块顶层错误，只在顶层抛错时存在（包装照样把错误再抛出去）。
    * iOS 真机的 `require` 会吞掉这个错误、返回半成品导出，页面包靠它拿到原始错误。
