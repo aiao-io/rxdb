@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { POSTINSTALL_NX_ENV, buildNeedLibs } from './check-workspace.mjs';
+import { POSTINSTALL_NX_ENV, buildNeedLibs, pruneDanglingBinShims } from './check-workspace.mjs';
 
 const BUILD_ARG = 'nx run-many --target=build --projects=rxdb-test --no-cloud';
 const GRAPH_PROBE_ARG = 'nx show projects --json';
@@ -86,4 +89,44 @@ test('空项目列表不跑 nx', async () => {
     }
   });
   assert.equal(called, false);
+});
+
+/** 造一个 pnpm 风格的 sh shim：exec 行指向 `node_modules/.pnpm/<storeDir>/...` */
+const writeShim = (binDir, name, storeDir) => {
+  mkdirSync(binDir, { recursive: true });
+  const target = `$basedir/../../../../node_modules/.pnpm/${storeDir}/node_modules/${name}/bin/${name}.js`;
+  writeFileSync(join(binDir, name), `#!/bin/sh\nexec node  "${target}" "$@"\n`);
+};
+
+const withFixture = run => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'check-workspace-'));
+  try {
+    run(rootDir);
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+};
+
+// store 目录的 hash 变了（如 @types/node 升 patch）之后，已不再是直接依赖的 shim 不会被 pnpm 重写或删除，
+// 却仍排在根 .bin 之前，`vite build` 撞上 MODULE_NOT_FOUND。
+test('删除指向已不存在 store 目录的 shim，保留仍有效的', () => {
+  withFixture(rootDir => {
+    mkdirSync(join(rootDir, 'node_modules', '.pnpm', 'vite@8.3.0_new', 'node_modules'), { recursive: true });
+    const binDir = join(rootDir, 'packages', 'rxdb', 'node_modules', '.bin');
+    writeShim(binDir, 'vite', 'vite@8.3.0_new');
+    writeShim(binDir, 'sass', 'sass@1.104.1');
+
+    const removed = pruneDanglingBinShims({ rootDir, memberDirs: [join(rootDir, 'packages', 'rxdb')] });
+
+    assert.deepEqual(removed, [join(binDir, 'sass')]);
+    assert.equal(existsSync(join(binDir, 'vite')), true);
+    assert.equal(existsSync(join(binDir, 'sass')), false);
+  });
+});
+
+test('成员没有 node_modules/.bin 时跳过', () => {
+  withFixture(rootDir => {
+    const removed = pruneDanglingBinShims({ rootDir, memberDirs: [join(rootDir, 'packages', 'empty')] });
+    assert.deepEqual(removed, []);
+  });
 });
