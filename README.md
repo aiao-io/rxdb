@@ -238,11 +238,11 @@ aiao/
 
 ### 待办
 
-下一批可并行开工的能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐无硬前置可并行开-pr)：
+下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
 
 - ⬜ **实例级实体同步配置覆盖**（[US-026](requirements/stories/core/US-026-instance-sync-override.md)）— 初始化时按实体整体覆盖同步配置，收掉 HTTP demo 前后端两个实体类的重复
 - ⬜ **本地数据库一致性备份与恢复**（[US-217](requirements/stories/adapter/US-217-local-database-backup-restore.md)）— 按 PGlite、SQLite 共享层、桌面 host 分阶段交付
-- ⬜ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 先抽宿主契约与可行性矩阵，再按门禁放行支付宝 / 抖音 / 百度 / QQ
+- 🚫 **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 宿主契约与可行性矩阵已就位；支付宝 / 百度 / QQ 判不支持，抖音等开发者工具与真机实验
 
 ## 路线图
 

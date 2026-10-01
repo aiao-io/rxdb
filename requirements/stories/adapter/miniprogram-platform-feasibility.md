@@ -8,7 +8,7 @@
 - wa-sqlite 在**逻辑层**、单 JavaScript realm 里同步运行。WASM 只在 Worker 里能用的平台，
   按故事约束判 `unsupported`，不在 Worker 里私自 polyfill。
 - VFS 需要**同步**文件 API，异步 FS 不能冒充同步 VFS。
-- 必须有可信随机源；没有文档化的安全随机 API 就不能开工，不降级到 `Math.random`。
+- 必须有文档化的安全随机 API，不降级到 `Math.random`。没有就直接判 `unsupported`，不必等实验。
 - 没有 `fsync` 与文件锁就写「崩溃恢复：无」。有原子 rename 也救不了缓冲 VFS 的整库落盘。
 
 ## 机器可读结论
@@ -37,27 +37,24 @@ platforms:
     wasm: TTWebAssembly
     decision: unknown
     blockers:
-      - no-documented-secure-random
       - ios-wasm-unverified
       - devtools-experiment-missing
   - id: baidu
     tier: first
     global: swan
     wasm: null
-    decision: unknown
+    decision: unsupported
     blockers:
-      - no-documented-wasm-entry
       - no-documented-secure-random
-      - devtools-experiment-missing
+      - no-documented-wasm-entry
   - id: qq
     tier: first
     global: qq
     wasm: null
-    decision: unknown
+    decision: unsupported
     blockers:
-      - no-documented-wasm-entry
       - no-documented-secure-random
-      - devtools-experiment-missing
+      - no-documented-wasm-entry
   - id: jd
     tier: observation
     global: null
@@ -89,22 +86,22 @@ platforms:
 
 ## 阶段 B 结论（AC#8）
 
-**阶段 B 不锁定平台。** 第一档里没有 `supported`：
+**阶段 B 只剩抖音一个候选，而且还不是 `supported`：**
 
-| 候选顺序 | 平台   | 状态          | 进入实现前还差什么                                                                                           |
-| -------- | ------ | ------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1        | 抖音   | `unknown`     | 开发者工具 + 真机实验：`TTWebAssembly.instantiate` 能跑通 `wa-sqlite.wasm`；逻辑层有可信随机源；iOS 同样成立 |
-| 2        | QQ     | `unknown`     | 开发者工具实验：逻辑层存在路径实例化的 WASM 入口，且有可信随机源                                             |
-| 3        | 百度   | `unknown`     | 同 QQ；文档里完全找不到 WASM 入口，是四个平台里最可能转 `unsupported` 的                                     |
-| —        | 支付宝 | `unsupported` | 官方文档把 `MYWebAssembly` 限定在 Worker 线程，与单 realm 逻辑层设计冲突                                     |
+| 平台   | 状态          | 结论                                                                                                                                |
+| ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 抖音   | `unknown`     | WASM 入口、同步 FS、安全随机源、用户目录在文档里都有对应 API；还差开发者工具 + Android / iOS 真机实验（见下文抖音一节「缺的实验」） |
+| QQ     | `unsupported` | 没有文档化的安全随机 API                                                                                                            |
+| 百度   | `unsupported` | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                        |
+| 支付宝 | `unsupported` | 官方文档把 `MYWebAssembly` 限定在 Worker 线程，与单 realm 逻辑层设计冲突                                                            |
 
-故事里的默认候选是支付宝，现按矩阵改为抖音。阶段 B / C 被**外部环境**阻塞：
-需要各平台开发者工具与真机做实验，本仓库的 CI 与 Node 测试替代不了。
-实验结论回填到本文件对应行后，才能把任何平台改成 `supported`。
+阶段 B 被**外部环境**阻塞：抖音实验需要开发者工具、可用的小程序 AppID 与 Android / iOS 真机，
+本仓库的 CI 与 Node 测试替代不了。实验结论回填到抖音一节后，才能把它改成 `supported`。
 
 ## 逐平台证据
 
 每行回答 US-211 技术笔记里的六个问题：WASM 入口、同步 FS、随机源、用户目录、持久化语义、证据。
+`unsupported` 的平台用「判定理由」与「复议条件」代替「缺的实验」。
 
 ### 微信 `wx` — supported（US-209 已交付）
 
@@ -121,48 +118,50 @@ platforms:
 
 | 问题     | 结论                                                                                                                                                                                                                                                                                                                                                             |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | `MYWebAssembly`，基础库 2.9.7、客户端 10.5.60 起。原文：「仅支持在 Worker 线程内（如果是 iOS，需要开启实验 Worker ）使用 MYWebAssembly」。[文档](https://opendocs.alipay.com/mini/0b2bz8)、[文档源](https://raw.githubusercontent.com/AlipayDocs/open-docs/main/mini/api/MYWebAssembly.md)                                                                       |
+| WASM     | `MYWebAssembly`，基础库 2.9.7、客户端 10.5.60 起。原文：「仅支持在 Worker 线程内（如果是 iOS，需要开启实验 Worker ）使用 MYWebAssembly」。[文档](https://opendocs.alipay.com/mini/0b2bz8)                                                                                                                                                                        |
 | 同步 FS  | `my.getFileSystemManager()`，基础库 1.13.0 起，有同步方法与 `renameSync`。[文档源](https://github.com/AlipayDocs/open-docs/blob/main/mini/api/%E5%9F%BA%E7%A1%80API/%E6%96%87%E4%BB%B6/my.getFileSystemManager.md)、[FileSystemManager 概览](https://opendocs.alipay.com/mini/api/0226od)。写入上限：错误码 10028「写入文件单个超过 10M 或者写入文件夹超过 50M」 |
-| 随机源   | 文档里没有安全随机 API                                                                                                                                                                                                                                                                                                                                           |
+| 随机源   | 没找到文档化的安全随机 API：线上 [API 概览](https://opendocs.alipay.com/mini/api)（浏览器渲染后检索，297 个 `my.*` 条目）与[文档源仓库](https://github.com/AlipayDocs/open-docs)全文都检索不到。但两处都不收 `MYWebAssembly`，所以这条只是旁证，判定靠 WASM 一条                                                                                                 |
 | 用户目录 | `my.env.USER_DATA_PATH`                                                                                                                                                                                                                                                                                                                                          |
 | 持久化   | 有 `renameSync`；文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                                                                     |
-| 判定理由 | 唯一的官方 WASM 入口只在 Worker 可用。把 RxDB 整体搬进 Worker 是另一套架构，US-211 明确不做，也不许在 Worker 里 polyfill。即使 Worker 限制解除，仍缺可信随机源                                                                                                                                                                                                   |
+| 判定理由 | 唯一的官方 WASM 入口只在 Worker 可用。把 RxDB 整体搬进 Worker 是另一套架构，US-211 明确不做，也不许在 Worker 里 polyfill。即使 Worker 限制解除，还要先找到文档化的可信随机源                                                                                                                                                                                     |
 | 复议条件 | 支付宝在逻辑层开放 `MYWebAssembly`（或等价入口），并提供文档化的安全随机 API                                                                                                                                                                                                                                                                                     |
 
-### 抖音 `tt` — unknown（阶段 B 第一候选）
+### 抖音 `tt` — unknown（阶段 B 唯一候选）
 
-| 问题     | 结论                                                                                                                                                                                                                                                                                                                                                                                                         |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| WASM     | 全局 `TTWebAssembly`，基础库 2.34.0.0 起，`compile(path)` / `instantiate(path, imports)` 只接受代码包路径；2.92.0.0 起可加载 `.wasm.br`。没写 Worker 限制，iOS 行为未说明。[文档](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/guide/experience-optimization/list/wasm)                                                                                                            |
-| 同步 FS  | `tt.getFileSystemManager()` 有 `readFileSync` / `writeFileSync` / `unlinkSync` / `mkdirSync` / `renameSync`。[FileSystemManager](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager)、[renameSync](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager-rename-sync) |
-| 随机源   | 文档里没有安全随机 API                                                                                                                                                                                                                                                                                                                                                                                       |
-| 用户目录 | `tt.env.USER_DATA_PATH`（`ttfile://user`），用户文件总量约 10 MB。[tt.env](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/foundation/env/tt-env)                                                                                                                                                                                                                                 |
-| 持久化   | 有 `renameSync`；文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                                                                                                                 |
-| 缺的实验 | 抖音开发者工具 + Android / iOS 真机：① `TTWebAssembly.instantiate('wa-sqlite/wa-sqlite.wasm', imports)` 跑通一次读写；② 逻辑层是否存在 `crypto.getRandomValues` 或其他可信随机源；③ 记录工具与基础库版本                                                                                                                                                                                                     |
+| 问题     | 结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | 全局 `TTWebAssembly`，基础库 2.34.0.0 起，`compile(path)` / `instantiate(path, imports)` 只接受代码包内路径；2.92.0.0 起可加载 `.wasm.br`。没写 Worker 限制，iOS 行为未说明。[文档](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/tutorial/experience-optimization/list/wasm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 同步 FS  | `tt.getFileSystemManager()` 的同步方法覆盖 VFS 用到的全部调用：`accessSync`、`readFileSync(path, 'base64')`、`writeFileSync(path, ArrayBuffer)`、`unlinkSync`、`mkdirSync(path, recursive)`（`recursive` 从基础库 1.81.0 起），另有 `renameSync`。写文件、建目录的路径必须以 `ttfile://user` 开头。文档列出的错误文案 `no such file or directory`、`file already exists` 能被 VFS 现有的错误分类正则接住（**推断**，实验 ③ 用真机原文确认）。[FileSystemManager](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager)、[readFileSync](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager-read-file-sync)、[mkdirSync](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager-mkdir-sync)、[renameSync](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager-rename-sync) |
+| 随机源   | `tt.getRandomValues`，原文「获取安全学密码随机数」，异步方法；调用形状与 `wx.getRandomValues` 一致（`{ length, success, fail }`，结果取 `randomValues` ArrayBuffer），`length` 取 1～1048576 从基础库 2.87.0 起。[文档](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/device/crypto/tt-get-random-valus)。单次上限正好等于同步随机池上限 `MAX_MINI_PROGRAM_RANDOM_POOL_SIZE`（1 MiB）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 用户目录 | `tt.env.USER_DATA_PATH`（`ttfile://user`）。原文「每个小程序的用户目录存储上限为 10M」，数据库文件与 `-journal` 共用这份配额；超限时 `writeFileSync` 报 108403「user dir saved file size limit exceeded」。[tt.env](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/foundation/env/tt-env)、[writeFileSync](https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/api/file/file-system-manager/file-system-manager-write-file-sync)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 持久化   | 有 `renameSync`；文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 缺的实验 | 抖音开发者工具 + Android / iOS 真机，用真实 VFS 与 `wa-sqlite.wasm` 做一次性 spike：① `TTWebAssembly.instantiate` 后建库、写入、关闭、重开、读回；② `tt.getRandomValues` 取 64 KiB 与 1 MiB 各一次；③ 记录 errMsg 原文：文件不存在（`accessSync` / `unlinkSync`）、目录已存在（`mkdirSync`）、配额写满（`writeFileSync`）；④ 库接近 10 MB 时的失败形态；⑤ 记录工具、基础库与客户端版本，基础库下限按 2.87.0 验证（WASM 要 2.34.0.0，随机源的参数约束与返回值从 2.87.0 起才有文档）。前置：可用的抖音小程序 AppID 与两端真机                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 API 总览页检索不到 `TTWebAssembly`，它只出现在「体验优化」指南里。所以「总览页没有」不能当作「平台没有」。
 
-### 百度 `swan` — unknown
+### 百度 `swan` — unsupported
 
-| 问题     | 结论                                                                                                                                                                                                                                                                                                              |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | 未找到。[API 总览](https://smartprogram.baidu.com/docs/develop/api/apilist/) 没有 WebAssembly；文档源仓库 [swan-team/swan-docs](https://github.com/swan-team/swan-docs) 代码检索也没有，但该仓库最后推送是 2020-04，且 GitHub 代码检索同样漏掉了支付宝仓库里确实存在的 `MYWebAssembly.md`，所以两处都不算否定证据 |
-| 同步 FS  | `swan.getFileSystemManager()` 有同步方法。[文档](https://smartprogram.baidu.com/docs/develop/api/file/swan-getFileSystemManager/)                                                                                                                                                                                 |
-| 随机源   | 文档里没有安全随机 API                                                                                                                                                                                                                                                                                            |
-| 用户目录 | `swan.env.USER_DATA_PATH`；本地用户文件总量 10 MB（文档源 `program-docs/docs/develop/function/file_system_local.md`）                                                                                                                                                                                             |
-| 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                                       |
-| 缺的实验 | 百度开发者工具：逻辑层 `typeof WebAssembly` / 平台前缀 WASM 全局；可信随机源；记录工具与基础库版本。确认没有 WASM 就改 `unsupported`                                                                                                                                                                              |
+| 问题     | 结论                                                                                                                                                                                                                                                                                               |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | 未找到。线上 [API 列表](https://smartprogram.baidu.com/docs/develop/api/apilist/)（浏览器渲染后全文检索，276 处 `swan.*`）与文档源仓库 [swan-team/swan-docs](https://github.com/swan-team/swan-docs) 全文都没有 WebAssembly。抖音的 WASM 入口同样不在 API 总览里，源仓库也已停更，所以这条只是旁证 |
+| 同步 FS  | `swan.getFileSystemManager()` 有同步方法。[文档](https://smartprogram.baidu.com/docs/develop/api/file/swan-getFileSystemManager/)                                                                                                                                                                  |
+| 随机源   | 没有文档化的安全随机 API。线上 API 列表检索不到随机数类 API，沾「加密」的只有风控用的 `swan.getSystemRiskInfo`；文档源仓库全文只有一段示例代码，在 `crypto.getRandomValues` 不存在时退回 `Math.random`                                                                                             |
+| 用户目录 | `swan.env.USER_DATA_PATH`；本地用户文件总量 10 MB（文档源 `program-docs/docs/develop/function/file_system_local.md`）                                                                                                                                                                              |
+| 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                        |
+| 判定理由 | 缺可信随机源，按判定口径直接判 `unsupported`，不降级到 `Math.random`，也不必等实验。WASM 入口找不到是第二个缺口，单凭它不够判定                                                                                                                                                                    |
+| 复议条件 | 百度提供文档化的安全随机 API，**且**逻辑层有能按代码包内路径实例化的 WASM 入口。复议时补开发者工具 + 真机实验                                                                                                                                                                                      |
 
-### QQ `qq` — unknown
+### QQ `qq` — unsupported
 
-| 问题     | 结论                                                                                                                                   |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | 未找到。[API 总览](https://q.qq.com/wiki/develop/miniprogram/API/) 没有 WebAssembly；与抖音同理，总览缺席不是否定证据                  |
-| 同步 FS  | `qq.getFileSystemManager()` 有同步方法。[FileSystemManager](https://q.qq.com/wiki/develop/miniprogram/API/file/FileSystemManager.html) |
-| 随机源   | 加密类只有 `getUserCryptoManager`，不是通用随机源。[文档](https://q.qq.com/wiki/develop/miniprogram/API/basic/crypto.html)             |
-| 用户目录 | `qq.env.USER_DATA_PATH`                                                                                                                |
-| 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                            |
-| 缺的实验 | QQ 开发者工具：逻辑层 `typeof WebAssembly` / `QQWebAssembly`；可信随机源；记录工具与基础库版本                                         |
+| 问题     | 结论                                                                                                                                                                                                                                                        |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | 未找到。线上 [API 总览](https://q.qq.com/wiki/develop/miniprogram/API/)（浏览器渲染后全文检索，288 处 `qq.*`）没有 WebAssembly；与抖音同理，总览缺席只是旁证                                                                                                |
+| 同步 FS  | `qq.getFileSystemManager()` 有同步方法。[FileSystemManager](https://q.qq.com/wiki/develop/miniprogram/API/file/FileSystemManager.html)                                                                                                                      |
+| 随机源   | 没有文档化的安全随机 API。[加密](https://q.qq.com/wiki/develop/miniprogram/API/basic/crypto.html)一页只有 `qq.getUserCryptoManager` 与 `UserCryptoManager.getLatestUserKey`（取用户维度的通信密钥），没有 `getRandomValues`；API 总览也检索不到随机数类 API |
+| 用户目录 | `qq.env.USER_DATA_PATH`                                                                                                                                                                                                                                     |
+| 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                 |
+| 判定理由 | 缺可信随机源，按判定口径直接判 `unsupported`。WASM 入口找不到是第二个缺口                                                                                                                                                                                   |
+| 复议条件 | QQ 提供文档化的安全随机 API，**且**逻辑层有能按代码包内路径实例化的 WASM 入口。复议时补开发者工具 + 真机实验                                                                                                                                                |
 
 ### 观察档：京东 / 快手 / 小红书 / 企业微信 — unknown
 
@@ -172,6 +171,7 @@ API 总览页检索不到 `TTWebAssembly`，它只出现在「体验优化」指
 
 ## 维护规则
 
-- 改 `decision` 必须同时补全该行的「实验」：工具版本、基础库版本、操作步骤、结果。只有文档链接不够。
+- 改判 `supported` 必须补全该平台的「实验」：工具版本、基础库与客户端版本、操作步骤、结果。只有文档链接不够。
+- 判 `unsupported` 可以只凭文档：写明缺的是判定口径里哪项硬依赖、怎么检索的，再补「判定理由」与「复议条件」。
 - 某平台转 `supported` 后，才把它的 id 加进 `MINI_PROGRAM_PLATFORM_IDS` 并实现 host（阶段 B / C）。
 - 某平台转 `unsupported` 后，保持它不在 `MINI_PROGRAM_PLATFORM_IDS` 里，由未知平台错误拒绝并指回本文件。

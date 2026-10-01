@@ -172,6 +172,9 @@
       "path": "./apps/dev-rxdb-miniprogram-e2e"
     },
     {
+      "path": "./apps/dev-rxdb-miniprogram-douyin-spike"
+    },
+    {
       "path": "./packages/rxdb-plugin-working-tree"
     },
     {
