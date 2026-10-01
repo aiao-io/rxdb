@@ -91,8 +91,8 @@ BOM 是多重图（multigraph），不是简单图。
 `@aiao/rxdb-plugin-tree` 的 `TreeAdjacencyListEntityBase` 是**单父**邻接表（`parentId`），
 BOM 是多父 DAG，同样不可复用。
 
-可选路径两条，归实现期决策：新建 `packages/rxdb-plugin-bom`，或扩 graph 插件使其支持
-multigraph + 富边属性（后者是破坏性变更，需过 api-baseline）。无论哪条，都不改变 graph 插件允许成环的既有语义。
+**落点：新建 `packages/rxdb-plugin-bom`**（owner 2026-10-02 决定）。另一条路——扩 graph 插件支持
+multigraph + 富边属性——是破坏性变更、要过 api-baseline，不取。graph 插件允许成环的既有语义保持不变。
 
 **BOM 头挂修订而不是挂物料，因此没有独立的 `version` 轴。** 「这张 BOM 长什么样」这个问题的答案
 已经由 `parent_revision_id` 回答——修订本身就是版本。再给 `bom_header` 一个 `version` 列会产生
