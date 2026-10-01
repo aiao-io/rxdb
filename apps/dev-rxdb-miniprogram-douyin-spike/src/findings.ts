@@ -7,6 +7,7 @@
 import type { CoreExperimentReport } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import type { FileSystemReport } from './experiments/fs-errors.js';
+import type { QuotaAccountingReport } from './experiments/quota-accounting.js';
 import type { RandomSummary } from './experiments/random.js';
 import type { WasmPathReport } from './experiments/wasm-path.js';
 import type { Probe, Skipped } from './probe.js';
@@ -30,6 +31,7 @@ export interface FindingsInput {
   readonly prepare: Probe<unknown>;
   readonly wasmPath: WasmPathReport;
   readonly fileSystem: FileSystemReport;
+  readonly quotaAccounting: QuotaAccountingReport;
   readonly core: CoreExperimentReport | Skipped;
   /** 构建 banner 是否垫过 `globalThis`；垫过时，经 adapter 的行在证据里标明前提。 */
   readonly globalThisShimmed: boolean;
@@ -101,10 +103,23 @@ function randomFinding({ random, prepare }: FindingsInput): Finding {
   return { matrixRow: row, verdict: 'pass', evidence };
 }
 
-function userDataFinding({ core, fileSystem }: FindingsInput): Finding {
+const MIB = 1024 * 1024;
+
+function accountingText({ largestFreshWriteBytes, firstFreshFailure, overwrite }: QuotaAccountingReport): string {
+  const limit = firstFreshFailure ? '' : '（到计划上限都没失败）';
+  const overwriteMib = overwrite.bytes / MIB;
+  const overwriteText: Record<string, string> = {
+    true: `覆盖写 ${overwriteMib} MiB 失败（旧文件仍计入配额）`,
+    false: `覆盖写 ${overwriteMib} MiB 成功`,
+    null: `覆盖写未测（首次写入 ${overwriteMib} MiB 已失败）`
+  };
+  return `一次最多写入 ${largestFreshWriteBytes / MIB} MiB${limit}，${overwriteText[String(overwrite.countsOldSize)]}`;
+}
+
+function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): Finding {
   const row = '用户目录';
   const rawWrite = fileSystem.probes.find(item => item.op === 'writeFileSync(11 MiB)');
-  const rawText = `裸写 11 MiB ${probeText(rawWrite?.outcome)}`;
+  const rawText = `裸写 11 MiB ${probeText(rawWrite?.outcome)}；${accountingText(quotaAccounting)}`;
   if (isSkipped(core)) return { matrixRow: row, verdict: 'unknown', evidence: `数据库配额实验未运行；${rawText}` };
   const { quota } = core;
   if (quota.status === 'not-triggered') {

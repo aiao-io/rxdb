@@ -45,6 +45,11 @@ export interface FakeDouyinOptions {
   readonly sdkVersion?: string;
   /** 不提供 `tt.getRandomValues`。 */
   readonly withoutRandomValues?: boolean;
+  /**
+   * 覆盖写时旧文件大小仍计入配额（新旧两份同时占用，失败时旧文件原样保留）。
+   * 开发者工具模拟器 v6 报告实测如此（`quotaAccounting.overwrite.countsOldSize: true`）；默认关闭是因为替身按文档建模。
+   */
+  readonly overwriteCountsOldSize?: boolean;
 }
 
 /** 替身本体与可供断言的内部状态。 */
@@ -74,7 +79,8 @@ class FakeFileSystem implements DouyinFileSystemManager {
 
   constructor(
     private readonly quotaBytes: number,
-    private readonly errorShape: 'plain' | 'error'
+    private readonly errorShape: 'plain' | 'error',
+    private readonly overwriteCountsOldSize: boolean
   ) {}
 
   accessSync(path: string): void {
@@ -105,7 +111,8 @@ class FakeFileSystem implements DouyinFileSystemManager {
   writeFileSync(path: string, data: ArrayBuffer): void {
     if (!this.directories.has(parentOf(path))) this.fail(108402, 'no such file or directory', 'writeFileSync', path);
     const next = new Uint8Array(data.slice(0));
-    const used = this.usedBytes() - (this.files.get(path)?.byteLength ?? 0);
+    const replaced = this.overwriteCountsOldSize ? 0 : (this.files.get(path)?.byteLength ?? 0);
+    const used = this.usedBytes() - replaced;
     if (used + next.byteLength > this.quotaBytes) this.failWith(108403, 'user dir saved file size limit exceeded');
     this.files.set(path, next);
   }
@@ -173,7 +180,11 @@ function createFakeWasm(accepted: readonly string[]): DouyinWasmRuntime {
 
 /** 造一个抖音替身；随机源与回调都走 `setTimeout`，模拟平台的异步分发。 */
 export function createFakeDouyin(options: FakeDouyinOptions = {}): FakeDouyin {
-  const fileSystem = new FakeFileSystem(options.quotaBytes ?? DOCUMENTED_QUOTA_BYTES, options.errorShape ?? 'plain');
+  const fileSystem = new FakeFileSystem(
+    options.quotaBytes ?? DOCUMENTED_QUOTA_BYTES,
+    options.errorShape ?? 'plain',
+    options.overwriteCountsOldSize ?? false
+  );
   const clipboard: string[] = [];
   const tt: DouyinApi = {
     env: { USER_DATA_PATH: FAKE_USER_DATA_PATH },

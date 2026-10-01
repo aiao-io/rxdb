@@ -110,6 +110,17 @@ describe('runSpike：全部实验跑通', () => {
     expect(JSON.stringify(core.quota.failure)).not.toContain('108403');
     expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
     expect(core.quota.afterFailure?.reopenCount).toMatchObject({ ok: true, value: core.quota.insertedRows });
+    const files = core.quota.afterFailure?.filesAfterDisconnect;
+    if (!files?.ok) throw new Error('关闭后应当能列出库文件');
+    expect(files.value.some(file => file.path.endsWith('.sqlite') && file.size > 0)).toBe(true);
+    expect(files.value.some(file => file.path.endsWith('-journal'))).toBe(false);
+  });
+
+  it('配额计费：逐 MiB 探出一次能写多大，配额小于覆盖写大小时覆盖写判定为 null', () => {
+    expect(report.quotaAccounting.largestFreshWriteBytes).toBe(SMALL_QUOTA.quotaBytes);
+    expect(report.quotaAccounting.firstFreshFailure).toMatchObject({ bytes: SMALL_QUOTA.quotaBytes + 1024 * 1024 });
+    expect(report.quotaAccounting.overwrite.countsOldSize).toBeNull();
+    expect(finding(report, '用户目录')?.evidence).toContain('一次最多写入 3 MiB');
   });
 
   it('收尾：实验目录被删干净', () => {
@@ -146,6 +157,28 @@ describe('runSpike：失败与边界', () => {
     expect([...fake.directories].filter(path => path.startsWith(SPIKE_ROOT))).toEqual([]);
   }, 60_000);
 
+  it('构建包装把核心包顶层错误挂在 initError 上：coreLoad 报原始错误，不调用半成品导出', async () => {
+    const latin1 = new RangeError('不支持的 TextDecoder 编码: latin1');
+    const real = await loadRealCore();
+    const runCoreExperiments = vi.fn(real.runCoreExperiments);
+    const halfInitialized: SpikeCore = { ...real, runCoreExperiments, initError: latin1 };
+    const { report } = await run(SMALL_QUOTA, async () => halfInitialized);
+    expect(report.coreLoad).toMatchObject({ ok: false, error: { name: 'RangeError', message: latin1.message } });
+    expect(report.core).toEqual({ skipped: expect.stringContaining('latin1') });
+    expect(runCoreExperiments).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('核心包导出里没有 banner 记录（顶层没跑完、原始错误也没接住）：判加载失败而不是去调用它', async () => {
+    const real = await loadRealCore();
+    const runCoreExperiments = vi.fn(real.runCoreExperiments);
+    // 模拟 esbuild 的导出 getter：导出名都在，模块顶层的变量还没赋值
+    const halfInitialized = { globalThisShim: undefined, runCoreExperiments } as unknown as SpikeCore;
+    const { report } = await run(SMALL_QUOTA, async () => halfInitialized);
+    expect(report.coreLoad).toMatchObject({ ok: false, error: { message: expect.stringContaining('半成品导出') } });
+    expect(report.core).toEqual({ skipped: expect.stringContaining('半成品导出') });
+    expect(runCoreExperiments).not.toHaveBeenCalled();
+  }, 60_000);
+
   it('同一 JS 上下文里再跑一次，环境快照标出上次引导的残留', async () => {
     // 开发者工具「重新运行」或热重载不换 JS 上下文，上次 prepare 装上的补丁还在。
     // Node 能力齐全，prepare 什么都不装；拿掉 structuredClone 逼它装一个 polyfill
@@ -162,6 +195,32 @@ describe('runSpike：失败与边界', () => {
     } finally {
       Object.defineProperty(globalThis, 'structuredClone', original);
     }
+  }, 60_000);
+
+  it('覆盖写把旧大小也计入配额时，复现模拟器 v5 的形态：关闭失败、留下热日志、重开即 disk I/O', async () => {
+    const { report } = await run({ ...SMALL_QUOTA, overwriteCountsOldSize: true });
+    const core = report.core;
+    if ('skipped' in core) throw new Error(core.skipped);
+    expect(report.quotaAccounting.overwrite.countsOldSize).toBeNull();
+    expect(core.quota.status).toBe('triggered');
+    const after = core.quota.afterFailure;
+    expect(after?.disconnect).toMatchObject({
+      ok: false,
+      error: { errMsg: expect.stringContaining('size limit exceeded') }
+    });
+    if (!after?.filesAfterDisconnect.ok) throw new Error('关闭失败后应当仍能列出库文件');
+    expect(after.filesAfterDisconnect.value.some(file => file.path.endsWith('-journal'))).toBe(true);
+    expect(after.sameConnectionCount).toMatchObject({ ok: false });
+    expect(after.reopenCount).toMatchObject({ ok: false, error: { cause: { message: 'disk I/O error' } } });
+    // 库写到配额的一半就撞上：每次 flush 新旧两份同时计费
+    expect(core.quota.insertedRows * SMALL_PLAN.blobBytes).toBeLessThanOrEqual(SMALL_QUOTA.quotaBytes / 2);
+    expect(finding(report, '用户目录')).toMatchObject({ verdict: 'fail' });
+  }, 60_000);
+
+  it('配额足够大时，覆盖写计费判定写进用户目录的证据', async () => {
+    const { report } = await run({ overwriteCountsOldSize: true }, loadRealCore, { blobBytes: 1024, maxRows: 3 });
+    expect(report.quotaAccounting.overwrite.countsOldSize).toBe(true);
+    expect(finding(report, '用户目录')?.evidence).toContain('覆盖写 6 MiB 失败（旧文件仍计入配额）');
   }, 60_000);
 
   it('配额没撞到时如实写「未触发」', async () => {

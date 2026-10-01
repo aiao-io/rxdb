@@ -11,6 +11,11 @@ import { adapterErrorText } from './describe-error.js';
 import type { DouyinApi, DouyinFileSystemManager, DouyinWasmRuntime } from './douyin-api.js';
 import { collectEnvironment, type EnvironmentReport } from './experiments/environment.js';
 import { runFileSystemExperiment, type FileSystemReport } from './experiments/fs-errors.js';
+import {
+  DEFAULT_QUOTA_ACCOUNTING_PLAN,
+  runQuotaAccountingExperiment,
+  type QuotaAccountingReport
+} from './experiments/quota-accounting.js';
 import { runRandomExperiment, type RandomSummary } from './experiments/random.js';
 import { runWasmPathExperiment, type WasmPathReport } from './experiments/wasm-path.js';
 import { buildFindings, type Finding } from './findings.js';
@@ -20,7 +25,7 @@ import { createDouyinSpikeHost } from './spike-host.js';
 import { ADAPTER_DEFAULT_WASM_PATH, VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
 /** 报告格式版本；字段语义变了就升版本号。 */
-export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v5';
+export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v7';
 
 /** 实验目录名，位于 `tt.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';
@@ -30,7 +35,9 @@ const NOTES = [
   '实验 ② 直接调用 tt.getRandomValues，不经 host 包装，记录的是平台原始的成功与失败形态。',
   '实验 ③ 的 vfsSaysMissing / vfsSaysExists 是用 adapter 文件 VFS 的正则副本对 errMsg 的判定。',
   '构建产物在 globalThis 不是对象时尝试换上真实全局对象（见 globalThisShim）；垫过时 ① ② ④ 的通过不代表 adapter 现状可用。',
-  'environment.residue 为 true 时，同一 JS 上下文里之前跑过引导，环境快照不是平台原生状态；要彻底重启开发者工具再跑。',
+  'quotaAccounting 不经 SQLite 用裸文件测配额计费：一次能写多大、同一路径覆盖写时旧文件是否仍计入配额（adapter VFS 每次 flush 都整体覆盖库文件）。',
+  'coreLoad 失败时报的是核心包模块顶层的原始错误：iOS 真机的 require 会吞掉它、返回半成品导出，构建包装把它挂在 initError 上再抛出。',
+  'environment.residue 为 true 时，同一 JS 上下文里之前跑过引导，环境快照不是平台原生状态；要彻底重启开发者工具（真机要把抖音从后台划掉）再跑。',
   'findings 只代表这一台设备的这一次运行；矩阵回填需要开发者工具、Android、iOS 三份报告。'
 ];
 
@@ -67,6 +74,7 @@ export interface SpikeReport {
   readonly wasmPath: WasmPathReport;
   readonly workspace: Probe<WorkspaceReport>;
   readonly fileSystem: FileSystemReport;
+  readonly quotaAccounting: QuotaAccountingReport;
   /** 成功值是核心包的导出名。 */
   readonly coreLoad: Probe<readonly string[]> | Skipped;
   readonly core: CoreExperimentReport | Skipped;
@@ -84,6 +92,7 @@ function resetWorkspace(fileSystem: DouyinFileSystemManager, root: string): Work
   }
   if (removedLeftover) fileSystem.rmdirSync(root, true);
   fileSystem.mkdirSync(`${root}/fs`, true);
+  fileSystem.mkdirSync(`${root}/quota`, true);
   fileSystem.mkdirSync(`${root}/db`, true);
   return { root, removedLeftover };
 }
@@ -93,6 +102,16 @@ interface CoreSection {
   readonly core: SpikeReport['core'];
   /** 加载成功时核心包的 banner 记录。 */
   readonly coreShim: GlobalThisShimReport['core'];
+}
+
+/**
+ * 平台 `require` 吞掉模块顶层错误时返回的是半成品导出：导出名齐全，模块顶层的变量却没赋值。
+ * 有构建包装接住的原始错误就抛它；没有时以 banner 记录为绊线——核心包自身的模块体在全部依赖求值完之后
+ * 才给它赋值，`undefined` 说明顶层没跑完。
+ */
+function assertCoreInitialized(core: SpikeCore): void {
+  if (core.initError !== undefined) throw core.initError;
+  if (core.globalThisShim === undefined) throw new Error('核心包模块顶层没有跑完，require 返回了半成品导出');
 }
 
 async function runCore(
@@ -107,6 +126,7 @@ async function runCore(
   let core: SpikeCore | undefined;
   const coreLoad = await probe(async () => {
     core = await options.loadCore();
+    assertCoreInitialized(core);
     return Object.keys(core);
   });
   if (!coreLoad.ok || !core) {
@@ -134,6 +154,12 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
   const root = `${tt.env.USER_DATA_PATH}/${SPIKE_DIRECTORY}`;
   const workspace = await probe(() => resetWorkspace(fileSystem, root));
   const fileSystemReport = runFileSystemExperiment(fileSystem, `${root}/fs`);
+  const quotaAccounting = await runQuotaAccountingExperiment(
+    fileSystem,
+    `${root}/quota`,
+    tt.env.USER_DATA_PATH,
+    DEFAULT_QUOTA_ACCOUNTING_PLAN
+  );
   const { coreLoad, core, coreShim } = await runCore(options, {
     host,
     fileSystem,
@@ -159,6 +185,7 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
     wasmPath,
     workspace,
     fileSystem: fileSystemReport,
+    quotaAccounting,
     coreLoad,
     core,
     cleanup,
@@ -167,6 +194,7 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
       prepare,
       wasmPath,
       fileSystem: fileSystemReport,
+      quotaAccounting,
       core,
       globalThisShimmed: shimApplied(globalThisShim)
     })

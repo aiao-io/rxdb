@@ -14,6 +14,7 @@ import {
 import type {
   CoreExperimentInput,
   CoreExperimentReport,
+  DatabaseFile,
   JsonCell,
   PersistenceReport,
   QuotaAfterFailure,
@@ -90,7 +91,7 @@ async function withClient<T>(
   return result;
 }
 
-function listFiles(context: CoreContext): { path: string; size: number }[] {
+function listFiles(context: CoreContext): DatabaseFile[] {
   const listing = context.fileSystem.statSync(context.databaseRoot, true);
   if (!Array.isArray(listing)) return [];
   return listing.filter(entry => entry.stat.isFile()).map(entry => ({ path: entry.path, size: entry.stat.size }));
@@ -145,12 +146,14 @@ async function inspectAfterFailure(
     await client.disconnect();
     return null;
   });
+  const filesAfterDisconnect = await probe(() => listFiles(context));
   const reopened = await probe(() => openClient(context, 'quota'));
-  if (!reopened.ok) return { sameConnectionCount, disconnect, reopenCount: reopened, reopenIntegrity: reopened };
+  const before = { sameConnectionCount, disconnect, filesAfterDisconnect };
+  if (!reopened.ok) return { ...before, reopenCount: reopened, reopenIntegrity: reopened };
   const reopenCount = await probe(() => selectScalar(reopened.value, countSql));
   const reopenIntegrity = await probe(() => selectScalar(reopened.value, 'PRAGMA integrity_check'));
   await reopened.value.disconnect();
-  return { sameConnectionCount, disconnect, reopenCount, reopenIntegrity };
+  return { ...before, reopenCount, reopenIntegrity };
 }
 
 async function insertUntilFailure(

@@ -48,6 +48,12 @@ export interface StageFailure {
   readonly error: DescribedError;
 }
 
+/** 数据库目录下的一个文件。 */
+export interface DatabaseFile {
+  readonly path: string;
+  readonly size: number;
+}
+
 /** 实验 ①：写入、关闭、重开、读回。 */
 export interface PersistenceReport {
   readonly status: 'passed' | 'failed';
@@ -58,13 +64,15 @@ export interface PersistenceReport {
   /** `PRAGMA integrity_check` 的第一格。 */
   readonly integrity?: JsonCell;
   /** 关闭后数据库目录下的文件与大小。 */
-  readonly files?: readonly { readonly path: string; readonly size: number }[];
+  readonly files?: readonly DatabaseFile[];
 }
 
 /** 实验 ④ 撞配额之后：同一连接能否继续读、关掉重开能否读到全部已提交行。 */
 export interface QuotaAfterFailure {
   readonly sameConnectionCount: Probe<JsonCell>;
   readonly disconnect: Probe<null>;
+  /** 关闭之后、重开之前的库文件：关闭失败时看有没有留下 `-journal`（热日志会让重开先回滚）。 */
+  readonly filesAfterDisconnect: Probe<readonly DatabaseFile[]>;
   readonly reopenCount: Probe<JsonCell>;
   readonly reopenIntegrity: Probe<JsonCell>;
 }
@@ -92,5 +100,10 @@ export interface CoreExperimentReport {
 export interface SpikeCore {
   /** 核心包自己的 banner 记录；源码级运行时为 `null`。 */
   readonly globalThisShim: GlobalThisShimRecord | null;
+  /**
+   * 构建包装接住的模块顶层错误，只在顶层抛错时存在（包装照样把错误再抛出去）。
+   * iOS 真机的 `require` 会吞掉这个错误、返回半成品导出，页面包靠它拿到原始错误。
+   */
+  readonly initError?: unknown;
   runCoreExperiments(input: CoreExperimentInput): Promise<CoreExperimentReport>;
 }

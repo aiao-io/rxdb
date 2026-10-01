@@ -79,7 +79,19 @@ afterAll(async () => {
   await rm(outDir, { recursive: true, force: true });
 });
 
-function evaluateCommonJs(code: string, context: object, require: (path: string) => unknown, mode: DistMode): unknown {
+/**
+ * 模块顶层抛错时 `require` 的行为：`throw` 原样抛出（Node、开发者工具模拟器）；`swallow` 吞掉错误、
+ * 返回已经填了一半的 `module.exports`（iOS 真机 v6 报告的形态：核心包导出名齐全，模块顶层的变量却是 `undefined`）。
+ */
+type InitErrorBehavior = 'throw' | 'swallow';
+
+function evaluateCommonJs(
+  code: string,
+  context: object,
+  require: (path: string) => unknown,
+  mode: DistMode,
+  onInitError: InitErrorBehavior = 'throw'
+): unknown {
   const module = { exports: {} };
   const { prologue, params, args } = wrapperShape(mode, context);
   const source = `(function (module, exports, require${params}) {\n${prologue}${code}\n})`;
@@ -89,11 +101,15 @@ function evaluateCommonJs(code: string, context: object, require: (path: string)
     require: (path: string) => unknown,
     ...extras: unknown[]
   ) => void;
-  wrapper(module, module.exports, require, ...args);
+  try {
+    wrapper(module, module.exports, require, ...args);
+  } catch (error) {
+    if (onInitError === 'throw') throw error;
+  }
   return module.exports;
 }
 
-async function runDist(mode: DistMode): Promise<Record<string, unknown>> {
+async function runDist(mode: DistMode, onCoreInitError: InitErrorBehavior = 'throw'): Promise<Record<string, unknown>> {
   const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024 });
   let page: CapturedPage | undefined;
   const context = createContext({
@@ -113,7 +129,7 @@ async function runDist(mode: DistMode): Promise<Record<string, unknown>> {
   const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
   const requireFromPage = (path: string): unknown => {
     if (path !== CORE_REQUEST) throw new Error(`页面包 require 了意料之外的路径：${path}`);
-    return evaluateCommonJs(coreCode, context, requireFromPage, mode);
+    return evaluateCommonJs(coreCode, context, requireFromPage, mode, onCoreInitError);
   };
   evaluateCommonJs(pageCode, context, requireFromPage, mode);
   if (!page) throw new Error('页面包没有调用 Page()');
@@ -154,6 +170,15 @@ describe('dist 冒烟', () => {
     });
     expect(report['core']).toEqual({ skipped: expect.stringContaining('latin1') });
     expect(report['random']).toMatchObject({ '65536': { ok: true } });
+  }, 120_000);
+
+  it('平台 require 吞掉核心包顶层错误时，coreLoad 照样报出原始的 latin1 RangeError，而不是半成品导出引发的次生错误', async () => {
+    const report = await runDist('bare', 'swallow');
+    expect(report['coreLoad']).toMatchObject({
+      ok: false,
+      error: { name: 'RangeError', message: expect.stringContaining('latin1') }
+    });
+    expect(report['core']).toEqual({ skipped: expect.stringContaining('latin1') });
   }, 120_000);
 
   it('全局正常时 banner 不动 globalThis，只留记录', async () => {
