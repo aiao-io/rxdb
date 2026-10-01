@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-10-01
 tags: [plugin, bom, process-industry]
 ---
 
@@ -21,27 +21,32 @@ tags: [plugin, bom, process-industry]
 
 ### In Scope
 
-- `bom_line.flow_direction`：`consume` / `produce` / `by_product` / `scrap_out`
-- 只有 `consume` 边进入结构闭包与环检测
+- 行发生项的 `flow_direction`：`consume` / `produce` / `by_product` / `scrap_out`
+- 只有 `consume` 边进入可达性表与环检测
 - 展开与卷算时 `produce` / `by_product` 作为反向物料流处理
 - 四个方向**各自**的下游消费方明确，没有一个是只声明不消费的枚举值
+- **允许的回流范围**：回流只能经 `produce` / `by_product` 边表达；任何 `consume` 边仍受 US-509 并集无环约束，
+  「回流」不是绕开环检测的通道
 
 ### Out of Scope
 
 - 副产品定价与成本分配方法学（→ US-514 只消费 `credit_price`）
 - 工艺配方的批次放大规则
+- 回流料的净需求抵扣（产出的 S 抵掉投入的 S）——属 MRP / 库存域，展开只给毛需求与产出量
 
 ## 验收标准
 
-| #   | 前置条件                                             | 操作 | 预期结果                                       | 状态 |
-| --- | ---------------------------------------------------- | ---- | ---------------------------------------------- | ---- |
-| 1   | 工艺 P 产出主品 M 与副品 S；S 投入工艺 Q，Q 也产出 M | 保存 | **不报环**（`produce` 边不入闭包）             | ⬜   |
-| 2   | 含副产的 BOM                                         | 卷算 | 副产按 `credit_price` 抵减成本                 | ⬜   |
-| 3   | 混合方向的边集                                       | 下钻 | 只有 `consume` 边构成层级                      | ⬜   |
-| 4   | 只有 `produce` 边、无 `consume` 边的头               | 展开 | 明确报「无投入」，不返回空结果当成功           | ⬜   |
-| 5   | `consume` 边给负用量                                 | 保存 | CHECK 拒绝（负用量应改用 `produce`）           | ⬜   |
-| 6   | `scrap_out` 边                                       | 展开 | 不产生需求行，但在展开结果中可见、可按工序归集 | ⬜   |
-| 7   | `scrap_out` 边                                       | 卷算 | 不计入成本也不抵减——处置收益属事务域           | ⬜   |
+| #   | 前置条件                                             | 操作       | 预期结果                                                   | 状态 |
+| --- | ---------------------------------------------------- | ---------- | ---------------------------------------------------------- | ---- |
+| 1   | 工艺 P 产出主品 M 与副品 S；S 投入工艺 Q，Q 也产出 M | 保存       | **不报环**（`produce` 边不入可达性表）                     | ⬜   |
+| 2   | 含副产的 BOM                                         | 卷算       | 副产按 `credit_price` 抵减成本                             | ⬜   |
+| 3   | 混合方向的边集                                       | 下钻       | 只有 `consume` 边构成层级                                  | ⬜   |
+| 4   | 只有 `produce` 边、无 `consume` 边的头               | 展开       | 明确报「无投入」，不返回空结果当成功                       | ⬜   |
+| 5   | `consume` 边给负用量                                 | 保存       | CHECK 拒绝（负用量应改用 `produce`）                       | ⬜   |
+| 6   | `scrap_out` 边                                       | 展开       | 不产生需求行，但在展开结果中可见、可按工序归集             | ⬜   |
+| 7   | `scrap_out` 边                                       | 卷算       | 不计入成本也不抵减——处置收益属事务域                       | ⬜   |
+| 8   | P 产出副品 S，同一头又 `consume` S（自回流）         | 保存并展开 | 接受；S 的毛需求与产出量分列，不在展开内相抵               | ⬜   |
+| 9   | S 的 BOM `consume` P，P 又 `consume` S               | 保存       | 按 US-509 拒绝：`consume` 子图成环，不因 P 也产出 S 而放行 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -65,6 +70,9 @@ tags: [plugin, bom, process-industry]
 
 US-511 的七步公式**只认 `consume`**，其余三种不进那条链路——这是分工，不是遗漏。
 
+AC#8 / AC#9 划的是回流的边界：自回流（同一工艺既产出又投入 S）只需要 `produce` 边，不碰 `consume` 子图；
+而「S 的 BOM 消耗 P、P 又消耗 S」是投入关系本身成环，卷算的拓扑序无从建立，不能因为旁边有一条 `produce` 边就放行。
+
 AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两种表达，
 两种表达的系统最终会两种都出现在数据里。
 
@@ -79,4 +87,5 @@ AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两�
 ## References
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
+- [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项
 - [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 对偶约束

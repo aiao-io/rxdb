@@ -286,8 +286,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @remarks
    * 使用 id 而非 createdAt 作为游标，避免同毫秒内多条记录导致的重复问题
    *
-   * 当提供 filter 参数时，会通过 JOIN 实体表并应用过滤条件，
-   * 只返回满足条件的实体对应的变更记录。
+   * 当提供 filter 参数时，调用 `rxdb_pull_changes` RPC 在变更日志的快照上求值，不 JOIN 当前业务表：
+   * `beforeData` 或 `afterData` 任一命中即返回整条变更，`snapshotComplete = false` 的历史变更不经过滤直接返回。
+   * 因此 filter 只用于少拉数据，不是行级隔离边界。
    */
   async pullChanges(
     sinceId: number,
