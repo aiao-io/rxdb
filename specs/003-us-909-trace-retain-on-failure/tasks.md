@@ -116,7 +116,7 @@ AC#2 在临时分支上验；AC#3 是量测记录。不加常驻测试（researc
   （research D3），不在 fixture 里补手动 `context.tracing`
 
 - [x] T022 [AC1] 删除 `apps/dev-rxdb-angular-e2e/src/us909-trace-probe.spec.ts` 与 `apps/rxdb-devtools-extension-e2e/src/us909-trace-probe.spec.ts`；`git status --short` 只剩交付物：六个配置、`ci-template.yml`、T001 改到的需求文件、本目录文档
-- [ ] T023 [AC1] 质量门：重跑 T006 的命令，零新增警告；`NX_DAEMON=false pnpm nx format:check --base=main` 通过
+- [x] T023 [AC1] 质量门：重跑 T006 的命令，零新增警告；`NX_DAEMON=false pnpm nx format:check --base=main` 通过
 
 **Checkpoint**: AC#1 绿，先不回写故事。AC#3 若走 D6，配置会变，AC#1 要在最终配置上重核（T030）
 
