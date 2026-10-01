@@ -167,20 +167,20 @@ AC#2 在临时分支上验；AC#3 是量测记录。不加常驻测试（researc
 **Independent Test**: 临时分支 draft PR 的 run 里 angular e2e job 绿，artifact 中探针恰好一份 `trace.zip`，在不带 `-retry` 后缀的
 目录里（quickstart AC#2 第 5～7 步）
 
-- [ ] T032 [AC2] 🔒 交付提交（`rrweb`）：
+- [x] T032 [AC2] 🔒 交付提交（`rrweb`）：
   - 暂存六个配置、`.github/workflows/ci-template.yml`、T001 / T031 改到的需求文件（故事、`requirements/status-overview.md`、
     `requirements/roadmap.md`、`requirements/epics/epic-004-future-features.md`，以及 audit 改到的其他文件）、
     `specs/003-us-909-trace-retain-on-failure/`（含 `tasks.md`、`ac3-runs.tsv`）
   - `git diff --cached --stat` 不含任何 `us909-*probe*`
   - 提交信息 `chore(aiao): e2e 失败尝试保留 trace（US-909 阶段 A）`，结尾 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`；
     commit-msg 钩子通过
-- [ ] T033 [AC2] 🔒 临时分支：`git switch -c us909-ac2-probe`；新建 `apps/dev-rxdb-angular-e2e/src/us909-ci-retry-probe.spec.ts`，一条用例 `test('US-909 AC#2 探针：首次尝试失败、重试通过', async ({ page }, testInfo) => { … })`，`await page.goto('/')` 后 `expect(testInfo.retry, 'US-909 AC#2 探针：首次尝试故意失败').toBeGreaterThan(0)`；只 `git add` 这一个文件，提交信息 `chore(aiao): US-909 AC#2 临时探针（不合并）`，结尾 Co-Authored-By
-- [ ] T034 [AC2] 🔒 `git push -u origin us909-ac2-probe`；`gh pr create --draft --base main --title "chore(aiao): US-909 AC#2 临时探针（不合并）" --body …`（正文：只为触发 CI 验 US-909 AC#2，验完关闭并删分支；结尾 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`）。CI 会 lint PR 标题
-- [ ] T035 [AC2] 核对 run 对应当前提交：`gh run list --branch us909-ac2-probe --limit 3 --json databaseId,headSha,status,conclusion` 的 headSha 等于 `git rev-parse HEAD`；之后每次重跑前再核一次（同一并发组里重跑旧 run 会取消新提交的 run）
-- [ ] T036 [AC2] `gh pr checks <pr>`，轮询间隔 ≥ 30 s：`ci / gate` 与 `ci / e2e (angular)` 绿，http、react、supabase、supabase remote、vue、rxdb-devtools-extension 的 e2e job 也绿（config 没有 `failOnFlakyTests`，探针不判红）；有红先读日志定位，不盲目重跑
-- [ ] T037 [AC2] `gh run download <run-id> -n playwright-dev-rxdb-angular-e2e-e2e -D "$TMPDIR/us909-ac2"`，再 `find "$TMPDIR/us909-ac2" -name trace.zip`：探针（目录名以 `us909-ci-retry-probe` 开头）恰好一份，目录不带 `-retry` 后缀；`-retry1` 目录下没有 `trace.zip`（目录本身可能不存在）；探针以外的 `trace.zip` 说明别的用例在 CI 上首次失败过，作为缺陷线索报告
-- [ ] T038 [P] [AC2] 在临时分支上 `grep -n "retain-on-failure" apps/*/playwright.config.ts` 恰好六行（data-model §1 校验规则）
-- [ ] T039 [AC2] 🔒 收尾：`git switch rrweb`；`gh pr close <pr> --delete-branch`（关 draft PR，删远端与本地的临时分支）；确认 `git branch --list us909-ac2-probe` 为空，rrweb 上没有 `us909-ci-retry-probe.spec.ts`
+- [x] T033 [AC2] 🔒 临时分支：`git switch -c us909-ac2-probe`；新建 `apps/dev-rxdb-angular-e2e/src/us909-ci-retry-probe.spec.ts`，一条用例 `test('US-909 AC#2 探针：首次尝试失败、重试通过', async ({ page }, testInfo) => { … })`，`await page.goto('/')` 后 `expect(testInfo.retry, 'US-909 AC#2 探针：首次尝试故意失败').toBeGreaterThan(0)`；只 `git add` 这一个文件，提交信息 `chore(aiao): US-909 AC#2 临时探针（不合并）`，结尾 Co-Authored-By
+- [x] T034 [AC2] 🔒 `git push -u origin us909-ac2-probe`；`gh pr create --draft --base main --title "chore(aiao): US-909 AC#2 临时探针（不合并）" --body …`（正文：只为触发 CI 验 US-909 AC#2，验完关闭并删分支；结尾 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`）。CI 会 lint PR 标题
+- [x] T035 [AC2] 核对 run 对应当前提交：`gh run list --branch us909-ac2-probe --limit 3 --json databaseId,headSha,status,conclusion` 的 headSha 等于 `git rev-parse HEAD`；之后每次重跑前再核一次（同一并发组里重跑旧 run 会取消新提交的 run）
+- [x] T036 [AC2] `gh pr checks <pr>`，轮询间隔 ≥ 30 s：`ci / gate` 与 `ci / e2e (angular)` 绿，http、react、supabase、supabase remote、vue、rxdb-devtools-extension 的 e2e job 也绿（config 没有 `failOnFlakyTests`，探针不判红）；有红先读日志定位，不盲目重跑。结果（run `36892293781`，headSha `881b3bf5`）：七个 e2e job 全绿，探针 1 flaky；`ci / gate` 红，原因是 gate 把「改了 `apps/` 却没有 test 项目」判为 affected 失真，而纯 e2e 改动本来就没有 `test` target，属 gate 误判
+- [x] T037 [AC2] `gh run download <run-id> -n playwright-dev-rxdb-angular-e2e-e2e -D "$TMPDIR/us909-ac2"`，再 `find "$TMPDIR/us909-ac2" -name trace.zip`：探针（目录名以 `us909-ci-retry-probe` 开头）恰好一份，目录不带 `-retry` 后缀；`-retry1` 目录下没有 `trace.zip`（目录本身可能不存在）；探针以外的 `trace.zip` 说明别的用例在 CI 上首次失败过，作为缺陷线索报告
+- [x] T038 [P] [AC2] 在临时分支上 `grep -n "retain-on-failure" apps/*/playwright.config.ts` 恰好六行（data-model §1 校验规则）
+- [x] T039 [AC2] 🔒 收尾：`git switch rrweb`；`gh pr close <pr> --delete-branch`（关 draft PR，删远端与本地的临时分支）；确认 `git branch --list us909-ac2-probe` 为空，rrweb 上没有 `us909-ci-retry-probe.spec.ts`
 
 **Checkpoint**: AC#1～3 全部成立，探针全部清走
 
@@ -190,9 +190,9 @@ AC#2 在临时分支上验；AC#3 是量测记录。不加常驻测试（researc
 
 **Purpose**: 回写、派生视图、交付 PR、合并后收尾
 
-- [ ] T040 回写故事 `requirements/stories/future/US-909-session-replay-debugging.md`：AC#2 预期结果格末尾追加「结论：run `<id>`（headSha `<短 sha>`）…」（探针首次失败、重试通过，job 绿；首次失败那次的 `trace.zip` 在 artifact 里；六个配置都是 `retain-on-failure`），状态 ✅；交付阶段表 A 行 `⬜` → `✅`；`status` 保持 `In Progress`（B / C 未交付）；`updated` 取当天
-- [ ] T041 派生视图改为「阶段 A 已交付」：`requirements/status-overview.md` 的进行中表 US-909 行（阶段 A 已交付；B 待第二连接 spike，C 未开始）与 epic-004 小节 US-909 行；`requirements/roadmap.md` 未完成需求全景表 US-909 行的「剩什么」与批次 3 的 US-909 行。`requirements/epics/epic-004-future-features.md` 的故事清单不带状态，不改；31 行目标保持 `[ ]`（B / C 未交付）。`pnpm run audit:requirements` 通过
-- [ ] T042 交付前自检：`NX_DAEMON=false pnpm nx format:check --base=main` 通过；`git diff main --stat` 不含任何 `us909-*probe*` 文件
+- [x] T040 回写故事 `requirements/stories/future/US-909-session-replay-debugging.md`：AC#2 预期结果格末尾追加「结论：run `<id>`（headSha `<短 sha>`）…」（探针首次失败、重试通过，job 绿；首次失败那次的 `trace.zip` 在 artifact 里；六个配置都是 `retain-on-failure`），状态 ✅；交付阶段表 A 行 `⬜` → `✅`；`status` 保持 `In Progress`（B / C 未交付）；`updated` 取当天
+- [x] T041 派生视图改为「阶段 A 已交付」：`requirements/status-overview.md` 的进行中表 US-909 行（阶段 A 已交付；B 待第二连接 spike，C 未开始）与 epic-004 小节 US-909 行；`requirements/roadmap.md` 未完成需求全景表 US-909 行的「剩什么」与批次 3 的 US-909 行。`requirements/epics/epic-004-future-features.md` 的故事清单不带状态，不改；31 行目标保持 `[ ]`（B / C 未交付）。`pnpm run audit:requirements` 通过
+- [x] T042 交付前自检：`NX_DAEMON=false pnpm nx format:check --base=main` 通过；`git diff main --stat` 不含任何 `us909-*probe*` 文件
 - [ ] T043 🔒 提交 T040 / T041 的改动（`docs(aiao): 回写 US-909 阶段 A 的验收结论`，结尾 Co-Authored-By）；`git push origin rrweb`；`gh pr create --base main --head rrweb --title "chore(aiao): e2e 失败尝试保留 trace（US-909 阶段 A）" --body …`（正文：改动、AC#1～3 结论摘要、AC#2 临时 PR 链接，说明探针不在本 PR；结尾 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`）。pre-push 钩子与 CI 的 PR 标题 lint 都要过
 - [ ] T044 交付 PR 的 CI：先按 T035 的方法核 headSha，`ci / gate` 绿；红了先读日志，修复的提交与推送另行放行。不设门禁的观察：`ci / e2e (angular)` 的 E2E 步骤时长对照 main 的 4:17–5:12，超过约 6:55（区间上沿 × 1.33，随上限裁决从 5:43 改来）就报告用户，不阻塞交付
 - [ ] T045 🔒 合并后（合并由用户操作）：按 specs/001、002 的先例删除 `specs/003-us-909-trace-retain-on-failure/`，故事里指向本目录的引用改成 `git show <合并 sha>:specs/003-us-909-trace-retain-on-failure/<文件>`，可随阶段 B 的第一个 PR 一起提交；阶段 B 开工时 `.specify/feature.json` 改指新的特性目录
