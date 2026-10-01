@@ -21,6 +21,8 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   timeout: 90000,
   expect: { timeout: isCI ? 10000 : 5000 },
+  // 每次尝试都录 trace，只保留失败的尝试；fixture 自建的持久化上下文同样会被录。
+  use: { trace: 'retain-on-failure' },
   webServer: {
     command: 'node scripts/e2e-static-server.mjs --root dist/apps/rxdb-devtools-extension-e2e/web --port 8210',
     url: 'http://localhost:8210',

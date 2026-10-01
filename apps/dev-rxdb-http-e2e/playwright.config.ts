@@ -41,7 +41,7 @@ export default defineConfig({
   },
   use: {
     baseURL: APP_BASE_URL,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     actionTimeout: isCI ? 20000 : 10000,
     navigationTimeout: isCI ? 30000 : 15000
   },

@@ -1,7 +1,7 @@
 ---
 id: US-909
 title: 会话录制回放与失败现场数据还原
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
@@ -11,9 +11,9 @@ tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 
 <!--
 INVEST 检查清单:
-- [x] Independent (独立): 阶段 A 无前置；阶段 B 以价值证据为门禁，传输限制经同库名的主线程 IDB 第二连接绕开（plan 前 spike，不过才依赖 🚧 Worker / SharedWorker 传输的备份恢复）
+- [x] Independent (独立): 阶段 A 无前置；阶段 B 的传输限制经同库名的主线程 IDB 第二连接绕开（plan 前 spike，不过才依赖 🚧 Worker / SharedWorker 传输的备份恢复）
 - [x] Negotiable (可协商): trace 内容选项与开销上限、第二连接的导出细节与归档流回 Node 的方式、事件流的存放位置在各阶段 plan 冻结
-- [x] Valuable (有价值): 阶段 A 关闭「本地失败从不产生 trace、CI 只留第一次重试、devtools 扩展 e2e 从不录」的既有缺口；阶段 B / C 各需价值证据
+- [x] Valuable (有价值): 阶段 A 关闭「本地失败从不产生 trace、CI 只留第一次重试、devtools 扩展 e2e 从不录」的既有缺口；阶段 B / C 的价值门禁由 owner 于 2026-10-01 豁免（见交付阶段的排期决定）
 - [x] Estimable (可估算): 阶段 A 是六个 Playwright 配置各改一行 + CI 注释同步 + 开销实测
 - [ ] Small (小): 全故事不小，按 A / B / C 分阶段交付，不拆子故事文件；阶段 A 单 PR 可完成
 - [x] Testable (可测试): 各阶段 AC 以 e2e / 单测 / 契约测试可复验
@@ -49,7 +49,7 @@ INVEST 检查清单:
    上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。该步骤上方的注释写着 `on-first-retry`，随配置一起改。
 3. **trace 看不到的是库里的数据**：确定性失败不需要它——spec 本身就是数据场景的构造过程，本地带 trace 重跑即得同一状态；
    重跑拿不回来的只有非确定性失败（竞态 / 时序）在失败时刻的库内容。目前没有一条「trace 看完仍要失败时刻数据才能定位」
-   的失败记录，阶段 B 因此以价值证据为门禁。
+   的失败记录；阶段 B 原以这条证据为门禁，owner 于 2026-10-01 豁免（见交付阶段的排期决定）。
 4. **阶段 B 的传输限制：demo 的 adapter 实例备份不了，库本身够得着**：[US-217](../adapter/US-217-local-database-backup-restore.md)
    是 `Done`，但 wa-sqlite 与 sqlite-wasm 只交付主线程连接的备份 / 恢复（US-217 验收标准 AC#17 的说明「wa-sqlite 与 sqlite-wasm
    只交付主线程连接」）。[`RxDBAdapterSqlite.backupStorage()`](../../../packages/rxdb-adapter-sqlite-wasm/src/RxDBAdapterSqlite.ts)
@@ -91,11 +91,14 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                                                                                            | 必过 AC         | 门禁                                                                                                                                                                                                                                                   |
-| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A    | ⬜   | 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 `trace` 改为 `retain-on-failure`；CI 注释同步                                                                   | AC#1～3         | 无前置；plan 实测开销并冻结上限                                                                                                                                                                                                                        |
-| B    | ⬜   | Angular e2e 失败现场数据归档（同库名的主线程 IDB 第二连接 `backup()`，原样导出，作为 test 附件）+ `dev-rxdb-angular` 导入入口（主线程 IDB 连接在 `connect()` 前恢复到新的空库） | AC#1～3、4～9   | 价值证据：阶段 A 交付后记录到至少一次「trace 看完仍需失败时刻数据才能定位」的真实 e2e 失败，写进本文件现状与证据；plan 前 spike 第二连接（技术笔记两项），不过则改为依赖 🚧 wa-sqlite / sqlite-wasm Worker / SharedWorker 传输的备份恢复（无故事文件） |
-| C    | ⬜   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                                   | AC#1～3、10～17 | 价值待证：须写出「今天用户踩得到的具体症状」才允许排期（CONVENTIONS 病灶数 ≥ 抽象数）；三框架 parity 铁律                                                                                                                                              |
+| 阶段 | 状态 | 交付                                                                                                                                                                            | 必过 AC         | 门禁                                                                                                                                                                                    |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | ⬜   | 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 `trace` 改为 `retain-on-failure`；CI 注释同步                                                                   | AC#1～3         | 无前置；plan 冻结开销上限与量法，实测即 AC#3                                                                                                                                            |
+| B    | ⬜   | Angular e2e 失败现场数据归档（同库名的主线程 IDB 第二连接 `backup()`，原样导出，作为 test 附件）+ `dev-rxdb-angular` 导入入口（主线程 IDB 连接在 `connect()` 前恢复到新的空库） | AC#1～3、4～9   | 价值证据门禁已豁免（排期决定）；plan 前 spike 第二连接（技术笔记两项），不过则改为依赖 🚧 wa-sqlite / sqlite-wasm Worker / SharedWorker 传输的备份恢复（无故事文件，另立由 owner 决定） |
+| C    | ⬜   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                                   | AC#1～3、10～17 | 价值待证门禁（CONVENTIONS 病灶数 ≥ 抽象数）已豁免（排期决定）；三框架 parity 铁律                                                                                                       |
+
+**排期决定（owner，2026-10-01）**：A / B / C 全做，按 A → B → C 顺序交付，每个阶段单独 plan。B / C 的价值门禁豁免；B 的第二连接
+spike 是可行性门禁，不豁免；三框架 parity 照旧。
 
 AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶段 B 的失败处理不得吞掉原始失败，也不得挤掉 trace。一个 PR 只交付一个阶段。
 阶段 B / C 不伪造数据侧关联：B 的数据来自真实库导出、导出前不改动库，C 的 commit 标记来自真实 commit 生命周期，都不按时间戳事后反查 commit。
@@ -159,8 +162,9 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 - **阶段 A 的模式：`retain-on-failure`。** 两种只留失败的模式在首次尝试上开销相同（都录），差别只在 CI 的重试：
   `retain-on-failure` 重试也录、每次失败都留；`retain-on-first-failure` 不录重试，首次失败后重试又以另一种方式失败时，第二种
   失败没有 trace。重试只跟在失败后面，多录的开销只落在失败用例上，所以取前者，代价是硬失败在 CI 上留三份 trace。本地
-  `--retries=0` 下 `on-first-retry` 等于不录，AC#3 量的就是「录与不录」的差；超限时的调节杆是 trace 内容选项（`screenshots` /
-  `snapshots` / `sources`），不是保留模式。保留期沿用既有产物通道：本地是 `outputDir`，CI 是 artifact 7 天。
+  `--retries=0` 下 `on-first-retry` 等于不录，AC#3 量的就是「录与不录」的差。超限时唯一的调节杆是 `screenshots`：`snapshots`
+  是 AC#1 的验收内容；`sources` / `attachments` 只在保留的 trace 上收集，通过的用例不付这份开销；两种只留失败的模式首次尝试都录，
+  换模式也省不下。保留期沿用既有产物通道：本地是 `outputDir`，CI 是 artifact 7 天。
 - **阶段 B 的数据怎么带出来：原样导出，经第二个主线程连接。** e2e 跑在 Playwright 默认的临时浏览器上下文里，上下文关闭时
   IDB 里的库连同提交历史一起丢弃，只能在上下文关闭前导出。demo 自己的 adapter 实例走 SharedWorker，`backup()` 被拒（现状与
   证据第 4 条）；失败处理经页内测试 API（仿 [`search-demo-api.ts`](../../../packages/rxdb-test/src/testing/search-demo-api.ts) 的

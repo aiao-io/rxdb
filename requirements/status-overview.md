@@ -9,26 +9,27 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 68   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 25   |
+| 📝 Backlog     | 24   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 94   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **25 条 Backlog 里只有 3 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
+> **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-027](stories/core/US-027-entity-permission-model.md) + [US-028](stories/core/US-028-sortable-entity.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
-| Story                                                                          | 当前进度                                                                                 |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported` |
+| Story                                                                                      | 当前进度                                                                                 |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported` |
+| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 实现中（AC#1 → AC#3 → AC#2）；B 待第二连接 spike，C 未开始                        |
 
 ## 待评审（0 条）
 
@@ -106,7 +107,7 @@
 - ⬜ [US-029 多用户 RBAC 权限与租户隔离的关联设计](stories/core/US-029-rbac-tenant-permission-design.md) — `ownerId` / `tenantId` 字段预留与权限谓词扩展：pull 过滤 / push 裁决配合点与三框架行级只读派生；四阶段交付。阶段 A 要给存量库补列（`#ensureEntityTables` 只补表不补列），阶段 B 依赖 US-027，阶段 C 的租户过滤今天只有 Supabase 有通道
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
-- ⬜ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — 阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`，无前置、可开工；阶段 B 失败现场数据原样归档与导入，以一次 trace 不够用的真实失败为价值证据门禁；demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），Angular 走的 IDB 档经同库名的主线程第二连接绕开（plan 前 spike，不过才依赖 🚧 传输侧备份恢复）；阶段 C 应用内 rrweb 录制插件与三框架组件价值待证
+- 🚧 [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`，实现中；阶段 B 失败现场数据原样归档与导入；demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），Angular 走的 IDB 档经同库名的主线程第二连接绕开（plan 前 spike，不过才依赖 🚧 传输侧备份恢复）；阶段 C 应用内 rrweb 录制插件与三框架组件
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
 

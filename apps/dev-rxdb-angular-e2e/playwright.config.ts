@@ -48,8 +48,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* Record a trace for every attempt and keep it only when the attempt fails. See https://playwright.dev/docs/trace-viewer */
+    trace: 'retain-on-failure',
     actionTimeout: isCI ? 15000 : 10000,
     navigationTimeout: isCI ? 30000 : 15000
   },

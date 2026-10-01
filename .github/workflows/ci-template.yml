@@ -867,7 +867,9 @@ jobs:
         # $EXCLUDE_DEPS 刻意不加引号：空串要被 shell 吃掉，加引号会变成一个空参数传给 nx。
         run: pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
 
-      # 失败复盘用。`trace: 'on-first-retry'` 在各 config 里都开着，重试产生的
+      # 失败复盘用。web demo e2e 与 devtools 扩展 e2e 的 config 都是 `trace: 'retain-on-failure'`：
+      # 每次尝试都录，只留失败的尝试（重试转绿的用例，首次失败那次的 trace 也在）。
+      # electron e2e 经 `_electron.launch()` 起应用，config 的 trace 对它不生效。
       # trace.zip 落在 test-output/playwright/output/ 下：
       #   pnpm exec playwright show-trace <zip>
       # 第二条 path 是为了兜住 dev-rxdb-react-e2e —— 它覆写了 reporter，
