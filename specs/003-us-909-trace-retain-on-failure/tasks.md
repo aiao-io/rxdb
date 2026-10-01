@@ -124,35 +124,36 @@ AC#2 在临时分支上验；AC#3 是量测记录。不加常驻测试（researc
 
 ## Phase 4: AC#3 — 开销在冻结上限内 (Priority: P1)
 
-**Goal**: 按 research D5 冻结的量法，angular 全量 `stats.duration` 中位数增幅 ≤ +10%，off 臂噪声 ≤ 5%（故事 AC#3）
+**Goal**: 按 research D5 冻结的量法，angular 全量 `stats.duration` 中位数增幅 ≤ +10%，off 臂噪声 ≤ 5%（故事 AC#3）。实测走完 D6 仍超限，用户裁决上限改为 +33%（research D6）
 
 **Independent Test**: `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv` 最后一节是 `# verdict: valid-pass`
 
 > 量法已冻结，实现阶段只执行、不改，要改先回到 plan。记录格式与判定表见 data-model §5，每轮命令见 quickstart AC#3 第 3 步
 
-- [ ] T024 [AC3] 独占机器（停顿点，先问用户）：请用户让 Codex 等并行会话空闲，停掉 `/Users/jimmy/Documents/aiao/rxdb_ai_doc` 的 nx 任务与本仓库的 `nx graph --watch`；确认后核对 `ps -axo pid,etime,command` 里没有别的 nx 任务 / vite / playwright，`git status --short` 没有外来改动，记下 `sysctl -n vm.loadavg`。发现并发写入就停手，和用户商量分工
-- [ ] T025 [AC3] `mkdir -p "$TMPDIR/us909-ac3"`，按 data-model §5 写 `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv` 的头部：
+- [x] T024 [AC3] 独占机器（停顿点，先问用户）：请用户让 Codex 等并行会话空闲，停掉 `/Users/jimmy/Documents/aiao/rxdb_ai_doc` 的 nx 任务与本仓库的 `nx graph --watch`；确认后核对 `ps -axo pid,etime,command` 里没有别的 nx 任务 / vite / playwright，`git status --short` 没有外来改动，记下 `sysctl -n vm.loadavg`。发现并发写入就停手，和用户商量分工
+- [x] T025 [AC3] `mkdir -p "$TMPDIR/us909-ac3"`，按 data-model §5 写 `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv` 的头部：
   - `# machine:`（`sysctl -n hw.model hw.ncpu hw.memsize`）、`# os:`（`sw_vers -productVersion`）、`# node:`（`node -v`）、
     `# playwright:`（`pnpm exec playwright --version`）
   - `# head:`（`git rev-parse HEAD`，后接 `git diff --stat` 的汇总行）、`# trace: 'retain-on-failure'`
   - `# cmd_off:` / `# cmd_on:`：quickstart AC#3 第 3 步两臂的完整命令
   - `# n: 5`、`# order: w1 off, w2 on; off on on off off on on off off on`、`# started:`（UTC，ISO 8601）；`# ended:` 留到 T028 回填
   - 列头一行，tab 分隔：`seq arm started_at load1 duration_ms expected unexpected skipped flaky json note`
-- [ ] T026 [AC3] 预热：在 `apps/dev-rxdb-angular-e2e` 下按 quickstart AC#3 第 3 步跑 `w1`（off）、`w2`（on），各记一行，不进中位数；按 w1 的耗时估总时长（N=5 共 12 轮），告诉用户
-- [ ] T027 [AC3] 正式 N=5：顺序 `off on on off off on on off off on`，seq `1`…`10`。每轮先记 `started_at` 与 `load1`，跑对应臂的命令，用 quickstart 的 node 单行取 `duration_ms expected unexpected skipped flaky`，追加一行（`json` 填报告文件名）。`unexpected` > 0 时 `note` 记 `failed: <用例名>`，同一序号立即重跑一次（seq 加 `r`），重跑行进中位数。全程不跑 nx、不切 commit、不重建，除追加 TSV 外不动工作树。可把这套命令写成驱动脚本放在 `$TMPDIR/us909-ac3/`（不进仓库）后台跑
-- [ ] T028 [AC3] 派生值与判定：在 `ac3-runs.tsv` 末尾追加 `# median_off`、`# median_on`、`# increase`（`median_on / median_off − 1`）、`# noise_off`（off 臂有效行的 `(max − min) / median`）与 `# verdict`，回填 `# ended`。按「无效 → 噪声 → 增幅」的顺序判：`invalid`（同一序号重跑仍失败；或失败总数含预热 ≥ 2；或有效行之间 `expected` / `skipped` 不一致）→ `noisy`（`noise_off` > 5%）→ `valid-pass`（`increase` ≤ +10%）/ `valid-over`（> +10%）
-- [ ] T029 [AC3] 仅当 `noisy`：静置机器，整组（含预热）按 N=9 重跑，顺序 `off on on off off on on off off on on off off on on off off on`，在同一文件追加新的一节（新头部 `# n: 9`、新行、新派生值）；仍超 5% 即 `noisy-again`，停下带数据报告
-- [ ] T030 [AC3] 仅当 `valid-over`（research D6 第 1 步）：
+- [x] T026 [AC3] 预热：在 `apps/dev-rxdb-angular-e2e` 下按 quickstart AC#3 第 3 步跑 `w1`（off）、`w2`（on），各记一行，不进中位数；按 w1 的耗时估总时长（N=5 共 12 轮），告诉用户
+- [x] T027 [AC3] 正式 N=5：顺序 `off on on off off on on off off on`，seq `1`…`10`。每轮先记 `started_at` 与 `load1`，跑对应臂的命令，用 quickstart 的 node 单行取 `duration_ms expected unexpected skipped flaky`，追加一行（`json` 填报告文件名）。`unexpected` > 0 时 `note` 记 `failed: <用例名>`，同一序号立即重跑一次（seq 加 `r`），重跑行进中位数。全程不跑 nx、不切 commit、不重建，除追加 TSV 外不动工作树。可把这套命令写成驱动脚本放在 `$TMPDIR/us909-ac3/`（不进仓库）后台跑
+- [x] T028 [AC3] 派生值与判定：在 `ac3-runs.tsv` 末尾追加 `# median_off`、`# median_on`、`# increase`（`median_on / median_off − 1`）、`# noise_off`（off 臂有效行的 `(max − min) / median`）与 `# verdict`，回填 `# ended`。按「无效 → 噪声 → 增幅」的顺序判：`invalid`（同一序号重跑仍失败；或失败总数含预热 ≥ 2；或有效行之间 `expected` / `skipped` 不一致）→ `noisy`（`noise_off` > 5%）→ `valid-pass`（`increase` ≤ +10%）/ `valid-over`（> +10%）
+- [x] T029 [AC3] 仅当 `noisy`：静置机器，整组（含预热）按 N=9 重跑，顺序 `off on on off off on on off off on on off off on on off off on`，在同一文件追加新的一节（新头部 `# n: 9`、新行、新派生值）；仍超 5% 即 `noisy-again`，停下带数据报告
+- [x] T030 [AC3] 仅当 `valid-over`（research D6 第 1 步）：
   - 六个配置一起改成 `trace: { mode: 'retain-on-failure', screenshots: false }`（扩展 e2e 即
     `use: { trace: { mode: 'retain-on-failure', screenshots: false } }`），配置里的注释不动；`ci-template.yml` 注释首行的
     `trace: 'retain-on-failure'` 随之改成对象写法的说法（偏离 data-model §1 原文，报告时标出）
   - 在同一文件追加一节原样重量：`# trace:` 记新值，含预热；off 臂命令不变，CLI 的 `--trace` 只替换 `mode`
   - 量完临时加回 T007 / T008 的探针，重跑 T019 / T020，确认 AC#1 仍成立，再删掉
   - 仍 `valid-over`：AC#1 与 AC#3 冲突，停下，带数据交用户裁决；不退回旧模式，不放宽上限
+  - 结果：重量 +32.7%，仍超限；用户裁决上限改为 +33%、保留 `screenshots: false`（research D6）。AC#1 在新配置上重核通过
 
 **停止条件**：`invalid` → 停下排查，失败用例按产品缺陷线索报告；`noisy-again`、D6 后仍超限 → 停下，带数据报告。
 
-- [ ] T031 [AC3] 回写故事 `requirements/stories/future/US-909-session-replay-debugging.md` 的验收标准表：AC#1 预期结果格末尾追加「结论：…」（探针先红后绿；angular 与扩展各恰好一份 `trace.zip`；快照 `after,before`；扩展 trace 含 `chrome-extension://`），状态 ✅；AC#3 同样追加「结论：…」（两臂中位数、增幅、off 臂噪声、N、verdict，走了 D6 就注明 `screenshots: false`；原始记录见 `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv`，写成代码而非链接），状态 ✅
+- [x] T031 [AC3] 回写故事 `requirements/stories/future/US-909-session-replay-debugging.md` 的验收标准表：AC#1 预期结果格末尾追加「结论：…」（探针先红后绿；angular 与扩展各恰好一份 `trace.zip`；快照 `after,before`；扩展 trace 含 `chrome-extension://`），状态 ✅；AC#3 同样追加「结论：…」（两臂中位数、增幅、off 臂噪声、N、verdict，走了 D6 就注明 `screenshots: false`；原始记录见 `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv`，写成代码而非链接），状态 ✅
 
 **Checkpoint**: AC#1、AC#3 都在最终配置上成立，可以提交
 
@@ -193,7 +194,7 @@ AC#2 在临时分支上验；AC#3 是量测记录。不加常驻测试（researc
 - [ ] T041 派生视图改为「阶段 A 已交付」：`requirements/status-overview.md` 的进行中表 US-909 行（阶段 A 已交付；B 待第二连接 spike，C 未开始）与 epic-004 小节 US-909 行；`requirements/roadmap.md` 未完成需求全景表 US-909 行的「剩什么」与批次 3 的 US-909 行。`requirements/epics/epic-004-future-features.md` 的故事清单不带状态，不改；31 行目标保持 `[ ]`（B / C 未交付）。`pnpm run audit:requirements` 通过
 - [ ] T042 交付前自检：`NX_DAEMON=false pnpm nx format:check --base=main` 通过；`git diff main --stat` 不含任何 `us909-*probe*` 文件
 - [ ] T043 🔒 提交 T040 / T041 的改动（`docs(aiao): 回写 US-909 阶段 A 的验收结论`，结尾 Co-Authored-By）；`git push origin rrweb`；`gh pr create --base main --head rrweb --title "chore(aiao): e2e 失败尝试保留 trace（US-909 阶段 A）" --body …`（正文：改动、AC#1～3 结论摘要、AC#2 临时 PR 链接，说明探针不在本 PR；结尾 `🤖 Generated with [Claude Code](https://claude.com/claude-code)`）。pre-push 钩子与 CI 的 PR 标题 lint 都要过
-- [ ] T044 交付 PR 的 CI：先按 T035 的方法核 headSha，`ci / gate` 绿；红了先读日志，修复的提交与推送另行放行。不设门禁的观察：`ci / e2e (angular)` 的 E2E 步骤时长对照 main 的 4:17–5:12，超过约 5:43 就报告用户，不阻塞交付
+- [ ] T044 交付 PR 的 CI：先按 T035 的方法核 headSha，`ci / gate` 绿；红了先读日志，修复的提交与推送另行放行。不设门禁的观察：`ci / e2e (angular)` 的 E2E 步骤时长对照 main 的 4:17–5:12，超过约 6:55（区间上沿 × 1.33，随上限裁决从 5:43 改来）就报告用户，不阻塞交付
 - [ ] T045 🔒 合并后（合并由用户操作）：按 specs/001、002 的先例删除 `specs/003-us-909-trace-retain-on-failure/`，故事里指向本目录的引用改成 `git show <合并 sha>:specs/003-us-909-trace-retain-on-failure/<文件>`，可随阶段 B 的第一个 PR 一起提交；阶段 B 开工时 `.specify/feature.json` 改指新的特性目录
 
 ---
@@ -262,7 +263,7 @@ Task: T017 "ci-template.yml 注释整段替换"
 
 1. Setup + Foundational → 开工登记、基线确认
 2. AC#1 → 本地失败有 trace（MVP）
-3. AC#3 → 开销在 +10% 以内（必要时经 D6）
+3. AC#3 → 开销在冻结上限以内（+10%，必要时经 D6；实测后用户裁决改为 +33%）
 4. AC#2 → CI 上首次失败那次的 trace 在 artifact 里
 5. Polish → 回写、派生视图、交付 PR；合并后删特性目录
 

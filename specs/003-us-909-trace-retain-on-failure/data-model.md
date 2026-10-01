@@ -124,7 +124,9 @@ CI 的「Upload Playwright artifacts」上传这两棵目录，保留 7 天。�
   `(max − min) / median`）与 `# verdict`。
 - N=9 重跑、D6 第 1 步的重量都在同一文件追加新的一节：新的头部、新的行、新的派生值。
 
-判定按「无效 → 噪声 → 增幅」的顺序：
+判定按「无效 → 噪声 → 增幅」的顺序。实现期修订（research D5，2026-10-01）：`noise_off` > 5% 时先看极值比，
+`min_on / max_off − 1` > +10% 直接判 `valid-over`，`max_on / min_off − 1` ≤ +10% 直接判 `valid-pass`，都不满足才判
+`noisy` / `noisy-again`。用了极值比的一节在派生值里补 `# bounds`（两个比值）。
 
 | verdict       | 条件                                                                                    | 动作                                 |
 | ------------- | --------------------------------------------------------------------------------------- | ------------------------------------ |
@@ -133,6 +135,8 @@ CI 的「Upload Playwright artifacts」上传这两棵目录，保留 7 天。�
 | `noisy-again` | N=9 时 `noise_off` 仍 > 5%                                                              | 停下，带数据报告                     |
 | `valid-pass`  | 噪声达标，`increase` ≤ +10%                                                             | AC#3 通过                            |
 | `valid-over`  | 噪声达标，`increase` > +10%                                                             | 走 research D6 第 1 步               |
+
+D6 走完仍超限，用户裁决把上限改为 +33%（research D6）。
 
 存放：TSV 随交付 PR 提交；交付后特性目录按 specs/001、002 的先例删除，数据留在 git 历史里。JSON 报告留在 `$TMPDIR/us909-ac3/`，
 不提交。结论摘要（两臂中位数、增幅、噪声、N、verdict）回写故事 AC#3。

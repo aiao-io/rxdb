@@ -64,6 +64,9 @@ NEEDS CLARIFICATION。
     静置机器，整组按 N=9 重跑。失败轮的处置与判定表见 [data-model §5](data-model.md#5-ac3-记录)。
   - 构建只做一次，之后量测全程不跑 nx；机器独占：没有别的 nx 任务 / vite / playwright，并行会话空闲，`git status` 没有外来改动。
   - 实现阶段只执行这套量法，不改；要改先回到 plan。
+  - 实现期修订（2026-10-01，用户批准）：噪声超标时先看两臂的极值比。`min_on / max_off − 1` > +10% 直接判 `valid-over`，
+    `max_on / min_off − 1` ≤ +10% 直接判 `valid-pass`，两者都不满足才按噪声流程走 `noisy` / `noisy-again`。起因：本机 off 臂天然
+    有 7%～8% 的极差，N=5、N=9 两组都卡在噪声门，而两臂区间完全不重叠、增幅 +37%，噪声门挡住的只是一个不会翻转的结论。
 - **Rationale**:
   - 上限按可接受的代价定，不按预估的开销定。CI 上 e2e job 都不在 PR 关键路径上：PR 的墙钟由最长的单测分片决定
     （`test (rxdb-client-generator +14)`，22:24–22:50），而 angular 的 E2E 步骤是 4:17–5:12，+10% 约多 26～31 s，不拉长 PR 等待。
@@ -91,8 +94,11 @@ NEEDS CLARIFICATION。
 ## D6. 超限阶梯
 
 - **Decision**:
-  1. 六个配置一起改成 `trace: { mode: 'retain-on-failure', screenshots: false }`，按 D5 原样重量。off 臂仍然成立（CLI 字符串只替换 `mode`）。
+  1. 六个配置一起改成 `trace: { mode: 'retain-on-failure', screenshots: false }`，按 D5 原样重量（含 D5 的实现期修订）。off 臂仍然成立（CLI 字符串只替换 `mode`）。
   2. 仍超限：AC#1 与 AC#3 冲突，带数据交用户裁决。不单方面退回旧模式，也不单方面放宽上限。
+  - 实测与裁决（2026-10-01）：第 1 步后增幅仍 +32.7%（N=5，噪声 3.8%；screenshots 开着时 +36.4% / +37.1%），开销主体是 DOM
+    快照与 network / console 事件，没有不破坏 AC#1 的开关。用户裁决接受开销：上限改为 +33%（实测取整），保留
+    `screenshots: false`。数据见 `ac3-runs.tsv` 第三节。
 - **Rationale**: 通过的用例付出的录制开销来自 DOM 快照、screencast 帧与 network / console 事件，其中只有前两项有开关。`snapshots` 是
   AC#1 的验收内容；`sources` / `attachments` 只在保留的 trace 合并时收集，通过的用例不付这份开销，关了也省不下 AC#3 量的时间；
   保留模式也不是调节杆，`--retries=0` 下两种只留失败的模式都录首次尝试，开销相同。剩下的只有 `screenshots`，关掉它丢的是时间轴

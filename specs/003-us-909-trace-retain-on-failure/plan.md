@@ -17,7 +17,8 @@ B / C 的价值门禁豁免，按 A → B → C 顺序交付，各自另开特�
 `ci-template.yml` 里描述 trace 模式的注释同步。产物通道（`test-output/playwright/**` 上传为 artifact，保留 7 天）不动。
 
 AC#3 的量法在本 plan 冻结：angular 全量、`--retries=0`、两臂交错各 N=5 轮，比 JSON 报告 `stats.duration` 的中位数，
-增幅上限 +10%。超限时唯一的调节杆是 `screenshots`（[research D6](research.md)）。
+增幅上限 +10%。超限时唯一的调节杆是 `screenshots`（[research D6](research.md)）。实测走完 D6 仍超限，用户裁决把上限改为
++33% 并保留 `screenshots: false`（research D6）。
 
 验证：AC#1 用临时探针先红后绿；AC#2 在临时分支 + draft PR 上验证，推送与开 PR 由用户放行；探针都不进交付 PR。
 

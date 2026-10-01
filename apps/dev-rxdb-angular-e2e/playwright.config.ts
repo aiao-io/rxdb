@@ -49,7 +49,7 @@ export default defineConfig({
   use: {
     baseURL,
     /* Record a trace for every attempt and keep it only when the attempt fails. See https://playwright.dev/docs/trace-viewer */
-    trace: 'retain-on-failure',
+    trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: isCI ? 15000 : 10000,
     navigationTimeout: isCI ? 30000 : 15000
   },

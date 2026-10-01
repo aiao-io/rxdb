@@ -144,5 +144,5 @@ pnpm nx run rxdb-devtools-extension-e2e:prepare           # 扩展与 fixture �
      原样重量；AC#1 第 3 步临时加回探针再跑一遍，跑完删掉。仍超限就带数据交用户裁决。
    - `invalid` / `noisy-again`：停下，带数据报告。
 6. 结论摘要回写故事 AC#3；🔒 TSV 随交付 PR 提交，JSON 报告留在 `$TMPDIR/us909-ac3/`。
-7. 不设门禁的 CI 观察：交付 PR 里 `ci / e2e (angular)` 的 E2E 步骤时长，对照 main 最近三次成功 run 的 4:17–5:12。超过约 5:43
-   （区间上沿再加 10%）就报告用户，不阻塞交付：每次推送只有一个样本，共享 runner 的噪声也大。
+7. 不设门禁的 CI 观察：交付 PR 里 `ci / e2e (angular)` 的 E2E 步骤时长，对照 main 最近三次成功 run 的 4:17–5:12。超过约 6:55
+   （区间上沿乘以 1.33，随 research D6 的上限裁决从 5:43 改来）就报告用户，不阻塞交付：每次推送只有一个样本，共享 runner 的噪声也大。

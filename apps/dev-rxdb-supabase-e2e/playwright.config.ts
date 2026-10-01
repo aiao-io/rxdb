@@ -47,7 +47,7 @@ export default defineConfig({
   use: {
     baseURL,
     /* 每次尝试都录 trace，只保留失败的尝试，见 https://playwright.dev/docs/trace-viewer */
-    trace: 'retain-on-failure',
+    trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: isCI ? 20000 : 10000,
     navigationTimeout:
       isRemoteE2E ? 60_000
