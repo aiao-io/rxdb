@@ -1277,9 +1277,13 @@ jobs:
           # affected 模式：改了 packages/ apps/ modules/ 下的源码，却一个测试项目
           # 都没被算进来，说明 nx-set-shas 的 base/head 或项目图坏了。
           # 只改 docs/ 或根配置时 code_changed=false，此时 has_tests=false 是正常的。
+          # 四类测试任一有项目即可：只改 apps/*-e2e 时没有 test target，只有 e2e 矩阵。
           if [ "${{ needs.setup.outputs.code_changed }}" = "true" ] \
-            && [ "${{ needs.setup.outputs.has_tests }}" != "true" ]; then
-            echo "❌ 本次改动落在 packages/ apps/ modules/ 内，但 affected 没算出任何 test 项目。"
+            && [ "${{ needs.setup.outputs.has_tests }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_test_browser }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_acceptance }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_e2e }}" != "true" ]; then
+            echo "❌ 本次改动落在 packages/ apps/ modules/ 内，但 affected 没算出任何测试项目（test / test-browser / acceptance / e2e）。"
             echo "   多半是 nx-set-shas 的 base/head 没解析对（浅克隆？base 分支没 fetch？），"
             echo "   或者项目图坏了。这类情况会让 CI 一片绿却什么都没测，必须拦住。"
             exit 1
