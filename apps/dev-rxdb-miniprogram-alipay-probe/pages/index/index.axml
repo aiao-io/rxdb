@@ -1,0 +1,8 @@
+<view class="page">
+  <view class="status">支付宝可行性探针：{{status}}</view>
+  <view class="actions">
+    <button size="mini" onTap="copy">复制报告</button>
+    <button size="mini" onTap="rerun">重新运行</button>
+  </view>
+  <text class="report" selectable="{{true}}">{{report}}</text>
+</view>

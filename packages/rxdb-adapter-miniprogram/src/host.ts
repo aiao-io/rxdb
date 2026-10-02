@@ -21,13 +21,68 @@ export class MiniProgramUnknownPlatformError extends Error {
   /** 当前已登记的平台 id。 */
   readonly knownPlatforms: readonly MiniProgramPlatformId[] = MINI_PROGRAM_PLATFORM_IDS;
 
-  constructor(platform: unknown) {
-    super(
-      `未知小程序平台: ${String(platform)}；已知平台: ${MINI_PROGRAM_PLATFORM_IDS.join(', ')}。` +
-        `平台可行性结论见 ${PLATFORM_FEASIBILITY_PATH}`
-    );
+  /**
+   * @param platform - 调用方传入的平台 id
+   * @param message - 子类给出的完整报错；省略时用未知平台的标准文案
+   */
+  constructor(
+    platform: unknown,
+    message = `未知小程序平台: ${String(platform)}；已知平台: ${MINI_PROGRAM_PLATFORM_IDS.join(', ')}。` +
+      `平台可行性结论见 ${PLATFORM_FEASIBILITY_PATH}`
+  ) {
+    super(message);
     this.name = 'MiniProgramUnknownPlatformError';
     this.platform = String(platform);
+  }
+}
+
+/** 可行性矩阵判 `unsupported` 的一个平台：报错要带出的判定依据。 */
+export interface MiniProgramUnsupportedPlatform {
+  /** 报错里的平台名。 */
+  readonly displayName: string;
+  /** 与矩阵 YAML 的 `blockers` 逐项一致。 */
+  readonly blockers: readonly string[];
+  /** 判定理由的一句话摘要，全文在矩阵对应章节。 */
+  readonly reason: string;
+  /** 矩阵里该平台章节的标题原文。 */
+  readonly section: string;
+}
+
+/**
+ * 可行性矩阵判 `unsupported` 的平台。它们不在 {@link MINI_PROGRAM_PLATFORM_IDS} 里，传入时抛
+ * {@link MiniProgramUnsupportedPlatformError} 并带出判定依据；矩阵改判时两张表一起改，测试逐项核对。
+ *
+ * 包内共用，不从包入口导出。
+ */
+export const MINI_PROGRAM_UNSUPPORTED_PLATFORMS: Readonly<Record<string, MiniProgramUnsupportedPlatform>> =
+  Object.freeze({
+    alipay: Object.freeze({
+      displayName: '支付宝小程序',
+      blockers: Object.freeze(['wasm-worker-only', 'no-documented-secure-random']),
+      reason:
+        'MYWebAssembly 只能在 Worker 线程使用，与 wa-sqlite 在逻辑层单 realm 同步运行的设计冲突；也没有文档化的安全随机 API',
+      section: '支付宝 `my` — unsupported'
+    })
+  });
+
+/**
+ * 传入的平台 id 被可行性矩阵判为 `unsupported`。
+ *
+ * 继承 {@link MiniProgramUnknownPlatformError}：这些平台同样不在登记表里，已有的 `instanceof` 判断照常生效。
+ */
+export class MiniProgramUnsupportedPlatformError extends MiniProgramUnknownPlatformError {
+  /** 矩阵 YAML 里该平台的 `blockers`。 */
+  readonly blockers: readonly string[];
+
+  constructor(platform: string, entry: MiniProgramUnsupportedPlatform) {
+    super(
+      platform,
+      `${entry.displayName}（${platform}）不支持：${entry.reason}。阻断项: ${entry.blockers.join(', ')}；` +
+        `已知平台: ${MINI_PROGRAM_PLATFORM_IDS.join(', ')}。` +
+        `判定理由与复议条件见 ${PLATFORM_FEASIBILITY_PATH} 的「${entry.section}」一节`
+    );
+    this.name = 'MiniProgramUnsupportedPlatformError';
+    this.blockers = entry.blockers;
   }
 }
 
@@ -36,9 +91,18 @@ export function isMiniProgramPlatformId(value: unknown): value is MiniProgramPla
   return (MINI_PROGRAM_PLATFORM_IDS as readonly unknown[]).includes(value);
 }
 
-/** 未登记的平台 id 直接抛 {@link MiniProgramUnknownPlatformError}。 */
+/**
+ * 未登记的平台 id 直接抛错：矩阵判 `unsupported` 的抛 {@link MiniProgramUnsupportedPlatformError}，
+ * 其余抛 {@link MiniProgramUnknownPlatformError}。
+ */
 export function assertMiniProgramHostPlatform(host: MiniProgramHost): void {
-  if (!isMiniProgramPlatformId(host.platform)) throw new MiniProgramUnknownPlatformError(host.platform);
+  const platform: unknown = host.platform;
+  if (isMiniProgramPlatformId(platform)) return;
+  // hasOwn 挡住 constructor / __proto__ 这类原型链上的键
+  if (typeof platform === 'string' && Object.hasOwn(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, platform)) {
+    throw new MiniProgramUnsupportedPlatformError(platform, MINI_PROGRAM_UNSUPPORTED_PLATFORMS[platform]);
+  }
+  throw new MiniProgramUnknownPlatformError(platform);
 }
 
 /** 平台随机源在报错里的名字：API 全名（如 `wx.getRandomValues`）与缺失时的整句。 */

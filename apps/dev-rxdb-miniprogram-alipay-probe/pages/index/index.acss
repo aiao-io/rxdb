@@ -1,0 +1,18 @@
+.page {
+  padding: 24rpx;
+}
+.status {
+  font-size: 32rpx;
+  margin-bottom: 16rpx;
+}
+.actions {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+.report {
+  font-family: monospace;
+  font-size: 20rpx;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

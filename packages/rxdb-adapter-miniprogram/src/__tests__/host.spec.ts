@@ -90,7 +90,8 @@ describe('MiniProgramHost 平台 id', () => {
   });
 
   it('未知平台 id 抛稳定错误，列出已知平台并指向可行性文件', () => {
-    const host = createFakeHost({ platform: 'alipay' as MiniProgramHost['platform'] });
+    // 京东是矩阵观察档（unknown），不在拒绝表里；判 unsupported 的平台见 unsupported-platform.spec.ts
+    const host = createFakeHost({ platform: 'jd' as MiniProgramHost['platform'] });
 
     const error = (() => {
       try {
@@ -102,10 +103,10 @@ describe('MiniProgramHost 平台 id', () => {
     })();
 
     expect(error).toBeInstanceOf(MiniProgramUnknownPlatformError);
-    expect((error as MiniProgramUnknownPlatformError).platform).toBe('alipay');
+    expect((error as MiniProgramUnknownPlatformError).platform).toBe('jd');
     expect((error as MiniProgramUnknownPlatformError).knownPlatforms).toEqual(['wechat', 'douyin']);
     expect((error as Error).message).toBe(
-      '未知小程序平台: alipay；已知平台: wechat, douyin。' +
+      '未知小程序平台: jd；已知平台: wechat, douyin。' +
         '平台可行性结论见 requirements/stories/adapter/miniprogram-platform-feasibility.md'
     );
   });

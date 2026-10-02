@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-16
-updated: 2026-10-02
+updated: 2026-10-03
 tags: [adapter, miniprogram, alipay, douyin, baidu, qq, wa-sqlite, experimental, multi-platform]
 ---
 
@@ -27,11 +27,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                                                                           | AC 区段   | 门禁                                                                |
-| ---- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------- |
-| A    | ✅   | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                                                                                                                  | AC#1～8   | US-209 已 Done；**不**把任何新平台标成受支持                        |
-| B    | ⚠️   | 第一个非微信 host：抖音 `tt`。v9 实验在开发者工具与 iOS 全 pass，已登记 `douyin`；Taro tt demo 开发者工具走查通过、iOS 真机走查通过，Android 真机未做（AC#14） | AC#9～15  | 阶段 A + 抖音 `decision: supported`                                 |
-| C    | ⬜   | 其余第一档平台：支付宝 / 百度 / QQ 已判 `unsupported`，只剩拒绝路径与文档口径；经复议改判 `supported` 的平台按阶段 B 标准实现                                  | AC#16～21 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
+| 阶段 | 状态 | 交付                                                                                                                                                                       | AC 区段   | 门禁                                                                |
+| ---- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------- |
+| A    | ✅   | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                                                                                                                              | AC#1～8   | US-209 已 Done；**不**把任何新平台标成受支持                        |
+| B    | ⚠️   | 第一个非微信 host：抖音 `tt`。v9 实验在开发者工具与 iOS 全 pass，已登记 `douyin`；Taro tt demo 开发者工具走查通过、iOS 真机走查通过，Android 真机未做（AC#14）             | AC#9～15  | 阶段 A + 抖音 `decision: supported`                                 |
+| C    | ⚠️   | 其余第一档平台：支付宝 / 百度 / QQ 已判 `unsupported`，只剩拒绝路径与文档口径；经复议改判 `supported` 的平台按阶段 B 标准实现。支付宝拒绝路径已交（AC#17），百度 / QQ 待做 | AC#16～21 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
 
 某平台判 `unsupported` 只关掉该平台，不连坐整条故事。阶段 B 分两个 PR：PR1 只做平台无关修复（`runtimeGlobal` / `fileLayout` /
 `defaultWasmPath` 三个宿主字段、配额报 `SQLITE_FULL` 并透传原文、同步 FS 五方法预检、sqlite-core 去 latin1），
@@ -138,14 +138,14 @@ INVEST 检查清单:
 
 ### 阶段 C — 支付宝 / 百度 / QQ
 
-| #   | 前置条件                                      | 操作                                                                                                              | 预期结果                                                                                        | 状态 |
-| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---- |
-| 16  | 某第一档平台经复议改判 `supported` 且尚未实现 | 按阶段 B 同等标准落地 host                                                                                        | AC#9～#14 对该平台同样成立                                                                      | ⬜   |
-| 17  | 某第一档平台矩阵为 `unsupported`              | 传入该平台 id                                                                                                     | 连接前失败，错误指向可行性文件中的原因；不存在「当成微信跑一下」的分支                          | ⬜   |
-| 18  | 第一档平台都处理完毕（实现或明确拒绝）        | 阅读 compatibility 专节                                                                                           | 四个第一档平台（含抖音）每行都有「实验性支持」或「不支持 + 原因」，没有「各种小程序」这种集合句 | ⬜   |
-| 19  | 观察档平台（京东等）                          | 传入其平台 id                                                                                                     | 一律按未知平台拒绝；矩阵里可以有 `unknown` 行，代码不得出现半成品 host                          | ⬜   |
-| 20  | 覆盖率门禁                                    | `pnpm nx test rxdb-adapter-miniprogram --coverage` 后跑 `pnpm audit:coverage --projects=rxdb-adapter-miniprogram` | 四项指标 ≥ 80%；低于 `coverage-baseline.json` 上次值时脚本只报 WARN，PR 里写明原因              | ⬜   |
-| 21  | 微信 + 已支持的非微信 host                    | 全量 `pnpm nx test rxdb-adapter-miniprogram`                                                                      | 全绿；平台 fixture 不得互相污染全局对象。`douyin-host.spec.ts`「AC#21 微信与抖音同进程」覆盖    | ✅   |
+| #   | 前置条件                                      | 操作                                                                                                              | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 状态 |
+| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 16  | 某第一档平台经复议改判 `supported` 且尚未实现 | 按阶段 B 同等标准落地 host                                                                                        | AC#9～#14 对该平台同样成立                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | ⬜   |
+| 17  | 某第一档平台矩阵为 `unsupported`              | 传入该平台 id                                                                                                     | 连接前失败，错误指向可行性文件中的原因；不存在「当成微信跑一下」的分支。支付宝已交：拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`（`host.ts`）登记 `alipay`，抛 `MiniProgramUnsupportedPlatformError`（继承未知平台错误，`blockers` 与矩阵 YAML 一致，文案带判定理由与章节标题）；预检、随机源准备、VFS、`createWaSqliteMiniProgramClient` 都在加载 wasm 与碰宿主能力前失败，不读 `wx`。`unsupported-platform.spec.ts` 用 `?raw` 解析矩阵核对两张表。2026-10-03 用开发者工具模拟器跑探针（`apps/dev-rxdb-miniprogram-alipay-probe`）复核：两项阻断都成立，Worker 里另外没有 `my`，阻断项不变，证据见矩阵支付宝一节「实验」。百度 / QQ 仍走未知平台错误（指向文件、不带原因），待登记 | ⚠️   |
+| 18  | 第一档平台都处理完毕（实现或明确拒绝）        | 阅读 compatibility 专节                                                                                           | 四个第一档平台（含抖音）每行都有「实验性支持」或「不支持 + 原因」，没有「各种小程序」这种集合句。专节已拆成逐平台表（微信 / 抖音 / 支付宝 / 百度 / QQ 各一行），原来「支付宝 / 百度 / QQ 不支持（缺…或…）」的集合句已删；前置条件要等百度 / QQ 的 AC#17                                                                                                                                                                                                                                                                                                                                                                                                                            | ⚠️   |
+| 19  | 观察档平台（京东等）                          | 传入其平台 id                                                                                                     | 一律按未知平台拒绝；矩阵里可以有 `unknown` 行，代码不得出现半成品 host。`unsupported-platform.spec.ts` 对矩阵里每个观察档 id 断言：不在拒绝表、抛 `MiniProgramUnknownPlatformError` 而非其子类                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ✅   |
+| 20  | 覆盖率门禁                                    | `pnpm nx test rxdb-adapter-miniprogram --coverage` 后跑 `pnpm audit:coverage --projects=rxdb-adapter-miniprogram` | 四项指标 ≥ 80%；低于 `coverage-baseline.json` 上次值时脚本只报 WARN，PR 里写明原因。2026-10-03（支付宝 PR）：statements 98.44 / branches 96.46 / functions 100 / lines 98.66，门禁通过；statements、lines 低于基线 99 报 WARN。原因不在本 PR（`host.ts` 100%）：基线记于 2026-09-23，阶段 B 之后 `structured-clone-polyfill.ts`（86%）与 `subframe-glue.ts`（80%）拉低总数                                                                                                                                                                                                                                                                                                         | ✅   |
+| 21  | 微信 + 已支持的非微信 host                    | 全量 `pnpm nx test rxdb-adapter-miniprogram`                                                                      | 全绿；平台 fixture 不得互相污染全局对象。`douyin-host.spec.ts`「AC#21 微信与抖音同进程」覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。因可行性 `unsupported` 而跳过的条目标 ⬜，
 并在行内注记「因可行性 `unsupported` 跳过」——不引入模板之外的符号。
@@ -212,21 +212,23 @@ INVEST 检查清单:
 
 ## 实现文件
 
-| 阶段 | 路径                                                                        | 职责                                                                          |
-| ---- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| A    | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts`           | `MiniProgramHost` / 平台登记表 `MINI_PROGRAM_PLATFORM_IDS`                    |
-| A    | `packages/rxdb-adapter-miniprogram/src/host.ts`                             | `resolveMiniProgramHost`、微信 host 工厂、未知平台错误                        |
-| A    | `packages/rxdb-adapter-miniprogram/src/error-message.ts`                    | 从 `errMsg` / `message` 取报错文案，VFS 与 host 共用                          |
-| A    | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts`                  | 通用文件 VFS；微信封装保留                                                    |
-| A    | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts`             | 按 host 预检；微信文案不变                                                    |
-| A    | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts`                | host 随机源；`wx` 路径保留                                                    |
-| A    | `requirements/stories/adapter/miniprogram-platform-feasibility.md`          | 可行性矩阵                                                                    |
-| B/C  | `packages/rxdb-adapter-miniprogram/src/hosts/<id>.ts`                       | 每平台一个 host 工厂，禁止共享「像 wx 的全局」                                |
-| B/C  | `packages/rxdb-adapter-miniprogram/src/__tests__/`                          | 每平台 fixture，不碰真实微信全局                                              |
-| B/C  | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md` | 按已关闭阶段改口径                                                            |
-| B    | `packages/rxdb-adapter-miniprogram/src/hosts/douyin.ts`                     | `createDouyinMiniProgramHost`：分块布局、绝对 wasm 路径、`tt.getRandomValues` |
-| B    | `apps/dev-rxdb-miniprogram-douyin-spike/`                                   | 真机实验与报告（矩阵抖音一节的证据）                                          |
-| B    | `apps/dev-rxdb-miniprogram/`                                                | 按 host 注入；`build-tt` / `serve-tt` 手工入口（不进 CI）                     |
+| 阶段 | 路径                                                                           | 职责                                                                               |
+| ---- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| A    | `packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts`              | `MiniProgramHost` / 平台登记表 `MINI_PROGRAM_PLATFORM_IDS`                         |
+| A    | `packages/rxdb-adapter-miniprogram/src/host.ts`                                | `resolveMiniProgramHost`、微信 host 工厂、未知平台错误                             |
+| A    | `packages/rxdb-adapter-miniprogram/src/error-message.ts`                       | 从 `errMsg` / `message` 取报错文案，VFS 与 host 共用                               |
+| A    | `packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts`                     | 通用文件 VFS；微信封装保留                                                         |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts`                | 按 host 预检；微信文案不变                                                         |
+| A    | `packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts`                   | host 随机源；`wx` 路径保留                                                         |
+| A    | `requirements/stories/adapter/miniprogram-platform-feasibility.md`             | 可行性矩阵                                                                         |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/hosts/<id>.ts`                          | 每平台一个 host 工厂，禁止共享「像 wx 的全局」                                     |
+| B/C  | `packages/rxdb-adapter-miniprogram/src/__tests__/`                             | 每平台 fixture，不碰真实微信全局                                                   |
+| B/C  | `website/docs/compatibility.md`、包 README、根 README、`examples/README.md`    | 按已关闭阶段改口径                                                                 |
+| B    | `packages/rxdb-adapter-miniprogram/src/hosts/douyin.ts`                        | `createDouyinMiniProgramHost`：分块布局、绝对 wasm 路径、`tt.getRandomValues`      |
+| B    | `apps/dev-rxdb-miniprogram-douyin-spike/`                                      | 真机实验与报告（矩阵抖音一节的证据）                                               |
+| B    | `apps/dev-rxdb-miniprogram/`                                                   | 按 host 注入；`build-tt` / `serve-tt` 手工入口（不进 CI）                          |
+| C    | `packages/rxdb-adapter-miniprogram/src/host.ts`                                | 拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`、`MiniProgramUnsupportedPlatformError` |
+| C    | `packages/rxdb-adapter-miniprogram/src/__tests__/unsupported-platform.spec.ts` | `?raw` 解析可行性矩阵，核对登记表 / 拒绝表 / 观察档                                |
 
 ## References
 

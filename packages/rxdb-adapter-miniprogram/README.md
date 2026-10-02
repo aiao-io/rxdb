@@ -164,8 +164,10 @@ wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传
 `structuredClone` 的 polyfill 只经自由变量引用内置构造函数，不读 `self` / `globalThis`，
 所以在全局对象被遮蔽的页面模块里克隆类型化数组、包装对象与 `Error` 同样可用；函数与 symbol 抛 `TypeError`。
 
-**目前登记的平台是 `wechat` 与 `douyin`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 会抛
-`MiniProgramUnknownPlatformError`，不会回退到 `wx`。这个契约的存在不代表支持支付宝、百度或 QQ 小程序；
+**目前登记的平台是 `wechat` 与 `douyin`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 在连接前失败，不会回退到 `wx`：
+可行性矩阵判 `unsupported` 的平台抛 `MiniProgramUnsupportedPlatformError`（继承 `MiniProgramUnknownPlatformError`），
+`blockers` 与报错文案带出矩阵里的阻断项和判定章节——目前是 `alipay`（`MYWebAssembly` 只能在 Worker 线程使用）；
+其余抛 `MiniProgramUnknownPlatformError`。这个契约的存在不代表支持支付宝、百度或 QQ 小程序；
 各平台的可行性结论见
 [miniprogram-platform-feasibility.md](../../requirements/stories/adapter/miniprogram-platform-feasibility.md)。
 

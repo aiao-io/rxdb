@@ -234,7 +234,7 @@ aiao/
 
 ### 进行中
 
-- ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具，剩 iOS 复测与 Android 真机。支付宝 / 百度 / QQ 判不支持
+- ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具与 iOS 真机，剩 Android 真机。支付宝 / 百度 / QQ 判不支持，支付宝在连接前抛 `MiniProgramUnsupportedPlatformError` 并带出判定理由
 
 本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，对外发布前还差一次桥接版本，见 [release-plan](requirements/release-plan.md)。
 

@@ -11,6 +11,7 @@ export { WaSqliteMiniProgramClient, createWaSqliteMiniProgramClient } from './cr
 export {
   MINI_PROGRAM_PLATFORM_IDS,
   MiniProgramUnknownPlatformError,
+  MiniProgramUnsupportedPlatformError,
   createWechatMiniProgramHost,
   isMiniProgramPlatformId,
   resolveMiniProgramHost

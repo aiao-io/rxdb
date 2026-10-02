@@ -75,7 +75,7 @@
 
 | 维度     | 支持情况                                                                                                                                                                                                   |
 | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 平台     | **微信小程序**与**抖音小程序**的逻辑层。抖音在开发者工具与 iOS 真机上验证过，**Android 真机未验证**；支付宝 / 百度 / QQ 不支持（缺文档化的安全随机源，或 WASM 只在 Worker 可用）                           |
+| 平台     | **微信小程序**与**抖音小程序**的逻辑层，逐平台结论见下表                                                                                                                                                   |
 | 并发     | **强制单连接**：同一数据库文件的第二个连接直接抛错，并发安全由 JS 层保证而非 SQLite 锁                                                                                                                     |
 | 日志模式 | `journal_mode = DELETE`（rollback journal），**不支持 WAL**、Worker / SharedWorker、多页面并发                                                                                                             |
 | 崩溃恢复 | **无保证**——微信与抖音的文件 API 都缺少可靠的 `fsync`、文件锁与原子 rename                                                                                                                                 |
@@ -83,6 +83,16 @@
 | 配额     | 与内存缓冲分开算。抖音用户目录总共约 10 MB（iOS 实测一次最多写入 9 MiB），库文件、`-journal` 与每库 128 KiB 的回滚余量共用；写满时事务以 `SQLITE_FULL` 失败，平台原文在 `cause` 链上，已提交的数据重开仍在 |
 | 随机源   | 由 `wx.getRandomValues` / `tt.getRandomValues` 预取 64 KiB 随机池并在见底前后台补给；补给失败且余量耗尽时抛错，**任何情况下都不降级**到 `Math.random`                                                      |
 | 全文搜索 | wasm 已编入 FTS5，可直接写 SQL 虚拟表；但 `@aiao/rxdb-plugin-search` 尚未放行本适配器                                                                                                                      |
+
+逐平台结论（判定依据与复议条件见[平台可行性矩阵](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/adapter/miniprogram-platform-feasibility.md)）：
+
+| 平台            | 结论       | 原因 / 边界                                                                                                                                                                          |
+| :-------------- | :--------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 微信 `wechat`   | 实验性支持 | 上表边界全部适用                                                                                                                                                                     |
+| 抖音 `douyin`   | 实验性支持 | 上表边界全部适用；开发者工具与 iOS 真机验证过，**Android 真机未验证**                                                                                                                |
+| 支付宝 `alipay` | 不支持     | `MYWebAssembly` 只能在 Worker 线程使用，与 wa-sqlite 在逻辑层单 realm 同步运行的设计冲突；也没有文档化的安全随机 API。传入 `alipay` 在连接前抛 `MiniProgramUnsupportedPlatformError` |
+| 百度 `baidu`    | 不支持     | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                                                                         |
+| QQ `qq`         | 不支持     | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                                                                         |
 
 运行时启动前需调用 `@aiao/rxdb-adapter-miniprogram/runtime` 的 `prepareMiniProgramRuntime(wx)`（微信），
 或 `prepareMiniProgramHostRuntime(createDouyinMiniProgramHost(tt, { runtimeGlobal }))`（抖音），
