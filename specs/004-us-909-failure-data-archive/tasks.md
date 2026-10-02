@@ -106,8 +106,8 @@ description: 'Task list: US-909 阶段 B — e2e 失败现场数据归档与导�
 ## Phase 8: 验证与收尾
 
 - [x] T025 自动触发 + AC#1～3 不回退（quickstart §5，临时探针）：失败原因不变；附件含归档、摘要、trace；`trace.zip` 在用例目录；删探针
-- [ ] T026 [AC6][AC9] 全量 Angular e2e（quickstart §6）：全部通过；JSON 报告零归档 / 摘要附件；记墙钟与 `rrweb` 基线对比
-- [ ] T027 `nx run-many -t lint typecheck test --projects=dev-rxdb-angular,dev-rxdb-angular-e2e` 零警告；`prettier --check` 改动文件
+- [x] T026 [AC6][AC9] 全量 Angular e2e（quickstart §6）：全部通过；JSON 报告零归档 / 摘要附件；记墙钟与 `rrweb` 基线对比。结果：139/139 通过、0 flaky，`failure-archive*.spec.ts` 以外零 `rxdb-failure-*` 附件；Playwright 耗时 120.0 s，同机 `rrweb` 基线 133/133、123.2 s（多出的 6 个是本特性用例），没有变慢
+- [x] T027 `nx run-many -t lint typecheck test --projects=dev-rxdb-angular,dev-rxdb-angular-e2e` 零警告；`prettier --check` 改动文件
 - [x] T028 故事：AC#4～9 结论写进各行「预期结果」并改 ✅；交付阶段表 B 行 ✅（合并后）或保持 ⚠️（待合并）按惯例；实现文件表补
       具体路径；`pnpm run audit:requirements`
 - [ ] T029 提交（不 amend 用户的提交）→ 推送 `us909-stage-b` → 开 PR（base `rrweb`）→ CI 绿（重跑前核对 headSha）
