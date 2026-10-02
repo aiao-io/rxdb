@@ -30,7 +30,7 @@ npm install @aiao/rxdb-plugin-replay-vue
 
 ## 注册插件
 
-插件只有一个必填选项：录制库工厂 `createRecordingDb`。它收到录制实体，返回一个**尚未 `init()` 的另一个 RxDB**。不要返回被录的应用库。
+插件只有一个必填选项：录制库工厂 `createRecordingDb`。它收到录制实体，返回**另一个 RxDB**（是否已 `init()` 都可以）。不要返回被录的应用库。
 
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
@@ -54,7 +54,7 @@ await db.connect('sqlite-wasm');
 
 插件声明 `inject: ['adapter:local']`，宿主在本地适配器就绪后才把它装进连接纪元。在 `connect()` 之后才 `use()` 也可以，但安装是异步的：此时再 `await db.connect(...)` 一次（连接会去重，重复调用会等插件装好）再使用 `db.replay`。装好之前，除 `state$` 外的成员都会拒绝 `not_installed`。
 
-工厂每个连接纪元只调用一次，时机是第一次需要存储时。插件替它 `init()` 与 `connect()`，作用域释放时 `destroy()`。工厂抛错或返回的库连不上时，插件抛 `recording_db_unavailable`，下次调用会再调用工厂。
+工厂每个连接纪元只调用一次，时机是第一次需要存储时。插件替它 `connect()`（尚未 `init()` 的库由 `connect()` 一并 `init()`），作用域释放时 `destroy()`。工厂抛错或返回的库连不上时，插件抛 `recording_db_unavailable`，下次调用会再调用工厂。
 
 | 选项                  | 默认    | 说明                                 |
 | --------------------- | ------- | ------------------------------------ |
@@ -114,6 +114,8 @@ await db.replay.deleteSession(sessionId); // 释放空间的唯一途径
 被录的库装了 [`@aiao/rxdb-plugin-working-tree`](../rxdb-plugin-working-tree/README.md) 时，插件订阅工作树门面的 `commits$`。录制中每次提交都会写一条 commit 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。
 
 ```typescript
+import { replayRestoreHint } from '@aiao/rxdb-plugin-replay';
+
 const markers = await db.replay.listCommitMarkers(sessionId); // { seq, timestamp, commitId, branchId }[]
 const result = await db.replay.restoreToCommit(markers[0].commitId);
 if (!result.ok) console.warn(replayRestoreHint(result.reason));

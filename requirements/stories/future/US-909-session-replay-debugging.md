@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-10-02
+updated: 2026-10-03
 tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 ---
 
@@ -86,8 +86,9 @@ INVEST 检查清单:
    之前经 `registerSystemEntities()`（[`system-entities.ts`](../../../packages/rxdb/src/system/system-entities.ts)）追加系统表，
    捕获按目标类别 `system` 跳过，working-tree 自己的十张表就走这条（读源码，未实测）。
 7. **rrweb 的位置**：MIT；回放是录制 DOM 的重新渲染，**不重执行应用代码**。它在 e2e 路径上相对 trace 的增量只有
-   「动作之间连续的 DOM 变化可检查」（trace 在动作之间只有 screencast 帧），目前没有需要它的失败症状，所以 rrweb 只在
-   阶段 C 的应用内录制出现。
+   「动作之间连续的 DOM 变化可检查」：trace 只有每个动作前后的 DOM 快照，阶段 A 按 research D6 关掉 `screenshots` 后，
+   动作之间连 screencast 帧也没有了；需要时可按 spec 临时打开 `screenshots` 或 `video: 'retain-on-failure'`。目前没有
+   需要它的失败症状，所以 rrweb 只在阶段 C 的应用内录制出现。
 
 ## 交付阶段
 
@@ -126,7 +127,9 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 - 阶段 B 的 React / Vue e2e 数据归档：e2e 基础设施不属于三框架绑定 API，先在 Angular 一端证实价值再对称扩展；两者的 e2e 走
   OPFS + Worker 分支，没有主线程绕行，扩展时依赖 🚧 传输故事。
 - 阶段 B 归档用例自建上下文（`browser.newContext()`）里的库：只归档用例主 `page` 所在上下文的库。
-- rrweb 注入 e2e fixture：trace 已覆盖界面现场；出现「trace 看不出、需要动作之间连续 DOM」的失败症状再议。
+- rrweb 注入 e2e fixture，以及把录制库 `<dbName>-replay` 并入失败归档、导入后在 `/replay` 回放：trace 已覆盖界面现场。
+  出现一条失败记录——它的 trace 前后快照与数据归档都定位不了、需要动作之间的画面——再议，且先试按 spec 打开 `screenshots`
+  或 video；理由见技术笔记「e2e 失败附 rrweb 录像」。
 - 事件流云端上报与多端同步（`pushRepository` / HTTP / Supabase 通道）——价值待证，未来另立。
 - FTS / 向量检索与 AI 会话分析——vision 阶段 6 范围，本故事只保证事件流是结构化、可被未来检索的数据。
 - canvas / WebGL / iframe 保真增强与 shadow DOM 边缘场景；执行级 record-replay（浏览器引擎级确定性复现）。
@@ -229,6 +232,18 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
   `@rrweb/*` / `@aiao/*` / `rxjs`）后 gzip 8,151 B，预算 50 KB；demo 里录制核心与 rrweb 是两个懒加载 chunk（8.1 KB / 81.3 KB gz），
   录制关闭时初始脚本里没有它们。批量落库 benchmark 中位数 13.4 ms（SC-007）。
 - **阶段 C 的三框架封装**：沿用 `code-editor` + `code-editor-angular/react/vue` 的既有分包先例。
+- **e2e 失败附 rrweb 录像（owner 2026-10-03 决定：不做，保留在 Out of Scope）**：设想是 e2e 里打开录制，把 `<dbName>-replay`
+  与业务库一起归档，导入后在 `/replay` 回放失败过程。不新开阶段、不另立故事，理由：
+  - 没有症状证据：没有一条「trace 与数据归档都定位不了」的失败记录；阶段 B / C 的价值门禁豁免只针对这两个阶段，不顺延。
+  - 突破 AC#3：录制须对每个用例都开（事先不知道谁失败），而 trace 开销已用到 +33% 上限里的 +32.7%；rrweb chunk（81.3 KB gz）、
+    MutationObserver 与每用例的 IDB 事件写入几乎必然越线。
+  - 观察者效应：录制插件挂进连接纪元、主线程额外写 IDB，改变被测应用的时序；归档最有价值的恰是竞态 / 时序这类非确定性失败。
+  - 改动面：归档与导入从一个库变两个（第二个空目标、`target_not_empty` / `target_busy` 语义扩展），fixture 的 20 s 页内截止
+    重新分配，`/replay` 要能读导入的录制库。
+
+  出现症状时更便宜的路：对该 spec 临时 `test.use({ trace: { mode: 'retain-on-failure', screenshots: true } })` 或
+  `video: 'retain-on-failure'`，不改被测应用，开销只落在这一个 spec 上。
+
 - 新增公开 API 同步 TSDoc、API baseline、类型兼容测试与覆盖率（核心 90% / 其他 80%）。
 
 ## 实现文件
