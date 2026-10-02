@@ -24,7 +24,7 @@ tags: [core, sortable, model, rxdb-model, tree]
   原样透传，但没有任何组件接它。三框架的 `EntityList` 因此经 `tableOptions` 传 `LIST_TABLE_OPTIONS`
   （`dragOrder: false`）关掉了手柄，即 AC#6 的提前交付；直接渲染 `EntityTable` / `QueryTable` 又不传 `tableOptions`
   的调用方仍拿到默认的拖拽手柄，拖完不落库。`patchDragIconForReadonlyRows` 隐藏 `_readonly` 行与新增行的手柄；
-  `EntityList` 给系统表的行挂 `_readonly`（[US-027](US-027-entity-permission-model.md) AC#16 的列表侧）。
+  `EntityList` 按 `deriveEntityCapabilities()` 给 `canEdit=false` 的行（含系统表）挂 `_readonly`（[US-027](US-027-entity-permission-model.md) 阶段 C）。
 - **排序只存在于树形实体与应用层。** `ISortableTreeEntity`（`@aiao/rxdb-plugin-tree` 的 `tree-entity.interface.ts`：
   `ITreeEntity` 加 `sortOrder?: string | null`）是仓库里唯一的排序类型；`sortOrder` 在 `@aiao/rxdb` 与
   `@aiao/rxdb-model` 中零实现、零读取。三个 demo 应用的树菜单与文件管理页各自调 `@aiao/utils` 的
@@ -104,7 +104,7 @@ tags: [core, sortable, model, rxdb-model, tree]
   阶段 B 在三框架 `EntityTable` / `QueryTable` 上新增一个不破坏兼容的移动上下文输出，名称在 plan 定，三端同 API。
 - **写集合最小**：只更新移动行的 `sortOrder` 一个字段；原位拖拽零写；只支持单行（VTable 行序号拖拽本身是单行），多行移动不支持。
 - **事务内复核**：移动行仍存在、两邻居仍存在且仍相邻（之间没有其他行）；任一不成立即拒绝、零写、重查。
-- 只提交 `sortOrder` 的 update，走普通用户写路径（写日志、同步、US-027 写边界若落地自动覆盖），不得借 `saveMany`
+- 只提交 `sortOrder` 的 update，走普通用户写路径（写日志、同步，US-027 的公开写入口判定自动覆盖），不得借 `saveMany`
   把该实例其他未提交字段或关系一并保存。单行写入天然原子；失败时抛出错误，不吞。
 - 启用 `@aiao/rxdb-plugin-history` 的实体，一次拖拽就是一次普通 update，撤销粒度沿用现有 history，本故事不新建撤销边界。
 
@@ -202,15 +202,14 @@ AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `enti
 - **事务能力已有**：`EntityManager.mutations` 路由到主适配器，`RxDBAdapterSqliteBase.mutations` 与
   `RxDBAdapterPGlite.mutations` 已经在 transaction 内执行批量变更；Angular `EntityList` 的 `#flushPending` 保存旧值并在失败时回滚内存。
   本故事复用这些能力，不新建事务机制。
-- **为什么强制非空**：同一 `[NULL, a0, a1]` 升序，SQLite 得 `[NULL, a0, a1]`，PGlite 得 `[a0, a1, NULL]`，`query_sql.ts` 的
-  `build_order_by` 两端都不补 NULL 策略；`Repository` 的 `_generate_cursor_rule_group` 又按「排序列非空」生成游标谓词
-  （`{ field, operator, value: cursor[field] }`），游标落在 NULL 行时 SQLite 的 `build_rule` 拒绝 `> null` 直接抛错，
-  PGlite 则因 NULL 排在末尾、`> 's3'` 把 NULL 行全部排除而静默少行。允许 NULL 就得同时补齐两端 NULL 位置与游标谓词的 NULL 展开；
-  `nullable: false` 让 DDL 挡住 NULL，这几处一起消失。该游标缺陷对任何可空列的列头排序今天就存在，不归本故事，
-  见 roadmap「零散收尾项」。`build_order_by` 两端也都不补 collation 策略。fractional-indexing 上游要求大小写敏感排序、提醒
+- **为什么强制非空**：fractional-indexing 的键是字符串，NULL 不是合法键，以 NULL 行做锚点生成不出新键；
+  `nullable: false` 让 DDL 直接挡住同步拉取的 NULL 键（场景 11），锚点校验不必再处理 NULL。可空列的列头排序本身
+  已统一：NULL 视为最小值（升序靠前、降序靠后，与 JS 比较器、SQLite 默认一致），PGlite `build_order_by` 与
+  Supabase `order` 只对可空列补 NULLS 子句，`Repository` 的 `_generate_cursor_rule_group` 把游标落在 NULL 行的情形
+  展开成 `IS NULL` / `IS NOT NULL` 分支。`build_order_by` 两端都不补 collation 策略。fractional-indexing 上游要求大小写敏感排序、提醒
   `localeCompare` 会排错；PostgreSQL collation 会影响字符串排序，`C` 使用字符编码顺序。
 - **权限**：重排是 update 的一种，与其他 update 走同一条写路径，本故事不为权限单独接线。
-  [US-027](US-027-entity-permission-model.md) 若落地，其写边界拒绝无权 update，其阶段 C 给 `canEdit=false` 的行挂
+  [US-027](US-027-entity-permission-model.md) 的公开写入口判定拒绝 `update: 'system'` 实体的 update，其阶段 C 给 `canEdit=false` 的行挂
   `_readonly`（列表因此不开手柄），两者都自动覆盖重排；本故事不依赖 US-027。
 - **现有资产复用**：`table-factory.ts` 的 `dragOrder: true`、三框架 `EntityTable` / `QueryTable` 的 `rowReordered` 与
   `tableOptions`、`patchDragIconForReadonlyRows` 与 `collectReorderedIds` 均已有单测，接线时不动其 API。

@@ -10,11 +10,12 @@
  * Angular 侧的 `InfiniteScrollingList` 由 `@aiao/rxdb-vue` 的 `useInfiniteScroll` 替代，
  * 行为一致：各页活查询、触底 loadMore、选项变化重置重查、refresh 从首页重来。
  */
-import { getEntityMetadata, isSystemEntity, RelationKind, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
 import {
   actionsColumn,
   buildEditableColumns,
   buildFormFields,
+  deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -286,8 +287,11 @@ const localDraftItems = ref<EntityInstance[]>([]);
 
 const entityCls = computed(() => entityClsMap.get(entityKey.value));
 
-/** 当前实体是否为 RxDB 注入的系统表（整表只读） */
-const isSystemTable = computed(() => entityCls.value !== undefined && isSystemEntity(entityCls.value));
+/** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
+const capabilities = computed(() => {
+  const cls = entityCls.value;
+  return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+});
 
 // ── History (undo/redo) ───────────────────────────────────────────────
 const vHistory =
@@ -370,8 +374,10 @@ const displayName = computed(() => {
   return meta.displayName ?? meta.name;
 });
 
-/** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测） */
-const isCreateBlocked = computed(() => isSystemTable.value || props.creationChain.includes(entityKey.value));
+/** 当前实体不接受从列表新增：`create` 只许系统写，或已在祖先创建链路中（循环创建检测） */
+const isCreateBlocked = computed(
+  () => capabilities.value?.canCreate === false || props.creationChain.includes(entityKey.value)
+);
 
 const queryBuilderFields = computed<FieldMetadata[]>(() => {
   const cls = entityCls.value;
@@ -393,7 +399,13 @@ const m2mAlreadyLinkedIds = computed<Set<string>>(() => {
 });
 
 const tableRecords = computed<EntityTableRecord[]>(() => {
-  const dbRecords = instances.value.map(inst => ({ ...(inst as Record<string, unknown>) }));
+  // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
+  // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+  const isRowReadonly = capabilities.value?.canEdit === false;
+  const dbRecords = instances.value.map(inst => ({
+    ...(inst as Record<string, unknown>),
+    ...(isRowReadonly ? { _readonly: true } : {})
+  }));
   const draftRecords = localDraftItems.value.map(inst => ({ ...(inst as Record<string, unknown>) }));
   let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
   if (isSelectMode.value) {
@@ -403,14 +415,12 @@ const tableRecords = computed<EntityTableRecord[]>(() => {
       .filter(r => !linkedIds.has(r['id'] as string))
       .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
   }
-  // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
-  // 操作列对只读行只留「查看」（详情走 view 模式），不出「删除」
-  if (isSystemTable.value) records = records.map(r => ({ ...r, _readonly: true }));
   return records;
 });
 
 const tableColumns = computed<ColumnsDefine>(() => {
-  const base = columnsCache.get(entityKey.value) ?? [actionsColumn('操作', '删除', '查看')];
+  // 未注册实体无元数据可派生，不给删除
+  const base = columnsCache.get(entityKey.value) ?? [actionsColumn('操作', '删除', () => false, '查看')];
   if (isSelectMode.value) {
     const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
     return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];

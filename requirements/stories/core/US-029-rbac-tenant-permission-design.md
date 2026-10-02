@@ -2,10 +2,10 @@
 id: US-029
 title: 多用户 RBAC 权限与租户隔离的关联设计
 status: Backlog
-priority: Medium
+priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-01
+updated: 2026-10-02
 tags: [core, permission, rbac, tenant, sync, rxdb-model]
 ---
 
@@ -212,7 +212,7 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 | A    | 声明与上下文：`access` 声明、`RxDBContext` 扩展与冻结快照、规则类型与结构校验             | 未声明零回归；配置错误可定位                 | US-027 阶段 A        | AC#1～3   | ⬜   |
 | B    | 判定与本地约束：真值表、全部用户写入口、归属不可变、同租户关系、本地读收敛                | 真值表与写入口矩阵全绿；六个本地后端共享套件 | A；US-027 阶段 B     | AC#4～14  | ⬜   |
 | C    | 同步作用域与切换：模式白名单、拉取条件组合、按租户水位、实时信号化、`switchContext`、驱逐 | 切换 / 迟到 / 多连接场景全绿                 | A / B                | AC#15～22 | ⬜   |
-| D    | 权威端：严格拉取与逐操作确认的参考 SQL、push 确认与拒绝处置、部署说明、测试 RLS fixture   | 真实 Supabase + 普通身份下全绿；拉取计划基线 | C                    | AC#23～26 | ⬜   |
+| D    | 权威端：严格拉取与逐操作确认的参考 SQL、push 确认与拒绝处置、部署说明、测试 RLS fixture   | 真实 Supabase + 普通身份下全绿；拉取计划基线 | C；US-218            | AC#23～26 | ⬜   |
 | E    | 三框架操作级能力派生与 e2e                                                                | 三端同一组行为用例全绿                       | B / C；US-027 阶段 C | AC#27     | ⬜   |
 
 一阶段一 PR，每阶段独立更新 AC 状态与 API 基线。负向用例先红后绿；核心判定 / 作用域代码覆盖率 ≥ 90%，其余包 ≥ 80%。阶段 D 禁止用 mock 的 `SupabaseDataError` 代替真实 RLS。
@@ -235,6 +235,25 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 - 严格拉取是 `rxdb_pull_changes` 加参数还是新函数；`rxdb_mutations` 逐操作确认的返回形状与版本兼容（第三方远端适配器的升级说明）。
 - rejected 标记落在 `RxDBChange` 的哪一列，以及对应的同步状态 API 名。
 - 严格拉取在日志 JSON 上按租户过滤的索引（如 `afterData->>'<tenantProperty>'` 表达式索引），以可复验的查询计划与延迟基线决定。
+
+## 价值待证
+
+本故事**价值待证**。「背景与动机」列的全是能力缺口，不是症状：`packages/` / `apps/` / `modules/` 没有任何 `tenant` 引用，
+也没有具名的多用户或多租户使用方（demo、外部 issue、下游项目都没有）。
+[`RemoteSecurityNotice`](../../../apps/dev-rxdb-supabase/src/app/remote-security-notice.ts) 只是提示「此 demo 未启用身份认证或 RLS」的文案。
+
+本故事要新增的抽象至少 10 项（`access` 声明、租户 / 角色冻结快照、`EntityPermissionRule` 谓词、`switchContext` 代次、
+`evictTenantData`、按租户水位、严格拉取、逐操作确认与 rejected 状态、RLS fixture、操作级能力派生）。去掉租户只保留
+owner / 角色，仍有 6～7 项。已知病灶为 0，病灶数 < 抽象数，`priority` 因此为 Low。
+
+评审中复现的唯一真实病灶（业务表开 RLS 后的幽灵 DELETE）不依赖本故事的任何声明，已拆为
+[US-218](../adapter/US-218-supabase-rls-push-integrity.md)；阶段 D 中「日志由真实生效的写推导」与「push 逐操作确认」两项以它为准，
+本故事解锁后只在其上追加严格拉取与租户 / 所有权策略 fixture。
+
+**解锁条件**：出现具名的多用户或多租户使用方（demo、外部 issue 或下游项目），并能写出今天踩得到的具体症状。
+届时一并上调优先级，并按 [RV-022](../../reviews/RV-022-us-029-readiness-review.md) 的 P1 各条回写设计。
+若使用方只需要多用户、不需要租户，先交付 owner / 角色（阶段 A / B / E 中与租户无关的部分），租户作为增量追加，不必一次排进五个阶段。
+上游 [US-027](US-027-entity-permission-model.md) 阶段 A / B / C 不等本故事解锁，已独立交付。
 
 ## 实现文件
 

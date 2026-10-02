@@ -54,11 +54,15 @@
     "runTamperSuite": "function"
   },
   "./entities": {
+    "Account": "function",
     "Article": "function",
+    "AuditLog": "function",
     "Comment": "function",
+    "Contract": "function",
     "ENTITIES": "array",
     "FileLarge": "function",
     "FileNode": "function",
+    "Invoice": "function",
     "MenuLarge": "function",
     "MenuSimple": "function",
     "Todo": "function",

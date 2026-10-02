@@ -16,6 +16,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../../entity/entity-permissions.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import {
@@ -61,6 +62,7 @@ const createRepository = <T extends EntityType>(rows: InstanceType<T>[] = []): I
   name: 'SchemaRegistrationProbeState',
   tableName: 'rxdb_schema_registration_probe_state',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [{ name: 'branchId', type: PropertyType.string }]
 })
 class SchemaRegistrationProbeState extends EntityBase {

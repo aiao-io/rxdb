@@ -167,25 +167,38 @@ describe('switchDisabledForReadonly', () => {
 // ── actionsColumn ──────────────────────────────────────────────────────────
 
 describe('actionsColumn', () => {
+  const canDelete = (): boolean => true;
+  const cannotDelete = (): boolean => false;
+
   it('creates a column with fixed 100-width and actions field', () => {
-    const col = actionsColumn('Actions', 'Delete');
+    const col = actionsColumn('Actions', 'Delete', canDelete);
     expect(col.field).toBe('actions');
     expect(col.width).toBe(100);
     expect(col.minWidth).toBe(100);
     expect(col.maxWidth).toBe(100);
   });
 
-  it('icon callback returns empty array for readonly records', () => {
-    const col = actionsColumn('Actions', 'Delete');
+  it('icon callback returns empty array when the delete predicate rejects the record', () => {
+    const col = actionsColumn('Actions', 'Delete', cannotDelete);
     const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
-    expect(iconFn(makeArgs({ _readonly: true }))).toEqual([]);
+    expect(iconFn(makeArgs({ id: '1' }))).toEqual([]);
   });
 
-  it('icon callback returns delete icons for normal records', () => {
-    const col = actionsColumn('Actions', 'Delete');
+  it('icon callback returns delete icons when the delete predicate accepts the record', () => {
+    const col = actionsColumn('Actions', 'Delete', canDelete);
     const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
     const icons = iconFn(makeArgs({ id: '1' }));
     expect(icons).toHaveLength(2);
+  });
+
+  it('passes the row record to the delete predicate (per-row evaluation)', () => {
+    const predicate = vi.fn((record: Record<string, unknown>) => record['id'] === 'deletable');
+    const col = actionsColumn('Actions', 'Delete', predicate);
+    const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
+
+    expect(iconFn(makeArgs({ id: 'deletable' }))).toHaveLength(2);
+    expect(iconFn(makeArgs({ id: 'locked' }))).toEqual([]);
+    expect(predicate).toHaveBeenCalledWith(expect.objectContaining({ id: 'locked' }));
   });
 });
 
@@ -740,7 +753,7 @@ describe('buildPropertyColumn relation types', () => {
 
 describe('actionsColumn with view label', () => {
   it('uses a wider column and renders view + delete icons', () => {
-    const col = actionsColumn('操作', '删除', '查看');
+    const col = actionsColumn('操作', '删除', () => true, '查看');
     expect(col.width).toBe(130);
     expect(col.minWidth).toBe(130);
     expect(col.maxWidth).toBe(130);
@@ -754,10 +767,24 @@ describe('actionsColumn with view label', () => {
     expect(names.filter(n => n === 'delete-action')).toHaveLength(2);
   });
 
-  it('keeps only the view icon for readonly records (delete hidden)', () => {
-    const col = actionsColumn('操作', '删除', '查看');
+  it('keeps only the view icon when the record cannot be deleted (delete hidden)', () => {
+    const col = actionsColumn('操作', '删除', () => false, '查看');
     const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
     const names = (iconFn(makeArgs({ _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
+    expect(names).toEqual(['view-action']);
+  });
+
+  it('readonly rows still show delete when the record can be deleted (update: system, US-027 AC#11)', () => {
+    const col = actionsColumn('操作', '删除', () => true, '查看');
+    const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
+    const names = (iconFn(makeArgs({ _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
+    expect(names).toEqual(['view-action', 'delete-action', 'delete-action']);
+  });
+
+  it('editable rows hide delete when the record cannot be deleted (delete: system, US-027 AC#12)', () => {
+    const col = actionsColumn('操作', '删除', () => false, '查看');
+    const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
+    const names = (iconFn(makeArgs({ id: '1' })) as Array<{ name?: string }>).map(i => i.name);
     expect(names).toEqual(['view-action']);
   });
 });

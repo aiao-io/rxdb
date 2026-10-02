@@ -170,6 +170,10 @@
         "kind": "value"
       },
       {
+        "name": "deriveEntityCapabilities",
+        "kind": "value"
+      },
+      {
         "name": "DetailFormTab",
         "kind": "type"
       },
@@ -200,6 +204,10 @@
       {
         "name": "ensureBaseEditorRegistered",
         "kind": "value"
+      },
+      {
+        "name": "EntityCapabilities",
+        "kind": "type"
       },
       {
         "name": "EntityFieldConfig",
@@ -591,6 +599,10 @@
       },
       {
         "name": "QueryExample",
+        "kind": "type"
+      },
+      {
+        "name": "RecordDeletePredicate",
         "kind": "type"
       },
       {

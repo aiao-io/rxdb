@@ -14,6 +14,16 @@ async function createTodo(page: Page, title: string): Promise<void> {
   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 }
 
+/**
+ * 经「+ 新增」对话框落一条带「标题」字段的记录（US-027 演示实体 Invoice / Contract），并等待对话框关闭。
+ */
+async function createTitled(page: Page, title: string): Promise<void> {
+  await page.getByRole('button', { name: '+ 新增' }).click();
+  await page.getByRole('group', { name: '标题' }).getByRole('textbox').fill(title);
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+}
+
 /** 表格某行操作列图标在页面上的点击坐标，连同该行记录 id。 */
 interface ActionIconHit {
   x: number;
@@ -77,10 +87,10 @@ test.describe('Entity Model Pages', () => {
   test.describe('Entity List (/entities)', () => {
     test('left catalog renders and auto-redirects to the first entity', async ({ page }) => {
       await page.goto('/entities');
-      // 左侧实体目录 + 自动重定向到首个实体（public:Article）
+      // 左侧实体目录 + 自动重定向到首个实体（ENTITIES 由客户端生成器按实体名字母序输出，首个是 public:Account）
       await expect(page.getByText('实体类型')).toBeVisible();
-      await page.waitForURL('**/entities/public/Article');
-      await expect(page.getByText('Article', { exact: true }).first()).toBeVisible();
+      await page.waitForURL('**/entities/public/Account');
+      await expect(page.getByText('账户', { exact: true }).first()).toBeVisible();
     });
 
     test('should switch the right list by clicking the left catalog', async ({ page }) => {
@@ -193,6 +203,58 @@ test.describe('Entity Model Pages', () => {
 
       await page.getByRole('button', { name: '关闭' }).click();
       await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+    });
+
+    test('US-027 create: system（AuditLog）：不提供「+ 新增」', async ({ page }) => {
+      await page.goto('/entities/public/AuditLog');
+      await expect(page.getByRole('button', { name: '筛选' })).toBeVisible();
+      await expect(page.getByText('暂无数据')).toBeVisible();
+      await expect(page.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
+    });
+
+    test('US-027 update: system（Invoice）：可新增，行以 view 模式打开，「删除」仍可用', async ({ page }) => {
+      await page.goto('/entities/public/Invoice');
+      await createTitled(page, 'e2e-invoice');
+      await expect(page.getByText('暂无数据')).toHaveCount(0);
+
+      // 行只读：「查看」打开的详情是 view 模式，没有可编辑控件与保存入口
+      await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
+      const view = await findActionIcon(page, 'view-action');
+      await page.mouse.click(view!.x, view!.y);
+      const form = page.locator('form');
+      await expect(form).toContainText('e2e-invoice');
+      await expect(form.locator('input, select, textarea')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: '关闭' }).click();
+      await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+
+      // 只读不等于不可删：update: system 的行操作列仍有「删除」，点击后真实删除
+      const remove = await findActionIcon(page, 'delete-action');
+      expect(remove).not.toBeNull();
+      await page.mouse.click(remove!.x, remove!.y);
+      await expect(page.getByText('暂无数据')).toBeVisible();
+    });
+
+    test('US-027 delete: system（Contract）：行可编辑并保存，操作列不出「删除」', async ({ page }) => {
+      await page.goto('/entities/public/Contract');
+      await createTitled(page, 'e2e-contract');
+      await expect(page.getByText('暂无数据')).toHaveCount(0);
+
+      await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
+      expect(await findActionIcon(page, 'delete-action')).toBeNull();
+
+      // 可编辑：「查看」打开的是 edit 模式，改标题保存后再打开能看到新值
+      const view = await findActionIcon(page, 'view-action');
+      await page.mouse.click(view!.x, view!.y);
+      const title = page.getByRole('group', { name: '标题' }).getByRole('textbox');
+      await expect(title).toHaveValue('e2e-contract');
+      await title.fill('e2e-contract-signed');
+      await page.getByRole('button', { name: '保存', exact: true }).click();
+      await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
+
+      const reopen = await findActionIcon(page, 'view-action');
+      await page.mouse.click(reopen!.x, reopen!.y);
+      await expect(page.getByRole('group', { name: '标题' }).getByRole('textbox')).toHaveValue('e2e-contract-signed');
     });
   });
 });

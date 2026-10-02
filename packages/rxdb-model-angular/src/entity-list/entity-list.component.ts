@@ -1,16 +1,10 @@
-import {
-  getEntityMetadata,
-  isSystemEntity,
-  RelationKind,
-  RxDB,
-  type EntityType,
-  type FindByCursorOptions
-} from '@aiao/rxdb';
+import { getEntityMetadata, RelationKind, RxDB, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
 import { InfiniteScrollingList } from '@aiao/rxdb-angular';
 import {
   actionsColumn,
   buildEditableColumns,
   buildFormFields,
+  deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -259,10 +253,10 @@ export class EntityListComponent {
 
   readonly #entityCls = computed(() => this.#entityClsMap.get(this.#entityKey()));
 
-  /** 当前实体是否为 RxDB 注入的系统表（整表只读） */
-  readonly #isSystemTable = computed(() => {
+  /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
+  readonly #capabilities = computed(() => {
     const cls = this.#entityCls();
-    return cls !== undefined && isSystemEntity(cls);
+    return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
   });
 
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */
@@ -378,8 +372,10 @@ export class EntityListComponent {
     return meta.displayName ?? meta.name;
   });
 
-  /** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测） */
-  readonly isCreateBlocked = computed(() => this.#isSystemTable() || this.creationChain().includes(this.#entityKey()));
+  /** 当前实体不接受从列表新增：`create` 只许系统写，或已在祖先创建链路中（循环创建检测） */
+  readonly isCreateBlocked = computed(
+    () => this.#capabilities()?.canCreate === false || this.creationChain().includes(this.#entityKey())
+  );
 
   readonly isQueryActive = computed(() => this.filterQuery().rules.length > 0);
   readonly filteredCount = computed(() => this.#instances().length + this.#localDraftItems().length);
@@ -406,7 +402,13 @@ export class EntityListComponent {
   });
 
   readonly tableRecords = computed<EntityTableRecord[]>(() => {
-    const dbRecords = this.#instances().map(inst => ({ ...(inst as Record<string, unknown>) }));
+    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
+    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+    const isRowReadonly = this.#capabilities()?.canEdit === false;
+    const dbRecords = this.#instances().map(inst => ({
+      ...(inst as Record<string, unknown>),
+      ...(isRowReadonly ? { _readonly: true } : {})
+    }));
     const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
     let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
     if (this.isSelectMode()) {
@@ -416,14 +418,12 @@ export class EntityListComponent {
         .filter(r => !linkedIds.has(r['id'] as string))
         .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
     }
-    // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
-    // 操作列对只读行只留「查看」（详情走 view 模式），不出「删除」
-    if (this.#isSystemTable()) records = records.map(r => ({ ...r, _readonly: true }));
     return records;
   });
 
   readonly tableColumns = computed<ColumnsDefine>(() => {
-    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', '查看')];
+    // 未注册实体无元数据可派生，不给删除
+    const base = this.#columnsCache.get(this.#entityKey()) ?? [actionsColumn('操作', '删除', () => false, '查看')];
     if (this.isSelectMode()) {
       const withoutActions = base.filter(c => (c as Record<string, unknown>)['field'] !== 'actions');
       return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];

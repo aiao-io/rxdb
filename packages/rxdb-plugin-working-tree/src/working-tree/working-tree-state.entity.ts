@@ -4,7 +4,7 @@
  * 分支工作树游标：基线 HEAD、工作树 revision 与条目冗余计数。一分支一行。
  */
 
-import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '@aiao/rxdb';
+import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 分支工作树游标
@@ -20,6 +20,7 @@ import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '
   name: 'WorkingTreeState',
   tableName: 'rxdb_working_tree_state',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

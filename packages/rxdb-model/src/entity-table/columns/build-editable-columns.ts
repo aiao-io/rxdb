@@ -7,6 +7,7 @@ import type {
 } from '@aiao/rxdb';
 import { PropertyType, RelationKind } from '@aiao/rxdb';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
+import { deriveEntityCapabilities } from '../../entity-capabilities.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { actionsColumn, buildPropertyColumn, formatDateValue, type KVSchemaEntry } from './column-utils.js';
 
@@ -100,7 +101,7 @@ export function normalizeKVSchemaEntryType(type: EntityPropertyMetadata['type'])
  * 3. 计算属性列
  * 4. 外键关系列
  * 5. createdAt / updatedAt 系统时间列
- * 6. 操作列（查看 + 删除）
+ * 6. 操作列（查看 + 删除；删除按实体 `permissions.delete` 派生，见 {@link deriveEntityCapabilities}）
  *
  * @param metadata 实体元数据
  * @param options 可选构建选项
@@ -119,6 +120,7 @@ export function buildEditableColumns(
     updatedAtTitle = '更新时间'
   } = options;
 
+  const { canDelete } = deriveEntityCapabilities(metadata);
   const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true }];
 
   for (const [key, prop] of metadata.propertyMap) {
@@ -175,7 +177,7 @@ export function buildEditableColumns(
       width: 160,
       fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'])
     },
-    actionsColumn(actionsTitle, deleteLabel, viewLabel)
+    actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel)
   );
 
   return columns;

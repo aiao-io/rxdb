@@ -2,6 +2,7 @@ import {
   type CountOptions,
   type EntityData,
   type EntityMetadata,
+  type EntityPropertyMetadata,
   type FindAllOptions,
   type FindOptions,
   type OrderBy,
@@ -134,6 +135,20 @@ const resolve_column_name = (fieldName: string, entityMetadata?: EntityMetadata)
 
 const formatColumn = (columnName: string): string => quoteIdentifier(columnName);
 
+/**
+ * 可空列的 NULLS 方向
+ *
+ * @remarks
+ * 约定 NULL 是最小值（asc 靠前、desc 靠后），与 SQLite、JS 比较器 `compareOrderValues` 以及
+ * `Repository.findByCursor` 的游标谓词一致；PostgreSQL 默认相反（asc 时 NULLS LAST）。
+ * 非空列不写：结果相同，且显式 NULLS FIRST 会让默认 btree 索引无法用于正向扫描。
+ * 外键列不在 propertyMap 里，按可空处理。
+ */
+const nulls_order = (sort: 'asc' | 'desc', property?: EntityPropertyMetadata): string => {
+  if (property && !property.nullable) return '';
+  return sort === 'asc' ? ' NULLS FIRST' : ' NULLS LAST';
+};
+
 const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string | undefined => {
   if (!orderBy?.length) return undefined;
   return orderBy
@@ -150,7 +165,7 @@ const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string 
         );
       }
       const columnName = resolve_column_name(item.field, metadata);
-      return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(columnName)} ${sort.toUpperCase()}`;
+      return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(columnName)} ${sort.toUpperCase()}${nulls_order(sort, property)}`;
     })
     .join(', ');
 };

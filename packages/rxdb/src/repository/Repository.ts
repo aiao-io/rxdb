@@ -1,4 +1,5 @@
 import { combineLatest, firstValueFrom, map, Observable, shareReplay, switchMap, tap } from 'rxjs';
+import { assertEntityOperationAllowed } from '../entity/entity-permissions.js';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
@@ -401,8 +402,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   /**
    * 创建实体
    * @param entity 要创建的实体实例
+   * @throws {@link PermissionDeniedError} 实体声明 `create: 'system'`（以 rejected Promise 给出）
    */
-  create(entity: InstanceType<T>): Promise<InstanceType<T>> {
+  async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    // 判定在 `primary$` 之前：与主端选哪边无关，被拒时连适配器都不碰（US-027）
+    assertEntityOperationAllowed(this.EntityType, 'create');
     const observer = this.primary$.pipe(
       switchMap(repo => repo.create(entity)),
       tap(this._setLocal)
@@ -414,8 +418,10 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 更新实体
    * @param entity 要更新的实体实例
    * @param patch 部分更新数据
+   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`（以 rejected Promise 给出）
    */
-  update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+  async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    assertEntityOperationAllowed(this.EntityType, 'update');
     const observer = this.primary$.pipe(
       switchMap(repo => repo.update(entity, patch)),
       tap(this._setLocal)
@@ -426,8 +432,10 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   /**
    * 删除实体
    * @param entity 要删除的实体实例
+   * @throws {@link PermissionDeniedError} 实体声明 `delete: 'system'`（以 rejected Promise 给出）
    */
-  remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
+  async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    assertEntityOperationAllowed(this.EntityType, 'delete');
     const observer = this.primary$.pipe(switchMap(repo => repo.remove(entity)));
     return firstValueFrom(observer);
   }
@@ -618,6 +626,14 @@ const _invert_order_by = <W extends string>(orderBy: OrderBy<W>[]): OrderBy<W>[]
  *
  * 对于多字段排序，生成正确的 OR 条件：
  * (field1 > val1) OR (field1 = val1 AND field2 > val2) OR (field1 = val1 AND field2 = val2 AND field3 > val3)
+ *
+ * @remarks
+ * 排序约定 NULL 是最小值（asc 靠前、desc 靠后），与 `compareOrderValues` 和 SQLite 一致，PGlite / Supabase
+ * 对可空列显式写 NULLS 方向。SQL 里 NULL 参与 `=` / `>` / `<` 的结果都是 UNKNOWN，所以按游标值展开：
+ * - 前缀相等：游标值为 NULL 时是 `IS NULL`；
+ * - 取更大一侧：游标值为 NULL 时是 `IS NOT NULL`，否则 `> v`（NULL 本就更小，自然排除）；
+ * - 取更小一侧：游标值为 NULL 时不存在更小的值，整个分支丢弃；否则 `< v OR IS NULL`（主键 id 只有 `< v`）。
+ * 末字段是 id（非空），所以至少保留最后一个分支。
  */
 const _generate_cursor_rule_group = <T extends EntityType>(
   options: FindByCursorOptions<T>
@@ -626,44 +642,48 @@ const _generate_cursor_rule_group = <T extends EntityType>(
   if (!cursor) return null;
 
   const isAfter = !!options.after;
-
-  // 对于单字段排序，使用简单的比较
-  if (options.orderBy.length === 1) {
-    const { field, sort } = options.orderBy[0];
-    const isAscending = sort === 'asc';
-    const useGreater = isAscending === isAfter;
-    const operator = useGreater ? '>' : '<';
-
-    return {
-      combinator: 'and',
-      rules: [{ field, operator, value: cursor[field] }]
-    };
-  }
-
-  // 对于多字段排序，生成 OR 条件
   const orRules: RuleGroup<InstanceType<T>>[] = [];
 
   for (let i = 0; i < options.orderBy.length; i++) {
     const { field, sort } = options.orderBy[i];
-    const isAscending = sort === 'asc';
-    const useGreater = isAscending === isAfter;
+    const useGreater = (sort === 'asc') === isAfter;
+    const boundary = _cursor_boundary_rule<T>(field, cursor[field], useGreater);
+    if (!boundary) continue;
 
-    const andRules: Rule<InstanceType<T>>[] = [];
-
-    // 前面的字段都用 = 比较
-    for (let j = 0; j < i; j++) {
-      const prevField = options.orderBy[j].field;
-      andRules.push({ field: prevField, operator: '=', value: cursor[prevField] });
-    }
-
-    // 当前字段用 > 或 < 比较
-    const operator = useGreater ? '>' : '<';
-    andRules.push({ field, operator, value: cursor[field] });
-
-    orRules.push({ combinator: 'and', rules: andRules });
+    // 前面的字段都与游标相等
+    const equalRules = options.orderBy.slice(0, i).map(prev => _cursor_equal_rule<T>(prev.field, cursor[prev.field]));
+    orRules.push({ combinator: 'and', rules: [...equalRules, boundary] });
   }
 
+  // 单字段（只能是 id）时不包一层 OR
+  if (options.orderBy.length === 1) return orRules[0];
   return { combinator: 'or', rules: orRules };
+};
+
+const _cursor_equal_rule = <T extends EntityType>(field: string, value: unknown): Rule<InstanceType<T>> =>
+  (value == null ? { field, operator: 'null' } : { field, operator: '=', value }) as Rule<InstanceType<T>>;
+
+/**
+ * 当前字段越过游标值的条件；不存在越过的行时返回 null
+ */
+const _cursor_boundary_rule = <T extends EntityType>(
+  field: string,
+  value: unknown,
+  useGreater: boolean
+): Rule<InstanceType<T>> | RuleGroup<InstanceType<T>> | null => {
+  if (useGreater) {
+    return (value == null ? { field, operator: 'notNull' } : { field, operator: '>', value }) as Rule<InstanceType<T>>;
+  }
+  if (value == null) return null;
+  // 主键不可能为 NULL，不必再并上 IS NULL 分支
+  if (field === 'id') return { field, operator: '<', value } as Rule<InstanceType<T>>;
+  return {
+    combinator: 'or',
+    rules: [
+      { field, operator: '<', value },
+      { field, operator: 'null' }
+    ]
+  } as RuleGroup<InstanceType<T>>;
 };
 
 /**

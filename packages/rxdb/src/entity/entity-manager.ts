@@ -9,6 +9,7 @@ import { RxDB } from '../RxDB.js';
 import { ENTITY_MANAGER, ENTITY_TYPE, PROXY, STATUS } from '../rxdb.private.js';
 import { RxDBError } from '../RxDBError.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
+import { assertMutationsAllowed } from './entity-permissions.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
 import { EntityStatus } from './entity-status.js';
 import {
@@ -419,12 +420,16 @@ export class EntityManager {
   /**
    * 批量修改实体（创建/更新/删除）
    * @param options 批量修改选项
+   * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>) {
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
     // 主端缺适配器或批内主端不一致时就地抛错，不再让它挂着。
+    // 权限整批预检在选主端之前、任何写发出之前：一条违规整批拒绝（US-027）。
+    // QueryCache 批次随后经门面逐条再判一次，结果相同，不必去重。
+    assertMutationsAllowed(options as RxDBMutationsMap);
     const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
     const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.entitySync);
     if (primary === null) return [];

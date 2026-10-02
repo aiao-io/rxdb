@@ -10,9 +10,9 @@
  * React 测试经 DOM（按钮点击 / 键盘 / FakeListTable 事件）驱动，
  * 对应 Angular 侧直接调用组件方法的覆盖点。
  */
-import { RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { EntityBase, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import { RxDBProvider } from '@aiao/rxdb-react';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Account, AuditLog, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityList, type EntityListProps } from '../../entity-list/entity-list';
@@ -30,7 +30,7 @@ describe('EntityList（真实组件）', () => {
   let adapter: InMemoryRxDBAdapter;
 
   beforeAll(async () => {
-    rxdb = createInMemoryRxdb([Todo as unknown as EntityType]);
+    rxdb = createInMemoryRxdb([Todo, Account, AuditLog, Invoice, Contract] as unknown as EntityType[]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -88,10 +88,11 @@ describe('EntityList（真实组件）', () => {
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
-  /** 查询当前落库的 title 列表（升序）。 */
-  const findTitles = async (): Promise<string[]> => {
+  /** 查询实体当前落库的 title 列表（升序）。 */
+  const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];
-    const subscription = repoOf()
+    const subscription = rxdb.entityManager
+      .getRepository(entityType)
       .find({ where: { combinator: 'and', rules: [] }, orderBy: [{ field: 'title', sort: 'asc' }] } as never)
       .subscribe(rows => seen.push(rows.map(r => (r as unknown as { title: string }).title)));
     await FLUSH();
@@ -99,6 +100,7 @@ describe('EntityList（真实组件）', () => {
     subscription.unsubscribe();
     return seen.at(-1) ?? [];
   };
+  const findTitles = (): Promise<string[]> => titlesOf(Todo as unknown as EntityType);
 
   it('namespace/name 输入驱动无限滚动列表加载真实数据', async () => {
     await seedTodo('alpha');
@@ -501,6 +503,97 @@ describe('EntityList（真实组件）', () => {
 
     expect(container.textContent).not.toContain('+ 新增');
     expect(tableOf().records.every(r => r['_readonly'] === true)).toBe(true);
+  });
+
+  describe('US-027 新增 / 编辑 / 删除入口按实体 permissions 派生', () => {
+    type IconColumn = { icon: (args: unknown) => Array<{ name: string }> };
+    type EditorColumn = { editor: (args: unknown) => unknown };
+
+    /** 列在表格里的序号（col 0 是行序号列） */
+    const colOf = (field: string): number => tableOf().columns.findIndex(c => c['field'] === field) + 1;
+
+    /** 某一行操作列给出的图标名（去重） */
+    function actionIconNames(row: number): string[] {
+      const col = colOf('actions');
+      const column = tableOf().columns[col - 1] as unknown as IconColumn;
+      return [...new Set(column.icon({ table: tableOf(), col, row }).map(i => i.name))];
+    }
+
+    /** 某一行 title 单元格的编辑器（`undefined` 即不可编辑） */
+    function titleEditorOf(row: number): unknown {
+      const col = colOf('title');
+      return (tableOf().columns[col - 1] as unknown as EditorColumn).editor({ table: tableOf(), col, row });
+    }
+
+    const rowOf = (id: string): number => tableOf().records.findIndex(r => r['id'] === id) + 1;
+
+    it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
+      const log = new AuditLog({ message: 'seeded-by-system' });
+      await adapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([[AuditLog as unknown as EntityType, new Set([log])]]),
+        update: new Map(),
+        remove: new Map()
+      });
+      const { container } = await renderList({ name: 'AuditLog' });
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(1);
+      });
+
+      expect(container.textContent).not.toContain('+ 新增');
+      expect(tableOf().records[0]['_readonly']).toBeUndefined();
+      expect(actionIconNames(1)).toEqual(['view-action', 'delete-action']);
+    });
+
+    it('未声明 permissions 的实体照常提供新增', async () => {
+      const { container } = await renderList();
+
+      expect(container.textContent).toContain('+ 新增');
+    });
+
+    it('AC#11 update: system 的实体：行只读、单元格无编辑器，删除仍可用并真实删除', async () => {
+      const keep = new Invoice({ title: 'keep' });
+      const victim = new Invoice({ title: 'victim' });
+      await keep.save();
+      await victim.save();
+      const { container } = await renderList({ name: 'Invoice' });
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(2);
+      });
+
+      expect(container.textContent).toContain('+ 新增');
+      expect(tableOf().records.every(r => r['_readonly'] === true)).toBe(true);
+      const row = rowOf(victim.id);
+      expect(titleEditorOf(row)).toBeUndefined();
+      expect(actionIconNames(row)).toEqual(['view-action', 'delete-action']);
+
+      act(() => {
+        tableOf().emit('icon_click', { name: 'delete-action', col: colOf('actions'), row });
+      });
+      await waitFor(async () => {
+        expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);
+      });
+    });
+
+    it('AC#12 delete: system 的实体：行可编辑并落库，操作列只剩查看', async () => {
+      const contract = new Contract({ title: 'draft-terms' });
+      await contract.save();
+      await renderList({ name: 'Contract' });
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(1);
+      });
+
+      const row = rowOf(contract.id);
+      expect(tableOf().records[row - 1]['_readonly']).toBeUndefined();
+      expect(titleEditorOf(row)).toBeDefined();
+      expect(actionIconNames(row)).toEqual(['view-action']);
+
+      act(() => {
+        tableOf().emit('change_cell_value', { col: colOf('title'), row, changedValue: 'final-terms' });
+      });
+      await waitFor(async () => {
+        expect(await titlesOf(Contract as unknown as EntityType)).toEqual(['final-terms']);
+      });
+    });
   });
 
   it('initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略', async () => {

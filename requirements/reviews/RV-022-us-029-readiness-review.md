@@ -17,8 +17,11 @@ pr: # 修复 PR 链接，Resolved 时填
 
 ❌ **不建议按现稿整条立项。** 现状实证扎实（无一条断言为假），但有两条准入问题（R01 / R02）和九条会让阶段 B～D 返工的设计缺口（R03～R11）。
 
-立项不止开这一条故事：US-027 阶段 A / B / C 的解锁条件就是 US-029 立项，所以一旦拍板，等于把
-**US-027 A/B/C + US-029 A～E 共 8 个阶段、30 余条 AC、6 个包 + 参考 SQL + 三框架**一起排进批次。
+一旦拍板，等于把 **US-029 A～E 共 5 个阶段、6 个包 + 参考 SQL + 三框架**一起排进批次；上游 US-027 阶段 A / B / C
+不等本故事立项，已独立交付。
+
+后续处置：US-029 已回写为价值待证（R01 选 b）；R04 已实验复现为与租户无关的真实缺陷，拆为
+[US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) 先行。去掉租户能否立项见「去掉租户后的评估」。
 
 ## 准入问题（P0）
 
@@ -31,13 +34,13 @@ pr: # 修复 PR 链接，Resolved 时填
 
 按 [CONVENTIONS 价值待证](../CONVENTIONS.md#价值待证)「病灶数 ≥ 抽象数」：新增抽象至少 10 项（`access` 声明、`tenantId` / `roles` 冻结快照、
 `EntityPermissionRule` 谓词、`switchContext` 代次、`evictTenantData`、按租户水位、严格拉取、逐操作确认 + rejected 状态、
-RLS fixture、操作级能力派生），已知病灶为 0。US-027 / US-028 / US-030 / epic-009 都按同一判据标了价值待证，
+RLS fixture、操作级能力派生），已知病灶为 0。US-028 / US-030 / epic-009 都按同一判据标了价值待证，
 US-029 现稿没有「价值待证」节，也没有解锁条件。
 
 **需要 owner 二选一**：
 
 - (a) 给出驱动样本（具体的多租户使用方或场景），写进「背景与动机」作为症状，然后按 R02 的顺序立项；
-- (b) 补「价值待证」节，`priority` 下调为 Low，写明解锁条件（出现具名多租户使用方），留在立项池。US-027 A/B/C 随之继续冻结。
+- (b) 补「价值待证」节，`priority` 下调为 Low，写明解锁条件（出现具名多租户使用方），留在立项池。
 
 ### R02 阶段顺序把唯一的安全边界排在最后
 
@@ -48,7 +51,8 @@ US-029 现稿没有「价值待证」节，也没有解锁条件。
 建议（若 R01 选 a）：
 
 - 把 D 里**与租户无关**的两项拆出来前置：`rxdb_mutations` 的日志改由真实生效的写推导（R04），以及 push 逐操作确认（R05）。
-  这两项修的是现有同步协议的完整性，单用户也受益（**推断**，需在立项时写出可复现的单用户反例才能作为独立价值成立）。
+  这两项修的是现有同步协议的完整性，不依赖租户。反例已复现（见 R04），已拆为独立故事
+  [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md)，不论 R01 选哪一项都可以先排。
 - 严格拉取与 RLS fixture 只依赖 A 的声明，可与 B 并行，不必等 C。
 - 在故事里写明：D 关闭前，任何文档、TSDoc、release note 都不得把 `access` 描述为「隔离」或「安全」。
 
@@ -72,6 +76,12 @@ if (syncType === 'filter' && !effectiveFilter) {
 [`04-rxdb-utils-functions.sql`](../../docker/sql/04-rxdb-utils-functions.sql) 的 `rxdb_mutations` 先用 `op->'patch'` 拼出
 `beforeData` / `afterData` 并 `INSERT INTO public.rxdb_change`，之后才调 `rxdb_batch_upsert` / `rxdb_batch_delete`；
 `rxdb_batch_delete` 内 `GET DIAGNOSTICS affected = ROW_COUNT` 拿到的真实受影响行数没有被 `rxdb_mutations` 用来回收日志。
+
+**已实验确认**：给业务表加一条「只有 owner 能删」的 DELETE 策略，以非 owner 身份调 `rxdb_mutations` 删除一行可见的行，
+函数不报错、行仍在，`rxdb_change` 却多了一条 DELETE；推送方本地删掉该行，其它端拉到后也删掉，远端与所有客户端从此分叉。
+复现用例为 [`supabase-sql-security-regressions.sql`](../../packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql)
+的 `test_rls_filtered_delete()`（`rls-filtered-delete`，当前为红）。这条不需要租户或角色，任何启用了业务表 RLS 的部署今天就会踩到，
+由 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) 阶段 A 修复。
 
 所以 AC#24「`USING` 零行生效不产生日志」不是「加参数」能做到的——函数的阶段顺序要整体反转：先写业务表、以 `RETURNING` 取真实前后像，
 再据此写日志并按受影响行数判定 applied / rejected。回写：「留给 plan 阶段的落点」把这条从「返回形状」升级为「`rxdb_mutations` 执行顺序重排」。
@@ -161,10 +171,28 @@ sqlite 的 [`trigger_sql.ts`](../../packages/rxdb-adapter-sqlite-core/src/table/
 - **`DISPLAY_ONLY_FIELDS` 是写死字段名的全局 `Set`**（`build-editable-columns.ts`），要改成按实体 `access` 声明动态判断，不是往集合里加字面量。
 - **切换后清缓存缺负向用例**：AC#17 补「切换后经 `getEntityRef` 命中旧租户实例」的断言。
 
+## 去掉租户后的评估
+
+owner 追问：不做多租户，只做多用户（owner / 角色），是否可以立项。
+
+**消失的**：R06（按租户水位）、R07（存量表补租户列）、R08（同库多连接分处不同租户）、R11（`evictTenantData`），
+以及 R03 / R09 中与租户过滤相关的部分。阶段 C 的大半和 `switchContext` 的清理语义随之消失，范围约减半。
+
+**仍在的**：`access.owner` 声明、`RxDBContext.roles` 冻结快照、角色 / 所有权谓词、写入前像读取（R10）、
+push 逐操作确认（R05）、权威端 RLS 与 fixture、三框架操作级能力派生。`ownerOnly` 只限写不限读，所以拉取侧基本不动，
+但写入侧与权威端的工作量不变。新增抽象仍有 6～7 项。
+
+**结论**：❌ 去掉租户不改变 R01。多用户版同样没有具名使用方，病灶数仍为 0，价值待证照旧成立。
+
+但评审过程中复现出一个**与租户、角色都无关**的真实病灶：业务表开 RLS 后的幽灵 DELETE（R04）。它属于现有同步协议，
+修复它不需要 `access` 声明，因此拆为独立故事 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md)（High，可直接排期）。
+US-029 回写为价值待证、`priority: Low`，阶段 D 以 US-218 为前置；解锁后可以先交付 owner / 角色，租户作为增量追加，
+不必一次排进五个阶段。
+
 ## 需 owner 定案
 
-1. R01：选 (a) 给驱动样本后立项，还是 (b) 标价值待证留池。
-2. R02（仅 R01 选 a 时）：是否接受「权威端完整性前置、严格拉取与 B 并行」的阶段重排。
+1. R01：选 (a) 给驱动样本后立项，还是 (b) 标价值待证留池。现稿已按 (b) 回写，见「去掉租户后的评估」。
+2. R02（仅 R01 选 a 时）：是否接受「严格拉取与 B 并行」的阶段重排。权威端完整性已拆为 US-218，不再占用这项决策。
 3. R07：存量表追加租户列是否在本期支持（决定是否要服务端补快照迁移）。
 4. R09 / R10：树、图插件实体本期是否支持声明租户（建议显式排除）。
 
