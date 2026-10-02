@@ -754,10 +754,11 @@ describe('actionsColumn with view label', () => {
     expect(names.filter(n => n === 'delete-action')).toHaveLength(2);
   });
 
-  it('keeps returning an empty icon list for readonly records', () => {
+  it('keeps only the view icon for readonly records (delete hidden)', () => {
     const col = actionsColumn('操作', '删除', '查看');
     const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
-    expect(iconFn(makeArgs({ _readonly: true }))).toEqual([]);
+    const names = (iconFn(makeArgs({ _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
+    expect(names).toEqual(['view-action']);
   });
 });
 

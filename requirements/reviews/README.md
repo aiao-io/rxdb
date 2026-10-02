@@ -11,11 +11,14 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                             | 说明                                | 剩余项              |
-| -------------------------------- | ----------------------------------- | ------------------- |
-| `README.md`                      | 本说明与状态约定                    | —                   |
-| `review.template.md`             | 新建 review 记录的模板              | —                   |
-| `next-11-rxdb-package-review.md` | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策 |
+| 文件                                 | 说明                                | 剩余项                                |
+| ------------------------------------ | ----------------------------------- | ------------------------------------- |
+| `README.md`                          | 本说明与状态约定                    | —                                     |
+| `review.template.md`                 | 新建 review 记录的模板              | —                                     |
+| `next-11-rxdb-package-review.md`     | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                   |
+| `RV-022-us-029-readiness-review.md`  | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2，4 项待 owner 定案 |
+| `RV-022-us-028-initiation-review.md` | US-028 可排序实体立项评审           | 1 条立项判据 + 3 P1 + 2 P2            |
+| `RV-023-us-602-initiation-review.md` | US-602 AI 可理解性立项评审          | 4 P1 + 2 P2                           |
 
 > **2026-10-02 清理（RV-021 US-027 实体操作权限模型需求评审）**：整份删除——5 条（2 P1 + 3 P2）对照源码复核全部属实，全部回写进 [US-027](../stories/core/US-027-entity-permission-model.md)，故事仍为 Backlog / Low。背景第 3 条「公开写入口只有 `mutations()`」不实：三框架 `EntityList` 的行删除还走实体实例 `remove()`，`apps/` 与 `modules/` 另有 33 个文件经门面写，逐条看过全是业务实体、无一写系统表，设计前提成立，改写范围与复验方式（R01）。`PermissionDeniedError` 定为带违规清单（实体名 + 操作），`mutations()` 预检收齐整批违规后一次抛出，US-029 的逐行批量拒绝复用同一形状（R02）。系统表声明完整性断言从「构造期」改为 `RxDB.init()` 内、`#install_plugin()` 之后——插件经构造后的 `use()` 注册，构造期断言恒真（R03）；metadata-validate 报错时机写实为 `EntityManager.init()` 汇总抛错（R04）。判定落点补上：预检读 `getEntityMutations()` 的产出、未改动的只读关联实体不进批次、预检原子性不依赖执行期原子性、自动生成的多对多 Junction 取缺省 `'both'`（R05）。owner 定案只立项 AC#13：新增阶段 0（只读行保留「查看」并走 view 模式 + 三端系统表 e2e，关 AC#13 / AC#16）进 roadmap 批次 3，阶段 C 改依赖 0 与 A；A / B / C 仍价值待证，解锁条件不变。
 >

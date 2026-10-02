@@ -14,6 +14,61 @@ async function createTodo(page: Page, title: string): Promise<void> {
   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
 }
 
+/** 表格某行操作列图标在页面上的点击坐标，连同该行记录 id。 */
+interface ActionIconHit {
+  x: number;
+  y: number;
+  recordId: string;
+}
+
+/**
+ * 定位表格第 `row` 行操作列里名为 `iconName` 的图标；该行不渲染此图标时返回 `null`。
+ *
+ * @remarks 表格由 VTable 画在 canvas 上，图标不是 DOM 节点。VTable 把实例挂在 canvas 的
+ * `__vtable__` 上：先把操作列单元格滚进视口，再从场景树按图标 `name` 取包围盒，
+ * 换算成页面坐标，后续按真实位置点击，走的仍是 VTable 自己的命中测试。
+ */
+async function findActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit | null> {
+  const canvas = page.getByTestId('entity-shell').locator('canvas').first();
+  return canvas.evaluate(
+    (el, [name, targetRow]) => {
+      interface SceneNode {
+        name?: string;
+        globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
+        forEachChildren(cb: (child: SceneNode) => void): void;
+      }
+      interface VTableLike {
+        colCount: number;
+        records: Array<Record<string, unknown>>;
+        getHeaderField(col: number, row: number): unknown;
+        scrollToCell(cell: { col: number; row: number }): void;
+        scenegraph: { getCell(col: number, row: number): SceneNode };
+      }
+      const table = (el as unknown as { __vtable__: VTableLike }).__vtable__;
+      const col = Array.from({ length: table.colCount }, (_, i) => i).find(
+        c => table.getHeaderField(c, 0) === 'actions'
+      );
+      if (col === undefined) throw new Error('表格没有操作列');
+      table.scrollToCell({ col, row: targetRow });
+      let icon: SceneNode | undefined;
+      const visit = (node: SceneNode): void => {
+        if (!icon && node.name === name) icon = node;
+        node.forEachChildren(visit);
+      };
+      visit(table.scenegraph.getCell(col, targetRow));
+      if (!icon) return null;
+      const box = icon.globalAABBBounds;
+      const rect = el.getBoundingClientRect();
+      return {
+        x: rect.left + (box.x1 + box.x2) / 2,
+        y: rect.top + (box.y1 + box.y2) / 2,
+        recordId: String(table.records[targetRow - 1]?.['id'])
+      };
+    },
+    [iconName, row] as const
+  );
+}
+
 test.describe('Entity Model Pages', () => {
   test.beforeEach(async ({ page }) => {
     await resetE2eState(page);
@@ -113,6 +168,31 @@ test.describe('Entity Model Pages', () => {
       await page.getByRole('button', { name: '重置' }).click();
       await expect(page.getByText('条记录')).toHaveCount(0);
       await expect(page.getByText('暂无数据')).toHaveCount(0);
+    });
+
+    test('系统表只读：无新增 / 删除入口，「查看」以 view 模式打开详情', async ({ page }) => {
+      await page.goto('/entities/rxdb/RxDBBranch');
+      await expect(page.getByRole('button', { name: '筛选' })).toBeVisible();
+      await expect(page.getByText('暂无数据')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
+
+      // 只读行的操作列只留「查看」，不出「删除」
+      await expect.poll(() => findActionIcon(page, 'view-action')).not.toBeNull();
+      expect(await findActionIcon(page, 'delete-action')).toBeNull();
+
+      const view = await findActionIcon(page, 'view-action');
+      await page.mouse.click(view!.x, view!.y);
+
+      // view 模式：表单按记录 id 加载，字段全部只读（纯文本），没有保存入口
+      await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
+      const form = page.locator('form');
+      await expect(form).toHaveCount(1);
+      await expect(form).toContainText(view!.recordId);
+      await expect(form.locator('input, select, textarea')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCount(0);
+
+      await page.getByRole('button', { name: '关闭' }).click();
+      await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
     });
   });
 });

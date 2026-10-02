@@ -620,11 +620,11 @@ export const switchDisabledForReadonly: SwitchDisableCallback = (args: StyleProp
 };
 
 /**
- * 操作列：可选包含查看（view）和删除按钮，只读行不显示操作
+ * 操作列：可选包含查看（view）和删除按钮；只读行只保留查看，不出删除
  *
  * @param title 列标题
  * @param deleteLabel 删除按钮文案
- * @param viewLabel 查看按钮文案（可选，不传则只显示删除按钮）
+ * @param viewLabel 查看按钮文案（可选，不传则只显示删除按钮，只读行因此无图标）
  * @returns 操作列定义
  */
 export function actionsColumn(title: string, deleteLabel: string, viewLabel?: string): ColumnDefine {
@@ -639,8 +639,8 @@ export function actionsColumn(title: string, deleteLabel: string, viewLabel?: st
     disableHeaderSelect: true,
     icon: ((args: StylePropertyFunctionArg) => {
       const record = getCellRecord(args);
-      if (isReadonly(record)) return [];
-      return viewLabel ? [...makeViewIcons(), ...makeDeleteIcons(deleteLabel)] : makeDeleteIcons(deleteLabel);
+      const viewIcons = viewLabel ? makeViewIcons() : [];
+      return isReadonly(record) ? viewIcons : [...viewIcons, ...makeDeleteIcons(deleteLabel)];
     }) as ColumnDefine['icon']
   };
 }

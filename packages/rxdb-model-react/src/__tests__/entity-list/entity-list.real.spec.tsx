@@ -883,6 +883,32 @@ describe('EntityList（真实组件）', () => {
     void viewed;
   });
 
+  it('只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口', async () => {
+    await renderList({ namespace: 'rxdb', name: 'RxDBBranch' });
+    await waitFor(() => {
+      expect(tableOf().records.length).toBeGreaterThan(0);
+    });
+    const record = tableOf().records[0]!;
+    expect(record['_readonly']).toBe(true);
+
+    const table = tableOf();
+    act(() => {
+      table.emit('icon_click', { name: 'view-action', col: 2, row: 1 });
+    });
+
+    await waitFor(() => {
+      const form = document.querySelector('.rxdb-dialog-pane form');
+      expect(form?.textContent).toContain(record['id'] as string);
+      expect(form?.querySelectorAll('input, select, textarea')).toHaveLength(0);
+      expect(form?.textContent).not.toContain('保存');
+    });
+
+    fireEvent.click(document.querySelector('.rxdb-dialog-pane button[aria-label="关闭"]')!);
+    await waitFor(() => {
+      expect(document.querySelector('.rxdb-dialog-pane')).toBeNull();
+    });
+  });
+
   it('editChain 含记录 id 时 view-action 只 emit 不打开编辑对话框（防环）', async () => {
     const chained = await seedTodo('chained');
     const { viewed } = await renderList({ editChain: [chained.id] });

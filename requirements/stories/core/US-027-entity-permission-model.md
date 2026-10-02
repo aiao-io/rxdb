@@ -27,11 +27,11 @@ tags: [core, permission, model, rxdb-model]
    都在 `rxdb` 命名空间。三个 demo 的实体目录都从 `config.entities` 构建，于是目录里多出一个 `rxdb` 分组、14 张表。
    三框架 `EntityList` 用 `isSystemEntity()` 把系统表并进 `isCreateBlocked`（隐藏「+ 新增」）并给行挂 `_readonly`，
    rxdb-model 现成的只读守卫随之生效：单元格编辑器与行删除在 `column-utils.ts`（`isReadonly()` 分支、
-   `disabledEditorForReadonly`、`switchDisabledForReadonly`，`actionsColumn()` 对只读行返回空图标），
+   `disabledEditorForReadonly`、`switchDisabledForReadonly`，`actionsColumn()` 对只读行只给「查看」、不出「删除」），
    拖拽在 `table-operations.ts`（`patchDragIconForReadonlyRows()`、`collectReorderedIds()`），
    粘贴与 Delete 键清空单元格在 `table-clipboard.ts`（`applyClipboard()`、`applySystemText()`、`collectDeleteWrites()`），
    空格 / 回车切换在 `table-keyboard.ts`（`toggleCellValue()`）。三端 `entity-list.real.spec` 的「系统表整表只读」用例覆盖，
-   这是 AC#16 列表侧的提前交付。代价是 `actionsColumn()` 对只读行连「查看」一起藏掉；详情视图没有单独处理，三端 e2e 未做。
+   三端 `openViewDialog` 对只读行以 view 模式打开详情（阶段 0）。AC#13 / AC#16 已关，靠的是 `isSystemEntity()` 特判，不是权限声明。
 
    引擎一侧没有守卫。`isSystemEntity()` 的消费方都拿它做**排除**或 UI 只读，没有一条写路径拿它拒绝：
    `RxDB` 构造期的 `snapshotSyncOverrides()`、`backup/schema-fingerprint.ts`、`sync-listeners.ts`、
@@ -148,19 +148,17 @@ interface EntityPermissionOptions {
 
 | 阶段 | 交付                                                                                                                                                      | 直接前置  | AC 区段           | 状态 |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------- | ---- |
-| 0    | 只读行查看：操作列对只读行保留「查看」、只藏「删除」；三端 `openViewDialog` 对只读行走 view 模式；三端系统表 e2e                                          | 无        | AC#13、16         | ⬜   |
+| 0    | 只读行查看：操作列对只读行保留「查看」、只藏「删除」；三端 `openViewDialog` 对只读行走 view 模式；三端系统表 e2e                                          | 无        | AC#13、16         | ✅   |
 | A    | 声明与元数据：`permissions` 类型与 TSDoc、按操作就近继承、metadata-validate 校验（枚举值与未知键）、14 张系统表显式声明、`RxDB.init()` 断言系统表声明完整 | 无        | AC#1～5           | ⬜   |
 | B    | 公开写入口判定：门面 `Repository` 的 3 个写方法与 `EntityManager.mutations()` 整批预检；`PermissionDeniedError`                                           | 阶段 A    | AC#6～9           | ⬜   |
 | C    | 三框架 UI 派生：能力派生、`_readonly` 与删除能力拆开、关系 Tab；三端 e2e                                                                                  | 阶段 0、A | AC#10～12、14、15 | ⬜   |
 
 AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住；阶段 0 关掉的 AC#13 / AC#16 由阶段 C 守住。B 与 C 都只依赖 A，可以并行。
 
-阶段 0 已立项（roadmap 批次 3），不依赖任何权限抽象，也不受「价值待证」的解锁条件约束。只读行今天只有系统表：
-操作列保留「查看」、只藏「删除」；三端 `openViewDialog` 对只读行改用 `buildFormFields(meta, 'view')` + `formMode: 'view'`——
-`FormMode` 已有 `'view'`，`buildFormFields()` 已处理这个分支，三端表单组件在 `'view'` 下已不渲染保存按钮
-（React `entity-form.tsx` 的 `!isReadonly && showActions`，Angular / Vue 同构），只是三端 `openViewDialog` 固定传 `'edit'`。
-两件事同一个 PR，否则只读行的「查看」会打开一个能保存的编辑框。连同三端 e2e，它关掉 AC#16 剩下的详情侧；
-阶段 C 再把 `isSystemEntity()` 判断换成权限派生，并让 `actionsColumn()` 的删除改由能力参数决定。
+阶段 0 不依赖任何权限抽象。只读行今天只有系统表：`actionsColumn()` 对只读行只给「查看」图标；
+三端 `openViewDialog` 按 `record['_readonly']` 选 `formMode`，只读行走 `buildFormFields(meta, 'view')` + `formMode: 'view'`，
+三端表单组件在 `'view'` 下不渲染保存按钮（React `entity-form.tsx` 的 `!isReadonly && showActions`，Angular / Vue 同构）。
+阶段 C 把 `isSystemEntity()` 判断换成权限派生，并让 `actionsColumn()` 的删除改由能力参数决定。
 
 ## 范围边界
 
@@ -203,14 +201,16 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都要守住；�
 | 10  | 实体 `create: 'system'` 与未配置实体各一                                                               | 三框架 UI 打开两者的列表                                                                                                                                                                                 | 前者不显示「+ 新增」；后者显示，且创建成功                                                                                             | ⬜   |
 | 11  | 实体 `update: 'system'`，`delete` 未配置                                                               | 三框架 UI 打开列表                                                                                                                                                                                       | 行挂 `_readonly`：单元格、粘贴、拖拽、键盘切换都不可写；操作列显示「查看」与「删除」，删除成功                                         | ⬜   |
 | 12  | 实体 `delete: 'system'`，`update` 未配置                                                               | 三框架 UI 打开列表                                                                                                                                                                                       | 行可编辑、可保存；操作列只有「查看」，没有「删除」                                                                                     | ⬜   |
-| 13  | 行挂 `_readonly`（今天只有系统表；阶段 C 后含 `update: 'system'` 的实体）                              | 三框架 UI 点该行的「查看」                                                                                                                                                                               | 详情以 view 模式打开，字段全部只读，没有保存入口                                                                                       | ⬜   |
+| 13  | 行挂 `_readonly`（今天只有系统表；阶段 C 后含 `update: 'system'` 的实体）                              | 三框架 UI 点该行的「查看」                                                                                                                                                                               | 详情以 view 模式打开，字段全部只读，没有保存入口                                                                                       | ✅   |
 | 14  | 可编辑实体内某字段 `readonly: true`                                                                    | 三框架 UI 编辑该实体                                                                                                                                                                                     | 字段级只读继续生效，实体级权限不覆盖字段级配置                                                                                         | ⬜   |
 | 15  | 详情的关系 Tab 内嵌列表，被关联实体分别为 `update: 'system'` 与 `delete: 'system'`                     | 三框架 UI 打开关系 Tab                                                                                                                                                                                   | 与 AC#11 / AC#12 同样的派生                                                                                                            | ⬜   |
-| 16  | 三个 dev app 的 `rxdb` 分组                                                                            | 打开任一系统表的列表与详情                                                                                                                                                                               | 无新增 / 删除入口、不可编辑；「查看」可用且为 view 模式；三端 e2e 覆盖                                                                 | ⚠️   |
+| 16  | 三个 dev app 的 `rxdb` 分组                                                                            | 打开任一系统表的列表与详情                                                                                                                                                                               | 无新增 / 删除入口、不可编辑；「查看」可用且为 view 模式；三端 e2e 覆盖                                                                 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC#16 的保留：列表侧已交付，三端单测覆盖（背景第 1 条）；「查看」与详情视图依赖 AC#13，三端 e2e 未做。
+AC#13 / AC#16 的证据：`column-utils.spec.ts` 的「keeps only the view icon for readonly records (delete hidden)」；
+三端 `entity-list.real.spec` 的「只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口」与「系统表整表只读」；
+三端 `entity-model.spec.ts` 的 e2e「系统表只读：无新增 / 删除入口，「查看」以 view 模式打开详情」（`RxDBBranch`）。
 
 ## 技术笔记
 
@@ -259,8 +259,7 @@ AC#16 的保留：列表侧已交付，三端单测覆盖（背景第 1 条）�
 阶段 A / B / C **价值待证**。用户踩得到的系统表写入口只有 demo 的实体目录，三框架 `EntityList` 已对系统表整表只读
 （背景第 1 条），不需要本故事的任何抽象。剩下的是开发者在代码里误写系统表，而适配器 / 执行器层这类绕过路径本来就不拦（Out of Scope）。
 
-阶段 0 不在此列：三个 demo 的系统表行今天连「查看」都没有（`actionsColumn()` 对只读行返回空图标），是踩得到的症状；
-修它不新增抽象，病灶数 ≥ 抽象数成立，已立项。
+阶段 0 不在此列：它修的是踩得到的症状（三个 demo 的系统表行没有「查看」），不新增抽象，已交付。
 
 新增抽象 3 个：`permissions` 声明与判定、`PermissionDeniedError`、UI 能力派生。病灶只有「程序化误写系统表不报错」1 项，
 是潜在风险而非已报告的症状，病灶数 < 抽象数，`priority` 因此为 Low。

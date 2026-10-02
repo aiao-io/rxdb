@@ -417,7 +417,7 @@ export class EntityListComponent {
         .map(r => ({ ...r, __selected: selIds.has(r['id'] as string) }));
     }
     // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
-    // 操作列对只读行不出图标，「查看」也随之隐藏
+    // 操作列对只读行只留「查看」（详情走 view 模式），不出「删除」
     if (this.#isSystemTable()) records = records.map(r => ({ ...r, _readonly: true }));
     return records;
   });
@@ -699,7 +699,7 @@ export class EntityListComponent {
   // ── Private helpers ───────────────────────────────────────────────────
 
   /**
-   * 「查看」行 → 打开 edit 详情对话框（内置弹窗修改）。
+   * 「查看」行 → 打开详情对话框：可写行走 edit 模式（内置弹窗修改），`_readonly` 行走 view 模式（无保存入口）。
    * 关系 Tab 内嵌的列表同样走这里，套娃下钻；`editChain` 命中或未落库草稿时只 emit 不打开。
    */
   async #openViewDialog(record: EntityTableRecord): Promise<void> {
@@ -711,7 +711,8 @@ export class EntityListComponent {
     if (!cls) return;
 
     const meta = getEntityMetadata(cls);
-    const fields = buildFormFields(meta, 'edit');
+    const formMode = record['_readonly'] === true ? 'view' : 'edit';
+    const fields = buildFormFields(meta, formMode);
 
     const { EntityDetailComponent } = await import('../entity-detail/entity-detail');
     // 懒加载 chunk 期间组件可能已被销毁（如测试 teardown），销毁后不再打开对话框
@@ -727,7 +728,7 @@ export class EntityListComponent {
         metadata: meta,
         formFields: fields,
         formData: {},
-        formMode: 'edit' as const,
+        formMode,
         entityId: id,
         editChain: [...this.editChain(), id],
         relatedEntityProvider: this.#makeRelatedEntityProvider(null)

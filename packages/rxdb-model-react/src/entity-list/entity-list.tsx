@@ -388,7 +388,7 @@ export function EntityList({
         .map(record => ({ ...record, __selected: selectedIds.has(record['id'] as string) }));
     }
     // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
-    // 操作列对只读行不出图标，「查看」也随之隐藏
+    // 操作列对只读行只留「查看」（详情走 view 模式），不出「删除」
     if (isSystemTable) records = records.map(record => ({ ...record, _readonly: true }));
     return records;
   }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isSystemTable]);
@@ -600,7 +600,7 @@ export function EntityList({
     [entityClsMap]
   );
 
-  /** 打开编辑详情对话框（「查看」行）；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
+  /** 打开详情对话框（「查看」行）：`_readonly` 行走 view 模式、其余走 edit；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
   const openViewDialog = useCallback(
     (record: EntityTableRecord): void => {
       const id = record['id'];
@@ -610,11 +610,12 @@ export function EntityList({
       const cls = entityClsRef.current;
       if (!cls) return;
       const meta = getEntityMetadata(cls);
+      const formMode = record['_readonly'] === true ? 'view' : 'edit';
       const data: EntityDetailDialogData = {
         metadata: meta,
-        formFields: buildFormFields(meta, 'edit'),
+        formFields: buildFormFields(meta, formMode),
         formData: {},
-        formMode: 'edit',
+        formMode,
         entityId: id,
         editChain: [...editChain, id],
         relatedEntityProvider: makeRelatedEntityProvider(null)
