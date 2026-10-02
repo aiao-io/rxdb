@@ -130,7 +130,9 @@ export default defineConfig(() => ({
     coverage: {
       enabled: false,
       reportsDirectory:
-        isBrowserTest ? '../../coverage/packages/rxdb-plugin-replay-browser' : '../../coverage/packages/rxdb-plugin-replay',
+        isBrowserTest ?
+          '../../coverage/packages/rxdb-plugin-replay-browser'
+        : '../../coverage/packages/rxdb-plugin-replay',
       provider: 'v8' as const,
       reporter: ['text', 'json-summary', 'json', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*'],
