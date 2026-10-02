@@ -30,6 +30,7 @@ owner: jimmy
 - [ ] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
 - [ ] 会话录制回放与失败现场数据还原：e2e 失败自动留档界面回放，并按 working-tree 提交还原数据状态
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
+- [ ] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 
 ## 故事
 
@@ -56,7 +57,7 @@ owner: jimmy
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
 - [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`：公开写入口快速失败（不是防御边界，适配器 / 执行器层不判定）+ 14 张系统表显式声明 + rxdb-model 三框架 UI 能力派生；四阶段交付（0 只读行查看 / A 声明与系统表 / B 公开写入口判定 / C UI 能力派生）
-- [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；排序域 = 分组字段组合（整表为空组合、NULL 值算一组），A～D 四阶段（D 交付分组排序域与跨组移动）；依赖方向 tree → sortable，可排序字段强制非空；与 US-025 阶段 E 无先后约束；**价值待证**
+- [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；排序域 = 分组字段组合（整表为空组合、NULL 值算一组），A～E 五阶段（D 分组排序域与跨组移动，E 三端 Todo 按 `completed` 分组手动排序）；依赖方向 tree → sortable，可排序字段强制非空；与 US-025 阶段 E 无先后约束
 - [US-029 多用户 RBAC：角色与所有权写权限](../stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（不加基础字段）+ `RxDBContext.roles` 与一实例一身份 + US-027 操作权限扩展为角色 / 所有权谓词 + 测试 RLS fixture + 三框架操作级能力派生；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218；**价值待证**，解锁条件为出现具名多用户使用方（[RV-022](../reviews/RV-022-us-029-readiness-review.md)）
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被 `USING` 过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现）；三阶段（不写幽灵日志 → 逐操作回执 → 日志表收口与部署指引），不含租户与角色
