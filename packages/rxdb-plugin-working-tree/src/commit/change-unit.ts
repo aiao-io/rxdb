@@ -198,10 +198,11 @@ function canonicalize(value: unknown, path: string): string {
   return canonicalizeObject(value as Record<string, unknown>, path);
 }
 
-/** 定死文本编码：同一段文本在任何调用点都必须按同一种编码入摘要。 */
-const textEncoder = new TextEncoder();
+/** 定死文本编码：同一段文本在任何调用点都必须按同一种编码入摘要。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let textEncoder: TextEncoder | undefined;
 
-const digest = (domain: string, payload: string): string => sha256Hex(textEncoder.encode(`${domain} ${payload}`));
+const digest = (domain: string, payload: string): string =>
+  sha256Hex((textEncoder ??= new TextEncoder()).encode(`${domain} ${payload}`));
 
 /**
  * 算一个变更单元的内容指纹（FR-003）。

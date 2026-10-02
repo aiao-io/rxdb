@@ -124,9 +124,12 @@ async function createDatabase() {
 `config/rxdb-packages-vite-plugin.ts`（`douyinRealmVitePlugin`）与 `build-tt` target。两者都拿不到真实全局对象时引导直接报
 「请经 host.runtimeGlobal 注入」，不会猜。
 
-iOS 抖音没有原生 `TextEncoder` / `TextDecoder`。adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装，
-而 RxDB 核心与 sqlite-core 的备份模块在模块顶层就 `new TextEncoder()`，带 RxDB 核心的完整产物在 iOS 上会加载即失败
-（**推断**：vm 里去掉编码全局加载 `dist-tt/` 实测 ReferenceError；spike v9 只打了 adapter 客户端，没覆盖到）。
+iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装。
+所以打进产物的代码**不能在模块顶层构造编码器**，要等第一次用到再建：iOS 真机实测，模块顶层的 `new TextEncoder()`
+让页面加载即报 `ReferenceError: Can't find variable: TextEncoder`，真机 `require` 吞掉错误后还会冒出次生的
+`... is not a function`。`@aiao/rxdb`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-encrypted`、`rxdb-plugin-storage`、
+`rxdb-plugin-working-tree` 已经全部改成首次使用时创建，各包的 `module-load-without-encoding.spec.ts` 把住每个发布入口；
+业务代码打进同一份产物时守同一条规矩。
 
 ## 宿主契约
 

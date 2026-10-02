@@ -62,8 +62,12 @@ const hexNibble = (code: number): number => (code <= 0x39 ? code - 0x30 : (code 
  *
  * 对应的 `TextEncoder` **故意没有**提这一手：实测每次 `new TextEncoder()` 与复用同一实例
  * 是 0.98x（200k 次 55ms vs 56ms，Node 26），V8 已经把它优化掉了，改了只是徒增一个模块级可变量。
+ *
+ * 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。
  */
-const IDENTITY_TEXT_DECODER = new TextDecoder('utf-8', { fatal: true });
+let identityTextDecoder: TextDecoder | undefined;
+const identityTextDecoderInstance = (): TextDecoder =>
+  (identityTextDecoder ??= new TextDecoder('utf-8', { fatal: true }));
 
 type EncodedChangeValue = Readonly<{
   codecVersion: number;
@@ -450,10 +454,10 @@ export const encodeRxDBEntityIdentity = (id: RxDBEntityId): Uint8Array => {
  */
 export const decodeRxDBEntityIdentity = (encoded: Uint8Array): RxDBEntityId => {
   const isTyped = encoded.byteLength >= 5 && IDENTITY_MAGIC.every((byte, index) => encoded[index] === byte);
-  if (!isTyped) return IDENTITY_TEXT_DECODER.decode(encoded);
+  if (!isTyped) return identityTextDecoderInstance().decode(encoded);
   const version = encoded[3];
   if (version !== IDENTITY_VERSION) throw new UnsupportedRxDBEntityIdentityVersionError(version, IDENTITY_VERSION);
-  const payload = IDENTITY_TEXT_DECODER.decode(encoded.subarray(5));
+  const payload = identityTextDecoderInstance().decode(encoded.subarray(5));
   if (encoded[4] === IDENTITY_BIGINT) return BigInt(payload);
   if (encoded[4] === IDENTITY_NUMBER) {
     const value = Number(payload);
