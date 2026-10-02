@@ -187,7 +187,7 @@ description: 'Task list: US-909 阶段 C — 应用内会话录制回放与 comm
       — AC#10～17 全 ✅ 并附证据；AC#11 的「索引命中」补了 `store.spec` 的 EXPLAIN 用例（20 会话 × 250 条、`ANALYZE` 后区间谓词走
       `(sessionId, timestamp)` 的 Bitmap Index Scan）；阶段 B / C 行改 ✅（B 行 AC#4～9 早已全 ✅，属漏回写）；实现文件表补 working-tree /
       demo / e2e / website 四行；`capability-matrix.md` 与 `versioning-policy.md` 的包数 46 / 45 → 50 / 49；`audit:requirements` 通过
-- [ ] T052 提交、推送 `us909-stage-c`，开 PR（base `us909-stage-b`，标题过 `node scripts/commit-lint.mjs`）；CI 全绿后在本任务记 run 号
+- [ ] T052 提交、推送 `us909-stage-c`，开 PR（标题过 `node scripts/commit-lint.mjs`）；CI 全绿后在本任务记 run 号。2026-10-02 owner 要求三个堆叠 PR 合成一个：#85 改 base `main`、标题改为 `feat(rxdb-plugin-replay): US-909 会话录制回放调试（阶段 A～C）`，#81 / #82 关闭并指向 #85（分支保留）
 
 ## Dependencies & Execution Order
 
