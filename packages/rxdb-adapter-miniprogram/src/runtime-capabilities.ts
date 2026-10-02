@@ -4,8 +4,8 @@ import type {
   MiniProgramHostSelection,
   WaSqliteMiniProgramBaseOptions
 } from './mini-program.interface.js';
-import type { MiniProgramRuntimeSource } from './runtime-source.js';
 import { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
+import type { MiniProgramRuntimeSource } from './runtime-source.js';
 import { readMiniProgramRuntimeSources } from './runtime-source.js';
 
 /** 小程序运行 RxDB 所需的一项能力。 */

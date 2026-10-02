@@ -56,9 +56,7 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramAdapterOpti
   `,
   async load(dbName, options) {
     const host = resolveMiniProgramHost(options);
-    const module = hardenWaSqliteSynchronousCallbacks(
-      await loadWaSqliteMiniProgramModule(options, host)
-    );
+    const module = hardenWaSqliteSynchronousCallbacks(await loadWaSqliteMiniProgramModule(options, host));
     const vfsHandle = createMiniProgramFileVFS(module, {
       databaseName: `${dbName}.sqlite`,
       root: options.databaseRoot,

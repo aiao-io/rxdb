@@ -241,7 +241,8 @@ export async function prepareMiniProgramHostRuntime(
   assertMiniProgramHostPlatform(host);
   const runtimeGlobal = resolveMiniProgramRuntimeGlobal(host);
   installPolyfills(runtimeGlobal);
-  if (readMiniProgramRuntimeSources(runtimeGlobal).random === 'native') return readMiniProgramRuntimeSources(runtimeGlobal);
+  if (readMiniProgramRuntimeSources(runtimeGlobal).random === 'native')
+    return readMiniProgramRuntimeSources(runtimeGlobal);
   if (typeof host.requestRandomValues !== 'function') {
     throw new TypeError(`${host.displayName}宿主缺少 requestRandomValues`);
   }

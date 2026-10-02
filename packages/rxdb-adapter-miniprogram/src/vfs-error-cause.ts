@@ -48,10 +48,7 @@ function guardCall<T>(call: () => T, source: VfsErrorSource): T {
 }
 
 /** 只转发 `for await` 用到的协议方法；不碰 `Symbol.asyncDispose`，老 JSC 上没有。 */
-function guardIterator(
-  iterator: AsyncGenerator<unknown>,
-  source: VfsErrorSource
-): AsyncIterableIterator<unknown> {
+function guardIterator(iterator: AsyncGenerator<unknown>, source: VfsErrorSource): AsyncIterableIterator<unknown> {
   const guarded: AsyncIterableIterator<unknown> = {
     next: (...args) => guardCall(() => iterator.next(...args), source),
     return: value => guardCall(() => iterator.return(value), source),
