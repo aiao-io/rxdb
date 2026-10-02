@@ -304,20 +304,22 @@ export class MiniProgramRxdbDemo {
 export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferences): Promise<DemoOpenResult> {
   await releaseActiveDemo();
   const runtimePackage = await import('@aiao/rxdb-adapter-miniprogram/runtime');
-  await runtimePackage.prepareMiniProgramRuntime(runtime.wechat);
+  await runtimePackage.prepareMiniProgramHostRuntime(runtime.host);
 
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
-  // wasm 由 `config/index.ts` 的 copy 规则放到 `DEFAULT_WASM_PATH`。
+  // wasm 由 `config/index.ts` 的 copy 规则放到宿主默认路径（微信即 `DEFAULT_WASM_PATH`）。
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,
-    wechat: runtime.wechat,
+    host: runtime.host,
     wasmRuntime: runtime.wasmRuntime
   });
   const missing = capabilities.filter(capability => !capability.available);
   if (missing.length > 0) {
-    throw new Error(`微信运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`);
+    throw new Error(
+      `${runtime.host.displayName}运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`
+    );
   }
 
   const entities = defineEntities(rxdb);
@@ -336,9 +338,8 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
     currentDatabase =>
       new adapterPackage.RxDBAdapterWaSqliteMiniProgram(currentDatabase, {
         moduleFactory,
-        wechat: runtime.wechat,
-        wasmRuntime: runtime.wasmRuntime,
-        wasmPath: adapterPackage.DEFAULT_WASM_PATH
+        host: runtime.host,
+        wasmRuntime: runtime.wasmRuntime
       })
   );
 

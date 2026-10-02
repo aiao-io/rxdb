@@ -1,11 +1,11 @@
 ---
 id: US-211
 title: 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）
-status: Blocked
+status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-16
-updated: 2026-10-01
+updated: 2026-10-02
 tags: [adapter, miniprogram, alipay, douyin, baidu, qq, wa-sqlite, experimental, multi-platform]
 ---
 
@@ -27,14 +27,15 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                                          | AC 区段   | 门禁                                                                |
-| ---- | ---- | ----------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------- |
-| A    | ✅   | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                                                                                 | AC#1～8   | US-209 已 Done；**不**把任何新平台标成受支持                        |
-| B    | ⬜   | 第一个非微信 host：抖音 `tt`（矩阵里唯一的 `unknown` 候选）。阻塞于外部实验：开发者工具、可用 AppID、Android / iOS 真机       | AC#9～15  | 阶段 A + 抖音 `decision: supported`                                 |
-| C    | ⬜   | 其余第一档平台：支付宝 / 百度 / QQ 已判 `unsupported`，只剩拒绝路径与文档口径；经复议改判 `supported` 的平台按阶段 B 标准实现 | AC#16～21 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
+| 阶段 | 状态 | 交付                                                                                                                                 | AC 区段   | 门禁                                                                |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------- |
+| A    | ✅   | 宿主契约 + 平台可行性矩阵；微信路径零行为变化                                                                                        | AC#1～8   | US-209 已 Done；**不**把任何新平台标成受支持                        |
+| B    | ⚠️   | 第一个非微信 host：抖音 `tt`。PR1 平台无关修复已落地（未登记抖音）；PR2 登记抖音，等 v9 实验在开发者工具与 iOS 全 pass；Android 暂缓 | AC#9～15  | 阶段 A + 抖音 `decision: supported`                                 |
+| C    | ⬜   | 其余第一档平台：支付宝 / 百度 / QQ 已判 `unsupported`，只剩拒绝路径与文档口径；经复议改判 `supported` 的平台按阶段 B 标准实现        | AC#16～21 | 阶段 B；每个平台独立 `supported` 才能进实现，`unsupported` 只写原因 |
 
-某平台判 `unsupported` 只关掉该平台，不连坐整条故事。故事标 `Blocked`，是因为阶段 B 唯一的候选抖音卡在外部实验上
-（开发者工具、AppID、真机都不在仓库里）；实验开工即转回 `In Progress`。不许用「微信 host 凑合能跑」冒充交付。
+某平台判 `unsupported` 只关掉该平台，不连坐整条故事。阶段 B 分两个 PR：PR1 只做平台无关修复（`runtimeGlobal` / `fileLayout` /
+`defaultWasmPath` 三个宿主字段、配额报 `SQLITE_FULL` 并透传原文、同步 FS 五方法预检、sqlite-core 去 latin1），
+微信零行为变化；PR2 才登记 `douyin`。不许用「微信 host 凑合能跑」冒充交付。
 
 一个 PR 只许交付一个阶段；阶段 C 内部可以按平台拆 PR，但必须落在本文件的 AC 上，
 **不创建 `US-211a` / `US-211-alipay` 这类中间文件。**
@@ -127,15 +128,15 @@ INVEST 检查清单:
 
 ### 阶段 B — 第一个非微信 host（抖音）
 
-| #   | 前置条件                                                     | 操作                                                                                                                | 预期结果                                                                                                                                                                                                                                                                                                                                                    | 状态 |
-| --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 9   | 抖音矩阵为 `supported`                                       | 注入抖音 host（不传 `wechat`），写入、`disconnect`、重连                                                            | 数据仍在；库文件落在 `tt.env.USER_DATA_PATH` 下，经 `tt.getFileSystemManager()` 的同步 API 读写，不读取 `wx`                                                                                                                                                                                                                                                | ⬜   |
-| 10  | 抖音 host 缺 WASM、同步 FS、用户目录、安全随机源中的任意几项 | `assertMiniProgramRuntimeCapabilities({ host, … })`；`prepareMiniProgramHostRuntime(host)`                          | 预检一次列出全部缺失项，平台能力名带抖音前缀（`TTWebAssembly.instantiate` / `tt.getFileSystemManager` / `tt.env.USER_DATA_PATH`）；`MiniProgramFileSystemManager` 的五个同步方法都在才算同步 FS 可用（现状只看 `getFileSystemManager()` 有没有返回值）；拿不到随机数时 `prepareMiniProgramHostRuntime` reject。**不**降级到 `Math.random`，**不**碰微信全局 | ⬜   |
-| 11  | 抖音 host 已连接                                             | 对同一数据库文件开第二个连接                                                                                        | 与微信相同：拒绝并发，不静默共享句柄                                                                                                                                                                                                                                                                                                                        | ⬜   |
-| 12  | 用户目录剩余配额放不下整库刷盘                               | 持续写入直到刷盘失败                                                                                                | 事务以 SQLite I/O 错误失败、不报成功（现状是 `SQLITE_IOERR_WRITE`，不是 `SQLITE_FULL`）；调用方拿得到平台 errMsg 原文（抖音 108403 `user dir saved file size limit exceeded`；现状只在 VFS 的 `lastError` 上拿得到）；失败后的库状态按「无崩溃恢复」口径写进文档                                                                                            | ⬜   |
-| 13  | 公开文档                                                     | 阅读 compatibility 专节、包 README、根 README                                                                       | 抖音从「不支持」改为「实验性支持」，保留单连接 / rollback journal / 无崩溃恢复边界；「~10MB 级」的内存缓冲口径与平台配额分开写（抖音用户目录总共 10M，库文件与 `-journal` 共用）；其他平台仍写不支持                                                                                                                                                        | ⬜   |
-| 14  | 手工验证入口                                                 | 按文档在开发者工具与 Android / iOS 真机上走一遍                                                                     | 步骤可复述，写明开发者工具、基础库与客户端版本。走 taro 就新增抖音 Nx target，并在 [examples/README.md](../../../examples/README.md) 标明「已验证」或「仍未验证」，禁止含糊；demo 现有的微信耦合见技术笔记                                                                                                                                                  | ⬜   |
-| 15  | 微信回归                                                     | `pnpm nx test rxdb-adapter-miniprogram`；`pnpm nx run-many -t build typecheck lint --projects=dev-rxdb-miniprogram` | 全绿；微信公开 API、能力名、错误文案不变                                                                                                                                                                                                                                                                                                                    | ⬜   |
+| #   | 前置条件                                                     | 操作                                                                                                                | 预期结果                                                                                                                                                                                                                                                                                                                          | 状态 |
+| --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 9   | 抖音矩阵为 `supported`                                       | 注入抖音 host（不传 `wechat`），写入、`disconnect`、重连                                                            | 数据仍在；库文件落在 `tt.env.USER_DATA_PATH` 下，经 `tt.getFileSystemManager()` 的同步 API 读写，不读取 `wx`                                                                                                                                                                                                                      | ⬜   |
+| 10  | 抖音 host 缺 WASM、同步 FS、用户目录、安全随机源中的任意几项 | `assertMiniProgramRuntimeCapabilities({ host, … })`；`prepareMiniProgramHostRuntime(host)`                          | 预检一次列出全部缺失项，平台能力名带抖音前缀（`TTWebAssembly.instantiate` / `tt.getFileSystemManager` / `tt.env.USER_DATA_PATH`）；`MiniProgramFileSystemManager` 的五个同步方法都在才算同步 FS 可用（PR1 已落地，平台无关）；拿不到随机数时 `prepareMiniProgramHostRuntime` reject。**不**降级到 `Math.random`，**不**碰微信全局 | ⬜   |
+| 11  | 抖音 host 已连接                                             | 对同一数据库文件开第二个连接                                                                                        | 与微信相同：拒绝并发，不静默共享句柄                                                                                                                                                                                                                                                                                              | ⬜   |
+| 12  | 用户目录剩余配额放不下整库刷盘                               | 持续写入直到刷盘失败                                                                                                | 事务以 `SQLITE_FULL` 失败、不报成功；调用方经 `cause` 链拿得到平台原文（抖音 `user dir saved file size limit exceeded`）。PR1 已落地并由 Node 替身验证，真机待 v9 报告；失败后的库状态按「无崩溃恢复」口径写进文档                                                                                                                | ⬜   |
+| 13  | 公开文档                                                     | 阅读 compatibility 专节、包 README、根 README                                                                       | 抖音从「不支持」改为「实验性支持」，保留单连接 / rollback journal / 无崩溃恢复边界；「~10MB 级」的内存缓冲口径与平台配额分开写（抖音用户目录总共 10M，库文件与 `-journal` 共用）；其他平台仍写不支持                                                                                                                              | ⬜   |
+| 14  | 手工验证入口                                                 | 按文档在开发者工具与 Android / iOS 真机上走一遍                                                                     | 步骤可复述，写明开发者工具、基础库与客户端版本。走 taro 就新增抖音 Nx target，并在 [examples/README.md](../../../examples/README.md) 标明「已验证」或「仍未验证」，禁止含糊（Android 暂缓，按「仍未验证」写）；demo 现有的微信耦合见技术笔记                                                                                      | ⬜   |
+| 15  | 微信回归                                                     | `pnpm nx test rxdb-adapter-miniprogram`；`pnpm nx run-many -t build typecheck lint --projects=dev-rxdb-miniprogram` | 全绿；微信公开 API、能力名、错误文案不变                                                                                                                                                                                                                                                                                          | ⬜   |
 
 ### 阶段 C — 支付宝 / 百度 / QQ
 

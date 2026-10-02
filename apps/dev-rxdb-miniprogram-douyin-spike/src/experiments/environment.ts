@@ -5,6 +5,7 @@
 import { getMiniProgramRuntimeSources, type MiniProgramRuntimeSources } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import type { DouyinApi } from '../douyin-api.js';
 import { probe, type Probe } from '../probe.js';
+import { readProbedRuntimeGlobal } from '../realm-probe.js';
 
 /** 文档写明的基础库门槛。 */
 export const SDK_GATES = {
@@ -28,12 +29,12 @@ export interface EnvironmentReport {
   readonly gates: { readonly randomValues: SdkGate; readonly wasm: SdkGate };
   /**
    * 以自由变量形式读到的全局 `typeof`（由页面字面量采集），打包代码直接写 `TextDecoder` 时看到的就是它。
-   * 采集发生在构建 banner 之后：`globalThis` 被垫过时这里是 `'object'`，原始形态看报告的 `globalThisShim`。
+   * 构建 banner 只探测、不改 `globalThis`，这里就是平台原生形态。
    */
   readonly freeGlobals: Readonly<Record<string, string>>;
-  /** 经 `globalThis` 按名读取的 `typeof`；adapter 的引导与能力检查走这条路。`globalThis` 不是对象时失败。 */
+  /** 经 `globalThis` 按名读取的 `typeof`；`globalThis` 不是对象时失败，adapter 此时只能靠 `host.runtimeGlobal`。 */
   readonly globalObject: Probe<Readonly<Record<string, string>>>;
-  /** 原生 `TextDecoder`（自由变量）对各编码标签的支持；sqlite-core 在模块顶层用到 `latin1`。 */
+  /** 原生 `TextDecoder`（自由变量）对各编码标签的支持；只作记录，sqlite-core 已不依赖 `latin1`。 */
   readonly textDecoderLabels: Readonly<Record<string, Probe<string>>>;
   readonly sourcesBeforePrepare: Probe<MiniProgramRuntimeSources>;
   /**
@@ -147,7 +148,8 @@ export async function collectEnvironment(
   const globalObject = await probe(readGlobalObject);
   const textDecoderLabels: Record<string, Probe<string>> = {};
   for (const label of TEXT_DECODER_LABELS) textDecoderLabels[label] = await probe(() => decoderEncoding(label));
-  const sourcesBeforePrepare = await probe(getMiniProgramRuntimeSources);
+  // 与 host 同一个真实全局对象：globalThis 不是对象时也能看出同一上下文里之前是否引导过
+  const sourcesBeforePrepare = await probe(() => getMiniProgramRuntimeSources(readProbedRuntimeGlobal()));
   return {
     systemInfo,
     sdkVersion,

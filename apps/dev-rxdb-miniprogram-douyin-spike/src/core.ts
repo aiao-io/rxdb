@@ -21,15 +21,12 @@ import type {
   QuotaReport
 } from './core-contract.js';
 import { describeError } from './describe-error.js';
-import { readGlobalThisShim } from './global-this-shim.js';
-import { readLatin1Shim } from './latin1-shim.js';
+import type { DouyinWasmRuntime } from './douyin-api.js';
 import { probe } from './probe.js';
+import { readRealmProbe } from './realm-probe.js';
 
-/** 核心包的 banner 记录，必须在本包内读：每个包的 banner 变量只在自己的模块作用域里。 */
-export const globalThisShim = readGlobalThisShim();
-
-/** 核心包的 latin1 垫片记录，同样只能在本包内读。 */
-export const latin1Shim = readLatin1Shim();
+/** 核心包的 realm 探测记录，必须在本包内读：每个包的 banner 变量只在自己的模块作用域里。 */
+export const realmProbe = readRealmProbe();
 
 /** 持久化实验写入的行：覆盖多字节中文、四字节 emoji 与引号。 */
 const SAMPLE_ROWS: readonly (readonly [number, string])[] = [
@@ -40,6 +37,19 @@ const SAMPLE_ROWS: readonly (readonly [number, string])[] = [
 
 interface CoreContext extends CoreExperimentInput {
   readonly moduleFactory: WaSqliteModuleFactory;
+  /** adapter 最近一次交给 `instantiate` 的路径。 */
+  readonly loadedWasmPath: { value: string | null };
+}
+
+/** 包一层 `instantiate`，记下 adapter 实际加载的路径；其余行为原样转发。 */
+function recordWasmPath(runtime: DouyinWasmRuntime, loaded: { value: string | null }): DouyinWasmRuntime {
+  return {
+    ...runtime,
+    instantiate: (path, imports) => {
+      loaded.value = path;
+      return runtime.instantiate(path, imports);
+    }
+  };
 }
 
 /** 实验进行到哪一步；失败时写进报告。 */
@@ -70,7 +80,6 @@ function openClient(context: CoreContext, dbName: string): Promise<WaSqliteMiniP
     host: context.host,
     moduleFactory: context.moduleFactory,
     wasmRuntime: context.wasmRuntime,
-    wasmPath: context.wasmPath,
     databaseRoot: context.databaseRoot
   });
 }
@@ -132,11 +141,11 @@ async function runPersistence(context: CoreContext): Promise<PersistenceReport> 
     return {
       status: 'failed',
       ...partial,
-      wasmPath: context.wasmPath,
+      wasmPath: context.loadedWasmPath.value,
       failure: { stage: tracker.stage, error: describeError(error) }
     };
   }
-  return persistenceVerdict({ ...partial, wasmPath: context.wasmPath });
+  return persistenceVerdict({ ...partial, wasmPath: context.loadedWasmPath.value });
 }
 
 /** 撞配额后：同连接还能不能读、关掉重开能不能读到全部已提交行、库是否完整。 */
@@ -210,7 +219,13 @@ async function runQuota(context: CoreContext): Promise<QuotaReport> {
 
 /** 依次跑能力预检、持久化、配额。调用前页面包必须已经完成 `prepareMiniProgramHostRuntime`。 */
 export async function runCoreExperiments(input: CoreExperimentInput): Promise<CoreExperimentReport> {
-  const context: CoreContext = { ...input, moduleFactory: await loadSubframeModuleFactory() };
+  const loadedWasmPath: CoreContext['loadedWasmPath'] = { value: null };
+  const context: CoreContext = {
+    ...input,
+    wasmRuntime: recordWasmPath(input.wasmRuntime, loadedWasmPath),
+    moduleFactory: await loadSubframeModuleFactory(),
+    loadedWasmPath
+  };
   const capabilities = await probe(() =>
     checkMiniProgramRuntimeCapabilities({
       host: context.host,

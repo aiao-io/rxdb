@@ -15,14 +15,16 @@ export {
   isMiniProgramPlatformId,
   resolveMiniProgramHost
 } from './host.js';
-export { loadWaSqliteMiniProgramModule } from './loader.js';
+export { loadWaSqliteMiniProgramModule, type MiniProgramWasmHost } from './loader.js';
 export { ADAPTER_NAME, DEFAULT_WASM_PATH } from './mini-program.interface.js';
 export type {
+  MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramHostCapabilityNames,
   MiniProgramHostSelection,
   MiniProgramPlatformId,
+  MiniProgramRuntimeGlobal,
   MiniProgramWasmInstance,
   MiniProgramWasmRuntime,
   MiniProgramWechatApi,
@@ -37,6 +39,7 @@ export type {
   WaSqliteModuleFactory,
   WaSqliteModuleFactoryOptions
 } from './mini-program.interface.js';
+export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 export { assertMiniProgramRuntimeCapabilities, checkMiniProgramRuntimeCapabilities } from './runtime-capabilities.js';
 export type { MiniProgramRuntimeCapability, MiniProgramRuntimeCapabilityOptions } from './runtime-capabilities.js';
 export {

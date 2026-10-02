@@ -7,7 +7,7 @@
 import { adapterErrorText, describeError } from '../describe-error.js';
 import type { DouyinFileSystemManager } from '../douyin-api.js';
 import type { Probe } from '../probe.js';
-import { VFS_ALREADY_EXISTS_PATTERN, VFS_MISSING_FILE_PATTERN } from '../vfs-classifiers.js';
+import { VFS_MISSING_FILE_PATTERN, vfsSaysAlreadyExists } from '../vfs-classifiers.js';
 
 /** 一条文件系统探测。 */
 export interface FsProbe {
@@ -48,7 +48,7 @@ const EXPECTATION_TEXT: Record<Expectation, string> = {
 function judge(expectation: Expectation, error: unknown, threw: boolean): Omit<FsProbe, 'op' | 'outcome'> {
   const text = threw ? adapterErrorText(error) : undefined;
   const vfsSaysMissing = text === undefined ? undefined : VFS_MISSING_FILE_PATTERN.test(text);
-  const vfsSaysExists = text === undefined ? undefined : VFS_ALREADY_EXISTS_PATTERN.test(text);
+  const vfsSaysExists = text === undefined ? undefined : vfsSaysAlreadyExists(text);
   const verdicts: Record<Expectation, boolean> = {
     missing: threw && vfsSaysMissing === true,
     'exists-or-ok': !threw || vfsSaysExists === true,

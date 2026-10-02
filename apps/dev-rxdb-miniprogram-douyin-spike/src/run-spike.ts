@@ -19,14 +19,13 @@ import {
 import { runRandomExperiment, type RandomSummary } from './experiments/random.js';
 import { runWasmPathExperiment, type WasmPathReport } from './experiments/wasm-path.js';
 import { buildFindings, type Finding } from './findings.js';
-import { readGlobalThisShim, shimApplied, type GlobalThisShimReport } from './global-this-shim.js';
-import { latin1ShimEngaged, type Latin1ShimRecord } from './latin1-shim.js';
 import { probe, type Probe, type Skipped } from './probe.js';
+import { readProbedRuntimeGlobal, readRealmProbe, type RealmProbeReport } from './realm-probe.js';
 import { createDouyinSpikeHost } from './spike-host.js';
-import { ADAPTER_DEFAULT_WASM_PATH, VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
+import { VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
 /** 报告格式版本；字段语义变了就升版本号。 */
-export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v8';
+export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v9';
 
 /** 实验目录名，位于 `tt.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';
@@ -35,9 +34,10 @@ const NOTES = [
   'host 借用已登记的 wechat 平台 id 通过 adapter 校验；正式接入需要 Phase B 登记 douyin id 与正式 host。',
   '实验 ② 直接调用 tt.getRandomValues，不经 host 包装，记录的是平台原始的成功与失败形态。',
   '实验 ③ 的 vfsSaysMissing / vfsSaysExists 是用 adapter 文件 VFS 的正则副本对 errMsg 的判定。',
-  '构建产物在 globalThis 不是对象时尝试换上真实全局对象（见 globalThisShim）；垫过时 ① ② ④ 的通过不代表 adapter 现状可用。',
+  '构建 banner 只探测真实全局对象、不改 globalThis（见 realmProbe）；页面包把选中的对象经 adapter 公开字段 host.runtimeGlobal 注入，没有任何垫片，① ② ④ 的通过即 adapter 现状可用。',
+  'host 声明 fileLayout: chunked 64 KiB 与 defaultWasmPath: /wa-sqlite/wa-sqlite.wasm；核心实验不传 wasmPath，persistence.wasmPath 记录的是 adapter 实际加载的路径，实验 wasmPath 只是探测。',
   'quotaAccounting 不经 SQLite 用裸文件测配额计费：一次能写多大、同一路径覆盖写时旧文件是否仍计入配额（adapter VFS 每次 flush 都整体覆盖库文件）。',
-  '核心包把模块体里的 TextDecoder 换成 latin1 垫片（见 latin1Shim）：委托拒绝 latin1 才顶上；顶上过时 WASM / 用户目录 / 持久化的通过不代表 adapter 现状可用。',
+  '实验 ④ 写到撞配额后不删任何文件，直接关掉重开读回：通过要求失败错误带 SQLITE_FULL（13）与平台配额原文，且重开后行数与已提交行数一致、integrity_check 为 ok。',
   'coreLoad 失败时报的是核心包模块顶层的原始错误：iOS 真机的 require 会吞掉它、返回半成品导出，构建包装把它挂在 initError 上再抛出。',
   'environment.residue 为 true 时，同一 JS 上下文里之前跑过引导，环境快照不是平台原生状态；要彻底重启开发者工具（真机要把抖音从后台划掉）再跑。',
   'findings 只代表这一台设备的这一次运行；矩阵回填需要开发者工具、Android、iOS 三份报告。'
@@ -68,10 +68,8 @@ export interface SpikeReport {
   readonly startedAt: string;
   readonly durationMs: number;
   readonly notes: readonly string[];
-  /** 各包构建 banner 的 `globalThis` 垫片记录；`environment.freeGlobals` 是垫过之后采的，原始形态看这里的 `before`。 */
-  readonly globalThisShim: GlobalThisShimReport;
-  /** 核心包的 latin1 垫片记录；核心包没加载或源码级运行时为 `null`。 */
-  readonly latin1Shim: Latin1ShimRecord | null;
+  /** 各包构建 banner 的真实全局对象探测记录；页面包的 `chosen` 即注入 `host.runtimeGlobal` 的那一条。 */
+  readonly realmProbe: RealmProbeReport;
   readonly environment: EnvironmentReport;
   readonly random: Readonly<Record<string, Probe<RandomSummary>>>;
   readonly prepare: Probe<MiniProgramRuntimeSources>;
@@ -105,8 +103,7 @@ interface CoreSection {
   readonly coreLoad: SpikeReport['coreLoad'];
   readonly core: SpikeReport['core'];
   /** 加载成功时核心包的 banner 记录。 */
-  readonly coreShim: GlobalThisShimReport['core'];
-  readonly latin1Shim: Latin1ShimRecord | null;
+  readonly coreRealmProbe: RealmProbeReport['core'];
 }
 
 /**
@@ -116,7 +113,7 @@ interface CoreSection {
  */
 function assertCoreInitialized(core: SpikeCore): void {
   if (core.initError !== undefined) throw core.initError;
-  if (core.globalThisShim === undefined) throw new Error('核心包模块顶层没有跑完，require 返回了半成品导出');
+  if (core.realmProbe === undefined) throw new Error('核心包模块顶层没有跑完，require 返回了半成品导出');
 }
 
 async function runCore(
@@ -126,7 +123,7 @@ async function runCore(
   const { wasmRuntime } = options;
   if (!wasmRuntime) {
     const skipped = '全局 TTWebAssembly 不存在，核心实验无法实例化 wasm';
-    return { coreLoad: { skipped }, core: { skipped }, coreShim: null, latin1Shim: null };
+    return { coreLoad: { skipped }, core: { skipped }, coreRealmProbe: null };
   }
   let core: SpikeCore | undefined;
   const coreLoad = await probe(async () => {
@@ -136,15 +133,14 @@ async function runCore(
   });
   if (!coreLoad.ok || !core) {
     const reason = coreLoad.ok ? '核心包为空' : coreLoad.error.text;
-    return { coreLoad, core: { skipped: `核心包加载失败：${reason}` }, coreShim: null, latin1Shim: null };
+    return { coreLoad, core: { skipped: `核心包加载失败：${reason}` }, coreRealmProbe: null };
   }
   const loaded = core;
-  const coreShim = loaded.globalThisShim;
-  const latin1Shim = loaded.latin1Shim;
+  const coreRealmProbe = loaded.realmProbe;
   const result = await probe(() => loaded.runCoreExperiments({ ...input, wasmRuntime }));
-  if (result.ok) return { coreLoad, core: result.value, coreShim, latin1Shim };
+  if (result.ok) return { coreLoad, core: result.value, coreRealmProbe };
   const skipped = `核心实验中途抛错：${result.error.text}`;
-  return { coreLoad, core: { skipped, error: result.error }, coreShim, latin1Shim };
+  return { coreLoad, core: { skipped, error: result.error }, coreRealmProbe };
 }
 
 /** 跑完全部实验并返回报告；本函数自身不抛错（`tt.getFileSystemManager` 不存在除外）。 */
@@ -153,7 +149,7 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
   const { tt } = options;
   const environment = await collectEnvironment(tt, options.freeGlobals);
   const random = await runRandomExperiment(tt);
-  const host = createDouyinSpikeHost(tt);
+  const host = createDouyinSpikeHost(tt, readProbedRuntimeGlobal());
   const prepare = await probe(() => prepareMiniProgramHostRuntime(host));
   const wasmPath = await runWasmPathExperiment(options.wasmRuntime);
 
@@ -167,10 +163,9 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
     tt.env.USER_DATA_PATH,
     DEFAULT_QUOTA_ACCOUNTING_PLAN
   );
-  const { coreLoad, core, coreShim, latin1Shim } = await runCore(options, {
+  const { coreLoad, core, coreRealmProbe } = await runCore(options, {
     host,
     fileSystem,
-    wasmPath: wasmPath.workingPath ?? ADAPTER_DEFAULT_WASM_PATH,
     databaseRoot: `${root}/db`,
     quotaPlan: options.quotaPlan ?? DEFAULT_QUOTA_PLAN
   });
@@ -178,15 +173,13 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
     fileSystem.rmdirSync(root, true);
     return null;
   });
-  const globalThisShim: GlobalThisShimReport = { page: readGlobalThisShim(), core: coreShim };
 
   return {
     schema: SPIKE_REPORT_SCHEMA,
     startedAt: new Date(startedAt).toISOString(),
     durationMs: Date.now() - startedAt,
     notes: NOTES,
-    globalThisShim,
-    latin1Shim,
+    realmProbe: { page: readRealmProbe(), core: coreRealmProbe },
     environment,
     random,
     prepare,
@@ -203,9 +196,7 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
       wasmPath,
       fileSystem: fileSystemReport,
       quotaAccounting,
-      core,
-      globalThisShimmed: shimApplied(globalThisShim),
-      latin1Shimmed: latin1ShimEngaged(latin1Shim)
+      core
     })
   };
 }

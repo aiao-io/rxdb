@@ -50,6 +50,10 @@
         "kind": "value"
       },
       {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramFileSystemManager",
         "kind": "type"
       },
@@ -86,8 +90,16 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramRuntimeGlobal",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramUnknownPlatformError",
         "kind": "both"
+      },
+      {
+        "name": "MiniProgramWasmHost",
+        "kind": "type"
       },
       {
         "name": "MiniProgramWasmInstance",
@@ -107,6 +119,10 @@
       },
       {
         "name": "resolveMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
         "kind": "value"
       },
       {
@@ -204,6 +220,10 @@
         "kind": "value"
       },
       {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramFileSystemManager",
         "kind": "type"
       },
@@ -225,6 +245,10 @@
       },
       {
         "name": "MiniProgramRandomValuesResult",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramRuntimeGlobal",
         "kind": "type"
       },
       {
@@ -254,6 +278,10 @@
       {
         "name": "PrepareMiniProgramRuntimeOptions",
         "kind": "type"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
+        "kind": "value"
       }
     ]
   }

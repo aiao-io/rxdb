@@ -8,9 +8,8 @@
 import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import type { DescribedError } from './describe-error.js';
 import type { DouyinFileSystemManager, DouyinWasmRuntime } from './douyin-api.js';
-import type { GlobalThisShimRecord } from './global-this-shim.js';
-import type { Latin1ShimRecord } from './latin1-shim.js';
 import type { Probe } from './probe.js';
+import type { RealmProbeRecord } from './realm-probe.js';
 
 /** 配额实验的写入计划：每行一个 `zeroblob(blobBytes)`，最多 `maxRows` 行。 */
 export interface QuotaPlan {
@@ -25,9 +24,8 @@ export const DEFAULT_QUOTA_PLAN: QuotaPlan = { blobBytes: 512 * 1024, maxRows: 4
 export interface CoreExperimentInput {
   readonly host: MiniProgramHost;
   readonly fileSystem: DouyinFileSystemManager;
+  /** 不传 `wasmPath`：adapter 自己按 `host.defaultWasmPath` 取，核心包只记录实际加载的路径。 */
   readonly wasmRuntime: DouyinWasmRuntime;
-  /** WASM 路径探测选出的写法；探测不出时为 adapter 默认值。 */
-  readonly wasmPath: string;
   /** 数据库目录，位于实验根目录之下，收尾时整个删掉。 */
   readonly databaseRoot: string;
   readonly quotaPlan: QuotaPlan;
@@ -58,7 +56,8 @@ export interface DatabaseFile {
 /** 实验 ①：写入、关闭、重开、读回。 */
 export interface PersistenceReport {
   readonly status: 'passed' | 'failed';
-  readonly wasmPath: string;
+  /** adapter 实际交给 `instantiate` 的路径；没走到加载 WASM 时为 `null`。 */
+  readonly wasmPath: string | null;
   readonly failure?: StageFailure;
   readonly writtenRows?: readonly (readonly JsonCell[])[];
   readonly reopenedRows?: readonly (readonly JsonCell[])[];
@@ -78,7 +77,7 @@ export interface QuotaAfterFailure {
   readonly reopenIntegrity: Probe<JsonCell>;
 }
 
-/** 实验 ④：持续写 blob 直到撞配额。 */
+/** 实验 ④：持续写 blob 直到撞配额；撞了不清理任何文件，直接重开读回。 */
 export interface QuotaReport {
   readonly status: 'triggered' | 'not-triggered' | 'failed';
   readonly plan: QuotaPlan;
@@ -99,10 +98,8 @@ export interface CoreExperimentReport {
 
 /** 核心包的导出面。 */
 export interface SpikeCore {
-  /** 核心包自己的 banner 记录；源码级运行时为 `null`。 */
-  readonly globalThisShim: GlobalThisShimRecord | null;
-  /** 核心包的 latin1 垫片记录（活引用）；源码级运行时为 `null`。 */
-  readonly latin1Shim: Latin1ShimRecord | null;
+  /** 核心包自己的 realm 探测记录；源码级运行时为 `null`。 */
+  readonly realmProbe: RealmProbeRecord | null;
   /**
    * 构建包装接住的模块顶层错误，只在顶层抛错时存在（包装照样把错误再抛出去）。
    * iOS 真机的 `require` 会吞掉这个错误、返回半成品导出，页面包靠它拿到原始错误。

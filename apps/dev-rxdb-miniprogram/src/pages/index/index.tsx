@@ -1,9 +1,12 @@
+import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram';
 import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@tarojs/components';
 import { useLoad, useUnload } from '@tarojs/taro';
 import { useCallback, useRef, useState } from 'react';
 import {
   getMiniProgramRuntimeReferences,
   inspectMiniProgramRuntime,
+  wechatDemoRuntime,
+  type MiniProgramDemoRuntime,
   type RuntimeCapability
 } from '../../runtime-preflight';
 import { openMiniProgramRxdbDemo, type DemoCheck, type MiniProgramRxdbDemo, type TodoItem } from '../../rxdb-demo';
@@ -47,14 +50,20 @@ function phaseText(phase: DemoPhase): string {
   }[phase];
 }
 
-function capabilityStatus(capability: RuntimeCapability): string {
+/** 来源为平台 id 时即宿主随机源，按宿主简称显示为「微信桥接」这类文案。 */
+function capabilityStatus(capability: RuntimeCapability, shortName: string): string {
   if (!capability.available) return capability.polyfillable ? '待引导' : '缺失';
-  return {
-    missing: '缺失',
-    native: '原生',
-    polyfill: 'Polyfill',
-    wechat: '微信桥接'
-  }[capability.source ?? 'native'];
+  const source = capability.source ?? 'native';
+  if (source === 'missing') return '缺失';
+  if (source === 'native') return '原生';
+  if (source === 'polyfill') return 'Polyfill';
+  return `${shortName}桥接`;
+}
+
+/** 解析宿主并做引导前预检；拿不到平台全局或真实全局对象时抛错。 */
+function preflight(): { runtime: MiniProgramDemoRuntime; capabilities: readonly RuntimeCapability[] } {
+  const runtime = wechatDemoRuntime();
+  return { runtime, capabilities: inspectMiniProgramRuntime(runtime) };
 }
 
 export default function Index() {
@@ -65,7 +74,8 @@ export default function Index() {
   const [todos, setTodos] = useState<readonly TodoItem[]>([]);
   const [sqliteVersion, setSqliteVersion] = useState('等待连接');
   const [title, setTitle] = useState('');
-  const [operation, setOperation] = useState('正在检查微信运行时');
+  const [operation, setOperation] = useState('正在检查小程序运行时');
+  const [host, setHost] = useState<MiniProgramHost>();
   const [busy, setBusy] = useState(false);
 
   const verifyReconnect = useCallback(async (demo: MiniProgramRxdbDemo) => {
@@ -95,11 +105,20 @@ export default function Index() {
   }, []);
 
   const start = useCallback(async () => {
-    const preflight = inspectMiniProgramRuntime();
-    setCapabilities(preflight);
-    if (preflight.some(capability => !capability.available && !capability.polyfillable)) {
+    let checked: ReturnType<typeof preflight>;
+    try {
+      checked = preflight();
+    } catch (error) {
+      setPhase('error');
+      setOperation(errorMessage(error));
+      return;
+    }
+    const { runtime, capabilities: inspected } = checked;
+    setHost(runtime.host);
+    setCapabilities(inspected);
+    if (inspected.some(capability => !capability.available && !capability.polyfillable)) {
       setPhase('blocked');
-      setOperation('微信运行时缺少 RxDB 依赖能力');
+      setOperation(`${runtime.host.displayName}运行时缺少 RxDB 依赖能力`);
       return;
     }
 
@@ -107,7 +126,7 @@ export default function Index() {
     setPhase('checking');
     setOperation('正在引导运行时并加载 RxDB 与 wa-sqlite');
     try {
-      const result = await openMiniProgramRxdbDemo(getMiniProgramRuntimeReferences());
+      const result = await openMiniProgramRxdbDemo(getMiniProgramRuntimeReferences(runtime));
       demoRef.current = result.demo;
       setCapabilities(result.capabilities);
       setSqliteVersion(result.sqliteVersion);
@@ -183,7 +202,7 @@ export default function Index() {
     <View className='index'>
       <View className='topline'>
         <View>
-          <Text className='eyebrow'>WECHAT MINIPROGRAM</Text>
+          <Text className='eyebrow'>{host ? `${host.platform.toUpperCase()} MINIPROGRAM` : 'MINIPROGRAM'}</Text>
           <Text className='title'>wa-sqlite x RxDB</Text>
         </View>
         <View className={`phase phase-${phase}`}>
@@ -214,7 +233,7 @@ export default function Index() {
             <View className='capability-row' key={capability.name}>
               <Text className='capability-name'>{capability.name}</Text>
               <Text className={capability.available ? 'capability-ok' : 'capability-failed'}>
-                {capabilityStatus(capability)}
+                {capabilityStatus(capability, host?.shortName ?? '宿主')}
               </Text>
             </View>
           ))}

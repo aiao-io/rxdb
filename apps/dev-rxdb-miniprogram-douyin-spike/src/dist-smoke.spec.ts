@@ -8,7 +8,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
-import { buildSpike, CORE_REQUEST } from '../scripts/build.mjs';
+import { buildSpike, CORE_REQUEST, coreInitErrorWrapper } from '../scripts/build.mjs';
 import { createFakeDouyin } from './__tests__/fake-douyin.js';
 
 interface CapturedPage {
@@ -32,7 +32,7 @@ const HOST_ENCODING_GLOBALS = { TextDecoder, TextEncoder };
  * - `shadowed-realm-unreachable`：同上，但包装函数是严格模式、`Function` 构造器被禁用，真实全局对象拿不到
  *
  * 抖音开发者工具实测 `typeof globalThis === 'undefined'`，`global` 是对象但上面没有 `BigInt` / `Promise` 等内置对象；
- * 「遮蔽来自包装函数参数」与真实全局对象能不能拿到，都是**推断**，由报告的 `globalThisShim` 回答
+ * 「遮蔽来自包装函数参数」与真实全局对象能不能拿到，都是**推断**，由报告的 `realmProbe` 回答
  */
 type DistMode = 'native' | 'bare' | 'shadowed-realm-reachable' | 'shadowed-realm-unreachable';
 
@@ -117,7 +117,8 @@ interface DistOptions {
 
 async function runDist(mode: DistMode, options: DistOptions = {}): Promise<Record<string, unknown>> {
   const { onCoreInitError = 'throw', encodingGlobals = mode !== 'bare' } = options;
-  const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024 });
+  // 覆盖写仍计旧文件大小：模拟器与 iOS 实测的配额语义
+  const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024, overwriteCountsOldSize: true });
   let page: CapturedPage | undefined;
   const context = createContext({
     tt: fake.tt,
@@ -150,6 +151,14 @@ async function runDist(mode: DistMode, options: DistOptions = {}): Promise<Recor
   return JSON.parse(String(instance.data['reportText'])) as Record<string, unknown>;
 }
 
+const ALL_PASS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化'].map(matrixRow =>
+  expect.objectContaining({ matrixRow, verdict: 'pass' })
+);
+
+function finding(report: Record<string, unknown>, row: string): unknown {
+  return (report['findings'] as readonly { readonly matrixRow: string }[]).find(item => item.matrixRow === row);
+}
+
 describe('dist 冒烟', () => {
   it('页面包只以字面量路径引用核心包', async () => {
     const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
@@ -157,66 +166,40 @@ describe('dist 冒烟', () => {
     expect(pageCode).not.toMatch(/createWaSqliteMiniProgramClient/);
   });
 
-  it('有原生 TextDecoder 时，打包产物跑通全部实验', async () => {
+  it('全局齐全时，打包产物跑通全部实验', async () => {
     const report = await runDist('native');
     expect(report['coreLoad']).toMatchObject({ ok: true });
-    expect(report['findings']).toEqual(
-      ['WASM', '同步 FS', '随机源', '用户目录', '持久化'].map(matrixRow =>
-        expect.objectContaining({ matrixRow, verdict: 'pass' })
-      )
-    );
+    expect(report['findings']).toEqual(ALL_PASS);
   }, 120_000);
 
-  it('没有原生 TextDecoder 时，latin1 垫片顶替 adapter polyfill 解 latin1，① ④ 跑通且经核心包的行标明前提', async () => {
-    // sqlite-core 的 sqlite-blank-database.ts 顶层 new TextDecoder('latin1')，adapter 的 polyfill 只认 utf-8 / utf-16le；
-    // 不垫时核心包在模块顶层 RangeError（iOS 真机 v6）。垫片只在委托拒绝 latin1 时顶上
+  it('没有原生 TextDecoder / TextEncoder 时，adapter polyfill 补齐，核心包加载不再依赖 latin1', async () => {
     const report = await runDist('bare');
     expect(report['coreLoad']).toMatchObject({ ok: true });
-    expect(report['latin1Shim']).toEqual({ engaged: 1, delegateError: expect.stringContaining('latin1') });
-    expect(report['findings']).toEqual([
-      expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass', evidence: expect.stringContaining('latin1 垫片') }),
-      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
-      expect.objectContaining({ matrixRow: '随机源', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
-      expect.objectContaining({
-        matrixRow: '用户目录',
-        verdict: 'pass',
-        evidence: expect.stringContaining('latin1 垫片')
-      }),
-      expect.objectContaining({
-        matrixRow: '持久化',
-        verdict: 'pass',
-        evidence: expect.stringContaining('latin1 垫片')
-      })
-    ]);
+    expect(report['findings']).toEqual(ALL_PASS);
   }, 120_000);
 
-  it('平台 require 吞掉核心包顶层错误时，coreLoad 照样报出原始错误，而不是半成品导出引发的次生错误', async () => {
-    // 拿不到真实全局对象 → prepare 失败、polyfill 没装；宿主又没有 TextDecoder → 核心包顶层 ReferenceError。
-    // 垫片不凭空造 TextDecoder，这个错误必须原样穿过
-    const report = await runDist('shadowed-realm-unreachable', { encodingGlobals: false, onCoreInitError: 'swallow' });
-    expect(report['prepare']).toMatchObject({ ok: false });
-    expect(report['coreLoad']).toMatchObject({
-      ok: false,
-      error: { name: 'ReferenceError', message: expect.stringContaining('TextDecoder') }
-    });
-    expect(report['core']).toEqual({ skipped: expect.stringContaining('TextDecoder') });
-    expect(report['latin1Shim']).toBeNull();
-  }, 120_000);
+  it('构建包装把模块顶层错误挂到导出上，平台吞掉错误时导出照样带着原始错误', () => {
+    const { banner, footer } = coreInitErrorWrapper();
+    const code = `${banner}\nexports.ready = true;\nthrow new RangeError('模块顶层出错');\n${footer}`;
+    const exports = evaluateCommonJs(code, createContext({}), () => undefined, 'native', 'swallow') as {
+      readonly ready?: boolean;
+      readonly initError?: { readonly name: string; readonly message: string };
+    };
+    expect(exports.ready).toBe(true);
+    expect(exports.initError).toMatchObject({ name: 'RangeError', message: '模块顶层出错' });
+  });
 
-  it('全局正常时 banner 不动 globalThis，只留记录', async () => {
+  it('全局正常时 banner 只留记录，不注入 runtimeGlobal', async () => {
     const report = await runDist('native');
-    const untouched = { before: 'object', candidates: {}, chosen: null, applied: false };
-    expect(report['globalThisShim']).toEqual({ page: untouched, core: untouched });
-    expect(report['latin1Shim']).toEqual({ engaged: 0, delegateError: null });
+    const untouched = { before: 'object', candidates: {}, chosen: null };
+    expect(report['realmProbe']).toEqual({ page: untouched, core: untouched });
     expect(JSON.stringify(report['findings'])).not.toContain('垫片');
   }, 120_000);
 
-  it('globalThis 被遮、真实全局对象拿得到时，两个包各自换上它并记录，① ④ 照常跑通', async () => {
-    const report = await runDist('shadowed-realm-reachable');
-    const shimmed = {
+  describe('globalThis 被遮、真实全局对象拿得到（抖音）', () => {
+    const chosen = {
       before: 'undefined',
       chosen: 'sloppyThis',
-      applied: true,
       candidates: expect.objectContaining({
         // 自由变量 Promise 被包装函数换掉，不能拿它判真实全局对象
         sloppyThis: expect.objectContaining({ isRealm: true, promiseMatchesFree: false, BigInt: 'function' }),
@@ -224,41 +207,51 @@ describe('dist 冒烟', () => {
         global: expect.objectContaining({ type: 'object', isRealm: false, BigInt: 'undefined' })
       })
     };
-    expect(report['globalThisShim']).toEqual({ page: shimmed, core: shimmed });
-    expect(report['environment']).toMatchObject({ residue: false });
-    expect(report['prepare']).toMatchObject({ ok: true });
-    expect(report['coreLoad']).toMatchObject({ ok: true });
-    // 垫片下的通过不等于 adapter 现状可用：除了不经 adapter 的同步 FS，证据都要标明前提
-    expect(report['findings']).toEqual([
-      expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
-      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass', evidence: expect.not.stringContaining('垫片') }),
-      expect.objectContaining({ matrixRow: '随机源', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
-      expect.objectContaining({ matrixRow: '用户目录', verdict: 'pass', evidence: expect.stringContaining('垫片') }),
-      expect.objectContaining({ matrixRow: '持久化', verdict: 'pass', evidence: expect.stringContaining('垫片') })
-    ]);
-  }, 120_000);
 
-  it('真实全局对象拿不到时不垫，报告照样出完整，并记下每条路为什么不通', async () => {
+    it('页面包把 banner 找到的对象经 host.runtimeGlobal 注入，adapter 不靠任何垫片跑通全部实验', async () => {
+      const report = await runDist('shadowed-realm-reachable');
+      expect(report['realmProbe']).toEqual({ page: chosen, core: chosen });
+      expect(report['environment']).toMatchObject({
+        residue: false,
+        freeGlobals: { globalThis: 'undefined' },
+        globalObject: { ok: false, error: { name: 'TypeError' } }
+      });
+      expect(report['prepare']).toMatchObject({ ok: true });
+      expect(report['coreLoad']).toMatchObject({ ok: true });
+      expect(report['findings']).toEqual(ALL_PASS);
+    }, 120_000);
+
+    it('再缺原生 TextDecoder / TextEncoder（iOS 真机形态）也跑通全部实验', async () => {
+      const report = await runDist('shadowed-realm-reachable', { encodingGlobals: false });
+      expect(report['prepare']).toMatchObject({ ok: true });
+      expect(report['coreLoad']).toMatchObject({ ok: true });
+      expect(report['findings']).toEqual(ALL_PASS);
+    }, 120_000);
+  });
+
+  it('真实全局对象拿不到时，adapter 报稳定错误要求注入 runtimeGlobal，报告照样出完整', async () => {
     const report = await runDist('shadowed-realm-unreachable');
     expect(report).not.toHaveProperty('fatal');
-    const unshimmed = {
+    const unreachable = {
       before: 'undefined',
       chosen: null,
-      applied: false,
       candidates: {
         sloppyThis: expect.objectContaining({ type: 'undefined', isRealm: false }),
         Function: { error: expect.stringContaining('Function 构造器被禁用') },
         global: expect.objectContaining({ type: 'object', isRealm: false })
       }
     };
-    expect(report['globalThisShim']).toEqual({ page: unshimmed, core: unshimmed });
+    expect(report['realmProbe']).toEqual({ page: unreachable, core: unreachable });
     expect(report['environment']).toMatchObject({
       freeGlobals: { globalThis: 'undefined', TextDecoder: 'function', queueMicrotask: 'function' },
       globalObject: { ok: false, error: { name: 'TypeError' } },
       textDecoderLabels: { latin1: { ok: true } }
     });
-    // 现状刻画：adapter 的引导全靠 globalThis，拿不到全局对象时 prepare 直接失败
-    expect(report['prepare']).toMatchObject({ ok: false, error: { name: 'TypeError' } });
-    expect(JSON.stringify(report['findings'])).not.toContain('垫片');
+    expect(report['prepare']).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining('请经 host.runtimeGlobal 注入') }
+    });
+    expect(finding(report, '随机源')).toMatchObject({ verdict: 'fail' });
+    expect(finding(report, '持久化')).toMatchObject({ verdict: 'fail' });
   }, 120_000);
 });

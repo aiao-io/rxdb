@@ -9,10 +9,10 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 68   |
-| 🚧 In Progress | 0    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 25   |
-| 🚫 Blocked     | 1    |
+| 🚫 Blocked     | 0    |
 | **合计**       | 94   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
@@ -24,19 +24,19 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（0 条）
+## 进行中（1 条）
 
-当前没有进行中的故事。
+| Story                                                                          | 进展                                                                                                                                                                    |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 的平台无关修复（PR1）已落地、未登记抖音，登记（PR2）等 v9 实验在抖音开发者工具与 iOS 全 pass；Android 暂缓；支付宝 / 百度 / QQ 已判 `unsupported` |
 
 ## 待评审（0 条）
 
 当前没有待评审的故事。
 
-## 阻塞（1 条）
+## 阻塞（0 条）
 
-| Story                                                                          | 卡在哪                                                                                                                                          |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付（宿主契约 + 可行性矩阵）；阶段 B 唯一候选抖音等开发者工具 + AppID + Android / iOS 真机实验，支付宝 / 百度 / QQ 已判 `unsupported` |
+当前没有阻塞的故事。
 
 ## 按 Epic 索引
 
@@ -87,7 +87,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
-- 🚫 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；阶段 B 唯一候选抖音等真机实验，支付宝 / 百度 / QQ 判 `unsupported`
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付；阶段 B 平台无关修复已落地，登记抖音等 v9 实验（开发者工具 + iOS），支付宝 / 百度 / QQ 判 `unsupported`
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)

@@ -85,8 +85,26 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 空串目录一律按缺失处理。
 `MiniProgramHost` 把平台相关的部分收成一个注入点：平台 id、同步文件系统、用户数据目录、
 安全随机源，以及报错里使用的能力名。运行时引导对应 `prepareMiniProgramHostRuntime(host)`，
-文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`。
+文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`，
+wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传，报错用它的 `wasmRuntimeName`）。
 所有宿主共享同一张单连接表，同一数据库文件的第二个连接一律拒绝。
+
+宿主还有三个可选字段，微信都不设，行为与不设时完全一致：
+
+| 字段              | 缺省                  | 用途                                                                                                                                                                                                                                                                                |
+| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtimeGlobal`   | 环境里的 `globalThis` | 运行时补丁写入、能力预检读取的真实全局对象。环境的 `globalThis` 不可用（如被页面包装函数遮蔽成 `undefined`）时由调用方在非严格代码里取到后注入。不是当前 realm 的全局对象时直接报「请经 host.runtimeGlobal 注入」，不回退、不猜；解析逻辑见 `resolveMiniProgramRuntimeGlobal(host)` |
+| `fileLayout`      | `{ kind: 'single' }`  | `chunked` 把逻辑文件 `P` 存成 `P.0`、`P.1`… 定长块，落盘只重写脏块；每个库另占 2×`chunkBytes` 的回滚余量（`<库>.rxdb-reserve`），撞配额时让出给回滚，`MiniProgramFileVFS.reserveHeld` 报告当前是否占着。两种布局互不兼容，声明 `chunked` 而目录里已有单文件库时直接拒绝，不迁移     |
+| `defaultWasmPath` | `DEFAULT_WASM_PATH`   | 未传 `wasmPath` 时加载的代码包内路径。相对路径按当前页面目录解析的平台要声明以 `/` 开头的代码包根路径                                                                                                                                                                               |
+
+`getMiniProgramRuntimeSources(runtimeGlobal?)` 按同样规则读来源：传了就读它，否则读环境的 `globalThis`。
+
+用户数据目录写满时，事务以 `SQLITE_FULL`（13）失败，平台原文经 `cause` 链透传：
+`RxDBAdapterSqliteError` → SQLite 错误 → VFS 错误 → 平台原始错误（`errMsg` / `message`）。
+单文件布局撞配额后库的状态按「无崩溃恢复」处理。
+
+`structuredClone` 的 polyfill 只经自由变量引用内置构造函数，不读 `self` / `globalThis`，
+所以在全局对象被遮蔽的页面模块里克隆类型化数组、包装对象与 `Error` 同样可用；函数与 symbol 抛 `TypeError`。
 
 **目前登记的平台只有 `wechat`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 会抛
 `MiniProgramUnknownPlatformError`，不会回退到 `wx`。这个契约的存在不代表支持支付宝、抖音、

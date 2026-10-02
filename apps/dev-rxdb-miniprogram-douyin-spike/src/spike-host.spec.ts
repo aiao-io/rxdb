@@ -1,7 +1,7 @@
 import { prepareMiniProgramHostRuntime } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import { createFakeDouyin, FAKE_USER_DATA_PATH } from './__tests__/fake-douyin.js';
 import type { DouyinApi } from './douyin-api.js';
-import { createDouyinSpikeHost } from './spike-host.js';
+import { createDouyinSpikeHost, DOUYIN_DEFAULT_WASM_PATH } from './spike-host.js';
 
 function withRandom(getRandomValues: DouyinApi['getRandomValues']): DouyinApi {
   return { ...createFakeDouyin().tt, getRandomValues };
@@ -20,6 +20,19 @@ describe('createDouyinSpikeHost', () => {
     });
     expect(host.displayName).toContain('抖音');
     expect(host.getFileSystemManager()).toBe(tt.getFileSystemManager());
+  });
+
+  it('声明分块布局与代码包根的绝对 wasm 路径；没给真实全局对象时不设 runtimeGlobal', () => {
+    const host = createDouyinSpikeHost(createFakeDouyin().tt);
+    expect(host.fileLayout).toEqual({ kind: 'chunked', chunkBytes: 65_536 });
+    expect(host.defaultWasmPath).toBe(DOUYIN_DEFAULT_WASM_PATH);
+    expect(DOUYIN_DEFAULT_WASM_PATH.startsWith('/')).toBe(true);
+    expect(host).not.toHaveProperty('runtimeGlobal');
+  });
+
+  it('banner 找到的真实全局对象原样交给 adapter', () => {
+    const host = createDouyinSpikeHost(createFakeDouyin().tt, globalThis);
+    expect(host.runtimeGlobal).toBe(globalThis);
   });
 
   it('能通过 adapter 的平台 id 校验', async () => {

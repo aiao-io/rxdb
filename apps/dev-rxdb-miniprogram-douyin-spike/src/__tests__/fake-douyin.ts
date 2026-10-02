@@ -214,7 +214,7 @@ export function createFakeDouyin(options: FakeDouyinOptions = {}): FakeDouyin {
   }
   return {
     tt,
-    wasm: createFakeWasm(options.acceptedWasmPaths ?? ['wa-sqlite/wa-sqlite.wasm']),
+    wasm: createFakeWasm(options.acceptedWasmPaths ?? ['/wa-sqlite/wa-sqlite.wasm']),
     files: fileSystem.files,
     directories: fileSystem.directories,
     clipboard

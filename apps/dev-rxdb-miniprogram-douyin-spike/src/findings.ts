@@ -11,6 +11,7 @@ import type { QuotaAccountingReport } from './experiments/quota-accounting.js';
 import type { RandomSummary } from './experiments/random.js';
 import type { WasmPathReport } from './experiments/wasm-path.js';
 import type { Probe, Skipped } from './probe.js';
+import { VFS_QUOTA_EXCEEDED_PATTERN } from './vfs-classifiers.js';
 
 /** 可行性矩阵里抖音列需要实验证据的行，顺序与矩阵一致。 */
 export const MATRIX_ROWS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化'] as const;
@@ -33,25 +34,10 @@ export interface FindingsInput {
   readonly fileSystem: FileSystemReport;
   readonly quotaAccounting: QuotaAccountingReport;
   readonly core: CoreExperimentReport | Skipped;
-  /** 构建 banner 是否垫过 `globalThis`；垫过时，经 adapter 的行在证据里标明前提。 */
-  readonly globalThisShimmed: boolean;
-  /** 核心包的 latin1 垫片顶上过；顶上过时，经核心包的行在证据里标明前提。 */
-  readonly latin1Shimmed: boolean;
 }
 
-/** 垫片下取得的证据后缀：adapter 现状在同样环境里会因 `globalThis` 不是对象而 TypeError。 */
-const SHIM_CONDITION =
-  '；前提：globalThis 垫片（构建产物把 globalThis 换成了真实全局对象），adapter 现状在此环境会 TypeError';
-
-/** 不经 adapter、结论不受垫片影响的矩阵行。 */
-const SHIM_INDEPENDENT_ROWS: readonly MatrixRow[] = ['同步 FS'];
-
-/** latin1 垫片下取得的证据后缀：adapter 现状在没有原生 TextDecoder 的设备上核心包加载即 RangeError。 */
-const LATIN1_CONDITION =
-  '；前提：latin1 垫片（构建产物替 adapter polyfill 解 latin1），adapter 现状在此设备上核心包加载即 RangeError';
-
-/** 结论来自核心包（持久化 / 配额实验）的矩阵行。 */
-const CORE_DEPENDENT_ROWS: readonly MatrixRow[] = ['WASM', '用户目录', '持久化'];
+/** SQLite 的 `SQLITE_FULL`：adapter 把平台配额错误映射成它。 */
+const SQLITE_FULL = 13;
 
 function errorText(error: DescribedError): string {
   return error.errMsg ?? error.message ?? error.text;
@@ -60,6 +46,21 @@ function errorText(error: DescribedError): string {
 function probeText(result: Probe<unknown> | undefined): string {
   if (!result) return '未运行';
   return result.ok ? '成功' : `失败（${errorText(result.error)}）`;
+}
+
+/** 沿 cause 链展开，自身在前。 */
+function causeChain(error: DescribedError): DescribedError[] {
+  const chain: DescribedError[] = [];
+  for (let current: DescribedError | undefined = error; current; current = current.cause) chain.push(current);
+  return chain;
+}
+
+/** 撞配额那条错误的分类：cause 链上有没有 `SQLITE_FULL`、有没有平台配额原文。 */
+function classifyQuotaFailure(error: DescribedError): { readonly full: boolean; readonly platformText?: string } {
+  const chain = causeChain(error);
+  const full = chain.some(item => item.codes['code'] === SQLITE_FULL);
+  const platformText = chain.map(errorText).find(text => VFS_QUOTA_EXCEEDED_PATTERN.test(text));
+  return { full, platformText };
 }
 
 function isSkipped(core: CoreExperimentReport | Skipped): core is Skipped {
@@ -145,11 +146,14 @@ function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): 
   const { reopenCount, reopenIntegrity } = quota.afterFailure;
   const recovered =
     reopenCount.ok && reopenCount.value === quota.insertedRows && reopenIntegrity.ok && reopenIntegrity.value === 'ok';
+  const { full, platformText } = classifyQuotaFailure(quota.failure.error);
+  const classified = `${full ? 'SQLITE_FULL' : '不是 SQLITE_FULL'}，平台原文${platformText ? `「${platformText}」` : '不在 cause 链上'}`;
   const evidence =
-    `第 ${quota.failure.atRow} 行撞配额（${errorText(quota.failure.error)}）；` +
+    `第 ${quota.failure.atRow} 行撞配额（${errorText(quota.failure.error)}；${classified}）；` +
     `重开后行数 ${reopenCount.ok ? String(reopenCount.value) : probeText(reopenCount)} / 已提交 ${quota.insertedRows}，` +
     `integrity ${reopenIntegrity.ok ? String(reopenIntegrity.value) : probeText(reopenIntegrity)}；${rawText}`;
-  return { matrixRow: row, verdict: recovered ? 'pass' : 'fail', evidence };
+  const passed = recovered && full && platformText !== undefined;
+  return { matrixRow: row, verdict: passed ? 'pass' : 'fail', evidence };
 }
 
 function persistenceFinding({ core }: FindingsInput): Finding {
@@ -166,21 +170,13 @@ function persistenceFinding({ core }: FindingsInput): Finding {
   return { matrixRow: row, verdict: 'fail', evidence };
 }
 
-/** 这一行证据要追加的垫片前提。 */
-function conditions(input: FindingsInput, row: MatrixRow): string {
-  const globalThisPart = input.globalThisShimmed && !SHIM_INDEPENDENT_ROWS.includes(row) ? SHIM_CONDITION : '';
-  const latin1Part = input.latin1Shimmed && CORE_DEPENDENT_ROWS.includes(row) ? LATIN1_CONDITION : '';
-  return globalThisPart + latin1Part;
-}
-
 /** 按 {@link MATRIX_ROWS} 的顺序给出判定。 */
 export function buildFindings(input: FindingsInput): Finding[] {
-  const findings = [
+  return [
     wasmFinding(input),
     fileSystemFinding(input),
     randomFinding(input),
     userDataFinding(input),
     persistenceFinding(input)
   ];
-  return findings.map(item => ({ ...item, evidence: item.evidence + conditions(input, item.matrixRow) }));
 }

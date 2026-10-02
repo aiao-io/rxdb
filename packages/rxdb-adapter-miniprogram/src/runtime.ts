@@ -5,14 +5,17 @@ export {
   isMiniProgramPlatformId
 } from './host.js';
 export type {
+  MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramHostCapabilityNames,
   MiniProgramPlatformId,
+  MiniProgramRuntimeGlobal,
   MiniProgramRandomValuesOptions,
   MiniProgramRandomValuesResult,
   MiniProgramWechatApi
 } from './mini-program.interface.js';
+export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 export {
   DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE,
   MAX_MINI_PROGRAM_RANDOM_POOL_SIZE,

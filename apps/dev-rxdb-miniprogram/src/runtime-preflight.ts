@@ -1,79 +1,95 @@
 import type { MiniProgramRuntimeCapability } from '@aiao/rxdb-adapter-miniprogram';
+import {
+  createWechatMiniProgramHost,
+  resolveMiniProgramRuntimeGlobal,
+  type MiniProgramHost,
+  type MiniProgramRuntimeGlobal
+} from '@aiao/rxdb-adapter-miniprogram/runtime';
 
 /** demo 预检项：adapter 的能力项，外加「缺失但运行时可补齐」标记。 */
 export interface RuntimeCapability extends MiniProgramRuntimeCapability {
   readonly polyfillable?: boolean;
 }
 
-export interface MiniProgramRuntimeReferences {
-  readonly wechat: WechatMiniProgramApi;
-  readonly wasmRuntime: WechatWasmRuntime;
+/** demo 所在小程序平台：adapter 宿主与平台 WASM 运行时。平台 API 全部经宿主读取。 */
+export interface MiniProgramDemoRuntime {
+  readonly host: MiniProgramHost;
+  readonly wasmRuntime: WechatWasmRuntime | undefined;
 }
 
-function getWechatApi(): WechatMiniProgramApi | undefined {
-  return typeof wx === 'undefined' ? undefined : wx;
+/** 微信：平台全局只在这里出现，其余代码按宿主取能力名与文案。 */
+export function wechatDemoRuntime(): MiniProgramDemoRuntime {
+  if (typeof wx === 'undefined') throw new Error('没有全局 wx：当前不是微信小程序运行时');
+  return {
+    host: createWechatMiniProgramHost(wx),
+    wasmRuntime: typeof WXWebAssembly === 'undefined' ? undefined : WXWebAssembly
+  };
 }
 
-function getWasmRuntime(): WechatWasmRuntime | undefined {
-  return typeof WXWebAssembly === 'undefined' ? undefined : WXWebAssembly;
-}
-
-function hasFileSystemManager(wechat: WechatMiniProgramApi | undefined): boolean {
+function hasFileSystemManager(host: MiniProgramHost): boolean {
   try {
-    return !!wechat?.getFileSystemManager();
+    return !!host.getFileSystemManager();
   } catch {
     return false;
   }
 }
 
-function secureRandomCapability(wechat: WechatMiniProgramApi | undefined): RuntimeCapability {
-  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+function secureRandomCapability(host: MiniProgramHost, runtimeGlobal: MiniProgramRuntimeGlobal): RuntimeCapability {
+  if (typeof runtimeGlobal.crypto?.getRandomValues === 'function') {
     return { name: 'crypto.getRandomValues', available: true, source: 'native' };
   }
-  if (typeof wechat?.getRandomValues === 'function') {
-    return { name: 'crypto.getRandomValues', available: true, source: 'wechat' };
+  if (typeof host.requestRandomValues === 'function') {
+    return { name: 'crypto.getRandomValues', available: true, source: host.platform };
   }
   return { name: 'crypto.getRandomValues', available: false, source: 'missing' };
 }
 
-export function inspectMiniProgramRuntime(): readonly RuntimeCapability[] {
-  const wechat = getWechatApi();
-  const wasmRuntime = getWasmRuntime();
-
+/**
+ * 引导前的轻量预检：只看平台能力是否存在，可补齐的项标 `polyfillable`。
+ * 拿不到真实全局对象时抛错，由调用方按初始化失败处理。
+ */
+export function inspectMiniProgramRuntime({ host, wasmRuntime }: MiniProgramDemoRuntime): readonly RuntimeCapability[] {
+  const runtimeGlobal = resolveMiniProgramRuntimeGlobal(host);
   return [
-    { name: 'WXWebAssembly.instantiate', available: typeof wasmRuntime?.instantiate === 'function' },
-    { name: 'wx.getFileSystemManager', available: hasFileSystemManager(wechat) },
-    { name: 'wx.env.USER_DATA_PATH', available: typeof wechat?.env?.USER_DATA_PATH === 'string' },
-    { name: 'BigInt', available: typeof globalThis.BigInt === 'function' },
-    secureRandomCapability(wechat),
+    { name: `${host.wasmRuntimeName}.instantiate`, available: typeof wasmRuntime?.instantiate === 'function' },
+    { name: host.capabilityNames.fileSystem, available: hasFileSystemManager(host) },
+    { name: host.capabilityNames.userDataPath, available: host.userDataPath !== undefined },
+    { name: 'BigInt', available: typeof runtimeGlobal.BigInt === 'function' },
+    secureRandomCapability(host, runtimeGlobal),
     {
       name: 'TextEncoder',
-      available: typeof globalThis.TextEncoder === 'function',
+      available: typeof runtimeGlobal.TextEncoder === 'function',
       polyfillable: true
     },
     {
       name: 'TextDecoder',
-      available: typeof globalThis.TextDecoder === 'function',
+      available: typeof runtimeGlobal.TextDecoder === 'function',
       polyfillable: true
     },
     {
       name: 'performance.now',
-      available: typeof globalThis.performance?.now === 'function',
+      available: typeof runtimeGlobal.performance?.now === 'function',
       polyfillable: true
     },
-    { name: 'queueMicrotask', available: typeof globalThis.queueMicrotask === 'function' }
+    { name: 'queueMicrotask', available: typeof runtimeGlobal.queueMicrotask === 'function' }
   ];
 }
 
-export function getMiniProgramRuntimeReferences(): MiniProgramRuntimeReferences {
-  const capabilities = inspectMiniProgramRuntime();
-  const missing = capabilities.filter(capability => !capability.available && !capability.polyfillable);
-  if (missing.length > 0) {
-    throw new Error(`微信运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`);
-  }
+/** 预检通过后交给 {@link openMiniProgramRxdbDemo} 的引用；缺硬依赖时列全缺失项。 */
+export interface MiniProgramRuntimeReferences {
+  readonly host: MiniProgramHost;
+  readonly wasmRuntime: WechatWasmRuntime;
+}
 
-  const wechat = getWechatApi();
-  const wasmRuntime = getWasmRuntime();
-  if (!wechat || !wasmRuntime) throw new Error('微信运行时初始化失败');
-  return { wechat, wasmRuntime };
+export function getMiniProgramRuntimeReferences(runtime: MiniProgramDemoRuntime): MiniProgramRuntimeReferences {
+  const missing = inspectMiniProgramRuntime(runtime).filter(
+    capability => !capability.available && !capability.polyfillable
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `${runtime.host.displayName}运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`
+    );
+  }
+  if (!runtime.wasmRuntime) throw new Error(`${runtime.host.displayName}运行时初始化失败`);
+  return { host: runtime.host, wasmRuntime: runtime.wasmRuntime };
 }

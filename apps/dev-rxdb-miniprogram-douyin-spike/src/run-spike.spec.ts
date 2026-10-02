@@ -41,6 +41,7 @@ describe('runSpike：全部实验跑通', () => {
   it('报告自带 schema 与借用 id 的说明', () => {
     expect(report.schema).toBe(SPIKE_REPORT_SCHEMA);
     expect(report.notes.join('\n')).toContain('tt.getRandomValues');
+    expect(report.notes.join('\n')).toContain('host.runtimeGlobal');
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
   });
 
@@ -63,11 +64,11 @@ describe('runSpike：全部实验跑通', () => {
     expect(report.prepare).toMatchObject({ ok: true });
   });
 
-  it('WASM 路径：逐个写法探测，记下能用的那个', () => {
+  it('WASM 路径：逐个写法探测，记下能用的那个（与真机一样只认绝对路径）', () => {
     expect(report.wasmPath.compileAvailable).toBe(true);
-    expect(report.wasmPath.probes['wa-sqlite/wa-sqlite.wasm']).toMatchObject({ ok: true });
-    expect(report.wasmPath.probes['/wa-sqlite/wa-sqlite.wasm']).toMatchObject({ ok: false });
-    expect(report.wasmPath.workingPath).toBe('wa-sqlite/wa-sqlite.wasm');
+    expect(report.wasmPath.probes['wa-sqlite/wa-sqlite.wasm']).toMatchObject({ ok: false });
+    expect(report.wasmPath.probes['/wa-sqlite/wa-sqlite.wasm']).toMatchObject({ ok: true });
+    expect(report.wasmPath.workingPath).toBe('/wa-sqlite/wa-sqlite.wasm');
   });
 
   it('③ 文件错误：原文、错误码与 VFS 正则的判定逐条记下', () => {
@@ -90,30 +91,38 @@ describe('runSpike：全部实验跑通', () => {
     expect(report.coreLoad).toMatchObject({ ok: true });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
-    expect(core.persistence).toMatchObject({ status: 'passed', integrity: 'ok', wasmPath: 'wa-sqlite/wa-sqlite.wasm' });
+    // 核心实验不传 wasmPath：路径来自 host.defaultWasmPath
+    expect(core.persistence).toMatchObject({ status: 'passed', integrity: 'ok', wasmPath: '/wa-sqlite/wa-sqlite.wasm' });
     expect(core.persistence.reopenedRows).toEqual(core.persistence.writtenRows);
     expect(core.persistence.writtenRows?.flat()).toContain('中文与 emoji 🚀');
-    expect(core.persistence.files?.some(file => file.path.endsWith('.sqlite') && file.size > 0)).toBe(true);
+    // host 声明分块布局：库文件存成 P.0、P.1…
+    expect(core.persistence.files?.some(file => file.path.endsWith('.sqlite.0') && file.size > 0)).toBe(true);
+    expect(core.persistence.files?.some(file => file.path.endsWith('.sqlite'))).toBe(false);
   });
 
-  it('④ 配额：撞到 108403 后记录失败形态，重开库仍完整', () => {
+  it('④ 配额：撞到 108403 后报 SQLITE_FULL 并带平台原文，不清理直接重开库仍完整', () => {
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.quota.status).toBe('triggered');
     expect(core.quota.insertedRows).toBeGreaterThan(0);
-    // 现状刻画：VFS 把平台错误吞成 SQLITE_IOERR，调用方只看到 disk I/O error，108403 不在 cause 链上。
-    // 平台原文只留在 VFS 句柄的 lastError 里；adapter 改成透传后这条断言应当翻转。
     expect(core.quota.failure?.error).toMatchObject({
       name: 'RxDBAdapterSqliteError',
-      cause: { message: 'disk I/O error', codes: { code: 10 } }
+      // RxDBAdapterSqliteError → SQLiteError(13) → VFS lastError（平台原文）→ 平台原始错误对象
+      cause: {
+        codes: { code: 13 },
+        cause: {
+          message: expect.stringContaining('size limit exceeded'),
+          cause: { errMsg: expect.stringContaining('size limit exceeded'), codes: { errNo: 108403 } }
+        }
+      }
     });
-    expect(JSON.stringify(core.quota.failure)).not.toContain('108403');
     expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
     expect(core.quota.afterFailure?.reopenCount).toMatchObject({ ok: true, value: core.quota.insertedRows });
     const files = core.quota.afterFailure?.filesAfterDisconnect;
     if (!files?.ok) throw new Error('关闭后应当能列出库文件');
-    expect(files.value.some(file => file.path.endsWith('.sqlite') && file.size > 0)).toBe(true);
-    expect(files.value.some(file => file.path.endsWith('-journal'))).toBe(false);
+    expect(files.value.some(file => file.path.endsWith('.sqlite.0') && file.size > 0)).toBe(true);
+    expect(files.value.some(file => file.path.includes('-journal') && file.size > 0)).toBe(false);
+    expect(finding(report, '用户目录')?.evidence).toContain('SQLITE_FULL，平台原文「');
   });
 
   it('配额计费：逐 MiB 探出一次能写多大，配额小于覆盖写大小时覆盖写判定为 null', () => {
@@ -134,9 +143,8 @@ describe('runSpike：全部实验跑通', () => {
     expect(report.environment.nativeRandom).toMatchObject({ ok: true, value: { byteLength: 4096, allZero: false } });
   });
 
-  it('源码级运行没有构建 banner，垫片记录为空', () => {
-    expect(report.globalThisShim).toEqual({ page: null, core: null });
-    expect(report.latin1Shim).toBeNull();
+  it('源码级运行没有构建 banner，realm 探测记录为空', () => {
+    expect(report.realmProbe).toEqual({ page: null, core: null });
     expect(JSON.stringify(report.findings)).not.toContain('垫片');
   });
 
@@ -148,10 +156,10 @@ describe('runSpike：全部实验跑通', () => {
 
 describe('runSpike：失败与边界', () => {
   it('核心包加载失败：① ④ 标记跳过，其余实验照跑', async () => {
-    const latin1 = new RangeError('不支持的 TextDecoder 编码: latin1');
-    const { report, fake } = await run(SMALL_QUOTA, () => Promise.reject(latin1));
-    expect(report.coreLoad).toMatchObject({ ok: false, error: { name: 'RangeError', message: latin1.message } });
-    expect(report.core).toEqual({ skipped: expect.stringContaining('latin1') });
+    const topLevel = new RangeError('模块顶层出错');
+    const { report, fake } = await run(SMALL_QUOTA, () => Promise.reject(topLevel));
+    expect(report.coreLoad).toMatchObject({ ok: false, error: { name: 'RangeError', message: topLevel.message } });
+    expect(report.core).toEqual({ skipped: expect.stringContaining('模块顶层出错') });
     expect(report.random['65536']).toMatchObject({ ok: true });
     expect(report.fileSystem.probes.length).toBeGreaterThan(0);
     expect(finding(report, '持久化')).toMatchObject({ verdict: 'unknown' });
@@ -160,13 +168,13 @@ describe('runSpike：失败与边界', () => {
   }, 60_000);
 
   it('构建包装把核心包顶层错误挂在 initError 上：coreLoad 报原始错误，不调用半成品导出', async () => {
-    const latin1 = new RangeError('不支持的 TextDecoder 编码: latin1');
+    const topLevel = new RangeError('模块顶层出错');
     const real = await loadRealCore();
     const runCoreExperiments = vi.fn(real.runCoreExperiments);
-    const halfInitialized: SpikeCore = { ...real, runCoreExperiments, initError: latin1 };
+    const halfInitialized: SpikeCore = { ...real, runCoreExperiments, initError: topLevel };
     const { report } = await run(SMALL_QUOTA, async () => halfInitialized);
-    expect(report.coreLoad).toMatchObject({ ok: false, error: { name: 'RangeError', message: latin1.message } });
-    expect(report.core).toEqual({ skipped: expect.stringContaining('latin1') });
+    expect(report.coreLoad).toMatchObject({ ok: false, error: { name: 'RangeError', message: topLevel.message } });
+    expect(report.core).toEqual({ skipped: expect.stringContaining('模块顶层出错') });
     expect(runCoreExperiments).not.toHaveBeenCalled();
   }, 60_000);
 
@@ -174,21 +182,11 @@ describe('runSpike：失败与边界', () => {
     const real = await loadRealCore();
     const runCoreExperiments = vi.fn(real.runCoreExperiments);
     // 模拟 esbuild 的导出 getter：导出名都在，模块顶层的变量还没赋值
-    const halfInitialized = { globalThisShim: undefined, runCoreExperiments } as unknown as SpikeCore;
+    const halfInitialized = { realmProbe: undefined, runCoreExperiments } as unknown as SpikeCore;
     const { report } = await run(SMALL_QUOTA, async () => halfInitialized);
     expect(report.coreLoad).toMatchObject({ ok: false, error: { message: expect.stringContaining('半成品导出') } });
     expect(report.core).toEqual({ skipped: expect.stringContaining('半成品导出') });
     expect(runCoreExperiments).not.toHaveBeenCalled();
-  }, 60_000);
-
-  it('核心包的 latin1 垫片顶上过时，经核心包的行（WASM / 用户目录 / 持久化）标明前提，其余两行不标', async () => {
-    const real = await loadRealCore();
-    const latin1Shim = { engaged: 1, delegateError: 'RangeError: 不支持的 TextDecoder 编码: latin1' };
-    const { report } = await run(SMALL_QUOTA, async () => ({ ...real, latin1Shim }));
-    expect(report.latin1Shim).toEqual(latin1Shim);
-    const marked = report.findings.filter(item => item.evidence.includes('latin1 垫片')).map(item => item.matrixRow);
-    expect(marked).toEqual(['WASM', '用户目录', '持久化']);
-    expect(report.findings.every(item => item.verdict === 'pass')).toBe(true);
   }, 60_000);
 
   it('同一 JS 上下文里再跑一次，环境快照标出上次引导的残留', async () => {
@@ -209,24 +207,20 @@ describe('runSpike：失败与边界', () => {
     }
   }, 60_000);
 
-  it('覆盖写把旧大小也计入配额时，复现模拟器 v5 的形态：关闭失败、留下热日志、重开即 disk I/O', async () => {
+  it('覆盖写把旧大小也计入配额时（模拟器与 iOS 实测）：分块布局撞配额后仍能回滚，重开读回全部已提交行', async () => {
     const { report } = await run({ ...SMALL_QUOTA, overwriteCountsOldSize: true });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(report.quotaAccounting.overwrite.countsOldSize).toBeNull();
     expect(core.quota.status).toBe('triggered');
+    expect(core.quota.failure?.error).toMatchObject({ cause: { codes: { code: 13 } } });
     const after = core.quota.afterFailure;
-    expect(after?.disconnect).toMatchObject({
-      ok: false,
-      error: { errMsg: expect.stringContaining('size limit exceeded') }
-    });
-    if (!after?.filesAfterDisconnect.ok) throw new Error('关闭失败后应当仍能列出库文件');
-    expect(after.filesAfterDisconnect.value.some(file => file.path.endsWith('-journal'))).toBe(true);
-    expect(after.sameConnectionCount).toMatchObject({ ok: false });
-    expect(after.reopenCount).toMatchObject({ ok: false, error: { cause: { message: 'disk I/O error' } } });
-    // 库写到配额的一半就撞上：每次 flush 新旧两份同时计费
-    expect(core.quota.insertedRows * SMALL_PLAN.blobBytes).toBeLessThanOrEqual(SMALL_QUOTA.quotaBytes / 2);
-    expect(finding(report, '用户目录')).toMatchObject({ verdict: 'fail' });
+    expect(after?.disconnect).toMatchObject({ ok: true });
+    expect(after?.reopenCount).toMatchObject({ ok: true, value: core.quota.insertedRows });
+    expect(after?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
+    // 单文件布局写到配额一半就撞（每次 flush 新旧两份同时计费）；分块只覆盖脏块，能写过一半
+    expect(core.quota.insertedRows * SMALL_PLAN.blobBytes).toBeGreaterThan(SMALL_QUOTA.quotaBytes / 2);
+    expect(finding(report, '用户目录')).toMatchObject({ verdict: 'pass' });
   }, 60_000);
 
   it('配额足够大时，覆盖写计费判定写进用户目录的证据', async () => {
@@ -243,12 +237,13 @@ describe('runSpike：失败与边界', () => {
     expect(finding(report, '用户目录')?.evidence).toContain('未触发');
   }, 60_000);
 
-  it('只认绝对路径时，核心实验改用探测到的写法', async () => {
-    const { report } = await run({ ...SMALL_QUOTA, acceptedWasmPaths: ['/wa-sqlite/wa-sqlite.wasm'] });
+  it('核心实验只认 host.defaultWasmPath，不采用路径探测的结果', async () => {
+    const { report } = await run({ ...SMALL_QUOTA, acceptedWasmPaths: ['wa-sqlite/wa-sqlite.wasm'] });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
-    expect(report.wasmPath.workingPath).toBe('/wa-sqlite/wa-sqlite.wasm');
-    expect(core.persistence).toMatchObject({ status: 'passed', wasmPath: '/wa-sqlite/wa-sqlite.wasm' });
+    expect(report.wasmPath.workingPath).toBe('wa-sqlite/wa-sqlite.wasm');
+    expect(core.persistence).toMatchObject({ status: 'failed', wasmPath: '/wa-sqlite/wa-sqlite.wasm' });
+    expect(finding(report, 'WASM')).toMatchObject({ verdict: 'unknown' });
   }, 60_000);
 
   it('同步方法抛 Error 实例时，判定照样成立', async () => {
