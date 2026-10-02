@@ -186,6 +186,10 @@ aiao/
 │   ├── rxdb-plugin-graph/           # 图插件
 │   ├── rxdb-plugin-workspace/       # 工作区插件
 │   ├── rxdb-plugin-storage/         # 存储插件
+│   ├── rxdb-plugin-replay/          # 会话录制与回放插件（rrweb）
+│   ├── rxdb-plugin-replay-angular/  # Angular 回放组件
+│   ├── rxdb-plugin-replay-react/    # React 回放组件
+│   ├── rxdb-plugin-replay-vue/      # Vue 回放组件
 │   ├── rxdb-plugin-search/          # 全文搜索插件（FTS5）
 │   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
 │   ├── rxdb-plugin-search-react/    # React 搜索集成

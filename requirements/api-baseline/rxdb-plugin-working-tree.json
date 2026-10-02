@@ -522,6 +522,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeCommitEvent",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeCredentials",
         "kind": "type"
       },

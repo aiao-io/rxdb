@@ -28,7 +28,7 @@ owner: jimmy
 - [x] QueryCache 的远端变更实时同步：core 失效上报口 + HTTP 可选变更通知通道，让别的客户端的写自己走到屏幕上
 - [ ] 本地数据库一致性备份与恢复：保留数据库完整状态，按 adapter 能力分阶段支持
 - [ ] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
-- [ ] 会话录制回放与失败现场数据还原：e2e 失败自动留档界面回放，并按 working-tree 提交还原数据状态
+- [ ] 会话录制回放与失败现场数据还原：e2e 失败留下失败尝试的 trace，需要时导出失败时刻的库供导入调试；应用内会话录制（价值门禁 owner 2026-10-01 豁免）
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
 - [ ] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 
@@ -61,7 +61,7 @@ owner: jimmy
 - [US-029 多用户 RBAC：角色与所有权写权限](../stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（不加基础字段）+ `RxDBContext.roles` 与一实例一身份 + US-027 操作权限扩展为角色 / 所有权谓词 + 测试 RLS fixture + 三框架操作级能力派生；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218；**价值待证**，解锁条件为出现具名多用户使用方（[RV-022](../reviews/RV-022-us-029-readiness-review.md)）
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被 `USING` 过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现）；三阶段（不写幽灵日志 → 逐操作回执 → 日志表收口与部署指引），不含租户与角色
-- [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — rrweb 事件流按每事件一文档写入本地库；阶段 A e2e 失败现场、阶段 B 关联 working-tree commit 还原数据状态、阶段 C 插件与三框架组件（价值待证）
+- [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开，spike 不过才阻塞于 🚧 Worker / SharedWorker 传输的备份恢复）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析。**Epic 归属存疑**：属核心重构而非用户可见能力，承诺交付前宜另开 Epic
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿，待合并
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — `checks` 与索引的 `where` / `expression` / `method`：`EntityMetadataOptions` 今天一项都没有；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；**价值待证**，当前消费方全在 epic-009

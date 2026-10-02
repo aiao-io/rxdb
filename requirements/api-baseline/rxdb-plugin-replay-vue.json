@@ -1,0 +1,22 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "Replayer",
+        "kind": "value"
+      },
+      {
+        "name": "ReplayerCommitRestoreEvent",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerRef",
+        "kind": "type"
+      },
+      {
+        "name": "replayRestoreHint",
+        "kind": "value"
+      }
+    ]
+  }
+}

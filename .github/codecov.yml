@@ -161,6 +161,26 @@ component_management:
       paths:
         - packages/rxdb-plugin-graph
 
+    - component_id: rxdb-plugin-replay
+      name: '@aiao/rxdb-plugin-replay'
+      paths:
+        - packages/rxdb-plugin-replay
+
+    - component_id: rxdb-plugin-replay-angular
+      name: '@aiao/rxdb-plugin-replay-angular'
+      paths:
+        - packages/rxdb-plugin-replay-angular
+
+    - component_id: rxdb-plugin-replay-react
+      name: '@aiao/rxdb-plugin-replay-react'
+      paths:
+        - packages/rxdb-plugin-replay-react
+
+    - component_id: rxdb-plugin-replay-vue
+      name: '@aiao/rxdb-plugin-replay-vue'
+      paths:
+        - packages/rxdb-plugin-replay-vue
+
     - component_id: rxdb-plugin-search
       name: '@aiao/rxdb-plugin-search'
       paths:

@@ -1,0 +1,54 @@
+{
+  "name": "@aiao/rxdb-plugin-replay-react",
+  "version": "0.0.26",
+  "description": "React replayer component for the Aiao RxDB session replay plugin.",
+  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "react",
+    "rrweb",
+    "session-replay",
+    "component"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-replay-react"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-plugin-replay": "*",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-replay": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

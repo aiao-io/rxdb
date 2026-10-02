@@ -38,6 +38,7 @@ import { writeCommit, type WriteCommitOutcome } from '../commit/write-commit.js'
 import { readActiveBranchToken, readBranchEntries, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
 import { commitActiveRestoreSession } from './restore-session-transitions.js';
+import type { WorkingTreeCommitEvent } from './working-tree-commit-event.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
 import { buildWorkingTreeCommitTransitionSql } from './working-tree-state-sql.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
@@ -85,6 +86,23 @@ export type CommitResult =
       /** 诊断值；**不入库**，也没有「清除冲突」的 API */
       readonly conflict: CommitConflict;
     };
+
+/**
+ * {@link runCommitWorkingTree} 的结果：返回给调用方的 {@link CommitResult}，外加「本次是否写入了新 commit」。
+ *
+ * @remarks
+ * `written` 不能从 `result` 推出来：幂等重放同样是 `ok: true`、带着同一个 `commitId`，只有
+ * `writeCommit()` 的 `reused` 判定知道这次什么都没写。门面靠它决定 `commits$` 发不发——
+ * 按 `result.ok` 发的话，每次重试都会多出一个指向同一 commit 的事件。
+ *
+ * **不在公开面上**（`index.ts` 只点名导出本模块的公开成员）：它是门面与命令体之间的接缝。
+ */
+export interface CommitRun {
+  /** 原样交给调用方的结果 */
+  readonly result: CommitResult;
+  /** 本次写入了新 commit 时是它的关联键；冲突、幂等重放时为 `null` */
+  readonly written: WorkingTreeCommitEvent | null;
+}
 
 /**
  * 把工作树条目摊成提交用的变更单元。
@@ -164,18 +182,15 @@ interface FinishCommitInput {
  * {@link commitActiveRestoreSession} 排在状态行 UPDATE **之后**：会话只在工作树确实
  * 落进历史之后才算结束；这个分支上没有未结束会话时它一条语句都不发（FR-015）。
  */
-const finishCommit = async (executor: TransactionExecutor, input: FinishCommitInput): Promise<CommitResult> => {
+const finishCommit = async (executor: TransactionExecutor, input: FinishCommitInput): Promise<CommitRun> => {
   const { outcome, ref, state } = input;
   if (outcome.status === 'head_revision_conflict') {
-    return { ok: false, conflict: await toHeadConflict(executor, input.branchId, outcome.expectedHeadRevision) };
+    const conflict = await toHeadConflict(executor, input.branchId, outcome.expectedHeadRevision);
+    return { result: { ok: false, conflict }, written: null };
   }
   if (outcome.status === 'reused') {
-    return {
-      ok: true,
-      commitId: outcome.commit.id,
-      changeSetCount: outcome.commit.changeSetCount,
-      headRevision: ref.headRevision
-    };
+    const { id: commitId, changeSetCount } = outcome.commit;
+    return { result: { ok: true, commitId, changeSetCount, headRevision: ref.headRevision }, written: null };
   }
 
   await executor.removeMany([...input.entries]);
@@ -191,7 +206,10 @@ const finishCommit = async (executor: TransactionExecutor, input: FinishCommitIn
 
   const headRevision = input.options.expectedHeadRevision + 1;
   syncRowsAfterCommit(ref, state, { commitId: outcome.commit.id, headRevision, workingTreeRevision });
-  return { ok: true, commitId: outcome.commit.id, changeSetCount: outcome.commit.changeSetCount, headRevision };
+  return {
+    result: { ok: true, commitId: outcome.commit.id, changeSetCount: outcome.commit.changeSetCount, headRevision },
+    written: { commitId: outcome.commit.id, branchId: input.branchId }
+  };
 };
 
 /**
@@ -227,7 +245,21 @@ export const commitWorkingTree = async (
   context: CommitWriteContext,
   message: string,
   options: CommitOptions
-): Promise<CommitResult> => {
+): Promise<CommitResult> => (await runCommitWorkingTree(executor, context, message, options)).result;
+
+/**
+ * {@link commitWorkingTree} 的命令体，多带一个「本次是否写入了新 commit」（见 {@link CommitRun}）。
+ *
+ * @remarks
+ * 参数、抛出与 {@link commitWorkingTree} 完全一致；门面走这一个，是为了在事务提交之后按
+ * `written` 发 `commits$`。
+ */
+export const runCommitWorkingTree = async (
+  executor: TransactionExecutor,
+  context: CommitWriteContext,
+  message: string,
+  options: CommitOptions
+): Promise<CommitRun> => {
   const token = await readActiveBranchToken(executor);
   await assertCommitGraphIntact(executor, token.branchId);
 
@@ -238,7 +270,7 @@ export const commitWorkingTree = async (
     headRevision: ref.headRevision,
     workingTreeRevision: state.workingTreeRevision
   });
-  if (conflict) return { ok: false, conflict };
+  if (conflict) return { result: { ok: false, conflict }, written: null };
 
   const entries = await readBranchEntries(executor, token.branchId);
   const outcome = await writeCommit(executor, context, {

@@ -1824,6 +1824,72 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
 
+  packages/rxdb-plugin-replay:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      '@aiao/utils':
+        specifier: workspace:*
+        version: link:../utils
+      '@rrweb/types':
+        specifier: 2.1.6
+        version: 2.1.6
+      rrweb:
+        specifier: 2.1.6
+        version: 2.1.6
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-working-tree
+
+  packages/rxdb-plugin-replay-angular:
+    devDependencies:
+      '@aiao/rxdb-plugin-replay':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-replay
+      '@angular/common':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 22.1.6
+        version: 22.1.6
+      '@angular/core':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.1.6
+        version: 22.1.6(@angular/common@22.1.6(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.1.6(@angular/compiler@22.1.6)(rxjs@7.8.2))
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.3)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.102.0)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/rxdb-plugin-replay-react:
+    dependencies:
+      react:
+        specifier: ^19.2.8
+        version: 19.3.0
+    devDependencies:
+      '@aiao/rxdb-plugin-replay':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-replay
+
+  packages/rxdb-plugin-replay-vue:
+    dependencies:
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.43(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+    devDependencies:
+      '@aiao/rxdb-plugin-replay':
+        specifier: workspace:*
+        version: link:../rxdb-plugin-replay
+
   packages/rxdb-plugin-search:
     dependencies:
       '@aiao/rxdb':
@@ -7847,6 +7913,12 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  '@rrweb/types@2.1.6':
+    resolution: {integrity: sha512-DacFzGpPbQ91q3rRyh/AeZrtFYYonmLT+qgGlmh2iGcW2HPnrABJNgJWhpyzYwp/xed6Fbpi8yMxhRBlrOY0ZA==}
+
+  '@rrweb/utils@2.1.6':
+    resolution: {integrity: sha512-BIRXcxiytJs5Guxw0tzsnVS7ukcMqtnxixjIGvV49VdJeOEG6NJeMU7o8efbHW1D52a12Y8QsgDjgDgblg3org==}
+
   '@rspack/binding-darwin-arm64@1.7.12':
     resolution: {integrity: sha512-rbFprJaJiqrmfy8SHth8EsoRS0wg4bXcucwj9NiMzpGFq14Opw8c04iQ6H9BECYzgmN0PKZ9rh41LdVvhdZe4A==}
     cpu: [arm64]
@@ -9091,6 +9163,9 @@ packages:
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
+  '@types/css-font-loading-module@0.0.7':
+    resolution: {integrity: sha512-nl09VhutdjINdWyXxHWN/w9zlNCfr60JUqJbd24YXUuCwgeL0TpFSdElCwb6cxfB6ybE19Gjj4g0jsgkXxKv1Q==}
+
   '@types/d3-array@3.2.2':
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
 
@@ -9820,26 +9895,14 @@ packages:
       vue:
         optional: true
 
-  '@vue/compiler-core@3.5.42':
-    resolution: {integrity: sha512-2Ye1ilMtKXxl8qZUrQ5j0CdgenFp/HFQmta6rfRyfEsTG69L6Wk+tWuNoHYHMx9E8tF2Slvdg1FuwDvAXdy1LQ==}
-
   '@vue/compiler-core@3.5.43':
     resolution: {integrity: sha512-zdiLhnbe1QQqgDT8xZMpNmyqZ3qlI+/Q/FHQco57Kwl/b05HhCzN6eVGN9QU9rbga4CrS0H5SYY8VGHZCt/1Hg==}
-
-  '@vue/compiler-dom@3.5.42':
-    resolution: {integrity: sha512-qbhQZEFmycr+ni/qyuccS4sucNN7VAbDfbkvNxWOX2VfgFm90MNs3/UhRNKoPMEIVn0F8gdlYjLPvqxHwHeQOA==}
 
   '@vue/compiler-dom@3.5.43':
     resolution: {integrity: sha512-PEZoAk3NQmsn/ejMzSOCyTYqwGqczrWm70PuhBKjjv1+TCoQAaO/zOqNwjV+honlNstT5ILxtc+8r8UUfj+iEQ==}
 
-  '@vue/compiler-sfc@3.5.42':
-    resolution: {integrity: sha512-fkCAFB4okcAANGMThboWnScp/gzWjU0ZSkVnjTIiplmMDq2uq0tIB3j+xVu4rhv5rvOgBySCysudmbMd6xRRqw==}
-
   '@vue/compiler-sfc@3.5.43':
     resolution: {integrity: sha512-FCbrG3XNCRl+js3huuKx4IVHBLTvMkJhVepjbxSPu1gn4yWLaYtGNQdjJGZaMytXB6qb76qQDDmDSLy/vkmleQ==}
-
-  '@vue/compiler-ssr@3.5.42':
-    resolution: {integrity: sha512-xmLk3wLkbizPAiLyomjgFFosf2ys9b5Ghb+oh/k2tnvipNz8OFrQOiTcWCzyK7MpBp9KkyGtfvgfLUivbmuGYA==}
 
   '@vue/compiler-ssr@3.5.43':
     resolution: {integrity: sha512-GF62orf7KiJX9RqrHNGrYBudsQGD0OhJ5nDs90O8UiDuS40+YMYomiXu6w6EuvtXuRDc3MSNis3EaaSKAVSWpg==}
@@ -9885,9 +9948,6 @@ packages:
 
   '@vue/server-renderer@3.5.43':
     resolution: {integrity: sha512-l2Ygjv9NehV94PSBxNWsAHC0j/eIIKbn92mBuWXAPGLnn6HfJ6MH5ubsd+Nk0YoZ5FRuxWI1P2VSoh+dbPQhCQ==}
-
-  '@vue/shared@3.5.42':
-    resolution: {integrity: sha512-2rPxex1jQf4jvl9MOHl6YaXCPcrNqz/FstMOEh3QWY+/OME9nQTvl9WYeCwhW7AFjaR0SnngZGlp/wkR6rkI6g==}
 
   '@vue/shared@3.5.43':
     resolution: {integrity: sha512-uksS7YGMR5NZyr4JNq0Rp+QyLns0ueaz20KwzIPW9R0LH1Vnt4E+XUM29PNseEbf1www2gOuhuDi5AKOIXag9Q==}
@@ -10007,6 +10067,9 @@ packages:
 
   '@xobotyi/scrollbar-width@1.9.5':
     resolution: {integrity: sha512-N8tkAACJx2ww8vFMneJmaAgmjAG1tnVBZJRLRcx061tmsLRZHSEZSLuGWnwPtunsSLvSqXQ2wfp7Mgqg1I+2dQ==}
+
+  '@xstate/fsm@1.6.5':
+    resolution: {integrity: sha512-b5o1I6aLNeYlU/3CPlj/Z91ybk1gUsKT+5NAJI+2W4UjvS5KLG28K9v5UvNoFVjHV8PajVZ00RH3vnjyQO7ZAw==}
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -10613,6 +10676,10 @@ packages:
 
   bare-url@2.5.4:
     resolution: {integrity: sha512-Gxa7UVWBr0/edU1b+TJhn/AZvMQUj9OGspvYsaTYQrAbZA4BOTZGL3LiZxvD+CeMlDH4juwD84+eTAp/bLYW5g==}
+
+  base64-arraybuffer@1.0.2:
+    resolution: {integrity: sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ==}
+    engines: {node: '>= 0.6.0'}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -15222,6 +15289,9 @@ packages:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
+  mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+
   mkdirp@0.5.6:
     resolution: {integrity: sha512-FP+p8RB8OWpF3YZBCrP5gtADmtXApB5AMLn+vdyA+PyxCjrCs00mjyUozssO33cwDeT3wNGdLxJ5M//YqtHAJw==}
     hasBin: true
@@ -17383,6 +17453,15 @@ packages:
   router@2.2.0:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
+
+  rrdom@2.1.6:
+    resolution: {integrity: sha512-EMRrTs1GRsmb8bNyAs107wG7eRwVEOvDUBsnCyvQnVV6elrmrua/AeS0tdcA0gLW4eptr4l6bRsS/2QRICvdqQ==}
+
+  rrweb-snapshot@2.1.6:
+    resolution: {integrity: sha512-X03+x3AdWTbpD4Swb54CCJoEauYTv/O2ah0d3ZVv5rgr6bv0Ty5mxNjEyEEfNC1dQ8VdyjKKJgDG3A00FV0lNg==}
+
+  rrweb@2.1.6:
+    resolution: {integrity: sha512-OMdw4lWyfCx2fNhKCv1eZe54oVmD8r4QZsCXKY9fdt+cD/eiiupFgMHoFuwbwvltr4JH3IwWKXoadVjiMNhOZQ==}
 
   rtl-css-js@1.16.1:
     resolution: {integrity: sha512-lRQgou1mu19e+Ya0LsTvKrVJ5TYUbqCVPAiImX3UfLTenarvPUl1QFdvu5Z3PYmHT9RCcwIfbjRQBntExyj3Zg==}
@@ -26810,6 +26889,10 @@ snapshots:
       '@napi-rs/lzma-linux-x64-gnu': 1.5.1
       fsevents: 2.3.3
 
+  '@rrweb/types@2.1.6': {}
+
+  '@rrweb/utils@2.1.6': {}
+
   '@rspack/binding-darwin-arm64@1.7.12':
     optional: true
 
@@ -28153,6 +28236,8 @@ snapshots:
     dependencies:
       '@types/node': 26.6.3
 
+  '@types/css-font-loading-module@0.0.7': {}
+
   '@types/d3-array@3.2.2': {}
 
   '@types/d3-axis@3.0.6':
@@ -29099,21 +29184,13 @@ snapshots:
 
   '@vue-macros/common@3.1.4(vue@3.5.43(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))':
     dependencies:
-      '@vue/compiler-sfc': 3.5.42
+      '@vue/compiler-sfc': 3.5.43
       ast-kit: 2.2.0
       local-pkg: 1.2.1
       magic-string-ast: 1.0.3
       unplugin-utils: 0.3.2
     optionalDependencies:
       vue: 3.5.43(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
-
-  '@vue/compiler-core@3.5.42':
-    dependencies:
-      '@babel/parser': 7.29.8
-      '@vue/shared': 3.5.42
-      entities: 7.0.1
-      estree-walker: 2.0.2
-      source-map-js: 1.2.1
 
   '@vue/compiler-core@3.5.43':
     dependencies:
@@ -29123,27 +29200,10 @@ snapshots:
       estree-walker: 2.0.2
       source-map-js: 1.2.1
 
-  '@vue/compiler-dom@3.5.42':
-    dependencies:
-      '@vue/compiler-core': 3.5.42
-      '@vue/shared': 3.5.42
-
   '@vue/compiler-dom@3.5.43':
     dependencies:
       '@vue/compiler-core': 3.5.43
       '@vue/shared': 3.5.43
-
-  '@vue/compiler-sfc@3.5.42':
-    dependencies:
-      '@babel/parser': 7.29.8
-      '@vue/compiler-core': 3.5.42
-      '@vue/compiler-dom': 3.5.42
-      '@vue/compiler-ssr': 3.5.42
-      '@vue/shared': 3.5.42
-      estree-walker: 2.0.2
-      magic-string: 0.30.21
-      postcss: 8.5.28
-      source-map-js: 1.2.1
 
   '@vue/compiler-sfc@3.5.43':
     dependencies:
@@ -29156,11 +29216,6 @@ snapshots:
       magic-string: 0.30.21
       postcss: 8.5.28
       source-map-js: 1.2.1
-
-  '@vue/compiler-ssr@3.5.42':
-    dependencies:
-      '@vue/compiler-dom': 3.5.42
-      '@vue/shared': 3.5.42
 
   '@vue/compiler-ssr@3.5.43':
     dependencies:
@@ -29205,8 +29260,8 @@ snapshots:
   '@vue/language-core@3.3.11':
     dependencies:
       '@volar/language-core': 2.4.28
-      '@vue/compiler-dom': 3.5.42
-      '@vue/shared': 3.5.42
+      '@vue/compiler-dom': 3.5.43
+      '@vue/shared': 3.5.43
       alien-signals: 3.2.1
       muggle-string: 0.4.1
       path-browserify: 1.0.1
@@ -29233,8 +29288,6 @@ snapshots:
       '@vue/compiler-ssr': 3.5.43
       '@vue/runtime-dom': 3.5.43
       '@vue/shared': 3.5.43
-
-  '@vue/shared@3.5.42': {}
 
   '@vue/shared@3.5.43': {}
 
@@ -29431,6 +29484,8 @@ snapshots:
   '@xmldom/xmldom@0.8.15': {}
 
   '@xobotyi/scrollbar-width@1.9.5': {}
+
+  '@xstate/fsm@1.6.5': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -30146,6 +30201,8 @@ snapshots:
   bare-url@2.5.4:
     dependencies:
       bare-path: 3.1.2
+
+  base64-arraybuffer@1.0.2: {}
 
   base64-js@1.5.1: {}
 
@@ -35961,6 +36018,8 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
+  mitt@3.0.1: {}
+
   mkdirp@0.5.6:
     dependencies:
       minimist: 1.2.8
@@ -38557,6 +38616,25 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+
+  rrdom@2.1.6:
+    dependencies:
+      rrweb-snapshot: 2.1.6
+
+  rrweb-snapshot@2.1.6:
+    dependencies:
+      postcss: 8.5.28
+
+  rrweb@2.1.6:
+    dependencies:
+      '@rrweb/types': 2.1.6
+      '@rrweb/utils': 2.1.6
+      '@types/css-font-loading-module': 0.0.7
+      '@xstate/fsm': 1.6.5
+      base64-arraybuffer: 1.0.2
+      mitt: 3.0.1
+      rrdom: 2.1.6
+      rrweb-snapshot: 2.1.6
 
   rtl-css-js@1.16.1:
     dependencies:
