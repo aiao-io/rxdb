@@ -12,7 +12,7 @@
 2. 首次打开会问是否信任该文件夹，选「我信任该文件夹」
 3. 页面打开就自动跑，状态变成「完成」即可
 4. 点「复制报告」，或在控制台搜 `[alipay-probe] 报告`
-5. 真机预览要在 `mini.project.json` 关联真实 AppID（别提交进仓库），模拟器不需要
+5. 真机调试、预览都要在 `mini.project.json` 关联真实 AppID（别提交进仓库），模拟器不需要；真机上点「复制报告」后粘到电脑即可
 
 ## 报告怎么读（`probe: 'alipay-probe v2'`）
 
@@ -26,14 +26,29 @@
 
 ## 已知会卡住的地方
 
-已实测的（小程序开发者工具 3.10.15 模拟器，基础库 2.10.15，2026-10-03）：
+已实测两端（2026-10-03）：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15），iOS 真机调试（iOS 26.6.2 / 支付宝 12.12.30 / 基础库 2.10.42）。
 
-- **模拟器逻辑层的 `WebAssembly` 是假象**：工具把逻辑层跑在 Chromium iframe 里，浏览器自带的 `WebAssembly` 漏了进来。文档只承诺 Worker 里的 `MYWebAssembly`，矩阵不拿这条当证据
-- **Worker 里没有 `my`**：`MYWebAssembly` 能用，但拿不到 `getFileSystemManager`，WASM 与 FS 分在两个线程
-- **FS 失败是返回值而不是异常**：`{ error: 10022, errorMessage }` 这类对象要自己判；内部错误换成字符串 `errorCode: '90000'`
-- **写 `ArrayBuffer` 落盘成 base64 文本**：读回字节数变成 4/3 倍。只有先 `my.arrayBufferToBase64` 再以 `'base64'` 写入才是原始字节；传 `Uint8Array` 直接报 90000
-- **读回的 `ArrayBuffer` 来自别的 realm**：`instanceof ArrayBuffer` 为假，探针用 `Object.prototype.toString` 判
+| 现象                                 | 模拟器                               | iOS 真机调试                             |
+| ------------------------------------ | ------------------------------------ | ---------------------------------------- |
+| 逻辑层 `MYWebAssembly`               | 没有                                 | 没有                                     |
+| 逻辑层标准 `WebAssembly`（未文档化） | 能用，`add(2, 3) === 5`              | **也能用**，`add(2, 3) === 5`            |
+| Worker 里的 `my` / FS                | 没有                                 | 没有（JSC 报 `Can't find variable: my`） |
+| Worker 里的 `crypto.getRandomValues` | 有（未文档化）                       | 有（未文档化）                           |
+| 逻辑层 `globalThis` / `BigInt`       | 都没有                               | 都有                                     |
+| 写 `ArrayBuffer`                     | 落盘成 base64 文本，9 字节变 12 字节 | 原样 9 字节                              |
+| 写 `Uint8Array`                      | 报 90000                             | **返回 `success`，落盘 0 字节**          |
+| `renameSync` 到已存在的目标          | 报 10025                             | 直接覆盖                                 |
+
+两端共同的：
+
+- **FS 失败返回错误对象，不抛**：`{ error: 10022, errorMessage }` 这类对象要自己判断。iOS 多一个 `message` 字段，文案与模拟器不同
+- **没有 `openSync` / `readSync` / `writeSync` / `truncateSync`**：只有整文件读写
+- **逻辑层拿不到任何随机源**：`my.getRandomValues` 不存在，`canIUse` 为 `false`，也没有 `crypto`
+- **读回的 `ArrayBuffer` 可能来自别的 realm**：`instanceof ArrayBuffer` 不可靠，探针改用 `Object.prototype.toString` 判断
+
+模拟器在 FS 字节语义和全局能力上都和真机不一样，凡是涉及这两类的结论都要以真机为准。
 
 尚待确认的：
 
-- **真机的全部行为**：还没有真机报告，上面 FS 两条尤其要在真机复核
+- **Android 真机**：还没跑
+- **非调试的预览模式**：iOS 那次是接着调试器跑的，逻辑层的 `WebAssembly` 在预览模式下是否还在，没验证
