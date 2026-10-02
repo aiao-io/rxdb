@@ -181,7 +181,7 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都守住；阶�
 - 外键级联：在 SQL 层执行（`get_default_cascade_options()`）
 - 图插件的 `addEdge()` / `removeEdge()`：写自动生成的 `<Name>_edges` 边实体，边实体的权限是否跟随节点实体由图插件另定
 - 真不可变（创建后系统也不能改）：要 SQL 触发器，并处理日志、分支、同步与撤销（背景第 6 条），另立故事
-- 多用户 / 角色 / 租户权限（→ [US-029](US-029-rbac-tenant-permission-design.md)；vision 阶段 3「用户身份、设备身份、工作区成员和权限模型」）
+- 多用户 / 角色权限（→ [US-029](US-029-rbac-owner-role-permission.md)；vision 阶段 3「用户身份、设备身份、工作区成员和权限模型」）
 - 字段级权限模型扩展与条件显示（阶段 4 剩余部分；字段级 readonly 保持现有语义，不在本故事升级为拒绝）
 - 远程 / 服务端授权（remote adapter 的服务端侧权限）
 - 权限审计日志
@@ -280,8 +280,8 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都守住；阶�
 `PermissionDeniedError`、UI 能力派生），病灶只有「程序化误写系统表不报错」1 项，是潜在风险而非已报告的症状；
 用户踩得到的系统表写入口只有 demo 的实体目录，阶段 0 已修。`priority` 因此为 Low。
 
-owner 决定不等 US-029 立项，三个阶段一次交付。下游 [US-029](US-029-rbac-tenant-permission-design.md)
-阶段 A / B / E 依赖的权限类型、判定原语与错误类型、「查看与删除拆开」的 UI 契约随之就绪。
+owner 决定不等 US-029 立项，三个阶段一次交付。下游 [US-029](US-029-rbac-owner-role-permission.md)
+阶段 A / B / D 依赖的权限类型、判定原语与错误类型、「查看与删除拆开」的 UI 契约随之就绪。
 
 ## 实现文件
 
@@ -314,5 +314,5 @@ owner 决定不等 US-029 立项，三个阶段一次交付。下游 [US-029](US
 - [受信调用点登记表](../../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) — 11 个调用点全部守在 `switchBranch()` / `mergeChanges()` 上
 - [实体管理器](../../../packages/rxdb/src/entity/entity-manager.ts) — `mutations()` 与「本批不是原子的」`#mutations_query_cache()`
 - [系统表清单](../../../packages/rxdb/src/system/system-entities.ts) — `CORE_SYSTEM_ENTITIES` 与 `isSystemEntity()`
-- [US-029 多用户 RBAC 权限与租户隔离](US-029-rbac-tenant-permission-design.md) — 下游：阶段 A / B / E 分别依赖本故事阶段 A / B / C
+- [US-029 多用户 RBAC：角色与所有权写权限](US-029-rbac-owner-role-permission.md) — 下游：阶段 A / B / D 分别依赖本故事阶段 A / B / C
 - [US-028 可排序实体](US-028-sortable-entity.md) — 同改三端 `EntityList` 与 `_readonly` 路径，互不依赖

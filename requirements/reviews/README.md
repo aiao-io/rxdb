@@ -11,12 +11,12 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                                | 说明                                | 剩余项                                                       |
-| ----------------------------------- | ----------------------------------- | ------------------------------------------------------------ |
-| `README.md`                         | 本说明与状态约定                    | —                                                            |
-| `review.template.md`                | 新建 review 记录的模板              | —                                                            |
-| `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                          |
-| `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证，R04 复现后拆出 US-218 |
+| 文件                                | 说明                                | 剩余项                                                                   |
+| ----------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| `README.md`                         | 本说明与状态约定                    | —                                                                        |
+| `review.template.md`                | 新建 review 记录的模板              | —                                                                        |
+| `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                                      |
+| `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证并移出多租户，R04 复现后拆出 US-218 |
 
 > **2026-10-02 清理（RV-022 US-028 可排序实体立项评审）**：整份删除——6 条（1 条立项判据 + 3 P1 + 2 P2）对照源码与探针复核全部属实，全部回写进 [US-028](../stories/core/US-028-sortable-entity.md)，故事仍为 Backlog / Low、留在立项池。立项判据（R00）：两条解锁条件都未满足——唯一扁平演示实体 `Todo` 无排序字段、`modules/angular-todo` 无拖拽、无 `EntityTable` / `QueryTable` 直接调用方、无相关 issue，维持价值待证，并写明不得为满足条件给演示实体加排序字段。定案可排序字段强制 `nullable: false`（R02）：两端建表据此发 `NOT NULL`，NULL 位置统一、NULL 锚点、未回填按 NULL 靠前展示等条款整体删除，游标跨 NULL 抛错（R01）与降序 NULL 位置（R04）随之消解；给已有实体启用改为一次必须显式回填的 schema 迁移，同步拉取带入 NULL 由约束当场拒绝。AC#4 改为两个方向各插 1,000 次，实测末键长 169（固定下界）/ 202（固定上界）（R03）。roadmap 立项池行抽象数改为 4、解锁条件改为移动意图并补「整表一条序列」限定；默认排序覆盖 `find` / `findAll` / `findOne` / `findOneOrFail`（R05）；epic-004 删掉「为 US-025 阶段 E 铺路」。R01 指出的现存缺陷（`EntityList` 按可空列做列头排序时游标翻页：SQLite 抛错、PGlite 静默丢行，PGlite 探针已复现）与 US-028 无关，登记为 [roadmap 零散收尾项第 8 条](../roadmap.md#零散收尾项不成故事随手可带)，未改代码。
 
@@ -26,7 +26,7 @@
 >
 > **2026-10-01 清理（RV-020 Epic-009 BOM 领域模型需求深度评审）**：整份删除——18 条（10 P1 + 8 P2）对照 19 条故事、Epic 与 SQL / Decimal 探针复核全部属实，全部回写进 [epic-009](../epics/epic-009-bom-domain-model.md) 与 US-507～US-525、[US-030](../stories/core/US-030-declarative-storage-constraints.md)，故事仍为 Backlog / Low。行身份拆为逻辑行 `bom_line` 与行发生项 `bom_line_occurrence`；跨行聚合（位号计数、替代组概率、工序分摊、ECN 整批）统一落在头的 `draft → released` 发布转移；`ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；判环改为按 `(bom_type, org_id)` 的并集无环，可达性表 `bom_reach` 不存路径；`truncated` / `unresolved` 只给浏览，数量、成本与导出遇到即拒绝；成本改为 `batch_cost` / `unit_cost` + `cost_lot_qty`。评审列出的 8 个产品问题按评审推荐的最小方案落地，写进 Epic「解锁前须先处理」作为默认决策，解锁时由驱动样本复核；「覆盖约 65%」无测量依据，已删。
 >
-> **2026-10-01 清理（RV-017 US-029 RBAC 与租户隔离需求评审）**：整份删除——14 条（10 P1 + 4 P2）对照源码与参考 SQL 复核全部属实，全部回写进 [US-029](../stories/core/US-029-rbac-tenant-permission-design.md)，故事仍为 Backlog / Medium。两项由 owner 定案：授权属性改为实体 `access` 显式声明指向自有属性（不加 `EntityBase` 字段、引擎不补列，R09/R12 随之消解）；owner 转让与跨租户迁移本期拒绝（R07），由此租户不可变、严格拉取无需「离开范围」事件（R03 收窄）。其余按评审推荐的最小方案落地：判定真值表与「业务谓词只约束 user」（R01/R08）；角色只校验结构、不建注册表（R11）；本地读按租户收敛、同步模式白名单只留 `None` / `Filter`（R06）；`switchContext` 代次协议 + 按租户水位，换租户 / 换用户遇待推变更即拒绝（R02）；push 逐操作确认与 rejected 标记（R05）；权威端部署契约 + 测试 RLS fixture（R04）；操作级能力派生（R13）；阶段重切为 A～E（R14）。AC 由 13 条重排为 27 条；US-027 与 roadmap 的依赖描述同步。源码侧顺手修正 `RxDBAdapterSupabase.pullChanges` 的 TSDoc：filter 在日志快照上求值，不 JOIN 业务表。
+> **2026-10-01 清理（RV-017 US-029 RBAC 与租户隔离需求评审）**：整份删除——14 条（10 P1 + 4 P2）对照源码与参考 SQL 复核全部属实，全部回写进 [US-029](../stories/core/US-029-rbac-owner-role-permission.md)，故事仍为 Backlog / Medium。两项由 owner 定案：授权属性改为实体 `access` 显式声明指向自有属性（不加 `EntityBase` 字段、引擎不补列，R09/R12 随之消解）；owner 转让与跨租户迁移本期拒绝（R07），由此租户不可变、严格拉取无需「离开范围」事件（R03 收窄）。其余按评审推荐的最小方案落地：判定真值表与「业务谓词只约束 user」（R01/R08）；角色只校验结构、不建注册表（R11）；本地读按租户收敛、同步模式白名单只留 `None` / `Filter`（R06）；`switchContext` 代次协议 + 按租户水位，换租户 / 换用户遇待推变更即拒绝（R02）；push 逐操作确认与 rejected 标记（R05）；权威端部署契约 + 测试 RLS fixture（R04）；操作级能力派生（R13）；阶段重切为 A～E（R14）。AC 由 13 条重排为 27 条；US-027 与 roadmap 的依赖描述同步。源码侧顺手修正 `RxDBAdapterSupabase.pullChanges` 的 TSDoc：filter 在日志快照上求值，不 JOIN 业务表。
 >
 > **2026-10-01 清理（RV-019 US-602 发布产物面向 AI 的可理解性需求评审）**：整份删除——11 条（7 P1 + 4 P2）对照源码、manifest、Nx / CI 配置与两个 Skill 外部提案逐条复核全部属实，全部回写进 [US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md)，故事仍为 Backlog / Medium。模型改为「同一情景的同一 local / remote 槽位选一个 backend」，shared-impl / capability 不占槽位；事实源只放 manifest 表达不了的语义事实（角色、槽位、宿主、组合情景），安装依赖边一律读 manifest。复核时补正一处评审没点到的：真实依赖图里已有合法的 backend 间单向边（`miniprogram → wa-sqlite`、`electron ⇢ pglite` optional peer），R1 建议的「禁止组内任何有向边」会把真实仓库判红，门禁改为只禁成环；另有第四种 peer 写法 `>=0.0.26`（`code-editor-angular`）一并纳入 A2。阶段 A 拆成 A1（发布发现、门禁接线 `audit:package-graph` + CI 独立步骤、生成生命周期、可运行样例源、`use` / `connect` / `IRxDBAdapter.transaction` TSDoc）与 A2（peer 统一、按解析后 packageRoot 真实 `pnpm pack`、工作区外 npm / pnpm 隔离消费）；B 链接取站点 `url`（`docs.aiao.io`），`llms-full.txt` 收窄为站点公开文档全文；C 先锁定 exporter 探针、可按「C 延期」关闭。AC 由 12 条重排为 14 条；status-overview 与 roadmap 的 US-602 摘要同步。
 >

@@ -11,7 +11,7 @@ tags: [adapter, supabase, sync, security, rls]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 不依赖 US-029 的 access 声明、租户或角色；只修现有推送协议在 RLS 下的行为
+- [x] Independent: 不依赖 US-029 的 access 声明或角色；只修现有推送协议在 RLS 下的行为
 - [x] Negotiable: 日志改由触发器推导还是函数内重排、回执形状，在 plan 阶段冻结
 - [x] Valuable: 已有可复现症状（幽灵 DELETE），开了 RLS 的部署今天就会踩到
 - [x] Estimable: 阶段 A 只动参考 SQL 与回归用例；B / C 的波及面已列在实现文件
@@ -75,7 +75,7 @@ INVEST 检查清单:
 
 ### Out of Scope
 
-- 租户、角色、`access.owner` 等声明与客户端谓词（[US-029](../core/US-029-rbac-tenant-permission-design.md) 的范围）
+- 角色、`access.owner` 等声明与客户端谓词（[US-029](../core/US-029-rbac-owner-role-permission.md) 的范围）
 - 拉取侧过滤与按租户水位
 - Supabase 之外的远端适配器实现 RLS 等价物；阶段 B 只改它们共享的契约，并让它们按新契约返回结果
 - rejected 变更与撤销 / 重做的交互（阶段 B 只要求 rejected 变更不再被重推；撤销语义另议）
@@ -129,7 +129,7 @@ INVEST 检查清单:
   逐操作回执要求把它升级为强制的逐条结果（applied / rejected），影响所有 `RxDBAdapterRemoteBase` 实现。
   rejected 落到本地 `RxDBChange` 的哪个字段、是否需要系统表迁移，在 plan 阶段定。
 - **与 US-029 的关系**：本故事是 [RV-022](../../reviews/RV-022-us-029-readiness-review.md) R02 / R04 / R05 中与租户无关的部分，
-  单独成立的依据是症状 1 已复现。US-029 阶段 D 的权威端工作以本故事为前置。
+  单独成立的依据是症状 1 已复现。US-029 阶段 C 的权威端工作以本故事为前置。
 
 ## 实现文件
 
@@ -147,5 +147,5 @@ INVEST 检查清单:
 ## References
 
 - [RV-022 US-029 立项准入评审](../../reviews/RV-022-us-029-readiness-review.md)
-- [US-029 多用户 RBAC 与租户隔离设计](../core/US-029-rbac-tenant-permission-design.md)
+- [US-029 多用户 RBAC：角色与所有权写权限](../core/US-029-rbac-owner-role-permission.md)
 - PostgreSQL 文档：[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
