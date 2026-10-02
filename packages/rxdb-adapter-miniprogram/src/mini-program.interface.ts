@@ -33,10 +33,12 @@ export interface MiniProgramWechatApi {
 /**
  * adapter 需要的抖音运行时能力（全局 `tt`）。
  *
- * 形状与 {@link MiniProgramWechatApi} 相同，单独命名是为了不让「形状像 `wx`」的对象冒充别的平台。
+ * 用户目录取自 `tt.getEnvInfoSync()`（基础库 2.21.0 起），不读 `tt.env`：抖音已把 `tt.env` 标为即将弃用，
+ * 开发者工具每读一次 `tt.env.USER_DATA_PATH` 就打一条弃用警告。单独命名是为了不让「形状像 `wx`」的对象冒充别的平台。
  */
 export interface MiniProgramDouyinApi {
-  readonly env: { readonly USER_DATA_PATH: string };
+  /** 同步取环境信息；只用到 `common.USER_DATA_PATH`（默认 `ttfile://user`）。平台原生异常原样抛出。 */
+  getEnvInfoSync(): { readonly common: { readonly USER_DATA_PATH: string } };
   getFileSystemManager(): MiniProgramFileSystemManager;
   getRandomValues?(options: MiniProgramRandomValuesOptions): unknown;
 }

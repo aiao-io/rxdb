@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWaSqliteMiniProgramClient, type WaSqliteMiniProgramClient } from '../create-client.js';
 import { createWechatMiniProgramHost, resolveMiniProgramHost } from '../host.js';
 import { createDouyinMiniProgramHost } from '../hosts/douyin.js';
-import type { MiniProgramWasmRuntime } from '../mini-program.interface.js';
+import type { MiniProgramDouyinApi, MiniProgramWasmRuntime } from '../mini-program.interface.js';
 import { MINI_PROGRAM_PLATFORM_IDS } from '../mini-program.interface.js';
 import { assertMiniProgramRuntimeCapabilities } from '../runtime-capabilities.js';
 import { prepareMiniProgramHostRuntime } from '../runtime-polyfills.js';
@@ -48,7 +48,10 @@ describe('createDouyinMiniProgramHost', () => {
       displayName: '抖音小程序',
       shortName: '抖音',
       wasmRuntimeName: 'TTWebAssembly',
-      capabilityNames: { fileSystem: 'tt.getFileSystemManager', userDataPath: 'tt.env.USER_DATA_PATH' },
+      capabilityNames: {
+        fileSystem: 'tt.getFileSystemManager',
+        userDataPath: 'tt.getEnvInfoSync().common.USER_DATA_PATH'
+      },
       userDataPath: FAKE_TT_USER_DATA_PATH
     });
     expect(host.getFileSystemManager()).toBe(tt.getFileSystemManager());
@@ -69,10 +72,32 @@ describe('createDouyinMiniProgramHost', () => {
     );
   });
 
-  it('tt.env.USER_DATA_PATH 为空串时视为缺失', () => {
-    const host = createDouyinMiniProgramHost({ ...createFakeDouyin().tt, env: { USER_DATA_PATH: '' } });
+  it('用户目录为空串时视为缺失', () => {
+    const host = createDouyinMiniProgramHost({
+      ...createFakeDouyin().tt,
+      getEnvInfoSync: () => ({ common: { USER_DATA_PATH: '' } })
+    });
 
     expect(host.userDataPath).toBeUndefined();
+  });
+
+  it('用户目录取自 tt.getEnvInfoSync，不碰已弃用的 tt.env', () => {
+    const { tt } = createFakeDouyin();
+    // 开发者工具在 tt.env.USER_DATA_PATH 的 getter 里打「即将弃用，请使用 tt.getEnvInfoSync」；这里连 tt.env 都不让碰
+    Object.defineProperty(tt, 'env', {
+      get: () => {
+        throw new Error('读了已弃用的 tt.env');
+      }
+    });
+
+    expect(createDouyinMiniProgramHost(tt).userDataPath).toBe(FAKE_TT_USER_DATA_PATH);
+  });
+
+  it('运行时没有 tt.getEnvInfoSync 时用户目录视为缺失', () => {
+    const tt: Partial<MiniProgramDouyinApi> = { ...createFakeDouyin().tt };
+    delete tt.getEnvInfoSync;
+
+    expect(createDouyinMiniProgramHost(tt as MiniProgramDouyinApi).userDataPath).toBeUndefined();
   });
 });
 
@@ -151,14 +176,14 @@ describe('抖音 host 接入客户端', () => {
 
   it('AC#10 缺失能力全部列出，名称带 tt. 前缀', () => {
     const host = createDouyinMiniProgramHost({
-      env: { USER_DATA_PATH: '' },
+      getEnvInfoSync: () => ({ common: { USER_DATA_PATH: '' } }),
       getFileSystemManager: () => undefined as unknown as QuotaFileSystem
     });
 
     expect(() =>
       assertMiniProgramRuntimeCapabilities({ moduleFactory, wasmRuntime: {} as MiniProgramWasmRuntime, host })
     ).toThrow(
-      '抖音小程序运行时缺少 RxDB 必需能力: TTWebAssembly.instantiate, tt.getFileSystemManager, tt.env.USER_DATA_PATH'
+      '抖音小程序运行时缺少 RxDB 必需能力: TTWebAssembly.instantiate, tt.getFileSystemManager, tt.getEnvInfoSync().common.USER_DATA_PATH'
     );
   });
 

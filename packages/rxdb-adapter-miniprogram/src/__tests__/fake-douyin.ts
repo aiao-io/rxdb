@@ -43,7 +43,7 @@ function fakeGetRandomValues(options: Parameters<NonNullable<MiniProgramDouyinAp
 export function createFakeDouyin(options: FakeDouyinOptions = {}): FakeDouyin {
   const fileSystem = new QuotaFileSystem(options.quotaBytes);
   const tt: MiniProgramDouyinApi = {
-    env: { USER_DATA_PATH: FAKE_TT_USER_DATA_PATH },
+    getEnvInfoSync: () => ({ common: { USER_DATA_PATH: FAKE_TT_USER_DATA_PATH } }),
     getFileSystemManager: () => fileSystem,
     ...(options.withoutRandomValues ? {} : { getRandomValues: fakeGetRandomValues })
   };

@@ -38,7 +38,8 @@ export interface DouyinMiniProgramHostOptions {
  * 把抖音全局 `tt` 适配成 {@link MiniProgramHost}。
  *
  * 分块存储布局（64 KiB）与代码包根的绝对 wasm 路径固定声明，取值依据见 US-211 实验 v9 报告；
- * `tt` 字段缺失时对应 getter 返回 `undefined`，交给运行时预检列出缺失项。
+ * 用户目录走 `tt.getEnvInfoSync()` 而不是已弃用的 `tt.env`；`tt` 字段缺失时对应 getter 返回 `undefined`，
+ * 交给运行时预检列出缺失项，`getEnvInfoSync` 的平台原生异常不吞。
  *
  * @param tt - 抖音全局 `tt`
  * @param options - 可选的真实全局对象
@@ -52,9 +53,12 @@ export function createDouyinMiniProgramHost(
     displayName: '抖音小程序',
     shortName: '抖音',
     wasmRuntimeName: 'TTWebAssembly',
-    capabilityNames: { fileSystem: 'tt.getFileSystemManager', userDataPath: 'tt.env.USER_DATA_PATH' },
+    capabilityNames: {
+      fileSystem: 'tt.getFileSystemManager',
+      userDataPath: 'tt.getEnvInfoSync().common.USER_DATA_PATH'
+    },
     get userDataPath() {
-      return usableUserDataPath(tt?.env?.USER_DATA_PATH);
+      return usableUserDataPath(tt?.getEnvInfoSync?.()?.common?.USER_DATA_PATH);
     },
     ...(options.runtimeGlobal === undefined ? {} : { runtimeGlobal: options.runtimeGlobal }),
     fileLayout: DOUYIN_FILE_LAYOUT,

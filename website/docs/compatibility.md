@@ -56,16 +56,16 @@
 
 ## 运行时能力 × 适配器
 
-| 适配器                                             | 运行时     | 需要的运行时能力                                                | 持久化                                       |
-| :------------------------------------------------- | :--------- | :-------------------------------------------------------------- | :------------------------------------------- |
-| `rxdb-adapter-wa-sqlite`                           | 浏览器     | WASM；OPFS（推荐）或 IndexedDB 回退                             | OPFS 文件 / IDB                              |
-| `rxdb-adapter-sqlite` / `rxdb-adapter-sqlite-wasm` | 浏览器     | WASM；OPFS（推荐）或 IndexedDB 回退                             | OPFS 文件 / IDB                              |
-| `rxdb-adapter-pglite`                              | 浏览器     | WASM；IndexedDB                                                 | IDB                                          |
-| `rxdb-adapter-sqliteai`                            | 浏览器     | WASM                                                            | 取决于运行时配置                             |
-| `rxdb-adapter-supabase`                            | 浏览器     | fetch / WebSocket（远端）                                       | 远端 + 本地缓存                              |
-| `rxdb-adapter-http`                                | 浏览器     | 全局 `fetch`（远端）                                            | 远端 + 独立注册的本地行缓存                  |
-| `rxdb-adapter-miniprogram`                         | 微信小程序 | `WXWebAssembly`、`wx.getFileSystemManager()`、`BigInt` 等 11 项 | `wx.env.USER_DATA_PATH` 下的文件             |
-| `rxdb-adapter-miniprogram`                         | 抖音小程序 | `TTWebAssembly`、`tt.getFileSystemManager()`、`BigInt` 等 11 项 | `tt.env.USER_DATA_PATH` 下的 64 KiB 分块文件 |
+| 适配器                                             | 运行时     | 需要的运行时能力                                                | 持久化                                                           |
+| :------------------------------------------------- | :--------- | :-------------------------------------------------------------- | :--------------------------------------------------------------- |
+| `rxdb-adapter-wa-sqlite`                           | 浏览器     | WASM；OPFS（推荐）或 IndexedDB 回退                             | OPFS 文件 / IDB                                                  |
+| `rxdb-adapter-sqlite` / `rxdb-adapter-sqlite-wasm` | 浏览器     | WASM；OPFS（推荐）或 IndexedDB 回退                             | OPFS 文件 / IDB                                                  |
+| `rxdb-adapter-pglite`                              | 浏览器     | WASM；IndexedDB                                                 | IDB                                                              |
+| `rxdb-adapter-sqliteai`                            | 浏览器     | WASM                                                            | 取决于运行时配置                                                 |
+| `rxdb-adapter-supabase`                            | 浏览器     | fetch / WebSocket（远端）                                       | 远端 + 本地缓存                                                  |
+| `rxdb-adapter-http`                                | 浏览器     | 全局 `fetch`（远端）                                            | 远端 + 独立注册的本地行缓存                                      |
+| `rxdb-adapter-miniprogram`                         | 微信小程序 | `WXWebAssembly`、`wx.getFileSystemManager()`、`BigInt` 等 11 项 | `wx.env.USER_DATA_PATH` 下的文件                                 |
+| `rxdb-adapter-miniprogram`                         | 抖音小程序 | `TTWebAssembly`、`tt.getFileSystemManager()`、`BigInt` 等 11 项 | `tt.getEnvInfoSync().common.USER_DATA_PATH` 下的 64 KiB 分块文件 |
 
 > 全文搜索（`@aiao/rxdb-plugin-search`）基于 SQLite FTS5，仅在 `@aiao/rxdb-adapter-sqlite-wasm` 上可用。
 

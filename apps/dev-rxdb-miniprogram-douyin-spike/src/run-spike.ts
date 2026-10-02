@@ -30,7 +30,7 @@ import { VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 /** 报告格式版本；字段语义变了就升版本号。 */
 export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v9';
 
-/** 实验目录名，位于 `tt.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
+/** 实验目录名，位于 `tt.getEnvInfoSync().common.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';
 
 const NOTES = [
@@ -158,13 +158,14 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
   const wasmPath = await runWasmPathExperiment(options.wasmRuntime);
 
   const fileSystem = tt.getFileSystemManager();
-  const root = `${tt.env.USER_DATA_PATH}/${SPIKE_DIRECTORY}`;
+  const userDataPath = tt.getEnvInfoSync().common.USER_DATA_PATH;
+  const root = `${userDataPath}/${SPIKE_DIRECTORY}`;
   const workspace = await probe(() => resetWorkspace(fileSystem, root));
   const fileSystemReport = runFileSystemExperiment(fileSystem, `${root}/fs`);
   const quotaAccounting = await runQuotaAccountingExperiment(
     fileSystem,
     `${root}/quota`,
-    tt.env.USER_DATA_PATH,
+    userDataPath,
     DEFAULT_QUOTA_ACCOUNTING_PLAN
   );
   const { coreLoad, core, coreRealmProbe } = await runCore(options, {

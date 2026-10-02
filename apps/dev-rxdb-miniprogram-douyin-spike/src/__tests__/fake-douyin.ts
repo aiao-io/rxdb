@@ -194,7 +194,7 @@ export function createFakeDouyin(options: FakeDouyinOptions = {}): FakeDouyin {
   );
   const clipboard: string[] = [];
   const tt: DouyinApi = {
-    env: { USER_DATA_PATH: FAKE_USER_DATA_PATH },
+    getEnvInfoSync: () => ({ common: { USER_DATA_PATH: FAKE_USER_DATA_PATH } }),
     getFileSystemManager: () => fileSystem,
     getSystemInfoSync: () => ({
       SDKVersion: options.sdkVersion ?? '3.0.0',

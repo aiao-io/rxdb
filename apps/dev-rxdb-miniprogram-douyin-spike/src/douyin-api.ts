@@ -40,7 +40,8 @@ export interface DouyinClipboardOptions {
 
 /** 全局 `tt` 里实验用到的部分；可选成员缺失本身就是实验结论。 */
 export interface DouyinApi {
-  readonly env: { readonly USER_DATA_PATH: string };
+  /** 用户目录从这里取；`tt.env` 已被标为即将弃用，开发者工具每读一次 `tt.env.USER_DATA_PATH` 就打一条警告。 */
+  getEnvInfoSync(): { readonly common: { readonly USER_DATA_PATH: string } };
   getFileSystemManager(): DouyinFileSystemManager;
   getRandomValues?(options: MiniProgramRandomValuesOptions): unknown;
   getSystemInfoSync?(): object;

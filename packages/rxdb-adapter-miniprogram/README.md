@@ -2,7 +2,7 @@
 
 实验性的微信 / 抖音小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，
 用平台的 WASM 入口（`WXWebAssembly` / `TTWebAssembly`）加载同步版 wa-sqlite，并把数据库文件写入平台用户目录
-（`wx.env.USER_DATA_PATH` / `tt.env.USER_DATA_PATH`）。
+（`wx.env.USER_DATA_PATH` / `tt.getEnvInfoSync().common.USER_DATA_PATH`）。
 
 ## 约束
 
