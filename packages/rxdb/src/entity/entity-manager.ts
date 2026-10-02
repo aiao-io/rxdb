@@ -8,6 +8,12 @@ import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { ENTITY_MANAGER, ENTITY_TYPE, PROXY, STATUS } from '../rxdb.private.js';
 import { RxDBError } from '../RxDBError.js';
+import { SortOrderError } from '../sortable/sortable-error.js';
+import {
+  appendBatchSortOrders,
+  assertMutationSortOrders,
+  needsSortOrderAppend
+} from '../sortable/sortable-mutations.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { assertMutationsAllowed } from './entity-permissions.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
@@ -421,6 +427,7 @@ export class EntityManager {
    * 批量修改实体（创建/更新/删除）
    * @param options 批量修改选项
    * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
+   * @throws {@link SortOrderError} 手动排序键不合法，或缺键创建 / 改分组字段落在 remote-only / QueryCache 主端；一条都不写
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>) {
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
@@ -430,12 +437,18 @@ export class EntityManager {
     // 权限整批预检在选主端之前、任何写发出之前：一条违规整批拒绝（US-027）。
     // QueryCache 批次随后经门面逐条再判一次，结果相同，不必去重。
     assertMutationsAllowed(options as RxDBMutationsMap);
+    // 显式排序键同样整批预检：QueryCache 批次逐条写，校验晚到一半就会留下半批（US-028）
+    assertMutationSortOrders(options as RxDBMutationsMap);
     const EntityTypes = collectMutationEntityTypes(options as RxDBMutationsMap);
     const primary = resolveBatchPrimaryAdapter(EntityTypes, this.rxdb.entitySync);
     if (primary === null) return [];
+    const queryCache = isQueryCacheBatch(EntityTypes, this.rxdb.entitySync);
+    if (needsSortOrderAppend(options as RxDBMutationsMap)) {
+      return this.#mutations_append_sort_orders(options, primary.kind === 'remote' || queryCache);
+    }
     // 主端判定在前：这样「QueryCache + remote-only」报的是主端不一致，
     // 而不是被 `isQueryCacheBatch` 当成「版本化实体」误报（US-020 AC#5 / AC#6）。
-    if (isQueryCacheBatch(EntityTypes, this.rxdb.entitySync)) {
+    if (queryCache) {
       return this.#mutations_query_cache(options);
     }
     const adapter$: Observable<IRxDBAdapter> =
@@ -574,15 +587,30 @@ export class EntityManager {
   }
 
   /**
-   * 获取或创建实体仓库
-   * 根据实体元数据中的repository配置创建对应类型的仓库
+   * 批内有缺排序键的创建或改了分组字段的更新：读尾键、追加、整批写入同在主适配器的一个事务里（US-028 写边界）
    *
-   * @template T 实体类型
-   * @template RT 仓库类型
-   * @param EntityType - 实体类型
-   * @returns 实体仓库实例
-   * @throws {RxDBError} 如果仓库类型无效
+   * @param unsupported - 主端是 remote-only 或 QueryCache：本地只有序列子集，不能拿来算键
    */
+  async #mutations_append_sort_orders<T extends EntityType>(
+    options: RxDBMutationsMap<T>,
+    unsupported: boolean
+  ): Promise<InstanceType<T>[]> {
+    if (unsupported) {
+      throw new SortOrderError(
+        collectMutationEntityTypes(options as RxDBMutationsMap)
+          .map(EntityType => getEntityMetadata(EntityType).name)
+          .join(', '),
+        'unsupportedPrimary',
+        '缺排序键的创建与改分组字段只支持本地主适配器；remote-only / QueryCache 主端读不到完整序列'
+      );
+    }
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    return adapter.transaction(async executor => {
+      await appendBatchSortOrders(executor, options as RxDBMutationsMap);
+      return executor.mutations(options);
+    });
+  }
+
   /**
    * QueryCache 批次的写路径：逐条走 `Repository`，即 remote-then-local。
    *
@@ -601,6 +629,16 @@ export class EntityManager {
     return results;
   }
 
+  /**
+   * 获取或创建实体仓库
+   * 根据实体元数据中的repository配置创建对应类型的仓库
+   *
+   * @template T 实体类型
+   * @template RT 仓库类型
+   * @param EntityType - 实体类型
+   * @returns 实体仓库实例
+   * @throws {RxDBError} 如果仓库类型无效
+   */
   #get_entity_repository<T extends EntityType, RT extends Repository<T>>(EntityType: T): RT {
     if (!this.#entity_repository_map.has(EntityType)) {
       const meta = getEntityMetadata(EntityType);

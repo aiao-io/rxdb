@@ -27,6 +27,7 @@ const SPECIFIERS = {
   './entities': '@aiao/rxdb-test/entities',
   './query-cache-contract': '@aiao/rxdb-test/query-cache-contract',
   './shop': '@aiao/rxdb-test/shop',
+  './sortable': '@aiao/rxdb-test/sortable',
   './transaction': '@aiao/rxdb-test/transaction',
   './tree-unique': '@aiao/rxdb-test/tree-unique'
 };

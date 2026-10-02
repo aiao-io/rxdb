@@ -8,6 +8,7 @@ import { FileNode } from './FileNode.js';
 import { Invoice } from './Invoice.js';
 import { MenuLarge } from './MenuLarge.js';
 import { MenuSimple } from './MenuSimple.js';
+import { Task } from './Task.js';
 import { Todo } from './Todo.js';
 import { TypeDemo } from './TypeDemo.js';
 import { TypeDemoNative } from './TypeDemoNative.js';
@@ -22,6 +23,7 @@ export { FileNode } from './FileNode.js';
 export { Invoice } from './Invoice.js';
 export { MenuLarge } from './MenuLarge.js';
 export { MenuSimple } from './MenuSimple.js';
+export { Task } from './Task.js';
 export { Todo } from './Todo.js';
 export { TypeDemo } from './TypeDemo.js';
 export { TypeDemoNative } from './TypeDemoNative.js';
@@ -37,6 +39,7 @@ export const ENTITIES = [
   Invoice,
   MenuLarge,
   MenuSimple,
+  Task,
   Todo,
   TypeDemo,
   TypeDemoNative

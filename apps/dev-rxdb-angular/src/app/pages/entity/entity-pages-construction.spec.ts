@@ -16,7 +16,7 @@ vi.mock('@aiao/rxdb-angular', () => ({
 }));
 
 import EntityDetailPage from './entity-detail.page';
-import EntityListPage from './entity-list.page';
+import EntityListPage, { parseFixedQuery } from './entity-list.page';
 import EntityPage from './entity.page';
 
 /** 非 public namespace 的测试实体（壳页分组用）。 */
@@ -79,6 +79,12 @@ describe('entity demo page construction contracts', () => {
     expect(page.rxdb).toBe(rxdb);
     expect(typeof page.namespace).toBe('function');
     expect(typeof page.name).toBe('function');
+  });
+
+  it('entity-list 页把 fixedQuery 查询参数（JSON）解析为固定查询，缺省时为 undefined', () => {
+    const pinned = { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] };
+    expect(parseFixedQuery(JSON.stringify(pinned))).toEqual(pinned);
+    expect(parseFixedQuery(undefined)).toBeUndefined();
   });
 
   it('entity-detail 页按 namespace/name/entityId 路由输入定位实体，保存/取消后相对导航回实体列表', () => {

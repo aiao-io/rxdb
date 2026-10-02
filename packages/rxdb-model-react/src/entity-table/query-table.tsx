@@ -6,7 +6,7 @@
  *
  * @module entity-table/query-table
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
 import { EntityTable, type EntityTableHandle } from './entity-table';
@@ -20,6 +20,8 @@ export interface QueryTableHandle {
   changeCellValue(col: number, row: number, value: unknown): void;
   /** 重绘主题（委托给内部实体表格）。 */
   redrawTheme(): void;
+  /** 把行恢复成最近一次交给表格的顺序（委托给内部实体表格）。 */
+  restoreRecords(): void;
 }
 
 /** {@link QueryTable} 的 props。 */
@@ -66,6 +68,10 @@ export interface QueryTableProps {
   onBatchUpdated?: (mutations: BatchChangeItem[]) => void;
   /** 行重排。 */
   onRowReordered?: (orderedIds: string[]) => void;
+  /** 是否显示行拖动手柄，缺省 `true`。 */
+  rowDragEnabled?: boolean;
+  /** 单行拖放：被拖行与落点前后邻居。 */
+  onRowMoved?: (move: RowMoveEvent) => void;
   /** 触底且未提供 loadMore 时输出。 */
   onScrollNearBottom?: () => void;
   /** 列头排序点击。 */
@@ -98,6 +104,8 @@ export const QueryTable = forwardRef<QueryTableHandle, QueryTableProps>(function
     onIconClicked,
     onBatchUpdated,
     onRowReordered,
+    rowDragEnabled = true,
+    onRowMoved,
     onScrollNearBottom,
     onSortClicked
   },
@@ -121,6 +129,9 @@ export const QueryTable = forwardRef<QueryTableHandle, QueryTableProps>(function
       },
       redrawTheme(): void {
         entityTableRef.current?.redrawTheme();
+      },
+      restoreRecords(): void {
+        entityTableRef.current?.restoreRecords();
       }
     }),
     []
@@ -154,6 +165,8 @@ export const QueryTable = forwardRef<QueryTableHandle, QueryTableProps>(function
           onIconClicked={onIconClicked}
           onBatchUpdated={onBatchUpdated}
           onRowReordered={onRowReordered}
+          rowDragEnabled={rowDragEnabled}
+          onRowMoved={onRowMoved}
           onScrollNearBottom={onScrollNearBottom}
           onSortClicked={onSortClicked}
         />

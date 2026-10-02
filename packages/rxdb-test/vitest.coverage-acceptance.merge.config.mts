@@ -54,6 +54,10 @@ export default defineConfig({
               replacement: path.join(packageRoot, 'src/tree-unique/index.ts')
             },
             {
+              find: /^@aiao\/rxdb-test\/sortable$/,
+              replacement: path.join(packageRoot, 'src/sortable/index.ts')
+            },
+            {
               find: /^@aiao\/rxdb-test\/entities$/,
               replacement: path.join(packageRoot, 'entities/index.ts')
             },

@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import { EntityStaticType, type HistoryItem } from '@aiao/rxdb';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { EntityStaticType, reorderTargetForMove, type HistoryItem } from '@aiao/rxdb';
+import { Task } from '@aiao/rxdb-test/entities';
 import { injectRxDB, useFindAll } from '@aiao/rxdb-vue';
+import { FixedRowDrag, type FixedRowDragState } from '@aiao/utils';
 import { useVirtualizer } from '@tanstack/vue-virtual';
-import { ArrowDown, ArrowUp, History, Pen, Plus, Redo2, Undo2, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X } from '@lucide/vue';
 import { Subscription } from 'rxjs';
 import { computed, nextTick, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import HistorySidebar from '../app/components/HistorySidebar.vue';
@@ -14,6 +15,7 @@ const ITEM_SIZE = 48;
 const rxdb = injectRxDB()!;
 const mainContainerRef = ref<HTMLDivElement | null>(null);
 const fullHeaderRef = ref<HTMLDivElement | null>(null);
+const todoListRef = ref<HTMLDivElement | null>(null);
 const editInputRefs = new Map<string, HTMLInputElement>();
 
 const inputValue = ref('');
@@ -24,9 +26,15 @@ const editValues = ref<Map<string, string>>(new Map());
 const showHistory = ref(true);
 const showStickyHeader = ref(false);
 const addingCount = ref<number | null>(null);
+// 拖拽中的起点与落点；null 表示没在拖
+const drag = ref<FixedRowDragState | null>(null);
+// 一次重排正在落库；期间不允许开始新的拖拽
+const reorderPending = ref(false);
+// 最近一次重排失败的原因；下一次重排开始时清掉
+const reorderError = ref<string | null>(null);
 
 // History - 手动订阅 Observable
-const history = rxdb.versionManager.history(Todo);
+const history = rxdb.versionManager.history(Task);
 const undoCount = ref(0);
 const redoCount = ref(0);
 const histories = ref<HistoryItem[]>([]);
@@ -34,8 +42,8 @@ const histories = ref<HistoryItem[]>([]);
 let subscriptions: Subscription[] = [];
 
 // 查询条件
-const todoQueryOptions = computed<EntityStaticType<typeof Todo, 'findAllOptions'>>(() => {
-  const options: EntityStaticType<typeof Todo, 'findAllOptions'> = {
+const todoQueryOptions = computed<EntityStaticType<typeof Task, 'findAllOptions'>>(() => {
+  const options: EntityStaticType<typeof Task, 'findAllOptions'> = {
     where: {
       combinator: 'and',
       rules: []
@@ -45,9 +53,14 @@ const todoQueryOptions = computed<EntityStaticType<typeof Todo, 'findAllOptions'
         field: 'completed',
         sort: completedSort.value
       },
+      // 组内手动顺序；id 只在 sortOrder 相同时定序，保证结果稳定
+      {
+        field: 'sortOrder',
+        sort: 'asc'
+      },
       {
         field: 'id',
-        sort: 'desc'
+        sort: 'asc'
       }
     ]
   };
@@ -69,7 +82,7 @@ const todoQueryOptions = computed<EntityStaticType<typeof Todo, 'findAllOptions'
   return options;
 });
 
-const todoResource = useFindAll(Todo, todoQueryOptions);
+const todoResource = useFindAll(Task, todoQueryOptions);
 const todos = computed(() => todoResource.value ?? []);
 
 // 虚拟滚动
@@ -89,6 +102,51 @@ const completedTodos = computed(() => todos.value.filter(todo => todo.completed)
 const isAllCompleted = computed(() => todos.value.length > 0 && todos.value.every(todo => todo.completed));
 const disabledToggleAllBtn = computed(() => todos.value.length === 0);
 const disabledClearCompletedBtn = computed(() => completedTodos.value.length === 0);
+// 「全部」页混着两个分组且受排序方向影响，不提供手柄；加载中或待决重排时下标可能过期
+const canDrag = computed(
+  () => currentTab.value !== 'all' && !todoResource.isLoading && !reorderPending.value && todos.value.length >= 2
+);
+
+const requiredElement = (element: HTMLElement | null, name: string): HTMLElement => {
+  if (!element) throw new Error(`拖拽需要的元素 ${name} 尚未渲染`);
+  return element;
+};
+
+// 把第 from 行放到第 to 行：换算成邻居目标后交给 Repository.reorder()
+const dropTodo = async (from: number, to: number) => {
+  const ids = todos.value.map(todo => todo.id);
+  const target = reorderTargetForMove(ids, from, to);
+  if (!target) return;
+  reorderPending.value = true;
+  reorderError.value = null;
+  try {
+    await rxdb.entityManager.getRepository(Task).reorder(ids[from]!, target);
+  } catch (error) {
+    reorderError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    reorderPending.value = false;
+  }
+};
+
+const rowDrag = new FixedRowDrag({
+  rowHeight: ITEM_SIZE,
+  scrollElement: () => requiredElement(mainContainerRef.value, 'todo-page'),
+  listElement: () => requiredElement(todoListRef.value, 'todo-list'),
+  onChange: state => (drag.value = state),
+  onDrop: (from, to) => void dropTodo(from, to)
+});
+
+const startDrag = (event: PointerEvent, index: number) => {
+  if (!canDrag.value) return;
+  rowDrag.start(event, index, todos.value.length);
+};
+
+// 落点指示：上移画在目标行上沿，下移画在下沿，与 reorderTargetForMove 的插入位置一致
+const dropShadow = (index: number): string | undefined => {
+  const state = drag.value;
+  if (!state || state.overIndex !== index || state.overIndex === state.fromIndex) return undefined;
+  return `inset 0 ${state.overIndex < state.fromIndex ? 2 : -2}px 0 var(--color-primary)`;
+};
 
 // Sticky header 检测
 const checkVisibility = () => {
@@ -120,6 +178,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   subscriptions.forEach(sub => sub.unsubscribe());
+  rowDrag.dispose();
 
   const mainElement = mainContainerRef.value;
   if (mainElement) {
@@ -132,12 +191,12 @@ const addTodo = async (event?: Event) => {
   const value = inputValue.value.trim();
   if (!value) return;
 
-  const todo = new Todo({ title: value });
+  const todo = new Task({ title: value });
   await todo.save();
   inputValue.value = '';
 };
 
-const toggleTodoCompletion = async (event: Event, todo: Todo) => {
+const toggleTodoCompletion = async (event: Event, todo: Task) => {
   const isEditing = editingTodoIds.value.has(todo.id);
   if (isEditing) return;
 
@@ -147,7 +206,7 @@ const toggleTodoCompletion = async (event: Event, todo: Todo) => {
   await todo.save();
 };
 
-const startEditing = (event: Event, todo: Todo) => {
+const startEditing = (event: Event, todo: Task) => {
   event.preventDefault();
   event.stopPropagation();
   editingTodoIds.value = new Set(editingTodoIds.value).add(todo.id);
@@ -160,7 +219,7 @@ const startEditing = (event: Event, todo: Todo) => {
   });
 };
 
-const saveTodo = async (event: Event, input: HTMLInputElement, todo: Todo) => {
+const saveTodo = async (event: Event, input: HTMLInputElement, todo: Task) => {
   event.preventDefault();
   event.stopPropagation();
 
@@ -183,7 +242,7 @@ const saveTodo = async (event: Event, input: HTMLInputElement, todo: Todo) => {
   input.blur();
 };
 
-const cancelEditing = (todo: Todo) => {
+const cancelEditing = (todo: Task) => {
   if (!editingTodoIds.value.has(todo.id)) return;
 
   const newSet = new Set(editingTodoIds.value);
@@ -195,7 +254,7 @@ const cancelEditing = (todo: Todo) => {
   editValues.value = newMap;
 };
 
-const removeTodo = async (event: Event, todo: Todo) => {
+const removeTodo = async (event: Event, todo: Task) => {
   event.preventDefault();
   event.stopPropagation();
   await todo.remove();
@@ -247,9 +306,9 @@ const stickyTabClick = (tab: 'all' | 'active' | 'completed') => {
 
 const addManyTodo = async (total: number) => {
   addingCount.value = total;
-  const newTodos: Todo[] = [];
+  const newTodos: Task[] = [];
   for (let i = 0; i < total; i++) {
-    const todo = new Todo();
+    const todo = new Task();
     todo.title = `test-${i}`;
     newTodos.push(todo);
   }
@@ -563,6 +622,15 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
         </div>
       </div>
 
+      <div
+        class="alert alert-error mx-auto my-2 max-w-4xl"
+        v-if="reorderError"
+        data-testid="todo-reorder-error"
+        role="alert"
+      >
+        <span>排序保存失败：{{ reorderError }}</span>
+      </div>
+
       <!-- Todo List -->
       <div class="mx-auto min-h-60 max-w-4xl">
         <div
@@ -586,7 +654,9 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
         </div>
         <div
           v-else
+          :class="{ 'cursor-progress': reorderPending }"
           :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }"
+          ref="todoListRef"
         >
           <ul class="divide-base-200 divide-y">
             <!-- P1-1（React 同源缺陷的 Vue 端）：key 必须是**身份**。
@@ -596,8 +666,11 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
             <li
               class="group border-base-200 hover:bg-base-200/50 flex items-center border-b px-4 py-2 transition-colors"
               v-for="{ item: todo, virtualItem } in virtualRows"
+              :class="{ 'opacity-50': drag?.fromIndex === virtualItem.index }"
+              :data-drop-target="drag?.overIndex === virtualItem.index ? '' : undefined"
               :key="todo.id"
               :style="{
+                boxShadow: dropShadow(virtualItem.index),
                 position: 'absolute',
                 top: 0,
                 left: 0,
@@ -642,6 +715,17 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   </button>
                 </template>
                 <template v-else>
+                  <button
+                    class="btn btn-ghost btn-xs cursor-grab touch-none"
+                    v-if="currentTab !== 'all'"
+                    :disabled="!canDrag"
+                    @pointerdown="e => startDrag(e, virtualItem.index)"
+                    aria-label="拖动排序"
+                    data-testid="todo-drag-handle"
+                    type="button"
+                  >
+                    <GripVertical :size="14" />
+                  </button>
                   <input
                     class="checkbox"
                     :checked="todo.completed"

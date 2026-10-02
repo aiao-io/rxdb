@@ -1,5 +1,5 @@
 import { getEntityStatus, RxDB } from '@aiao/rxdb';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Task } from '@aiao/rxdb-test/entities';
 import { ScrollDispatcher } from '@angular/cdk/scrolling';
 import { NO_ERRORS_SCHEMA, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -10,7 +10,7 @@ import { TodoPage } from './todo.page';
 const angularMocks = vi.hoisted(() => ({ useFindAll: vi.fn() }));
 const entityMocks = vi.hoisted(() => {
   const save = vi.fn().mockResolvedValue(undefined);
-  class MockTodo {
+  class MockTask {
     completed = false;
     save = save;
     title = '';
@@ -18,7 +18,7 @@ const entityMocks = vi.hoisted(() => {
       this.title = data.title ?? '';
     }
   }
-  return { MockTodo, save };
+  return { MockTask, save };
 });
 
 vi.mock('@aiao/rxdb-angular', async importOriginal => {
@@ -28,7 +28,7 @@ vi.mock('@aiao/rxdb-angular', async importOriginal => {
 
 vi.mock('@aiao/rxdb-test/entities', async importOriginal => {
   const actual = await importOriginal<typeof import('@aiao/rxdb-test/entities')>();
-  return { ...actual, Todo: entityMocks.MockTodo };
+  return { ...actual, Task: entityMocks.MockTask };
 });
 
 vi.mock('@aiao/rxdb', async importOriginal => {
@@ -49,7 +49,7 @@ function createResource<T>(value: T) {
   };
 }
 
-function stubTodo(overrides: Partial<Todo> = {}): Todo {
+function stubTodo(overrides: Partial<Task> = {}): Task {
   return {
     title: 'buy milk',
     completed: false,
@@ -57,10 +57,13 @@ function stubTodo(overrides: Partial<Todo> = {}): Todo {
     remove: vi.fn().mockResolvedValue(undefined),
     reset: vi.fn(),
     ...overrides
-  } as unknown as Todo;
+  } as unknown as Task;
 }
 
-function renderTodoPage(todos: Todo[] = []) {
+const withId = (id: string) => stubTodo({ id } as unknown as Partial<Task>);
+
+function renderTodoPage(todos: Task[] = [], isLoading = false) {
+  const reorder = vi.fn<(id: string, target: unknown) => Promise<void>>(() => Promise.resolve());
   const scrolled$ = new Subject<void>();
   const history = {
     histories$: of([]),
@@ -72,15 +75,18 @@ function renderTodoPage(todos: Todo[] = []) {
   };
   const rxdb = {
     entityManager: {
+      getRepository: vi.fn(() => ({ reorder })),
       // 签名挂在泛型上而不是形参上：`toHaveBeenCalledWith` / `mock.calls[0]?.[0]` 的断言要它，形参名不要
-      removeMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve()),
-      saveMany: vi.fn<(entities: Todo[]) => Promise<void>>(() => Promise.resolve())
+      removeMany: vi.fn<(entities: Task[]) => Promise<void>>(() => Promise.resolve()),
+      saveMany: vi.fn<(entities: Task[]) => Promise<void>>(() => Promise.resolve())
     },
     versionManager: {
       history: vi.fn(() => history)
     }
   };
-  angularMocks.useFindAll.mockReturnValue(createResource(todos));
+  const resource = createResource(todos);
+  resource.isLoading.set(isLoading);
+  angularMocks.useFindAll.mockReturnValue(resource);
   TestBed.overrideComponent(TodoPage, {
     set: {
       imports: [],
@@ -99,7 +105,7 @@ function renderTodoPage(todos: Todo[] = []) {
   });
   const fixture = TestBed.createComponent(TodoPage);
   fixture.detectChanges();
-  return { fixture, history, page: fixture.componentInstance, rxdb, scrolled$ };
+  return { fixture, history, page: fixture.componentInstance, reorder, resource, rxdb, scrolled$ };
 }
 
 describe('TodoPage', () => {
@@ -262,5 +268,74 @@ describe('TodoPage', () => {
     page.load_more();
     page.load_more();
     expect(page.$current_tab()).toBe('all');
+  });
+
+  it('按 completed 分组后用 sortOrder 排序，id 升序兜住同键', () => {
+    const { page } = renderTodoPage();
+    expect(page.$todo_query_options().orderBy).toEqual([
+      { field: 'completed', sort: 'asc' },
+      { field: 'sortOrder', sort: 'asc' },
+      { field: 'id', sort: 'asc' }
+    ]);
+    page.toggle_complete_sort();
+    expect(page.$todo_query_options().orderBy?.[0]).toEqual({ field: 'completed', sort: 'desc' });
+    expect(page.$todo_query_options().orderBy?.slice(1)).toEqual([
+      { field: 'sortOrder', sort: 'asc' },
+      { field: 'id', sort: 'asc' }
+    ]);
+  });
+
+  it('只在进行中 / 已完成页、数据就绪、无待决重排且至少两行时允许拖拽', () => {
+    const rows = [withId('a'), withId('b')];
+    const { page, resource } = renderTodoPage(rows);
+    expect(page.$can_drag()).toBe(false);
+
+    page.set_current_tab('active');
+    expect(page.$can_drag()).toBe(true);
+    page.set_current_tab('completed');
+    expect(page.$can_drag()).toBe(true);
+
+    resource.isLoading.set(true);
+    expect(page.$can_drag()).toBe(false);
+    resource.isLoading.set(false);
+
+    resource.value.set(rows.slice(0, 1));
+    expect(page.$can_drag()).toBe(false);
+  });
+
+  it('松手把下标换算成邻居目标交给 Repository.reorder，期间禁止再拖', async () => {
+    const rows = ['a', 'b', 'c'].map(id => withId(id));
+    const { page, reorder, rxdb } = renderTodoPage(rows);
+    page.set_current_tab('active');
+
+    let release!: () => void;
+    reorder.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)));
+    const done = page.drop_todo(0, 2);
+    expect(page.$reorder_pending()).toBe(true);
+    expect(page.$can_drag()).toBe(false);
+    expect(rxdb.entityManager.getRepository).toHaveBeenCalledWith(Task);
+    expect(reorder).toHaveBeenCalledWith('a', { prevId: 'c', nextId: null });
+
+    release();
+    await done;
+    expect(page.$reorder_pending()).toBe(false);
+    expect(page.$can_drag()).toBe(true);
+  });
+
+  it('原位放下不写库；重排失败把原因显示出来，下次成功清掉', async () => {
+    const rows = ['a', 'b'].map(id => withId(id));
+    const { page, reorder } = renderTodoPage(rows);
+    page.set_current_tab('active');
+
+    await page.drop_todo(1, 1);
+    expect(reorder).not.toHaveBeenCalled();
+
+    reorder.mockRejectedValueOnce(new Error('stale-target'));
+    await page.drop_todo(1, 0);
+    expect(page.$reorder_error()).toBe('stale-target');
+    expect(page.$reorder_pending()).toBe(false);
+
+    await page.drop_todo(0, 1);
+    expect(page.$reorder_error()).toBeNull();
   });
 });

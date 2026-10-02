@@ -3,6 +3,8 @@
 @let undo_disabled = undo_count === 0;
 @let redo_disabled = redo_count === 0;
 @let current_tab = $current_tab();
+@let drag = $drag();
+@let can_drag = $can_drag();
 <div class="flex h-full">
   <!-- History Sidebar -->
   <ao-history-sidebar
@@ -217,7 +219,7 @@
             >
               清除已完成
             </button>
-            <button class="btn btn-sm" (click)="toggle_complete_sort()" aria-label="排序">
+            <button class="btn btn-sm" (click)="toggle_complete_sort()" aria-label="排序" data-testid="todo-sort">
               <svg [lucideIcon]="$completed_sort() === 'asc' ? ArrowUp : ArrowDown" size="16"></svg>
               排序
             </button>
@@ -249,8 +251,19 @@
       </div>
     </div>
 
+    @if ($reorder_error(); as reorder_error) {
+      <div class="alert alert-error mx-auto my-2 max-w-4xl" data-testid="todo-reorder-error" role="alert">
+        <span>排序保存失败：{{ reorder_error }}</span>
+      </div>
+    }
+
     <!-- Todo List -->
-    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-4xl" [itemSize]="itemSize">
+    <cdk-virtual-scroll-viewport
+      class="mx-auto min-h-60 max-w-4xl"
+      #todoList
+      [class.todo-reordering]="$reorder_pending()"
+      [itemSize]="itemSize"
+    >
       @if (todo_resource.isEmpty()) {
         <div class="hero min-h-60">
           <div class="hero-content text-center">
@@ -272,6 +285,10 @@
         <li
           class="group border-base-200 hover:bg-base-200/50 flex items-center border-b px-4 py-2 transition-colors"
           *cdkVirtualFor="let todo of todo_resource.value(); let i = index; trackBy: trackByFn"
+          [attr.data-drop-target]="drag?.overIndex === i ? '' : null"
+          [class.opacity-50]="drag?.fromIndex === i"
+          [class.todo-drop-after]="drag && drag.overIndex === i && drag.overIndex > drag.fromIndex"
+          [class.todo-drop-before]="drag && drag.overIndex === i && drag.overIndex < drag.fromIndex"
           [style.height.px]="itemSize"
           data-testid="todo-row"
         >
@@ -299,6 +316,18 @@
                 保存
               </button>
             } @else {
+              @if (current_tab !== 'all') {
+                <button
+                  class="btn btn-ghost btn-xs cursor-grab touch-none"
+                  [disabled]="!can_drag"
+                  (pointerdown)="start_drag($event, i)"
+                  aria-label="拖动排序"
+                  data-testid="todo-drag-handle"
+                  type="button"
+                >
+                  <svg [lucideIcon]="GripVertical" size="14"></svg>
+                </button>
+              }
               <input
                 class="checkbox"
                 [checked]="todo.completed"

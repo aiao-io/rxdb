@@ -8,6 +8,20 @@ import { REMOTE_ENTITY_INVALIDATED_EVENT, RemoteEntityInvalidatedEvent } from '.
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
+import { SortOrderError } from '../sortable/sortable-error.js';
+import { SORT_ORDER_FIELD, type ReorderTarget } from '../sortable/sortable.interface.js';
+import {
+  appendToGroupTails,
+  assertExplicitSortOrders,
+  assertReorderTarget,
+  assertSortOrderKey,
+  hasMissingSortOrder,
+  isManualOrderEntity,
+  isRegroupWithoutKey,
+  normalizeManualOrderBy,
+  regroupRow,
+  reorderRow
+} from '../sortable/sortable.utils.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
@@ -250,14 +264,15 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param options 查询选项，包含 where 条件
    */
   findOne(options: FindOneOptions<T>): Observable<InstanceType<T> | null> {
+    const normalized = normalizeManualOrderBy(getEntityMetadata(this.EntityType), options);
     const runner = () =>
       this.primary$.pipe(
-        switchMap(repo => repo.find({ ...options, limit: 1 })),
+        switchMap(repo => repo.find({ ...normalized, limit: 1 })),
         map(d => d[0] || null),
         tap(entity => entity && this._setLocal(entity))
       );
     return this.queryManager.createTask({
-      options: { type: 'findOne', options },
+      options: { type: 'findOne', options: normalized },
       runner,
       getFingerprint: getFingerprintByEntity
     }).result$;
@@ -268,9 +283,10 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param options 查询选项，包含 where 条件
    */
   findOneOrFail(options: FindOneOrFailOptions<T>): Observable<InstanceType<T>> {
+    const normalized = normalizeManualOrderBy(getEntityMetadata(this.EntityType), options);
     const runner = () =>
       this.primary$.pipe(
-        switchMap(repo => repo.find({ ...options, limit: 1 })),
+        switchMap(repo => repo.find({ ...normalized, limit: 1 })),
         map(d => {
           if (d.length === 0) throw new RxDBError(`Entity not found for query: ${JSON.stringify(options.where)}`);
           return d[0];
@@ -278,7 +294,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
         tap(entity => this._setLocal(entity))
       );
     return this.queryManager.createTask({
-      options: { type: 'findOneOrFail', options },
+      options: { type: 'findOneOrFail', options: normalized },
       runner,
       getFingerprint: getFingerprintByEntity
     }).result$;
@@ -298,7 +314,12 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     // `?? 100` 而非 `|| 100`：`limit: 0` 的语义是「返回空集」，是合法值不是「没传」。
     // 适配器层已支持（sqlite-core 生成 `LIMIT 0`），框架绑定层也保留 0
     // （`rxdb-react` 的 useInfiniteScroll），核心层不能在中间把它改写成 100
-    const normalized: FindOptions<T> = { ...options, limit: options.limit ?? 100, offset: options.offset ?? 0 };
+    // 手动排序实体未给 orderBy 时补默认排序（US-028），同样只作用于本地副本
+    const normalized: FindOptions<T> = normalizeManualOrderBy(getEntityMetadata(this.EntityType), {
+      ...options,
+      limit: options.limit ?? 100,
+      offset: options.offset ?? 0
+    });
     const runner = () =>
       this.primary$.pipe(
         switchMap(repo => repo.find(normalized)),
@@ -322,13 +343,15 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
 
    */
   findAll(options: FindAllOptions<T>): Observable<InstanceType<T>[]> {
+    // 归一化后的 orderBy 必须进 task options：活查询增量合并只在它非空时重排（US-028）
+    const normalized = normalizeManualOrderBy(getEntityMetadata(this.EntityType), options);
     const runner = () =>
       this.primary$.pipe(
-        switchMap(repo => repo.find(options)),
+        switchMap(repo => repo.find(normalized)),
         tap(this._setLocals)
       );
     return this.queryManager.createTask({
-      options: { type: 'findAll', options },
+      options: { type: 'findAll', options: normalized },
       runner,
       getFingerprint: getFingerprintByEntities
     }).result$;
@@ -407,6 +430,11 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     // 判定在 `primary$` 之前：与主端选哪边无关，被拒时连适配器都不碰（US-027）
     assertEntityOperationAllowed(this.EntityType, 'create');
+    const metadata = getEntityMetadata(this.EntityType);
+    if (isManualOrderEntity(metadata)) {
+      assertExplicitSortOrders(metadata.name, [entity]);
+      if (hasMissingSortOrder([entity])) return this.#createAppended(entity);
+    }
     const observer = this.primary$.pipe(
       switchMap(repo => repo.create(entity)),
       tap(this._setLocal)
@@ -419,9 +447,18 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param entity 要更新的实体实例
    * @param patch 部分更新数据
    * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`（以 rejected Promise 给出）
+   * @throws {@link SortOrderError} 手动排序键不合法；改分组字段落在 remote-only / QueryCache 主端
+   *
+   * @remarks
+   * 分组手动排序实体改了分组字段而没给 `sortOrder` 时，在主适配器事务内追加到新组末尾（US-028 AC#16）。
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     assertEntityOperationAllowed(this.EntityType, 'update');
+    const metadata = getEntityMetadata(this.EntityType);
+    if (isManualOrderEntity(metadata) && SORT_ORDER_FIELD in patch) {
+      assertSortOrderKey(metadata.name, (patch as Record<string, unknown>)[SORT_ORDER_FIELD]);
+    }
+    if (isRegroupWithoutKey(metadata, entity, patch)) return this.#updateRegrouped(entity, patch);
     const observer = this.primary$.pipe(
       switchMap(repo => repo.update(entity, patch)),
       tap(this._setLocal)
@@ -438,6 +475,45 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     assertEntityOperationAllowed(this.EntityType, 'delete');
     const observer = this.primary$.pipe(switchMap(repo => repo.remove(entity)));
     return firstValueFrom(observer);
+  }
+
+  /**
+   * 把一行移到目标位置（仅限启用了 `manualOrder` 的实体）
+   *
+   * @param id - 被移动行的 id
+   * @param target - 目标位置：前后邻居 `{ prevId, nextId }`，或追加到某组末尾 `{ group }`
+   *   （键恰好是分组字段，整表排序为 `{}`）
+   * @returns 移动后的实体；已在目标位置时原样返回、零写
+   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`，在开事务前抛出
+   * @throws {@link SortOrderError} 见 {@link SortOrderErrorReason}；抛出时一条写都没有提交
+   *
+   * @remarks
+   * 输入是移动意图而不是最终排列：读邻居、复核相邻、算键、写入都在主适配器的同一个事务内，
+   * 组内移动只写 `sortOrder`，跨组移动只写分组字段与 `sortOrder`，不连带保存实例上其他未提交的改动。
+   * 主端是 remote-only 或 QueryCache 时拒绝——本地只有序列的子集，拿它算键会与远端不一致。
+   *
+   * @example
+   * ```typescript
+   * const repository = rxdb.entityManager.getRepository(Category);
+   * await repository.reorder(movedId, { prevId: aboveId, nextId: belowId });
+   * await repository.reorder(movedId, { group: {} }); // 整表排序：移到末尾
+   * await todos.reorder(todoId, { group: { completed: true } }); // 分组排序：移到「已完成」组末尾
+   * ```
+   */
+  async reorder(id: EntityStaticType<T, 'idType'>, target: ReorderTarget<EntityStaticType<T, 'idType'>>) {
+    const metadata = getEntityMetadata(this.EntityType);
+    if (!isManualOrderEntity(metadata)) {
+      throw new SortOrderError(metadata.name, 'notManualOrder', '实体没有声明 manualOrder，不能重排');
+    }
+    // 读邻居与写入都经执行器，属 US-027 不判定的那一层，必须在开事务前自己判
+    assertEntityOperationAllowed(this.EntityType, 'update');
+    assertReorderTarget(metadata, id, target);
+    const adapter = await this.#manualOrderAdapter('重排');
+    const entity = await adapter.transaction(executor =>
+      reorderRow(executor.getRepository(this.EntityType), metadata, id, target)
+    );
+    this._setLocal(entity);
+    return entity;
   }
 
   /**
@@ -602,6 +678,60 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
+  }
+
+  /**
+   * 缺键创建：在主适配器事务内读尾键、追加、写入（US-028 写边界）
+   *
+   * @remarks
+   * 门面平时走适配器仓库，SQL 在事务外生成；读尾键与写入不在同一个事务里，
+   * 两次并发追加就会读到同一个尾键。所以只有这条路径改走事务，显式给键的创建照旧。
+   */
+  async #createAppended(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    const adapter = await this.#manualOrderAdapter('缺键创建');
+    const metadata = getEntityMetadata(this.EntityType);
+    const created = await adapter.transaction(async executor => {
+      const repository = executor.getRepository(this.EntityType);
+      await appendToGroupTails(repository, metadata, [{ row: entity, persisted: false }]);
+      return repository.create(entity);
+    });
+    this._setLocal(created);
+    return created;
+  }
+
+  /**
+   * 改分组字段又没给键的更新：在主适配器事务内读新组尾键、追加、写入（US-028 AC#16）
+   *
+   * @remarks
+   * 新键并进 patch 一起写，不改调用方传进来的 patch；读尾键时排除这行自己。
+   */
+  async #updateRegrouped(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    const adapter = await this.#manualOrderAdapter('改分组字段');
+    const metadata = getEntityMetadata(this.EntityType);
+    const updated = await adapter.transaction(async executor => {
+      const repository = executor.getRepository(this.EntityType);
+      const moving = regroupRow(metadata, entity, patch);
+      await appendToGroupTails(repository, metadata, [moving]);
+      return repository.update(entity, { ...patch, [SORT_ORDER_FIELD]: moving.row.sortOrder });
+    });
+    this._setLocal(updated);
+    return updated;
+  }
+
+  /**
+   * 手动排序写入要用的主适配器：只认本地版本化主端
+   *
+   * @throws {@link SortOrderError} 主端是 remote-only 或 QueryCache（`'unsupportedPrimary'`）
+   */
+  async #manualOrderAdapter(operation: string) {
+    if (this.#isQueryCache || selectPrimaryAdapterKind(this.sync) === 'remote') {
+      throw new SortOrderError(
+        getEntityMetadata(this.EntityType).name,
+        'unsupportedPrimary',
+        `${operation}只支持本地主适配器；remote-only / QueryCache 主端读不到完整序列`
+      );
+    }
+    return firstValueFrom(this.rxdb.localAdapter$);
   }
 }
 

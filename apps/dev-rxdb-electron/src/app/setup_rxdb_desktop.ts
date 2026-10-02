@@ -20,7 +20,7 @@ import {
   type DevToolsStorageSnapshotPorts
 } from '@aiao/rxdb-plugin-storage/devtools-desktop-snapshot';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import { FileLarge, FileNode, MenuLarge, MenuSimple, Task, Todo } from '@aiao/rxdb-test/entities';
 import type { BackupProbeArchiveOps } from './backup-probe';
 import { DESKTOP_DEMO_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -174,7 +174,7 @@ export default () => {
     context: { userId: 'userId' },
     // `DesktopLaunch` 两个后端都要注册：AC#1 的判据是跨进程累计计数，而计数只有在
     // 表存在时才写得进去。浏览器预览那份也留着，否则同一份代码在两条路径上行为不同。
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
+    entities: [Todo, Task, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     sync: {
       local: {
         adapter: ELECTRON_ADAPTER_NAME

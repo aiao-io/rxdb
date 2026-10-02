@@ -1,9 +1,10 @@
-import { EntityStaticType } from '@aiao/rxdb';
+import { EntityStaticType, reorderTargetForMove } from '@aiao/rxdb';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Task } from '@aiao/rxdb-test/entities';
+import { FixedRowDrag, type FixedRowDragState } from '@aiao/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
-import { ArrowDown, ArrowUp, History, Pen, Plus, Redo2, Undo2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../components/HistorySidebar';
@@ -11,10 +12,16 @@ import { useResettableTimeout } from '../hooks/useResettableTimeout';
 
 const ITEM_SIZE = 48;
 
+const requiredElement = (element: HTMLElement | null, name: string): HTMLElement => {
+  if (!element) throw new Error(`拖拽需要的元素 ${name} 尚未渲染`);
+  return element;
+};
+
 export function TodoPage(): React.JSX.Element {
   const rxdb = useRxDB();
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const fullHeaderRef = useRef<HTMLDivElement>(null);
+  const todoListRef = useRef<HTMLDivElement>(null);
   const editInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { schedule: scheduleEditFocus } = useResettableTimeout();
   const { schedule: scheduleScrollEnd, cancel: cancelScrollEnd } = useResettableTimeout();
@@ -29,16 +36,22 @@ export function TodoPage(): React.JSX.Element {
   const [showHistory, setShowHistory] = useState(true);
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [addingCount, setAddingCount] = useState<number | null>(null);
+  // 拖拽中的起点与落点；null 表示没在拖
+  const [drag, setDrag] = useState<FixedRowDragState | null>(null);
+  // 一次重排正在落库；期间不允许开始新的拖拽
+  const [reorderPending, setReorderPending] = useState(false);
+  // 最近一次重排失败的原因；下一次重排开始时清掉
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
   // History
-  const history = useMemo(() => rxdb.versionManager.history(Todo), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(Task), [rxdb]);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
   const histories = useObservable(history.histories$, []);
 
   // 查询条件
-  const todoQueryOptions = useMemo<EntityStaticType<typeof Todo, 'findAllOptions'>>(() => {
-    const options: EntityStaticType<typeof Todo, 'findAllOptions'> = {
+  const todoQueryOptions = useMemo<EntityStaticType<typeof Task, 'findAllOptions'>>(() => {
+    const options: EntityStaticType<typeof Task, 'findAllOptions'> = {
       where: {
         combinator: 'and',
         rules: []
@@ -48,9 +61,14 @@ export function TodoPage(): React.JSX.Element {
           field: 'completed',
           sort: completedSort
         },
+        // 组内手动顺序；id 只在 sortOrder 相同时定序，保证结果稳定
+        {
+          field: 'sortOrder',
+          sort: 'asc'
+        },
         {
           field: 'id',
-          sort: 'desc'
+          sort: 'asc'
         }
       ]
     };
@@ -72,7 +90,7 @@ export function TodoPage(): React.JSX.Element {
     return options;
   }, [currentTab, completedSort]);
 
-  const todoResource = useFindAll(Todo, todoQueryOptions);
+  const todoResource = useFindAll(Task, todoQueryOptions);
   // P2-4：`RxDBResource.value` 非可选，`?? []` 是死代码；useMemo 随之退化成恒等映射。
   const todos = todoResource.value;
 
@@ -91,6 +109,43 @@ export function TodoPage(): React.JSX.Element {
   const isAllCompleted = useMemo(() => todos.length > 0 && todos.every(todo => todo.completed), [todos]);
   const disabledToggleAllBtn = todos.length === 0;
   const disabledClearCompletedBtn = completedTodos.length === 0;
+  // 「全部」页混着两个分组且受排序方向影响，不提供手柄；加载中或待决重排时下标可能过期
+  const canDrag = currentTab !== 'all' && !todoResource.isLoading && !reorderPending && todos.length >= 2;
+
+  // 把第 from 行放到第 to 行：换算成邻居目标后交给 Repository.reorder()
+  const dropTodo = useCallback(
+    async (from: number, to: number) => {
+      const ids = todos.map(todo => todo.id);
+      const target = reorderTargetForMove(ids, from, to);
+      if (!target) return;
+      setReorderPending(true);
+      setReorderError(null);
+      try {
+        await rxdb.entityManager.getRepository(Task).reorder(ids[from]!, target);
+      } catch (error) {
+        setReorderError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setReorderPending(false);
+      }
+    },
+    [todos, rxdb.entityManager]
+  );
+  // 拖拽控制器只建一次，松手时经 ref 拿到最新列表对应的 dropTodo
+  const dropTodoRef = useRef(dropTodo);
+  useEffect(() => {
+    dropTodoRef.current = dropTodo;
+  }, [dropTodo]);
+  const [rowDrag] = useState(
+    () =>
+      new FixedRowDrag({
+        rowHeight: ITEM_SIZE,
+        scrollElement: () => requiredElement(mainContainerRef.current, 'todo-page'),
+        listElement: () => requiredElement(todoListRef.current, 'todo-list'),
+        onChange: setDrag,
+        onDrop: (from, to) => void dropTodoRef.current(from, to)
+      })
+  );
+  useEffect(() => () => rowDrag.dispose(), [rowDrag]);
 
   // Sticky header 检测
   useEffect(() => {
@@ -119,7 +174,7 @@ export function TodoPage(): React.JSX.Element {
       const value = inputValue.trim();
       if (!value) return;
 
-      const todo = new Todo({ title: value });
+      const todo = new Task({ title: value });
       await todo.save();
       setInputValue('');
     },
@@ -127,7 +182,7 @@ export function TodoPage(): React.JSX.Element {
   );
 
   const toggleTodoCompletion = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>, todo: Todo) => {
+    async (event: React.ChangeEvent<HTMLInputElement>, todo: Task) => {
       const isEditing = editingTodoIds.has(todo.id);
       if (isEditing) return;
 
@@ -139,7 +194,7 @@ export function TodoPage(): React.JSX.Element {
   );
 
   const startEditing = useCallback(
-    (event: React.MouseEvent, todo: Todo) => {
+    (event: React.MouseEvent, todo: Task) => {
       event.preventDefault();
       event.stopPropagation();
       setEditingTodoIds(prev => new Set(prev).add(todo.id));
@@ -155,7 +210,7 @@ export function TodoPage(): React.JSX.Element {
   );
 
   const saveTodo = useCallback(
-    async (event: React.SyntheticEvent, input: HTMLInputElement, todo: Todo) => {
+    async (event: React.SyntheticEvent, input: HTMLInputElement, todo: Task) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -184,7 +239,7 @@ export function TodoPage(): React.JSX.Element {
   );
 
   const cancelEditing = useCallback(
-    (todo: Todo) => {
+    (todo: Task) => {
       if (!editingTodoIds.has(todo.id)) return;
 
       setEditingTodoIds(prev => {
@@ -201,7 +256,7 @@ export function TodoPage(): React.JSX.Element {
     [editingTodoIds]
   );
 
-  const removeTodo = useCallback(async (event: React.MouseEvent, todo: Todo) => {
+  const removeTodo = useCallback(async (event: React.MouseEvent, todo: Task) => {
     event.preventDefault();
     event.stopPropagation();
     await todo.remove();
@@ -276,9 +331,9 @@ export function TodoPage(): React.JSX.Element {
   const addManyTodo = useCallback(
     async (total: number) => {
       setAddingCount(total);
-      const newTodos: Todo[] = [];
+      const newTodos: Task[] = [];
       for (let i = 0; i < total; i++) {
-        const todo = new Todo();
+        const todo = new Task();
         todo.title = `test-${i}`;
         newTodos.push(todo);
       }
@@ -544,6 +599,12 @@ export function TodoPage(): React.JSX.Element {
           </div>
         </div>
 
+        {reorderError && (
+          <div className='alert alert-error mx-auto my-2 max-w-4xl' data-testid='todo-reorder-error' role='alert'>
+            <span>排序保存失败：{reorderError}</span>
+          </div>
+        )}
+
         {/* Todo List */}
         <div className='mx-auto min-h-60 max-w-4xl'>
           {todoResource.isLoading ?
@@ -561,11 +622,16 @@ export function TodoPage(): React.JSX.Element {
                 </div>
               </div>
             </div>
-          : <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+          : <div
+              className={clsx({ 'cursor-progress': reorderPending })}
+              ref={todoListRef}
+              style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}
+            >
               <ul className='divide-base-200 divide-y'>
                 {virtualizer.getVirtualItems().map(virtualItem => {
                   const todo = todos[virtualItem.index];
                   const isEditing = editingTodoIds.has(todo.id);
+                  const isDropTarget = drag?.overIndex === virtualItem.index;
 
                   return (
                     <li
@@ -575,8 +641,17 @@ export function TodoPage(): React.JSX.Element {
                       // 同一应用的 todo-cursor 页用的就是 `todo.id`。
                       key={todo.id}
                       data-testid='todo-row'
-                      className='group border-base-200 hover:bg-base-200/50 flex items-center border-b px-4 py-2 transition-colors'
+                      data-drop-target={isDropTarget ? '' : undefined}
+                      className={clsx(
+                        'group border-base-200 hover:bg-base-200/50 flex items-center border-b px-4 py-2 transition-colors',
+                        { 'opacity-50': drag?.fromIndex === virtualItem.index }
+                      )}
                       style={{
+                        // 落点指示：上移画在目标行上沿，下移画在下沿，与 reorderTargetForMove 的插入位置一致
+                        boxShadow:
+                          isDropTarget && drag.overIndex !== drag.fromIndex ?
+                            `inset 0 ${drag.overIndex < drag.fromIndex ? 2 : -2}px 0 var(--color-primary)`
+                          : undefined,
                         position: 'absolute',
                         top: 0,
                         left: 0,
@@ -622,6 +697,20 @@ export function TodoPage(): React.JSX.Element {
                             </button>
                           </>
                         : <>
+                            {currentTab !== 'all' && (
+                              <button
+                                className='btn btn-ghost btn-xs cursor-grab touch-none'
+                                data-testid='todo-drag-handle'
+                                disabled={!canDrag}
+                                onPointerDown={e =>
+                                  canDrag && rowDrag.start(e.nativeEvent, virtualItem.index, todos.length)
+                                }
+                                aria-label='拖动排序'
+                                type='button'
+                              >
+                                <GripVertical size={14} />
+                              </button>
+                            )}
                             <input
                               className='checkbox'
                               data-testid='todo-completed'

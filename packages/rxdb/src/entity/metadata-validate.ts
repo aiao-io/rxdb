@@ -31,7 +31,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 16 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 17 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -51,7 +51,8 @@ export type MetadataValidationRule =
   | 'cardinalityConflict'
   | 'unsupportedRepositorySyncType'
   | 'missingQueryCacheAdapter'
-  | 'invalidPermissions';
+  | 'invalidPermissions'
+  | 'invalidManualOrder';
 
 /**
  * 关系目标解析规则。
@@ -552,6 +553,111 @@ const validatePermissions = (collector: ViolationCollector, permissions: unknown
   }
 };
 
+/** 手动排序键所在的字段名；固定，不可配置 */
+const MANUAL_ORDER_FIELD = 'sortOrder';
+
+/** `sortOrder` 字段声明上逐条可判的违规：全部收齐，不在第一条就停 */
+const manualOrderFieldIssues = (property: EntityPropertyMetadata): readonly string[] => {
+  const issues: string[] = [];
+  if (property.type !== PropertyType.string) issues.push(`必须是 string，实际为 ${String(property.type)}`);
+  if (property.readonly) issues.push('不能是 readonly：重排要改写它');
+  if (property.nullable) issues.push('不能 nullable：NULL 不是合法排序键，建表须为 NOT NULL');
+  if (property.encrypted) issues.push('不能 encrypted：密文不能排序与区间比较');
+  return issues;
+};
+
+/** 不能作分组字段的列类型：取值不是可比较的标量 */
+const UNGROUPABLE_PROPERTY_TYPES: ReadonlySet<string> = new Set([
+  PropertyType.json,
+  PropertyType.keyValue,
+  PropertyType.stringArray,
+  PropertyType.numberArray,
+  PropertyType.binary
+]);
+
+/**
+ * 声明形状：`true` 或只含 `groupBy`（字段名字符串数组）的普通对象
+ *
+ * @returns 分组字段；形状不对时为违规消息
+ */
+const manualOrderGroupBy = (declared: unknown): readonly string[] | string => {
+  if (declared === true) return [];
+  if (!isPlainRecord(declared)) return `必须是 true 或 { groupBy: [...] }，实际为 ${JSON.stringify(declared)}`;
+  const unknownKeys = Object.keys(declared).filter(key => key !== 'groupBy');
+  if (unknownKeys.length > 0) return `不接受键 ${unknownKeys.join('、')}：只有 groupBy`;
+  const { groupBy } = declared;
+  if (!Array.isArray(groupBy) || !groupBy.every(field => typeof field === 'string')) {
+    return `groupBy 必须是字段名字符串数组，实际为 ${JSON.stringify(groupBy)}`;
+  }
+  return groupBy;
+};
+
+/** 关系名本身不是列：多对一关系指给它的外键列，其他关系没有可分组的列 */
+const relationGroupIssue = (metadata: EntityMetadata, field: string): string => {
+  const foreignKey = [...metadata.foreignKeyRelationMap].find(([, relation]) => relation.name === field)?.[0];
+  return foreignKey ? `是关系名，请改用外键列 ${foreignKey}` : '是关系名：只有多对一关系的外键列能作分组字段';
+};
+
+/** 单个分组字段的违规；合法为 `null` */
+const groupFieldIssue = (metadata: EntityMetadata, field: string): string | null => {
+  if (field === 'id') return '不能是主键：每组只会有一行';
+  if (field === MANUAL_ORDER_FIELD) return '不能是 sortOrder 自身';
+  if (field.includes('.')) return '不能是关系路径：分组字段必须是实体自身的列';
+  if (metadata.computedPropertyMap.has(field)) return '不能是计算字段：分组取值要落库';
+  if (metadata.relationMap.has(field)) return relationGroupIssue(metadata, field);
+  if (metadata.isForeignKey(field)) return null;
+  const property = metadata.propertyMap.get(field);
+  if (!property) return '字段不存在';
+  if (property.readonly) return '不能是 readonly：跨组移动要改写它';
+  if (property.encrypted) return '不能是 encrypted 列：密文不能按组过滤与排序';
+  if (UNGROUPABLE_PROPERTY_TYPES.has(property.type)) return `不能是 ${String(property.type)} 列：只支持标量列`;
+  return null;
+};
+
+/** 分组字段逐个校验，违规报在 `manualOrder.groupBy.<字段>` 上 */
+const validateGroupFields = (collector: ViolationCollector, metadata: EntityMetadata, groupBy: readonly string[]) => {
+  const seen = new Set<string>();
+  for (const field of groupBy) {
+    const issue = seen.has(field) ? '重复声明' : groupFieldIssue(metadata, field);
+    seen.add(field);
+    if (issue) collector.add(`manualOrder.groupBy.${field}`, 'invalidManualOrder', issue);
+  }
+};
+
+/** `sortOrder` 是可写、非空、非计算的 string 字段 */
+const validateSortOrderField = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  if (metadata.computedPropertyMap.has(MANUAL_ORDER_FIELD)) {
+    collector.add(MANUAL_ORDER_FIELD, 'invalidManualOrder', '不能是计算字段：排序键要落库');
+    return;
+  }
+  const property = metadata.propertyMap.get(MANUAL_ORDER_FIELD);
+  if (!property) {
+    collector.add(MANUAL_ORDER_FIELD, 'invalidManualOrder', '启用 manualOrder 的实体缺少 sortOrder 字段声明');
+    return;
+  }
+  // 收集器按 (field, rule) 去重，同字段多处违规并进一条消息
+  const issues = manualOrderFieldIssues(property);
+  if (issues.length > 0) collector.add(MANUAL_ORDER_FIELD, 'invalidManualOrder', issues.join('；'));
+};
+
+/**
+ * 校验手动排序声明：形状为 `true` / `{ groupBy }`，分组字段是自身可写标量列，`sortOrder` 合法。
+ *
+ * @remarks
+ * 只在启用时看字段：未声明但恰好有可空 `sortOrder` 的实体（如树实体）不受影响（US-028 AC#10）。
+ */
+const validateManualOrder = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  const declared: unknown = metadata.manualOrder;
+  if (declared === undefined || declared === false) return;
+  const groupBy = manualOrderGroupBy(declared);
+  if (typeof groupBy === 'string') {
+    collector.add('manualOrder', 'invalidManualOrder', groupBy);
+    return;
+  }
+  validateGroupFields(collector, metadata, groupBy);
+  validateSortOrderField(collector, metadata);
+};
+
 /** 稳定排序：namespace → entity → field → rule。 */
 const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataValidationError): number =>
   a.namespace.localeCompare(b.namespace) ||
@@ -591,6 +697,7 @@ export function validateEntityMetadata(
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
   validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
   validatePermissions(collector, metadata.permissions);
+  validateManualOrder(collector, metadata);
   return collector.drain().sort(compareViolations);
 }
 
