@@ -7,6 +7,9 @@ export * from './entity-field.utils.js';
 export * from './entity-value.utils.js';
 export * from './structural-equal.js';
 
+// 界面能力派生（US-027）
+export * from './entity-capabilities.js';
+
 // 类名工具
 export * from './cn.js';
 

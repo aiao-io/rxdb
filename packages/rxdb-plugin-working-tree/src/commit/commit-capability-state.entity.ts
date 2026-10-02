@@ -4,7 +4,7 @@
  * 数据库级「提交能力」开关与版本协商的唯一真相。单行表，主键取常量。
  */
 
-import { Entity, PropertyType } from '@aiao/rxdb';
+import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * `rxdb_commit_capability` 的单行主键常量。
@@ -53,6 +53,7 @@ export const COMMIT_GRAPH_SCHEMA_VERSION = 1;
   tableName: 'rxdb_commit_capability',
   // 本表自身的写入若被 change trigger 记录，会与「写工作树条目」互相递归
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

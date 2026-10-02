@@ -88,7 +88,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
 
       if (options.orderBy?.length) {
         for (const order of options.orderBy) {
-          query = query.order(order.field, { ascending: order.sort === 'asc' });
+          query = query.order(order.field, this.order_options(order.field, order.sort));
         }
       }
 
@@ -229,6 +229,21 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
   // ============================================
   // 私有方法
   // ============================================
+
+  /**
+   * 排序选项：可空列显式写 NULLS 方向
+   *
+   * @remarks
+   * 约定 NULL 是最小值（asc 靠前、desc 靠后），与 SQLite / PGlite、JS 比较器 `compareOrderValues` 以及
+   * `Repository.findByCursor` 的游标谓词一致；PostgREST 默认随 PostgreSQL 相反。非空列不写：结果相同，
+   * 且显式 NULLS 方向会挡住默认 btree 索引的正向扫描。不在 propertyMap 里的字段（外键）按可空处理。
+   */
+  private order_options(field: string, sort: 'asc' | 'desc'): { ascending: boolean; nullsFirst?: boolean } {
+    const ascending = sort === 'asc';
+    const property = this.metadata.propertyMap.get(field);
+    if (property && !property.nullable) return { ascending };
+    return { ascending, nullsFirst: ascending };
+  }
 
   private build_select_fields(where: RepositoryRuleGroup | undefined): string {
     const relationFields = this.extract_relation_fields(where);

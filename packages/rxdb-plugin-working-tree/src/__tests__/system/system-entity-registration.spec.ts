@@ -22,9 +22,20 @@
  *    无约束的表——后者正是「测不出来」的那一类。
  * 4. **`log !== false`** —— 新表自身的写入若被 change trigger 记录，会与「写工作树条目」
  *    互相递归（data-model.md §0 末段）。
+ *
+ * 第五条防的是另一类：**漏声明 `permissions`**（US-027 AC#4）。核心 `init()` 会拦，但拦在
+ * 宿主连接那一刻；这里在包内就点名是哪张表。
  */
 
-import { getEntityMetadata, getSystemEntityNames, isSystemEntity, RxDB, SyncType, type EntityType } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getSystemEntityNames,
+  isSystemEntity,
+  RxDB,
+  SyncType,
+  SYSTEM_ENTITY_PERMISSIONS,
+  type EntityType
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
@@ -108,4 +119,11 @@ describe('工作树与提交系统表登记', () => {
       });
     }
   });
+
+  it.each(EXPECTED_ORDER.map(([EntityClass]) => [getEntityMetadata(EntityClass).name, EntityClass] as const))(
+    '%s 三个写操作都只许系统写（US-027 AC#4）',
+    (_name, EntityClass) => {
+      expect(getEntityMetadata(EntityClass).permissions).toEqual(SYSTEM_ENTITY_PERMISSIONS);
+    }
+  );
 });

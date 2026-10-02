@@ -21,6 +21,16 @@ export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 export * from './capture/index.js';
 export * from './entity/entity-base.js';
 export * from './entity/entity-field.utils.js';
+export {
+  ENTITY_OPERATIONS,
+  PermissionDeniedError,
+  SYSTEM_ENTITY_PERMISSIONS,
+  assertEntityOperationAllowed,
+  assertMutationsAllowed,
+  assertSystemEntityPermissions,
+  getEntityPermission,
+  type PermissionViolation
+} from './entity/entity-permissions.js';
 // 只转类型不转类：`RxDB.entityManager` 是公开成员，用户接得到就得能具名；
 // `@aiao/rxdb-plugin-working-tree` 的捕获运行时与提交命令也都把它当形参收。
 // 不转类本身是因为构造器要的是整个 RxDB 实例、`init()` / `destroy()` 由宿主按生命周期调——

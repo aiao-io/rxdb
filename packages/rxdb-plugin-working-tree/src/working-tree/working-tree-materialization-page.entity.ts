@@ -4,7 +4,7 @@
  * 物化 staging 的分页 payload 子表。
  */
 
-import { Entity, OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, OnDeleteAction, PropertyType, RelationKind, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 import { WorkingTreeMaterializationStage } from './working-tree-materialization-stage.entity.js';
 
 /**
@@ -19,6 +19,7 @@ import { WorkingTreeMaterializationStage } from './working-tree-materialization-
   name: 'WorkingTreeMaterializationPage',
   tableName: 'rxdb_working_tree_materialization_page',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

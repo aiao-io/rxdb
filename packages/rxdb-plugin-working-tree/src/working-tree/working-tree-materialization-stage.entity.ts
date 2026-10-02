@@ -5,7 +5,7 @@
  * [working-tree-materialization-page.entity.ts](./working-tree-materialization-page.entity.ts)。
  */
 
-import { Entity, PropertyType } from '@aiao/rxdb';
+import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 物化 attempt 状态
@@ -27,6 +27,7 @@ export type WorkingTreeMaterializationStageStatus = 'pending' | 'staged' | 'abor
   name: 'WorkingTreeMaterializationStage',
   tableName: 'rxdb_working_tree_materialization_stage',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

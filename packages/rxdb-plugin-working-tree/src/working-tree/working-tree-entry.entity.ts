@@ -4,7 +4,7 @@
  * 未提交变更单元：**独立完整**复制 patch / inversePatch，不复用也不只引用 `RxDBChange`。
  */
 
-import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '@aiao/rxdb';
+import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 未提交变更单元（一行 = 一个分支上的一个实体身份）
@@ -26,6 +26,7 @@ import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '
   name: 'WorkingTreeEntry',
   tableName: 'rxdb_working_tree_entry',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

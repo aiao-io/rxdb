@@ -8,6 +8,7 @@
  */
 
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
+import { ENTITY_OPERATIONS } from './entity-permissions.js';
 import {
   formatConfigLiteralsOf,
   isStepAligned,
@@ -30,7 +31,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 15 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 16 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -49,7 +50,8 @@ export type MetadataValidationRule =
   | 'invalidOptionsConfig'
   | 'cardinalityConflict'
   | 'unsupportedRepositorySyncType'
-  | 'missingQueryCacheAdapter';
+  | 'missingQueryCacheAdapter'
+  | 'invalidPermissions';
 
 /**
  * 关系目标解析规则。
@@ -511,6 +513,45 @@ const validateRepositorySyncSupport = (
   );
 };
 
+/**
+ * 不支持的权限值各自的原因
+ *
+ * @remarks
+ * 这两个值都是「看起来该有」的：只报「非法」会让声明者以为是拼写问题，换个写法再试。
+ */
+const UNSUPPORTED_PERMISSION_REASONS: ReadonlyMap<unknown, string> = new Map([
+  ['none', "'none'（谁都不许写）不受支持：真正的不可变要靠 SQL 触发器兜底，门面一层挡不住同步、迁移与适配器直写"],
+  [
+    'user',
+    "'user'（只许用户、不许系统）不受支持：系统写入走的是门面之下的适配器与执行器，这一层无从分辨某次写入是不是用户的意思"
+  ]
+]);
+
+/** 校验写操作权限声明：普通对象、只含三个操作键、值只能是 `'both'` / `'system'`。 */
+const validatePermissions = (collector: ViolationCollector, permissions: unknown): void => {
+  if (permissions === undefined) return;
+  if (!isPlainRecord(permissions)) {
+    collector.add('permissions', 'invalidPermissions', "必须是普通对象，形如 { update: 'system' }");
+    return;
+  }
+  const operations: readonly string[] = ENTITY_OPERATIONS;
+  const unknownKeys = Object.keys(permissions).filter(key => !operations.includes(key));
+  if (unknownKeys.length > 0) {
+    collector.add(
+      'permissions',
+      'invalidPermissions',
+      `不接受键 ${unknownKeys.join('、')}：只有 ${ENTITY_OPERATIONS.join(' / ')} 三个写操作`
+    );
+  }
+  for (const operation of ENTITY_OPERATIONS) {
+    const value = permissions[operation];
+    if (value === 'both' || value === 'system') continue;
+    const reason =
+      UNSUPPORTED_PERMISSION_REASONS.get(value) ?? `取值 ${JSON.stringify(value)} 非法：只能是 'both' 或 'system'`;
+    collector.add(`permissions.${operation}`, 'invalidPermissions', reason);
+  }
+};
+
 /** 稳定排序：namespace → entity → field → rule。 */
 const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataValidationError): number =>
   a.namespace.localeCompare(b.namespace) ||
@@ -549,6 +590,7 @@ export function validateEntityMetadata(
   metadata.computedPropertyMap.forEach(property => validateProperty(collector, property));
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
   validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
+  validatePermissions(collector, metadata.permissions);
   return collector.drain().sort(compareViolations);
 }
 
