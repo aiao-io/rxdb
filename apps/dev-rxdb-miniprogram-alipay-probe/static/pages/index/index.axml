@@ -1,0 +1,8 @@
+<view class="page">
+  <view class="status">{{status}}</view>
+  <view class="actions">
+    <button size="mini" onTap="runExperiments" disabled="{{running}}">重新运行</button>
+    <button size="mini" type="primary" onTap="copyReport" disabled="{{running || !reportText}}">复制报告</button>
+  </view>
+  <text class="summary" selectable="{{true}}">{{summary}}</text>
+</view>

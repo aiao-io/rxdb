@@ -85,7 +85,7 @@ packages/rxdb-model-angular/styles.css
 *.wasm
 !packages/rxdb-adapter-miniprogram/assets/wa-sqlite.wasm
 # 支付宝探针 Worker 里 MYWebAssembly 只认代码包内路径，这份 add 模块是实验输入，不是构建产物
-!apps/dev-rxdb-miniprogram-alipay-probe/wasm/*.wasm
+!apps/dev-rxdb-miniprogram-alipay-probe/static/wasm/*.wasm
 
 integration/*/pnpm-lock.yaml
 

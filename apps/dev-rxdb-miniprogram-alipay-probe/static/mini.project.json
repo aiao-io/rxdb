@@ -1,0 +1,11 @@
+{
+  "compileType": "mini",
+  "format": 2,
+  "compileOptions": {
+    "transpile": {
+      "script": {
+        "ignore": ["workers/**"]
+      }
+    }
+  }
+}

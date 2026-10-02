@@ -10,7 +10,7 @@
   gap: 16rpx;
   margin-bottom: 16rpx;
 }
-.report {
+.summary {
   font-family: monospace;
   font-size: 20rpx;
   white-space: pre-wrap;
