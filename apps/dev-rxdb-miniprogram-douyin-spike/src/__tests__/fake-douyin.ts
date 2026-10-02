@@ -50,6 +50,8 @@ export interface FakeDouyinOptions {
    * 开发者工具模拟器 v6 报告实测如此（`quotaAccounting.overwrite.countsOldSize: true`）；默认关闭是因为替身按文档建模。
    */
   readonly overwriteCountsOldSize?: boolean;
+  /** 新建文件写撞配额时留下 0 字节文件。开发者工具模拟器 v9 报告实测如此（关闭后文件里有空的孤儿块）。 */
+  readonly failedNewFileLeftEmpty?: boolean;
 }
 
 /** 替身本体与可供断言的内部状态。 */
@@ -80,7 +82,8 @@ class FakeFileSystem implements DouyinFileSystemManager {
   constructor(
     private readonly quotaBytes: number,
     private readonly errorShape: 'plain' | 'error',
-    private readonly overwriteCountsOldSize: boolean
+    private readonly overwriteCountsOldSize: boolean,
+    private readonly failedNewFileLeftEmpty: boolean
   ) {}
 
   accessSync(path: string): void {
@@ -113,7 +116,10 @@ class FakeFileSystem implements DouyinFileSystemManager {
     const next = new Uint8Array(data.slice(0));
     const replaced = this.overwriteCountsOldSize ? 0 : (this.files.get(path)?.byteLength ?? 0);
     const used = this.usedBytes() - replaced;
-    if (used + next.byteLength > this.quotaBytes) this.failWith(108403, 'user dir saved file size limit exceeded');
+    if (used + next.byteLength > this.quotaBytes) {
+      if (this.failedNewFileLeftEmpty && !this.files.has(path)) this.files.set(path, new Uint8Array(0));
+      this.failWith(108403, 'user dir saved file size limit exceeded');
+    }
     this.files.set(path, next);
   }
 
@@ -183,7 +189,8 @@ export function createFakeDouyin(options: FakeDouyinOptions = {}): FakeDouyin {
   const fileSystem = new FakeFileSystem(
     options.quotaBytes ?? DOCUMENTED_QUOTA_BYTES,
     options.errorShape ?? 'plain',
-    options.overwriteCountsOldSize ?? false
+    options.overwriteCountsOldSize ?? false,
+    options.failedNewFileLeftEmpty ?? false
   );
   const clipboard: string[] = [];
   const tt: DouyinApi = {

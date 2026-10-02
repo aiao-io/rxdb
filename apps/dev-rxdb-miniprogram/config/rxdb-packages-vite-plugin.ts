@@ -64,3 +64,24 @@ export function rxdbBuildTargetVitePlugin(): Plugin {
     }
   };
 }
+
+/**
+ * 抖音页面模块里 `globalThis` 是 `undefined`，demo 靠入口 `app.js` 里非严格函数的 `this` 拿真实全局对象
+ * （见 `src/runtime-global-capture.ts`）。入口一旦带上 `use strict` 就拿不到：构建直接失败，
+ * 而不是到开发者工具里才报「拿不到真实全局对象」。
+ */
+export function sloppyAppEntryVitePlugin(): Plugin {
+  return {
+    name: 'dev-rxdb-miniprogram:sloppy-app-entry',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const app = bundle['app.js'];
+      if (app?.type !== 'chunk') {
+        this.error('产物里没有入口 app.js，无法确认它是非严格模式');
+      }
+      if (/["']use strict["']/.test(app.code)) {
+        this.error('入口 app.js 带了 use strict，抖音上拿不到真实全局对象（见 src/runtime-global-capture.ts）');
+      }
+    }
+  };
+}

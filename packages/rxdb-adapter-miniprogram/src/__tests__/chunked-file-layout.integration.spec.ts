@@ -64,29 +64,48 @@ async function expectIntact(client: WaSqliteMiniProgramClient, rows: number): Pr
   expect(integrity.results[0].rows).toEqual([['ok']]);
 }
 
-describe('撞配额后不清理直接重开', () => {
-  it.each([4096, 65536])('分块布局 chunkBytes=%i：已提交数据完整；满着再写仍失败但不坏，腾出空间后可写', async chunkBytes => {
-    const { fileSystem, client, committed, reopen } = await writeUntilFull(`chunked-${chunkBytes}`, {
-      kind: 'chunked',
-      chunkBytes
-    });
-    expect(committed).toBeGreaterThan(0);
-    await client.disconnect();
-
-    const full = await reopen();
-    await expectIntact(full, committed * ROWS_PER_BATCH);
-    // 余量已让给上次回滚、配额仍满，这次占不回来：写失败，但已提交数据不动
-    const failure = await full.execute('DELETE FROM blobs WHERE id % 2 = 0;').catch((error: unknown) => error);
-    expect(causeChain(failure)).toContain(fileSystem.lastQuotaError);
-    await expectIntact(full, committed * ROWS_PER_BATCH);
-    await full.disconnect();
-
-    fileSystem.quotaBytes += 256 * 1024;
-    const freed = await reopen();
-    await freed.execute(INSERT_BATCH);
-    await expectIntact(freed, (committed + 1) * ROWS_PER_BATCH);
-    await freed.disconnect();
+/** 每个分块文件的块号从 0 连续：`P.n` 在，`P.0`…`P.n-1` 就都在。 */
+function expectContiguousChunks(fileSystem: QuotaFileSystem): void {
+  const paths = [...fileSystem.files.keys()];
+  const gaps = paths.flatMap(path => {
+    const match = /^(.*)\.(\d+)$/.exec(path);
+    if (!match) return [];
+    const index = Number(match[2]);
+    return Array.from({ length: index }, (_, before) => `${match[1]}.${before}`).filter(
+      chunk => !fileSystem.files.has(chunk)
+    );
   });
+  expect(gaps).toEqual([]);
+}
+
+describe('撞配额后不清理直接重开', () => {
+  it.each([4096, 65536])(
+    '分块布局 chunkBytes=%i：已提交数据完整；满着再写仍失败但不坏，腾出空间后可写',
+    async chunkBytes => {
+      const { fileSystem, client, committed, reopen } = await writeUntilFull(`chunked-${chunkBytes}`, {
+        kind: 'chunked',
+        chunkBytes
+      });
+      expect(committed).toBeGreaterThan(0);
+      await client.disconnect();
+      expectContiguousChunks(fileSystem);
+
+      const full = await reopen();
+      await expectIntact(full, committed * ROWS_PER_BATCH);
+      // 余量已让给上次回滚、配额仍满，这次占不回来：写失败，但已提交数据不动
+      const failure = await full.execute('DELETE FROM blobs WHERE id % 2 = 0;').catch((error: unknown) => error);
+      expect(causeChain(failure)).toContain(fileSystem.lastQuotaError);
+      await expectIntact(full, committed * ROWS_PER_BATCH);
+      await full.disconnect();
+      expectContiguousChunks(fileSystem);
+
+      fileSystem.quotaBytes += 256 * 1024;
+      const freed = await reopen();
+      await freed.execute(INSERT_BATCH);
+      await expectIntact(freed, (committed + 1) * ROWS_PER_BATCH);
+      await freed.disconnect();
+    }
+  );
 
   it('单文件布局：整文件覆盖写只用到一半配额，撞配额后重开即失败（现状）', async () => {
     const { fileSystem, client, reopen } = await writeUntilFull('single', { kind: 'single' });

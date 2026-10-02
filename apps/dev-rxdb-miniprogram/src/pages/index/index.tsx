@@ -3,9 +3,9 @@ import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@taro
 import { useLoad, useUnload } from '@tarojs/taro';
 import { useCallback, useRef, useState } from 'react';
 import {
+  currentDemoRuntime,
   getMiniProgramRuntimeReferences,
   inspectMiniProgramRuntime,
-  wechatDemoRuntime,
   type MiniProgramDemoRuntime,
   type RuntimeCapability
 } from '../../runtime-preflight';
@@ -62,7 +62,7 @@ function capabilityStatus(capability: RuntimeCapability, shortName: string): str
 
 /** 解析宿主并做引导前预检；拿不到平台全局或真实全局对象时抛错。 */
 function preflight(): { runtime: MiniProgramDemoRuntime; capabilities: readonly RuntimeCapability[] } {
-  const runtime = wechatDemoRuntime();
+  const runtime = currentDemoRuntime();
   return { runtime, capabilities: inspectMiniProgramRuntime(runtime) };
 }
 

@@ -42,7 +42,7 @@ interface WechatWasmInstance {
   readonly exports: WebAssembly.Exports;
 }
 
-interface WechatWasmRuntime {
+interface MiniProgramPlatformWasmRuntime {
   instantiate(
     path: string,
     imports: WebAssembly.Imports
@@ -50,7 +50,10 @@ interface WechatWasmRuntime {
 }
 
 declare const wx: WechatMiniProgramApi;
-declare const WXWebAssembly: WechatWasmRuntime;
+declare const WXWebAssembly: MiniProgramPlatformWasmRuntime;
+/** 抖音全局 `tt` 里 adapter 用到的部分与 `wx` 同形。 */
+declare const tt: WechatMiniProgramApi;
+declare const TTWebAssembly: MiniProgramPlatformWasmRuntime;
 
 declare namespace NodeJS {
   interface ProcessEnv {

@@ -117,8 +117,12 @@ interface DistOptions {
 
 async function runDist(mode: DistMode, options: DistOptions = {}): Promise<Record<string, unknown>> {
   const { onCoreInitError = 'throw', encodingGlobals = mode !== 'bare' } = options;
-  // 覆盖写仍计旧文件大小：模拟器与 iOS 实测的配额语义
-  const fake = createFakeDouyin({ quotaBytes: 3 * 1024 * 1024, overwriteCountsOldSize: true });
+  // 覆盖写仍计旧文件大小（模拟器与 iOS 实测）、新建文件写失败留下空文件（模拟器 v9 实测）
+  const fake = createFakeDouyin({
+    quotaBytes: 3 * 1024 * 1024,
+    overwriteCountsOldSize: true,
+    failedNewFileLeftEmpty: true
+  });
   let page: CapturedPage | undefined;
   const context = createContext({
     tt: fake.tt,
@@ -166,8 +170,9 @@ describe('dist 冒烟', () => {
     expect(pageCode).not.toMatch(/createWaSqliteMiniProgramClient/);
   });
 
-  it('全局齐全时，打包产物跑通全部实验', async () => {
+  it('全局齐全时，打包产物跑通全部实验；沙箱没有 crypto，随机源走抖音 host 的 tt.getRandomValues', async () => {
     const report = await runDist('native');
+    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'douyin' } });
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual(ALL_PASS);
   }, 120_000);

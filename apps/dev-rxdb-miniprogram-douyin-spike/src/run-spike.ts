@@ -5,7 +5,11 @@
  * 文件系统探测在核心实验之前（11 MiB 写入失败后要确认没占着配额）。
  * 任何一步失败都只记录、不中断，最后总会执行收尾删除实验目录。
  */
-import { prepareMiniProgramHostRuntime, type MiniProgramRuntimeSources } from '@aiao/rxdb-adapter-miniprogram/runtime';
+import {
+  createDouyinMiniProgramHost,
+  prepareMiniProgramHostRuntime,
+  type MiniProgramRuntimeSources
+} from '@aiao/rxdb-adapter-miniprogram/runtime';
 import { DEFAULT_QUOTA_PLAN, type CoreExperimentReport, type QuotaPlan, type SpikeCore } from './core-contract.js';
 import { adapterErrorText } from './describe-error.js';
 import type { DouyinApi, DouyinFileSystemManager, DouyinWasmRuntime } from './douyin-api.js';
@@ -21,7 +25,6 @@ import { runWasmPathExperiment, type WasmPathReport } from './experiments/wasm-p
 import { buildFindings, type Finding } from './findings.js';
 import { probe, type Probe, type Skipped } from './probe.js';
 import { readProbedRuntimeGlobal, readRealmProbe, type RealmProbeReport } from './realm-probe.js';
-import { createDouyinSpikeHost } from './spike-host.js';
 import { VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
 /** 报告格式版本；字段语义变了就升版本号。 */
@@ -31,11 +34,11 @@ export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v9';
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';
 
 const NOTES = [
-  'host 借用已登记的 wechat 平台 id 通过 adapter 校验；正式接入需要 Phase B 登记 douyin id 与正式 host。',
+  'host 是 adapter 正式登记的 createDouyinMiniProgramHost（platform: douyin），实验不另写 host。',
   '实验 ② 直接调用 tt.getRandomValues，不经 host 包装，记录的是平台原始的成功与失败形态。',
   '实验 ③ 的 vfsSaysMissing / vfsSaysExists 是用 adapter 文件 VFS 的正则副本对 errMsg 的判定。',
   '构建 banner 只探测真实全局对象、不改 globalThis（见 realmProbe）；页面包把选中的对象经 adapter 公开字段 host.runtimeGlobal 注入，没有任何垫片，① ② ④ 的通过即 adapter 现状可用。',
-  'host 声明 fileLayout: chunked 64 KiB 与 defaultWasmPath: /wa-sqlite/wa-sqlite.wasm；核心实验不传 wasmPath，persistence.wasmPath 记录的是 adapter 实际加载的路径，实验 wasmPath 只是探测。',
+  '抖音 host 自带 fileLayout: chunked 64 KiB 与 defaultWasmPath: /wa-sqlite/wa-sqlite.wasm；核心实验不传 wasmPath，persistence.wasmPath 记录的是 adapter 实际加载的路径，实验 wasmPath 只是探测。',
   'quotaAccounting 不经 SQLite 用裸文件测配额计费：一次能写多大、同一路径覆盖写时旧文件是否仍计入配额（adapter VFS 每次 flush 都整体覆盖库文件）。',
   '实验 ④ 写到撞配额后不删任何文件，直接关掉重开读回：通过要求失败错误带 SQLITE_FULL（13）与平台配额原文，且重开后行数与已提交行数一致、integrity_check 为 ok。',
   'coreLoad 失败时报的是核心包模块顶层的原始错误：iOS 真机的 require 会吞掉它、返回半成品导出，构建包装把它挂在 initError 上再抛出。',
@@ -149,7 +152,8 @@ export async function runSpike(options: SpikeOptions): Promise<SpikeReport> {
   const { tt } = options;
   const environment = await collectEnvironment(tt, options.freeGlobals);
   const random = await runRandomExperiment(tt);
-  const host = createDouyinSpikeHost(tt, readProbedRuntimeGlobal());
+  const runtimeGlobal = readProbedRuntimeGlobal();
+  const host = createDouyinMiniProgramHost(tt, runtimeGlobal === undefined ? {} : { runtimeGlobal });
   const prepare = await probe(() => prepareMiniProgramHostRuntime(host));
   const wasmPath = await runWasmPathExperiment(options.wasmRuntime);
 

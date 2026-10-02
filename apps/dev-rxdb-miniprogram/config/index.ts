@@ -5,8 +5,15 @@ import prodConfig from './prod';
 import {
   rxdbBuildTargetVitePlugin,
   rxdbPackagesVitePlugin,
+  sloppyAppEntryVitePlugin,
   subframeSqliteWasmVitePlugin
 } from './rxdb-packages-vite-plugin';
+
+/**
+ * 各平台产物分开放：微信开发者工具打开本目录（`project.config.json` 指向 `dist/`），
+ * 抖音开发者工具直接打开 `dist-tt/`（Taro 把 `project.tt.json` 拷进去当 `project.config.json`）。
+ */
+const outputRoot = process.env.TARO_ENV === 'tt' ? 'dist-tt' : 'dist';
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async merge => {
@@ -21,15 +28,16 @@ export default defineConfig<'vite'>(async merge => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    outputRoot,
     plugins: ['@tarojs/plugin-generator'],
     defineConstants: {},
     copy: {
       patterns: [
         {
           // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
+          // `to` 必须带上 outputRoot：Taro 只剥掉 `to` 开头的 outputRoot，写死 `dist/` 会让 tt 产物落进 `dist-tt/dist/`
           from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
-          to: 'dist/wa-sqlite/wa-sqlite.wasm'
+          to: `${outputRoot}/wa-sqlite/wa-sqlite.wasm`
         }
       ],
       options: {}
@@ -37,7 +45,12 @@ export default defineConfig<'vite'>(async merge => {
     framework: 'react',
     compiler: {
       type: 'vite',
-      vitePlugins: [rxdbPackagesVitePlugin(), subframeSqliteWasmVitePlugin(), rxdbBuildTargetVitePlugin()]
+      vitePlugins: [
+        rxdbPackagesVitePlugin(),
+        subframeSqliteWasmVitePlugin(),
+        rxdbBuildTargetVitePlugin(),
+        ...(process.env.TARO_ENV === 'tt' ? [sloppyAppEntryVitePlugin()] : [])
+      ]
     },
     mini: {
       postcss: {

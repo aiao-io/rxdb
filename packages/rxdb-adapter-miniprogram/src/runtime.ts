@@ -4,15 +4,17 @@ export {
   createWechatMiniProgramHost,
   isMiniProgramPlatformId
 } from './host.js';
+export { createDouyinMiniProgramHost, type DouyinMiniProgramHostOptions } from './hosts/douyin.js';
 export type {
+  MiniProgramDouyinApi,
   MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramHostCapabilityNames,
   MiniProgramPlatformId,
-  MiniProgramRuntimeGlobal,
   MiniProgramRandomValuesOptions,
   MiniProgramRandomValuesResult,
+  MiniProgramRuntimeGlobal,
   MiniProgramWechatApi
 } from './mini-program.interface.js';
 export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';

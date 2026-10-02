@@ -1,5 +1,5 @@
 /**
- * 小程序 wa-sqlite adapter（当前仅微信，实验性）。
+ * 小程序 wa-sqlite adapter（微信与抖音，实验性）。
  *
  * 提供小程序运行 RxDB 所需的全套基础设施：WASM 加载、同步文件 VFS、
  * 运行时 polyfill（TextEncoder/TextDecoder/structuredClone/crypto）、
@@ -15,9 +15,11 @@ export {
   isMiniProgramPlatformId,
   resolveMiniProgramHost
 } from './host.js';
+export { createDouyinMiniProgramHost, type DouyinMiniProgramHostOptions } from './hosts/douyin.js';
 export { loadWaSqliteMiniProgramModule, type MiniProgramWasmHost } from './loader.js';
 export { ADAPTER_NAME, DEFAULT_WASM_PATH } from './mini-program.interface.js';
 export type {
+  MiniProgramDouyinApi,
   MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
@@ -39,9 +41,9 @@ export type {
   WaSqliteModuleFactory,
   WaSqliteModuleFactoryOptions
 } from './mini-program.interface.js';
-export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 export { assertMiniProgramRuntimeCapabilities, checkMiniProgramRuntimeCapabilities } from './runtime-capabilities.js';
 export type { MiniProgramRuntimeCapability, MiniProgramRuntimeCapabilityOptions } from './runtime-capabilities.js';
+export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 export {
   RxDBAdapterWaSqliteMiniProgram,
   RxDBAdapterWaSqliteMiniProgram as RxDBAdapterWaSqliteMiniprogram

@@ -171,6 +171,24 @@ describe('分块布局', () => {
     expect(await exists(NAME_DB)).toBe(true);
   });
 
+  it('新块写撞配额留下的空文件记作已落盘，回滚截断时一并删掉，块号不留空洞', async () => {
+    const fileSystem = new QuotaFileSystem();
+    const { vfs, write } = openVfs(fileSystem);
+    await vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    await write(DB_FILE, [1, 2, 3, 4, 5, 6], 0);
+    await vfs.xSync(DB_FILE, 0);
+
+    // 覆盖 .1、新建 .2 都够，新建 .3 时撞配额，宿主留下空的 .3
+    fileSystem.quotaBytes = 12;
+    await write(DB_FILE, [7, 8, 9, 10, 11, 12, 13], 6);
+    expect(await vfs.xSync(DB_FILE, 0)).toBe(SQLITE_FULL);
+    expect(sizes(fileSystem)).toEqual({ [`${DB}.0`]: 4, [`${DB}.1`]: 4, [`${DB}.2`]: 4, [`${DB}.3`]: 0 });
+
+    expect(await vfs.xTruncate(DB_FILE, 6, 0)).toBe(0);
+    expect(await vfs.xSync(DB_FILE, 0)).toBe(0);
+    expect(sizes(fileSystem)).toEqual({ [`${DB}.0`]: 4, [`${DB}.1`]: 2 });
+  });
+
   it('越过末尾写入时补齐中间块，块号不留空洞', async () => {
     const fileSystem = new QuotaFileSystem();
     const { vfs, write } = openVfs(fileSystem);
@@ -332,8 +350,22 @@ describe('回滚余量', () => {
     fileSystem.files.set(RESERVE, new Uint8Array(8));
     const { handle, vfs } = openVfs(fileSystem);
 
-    const operations = await operationsDuring(fileSystem, () => vfs.xOpen(0, NAME_JOURNAL, JOURNAL_FILE, OPEN_JOURNAL, 0));
+    const operations = await operationsDuring(fileSystem, () =>
+      vfs.xOpen(0, NAME_JOURNAL, JOURNAL_FILE, OPEN_JOURNAL, 0)
+    );
     expect(operations).toEqual([`write ${JOURNAL}.0 0`]);
+    expect(handle.reserveHeld).toBe(true);
+  });
+
+  it('余量文件大小不对（写撞配额留下的空文件）不认领，按 2×chunkBytes 重写', async () => {
+    const fileSystem = new QuotaFileSystem();
+    fileSystem.files.set(RESERVE, new Uint8Array(0));
+    const { handle, vfs } = openVfs(fileSystem);
+
+    const operations = await operationsDuring(fileSystem, () =>
+      vfs.xOpen(0, NAME_JOURNAL, JOURNAL_FILE, OPEN_JOURNAL, 0)
+    );
+    expect(operations).toEqual([`write ${RESERVE} 8`, `write ${JOURNAL}.0 0`]);
     expect(handle.reserveHeld).toBe(true);
   });
 

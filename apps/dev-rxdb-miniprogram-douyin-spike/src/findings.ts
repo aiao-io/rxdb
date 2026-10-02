@@ -4,7 +4,7 @@
  * 判定只针对「这一台设备、这一次运行」；矩阵要的是开发者工具 + Android + iOS 三份报告都 pass。
  * 证据不足一律给 `unknown`，不往 pass 上靠。
  */
-import type { CoreExperimentReport } from './core-contract.js';
+import type { CoreExperimentReport, DatabaseFile } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import type { FileSystemReport } from './experiments/fs-errors.js';
 import type { QuotaAccountingReport } from './experiments/quota-accounting.js';
@@ -126,6 +126,29 @@ function accountingText({ largestFreshWriteBytes, firstFreshFailure, overwrite }
   return `一次最多写入 ${largestFreshWriteBytes / MIB} MiB${limit}，${overwriteText[String(overwrite.countsOldSize)]}`;
 }
 
+/**
+ * 分块文件的块号空洞：`P.n` 在而 `P.0`…`P.n-1` 缺的那些块路径，去重后按出现顺序排列。
+ * 撞配额后关闭的库文件不该有空洞；有就说明有孤儿块落在空洞之后，库再长回来就会被判「非末块不满」。
+ */
+export function chunkGaps(files: readonly DatabaseFile[]): string[] {
+  const present = new Set(files.map(file => file.path));
+  const gaps = files.flatMap(({ path }) => {
+    const match = /^(.*)\.(\d+)$/.exec(path);
+    if (!match) return [];
+    return Array.from({ length: Number(match[2]) }, (_, index) => `${match[1]}.${index}`);
+  });
+  return [...new Set(gaps)].filter(path => !present.has(path)).sort(byChunkIndex);
+}
+
+function byChunkIndex(left: string, right: string): number {
+  return Number(/\d+$/.exec(left)?.[0]) - Number(/\d+$/.exec(right)?.[0]) || left.localeCompare(right);
+}
+
+function chunkLayoutText(files: Probe<readonly DatabaseFile[]>, gaps: readonly string[] | undefined): string {
+  if (gaps === undefined) return `关闭后列文件${probeText(files)}`;
+  return gaps.length === 0 ? '块号连续' : `块号空洞：缺 ${gaps.join('、')}`;
+}
+
 function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): Finding {
   const row = '用户目录';
   const rawWrite = fileSystem.probes.find(item => item.op === 'writeFileSync(11 MiB)');
@@ -143,7 +166,8 @@ function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): 
       evidence: `配额实验在「${quota.stageFailure?.stage}」中止；${rawText}`
     };
   }
-  const { reopenCount, reopenIntegrity } = quota.afterFailure;
+  const { reopenCount, reopenIntegrity, filesAfterDisconnect } = quota.afterFailure;
+  const gaps = filesAfterDisconnect.ok ? chunkGaps(filesAfterDisconnect.value) : undefined;
   const recovered =
     reopenCount.ok && reopenCount.value === quota.insertedRows && reopenIntegrity.ok && reopenIntegrity.value === 'ok';
   const { full, platformText } = classifyQuotaFailure(quota.failure.error);
@@ -151,8 +175,9 @@ function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): 
   const evidence =
     `第 ${quota.failure.atRow} 行撞配额（${errorText(quota.failure.error)}；${classified}）；` +
     `重开后行数 ${reopenCount.ok ? String(reopenCount.value) : probeText(reopenCount)} / 已提交 ${quota.insertedRows}，` +
-    `integrity ${reopenIntegrity.ok ? String(reopenIntegrity.value) : probeText(reopenIntegrity)}；${rawText}`;
-  const passed = recovered && full && platformText !== undefined;
+    `integrity ${reopenIntegrity.ok ? String(reopenIntegrity.value) : probeText(reopenIntegrity)}，` +
+    `${chunkLayoutText(filesAfterDisconnect, gaps)}；${rawText}`;
+  const passed = recovered && full && platformText !== undefined && gaps?.length === 0;
   return { matrixRow: row, verdict: passed ? 'pass' : 'fail', evidence };
 }
 

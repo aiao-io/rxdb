@@ -31,12 +31,23 @@ export interface MiniProgramWechatApi {
 }
 
 /**
+ * adapter 需要的抖音运行时能力（全局 `tt`）。
+ *
+ * 形状与 {@link MiniProgramWechatApi} 相同，单独命名是为了不让「形状像 `wx`」的对象冒充别的平台。
+ */
+export interface MiniProgramDouyinApi {
+  readonly env: { readonly USER_DATA_PATH: string };
+  getFileSystemManager(): MiniProgramFileSystemManager;
+  getRandomValues?(options: MiniProgramRandomValuesOptions): unknown;
+}
+
+/**
  * 已登记的小程序平台 id。
  *
  * 只有可行性矩阵判定 `supported` 且已实现 host 的平台才会进这张表；
  * 未登记的 id 一律按未知平台拒绝，不回退到微信全局。
  */
-export const MINI_PROGRAM_PLATFORM_IDS = Object.freeze(['wechat'] as const);
+export const MINI_PROGRAM_PLATFORM_IDS = Object.freeze(['wechat', 'douyin'] as const);
 
 /** 已登记的小程序平台 id。 */
 export type MiniProgramPlatformId = (typeof MINI_PROGRAM_PLATFORM_IDS)[number];
@@ -62,14 +73,13 @@ export type MiniProgramRuntimeGlobal = typeof globalThis;
  * 两种布局的文件互不兼容：声明 `chunked` 而目录里已有单文件数据库时直接拒绝，不做迁移。
  */
 export type MiniProgramFileLayout =
-  | { readonly kind: 'single' }
-  | { readonly kind: 'chunked'; readonly chunkBytes: number };
+  { readonly kind: 'single' } | { readonly kind: 'chunked'; readonly chunkBytes: number };
 
 /**
  * 平台无关的小程序宿主：同步文件、用户数据目录、安全随机源与平台 id。
  *
  * 每个平台一个实现，禁止用「形状像 `wx`」的全局对象冒充别的平台。
- * 微信实现见 `createWechatMiniProgramHost(wx)`。
+ * 微信实现见 `createWechatMiniProgramHost(wx)`，抖音见 `createDouyinMiniProgramHost(tt)`。
  */
 export interface MiniProgramHost {
   /** 平台 id，必须在 {@link MINI_PROGRAM_PLATFORM_IDS} 中。 */
@@ -131,7 +141,7 @@ export interface MiniProgramWasmInstance {
   readonly exports: WebAssembly.Exports;
 }
 
-/** 微信小程序提供的 WASM 运行时。 */
+/** 小程序平台提供的 WASM 运行时（微信 `WXWebAssembly`、抖音 `TTWebAssembly`）。 */
 export interface MiniProgramWasmRuntime {
   instantiate(
     path: string,
@@ -183,7 +193,7 @@ export type WaSqliteMiniProgramRepositoryConstructor<T extends RepositoryBase<An
 export interface WaSqliteMiniProgramBaseOptions extends IRxDBAdapterOptions {
   /** 同步 wa-sqlite 模块工厂，取自 `loadSubframeModuleFactory()`。 */
   moduleFactory: WaSqliteModuleFactory;
-  /** 小程序 WASM 运行时，微信为全局 `WXWebAssembly`。 */
+  /** 小程序 WASM 运行时，微信为全局 `WXWebAssembly`，抖音为 `TTWebAssembly`。 */
   wasmRuntime: MiniProgramWasmRuntime;
   /** 代码包内 wasm 路径。小程序 WASM 运行时不接受 URL 或 ArrayBuffer。 */
   wasmPath?: string;

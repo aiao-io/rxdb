@@ -308,7 +308,7 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
 
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
-  // wasm 由 `config/index.ts` 的 copy 规则放到宿主默认路径（微信即 `DEFAULT_WASM_PATH`）。
+  // wasm 由 `config/index.ts` 的 copy 规则放到产物根的 `wa-sqlite/`，微信的 `DEFAULT_WASM_PATH` 与抖音 host 的绝对路径都指向它。
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,

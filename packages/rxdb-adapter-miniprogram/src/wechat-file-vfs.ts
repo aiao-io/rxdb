@@ -381,13 +381,20 @@ function probeChunkEnd(fileSystem: MiniProgramFileSystemManager, path: string, f
 }
 
 /** 倒序删掉 `[from, end)` 号块：中途失败时剩下的块号仍连续。 */
-function removeChunksDescending(fileSystem: MiniProgramFileSystemManager, path: string, from: number, end: number): void {
+function removeChunksDescending(
+  fileSystem: MiniProgramFileSystemManager,
+  path: string,
+  from: number,
+  end: number
+): void {
   for (let index = end - 1; index >= from; index--) unlinkIfExists(fileSystem, chunkPath(path, index));
 }
 
 function assertChunkIntact(path: string, index: number, size: number, chunkBytes: number, last: boolean): void {
   if (size > chunkBytes || (!last && size !== chunkBytes)) {
-    throw new Error(`分块文件损坏: ${chunkPath(path, index)} 有 ${size} 字节，块大小 ${chunkBytes}，${last ? '末块' : '非末块'}`);
+    throw new Error(
+      `分块文件损坏: ${chunkPath(path, index)} 有 ${size} 字节，块大小 ${chunkBytes}，${last ? '末块' : '非末块'}`
+    );
   }
 }
 
@@ -416,6 +423,21 @@ function loadChunkedFile(
 }
 
 /**
+ * 写一个块并记下落盘大小。新块写失败时宿主可能留下 0 字节文件（抖音模拟器 v9 实测撞配额即如此），
+ * 先按 0 记进已落盘块，截断才会删到它；不记的话它会落在块号空洞之后，日后库长回来就成了「非末块不满」。
+ */
+function writeChunk(
+  fileSystem: MiniProgramFileSystemManager,
+  file: BufferedFile,
+  index: number,
+  chunk: Uint8Array
+): void {
+  if (index >= file.persistedChunkSizes.length) file.persistedChunkSizes[index] = 0;
+  writeWholeFile(fileSystem, chunkPath(file.path, index), chunk);
+  file.persistedChunkSizes[index] = chunk.length;
+}
+
+/**
  * 分块布局：逻辑文件 `P` 存成 `P.0`、`P.1`…，`P.0` 恒存在（可为空）充当存在标记。
  *
  * 块号恒连续、除末块外都是满块。截断先倒序删尾块再写，删除先删 `P.0` 再倒序删其余，
@@ -441,8 +463,7 @@ function createChunkedFileStore(fileSystem: MiniProgramFileSystemManager, chunkB
       for (let index = 0; index < count; index++) {
         const chunk = file.data.subarray(index * chunkBytes, (index + 1) * chunkBytes);
         if (!file.dirtyChunks.has(index) && file.persistedChunkSizes[index] === chunk.length) continue;
-        writeWholeFile(fileSystem, chunkPath(file.path, index), chunk);
-        file.persistedChunkSizes[index] = chunk.length;
+        writeChunk(fileSystem, file, index, chunk);
         file.dirtyChunks.delete(index);
       }
       file.dirtyChunks.clear();
@@ -525,7 +546,9 @@ function resolveFileLayout(host: MiniProgramHost): MiniProgramFileLayout {
   const layout = host.fileLayout ?? SINGLE_FILE_LAYOUT;
   if (layout.kind === 'single') return layout;
   if (layout.kind !== 'chunked') {
-    throw new TypeError(`${host.displayName}的 host.fileLayout.kind 未知: ${String((layout as { kind: unknown }).kind)}`);
+    throw new TypeError(
+      `${host.displayName}的 host.fileLayout.kind 未知: ${String((layout as { kind: unknown }).kind)}`
+    );
   }
   if (!Number.isInteger(layout.chunkBytes) || layout.chunkBytes <= 0) {
     throw new TypeError(`${host.displayName}的 host.fileLayout.chunkBytes 必须是正整数: ${layout.chunkBytes}`);
@@ -571,7 +594,9 @@ export function createMiniProgramFileVFS(
   const activeDatabase = makeFilePath(databaseName, root);
   const layout = resolveFileLayout(host);
   const store =
-    layout.kind === 'chunked' ? createChunkedFileStore(fileSystem, layout.chunkBytes) : createSingleFileStore(fileSystem);
+    layout.kind === 'chunked' ?
+      createChunkedFileStore(fileSystem, layout.chunkBytes)
+    : createSingleFileStore(fileSystem);
   const reservePath = layout.kind === 'chunked' ? `${activeDatabase}${RESERVE_SUFFIX}` : null;
   const reserveBytes = layout.kind === 'chunked' ? 2 * layout.chunkBytes : 0;
   const files = new Map<number, BufferedFile>();
@@ -589,10 +614,13 @@ export function createMiniProgramFileVFS(
   }
   ACTIVE_DATABASES.add(activeDatabase);
 
-  /** 占回滚余量；已有余量文件直接认领，配额不够时不占，其余错误抛出。 */
+  /**
+   * 占回滚余量；已有大小正确的余量文件直接认领，配额不够时不占，其余错误抛出。
+   * 写撞配额时宿主可能留下 0 字节文件（抖音模拟器 v9），删掉它，免得下次被当成余量认领。
+   */
   const holdReserve = (path: string): void => {
     if (reserveHeld) return;
-    if (fileExists(fileSystem, path)) {
+    if (fileExists(fileSystem, path) && readWholeFile(fileSystem, path).length === reserveBytes) {
       reserveHeld = true;
       return;
     }
@@ -600,7 +628,19 @@ export function createMiniProgramFileVFS(
       fileSystem.writeFileSync(path, new ArrayBuffer(reserveBytes));
       reserveHeld = true;
     } catch (error) {
-      if (!isQuotaExceededError(error)) throw new Error(`writeFileSync ${path}: ${errorMessage(error)}`, { cause: error });
+      if (!isQuotaExceededError(error))
+        throw new Error(`writeFileSync ${path}: ${errorMessage(error)}`, { cause: error });
+      unlinkFailedReserve(path, error);
+    }
+  };
+
+  const unlinkFailedReserve = (path: string, failure: unknown): void => {
+    try {
+      unlinkIfExists(fileSystem, path);
+    } catch (error) {
+      throw new Error(`占回滚余量撞配额（${errorMessage(failure)}）后删除残留 ${path} 失败: ${errorMessage(error)}`, {
+        cause: error
+      });
     }
   };
 
@@ -612,7 +652,9 @@ export function createMiniProgramFileVFS(
       reserveHeld = false;
       return failure;
     } catch (error) {
-      return new Error(`${failure.message}；让出回滚余量 ${reservePath} 失败: ${errorMessage(error)}`, { cause: failure });
+      return new Error(`${failure.message}；让出回滚余量 ${reservePath} 失败: ${errorMessage(error)}`, {
+        cause: failure
+      });
     }
   };
 
@@ -831,7 +873,8 @@ export function createMiniProgramFileVFS(
     },
     clear() {
       if (files.size > 0) throw new Error(`关闭数据库后才能清理${host.shortName} VFS 文件`);
-      for (const suffix of ['', '-journal', '-wal', '-shm']) store.remove(makeFilePath(`${databaseName}${suffix}`, root));
+      for (const suffix of ['', '-journal', '-wal', '-shm'])
+        store.remove(makeFilePath(`${databaseName}${suffix}`, root));
       if (reservePath === null) return;
       unlinkIfExists(fileSystem, reservePath);
       reserveHeld = false;

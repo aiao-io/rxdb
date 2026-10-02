@@ -38,8 +38,10 @@ describe('runSpike：全部实验跑通', () => {
     ({ report, fake } = await run(SMALL_QUOTA));
   }, 60_000);
 
-  it('报告自带 schema 与借用 id 的说明', () => {
+  it('报告自带 schema 与说明，host 是 adapter 正式登记的抖音 host', () => {
     expect(report.schema).toBe(SPIKE_REPORT_SCHEMA);
+    expect(report.notes.join('\n')).toContain('createDouyinMiniProgramHost');
+    expect(report.notes.join('\n')).not.toContain('借用');
     expect(report.notes.join('\n')).toContain('tt.getRandomValues');
     expect(report.notes.join('\n')).toContain('host.runtimeGlobal');
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
@@ -92,7 +94,11 @@ describe('runSpike：全部实验跑通', () => {
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     // 核心实验不传 wasmPath：路径来自 host.defaultWasmPath
-    expect(core.persistence).toMatchObject({ status: 'passed', integrity: 'ok', wasmPath: '/wa-sqlite/wa-sqlite.wasm' });
+    expect(core.persistence).toMatchObject({
+      status: 'passed',
+      integrity: 'ok',
+      wasmPath: '/wa-sqlite/wa-sqlite.wasm'
+    });
     expect(core.persistence.reopenedRows).toEqual(core.persistence.writtenRows);
     expect(core.persistence.writtenRows?.flat()).toContain('中文与 emoji 🚀');
     // host 声明分块布局：库文件存成 P.0、P.1…
@@ -208,7 +214,7 @@ describe('runSpike：失败与边界', () => {
   }, 60_000);
 
   it('覆盖写把旧大小也计入配额时（模拟器与 iOS 实测）：分块布局撞配额后仍能回滚，重开读回全部已提交行', async () => {
-    const { report } = await run({ ...SMALL_QUOTA, overwriteCountsOldSize: true });
+    const { report } = await run({ ...SMALL_QUOTA, overwriteCountsOldSize: true, failedNewFileLeftEmpty: true });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(report.quotaAccounting.overwrite.countsOldSize).toBeNull();
@@ -220,7 +226,10 @@ describe('runSpike：失败与边界', () => {
     expect(after?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
     // 单文件布局写到配额一半就撞（每次 flush 新旧两份同时计费）；分块只覆盖脏块，能写过一半
     expect(core.quota.insertedRows * SMALL_PLAN.blobBytes).toBeGreaterThan(SMALL_QUOTA.quotaBytes / 2);
-    expect(finding(report, '用户目录')).toMatchObject({ verdict: 'pass' });
+    expect(finding(report, '用户目录')).toMatchObject({
+      verdict: 'pass',
+      evidence: expect.stringContaining('块号连续')
+    });
   }, 60_000);
 
   it('配额足够大时，覆盖写计费判定写进用户目录的证据', async () => {

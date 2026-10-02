@@ -14,6 +14,10 @@
         "kind": "value"
       },
       {
+        "name": "createDouyinMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "createMiniProgramFileVFS",
         "kind": "value"
       },
@@ -34,6 +38,10 @@
         "kind": "value"
       },
       {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
         "name": "isMiniProgramPlatformId",
         "kind": "value"
       },
@@ -48,6 +56,10 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
       },
       {
         "name": "MiniProgramFileLayout",
@@ -188,12 +200,20 @@
     ],
     "./runtime": [
       {
+        "name": "createDouyinMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "createWechatMiniProgramHost",
         "kind": "value"
       },
       {
         "name": "DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE",
         "kind": "value"
+      },
+      {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
       },
       {
         "name": "fillMiniProgramRandomValues",
@@ -218,6 +238,10 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
       },
       {
         "name": "MiniProgramFileLayout",
