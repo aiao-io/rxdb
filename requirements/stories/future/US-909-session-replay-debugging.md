@@ -95,7 +95,7 @@ INVEST 检查清单:
 | ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
 | A    | ✅   | 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 `trace` 改为 `retain-on-failure`；CI 注释同步                                                                   | AC#1～3         | 无前置；plan 冻结开销上限与量法，实测即 AC#3                                                                   |
 | B    | ⚠️   | Angular e2e 失败现场数据归档（同库名的主线程 IDB 第二连接 `backup()`，原样导出，作为 test 附件）+ `dev-rxdb-angular` 导入入口（主线程 IDB 连接在 `connect()` 前恢复到新的空库） | AC#1～3、4～9   | 价值证据门禁已豁免（排期决定）；plan 前 spike 第二连接（技术笔记两项）2026-10-02 通过，见技术笔记的 spike 结论 |
-| C    | ⬜   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                                   | AC#1～3、10～17 | 价值待证门禁（CONVENTIONS 病灶数 ≥ 抽象数）已豁免（排期决定）；三框架 parity 铁律                              |
+| C    | ⚠️   | `rxdb-plugin-replay` 应用内 rrweb 录制插件 + commit 关联 + 三框架 Replayer 组件 + demo opt-in                                                                                   | AC#1～3、10～17 | 价值待证门禁（CONVENTIONS 病灶数 ≥ 抽象数）已豁免（排期决定）；三框架 parity 铁律                              |
 
 **排期决定（owner，2026-10-01）**：A / B / C 全做，按 A → B → C 顺序交付，每个阶段单独 plan。B / C 的价值门禁豁免；B 的第二连接
 spike 是可行性门禁，不豁免；三框架 parity 照旧。
@@ -208,19 +208,23 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 - **调用约束**：`restore({ commitId })` 的目标必须在当前分支 HEAD 的可达父链上（US-307 FR-033），其他分支上的 commit 先
   `switchBranch`；三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；被拒走返回值（`conflict` /
   `dirty_working_tree` / `incompatible_schema` / `unreachable_target`）。
-- **阶段 C 的事件流放哪**：候选一是经 `registerSystemEntities()` 登记为系统表，不进版本化域（现状与证据第 6 条）；候选二是独立的
-  录制库。新增 untracked 类须先改 epic-006，不在候选内。plan 冻结。
-- **阶段 C 的数据模型**：每事件一文档，字段（plan 冻结）：sessionId / 序号 / type / timestamp / payload；复合索引
-  sessionId + timestamp。理由是追加写放大（内嵌大数组每追加一次就重写整文档）与按时间范围查询；同步冲突按整文档 LWW 处理
-  （[`LWWConflictResolver`](../../../packages/rxdb/src/sync-contract/LWWConflictResolver.ts)）只在事件流进入同步时相关，同步不在范围内。
-  高频小事件聚批走 `saveMany` 事务写入，不逐条 `save()`。
-- **阶段 C 的 commit 关联挂点**：rrweb 自定义事件（`EventType.Custom`）携带 `commitId`，写入时机挂 commit 生命周期。门面没有
-  commit 事件；候选挂点是实体事件总线订阅（仿 [`rxdb-plugin-search` 的 `ENTITY_LOCAL_*_EVENT` 增量索引模式](../../../packages/rxdb-plugin-search/src/plugin.ts)），
-  commit 行经 `saveMany` 写入时是否发该事件未验证，plan 冻结。禁止按时间戳反查 commit 充当关联。
+- **阶段 C 的事件流放哪（owner 2026-10-02 冻结）**：独立录制库。插件选项注入录制库工厂（`createRecordingDb`），demo 用主线程 IDB、
+  另一个 dbName；事件不进被录应用库，因而天然不产生工作树条目。
+- **阶段 C 的数据模型**：每事件一行（`replay_event`，主键 `${sessionId}:${seq}`，字段 sessionId / seq / type / timestamp / data /
+  bytes；索引 `(sessionId, seq)` 唯一 + `(sessionId, timestamp)`），会话一行（`replay_session`，计数与状态）。理由是追加写放大
+  （内嵌大数组每追加一次就重写整文档）与按时间范围查询；高频小事件聚批走 `saveMany` 事务写入，不逐条 `save()`。详见
+  `specs/005-us-909-session-replay/data-model.md`。
+- **阶段 C 的体积上限（owner 2026-10-02 冻结）**：单会话 16 MiB + 总量 128 MiB，按序列化后的事件字节计，均可配置。单会话超限 →
+  停止该会话录制、写一条终止标记事件、会话状态 `truncated`（code `session_limit`）；总量超限 → 拒绝开始新会话（code
+  `store_limit`），`deleteSession` 释放空间；绝不自动删除。
+- **阶段 C 的 commit 关联挂点（owner 2026-10-02 冻结）**：`WorkingTreeManager` 门面加只读 `commits$`，事务提交后、`commit()`
+  resolve 前发 `{ commitId, branchId }`（只在确实写入新 commit 时发；幂等重放、`ok: false`、抛错都不发）；录制插件订阅它写
+  rrweb 自定义事件（`EventType.Custom`）。不走实体事件总线，禁止按时间戳反查 commit 充当关联。
 - **回放与还原分工**：rrweb 回放 = 观察级；`restore()` = 状态级。调试闭环是「看回放定位 → 恢复数据 → 活应用交互调试」，
   不是「在回放里复现 bug」；非确定性问题（竞态 / 随机 / 时序）不承诺复现。
-- **依赖**：`rrweb` / `@rrweb/record` / `@rrweb/replay`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
-  不得新增 high 漏洞。
+- **依赖**：`rrweb@2.1.6` + `@rrweb/types@2.1.6`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
+  不得新增 high 漏洞。原写的 `@rrweb/record` / `@rrweb/replay` 只是以 `^2.1.6` 再导出 `rrweb`，会让精确钉版失效，故改直接依赖
+  `rrweb`（plan 偏离 4）。
 - **阶段 C 的三框架封装**：沿用 `code-editor` + `code-editor-angular/react/vue` 的既有分包先例。
 - 新增公开 API 同步 TSDoc、API baseline、类型兼容测试与覆盖率（核心 90% / 其他 80%）。
 

@@ -31,7 +31,9 @@ export * from './cold-replay.js';
 // 查询多一个 empty。放在核心而不是三个框架包里，是因为「commit 有没有空成功」这种问题
 // 一旦有三份答案，分歧只在用户那里暴露（tri-framework-api.md §1/§4）。
 export * from './async-state.js';
-export * from './commit-command.js';
+// 命令体本身点名导出：`runCommitWorkingTree` / `CommitRun` 是门面发 `commits$` 用的接缝，
+// 调用方拿到它只会绕开门面的门禁与事务（US-909 阶段 C）。
+export { commitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
 export * from './commit-conflict.js';
 export * from './diff.js';
 export * from './discard-command.js';
@@ -62,5 +64,6 @@ export { BranchNotMaterializedError, type BranchNotMaterializedReason } from './
 export * from './trusted-callsite-capture.js';
 export * from './versioned-domain.js';
 export * from './working-tree-commands.js';
+export * from './working-tree-commit-event.js';
 export * from './write-entry-matrix.js';
 export * from './write-entry.js';
