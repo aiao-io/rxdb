@@ -3,6 +3,7 @@ import { FileNode } from '@aiao/rxdb-test/entities';
 import { generateKeyBetween } from '@aiao/utils';
 import { computed, ref, type Ref } from 'vue';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
+import { compareSortOrder } from '../utils/sort-order';
 import { type PathConflict, useFilePathValidator } from './useFilePathValidator';
 
 export { SortMode } from '../utils/file-sorters';
@@ -173,11 +174,7 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     }
 
     const siblings = files.value.filter(f => f.parentId === parentFile.id);
-    siblings.sort((a, b) => {
-      const orderA = a.sortOrder || '';
-      const orderB = b.sortOrder || '';
-      return orderA.localeCompare(orderB);
-    });
+    siblings.sort(compareSortOrder);
     const lastSibling = siblings[siblings.length - 1];
     const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
     const newSortOrder = generateKeyBetween(lastSortOrder, null);
@@ -210,11 +207,7 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     }
 
     const rootFiles = files.value.filter(f => f.parentId === null);
-    rootFiles.sort((a, b) => {
-      const orderA = a.sortOrder || '';
-      const orderB = b.sortOrder || '';
-      return orderA.localeCompare(orderB);
-    });
+    rootFiles.sort(compareSortOrder);
     const lastFile = rootFiles[rootFiles.length - 1];
     const lastSortOrder = lastFile ? lastFile.sortOrder : null;
     const newSortOrder = generateKeyBetween(lastSortOrder, null);

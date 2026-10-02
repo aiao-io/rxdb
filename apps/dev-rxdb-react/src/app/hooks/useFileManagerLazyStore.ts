@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
+import { compareSortOrder } from '../utils/sort-order';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
 
 /** 批量删除的单批条数 —— 一次性把整表读进内存正是 P0-1 要消灭的东西。 */
@@ -111,7 +112,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
             if (nodeA.type !== nodeB.type) {
               return nodeA.type === 'folder' ? -1 : 1;
             }
-            return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+            return compareSortOrder(nodeA, nodeB);
           });
         setRootIds(newRootIds);
       },
@@ -329,7 +330,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
               if (nodeA.type !== nodeB.type) {
                 return nodeA.type === 'folder' ? -1 : 1;
               }
-              return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+              return compareSortOrder(nodeA, nodeB);
             });
 
           setChildrenMap(prev => new Map(prev).set(id, childIds));
@@ -434,7 +435,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           if (nodeA.type !== nodeB.type) {
             return nodeA.type === 'folder' ? -1 : 1;
           }
-          return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+          return compareSortOrder(nodeA, nodeB);
         });
 
         // Sort children IDs
@@ -446,7 +447,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
             if (nodeA.type !== nodeB.type) {
               return nodeA.type === 'folder' ? -1 : 1;
             }
-            return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+            return compareSortOrder(nodeA, nodeB);
           });
         });
 
