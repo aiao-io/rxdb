@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-10-01
 tags: [plugin, bom, change-management]
 ---
 
@@ -22,8 +22,14 @@ tags: [plugin, bom, change-management]
 ### In Scope
 
 - `ecn` 实体：单号、状态、生效日、变更原因
-- `bom_line.ecn_in_id` / `ecn_out_id` 记录「被哪次变更引入 / 失效」
-- `valid_from` 从 `ecn.effective_date` **派生**，不手填
+- **状态机**：`draft → released → effective`，外加 `cancelled`。`released` 指已发布、生效日未到；到生效日即 `effective`
+- 行发生项（[US-507](US-507-bom-graph-skeleton.md)）的 `ecn_in_id` / `ecn_out_id` 记录「被哪次变更引入 / 失效」；
+  ECN 的单位是**发生项**，改量、换子件都是「旧发生项 `effective_to` 截止 + 新发生项 `effective_from` 起」
+- `effective_from` / `effective_to` 从 `ecn.effective_date` **派生**，不手填
+- **禁止追溯生效**（同 [US-508](US-508-bom-view-resolution.md)）：ECN 发布时生效日不得早于发布当日
+- **取消与改期只在生效前**：`released` 的 ECN 可取消或改期；`effective` 之后不可取消、不可提前，只能另开一张更正 ECN
+- **ECN 发布原子校验**：发布时对所有受影响头的聚合（US-507 的发生项不重叠与位号、US-509 环、US-512 替代组）整批校验，
+  任一冲突整批回滚，错误点名冲突的头与发生项
 - 影响面查询（经 where-used）与变更前后行集差异
 
 ### Out of Scope
@@ -33,14 +39,19 @@ tags: [plugin, bom, change-management]
 
 ## 验收标准
 
-| #   | 前置条件                       | 操作     | 预期结果                                           | 状态 |
-| --- | ------------------------------ | -------- | -------------------------------------------------- | ---- |
-| 1   | 一个 ECN 改 3 张 BOM 的 5 行   | 查影响面 | 列出受影响整机（经 where-used 闭包）               | ⬜   |
-| 2   | 同上                           | 查差异   | 返回变更前后行集对比：新增 / 删除 / 改量 / 改版    | ⬜   |
-| 3   | ECN 改生效日                   | 保存     | 关联 5 行的 `valid_from` 级联更新                  | ⬜   |
-| 4   | ECN 取消                       | 保存     | 关联行整体回退，不留半生效状态                     | ⬜   |
-| 5   | 手填与 ECN 冲突的 `valid_from` | 保存     | 拒绝——生效日的真相源是 ECN                         | ⬜   |
-| 6   | 两个 ECN 改同一行              | 先后生效 | 行按生效日形成不重叠的时间序列（配合 US-508 AC#2） | ⬜   |
+| #   | 前置条件                                               | 操作                           | 预期结果                                                                         | 状态 |
+| --- | ------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------- | ---- |
+| 1   | 一个 ECN 改 3 张 BOM 的 5 行                           | 查影响面                       | 列出受影响整机（经 US-510 where-used）                                           | ⬜   |
+| 2   | 同上                                                   | 查差异                         | 返回生效前后发生项集对比：新增 / 删除 / 改量 / 改版                              | ⬜   |
+| 3   | `released` 未生效的 ECN                                | 改生效日（不早于当日）         | 关联发生项的 `effective_from` / `effective_to` 级联更新                          | ⬜   |
+| 4   | `released` 未生效的 ECN                                | 取消                           | 关联发生项整体回退，不留半生效状态                                               | ⬜   |
+| 5   | 手填与 ECN 冲突的 `effective_from`                     | 保存                           | 拒绝——生效日的真相源是 ECN                                                       | ⬜   |
+| 6   | 两个 ECN 改同一逻辑行                                  | 先后生效                       | 该行发生项按生效日形成不重叠的时间序列（配合 US-508 AC#2）                       | ⬜   |
+| 7   | ECN 已 `effective`                                     | 取消或提前生效日               | 拒绝；错误提示改走更正 ECN                                                       | ⬜   |
+| 8   | 当日为 2026-10-01                                      | 发布生效日为 2026-09-15 的 ECN | 拒绝（追溯生效）                                                                 | ⬜   |
+| 9   | 一个 ECN 改 3 张头，其中一张的新发生项与现有发生项重叠 | 发布                           | 整批回滚，3 张头都不变；错误点名冲突头与发生项                                   | ⬜   |
+| 10  | 一个 ECN 的变更使 `consume` 子图成环                   | 发布                           | 整批回滚，错误用 US-509 的环错误码                                               | ⬜   |
+| 11  | ECN 已 `effective` 后发现错误                          | 发布更正 ECN（生效日 ≥ 当日）  | 原 ECN 与原发生项不变；更正 ECN 截止错误发生项并引入正确发生项，历史解析结果不变 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -50,11 +61,19 @@ tags: [plugin, bom, change-management]
 ECN 回答「**这次改动**动了哪些 BOM 的哪些行」。没有 ECN 实体，AC#1 与 AC#2 都无从实现——
 影响面与差异都是以「一次变更」为单位的查询，而那个单位在模型里必须有对应物。
 
-AC#3 与 AC#5 合起来确立单一真相源：`ecn.effective_date` 是源，`bom_line.valid_from` 是派生冗余
+AC#3 与 AC#5 合起来确立单一真相源：`ecn.effective_date` 是源，发生项的 `effective_from` / `effective_to` 是派生冗余
 （冗余存在的理由是让 US-508 的视图解析不必每次 join ECN）。冗余字段必须由源级联维护，
 否则就是第二个真相源。
 
-AC#4 的「不留半生效状态」需要事务保证：一次 ECN 取消可能涉及跨多张 BOM 的数十行。
+**为什么取消与改期只在生效前。** US-508 的历史保证是「对过去日期的结构解析不会被之后的发布改写」。
+已生效的 ECN 若能取消或提前，被它截止或引入的发生项就会在过去的日期上凭空出现或消失，昨天导出给 MRP 的结构今天就复现不了。
+所以生效是单向门：之后的修正只能是**向前**生效的更正 ECN（AC#11），旧的错误在历史上如实保留。
+`released` 未生效的改期与取消不碰过去，不受此限（AC#3 / #4）。
+
+**发布是校验点，不是逐行写入。** 一次 ECN 可能同时截止旧发生项、引入新发生项、跨多张头；逐行校验会在中间态看到
+「旧的已截止、新的未插入」的空窗或「新的已插入、旧的未截止」的重叠。所以 ECN 走与 US-507 头发布同一机制：
+草稿期可暂不合法，`draft → released` 时对所有受影响头的聚合整批校验，一处冲突整批回滚（AC#9 / #10）。
+AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消可能涉及跨多张 BOM 的数十个发生项。
 
 **AC#2 的差异不能由 `@aiao/rxdb-plugin-working-tree` 的 `diff()` 承担**，三条理由，
 按 [CONVENTIONS 的病灶数 ≥ 抽象数](../../CONVENTIONS.md#价值待证) 这里必须说清，
@@ -83,5 +102,8 @@ AC#4 的「不留半生效状态」需要事务保证：一次 ECN 取消可能�
 ## References
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
-- [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置
+- [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项与发布校验机制
+- [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；禁止追溯生效
+- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — AC#10 的环错误码
+- [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；AC#1 影响面
 - [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点
