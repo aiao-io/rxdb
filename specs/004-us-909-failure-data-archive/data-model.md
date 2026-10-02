@@ -62,6 +62,9 @@ interface FailureArchiveApi {
 
 - `archive()` 不抛：所有失败都折成 `{ ok: false, reason }`。第二实例在 `finally` 里 `destroy()`；截止落在 `connect()` 上时
   等 `connect()` settle 后再 `destroy()`，不阻塞返回。
+- **先等主实例**：建第二实例之前先等主实例的 `connect()` 停手（成败不论，受同一截止约束）。重开的页面上主实例可能还在
+  重建触发器，两边同时连接会撞 `database is locked`（CI 上两条 AC#5 用例每次都撞）；截止落在这一步上报
+  `stage: 'connect'` 的 `timeout`。
 - **串行**：`archive()` 等上一次的第二实例销毁完成才开始；`snapshot()` 也等它，避免读到导出中途的锁。
 - `inspect` 阶段（行数 + 工作树）在 `connect()` 之后、`backup()` 之前，读第二实例。
 - **业务表**：`DEMO_ENTITIES` 每个实体经 `get_table_name_by_metadata(getEntityMetadata(E))` 得到的表；键为表名。

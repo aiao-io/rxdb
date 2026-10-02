@@ -111,6 +111,8 @@ async function readWorkingTree(rxdb: RxDB): Promise<WorkingTreeSummary> {
   }
 }
 
+const noop = (): void => undefined;
+
 // `connect()` 与读取不收 signal，只能与截止赛跑；输掉的那条在后台继续，由 finally 等它 settle 后销毁
 function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   const deadline = new Promise<never>((_, reject) => {
@@ -132,7 +134,8 @@ function releaseSecondary(secondary: RxDB, connecting: Promise<unknown>): Promis
  *
  * @remarks
  * `archive()` 在同一页面里另开一个主线程 IDB 连接（{@link createMainThreadIdbRxDB}）连上同一个库，按截止依次
- * 连接 → 读业务表行数与工作树 → `backup()`，返回 base64 归档；不动主实例（它可能在 Worker / SharedWorker 里，
+ * 等主实例的 `connect()` 停手（成败不论；两边同时建触发器会撞 `database is locked`）→ 连接 → 读业务表行数与工作树
+ * → `backup()`，返回 base64 归档；不动主实例（它可能在 Worker / SharedWorker 里，
  * 没有 `backup()`）。所有失败折成 `{ ok: false, reason }`，从不抛；第二实例在返回前销毁（截止落在 `connect()`
  * 上时等它 settle 后在后台销毁）。
  *
@@ -159,6 +162,14 @@ export function installFailureArchiveApi(primary: RxDB, options: { dbName: strin
     await previous;
     const started = performance.now();
     const signal = AbortSignal.timeout(request.deadlineMs);
+    try {
+      // 主实例的 `connect()` 会重建触发器；重开的页面上它可能还没连完，第二实例同时连接会撞 `database is locked`。
+      // 只等它停手，成败不论：主实例连不上时库里的数据照样要导出
+      await beforeDeadline(primary.connect(DEMO_ADAPTER_NAME).then(noop, noop), signal);
+    } catch (error) {
+      markIdle();
+      return { ok: false, dbName, reason: toFailureArchiveReason('connect', error, signal) };
+    }
     const secondary = createMainThreadIdbRxDB(dbName, baseHref);
     let stage: FailureArchiveStage = 'connect';
     let settled = false;
