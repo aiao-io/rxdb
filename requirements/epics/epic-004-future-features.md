@@ -56,7 +56,7 @@ owner: jimmy
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
 - [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`：公开写入口快速失败（不是防御边界，适配器 / 执行器层不判定）+ 14 张系统表显式声明 + rxdb-model 三框架 UI 能力派生；阶段 0（只读行「查看」走 view 模式，AC#13 / AC#16 ✅）已交付；A / B / C **价值待证**，解锁条件为 US-029 立项
-- [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；依赖方向 tree → sortable，为 US-025 阶段 E 树插件化铺路
+- [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；依赖方向 tree → sortable，可排序字段强制非空；与 US-025 阶段 E 无先后约束
 - [US-029 多用户 RBAC 权限与租户隔离的关联设计](../stories/core/US-029-rbac-tenant-permission-design.md) — 实体显式声明 `access`（tenant / owner，不加基础字段）+ `RxDBContext` 租户与角色冻结快照 + US-027 操作权限扩展为角色 / 所有权谓词 + 作用域化复制与权威端确认 + 三框架操作级能力派生；A～E 五阶段交付，阶段 A / B / E 分别依赖 US-027 阶段 A / B / C
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — rrweb 事件流按每事件一文档写入本地库；阶段 A e2e 失败现场、阶段 B 关联 working-tree commit 还原数据状态、阶段 C 插件与三框架组件（价值待证）

@@ -11,15 +11,17 @@
 
 评审报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件。
 
-| 文件                                 | 说明                                | 剩余项                                |
-| ------------------------------------ | ----------------------------------- | ------------------------------------- |
-| `README.md`                          | 本说明与状态约定                    | —                                     |
-| `review.template.md`                 | 新建 review 记录的模板              | —                                     |
-| `next-11-rxdb-package-review.md`     | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                   |
-| `RV-022-us-029-readiness-review.md`  | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2，4 项待 owner 定案 |
-| `RV-022-us-028-initiation-review.md` | US-028 可排序实体立项评审           | 1 条立项判据 + 3 P1 + 2 P2            |
-| `RV-023-us-602-initiation-review.md` | US-602 AI 可理解性立项评审          | 4 P1 + 2 P2                           |
+| 文件                                | 说明                                | 剩余项                                |
+| ----------------------------------- | ----------------------------------- | ------------------------------------- |
+| `README.md`                         | 本说明与状态约定                    | —                                     |
+| `review.template.md`                | 新建 review 记录的模板              | —                                     |
+| `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                   |
+| `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2，4 项待 owner 定案 |
 
+> **2026-10-02 清理（RV-022 US-028 可排序实体立项评审）**：整份删除——6 条（1 条立项判据 + 3 P1 + 2 P2）对照源码与探针复核全部属实，全部回写进 [US-028](../stories/core/US-028-sortable-entity.md)，故事仍为 Backlog / Low、留在立项池。立项判据（R00）：两条解锁条件都未满足——唯一扁平演示实体 `Todo` 无排序字段、`modules/angular-todo` 无拖拽、无 `EntityTable` / `QueryTable` 直接调用方、无相关 issue，维持价值待证，并写明不得为满足条件给演示实体加排序字段。定案可排序字段强制 `nullable: false`（R02）：两端建表据此发 `NOT NULL`，NULL 位置统一、NULL 锚点、未回填按 NULL 靠前展示等条款整体删除，游标跨 NULL 抛错（R01）与降序 NULL 位置（R04）随之消解；给已有实体启用改为一次必须显式回填的 schema 迁移，同步拉取带入 NULL 由约束当场拒绝。AC#4 改为两个方向各插 1,000 次，实测末键长 169（固定下界）/ 202（固定上界）（R03）。roadmap 立项池行抽象数改为 4、解锁条件改为移动意图并补「整表一条序列」限定；默认排序覆盖 `find` / `findAll` / `findOne` / `findOneOrFail`（R05）；epic-004 删掉「为 US-025 阶段 E 铺路」。R01 指出的现存缺陷（`EntityList` 按可空列做列头排序时游标翻页：SQLite 抛错、PGlite 静默丢行，PGlite 探针已复现）与 US-028 无关，登记为 [roadmap 零散收尾项第 8 条](../roadmap.md#零散收尾项不成故事随手可带)，未改代码。
+
+> **2026-10-02 清理（RV-023 US-602 发布产物面向 AI 的可理解性立项评审）**：整份删除——6 条（4 P1 + 2 P2）对照源码与 npm 0.0.26 产物复核全部属实，全部回写进 [US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md)，故事仍为 Backlog / Medium、roadmap 仍在立项池，批次待 owner 定。「发布范围」拆成门禁范围（`packages/*`，46 个）与投递范围（最近 `v*` tag 树，今 34 个）：只在 `main` 上的 12 个包里 8 个 npm 404、`rxdb-model` 系停在 0.0.19，B / C 不给范围外的包安装命令，不列还是标「未发布」由 B plan 定；病灶与「已经做对」的例子换成已发布的 graph 与 `useGet`（R01）。事务入口改为 `RxDBAdapterBase.transaction`——`IRxDBAdapter` 上没有该成员，`audit:requirements` 只验符号存在、不验归属，没拦住（R02）。AC#6 只留生成器确定性，站点与 pack 的缓存正确性拆为 B 的 AC#16、C 的 AC#17；新增 A1 的 AC#15，样例源在工作区跑通并进 CI（R03）。`docs-plugin-surface.mjs` 的 `QUERYCACHE_*` 改读事实源，门禁加「必需插件对 `inject` 闭合」（R04）。npm 计数按 0.0.26 实测重写、体积预算改用 graph 0.0.26（R05）；A2 影响面补 `tree-adapter-dependencies.spec.mjs`（R06）。
+>
 > **2026-10-02 清理（RV-021 US-027 实体操作权限模型需求评审）**：整份删除——5 条（2 P1 + 3 P2）对照源码复核全部属实，全部回写进 [US-027](../stories/core/US-027-entity-permission-model.md)，故事仍为 Backlog / Low。背景第 3 条「公开写入口只有 `mutations()`」不实：三框架 `EntityList` 的行删除还走实体实例 `remove()`，`apps/` 与 `modules/` 另有 33 个文件经门面写，逐条看过全是业务实体、无一写系统表，设计前提成立，改写范围与复验方式（R01）。`PermissionDeniedError` 定为带违规清单（实体名 + 操作），`mutations()` 预检收齐整批违规后一次抛出，US-029 的逐行批量拒绝复用同一形状（R02）。系统表声明完整性断言从「构造期」改为 `RxDB.init()` 内、`#install_plugin()` 之后——插件经构造后的 `use()` 注册，构造期断言恒真（R03）；metadata-validate 报错时机写实为 `EntityManager.init()` 汇总抛错（R04）。判定落点补上：预检读 `getEntityMutations()` 的产出、未改动的只读关联实体不进批次、预检原子性不依赖执行期原子性、自动生成的多对多 Junction 取缺省 `'both'`（R05）。owner 定案只立项 AC#13：新增阶段 0（只读行保留「查看」并走 view 模式 + 三端系统表 e2e，关 AC#13 / AC#16）进 roadmap 批次 3，阶段 C 改依赖 0 与 A；A / B / C 仍价值待证，解锁条件不变。
 >
 > **2026-10-01 清理（RV-020 Epic-009 BOM 领域模型需求深度评审）**：整份删除——18 条（10 P1 + 8 P2）对照 19 条故事、Epic 与 SQL / Decimal 探针复核全部属实，全部回写进 [epic-009](../epics/epic-009-bom-domain-model.md) 与 US-507～US-525、[US-030](../stories/core/US-030-declarative-storage-constraints.md)，故事仍为 Backlog / Low。行身份拆为逻辑行 `bom_line` 与行发生项 `bom_line_occurrence`；跨行聚合（位号计数、替代组概率、工序分摊、ECN 整批）统一落在头的 `draft → released` 发布转移；`ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；判环改为按 `(bom_type, org_id)` 的并集无环，可达性表 `bom_reach` 不存路径；`truncated` / `unresolved` 只给浏览，数量、成本与导出遇到即拒绝；成本改为 `batch_cost` / `unit_cost` + `cost_lot_qty`。评审列出的 8 个产品问题按评审推荐的最小方案落地，写进 Epic「解锁前须先处理」作为默认决策，解锁时由驱动样本复核；「覆盖约 65%」无测量依据，已删。
