@@ -31,6 +31,7 @@ const scopes = [
   { value: 'rxdb-adapter-tauri',          name: 'rxdb-adapter-tauri:             rxdb-adapter-tauri 变更' },
   { value: 'rxdb-adapter-wa-sqlite',      name: 'rxdb-adapter-wa-sqlite:         rxdb-adapter-wa-sqlite 变更' },
   { value: 'rxdb-plugin-graph',           name: 'rxdb-plugin-graph:              rxdb-plugin-graph 变更' },
+  { value: 'rxdb-plugin-replay',          name: 'rxdb-plugin-replay:             rxdb-plugin-replay 变更' },
   { value: 'rxdb-plugin-search',          name: 'rxdb-plugin-search:             rxdb-plugin-search 变更' },
   { value: 'rxdb-plugin-storage',         name: 'rxdb-plugin-storage:            rxdb-plugin-storage 变更' },
   { value: 'rxdb-plugin-workspace',       name: 'rxdb-plugin-workspace:          rxdb-plugin-workspace 变更' },

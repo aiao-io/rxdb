@@ -12,6 +12,7 @@ import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { demoRxDBOptions, getSqliteWasmUrl, useDemoPlugins } from './demo-rxdb-config';
 import { getImportedDbName } from './imported-db';
+import { whenReplayEnabled } from './replay-toggle';
 
 let rxdb: RxDB | null | undefined;
 const DEFAULT_DB_NAME = 'aiao';
@@ -89,6 +90,11 @@ export default () => {
       installFailureArchiveApi(db, { dbName, baseHref })
     );
   }
+  // 录制回放（US-909 阶段 C）默认关：开关打开时才加载录制模块与 rrweb，关时它们不进初始包（FR-022）。
+  // 插件装进当前连接纪元，事件写独立录制库 `<dbName>-replay`；开关在 /replay 页面
+  void whenReplayEnabled(window.localStorage, () => import('./replay-recording'))?.then(({ installReplay }) =>
+    installReplay(db, { dbName, baseHref })
+  );
 
   const devtools = getDevToolsConnector();
   devtools.init(db, getEntityMetadata);

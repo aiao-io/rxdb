@@ -1,0 +1,164 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "mountReplayer",
+        "kind": "value"
+      },
+      {
+        "name": "parseReplayMarker",
+        "kind": "value"
+      },
+      {
+        "name": "REPLAY_BLOCK_SELECTOR",
+        "kind": "value"
+      },
+      {
+        "name": "REPLAY_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "REPLAY_MARKER_TAGS",
+        "kind": "value"
+      },
+      {
+        "name": "ReplayCommitMarker",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerCommitRestoreEvent",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerHandle",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayEventRange",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayEventRecord",
+        "kind": "both"
+      },
+      {
+        "name": "ReplayManager",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayMarker",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayMarkerPayloads",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayMarkerTag",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayRecordingDbFactory",
+        "kind": "type"
+      },
+      {
+        "name": "replayRestoreHint",
+        "kind": "value"
+      },
+      {
+        "name": "ReplayRestoreRejection",
+        "kind": "type"
+      },
+      {
+        "name": "ReplaySessionExport",
+        "kind": "type"
+      },
+      {
+        "name": "ReplaySessionInfo",
+        "kind": "type"
+      },
+      {
+        "name": "ReplaySessionRecord",
+        "kind": "both"
+      },
+      {
+        "name": "ReplaySessionStatus",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayState",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayTruncatedCode",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayUsage",
+        "kind": "type"
+      },
+      {
+        "name": "ResolvedReplayOptions",
+        "kind": "type"
+      },
+      {
+        "name": "rxDBPluginReplay",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginReplay",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBReplayError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBReplayErrorCode",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBReplayOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBReplayRecordOptions",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "MountReplayerSpy",
+        "kind": "both"
+      },
+      {
+        "name": "ReplayerHandleCall",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerParityCase",
+        "kind": "type"
+      },
+      {
+        "name": "replayerParityCases",
+        "kind": "value"
+      },
+      {
+        "name": "ReplayerParityDriver",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerParityInputs",
+        "kind": "type"
+      },
+      {
+        "name": "ReplayerParityOutputs",
+        "kind": "type"
+      }
+    ]
+  }
+}

@@ -163,6 +163,30 @@
       "functions": 99,
       "lines": 97
     },
+    "rxdb-plugin-replay": {
+      "statements": 96,
+      "branches": 89,
+      "functions": 96,
+      "lines": 98
+    },
+    "rxdb-plugin-replay-angular": {
+      "statements": 97,
+      "branches": 93,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-replay-react": {
+      "statements": 96,
+      "branches": 87,
+      "functions": 100,
+      "lines": 100
+    },
+    "rxdb-plugin-replay-vue": {
+      "statements": 95,
+      "branches": 87,
+      "functions": 100,
+      "lines": 100
+    },
     "rxdb-plugin-search": {
       "statements": 93,
       "branches": 84,

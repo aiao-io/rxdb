@@ -168,8 +168,8 @@ DOM，「视觉一致」由构造保证（plan Complexity Tracking）。全量�
 
 - 开关：`localStorage['rxdb-demo-replay-enabled'] === '1'` 才录制，默认关。`/replay` 页上有开关按钮（写键后 reload）、会话列表、
   删除按钮、`<ao-replayer>`。
-- 打开时 `setup_rxdb_sqlite-wasm.ts` 在 `db.init()` 之后 `await import('./replay-recording')`，后者 `db.use(rxDBPluginReplay(db, {
-createRecordingDb: entities => createReplayRecordingDb(\`${dbName}-replay\`, entities) }))`；录制库 = 主线程 IDB sqlite-wasm、
+- 打开时 `setup_rxdb_sqlite-wasm.ts` 在 `db.init()` 之后 `await import('./replay-recording')`，后者 `db.use(rxDBPluginReplay, {
+createRecordingDb: entities => createReplayRecordingDb(\`${dbName}-replay\`, entities) })`；录制库 = 主线程 IDB sqlite-wasm、
 `multiInstance: false`、不装任何插件。关闭时这两个模块都不加载、录制库不建（FR-022）。
 - 页内测试 API `window.__rxdbReplay = { replay, dbName }`（仿阶段 B），e2e 用它直接驱动 `start` / `stop` / `listSessions`。
 - e2e `replay.spec.ts`（8200 强制 IDB 档）：

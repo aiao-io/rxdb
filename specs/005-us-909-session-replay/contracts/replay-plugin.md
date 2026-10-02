@@ -7,11 +7,9 @@
 ```ts
 import { rxDBPluginReplay, REPLAY_ENTITIES } from '@aiao/rxdb-plugin-replay';
 
-rxdb.use(
-  rxDBPluginReplay(rxdb, {
-    createRecordingDb: entities => createMyRecordingDb(`${dbName}-replay`, entities)
-  })
-);
+rxdb.use(rxDBPluginReplay, {
+  createRecordingDb: entities => createMyRecordingDb(`${dbName}-replay`, entities)
+});
 await rxdb.replay.start();
 ```
 

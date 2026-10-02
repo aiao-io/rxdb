@@ -1,0 +1,40 @@
+{
+  "name": "@aiao/rxdb-plugin-replay-angular",
+  "version": "0.0.26",
+  "description": "Angular replayer component for the Aiao RxDB session replay plugin.",
+  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "rrweb",
+    "session-replay",
+    "component"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-replay-angular"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@aiao/rxdb-plugin-replay": "*",
+    "@angular/core": "22.1.6"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-plugin-replay": "workspace:*",
+    "@angular/common": "22.1.6",
+    "@angular/compiler": "22.1.6",
+    "@angular/core": "22.1.6",
+    "@angular/platform-browser": "22.1.6",
+    "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}
