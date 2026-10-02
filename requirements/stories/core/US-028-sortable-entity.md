@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-01
+updated: 2026-10-02
 tags: [core, sortable, model, rxdb-model, tree]
 ---
 
@@ -24,7 +24,7 @@ tags: [core, sortable, model, rxdb-model, tree]
   原样透传，但没有任何组件接它。三框架的 `EntityList` 因此经 `tableOptions` 传 `LIST_TABLE_OPTIONS`
   （`dragOrder: false`）关掉了手柄，即 AC#6 的提前交付；直接渲染 `EntityTable` / `QueryTable` 又不传 `tableOptions`
   的调用方仍拿到默认的拖拽手柄，拖完不落库。`patchDragIconForReadonlyRows` 隐藏 `_readonly` 行与新增行的手柄；
-  `EntityList` 给系统表的行挂 `_readonly`（[US-027](US-027-entity-permission-model.md) AC#16 的列表侧）。
+  `EntityList` 按 `deriveEntityCapabilities()` 给 `canEdit=false` 的行（含系统表）挂 `_readonly`（[US-027](US-027-entity-permission-model.md) 阶段 C）。
 - **排序只存在于树形实体与应用层。** `ISortableTreeEntity`（`@aiao/rxdb-plugin-tree` 的 `tree-entity.interface.ts`：
   `ITreeEntity` 加 `sortOrder?: string | null`）是仓库里唯一的排序类型；`sortOrder` 在 `@aiao/rxdb` 与
   `@aiao/rxdb-model` 中零实现、零读取。三个 demo 应用的树菜单与文件管理页各自调 `@aiao/utils` 的
@@ -50,27 +50,31 @@ tags: [core, sortable, model, rxdb-model, tree]
 
 - **显式 opt-in**：实体级声明，只有一处来源，子类继承、可覆写。名称与挂载位置在 plan 定，两条约束：不叫 `sortable`
   （属性级 / 关系级已用于列头排序）；若放进 `EntityMetadataFeatures`，须先改其「核心不内置任何具体特性」的约定。
-- **字段由开发者显式声明**，引擎不注入：元数据初始化时校验字段存在、类型为 string、可写、非计算字段，违反即抛明确错误。
+- **字段由开发者显式声明**，引擎不注入：元数据初始化时校验字段存在、类型为 string、可写、非计算字段、**不可为 NULL**
+  （`nullable` 为假，两端建表即发 `NOT NULL`），违反即抛明确错误。非空由 DDL 保证，契约里因此没有 NULL 键这一类特殊情况。
 - 未声明但恰好有 `sortOrder` 字段的实体，行为完全不变。`ISortableEntity` 只是 TS 便利类型（被擦除），不是运行期声明。
+- 排序模块导出排序键类型（名称在 plan 定）作为唯一的类型来源：`ISortableEntity` 用它声明非空的 `sortOrder`；
+  树侧的 `ISortableTreeEntity` 用同一个键类型组合出 `sortOrder?: <键类型> | null`，树节点的可空性不变（见阶段 C）。
 
 ### 键不变量
 
-- 已启用实体的持久化不变量：`sortOrder` 非空、由 `@aiao/utils` **默认字母表**生成的合法键、全序列严格递增。
+- 已启用实体的持久化不变量：`sortOrder` 非空（schema 层 `NOT NULL`）、由 `@aiao/utils` **默认字母表**生成的合法键、全序列严格递增。
   `generateKeyBetween(null, null)` 得 `a0`，显式传 `BASE_62_DIGITS` 得 `V0`——禁止混用不同生成配置。
 - **比较规则统一为码点字典序（大小写敏感）**：JS 侧保持 `query-matching.utils.ts` 现有 `<` / `>` 比较器，
-  不得换成 `localeCompare`（`a0Z < a0a`）；SQL 侧对排序键使用二进制比较（SQLite 默认 `BINARY`，PGlite `COLLATE "C"`），
-  并统一 NULL 位置为靠前（与 JS 比较器一致；SQLite 升序默认靠前，PostgreSQL 默认靠后，必须显式指定）。
-  初查、活查询增量合并、刷新三条链路同序。
+  不得换成 `localeCompare`（`a0Z < a0a`）；SQL 侧对排序键使用二进制比较（SQLite 默认 `BINARY`，PGlite `COLLATE "C"`）。
+  初查、活查询增量合并、游标翻页、刷新四条链路同序。键非空，NULL 位置不进入本契约。
 - **只读不写**：查询永不写库，不隐式回填，不自动重编号。
-- **按锚点校验**：每次创建追加 / 重排只校验它读到的锚点（末尾行，或目标位置的前后邻居）。锚点为 NULL / 空串 / 非法格式，
+- **按锚点校验**：每次创建追加 / 重排只校验它读到的锚点（末尾行，或目标位置的前后邻居）。锚点为空串 / 非法格式，
   或前后邻居不满足 `prev < next`（含重复键）时，明确报错、零写入。不得依赖 `generateKeyBetween` 对反向入参的自动交换来「修复」脏序列。
-  被移动行自身的旧键不是锚点——把空键行拖进两个合法邻居之间是合法写入。
-- **历史数据**：给已有实体启用前，存量行由开发者显式回填（如按既定顺序 `generateKeysBetween(null, null, n)`）。
-  未回填时查询按 NULL 靠前、`id asc` 稳定展示，碰到空锚点的写入按上一条报错。
+  被移动行自身的旧键不是锚点——把空串或非法键的行拖进两个合法邻居之间是合法写入。
+- **历史数据**：给已有实体启用即一次 schema 迁移（列改 `NOT NULL`），存量行必须在迁移里由开发者显式回填
+  （如按既定顺序 `generateKeysBetween(null, null, n)`）。未回填的迁移被 DDL 拒绝，不存在「未回填但已启用」的中间态。
 
 ### 查询默认排序
 
 - 已启用实体的查询，调用方**未给 `orderBy`** 时归一化为 `[sortOrder asc, id asc]`；调用方显式给出的 `orderBy` 原样尊重，不追加、不改写。
+- 覆盖 `Repository` 的 `find` / `findAll` / `findOne` / `findOneOrFail` 四个读入口（`count` 不排序，不受影响；
+  `findByCursor` 强制显式 `orderBy`，不走默认）。四者现状不一：`find` 已有 options 归一化，`findAll` 原样下发。
 - 归一化在单一入口完成，结果同时进入 SQL 下发、查询任务缓存键与活查询合并选项，不能只改适配器参数。
 - 三框架 `EntityList` 的 `buildCursorOrderBy()`：`normal` 状态对可排序实体返回 `[sortOrder asc, id asc]`，
   不可排序实体保持 `[id desc]`；列头排序优先，退回 `normal` 恢复手动顺序。
@@ -78,10 +82,12 @@ tags: [core, sortable, model, rxdb-model, tree]
 ### 创建追加
 
 - 用户创建且缺键时追加到序列末尾。必须覆盖的入口：`Repository.create`、`EntityManager.create`、实体 `save()`（新建）、
-  `EntityManager.saveMany` / `mutations` 中的 create、现有级联保存路径中的 create。规范化落在这些入口共同经过的边界，plan 给出位置与覆盖证明。
+  `EntityManager.saveMany` / `mutations` 中的 create、现有级联保存路径中的 create。规范化落在这些入口共同经过的边界，plan 给出位置与覆盖证明，
+  并证明它先于任何非空 / `required` 校验执行（否则缺键创建会先被非空约束拒绝）。
 - 同批 n 条缺键记录按批内顺序一次 `generateKeysBetween(tail, null, n)`，互不碰撞；不得用全局共享默认值。
 - 显式传入合法键原样保留；显式传入非法键明确报错。
-- 非用户来源（同步拉取、恢复、history 回放）原样写入，不分配、不改写已有键；若带入脏键，在下一次以它为锚点的写入时按「按锚点校验」报错。
+- 非用户来源（同步拉取、恢复、history 回放）原样写入，不分配、不改写已有键。带入 NULL 时由 `NOT NULL` 约束当场拒绝该次写入
+  （拉取写入当场失败，不延后到下一次锚点写入；失败粒度随该同步路径的事务边界，plan 写实）；带入空串 / 非法键时，在下一次以它为锚点的写入时按「按锚点校验」报错。
 
 ### 写边界与并发
 
@@ -98,7 +104,7 @@ tags: [core, sortable, model, rxdb-model, tree]
   阶段 B 在三框架 `EntityTable` / `QueryTable` 上新增一个不破坏兼容的移动上下文输出，名称在 plan 定，三端同 API。
 - **写集合最小**：只更新移动行的 `sortOrder` 一个字段；原位拖拽零写；只支持单行（VTable 行序号拖拽本身是单行），多行移动不支持。
 - **事务内复核**：移动行仍存在、两邻居仍存在且仍相邻（之间没有其他行）；任一不成立即拒绝、零写、重查。
-- 只提交 `sortOrder` 的 update，走普通用户写路径（写日志、同步、US-027 写边界若落地自动覆盖），不得借 `saveMany`
+- 只提交 `sortOrder` 的 update，走普通用户写路径（写日志、同步，US-027 的公开写入口判定自动覆盖），不得借 `saveMany`
   把该实例其他未提交字段或关系一并保存。单行写入天然原子；失败时抛出错误，不吞。
 - 启用 `@aiao/rxdb-plugin-history` 的实体，一次拖拽就是一次普通 update，撤销粒度沿用现有 history，本故事不新建撤销边界。
 
@@ -135,7 +141,7 @@ AC#6 已提前交付：三框架 `EntityList` 经 `tableOptions` 关掉了拖拽
 
 - 普通（非树）实体的显式可排序声明、字段校验与 `sortOrder` 键不变量
 - core 排序模块（与树无关）：基于 `@aiao/utils` fractional indexing 的键计算、查询默认排序、创建追加、单行重排
-- SQLite-core 系与 PGlite 上排序键的比较规则与 NULL 位置统一
+- SQLite-core 系与 PGlite 上排序键的比较规则统一（码点序）；可排序字段的非空约束
 - rxdb-model 三框架 `EntityList` 的拖放持久化接线与 UI 启用谓词
 - `ISortableTreeEntity` 改由排序模块的类型组合，旧引用不破坏
 
@@ -155,20 +161,20 @@ AC#6 已提前交付：三框架 `EntityList` 经 `tableOptions` 关掉了拖拽
 
 ## 验收标准
 
-| #   | 前置条件                                                    | 操作                                                                                    | 预期结果                                                                                                                                                        | 状态 |
-| --- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 普通实体显式声明可排序；数据的 `id` 顺序与 `sortOrder` 相反 | 元数据初始化；不带 `orderBy` 与带显式 `orderBy` 查询                                    | 字段缺失 / 非 string / 计算字段 / 不可写在初始化时明确报错；不带 `orderBy` 按 `[sortOrder asc, id asc]`，带则原样；两种查询缓存键隔离，活查询增量合并与初查同序 | ⬜   |
-| 2   | 同上，创建时未提供 sortOrder                                | 依次经「创建追加」列出的每个入口创建；同批创建 n 条；显式传合法 / 非法键；同步拉取写入  | 缺键追加到末尾；同批 n 条按批内顺序、互不碰撞；合法键原样保留，非法键明确报错；同步写入不分配、不改写键                                                         | ⬜   |
-| 3   | 已回填的可排序序列                                          | 经 core 重排 API 把一行移到首、尾、前移、后移、原位；移动前删除该行或在两邻之间插入新行 | 只有移动行的 `sortOrder` 一个字段被写，新键落在两邻之间；原位零写；移动行已删除或邻居不再相邻时拒绝、零写                                                       | ⬜   |
-| 4   | 同一序列                                                    | 固定种子性质测试；同一间隙连续最坏插入 1,000 次；用异步屏障固定两次并发追加的读写交错   | 键始终合法且严格递增；1,000 次最坏插入后键长 169（实测预算，本故事只承诺已测预算）；两次并发追加不碰撞；全程无重编号                                            | ⬜   |
-| 5   | 三框架 `EntityList`，可排序实体，满足 UI 启用谓词           | 真实拖拽一行 → DB 重查 → 刷新页面；切到列头排序再退回 `normal`；挂起中再拖；注入写失败  | 顺序持久化且刷新后保持；列头排序优先，退回后恢复手动顺序；挂起期间拒绝新拖拽；失败后恢复到最新已提交顺序并展示错误，下一次拖拽可用                              | ⬜   |
-| 6   | 三框架实体列表，UI 启用谓词不成立                           | 打开列表；程序化触发移动事件                                                            | 不可排序实体、非字符串主键、列头排序、有筛选 / `fixedQuery` / 关联选择、未完整加载、含草稿或待提交编辑，均不显示手柄；强制事件零写入，草稿与原编辑状态保留      | ⚠️   |
-| 7   | 可排序实体列表含只读行（`_readonly`）                       | 打开列表；程序化触发移动事件                                                            | 整表不开拖拽手柄；强制事件零写入；只读行 `sortOrder` 逐字不变                                                                                                   | ⬜   |
-| 8   | 树形实体（含 `ISortableTreeEntity` 引用）                   | 类型检查；跑现有树测试与三端 demo 树拖放                                                | 旧引用编译通过；树查询、创建与 demo 拖放行为不变；树实体不因类型继承自动获得可排序声明；两个父节点下各自从 `a0` 开始的数据不受影响                              | ⬜   |
-| 9   | `@aiao/rxdb-plugin-tree` 与排序模块                         | 类型检查 + 依赖分析                                                                     | `sortOrder` 的类型只在排序模块声明一处，`ISortableTreeEntity` 由它组合而成；排序模块不 import 树插件（依赖方向：tree → sortable）                               | ⬜   |
-| 10  | 未声明可排序的现有实体（含恰好有 `sortOrder` 字段的）       | 原有查询、写入与 UI 操作                                                                | schema、查询顺序、写入、列头排序、`rowReordered` 签名均不变（拖拽手柄已按 AC#6 关闭）                                                                           | ⬜   |
-| 11  | 可排序序列含 NULL / 空串 / 非法 / 重复 / 异字母表键         | 查询；以这些行为锚点创建追加或重排；把空键行拖进两个合法邻居之间                        | 查询不写库；锚点违反不变量时明确报错、零写；空键行移入合法邻居之间成功；同一数据在 SQLite 与 PGlite 的初查、增量合并、刷新结果一致（码点序，NULL 靠前）         | ⬜   |
-| 12  | 可排序实体的主适配器为 remote-only 或 QueryCache            | 缺键创建；调用重排 API                                                                  | 明确报错，不读本地缓存子集算键                                                                                                                                  | ⬜   |
+| #   | 前置条件                                                              | 操作                                                                                                              | 预期结果                                                                                                                                                                                                                             | 状态 |
+| --- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 普通实体显式声明可排序；数据的 `id` 顺序与 `sortOrder` 相反           | 元数据初始化；不带 `orderBy` 与带显式 `orderBy` 查询                                                              | 字段缺失 / 非 string / 计算字段 / 不可写 / `nullable: true` 在初始化时明确报错；`find` / `findAll` / `findOne` / `findOneOrFail` 不带 `orderBy` 按 `[sortOrder asc, id asc]`，带则原样；两种查询缓存键隔离，活查询增量合并与初查同序 | ⬜   |
+| 2   | 同上，创建时未提供 sortOrder                                          | 依次经「创建追加」列出的每个入口创建；同批创建 n 条；显式传合法 / 非法键；同步拉取写入                            | 缺键追加到末尾；同批 n 条按批内顺序、互不碰撞；合法键原样保留，非法键明确报错；同步写入不分配、不改写键                                                                                                                              | ⬜   |
+| 3   | 已回填的可排序序列                                                    | 经 core 重排 API 把一行移到首、尾、前移、后移、原位；移动前删除该行或在两邻之间插入新行                           | 只有移动行的 `sortOrder` 一个字段被写，新键落在两邻之间；原位零写；移动行已删除或邻居不再相邻时拒绝、零写                                                                                                                            | ⬜   |
+| 4   | 同一序列                                                              | 固定种子性质测试；同一间隙两个方向（贴下界、贴上界）各连续最坏插入 1,000 次；用异步屏障固定两次并发追加的读写交错 | 键始终合法且严格递增；1,000 次最坏插入后键长贴下界 169、贴上界 202（实测预算，本故事只承诺已测预算）；两次并发追加不碰撞；全程无重编号                                                                                               | ⬜   |
+| 5   | 三框架 `EntityList`，可排序实体，满足 UI 启用谓词                     | 真实拖拽一行 → DB 重查 → 刷新页面；切到列头排序再退回 `normal`；挂起中再拖；注入写失败                            | 顺序持久化且刷新后保持；列头排序优先，退回后恢复手动顺序；挂起期间拒绝新拖拽；失败后恢复到最新已提交顺序并展示错误，下一次拖拽可用                                                                                                   | ⬜   |
+| 6   | 三框架实体列表，UI 启用谓词不成立                                     | 打开列表；程序化触发移动事件                                                                                      | 不可排序实体、非字符串主键、列头排序、有筛选 / `fixedQuery` / 关联选择、未完整加载、含草稿或待提交编辑，均不显示手柄；强制事件零写入，草稿与原编辑状态保留                                                                           | ⚠️   |
+| 7   | 可排序实体列表含只读行（`_readonly`）                                 | 打开列表；程序化触发移动事件                                                                                      | 整表不开拖拽手柄；强制事件零写入；只读行 `sortOrder` 逐字不变                                                                                                                                                                        | ⬜   |
+| 8   | 树形实体（含 `ISortableTreeEntity` 引用）                             | 类型检查；跑现有树测试与三端 demo 树拖放                                                                          | 旧引用编译通过；树查询、创建与 demo 拖放行为不变；树实体不因类型继承自动获得可排序声明；两个父节点下各自从 `a0` 开始的数据不受影响                                                                                                   | ⬜   |
+| 9   | `@aiao/rxdb-plugin-tree` 与排序模块                                   | 类型检查 + 依赖分析                                                                                               | 排序键类型只在排序模块声明一处，`ISortableTreeEntity` 由它组合而成且 `sortOrder` 保持 `?: … \| null`；排序模块不 import 树插件（依赖方向：tree → sortable）                                                                          | ⬜   |
+| 10  | 未声明可排序的现有实体（含恰好有 `sortOrder` 字段的）                 | 原有查询、写入与 UI 操作                                                                                          | schema、查询顺序、写入、列头排序、`rowReordered` 签名均不变（拖拽手柄已按 AC#6 关闭）                                                                                                                                                | ⬜   |
+| 11  | 可排序序列含空串 / 非法 / 重复 / 异字母表键；另有带 NULL 键的同步拉取 | 查询与游标翻页；以这些行为锚点创建追加或重排；把空串键行拖进两个合法邻居之间；同步写入 NULL 键                    | 查询不写库；锚点违反不变量时明确报错、零写；空串键行移入合法邻居之间成功；NULL 键写入被 `NOT NULL` 拒绝；同一数据在 SQLite 与 PGlite 的初查、增量合并、游标翻页、刷新结果一致（码点序）                                              | ⬜   |
+| 12  | 可排序实体的主适配器为 remote-only 或 QueryCache                      | 缺键创建；调用重排 API                                                                                            | 明确报错，不读本地缓存子集算键                                                                                                                                                                                                       | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -196,11 +202,14 @@ AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `enti
 - **事务能力已有**：`EntityManager.mutations` 路由到主适配器，`RxDBAdapterSqliteBase.mutations` 与
   `RxDBAdapterPGlite.mutations` 已经在 transaction 内执行批量变更；Angular `EntityList` 的 `#flushPending` 保存旧值并在失败时回滚内存。
   本故事复用这些能力，不新建事务机制。
-- **NULL 与排序规则的后端差异**：同一 `[NULL, a0, a1]` 升序，SQLite 得 `[NULL, a0, a1]`，PGlite 得 `[a0, a1, NULL]`；
-  `query_sql.ts` 的 `build_order_by` 两端都不补 NULL / collation 策略。fractional-indexing 上游要求大小写敏感排序、提醒
+- **为什么强制非空**：fractional-indexing 的键是字符串，NULL 不是合法键，以 NULL 行做锚点生成不出新键；
+  `nullable: false` 让 DDL 直接挡住同步拉取的 NULL 键（场景 11），锚点校验不必再处理 NULL。可空列的列头排序本身
+  已统一：NULL 视为最小值（升序靠前、降序靠后，与 JS 比较器、SQLite 默认一致），PGlite `build_order_by` 与
+  Supabase `order` 只对可空列补 NULLS 子句，`Repository` 的 `_generate_cursor_rule_group` 把游标落在 NULL 行的情形
+  展开成 `IS NULL` / `IS NOT NULL` 分支。`build_order_by` 两端都不补 collation 策略。fractional-indexing 上游要求大小写敏感排序、提醒
   `localeCompare` 会排错；PostgreSQL collation 会影响字符串排序，`C` 使用字符编码顺序。
 - **权限**：重排是 update 的一种，与其他 update 走同一条写路径，本故事不为权限单独接线。
-  [US-027](US-027-entity-permission-model.md) 若落地，其写边界拒绝无权 update，其阶段 C 给 `canEdit=false` 的行挂
+  [US-027](US-027-entity-permission-model.md) 的公开写入口判定拒绝 `update: 'system'` 实体的 update，其阶段 C 给 `canEdit=false` 的行挂
   `_readonly`（列表因此不开手柄），两者都自动覆盖重排；本故事不依赖 US-027。
 - **现有资产复用**：`table-factory.ts` 的 `dragOrder: true`、三框架 `EntityTable` / `QueryTable` 的 `rowReordered` 与
   `tableOptions`、`patchDragIconForReadonlyRows` 与 `collectReorderedIds` 均已有单测，接线时不动其 API。
@@ -209,6 +218,8 @@ AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `enti
   `@aiao/rxdb-plugin-tree` 依赖 `@aiao/rxdb`，core 反向 import 树插件会被 nx 项目图判成环，AC#9 的依赖方向因此有现成门禁。
 - **树只做类型兼容**：树键只在兄弟集合内有意义，不同父节点可以重复（`FileDragDropService` 先按目标 `parentId` 筛兄弟再取相邻键），
   与本故事的「整表一条序列」不同。阶段 C 只迁移类型来源，树要复用排序引擎行为须另立故事定义兄弟域。
+  树实体的 `sortOrder` 列声明为 `nullable: true`（如 `rxdb-test` 的 `MenuSimple`），所以阶段 C 组合的是键类型而不是
+  非空的 `ISortableEntity`——直接继承会把树的 `sortOrder` 收窄成非空，破坏 AC#8。
 
 ## 价值待证
 
@@ -224,6 +235,9 @@ AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `enti
 或有调用方直接渲染 `EntityTable` / `QueryTable` 并要把移动结果落库。届时一并上调优先级，排序契约与交付阶段不变；
 真实调用方若需要分组排序域或只读混排，先改本故事的范围再排期。
 
+两条都未满足：唯一的扁平演示实体 `rxdb-test` 的 `Todo` 只有 `title` / `completed`，`modules/angular-todo` 无拖拽；
+apps / modules / website 无 `EntityTable` / `QueryTable` 直接调用；仓库 issue 无排序需求。不得为满足解锁条件给演示实体加排序字段。
+
 ## 实现文件
 
 | 阶段 | 文件                                                                                                                                                                                          | 说明                                                      |
@@ -232,7 +246,7 @@ AC#6 的保留：三框架 `EntityList` 已传 `dragOrder: false`，三端 `enti
 | A    | `packages/rxdb/src/entity/`                                                                                                                                                                   | 基于 `@aiao/utils` 的排序键封装、锚点校验、单行重排（新） |
 | A    | `packages/rxdb/src/entity/entity-options.interface.ts` / `metadata-validate.ts`                                                                                                               | 可排序声明与字段校验                                      |
 | A    | `packages/rxdb/src/repository/`、`packages/rxdb/src/entity/entity-manager.ts`                                                                                                                 | 查询默认排序归一化、各创建入口的追加规范化                |
-| A    | `packages/rxdb-adapter-sqlite-core/src/query/query_sql.ts`、`packages/rxdb-adapter-pglite/src/query/query_sql.ts`                                                                             | 排序键二进制比较与 NULL 位置统一                          |
+| A    | `packages/rxdb-adapter-sqlite-core/src/query/query_sql.ts`、`packages/rxdb-adapter-pglite/src/query/query_sql.ts`                                                                             | 排序键二进制比较（PGlite `COLLATE "C"`）                  |
 | B    | `packages/rxdb-model/src/entity-table/`                                                                                                                                                       | UI 启用谓词、移动上下文、重排写入协调                     |
 | B    | 三框架 `entity-table` / `query-table`                                                                                                                                                         | 新增移动上下文输出，`rowReordered` 不变                   |
 | B    | `packages/rxdb-model-angular/src/entity-list/entity-list.component.ts`、`packages/rxdb-model-react/src/entity-list/entity-list.tsx`、`packages/rxdb-model-vue/src/entity-list/EntityList.vue` | `normal` 排序接线、拖拽持久化、挂起 / 失败状态，三端同交  |

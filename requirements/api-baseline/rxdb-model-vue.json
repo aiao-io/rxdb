@@ -178,6 +178,10 @@
         "kind": "value"
       },
       {
+        "name": "deriveEntityCapabilities",
+        "kind": "value"
+      },
+      {
         "name": "DetailFormTab",
         "kind": "type"
       },
@@ -212,6 +216,10 @@
       {
         "name": "ENTITY_TABLE_CONFIG",
         "kind": "value"
+      },
+      {
+        "name": "EntityCapabilities",
+        "kind": "type"
       },
       {
         "name": "EntityDetail",
@@ -680,6 +688,10 @@
       {
         "name": "QueryTable",
         "kind": "value"
+      },
+      {
+        "name": "RecordDeletePredicate",
+        "kind": "type"
       },
       {
         "name": "refocusTable",

@@ -1,4 +1,5 @@
 import { Observable } from 'rxjs';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../entity/entity-permissions.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES, RelationEntityObservable, RxDBEntityId, UUID } from '../entity/entity.interface.js';
 import { PropertyType, RelationKind } from '../entity/metadata-options.interface.js';
@@ -25,6 +26,7 @@ import { RxDBChangeOrderByField, RxDBChangeRuleGroup, RxDBChangeStaticTypes } fr
   name: 'RxDBChange',
   tableName: 'rxdb_change',
   log: false, // 此实体本身不记录变更日志，避免递归记录
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

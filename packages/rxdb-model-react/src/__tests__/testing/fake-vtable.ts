@@ -31,6 +31,13 @@ export const getLastListTable = (): FakeListTable => {
   return lastInstance;
 };
 
+/** 尚未 release 的表格实例（一个页面同时渲染多张表时，按容器定位用）。 */
+const liveInstances = new Set<FakeListTable>();
+
+/** 取渲染在 `root` 之内、尚未 release 的 {@link FakeListTable} 实例。 */
+export const getListTablesIn = (root: Element): FakeListTable[] =>
+  [...liveInstances].filter(table => root.contains(table.container));
+
 /**
  * 打桩版 ListTable。
  *
@@ -66,6 +73,11 @@ export class FakeListTable {
     return this.#records;
   }
 
+  /** 当前列定义（测试取单元格回调用：图标、编辑器）。 */
+  get columns(): Column[] {
+    return this.#columns;
+  }
+
   constructor(
     readonly container: HTMLElement,
     readonly options: Record<string, unknown>
@@ -75,6 +87,7 @@ export class FakeListTable {
     // 有意为之：测试句柄的全局单例登记（非 this 别名）
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastInstance = this;
+    liveInstances.add(this);
   }
 
   /** 注册事件监听（真实 VTable 同签名）。 */
@@ -129,6 +142,7 @@ export class FakeListTable {
 
   release(): void {
     this.#released = true;
+    liveInstances.delete(this);
   }
 
   /** 当前选中单元格（keydown 删除路径读它；测试经 selectedCellInfos 字段配置）。 */

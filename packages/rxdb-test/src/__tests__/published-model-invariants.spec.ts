@@ -36,7 +36,7 @@ describe('published model invariants', () => {
   it('exports at least the documented entity count', () => {
     // 防止 index.ts 的 `ENTITIES` 与目录里的文件脱节 —— 漏登记的实体不会被建表，
     // 症状是运行时「表不存在」，而不是编译错误。
-    expect(DEMO_ENTITIES).toHaveLength(9);
+    expect(DEMO_ENTITIES).toHaveLength(13);
     expect(SHOP_ENTITIES).toHaveLength(10);
   });
 
@@ -106,6 +106,18 @@ describe('published model invariants', () => {
     });
 
     expect(dangling).toEqual([]);
+  });
+
+  it('declares the US-027 permission demos exactly as the three demo apps rely on', () => {
+    // 三端 e2e 按这几张表的权限断言新增 / 删除入口与行只读；声明漂移时在这里先破，
+    // 而不是在浏览器里看到「怎么又能删了」。
+    const permissionsOf = (name: Capitalize<string>): EntityMetadata['permissions'] =>
+      BY_ENTITY_NAME.get(name)?.permissions;
+
+    expect(permissionsOf('AuditLog')).toEqual({ create: 'system', update: 'both', delete: 'both' });
+    expect(permissionsOf('Invoice')).toEqual({ create: 'both', update: 'system', delete: 'both' });
+    expect(permissionsOf('Contract')).toEqual({ create: 'both', update: 'both', delete: 'system' });
+    expect(permissionsOf('Account')).toBeUndefined();
   });
 
   it('gives every enum property a non-empty set of allowed values', () => {

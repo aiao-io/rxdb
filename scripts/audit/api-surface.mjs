@@ -467,7 +467,23 @@ const NAMING = {
     'isEntitySyncResolver',
     'toEntitySyncResolver',
     'RxDBSyncOverrideError',
-    'RxDBSyncOverrideErrorReason'
+    'RxDBSyncOverrideErrorReason',
+    // US-027 实体操作权限模型。`EntityMetadataOptions.permissions` 的声明类型、按操作就近继承后的读取、
+    // 公开写入口的判定原语与 `PermissionDeniedError` 是调用方写声明、按违规清单分支时必须能命名的符号；
+    // `assertSystemEntityPermissions` 与 `SYSTEM_ENTITY_PERMISSIONS` 让插件贡献的系统表与核心 4 张表
+    // 按同一份声明校验。它们是实体声明与写入口的契约，与工作树、提交能力都无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称操作权限是提交能力的一部分。
+    'assertEntityOperationAllowed',
+    'assertMutationsAllowed',
+    'assertSystemEntityPermissions',
+    'ENTITY_OPERATIONS',
+    'EntityOperation',
+    'EntityOperationPermission',
+    'EntityPermissionOptions',
+    'getEntityPermission',
+    'PermissionDeniedError',
+    'PermissionViolation',
+    'SYSTEM_ENTITY_PERMISSIONS'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

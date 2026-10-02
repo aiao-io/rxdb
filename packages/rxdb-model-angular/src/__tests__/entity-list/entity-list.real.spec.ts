@@ -1,6 +1,6 @@
-import { RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { EntityBase, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import type { EntityTableRecord } from '@aiao/rxdb-model';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Account, AuditLog, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -63,7 +63,7 @@ describe('EntityListComponent（真实组件）', () => {
         }
       }
     );
-    rxdb = createInMemoryRxdb([Todo as unknown as EntityType]);
+    rxdb = createInMemoryRxdb([Todo, Account, AuditLog, Invoice, Contract] as unknown as EntityType[]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -109,14 +109,15 @@ describe('EntityListComponent（真实组件）', () => {
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
   /**
-   * 查询当前落库的 title 列表（升序）。
+   * 查询实体当前落库的 title 列表（升序）。
    *
    * @remarks 活查询任务可能跨用例驻留（历史管理器/未退订订阅持有），
    * 首次发射可能是热启动的旧缓存 —— 等增量合并落地后取最后一次发射。
    */
-  const findTitles = async (): Promise<string[]> => {
+  const titlesOf = async (entityType: EntityType): Promise<string[]> => {
     const seen: string[][] = [];
-    const subscription = repoOf()
+    const subscription = rxdb.entityManager
+      .getRepository(entityType)
       .find({ where: { combinator: 'and', rules: [] }, orderBy: [{ field: 'title', sort: 'asc' }] } as never)
       .subscribe(rows => seen.push(rows.map(r => (r as unknown as { title: string }).title)));
     await FLUSH();
@@ -124,6 +125,7 @@ describe('EntityListComponent（真实组件）', () => {
     subscription.unsubscribe();
     return seen.at(-1) ?? [];
   };
+  const findTitles = (): Promise<string[]> => titlesOf(Todo as unknown as EntityType);
 
   it('namespace/name 输入驱动 InfiniteScrollingList 加载真实数据', async () => {
     await seedTodo('alpha');
@@ -482,6 +484,91 @@ describe('EntityListComponent（真实组件）', () => {
     expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
     expect(component.tableRecords().length).toBeGreaterThan(0);
     expect(component.tableRecords().every(r => r['_readonly'] === true)).toBe(true);
+  });
+
+  describe('US-027 新增 / 编辑 / 删除入口按实体 permissions 派生', () => {
+    type IconColumn = { field?: string; icon: (args: unknown) => Array<{ name: string }> };
+    type EditorColumn = { field?: string; editor: (args: unknown) => unknown };
+
+    /** 某一行操作列给出的图标名（去重） */
+    function actionIconNames(fixture: ComponentFixture<EntityListComponent>, row: number): string[] {
+      const columns = fixture.componentInstance.tableColumns() as unknown as IconColumn[];
+      const col = columns.findIndex(c => c.field === 'actions') + 1;
+      return [...new Set(columns[col - 1].icon({ table: tableOf(fixture), col, row }).map(i => i.name))];
+    }
+
+    /** 某一行 title 单元格的编辑器（`undefined` 即不可编辑） */
+    function titleEditorOf(fixture: ComponentFixture<EntityListComponent>, row: number): unknown {
+      const columns = fixture.componentInstance.tableColumns() as unknown as EditorColumn[];
+      const col = columns.findIndex(c => c.field === 'title') + 1;
+      return columns[col - 1].editor({ table: tableOf(fixture), col, row });
+    }
+
+    const rowOf = (component: EntityListComponent, id: string): number =>
+      component.tableRecords().findIndex(r => r['id'] === id) + 1;
+
+    it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
+      const log = new AuditLog({ message: 'seeded-by-system' });
+      await adapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([[AuditLog as unknown as EntityType, new Set([log])]]),
+        update: new Map(),
+        remove: new Map()
+      });
+      const { fixture, component } = await renderList({ name: 'AuditLog' });
+      await FLUSH();
+
+      expect(component.isCreateBlocked()).toBe(true);
+      expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
+      expect(component.tableRecords().map(r => r['_readonly'])).toEqual([undefined]);
+      expect(actionIconNames(fixture, 1)).toEqual(['view-action', 'delete-action']);
+    });
+
+    it('未声明 permissions 的实体照常提供新增', async () => {
+      const { fixture, component } = await renderList();
+
+      expect(component.isCreateBlocked()).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain('+ 新增');
+    });
+
+    it('AC#11 update: system 的实体：行只读、单元格无编辑器，删除仍可用并真实删除', async () => {
+      const keep = new Invoice({ title: 'keep' });
+      const victim = new Invoice({ title: 'victim' });
+      await keep.save();
+      await victim.save();
+      const { fixture, component } = await renderList({ name: 'Invoice' });
+      await FLUSH();
+
+      expect(component.isCreateBlocked()).toBe(false);
+      expect(component.tableRecords().every(r => r['_readonly'] === true)).toBe(true);
+      const row = rowOf(component, victim.id);
+      expect(titleEditorOf(fixture, row)).toBeUndefined();
+      expect(actionIconNames(fixture, row)).toEqual(['view-action', 'delete-action']);
+
+      const col = (component.tableColumns() as Array<{ field?: string }>).findIndex(c => c.field === 'actions') + 1;
+      tableOf(fixture).emit('icon_click', { name: 'delete-action', col, row });
+      await FLUSH();
+      await FLUSH();
+
+      expect(await titlesOf(Invoice as unknown as EntityType)).toEqual(['keep']);
+    });
+
+    it('AC#12 delete: system 的实体：行可编辑并落库，操作列只剩查看', async () => {
+      const contract = new Contract({ title: 'draft-terms' });
+      await contract.save();
+      const { fixture, component } = await renderList({ name: 'Contract' });
+      await FLUSH();
+
+      const row = rowOf(component, contract.id);
+      expect(component.tableRecords()[row - 1]['_readonly']).toBeUndefined();
+      expect(titleEditorOf(fixture, row)).toBeDefined();
+      expect(actionIconNames(fixture, row)).toEqual(['view-action']);
+
+      const col = (component.tableColumns() as Array<{ field?: string }>).findIndex(c => c.field === 'title') + 1;
+      tableOf(fixture).emit('change_cell_value', { col, row, changedValue: 'final-terms' });
+      await FLUSH();
+
+      expect(await titlesOf(Contract as unknown as EntityType)).toEqual(['final-terms']);
+    });
   });
 
   it('onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性', async () => {
@@ -974,6 +1061,26 @@ describe('EntityListComponent（真实组件）', () => {
       b.textContent?.includes('取消')
     );
     cancel?.click();
+    await FLUSH();
+    expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口', async () => {
+    const { fixture, component } = await renderList({ namespace: 'rxdb', name: 'RxDBBranch' });
+    await FLUSH();
+    const record = component.tableRecords()[0];
+    expect(record?.['_readonly']).toBe(true);
+
+    await component.onIconClicked({ name: 'view-action', record: record! });
+    await vi.waitFor(() => {
+      const form = document.body.querySelector('.cdk-dialog-container form');
+      expect(form?.textContent).toContain(record!['id'] as string);
+      expect(form?.querySelectorAll('input, select, textarea')).toHaveLength(0);
+      expect(form?.textContent).not.toContain('保存');
+    });
+
+    document.body.querySelector<HTMLButtonElement>('.cdk-dialog-container button[aria-label="关闭"]')?.click();
     await FLUSH();
     expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
     fixture.destroy();

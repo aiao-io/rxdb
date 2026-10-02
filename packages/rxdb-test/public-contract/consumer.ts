@@ -67,11 +67,15 @@ import {
   SENTINEL_JSON
 } from '@aiao/rxdb-test/encrypted';
 import {
+  Account,
   Article,
+  AuditLog,
   Comment,
+  Contract,
   ENTITIES as entityTypes,
   FileLarge,
   FileNode,
+  Invoice,
   MenuLarge,
   MenuSimple,
   Todo,
@@ -208,8 +212,12 @@ void [
   todoFindOptions,
   entityTypes,
   todo,
+  Account,
   Article,
+  AuditLog,
   Comment,
+  Contract,
+  Invoice,
   FileLarge,
   FileNode,
   MenuLarge,

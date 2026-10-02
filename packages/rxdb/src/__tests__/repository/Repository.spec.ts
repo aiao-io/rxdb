@@ -465,6 +465,88 @@ describe('Repository', () => {
     expect(result[1]).toBe(second);
   });
 
+  // 游标谓词对 NULL 的展开。排序约定 NULL 是最小值（与 `compareOrderValues` 一致：asc 靠前、desc 靠后）。
+  // 原实现按「排序列非空」生成 `{ field, '>', null }`：SQLite 对 null 配合非等值操作符直接抛错，
+  // PGlite 下 `> NULL` 恒假、后续页为空——行被静默丢掉。
+  describe('findByCursor 游标值为 NULL', () => {
+    const orderByValueAsc = [
+      { field: 'value', sort: 'asc' },
+      { field: 'id', sort: 'asc' }
+    ];
+    const cursorGroupOf = async (options: Partial<FindByCursorOptions<TestEntityCtor>>) => {
+      const { repository, localRepo } = setupRepository();
+      localRepo.find.mockResolvedValue([]);
+      await firstValueFrom(
+        repository.findByCursor({ where: baseWhere(), ...options } as FindByCursorOptions<TestEntityCtor>)
+      );
+      return localRepo.find.mock.calls[0][0].where.rules[0];
+    };
+
+    it('after 且游标列为 NULL：之后的行是同为 NULL 且 id 更大的行，加上全部非 NULL 行', async () => {
+      const cursor = createEntity('entity-1', { value: null as unknown as number });
+      const group = await cursorGroupOf({ orderBy: orderByValueAsc, after: cursor } as never);
+      expect(group).toEqual({
+        combinator: 'or',
+        rules: [
+          { combinator: 'and', rules: [{ field: 'value', operator: 'notNull' }] },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'value', operator: 'null' },
+              { field: 'id', operator: '>', value: 'entity-1' }
+            ]
+          }
+        ]
+      });
+    });
+
+    it('before 且游标列为 NULL：比 NULL 更小的值不存在，只剩同为 NULL 且 id 更小的行', async () => {
+      const cursor = createEntity('entity-1', { value: null as unknown as number });
+      const group = await cursorGroupOf({ orderBy: orderByValueAsc, before: cursor } as never);
+      expect(group).toEqual({
+        combinator: 'or',
+        rules: [
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'value', operator: 'null' },
+              { field: 'id', operator: '<', value: 'entity-1' }
+            ]
+          }
+        ]
+      });
+    });
+
+    it('游标列非空但要取更小的一侧：NULL 行同样排在更小的一侧，不能被 `<` 漏掉', async () => {
+      const cursor = createEntity('entity-1', { value: 5 });
+      const group = await cursorGroupOf({ orderBy: orderByValueAsc, before: cursor } as never);
+      expect(group).toEqual({
+        combinator: 'or',
+        rules: [
+          {
+            combinator: 'and',
+            rules: [
+              {
+                combinator: 'or',
+                rules: [
+                  { field: 'value', operator: '<', value: 5 },
+                  { field: 'value', operator: 'null' }
+                ]
+              }
+            ]
+          },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'value', operator: '=', value: 5 },
+              { field: 'id', operator: '<', value: 'entity-1' }
+            ]
+          }
+        ]
+      });
+    });
+  });
+
   it('get 在未找到实体时抛出错误', async () => {
     const { repository, localRepo } = setupRepository();
     localRepo.find.mockResolvedValue([]);

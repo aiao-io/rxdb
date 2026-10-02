@@ -38,6 +38,14 @@
         "kind": "value"
       },
       {
+        "name": "assertEntityOperationAllowed",
+        "kind": "value"
+      },
+      {
+        "name": "assertMutationsAllowed",
+        "kind": "value"
+      },
+      {
         "name": "assertOptionalNonNegativeSafeInteger",
         "kind": "value"
       },
@@ -51,6 +59,10 @@
       },
       {
         "name": "assertSupportedRxDBSystemVersions",
+        "kind": "value"
+      },
+      {
+        "name": "assertSystemEntityPermissions",
         "kind": "value"
       },
       {
@@ -306,6 +318,10 @@
         "kind": "value"
       },
       {
+        "name": "ENTITY_OPERATIONS",
+        "kind": "value"
+      },
+      {
         "name": "ENTITY_REMOTE_CREATE_EVENT",
         "kind": "value"
       },
@@ -423,6 +439,18 @@
       },
       {
         "name": "EntityMutationsOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperation",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperationPermission",
+        "kind": "type"
+      },
+      {
+        "name": "EntityPermissionOptions",
         "kind": "type"
       },
       {
@@ -643,6 +671,10 @@
       },
       {
         "name": "getEntityMutations",
+        "kind": "value"
+      },
+      {
+        "name": "getEntityPermission",
         "kind": "value"
       },
       {
@@ -1103,6 +1135,14 @@
       },
       {
         "name": "PercentageFormat",
+        "kind": "type"
+      },
+      {
+        "name": "PermissionDeniedError",
+        "kind": "both"
+      },
+      {
+        "name": "PermissionViolation",
         "kind": "type"
       },
       {
@@ -2115,6 +2155,10 @@
       },
       {
         "name": "SYSTEM_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "SYSTEM_ENTITY_PERMISSIONS",
         "kind": "value"
       },
       {

@@ -2,6 +2,7 @@ import { isPromise, LifecycleScope } from '@aiao/utils';
 import { BehaviorSubject, defer, distinctUntilChanged, filter, map, Observable, shareReplay, switchMap } from 'rxjs';
 import type { WorkingTreeCaptureHook } from './capture/capture-interceptor.js';
 import { EntityManager } from './entity/entity-manager.js';
+import { assertSystemEntityPermissions } from './entity/entity-permissions.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
 import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
@@ -659,6 +660,8 @@ export class RxDB {
     try {
       // 插件贡献的系统表要等 use() 之后才认得出来，构造期那一轮只核得了模块级登记簿
       assertNoSystemEntityOverride(this.#config.syncOverrides ?? [], this.systemEntities);
+      // 同一时点核对系统表的权限声明：漏写的表在 UI 上会露出新增 / 编辑 / 删除入口
+      assertSystemEntityPermissions(this.systemEntities);
       this.schemaManager.init();
       this.entityManager.init();
       if (this.#config.multiInstance !== false) this.#init_gateway();

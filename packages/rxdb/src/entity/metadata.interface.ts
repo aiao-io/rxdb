@@ -8,6 +8,7 @@ import {
   EntityForeignKeyMetadata,
   EntityIndexMetadataOptions,
   EntityMetadataOptions,
+  EntityPermissionOptions,
   EntityPropertyMetadata,
   EntityRelationMetadata
 } from './metadata-options.interface.js';
@@ -27,6 +28,14 @@ export interface EntityMetadataType extends SetRequired<
   relations: EntityRelationMetadata[];
   indexes: EntityIndexMetadata[];
   foreignKeys: EntityForeignKeyMetadata[];
+
+  /**
+   * 沿原型链按操作就近合并后的写操作权限
+   *
+   * @remarks
+   * 链上有任何一层声明过就三键补齐；整条链都没声明时不写这个键，读取一律经 `getEntityPermission()`。
+   */
+  permissions?: Readonly<Required<EntityPermissionOptions>>;
 
   /**
    * 实体所有属性的映射

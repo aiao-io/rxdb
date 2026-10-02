@@ -14,7 +14,6 @@
 import {
   RelationKind,
   getEntityMetadata,
-  isSystemEntity,
   type EntityType,
   type FindByCursorOptions,
   type HistoryScopeAPI
@@ -24,6 +23,7 @@ import {
   buildEditableColumns,
   buildFormFields,
   cn,
+  deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
   parsePropertyColumnValue,
@@ -280,8 +280,12 @@ export function EntityList({
   // Map.has 先验证再取值：与 Angular 侧 #entityCls 同语义，且满足 CodeQL CWE-915 的白名单取值模式
   const entityCls = entityClsMap.has(entityKey) ? entityClsMap.get(entityKey) : undefined;
 
-  /** 当前实体是否为 RxDB 注入的系统表（整表只读）。 */
-  const isSystemTable = entityCls !== undefined && isSystemEntity(entityCls);
+  /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined`。 */
+  const capabilities = useMemo(
+    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls)) : undefined),
+    [entityCls]
+  );
+  const isRowReadonly = capabilities?.canEdit === false;
 
   // ── 历史 / 撤销重做（@aiao/rxdb-plugin-history 装配的 versionManager）──
   const vHistory = useMemo<HistoryScopeAPI>(() => {
@@ -370,8 +374,8 @@ export function EntityList({
     return meta.displayName ?? meta.name;
   }, [entityCls, name]);
 
-  /** 当前实体不接受从列表新增：系统表，或已在祖先创建链路中（循环创建检测）。 */
-  const isCreateBlocked = isSystemTable || creationChain.includes(entityKey);
+  /** 当前实体不接受从列表新增：`create` 只许系统写，或已在祖先创建链路中（循环创建检测）。 */
+  const isCreateBlocked = capabilities?.canCreate === false || creationChain.includes(entityKey);
 
   const queryBuilderFields = useMemo<FieldMetadata[]>(() => {
     if (!entityCls) return [];
@@ -379,7 +383,12 @@ export function EntityList({
   }, [entityCls, modelInfoMap]);
 
   const tableRecords = useMemo<EntityTableRecord[]>(() => {
-    const dbRecords = instances.map(inst => ({ ...(inst as Record<string, unknown>) }));
+    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
+    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+    const dbRecords = instances.map(inst => ({
+      ...(inst as Record<string, unknown>),
+      ...(isRowReadonly ? { _readonly: true } : {})
+    }));
     const draftRecords = localDraftItems.map(inst => ({ ...(inst as Record<string, unknown>) }));
     let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
     if (isSelectMode) {
@@ -387,11 +396,8 @@ export function EntityList({
         .filter(record => !alreadyLinkedIds.has(record['id'] as string))
         .map(record => ({ ...record, __selected: selectedIds.has(record['id'] as string) }));
     }
-    // 系统表整表只读：交给现成的 `_readonly` 行守卫挡住编辑、粘贴与删除；
-    // 操作列对只读行不出图标，「查看」也随之隐藏
-    if (isSystemTable) records = records.map(record => ({ ...record, _readonly: true }));
     return records;
-  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isSystemTable]);
+  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isRowReadonly]);
 
   const columnsCache = useMemo(() => {
     const cache = new Map<string, ColumnDefine[]>();
@@ -423,7 +429,8 @@ export function EntityList({
   }, [rxdb, entityClsMap]);
 
   const tableColumns = useMemo<ColumnDefine[]>(() => {
-    const base = columnsCache.get(entityKey) ?? [actionsColumn('操作', '删除', '查看')];
+    // 未注册实体无元数据可派生，不给删除
+    const base = columnsCache.get(entityKey) ?? [actionsColumn('操作', '删除', () => false, '查看')];
     if (isSelectMode) {
       const withoutActions = base.filter(column => (column as Record<string, unknown>)['field'] !== 'actions');
       return [{ field: '__selected', title: '', cellType: 'checkbox', width: 50 }, ...withoutActions];
@@ -600,7 +607,7 @@ export function EntityList({
     [entityClsMap]
   );
 
-  /** 打开编辑详情对话框（「查看」行）；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
+  /** 打开详情对话框（「查看」行）：`_readonly` 行走 view 模式、其余走 edit；详情数据在打开时快照（Angular 侧 #openViewDialog 同语义）。 */
   const openViewDialog = useCallback(
     (record: EntityTableRecord): void => {
       const id = record['id'];
@@ -610,11 +617,12 @@ export function EntityList({
       const cls = entityClsRef.current;
       if (!cls) return;
       const meta = getEntityMetadata(cls);
+      const formMode = record['_readonly'] === true ? 'view' : 'edit';
       const data: EntityDetailDialogData = {
         metadata: meta,
-        formFields: buildFormFields(meta, 'edit'),
+        formFields: buildFormFields(meta, formMode),
         formData: {},
-        formMode: 'edit',
+        formMode,
         entityId: id,
         editChain: [...editChain, id],
         relatedEntityProvider: makeRelatedEntityProvider(null)

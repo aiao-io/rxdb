@@ -1,4 +1,5 @@
 import { Observable } from 'rxjs';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../entity/entity-permissions.js';
 import { Entity } from '../entity/entity.decorator.js';
 import {
   ENTITY_STATIC_TYPES,
@@ -50,6 +51,7 @@ import { RxDBBranchOrderByField, RxDBBranchRuleGroup, RxDBBranchStaticTypes } fr
   name: 'RxDBBranch',
   tableName: 'rxdb_branch',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',
