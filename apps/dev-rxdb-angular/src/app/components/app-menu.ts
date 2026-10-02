@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
+  LucideArchiveRestore as ArchiveRestore,
   LucideCloud as Cloud,
   LucideCode as Code,
   LucideDatabase as Database,
@@ -208,6 +209,12 @@ export class AppMenu {
       title: 'Working Tree',
       path: '/working-tree',
       icon: GitMerge
+    },
+    {
+      type: 'link',
+      title: '失败归档导入',
+      path: '/failure-archive',
+      icon: ArchiveRestore
     },
     {
       type: 'divider',

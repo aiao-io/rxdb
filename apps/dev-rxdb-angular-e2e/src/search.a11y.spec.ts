@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 import { callSearchApi, gotoSearchPage } from './search-test-api.js';
 
 test.describe('Search Page A11y', () => {

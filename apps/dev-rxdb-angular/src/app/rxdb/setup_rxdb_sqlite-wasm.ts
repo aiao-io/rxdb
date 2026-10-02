@@ -1,43 +1,23 @@
-import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { getEntityMetadata, RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
-import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
-import { SqliteGraphRepository } from '@aiao/rxdb-plugin-graph/sqlite';
-import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
-import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
-import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
-import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import {
   getE2eDbName,
   installSearchDemoTestApi,
   SEARCH_PARITY_ARTICLES,
   SEARCH_PARITY_COMMENTS
 } from '@aiao/rxdb-test';
-import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
-import { Article, Comment, ENTITIES } from '@aiao/rxdb-test/entities';
-import { ENTITIES as shop_entities } from '@aiao/rxdb-test/shop';
+import { Article, Comment } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
-import { GRAPH_REPOSITORY_NAME, withSqliteWasmRepository } from './sqlite-wasm-repositories';
-import { installUs909Spike } from './us909-spike';
+import { demoRxDBOptions, getSqliteWasmUrl, useDemoPlugins } from './demo-rxdb-config';
+import { getImportedDbName } from './imported-db';
 
 let rxdb: RxDB | null | undefined;
 const DEFAULT_DB_NAME = 'aiao';
-const SEARCH_PLUGIN_CONFIG = { debounce: 300, pageSize: 20, snippetLength: 64 } as const;
 
 /** e2e 需要「未启用 + 有内容」的手动启用路径时，用这个 localStorage 键跳过启动时的自动启用。 */
 const WORKING_TREE_AUTO_ENABLE_SKIP_KEY = 'rxdb-e2e-skip-working-tree-auto-enable';
-
-export function withSqliteWasmGraphRepositories(options: SqliteOptions): SqliteOptions {
-  return withSqliteWasmRepository(options, GRAPH_REPOSITORY_NAME, SqliteGraphRepository);
-}
-
-function getSqliteWasmUrl(baseHref: string, vfs: 'opfs' | 'idb'): string {
-  return vfs === 'opfs' ? `${baseHref}sqlite-wasm/wa-sqlite.wasm` : `${baseHref}sqlite-wasm/wa-sqlite-async.wasm`;
-}
 
 // Angular demo 历史上用 localStorage（跨标签页共享同一隔离名）+ e2e 端口 8200 检测，
 // 这两个差异通过 options 注入，避免破坏既有 spec 期望
@@ -65,68 +45,53 @@ export default () => {
   if (!isBrowser) throw new Error('RxDB setup requires a browser platform');
   const baseHref = inject(APP_BASE_HREF);
   if (rxdb) return rxdb;
-  rxdb = new RxDB({
-    dbName: getAngularDbName(),
-    context: { userId: 'userId' },
-    entities: [...ENTITIES, ...shop_entities, EncryptedUser],
-    sync: {
-      local: {
-        adapter: 'sqlite-wasm'
-      },
-      type: SyncType.None
+  // 导入页恢复出来的库（US-909 阶段 B）：恢复经主线程 IDB 写入，打开它也必须走 IDB
+  const importedDbName = getImportedDbName(window.localStorage);
+  const dbName = importedDbName ?? getAngularDbName();
+  const forceIdb = importedDbName !== null || window.location.port === '8200';
+  const db = new RxDB(demoRxDBOptions(dbName));
+  rxdb = db;
+  useDemoPlugins(db, async () => {
+    const opfsAvailable = !forceIdb && (await checkOPFSAvailable());
+    if (opfsAvailable) {
+      return {
+        vfs: 'opfs',
+        wasmUrl: getSqliteWasmUrl(baseHref, 'opfs'),
+        worker: true,
+        workerInstance: new Worker(new URL('./sqlite-wasm.worker', import.meta.url), {
+          type: 'module',
+          name: 'rxdb-sqlite-wasm-worker'
+        })
+      };
     }
+    return {
+      vfs: 'idb',
+      wasmUrl: getSqliteWasmUrl(baseHref, 'idb'),
+      sharedWorker: true,
+      sharedWorkerInstance: new SharedWorker(new URL('./sqlite-wasm-shared.worker', import.meta.url), {
+        type: 'module',
+        name: 'rxdb-sqlite-wasm-shared-worker'
+      })
+    };
   });
-  rxdb
-    .use(rxDBPluginGraph)
-    .use(rxDBPluginHistory)
-    .use(rxDBPluginStorage)
-    .use(rxDBPluginTree)
-    .use(rxDBPluginWorkspace)
-    // 只装不手动启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
-    // 按在这里等于替所有 demo 页做了这个决定。空库由启动时的 `enableIfEmpty()` 自动启用
-    // （见 `rxdb.init()` 之后那一行）；有内容的库保持未启用，启用走 /working-tree 面板的显式点击。
-    .use(rxDBPluginWorkingTree)
-    .adapter('sqlite-wasm', async db => {
-      let options: SqliteOptions;
-      const forceIdbForE2E = typeof window !== 'undefined' && window.location.port === '8200';
-      const opfsAvailable = !forceIdbForE2E && (await checkOPFSAvailable());
-      if (opfsAvailable) {
-        options = {
-          vfs: 'opfs',
-          wasmUrl: getSqliteWasmUrl(baseHref, 'opfs'),
-          worker: true,
-          workerInstance: new Worker(new URL('./sqlite-wasm.worker', import.meta.url), {
-            type: 'module',
-            name: 'rxdb-sqlite-wasm-worker'
-          })
-        };
-      } else {
-        options = {
-          vfs: 'idb',
-          wasmUrl: getSqliteWasmUrl(baseHref, 'idb'),
-          sharedWorker: true,
-          sharedWorkerInstance: new SharedWorker(new URL('./sqlite-wasm-shared.worker', import.meta.url), {
-            type: 'module',
-            name: 'rxdb-sqlite-wasm-shared-worker'
-          })
-        };
-      }
-      return new RxDBAdapterSqlite(db, withSqliteWasmGraphRepositories(options));
-    });
 
-  rxdb.use(rxDBPluginSearch, SEARCH_PLUGIN_CONFIG);
-
-  rxdb.init();
+  db.init();
   // 空库在应用启动时自动初始化工作树；已有内容的库保持未启用，由 /working-tree 面板显式点击。
   // `enableIfEmpty()` 自会解析 localAdapter$（连接就绪后生效），这里 fire-and-forget 即可。
   if (typeof window !== 'undefined' && window.localStorage.getItem(WORKING_TREE_AUTO_ENABLE_SKIP_KEY) === null) {
-    void rxdb.workingTree.enableIfEmpty().catch(() => undefined);
+    void db.workingTree.enableIfEmpty().catch(() => undefined);
   }
-  installSearchDemoTestApi(rxdb, { Article, Comment, seedData: seedSearchParityData });
-  installUs909Spike(rxdb, getAngularDbName(), baseHref);
+  installSearchDemoTestApi(db, { Article, Comment, seedData: seedSearchParityData });
+  // 失败现场归档另开主线程 IDB 连接读同一个库，只在主实例确定走 IDB 时成立；OPFS 档的库在 Worker 里，读不到。
+  // 按需加载：备份读写不进初始包。fixture 归档前会等 `window.__rxdbFailureArchive` 出现
+  if (forceIdb) {
+    void import('./failure-archive-api').then(({ installFailureArchiveApi }) =>
+      installFailureArchiveApi(db, { dbName, baseHref })
+    );
+  }
 
   const devtools = getDevToolsConnector();
-  devtools.init(rxdb, getEntityMetadata);
+  devtools.init(db, getEntityMetadata);
 
-  return rxdb;
+  return db;
 };

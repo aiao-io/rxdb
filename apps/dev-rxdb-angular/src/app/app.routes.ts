@@ -152,6 +152,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/encrypted/encrypted.page')
   },
   {
+    // 导入 e2e 失败现场归档（US-909 阶段 B）：不用应用自己的库，不经 connectLocalAdapter
+    path: 'failure-archive',
+    loadComponent: () => import('./pages/failure-archive/failure-archive.page')
+  },
+  {
     path: '**',
     redirectTo: 'home',
     pathMatch: 'full'

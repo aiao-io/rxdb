@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 const T = {
   PAGE: 'storage-page',

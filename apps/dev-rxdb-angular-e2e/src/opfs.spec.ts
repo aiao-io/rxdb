@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 const FILE_NAME = 'opfs-e2e.txt';
 const FILE_CONTENT = 'original-content';

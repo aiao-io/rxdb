@@ -7,9 +7,10 @@ import { NgxLoadingBar } from '@ngx-loading-bar/core';
 import { AppService } from './app.service';
 import { AppHeader } from './components/app-header';
 import { AppSidebar } from './components/app-sidebar';
+import { ImportedDbBanner } from './components/imported-db-banner';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, NgxLoadingBar],
+  imports: [RouterOutlet, AppSidebar, AppHeader, ImportedDbBanner, NgxLoadingBar],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -26,6 +27,7 @@ import { AppSidebar } from './components/app-sidebar';
       <app-sidebar></app-sidebar>
       <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
         <app-header></app-header>
+        <app-imported-db-banner></app-imported-db-banner>
         <div id="layout-content">
           <router-outlet></router-outlet>
         </div>
