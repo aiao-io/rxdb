@@ -110,4 +110,4 @@ description: 'Task list: US-909 阶段 B — e2e 失败现场数据归档与导�
 - [x] T027 `nx run-many -t lint typecheck test --projects=dev-rxdb-angular,dev-rxdb-angular-e2e` 零警告；`prettier --check` 改动文件
 - [x] T028 故事：AC#4～9 结论写进各行「预期结果」并改 ✅；交付阶段表 B 行 ✅（合并后）或保持 ⚠️（待合并）按惯例；实现文件表补
       具体路径；`pnpm run audit:requirements`
-- [ ] T029 提交（不 amend 用户的提交）→ 推送 `us909-stage-b` → 开 PR（base `rrweb`）→ CI 绿（重跑前核对 headSha）
+- [x] T029 提交（不 amend 用户的提交）→ 推送 `us909-stage-b` → 开 PR（base `rrweb`）→ CI 绿（重跑前核对 headSha）（PR #82，c8bd7844 CI 全绿）
