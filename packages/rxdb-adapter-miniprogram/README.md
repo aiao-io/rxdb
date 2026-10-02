@@ -117,9 +117,16 @@ async function createDatabase() {
   在任意页面都能加载。wasm 照样复制到代码包根的 `wa-sqlite/wa-sqlite.wasm`。
 - 随机源走 `tt.getRandomValues`，单次上限同样是 1 MiB，基础库按 2.87.0 起算（该版起文档才写明参数约束）。
 
-iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，由 `prepareMiniProgramHostRuntime` 的 polyfill 补齐。`runtimeGlobal` 拿不到（入口也是严格模式）时引导直接报
-「请经 host.runtimeGlobal 注入」，不会猜。Taro 的接法见 `apps/dev-rxdb-miniprogram` 的
-`src/runtime-global-capture.ts` 与 `build-tt` target。
+`runtimeGlobal` 只管得到 adapter。打进同一份产物的其他代码照样读自由的 `globalThis`：sqlite-core 依赖的 comlink
+在模块顶层执行 `'FinalizationRegistry' in globalThis`，所在 chunk 一加载就抛 TypeError；RxDB 核心的选主与
+`BroadcastChannel` 也读它。所以整份产物要在构建期把 `globalThis` 改指入口取到的真实全局对象，做到这一步后 adapter
+读到的 `globalThis` 就是它，不必再传 `runtimeGlobal`。Taro（Vite）的做法见 `apps/dev-rxdb-miniprogram` 的
+`config/rxdb-packages-vite-plugin.ts`（`douyinRealmVitePlugin`）与 `build-tt` target。两者都拿不到真实全局对象时引导直接报
+「请经 host.runtimeGlobal 注入」，不会猜。
+
+iOS 抖音没有原生 `TextEncoder` / `TextDecoder`。adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装，
+而 RxDB 核心与 sqlite-core 的备份模块在模块顶层就 `new TextEncoder()`，带 RxDB 核心的完整产物在 iOS 上会加载即失败
+（**推断**：vm 里去掉编码全局加载 `dist-tt/` 实测 ReferenceError；spike v9 只打了 adapter 客户端，没覆盖到）。
 
 ## 宿主契约
 

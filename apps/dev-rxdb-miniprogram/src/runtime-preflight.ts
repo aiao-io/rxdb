@@ -8,7 +8,6 @@ import {
   type MiniProgramHost,
   type MiniProgramRuntimeGlobal
 } from '@aiao/rxdb-adapter-miniprogram/runtime';
-import { capturedRuntimeGlobal } from './runtime-global-capture';
 
 /** demo 预检项：adapter 的能力项，外加「缺失但运行时可补齐」标记。 */
 export interface RuntimeCapability extends MiniProgramRuntimeCapability {
@@ -30,12 +29,14 @@ export function wechatDemoRuntime(): MiniProgramDemoRuntime {
   };
 }
 
-/** 抖音：真实全局对象由入口 `app.js` 记下（见 `runtime-global-capture.ts`），经 `runtimeGlobal` 交给 adapter。 */
+/**
+ * 抖音：不传 `runtimeGlobal`。抖音产物里所有自由的 `globalThis`（adapter、RxDB 核心、第三方库）构建期已改指入口登记的
+ * 真实全局对象（`config/rxdb-packages-vite-plugin.ts` 的 `douyinRealmVitePlugin`），adapter 读到的就是它。
+ */
 export function douyinDemoRuntime(): MiniProgramDemoRuntime {
   if (typeof tt === 'undefined') throw new Error('没有全局 tt：当前不是抖音小程序运行时');
-  const runtimeGlobal = capturedRuntimeGlobal();
   return {
-    host: createDouyinMiniProgramHost(tt, runtimeGlobal === undefined ? {} : { runtimeGlobal }),
+    host: createDouyinMiniProgramHost(tt),
     wasmRuntime: typeof TTWebAssembly === 'undefined' ? undefined : TTWebAssembly
   };
 }

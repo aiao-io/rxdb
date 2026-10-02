@@ -3,9 +3,9 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 import devConfig from './dev';
 import prodConfig from './prod';
 import {
+  douyinRealmVitePlugin,
   rxdbBuildTargetVitePlugin,
   rxdbPackagesVitePlugin,
-  sloppyAppEntryVitePlugin,
   subframeSqliteWasmVitePlugin
 } from './rxdb-packages-vite-plugin';
 
@@ -49,7 +49,7 @@ export default defineConfig<'vite'>(async merge => {
         rxdbPackagesVitePlugin(),
         subframeSqliteWasmVitePlugin(),
         rxdbBuildTargetVitePlugin(),
-        ...(process.env.TARO_ENV === 'tt' ? [sloppyAppEntryVitePlugin()] : [])
+        ...(process.env.TARO_ENV === 'tt' ? [douyinRealmVitePlugin()] : [])
       ]
     },
     mini: {
