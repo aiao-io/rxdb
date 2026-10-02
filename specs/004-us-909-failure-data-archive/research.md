@@ -12,13 +12,13 @@
 
 **Spike 数据（2026-10-02，临时 spec，已删除）**：
 
-| 项 | 结果 |
-| --- | --- |
-| 第二连接看到的数据 | 各表行数与主实例一致；`workingTree.status()` 与主实例逐字段相等 |
-| 归档 | ≈150 KB（3 条 Todo + working-tree 基线） |
-| 耗时 | `connect()` ≈1.0 s，连接 + 备份合计 ≈1.25 s |
-| 主实例之后 | 仍可写；第二实例销毁后再写一条 Todo 正常 |
-| 导入（spike 2） | 归档在新上下文恢复到原库名，设 e2e 库名后 reload，应用经 IDB + SharedWorker 打开；行数、`entryCount`、`headRevision` 一致；之后仍可写 |
+| 项                 | 结果                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 第二连接看到的数据 | 各表行数与主实例一致；`workingTree.status()` 与主实例逐字段相等                                                                       |
+| 归档               | ≈150 KB（3 条 Todo + working-tree 基线）                                                                                              |
+| 耗时               | `connect()` ≈1.0 s，连接 + 备份合计 ≈1.25 s                                                                                           |
+| 主实例之后         | 仍可写；第二实例销毁后再写一条 Todo 正常                                                                                              |
+| 导入（spike 2）    | 归档在新上下文恢复到原库名，设 e2e 库名后 reload，应用经 IDB + SharedWorker 打开；行数、`entryCount`、`headRevision` 一致；之后仍可写 |
 
 **`connect()` 不是空操作，但不改逻辑内容**：`RxDBAdapterSqliteBase` 每个事务在 `log_begin` / `log_commit` 里调
 `switch_transaction_id`（`RxDBAdapterSqliteBase.ts:1650`），重写全部触发器，每个事务 `PRAGMA schema_version` +252、
@@ -82,12 +82,12 @@ CDP 消息与报告体积，不是正确性；32 MiB 的 base64 ≈43 MB，在�
 
 **Decision**:
 
-| 层 | 值 | 机制 |
-| --- | --- | --- |
-| 页内截止 | 20 000 ms | `AbortSignal.timeout(deadlineMs)` 传给 `backup({ signal })`；`connect()` 不收 signal，与同一截止 `Promise.race` |
-| 备份锁等待 | 10 000 ms | `backup({ lockTimeoutMs })`，超时 `lock_timeout` |
-| Node 护栏 | 25 000 ms | `page.evaluate` 与计时器 race，护栏先到记 `{ stage: 'transfer', code: 'timeout' }` |
-| 用例超时 | `testInfo.timeout + 60 000` | 导出前 `testInfo.setTimeout(...)`，失败处理自己的时间预算 |
+| 层         | 值                          | 机制                                                                                                            |
+| ---------- | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 页内截止   | 20 000 ms                   | `AbortSignal.timeout(deadlineMs)` 传给 `backup({ signal })`；`connect()` 不收 signal，与同一截止 `Promise.race` |
+| 备份锁等待 | 10 000 ms                   | `backup({ lockTimeoutMs })`，超时 `lock_timeout`                                                                |
+| Node 护栏  | 25 000 ms                   | `page.evaluate` 与计时器 race，护栏先到记 `{ stage: 'transfer', code: 'timeout' }`                              |
+| 用例超时   | `testInfo.timeout + 60 000` | 导出前 `testInfo.setTimeout(...)`，失败处理自己的时间预算                                                       |
 
 截止落在 `connect()` 上时，实例在 `connect()` settle 后再 `destroy()`（不阻塞返回）；落在 `backup()` 上时 `aborted`
 映射为 `{ stage: 'backup', code: 'timeout' }`。

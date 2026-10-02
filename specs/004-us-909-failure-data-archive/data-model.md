@@ -9,16 +9,16 @@
 
 ```ts
 interface FailureArchiveRequest {
-  readonly deadlineMs: number;     // 页内截止，默认 20_000（research D5）
-  readonly lockTimeoutMs: number;  // 默认 10_000
-  readonly maxBytes: number;       // 默认 32 * 1024 * 1024（research D4）
+  readonly deadlineMs: number; // 页内截止，默认 20_000（research D5）
+  readonly lockTimeoutMs: number; // 默认 10_000
+  readonly maxBytes: number; // 默认 32 * 1024 * 1024（research D4）
 }
 
 type FailureArchiveStage = 'connect' | 'backup' | 'inspect';
 
 interface FailureArchiveReason {
   readonly stage: FailureArchiveStage | 'page' | 'transfer';
-  readonly code: string;           // RxDBBackupError.code | 'timeout' | 'context_unavailable' | 'error'
+  readonly code: string; // RxDBBackupError.code | 'timeout' | 'context_unavailable' | 'error'
   readonly message: string;
 }
 
@@ -35,23 +35,24 @@ type WorkingTreeSummary =
 type FailureArchivePageResult =
   | {
       readonly ok: true;
-      readonly dbName: string;               // 原始库名（不带 @0_1）
-      readonly base64: string;               // 完整归档
+      readonly dbName: string; // 原始库名（不带 @0_1）
+      readonly base64: string; // 完整归档
       readonly bytes: number;
-      readonly durationMs: number;           // connect + inspect + backup
+      readonly durationMs: number; // connect + inspect + backup
       readonly tables: Record<string, number>;
       readonly workingTree: WorkingTreeSummary;
     }
   | { readonly ok: false; readonly dbName: string; readonly reason: FailureArchiveReason };
 
-interface DemoDbSnapshot {                   // AC#4 逻辑不变式的比较对象（读主实例）
-  readonly schemaSql: string;                // SELECT group_concat(sql, char(10)) FROM sqlite_schema（按 name 排序）
+interface DemoDbSnapshot {
+  // AC#4 逻辑不变式的比较对象（读主实例）
+  readonly schemaSql: string; // SELECT group_concat(sql, char(10)) FROM sqlite_schema（按 name 排序）
   readonly tables: Record<string, number>;
   readonly workingTree: WorkingTreeSummary;
 }
 
 interface FailureArchiveApi {
-  readonly dbName: string;                   // 原始库名；fixture 以它出现作为「API 已就绪」
+  readonly dbName: string; // 原始库名；fixture 以它出现作为「API 已就绪」
   archive(request: FailureArchiveRequest): Promise<FailureArchivePageResult>;
   snapshot(): Promise<DemoDbSnapshot>;
 }
@@ -69,21 +70,21 @@ interface FailureArchiveApi {
   （`stage: 'inspect'`）。HEAD 取 `listCommits({ limit: 1 })` 页的 `headCommitId` 与 `branchId`。
 - **原因映射**（纯函数 `toFailureArchiveReason(stage, error, signal)`）：
 
-  | 输入 | `code` |
-  | --- | --- |
-  | 截止已到（`signal.aborted` 且 reason 为 `TimeoutError`），任何阶段 | `timeout` |
-  | `RxDBBackupError` | `error.code`（如 `lock_timeout` / `io_error`） |
-  | 其他 `Error` | `error`，`message` 带 `name: message` |
+  | 输入                                                               | `code`                                         |
+  | ------------------------------------------------------------------ | ---------------------------------------------- |
+  | 截止已到（`signal.aborted` 且 reason 为 `TimeoutError`），任何阶段 | `timeout`                                      |
+  | `RxDBBackupError`                                                  | `error.code`（如 `lock_timeout` / `io_error`） |
+  | 其他 `Error`                                                       | `error`，`message` 带 `name: message`          |
 
 - `maxBytes`：sink 累计字节超过上限时 `write` 以 `RangeError('failure archive exceeds maxBytes <n>')` 拒绝，
   `backup()` 报 `RxDBBackupError('io_error')`，`message` 拼上 `cause` 的消息。
 
 ## 2. 测试附件
 
-| 名称 | `contentType` | 何时 |
-| --- | --- | --- |
-| `rxdb-failure-archive` | `application/octet-stream` | 导出成功 |
-| `rxdb-failure-summary` | `application/json` | 每次触发失败处理（成功或失败都有） |
+| 名称                   | `contentType`              | 何时                               |
+| ---------------------- | -------------------------- | ---------------------------------- |
+| `rxdb-failure-archive` | `application/octet-stream` | 导出成功                           |
+| `rxdb-failure-summary` | `application/json`         | 每次触发失败处理（成功或失败都有） |
 
 通过的用例、预期失败（`test.fail()`）、`skipped` / `interrupted` 不留任何附件（research D6）。
 
@@ -93,11 +94,11 @@ interface FailureArchiveApi {
 interface FailureArchiveSummary {
   readonly format: 'aiao-rxdb-e2e-failure-summary';
   readonly version: 1;
-  readonly testStatus: TestInfo['status'];  // 归档时的状态；自动触发时是 failed / timedOut，spec 直接调用时多为 passed
+  readonly testStatus: TestInfo['status']; // 归档时的状态；自动触发时是 failed / timedOut，spec 直接调用时多为 passed
   readonly page: 'original' | 'reopened' | 'unavailable';
   readonly outcome: 'archived' | 'not_archived';
-  readonly dbName: string | null;          // page 不可用时为 null
-  readonly durationMs: number;             // Node 端从开始到附件写完
+  readonly dbName: string | null; // page 不可用时为 null
+  readonly durationMs: number; // Node 端从开始到附件写完
   // outcome === 'archived'
   readonly archive?: { readonly attachment: 'rxdb-failure-archive'; readonly bytes: number };
   readonly tables?: Record<string, number>;
@@ -128,8 +129,8 @@ export function archiveFailure(
 
 ## 5. 导入覆盖键
 
-| 键 | 存放 | 值 | 读者 |
-| --- | --- | --- | --- |
+| 键                           | 存放           | 值                      | 读者                                                                                       |
+| ---------------------------- | -------------- | ----------------------- | ------------------------------------------------------------------------------------------ |
 | `rxdb-demo-imported-db-name` | `localStorage` | 原始库名（不带 `@0_1`） | `setup_rxdb_sqlite-wasm.ts`：有值则用作库名并强制 IDB + SharedWorker；也安装 §1 的页内 API |
 
 读写集中在 `rxdb/imported-db.ts`（`getImportedDbName` / `openImportedDb` / `leaveImportedDb`），不引用备份读写；读 manifest 与
@@ -137,12 +138,12 @@ export function archiveFailure(
 
 ## 6. 导入页状态（`/failure-archive`）
 
-| `data-phase` | 含义 | 界面 |
-| --- | --- | --- |
-| `idle` | 未选文件 | 文件输入 + 说明 |
-| `parsed` | manifest 已读 | 库名、创建时间、格式版本；「导入并打开」 |
-| `importing` | 恢复中 | 按钮禁用，`aria-busy="true"` |
-| `error` | 解析或恢复失败 | `role="alert"` 显示 `code` 与消息；`target_not_empty` / `target_busy` 另有「打开该库」 |
+| `data-phase` | 含义           | 界面                                                                                   |
+| ------------ | -------------- | -------------------------------------------------------------------------------------- |
+| `idle`       | 未选文件       | 文件输入 + 说明                                                                        |
+| `parsed`     | manifest 已读  | 库名、创建时间、格式版本；「导入并打开」                                               |
+| `importing`  | 恢复中         | 按钮禁用，`aria-busy="true"`                                                           |
+| `error`      | 解析或恢复失败 | `role="alert"` 显示 `code` 与消息；`target_not_empty` / `target_busy` 另有「打开该库」 |
 
 成功后不停留在页面上：写覆盖键并 reload。打开导入库时，`app` 外壳顶部显示提示条「正在查看导入的失败现场库 <名>」与「回到默认库」。
 
