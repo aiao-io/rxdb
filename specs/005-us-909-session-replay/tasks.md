@@ -174,10 +174,17 @@ description: 'Task list: US-909 阶段 C — 应用内会话录制回放与 comm
       — `scripts/audit/package-api-docs.mjs` 对四个 replay 包与 `rxdb-plugin-working-tree` 均 passed
 - [x] T047 [P] website 插件指南 `rxdb-plugin-replay`（照 search 指南结构）与 `compatibility.md`
       — `website/docs/plugins/rxdb-plugin-replay/README.md` + `sidebars.ts`；`audit:docs-plugins` passed
-- [ ] T048 覆盖率：四个新包 ≥ 80%，`coverage-baseline.json` 记实测；`pnpm nx run-many -t lint test build --projects=tag:js-lib` 通过
-- [ ] T049 包体积量测（quickstart §3），< 50 KB gz，数值记进本任务与故事实现记录
+- [x] T048 覆盖率：四个新包 ≥ 80%，`coverage-baseline.json` 记实测；`pnpm nx run-many -t lint test build --projects=tag:js-lib` 通过
+  - 2026-10-02 实测（stmt / branch / func / line，node + browser 合并）：replay 96 / 89 / 96 / 98，angular 97 / 93 / 100 / 100，react 96 / 87 / 100 / 100，vue 95 / 87 / 100 / 100，已进 `scripts/audit/coverage-baseline.json`。replay 的 node 趟切掉 `src/replayer/**`（只有浏览器趟测得到，同 rxdb-plugin-tree），合并后的总数由 `pnpm audit:coverage` 把关
+  - run-many 满载跑出 3 个超时：`rxdb-adapter-sqlite-wasm`（SWM-006，5 s）、`rxdb-plugin-replay`（plugin.spec 断连重连，单跑 3.9 s、满载 11.5 s，本地上限 10 s / CI 30 s）、`rxdb-adapter-electron`（pglite-encrypted 两个 hook 10 s + restore 两条 60 s）；三包单跑全绿（829 / 128 / 1258 passed），electron 与 rxdb-test 本分支零改动，按负载超时记
+- [x] T049 包体积量测（quickstart §3），< 50 KB gz，数值记进本任务与故事实现记录
+      — `dist/index.js`（29.26 kB，vite 报 gzip 9.08 kB）经 esbuild `--bundle --minify`、外置 `rrweb` / `@rrweb/*` / `@aiao/*` / `rxjs`
+      后 gzip **8,151 B**，远低于 50 KB；故事技术笔记「阶段 C 的体积与开销实测」同记
 - [ ] T050 全量：`pnpm test-all`；dev-rxdb-angular-e2e 全量（AC#1～3 不回退）；失败先单独复跑（AGENTS.md「全量测试坑」）
-- [ ] T051 故事收尾：AC#10～17 逐条 ✅ / ⚠️ 与证据；交付阶段 C 行；实现文件表；`audit:requirements`；派生视图同步
+- [x] T051 故事收尾：AC#10～17 逐条 ✅ / ⚠️ 与证据；交付阶段 C 行；实现文件表；`audit:requirements`；派生视图同步
+      — AC#10～17 全 ✅ 并附证据；AC#11 的「索引命中」补了 `store.spec` 的 EXPLAIN 用例（20 会话 × 250 条、`ANALYZE` 后区间谓词走
+      `(sessionId, timestamp)` 的 Bitmap Index Scan）；阶段 B / C 行改 ✅（B 行 AC#4～9 早已全 ✅，属漏回写）；实现文件表补 working-tree /
+      demo / e2e / website 四行；`capability-matrix.md` 与 `versioning-policy.md` 的包数 46 / 45 → 50 / 49；`audit:requirements` 通过
 - [ ] T052 提交、推送 `us909-stage-c`，开 PR（base `us909-stage-b`，标题过 `node scripts/commit-lint.mjs`）；CI 全绿后在本任务记 run 号
 
 ## Dependencies & Execution Order

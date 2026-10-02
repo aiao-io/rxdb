@@ -154,6 +154,35 @@ describe('ReplayStore：会话与事件', () => {
   });
 });
 
+describe('ReplayStore：按会话 + 时间区间查询走索引（故事 AC#11）', () => {
+  it('20 个会话各 250 条、ANALYZE 后，readEvents 的区间谓词命中 (sessionId, timestamp) 复合索引', async () => {
+    const { factory, created } = createRecordingDbFactory();
+    const store = createStore(factory);
+    const seqs = Array.from({ length: 250 }, (_, seq) => seq);
+    const ids: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const id = await store.createSession(new Date());
+      await store.appendBatch(id, entries(seqs));
+      ids.push(id);
+    }
+    const db = created[0];
+    if (!db) throw new Error('recording db missing');
+    const adapter = await db.getAdapter('pglite');
+    if (!adapter.rawQuery) throw new Error('pglite adapter has no rawQuery');
+    await adapter.rawQuery('ANALYZE replay.replay_event');
+
+    // 谓词与排序照抄 ReplayStore.readEvents（sessionId 等值 + timestamp 闭区间，seq 升序）
+    const { rows } = await adapter.rawQuery(
+      'EXPLAIN SELECT * FROM replay.replay_event WHERE "sessionId" = $1 AND "timestamp" >= $2 AND "timestamp" <= $3 ORDER BY seq ASC',
+      [ids[7], 1100, 1110]
+    );
+    const plan = rows.map(row => String(row[0])).join('\n');
+
+    expect(plan).toMatch(/Index Scan on idx_replay_event_replay_event_session_timestamp/);
+    expect(plan).not.toMatch(/Seq Scan/);
+  });
+});
+
 describe('ReplayStore：录制库生命周期', () => {
   it('懒建：第一次存储调用才调工厂，同一实例只调一次', async () => {
     const { factory, created } = createRecordingDbFactory();

@@ -99,8 +99,10 @@ export default defineConfig(() => ({
     name: 'rxdb-plugin-replay',
     watch: false,
     globals: true,
-    testTimeout: process.env.CI ? 30000 : 10000,
-    hookTimeout: process.env.CI ? 30000 : 15000,
+    // 每条用例都新起 PGlite（应用库 + 录制库），文件首条还背着 WASM 冷启动：单跑约 4 s，`pnpm test-all` 四路并发下
+    // 稳定越过 10 s。与 rxdb-adapter-pglite 同档。
+    testTimeout: process.env.CI ? 120000 : 30000,
+    hookTimeout: process.env.CI ? 120000 : 30000,
     ...(isBrowserTest ?
       {
         include: ['{src,tests,__tests__}/**/*.browser.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
