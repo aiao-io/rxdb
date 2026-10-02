@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 /**
  * 经「+ 新增」对话框落一条 Todo，并等待对话框关闭。

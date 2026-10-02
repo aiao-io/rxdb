@@ -867,7 +867,9 @@ jobs:
         # $EXCLUDE_DEPS 刻意不加引号：空串要被 shell 吃掉，加引号会变成一个空参数传给 nx。
         run: pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
 
-      # 失败复盘用。`trace: 'on-first-retry'` 在各 config 里都开着，重试产生的
+      # 失败复盘用。web demo e2e 与 devtools 扩展 e2e 的 config 都是 `trace: { mode: 'retain-on-failure', screenshots: false }`：
+      # 每次尝试都录，只留失败的尝试（重试转绿的用例，首次失败那次的 trace 也在）。
+      # electron e2e 经 `_electron.launch()` 起应用，config 的 trace 对它不生效。
       # trace.zip 落在 test-output/playwright/output/ 下：
       #   pnpm exec playwright show-trace <zip>
       # 第二条 path 是为了兜住 dev-rxdb-react-e2e —— 它覆写了 reporter，
@@ -1275,9 +1277,13 @@ jobs:
           # affected 模式：改了 packages/ apps/ modules/ 下的源码，却一个测试项目
           # 都没被算进来，说明 nx-set-shas 的 base/head 或项目图坏了。
           # 只改 docs/ 或根配置时 code_changed=false，此时 has_tests=false 是正常的。
+          # 四类测试任一有项目即可：只改 apps/*-e2e 时没有 test target，只有 e2e 矩阵。
           if [ "${{ needs.setup.outputs.code_changed }}" = "true" ] \
-            && [ "${{ needs.setup.outputs.has_tests }}" != "true" ]; then
-            echo "❌ 本次改动落在 packages/ apps/ modules/ 内，但 affected 没算出任何 test 项目。"
+            && [ "${{ needs.setup.outputs.has_tests }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_test_browser }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_acceptance }}" != "true" ] \
+            && [ "${{ needs.setup.outputs.has_e2e }}" != "true" ]; then
+            echo "❌ 本次改动落在 packages/ apps/ modules/ 内，但 affected 没算出任何测试项目（test / test-browser / acceptance / e2e）。"
             echo "   多半是 nx-set-shas 的 base/head 没解析对（浅克隆？base 分支没 fetch？），"
             echo "   或者项目图坏了。这类情况会让 CI 一片绿却什么都没测，必须拦住。"
             exit 1

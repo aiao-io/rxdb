@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 import { readCount, resetE2eState } from './e2e-utils.js';
 

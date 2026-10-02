@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import { readRequiredAttribute, resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 test.describe('File Manager Lazy Loading Page', () => {
   test.beforeEach(async ({ page }) => {

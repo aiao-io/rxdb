@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 test.describe('Code Editor Page', () => {
   test.beforeEach(async ({ page }) => {

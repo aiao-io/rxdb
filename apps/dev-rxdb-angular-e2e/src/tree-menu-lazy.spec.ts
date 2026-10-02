@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test';
+import type { Locator } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 /*
  * 本文件的等待统一放宽到 20s，原因写在这里而不是每处重复：
  *

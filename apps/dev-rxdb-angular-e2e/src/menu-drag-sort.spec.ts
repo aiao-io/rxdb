@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { readCount, readRequiredAttribute, resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 /**
  * P2-5：原先声明为 `async` 但函数体里**没有任何 await** —— 它同步返回一个 Locator，

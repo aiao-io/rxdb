@@ -1,9 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { workspaceRoot } from '@nx/devkit';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 a11y 与 SC-005 归档用例（T128）。

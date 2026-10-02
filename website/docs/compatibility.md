@@ -29,6 +29,9 @@
 | Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core >=22.1.6`                                 | `^7.8.2` |
 | React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.2.8`                                          | `^7.8.2` |
 | Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue >=3.5.42`                                           | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core >=22.1.6`                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.2.8`                                          | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue >=3.5.43`                                           | `^7.8.2` |
 | Angular | `@aiao/code-editor-angular`              | `@angular/{common,core,forms,platform-browser} >=20.0.0` | —        |
 | React   | `@aiao/code-editor-react`                | `react / react-dom ^19.2`                                | —        |
 | Vue     | `@aiao/code-editor-vue`                  | `vue >=3.5.0`                                            | —        |
@@ -37,22 +40,23 @@
 
 所有 `@aiao/*` 包同步发布，互相之间始终使用同一 `<aiao>` 版本。
 
-| 包                               | 类型       | 依赖关系                                                                               |
-| :------------------------------- | :--------- | :------------------------------------------------------------------------------------- |
-| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core`  |
-| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                                |
-| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，**全文搜索插件的唯一兼容适配器**                                          |
-| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                        |
-| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                        |
-| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                      |
-| `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw |
-| `@aiao/rxdb-adapter-encrypted`   | 适配器封装 | 为底层适配器提供透明加密                                                               |
-| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，仅微信小程序逻辑层；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`    |
-| `@aiao/rxdb-plugin-search`       | 插件       | 依赖 `@aiao/rxdb-adapter-sqlite-wasm`；其他适配器 fail-fast                            |
-| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位      |
-| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                       |
-| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                       |
-| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                         |
+| 包                               | 类型       | 依赖关系                                                                                |
+| :------------------------------- | :--------- | :-------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core`   |
+| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                                 |
+| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，**全文搜索插件的唯一兼容适配器**                                           |
+| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                         |
+| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                         |
+| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                       |
+| `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw  |
+| `@aiao/rxdb-adapter-encrypted`   | 适配器封装 | 为底层适配器提供透明加密                                                                |
+| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，仅微信小程序逻辑层；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`     |
+| `@aiao/rxdb-plugin-search`       | 插件       | 依赖 `@aiao/rxdb-adapter-sqlite-wasm`；其他适配器 fail-fast                             |
+| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位       |
+| `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记 |
+| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                        |
+| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                        |
+| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                          |
 
 ## 运行时能力 × 适配器
 
