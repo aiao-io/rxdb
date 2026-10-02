@@ -13,7 +13,7 @@ import path from 'node:path';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDBReplayErrorCode } from '../errors.js';
-import type { RxDBReplayOptions } from '../options.js';
+import type { ReplayRecordingDbFactory, RxDBReplayOptions } from '../options.js';
 import { rxDBPluginReplay } from '../plugin.js';
 import { replayStashKey } from '../resume.js';
 import type { ReplayState } from '../types.js';
@@ -58,6 +58,20 @@ const connectApp = async (options: Partial<RxDBReplayOptions> = {}) => {
 
 const stateOf = (db: RxDB, kind: ReplayState['kind']) =>
   firstValueFrom(db.replay.state$.pipe(filter(state => state.kind === kind)));
+
+/** 把录制库工厂卡在门闩上：`entered` 兑现时工厂已被调用，`open()` 之后才往下走。 */
+const gatedFactory = (inner: ReplayRecordingDbFactory) => {
+  let open!: () => void;
+  let enter!: () => void;
+  const gate = new Promise<void>(resolve => (open = resolve));
+  const entered = new Promise<void>(resolve => (enter = resolve));
+  const factory: ReplayRecordingDbFactory = async entities => {
+    enter();
+    await gate;
+    return inner(entities);
+  };
+  return { factory, entered, open };
+};
 
 describe('start()', () => {
   it('没有 document → no_dom，状态不动', async () => {
@@ -154,6 +168,41 @@ describe('stop()', () => {
     await Promise.all([db.replay.stop(), db.replay.stop()]);
 
     expect(rrweb.current?.stopRecording).toHaveBeenCalledOnce();
+  });
+
+  it('start() 还在建录制库时 stop()：等它落定再停，stop() 返回后不再采集', async () => {
+    stubPage();
+    const recording = gatedFactory(createRecordingDbFactory().factory);
+    const db = await connectApp({ createRecordingDb: recording.factory });
+
+    const starting = db.replay.start();
+    await recording.entered;
+    const stopping = db.replay.stop();
+    recording.open();
+    const sessionId = await starting;
+    await stopping;
+
+    expect(rrweb.current?.isRecording()).toBe(false);
+    expect(await firstValueFrom(db.replay.state$)).toEqual({ kind: 'idle' });
+    expect(await db.replay.listSessions()).toEqual([expect.objectContaining({ id: sessionId, status: 'stopped' })]);
+  });
+
+  it('start() 失败时等着它的 stop() 照常返回，不悬挂', async () => {
+    stubPage();
+    const recording = gatedFactory(() => {
+      throw new Error('recording db down');
+    });
+    const db = await connectApp({ createRecordingDb: recording.factory });
+
+    const starting = db.replay.start();
+    await recording.entered;
+    const stopping = db.replay.stop();
+    recording.open();
+
+    await expect(starting).rejects.toThrow();
+    await expect(stopping).resolves.toBeUndefined();
+    expect(rrweb.current?.isRecording()).toBe(false);
+    expect(await firstValueFrom(db.replay.state$)).toEqual({ kind: 'idle' });
   });
 });
 

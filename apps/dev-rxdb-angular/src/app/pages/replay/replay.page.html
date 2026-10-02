@@ -89,7 +89,7 @@
               <td class="flex gap-2">
                 <button
                   class="btn btn-xs"
-                  [disabled]="session.status === 'recording'"
+                  [disabled]="session.id === $activeSessionId()"
                   (click)="select(session)"
                   data-testid="replay-select"
                   type="button"
@@ -98,7 +98,7 @@
                 </button>
                 <button
                   class="btn btn-xs btn-error btn-soft"
-                  [disabled]="$busy() || session.status === 'recording'"
+                  [disabled]="$busy() || session.id === $activeSessionId()"
                   (click)="remove(session)"
                   data-testid="replay-delete"
                   type="button"

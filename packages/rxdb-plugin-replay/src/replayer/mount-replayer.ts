@@ -1,8 +1,7 @@
-import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
 import type { eventWithTime } from '@rrweb/types';
 import type { Replayer } from 'rrweb';
 import { replayRestoreHint } from '../restore.js';
-import type { ReplayCommitMarker, ReplayManager } from '../types.js';
+import type { ReplayCommitMarker, ReplayManager, ReplayRestoreResult } from '../types.js';
 import { REPLAYER_STYLE } from './style.js';
 
 /** rrweb `EventType.FullSnapshot`：没有它就没有可重建的 DOM。 */
@@ -25,7 +24,7 @@ export interface ReplayerOptions {
 /** 点 commit 标记恢复的结果；`restoreToCommit()` 抛错时 `reason` 为 `'error'`。 */
 export interface ReplayerCommitRestoreEvent {
   readonly marker: ReplayCommitMarker;
-  readonly result: WorkingTreeRestoreResult | { readonly ok: false; readonly reason: 'error'; readonly error: Error };
+  readonly result: ReplayRestoreResult | { readonly ok: false; readonly reason: 'error'; readonly error: Error };
 }
 
 /** {@link mountReplayer} 返回的句柄。非就绪态 `play` / `pause` / `seek` 是空操作，`destroy()` 之后一切都是空操作。 */

@@ -1,5 +1,4 @@
 import type { RxDB } from '@aiao/rxdb';
-import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
 import type { LifecycleScope } from '@aiao/utils';
 import type { eventWithTime } from '@rrweb/types';
 import type { BehaviorSubject, Subscription } from 'rxjs';
@@ -19,6 +18,7 @@ import { ReplayStore, toInfo, type ReplayEventEntry } from './store.js';
 import type {
   ReplayCommitMarker,
   ReplayEventRange,
+  ReplayRestoreResult,
   ReplaySessionExport,
   ReplaySessionInfo,
   ReplayState,
@@ -134,9 +134,14 @@ export class ReplayRuntime {
     }
   }
 
-  /** 停止当前录制并冲刷；没在录制时直接返回。冲刷失败抛原错误（`state$` 已转 `error`）。 */
+  /**
+   * 停止当前录制并冲刷；没在录制时直接返回。冲刷失败抛原错误（`state$` 已转 `error`）。
+   *
+   * @remarks
+   * 先等后台续录与进行中的 `start()` 落定（失败也算落定）：否则它们在 `stop()` 返回之后才起录制器，调用方以为停了其实还在录。
+   */
   async stop(): Promise<void> {
-    this.#stopping ??= this.#stopRecording().finally(() => {
+    this.#stopping ??= this.#settleThenStop().finally(() => {
       this.#stopping = null;
     });
     return this.#stopping;
@@ -179,7 +184,7 @@ export class ReplayRuntime {
     return { ...(await this.#store.usage()), limits: this.#options.limits };
   }
 
-  restoreToCommit(commitId: string): Promise<WorkingTreeRestoreResult> {
+  restoreToCommit(commitId: string): Promise<ReplayRestoreResult> {
     return restoreToCommit(this.#rxdb, commitId);
   }
 
@@ -191,8 +196,6 @@ export class ReplayRuntime {
    */
   async release(): Promise<void> {
     this.#released = true;
-    await this.#resuming;
-    await this.#starting?.catch(() => undefined);
     await this.stop().catch(() => undefined);
     await this.#store.destroy();
   }
@@ -226,6 +229,12 @@ export class ReplayRuntime {
       this.#commits = this.#rxdb.workingTree.commits$.subscribe(event => recorder.addCommitMarker(event));
     }
     this.#state.next({ kind: 'recording', sessionId });
+  }
+
+  async #settleThenStop(): Promise<void> {
+    await this.#resuming;
+    await this.#starting?.catch(() => undefined);
+    await this.#stopRecording();
   }
 
   async #stopRecording(): Promise<void> {

@@ -256,4 +256,17 @@ describe('安装时认领暂存', () => {
     );
     expect(await firstValueFrom(db.replay.state$)).toEqual({ kind: 'recording', sessionId });
   });
+
+  it('stop() 等续录落定再停：续录还在后台跑时 stop()，返回后不再采集', async () => {
+    const sessionId = await seedSession(0);
+    const page = stubPage();
+    const db = prepareApp(page.storage, { v: 1, sessionId, nextSeq: 0, events: [] });
+
+    await db.connect('pglite');
+    await db.replay.stop();
+
+    expect(rrweb.current?.isRecording()).toBe(false);
+    expect(await firstValueFrom(db.replay.state$)).toEqual({ kind: 'idle' });
+    expect(await db.replay.listSessions()).toEqual([expect.objectContaining({ id: sessionId, status: 'stopped' })]);
+  });
 });

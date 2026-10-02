@@ -22,11 +22,13 @@ export {
   type ReplayerHandle,
   type ReplayerOptions
 } from './replayer/mount-replayer.js';
-export { replayRestoreHint, type ReplayRestoreRejection } from './restore.js';
+export { replayRestoreHint } from './restore.js';
 export type {
   ReplayCommitMarker,
   ReplayEventRange,
   ReplayManager,
+  ReplayRestoreRejection,
+  ReplayRestoreResult,
   ReplaySessionExport,
   ReplaySessionInfo,
   ReplayState,

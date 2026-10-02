@@ -215,6 +215,7 @@ const sidebars: SidebarsConfig = {
         'migration/remote-sync-options',
         'migration/writer-lease-removal',
         'migration/generator-default',
+        'migration/actions-column-can-delete',
         'migration/schema'
       ]
     },

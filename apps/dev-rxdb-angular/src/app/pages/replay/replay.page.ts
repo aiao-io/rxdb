@@ -39,6 +39,11 @@ export default class ReplayPage {
     return this.$replay() === null ? 'loading' : 'ready';
   });
   readonly $recording = computed(() => this.$state().kind === 'recording');
+  /** 本页正在录的会话。持久化的 `recording` 不代表还在录：冲刷失败、上一页没收尾都会把行留在 `recording`。 */
+  readonly $activeSessionId = computed(() => {
+    const state = this.$state();
+    return state.kind === 'recording' ? state.sessionId : null;
+  });
 
   constructor() {
     if (this.$enabled()) void this.#load();

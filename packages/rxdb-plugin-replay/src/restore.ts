@@ -1,6 +1,7 @@
 import type { RxDB } from '@aiao/rxdb';
 import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
 import { RxDBReplayError } from './errors.js';
+import type { ReplayRestoreRejection, ReplayRestoreResult } from './types.js';
 
 /**
  * 工作树插件在宿主插件索引里的名字（与 `@aiao/rxdb-plugin-working-tree` 的 `WORKING_TREE_CAPABILITY` 同值）。
@@ -10,10 +11,8 @@ import { RxDBReplayError } from './errors.js';
  */
 export const WORKING_TREE_PLUGIN_NAME = 'workingTree';
 
-/** `restore()` 被拒的四种原因。 */
-export type ReplayRestoreRejection = Extract<WorkingTreeRestoreResult, { ok: false }>['reason'];
-
-const RESTORE_HINTS: Readonly<Record<ReplayRestoreRejection, string>> = {
+// 键取工作树的被拒原因：它新增一种原因时这里缺提示、`restoreToCommit` 的返回也对不上 `ReplayRestoreResult`，两处都编不过
+const RESTORE_HINTS: Readonly<Record<Extract<WorkingTreeRestoreResult, { ok: false }>['reason'], string>> = {
   conflict: 'The working tree changed while restoring. Try again.',
   dirty_working_tree: 'There are uncommitted changes. Commit or discard them before restoring.',
   incompatible_schema: 'This commit was written by an incompatible schema version and cannot be restored.',
@@ -23,7 +22,7 @@ const RESTORE_HINTS: Readonly<Record<ReplayRestoreRejection, string>> = {
 /**
  * `restoreToCommit()` 被拒时给用户看的一句英文提示（`specs/005-us-909-session-replay/research.md` D8）。
  *
- * @param reason - `WorkingTreeRestoreResult` 的 `reason`
+ * @param reason - `ReplayRestoreResult` 的 `reason`
  */
 export const replayRestoreHint = (reason: ReplayRestoreRejection): string => RESTORE_HINTS[reason];
 
@@ -39,7 +38,7 @@ export const hasWorkingTree = (rxdb: RxDB): boolean => rxdb.getPlugins(WORKING_T
  *
  * @throws `RxDBReplayError('working_tree_unavailable')`：没装工作树插件；门面抛的错误原样透传
  */
-export const restoreToCommit = async (rxdb: RxDB, commitId: string): Promise<WorkingTreeRestoreResult> => {
+export const restoreToCommit = async (rxdb: RxDB, commitId: string): Promise<ReplayRestoreResult> => {
   if (!hasWorkingTree(rxdb)) {
     throw new RxDBReplayError(
       'working_tree_unavailable',

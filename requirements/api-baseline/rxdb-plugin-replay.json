@@ -74,6 +74,10 @@
         "kind": "type"
       },
       {
+        "name": "ReplayRestoreResult",
+        "kind": "type"
+      },
+      {
         "name": "ReplaySessionExport",
         "kind": "type"
       },

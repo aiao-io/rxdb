@@ -1,8 +1,30 @@
-import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
 import type { eventWithTime } from '@rrweb/types';
 import type { Observable } from 'rxjs';
 import type { ReplaySessionStatus } from './entities.js';
 import type { ReplayTruncatedCode } from './markers.js';
+
+/** `restoreToCommit()` 被拒的四种原因（与工作树 `restore()` 的 `reason` 同值）。 */
+export type ReplayRestoreRejection = 'conflict' | 'dirty_working_tree' | 'incompatible_schema' | 'unreachable_target';
+
+/**
+ * `restoreToCommit()` 的结果：工作树 `restore()` 结果里回放用得上的那部分。
+ *
+ * @remarks
+ * 不直接引用 `@aiao/rxdb-plugin-working-tree` 的 `WorkingTreeRestoreResult`：它是可选 peer，类型导入一旦进了
+ * 公开签名就会留在 `.d.ts` 里，没装它的 strict 消费方连录制都编不过。被拒时的诊断细节（`conflict` / `incompatible`）
+ * 运行时仍在对象上，要类型就直接用工作树的 `restore()`。
+ */
+export type ReplayRestoreResult =
+  | {
+      readonly ok: true;
+      /** 写进工作树的条目数；`0` 是一次 no-op */
+      readonly restoredCount: number;
+      /** 本次建立的恢复会话 id；no-op 时为 `null` */
+      readonly sessionId: string | null;
+      /** 本次调用之后的工作树 revision */
+      readonly workingTreeRevision: number;
+    }
+  | { readonly ok: false; readonly reason: ReplayRestoreRejection };
 
 /**
  * `rxdb.replay.state$` 的值。
@@ -114,5 +136,5 @@ export interface ReplayManager {
    *
    * @throws `RxDBReplayError('working_tree_unavailable')`：没装工作树插件；其余错误原样透传
    */
-  restoreToCommit(commitId: string): Promise<WorkingTreeRestoreResult>;
+  restoreToCommit(commitId: string): Promise<ReplayRestoreResult>;
 }
