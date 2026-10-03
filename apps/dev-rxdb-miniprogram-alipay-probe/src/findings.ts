@@ -5,6 +5,7 @@
  * 证据不足一律给 `unknown`，不往 pass 上靠。走的是实验 host（FS 包装层 + Worker 随机源），
  * pass 说明「照这个形态写正式 host 可行」，不说明 adapter 现状支持支付宝。
  */
+import { isAlipayFsFailure } from './alipay-fs.js';
 import type { CoreExperimentReport, DatabaseFile } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import { OVER_SINGLE_FILE_OP, type FileSystemReport } from './experiments/fs-errors.js';
@@ -120,14 +121,23 @@ function rawWriteText(rawFs: RawFsReport): string {
   return RAW_WRITE_MODES.map(mode => `${mode} ${rawFs.writeModes[mode].bytesMatch ? '一致' : '不一致'}`).join('、');
 }
 
+/** 原始 FS 调用的结果：返回失败对象记错误码，正常返回记成功，抛错记原文。 */
+function rawCallText(result: Probe<unknown>): string {
+  if (!result.ok) return `抛错（${errorText(result.error)}）`;
+  if (!isAlipayFsFailure(result.value)) return '成功';
+  return `返回 error ${String(result.value.error ?? result.value.errorCode)}`;
+}
+
 function fileSystemFinding({ fileSystem, rawFs }: FindingsInput): Finding {
   const row = '同步 FS';
   if (fileSystem.probes.length === 0) return { matrixRow: row, verdict: 'unknown', evidence: '没有跑任何探测' };
-  const rawText = `裸写各传参读回字节：${rawWriteText(rawFs)}`;
+  const rawText =
+    `裸写空串${rawCallText(rawFs.emptyWrite)}、写到不存在的父目录${rawCallText(rawFs.missingParentWrite)}；` +
+    `裸写各传参读回字节：${rawWriteText(rawFs)}`;
   const failing = fileSystem.probes.filter(item => !item.asExpected);
   if (failing.length === 0 && rawFs.writeModes.base64String.bytesMatch) {
     const evidence =
-      `经包装层（失败返回值转抛错、错误码归一、只用 base64 串写）${fileSystem.probes.length} 条探测` +
+      `经包装层与分帧层（失败返回值转抛错、错误码归一、只用 base64 串写、每个文件垫 1 字节头）${fileSystem.probes.length} 条探测` +
       `全部符合 adapter VFS 的预期；${rawText}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }

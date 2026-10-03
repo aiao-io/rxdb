@@ -1,5 +1,5 @@
 /**
- * 支付宝开发者工具模拟器上的探针事实（v3d，开发者工具 3.10.15，2026-10-03 实测）。
+ * 支付宝开发者工具模拟器上的探针事实（v3e，开发者工具 3.10.15，2026-10-03 实测）。
  *
  * 每次跑都停掉再启动编译（工具栏开关），从磁盘重读 dist/，等新一轮报告，再逐条对照。这些断言钉的是**模拟器**，
  * 不是真机：iOS 真机上 `globalThis` / `BigInt` 都在、能写空文件，结论见探针 README 的平台差异表。
@@ -116,22 +116,21 @@ test('WASM：代码包只认相对路径，二进制读被当 UTF-8 文本改写
   });
 });
 
-test('裸 FS：只有 base64 串两端字节一致', () => {
+test('裸 FS：只有 base64 串两端字节一致；空写入报 error 2，写到不存在的父目录照样成功', () => {
   expect(report['rawFs']).toMatchObject({
     writeModes: {
       base64String: { bytesMatch: true },
       arrayBuffer: { bytesMatch: false },
       typedArray: { bytesMatch: false }
-    }
+    },
+    emptyWrite: { ok: true, value: { error: 2 } },
+    missingParentWrite: { ok: true, value: { success: true } }
   });
 });
 
-test('包装层 FS：父目录不存在照样写成、空写入报 error 2，其余符合 VFS 预期', () => {
+test('包装层 + 分帧层 FS：空写入也落得了盘，全部探测符合 adapter VFS 的预期', () => {
   const probes = (report['fileSystem'] as { probes: { op: string; asExpected: boolean }[] }).probes;
-  expect(probes.filter(item => !item.asExpected).map(item => item.op)).toEqual([
-    'writeFileSync(父目录不存在)',
-    'writeFileSync(空 ArrayBuffer)'
-  ]);
+  expect(probes.filter(item => !item.asExpected).map(item => item.op)).toEqual([]);
 });
 
 test('配额计费：单文件 7 MiB 写得进、8 MiB 撞 10028；写到 77 MiB 也没撞文件夹上限', () => {
@@ -149,11 +148,11 @@ test('核心实验：adapter 建库、读写、关闭重开逐字一致；写 12
   });
 });
 
-test('findings：WASM / 随机源 / 持久化 pass，同步 FS fail，用户目录 unknown；收尾删干净', () => {
+test('findings：WASM / 同步 FS / 随机源 / 持久化 pass，用户目录 unknown；收尾删干净', () => {
   const findings = report['findings'] as { matrixRow: string; verdict: string }[];
   expect(findings.map(item => [item.matrixRow, item.verdict])).toEqual([
     ['WASM', 'pass'],
-    ['同步 FS', 'fail'],
+    ['同步 FS', 'pass'],
     ['随机源', 'pass'],
     ['用户目录', 'unknown'],
     ['持久化', 'pass']

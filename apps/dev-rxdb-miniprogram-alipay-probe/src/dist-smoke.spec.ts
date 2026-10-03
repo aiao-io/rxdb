@@ -316,7 +316,7 @@ describe('dist 冒烟', () => {
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual([
       expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass' }),
-      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'fail' }),
+      expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass' }),
       expect.objectContaining({ matrixRow: '随机源', verdict: 'pass' }),
       expect.objectContaining({ matrixRow: '用户目录', verdict: 'pass' }),
       expect.objectContaining({

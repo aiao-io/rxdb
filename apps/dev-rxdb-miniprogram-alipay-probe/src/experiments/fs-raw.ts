@@ -50,6 +50,10 @@ export interface RawFsReport {
   readonly readMissing: Probe<unknown>;
   readonly writeModes: Readonly<Record<RawWriteMode, RawWriteModeReport>>;
   readonly readdir: Probe<unknown>;
+  /** 用包装层的写法（空串配 `'base64'`）写空文件的原始返回：模拟器报 error 2，adapter 建库却要写空文件。 */
+  readonly emptyWrite: Probe<unknown>;
+  /** 写到父目录不存在的路径的原始返回：报 10022 还是自动建出父目录。adapter 先建根目录、库文件平铺其下，不依赖哪一种。 */
+  readonly missingParentWrite: Probe<unknown>;
   /** 目标已存在时 `renameSync` 的行为：覆盖还是报错。 */
   readonly renameToExisting: {
     /** 先写源（`AQ==`）与目标（`Ag==`）两个文件，两次写入的原始返回。 */
@@ -137,6 +141,8 @@ export async function runRawFsExperiment(
     writeModes[mode] = await probeWriteMode(fs, my, `${directory}/${mode}.bin`, mode);
   }
   const readdir = await raw(() => fs.readdirSync(directory));
+  const emptyWrite = await raw(() => fs.writeFileSync(`${directory}/empty.bin`, '', 'base64'));
+  const missingParentWrite = await raw(() => fs.writeFileSync(`${directory}/no-such-dir/file.bin`, 'AQ==', 'base64'));
   const source = `${directory}/rename-a.bin`;
   const target = `${directory}/rename-b.bin`;
   const setup = await raw(() => [
@@ -145,5 +151,14 @@ export async function runRawFsExperiment(
   ]);
   const rename = await raw(() => fs.renameSync(source, target));
   const targetBase64 = await raw(() => fs.readFileSync(target, 'base64'));
-  return { directory, methods, readMissing, writeModes, readdir, renameToExisting: { setup, rename, targetBase64 } };
+  return {
+    directory,
+    methods,
+    readMissing,
+    writeModes,
+    readdir,
+    emptyWrite,
+    missingParentWrite,
+    renameToExisting: { setup, rename, targetBase64 }
+  };
 }

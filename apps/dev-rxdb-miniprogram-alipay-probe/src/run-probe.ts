@@ -57,7 +57,7 @@ const DEFAULT_WORKER_TIMEOUT_MS = 10_000;
 const NOTES = [
   '支付宝已判 unsupported，不在 MINI_PROGRAM_PLATFORM_IDS 里；实验 host（createAlipayProbeHost）借用 wechat 平台 id 才能交给 adapter 的公开 API，平台 id 在 adapter 里只做登记校验。',
   '同步 FS 失败时返回错误对象而不抛，实验 host 用包装层把它转成抛错、把错误码归一成 adapter VFS 正则认得的英文文案，平台原文挂在 cause 上；写入一律走「base64 串 + base64」。',
-  '模拟器拒绝任何空写入（error 2），adapter VFS 建库却要写空文件：实验 host 与核心实验的 FS 再套一层分帧（frameUserFiles），每个文件前垫 1 字节头，读与 stat 时剥掉。FS 实验（rawFs / fileSystem / quotaAccounting）不经分帧，记录的是平台原样。',
+  '模拟器拒绝任何空写入（error 2），adapter VFS 建库却要写空文件：实验 host 与核心实验的 FS 再套一层分帧（frameUserFiles），每个文件前垫 1 字节头，读与 stat 时剥掉。fileSystem 探测测的就是交给 adapter 的这一层；rawFs 与 quotaAccounting 不经包装与分帧，记录的是平台原样（含空写入 error 2、写到不存在的父目录照样成功）。',
   '引导前实验 host 给真实全局对象补缺的 BigInt（从 wasm 的 i64 返回值取回原生构造器）与 queueMicrotask（用 Promise 排微任务），已有的不动，见 runtimeRepairs；模拟器两个都缺，iOS 只缺 queueMicrotask。',
   '逻辑层没有随机源：随机数经 Worker 的 crypto.getRandomValues 桥接（my.createWorker + useExperimentalWorker），random.worker 是直接从 Worker 取的原始结果。',
   '逻辑层的标准 WebAssembly 文档没写，v2 探针两端实测都有；核心实验用它实例化 adapter 默认路径 wa-sqlite/wa-sqlite.wasm。模拟器把代码包文件当 UTF-8 文本读、非法字节序列改写成 EF BF BD，所以字节改从构建时放进包里的 base64 文本副本（wa-sqlite.wasm.base64.txt）读，wasm.codePackageBinary 记录两种读法对不对得上。Worker 的 MYWebAssembly 只做探测。',
@@ -232,7 +232,7 @@ export async function runProbe(options: ProbeOptions): Promise<ProbeReport> {
     const root = `${userDataPath}/${PROBE_DIRECTORY}`;
     const workspace = await probe(() => resetWorkspace(fileSystem, root));
     const rawFs = await runRawFsExperiment(raw, my, `${root}/raw`);
-    const fileSystemReport = runFileSystemExperiment(fileSystem, `${root}/fs`);
+    const fileSystemReport = runFileSystemExperiment(framed, `${root}/fs`);
     const quotaAccounting = await runQuotaAccountingExperiment(
       fileSystem,
       `${root}/quota`,

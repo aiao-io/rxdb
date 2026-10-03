@@ -1,8 +1,9 @@
 /**
- * @fileoverview 经包装层的同步 FS：错误原文与 adapter VFS 判定的契合度。
+ * @fileoverview 交给 adapter 的同步 FS（包装层 + 分帧层）：错误原文与 adapter VFS 判定的契合度。
  *
- * adapter 的文件 VFS 靠正则识别「文件不存在」与「目录已存在」；包装层把支付宝的错误码归一成正则认得的文案。
- * 这里逐个 VFS 实际会碰到的场景制造错误，记原文并给出判定。
+ * adapter 的文件 VFS 靠正则识别「文件不存在」与「目录已存在」；包装层把支付宝的错误码归一成正则认得的文案，
+ * 分帧层让空文件也有字节可写。这里逐个 VFS 实际会碰到的场景制造错误，记原文并给出判定；
+ * VFS 碰不到的场景（例如写进不存在的目录：VFS 先建根目录、库文件平铺其下）不在这里判，平台原样由 rawFs 记录。
  */
 import type { AlipayProbeFileSystem } from '../alipay-fs.js';
 import { adapterErrorText, describeError } from '../describe-error.js';
@@ -105,7 +106,7 @@ function writeOverLimit(fileSystem: AlipayProbeFileSystem, path: string): { writ
   return { written: OVER_SINGLE_FILE_BYTES };
 }
 
-/** 在 `directory`（调用方已建好的空目录）里逐条探测。 */
+/** 在 `directory`（调用方已建好的空目录）里逐条探测；`fileSystem` 传交给 adapter 的那一个。 */
 export function runFileSystemExperiment(fileSystem: AlipayProbeFileSystem, directory: string): FileSystemReport {
   const missing = `${directory}/missing.bin`;
   const probes: FsProbe[] = [
@@ -115,9 +116,6 @@ export function runFileSystemExperiment(fileSystem: AlipayProbeFileSystem, direc
     fsProbe('mkdirSync(已存在的目录, true)', 'exists-or-ok', () => fileSystem.mkdirSync(directory, true)),
     fsProbe('mkdirSync(已存在的目录, false)', 'exists', () => fileSystem.mkdirSync(directory, false)),
     fsProbe('mkdirSync(多级新目录, true)', 'ok', () => fileSystem.mkdirSync(`${directory}/a/b/c`, true)),
-    fsProbe('writeFileSync(父目录不存在)', 'throws', () =>
-      fileSystem.writeFileSync(`${directory}/no-such-dir/file.bin`, new ArrayBuffer(1))
-    ),
     fsProbe('writeFileSync + readFileSync(base64) 往返', 'ok', () =>
       roundTrip(fileSystem, `${directory}/round-trip.bin`)
     ),

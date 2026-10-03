@@ -37,13 +37,13 @@
 
 `findings` 是按矩阵行给出的本次判定（pass / fail / unknown），证据在它引用的字段里：
 
-| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`codePackageBinary` 对比代码包二进制读与 base64 文本副本；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                      |
-| 同步 FS  | `fileSystem.probes`：包装层上的同步调用与 adapter VFS 预期逐条对照（`asExpected`）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节                                              |
-| 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                         |
-| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`） |
-| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                           |
+| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`codePackageBinary` 对比代码包二进制读与 base64 文本副本；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                                                          |
+| 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（包装层 + 分帧层）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
+| 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                             |
+| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）                                                                                     |
+| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                               |
 
 其余字段：
 
@@ -94,7 +94,7 @@
 2. **空写入**：用户文件经分帧层（`frameUserFiles`）写，每个文件前垫 1 字节头，读与 stat 时剥掉，adapter 建库要写的空文件也有 1 字节可写
 3. **代码包二进制被改写**：构建在每个 `.wasm` 旁边放一份 `.base64.txt` 文本副本，实验 host 的 wasm 运行时读副本再 `my.base64ToArrayBuffer`；base64 只含 ASCII，读回原样。后缀用 `.txt` 是押真机代码包的文件类型白名单放行文本（**未实测**）
 
-findings：WASM pass、同步 FS fail（父目录不存在照样写成、空写入 error 2、裸写只有 base64 串字节一致）、随机源 pass（经 Worker 桥接）、用户目录 unknown（写 120 × 512 KiB 没撞配额）、持久化 pass（关闭重开 3 行逐字一致，integrity ok）。这三处绕行都是实验 host 的做法，adapter 正式支持支付宝时要换成正式实现。
+findings：WASM pass、同步 FS pass（包装层 + 分帧层 9 条探测全部符合 VFS 预期；裸 FS 照实记着空写入 error 2、写到不存在的父目录照样成功、裸写只有 base64 串字节一致——adapter VFS 打开时先建根目录、库文件平铺其下，不会写进不存在的目录）、随机源 pass（经 Worker 桥接）、用户目录 unknown（写 120 × 512 KiB 没撞配额）、持久化 pass（关闭重开 3 行逐字一致，integrity ok）。这三处绕行都是实验 host 的做法，adapter 正式支持支付宝时要换成正式实现。
 
 配额（模拟器 v3）：
 

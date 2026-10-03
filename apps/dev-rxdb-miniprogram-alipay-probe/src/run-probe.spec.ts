@@ -116,7 +116,13 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     expect(report.rawFs.writeModes.typedArray.bytesMatch).toBe(false);
   });
 
-  it('包装层 FS：全部探测符合 adapter VFS 的预期', () => {
+  it('裸 FS：空写入成功，写到不存在的父目录返回 10022', () => {
+    expect(report.rawFs.emptyWrite).toMatchObject({ ok: true, value: { success: true } });
+    expect(report.rawFs.missingParentWrite).toMatchObject({ ok: true, value: { error: 10022 } });
+    expect(finding(report, '同步 FS')?.evidence).toContain('裸写空串成功、写到不存在的父目录返回 error 10022');
+  });
+
+  it('包装层 + 分帧层 FS：全部探测符合 adapter VFS 的预期', () => {
     expect(report.fileSystem.probes.every(item => item.asExpected)).toBe(true);
   });
 
@@ -158,7 +164,7 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
 
 /**
  * 模拟器实测形态（v3b，2026-10-03）：空写入一律 error 2、父目录自动建出、单文件按 base64 串长计费。
- * 包装层探测照实记下前两条；交给 adapter 的是分帧层（`frameUserFiles`），空文件也落得了盘。
+ * 裸 FS 照实记下前两条；交给 adapter 与 FS 探测的都是分帧层（`frameUserFiles`），空文件也落得了盘。
  * 逻辑层没有 realm / BigInt / queueMicrotask 那一半由 dist-smoke 用真实构建产物验。
  */
 describe('runProbe：模拟器形态下经分帧层建库', () => {
@@ -196,9 +202,16 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     expect(finding(report, 'WASM')?.evidence).toContain('二进制读取被改写');
   });
 
-  it('包装层 FS：只有「父目录不存在照样写成」与「空写入 error 2」两条不符合 VFS 预期', () => {
-    const mismatched = report.fileSystem.probes.filter(item => !item.asExpected).map(item => item.op);
-    expect(mismatched).toEqual(['writeFileSync(父目录不存在)', 'writeFileSync(空 ArrayBuffer)']);
+  it('裸 FS：空写入报 error 2，写到不存在的父目录照样成功', () => {
+    expect(report.rawFs.emptyWrite).toMatchObject({ ok: true, value: { error: 2 } });
+    expect(report.rawFs.missingParentWrite).toMatchObject({ ok: true, value: { success: true } });
+  });
+
+  it('包装层 + 分帧层 FS：空写入也落得了盘，全部探测符合 adapter VFS 的预期', () => {
+    expect(report.fileSystem.probes.filter(item => !item.asExpected)).toEqual([]);
+    expect(report.fileSystem.probes.find(item => item.op === 'writeFileSync(空 ArrayBuffer)')).toMatchObject({
+      outcome: { ok: true, value: { base64: '' } }
+    });
   });
 
   it('配额计费：单文件按 base64 串长算，1 MiB 限额下只写得进 0.5 MiB；填充文件随之缩小，照样撞到文件夹上限', () => {
@@ -223,15 +236,16 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
   });
 
-  it('findings：只有同步 FS 判 fail（平台事实），其余经实验 host 全部 pass', () => {
+  it('findings：经实验 host 全部 pass，同步 FS 的证据里照实记着裸 FS 的两处平台差异', () => {
     expect(report.findings.map(item => [item.matrixRow, item.verdict])).toEqual([
       ['WASM', 'pass'],
-      ['同步 FS', 'fail'],
+      ['同步 FS', 'pass'],
       ['随机源', 'pass'],
       ['用户目录', 'pass'],
       ['持久化', 'pass']
     ]);
-    expect(finding(report, '同步 FS')?.evidence).toContain('error 2');
+    expect(finding(report, '同步 FS')?.evidence).toContain('裸写空串返回 error 2');
+    expect(finding(report, '同步 FS')?.evidence).toContain('写到不存在的父目录成功');
   });
 
   it('收尾：实验目录删干净，Worker 已 terminate', () => {

@@ -149,7 +149,7 @@ function headerError(method: string, path: string, detail: string): Error {
 /**
  * 给用户文件加一字节分帧头：写入时垫在最前，读与 stat 时剥掉，对上层呈现逻辑内容与逻辑大小。
  *
- * 只给实验 host 与核心包建库用；FS 实验仍用 {@link wrapAlipayFileSystem} 直接记录平台事实。
+ * 实验 host、核心包建库与 fileSystem 探测都用它；平台原样由 rawFs 不经包装直接记录。
  * `readBinarySync` / `readTextSync` 读代码包，原样透传。
  */
 export function frameUserFiles(
