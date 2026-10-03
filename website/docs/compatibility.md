@@ -90,13 +90,13 @@
 
 逐平台结论（判定依据与复议条件见[平台可行性矩阵](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/adapter/miniprogram-platform-feasibility.md)）：
 
-| 平台            | 结论       | 原因 / 边界                                                                                                                                                                          |
-| :-------------- | :--------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 微信 `wechat`   | 实验性支持 | 上表边界全部适用                                                                                                                                                                     |
-| 抖音 `douyin`   | 实验性支持 | 上表边界全部适用；开发者工具与 iOS 真机验证过，**Android 真机未验证**                                                                                                                |
-| 支付宝 `alipay` | 不支持     | `MYWebAssembly` 只能在 Worker 线程使用，与 wa-sqlite 在逻辑层单 realm 同步运行的设计冲突；也没有文档化的安全随机 API。传入 `alipay` 在连接前抛 `MiniProgramUnsupportedPlatformError` |
-| 百度 `baidu`    | 不支持     | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                                                                         |
-| QQ `qq`         | 不支持     | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                                                                         |
+| 平台            | 结论       | 原因 / 边界                                                                                                                                                                                                                      |
+| :-------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 微信 `wechat`   | 实验性支持 | 上表边界全部适用                                                                                                                                                                                                                 |
+| 抖音 `douyin`   | 实验性支持 | 上表边界全部适用；开发者工具与 iOS 真机验证过，**Android 真机未验证**                                                                                                                                                            |
+| 支付宝 `alipay` | 不支持     | 只能走逻辑层的标准 `WebAssembly` 与 Worker 里的随机源，两者都没有文档承诺；按矩阵的改判标准，要在开发者工具、iOS、Android 非调试真机上全部验证通过，目前都还没有。传入 `alipay` 在连接前抛 `MiniProgramUnsupportedPlatformError` |
+| 百度 `baidu`    | 不支持     | 找不到安全随机源与 WASM 入口（文档没有，也没有实测）                                                                                                                                                                             |
+| QQ `qq`         | 不支持     | 找不到安全随机源与 WASM 入口（文档没有，也没有实测）                                                                                                                                                                             |
 
 运行时启动前需调用 `@aiao/rxdb-adapter-miniprogram/runtime` 的 `prepareMiniProgramRuntime(wx)`（微信），
 或 `prepareMiniProgramHostRuntime(createDouyinMiniProgramHost(tt, { runtimeGlobal }))`（抖音），

@@ -1,7 +1,8 @@
 /**
  * @fileoverview 把报告压成可行性矩阵抖音列的逐行判定。
  *
- * 判定只针对「这一台设备、这一次运行」；矩阵要的是开发者工具 + Android + iOS 三份报告都 pass。
+ * 判定只针对「这一台设备、这一次运行」；矩阵按可行性矩阵的「改判标准」门 3 回填：
+ * 开发者工具必须 pass，真机只认预览 / 体验版，没跑的真机记成 caveat。
  * 证据不足一律给 `unknown`，不往 pass 上靠。
  */
 import type { CoreExperimentReport, DatabaseFile } from './core-contract.js';

@@ -166,7 +166,7 @@ wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传
 
 **目前登记的平台是 `wechat` 与 `douyin`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 在连接前失败，不会回退到 `wx`：
 可行性矩阵判 `unsupported` 的平台抛 `MiniProgramUnsupportedPlatformError`（继承 `MiniProgramUnknownPlatformError`），
-`blockers` 与报错文案带出矩阵里的阻断项和判定章节——目前是 `alipay`（`MYWebAssembly` 只能在 Worker 线程使用）；
+`blockers` 与报错文案带出矩阵里的阻断项和判定章节——目前是 `alipay`（依赖未文档化能力，按改判标准还缺开发者工具、iOS、Android 三端的合格报告）；
 其余抛 `MiniProgramUnknownPlatformError`。这个契约的存在不代表支持支付宝、百度或 QQ 小程序；
 各平台的可行性结论见
 [miniprogram-platform-feasibility.md](../../requirements/stories/adapter/miniprogram-platform-feasibility.md)。

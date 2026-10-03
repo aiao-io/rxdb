@@ -10,7 +10,7 @@
 2. 抖音开发者工具 →「导入项目」→ 选 `dist/`。`project.config.json` 里的 `appid` 是占位的 `testAppId`，要换成真实 AppID（在工具里改，或改 `dist/project.config.json`；别把真实 AppID 提交进 `static/`）
 3. 页面打开就自动跑。配额实验要把用户目录写满 10M，需要等一会儿
 4. 点「复制报告」，或在控制台搜 `[douyin-spike] 报告`
-5. 开发者工具模拟器、Android 真机预览、iOS 真机预览**各跑一份**。矩阵回填要三份报告，单份只代表那一台设备
+5. 开发者工具模拟器、Android 真机预览、iOS 真机预览**各跑一份**，单份只代表那一台设备。矩阵按 [改判标准](../../requirements/stories/adapter/miniprogram-platform-feasibility.md#改判标准) 门 3 回填：模拟器必须 pass，真机只认预览 / 体验版，没跑的真机记成 caveat
 
 ## 报告怎么读
 

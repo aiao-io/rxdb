@@ -58,9 +58,10 @@ export const MINI_PROGRAM_UNSUPPORTED_PLATFORMS: Readonly<Record<string, MiniPro
   Object.freeze({
     alipay: Object.freeze({
       displayName: '支付宝小程序',
-      blockers: Object.freeze(['wasm-worker-only', 'no-documented-secure-random']),
+      blockers: Object.freeze(['devtools-unverified', 'ios-unverified', 'android-unverified']),
       reason:
-        'MYWebAssembly 只能在 Worker 线程使用，与 wa-sqlite 在逻辑层单 realm 同步运行的设计冲突；也没有文档化的安全随机 API',
+        '逻辑层的 WebAssembly 与安全随机源都没有文档承诺，' +
+        '要由正式 host 在开发者工具、iOS 与 Android 非调试真机上全部跑通，目前三端都没有合格报告',
       section: '支付宝 `my` — unsupported'
     })
   });

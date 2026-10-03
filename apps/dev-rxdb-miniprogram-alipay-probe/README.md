@@ -1,6 +1,6 @@
 # 支付宝小程序探针（US-211 阶段 C 验证实验）
 
-一个打开即跑的支付宝小程序，用实验核对 [可行性矩阵](../../requirements/stories/adapter/miniprogram-platform-feasibility.md) 支付宝一节的阻断项（`wasm-worker-only`、`no-documented-secure-random`），并且像 [抖音 spike](../dev-rxdb-miniprogram-douyin-spike/README.md) 一样把 adapter 真正跑一遍：建库、写入、重开、写到撞配额。产出一份 JSON 报告用于回填矩阵。
+一个打开即跑的支付宝小程序，用实验核对 [可行性矩阵](../../requirements/stories/adapter/miniprogram-platform-feasibility.md) 支付宝一节依赖的三处未文档化能力（逻辑层的 `WebAssembly`、Worker 里的 `crypto`、找回全局对象），并且像 [抖音 spike](../dev-rxdb-miniprogram-douyin-spike/README.md) 一样把 adapter 真正跑一遍：建库、写入、重开、写到撞配额。产出一份 JSON 报告，用来设计正式 host。探针走的是实验 host，按 [改判标准](../../requirements/stories/adapter/miniprogram-platform-feasibility.md#改判标准) 它的报告不算门 3 的证据，矩阵只认正式 host 跑出的报告。
 
 支付宝已判 `unsupported`，不在 `MINI_PROGRAM_PLATFORM_IDS` 里。实验 host `createAlipayProbeHost`（[alipay-host.ts](src/alipay-host.ts)）借 `wechat` 平台 id 才能交给 adapter 的公开 API，并补上平台缺的两块：
 
@@ -129,6 +129,8 @@ iOS 真机调试 v5（2026-10-04，同一台设备，约 144 秒一轮）：超�
 - **iOS 配额**：真机调试里经 SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB、文件夹 72 MiB 都没撞上，文档的 10M / 50M 没执行；有没有上限、在多大，现在的写入计划探不到，用户目录因此一直是 unknown
 - **Android 真机**：还没跑
 - **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，预览模式下逻辑层的 `WebAssembly` 与 adapter 全流程都还没跑
+
+改判 `supported` 要按改判标准先写正式 host（实验 host 的处理全部搬进去、不按模拟器分支），再用它在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针的 `findings` 还按旧判法给 unknown。
 
 ## 本地测试
 

@@ -3,13 +3,66 @@
 [US-211](./US-211-multi-miniprogram-platforms.md) 阶段 A 的附件，不是新的用户故事。
 阶段 B / C 只认本文件里的 `decision: supported`；`unknown` 不是可以开工的绿灯。
 
-判定口径沿用 [US-209](./US-209-miniprogram-adapter.md) 的设计，不因平台放宽：
+## 改判标准
 
-- wa-sqlite 在**逻辑层**、单 JavaScript realm 里同步运行。WASM 只在 Worker 里能用的平台，
-  按故事约束判 `unsupported`，不在 Worker 里私自 polyfill。
-- VFS 需要**同步**文件 API，异步 FS 不能冒充同步 VFS。
-- 必须有文档化的安全随机 API，不降级到 `Math.random`。没有就直接判 `unsupported`，不必等实验。
+第一档（`tier: first`）平台按下面四道门判定，前一道不过就不看后一道。微信是 US-209 交付的（`tier: delivered`），
+不按本标准回溯；观察档不判。
+
+### 门 0：架构约束
+
+沿用 [US-209](./US-209-miniprogram-adapter.md) 的设计，不因平台放宽：
+
+- wa-sqlite 在**逻辑层**、单 JavaScript realm 里同步运行。不把 RxDB 搬进 Worker，也不在 Worker 里 polyfill。
+- VFS 需要**同步**的整文件读写，异步 FS 不能冒充同步 VFS。
+- 随机源必须密码学安全，不降级到 `Math.random`。可以异步取字节、预灌进同步随机池（`/runtime` 的做法）；
+  从 Worker 取随机字节传回逻辑层也属于这一类，不算在 Worker 里 polyfill。
 - 没有 `fsync` 与文件锁就写「崩溃恢复：无」。有原子 rename 也救不了缓冲 VFS 的整库落盘。
+
+### 门 1：硬依赖的来源
+
+WASM 入口、同步 FS、安全随机源三项，各自归入一种来源：
+
+- **文档化**：平台文档写明可用。
+- **实测**：文档没写，但有实验报告证明逻辑层可用。够不够判 `supported` 由门 2、门 3 决定。
+- **缺失**：两者都不是。任一项缺失就判 `unsupported`，阻断项写 `missing-wasm-entry` / `missing-sync-fs` /
+  `missing-secure-random`。缺失可以只凭文档检索判，不必等实验；复议时拿出实验报告就转为「实测」。
+
+正式 host 里的绕行分三类，只有前两类允许：
+
+1. **保语义，只用文档化 API 或 ECMAScript / WebAssembly 规范语义**：不记账。例如把返回的错误对象改成抛错、
+   归一错误码与文案、用 `Promise` 补 `queueMicrotask`、用非严格函数的 `this` 取全局对象。
+2. **依赖未文档化或实现定义的行为**：逐条写进 YAML 的 `undocumented`。例如逻辑层的标准 `WebAssembly`、
+   Worker 里的 `crypto`、在 `Object.prototype` 上挂 getter 找回全局对象。来源为「实测」的能力也记在这里。
+3. **降级语义**：禁止。例如 `Math.random`、吞掉写入失败、把撞配额当成写入成功。
+
+绕行只写在正式 host（`packages/rxdb-adapter-miniprogram/src/hosts/<id>.ts`）里，对所有环境生效：
+不许按模拟器 / 真机分支，不许只在探针里垫。平台错误的文案与错误码不算未文档化依赖，由门 2 的同步 FS 探针核对。
+
+`undocumented` 非空的平台，正式 host 在连接时检测这些能力，缺了立即失败并指向本文件；
+对外口径写「实验性（依赖未文档化能力）」。
+
+### 门 2：探针
+
+用正式 host 跑一份带 schema 的报告，五行全 pass 才算该环境合格：
+
+| 行       | pass 条件                                                                                                                                                                                                                                             |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | 从代码包实例化 wa-sqlite，读到的字节与构建指纹一致                                                                                                                                                                                                    |
+| 同步 FS  | FS 契约探测全部符合预期：不存在 / 已存在 / 撞配额的错误都被 VFS 正确归类，字节往返原样                                                                                                                                                                |
+| 随机源   | 64 KiB 与 1 MiB 都取成功且不全为 0，`prepareMiniProgramHostRuntime` 成功                                                                                                                                                                              |
+| 用户目录 | 经 SQLite 写到撞配额：报 `SQLITE_FULL`、平台原文在 `cause` 链上；不清理直接重开，行数等于已提交行数、`integrity_check` ok、分块布局下块号连续。经 SQLite 写满约 30 MiB（适配器约 10 MB 库上限的 3 倍）仍没撞上也算 pass，记 caveat `quota-unobserved` |
+| 持久化   | 建库、写入、关闭、重开读回逐行一致，`integrity_check` ok                                                                                                                                                                                              |
+
+### 门 3：运行环境
+
+三个环境：开发者工具模拟器（`devtools`）、iOS 真机（`ios`）、Android 真机（`android`）。真机只认预览或体验版，
+接着调试器跑的真机调试不算。每个环境的合格报告 schema 记进 YAML 的 `evidence`，没有就写 `null`。
+
+- 模拟器必须合格：开发者在模拟器里开发，模拟器跑不通就没法调试。
+- `undocumented` 为空：模拟器加至少一台真机合格即可判 `supported`，缺的那台写进 `caveats`（`<环境>-unverified`）。
+- `undocumented` 非空：模拟器、iOS、Android 必须全部合格，不许用 caveat 豁免。
+- 证据不够时判 `unsupported`，阻断项就是缺的环境（`<环境>-unverified`）。
+- 三个环境全部合格、且没有 `quota-unobserved` 之类的探针 caveat，才能去掉「实验性」。
 
 ## 机器可读结论
 
@@ -17,6 +70,8 @@
 # 字段：id = MiniProgramPlatformId 候选；global = 平台全局对象（未调研为 null）；
 # decision ∈ supported / unsupported / unknown；blockers 为空才可能是 supported；
 # caveats = supported 平台仍未验证的范围，逐条写进 US-211 AC#14 与兼容文档。
+# 第一档另有两项（见「改判标准」）：undocumented = 正式 host 依赖的未文档化行为；
+# evidence = devtools / ios / android 各自合格报告的 schema，没有为 null。
 platforms:
   - id: wechat
     tier: delivered
@@ -27,15 +82,29 @@ platforms:
   - id: alipay
     tier: first
     global: my
-    wasm: MYWebAssembly
+    wasm: WebAssembly
+    undocumented:
+      - logic-layer-webassembly
+      - worker-crypto-random
+      - object-prototype-global
+    evidence:
+      devtools: null
+      ios: null
+      android: null
     decision: unsupported
     blockers:
-      - wasm-worker-only
-      - no-documented-secure-random
+      - devtools-unverified
+      - ios-unverified
+      - android-unverified
   - id: douyin
     tier: first
     global: tt
     wasm: TTWebAssembly
+    undocumented: []
+    evidence:
+      devtools: aiao.us-211.douyin-spike/v9
+      ios: aiao.us-211.douyin-spike/v9
+      android: null
     decision: supported
     blockers: []
     caveats:
@@ -44,18 +113,28 @@ platforms:
     tier: first
     global: swan
     wasm: null
+    undocumented: []
+    evidence:
+      devtools: null
+      ios: null
+      android: null
     decision: unsupported
     blockers:
-      - no-documented-secure-random
-      - no-documented-wasm-entry
+      - missing-secure-random
+      - missing-wasm-entry
   - id: qq
     tier: first
     global: qq
     wasm: null
+    undocumented: []
+    evidence:
+      devtools: null
+      ios: null
+      android: null
     decision: unsupported
     blockers:
-      - no-documented-secure-random
-      - no-documented-wasm-entry
+      - missing-secure-random
+      - missing-wasm-entry
   - id: jd
     tier: observation
     global: null
@@ -86,18 +165,19 @@ platforms:
 登记在拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`（`host.ts`）里的 `unsupported` 平台抛
 `MiniProgramUnsupportedPlatformError`，带出这里的 `blockers` 与平台章节标题，目前是 `alipay`；其余抛
 `MiniProgramUnknownPlatformError`。`unsupported-platform.spec.ts` 用 `?raw` 解析上面的 YAML，核对登记表等于
-`supported` 集合、拒绝表每项的 `decision` 与 `blockers` 与这里一致、章节标题真实存在——改判或改标题时代码与本文件一起改。
+`supported` 集合、拒绝表每项的 `decision` 与 `blockers` 与这里一致、章节标题真实存在；第一档每行的 `decision`、
+`blockers` 与 `caveats` 还要能按「改判标准」从 `undocumented` 与 `evidence` 推出来——改判或改标题时代码与本文件一起改。
 
 ## 阶段 B 结论（AC#8）
 
 **阶段 B 交付抖音，带一条 caveat：Android 真机未验证。**
 
-| 平台   | 状态          | 结论                                                                                                                            |
-| ------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 抖音   | `supported`   | 开发者工具模拟器与 iOS 真机的 v9 实验 5 项全 pass（见下文抖音一节「实验」）；Android 真机未跑，记为 caveat                      |
-| QQ     | `unsupported` | 没有文档化的安全随机 API                                                                                                        |
-| 百度   | `unsupported` | 没有文档化的安全随机 API，也找不到 WASM 入口                                                                                    |
-| 支付宝 | `unsupported` | 文档化的 `MYWebAssembly` 只在 Worker（实测 Worker 里没有 `my`），逻辑层也拿不到任何随机源；iOS 逻辑层有未文档化的 `WebAssembly` |
+| 平台   | 状态          | 结论                                                                                                                                                                       |
+| ------ | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 抖音   | `supported`   | 开发者工具模拟器与 iOS 真机的 v9 实验 5 项全 pass（见下文抖音一节「实验」）；Android 真机未跑，记为 caveat                                                                 |
+| QQ     | `unsupported` | 门 1：安全随机源与 WASM 入口都找不到（文档没有，也没有实测）                                                                                                               |
+| 百度   | `unsupported` | 门 1：安全随机源与 WASM 入口都找不到（文档没有，也没有实测）                                                                                                               |
+| 支付宝 | `unsupported` | 逻辑层的 `WebAssembly` 与 Worker 里的随机源都没有文档，按门 3 要正式 host 在模拟器、iOS、Android 都合格；目前三端都没有合格报告（已有实验走的是实验 host，iOS 是真机调试） |
 
 抖音的对外口径是「实验性支持」：Android 真机补跑一份 v9 报告并全 pass 后，才去掉 `android-unverified`。
 
@@ -126,8 +206,8 @@ platforms:
 | 随机源   | 没找到文档化的安全随机 API：线上 [API 概览](https://opendocs.alipay.com/mini/api)（浏览器渲染后检索，297 个 `my.*` 条目）与[文档源仓库](https://github.com/AlipayDocs/open-docs)全文都检索不到。两端实测：`my.getRandomValues` 为 `undefined`，`my.canIUse('getRandomValues')` 为 `false`，逻辑层没有 `crypto`；`my` 的成员（模拟器 532 个、iOS 538 个）里名字沾边的只有做 RSA 加解密的 `my.rsa`。Worker 里两端都有 `crypto.getRandomValues`（iOS 取 16 字节得 16 个不同值），文档没写，不算平台承诺。也就是说，逻辑层不论有没有文档都**拿不到任何随机源**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | 用户目录 | `my.env.USER_DATA_PATH`，模拟器与 iOS 实测值都是 `https://usr`。配额（v3 模拟器，裸文件）：单文件 7 MiB 写得进、8 MiB 报 10028「单个文件超限」，**推断**按 base64 串长计费（编码后约 9.3 / 10.7 MiB，卡在 10 MiB 两侧）；文件夹写了 11 个 7 MiB 文件共 77 MiB 没撞到文档的 50M 上限。iOS 真机调试（v3，裸文件）：单文件写到 12 MiB、文件夹写 8 × 9 MiB 共 72 MiB 都没撞上，两条文档上限都没执行，v4 / v5 复测一样，经 SQLite 写满 120 × 512 KiB 也没撞上                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 持久化   | 有 `renameSync`；文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 判定理由 | 按「只依赖文档化能力」的标准（与微信、抖音同一把尺子），唯一文档化的 WASM 入口只在 Worker，而两端实测 Worker 里都没有 `my`（`getFileSystemManager` 拿不到）。sqlite 在 Worker、文件在逻辑层，每次页读写都要跨线程异步往返，同步 VFS 做不出来。逻辑层那份标准 `WebAssembly` 没有文档承诺，不能作为支持依据。随机源是独立的一条：逻辑层连未文档化的 `crypto` 都没有，只能跨线程去要 Worker 的 `crypto`，同样没有文档。两条阻断各自都足以判不支持。把 RxDB 整体搬进 Worker 是另一套架构，US-211 明确不做，也不许在 Worker 里 polyfill                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 复议条件 | 支付宝把逻辑层的 `WebAssembly` 写进文档（或在逻辑层开放 `MYWebAssembly`），并且提供文档化的安全随机 API。复议时 FS 宿主封装要处理三件事：失败返回而不抛、`Uint8Array` 在 iOS 上被写成空文件、`renameSync` 覆盖语义两端不一致。逻辑层两端都没有 `queueMicrotask`，adapter 能力预检把它列为硬依赖，也要平台提供（`dist-smoke.spec.ts` 按 iOS 形态推演：只缺它一项就在打开库之前被拒，补上之后全部实验跑通）。还要补跑非调试的预览模式与 Android。模拟器上实验 host 用三处绕行跑通了 adapter（Object.prototype getter 找回全局对象并补 `BigInt` / `queueMicrotask`、用户文件垫 1 字节头避开空写入、wasm 按构建指纹在原文件与 base64 文本副本之间选源），iOS 真机调试（v4 / v5）也跑通了：全局对象与 `BigInt` 原生就有、裸空写入不报错、wasm 直接读原文件，三处绕行里只用上了补 `queueMicrotask`。这些都是实验做法，不是平台承诺                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 判定理由 | 门 0：唯一文档化的 WASM 入口 `MYWebAssembly` 只在 Worker，而两端实测 Worker 里都没有 `my`，sqlite 放进 Worker 就做不出同步 VFS；把 RxDB 整体搬进 Worker 是另一套架构，US-211 不做。所以只能走逻辑层的标准 `WebAssembly`。门 1：三项硬依赖都有来源——同步 FS 有文档；WASM 是逻辑层的 `WebAssembly`（实测）；随机源是从 Worker 的 `crypto` 取字节灌进同步随机池（实测，门 0 允许）。模拟器还要在 `Object.prototype` 上挂 getter 才找得回全局对象。这三处记进 `undocumented`。门 3：`undocumented` 非空，模拟器、iOS、Android 都要用正式 host 跑出合格报告。目前没有正式 host，下文「实验」都是实验 host 跑的，iOS 那次还是真机调试，一份都不算，阻断项就是三个环境的证据缺口                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 复议条件 | 先写正式 host `src/hosts/alipay.ts`，把实验 host 的处理全部搬进去、对所有环境生效（不许按模拟器分支）：FS 失败返回而不抛、`Uint8Array` 在 iOS 上被写成空文件、`renameSync` 覆盖语义两端不一致、空写入报错、wasm 按构建指纹选源、补 `BigInt` 与 `queueMicrotask`（`dist-smoke.spec.ts` 按 iOS 形态推演：只缺 `queueMicrotask` 一项就在打开库之前被拒，补上之后全部实验跑通），并在连接时检测 `undocumented` 里的三项能力。再用正式 host 在开发者工具模拟器、iOS 预览、Android 预览各跑一份报告，五行全 pass 后按门 3 改判 `supported`，对外写「实验性（依赖未文档化能力）」；用户目录仍撞不到配额时，经 SQLite 写满约 30 MiB 后记 `quota-unobserved`。支付宝若把逻辑层的 `WebAssembly` 或安全随机 API 写进文档，对应条目从 `undocumented` 删掉；删空后门 3 只要求模拟器加一台真机。已有进展：模拟器上实验 host 用三处绕行跑通了 adapter（Object.prototype getter 找回全局对象并补 `BigInt` / `queueMicrotask`、用户文件垫 1 字节头避开空写入、wasm 按构建指纹在原文件与 base64 文本副本之间选源），iOS 真机调试（v4 / v5）也跑通了：全局对象与 `BigInt` 原生就有、裸空写入不报错、wasm 直接读原文件，三处绕行里只用上了补 `queueMicrotask`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 实验     | `apps/dev-rxdb-miniprogram-alipay-probe`，报告 v2 到 v5（现为 `aiao.us-211.alipay-probe/v5`），2026-10-03 至 04。两次运行：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15，模拟 iOS 15 / 支付宝 10.5.62）；iOS 真机调试（iPhone18,2 / iOS 26.6.2 / `systemInfo.version` 12.12.30.6000 / 基础库 2.10.42）。内容：逻辑层探环境、WASM、随机源、FS 错误契约与四种写入方式的字节往返；Worker 探 `MYWebAssembly`、`WebAssembly`、`my` 与 `crypto`。环境差异：模拟器逻辑层没有 `globalThis` / `BigInt`，iOS 都有；两端都没有 `queueMicrotask` / `TextEncoder` / `TextDecoder`。iOS 是接着调试器跑的真机调试，预览模式与 Android 未跑。v3 改写成与抖音 spike 同构的 TS 工程，经实验 host（FS 包装层 + Worker 随机源，借 `wechat` id）把 adapter 跑一遍并加测配额计费；模拟器 v3 起初被拦在 adapter 之前：拿不到真实全局对象（非严格 `this` 也是 `undefined`，`Function('return this')()` 是别的 realm），核心包顶层撞上 `BigInt is not defined`。实验 host 加了三处绕行后 adapter 在模拟器上跑通：构建 banner 在 `Object.prototype` 上临时挂 getter、以自由变量读出真实全局对象，从 wasm i64 返回值取回 `BigInt`、用 `Promise` 补 `queueMicrotask`；用户文件垫 1 字节分帧头避开空写入 error 2；wasm 从代码包里的 base64 文本副本读（二进制读被改写成 UTF-8 文本）。findings 为 WASM pass / 同步 FS pass（判的是交给 adapter 的包装层 + 分帧层；裸 FS 的空写入 error 2 与写到不存在的父目录照样成功照实记在 `rawFs`，VFS 先建根目录、库文件平铺其下，不依赖后者）/ 随机源 pass（经 Worker 桥接）/ 用户目录 unknown（120 × 512 KiB 没撞配额）/ 持久化 pass。iOS 真机调试 v3（同日）：代码包里没有 `.base64.txt`（读报 10022），adapter 停在打开库，WASM / 持久化 fail；二进制读 wa-sqlite.wasm 字节数正确（727646）；单文件 12 MiB、文件夹 72 MiB 都没撞配额，按文档写的「11 MiB 单文件应抛错」期望不成立，同步 FS 因此判 fail；裸写 `typedArray` 不一致、其余三种一致。探针 v4 改成按构建指纹（字节数 + FNV-1a）在 `.wasm` 原文件与文本副本之间选源；v5 把超限写入改按 adapter VFS 的视角判（整块落盘，或抛错且 VFS 认成撞配额），页面状态带报告 schema。iOS 真机调试 v4（同日）：wasm 二进制读与构建指纹逐字节一致，两个 wasm 都读原文件；adapter 经逻辑层标准 `WebAssembly` 建库、写入、关闭重开 3 行一致、integrity ok，实验 host 只补了 `queueMicrotask`。findings 为 WASM / 随机源 / 持久化 pass，用户目录 unknown（SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB / 文件夹 72 MiB 都没撞配额），同步 FS 只有超限写入那条按 v4 判法 fail（实写 11 MiB 成功），v5 改判法后 iOS 重跑（2026-10-04）：同步 FS 转 pass，其余与 v4 逐项一致，findings 为 WASM / 同步 FS / 随机源 / 持久化 pass、用户目录 unknown。模拟器自动化：`pnpm nx run dev-rxdb-miniprogram-alipay-probe-e2e:e2e-devtools`（CDP 驱动开发者工具，不进 CI） |
 
 ### 抖音 `tt` — supported（阶段 B 交付，Android 未验证）
@@ -152,8 +232,8 @@ API 总览页检索不到 `TTWebAssembly`，它只出现在「体验优化」指
 | 随机源   | 没有文档化的安全随机 API。线上 API 列表检索不到随机数类 API，沾「加密」的只有风控用的 `swan.getSystemRiskInfo`；文档源仓库全文只有一段示例代码，在 `crypto.getRandomValues` 不存在时退回 `Math.random`                                                                                             |
 | 用户目录 | `swan.env.USER_DATA_PATH`；本地用户文件总量 10 MB（文档源 `program-docs/docs/develop/function/file_system_local.md`）                                                                                                                                                                              |
 | 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                                                        |
-| 判定理由 | 缺可信随机源，按判定口径直接判 `unsupported`，不降级到 `Math.random`，也不必等实验。WASM 入口找不到是第二个缺口，单凭它不够判定                                                                                                                                                                    |
-| 复议条件 | 百度提供文档化的安全随机 API，**且**逻辑层有能按代码包内路径实例化的 WASM 入口。复议时补开发者工具 + 真机实验                                                                                                                                                                                      |
+| 判定理由 | 门 1：文档里找不到安全随机源与 WASM 入口，也没有实测，两项都按缺失判 `unsupported`，不降级到 `Math.random`                                                                                                                                                                                         |
+| 复议条件 | 两项都要有来源：百度写进文档，或用正式 host 在逻辑层实测跑通（实测的记进 `undocumented`）。之后按门 2、门 3 补开发者工具与真机报告                                                                                                                                                                 |
 
 ### QQ `qq` — unsupported
 
@@ -164,8 +244,8 @@ API 总览页检索不到 `TTWebAssembly`，它只出现在「体验优化」指
 | 随机源   | 没有文档化的安全随机 API。[加密](https://q.qq.com/wiki/develop/miniprogram/API/basic/crypto.html)一页只有 `qq.getUserCryptoManager` 与 `UserCryptoManager.getLatestUserKey`（取用户维度的通信密钥），没有 `getRandomValues`；API 总览也检索不到随机数类 API |
 | 用户目录 | `qq.env.USER_DATA_PATH`                                                                                                                                                                                                                                     |
 | 持久化   | 文档没有 `fsync` 与文件锁。**崩溃恢复：无**                                                                                                                                                                                                                 |
-| 判定理由 | 缺可信随机源，按判定口径直接判 `unsupported`。WASM 入口找不到是第二个缺口                                                                                                                                                                                   |
-| 复议条件 | QQ 提供文档化的安全随机 API，**且**逻辑层有能按代码包内路径实例化的 WASM 入口。复议时补开发者工具 + 真机实验                                                                                                                                                |
+| 判定理由 | 门 1：文档里找不到安全随机源与 WASM 入口，也没有实测，两项都按缺失判 `unsupported`                                                                                                                                                                          |
+| 复议条件 | 两项都要有来源：QQ 写进文档，或用正式 host 在逻辑层实测跑通（实测的记进 `undocumented`）。之后按门 2、门 3 补开发者工具与真机报告                                                                                                                           |
 
 ### 观察档：京东 / 快手 / 小红书 / 企业微信 — unknown
 
@@ -175,10 +255,12 @@ API 总览页检索不到 `TTWebAssembly`，它只出现在「体验优化」指
 
 ## 维护规则
 
-- 改判 `supported` 必须补全该平台的「实验」：工具版本、基础库与客户端版本、操作步骤、结果。只有文档链接不够。
+- 第一档平台按「改判标准」判定：先改 YAML 的 `undocumented` 与 `evidence`，`decision`、`blockers`、`caveats` 跟着推。
+- 改判 `supported` 必须补全该平台的「实验」：工具版本、基础库与客户端版本、运行模式（预览 / 体验版）、操作步骤、结果，
+  报告由正式 host 跑出。只有文档链接不够。
 - `blockers` 为空才可能 `supported`；`supported` 但没验证完的范围写进 `caveats`，每一条都必须在 US-211 AC#14 与
   `website/docs/compatibility.md` 里逐条写出，补完实验后再删。
-- 判 `unsupported` 可以只凭文档：写明缺的是判定口径里哪项硬依赖、怎么检索的，再补「判定理由」与「复议条件」。
+- 门 1 判 `unsupported` 可以只凭文档：写明缺的是哪项硬依赖、怎么检索的，再补「判定理由」与「复议条件」。
 - 某平台转 `supported` 后，才把它的 id 加进 `MINI_PROGRAM_PLATFORM_IDS` 并实现 host（阶段 B / C）。
 - 某平台转 `unsupported` 后，保持它不在 `MINI_PROGRAM_PLATFORM_IDS` 里，并登记进拒绝表 `MINI_PROGRAM_UNSUPPORTED_PLATFORMS`
   （阻断项与本文件 YAML 逐项一致、章节标题照抄），由 `MiniProgramUnsupportedPlatformError` 拒绝并指回本文件（US-211 AC#17）。

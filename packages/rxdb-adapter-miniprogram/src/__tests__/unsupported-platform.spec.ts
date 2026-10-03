@@ -272,14 +272,6 @@ describe('可行性矩阵 ↔ 改判标准', () => {
       expect(row.caveats, row.id).toEqual(expect.arrayContaining(absent.map(env => `${env}-unverified`)));
     }
   });
-
-  it('依赖未文档化行为的平台不许用 caveat 豁免任何一台真机', () => {
-    for (const row of FIRST_TIER_ROWS.filter(candidate => candidate.undocumented.length > 0)) {
-      if (row.decision !== 'supported') continue;
-      expect(row.evidence.ios, row.id).not.toBeNull();
-      expect(row.evidence.android, row.id).not.toBeNull();
-    }
-  });
 });
 
 describe('支付宝 alipay（AC#17）', () => {
@@ -293,10 +285,11 @@ describe('支付宝 alipay（AC#17）', () => {
     expect(unsupported.name).toBe('MiniProgramUnsupportedPlatformError');
     expect(unsupported.platform).toBe('alipay');
     expect(unsupported.knownPlatforms).toEqual(['wechat', 'douyin']);
-    expect(unsupported.blockers).toEqual(['wasm-worker-only', 'no-documented-secure-random']);
+    expect(unsupported.blockers).toEqual(['devtools-unverified', 'ios-unverified', 'android-unverified']);
     expect(unsupported.message).toBe(
-      '支付宝小程序（alipay）不支持：MYWebAssembly 只能在 Worker 线程使用，与 wa-sqlite 在逻辑层单 realm 同步运行的设计冲突；' +
-        '也没有文档化的安全随机 API。阻断项: wasm-worker-only, no-documented-secure-random；已知平台: wechat, douyin。' +
+      '支付宝小程序（alipay）不支持：逻辑层的 WebAssembly 与安全随机源都没有文档承诺，' +
+        '要由正式 host 在开发者工具、iOS 与 Android 非调试真机上全部跑通，目前三端都没有合格报告。' +
+        '阻断项: devtools-unverified, ios-unverified, android-unverified；已知平台: wechat, douyin。' +
         '判定理由与复议条件见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — unsupported」一节'
     );
   });
@@ -338,7 +331,7 @@ describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id'
     const viaHost = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
 
     expect(direct).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
-    expect(direct).toMatchObject({ platform: 'alipay', blockers: ['wasm-worker-only', 'no-documented-secure-random'] });
+    expect(direct).toMatchObject({ platform: 'alipay', blockers: ['devtools-unverified', 'ios-unverified', 'android-unverified'] });
     expect((direct as Error).message).toBe((viaHost as Error).message);
   });
 

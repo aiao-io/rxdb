@@ -1,9 +1,9 @@
 /**
  * @fileoverview 把报告压成可行性矩阵支付宝列的逐行判定。
  *
- * 判定只针对「这一台设备、这一次运行」；矩阵要的是开发者工具 + Android + iOS 三份报告都 pass。
+ * 判定只针对「这一台设备、这一次运行」；矩阵按可行性矩阵的「改判标准」回填，只认正式 host 跑出的报告。
  * 证据不足一律给 `unknown`，不往 pass 上靠。走的是实验 host（FS 包装层 + Worker 随机源），
- * pass 说明「照这个形态写正式 host 可行」，不说明 adapter 现状支持支付宝。
+ * pass 说明「照这个形态写正式 host 可行」，不说明 adapter 现状支持支付宝，也不算改判证据。
  */
 import { isAlipayFsFailure } from './alipay-fs.js';
 import type { WasmByteSource } from './alipay-host.js';
