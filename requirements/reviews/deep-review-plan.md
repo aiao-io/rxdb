@@ -3,12 +3,12 @@ kind: review-plan
 title: packages 与 apps 全仓深度评审计划
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: not-started
+execution: in-progress
 ---
 
 # packages 与 apps：全仓深度评审计划
 
-✅ **值得做。** 目标是建立可执行、可追溯的全范围评审路线，不做“看了几个入口就全绿”的形式审查。本轮交付计划，不执行完整代码评审、不修业务代码，也不宣称测试或覆盖率达标。
+✅ **值得做。** 目标是建立可执行、可追溯的全范围评审路线，不做“看了几个入口就全绿”的形式审查。此文件定义评审路线；实际执行范围、确认问题与未执行项另见 [代码评审执行台账](execution-2026-10-03.md)。目前只完成部分专题复核，不宣称全仓已审完或覆盖率达标。
 
 ## 1. 范围、基线与数量
 
@@ -273,4 +273,4 @@ NX_DAEMON=false pnpm nx graph --print
 - [能力矩阵](../capability-matrix.md)、[版本/兼容策略](../versioning-policy.md) 与各对象 API baseline。
 - [评审目录规则与已有记录](README.md)、[问题模板](review.template.md)。
 - 新增/删除/拆分对象、修改公开入口/支持档位或改变 Nx target 后，先同步该对象文档与本索引；未运行过的新基线不能沿用旧“通过”结论。
-- 所有独立计划当前都是 not-started；下一轮评审按真实证据更新，而不是批量勾选清单。
+- 实际进度以 [执行台账](execution-2026-10-03.md) 为准：5 个对象部分执行、65 个未开始、0 个全对象完成；没有批量勾选清单。

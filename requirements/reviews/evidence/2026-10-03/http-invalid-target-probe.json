@@ -1,0 +1,11 @@
+{
+  "raw_request": "GET http://[ HTTP/1.1",
+  "connection": {
+    "event": "end",
+    "response": ""
+  },
+  "after_health": {
+    "error": "TypeError: fetch failed",
+    "cause": "Error: connect ECONNREFUSED 127.0.0.1:64668"
+  }
+}

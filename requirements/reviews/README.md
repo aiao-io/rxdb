@@ -13,7 +13,20 @@
 - [按包的独立计划](packages/)：50 个有效源码包 + 1 个 desktop 残留范围核查。
 - [按应用的独立计划](apps/)：19 个应用项目，运行应用、服务端、扩展和 E2E 均纳入。
 
-这些文件是**尚未执行的评审计划**，不是已确认问题报告，不占用 `RV-*` 编号、不使用 Open/Resolved；覆盖率和业务门禁尚未测量/执行。确认问题再按既有模板登记。计划不随问题报告的清理一起删除，新增/拆分对象时同步更新索引。
+这些文件是**评审计划**，不是已确认问题报告，不占用 `RV-*` 编号、不使用 Open/Resolved；实际执行进度与取证范围见下节；没有执行过的门禁/覆盖率不能写成通过。确认问题按既有模板登记。计划不随问题报告的清理一起删除，新增/拆分对象时同步更新索引。
+
+## 实际代码评审（执行中）
+
+- [全范围执行台账](execution-2026-10-03.md)：5 个对象部分执行、65 个未开始，0 个全对象完成。
+- [按包实际评审记录](results/packages/) / [按应用实际评审记录](results/apps/)。
+- 本批确认 5 个业务源码问题（1 P1＋4 P2），不是对计划的评论：
+  - [RV-027-pglite-keyvalue-query-semantics](RV-027-pglite-keyvalue-query-semantics.md)
+  - [RV-028-core-keyvalue-missing-key-null](RV-028-core-keyvalue-missing-key-null.md)
+  - [RV-029-core-empty-notin-null](RV-029-core-empty-notin-null.md)
+  - [RV-030-http-server-invalid-url-crash](RV-030-http-server-invalid-url-crash.md)
+  - [RV-031-http-server-metadata-body-shape](RV-031-http-server-metadata-body-shape.md)
+
+复验日志、真实请求结果见 [证据目录](evidence/2026-10-03/)；新增红测试未修，不能当作门禁通过。原有评审记录与清理规则保持不变。
 
 ## 目录结构
 

@@ -4,7 +4,7 @@ object: rxdb-adapter-http
 source_root: packages/rxdb-adapter-http
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: not-started
+execution: in-progress
 ---
 
 # rxdb-adapter-http：深度评审计划
@@ -26,7 +26,7 @@ QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变�
 | 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai） |
 | 建议波次 / 优先风险 | W2 / 高（排期依据，不是缺陷结论）                                            |
 | 受控文件盘点        | 37 个；测试/共享套件入口 13 个（按文件名，不代表覆盖率）                     |
-| 执行状态            | 未开始正式评审；业务门禁未执行、覆盖率未测量                                 |
+| 执行状态            | 执行中：本批仅部分专题复核，完整门禁/覆盖率未完成                            |
 
 范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
 
@@ -139,3 +139,11 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 - [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
 
 正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
+
+## 7. 本轮实际执行记录
+
+[已执行范围、实际评审意见与证据](../results/packages/rxdb-adapter-http.md)；[全仓执行台账](../execution-2026-10-03.md)。
+
+仅完成上述模块的部分静态阅读。已核对“切换用户需 disconnect/connect”和“只有首个同身份查询的观测回调生效”等已明确文档化限制，未将其误报为新缺陷。没有执行该包完整网络/取消/SSE/缓存/浏览器套件，不能给整体通过结论。
+
+只有上述范围取得本轮证据，未执行项仍待核查，完成清单不勾选。

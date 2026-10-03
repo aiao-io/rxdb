@@ -124,8 +124,8 @@ CI=true NX_DAEMON=false pnpm nx run-many -t typecheck test build --projects=rxdb
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-search:coverage --skipRemoteCache --skipNxCache
-pnpm audit:coverage --projects=rxdb-plugin-search
 CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-search:test-browser --skipRemoteCache --skipNxCache
+pnpm audit:coverage --projects=rxdb-plugin-search
 ```
 
 - `test-browser` 与普通 `test` 的运行面分别记录；专用 coverage 流程是否已纳入 browser project 需读配置，未纳入则补独立测量，不拿 Node summary 代证。
