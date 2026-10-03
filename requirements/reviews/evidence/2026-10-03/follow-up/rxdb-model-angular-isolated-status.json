@@ -1,0 +1,8 @@
+{
+  "project": "rxdb-model-angular",
+  "command": "pnpm nx run rxdb-model-angular:test --args=--run --coverage.enabled=false --maxWorkers=1 --excludeTaskDependencies --skipRemoteCache --skipNxCache",
+  "startedAt": "2026-10-03T22:56:03.195922+08:00",
+  "completedAt": "2026-10-03T22:56:22.086434+08:00",
+  "exitCode": 1,
+  "log": "rxdb-model-angular-isolated.txt"
+}
