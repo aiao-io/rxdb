@@ -10,10 +10,13 @@ import {
 } from './rxdb-packages-vite-plugin';
 
 /**
- * 各平台产物分开放：微信开发者工具打开本目录（`project.config.json` 指向 `dist/`），
- * 抖音开发者工具直接打开 `dist-tt/`（Taro 把 `project.tt.json` 拷进去当 `project.config.json`）。
+ * 各平台产物分开放（Taro 每次构建先清空 outputRoot，共用目录会互相抹掉）：
+ * 微信开发者工具打开本目录（`project.config.json` 指向 `dist/`），
+ * 抖音开发者工具直接打开 `dist-tt/`（Taro 把 `project.tt.json` 拷进去当 `project.config.json`），
+ * 支付宝小程序开发者工具直接打开 `dist-alipay/`（Taro 把 `project.alipay.json` 拷进去当 `mini.project.json`）。
  */
-const outputRoot = process.env.TARO_ENV === 'tt' ? 'dist-tt' : 'dist';
+const outputRoot =
+  process.env.TARO_ENV === 'tt' || process.env.TARO_ENV === 'alipay' ? `dist-${process.env.TARO_ENV}` : 'dist';
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async merge => {
@@ -48,7 +51,7 @@ export default defineConfig<'vite'>(async merge => {
       vitePlugins: [
         rxdbPackagesVitePlugin(),
         subframeSqliteWasmVitePlugin(),
-        rxdbBuildTargetVitePlugin(),
+        rxdbBuildTargetVitePlugin(process.env.TARO_ENV === 'alipay' ? 'es2018' : 'es2020'),
         ...(process.env.TARO_ENV === 'tt' ? [douyinRealmVitePlugin()] : [])
       ]
     },

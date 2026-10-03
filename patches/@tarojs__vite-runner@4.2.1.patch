@@ -37,3 +37,27 @@ index f6117d213c5987f8292905bf3984cb465b9170cd..46097621fd0c60abe0536390b6262e54
              }));
          }
          // custom vite plugins
+diff --git a/dist/mini/emit.js b/dist/mini/emit.js
+index f3effd33325ef831bb9c62d9c94e9335367d7684..c658d7773d116d732e78498ecdad5790a779f86d 100644
+--- a/dist/mini/emit.js
++++ b/dist/mini/emit.js
+@@ -189,13 +189,18 @@ function default_1(viteCompilerContext) {
+                                     source: () => source
+                                 };
+                             }
++                            const pluginContext = this;
+                             const assetsProxy = new Proxy(assets, {
+                                 set(target, p, newValue) {
+                                     if (!(0, shared_1.isString)(p))
+                                         return false;
+                                     target[p] = newValue;
+                                     const chunk = bundle[p];
+-                                    if (chunk.type === 'asset') {
++                                    // modifyBuildAssets 新增的产物（如支付宝插件的 .browserslistrc）bundle 里没有，走 emitFile
++                                    if (chunk === undefined) {
++                                        pluginContext.emitFile({ type: 'asset', fileName: p, source: newValue.source() });
++                                    }
++                                    else if (chunk.type === 'asset') {
+                                         chunk.source = newValue.source();
+                                     }
+                                     else {

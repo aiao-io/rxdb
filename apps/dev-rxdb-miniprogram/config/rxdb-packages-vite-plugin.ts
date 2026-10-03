@@ -56,12 +56,20 @@ export function subframeSqliteWasmVitePlugin(): Plugin {
   };
 }
 
-export function rxdbBuildTargetVitePlugin(): Plugin {
+/**
+ * 覆盖 Taro 默认的 `build.target: 'es6'`。RxDB 栈（核心、sqlite-core、wa-sqlite）模块顶层就有 BigInt 字面量，
+ * es2020 以下 esbuild 会把它们改写成 `BigInt("…")` 调用并告警，所以有建库路径的微信、抖音构建用 es2020。
+ *
+ * 支付宝小程序开发者工具的编译器只认 ES2018（`?.`、`??`、省略 catch 绑定都报 CE1000.02 Unexpected token），
+ * 支付宝构建用 es2018。它的产物里没有 RxDB 栈（`rxdb-demo.ts` 的建库路径构建期被摇掉，只走 adapter 的拒绝路径），
+ * 没有要改写的 BigInt 字面量。
+ */
+export function rxdbBuildTargetVitePlugin(target: 'es2018' | 'es2020'): Plugin {
   return {
-    name: 'dev-rxdb-miniprogram:rxdb-es2020-target',
+    name: 'dev-rxdb-miniprogram:build-target',
     enforce: 'post',
     config() {
-      return { build: { target: 'es2020' } };
+      return { build: { target } };
     }
   };
 }

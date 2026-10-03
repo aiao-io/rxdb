@@ -2,6 +2,7 @@ import type { MiniProgramRuntimeCapability } from '@aiao/rxdb-adapter-miniprogra
 // 懒加载的是重的主入口（rxdb-demo.ts）；预检要在引导前同步跑，只用轻量的 /runtime 入口，nx 规则按包判定分不出入口
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
+  assertMiniProgramPlatformId,
   createDouyinMiniProgramHost,
   createWechatMiniProgramHost,
   resolveMiniProgramRuntimeGlobal,
@@ -41,11 +42,19 @@ export function douyinDemoRuntime(): MiniProgramDemoRuntime {
   };
 }
 
-/** 按构建平台选宿主；`TARO_ENV` 构建期替换成常量，另一个平台的分支连同它的全局一起摇掉。 */
+/**
+ * 按构建平台选宿主；`TARO_ENV` 构建期替换成常量，另一个平台的分支连同它的全局一起摇掉。
+ *
+ * 其余平台交给 adapter 判定：支付宝（Taro 平台名与 adapter 平台 id 同为 `alipay`）抛
+ * `MiniProgramUnsupportedPlatformError`，带出可行性矩阵的阻断项与判定章节，页面按初始化失败显示。
+ */
 export function currentDemoRuntime(): MiniProgramDemoRuntime {
   if (process.env.TARO_ENV === 'tt') return douyinDemoRuntime();
   if (process.env.TARO_ENV === 'weapp') return wechatDemoRuntime();
-  throw new Error(`demo 不支持平台 ${process.env.TARO_ENV}`);
+  const platform: string = process.env.TARO_ENV;
+  assertMiniProgramPlatformId(platform);
+  // 走到这里说明可行性矩阵改判、adapter 登记了这个平台，demo 要补上它的宿主分支
+  throw new Error(`adapter 已登记平台 ${platform}，demo 还没接入它的宿主`);
 }
 
 function hasFileSystemManager(host: MiniProgramHost): boolean {

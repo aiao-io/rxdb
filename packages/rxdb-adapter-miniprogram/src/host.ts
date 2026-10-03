@@ -92,17 +92,27 @@ export function isMiniProgramPlatformId(value: unknown): value is MiniProgramPla
 }
 
 /**
- * 未登记的平台 id 直接抛错：矩阵判 `unsupported` 的抛 {@link MiniProgramUnsupportedPlatformError}，
- * 其余抛 {@link MiniProgramUnknownPlatformError}。
+ * 判定平台 id，不需要宿主：已登记的放行，未登记的直接抛错。宿主路径（{@link resolveMiniProgramHost}、
+ * 运行时预检、VFS）用的是同一个判定，所以报错逐字一致。
+ *
+ * 给还造不出宿主的调用方用，比如按构建平台分支的应用在支付宝构建里拿平台 id 直接走拒绝路径。
+ *
+ * @param value - 待判定的平台 id
+ * @throws {@link MiniProgramUnsupportedPlatformError} 可行性矩阵判 `unsupported` 的平台，带出阻断项与判定章节
+ * @throws {@link MiniProgramUnknownPlatformError} 其余未登记的值
  */
-export function assertMiniProgramHostPlatform(host: MiniProgramHost): void {
-  const platform: unknown = host.platform;
-  if (isMiniProgramPlatformId(platform)) return;
+export function assertMiniProgramPlatformId(value: unknown): asserts value is MiniProgramPlatformId {
+  if (isMiniProgramPlatformId(value)) return;
   // hasOwn 挡住 constructor / __proto__ 这类原型链上的键
-  if (typeof platform === 'string' && Object.hasOwn(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, platform)) {
-    throw new MiniProgramUnsupportedPlatformError(platform, MINI_PROGRAM_UNSUPPORTED_PLATFORMS[platform]);
+  if (typeof value === 'string' && Object.hasOwn(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, value)) {
+    throw new MiniProgramUnsupportedPlatformError(value, MINI_PROGRAM_UNSUPPORTED_PLATFORMS[value]);
   }
-  throw new MiniProgramUnknownPlatformError(platform);
+  throw new MiniProgramUnknownPlatformError(value);
+}
+
+/** 宿主的平台 id 未登记时抛错，判定同 {@link assertMiniProgramPlatformId}。 */
+export function assertMiniProgramHostPlatform(host: MiniProgramHost): void {
+  assertMiniProgramPlatformId(host.platform);
 }
 
 /** 平台随机源在报错里的名字：API 全名（如 `wx.getRandomValues`）与缺失时的整句。 */

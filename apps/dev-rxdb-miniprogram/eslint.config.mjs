@@ -9,12 +9,14 @@ export default [
     ignores: [
       'dist',
       'dist-tt',
+      'dist-alipay',
       '.temp',
       '.rn_temp',
       'deploy_versions',
       'project.config.json',
       'project.private.config.json',
-      'project.tt.json'
+      'project.tt.json',
+      'project.alipay.json'
     ]
   },
   {

@@ -2,6 +2,7 @@ export {
   MINI_PROGRAM_PLATFORM_IDS,
   MiniProgramUnknownPlatformError,
   MiniProgramUnsupportedPlatformError,
+  assertMiniProgramPlatformId,
   createWechatMiniProgramHost,
   isMiniProgramPlatformId
 } from './host.js';

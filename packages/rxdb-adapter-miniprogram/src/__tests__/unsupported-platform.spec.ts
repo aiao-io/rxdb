@@ -12,6 +12,7 @@ import {
   MINI_PROGRAM_UNSUPPORTED_PLATFORMS,
   MiniProgramUnknownPlatformError,
   MiniProgramUnsupportedPlatformError,
+  assertMiniProgramPlatformId,
   resolveMiniProgramHost
 } from '../host.js';
 import type {
@@ -220,5 +221,44 @@ describe('支付宝 alipay（AC#17）', () => {
     expect(wasmRuntime.instantiate).not.toHaveBeenCalled();
     expect(host.getFileSystemManager).not.toHaveBeenCalled();
     expect(wx.getFileSystemManager).not.toHaveBeenCalled();
+  });
+});
+
+describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id', () => {
+  it('支付宝抛的错与宿主路径逐字一致', () => {
+    const direct = caught(() => {
+      assertMiniProgramPlatformId('alipay');
+    });
+    const viaHost = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
+
+    expect(direct).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+    expect(direct).toMatchObject({ platform: 'alipay', blockers: ['wasm-worker-only', 'no-documented-secure-random'] });
+    expect((direct as Error).message).toBe((viaHost as Error).message);
+  });
+
+  it('已登记的平台 id 放行', () => {
+    for (const id of MINI_PROGRAM_PLATFORM_IDS) {
+      expect(() => {
+        assertMiniProgramPlatformId(id);
+      }, id).not.toThrow();
+    }
+  });
+
+  it('其余值按未知平台拒绝，原型链上的键不算拒绝表条目', () => {
+    for (const value of ['swan', 'weapp', 'constructor', '__proto__', 'toString', undefined, 42]) {
+      const error = caught(() => {
+        assertMiniProgramPlatformId(value);
+      });
+      expect(error, String(value)).toBeInstanceOf(MiniProgramUnknownPlatformError);
+      expect(error, String(value)).not.toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+    }
+  });
+
+  it('主入口与轻量 /runtime 入口导出的是同一个函数', async () => {
+    const [main, runtime] = await Promise.all([import('../index.js'), import('../runtime.js')]);
+
+    expect(assertMiniProgramPlatformId).toBeTypeOf('function');
+    expect(main.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
+    expect(runtime.assertMiniProgramPlatformId).toBe(assertMiniProgramPlatformId);
   });
 });
