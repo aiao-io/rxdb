@@ -1,11 +1,11 @@
 ---
 id: US-027
 title: 实体操作权限模型
-status: In Review
+status: Done
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-02
+updated: 2026-10-03
 tags: [core, permission, model, rxdb-model]
 ---
 

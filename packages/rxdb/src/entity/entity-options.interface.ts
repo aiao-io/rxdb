@@ -10,6 +10,7 @@
  */
 
 import type { RxDBRepositoryName } from '../rxdb-adapter.js';
+import type { ManualOrderOptions } from '../sortable/sortable.interface.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -240,4 +241,40 @@ export interface EntityMetadataOptions {
    * @default 三操作都是 `'both'`
    */
   permissions?: EntityPermissionOptions;
+
+  /**
+   * 手动排序：`true` 为整表一条序列，`{ groupBy }` 为按分组字段各自一条序列
+   *
+   * @remarks
+   * 显式 opt-in：只有声明了才启用，恰好有 `sortOrder` 字段的实体行为不变。
+   * 启用后实体必须自己声明 `sortOrder`：string、可写、非计算、非加密、非空（`nullable` 为假，建表即 `NOT NULL`），
+   * 违反在注册期报 `invalidManualOrder`。沿原型链就近继承，子类可写 `false` 关掉、或改写分组字段。
+   *
+   * 分组字段只能是实体自身的标量列（含多对一外键列），非计算、可写、非加密，见 {@link ManualOrderOptions}。
+   * 未给 `orderBy` 的查询默认按 `[分组字段… asc, sortOrder asc, id asc]` 排；
+   * 改了分组字段而没给 `sortOrder` 的写入在事务内追加到新组末尾。
+   *
+   * 不叫 `sortable`：属性级 / 关系级的 `sortable` 已表示「列头可排序」。
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * @Entity({
+   *   name: 'Todo',
+   *   manualOrder: { groupBy: ['completed'] },
+   *   properties: [
+   *     { name: 'title', type: PropertyType.string },
+   *     { name: 'completed', type: PropertyType.boolean },
+   *     { name: 'sortOrder', type: PropertyType.string }
+   *   ]
+   * })
+   * class Todo extends EntityBase implements ISortableEntity {
+   *   title!: string;
+   *   completed!: boolean;
+   *   sortOrder!: SortOrderKey;
+   * }
+   * ```
+   */
+  manualOrder?: boolean | ManualOrderOptions;
 }

@@ -43,6 +43,12 @@ describe('@aiao/rxdb-test public contract', () => {
     expect(treeUniqueApi.TreeMenu).toBeTypeOf('function');
   });
 
+  it('loads the sortable source entrypoint', async () => {
+    const sortableApi = await import('../sortable/index.js');
+    expect(sortableApi.runManualOrderSuite).toBeTypeOf('function');
+    expect(sortableApi.SortableItem).toBeTypeOf('function');
+  });
+
   it('loads the query-cache-contract source entrypoint', async () => {
     const contractApi = await import('../query-cache-contract/index.js');
     expect(contractApi.runQueryCacheRowContractSuite).toBeTypeOf('function');
@@ -58,6 +64,7 @@ describe('@aiao/rxdb-test public contract', () => {
       './package.json',
       './query-cache-contract',
       './shop',
+      './sortable',
       './transaction',
       './tree-unique'
     ]);

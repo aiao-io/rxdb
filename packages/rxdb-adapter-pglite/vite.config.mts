@@ -57,6 +57,7 @@ export default defineConfig(() => {
           'packages/rxdb-test/src/query-cache-contract/index.ts'
         ),
         '@aiao/rxdb-test/shop': path.resolve(workspaceRoot, 'packages/rxdb-test/shop/index.ts'),
+        '@aiao/rxdb-test/sortable': path.resolve(workspaceRoot, 'packages/rxdb-test/src/sortable/index.ts'),
         '@aiao/rxdb-test/system': path.resolve(workspaceRoot, 'packages/rxdb-test/system/index.ts'),
         '@aiao/rxdb-test/transaction': path.resolve(workspaceRoot, 'packages/rxdb-test/src/transaction/index.ts'),
         '@aiao/rxdb-test/tree-unique': path.resolve(workspaceRoot, 'packages/rxdb-test/src/tree-unique/index.ts'),

@@ -1,9 +1,20 @@
-import { getEntityMetadata, RelationKind, RxDB, type EntityType, type FindByCursorOptions } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  RelationKind,
+  RxDB,
+  type EntityMetadata,
+  type EntityType,
+  type FindByCursorOptions,
+  type OrderBy
+} from '@aiao/rxdb';
 import { InfiniteScrollingList } from '@aiao/rxdb-angular';
 import {
   actionsColumn,
   buildEditableColumns,
   buildFormFields,
+  canReorderEntityList,
+  commitRowMove,
+  defaultListOrderBy,
   deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
@@ -16,6 +27,7 @@ import {
   type FormFieldConfig,
   type ModelInfo,
   type RelatedEntityProvider,
+  type RowMoveEvent,
   type ValidationResult
 } from '@aiao/rxdb-model';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
@@ -78,15 +90,15 @@ type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
 
 /**
- * 实体列表的表格选项：关掉行序号列的拖拽手柄
+ * 实体列表的表格选项：建表时打开行序号列的拖拽
  *
  * @remarks
- * `buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，而列表不接 `rowReordered`，拖完不落库。
- * 排序持久化属 US-028 阶段 B，届时只对可排序实体重新打开。`buildTableOptions()` 对 `rowSeriesNumber`
+ * VTable 只在建表时读 `dragOrder`，所以统一打开，手柄是否出现由 `rowDragEnabled` 按
+ * {@link canReorderEntityList} 运行时开关（US-028 阶段 B）。`buildTableOptions()` 对 `rowSeriesNumber`
  * 整体覆盖，`title` / `width` 要照默认值一并带上。
  */
 const LIST_TABLE_OPTIONS: Partial<ListTableConstructorOptions> = {
-  rowSeriesNumber: { title: '', width: 40, dragOrder: false }
+  rowSeriesNumber: { title: '', width: 40, dragOrder: true }
 };
 
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段 */
@@ -107,11 +119,11 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
 
 /**
  * 构造 FindByCursor 所需 orderBy。
- * normal → id desc；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
+ * normal → 实体默认排序（手动排序实体按手动顺序）；用户字段 → [field, id] 同向（末尾唯一键满足游标定位）。
  */
-function buildCursorOrderBy(state: ListSortState): Array<{ field: string; sort: 'asc' | 'desc' }> {
+function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
   if (state.order === 'normal' || !state.field) {
-    return [{ field: 'id', sort: 'desc' }];
+    return defaultListOrderBy(metadata);
   }
   if (state.field === 'id') {
     return [{ field: 'id', sort: state.order }];
@@ -120,6 +132,11 @@ function buildCursorOrderBy(state: ListSortState): Array<{ field: string; sort: 
     { field: state.field, sort: state.order },
     { field: 'id', sort: state.order }
   ];
+}
+
+/** 落库错误转为提示文案 */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** 解析外部导航传入的筛选条件 JSON 字符串，格式非法时静默忽略 */
@@ -181,6 +198,10 @@ export class EntityListComponent {
   // ── Save coalescing ───────────────────────────────────────────────────
   readonly #pendingChanges = new Map<string, Record<string, unknown>>();
   #flushHandle = false;
+  /** 已排队或正在落库的行内编辑批次数；不为 0 时拒绝拖放排序 */
+  readonly #pendingEditBatches = signal(0);
+  /** 上一次拖放的重排还没落定 */
+  readonly #reorderPending = signal(false);
 
   // ── Entity registry ───────────────────────────────────────────────────
   readonly #entityClsMap = new Map<string, EntityType>(
@@ -268,6 +289,9 @@ export class EntityListComponent {
     this.name();
     return { ...DEFAULT_SORT_STATE };
   });
+
+  /** 内部查询表格：拖放被拒或落库失败时恢复行序 */
+  private readonly queryTable = viewChild(QueryTableComponent);
 
   // ── Protected view bindings ───────────────────────────────────────────
   protected readonly Undo2 = Undo2;
@@ -443,6 +467,28 @@ export class EntityListComponent {
   readonly isM2m = computed(() => this.relationKind() === RelationKind.MANY_TO_MANY);
 
   readonly m2mSelectTpl = viewChild<TemplateRef<void>>('m2mSelectTpl');
+
+  // ── Manual order (US-028) ─────────────────────────────────────────────
+  /** 最近一次拖放排序落库失败的提示；`null` 为无错误 */
+  readonly reorderError = signal<string | null>(null);
+
+  /** 当前列表是否允许拖放排序（行拖动手柄是否显示） */
+  readonly rowDragEnabled = computed(() => {
+    const cls = this.#entityCls();
+    const list = this.#currentList();
+    return canReorderEntityList({
+      metadata: cls ? getEntityMetadata(cls) : undefined,
+      sortOrder: this.#sortState().order,
+      hasUserFilter: this.filterQuery().rules.length > 0,
+      selectMode: this.isSelectMode(),
+      fixedQuery: this.fixedQuery(),
+      fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
+      hasReadonlyRows: this.#capabilities()?.canEdit === false,
+      hasDrafts: this.#localDraftItems().length > 0,
+      hasPendingEdits: this.#pendingEditBatches() > 0,
+      reorderPending: this.#reorderPending()
+    });
+  });
 
   readonly selectedIds = signal<Set<string>>(new Set());
   readonly selectedCount = computed(() => this.selectedIds().size);
@@ -688,6 +734,21 @@ export class EntityListComponent {
   }
 
   /**
+   * 单行拖放：允许时按界面上的邻居落库重排，不允许或失败时把表格恢复原顺序（US-028）。
+   */
+  onRowMoved(move: RowMoveEvent): void {
+    const cls = this.#entityCls();
+    void commitRowMove(move, {
+      enabled: this.rowDragEnabled() && !!cls,
+      reorder: ({ id, prevId, nextId }) =>
+        this.#rxdb.entityManager.getRepository(cls as EntityType).reorder(id as never, { prevId, nextId } as never),
+      restore: () => this.queryTable()?.restoreRecords(),
+      setPending: pending => this.#reorderPending.set(pending),
+      setError: error => this.reorderError.set(error === null ? null : errorMessage(error))
+    });
+  }
+
+  /**
    * 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。
    */
   onSortClicked(event: { field: unknown; order: unknown }): void {
@@ -818,7 +879,7 @@ export class EntityListComponent {
       const sortState = key === this.#entityKey() ? this.#sortState() : DEFAULT_SORT_STATE;
       return {
         where: where as never,
-        orderBy: buildCursorOrderBy(sortState) as FindByCursorOptions<EntityType>['orderBy']
+        orderBy: buildCursorOrderBy(sortState, getEntityMetadata(cls)) as FindByCursorOptions<EntityType>['orderBy']
       };
     });
     const list = runInInjectionContext(this.#injector, () => new InfiniteScrollingList(this.#rxdb, cls, options));
@@ -831,11 +892,12 @@ export class EntityListComponent {
     this.#pendingChanges.set(recordId, { ...cur, ...changes });
     if (this.#flushHandle) return;
     this.#flushHandle = true;
+    this.#pendingEditBatches.update(count => count + 1);
     queueMicrotask(() => {
       this.#flushHandle = false;
       const snapshot = [...this.#pendingChanges.entries()];
       this.#pendingChanges.clear();
-      void this.#flushPending(snapshot);
+      void this.#flushPending(snapshot).finally(() => this.#pendingEditBatches.update(count => count - 1));
     });
   }
 

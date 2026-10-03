@@ -3,7 +3,7 @@
  * 树形实体接口定义
  * 扩展基础实体接口,添加父子关系支持
  */
-import { IEntity, IEntityStaticType, RxDBEntityId } from '@aiao/rxdb';
+import { IEntity, IEntityStaticType, RxDBEntityId, SortOrderKey } from '@aiao/rxdb';
 
 export interface ITreeEntity extends IEntity {
   /**
@@ -24,9 +24,13 @@ export interface ITreeEntity extends IEntity {
  *
  * 在 {@link ITreeEntity} 基础上要求实体声明 `sortOrder` 字段（通常用 fractional indexing
  * 如 `generateKeyBetween` 产生）。拖放、手动排序等场景的算法约束类型。
+ *
+ * @remarks
+ * 键类型取自核心排序模块的 {@link SortOrderKey}（唯一来源），树节点的 `sortOrder` 仍可空可缺省；
+ * 组合的是键类型而不是非空的 `ISortableEntity`。只是类型：实现它不会让实体获得 `manualOrder` 声明。
  */
 export interface ISortableTreeEntity extends ITreeEntity {
-  sortOrder?: string | null;
+  sortOrder?: SortOrderKey | null;
 }
 
 /**

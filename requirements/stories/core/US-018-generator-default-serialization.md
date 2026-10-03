@@ -62,7 +62,7 @@ return renderMetadataValue(plainMetadata, 0, 'metadata');
 ### G1 — 序列化源固定为「实体自身声明的三个数组」，不得改用 `propertyMap`
 
 `transitionMetadata()` 的输入是 `omit(metadata, ['propertyMap', 'relationMap', 'indexMap'])`，实际被遍历到的是
-`metadata.properties` / `computedProperties` / `relations`。[metadata-transition.ts:257](../../../packages/rxdb/src/entity/metadata-transition.ts#L257)
+`metadata.properties` / `computedProperties` / `relations`。[metadata-transition.ts:260](../../../packages/rxdb/src/entity/metadata-transition.ts#L260)
 把这三个数组回填成**仅含本类自声明成员**的规范化克隆，继承自父类的属性不在其中——生成代码靠 `extends EntityBase` 补回。
 
 **这是本故事不炸全仓的唯一前提，必须显式锁住**：[entity-base.ts:38-71](../../../packages/rxdb/src/entity/entity-base.ts#L38-L71) 的

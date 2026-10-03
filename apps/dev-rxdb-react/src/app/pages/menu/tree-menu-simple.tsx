@@ -27,6 +27,7 @@ import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuStore } from '../../hooks/useTreeMenuStore';
 import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
+import { compareSortOrder } from '../../utils/sort-order';
 
 const MIN_LOADING_MS = 500;
 
@@ -87,9 +88,7 @@ export function TreeMenuSimplePage() {
         setLoadingActions(prev => new Set(prev).add(actionKey));
       });
       try {
-        const existingRoots = menus
-          .filter(m => !m.parentId)
-          .sort((a, b) => (a.sortOrder || '').localeCompare(b.sortOrder || ''));
+        const existingRoots = menus.filter(m => !m.parentId).sort(compareSortOrder);
 
         const newMenus = generateBatchMenus(count, MenuSimple, existingRoots);
         await Promise.all([rxdb.entityManager.saveMany(newMenus), keepLoadingVisible()]);

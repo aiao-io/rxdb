@@ -8,17 +8,17 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 68   |
+| ✅ Done        | 70   |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 1    |
+| 👀 In Review   | 0    |
 | 📝 Backlog     | 24   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 95   |
+| **合计**       | 96   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-028](stories/core/US-028-sortable-entity.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
+> **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
@@ -31,11 +31,9 @@
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`                                              |
 | [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 已交付（trace 留失败尝试，开销上限经裁决改为 +33%）；B 实现中（第二连接 spike 已过），C 实现中（独立录制库 + 门面 `commits$`） |
 
-## 待评审（1 条）
+## 待评审（0 条）
 
-| Story                                                                     | 待收尾的是什么                                                             |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) | 阶段 0 / A / B / C 代码全部落地，AC#1～16 全 ✅，三端 e2e 绿；只待提交合并 |
+当前没有待评审的故事。
 
 ## 按 Epic 索引
 
@@ -104,10 +102,11 @@
 - ✅ [US-024 PGlite 侧 QueryCache 远端行的列契约](stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - ✅ [US-216 参考后端以 RxDB 引擎实现](stories/adapter/US-216-server-side-rxdb.md) — 后端初始化 RxDB（pglite），协议端点改由 Repository/EntityManager 实现，前后端共享 schema 模块；单类收敛已由 US-026 完成
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
-- 👀 [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`，执行者按层区分（公开写入口判定，适配器 / 执行器层不判定），定位是快速失败而非防御边界。四阶段全部落地：0 只读行「查看」走 view 模式；A 声明、按操作就近继承、校验与 14 张系统表显式声明；B 门面 3 个写方法与 `mutations()` 整批预检，越权抛 `PermissionDeniedError`；C 三框架 `EntityList` 按 `deriveEntityCapabilities()` 派生新增 / 编辑 / 删除入口。AC#1～16 全 ✅，只待提交合并；是 US-029 阶段 A / B / E 的上游
-- ⬜ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：core 排序语义（字段强制非空）+ rxdb-model 拖放持久化。**价值待证**，`priority: Low`：三框架 `EntityList` 的拖拽手柄已关（AC#6 提前交付），用户踩得到的症状随之消失，剩下的是没有具名使用方的扁平实体手动排序；解锁后阶段 B 只在 UI 启用谓词成立（整表序列、完整加载、无筛选 / 只读 / 草稿）时重新打开手柄，留在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)
+- ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`，执行者按层区分（公开写入口判定，适配器 / 执行器层不判定），定位是快速失败而非防御边界。四阶段全部落地：0 只读行「查看」走 view 模式；A 声明、按操作就近继承、校验与 14 张系统表显式声明；B 门面 3 个写方法与 `mutations()` 整批预检，越权抛 `PermissionDeniedError`；C 三框架 `EntityList` 按 `deriveEntityCapabilities()` 派生新增 / 编辑 / 删除入口。AC#1～16 全 ✅；是 US-029 阶段 A / B / D 的上游
+- ✅ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：排序域 = 分组字段组合（整表即分组字段为空，NULL 值算一组），core 排序语义（字段强制非空）+ rxdb-model 拖放持久化。A～E 五阶段全部落地：A 整表排序域（声明与校验、默认排序、创建追加、`reorder()`、事务写边界、SQLite / PGlite 码点同序）；B 三框架 `EntityList` 拖放持久化（钉住单条排序域才开手柄，按列排序 / 筛选 / 只读 / 落库中收起，失败恢复原顺序）；C 树类型兼容；D 分组排序域与跨组移动；E 三端 Todo 按 `completed` 分组手动排序（独立 `Task` 实体，不改共享 `Todo`）。AC#1～19 全 ✅；树兄弟域迁移另立 US-031
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C；**价值待证**，阶段 C 依赖 US-218，见 [RV-022](reviews/RV-022-us-029-readiness-review.md)
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
+- ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 树兄弟域按 `parentId` 分组改走 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 树菜单 / 文件管理的新建追加与拖放改用 core API，删掉 22 个文件里的算键与比较器副本；前置 US-028 阶段 A + D；**价值待证**，`priority: Low`，不新增抽象、今天无可复现症状
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - ⬜ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE；三阶段（不写幽灵日志 → 逐操作回执 → 日志表收口与部署指引）
 - 🚧 [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），已交付，开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；阶段 B 失败现场数据原样归档与导入；demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），Angular 走的 IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过，实现中）；阶段 C 应用内 rrweb 录制插件与三框架组件实现中（owner 2026-10-02 冻结：独立录制库、单会话 16 MiB + 总量 128 MiB、门面 `commits$` 挂点）

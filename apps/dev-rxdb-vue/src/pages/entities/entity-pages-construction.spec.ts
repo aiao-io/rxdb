@@ -14,7 +14,7 @@ class ShellOther extends EntityBase {}
 const rxdbHolder = vi.hoisted(() => ({ current: { config: { entities: [] as unknown[] } } }));
 const push = vi.hoisted(() => vi.fn());
 const routeHolder = vi.hoisted(() => ({
-  current: { fullPath: '/entities', params: {} as Record<string, string> }
+  current: { fullPath: '/entities', params: {} as Record<string, string>, query: {} as Record<string, string> }
 }));
 /** 组件桩的记录器与桩本体：mock 工厂在导入期执行（早于模块体），共享状态只能走 hoisted。 */
 const stubs = vi.hoisted(() => ({
@@ -53,7 +53,7 @@ vi.mock('@aiao/rxdb-model-vue', async () => {
   stubs.EntityListStub = defineComponent({
     name: 'EntityList',
     // eslint-disable-next-line vue/require-default-prop -- 测试桩：仅记录 props，无默认值语义
-    props: { namespace: String, name: String },
+    props: { namespace: String, name: String, fixedQuery: Object },
     setup: props => {
       stubs.listProps.props = props;
       return () => null;
@@ -79,8 +79,8 @@ import EntityShellPage from './EntityShellPage.vue';
 
 const makeRxdb = (entities: unknown[] = [Todo]) => ({ config: { entities } });
 
-const setRoute = (fullPath: string, params: Record<string, string>) => {
-  routeHolder.current = { fullPath, params };
+const setRoute = (fullPath: string, params: Record<string, string>, query: Record<string, string> = {}) => {
+  routeHolder.current = { fullPath, params, query };
 };
 
 describe('entity demo page construction contracts', () => {
@@ -127,6 +127,22 @@ describe('entity demo page construction contracts', () => {
     await wrapper.vm.$nextTick();
 
     expect(stubs.listProps.props).toMatchObject({ namespace: 'public', name: 'Todo' });
+  });
+
+  it('entity-list 页把 fixedQuery 查询参数（JSON）作为固定查询传给列表，缺省时不传', async () => {
+    rxdbHolder.current = makeRxdb();
+    const pinned = { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] };
+    setRoute('/entities/public/Task', { namespace: 'public', name: 'Task' }, { fixedQuery: JSON.stringify(pinned) });
+
+    const wrapper: VueWrapper = mount(EntityListPage);
+    await wrapper.vm.$nextTick();
+
+    expect(stubs.listProps.props).toMatchObject({ namespace: 'public', name: 'Task', fixedQuery: pinned });
+    wrapper.unmount();
+
+    setRoute('/entities/public/Task', { namespace: 'public', name: 'Task' });
+    mount(EntityListPage);
+    expect(stubs.listProps.props?.['fixedQuery']).toBeUndefined();
   });
 
   it('entity-detail 页按 namespace/name/entityId 路由参数定位实体，提交/取消后相对导航回实体列表', async () => {

@@ -26,6 +26,7 @@ import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuVirtualStore } from '../../app/composables/useTreeMenuVirtualStore';
 import { generateBatchMenus } from '../../app/utils/menu-utils';
 import { pairVirtualRows } from '../../app/utils/virtual-rows';
+import { compareSortOrder } from '../../app/utils/sort-order';
 
 const rxdb = useRxDB();
 const showHistory = ref(true);
@@ -72,9 +73,7 @@ const totalSize = computed(() => rowVirtualizer.value.getTotalSize());
 const handleAddMany = async (count: number, actionKey: string) => {
   loadingActions.value.add(actionKey);
   try {
-    const existingRoots = menus.value
-      .filter(m => !m.parentId)
-      .sort((a, b) => (a.sortOrder || '').localeCompare(b.sortOrder || ''));
+    const existingRoots = menus.value.filter(m => !m.parentId).sort(compareSortOrder);
 
     const newMenus = generateBatchMenus(count, MenuLarge, existingRoots);
     await rxdb.entityManager.saveMany(newMenus);

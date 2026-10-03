@@ -2,11 +2,12 @@
  * EntityTable —— **真实组件源码**（Angular `entity-table.component.real.spec.ts` 的 React 移植）。
  *
  * 通过 FakeListTable 按真实事件名驱动 VTable 事件 → onXxx 回调桥接
- * （onCellChanged / onBatchUpdated / onRowDeleted / onSortClicked / onRowReordered / onIconClicked），
+ * （onCellChanged / onBatchUpdated / onRowDeleted / onSortClicked / onRowReordered / onRowMoved / onIconClicked），
  * 并覆盖 ENTITY_TABLE_CONFIG、loading/空态渲染、主题重绘、销毁释放。
  * 只打桩 VTable 引擎与 happy-dom 缺失的浏览器 API（clipboard）。
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
+import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -133,22 +134,102 @@ describe('EntityTable（真实组件）', () => {
     expect(iconClicked).toEqual([{ name: 'view-action', record: RECORDS[0] }]);
   });
 
-  it('sort_click 透传字段与方向（阻止 VTable 客户端排序）', () => {
+  it('sort_click 透传字段与方向（阻止 VTable 客户端排序，同步列头图标）', () => {
     const { sortClicked } = renderTable();
     const table = getLastListTable();
 
     table.emit('sort_click', { field: 'name', order: 'asc' });
 
     expect(sortClicked).toEqual([{ field: 'name', order: 'asc' }]);
+    // 图标跟着轮转：asc → desc → normal（normal 清空状态）
+    expect(table.sortState).toEqual({ field: 'name', order: 'asc' });
+    table.emit('sort_click', { field: 'name', order: 'normal' });
+    expect(table.sortState).toBeNull();
   });
 
   it('change_header_position 经 collectReorderedIds 输出拖拽后的行序', () => {
-    const { rowReordered } = renderTable();
+    // 拖放会原地换位交进去的数组：给副本，别动共享的 RECORDS
+    const { rowReordered } = renderTable({ records: [...RECORDS] });
     const table = getLastListTable();
 
-    table.emit('change_header_position', {});
+    table.dragRow(2, 1);
 
-    expect(rowReordered).toEqual([['r1', 'r2']]);
+    expect(rowReordered).toEqual([['r2', 'r1']]);
+  });
+
+  describe('单行拖放（US-028 阶段 B）', () => {
+    const THREE: EntityTableRecord[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+    function renderDraggable(rowDragEnabled?: boolean) {
+      const moves: RowMoveEvent[] = [];
+      const ref = createRef<EntityTableHandle>();
+      const records = THREE.map(record => ({ ...record }));
+      const element = (enabled?: boolean) => (
+        <EntityTable
+          ref={ref}
+          records={records}
+          columns={COLUMNS as never}
+          rowDragEnabled={enabled}
+          onRowMoved={move => moves.push(move)}
+        />
+      );
+      const utils = render(element(rowDragEnabled));
+      return { ...utils, ref, moves, records, rerenderWith: (enabled?: boolean) => utils.rerender(element(enabled)) };
+    }
+
+    it('拖放后输出被拖行与落点前后邻居；拖列、原位放下不输出', () => {
+      const { moves } = renderDraggable();
+      const table = getLastListTable();
+
+      table.dragRow(3, 1);
+      table.dragRow(1, 2);
+      table.emit('change_header_position', {
+        source: { col: 1, row: 0 },
+        target: { col: 2, row: 0 },
+        movingColumnOrRow: 'column'
+      });
+      table.emit('change_header_position', {
+        source: { col: 0, row: 2 },
+        target: { col: 0, row: 2 },
+        movingColumnOrRow: 'row'
+      });
+
+      expect(moves).toEqual([
+        { id: 'c', prevId: null, nextId: 'a' },
+        { id: 'c', prevId: 'a', nextId: 'b' }
+      ]);
+    });
+
+    it('rowDragEnabled 缺省开启，运行时切换即时收起 / 恢复手柄', () => {
+      const { rerenderWith } = renderDraggable();
+      const table = getLastListTable();
+      expect(isRowDragEnabled(table as never)).toBe(true);
+
+      rerenderWith(false);
+      expect(isRowDragEnabled(table as never)).toBe(false);
+      expect(table.recreateCellsCalls).toBe(1);
+
+      rerenderWith(true);
+      expect(isRowDragEnabled(table as never)).toBe(true);
+      expect(table.recreateCellsCalls).toBe(2);
+    });
+
+    it('建表时就关闭的表格不显示手柄', () => {
+      renderDraggable(false);
+      expect(isRowDragEnabled(getLastListTable() as never)).toBe(false);
+    });
+
+    it('restoreRecords 把被拖放原地换位的行恢复成交给表格时的顺序', () => {
+      const { ref, records } = renderDraggable();
+      const table = getLastListTable();
+      table.dragRow(1, 3);
+      expect(table.records.map(r => r['id'])).toEqual(['b', 'c', 'a']);
+
+      act(() => ref.current?.restoreRecords());
+
+      expect(table.records.map(r => r['id'])).toEqual(['a', 'b', 'c']);
+      expect(records.map(r => r['id'])).toEqual(['a', 'b', 'c']);
+    });
   });
 
   it('loadingMore 进行中不重复触发 loadMore', () => {
