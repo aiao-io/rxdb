@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [68/94 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [70/96 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -186,6 +186,10 @@ aiao/
 │   ├── rxdb-plugin-graph/           # 图插件
 │   ├── rxdb-plugin-workspace/       # 工作区插件
 │   ├── rxdb-plugin-storage/         # 存储插件
+│   ├── rxdb-plugin-replay/          # 会话录制与回放插件（rrweb）
+│   ├── rxdb-plugin-replay-angular/  # Angular 回放组件
+│   ├── rxdb-plugin-replay-react/    # React 回放组件
+│   ├── rxdb-plugin-replay-vue/      # Vue 回放组件
 │   ├── rxdb-plugin-search/          # 全文搜索插件（FTS5）
 │   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
 │   ├── rxdb-plugin-search-react/    # React 搜索集成

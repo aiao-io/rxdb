@@ -4,7 +4,7 @@
  * 不可变提交节点。只追加，永不 UPDATE / DELETE。
  */
 
-import { Entity, PropertyType } from '@aiao/rxdb';
+import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 提交节点的种类
@@ -36,6 +36,7 @@ export type CommitKind = 'normal' | 'baseline' | 'branch_baseline';
   name: 'Commit',
   tableName: 'rxdb_commit',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

@@ -69,6 +69,20 @@ describe('buildFormFields', () => {
     const fields = buildFormFields(testMeta, 'view');
     expect(fields.every(f => f.readonly === true)).toBe(true);
   });
+
+  it('实体级权限不覆盖字段级只读：可编辑实体的 edit 表单里 readonly 字段仍只读（US-027 AC#14）', () => {
+    const meta = makeMeta({
+      permissions: { create: 'both', update: 'both', delete: 'system' },
+      propertyMap: new Map<string, EntityPropertyMetadata>([
+        ['locked', { name: 'locked', columnName: 'locked', type: PropertyType.string, readonly: true }],
+        ['title', { name: 'title', columnName: 'title', type: PropertyType.string }]
+      ])
+    });
+    const fields = buildFormFields(meta, 'edit');
+
+    expect(fields.find(f => f.field === 'locked')?.readonly).toBe(true);
+    expect(fields.find(f => f.field === 'title')?.readonly).not.toBe(true);
+  });
 });
 
 describe('sortFormFields', () => {

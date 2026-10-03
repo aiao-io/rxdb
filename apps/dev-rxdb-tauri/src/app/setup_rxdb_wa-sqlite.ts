@@ -5,7 +5,7 @@ import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginStorage, type RxDBStoragePluginOptions } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import { FileLarge, FileNode, MenuLarge, MenuSimple, Task, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { createWaSqliteDevToolsPorts } from '../devtools/tauri-vfs-providers';
 import { WEB_PREVIEW_DB_NAME } from './db-names';
@@ -53,7 +53,7 @@ export default async (forced?: DevToolsForcedVfs) => {
     dbName: WEB_PREVIEW_DB_NAME,
     context: { userId: 'userId' },
     // `DesktopLaunch` 两个后端都注册，理由见 `setup_rxdb_desktop.ts` 同一处。
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
+    entities: [Todo, Task, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     // TAURI-04：这里原先还声明了 `remote: { adapter: 'supabase' }`，可全文件只
     // 注册了 `wa-sqlite` 一个适配器。声明会让 `remoteAdapter$` 去解析一个不存在的
     // 适配器名，谁订阅谁炸；`SyncType.None` 没人订阅把这条故障暂时掩住了。

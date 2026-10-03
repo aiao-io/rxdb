@@ -37,6 +37,7 @@ describe('gdEntryPath', () => {
 
   it('优先使用 tableName（Todo → todos），查不到回退实体名', () => {
     expect(gdEntryPath({ namespace: 'public', entity: 'Todo', entityId: 'u-1' })).toBe('public/todos/u-1');
+    expect(gdEntryPath({ namespace: 'public', entity: 'Task', entityId: 'u-1' })).toBe('public/tasks/u-1');
   });
 });
 

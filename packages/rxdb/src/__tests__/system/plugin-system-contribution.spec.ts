@@ -18,6 +18,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../../entity/entity-permissions.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
@@ -36,6 +37,7 @@ import { getSystemEntityNames, isSystemEntity, SYSTEM_ENTITIES } from '../../sys
   name: 'ProbeCapabilityState',
   tableName: 'rxdb_probe_capability_state',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [{ name: 'branchId', type: PropertyType.string }]
 })
 class ProbeCapabilityState extends EntityBase {
@@ -56,6 +58,7 @@ class ProbeCapabilityState extends EntityBase {
   name: 'ProbeCapabilityState',
   tableName: 'user_owned_probe_state',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [{ name: 'note', type: PropertyType.string }]
 })
 class UserOwnedProbeState extends EntityBase {

@@ -67,15 +67,21 @@ import {
   SENTINEL_JSON
 } from '@aiao/rxdb-test/encrypted';
 import {
+  Account,
   Article,
+  AuditLog,
   Comment,
+  Contract,
   ENTITIES as entityTypes,
   FileLarge,
   FileNode,
+  Invoice,
   MenuLarge,
   MenuSimple,
+  Task,
   Todo,
   TypeDemo,
+  type TaskStaticTypes,
   type TodoStaticTypes
 } from '@aiao/rxdb-test/entities';
 import {
@@ -102,6 +108,17 @@ import {
   type UserStaticTypes
 } from '@aiao/rxdb-test/shop';
 import {
+  runManualOrderSuite,
+  SortableItem,
+  SortableList,
+  SortableListItem,
+  SortableTodo,
+  type ManualOrderSuiteDatabase,
+  type ManualOrderSuiteDatabaseOptions,
+  type ManualOrderSuiteFactory,
+  type ManualOrderSuiteOptions
+} from '@aiao/rxdb-test/sortable';
+import {
   createUnexecutedMigrations,
   freshDbName,
   runBootstrapAtomicitySuite,
@@ -124,6 +141,15 @@ const todo = new Todo();
 const product = new Product();
 const encryptedUser = new EncryptedUser();
 declare const todoFindOptions: TodoStaticTypes['findOptions'];
+// Task 的 orderBy 字段集里必须有 sortOrder——生成器漏了手动排序列，三端 todo 页的显式排序就写不出来
+const taskFindAllOptions: TaskStaticTypes['findAllOptions'] = {
+  where: { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] },
+  orderBy: [
+    { field: 'completed', sort: 'asc' },
+    { field: 'sortOrder', sort: 'asc' },
+    { field: 'id', sort: 'asc' }
+  ]
+};
 declare const shopUserFindOptions: UserStaticTypes['findOptions'];
 
 // tree-unique 的四个类型导出在这里被真实消费：只 import 不使用的话，
@@ -132,6 +158,12 @@ declare const treeUniqueFactory: TreeUniqueSuiteFactory;
 declare const treeUniqueDatabaseOptions: TreeUniqueSuiteDatabaseOptions;
 declare const treeUniqueDatabase: TreeUniqueSuiteDatabase;
 const treeUniqueOptions: TreeSiblingUniqueSuiteOptions = { factory: treeUniqueFactory };
+
+// sortable 的四个类型导出同样要被真实消费，理由同上。
+declare const manualOrderFactory: ManualOrderSuiteFactory;
+declare const manualOrderDatabaseOptions: ManualOrderSuiteDatabaseOptions;
+declare const manualOrderDatabase: ManualOrderSuiteDatabase;
+const manualOrderOptions: ManualOrderSuiteOptions = { factory: manualOrderFactory };
 
 // query-cache-contract 的接入点类型同样要被真实消费，理由同上。
 declare const queryCacheContractImpl: QueryCacheRowContractImpl;
@@ -206,10 +238,16 @@ void [
   queryCountOf,
   // entities
   todoFindOptions,
+  taskFindAllOptions,
   entityTypes,
   todo,
+  new Task().sortOrder,
+  Account,
   Article,
+  AuditLog,
   Comment,
+  Contract,
+  Invoice,
   FileLarge,
   FileNode,
   MenuLarge,
@@ -250,5 +288,14 @@ void [
   new TreeMenu().title,
   treeUniqueOptions,
   treeUniqueDatabaseOptions.dbName,
-  treeUniqueDatabase.countRows
+  treeUniqueDatabase.countRows,
+  // sortable
+  runManualOrderSuite,
+  new SortableItem().sortOrder,
+  new SortableList().title,
+  new SortableListItem().listId,
+  new SortableTodo().completed,
+  manualOrderOptions,
+  manualOrderDatabaseOptions.dbName,
+  manualOrderDatabase.dispose
 ];

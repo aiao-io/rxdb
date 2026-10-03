@@ -4,6 +4,7 @@ import { generateKeyBetween } from '@aiao/utils';
 import { firstValueFrom, type Observable, type Subscription } from 'rxjs';
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue';
 import { generateBatchMenus } from '../utils/menu-utils';
+import { compareSortOrder } from '../utils/sort-order';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { formatErrorMessage, useToast } from './useToast';
 
@@ -408,9 +409,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
   // 批量添加菜单 - 内部 fetch 现有根节点，page 无需传入全表
   const addManyMenus = async (count: number) => {
     const allMenus = await fetchAllMenus();
-    const existingRoots = allMenus
-      .filter(m => !m.parentId)
-      .sort((a, b) => (a.sortOrder || '').localeCompare(b.sortOrder || ''));
+    const existingRoots = allMenus.filter(m => !m.parentId).sort(compareSortOrder);
 
     const newMenus = generateBatchMenus(count, MenuLarge, existingRoots);
     await rxdb.entityManager.saveMany(newMenus);

@@ -2,16 +2,23 @@
  * @fileoverview VTable 表格宿主组件（Angular `EntityTableComponent` 的 React 移植）。
  *
  * 语义与 Angular 侧一致：负责表格实例生命周期、事件桥接（VTable 事件 →
- * onCellChanged / onBatchUpdated / onRowDeleted / onIconClicked / onRowReordered /
+ * onCellChanged / onBatchUpdated / onRowDeleted / onIconClicked / onRowReordered / onRowMoved /
  * onScrollNearBottom / onSortClicked）、暗色主题探测与销毁释放；
  * 全部表格基础设施（列构建、编辑器、剪贴板、键盘、主题）来自 `@aiao/rxdb-model`。
  *
- * 命令式能力（`tableInstance` / `changeCellValue` / `redrawTheme`）经 ref handle 暴露
+ * 命令式能力（`tableInstance` / `changeCellValue` / `redrawTheme` / `restoreRecords`）经 ref handle 暴露
  * （对应 Angular 组件上的公开 getter 与方法）。
  *
  * @module entity-table/entity-table
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, PendingWrite } from '@aiao/rxdb-model';
+import type {
+  BatchChangeItem,
+  CellChangeEvent,
+  EntityTableRecord,
+  HeaderPositionChange,
+  PendingWrite,
+  RowMoveEvent
+} from '@aiao/rxdb-model';
 import {
   CellTooltipManager,
   ROW_SERIES_COL_OFFSET,
@@ -25,7 +32,11 @@ import {
   handleTableKeydown,
   isDocumentDarkMode,
   patchDragIconForReadonlyRows,
+  readRowMove,
+  restoreTableRecords,
   setCellSwitchState,
+  setRowDragEnabled,
+  syncHeaderSortIcon,
   updateTableRecords,
   changeCellValue as vtChangeCellValue
 } from '@aiao/rxdb-model';
@@ -49,6 +60,8 @@ export interface EntityTableHandle {
   changeCellValue(col: number, row: number, value: unknown): void;
   /** 用当前暗色模式与 CSS 变量重绘主题。 */
   redrawTheme(): void;
+  /** 把行恢复成最近一次交给表格的顺序（拖放被拒或落库失败时调用）。 */
+  restoreRecords(): void;
 }
 
 /** {@link EntityTable} 的 props。 */
@@ -87,6 +100,10 @@ export interface EntityTableProps {
   onBatchUpdated?: (mutations: BatchChangeItem[]) => void;
   /** 行重排（列头拖拽）。 */
   onRowReordered?: (orderedIds: string[]) => void;
+  /** 是否显示行拖动手柄，缺省 `true`；运行时切换即时生效（建表需开启 `rowSeriesNumber.dragOrder`）。 */
+  rowDragEnabled?: boolean;
+  /** 单行拖放：被拖行与落点前后邻居（US-028）。 */
+  onRowMoved?: (move: RowMoveEvent) => void;
   /** 触底且未提供 loadMore 时输出。 */
   onScrollNearBottom?: () => void;
   /** 列头排序点击；业务层接管查询排序，表格不执行客户端排序。 */
@@ -115,6 +132,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     onIconClicked,
     onBatchUpdated,
     onRowReordered,
+    rowDragEnabled = true,
+    onRowMoved,
     onScrollNearBottom,
     onSortClicked
   },
@@ -126,6 +145,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
   const tableRef = useRef<ListTable | null>(null);
   const prevColumnsRef = useRef<ListTableConstructorOptions['columns'] | null>(null);
   const prevRecordsRef = useRef<EntityTableRecord[] | null>(null);
+  /** 最近一次交给表格的行顺序副本：VTable 拖放会原地改写传入数组 */
+  const committedRecordsRef = useRef<EntityTableRecord[]>([]);
   const selectedCellRef = useRef<{ col: number; row: number } | null>(null);
   const clipboardRef = useRef<TableClipboardManager | null>(null);
   const tooltipRef = useRef<CellTooltipManager | null>(null);
@@ -159,6 +180,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     onIconClicked,
     onBatchUpdated,
     onRowReordered,
+    rowDragEnabled,
+    onRowMoved,
     onScrollNearBottom,
     onSortClicked
   });
@@ -180,6 +203,8 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
       onIconClicked,
       onBatchUpdated,
       onRowReordered,
+      rowDragEnabled,
+      onRowMoved,
       onScrollNearBottom,
       onSortClicked
     };
@@ -249,12 +274,20 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
       updateTableRecords(table, records, prevColumnsRef.current ?? columns, columns);
       prevColumnsRef.current = columns;
       prevRecordsRef.current = records;
+      committedRecordsRef.current = [...records];
     } else if (records !== prevRecordsRef.current) {
       table.setRecords(records);
       prevRecordsRef.current = records;
+      committedRecordsRef.current = [...records];
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records, columns, tableReady]);
+
+  // ── 行拖动手柄开关（VTable 只在建表时读 dragOrder，运行时经补丁过的 getIcons 收起）──
+  useEffect(() => {
+    const table = tableRef.current;
+    if (table) setRowDragEnabled(table, rowDragEnabled);
+  }, [rowDragEnabled, tableReady]);
 
   /** 创建表格实例、注册基础事件与容器键盘监听（对应 Angular `#initTable`）。 */
   function initTable(container: HTMLElement): void {
@@ -269,6 +302,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     );
     tableRef.current = table;
     prevRecordsRef.current = current.records;
+    committedRecordsRef.current = [...current.records];
     const h = table.getRowHeight(0);
     if (h > 0) setHeaderHeight(h);
 
@@ -278,6 +312,7 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
 
     table.updateTheme(createTheme(resolvedDarkModeRef.current, getCSSVariables()));
     patchDragIconForReadonlyRows(table);
+    setRowDragEnabled(table, current.rowDragEnabled);
 
     table.on('change_cell_value', (args: { col: number; row: number; changedValue: string | number }) => {
       handleCellChange(args.col, args.row, args.changedValue);
@@ -303,13 +338,16 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     table.on('selected_cell', (args: { col: number; row: number }) => {
       selectedCellRef.current = { col: args.col, row: args.row };
     });
-    table.on('change_header_position', () => {
+    table.on('change_header_position', (args: HeaderPositionChange) => {
       const ids = collectReorderedIds(table, propsRef.current.idField);
       if (ids.length > 0) propsRef.current.onRowReordered?.(ids);
+      const move = readRowMove(table, propsRef.current.idField, args);
+      if (move) propsRef.current.onRowMoved?.(move);
     });
-    // 返回 false 阻止 VTable executeSort，由业务层 cursor orderBy 重查
+    // 返回 false 阻止 VTable executeSort，由业务层 cursor orderBy 重查；排序图标另行同步
     table.on('sort_click', (args: { field: unknown; order: unknown }) => {
       propsRef.current.onSortClicked?.({ field: args.field, order: args.order });
+      syncHeaderSortIcon(table, args);
       return false;
     });
     table.on('scroll', (args: { scrollDirection: string; scrollRatioY?: number; dy?: number }) => {
@@ -431,6 +469,11 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
       redrawTheme(): void {
         const table = tableRef.current;
         if (table) table.updateTheme(createTheme(resolvedDarkModeRef.current, getCSSVariables()));
+      },
+      restoreRecords(): void {
+        const table = tableRef.current;
+        const records = prevRecordsRef.current;
+        if (table && records) restoreTableRecords(table, records, committedRecordsRef.current);
       }
     }),
     []

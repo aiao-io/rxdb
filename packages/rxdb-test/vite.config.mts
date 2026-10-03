@@ -67,7 +67,8 @@ export default defineConfig(({ command }) => ({
         'encrypted/index': 'src/encrypted/index.ts',
         'transaction/index': 'src/transaction/index.ts',
         'query-cache-contract/index': 'src/query-cache-contract/index.ts',
-        'tree-unique/index': 'src/tree-unique/index.ts'
+        'tree-unique/index': 'src/tree-unique/index.ts',
+        'sortable/index': 'src/sortable/index.ts'
       },
       name: '@aiao/rxdb-test',
       // 改成你需要支持的格式。

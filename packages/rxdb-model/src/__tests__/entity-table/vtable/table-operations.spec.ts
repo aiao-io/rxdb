@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   collectReorderedIds,
   patchDragIconForReadonlyRows,
+  syncHeaderSortIcon,
   updateTableRecords
 } from '../../../entity-table/vtable/table-operations.js';
 
@@ -158,5 +159,30 @@ describe('updateTableRecords', () => {
     expect(setColWidth).toHaveBeenCalledWith(1, 250);
     // name was col=1 (width=150), now col=2 → restored to 150
     expect(setColWidth).toHaveBeenCalledWith(2, 150);
+  });
+});
+
+// ── syncHeaderSortIcon ──────────────────────────────────────────────────────
+
+describe('syncHeaderSortIcon', () => {
+  const tableWith = () => {
+    const updateSortState = vi.fn();
+    return { table: { updateSortState } as unknown as VTable.ListTable, updateSortState };
+  };
+
+  it('记下 asc / desc 但不执行客户端排序', () => {
+    const { table, updateSortState } = tableWith();
+    syncHeaderSortIcon(table, { field: 'id', order: 'asc' });
+    expect(updateSortState).toHaveBeenLastCalledWith({ field: 'id', order: 'asc' }, false);
+    syncHeaderSortIcon(table, { field: 'id', order: 'desc' });
+    expect(updateSortState).toHaveBeenLastCalledWith({ field: 'id', order: 'desc' }, false);
+  });
+
+  it('normal 或字段无效时清空排序状态', () => {
+    const { table, updateSortState } = tableWith();
+    syncHeaderSortIcon(table, { field: 'id', order: 'normal' });
+    expect(updateSortState).toHaveBeenLastCalledWith(null, false);
+    syncHeaderSortIcon(table, { field: undefined, order: 'asc' });
+    expect(updateSortState).toHaveBeenLastCalledWith(null, false);
   });
 });

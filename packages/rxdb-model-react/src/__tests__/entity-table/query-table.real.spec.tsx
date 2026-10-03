@@ -4,7 +4,8 @@
  * 覆盖 statusText（filtered/total）、filterBar / emptyState 插槽、状态栏显隐
  * 与真实 EntityTable 的事件透传链路；命令式能力经 ref handle 委托。
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
+import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryTable, type QueryTableHandle } from '../../entity-table';
@@ -133,14 +134,18 @@ describe('QueryTable（真实组件）', () => {
     expect(emittedSort).toEqual([{ field: 'name', order: 'desc' }]);
   });
 
-  it('rowDeleted / iconClicked / batchUpdated / rowReordered 透传', () => {
+  it('rowDeleted / iconClicked / batchUpdated / rowReordered / rowMoved 透传', () => {
     const rowDeleted: EntityTableRecord[] = [];
     const iconClicked: Array<{ name: string; record: EntityTableRecord }> = [];
     const batchUpdated: BatchChangeItem[][] = [];
     const rowReordered: string[][] = [];
+    const rowMoved: RowMoveEvent[] = [];
     const utils = render(
       <QueryTable
-        records={[{ id: 'r1', name: 'Alice', active: true }]}
+        records={[
+          { id: 'r1', name: 'Alice', active: true },
+          { id: 'r2', name: 'Bob', active: false }
+        ]}
         columns={
           [
             { field: 'name', title: '名称', cellType: 'text' },
@@ -151,13 +156,15 @@ describe('QueryTable（真实组件）', () => {
         onIconClicked={e => iconClicked.push(e)}
         onBatchUpdated={e => batchUpdated.push(e)}
         onRowReordered={e => rowReordered.push(e)}
+        rowDragEnabled={false}
+        onRowMoved={e => rowMoved.push(e)}
       />
     );
 
     const table = getLastListTable();
     table.emit('icon_click', { name: 'delete-action', col: 1, row: 1 });
     table.emit('icon_click', { name: 'view-action', col: 1, row: 1 });
-    table.emit('change_header_position', {});
+    table.dragRow(2, 1);
     table.selectedCellInfos = [[{ col: 1, row: 1, field: 'name' }]];
     table.emit('selected_cell', { col: 1, row: 1 });
     (utils.container.querySelector('.rxdb-entity-table > div') as HTMLDivElement).dispatchEvent(
@@ -166,17 +173,22 @@ describe('QueryTable（真实组件）', () => {
 
     expect(rowDeleted).toEqual([{ id: 'r1', name: 'Alice', active: true }]);
     expect(iconClicked).toEqual([{ name: 'view-action', record: { id: 'r1', name: 'Alice', active: true } }]);
-    expect(rowReordered).toEqual([['r1']]);
-    expect(batchUpdated).toEqual([[{ recordId: 'r1', changes: { name: '' } }]]);
+    expect(rowReordered).toEqual([['r2', 'r1']]);
+    expect(rowMoved).toEqual([{ id: 'r2', prevId: null, nextId: 'r1' }]);
+    expect(isRowDragEnabled(table as never)).toBe(false);
+    expect(batchUpdated).toEqual([[{ recordId: 'r2', changes: { name: '' } }]]);
   });
 
-  it('changeCellValue 与 redrawTheme 委托给内部表格', () => {
+  it('changeCellValue / redrawTheme / restoreRecords 委托给内部表格', () => {
     const ref = { current: null as QueryTableHandle | null };
     render(
       <QueryTable
         ref={ref}
         columns={[{ field: 'name', title: '名称' }] as never}
-        records={[{ id: 'r1', name: 'Alice' }]}
+        records={[
+          { id: 'r1', name: 'Alice' },
+          { id: 'r2', name: 'Bob' }
+        ]}
       />
     );
     const table = getLastListTable();
@@ -184,6 +196,9 @@ describe('QueryTable（真实组件）', () => {
     expect(() => ref.current?.changeCellValue(1, 1, 'back')).not.toThrow();
     ref.current?.redrawTheme();
     expect(table.lastTheme).toBeDefined();
+    table.dragRow(2, 1);
+    ref.current?.restoreRecords();
+    expect(table.records.map(r => r['id'])).toEqual(['r1', 'r2']);
   });
 
   it('loading 透传给内部实体表格并渲染 spinner', () => {

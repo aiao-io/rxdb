@@ -10,11 +10,12 @@
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import type { EntityFormData, FormFieldConfig, FormValidationResult } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
+import { getListTablesIn } from '../testing/fake-vtable';
 import { createInMemoryRxdb, IN_MEMORY_ADAPTER_NAME, InMemoryRxDBAdapter } from '../testing/in-memory-rxdb';
 
 // entity-detail 模板按 tab 类型渲染 EntityList（其模块图里有实体表格 → VTable），
@@ -70,7 +71,11 @@ describe('EntityDetail（真实组件）', () => {
   let adapter: InMemoryRxDBAdapter;
 
   beforeAll(async () => {
-    rxdb = createInMemoryRxdb([Todo as unknown as EntityType, DetailGroup, DetailChild]);
+    rxdb = createInMemoryRxdb([
+      ...([Todo, Account, Invoice, Contract] as unknown as EntityType[]),
+      DetailGroup,
+      DetailChild
+    ]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -306,5 +311,43 @@ describe('EntityDetail（真实组件）', () => {
 
     // 关系 tab 内容存在（hidden 但渲染在 DOM 中）
     expect(container.querySelector('.rxdb-entity-list')).toBeTruthy();
+  });
+
+  it('US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删', async () => {
+    const account = new Account({ name: 'acme' });
+    await account.save();
+    const invoice = new Invoice({ title: 'inv-1', accountId: account.id });
+    const contract = new Contract({ title: 'ct-1', accountId: account.id });
+    await invoice.save();
+    await contract.save();
+
+    const { container } = renderWithRouteInputs('public', 'Account', account.id);
+    const panelOf = (label: string): Element => {
+      const tab = [...container.querySelectorAll('[role="tab"]')].find(t => t.getAttribute('aria-label') === label);
+      // tab 输入框紧跟着它的内容面板（daisyUI tabs 结构）
+      const panel = tab?.nextElementSibling;
+      if (!panel) throw new Error(`没有「${label}」关系 tab`);
+      return panel;
+    };
+    const tableOf = (label: string) => {
+      const [table] = getListTablesIn(panelOf(label));
+      if (!table) throw new Error(`「${label}」关系 tab 里没有列表`);
+      return table;
+    };
+    const actionIconNames = (label: string): string[] => {
+      const table = tableOf(label);
+      const col = table.columns.findIndex(c => c['field'] === 'actions') + 1;
+      const column = table.columns[col - 1] as unknown as { icon: (args: unknown) => Array<{ name: string }> };
+      return [...new Set(column.icon({ table, col, row: 1 }).map(i => i.name))];
+    };
+    await waitFor(() => {
+      expect(tableOf('发票').records).toHaveLength(1);
+      expect(tableOf('合同').records).toHaveLength(1);
+    });
+
+    expect(tableOf('发票').records.map(r => [r['id'], r['_readonly']])).toEqual([[invoice.id, true]]);
+    expect(actionIconNames('发票')).toEqual(['view-action', 'delete-action']);
+    expect(tableOf('合同').records.map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
+    expect(actionIconNames('合同')).toEqual(['view-action']);
   });
 });

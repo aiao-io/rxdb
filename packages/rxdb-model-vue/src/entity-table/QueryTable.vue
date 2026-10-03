@@ -5,7 +5,7 @@
  * 在实体表格上方提供筛选栏插槽（`filterBar`）与空态插槽（`emptyState`），
  * 透传全部事件给内部 {@link EntityTable}，并渲染筛选状态栏（filtered / total 计数）。
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
 import { computed, ref } from 'vue';
 import EntityTable from './EntityTable.vue';
@@ -41,6 +41,8 @@ const props = withDefaults(
     loadingMore?: boolean;
     /** 触底时加载更多数据的回调，透传给 EntityTable */
     loadMore?: () => void;
+    /** 是否显示行拖动手柄，缺省 `true`，透传给 EntityTable */
+    rowDragEnabled?: boolean;
   }>(),
   {
     idField: 'id',
@@ -53,7 +55,8 @@ const props = withDefaults(
     filteredCount: undefined,
     loading: false,
     loadingMore: false,
-    loadMore: undefined
+    loadMore: undefined,
+    rowDragEnabled: true
   }
 );
 
@@ -68,6 +71,8 @@ const emit = defineEmits<{
   batchUpdated: [items: BatchChangeItem[]];
   /** 行重排 */
   rowReordered: [ids: string[]];
+  /** 单行拖放：被拖行与落点前后邻居 */
+  rowMoved: [move: RowMoveEvent];
   /** 触底且无 loadMore */
   scrollNearBottom: [];
   /** 列头排序点击 */
@@ -96,12 +101,18 @@ const redrawTheme = (): void => {
   entityTable.value?.redrawTheme();
 };
 
+/** 把行恢复成最近一次交给表格的顺序（委托给内部 EntityTable） */
+const restoreRecords = (): void => {
+  entityTable.value?.restoreRecords();
+};
+
 defineExpose({
   entityTable,
   statusText,
   tableInstance,
   changeCellValue,
-  redrawTheme
+  redrawTheme,
+  restoreRecords
 });
 </script>
 
@@ -131,11 +142,13 @@ defineExpose({
         :loading-more="loadingMore"
         :non-clearable-fields="nonClearableFields"
         :records="records"
+        :row-drag-enabled="rowDragEnabled"
         :table-options="tableOptions"
         @batch-updated="emit('batchUpdated', $event)"
         @cell-changed="emit('cellChanged', $event)"
         @icon-clicked="emit('iconClicked', $event)"
         @row-deleted="emit('rowDeleted', $event)"
+        @row-moved="emit('rowMoved', $event)"
         @row-reordered="emit('rowReordered', $event)"
         @scroll-near-bottom="emit('scrollNearBottom')"
         @sort-clicked="emit('sortClicked', $event)"

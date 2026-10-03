@@ -4,6 +4,7 @@
  */
 
 import { Observable } from 'rxjs';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../entity/entity-permissions.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { OnDeleteAction, PropertyType, RelationKind } from '../entity/metadata-options.interface.js';
 import {
@@ -31,6 +32,7 @@ import { RxDBSyncOrderByField, RxDBSyncRuleGroup } from './types.js';
   name: 'RxDBSync',
   tableName: 'rxdb_sync',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

@@ -59,6 +59,12 @@
       "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-plugin-replay/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-replay-angular/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
     },
     {

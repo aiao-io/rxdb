@@ -1,0 +1,134 @@
+<section
+  class="container mx-auto max-w-5xl space-y-6 p-6"
+  [attr.aria-busy]="$phase() === 'loading' || $busy()"
+  [attr.data-phase]="$phase()"
+  data-testid="replay-page"
+>
+  <div class="space-y-2">
+    <h1 class="text-2xl font-bold">会话录制回放</h1>
+    <p class="text-base-content/70 text-sm">
+      打开后每次加载页面都会装上录制插件，事件写进独立的录制库，不进应用库。输入框默认遮蔽，带
+      <code>data-rxdb-replay-block</code>
+      的区块只录占位。回放时点 commit 标记可把工作树恢复到那一刻。
+    </p>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <label class="label cursor-pointer gap-2">
+      <input
+        class="toggle toggle-primary"
+        [checked]="$enabled()"
+        (change)="toggle()"
+        data-testid="replay-enabled"
+        type="checkbox"
+      />
+      录制开关（切换后重新加载页面）
+    </label>
+    @if ($recordingDbName(); as recordingDbName) {
+      <span class="badge badge-ghost font-mono" data-testid="replay-recording-db">{{ recordingDbName }}</span>
+    }
+  </div>
+
+  @if ($phase() === 'loading') {
+    <span class="loading loading-spinner" aria-label="加载录制插件"></span>
+  }
+
+  @if ($error(); as error) {
+    <div class="alert alert-error alert-soft" data-testid="replay-error" role="alert">{{ error }}</div>
+  }
+
+  @if ($phase() === 'ready') {
+    <div class="flex flex-wrap items-center gap-3">
+      @if ($recording()) {
+        <button class="btn btn-warning" [disabled]="$busy()" (click)="stop()" data-testid="replay-stop" type="button">
+          停止录制
+        </button>
+      } @else {
+        <button class="btn btn-primary" [disabled]="$busy()" (click)="start()" data-testid="replay-start" type="button">
+          开始录制
+        </button>
+      }
+      <button class="btn btn-ghost" [disabled]="$busy()" (click)="refresh()" type="button">刷新列表</button>
+      <span class="text-sm" data-testid="replay-state">{{ $state().kind }}</span>
+      @if ($usage(); as usage) {
+        <span class="text-base-content/70 text-sm" data-testid="replay-usage">
+          已用 {{ usage.bytes / 1024 | number: '1.0-1' }} KiB /
+          {{ usage.limits.storeBytes / 1048576 | number: '1.0-0' }}
+          MiB
+        </span>
+      }
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="table-sm table" aria-label="录制会话" data-testid="replay-sessions">
+        <thead>
+          <tr>
+            <th scope="col">开始时间</th>
+            <th scope="col">状态</th>
+            <th scope="col">事件数</th>
+            <th scope="col">体积</th>
+            <th scope="col"><span class="sr-only">操作</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (session of $sessions(); track session.id) {
+            <tr
+              [attr.data-session-id]="session.id"
+              [attr.data-status]="session.status"
+              [class.bg-base-200]="session.id === $selectedId()"
+            >
+              <td>{{ session.startedAt | date: 'medium' }}</td>
+              <td>
+                {{ session.status }}
+                @if (session.truncatedCode) {
+                  <code class="ml-1">{{ session.truncatedCode }}</code>
+                }
+              </td>
+              <td>{{ session.eventCount }}</td>
+              <td>{{ session.bytes / 1024 | number: '1.0-1' }} KiB</td>
+              <td class="flex gap-2">
+                <button
+                  class="btn btn-xs"
+                  [disabled]="session.id === $activeSessionId()"
+                  (click)="select(session)"
+                  data-testid="replay-select"
+                  type="button"
+                >
+                  回放
+                </button>
+                <button
+                  class="btn btn-xs btn-error btn-soft"
+                  [disabled]="$busy() || session.id === $activeSessionId()"
+                  (click)="remove(session)"
+                  data-testid="replay-delete"
+                  type="button"
+                >
+                  删除
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td class="text-base-content/70" colspan="5">还没有录制会话</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <fieldset class="fieldset card card-border bg-base-100 p-4" data-testid="replay-mask-demo">
+      <legend class="fieldset-legend">脱敏演示</legend>
+      <label class="label" for="replay-mask-input">输入框默认遮蔽：回放里只剩同样长度的 *</label>
+      <input class="input w-full" id="replay-mask-input" data-testid="replay-mask-input" type="text" />
+      <div class="bg-base-200 rounded p-3 text-sm" data-rxdb-replay-block data-testid="replay-block-demo">
+        带 data-rxdb-replay-block 的区块：回放里只是同尺寸的占位块，这段文字不进录像。
+      </div>
+    </fieldset>
+
+    @if ($replay(); as replay) {
+      @if ($selectedId(); as sessionId) {
+        <ao-replayer class="block" [replay]="replay" [sessionId]="sessionId" data-testid="replay-player" />
+      }
+    }
+  }
+</section>

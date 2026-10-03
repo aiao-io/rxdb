@@ -1,4 +1,10 @@
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import {
+  type BatchChangeItem,
+  type CellChangeEvent,
+  type EntityTableRecord,
+  type RowMoveEvent,
+  isRowDragEnabled
+} from '@aiao/rxdb-model';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -154,22 +160,103 @@ describe('EntityTableComponent（真实组件）', () => {
     expect(iconClicked).toEqual([{ name: 'view-action', record: RECORDS[0] }]);
   });
 
-  it('sort_click 透传字段与方向（阻止 VTable 客户端排序）', () => {
+  it('sort_click 透传字段与方向（阻止 VTable 客户端排序，同步列头图标）', () => {
     const { component, sortClicked } = render();
     const table = component.tableInstance as unknown as FakeListTable;
 
     table.emit('sort_click', { field: 'name', order: 'asc' });
 
     expect(sortClicked).toEqual([{ field: 'name', order: 'asc' }]);
+    // 图标跟着轮转：asc → desc → normal（normal 清空状态）
+    expect(table.sortState).toEqual({ field: 'name', order: 'asc' });
+    table.emit('sort_click', { field: 'name', order: 'normal' });
+    expect(table.sortState).toBeNull();
   });
 
   it('change_header_position 经 collectReorderedIds 输出拖拽后的行序', () => {
-    const { component, rowReordered } = render();
+    const { component, rowReordered } = render({ records: [...RECORDS] });
     const table = component.tableInstance as unknown as FakeListTable;
 
-    table.emit('change_header_position', {});
+    table.dragRow(2, 1);
 
-    expect(rowReordered).toEqual([['r1', 'r2']]);
+    expect(rowReordered).toEqual([['r2', 'r1']]);
+  });
+
+  describe('单行拖放（US-028 阶段 B）', () => {
+    const THREE: EntityTableRecord[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+    function renderDraggable(rowDragEnabled?: boolean) {
+      const records = THREE.map(record => ({ ...record }));
+      const { fixture, component } = render({ records });
+      const moves: RowMoveEvent[] = [];
+      component.rowMoved.subscribe(move => moves.push(move));
+      if (rowDragEnabled !== undefined) {
+        // 建表前就关闭：重新创建一个先设好输入再首次变更检测的组件
+        const draggable = TestBed.createComponent(EntityTableComponent);
+        draggable.componentRef.setInput('records', records);
+        draggable.componentRef.setInput('columns', COLUMNS as never);
+        draggable.componentRef.setInput('rowDragEnabled', rowDragEnabled);
+        draggable.detectChanges();
+        return { fixture: draggable, component: draggable.componentInstance, moves, records };
+      }
+      return { fixture, component, moves, records };
+    }
+
+    it('拖放后输出被拖行与落点前后邻居；拖列、原位放下不输出', () => {
+      const { component, moves } = renderDraggable();
+      const table = component.tableInstance as unknown as FakeListTable;
+
+      table.dragRow(3, 1);
+      table.dragRow(1, 2);
+      table.emit('change_header_position', {
+        source: { col: 1, row: 0 },
+        target: { col: 2, row: 0 },
+        movingColumnOrRow: 'column'
+      });
+      table.emit('change_header_position', {
+        source: { col: 0, row: 2 },
+        target: { col: 0, row: 2 },
+        movingColumnOrRow: 'row'
+      });
+
+      expect(moves).toEqual([
+        { id: 'c', prevId: null, nextId: 'a' },
+        { id: 'c', prevId: 'a', nextId: 'b' }
+      ]);
+    });
+
+    it('rowDragEnabled 缺省开启，运行时切换即时收起 / 恢复手柄', () => {
+      const { fixture, component } = renderDraggable();
+      const table = component.tableInstance as unknown as FakeListTable;
+      expect(isRowDragEnabled(table as never)).toBe(true);
+
+      fixture.componentRef.setInput('rowDragEnabled', false);
+      fixture.detectChanges();
+      expect(isRowDragEnabled(table as never)).toBe(false);
+      expect(table.recreateCellsCalls).toBe(1);
+
+      fixture.componentRef.setInput('rowDragEnabled', true);
+      fixture.detectChanges();
+      expect(isRowDragEnabled(table as never)).toBe(true);
+      expect(table.recreateCellsCalls).toBe(2);
+    });
+
+    it('建表时就关闭的表格不显示手柄', () => {
+      const { component } = renderDraggable(false);
+      expect(isRowDragEnabled(component.tableInstance as never)).toBe(false);
+    });
+
+    it('restoreRecords 把被拖放原地换位的行恢复成交给表格时的顺序', () => {
+      const { component, records } = renderDraggable();
+      const table = component.tableInstance as unknown as FakeListTable;
+      table.dragRow(1, 3);
+      expect(table.records.map(r => r['id'])).toEqual(['b', 'c', 'a']);
+
+      component.restoreRecords();
+
+      expect(table.records.map(r => r['id'])).toEqual(['a', 'b', 'c']);
+      expect(records.map(r => r['id'])).toEqual(['a', 'b', 'c']);
+    });
   });
 
   it('loadingMore 进行中不重复触发 loadMore', () => {

@@ -116,6 +116,22 @@ describe('buildEditableColumns', () => {
     expect(col['editor']).toBeUndefined();
   });
 
+  it('实体级权限不覆盖字段级只读：可编辑实体里 readonly 字段仍不可编辑（US-027 AC#14）', () => {
+    const meta = makeMeta({
+      permissions: { create: 'both', update: 'both', delete: 'system' },
+      propertyMap: new Map([
+        ['locked', { name: 'locked', columnName: 'locked', type: PropertyType.string, readonly: true }],
+        ['title', { name: 'title', columnName: 'title', type: PropertyType.string }]
+      ])
+    });
+    const columns = buildEditableColumns(meta) as Record<string, unknown>[];
+    const byField = (field: string) => columns.find(column => column['field'] === field);
+    const titleEditor = byField('title')?.['editor'] as (args: StylePropertyFunctionArg) => unknown;
+
+    expect(byField('locked')?.['editor']).toBeUndefined();
+    expect(titleEditor(makeArgs({ id: '1' }))).toBeDefined();
+  });
+
   it('passes enum values into the enum editor column', () => {
     const meta = makeMeta({
       propertyMap: new Map([
@@ -413,6 +429,21 @@ describe('buildEditableColumns', () => {
     const iconFn = actions['icon'] as (a: StylePropertyFunctionArg) => unknown[];
     const icons = iconFn(makeArgs({ id: '1' }));
     expect(icons.length).toBeGreaterThanOrEqual(3); // 查看 + 删除
+  });
+
+  it.each([
+    ['未声明 permissions', undefined, ['view-action', 'delete-action', 'delete-action']],
+    [
+      'update: system（行只读、仍可删）',
+      { create: 'both', update: 'system', delete: 'both' },
+      ['view-action', 'delete-action', 'delete-action']
+    ],
+    ['delete: system（不出删除）', { create: 'both', update: 'both', delete: 'system' }, ['view-action']]
+  ] as const)('删除图标按实体的 delete 权限派生：%s（US-027）', (_label, permissions, expected) => {
+    const columns = buildEditableColumns(makeMeta({ permissions }));
+    const iconFn = (columns.at(-1) as Record<string, unknown>)['icon'] as (a: StylePropertyFunctionArg) => unknown[];
+    const names = (iconFn(makeArgs({ id: '1', _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
+    expect(names).toEqual(expected);
   });
 
   it('uses a narrower actions column when the view label is disabled', () => {

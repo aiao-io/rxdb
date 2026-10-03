@@ -17,6 +17,7 @@
  * 合并它们只会把差异藏起来。
  */
 import type { RxDB } from '@aiao/rxdb';
+import { NEVER, type Observable } from 'rxjs';
 import type { Mock } from 'vitest';
 import { vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
@@ -30,6 +31,7 @@ import type { WorkingTreeRestoreResult, WorkingTreeRestoreSessionInfo } from '..
 import type { WorkingTreeRestoreTarget } from '../restore-precheck.js';
 import type { WorkingTreeStatus } from '../status.js';
 import type { WorkingTreeSwitchBranchOptions } from '../switch-branch-options.js';
+import type { WorkingTreeCommitEvent } from '../working-tree-commit-event.js';
 import type { WorkingTreeManager } from '../working-tree-facade.js';
 
 /**
@@ -229,6 +231,8 @@ export interface WorkingTreeManagerStub {
   readonly restore: Mock<() => Promise<WorkingTreeRestoreResult>>;
   /** 读当前未结束的恢复会话。 */
   readonly restoreSession: Mock<() => Promise<WorkingTreeRestoreSessionInfo | null>>;
+  /** 提交后事件流；桩上永不发值——三端入口目前都不订阅它。 */
+  readonly commits$: Observable<WorkingTreeCommitEvent>;
 }
 
 /**
@@ -280,7 +284,8 @@ export const createWorkingTreeHookStubs = (): WorkingTreeHookStubs => {
     commit: vi.fn<() => Promise<CommitResult>>(),
     discard: vi.fn<() => Promise<WorkingTreeDiscardResult>>(),
     restore: vi.fn<() => Promise<WorkingTreeRestoreResult>>(),
-    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>()
+    restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>(),
+    commits$: NEVER
   };
   workingTree.status.mockResolvedValue(statusWith(0));
 

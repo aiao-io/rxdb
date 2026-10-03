@@ -1,0 +1,106 @@
+# machine: MacBookPro18,2 / 10 cores / 34359738368 bytes
+# os: macOS 27.0.1
+# node: v26.7.0
+# playwright: 1.63.0
+# head: 00752f92f1a492368699d30b9bc67e79bea05ffe (working tree clean)
+# trace: 'retain-on-failure'
+# cmd_off: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-off.json" pnpm exec playwright test --retries=0 --reporter=json --trace=on-first-retry
+# cmd_on: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-on.json" pnpm exec playwright test --retries=0 --reporter=json
+# n: 5
+# order: w1 off, w2 on; off on on off off on on off off on
+# started: 2026-10-01T10:10:41Z
+# ended: 2026-10-01T10:35:01Z
+seq	arm	started_at	load1	duration_ms	expected	unexpected	skipped	flaky	json	note
+w1	off	2026-10-01T10:16:33Z	29.34	75455	133	0	0	0	n5/w1-off.json	
+w2	on	2026-10-01T10:17:49Z	15.56	102860	133	0	0	0	n5/w2-on.json	
+1	off	2026-10-01T10:20:12Z	26.86	74561	133	0	0	0	n5/1-off.json	
+2	on	2026-10-01T10:21:27Z	23.09	103853	133	0	0	0	n5/2-on.json	
+3	on	2026-10-01T10:23:12Z	14.65	100655	133	0	0	0	n5/3-on.json	
+4	off	2026-10-01T10:24:53Z	24.52	70628	133	0	0	0	n5/4-off.json	
+5	off	2026-10-01T10:26:05Z	24.58	76505	133	0	0	0	n5/5-off.json	
+6	on	2026-10-01T10:27:22Z	36.23	101404	133	0	0	0	n5/6-on.json	
+7	on	2026-10-01T10:29:04Z	43.20	101737	133	0	0	0	n5/7-on.json	
+8	off	2026-10-01T10:30:47Z	36.82	71522	133	0	0	0	n5/8-off.json	
+9	off	2026-10-01T10:31:59Z	18.30	75396	133	0	0	0	n5/9-off.json	
+10	on	2026-10-01T10:33:15Z	20.00	105124	133	0	0	0	n5/10-on.json	
+# median_off: 74561
+# median_on: 101737
+# increase: +36.4%
+# noise_off: 7.9% (70628..76505)
+# verdict: noisy
+
+# --- N=9 rerun (verdict noisy above) ---
+# machine: MacBookPro18,2 / 10 cores / 34359738368 bytes
+# os: macOS 27.0.1
+# node: v26.7.0
+# playwright: 1.63.0
+# head: 00752f92f1a492368699d30b9bc67e79bea05ffe (2 files changed, 11 insertions(+), 11 deletions(-): tasks.md marks, benchmarks report rewritten by working-tree.a11y.spec, no source change)
+# trace: 'retain-on-failure'
+# cmd_off: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-off.json" pnpm exec playwright test --retries=0 --reporter=json --trace=on-first-retry
+# cmd_on: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-on.json" pnpm exec playwright test --retries=0 --reporter=json
+# n: 9
+# order: w1 off, w2 on; off on on off off on on off off on on off off on on off off on
+# started: 2026-10-01T10:39:41Z
+# ended: 2026-10-01T11:13:32Z
+seq	arm	started_at	load1	duration_ms	expected	unexpected	skipped	flaky	json	note
+w1	off	2026-10-01T10:45:13Z	7.66	69690	133	0	0	0	n9/w1-off.json	
+w2	on	2026-10-01T10:46:23Z	34.13	102854	133	0	0	0	n9/w2-on.json	
+1	off	2026-10-01T10:48:07Z	40.94	72268	133	0	0	0	n9/1-off.json	
+2	on	2026-10-01T10:49:20Z	34.38	99719	133	0	0	0	n9/2-on.json	
+3	on	2026-10-01T10:51:01Z	28.35	97544	133	0	0	0	n9/3-on.json	
+4	off	2026-10-01T10:52:39Z	38.93	69885	133	0	0	0	n9/4-off.json	
+5	off	2026-10-01T10:53:50Z	27.49	70051	133	0	0	0	n9/5-off.json	
+6	on	2026-10-01T10:55:01Z	19.90	96231	133	0	0	0	n9/6-on.json	
+7	on	2026-10-01T10:56:38Z	24.03	104035	133	0	0	0	n9/7-on.json	
+8	off	2026-10-01T10:58:23Z	26.96	70777	133	0	0	0	n9/8-off.json	
+9	off	2026-10-01T10:59:34Z	13.30	73254	133	0	0	0	n9/9-off.json	
+10	on	2026-10-01T11:00:48Z	21.64	96079	133	0	0	0	n9/10-on.json	
+11	on	2026-10-01T11:02:25Z	37.40	96425	133	0	0	0	n9/11-on.json	
+12	off	2026-10-01T11:04:03Z	27.68	69228	133	0	0	0	n9/12-off.json	
+13	off	2026-10-01T11:05:13Z	37.55	70308	133	0	0	0	n9/13-off.json	
+14	on	2026-10-01T11:06:24Z	19.27	92789	133	0	0	0	n9/14-on.json	
+15	on	2026-10-01T11:07:57Z	12.20	97270	133	0	0	0	n9/15-on.json	
+16	off	2026-10-01T11:09:35Z	18.05	68368	133	0	0	0	n9/16-off.json	
+17	off	2026-10-01T11:10:45Z	19.24	72369	133	0	0	0	n9/17-off.json	
+18	on	2026-10-01T11:11:58Z	21.27	93910	133	0	0	0	n9/18-on.json	
+# median_off: 70308
+# median_on: 96425
+# increase: +37.1%
+# noise_off: 6.9% (68368..73254)
+# verdict: noisy-again
+# bounds: min_on/max_off -1 = +26.7% (92789/73254), max_on/min_off -1 = +52.2% (104035/68368)
+# verdict (research D5 修订，2026-10-01): valid-over -> research D6 第 1 步
+
+# --- research D6 第 1 步：screenshots: false 重量 ---
+# machine: MacBookPro18,2 / 10 cores / 34359738368 bytes
+# os: macOS 27.0.1
+# node: v26.7.0
+# playwright: 1.63.0
+# head: 00752f92f1a492368699d30b9bc67e79bea05ffe (10 files changed, 19 insertions(+), 14 deletions(-): 六个配置 trace 改对象写法、ci-template 注释、specs 文档，benchmarks 报告已还原)
+# trace: { mode: 'retain-on-failure', screenshots: false }
+# cmd_off: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-off.json" pnpm exec playwright test --retries=0 --reporter=json --trace=on-first-retry
+# cmd_on: PLAYWRIGHT_JSON_OUTPUT_FILE="$TMPDIR/us909-ac3/<seq>-on.json" pnpm exec playwright test --retries=0 --reporter=json
+# n: 5
+# order: w1 off, w2 on; off on on off off on on off off on
+# started: 2026-10-01T14:52:28Z
+# ended: 2026-10-01T15:09:53Z
+seq	arm	started_at	load1	duration_ms	expected	unexpected	skipped	flaky	json	note
+w1	off	2026-10-01T14:52:28Z	17.51	74903	133	0	0	0	d6/w1-off.json	
+w2	on	2026-10-01T14:53:44Z	14.10	99867	133	0	0	0	d6/w2-on.json	
+1	off	2026-10-01T14:55:25Z	16.67	71584	133	0	0	0	d6/1-off.json	
+2	on	2026-10-01T14:56:38Z	12.06	97130	133	0	0	0	d6/2-on.json	
+3	on	2026-10-01T14:58:16Z	9.00	93555	133	0	0	0	d6/3-on.json	
+4	off	2026-10-01T14:59:50Z	8.53	73213	133	0	0	0	d6/4-off.json	
+5	off	2026-10-01T15:01:04Z	7.79	73593	133	0	0	0	d6/5-off.json	
+6	on	2026-10-01T15:02:19Z	8.62	105264	133	0	0	0	d6/6-on.json	
+7	on	2026-10-01T15:04:05Z	9.43	96541	133	0	0	0	d6/7-on.json	
+8	off	2026-10-01T15:05:42Z	10.42	74394	133	0	0	0	d6/8-off.json	
+9	off	2026-10-01T15:06:57Z	12.93	72885	133	0	0	0	d6/9-off.json	
+10	on	2026-10-01T15:08:11Z	10.90	101251	133	0	0	0	d6/10-on.json	
+# median_off: 73213
+# median_on: 97130
+# increase: +32.7%
+# noise_off: 3.8% (71584..74394)
+# verdict: valid-over
+# 对照：screenshots 开着时 +36.4%（N=5）/ +37.1%（N=9），关掉只省约 4 个百分点；research D6 第 1 步用尽，第 2 步交用户裁决
+# 裁决（用户，2026-10-01）：接受开销，AC#3 上限改为 +33%，保留 screenshots: false；本节按新上限判 valid-pass

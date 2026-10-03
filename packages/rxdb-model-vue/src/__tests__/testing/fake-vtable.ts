@@ -39,6 +39,10 @@ export class FakeListTable {
   lastTheme: unknown = undefined;
   /** setRecords 被调用的次数（断言重渲染用）。 */
   setRecordsCalls = 0;
+  /** renderWithRecreateCells 被调用的次数（行拖动手柄开关时重建单元格）。 */
+  recreateCellsCalls = 0;
+  /** 最近一次 updateSortState 记下的列头排序状态（`undefined` 表示从未调用）。 */
+  sortState: { field: string; order: string } | null | undefined = undefined;
 
   get colCount(): number {
     return this.#columns.length + 1;
@@ -46,6 +50,11 @@ export class FakeListTable {
 
   get rowCount(): number {
     return this.#records.length + 1;
+  }
+
+  /** 当前记录（测试按行数据定位 row 索引用）。 */
+  get records(): RecordRow[] {
+    return this.#records;
   }
 
   get isReleased(): boolean {
@@ -72,6 +81,27 @@ export class FakeListTable {
     for (const handler of this.#handlers.get(type) ?? []) {
       handler(args as never);
     }
+  }
+
+  /** 测试驱动：照真实 VTable 行拖放——对交进来的数组原地换位，再派发 change_header_position。 */
+  dragRow(sourceRow: number, targetRow: number): void {
+    const [moved] = this.#records.splice(sourceRow - 1, 1);
+    this.#records.splice(targetRow - 1, 0, moved);
+    this.emit('change_header_position', {
+      source: { col: 0, row: sourceRow },
+      target: { col: 0, row: targetRow },
+      movingColumnOrRow: 'row'
+    });
+  }
+
+  renderWithRecreateCells(): void {
+    this.recreateCellsCalls += 1;
+  }
+
+  updateSortState(sortState: { field: string; order: string } | null, executeSort?: boolean): void {
+    // 组件只同步图标，不允许让 VTable 在客户端重排
+    if (executeSort !== false) throw new Error('updateSortState 必须以 executeSort = false 调用');
+    this.sortState = sortState;
   }
 
   getRecordByCell(col: number, row: number): RecordRow | undefined {

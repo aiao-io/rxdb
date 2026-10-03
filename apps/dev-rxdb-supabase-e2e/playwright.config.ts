@@ -46,8 +46,8 @@ export default defineConfig({
   /* 以下项目共用的设置，见 https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,
-    /* 重试失败的用例时收集 trace，见 https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* 每次尝试都录 trace，只保留失败的尝试，见 https://playwright.dev/docs/trace-viewer */
+    trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: isCI ? 20000 : 10000,
     navigationTimeout:
       isRemoteE2E ? 60_000

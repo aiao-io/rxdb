@@ -15,6 +15,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../entity/entity-base.js';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../entity/entity-permissions.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { PropertyType, SyncType } from '../entity/metadata-options.interface.js';
 import type { RxDBSystemContribution } from '../rxdb-plugin-system.js';
@@ -33,6 +34,7 @@ import { createMockAdapter, type MockLocalAdapter, stubAdapterRepository } from 
   name: 'WatermarkProbeState',
   tableName: 'rxdb_watermark_probe_state',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [{ name: 'branchId', type: PropertyType.string }]
 })
 class WatermarkProbeState extends EntityBase {

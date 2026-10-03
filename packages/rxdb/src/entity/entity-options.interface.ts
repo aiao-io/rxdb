@@ -10,6 +10,7 @@
  */
 
 import type { RxDBRepositoryName } from '../rxdb-adapter.js';
+import type { ManualOrderOptions } from '../sortable/sortable.interface.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -28,6 +29,56 @@ import type { SyncOptions } from './sync-options.interface.js';
  */
 export interface EntityMetadataFeatures {
   [name: string]: unknown;
+}
+
+/**
+ * 受权限约束的写操作
+ *
+ * @remarks
+ * 只有这三种：读不在模型里——本地库的读权限没有可执行的意义，数据已经在用户手里了。
+ */
+export type EntityOperation = 'create' | 'update' | 'delete';
+
+/**
+ * 单个写操作对谁开放
+ *
+ * - `'both'`：用户与系统都可以（默认）
+ * - `'system'`：只许系统写，用户经门面 `Repository` 写会被拦下
+ *
+ * @remarks
+ * 不支持 `'none'`（谁都不许写）：真正的不可变要靠 SQL 触发器兜底，门面一层挡不住同步、
+ * 迁移与适配器直写，声明了也只是假象。不支持 `'user'`（只许用户、不许系统）：在分层模型里
+ * 「系统」就是门面之下的适配器与执行器路径，这一层无从判断某次直写是不是「用户的意思」。
+ */
+export type EntityOperationPermission = 'both' | 'system';
+
+/**
+ * 实体的写操作权限声明
+ *
+ * @remarks
+ * 这是**快速失败**，不是安全边界：它在用户写入的入口处早报错，并让 UI 据此隐藏新增 / 编辑 / 删除，
+ * 但它挡不住绕过门面的写入。
+ *
+ * - 检查点：门面 `Repository` 的 `create()` / `update()` / `remove()`，以及
+ *   `EntityManager.mutations()` 整批预检；
+ * - 不检查：适配器与执行器层（同步拉取、迁移、历史回放、工作树物化都走这里），这是系统写入的通道。
+ *
+ * 按操作就近继承：子类只写 `{ delete: 'system' }` 时，父类收紧的 `update` 照样传下来；
+ * 整条原型链都没声明的操作取 `'both'`。
+ *
+ * @example
+ * ```typescript
+ * @Entity({ name: 'ExchangeRate', permissions: { create: 'system', update: 'system', delete: 'system' } })
+ * class ExchangeRate extends EntityBase {}
+ * ```
+ */
+export interface EntityPermissionOptions {
+  /** 新增 */
+  create?: EntityOperationPermission;
+  /** 修改 */
+  update?: EntityOperationPermission;
+  /** 删除 */
+  delete?: EntityOperationPermission;
 }
 
 /**
@@ -183,4 +234,47 @@ export interface EntityMetadataOptions {
    * 功能特性
    */
   features?: EntityMetadataFeatures;
+
+  /**
+   * 写操作权限，见 {@link EntityPermissionOptions}
+   *
+   * @default 三操作都是 `'both'`
+   */
+  permissions?: EntityPermissionOptions;
+
+  /**
+   * 手动排序：`true` 为整表一条序列，`{ groupBy }` 为按分组字段各自一条序列
+   *
+   * @remarks
+   * 显式 opt-in：只有声明了才启用，恰好有 `sortOrder` 字段的实体行为不变。
+   * 启用后实体必须自己声明 `sortOrder`：string、可写、非计算、非加密、非空（`nullable` 为假，建表即 `NOT NULL`），
+   * 违反在注册期报 `invalidManualOrder`。沿原型链就近继承，子类可写 `false` 关掉、或改写分组字段。
+   *
+   * 分组字段只能是实体自身的标量列（含多对一外键列），非计算、可写、非加密，见 {@link ManualOrderOptions}。
+   * 未给 `orderBy` 的查询默认按 `[分组字段… asc, sortOrder asc, id asc]` 排；
+   * 改了分组字段而没给 `sortOrder` 的写入在事务内追加到新组末尾。
+   *
+   * 不叫 `sortable`：属性级 / 关系级的 `sortable` 已表示「列头可排序」。
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * @Entity({
+   *   name: 'Todo',
+   *   manualOrder: { groupBy: ['completed'] },
+   *   properties: [
+   *     { name: 'title', type: PropertyType.string },
+   *     { name: 'completed', type: PropertyType.boolean },
+   *     { name: 'sortOrder', type: PropertyType.string }
+   *   ]
+   * })
+   * class Todo extends EntityBase implements ISortableEntity {
+   *   title!: string;
+   *   completed!: boolean;
+   *   sortOrder!: SortOrderKey;
+   * }
+   * ```
+   */
+  manualOrder?: boolean | ManualOrderOptions;
 }

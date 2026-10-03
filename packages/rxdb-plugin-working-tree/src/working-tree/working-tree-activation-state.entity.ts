@@ -4,7 +4,7 @@
  * 激活态 revision 与分支代际单调源。单行表，主键取常量。
  */
 
-import { Entity, PropertyType } from '@aiao/rxdb';
+import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * `rxdb_working_tree_activation` 的单行主键常量。
@@ -28,6 +28,7 @@ export const WORKING_TREE_ACTIVATION_STATE_ID = 'default';
   name: 'WorkingTreeActivationState',
   tableName: 'rxdb_working_tree_activation',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',
