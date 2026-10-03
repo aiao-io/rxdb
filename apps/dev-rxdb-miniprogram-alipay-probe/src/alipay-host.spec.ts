@@ -69,7 +69,9 @@ describe('createAlipayWasmRuntime', () => {
 
   it('模拟器上二进制读会改写字节，文本副本照样拿到原样的 wa-sqlite.wasm', async () => {
     const { fake, fileSystem } = setup({ mode: 'simulator' });
-    const instantiate = vi.fn(async (_bytes: Uint8Array) => ({ instance: { exports: {} } }));
+    const instantiate = vi.fn(async (_bytes: Uint8Array<ArrayBuffer>, _imports: WebAssembly.Imports) => ({
+      instance: { exports: {} }
+    }));
     await createAlipayWasmRuntime(fileSystem, { instantiate }, fake.my).instantiate('wa-sqlite/wa-sqlite.wasm', {});
     expect(Buffer.from(instantiate.mock.calls[0][0]).equals(Buffer.from(wasmBytes))).toBe(true);
   });

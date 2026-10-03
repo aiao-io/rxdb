@@ -9,14 +9,15 @@ import { defineConfig } from '@playwright/test';
  *  - **没有 `webServer` / `baseURL` / `projects`**：没有浏览器页面。
  *  - **`workers: 1`**：开发者工具只有一个模拟器，探针目录也只有一个。
  *  - **`retries: 0`**：报告要么是新一轮的、要么超时，重试只会把「编译没生效」掩盖成绿。
+ *  - 有断言红了，Playwright 会换新 worker 给剩下的用例重跑 `beforeAll`，也就是再跑一轮探针；单轮上限要按整轮算。
  */
 export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src', openHtmlReport: 'never' }),
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  // 一轮探针在模拟器上实测 18–40 秒（配额计费实验要写几十 MiB），加上编译与轮询余量
-  timeout: 180000,
+  // 核心实验跑通后一轮探针实测约 122 秒（配额计费与 SQLite 配额实验各写几十 MiB），加上编译与轮询余量
+  timeout: 300000,
   use: {
     trace: 'off'
   }

@@ -11,6 +11,12 @@ interface CdpResponse {
 type CdpListener = (method: string, params: unknown) => void;
 
 /**
+ * 单条命令的上限。开发者工具不会对挂起的命令报错：模拟器调试器停在断点上时 `Runtime.evaluate` 永远不回，
+ * 不设上限整个 `beforeAll` 只会无声超时（2026-10-03 实测）。
+ */
+const COMMAND_TIMEOUT_MS = 30_000;
+
+/**
  * 极简 CDP 客户端：一条 browser websocket 上用 flatten 会话驱动各个 target。
  *
  * 不用 Playwright 的 `connectOverCDP`：模拟器是 `webview` target，Playwright 不把它当 page 暴露，
@@ -39,12 +45,28 @@ export class CdpConnection {
     return new CdpConnection(socket);
   }
 
-  /** 发一条命令；`sessionId` 给 flatten 会话里的 target。 */
+  /** 发一条命令；`sessionId` 给 flatten 会话里的 target。{@link COMMAND_TIMEOUT_MS} 内没回就 reject。 */
   send<T>(method: string, params: object = {}, sessionId?: string): Promise<T> {
     const id = ++this.#nextId;
     this.#socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise<T>((resolve, reject) => {
-      this.#pending.set(id, { resolve: value => resolve(value as T), reject });
+      const timer = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(
+          new Error(`${method} ${COMMAND_TIMEOUT_MS}ms 没有回应：模拟器调试器是不是停在断点上，或者 IDE 正被占用`)
+        );
+      }, COMMAND_TIMEOUT_MS);
+      const settle = () => clearTimeout(timer);
+      this.#pending.set(id, {
+        resolve: value => {
+          settle();
+          resolve(value as T);
+        },
+        reject: error => {
+          settle();
+          reject(error);
+        }
+      });
     });
   }
 

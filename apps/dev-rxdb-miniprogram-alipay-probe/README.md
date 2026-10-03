@@ -28,6 +28,9 @@
 - CDP 端点：IDE 把端口写在 `~/Library/Application Support/小程序开发者工具/DevToolsActivePort`，也可以用 `ALIPAY_DEVTOOLS_WS_ENDPOINT` 直接给 ws 地址。`--remote-debugging-port` 被 IDE 忽略，`/json/*` HTTP 发现被 Host 头校验拦
 - 编译开关是 `[data-toolbar-action-id="simulator-toolbar-start"]`，要用 `Input.dispatchMouseEvent` 点；「普通编译」只是编译模式下拉里的选项，点了不编译
 - 模拟器是 `webview` target（标题 `Lyra Simulator`），Playwright 不把它当 page 暴露，所以用的是自带的极简 CDP 客户端
+- 一轮约 2 分钟（核心实验跑通后，两个配额实验各写几十 MiB）。有断言红了，Playwright 会换 worker 重跑 `beforeAll`，等于再跑一轮
+- 跑之前别在 IDE 里调试：模拟器调试器停在断点上时 `Runtime.evaluate` 永远不回，客户端每条命令 30 秒超时，报错会提示这一点
+- 每轮报告原样落盘到 `dev-rxdb-miniprogram-alipay-probe-e2e/test-output/simulator-report.json`
 - 真机没有自动化通道：支付宝没有公开的真机自动化 SDK，真机报告只能手动复制
 
 ## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v3'`）
@@ -36,7 +39,7 @@
 
 | 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `/wasm/add.wasm` 的结果；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                               |
+| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`codePackageBinary` 对比代码包二进制读与 base64 文本副本；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                      |
 | 同步 FS  | `fileSystem.probes`：包装层上的同步调用与 adapter VFS 预期逐条对照（`asExpected`）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节                                              |
 | 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                         |
 | 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`） |
@@ -45,7 +48,8 @@
 其余字段：
 
 - `environment`：`systemInfo`、基础库版本、`USER_DATA_PATH`、`freeGlobals`（自由变量读到的全局 `typeof`）、`canIUse`
-- `realmProbe`：页面包与核心包构建 banner 找真实全局对象的记录，三条候选路 `sloppyThis` / `Function` / `global` 的结果都在 `candidates` 里，`chosen` 是选中的那条，经 `host.runtimeGlobal` 交给 adapter。判据与抖音 spike 相同
+- `realmProbe`：页面包与核心包构建 banner 找真实全局对象的记录，四条候选路 `sloppyThis` / `Function` / `global` / `objectPrototypeGetter` 的结果都在 `candidates` 里，`chosen` 是选中的那条，经 `host.runtimeGlobal` 交给 adapter。判据与抖音 spike 相同。`objectPrototypeGetter` 在 `Object.prototype` 上临时挂一个返回 `this` 的 getter、以自由变量读它，读完即删——自由变量查到全局对象的原型链上，getter 的 `this` 就是真实全局对象
+- `runtimeRepairs`：引导前实验 host 往真实全局对象上补的全局。缺 `BigInt` 时从 wasm 的 i64 返回值取回原生构造器（`Object(value).constructor`），缺 `queueMicrotask` 时用 `Promise` 排微任务；已有的不动，`BigInt` 取不回就什么都不装
 - `coreLoad` / `core`：核心包由页面在 `prepare` 之后懒 `require`。`skipped` 时原因写在字符串里，其余实验照常出结果
 - `environment.residue` 为 `true` 说明同一 JS 上下文里之前跑过引导，快照不是平台原生状态；要重新编译（真机要把支付宝从后台划掉）再跑
 
@@ -57,20 +61,22 @@
 
 ## 已知会卡住的地方
 
-已实测（2026-10-03）：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15），v2 与 v3 报告；iOS 真机调试（iOS 26.6.2 / 支付宝 12.12.30 / 基础库 2.10.42），v2 报告。
+已实测（2026-10-03）：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15），v2、v3 与加了三处绕行之后的 v3 报告；iOS 真机调试（iOS 26.6.2 / 支付宝 12.12.30 / 基础库 2.10.42），v2 报告。
 
-| 现象                                 | 模拟器                                                                                 | iOS 真机调试                                                                |
-| ------------------------------------ | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 逻辑层 `MYWebAssembly`               | 没有                                                                                   | 没有                                                                        |
-| 逻辑层标准 `WebAssembly`（未文档化） | 能用，`add(2, 3) === 5`                                                                | **也能用**，`add(2, 3) === 5`                                               |
-| Worker 里的 `my` / FS                | 没有                                                                                   | 没有（JSC 报 `Can't find variable: my`）                                    |
-| Worker 里的 `crypto.getRandomValues` | 有（未文档化）                                                                         | 有（未文档化）                                                              |
-| 逻辑层 `globalThis` / `BigInt`       | 都没有；非严格函数的 `this` 也是 `undefined`，`Function('return this')()` 是别的 realm | 都有                                                                        |
-| 写 `ArrayBuffer`                     | 落盘成 base64 文本，9 字节变 12 字节                                                   | 原样 9 字节                                                                 |
-| 写 `Uint8Array`                      | 报 90000                                                                               | **返回 `success`，落盘 0 字节**                                             |
-| `renameSync` 到已存在的目标          | 报 10025                                                                               | 直接覆盖                                                                    |
-| 写空文件（v3）                       | **报 error 2「接口参数无效」**，adapter 建库第一步就失败                               | v3 未跑；v2 里写 `Uint8Array` 落成 0 字节文件也返回 `success`，**推断**能写 |
-| 写到父目录不存在的路径（v3）         | 照样写成，不报 10022                                                                   | v3 未跑                                                                     |
+| 现象                                 | 模拟器                                                                                                     | iOS 真机调试                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 逻辑层 `MYWebAssembly`               | 没有                                                                                                       | 没有                                                                        |
+| 逻辑层标准 `WebAssembly`（未文档化） | 能用，`add(2, 3) === 5`                                                                                    | **也能用**，`add(2, 3) === 5`                                               |
+| Worker 里的 `my` / FS                | 没有                                                                                                       | 没有（JSC 报 `Can't find variable: my`）                                    |
+| Worker 里的 `crypto.getRandomValues` | 有（未文档化）                                                                                             | 有（未文档化）                                                              |
+| 逻辑层 `globalThis` / `BigInt`       | 都没有；非严格函数的 `this` 也是 `undefined`，`Function('return this')()` 是别的 realm                     | 都有                                                                        |
+| 写 `ArrayBuffer`                     | 落盘成 base64 文本，9 字节变 12 字节                                                                       | 原样 9 字节                                                                 |
+| 写 `Uint8Array`                      | 报 90000                                                                                                   | **返回 `success`，落盘 0 字节**                                             |
+| `renameSync` 到已存在的目标          | 报 10025                                                                                                   | 直接覆盖                                                                    |
+| 写空文件（v3）                       | **报 error 2「接口参数无效」**，adapter 建库第一步就失败                                                   | v3 未跑；v2 里写 `Uint8Array` 落成 0 字节文件也返回 `success`，**推断**能写 |
+| 写到父目录不存在的路径（v3）         | 照样写成，不报 10022                                                                                       | v3 未跑                                                                     |
+| 读代码包里的二进制文件               | **当 UTF-8 文本读**，非法序列变成 `EF BF BD`：wa-sqlite.wasm 727646 字节读回 814795 字节，传什么编码都一样 | 未测；v3 的 `wasm.codePackageBinary` 会记录                                 |
+| 代码包路径写法                       | 只认相对路径；`/wasm/add.wasm`、`./…` 报 error 2「无效参数」，`copyFileSync` / `statSync` 也一样           | v2：相对路径可读                                                            |
 
 两端共同的：
 
@@ -80,7 +86,15 @@
 - **逻辑层没有 `queueMicrotask`**：adapter 的能力预检把它列为硬依赖。按 v2 的 iOS 形态推演（`dist-smoke.spec.ts`），即使全局对象和 `BigInt` 都在，adapter 也会在打开库之前拒绝，报「缺少 RxDB 必需能力: queueMicrotask」；对照组补上它之后全部实验跑通
 - **读回的 `ArrayBuffer` 可能来自别的 realm**：`instanceof ArrayBuffer` 不可靠，探针改用 `Object.prototype.toString` 判断
 
-模拟器 v3 的结果（CDP 自动跑、e2e、手动复制两次，共四轮，除耗时、时间戳与随机样本外逐字段一致）：`prepare` 拿不到真实全局对象，核心包模块顶层撞上 `BigInt is not defined`，adapter 一步都没跑。findings 是 WASM unknown、同步 FS fail、随机源 fail、用户目录 unknown、持久化 unknown。
+模拟器 v3 最初的结果（四轮逐字段一致）：`prepare` 拿不到真实全局对象，核心包模块顶层撞上 `BigInt is not defined`，adapter 一步都没跑。
+
+实验 host 加了三处绕行之后，**adapter 在模拟器上跑通了**（e2e 实测，约 122 秒一轮）：
+
+1. **全局对象**：banner 的 `objectPrototypeGetter` 拿到真实全局对象；`runtimeRepairs` 在它上面补了 `BigInt` 与 `queueMicrotask`
+2. **空写入**：用户文件经分帧层（`frameUserFiles`）写，每个文件前垫 1 字节头，读与 stat 时剥掉，adapter 建库要写的空文件也有 1 字节可写
+3. **代码包二进制被改写**：构建在每个 `.wasm` 旁边放一份 `.base64.txt` 文本副本，实验 host 的 wasm 运行时读副本再 `my.base64ToArrayBuffer`；base64 只含 ASCII，读回原样。后缀用 `.txt` 是押真机代码包的文件类型白名单放行文本（**未实测**）
+
+findings：WASM pass、同步 FS fail（父目录不存在照样写成、空写入 error 2、裸写只有 base64 串字节一致）、随机源 pass（经 Worker 桥接）、用户目录 unknown（写 120 × 512 KiB 没撞配额）、持久化 pass（关闭重开 3 行逐字一致，integrity ok）。这三处绕行都是实验 host 的做法，adapter 正式支持支付宝时要换成正式实现。
 
 配额（模拟器 v3）：
 
@@ -101,6 +115,6 @@
 
 `pnpm nx test dev-rxdb-miniprogram-alipay-probe` 用的是 [Node 测试替身](src/__tests__/fake-alipay.ts)，**不是实验证据**。替身按实测建了 iOS 与模拟器两种 FS 形态：
 
-- `run-probe.spec.ts` 跑源码：iOS 形态全部实验跑通；模拟器形态空文件写失败，adapter 建不了库
-- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：iOS 形态被 `queueMicrotask` 拦在预检，模拟器形态被全局对象与 `BigInt` 拦住；另外检查 Worker 包是 ES5、IDE 跳过它的配置在产物里
+- `run-probe.spec.ts` 跑源码：两种形态都经分帧层与 wasm 文本副本跑通全部实验；模拟器形态的代码包二进制读按实测改写成 UTF-8 文本
+- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：iOS 形态实验 host 补上 `queueMicrotask` 后跑通；模拟器形态 `objectPrototypeGetter` 找回全局对象、补上 `BigInt` 与 `queueMicrotask` 后跑通；另外检查 Worker 包是 ES5、IDE 跳过它的配置在产物里、wasm 文本副本与原文件逐字节一致
 - `vfs-classifiers.spec.ts` 逐字比对 adapter VFS 里的缺失 / 已存在 / 配额正则，免得报告里的判定与 adapter 实际判定脱节
