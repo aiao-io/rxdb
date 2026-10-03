@@ -95,3 +95,29 @@ export class SortableTodo extends EntityBase {
   sortOrder!: string;
   completed!: boolean;
 }
+
+/**
+ * `SortableTeamItem` —— 按两个标量字段 `[team, phase]` 分组的手动排序实体。
+ *
+ * @remarks
+ * 只改一个分组字段、另一个分组字段带着未保存编辑时，目标组必须取库里的值合并本次 patch。
+ * 套件内部夹具，不从包入口导出。
+ */
+@Entity({
+  name: 'SortableTeamItem',
+  tableName: 'manual_order_team_item',
+  namespace: 'manual-order-fixtures',
+  manualOrder: { groupBy: ['team', 'phase'] },
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'sortOrder', type: PropertyType.string },
+    { name: 'team', type: PropertyType.string },
+    { name: 'phase', type: PropertyType.string }
+  ]
+})
+export class SortableTeamItem extends EntityBase {
+  title!: string;
+  sortOrder!: string;
+  team!: string;
+  phase!: string;
+}

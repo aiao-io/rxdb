@@ -4,9 +4,10 @@
  * @remarks
  * 三端 todo 页都是等高行的虚拟滚动，视口外的行不在 DOM 里——落点只能按指针位置换算下标，
  * 不能靠「指针下是哪个 DOM 行」。换算、贴边自动滚动、松手 / 取消的收尾在这里只写一份，三端只做适配。
+ * 拖拽会话绑定起拖时的 id 序列：列表在拖拽中变了（插入 / 删除 / 切组 / 重排），下标不再指向同一行，会话取消。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FixedRowDrag, type FixedRowDragState } from '../../@browser/fixed-row-drag.js';
+import { FixedRowDrag, type FixedRowDragState, type FixedRowDrop } from '../../@browser/fixed-row-drag.js';
 
 const ROW = 40;
 
@@ -25,16 +26,21 @@ const setup = (rowCount: number) => {
   listElement.getBoundingClientRect = () =>
     DOMRect.fromRect({ x: 0, y: 100 - scrollTop, width: 300, height: rowCount * ROW });
   const states: (FixedRowDragState | null)[] = [];
-  const onDrop = vi.fn<(from: number, to: number) => void>();
-  const drag = new FixedRowDrag({
+  const onDrop = vi.fn<(drop: FixedRowDrop<string>) => void>();
+  const list = { ids: Array.from({ length: rowCount }, (_, index) => `r${index}`) };
+  const drag = new FixedRowDrag<string>({
     rowHeight: ROW,
     scrollElement: () => scrollElement,
     listElement: () => listElement,
+    ids: () => list.ids,
     onChange: state => states.push(state),
     onDrop
   });
-  return { drag, states, onDrop, scrollElement };
+  return { drag, states, onDrop, scrollElement, list };
 };
+
+/** 松手回调里的移动：被拖行 id 与起止下标 */
+const moved = (drop: FixedRowDrop<string> | undefined) => drop && [drop.id, drop.fromIndex, drop.toIndex];
 
 const pointer = (type: string, clientY: number) => new PointerEvent(type, { clientY, button: 0, bubbles: true });
 
@@ -46,9 +52,9 @@ describe('FixedRowDrag', () => {
     vi.useRealTimers();
   });
 
-  it('按指针相对列表顶边的位置换算落点下标，松手回调 from / to', () => {
-    const { drag, states, onDrop } = setup(10);
-    drag.start(pointer('pointerdown', 110), 0, 10);
+  it('按指针相对列表顶边的位置换算落点下标，松手回调被拖行 id、起拖时的 id 序列与起止下标', () => {
+    const { drag, states, onDrop, list } = setup(10);
+    drag.start(pointer('pointerdown', 110), 0);
     expect(drag.dragging).toBe(true);
     expect(states.at(-1)).toEqual({ fromIndex: 0, overIndex: 0 });
 
@@ -56,14 +62,14 @@ describe('FixedRowDrag', () => {
     expect(states.at(-1)).toEqual({ fromIndex: 0, overIndex: 3 });
 
     window.dispatchEvent(pointer('pointerup', 100 + ROW * 3 + 5));
-    expect(onDrop).toHaveBeenCalledWith(0, 3);
+    expect(onDrop).toHaveBeenCalledWith({ id: 'r0', ids: list.ids, fromIndex: 0, toIndex: 3 });
     expect(states.at(-1)).toBeNull();
     expect(drag.dragging).toBe(false);
   });
 
   it('落点钳在 [0, rowCount-1]', () => {
     const { drag, states } = setup(5);
-    drag.start(pointer('pointerdown', 150), 1, 5);
+    drag.start(pointer('pointerdown', 150), 1);
     window.dispatchEvent(pointer('pointermove', -500));
     expect(states.at(-1)).toEqual({ fromIndex: 1, overIndex: 0 });
     window.dispatchEvent(pointer('pointermove', 5000));
@@ -73,7 +79,7 @@ describe('FixedRowDrag', () => {
 
   it('指针停在视口下沿时逐帧滚动，落点随滚动推进到视口外的行', () => {
     const { drag, states, scrollElement, onDrop } = setup(100);
-    drag.start(pointer('pointerdown', 110), 0, 100);
+    drag.start(pointer('pointerdown', 110), 0);
     window.dispatchEvent(pointer('pointermove', 495));
     vi.advanceTimersToNextFrame();
     vi.advanceTimersToNextFrame();
@@ -85,7 +91,7 @@ describe('FixedRowDrag', () => {
     expect(after).toBeGreaterThan(9);
 
     window.dispatchEvent(pointer('pointerup', 495));
-    expect(onDrop).toHaveBeenCalledWith(0, after);
+    expect(moved(onDrop.mock.lastCall?.[0])).toEqual(['r0', 0, after]);
     const settled = scrollElement.scrollTop;
     vi.advanceTimersToNextFrame();
     expect(scrollElement.scrollTop).toBe(settled);
@@ -94,7 +100,7 @@ describe('FixedRowDrag', () => {
   it('指针停在视口上沿时向上滚动', () => {
     const { drag, scrollElement } = setup(100);
     scrollElement.scrollTop = 800;
-    drag.start(pointer('pointerdown', 300), 25, 100);
+    drag.start(pointer('pointerdown', 300), 25);
     window.dispatchEvent(pointer('pointermove', 102));
     vi.advanceTimersToNextFrame();
     expect(scrollElement.scrollTop).toBeLessThan(800);
@@ -103,12 +109,12 @@ describe('FixedRowDrag', () => {
 
   it('Escape 与 pointercancel 取消拖拽，不回调 onDrop', () => {
     const { drag, states, onDrop } = setup(10);
-    drag.start(pointer('pointerdown', 110), 0, 10);
+    drag.start(pointer('pointerdown', 110), 0);
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(drag.dragging).toBe(false);
     expect(states.at(-1)).toBeNull();
 
-    drag.start(pointer('pointerdown', 110), 0, 10);
+    drag.start(pointer('pointerdown', 110), 0);
     window.dispatchEvent(pointer('pointercancel', 200));
     expect(drag.dragging).toBe(false);
     expect(onDrop).not.toHaveBeenCalled();
@@ -116,10 +122,10 @@ describe('FixedRowDrag', () => {
 
   it('非主键按下与拖拽中再次按下都不开始新的拖拽', () => {
     const { drag, states } = setup(10);
-    drag.start(new PointerEvent('pointerdown', { clientY: 110, button: 2 }), 0, 10);
+    drag.start(new PointerEvent('pointerdown', { clientY: 110, button: 2 }), 0);
     expect(drag.dragging).toBe(false);
-    drag.start(pointer('pointerdown', 110), 0, 10);
-    drag.start(pointer('pointerdown', 190), 2, 10);
+    drag.start(pointer('pointerdown', 110), 0);
+    drag.start(pointer('pointerdown', 190), 2);
     expect(states.at(-1)).toEqual({ fromIndex: 0, overIndex: 0 });
     drag.dispose();
     expect(drag.dragging).toBe(false);
@@ -127,14 +133,71 @@ describe('FixedRowDrag', () => {
 
   it('起点下标越界抛 RangeError', () => {
     const { drag } = setup(3);
-    expect(() => drag.start(pointer('pointerdown', 110), 3, 3)).toThrow(RangeError);
+    expect(() => drag.start(pointer('pointerdown', 110), 3)).toThrow(RangeError);
+  });
+});
+
+describe('FixedRowDrag 会话绑定起拖时的 id 序列', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('拖拽中列表插入新行：下一帧取消会话，松手不回调 onDrop', () => {
+    const { drag, states, onDrop, list } = setup(3);
+    drag.start(pointer('pointerdown', 150), 1);
+    list.ids = ['x', ...list.ids];
+    vi.advanceTimersToNextFrame();
+    expect(drag.dragging).toBe(false);
+    expect(states.at(-1)).toBeNull();
+
+    window.dispatchEvent(pointer('pointerup', 100 + ROW * 2 + 5));
+    expect(onDrop).not.toHaveBeenCalled();
+  });
+
+  it('拖拽中列表删除行：同一帧内松手也不回调 onDrop', () => {
+    const { drag, states, onDrop, list } = setup(3);
+    drag.start(pointer('pointerdown', 190), 2);
+    list.ids = list.ids.slice(0, 2);
+    window.dispatchEvent(pointer('pointerup', 110));
+    expect(onDrop).not.toHaveBeenCalled();
+    expect(drag.dragging).toBe(false);
+    expect(states.at(-1)).toBeNull();
+  });
+
+  it('拖拽中列表换成另一组同样多的行：指针移动即取消', () => {
+    const { drag, onDrop, list } = setup(3);
+    drag.start(pointer('pointerdown', 110), 0);
+    list.ids = ['d0', 'd1', 'd2'];
+    window.dispatchEvent(pointer('pointermove', 100 + ROW * 2 + 5));
+    expect(drag.dragging).toBe(false);
+    window.dispatchEvent(pointer('pointerup', 100 + ROW * 2 + 5));
+    expect(onDrop).not.toHaveBeenCalled();
+  });
+
+  it('重查得到同样的 id 序列（新数组）：会话继续，落点照常回调', () => {
+    const { drag, onDrop, list } = setup(3);
+    drag.start(pointer('pointerdown', 110), 0);
+    list.ids = [...list.ids];
+    vi.advanceTimersToNextFrame();
+    expect(drag.dragging).toBe(true);
+    window.dispatchEvent(pointer('pointerup', 100 + ROW * 2 + 5));
+    expect(moved(onDrop.mock.lastCall?.[0])).toEqual(['r0', 0, 2]);
   });
 });
 
 describe('FixedRowDrag 构造参数', () => {
   it('rowHeight 非正有限数抛 RangeError', () => {
     const element = () => document.createElement('div');
-    const base = { scrollElement: element, listElement: element, onChange: () => undefined, onDrop: () => undefined };
+    const base = {
+      scrollElement: element,
+      listElement: element,
+      ids: () => [],
+      onChange: () => undefined,
+      onDrop: () => undefined
+    };
     expect(() => new FixedRowDrag({ ...base, rowHeight: 0 })).toThrow(RangeError);
     expect(() => new FixedRowDrag({ ...base, rowHeight: Number.NaN })).toThrow(RangeError);
   });

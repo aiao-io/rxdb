@@ -74,16 +74,42 @@ const appendRowsOf = (EntityType: EntityType, options: RxDBMutationsMap): Append
 ];
 
 /**
+ * 某类型这批里显式给了键、随后同一事务写入的行：给了键的创建、patch 改了键的更新
+ *
+ * 这些键此刻还没落库，读尾键看不到；追加时要把它们当作同组已占用的位置。
+ */
+const reservedRowsOf = (EntityType: EntityType, options: RxDBMutationsMap): InstanceType<EntityType>[] => [
+  ...[...(options.create.get(EntityType) ?? [])].filter(row => !hasMissingSortOrder([row])),
+  ...[...(options.update.get(EntityType) ?? [])].filter(row => SORT_ORDER_FIELD in getEntityStatus(row).patch)
+];
+
+/** 启用手动排序的实体类型 */
+const manualOrderTypesOf = (options: RxDBMutationsMap): EntityType[] =>
+  [...new Set([...options.create.keys(), ...options.update.keys()])].filter(EntityType =>
+    isManualOrderEntity(getEntityMetadata(EntityType))
+  );
+
+/**
+ * 批内要由引擎追加排序键的实例（缺键创建、改组更新）
+ *
+ * 供调用方在追加前用 `snapshotSortOrders` 取快照，事务失败时撤回引擎赋上的键。
+ */
+export const sortOrderAppendEntities = (options: RxDBMutationsMap): object[] =>
+  manualOrderTypesOf(options).flatMap(EntityType => appendRowsOf(EntityType, options).map(({ row }) => row));
+
+/**
  * 在事务内给批内缺键的创建、改组的更新按类型、按目标组追加排序键（原地赋值）
  *
  * @param executor - 主适配器事务执行器；读尾键与随后的写入必须在它的同一个事务里
+ *
+ * @remarks
+ * 同组里同批显式给的键排在自动键之前：自动键从库里尾键与这些显式键中较大的那个之后开始。
  */
 export const appendBatchSortOrders = async (executor: TransactionExecutor, options: RxDBMutationsMap) => {
-  const EntityTypes = new Set([...options.create.keys(), ...options.update.keys()]);
-  for (const EntityType of EntityTypes) {
-    const metadata = getEntityMetadata(EntityType);
-    if (!isManualOrderEntity(metadata)) continue;
+  for (const EntityType of manualOrderTypesOf(options)) {
     const rows = appendRowsOf(EntityType, options);
-    if (rows.length > 0) await appendToGroupTails(executor.getRepository(EntityType), metadata, rows);
+    if (rows.length === 0) continue;
+    const repository = executor.getRepository(EntityType);
+    await appendToGroupTails(repository, getEntityMetadata(EntityType), rows, reservedRowsOf(EntityType, options));
   }
 };

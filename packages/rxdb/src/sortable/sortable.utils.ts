@@ -9,6 +9,9 @@
  *
  * 比较一律用 `<` / `>`（UTF-16 码元序）：合法键全是 ASCII，与码点序一致；`localeCompare`
  * 会把 `a0V` 排到 `a0l` 之后，与 SQL 侧的二进制比较不同序。
+ *
+ * 查询返回的是身份缓存里的实例，可能带着调用方未保存的编辑；尾键、邻居、相邻复核与零写判定
+ * 一律取实体状态的 `origin`（最近一次落库的值），不读实例上的当前值。
  */
 
 import { generateKeyBetween, generateKeysBetween, isEqual, isValidOrderKey } from '@aiao/utils';
@@ -159,16 +162,30 @@ export const assertExplicitSortOrders = (entity: string, rows: Iterable<Sortable
   }
 };
 
-const findRows = (repository: IRepository<EntityType>, options: FindOptions): Promise<SortableRow[]> =>
-  repository.find(options) as Promise<SortableRow[]>;
+/** 实例最近一次落库的值：实例上未保存的编辑不参与排序计算 */
+const persistedRow = (entity: object): SortableRow => getEntityStatus(entity).origin as SortableRow;
+
+/** 落库值快照；要写回的实例另经 {@link findEntityById} 取 */
+const findRows = async (repository: IRepository<EntityType>, options: FindOptions): Promise<SortableRow[]> =>
+  (await repository.find(options)).map(persistedRow);
 
 const whereRules = (rules: Rule<InstanceType<EntityType>>[]): FindOptions['where'] => ({ combinator: 'and', rules });
 
+const byIdOptions = (id: unknown): FindOptions => ({
+  where: whereRules([{ field: 'id', operator: '=', value: id } as Rule<InstanceType<EntityType>>]),
+  limit: 1
+});
+
+const findEntityById = async <T extends EntityType>(
+  repository: IRepository<T>,
+  id: unknown
+): Promise<InstanceType<T> | undefined> => {
+  const [entity] = await repository.find(byIdOptions(id));
+  return entity;
+};
+
 const findById = async (repository: IRepository<EntityType>, id: unknown): Promise<SortableRow | undefined> => {
-  const [row] = await findRows(repository, {
-    where: whereRules([{ field: 'id', operator: '=', value: id } as Rule<InstanceType<EntityType>>]),
-    limit: 1
-  });
+  const [row] = await findRows(repository, byIdOptions(id));
   return row;
 };
 
@@ -230,11 +247,16 @@ const splitByGroup = (fields: readonly string[], rows: readonly AppendRow[]): Ap
   return groups;
 };
 
+/** 按码点取较大的键；`null` 表示该侧没有键 */
+const maxKey = (keys: readonly SortOrderKey[]): SortOrderKey | null =>
+  keys.reduce<SortOrderKey | null>((max, key) => (max === null || max < key ? key : max), null);
+
 const appendToGroup = async (
   repository: IRepository<EntityType>,
   entity: string,
   fields: readonly string[],
-  { values, rows }: AppendGroup
+  { values, rows }: AppendGroup,
+  reserved: readonly SortableRow[]
 ): Promise<void> => {
   const excluded = rows.filter(item => item.persisted).map(item => item.row.id);
   const rules = [
@@ -245,7 +267,11 @@ const appendToGroup = async (
   ];
   const tail = await readTailRow(repository, rules);
   if (tail) assertAnchorKey(entity, tail.sortOrder, '尾行');
-  const keys = generateKeysBetween((tail?.sortOrder as SortOrderKey | undefined) ?? null, null, rows.length);
+  const reservedKeys = reserved
+    .filter(row => isSameGroup(fields, groupValuesOf(fields, row), values))
+    .map(row => row.sortOrder as SortOrderKey);
+  const anchor = maxKey([...(tail ? [tail.sortOrder as SortOrderKey] : []), ...reservedKeys]);
+  const keys = generateKeysBetween(anchor, null, rows.length);
   rows.forEach(({ row }, index) => {
     row.sortOrder = keys[index];
   });
@@ -257,19 +283,86 @@ const appendToGroup = async (
  * @param repository - **取自主适配器事务执行器**的仓库
  * @param metadata - 实体元数据
  * @param rows - 待追加的行，迭代顺序即批内顺序；新键就地写到 `row.sortOrder`
+ * @param reserved - 同一事务随后要写入的显式键行（已校验合法），按写入后的分组取值归组；没有时传空数组
  * @throws {@link SortOrderError} 任一目标组的尾键不合法（`'corruptAnchor'`），一条都不写
  *
  * @remarks
- * 每个目标组一次读尾键、一次 `generateKeysBetween(尾键, null, n)`：同组 n 条互不碰撞，也不必逐条读尾键。
- * 键写到实体上而不是另给一份 patch，`getEntityStatus(entity).patch` 才会带上它。
+ * 每个目标组一次读尾键、一次 `generateKeysBetween(锚点, null, n)`：同组 n 条互不碰撞，也不必逐条读尾键。
+ * 锚点取库里尾键与同组预留键里码点最大的那个——同批显式键还没落库，只看库里尾键会生成与它相同的键。
+ * 键写到实体上而不是另给一份 patch，`getEntityStatus(entity).patch` 才会带上它；
+ * 事务失败时由调用方用 {@link snapshotSortOrders} 撤回。
  */
 export const appendToGroupTails = async (
   repository: IRepository<EntityType>,
   metadata: ManualOrderMetadata,
-  rows: readonly AppendRow[]
+  rows: readonly AppendRow[],
+  reserved: readonly SortableRow[]
 ): Promise<void> => {
   const fields = manualOrderGroupFields(metadata);
-  for (const group of splitByGroup(fields, rows)) await appendToGroup(repository, metadata.name, fields, group);
+  for (const group of splitByGroup(fields, rows)) {
+    await appendToGroup(repository, metadata.name, fields, group, reserved);
+  }
+};
+
+/**
+ * 记下这些实例当前的排序键，返回撤回函数
+ *
+ * @param entities - 即将由 {@link appendToGroupTails} 就地赋键的实例
+ * @returns 把每个实例的 `sortOrder` 恢复成快照时的值与属性存在性、并恢复 `modified` 的函数
+ *
+ * @remarks
+ * 事务回滚只撤销库里的写，不撤销实例上的赋值；留着引擎赋上的键，重试时它会被当成用户显式给的键而跳过追加。
+ * 只该对引擎要赋键的实例取快照，调用方显式给的键不在其列，不会被撤回。
+ * 写原始对象而不经 proxy：撤回不是一次用户编辑，不该进变更记录。
+ */
+export const snapshotSortOrders = (entities: readonly object[]): (() => void) => {
+  const snapshots = entities.map(entity => {
+    const status = getEntityStatus(entity);
+    const target = status.target as Record<string, unknown>;
+    const present = Object.hasOwn(target, SORT_ORDER_FIELD);
+    return { status, target, present, key: target[SORT_ORDER_FIELD], modified: status.modified };
+  });
+  return () => {
+    for (const { status, target, present, key, modified } of snapshots) {
+      if (present) target[SORT_ORDER_FIELD] = key;
+      else delete target[SORT_ORDER_FIELD];
+      status.invalidateCache();
+      status.modified = modified;
+    }
+  };
+};
+
+/**
+ * 只写 `patch` 并保留实例上其余未保存的编辑
+ *
+ * @param repository - 写入用的仓库
+ * @param entity - 被更新的实例，可能带着与本次写入无关的未保存编辑
+ * @param patch - 本次要落库的字段
+ * @returns 更新后的实例：`patch` 里的字段等于落库值，其余未保存编辑原样保留、`modified` 按剩余差异重算
+ *
+ * @remarks
+ * 适配器写回时用整行结果回填缓存实例（SQLite 整行覆盖、PGlite 按脏标记合并），
+ * 未保存的编辑会被覆盖或被误清掉脏标记。这里先记下 `patch` 以外的未保存字段，
+ * 写完后把 `patch` 里的字段对齐落库值、再把记下的编辑放回并重新标记，之后 `save()` 仍能写出它们。
+ */
+export const updateKeepingEdits = async <T extends EntityType>(
+  repository: IRepository<T>,
+  entity: InstanceType<T>,
+  patch: Partial<InstanceType<T>>
+): Promise<InstanceType<T>> => {
+  const pending = Object.entries(getEntityStatus(entity).patch).filter(([key]) => !(key in patch));
+  const updated = await repository.update(entity, patch);
+  const status = getEntityStatus<T>(updated);
+  const target = status.target as Record<string, unknown>;
+  const origin = status.origin as Record<string, unknown>;
+  for (const key of Object.keys(patch)) target[key] = structuredClone(origin[key]);
+  for (const [key, value] of pending) {
+    target[key] = value;
+    status.markChanged(key as keyof InstanceType<T>);
+  }
+  status.invalidateCache();
+  status.modified = Object.keys(status.patch).length > 0;
+  return updated;
 };
 
 /**
@@ -291,18 +384,22 @@ export const isRegroupWithoutKey = (
 };
 
 /**
- * 门面 `update(entity, patch)` 的目标组：patch 里给了的分组字段取 patch，没给的取实体当前值
+ * 门面 `update(entity, patch)` 的目标组：patch 里给了的分组字段取 patch，没给的取落库值
  *
  * @returns 一条已在库里的待追加行，追加后从 `row.sortOrder` 取新键
+ *
+ * @remarks
+ * 没给的分组字段不取实例当前值：实例上未保存的编辑不随这次 `update` 落库，拿它定组会把键算到别的组。
  */
 export const regroupRow = (
   metadata: Pick<EntityMetadata, 'manualOrder'>,
   entity: SortableRow,
   patch: object
 ): AppendRow => {
+  const persisted = persistedRow(entity);
   const values = manualOrderGroupFields(metadata).map(field => [
     field,
-    field in patch ? fieldValue(patch, field) : fieldValue(entity, field)
+    field in patch ? fieldValue(patch, field) : fieldValue(persisted, field)
   ]);
   return { row: { id: entity.id, ...Object.fromEntries(values) }, persisted: true };
 };
@@ -465,6 +562,7 @@ const placeAtGroupTail = async (
  * @remarks
  * 被移动行自身的旧键不是锚点：把空串或非法键的行拖进两个合法邻居之间是合法写入。
  * 目标组由邻居（或 `group`）决定，原组剩下的行一条都不改写。
+ * 定位只看落库值；被移动行上与本次写入无关的未保存编辑经 {@link updateKeepingEdits} 原样保留。
  */
 export const reorderRow = async <T extends EntityType>(
   repository: IRepository<T>,
@@ -474,14 +572,14 @@ export const reorderRow = async <T extends EntityType>(
 ): Promise<InstanceType<T>> => {
   const untyped = repository as unknown as IRepository<EntityType>;
   const entity = metadata.name;
-  const row = await findById(untyped, id);
-  if (!row) throw new SortOrderError(entity, 'notFound', `要移动的行 ${String(id)} 不存在`);
+  const moving = await findEntityById(repository, id);
+  if (!moving) throw new SortOrderError(entity, 'notFound', `要移动的行 ${String(id)} 不存在`);
+  const row = persistedRow(moving);
   const fields = manualOrderGroupFields(metadata);
   const placement =
     'group' in target ?
       await placeAtGroupTail(untyped, entity, fields, row, target.group)
     : await placeBetweenNeighbors(untyped, entity, fields, row, target);
-  const moving = row as InstanceType<T>;
   if (placement === null) return moving;
-  return repository.update(moving, placement as Partial<InstanceType<T>>);
+  return updateKeepingEdits(repository, moving, placement as Partial<InstanceType<T>>);
 };

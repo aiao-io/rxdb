@@ -20,7 +20,9 @@ import {
   isRegroupWithoutKey,
   normalizeManualOrderBy,
   regroupRow,
-  reorderRow
+  reorderRow,
+  snapshotSortOrders,
+  updateKeepingEdits
 } from '../sortable/sortable.utils.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
@@ -686,17 +688,24 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @remarks
    * 门面平时走适配器仓库，SQL 在事务外生成；读尾键与写入不在同一个事务里，
    * 两次并发追加就会读到同一个尾键。所以只有这条路径改走事务，显式给键的创建照旧。
+   * 事务失败时撤回赋上的键：留着它，重试会被当成显式键而跳过追加。
    */
   async #createAppended(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const adapter = await this.#manualOrderAdapter('缺键创建');
     const metadata = getEntityMetadata(this.EntityType);
-    const created = await adapter.transaction(async executor => {
-      const repository = executor.getRepository(this.EntityType);
-      await appendToGroupTails(repository, metadata, [{ row: entity, persisted: false }]);
-      return repository.create(entity);
-    });
-    this._setLocal(created);
-    return created;
+    const restore = snapshotSortOrders([entity]);
+    try {
+      const created = await adapter.transaction(async executor => {
+        const repository = executor.getRepository(this.EntityType);
+        await appendToGroupTails(repository, metadata, [{ row: entity, persisted: false }], []);
+        return repository.create(entity);
+      });
+      this._setLocal(created);
+      return created;
+    } catch (error) {
+      restore();
+      throw error;
+    }
   }
 
   /**
@@ -704,6 +713,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    *
    * @remarks
    * 新键并进 patch 一起写，不改调用方传进来的 patch；读尾键时排除这行自己。
+   * 实例上与 patch 无关的未保存编辑不随这次写入落库，也不丢。
    */
   async #updateRegrouped(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     const adapter = await this.#manualOrderAdapter('改分组字段');
@@ -711,8 +721,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     const updated = await adapter.transaction(async executor => {
       const repository = executor.getRepository(this.EntityType);
       const moving = regroupRow(metadata, entity, patch);
-      await appendToGroupTails(repository, metadata, [moving]);
-      return repository.update(entity, { ...patch, [SORT_ORDER_FIELD]: moving.row.sortOrder });
+      await appendToGroupTails(repository, metadata, [moving], []);
+      return updateKeepingEdits(repository, entity, { ...patch, [SORT_ORDER_FIELD]: moving.row.sortOrder });
     });
     this._setLocal(updated);
     return updated;

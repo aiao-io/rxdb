@@ -178,6 +178,10 @@
         "kind": "type"
       },
       {
+        "name": "FixedRowDrop",
+        "kind": "type"
+      },
+      {
         "name": "flatten",
         "kind": "value"
       },

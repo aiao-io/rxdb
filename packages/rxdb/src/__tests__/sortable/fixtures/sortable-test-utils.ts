@@ -3,16 +3,32 @@
  *
  * 内存仓库的 `find` 照核心同源的 `isEntityMatchWhere` / `calculateOrderBy` 过滤排序，
  * 读尾键、读邻居、复核相邻因此都真实走过一遍；「两端 SQL 同序」与并发由 rxdb-test 契约套件验证。
- * 行与实体共享实例：改了实体就等于改了「库」，事务内的锚点读取须排除正在移动的行自己。
+ * 行与实体共享实例；与真实适配器一样，写成功后把写入的字段前移进实体状态的 `origin`——
+ * 排序计算只认 `origin`（落库值），直接改实例而不经仓库写入等同于未保存的编辑。
  */
 
 import { expect, vi } from 'vitest';
 import type { EntityBase } from '../../../entity/entity-base.js';
 import { calculateOrderBy, isEntityMatchWhere } from '../../../query/query-matching.utils.js';
 import type { FindOptions } from '../../../repository/query-options.interface.js';
+import { getEntityStatus } from '../../../rxdb-utils.js';
 import { SortOrderError, type SortOrderErrorReason } from '../../../sortable/sortable-error.js';
 
 export type Sortable = EntityBase & { title: string; sortOrder?: string | null };
+
+/** 写成功：写入的字段并进 `origin`，脏标记按剩余差异重算 */
+const persist = (entity: object, written: object): void => {
+  const status = getEntityStatus(entity);
+  status.origin = { ...status.origin, ...structuredClone(written) };
+  status.invalidateCache();
+  status.modified = Object.keys(status.patch).length > 0;
+};
+
+/** 绕开门面直接改「库」里的行（模拟同步拉取或旧数据落库的脏值），不留未保存编辑 */
+export const writeStored = <R extends Sortable>(row: R, values: Partial<R>): void => {
+  Object.assign(row, values);
+  persist(row, values);
+};
 
 /** 按核心同源的判定原语过滤 / 排序 / 分页的内存仓库 */
 export const memoryRepository = <R extends Sortable>(rows: R[]) => {
@@ -28,9 +44,14 @@ export const memoryRepository = <R extends Sortable>(rows: R[]) => {
     count: vi.fn(async () => rows.length),
     create: vi.fn(async (entity: R) => {
       rows.push(entity);
+      persist(entity, { ...getEntityStatus(entity).target });
       return entity;
     }),
-    update: vi.fn(async (entity: R, patch: Partial<R>) => Object.assign(entity, patch)),
+    update: vi.fn(async (entity: R, patch: Partial<R>) => {
+      Object.assign(entity, patch);
+      persist(entity, patch);
+      return entity;
+    }),
     remove: vi.fn(async (entity: R) => entity)
   };
 };

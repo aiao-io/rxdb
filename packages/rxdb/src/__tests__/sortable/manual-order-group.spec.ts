@@ -29,6 +29,7 @@ import {
   expectSortOrderError,
   memoryRepository,
   rejectionOf,
+  writeStored,
   type MemoryRepository,
   type Sortable
 } from './fixtures/sortable-test-utils.js';
@@ -213,7 +214,7 @@ describe('US-028 AC#14 按组创建追加', () => {
   });
 
   it('本组尾键已损坏：corruptAnchor，其他组的损坏不影响', async () => {
-    rowOf(repository, 'B1').sortOrder = 'zz';
+    writeStored(rowOf(repository, 'B1'), { sortOrder: 'zz' });
     await expectSortOrderError(create(fresh(ctx, 'B')), 'corruptAnchor');
     const ok = fresh(ctx, 'A');
     await create(ok);
@@ -425,7 +426,7 @@ describe('US-028 AC#16 改分组字段的用户写入追加到新组末尾', () 
   });
 
   it('新组尾键已损坏：corruptAnchor，零写', async () => {
-    rowOf(repository, 'B1').sortOrder = 'zz';
+    writeStored(rowOf(repository, 'B1'), { sortOrder: 'zz' });
     await expectSortOrderError(
       facade().update(rowOf(repository, 'A1') as never, { shelf: 'B' } as never),
       'corruptAnchor'

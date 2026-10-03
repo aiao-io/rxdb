@@ -12,8 +12,10 @@ import { SortOrderError } from '../sortable/sortable-error.js';
 import {
   appendBatchSortOrders,
   assertMutationSortOrders,
-  needsSortOrderAppend
+  needsSortOrderAppend,
+  sortOrderAppendEntities
 } from '../sortable/sortable-mutations.js';
+import { snapshotSortOrders } from '../sortable/sortable.utils.js';
 import { EntityIdentityCache } from './entity-identity-cache.js';
 import { assertMutationsAllowed } from './entity-permissions.js';
 import { EntityStatusOptions } from './entity-status.interface.js';
@@ -605,10 +607,17 @@ export class EntityManager {
       );
     }
     const adapter = await firstValueFrom(this.rxdb.localAdapter$);
-    return adapter.transaction(async executor => {
-      await appendBatchSortOrders(executor, options as RxDBMutationsMap);
-      return executor.mutations(options);
-    });
+    // 事务回滚不撤销实例上的赋值：失败时撤回引擎赋上的键，重试才会重新追加
+    const restore = snapshotSortOrders(sortOrderAppendEntities(options as RxDBMutationsMap));
+    try {
+      return await adapter.transaction(async executor => {
+        await appendBatchSortOrders(executor, options as RxDBMutationsMap);
+        return executor.mutations(options);
+      });
+    } catch (error) {
+      restore();
+      throw error;
+    }
   }
 
   /**
