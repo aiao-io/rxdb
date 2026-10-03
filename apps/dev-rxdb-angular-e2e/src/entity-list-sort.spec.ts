@@ -1,5 +1,6 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 /**
  * US-028 阶段 B（AC#5～7、#17）：实体列表的手动拖拽排序。
