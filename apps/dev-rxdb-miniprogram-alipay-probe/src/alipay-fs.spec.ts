@@ -220,12 +220,17 @@ describe.each(['ios', 'simulator'] as const)('frameUserFiles（%s 形态）', mo
 });
 
 describe('代码包读取', () => {
-  it('readTextSync 读 base64 文本副本：两端都原样，解码后就是 wasm 字节', () => {
-    for (const mode of ['ios', 'simulator'] as const) {
-      const { fileSystem } = setup(mode);
-      const text = fileSystem.readTextSync(`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`);
-      expect(Buffer.from(text, 'base64').equals(Buffer.from(wasmBytes))).toBe(true);
-    }
+  it('readTextSync 读 base64 文本副本：模拟器读回原样，解码后就是 wasm 字节', () => {
+    const { fileSystem } = setup('simulator');
+    const text = fileSystem.readTextSync(`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`);
+    expect(Buffer.from(text, 'base64').equals(Buffer.from(wasmBytes))).toBe(true);
+  });
+
+  it('iOS 真机代码包里没有文本副本：readTextSync 抛 10022（v3 探针 iOS 真机调试实测）', () => {
+    const { fileSystem } = setup('ios');
+    expect(thrown(() => fileSystem.readTextSync(`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`))).toMatchObject({
+      platformCode: 10022
+    });
   });
 
   it('模拟器把代码包文件当 UTF-8 文本读：非法序列变成 EF BF BD，二进制读不回原样', () => {

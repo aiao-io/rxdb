@@ -6,7 +6,8 @@
  * 0 字节、`renameSync` 覆盖已有目标；`simulator` 模式写 `ArrayBuffer` 落盘成 base64 文本、写 `Uint8Array`
  * 报 `90000`、`renameSync` 遇到已有目标报 10025。配额按文档 10028「单个超过 10M 或者文件夹超过 50M」建模，
  * 「文件夹」按整个用户目录算（**推断**，实验要测的正是这一条）。代码包文件只认相对路径（模拟器实测）；
- * `simulator` 模式把代码包文件当 UTF-8 文本读，非法字节序列一律变成 `EF BF BD`（CDP 直调实测）。
+ * `simulator` 模式把代码包文件当 UTF-8 文本读，非法字节序列一律变成 `EF BF BD`（CDP 直调实测）；
+ * `ios` 模式的代码包里没有 `.base64.txt` 文本副本（v3 探针 iOS 真机调试实测 10022）。
  */
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -21,6 +22,7 @@ import type {
   StandardWasmApi
 } from '../alipay-api.js';
 import { WASM_TEXT_SUFFIX } from '../alipay-host.js';
+import { fingerprintWasm, type WasmFingerprints } from '../wasm-fingerprint.js';
 import { handleWorkerMessage, type WorkerEnvironment } from '../worker-protocol.js';
 
 /** 两端实测的用户目录。 */
@@ -77,12 +79,21 @@ function textCopy(bytes: Uint8Array): Uint8Array {
   return Buffer.from(Buffer.from(bytes).toString('base64'));
 }
 
-/** 代码包里的文件，键是相对代码包根的路径；构建脚本给每个 wasm 旁边放一份 base64 文本副本。 */
-const CODE_PACKAGE: ReadonlyMap<string, Uint8Array> = new Map([
+/** 代码包里的 wasm，键是相对代码包根的路径。 */
+const CODE_PACKAGE_WASM: ReadonlyMap<string, Uint8Array> = new Map([
   ['wasm/add.wasm', addWasmBytes],
-  [`wasm/add.wasm${WASM_TEXT_SUFFIX}`, textCopy(addWasmBytes)],
-  ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
-  [`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`, textCopy(wasmBytes)]
+  ['wa-sqlite/wa-sqlite.wasm', wasmBytes]
+]);
+
+/** 构建脚本记下的指纹，与 `scripts/build.mjs` 同一算法、同一批文件。 */
+export const fakeWasmFingerprints: WasmFingerprints = Object.fromEntries(
+  [...CODE_PACKAGE_WASM].map(([path, bytes]) => [path, fingerprintWasm(bytes)])
+);
+
+/** 模拟器的代码包：构建脚本给每个 wasm 旁边放的 base64 文本副本都在。 */
+const SIMULATOR_CODE_PACKAGE: ReadonlyMap<string, Uint8Array> = new Map([
+  ...CODE_PACKAGE_WASM,
+  ...[...CODE_PACKAGE_WASM].map(([path, bytes]): [string, Uint8Array] => [`${path}${WASM_TEXT_SUFFIX}`, textCopy(bytes)])
 ]);
 
 const SUCCESS = Object.freeze({ success: true });
@@ -199,8 +210,9 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
 
   /** 按两端实测的字节语义把写入数据变成落盘字节；模拟器拒收 `Uint8Array` 时返回 `undefined`。 */
   private readCodePackage(path: string): Uint8Array | undefined {
-    const bytes = CODE_PACKAGE.get(path);
-    if (!bytes || this.mode === 'ios') return bytes;
+    if (this.mode === 'ios') return CODE_PACKAGE_WASM.get(path);
+    const bytes = SIMULATOR_CODE_PACKAGE.get(path);
+    if (!bytes) return undefined;
     // 模拟器按 UTF-8 解码再编码回来：非法序列变成 U+FFFD
     return Buffer.from(Buffer.from(bytes).toString('utf8'));
   }
@@ -235,7 +247,7 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
 function createWorkerWasm(): AlipayWorkerWasmApi {
   return {
     async instantiate(path, imports) {
-      const bytes = CODE_PACKAGE.get(path.replace(/^\//, ''));
+      const bytes = CODE_PACKAGE_WASM.get(path.replace(/^\//, ''));
       if (!path.startsWith('/') || !bytes) throw new Error(`MYWebAssembly.instantiate:fail ${path} not found`);
       return WebAssembly.instantiate(bytes, imports);
     }

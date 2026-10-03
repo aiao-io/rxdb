@@ -10,8 +10,11 @@ import { describeError } from './describe-error.js';
 import type { Finding } from './findings.js';
 import { captureFreeGlobals } from './free-globals.js';
 import { runProbe } from './run-probe.js';
+import type { WasmFingerprints } from './wasm-fingerprint.js';
 
 declare const my: AlipayApi;
+/** 构建脚本经 esbuild `define` 注入的代码包 wasm 指纹，名字与 `scripts/build.mjs` 的 `WASM_FINGERPRINTS_VAR` 一致。 */
+declare const __aiaoSpikeWasmFingerprints: WasmFingerprints;
 declare function require(path: string): unknown;
 declare function Page(options: PageOptions & ThisType<PageInstance>): void;
 
@@ -60,6 +63,7 @@ Page({
       const report = await runProbe({
         my,
         wasm: typeof WebAssembly === 'undefined' ? undefined : WebAssembly,
+        wasmFingerprints: __aiaoSpikeWasmFingerprints,
         loadCore,
         freeGlobals: captureFreeGlobals()
       });

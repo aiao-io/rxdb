@@ -8,7 +8,9 @@
  * - `wa-sqlite/wa-sqlite.wasm`：与 adapter glue 同源的 wasm，即 adapter 默认的相对路径。
  * - `wasm/add.wasm`：探针自带的最小模块，随 `static/` 复制。
  * - 每个 `.wasm` 旁边一份 `.base64.txt` 文本副本：模拟器把代码包文件当 UTF-8 文本读，二进制会被改写，
- *   实验 host 的 wasm 运行时读的是副本（见 `alipay-host.ts` 的 `WASM_TEXT_SUFFIX`）。
+ *   只能读副本；iOS 真机代码包里没有 `.txt`（v3 探针实测 10022），只能读原文件。
+ * - 每个 `.wasm` 的指纹（字节数 + FNV-1a）经 `define` 内嵌进页面包，实验 host 的 wasm 运行时据此在原文件与副本
+ *   之间选对得上的那份（见 `alipay-host.ts` 的 `readCodePackageWasm`）。
  *
  * 直接打源码（`@aiao/source` 条件），不依赖上游 build。
  *
@@ -24,6 +26,8 @@ import { copyFile, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// Node 的类型剥离直接加载 .ts：指纹算法与运行时共用一份
+import { fingerprintWasm } from '../src/wasm-fingerprint.ts';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 
@@ -43,6 +47,9 @@ export const RUNTIME_GLOBAL_VAR = '__aiaoSpikeRuntimeGlobal';
 
 /** `objectPrototypeGetter` 候选路在 `Object.prototype` 上临时定义的 getter 名。 */
 const REALM_GETTER_KEY = '__aiaoSpikeRealmGlobal';
+
+/** 页面包里代码包 wasm 指纹的自由变量名，与 `src/page.ts` 的 `declare const` 一致。 */
+export const WASM_FINGERPRINTS_VAR = '__aiaoSpikeWasmFingerprints';
 
 /** 核心包导出上挂模块顶层错误的键名，必须与 `src/core-contract.ts` 的 `ProbeCore.initError` 一致。 */
 export const CORE_INIT_ERROR_KEY = 'initError';
@@ -175,18 +182,22 @@ async function lowerWorkerToEs5(code) {
 /** 与 `src/alipay-host.ts` 的 `WASM_TEXT_SUFFIX` 一致；`dist-smoke.spec.ts` 核对两边对得上。 */
 const WASM_TEXT_SUFFIX = '.base64.txt';
 
-/** 代码包里需要文本副本的 wasm，相对代码包根。 */
+/** 代码包里的 wasm，相对代码包根；每个都写文本副本、记指纹。 */
 const WASM_FILES = ['wa-sqlite/wa-sqlite.wasm', 'wasm/add.wasm'];
 
 /**
- * 给每个 wasm 写一份 base64 文本副本。
+ * 给每个 wasm 写一份 base64 文本副本，返回每个 wasm 的指纹。
  * @param {string} outDir
+ * @returns {Promise<Record<string, import('../src/wasm-fingerprint.ts').WasmFingerprint>>}
  */
 async function writeWasmTextCopies(outDir) {
+  const fingerprints = {};
   for (const path of WASM_FILES) {
     const bytes = await readFile(join(outDir, path));
     await writeFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), bytes.toString('base64'));
+    fingerprints[path] = fingerprintWasm(bytes);
   }
+  return fingerprints;
 }
 
 /**
@@ -199,9 +210,10 @@ export async function buildProbe(outDir = join(projectRoot, 'dist')) {
   await cp(join(projectRoot, 'static'), outDir, { recursive: true });
   await mkdir(join(outDir, 'wa-sqlite'), { recursive: true });
   await copyFile(adapterRequire.resolve('@subframe7536/sqlite-wasm/wasm'), join(outDir, 'wa-sqlite/wa-sqlite.wasm'));
-  await writeWasmTextCopies(outDir);
+  const wasmFingerprints = await writeWasmTextCopies(outDir);
   await build({
     ...SHARED_OPTIONS,
+    define: { ...SHARED_OPTIONS.define, [WASM_FINGERPRINTS_VAR]: JSON.stringify(wasmFingerprints) },
     entryPoints: [join(projectRoot, 'src/page.ts')],
     outfile: join(outDir, 'pages/index/index.js'),
     banner: { js: realmProbeBanner() },

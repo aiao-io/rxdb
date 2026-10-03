@@ -37,10 +37,11 @@ import { probe, type Probe, type Skipped } from './probe.js';
 import { readProbedRuntimeGlobal, readRealmProbe, type RealmProbeReport } from './realm-probe.js';
 import { repairRuntimeGlobal, type RuntimeRepairs } from './runtime-repairs.js';
 import { VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
+import type { WasmFingerprints } from './wasm-fingerprint.js';
 import { createWorkerBridge, type WorkerBridge, type WorkerProbeResult } from './worker-protocol.js';
 
 /** 报告格式版本；字段语义变了就升版本号。v1 / v2 是改写成 TS 工程之前的手写探针。 */
-export const PROBE_REPORT_SCHEMA = 'aiao.us-211.alipay-probe/v3';
+export const PROBE_REPORT_SCHEMA = 'aiao.us-211.alipay-probe/v4';
 
 /** 实验目录名，位于 `my.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const PROBE_DIRECTORY = 'aiao-alipay-probe';
@@ -60,7 +61,7 @@ const NOTES = [
   '模拟器拒绝任何空写入（error 2），adapter VFS 建库却要写空文件：实验 host 与核心实验的 FS 再套一层分帧（frameUserFiles），每个文件前垫 1 字节头，读与 stat 时剥掉。fileSystem 探测测的就是交给 adapter 的这一层；rawFs 与 quotaAccounting 不经包装与分帧，记录的是平台原样（含空写入 error 2、写到不存在的父目录照样成功）。',
   '引导前实验 host 给真实全局对象补缺的 BigInt（从 wasm 的 i64 返回值取回原生构造器）与 queueMicrotask（用 Promise 排微任务），已有的不动，见 runtimeRepairs；模拟器两个都缺，iOS 只缺 queueMicrotask。',
   '逻辑层没有随机源：随机数经 Worker 的 crypto.getRandomValues 桥接（my.createWorker + useExperimentalWorker），random.worker 是直接从 Worker 取的原始结果。',
-  '逻辑层的标准 WebAssembly 文档没写，v2 探针两端实测都有；核心实验用它实例化 adapter 默认路径 wa-sqlite/wa-sqlite.wasm。模拟器把代码包文件当 UTF-8 文本读、非法字节序列改写成 EF BF BD，所以字节改从构建时放进包里的 base64 文本副本（wa-sqlite.wasm.base64.txt）读，wasm.codePackageBinary 记录两种读法对不对得上。Worker 的 MYWebAssembly 只做探测。',
+  '逻辑层的标准 WebAssembly 文档没写，v2 探针两端实测都有；核心实验用它实例化 adapter 默认路径 wa-sqlite/wa-sqlite.wasm。字节按构建时记下的指纹（字节数 + FNV-1a）选源：先读 .wasm 原文件，对得上就用；对不上（模拟器把代码包文件当 UTF-8 文本读、非法字节序列改写成 EF BF BD）再读构建放进包里的 base64 文本副本（.base64.txt，iOS 真机代码包里没有），两者都对不上就抛错。wasm.sources 记每个 wasm 选到的来源，wasm.codePackageBinary 记二进制读与指纹对不对得上。Worker 的 MYWebAssembly 只做探测。',
   '构建 banner 只探测真实全局对象、不改 globalThis（见 realmProbe）；页面包把选中的对象经 adapter 公开字段 host.runtimeGlobal 注入。objectPrototypeGetter 一路会在 Object.prototype 上临时定义一个 getter、读完即删。',
   'quotaAccounting 不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」：单文件能写多大、文件夹上限算在直接目录还是整个用户目录。',
   '实验 ④ 写到撞配额后不删任何文件，直接关掉重开读回：通过要求失败错误带 SQLITE_FULL（13）与平台配额原文，且重开后行数与已提交行数一致、integrity_check 为 ok、分块块号连续。',
@@ -73,6 +74,8 @@ export interface ProbeOptions {
   readonly my: AlipayApi;
   /** 逻辑层的标准 `WebAssembly`；不存在时传 `undefined`。 */
   readonly wasm: StandardWasmApi | undefined;
+  /** 构建脚本记下的代码包 wasm 指纹，wasm 运行时据此选字节来源。 */
+  readonly wasmFingerprints: WasmFingerprints;
   /** 加载核心包；真机上是 `require('../../probe-core.js')`。 */
   readonly loadCore: () => Promise<ProbeCore>;
   /** 以自由变量形式读到的全局 `typeof`，见 `captureFreeGlobals`。 */
@@ -199,7 +202,7 @@ async function runCore(options: ProbeOptions, input: Omit<CoreExperimentInput, '
   }
   const loaded = core;
   const coreRealmProbe = loaded.realmProbe;
-  const wasmRuntime = createAlipayWasmRuntime(input.fileSystem, wasm, options.my);
+  const wasmRuntime = createAlipayWasmRuntime(input.fileSystem, wasm, options.my, options.wasmFingerprints);
   const result = await probe(() => loaded.runCoreExperiments({ ...input, wasmRuntime }));
   if (result.ok) return { coreLoad, core: result.value, coreRealmProbe };
   const skipped = `核心实验中途抛错：${result.error.text}`;
@@ -225,7 +228,7 @@ export async function runProbe(options: ProbeOptions): Promise<ProbeReport> {
     const runtimeRepairs = await probe(() => repairRuntime(runtimeGlobal, options.wasm));
     const host = createAlipayProbeHost(my, framed, bridge ? bridge.randomValues : noWorkerRandom, runtimeGlobal);
     const prepare = await probe(() => prepareMiniProgramHostRuntime(host));
-    const wasm = await runWasmExperiment(fileSystem, options.wasm, my);
+    const wasm = await runWasmExperiment(fileSystem, options.wasm, my, options.wasmFingerprints);
 
     const userDataPath = host.userDataPath;
     if (userDataPath === undefined) throw new Error('my.env.USER_DATA_PATH 不可用，没有可写目录');

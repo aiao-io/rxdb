@@ -6,6 +6,7 @@
  * pass 说明「照这个形态写正式 host 可行」，不说明 adapter 现状支持支付宝。
  */
 import { isAlipayFsFailure } from './alipay-fs.js';
+import type { WasmByteSource } from './alipay-host.js';
 import type { CoreExperimentReport, DatabaseFile } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import { OVER_SINGLE_FILE_OP, type FileSystemReport } from './experiments/fs-errors.js';
@@ -84,11 +85,22 @@ function isSkipped(value: object): value is Skipped {
   return 'skipped' in value;
 }
 
+const WASM_SOURCE_TEXT: Readonly<Record<WasmByteSource, string>> = {
+  binary: '代码包里的 .wasm 原文件',
+  textCopy: '代码包里的 base64 文本副本'
+};
+
 function codePackageBinaryText({ codePackageBinary }: WasmReport): string {
   if (!codePackageBinary.ok) return `代码包二进制读取对比失败：${probeText(codePackageBinary)}`;
-  const { binaryBytes, textBytes, bytesMatch } = codePackageBinary.value;
-  if (bytesMatch) return '代码包二进制读取原样';
-  return `代码包二进制读取被改写（${String(binaryBytes)} / ${String(textBytes)} 字节），wasm 只能读 base64 文本副本`;
+  const { binaryBytes, expectedBytes, bytesMatch } = codePackageBinary.value;
+  if (bytesMatch) return `代码包二进制读取与构建指纹一致（${String(expectedBytes)} 字节）`;
+  return `代码包二进制读取被改写（${String(binaryBytes)} / ${String(expectedBytes)} 字节）`;
+}
+
+function wasmSourceText({ sources }: WasmReport, wasmPath: string): string {
+  const source = sources[wasmPath];
+  if (source === undefined) return '没有记录';
+  return source.ok ? WASM_SOURCE_TEXT[source.value] : `选源失败：${probeText(source)}`;
 }
 
 function wasmFinding({ wasm, core }: FindingsInput): Finding {
@@ -100,7 +112,8 @@ function wasmFinding({ wasm, core }: FindingsInput): Finding {
   }
   if (!isSkipped(core) && core.persistence.status === 'passed') {
     const evidence =
-      `adapter 经逻辑层标准 WebAssembly 实例化 '${core.persistence.wasmPath}'（字节由同步 FS 从代码包的 base64 文本副本读出）` +
+      `adapter 经逻辑层标准 WebAssembly 实例化 '${core.persistence.wasmPath}'` +
+      `（字节来源：${wasmSourceText(wasm, core.persistence.wasmPath)}，按构建指纹校验）` +
       `完成建库、读写、关闭重开；文档未写逻辑层有 WebAssembly；${codePackageBinaryText(wasm)}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }

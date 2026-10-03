@@ -1,4 +1,10 @@
-import { createFakeAlipay, FAKE_USER_DATA_PATH, wasmBytes, type FakeAlipayOptions } from './__tests__/fake-alipay.js';
+import {
+  createFakeAlipay,
+  FAKE_USER_DATA_PATH,
+  fakeWasmFingerprints,
+  wasmBytes,
+  type FakeAlipayOptions
+} from './__tests__/fake-alipay.js';
 import { FRAME_HEADER } from './alipay-fs.js';
 import type { ProbeCore } from './core-contract.js';
 import type { QuotaAccountingPlan } from './experiments/quota-accounting.js';
@@ -30,6 +36,7 @@ async function run(
   const report = await runProbe({
     my: fake.my,
     wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints,
     loadCore,
     freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
     quotaPlan,
@@ -106,8 +113,20 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     const bytes = wasmBytes.byteLength;
     expect(report.wasm.codePackageBinary).toMatchObject({
       ok: true,
-      value: { binaryBytes: bytes, textBytes: bytes, bytesMatch: true }
+      value: { binaryBytes: bytes, expectedBytes: bytes, bytesMatch: true }
     });
+  });
+
+  it('WASM：真机代码包没有文本副本，二进制读与构建指纹一致，adapter 的 wasm 直接读 .wasm 原文件', () => {
+    expect(report.wasm.sources).toEqual({
+      'wasm/add.wasm': expect.objectContaining({ ok: true, value: 'binary' }),
+      'wa-sqlite/wa-sqlite.wasm': expect.objectContaining({ ok: true, value: 'binary' })
+    });
+    expect(finding(report, 'WASM')).toMatchObject({
+      verdict: 'pass',
+      evidence: expect.stringContaining('字节来源：代码包里的 .wasm 原文件')
+    });
+    expect(finding(report, 'WASM')?.evidence).toContain('与构建指纹一致');
   });
 
   it('裸 FS：只有 base64 串两端字节一致', () => {
@@ -186,6 +205,7 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     report = await runProbe({
       my: fake.my,
       wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints,
       loadCore: loadRealCore,
       freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
       quotaPlan: SMALL_PLAN,
@@ -197,7 +217,12 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
   it('WASM：代码包二进制读被改写成 UTF-8 文本，adapter 的 wasm 改从 base64 文本副本读', () => {
     expect(report.wasm.codePackageBinary).toMatchObject({
       ok: true,
-      value: { textBytes: wasmBytes.byteLength, bytesMatch: false }
+      value: { expectedBytes: wasmBytes.byteLength, bytesMatch: false }
+    });
+    expect(report.wasm.sources['wa-sqlite/wa-sqlite.wasm']).toMatchObject({ ok: true, value: 'textCopy' });
+    expect(finding(report, 'WASM')).toMatchObject({
+      verdict: 'pass',
+      evidence: expect.stringContaining('字节来源：代码包里的 base64 文本副本')
     });
     expect(finding(report, 'WASM')?.evidence).toContain('二进制读取被改写');
   });
@@ -288,7 +313,8 @@ describe('runProbe：失败与边界', () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     fake.directories.add(PROBE_ROOT);
     fake.files.set(`${PROBE_ROOT}/stale.bin`, new Uint8Array(4));
-    const report = await runProbe({ my: fake.my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} });
+    const report = await runProbe({ my: fake.my, wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} });
     expect(report.workspace).toMatchObject({ ok: true, value: { root: PROBE_ROOT, removedLeftover: true } });
     expect(leftovers(fake)).toEqual([]);
   }, 60_000);
@@ -302,6 +328,29 @@ describe('runProbe：失败与边界', () => {
       verdict: 'unknown',
       evidence: expect.stringContaining('未触发')
     });
+  }, 60_000);
+
+  it('构建没记指纹：选源失败，adapter 打不开库，WASM 判 fail，不拿没校验的字节去实例化', async () => {
+    const fake = createFakeAlipay(SMALL_LIMITS);
+    const report = await runProbe({
+      my: fake.my,
+      wasm: fake.wasm,
+      wasmFingerprints: {},
+      loadCore: loadRealCore,
+      freeGlobals: {},
+      quotaPlan: SMALL_PLAN,
+      quotaAccountingPlan: SMALL_ACCOUNTING,
+      workerTimeoutMs: 2000
+    });
+    expect(report.wasm.sources['wa-sqlite/wa-sqlite.wasm']).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining('记指纹') }
+    });
+    expect(report.wasm.codePackageBinary).toMatchObject({ ok: false });
+    const core = report.core;
+    if ('skipped' in core) throw new Error(core.skipped);
+    expect(core.persistence).toMatchObject({ status: 'failed' });
+    expect(finding(report, 'WASM')).toMatchObject({ verdict: 'fail' });
   }, 60_000);
 
   it('逻辑层没有 WebAssembly：跳过核心实验，WASM 判 fail', async () => {
@@ -339,6 +388,7 @@ describe('runProbe：失败与边界', () => {
     const report = await runProbe({
       my,
       wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints,
       loadCore: skipCore,
       freeGlobals: {},
       workerTimeoutMs: 50
@@ -352,7 +402,8 @@ describe('runProbe：失败与边界', () => {
   it('USER_DATA_PATH 缺失：没有可写目录，整个实验抛错，Worker 照样 terminate', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const my = { ...fake.my, env: {} };
-    await expect(runProbe({ my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow(
+    await expect(runProbe({ my, wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow(
       'USER_DATA_PATH'
     );
     expect(fake.liveWorkers()).toBe(0);

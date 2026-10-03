@@ -216,7 +216,7 @@ describe('dist 冒烟', () => {
   it.each([
     ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
     ['wasm/add.wasm', addWasmBytes]
-  ])('%s 与它的 base64 文本副本都在代码包里，副本解码后与原文件逐字节一致', async (path, bytes) => {
+  ])('%s 与它的 base64 文本副本都在代码包里（副本给模拟器用，iOS 真机代码包会丢掉 .txt），副本解码后与原文件逐字节一致', async (path, bytes) => {
     expect((await readFile(join(outDir, path))).equals(bytes)).toBe(true);
     const text = await readFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), 'utf8');
     expect(Buffer.from(text, 'base64').equals(bytes)).toBe(true);
@@ -253,6 +253,12 @@ describe('dist 冒烟', () => {
         target: 'globalThis',
         before: { BigInt: 'function', queueMicrotask: 'undefined' },
         installed: ['queueMicrotask']
+      }
+    });
+    expect(report['wasm']).toMatchObject({
+      sources: {
+        'wasm/add.wasm': { ok: true, value: 'binary' },
+        'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'binary' }
       }
     });
     expect(report['prepare']).toMatchObject({ ok: true });
@@ -311,6 +317,9 @@ describe('dist 冒烟', () => {
         before: { BigInt: 'undefined', queueMicrotask: 'undefined' },
         installed: ['BigInt', 'queueMicrotask']
       }
+    });
+    expect(report['wasm']).toMatchObject({
+      sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
     });
     expect(report['prepare']).toMatchObject({ ok: true });
     expect(report['coreLoad']).toMatchObject({ ok: true });

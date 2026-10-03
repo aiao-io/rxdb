@@ -1,6 +1,13 @@
-import { addWasmBytes, createFakeAlipay, FAKE_USER_DATA_PATH, wasmBytes } from './__tests__/fake-alipay.js';
+import {
+  addWasmBytes,
+  createFakeAlipay,
+  FAKE_USER_DATA_PATH,
+  fakeWasmFingerprints,
+  wasmBytes
+} from './__tests__/fake-alipay.js';
 import { wrapAlipayFileSystem } from './alipay-fs.js';
-import { createAlipayProbeHost, createAlipayWasmRuntime } from './alipay-host.js';
+import { createAlipayProbeHost, createAlipayWasmRuntime, readCodePackageWasm } from './alipay-host.js';
+import { fingerprintWasm } from './wasm-fingerprint.js';
 
 function setup(options: Parameters<typeof createFakeAlipay>[0] = {}) {
   const fake = createFakeAlipay(options);
@@ -49,40 +56,88 @@ describe('createAlipayProbeHost', () => {
   });
 });
 
-describe('createAlipayWasmRuntime', () => {
-  it('读代码包里的 base64 文本副本，解码后交给逻辑层的标准 WebAssembly 实例化', async () => {
-    const { fake, fileSystem } = setup();
-    if (!fake.wasm) throw new Error('替身应当有 WebAssembly');
-    const runtime = createAlipayWasmRuntime(fileSystem, fake.wasm, fake.my);
-    const result = await runtime.instantiate('wasm/add.wasm', {});
-    const instance = 'instance' in result ? result.instance : result;
-    expect((instance.exports['add'] as (a: number, b: number) => number)(2, 3)).toBe(5);
+describe('readCodePackageWasm', () => {
+  it('iOS 形态：.wasm 原文件与构建指纹一致，直接用原文件', () => {
+    const { fake, fileSystem } = setup({ mode: 'ios' });
+    const result = readCodePackageWasm(fileSystem, fake.my, fakeWasmFingerprints, 'wa-sqlite/wa-sqlite.wasm');
+    expect(result.source).toBe('binary');
+    expect(Buffer.from(result.bytes).equals(Buffer.from(wasmBytes))).toBe(true);
   });
+
+  it('模拟器形态：二进制读被改写、与指纹不符，改用 base64 文本副本', () => {
+    const { fake, fileSystem } = setup({ mode: 'simulator' });
+    const result = readCodePackageWasm(fileSystem, fake.my, fakeWasmFingerprints, 'wa-sqlite/wa-sqlite.wasm');
+    expect(result.source).toBe('textCopy');
+    expect(Buffer.from(result.bytes).equals(Buffer.from(wasmBytes))).toBe(true);
+  });
+
+  it('原文件与指纹不符、又没有文本副本：抛错，带上两边字节数，FS 错误挂在 cause 上', () => {
+    const { fake, fileSystem } = setup({ mode: 'ios' });
+    const stale = { 'wa-sqlite/wa-sqlite.wasm': fingerprintWasm(wasmBytes.slice(1)) };
+    let thrown: unknown;
+    try {
+      readCodePackageWasm(fileSystem, fake.my, stale, 'wa-sqlite/wa-sqlite.wasm');
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toMatchObject({
+      message: expect.stringContaining(`${String(wasmBytes.byteLength)} / ${String(wasmBytes.byteLength - 1)} 字节`),
+      cause: { platformCode: 10022 }
+    });
+  });
+
+  it('文本副本解码后也与指纹不符：抛错，不把改写过的字节交出去', () => {
+    const { fake, fileSystem } = setup({ mode: 'simulator' });
+    const stale = { 'wa-sqlite/wa-sqlite.wasm': fingerprintWasm(addWasmBytes) };
+    expect(() => readCodePackageWasm(fileSystem, fake.my, stale, 'wa-sqlite/wa-sqlite.wasm')).toThrow(
+      '文本副本解码后与构建指纹不符'
+    );
+  });
+
+  it('构建没记指纹的路径：先于读文件抛错', () => {
+    const { fake, fileSystem } = setup();
+    expect(() => readCodePackageWasm(fileSystem, fake.my, {}, 'wasm/add.wasm')).toThrow('构建没给 wasm/add.wasm 记指纹');
+  });
+
+  it('原文件不存在：把 FS 错误原样抛出', () => {
+    const { fake, fileSystem } = setup();
+    const fingerprints = { 'nope.wasm': fingerprintWasm(addWasmBytes) };
+    expect(() => readCodePackageWasm(fileSystem, fake.my, fingerprints, 'nope.wasm')).toThrow(
+      expect.objectContaining({ platformCode: 10022 })
+    );
+  });
+});
+
+describe('createAlipayWasmRuntime', () => {
+  it.each(['ios', 'simulator'] as const)(
+    '%s 形态：按指纹选源后交给逻辑层的标准 WebAssembly 实例化',
+    async mode => {
+      const { fake, fileSystem } = setup({ mode });
+      if (!fake.wasm) throw new Error('替身应当有 WebAssembly');
+      const runtime = createAlipayWasmRuntime(fileSystem, fake.wasm, fake.my, fakeWasmFingerprints);
+      const result = await runtime.instantiate('wasm/add.wasm', {});
+      const instance = 'instance' in result ? result.instance : result;
+      expect((instance.exports['add'] as (a: number, b: number) => number)(2, 3)).toBe(5);
+    }
+  );
 
   it('读到的是实际字节：不会把别的文件当 wasm', async () => {
     const { fake, fileSystem } = setup();
     if (!fake.wasm) throw new Error('替身应当有 WebAssembly');
     const instantiate = vi.fn(fake.wasm.instantiate);
-    await createAlipayWasmRuntime(fileSystem, { instantiate }, fake.my).instantiate('wasm/add.wasm', {});
+    await createAlipayWasmRuntime(fileSystem, { instantiate }, fake.my, fakeWasmFingerprints).instantiate(
+      'wasm/add.wasm',
+      {}
+    );
     expect([...(instantiate.mock.calls[0][0] as Uint8Array)]).toEqual([...addWasmBytes]);
   });
 
-  it('模拟器上二进制读会改写字节，文本副本照样拿到原样的 wa-sqlite.wasm', async () => {
-    const { fake, fileSystem } = setup({ mode: 'simulator' });
-    const instantiate = vi.fn(async (_bytes: Uint8Array<ArrayBuffer>, _imports: WebAssembly.Imports) => ({
-      instance: { exports: {} }
-    }));
-    await createAlipayWasmRuntime(fileSystem, { instantiate }, fake.my).instantiate('wa-sqlite/wa-sqlite.wasm', {});
-    expect(Buffer.from(instantiate.mock.calls[0][0]).equals(Buffer.from(wasmBytes))).toBe(true);
-  });
-
-  it('文件不存在时把 FS 错误原样抛出', async () => {
+  it('选源失败时 instantiate reject，不调 WebAssembly', async () => {
     const { fake, fileSystem } = setup();
-    if (!fake.wasm) throw new Error('替身应当有 WebAssembly');
+    const instantiate = vi.fn();
     await expect(
-      createAlipayWasmRuntime(fileSystem, fake.wasm, fake.my).instantiate('nope.wasm', {})
-    ).rejects.toMatchObject({
-      platformCode: 10022
-    });
+      createAlipayWasmRuntime(fileSystem, { instantiate }, fake.my, {}).instantiate('wasm/add.wasm', {})
+    ).rejects.toThrow('记指纹');
+    expect(instantiate).not.toHaveBeenCalled();
   });
 });
