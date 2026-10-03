@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#112a2e",
+    "navigationBarTitleText": "RxDB Todo",
+    "navigationBarTextStyle": "white"
+  },
+  "lazyCodeLoading": "requiredComponents"
+}

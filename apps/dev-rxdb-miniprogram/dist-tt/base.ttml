@@ -1,0 +1,104 @@
+<sjs module="xs" src="./utils.sjs" />
+<template name="taro_tmpl">
+  <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{root.cn}}" tt:key="sid" />
+</template>
+
+<template name="tmpl_0_0">
+  <view hover-class="{{i.p1||'none'}}" hover-stop-propagation="{{xs.b(i.p4,!1)}}" hover-start-time="{{xs.b(i.p2,50)}}" hover-stay-time="{{xs.b(i.p3,400)}}" bindtouchstart="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" animation="{{i.p0}}" bindanimationstart="eh" bindanimationiteration="eh" bindanimationend="eh" bindtransitionend="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh" catchtouchmove="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </view>
+</template>
+
+<template name="tmpl_0_6">
+  <view hover-class="{{i.p1||'none'}}" hover-stop-propagation="{{xs.b(i.p4,!1)}}" hover-start-time="{{xs.b(i.p2,50)}}" hover-stay-time="{{xs.b(i.p3,400)}}" animation="{{i.p0}}" style="{{i.st}}" class="{{i.cl}}"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </view>
+</template>
+
+<template name="tmpl_0_3">
+  <view style="{{i.st}}" class="{{i.cl}}"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </view>
+</template>
+
+<template name="tmpl_0_1">
+  <view style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </view>
+</template>
+
+<template name="tmpl_0_8">
+  <view hover-class="{{i.p1||'none'}}" hover-stop-propagation="{{xs.b(i.p4,!1)}}" hover-start-time="{{xs.b(i.p2,50)}}" hover-stay-time="{{xs.b(i.p3,400)}}" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" animation="{{i.p0}}" bindanimationstart="eh" bindanimationiteration="eh" bindanimationend="eh" bindtransitionend="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </view>
+</template>
+
+<template name="tmpl_0_5">
+  <text selectable="{{xs.b(i.p1,!1)}}" space="{{i.p2}}" decode="{{xs.b(i.p0,!1)}}" style="{{i.st}}" class="{{i.cl}}"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </text>
+</template>
+
+<template name="tmpl_0_7">
+  <text selectable="{{xs.b(i.p1,!1)}}" space="{{i.p2}}" decode="{{xs.b(i.p0,!1)}}" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </text>
+</template>
+
+<template name="tmpl_0_15">
+  <button size="{{i.p14||'default'}}" type="{{i.p15}}" plain="{{xs.b(i.p13,!1)}}" disabled="{{i.p3}}" loading="{{xs.b(i.p10,!1)}}" form-type="{{i.p4}}" open-type="{{i.p12}}" hover-class="{{i.p6||'button-hover'}}" hover-stop-propagation="{{xs.b(i.p9,!1)}}" hover-start-time="{{xs.b(i.p7,20)}}" hover-stay-time="{{xs.b(i.p8,70)}}" name="{{i.p11}}" bindagreeprivacyauthorization="eh" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" bindgetphonenumber="eh" data-channel="{{i.p1}}" data-aweme-id="{{i.p0}}" group-id="{{i.p5}}" data-is-half-page="{{i.p2}}" bindopenawemeuserprofile="eh" bindjoingroup="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </button>
+</template>
+
+<template name="tmpl_0_18">
+  <checkbox value="{{i.p4}}" disabled="{{i.p2}}" checked="{{xs.b(i.p0,!1)}}" color="{{i.p1||'#09BB07'}}" name="{{i.p3}}" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </checkbox>
+</template>
+
+<template name="tmpl_0_19">
+  <checkbox-group bindchange="eh" name="{{i.p0}}" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </checkbox-group>
+</template>
+
+<template name="tmpl_0_25">
+  <template is="{{xs.c(i, 'tmpl_0_')}}" data="{{i:i}}" />
+</template>
+
+<template name="tmpl_0_25_focus">
+  <input value="{{i.p17}}" type="{{i.p16||''}}" password="{{xs.b(i.p10,!1)}}" placeholder="{{i.p11}}" placeholder-style="{{i.p13}}" placeholder-class="{{i.p12||'input-placeholder'}}" disabled="{{i.p6}}" maxlength="{{xs.b(i.p8,140)}}" cursor-spacing="{{xs.b(i.p5,0)}}" focus="{{xs.b(i.focus,!1)}}" confirm-type="{{i.p3||'done'}}" confirm-hold="{{xs.b(i.p2,!1)}}" cursor="{{xs.b(i.p4,-1)}}" selection-start="{{xs.b(i.p15,-1)}}" selection-end="{{xs.b(i.p14,-1)}}" bindinput="eh" bindfocus="eh" bindblur="eh" bindconfirm="eh" name="{{i.p9}}" adjust-position="{{xs.b(i.p0,!0)}}" hold-keyboard="{{xs.b(i.p7,!1)}}" clue-type="{{xs.b(i.p1,0)}}" bindkeyboardheightchange="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}"></input>
+</template>
+
+<template name="tmpl_0_25_blur">
+  <input value="{{i.p17}}" type="{{i.p16||''}}" password="{{xs.b(i.p10,!1)}}" placeholder="{{i.p11}}" placeholder-style="{{i.p13}}" placeholder-class="{{i.p12||'input-placeholder'}}" disabled="{{i.p6}}" maxlength="{{xs.b(i.p8,140)}}" cursor-spacing="{{xs.b(i.p5,0)}}" confirm-type="{{i.p3||'done'}}" confirm-hold="{{xs.b(i.p2,!1)}}" cursor="{{xs.b(i.p4,-1)}}" selection-start="{{xs.b(i.p15,-1)}}" selection-end="{{xs.b(i.p14,-1)}}" bindinput="eh" bindfocus="eh" bindblur="eh" bindconfirm="eh" name="{{i.p9}}" adjust-position="{{xs.b(i.p0,!0)}}" hold-keyboard="{{xs.b(i.p7,!1)}}" clue-type="{{xs.b(i.p1,0)}}" bindkeyboardheightchange="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}"></input>
+</template>
+
+<template name="tmpl_0_26">
+  <label for="{{i.p0}}" name="{{i.p1}}" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </label>
+</template>
+
+<template name="tmpl_0_45">
+  <scroll-view scroll-x="{{xs.b(i.p14,!1)}}" scroll-y="{{xs.b(i.p15,!1)}}" upper-threshold="{{xs.b(i.p16,50)}}" lower-threshold="{{xs.b(i.p4,50)}}" scroll-top="{{i.p12}}" scroll-left="{{i.p11}}" scroll-into-view="{{i.p10}}" scroll-with-animation="{{xs.b(i.p13,!1)}}" enable-back-to-top="{{xs.b(i.p2,!1)}}" bindscrolltoupper="eh" bindscrolltolower="eh" bindscroll="eh" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" animation="{{i.p0}}" bindanimationstart="eh" bindanimationiteration="eh" bindanimationend="eh" bindtransitionend="eh" enhanced="{{xs.b(i.p3,!1)}}" bounces="{{xs.b(i.p1,!0)}}" refresher-enabled="{{xs.b(i.p7,!1)}}" refresher-threshold="{{xs.b(i.p8,55)}}" refresher-default-style="{{i.p6||'black'}}" refresher-background="{{i.p5||'#FFF'}}" refresher-triggered="{{xs.b(i.p9,!1)}}" bindrefresherpulling="eh" bindrefresherrefresh="eh" bindrefresherrestore="eh" bindrefresherabort="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </scroll-view>
+</template>
+
+<template name="tmpl_0_4">
+  <image src="{{i.p2}}" mode="{{i.p1||'scaleToFill'}}" lazy-load="{{xs.b(i.p0,!1)}}" style="{{i.st}}" class="{{i.cl}}"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </image>
+</template>
+
+<template name="tmpl_0_2">
+  <image src="{{i.p2}}" mode="{{i.p1||'scaleToFill'}}" lazy-load="{{xs.b(i.p0,!1)}}" binderror="eh" bindload="eh" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindtouchcancel="eh" bindlongpress="eh" style="{{i.st}}" class="{{i.cl}}" bindtap="eh"  id="{{i.uid||i.sid}}" data-sid="{{i.sid}}">
+    <template is="{{xs.a(0, item.nn)}}" data="{{i:item}}" tt:for="{{i.cn}}" tt:key="sid" />
+  </image>
+</template>
+
+<template name="tmpl_0_9">
+  <block>{{i.v}}</block>
+</template>
