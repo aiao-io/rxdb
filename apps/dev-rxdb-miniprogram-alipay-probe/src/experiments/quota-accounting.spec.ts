@@ -1,6 +1,10 @@
 import { createFakeAlipay, FAKE_USER_DATA_PATH, type FakeAlipayOptions } from '../__tests__/fake-alipay.js';
 import { wrapAlipayFileSystem } from '../alipay-fs.js';
-import { DEFAULT_QUOTA_ACCOUNTING_PLAN, runQuotaAccountingExperiment, type QuotaAccountingPlan } from './quota-accounting.js';
+import {
+  DEFAULT_QUOTA_ACCOUNTING_PLAN,
+  runQuotaAccountingExperiment,
+  type QuotaAccountingPlan
+} from './quota-accounting.js';
 
 const MIB = 1024 * 1024;
 const DIRECTORY = `${FAKE_USER_DATA_PATH}/accounting`;

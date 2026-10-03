@@ -24,7 +24,10 @@ export interface RealmProbeCandidate {
 export interface RealmProbeRecord {
   /** 模块作用域里的 `typeof globalThis`；为 `'object'` 时不检查候选路，adapter 直接用 `globalThis`。 */
   readonly before: string;
-  /** 键为候选路：`sloppyThis`（非严格函数的 `this`）、`Function`（`Function('return this')()`）、`global`。 */
+  /**
+   * 键为候选路：`sloppyThis`（非严格函数的 `this`）、`Function`（`Function('return this')()`）、`global`、
+   * `objectPrototypeGetter`（`Object.prototype` 上临时 getter 返回的 `this`，自由变量查找时即全局对象）。
+   */
   readonly candidates: Readonly<Record<string, RealmProbeCandidate>>;
   /** 选中的候选路；没有真实全局对象可用时为 `null`。 */
   readonly chosen: string | null;

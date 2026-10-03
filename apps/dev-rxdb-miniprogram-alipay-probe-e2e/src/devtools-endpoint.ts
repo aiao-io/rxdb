@@ -24,7 +24,9 @@ export function resolveWsEndpoint(): string {
   const override = process.env['ALIPAY_DEVTOOLS_WS_ENDPOINT'];
   if (override) return override;
   if (process.platform !== 'darwin') {
-    throw new Error(`${process.platform} 上没有实测过 DevToolsActivePort 的位置，请设置 ALIPAY_DEVTOOLS_WS_ENDPOINT。\n  ${START_IDE_HINT}`);
+    throw new Error(
+      `${process.platform} 上没有实测过 DevToolsActivePort 的位置，请设置 ALIPAY_DEVTOOLS_WS_ENDPOINT。\n  ${START_IDE_HINT}`
+    );
   }
   if (!existsSync(ACTIVE_PORT_FILE)) throw new Error(`没找到 ${ACTIVE_PORT_FILE}。\n  ${START_IDE_HINT}`);
   const [port, browserPath] = readFileSync(ACTIVE_PORT_FILE, 'utf8').trim().split('\n');

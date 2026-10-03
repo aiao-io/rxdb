@@ -6,7 +6,11 @@
  * 文件 VFS 与 SQLite 路径，差别只在 FS 包装层（见 `alipay-fs.ts`）和随机源（经 Worker 桥接）。
  */
 import type { MiniProgramWasmRuntime } from '@aiao/rxdb-adapter-miniprogram';
-import type { MiniProgramFileLayout, MiniProgramHost, MiniProgramRuntimeGlobal } from '@aiao/rxdb-adapter-miniprogram/runtime';
+import type {
+  MiniProgramFileLayout,
+  MiniProgramHost,
+  MiniProgramRuntimeGlobal
+} from '@aiao/rxdb-adapter-miniprogram/runtime';
 import type { AlipayApi, StandardWasmApi } from './alipay-api.js';
 import type { AlipayProbeFileSystem } from './alipay-fs.js';
 
@@ -20,7 +24,7 @@ const ALIPAY_FILE_LAYOUT: MiniProgramFileLayout = Object.freeze({ kind: 'chunked
  * 组装实验 host。
  *
  * 不设 `defaultWasmPath`：adapter 默认的相对路径 `wa-sqlite/wa-sqlite.wasm` 由 {@link createAlipayWasmRuntime}
- * 按代码包相对路径读（模拟器实测相对路径可读）。
+ * 按代码包相对路径读它的 base64 文本副本（模拟器实测只有相对路径可读）。
  *
  * @param my - 支付宝全局 `my`，只读 `env.USER_DATA_PATH`
  * @param fileSystem - 包装后的同步 FS
@@ -50,12 +54,33 @@ export function createAlipayProbeHost(
 }
 
 /**
- * 逻辑层的 wasm 运行时：从代码包读出字节，交给标准 `WebAssembly.instantiate`。
+ * 构建脚本给代码包里每个 wasm 放的 base64 文本副本的后缀。
+ *
+ * 模拟器把代码包文件当 UTF-8 文本读，不论传什么编码，非法字节序列都变成 `EF BF BD`（CDP 直调实测：
+ * 727646 字节的 wa-sqlite.wasm 读回 814795 字节）；base64 只含 ASCII，读回原样。用 `.txt` 而不是 `.b64`，
+ * 是押真机代码包的文件类型白名单一定放行文本（**未实测**）。
+ */
+export const WASM_TEXT_SUFFIX = '.base64.txt';
+
+/**
+ * 逻辑层的 wasm 运行时：从代码包读 wasm 的 base64 文本副本，解码后交给标准 `WebAssembly.instantiate`。
  *
  * 支付宝文档只写了 Worker 里的 `MYWebAssembly`，逻辑层的标准 `WebAssembly` 是 v2 探针在模拟器与 iOS 上实测到的。
+ *
+ * @param fileSystem - 包装后的同步 FS
+ * @param wasm - 逻辑层的标准 `WebAssembly`
+ * @param my - 支付宝全局 `my`，只用 `base64ToArrayBuffer`
  */
-export function createAlipayWasmRuntime(fileSystem: AlipayProbeFileSystem, wasm: StandardWasmApi): MiniProgramWasmRuntime {
+export function createAlipayWasmRuntime(
+  fileSystem: AlipayProbeFileSystem,
+  wasm: StandardWasmApi,
+  my: Pick<AlipayApi, 'base64ToArrayBuffer'>
+): MiniProgramWasmRuntime {
   return {
-    instantiate: async (path, imports) => wasm.instantiate(new Uint8Array(fileSystem.readBinarySync(path)), imports)
+    instantiate: async (path, imports) =>
+      wasm.instantiate(
+        new Uint8Array(my.base64ToArrayBuffer(fileSystem.readTextSync(`${path}${WASM_TEXT_SUFFIX}`))),
+        imports
+      )
   };
 }

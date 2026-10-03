@@ -32,7 +32,9 @@ export class CdpConnection {
     const socket = new WebSocket(endpoint);
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener('open', () => resolve(), { once: true });
-      socket.addEventListener('error', () => reject(new Error(`${endpoint}\n  ${STALE_ENDPOINT_HINT}`)), { once: true });
+      socket.addEventListener('error', () => reject(new Error(`${endpoint}\n  ${STALE_ENDPOINT_HINT}`)), {
+        once: true
+      });
     });
     return new CdpConnection(socket);
   }

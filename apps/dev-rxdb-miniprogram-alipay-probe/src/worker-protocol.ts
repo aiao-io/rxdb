@@ -31,7 +31,8 @@ export interface WorkerEnvironment {
 export interface WorkerProbeResult {
   readonly freeGlobals: Readonly<Record<string, string>>;
   /** `MYWebAssembly.instantiate(path)` 后调 `add(2, 3)`；`shape` 记 `instantiate` 返回的是实例还是 `{ instance }`。 */
-  readonly MYWebAssembly: Probe<{ readonly path: string; readonly shape: string; readonly addResult: unknown }> | Skipped;
+  readonly MYWebAssembly:
+    Probe<{ readonly path: string; readonly shape: string; readonly addResult: unknown }> | Skipped;
   readonly cryptoGetRandomValues: Probe<{ readonly length: number; readonly sample: readonly number[] }> | Skipped;
 }
 
@@ -56,7 +57,8 @@ function parseRequest(message: unknown): WorkerRequest | undefined {
 
 /** `instantiate` 可能返回实例本身，也可能返回 `{ instance, module }`。 */
 function exportsOf(result: unknown): { shape: string; exports: unknown } {
-  if (isRecord(result) && isRecord(result['instance'])) return { shape: '{ instance }', exports: result['instance']['exports'] };
+  if (isRecord(result) && isRecord(result['instance']))
+    return { shape: '{ instance }', exports: result['instance']['exports'] };
   return { shape: 'instance', exports: isRecord(result) ? result['exports'] : undefined };
 }
 
@@ -83,8 +85,9 @@ function fillRandom(env: WorkerEnvironment, length: number): Uint8Array {
 
 async function runRequest(request: WorkerRequest, env: WorkerEnvironment): Promise<unknown> {
   if (request.type === 'random') return Array.from(fillRandom(env, request.length));
-  const sample = env.crypto
-    ? await probe(() => {
+  const sample =
+    env.crypto ?
+      await probe(() => {
         const bytes = fillRandom(env, 16);
         return { length: bytes.length, sample: Array.from(bytes.subarray(0, 4)) };
       })

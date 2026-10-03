@@ -86,14 +86,22 @@ function raw(task: () => unknown): Promise<Probe<unknown>> {
 }
 
 function readBase64Matches(result: Probe<unknown>): boolean {
-  return result.ok && typeof result.value === 'object' && result.value !== null && Reflect.get(result.value, 'data') === SAMPLE_BASE64;
+  return (
+    result.ok &&
+    typeof result.value === 'object' &&
+    result.value !== null &&
+    Reflect.get(result.value, 'data') === SAMPLE_BASE64
+  );
 }
 
 function sampleBuffer(): ArrayBuffer {
   return Uint8Array.from(SAMPLE_BYTES).buffer;
 }
 
-function writeArgs(mode: RawWriteMode, my: Pick<AlipayApi, 'arrayBufferToBase64'>): [string | ArrayBuffer | Uint8Array, string?] {
+function writeArgs(
+  mode: RawWriteMode,
+  my: Pick<AlipayApi, 'arrayBufferToBase64'>
+): [string | ArrayBuffer | Uint8Array, string?] {
   const args: Record<RawWriteMode, [string | ArrayBuffer | Uint8Array, string?]> = {
     arrayBuffer: [sampleBuffer()],
     arrayBufferBinary: [sampleBuffer(), 'binary'],
@@ -131,7 +139,10 @@ export async function runRawFsExperiment(
   const readdir = await raw(() => fs.readdirSync(directory));
   const source = `${directory}/rename-a.bin`;
   const target = `${directory}/rename-b.bin`;
-  const setup = await raw(() => [fs.writeFileSync(source, 'AQ==', 'base64'), fs.writeFileSync(target, 'Ag==', 'base64')]);
+  const setup = await raw(() => [
+    fs.writeFileSync(source, 'AQ==', 'base64'),
+    fs.writeFileSync(target, 'Ag==', 'base64')
+  ]);
   const rename = await raw(() => fs.renameSync(source, target));
   const targetBase64 = await raw(() => fs.readFileSync(target, 'base64'));
   return { directory, methods, readMissing, writeModes, readdir, renameToExisting: { setup, rename, targetBase64 } };

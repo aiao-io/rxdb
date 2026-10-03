@@ -1,4 +1,5 @@
-import { createFakeAlipay, FAKE_USER_DATA_PATH, type FakeAlipayOptions } from './__tests__/fake-alipay.js';
+import { createFakeAlipay, FAKE_USER_DATA_PATH, wasmBytes, type FakeAlipayOptions } from './__tests__/fake-alipay.js';
+import { FRAME_HEADER } from './alipay-fs.js';
 import type { ProbeCore } from './core-contract.js';
 import type { QuotaAccountingPlan } from './experiments/quota-accounting.js';
 import { PROBE_REPORT_SCHEMA, runProbe, type ProbeReport } from './run-probe.js';
@@ -81,6 +82,14 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     });
   });
 
+  it('运行时补丁：源码级跑在 Node 全局上，BigInt / queueMicrotask 都在，什么都不补', () => {
+    expect(report.runtimeRepairs).toEqual({
+      ok: true,
+      ms: expect.any(Number),
+      value: { target: 'globalThis', before: { BigInt: 'function', queueMicrotask: 'function' }, installed: [] }
+    });
+  });
+
   it('随机源：逻辑层没有 my.getRandomValues，Worker 取 64 KiB 与 1 MiB 都成功', () => {
     expect(report.random.logic.myGetRandomValues).toBe('undefined');
     expect(report.random.worker).toMatchObject({
@@ -94,6 +103,11 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     expect(report.wasm.standardAvailable).toBe(true);
     expect(report.wasm.add).toMatchObject({ ok: true, value: 5 });
     expect(report.wasm.codePackageReads['wasm/add.wasm']).toMatchObject({ ok: true });
+    const bytes = wasmBytes.byteLength;
+    expect(report.wasm.codePackageBinary).toMatchObject({
+      ok: true,
+      value: { binaryBytes: bytes, textBytes: bytes, bytesMatch: true }
+    });
   });
 
   it('裸 FS：只有 base64 串两端字节一致', () => {
@@ -144,15 +158,43 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
 
 /**
  * 模拟器实测形态（v3b，2026-10-03）：空写入一律 error 2、父目录自动建出、单文件按 base64 串长计费。
- * 这里只验 FS 层的事实怎样传到报告上；逻辑层没有 realm / BigInt 那一半由 dist-smoke 用真实构建产物验。
+ * 包装层探测照实记下前两条；交给 adapter 的是分帧层（`frameUserFiles`），空文件也落得了盘。
+ * 逻辑层没有 realm / BigInt / queueMicrotask 那一半由 dist-smoke 用真实构建产物验。
  */
-describe('runProbe：模拟器形态下 adapter 建不了库', () => {
+describe('runProbe：模拟器形态下经分帧层建库', () => {
   let report: ProbeReport;
   let fake: ReturnType<typeof createFakeAlipay>;
+  let persistedChunk: Uint8Array | undefined;
 
   beforeAll(async () => {
-    ({ report, fake } = await run({ ...SMALL_LIMITS, mode: 'simulator' }));
+    const fakeForRun = createFakeAlipay({ ...SMALL_LIMITS, mode: 'simulator' });
+    // 收尾会删掉整个实验目录，落盘形态只能在写的当下抓
+    const raw = fakeForRun.my.getFileSystemManager();
+    const writeFileSync = raw.writeFileSync.bind(raw);
+    raw.writeFileSync = (path, data, encoding) => {
+      const result = writeFileSync(path, data, encoding);
+      if (path.endsWith('rxdb-persistence.sqlite.0')) persistedChunk = fakeForRun.files.get(path);
+      return result;
+    };
+    fake = fakeForRun;
+    report = await runProbe({
+      my: fake.my,
+      wasm: fake.wasm,
+      loadCore: loadRealCore,
+      freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
+      quotaPlan: SMALL_PLAN,
+      quotaAccountingPlan: SMALL_ACCOUNTING,
+      workerTimeoutMs: 2000
+    });
   }, 60_000);
+
+  it('WASM：代码包二进制读被改写成 UTF-8 文本，adapter 的 wasm 改从 base64 文本副本读', () => {
+    expect(report.wasm.codePackageBinary).toMatchObject({
+      ok: true,
+      value: { textBytes: wasmBytes.byteLength, bytesMatch: false }
+    });
+    expect(finding(report, 'WASM')?.evidence).toContain('二进制读取被改写');
+  });
 
   it('包装层 FS：只有「父目录不存在照样写成」与「空写入 error 2」两条不符合 VFS 预期', () => {
     const mismatched = report.fileSystem.probes.filter(item => !item.asExpected).map(item => item.op);
@@ -164,25 +206,32 @@ describe('runProbe：模拟器形态下 adapter 建不了库', () => {
     expect(report.quotaAccounting.fill).toMatchObject({ fileBytes: MIB / 2, scope: 'ancestor-or-user-dir' });
   });
 
-  it('持久化与配额：建库时写空的 .sqlite.0 被 error 2 拒收，sqlite3_open_v2 失败', () => {
+  it('持久化：经分帧层建库、关闭重开原样读回；落盘的块以分帧头开头，报告里的大小是逻辑字节', () => {
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
-    expect(core.persistence).toMatchObject({ status: 'failed', failure: { stage: '打开 persistence' } });
-    expect(core.quota).toMatchObject({ status: 'failed', insertedRows: 0 });
+    expect(core.persistence).toMatchObject({ status: 'passed', integrity: 'ok' });
+    expect(persistedChunk?.[0]).toBe(FRAME_HEADER);
+    const chunk = core.persistence.files?.find(file => file.path.endsWith('.sqlite.0'));
+    expect(chunk?.size).toBe((persistedChunk?.byteLength ?? 0) - 1);
   });
 
-  it('findings：同步 FS 与持久化 fail，持久化证据带上 cause 链根因；WASM / 用户目录 unknown；随机源照样 pass', () => {
+  it('配额：撞到 10028 后报 SQLITE_FULL 并带平台原文，重开库仍完整', () => {
+    const core = report.core;
+    if ('skipped' in core) throw new Error(core.skipped);
+    expect(core.quota.status).toBe('triggered');
+    expect(core.quota.afterFailure?.reopenCount).toMatchObject({ ok: true, value: core.quota.insertedRows });
+    expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
+  });
+
+  it('findings：只有同步 FS 判 fail（平台事实），其余经实验 host 全部 pass', () => {
     expect(report.findings.map(item => [item.matrixRow, item.verdict])).toEqual([
-      ['WASM', 'unknown'],
+      ['WASM', 'pass'],
       ['同步 FS', 'fail'],
       ['随机源', 'pass'],
-      ['用户目录', 'unknown'],
-      ['持久化', 'fail']
+      ['用户目录', 'pass'],
+      ['持久化', 'pass']
     ]);
     expect(finding(report, '同步 FS')?.evidence).toContain('error 2');
-    expect(finding(report, '持久化')?.evidence).toContain(
-      '根因：接口参数无效 (writeFileSync https://usr/aiao-alipay-probe/db/rxdb-persistence.sqlite.0, error 2)'
-    );
   });
 
   it('收尾：实验目录删干净，Worker 已 terminate', () => {
@@ -235,7 +284,10 @@ describe('runProbe：失败与边界', () => {
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.quota).toMatchObject({ status: 'not-triggered', insertedRows: 3 });
-    expect(finding(report, '用户目录')).toMatchObject({ verdict: 'unknown', evidence: expect.stringContaining('未触发') });
+    expect(finding(report, '用户目录')).toMatchObject({
+      verdict: 'unknown',
+      evidence: expect.stringContaining('未触发')
+    });
   }, 60_000);
 
   it('逻辑层没有 WebAssembly：跳过核心实验，WASM 判 fail', async () => {
@@ -255,7 +307,10 @@ describe('runProbe：失败与边界', () => {
 
   it('Worker 里没有 crypto：随机源判 fail，并留下 Worker 的原始错误', async () => {
     const { report } = await run({ ...SMALL_LIMITS, withoutWorkerCrypto: true }, skipCore);
-    expect(report.worker).toMatchObject({ ok: true, value: { cryptoGetRandomValues: { skipped: expect.any(String) } } });
+    expect(report.worker).toMatchObject({
+      ok: true,
+      value: { cryptoGetRandomValues: { skipped: expect.any(String) } }
+    });
     expect(report.random.worker).toMatchObject({
       '65536': { ok: false, error: { message: expect.stringContaining('crypto') } }
     });
@@ -283,7 +338,9 @@ describe('runProbe：失败与边界', () => {
   it('USER_DATA_PATH 缺失：没有可写目录，整个实验抛错，Worker 照样 terminate', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const my = { ...fake.my, env: {} };
-    await expect(runProbe({ my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow('USER_DATA_PATH');
+    await expect(runProbe({ my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow(
+      'USER_DATA_PATH'
+    );
     expect(fake.liveWorkers()).toBe(0);
   }, 60_000);
 });

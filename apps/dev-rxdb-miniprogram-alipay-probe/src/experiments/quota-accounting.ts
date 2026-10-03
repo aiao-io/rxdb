@@ -8,8 +8,8 @@
  *
  * 覆盖写是否计入旧大小（抖音实测会）这里测不出：单文件上限 10M，要区分两种计费需要大于 25M 的单个文件。
  */
-import type { DescribedError } from '../describe-error.js';
 import { listFiles, type AlipayProbeFileSystem } from '../alipay-fs.js';
+import type { DescribedError } from '../describe-error.js';
 import { probe, type Probe, type Skipped } from '../probe.js';
 
 const MIB = 1024 * 1024;
@@ -131,7 +131,13 @@ async function probeFill(
   // 填充文件超过单文件上限时，第一个文件就撞的是单文件上限（两者同为 10028），测不到文件夹上限
   const fileBytes = Math.min(plan.fillFileBytes, largestSingleWriteBytes);
   if (fileBytes === 0) {
-    return { fileBytes, filesWritten: 0, bytesWritten: 0, siblingWrite: { skipped: '单文件一次都没写成功' }, scope: null };
+    return {
+      fileBytes,
+      filesWritten: 0,
+      bytesWritten: 0,
+      siblingWrite: { skipped: '单文件一次都没写成功' },
+      scope: null
+    };
   }
   const maxFiles = Math.ceil((plan.fillFileBytes * plan.maxFillFiles) / fileBytes);
   const fill = { fileBytes, ...(await fillDirectory(fileSystem, directory, fileBytes, maxFiles)) };

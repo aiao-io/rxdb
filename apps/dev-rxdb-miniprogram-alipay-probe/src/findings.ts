@@ -13,6 +13,7 @@ import type { FolderLimitScope, QuotaAccountingReport } from './experiments/quot
 import type { RandomReport } from './experiments/random.js';
 import type { WasmReport } from './experiments/wasm.js';
 import type { Probe, Skipped } from './probe.js';
+import type { RuntimeRepairs } from './runtime-repairs.js';
 import { VFS_QUOTA_EXCEEDED_PATTERN } from './vfs-classifiers.js';
 
 /** 可行性矩阵里支付宝列需要实验证据的行，顺序与矩阵一致。 */
@@ -31,6 +32,7 @@ export interface Finding {
 /** 判定需要的报告片段。 */
 export interface FindingsInput {
   readonly random: RandomReport;
+  readonly runtimeRepairs: Probe<RuntimeRepairs>;
   readonly prepare: Probe<unknown>;
   readonly wasm: WasmReport;
   readonly rawFs: RawFsReport;
@@ -81,20 +83,32 @@ function isSkipped(value: object): value is Skipped {
   return 'skipped' in value;
 }
 
+function codePackageBinaryText({ codePackageBinary }: WasmReport): string {
+  if (!codePackageBinary.ok) return `代码包二进制读取对比失败：${probeText(codePackageBinary)}`;
+  const { binaryBytes, textBytes, bytesMatch } = codePackageBinary.value;
+  if (bytesMatch) return '代码包二进制读取原样';
+  return `代码包二进制读取被改写（${String(binaryBytes)} / ${String(textBytes)} 字节），wasm 只能读 base64 文本副本`;
+}
+
 function wasmFinding({ wasm, core }: FindingsInput): Finding {
   const row = 'WASM';
   if (!wasm.standardAvailable) {
-    const evidence = '逻辑层没有标准 WebAssembly（Worker 的 MYWebAssembly 只能按代码包路径实例化，adapter 的同步 VFS 用不了）';
+    const evidence =
+      '逻辑层没有标准 WebAssembly（Worker 的 MYWebAssembly 只能按代码包路径实例化，adapter 的同步 VFS 用不了）';
     return { matrixRow: row, verdict: 'fail', evidence };
   }
   if (!isSkipped(core) && core.persistence.status === 'passed') {
     const evidence =
-      `adapter 经逻辑层标准 WebAssembly 实例化 '${core.persistence.wasmPath}'（字节由同步 FS 从代码包读出）` +
-      '完成建库、读写、关闭重开；文档未写逻辑层有 WebAssembly';
+      `adapter 经逻辑层标准 WebAssembly 实例化 '${core.persistence.wasmPath}'（字节由同步 FS 从代码包的 base64 文本副本读出）` +
+      `完成建库、读写、关闭重开；文档未写逻辑层有 WebAssembly；${codePackageBinaryText(wasm)}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }
   if (!isSkipped(wasm.add) && wasm.add.ok && wasm.add.value === 5) {
-    return { matrixRow: row, verdict: 'unknown', evidence: 'add.wasm 实例化成功，但 adapter 实例化未验证（核心实验未通过或未运行）' };
+    return {
+      matrixRow: row,
+      verdict: 'unknown',
+      evidence: 'add.wasm 实例化成功，但 adapter 实例化未验证（核心实验未通过或未运行）'
+    };
   }
   const add = isSkipped(wasm.add) ? wasm.add.skipped : probeText(wasm.add);
   return { matrixRow: row, verdict: 'fail', evidence: `add.wasm 实例化：${add}` };
@@ -128,10 +142,15 @@ function randomFinding({ random, prepare }: FindingsInput): Finding {
     return { matrixRow: row, verdict: 'fail', evidence: `${logic}；Worker 随机源未运行：${random.worker.skipped}` };
   }
   const pool = random.worker['65536'];
-  if (!pool?.ok) return { matrixRow: row, verdict: 'fail', evidence: `${logic}；Worker 取 65536 字节${probeText(pool)}` };
+  if (!pool?.ok)
+    return { matrixRow: row, verdict: 'fail', evidence: `${logic}；Worker 取 65536 字节${probeText(pool)}` };
   if (pool.value.allZero) return { matrixRow: row, verdict: 'fail', evidence: `${logic}；Worker 取 65536 字节全零` };
   if (!prepare.ok) {
-    return { matrixRow: row, verdict: 'fail', evidence: `${logic}；prepareMiniProgramHostRuntime ${probeText(prepare)}` };
+    return {
+      matrixRow: row,
+      verdict: 'fail',
+      evidence: `${logic}；prepareMiniProgramHostRuntime ${probeText(prepare)}`
+    };
   }
   const evidence =
     `${logic}；经 Worker crypto.getRandomValues 桥接：64 KiB 成功（${pool.value.distinctByteValues} 种字节值），` +
@@ -151,8 +170,9 @@ function accountingText({ largestSingleWriteBytes, firstSingleFailure, fill }: Q
   const single = `单文件最多写入 ${largestSingleWriteBytes / MIB} MiB${limit}`;
   if (fill.fileBytes === 0) return `${single}；单文件一次都没写成功，没做文件夹实验`;
   const files = `${fill.filesWritten} 个 ${fill.fileBytes / MIB} MiB 文件共 ${fill.bytesWritten / MIB} MiB`;
-  const fillText = fill.failure
-    ? `写入 ${files} 后第 ${fill.failure.atFile} 个失败（${errorText(fill.failure.error)}）`
+  const fillText =
+    fill.failure ?
+      `写入 ${files} 后第 ${fill.failure.atFile} 个失败（${errorText(fill.failure.error)}）`
     : `写入 ${files} 没撞到上限`;
   const scope = fill.scope ? `，计费范围${SCOPE_TEXT[fill.scope]}` : '';
   return `${single}；文件夹${fillText}${scope}`;
@@ -213,13 +233,18 @@ function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): 
   return { matrixRow: row, verdict: passed ? 'pass' : 'fail', evidence };
 }
 
-function persistenceFinding({ core }: FindingsInput): Finding {
+function repairsText(repairs: Probe<RuntimeRepairs>): string {
+  if (!repairs.ok || repairs.value.installed.length === 0) return '';
+  return `；实验 host 补了 ${repairs.value.installed.join('、')}`;
+}
+
+function persistenceFinding({ core, runtimeRepairs }: FindingsInput): Finding {
   const row = '持久化';
   if (isSkipped(core)) return { matrixRow: row, verdict: 'unknown', evidence: `核心实验未运行：${core.skipped}` };
   const { persistence } = core;
   if (persistence.status === 'passed') {
     const files = (persistence.files ?? []).map(file => `${file.path} ${file.size} bytes`).join('、');
-    const evidence = `关闭重开后 ${persistence.reopenedRows?.length} 行逐字一致，integrity ok；文件：${files}`;
+    const evidence = `关闭重开后 ${persistence.reopenedRows?.length} 行逐字一致，integrity ok；文件：${files}${repairsText(runtimeRepairs)}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }
   const failure = persistence.failure;

@@ -32,17 +32,22 @@ export interface ProbeReport {
 const SIMULATOR_TITLE = 'Lyra Simulator';
 /** 逻辑层所在 frame 的脚本名：`file:///appx-ng/af-appx.worker.min.js`。 */
 const LOGIC_LAYER_FRAME = 'af-appx.worker';
-const COMPILE_BUTTON_TEXT = '普通编译';
+const STOP_TITLE = '停止编译';
+const START_TITLE = '启动编译';
 const POLL_INTERVAL_MS = 2000;
+const TOGGLE_POLL_MS = 500;
+const TOGGLE_TIMEOUT_MS = 15_000;
 
-/** 点叶子节点上的「普通编译」：开发者工具会从磁盘重读项目并重启模拟器。 */
-const CLICK_COMPILE = `(() => {
-  const button = [...document.querySelectorAll('*')].find(
-    element => element.children.length === 0 && element.textContent.trim() === ${JSON.stringify(COMPILE_BUTTON_TEXT)}
-  );
-  if (!button) return false;
-  button.click();
-  return true;
+/**
+ * 工具栏的编译开关：运行中标题是「停止编译」，停下后是「启动编译」。
+ *
+ * 不点「普通编译」：那只是编译模式下拉里的选项，点了不触发编译。
+ */
+const READ_TOGGLE = `(() => {
+  const icon = document.querySelector('[data-toolbar-action-id="simulator-toolbar-start"] [title]');
+  if (!icon) return null;
+  const rect = icon.getBoundingClientRect();
+  return { title: icon.getAttribute('title'), x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 })()`;
 
 const READ_PAGE = `(() => {
@@ -57,7 +62,11 @@ async function targets(cdp: CdpConnection): Promise<readonly TargetInfo[]> {
   return targetInfos;
 }
 
-async function withSession<T>(cdp: CdpConnection, targetId: string, run: (sessionId: string) => Promise<T>): Promise<T> {
+async function withSession<T>(
+  cdp: CdpConnection,
+  targetId: string,
+  run: (sessionId: string) => Promise<T>
+): Promise<T> {
   const { sessionId } = await cdp.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
   try {
     return await run(sessionId);
@@ -66,8 +75,18 @@ async function withSession<T>(cdp: CdpConnection, targetId: string, run: (sessio
   }
 }
 
-async function evaluate(cdp: CdpConnection, sessionId: string, expression: string, contextId?: number): Promise<unknown> {
-  const params = { expression, returnByValue: true, awaitPromise: true, ...(contextId === undefined ? {} : { contextId }) };
+async function evaluate(
+  cdp: CdpConnection,
+  sessionId: string,
+  expression: string,
+  contextId?: number
+): Promise<unknown> {
+  const params = {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+    ...(contextId === undefined ? {} : { contextId })
+  };
   const { result, exceptionDetails } = await cdp.send<EvaluateResult>('Runtime.evaluate', params, sessionId);
   if (exceptionDetails !== undefined) throw new Error(`求值抛错：${JSON.stringify(exceptionDetails)}`);
   return result.value;
@@ -78,13 +97,51 @@ function findFrame(tree: FrameTree, urlPart: string): FrameTree['frame'] | undef
   return (tree.childFrames ?? []).map(child => findFrame(child, urlPart)).find(frame => frame !== undefined);
 }
 
-/** 在开发者工具的项目窗口里点「普通编译」。找不到按钮说明 IDE 没打开任何项目。 */
+interface CompileToggle {
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+}
+
+async function readToggle(cdp: CdpConnection, sessionId: string): Promise<CompileToggle | null> {
+  return (await evaluate(cdp, sessionId, READ_TOGGLE)) as CompileToggle | null;
+}
+
+/** 用真实鼠标事件点开关：实测 `Input.dispatchMouseEvent` 点得动，DOM `click()` 没验证过。 */
+async function clickToggle(cdp: CdpConnection, sessionId: string, { x, y }: CompileToggle): Promise<void> {
+  for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+    await cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }, sessionId);
+  }
+}
+
+async function waitForToggle(cdp: CdpConnection, sessionId: string, title: string): Promise<CompileToggle> {
+  const deadline = Date.now() + TOGGLE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const toggle = await readToggle(cdp, sessionId);
+    if (toggle?.title === title) return toggle;
+    await delay(TOGGLE_POLL_MS);
+  }
+  throw new Error(`${TOGGLE_TIMEOUT_MS}ms 内编译开关没变成「${title}」`);
+}
+
+/** 停掉正在跑的模拟器（如果在跑），再启动编译：开发者工具会从磁盘重读项目、重开模拟器。 */
+async function restartCompile(cdp: CdpConnection, sessionId: string, toggle: CompileToggle): Promise<void> {
+  if (toggle.title === STOP_TITLE) await clickToggle(cdp, sessionId, toggle);
+  await clickToggle(cdp, sessionId, await waitForToggle(cdp, sessionId, START_TITLE));
+}
+
+/** 在开发者工具的项目窗口里重启编译。找不到编译开关说明 IDE 没打开任何项目。 */
 export async function recompile(cdp: CdpConnection): Promise<void> {
   for (const target of (await targets(cdp)).filter(item => item.type === 'page')) {
-    const clicked = await withSession(cdp, target.targetId, sessionId => evaluate(cdp, sessionId, CLICK_COMPILE));
-    if (clicked === true) return;
+    const restarted = await withSession(cdp, target.targetId, async sessionId => {
+      const toggle = await readToggle(cdp, sessionId);
+      if (!toggle) return false;
+      await restartCompile(cdp, sessionId, toggle);
+      return true;
+    });
+    if (restarted) return;
   }
-  throw new Error(`没找到「${COMPILE_BUTTON_TEXT}」按钮：开发者工具没有打开探针项目`);
+  throw new Error(`没找到编译开关（「${STOP_TITLE}」/「${START_TITLE}」）：开发者工具没有打开探针项目`);
 }
 
 /**
@@ -101,7 +158,8 @@ export async function evaluateInLogicLayer(cdp: CdpConnection, expression: strin
     if (!frame) throw new Error(`模拟器里没有逻辑层 frame（${LOGIC_LAYER_FRAME}）：多半是编译失败，看 IDE 的错误面板`);
     const contexts: ExecutionContext[] = [];
     const stop = cdp.on((method, params) => {
-      if (method === 'Runtime.executionContextCreated') contexts.push((params as { context: ExecutionContext }).context);
+      if (method === 'Runtime.executionContextCreated')
+        contexts.push((params as { context: ExecutionContext }).context);
     });
     await cdp.send('Runtime.enable', {}, sessionId);
     stop();

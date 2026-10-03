@@ -12,6 +12,7 @@ import {
   type WaSqliteMiniProgramClient,
   type WaSqliteModuleFactory
 } from '@aiao/rxdb-adapter-miniprogram';
+import { listFiles as listDirectory } from './alipay-fs.js';
 import type {
   CoreExperimentInput,
   CoreExperimentReport,
@@ -21,7 +22,6 @@ import type {
   QuotaAfterFailure,
   QuotaReport
 } from './core-contract.js';
-import { listFiles as listDirectory } from './alipay-fs.js';
 import { describeError } from './describe-error.js';
 import { probe } from './probe.js';
 import { readRealmProbe } from './realm-probe.js';

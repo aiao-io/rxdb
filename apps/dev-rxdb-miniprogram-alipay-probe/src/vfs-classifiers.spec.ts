@@ -42,12 +42,16 @@ describe('支付宝实测的错误文案（v2 探针，模拟器与 iOS）', () 
 
   it('10025「有同名文件或目录」原文判不出已存在：包装层必须归一文案', () => {
     expect(vfsSaysAlreadyExists('有同名文件或目录')).toBe(false);
-    expect(vfsSaysAlreadyExists('file already exists: 有同名文件或目录 (mkdirSync https://usr/x, error 10025)')).toBe(true);
+    expect(vfsSaysAlreadyExists('file already exists: 有同名文件或目录 (mkdirSync https://usr/x, error 10025)')).toBe(
+      true
+    );
   });
 
   it('10028 的文档原文判不出撞配额：包装层必须归一文案', () => {
     const raw = '写入文件单个超过 10M 或者写入文件夹超过 50M';
     expect(VFS_QUOTA_EXCEEDED_PATTERN.test(raw)).toBe(false);
-    expect(VFS_QUOTA_EXCEEDED_PATTERN.test(`size limit exceeded: ${raw} (writeFileSync https://usr/x, error 10028)`)).toBe(true);
+    expect(
+      VFS_QUOTA_EXCEEDED_PATTERN.test(`size limit exceeded: ${raw} (writeFileSync https://usr/x, error 10028)`)
+    ).toBe(true);
   });
 });

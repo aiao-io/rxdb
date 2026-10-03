@@ -1,5 +1,13 @@
-import { createFakeAlipay, FAKE_USER_DATA_PATH } from './__tests__/fake-alipay.js';
-import { AlipayFsError, isAlipayFsFailure, listFiles, wrapAlipayFileSystem } from './alipay-fs.js';
+import { createFakeAlipay, FAKE_USER_DATA_PATH, wasmBytes } from './__tests__/fake-alipay.js';
+import {
+  AlipayFsError,
+  FRAME_HEADER,
+  frameUserFiles,
+  isAlipayFsFailure,
+  listFiles,
+  wrapAlipayFileSystem
+} from './alipay-fs.js';
+import { WASM_TEXT_SUFFIX } from './alipay-host.js';
 import { describeError } from './describe-error.js';
 import { VFS_MISSING_FILE_PATTERN, VFS_QUOTA_EXCEEDED_PATTERN, vfsSaysAlreadyExists } from './vfs-classifiers.js';
 
@@ -163,5 +171,74 @@ describe('wrapAlipayFileSystem：平台特有的错误形态', () => {
       if (mode === 'ios') expect(rename).not.toThrow();
       else expect(rename).toThrow(/file already exists/);
     }
+  });
+});
+
+describe.each(['ios', 'simulator'] as const)('frameUserFiles（%s 形态）', mode => {
+  function framed() {
+    const { fake, fileSystem } = setup(mode);
+    return { fake, fileSystem: frameUserFiles(fileSystem, fake.my) };
+  }
+
+  it('空文件：落盘的是一个分帧头字节，读回是空串，大小按逻辑字节报 0', () => {
+    const { fake, fileSystem } = framed();
+    fileSystem.writeFileSync(`${ROOT}/empty.bin`, new ArrayBuffer(0));
+    expect([...(fake.files.get(`${ROOT}/empty.bin`) ?? [])]).toEqual([FRAME_HEADER]);
+    expect(fileSystem.readFileSync(`${ROOT}/empty.bin`, 'base64')).toBe('');
+    expect(fileSystem.statSync(`${ROOT}/empty.bin`).size).toBe(0);
+  });
+
+  it('非空文件：分帧头在前、数据原样在后，读回与 listFiles 都看不到分帧头', () => {
+    const { fake, fileSystem } = framed();
+    fileSystem.writeFileSync(`${ROOT}/a.bin`, Uint8Array.from([0x00, 0xff, 0x10]).buffer);
+    expect([...(fake.files.get(`${ROOT}/a.bin`) ?? [])]).toEqual([FRAME_HEADER, 0x00, 0xff, 0x10]);
+    expect(fileSystem.readFileSync(`${ROOT}/a.bin`, 'base64')).toBe('AP8Q');
+    expect(listFiles(fileSystem, ROOT)).toEqual([{ path: '/a.bin', size: 3 }]);
+  });
+
+  it('目录的 stats 原样返回', () => {
+    const { fileSystem } = framed();
+    fileSystem.mkdirSync(`${ROOT}/sub`, true);
+    expect(fileSystem.statSync(`${ROOT}/sub`).isDirectory()).toBe(true);
+  });
+
+  it('不是经分帧层写的文件：读与 stat 都抛错，不猜它的内容', () => {
+    const { fake, fileSystem } = framed();
+    fake.files.set(`${ROOT}/raw.bin`, Uint8Array.from([0x42]));
+    fake.files.set(`${ROOT}/zero.bin`, new Uint8Array(0));
+    expect(() => fileSystem.readFileSync(`${ROOT}/raw.bin`, 'base64')).toThrow('分帧头');
+    expect(() => fileSystem.statSync(`${ROOT}/zero.bin`)).toThrow('分帧头');
+  });
+
+  it('平台错误照旧抛 AlipayFsError；readBinarySync 读代码包不经分帧', () => {
+    const { fileSystem } = framed();
+    expect(thrown(() => fileSystem.accessSync(`${ROOT}/missing`))).toBeInstanceOf(AlipayFsError);
+    expect(new Uint8Array(fileSystem.readBinarySync('wasm/add.wasm')).slice(0, 4)).toEqual(
+      Uint8Array.from([0x00, 0x61, 0x73, 0x6d])
+    );
+  });
+});
+
+describe('代码包读取', () => {
+  it('readTextSync 读 base64 文本副本：两端都原样，解码后就是 wasm 字节', () => {
+    for (const mode of ['ios', 'simulator'] as const) {
+      const { fileSystem } = setup(mode);
+      const text = fileSystem.readTextSync(`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`);
+      expect(Buffer.from(text, 'base64').equals(Buffer.from(wasmBytes))).toBe(true);
+    }
+  });
+
+  it('模拟器把代码包文件当 UTF-8 文本读：非法序列变成 EF BF BD，二进制读不回原样', () => {
+    const ios = new Uint8Array(setup('ios').fileSystem.readBinarySync('wa-sqlite/wa-sqlite.wasm'));
+    const simulator = new Uint8Array(setup('simulator').fileSystem.readBinarySync('wa-sqlite/wa-sqlite.wasm'));
+    expect(ios).toEqual(wasmBytes);
+    // 开发者工具 3.10.15 实测：727646 字节读成 814795 字节，Type 段长度字节 0xd7 变成 EF BF BD
+    expect([...simulator.slice(8, 12)]).toEqual([0x01, 0xef, 0xbf, 0xbd]);
+    expect(simulator.byteLength).toBeGreaterThan(wasmBytes.byteLength);
+  });
+
+  it('readTextSync 读不存在的文件照旧抛 AlipayFsError', () => {
+    const { fileSystem } = setup('simulator');
+    expect(thrown(() => fileSystem.readTextSync('nope.txt'))).toMatchObject({ platformCode: 10022 });
   });
 });

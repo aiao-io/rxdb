@@ -55,6 +55,8 @@ export interface AlipayProbeFileSystem extends MiniProgramFileSystemManager {
   readdirSync(path: string): string[];
   /** 读二进制；代码包里的文件用相对路径（模拟器实测）。 */
   readBinarySync(path: string): ArrayBuffer;
+  /** 按 UTF-8 读文本；给代码包里的 base64 文本副本用，模拟器上二进制读会改写字节。 */
+  readTextSync(path: string): string;
 }
 
 function typeTag(value: unknown): string {
@@ -103,17 +105,76 @@ export function wrapAlipayFileSystem(
       void unwrap('writeFileSync', path, raw.writeFileSync(path, my.arrayBufferToBase64(data), 'base64')),
     unlinkSync: path => void unwrap('unlinkSync', path, raw.unlinkSync(path)),
     rmdirSync: (path, recursive) => void unwrap('rmdirSync', path, raw.rmdirSync(path, recursive)),
-    renameSync: (oldPath, newPath) => void unwrap('renameSync', `${oldPath} → ${newPath}`, raw.renameSync(oldPath, newPath)),
+    renameSync: (oldPath, newPath) =>
+      void unwrap('renameSync', `${oldPath} → ${newPath}`, raw.renameSync(oldPath, newPath)),
     statSync: path => {
       const stats: unknown = Reflect.get(Object(unwrap('statSync', path, raw.statSync(path))), 'stats');
       if (!isStats(stats)) throw new Error(`statSync ${path} 返回的 stats 不是 Stats：${typeTag(stats)}`);
       return stats;
     },
     readdirSync: path => {
-      const files = field('readdirSync', path, unwrap('readdirSync', path, raw.readdirSync(path)), 'files', '[object Array]');
+      const files = field(
+        'readdirSync',
+        path,
+        unwrap('readdirSync', path, raw.readdirSync(path)),
+        'files',
+        '[object Array]'
+      );
       return (files as unknown[]).map(String);
     },
-    readBinarySync
+    readBinarySync,
+    readTextSync: path =>
+      field(
+        'readFileSync',
+        path,
+        unwrap('readFileSync', path, raw.readFileSync(path, 'utf8')),
+        'data',
+        '[object String]'
+      ) as string
+  };
+}
+
+/**
+ * 分帧层写在每个用户文件最前面的字节。
+ *
+ * 模拟器拒绝任何形式的空写入（error 2「接口参数无效」，v3 探针实测），而 adapter VFS 建库时要写空文件。
+ * 统一垫一个头字节让「空文件」也有 1 字节可写；取值无讲究，只要读的时候能核对。
+ */
+export const FRAME_HEADER = 0xa1;
+
+function headerError(method: string, path: string, detail: string): Error {
+  return new Error(`${method} ${path} 不是经分帧层写的文件（${detail}），缺分帧头`);
+}
+
+/**
+ * 给用户文件加一字节分帧头：写入时垫在最前，读与 stat 时剥掉，对上层呈现逻辑内容与逻辑大小。
+ *
+ * 只给实验 host 与核心包建库用；FS 实验仍用 {@link wrapAlipayFileSystem} 直接记录平台事实。
+ * `readBinarySync` / `readTextSync` 读代码包，原样透传。
+ */
+export function frameUserFiles(
+  fileSystem: AlipayProbeFileSystem,
+  my: Pick<AlipayApi, 'arrayBufferToBase64'>
+): AlipayProbeFileSystem {
+  return {
+    ...fileSystem,
+    readFileSync: path => {
+      const bytes = new Uint8Array(fileSystem.readBinarySync(path));
+      if (bytes[0] !== FRAME_HEADER) throw headerError('readFileSync', path, `首字节 ${String(bytes[0])}`);
+      return my.arrayBufferToBase64(bytes.slice(1).buffer);
+    },
+    writeFileSync: (path, data) => {
+      const framed = new Uint8Array(data.byteLength + 1);
+      framed[0] = FRAME_HEADER;
+      framed.set(new Uint8Array(data), 1);
+      fileSystem.writeFileSync(path, framed.buffer);
+    },
+    statSync: path => {
+      const stats = fileSystem.statSync(path);
+      if (stats.isDirectory()) return stats;
+      if (stats.size === 0) throw headerError('statSync', path, '0 字节');
+      return { size: stats.size - 1, isDirectory: () => false, isFile: () => stats.isFile() };
+    }
   };
 }
 

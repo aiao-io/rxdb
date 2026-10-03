@@ -5,7 +5,8 @@
  * 错误对象而不抛；`iOS` 模式的错误对象多一个与 `errorMessage` 同文的 `message`、写 `Uint8Array` 静默落盘
  * 0 字节、`renameSync` 覆盖已有目标；`simulator` 模式写 `ArrayBuffer` 落盘成 base64 文本、写 `Uint8Array`
  * 报 `90000`、`renameSync` 遇到已有目标报 10025。配额按文档 10028「单个超过 10M 或者文件夹超过 50M」建模，
- * 「文件夹」按整个用户目录算（**推断**，实验要测的正是这一条）。代码包文件只认相对路径（模拟器实测）。
+ * 「文件夹」按整个用户目录算（**推断**，实验要测的正是这一条）。代码包文件只认相对路径（模拟器实测）；
+ * `simulator` 模式把代码包文件当 UTF-8 文本读，非法字节序列一律变成 `EF BF BD`（CDP 直调实测）。
  */
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -19,6 +20,7 @@ import type {
   AlipayWorkerWasmApi,
   StandardWasmApi
 } from '../alipay-api.js';
+import { WASM_TEXT_SUFFIX } from '../alipay-host.js';
 import { handleWorkerMessage, type WorkerEnvironment } from '../worker-protocol.js';
 
 /** 两端实测的用户目录。 */
@@ -71,10 +73,16 @@ export interface FakeAlipay {
   readonly liveWorkers: () => number;
 }
 
-/** 代码包里的文件，键是相对代码包根的路径。 */
+function textCopy(bytes: Uint8Array): Uint8Array {
+  return Buffer.from(Buffer.from(bytes).toString('base64'));
+}
+
+/** 代码包里的文件，键是相对代码包根的路径；构建脚本给每个 wasm 旁边放一份 base64 文本副本。 */
 const CODE_PACKAGE: ReadonlyMap<string, Uint8Array> = new Map([
   ['wasm/add.wasm', addWasmBytes],
-  ['wa-sqlite/wa-sqlite.wasm', wasmBytes]
+  [`wasm/add.wasm${WASM_TEXT_SUFFIX}`, textCopy(addWasmBytes)],
+  ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
+  [`wa-sqlite/wa-sqlite.wasm${WASM_TEXT_SUFFIX}`, textCopy(wasmBytes)]
 ]);
 
 const SUCCESS = Object.freeze({ success: true });
@@ -121,8 +129,9 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
   }
 
   readFileSync(path: string, encoding?: string): unknown {
-    const bytes = this.files.get(path) ?? CODE_PACKAGE.get(path);
+    const bytes = this.files.get(path) ?? this.readCodePackage(path);
     if (!bytes) return this.fail(10022, '文件不存在');
+    if (encoding === 'utf8') return { data: Buffer.from(bytes).toString('utf8'), success: true };
     if (encoding === 'base64') return { data: Buffer.from(bytes).toString('base64'), success: true };
     return { data: toArrayBuffer(bytes), dataType: 'ArrayBuffer', success: true };
   }
@@ -134,7 +143,8 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
    */
   writeFileSync(path: string, data: string | ArrayBuffer | Uint8Array, encoding?: string): unknown {
     const simulator = this.mode === 'simulator';
-    if (simulator && (typeof data === 'string' ? data.length : data.byteLength) === 0) return this.fail(2, '接口参数无效');
+    if (simulator && (typeof data === 'string' ? data.length : data.byteLength) === 0)
+      return this.fail(2, '接口参数无效');
     if (simulator) this.mkdirSync(parentOf(path), true);
     if (!this.directories.has(parentOf(path))) return this.fail(10022, '目录不存在');
     const next = this.encode(data, encoding);
@@ -188,6 +198,13 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
   }
 
   /** 按两端实测的字节语义把写入数据变成落盘字节；模拟器拒收 `Uint8Array` 时返回 `undefined`。 */
+  private readCodePackage(path: string): Uint8Array | undefined {
+    const bytes = CODE_PACKAGE.get(path);
+    if (!bytes || this.mode === 'ios') return bytes;
+    // 模拟器按 UTF-8 解码再编码回来：非法序列变成 U+FFFD
+    return Buffer.from(Buffer.from(bytes).toString('utf8'));
+  }
+
   private encode(data: string | ArrayBuffer | Uint8Array, encoding?: string): Uint8Array | undefined {
     if (typeof data === 'string') return Uint8Array.from(Buffer.from(data, encoding === 'base64' ? 'base64' : 'utf8'));
     if (data instanceof Uint8Array) return this.mode === 'simulator' ? undefined : new Uint8Array(0);

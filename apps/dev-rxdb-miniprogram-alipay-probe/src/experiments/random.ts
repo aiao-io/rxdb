@@ -32,7 +32,11 @@ export interface RandomReport {
 
 function memberNames(target: object): string[] {
   const names = new Set<string>();
-  for (let current: object | null = target; current && current !== Object.prototype; current = Object.getPrototypeOf(current)) {
+  for (
+    let current: object | null = target;
+    current && current !== Object.prototype;
+    current = Object.getPrototypeOf(current)
+  ) {
     for (const name of Object.getOwnPropertyNames(current)) names.add(name);
   }
   // 平台对象可能把 API 挂成不可枚举的访问器以外的形式，for-in 再补一遍
@@ -45,7 +49,11 @@ export async function runRandomExperiment(my: object, bridge: WorkerBridge | und
   const logic: LogicRandomReport = {
     myGetRandomValues: typeof Reflect.get(my, 'getRandomValues'),
     crypto: typeof crypto,
-    randomLikeMembers: await probe(() => memberNames(my).filter(name => RANDOM_LIKE_NAME.test(name)).sort())
+    randomLikeMembers: await probe(() =>
+      memberNames(my)
+        .filter(name => RANDOM_LIKE_NAME.test(name))
+        .sort()
+    )
   };
   if (!bridge) return { logic, worker: { skipped: 'Worker 没有建起来' } };
   const worker: Record<string, Probe<RandomSummary>> = {};

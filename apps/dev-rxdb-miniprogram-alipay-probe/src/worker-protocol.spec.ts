@@ -55,7 +55,10 @@ describe('handleWorkerMessage', () => {
       { type: 'probe', id: 3, wasmPath: 'wasm/add.wasm' },
       { ...environment, MYWebAssembly: { instantiate: () => Promise.reject(new Error('not found')) } }
     );
-    expect(response).toMatchObject({ ok: true, value: { MYWebAssembly: { ok: false, error: { message: 'not found' } } } });
+    expect(response).toMatchObject({
+      ok: true,
+      value: { MYWebAssembly: { ok: false, error: { message: 'not found' } } }
+    });
   });
 
   it('random：超过 65536 字节分块填充，整段都要被填过', async () => {
@@ -116,7 +119,10 @@ describe('createWorkerBridge', () => {
     const pending = bridge.randomValues(1);
     const { id } = manual.posted[0] as { id: number };
     manual.reply({ id, ok: false, error: { typeof: 'object', message: 'boom', codes: {}, ownKeys: [], text: 'boom' } });
-    await expect(pending).rejects.toMatchObject({ message: expect.stringContaining('boom'), cause: { message: 'boom' } });
+    await expect(pending).rejects.toMatchObject({
+      message: expect.stringContaining('boom'),
+      cause: { message: 'boom' }
+    });
   });
 
   it.each([

@@ -7,15 +7,16 @@
  * 源码级测试（run-probe.spec.ts）跑在 Node 全局上，抓不到「打包后的模块顶层副作用」与
  * 「Worker 包的接线写错」这两类问题。
  */
+import { transform } from 'esbuild';
+import { webcrypto } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { webcrypto } from 'node:crypto';
 import { createContext, runInContext } from 'node:vm';
-import { transform } from 'esbuild';
 import { buildProbe, CORE_REQUEST, coreInitErrorWrapper } from '../scripts/build.mjs';
+import { addWasmBytes, createFakeAlipay, wasmBytes } from './__tests__/fake-alipay.js';
 import type { AlipayApi, AlipayWorker } from './alipay-api.js';
-import { createFakeAlipay } from './__tests__/fake-alipay.js';
+import { WASM_TEXT_SUFFIX } from './alipay-host.js';
 
 interface CapturedPage {
   data: { reportText: string; status: string };
@@ -31,7 +32,8 @@ interface PageInstance {
  * - `ios`：逻辑层 `globalThis` 是对象（v2 探针 iOS 实测）
  * - `simulator`：v3b 探针模拟器实测——包装函数把 `globalThis` / `global` 遮成 `undefined`，代码跑在严格模式
  *   （非严格函数的 `this` 也是 `undefined`），`Function` 被换成另一个 realm 的构造器
- *   （`Function('return this')()` 拿到的对象没有 `BigInt`），逻辑层本身也没有 `BigInt`
+ *   （`Function('return this')()` 拿到的对象没有 `BigInt`），逻辑层本身也没有 `BigInt` / `queueMicrotask`；
+ *   在 `Object.prototype` 上临时挂 getter、以自由变量读它，`this` 就是真实全局对象（经 CDP 实测）
  */
 type DistMode = 'ios' | 'simulator';
 
@@ -134,9 +136,8 @@ interface DistRun {
 
 interface DistOptions {
   /**
-   * 给逻辑层补上宿主的 `queueMicrotask`。两端实测都没有，adapter 又把它列为硬依赖、不补；
-   * 打开它是对照实验：回答「补上它之后还有没有别的阻塞点」，不代表真机形态。只对 iOS 有意义——
-   * 模拟器在 realm 与 `BigInt` 上就停了，走不到这一步。
+   * 给逻辑层补上宿主的 `queueMicrotask`。两端实测都没有，实验 host 会自己补（见 `runtimeRepairs`）；
+   * 打开它是对照实验：平台自带时实验 host 不该再动它。
    */
   readonly hostQueueMicrotask?: boolean;
 }
@@ -188,19 +189,6 @@ const ALL_PASS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化']
   expect.objectContaining({ matrixRow, verdict: 'pass' })
 );
 
-/** 真机形态：adapter 在打开库之前的能力预检就拒绝，核心实验全部停在第一步。 */
-const BLOCKED_BY_QUEUE_MICROTASK = [
-  expect.objectContaining({ matrixRow: 'WASM', verdict: 'unknown' }),
-  expect.objectContaining({ matrixRow: '同步 FS', verdict: 'pass' }),
-  expect.objectContaining({ matrixRow: '随机源', verdict: 'pass' }),
-  expect.objectContaining({ matrixRow: '用户目录', verdict: 'unknown' }),
-  expect.objectContaining({
-    matrixRow: '持久化',
-    verdict: 'fail',
-    evidence: expect.stringContaining('缺少 RxDB 必需能力: queueMicrotask')
-  })
-];
-
 describe('dist 冒烟', () => {
   it('页面包只以字面量路径引用核心包，Worker 包不含 adapter', async () => {
     const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
@@ -216,14 +204,22 @@ describe('dist 冒烟', () => {
     expect(config).toMatchObject({ compileOptions: { transpile: { script: { ignore: ['workers/**'] } } } });
     // 降级到 ES5 不改动任何代码，说明里面没有 ES5 之后的语法（esbuild 降不了的语法会直接抛错）。
     // 对照组关掉对象字面量扩展，否则 esbuild 会把 `{ a: a }` 规范成简写，凭空多出差异
-    const asIs = await transform(workerCode, { target: 'esnext', format: 'cjs', supported: { 'object-extensions': false } });
+    const asIs = await transform(workerCode, {
+      target: 'esnext',
+      format: 'cjs',
+      supported: { 'object-extensions': false }
+    });
     const lowered = await transform(workerCode, { target: 'es5', format: 'cjs' });
     expect(lowered.code).toBe(asIs.code);
   });
 
-  it('wasm 文件都在代码包里：adapter 默认路径与探针自带的 add.wasm', async () => {
-    await expect(readFile(join(outDir, 'wa-sqlite/wa-sqlite.wasm'))).resolves.toHaveProperty('byteLength', expect.any(Number));
-    await expect(readFile(join(outDir, 'wasm/add.wasm'))).resolves.toHaveProperty('byteLength', expect.any(Number));
+  it.each([
+    ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
+    ['wasm/add.wasm', addWasmBytes]
+  ])('%s 与它的 base64 文本副本都在代码包里，副本解码后与原文件逐字节一致', async (path, bytes) => {
+    expect((await readFile(join(outDir, path))).equals(bytes)).toBe(true);
+    const text = await readFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), 'utf8');
+    expect(Buffer.from(text, 'base64').equals(bytes)).toBe(true);
   });
 
   it('构建包装把模块顶层错误挂到导出上，平台吞掉错误时导出照样带着原始错误', () => {
@@ -237,7 +233,7 @@ describe('dist 冒烟', () => {
     expect(exports.initError).toMatchObject({ name: 'RangeError', message: '模块顶层出错' });
   });
 
-  it('iOS 形态：banner 只留记录、Worker 包接线正确；逻辑层没有 queueMicrotask，adapter 预检拒绝打开库', async () => {
+  it('iOS 形态：banner 只留记录、Worker 包接线正确；实验 host 补上 queueMicrotask 后跑通全部实验', async () => {
     const { report, liveWorkers } = await runDist('ios');
     const untouched = { before: 'object', candidates: {}, chosen: null };
     expect(report['realmProbe']).toEqual({ page: untouched, core: untouched });
@@ -251,42 +247,96 @@ describe('dist 冒烟', () => {
     expect(report['environment']).toMatchObject({
       freeGlobals: { crypto: 'undefined', queueMicrotask: 'undefined', TextDecoder: 'undefined' }
     });
+    expect(report['runtimeRepairs']).toMatchObject({
+      ok: true,
+      value: {
+        target: 'globalThis',
+        before: { BigInt: 'function', queueMicrotask: 'undefined' },
+        installed: ['queueMicrotask']
+      }
+    });
     expect(report['prepare']).toMatchObject({ ok: true });
     expect(report['coreLoad']).toMatchObject({ ok: true });
-    expect(report['findings']).toEqual(BLOCKED_BY_QUEUE_MICROTASK);
+    expect(report['findings']).toEqual(ALL_PASS);
+    expect(findingEvidence(report, '持久化')).toContain('实验 host 补了 queueMicrotask');
     expect(liveWorkers).toBe(0);
   }, 120_000);
 
-  it('模拟器形态：三路候选都拿不到真实全局对象，prepare 拒绝；核心包顶层撞上 BigInt 缺失', async () => {
+  it('模拟器形态：Object.prototype getter 找回真实全局对象，补上 BigInt 与 queueMicrotask，经分帧层跑通', async () => {
     const { report, liveWorkers } = await runDist('simulator');
-    const missing = { type: 'undefined', isRealm: false, promiseMatchesFree: false, BigInt: 'n/a', queueMicrotask: 'n/a' };
-    expect(report['realmProbe']).toEqual({
-      page: {
-        before: 'undefined',
-        candidates: {
-          sloppyThis: missing,
-          Function: { type: 'object', isRealm: false, promiseMatchesFree: false, BigInt: 'undefined', queueMicrotask: 'undefined' },
-          global: missing
+    const missing = {
+      type: 'undefined',
+      isRealm: false,
+      promiseMatchesFree: false,
+      BigInt: 'n/a',
+      queueMicrotask: 'n/a'
+    };
+    const record = {
+      before: 'undefined',
+      candidates: {
+        sloppyThis: missing,
+        Function: {
+          type: 'object',
+          isRealm: false,
+          promiseMatchesFree: false,
+          BigInt: 'undefined',
+          queueMicrotask: 'undefined'
         },
-        chosen: null
+        global: missing,
+        objectPrototypeGetter: {
+          type: 'object',
+          isRealm: true,
+          promiseMatchesFree: true,
+          BigInt: 'undefined',
+          queueMicrotask: 'undefined'
+        }
       },
-      core: null
+      chosen: 'objectPrototypeGetter'
+    };
+    // 核心包在补丁之后才加载，它的 banner 看到的 BigInt / queueMicrotask 已经是补上的
+    const coreCandidate = {
+      ...record.candidates.objectPrototypeGetter,
+      BigInt: 'function',
+      queueMicrotask: 'function'
+    };
+    expect(report['realmProbe']).toEqual({
+      page: record,
+      core: { ...record, candidates: { ...record.candidates, objectPrototypeGetter: coreCandidate } }
     });
     expect(report['environment']).toMatchObject({ freeGlobals: { globalThis: 'undefined', BigInt: 'undefined' } });
-    expect(report['prepare']).toMatchObject({ ok: false, error: { message: expect.stringContaining('拿不到真实全局对象') } });
-    expect(report['coreLoad']).toMatchObject({ ok: false, error: { name: 'ReferenceError', message: 'BigInt is not defined' } });
+    expect(report['runtimeRepairs']).toMatchObject({
+      ok: true,
+      value: {
+        target: 'banner',
+        before: { BigInt: 'undefined', queueMicrotask: 'undefined' },
+        installed: ['BigInt', 'queueMicrotask']
+      }
+    });
+    expect(report['prepare']).toMatchObject({ ok: true });
+    expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual([
-      expect.objectContaining({ matrixRow: 'WASM', verdict: 'unknown' }),
+      expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass' }),
       expect.objectContaining({ matrixRow: '同步 FS', verdict: 'fail' }),
-      expect.objectContaining({ matrixRow: '随机源', verdict: 'fail' }),
-      expect.objectContaining({ matrixRow: '用户目录', verdict: 'unknown' }),
-      expect.objectContaining({ matrixRow: '持久化', verdict: 'unknown', evidence: expect.stringContaining('BigInt is not defined') })
+      expect.objectContaining({ matrixRow: '随机源', verdict: 'pass' }),
+      expect.objectContaining({ matrixRow: '用户目录', verdict: 'pass' }),
+      expect.objectContaining({
+        matrixRow: '持久化',
+        verdict: 'pass',
+        evidence: expect.stringContaining('实验 host 补了 BigInt、queueMicrotask')
+      })
     ]);
     expect(liveWorkers).toBe(0);
   }, 120_000);
 
-  it('对照：iOS 形态补上 queueMicrotask 后没有别的阻塞点，跑通全部实验', async () => {
+  it('对照：平台自带 queueMicrotask 时实验 host 什么都不补', async () => {
     const { report } = await runDist('ios', { hostQueueMicrotask: true });
+    expect(report['runtimeRepairs']).toMatchObject({ ok: true, value: { installed: [] } });
     expect(report['findings']).toEqual(ALL_PASS);
+    expect(findingEvidence(report, '持久化')).not.toContain('实验 host 补了');
   }, 120_000);
 });
+
+function findingEvidence(report: Record<string, unknown>, row: string): string | undefined {
+  return (report['findings'] as { matrixRow: string; evidence: string }[]).find(item => item.matrixRow === row)
+    ?.evidence;
+}
