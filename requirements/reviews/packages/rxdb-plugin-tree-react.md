@@ -4,7 +4,7 @@ object: rxdb-plugin-tree-react
 source_root: packages/rxdb-plugin-tree-react
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: not-started
+execution: in-progress
 ---
 
 # rxdb-plugin-tree-react：深度评审计划
@@ -26,7 +26,7 @@ React：Tree repository 的响应式查询与加载状态封装。
 | 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai）  |
 | 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                             |
 | 受控文件盘点        | 13 个；测试/共享套件入口 3 个（按文件名，不代表覆盖率）                       |
-| 执行状态            | 未开始正式评审；业务门禁未执行、覆盖率未测量                                  |
+| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                     |
 
 范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
 
@@ -129,3 +129,7 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-react
 - [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
 
 正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
+
+## 7. 本轮实际执行记录
+
+[已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-tree-react.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。

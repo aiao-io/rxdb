@@ -273,4 +273,4 @@ NX_DAEMON=false pnpm nx graph --print
 - [能力矩阵](../capability-matrix.md)、[版本/兼容策略](../versioning-policy.md) 与各对象 API baseline。
 - [评审目录规则与已有记录](README.md)、[问题模板](review.template.md)。
 - 新增/删除/拆分对象、修改公开入口/支持档位或改变 Nx target 后，先同步该对象文档与本索引；未运行过的新基线不能沿用旧“通过”结论。
-- 实际进度以 [执行台账](execution-2026-10-03.md) 为准：5 个对象部分执行、65 个未开始、0 个全对象完成；没有批量勾选清单。
+- 实际进度以 [执行台账](execution-2026-10-03.md) 为准：70 个对象已启动入口/门禁阶段、0 个全对象深审完成；没有批量勾选清单。

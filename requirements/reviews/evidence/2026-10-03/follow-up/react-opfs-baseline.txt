@@ -1,0 +1,35 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-react-e2e:e2e --args=src/opfs.spec.ts --workers=1 --retries=0
+
+> playwright test src/opfs.spec.ts --workers=1 --retries=0
+
+(node:87512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:87521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+(node:87523) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+··
+  2 passed (2.6s)
+
+
+
+ NX   Successfully ran target e2e for project dev-rxdb-react-e2e
+
+
+  Run duration:      3.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     3.2s (1 task)
+  Recoverable time:  <1ms

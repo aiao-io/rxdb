@@ -1,0 +1,29 @@
+{
+  "owned_test_project": "rxdb-review-2at2vd2p",
+  "owned_test_url": "http://localhost:57434",
+  "owned_container_names": [
+    "rxdb-review-2at2vd2p-supabase-db",
+    "rxdb-review-2at2vd2p-supabase-kong",
+    "rxdb-review-2at2vd2p-supabase-auth",
+    "rxdb-review-2at2vd2p-supabase-rest",
+    "rxdb-review-2at2vd2p-realtime-dev.supabase-realtime"
+  ],
+  "existing_foreign_container": {
+    "id": "dac3ffb09bd0b3459be54bd92ec02631521424cec565d70d13b454cdd835f7d0",
+    "name": "/supabase-db",
+    "labels": {
+      "com.docker.compose.config-hash": "1b52a065e63bab4b50ec825559635229bfc671d0451642cbbda80d732ed8c2c6",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:c5ac0bc3cd8d4896da4a75d2d8ed5a2c0c2bd11ef3cb023f1159d673025f168a",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "supabase-ci",
+      "com.docker.compose.project.config_files": "/Users/jimmy/Documents/aiao/rxdb_ai_doc/docker/docker-compose.ci.yml",
+      "com.docker.compose.project.working_dir": "/Users/jimmy/Documents/aiao/rxdb_ai_doc/docker",
+      "com.docker.compose.replace": "supabase-db",
+      "com.docker.compose.service": "db",
+      "com.docker.compose.version": "5.4.0"
+    }
+  },
+  "original_environment_modified": false
+}

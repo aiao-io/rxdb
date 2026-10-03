@@ -46,3 +46,43 @@ execution: partial
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
 原计划：[对应对象评审计划](../../apps/dev-rxdb-http-server.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+
+## 全范围启动批：入口与实际门禁
+
+本对象已进入全仓执行范围；本节是**入口自动核查＋实际门禁**，不是全部 C 项已经人工深审。
+
+隔离 HTTP 演示服务端，承载 RuleGroup 查询、ETag、分页 token、SSE/变更流和本地数据存储。
+
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+
+入口/配置已读取并核对：
+
+- [`apps/dev-rxdb-http-server/src/server.ts`](../../../../apps/dev-rxdb-http-server/src/server.ts)
+- [`apps/dev-rxdb-http-server/src/recipes-repository.ts`](../../../../apps/dev-rxdb-http-server/src/recipes-repository.ts)
+- [`apps/dev-rxdb-http-server/src/page-token.ts`](../../../../apps/dev-rxdb-http-server/src/page-token.ts)
+- [`apps/dev-rxdb-http-server/src/change-feed.ts`](../../../../apps/dev-rxdb-http-server/src/change-feed.ts)
+- [`apps/dev-rxdb-http-server/src/cors.ts`](../../../../apps/dev-rxdb-http-server/src/cors.ts)
+- [`apps/dev-rxdb-http-server/src/rxdb-store.ts`](../../../../apps/dev-rxdb-http-server/src/rxdb-store.ts)
+- [`apps/dev-rxdb-http-server/package.json`](../../../../apps/dev-rxdb-http-server/package.json)
+- [`apps/dev-rxdb-http-server/project.json`](../../../../apps/dev-rxdb-http-server/project.json)
+
+| target      | 当前证据                      | 日志                                                         |
+| ----------- | ----------------------------- | ------------------------------------------------------------ |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
+| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
+
+当前确认意见：[RV-030](../../RV-030-http-server-invalid-url-crash.md)、[RV-031](../../RV-031-http-server-metadata-body-shape.md)
+
+### 尚未完成的专项
+
+以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
+
+- [ ] C1 请求与数据边界：从路由解析到 repository 审查请求 schema、方法、字段白名单、规则与 SQL 参数化。
+- [ ] C2 鉴权、CORS 与控制接口：核查 demo control/seed/reset、origin/credentials、监听地址和部署假设，明确演示服务不等于生产安全模板。
+- [ ] C3 ETag / token 完整性：检查 token 的作用域、过滤/排序绑定、有效期与条件请求缓存语义。
+- [ ] C4 变更流与资源：审查 broadcaster/subscribers、重连 cursor、慢消费者和断开清理。
+- [ ] C5 数据事务与进程生命周期：核查 rxdb-store、批写、seed/reset 的隔离、关库和错误映射。
+- [ ] C6 client-server conformance：与 rxdb-adapter-http/reference server 和配套 E2E 逐请求对照；不能两边共用同一个错误假设。
+
+覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。

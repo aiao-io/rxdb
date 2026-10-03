@@ -48,3 +48,53 @@ execution: partial
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
 原计划：[对应对象评审计划](../../packages/rxdb.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+
+## 全范围启动批：入口与实际门禁
+
+本对象已进入全仓执行范围；本节是**入口自动核查＋实际门禁**，不是全部 C 项已经人工深审。
+
+本地优先数据层的核心契约：实体、查询、事务、插件生命周期、系统迁移、备份与可信写入。
+
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+
+入口/配置已读取并核对：
+
+- [`packages/rxdb/src/RxDB.ts`](../../../../packages/rxdb/src/RxDB.ts)
+- [`packages/rxdb/src/rxdb-adapter.ts`](../../../../packages/rxdb/src/rxdb-adapter.ts)
+- [`packages/rxdb/src/rxdb.transaction.ts`](../../../../packages/rxdb/src/rxdb.transaction.ts)
+- [`packages/rxdb/src/entity/entity-manager.ts`](../../../../packages/rxdb/src/entity/entity-manager.ts)
+- [`packages/rxdb/src/repository/QueryManager.ts`](../../../../packages/rxdb/src/repository/QueryManager.ts)
+- [`packages/rxdb/src/capture/raw-write-gate.ts`](../../../../packages/rxdb/src/capture/raw-write-gate.ts)
+- [`packages/rxdb/src/backup/backup-archive.ts`](../../../../packages/rxdb/src/backup/backup-archive.ts)
+- [`packages/rxdb/package.json`](../../../../packages/rxdb/package.json)
+- [`packages/rxdb/project.json`](../../../../packages/rxdb/project.json)
+- [`packages/rxdb/src/index.ts`](../../../../packages/rxdb/src/index.ts)
+
+| target      | 当前证据                      | 日志                                                         |
+| ----------- | ----------------------------- | ------------------------------------------------------------ |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
+| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+
+当前确认意见：[RV-027](../../RV-027-pglite-keyvalue-query-semantics.md)、[RV-028](../../RV-028-core-keyvalue-missing-key-null.md)、[RV-029](../../RV-029-core-empty-notin-null.md)、[RV-034](../../RV-034-pglite-array-membership-semantics.md)
+
+### 尚未完成的专项
+
+以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
+
+- [ ] C1 连接与插件生命周期：沿 connect / disconnect、插件依赖安装和销毁顺序画状态机；核查失败后资源归属，避免以 fallback 隐藏初始化失败。
+- [ ] C2 实体身份与写入口：逐项核查 metadata 校验、identity cache、字段格式、关系、级联与操作权限；实例 save/remove 与批量 mutations 都要追到适配器。
+- [ ] C3 查询与响应式增量：对比查询初始快照、merge_create/update/remove 与实际 SQL 结果；检查计数、排序、关联失效和游标边界。
+- [ ] C4 事务与可信写入：追踪事务上下文、提交/回滚与事件发出时点；检查 TrustedWriteIntent、raw-write gate 和捕获挂载口，不扩大公开写权限。
+- [ ] C5 迁移与能力水位：枚举系统迁移和 schema 指纹；检查旧客户端遇到已启用的新能力时如何拒绝，而非直接修改当前数据库。
+- [ ] C6 备份与恢复边界：核查 archive / manifest / queue / lock 协作、版本和 schema 验证、数据库备份与文件存储的边界。
+- [ ] C7 公共 API 与核心边界：逐项对照根入口、适配器接口、插件接口和生成客户端；核查内部实体函数、测试工具及可选插件是否越过公开边界。
+
+覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 专项任务核销
+
+- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.log)。
+
+上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。

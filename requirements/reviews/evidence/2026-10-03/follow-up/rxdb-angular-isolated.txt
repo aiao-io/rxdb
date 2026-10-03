@@ -1,0 +1,57 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:88883) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular
+
+(node:88883) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts (16 tests) 55ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 174ms
+ ✓ |rxdb-angular| src/__tests__/InfiniteScrollingList.spec.ts (55 tests) 138ms
+ ✓ |rxdb-angular| src/__tests__/rxdb.provider.spec.ts (21 tests) 125ms
+ ✓ |rxdb-angular| src/__tests__/hooks.spec.ts (38 tests) 26ms
+ ✓ |rxdb-angular| src/__tests__/use-state.spec.ts (28 tests) 28ms
+ ✓ |rxdb-angular| src/__tests__/zz-verify.spec.ts (6 tests) 11ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 9ms
+ ✓ |rxdb-angular| src/__tests__/use-persisted-state.spec.ts (10 tests) 6ms
+ ✓ |rxdb-angular| src/__tests__/use-sync-state.spec.ts (7 tests) 5ms
+ ✓ |rxdb-angular| src/__tests__/use-action.spec.ts (7 tests) 4ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-provider.spec.ts (5 tests) 1ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-generics.spec.ts (4 tests) 1ms
+
+ Test Files  13 passed (13)
+      Tests  265 passed (265)
+   Start at  22:56:00
+   Duration  2.15s (transform 760ms, setup 263ms, import 920ms, tests 582ms, environment 262ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-angular/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-angular
+
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-angular:test
+
+  Run duration:      5.9s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     5.9s (1 task)
+  Recoverable time:  <1ms

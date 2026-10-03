@@ -17,7 +17,7 @@
 
 ## 实际代码评审（执行中）
 
-- [全范围执行台账](execution-2026-10-03.md)：5 个对象部分执行、65 个未开始，0 个全对象完成。
+- [全范围执行台账](execution-2026-10-03.md)：70 个对象均已启动入口/门禁阶段，0 个全对象深审完成。
 - [按包实际评审记录](results/packages/) / [按应用实际评审记录](results/apps/)。
 - 本批确认 5 个业务源码问题（1 P1＋4 P2），不是对计划的评论：
   - [RV-027-pglite-keyvalue-query-semantics](RV-027-pglite-keyvalue-query-semantics.md)
@@ -92,3 +92,13 @@
 
 见 [../CONVENTIONS.md](../CONVENTIONS.md#命名规范)。`RV-XXX-描述.md`，编号 `RV-001` 起递增。
 例外：整分支 / 整包评审报告（如 `next-0831-branch-review.md`）结论一次性给出、没有 Open/Resolved 生命周期，不占用 RV 编号；它们的「状态」体现为文件里还剩几条。
+
+## 全范围启动批新增意见
+
+- [RV-032](RV-032-vue-search-options-mutation.md)
+- [RV-033](RV-033-utils-queue-settlement-id-reuse.md)
+- [RV-034](RV-034-pglite-array-membership-semantics.md)
+- [RV-035](RV-035-strict-lint-review-gate.md)
+- [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
+
+完整运行结果、未完成项与逐对象记录见 [实际执行台账](execution-2026-10-03.md)。

@@ -1,0 +1,792 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-model-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:88957) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular
+
+(node:88957) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > create 模式（DIALOG_DATA）立即建内存草稿，不落库，标题为 新建+显示名
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 校验失败阻止保存：输出 validationErrors、草稿保留、不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 补齐必填后保存才落库：dialogRef.close(saved)、草稿清空
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > delegateSave 不建草稿，保存时 emit formSubmitted 并关闭
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > fixedFormData 合并进草稿与提交数据，且对应字段只读
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > onFormCancelled 清理草稿缓存并 emit formCancelled
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 关系 tabs：基本信息 + 一对多表 tab，切 tab 前校验草稿
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > buildFixedQuery / buildFixedFormData 按关系类型生成固定条件
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式（entityId 路由输入）从仓库加载实体作为表单数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 对话框模式（DIALOG_DATA entityId）从仓库加载实例作为表单数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 对话框模式内部保存：变更落库 + dialogRef.close(saved) + 成功后 emit formSubmitted
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-detail/entity-detail.real.spec.ts (17 tests) 291ms
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 筛选弹层的可聚焦控件必须留在无障碍树内
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 系统表整表只读：不提供新增，每一行都标 _readonly
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > 未声明 permissions 的实体照常提供新增
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 未知实体：displayName 回退 name、列回退 actionsColumn、编辑与新增全部安全 no-op
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 键盘：无历史时 Ctrl+Z / Ctrl+Shift+Z 不拦截（独立 RxDB 实例）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onQueryChange undefined 重置为空白查询
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > createFormFieldConfigs 直接调用返回 Todo 新建表单字段
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ❯ |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts (44 tests | 35 failed) 148ms
+     × namespace/name 输入驱动 InfiniteScrollingList 加载真实数据 11ms
+     × 行内编辑经真实事件链（VTable → cellChanged → mutations）批量合并落库 0ms
+     × undo / redo 恢复与重放行内编辑（真实历史插件） 0ms
+     × 筛选弹层：query-builder 条件应用后列表按 where 重查 0ms
+     ✓ 筛选弹层的可聚焦控件必须留在无障碍树内 14ms
+     × 选择模式：勾选后 selectionConfirmed 输出真实实体实例 2ms
+     × 选择模式：未选中时 confirm 走 selectionCancelled 0ms
+     × 行删除走真实 remove 路径并从列表消失 0ms
+     × view-action 图标点击输出 viewEntity 0ms
+     × view-action 懒加载对话框在组件销毁后不再打开（防 NG0205 竞态） 0ms
+     × 列头排序驱动 cursor orderBy 重查（默认 id desc，点列头切换字段序） 0ms
+     × onSortClicked 忽略 actions / 非字符串字段（排序保持不变） 0ms
+     × onBatchUpdated 按 recordId 合并批量变更落库（过滤 actions 字段） 0ms
+     × Ctrl+Z / Ctrl+Shift+Z 键盘快捷键驱动 undo / redo 0ms
+     × creationChain 含当前实体时阻断新增（按钮隐藏、openCreateDialog 为 no-op） 0ms
+     × 行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读 0ms
+     ✓ 系统表整表只读：不提供新增，每一行都标 _readonly 6ms
+       ✓ AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除 15ms
+       ✓ 未声明 permissions 的实体照常提供新增 5ms
+       × AC#11 update: system 的实体：行只读、单元格无编辑器，删除仍可用并真实删除 1ms
+       × AC#12 delete: system 的实体：行可编辑并落库，操作列只剩查看 0ms
+     × onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性 0ms
+     × initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略 0ms
+     × fixedQuery 单独生效，与用户筛选 AND 合并 0ms
+     ✓ 未知实体：displayName 回退 name、列回退 actionsColumn、编辑与新增全部安全 no-op 6ms
+     × MANY_TO_MANY 模式渲染「+ 添加」按钮并暴露 isM2m 1ms
+     ✓ 键盘：无历史时 Ctrl+Z / Ctrl+Shift+Z 不拦截（独立 RxDB 实例） 6ms
+     × 键盘：Meta+Z 触发 undo；TEXTAREA/SELECT/其他键不拦截 0ms
+     × onCellChanged：空字段/actions 忽略，未知字段原样入变更，同值与未知记录不落库 0ms
+     × onIconClicked：未知动作与未知记录 id 安全忽略 0ms
+     × onBatchUpdated：全 actions（含空键）变更不落库 0ms
+     × onSortClicked：空白字段忽略，非法 order 回退 normal，大写 DESC 生效 0ms
+     × 选择模式：alreadyLinkedIds 过滤已关联记录，m2mAlreadyLinkedIds 合并 db 与草稿 0ms
+     ✓ onQueryChange undefined 重置为空白查询 5ms
+     × M2M 确认：父实体关系 add + save；无关系属性时只 save；无父实体安全 no-op 1ms
+     × M2M 确认：有父实体但无关系名时跳过关系处理 0ms
+     × M2M 确认：草稿父实体只合并本地草稿，不 save 0ms
+     × openM2mSelectDialog：打开真实 CDK 对话框、重入被挡、取消后可重开 0ms
+     ✓ createFormFieldConfigs 直接调用返回 Todo 新建表单字段 5ms
+     × loadMore 透传列表加载函数 1ms
+     × view-action 打开 edit 详情对话框并加载记录数据 0ms
+     ✓ 只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口 64ms
+     × editChain 含记录 id 时 view-action 只 emit 不打开编辑对话框（防环） 1ms
+     × 草稿行 view-action 只 emit 不打开编辑对话框 0ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-rule/query-rule.real.spec.ts (34 tests) 463ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-group/query-group.real.spec.ts (43 tests) 245ms
+ ✓ |rxdb-model-angular| src/__tests__/entity-form/rxdb-entity-form-angular.real.spec.ts (35 tests) 138ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/tree-select/tree-select.real.spec.ts (15 tests) 75ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-builder/query-builder.real.spec.ts (14 tests) 59ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/popover-select/popover-select.real.spec.ts (23 tests) 48ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/value-input/value-input.real.spec.ts (19 tests) 27ms
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 初始化时经 createListTable 创建真实组件持有的表格实例
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 无记录且非加载中时渲染空态，加载中渲染 spinner
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > change_cell_value 事件桥接到 cellChanged（含列字段名与行记录）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > switch / checkbox 状态事件按布尔值桥接到 cellChanged
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > icon_click 的 delete-action 走 rowDeleted，其余名字走 iconClicked
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > sort_click 透传字段与方向（阻止 VTable 客户端排序）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > change_header_position 经 collectReorderedIds 输出拖拽后的行序
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > loadingMore 进行中不重复触发 loadMore
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 触底滚动优先调用 loadMore，未提供时输出 scrollNearBottom
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > keydown Delete 清空选中单元格并经 batchUpdated 输出
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > nonClearableFields 与 cellClearable 阻止对应单元格被清空
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > Ctrl+V 粘贴经系统剪贴板解析为 batchUpdated
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > records 更新时经 effect 调用 setRecords
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 列定义变化时走 updateTableRecords（重放记录并收敛列数）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > cellErrorDetector 在悬停时经 CellTooltipManager 显示错误 tooltip
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 销毁时释放表格并解绑容器键盘监听
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts (16 tests) 22ms
+ ✓ |rxdb-model-angular| src/__tests__/entity-dialog/entity-dialog.real.spec.ts (9 tests) 18ms
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > statusText：total 缺失为空串，无 filtered 为总数，不等为 filtered / total
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > queryActive 且有 statusText 时渲染筛选状态栏，否则隐藏
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > filterBar 与 emptyState 插槽按选择器投影
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > 表格初始化后 tableInstance 委托给内部 EntityTableComponent
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > 内部表格事件透传到外层 output（cellChanged / sortClicked）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > rowDeleted / iconClicked / batchUpdated / rowReordered 透传
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > changeCellValue 与 redrawTheme 委托给内部表格
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > loading 透传给内部实体表格并渲染 spinner
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（分支收尾） > viewChild / 表格引擎未就绪时 tableInstance 回退 null，就绪后拿到引擎
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-table/query-table/query-table.component.real.spec.ts (9 tests) 19ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/operator-selector/operator-selector.component.spec.ts (6 tests) 18ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 35 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > namespace/name 输入驱动 InfiniteScrollingList 加载真实数据
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:131:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行内编辑经真实事件链（VTable → cellChanged → mutations）批量合并落库
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:147:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > undo / redo 恢复与重放行内编辑（真实历史插件）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:179:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 筛选弹层：query-builder 条件应用后列表按 where 重查
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:221:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：勾选后 selectionConfirmed 输出真实实体实例
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:276:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：未选中时 confirm 走 selectionCancelled
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:308:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行删除走真实 remove 路径并从列表消失
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:320:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 图标点击输出 viewEntity
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:334:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 懒加载对话框在组件销毁后不再打开（防 NG0205 竞态）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:345:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 列头排序驱动 cursor orderBy 重查（默认 id desc，点列头切换字段序）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:364:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onSortClicked 忽略 actions / 非字符串字段（排序保持不变）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:378:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onBatchUpdated 按 recordId 合并批量变更落库（过滤 actions 字段）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:392:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > Ctrl+Z / Ctrl+Shift+Z 键盘快捷键驱动 undo / redo
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:414:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > creationChain 含当前实体时阻断新增（按钮隐藏、openCreateDialog 为 no-op）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:453:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:470:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#11 update: system 的实体：行只读、单元格无编辑器，删除仍可用并真实删除
+RxDBError: Entity 'Invoice' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Invoice.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:534:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#12 delete: system 的实体：行可编辑并落库，操作列只剩查看
+RxDBError: Entity 'Contract' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Contract.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:556:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:575:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:593:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > fixedQuery 单独生效，与用户筛选 AND 合并
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:626:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > MANY_TO_MANY 模式渲染「+ 添加」按钮并暴露 isM2m
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:692:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 键盘：Meta+Z 触发 undo；TEXTAREA/SELECT/其他键不拦截
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:741:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onCellChanged：空字段/actions 忽略，未知字段原样入变更，同值与未知记录不落库
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:782:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onIconClicked：未知动作与未知记录 id 安全忽略
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:836:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onBatchUpdated：全 actions（含空键）变更不落库
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:848:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onSortClicked：空白字段忽略，非法 order 回退 normal，大写 DESC 生效
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:860:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：alreadyLinkedIds 过滤已关联记录，m2mAlreadyLinkedIds 合并 db 与草稿
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:880:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：父实体关系 add + save；无关系属性时只 save；无父实体安全 no-op
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:904:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：有父实体但无关系名时跳过关系处理
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:950:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：草稿父实体只合并本地草稿，不 save
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:969:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > openM2mSelectDialog：打开真实 CDK 对话框、重入被挡、取消后可重开
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:994:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > loadMore 透传列表加载函数
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:1031:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 打开 edit 详情对话框并加载记录数据
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:1040:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > editChain 含记录 id 时 view-action 只 emit 不打开编辑对话框（防环）
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:1090:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/35]⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 草稿行 view-action 只 emit 不打开编辑对话框
+RxDBError: Entity 'Todo' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Todo.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ seedTodo src/__tests__/entity-list/entity-list.real.spec.ts:81:18
+ ❯ src/__tests__/entity-list/entity-list.real.spec.ts:1111:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/35]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  35 failed | 249 passed (284)
+   Start at  22:56:11
+   Duration  10.92s (transform 1.67s, setup 291ms, import 8.70s, tests 1.57s, environment 216ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-model-angular/junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-model-angular failed
+
+Failed tasks:
+
+- rxdb-model-angular:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      16.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     16.6s (1 task)
+  Recoverable time:  <1ms
