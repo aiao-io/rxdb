@@ -25,17 +25,60 @@ import { assertMiniProgramRuntimeCapabilities } from '../runtime-capabilities.js
 import { prepareMiniProgramHostRuntime } from '../runtime-polyfills.js';
 import { createMiniProgramFileVFS } from '../wechat-file-vfs.js';
 
-/** 矩阵 YAML 里与拒绝表相关的三个字段。 */
+/** 改判标准门 3 的三个运行环境。 */
+const EVIDENCE_ENVIRONMENTS = ['devtools', 'ios', 'android'] as const;
+
+/** 运行环境名。 */
+type EvidenceEnvironment = (typeof EVIDENCE_ENVIRONMENTS)[number];
+
+/** 改判标准门 1：缺硬依赖时的阻断项。 */
+const MISSING_CAPABILITY_BLOCKERS = ['missing-wasm-entry', 'missing-sync-fs', 'missing-secure-random'];
+
+/** 矩阵 YAML 里与拒绝表、改判标准相关的字段。 */
 interface FeasibilityRow {
   readonly id: string;
   readonly tier: string;
   readonly decision: string;
   readonly blockers: readonly string[];
+  readonly caveats: readonly string[];
+  /** 正式 host 依赖的未文档化行为；只有第一档有。 */
+  readonly undocumented?: readonly string[];
+  /** 每个环境合格报告的 schema，`null` 为没有；只有第一档有。 */
+  readonly evidence?: Readonly<Record<string, string | null>>;
+}
+
+/** 第一档平台：改判标准管的那些行。 */
+interface FirstTierRow extends FeasibilityRow {
+  readonly undocumented: readonly string[];
+  readonly evidence: Readonly<Record<EvidenceEnvironment, string | null>>;
+}
+
+/** 列表字段，只认文件里实际用到的两种写法：行内 `[a, b]` 与逐行 `- a`。字段缺席为 `undefined`。 */
+function listField(chunk: string, name: string): string[] | undefined {
+  const inline = new RegExp(`^ {4}${name}: \\[(.*)\\]$`, 'm').exec(chunk)?.[1];
+  if (inline !== undefined) {
+    return inline
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  const listed = new RegExp(`^ {4}${name}:\\n((?: {6}- .+\\n?)+)`, 'm').exec(chunk)?.[1];
+  return listed?.match(/(?<=- ).+/g)?.map(item => item.trim());
+}
+
+/** 逐行 `key: value` 的映射字段，`null` 读成 `null`。字段缺席为 `undefined`。 */
+function mapField(chunk: string, name: string): Record<string, string | null> | undefined {
+  const body = new RegExp(`^ {4}${name}:\\n((?: {6}[\\w-]+: .+\\n?)+)`, 'm').exec(chunk)?.[1];
+  if (body === undefined) return undefined;
+  const entries = [...body.matchAll(/^ {6}([\w-]+): (.+)$/gm)].map(([, key, value]) => {
+    const trimmed = value.trim();
+    return [key, trimmed === 'null' ? null : trimmed] as const;
+  });
+  return Object.fromEntries(entries);
 }
 
 /**
- * 解析矩阵「机器可读结论」代码块。只认文件里实际用到的两种 blockers 写法（行内 `[a, b]` 与逐行 `- a`），
- * 格式一变就解析失败而不是静默少读。
+ * 解析矩阵「机器可读结论」代码块。格式一变就解析失败而不是静默少读。
  */
 function parseFeasibilityRows(markdown: string): FeasibilityRow[] {
   const block = /```yaml\n([\s\S]*?)```/.exec(markdown)?.[1];
@@ -49,20 +92,40 @@ function parseFeasibilityRows(markdown: string): FeasibilityRow[] {
         if (value === undefined) throw new Error(`矩阵行缺少 ${name}: ${chunk}`);
         return value.trim();
       };
-      const inline = /^ {4}blockers: \[(.*)\]$/m.exec(chunk)?.[1];
-      const listed = /^ {4}blockers:\n((?: {6}- .+\n?)+)/m.exec(chunk)?.[1];
-      const blockers =
-        inline !== undefined ?
-          inline
-            .split(',')
-            .map(item => item.trim())
-            .filter(Boolean)
-        : (listed?.match(/(?<=- ).+/g) ?? []).map(item => item.trim());
-      return { id: chunk.split('\n', 1)[0].trim(), tier: field('tier'), decision: field('decision'), blockers };
+      return {
+        id: chunk.split('\n', 1)[0].trim(),
+        tier: field('tier'),
+        decision: field('decision'),
+        blockers: listField(chunk, 'blockers') ?? [],
+        caveats: listField(chunk, 'caveats') ?? [],
+        undocumented: listField(chunk, 'undocumented'),
+        evidence: mapField(chunk, 'evidence')
+      };
     });
 }
 
 const FEASIBILITY_ROWS = parseFeasibilityRows(FEASIBILITY_MARKDOWN);
+
+function isFirstTier(row: FeasibilityRow): row is FirstTierRow {
+  return row.tier === 'first';
+}
+
+const FIRST_TIER_ROWS = FEASIBILITY_ROWS.filter(isFirstTier);
+
+/**
+ * 改判标准门 3 推出的证据缺口：模拟器必须有；有未文档化依赖时 iOS 与 Android 都必须有，否则至少一台真机。
+ */
+function evidenceGaps({ evidence, undocumented }: FirstTierRow): string[] {
+  const absent = EVIDENCE_ENVIRONMENTS.filter(env => evidence[env] === null);
+  const absentDevices = absent.filter(env => env !== 'devtools');
+  const deviceGaps = undocumented.length > 0 || absentDevices.length === 2 ? absentDevices : [];
+  const gaps = absent.includes('devtools') ? ['devtools', ...deviceGaps] : deviceGaps;
+  return gaps.map(env => `${env}-unverified`);
+}
+
+function lacksCapability(row: FeasibilityRow): boolean {
+  return row.blockers.some(blocker => MISSING_CAPABILITY_BLOCKERS.includes(blocker));
+}
 
 class MemoryFileSystem implements MiniProgramFileSystemManager {
   accessSync(path: string): void {
@@ -172,6 +235,49 @@ describe('可行性矩阵 ↔ 平台表', () => {
     for (const entry of Object.values(MINI_PROGRAM_UNSUPPORTED_PLATFORMS)) {
       expect(Object.isFrozen(entry)).toBe(true);
       expect(Object.isFrozen(entry.blockers)).toBe(true);
+    }
+  });
+});
+
+describe('可行性矩阵 ↔ 改判标准', () => {
+  it('第一档每行都写了未文档化依赖与三个环境的证据', () => {
+    expect(FIRST_TIER_ROWS.map(row => row.id)).toEqual(['alipay', 'douyin', 'baidu', 'qq']);
+    for (const row of FIRST_TIER_ROWS) {
+      expect(row.undocumented, row.id).toBeInstanceOf(Array);
+      expect(Object.keys(row.evidence ?? {}), row.id).toEqual([...EVIDENCE_ENVIRONMENTS]);
+    }
+  });
+
+  it('门 1：缺硬依赖的平台判 unsupported，阻断项只写缺的能力', () => {
+    const lacking = FIRST_TIER_ROWS.filter(lacksCapability);
+
+    expect(lacking.map(row => row.id)).toEqual(['baidu', 'qq']);
+    for (const row of lacking) {
+      expect(row.decision, row.id).toBe('unsupported');
+      expect(row.blockers.filter(blocker => !MISSING_CAPABILITY_BLOCKERS.includes(blocker)), row.id).toEqual([]);
+    }
+  });
+
+  it('门 3：其余平台的判定与阻断项由证据推出', () => {
+    for (const row of FIRST_TIER_ROWS.filter(candidate => !lacksCapability(candidate))) {
+      const gaps = evidenceGaps(row);
+      expect(row.decision, row.id).toBe(gaps.length === 0 ? 'supported' : 'unsupported');
+      expect(row.blockers, row.id).toEqual(gaps);
+    }
+  });
+
+  it('supported 平台没跑的真机逐个写进 caveats', () => {
+    for (const row of FIRST_TIER_ROWS.filter(candidate => candidate.decision === 'supported')) {
+      const absent = EVIDENCE_ENVIRONMENTS.filter(env => row.evidence[env] === null);
+      expect(row.caveats, row.id).toEqual(expect.arrayContaining(absent.map(env => `${env}-unverified`)));
+    }
+  });
+
+  it('依赖未文档化行为的平台不许用 caveat 豁免任何一台真机', () => {
+    for (const row of FIRST_TIER_ROWS.filter(candidate => candidate.undocumented.length > 0)) {
+      if (row.decision !== 'supported') continue;
+      expect(row.evidence.ios, row.id).not.toBeNull();
+      expect(row.evidence.android, row.id).not.toBeNull();
     }
   });
 });

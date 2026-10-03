@@ -35,14 +35,18 @@ export default defineConfig<'vite'>(async merge => {
     plugins: ['@tarojs/plugin-generator'],
     defineConstants: {},
     copy: {
-      patterns: [
-        {
-          // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
-          // `to` 必须带上 outputRoot：Taro 只剥掉 `to` 开头的 outputRoot，写死 `dist/` 会让 tt 产物落进 `dist-tt/dist/`
-          from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
-          to: `${outputRoot}/wa-sqlite/wa-sqlite.wasm`
-        }
-      ],
+      // 支付宝产物没有建库路径（`rxdb-demo.ts` 构建期摇掉），不带用不上的 wasm
+      patterns:
+        process.env.TARO_ENV === 'alipay' ?
+          []
+        : [
+            {
+              // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
+              // `to` 必须带上 outputRoot：Taro 只剥掉 `to` 开头的 outputRoot，写死 `dist/` 会让 tt 产物落进 `dist-tt/dist/`
+              from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
+              to: `${outputRoot}/wa-sqlite/wa-sqlite.wasm`
+            }
+          ],
       options: {}
     },
     framework: 'react',
