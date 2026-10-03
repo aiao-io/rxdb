@@ -4,7 +4,7 @@
  * 恢复会话：`status().conflicted` 的**唯一来源**。建表属 US-306 阶段 B，生命周期属 US-307。
  */
 
-import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '@aiao/rxdb';
+import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 恢复会话状态
@@ -26,6 +26,7 @@ export type WorkingTreeRestoreSessionStatus = 'active' | 'conflicted' | 'committ
   name: 'WorkingTreeRestoreSession',
   tableName: 'rxdb_working_tree_restore_session',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

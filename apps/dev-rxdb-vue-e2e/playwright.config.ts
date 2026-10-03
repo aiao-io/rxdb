@@ -33,8 +33,8 @@ export default defineConfig({
   use: {
     baseURL,
     serviceWorkers: 'block',
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* Record a trace for every attempt and keep it only when the attempt fails. See https://playwright.dev/docs/trace-viewer */
+    trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: isCI ? 20000 : 10000,
     navigationTimeout: isCI ? 30000 : 15000
   },

@@ -112,6 +112,18 @@
       "path": "./packages/rxdb-adapter-sqlite"
     },
     {
+      "path": "./packages/rxdb-plugin-replay"
+    },
+    {
+      "path": "./packages/rxdb-plugin-replay-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-replay-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-replay-vue"
+    },
+    {
       "path": "./packages/rxdb-plugin-search-angular"
     },
     {

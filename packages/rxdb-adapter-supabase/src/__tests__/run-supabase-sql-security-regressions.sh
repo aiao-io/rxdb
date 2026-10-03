@@ -13,6 +13,7 @@ CASES=(
   search-path
   rls-invoker
   rls-write-boundary
+  rls-filtered-delete
   branch-search-path
   trigger-schema
 )

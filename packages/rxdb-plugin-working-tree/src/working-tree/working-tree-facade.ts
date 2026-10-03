@@ -16,7 +16,7 @@
 
 import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import {
@@ -33,7 +33,7 @@ import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '..
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import { installWorkingTreeCapture } from './capture-install.js';
 import { readActiveBranchToken } from './capture-runtime.js';
-import { commitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
+import { runCommitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
 import { readWorkingTreeDiff, type WorkingTreeDiff, type WorkingTreeDiffOptions } from './diff.js';
 import {
   discardWorkingTree,
@@ -49,6 +49,7 @@ import {
   type WorkingTreeRestoreTarget
 } from './restore-command.js';
 import { readWorkingTreeStatus, type WorkingTreeStatus } from './status.js';
+import type { WorkingTreeCommitEvent } from './working-tree-commit-event.js';
 
 /**
  * 在未启用提交能力的数据库上调用了受管成员。
@@ -126,6 +127,24 @@ export type WorkingTreeEnableIfEmptyResult =
  */
 export class WorkingTreeManager {
   readonly #rxdb: RxDB;
+  readonly #commits = new Subject<WorkingTreeCommitEvent>();
+
+  /**
+   * 每次 {@link WorkingTreeManager.commit | commit()} **确实写入了新 commit** 时发出一次。
+   *
+   * @remarks
+   * - **何时发**：事务已提交、`commit()` 的 Promise resolve 之前，同步发出——`await commit()`
+   *   之后订阅者一定已经收到，回调里 `listCommits()` 一定读得到这个 `commitId`。
+   * - **何时不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放、
+   *   `enable()` 的基线、`restore()` / `discard()`。幂等重放同样回 `ok: true`，按返回值判断的
+   *   订阅者会把同一个 commit 记两次——这条流的存在就是为了让订阅者不必自己判断。
+   * - **订阅者隔离**：回调抛错不影响 `commit()` 的返回值，也不影响其他订阅者，错误走 RxJS 的
+   *   未处理错误路径（`config.onUnhandledError`，缺省异步重抛）。
+   * - **不经门禁**：未启用的库上也能订阅，只是永远不发。流不 `error`、不 `complete`。
+   *
+   * 是实例字段而不是 getter：门禁测试枚举原型成员，原型上的每一个都必须是受管命令。
+   */
+  readonly commits$: Observable<WorkingTreeCommitEvent> = this.#commits.asObservable();
 
   /**
    * 由插件构造器调用，一个 RxDB 实例一个。
@@ -295,11 +314,15 @@ export class WorkingTreeManager {
    * **恰好两个位置参数**：没有 selection 入参（硬裁决 1），也没有可选的第三参。
    * 写 commit 与清空工作树在**同一个事务**里（FR-011、SC-007），而那个事务由
    * {@link runEnabled} 开——命令体自己不开事务，否则门禁读到的启用态与写入就分属两笔。
+   *
+   * 写入了新 commit 时，在返回之前经 {@link WorkingTreeManager.commits$ | commits$} 发一次。
    */
   async commit(message: string, options: CommitOptions): Promise<CommitResult> {
-    return this.runEnabled((executor, adapter) =>
-      commitWorkingTree(executor, createCommitWriteContext(adapter), message, options)
+    const run = await this.runEnabled((executor, adapter) =>
+      runCommitWorkingTree(executor, createCommitWriteContext(adapter), message, options)
     );
+    if (run.written) this.#commits.next(run.written);
+    return run.result;
   }
 
   /**

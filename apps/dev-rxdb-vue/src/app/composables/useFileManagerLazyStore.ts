@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
+import { compareSortOrder } from '../utils/sort-order';
 import { formatErrorMessage, useToast } from './useToast';
 
 const fetchAllFiles = (): Promise<FileLarge[]> =>
@@ -75,7 +76,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
             if (nodeA.type !== nodeB.type) {
               return nodeA.type === 'folder' ? -1 : 1;
             }
-            return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+            return compareSortOrder(nodeA, nodeB);
           });
         rootIds.value = newRootIds;
       },
@@ -267,7 +268,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
               if (nodeA.type !== nodeB.type) {
                 return nodeA.type === 'folder' ? -1 : 1;
               }
-              return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+              return compareSortOrder(nodeA, nodeB);
             });
 
           const newChildrenMap = new Map(childrenMap.value);
@@ -373,7 +374,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           if (nodeA.type !== nodeB.type) {
             return nodeA.type === 'folder' ? -1 : 1;
           }
-          return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+          return compareSortOrder(nodeA, nodeB);
         });
 
         // Sort children IDs
@@ -385,7 +386,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
             if (nodeA.type !== nodeB.type) {
               return nodeA.type === 'folder' ? -1 : 1;
             }
-            return (nodeA.sortOrder || '').localeCompare(nodeB.sortOrder || '');
+            return compareSortOrder(nodeA, nodeB);
           });
         });
 

@@ -51,6 +51,11 @@
       "import": "./dist/query-cache-contract/index.js",
       "default": "./dist/query-cache-contract/index.js"
     },
+    "./sortable": {
+      "types": "./dist/sortable/index.d.ts",
+      "import": "./dist/sortable/index.js",
+      "default": "./dist/sortable/index.js"
+    },
     "./tree-unique": {
       "types": "./dist/tree-unique/index.d.ts",
       "import": "./dist/tree-unique/index.js",

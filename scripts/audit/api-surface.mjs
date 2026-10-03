@@ -467,7 +467,45 @@ const NAMING = {
     'isEntitySyncResolver',
     'toEntitySyncResolver',
     'RxDBSyncOverrideError',
-    'RxDBSyncOverrideErrorReason'
+    'RxDBSyncOverrideErrorReason',
+    // US-027 实体操作权限模型。`EntityMetadataOptions.permissions` 的声明类型、按操作就近继承后的读取、
+    // 公开写入口的判定原语与 `PermissionDeniedError` 是调用方写声明、按违规清单分支时必须能命名的符号；
+    // `assertSystemEntityPermissions` 与 `SYSTEM_ENTITY_PERMISSIONS` 让插件贡献的系统表与核心 4 张表
+    // 按同一份声明校验。它们是实体声明与写入口的契约，与工作树、提交能力都无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称操作权限是提交能力的一部分。
+    'assertEntityOperationAllowed',
+    'assertMutationsAllowed',
+    'assertSystemEntityPermissions',
+    'ENTITY_OPERATIONS',
+    'EntityOperation',
+    'EntityOperationPermission',
+    'EntityPermissionOptions',
+    'getEntityPermission',
+    'PermissionDeniedError',
+    'PermissionViolation',
+    'SYSTEM_ENTITY_PERMISSIONS',
+    // US-028 可排序实体。`EntityMetadataOptions.manualOrder` 声明后的排序键字段名、键校验原语、
+    // 默认排序归一化、`Repository.reorder()` 的目标形状与 `SortOrderError` 是调用方写声明、
+    // 自行组装查询、按失败原因分支时必须能命名的符号；适配器（PGlite 的 `COLLATE "C"`）也靠
+    // `isManualOrderEntity` / `SORT_ORDER_FIELD` 识别排序键。它们是实体声明与写入口的契约，
+    // 与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称手动排序是提交能力的一部分。
+    // 阶段 D 的分组声明形状 `ManualOrderOptions` 与取分组字段的 `manualOrderGroupFields` 同理——
+    // PGlite 靠后者给文本分组字段补 `COLLATE "C"`。阶段 E 的 `reorderTargetForMove` 把拖放下标换算成
+    // `ReorderTarget`，三端 todo 页共用，是 `Repository.reorder()` 入参的构造原语，理由同上。
+    'assertSortOrderKey',
+    'isManualOrderEntity',
+    'ISortableEntity',
+    'manualOrderGroupFields',
+    'ManualOrderOptions',
+    'normalizeManualOrderBy',
+    'ReorderBetween',
+    'ReorderTarget',
+    'reorderTargetForMove',
+    'ReorderToGroupEnd',
+    'SORT_ORDER_FIELD',
+    'SortOrderError',
+    'SortOrderErrorReason',
+    'SortOrderKey'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

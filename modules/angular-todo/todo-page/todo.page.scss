@@ -8,5 +8,18 @@
     .cdk-virtual-scroll-content-wrapper {
       width: 100%;
     }
+
+    // 落点指示：上移画在目标行上沿，下移画在下沿，与 reorderTargetForMove 的插入位置一致
+    .todo-drop-before {
+      box-shadow: inset 0 2px 0 var(--color-primary);
+    }
+
+    .todo-drop-after {
+      box-shadow: inset 0 -2px 0 var(--color-primary);
+    }
+
+    .todo-reordering {
+      cursor: progress;
+    }
   }
 }

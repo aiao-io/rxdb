@@ -210,6 +210,52 @@ function validateOrderKey(key: string, digits: string, intDigits: string, intLoo
 }
 
 /**
+ * 判断某个字符是否属于字母表
+ * @private
+ */
+function isDigitOf(char: string, digits: string, lookup: Uint8Array): boolean {
+  return digits[lookup[char.charCodeAt(0)]] === char;
+}
+
+/**
+ * 判断一个值是否为指定字母表下的合法排序键
+ *
+ * 与 {@link generateKeyBetween} 内部的入参校验相比，本函数额外要求头字符之后的每个字符
+ * 都属于 `digits` 字母表，因此能识别出用其他字母表生成的键（如显式传 {@link BASE_62_DIGITS}
+ * 得到的 `V0` 在默认字母表下非法）。不抛错，适合在写入前校验外部传入的键。
+ *
+ * @param key - 待校验的值
+ * @param digits - 数字字母表，含义与 {@link generateKeyBetween} 相同
+ * @param intDigits - 头字母表，含义与 {@link generateKeyBetween} 相同
+ * @returns 合法时为 `true`
+ * @throws 当 `digits` / `intDigits` 本身不合法时抛出错误
+ * @example
+ * isValidOrderKey('a0'); // true
+ * isValidOrderKey('a00'); // false：小数部分以零结尾
+ * isValidOrderKey('V0'); // false：BASE_62 头字母表生成的键
+ */
+export function isValidOrderKey(key: unknown, digits?: string, intDigits?: string): key is string {
+  if (typeof key !== 'string' || key.length === 0) {
+    return false;
+  }
+  const { digits: d, intDigits: id, lookup, intLookup } = resolveAlphabets(digits, intDigits);
+  if (!isDigitOf(key[0], id, intLookup)) {
+    return false;
+  }
+  for (let i = 1; i < key.length; i++) {
+    if (!isDigitOf(key[i], d, lookup)) {
+      return false;
+    }
+  }
+  try {
+    validateOrderKey(key, d, id, intLookup);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 递增整数部分
  * @private
  * @returns 递增后的字符串；已是最大整数时返回 null

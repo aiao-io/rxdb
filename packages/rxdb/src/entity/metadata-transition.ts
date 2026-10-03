@@ -6,6 +6,7 @@
 
 import { isArray, isFunction } from '@aiao/utils';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
+import { mergeEntityPermissions } from './entity-permissions.js';
 import { AbstractEntityType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey, setSafeObjectKeyLazyInitOnce } from './entity.utils.js';
 import metadata_cascade_default from './metadata-cascade-default.js';
@@ -74,7 +75,7 @@ const merge_features = (
  * 用 `!== undefined` 而不是真值判断：`log: false` 是有意义的声明（关掉变更日志），
  * 不能被更远祖先的 `true` 顶掉。
  */
-const nearest_declared = <K extends 'repository' | 'sync' | 'log'>(
+const nearest_declared = <K extends 'repository' | 'sync' | 'log' | 'manualOrder'>(
   metadataOptionsArray: readonly EntityMetadataOptions[],
   key: K
 ): EntityMetadataOptions[K] => {
@@ -229,7 +230,7 @@ export const transitionMetadata = (
   });
 
   // 实体级配置沿原型链继承
-  // 这四项描述的是**整个实体的行为**，不是「自己定义的那几个字段」：属性 / 关系 / 索引
+  // 这几项描述的是**整个实体的行为**，不是「自己定义的那几个字段」：属性 / 关系 / 索引
   // 早就沿原型链合并了，它们却只带自身声明的值 —— 结果是继承一个基类只继承到「形状」，
   // 继承不到「行为」（例如树插件的基类，它的 features.tree 与 repository 都传不下来）。
   const features = metadataOptionsArray.reduce<EntityMetadataFeatures | undefined>(
@@ -242,6 +243,13 @@ export const transitionMetadata = (
   if (sync !== undefined) metadata.sync = sync;
   const log = nearest_declared(metadataOptionsArray, 'log');
   if (log !== undefined) metadata.log = log;
+  // `manualOrder: false` 同样是有意义的声明（子类关掉祖先的手动排序），同 log 用就近而非真值
+  const manualOrder = nearest_declared(metadataOptionsArray, 'manualOrder');
+  if (manualOrder !== undefined) metadata.manualOrder = manualOrder;
+  // 按操作就近继承：整键覆盖会让子类只写 `{ delete: 'system' }` 时悄悄放开父类收紧的 update。
+  // 整条链都没声明时同样不写这个键；非法值原样留给注册期校验
+  const permissions = mergeEntityPermissions(metadataOptionsArray);
+  if (permissions !== undefined) metadata.permissions = permissions as EntityMetadataType['permissions'];
   // 默认仓库名的兜底必须在继承**之后**：先定死成 'Repository'，
   // 祖先声明的门面名（如树插件的 'TreeRepository'）就再也传不下来
   metadata.repository = nearest_declared(metadataOptionsArray, 'repository') || 'Repository';

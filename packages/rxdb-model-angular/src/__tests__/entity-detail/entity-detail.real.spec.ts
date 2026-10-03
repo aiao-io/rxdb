@@ -5,12 +5,15 @@ import {
   type FormFieldConfig,
   type FormValidationResult
 } from '@aiao/rxdb-model';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityDetailComponent, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
+import { EntityListComponent } from '../../entity-list/entity-list.component';
+import { QueryTableComponent } from '../../entity-table/query-table/query-table.component';
 import { createInMemoryRxdb, IN_MEMORY_ADAPTER_NAME, InMemoryRxDBAdapter } from '../testing/in-memory-rxdb';
 
 // entity-detail 模板按 tab 类型导入 EntityListComponent（其模块图里有实体表格 → VTable），
@@ -97,7 +100,11 @@ describe('EntityDetailComponent（真实组件）', () => {
         }
       }
     );
-    rxdb = createInMemoryRxdb([Todo as unknown as EntityType, DetailGroup, DetailChild]);
+    rxdb = createInMemoryRxdb([
+      ...([Todo, Account, Invoice, Contract] as unknown as EntityType[]),
+      DetailGroup,
+      DetailChild
+    ]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -386,5 +393,45 @@ describe('EntityDetailComponent（真实组件）', () => {
     const { component } = createWithDialog(dialogData({ editChain: ['group-1'] }));
 
     expect(component.editChain()).toEqual(['group-1']);
+  });
+
+  it('US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删', async () => {
+    const account = new Account({ name: 'acme' });
+    await account.save();
+    const invoice = new Invoice({ title: 'inv-1', accountId: account.id });
+    const contract = new Contract({ title: 'ct-1', accountId: account.id });
+    await invoice.save();
+    await contract.save();
+
+    const { fixture } = createWithRouteInputs('public', 'Account', account.id);
+    await FLUSH();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await FLUSH();
+
+    const lists = fixture.debugElement.queryAll(By.directive(EntityListComponent));
+    const listOf = (name: string) => {
+      const list = lists.find(l => (l.componentInstance as EntityListComponent).name() === name);
+      if (!list) throw new Error(`关系 tab 里没有 ${name} 列表`);
+      return list;
+    };
+    const actionIconNames = (name: string): string[] => {
+      const list = listOf(name);
+      const component = list.componentInstance as EntityListComponent;
+      const columns = component.tableColumns() as unknown as Array<{
+        field?: string;
+        icon: (args: unknown) => Array<{ name: string }>;
+      }>;
+      const col = columns.findIndex(c => c.field === 'actions') + 1;
+      const table = list.query(By.directive(QueryTableComponent)).componentInstance.tableInstance;
+      return [...new Set(columns[col - 1].icon({ table, col, row: 1 }).map(i => i.name))];
+    };
+    const recordsOf = (name: string) => (listOf(name).componentInstance as EntityListComponent).tableRecords();
+
+    expect(lists.map(l => (l.componentInstance as EntityListComponent).name()).sort()).toEqual(['Contract', 'Invoice']);
+    expect(recordsOf('Invoice').map(r => [r['id'], r['_readonly']])).toEqual([[invoice.id, true]]);
+    expect(actionIconNames('Invoice')).toEqual(['view-action', 'delete-action']);
+    expect(recordsOf('Contract').map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
+    expect(actionIconNames('Contract')).toEqual(['view-action']);
   });
 });

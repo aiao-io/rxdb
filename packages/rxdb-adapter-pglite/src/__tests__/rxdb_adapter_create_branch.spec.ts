@@ -54,11 +54,11 @@ describe('分支创建 (createBranch)', () => {
       await changeRepository.remove(change);
     }
 
-    // 删除非 main 分支
+    // 删除非 main 分支（系统表只许系统写：走适配器仓储，不走实体实例 remove()）
     const branches = await branchRepository.find({ where: { combinator: 'and', rules: [] } });
     for (const branch of branches) {
       if (branch.id !== 'main') {
-        await branch.remove();
+        await branchRepository.remove(branch);
       }
     }
   });

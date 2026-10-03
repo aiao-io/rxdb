@@ -2,6 +2,7 @@ import { MenuSimple } from '@aiao/rxdb-test/entities';
 import { generateKeyBetween } from '@aiao/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getErrorMessage } from '../utils/error';
+import { compareSortOrder } from '../utils/sort-order';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
 
@@ -57,7 +58,7 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
       const children = childrenMap.get(parentId) || [];
-      const sorted = [...children].sort((a, b) => (a.sortOrder ?? '').localeCompare(b.sortOrder ?? ''));
+      const sorted = [...children].sort(compareSortOrder);
 
       sorted.forEach(menu => {
         const hasChildren = childrenMap.has(menu.id) && childrenMap.get(menu.id)!.length > 0;

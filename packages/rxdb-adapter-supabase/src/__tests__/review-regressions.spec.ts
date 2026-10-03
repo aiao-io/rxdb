@@ -12,7 +12,7 @@ import {
   type RxDB,
   type RxDBMutationsMap
 } from '@aiao/rxdb';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Todo, TypeDemo } from '@aiao/rxdb-test/entities';
 import { Order, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -1425,6 +1425,38 @@ describe('supabase review regressions', () => {
     await repository.find({} as Parameters<typeof repository.find>[0]);
 
     expect(orderArgs).toContainEqual(['id', { ascending: true }]);
+  });
+
+  // 约定 NULL 是最小值（asc 靠前、desc 靠后），与 SQLite / PGlite / JS 比较器及游标谓词一致；
+  // PostgREST 默认随 PostgreSQL（asc 时 NULL 靠后），可空列不显式写就会与游标翻页的方向相反
+  it.each([
+    ['asc', true],
+    ['desc', false]
+  ] as const)('find on a nullable column orders NULL as the smallest value (%s)', async (sort, nullsFirst) => {
+    const orderArgs: Array<[string, Record<string, boolean>]> = [];
+    const builder: Record<string, unknown> = {};
+    builder['select'] = vi.fn(() => builder);
+    builder['order'] = vi.fn((field: string, opts: Record<string, boolean>) => {
+      orderArgs.push([field, opts]);
+      return builder;
+    });
+    builder['range'] = vi.fn(async () => ({ data: [], error: null }));
+    const from = vi.fn(() => builder);
+    const schema = vi.fn(() => ({ from }));
+    const repository = new SupabaseRepository(createAdapter({ from, schema }), TypeDemo);
+
+    await repository.find({
+      orderBy: [
+        { field: 'string', sort },
+        { field: 'id', sort }
+      ]
+    } as Parameters<typeof repository.find>[0]);
+
+    // 非空列（id）不写 nullsFirst：结果相同，且显式 NULLS 方向会挡住默认索引的正向扫描
+    expect(orderArgs).toEqual([
+      ['string', { ascending: sort === 'asc', nullsFirst }],
+      ['id', { ascending: sort === 'asc' }]
+    ]);
   });
 });
 

@@ -31,6 +31,13 @@ export const getLastListTable = (): FakeListTable => {
   return lastInstance;
 };
 
+/** 尚未 release 的表格实例（一个页面同时渲染多张表时，按容器定位用）。 */
+const liveInstances = new Set<FakeListTable>();
+
+/** 取渲染在 `root` 之内、尚未 release 的 {@link FakeListTable} 实例。 */
+export const getListTablesIn = (root: Element): FakeListTable[] =>
+  [...liveInstances].filter(table => root.contains(table.container));
+
 /**
  * 打桩版 ListTable。
  *
@@ -48,6 +55,10 @@ export class FakeListTable {
   lastTheme: unknown = undefined;
   /** setRecords 被调用的次数（断言重渲染用）。 */
   setRecordsCalls = 0;
+  /** renderWithRecreateCells 被调用的次数（行拖动手柄开关时重建单元格）。 */
+  recreateCellsCalls = 0;
+  /** 最近一次 updateSortState 记下的列头排序状态（`undefined` 表示从未调用）。 */
+  sortState: { field: string; order: string } | null | undefined = undefined;
 
   get colCount(): number {
     return this.#columns.length + 1;
@@ -66,6 +77,11 @@ export class FakeListTable {
     return this.#records;
   }
 
+  /** 当前列定义（测试取单元格回调用：图标、编辑器）。 */
+  get columns(): Column[] {
+    return this.#columns;
+  }
+
   constructor(
     readonly container: HTMLElement,
     readonly options: Record<string, unknown>
@@ -75,6 +91,7 @@ export class FakeListTable {
     // 有意为之：测试句柄的全局单例登记（非 this 别名）
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastInstance = this;
+    liveInstances.add(this);
   }
 
   /** 注册事件监听（真实 VTable 同签名）。 */
@@ -89,6 +106,27 @@ export class FakeListTable {
     for (const handler of this.#handlers.get(type) ?? []) {
       handler(args as never);
     }
+  }
+
+  /** 测试驱动：照真实 VTable 行拖放——对交进来的数组原地换位，再派发 change_header_position。 */
+  dragRow(sourceRow: number, targetRow: number): void {
+    const [moved] = this.#records.splice(sourceRow - 1, 1);
+    this.#records.splice(targetRow - 1, 0, moved);
+    this.emit('change_header_position', {
+      source: { col: 0, row: sourceRow },
+      target: { col: 0, row: targetRow },
+      movingColumnOrRow: 'row'
+    });
+  }
+
+  renderWithRecreateCells(): void {
+    this.recreateCellsCalls += 1;
+  }
+
+  updateSortState(sortState: { field: string; order: string } | null, executeSort?: boolean): void {
+    // 组件只同步图标，不允许让 VTable 在客户端重排
+    if (executeSort !== false) throw new Error('updateSortState 必须以 executeSort = false 调用');
+    this.sortState = sortState;
   }
 
   getRecordByCell(col: number, row: number): RecordRow | undefined {
@@ -129,6 +167,7 @@ export class FakeListTable {
 
   release(): void {
     this.#released = true;
+    liveInstances.delete(this);
   }
 
   /** 当前选中单元格（keydown 删除路径读它；测试经 selectedCellInfos 字段配置）。 */

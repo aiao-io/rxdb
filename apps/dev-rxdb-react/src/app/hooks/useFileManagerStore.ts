@@ -3,6 +3,7 @@ import { generateKeyBetween } from '@aiao/utils';
 import { useCallback, useMemo, useState } from 'react';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
+import { compareSortOrder } from '../utils/sort-order';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
 import { PathConflict, useFilePathValidator } from './useFilePathValidator';
 
@@ -177,11 +178,7 @@ export function useFileManagerStore(files: FileNode[]) {
       }
 
       const siblings = files.filter(f => f.parentId === parentFile.id);
-      siblings.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        return orderA.localeCompare(orderB);
-      });
+      siblings.sort(compareSortOrder);
       const lastSibling = siblings[siblings.length - 1];
       const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
       const newSortOrder = generateKeyBetween(lastSortOrder, null);
@@ -215,11 +212,7 @@ export function useFileManagerStore(files: FileNode[]) {
       }
 
       const rootFiles = files.filter(f => f.parentId === null);
-      rootFiles.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        return orderA.localeCompare(orderB);
-      });
+      rootFiles.sort(compareSortOrder);
       const lastFile = rootFiles[rootFiles.length - 1];
       const lastSortOrder = lastFile ? lastFile.sortOrder : null;
       const newSortOrder = generateKeyBetween(lastSortOrder, null);

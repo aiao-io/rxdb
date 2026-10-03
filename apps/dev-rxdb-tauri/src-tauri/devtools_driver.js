@@ -55,7 +55,18 @@
   const RESULT_EVENT = 'devtools:drive-result';
   const SOURCE = '@aiao/rxdb-devtools';
   const PROTOCOL_V2 = 2;
-  /** 从收到握手到发出汇报的总预算；超时也要汇报，空着回去会让 e2e 只看到一个超时。 */
+  /**
+   * 从 connector 的**第一帧**到等出 session 的预算；超时也要汇报，空着回去会让 e2e 只看到一个超时。
+   *
+   * 起点是证据而不是驱动自己 listen 落定的那一刻，理由与面板协商窗口同源（见
+   * `negotiation-panel.ts` 的 remarks）：connector 何时接上与这扇窗口何时起来毫无关系。
+   * VFS 强制档的 connector 要等后端判定 + 动态 import 才挂上，冷启动的 CI runner 上
+   * 这一段就能吃满 15s——以 listen 起算时驱动稳定报 `sessionSeen: false`，而主窗口
+   * 那边 `handshakeCompleted` 明明是 true。
+   *
+   * connector 一帧都没来时驱动不汇报结论：主窗口那时连握手都等不到、不会去等驱动，
+   * 报告里留下的是 `stage:listening` 打点——那正是「驱动在听、对端没来」的照实观察。
+   */
   const BUDGET_MS = 15000;
   /** 单条请求的等待上限。 */
   const ANSWER_TIMEOUT_MS = 4000;
@@ -132,6 +143,8 @@
 
   /** @type {string|null} 本次会话；由面板收到的 HANDSHAKE_ACK 给出。 */
   let sessionId = null;
+  /** @type {number|null} connector 第一帧到达的时刻；{@link BUDGET_MS} 从这里起算。 */
+  let connectorSeenAt = null;
   /** @type {Map<string, (frame: any) => void>} requestId → 等待者。 */
   const waiters = new Map();
   /**
@@ -195,7 +208,14 @@
     } catch {
       return;
     }
-    if (!frame || frame.source !== SOURCE || frame.protocol !== PROTOCOL_V2) return;
+    if (!frame || frame.source !== SOURCE) return;
+    // 起算点放在协议版本判定之前：connector 的第一帧是 legacy HANDSHAKE（没有 v2 信封），
+    // 它就是「对端已接上」的证据。
+    if (connectorSeenAt === null) {
+      connectorSeenAt = Date.now();
+      beacon('connector-seen');
+    }
+    if (frame.protocol !== PROTOCOL_V2) return;
     // 能力面随握手帧到达：descriptors 是协商产物，也只会在这一帧出现。
     // 抓在 session 判定之前——HANDSHAKE 的信封还没有 session，等它设好再抓会抓个空。
     if (frame.type === 'HANDSHAKE') captureDescriptors(frame.payload && frame.payload.capabilities);
@@ -1036,12 +1056,12 @@
     })
     .then(function () {
       beacon('listening');
-      const started = Date.now();
       // `const` 而不是 `let`：回调里要引用它自己来 `clearInterval`，而 TDZ 只在**求值时刻**
       // 生效——回调最早也要等到第一个 tick 才跑，那时绑定早已完成。
       const tick = setInterval(function () {
         if (sessionId === null) {
-          if (Date.now() - started < BUDGET_MS) return;
+          // connector 还没来：预算没开始，继续听（理由见 BUDGET_MS）。
+          if (connectorSeenAt === null || Date.now() - connectorSeenAt < BUDGET_MS) return;
           clearInterval(tick);
           // 汇报「没等到握手」而不是静默：空着回去与「驱动根本没装上」在 e2e 上不可区分。
           void emitToMain({ sessionSeen: false });

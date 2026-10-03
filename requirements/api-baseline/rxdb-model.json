@@ -62,6 +62,10 @@
         "kind": "value"
       },
       {
+        "name": "canReorderEntityList",
+        "kind": "value"
+      },
+      {
         "name": "CellChangeEvent",
         "kind": "type"
       },
@@ -91,6 +95,10 @@
       },
       {
         "name": "collectReorderedIds",
+        "kind": "value"
+      },
+      {
+        "name": "commitRowMove",
         "kind": "value"
       },
       {
@@ -166,7 +174,15 @@
         "kind": "value"
       },
       {
+        "name": "defaultListOrderBy",
+        "kind": "value"
+      },
+      {
         "name": "DELETE_COLOR",
+        "kind": "value"
+      },
+      {
+        "name": "deriveEntityCapabilities",
         "kind": "value"
       },
       {
@@ -200,6 +216,10 @@
       {
         "name": "ensureBaseEditorRegistered",
         "kind": "value"
+      },
+      {
+        "name": "EntityCapabilities",
+        "kind": "type"
       },
       {
         "name": "EntityFieldConfig",
@@ -390,6 +410,14 @@
         "kind": "value"
       },
       {
+        "name": "HeaderPositionChange",
+        "kind": "type"
+      },
+      {
+        "name": "HeaderSortClick",
+        "kind": "type"
+      },
+      {
         "name": "IconData",
         "kind": "type"
       },
@@ -411,6 +439,10 @@
       },
       {
         "name": "isReadonlyOrAddRow",
+        "kind": "value"
+      },
+      {
+        "name": "isRowDragEnabled",
         "kind": "value"
       },
       {
@@ -446,6 +478,14 @@
         "kind": "type"
       },
       {
+        "name": "ListFixedQuery",
+        "kind": "type"
+      },
+      {
+        "name": "ListReorderState",
+        "kind": "type"
+      },
+      {
         "name": "lucideToSvgElement",
         "kind": "value"
       },
@@ -460,6 +500,10 @@
       {
         "name": "makeViewIcons",
         "kind": "value"
+      },
+      {
+        "name": "ManualOrderListMetadata",
+        "kind": "type"
       },
       {
         "name": "mapPropertyType",
@@ -538,6 +582,10 @@
         "kind": "type"
       },
       {
+        "name": "pinsSingleOrderDomain",
+        "kind": "value"
+      },
+      {
         "name": "positionOverlayPanel",
         "kind": "value"
       },
@@ -594,6 +642,14 @@
         "kind": "type"
       },
       {
+        "name": "readRowMove",
+        "kind": "value"
+      },
+      {
+        "name": "RecordDeletePredicate",
+        "kind": "type"
+      },
+      {
         "name": "refocusTable",
         "kind": "value"
       },
@@ -618,11 +674,23 @@
         "kind": "both"
       },
       {
+        "name": "restoreTableRecords",
+        "kind": "value"
+      },
+      {
         "name": "ROW_SERIES_COL_OFFSET",
         "kind": "value"
       },
       {
         "name": "RowDeleteEvent",
+        "kind": "type"
+      },
+      {
+        "name": "RowMoveCommitHooks",
+        "kind": "type"
+      },
+      {
+        "name": "RowMoveEvent",
         "kind": "type"
       },
       {
@@ -662,6 +730,10 @@
         "kind": "value"
       },
       {
+        "name": "setRowDragEnabled",
+        "kind": "value"
+      },
+      {
         "name": "SKIP_FIELDS",
         "kind": "value"
       },
@@ -683,6 +755,10 @@
       },
       {
         "name": "switchDisabledForReadonly",
+        "kind": "value"
+      },
+      {
+        "name": "syncHeaderSortIcon",
         "kind": "value"
       },
       {

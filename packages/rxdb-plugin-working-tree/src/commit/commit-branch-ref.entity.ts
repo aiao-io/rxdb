@@ -4,7 +4,7 @@
  * 分支 HEAD 指针与 CAS 代际。一分支一行。
  */
 
-import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch } from '@aiao/rxdb';
+import { Entity, OnDeleteAction, PropertyType, RelationKind, RxDBBranch, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 
 /**
  * 分支 ref 的健康状态
@@ -28,6 +28,7 @@ export type CommitBranchRefStatus = 'ok' | 'corrupted_read_only';
   name: 'CommitBranchRef',
   tableName: 'rxdb_commit_branch_ref',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',
