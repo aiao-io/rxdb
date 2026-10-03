@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { EntityStaticType, reorderTargetForMove, type HistoryItem } from '@aiao/rxdb';
+import { EntityStaticType, reorderTargetForMove, type HistoryItem, type UUID } from '@aiao/rxdb';
 import { Task } from '@aiao/rxdb-test/entities';
 import { injectRxDB, useFindAll } from '@aiao/rxdb-vue';
-import { FixedRowDrag, type FixedRowDragState } from '@aiao/utils';
+import { FixedRowDrag, type FixedRowDragState, type FixedRowDrop } from '@aiao/utils';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X } from '@lucide/vue';
 import { Subscription } from 'rxjs';
@@ -112,15 +112,13 @@ const requiredElement = (element: HTMLElement | null, name: string): HTMLElement
   return element;
 };
 
-// 把第 from 行放到第 to 行：换算成邻居目标后交给 Repository.reorder()
-const dropTodo = async (from: number, to: number) => {
-  const ids = todos.value.map(todo => todo.id);
-  const target = reorderTargetForMove(ids, from, to);
-  if (!target) return;
+// 把被拖行放到落点：对着起拖时的 id 序列换算成邻居目标后交给 Repository.reorder()；换算失败也显示在页面上
+const dropTodo = async ({ id, ids, fromIndex, toIndex }: FixedRowDrop<UUID>) => {
   reorderPending.value = true;
   reorderError.value = null;
   try {
-    await rxdb.entityManager.getRepository(Task).reorder(ids[from]!, target);
+    const target = reorderTargetForMove(ids, fromIndex, toIndex);
+    if (target) await rxdb.entityManager.getRepository(Task).reorder(id, target);
   } catch (error) {
     reorderError.value = error instanceof Error ? error.message : String(error);
   } finally {
@@ -128,17 +126,19 @@ const dropTodo = async (from: number, to: number) => {
   }
 };
 
-const rowDrag = new FixedRowDrag({
+// 会话绑定起拖时的 id 序列，列表在拖拽中变了（活查询插入 / 删除、切 tab）就取消
+const rowDrag = new FixedRowDrag<UUID>({
   rowHeight: ITEM_SIZE,
   scrollElement: () => requiredElement(mainContainerRef.value, 'todo-page'),
   listElement: () => requiredElement(todoListRef.value, 'todo-list'),
+  ids: () => todos.value.map(todo => todo.id),
   onChange: state => (drag.value = state),
-  onDrop: (from, to) => void dropTodo(from, to)
+  onDrop: drop => void dropTodo(drop)
 });
 
 const startDrag = (event: PointerEvent, index: number) => {
   if (!canDrag.value) return;
-  rowDrag.start(event, index, todos.value.length);
+  rowDrag.start(event, index);
 };
 
 // 落点指示：上移画在目标行上沿，下移画在下沿，与 reorderTargetForMove 的插入位置一致

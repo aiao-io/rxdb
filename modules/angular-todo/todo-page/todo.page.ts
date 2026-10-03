@@ -1,11 +1,11 @@
-import { getEntityStatus, reorderTargetForMove, RxDB } from '@aiao/rxdb';
+import { getEntityStatus, reorderTargetForMove, RxDB, type UUID } from '@aiao/rxdb';
 // 本页的撤销/重做读 `rxdb.versionManager`，而历史子系统自 US-025 阶段 C 起住在这个插件里。
 // 本模块**不**装插件 —— 它拿的是宿主注入的 `RxDB`，装插件是宿主 `setup_rxdb_*.ts` 的活；
 // 这里只借 `declare module '@aiao/rxdb'` 的类型声明，`import type` 在 emit 时整句擦除。
 import { useAction, useFindAll } from '@aiao/rxdb-angular';
 import type {} from '@aiao/rxdb-plugin-history';
 import { Task, TaskStaticTypes } from '@aiao/rxdb-test/entities';
-import { FixedRowDrag, type FixedRowDragState, nextMacroTask } from '@aiao/utils';
+import { FixedRowDrag, type FixedRowDragState, type FixedRowDrop, nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import {
@@ -56,12 +56,14 @@ export class TodoPage implements OnInit, AfterViewInit {
   #scrollDispatcher = inject(ScrollDispatcher);
   #loading = false;
   #hasMore = true;
-  readonly #drag = new FixedRowDrag({
+  // 会话绑定起拖时的 id 序列：活查询插入 / 删除、切 tab、重排让列表变了就取消，不把旧下标套到新列表上
+  readonly #drag = new FixedRowDrag<UUID>({
     rowHeight: ITEM_SIZE,
     scrollElement: () => this.#required(this.mainContainerRef(), 'mainContainer'),
     listElement: () => this.#required(this.todoListRef(), 'todoList'),
+    ids: () => this.todo_resource.value().map(todo => todo.id),
     onChange: state => this.$drag.set(state),
-    onDrop: (from, to) => void this.drop_todo(from, to)
+    onDrop: drop => void this.drop_todo(drop)
   });
 
   readonly itemSize = ITEM_SIZE;
@@ -202,18 +204,20 @@ export class TodoPage implements OnInit, AfterViewInit {
   /** 按下拖拽手柄：从第 `index` 行开始拖 */
   start_drag(event: PointerEvent, index: number) {
     if (!this.$can_drag()) return;
-    this.#drag.start(event, index, this.todo_resource.value().length);
+    this.#drag.start(event, index);
   }
 
-  /** 把第 `from` 行放到第 `to` 行：换算成邻居目标后交给 `Repository.reorder()` */
-  async drop_todo(from: number, to: number) {
-    const ids = this.todo_resource.value().map(todo => todo.id);
-    const target = reorderTargetForMove(ids, from, to);
-    if (!target) return;
+  /**
+   * 把被拖行放到落点：对着起拖时的 id 序列换算成邻居目标后交给 `Repository.reorder()`
+   *
+   * 换算也在错误处理之内：失败显示在页面上，返回的 Promise 不拒绝。
+   */
+  async drop_todo({ id, ids, fromIndex, toIndex }: FixedRowDrop<UUID>) {
     this.$reorder_pending.set(true);
     this.$reorder_error.set(null);
     try {
-      await this.#rxdb.entityManager.getRepository(Task).reorder(ids[from], target);
+      const target = reorderTargetForMove(ids, fromIndex, toIndex);
+      if (target) await this.#rxdb.entityManager.getRepository(Task).reorder(id, target);
     } catch (error) {
       this.$reorder_error.set(error instanceof Error ? error.message : String(error));
     } finally {

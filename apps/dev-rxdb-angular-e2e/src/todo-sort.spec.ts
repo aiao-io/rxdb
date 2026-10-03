@@ -73,6 +73,41 @@ const visibleTestNumbers = (page: Page): Promise<number[]> =>
       .filter(value => Number.isInteger(value) && value > 0);
   });
 
+/**
+ * 按住 `from` 行的手柄贴着视口下沿拖动，自动滚动到视口外的 `test-{target}` 行上松手，并等这次重排落库
+ *
+ * 贴边滚动的速度跟帧率走，负载高时一次轮询就可能冲过头：按视口里能看到的行号决定往哪边贴，
+ * 看到目标行后移到中部停下滚动，再对准目标行，对不准就下一轮重来
+ */
+async function dragPastViewport(page: Page, from: string, target: number): Promise<void> {
+  const handle = todoRow(page, from).getByTestId('todo-drag-handle');
+  await expect(handle).toBeEnabled();
+  const start = await center(handle);
+  const main = await todoMain(page).boundingBox();
+  if (!main) throw new Error('main 不可见');
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x, main.y + main.height - 4, { steps: 8 });
+  await expect(async () => {
+    const visible = await visibleTestNumbers(page);
+    if (!visible.includes(target)) {
+      const below = Math.max(...visible) < target;
+      await page.mouse.move(start.x, below ? main.y + main.height - 4 : main.y + 4, { steps: 2 });
+      throw new Error(`test-${target} 不在视口内：${visible.join(',')}`);
+    }
+    await page.mouse.move(start.x, main.y + main.height / 2, { steps: 2 });
+    // 目标行可能停在贴边区（一行高）里，直接对准会重新触发滚动、松手前就冲过头：先把它居中再对准
+    await todoRow(page, `test-${target}`).evaluate(element => element.scrollIntoView({ block: 'center' }));
+    const end = await center(todoRow(page, `test-${target}`));
+    await page.mouse.move(start.x, end.y, { steps: 2 });
+    await expect(page.locator('[data-drop-target]').getByTestId('todo-title')).toHaveText(`test-${target}`, {
+      timeout: 1_000
+    });
+  }).toPass({ timeout: 30_000, intervals: [200] });
+  await page.mouse.up();
+  await expect(handle).toBeEnabled({ timeout: 15_000 });
+}
+
 async function reloadTodoPage(page: Page): Promise<void> {
   await page.reload();
   await expect(page.getByTestId('todo-title-input')).toBeVisible({ timeout: 15_000 });
@@ -135,6 +170,32 @@ test.describe('Todo 手动排序', () => {
     await expectOrder(page, ['乙', '丙', '甲']);
   });
 
+  test('拖拽中列表变了（新增一行）：会话取消，松手不改顺序', async ({ page }) => {
+    for (const title of ['甲', '乙', '丙']) await addTodo(page, title);
+    await page.getByTestId('todo-tab-active').click();
+    await expectOrder(page, ['甲', '乙', '丙']);
+
+    const start = await center(todoRow(page, '甲').getByTestId('todo-drag-handle'));
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const end = await center(todoRow(page, '丙'));
+    await page.mouse.move(start.x, end.y, { steps: 8 });
+    await expect(page.locator('[data-drop-target]').getByTestId('todo-title')).toHaveText('丙');
+
+    // 按住不放，用键盘新增一行：活查询把它插进列表，旧下标不再对应起拖时的行，拖拽会话随之取消
+    const input = page.getByTestId('todo-title-input');
+    await input.fill('丁');
+    await input.press('Enter');
+    await expect(todoRow(page, '丁')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-drop-target]')).toHaveCount(0);
+    await page.mouse.up();
+    await expectOrder(page, ['甲', '乙', '丙', '丁']);
+
+    await reloadTodoPage(page);
+    await page.getByTestId('todo-tab-active').click();
+    await expectOrder(page, ['甲', '乙', '丙', '丁']);
+  });
+
   test('贴着视口下沿拖动会自动滚动，落到视口外的位置', async ({ page }) => {
     await page.getByTestId('todo-batch-add').click();
     await page.getByTestId('todo-batch-option-100').click();
@@ -142,34 +203,7 @@ test.describe('Todo 手动排序', () => {
     await expect(todoRow(page, 'test-0')).toBeVisible({ timeout: 30_000 });
     await expect(todoRow(page, 'test-60')).toHaveCount(0);
 
-    const handle = todoRow(page, 'test-0').getByTestId('todo-drag-handle');
-    await expect(handle).toBeEnabled();
-    const start = await center(handle);
-    const main = await todoMain(page).boundingBox();
-    if (!main) throw new Error('main 不可见');
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(start.x, main.y + main.height - 4, { steps: 8 });
-    // 贴边滚动的速度跟帧率走，负载高时一次轮询就可能冲过头：按视口里能看到的行号决定往哪边贴，
-    // 看到目标行后移到中部停下滚动，再对准目标行，对不准就下一轮重来
-    await expect(async () => {
-      const visible = await visibleTestNumbers(page);
-      if (!visible.includes(60)) {
-        const below = Math.max(...visible) < 60;
-        await page.mouse.move(start.x, below ? main.y + main.height - 4 : main.y + 4, { steps: 2 });
-        throw new Error(`test-60 不在视口内：${visible.join(',')}`);
-      }
-      await page.mouse.move(start.x, main.y + main.height / 2, { steps: 2 });
-      // 目标行可能停在贴边区（一行高）里，直接对准会重新触发滚动、松手前就冲过头：先把它居中再对准
-      await todoRow(page, 'test-60').evaluate(element => element.scrollIntoView({ block: 'center' }));
-      const end = await center(todoRow(page, 'test-60'));
-      await page.mouse.move(start.x, end.y, { steps: 2 });
-      await expect(page.locator('[data-drop-target]').getByTestId('todo-title')).toHaveText('test-60', {
-        timeout: 1_000
-      });
-    }).toPass({ timeout: 30_000, intervals: [200] });
-    await page.mouse.up();
-    await expect(handle).toBeEnabled({ timeout: 15_000 });
+    await dragPastViewport(page, 'test-0', 60);
 
     await reloadTodoPage(page);
     await page.getByTestId('todo-tab-active').click();

@@ -1,7 +1,7 @@
-import { EntityStaticType, reorderTargetForMove } from '@aiao/rxdb';
+import { EntityStaticType, reorderTargetForMove, type UUID } from '@aiao/rxdb';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { Task } from '@aiao/rxdb-test/entities';
-import { FixedRowDrag, type FixedRowDragState } from '@aiao/utils';
+import { FixedRowDrag, type FixedRowDragState, type FixedRowDrop } from '@aiao/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
 import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X } from 'lucide-react';
@@ -112,37 +112,39 @@ export function TodoPage(): React.JSX.Element {
   // 「全部」页混着两个分组且受排序方向影响，不提供手柄；加载中或待决重排时下标可能过期
   const canDrag = currentTab !== 'all' && !todoResource.isLoading && !reorderPending && todos.length >= 2;
 
-  // 把第 from 行放到第 to 行：换算成邻居目标后交给 Repository.reorder()
+  // 把被拖行放到落点：对着起拖时的 id 序列换算成邻居目标后交给 Repository.reorder()；换算失败也显示在页面上
   const dropTodo = useCallback(
-    async (from: number, to: number) => {
-      const ids = todos.map(todo => todo.id);
-      const target = reorderTargetForMove(ids, from, to);
-      if (!target) return;
+    async ({ id, ids, fromIndex, toIndex }: FixedRowDrop<UUID>) => {
       setReorderPending(true);
       setReorderError(null);
       try {
-        await rxdb.entityManager.getRepository(Task).reorder(ids[from]!, target);
+        const target = reorderTargetForMove(ids, fromIndex, toIndex);
+        if (target) await rxdb.entityManager.getRepository(Task).reorder(id, target);
       } catch (error) {
         setReorderError(error instanceof Error ? error.message : String(error));
       } finally {
         setReorderPending(false);
       }
     },
-    [todos, rxdb.entityManager]
+    [rxdb.entityManager]
   );
-  // 拖拽控制器只建一次，松手时经 ref 拿到最新列表对应的 dropTodo
+  // 拖拽控制器只建一次，经 ref 读最新的列表与 dropTodo；
+  // 会话绑定起拖时的 id 序列，列表在拖拽中变了（活查询插入 / 删除、切 tab）就取消
   const dropTodoRef = useRef(dropTodo);
+  const todosRef = useRef(todos);
   useEffect(() => {
     dropTodoRef.current = dropTodo;
-  }, [dropTodo]);
+    todosRef.current = todos;
+  }, [dropTodo, todos]);
   const [rowDrag] = useState(
     () =>
-      new FixedRowDrag({
+      new FixedRowDrag<UUID>({
         rowHeight: ITEM_SIZE,
         scrollElement: () => requiredElement(mainContainerRef.current, 'todo-page'),
         listElement: () => requiredElement(todoListRef.current, 'todo-list'),
+        ids: () => todosRef.current.map(todo => todo.id),
         onChange: setDrag,
-        onDrop: (from, to) => void dropTodoRef.current(from, to)
+        onDrop: drop => void dropTodoRef.current(drop)
       })
   );
   useEffect(() => () => rowDrag.dispose(), [rowDrag]);
@@ -703,7 +705,7 @@ export function TodoPage(): React.JSX.Element {
                                 data-testid='todo-drag-handle'
                                 disabled={!canDrag}
                                 onPointerDown={e =>
-                                  canDrag && rowDrag.start(e.nativeEvent, virtualItem.index, todos.length)
+                                  canDrag && rowDrag.start(e.nativeEvent, virtualItem.index)
                                 }
                                 aria-label='拖动排序'
                                 type='button'

@@ -1,5 +1,6 @@
-import { getEntityStatus, RxDB } from '@aiao/rxdb';
+import { getEntityStatus, RxDB, type UUID } from '@aiao/rxdb';
 import { Task } from '@aiao/rxdb-test/entities';
+import type { FixedRowDrop } from '@aiao/utils';
 import { ScrollDispatcher } from '@angular/cdk/scrolling';
 import { NO_ERRORS_SCHEMA, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -61,6 +62,23 @@ function stubTodo(overrides: Partial<Task> = {}): Task {
 }
 
 const withId = (id: string) => stubTodo({ id } as unknown as Partial<Task>);
+
+/** 形如 UUID 的测试 id：`Task.id` 是 UUID 模板字面量类型 */
+const uuid = (key: string): UUID => `${key}-0000-4000-8000-000000000000`;
+const A = uuid('a');
+const B = uuid('b');
+const C = uuid('c');
+const X = uuid('x');
+
+/** 松手落点：与 `FixedRowDrag` 回调的形状一致 */
+const dropOf = (ids: UUID[], fromIndex: number, toIndex: number): FixedRowDrop<UUID> => ({
+  id: ids[fromIndex] as UUID,
+  ids,
+  fromIndex,
+  toIndex
+});
+
+const pointer = (type: string, clientY: number) => new PointerEvent(type, { clientY, button: 0, bubbles: true });
 
 function renderTodoPage(todos: Task[] = [], isLoading = false) {
   const reorder = vi.fn<(id: string, target: unknown) => Promise<void>>(() => Promise.resolve());
@@ -304,17 +322,17 @@ describe('TodoPage', () => {
   });
 
   it('松手把下标换算成邻居目标交给 Repository.reorder，期间禁止再拖', async () => {
-    const rows = ['a', 'b', 'c'].map(id => withId(id));
+    const rows = [A, B, C].map(id => withId(id));
     const { page, reorder, rxdb } = renderTodoPage(rows);
     page.set_current_tab('active');
 
     let release!: () => void;
     reorder.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)));
-    const done = page.drop_todo(0, 2);
+    const done = page.drop_todo(dropOf([A, B, C], 0, 2));
     expect(page.$reorder_pending()).toBe(true);
     expect(page.$can_drag()).toBe(false);
     expect(rxdb.entityManager.getRepository).toHaveBeenCalledWith(Task);
-    expect(reorder).toHaveBeenCalledWith('a', { prevId: 'c', nextId: null });
+    expect(reorder).toHaveBeenCalledWith(A, { prevId: C, nextId: null });
 
     release();
     await done;
@@ -323,19 +341,43 @@ describe('TodoPage', () => {
   });
 
   it('原位放下不写库；重排失败把原因显示出来，下次成功清掉', async () => {
-    const rows = ['a', 'b'].map(id => withId(id));
+    const rows = [A, B].map(id => withId(id));
     const { page, reorder } = renderTodoPage(rows);
     page.set_current_tab('active');
 
-    await page.drop_todo(1, 1);
+    await page.drop_todo(dropOf([A, B], 1, 1));
     expect(reorder).not.toHaveBeenCalled();
 
     reorder.mockRejectedValueOnce(new Error('stale-target'));
-    await page.drop_todo(1, 0);
+    await page.drop_todo(dropOf([A, B], 1, 0));
     expect(page.$reorder_error()).toBe('stale-target');
     expect(page.$reorder_pending()).toBe(false);
 
-    await page.drop_todo(0, 1);
+    await page.drop_todo(dropOf([A, B], 0, 1));
     expect(page.$reorder_error()).toBeNull();
+  });
+
+  it('拖拽中列表插入新行：会话取消，松手不写库', () => {
+    const rows = [A, B, C].map(id => withId(id));
+    const { page, reorder, resource } = renderTodoPage(rows);
+    page.set_current_tab('active');
+
+    page.start_drag(pointer('pointerdown', 60), 1);
+    expect(page.$drag()).toEqual({ fromIndex: 1, overIndex: 1 });
+    resource.value.set([withId(X), ...rows]);
+    window.dispatchEvent(pointer('pointerup', 120));
+
+    expect(page.$drag()).toBeNull();
+    expect(reorder).not.toHaveBeenCalled();
+  });
+
+  it('落点换算失败归入页面的错误显示，Promise 不拒绝', async () => {
+    const { page, reorder } = renderTodoPage([A, B].map(id => withId(id)));
+    page.set_current_tab('active');
+
+    await expect(page.drop_todo({ id: C, ids: [A, B], fromIndex: 2, toIndex: 0 })).resolves.toBeUndefined();
+    expect(page.$reorder_error()).toContain('越界');
+    expect(page.$reorder_pending()).toBe(false);
+    expect(reorder).not.toHaveBeenCalled();
   });
 });
