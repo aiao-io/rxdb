@@ -111,6 +111,20 @@ async function dragRow(page: Page, from: number, to: number): Promise<void> {
 }
 
 /**
+ * 把第 `from` 行拖到第 `to` 行，直到表格显示 `expected`。
+ *
+ * @remarks
+ * 刚进页面时活查询还在回灌、手柄还在开合，这时松手的拖放会被吞掉（表格停在 `before`）；
+ * 只在顺序仍是 `before` 时重拖，已经换过位就不再动，避免叠加两次换位。
+ */
+async function dragRowUntil(page: Page, from: number, to: number, before: string[], expected: string[]): Promise<void> {
+  await expect(async () => {
+    if ((await readTitles(page)).join() === before.join()) await dragRow(page, from, to);
+    expect(await readTitles(page)).toEqual(expected);
+  }).toPass({ timeout: 30_000 });
+}
+
+/**
  * 点一下 ID 列头的排序图标（VTable 在 normal → asc → desc → normal 之间轮转）。
  *
  * @remarks 只有 ID 列可排序；图标名随当前状态变化，按 `sort` 前缀找。
@@ -142,6 +156,28 @@ async function clickIdSort(page: Page): Promise<void> {
     return { x: rect.left + (box.x1 + box.x2) / 2, y: rect.top + (box.y1 + box.y2) / 2 };
   });
   await page.mouse.click(point.x, point.y);
+}
+
+/** ID 列当前的排序方向；列头图标经 `syncHeaderSortIcon` 与 VTable 的 `sortState` 同步 */
+const readIdSort = (page: Page): Promise<'asc' | 'desc' | 'normal'> =>
+  tableCanvas(page).evaluate(el => {
+    const table = (el as unknown as { __vtable__: { sortState: unknown } }).__vtable__;
+    const states = [table.sortState].flat() as Array<{ field?: unknown; order?: unknown } | null | undefined>;
+    const order = states.find(state => state?.field === 'id')?.order;
+    return order === 'asc' || order === 'desc' ? order : 'normal';
+  });
+
+/**
+ * 把 ID 列轮转到 `order`。
+ *
+ * @remarks
+ * 只在还没到位时点一下：紧挨上一次的点击可能被当成双击吞掉，此时重点；已到位就不再点，避免轮转过头。
+ */
+async function sortIdTo(page: Page, order: 'asc' | 'desc' | 'normal'): Promise<void> {
+  await expect(async () => {
+    if ((await readIdSort(page)) !== order) await clickIdSort(page);
+    expect(await readIdSort(page)).toBe(order);
+  }).toPass({ timeout: 15_000 });
 }
 
 /**
@@ -187,8 +223,7 @@ test.describe('实体列表手动排序', () => {
     await expectTitles(page, ['甲', '乙', '丙']);
     await expect.poll(() => dragHandleAt(page, 3), { timeout: 15_000 }).not.toBeNull();
 
-    await dragRow(page, 3, 1);
-    await expectTitles(page, ['丙', '甲', '乙']);
+    await dragRowUntil(page, 3, 1, ['甲', '乙', '丙'], ['丙', '甲', '乙']);
     await expect.poll(() => dragHandleAt(page, 1), { timeout: 15_000 }).not.toBeNull();
 
     await reloadList(page);
@@ -196,14 +231,14 @@ test.describe('实体列表手动排序', () => {
     await expect.poll(() => dragHandleAt(page, 1), { timeout: 15_000 }).not.toBeNull();
 
     // 按列排序时看到的不是手动顺序，手柄收起；轮转回 normal 后恢复
-    // 每次点击后先等表格按新方向重查完，避免连点被当成双击
-    await clickIdSort(page);
+    // 每次轮转后先等表格按新方向重查完再点下一次
+    await sortIdTo(page, 'asc');
     await expectSortedById(page, 'asc');
     await expect.poll(() => dragHandleAt(page, 1), { timeout: 15_000 }).toBeNull();
-    await clickIdSort(page);
+    await sortIdTo(page, 'desc');
     await expectSortedById(page, 'desc');
     await expect.poll(() => dragHandleAt(page, 1), { timeout: 15_000 }).toBeNull();
-    await clickIdSort(page);
+    await sortIdTo(page, 'normal');
     await expectTitles(page, ['丙', '甲', '乙']);
     await expect.poll(() => dragHandleAt(page, 1), { timeout: 15_000 }).not.toBeNull();
   });
