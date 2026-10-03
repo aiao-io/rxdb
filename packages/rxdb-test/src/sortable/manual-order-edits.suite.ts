@@ -260,9 +260,7 @@ export function describeManualOrderEdits(database: () => ManualOrderSuiteDatabas
         team('target', { team: 'y', phase: 'open' }, 'a5'),
         team('other', { team: 'y', phase: 'closed' }, 'a0')
       ]);
-      const { moving } = byTitle(
-        await firstValueFrom(teams().find({ where: ALL as RuleGroup<SortableTeamItem> }))
-      );
+      const { moving } = byTitle(await firstValueFrom(teams().find({ where: ALL as RuleGroup<SortableTeamItem> })));
       moving.phase = 'closed';
       await teams().update(moving, { team: 'y' });
 

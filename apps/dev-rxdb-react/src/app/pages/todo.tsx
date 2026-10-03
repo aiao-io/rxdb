@@ -704,9 +704,7 @@ export function TodoPage(): React.JSX.Element {
                                 className='btn btn-ghost btn-xs cursor-grab touch-none'
                                 data-testid='todo-drag-handle'
                                 disabled={!canDrag}
-                                onPointerDown={e =>
-                                  canDrag && rowDrag.start(e.nativeEvent, virtualItem.index)
-                                }
+                                onPointerDown={e => canDrag && rowDrag.start(e.nativeEvent, virtualItem.index)}
                                 aria-label='拖动排序'
                                 type='button'
                               >
