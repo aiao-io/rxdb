@@ -45,7 +45,7 @@ export const addWasmBytes = Uint8Array.from(readFileSync(new URL('../../static/w
 export interface FakeAlipayOptions {
   /** 按哪一端的实测形态建模，默认 `ios`。 */
   readonly mode?: 'ios' | 'simulator';
-  /** 单个文件上限，默认按文档 10 MiB。 */
+  /** 单个文件上限，默认按文档 10 MiB；iOS 真机调试实测单文件 12 MiB 都不拦，复现它传 `Number.POSITIVE_INFINITY`。 */
   readonly fileLimitBytes?: number;
   /** 用户目录总上限，默认按文档 50 MiB。 */
   readonly folderLimitBytes?: number;

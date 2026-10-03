@@ -131,6 +131,8 @@ function startDistWorker(workerCode: string, onTerminate: () => void): AlipayWor
 
 interface DistRun {
   readonly report: Record<string, unknown>;
+  /** 跑完后页面上的状态文案。 */
+  readonly status: string;
   readonly liveWorkers: number;
 }
 
@@ -182,7 +184,11 @@ async function runDist(mode: DistMode, options: DistOptions = {}): Promise<DistR
     }
   };
   await page.runExperiments.call(Object.assign(Object.create(page) as CapturedPage, instance));
-  return { report: JSON.parse(String(instance.data['reportText'])) as Record<string, unknown>, liveWorkers };
+  return {
+    report: JSON.parse(String(instance.data['reportText'])) as Record<string, unknown>,
+    status: String(instance.data['status']),
+    liveWorkers
+  };
 }
 
 const ALL_PASS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化'].map(matrixRow =>
@@ -237,7 +243,7 @@ describe('dist 冒烟', () => {
   });
 
   it('iOS 形态：banner 只留记录、Worker 包接线正确；实验 host 补上 queueMicrotask 后跑通全部实验', async () => {
-    const { report, liveWorkers } = await runDist('ios');
+    const { report, status, liveWorkers } = await runDist('ios');
     const untouched = { before: 'object', candidates: {}, chosen: null };
     expect(report['realmProbe']).toEqual({ page: untouched, core: untouched });
     expect(report['worker']).toMatchObject({
@@ -268,6 +274,8 @@ describe('dist 冒烟', () => {
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual(ALL_PASS);
     expect(findingEvidence(report, '持久化')).toContain('实验 host 补了 queueMicrotask');
+    // 真机上不复制报告也能看出跑的是哪一版：IDE 打开的若是旧产物，这里的 schema 就对不上
+    expect(status).toContain(String(report['schema']));
     expect(liveWorkers).toBe(0);
   }, 120_000);
 

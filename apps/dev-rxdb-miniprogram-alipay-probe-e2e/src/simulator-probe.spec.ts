@@ -33,8 +33,8 @@ test.beforeAll(async () => {
   }
 });
 
-test('报告是本工程的 v4 schema', () => {
-  expect(report.schema).toBe('aiao.us-211.alipay-probe/v4');
+test('报告是本工程的 v5 schema', () => {
+  expect(report.schema).toBe('aiao.us-211.alipay-probe/v5');
 });
 
 test('逻辑层：没有 globalThis / BigInt / queueMicrotask / crypto，标准 WebAssembly 在', () => {

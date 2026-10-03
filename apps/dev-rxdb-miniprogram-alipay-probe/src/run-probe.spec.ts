@@ -335,6 +335,13 @@ describe('runProbe：失败与边界', () => {
     });
   }, 60_000);
 
+  it('iOS 真机调试实测单文件不设上限：超限写入写得进也符合 VFS 预期，同步 FS 照样 pass', async () => {
+    const { report } = await run({ mode: 'ios', fileLimitBytes: Number.POSITIVE_INFINITY }, skipCore);
+    expect(report.fileSystem.probes.filter(item => !item.asExpected)).toEqual([]);
+    expect(finding(report, '同步 FS')).toMatchObject({ verdict: 'pass' });
+    expect(finding(report, '用户目录')?.evidence).toContain('裸写 11 MiB 成功');
+  }, 60_000);
+
   it('构建没记指纹：选源失败，adapter 打不开库，WASM 判 fail，不拿没校验的字节去实例化', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const report = await runProbe({

@@ -16,7 +16,7 @@
    - 小程序开发者工具 →「打开项目」→ 选 `dist/`
    - 命令行：`open "antdevtool-tiny://open?path=$(python3 -c 'import urllib.parse,os;print(urllib.parse.quote(os.path.abspath("apps/dev-rxdb-miniprogram-alipay-probe/dist")))')"`，工具弹出预填好的「打开项目」，点「完 成」
 3. 首次打开会问是否信任该文件夹，选「我信任该文件夹」
-4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成」
+4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成（aiao.us-211.alipay-probe/v5），用时 …」。括号里不是下文「报告怎么读」的版本，说明 IDE 打开的是旧产物（例如另一个 clone 的 `dist/`）：真机调试与预览上传的都是 IDE 当前打开的目录，重新打开本目录的 `dist/` 再传
 5. 点「复制报告」，或在控制台搜 `[alipay-probe] 报告`
 6. 真机调试、预览都要关联真实 AppID（在工具里改，别提交进 `static/`），模拟器不需要
 7. 模拟器、iOS 真机调试、iOS 预览、Android **各跑一份**，单份只代表那一台设备的那一次运行
@@ -33,17 +33,17 @@
 - 每轮报告原样落盘到 `dev-rxdb-miniprogram-alipay-probe-e2e/test-output/simulator-report.json`
 - 真机没有自动化通道：支付宝没有公开的真机自动化 SDK，真机报告只能手动复制
 
-## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v4'`）
+## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v5'`）
 
 `findings` 是按矩阵行给出的本次判定（pass / fail / unknown），证据在它引用的字段里：
 
-| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                                                                                                    |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`sources` 是每个 wasm 按构建指纹选到的字节来源（`binary` 原文件 / `textCopy` base64 文本副本），`codePackageBinary` 对比代码包二进制读与构建指纹；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                  |
-| 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（包装层 + 分帧层）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
-| 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                             |
-| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）                                                                                     |
-| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                               |
+| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`sources` 是每个 wasm 按构建指纹选到的字节来源（`binary` 原文件 / `textCopy` base64 文本副本），`codePackageBinary` 对比代码包二进制读与构建指纹；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                                                                                                                                                                                              |
+| 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（包装层 + 分帧层）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；抛错时 `vfsSaysMissing` / `vfsSaysExists` / `vfsSaysQuota` 是 adapter 各条正则的判定，超限写入 `writeFileSync(11 MiB)` 整块落盘（`statSync` 核对后即删）或抛错且 VFS 认成撞配额都算符合（v5 起；文档说会拦，iOS 实测不拦）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
+| 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）                                                                                                                                                                                                                                                                                                                 |
+| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 其余字段：
 
@@ -61,24 +61,24 @@
 
 ## 已知会卡住的地方
 
-已实测（2026-10-03）：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15），v2、v3 与加了三处绕行之后的 v3 报告；iOS 真机调试（iOS 26.6.2 / 支付宝 12.12.30 / 基础库 2.10.42），v2 与 v3 报告。
+已实测（2026-10-03 至 04）：小程序开发者工具 3.10.15 模拟器（基础库 2.10.15），v2、v3 与加了三处绕行之后的 v3 报告；iOS 真机调试（iOS 26.6.2 / 支付宝 12.12.30 / 基础库 2.10.42），v2、v3、v4 与 v5 报告。
 
-| 现象                                 | 模拟器                                                                                                     | iOS 真机调试                                                                                             |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 逻辑层 `MYWebAssembly`               | 没有                                                                                                       | 没有                                                                                                     |
-| 逻辑层标准 `WebAssembly`（未文档化） | 能用，`add(2, 3) === 5`                                                                                    | **也能用**，`add(2, 3) === 5`                                                                            |
-| Worker 里的 `my` / FS                | 没有                                                                                                       | 没有（JSC 报 `Can't find variable: my`）                                                                 |
-| Worker 里的 `crypto.getRandomValues` | 有（未文档化）                                                                                             | 有（未文档化）                                                                                           |
-| 逻辑层 `globalThis` / `BigInt`       | 都没有；非严格函数的 `this` 也是 `undefined`，`Function('return this')()` 是别的 realm                     | 都有                                                                                                     |
-| 写 `ArrayBuffer`                     | 落盘成 base64 文本，9 字节变 12 字节                                                                       | 原样 9 字节                                                                                              |
-| 写 `Uint8Array`                      | 报 90000                                                                                                   | **返回 `success`，落盘 0 字节**                                                                          |
-| `renameSync` 到已存在的目标          | 报 10025                                                                                                   | 直接覆盖                                                                                                 |
-| 写空文件（v3）                       | **报 error 2「接口参数无效」**，adapter 建库第一步就失败                                                   | v3：成功                                                                                                 |
-| 写到父目录不存在的路径（v3）         | 照样写成，不报 10022                                                                                       | v3：照样写成                                                                                             |
-| 读代码包里的二进制文件               | **当 UTF-8 文本读**，非法序列变成 `EF BF BD`：wa-sqlite.wasm 727646 字节读回 814795 字节，传什么编码都一样 | v3：wa-sqlite.wasm 读回 727646 字节，字节数正确；v4 的 `wasm.codePackageBinary` 对指纹核对是否逐字节原样 |
-| 代码包路径写法                       | 只认相对路径；`/wasm/add.wasm`、`./…` 报 error 2「无效参数」，`copyFileSync` / `statSync` 也一样           | v2：相对路径可读                                                                                         |
-| 代码包里的 `.base64.txt`             | 在，读回原样                                                                                               | **不在**，读报 10022（v3），**推断**代码包按文件类型过滤                                                 |
-| 单文件 / 文件夹配额（v3）            | 单文件 8 MiB 报 10028，文件夹 77 MiB 没撞上限                                                              | 单文件 12 MiB、文件夹 72 MiB 都没撞上限                                                                  |
+| 现象                                 | 模拟器                                                                                                     | iOS 真机调试                                               |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 逻辑层 `MYWebAssembly`               | 没有                                                                                                       | 没有                                                       |
+| 逻辑层标准 `WebAssembly`（未文档化） | 能用，`add(2, 3) === 5`                                                                                    | **也能用**，`add(2, 3) === 5`                              |
+| Worker 里的 `my` / FS                | 没有                                                                                                       | 没有（JSC 报 `Can't find variable: my`）                   |
+| Worker 里的 `crypto.getRandomValues` | 有（未文档化）                                                                                             | 有（未文档化）                                             |
+| 逻辑层 `globalThis` / `BigInt`       | 都没有；非严格函数的 `this` 也是 `undefined`，`Function('return this')()` 是别的 realm                     | 都有                                                       |
+| 写 `ArrayBuffer`                     | 落盘成 base64 文本，9 字节变 12 字节                                                                       | 原样 9 字节                                                |
+| 写 `Uint8Array`                      | 报 90000                                                                                                   | **返回 `success`，落盘 0 字节**                            |
+| `renameSync` 到已存在的目标          | 报 10025                                                                                                   | 直接覆盖                                                   |
+| 写空文件（v3）                       | **报 error 2「接口参数无效」**，adapter 建库第一步就失败                                                   | v3：成功                                                   |
+| 写到父目录不存在的路径（v3）         | 照样写成，不报 10022                                                                                       | v3：照样写成                                               |
+| 读代码包里的二进制文件               | **当 UTF-8 文本读**，非法序列变成 `EF BF BD`：wa-sqlite.wasm 727646 字节读回 814795 字节，传什么编码都一样 | v4：与构建指纹逐字节一致（727646 字节），wasm 直接读原文件 |
+| 代码包路径写法                       | 只认相对路径；`/wasm/add.wasm`、`./…` 报 error 2「无效参数」，`copyFileSync` / `statSync` 也一样           | v2：相对路径可读                                           |
+| 代码包里的 `.base64.txt`             | 在，读回原样                                                                                               | **不在**，读报 10022（v3），**推断**代码包按文件类型过滤   |
+| 单文件 / 文件夹配额（v3）            | 单文件 8 MiB 报 10028，文件夹 77 MiB 没撞上限                                                              | v3、v4 一样：单文件 12 MiB、文件夹 72 MiB 都没撞上限       |
 
 两端共同的：
 
@@ -111,20 +111,30 @@ iOS 真机调试 v3（2026-10-03，iPhone18,2 / iOS 26.6.2 / 支付宝 12.12.30.
 
 - **代码包里没有 `.base64.txt`**：读两个副本都报 10022「文件/目录不存在」，核心实验停在「打开 persistence」，WASM 与持久化 fail、用户目录 unknown（`core.quota` 同样停在打开库）。**推断**真机代码包按文件类型白名单过滤，`.txt` 不在里面
 - **代码包二进制读字节数正确**：`wa-sqlite/wa-sqlite.wasm` 读回 727646 字节，与原文件一致（是否逐字节原样 v3 没法回答，v4 用构建指纹回答）。`dist/` 连副本 2.07 MB、不含 `.txt` 1.10 MB，真机调试照样装上了，主包 2 MB 上限按过滤前还是过滤后算未确认
-- **配额没按文档执行**：单文件写到计划上限 12 MiB 都成功，文件夹写 8 × 9 MiB 共 72 MiB 也没撞上限（`fill.scope: null`）。因此 `fileSystem` 里「writeFileSync(11 MiB) 期望抛错」记成 `asExpected: false`，同步 FS 判了 fail——这条期望是按文档写的，iOS 上不成立，不是 FS 包装层的问题
+- **配额没按文档执行**：单文件写到计划上限 12 MiB 都成功，文件夹写 8 × 9 MiB 共 72 MiB 也没撞上限（`fill.scope: null`）。因此 `fileSystem` 里「writeFileSync(11 MiB) 期望抛错」记成 `asExpected: false`，同步 FS 判了 fail——这条期望是按文档写的，iOS 上不成立，不是 FS 包装层的问题。v5 改按 adapter VFS 的视角判：不拦就得整块落盘，拦下就得让 VFS 认成撞配额（报 `SQLITE_FULL`）
 - **裸写**：`arrayBuffer`、带 `'binary'`、base64 串都字节一致，`typedArray` 读回不一致；空写入与写到不存在的父目录都成功
 - 随机源经 Worker 桥接 pass；`runtimeRepairs` 只补了 `queueMicrotask`；`realmProbe.before` 为 `'object'`（iOS 有 `globalThis`）
 
+iOS 真机调试 v4（同日、同一台设备，约 125 秒一轮）：**adapter 在 iOS 真机调试里跑通了**。
+
+- **wasm 按指纹选源**：代码包二进制读与构建指纹逐字节一致（`wasm.codePackageBinary.bytesMatch: true`，727646 字节），两个 wasm 的 `sources` 都是 `binary`，adapter 经逻辑层标准 `WebAssembly` 实例化 wa-sqlite
+- **持久化**：建库、写入、关闭重开后 3 行逐字一致，`integrity_check` ok；库文件 `/rxdb-persistence.sqlite.0` 8192 字节、`.rxdb-reserve` 131072 字节（逻辑字节）
+- **配额仍没撞上**：经 SQLite 写满 120 × 512 KiB，裸文件单文件 12 MiB、文件夹 8 × 9 MiB 都成功，用户目录还是 unknown
+- findings：WASM / 随机源 / 持久化 pass，用户目录 unknown；同步 FS 判 fail 只因超限写入那条（实写 11 MiB 成功，v4 还按文档期望抛错），其余 8 条探测都符合 VFS 预期。v5 改了这条的判法
+
+iOS 真机调试 v5（2026-10-04，同一台设备，约 144 秒一轮）：超限写入实写 11 MiB、`statSync` 核对后删除，按新判法符合预期，**同步 FS 转 pass**；其余字段与 v4 逐项一致（只差电量、Worker 随机样本与文件时间戳）。findings：WASM / 同步 FS / 随机源 / 持久化 pass，用户目录 unknown
+
 尚待确认的：
 
-- **iOS 上的 v4**：指纹选源之后 adapter 全流程能不能在真机上跑通；真机调试与预览两种模式都要跑
+- **iOS 配额**：真机调试里经 SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB、文件夹 72 MiB 都没撞上，文档的 10M / 50M 没执行；有没有上限、在多大，现在的写入计划探不到，用户目录因此一直是 unknown
 - **Android 真机**：还没跑
-- **预览模式下逻辑层的 `WebAssembly`**：v2 的 iOS 报告是接着调试器跑的
+- **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，预览模式下逻辑层的 `WebAssembly` 与 adapter 全流程都还没跑
 
 ## 本地测试
 
 `pnpm nx test dev-rxdb-miniprogram-alipay-probe` 用的是 [Node 测试替身](src/__tests__/fake-alipay.ts)，**不是实验证据**。替身按实测建了 iOS 与模拟器两种 FS 形态：
 
 - `run-probe.spec.ts` 跑源码：两种形态都经分帧层跑通全部实验；替身按实测，iOS 形态代码包里没有 `.base64.txt`、wasm 读原文件，模拟器形态的代码包二进制读改写成 UTF-8 文本、wasm 读文本副本
-- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：iOS 形态实验 host 补上 `queueMicrotask` 后跑通；模拟器形态 `objectPrototypeGetter` 找回全局对象、补上 `BigInt` 与 `queueMicrotask` 后跑通；另外检查 Worker 包是 ES5、IDE 跳过它的配置在产物里、wasm 文本副本与原文件逐字节一致、页面包内嵌的指纹让两种形态各自选对字节来源
+- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：iOS 形态实验 host 补上 `queueMicrotask` 后跑通；模拟器形态 `objectPrototypeGetter` 找回全局对象、补上 `BigInt` 与 `queueMicrotask` 后跑通；另外检查 Worker 包是 ES5、IDE 跳过它的配置在产物里、wasm 文本副本与原文件逐字节一致、页面包内嵌的指纹让两种形态各自选对字节来源、跑完的页面状态带着报告 schema
+- `experiments/fs-errors.spec.ts` 经包装层 + 分帧层跑超限写入的四种平台表现：按文档拦下（10028）、不拦（iOS 实测）、拦了但错误 VFS 认不出、报成功却只落一截，核对 v5 的判法
 - `vfs-classifiers.spec.ts` 逐字比对 adapter VFS 里的缺失 / 已存在 / 配额正则，免得报告里的判定与 adapter 实际判定脱节

@@ -12,7 +12,8 @@ import type { DatabaseFile } from './core-contract.js';
 /**
  * 已知错误码对应的归一文案，让 adapter VFS 的正则能分类。
  *
- * 10022 / 10025 两端实测；10028 取自文档「写入文件单个超过 10M 或者写入文件夹超过 50M」，未实测。
+ * 10022 / 10025 两端实测；10028 模拟器实测（单文件 8 MiB 报「单个文件超限」），iOS 真机调试 v3 写到单文件 12 MiB、
+ * 文件夹 72 MiB 都没撞上。
  */
 const NORMALIZED_MESSAGES: Readonly<Record<string, string>> = {
   '10022': 'no such file or directory',

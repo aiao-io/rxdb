@@ -5,6 +5,9 @@ import { join } from 'node:path';
 /** 开发者工具（Electron）启动后把 CDP 端口与 browser 路径写进用户数据目录的这个文件，端口每次随机。 */
 const ACTIVE_PORT_FILE = join(homedir(), 'Library', 'Application Support', '小程序开发者工具', 'DevToolsActivePort');
 
+/** 文件内容只信这种形状：拼进 ws 地址前把端口与路径都卡死，坏文件不会被当成任意 URL 片段。 */
+const BROWSER_PATH = /^\/devtools\/browser\/[\w-]+$/;
+
 const START_IDE_HINT = [
   '先启动支付宝小程序开发者工具并打开探针产物：',
   '  env -u ELECTRON_RUN_AS_NODE "/Applications/小程序开发者工具.app/Contents/MacOS/小程序开发者工具" &',
@@ -29,8 +32,11 @@ export function resolveWsEndpoint(): string {
     );
   }
   if (!existsSync(ACTIVE_PORT_FILE)) throw new Error(`没找到 ${ACTIVE_PORT_FILE}。\n  ${START_IDE_HINT}`);
-  const [port, browserPath] = readFileSync(ACTIVE_PORT_FILE, 'utf8').trim().split('\n');
-  if (!port || !browserPath) throw new Error(`${ACTIVE_PORT_FILE} 内容不是「端口\\n路径」两行。\n  ${START_IDE_HINT}`);
+  const [portLine, browserPath] = readFileSync(ACTIVE_PORT_FILE, 'utf8').trim().split('\n');
+  const port = Number(portLine);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535 || !BROWSER_PATH.test(browserPath ?? '')) {
+    throw new Error(`${ACTIVE_PORT_FILE} 内容不是「端口\\n/devtools/browser/<id>」两行。\n  ${START_IDE_HINT}`);
+  }
   return `ws://127.0.0.1:${port}${browserPath}`;
 }
 

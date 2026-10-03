@@ -236,7 +236,7 @@ describe('代码包读取', () => {
   it('模拟器把代码包文件当 UTF-8 文本读：非法序列变成 EF BF BD，二进制读不回原样', () => {
     const ios = new Uint8Array(setup('ios').fileSystem.readBinarySync('wa-sqlite/wa-sqlite.wasm'));
     const simulator = new Uint8Array(setup('simulator').fileSystem.readBinarySync('wa-sqlite/wa-sqlite.wasm'));
-    expect(ios).toEqual(wasmBytes);
+    expect(Buffer.from(ios).equals(Buffer.from(wasmBytes))).toBe(true);
     // 开发者工具 3.10.15 实测：727646 字节读成 814795 字节，Type 段长度字节 0xd7 变成 EF BF BD
     expect([...simulator.slice(8, 12)]).toEqual([0x01, 0xef, 0xbf, 0xbd]);
     expect(simulator.byteLength).toBeGreaterThan(wasmBytes.byteLength);

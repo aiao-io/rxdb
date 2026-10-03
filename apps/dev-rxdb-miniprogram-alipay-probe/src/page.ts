@@ -69,7 +69,12 @@ Page({
       });
       const reportText = JSON.stringify(report, null, 2);
       console.log('[alipay-probe] 报告：', reportText);
-      this.setData({ status: `完成，用时 ${report.durationMs}ms`, summary: summarize(report.findings), reportText });
+      // 状态里带上报告版本：IDE 打开的若是旧产物，手机上一眼就能看出来
+      this.setData({
+        status: `完成（${report.schema}），用时 ${report.durationMs}ms`,
+        summary: summarize(report.findings),
+        reportText
+      });
     } catch (error) {
       const reportText = JSON.stringify({ fatal: describeError(error) }, null, 2);
       console.error('[alipay-probe] 实验没能跑完：', error);

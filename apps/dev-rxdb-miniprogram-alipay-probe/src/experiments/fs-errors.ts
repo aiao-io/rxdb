@@ -1,14 +1,14 @@
 /**
  * @fileoverview 交给 adapter 的同步 FS（包装层 + 分帧层）：错误原文与 adapter VFS 判定的契合度。
  *
- * adapter 的文件 VFS 靠正则识别「文件不存在」与「目录已存在」；包装层把支付宝的错误码归一成正则认得的文案，
+ * adapter 的文件 VFS 靠正则识别「文件不存在」「目录已存在」与「撞配额」；包装层把支付宝的错误码归一成正则认得的文案，
  * 分帧层让空文件也有字节可写。这里逐个 VFS 实际会碰到的场景制造错误，记原文并给出判定；
  * VFS 碰不到的场景（例如写进不存在的目录：VFS 先建根目录、库文件平铺其下）不在这里判，平台原样由 rawFs 记录。
  */
 import type { AlipayProbeFileSystem } from '../alipay-fs.js';
 import { adapterErrorText, describeError } from '../describe-error.js';
 import type { Probe } from '../probe.js';
-import { VFS_MISSING_FILE_PATTERN, vfsSaysAlreadyExists } from '../vfs-classifiers.js';
+import { VFS_MISSING_FILE_PATTERN, VFS_QUOTA_EXCEEDED_PATTERN, vfsSaysAlreadyExists } from '../vfs-classifiers.js';
 
 /** 一条文件系统探测。 */
 export interface FsProbe {
@@ -20,6 +20,8 @@ export interface FsProbe {
   readonly vfsSaysMissing?: boolean;
   /** 抛错时 adapter `mkdirRecursive` 的判定。 */
   readonly vfsSaysExists?: boolean;
+  /** 抛错时 adapter `isQuotaExceededError` 的判定。 */
+  readonly vfsSaysQuota?: boolean;
   readonly outcome: Probe<unknown>;
 }
 
@@ -39,13 +41,13 @@ export const OVER_SINGLE_FILE_OP = 'writeFileSync(11 MiB)';
 const ROUND_TRIP_BYTES = [0x00, 0xff, 0x10, 0x80, 0x7f, 0x41];
 const ROUND_TRIP_BASE64 = 'AP8QgH9B';
 
-type Expectation = 'missing' | 'exists-or-ok' | 'exists' | 'throws' | 'ok';
+type Expectation = 'missing' | 'exists-or-ok' | 'exists' | 'quota-or-ok' | 'ok';
 
 const EXPECTATION_TEXT: Record<Expectation, string> = {
   missing: '抛错，且 VFS 判定为「不存在」',
   'exists-or-ok': '不抛错，或抛错且 VFS 判定为「已存在」',
   exists: '抛错，且 VFS 判定为「已存在」',
-  throws: '抛错',
+  'quota-or-ok': '不抛错且整块落盘，或抛错且 VFS 判定为「撞配额」',
   ok: '成功'
 };
 
@@ -53,18 +55,20 @@ function judge(expectation: Expectation, error: unknown, threw: boolean): Omit<F
   const text = threw ? adapterErrorText(error) : undefined;
   const vfsSaysMissing = text === undefined ? undefined : VFS_MISSING_FILE_PATTERN.test(text);
   const vfsSaysExists = text === undefined ? undefined : vfsSaysAlreadyExists(text);
+  const vfsSaysQuota = text === undefined ? undefined : VFS_QUOTA_EXCEEDED_PATTERN.test(text);
   const verdicts: Record<Expectation, boolean> = {
     missing: threw && vfsSaysMissing === true,
     'exists-or-ok': !threw || vfsSaysExists === true,
     exists: threw && vfsSaysExists === true,
-    throws: threw,
+    'quota-or-ok': !threw || vfsSaysQuota === true,
     ok: !threw
   };
   return {
     expectation: EXPECTATION_TEXT[expectation],
     asExpected: verdicts[expectation],
     vfsSaysMissing,
-    vfsSaysExists
+    vfsSaysExists,
+    vfsSaysQuota
   };
 }
 
@@ -99,11 +103,18 @@ function writeEmpty(fileSystem: AlipayProbeFileSystem, path: string): { base64: 
   return { base64 };
 }
 
+/**
+ * 超过文档单文件上限的一次写入。文档说会拦（10028），iOS 真机调试实测单文件 12 MiB 都写得进；
+ * 对 adapter 而言两样都行：拦下时 VFS 报 `SQLITE_FULL`，没拦就得真落盘这么多字节，不能报成功却只写一截。
+ */
 function writeOverLimit(fileSystem: AlipayProbeFileSystem, path: string): { written: number } {
   fileSystem.writeFileSync(path, new ArrayBuffer(OVER_SINGLE_FILE_BYTES));
-  // 居然写进去了：立刻删掉，别让它占着配额干扰后面的实验
+  const written = fileSystem.statSync(path).size;
+  // 先删再判：别让它占着配额干扰后面的实验
   fileSystem.unlinkSync(path);
-  return { written: OVER_SINGLE_FILE_BYTES };
+  if (written !== OVER_SINGLE_FILE_BYTES)
+    throw new Error(`写入没报错，落盘 ${written} 字节，期望 ${OVER_SINGLE_FILE_BYTES}`);
+  return { written };
 }
 
 /** 在 `directory`（调用方已建好的空目录）里逐条探测；`fileSystem` 传交给 adapter 的那一个。 */
@@ -121,7 +132,7 @@ export function runFileSystemExperiment(fileSystem: AlipayProbeFileSystem, direc
     ),
     // VFS 新建文件时先写一个空文件（`writeFileSync(create)`）
     fsProbe('writeFileSync(空 ArrayBuffer)', 'ok', () => writeEmpty(fileSystem, `${directory}/empty.bin`)),
-    fsProbe(OVER_SINGLE_FILE_OP, 'throws', () => writeOverLimit(fileSystem, `${directory}/over-limit.bin`))
+    fsProbe(OVER_SINGLE_FILE_OP, 'quota-or-ok', () => writeOverLimit(fileSystem, `${directory}/over-limit.bin`))
   ];
   return { directory, probes };
 }
