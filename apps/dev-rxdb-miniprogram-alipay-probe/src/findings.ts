@@ -97,8 +97,8 @@ function codePackageBinaryText({ codePackageBinary }: WasmReport): string {
   return `代码包二进制读取被改写（${String(binaryBytes)} / ${String(expectedBytes)} 字节）`;
 }
 
-function wasmSourceText({ sources }: WasmReport, wasmPath: string): string {
-  const source = sources[wasmPath];
+function wasmSourceText({ sources }: WasmReport, wasmPath: string | null): string {
+  const source = wasmPath === null ? undefined : sources[wasmPath];
   if (source === undefined) return '没有记录';
   return source.ok ? WASM_SOURCE_TEXT[source.value] : `选源失败：${probeText(source)}`;
 }

@@ -33,8 +33,8 @@ test.beforeAll(async () => {
   }
 });
 
-test('报告是本工程的 v3 schema', () => {
-  expect(report.schema).toBe('aiao.us-211.alipay-probe/v3');
+test('报告是本工程的 v4 schema', () => {
+  expect(report.schema).toBe('aiao.us-211.alipay-probe/v4');
 });
 
 test('逻辑层：没有 globalThis / BigInt / queueMicrotask / crypto，标准 WebAssembly 在', () => {
@@ -102,7 +102,7 @@ test('Worker：经 swc 降到 ES5 后能跑；有 realm、MYWebAssembly 与 cryp
   });
 });
 
-test('WASM：代码包只认相对路径，二进制读被当 UTF-8 文本改写；文本副本读回原样，add.wasm 照样实例化', () => {
+test('WASM：代码包只认相对路径，二进制读被当 UTF-8 文本改写、与构建指纹不符；wa-sqlite 改用文本副本，add.wasm 照样实例化', () => {
   expect(report['wasm']).toMatchObject({
     standardAvailable: true,
     codePackageReads: {
@@ -111,7 +111,12 @@ test('WASM：代码包只认相对路径，二进制读被当 UTF-8 文本改写
       // 磁盘上 727646 字节，非法 UTF-8 序列各变成 EF BF BD
       'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 814_795 }
     },
-    codePackageBinary: { ok: true, value: { binaryBytes: 814_795, textBytes: 727_646, bytesMatch: false } },
+    codePackageBinary: { ok: true, value: { binaryBytes: 814_795, expectedBytes: 727_646, bytesMatch: false } },
+    sources: {
+      // add.wasm 的字节恰好都是合法 UTF-8，二进制读原样
+      'wasm/add.wasm': { ok: true, value: 'binary' },
+      'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' }
+    },
     add: { ok: true, value: 5 }
   });
 });

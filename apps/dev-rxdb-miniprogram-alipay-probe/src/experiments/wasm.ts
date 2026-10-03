@@ -100,8 +100,9 @@ export async function runWasmExperiment(
   for (const path of FINGERPRINTED_WASM_PATHS) {
     sources[path] = await probe(() => readCodePackageWasm(fileSystem, my, fingerprints, path).source);
   }
-  const add = wasm
-    ? await probe(() => instantiateAdd(fileSystem, wasm, my, fingerprints))
+  const add =
+    wasm ?
+      await probe(() => instantiateAdd(fileSystem, wasm, my, fingerprints))
     : { skipped: '逻辑层没有标准 WebAssembly' };
   return { standardAvailable: wasm !== undefined, codePackageReads, codePackageBinary, sources, add };
 }

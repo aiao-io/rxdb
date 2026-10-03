@@ -216,11 +216,14 @@ describe('dist 冒烟', () => {
   it.each([
     ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
     ['wasm/add.wasm', addWasmBytes]
-  ])('%s 与它的 base64 文本副本都在代码包里（副本给模拟器用，iOS 真机代码包会丢掉 .txt），副本解码后与原文件逐字节一致', async (path, bytes) => {
-    expect((await readFile(join(outDir, path))).equals(bytes)).toBe(true);
-    const text = await readFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), 'utf8');
-    expect(Buffer.from(text, 'base64').equals(bytes)).toBe(true);
-  });
+  ])(
+    '%s 与它的 base64 文本副本都在代码包里（副本给模拟器用，iOS 真机代码包会丢掉 .txt），副本解码后与原文件逐字节一致',
+    async (path, bytes) => {
+      expect((await readFile(join(outDir, path))).equals(bytes)).toBe(true);
+      const text = await readFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), 'utf8');
+      expect(Buffer.from(text, 'base64').equals(bytes)).toBe(true);
+    }
+  );
 
   it('构建包装把模块顶层错误挂到导出上，平台吞掉错误时导出照样带着原始错误', () => {
     const { banner, footer } = coreInitErrorWrapper();

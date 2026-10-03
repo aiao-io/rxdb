@@ -36,7 +36,7 @@ async function run(
   const report = await runProbe({
     my: fake.my,
     wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints,
+    wasmFingerprints: fakeWasmFingerprints,
     loadCore,
     freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
     quotaPlan,
@@ -313,8 +313,13 @@ describe('runProbe：失败与边界', () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     fake.directories.add(PROBE_ROOT);
     fake.files.set(`${PROBE_ROOT}/stale.bin`, new Uint8Array(4));
-    const report = await runProbe({ my: fake.my, wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} });
+    const report = await runProbe({
+      my: fake.my,
+      wasm: fake.wasm,
+      wasmFingerprints: fakeWasmFingerprints,
+      loadCore: skipCore,
+      freeGlobals: {}
+    });
     expect(report.workspace).toMatchObject({ ok: true, value: { root: PROBE_ROOT, removedLeftover: true } });
     expect(leftovers(fake)).toEqual([]);
   }, 60_000);
@@ -402,10 +407,9 @@ describe('runProbe：失败与边界', () => {
   it('USER_DATA_PATH 缺失：没有可写目录，整个实验抛错，Worker 照样 terminate', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const my = { ...fake.my, env: {} };
-    await expect(runProbe({ my, wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow(
-      'USER_DATA_PATH'
-    );
+    await expect(
+      runProbe({ my, wasm: fake.wasm, wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} })
+    ).rejects.toThrow('USER_DATA_PATH');
     expect(fake.liveWorkers()).toBe(0);
   }, 60_000);
 });

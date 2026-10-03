@@ -93,7 +93,10 @@ export const fakeWasmFingerprints: WasmFingerprints = Object.fromEntries(
 /** 模拟器的代码包：构建脚本给每个 wasm 旁边放的 base64 文本副本都在。 */
 const SIMULATOR_CODE_PACKAGE: ReadonlyMap<string, Uint8Array> = new Map([
   ...CODE_PACKAGE_WASM,
-  ...[...CODE_PACKAGE_WASM].map(([path, bytes]): [string, Uint8Array] => [`${path}${WASM_TEXT_SUFFIX}`, textCopy(bytes)])
+  ...[...CODE_PACKAGE_WASM].map(([path, bytes]): [string, Uint8Array] => [
+    `${path}${WASM_TEXT_SUFFIX}`,
+    textCopy(bytes)
+  ])
 ]);
 
 const SUCCESS = Object.freeze({ success: true });
