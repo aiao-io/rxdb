@@ -166,6 +166,22 @@
         "kind": "type"
       },
       {
+        "name": "FixedRowDrag",
+        "kind": "both"
+      },
+      {
+        "name": "FixedRowDragOptions",
+        "kind": "type"
+      },
+      {
+        "name": "FixedRowDragState",
+        "kind": "type"
+      },
+      {
+        "name": "FixedRowDrop",
+        "kind": "type"
+      },
+      {
         "name": "flatten",
         "kind": "value"
       },
@@ -383,6 +399,10 @@
       },
       {
         "name": "isUint8Array",
+        "kind": "value"
+      },
+      {
+        "name": "isValidOrderKey",
         "kind": "value"
       },
       {

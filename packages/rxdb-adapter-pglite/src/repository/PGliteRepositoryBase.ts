@@ -61,7 +61,9 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
         }
         const state = getEntityStatus(entity);
         state.local = true;
-        state.modified = false;
+        // 命中缓存的实例可能带着未保存编辑（`mergeExternal` 已保留它们）：只在没有差异时归零脏标记，
+        // 否则之后的 `save()` 会因 `modified === false` 成为空操作
+        if (Object.keys(state.patch).length === 0) state.modified = false;
         return entity!;
       })
     );

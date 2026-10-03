@@ -43,6 +43,23 @@ CREATE TABLE rxdb_sql_regression.rls_denied_ids (
 ALTER TABLE rxdb_sql_regression.rls_denied_ids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rxdb_sql_regression.rls_denied_ids FORCE ROW LEVEL SECURITY;
 
+CREATE TABLE rxdb_sql_regression.rls_owned_ids (
+  id text PRIMARY KEY,
+  owner text NOT NULL,
+  value text NOT NULL
+);
+
+ALTER TABLE rxdb_sql_regression.rls_owned_ids ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rxdb_sql_regression.rls_owned_ids FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY rls_owned_select ON rxdb_sql_regression.rls_owned_ids
+  FOR SELECT USING (true);
+CREATE POLICY rls_owned_delete ON rxdb_sql_regression.rls_owned_ids
+  FOR DELETE USING (owner = pg_catalog.current_setting('rxdb_sql_regression.uid', true));
+
+INSERT INTO rxdb_sql_regression.rls_owned_ids (id, owner, value)
+VALUES ('owned-by-b', 'sql-owner-b', 'original');
+
 CREATE TABLE rxdb_sql_regression.trigger_probe (
   id varchar(64) PRIMARY KEY,
   value text NOT NULL,
@@ -572,6 +589,56 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION rxdb_sql_regression.test_rls_filtered_delete()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  rls_rejected boolean := false;
+BEGIN
+  DELETE FROM public.rxdb_change
+  WHERE "clientId" = 'sql-rls-filter-client';
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  -- 行对调用方可见，但 DELETE 的 USING 策略把它过滤掉：不抛错、零行生效
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      '[]'::jsonb,
+      '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-b"]}]'::jsonb,
+      '[{
+        "namespace":"rxdb_sql_regression",
+        "entity":"RlsOwnedProbe",
+        "schema":"rxdb_sql_regression",
+        "table":"rls_owned_ids",
+        "entityId":"owned-by-b",
+        "type":"DELETE",
+        "branchId":"main",
+        "clientId":"sql-rls-filter-client",
+        "localId":730001
+      }]'::jsonb,
+      true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      rls_rejected := true;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.rls_owned_ids WHERE id = 'owned-by-b'),
+    'RLS-filtered delete must leave the row in place'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-rls-filter-client'),
+    'rxdb_mutations must not log a DELETE that RLS filtered to zero rows'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rls_rejected,
+    'rxdb_mutations must reject a visible row that RLS refuses to delete'
+  );
+END;
+$$;
+
 CREATE FUNCTION rxdb_sql_regression.test_branch_search_path()
 RETURNS void
 LANGUAGE plpgsql
@@ -702,6 +769,8 @@ SELECT rxdb_sql_regression.test_rls_invoker()
 WHERE :'test_case' IN ('all', 'rls-invoker');
 SELECT rxdb_sql_regression.test_rls_write_boundary()
 WHERE :'test_case' IN ('all', 'rls-write-boundary');
+SELECT rxdb_sql_regression.test_rls_filtered_delete()
+WHERE :'test_case' IN ('all', 'rls-filtered-delete');
 SELECT rxdb_sql_regression.test_branch_search_path()
 WHERE :'test_case' IN ('all', 'branch-search-path');
 RESET ROLE;

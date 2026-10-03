@@ -1,4 +1,5 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
+import { compareSortOrder } from './sort-order';
 
 export interface TreeMenuItem {
   id: RxDBEntityId;
@@ -26,7 +27,7 @@ function createChildrenMap<T extends TreeMenuItem>(menus: readonly T[]): Map<RxD
   }
 
   for (const children of childrenMap.values()) {
-    children.sort((left, right) => (left.sortOrder ?? '').localeCompare(right.sortOrder ?? ''));
+    children.sort(compareSortOrder);
   }
   return childrenMap;
 }

@@ -152,6 +152,17 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/encrypted/encrypted.page')
   },
   {
+    // 导入 e2e 失败现场归档（US-909 阶段 B）：不用应用自己的库，不经 connectLocalAdapter
+    path: 'failure-archive',
+    loadComponent: () => import('./pages/failure-archive/failure-archive.page')
+  },
+  {
+    // 录制回放（US-909 阶段 C）：点 commit 标记要调 `workingTree.restore()`，深链进来时先把连接带起来
+    path: 'replay',
+    canActivate: [connectLocalAdapter],
+    loadComponent: () => import('./pages/replay/replay.page')
+  },
+  {
     path: '**',
     redirectTo: 'home',
     pathMatch: 'full'

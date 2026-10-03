@@ -4,7 +4,7 @@
  * 提交的**不可变恢复数据**：完整复制 patch / inversePatch，不引用 `rxdb_change`。
  */
 
-import { Entity, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, PropertyType, RelationKind, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
 import { Commit } from './commit.entity.js';
 
 /**
@@ -21,6 +21,7 @@ import { Commit } from './commit.entity.js';
   name: 'CommitChangeSet',
   tableName: 'rxdb_commit_change_set',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

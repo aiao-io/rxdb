@@ -2,6 +2,7 @@ import type { RxDBEntityId } from '@aiao/rxdb';
 import { MenuSimple } from '@aiao/rxdb-test/entities';
 import { generateKeyBetween } from '@aiao/utils';
 import { computed, ref, unref, type MaybeRef } from 'vue';
+import { compareSortOrder } from '../utils/sort-order';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
 
@@ -73,11 +74,7 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
     }
 
     const rootMenus = unref(menus).filter(m => m.parentId === null);
-    rootMenus.sort((a, b) => {
-      const orderA = a.sortOrder || '';
-      const orderB = b.sortOrder || '';
-      return orderA.localeCompare(orderB);
-    });
+    rootMenus.sort(compareSortOrder);
     const lastMenu = rootMenus[rootMenus.length - 1];
     const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
     const newSortOrder = generateKeyBetween(lastSortOrder, null);
@@ -100,11 +97,7 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
     }
 
     const siblings = unref(menus).filter(m => m.parentId === parentId);
-    siblings.sort((a, b) => {
-      const orderA = a.sortOrder || '';
-      const orderB = b.sortOrder || '';
-      return orderA.localeCompare(orderB);
-    });
+    siblings.sort(compareSortOrder);
     const lastMenu = siblings[siblings.length - 1];
     const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
     const newSortOrder = generateKeyBetween(lastSortOrder, null);

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
+  LucideArchiveRestore as ArchiveRestore,
   LucideCloud as Cloud,
   LucideCode as Code,
   LucideDatabase as Database,
@@ -15,7 +16,8 @@ import {
   LucideListTree as ListTree,
   LucideLock as Lock,
   LucideDynamicIcon,
-  LucideSearch as Search
+  LucideSearch as Search,
+  LucideVideo as Video
 } from '@lucide/angular';
 
 @Component({
@@ -208,6 +210,18 @@ export class AppMenu {
       title: 'Working Tree',
       path: '/working-tree',
       icon: GitMerge
+    },
+    {
+      type: 'link',
+      title: '失败归档导入',
+      path: '/failure-archive',
+      icon: ArchiveRestore
+    },
+    {
+      type: 'link',
+      title: '录制回放',
+      path: '/replay',
+      icon: Video
     },
     {
       type: 'divider',

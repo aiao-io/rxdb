@@ -200,9 +200,9 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.locator('.gd-toolbar')).toHaveCSS('background-color', 'rgb(36, 41, 46)');
     await writeTodo(page, '界面仿真测试');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
-    // 文件头路径 = schema/表名/id（优先 tableName：Todo → todos；schema 是数据的真实命名空间 public）。
+    // 文件头路径 = schema/表名/id（优先 tableName：/todo 页写的是 Task → tasks，表名登记在 demo 的 gd 映射里；schema 是数据的真实命名空间 public）。
     const viewer = page.getByTestId('wt-diff-viewer');
-    await expect(viewer.getByText(/\/todos\//)).toBeVisible();
+    await expect(viewer.getByText(/\/tasks\//)).toBeVisible();
     // 默认 Split：逐行对齐双栏（side-by-side），没有「改前 / 改后」标签；insert 旧侧留空槽。
     await expect(page.getByTestId('wt-split')).toBeVisible();
     const insertRow = viewer.locator('.gd-split-row').filter({ hasText: '界面仿真测试' });
@@ -232,7 +232,7 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-diff-settings-popup')).toHaveCount(0);
     await page.getByTestId('wt-change-filter').fill('no-match');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(0);
-    await page.getByTestId('wt-change-filter').fill('todos');
+    await page.getByTestId('wt-change-filter').fill('tasks');
     await expect(page.getByTestId('wt-diff-item')).toHaveCount(1);
     // 类型筛选：漏斗按钮打开菜单（组合筛选框的左侧图标），选中项带 ✓。
     await page.getByTestId('wt-filter-kind').click();

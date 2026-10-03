@@ -16,6 +16,7 @@
 | `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                                                   |
 | `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                        |
 | `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                         |
+| `commits$`         | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                  |
 | `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上 |
 
 ## 用之前要知道的六件事
@@ -319,6 +320,21 @@ const page = await db.workingTree.listCommits({
 `CommitLogEntry` 是 `Commit` 实体列的一个子集：`commitId`、`parentIds`、`firstParentId`（根节点为 `null`）、`kind`（`'normal' | 'baseline' | 'branch_baseline'`，后两者是系统根节点，不是用户提交）、`message`、`authorId`、`createdAt`、`changeSetCount`。`operationId` 与 `contentFingerprint` 被刻意挡在公开面外——实体是存储细节，历史不可变不靠口头约定。
 
 > 历史 ≠ `rxdb_commit` 全表：CAS 丢掉的提交与被删分支留下的节点，行都还在，但没有任何 ref 指向它们。
+
+### `commits$`
+
+每次 `commit()` **确实写入了新 commit** 时同步发出一次 `WorkingTreeCommitEvent`（`{ commitId, branchId }`）。发出时事务已提交、`commit()` 的 Promise 还没 resolve，所以 `await commit()` 之后订阅者一定已经收到，回调里 `listCommits()` 也一定读得到这个 `commitId`。
+
+```typescript
+db.workingTree.commits$.subscribe(({ commitId, branchId }) => console.log(branchId, commitId));
+```
+
+- **不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放（它同样回 `ok: true`）、`enable()` 的基线、`restore()` / `discard()`。按返回值自己判断的话，幂等重放会被记两次。
+- 载荷只有这两个关联键；消息、作者等用 `commitId` 去 `listCommits()` 读落库后的真值。
+- 订阅者抛错不影响 `commit()` 的返回值，也不影响其他订阅者。
+- 不经启用门禁：未启用提交能力的库上也能订阅，只是永远不发。流不 `error`、不 `complete`。
+
+[`@aiao/rxdb-plugin-replay`](../rxdb-plugin-replay/README.md) 靠它在录像时间轴上写 commit 标记。
 
 ## 恢复历史版本
 

@@ -1,4 +1,5 @@
 import { Observable } from 'rxjs';
+import { SYSTEM_ENTITY_PERMISSIONS } from '../entity/entity-permissions.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES } from '../entity/entity.interface.js';
 import { PropertyType } from '../entity/metadata-options.interface.js';
@@ -336,6 +337,7 @@ export const isCurrentRxDBSystemVersion = (state: RxDBSystemVersionState): boole
   name: 'RxDBMigration',
   tableName: 'rxdb_migration',
   log: false,
+  permissions: SYSTEM_ENTITY_PERMISSIONS,
   properties: [
     {
       name: 'id',

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.js';
 
 test.describe('AG Grid Page', () => {
   test.beforeEach(async ({ page }) => {

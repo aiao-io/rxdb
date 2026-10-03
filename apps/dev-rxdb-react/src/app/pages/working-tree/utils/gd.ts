@@ -47,7 +47,8 @@ export const gdOpColor = (operation: WorkingTreeDiffEntry['operation']) =>
  * 路径**优先用表名**：表名才是数据真正落的位置；查不到（demo 没登记）回退实体名。
  */
 const TABLE_NAME_BY_ENTITY: Readonly<Record<string, string>> = {
-  Todo: 'todos'
+  Todo: 'todos',
+  Task: 'tasks'
 };
 
 /** 实体名 → 展示用表名：优先 `@Entity` 的 tableName，查不到回退实体名。 */

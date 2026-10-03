@@ -2,11 +2,15 @@ import {
   type CountOptions,
   type EntityData,
   type EntityMetadata,
+  type EntityPropertyMetadata,
   type FindAllOptions,
   type FindOptions,
+  isManualOrderEntity,
+  manualOrderGroupFields,
   type OrderBy,
   PropertyType,
-  type RuleGroup
+  type RuleGroup,
+  SORT_ORDER_FIELD
 } from '@aiao/rxdb';
 import {
   getTableNameByMetadata,
@@ -134,6 +138,40 @@ const resolve_column_name = (fieldName: string, entityMetadata?: EntityMetadata)
 
 const formatColumn = (columnName: string): string => quoteIdentifier(columnName);
 
+/**
+ * 可空列的 NULLS 方向
+ *
+ * @remarks
+ * 约定 NULL 是最小值（asc 靠前、desc 靠后），与 SQLite、JS 比较器 `compareOrderValues` 以及
+ * `Repository.findByCursor` 的游标谓词一致；PostgreSQL 默认相反（asc 时 NULLS LAST）。
+ * 非空列不写：结果相同，且显式 NULLS FIRST 会让默认 btree 索引无法用于正向扫描。
+ * 外键列不在 propertyMap 里，按可空处理。
+ */
+const nulls_order = (sort: 'asc' | 'desc', property?: EntityPropertyMetadata): string => {
+  if (property && !property.nullable) return '';
+  return sort === 'asc' ? ' NULLS FIRST' : ' NULLS LAST';
+};
+
+/** varchar 落盘的列类型：比较才受库 locale 影响 */
+const TEXT_PROPERTY_TYPES: ReadonlySet<string> = new Set([PropertyType.string, PropertyType.enum]);
+
+/** 手动排序实体里要按码点比较的列：`sortOrder` 与文本类分组字段 */
+const is_code_point_field = (field: string, metadata: EntityMetadata): boolean => {
+  if (field === SORT_ORDER_FIELD) return true;
+  const type = metadata.propertyMap.get(field)?.type;
+  return type !== undefined && TEXT_PROPERTY_TYPES.has(type) && manualOrderGroupFields(metadata).includes(field);
+};
+
+/**
+ * 手动排序键与文本分组字段的显式 collation（US-028）
+ *
+ * 分数索引键按码点比较才有序；PostgreSQL 的文本比较跟随库的 locale，非 `C` 时 `'Zz'` 与 `'a0'` 会翻转，
+ * 与核心、SQLite（TEXT 默认 BINARY）给出不同顺序。分组字段打头参与默认排序，string / enum 分组字段同理；
+ * uuid / boolean / 外键列不是文本，其余字段与普通实体都不动。
+ */
+const manual_order_collate = (field: string, metadata?: EntityMetadata): string =>
+  metadata && isManualOrderEntity(metadata) && is_code_point_field(field, metadata) ? ' COLLATE "C"' : '';
+
 const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string | undefined => {
   if (!orderBy?.length) return undefined;
   return orderBy
@@ -150,7 +188,8 @@ const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string 
         );
       }
       const columnName = resolve_column_name(item.field, metadata);
-      return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(columnName)} ${sort.toUpperCase()}`;
+      const collate = manual_order_collate(item.field, metadata);
+      return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(columnName)}${collate} ${sort.toUpperCase()}${nulls_order(sort, property)}`;
     })
     .join(', ');
 };
@@ -234,6 +273,8 @@ const build_rule_pg = (
   const prop = getProperty(rule.field, entityMetadata);
   const { operator, value } = rule;
   assertPropertyOperator(prop, operator);
+  // 连接表上的同名字段不是本实体的排序键
+  const orderCollate = alias ? '' : manual_order_collate(rule.field, entityMetadata);
 
   if (operator === 'null' || operator === 'notNull') {
     return operator === 'null' ? `${fieldSql} IS NULL` : `${fieldSql} IS NOT NULL`;
@@ -302,7 +343,7 @@ const build_rule_pg = (
     }
     params.push(transformQueryValue(value[0], prop), transformQueryValue(value[1], prop));
     const sqlOperator = operator === 'between' ? 'BETWEEN' : 'NOT BETWEEN';
-    return `${fieldSql} ${sqlOperator} $${params.length - 1} AND $${params.length}`;
+    return `${fieldSql}${orderCollate} ${sqlOperator} $${params.length - 1} AND $${params.length}`;
   }
 
   if (PATTERN_OPERATORS.has(operator)) {
@@ -325,7 +366,9 @@ const build_rule_pg = (
   if (prop?.type === PropertyType.uuid) {
     return `${fieldSql}::uuid ${operator} $${params.length}::uuid`;
   }
-  return `${fieldSql} ${operator} $${params.length}`;
+  // 等值不受 collation 影响，只有大小比较需要码点序
+  const collate = operator === '=' || operator === '!=' ? '' : orderCollate;
+  return `${fieldSql}${collate} ${operator} $${params.length}`;
 };
 
 export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<EntityData>>(

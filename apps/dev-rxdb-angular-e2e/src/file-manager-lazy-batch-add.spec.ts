@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import { readCount, resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 test.describe('File Manager Lazy - Batch Add Functionality', () => {
   test.beforeEach(async ({ page }) => {

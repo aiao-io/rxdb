@@ -5,12 +5,14 @@ import {
   type FormFieldConfig,
   type FormValidationResult
 } from '@aiao/rxdb-model';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { mount } from '@vue/test-utils';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markRaw } from 'vue';
-import EntityDetail from '../../entity-detail/EntityDetail.vue';
 import type { EntityDetailDialogData } from '../../entity-detail/entity-detail-types';
+import EntityDetail from '../../entity-detail/EntityDetail.vue';
+import EntityList from '../../entity-list/EntityList.vue';
+import QueryTable from '../../entity-table/QueryTable.vue';
 import { createInMemoryRxdb, IN_MEMORY_ADAPTER_NAME, InMemoryRxDBAdapter } from '../testing/in-memory-rxdb';
 import { createRxDBDialogHost } from '../testing/mount-utils';
 
@@ -142,7 +144,11 @@ describe('EntityDetail（真实组件）', () => {
         }
       }
     );
-    rxdb = createInMemoryRxdb([Todo as unknown as EntityType, DetailGroup, DetailChild]);
+    rxdb = createInMemoryRxdb([
+      ...([Todo, Account, Invoice, Contract] as unknown as EntityType[]),
+      DetailGroup,
+      DetailChild
+    ]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -432,5 +438,44 @@ describe('EntityDetail（真实组件）', () => {
     await FLUSH();
 
     expect(component.editChain).toEqual(['group-1']);
+  });
+
+  it('US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删', async () => {
+    const account = new Account({ name: 'acme' });
+    await account.save();
+    const invoice = new Invoice({ title: 'inv-1', accountId: account.id });
+    const contract = new Contract({ title: 'ct-1', accountId: account.id });
+    await invoice.save();
+    await contract.save();
+
+    const { detail } = createWithRouteInputs('public', 'Account', account.id);
+    await FLUSH();
+    await FLUSH();
+
+    type ListVM = {
+      name: string;
+      tableRecords: Array<Record<string, unknown>>;
+      tableColumns: Array<{ field?: string; icon: (args: unknown) => Array<{ name: string }> }>;
+    };
+    const lists = detail.findAllComponents(EntityList);
+    const listOf = (name: string) => {
+      const list = lists.find(l => (l.vm as unknown as ListVM).name === name);
+      if (!list) throw new Error(`关系 tab 里没有 ${name} 列表`);
+      return list;
+    };
+    const actionIconNames = (name: string): string[] => {
+      const list = listOf(name);
+      const columns = (list.vm as unknown as ListVM).tableColumns;
+      const col = columns.findIndex(c => c.field === 'actions') + 1;
+      const table = list.findComponent(QueryTable).vm.tableInstance;
+      return [...new Set(columns[col - 1].icon({ table, col, row: 1 }).map(i => i.name))];
+    };
+    const recordsOf = (name: string) => (listOf(name).vm as unknown as ListVM).tableRecords;
+
+    expect(lists.map(l => (l.vm as unknown as ListVM).name).sort()).toEqual(['Contract', 'Invoice']);
+    expect(recordsOf('Invoice').map(r => [r['id'], r['_readonly']])).toEqual([[invoice.id, true]]);
+    expect(actionIconNames('Invoice')).toEqual(['view-action', 'delete-action']);
+    expect(recordsOf('Contract').map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
+    expect(actionIconNames('Contract')).toEqual(['view-action']);
   });
 });

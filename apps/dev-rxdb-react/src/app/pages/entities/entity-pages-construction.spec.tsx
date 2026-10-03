@@ -109,6 +109,23 @@ describe('entity demo page construction contracts', () => {
     });
   });
 
+  it('entity-list 页把 fixedQuery 查询参数（JSON）作为固定查询传给列表，缺省时不传', async () => {
+    rxdbHolder.current = makeRxdb();
+    const pinned = { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] };
+
+    render(
+      <MemoryRouter initialEntries={[`/entities/public/Task?fixedQuery=${encodeURIComponent(JSON.stringify(pinned))}`]}>
+        <Routes>
+          <Route element={<EntityListPage />} path='entities/:namespace/:name' />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(stubs.listProps.props).toMatchObject({ namespace: 'public', name: 'Task', fixedQuery: pinned });
+    });
+  });
+
   it('entity-detail 页按 namespace/name/entityId 路由参数定位实体，保存/取消后相对导航回实体列表', async () => {
     rxdbHolder.current = makeRxdb();
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);

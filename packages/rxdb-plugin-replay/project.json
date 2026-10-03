@@ -1,0 +1,38 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-plugin-replay",
+  "tags": ["js-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/packages/rxdb-plugin-replay"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-replay",
+        "command": "vitest run --coverage",
+        "env": {
+          "VITEST_BROWSER": "false"
+        }
+      },
+      "metadata": {
+        "description": "Run Node tests with coverage before the browser coverage merge."
+      }
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "coverage"],
+      "options": {
+        "cwd": "packages/rxdb-plugin-replay",
+        "command": "vitest run --coverage && node ../../scripts/merge-vitest-reports.mjs --node=../../coverage/packages/rxdb-plugin-replay --browser=../../coverage/packages/rxdb-plugin-replay-browser --output=../../coverage/packages/rxdb-plugin-replay",
+        "env": {
+          "VITEST_BROWSER": "true"
+        }
+      },
+      "metadata": {
+        "description": "Run the browser (real chromium) vitest project. Gated by VITEST_BROWSER=true in vite.config.mts; without this target these specs never run in CI."
+      }
+    }
+  }
+}

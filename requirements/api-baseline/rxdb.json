@@ -38,6 +38,14 @@
         "kind": "value"
       },
       {
+        "name": "assertEntityOperationAllowed",
+        "kind": "value"
+      },
+      {
+        "name": "assertMutationsAllowed",
+        "kind": "value"
+      },
+      {
         "name": "assertOptionalNonNegativeSafeInteger",
         "kind": "value"
       },
@@ -50,7 +58,15 @@
         "kind": "value"
       },
       {
+        "name": "assertSortOrderKey",
+        "kind": "value"
+      },
+      {
         "name": "assertSupportedRxDBSystemVersions",
+        "kind": "value"
+      },
+      {
+        "name": "assertSystemEntityPermissions",
         "kind": "value"
       },
       {
@@ -306,6 +322,10 @@
         "kind": "value"
       },
       {
+        "name": "ENTITY_OPERATIONS",
+        "kind": "value"
+      },
+      {
         "name": "ENTITY_REMOTE_CREATE_EVENT",
         "kind": "value"
       },
@@ -423,6 +443,18 @@
       },
       {
         "name": "EntityMutationsOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperation",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperationPermission",
+        "kind": "type"
+      },
+      {
+        "name": "EntityPermissionOptions",
         "kind": "type"
       },
       {
@@ -646,6 +678,10 @@
         "kind": "value"
       },
       {
+        "name": "getEntityPermission",
+        "kind": "value"
+      },
+      {
         "name": "getEntityStatus",
         "kind": "value"
       },
@@ -846,12 +882,20 @@
         "kind": "value"
       },
       {
+        "name": "isManualOrderEntity",
+        "kind": "value"
+      },
+      {
         "name": "isNetworkError",
         "kind": "value"
       },
       {
         "name": "isNoSync",
         "kind": "value"
+      },
+      {
+        "name": "ISortableEntity",
+        "kind": "type"
       },
       {
         "name": "isRemoteNewer",
@@ -946,6 +990,14 @@
         "kind": "both"
       },
       {
+        "name": "manualOrderGroupFields",
+        "kind": "value"
+      },
+      {
+        "name": "ManualOrderOptions",
+        "kind": "type"
+      },
+      {
         "name": "MERGE_BRANCH_BEGIN",
         "kind": "value"
       },
@@ -1030,6 +1082,10 @@
         "kind": "value"
       },
       {
+        "name": "normalizeManualOrderBy",
+        "kind": "value"
+      },
+      {
         "name": "normalizeUpdateEntity",
         "kind": "value"
       },
@@ -1103,6 +1159,14 @@
       },
       {
         "name": "PercentageFormat",
+        "kind": "type"
+      },
+      {
+        "name": "PermissionDeniedError",
+        "kind": "both"
+      },
+      {
+        "name": "PermissionViolation",
         "kind": "type"
       },
       {
@@ -1367,6 +1431,22 @@
       },
       {
         "name": "RemoteRxDBChangeRepository",
+        "kind": "type"
+      },
+      {
+        "name": "ReorderBetween",
+        "kind": "type"
+      },
+      {
+        "name": "ReorderTarget",
+        "kind": "type"
+      },
+      {
+        "name": "reorderTargetForMove",
+        "kind": "value"
+      },
+      {
+        "name": "ReorderToGroupEnd",
         "kind": "type"
       },
       {
@@ -1942,6 +2022,22 @@
         "kind": "value"
       },
       {
+        "name": "SORT_ORDER_FIELD",
+        "kind": "value"
+      },
+      {
+        "name": "SortOrderError",
+        "kind": "both"
+      },
+      {
+        "name": "SortOrderErrorReason",
+        "kind": "type"
+      },
+      {
+        "name": "SortOrderKey",
+        "kind": "type"
+      },
+      {
         "name": "sqlBooleanLiteral",
         "kind": "value"
       },
@@ -2115,6 +2211,10 @@
       },
       {
         "name": "SYSTEM_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "SYSTEM_ENTITY_PERMISSIONS",
         "kind": "value"
       },
       {

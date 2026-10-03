@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_52_DIGITS, generateKeyBetween, generateKeysBetween } from '../../indexing/fractional-indexing.js';
+import {
+  BASE_52_DIGITS,
+  generateKeyBetween,
+  generateKeysBetween,
+  isValidOrderKey
+} from '../../indexing/fractional-indexing.js';
 
 const BASE_10_DIGITS = '0123456789';
 const BASE_62_DIGITS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -252,5 +257,96 @@ describe('fractional-indexing', () => {
     it('base-2 自带头字符范围不足，需外挂更宽的头字母表', () => {
       assertOrdering('01', BASE_52_DIGITS);
     });
+  });
+});
+
+describe('isValidOrderKey', () => {
+  it.each(['a0', 'a1', 'a0V', 'Zz', 'b00', 'a0zzzV', generateKeyBetween('a0', 'a1')])('默认字母表的合法键 %s', key => {
+    expect(isValidOrderKey(key)).toBe(true);
+  });
+
+  it.each([
+    ['空串', ''],
+    ['头字符不在字母表', '00'],
+    ['整数部分过短', 'b0'],
+    ['小数部分以零结尾', 'a00'],
+    ['最小整数', 'A' + '0'.repeat(26)],
+    ['整数部分含字母表外字符', 'a-'],
+    ['小数部分含字母表外字符', 'a0-'],
+    ['小数部分含非 ASCII 字符', 'a0é']
+  ])('%s 判为非法', (_label, key) => {
+    expect(isValidOrderKey(key)).toBe(false);
+  });
+
+  it.each([null, undefined, 1, {}])('非字符串 %s 判为非法', key => {
+    expect(isValidOrderKey(key)).toBe(false);
+  });
+
+  it('异字母表的键在默认字母表下非法，在其自身字母表下合法', () => {
+    const key = generateKeyBetween(null, null, BASE_62_DIGITS);
+    expect(key).toBe('V0');
+    expect(isValidOrderKey(key)).toBe(false);
+    expect(isValidOrderKey(key, BASE_62_DIGITS)).toBe(true);
+    expect(isValidOrderKey(generateKeyBetween(null, null, BASE_10_DIGITS))).toBe(false);
+    expect(isValidOrderKey('50', BASE_10_DIGITS)).toBe(true);
+  });
+
+  it('生成的键全部合法', () => {
+    const keys = generateKeysBetween(null, null, 200);
+    expect(keys.every(key => isValidOrderKey(key))).toBe(true);
+  });
+});
+
+/**
+ * US-028 AC#4：同一间隙反复最坏插入的键长预算，与随机插入序列的不变量。
+ * 169 / 202 是实测值——本故事只承诺已测预算，算法或字母表一改这两条就该红。
+ */
+describe('排序键预算与不变量（US-028 AC#4）', () => {
+  const WORST_CASE_INSERTS = 1_000;
+
+  const assertStrictlyIncreasing = (keys: readonly string[]): void => {
+    for (let i = 1; i < keys.length; i++) {
+      if (!(keys[i - 1] < keys[i])) throw new Error(`键序在第 ${i} 位被破坏：${keys[i - 1]} / ${keys[i]}`);
+    }
+  };
+
+  it.each([
+    ['贴下界', 169],
+    ['贴上界', 202]
+  ] as const)('同一间隙 %s 连续最坏插入 1,000 次，键始终合法、严格递增，最终键长 %i', (side, budget) => {
+    // 序列始终是 [a0, …新键…, a1]；每次都插在紧挨边界的那一格，间隙只会越来越窄
+    const sequence = ['a0', 'a1'];
+    for (let i = 0; i < WORST_CASE_INSERTS; i++) {
+      const at = side === '贴下界' ? 1 : sequence.length - 1;
+      const key = generateKeyBetween(sequence[at - 1], sequence[at]);
+      expect(isValidOrderKey(key)).toBe(true);
+      sequence.splice(at, 0, key);
+    }
+    assertStrictlyIncreasing(sequence);
+    // 两端锚点从未被改写：全程无重编号
+    expect([sequence[0], sequence.at(-1)]).toEqual(['a0', 'a1']);
+    const latest = sequence[side === '贴下界' ? 1 : sequence.length - 2];
+    expect(latest.length).toBe(budget);
+  });
+
+  it('固定种子的随机插入序列：每一步键都合法、全序列严格递增、旧键不变', () => {
+    // mulberry32：确定性 PRNG，失败可按种子复现
+    let state = 0x2028;
+    const random = (): number => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+    };
+    const sequence: string[] = [];
+    for (let step = 0; step < 2_000; step++) {
+      const at = Math.floor(random() * (sequence.length + 1));
+      const before = [...sequence];
+      const key = generateKeyBetween(sequence[at - 1] ?? null, sequence[at] ?? null);
+      expect(isValidOrderKey(key)).toBe(true);
+      sequence.splice(at, 0, key);
+      expect(sequence.filter((_, index) => index !== at)).toEqual(before);
+    }
+    assertStrictlyIncreasing(sequence);
   });
 });
