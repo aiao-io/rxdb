@@ -1,4 +1,4 @@
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
 import { ChangeDetectionStrategy, Component, computed, input, output, viewChild } from '@angular/core';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
 import { EntityTableComponent } from '../entity-table/entity-table.component';
@@ -53,12 +53,16 @@ export class QueryTableComponent {
   readonly loadingMore = input(false);
   /** 触底时加载更多数据的回调，透传给 EntityTableComponent */
   readonly loadMore = input<() => void>();
+  /** 是否显示行拖动手柄，缺省 `true`，透传给 EntityTableComponent */
+  readonly rowDragEnabled = input(true);
 
   readonly cellChanged = output<CellChangeEvent>();
   readonly rowDeleted = output<EntityTableRecord>();
   readonly iconClicked = output<{ name: string; record: EntityTableRecord }>();
   readonly batchUpdated = output<BatchChangeItem[]>();
   readonly rowReordered = output<string[]>();
+  /** 单行拖放：被拖行与落点前后邻居 */
+  readonly rowMoved = output<RowMoveEvent>();
   readonly scrollNearBottom = output<void>();
   readonly sortClicked = output<{ field: unknown; order: unknown }>();
 
@@ -82,5 +86,10 @@ export class QueryTableComponent {
 
   redrawTheme(): void {
     this.entityTable()?.redrawTheme();
+  }
+
+  /** 把行恢复成最近一次交给表格的顺序（委托给内部实体表格） */
+  restoreRecords(): void {
+    this.entityTable()?.restoreRecords();
   }
 }

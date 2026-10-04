@@ -13,6 +13,8 @@ import { archiveFailure, type DemoDbSnapshot, expect, type FailureArchiveSummary
  */
 
 const E2E_DB_NAME_STORAGE_KEY = '__aiao_e2e_db_name__';
+// Todo 页写的是 US-028 的可排序 `Task`（表 `tasks`），不是共享 `Todo`
+const TODO_PAGE_TABLE = 'public$tasks';
 // 归档开头：8 字节魔数，再是 manifest 帧（1 字节类型 + 4 字节大端长度 + JSON）。只读 manifest，完整校验由导入时的
 // `restore()` 负责
 const ARCHIVE_MAGIC_LENGTH = 8;
@@ -73,7 +75,7 @@ test.describe('e2e 失败现场归档', () => {
     const after = await snapshot(page);
 
     expect(after).toEqual(before);
-    expect(before.tables['public$todos']).toBe(2);
+    expect(before.tables[TODO_PAGE_TABLE]).toBe(2);
     expect(summary).toMatchObject({
       format: 'aiao-rxdb-e2e-failure-summary',
       version: 1,
@@ -108,7 +110,7 @@ test.describe('e2e 失败现场归档', () => {
     const summary = await archiveFailure(page, testInfo);
 
     expect(summary).toMatchObject({ page: 'reopened', outcome: 'archived', dbName });
-    expect(summary.tables?.['public$todos']).toBe(1);
+    expect(summary.tables?.[TODO_PAGE_TABLE]).toBe(1);
   });
 
   // chrome://crash 只在 Chromium 上可用；本 e2e 只配了 chromium 项目，加别的浏览器时这条要按项目过滤
@@ -123,7 +125,7 @@ test.describe('e2e 失败现场归档', () => {
     const summary = await archiveFailure(page, testInfo, { crashed: true });
 
     expect(summary).toMatchObject({ page: 'reopened', outcome: 'archived', dbName });
-    expect(summary.tables?.['public$todos']).toBe(1);
+    expect(summary.tables?.[TODO_PAGE_TABLE]).toBe(1);
   });
 
   test('上下文已关闭时不导出，只记原因（AC#5）', async ({ browser }, testInfo) => {
@@ -151,6 +153,6 @@ test.describe('e2e 失败现场归档', () => {
 
     // `snapshot()` 排在之前每次归档的第二实例销毁之后；主实例此后仍能写入
     await addTodo(page, '预算后');
-    expect((await snapshot(page)).tables['public$todos']).toBe(2);
+    expect((await snapshot(page)).tables[TODO_PAGE_TABLE]).toBe(2);
   });
 });

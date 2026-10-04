@@ -36,7 +36,13 @@ export {
   registerEditor
 } from './vtable/table-factory.js';
 export { handleTableKeydown, type KeyboardHandlerContext } from './vtable/table-keyboard.js';
-export { collectReorderedIds, patchDragIconForReadonlyRows, updateTableRecords } from './vtable/table-operations.js';
+export {
+  collectReorderedIds,
+  patchDragIconForReadonlyRows,
+  syncHeaderSortIcon,
+  updateTableRecords,
+  type HeaderSortClick
+} from './vtable/table-operations.js';
 export { createTheme, getCSSVariables, getDefaultColors, type CSSVariables } from './vtable/table-theme.js';
 export { CellTooltipManager, computeTooltipPosition } from './vtable/table-tooltip.js';
 export {

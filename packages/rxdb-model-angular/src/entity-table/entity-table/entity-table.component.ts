@@ -1,4 +1,11 @@
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, PendingWrite } from '@aiao/rxdb-model';
+import type {
+  BatchChangeItem,
+  CellChangeEvent,
+  EntityTableRecord,
+  HeaderPositionChange,
+  PendingWrite,
+  RowMoveEvent
+} from '@aiao/rxdb-model';
 import {
   CellTooltipManager,
   ROW_SERIES_COL_OFFSET,
@@ -12,7 +19,11 @@ import {
   handleTableKeydown,
   isDocumentDarkMode,
   patchDragIconForReadonlyRows,
+  readRowMove,
+  restoreTableRecords,
   setCellSwitchState,
+  setRowDragEnabled,
+  syncHeaderSortIcon,
   updateTableRecords,
   changeCellValue as vtChangeCellValue
 } from '@aiao/rxdb-model';
@@ -68,6 +79,8 @@ export class EntityTableComponent implements OnDestroy {
   #tableReady = signal(false);
   #prevColumns: ListTableConstructorOptions['columns'] | null = null;
   #prevRecords: EntityTableRecord[] | null = null;
+  /** 最近一次交给表格的行顺序副本：VTable 拖放会原地改写传入数组 */
+  #committedRecords: EntityTableRecord[] = [];
   #selectedCell: { col: number; row: number } | null = null;
   #containerKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
   #resizeObserver: ResizeObserver | null = null;
@@ -98,6 +111,8 @@ export class EntityTableComponent implements OnDestroy {
   readonly loadMore = input<() => void>();
   /** 加载更多中状态（已有数据，底部小 spinner，不拦截滚动） */
   readonly loadingMore = input(false);
+  /** 是否显示行拖动手柄，缺省 `true`；运行时切换即时生效（建表需开启 `rowSeriesNumber.dragOrder`） */
+  readonly rowDragEnabled = input(true);
 
   // ── 输出 ──────────────────────────────────────────────────────────
   readonly cellChanged = output<CellChangeEvent>();
@@ -105,6 +120,8 @@ export class EntityTableComponent implements OnDestroy {
   readonly iconClicked = output<{ name: string; record: EntityTableRecord }>();
   readonly batchUpdated = output<BatchChangeItem[]>();
   readonly rowReordered = output<string[]>();
+  /** 单行拖放：被拖行与落点前后邻居（US-028） */
+  readonly rowMoved = output<RowMoveEvent>();
   readonly scrollNearBottom = output<void>();
   /** 列头排序点击；业务层接管查询排序，表格不执行客户端排序 */
   readonly sortClicked = output<{ field: unknown; order: unknown }>();
@@ -151,10 +168,18 @@ export class EntityTableComponent implements OnDestroy {
           updateTableRecords(this.#tableInstance, records, this.#prevColumns ?? columns, columns);
           this.#prevColumns = columns;
           this.#prevRecords = records;
+          this.#committedRecords = [...records];
         } else if (records !== this.#prevRecords) {
           this.#tableInstance.setRecords(records);
           this.#prevRecords = records;
+          this.#committedRecords = [...records];
         }
+      });
+
+      // 行拖动手柄开关（VTable 只在建表时读 dragOrder，运行时经补丁过的 getIcons 收起）
+      effect(() => {
+        const enabled = this.rowDragEnabled();
+        if (this.#tableReady() && this.#tableInstance) setRowDragEnabled(this.#tableInstance, enabled);
       });
 
       effect(() => {
@@ -175,6 +200,13 @@ export class EntityTableComponent implements OnDestroy {
   redrawTheme(): void {
     if (this.#tableInstance) {
       this.#tableInstance.updateTheme(createTheme(this.#resolvedDarkMode(), getCSSVariables()));
+    }
+  }
+
+  /** 把行恢复成最近一次交给表格的顺序（拖放被拒或落库失败时调用）。 */
+  restoreRecords(): void {
+    if (this.#tableInstance && this.#prevRecords) {
+      restoreTableRecords(this.#tableInstance, this.#prevRecords, this.#committedRecords);
     }
   }
 
@@ -208,6 +240,7 @@ export class EntityTableComponent implements OnDestroy {
     const table = createListTable(container, records, this.columns(), this.#resolvedDarkMode(), this.tableOptions());
     this.#tableInstance = table;
     this.#prevRecords = records;
+    this.#committedRecords = [...records];
     this.#container = container;
     const h = table.getRowHeight(0);
     if (h > 0) this.#headerHeight.set(h);
@@ -216,6 +249,10 @@ export class EntityTableComponent implements OnDestroy {
     this.#resizeObserver.observe(container);
     table.updateTheme(createTheme(this.#resolvedDarkMode(), getCSSVariables()));
     patchDragIconForReadonlyRows(table);
+    setRowDragEnabled(
+      table,
+      untracked(() => this.rowDragEnabled())
+    );
     this.#bindTableEvents(table, container);
   }
 
@@ -271,13 +308,16 @@ export class EntityTableComponent implements OnDestroy {
     table.on('selected_cell', (args: { col: number; row: number }) => {
       this.#selectedCell = { col: args.col, row: args.row };
     });
-    table.on('change_header_position', () => {
+    table.on('change_header_position', (args: HeaderPositionChange) => {
       const ids = collectReorderedIds(table, this.idField());
       if (ids.length > 0) this.rowReordered.emit(ids);
+      const move = readRowMove(table, this.idField(), args);
+      if (move) this.rowMoved.emit(move);
     });
-    // 返回 false 阻止 VTable executeSort，由业务层 cursor orderBy 重查
+    // 返回 false 阻止 VTable executeSort，由业务层 cursor orderBy 重查；排序图标另行同步
     table.on('sort_click', (args: { field: unknown; order: unknown }) => {
       this.sortClicked.emit({ field: args.field, order: args.order });
+      syncHeaderSortIcon(table, args);
       return false;
     });
     table.on('scroll', (args: { scrollDirection: string; scrollRatioY?: number; dy?: number }) => {

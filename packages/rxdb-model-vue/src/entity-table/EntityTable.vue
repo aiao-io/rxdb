@@ -6,7 +6,14 @@
  * 键盘、主题）来自 `@aiao/rxdb-model`；本组件负责表格实例生命周期、事件桥接、
  * 暗色主题探测与销毁释放。
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, PendingWrite } from '@aiao/rxdb-model';
+import type {
+  BatchChangeItem,
+  CellChangeEvent,
+  EntityTableRecord,
+  HeaderPositionChange,
+  PendingWrite,
+  RowMoveEvent
+} from '@aiao/rxdb-model';
 import {
   CellTooltipManager,
   ROW_SERIES_COL_OFFSET,
@@ -20,7 +27,11 @@ import {
   handleTableKeydown,
   isDocumentDarkMode,
   patchDragIconForReadonlyRows,
+  readRowMove,
+  restoreTableRecords,
   setCellSwitchState,
+  setRowDragEnabled,
+  syncHeaderSortIcon,
   updateTableRecords,
   changeCellValue as vtChangeCellValue
 } from '@aiao/rxdb-model';
@@ -54,6 +65,8 @@ const props = withDefaults(
     loadMore?: () => void;
     /** 加载更多中状态（底部小 spinner，不拦截滚动） */
     loadingMore?: boolean;
+    /** 是否显示行拖动手柄，缺省 `true`；运行时切换即时生效（建表需开启 `rowSeriesNumber.dragOrder`） */
+    rowDragEnabled?: boolean;
   }>(),
   {
     isDarkMode: undefined,
@@ -63,7 +76,8 @@ const props = withDefaults(
     loading: false,
     cellClearable: undefined,
     loadMore: undefined,
-    loadingMore: false
+    loadingMore: false,
+    rowDragEnabled: true
   }
 );
 
@@ -78,6 +92,8 @@ const emit = defineEmits<{
   batchUpdated: [items: BatchChangeItem[]];
   /** 行拖拽重排后的 id 顺序 */
   rowReordered: [ids: string[]];
+  /** 单行拖放：被拖行与落点前后邻居（US-028） */
+  rowMoved: [move: RowMoveEvent];
   /** 触底且未提供 loadMore */
   scrollNearBottom: [];
   /** 列头排序点击（业务层接管查询排序） */
@@ -95,6 +111,8 @@ const headerHeight = ref(40);
 
 let prevColumns: ListTableConstructorOptions['columns'] | null = null;
 let prevRecords: EntityTableRecord[] | null = null;
+/** 最近一次交给表格的行顺序副本：VTable 拖放会原地改写传入数组 */
+let committedRecords: EntityTableRecord[] = [];
 let selectedCell: { col: number; row: number } | null = null;
 let containerKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -139,6 +157,7 @@ const initTable = (container: HTMLElement): void => {
   const table = createListTable(container, props.records, props.columns, resolvedDarkMode(), props.tableOptions);
   tableInstance.value = table;
   prevRecords = props.records;
+  committedRecords = [...props.records];
   containerEl = container;
   const h = table.getRowHeight(0);
   if (h > 0) headerHeight.value = h;
@@ -147,12 +166,18 @@ const initTable = (container: HTMLElement): void => {
   resizeObserver.observe(container);
   table.updateTheme(createTheme(resolvedDarkMode(), getCSSVariables()));
   patchDragIconForReadonlyRows(table);
+  setRowDragEnabled(table, props.rowDragEnabled);
   bindTableEvents(table, container);
 };
 
 /** 从业务层回滚单元格值（校验失败时恢复原值） */
 const changeCellValue = (col: number, row: number, value: unknown): void => {
   if (tableInstance.value) vtChangeCellValue(tableInstance.value, col, row, value);
+};
+
+/** 把行恢复成最近一次交给表格的顺序（拖放被拒或落库失败时调用） */
+const restoreRecords = (): void => {
+  if (tableInstance.value && prevRecords) restoreTableRecords(tableInstance.value, prevRecords, committedRecords);
 };
 
 /** 重绘主题（isDarkMode / 自动探测变化时） */
@@ -184,13 +209,16 @@ const bindTableEvents = (table: VTable.ListTable, container: HTMLElement): void 
   table.on('selected_cell', (args: { col: number; row: number }) => {
     selectedCell = { col: args.col, row: args.row };
   });
-  table.on('change_header_position', () => {
+  table.on('change_header_position', (args: HeaderPositionChange) => {
     const ids = collectReorderedIds(table, props.idField);
     if (ids.length > 0) emit('rowReordered', ids);
+    const move = readRowMove(table, props.idField, args);
+    if (move) emit('rowMoved', move);
   });
-  // 返回 false 阻止 VTable 客户端排序，由业务层 cursor orderBy 重查
+  // 返回 false 阻止 VTable executeSort，由业务层 cursor orderBy 重查；排序图标另行同步
   table.on('sort_click', (args: { field: unknown; order: unknown }) => {
     emit('sortClicked', { field: args.field, order: args.order });
+    syncHeaderSortIcon(table, args);
     return false;
   });
   table.on('scroll', (args: { scrollDirection: string; scrollRatioY?: number; dy?: number }) => {
@@ -314,10 +342,20 @@ watch(
       updateTableRecords(tableInstance.value, records, prevColumns ?? columns, columns);
       prevColumns = columns;
       prevRecords = records;
+      committedRecords = [...records];
     } else if (records !== prevRecords) {
       tableInstance.value.setRecords(records);
       prevRecords = records;
+      committedRecords = [...records];
     }
+  }
+);
+
+// 行拖动手柄开关（VTable 只在建表时读 dragOrder，运行时经补丁过的 getIcons 收起）
+watch(
+  () => props.rowDragEnabled,
+  enabled => {
+    if (tableInstance.value) setRowDragEnabled(tableInstance.value, enabled);
   }
 );
 
@@ -355,7 +393,8 @@ defineExpose({
   headerHeight,
   cellTooltip,
   changeCellValue,
-  redrawTheme
+  redrawTheme,
+  restoreRecords
 });
 </script>
 

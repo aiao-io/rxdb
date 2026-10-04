@@ -1,4 +1,4 @@
-import type { CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model';
+import { type CellChangeEvent, type EntityTableRecord, isRowDragEnabled } from '@aiao/rxdb-model';
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
@@ -54,6 +54,7 @@ type QueryTableVM = InstanceType<typeof QueryTable> & {
   entityTable: { tableContainer: HTMLElement | null } | null;
   changeCellValue(col: number, row: number, value: unknown): void;
   redrawTheme(): void;
+  restoreRecords(): void;
 };
 
 /**
@@ -167,10 +168,14 @@ describe('QueryTable（真实组件）', () => {
     expect(wrapper.emitted('sortClicked')).toEqual([[{ field: 'name', order: 'desc' }]]);
   });
 
-  it('rowDeleted / iconClicked / batchUpdated / rowReordered 透传', () => {
+  it('rowDeleted / iconClicked / batchUpdated / rowReordered / rowMoved / rowDragEnabled 透传', () => {
     const wrapper = mount(QueryTable, {
       props: {
-        records: [{ id: 'r1', name: 'Alice', active: true }],
+        records: [
+          { id: 'r1', name: 'Alice', active: true },
+          { id: 'r2', name: 'Bob', active: false }
+        ],
+        rowDragEnabled: false,
         columns: [
           { field: 'name', title: '名称', cellType: 'text' },
           { field: 'active', title: '启用', cellType: 'switch' }
@@ -182,7 +187,7 @@ describe('QueryTable（真实组件）', () => {
     const table = component.tableInstance as unknown as FakeListTable;
     table.emit('icon_click', { name: 'delete-action', col: 1, row: 1 });
     table.emit('icon_click', { name: 'view-action', col: 1, row: 1 });
-    table.emit('change_header_position', {});
+    table.dragRow(2, 1);
     table.selectedCellInfos = [[{ col: 1, row: 1, field: 'name' }]];
     table.emit('selected_cell', { col: 1, row: 1 });
     component.entityTable?.tableContainer?.dispatchEvent(
@@ -193,17 +198,23 @@ describe('QueryTable（真实组件）', () => {
     expect(wrapper.emitted('iconClicked')).toEqual([
       [{ name: 'view-action', record: { id: 'r1', name: 'Alice', active: true } }]
     ]);
-    expect(wrapper.emitted('rowReordered')).toEqual([[['r1']]]);
-    expect(wrapper.emitted('batchUpdated')).toEqual([[[{ recordId: 'r1', changes: { name: '' } }]]]);
+    expect(wrapper.emitted('rowReordered')).toEqual([[['r2', 'r1']]]);
+    expect(wrapper.emitted('rowMoved')).toEqual([[{ id: 'r2', prevId: null, nextId: 'r1' }]]);
+    expect(isRowDragEnabled(table as never)).toBe(false);
+    expect(wrapper.emitted('batchUpdated')).toEqual([[[{ recordId: 'r2', changes: { name: '' } }]]]);
   });
 
-  it('changeCellValue 与 redrawTheme 委托给内部表格', () => {
-    const { component } = render();
+  it('changeCellValue / redrawTheme / restoreRecords 委托给内部表格', () => {
+    const { component } = render({ records: [{ id: 'r1' }, { id: 'r2' }] });
     const table = component.tableInstance as unknown as FakeListTable;
 
     expect(() => component.changeCellValue(1, 1, 'back')).not.toThrow();
     component.redrawTheme();
     expect(table.lastTheme).toBeDefined();
+    table.dragRow(2, 1);
+    expect(table.records.map(r => r['id'])).toEqual(['r2', 'r1']);
+    component.restoreRecords();
+    expect(table.records.map(r => r['id'])).toEqual(['r1', 'r2']);
   });
 
   it('loading 透传给内部实体表格并渲染 spinner', () => {

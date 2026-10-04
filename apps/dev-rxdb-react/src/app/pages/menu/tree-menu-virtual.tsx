@@ -27,6 +27,7 @@ import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuVirtualStore } from '../../hooks/useTreeMenuVirtualStore';
 import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
+import { compareSortOrder } from '../../utils/sort-order';
 
 export function TreeMenuVirtualPage() {
   const rxdb = useRxDB();
@@ -72,9 +73,7 @@ export function TreeMenuVirtualPage() {
     async (count: number, actionKey: string) => {
       setLoadingActions(prev => new Set(prev).add(actionKey));
       try {
-        const existingRoots = menus
-          .filter(m => !m.parentId)
-          .sort((a, b) => (a.sortOrder || '').localeCompare(b.sortOrder || ''));
+        const existingRoots = menus.filter(m => !m.parentId).sort(compareSortOrder);
 
         const newMenus = generateBatchMenus(count, MenuLarge, existingRoots);
         await rxdb.entityManager.saveMany(newMenus);

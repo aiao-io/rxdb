@@ -15,6 +15,11 @@ export * from './broadcast-channel-pool.js';
 export * from './IdleTimer.js';
 
 /**
+ * 等高行虚拟列表的指针拖拽内核
+ */
+export * from './fixed-row-drag.js';
+
+/**
  * Leader 选举
  */
 export * from './leader-election.js';

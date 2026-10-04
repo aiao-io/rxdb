@@ -75,7 +75,7 @@ const merge_features = (
  * 用 `!== undefined` 而不是真值判断：`log: false` 是有意义的声明（关掉变更日志），
  * 不能被更远祖先的 `true` 顶掉。
  */
-const nearest_declared = <K extends 'repository' | 'sync' | 'log'>(
+const nearest_declared = <K extends 'repository' | 'sync' | 'log' | 'manualOrder'>(
   metadataOptionsArray: readonly EntityMetadataOptions[],
   key: K
 ): EntityMetadataOptions[K] => {
@@ -243,6 +243,9 @@ export const transitionMetadata = (
   if (sync !== undefined) metadata.sync = sync;
   const log = nearest_declared(metadataOptionsArray, 'log');
   if (log !== undefined) metadata.log = log;
+  // `manualOrder: false` 同样是有意义的声明（子类关掉祖先的手动排序），同 log 用就近而非真值
+  const manualOrder = nearest_declared(metadataOptionsArray, 'manualOrder');
+  if (manualOrder !== undefined) metadata.manualOrder = manualOrder;
   // 按操作就近继承：整键覆盖会让子类只写 `{ delete: 'system' }` 时悄悄放开父类收紧的 update。
   // 整条链都没声明时同样不写这个键；非法值原样留给注册期校验
   const permissions = mergeEntityPermissions(metadataOptionsArray);

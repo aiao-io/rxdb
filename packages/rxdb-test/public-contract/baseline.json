@@ -65,6 +65,7 @@
     "Invoice": "function",
     "MenuLarge": "function",
     "MenuSimple": "function",
+    "Task": "function",
     "Todo": "function",
     "TypeDemo": "function",
     "TypeDemoNative": "function"
@@ -89,6 +90,13 @@
     "SKU": "function",
     "SKUAttributes": "function",
     "User": "function"
+  },
+  "./sortable": {
+    "SortableItem": "function",
+    "SortableList": "function",
+    "SortableListItem": "function",
+    "SortableTodo": "function",
+    "runManualOrderSuite": "function"
   },
   "./transaction": {
     "TransactionContractFailure": "function",

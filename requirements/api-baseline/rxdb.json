@@ -58,6 +58,10 @@
         "kind": "value"
       },
       {
+        "name": "assertSortOrderKey",
+        "kind": "value"
+      },
+      {
         "name": "assertSupportedRxDBSystemVersions",
         "kind": "value"
       },
@@ -878,12 +882,20 @@
         "kind": "value"
       },
       {
+        "name": "isManualOrderEntity",
+        "kind": "value"
+      },
+      {
         "name": "isNetworkError",
         "kind": "value"
       },
       {
         "name": "isNoSync",
         "kind": "value"
+      },
+      {
+        "name": "ISortableEntity",
+        "kind": "type"
       },
       {
         "name": "isRemoteNewer",
@@ -978,6 +990,14 @@
         "kind": "both"
       },
       {
+        "name": "manualOrderGroupFields",
+        "kind": "value"
+      },
+      {
+        "name": "ManualOrderOptions",
+        "kind": "type"
+      },
+      {
         "name": "MERGE_BRANCH_BEGIN",
         "kind": "value"
       },
@@ -1059,6 +1079,10 @@
       },
       {
         "name": "normalizeCreateEntity",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeManualOrderBy",
         "kind": "value"
       },
       {
@@ -1407,6 +1431,22 @@
       },
       {
         "name": "RemoteRxDBChangeRepository",
+        "kind": "type"
+      },
+      {
+        "name": "ReorderBetween",
+        "kind": "type"
+      },
+      {
+        "name": "ReorderTarget",
+        "kind": "type"
+      },
+      {
+        "name": "reorderTargetForMove",
+        "kind": "value"
+      },
+      {
+        "name": "ReorderToGroupEnd",
         "kind": "type"
       },
       {
@@ -1980,6 +2020,22 @@
       {
         "name": "SKIP_BRANCH_SWITCH_PREPARE",
         "kind": "value"
+      },
+      {
+        "name": "SORT_ORDER_FIELD",
+        "kind": "value"
+      },
+      {
+        "name": "SortOrderError",
+        "kind": "both"
+      },
+      {
+        "name": "SortOrderErrorReason",
+        "kind": "type"
+      },
+      {
+        "name": "SortOrderKey",
+        "kind": "type"
       },
       {
         "name": "sqlBooleanLiteral",

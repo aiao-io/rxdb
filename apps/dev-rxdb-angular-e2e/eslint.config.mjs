@@ -7,8 +7,10 @@ export default [
   ...baseConfig,
   {
     files: ['**/*.ts', '**/*.js'],
-    // Override or add rules here
-    rules: {}
+    rules: {
+      // 断言辅助函数内部含 expect，让规则把对它们的调用也算作断言
+      'playwright/expect-expect': ['warn', { assertFunctionNames: ['expectOrder'] }]
+    }
   },
   {
     // US-909：失败现场归档挂在 ./fixtures 的 auto fixture 上，直接用 `@playwright/test` 的 `test` 就绕开了它。

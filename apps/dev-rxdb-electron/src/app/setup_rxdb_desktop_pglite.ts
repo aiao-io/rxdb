@@ -8,7 +8,7 @@ import {
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { FileLarge, FileNode, MenuLarge, MenuSimple, Todo } from '@aiao/rxdb-test/entities';
+import { FileLarge, FileNode, MenuLarge, MenuSimple, Task, Todo } from '@aiao/rxdb-test/entities';
 import type { BackupProbeArchiveOps } from './backup-probe';
 import { DESKTOP_PGLITE_DB_NAME } from './db-names';
 import { DesktopLaunch } from './desktop-launch.entity';
@@ -71,7 +71,7 @@ export default () => {
   const rxdb = new RxDB({
     dbName: DESKTOP_PGLITE_DATA_DIRECTORY,
     context: { userId: 'userId' },
-    entities: [Todo, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
+    entities: [Todo, Task, MenuLarge, MenuSimple, FileNode, FileLarge, DesktopLaunch],
     sync: {
       local: {
         adapter: ELECTRON_PGLITE_ADAPTER_NAME

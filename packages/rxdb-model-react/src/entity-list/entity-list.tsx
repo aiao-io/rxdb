@@ -4,7 +4,8 @@
  * 语义与 Angular 侧一致：以 namespace + name 定位实体元数据，提供无限滚动表格
  * （`useInfiniteScroll` 等价 Angular 的 `InfiniteScrollingList`）、行内编辑批量合并落库
  * （`entityManager.mutations`）、撤销/重做（`@aiao/rxdb-plugin-history`）、
- * 筛选弹层（内嵌 QueryBuilder）、级联新增与多对多选择模式、列头排序驱动 cursor orderBy 重查。
+ * 筛选弹层（内嵌 QueryBuilder）、级联新增与多对多选择模式、列头排序驱动 cursor orderBy 重查、
+ * 手动排序实体的行拖放落库（US-028）。
  *
  * 差异：CDK Overlay / Dialog 换成包内 {@link Dialog} 与固定定位弹层（对外交互语义一致）；
  * RxDB 经 `@aiao/rxdb-react` 的 `useRxDB` 获取（Angular DI 的等价物）。
@@ -14,15 +15,20 @@
 import {
   RelationKind,
   getEntityMetadata,
+  type EntityMetadata,
   type EntityType,
   type FindByCursorOptions,
-  type HistoryScopeAPI
+  type HistoryScopeAPI,
+  type OrderBy
 } from '@aiao/rxdb';
 import {
   actionsColumn,
   buildEditableColumns,
   buildFormFields,
+  canReorderEntityList,
   cn,
+  commitRowMove,
+  defaultListOrderBy,
   deriveEntityCapabilities,
   extractFieldsFromMetadata,
   organizeFields,
@@ -35,6 +41,7 @@ import {
   type FormFieldConfig,
   type ModelInfo,
   type RelatedEntityProvider,
+  type RowMoveEvent,
   type ValidationResult
 } from '@aiao/rxdb-model';
 import { useInfiniteScroll, useRxDB, type InfiniteScrollResource } from '@aiao/rxdb-react';
@@ -46,7 +53,7 @@ import { of } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
-import { QueryTable } from '../entity-table/query-table';
+import { QueryTable, type QueryTableHandle } from '../entity-table/query-table';
 import { QueryBuilder } from '../query-builder/query-builder/query-builder';
 import './entity-list.css';
 
@@ -63,21 +70,21 @@ export type FilterQuery = { combinator: 'and' | 'or'; rules: unknown[] };
 
 const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 
-/** 列表列头排序状态（normal = 默认 id desc）。 */
+/** 列表列头排序状态（normal = 默认排序：手动排序实体按手动顺序，其余 id desc）。 */
 type ListSortState = { field: string; order: 'asc' | 'desc' | 'normal' };
 
 const DEFAULT_SORT_STATE: ListSortState = { field: 'id', order: 'normal' };
 
 /**
- * 实体列表的表格选项：关掉行序号列的拖拽手柄。
+ * 实体列表的表格选项：建表时打开行序号列的拖拽。
  *
  * @remarks
- * `buildTableOptions()` 默认开 `rowSeriesNumber.dragOrder`，而列表不接 `rowReordered`，拖完不落库。
- * 排序持久化属 US-028 阶段 B，届时只对可排序实体重新打开。`buildTableOptions()` 对 `rowSeriesNumber`
+ * VTable 只在建表时读 `dragOrder`，所以统一打开，手柄是否出现由 `rowDragEnabled` 按
+ * {@link canReorderEntityList} 运行时开关（US-028 阶段 B）。`buildTableOptions()` 对 `rowSeriesNumber`
  * 整体覆盖，`title` / `width` 要照默认值一并带上。
  */
 const LIST_TABLE_OPTIONS: Partial<ListTableConstructorOptions> = {
-  rowSeriesNumber: { title: '', width: 40, dragOrder: false }
+  rowSeriesNumber: { title: '', width: 40, dragOrder: true }
 };
 
 /** 规范化 VTable sort_click 的 field，拒绝 actions / 空字段。 */
@@ -96,10 +103,10 @@ function normalizeSortOrder(order: unknown): ListSortState['order'] {
   return 'normal';
 }
 
-/** 构造 FindByCursor 所需 orderBy：normal → id desc；用户字段 → [field, id] 同向。 */
-function buildCursorOrderBy(state: ListSortState): Array<{ field: string; sort: 'asc' | 'desc' }> {
+/** 构造 FindByCursor 所需 orderBy：normal → 实体默认排序；用户字段 → [field, id] 同向。 */
+function buildCursorOrderBy(state: ListSortState, metadata: EntityMetadata | undefined): OrderBy[] {
   if (state.order === 'normal' || !state.field) {
-    return [{ field: 'id', sort: 'desc' }];
+    return defaultListOrderBy(metadata);
   }
   if (state.field === 'id') {
     return [{ field: 'id', sort: state.order }];
@@ -122,6 +129,11 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
     // 忽略非法 JSON，保持空筛选
   }
   return undefined;
+}
+
+/** 落库错误的展示文案。 */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** 未装配历史插件时的空历史作用域（与 Angular 侧回退一致）。 */
@@ -255,6 +267,14 @@ export function EntityList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [localDraftItems, setLocalDraftItems] = useState<EntityInstance[]>([]);
   const [openDialog, setOpenDialog] = useState<OpenDialog | null>(null);
+  /** 已入队但还没落定的行内编辑批次数（排队中或写入中都不许拖拽排序） */
+  const [pendingEditBatches, setPendingEditBatches] = useState(0);
+  const [reorderPending, setReorderPending] = useState(false);
+  // 同一同步段里的连续事件看不到 state 更新：放下时的判定另读这两个即时计数
+  const pendingEditBatchesRef = useRef(0);
+  const reorderPendingRef = useRef(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+  const queryTableRef = useRef<QueryTableHandle>(null);
 
   // namespace/name 变化时重置排序与筛选（对应 Angular 侧 linkedSignal；渲染期调整状态）
   const [prevEntityInputs, setPrevEntityInputs] = useState({ namespace, name });
@@ -350,12 +370,16 @@ export function EntityList({
     (key: string): (() => FindByCursorOptions<EntityType>) =>
       () => {
         const listSortState = key === entityKey ? sortState : DEFAULT_SORT_STATE;
+        const cls = entityClsMap.get(key);
         return {
           where: computedWhere as never,
-          orderBy: buildCursorOrderBy(listSortState) as FindByCursorOptions<EntityType>['orderBy']
+          orderBy: buildCursorOrderBy(
+            listSortState,
+            cls ? getEntityMetadata(cls) : undefined
+          ) as FindByCursorOptions<EntityType>['orderBy']
         };
       },
-    [computedWhere, entityKey, sortState]
+    [computedWhere, entityClsMap, entityKey, sortState]
   );
 
   // ── 视图派生 ───────────────────────────────────────────────────────────
@@ -364,6 +388,20 @@ export function EntityList({
   const isFilterQuery = filterQuery.rules.length > 0;
   const isQueryActive = filterQuery.rules.length > 0;
   const filteredCount = instances.length + localDraftItems.length;
+
+  /** 当前列表是否允许拖拽排序（US-028 阶段 B）：看到的行必须恰好是一条完整排序域 */
+  const rowDragEnabled = canReorderEntityList({
+    metadata: entityCls ? getEntityMetadata(entityCls) : undefined,
+    sortOrder: sortState.order,
+    hasUserFilter: filterQuery.rules.length > 0,
+    selectMode: isSelectMode,
+    fixedQuery,
+    fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
+    hasReadonlyRows: isRowReadonly,
+    hasDrafts: localDraftItems.length > 0,
+    hasPendingEdits: pendingEditBatches > 0,
+    reorderPending
+  });
 
   const isInitialLoading = currentList ? currentList.isLoading && currentList.value.length === 0 : false;
   const isLoadingMore = currentList ? currentList.isLoading && currentList.value.length > 0 : false;
@@ -529,11 +567,16 @@ export function EntityList({
       pendingChangesRef.current.set(recordId, { ...current, ...changes });
       if (flushHandleRef.current) return;
       flushHandleRef.current = true;
+      pendingEditBatchesRef.current += 1;
+      setPendingEditBatches(pendingEditBatchesRef.current);
       queueMicrotask(() => {
         flushHandleRef.current = false;
         const snapshot = [...pendingChangesRef.current.entries()];
         pendingChangesRef.current.clear();
-        void flushPending(snapshot);
+        void flushPending(snapshot).finally(() => {
+          pendingEditBatchesRef.current -= 1;
+          setPendingEditBatches(pendingEditBatchesRef.current);
+        });
       });
     },
     [flushPending]
@@ -674,6 +717,32 @@ export function EntityList({
       }
     },
     [enqueue]
+  );
+
+  // 放下那一刻的判定经 ref 读：VTable 事件回调里拿不到本轮渲染的闭包
+  const rowDragEnabledRef = useRef(rowDragEnabled);
+  useEffect(() => {
+    rowDragEnabledRef.current = rowDragEnabled;
+  }, [rowDragEnabled]);
+
+  /** 行拖放：允许时按界面上的邻居落库，不允许或失败时把表格恢复成活查询给的顺序。 */
+  const onRowMoved = useCallback(
+    (move: RowMoveEvent): void => {
+      const cls = entityClsRef.current;
+      void commitRowMove(move, {
+        enabled:
+          rowDragEnabledRef.current && pendingEditBatchesRef.current === 0 && !reorderPendingRef.current && !!cls,
+        reorder: ({ id, prevId, nextId }) =>
+          rxdb.entityManager.getRepository(cls as EntityType).reorder(id as never, { prevId, nextId } as never),
+        restore: () => queryTableRef.current?.restoreRecords(),
+        setPending: pending => {
+          reorderPendingRef.current = pending;
+          setReorderPending(pending);
+        },
+        setError: error => setReorderError(error === null ? null : errorMessage(error))
+      });
+    },
+    [rxdb]
   );
 
   /** 列头排序点击：驱动 cursor orderBy 重查（VTable 客户端排序已禁用）。 */
@@ -923,10 +992,18 @@ export function EntityList({
         </div>
       </div>
 
+      {/* 拖拽排序落库失败 */}
+      {reorderError !== null && (
+        <div role='alert' className='alert alert-error alert-soft mx-4 mt-2 py-2 text-sm'>
+          排序保存失败：{reorderError}
+        </div>
+      )}
+
       {/* 表格主体 */}
       <div className='min-h-0 flex-1'>
         {isBrowser && (
           <QueryTable
+            ref={queryTableRef}
             columns={tableColumns}
             filteredCount={filteredCount}
             loading={isInitialLoading}
@@ -939,6 +1016,8 @@ export function EntityList({
             onCellChanged={onCellChanged}
             onIconClicked={event => void onIconClicked(event)}
             onRowDeleted={event => void onRowDeleted(event)}
+            rowDragEnabled={rowDragEnabled}
+            onRowMoved={onRowMoved}
             onSortClicked={onSortClicked}
           />
         )}

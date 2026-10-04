@@ -17,6 +17,9 @@ export * from './cn.js';
 export * from './entity-detail/detail-tabs.js';
 export * from './entity-detail/interfaces.js';
 
+// Entity List（US-028 手动排序）
+export * from './entity-list/manual-order-list.js';
+
 // Entity Form
 export * from './entity-form/form-data.js';
 export * from './entity-form/form-fields.js';
@@ -43,6 +46,7 @@ export * from './entity-table/vtable/table-clipboard.js';
 export * from './entity-table/vtable/table-factory.js';
 export * from './entity-table/vtable/table-keyboard.js';
 export * from './entity-table/vtable/table-operations.js';
+export * from './entity-table/vtable/table-row-move.js';
 export * from './entity-table/vtable/table-theme.js';
 export * from './entity-table/vtable/table-tooltip.js';
 export * from './entity-table/vtable/vtable-compat.js';

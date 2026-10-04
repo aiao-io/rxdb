@@ -103,6 +103,10 @@
   </div>
 </div>
 
+@if (reorderError(); as error) {
+  <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" role="alert">排序保存失败：{{ error }}</div>
+}
+
 <!-- 表格主体 -->
 <div class="min-h-0 flex-1">
   @if (isBrowser) {
@@ -115,11 +119,13 @@
         [loadMore]="loadMore()"
         [queryActive]="isQueryActive()"
         [records]="tableRecords()"
+        [rowDragEnabled]="rowDragEnabled()"
         [tableOptions]="listTableOptions"
         (batchUpdated)="onBatchUpdated($event)"
         (cellChanged)="onCellChanged($event)"
         (iconClicked)="onIconClicked($event)"
         (rowDeleted)="onRowDeleted($event)"
+        (rowMoved)="onRowMoved($event)"
         (sortClicked)="onSortClicked($event)"
       />
     }

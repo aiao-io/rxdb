@@ -1,10 +1,10 @@
 /// <reference types="vitest" />
 /**
- * coverage acceptance 的第二段：跑 PGlite 适配器侧消费 `src/encrypted`、`src/transaction`
- * 与 `src/tree-unique` 共享套件的 contract spec。
+ * coverage acceptance 的第二段：跑 PGlite 适配器侧消费 `src/encrypted`、`src/transaction`、
+ * `src/tree-unique` 与 `src/sortable` 共享套件的 contract spec。
  *
  * @remarks
- * 这三组套件是本包**发布给适配器执行**的产品面，本包自己的 unit run 一行都跑不到，
+ * 这四组套件是本包**发布给适配器执行**的产品面，本包自己的 unit run 一行都跑不到，
  * 留在分母里就是永远填不满的死代码（RXT-030）。选 PGlite 而不是 wa-sqlite / sqlite-wasm，
  * 是因为它在 `browser.enabled: false` 下能整套跑起来（内存 store，无需 playwright）：
  * wa-sqlite 侧的 crud / change-log spec 走 `IDBBatchAtomicVFS`，依赖 `indexedDB` 与
@@ -35,6 +35,10 @@ export default defineConfig({
       {
         find: /^@aiao\/rxdb-test\/tree-unique$/,
         replacement: path.join(packageRoot, 'src/tree-unique/index.ts')
+      },
+      {
+        find: /^@aiao\/rxdb-test\/sortable$/,
+        replacement: path.join(packageRoot, 'src/sortable/index.ts')
       },
       {
         find: /^@aiao\/rxdb-test\/entities$/,
@@ -72,6 +76,7 @@ export default defineConfig({
       '@aiao/rxdb-test/encrypted',
       '@aiao/rxdb-test/transaction',
       '@aiao/rxdb-test/tree-unique',
+      '@aiao/rxdb-test/sortable',
       '@electric-sql/pglite'
     ]
   },
@@ -89,7 +94,7 @@ export default defineConfig({
       enabled: false
     },
     // 套件本身不进分母（`*.suite.ts` 已被 coverage.exclude 排掉），但套件驱动的
-    // `src/encrypted` / `src/transaction` / `src/tree-unique` 产品代码进。少一条 consumer spec，
+    // `src/encrypted` / `src/transaction` / `src/tree-unique` / `src/sortable` 产品代码进。少一条 consumer spec，
     // 对应那片产品代码就只剩本包 unit run 跑不到的死代码，整体覆盖率被稀释（RXT-030）。
     include: [
       'src/__tests__/encrypted-crud.spec.ts',
@@ -98,7 +103,8 @@ export default defineConfig({
       'src/__tests__/encrypted-change-log.spec.ts',
       'src/__tests__/encrypted-bigint-binary.spec.ts',
       'src/__tests__/transaction-contract.spec.ts',
-      'src/__tests__/tree-unique-contract.spec.ts'
+      'src/__tests__/tree-unique-contract.spec.ts',
+      'src/__tests__/manual-order-contract.spec.ts'
     ],
     reporters: [
       'default',
@@ -121,6 +127,7 @@ export default defineConfig({
         path.join(packageRoot, 'src/encrypted/**/*.ts'),
         path.join(packageRoot, 'src/transaction/**/*.ts'),
         path.join(packageRoot, 'src/tree-unique/**/*.ts'),
+        path.join(packageRoot, 'src/sortable/**/*.ts'),
         path.join(packageRoot, 'entities/**/*.ts'),
         path.join(packageRoot, 'shop/**/*.ts')
       ],

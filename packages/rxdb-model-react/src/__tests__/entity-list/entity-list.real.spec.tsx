@@ -10,11 +10,12 @@
  * React 测试经 DOM（按钮点击 / 键盘 / FakeListTable 事件）驱动，
  * 对应 Angular 侧直接调用组件方法的覆盖点。
  */
-import { EntityBase, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
-import { Account, AuditLog, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
+import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityList, type EntityListProps } from '../../entity-list/entity-list';
 import { FakeListTable, getLastListTable } from '../testing/fake-vtable';
 import { createInMemoryRxdb, IN_MEMORY_ADAPTER_NAME, InMemoryRxDBAdapter } from '../testing/in-memory-rxdb';
@@ -25,12 +26,35 @@ vi.mock('@visactor/vtable-editors', () => import('../testing/fake-vtable-editors
 
 const FLUSH = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
+/** 整表手动排序、但 `update: 'system'` 的实体（US-028 AC#7：EntityList 整表挂 `_readonly`） */
+@Entity({
+  name: 'LockedTask',
+  namespace: 'test',
+  manualOrder: true,
+  permissions: { update: 'system' },
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'sortOrder', type: PropertyType.string }
+  ]
+})
+class LockedTask extends EntityBase {
+  declare title: string;
+}
+
 describe('EntityList（真实组件）', () => {
   let rxdb: RxDB;
   let adapter: InMemoryRxDBAdapter;
 
   beforeAll(async () => {
-    rxdb = createInMemoryRxdb([Todo, Account, AuditLog, Invoice, Contract] as unknown as EntityType[]);
+    rxdb = createInMemoryRxdb([
+      Todo,
+      Account,
+      AuditLog,
+      Invoice,
+      Contract,
+      Task,
+      LockedTask
+    ] as unknown as EntityType[]);
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
@@ -484,14 +508,15 @@ describe('EntityList（真实组件）', () => {
     expect(document.querySelector('.rxdb-dialog-pane')).toBeNull();
   });
 
-  it('行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读', async () => {
+  it('普通实体不显示行拖动手柄（建表开 dragOrder，手柄按可排序判定开关），业务表的行不标只读', async () => {
     await seedTodo('no-drag');
     await renderList();
     await waitFor(() => {
       expect(tableOf().records).toHaveLength(1);
     });
 
-    expect(tableOf().options['rowSeriesNumber']).toEqual({ title: '', width: 40, dragOrder: false });
+    expect(tableOf().options['rowSeriesNumber']).toEqual({ title: '', width: 40, dragOrder: true });
+    expect(isRowDragEnabled(tableOf() as never)).toBe(false);
     expect(tableOf().records.some(r => r['_readonly'] === true)).toBe(false);
   });
 
@@ -1121,6 +1146,185 @@ describe('EntityList（真实组件）', () => {
     });
     expect(await findTitles()).not.toContain('draft-child');
     void container;
+  });
+
+  describe('手动排序（US-028 阶段 B）', () => {
+    /** 钉住「进行中」一组：Task 按 completed 分组排序 */
+    const ACTIVE_ONLY = {
+      combinator: 'and' as const,
+      rules: [{ field: 'completed', operator: '=', value: false }]
+    };
+    const taskRepo = () => rxdb.entityManager.getRepository(Task as unknown as EntityType);
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    async function seedTasks(...titles: string[]): Promise<void> {
+      for (const title of titles) await new Task({ title, completed: false }).save();
+    }
+
+    const tableTitles = (): unknown[] => tableOf().records.map(r => r['title']);
+    const dragEnabled = (): boolean => isRowDragEnabled(tableOf() as never);
+
+    /** 数据库里进行中任务的手动顺序（不带 orderBy，核心补默认排序） */
+    const dbTaskTitles = async (): Promise<string[]> => {
+      const seen: string[][] = [];
+      const subscription = taskRepo()
+        .find({ where: ACTIVE_ONLY } as never)
+        .subscribe(rows => seen.push(rows.map(r => (r as unknown as { title: string }).title)));
+      await FLUSH();
+      await FLUSH();
+      subscription.unsubscribe();
+      return seen.at(-1) ?? [];
+    };
+
+    /** 挂载钉住单组的 Task 列表，等三行按手动顺序显示且拖拽可用 */
+    async function renderActiveTasks() {
+      await seedTasks('甲', '乙', '丙');
+      const utils = await renderList({ name: 'Task', fixedQuery: ACTIVE_ONLY });
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙', '丙']);
+        expect(dragEnabled()).toBe(true);
+      });
+      return utils;
+    }
+
+    it('分组排序实体没有钉住单组时不显示手柄，被拒的拖放零写入并恢复原顺序', async () => {
+      await seedTasks('甲', '乙');
+      const reorder = vi.spyOn(taskRepo(), 'reorder');
+      await renderList({ name: 'Task' });
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙']);
+      });
+      expect(dragEnabled()).toBe(false);
+
+      act(() => tableOf().dragRow(2, 1));
+      await FLUSH();
+
+      expect(tableTitles()).toEqual(['甲', '乙']);
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('钉住单组后按手动顺序显示，拖放按界面上的邻居落库', async () => {
+      await renderActiveTasks();
+
+      act(() => tableOf().dragRow(3, 1));
+
+      await waitFor(async () => {
+        expect(await dbTaskTitles()).toEqual(['丙', '甲', '乙']);
+      });
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['丙', '甲', '乙']);
+        expect(dragEnabled()).toBe(true);
+      });
+    });
+
+    it('按列排序时收起手柄，回到默认排序后恢复', async () => {
+      await renderActiveTasks();
+
+      act(() => tableOf().emit('sort_click', { field: 'title', order: 'desc' }));
+      await waitFor(() => {
+        expect(dragEnabled()).toBe(false);
+      });
+
+      act(() => tableOf().emit('sort_click', { field: 'title', order: 'normal' }));
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙', '丙']);
+        expect(dragEnabled()).toBe(true);
+      });
+    });
+
+    it('有未完成的行内编辑时收起手柄，落库后恢复', async () => {
+      await renderActiveTasks();
+      const reorder = vi.spyOn(taskRepo(), 'reorder');
+      const row = tableOf().records.findIndex(r => r['title'] === '乙') + 1;
+      const col = tableOf().columns.findIndex(column => column['field'] === 'title') + 1;
+
+      act(() => {
+        tableOf().emit('change_cell_value', { col, row, changedValue: '乙改' });
+        // 同一同步段里的拖放：编辑还在排队，判定为不允许
+        tableOf().dragRow(3, 1);
+      });
+
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙改', '丙']);
+        expect(dragEnabled()).toBe(true);
+      });
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('落库失败时显示错误并恢复原顺序，下一次拖放照常可用', async () => {
+      const { container } = await renderActiveTasks();
+      const reorder = vi.spyOn(taskRepo(), 'reorder').mockRejectedValueOnce(new Error('写入被拒'));
+
+      act(() => tableOf().dragRow(3, 1));
+
+      await waitFor(() => {
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain('写入被拒');
+        expect(tableTitles()).toEqual(['甲', '乙', '丙']);
+        expect(dragEnabled()).toBe(true);
+      });
+
+      act(() => tableOf().dragRow(1, 3));
+      await waitFor(async () => {
+        expect(await dbTaskTitles()).toEqual(['乙', '丙', '甲']);
+      });
+      await waitFor(() => {
+        expect(container.querySelector('[role="alert"]')).toBeNull();
+      });
+      expect(reorder).toHaveBeenCalledTimes(2);
+    });
+
+    it('重排落库中拒绝新的拖放（不排队），落定后手柄恢复', async () => {
+      await renderActiveTasks();
+      const repo = taskRepo();
+      const original = repo.reorder.bind(repo);
+      let release: () => void = () => undefined;
+      const gate = new Promise<void>(resolve => (release = resolve));
+      const reorder = vi
+        .spyOn(repo, 'reorder')
+        .mockImplementationOnce((...args: Parameters<typeof original>) => gate.then(() => original(...args)));
+
+      act(() => {
+        tableOf().dragRow(3, 1);
+        tableOf().dragRow(1, 3);
+      });
+      await waitFor(() => {
+        expect(dragEnabled()).toBe(false);
+      });
+      expect(reorder).toHaveBeenCalledOnce();
+
+      act(() => release());
+      await waitFor(async () => {
+        expect(await dbTaskTitles()).toEqual(['丙', '甲', '乙']);
+      });
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['丙', '甲', '乙']);
+        expect(dragEnabled()).toBe(true);
+      });
+    });
+
+    it('AC#7 update: system 的可排序实体整表不开手柄，强制拖放零写入、sortOrder 不变', async () => {
+      for (const title of ['甲', '乙']) await new LockedTask({ title }).save();
+      const reorder = vi.spyOn(rxdb.entityManager.getRepository(LockedTask as unknown as EntityType), 'reorder');
+      await renderList({ namespace: 'test', name: 'LockedTask' });
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙']);
+        expect(tableOf().records.every(r => r['_readonly'] === true)).toBe(true);
+      });
+      const keys = tableOf().records.map(r => r['sortOrder']);
+      expect(dragEnabled()).toBe(false);
+
+      act(() => tableOf().dragRow(2, 1));
+      await FLUSH();
+
+      await waitFor(() => {
+        expect(tableTitles()).toEqual(['甲', '乙']);
+      });
+      expect(tableOf().records.map(r => r['sortOrder'])).toEqual(keys);
+      expect(reorder).not.toHaveBeenCalled();
+    });
   });
 
   it('注册表条目不是构造器时新增提交安全 no-op（不抛 TypeError）', async () => {

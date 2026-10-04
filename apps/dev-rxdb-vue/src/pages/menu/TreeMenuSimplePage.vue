@@ -24,6 +24,7 @@ import HistorySidebar from '../../app/components/HistorySidebar.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuStore } from '../../app/composables/useTreeMenuStore';
 import { generateBatchMenus } from '../../app/utils/menu-utils';
+import { compareSortOrder } from '../../app/utils/sort-order';
 
 const rxdb = useRxDB();
 const showHistory = ref(true);
@@ -67,9 +68,7 @@ const handleDeleteAll = async () => {
 const handleAddMany = async (count: number, actionKey: string) => {
   loadingActions.value.add(actionKey);
   try {
-    const existingRoots = menus.value
-      .filter(m => !m.parentId)
-      .sort((a, b) => (a.sortOrder || '').localeCompare(b.sortOrder || ''));
+    const existingRoots = menus.value.filter(m => !m.parentId).sort(compareSortOrder);
 
     const newMenus = generateBatchMenus(count, MenuSimple, existingRoots);
     await rxdb.entityManager.saveMany(newMenus);

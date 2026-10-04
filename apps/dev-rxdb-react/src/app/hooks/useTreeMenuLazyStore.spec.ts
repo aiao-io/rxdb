@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react';
 import { Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateBatchMenus } from '../utils/menu-utils';
+import { compareSortOrder } from '../utils/sort-order';
 import { menuLargeTreeSource, type TreeMenuLazySource, useTreeMenuLazyStore } from './useTreeMenuLazyStore';
 
 vi.mock('../utils/menu-utils', () => ({
@@ -140,7 +141,7 @@ class FakeMenuTable {
     const rule = options.where?.rules?.find(r => r.field === 'parentId');
     const matched =
       rule === undefined ? [...this.rows] : this.rows.filter(row => (row.parentId ?? null) === (rule.value ?? null));
-    const sorted = matched.sort((a, b) => (a.sortOrder ?? '').localeCompare(b.sortOrder ?? ''));
+    const sorted = matched.sort(compareSortOrder);
     const ordered = options.orderBy?.[0]?.sort === 'desc' ? sorted.reverse() : sorted;
     return options.limit === undefined ? ordered : ordered.slice(0, options.limit);
   }
