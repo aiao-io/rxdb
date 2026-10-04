@@ -44,6 +44,10 @@ RV-058：A provider 尚未返回就 lock，A 的最后内存发布被阻止，�
 - 首版 PGlite 测试误把 Keyring/SQLite facade 的 isInitialized 假设成 PGlite 的公开方法，导致第一例未进入产品断言；已改实际表 COUNT，再得到真实 initialized=true 的失败：[初次日志](evidence/2026-10-05/encrypted/native-cancelled-unlock-probes.txt)、[修正后](evidence/2026-10-05/encrypted/pglite-real-table-cancel-probe.txt)。不登记为 PGlite“缺方法”缺陷，不给它扩不存在的 API。
 - 仅新增三份复验 spec 与评审文档/证据；不改业务、不改用户依赖/Cargo/benchmark、不操作暂存区、不自动提交。
 
+## 交付前基线变化
+
+评审开始于 `8b29b549`，交付复核时外部/用户提交使 HEAD 前进到 `658364ade64592691d81a517b57a4ef29a5fe805`，其中已包含本批部分复验与早期证据。已重新逐字节核对加密源、后端 binding/adapter 源及三份复验，摘要均未变化，因此保留原测量基线，不把旧日志改写成新提交执行记录。助手没有执行 git commit；报告与最后证据仍按本轮增量交付。
+
 ## 5. 继续项
 
 1. singleton 提交与取消的原子协议、存储等待中 lock、两个首次初始化者、失败/关闭/重连与 A 恢复；修复后仍需保留已建库不同凭据拒绝。

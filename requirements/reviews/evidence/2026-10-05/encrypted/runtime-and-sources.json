@@ -48,5 +48,8 @@
     "packages/rxdb-adapter-encrypted/src/__tests__/review-aborted-initial-unlock.spec.ts": "feaf46cc9ad3ff47ac225458b89321a212b132f2abf5d7e4e099619d898224d0",
     "packages/rxdb-adapter-electron/src/__tests__/review-aborted-initial-unlock.spec.ts": "7ae1111896bcf3ab934829f1caad6d358591170d49dc933b012176af2a273cc4",
     "packages/rxdb-adapter-pglite/src/__tests__/review-aborted-initial-unlock.spec.ts": "4461e3b01a521da200768189a7d454a9497798d1446f130d895081eefb1ee67c"
-  }
+  },
+  "deliveryHead": "ed218f0290ef179607ae0c9382f527edf5b15989",
+  "headAdvancedDuringReview": true,
+  "headDriftNote": "External/user commits advanced HEAD while review ran. Initial scope, backend source and reproduction bytes remain identical to recorded measurements; the assistant did not invoke git commit."
 }
