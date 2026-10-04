@@ -467,10 +467,10 @@ defineExpose({
             :aria-label="tab.label"
             :checked="tab.key === activeTabKey"
             :name="tabGroupName"
-            @change="selectTab(tab.key)"
             role="tab"
             type="radio"
-          />
+            @change="selectTab(tab.key)"
+          >
           <div
             class="tab-content border-base-300 bg-base-100 order-1 flex w-full flex-col"
             :class="tab.type === 'form' ? ['overflow-auto', { 'p-4': true }] : 'overflow-hidden'"
@@ -507,20 +507,20 @@ defineExpose({
 
       <!-- Save/Cancel buttons for create mode (below tabs) -->
       <div
-        class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3"
         v-if="isCreateMode"
+        class="border-base-300 flex shrink-0 justify-end gap-2 border-t px-4 py-3"
       >
         <button
           class="btn"
-          @click="onCancel"
           type="button"
+          @click="onCancel"
         >
           取消
         </button>
         <button
           class="btn btn-primary"
-          @click="onSave"
           type="button"
+          @click="onSave"
         >
           保存
         </button>

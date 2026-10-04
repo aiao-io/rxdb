@@ -35,8 +35,6 @@ Vue 浏览器综合演示的 Playwright 用户流程、跨框架对称和错误�
 | `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
 | `e2e`       | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/e2e.txt)       |
 
-当前确认意见：[RV-035](../../RV-035-strict-lint-review-gate.md)
-
 ### 尚未完成的专项
 
 以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：

@@ -145,42 +145,42 @@ defineExpose({
 
 <template>
   <button
+    ref="trigger"
     class="select select-sm text-left"
     :popovertarget="uid"
     :style="{ 'min-width': minWidth }"
-    ref="trigger"
     type="button"
   >
     {{ currentLabel }}
   </button>
   <div
-    class="bg-base-100 rounded-box border-base-300 border shadow-xl"
     :id="uid"
+    ref="popoverEl"
+    class="bg-base-100 rounded-box border-base-300 border shadow-xl"
     :style="{ 'min-width': minWidth }"
+    popover
+    tabindex="-1"
     @beforetoggle="onBeforeToggle"
     @keydown="onKeydown"
     @toggle="onToggle"
-    popover
-    ref="popoverEl"
-    tabindex="-1"
   >
     <div class="mb-1 p-2">
       <input
-        class="input input-sm w-full"
+        ref="filterInput"
         v-model="filterText"
+        class="input input-sm w-full"
         :aria-activedescendant="activeItemId ?? undefined"
         :aria-controls="listId"
         aria-autocomplete="list"
         aria-expanded="true"
         placeholder="搜索..."
-        ref="filterInput"
         role="combobox"
         type="text"
-      />
+      >
     </div>
     <ul
-      class="menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2"
       :id="listId"
+      class="menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2"
       role="listbox"
     >
       <li
@@ -189,6 +189,7 @@ defineExpose({
         role="none"
       >
         <button
+          :id="`${uid}-opt-${option.value}`"
           class="flex w-full items-center text-left text-sm"
           :aria-selected="option.value === selected"
           :class="{
@@ -196,15 +197,14 @@ defineExpose({
             'font-semibold': option.value === selected,
             'menu-focus': activeIndex === i
           }"
-          :id="`${uid}-opt-${option.value}`"
-          @click="onSelect(option.value)"
           role="option"
           type="button"
+          @click="onSelect(option.value)"
         >
           <span class="grow">{{ option.label }}</span>
           <svg
-            class="text-primary h-3 w-3 shrink-0"
             v-if="option.value === selected"
+            class="text-primary h-3 w-3 shrink-0"
             fill="none"
             stroke="currentColor"
             stroke-linecap="round"
@@ -218,8 +218,8 @@ defineExpose({
         </button>
       </li>
       <li
-        class="px-3 py-1.5 text-sm opacity-50"
         v-if="filteredOptions.length === 0"
+        class="px-3 py-1.5 text-sm opacity-50"
       >
         无匹配项
       </li>

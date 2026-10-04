@@ -980,18 +980,17 @@ defineExpose({
 <template>
   <div
     class="rxdb-entity-list"
-    @keydown="onKeydown"
     style="display: flex; flex-direction: column; height: 100%; overflow: hidden"
+    @keydown="onKeydown"
   >
     <!-- 顶栏：实体名称 + 计数 + 筛选按钮 + 新增按钮 -->
     <div class="border-base-300 flex h-10 min-h-10 shrink-0 items-center justify-between border-b px-4">
       <div class="flex items-center gap-2 text-sm">
         <span class="font-medium">{{ displayName }}</span>
         <span
-          class="badge badge-ghost badge-sm"
           v-if="$isFilterQuery"
-          >{{ filteredCount }} 条记录</span
-        >
+          class="badge badge-ghost badge-sm"
+        >{{ filteredCount }} 条记录</span>
       </div>
       <div class="flex items-center gap-2">
         <template v-if="!isSelectMode">
@@ -999,46 +998,44 @@ defineExpose({
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canUndo"
-            @click="undo"
             aria-label="撤销 (Ctrl+Z)"
             type="button"
+            @click="undo"
           >
             <Undo2Icon
               class="h-3.5 w-3.5"
               :size="14"
             />
             <span
-              class="badge badge-xs"
               v-if="undoCount"
-              >{{ undoCount }}</span
-            >
+              class="badge badge-xs"
+            >{{ undoCount }}</span>
           </button>
           <button
             class="btn btn-xs btn-ghost"
             :disabled="!canRedo"
-            @click="redo"
             aria-label="重做 (Ctrl+Shift+Z)"
             type="button"
+            @click="redo"
           >
             <Redo2Icon
               class="h-3.5 w-3.5"
               :size="14"
             />
             <span
-              class="badge badge-xs"
               v-if="redoCount"
-              >{{ redoCount }}</span
-            >
+              class="badge badge-xs"
+            >{{ redoCount }}</span>
           </button>
           <div class="divider divider-horizontal mx-0.5 h-5 self-center" />
         </template>
         <!-- 筛选 popover 触发器 -->
         <button
+          ref="filterTrigger"
           class="btn btn-ghost btn-sm gap-1"
           :class="{ 'btn-active': isQueryActive }"
-          @click="toggleFilterPopover"
-          ref="filterTrigger"
           type="button"
+          @click="toggleFilterPopover"
         >
           <FunnelIcon
             class="h-4 w-4"
@@ -1046,32 +1043,31 @@ defineExpose({
           />
           筛选
           <span
-            class="badge badge-primary badge-xs"
             v-if="isQueryActive"
-            >{{ filterQuery.rules.length }}</span
-          >
+            class="badge badge-primary badge-xs"
+          >{{ filterQuery.rules.length }}</span>
         </button>
         <button
-          class="btn btn-sm btn-outline"
           v-if="!isCreateBlocked && isSelectMode"
-          @click="openCreateDialog"
+          class="btn btn-sm btn-outline"
           type="button"
+          @click="openCreateDialog"
         >
           + 新建
         </button>
         <button
-          class="btn btn-primary btn-sm"
           v-else-if="!isCreateBlocked && isM2m"
-          @click="openM2mSelectDialog"
+          class="btn btn-primary btn-sm"
           type="button"
+          @click="openM2mSelectDialog"
         >
           + 添加
         </button>
         <button
-          class="btn btn-primary btn-sm"
           v-else-if="!isCreateBlocked"
-          @click="openCreateDialog"
+          class="btn btn-primary btn-sm"
           type="button"
+          @click="openCreateDialog"
         >
           + 新增
         </button>
@@ -1093,8 +1089,8 @@ defineExpose({
           的 @click，所以也不需要 .stop（只有 React 端面板套在 backdrop 里才需要）。
         -->
         <div
-          class="border-base-300 bg-base-100 rxdb-filter-popover-panel rounded-lg border p-3 shadow-lg"
           ref="filterPanel"
+          class="border-base-300 bg-base-100 rxdb-filter-popover-panel rounded-lg border p-3 shadow-lg"
         >
           <QueryBuilder
             v-if="queryBuilderFields.length > 0"
@@ -1106,16 +1102,16 @@ defineExpose({
           <div class="mt-3 flex justify-end gap-2">
             <button
               class="btn btn-ghost btn-sm"
-              @click="resetFilter"
               type="button"
+              @click="resetFilter"
             >
               重置
             </button>
             <button
               class="btn btn-primary btn-sm"
               :disabled="!pendingQueryValid"
-              @click="applyFilter"
               type="button"
+              @click="applyFilter"
             >
               确定
             </button>
@@ -1125,8 +1121,8 @@ defineExpose({
     </Teleport>
 
     <div
-      class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm"
       v-if="reorderError"
+      class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm"
       role="alert"
     >
       排序保存失败：{{ reorderError }}
@@ -1135,9 +1131,10 @@ defineExpose({
     <!-- 表格主体 -->
     <div class="min-h-0 flex-1">
       <QueryTable
+        :key="namespace + ':' + name"
+        ref="queryTableRef"
         :columns="tableColumns"
         :filtered-count="filteredCount"
-        :key="namespace + ':' + name"
         :load-more="loadMore"
         :loading="isInitialLoading"
         :loading-more="isLoadingMore"
@@ -1151,38 +1148,35 @@ defineExpose({
         @row-deleted="onRowDeleted"
         @row-moved="onRowMoved"
         @sort-clicked="onSortClicked"
-        ref="queryTableRef"
       />
     </div>
 
     <!-- Select mode footer -->
     <div
-      class="border-base-300 flex shrink-0 items-center justify-between border-t px-4 py-3"
       v-if="isSelectMode"
+      class="border-base-300 flex shrink-0 items-center justify-between border-t px-4 py-3"
     >
       <span
-        class="text-base-content/70 text-sm"
         v-if="selectedCount > 0"
-        >已选 {{ selectedCount }} 项</span
-      >
+        class="text-base-content/70 text-sm"
+      >已选 {{ selectedCount }} 项</span>
       <span
-        class="text-base-content/40 text-sm"
         v-else
-        >请选择要关联的{{ displayName }}</span
-      >
+        class="text-base-content/40 text-sm"
+      >请选择要关联的{{ displayName }}</span>
       <div class="flex gap-2">
         <button
           class="btn btn-sm"
-          @click="cancelSelection"
           type="button"
+          @click="cancelSelection"
         >
           取消
         </button>
         <button
           class="btn btn-primary btn-sm"
           :disabled="selectedCount === 0"
-          @click="confirmSelection"
           type="button"
+          @click="confirmSelection"
         >
           确认添加
         </button>
@@ -1192,12 +1186,12 @@ defineExpose({
     <!-- 新增（create）详情对话框 -->
     <DialogPortal
       v-if="createDialogData"
-      @closed="onCreateDialogClosed"
       height="80vh"
       min-height="300px"
       min-width="400px"
       panel-class="entity-detail-dialog"
       width="720px"
+      @closed="onCreateDialogClosed"
     >
       <EntityDetail
         v-bind="createDialogData"
@@ -1208,12 +1202,12 @@ defineExpose({
     <!-- 查看（edit）详情对话框 -->
     <DialogPortal
       v-if="viewDialogData"
-      @closed="onViewDialogClosed"
       height="80vh"
       min-height="300px"
       min-width="400px"
       panel-class="entity-detail-dialog"
       width="720px"
+      @closed="onViewDialogClosed"
     >
       <EntityDetail v-bind="viewDialogData" />
     </DialogPortal>
@@ -1221,12 +1215,12 @@ defineExpose({
     <!-- M2M Selection Dialog -->
     <DialogPortal
       v-if="m2mDialogOpen"
-      @closed="m2mDialogOpen = false"
       height="70vh"
       min-height="300px"
       min-width="400px"
       panel-class="entity-m2m-select-dialog"
       width="720px"
+      @closed="m2mDialogOpen = false"
     >
       <EntityDialog
         :title="`添加${displayName}`"
@@ -1236,9 +1230,9 @@ defineExpose({
           :already-linked-ids="m2mAlreadyLinkedIds"
           :name="name"
           :namespace="namespace"
+          mode="select"
           @selection-cancelled="m2mCancelSelection"
           @selection-confirmed="onM2mSelectionConfirmed"
-          mode="select"
         />
       </EntityDialog>
     </DialogPortal>

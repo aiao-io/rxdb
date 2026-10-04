@@ -247,27 +247,27 @@ defineExpose({
         <button
           class="btn btn-xs join-item"
           :class="group.combinator !== 'and' ? 'btn-ghost' : 'btn-primary'"
-          @click="toggleCombinator('and')"
           type="button"
+          @click="toggleCombinator('and')"
         >
           AND
         </button>
         <button
           class="btn btn-xs join-item"
           :class="group.combinator !== 'or' ? 'btn-ghost' : 'btn-primary'"
-          @click="toggleCombinator('or')"
           type="button"
+          @click="toggleCombinator('or')"
         >
           OR
         </button>
       </div>
 
       <button
-        class="btn btn-ghost btn-xs btn-square"
         v-if="allowCollapse"
+        class="btn btn-ghost btn-xs btn-square"
         :title="collapsed ? '展开' : '收起'"
-        @click="toggleCollapse"
         type="button"
+        @click="toggleCollapse"
       >
         <svg
           class="h-3 w-3 transition-transform duration-200"
@@ -289,8 +289,8 @@ defineExpose({
       <template v-if="!collapsed">
         <button
           class="btn btn-ghost btn-xs"
-          @click="onAddRule"
           type="button"
+          @click="onAddRule"
         >
           + 条件
         </button>
@@ -301,24 +301,23 @@ defineExpose({
           :aria-disabled="!canAddGroup"
           :disabled="!canAddGroup"
           :title="canAddGroup ? undefined : nestingLimitHint"
-          @click="onAddGroup"
           type="button"
+          @click="onAddGroup"
         >
           + 分组
         </button>
         <span
-          class="text-base-content/50 text-xs"
           v-if="!canAddGroup"
+          class="text-base-content/50 text-xs"
           role="status"
-          >{{ nestingLimitHint }}</span
-        >
+        >{{ nestingLimitHint }}</span>
 
         <button
-          class="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error"
           v-if="depth > 0"
-          @click="onRemove"
+          class="btn btn-ghost btn-xs btn-square text-base-content/40 hover:text-error"
           title="删除组"
           type="button"
+          @click="onRemove"
         >
           ✕
         </button>
@@ -327,12 +326,13 @@ defineExpose({
 
     <!-- 规则列表 -->
     <div
-      class="space-y-1"
       v-if="!collapsed"
+      class="space-y-1"
     >
       <div
-        class="rxdb-drag-item"
         v-for="(item, idx) in group.rules"
+        :key="trackByItem(item)"
+        class="rxdb-drag-item"
         :class="{
           dragging: isDragging(item.id),
           'drop-invalid': isDropInvalid(item.id),
@@ -340,23 +340,21 @@ defineExpose({
           'drop-target-before': isDropTarget(item.id, 'before'),
           'drop-target-into': isDropTarget(item.id, 'into')
         }"
-        :key="trackByItem(item)"
         @dragend="onItemDragEnd"
         @dragleave="onItemDragLeave"
         @dragover="onItemDragOver($event, item, isRuleGroup(item))"
         @drop="onItemDrop($event, item, idx, isRuleGroup(item))"
       >
         <div
-          class="flex items-start gap-1"
           v-if="isRuleGroup(item)"
+          class="flex items-start gap-1"
         >
           <span
-            class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60 mt-1 cursor-grab"
             v-if="dragDropHandler"
-            @dragstart="onItemDragStart($event, item)"
+            class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60 mt-1 cursor-grab"
             draggable="true"
-            >⠿</span
-          >
+            @dragstart="onItemDragStart($event, item)"
+          >⠿</span>
           <div class="min-w-0 flex-1">
             <QueryGroup
               :allow-collapse="allowCollapse"
@@ -375,16 +373,15 @@ defineExpose({
           </div>
         </div>
         <div
-          class="flex items-center gap-1"
           v-else
+          class="flex items-center gap-1"
         >
           <span
-            class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60 cursor-grab"
             v-if="dragDropHandler"
-            @dragstart="onItemDragStart($event, item)"
+            class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-base-content/60 cursor-grab"
             draggable="true"
-            >⠿</span
-          >
+            @dragstart="onItemDragStart($event, item)"
+          >⠿</span>
           <div class="min-w-0 flex-1">
             <QueryRule
               :errors="errors"
@@ -400,8 +397,8 @@ defineExpose({
 
     <!-- 空状态 -->
     <div
-      class="text-base-content/50 py-2 text-center text-sm select-none"
       v-if="!collapsed && group.rules.length === 0"
+      class="text-base-content/50 py-2 text-center text-sm select-none"
     >
       暂无条件
     </div>

@@ -338,17 +338,17 @@ defineExpose({
     @submit.prevent="onSubmit"
   >
     <fieldset
-      class="fieldset"
       v-for="field in editableFields"
-      :class="{ 'md:col-span-2': isWideField(field) }"
       :key="field.field"
+      class="fieldset"
+      :class="{ 'md:col-span-2': isWideField(field) }"
     >
       <legend class="fieldset-legend">
         {{ field.displayName }}
       </legend>
       <div
-        class="input input-ghost flex min-h-10 items-center"
         v-if="isFieldReadonly(field)"
+        class="input input-ghost flex min-h-10 items-center"
       >
         {{ displayValueMap.get(field.field) ?? '' }}
       </div>
@@ -357,13 +357,13 @@ defineExpose({
           <input
             class="toggle"
             :checked="!!formData[field.field]"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).checked)"
             type="checkbox"
-          />
+            @change="onFieldChange(field, ($event.target as HTMLInputElement).checked)"
+          >
         </template>
         <select
-          class="select"
           v-else-if="field.type === 'enum'"
+          class="select"
           :value="displayInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
         >
@@ -375,23 +375,23 @@ defineExpose({
           </option>
           <option
             v-for="val in field.enumValues ?? []"
-            :disabled="enumOptionDisabled(field, val)"
             :key="val"
+            :disabled="enumOptionDisabled(field, val)"
             :value="val"
           >
             {{ enumOptionLabel(field, val) }}
           </option>
         </select>
         <input
-          class="input"
           v-else-if="field.type === 'date'"
+          class="input"
           :type="dateInputType(field)"
           :value="dateInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
-        />
+        >
         <div
-          class="flex items-center gap-2"
           v-else-if="field.type === 'number'"
+          class="flex items-center gap-2"
         >
           <input
             class="input flex-1"
@@ -400,18 +400,17 @@ defineExpose({
             :placeholder="field.placeholder ?? ''"
             :step="numericBounds(field).step ?? 'any'"
             :value="displayInputValue(field)"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
             type="number"
-          />
-          <span
-            class="label w-10 shrink-0"
-            v-if="numericUnitLabel(field)"
-            >{{ numericUnitLabel(field) }}</span
+            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           >
+          <span
+            v-if="numericUnitLabel(field)"
+            class="label w-10 shrink-0"
+          >{{ numericUnitLabel(field) }}</span>
         </div>
         <div
-          class="flex items-center gap-2"
           v-else-if="field.type === 'integer'"
+          class="flex items-center gap-2"
         >
           <input
             class="input flex-1"
@@ -420,92 +419,93 @@ defineExpose({
             :placeholder="field.placeholder ?? ''"
             :step="numericBounds(field).step ?? '1'"
             :value="displayInputValue(field)"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
             type="number"
-          />
-          <span
-            class="label w-10 shrink-0"
-            v-if="numericUnitLabel(field)"
-            >{{ numericUnitLabel(field) }}</span
+            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           >
+          <span
+            v-if="numericUnitLabel(field)"
+            class="label w-10 shrink-0"
+          >{{ numericUnitLabel(field) }}</span>
         </div>
         <input
-          class="input"
           v-else-if="field.type === 'bigint'"
+          class="input"
           :placeholder="field.placeholder ?? ''"
           :value="displayInputValue(field)"
-          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           inputmode="numeric"
           type="text"
-        />
+          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+        >
         <textarea
-          class="textarea min-h-16 font-mono"
           v-else-if="field.type === 'binary'"
+          class="textarea min-h-16 font-mono"
           :placeholder="field.placeholder ?? '十六进制字节序列（如 0a0b）'"
           :value="binaryToHex(formData[field.field])"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
         <div
-          class="flex flex-col gap-1"
           v-else-if="field.type === 'stringArray' && field.enumValues && field.enumValues.length > 0"
+          class="flex flex-col gap-1"
         >
           <label
-            class="flex items-center gap-2"
             v-for="val in field.enumValues"
             :key="val"
+            class="flex items-center gap-2"
           >
             <input
               class="checkbox"
               :checked="multiSelected(field, val)"
               :disabled="enumOptionDisabled(field, val)"
-              @change="onMultiSelectChange(field, val, ($event.target as HTMLInputElement).checked)"
               type="checkbox"
-            />
+              @change="onMultiSelectChange(field, val, ($event.target as HTMLInputElement).checked)"
+            >
             <span
-              class="inline-block h-2 w-2 rounded-full"
               v-if="field.options?.[val]?.color"
+              class="inline-block h-2 w-2 rounded-full"
               :style="{ background: field.options?.[val]?.color }"
             />
             <span>{{ enumOptionLabel(field, val) }}</span>
           </label>
         </div>
         <input
-          class="input"
           v-else-if="field.type === 'stringArray'"
+          class="input"
           :placeholder="field.placeholder ?? '逗号分隔'"
           :value="arrayJoin(formData[field.field] ?? [])"
-          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           type="text"
-        />
+          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+        >
         <input
-          class="input"
           v-else-if="field.type === 'numberArray'"
+          class="input"
           :placeholder="field.placeholder ?? '逗号分隔数字'"
           :value="arrayJoin(formData[field.field] ?? [])"
-          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           type="text"
-        />
+          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+        >
         <textarea
-          class="textarea min-h-24"
           v-else-if="field.type === 'json'"
+          class="textarea min-h-24"
           :placeholder="field.placeholder ?? 'JSON'"
           :value="jsonOrEmpty(formData[field.field])"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
         <textarea
-          class="textarea min-h-24"
           v-else-if="field.type === 'keyValue'"
+          class="textarea min-h-24"
           :placeholder="field.placeholder ?? 'JSON'"
           :value="jsonOrEmpty(formData[field.field])"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
         <select
-          class="select"
           v-else-if="field.type === 'oneToOne'"
+          class="select"
           :value="displayInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
         >
-          <option value=""> (空) </option>
+          <option value="">
+            (空)
+          </option>
           <option
             v-for="item in relatedItemsMap.get(field.field) ?? []"
             :key="item.id"
@@ -515,12 +515,14 @@ defineExpose({
           </option>
         </select>
         <select
-          class="select"
           v-else-if="field.type === 'manyToOne'"
+          class="select"
           :value="displayInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
         >
-          <option value=""> (空) </option>
+          <option value="">
+            (空)
+          </option>
           <option
             v-for="item in relatedItemsMap.get(field.field) ?? []"
             :key="item.id"
@@ -530,54 +532,54 @@ defineExpose({
           </option>
         </select>
         <div
-          class="flex items-center gap-2"
           v-else-if="field.format?.kind === 'color'"
+          class="flex items-center gap-2"
         >
           <input
             class="h-9 w-12 cursor-pointer border-0 bg-transparent"
             :value="colorValue(field)"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
             type="color"
-          />
+            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+          >
           <input
             class="input flex-1"
             :placeholder="field.placeholder ?? '#rrggbb'"
             :value="displayInputValue(field)"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
             type="text"
-          />
+            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+          >
         </div>
         <textarea
-          class="textarea min-h-16"
           v-else-if="isTextareaFormat(field)"
+          class="textarea min-h-16"
           :placeholder="field.placeholder ?? ''"
           :value="displayInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
         <input
-          class="input"
           v-else
+          class="input"
           :placeholder="field.placeholder ?? ''"
           :type="textInputType(field)"
           :value="displayInputValue(field)"
           @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
-        />
+        >
       </template>
       <p
-        class="label"
         v-if="field.helpText"
+        class="label"
       >
         {{ field.helpText }}
       </p>
     </fieldset>
     <div
-      class="flex justify-end gap-2 pt-2 md:col-span-2"
       v-if="!isReadonly && showActions"
+      class="flex justify-end gap-2 pt-2 md:col-span-2"
     >
       <button
         class="btn"
-        @click="onCancel"
         type="button"
+        @click="onCancel"
       >
         取消
       </button>
