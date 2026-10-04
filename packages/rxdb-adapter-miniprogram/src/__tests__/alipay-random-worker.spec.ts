@@ -2,6 +2,7 @@
  * 支付宝随机数 Worker 脚本：按 ES5 语法检查（开发者工具对跳过转译的文件只认 ES5），再在 `node:vm` 里跑协议。
  */
 import { Linter } from 'eslint';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ALIPAY_RANDOM_WORKER_SOURCE, createFakeRandomWorker, type FakeRandomWorkerOptions } from './fake-alipay.js';
 
@@ -20,6 +21,18 @@ describe('alipay-random-worker.js', () => {
     });
 
     expect(messages).toEqual([]);
+  });
+
+  it('经包导出 ./alipay-random-worker.js 交给应用拷进代码包，随包发布', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      exports: Record<string, unknown>;
+      files: string[];
+    };
+    const target = manifest.exports['./alipay-random-worker.js'] as string;
+
+    expect(readFileSync(new URL(`../../${target}`, import.meta.url), 'utf8')).toBe(ALIPAY_RANDOM_WORKER_SOURCE);
+    expect(target.startsWith('./src/')).toBe(true);
+    expect(manifest.files).toContain('src');
   });
 
   it('按 length 回复 0..255 的整数数组', async () => {

@@ -15,6 +15,7 @@ import {
   assertMiniProgramPlatformId,
   resolveMiniProgramHost
 } from '../host.js';
+import { ALIPAY_UNDOCUMENTED_CAPABILITIES, AlipayUndocumentedCapabilityError } from '../hosts/alipay-capability.js';
 import type {
   MiniProgramFileSystemManager,
   MiniProgramHost,
@@ -278,6 +279,16 @@ describe('可行性矩阵 ↔ 改判标准', () => {
 });
 
 describe('支付宝 alipay（AC#17）', () => {
+  it('支付宝宿主检测的无文档能力与矩阵 undocumented 逐项一致，报错指向的章节真实存在', () => {
+    const row = FIRST_TIER_ROWS.find(candidate => candidate.id === 'alipay');
+    const message = new AlipayUndocumentedCapabilityError('logic-layer-bigint', '探测').message;
+    const section = /「(.+)」一节$/.exec(message)?.[1];
+
+    expect(row?.undocumented).toEqual([...ALIPAY_UNDOCUMENTED_CAPABILITIES]);
+    expect(section).toBe(MINI_PROGRAM_UNSUPPORTED_PLATFORMS.alipay.section);
+    expect(FEASIBILITY_MARKDOWN).toContain(`\n### ${String(section)}\n`);
+  });
+
   it('抛 MiniProgramUnsupportedPlatformError，带出矩阵阻断项与判定章节', () => {
     const error = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
 

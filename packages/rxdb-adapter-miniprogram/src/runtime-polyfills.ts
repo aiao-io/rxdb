@@ -231,7 +231,7 @@ export function prepareMiniProgramRuntime(
 /**
  * 在加载 RxDB 主包前按宿主引导小程序运行时。
  *
- * 缺原生 `crypto.getRandomValues` 时用宿主随机源装一个同步安全随机池；
+ * 先调宿主的 `prepareRuntime` 钩子，再装通用 polyfill；缺原生 `crypto.getRandomValues` 时用宿主随机源装一个同步安全随机池；
  * 宿主拿不出随机数就 reject，绝不降级到 `Math.random`。未知平台 id 在申请随机数前失败。
  */
 export async function prepareMiniProgramHostRuntime(
@@ -240,6 +240,7 @@ export async function prepareMiniProgramHostRuntime(
 ): Promise<MiniProgramRuntimeSources> {
   assertMiniProgramHostPlatform(host);
   const runtimeGlobal = resolveMiniProgramRuntimeGlobal(host);
+  await host.prepareRuntime?.(runtimeGlobal);
   installPolyfills(runtimeGlobal);
   if (readMiniProgramRuntimeSources(runtimeGlobal).random === 'native')
     return readMiniProgramRuntimeSources(runtimeGlobal);

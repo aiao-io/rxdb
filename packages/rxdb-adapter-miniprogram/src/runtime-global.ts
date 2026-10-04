@@ -10,16 +10,22 @@ const AMBIENT_DISPLAY_NAME = '小程序运行时';
  * 判据是 `value.Object.prototype` 是否在对象字面量的原型链上：字面量的原型不受包装函数遮蔽。
  * 抖音的 `global` 空壳、别的 realm 的全局对象都过不了；它不证明 `value` 就是全局对象本身，
  * 只排除「补丁装上去、自由变量却看不见」的那一类。
+ *
+ * @internal
  */
-function isRealmGlobal(value: unknown): value is MiniProgramRuntimeGlobal {
+export function isRealmGlobal(value: unknown): value is MiniProgramRuntimeGlobal {
   if (typeof value !== 'object' || value === null) return false;
   const realmObject: unknown = (value as { Object?: unknown }).Object;
   // `{} instanceof X` 即「X.prototype 在字面量原型链上」，整个判断不读任何自由变量
   return typeof realmObject === 'function' && {} instanceof realmObject;
 }
 
-/** 环境里的 `globalThis`；抖音页面模块里这个绑定被遮蔽成 `undefined`。 */
-function ambientGlobal(): unknown {
+/**
+ * 环境里的 `globalThis`；抖音页面模块里这个绑定被遮蔽成 `undefined`，支付宝模拟器逻辑层干脆没有。
+ *
+ * @internal
+ */
+export function ambientGlobal(): unknown {
   return typeof globalThis === 'undefined' ? undefined : globalThis;
 }
 

@@ -27,6 +27,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
+    "./alipay-random-worker.js": "./src/workers/alipay-random-worker.js",
     "./runtime": {
       "@aiao/source": "./src/runtime.ts",
       "types": "./dist/runtime.d.ts",

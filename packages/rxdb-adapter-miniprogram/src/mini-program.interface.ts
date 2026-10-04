@@ -130,6 +130,15 @@ export interface MiniProgramHost {
    * 复用仍在使用的缓冲区会被识别为违约并拒绝。
    */
   requestRandomValues(length: number): Promise<Uint8Array>;
+  /**
+   * 引导运行时时、装通用 polyfill 之前调用一次，给宿主补齐平台特有的缺口或检测连接依赖的能力；微信、抖音不设。
+   *
+   * @remarks
+   * 只许做保持语义的修补；做不到就 reject，引导随之失败，不许降级。
+   *
+   * @param runtimeGlobal - 已解析的真实全局对象
+   */
+  prepareRuntime?(runtimeGlobal: MiniProgramRuntimeGlobal): Promise<void>;
 }
 
 /**

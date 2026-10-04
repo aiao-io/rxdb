@@ -23,10 +23,12 @@ const GETTER_KEY = '__aiaoAlipayRuntimeGlobal';
 
 /** 一个独立 realm 的全局对象，删掉给定的全局后交出，连同 realm 自己的 `WebAssembly` 与原生 `BigInt`。 */
 function bareRealm(...missing: ('BigInt' | 'queueMicrotask')[]) {
-  const realm = createContext() as MiniProgramRuntimeGlobal & Record<string, unknown>;
-  const webAssembly = runInContext('WebAssembly', realm) as AlipayStandardWasmApi;
-  const nativeBigInt: unknown = runInContext('BigInt', realm);
-  runInContext('globalThis.queueMicrotask = function queueMicrotask() {}', realm);
+  const context = createContext();
+  // createContext 交出的是沙箱壳，内置对象在 realm 内部的全局上
+  const realm = runInContext('globalThis', context) as MiniProgramRuntimeGlobal & Record<string, unknown>;
+  const webAssembly = realm.WebAssembly as unknown as AlipayStandardWasmApi;
+  const nativeBigInt: unknown = realm.BigInt;
+  realm.queueMicrotask = () => undefined;
   for (const name of missing) Reflect.deleteProperty(realm, name);
   return { realm, webAssembly, nativeBigInt };
 }
@@ -174,18 +176,29 @@ describe('MiniProgramHost.prepareRuntime 钩子', () => {
     };
   }
 
-  it('在平台断言、解析全局对象之后、装 polyfill 与申请随机数之前调用，参数是解析出的全局对象', async () => {
-    const calls: string[] = [];
-    const host = hookedHost(async runtimeGlobal => {
-      calls.push(runtimeGlobal === globalThis ? 'prepareRuntime(globalThis)' : 'prepareRuntime(?)');
-    });
-    vi.mocked(host.requestRandomValues).mockImplementation(async length => {
-      calls.push('requestRandomValues');
-      return new Uint8Array(length);
-    });
-    await prepareMiniProgramHostRuntime(host);
+  it('解析出全局对象后调用一次，参数就是解析出的全局对象', async () => {
+    const prepareRuntime = vi.fn(async () => undefined);
+    await prepareMiniProgramHostRuntime(hookedHost(prepareRuntime));
 
-    expect(calls[0]).toBe('prepareRuntime(globalThis)');
+    expect(prepareRuntime).toHaveBeenCalledTimes(1);
+    expect(prepareRuntime).toHaveBeenCalledWith(globalThis);
+  });
+
+  it('在通用 polyfill 之前调用', async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'structuredClone');
+    let seen: string | undefined;
+    Reflect.deleteProperty(globalThis, 'structuredClone');
+    try {
+      await prepareMiniProgramHostRuntime(
+        hookedHost(async runtimeGlobal => {
+          seen = typeof runtimeGlobal.structuredClone;
+        })
+      );
+      expect(seen).toBe('undefined');
+      expect(typeof globalThis.structuredClone).toBe('function');
+    } finally {
+      if (original) Object.defineProperty(globalThis, 'structuredClone', original);
+    }
   });
 
   it('钩子 reject 时引导失败，不申请随机数', async () => {
