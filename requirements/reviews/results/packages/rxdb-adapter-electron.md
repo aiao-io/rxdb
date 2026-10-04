@@ -52,14 +52,6 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
 
-## 2026-10-04：第二批实际深审
-
-### C4：文件 host 与 storage 的实际组合
-
-本轮通过真实 createElectronSqliteHost / createElectronFileHost、RxDBAdapterElectron 与 storage 组合复验。路径仍在自己创建的临时根内，没有路径越界；却暴露逻辑别名共享同一文件并造成旧 ID 内容被覆盖，统一归入 storage [RV-044](../../RV-044-desktop-logical-path-alias-data-overwrite.md)，不重复包装成 file host 越权/RCE。
-
-实际 SQLite、真实文件 host/磁盘、直连协议传输；不是 Electron GUI/IPC。[2 failed / 1 passed](../../evidence/2026-10-04/storage-native-path-alias.txt)。每例 destroy 后关闭自己 host 并删除自己临时目录。C4/C6 的全宿主/窗口/打包链路不随该测试完成。
-
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
 C1/C2/C6 **部分执行**。实际 Electron SQLite adapter/client/host 使用临时 node:sqlite 文件，native DatabaseSync 第二只只读连接直接核对已提交行；host 管道仍为进程内直连，不能当 Electron GUI/安全隔离/跨窗口/packaged 的证据。原生缓存旧提交与新写错位统一 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)/[RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，不归因 host 虚构结果。既有文件别名/备份意见和未完成矩阵保留。
