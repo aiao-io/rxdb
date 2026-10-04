@@ -23,6 +23,16 @@ const textContent = ref('');
 const fileType = ref<'image' | 'audio' | 'video' | 'code' | 'text' | 'unknown'>('unknown');
 const codeLanguage = ref('javascript');
 let currentEntryPath: string | null = null;
+/**
+ * RV-057：预览加载纪元。
+ *
+ * @remarks
+ * `currentEntryPath` 只在 `previewFile()` 返回后被复核过一次；Blob.text() 等更晚的
+ * 异步阶段、以及同路径重新打开的场景都不会再比对它——迟到的旧结果能直接盖掉新预览
+ * 已经写好的状态。改用单调递增的纪元号：每次真正发起新加载时递增并快照，此后每个
+ * 异步阶段结束、写 ref 之前都重新核对快照是否仍等于当前纪元，与 Angular 绑定同一思路。
+ */
+let loadEpoch = 0;
 
 watch(
   () => props.entry?.path,
@@ -31,6 +41,7 @@ watch(
     currentEntryPath = entryPath || null;
 
     if (!props.entry || props.entry.kind === 'directory') {
+      loadEpoch++; // 让任何仍在进行中的加载过期
       cleanupBlobUrl();
       content.value = null;
       textContent.value = '';
@@ -44,6 +55,7 @@ watch(
 );
 
 onUnmounted(() => {
+  loadEpoch++;
   cleanupBlobUrl();
 });
 
@@ -54,6 +66,7 @@ function cleanupBlobUrl() {
 }
 
 function handleClose() {
+  loadEpoch++; // 关闭也让任何仍在进行中的加载过期
   cleanupBlobUrl();
   content.value = null;
   loading.value = false;
@@ -61,6 +74,11 @@ function handleClose() {
 }
 
 async function loadFileContent(entry: OPFSFileEntry) {
+  // RV-057：每次真正发起新加载都获得一个新纪元；同路径重新打开也会拿到
+  // 不同的纪元号，不再依赖路径字符串判断「是不是同一次打开」。
+  const epoch = ++loadEpoch;
+  const isCurrent = () => epoch === loadEpoch;
+
   loading.value = true;
   cleanupBlobUrl();
   content.value = null;
@@ -69,7 +87,13 @@ async function loadFileContent(entry: OPFSFileEntry) {
 
   try {
     const preview = await opfs.previewFile(entry);
-    if (currentEntryPath !== entry.path) return;
+    // 第一个异步阶段结束：纪元已过期，清理刚创建的 blob URL 并放弃
+    if (!isCurrent()) {
+      if (preview && preview.data instanceof Blob) {
+        URL.revokeObjectURL(URL.createObjectURL(preview.data));
+      }
+      return;
+    }
 
     if (preview) {
       let type = getFileType(entry);
@@ -78,16 +102,27 @@ async function loadFileContent(entry: OPFSFileEntry) {
         if (type === 'unknown') {
           const file = new File([preview.data], entry.name);
           const isText = await isTextFile(file);
+          // 文本探测也是一个异步阶段，结束后同样要复核纪元
+          if (!isCurrent()) return;
           if (isText) type = 'text';
         }
 
         fileType.value = type;
 
         if (type === 'code' || type === 'text') {
-          textContent.value = await preview.data.text();
+          const text = await preview.data.text();
+          // RV-057：Blob.text() 才是真正迟到的那一步——不复核纪元就写入，
+          // 会把「新文件已经显示好的内容」覆盖成这份迟到的旧文本。
+          if (!isCurrent()) return;
+          textContent.value = text;
           if (type === 'code') codeLanguage.value = getCodeLanguage(entry.name);
         } else if (type === 'image' || type === 'audio' || type === 'video') {
-          content.value = URL.createObjectURL(preview.data);
+          const url = URL.createObjectURL(preview.data);
+          if (!isCurrent()) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          content.value = url;
         }
       } else if (typeof preview.data === 'string') {
         fileType.value = type;
@@ -100,9 +135,10 @@ async function loadFileContent(entry: OPFSFileEntry) {
       }
     }
   } catch {
+    if (!isCurrent()) return;
     /* ignore */
   } finally {
-    if (currentEntryPath === entry.path) loading.value = false;
+    if (isCurrent()) loading.value = false;
   }
 }
 </script>

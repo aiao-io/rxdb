@@ -132,38 +132,52 @@ export function useOpfsService() {
     [currentPath, getDirectoryHandleByPath, readDirectory]
   );
 
-  const findUploadConflicts = useCallback(async (relativePaths: string[]): Promise<string[]> => {
-    const currentDir = currentHandleRef.current;
-    if (!currentDir) throw new Error('无法访问当前目录');
-    return findExistingFilePaths(currentDir, relativePaths);
-  }, []);
-
-  const uploadFileWithPath = useCallback(async (file: globalThis.File, relativePath: string): Promise<boolean> => {
-    try {
-      const currentDir = currentHandleRef.current;
+  /**
+   * RV-037：目录切换未完成时，`currentHandleRef` 仍指向上一个目录。
+   * 传入 `targetPath` 时改走 {@link getDirectoryHandleByPath}（从根重新解析），
+   * 命中与目标目录相同的句柄解析路径——目标目录尚未就绪时这里会原生阻塞，
+   * 不会提前拿到旧句柄去写旧目录；不传时保留原有的「当前已加载目录」语义。
+   */
+  const findUploadConflicts = useCallback(
+    async (relativePaths: string[], targetPath?: string): Promise<string[]> => {
+      const currentDir =
+        targetPath !== undefined ? await getDirectoryHandleByPath(targetPath) : currentHandleRef.current;
       if (!currentDir) throw new Error('无法访问当前目录');
+      return findExistingFilePaths(currentDir, relativePaths);
+    },
+    [getDirectoryHandleByPath]
+  );
 
-      const pathParts = relativePath.split('/').filter(Boolean);
-      if (pathParts.length === 0) throw new Error('无效的文件路径');
+  const uploadFileWithPath = useCallback(
+    async (file: globalThis.File, relativePath: string, targetPath?: string): Promise<boolean> => {
+      try {
+        const currentDir =
+          targetPath !== undefined ? await getDirectoryHandleByPath(targetPath) : currentHandleRef.current;
+        if (!currentDir) throw new Error('无法访问当前目录');
 
-      const fileName = pathParts[pathParts.length - 1];
-      const dirParts = pathParts.slice(0, -1);
+        const pathParts = relativePath.split('/').filter(Boolean);
+        if (pathParts.length === 0) throw new Error('无效的文件路径');
 
-      let targetDir = currentDir;
-      for (const dirName of dirParts) {
-        targetDir = await targetDir.getDirectoryHandle(dirName, { create: true });
+        const fileName = pathParts[pathParts.length - 1];
+        const dirParts = pathParts.slice(0, -1);
+
+        let targetDir = currentDir;
+        for (const dirName of dirParts) {
+          targetDir = await targetDir.getDirectoryHandle(dirName, { create: true });
+        }
+
+        const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(file);
+        await writable.close();
+        return true;
+      } catch (err) {
+        console.error('上传文件失败:', relativePath, err instanceof Error ? err.message : String(err));
+        return false;
       }
-
-      const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(file);
-      await writable.close();
-      return true;
-    } catch (err) {
-      console.error('上传文件失败:', relativePath, err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, []);
+    },
+    [getDirectoryHandleByPath]
+  );
 
   const downloadFile = useCallback(async (entry: OPFSFileEntry): Promise<boolean> => {
     try {

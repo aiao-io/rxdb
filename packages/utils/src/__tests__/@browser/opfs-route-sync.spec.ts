@@ -65,4 +65,28 @@ describe('OpfsRouteSync', () => {
     expect(init).toHaveBeenLastCalledWith('/docs/');
     expect(navigateTo).not.toHaveBeenCalled();
   });
+
+  // RV-037（Vue）：目标路径与当前路径相同时，drain 循环一次 await 都不会碰到，
+  // `#drain()` 同步跑完并在返回前就把 `#running` 清回 undefined——但
+  // `this.#running ??= this.#drain(...)` 先求值右边（这一步已经把 #running 清空），
+  // 再把结果写回 #running，相当于把一个「已经 resolve」的 Promise 重新钉死在
+  // #running 上。此后任何新的 sync() 调用都会被 `??=` 当成「正在跑」而直接复用这个
+  // 死 Promise，只改 #requestedPath 却再也没有循环去读它——后续所有导航请求静默丢失，
+  // 直到页面重新加载。点目录行（内容先于 URL）之后浏览器“后退”到同一目录正好触发这条路径。
+  it('命中一次无需等待的同路径同步后，后续真实导航请求不能被静默吞掉', async () => {
+    const sync = new OpfsRouteSync();
+    const init = vi.fn(() => Promise.resolve());
+    const navigateTo = vi.fn(() => Promise.resolve());
+
+    await sync.sync(true, '/a/', () => '/a/', { init, navigateTo });
+    expect(init).toHaveBeenCalledWith('/a/');
+
+    // 无需等待的同路径同步：#initialized 已为 true，且 path === getCurrentPath()，
+    // 循环体一次 await 都不会执行。
+    await sync.sync(true, '/a/', () => '/a/', { init, navigateTo });
+
+    // 真实导航请求：目标路径与当前路径不同，理应触发 navigateTo。
+    await sync.sync(true, '/b/', () => '/a/', { init, navigateTo });
+    expect(navigateTo).toHaveBeenCalledWith('/b/');
+  });
 });

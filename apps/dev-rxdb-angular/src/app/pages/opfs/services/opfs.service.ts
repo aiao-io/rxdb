@@ -143,10 +143,17 @@ export class OpfsService {
 
   /**
    * 上传文件（支持相对路径，用于文件夹上传）
+   *
+   * @remarks
+   * RV-037：目录切换未完成时，`currentHandle()` 信号仍指向上一个目录。
+   * 传入 `targetPath` 时改走 {@link getDirectoryHandleByPath}（从根重新解析），
+   * 目标目录尚未就绪时这里会原生阻塞，不会提前拿到旧句柄去写旧目录；
+   * 不传时保留原有的「当前已加载目录」语义，与 React {@link useOpfsService} 同一修法。
    */
-  async uploadFileWithPath(file: File, relativePath: string): Promise<boolean> {
+  async uploadFileWithPath(file: File, relativePath: string, targetPath?: string): Promise<boolean> {
     try {
-      const currentDir = this.currentHandle();
+      const currentDir =
+        targetPath !== undefined ? await this.getDirectoryHandleByPath(targetPath) : this.currentHandle();
       if (!currentDir) {
         throw new Error('无法访问当前目录');
       }

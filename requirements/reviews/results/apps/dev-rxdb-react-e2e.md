@@ -35,7 +35,7 @@ React 浏览器综合演示的 Playwright 用户流程、跨框架对称和错�
 | `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
 | `e2e`       | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/e2e.txt)       |
 
-当前确认意见：[RV-037](../../RV-037-react-opfs-navigation-upload-race.md)；仅对已取证专题下结论，不代表全对象审完。
+仅对已取证专题下结论，不代表全对象审完。
 
 ### 尚未完成的专项
 
@@ -63,6 +63,6 @@ React 浏览器综合演示的 Playwright 用户流程、跨框架对称和错�
 
 原取消覆盖/删除的两条 spec 单文件 **2 passed**：[日志](../../evidence/2026-10-03/follow-up/react-opfs-baseline.txt)。openIsolatedFolder 只等一直存在的上传按钮，不等目录读取完成，不能证明后续上传在目标目录执行。
 
-新增 [真实浏览器导航竞态复验](../../../../apps/dev-rxdb-react-e2e/src/review-opfs-navigation.spec.ts)，通过实际按钮/file chooser 上传并检查实际父目录与内容，结果 **1 failed / 1 passed**；对应产品问题统一 [RV-037](../../RV-037-react-opfs-navigation-upload-race.md)。未把上轮两个历史失败都追认为已证明同一原因，也未把两个单用例绿外推为完整 React E2E 绿。
+新增 [真实浏览器导航竞态复验](../../../../apps/dev-rxdb-react-e2e/src/review-opfs-navigation.spec.ts)，通过实际按钮/file chooser 上传并检查实际父目录与内容，结果 **1 failed / 1 passed**；对应产品问题统一 RV-037（已修复）。未把上轮两个历史失败都追认为已证明同一原因，也未把两个单用例绿外推为完整 React E2E 绿。
 
 还需逐条建立 route→spec 映射、验证三端取消后的文件内容和跨 context 隔离；完整 C3 / C7 不勾完成。
