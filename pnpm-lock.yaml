@@ -48,7 +48,7 @@ overrides:
   brace-expansion@1: ^1.1.21
   brace-expansion@2: ^2.1.7
   brace-expansion@5: ^5.0.12
-  '@lucide/angular': 1.47.0
+  '@lucide/angular': 1.52.0
 
 patchedDependencies:
   '@tarojs/vite-runner@4.2.1':
@@ -1706,8 +1706,8 @@ importers:
         specifier: 22.2.1
         version: 22.2.1(@angular/common@22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))
       '@lucide/angular':
-        specifier: 1.47.0
-        version: 1.47.0(@angular/common@22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))
+        specifier: 1.52.0
+        version: 1.52.0(@angular/common@22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))
       '@visactor/vtable':
         specifier: ~1.26.5
         version: 1.26.6
@@ -5763,12 +5763,6 @@ packages:
     resolution: {integrity: sha512-1g7G0knRX2iV/voDu54yxrGqw5Dk0w2oIYb7dgJq8IkOi+m7wbD8Q3QpPFjh0C01G58S88dqGn03len6UPCXsg==}
     cpu: [x64]
     os: [win32]
-
-  '@lucide/angular@1.47.0':
-    resolution: {integrity: sha512-xBrusFZpQiKFE6QojoY1B8JIz2ofLIr6vCvmxkylyJcTa+IleOExeGqYfP4AFp5okOc5IqvezM6kNobXz0wp3w==}
-    peerDependencies:
-      '@angular/common': 22.2.1
-      '@angular/core': 22.2.1
 
   '@lucide/angular@1.52.0':
     resolution: {integrity: sha512-4iRxeb9/M7NvLq1qcdA9gs8aemh26WicXLgQxBKNYhQ9JlDUK/wytARuLzCW7jWTb6Qew1hCoIjEx3JLc/ULrg==}
@@ -25584,12 +25578,6 @@ snapshots:
 
   '@lmdb/lmdb-win32-x64@3.5.6':
     optional: true
-
-  '@lucide/angular@1.47.0(@angular/common@22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))':
-    dependencies:
-      '@angular/common': 22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2)
-      '@angular/core': 22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2)
-      tslib: 2.8.1
 
   '@lucide/angular@1.52.0(@angular/common@22.2.1(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2))':
     dependencies:

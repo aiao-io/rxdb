@@ -25,6 +25,9 @@
   },
   "references": [
     {
+      "path": "../rxdb-adapter-encrypted/tsconfig.lib.json"
+    },
+    {
       "path": "../utils/tsconfig.lib.json"
     },
     {
