@@ -51,3 +51,11 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 - [ ] C6 host 与应用集成：将 adapter 单测、应用 electron-conformance 与 packaged E2E 接起来；单纯浏览器 demo 不算桌面证据。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：第二批实际深审
+
+### C4：文件 host 与 storage 的实际组合
+
+本轮通过真实 createElectronSqliteHost / createElectronFileHost、RxDBAdapterElectron 与 storage 组合复验。路径仍在自己创建的临时根内，没有路径越界；却暴露逻辑别名共享同一文件并造成旧 ID 内容被覆盖，统一归入 storage [RV-044](../../RV-044-desktop-logical-path-alias-data-overwrite.md)，不重复包装成 file host 越权/RCE。
+
+实际 SQLite、真实文件 host/磁盘、直连协议传输；不是 Electron GUI/IPC。[2 failed / 1 passed](../../evidence/2026-10-04/storage-native-path-alias.txt)。每例 destroy 后关闭自己 host 并删除自己临时目录。C4/C6 的全宿主/窗口/打包链路不随该测试完成。

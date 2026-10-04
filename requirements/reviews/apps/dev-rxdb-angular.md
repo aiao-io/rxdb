@@ -138,3 +138,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-angular:test --coverage --skipRemot
 ## 续执行：2026-10-03 边界取证
 
 本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/apps/dev-rxdb-angular.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/apps/dev-rxdb-angular.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

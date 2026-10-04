@@ -59,7 +59,7 @@ execution: in-progress
 | C2   | 通知与反压            | 追踪 change-pipeline 与 PGliteClient 的通知批处理、乱序、订阅取消和事务提交时点。                      | 通知突发、慢消费者、重连、回滚、不活跃分支消息；不丢最后状态，不无限积压。                 | 待核查                       |
 | C3   | 迁移、触发器与分支    | 核查 createTables、系统版本水位、分支约束与重挂触发器；区分 Node 模式迁移与浏览器真实执行。            | 旧 schema 迁移、切分支后建表、迁移失败、多 active 行；系统表与实体表原子一致。             | 待核查                       |
 | C4   | Worker 与存储生命周期 | 审查 client factory、worker RPC、数据目录、初始化和关闭；确认具体存储档位而非假设全为 OPFS。           | worker 中断、初始化取消、并发打开、连接失败后重试、残留 worker；不把内存档位声称为持久化。 | 待核查                       |
-| C5   | 备份恢复独占          | 检查 backup/data-dir/exclusive/restore-lock 协作与桌面 PGlite 复用边界。                               | 恢复时仍有连接、跨实例抢锁、损坏归档、取消、半途失败；锁释放且旧库仍可用。                 | 待核查                       |
+| C5   | 备份恢复独占          | 检查 backup/data-dir/exclusive/restore-lock 协作与桌面 PGlite 复用边界。                               | 恢复时仍有连接、跨实例抢锁、损坏归档、取消、半途失败；锁释放且旧库仍可用。                 | 部分执行，真实浏览器 50 通过 |
 | C6   | 搜索与公开入口        | 核查 PG FTS backend、可选 Tree peer、keyring 和公开导出；未装插件不产生隐藏运行时依赖。                | 中英文搜索与 FTS5 对照、索引更新、按子入口消费、缺可选 peer；明确不支持的行为。            | 待核查                       |
 | C7   | 真实测试证据          | 区分 mock residual、Node migration 和 browser conformance，检查覆盖率开启方式及 summary/final 同代性。 | 浏览器全套与独立 test-node 分别留证据；覆盖率未显式产生时不得报达标。                      | 待核查                       |
 
@@ -153,3 +153,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test-node --skipRemoteCa
 ## 续执行：2026-10-03 边界取证
 
 本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-pglite.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/packages/rxdb-adapter-pglite.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

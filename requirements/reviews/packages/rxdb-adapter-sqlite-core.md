@@ -60,7 +60,7 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 | C3   | SQL 与类型映射     | 核查 identifier quoting、参数绑定、RuleGroup、排序/分页、批写与关系 SQL。                                | 引号标识符、注入字符串、NULL 游标、BigInt、二进制、日期、空批次；与 PGlite 相同可观察行为。  | 部分执行，确认问题见执行记录 |
 | C4   | 系统迁移与分支     | 逐项审查版本水位、系统表约束、分支过滤、active 分支唯一性与 schema 重挂。                                | 旧库升级、重复迁移、多 active 行、切分支、远端分支物化；错误时原子回滚。                     | 待核查                       |
 | C5   | FTS 与搜索约束     | 核查 FTS5 建表/触发器、CJK 处理和索引生命周期，检查所有子后端是否真实支持所声明能力。                    | 更新/删除同步索引、中文短词、空结果、不存在插件、无 FTS 后端；不偷偷降级为不同语义。         | 待核查                       |
-| C6   | 备份与恢复         | 检查备份 SQL、恢复目标锁、blank database 校验、schema 与失败清理。                                       | 错目标、旧连接仍开、损坏归档、中途失败、重试、恢复后重连；原库不被部分覆盖。                 | 待核查                       |
+| C6   | 备份与恢复         | 检查备份 SQL、恢复目标锁、blank database 校验、schema 与失败清理。                                       | 错目标、旧连接仍开、损坏归档、中途失败、重试、恢复后重连；原库不被部分覆盖。                 | 部分执行，117 通过 / 21 skip |
 | C7   | 桌面协议与权限边界 | 审查 request/response、会话、能力协商、路径与恢复目标的严格校验；与 Electron/TS 和 Tauri/Rust 两端对照。 | 畸形请求、过期会话、越界整数/路径、大消息、未知操作；双方错误码与 BigInt/binary 编解码一致。 | 待核查                       |
 | C8   | 验收覆盖率与调用点 | 审查 coverage-acceptance 的运行/合并及 conformance 接线；一个共享套件变化必须核对所有后端。              | 完整执行验收目标；删除套件无残留入口，不重建 rowsAffectedConformanceSuite。                  | 待核查                       |
 
@@ -149,3 +149,7 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite-core
 调用当前源码 SQL 构建器，在 Node 26 DatabaseSync 内存库执行 JSON1/NULL 查询。3 个一致性断言均失败；没有运行 browser/Worker/WASM/桌面宿主、事务/备份/迁移或整包覆盖率门禁。
 
 只有上述范围取得本轮证据，未执行项仍待核查，完成清单不勾选。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/packages/rxdb-adapter-sqlite-core.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

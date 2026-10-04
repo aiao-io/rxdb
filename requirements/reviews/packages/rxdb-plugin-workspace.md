@@ -52,7 +52,7 @@ execution: in-progress
 | 编号 | 专项                   | 核查动作                                                                          | 最低复验场景 / 证据要求                                                                 | 状态                             |
 | ---- | ---------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
 | C1   | NEW 草稿边界           | 对照 README 与事件监听，核查仅 NEW 草稿、不承诺 UPDATE buffer/DELETE 撤销的语义。 | NEW 顶层修改、save(CREATE)、REMOVE/discard、已有实体修改；主表不因缓存操作被写入。      | 待核查                           |
-| C2   | install / ready 状态机 | 检查 IndexedDB 首次载入、未注册实体恢复、失败后的显式重试。                       | 读取失败、未知 EntityType、重复 install、关闭中 ready；reject 可见，不后台无限重试。    | 待核查                           |
+| C2   | install / ready 状态机 | 检查 IndexedDB 首次载入、未注册实体恢复、失败后的显式重试。                       | 读取失败、未知 EntityType、重复 install、关闭中 ready；reject 可见，不后台无限重试。    | 部分执行，确认 RV-042 |
 | C3   | flush 写屏障           | 审查待写/待删集合、失败后恢复与 WorkspaceFlushError 点名。                        | 部分不可克隆值、写失败、并发修改/flush、再次显式重试；可克隆项与失败项正确区分。        | 已核查（本轮测量面，见执行记录） |
 | C4   | 快照与跨标签页         | 核查 structuredClone、BroadcastChannel 身份、重复/乱序与同步错误清理。            | 改 list 快照不改内部草稿、同源双页、不同库、损坏记录；corruptedEntries 只反映当前问题。 | 待核查                           |
 | C5   | 生命周期与持久化证明   | 检查 listener/IDB/broadcast 销毁与 package 子入口，不用内存测试代替重开恢复。     | 浏览器 test-browser 刷新/重开、close/reinstall、无法打开 IDB；边界与使用说明一致。      | 待核查                           |
@@ -143,3 +143,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-workspace:test-browser --skipRem
 ## 续执行：2026-10-03 边界取证
 
 本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-plugin-workspace.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/packages/rxdb-plugin-workspace.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

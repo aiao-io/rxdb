@@ -55,9 +55,9 @@ execution: in-progress
 
 | 编号 | 专项                  | 核查动作                                                                              | 最低复验场景 / 证据要求                                                             | 状态   |
 | ---- | --------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------ |
-| C1   | 双存储一致性          | 画 metadata DB 与 filesystem 的写入/删除/拷贝顺序，核查真实失败窗口和明确的补偿边界。 | 文件成功 metadata 失败、metadata 成功文件失败、取消、重复请求；不声称跨存储原子性。 | 待核查 |
-| C2   | 路径、命名与锁        | 审查 logical/physical path、canonicalization、path-lock 和并发 rename/copy。          | 路径穿越、大小写/Unicode 冲突、同源目标、递归目录、并发同路径；限制在合法 root。    | 待核查 |
-| C3   | 资源与配额            | 检查流式读写、配额失败、object URL 和大文件的内存/取消边界。                          | QuotaExceeded、部分流失败、零字节、超大文件、卸载；URL/锁/句柄都释放。              | 待核查 |
+| C1   | 双存储一致性          | 画 metadata DB 与 filesystem 的写入/删除/拷贝顺序，核查真实失败窗口和明确的补偿边界。 | 文件成功 metadata 失败、metadata 成功文件失败、取消、重复请求；不声称跨存储原子性。 | 部分执行，补偿对照 137 通过 |
+| C2   | 路径、命名与锁        | 审查 logical/physical path、canonicalization、path-lock 和并发 rename/copy。          | 路径穿越、大小写/Unicode 冲突、同源目标、递归目录、并发同路径；限制在合法 root。    | 部分执行，P1 RV-044 |
+| C3   | 资源与配额            | 检查流式读写、配额失败、object URL 和大文件的内存/取消边界。                          | QuotaExceeded、部分流失败、零字节、超大文件、卸载；URL/锁/句柄都释放。              | 部分执行，确认 RV-043 |
 | C4   | OPFS / desktop parity | 按 backend-parity suite 核对各 filesystem 的支持边界，联审 Electron/Tauri file host。 | 相同文件操作序列、平台拒绝、刷新/重启持久化；不把不支持的动作静默当成功。           | 待核查 |
 | C5   | 备份与 DevTools       | 核查 database-backup-scope、桌面快照与 mutation provider 的权限和大小限制。           | DB 备份不含文件的边界、provider 批操作失败、越界路径；敏感文件不能默认暴露。        | 待核查 |
 
@@ -146,3 +146,7 @@ pnpm audit:coverage --projects=rxdb-plugin-storage
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-storage.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/packages/rxdb-plugin-storage.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

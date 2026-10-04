@@ -58,7 +58,7 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 | C1   | renderer / host 边界   | 逐个对照 sqlite-core 协议、TS host 和应用 preload；请求必须归属到正确会话与数据库。               | 过期会话、未知操作、畸形参数、跨窗口请求、巨大消息；host 拒绝后无副作用。                       | 待核查 |
 | C2   | SQLite 多窗口与事务    | 审查 node:sqlite engine、事务请求队列、关闭/崩溃时资源收束。                                      | 双窗口同库、事务中另一路写入、窗口关闭、host 异常；隔离和错误码可复验。                         | 待核查 |
 | C3   | PGlite 独占与可选 peer | 检查 PGlite data-dir lock/runtime 与 optional peer 的按需装载；不套用 SQLite 多窗口假设。         | 重复打开同目录、worker 退出、缺 PGlite peer、只用 SQLite 的发布消费；不静态拉入可选后端。       | 待核查 |
-| C4   | 文件与路径安全         | 追踪 storage 根路径、logical path、符号链接和请求边界；与插件 storage 和 DevTools provider 联审。 | 路径穿越、越界 restore target、锁冲突、文件同名、目录失败；不得访问用户配置之外的路径。         | 待核查 |
+| C4   | 文件与路径安全         | 追踪 storage 根路径、logical path、符号链接和请求边界；与插件 storage 和 DevTools provider 联审。 | 路径穿越、越界 restore target、锁冲突、文件同名、目录失败；不得访问用户配置之外的路径。         | 部分执行，联审 RV-044 |
 | C5   | 加密与备份恢复         | 审查 SQLite/PGlite 各自备份锁、restore 事务和 keyring；按不同后端分别记录证据。                   | 恢复并发、失败后重试、二进制与 BigInt、加密归档/tamper；原库可继续打开。                        | 待核查 |
 | C6   | host 与应用集成        | 将 adapter 单测、应用 electron-conformance 与 packaged E2E 接起来；单纯浏览器 demo 不算桌面证据。 | contextIsolation/sandbox 模式、应用重启持久化、生产打包后的依赖解析；typecheck 抖动先单独复跑。 | 待核查 |
 
@@ -142,3 +142,7 @@ pnpm audit:coverage --projects=rxdb-adapter-electron
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-adapter-electron.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-04：第二批实际深审
+
+[本对象实际结论与证据](../results/packages/rxdb-adapter-electron.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。

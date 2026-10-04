@@ -61,3 +61,13 @@ execution: partial
 - 真实 Chromium / IndexedDB 项目 **20 passed**：[日志](../../evidence/2026-10-03/follow-up/workspace-browser.txt)，覆盖刷新/重开、不可克隆隔离、失败字段修复、关闭中的 flush 和 IDB versionchange。
 
 C3 的规定边界本批已核销；不等于 C2 install 失败/重装竞态、C4 所有跨页乱序、C5 全平台生命周期均已审完。未测所有浏览器、长时间故障或整个对象覆盖率，本轮 coverage 显式关闭。
+
+## 2026-10-04：第二批实际深审
+
+### C2：确认旧安装结算跨纪元污染
+
+🔴 [RV-042](../../RV-042-workspace-install-epoch-settlement.md)。人工检查 install catch/finally、releaseEpochState 与 restoreEntries 身份检查：缓存回填有 store guard，结算回调却不检查自己是否属于当前安装。新恢复的删除意图可被旧 finally 清掉；旧 catch 又可把成功的新安装标成失败。
+
+[现有单元套件追加四种顺序复验](../../../../packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts)：新增 2 failed / 2 passed，单文件 2 failed / 80 passed。[日志](../../evidence/2026-10-04/workspace-install-epoch.txt)。插件与 LifecycleScope 为实际实现，IDB/read/event 为测试接缝，真实 IDB / connect 同场景仍待补证。
+
+上轮 C3 flush 的限定通过保留，不把它扩写成 C2→C3 全组合链路安全。本对象仍未审完，业务实现未修。

@@ -84,3 +84,13 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 - [ ] C8 验收覆盖率与调用点：审查 coverage-acceptance 的运行/合并及 conformance 接线；一个共享套件变化必须核对所有后端。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：第二批实际深审
+
+### C6：备份拒绝、回滚与恢复清理边界
+
+人工追到 archive manifest/schema 校验→blank target 检查→marker→restore transaction→trailer/checksum→结构/版本验证→COMMIT→marker 删除→关闭；检查失败时 rollback/wipe/cleanup_pending 与独占锁 finally 释放。源码重点：[restore-sqlite-database.ts](../../../../packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts)、[schema SQL 限制](../../../../packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup-sql.ts)。本专题未发现新增确认缺陷。
+
+四文件复验 **117 passed / 21 skipped**：[日志](../../evidence/2026-10-04/sqlite-backup-boundaries.txt)。运行面是 Chromium 的官方 SQLite-WASM oo1；“持久化”harness 用 memdb VFS 在同一 WASM 页面内保活，不是磁盘/OPFS 崩溃持久化证明。
+
+21 skip 按实际 harness 能力：强杀 worker、跨进程、WAL 及不适用的 engine/unsupported 档位等，不能折算为通过。真实磁盘强杀、所有下游 adapter/加密/全恢复矩阵仍待补证，C6 仅部分核销；既有查询红测试未解除。

@@ -93,3 +93,13 @@ execution: partial
 实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。两端同样被过期 HEAD 凭据挡住，统一记 [RV-041](../../RV-041-working-tree-public-commit-idempotency.md)，不重复报成两个 SQL 编译器问题。
 
 本次配置的 testing 与门面走源码入口；与 SQLite 的构建输入不同。真实事务对照不解除既有 RV-027 / RV-029 / RV-034 查询红测试，也不证明本轮持久化 store、恢复/加密/全部并发边界已经通过。
+
+## 2026-10-04：第二批实际深审
+
+### C5：备份恢复独占与失败清理
+
+人工阅读 restoreLocked 独占锁/目标非空检查、RestoreMemoryFs / RestoreIdbFs 的提交前禁止 syncToFs、引擎/schema/codec 验证、marker 生命周期、失败关闭/删除目标与 cleanup_pending。本专题未发现新增确认缺陷。
+
+failure / memory / concurrency / roundtrip 四个 spec **50 passed**：[日志](../../evidence/2026-10-04/pglite-backup-boundaries.txt)。真实 PGlite / Chromium 的 memory + IndexedDB 路径，包含同目标两个恢复者、stage 期间拒绝连接、非空/忙/不兼容/损坏/取消、失败后清理与显式重试。不是所有 Worker/目录/桌面/强杀场景，也没有用这些绿色结果覆盖既有 RV-027/029/034。
+
+C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不给全对象通过评级。
