@@ -30,9 +30,9 @@ execution: partial
 
 ## 2. 评审意见
 
-- [RV-027：PGlite keyValue contains 与核心/SQLite 查询语义不一致](../../RV-027-pglite-keyvalue-query-semantics.md)
-- [RV-028：keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义](../../RV-028-core-keyvalue-missing-key-null.md)
-- [RV-029：空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致](../../RV-029-core-empty-notin-null.md)
+- RV-027：PGlite keyValue contains 与核心/SQLite 查询语义不一致（已修复，见 README 2026-10-05 清理记录）
+- RV-028：keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义（已修复，见 README 2026-10-05 清理记录）
+- RV-029：空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致（已修复，见 README 2026-10-05 清理记录）
 
 ## 3. 动态证据与复验
 
@@ -77,7 +77,7 @@ execution: partial
 | `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-038](../../RV-038-backup-queue-synchronous-throw-hang.md)、[RV-039](../../RV-039-repository-dispose-aborts-database-teardown.md)、[RV-027](../../RV-027-pglite-keyvalue-query-semantics.md)、[RV-028](../../RV-028-core-keyvalue-missing-key-null.md)、[RV-029](../../RV-029-core-empty-notin-null.md)、[RV-034](../../RV-034-pglite-array-membership-semantics.md)
+当前确认意见：[RV-038](../../RV-038-backup-queue-synchronous-throw-hang.md)、[RV-039](../../RV-039-repository-dispose-aborts-database-teardown.md)、RV-027/028/029/034（已修复，见 README 2026-10-05 清理记录）
 
 ### 尚未完成的专项
 
