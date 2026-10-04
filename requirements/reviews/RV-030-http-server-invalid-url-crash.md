@@ -40,7 +40,7 @@ void dispatch(request, response, () => store, state, options.controlEnabled, act
 
 - 通过实际 Nx `dev-rxdb-http-server:serve` 启动应用；专用临时 PGlite 数据目录、系统分配后确定的闲置端口，`NODE_ENV=production` 关闭控制接口。
 - 正常 metadata 请求先返回 200，说明服务和库已正常启动。
-- 通过 Node TCP socket 发出上述 request-target 后，[应用日志](evidence/2026-10-03/server.log) 指向 `dispatch -> new URL` 并打印 `ERR_INVALID_URL`。
+- 通过 Node TCP socket 发出上述 request-target 后，[应用日志](evidence/2026-10-03/server.txt) 指向 `dispatch -> new URL` 并打印 `ERR_INVALID_URL`。
 - [探针结果](evidence/2026-10-03/http-invalid-target-probe.json) 记录无响应断开与后续健康请求连接拒绝。
 
 可再次运行 [隔离复验脚本](evidence/2026-10-03/reproduce-http-boundaries.mjs)：

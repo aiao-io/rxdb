@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-react-e2e:e2e",
+    "--args=src/review-opfs-navigation.spec.ts --workers=1 --retries=0",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:16:45.730023+08:00",
+  "exitCode": 1,
+  "log": "react-opfs-real-upload.txt",
+  "project": "dev-rxdb-react-e2e",
+  "startedAt": "2026-10-03T23:16:38.714599+08:00"
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-pglite:test",
+    "--args=src/__tests__/backup/backup-failure.spec.ts src/__tests__/backup/backup-memory.spec.ts src/__tests__/backup/backup-concurrency.spec.ts src/__tests__/backup/backup-roundtrip.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-04T03:33:17.673878+08:00",
+  "completedAt": "2026-10-04T03:34:11.883778+08:00",
+  "log": "pglite-backup-boundaries.txt"
+}

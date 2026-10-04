@@ -1,0 +1,42 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:test --args=src/__tests__/masking.browser.spec.ts src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/masking.browser.spec.ts src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:44153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay
+
+`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`.
+ ✓ |rxdb-plugin-replay (chromium)| src/__tests__/review-persisted-consent.browser.spec.ts (2 tests) 3246ms
+     ✓ 显式 start 前不建录制库，默认脱敏写入数据库，stop 后不再增加事件  1889ms
+     ✓ 对照：显式关闭 maskAllInputs 时，同一真实存储链路确实收到输入内容  1356ms
+ ✓ |rxdb-plugin-replay (chromium)| src/__tests__/masking.browser.spec.ts (4 tests) 109ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  04:19:55
+   Duration  5.37s (transform 0ms, setup 0ms, import 848ms, tests 3.35s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-replay-browser/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-plugin-replay
+
+
+  Run duration:      6.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     6.0s (1 task)
+  Recoverable time:  <1ms

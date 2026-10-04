@@ -1,0 +1,45 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target typecheck for 3 projects:
+
+- rxdb-plugin-workspace
+- rxdb-plugin-storage
+- rxdb-plugin-replay
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb-plugin-storage:typecheck
+✔  nx run rxdb-plugin-workspace:typecheck
+
+> nx run rxdb-plugin-replay:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+src/__tests__/review-persisted-consent.browser.spec.ts(51,103): error TS2345: Argument of type '{}' is not assignable to parameter of type 'FindOptions<typeof ReplayEventRecord, object, string>'.
+  Property 'where' is missing in type '{}' but required in type 'FindOptions<typeof ReplayEventRecord, object, string>'.
+src/__tests__/review-persisted-consent.browser.spec.ts(61,11): error TS6133: 'sessionId' is declared but its value is never read.
+src/__tests__/review-persisted-consent.browser.spec.ts(65,103): error TS2345: Argument of type '{}' is not assignable to parameter of type 'FindOptions<typeof ReplayEventRecord, object, string>'.
+  Property 'where' is missing in type '{}' but required in type 'FindOptions<typeof ReplayEventRecord, object, string>'.
+Warning: command "tsc --build --emitDeclarationOnly" exited with non-zero status code
+
+
+ NX   Running target typecheck for 3 projects failed
+
+Failed tasks:
+
+- rxdb-plugin-replay:typecheck
+
+Output of 2 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      7.5s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.1s (1 task)
+  Recoverable time:  3.4s (45% of the run)

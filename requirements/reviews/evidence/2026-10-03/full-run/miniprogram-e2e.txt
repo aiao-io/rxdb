@@ -1,0 +1,58 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target e2e-devtools for project dev-rxdb-miniprogram-e2e and 14 tasks it depends on:
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-adapter-encrypted:build
+✔  nx run rxdb-client-generator:build
+✔  nx run rxdb-plugin-querycache:build
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-tree:build
+✔  nx run rxdb-plugin-working-tree:build
+✔  nx run rxdb-test:build
+✔  nx run rxdb-adapter-sqlite-core:build
+✔  nx run rxdb-adapter-wa-sqlite:build
+✔  nx run rxdb-adapter-miniprogram:build
+✔  nx run dev-rxdb-miniprogram:build
+
+> nx run dev-rxdb-miniprogram-e2e:e2e-devtools
+
+> node ../../node_modules/@playwright/test/cli.js test
+
+(node:56827) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 16 tests using 1 worker
+(node:56830) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+················
+  16 passed (1.7m)
+
+
+
+ NX   Successfully ran target e2e-devtools for project dev-rxdb-miniprogram-e2e and 14 tasks it depends on
+
+
+Output of 14 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      2m 6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2m 6s (10 tasks)
+  Recoverable time:  49ms (0% of the run)
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Speed up or split the longest tasks on the critical path:
+        dev-rxdb-miniprogram-e2e:e2e-devtools    1m 42s

@@ -1,0 +1,39 @@
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-http-server:serve
+
+> node apps/dev-rxdb-http-server/src/main.ts serve
+
+(node:70018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[serve] http://127.0.0.1:64668/v1  (dataDir: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-code-review-tqiy3jz8/data)
+[serve] expose ETag: true | __control: false
+node:internal/url:862
+      href = bindingUrl.parse(input, base, true);
+                        ^
+
+TypeError: Invalid URL
+    at new URL (node:internal/url:862:25)
+    at dispatch (file:///Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:290:15)
+    at Server.<anonymous> (file:///Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:264:10)
+    at Server.emit (node:events:514:20)
+    at parserOnIncoming (node:_http_server:1394:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17) {
+  code: 'ERR_INVALID_URL',
+  input: 'http://[',
+  base: 'http://127.0.0.1'
+}
+
+Node.js v26.7.0
+Warning: command "node apps/dev-rxdb-http-server/src/main.ts serve" exited with non-zero status code
+
+
+ NX   Successfully ran target serve for project dev-rxdb-http-server
+
+
+View logs and investigate cache misses at https://cloud.nx.app/runs/WBocdkWaPf
+

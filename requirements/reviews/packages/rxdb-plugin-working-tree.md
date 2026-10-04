@@ -54,16 +54,16 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                              | 状态   |
-| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 启用与迁移水位         | 追踪 enable、能力持久化、系统迁移及未装插件的客户端连接拒绝；v1 不凭空添加 disable。                 | 并发 enable、旧库、插件缺失、失败回滚；能力水位与系统表一致。                                        | 待核查 |
-| C2   | 写捕获闭合             | 逐入口核对实例/批量/raw SQL/远端应用与 trusted write，内部簿记不能进入用户工作树。                   | 用户写、同步写、系统写、bulk write、安装中事务；漏捕/重复捕获有真实 backend 探针。                   | 待核查 |
-| C3   | commit 与 CAS 幂等     | 检查全工作树提交、HEAD/activation revision、幂等 token 与 commit/change-set/ref 的原子性。           | 两个提交者竞争、重复请求、空 commit、提交中抛错；CAS 落败按既有返回值而非改成异常。                  | 待核查 |
-| C4   | 分支物化与 ABA         | 审查 staging 页、page fingerprint、激活屏障与分支删除/重建的身份关联。                               | 页冲突、续页、分页中删除重建、旧引用、多个 active；不得部分物化或复活旧分支。                        | 待核查 |
-| C5   | discard / restore 语义 | 核查 restore/restoreSession 写成新未提交变更，HEAD 不移动；区分 switchBranch 的异常前置。            | 不可达 commit、dirty tree、旧 activation revision、恢复中断/重试；数据/HEAD/历史严格按现有契约。     | 待核查 |
-| C6   | 加密与敏感历史         | 逐项扫描工作树、提交、恢复会话、staging、错误与摘要的持久化字节和日志边界。                          | 敏感字段不同版本 envelope、tamper、落盘检查；不声称永久历史可删除，也不把未覆盖 staging 宣称已加密。 | 待核查 |
-| C7   | 提交图与资源成本       | 检查 graph guard、codec、reachability、GC 和批量 diff/status 的复杂度。                              | 坏图/坏编码、深历史、大批变更、不可达引用；无无限遍历/全库重复扫描。                                 | 待核查 |
-| C8   | 真实后端与三端入口     | 对照 conformance、三个 use-working-tree 与应用交互，必须区分 mock/orchestration 与实际 transaction。 | SQLite/PGlite CAS、rollback、restore；三端同场景返回值与 UI 错误状态对齐。                           | 待核查 |
+| 编号 | 专项                   | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                              | 状态                  |
+| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------- |
+| C1   | 启用与迁移水位         | 追踪 enable、能力持久化、系统迁移及未装插件的客户端连接拒绝；v1 不凭空添加 disable。                 | 并发 enable、旧库、插件缺失、失败回滚；能力水位与系统表一致。                                        | 待核查                |
+| C2   | 写捕获闭合             | 逐入口核对实例/批量/raw SQL/远端应用与 trusted write，内部簿记不能进入用户工作树。                   | 用户写、同步写、系统写、bulk write、安装中事务；漏捕/重复捕获有真实 backend 探针。                   | 待核查                |
+| C3   | commit 与 CAS 幂等     | 检查全工作树提交、HEAD/activation revision、幂等 token 与 commit/change-set/ref 的原子性。           | 两个提交者竞争、重复请求、空 commit、提交中抛错；CAS 落败按既有返回值而非改成异常。                  | 部分执行，确认 RV-041 |
+| C4   | 分支物化与 ABA         | 审查 staging 页、page fingerprint、激活屏障与分支删除/重建的身份关联。                               | 页冲突、续页、分页中删除重建、旧引用、多个 active；不得部分物化或复活旧分支。                        | 待核查                |
+| C5   | discard / restore 语义 | 核查 restore/restoreSession 写成新未提交变更，HEAD 不移动；区分 switchBranch 的异常前置。            | 不可达 commit、dirty tree、旧 activation revision、恢复中断/重试；数据/HEAD/历史严格按现有契约。     | 待核查                |
+| C6   | 加密与敏感历史         | 逐项扫描工作树、提交、恢复会话、staging、错误与摘要的持久化字节和日志边界。                          | 敏感字段不同版本 envelope、tamper、落盘检查；不声称永久历史可删除，也不把未覆盖 staging 宣称已加密。 | 待核查                |
+| C7   | 提交图与资源成本       | 检查 graph guard、codec、reachability、GC 和批量 diff/status 的复杂度。                              | 坏图/坏编码、深历史、大批变更、不可达引用；无无限遍历/全库重复扫描。                                 | 待核查                |
+| C8   | 真实后端与三端入口     | 对照 conformance、三个 use-working-tree 与应用交互，必须区分 mock/orchestration 与实际 transaction。 | SQLite/PGlite CAS、rollback、restore；三端同场景返回值与 UI 错误状态对齐。                           | 待核查                |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -147,3 +147,7 @@ pnpm audit:coverage --projects=rxdb-plugin-working-tree
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-working-tree.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 续执行：2026-10-03 边界取证
+
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-plugin-working-tree.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。

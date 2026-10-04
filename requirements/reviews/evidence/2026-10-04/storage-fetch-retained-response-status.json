@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-storage:test",
+    "--args=src/__tests__/review-fetch-response-cleanup.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "environment": {},
+  "startedAt": "2026-10-04T03:53:19.411218+08:00",
+  "completedAt": "2026-10-04T03:53:24.122497+08:00",
+  "log": "storage-fetch-retained-response.txt"
+}

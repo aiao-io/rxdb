@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-04T00:00:01.629080+08:00",
+  "head": "b01e35e9aedc58e61fb02a909ec98b4a119e82a2",
+  "plans": 70,
+  "packageResultDocuments": 51,
+  "appResultDocuments": 19,
+  "criteriaTotal": 385,
+  "fullyClosedTopicsThisBatch": [
+    {
+      "plan": "requirements/reviews/packages/rxdb-plugin-workspace.md",
+      "criterion": "C3"
+    }
+  ],
+  "localMarkdownLinksChecked": 3857,
+  "brokenLinks": [],
+  "ignoredReviewLinkTargets": [],
+  "exportedLogDigestsChecked": 31,
+  "mismatchedExportedLogDigests": [],
+  "sourceFingerprintsChecked": 19,
+  "sourceFingerprintsChanged": [],
+  "unexpectedSourceEdits": [],
+  "sourceEditScope": "Only review specs plus shared testing suite; no business implementation edits.",
+  "gitIndexModifiedByAgent": false,
+  "temporaryCleanupControlsRemoved": true,
+  "formatCheck": {
+    "exitCode": 0,
+    "scope": "131 explicit changed/new Markdown, TypeScript and JSON files",
+    "log": "final-format-check.txt"
+  },
+  "gitDiffCheck": {
+    "exitCode": 0
+  },
+  "finalizedAt": "2026-10-04T00:02:04.692793+08:00"
+}

@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-angular:test",
+    "--args=--config vite.review-testbed.config.mts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environmentControl": "false",
+  "startedAt": "2026-10-04T03:26:56.527564+08:00",
+  "completedAt": "2026-10-04T03:28:11.495918+08:00",
+  "log": "angular-testbed-observe.txt",
+  "originalSetupSha256": "ca1b3c3257050d54b20f9d8d027333f9cca76b25fc68a72c68eef032aee34c9c",
+  "originalSetupModified": false
+}

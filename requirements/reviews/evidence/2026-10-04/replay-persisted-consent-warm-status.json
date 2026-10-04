@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay:test",
+    "--args=src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "VITEST_BROWSER": "true"
+  },
+  "startedAt": "2026-10-04T03:53:24.123282+08:00",
+  "completedAt": "2026-10-04T03:53:31.714631+08:00",
+  "log": "replay-persisted-consent-warm.txt"
+}

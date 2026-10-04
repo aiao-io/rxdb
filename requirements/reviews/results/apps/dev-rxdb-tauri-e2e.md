@@ -31,8 +31,8 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -51,6 +51,6 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 ## 专项任务核销
 
-- [两个真实打包 smoke 通过](../../evidence/2026-10-03/full-run/tauri-smoke.log)。
+- [两个真实打包 smoke 通过](../../evidence/2026-10-03/full-run/tauri-smoke.txt)。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。

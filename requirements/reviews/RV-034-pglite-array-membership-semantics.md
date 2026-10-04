@@ -22,7 +22,7 @@ baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 
 ## 动态复验
 
-[当前 SQL 构建器＋真实 PGlite 的复验 spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-array-membership.spec.ts) 两个一致性断言均失败；[日志](evidence/2026-10-03/full-run/pglite-array-probe.log) 包含实际 SQL、数组参数和两侧结果。
+[当前 SQL 构建器＋真实 PGlite 的复验 spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-array-membership.spec.ts) 两个一致性断言均失败；[日志](evidence/2026-10-03/full-run/pglite-array-probe.txt) 包含实际 SQL、数组参数和两侧结果。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test --args='src/__tests__/review-array-membership.spec.ts --run --browser.enabled=false --coverage.enabled=false --maxWorkers=1' --excludeTaskDependencies --skipRemoteCache --skipNxCache

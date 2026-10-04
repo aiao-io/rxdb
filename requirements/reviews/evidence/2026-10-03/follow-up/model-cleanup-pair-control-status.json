@@ -1,0 +1,30 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-model-angular:test",
+    "--args=src/__tests__/entity-detail/review-cleanup-control.spec.ts src/__tests__/entity-list/review-cleanup-control.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "log": "model-cleanup-pair-control.txt",
+  "originalFilesModified": false,
+  "project": "rxdb-model-angular",
+  "provenance": [
+    {
+      "source": "packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts",
+      "sourceSha256": "193c883b249137d3832e3059f79efb2446ac87dc7bd77941218db181d278cad5",
+      "temporaryControl": "packages/rxdb-model-angular/src/__tests__/entity-detail/review-cleanup-control.spec.ts",
+      "controlSha256": "e8822d2d03d2fdb4572bd576a90bce891b085b1552726ee724588c2cde73d45b"
+    },
+    {
+      "source": "packages/rxdb-model-angular/src/__tests__/entity-list/entity-list.real.spec.ts",
+      "sourceSha256": "73d7a20efabfd145f491f4a28c19ee6e955c91225d07762e13053c0169f0555e",
+      "temporaryControl": "packages/rxdb-model-angular/src/__tests__/entity-list/review-cleanup-control.spec.ts",
+      "controlSha256": "162c28f554a12d7a75ee46de375d59a99fa200cee2c22f0c1038f17685ce7c03"
+    }
+  ]
+}

@@ -1,0 +1,1671 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target test for 58 projects and 84 tasks they depend on:
+
+- code-editor
+- code-editor-angular
+- code-editor-react
+- code-editor-vue
+- dev-rxdb-angular
+- dev-rxdb-electron
+- dev-rxdb-http
+- dev-rxdb-http-server
+- dev-rxdb-react
+- dev-rxdb-supabase
+- dev-rxdb-tauri
+- dev-rxdb-vue
+- rxdb
+- rxdb-adapter-electron
+- rxdb-adapter-encrypted
+- rxdb-adapter-http
+- rxdb-adapter-miniprogram
+- rxdb-adapter-pglite
+- rxdb-adapter-sqlite
+- rxdb-adapter-sqlite-core
+- rxdb-adapter-sqlite-wasm
+- rxdb-adapter-sqliteai
+- rxdb-adapter-tauri
+- rxdb-adapter-wa-sqlite
+- rxdb-angular
+- rxdb-client-generator
+- rxdb-devtools
+- rxdb-devtools-extension
+- rxdb-model
+- rxdb-model-angular
+- rxdb-model-react
+- rxdb-model-vue
+- rxdb-plugin-graph
+- rxdb-plugin-history
+- rxdb-plugin-querycache
+- rxdb-plugin-replay
+- rxdb-plugin-replay-angular
+- rxdb-plugin-replay-react
+- rxdb-plugin-replay-vue
+- rxdb-plugin-search
+- rxdb-plugin-search-angular
+- rxdb-plugin-search-react
+- rxdb-plugin-search-vue
+- rxdb-plugin-storage
+- rxdb-plugin-sync
+- rxdb-plugin-tree
+- rxdb-plugin-tree-angular
+- rxdb-plugin-tree-react
+- rxdb-plugin-tree-vue
+- rxdb-plugin-working-tree
+- rxdb-plugin-working-tree-angular
+- rxdb-plugin-working-tree-react
+- rxdb-plugin-working-tree-vue
+- rxdb-plugin-workspace
+- rxdb-react
+- rxdb-test
+- rxdb-vue
+- utils
+
+With additional flags:
+  --args=--run --coverage.enabled=false --maxWorkers=1
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-plugin-working-tree:build
+✔  nx run utils:typecheck
+✔  nx run rxdb:typecheck
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-querycache:build
+✔  nx run rxdb-plugin-history:typecheck
+✔  nx run rxdb-client-generator:build
+✔  nx run rxdb-plugin-tree:build
+✔  nx run rxdb-test:build
+✔  nx run rxdb-test:typecheck
+✔  nx run rxdb-plugin-working-tree:typecheck
+✔  nx run rxdb-adapter-encrypted:build
+✔  nx run rxdb-adapter-sqlite-core:build
+✔  nx run rxdb-adapter-wa-sqlite:build
+✔  nx run rxdb-plugin-graph:build
+✔  nx run rxdb-devtools:build
+✔  nx run rxdb-angular:build:production
+✔  nx run rxdb-adapter-pglite:build
+✔  nx run rxdb-adapter-sqlite-wasm:build
+✔  nx run code-editor:build
+✔  nx run rxdb-model:build
+✔  nx run rxdb-plugin-replay:build
+✔  nx run rxdb-plugin-sync:typecheck
+✔  nx run rxdb-plugin-querycache:typecheck
+✔  nx run wujie:build
+✔  nx run angular:build:production
+✔  nx run rxdb-vue:build
+✔  nx run rxdb-react:build
+✔  nx run rxdb-adapter-sqliteai:build
+✔  nx run rxdb-adapter-sqlite:build
+✔  nx run rxdb-plugin-search:build
+✔  nx run rxdb-plugin-workspace:build
+✔  nx run rxdb-adapter-electron:build
+✔  nx run rxdb-plugin-storage:build
+✔  nx run angular-todo:build:production
+✔  nx run rxdb-adapter-encrypted:typecheck
+✔  nx run rxdb-client-generator:typecheck
+✔  nx run rxdb-plugin-tree:typecheck
+✔  nx run rxdb-adapter-sqlite-core:typecheck
+✔  nx run rxdb-adapter-wa-sqlite:typecheck
+✔  nx run rxdb-adapter-pglite:typecheck
+✔  nx run rxdb-angular:typecheck
+✔  nx run rxdb-devtools:typecheck
+✔  nx run wujie:typecheck
+✔  nx run rxdb-adapter-sqlite-wasm:typecheck
+✔  nx run rxdb-adapter-sqliteai:typecheck
+✔  nx run rxdb-adapter-sqlite:typecheck
+✔  nx run rxdb-plugin-search:typecheck
+✔  nx run angular:typecheck
+✔  nx run rxdb-plugin-replay:typecheck
+✔  nx run rxdb-devtools-panel:build:production
+✔  nx run recipes-domain:build
+✔  nx run rxdb-model-angular:build:production
+✔  nx run code-editor-angular:build:production
+✔  nx run rxdb-plugin-replay-angular:build:production
+✔  nx run rxdb-plugin-search-angular:build:production
+✔  nx run rxdb-plugin-working-tree-angular:build:production
+✔  nx run rxdb-plugin-graph:typecheck
+✔  nx run rxdb-adapter-pglite:test-node
+✔  nx run rxdb-adapter-electron:typecheck
+✔  nx run rxdb-plugin-storage:typecheck
+✔  nx run code-editor:typecheck
+✔  nx run rxdb-plugin-workspace:typecheck
+✔  nx run angular-todo:typecheck
+✔  nx run code-editor-react:build
+✔  nx run rxdb-model-angular:typecheck
+✔  nx run rxdb-model-vue:build
+✔  nx run rxdb-model-react:build
+✔  nx run rxdb-adapter-supabase:build
+✔  nx run rxdb-adapter-tauri:build
+✔  nx run code-editor-vue:build
+✔  nx run rxdb-adapter-http:build
+✔  nx run rxdb-plugin-search-react:build
+✔  nx run rxdb-plugin-working-tree-react:build
+✔  nx run rxdb-plugin-search-vue:build
+✔  nx run rxdb-plugin-working-tree-vue:build
+✔  nx run rxdb-plugin-replay-angular:typecheck
+✔  nx run rxdb-plugin-working-tree-angular:typecheck
+✔  nx run rxdb-plugin-search-angular:typecheck
+✔  nx run code-editor-angular:typecheck
+✔  nx run dev-rxdb-angular:spec-typecheck
+✔  nx run utils:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-history:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-encrypted:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-client-generator:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-tree:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-test:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-sync:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-querycache:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-working-tree:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run rxdb-adapter-sqlite-core:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:92268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core
+
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 缺失键的 SQL 三值逻辑 > 'notContains 缺失键'：SQLite 查询结果应与核心 JS 一致
+{"sql":"(instr(json_extract(_.\"meta\", '$.theme'), 'dark') = 0)","value":{"theme":"dark"},"databaseMatches":false,"jsMatches":true}
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 缺失键的 SQL 三值逻辑 > 'contains 不能把缺失键变成 undefined 字符串'：SQLite 查询结果应与核心 JS 一致
+{"sql":"(instr(json_extract(_.\"meta\", '$.theme'), 'undefined') > 0)","value":{"theme":"undefined"},"databaseMatches":false,"jsMatches":true}
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：空 notIn 集合与 NULL > SQLite 与核心 JS 对合法 nullable 字段应一致
+{"sql":"1 = 1","row":{"tag":null},"databaseMatches":true,"jsMatches":false}
+ ❯ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/review-query-audit.spec.ts (3 tests | 3 failed) 213ms
+     × 'notContains 缺失键'：SQLite 查询结果应与核心 JS 一致 211ms
+     × 'contains 不能把缺失键变成 undefined 字符串'：SQLite 查询结果应与核心 JS 一致 1ms
+     × SQLite 与核心 JS 对合法 nullable 字段应一致 1ms
+5:42:24 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:25 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:25 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:25 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-backup.spec.ts (71 tests | 19 skipped) 2078ms
+5:42:27 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:27 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:27 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+5:42:27 PM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-engine-backup.spec.ts (39 tests | 2 skipped) 1445ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-backup-edge.spec.ts (24 tests) 461ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/handle_rxdb_change.spec.ts (21 tests) 939ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-restore-capability.spec.ts (4 tests) 63ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/sqlite-backup-sql.spec.ts (125 tests) 23ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/create_sqlite_client.spec.ts (21 tests) 25ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-host-entry.spec.ts (5 tests) 35ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/RxDBAdapterSqliteBase.spec.ts (93 tests) 26ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/sqlite-oo1-load.utils.spec.ts (30 tests) 31ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/sqlite-core.utils.spec.ts (148 tests) 8ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/Oo1ClientBase.spec.ts (42 tests) 7ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/repository/SqliteTreeRepository.spec.ts (6 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/version/switch-result.spec.ts (5 tests) 6ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/query_sql.utils.spec.ts (130 tests) 5ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/repository/SqliteRepositoryBase.spec.ts (8 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-pglite-protocol.spec.ts (32 tests) 5ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/repository/SqliteRepository.spec.ts (10 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/transaction_sqlite_result.spec.ts (14 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/rxdb_adapter_mutations.spec.ts (7 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-host-file-protocol.spec.ts (69 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-host-protocol.spec.ts (57 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/version/switch_branch.spec.ts (13 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-sqlite-client.spec.ts (31 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/bigint-binary.spec.ts (5 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/system-schema-migration.spec.ts (5 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/version/execute-switch-actions.spec.ts (7 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query-cache-row-contract.spec.ts (41 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/table/create_table_sql.spec.ts (28 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/entity/insert_sql.spec.ts (24 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-storage.spec.ts (51 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/fts5/build-fts.spec.ts (26 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/query_tree_sql.spec.ts (15 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/entity/inserts_sql.spec.ts (12 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/query_sql.spec.ts (20 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/find_sql.spec.ts (10 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/escaping.spec.ts (9 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/transaction/SqliteTransactionExecutor.spec.ts (8 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/fts5/cjk-bigram.spec.ts (40 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/trigger_sql.spec.ts (12 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/join_sql.spec.ts (23 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/entity/update_sql.spec.ts (7 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/execute_oo1_helper.spec.ts (13 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/desktop-restore-target.spec.ts (10 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/test-utils.spec.ts (8 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/sqlite-client.utils.spec.ts (25 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/testing-entry.spec.ts (7 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/encrypted-query-wiring.spec.ts (1 test) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/generate_sql.spec.ts (10 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/keyring/sqlite-core-keyring-storage.spec.ts (6 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/oo1-types.spec.ts (9 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/execute-sql.utils.spec.ts (15 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/query/count_sql.spec.ts (5 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/table/create_tables_sql.spec.ts (4 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/entity/delete_sql.spec.ts (10 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/version/with_triggers_disabled.spec.ts (3 tests) 1ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/version/read_current_branch_id.spec.ts (2 tests) 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-adapter-sqlite-core (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 缺失键的 SQL 三值逻辑 > 'notContains 缺失键'：SQLite 查询结果应与核心 JS 一致
+ FAIL  |rxdb-adapter-sqlite-core (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 缺失键的 SQL 三值逻辑 > 'contains 不能把缺失键变成 undefined 字符串'：SQLite 查询结果应与核心 JS 一致
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/review-query-audit.spec.ts:69:30
+     67|       const js = isEntityMatchWhere({ meta: {} }, where);
+     68|       console.log(JSON.stringify({ sql, value, databaseMatches: rows.l…
+     69|       expect(rows.length > 0).toBe(js);
+       |                              ^
+     70|     } finally {
+     71|       db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |rxdb-adapter-sqlite-core (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：空 notIn 集合与 NULL > SQLite 与核心 JS 对合法 nullable 字段应一致
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/review-query-audit.spec.ts:86:30
+     84|       const js = isEntityMatchWhere({ tag: null }, where);
+     85|       console.log(JSON.stringify({ sql, row: { tag: null }, databaseMa…
+     86|       expect(rows.length > 0).toBe(js);
+       |                              ^
+     87|     } finally {
+     88|       db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed | 57 passed (58)
+      Tests  3 failed | 1455 passed | 21 skipped (1479)
+   Start at  17:42:23
+   Duration  14.76s (transform 0ms, setup 0ms, import 6.44s, tests 5.45s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-sqlite-core/junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+✔  nx run rxdb-adapter-wa-sqlite:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-graph:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-devtools:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run rxdb-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:93155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular
+
+(node:93155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-angular| src/__tests__/InfiniteScrollingList.spec.ts (55 tests) 150ms
+ ✓ |rxdb-angular| src/__tests__/use-state.spec.ts (28 tests) 23ms
+ ✓ |rxdb-angular| src/__tests__/rxdb.provider.spec.ts (21 tests) 137ms
+ ✓ |rxdb-angular| src/__tests__/hooks.spec.ts (38 tests) 25ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 170ms
+ ✓ |rxdb-angular| src/__tests__/use-persisted-state.spec.ts (10 tests) 7ms
+ ❯ |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts (16 tests | 16 failed) 24ms
+     × subscribes to the current entity patches 8ms
+     × marks the view for check when the entity emits a patch 2ms
+     × debounces patch notifications 1ms
+     × audits patch notifications 1ms
+       × debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为负 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × 两者同时为正值时串联生效，顺序为 debounceTime → auditTime 1ms
+     × forwards patch stream errors to Angular ErrorHandler 1ms
+     × unsubscribes when the entity input is cleared 1ms
+     × unsubscribes when the host is destroyed 1ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 9ms
+ ✓ |rxdb-angular| src/__tests__/zz-verify.spec.ts (6 tests) 13ms
+ ✓ |rxdb-angular| src/__tests__/use-sync-state.spec.ts (7 tests) 5ms
+ ✓ |rxdb-angular| src/__tests__/use-action.spec.ts (7 tests) 4ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-generics.spec.ts (4 tests) 0ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-provider.spec.ts (5 tests) 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > subscribes to the current entity patches
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > marks the view for check when the entity emits a patch
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > debounces patch notifications
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > audits patch notifications
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为负 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > 两者同时为正值时串联生效，顺序为 debounceTime → auditTime
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > forwards patch stream errors to Angular ErrorHandler
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the entity input is cleared
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the host is destroyed
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+     99| export const getEntityStatus = <T extends EntityType>(target: object):…
+    100|   const status = readSymbolSlot<EntityStatus<T>>(target, STATUS);
+    101|   if (!status) throw new RxDBError('Target has no entity status: it is…
+       |                      ^
+    102|   return status;
+    103| };
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:332:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:229:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:263:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:497:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:445:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:430:4
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  16 failed | 249 passed (265)
+   Start at  17:43:43
+   Duration  3.44s (transform 683ms, setup 238ms, import 818ms, tests 568ms, environment 127ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-angular/junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+✔  nx run rxdb-adapter-electron:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-sqliteai:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-sqlite:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-sqlite-wasm:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-storage:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-search:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run code-editor:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-model:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-workspace:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-replay:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run code-editor-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run rxdb-model-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:98944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular
+
+(node:98944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > namespace/name 输入驱动 InfiniteScrollingList 加载真实数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行内编辑经真实事件链（VTable → cellChanged → mutations）批量合并落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > undo / redo 恢复与重放行内编辑（真实历史插件）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 筛选弹层：query-builder 条件应用后列表按 where 重查
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 筛选弹层的可聚焦控件必须留在无障碍树内
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：勾选后 selectionConfirmed 输出真实实体实例
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：未选中时 confirm 走 selectionCancelled
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行删除走真实 remove 路径并从列表消失
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 图标点击输出 viewEntity
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 懒加载对话框在组件销毁后不再打开（防 NG0205 竞态）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 列头排序驱动 cursor orderBy 重查（默认 id desc，点列头切换字段序）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onSortClicked 忽略 actions / 非字符串字段（排序保持不变）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onBatchUpdated 按 recordId 合并批量变更落库（过滤 actions 字段）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > Ctrl+Z / Ctrl+Shift+Z 键盘快捷键驱动 undo / redo
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > creationChain 含当前实体时阻断新增（按钮隐藏、openCreateDialog 为 no-op）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 行序号列不带拖拽手柄（列表不接 rowReordered，拖完不落库），业务表的行不标只读
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 系统表整表只读：不提供新增，每一行都标 _readonly
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > 未声明 permissions 的实体照常提供新增
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#11 update: system 的实体：行只读、单元格无编辑器，删除仍可用并真实删除
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > US-027 新增 / 编辑 / 删除入口按实体 permissions 派生 > AC#12 delete: system 的实体：行可编辑并落库，操作列只剩查看
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onQueryChange / onValidationChange 驱动筛选弹层状态与按钮可用性
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > initialFilter 合法 JSON 载入初始筛选，非法 JSON 静默忽略
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > fixedQuery 单独生效，与用户筛选 AND 合并
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 未知实体：displayName 回退 name、列回退 actionsColumn、编辑与新增全部安全 no-op
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > MANY_TO_MANY 模式渲染「+ 添加」按钮并暴露 isM2m
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 键盘：无历史时 Ctrl+Z / Ctrl+Shift+Z 不拦截（独立 RxDB 实例）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 键盘：Meta+Z 触发 undo；TEXTAREA/SELECT/其他键不拦截
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onCellChanged：空字段/actions 忽略，未知字段原样入变更，同值与未知记录不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onIconClicked：未知动作与未知记录 id 安全忽略
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onBatchUpdated：全 actions（含空键）变更不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onSortClicked：空白字段忽略，非法 order 回退 normal，大写 DESC 生效
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 选择模式：alreadyLinkedIds 过滤已关联记录，m2mAlreadyLinkedIds 合并 db 与草稿
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > onQueryChange undefined 重置为空白查询
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：父实体关系 add + save；无关系属性时只 save；无父实体安全 no-op
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：父实体关系 add + save；无关系属性时只 save；无父实体安全 no-op
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：有父实体但无关系名时跳过关系处理
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > M2M 确认：草稿父实体只合并本地草稿，不 save
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > openM2mSelectDialog：打开真实 CDK 对话框、重入被挡、取消后可重开
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > openM2mSelectDialog：打开真实 CDK 对话框、重入被挡、取消后可重开
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > openM2mSelectDialog：打开真实 CDK 对话框、重入被挡、取消后可重开
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > createFormFieldConfigs 直接调用返回 Todo 新建表单字段
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > loadMore 透传列表加载函数
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > view-action 打开 edit 详情对话框并加载记录数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 只读行（系统表）view-action 以 view 模式打开详情：字段只读、无保存入口
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > editChain 含记录 id 时 view-action 只 emit 不打开编辑对话框（防环）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-list/entity-list.real.spec.ts > EntityListComponent（真实组件） > 草稿行 view-action 只 emit 不打开编辑对话框
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts (44 tests) 967ms
+ ✓ |rxdb-model-angular| src/__tests__/entity-form/rxdb-entity-form-angular.real.spec.ts (35 tests) 122ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-rule/query-rule.real.spec.ts (34 tests) 393ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-group/query-group.real.spec.ts (43 tests) 208ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/popover-select/popover-select.real.spec.ts (23 tests) 40ms
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > create 模式（DIALOG_DATA）立即建内存草稿，不落库，标题为 新建+显示名
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 校验失败阻止保存：输出 validationErrors、草稿保留、不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 补齐必填后保存才落库：dialogRef.close(saved)、草稿清空
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > delegateSave 不建草稿，保存时 emit formSubmitted 并关闭
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > fixedFormData 合并进草稿与提交数据，且对应字段只读
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > onFormCancelled 清理草稿缓存并 emit formCancelled
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > 关系 tabs：基本信息 + 一对多表 tab，切 tab 前校验草稿
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > buildFixedQuery / buildFixedFormData 按关系类型生成固定条件
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式（entityId 路由输入）从仓库加载实体作为表单数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 对话框模式（DIALOG_DATA entityId）从仓库加载实例作为表单数据
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 对话框模式内部保存：变更落库 + dialogRef.close(saved) + 成功后 emit formSubmitted
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ❯ |rxdb-model-angular| src/__tests__/entity-detail/entity-detail.real.spec.ts (17 tests | 1 failed) 120ms
+     ✓ create 模式（DIALOG_DATA）立即建内存草稿，不落库，标题为 新建+显示名 7ms
+     ✓ 校验失败阻止保存：输出 validationErrors、草稿保留、不落库 8ms
+     ✓ 补齐必填后保存才落库：dialogRef.close(saved)、草稿清空 9ms
+     ✓ delegateSave 不建草稿，保存时 emit formSubmitted 并关闭 5ms
+     ✓ fixedFormData 合并进草稿与提交数据，且对应字段只读 5ms
+     ✓ onFormCancelled 清理草稿缓存并 emit formCancelled 5ms
+     ✓ 关系 tabs：基本信息 + 一对多表 tab，切 tab 前校验草稿 5ms
+     ✓ buildFixedQuery 覆盖 MANY_TO_MANY 与不支持的关系类型 10ms
+     ✓ buildFixedQuery / buildFixedFormData 按关系类型生成固定条件 6ms
+     ✓ creationChain 阻断循环创建：链上实体不再出表 tab 4ms
+     ✓ edit 模式（entityId 路由输入）从仓库加载实体作为表单数据 6ms
+     ✓ edit 模式内部保存：formSubmitted 变更落库并 emit（保存成功后） 10ms
+     ✓ edit 对话框模式（DIALOG_DATA entityId）从仓库加载实例作为表单数据 6ms
+     ✓ edit 对话框模式内部保存：变更落库 + dialogRef.close(saved) + 成功后 emit formSubmitted 11ms
+     ✓ edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库 8ms
+     ✓ editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用） 5ms
+     × US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删 10ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/value-input/value-input.real.spec.ts (19 tests) 29ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/query-builder/query-builder.real.spec.ts (14 tests) 53ms
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > statusText：total 缺失为空串，无 filtered 为总数，不等为 filtered / total
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > queryActive 且有 statusText 时渲染筛选状态栏，否则隐藏
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > filterBar 与 emptyState 插槽按选择器投影
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > 表格初始化后 tableInstance 委托给内部 EntityTableComponent
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > 内部表格事件透传到外层 output（cellChanged / sortClicked）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > rowDeleted / iconClicked / batchUpdated / rowReordered 透传
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > changeCellValue 与 redrawTheme 委托给内部表格
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（真实组件） > loading 透传给内部实体表格并渲染 spinner
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/query-table/query-table.component.real.spec.ts > QueryTableComponent（分支收尾） > viewChild / 表格引擎未就绪时 tableInstance 回退 null，就绪后拿到引擎
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-table/query-table/query-table.component.real.spec.ts (9 tests) 17ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/tree-select/tree-select.real.spec.ts (15 tests) 59ms
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 初始化时经 createListTable 创建真实组件持有的表格实例
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 无记录且非加载中时渲染空态，加载中渲染 spinner
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > change_cell_value 事件桥接到 cellChanged（含列字段名与行记录）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > switch / checkbox 状态事件按布尔值桥接到 cellChanged
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > icon_click 的 delete-action 走 rowDeleted，其余名字走 iconClicked
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > sort_click 透传字段与方向（阻止 VTable 客户端排序）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > change_header_position 经 collectReorderedIds 输出拖拽后的行序
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > loadingMore 进行中不重复触发 loadMore
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 触底滚动优先调用 loadMore，未提供时输出 scrollNearBottom
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > keydown Delete 清空选中单元格并经 batchUpdated 输出
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > nonClearableFields 与 cellClearable 阻止对应单元格被清空
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > Ctrl+V 粘贴经系统剪贴板解析为 batchUpdated
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > records 更新时经 effect 调用 setRecords
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 列定义变化时走 updateTableRecords（重放记录并收敛列数）
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > cellErrorDetector 在悬停时经 CellTooltipManager 显示错误 tooltip
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+stderr | src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts > EntityTableComponent（真实组件） > 销毁时释放表格并解绑容器键盘监听
+[entity-table] VTable internalProps.rowSeriesNumberHelper not found — drag icon patch skipped
+
+ ✓ |rxdb-model-angular| src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts (16 tests) 19ms
+ ✓ |rxdb-model-angular| src/__tests__/entity-dialog/entity-dialog.real.spec.ts (9 tests) 18ms
+ ✓ |rxdb-model-angular| src/__tests__/query-builder/operator-selector/operator-selector.component.spec.ts (6 tests) 15ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-model-angular| src/__tests__/entity-detail/entity-detail.real.spec.ts > EntityDetailComponent（真实组件） > US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删
+RxDBError: Entity 'Account' is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ resolveEntityManager ../rxdb/src/entity/entity-manager.ts:682:11
+    680|   if (!managers || managers.size === 0) throw new RxDBError(`Entity '$…
+    681|   if (managers.size > 1) {
+    682|     throw new RxDBError(
+       |           ^
+    683|       `Entity '${entityName}' is registered with multiple RxDB instanc…
+    684|     );
+ ❯ Account.<anonymous> ../rxdb/src/entity/entity-manager.ts:132:76
+ ❯ src/__tests__/entity-detail/entity-detail.real.spec.ts:399:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  1 failed | 283 passed (284)
+   Start at  17:52:51
+   Duration  10.04s (transform 1.34s, setup 232ms, import 7.52s, tests 2.06s, environment 124ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-model-angular/junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+✔  nx run rxdb-devtools-extension:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-model-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run code-editor-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-replay-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-model-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-miniprogram:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-working-tree-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run code-editor-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-http:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-adapter-tauri:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-search-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run rxdb-plugin-search-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:151) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue
+
+(node:159) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |rxdb-plugin-search-vue| src/__tests__/review-options-mutation.spec.ts (3 tests | 2 failed) 6ms
+     × Ref 内 pageSize 原地改变时应重建 handle 4ms
+     × Ref 内 collections 数组变化时应重建 handle 0ms
+     ✓ 替换 Ref 对象的对照路径能正常重建 1ms
+(node:165) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | src/__tests__/use-search.spec.ts > useSearch (Vue binding, T039) > handle 驱动的输出必须是只读的
+[Vue warn] Set operation on key "value" failed: target is readonly. RefImpl {
+  dep: Dep {
+    computed: undefined,
+    version: 0,
+    activeLink: undefined,
+    subs: undefined,
+    map: undefined,
+    key: undefined,
+    sc: 0,
+    __v_skip: true,
+    subsHead: undefined
+  },
+  __v_isRef: true,
+  __v_isShallow: false,
+  _rawValue: 'idle',
+  _value: 'idle'
+}
+[Vue warn] Set operation on key "value" failed: target is readonly. RefImpl {
+  dep: Dep {
+    computed: undefined,
+    version: 1,
+    activeLink: undefined,
+    subs: undefined,
+    map: undefined,
+    key: undefined,
+    sc: 0,
+    __v_skip: true,
+    subsHead: undefined
+  },
+  __v_isRef: true,
+  __v_isShallow: true,
+  _rawValue: [],
+  _value: []
+}
+
+ ✓ |rxdb-plugin-search-vue| src/__tests__/use-search.spec.ts (21 tests) 18ms
+(node:168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-plugin-search-vue| src/__tests__/index.spec.ts (3 tests) 2ms
+(node:186) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-plugin-search-vue| src/__tests__/package-exports.spec.ts (1 test) 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-search-vue| src/__tests__/review-options-mutation.spec.ts > 实际代码评审：Vue search 选项原地变化 > Ref 内 pageSize 原地改变时应重建 handle
+AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times
+ ❯ src/__tests__/review-options-mutation.spec.ts:34:22
+     32|       options.value.pageSize = 20;
+     33|       await nextTick();
+     34|       expect(search).toHaveBeenCalledTimes(2);
+       |                      ^
+     35|     } finally { scope.stop(); }
+     36|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-plugin-search-vue| src/__tests__/review-options-mutation.spec.ts > 实际代码评审：Vue search 选项原地变化 > Ref 内 collections 数组变化时应重建 handle
+AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times
+ ❯ src/__tests__/review-options-mutation.spec.ts:45:22
+     43|       options.value.collections.push('recipes');
+     44|       await nextTick();
+     45|       expect(search).toHaveBeenCalledTimes(2);
+       |                      ^
+     46|     } finally { scope.stop(); }
+     47|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 26 passed (28)
+   Start at  17:54:04
+   Duration  1.45s (transform 216ms, setup 0ms, import 564ms, tests 28ms, environment 516ms)
+
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+✔  nx run rxdb-plugin-search-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-working-tree-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-working-tree-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run dev-rxdb-http-server:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run dev-rxdb-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:2790) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular
+
+(node:2790) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/components/opfs-file-grid.component.spec.ts (3 tests) 57ms
+ ✓ |dev-rxdb-angular| src/app/rxdb/replay-recording.spec.ts (11 tests) 57ms
+ ❯ |dev-rxdb-angular| src/app/pages/replay/replay.page.spec.ts (2 tests | 2 failed) 6ms
+     × 只禁用本页正在录的会话；冲刷失败或上一页没收尾留下的 recording 会话仍可回放、可删除 5ms
+     × 本页没在录时，持久化状态为 recording 的会话全部可操作 1ms
+ ❯ |dev-rxdb-angular| src/app/pages/storage/components/storage-file-grid.component.spec.ts (2 tests | 2 failed) 12ms
+     × 销毁时应该取消待执行的缩略图加载 11ms
+     × 销毁后不应该发布异步生成的缩略图 URL 1ms
+ ✓ |dev-rxdb-angular| src/app/rxdb/failure-archive-api.spec.ts (3 tests) 23ms
+ ❯ |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts (8 tests | 8 failed) 2ms
+     × 关键字无匹配时返回空树 1ms
+     × 关键字为空时返回已加载节点 0ms
+     × 文件不可展开，文件夹展开后订阅子节点并可递归折叠 0ms
+     × 加载错误会记录 nodeErrors，重试后清除错误并恢复子节点 0ms
+     × 全量模式过滤空名称并自动展开文件夹，折叠后恢复根模式 0ms
+     × 批量添加重置旧订阅和展开状态，并重新订阅根节点 0ms
+     × 搜索警告明确提示折叠节点仅搜索已加载数据 0ms
+     × 销毁时取消根和子订阅 0ms
+ ❯ |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts (6 tests | 6 failed) 3ms
+     × 只订阅根节点，并按 sortOrder 构建初始树 1ms
+     × 展开时订阅子节点，折叠时递归清理数据与订阅 0ms
+     × 选择父节点时建立子节点订阅 0ms
+     × 记录加载错误，并允许清错后重新订阅 0ms
+     × 全量模式一次构建层级，折叠后恢复根查询 0ms
+     × 销毁后不再接收根与子节点更新 0ms
+ ❯ |dev-rxdb-angular| src/app/pages/tree-pages-construction.spec.ts (4 tests | 4 failed) 2ms
+     × simple/virtual 菜单页都复用统一的 store 基类契约 1ms
+     × 提交入口按实时 selectedParentId 分流，不依赖模板渲染快照 0ms
+     × 懒加载菜单页只通过懒 store 控制展开、错误与销毁 0ms
+     × simple/virtual 文件页覆盖显示名、模式切换和虚拟滚动初始化 0ms
+ ❯ |dev-rxdb-angular| src/app/theme.service.spec.ts (6 tests | 6 failed) 2ms
+     × applies the initial host theme without writing localStorage 1ms
+     × updates from later host bus events without persisting 0ms
+     × still persists a user-driven theme change 0ms
+     × 用户切换主题时把请求推给宿主 0ms
+     × 切到 auto 时推的是解析后的主题 0ms
+     × 宿主下发的主题不回推，避免两端互相触发 0ms
+ ❯ |dev-rxdb-angular| src/app/pages/working-tree/working-tree.keep-last-good.spec.ts (4 tests | 4 failed) 1ms
+     × loading 相位回退到上一份已知值，非 loading 原样透传 0ms
+     × 连续多次重读，替身始终是最近一次已知值 0ms
+     × 从未有过已知值时 loading 原样透传 0ms
+     × 非 loading 相位即时透传，不延迟一帧 0ms
+ ❯ |dev-rxdb-angular| src/app/pages/entity/entity-pages-construction.spec.ts (4 tests | 4 failed) 1ms
+     × entity 壳页：public 实体平铺、其余按 namespace 分组，无子路由时重定向到首个实体 1ms
+     × entity 壳页：已有子路由时不重定向 0ms
+     × entity-list 页以 namespace/name 路由输入定位实体（查看由组件内置编辑对话框承载） 0ms
+     × entity-detail 页按 namespace/name/entityId 路由输入定位实体，保存/取消后相对导航回实体列表 0ms
+ ❯ |dev-rxdb-angular| src/app/pages/file-manager/file-manager-construction.spec.ts (2 tests | 2 failed) 1ms
+     × 懒加载页复用 DI 提供的唯一 store 与 history 0ms
+     × 懒加载页的显示、委托和销毁行为保持可观察 0ms
+ ✓ |dev-rxdb-angular| src/app/pages/working-tree/working-tree.gd.spec.ts (10 tests) 5ms
+ ❯ |dev-rxdb-angular| src/app/pipes/base-src.pipe.spec.ts (3 tests | 3 failed) 1ms
+     × 以 / 开头的值在注入上下文之外也必须能拼出 baseHref 0ms
+     × 非 / 开头的值原样返回 0ms
+     × 空值返回空串 0ms
+ ✓ |dev-rxdb-angular| src/app/shared/event-listener.spec.ts (2 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/pages/file-manager/utils/tree-file.store.spec.ts (8 tests) 5ms
+ ✓ |dev-rxdb-angular| src/app/pages/menu/utils/tree-menu.store.spec.ts (8 tests) 4ms
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/utils/opfs-utils.spec.ts (57 tests) 4ms
+ ✓ |dev-rxdb-angular| src/app/pages/working-tree/working-tree.diff-format.spec.ts (19 tests) 2ms
+ ✓ |dev-rxdb-angular| src/app/pages/storage/storage-page.browser.spec.ts (4 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/file-manager/services/file-drag-drop.service.spec.ts (19 tests) 3ms
+ ✓ |dev-rxdb-angular| src/app/pages/menu/services/menu-search.service.spec.ts (32 tests) 3ms
+ ✓ |dev-rxdb-angular| src/app/pages/storage/storage-page.helpers.spec.ts (18 tests) 2ms
+ ✓ |dev-rxdb-angular| src/app/pages/storage/storage-page.zip.spec.ts (4 tests) 2ms
+ ✓ |dev-rxdb-angular| src/app/shared/traverse-file-tree.spec.ts (5 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/storage/storage-page.transfer.spec.ts (4 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/file-manager/services/file-path-validator.service.spec.ts (20 tests) 2ms
+ ✓ |dev-rxdb-angular| src/app/pages/menu/utils/tree-utils.spec.ts (4 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/file-manager/services/file-search.service.spec.ts (15 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/utils/opfs-zip.spec.ts (2 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/shared/accessible-overlays.spec.ts (4 tests) 2ms
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/utils/resettable-timer.spec.ts (2 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/storage/storage-page.selection.spec.ts (3 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/shared/read-directory-entries.spec.ts (2 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/services/opfs.service.spec.ts (1 test) 1ms
+ ✓ |dev-rxdb-angular| src/app/shared/view-transition.spec.ts (2 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/pages/search/search-seed-refresh.spec.ts (2 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/rxdb/setup_rxdb.spec.ts (2 tests) 1ms
+ ✓ |dev-rxdb-angular| src/app/pages/working-tree/working-tree.drag.spec.ts (3 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/pages/opfs/utils/opfs-preview-type.spec.ts (3 tests) 0ms
+ ✓ |dev-rxdb-angular| src/app/rxdb/failure-archive.spec.ts (20 tests) 67ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 41 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > applies the initial host theme without writing localStorage
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > updates from later host bus events without persisting
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > still persists a user-driven theme change
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > 用户切换主题时把请求推给宿主
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > 切到 auto 时推的是解析后的主题
+ FAIL  |dev-rxdb-angular| src/app/theme.service.spec.ts > ThemeService > 宿主下发的主题不回推，避免两端互相触发
+ FAIL  |dev-rxdb-angular| src/app/pages/tree-pages-construction.spec.ts > tree demo page construction contracts > simple/virtual 菜单页都复用统一的 store 基类契约
+ FAIL  |dev-rxdb-angular| src/app/pages/tree-pages-construction.spec.ts > tree demo page construction contracts > 提交入口按实时 selectedParentId 分流，不依赖模板渲染快照
+ FAIL  |dev-rxdb-angular| src/app/pages/tree-pages-construction.spec.ts > tree demo page construction contracts > 懒加载菜单页只通过懒 store 控制展开、错误与销毁
+ FAIL  |dev-rxdb-angular| src/app/pages/tree-pages-construction.spec.ts > tree demo page construction contracts > simple/virtual 文件页覆盖显示名、模式切换和虚拟滚动初始化
+ FAIL  |dev-rxdb-angular| src/app/pipes/base-src.pipe.spec.ts > BaseSrcPipe > 以 / 开头的值在注入上下文之外也必须能拼出 baseHref
+ FAIL  |dev-rxdb-angular| src/app/pipes/base-src.pipe.spec.ts > BaseSrcPipe > 非 / 开头的值原样返回
+ FAIL  |dev-rxdb-angular| src/app/pipes/base-src.pipe.spec.ts > BaseSrcPipe > 空值返回空串
+ FAIL  |dev-rxdb-angular| src/app/pages/entity/entity-pages-construction.spec.ts > entity demo page construction contracts > entity 壳页：public 实体平铺、其余按 namespace 分组，无子路由时重定向到首个实体
+ FAIL  |dev-rxdb-angular| src/app/pages/entity/entity-pages-construction.spec.ts > entity demo page construction contracts > entity 壳页：已有子路由时不重定向
+ FAIL  |dev-rxdb-angular| src/app/pages/entity/entity-pages-construction.spec.ts > entity demo page construction contracts > entity-list 页以 namespace/name 路由输入定位实体（查看由组件内置编辑对话框承载）
+ FAIL  |dev-rxdb-angular| src/app/pages/entity/entity-pages-construction.spec.ts > entity demo page construction contracts > entity-detail 页按 namespace/name/entityId 路由输入定位实体，保存/取消后相对导航回实体列表
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-construction.spec.ts > file manager construction contract > 懒加载页复用 DI 提供的唯一 store 与 history
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-construction.spec.ts > file manager construction contract > 懒加载页的显示、委托和销毁行为保持可观察
+ FAIL  |dev-rxdb-angular| src/app/pages/replay/replay.page.spec.ts > 录制会话列表的操作 > 本页没在录时，持久化状态为 recording 的会话全部可操作
+ FAIL  |dev-rxdb-angular| src/app/pages/working-tree/working-tree.keep-last-good.spec.ts > keepLastGood > loading 相位回退到上一份已知值，非 loading 原样透传
+ FAIL  |dev-rxdb-angular| src/app/pages/working-tree/working-tree.keep-last-good.spec.ts > keepLastGood > 连续多次重读，替身始终是最近一次已知值
+ FAIL  |dev-rxdb-angular| src/app/pages/working-tree/working-tree.keep-last-good.spec.ts > keepLastGood > 从未有过已知值时 loading 原样透传
+ FAIL  |dev-rxdb-angular| src/app/pages/working-tree/working-tree.keep-last-good.spec.ts > keepLastGood > 非 loading 相位即时透传，不延迟一帧
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 关键字无匹配时返回空树
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 关键字为空时返回已加载节点
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 文件不可展开，文件夹展开后订阅子节点并可递归折叠
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 加载错误会记录 nodeErrors，重试后清除错误并恢复子节点
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 全量模式过滤空名称并自动展开文件夹，折叠后恢复根模式
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 批量添加重置旧订阅和展开状态，并重新订阅根节点
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 搜索警告明确提示折叠节点仅搜索已加载数据
+ FAIL  |dev-rxdb-angular| src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts > TreeFileLazyStore.treeNodes > 销毁时取消根和子订阅
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 只订阅根节点，并按 sortOrder 构建初始树
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 展开时订阅子节点，折叠时递归清理数据与订阅
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 选择父节点时建立子节点订阅
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 记录加载错误，并允许清错后重新订阅
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 全量模式一次构建层级，折叠后恢复根查询
+ FAIL  |dev-rxdb-angular| src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts > TreeMenuLazyStore > 销毁后不再接收根与子节点更新
+ FAIL  |dev-rxdb-angular| src/app/pages/storage/components/storage-file-grid.component.spec.ts > StorageFileGridComponent > 销毁时应该取消待执行的缩略图加载
+ FAIL  |dev-rxdb-angular| src/app/pages/storage/components/storage-file-grid.component.spec.ts > StorageFileGridComponent > 销毁后不应该发布异步生成的缩略图 URL
+TypeError: Cannot read properties of null (reading 'ngModule')
+ ❯ isModuleWithProviders ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/util.ts:23:37
+ ❯ expandModuleWithProviders ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:698:6
+ ❯ DynamicTestModule.get ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:154:13
+ ❯ getNgModuleDef ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/def_getters.ts:18:14
+ ❯ getNgModuleDefOrThrow ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/def_getters.ts:22:22
+ ❯ verifySemanticsOfNgModuleDef ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:257:18
+ ❯ DynamicTestModule.get ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:200:21
+ ❯ TestBedCompiler.applyProviderOverridesInScope ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed_compiler.ts:680:43
+ ❯ TestBedCompiler.compileTestModule ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed_compiler.ts:1040:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/41]⎯
+
+ FAIL  |dev-rxdb-angular| src/app/pages/replay/replay.page.spec.ts > 录制会话列表的操作 > 只禁用本页正在录的会话；冲刷失败或上一页没收尾留下的 recording 会话仍可回放、可删除
+Error: Need to call TestBed.initTestEnvironment() first
+ ❯ TestBedImpl.get compiler [as compiler] ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:739:13
+ ❯ TestBedImpl.get testModuleRef [as testModuleRef] ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:750:34
+ ❯ TestBedImpl.inject ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:616:25
+ ❯ TestBedImpl.createComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:693:40
+ ❯ TestBedImpl.createComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:420:33
+ ❯ renderReady src/app/pages/replay/replay.page.spec.ts:18:27
+     16| /** 开关默认关，构造时不加载录制模块；直接把就绪后的信号摆好。 */
+     17| const renderReady = (activeSessionId: string | null) => {
+     18|   const fixture = TestBed.createComponent(ReplayPage);
+       |                           ^
+     19|   const page = fixture.componentInstance;
+     20|   page.$enabled.set(true);
+ ❯ src/app/pages/replay/replay.page.spec.ts:36:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/41]⎯
+
+
+ Test Files  10 failed | 31 passed (41)
+      Tests  41 failed | 292 passed (333)
+   Start at  17:55:12
+   Duration  16.28s (transform 3.38s, setup 578ms, import 10.43s, tests 282ms, environment 236ms)
+
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+> nx run dev-rxdb-tauri:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:2885) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri
+
+(node:2885) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-tauri| src/devtools/tauri-conformance.spec.ts (80 tests) 1545ms
+     ✓ AC#12 MUST answer session_budget_exhausted rather than evict a tombstone  978ms
+ ✓ |dev-rxdb-tauri| src/app/storage-probe.spec.ts (7 tests) 219ms
+ ✓ |dev-rxdb-tauri| src/app/opfs-worker-protocol.spec.ts (23 tests) 370ms
+stderr | src/devtools/tauri-connector-transport.spec.ts > createTauriConnectorTransport > 监听登记失败时仍然放行出站
+[RxDB DevTools] Failed to register inbound listeners Error: listen failed
+    at /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src/devtools/tauri-connector-transport.spec.ts:74:34
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ |dev-rxdb-tauri| src/devtools/tauri-connector-transport.spec.ts (6 tests) 207ms
+ ✓ |dev-rxdb-tauri| src/app/setup_rxdb_devtools.spec.ts (9 tests) 9ms
+ ✓ |dev-rxdb-tauri| src/app/pages/home/home.page.spec.ts (8 tests) 92ms
+ ✓ |dev-rxdb-tauri| src/app/opfs-worker-filesystem.spec.ts (6 tests) 104ms
+ ✓ |dev-rxdb-tauri| src/app/app-shell.spec.ts (3 tests) 56ms
+ ✓ |dev-rxdb-tauri| src/app/fake-provider-gear.spec.ts (10 tests) 12ms
+ ✓ |dev-rxdb-tauri| src/app/components/app-menu.spec.ts (4 tests) 20ms
+ ✓ |dev-rxdb-tauri| src/app/devtools-probe.spec.ts (15 tests) 55ms
+ ✓ |dev-rxdb-tauri| src/app/opfs-storage.worker.spec.ts (6 tests) 6ms
+ ❯ |dev-rxdb-tauri| src/app/services/desktop-launch.service.spec.ts (2 tests | 2 failed) 6ms
+     × 数据库尚未就绪时也必须能被注入（构造期不得读 RxDB） 5ms
+     × 写入一行启动记录后返回累计行数 1ms
+ ✓ |dev-rxdb-tauri| src/app/webview-probe.spec.ts (8 tests) 2ms
+ ✓ |dev-rxdb-tauri| src/app/rxdb-initializer.spec.ts (15 tests) 3ms
+ ✓ |dev-rxdb-tauri| src/app/services/selfcheck-reporter.spec.ts (12 tests) 2ms
+ ✓ |dev-rxdb-tauri| src/app/setup_rxdb.spec.ts (14 tests) 3ms
+stderr | src/devtools/tauri-transport.service.spec.ts > TauriTransportService > 断开后 postFrame 静默丢弃
+[RxDB DevTools] [2026-10-03T09:55:48.095Z] Tauri transport not connected, cannot post frame
+
+ ✓ |dev-rxdb-tauri| src/devtools/tauri-transport.service.spec.ts (7 tests) 2ms
+ ✓ |dev-rxdb-tauri| src/app/local-backend.spec.ts (10 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/services/tauri-contracts.spec.ts (23 tests) 2ms
+ ✓ |dev-rxdb-tauri| src/devtools/tauri-vfs-providers.spec.ts (10 tests) 2ms
+ ✓ |dev-rxdb-tauri| src/app/setup_rxdb_wa-sqlite.spec.ts (6 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/devtools/tauri-host-access.service.spec.ts (4 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/setup_rxdb_storage.spec.ts (3 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/devtools-runtime-config.spec.ts (8 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/wa-sqlite-backend.spec.ts (11 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/build-config.spec.ts (6 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/desktop-security.spec.ts (7 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/pages/home/home-status-panel.spec.ts (7 tests) 1ms
+ ✓ |dev-rxdb-tauri| src/app/wa-sqlite-worker-role.spec.ts (3 tests) 0ms
+ ✓ |dev-rxdb-tauri| src/app/services/tauri-environment.spec.ts (4 tests) 0ms
+ ✓ |dev-rxdb-tauri| src/app/backup-probe.spec.ts (6 tests) 569ms
+     ✓ 按偏移逐块读回整份归档  535ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |dev-rxdb-tauri| src/app/services/desktop-launch.service.spec.ts > DesktopLaunchService > 数据库尚未就绪时也必须能被注入（构造期不得读 RxDB）
+Error: Need to call TestBed.initTestEnvironment() first
+ ❯ TestBedImpl.get compiler [as compiler] ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:739:13
+ ❯ TestBedImpl.configureTestingModule ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:594:10
+ ❯ TestBedImpl.configureTestingModule ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed.ts:325:33
+ ❯ src/app/services/desktop-launch.service.spec.ts:24:13
+     22|    */
+     23|   it('数据库尚未就绪时也必须能被注入（构造期不得读 RxDB）', () => {
+     24|     TestBed.configureTestingModule({
+       |             ^
+     25|       // 永不 resolve 的 source = bootstrap 期间「还在建库」那一瞬间的忠实复刻。
+     26|       providers: [provideRxDB(() => new Promise(() => undefined))]
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |dev-rxdb-tauri| src/app/services/desktop-launch.service.spec.ts > DesktopLaunchService > 写入一行启动记录后返回累计行数
+TypeError: Cannot read properties of null (reading 'ngModule')
+ ❯ isModuleWithProviders ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/util.ts:23:37
+ ❯ expandModuleWithProviders ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:698:6
+ ❯ DynamicTestModule.get ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:154:13
+ ❯ getNgModuleDef ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/def_getters.ts:18:14
+ ❯ getNgModuleDefOrThrow ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/def_getters.ts:22:22
+ ❯ verifySemanticsOfNgModuleDef ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:257:18
+ ❯ DynamicTestModule.get ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/jit/module.ts:200:21
+ ❯ TestBedCompiler.applyProviderOverridesInScope ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed_compiler.ts:680:43
+ ❯ TestBedCompiler.compileTestModule ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/testing/src/test_bed_compiler.ts:1040:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 31 passed (32)
+      Tests  2 failed | 341 passed (343)
+   Start at  17:55:35
+   Duration  13.73s (transform 2.04s, setup 539ms, import 9.34s, tests 3.29s, environment 249ms)
+
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+✔  nx run dev-rxdb-supabase:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run dev-rxdb-electron:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run dev-rxdb-http:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run dev-rxdb-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run dev-rxdb-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-tree-angular:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-tree-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-tree-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-replay-react:test --args=--run --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-replay-vue:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> nx run rxdb-adapter-pglite:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:4219) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite
+
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/working-tree-commit-conformance.spec.ts (53 tests) 32781ms
+       ✓ 本地适配器实现了槽位：六个后端一个都不许缺  984ms
+       ✓ 提交上下文接到的就是那个判定器：信封串认、明文与裸密文都不认  621ms
+       ✓ 提交只追加：既有 commit 行一个字节都不动  658ms
+       ✓ 同一个 operationId 重复提交幂等命中现有节点，不产生第二个  651ms
+       ✓ 重启：另开一个事务冷读，HEAD 与整条父链逐字不变  616ms
+       ✓ 崩溃：事务体抛出之后零残留，HEAD 不动  598ms
+       ✓ 删光 rxdb_change 之后，历史仍然完整可重放  630ms
+       ✓ CommitChangeSet 结构上不引用 rxdb_change（静态断言）  594ms
+       ✓ firstParentId 恒等于 parentIds[0] ?? null  610ms
+       ✓ 每个既存分支都有 ref / state 初始行，且 generation 互不相同  610ms
+       ✓ enable() 之后每条本地分支都有一个 baseline 根节点  610ms
+       ✓ 重复 enable() 幂等：不产生第二个根，HEAD 不动  615ms
+       ✓ enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号  598ms
+       ✓ 新建分支后再 enable() 一次，新分支拿到自己的 baseline  602ms
+       ✓ 全有或全无：任一分支不可物化时整体回滚，健康分支零变化  590ms
+       ✓ 调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地  619ms
+       ✓ 冲突不入库：重读一次 status() 再提一次就过，中间没有「清除冲突」这一步  612ms
+       ✓ 事务内读改写型：并发普通写一笔都不因并发失败（FR-032 回归）  659ms
+       ✓ 写完 changeSet 之后崩溃：要么全有要么全无，工作树不会被清掉一半  642ms
+       ✓ entryCount 与实际行数在任何时刻一致：捕获后、被拒后、提交后各校一遍  630ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：健康分支放行  588ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：HEAD 被篡改时拒绝，且不改指针、不删记录  599ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  622ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：孤立损坏只被隔离，不影响健康分支  605ms
+       ✓ commit()：健康分支放行  597ms
+       ✓ commit()：HEAD 被篡改时拒绝，且不改指针、不删记录  607ms
+       ✓ commit()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  605ms
+       ✓ commit()：孤立损坏只被隔离，不影响健康分支  583ms
+       ✓ restore()：健康分支放行  603ms
+       ✓ restore()：HEAD 被篡改时拒绝，且不改指针、不删记录  596ms
+       ✓ restore()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  581ms
+       ✓ restore()：孤立损坏只被隔离，不影响健康分支  603ms
+       ✓ switch-to：健康分支放行  593ms
+       ✓ switch-to：HEAD 被篡改时拒绝，且不改指针、不删记录  580ms
+       ✓ switch-to：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  600ms
+       ✓ switch-to：孤立损坏只被隔离，不影响健康分支  595ms
+       ✓ 不依赖重放的读取不受影响：损坏分支上 listCommits / getCommitDetail 照常返回  574ms
+       ✓ 恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改  603ms
+       ✓ 公开面上没有 checkout()，也没有 detached HEAD 那类符号  582ms
+       ✓ CommitConflict 不会让 status().conflicted 变真  578ms
+       ✓ 会话捕获的 revision 分叉之后，restoring 灭、conflicted 亮  601ms
+       ✓ 一分支至多一个未结束会话：唯一索引拒绝第二行  596ms
+       ✓ commit() 把会话推进 committed 并让出 activeKey，新节点挂在原 HEAD 之后  608ms
+       ✓ discard() 把会话整行删掉，工作树回到干净  607ms
+       ✓ 分支各自独立的工作树：切过去看不见来源分支的未提交改动，切回来它还在  689ms
+       ✓ switchBranch(branchId) 不带 options 时行为与今天一致：工作树非空也照切  731ms
+       ✓ 每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒  696ms
+       ✓ 前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去  624ms
+       ✓ 物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动  596ms
+       ✓ 屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除  591ms
+       ✓ 半份 payload 不得被当作完整快照：一页都不交给宿主，来源分支保持 active  602ms
+       ✓ 两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续  592ms
+       ✓ 删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败  604ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/working-tree-capture-conformance.spec.ts (44 tests) 27331ms
+       ✓ 普通 CRUD 落 origin=local 的单元，冷重放与业务表逐字段相等  867ms
+       ✓ 显式事务里的多次写入共享同一 unitId，冷重放与业务表逐字段相等  618ms
+       ✓ restore 落 origin=local 的单元，冷重放与业务表逐字段相等  624ms
+       ✓ merge 落 origin=local 的单元，冷重放与业务表逐字段相等  595ms
+       ✓ 同步应用落 origin=remote_sync 的单元，冷重放与业务表逐字段相等  591ms
+       ✓ 未声明受信意图的 mergeChanges 被拒，业务表零变化  647ms
+       ✓ 分支物化不产生单元，冷重放以物化结果为 HEAD 成立  658ms
+       ✓ 切到 metadata-only 分支时屏障里的物化不产生单元：走真实 switchBranch，切完每条分支 entryCount 仍为 0  680ms
+       ✓ redo 失效不产生单元，冷重放以物化结果为 HEAD 成立  656ms
+       ✓ undo/redo 产生 origin=local 的单元，冷重放与业务表逐字段相等  692ms
+       ✓ 未声明受信意图的 switchBranch 被拒，业务表零变化  584ms
+       ✓ 版本化实体的 upsertMany 在返回 Observable 之前同步拒绝  611ms
+       ✓ 版本化实体的 deleteByIds 在返回 Observable 之前同步拒绝  590ms
+       ✓ QueryCache 实体的 upsertMany / deleteByIds 照常放行，且不进工作树  607ms
+       ✓ 行 1 crud：落 origin=local 的单元，修订号前进、entryCount 跟上  618ms
+       ✓ 行 2 domain_recompute：两次独立重算各落一个 origin=local 的单元  608ms
+       ✓ 行 3 remote_entity_apply：落 origin=remote_sync 的单元，且不写变更日志  607ms
+       ✓ 行 4 只写簿记列的同步应用：不产生单元，修订号一步不动  653ms
+       ✓ 行 5 cleanup_expired：落 origin=remote_sync 的删除单元，修订号前进  670ms
+       ✓ 行 6 projection_rewrite：投影重写不产生单元，修订号一步不动  689ms
+       ✓ 行 7 metadata_only_prefetch：矩阵对版本化目标判拒绝  590ms
+       ✓ 行 8 query_cache_maintenance：缓存表照常读写，工作树一个字不动  586ms
+       ✓ 行 9 raw_write：在语句执行之前拒绝，业务表零变化  655ms
+       ✓ 行 10 bulk_write：裸批量写版本化实体被拒，带矩阵的稳定错误码  581ms
+       ✓ 行 11 notify_external_update：版本化实体无条件拒绝，QueryCache 实体照常放行  574ms
+       ✓ 未登记的入口默认拒绝：版本化目标上的放行集恰好是矩阵写明的那 5 行  581ms
+       ✓ 第 1 步 提交能力未启用：原样放行，零行为差异  586ms
+       ✓ 第 2 步 不是写语句：放行  586ms
+       ✓ 第 3 步 打在 tracked 列上：语句执行之前被拒，业务表零变化  643ms
+       ✓ 第 3 步 语句批里的第二条也要拦住整批  648ms
+       ✓ 第 3 步 列集解析不出：fail-closed，同样在执行前拒绝  649ms
+       ✓ 第 3 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句  643ms
+       ✓ 第 4 步 只改簿记字段：放行，理由是 untracked_only  568ms
+       ✓ 第 4 步 写域外目标：放行，理由是 out_of_domain  589ms
+       ✓ 第 1 类 untracked —— QueryCache 实体：整体不进版本化域，写它不动工作树  606ms
+       ✓ 第 2 类 untracked —— 全局簿记字段：每个可寻址表名上都豁免，只动它们不产生单元  649ms
+       ✓ 第 3 类 untracked —— 逐表派生索引列：这个库一列都没登记，豁免集因此恰好等于全局簿记列  581ms
+       ✓ 清单外的实体默认 tracked —— 第四类 untracked 必须先改 epic-006  585ms
+       ✓ tracked 与 untracked 混进同一事务：报 mixed_versioned_cache_transaction 且整事务回滚  590ms
+       ✓ origin='remote_sync' 不是 untracked：同步应用照常产生单元  597ms
+       ✓ untracked 判定是静态属性：同一实体不会在一条入口 tracked、另一条 untracked  603ms
+       ✓ 全部 epic-006 系统表都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真  587ms
+       ✓ 全部 epic-006 系统表 log === false：库自己的簿记不进变更日志  590ms
+       ✓ WorkingTreeEntry 与 CommitChangeSet 的 relations 不引用 RxDBChange（静态断言）  599ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-concurrency.spec.ts (15 tests) 23081ms
+     ✓ contains every earlier commit, a commit-order prefix of concurrent ones, and no rolled-back work  2040ms
+     ✓ rejects while another instance holds the storage, whose commits this runtime cannot see  1369ms
+     ✓ rejects while another tab or worker holds the storage lock  902ms
+     ✓ rejects a long-lived connection after a later peer committed and closed, until it reconnects  2362ms
+     ✓ rejects a connection that opened while a peer still held the storage, even after the peer closed  1267ms
+     ✓ keeps backing up a sole long-lived connection across its own commits  1973ms
+     ✓ rejects with unsupported_combination when Web Locks cannot list the holders  886ms
+     ✓ includes every connection's commits once a single holder backs the storage up  2272ms
+     ✓ lets exactly one of two concurrent restores into the same target win  1643ms
+     ✓ rejects a connection attempted at "marker-written" with restore_in_progress  1659ms
+     ✓ rejects a connection attempted at "files-written" with restore_in_progress  1671ms
+     ✓ rejects a connection attempted at "verified" with restore_in_progress  1634ms
+     ✓ rejects a connection attempted at "persisted" with restore_in_progress  1650ms
+     ✓ refuses to open a target whose restore never finished, until it is cleaned up  893ms
+     ✓ refuses cleanup while the target is connected  859ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-interrupt.spec.ts (7 tests) 13951ms
+     ✓ reports restore_incomplete after a kill at "streaming", then cleans up and restores again  3568ms
+     ✓ reports restore_incomplete after a kill at "marker-written", then cleans up and restores again  1668ms
+     ✓ reports restore_incomplete after a kill at "files-written", then cleans up and restores again  1997ms
+     ✓ reports restore_incomplete after a kill at "verified", then cleans up and restores again  2000ms
+     ✓ reports restore_incomplete after a kill at "persisted", then cleans up and restores again  2214ms
+     ✓ reports restore_incomplete when a kill leaves partially flushed files behind the marker  839ms
+     ✓ keeps a finished restore when the worker is killed right after it returns  1664ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-roundtrip.spec.ts (8 tests) 12869ms
+     ✓ restores a memory backup into an empty memory target  2190ms
+     ✓ restores a memory backup into an empty idb target  2264ms
+     ✓ restores a idb backup into an empty memory target  1848ms
+     ✓ restores a idb backup into an empty idb target  2727ms
+     ✓ restores the same archive into independent memory instances  1665ms
+     ✓ keeps the source usable and unchanged after backing it up  948ms
+     ✓ does not depend on how the source stream is chunked  1226ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-failure.spec.ts (26 tests) 13231ms
+     ✓ rejects a different entity schema  1468ms
+     ✓ rejects an archive that needs an extension the target does not load  859ms
+     ✓ reports a flipped byte only after reading to the end, then discards the staged data  327ms
+     ✓ reports a flipped byte for a memory target without handing out a database  318ms
+     ✓ refuses a target that already holds a database and leaves it intact  1553ms
+     ✓ refuses the RxDB instance itself once it is connected  908ms
+     ✓ refuses storage that another instance has open  938ms
+     ✓ refuses another RxDB instance with the same name but a different schema  444ms
+     ✓ refuses another RxDB instance with the same name and an encrypted schema  437ms
+     ✓ refuses the verified instance when its adapter loads different extensions  433ms
+     ✓ aborts after verification but before the commit point  379ms
+     ✓ reports a full IndexedDB quota during the commit as storage_full and cleans up  381ms
+     ✓ reports cleanup_pending when the partial data cannot be removed, and recovers after cleanup  4276ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-encryption.spec.ts (7 tests) 8856ms
+     ✓ omits the sentinel and passphrase when backed up locked  1046ms
+     ✓ omits the sentinel and passphrase when backed up unlocked  1002ms
+     ✓ detects the sentinel in a control archive that stores it as plaintext  927ms
+     ✓ restores into a new memory location locked, with the keyring metadata unchanged  2096ms
+     ✓ restores into a new IndexedDB location locked, with the keyring metadata unchanged  1944ms
+     ✓ rejects a target with a different authentication domain before writing  927ms
+     ✓ rejects restoring an encrypted archive into an unencrypted schema  914ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/transaction-contract.spec.ts (11 tests) 6782ms
+     ✓ 空库 + 配置了 migrations 时 connect() 必须完成，不得死锁  627ms
+     ✓ connect() 尚未完成时并发发起的第二次 connect() 不得把引导锁死  573ms
+     ✓ 引导完成后普通查询仍能正常入队执行  585ms
+     ✓ 引导期内发起的实体写入最终会完成，不会被队列永久滞留  569ms
+     ✓ 首装不执行任何 migration 的 up：建出来的表已是最新形态  587ms
+     ✓ 首装必须把每条 migration 的水位线写进 RxDBMigration 表  561ms
+     ✓ 末尾初始写入失败时，业务表与 migration 表必须一并回滚  542ms
+     ✓ 事务回滚不得吞掉窗口内的外部写入  988ms
+     ✓ 两个并发 transaction() 是两个独立事务，不得被合并  562ms
+     ✓ executor.run() 复用当前事务，不新开事务  598ms
+     ✓ executor 逃逸出事务体后再使用必须抛错  590ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.residual.unit.spec.ts (10 tests) 6468ms
+     ✓ covers empty save/remove, unsupported repository, restoreEntity, encryption errors  829ms
+     ✓ getMetadataByIds and upsertMany empty early return  603ms
+     ✓ saveMany persists entities and marks local status  635ms
+     ✓ saveMany upserts an entity that already exists  630ms
+     ✓ saveMany resolves duplicate ids in one batch with the last entity  592ms
+     ✓ saveMany preserves creation audit fields on conflict  606ms
+     ✓ saveMany and removeMany support mixed entity types  620ms
+     ✓ saveMany rolls back prior groups and status when a later group fails  591ms
+     ✓ removeMany executes a batch above the PostgreSQL parameter limit  738ms
+     ✓ physicalTableNames 交出逻辑名，因为本后端用 schema 限定而不是折叠命名  625ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-lifecycle.spec.ts (15 tests) 5975ms
+       ✓ re-arms the idle timeout after successful encrypted activity  1322ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/tree-unique-contract.spec.ts (8 tests) 4891ms
+     ✓ rejects a duplicate root file (parentId IS NULL)  831ms
+     ✓ rejects a duplicate sub-folder (extension IS NULL)  594ms
+     ✓ rejects a case variant of an existing sibling  589ms
+     ✓ still accepts legitimately different siblings  561ms
+     ✓ does not confuse a NULL extension with an empty-string extension  574ms
+     ✓ rejects duplicate sibling menu titles but allows the same title under another parent  592ms
+     ✓ lets exactly one of two concurrent duplicate writes land  566ms
+     ✓ keeps the surviving row readable after a rejected duplicate  584ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/PGliteClient.spec.ts (16 tests) 3089ms
+       ✓ 应该处理无效的 NOTIFY payload  613ms
+       ✓ disconnect() 后应该无法执行查询  551ms
+     ✓ flushPendingNotifications 冲刷待处理事件后可再次空跑  579ms
+     ✓ disconnect 后 query 失败，且 empty payload 不影响连接  569ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/transaction-executor.spec.ts (5 tests) 3110ms
+     ✓ executor.getRepository() 的写入属于本事务：回滚后必须消失  817ms
+     ✓ executor.getRepository() 的写入在提交后留存  581ms
+     ✓ executor.run() 复用同一个事务，不新开  573ms
+     ✓ executor 逃逸出事务体后再使用必须抛错（提交路径）  577ms
+     ✓ executor 逃逸出事务体后再使用必须抛错（回滚路径）  563ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/merge_branch.spec.ts (17 tests) 2815ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/rxdb_adapter_mutations.unit.spec.ts (4 tests) 2501ms
+     ✓ throws invalid_entity_id when select row has no usable id  685ms
+     ✓ skips cache update when entity ref is missing after select  611ms
+     ✓ skips empty remove sets without failing  594ms
+     ✓ accepts finite numeric ids when updating cache  610ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-cursor-incremental.spec.ts (11 tests) 3025ms
+     ✓ 场景4: 创建不匹配 where 条件的实体 - 不应该出现在结果中  426ms
+     ✓ 场景6: after 游标外的新实体 - 不应该出现在结果中  431ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/PGliteClient.worker-residual.spec.ts (16 tests) 2617ms
+     ✓ disconnect clears pending timer after notify, empty notify is ignored  1371ms
+     ✓ liveQuery forwards null params when omitted  559ms
+     ✓ flushPendingNotifications drains timer and pending events  582ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/PGliteClient.notify-backpressure.spec.ts (3 tests) 2005ms
+     ✓ 持续写入期间必须有事件派发，不能等到写入停止才一次性放出来  888ms
+     ✓ 同一 (type, table, id) 在一个窗口内只算一次  562ms
+     ✓ 不同 id 仍然全部保留，不会因为去重而丢行  554ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/transaction_pglite_result.change-row.spec.ts (3 tests) 1888ms
+     ✓ 把 entityId 的信封还原成原始 bigint，而不是留下编码字符串  685ms
+     ✓ 强制更新已缓存的变更实体时不会把解码后的 entityId 覆盖回信封  601ms
+     ✓ 非 RxDBChange 的实体不进解码路径  601ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-bigint-binary.spec.ts (8 tests) 2286ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.spec.ts (7 tests) 1841ms
+     ✓ rxdb.disconnect() 后重新 connect 应该使用新的客户端连接  623ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-relation-id-null.spec.ts (2 tests) 1985ms
+     ✓ 设置 xxxId = null 后，通过关系字段的查询应该正确更新  812ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_defaults_indexes.executable.spec.ts (3 tests) 1655ms
+     ✓ 按列类型生成可执行默认值并由 PGlite 实际应用  569ms
+     ✓ 真实创建继承索引、使用物理列名且不重复索引主键  535ms
+     ✓ 对已有表幂等补建缺失的继承索引  551ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create-tables-current-branch.spec.ts (3 tests) 1775ms
+     ✓ 库停在非根分支时，补建的表要把变更记在当前分支名下  676ms
+     ✓ 库停在根分支时照旧写根分支  554ms
+     ✓ 连 rxdb_branch 都还没有的旧库上，补建照样要能跑完  545ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-crud.spec.ts (15 tests) 1406ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-json-types.spec.ts (6 tests) 1292ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-multiple-relations.spec.ts (3 tests) 1225ms
+     ✓ 设置 idCardId = null 不应该影响其他关系数据  513ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/testing.cleanup.spec.ts (3 tests) 2013ms
+     ✓ cleanup_db runs remove/truncate/main-branch reinstall paths  1003ms
+     ✓ cleanup_db 不得残留 RxDBBranch 的 UPDATE 事件到下一个用例  1010ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/notify-debug.spec.ts (2 tests) 1634ms
+     ✓ should trigger NOTIFY when inserting into RxDBChange  1006ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch-version.spec.ts (10 tests) 1700ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.client-factory.unit.spec.ts (2 tests) 1406ms
+     ✓ 子类可以用 createClient() 替换底层客户端  822ms
+     ✓ 非默认实现的变更监听会被挂上，也会在 disconnect 时解绑  584ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable-title.spec.ts (1 test) 1129ms
+     ✓ 观察 title 值变化：更新 → undo → redo  482ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-relation-cache.spec.ts (4 tests) 1252ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_tables_sql.executable.spec.ts (3 tests) 1231ms
+     ✓ 返回值可以在一个干净的库上直接执行  577ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-tree-incremental-update.spec.ts (10 tests) 1525ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-update-batch.spec.ts (1 test) 1024ms
+     ✓ 批量 update → undo → redo  395ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-mixed-crud-batch.spec.ts (1 test) 1545ms
+     ✓ 批量混合操作 → 全部 undo → 全部 redo  910ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-toggle-completed-4.spec.ts (1 test) 1805ms
+     ✓ 应该在批量更新 completed 后正确 undo/redo  991ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_index_unique.spec.ts (2 tests) 1204ms
+     ✓ 应该为唯一索引生成正确的 SQL  634ms
+     ✓ 应该为 normalized 唯一索引把每一列包成归一化表达式  570ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query-cache/query-cache-metadata.spec.ts (13 tests) 687ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-tree-incremental.spec.ts (8 tests) 1416ms
+       ✓ 应该在创建新子节点时自动更新查询结果  675ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable-delete.spec.ts (1 test) 898ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-multi-step.spec.ts (1 test) 1063ms
+     ✓ 连续撤销多次操作  457ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-invalidate-2.spec.ts (1 test) 842ms
+     ✓ undo 多次后创建新数据，所有 undo 的数据都不可 redo  842ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-redo-multi.spec.ts (1 test) 946ms
+     ✓ undo 全部后 redo 多步恢复  337ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-delete-batch.spec.ts (1 test) 1021ms
+     ✓ 批量 delete → undo → redo  396ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_tables_sql.spec.ts (14 tests) 668ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable-multi.spec.ts (1 test) 788ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-savemany.spec.ts (1 test) 1008ms
+     ✓ 单个 save + 多个批量 save → undo → redo  391ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable.spec.ts (2 tests) 1115ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-update.spec.ts (1 test) 773ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/merge-changes.spec.ts (9 tests) 910ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-delete-multi.spec.ts (1 test) 904ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-mixed-crud-complex.spec.ts (1 test) 802ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-toggle-completed-3.spec.ts (1 test) 914ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-toggle-completed-2.spec.ts (1 test) 868ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/fts/fts-integration.spec.ts (6 tests) 616ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-single.spec.ts (1 test) 837ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable-completed.spec.ts (1 test) 822ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/remove_trigger_sql.spec.ts (9 tests) 690ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-mixed.spec.ts (1 test) 938ms
+     ✓ 单个 + 批量保存 → 撤销 → 重做  330ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-invalidate-4.spec.ts (1 test) 764ms
+     ✓ undo 后删除数据，redo 栈失效  764ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-change-log.spec.ts (2 tests) 876ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-batch.spec.ts (1 test) 1041ms
+     ✓ Promise.all 批量保存 → 撤销 → 重做  398ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-invalidate.spec.ts (1 test) 807ms
+     ✓ undo 后创建新数据，之前 undo 的数据不可 redo  807ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch-result.on-conflict.spec.ts (3 tests) 631ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/bigint-binary.spec.ts (12 tests) 866ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/entity-permissions.spec.ts (18 tests) 638ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-tree-incremental-remove.spec.ts (7 tests) 1484ms
+       ✓ 删除叶子节点应从结果中移除  733ms
+       ✓ 删除非后代不应触发更新  303ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/zz-scratch-review.spec.ts (3 tests) 966ms
+     ✓ REPRO-1: 外部并发写入不会被卷入他人事务  318ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/rxdb_adapter_switch_transaction_id.spec.ts (2 tests) 743ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-menu-adapter.spec.ts (16 tests) 891ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-shop-sort.spec.ts (3 tests) 764ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-shop.spec.ts (29 tests) 721ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/rxdb_adapter_mutations.spec.ts (9 tests) 701ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-many-to-many.spec.ts (9 tests) 703ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-menu-cascade-delete.spec.ts (18 tests) 840ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-tree-incremental-ancestors-count.spec.ts (2 tests) 832ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-single-step.spec.ts (1 test) 727ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-column-name.spec.ts (14 tests) 627ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/join_sql.residual.spec.ts (1 test) 635ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-update-multi.spec.ts (1 test) 907ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/execute_switch_actions.spec.ts (7 tests) 697ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-mixed-crud.spec.ts (1 test) 1012ms
+     ✓ create → update → delete → undo all → redo all  401ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/join_sql.spec.ts (7 tests) 664ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/simple-undo.spec.ts (1 test) 717ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/fts/fts-real-schema.spec.ts (4 tests) 624ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/create_branch.spec.ts (2 tests) 639ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch-result.utils.spec.ts (20 tests) 611ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-observable-count.spec.ts (1 test) 758ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-foreign-key.spec.ts (1 test) 712ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_index_multi.spec.ts (1 test) 633ms
+     ✓ 应该为多个索引生成正确的 SQL  633ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch_branch.spec.ts (8 tests) 862ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/remove_branch.spec.ts (3 tests) 667ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/rxdb_adapter_create_branch.spec.ts (4 tests) 664ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-cursor-null.spec.ts (2 tests) 628ms
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 查询与增量匹配一致性 > '子串'：PGlite 查询结果应与核心 JS 一致
+{"sql":"\"meta\" @> $1::jsonb","params":["{\"theme\":\"li\"}"],"row":{"theme":"light"},"databaseMatches":false,"jsMatches":true}
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 查询与增量匹配一致性 > '多键 OR'：PGlite 查询结果应与核心 JS 一致
+{"sql":"\"meta\" @> $1::jsonb","params":["{\"theme\":\"light\",\"mode\":\"dark\"}"],"row":{"theme":"light","mode":"light"},"databaseMatches":false,"jsMatches":true}
+stdout | src/__tests__/review-query-audit.spec.ts > 实际代码评审：空 notIn 集合与 NULL > PGlite 与核心 JS 对合法 nullable 字段应一致
+{"sql":"1=1","row":{"tag":null},"databaseMatches":true,"jsMatches":false}
+ ❯ |rxdb-adapter-pglite (chromium)| src/__tests__/review-query-audit.spec.ts (3 tests | 3 failed) 1681ms
+     × '子串'：PGlite 查询结果应与核心 JS 一致 565ms
+     × '多键 OR'：PGlite 查询结果应与核心 JS 一致 546ms
+     × PGlite 与核心 JS 对合法 nullable 字段应一致 570ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-entity-id-change.spec.ts (3 tests) 606ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/transaction_pglite_result.residual.spec.ts (1 test) 605ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-tamper.spec.ts (12 tests) 690ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/sql_dialect.executable.spec.ts (6 tests) 572ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query-queue.spec.ts (1 test) 604ms
+     ✓ 相同并发写入必须逐次执行  604ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.liveQuery.spec.ts (1 test) 746ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-menu.spec.ts (12 tests) 631ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-types.spec.ts (26 tests) 1040ms
+       ✓ notIn 不在列表中查询  377ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query_tree_sql.residual.spec.ts (1 test) 601ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-cascade-delete-pglite.spec.ts (4 tests) 662ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.rawQuery.spec.ts (3 tests) 633ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/sku-attribute-unique.spec.ts (4 tests) 667ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/pglite.utils.sql-value-type.spec.ts (5 tests) 586ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-delete.spec.ts (1 test) 751ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/repository/PGliteRepository.spec.ts (5 tests) 615ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.sequence.spec.ts (5 tests) 620ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/undo-redo-invalidate-3.spec.ts (1 test) 768ms
+     ✓ undo 后更新数据，redo 栈失效  768ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/transaction_pglite_result.spec.ts (11 tests) 609ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.querycache.spec.ts (12 tests) 714ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-mutations-batch-update.spec.ts (3 tests) 654ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_index_composite.spec.ts (1 test) 689ms
+     ✓ 应该为组合索引生成正确的 SQL  689ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/pglite-exclusive.spec.ts (4 tests) 584ms
+     ✓ accepts the PGlite release this package is built against  583ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-todo.spec.ts (20 tests) 703ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_index.spec.ts (1 test) 609ms
+     ✓ 应该为单列索引生成正确的 SQL  608ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-memory.spec.ts (1 test) 620ms
+     ✓ keeps the in-flight bytes constant while the database grows eightfold  620ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.change-queue.spec.ts (3 tests) 263ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.mock-residual.spec.ts (4 tests) 158ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/handle_rxdb_change.spec.ts (18 tests) 102ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/notify/notification-batcher.spec.ts (9 tests) 14ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/entity/delete_sql.spec.ts (15 tests) 6ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/pglite.utils.spec.ts (62 tests) 4ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch_branch.unit.spec.ts (13 tests) 4ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query-safety.spec.ts (28 tests) 3ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/execute_switch_actions.unit.spec.ts (10 tests) 3ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/repository/PGliteRepositoryBase.unit.spec.ts (4 tests) 3ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query-error-code.spec.ts (23 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/test-type-demo.spec.ts (28 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query-cache/query-cache-row-contract.spec.ts (34 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/generate_trigger_sql.spec.ts (26 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query-cache/upsert-many-sql.spec.ts (17 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/pglite.utils.chunk.spec.ts (5 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/change-pipeline.spec.ts (4 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/repository/PGliteTreeRepository.unit.spec.ts (2 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query_sql.utils.spec.ts (29 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/testing.residual.spec.ts (4 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query_sql.residual.spec.ts (4 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/sql_dialect.spec.ts (17 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/fts/build-fts-triggers.spec.ts (18 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/query_tree_sql.unit.spec.ts (7 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/entity/insert_sql.spec.ts (13 tests) 2ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/pglite.utils.residual.spec.ts (3 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/generate_query_sql.spec.ts (21 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/switch-result.utils.residual.spec.ts (1 test) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/create_table_sql.unit.spec.ts (5 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/encrypted-query-wiring.spec.ts (1 test) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/entity/update_sql.spec.ts (5 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/RxDBAdapterPGlite.sequence-residual.spec.ts (2 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/execute_switch_statements.spec.ts (4 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/query/json-numeric-compare.spec.ts (11 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/keyring/pglite-keyring-storage.residual.spec.ts (3 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/entity/inserts_sql.residual.spec.ts (5 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/encrypted-schema-validation.spec.ts (1 test) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/version/read_current_branch_id.unit.spec.ts (6 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/fts/create-fts-table.spec.ts (6 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/pglite.utils.monotonic.spec.ts (10 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/find_by_row_ids_sql.spec.ts (6 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/testing.spec.ts (4 tests) 1ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/table/notify_function_sql.spec.ts (4 tests) 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-adapter-pglite (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 查询与增量匹配一致性 > '子串'：PGlite 查询结果应与核心 JS 一致
+ FAIL  |rxdb-adapter-pglite (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：keyValue 查询与增量匹配一致性 > '多键 OR'：PGlite 查询结果应与核心 JS 一致
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/review-query-audit.spec.ts:35:37
+     33|       const js = isEntityMatchWhere({ meta: row }, where);
+     34|       console.log(JSON.stringify({ sql, params, row, databaseMatches: …
+     35|       expect(result.rows.length > 0).toBe(js);
+       |                                     ^
+     36|     } finally {
+     37|       await db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |rxdb-adapter-pglite (chromium)| src/__tests__/review-query-audit.spec.ts > 实际代码评审：空 notIn 集合与 NULL > PGlite 与核心 JS 对合法 nullable 字段应一致
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/review-query-audit.spec.ts:53:37
+     51|       const js = isEntityMatchWhere({ tag: null }, where);
+     52|       console.log(JSON.stringify({ sql, row: { tag: null }, databaseMa…
+     53|       expect(result.rows.length > 0).toBe(js);
+       |                                     ^
+     54|     } finally {
+     55|       await db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed | 164 passed (165)
+      Tests  3 failed | 1296 passed (1299)
+Type Errors  no errors
+   Start at  17:57:05
+   Duration  309.63s (transform 0ms, setup 0ms, import 27.32s, tests 273.64s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-pglite/junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for 58 projects and 84 tasks they depend on failed
+
+Failed tasks:
+
+- rxdb-adapter-sqlite-core:test
+- rxdb-angular:test
+- rxdb-model-angular:test
+- rxdb-plugin-search-vue:test
+- dev-rxdb-angular:test
+- dev-rxdb-tauri:test
+- rxdb-adapter-pglite:test
+
+Output of 135 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      24m 2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     5m 32s (7 tasks)
+  Recoverable time:  18m 30s (77% of the run)
+
+  Recommendations:
+    - Increase parallelism to recover up to 18m 30s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.

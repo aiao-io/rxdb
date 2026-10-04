@@ -28,7 +28,7 @@ baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 
 [docker inspect 只读取证与独立环境记录](evidence/2026-10-03/full-run/supabase-environment.json) 保留现有容器 ID/labels。实际 adapter 测试另建唯一 project、唯一容器名和系统分配的空闲端口，手动执行等价初始化，显式排除默认 task dependencies 后通过真实 Nx test；退出后仅清理本次拥有的项目。
 
-[初始化](evidence/2026-10-03/full-run/supabase-setup.log)、[测试](evidence/2026-10-03/full-run/supabase-test.log)、[状态](evidence/2026-10-03/full-run/supabase-status.json)、[清理](evidence/2026-10-03/full-run/supabase-cleanup.log) 都有日志。默认环境没有被执行初始化或 down。
+[初始化](evidence/2026-10-03/full-run/supabase-setup.txt)、[测试](evidence/2026-10-03/full-run/supabase-test.txt)、[状态](evidence/2026-10-03/full-run/supabase-status.json)、[清理](evidence/2026-10-03/full-run/supabase-cleanup.txt) 都有日志。默认环境没有被执行初始化或 down。
 
 ## 修复方案
 

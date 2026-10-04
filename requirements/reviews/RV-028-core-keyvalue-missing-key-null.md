@@ -31,7 +31,7 @@ baseline: 58b4bbb61efa71d4591cafab6a4c92955a7760dd
 
 ## 动态复验
 
-[复验 spec](../../packages/rxdb-adapter-sqlite-core/src/__tests__/review-query-audit.spec.ts) 前两个用例调用当前 SQL 构建器，对真实 Node `DatabaseSync(':memory:')` JSON1 数据执行，并与核心公开匹配函数比较：两例均为 SQL false / JS true，两个断言均失败。[原始结果](evidence/2026-10-03/query-probes-round2.log) 已留存。
+[复验 spec](../../packages/rxdb-adapter-sqlite-core/src/__tests__/review-query-audit.spec.ts) 前两个用例调用当前 SQL 构建器，对真实 Node `DatabaseSync(':memory:')` JSON1 数据执行，并与核心公开匹配函数比较：两例均为 SQL false / JS true，两个断言均失败。[原始结果](evidence/2026-10-03/query-probes-round2.txt) 已留存。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run-many -t test --projects=rxdb-adapter-pglite,rxdb-adapter-sqlite-core --parallel=1 --args='src/__tests__/review-query-audit.spec.ts --run --browser.enabled=false --coverage.enabled=false --maxWorkers=1' --skipRemoteCache --skipNxCache

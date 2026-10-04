@@ -28,7 +28,7 @@ baseline: 58b4bbb61efa71d4591cafab6a4c92955a7760dd
 
 ## 动态复验
 
-两份 [SQLite spec](../../packages/rxdb-adapter-sqlite-core/src/__tests__/review-query-audit.spec.ts) / [PGlite spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts) 的最后一个用例分别创建真实数据库、插入 NULL、执行当前构建器 SQL：两侧 SQL 均 true，核心 JS 均 false，两个一致性断言均失败。[原始结果](evidence/2026-10-03/query-probes-round2.log) 包含 `1 = 1` / `1=1` 与结果。
+两份 [SQLite spec](../../packages/rxdb-adapter-sqlite-core/src/__tests__/review-query-audit.spec.ts) / [PGlite spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts) 的最后一个用例分别创建真实数据库、插入 NULL、执行当前构建器 SQL：两侧 SQL 均 true，核心 JS 均 false，两个一致性断言均失败。[原始结果](evidence/2026-10-03/query-probes-round2.txt) 包含 `1 = 1` / `1=1` 与结果。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run-many -t test --projects=rxdb-adapter-pglite,rxdb-adapter-sqlite-core --parallel=1 --args='src/__tests__/review-query-audit.spec.ts --run --browser.enabled=false --coverage.enabled=false --maxWorkers=1' --skipRemoteCache --skipNxCache

@@ -1,0 +1,55 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 4 projects:
+
+- utils
+- rxdb-adapter-pglite
+- rxdb-adapter-sqlite-core
+- rxdb-plugin-search-vue
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:lint --max-warnings=0
+✔  nx run rxdb-adapter-sqlite-core:lint --max-warnings=0
+✔  nx run rxdb-adapter-pglite:lint --max-warnings=0
+
+> nx run rxdb-plugin-search-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:76468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[0m
+[4m/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts[24m
+  [2m20:25[22m  [33mwarning[39m  '_query' is defined but never used    [2m@typescript-eslint/no-unused-vars[22m
+  [2m20:41[22m  [33mwarning[39m  '_options' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m
+
+[33m[1m✖ 2 problems (0 errors, 2 warnings)[22m[39m
+[0m
+ESLint found too many warnings (maximum: 0).
+Warning: command "eslint . --max-warnings=0" exited with non-zero status code
+
+
+ NX   Running target lint for 4 projects failed
+
+Failed tasks:
+
+- rxdb-plugin-search-vue:lint
+
+Output of 3 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      6.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.2s (1 task)
+  Recoverable time:  4.2s (66% of the run)

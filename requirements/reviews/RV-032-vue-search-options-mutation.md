@@ -22,7 +22,7 @@ baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 
 ## 动态复验
 
-[真实 Vue scope/scheduler＋源码 hook 的复验 spec](../../packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts) 中两种原地修改均只有一次 search 调用，预期两次；替换整个 Ref 对象的对照用例正常。结果 **2 failed / 1 passed**，见 [日志](evidence/2026-10-03/full-run/vue-search-probe.log)。SearchHandle 使用测试替身，只证明绑定重建契约，不代证 FTS 后端。
+[真实 Vue scope/scheduler＋源码 hook 的复验 spec](../../packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts) 中两种原地修改均只有一次 search 调用，预期两次；替换整个 Ref 对象的对照用例正常。结果 **2 failed / 1 passed**，见 [日志](evidence/2026-10-03/full-run/vue-search-probe.txt)。SearchHandle 使用测试替身，只证明绑定重建契约，不代证 FTS 后端。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-search-vue:test --args='src/__tests__/review-options-mutation.spec.ts --run --coverage.enabled=false --maxWorkers=1' --excludeTaskDependencies --skipRemoteCache --skipNxCache

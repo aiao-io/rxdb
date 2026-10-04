@@ -33,12 +33,12 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
+当前确认意见：[RV-041](../../RV-041-working-tree-public-commit-idempotency.md)；仅对已取证专题下结论，不代表全对象审完。
 
 ### 尚未完成的专项
 
@@ -54,3 +54,13 @@ execution: partial
 - [ ] C8 真实后端与三端入口：对照 conformance、三个 use-working-tree 与应用交互，必须区分 mock/orchestration 与实际 transaction。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### C3：内部 CAS 对照通过，但公开幂等重试失败
+
+🔴 [RV-041：公开 commit 原请求重试被过期凭据挡住](../../RV-041-working-tree-public-commit-idempotency.md)。人工沿 WorkingTreeManager.commit→runEnabled transaction→runCommitWorkingTree→writeCommit→finishCommit 阅读：CAS 使用 generation + headRevision + status；提交图、条目删除与 state 推进仍在同一事务，事件在 transaction 返回后发。但门面的 findCommitConflict 先于 operationId 查重。
+
+原 53 条真实后端共享 conformance 在 SQLite/PGlite 均通过。新增“同一原请求、不重建条目、不刷新凭据”的公共 API 断言后，两端均 **1 failed / 53 passed**：[SQLite](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-built.txt) / [PGlite](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。保留 [共享断言](../../../../packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts)，没有在各后端复制不同的判据。
+
+SQLite testing 子入口先 [重建](../../evidence/2026-10-03/follow-up/working-tree-testing-build-status.json) 后实际收集 54 条；首次仍只有 53 条的绿记录不是新 probe 证据。C3 仅部分核查，不勾完成：更多复用 token / 新草稿 / 分支 ABA 组合与六个真实宿主仍待补证。C2 捕获闭合、C6 加密全表扫描等没有因本专题通过而核销。

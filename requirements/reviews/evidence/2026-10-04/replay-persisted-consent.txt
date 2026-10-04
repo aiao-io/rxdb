@@ -1,0 +1,63 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:test --args=src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:17566) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay
+
+3:50:49 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`.
+3:50:51 AM [vite] (client) dependencies optimized: @electric-sql/pglite, @electric-sql/pglite/live, @electric-sql/pglite/worker
+3:50:51 AM [vite] (client) optimized dependencies changed. reloading
+
+[vitest] Vite unexpectedly reloaded a test. This may cause tests to fail, lead to flaky behaviour or duplicated test runs.
+For a stable experience, please add mentioned dependencies to your config's `optimizeDeps.include` field manually.
+
+
+ ❯ |rxdb-plugin-replay (chromium)| src/__tests__/review-persisted-consent.browser.spec.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-replay (chromium)| src/__tests__/review-persisted-consent.browser.spec.ts [ src/__tests__/review-persisted-consent.browser.spec.ts ]
+Error: Failed to import test file /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts
+Caused by: TypeError: Failed to fetch dynamically imported module: http://localhost:63315/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts?import&browserv=1791057050730
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  03:50:49
+   Duration  2.03s (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-replay-browser/junit.xml
+close timed out after 10000ms
+Tests closed successfully but something prevents the main process from exiting
+You can try to identify the cause by enabling "hanging-process" reporter. See https://vitest.dev/guide/reporters.html#hanging-process-reporter
+Warning: command "vitest src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-replay failed
+
+Failed tasks:
+
+- rxdb-plugin-replay:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      12.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     12.6s (1 task)
+  Recoverable time:  <1ms

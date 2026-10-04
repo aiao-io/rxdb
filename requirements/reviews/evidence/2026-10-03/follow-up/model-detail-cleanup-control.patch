@@ -1,0 +1,23 @@
+--- packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts
++++ packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts
+@@ -10,7 +10,7 @@
+ import { provideZonelessChangeDetection } from '@angular/core';
+ import { TestBed } from '@angular/core/testing';
+ import { By } from '@angular/platform-browser';
+-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
++import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { EntityDetailComponent, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
+ import { EntityListComponent } from '../../entity-list/entity-list.component';
+ import { QueryTableComponent } from '../../entity-table/query-table/query-table.component';
+@@ -77,6 +77,11 @@
+ describe('EntityDetailComponent（真实组件）', () => {
+   let rxdb: RxDB;
+   let adapter: InMemoryRxDBAdapter;
++
++  afterAll(async () => {
++    TestBed.resetTestingModule();
++    await rxdb.destroy();
++  });
+   let closeSpy: ReturnType<typeof vi.fn>;
+ 
+   beforeAll(async () => {

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "lint",
+    "--projects=rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay",
+    "--parallel=1",
+    "--max-warnings=0",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {},
+  "startedAt": "2026-10-04T04:21:10.110153+08:00",
+  "completedAt": "2026-10-04T04:21:15.568370+08:00",
+  "log": "final-probes-lint.txt"
+}

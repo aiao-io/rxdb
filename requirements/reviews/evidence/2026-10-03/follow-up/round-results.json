@@ -1,0 +1,218 @@
+{
+  "finalQualityGate": {
+    "strictLint": "4/4 passed",
+    "typecheck": "4/4 passed",
+    "coreNegativeProbes": "3 failed / 3 passed; preserved"
+  },
+  "fullObjectDeepReviewsCompleted": 0,
+  "fullyClosedTopicThisBatch": "rxdb-plugin-workspace C3 (scoped to unit/Chromium evidence)",
+  "newConfirmedFindings": ["RV-037", "RV-038", "RV-039", "RV-040", "RV-041"],
+  "objectsStarted": 70,
+  "records": [
+    {
+      "name": "angular-opfs-grid-alone",
+      "exitCode": 0,
+      "counts": "3 passed (3)",
+      "statusFile": "angular-opfs-grid-alone-status.json",
+      "log": "angular-opfs-grid-alone.txt"
+    },
+    {
+      "name": "backup-queue-sync-throw",
+      "exitCode": 1,
+      "counts": "1 failed | 2 passed (3)",
+      "statusFile": "backup-queue-sync-throw-status.json",
+      "log": "backup-queue-sync-throw.txt"
+    },
+    {
+      "name": "core-lifecycle-transaction",
+      "exitCode": 0,
+      "counts": "52 passed (52)",
+      "statusFile": "core-lifecycle-transaction-status.json",
+      "log": "core-lifecycle-transaction.txt"
+    },
+    {
+      "name": "dev-rxdb-angular-isolated",
+      "exitCode": 1,
+      "counts": "3 failed | 330 passed (333)",
+      "statusFile": "dev-rxdb-angular-isolated-status.json",
+      "log": "dev-rxdb-angular-isolated.txt"
+    },
+    {
+      "name": "dev-rxdb-tauri-isolated",
+      "exitCode": 0,
+      "counts": "343 passed (343)",
+      "statusFile": "dev-rxdb-tauri-isolated-status.json",
+      "log": "dev-rxdb-tauri-isolated.txt"
+    },
+    {
+      "name": "final-core-red-probes",
+      "exitCode": 1,
+      "counts": "3 failed | 3 passed (6)",
+      "statusFile": "final-core-red-probes-status.json",
+      "log": "final-core-red-probes.txt"
+    },
+    {
+      "name": "final-probes-lint",
+      "exitCode": 0,
+      "counts": null,
+      "statusFile": "final-probes-lint-status.json",
+      "log": "final-probes-lint.txt"
+    },
+    {
+      "name": "final-probes-typecheck",
+      "exitCode": 0,
+      "counts": null,
+      "statusFile": "final-probes-typecheck-status.json",
+      "log": "final-probes-typecheck.txt"
+    },
+    {
+      "name": "model-cleanup-pair-control",
+      "exitCode": 0,
+      "counts": "61 passed (61)",
+      "statusFile": "model-cleanup-pair-control-status.json",
+      "log": "model-cleanup-pair-control.txt"
+    },
+    {
+      "name": "model-detail-alone",
+      "exitCode": 0,
+      "counts": "17 passed (17)",
+      "statusFile": "model-detail-alone-status.json",
+      "log": "model-detail-alone.txt"
+    },
+    {
+      "name": "model-detail-list-pair",
+      "exitCode": 1,
+      "counts": "1 failed | 60 passed (61)",
+      "statusFile": "model-detail-list-pair-status.json",
+      "log": "model-detail-list-pair.txt"
+    },
+    {
+      "name": "model-list-alone",
+      "exitCode": 0,
+      "counts": "44 passed (44)",
+      "statusFile": "model-list-alone-status.json",
+      "log": "model-list-alone.txt"
+    },
+    {
+      "name": "new-probes-lint",
+      "exitCode": 0,
+      "counts": null,
+      "statusFile": "new-probes-lint-status.json",
+      "log": "new-probes-lint.txt"
+    },
+    {
+      "name": "new-probes-typecheck",
+      "exitCode": 0,
+      "counts": null,
+      "statusFile": "new-probes-typecheck-status.json",
+      "log": "new-probes-typecheck.txt"
+    },
+    {
+      "name": "react-opfs-baseline",
+      "exitCode": 0,
+      "counts": "2 passed",
+      "statusFile": "react-opfs-baseline-status.json",
+      "log": "react-opfs-baseline.txt"
+    },
+    {
+      "name": "react-opfs-navigation-final",
+      "exitCode": 1,
+      "counts": "1 failed | 1 passed",
+      "statusFile": "react-opfs-navigation-final-status.json",
+      "log": "react-opfs-navigation-final.txt"
+    },
+    {
+      "name": "react-opfs-navigation",
+      "exitCode": 1,
+      "counts": "1 failed | 1 passed",
+      "statusFile": "react-opfs-navigation-status.json",
+      "log": "react-opfs-navigation.txt"
+    },
+    {
+      "name": "react-opfs-real-upload",
+      "exitCode": 1,
+      "counts": "1 failed | 1 passed",
+      "statusFile": "react-opfs-real-upload-status.json",
+      "log": "react-opfs-real-upload.txt"
+    },
+    {
+      "name": "repository-teardown",
+      "exitCode": 1,
+      "counts": "2 failed | 1 passed (3)",
+      "statusFile": "repository-teardown-status.json",
+      "log": "repository-teardown.txt"
+    },
+    {
+      "name": "rxdb-adapter-pglite-commit-conformance",
+      "exitCode": 0,
+      "counts": "53 passed (53)",
+      "statusFile": "rxdb-adapter-pglite-commit-conformance-status.json",
+      "log": "rxdb-adapter-pglite-commit-conformance.txt"
+    },
+    {
+      "name": "rxdb-adapter-pglite-public-retry",
+      "exitCode": 1,
+      "counts": "1 failed | 53 passed (54)",
+      "statusFile": "rxdb-adapter-pglite-public-retry-status.json",
+      "log": "rxdb-adapter-pglite-public-retry.txt"
+    },
+    {
+      "name": "rxdb-adapter-sqlite-commit-conformance",
+      "exitCode": 0,
+      "counts": "53 passed (53)",
+      "statusFile": "rxdb-adapter-sqlite-commit-conformance-status.json",
+      "log": "rxdb-adapter-sqlite-commit-conformance.txt"
+    },
+    {
+      "name": "rxdb-adapter-sqlite-public-retry-built",
+      "exitCode": 1,
+      "counts": "1 failed | 53 passed (54)",
+      "statusFile": "rxdb-adapter-sqlite-public-retry-built-status.json",
+      "log": "rxdb-adapter-sqlite-public-retry-built.txt"
+    },
+    {
+      "name": "rxdb-adapter-sqlite-public-retry",
+      "exitCode": 0,
+      "counts": "53 passed (53)",
+      "statusFile": "rxdb-adapter-sqlite-public-retry-status.json",
+      "log": "rxdb-adapter-sqlite-public-retry.txt",
+      "newReviewProbeCollected": false
+    },
+    {
+      "name": "rxdb-angular-isolated",
+      "exitCode": 0,
+      "counts": "265 passed (265)",
+      "statusFile": "rxdb-angular-isolated-status.json",
+      "log": "rxdb-angular-isolated.txt"
+    },
+    {
+      "name": "rxdb-model-angular-isolated",
+      "exitCode": 1,
+      "counts": "35 failed | 249 passed (284)",
+      "statusFile": "rxdb-model-angular-isolated-status.json",
+      "log": "rxdb-model-angular-isolated.txt"
+    },
+    {
+      "name": "working-tree-testing-build",
+      "exitCode": 0,
+      "counts": null,
+      "statusFile": "working-tree-testing-build-status.json",
+      "log": "working-tree-testing-build.txt"
+    },
+    {
+      "name": "workspace-browser",
+      "exitCode": 0,
+      "counts": "20 passed (20)",
+      "statusFile": "workspace-browser-status.json",
+      "log": "workspace-browser.txt"
+    },
+    {
+      "name": "workspace-unit",
+      "exitCode": 0,
+      "counts": "96 passed (96)",
+      "statusFile": "workspace-unit-status.json",
+      "log": "workspace-unit.txt"
+    }
+  ],
+  "updatedAt": "2026-10-03T23:58:05.458571+08:00"
+}

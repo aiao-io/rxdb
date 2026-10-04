@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-workspace:test",
+    "--args=--run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:16:27.857152+08:00",
+  "exitCode": 0,
+  "log": "workspace-unit.txt",
+  "project": "rxdb-plugin-workspace",
+  "startedAt": "2026-10-03T23:16:21.276143+08:00"
+}

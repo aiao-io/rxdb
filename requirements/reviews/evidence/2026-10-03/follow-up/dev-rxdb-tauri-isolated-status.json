@@ -1,0 +1,8 @@
+{
+  "command": "pnpm nx run dev-rxdb-tauri:test --args=--run --coverage.enabled=false --maxWorkers=1 --excludeTaskDependencies --skipRemoteCache --skipNxCache",
+  "completedAt": "2026-10-03T22:57:08.497570+08:00",
+  "exitCode": 0,
+  "log": "dev-rxdb-tauri-isolated.txt",
+  "project": "dev-rxdb-tauri",
+  "startedAt": "2026-10-03T22:56:46.437491+08:00"
+}

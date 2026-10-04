@@ -1,0 +1,66 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target test-browser for 6 projects and 23 tasks they depend on:
+
+- rxdb-plugin-replay
+- rxdb-plugin-search
+- rxdb-plugin-storage
+- rxdb-plugin-tree
+- rxdb-plugin-workspace
+- rxdb-react
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-plugin-working-tree:build
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-querycache:build
+✔  nx run rxdb-client-generator:build
+✔  nx run rxdb-plugin-tree:build
+✔  nx run rxdb-test:build
+✔  nx run rxdb-adapter-encrypted:build
+✔  nx run rxdb-adapter-sqlite-core:build
+✔  nx run rxdb-adapter-wa-sqlite:build
+✔  nx run rxdb-adapter-pglite:build
+✔  nx run rxdb-devtools:build
+✔  nx run rxdb-adapter-electron:build
+✔  nx run rxdb-adapter-sqliteai:build
+✔  nx run rxdb-adapter-sqlite:build
+✔  nx run rxdb-adapter-sqlite-wasm:build
+✔  nx run rxdb-plugin-tree:coverage
+✔  nx run rxdb-plugin-graph:build
+✔  nx run rxdb-plugin-storage:coverage
+✔  nx run rxdb-plugin-search:coverage
+✔  nx run rxdb-plugin-replay:coverage
+✔  nx run rxdb-plugin-tree:test-browser
+✔  nx run rxdb-plugin-storage:test-browser
+✔  nx run rxdb-plugin-search:test-browser
+✔  nx run rxdb-plugin-workspace:test-browser
+✔  nx run rxdb-react:test-browser
+✔  nx run rxdb-plugin-replay:test-browser
+
+
+
+ NX   Successfully ran target test-browser for 6 projects and 23 tasks they depend on
+
+
+Output of 29 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      1m 57s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     59.6s (8 tasks)
+  Recoverable time:  57.9s (49% of the run)
+
+  Recommendations:
+    - Increase parallelism to recover up to 57.9s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.

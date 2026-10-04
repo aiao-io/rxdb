@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-sqlite-core:test",
+    "--args=src/__tests__/backup/memdb-backup.spec.ts src/__tests__/backup/memdb-backup-edge.spec.ts src/__tests__/backup/memdb-engine-backup.spec.ts src/__tests__/backup/memdb-restore-capability.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-04T03:33:08.809024+08:00",
+  "completedAt": "2026-10-04T03:33:17.673505+08:00",
+  "log": "sqlite-backup-boundaries.txt"
+}

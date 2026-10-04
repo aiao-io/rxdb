@@ -1,0 +1,11 @@
+
+> @aiao/source@0.0.1 audit:coverage /Users/jimmy/Documents/aiao/rxdb
+> node scripts/audit/coverage-check.mjs --check --projects=rxdb,rxdb-react,rxdb-vue
+
+✅ rxdb: 四指标均 ≥ 90%
+✅ rxdb-react: 四指标均 ≥ 90%
+✅ rxdb-vue: 四指标均 ≥ 90%
+
+📊 已评估 3 个包（--projects 过滤掉 46 个）：0 个低于门禁，0 个达标但比上次低。
+
+✅ 覆盖率门禁通过。

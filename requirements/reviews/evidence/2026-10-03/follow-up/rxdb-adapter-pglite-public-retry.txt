@@ -1,0 +1,138 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-pglite:test --args=src/__tests__/working-tree-commit-conformance.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/working-tree-commit-conformance.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:24033) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite
+
+ ❯ |rxdb-adapter-pglite (chromium)| src/__tests__/working-tree-commit-conformance.spec.ts (54 tests | 1 failed) 32743ms
+       ✓ 本地适配器实现了槽位：六个后端一个都不许缺  967ms
+       ✓ 提交上下文接到的就是那个判定器：信封串认、明文与裸密文都不认  621ms
+       ✓ 提交只追加：既有 commit 行一个字节都不动  611ms
+       × 评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住 615ms
+       ✓ 同一个 operationId 重复提交幂等命中现有节点，不产生第二个  605ms
+       ✓ 重启：另开一个事务冷读，HEAD 与整条父链逐字不变  589ms
+       ✓ 崩溃：事务体抛出之后零残留，HEAD 不动  596ms
+       ✓ 删光 rxdb_change 之后，历史仍然完整可重放  603ms
+       ✓ CommitChangeSet 结构上不引用 rxdb_change（静态断言）  587ms
+       ✓ firstParentId 恒等于 parentIds[0] ?? null  590ms
+       ✓ 每个既存分支都有 ref / state 初始行，且 generation 互不相同  585ms
+       ✓ enable() 之后每条本地分支都有一个 baseline 根节点  581ms
+       ✓ 重复 enable() 幂等：不产生第二个根，HEAD 不动  597ms
+       ✓ enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号  592ms
+       ✓ 新建分支后再 enable() 一次，新分支拿到自己的 baseline  584ms
+       ✓ 全有或全无：任一分支不可物化时整体回滚，健康分支零变化  577ms
+       ✓ 调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地  585ms
+       ✓ 冲突不入库：重读一次 status() 再提一次就过，中间没有「清除冲突」这一步  588ms
+       ✓ 事务内读改写型：并发普通写一笔都不因并发失败（FR-032 回归）  595ms
+       ✓ 写完 changeSet 之后崩溃：要么全有要么全无，工作树不会被清掉一半  588ms
+       ✓ entryCount 与实际行数在任何时刻一致：捕获后、被拒后、提交后各校一遍  599ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：健康分支放行  573ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：HEAD 被篡改时拒绝，且不改指针、不删记录  583ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  577ms
+       ✓ assertCommitGraphIntact（三条入口共用的那一份）：孤立损坏只被隔离，不影响健康分支  595ms
+       ✓ commit()：健康分支放行  650ms
+       ✓ commit()：HEAD 被篡改时拒绝，且不改指针、不删记录  648ms
+       ✓ commit()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  619ms
+       ✓ commit()：孤立损坏只被隔离，不影响健康分支  625ms
+       ✓ restore()：健康分支放行  604ms
+       ✓ restore()：HEAD 被篡改时拒绝，且不改指针、不删记录  587ms
+       ✓ restore()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  584ms
+       ✓ restore()：孤立损坏只被隔离，不影响健康分支  583ms
+       ✓ switch-to：健康分支放行  581ms
+       ✓ switch-to：HEAD 被篡改时拒绝，且不改指针、不删记录  584ms
+       ✓ switch-to：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处  569ms
+       ✓ switch-to：孤立损坏只被隔离，不影响健康分支  579ms
+       ✓ 不依赖重放的读取不受影响：损坏分支上 listCommits / getCommitDetail 照常返回  570ms
+       ✓ 恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改  593ms
+       ✓ 公开面上没有 checkout()，也没有 detached HEAD 那类符号  573ms
+       ✓ CommitConflict 不会让 status().conflicted 变真  577ms
+       ✓ 会话捕获的 revision 分叉之后，restoring 灭、conflicted 亮  587ms
+       ✓ 一分支至多一个未结束会话：唯一索引拒绝第二行  591ms
+       ✓ commit() 把会话推进 committed 并让出 activeKey，新节点挂在原 HEAD 之后  595ms
+       ✓ discard() 把会话整行删掉，工作树回到干净  598ms
+       ✓ 分支各自独立的工作树：切过去看不见来源分支的未提交改动，切回来它还在  699ms
+       ✓ switchBranch(branchId) 不带 options 时行为与今天一致：工作树非空也照切  728ms
+       ✓ 每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒  689ms
+       ✓ 前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去  630ms
+       ✓ 物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动  583ms
+       ✓ 屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除  583ms
+       ✓ 半份 payload 不得被当作完整快照：一页都不交给宿主，来源分支保持 active  584ms
+       ✓ 两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续  582ms
+       ✓ 删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败  585ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-adapter-pglite (chromium)| src/__tests__/working-tree-commit-conformance.spec.ts > [PGlite] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住
+AssertionError: expected { ok: false, conflict: { …(4) } } to deeply equal { ok: true, …(3) }
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "changeSetCount": 1,[39m
+[32m-   "commitId": "01a10266-57ed-714e-a171-3a389313cca0",[39m
+[32m-   "headRevision": 2,[39m
+[32m-   "ok": true,[39m
+[31m+   "conflict": {[39m
+[31m+     "actual": 2,[39m
+[31m+     "branchId": "main",[39m
+[31m+     "expected": 1,[39m
+[31m+     "kind": "head_revision",[39m
+[31m+   },[39m
+[31m+   "ok": false,[39m
+[2m  }[22m
+
+ ❯ ../rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts:932:25
+    930|           const afterFirst = await database.workingTree.status();
+    931|           const replay = await database.workingTree.commit('review pub…
+    932|           expect(replay).toEqual(first);
+       |                         ^
+    933|           expect(await database.workingTree.status()).toEqual(afterFir…
+    934|           expect(seen).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 53 passed (54)
+Type Errors  no errors
+   Start at  23:33:39
+   Duration  34.18s (transform 0ms, setup 0ms, import 793ms, tests 32.74s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-pglite/junit.xml
+Warning: command "vitest src/__tests__/working-tree-commit-conformance.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-adapter-pglite failed
+
+Failed tasks:
+
+- rxdb-adapter-pglite:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      34.7s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     34.7s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-adapter-pglite:test    34.7s

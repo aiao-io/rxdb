@@ -33,7 +33,7 @@ baseline: 58b4bbb61efa71d4591cafab6a4c92955a7760dd
 
 ## 动态复验
 
-[复验 spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts) 前两个用例从当前源码构建 SQL，并对真实 Node PGlite 内存数据库执行，然后与公开 `isEntityMatchWhere` 比较。两个断言均稳定失败；[原始结果](evidence/2026-10-03/query-probes-round2.log) 包含 SQL、参数、输入和两侧布尔值。
+[复验 spec](../../packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts) 前两个用例从当前源码构建 SQL，并对真实 Node PGlite 内存数据库执行，然后与公开 `isEntityMatchWhere` 比较。两个断言均稳定失败；[原始结果](evidence/2026-10-03/query-probes-round2.txt) 包含 SQL、参数、输入和两侧布尔值。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run-many -t test --projects=rxdb-adapter-pglite,rxdb-adapter-sqlite-core --parallel=1 --args='src/__tests__/review-query-audit.spec.ts --run --browser.enabled=false --coverage.enabled=false --maxWorkers=1' --skipRemoteCache --skipNxCache

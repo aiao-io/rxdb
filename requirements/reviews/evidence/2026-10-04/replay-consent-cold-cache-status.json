@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay:test",
+    "--args=--config vite.review-cold.config.mts src/__tests__/masking.browser.spec.ts src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-04T08:28:22.954315+08:00",
+  "completedAt": "2026-10-04T08:28:39.659566+08:00",
+  "log": "replay-consent-cold-cache.txt",
+  "freshViteCachePath": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.vite/review-replay-cold-223f0b644a544f5eb9c12e4c44f920e4",
+  "existingViteCachesModifiedByReviewScript": false,
+  "testOnlyOptimizeDepsPreinclude": true
+}

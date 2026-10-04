@@ -1,0 +1,70 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-react-e2e:e2e --args=src/review-opfs-navigation.spec.ts --workers=1 --retries=0
+
+> playwright test src/review-opfs-navigation.spec.ts --workers=1 --retries=0
+
+(node:8963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:9139) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+(node:9143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F(node:9150) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·
+
+  1) [chromium] › src/review-opfs-navigation.spec.ts:71:5 › 评审：切换目录尚未完成时，上传不能静默写入旧目录 ───────────────
+
+    Error: expect(received).toBeNull()
+
+    Received: "review-navigation-content"
+
+      86 |     contentType: 'application/json'
+      87 |   });
+    > 88 |   expect(actual.root).toBeNull();
+         |                       ^
+      89 |   expect(actual.target).toBe(CONTENT);
+      90 | });
+      91 |
+        at /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/review-opfs-navigation.spec.ts:88:23
+
+    Error Context: test-output/playwright/output/review-opfs-navigation-评审：切换目录尚未完成时，上传不能静默写入旧目录-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-output/playwright/output/review-opfs-navigation-评审：切换目录尚未完成时，上传不能静默写入旧目录-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-output/playwright/output/review-opfs-navigation-评审：切换目录尚未完成时，上传不能静默写入旧目录-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › src/review-opfs-navigation.spec.ts:71:5 › 评审：切换目录尚未完成时，上传不能静默写入旧目录 ────────────────
+  1 passed (3.8s)
+Warning: command "playwright test src/review-opfs-navigation.spec.ts --workers=1 --retries=0" exited with non-zero status code
+
+
+ NX   Running target e2e for project dev-rxdb-react-e2e failed
+
+Failed tasks:
+
+- dev-rxdb-react-e2e:e2e
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      4.4s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.3s (1 task)
+  Recoverable time:  <1ms

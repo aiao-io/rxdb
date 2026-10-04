@@ -1,0 +1,64 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:test --args=src/__tests__/options.spec.ts src/__tests__/manager.spec.ts src/__tests__/recorder.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/options.spec.ts src/__tests__/manager.spec.ts src/__tests__/recorder.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:42765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay
+
+(node:42773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`.
+ ✓ |rxdb-plugin-replay| src/__tests__/manager.spec.ts (17 tests) 21039ms
+     ✓ 没有 document → no_dom，状态不动  1711ms
+     ✓ 开一个 recording 会话，state$ 转 recording；rrweb 收到合并后的脱敏选项  1358ms
+     ✓ 已在录制 → already_recording；并发两次 start() 只有一个成功  1239ms
+     ✓ rrweb 没起来 → start() 抛错，会话随即置 stopped，状态仍 idle，可以再开  1185ms
+     ✓ 总量已达上限 → store_limit，状态不动  1177ms
+     ✓ 没有 sessionStorage 也照常录制（只是没有刷新续录）  1286ms
+     ✓ 冲刷缓冲 → 会话 stopped、state$ 回 idle、rrweb 停  1206ms
+     ✓ 没在录制时是空操作；并发 stop() 共用同一次收尾  1152ms
+     ✓ start() 还在建录制库时 stop()：等它落定再停，stop() 返回后不再采集  1120ms
+     ✓ start() 失败时等着它的 stop() 照常返回，不悬挂  632ms
+     ✓ 录制中超限 → state$ truncated / session_limit，rrweb 停，暂存清掉  1109ms
+     ✓ readEvents 按 seq 升序，区间读只给区间内的  1151ms
+     ✓ exportSession 给出 format / version / 会话概要 / 全部事件；不存在 → session_not_found  1428ms
+     ✓ deleteSession：录制中 → session_recording；停了之后可删，用量随之归零  1192ms
+     ✓ 没装工作树插件时 restoreToCommit → working_tree_unavailable  550ms
+     ✓ 断连时停录制并冲刷缓冲；重连后会话是 stopped，事件都在  2142ms
+     ✓ 断连之后 pagehide 不再写暂存（页面事件随纪元摘掉）  1400ms
+(node:44117) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-plugin-replay| src/__tests__/recorder.spec.ts (12 tests) 12ms
+(node:44119) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-plugin-replay| src/__tests__/options.spec.ts (16 tests) 4ms
+
+ Test Files  3 passed (3)
+      Tests  45 passed (45)
+   Start at  04:19:28
+   Duration  23.13s (transform 1.29s, setup 0ms, import 1.70s, tests 21.05s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-replay/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-plugin-replay
+
+
+  Run duration:      23.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     23.6s (1 task)
+  Recoverable time:  <1ms

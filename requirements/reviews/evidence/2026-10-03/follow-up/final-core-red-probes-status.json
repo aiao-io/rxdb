@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb:test",
+    "--args=src/__tests__/backup/review-queue-sync-throw.spec.ts src/__tests__/review-repository-teardown.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:52:10.692769+08:00",
+  "exitCode": 1,
+  "log": "final-core-red-probes.txt",
+  "startedAt": "2026-10-03T23:52:05.768249+08:00"
+}

@@ -36,7 +36,7 @@ execution: partial
 
 ## 3. 动态证据与复验
 
-[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.log)
+[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.txt)
 
 业务源码基线 `58b4bbb61efa71d4591cafab6a4c92955a7760dd`。SQL 复验明确关闭覆盖率；测试失败是预期的缺陷红灯，非 worker/service stopped 并发假失败。覆盖率未测量，也没有执行修复。
 
@@ -72,12 +72,12 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-027](../../RV-027-pglite-keyvalue-query-semantics.md)、[RV-028](../../RV-028-core-keyvalue-missing-key-null.md)、[RV-029](../../RV-029-core-empty-notin-null.md)、[RV-034](../../RV-034-pglite-array-membership-semantics.md)
+当前确认意见：[RV-038](../../RV-038-backup-queue-synchronous-throw-hang.md)、[RV-039](../../RV-039-repository-dispose-aborts-database-teardown.md)、[RV-027](../../RV-027-pglite-keyvalue-query-semantics.md)、[RV-028](../../RV-028-core-keyvalue-missing-key-null.md)、[RV-029](../../RV-029-core-empty-notin-null.md)、[RV-034](../../RV-034-pglite-array-membership-semantics.md)
 
 ### 尚未完成的专项
 
@@ -95,6 +95,19 @@ execution: partial
 
 ## 专项任务核销
 
-- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.log)。
+- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.txt)。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
+
+## 续执行：2026-10-03 边界取证
+
+### 新确认意见
+
+- 🔴 [RV-039：仓储销毁错误中断全库拆卸](../../RV-039-repository-dispose-aborts-database-teardown.md)，C1 / C2 的故障释放边界：两个红复验、一个正常对照。
+- 🔴 [RV-038：备份队列同步抛错挂起](../../RV-038-backup-queue-synchronous-throw-hang.md)，C6 的公开 helper 边界：一个红复验、两个正常对照。SQLite/PGlite 当前 async snapshot 未复现同类常规备份故障。
+
+### 已执行的生命周期/事务对照
+
+人工追到 connect epoch、disconnectAll→shutdown→EntityManager.destroy、仓储关闭、事务事件排空和 trusted-write scope。原有五个相关 spec **52 passed**：[日志](../../evidence/2026-10-03/follow-up/core-lifecycle-transaction.txt)。这只证明这些对照，不覆盖新发现的 teardown 错误；新增复验分别仍 [2 failed / 1 passed](../../evidence/2026-10-03/follow-up/repository-teardown.txt) 和 [1 failed / 2 passed](../../evidence/2026-10-03/follow-up/backup-queue-sync-throw.txt)。
+
+C1 / C6 部分执行，不勾完整核查：真实宿主资源释放、全备份恢复边界仍待验证。旧核心 coverage 数值和启动批绿色 test 不能覆盖新增红测试。

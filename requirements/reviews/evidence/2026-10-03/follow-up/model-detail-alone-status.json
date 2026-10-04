@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-model-angular:test",
+    "--args=src/__tests__/entity-detail/entity-detail.real.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:07:30.791814+08:00",
+  "exitCode": 0,
+  "log": "model-detail-alone.txt",
+  "project": "rxdb-model-angular",
+  "startedAt": "2026-10-03T23:07:12.282780+08:00"
+}

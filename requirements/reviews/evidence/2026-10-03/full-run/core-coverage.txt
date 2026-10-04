@@ -1,0 +1,146 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target test for 4 projects and 13 tasks they depend on:
+
+- rxdb
+- rxdb-angular
+- rxdb-react
+- rxdb-vue
+
+With additional flags:
+  --args=--run --coverage.enabled=true --maxWorkers=1
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-client-generator:build
+✔  nx run rxdb-plugin-tree:build
+✔  nx run rxdb-test:build
+✔  nx run rxdb-adapter-encrypted:build
+✔  nx run rxdb-adapter-sqlite-core:build
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-querycache:build
+✔  nx run rxdb-plugin-working-tree:build
+✔  nx run rxdb-adapter-wa-sqlite:build
+✔  nx run rxdb-plugin-graph:build
+✔  nx run rxdb:test --args=--run --coverage.enabled=true --maxWorkers=1
+
+> nx run rxdb-angular:test --args=--run --coverage.enabled=true --maxWorkers=1
+
+> vitest --run --coverage.enabled=true --maxWorkers=1
+
+(node:50155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular
+      Coverage enabled with v8
+
+(node:50155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-angular| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 191ms
+ ✓ |rxdb-angular| src/__tests__/InfiniteScrollingList.spec.ts (55 tests) 154ms
+ ✓ |rxdb-angular| src/__tests__/rxdb.provider.spec.ts (21 tests) 150ms
+ ❯ |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts (16 tests | 16 failed) 32ms
+     × subscribes to the current entity patches 10ms
+     × marks the view for check when the entity emits a patch 2ms
+     × debounces patch notifications 2ms
+     × audits patch notifications 1ms
+       × debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为负 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测 1ms
+       × auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测 2ms
+       × 两者同时为正值时串联生效，顺序为 debounceTime → auditTime 1ms
+     × forwards patch stream errors to Angular ErrorHandler 1ms
+     × unsubscribes when the entity input is cleared 1ms
+     × unsubscribes when the host is destroyed 1ms
+ ✓ |rxdb-angular| src/__tests__/hooks.spec.ts (38 tests) 36ms
+ ✓ |rxdb-angular| src/__tests__/use-state.spec.ts (28 tests) 29ms
+ ✓ |rxdb-angular| src/__tests__/zz-verify.spec.ts (6 tests) 13ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 10ms
+ ✓ |rxdb-angular| src/__tests__/use-persisted-state.spec.ts (10 tests) 8ms
+ ✓ |rxdb-angular| src/__tests__/use-sync-state.spec.ts (7 tests) 6ms
+ ✓ |rxdb-angular| src/__tests__/use-action.spec.ts (7 tests) 5ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-provider.spec.ts (5 tests) 1ms
+ ✓ |rxdb-angular| src/__tests__/tri-framework-generics.spec.ts (4 tests) 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > subscribes to the current entity patches
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > marks the view for check when the entity emits a patch
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > debounces patch notifications
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > audits patch notifications
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为负 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > 两者同时为正值时串联生效，顺序为 debounceTime → auditTime
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > forwards patch stream errors to Angular ErrorHandler
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the entity input is cleared
+ FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the host is destroyed
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+     99| export const getEntityStatus = <T extends EntityType>(target: object):…
+    100|   const status = readSymbolSlot<EntityStatus<T>>(target, STATUS);
+    101|   if (!status) throw new RxDBError('Target has no entity status: it is…
+       |                      ^
+    102|   return status;
+    103| };
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:332:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:229:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:263:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:497:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:445:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:430:4
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  16 failed | 249 passed (265)
+   Start at  19:06:05
+   Duration  3.97s (transform 719ms, setup 256ms, import 868ms, tests 635ms, environment 180ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-angular/junit.xml
+Warning: command "vitest --run --coverage.enabled=true --maxWorkers=1" exited with non-zero status code
+✔  nx run rxdb-react:test --args=--run --coverage.enabled=true --maxWorkers=1
+✔  nx run rxdb-vue:test --args=--run --coverage.enabled=true --maxWorkers=1
+
+
+
+ NX   Running target test for 4 projects and 13 tasks they depend on failed
+
+Failed tasks:
+
+- rxdb-angular:test
+
+Output of 16 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      1m 10s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     26.9s (9 tasks)
+  Recoverable time:  42.7s (61% of the run)
+
+  Recommendations:
+    - Increase parallelism to recover up to 42.7s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.

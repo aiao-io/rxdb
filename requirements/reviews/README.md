@@ -102,3 +102,15 @@
 - [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
 
 完整运行结果、未完成项与逐对象记录见 [实际执行台账](execution-2026-10-03.md)。
+
+## 续执行：已复现的新边界问题
+
+本轮新增 5 个确认意见（1 P1 / 4 P2），不是只跑门禁或再写计划。
+
+- [RV-037：React OPFS 目录切换中的上传竞态](RV-037-react-opfs-navigation-upload-race.md)
+- [RV-038：备份回调同步抛错使调用方挂起](RV-038-backup-queue-synchronous-throw-hang.md)
+- [RV-039：仓储销毁异常导致适配器未关闭、实体未解绑](RV-039-repository-dispose-aborts-database-teardown.md)
+- [RV-040：Angular 模型真实 fixture 缺少数据库销毁](RV-040-angular-model-real-fixtures-leak-rxdb.md)
+- [RV-041：工作树公开 commit 的原请求幂等重试失败](RV-041-working-tree-public-commit-idempotency.md)
+
+[本批实际执行、对照与剩余项](follow-up-2026-10-03.md)。workspace C3 已单独核销；完整对象仍 0 个完成，不批量勾选其它专题。旧日志的 `.txt` 与摘要清单已补齐，使取证链接在提交后仍可交付。

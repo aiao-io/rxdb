@@ -910,6 +910,33 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(after.size).toBe(before.size + 1);
       });
 
+      it('评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住', async () => {
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'review public commit retry';
+        await note.save();
+        const captured = await database.workingTree.status();
+        const options = {
+          expectedBranch: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+          expectedHeadRevision: captured.headRevision,
+          expectedWorkingTreeRevision: captured.workingTreeRevision,
+          authorId: 'review-author',
+          operationId: uuid()
+        };
+        const seen: string[] = [];
+        const subscription = database.workingTree.commits$.subscribe(event => seen.push(event.commitId));
+        try {
+          const first = await database.workingTree.commit('review public retry', options);
+          expect(first.ok).toBe(true);
+          const afterFirst = await database.workingTree.status();
+          const replay = await database.workingTree.commit('review public retry', options);
+          expect(replay).toEqual(first);
+          expect(await database.workingTree.status()).toEqual(afterFirst);
+          expect(seen).toHaveLength(1);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
       it('同一个 operationId 重复提交幂等命中现有节点，不产生第二个', async () => {
         const branchId = await readActiveBranchId(database);
         const operationId = uuid();

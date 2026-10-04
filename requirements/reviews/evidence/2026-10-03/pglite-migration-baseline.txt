@@ -1,0 +1,32 @@
+> nx run rxdb-adapter-pglite:test-node
+
+> vitest src/__tests__/system-schema-migration.spec.ts --browser.enabled=false --reporter=default
+
+(node:87977) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite
+
+(node:88003) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-adapter-pglite| src/__tests__/system-schema-migration.spec.ts (10 tests) 9001ms
+     ✓ RxDB.connect 自动升级磁盘旧库，旧 change 可切换分支并撤销  1990ms
+     ✓ 把旧 UUID entityId 升级为 text，保留旧 change，并且重复执行不改写水位  788ms
+     ✓ DDL 与 watermark 任一步失败都回滚，并允许下一次完整重试  723ms
+     ✓ 旧 writer 持锁时中止升级且不启动业务 trigger，释放后可重试  1376ms
+     ✓ 升级旧 trigger 到 transaction-local setting，并保留激活分支  1249ms
+     ✓ 给既有库补 activeKey 列与唯一索引，并回填当前 active 分支  627ms
+     ✓ 零 active 的既有库把 main 激活并写上哨兵值  573ms
+     ✓ 多 active 的既有库整体回滚，不猜一个留下  550ms
+     ✓ 库已是目标形态时一行都不写  546ms
+     ✓ 高版本水位在 ALTER 或业务写入前 fail-fast  579ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+Type Errors  no errors
+   Start at  15:59:09
+   Duration  10.78s (transform 1.34s, setup 0ms, import 1.68s, tests 9.00s, environment 0ms)
+
+

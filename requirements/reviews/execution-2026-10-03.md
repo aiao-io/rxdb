@@ -27,9 +27,9 @@ execution: in-progress
 2. 串行、maxWorkers=1、关闭 Nx 本地/远端缓存；无 EPIPE/worker 崩溃，PGlite typecheck 记录 no errors。失败不能以并发抖动豁免。
 3. 实际 Nx serve 启动 HTTP 应用，专用临时数据库/端口、production 禁用 control；有效 metadata 200、超限 body 413，null metadata 500、数组 metadata 200。
 4. 原始 TCP 非法 request-target 导致真实 Node 服务退出，随后健康请求 ECONNREFUSED；日志/请求结果已保留。
-5. [一次配套 PGlite test-node 日志](evidence/2026-10-03/pglite-migration-baseline.log)记录现有系统迁移 10 passed，仅作为该配置/场景证据，不冒充整包或所有后端通过。
+5. [一次配套 PGlite test-node 日志](evidence/2026-10-03/pglite-migration-baseline.txt)记录现有系统迁移 10 passed，仅作为该配置/场景证据，不冒充整包或所有后端通过。
 
-两后端 lint 已用 `--max-warnings=0` 实际执行并通过，见 [lint 日志](evidence/2026-10-03/review-spec-lint.log)。这与一致性断言的红灯是两类结论，不能相互替代。
+两后端 lint 已用 `--max-warnings=0` 实际执行并通过，见 [lint 日志](evidence/2026-10-03/review-spec-lint.txt)。这与一致性断言的红灯是两类结论，不能相互替代。
 
 复验资料：[证据目录](evidence/2026-10-03)；[PGlite 红测试](../../packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts)、[SQLite 红测试](../../packages/rxdb-adapter-sqlite-core/src/__tests__/review-query-audit.spec.ts)。本次两份已暂存的复验 spec 保留，未重置/修改暂存区；业务实现未修复，因此这些用例预期仍红。
 
@@ -159,3 +159,27 @@ execution: in-progress
 证据汇总：[specialized-results.json](evidence/2026-10-03/full-run/specialized-results.json)；相关日志在同一目录。Supabase 原有容器 ID 未变，独立项目已删除：[归属核验](evidence/2026-10-03/full-run/supabase-preservation.json)。
 
 **仍未完成：**各对象 C 项的全量人工深审、部分业务/测试失败根因、所有非核心包覆盖率、显式 Supabase e2e-remote 档位及所有 OS/设备矩阵。70 个对象均已进入执行，并非 70 个对象全部审完。
+
+## 续执行：源码边界与失败归因（2026-10-03）
+
+这批新增 **5 个确认问题（1 P1 / 4 P2）**，更新 11 个对象的实际记录，workspace C3 flush 专题核销。详见 [本批执行汇总](follow-up-2026-10-03.md)。
+
+- [RV-037：React OPFS 导航中上传旧目录](RV-037-react-opfs-navigation-upload-race.md)——真实浏览器 1 red / 1 对照通过。
+- [RV-038：备份任务同步抛错后挂起](RV-038-backup-queue-synchronous-throw-hang.md)——1 red / 2 对照通过。
+- [RV-039：仓储销毁异常中断全库拆卸](RV-039-repository-dispose-aborts-database-teardown.md)——2 red / 1 对照通过。
+- [RV-040：Angular 模型 fixture 共享 DB 泄漏](RV-040-angular-model-real-fixtures-leak-rxdb.md)——原合跑失败，临时副本显式 teardown 后 61 passed，原始测试未修。
+- [RV-041：公开 commit 幂等重试被过期凭据挡住](RV-041-working-tree-public-commit-idempotency.md)——SQLite-WASM / PGlite 各 1 red / 53 原对照通过。
+
+原生命周期/事务/trusted-write 52 passed；workspace 96 单元/20 真实浏览器 passed。rxdb-angular 265、Tauri 343 独立复跑通过；model-angular 全包和 dev-angular 仍失败，前者组合根因有 cleanup 对照，后者 TestBed 顺序/身份未完整归因。旧全范围任务结果是历史测量面，新增红测试不被这些旧绿色数字覆盖。
+
+SQLite 第一次新 probe 运行没有重建 testing 产物，实际仍收集旧 53 条；已标注该证据不足，重建后收集 54 条得到红。无 Nx 缓存不等于输入产物一定新。
+
+**证据交付补齐：**31 份被 `*.log` 忽略的日志导出为字节一致、可跟踪 `.txt`，引用已更新；[摘要清单](evidence/2026-10-03/follow-up/log-delivery-manifest.json) 保留 SHA-256，局部 `.gitattributes` 禁止换行规范化。未动暂存区。
+
+**范围诚实：**70 对象已启动，仍为 0 个全对象人工深审完成。只核销本批明确取证的 workspace C3，其它 C 项仍逐项进行；当前业务实现未修、所有新 RV 保持 Open。
+
+## 本批最终校验
+
+续执行的最终校验：新增测试涉及的 4 个项目（rxdb / workspace / working-tree / React E2E）严格零警告 lint 与 typecheck 均通过；两个核心负向 spec 合跑仍 **3 failed / 3 passed**，没有剔除失败换绿。
+
+[严格 lint](evidence/2026-10-03/follow-up/final-probes-lint.txt) · [类型校验](evidence/2026-10-03/follow-up/final-probes-typecheck.txt) · [核心红测试](evidence/2026-10-03/follow-up/final-core-red-probes.txt) · [本批状态汇总](evidence/2026-10-03/follow-up/round-results.json) · [输入版本/源码摘要](evidence/2026-10-03/follow-up/runtime-and-sources.json)。

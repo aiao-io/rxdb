@@ -29,7 +29,7 @@ const second = await queue.addTask(() => ++calls, 'same');
 
 ## 动态复验
 
-[复验 spec](../../packages/utils/src/__tests__/async/review-queue-settlement.spec.ts) 的完成后复用断言失败；同 ID 未结算并发去重、失败后重试两个对照路径通过，**1 failed / 2 passed**。见 [日志](evidence/2026-10-03/full-run/queue-settlement-probe.log)。另以 Node 原生 TS 直接执行同一类得到相同 `1,1,1`。
+[复验 spec](../../packages/utils/src/__tests__/async/review-queue-settlement.spec.ts) 的完成后复用断言失败；同 ID 未结算并发去重、失败后重试两个对照路径通过，**1 failed / 2 passed**。见 [日志](evidence/2026-10-03/full-run/queue-settlement-probe.txt)。另以 Node 原生 TS 直接执行同一类得到相同 `1,1,1`。
 
 ```bash
 CI=true NX_DAEMON=false pnpm nx run utils:test --args='src/__tests__/async/review-queue-settlement.spec.ts --run --coverage.enabled=false --maxWorkers=1' --excludeTaskDependencies --skipRemoteCache --skipNxCache

@@ -1,0 +1,192 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target e2e for 7 projects and 59 tasks they depend on:
+
+- dev-rxdb-angular-e2e
+- dev-rxdb-electron-e2e
+- dev-rxdb-http-e2e
+- dev-rxdb-react-e2e
+- dev-rxdb-supabase-e2e
+- dev-rxdb-vue-e2e
+- rxdb-devtools-extension-e2e
+
+With additional flags:
+  --args=--workers=1 --retries=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-plugin-working-tree:build
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-querycache:build
+✔  nx run rxdb-client-generator:build
+✔  nx run rxdb-plugin-tree:build
+✔  nx run rxdb-test:build
+✔  nx run wujie:build
+✔  nx run angular:build:production
+✔  nx run rxdb-adapter-encrypted:build
+✔  nx run rxdb-adapter-sqlite-core:build
+✔  nx run rxdb-adapter-wa-sqlite:build
+✔  nx run rxdb-devtools:build
+✔  nx run rxdb-plugin-graph:build
+✔  nx run rxdb-angular:build:production
+✔  nx run rxdb-adapter-pglite:build
+✔  nx run rxdb-adapter-sqlite-wasm:build
+✔  nx run code-editor:build
+✔  nx run rxdb-model:build
+✔  nx run rxdb-plugin-workspace:build
+✔  nx run rxdb-vue:build
+✔  nx run rxdb-react:build
+✔  nx run rxdb-adapter-electron:build
+✔  nx run rxdb-plugin-storage:build
+✔  nx run rxdb-adapter-sqliteai:build
+✔  nx run rxdb-adapter-sqlite:build
+✔  nx run rxdb-plugin-search:build
+✔  nx run angular-todo:build:production
+✔  nx run rxdb-plugin-replay:build
+✔  nx run recipes-domain:build
+✔  nx run rxdb-devtools-panel:build:production
+✔  nx run rxdb-devtools-extension:build
+✔  nx run code-editor-react:build
+✔  nx run rxdb-devtools-extension:build-desktop-dev
+✔  nx run rxdb-model-vue:build
+✔  nx run rxdb-model-angular:build:production
+✔  nx run rxdb-model-react:build
+✔  nx run rxdb-adapter-supabase:build
+✔  nx run code-editor-angular:build:production
+✔  nx run rxdb-plugin-replay-angular:build:production
+✔  nx run rxdb-plugin-search-angular:build:production
+✔  nx run code-editor-vue:build
+✔  nx run rxdb-adapter-http:build
+✔  nx run rxdb-plugin-search-react:build
+✔  nx run rxdb-plugin-working-tree-angular:build:production
+✔  nx run rxdb-plugin-working-tree-react:build
+✔  nx run rxdb-plugin-search-vue:build
+✔  nx run rxdb-plugin-working-tree-vue:build
+✔  nx run dev-rxdb-angular:build:production
+✔  nx run dev-rxdb-supabase:build:production
+✔  nx run dev-rxdb-electron:build
+✔  nx run dev-rxdb-http:build:production
+✔  nx run dev-rxdb-electron:electron-package-dir
+✔  nx run dev-rxdb-vue:build
+✔  nx run dev-rxdb-react:build
+✔  nx run rxdb-devtools-extension-e2e:prepare
+✔  nx run dev-rxdb-angular-e2e:e2e --args=--workers=1 --retries=0
+✔  nx run dev-rxdb-electron-e2e:e2e --args=--workers=1 --retries=0
+✔  nx run dev-rxdb-http-e2e:e2e --args=--workers=1 --retries=0
+
+> nx run dev-rxdb-react-e2e:e2e --args=--workers=1 --retries=0
+
+> playwright test --workers=1 --retries=0
+
+(node:34984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:34990) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 140 tests using 1 worker
+(node:34991) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+···············································F(node:35542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F(node:35589) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·······························
+····························································
+
+  1) [chromium] › src/opfs.spec.ts:45:7 › OPFS Page › should keep the original file when overwrite is cancelled 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-entry-path]').filter({ hasText: 'opfs-e2e.txt' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('[data-entry-path]').filter({ hasText: 'opfs-e2e.txt' }) with timeout 10000ms
+      - waiting for locator('[data-entry-path]').filter({ hasText: 'opfs-e2e.txt' })
+
+
+      45 |   test('should keep the original file when overwrite is cancelled', async ({ page }) => {
+      46 |     await uploadTextFile(page, FILE_NAME, FILE_CONTENT);
+    > 47 |     await expect(fileRow(page, FILE_NAME)).toBeVisible({ timeout: 10000 });
+         |                                            ^
+      48 |
+      49 |     await uploadTextFile(page, FILE_NAME, 'replacement-content');
+      50 |     const overwriteDialog = page.getByRole('heading', { name: '文件已存在' });
+        at /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/opfs.spec.ts:47:44
+
+    Error Context: test-output/playwright/output/opfs-OPFS-Page-should-keep-2c6c4-when-overwrite-is-cancelled-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-output/playwright/output/opfs-OPFS-Page-should-keep-2c6c4-when-overwrite-is-cancelled-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-output/playwright/output/opfs-OPFS-Page-should-keep-2c6c4-when-overwrite-is-cancelled-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › src/opfs.spec.ts:60:7 › OPFS Page › should keep the file when delete confirmation is cancelled 
+
+    TimeoutError: locator.click: Timeout 20000ms exceeded.
+    Call log:
+      - waiting for locator('[data-entry-path]').filter({ hasText: 'opfs-e2e.txt' }).getByTitle('删除')
+
+
+      63 |     await expect(row).toBeVisible({ timeout: 10000 });
+      64 |
+    > 65 |     await row.getByTitle('删除').click();
+         |                                ^
+      66 |     const deleteDialog = page.getByRole('heading', { name: '确认删除' });
+      67 |     await expect(deleteDialog).toBeVisible();
+      68 |
+        at /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/opfs.spec.ts:65:32
+
+    Error Context: test-output/playwright/output/opfs-OPFS-Page-should-keep-b25f7-e-confirmation-is-cancelled-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-output/playwright/output/opfs-OPFS-Page-should-keep-b25f7-e-confirmation-is-cancelled-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-output/playwright/output/opfs-OPFS-Page-should-keep-b25f7-e-confirmation-is-cancelled-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › src/opfs.spec.ts:45:7 › OPFS Page › should keep the original file when overwrite is cancelled 
+    [chromium] › src/opfs.spec.ts:60:7 › OPFS Page › should keep the file when delete confirmation is cancelled 
+  138 passed (2.6m)
+Warning: command "playwright test --workers=1 --retries=0" exited with non-zero status code
+✔  nx run dev-rxdb-supabase-e2e:e2e --args=--workers=1 --retries=0
+✔  nx run dev-rxdb-vue-e2e:e2e --args=--workers=1 --retries=0
+✔  nx run rxdb-devtools-extension-e2e:e2e --args=--workers=1 --retries=0
+
+
+
+ NX   Running target e2e for 7 projects and 59 tasks they depend on failed
+
+Failed tasks:
+
+- dev-rxdb-react-e2e:e2e
+
+Output of 64 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      15m 45s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4m 27s (13 tasks)
+  Recoverable time:  11m 18s (72% of the run)
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Distribute across machines with Nx Agents → https://nx.dev/ci/features/distribute-task-execution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=nx-agents.

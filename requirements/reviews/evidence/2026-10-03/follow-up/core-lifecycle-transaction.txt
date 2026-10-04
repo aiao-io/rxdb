@@ -1,0 +1,36 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb:test --args=src/__tests__/review-lifecycle.audit.spec.ts src/__tests__/RxDB.disconnect-race.spec.ts src/__tests__/RxDB.connect-lifecycle.spec.ts src/__tests__/rxdb.transaction.spec.ts src/__tests__/trusted-write/trusted-write-scope.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-lifecycle.audit.spec.ts src/__tests__/RxDB.disconnect-race.spec.ts src/__tests__/RxDB.connect-lifecycle.spec.ts src/__tests__/rxdb.transaction.spec.ts src/__tests__/trusted-write/trusted-write-scope.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:8635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb
+
+
+ Test Files  5 passed (5)
+      Tests  52 passed (52)
+   Start at  23:16:36
+   Duration  1.66s (transform 0ms, setup 0ms, import 210ms, tests 461ms, environment 0ms)
+
+
+
+
+ NX   Successfully ran target test for project rxdb
+
+
+  Run duration:      2.1s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.1s (1 task)
+  Recoverable time:  <1ms

@@ -31,11 +31,11 @@ React：核心查询资源、provider、状态/action/同步与无限滚动的�
 
 | target         | 当前证据                      | 日志                                                            |
 | -------------- | ----------------------------- | --------------------------------------------------------------- |
-| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)         |
-| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log)    |
-| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)         |
-| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)        |
-| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.log) |
+| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)         |
+| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt)    |
+| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)         |
+| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
+| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -53,6 +53,6 @@ React：核心查询资源、provider、状态/action/同步与无限滚动的�
 
 ## 专项任务核销
 
-- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.log)。
+- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.txt)。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。

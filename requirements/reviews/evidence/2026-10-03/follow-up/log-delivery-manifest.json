@@ -1,0 +1,192 @@
+{
+  "date": "2026-10-03",
+  "files": [
+    {
+      "originalLocalPath": "full-run/angular-directive-isolated.log",
+      "trackedPath": "full-run/angular-directive-isolated.txt",
+      "bytes": 1466,
+      "sha256": "a9d1287226500dd6f330fe54db9dfcb3a65ed2f353e777ea4663b11fb9ccdebf"
+    },
+    {
+      "originalLocalPath": "full-run/build.log",
+      "trackedPath": "full-run/build.txt",
+      "bytes": 4824,
+      "sha256": "85b589347b698b57cbea276d4348d94291ab1bbc7410ff054d68a1a649ca7251"
+    },
+    {
+      "originalLocalPath": "full-run/cargo.log",
+      "trackedPath": "full-run/cargo.txt",
+      "bytes": 976,
+      "sha256": "2d3d56cf306398bf94f7db194bf65bafe9729bc1365bcc2a3478d1a604789c04"
+    },
+    {
+      "originalLocalPath": "full-run/core-coverage-gate.log",
+      "trackedPath": "full-run/core-coverage-gate.txt",
+      "bytes": 398,
+      "sha256": "0a08325dee3cc51de70e20224a14f987d9f7e7f47088f10b24bc576bdf52e020"
+    },
+    {
+      "originalLocalPath": "full-run/core-coverage.log",
+      "trackedPath": "full-run/core-coverage.txt",
+      "bytes": 10127,
+      "sha256": "1430b840a9edcf4df8f4acfab167c3ba14f24ec739cdba8f1b24dc68db8c4ce1"
+    },
+    {
+      "originalLocalPath": "full-run/coverage-acceptance.log",
+      "trackedPath": "full-run/coverage-acceptance.txt",
+      "bytes": 4132000,
+      "sha256": "cf2fbd11b3f53e0e70647dcfa1de040095cba08b07428d8aa5b77f123d681886"
+    },
+    {
+      "originalLocalPath": "full-run/e2e.log",
+      "trackedPath": "full-run/e2e.txt",
+      "bytes": 9252,
+      "sha256": "ba2a536fe3c9960cb1e03da1a5382ef3ead2b06a13ce781ac87817d72287c2ae"
+    },
+    {
+      "originalLocalPath": "full-run/lazy-backend-audit.log",
+      "trackedPath": "full-run/lazy-backend-audit.txt",
+      "bytes": 2123,
+      "sha256": "6f580aae9c9b17136de31fcef1ad509e901b41dd7b36f62ed87e0a77e04c894a"
+    },
+    {
+      "originalLocalPath": "full-run/lint.log",
+      "trackedPath": "full-run/lint.txt",
+      "bytes": 37644,
+      "sha256": "bc85bc3d392a56bc2181a4aa56c1ab721ddac3b2c0b5af283eaaa5d72098f6fa"
+    },
+    {
+      "originalLocalPath": "full-run/merged-coverage-gate.log",
+      "trackedPath": "full-run/merged-coverage-gate.txt",
+      "bytes": 524,
+      "sha256": "3cca43aef11e55735203552d7982a06a7af495969d8974814487fbdc18f0e954"
+    },
+    {
+      "originalLocalPath": "full-run/miniprogram-e2e.log",
+      "trackedPath": "full-run/miniprogram-e2e.txt",
+      "bytes": 1982,
+      "sha256": "c3197d909b929731b958aa7ea4b5141caca1dd3bdf8984a4d3e46e6a804e677b"
+    },
+    {
+      "originalLocalPath": "full-run/miniprogram-environment.log",
+      "trackedPath": "full-run/miniprogram-environment.txt",
+      "bytes": 391,
+      "sha256": "5cfa51a9b3ae5be3c42317ca32266a8bccd115e86cc63fdcfd1c7d438139ad43"
+    },
+    {
+      "originalLocalPath": "full-run/new-probes-lint-final.log",
+      "trackedPath": "full-run/new-probes-lint-final.txt",
+      "bytes": 956,
+      "sha256": "1f4e5a2144a8053b36d52c3157936f77a7222417d270b0093e4751c4587c6a85"
+    },
+    {
+      "originalLocalPath": "full-run/new-probes-lint.log",
+      "trackedPath": "full-run/new-probes-lint.txt",
+      "bytes": 1739,
+      "sha256": "c20c000d5dada0640026ee02e6de8258807094899da3ecce0d4f9beeec557992"
+    },
+    {
+      "originalLocalPath": "full-run/pglite-array-probe.log",
+      "trackedPath": "full-run/pglite-array-probe.txt",
+      "bytes": 4295,
+      "sha256": "c20af408bc9a9311e8a987d6c2abcc10c865f108a4fe392c573174a4d0292e74"
+    },
+    {
+      "originalLocalPath": "full-run/queue-settlement-probe.log",
+      "trackedPath": "full-run/queue-settlement-probe.txt",
+      "bytes": 2851,
+      "sha256": "9826b900315b9867013e58653bf1b0b179d9134056a48e3ca3259470056aeb05"
+    },
+    {
+      "originalLocalPath": "full-run/secrets-audit.log",
+      "trackedPath": "full-run/secrets-audit.txt",
+      "bytes": 5085,
+      "sha256": "1bd8d7b891ba93466b3631c6f14d0d79a0636ccfd52637d41f7b6a7dc6decdc1"
+    },
+    {
+      "originalLocalPath": "full-run/sqlite-browser-probe.log",
+      "trackedPath": "full-run/sqlite-browser-probe.txt",
+      "bytes": 4622,
+      "sha256": "39a42a899f0072e9611972c141334fa3ae10366c8d746db0279e01dde01e0c61"
+    },
+    {
+      "originalLocalPath": "full-run/supabase-cleanup.log",
+      "trackedPath": "full-run/supabase-cleanup.txt",
+      "bytes": 1265,
+      "sha256": "f30017b7f12f399be9d544783263c11c7db8aad847ff1e14d1914c31d0f47cd9"
+    },
+    {
+      "originalLocalPath": "full-run/supabase-setup.log",
+      "trackedPath": "full-run/supabase-setup.txt",
+      "bytes": 4539,
+      "sha256": "61f03480c6abbd492d2dcab7fa9cd38d219754fc254b884b628f6b41c91faa07"
+    },
+    {
+      "originalLocalPath": "full-run/supabase-test.log",
+      "trackedPath": "full-run/supabase-test.txt",
+      "bytes": 873,
+      "sha256": "fc0eea81a1dc6bc1325f9525b63d97259003eb2b1d605bf58157c73ee9671df1"
+    },
+    {
+      "originalLocalPath": "full-run/tauri-conformance.log",
+      "trackedPath": "full-run/tauri-conformance.txt",
+      "bytes": 9708,
+      "sha256": "2b214c3a78591ca8928d527bf8d99079481f5754f3e95cf0b47ca1e5642ccf02"
+    },
+    {
+      "originalLocalPath": "full-run/tauri-smoke.log",
+      "trackedPath": "full-run/tauri-smoke.txt",
+      "bytes": 2219,
+      "sha256": "d59b96a26f5162b8c86641dee6fbfac59508c36521773535197046dc33b38a87"
+    },
+    {
+      "originalLocalPath": "full-run/test-browser.log",
+      "trackedPath": "full-run/test-browser.txt",
+      "bytes": 2245,
+      "sha256": "5a268b175bdedfbd75c03a649d00dc8016abdb732cbb463fa5c9cf680558c77e"
+    },
+    {
+      "originalLocalPath": "full-run/test.log",
+      "trackedPath": "full-run/test.txt",
+      "bytes": 135126,
+      "sha256": "15c4fa73787a2c4d03ddcb4dd34d255ef27cd91cd4f6547f9ce09b148d9c9f50"
+    },
+    {
+      "originalLocalPath": "full-run/typecheck.log",
+      "trackedPath": "full-run/typecheck.txt",
+      "bytes": 7262,
+      "sha256": "816146e63a4122540a2a02dd69a44f2fd97b4f89abdc110082078f4b0c07ec0f"
+    },
+    {
+      "originalLocalPath": "full-run/vue-search-probe.log",
+      "trackedPath": "full-run/vue-search-probe.txt",
+      "bytes": 3151,
+      "sha256": "2fc30c26b56a4627093a15e518534028ced1a6651971abc87ea253ab84ce4a89"
+    },
+    {
+      "originalLocalPath": "pglite-migration-baseline.log",
+      "trackedPath": "pglite-migration-baseline.txt",
+      "bytes": 1822,
+      "sha256": "c652580d1451ad703491b4aae7d271e1ee5d4dc8b4b99f0724848f7a9481b9b2"
+    },
+    {
+      "originalLocalPath": "query-probes-round2.log",
+      "trackedPath": "query-probes-round2.txt",
+      "bytes": 9978,
+      "sha256": "3377b53c386890ff25818e18a9e109b5488eabfd16025aa683921fd09f9eb53f"
+    },
+    {
+      "originalLocalPath": "review-spec-lint.log",
+      "trackedPath": "review-spec-lint.txt",
+      "bytes": 826,
+      "sha256": "4145faa2865cc0b6900f95b37ce90aff79acaeb523efaa11010e3dbae939d762"
+    },
+    {
+      "originalLocalPath": "server.log",
+      "trackedPath": "server.txt",
+      "bytes": 1436,
+      "sha256": "1f606dc67ee9a32461c3dc9bf5040523fc3dfcd4676a2a2944da10c8d1f5f723"
+    }
+  ],
+  "reason": "Root .gitignore excludes *.log. Byte-identical .txt exports preserve deliverable evidence without changing the Git index."
+}

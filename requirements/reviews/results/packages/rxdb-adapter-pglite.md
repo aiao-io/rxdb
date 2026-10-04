@@ -12,7 +12,7 @@ execution: partial
 
 ## 1. 实际范围与取证方式
 
-调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的[现有系统迁移 test-node 日志](../../evidence/2026-10-03/pglite-migration-baseline.log)记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
+调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的[现有系统迁移 test-node 日志](../../evidence/2026-10-03/pglite-migration-baseline.txt)记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
 
 以下是实际阅读/追踪的模块入口，包含专题片段，**不是声称逐行审完每个文件**：
 
@@ -30,7 +30,7 @@ execution: partial
 
 ## 3. 动态证据与复验
 
-[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.log)
+[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.txt)
 
 业务源码基线 `58b4bbb61efa71d4591cafab6a4c92955a7760dd`。SQL 复验明确关闭覆盖率；测试失败是预期的缺陷红灯，非 worker/service stopped 并发假失败。覆盖率未测量，也没有执行修复。
 
@@ -65,10 +65,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
 当前确认意见：[RV-027](../../RV-027-pglite-keyvalue-query-semantics.md)、[RV-029](../../RV-029-core-empty-notin-null.md)、[RV-034](../../RV-034-pglite-array-membership-semantics.md)
 
@@ -85,3 +85,11 @@ execution: partial
 - [ ] C7 真实测试证据：区分 mock residual、Node migration 和 browser conformance，检查覆盖率开启方式及 summary/final 同代性。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### 真实工作树公开提交链路
+
+实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。两端同样被过期 HEAD 凭据挡住，统一记 [RV-041](../../RV-041-working-tree-public-commit-idempotency.md)，不重复报成两个 SQL 编译器问题。
+
+本次配置的 testing 与门面走源码入口；与 SQLite 的构建输入不同。真实事务对照不解除既有 RV-027 / RV-029 / RV-034 查询红测试，也不证明本轮持久化 store、恢复/加密/全部并发边界已经通过。

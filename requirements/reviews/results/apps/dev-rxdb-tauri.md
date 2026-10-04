@@ -30,10 +30,10 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -52,7 +52,15 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 ## 专项任务核销
 
-- [Rust 三目标通过](../../evidence/2026-10-03/full-run/cargo.log)。
-- [backend 延迟加载产物审计通过](../../evidence/2026-10-03/full-run/lazy-backend-audit.log)。
+- [Rust 三目标通过](../../evidence/2026-10-03/full-run/cargo.txt)。
+- [backend 延迟加载产物审计通过](../../evidence/2026-10-03/full-run/lazy-backend-audit.txt)。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
+
+## 续执行：2026-10-03 边界取证
+
+### Angular 组件测试隔离复跑
+
+独立串行无缓存 **32 files / 343 passed**：[日志](../../evidence/2026-10-03/follow-up/dev-rxdb-tauri-isolated.txt)。上轮两个 DesktopLaunchService TestBed 初始化失败本轮未复现，不凭历史红灯改业务服务。
+
+此轮是项目配置的 happy-dom 测试，不是新一轮真实 Tauri 窗口/权限/持久化证明；既有 Rust/conformance/smoke 证据保持原测量面，不外推全平台。完整应用专项仍未完成。

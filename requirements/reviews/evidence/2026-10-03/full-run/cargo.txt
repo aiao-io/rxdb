@@ -1,0 +1,35 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running targets cargo-check, cargo-clippy, cargo-test for 2 projects:
+
+- rxdb-adapter-tauri
+- dev-rxdb-tauri
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb-adapter-tauri:cargo-check
+✔  nx run rxdb-adapter-tauri:cargo-clippy
+✔  nx run rxdb-adapter-tauri:cargo-test
+✔  nx run dev-rxdb-tauri:cargo-check
+✔  nx run dev-rxdb-tauri:cargo-clippy
+✔  nx run dev-rxdb-tauri:cargo-test
+
+
+
+ NX   Successfully ran targets cargo-check, cargo-clippy, cargo-test for 2 projects
+
+
+Output of 6 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      27.5s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     10.4s (1 task)
+  Recoverable time:  17.0s (62% of the run)

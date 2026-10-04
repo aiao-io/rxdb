@@ -1,0 +1,18 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "typecheck",
+    "--projects=rxdb,rxdb-plugin-workspace,rxdb-plugin-working-tree,dev-rxdb-react-e2e",
+    "--parallel=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:52:05.763569+08:00",
+  "exitCode": 0,
+  "log": "final-probes-typecheck.txt",
+  "startedAt": "2026-10-03T23:51:52.911807+08:00"
+}

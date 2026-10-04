@@ -1,0 +1,34 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 2 projects:
+
+- rxdb-adapter-pglite
+- rxdb-adapter-sqlite-core
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb-adapter-sqlite-core:lint --max-warnings=0
+✔  nx run rxdb-adapter-pglite:lint --max-warnings=0
+
+
+
+ NX   Successfully ran target lint for 2 projects
+
+
+Output of 2 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      4.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.3s (1 task)
+  Recoverable time:  1.9s (45% of the run)

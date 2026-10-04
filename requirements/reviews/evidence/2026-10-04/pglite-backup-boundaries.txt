@@ -1,0 +1,85 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-pglite:test --args=src/__tests__/backup/backup-failure.spec.ts src/__tests__/backup/backup-memory.spec.ts src/__tests__/backup/backup-concurrency.spec.ts src/__tests__/backup/backup-roundtrip.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/backup/backup-failure.spec.ts src/__tests__/backup/backup-memory.spec.ts src/__tests__/backup/backup-concurrency.spec.ts src/__tests__/backup/backup-roundtrip.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:99806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite
+
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-concurrency.spec.ts (15 tests) 23277ms
+     ✓ contains every earlier commit, a commit-order prefix of concurrent ones, and no rolled-back work  2189ms
+     ✓ rejects while another instance holds the storage, whose commits this runtime cannot see  1406ms
+     ✓ rejects while another tab or worker holds the storage lock  887ms
+     ✓ rejects a long-lived connection after a later peer committed and closed, until it reconnects  2348ms
+     ✓ rejects a connection that opened while a peer still held the storage, even after the peer closed  1285ms
+     ✓ keeps backing up a sole long-lived connection across its own commits  1979ms
+     ✓ rejects with unsupported_combination when Web Locks cannot list the holders  880ms
+     ✓ includes every connection's commits once a single holder backs the storage up  2277ms
+     ✓ lets exactly one of two concurrent restores into the same target win  1654ms
+     ✓ rejects a connection attempted at "marker-written" with restore_in_progress  1621ms
+     ✓ rejects a connection attempted at "files-written" with restore_in_progress  1676ms
+     ✓ rejects a connection attempted at "verified" with restore_in_progress  1674ms
+     ✓ rejects a connection attempted at "persisted" with restore_in_progress  1653ms
+     ✓ refuses to open a target whose restore never finished, until it is cleaned up  898ms
+     ✓ refuses cleanup while the target is connected  849ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-failure.spec.ts (26 tests) 13129ms
+     ✓ rejects a different entity schema  1694ms
+     ✓ rejects an archive that needs an extension the target does not load  899ms
+     ✓ reports a flipped byte only after reading to the end, then discards the staged data  333ms
+     ✓ reports a flipped byte for a memory target without handing out a database  324ms
+     ✓ refuses a target that already holds a database and leaves it intact  1410ms
+     ✓ refuses the RxDB instance itself once it is connected  856ms
+     ✓ refuses storage that another instance has open  874ms
+     ✓ refuses another RxDB instance with the same name but a different schema  429ms
+     ✓ refuses another RxDB instance with the same name and an encrypted schema  421ms
+     ✓ refuses the verified instance when its adapter loads different extensions  417ms
+     ✓ aborts after verification but before the commit point  353ms
+     ✓ reports a full IndexedDB quota during the commit as storage_full and cleans up  361ms
+     ✓ reports cleanup_pending when the partial data cannot be removed, and recovers after cleanup  4231ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-roundtrip.spec.ts (8 tests) 12757ms
+     ✓ restores a memory backup into an empty memory target  2122ms
+     ✓ restores a memory backup into an empty idb target  2258ms
+     ✓ restores a idb backup into an empty memory target  1813ms
+     ✓ restores a idb backup into an empty idb target  2683ms
+     ✓ restores the same archive into independent memory instances  1720ms
+     ✓ keeps the source usable and unchanged after backing it up  927ms
+     ✓ does not depend on how the source stream is chunked  1233ms
+ ✓ |rxdb-adapter-pglite (chromium)| src/__tests__/backup/backup-memory.spec.ts (1 test) 618ms
+     ✓ keeps the in-flight bytes constant while the database grows eightfold  617ms
+
+ Test Files  4 passed (4)
+      Tests  50 passed (50)
+Type Errors  no errors
+   Start at  03:33:19
+   Duration  51.83s (transform 0ms, setup 0ms, import 1.23s, tests 49.78s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-pglite/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-adapter-pglite
+
+
+  Run duration:      52.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     52.3s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-adapter-pglite:test    52.3s

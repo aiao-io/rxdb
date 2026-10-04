@@ -592,6 +592,40 @@ describe('RxDBPluginWorkspace', () => {
       await expect(plugin.flush()).resolves.toBeUndefined();
     });
 
+    it('评审：删除阶段失败时保留已落盘草稿，并允许显式重试删除', async () => {
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'remove me' }));
+      await plugin.flush();
+      plugin.discard(cacheId('Todo', TODO_ID_1));
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'keep me' }));
+      const failure = new Error('delete phase failed');
+      delManyMock.mockRejectedValueOnce(failure);
+
+      await expect(plugin.flush()).rejects.toBe(failure);
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_1))).toBe(true);
+      expect(idbState.store.get(cacheId('Todo', TODO_ID_2))).toEqual({ id: TODO_ID_2, title: 'keep me' });
+
+      await plugin.flush();
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_1))).toBe(false);
+      expect(idbState.store.get(cacheId('Todo', TODO_ID_2))).toEqual({ id: TODO_ID_2, title: 'keep me' });
+    });
+
+    it('评审：删除失败期间的新草稿值不会被旧批次恢复覆盖', async () => {
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'remove me' }));
+      await plugin.flush();
+      plugin.discard(cacheId('Todo', TODO_ID_1));
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'older' }));
+      const failure = new Error('delete phase failed with a new draft');
+      delManyMock.mockImplementationOnce(async () => {
+        dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'newer' }));
+        throw failure;
+      });
+
+      await expect(plugin.flush()).rejects.toBe(failure);
+      await plugin.flush();
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_1))).toBe(false);
+      expect(idbState.store.get(cacheId('Todo', TODO_ID_2))).toEqual({ id: TODO_ID_2, title: 'newer' });
+    });
+
     it('persists deletions from discard and create events', async () => {
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Discard' }));
       dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_2, { title: 'Create' }));
@@ -1368,5 +1402,85 @@ describe('cross-tab synchronization', () => {
 describe('get_cache_id', () => {
   it('formats namespace, entity and id', () => {
     expect(get_cache_id(asLocalEventData(newEventData(TODO_ID_1)))).toBe(cacheId('Todo', TODO_ID_1));
+  });
+});
+
+describe('评审：workspace 旧安装结果不能修改新纪元', () => {
+  function delayedEntries() {
+    let resolve!: (rows: Array<[IDBValidKey, unknown]>) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<Array<[IDBValidKey, unknown]>>((accept, refuse) => {
+      resolve = accept;
+      reject = refuse;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it.each(['old-first', 'new-first'] as const)('旧读取与新读取按 %s 结算时，已删除草稿不能复活', async order => {
+    const id = cacheId('Todo', TODO_ID_1);
+    const stored = { id: TODO_ID_1, title: 'deleted during new restore' };
+    idbState.store.set(id, stored);
+    const oldRead = delayedEntries();
+    const newRead = delayedEntries();
+    entriesMock.mockImplementationOnce(() => oldRead.promise).mockImplementationOnce(() => newRead.promise);
+    const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
+    const obsolete = plugin.install(scope);
+    await scope.dispose();
+    const nextScope = new LifecycleScope('review-workspace-next');
+    try {
+      const current = plugin.install(nextScope);
+      dispatch(rxdb, ENTITY_LOCAL_REMOVE_EVENT, removeEventData(TODO_ID_1));
+      if (order === 'old-first') {
+        oldRead.resolve([]);
+        await obsolete;
+      }
+      newRead.resolve([[id, stored]]);
+      await current;
+      if (order === 'new-first') {
+        oldRead.resolve([]);
+        await obsolete;
+      }
+      expect(plugin.cacheCount).toBe(0);
+      await plugin.flush();
+      expect(idbState.store.has(id)).toBe(false);
+    } finally {
+      oldRead.resolve([]);
+      newRead.resolve([]);
+      await nextScope.dispose();
+      await obsolete.catch(() => undefined);
+    }
+  });
+
+  it.each(['before-reinstall', 'after-reinstall'] as const)('旧读取在 %s 失败时不能使成功的新安装重新读取', async order => {
+    const oldRead = delayedEntries();
+    entriesMock.mockImplementationOnce(() => oldRead.promise);
+    const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
+    const failure = new Error('obsolete IndexedDB read failed');
+    const obsolete = plugin.install(scope);
+    const obsoleteResult = obsolete.catch((error: unknown) => error);
+    await scope.dispose();
+    const nextScope = new LifecycleScope('review-workspace-next');
+    try {
+      if (order === 'before-reinstall') {
+        oldRead.reject(failure);
+        await obsoleteResult;
+      }
+      const current = plugin.install(nextScope);
+      await current;
+      if (order === 'after-reinstall') {
+        oldRead.reject(failure);
+        await obsoleteResult;
+      }
+      const repeat = plugin.install(nextScope);
+      await repeat;
+      expect(repeat).toBe(current);
+      expect(entriesMock).toHaveBeenCalledTimes(2);
+    } finally {
+      oldRead.resolve([]);
+      await nextScope.dispose();
+      await obsoleteResult;
+    }
   });
 });

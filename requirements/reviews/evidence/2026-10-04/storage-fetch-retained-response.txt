@@ -1,0 +1,77 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-storage:test --args=src/__tests__/review-fetch-response-cleanup.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-fetch-response-cleanup.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:20448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-storage
+
+(node:20455) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 404 / MIME true 的早期拒绝不能留下后台下载
+REVIEW_FETCH_BODY {"status":404,"contentType":true,"observedResponses":1,"bodyLocked":false,"closed":false,"chunks":27}
+
+stdout | src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 200 / MIME false 的早期拒绝不能留下后台下载
+REVIEW_FETCH_BODY {"status":200,"contentType":false,"observedResponses":1,"bodyLocked":false,"closed":false,"chunks":28}
+
+ ❯ |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts (3 tests | 2 failed) 652ms
+     × HTTP 404 / MIME true 的早期拒绝不能留下后台下载 328ms
+     × HTTP 200 / MIME false 的早期拒绝不能留下后台下载 313ms
+     ✓ 对照：正常响应消费完毕后关闭，并写入正确文件内容 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 404 / MIME true 的早期拒绝不能留下后台下载
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 200 / MIME false 的早期拒绝不能留下后台下载
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ vi.waitFor.timeout src/__tests__/review-fetch-response-cleanup.spec.ts:76:60
+     74|       await service.destroy();
+     75|       try {
+     76|         await vi.waitFor(() => expect(remote.state.closed).toBe(true),…
+       |                                                            ^
+     77|       } finally {
+     78|         console.log('REVIEW_FETCH_BODY ' + JSON.stringify({ status, co…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  03:53:22
+   Duration  1.08s (transform 178ms, setup 0ms, import 316ms, tests 652ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-storage/junit.xml
+Warning: command "vitest src/__tests__/review-fetch-response-cleanup.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-storage failed
+
+Failed tasks:
+
+- rxdb-plugin-storage:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.5s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.5s (1 task)
+  Recoverable time:  <1ms

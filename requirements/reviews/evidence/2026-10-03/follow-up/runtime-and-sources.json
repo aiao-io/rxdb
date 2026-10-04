@@ -1,0 +1,112 @@
+{
+  "architecture": "arm64",
+  "baselineEnd": "b01e35e9aedc58e61fb02a909ec98b4a119e82a2",
+  "baselineStart": "3b3e449e10c6a587056a2ae947eddfd161834f97",
+  "cachePolicy": "CI=true CODECOV_TOKEN= NX_DAEMON=false; skipRemoteCache + skipNxCache; serial/maxWorkers=1",
+  "fingerprintCapture": "Final saved files after explicit Nx formatting. Production source did not change.",
+  "node": "v26.7.0",
+  "nx": "23.2.1",
+  "observedAt": "2026-10-03T23:50:42.598505+08:00",
+  "os": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "playwright": "1.63.0",
+  "pnpm": "10.33.0",
+  "productionSourceChangesBetweenCommits": [],
+  "sourceFingerprints": [
+    {
+      "path": "packages/rxdb/src/rxdb.ts",
+      "bytes": 101866,
+      "sha256": "42f4ecfe6f9c9d706f6a7c278eaa00f558fbe9ef0ec9c21ff5504abe184679b8"
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-manager.ts",
+      "bytes": 30383,
+      "sha256": "016d6221a3842f8c82b31cdbf5e683bca30a89d7f9536f700411c058a43d9183"
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-queue.ts",
+      "bytes": 2711,
+      "sha256": "f12448454d857b479725922941dd5902c3cdaa4fe191c1b3871b0921151ef228"
+    },
+    {
+      "path": "packages/rxdb/src/repository/Repository.ts",
+      "bytes": 31161,
+      "sha256": "4705e96c1ed89ab287996adac3774f62b707e55db6f5c4a977e659576cba6eb6"
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/pages/opfs/opfs.tsx",
+      "bytes": 30489,
+      "sha256": "5e7cdd2518c4500617c44fb5716dba597127c09ab5a35a8795a48ef7bf249a44"
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/pages/opfs/hooks/useOpfsService.ts",
+      "bytes": 11295,
+      "sha256": "e251e3f6b78d56c580f717472b80789b18757e11b589fc345ee4a96008f920eb"
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/pages/opfs/hooks/useOpfsRouteSync.ts",
+      "bytes": 689,
+      "sha256": "e9dca59e7774682649abb2a2ebb98cdc03ee4caf0f6f6698b81e36ca41778bbe"
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts",
+      "bytes": 39075,
+      "sha256": "da1a8a51ad599b7154335f789826311cb454e69a32806c135f780f0ddd82874c"
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/workspace-store.ts",
+      "bytes": 5658,
+      "sha256": "d30ad5e0777e2124ae9fea9cad97569eb294c09ed3a4cbc814c2e131e7e280f9"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts",
+      "bytes": 14195,
+      "sha256": "9ef6d98447f7861256b3422c56936dbe05dc7a95b702dd696beb6d31d52ba42c"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+      "bytes": 32143,
+      "sha256": "3d01387995ed16cad63d7278161412bf7dbb9a8348ddea6aff53d014d740ab38"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/commit/write-commit.ts",
+      "bytes": 20739,
+      "sha256": "d71b58774ae25803ede7526b0d734f16d2c0baf712f80ea45acc0e52fb1e669e"
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts",
+      "bytes": 18450,
+      "sha256": "193c883b249137d3832e3059f79efb2446ac87dc7bd77941218db181d278cad5"
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-list/entity-list.real.spec.ts",
+      "bytes": 46010,
+      "sha256": "73d7a20efabfd145f491f4a28c19ee6e955c91225d07762e13053c0169f0555e"
+    },
+    {
+      "path": "apps/dev-rxdb-react-e2e/src/review-opfs-navigation.spec.ts",
+      "bytes": 4224,
+      "sha256": "8cb84708bc3ef085b0309740919976d0dcf7402e126e6c112943a4b580c26e1a"
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/review-queue-sync-throw.spec.ts",
+      "bytes": 1438,
+      "sha256": "936dc98cf4c390afb6bd7bde3afaea456e63c51d4e6e59158a839f6186abad31"
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/review-repository-teardown.spec.ts",
+      "bytes": 3596,
+      "sha256": "17dd47079c4834c43997e2cda96a4e01d2ee85e4bb82b8c214d76772769a6c4a"
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts",
+      "bytes": 57842,
+      "sha256": "90bf5bc13ddb8b00d02eca0f6f4284534db27c2aee5d612ed3380f62d0c581f1"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+      "bytes": 104271,
+      "sha256": "2c38c737b3c4e0936f48e303550214a78f0e2af29b3f5f095ba2498d5de58e8e"
+    }
+  ],
+  "vitest": "4.1.11"
+}

@@ -149,3 +149,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test-node --skipRemoteCa
 调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的现有系统迁移 test-node 记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
 
 只有上述范围取得本轮证据，未执行项仍待核查，完成清单不勾选。
+
+## 续执行：2026-10-03 边界取证
+
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-pglite.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。

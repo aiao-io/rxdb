@@ -1,0 +1,170 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-workspace:test --args=src/__tests__/RxDBPluginWorkspace.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/RxDBPluginWorkspace.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:91933) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-workspace
+
+(node:91942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |rxdb-plugin-workspace| src/__tests__/RxDBPluginWorkspace.spec.ts (82 tests | 2 failed) 410ms
+     ✓ has the workspace name and package entrypoint 3ms
+     ✓ registers and removes entity event listeners 2ms
+     ✓ 构造只发布身份，纪元资源要等到 install() 0ms
+     ✓ 断开重连后是全新的纪元资源，同一个实例继续可用 2ms
+     ✓ attaches itself as a non-writable rxdb property 1ms
+       ✓ caches a new entity 0ms
+       ✓ ignores malformed entity event data 0ms
+       ✓ 忽略系统实体 RxDBBranch 的 NEW 事件 0ms
+       ✓ 忽略系统实体 RxDBChange 的 NEW 事件 0ms
+       ✓ 忽略系统实体 RxDBMigration 的 NEW 事件 0ms
+       ✓ 忽略系统实体 RxDBSync 的 NEW 事件 0ms
+       ✓ 不误伤 rxdb namespace 下的自定义实体 0ms
+       ✓ stores an empty patch when NEW event patch is not an object 2ms
+       ✓ removes a cached entity on remove 0ms
+       ✓ removes a cached entity after database creation 0ms
+       ✓ 与草稿缓存无关的 CREATE/REMOVE 事件不得触发多余的删除事务或变更通知 0ms
+       ✓ lists cached entities without exposing mutable internal data 0ms
+       ✓ discards a draft and removes its entity cache 0ms
+       ✓ discards drafts without registered entity types or entity refs 0ms
+       ✓ emits changes when cache state changes 0ms
+       ✓ returns immediately when no changes are queued 1ms
+       ✓ persists changes added while another flush is pending 54ms
+       ✓ rejects a failed write without spinning and allows an explicit retry 14ms
+       ✓ prefers newer queued save over failed-task restoration 54ms
+       ✓ 旧纪元迟到的写盘不结算新纪元的 flush() 115ms
+       ✓ 不可克隆的草稿在进事务前被挑走，同批其他草稿照常落盘 5ms
+       ✓ 克隆失败后回队列的是活引用，改好字段重试即可落盘 4ms
+       ✓ 毒草稿卡在队列里时，之后新建的草稿依然能落盘，discard 后 flush 恢复正常 5ms
+       ✓ 评审：删除阶段失败时保留已落盘草稿，并允许显式重试删除 8ms
+       ✓ 评审：删除失败期间的新草稿值不会被旧批次恢复覆盖 4ms
+       ✓ persists deletions from discard and create events 4ms
+       ✓ 纪元释放丢弃未落盘的排队变更时应 reject 挂起的 flush()，而非伪装成功 1ms
+       ✓ 已弃用的 destroy() 与释放作用域是同一条拆卸路径 1ms
+       ✓ 纪元释放期间存在挂起写入时应 reject 已注册的 flush() waiter 52ms
+       ✓ 纪元释放之后调用 flush() 必须立即 fail-fast，而非永久挂起 3ms
+     ✓ loads known and unknown entity drafts from IndexedDB 3ms
+     ✓ 首次 IndexedDB 读取失败后保留 rejected ready，并允许显式重试 install 1ms
+     ✓ 恢复后段水合失败时不发布半份状态，修复后重试读取最新快照 1ms
+     ✓ 纪元之外没有 channel，跨 tab 消息无从送达；恢复只认 IndexedDB 1ms
+     ✓ 一条损坏记录不得阻断其余合法草稿 1ms
+     ✓ 拒绝损坏的持久化记录：缺少身份段 1ms
+     ✓ 拒绝损坏的持久化记录：非 UUID 的 id 0ms
+     ✓ 拒绝损坏的持久化记录：data.id 与 cacheId 不一致 0ms
+     ✓ 拒绝损坏的持久化记录：data 不是普通对象 0ms
+     ✓ destroy 期间完成的 restore 不得重新填充已销毁实例 1ms
+     ✓ does not overwrite a newer live draft with stale restore data 1ms
+     ✓ 清理身份自洽的存量系统草稿，但保留伪系统坏记录 1ms
+     ✓ 恢复窗口内被 discard 的草稿不得复活 1ms
+     ✓ 恢复窗口内先收到 CREATE 时不得复活旧草稿 2ms
+     ✓ 恢复窗口内先收到 REMOVE 时不得复活旧草稿 2ms
+     ✓ 恢复窗口内的跨 tab remove 不得让旧草稿复活 2ms
+     ✓ BroadcastChannel 构造失败时已登记的那半资源退回，换个作用域即可重试 1ms
+     ✓ clientId 生成失败时不留下一个没人关的 channel 1ms
+     ✓ workspace store 创建失败时不留残余，重试后 flush 正常完成 2ms
+     ✓ BroadcastChannel 监听器注册失败时 channel 本身仍被关闭 1ms
+     ✓ 第 1 个 RxDB 监听器注册失败时完整回滚并允许重试 1ms
+     ✓ 第 2 个 RxDB 监听器注册失败时完整回滚并允许重试 2ms
+     ✓ 第 3 个 RxDB 监听器注册失败时完整回滚并允许重试 2ms
+     ✓ workspace 属性发布失败时构造期没有任何资源需要回滚 2ms
+     ✓ returns the installed instance from repeated factory calls without new listeners 1ms
+     ✓ rejects direct duplicate construction before registering listeners 1ms
+     ✓ rejects an incompatible pre-existing workspace property without listeners 1ms
+     ✓ honors autoSave false until flush is explicitly requested 13ms
+     ✓ keeps and persists incoming drafts whose entity type is not registered yet 2ms
+     ✓ 广播同步抛错时保留草稿、记录错误并继续派发后续监听器 1ms
+     ✓ 畸形跨 tab 消息（null）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（空对象）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（cacheId 非字符串）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（cacheId 非三段式）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（缺 clientId）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（add 缺 data）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（data 非对象）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 畸形跨 tab 消息（未知 type）必须被丢弃：不抛错、不写缓存、不持久化 1ms
+     ✓ 释放纪元时清掉入站草稿并关闭 channel 2ms
+     ✓ 释放纪元时归还 IndexedDB 连接 1ms
+     ✓ ignores sync messages from the same client and remove without entity cache 1ms
+     ✓ does not broadcast cross-tab originated NEW events 2ms
+     ✓ formats namespace, entity and id 1ms
+     × 旧读取与新读取按 old-first 结算时，已删除草稿不能复活 6ms
+     ✓ 旧读取与新读取按 new-first 结算时，已删除草稿不能复活 2ms
+     ✓ 旧读取在 before-reinstall 失败时不能使成功的新安装重新读取 1ms
+     × 旧读取在 after-reinstall 失败时不能使成功的新安装重新读取 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-workspace| src/__tests__/RxDBPluginWorkspace.spec.ts > 评审：workspace 旧安装结果不能修改新纪元 > 旧读取与新读取按 old-first 结算时，已删除草稿不能复活
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/__tests__/RxDBPluginWorkspace.spec.ts:1444:33
+    1442|         await obsolete;
+    1443|       }
+    1444|       expect(plugin.cacheCount).toBe(0);
+       |                                 ^
+    1445|       await plugin.flush();
+    1446|       expect(idbState.store.has(id)).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-plugin-workspace| src/__tests__/RxDBPluginWorkspace.spec.ts > 评审：workspace 旧安装结果不能修改新纪元 > 旧读取在 after-reinstall 失败时不能使成功的新安装重新读取
+AssertionError: expected Promise{…} to be Promise{…} // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: Promise{…}
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ src/__tests__/RxDBPluginWorkspace.spec.ts:1478:22
+    1476|       const repeat = plugin.install(nextScope);
+    1477|       await repeat;
+    1478|       expect(repeat).toBe(current);
+       |                      ^
+    1479|       expect(entriesMock).toHaveBeenCalledTimes(2);
+    1480|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 80 passed (82)
+   Start at  03:22:56
+   Duration  839ms (transform 189ms, setup 0ms, import 318ms, tests 410ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-workspace/junit.xml
+Warning: command "vitest src/__tests__/RxDBPluginWorkspace.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-workspace failed
+
+Failed tasks:
+
+- rxdb-plugin-workspace:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.2s (1 task)
+  Recoverable time:  <1ms

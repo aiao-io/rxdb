@@ -1,0 +1,52 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 3 projects:
+
+- rxdb-plugin-workspace
+- rxdb-plugin-storage
+- rxdb-plugin-replay
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb-plugin-storage:lint --max-warnings=0
+✔  nx run rxdb-plugin-workspace:lint --max-warnings=0
+
+> nx run rxdb-plugin-replay:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:39172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[0m
+[4m/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts[24m
+  [2m61:11[22m  [33mwarning[39m  'sessionId' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m
+
+[33m[1m✖ 1 problem (0 errors, 1 warning)[22m[39m
+[0m
+ESLint found too many warnings (maximum: 0).
+Warning: command "eslint . --max-warnings=0" exited with non-zero status code
+
+
+ NX   Running target lint for 3 projects failed
+
+Failed tasks:
+
+- rxdb-plugin-replay:lint
+
+Output of 2 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      3.1s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.2s (1 task)
+  Recoverable time:  1.9s (62% of the run)

@@ -30,12 +30,12 @@ React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
+当前确认意见：[RV-037](../../RV-037-react-opfs-navigation-upload-race.md)；仅对已取证专题下结论，不代表全对象审完。
 
 ### 尚未完成的专项
 
@@ -49,3 +49,11 @@ React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作�
 - [ ] C6 React 特有边界：沿 AppServiceContext、StrictMode root、定时器和全局 dismiss/object URL hook 审查 mount/unmount 与过期闭包。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### C3 / C6：OPFS 异步目录与上传闭包
+
+🔴 [RV-037：目录切换中上传写入旧目录](../../RV-037-react-opfs-navigation-upload-race.md)。人工沿 route params→useOpfsRouteSync→readDirectory→currentPath→uploadFile 追踪，切换读取完成前 upload 仍使用旧路径。真实 Chromium / OPFS、实际上传按钮和 file chooser 复验 **1 failed / 1 passed**：[日志](../../evidence/2026-10-03/follow-up/react-opfs-real-upload.txt)、[磁盘内容/路由](../../evidence/2026-10-03/follow-up/react-opfs-disk-snapshot.json)。
+
+不是假 filesystem 验证，也不是“取消删除丢文件”。复验只延迟原生目录解析，真实写入仍落盘；正常等待目录的对照成功。完整 C3 / C6 仍待核查，未把 StrictMode、所有写入和全部路由包装成通过。

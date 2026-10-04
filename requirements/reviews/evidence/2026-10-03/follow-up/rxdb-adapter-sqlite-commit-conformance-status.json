@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-sqlite:test",
+    "--args=src/__tests__/working-tree-commit-conformance.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-03T23:22:14.695486+08:00",
+  "exitCode": 0,
+  "log": "rxdb-adapter-sqlite-commit-conformance.txt",
+  "project": "rxdb-adapter-sqlite",
+  "startedAt": "2026-10-03T23:22:07.843214+08:00"
+}

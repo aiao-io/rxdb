@@ -29,11 +29,11 @@ execution: partial
 
 | target         | 当前证据                      | 日志                                                            |
 | -------------- | ----------------------------- | --------------------------------------------------------------- |
-| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)         |
-| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log)    |
-| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.log)         |
-| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)        |
-| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.log) |
+| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)         |
+| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt)    |
+| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)         |
+| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
+| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -43,8 +43,21 @@ execution: partial
 
 - [ ] C1 NEW 草稿边界：对照 README 与事件监听，核查仅 NEW 草稿、不承诺 UPDATE buffer/DELETE 撤销的语义。
 - [ ] C2 install / ready 状态机：检查 IndexedDB 首次载入、未注册实体恢复、失败后的显式重试。
-- [ ] C3 flush 写屏障：审查待写/待删集合、失败后恢复与 WorkspaceFlushError 点名。
+- [x] C3 flush 写屏障（本批限定测量面核销）：审查待写/待删集合、失败后恢复与 WorkspaceFlushError 点名。
 - [ ] C4 快照与跨标签页：核查 structuredClone、BroadcastChannel 身份、重复/乱序与同步错误清理。
 - [ ] C5 生命周期与持久化证明：检查 listener/IDB/broadcast 销毁与 package 子入口，不用内存测试代替重开恢复。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### C3：flush 写屏障核查完成（限定本轮测量面）
+
+🟢 本专题未发现新增缺陷。人工核查 pending/待写/待删快照、逐条 structuredClone 隔离、setMany→delMany 两阶段、失败恢复时较新队列优先、store 身份检查与 flush waiter 结算：源码锚点 [RxDBPluginWorkspace.ts](../../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 第 295–308、493–524、805–938 行。
+
+补入 [两个删除阶段失败/并发新值回归](../../../../packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts)，确认 setMany 已成功而 delMany 失败时不丢合法草稿，显式重试能完成删除，旧批次不会覆盖新排队值。
+
+- 单元项目 **96 passed**：[日志](../../evidence/2026-10-03/follow-up/workspace-unit.txt)，IDB 故障注入使用测试替身。
+- 真实 Chromium / IndexedDB 项目 **20 passed**：[日志](../../evidence/2026-10-03/follow-up/workspace-browser.txt)，覆盖刷新/重开、不可克隆隔离、失败字段修复、关闭中的 flush 和 IDB versionchange。
+
+C3 的规定边界本批已核销；不等于 C2 install 失败/重装竞态、C4 所有跨页乱序、C5 全平台生命周期均已审完。未测所有浏览器、长时间故障或整个对象覆盖率，本轮 coverage 显式关闭。

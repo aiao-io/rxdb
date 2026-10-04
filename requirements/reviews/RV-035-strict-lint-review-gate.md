@@ -19,7 +19,7 @@ baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 - `rxdb-model-vue`：**260 warnings**，集中于 Vue attributes-order / html-self-closing 等模板规则。
 - `dev-rxdb-vue-e2e`：**2 warnings**，playwright/no-identical-title。
 
-原日志：[full-run/lint.log](evidence/2026-10-03/full-run/lint.log)。这不是 worker/EPIPE，也不能靠默认 ESLint 允许 warning 的退出码当作符合 AGENTS.md。
+原日志：[full-run/lint.txt](evidence/2026-10-03/full-run/lint.txt)。这不是 worker/EPIPE，也不能靠默认 ESLint 允许 warning 的退出码当作符合 AGENTS.md。
 
 ## 源码证据与根因
 

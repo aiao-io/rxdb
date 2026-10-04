@@ -1,0 +1,35 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target typecheck for 4 projects:
+
+- rxdb
+- rxdb-plugin-workspace
+- rxdb-plugin-working-tree
+- dev-rxdb-react-e2e
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb:typecheck
+✔  nx run rxdb-plugin-working-tree:typecheck
+✔  nx run rxdb-plugin-workspace:typecheck
+✔  nx run dev-rxdb-react-e2e:typecheck
+
+
+
+ NX   Successfully ran target typecheck for 4 projects
+
+
+Output of 4 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      10.9s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     6.5s (2 tasks)
+  Recoverable time:  4.4s (40% of the run)

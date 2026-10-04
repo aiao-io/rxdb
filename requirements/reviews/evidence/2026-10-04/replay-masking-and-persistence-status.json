@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay:test",
+    "--args=src/__tests__/masking.browser.spec.ts src/__tests__/review-persisted-consent.browser.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "VITEST_BROWSER": "true"
+  },
+  "startedAt": "2026-10-04T04:19:52.081098+08:00",
+  "completedAt": "2026-10-04T04:20:01.377888+08:00",
+  "log": "replay-masking-and-persistence.txt"
+}

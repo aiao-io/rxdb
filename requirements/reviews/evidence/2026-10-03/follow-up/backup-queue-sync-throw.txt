@@ -1,0 +1,71 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb:test --args=src/__tests__/backup/review-queue-sync-throw.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/backup/review-queue-sync-throw.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:98857) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb
+
+11:05:28 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+ ❯ |rxdb (chromium)| src/__tests__/backup/review-queue-sync-throw.spec.ts (3 tests | 1 failed) 108ms
+     × 同步抛错应拒绝外层 Promise，不能永久挂起 107ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb (chromium)| src/__tests__/backup/review-queue-sync-throw.spec.ts > 评审：备份队列任务失败边界 > 同步抛错应拒绝外层 Promise，不能永久挂起
+AssertionError: expected { kind: 'unsettled' } to deeply equal { kind: 'rejected', …(1) }
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "error": Error {[39m
+[32m-     "message": "synchronous backup failure",[39m
+[32m-   },[39m
+[32m-   "kind": "rejected",[39m
+[31m+   "kind": "unsettled",[39m
+[2m  }[22m
+
+ ❯ src/__tests__/backup/review-queue-sync-throw.spec.ts:16:20
+     14|       new Promise<{ kind: 'unsettled' }>(resolve => setTimeout(() => r…
+     15|     ]);
+     16|     expect(outcome).toEqual({ kind: 'rejected', error: failure });
+       |                    ^
+     17|   });
+     18|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  23:05:28
+   Duration  1.34s (transform 0ms, setup 0ms, import 30ms, tests 108ms, environment 0ms)
+
+Warning: command "vitest src/__tests__/backup/review-queue-sync-throw.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb failed
+
+Failed tasks:
+
+- rxdb:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.9s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.9s (1 task)
+  Recoverable time:  <1ms

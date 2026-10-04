@@ -1,0 +1,65 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-sqlite-core:test --args=src/__tests__/backup/memdb-backup.spec.ts src/__tests__/backup/memdb-backup-edge.spec.ts src/__tests__/backup/memdb-engine-backup.spec.ts src/__tests__/backup/memdb-restore-capability.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/backup/memdb-backup.spec.ts src/__tests__/backup/memdb-backup-edge.spec.ts src/__tests__/backup/memdb-engine-backup.spec.ts src/__tests__/backup/memdb-restore-capability.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:99699) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core
+
+3:33:13 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:13 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:13 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:13 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-backup.spec.ts (71 tests | 19 skipped) 2122ms
+3:33:15 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:15 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a memory backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:15 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty memory target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+3:33:15 AM [vite] (client) [console.warn] sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+stderr | src/__tests__/backup/memdb-engine-backup.spec.ts > memdb backup → restore round-trip > restores a persistent backup into an empty persistent target
+sqlite3_step() rc= 2067 SQLITE_CONSTRAINT_UNIQUE SQL = INSERT INTO "public$BackupAuthor" ("id","createdAt","updatedAt","name","createdBy","updatedBy") VALUES (?,?,?,?,?,?) RETURNING rowid as __rowid, *;
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-engine-backup.spec.ts (39 tests | 2 skipped) 1417ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-backup-edge.spec.ts (24 tests) 511ms
+ ✓ |rxdb-adapter-sqlite-core (chromium)| src/__tests__/backup/memdb-restore-capability.spec.ts (4 tests) 63ms
+
+ Test Files  4 passed (4)
+      Tests  117 passed | 21 skipped (138)
+   Start at  03:33:11
+   Duration  6.34s (transform 0ms, setup 0ms, import 1.15s, tests 4.11s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-sqlite-core/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-adapter-sqlite-core
+
+
+  Run duration:      6.8s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     6.8s (1 task)
+  Recoverable time:  <1ms

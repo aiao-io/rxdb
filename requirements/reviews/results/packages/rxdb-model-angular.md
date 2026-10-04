@@ -30,12 +30,12 @@ Angular：metadata 驱动的表单、详情、列表、表格、弹窗与查询�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
+当前确认意见：[RV-040](../../RV-040-angular-model-real-fixtures-leak-rxdb.md)；仅对已取证专题下结论，不代表全对象审完。
 
 ### 尚未完成的专项
 
@@ -48,3 +48,13 @@ Angular：metadata 驱动的表单、详情、列表、表格、弹窗与查询�
 - [ ] C5 Angular 类型与运行证据：核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### C5：真实组件 fixture 生命周期
+
+🟡 [RV-040：两个共享 RxDB 未销毁的真实组件套件合跑失败](../../RV-040-angular-model-real-fixtures-leak-rxdb.md)。detail 单文件 **17 passed**、list 单文件 **44 passed**，原两文件组合 **1 failed / 60 passed**，全包隔离 **35 failed / 249 passed**。给两文件临时副本补显式 afterAll teardown 后 **61 passed**，原始文件 SHA 未变，副本已删除。
+
+证据：[原组合](../../evidence/2026-10-03/follow-up/model-detail-list-pair.txt)、[cleanup 对照](../../evidence/2026-10-03/follow-up/model-cleanup-pair-control.txt)、[输入 SHA / 命令](../../evidence/2026-10-03/follow-up/model-cleanup-pair-control-status.json)。静态实体构造的多库歧义保护应保留；不能凭门禁红就改业务关系组件或核心的数据库选择规则。
+
+原门禁仍红，试验副本绿不是已经修复。C5 只完成这一项 fixture 问题取证，不等于所有真实路由、模板类型和 UI 交互已核查。

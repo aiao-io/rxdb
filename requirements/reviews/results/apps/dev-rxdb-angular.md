@@ -29,10 +29,10 @@ Angular 浏览器综合演示，验证核心、多个 SQLite 档位及 UI/插件
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.log)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.log) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.log)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.log)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -48,3 +48,11 @@ Angular 浏览器综合演示，验证核心、多个 SQLite 档位及 UI/插件
 - [ ] C6 Angular 特有边界：核查 Signal/service provider/路由复用、OnPush 更新，以及本应用特有 failure-archive/replay 等页面的真实流程。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 续执行：2026-10-03 边界取证
+
+### TestBed 异常的隔离复跑
+
+全包独立串行仍 **3 failed / 330 passed**，仅 opfs-file-grid.component.spec.ts 失败：[日志](../../evidence/2026-10-03/follow-up/dev-rxdb-angular-isolated.txt)。该文件单独 **3 passed**：[日志](../../evidence/2026-10-03/follow-up/angular-opfs-grid-alone.txt)。失败在 configureTestingModule 的环境初始化阶段，尚不足以证明缩略图释放的业务实现有缺陷。
+
+已读 test-setup 与本机安装的 Analog setupTestBed：其 Symbol.for('testbed-setup') 全局守卫与每次模块求值后的 TestBed 状态可能脱节，但尚无运行时身份/顺序观测完成归因，不新增已确认 RV、不擅自修图片组件。继续补 TestBed platform / setup 标记和文件顺序的证据。
