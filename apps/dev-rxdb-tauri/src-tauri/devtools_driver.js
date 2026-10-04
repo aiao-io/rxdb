@@ -81,6 +81,8 @@
   const COMMIT_READY_TIMEOUT_MS = 4000;
   /** 等 host 的临时产物出现 / 清干净的上限。 */
   const TEMP_SETTLE_TIMEOUT_MS = 4000;
+  /** 等 connector 真的开出 session 的上限；同样是启动竞态的宽限，见 {@link sessionOpened}。 */
+  const SESSION_OPEN_TIMEOUT_MS = 4000;
   /** 两次重试之间的间隔。 */
   const RETRY_POLL_MS = 100;
   /** 「还不在盘上」的错误码，与 Rust 侧 `ErrorCode::ResourceNotFound` 的线上形态一致。 */
@@ -187,6 +189,8 @@
   let descriptorRuntimes = null;
   /** 入站 EVENT 帧的计数；判据是订阅有没有真的把事件推上 wire（R2 只钉非负）。 */
   let eventFrames = 0;
+  /** 入站 PONG 的计数；{@link sessionOpened} 拿它判断 connector 那一侧的 session 开了没有。 */
+  let pongs = 0;
 
   function invoke(command, payload) {
     return internals.invoke(command, payload);
@@ -225,7 +229,15 @@
     // （connector 铸 session，面板只回显）——它根本不会投递到这个窗口，于是驱动稳定地
     // 等满预算、报一句 `sessionSeen: false`，而主窗口那边 `handshakeCompleted` 明明是 true。
     // 协商完成后每一帧都带着 session，取信封因此既准确又不依赖某一种帧先到。
+    //
+    // 但「拿到 sessionId」不等于「session 已开」：HANDSHAKE 要约的信封上就带着它，而 connector
+    // 要等 ACK 回来才开 session。两者之间的那条缝由 {@link sessionOpened} 补上。
     if (sessionId === null && typeof frame.sessionId === 'string') sessionId = frame.sessionId;
+    // PONG 的载荷是 `null`，必须赶在下面那道载荷判空之前接住。
+    if (frame.type === 'PONG') {
+      pongs += 1;
+      return;
+    }
     if (!frame.payload) return;
     if (frame.type === 'EVENT') {
       eventFrames += 1;
@@ -344,6 +356,35 @@
    */
   function sendFrame(type, payload) {
     return invoke('devtools_message', { payload: JSON.stringify(envelope(type, payload)) });
+  }
+
+  /**
+   * 等 connector 那一侧的 session 真的打开。
+   *
+   * @remarks
+   * **`sessionId` 到手 ≠ session 已开。** connector 在 HANDSHAKE 要约的信封上就放了 sessionId
+   * （`negotiation-connector.ts` 的 `#nextEnvelope`），却要等面板的 `HANDSHAKE_ACK` 回来才开
+   * session（`endpoint.ts` 的 `receive`）；在那之前，数据面帧在 `#route` 的第一道闸前一律静默丢弃。
+   * 面板的 ACK 与驱动的第一条 REQUEST 走同一条 `devtools_message` 中继，谁先到不由驱动决定——
+   * REQUEST 先到时它石沉大海，4 s 后以 `timeout` 结算。实测：跨重启那条用例第一跑报出
+   * `filesList: 'timeout'`，而同一跑后面的每一条请求都答得好好的。
+   *
+   * PING 是判据：端点只在 session 开着时回 PONG，没开时同样静默，所以「收到 PONG」恰好等于
+   * 「此后的 REQUEST 不会被那道闸吞掉」。PING 零副作用，没等到就再发一条。
+   *
+   * @throws 预算内一条 PONG 都没等到时。不带着它去跑后面的探针：那样每一格都是 `timeout`，
+   * 一个真因被摊成三十个症状。
+   */
+  async function sessionOpened() {
+    const deadline = Date.now() + SESSION_OPEN_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      // 取快照再发：上一条 PING 迟到的 PONG 落在这里同样算数——任何一条 PONG 都说明 session 开着。
+      const seen = pongs;
+      await sendFrame('PING', null);
+      await delay(RETRY_POLL_MS);
+      if (pongs > seen) return;
+    }
+    throw new Error('session_not_opened');
   }
 
   /** 发一条 `REQUEST` 并等它的应答；requestId 由本层现铸。 */
@@ -1069,7 +1110,9 @@
         }
         clearInterval(tick);
         beacon('session-seen');
-        const report = providerSource === 'fake' ? runFake() : runReal();
+        const report = sessionOpened().then(function () {
+          return providerSource === 'fake' ? runFake() : runReal();
+        });
         report.then(emitToMain, function (error) {
           void emitToMain({ sessionSeen: true, failure: String(error) });
         });
