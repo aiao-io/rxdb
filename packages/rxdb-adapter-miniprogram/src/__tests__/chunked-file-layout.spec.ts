@@ -189,6 +189,67 @@ describe('分块布局', () => {
     expect(sizes(fileSystem)).toEqual({ [`${DB}.0`]: 4, [`${DB}.1`]: 2 });
   });
 
+  it('先缩短再扩展回原尺寸、期间不同步：扩展区按零落盘，重开读回零', async () => {
+    const fileSystem = new QuotaFileSystem();
+    const first = openVfs(fileSystem);
+    await first.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    await first.write(DB_FILE, [1, 2, 3, 4, 5, 6, 7, 8], 0);
+    await first.vfs.xSync(DB_FILE, 0);
+
+    expect(await first.vfs.xTruncate(DB_FILE, 2, 0)).toBe(0);
+    expect(await first.vfs.xTruncate(DB_FILE, 8, 0)).toBe(0);
+    expect(await first.vfs.xSync(DB_FILE, 0)).toBe(0);
+    expect([...(fileSystem.files.get(`${DB}.0`) ?? [])]).toEqual([1, 2, 0, 0]);
+    expect([...(fileSystem.files.get(`${DB}.1`) ?? [])]).toEqual([0, 0, 0, 0]);
+    await first.vfs.xClose(DB_FILE);
+    await closeVfs(first.handle);
+
+    const second = openVfs(fileSystem);
+    await second.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    expect(await second.read(DB_FILE, 8)).toEqual([1, 2, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it('截断组合跨越多个块：同步、关闭、重开后与同步前的内存视图一致', async () => {
+    const fileSystem = new QuotaFileSystem();
+    const first = openVfs(fileSystem);
+    await first.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    await first.write(DB_FILE, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], 0);
+    await first.vfs.xSync(DB_FILE, 0);
+
+    await first.vfs.xTruncate(DB_FILE, 5, 0);
+    await first.vfs.xTruncate(DB_FILE, 11, 0);
+    const before = await first.read(DB_FILE, 11);
+    expect(await first.vfs.xSync(DB_FILE, 0)).toBe(0);
+    await first.vfs.xClose(DB_FILE);
+    await closeVfs(first.handle);
+
+    expect(before).toEqual([1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0]);
+    const second = openVfs(fileSystem);
+    await second.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    expect(await second.size(DB_FILE)).toBe(11);
+    expect(await second.read(DB_FILE, 11)).toEqual(before);
+  });
+
+  it('写入后再截断：写入标的脏块与截断标的脏块都不丢', async () => {
+    const fileSystem = new QuotaFileSystem();
+    const first = openVfs(fileSystem);
+    await first.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    await first.write(DB_FILE, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 0);
+    await first.vfs.xSync(DB_FILE, 0);
+
+    await first.write(DB_FILE, [90], 0);
+    await first.vfs.xTruncate(DB_FILE, 6, 0);
+    await first.vfs.xTruncate(DB_FILE, 12, 0);
+    await first.write(DB_FILE, [70], 10);
+    expect(await first.vfs.xSync(DB_FILE, 0)).toBe(0);
+    await first.vfs.xClose(DB_FILE);
+    await closeVfs(first.handle);
+
+    const second = openVfs(fileSystem);
+    await second.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    expect(await second.read(DB_FILE, 12)).toEqual([90, 2, 3, 4, 5, 6, 0, 0, 0, 0, 70, 0]);
+  });
+
   it('越过末尾写入时补齐中间块，块号不留空洞', async () => {
     const fileSystem = new QuotaFileSystem();
     const { vfs, write } = openVfs(fileSystem);
@@ -246,6 +307,38 @@ describe('分块布局', () => {
     fileSystem.files.set(DB, new Uint8Array(4096));
 
     expect(() => openVfs(fileSystem)).toThrow(`测试文件 VFS 声明了分块布局，但 ${DB} 是单文件布局`);
+    expect(sizes(fileSystem)).toEqual({ [DB]: 4096 });
+    expect(fileSystem.operations).toEqual([]);
+  });
+
+  it('库目录里已有分块布局的数据库时，单文件布局拒绝创建，不新建空库', async () => {
+    const fileSystem = new QuotaFileSystem();
+    const first = openVfs(fileSystem);
+    await first.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0);
+    await first.write(DB_FILE, [1, 2, 3, 4, 5, 6], 0);
+    await first.vfs.xSync(DB_FILE, 0);
+    await first.vfs.xClose(DB_FILE);
+    await closeVfs(first.handle);
+    const before = sizes(fileSystem);
+    const operations = fileSystem.operations.length;
+
+    expect(() => openVfs(fileSystem, { kind: 'single' })).toThrow(`测试文件 VFS 声明了单文件布局，但 ${DB} 是分块布局`);
+    expect(sizes(fileSystem)).toEqual(before);
+    expect(fileSystem.operations.slice(operations)).toEqual([]);
+
+    const reopened = openVfs(fileSystem);
+    expect(await reopened.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0)).toBe(0);
+    expect(await reopened.read(DB_FILE, 6)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('单文件布局拒绝切到分块后，原单文件库仍可正常重开', async () => {
+    const fileSystem = new QuotaFileSystem();
+    fileSystem.files.set(DB, new Uint8Array([5, 6, 7]));
+
+    expect(() => openVfs(fileSystem)).toThrow(`测试文件 VFS 声明了分块布局，但 ${DB} 是单文件布局`);
+    const reopened = openVfs(fileSystem, { kind: 'single' });
+    expect(await reopened.vfs.xOpen(0, NAME_DB, DB_FILE, OPEN_DB, 0)).toBe(0);
+    expect(await reopened.read(DB_FILE, 3)).toEqual([5, 6, 7]);
   });
 
   it.each([0, -4, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('chunkBytes 为 %s 时拒绝', chunkBytes => {

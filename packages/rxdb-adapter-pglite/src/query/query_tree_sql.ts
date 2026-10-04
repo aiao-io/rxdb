@@ -4,7 +4,7 @@ import type { SetOptional } from 'type-fest';
 import { getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import type { FieldAlias } from './json_accessor.js';
-import { buildRuleGroupPG, GenerateSqlResult } from './query_sql.js';
+import { buildRuleGroupPG, GenerateSqlResult, metadata_resolver } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
 
 /**
@@ -98,7 +98,14 @@ export const generate_tree_sql = (
 
     collectFieldAliases(rule_group);
 
-    const whereClause = buildRuleGroupPG(rule_group, params, fieldAliasMap, metadata);
+    const whereClause = buildRuleGroupPG(
+      rule_group,
+      params,
+      fieldAliasMap,
+      metadata,
+      undefined,
+      metadata_resolver(adapter)
+    );
     if (whereClause) {
       children_where_conditions.push(whereClause);
     }

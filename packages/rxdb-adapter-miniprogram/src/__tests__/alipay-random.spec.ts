@@ -21,6 +21,17 @@ function manualWorker() {
   return { worker, requests, reply: (message: unknown) => listener?.(message) };
 }
 
+/** 多监听的 Worker：每次 `onMessage` 都追加监听，回复分发给所有监听。 */
+function multiListenerWorker() {
+  const listeners: ((message: unknown) => void)[] = [];
+  const requests: { type: string; id: number; length: number }[] = [];
+  const worker: AlipayRandomWorker = {
+    postMessage: message => requests.push(message as (typeof requests)[number]),
+    onMessage: next => listeners.push(next)
+  };
+  return { worker, requests, listeners, reply: (message: unknown) => listeners.forEach(listener => listener(message)) };
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -169,6 +180,76 @@ describe('createAlipayRandomSource', () => {
     await expect(createAlipayRandomSource(worker)(4)).rejects.toMatchObject({
       capability: 'worker-crypto-random',
       cause
+    });
+  });
+
+  describe('多个随机源复用同一 Worker（页面重进时新 host 拿到旧 Worker）', () => {
+    it('请求 ID 共享、不冲突，回复分派给各自的请求', async () => {
+      const { worker, requests, reply } = manualWorker();
+      const oldSource = createAlipayRandomSource(worker);
+      const newSource = createAlipayRandomSource(worker);
+      const first = oldSource(1);
+      const second = newSource(2);
+      await vi.waitFor(() => expect(requests).toHaveLength(1));
+      reply({ id: 0, ok: true, value: [7] });
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      reply({ id: 1, ok: true, value: [8, 9] });
+
+      expect(requests).toEqual([
+        { type: 'random', id: 0, length: 1 },
+        { type: 'random', id: 1, length: 2 }
+      ]);
+      await expect(first).resolves.toEqual(new Uint8Array([7]));
+      await expect(second).resolves.toEqual(new Uint8Array([8, 9]));
+    });
+
+    it('旧随机源的请求在途时建新随机源：新旧请求都正确完成，之后仍可继续取', async () => {
+      const { worker, requests, reply } = manualWorker();
+      const pendingOld = createAlipayRandomSource(worker)(1);
+      await vi.waitFor(() => expect(requests).toHaveLength(1));
+      const newSource = createAlipayRandomSource(worker);
+      const pendingNew = newSource(2);
+      reply({ id: 0, ok: true, value: [7] });
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      reply({ id: 1, ok: true, value: [1, 2] });
+
+      await expect(pendingOld).resolves.toEqual(new Uint8Array([7]));
+      await expect(pendingNew).resolves.toEqual(new Uint8Array([1, 2]));
+      const next = newSource(1);
+      await vi.waitFor(() => expect(requests).toHaveLength(3));
+      reply({ id: 2, ok: true, value: [3] });
+      await expect(next).resolves.toEqual(new Uint8Array([3]));
+    });
+
+    it('多监听 Worker 上只挂一次监听：不重复分派，也不因对不上号而失效', async () => {
+      const { worker, requests, listeners, reply } = multiListenerWorker();
+      const oldSource = createAlipayRandomSource(worker);
+      const newSource = createAlipayRandomSource(worker);
+      const first = oldSource(1);
+      const second = newSource(1);
+      await vi.waitFor(() => expect(requests).toHaveLength(1));
+      reply({ id: 0, ok: true, value: [4] });
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      reply({ id: 1, ok: true, value: [5] });
+
+      expect(listeners).toHaveLength(1);
+      await expect(first).resolves.toEqual(new Uint8Array([4]));
+      await expect(second).resolves.toEqual(new Uint8Array([5]));
+    });
+
+    it('真实 Worker 脚本下两个随机源并发取数，各自拿到正确长度', async () => {
+      const worker = createFakeRandomWorker();
+      const [first, second] = await Promise.all([
+        createAlipayRandomSource(worker)(3),
+        createAlipayRandomSource(worker)(5)
+      ]);
+
+      expect(first).toHaveLength(3);
+      expect(second).toHaveLength(5);
+      expect(worker.requests).toEqual([
+        { type: 'random', id: 0, length: 3 },
+        { type: 'random', id: 1, length: 5 }
+      ]);
     });
   });
 });

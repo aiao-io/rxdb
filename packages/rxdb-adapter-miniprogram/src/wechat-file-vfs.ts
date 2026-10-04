@@ -510,8 +510,13 @@ function writeFile(
     file.data = expanded;
   }
   file.data.set(module.HEAPU8.subarray(input, input + length), position);
-  const lastChunk = Math.floor((required - 1) / file.chunkBytes);
-  for (let index = Math.floor(position / file.chunkBytes); index <= lastChunk; index++) file.dirtyChunks.add(index);
+  markDirty(file, position, required);
+}
+
+/** 把字节区间 `[start, end)` 覆盖到的块标脏；内容变了就得重写，不能只看块长度。 */
+function markDirty(file: BufferedFile, start: number, end: number): void {
+  const lastChunk = Math.floor((end - 1) / file.chunkBytes);
+  for (let index = Math.floor(start / file.chunkBytes); index <= lastChunk; index++) file.dirtyChunks.add(index);
   file.dirty = true;
 }
 
@@ -520,8 +525,8 @@ function truncateFile(file: BufferedFile, size: number): void {
   if (size === file.data.length) return;
   const resized = new Uint8Array(size);
   resized.set(file.data.subarray(0, Math.min(size, file.data.length)));
+  markDirty(file, Math.min(size, file.data.length), Math.max(size, file.data.length));
   file.data = resized;
-  file.dirty = true;
 }
 
 /** 将 two 32-bit words 合并为一个 JS number。 */
@@ -608,6 +613,9 @@ export function createMiniProgramFileVFS(
   mkdirRecursive(fileSystem, root);
   if (layout.kind === 'chunked' && fileExists(fileSystem, activeDatabase)) {
     throw new Error(`${host.shortName}文件 VFS 声明了分块布局，但 ${activeDatabase} 是单文件布局`);
+  }
+  if (layout.kind === 'single' && fileExists(fileSystem, chunkPath(activeDatabase, 0))) {
+    throw new Error(`${host.shortName}文件 VFS 声明了单文件布局，但 ${activeDatabase} 是分块布局`);
   }
   if (ACTIVE_DATABASES.has(activeDatabase)) {
     throw new Error(`${host.shortName}文件 VFS 不支持同一数据库的并发连接: ${activeDatabase}`);

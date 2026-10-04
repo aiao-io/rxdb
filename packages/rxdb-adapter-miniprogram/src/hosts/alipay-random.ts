@@ -47,16 +47,18 @@ function describeMessage(message: unknown): string {
 }
 
 /**
- * 经 Worker 取随机数的 `requestRandomValues`。
+ * 一个 Worker 上唯一的请求通道：请求 ID、排队与消息监听都按 Worker 共享。
  *
- * 建出来时就给 Worker 挂上消息监听；请求按 64 KiB 分块，所有块（含并发调用的）排成一队依次发出，
- * 上一块回复后才发下一块，拼成恰好 `length` 字节的新缓冲区。Worker 本来就串行处理，排队不增加总耗时，
- * 却让每块的超时只算自己的往返：iOS 真机 1 MiB 要 7.6 秒（v6 实测），并发发出时后面的块会白白耗掉超时。
- * 对不上号的回复说明协议已乱，在途、排队与之后的请求一律失败。
- *
- * @param worker - `my.createWorker` 返回的、跑着包内 `alipay-random-worker.js` 的 Worker
+ * 页面重进会把同一个 Worker 交给新建的 host，旧随机池的补给可能还在途；
+ * 若每个随机源各管各的 ID 与监听，回复就会错配给别的随机源。
  */
-export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: number) => Promise<Uint8Array> {
+interface RandomChannel {
+  readonly requestChunk: (length: number) => Promise<Uint8Array>;
+}
+
+const channels = new WeakMap<AlipayRandomWorker, RandomChannel>();
+
+function createChannel(worker: AlipayRandomWorker): RandomChannel {
   const pending = new Map<number, Pending>();
   let nextId = 0;
   let queue: Promise<unknown> = Promise.resolve();
@@ -101,12 +103,35 @@ export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: n
     });
   };
 
-  const requestChunk = (length: number): Promise<Uint8Array> => {
-    const response = queue.then(() => postChunk(length));
-    queue = response.catch(() => undefined);
-    return response;
+  return {
+    requestChunk: length => {
+      const response = queue.then(() => postChunk(length));
+      queue = response.catch(() => undefined);
+      return response;
+    }
   };
+}
 
+function channelOf(worker: AlipayRandomWorker): RandomChannel {
+  const existing = channels.get(worker);
+  if (existing !== undefined) return existing;
+  const created = createChannel(worker);
+  channels.set(worker, created);
+  return created;
+}
+
+/**
+ * 经 Worker 取随机数的 `requestRandomValues`。
+ *
+ * 同一个 Worker 只挂一次消息监听，经它建出的所有随机源共用请求 ID 与队列；请求按 64 KiB 分块，
+ * 所有块（含并发调用、其他随机源的）排成一队依次发出，上一块回复后才发下一块，拼成恰好 `length` 字节的新缓冲区。
+ * Worker 本来就串行处理，排队不增加总耗时，却让每块的超时只算自己的往返：iOS 真机 1 MiB 要 7.6 秒（v6 实测），
+ * 并发发出时后面的块会白白耗掉超时。对不上号的回复说明协议已乱，该 Worker 上在途、排队与之后的请求一律失败。
+ *
+ * @param worker - `my.createWorker` 返回的、跑着包内 `alipay-random-worker.js` 的 Worker
+ */
+export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: number) => Promise<Uint8Array> {
+  const { requestChunk } = channelOf(worker);
   return async length => {
     if (!Number.isInteger(length) || length < 0) throw new RangeError(`随机数长度必须是非负整数：${String(length)}`);
     const offsets: number[] = [];
