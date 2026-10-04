@@ -236,32 +236,32 @@ defineExpose({
         :is="theme.operatorSelector"
       />
       <button
-        class="btn btn-ghost btn-xs"
         v-if="isExistsOperator && !subqueryVisible"
-        @click="onAddSubcondition"
+        class="btn btn-ghost btn-xs"
         title="添加子条件"
         type="button"
+        @click="onAddSubcondition"
       >
         + 子条件（可选）
       </button>
       <component
         v-bind="valueInputInputs"
-        v-else-if="!isNoValueOperator"
         :is="theme.valueInput"
+        v-else-if="!isNoValueOperator"
       />
       <button
         class="btn btn-ghost btn-xs btn-square text-base-content/30 hover:text-error ml-auto"
-        @click="onRemove"
         title="删除条件"
         type="button"
+        @click="onRemove"
       >
         ✕
       </button>
     </div>
     <component
       v-bind="valueInputInputs"
-      v-if="isExistsOperator && subqueryVisible"
       :is="theme.valueInput"
+      v-if="isExistsOperator && subqueryVisible"
     />
   </div>
 </template>

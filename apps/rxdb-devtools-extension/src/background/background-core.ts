@@ -147,6 +147,14 @@ export function createBackgroundController(dependencies: BackgroundDependencies)
         // INIT 是扩展内部消息（面板 → background，永不下页面），所以它先于中继判定处理：
         // 它是唯一一条 background 自己消费而不转发的帧。
         if (isDevToolsMessage(message) && isInitMessage(message)) {
+          // RV-048：同一个 port 换 tab 重新 INIT 时，旧 tab→port 关联必须先原子撤销，
+          // 否则 `ports` 里会同时留着旧/新两个 tabId 都指向这同一个 port——
+          // receiveContent 按 tabId 直查该 map，旧 tab 上行数据会继续被转发进来；
+          // disconnect 又只清理当时的 connectedTabId，旧绑定从此成了没人回收的残留。
+          // 只在旧 tab 仍指向本 port 时才撤销：这保留着「旧 port 不能删除新 port」的身份守卫。
+          if (connectedTabId !== null && connectedTabId !== message.tabId && ports.get(connectedTabId) === port) {
+            ports.delete(connectedTabId);
+          }
           connectedTabId = message.tabId;
           ports.set(message.tabId, port);
           activateTab(message.tabId);

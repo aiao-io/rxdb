@@ -401,12 +401,12 @@ defineExpose({
 <template>
   <div class="rxdb-entity-table relative h-full w-full overflow-hidden">
     <div
-      class="absolute inset-0"
       ref="tableContainer"
+      class="absolute inset-0"
     />
     <div
-      class="text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm"
       v-if="records.length === 0 && !loading"
+      class="text-base-content/40 absolute inset-x-0 bottom-0 flex items-center justify-center text-sm"
       :style="{ top: headerHeight + 'px' }"
       aria-label="暂无数据"
       role="status"
@@ -442,20 +442,20 @@ defineExpose({
       </div>
     </div>
     <div
-      class="bg-base-100/60 absolute inset-0 z-10 flex items-center justify-center"
       v-if="loading"
+      class="bg-base-100/60 absolute inset-0 z-10 flex items-center justify-center"
     >
       <span class="loading loading-spinner loading-md text-primary" />
     </div>
     <div
-      class="pointer-events-none absolute right-0 bottom-0 left-0 z-10 flex justify-center py-1.5"
       v-if="loadingMore"
+      class="pointer-events-none absolute right-0 bottom-0 left-0 z-10 flex justify-center py-1.5"
     >
       <span class="loading loading-dots loading-sm text-primary" />
     </div>
     <div
-      class="bg-base-300 text-base-content border-base-300 pointer-events-none fixed z-[100] max-w-xs rounded border px-2 py-1.5 text-xs shadow-lg"
       v-if="cellTooltip"
+      class="bg-base-300 text-base-content border-base-300 pointer-events-none fixed z-[100] max-w-xs rounded border px-2 py-1.5 text-xs shadow-lg"
       :style="{ left: cellTooltip.x + 'px', top: cellTooltip.y + 'px' }"
       aria-atomic="true"
       aria-live="assertive"

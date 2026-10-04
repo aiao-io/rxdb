@@ -173,13 +173,13 @@ defineExpose({
 <template>
   <div class="subquery-builder border-base-300 bg-base-200/50 p-2">
     <div
-      class="text-base-content/60 flex items-center gap-2"
       v-if="!hasRules"
+      class="text-base-content/60 flex items-center gap-2"
     >
       <button
         class="btn btn-ghost btn-xs"
-        @click="handleAddFirstRule"
         type="button"
+        @click="handleAddFirstRule"
       >
         + 添加子条件
       </button>
@@ -201,8 +201,8 @@ defineExpose({
       <div class="mt-2 flex justify-end">
         <button
           class="btn btn-ghost btn-xs text-error"
-          @click="handleClear"
           type="button"
+          @click="handleClear"
         >
           清空
         </button>

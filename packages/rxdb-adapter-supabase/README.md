@@ -328,9 +328,14 @@ pnpm nx test rxdb-adapter-supabase
 
 # 覆盖率
 pnpm nx test rxdb-adapter-supabase --coverage
+
+# 用完手动清理（只清理本 checkout 自己起的容器/project，不影响其他 checkout）
+pnpm nx run rxdb-adapter-supabase:test-env-down
 ```
 
-测试自动注入环境变量 `VITE_SUPABASE_URL`（`http://localhost:54331`）与 `VITE_SUPABASE_KEY`（取自 `docker/docker-compose.ci.yml`）。容器与初始化脚本见 [docker/](https://github.com/aiao-io/rxdb/tree/main/docker)。
+`test-env` 按本 checkout 的绝对路径派生专属的 compose project 名和五个容器名（`docker/supabase-ci-identity.sh`），Kong 端口交给 docker 动态分配后落盘；`test` 目标据此拼 `VITE_SUPABASE_URL`，`VITE_SUPABASE_KEY` 仍取自 `docker/docker-compose.ci.yml`。这样多个 checkout 在同一台机器上并行跑 `test-env` 不会互相撞容器名/端口（RV-036）。容器与初始化脚本见 [docker/](https://github.com/aiao-io/rxdb/tree/main/docker)。
+
+> CI（`.github/actions/supabase/action.yml`）走另一条路径：不设这些环境变量，`docker-compose.ci.yml` 的 `${VAR:-字面量}` 默认值原样生效，固定用 `supabase-db`/`supabase-kong`/`54331` 等字面量，和这里的按 checkout 隔离互不影响。
 
 > 纯单元用例（如 `rule_group_builder` 转义、tree fallback、retry）不依赖网络，可单独运行：
 > `pnpm exec vitest run src/__tests__/review-regressions.spec.ts`（需在包目录下）。

@@ -175,8 +175,8 @@ defineExpose({
 
 <template>
   <div
-    class="rxdb-entity-dialog"
     ref="rootEl"
+    class="rxdb-entity-dialog"
   >
     <!-- Resize handles -->
     <template v-if="isInDialog">
@@ -216,8 +216,8 @@ defineExpose({
 
     <!-- Dialog Title Bar (drag handle + fullscreen toggle + close) -->
     <div
-      class="border-base-300 flex shrink-0 items-center justify-between border-b px-4 py-2"
       v-if="isInDialog"
+      class="border-base-300 flex shrink-0 items-center justify-between border-b px-4 py-2"
     >
       <span
         class="flex-1 cursor-grab text-base font-semibold select-none active:cursor-grabbing"
@@ -230,12 +230,12 @@ defineExpose({
         <button
           class="btn btn-ghost btn-xs btn-square"
           :aria-label="isFullscreen ? '退出全屏' : '全屏'"
-          @click="toggleFullscreen"
           type="button"
+          @click="toggleFullscreen"
         >
           <svg
-            class="h-4 w-4"
             v-if="isFullscreen"
+            class="h-4 w-4"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -244,8 +244,8 @@ defineExpose({
             <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
           </svg>
           <svg
-            class="h-4 w-4"
             v-else
+            class="h-4 w-4"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -257,9 +257,9 @@ defineExpose({
         <!-- Close -->
         <button
           class="btn btn-ghost btn-xs btn-square"
-          @click="close"
           aria-label="关闭"
           type="button"
+          @click="close"
         >
           <svg
             class="h-4 w-4"

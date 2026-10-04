@@ -102,8 +102,6 @@
 
 - [RV-032](RV-032-vue-search-options-mutation.md)
 - RV-033（已修复，记录已删除）
-- [RV-035](RV-035-strict-lint-review-gate.md)
-- [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
 
 完整运行结果、未完成项与逐对象记录见 [实际执行台账](execution-2026-10-03.md)。
 
@@ -122,8 +120,6 @@
 ## 2026-10-04：新一批实际边界评审
 
 - RV-042：workspace 旧 install 结算污染新纪元（已修复，记录已删除）
-- [RV-043：文件 fetch 早期拒绝未取消响应体](RV-043-storage-fetch-response-body-leak.md)
-- [RV-044：桌面逻辑路径别名覆盖另一记录的真实文件内容](RV-044-desktop-logical-path-alias-data-overwrite.md)
 
 [本批实际专题、源码/运行证据与剩余项](execution-2026-10-04.md)。更新 7 个对象；replay 包级 C1 核销，应用授权不随之验收。全对象深审仍 0 个完成。
 
@@ -131,14 +127,11 @@
 
 - [RV-045：PGlite 树普通字段筛选歧义](RV-045-pglite-tree-scalar-filter-ambiguous-column.md)
 - [RV-046：过滤祖先后的树增量/SQL 漂移](RV-046-tree-filtered-ancestor-incremental-drift.md)
-- [RV-047：DevTools changes 环引用预处理溢出](RV-047-devtools-mask-circular-changes-overflow.md)
-- [RV-048：扩展 port 重 INIT 的旧 tab 映射残留](RV-048-extension-port-reinit-stale-tab-binding.md)
 
 [本批实际执行、取证限制与剩余项](execution-2026-10-04-tree-devtools.md)：4 个 P2、6 个对象记录更新，真实后端与模型/传输接缝严格区分。
 
 ## 2026-10-04 第四批：生成器、图与小程序
 
-- [RV-049：首次输出父软链别名绕过队列](RV-049-generator-new-output-alias-queue-order.md)
 - [RV-050：图查询 NaN 深度假成功](RV-050-graph-nan-depth-silent-empty-result.md)
 - [RV-051：小程序卸载后的迟到引导未释放](RV-051-miniprogram-late-bootstrap-after-unload.md)
 

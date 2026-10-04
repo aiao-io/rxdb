@@ -245,14 +245,31 @@ const buildOnce = async (
  *
  * 词法路径下，指向同一物理目录的两个软链别名会得到两个队列，
  * 串行化随之失效，两条构建互相删除对方的产物（RCG-004）。
+ *
+ * @remarks
+ * RV-049：输出目录首次生成时尚不存在，`realpathSync(absolute)` 整体失败；原实现在此
+ * 直接退回词法绝对路径，于是父目录软链的两个别名各自登记到不同队列，串行化对
+ * 「目录还不存在」这一常见首次构建场景完全失效。
+ *
+ * 修复：自底向上找到**最近存在的祖先目录**做 realpath，再把尚不存在的后续段原样拼回去——
+ * 两个共享同一物理父目录（或其软链别名）的首次输出路径由此落到同一个 key，
+ * 且不在目录创建前擅自写盘。
  */
 const resolveQueueKey = (outDir: string): string => {
   const absolute = resolve(outDir);
-  try {
-    return realpathSync(absolute);
-  } catch {
-    // 首次生成时目录还不存在，此时也不存在别名问题
-    return absolute;
+  const pendingSegments: string[] = [];
+  let probe = absolute;
+  for (;;) {
+    try {
+      const realAncestor = realpathSync(probe);
+      return pendingSegments.length === 0 ? realAncestor : `${realAncestor}${sep}${pendingSegments.join(sep)}`;
+    } catch {
+      const parent = dirname(probe);
+      // 已经到文件系统根仍不存在：没有可 realpath 的祖先，原样返回词法路径
+      if (parent === probe) return absolute;
+      pendingSegments.unshift(probe.slice(parent.length + sep.length));
+      probe = parent;
+    }
   }
 };
 
