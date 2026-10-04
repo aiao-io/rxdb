@@ -19,10 +19,7 @@
 
 - [全范围执行台账](execution-2026-10-03.md)：70 个对象均已启动入口/门禁阶段，0 个全对象深审完成。
 - [按包实际评审记录](results/packages/) / [按应用实际评审记录](results/apps/)。
-- 本批确认 5 个业务源码问题（1 P1＋4 P2），不是对计划的评论：
-  - [RV-027-pglite-keyvalue-query-semantics](RV-027-pglite-keyvalue-query-semantics.md)
-  - [RV-028-core-keyvalue-missing-key-null](RV-028-core-keyvalue-missing-key-null.md)
-  - [RV-029-core-empty-notin-null](RV-029-core-empty-notin-null.md)
+- 本批确认 2 个业务源码问题（1 P1＋1 P2），不是对计划的评论：
   - [RV-030-http-server-invalid-url-crash](RV-030-http-server-invalid-url-crash.md)
   - [RV-031-http-server-metadata-body-shape](RV-031-http-server-metadata-body-shape.md)
 
@@ -39,6 +36,8 @@
 | `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                                      |
 | `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证并移出多租户，R04 复现后拆出 US-218 |
 
+> **2026-10-05 清理（RV-027/RV-028/RV-029/RV-034 查询三后端语义不一致）**：四份文件整份删除——4 条（1 P1 + 3 P2）复核全部属实并修复，核心 JS / SQLite / PGlite 三后端查询语义归一。**RV-028**（keyValue 缺失键的 NULL 语义）：`packages/rxdb/src/query/query-matching.utils.ts` 的 `get_entity_match_rule` 把 `contains`/`notContains` 的逐键比较改成三值结果（缺失/`null` 键记为 `undefined`，不参与 `contains` 的 OR 命中，也不满足 `notContains` 的 AND），不再把缺失键模板字面量拼成字符串 `"undefined"` 参与子串比较，对齐 SQLite `instr(json_extract(...), ...)` 遇 NULL 即排除的既有行为。**RV-029**（空 `notIn` 集合与 NULL 行）：同一文件在 `NULL_EXCLUDED_OPERATORS` 短路之前新增空 `in`/`notIn` 数组的早判——`notIn` 恒真、`in` 恒假，不再因列为 NULL 被短路成 `false`，对齐两个 SQL 后端早已有的 `1=1`/`1=0` 归一化。**RV-027**（PGlite keyValue contains 的整体 jsonb 包含）：`packages/rxdb-adapter-pglite/src/query/query_sql.ts` 新增 `build_keyvalue_contains_pg`，把 `PropertyType.keyValue` 的 `contains`/`notContains` 改成逐键 `->>` 文本 + `LIKE` 子串（多键 `contains` 用 OR、`notContains` 用 AND 各自 `NOT (...)`），不再对整个对象用 `@> ::jsonb` 子集包含；`PropertyType.json`（纯 JSON 字段）不受影响，仍用 `@>`。**RV-034**（PGlite 数组 in/notIn 的全包含语义）：同一文件把 `stringArray`/`numberArray` 的 `in`/`notIn` 从数组包含 `@>` 改成重叠 `&&`（`notIn` 包一层 `NOT (...)`），语义与核心 JS 的 `.some(includes)`、SQLite 的 `json_each`+`IN` 一致——候选值里任一命中即可，不要求全部命中；并把空 `in`/`notIn` 数组的早判提到类型分流之前，与核心 JS 的顺序一致。连带更新了 7 处断言着旧 `@>`/jsonb 包含语义的既有测试（`rxdb-adapter-pglite` 的 `test-type-demo.spec.ts`、`query-safety.spec.ts`、`query_sql.residual.spec.ts`、`query_sql.utils.spec.ts`），这些断言本身就是在钉 RV-027/034 指出的 bug，改法与新断言见对应文件；`test-type-demo.spec.ts` 里原本误用 `keyValue` 字段验证「JSON 字段走 jsonb」的一条改用真正的纯 `json` 字段。三个核心包 `lint`/`typecheck`/`test` 全绿，详见 `evidence/2026-10-05/query-semantics/`。
+>
 > **2026-10-03 清理（RV-026 US-028 分支评审）**：`RV-026-us-028-branch-review.md` 整份删除——6 条（1 P1 + 5 P2）复核全部属实并修复。**R01** 重排 / 改组算键只认库里的值（`origin`），写回后把未保存编辑重新挂回实例（`updateKeepingEdits`），PGlite 写回不再无条件清 `modified`；**R02** 同批显式给的键当作同组已占用位置，自动键从库尾键与它们中较大者之后开始；**R03** 事务失败撤回引擎赋上的自动键（`snapshotSortOrders`），调用方显式给的键不动；**R04** 多字段分组的目标组取库里的值合并本次 patch，不读 patch 外的未保存编辑；R01～R04 的跨适配器契约在 `rxdb-test` 的 `manual-order-edits.suite.ts`。**R05** `FixedRowDrag` 会话绑定起拖时的 id 序列，列表在拖拽中变了就取消；松手回调带被拖行 id 与 id 快照，三端页面在错误处理内换算落点，三端 e2e 补「拖拽中新增一行」用例。**R06** 三端 e2e 的 9 条清零（e2e 配置让 `expect-expect` 识别 `expectOrder`，自动滚动的条件轮询移入辅助函数）；`EntityList.vue` 的 2 条 `vue/attributes-order` 不是改顺序能修的：`.prettierrc` 的 `prettier-plugin-organize-attributes`（Vue 预设 `class` → `id` → `v-*` → 其余 ASCII 升序）与该规则方向相反，按规则改完 `nx format:check`（pre-push）即失败、`format:write` 又改回去，该包既有 260 条同类警告同源；要清零须统一两者（给 `*.vue` 配与规则一致的 `attributeGroups` 并全仓重排，或关掉二者之一），属全仓工具决策，未在本分支处理。
 
 > **2026-10-03 清理（RV-025 US-028 可排序实体开发准入复评）**：未落文件，结论直接回写。✅ 进入开发，故事转 In Progress / Medium，驱动路径 A → D → E。owner 已把驱动场景定为三端 Todo 按 `completed` 分组手动排序，立项判据不再卡；本次只核契约与改动面，无需 owner 再决策。现状断言逐条属实：`buildTableOptions` 默认开 `dragOrder`、`rowReordered` 无消费方、三端 `LIST_TABLE_OPTIONS` 关手柄、`buildCursorOrderBy` 返回 `[id desc]`、`assertEntityOperationAllowed` 挂在门面三个写方法与 `EntityManager.mutations()`、boolean 两端 `false` 在前、`Todo.completed` 非空无 NULL 组、electron / tauri 适配器继承两类本地基类。回写的事实错误：`Todo` 引用面是约 17 个项目而非「20 多」，小程序用 `MiniProgramTodo`、electron 备份测试用 `PLAIN_ENTITIES`、history / sync 测试用自有实体、不存在 QueryCache 主端的 `Todo`，「直接声明可排序会让 QueryCache 主端报错」改为 supabase Full 同步远端缺列与无 `orderBy` 查询改序；Todo tab 是「进行中」而非「未完成」；「事务能力已有」只对 `mutations` 成立，门面 create / update 在事务外生成 SQL，阶段 A 补改走主适配器事务。补齐的契约：查询默认排序须由四个读入口共用的归一化函数同时喂给 runner 与 `QueryManager.createTask`；`@aiao/utils` 没有导出的键校验（私有 `validateOrderKey` 不查小数位），阶段 A 补导出；SQL 二进制比较覆盖 `WHERE`；批量改分组（`saveMany` 全部完成）按新组拆分、按批内顺序追加（AC#16）；重排邻居取 `target.row ± 1`、原位放下不触发事件；`tableOptions` 只在建表时读，谓词变化须有动态机制。漏算的改动面：三端 `working-tree.spec.ts` 断言 `todos` 表名、三端 `entity-model.spec.ts` 约束新实体命名、`published-model-invariants.spec.ts` 的 `toHaveLength(13)`、Angular `todo.page.spec.ts` 的 mock、electron / tauri 五个各自列实体的 setup、Angular 排序按钮缺 `data-testid`；Todo 拖拽的约束（三端虚拟滚动、批量添加到 10,000、仓库无拖拽库、Angular `trackBy` 按指纹重建行、独立手柄、页面显式 `orderBy`、历史侧栏改指新实体）写进技术笔记，组件选型留 plan；AC#18 / #19 按上述改写。
@@ -103,7 +102,6 @@
 
 - [RV-032](RV-032-vue-search-options-mutation.md)
 - [RV-033](RV-033-utils-queue-settlement-id-reuse.md)
-- [RV-034](RV-034-pglite-array-membership-semantics.md)
 - [RV-035](RV-035-strict-lint-review-gate.md)
 - [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
 

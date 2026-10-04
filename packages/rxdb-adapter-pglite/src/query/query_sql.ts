@@ -258,6 +258,36 @@ const transformQueryValue = (value: unknown, property: ReturnType<typeof getProp
   return transformValueJsToPGlite(value, property);
 };
 
+/**
+ * keyValue 列的 contains/notContains：逐键展开成 `->>` 文本比较后按 LIKE 组合
+ * （contains 是 OR、notContains 是 AND），与核心 JS `get_entity_match_rule`、sqlite-core
+ * `handle_flatmap_contains` 同一套逐键字面子串语义，不落到 `PropertyType.json` 已有的
+ * `@>` JSONB 子集包含上（RV-027）。
+ *
+ * 缺失键/显式 JSON null 时 `->>` 取出 SQL NULL：`LIKE` 对 NULL 的结果是三值逻辑的 UNKNOWN，
+ * 在 OR 组合里天然不贡献命中、在 AND 组合里天然不会被当成"确定不包含"而放行，不需要显式判空
+ * ——与核心 JS 把缺失键视为 UNKNOWN（既不计入 contains 命中也不满足 notContains）殊途同归（RV-028）。
+ */
+const build_keyvalue_contains_pg = (
+  fieldSql: string,
+  operator: 'contains' | 'notContains',
+  value: Record<string, unknown>,
+  params: unknown[]
+): string => {
+  const entries = Object.entries(value).filter(([, v]) => v != null);
+  // 空条件集按 contains/notContains 各自组合算子的空集代数求值：OR 的空集恒假、AND 的空集恒真，
+  // 与「空数组 in/notIn」同一口径（见上面 `in`/`notIn` 的空候选集处理）。
+  if (!entries.length) return operator === 'contains' ? '1=0' : '1=1';
+
+  const conditions = entries.map(([key, v]) => {
+    const text = jsonAccessor(fieldSql, [key], 'text');
+    params.push(`%${escapeLikePattern(`${v}`)}%`);
+    const likeSql = `${text} LIKE $${params.length}`;
+    return operator === 'notContains' ? `NOT (${likeSql})` : likeSql;
+  });
+  return `(${conditions.join(operator === 'contains' ? ' OR ' : ' AND ')})`;
+};
+
 const build_rule_pg = (
   ruleValue: unknown,
   params: unknown[],
@@ -289,6 +319,14 @@ const build_rule_pg = (
     throw new RxdbAdapterPGliteError(`Operator ${operator} requires a value`, INVALID_QUERY_ERROR_CODE);
   }
 
+  // in/notIn 的空候选集是两个 SQL 后端与核心 JS 都已归一化成的恒假/恒真常量
+  // （sqlite-core `build_rule`、核心 `get_entity_match_rule` 的空集合短路），且不区分列类型/是否为
+  // NULL——必须在下面按属性类型分流的数组重叠判断之前处理，否则空候选集会被 `&&` 编译成
+  // "与空数组重叠恒假"，NULL 列上与 notIn 应有的恒真常量不一致。
+  if ((operator === 'in' || operator === 'notIn') && Array.isArray(value) && value.length === 0) {
+    return operator === 'in' ? '1=0' : '1=1';
+  }
+
   if (prop && (prop.type === PropertyType.json || prop.type === PropertyType.keyValue)) {
     if (operator === 'contains' || operator === 'notContains') {
       if (!isRecord(value)) {
@@ -296,6 +334,12 @@ const build_rule_pg = (
           `JSON operator ${operator} requires an object value`,
           INVALID_QUERY_ERROR_CODE
         );
+      }
+      // keyValue 是既有的逐键字面子串谓词（与核心 JS、sqlite-core `handle_flatmap_contains`
+      // 同一套契约：contains 是 OR、notContains 是 AND），不是 PropertyType.json 原生提供的
+      // JSONB 子集包含——两者混进同一个 `@>` 分支会把「字面子串」误判成「对象子集相等」（RV-027）。
+      if (prop.type === PropertyType.keyValue) {
+        return build_keyvalue_contains_pg(fieldSql, operator, value, params);
       }
       params.push(JSON.stringify(value));
       const containsSql = `${fieldSql} @> $${params.length}::jsonb`;
@@ -323,8 +367,11 @@ const build_rule_pg = (
       }
       const castType = prop.type === PropertyType.stringArray ? 'text[]' : 'numeric[]';
       params.push(value);
-      const containsSql = `${fieldSql} @> $${params.length}::${castType}`;
-      return operator === 'notIn' ? `NOT ${containsSql}` : containsSql;
+      // 核心 JS（`.some(item => value.includes(item))`）与 sqlite-core（`json_each` + IN）的
+      // in/notIn 都是"数组列与候选值任一元素交集"；`@>` 是全包含（要求数组列包含所有候选值），
+      // 会把交集查询误判成子集查询（RV-034）。`&&` 是数组重叠运算符，语义正是"至少一个公共元素"。
+      const overlapSql = `${fieldSql} && $${params.length}::${castType}`;
+      return operator === 'notIn' ? `NOT (${overlapSql})` : overlapSql;
     }
   }
 
@@ -332,7 +379,6 @@ const build_rule_pg = (
     if (!Array.isArray(value)) {
       throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`, INVALID_QUERY_ERROR_CODE);
     }
-    if (value.length === 0) return operator === 'in' ? '1=0' : '1=1';
     params.push(value.map(item => transformQueryValue(item, prop)));
     return `${fieldSql} ${operator === 'in' ? '= ANY' : '!= ALL'}($${params.length})`;
   }
