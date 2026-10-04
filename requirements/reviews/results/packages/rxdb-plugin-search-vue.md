@@ -32,8 +32,6 @@ Vue：SearchHandle 的框架响应式输入、结果、状态与清理封装。
 | `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-032](../../RV-032-vue-search-options-mutation.md)
-
 ### 尚未完成的专项
 
 以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
