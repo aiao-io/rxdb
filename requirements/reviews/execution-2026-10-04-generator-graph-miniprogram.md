@@ -16,7 +16,7 @@ execution: in-progress
 
 | 意见                                                        | 实際问题                                                                 | 本轮证据                                                  |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [RV-049](RV-049-generator-new-output-alias-queue-order.md)  | 初次 generated 不存在时，父软链别名拆成两队列；旧请求最后提交覆盖新结果  | 实际生成/文件系统；1 failed /1 passed                     |
+| RV-049（已修复）                                            | 初次 generated 不存在时，父软链别名拆成两队列；旧请求最后提交覆盖新结果  | 实际生成/文件系统；1 failed /1 passed                     |
 | [RV-050](RV-050-graph-nan-depth-silent-empty-result.md)     | NaN 深度被实际图查询成功返回为空/0，隐藏参数错误                         | 实際 RxDB/wa-sqlite；3 failed /2 passed                   |
 | [RV-051](RV-051-miniprogram-late-bootstrap-after-unload.md) | 页面先 unload、open 后完成时迟到 demo 没 dispose，仍继续 query/reconnect | 原页面编译后回调＋明确模块/hooks 接缝；1 failed /1 passed |
 
