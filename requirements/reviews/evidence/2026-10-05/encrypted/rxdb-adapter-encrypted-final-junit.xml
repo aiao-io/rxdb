@@ -1,0 +1,627 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="277" failures="2" errors="0" time="4.205476665">
+    <testsuite name="src/__bench__/aes-gcm.bench.test.ts" timestamp="2026-10-04T19:38:07.296Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.109289625">
+        <testcase classname="src/__bench__/aes-gcm.bench.test.ts" name="AES-GCM-256 micro-benchmark — 1 KiB cell &gt; round-trips 1 KiB cells and reports encrypt/decrypt p95" time="0.108493833">
+            <system-out>
+[bench:aes-gcm] encrypt (n=500, 1024B): min=0.017ms avg=0.072ms p50=0.044ms p95=0.220ms p99=0.364ms max=0.725ms
+
+[bench:aes-gcm] decrypt (n=500, 1024B): min=0.018ms avg=0.088ms p50=0.058ms p95=0.228ms p99=0.505ms max=1.443ms
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/crypto.spec.ts" timestamp="2026-10-04T19:38:07.298Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="0.354604125">
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.deriveKeyFromPassphrase &gt; returns an AES-GCM CryptoKey usable for encrypt+decrypt" time="0.111411666">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.deriveKeyFromPassphrase &gt; is deterministic given identical passphrase + salt" time="0.232963166">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.deriveKeyFromPassphrase &gt; rejects empty passphrase" time="0.000692666">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; accepts exactly 32 bytes" time="0.000670125">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 0-byte input with invalid_key_bytes" time="0.000150583">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 1-byte input with invalid_key_bytes" time="0.000103458">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 16-byte input with invalid_key_bytes" time="0.000075167">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 31-byte input with invalid_key_bytes" time="0.00086475">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 33-byte input with invalid_key_bytes" time="0.000283291">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.importKeyFromBytes &gt; rejects 64-byte input with invalid_key_bytes" time="0.000109625">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.aesGcmEncrypt / aesGcmDecrypt &gt; round-trips a plaintext through encrypt → decrypt" time="0.000716708">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.aesGcmEncrypt / aesGcmDecrypt &gt; rejects decryption when AAD is tampered" time="0.002456917">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.aesGcmEncrypt / aesGcmDecrypt &gt; rejects decryption when ciphertext is tampered" time="0.001441958">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.generateIV / randomBytes &gt; generateIV returns 12 random bytes" time="0.000302917">
+        </testcase>
+        <testcase classname="src/__tests__/crypto.spec.ts" name="crypto.generateIV / randomBytes &gt; randomBytes returns the requested length" time="0.000163375">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypt-patch.spec.ts" timestamp="2026-10-04T19:38:07.301Z" hostname="liuleideMacBook-Pro-4.local" tests="9" failures="0" errors="0" skipped="0" time="0.015974375">
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; returns the original patch when the entity has no encrypted properties" time="0.003522334">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; passes through null and non-encrypted fields" time="0.000777792">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; encrypts and decrypts encrypted fields without changing JSON-looking strings" time="0.003012">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; fails without partial plaintext output when the keyring is locked" time="0.000845083">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; binds envelopes to the primary key AAD component" time="0.000968459">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; binds envelopes to the table name AAD component" time="0.000936833">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; binds envelopes to the column name AAD component" time="0.001054">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; round-trips bigint and binary patches with a bigint primary AAD" time="0.001751334">
+        </testcase>
+        <testcase classname="src/__tests__/encrypt-patch.spec.ts" name="encrypted patch walker &gt; authenticates the primary ID type in AAD" time="0.001851292">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/envelope.spec.ts" timestamp="2026-10-04T19:38:07.303Z" hostname="liuleideMacBook-Pro-4.local" tests="34" failures="0" errors="0" skipped="0" time="0.023058875">
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; round-trips losslessly" time="0.003071667">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; emits exactly six pipe-separated segments" time="0.002626167">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; encodes version as decimal integer and alg as AGCM256" time="0.000225875">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on empty" time="0.000232125">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on too few segments" time="0.000087625">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on too many segments" time="0.000074">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on non-numeric version" time="0.00010975">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws unsupported_version on unknown version" time="0.000291917">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws unsupported_algorithm on unknown alg" time="0.000131">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on invalid base64url segment" time="0.000157291">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on wrong IV length" time="0.000120084">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on wrong tag length" time="0.000131916">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; rejects non-base64url kid padding" time="0.000094">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; rejects non-base64url standard base64 IV" time="0.0000625">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; rejects non-base64url standard base64 tag padding" time="0.000059834">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; rejects a kid that does not decode to exactly eight bytes" time="0.0000775">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; rejects a non-canonical base64url segment" time="0.000072833">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.encodeEnvelope / decodeEnvelope &gt; throws malformed_envelope on empty kid" time="0.000082916">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.isEnvelope &gt; returns true for properly shaped strings" time="0.000106083">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.isEnvelope &gt; returns false for non-strings" time="0.000058417">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.isEnvelope &gt; returns false for plain text without pipes" time="0.000071291">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; is deterministic byte-for-byte" time="0.000209083">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when databaseNamespace changes to an empty, Unicode, or control value" time="0.000092917">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when entityNamespace changes to an empty, Unicode, or control value" time="0.00007225">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when tableName changes to an empty, Unicode, or control value" time="0.000053792">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when columnName changes to an empty, Unicode, or control value" time="0.000059292">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when primaryKey changes to an empty, Unicode, or control value" time="0.0000725">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; changes bytes when kid changes to an empty, Unicode, or control value" time="0.000055333">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; uses unambiguous length-prefixed tuple boundaries" time="0.000090667">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; does not collide across deterministic random tuples" time="0.012583208">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; encodes string, number, and bigint primary identities without collisions" time="0.000208458">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; rejects invalid numeric primary identity NaN" time="0.000095416">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; rejects invalid numeric primary identity Infinity" time="0.000041166">
+        </testcase>
+        <testcase classname="src/__tests__/envelope.spec.ts" name="envelope.buildAAD &gt; rejects invalid numeric primary identity 1.5" time="0.000038">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/errors.spec.ts" timestamp="2026-10-04T19:38:07.310Z" hostname="liuleideMacBook-Pro-4.local" tests="26" failures="0" errors="0" skipped="0" time="0.006761625">
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_pk_forbidden" time="0.001107584">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_fk_forbidden" time="0.000178292">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_index_forbidden" time="0.000135917">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_unique_forbidden" time="0.000107458">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_sortable_forbidden" time="0.000134208">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_computed_forbidden" time="0.000136917">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code encrypted_fts_forbidden" time="0.000117333">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code unsupported_kdf" time="0.000103292">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code invalid_key" time="0.000123875">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code invalid_key_bytes" time="0.000137791">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code no_encrypted_columns" time="0.000094791">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; accepts code keyring_singleton_conflict" time="0.000068667">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedConfigurationError &gt; carries entity/property/hint/cause" time="0.000138208">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedLockedError &gt; always has code &quot;locked&quot;" time="0.000143417">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedUnlockError &gt; accepts code verifier_mismatch" time="0.000100667">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedUnlockError &gt; accepts code key_provider_failed" time="0.000046167">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code malformed_envelope" time="0.000068292">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code unsupported_version" time="0.000063375">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code unsupported_algorithm" time="0.00004025">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code unknown_kid" time="0.000058417">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code legacy_envelope_forbidden" time="0.000039">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedDecryptError &gt; accepts code auth_failure" time="0.000058584">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedQueryError &gt; accepts code where_on_encrypted" time="0.0001205">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedQueryError &gt; accepts code order_on_encrypted" time="0.000077708">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedQueryError &gt; accepts code group_on_encrypted" time="0.000061958">
+        </testcase>
+        <testcase classname="src/__tests__/errors.spec.ts" name="errors — contract &gt; EncryptedQueryError &gt; accepts code projection_on_encrypted" time="0.000076458">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/index.spec.ts" timestamp="2026-10-04T19:38:07.316Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.175774916">
+        <testcase classname="src/__tests__/index.spec.ts" name="package side-effects &gt; does not touch crypto.subtle on import" time="0.156208333">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="package side-effects &gt; exports the documented surface" time="0.003674167">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="package side-effects &gt; exports scanForPlaintext from /testing sub-path" time="0.014995708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/keyring-aad-v2.spec.ts" timestamp="2026-10-04T19:38:07.317Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.029811708">
+        <testcase classname="src/__tests__/keyring-aad-v2.spec.ts" name="Keyring versioned AAD &gt; binds new envelopes to the entity namespace" time="0.007158208">
+        </testcase>
+        <testcase classname="src/__tests__/keyring-aad-v2.spec.ts" name="Keyring versioned AAD &gt; rejects v1 entity envelopes unless unlock explicitly enables migration reads" time="0.020087709">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/keyring-verifier.spec.ts" timestamp="2026-10-04T19:38:07.318Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.745762125">
+        <testcase classname="src/__tests__/keyring-verifier.spec.ts" name="Keyring verifier provenance (FR-009) &gt; first unlock writes singleton exactly once with correct shape" time="0.113777958">
+        </testcase>
+        <testcase classname="src/__tests__/keyring-verifier.spec.ts" name="Keyring verifier provenance (FR-009) &gt; second unlock with same passphrase reuses persisted row (no rewrite)" time="0.183636041">
+        </testcase>
+        <testcase classname="src/__tests__/keyring-verifier.spec.ts" name="Keyring verifier provenance (FR-009) &gt; concurrent first unlocks converge on the persisted keyring" time="0.242788708">
+        </testcase>
+        <testcase classname="src/__tests__/keyring-verifier.spec.ts" name="Keyring verifier provenance (FR-009) &gt; tampered persisted verifier rejects with verifier_mismatch and stays locked" time="0.204006125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/keyring.spec.ts" timestamp="2026-10-04T19:38:07.319Z" hostname="liuleideMacBook-Pro-4.local" tests="49" failures="0" errors="0" skipped="0" time="2.677414541">
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; starts locked with kid === null" time="0.001313542">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; lockChange$ emits true on subscribe (locked) (BehaviorSubject)" time="0.000489625">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; first unlock mints kid + salt + verifier and persists singleton" time="0.102385875">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; second unlock with same passphrase succeeds and reuses kid/salt" time="0.164153209">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with wrong passphrase throws EncryptedUnlockError(verifier_mismatch) and stays locked" time="0.233629709">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; locks and forgets the old key when a second passphrase unlock fails" time="0.258673333">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; locks and forgets the old key when a second keyBytes unlock fails" time="0.002125583">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; locks and forgets the old key when keyProvider rejects" time="0.002052042">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with empty passphrase throws EncryptedConfigurationError" time="0.000262834">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with raw key bytes works and produces a usable kid" time="0.000985459">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with CryptoKey works" time="0.000420917">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with keyProvider works (Uint8Array variant)" time="0.000183083">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with keyProvider works (CryptoKey variant)" time="0.00019675">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; unlock with failing keyProvider throws EncryptedUnlockError(key_provider_failed)" time="0.000170583">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; rejects unsupported kdf in the existing row" time="0.000118958">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; lock() clears the in-memory key and emits lockChange$ = true" time="0.124987291">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; lock() is idempotent" time="0.137381083">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; encrypt while locked throws EncryptedLockedError" time="0.000331875">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; decrypt while locked throws EncryptedLockedError" time="0.000242375">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; encrypt/decrypt round-trip preserves bytes and binds AAD to (table, column, pk, kid, ns)" time="0.119951042">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; decrypt rejects envelope with wrong kid" time="0.176625666">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; decrypt rejects malformed envelope" time="0.103024875">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; verifier sentinel is the documented literal" time="0.000162375">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; keyBytes of wrong length raises EncryptedConfigurationError" time="0.00018275">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; CryptoKey with wrong algorithm is rejected" time="0.001310375">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; CryptoKey with insufficient usages is rejected" time="0.000505375">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; rejects invalid idleTimeoutMs" time="0.000120417">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; rejects unlock without any recognised key source" time="0.000282292">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring &gt; keyProvider returning a CryptoKey with wrong algorithm rejects" time="0.000511084">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring idle auto-lock &gt; auto-locks after idleTimeoutMs of no activity" time="0.116201">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring idle auto-lock &gt; encrypt() re-arms the idle timer (touch on success)" time="0.087373333">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring idle auto-lock &gt; idleTimeoutMs = 0 disables auto-lock" time="0.113606458">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring idle auto-lock &gt; touch() re-arms the idle timer without performing a crypto op" time="0.097450041">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 拒绝超出计时器可靠范围的 idleTimeoutMs：2147483648" time="0.000231042">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 拒绝超出计时器可靠范围的 idleTimeoutMs：4294967296" time="0.000078">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 拒绝超出计时器可靠范围的 idleTimeoutMs：9007199254740991" time="0.000064458">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 接受可靠范围内的最大 idleTimeoutMs" time="0.093705167">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 把非法 keyProvider 结果转成稳定的 typed error：null" time="0.00052075">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 把非法 keyProvider 结果转成稳定的 typed error：普通对象" time="0.000645708">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 把非法 keyProvider 结果转成稳定的 typed error：字符串" time="0.0003745">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options validation &gt; 把非法 keyProvider 结果转成稳定的 typed error：ArrayBuffer（不是 Uint8Array）" time="0.000111083">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options exclusivity &gt; rejects when both passphrase and keyBytes are supplied" time="0.000126167">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring unlock-options exclusivity &gt; rejects when both key and keyProvider are supplied" time="0.00015275">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; lock() 取消在途 encrypt，不允许锁定后仍产出信封" time="0.113965541">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; lock() 取消在途 decrypt，不允许锁定后仍返回明文" time="0.094503042">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; lock() during an in-flight unlock wins: the keyring stays locked" time="0.083293666">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; unlock aborted by lock() rejects with EncryptedUnlockError and emits no false on lockChange$" time="0.123914916">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; lock() cancelling an unlock is not sticky: a later unlock succeeds" time="0.228152542">
+        </testcase>
+        <testcase classname="src/__tests__/keyring.spec.ts" name="Keyring in-flight semantics (T065) &gt; lock() before an unlock starts does not cancel that unlock" time="0.087815958">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/metadata-validation.boundaries.spec.ts" timestamp="2026-10-04T19:38:07.331Z" hostname="liuleideMacBook-Pro-4.local" tests="10" failures="0" errors="0" skipped="0" time="0.003848041">
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted metadata boundary validation &gt; rejects indexes and foreign keys that use an encrypted database column name" time="0.001213584">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted metadata boundary validation &gt; rejects FTS registration by property name or database column name" time="0.000189791">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects where clauses that use the database column name" time="0.00063625">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects order clauses that use the database column name" time="0.000133416">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects group clauses that use the database column name" time="0.000106917">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects projection clauses that use the database column name" time="0.000090375">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects a dotted path rooted at an encrypted property" time="0.000117084">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; rejects encrypted fields reached through a relation path" time="0.000197417">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; validates nested exists relation predicates" time="0.000171292">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.boundaries.spec.ts" name="encrypted query boundary validation &gt; validates nested notExists relation predicates" time="0.00009825">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/metadata-validation.spec.ts" timestamp="2026-10-04T19:38:07.334Z" hostname="liuleideMacBook-Pro-4.local" tests="40" failures="0" errors="0" skipped="0" time="0.014049292">
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; passes when no encrypted properties exist" time="0.001142084">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted primary key" time="0.000386375">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted unique column" time="0.000107917">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted sortable column" time="0.000099666">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted searchable column" time="0.0000955">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted computed property" time="0.000094792">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted property used in index" time="0.00011375">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; rejects encrypted foreign key" time="0.000109375">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; accepts a benign encrypted column" time="0.00014975">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; keeps primary, index, and sortable restrictions for encrypted bigint" time="0.000220417">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; keeps primary, index, and sortable restrictions for encrypted binary" time="0.000105625">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateEncryptedPropertyMetadata &gt; completes in well under 10 ms" time="0.00028225">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; throws where_on_encrypted when WHERE references encrypted column" time="0.00025425">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; walks nested WHERE groups" time="0.000122834">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; throws order_on_encrypted" time="0.000087042">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; throws group_on_encrypted" time="0.000068417">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; throws projection_on_encrypted only when explicit" time="0.000176875">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; no-ops when entity has no encrypted columns" time="0.000089">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; fails closed with where_on_encrypted when a cross-entity path cannot be resolved" time="0.000102417">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; fails closed with order_on_encrypted when a cross-entity path cannot be resolved" time="0.000056125">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; fails closed with group_on_encrypted when a cross-entity path cannot be resolved" time="0.000072291">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; fails closed with projection_on_encrypted when a cross-entity path cannot be resolved" time="0.000053875">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; fails closed when relation metadata exists but its target resolver is missing" time="0.000091208">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; resolves inherited relations from relationMap without weakening encrypted-field checks" time="0.000161">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateQueryAgainstEncryptedColumns &gt; allows nested paths inside a known unencrypted JSON property" time="0.000094958">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateFTSRegistrationAgainstEncryptedColumns &gt; throws encrypted_fts_forbidden when FTS includes encrypted column" time="0.000487791">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="validateFTSRegistrationAgainstEncryptedColumns &gt; passes when FTS columns are not encrypted" time="0.000122625">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; configuration errors are instances of EncryptedConfigurationError" time="0.000289875">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; query errors are instances of EncryptedQueryError" time="0.000494167">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; uses precomputed encryptedPropertyMap when supplied" time="0.000313125">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; ignores malformed where nodes without field or rules" time="0.000282">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; ignores where group with non-array rules" time="0.002849375">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; returns early when no encrypted columns and no args supplied" time="0.000582084">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; skips order/group/projection when no encrypted columns" time="0.001116916">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; FTS validator no-ops on entity with no encrypted columns" time="0.0002825">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; no-ops when args has no where/order/group/projection but encrypted exists" time="0.000211916">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; allows WHERE referencing only non-encrypted fields" time="0.000233917">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; allows order/group/projection referencing only non-encrypted fields" time="0.000227834">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; falls back to tableName when name is missing" time="0.00069425">
+        </testcase>
+        <testcase classname="src/__tests__/metadata-validation.spec.ts" name="error class instanceof &gt; uses ? in message when entity has no name or tableName" time="0.000177542">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-aborted-initial-unlock.spec.ts" timestamp="2026-10-04T19:38:07.343Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="2" errors="0" skipped="0" time="0.019723667">
+        <testcase classname="src/__tests__/review-aborted-initial-unlock.spec.ts" name="评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 &gt; lock 发生在 provider 尚未返回时，取消的解锁不能初始化 singleton" time="0.011275625">
+            <system-out>
+REVIEW_ENCRYPTED {&quot;scenario&quot;:&quot;cancel-before-provider&quot;,&quot;locked&quot;:true,&quot;initialized&quot;:true}
+
+            </system-out>
+            <failure message="expected { id: &apos;singleton&apos;, …(5) } to be null" type="AssertionError">
+AssertionError: expected { id: &apos;singleton&apos;, …(5) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  &quot;createdAt&quot;: 1791142679885,
+  &quot;id&quot;: &quot;singleton&quot;,
+  &quot;kdf&quot;: &quot;pbkdf2-sha256-600000&quot;,
+  &quot;kid&quot;: &quot;iZCX8mUUn6M&quot;,
+  &quot;salt&quot;: &quot;DoQuz2ocUTXb5FyrMhCNFA&quot;,
+  &quot;verifier&quot;: &quot;2|AGCM256|iZCX8mUUn6M|0obsa7N00wlw8cKk|ljtj4CJUA72bYQuCXfwUcUWFDW4|ywtrJBh0LkKj5-Gl1LnhxA&quot;,
+}
+
+ ❯ src/__tests__/review-aborted-initial-unlock.spec.ts:68:25
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-aborted-initial-unlock.spec.ts" name="评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 &gt; 取消 A 后开始首次解锁 B，B 不应被废弃 A 的 verifier 拒绝" time="0.00415225">
+            <system-out>
+REVIEW_ENCRYPTED {&quot;scenario&quot;:&quot;cancel-A-then-B&quot;,&quot;code&quot;:&quot;verifier_mismatch&quot;,&quot;locked&quot;:true}
+
+            </system-out>
+            <failure message="expected &apos;verifier_mismatch&apos; to be &apos;resolved&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;verifier_mismatch&apos; to be &apos;resolved&apos; // Object.is equality
+
+Expected: &quot;resolved&quot;
+Received: &quot;verifier_mismatch&quot;
+
+ ❯ src/__tests__/review-aborted-initial-unlock.spec.ts:98:27
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-aborted-initial-unlock.spec.ts" name="评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 &gt; 对照：A 正常初始化后锁定，必须只接受 A，不允许 B 覆盖已有凭据" time="0.003402292">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/serialize.spec.ts" timestamp="2026-10-04T19:38:07.347Z" hostname="liuleideMacBook-Pro-4.local" tests="55" failures="0" errors="0" skipped="0" time="0.009243">
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;true&quot; as a string" time="0.0012775">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;123&quot; as a string" time="0.000111542">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;null&quot; as a string" time="0.000074917">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;{\&quot;nested\&quot;:true}&quot; as a string" time="0.000073083">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;[1,2]&quot; as a string" time="0.000073584">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; preserves JSON string &quot;plain text&quot; as a string" time="0.000060292">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 0" time="0.000387708">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 1" time="0.000097708">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 2" time="0.000071125">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 3" time="0.000082875">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 4" time="0.000050875">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 5" time="0.000070333">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 6" time="0.000058542">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips structured value 7" time="0.000050458">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects JSON values that JSON.stringify cannot represent" time="0.000159083">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; passes Uint8Array plaintext through without re-encoding" time="0.000152292">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips signed 64-bit bigint boundary -9223372036854775808n" time="0.000137875">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips signed 64-bit bigint boundary 9223372036854775807n" time="0.000122083">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects invalid encrypted bigint value -9223372036854775809n" time="0.000079417">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects invalid encrypted bigint value 9223372036854775808n" time="0.000058334">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects invalid encrypted bigint value 1" time="0.000045333">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects invalid encrypted bigint value 1" time="0.000034042">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects invalid encrypted bigint value 1" time="0.000034125">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload +1" time="0.00014725">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload 01" time="0.000264833">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload -0" time="0.0002365">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload 1.0" time="0.000110167">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload 9223372036854775808" time="0.000144667">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload -9223372036854775809" time="0.000063833">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-canonical or out-of-range decrypted bigint payload not-a-bigint" time="0.000049">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; copies only the current binary view for encryption and restoration" time="0.000405875">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-Uint8Array encrypted binary value" time="0.000069792">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-Uint8Array encrypted binary value" time="0.000036709">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-Uint8Array encrypted binary value" time="0.00013175">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar true as boolean" time="0.000073125">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar false as boolean" time="0.000035625">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar 42 as number" time="0.00004825">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar -7 as integer" time="0.000032584">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar &quot;hello&quot; as string" time="0.000029959">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; round-trips scalar null as string" time="0.000027375">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; serializes Date instances and numeric timestamps" time="0.001201333">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; serializes parseable date strings and falls back for invalid ones" time="0.000108583">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; rejects non-finite decrypted date and number payloads" time="0.000145167">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：无法解析的 JSON" time="0.0000835">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：数组类型收到对象" time="0.000050375">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：stringArray 含非字符串" time="0.000046333">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：numberArray 含非数字" time="0.000039917">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：keyValue 收到数组" time="0.000038834">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：number 收到空文本" time="0.0000385">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：integer 收到小数" time="0.000183292">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝解密后的非法负载：integer 超出安全整数" time="0.000103625">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝非单字节 0/1 的 boolean 负载：空字节" time="0.000208583">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝非单字节 0/1 的 boolean 负载：多字节" time="0.000091625">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 拒绝非单字节 0/1 的 boolean 负载：非 0/1 字节" time="0.0000425">
+        </testcase>
+        <testcase classname="src/__tests__/serialize.spec.ts" name="serializeForEnvelope / deserializeFromEnvelope &gt; 保留合法 boolean 的单字节往返" time="0.00018125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/test-helpers.spec.ts" timestamp="2026-10-04T19:38:07.356Z" hostname="liuleideMacBook-Pro-4.local" tests="21" failures="0" errors="0" skipped="0" time="0.017414334">
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; returns empty when no sentinel matches" time="0.001172333">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; finds a string sentinel in a string column" time="0.00016525">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; scans Uint8Array column bytes as UTF-8" time="0.000155958">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; JSON-stringifies object columns before searching" time="0.0012065">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; reports row index for each match across multiple rows" time="0.000695125">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; handles chunk-boundary matches (sentinel split across rows)" time="0.000118875">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; silently ignores non-string sentinels" time="0.000176083">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; returns empty when sentinel list is empty" time="0.000126792">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; scans ArrayBuffer column bytes as UTF-8" time="0.000234917">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; fails closed for columns whose JSON.stringify throws" time="0.010339209">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; fails closed for unsupported value Symbol(secret)" time="0.000391417">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; fails closed for unsupported value () =&gt; &quot;secret&quot;" time="0.000247625">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; handles number, boolean, bigint, null, undefined values" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: returns empty when no sentinel found in raw file bytes" time="0.000182542">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: locates sentinel embedded anywhere in the byte stream" time="0.00008575">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: detects every distinct sentinel that appears" time="0.000289792">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: scans past invalid UTF-8 bytes without decoding the file" time="0.000127916">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: matches a multibyte UTF-8 sentinel byte-for-byte" time="0.000103459">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: accepts ArrayBuffer in addition to Uint8Array" time="0.00011525">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: empty sentinel list short-circuits" time="0.000080541">
+        </testcase>
+        <testcase classname="src/__tests__/test-helpers.spec.ts" name="scanForPlaintext &gt; bytes overload: ignores empty / non-string sentinels" time="0.000065875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/validate-encrypted-query.spec.ts" timestamp="2026-10-04T19:38:07.361Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.002746416">
+        <testcase classname="src/__tests__/validate-encrypted-query.spec.ts" name="validateEncryptedQuery &gt; rejects an encrypted database column without unsafe casts" time="0.001240959">
+        </testcase>
+        <testcase classname="src/__tests__/validate-encrypted-query.spec.ts" name="validateEncryptedQuery &gt; uses the adapter resolver for relation paths" time="0.000181333">
+        </testcase>
+        <testcase classname="src/__tests__/validate-encrypted-query.spec.ts" name="validateEncryptedQuery &gt; validates adapter field aliases against their logical property" time="0.000145583">
+        </testcase>
+        <testcase classname="src/__tests__/validate-encrypted-query.spec.ts" name="validateEncryptedQuery &gt; rejects queries and sorting over encrypted bigint" time="0.000225917">
+        </testcase>
+        <testcase classname="src/__tests__/validate-encrypted-query.spec.ts" name="validateEncryptedQuery &gt; rejects queries and sorting over encrypted binary" time="0.000141709">
+        </testcase>
+    </testsuite>
+</testsuites>

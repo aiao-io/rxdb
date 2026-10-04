@@ -20,5 +20,33 @@
     "packages/rxdb-adapter-encrypted/package.json": "b41fb52ce172b6a75aac9c82061ac4e2cb24c2a4f63ad930154aff6c873f998a"
   },
   "node": "v26.7.0",
-  "pnpm": "10.34.6"
+  "pnpm": "10.34.6",
+  "additionalSourceSha256": {
+    "packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-storage.ts": "aa65f64c21ac8b63416662bbc4a6483462399f8a5490b27fd5e9d9ae5e13cc48",
+    "packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+    "packages/rxdb-adapter-pglite/src/keyring/pglite-keyring-storage.ts": "2b0590830ab40d92541def13e02871d4564284b96daa558e170febdee74e7598",
+    "packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts": "402182ba86c691b84e99162faf1572de4b76704a863497b630ef9eec44027887",
+    "packages/rxdb-adapter-electron/src/RxDBAdapterElectron.ts": "edaf6583322d9357f17f9cb50d646bd67056a0c735b701f1ad69901aa8a41064",
+    "packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts": "f92f2271df3950911d02d3901b3282f56cdc34d524ee551f8809a36dec1d8760",
+    "packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts": "0c1bb4c825fc10c49cb2abb4c32627fd5ffd47db9a705c7d9b7f4bc5a2a49028"
+  },
+  "measurement": {
+    "firstProbe": "Original Keyring, real WebCrypto, node:sqlite memory singleton binding; keyProvider completion scheduling only",
+    "electron": "Original encrypted adapter, SQLite core storage/client/host, actual temporary file; in-process host transport, no GUI",
+    "pglite": "Original encrypted adapter/storage, actual PGlite in Chromium; memory backend, no disk durability claim",
+    "notCovered": [
+      "Electron GUI/IPC isolation",
+      "Tauri runtime",
+      "OPFS/sqliteai/all browser hosts",
+      "Supabase",
+      "independent published package consumers",
+      "whole application UI"
+    ]
+  },
+  "reproductionSha256": {
+    "packages/rxdb-adapter-encrypted/src/__tests__/review-aborted-initial-unlock.spec.ts": "feaf46cc9ad3ff47ac225458b89321a212b132f2abf5d7e4e099619d898224d0",
+    "packages/rxdb-adapter-electron/src/__tests__/review-aborted-initial-unlock.spec.ts": "7ae1111896bcf3ab934829f1caad6d358591170d49dc933b012176af2a273cc4",
+    "packages/rxdb-adapter-pglite/src/__tests__/review-aborted-initial-unlock.spec.ts": "4461e3b01a521da200768189a7d454a9497798d1446f130d895081eefb1ee67c"
+  },
+  "productionSourceUnchanged": true
 }

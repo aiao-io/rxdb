@@ -1,0 +1,36 @@
+[
+  {
+    "scenario": "cancel-before-provider",
+    "locked": true,
+    "initialized": true
+  },
+  {
+    "scenario": "cancel-A-then-B",
+    "code": "verifier_mismatch",
+    "locked": true
+  },
+  {
+    "backend": "file SQLite /node host",
+    "scenario": "cancel-init",
+    "locked": true,
+    "initialized": true
+  },
+  {
+    "backend": "file SQLite /node host",
+    "scenario": "cancel-A-then-B",
+    "code": "verifier_mismatch",
+    "locked": true
+  },
+  {
+    "backend": "PGlite /Chromium",
+    "scenario": "cancel-init",
+    "locked": true,
+    "initialized": true
+  },
+  {
+    "backend": "PGlite /Chromium",
+    "scenario": "cancel-A-then-B",
+    "code": "verifier_mismatch",
+    "locked": true
+  }
+]

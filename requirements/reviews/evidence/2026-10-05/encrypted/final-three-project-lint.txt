@@ -1,0 +1,52 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 3 projects:
+
+- rxdb-adapter-encrypted
+- rxdb-adapter-electron
+- rxdb-adapter-pglite
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-encrypted:lint --max-warnings=0
+
+> eslint . --max-warnings=0 --max-warnings=0
+
+(node:79185) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-adapter-pglite:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:79469) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-adapter-electron:lint --max-warnings=0
+
+> eslint . --max-warnings=0 --max-warnings=0
+
+(node:79540) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran target lint for 3 projects
+
+
+  Run duration:      13.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     6.2s (1 task)
+  Recoverable time:  7.1s (53% of the run)

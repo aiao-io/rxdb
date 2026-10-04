@@ -165,3 +165,8 @@
 - [RV-056：同步语言异常漏上报，Vue 跳过只读初始化](RV-056-editor-sync-language-error-escapes.md)（P2）：三端原框架/CodeMirror 各 1 failed /1 passed。
 - [RV-057：迟到 Blob.text 把 A 内容写进 B 预览](RV-057-preview-late-blob-text-overwrites-current-file.md)（P2）：Angular/Vue 各 1 failed /1 passed，React 相同交错 2 passed。
 - [本轮七对象实际记录、覆盖率与剩余项](execution-2026-10-04-editor-frameworks.md)：四包 282 passed /3 failed，原 271 条保持通过；核心四指标 >80%，但不代验浏览器/IME或完整清单。业务未修，新红保留。
+
+## 2026-10-05：加密密钥环与实际后端
+
+- [RV-058：取消首次解锁仍提交废弃凭据](RV-058-cancelled-first-unlock-persists-abandoned-key.md)（P2）：A provider 返回前 lock，最终仍写 A verifier，B 被拦；锁状态仍正确，不是 AES/authentication bypass。
+- [当日实际台账与四包记录](execution-2026-10-05-encrypted.md)：原 encrypted 274 条全过，最终 275 passed /2 failed；Electron/PGlite 聚焦各 2 failed /1 passed，三项目严格 lint/typecheck 过。新红保留，未修业务/未提交，全仓仍未完成。

@@ -58,3 +58,7 @@ execution: partial
 5. 其它包/应用按全仓索引继续，既有红测试和意见不删除/skip 来换绿。
 
 [版本/源码指纹](evidence/2026-10-04/editor-frameworks/runtime-and-sources.json) · [当轮任务汇总](evidence/2026-10-04/editor-frameworks/round-results.json) · [交付校验](evidence/2026-10-04/editor-frameworks/delivery-validation.json)。只新增评审复验和文档；不改用户依赖/Cargo/benchmark、不操作暂存区、不自动提交。
+
+## 续评索引：2026-10-05
+
+[加密密钥环初始化取消与真实后端](execution-2026-10-05-encrypted.md)：新增 RV-058（P2），四包记录更新；三个测量面共 6 failed /3 passed，原 encrypted 274 条仍通过。未修改本文件历史结果，未将全对象/完整专题批量标绿。

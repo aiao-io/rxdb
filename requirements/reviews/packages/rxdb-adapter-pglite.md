@@ -161,3 +161,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test-node --skipRemoteCa
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
 [本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-pglite.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+
+### 2026-10-05：加密初始化取消
+
+[实际 Keyring /文件 SQLite /Chromium-PGlite 联审](../execution-2026-10-05-encrypted.md)：RV-058 有三个测量面的失败复验及正常已建凭据保护对照。只登记一个共同根因，不把 memory/管道接缝包装为所有后端安全，完整 C 与对象仍未完成。

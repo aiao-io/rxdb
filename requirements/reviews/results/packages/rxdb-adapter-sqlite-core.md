@@ -106,3 +106,9 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 C2 **部分执行**。原 upsertMany 的事务、触发器抑制、实体刷新和缓存事件真实运行，A/B 两条实际待推日志与裸缓存修复区分；旧修复提交覆盖 B 是 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，旧 query 在 origin-down 下覆盖确认写是 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)。串行 SQL 队列不等于跨网络窗口的实体意图保护。完整回滚/系统迁移/所有子后端矩阵没有核销。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+
+## 2026-10-05：加密初始化取消联审
+
+C2/C4 与加密 storage 生命周期联审：原 SqliteCoreKeyringStorage 的 ensure/read/INSERT OR FAIL、冲突分类，以及 base encryption facade 真实参与 Electron 复验。取消首次 provider 后仍提交 singleton 的根因统一 [RV-058](../../RV-058-cancelled-first-unlock-persists-abandoned-key.md)，不是 SQLite 违反事务/主键。native 文件档位 **2 failed /1 passed**，新 B 被 A verifier 拒绝。仍未完成各 browser backend/工作树/备份/崩溃矩阵；不恢复 writer lease，不重复登记四条后端缺陷。
+
+[本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。

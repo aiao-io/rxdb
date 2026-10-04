@@ -1,0 +1,18 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "test",
+    "--projects=rxdb-adapter-electron,rxdb-adapter-pglite",
+    "--parallel=1",
+    "--args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "clientDate": "2026-10-05"
+}

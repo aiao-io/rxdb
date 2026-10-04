@@ -1,0 +1,207 @@
+{
+  "clientDate": "2026-10-05",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "tasks": [
+    {
+      "id": "cancelled-first-unlock-probe",
+      "clientDate": "2026-10-05",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-adapter-encrypted:test",
+        "--args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1
+    },
+    {
+      "id": "encrypted-baseline",
+      "clientDate": "2026-10-05",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-adapter-encrypted:test",
+        "--run",
+        "--coverage.enabled=false",
+        "--maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0
+    },
+    {
+      "id": "final-encrypted-all-tests",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-adapter-encrypted:test",
+        "--run",
+        "--coverage.enabled=false",
+        "--maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "clientDate": "2026-10-05"
+    },
+    {
+      "id": "final-native-cancel-probes",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-adapter-electron,rxdb-adapter-pglite",
+        "--parallel=1",
+        "--args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "clientDate": "2026-10-05"
+    },
+    {
+      "id": "final-three-project-lint",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=rxdb-adapter-encrypted,rxdb-adapter-electron,rxdb-adapter-pglite",
+        "--parallel=1",
+        "--max-warnings=0",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "clientDate": "2026-10-05"
+    },
+    {
+      "id": "final-three-project-typecheck",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "typecheck",
+        "--projects=rxdb-adapter-encrypted,rxdb-adapter-electron,rxdb-adapter-pglite",
+        "--parallel=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "clientDate": "2026-10-05"
+    },
+    {
+      "id": "native-cancelled-unlock-probes",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-adapter-electron,rxdb-adapter-pglite",
+        "--parallel=1",
+        "--args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "clientDate": "2026-10-05"
+    },
+    {
+      "id": "pglite-real-table-cancel-probe",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-adapter-pglite:test",
+        "--args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "clientDate": "2026-10-05"
+    }
+  ],
+  "counts": {
+    "rxdb-adapter-encrypted": {
+      "tests": 277,
+      "passed": 275,
+      "failed": 2,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > lock 发生在 provider 尚未返回时，取消的解锁不能初始化 singleton",
+          "time": "0.011275625"
+        },
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > 取消 A 后开始首次解锁 B，B 不应被废弃 A 的 verifier 拒绝",
+          "time": "0.00415225"
+        }
+      ],
+      "original274AllPassed": true
+    },
+    "rxdb-adapter-electron": {
+      "tests": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > provider 被取消后不能把废弃凭据写入实际 keyring 表",
+          "time": "0.041591"
+        },
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > 取消 A 后的新 B 解锁不能被废弃 A 的 verifier 拦截",
+          "time": "0.01274425"
+        }
+      ]
+    },
+    "rxdb-adapter-pglite": {
+      "tests": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "原 PGlite /Chromium adapter 的首次加密解锁取消提交边界 > provider 被取消后不能把废弃凭据写入实际 keyring 表",
+          "time": "1.09584"
+        },
+        {
+          "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+          "name": "原 PGlite /Chromium adapter 的首次加密解锁取消提交边界 > 取消 A 后的新 B 解锁不能被废弃 A 的 verifier 拦截",
+          "time": "0.83941"
+        }
+      ]
+    }
+  },
+  "newFindings": [
+    "RV-058"
+  ],
+  "wholeObjectsComplete": 0,
+  "newFullyClosedChecks": 0,
+  "cryptoAlgorithmBreakClaimed": false
+}

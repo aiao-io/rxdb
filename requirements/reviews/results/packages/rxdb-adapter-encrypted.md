@@ -51,3 +51,9 @@ AES-GCM 字段加密 wrapper、versioned envelope、keyring 和查询能力约�
 - [ ] C6 跨后端组合：逐后端对照 sqlite-core、PGlite、Electron、Tauri、浏览器、小程序实际测试调用点。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-05：加密初始化取消联审
+
+首次 provider 返回之前 lock 的初始化提交边界确认 [RV-058](../../RV-058-cancelled-first-unlock-persists-abandoned-key.md)（P2）：内存发布被阻止，废弃 verifier 仍被实际存储，新 B 因此被拒绝。原 Keyring/WebCrypto+native SQLite 接口 **2 failed /1 passed**；最终整包 **275 passed /2 failed**，原 274 条全过。C1/C2/C4/C5 源码与基线已追踪，C3 有确认问题、C6 两实际后端补证；所有完整 C 仍未核销。没有把已有 AEAD/AAD/lockEpoch/singleton 冲突保护漏看成无实现，亦不从 helper 的非字符串 passthrough 推出真实 row 可绕过解密。
+
+[本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
