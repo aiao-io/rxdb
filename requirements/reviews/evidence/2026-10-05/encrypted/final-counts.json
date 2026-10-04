@@ -1,4 +1,22 @@
 {
+  "rxdb-adapter-electron": {
+    "tests": 3,
+    "passed": 1,
+    "failed": 2,
+    "skipped": [],
+    "failures": [
+      {
+        "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+        "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > provider 被取消后不能把废弃凭据写入实际 keyring 表",
+        "time": "0.041591"
+      },
+      {
+        "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
+        "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > 取消 A 后的新 B 解锁不能被废弃 A 的 verifier 拦截",
+        "time": "0.01274425"
+      }
+    ]
+  },
   "rxdb-adapter-encrypted": {
     "tests": 277,
     "passed": 275,
@@ -17,24 +35,6 @@
       }
     ],
     "original274AllPassed": true
-  },
-  "rxdb-adapter-electron": {
-    "tests": 3,
-    "passed": 1,
-    "failed": 2,
-    "skipped": [],
-    "failures": [
-      {
-        "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
-        "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > provider 被取消后不能把废弃凭据写入实际 keyring 表",
-        "time": "0.041591"
-      },
-      {
-        "classname": "src/__tests__/review-aborted-initial-unlock.spec.ts",
-        "name": "原 file SQLite /node host adapter 的首次加密解锁取消提交边界 > 取消 A 后的新 B 解锁不能被废弃 A 的 verifier 拦截",
-        "time": "0.01274425"
-      }
-    ]
   },
   "rxdb-adapter-pglite": {
     "tests": 3,

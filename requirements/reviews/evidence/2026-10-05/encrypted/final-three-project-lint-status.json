@@ -1,4 +1,5 @@
 {
+  "clientDate": "2026-10-05",
   "command": [
     "pnpm",
     "nx",
@@ -12,6 +13,5 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 0,
-  "clientDate": "2026-10-05"
+  "exitCode": 0
 }

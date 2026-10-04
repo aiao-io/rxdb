@@ -1,4 +1,5 @@
 {
+  "businessImplementationModified": false,
   "formatAndDiffPaths": [
     "requirements/reviews/RV-058-cancelled-first-unlock-persists-abandoned-key.md",
     "requirements/reviews/execution-2026-10-05-encrypted.md",
@@ -18,6 +19,5 @@
     "packages/rxdb-adapter-electron/src/__tests__/review-aborted-initial-unlock.spec.ts",
     "packages/rxdb-adapter-pglite/src/__tests__/review-aborted-initial-unlock.spec.ts"
   ],
-  "rawEvidenceDirectory": "requirements/reviews/evidence/2026-10-05/encrypted",
-  "businessImplementationModified": false
+  "rawEvidenceDirectory": "requirements/reviews/evidence/2026-10-05/encrypted"
 }
