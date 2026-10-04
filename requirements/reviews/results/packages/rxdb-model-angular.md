@@ -35,7 +35,7 @@ Angular：metadata 驱动的表单、详情、列表、表格、弹窗与查询�
 | `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-040](../../RV-040-angular-model-real-fixtures-leak-rxdb.md)；仅对已取证专题下结论，不代表全对象审完。
+当前确认意见：RV-040（已修复，记录已删除）；仅对已取证专题下结论，不代表全对象审完。
 
 ### 尚未完成的专项
 
@@ -53,7 +53,7 @@ Angular：metadata 驱动的表单、详情、列表、表格、弹窗与查询�
 
 ### C5：真实组件 fixture 生命周期
 
-🟡 [RV-040：两个共享 RxDB 未销毁的真实组件套件合跑失败](../../RV-040-angular-model-real-fixtures-leak-rxdb.md)。detail 单文件 **17 passed**、list 单文件 **44 passed**，原两文件组合 **1 failed / 60 passed**，全包隔离 **35 failed / 249 passed**。给两文件临时副本补显式 afterAll teardown 后 **61 passed**，原始文件 SHA 未变，副本已删除。
+🟢 RV-040（已修复，记录已删除）：两个共享 RxDB 未销毁的真实组件套件合跑失败，已补齐共享 fixture 的 teardown。detail 单文件 **17 passed**、list 单文件 **44 passed**，原两文件组合 **1 failed / 60 passed**，全包隔离 **35 failed / 249 passed**。给两文件临时副本补显式 afterAll teardown 后 **61 passed**，原始文件 SHA 未变，副本已删除。
 
 证据：[原组合](../../evidence/2026-10-03/follow-up/model-detail-list-pair.txt)、[cleanup 对照](../../evidence/2026-10-03/follow-up/model-cleanup-pair-control.txt)、[输入 SHA / 命令](../../evidence/2026-10-03/follow-up/model-cleanup-pair-control-status.json)。静态实体构造的多库歧义保护应保留；不能凭门禁红就改业务关系组件或核心的数据库选择规则。
 

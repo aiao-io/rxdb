@@ -18,7 +18,7 @@ execution: in-progress
 
 | 意见                                                               | 对象                    | 已复现结果                                                                              | 测量边界                                                                     |
 | ------------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [RV-042 / P2](RV-042-workspace-install-epoch-settlement.md)        | workspace               | 旧 install 回调清掉新删除意图、或污染新安装失败标记；新四例 2 failed / 2 passed         | 实际插件/LifecycleScope，IDB/event 接缝；未外推主表或真实 IDB 重开           |
+| RV-042 / P2（已修复，记录已删除）                                  | workspace               | 旧 install 回调清掉新删除意图、或污染新安装失败标记；新四例 2 failed / 2 passed         | 实际插件/LifecycleScope，IDB/event 接缝；未外推主表或真实 IDB 重开           |
 | [RV-043 / P2](RV-043-storage-fetch-response-body-leak.md)          | storage                 | 状态/MIME 早期拒绝后响应体未取消；storage 销毁后仍下载；2 failed / 1 passed             | 原生 Node fetch + 真实 HTTP；保留原 Response 观测引用，文件/metadata 夹具    |
 | [RV-044 / P1](RV-044-desktop-logical-path-alias-data-overwrite.md) | storage + Electron host | case / NFC-NFD 别名形成两条 metadata、一份文件，旧 ID 内容也被覆盖；2 failed / 1 passed | 实际 RxDB、node:sqlite、Electron host、当前本机卷；非 GUI/IPC，不外推所有 OS |
 

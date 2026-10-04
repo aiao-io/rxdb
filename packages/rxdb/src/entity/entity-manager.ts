@@ -210,23 +210,45 @@ export class EntityManager {
 
   /**
    * 清理所有缓存
+   *
+   * @remarks
+   * 逐个仓储隔离销毁：某个仓储 `destroy()` 抛错不能让后续仓储漏销毁，也不能让
+   * 缓存清空本身被跳过。保留首个异常，清空收尾后统一抛出，调用方仍能看到原始错误。
    */
   cleanAllCache() {
+    let firstError: unknown;
     this.#entity_repository_map.forEach(repository => {
       if (repository && typeof (repository as { destroy?: () => void }).destroy === 'function') {
-        (repository as { destroy: () => void }).destroy();
+        try {
+          (repository as { destroy: () => void }).destroy();
+        } catch (error) {
+          firstError ??= error;
+        }
       }
     });
     this.#entity_cache_map.clear();
     this.#entity_repository_map.clear();
+    if (firstError !== undefined) throw firstError;
   }
 
   /**
    * 销毁管理器并解除实体类绑定
+   *
+   * @remarks
+   * 解绑放在 finally：即便 {@link EntityManager.cleanAllCache} 因某个仓储销毁失败而抛错，
+   * 实体类也必须解除与本管理器的绑定，否则下一个复用同一实体类的数据库会被
+   * 「registered with multiple RxDB instances」误挡。原始错误在解绑完成后原样重新抛出。
    */
   destroy() {
-    this.cleanAllCache();
-    this.rxdb.config.entities.forEach(EntityType => unregisterEntityManager(EntityType, this));
+    let error: unknown;
+    try {
+      this.cleanAllCache();
+    } catch (caught) {
+      error = caught;
+    } finally {
+      this.rxdb.config.entities.forEach(EntityType => unregisterEntityManager(EntityType, this));
+    }
+    if (error !== undefined) throw error;
   }
 
   /**

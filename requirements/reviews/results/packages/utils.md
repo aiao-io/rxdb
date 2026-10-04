@@ -36,7 +36,7 @@ execution: partial
 | `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-033](../../RV-033-utils-queue-settlement-id-reuse.md)
+当前确认意见：RV-033（已修复，记录已删除）
 
 ### 尚未完成的专项
 

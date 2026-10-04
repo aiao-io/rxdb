@@ -90,7 +90,7 @@ execution: partial
 
 ### 真实工作树公开提交链路
 
-实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。两端同样被过期 HEAD 凭据挡住，统一记 [RV-041](../../RV-041-working-tree-public-commit-idempotency.md)，不重复报成两个 SQL 编译器问题。
+实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。两端同样被过期 HEAD 凭据挡住，统一记 RV-041（已修复，记录已删除），不重复报成两个 SQL 编译器问题。
 
 本次配置的 testing 与门面走源码入口；与 SQLite 的构建输入不同。真实事务对照不证明本轮持久化 store、恢复/加密/全部并发边界已经通过（原 RV-027 / RV-029 / RV-034 查询红测试已于 2026-10-05 修复，见 README 清理记录）。
 

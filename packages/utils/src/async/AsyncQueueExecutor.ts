@@ -74,8 +74,11 @@ export class AsyncQueueExecutor {
         reject,
         run: async () => {
           try {
-            resolve(await task());
+            const value = await task();
+            if (id !== undefined) this.queueMap.delete(id);
+            resolve(value);
           } catch (error) {
+            if (id !== undefined) this.queueMap.delete(id);
             reject(error);
           }
         }
@@ -183,7 +186,6 @@ export class AsyncQueueExecutor {
     this.running++;
     void item.run().finally(() => {
       this.running--;
-      if (item.id !== undefined) this.queueMap.delete(item.id);
       this.runAvailable();
       this.checkDrain();
     });
