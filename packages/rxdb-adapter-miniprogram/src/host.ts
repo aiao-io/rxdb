@@ -11,8 +11,8 @@ import { MINI_PROGRAM_PLATFORM_IDS } from './mini-program.interface.js';
 
 export { MINI_PROGRAM_PLATFORM_IDS } from './mini-program.interface.js';
 
-/** 平台可行性矩阵在仓库里的位置；未知平台的报错指向这里。 */
-const PLATFORM_FEASIBILITY_PATH = 'requirements/stories/adapter/miniprogram-platform-feasibility.md';
+/** 平台可行性矩阵在仓库里的位置；未知平台与无文档能力缺失的报错指向这里。包内共用，不从包入口导出。 */
+export const PLATFORM_FEASIBILITY_PATH = 'requirements/stories/adapter/miniprogram-platform-feasibility.md';
 
 /** 传入的平台 id 不在 {@link MINI_PROGRAM_PLATFORM_IDS} 中。 */
 export class MiniProgramUnknownPlatformError extends Error {
