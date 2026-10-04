@@ -17,9 +17,9 @@ baseline: b01e35e9aedc58e61fb02a909ec98b4a119e82a2
 ## 根因与源码证据
 
 1. [EntityManager.cleanAllCache / destroy](../../packages/rxdb/src/entity/entity-manager.ts) 第 206–221 行按 `forEach` 销毁仓储。任一项抛错即中断：缓存清空和 `unregisterEntityManager` 都在后面，没有 finally 或跨项隔离。
-2. [RxDB.#shutdown](../../packages/rxdb/src/rxdb.ts) 第 1594–1608 行把 `entityManager.destroy()` 放在状态复位之前。异常还会跳过连接/初始化状态的复位。
-3. [RxDB.disconnectAll](../../packages/rxdb/src/rxdb.ts) 第 1253 行的 `await #shutdown()` 在负责 adapter 断连与清空 map 的 try/finally **之外**。
-4. [RxDB.destroy](../../packages/rxdb/src/rxdb.ts) 第 1287–1303 行先标记 `#destroyed = true`；后续调用直接返回。其 finally 只销毁 syncState / reachability，不能补齐仓储与 adapter 清理。
+2. [RxDB.#shutdown](../../packages/rxdb/src/RxDB.ts) 第 1594–1608 行把 `entityManager.destroy()` 放在状态复位之前。异常还会跳过连接/初始化状态的复位。
+3. [RxDB.disconnectAll](../../packages/rxdb/src/RxDB.ts) 第 1253 行的 `await #shutdown()` 在负责 adapter 断连与清空 map 的 try/finally **之外**。
+4. [RxDB.destroy](../../packages/rxdb/src/RxDB.ts) 第 1287–1303 行先标记 `#destroyed = true`；后续调用直接返回。其 finally 只销毁 syncState / reachability，不能补齐仓储与 adapter 清理。
 
 用户可通过公开 `repository(...)` 接入自定义仓储；内置 [Repository.destroy](../../packages/rxdb/src/repository/Repository.ts) 也会调用 QueryCache session / query manager 的清理。这里不是要求隐藏 cleanup 错误，而是要求错误传播与其它资源释放同时成立。
 
