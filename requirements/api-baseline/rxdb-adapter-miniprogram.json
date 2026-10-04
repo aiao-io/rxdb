@@ -6,6 +6,34 @@
         "kind": "value"
       },
       {
+        "name": "ALIPAY_UNDOCUMENTED_CAPABILITIES",
+        "kind": "value"
+      },
+      {
+        "name": "ALIPAY_WASM_TEXT_COPY_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "AlipayMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayRandomWorker",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayStandardWasmApi",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapability",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapabilityError",
+        "kind": "both"
+      },
+      {
         "name": "assertMiniProgramPlatformId",
         "kind": "value"
       },
@@ -15,6 +43,14 @@
       },
       {
         "name": "checkMiniProgramRuntimeCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayWasmRuntime",
         "kind": "value"
       },
       {
@@ -60,6 +96,14 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramAlipayApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramAlipayRawFileSystem",
+        "kind": "type"
       },
       {
         "name": "MiniProgramDouyinApi",
@@ -208,7 +252,43 @@
     ],
     "./runtime": [
       {
+        "name": "ALIPAY_UNDOCUMENTED_CAPABILITIES",
+        "kind": "value"
+      },
+      {
+        "name": "ALIPAY_WASM_TEXT_COPY_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "AlipayMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayRandomWorker",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayStandardWasmApi",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapability",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapabilityError",
+        "kind": "both"
+      },
+      {
         "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayWasmRuntime",
         "kind": "value"
       },
       {
@@ -250,6 +330,14 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramAlipayApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramAlipayRawFileSystem",
+        "kind": "type"
       },
       {
         "name": "MiniProgramDouyinApi",
