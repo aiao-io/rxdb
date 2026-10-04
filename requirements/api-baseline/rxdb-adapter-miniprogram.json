@@ -6,6 +6,10 @@
         "kind": "value"
       },
       {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
         "name": "assertMiniProgramRuntimeCapabilities",
         "kind": "value"
       },
@@ -203,6 +207,10 @@
       }
     ],
     "./runtime": [
+      {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
       {
         "name": "createDouyinMiniProgramHost",
         "kind": "value"

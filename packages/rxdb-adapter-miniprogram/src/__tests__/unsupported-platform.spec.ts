@@ -254,7 +254,10 @@ describe('可行性矩阵 ↔ 改判标准', () => {
     expect(lacking.map(row => row.id)).toEqual(['baidu', 'qq']);
     for (const row of lacking) {
       expect(row.decision, row.id).toBe('unsupported');
-      expect(row.blockers.filter(blocker => !MISSING_CAPABILITY_BLOCKERS.includes(blocker)), row.id).toEqual([]);
+      expect(
+        row.blockers.filter(blocker => !MISSING_CAPABILITY_BLOCKERS.includes(blocker)),
+        row.id
+      ).toEqual([]);
     }
   });
 
@@ -331,7 +334,10 @@ describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id'
     const viaHost = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
 
     expect(direct).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
-    expect(direct).toMatchObject({ platform: 'alipay', blockers: ['devtools-unverified', 'ios-unverified', 'android-unverified'] });
+    expect(direct).toMatchObject({
+      platform: 'alipay',
+      blockers: ['devtools-unverified', 'ios-unverified', 'android-unverified']
+    });
     expect((direct as Error).message).toBe((viaHost as Error).message);
   });
 

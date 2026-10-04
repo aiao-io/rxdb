@@ -1,4 +1,7 @@
 {
+  "compileOptions": {
+    "transpile": {}
+  },
   "compileType": "mini",
   "format": 2
 }

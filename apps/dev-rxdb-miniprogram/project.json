@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。支付宝在可行性矩阵里是 unsupported，demo 只走 adapter 的拒绝路径（页面显示 MiniProgramUnsupportedPlatformError 与判定原因），不建库。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。",
+  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。支付宝在可行性矩阵里是 unsupported，demo 只走 adapter 的拒绝路径（页面显示 MiniProgramUnsupportedPlatformError 与判定原因），不建库。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。它的 compileOptions.transpile 不能删（空对象就够）：开发者工具（编译器 0.108.16）见到它才用 babel 7（es2023）编译 JS，没有它走 babel 6（es6），Taro 运行时 taro.js 编译失败（CE1000.02 The keyword 'const' is reserved），模拟器起不来。",
   "// build-tt": "抖音产物输出到 dist-tt/，用抖音开发者工具直接打开 dist-tt/。project.tt.json 的 appid 是占位的 testAppId，换真实 AppID 只在工具里或 dist-tt/project.config.json 里改，别提交。",
   "// lint": "Taro 的依赖树被 auto-install-peers 塞进一个 eslint 8.41（@eslint-community/eslint-utils 的 peer），它的 .bin 会盖住根上的 eslint 10，flat config 直接找不到。所以显式走根二进制，而不是 @nx/eslint/plugin 推断出的裸 `eslint .`。",
   "// serve": "微信小程序没有 dev server：`serve` 就是 watch 构建，产物仍在 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）即可热更。watch 模式下 NODE_ENV=development，@tarojs/plugin-framework-react 才会挂上 @vitejs/plugin-react，它把 `@babel/plugin-proposal-decorators` 以字符串形式交给 babel，由 babel 从 app 根解析——所以那个插件必须显式列进本项目 devDependencies，光靠 babel-preset-taro 的传递依赖在 pnpm 下解析不到。",
