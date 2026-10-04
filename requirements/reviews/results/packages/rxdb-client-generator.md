@@ -54,8 +54,6 @@ execution: partial
 
 ## 2026-10-04：生成器、图与小程序第四批深审
 
-🔴 C3 确认 [RV-049](../../RV-049-generator-new-output-alias-queue-order.md)：首次 generated 尚未存在，物理父目录/父软链两个 outDir 队列 key 不同。慢的较早 Alpha 在较晚 Beta 之后发布，最终旧输出覆盖新输出。实际 CLI/分析/生成/staging/manifest/文件系统；只在 discovery 接缝延迟第一项，**1 failed /1 已存在目录对照 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/generator-alias-queue-final.txt)。
-
 整包先行 **38 files /371 passed**：[基线](../../evidence/2026-10-04/generator-graph-miniprogram/rxdb-client-generator-baseline.txt)。人工检查输入分析到 getSourceFiles、输出 containment/staging/manifest/stale cleanup 与队列身份。新队列排序不被既有“输出目录已存在”的 soft-link 绿覆盖。
 
 生成输出目前是校验过的实体 leaf/barrel 文件名；没有把“新输出穿过任意父 symlink”初步猜测报成已证实写越界。JSDoc renderer 已转义 comment terminator/多种换行，模板插值字符串也有既有 inert metadata 反证；未凭看见 displayName 就生成注入漏洞报告。所有公开类型/发布 consumer/浏览器完整测量面仍待逐项核销，C1/C2/C4/C5/C6 不批量打勾。
