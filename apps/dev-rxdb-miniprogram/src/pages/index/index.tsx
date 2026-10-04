@@ -2,6 +2,8 @@ import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram';
 import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@tarojs/components';
 import { useLoad, useUnload } from '@tarojs/taro';
 import { useCallback, useRef, useState } from 'react';
+import type { BenchmarkResult, BenchmarkSuiteInfo } from '../../benchmark/scenarios';
+import { formatBenchmarkValue } from '../../benchmark/stats';
 import { logFailure } from '../../debug-log';
 import {
   currentDemoRuntime,
@@ -15,11 +17,16 @@ import './index.scss';
 
 type DemoPhase = 'checking' | 'ready' | 'blocked' | 'error';
 type CheckStatus = 'waiting' | 'running' | 'passed' | 'pending' | 'failed';
+type BenchmarkPhase = 'idle' | 'running' | 'completed' | 'failed';
 
 interface CheckView {
   readonly name: string;
   readonly status: CheckStatus;
   readonly detail: DemoCheck['detail'];
+}
+
+interface BenchmarkSuiteView extends BenchmarkSuiteInfo {
+  readonly results: readonly BenchmarkResult[];
 }
 
 const INITIAL_CHECKS: readonly CheckView[] = [
@@ -51,6 +58,23 @@ function phaseText(phase: DemoPhase): string {
   }[phase];
 }
 
+function benchmarkPhaseText(phase: BenchmarkPhase): string {
+  return {
+    idle: '未运行',
+    running: '运行中',
+    completed: '已完成',
+    failed: '失败'
+  }[phase];
+}
+
+function appendBenchmarkResult(
+  suites: readonly BenchmarkSuiteView[],
+  suiteId: string,
+  result: BenchmarkResult
+): readonly BenchmarkSuiteView[] {
+  return suites.map(suite => (suite.id === suiteId ? { ...suite, results: [...suite.results, result] } : suite));
+}
+
 /** 来源为平台 id 时即宿主随机源，按宿主简称显示为「微信桥接」这类文案。 */
 function capabilityStatus(capability: RuntimeCapability, shortName: string): string {
   if (!capability.available) return capability.polyfillable ? '待引导' : '缺失';
@@ -78,6 +102,8 @@ export default function Index() {
   const [operation, setOperation] = useState('正在检查小程序运行时');
   const [host, setHost] = useState<MiniProgramHost>();
   const [busy, setBusy] = useState(false);
+  const [benchmarkPhase, setBenchmarkPhase] = useState<BenchmarkPhase>('idle');
+  const [benchmarkSuites, setBenchmarkSuites] = useState<readonly BenchmarkSuiteView[]>([]);
 
   const verifyReconnect = useCallback(async (demo: MiniProgramRxdbDemo) => {
     setChecks(current =>
@@ -203,6 +229,29 @@ export default function Index() {
     void verifyReconnect(demo).finally(() => setBusy(false));
   }, [busy, verifyReconnect]);
 
+  const runBenchmark = useCallback(async () => {
+    const demo = demoRef.current;
+    if (!demo || busy) return;
+    setBusy(true);
+    setBenchmarkPhase('running');
+    setBenchmarkSuites([]);
+    setOperation('性能测试运行中');
+    try {
+      await demo.runBenchmark({
+        onSuiteStart: suite => setBenchmarkSuites(current => [...current, { ...suite, results: [] }]),
+        onResult: (suiteId, result) => setBenchmarkSuites(current => appendBenchmarkResult(current, suiteId, result))
+      });
+      setBenchmarkPhase('completed');
+      setOperation('性能测试完成');
+    } catch (error) {
+      logFailure('性能测试', error);
+      setBenchmarkPhase('failed');
+      setOperation(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy]);
+
   return (
     <View className='index'>
       <View className='topline'>
@@ -318,6 +367,41 @@ export default function Index() {
             <Text className='empty-state'>暂无 Todo</Text>
           : null}
         </View>
+      </View>
+
+      <View className='section benchmark-section'>
+        <View className='section-heading'>
+          <Text className='section-title'>性能测试</Text>
+          <Text className={`section-meta benchmark-phase-${benchmarkPhase}`}>{benchmarkPhaseText(benchmarkPhase)}</Text>
+          <Button
+            className='verify-button benchmark-button'
+            size='mini'
+            disabled={phase !== 'ready' || busy}
+            onClick={() => void runBenchmark()}
+          >
+            {benchmarkPhase === 'idle' ? '开始测试' : '重新测试'}
+          </Button>
+        </View>
+        {benchmarkPhase === 'idle' ?
+          <Text className='benchmark-hint'>
+            点击后才运行：吞吐量、延迟分布、扩展性、并发四组，数据写入独立的 benchmark_todo 表，跑完清空，不影响上面的
+            Todo。
+          </Text>
+        : null}
+        {benchmarkSuites.map(suite => (
+          <View className='benchmark-suite' key={suite.id}>
+            <Text className='benchmark-suite-title'>{suite.title}</Text>
+            {suite.results.map(result => (
+              <View className='benchmark-row' key={result.name}>
+                <View className='benchmark-copy'>
+                  <Text className='benchmark-name'>{result.name}</Text>
+                  <Text className='benchmark-detail'>{result.detail}</Text>
+                </View>
+                <Text className='benchmark-value'>{formatBenchmarkValue(result)}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
     </View>
   );

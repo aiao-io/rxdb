@@ -1,4 +1,4 @@
-import type { DevToolsConnectorNegotiationMessage } from '@aiao/rxdb-devtools';
+import { RXDB_DEVTOOLS_MESSAGE, type DevToolsConnectorNegotiationMessage } from '@aiao/rxdb-devtools';
 import { invoke } from '@tauri-apps/api/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTauriConnectorTransport } from './tauri-connector-transport';
@@ -127,10 +127,85 @@ describe('createTauriConnectorTransport', () => {
   });
 
   /**
-   * AC#3 / AC#4：Tauri 没有 `MessageChannel`，隔离由 Rust 按窗口 label 路由提供。
-   * `createSessionPort` 恒返 `undefined`，`closeSessionPort` 是幂等空操作——不能伪造一个端口。
+   * # 握手之后的 v1 命令走「会话私有信道」，而不是总线（GET_BRANCHES 被丢弃的那条告警）
+   *
+   * connector 在总线上只放行 `PING`，其余 v1 命令必须从 `createSessionPort` 交出去的那个
+   * 回调进来，否则就地丢弃并告警。Tauri 没有 `MessageChannel`，但 Rust 中继只认白名单 label，
+   * 入站信道本来就是点对点的——所以「私有端口」在这里是一个**分流**：端口开着时，入站的
+   * v1 帧交给端口回调；v2 帧不属于 v1 命令面，仍走总线回调。
    */
-  it('createSessionPort 恒返 undefined，closeSessionPort 是空操作', () => {
+  describe('会话私有信道的分流', () => {
+    const v1Command = {
+      source: RXDB_DEVTOOLS_MESSAGE,
+      direction: 'devtools-to-page',
+      type: 'GET_BRANCHES',
+      payload: null,
+      timestamp: 0,
+      sequence: 0
+    };
+    const v2Frame = { protocol: 2, type: 'REQUEST', sessionId: 's', payload: {} };
+
+    async function subscribed() {
+      listenMock.mockResolvedValue(() => undefined);
+      const transport = createTauriConnectorTransport();
+      const bus: unknown[] = [];
+      transport.subscribe(message => bus.push(message));
+      await vi.waitFor(() => expect(listenMock).toHaveBeenCalledWith('devtools:message', expect.any(Function)));
+      const deliver = listenMock.mock.calls[0][1] as (event: { payload: string }) => void;
+      return { transport, bus, emit: (frame: unknown) => deliver({ payload: JSON.stringify(frame) }) };
+    }
+
+    it('端口开着时，v1 命令交给端口回调，不进总线', async () => {
+      const { transport, bus, emit } = await subscribed();
+      const port: unknown[] = [];
+      transport.createSessionPort(message => port.push(message));
+
+      emit(v1Command);
+      expect(port).toEqual([v1Command]);
+      expect(bus).toEqual([]);
+    });
+
+    it('端口开着时，v2 帧仍走总线回调', async () => {
+      const { transport, bus, emit } = await subscribed();
+      const port: unknown[] = [];
+      transport.createSessionPort(message => port.push(message));
+
+      emit(v2Frame);
+      expect(bus).toEqual([v2Frame]);
+      expect(port).toEqual([]);
+    });
+
+    it('端口关掉之后，v1 命令回到总线（由 connector 的白名单裁决）', async () => {
+      const { transport, bus, emit } = await subscribed();
+      const port: unknown[] = [];
+      transport.createSessionPort(message => port.push(message));
+      transport.closeSessionPort();
+
+      emit(v1Command);
+      expect(bus).toEqual([v1Command]);
+      expect(port).toEqual([]);
+    });
+
+    it('重建端口后，v1 命令只交给最新的那个回调', async () => {
+      const { transport, emit } = await subscribed();
+      const stale: unknown[] = [];
+      const fresh: unknown[] = [];
+      transport.createSessionPort(message => stale.push(message));
+      transport.closeSessionPort();
+      transport.createSessionPort(message => fresh.push(message));
+
+      emit(v1Command);
+      expect(fresh).toEqual([v1Command]);
+      expect(stale).toEqual([]);
+    });
+  });
+
+  /**
+   * AC#3 / AC#4：Tauri 没有 `MessageChannel`，隔离由 Rust 按窗口 label 路由提供。
+   * `createSessionPort` 恒返 `undefined`（握手不随附 transfer），`closeSessionPort` 幂等——
+   * 不能伪造一个端口；「私有信道」只体现在入站分流上，见上面那组用例。
+   */
+  it('createSessionPort 恒返 undefined，closeSessionPort 幂等', () => {
     const transport = createTauriConnectorTransport();
     expect(transport.createSessionPort(() => undefined)).toBeUndefined();
     expect(() => transport.closeSessionPort()).not.toThrow();
