@@ -1,5 +1,5 @@
 /**
- * US-211 阶段 C：可行性矩阵判 `unsupported` 的平台在连接前被拒绝，错误带出矩阵里的阻断项与判定章节。
+ * US-211 阶段 C：可行性矩阵与平台表、拒绝表、改判标准逐项核对；判 `unsupported` 的平台在连接前被拒绝，错误带出矩阵里的阻断项与判定章节。
  *
  * 拒绝表与矩阵的 YAML 结论逐项核对：矩阵改判而代码没跟（或反过来），这里先红。
  */
@@ -46,6 +46,8 @@ interface FeasibilityRow {
   readonly undocumented?: readonly string[];
   /** 每个环境合格报告的 schema，`null` 为没有；只有第一档有。 */
   readonly evidence?: Readonly<Record<string, string | null>>;
+  /** 维护者书面豁免的真机环境（门 3）；缺席为空。 */
+  readonly waived: readonly string[];
 }
 
 /** 第一档平台：改判标准管的那些行。 */
@@ -100,7 +102,8 @@ function parseFeasibilityRows(markdown: string): FeasibilityRow[] {
         blockers: listField(chunk, 'blockers') ?? [],
         caveats: listField(chunk, 'caveats') ?? [],
         undocumented: listField(chunk, 'undocumented'),
-        evidence: mapField(chunk, 'evidence')
+        evidence: mapField(chunk, 'evidence'),
+        waived: listField(chunk, 'waived') ?? []
       };
     });
 }
@@ -114,11 +117,12 @@ function isFirstTier(row: FeasibilityRow): row is FirstTierRow {
 const FIRST_TIER_ROWS = FEASIBILITY_ROWS.filter(isFirstTier);
 
 /**
- * 改判标准门 3 推出的证据缺口：模拟器必须有；有未文档化依赖时 iOS 与 Android 都必须有，否则至少一台真机。
+ * 改判标准门 3 推出的证据缺口：模拟器必须有；有未文档化依赖时 iOS 与 Android 都必须有（书面豁免的那台除外），
+ * 否则至少一台真机。
  */
-function evidenceGaps({ evidence, undocumented }: FirstTierRow): string[] {
+function evidenceGaps({ evidence, undocumented, waived }: FirstTierRow): string[] {
   const absent = EVIDENCE_ENVIRONMENTS.filter(env => evidence[env] === null);
-  const absentDevices = absent.filter(env => env !== 'devtools');
+  const absentDevices = absent.filter(env => env !== 'devtools' && !waived.includes(env));
   const deviceGaps = undocumented.length > 0 || absentDevices.length === 2 ? absentDevices : [];
   const gaps = absent.includes('devtools') ? ['devtools', ...deviceGaps] : deviceGaps;
   return gaps.map(env => `${env}-unverified`);
@@ -206,7 +210,6 @@ describe('可行性矩阵 ↔ 平台表', () => {
   it('拒绝表里每个平台在矩阵中都是 unsupported，阻断项逐项一致', () => {
     const entries = Object.entries(MINI_PROGRAM_UNSUPPORTED_PLATFORMS);
 
-    expect(entries.length).toBeGreaterThan(0);
     for (const [id, entry] of entries) {
       const row = FEASIBILITY_ROWS.find(candidate => candidate.id === id);
       expect(row, id).toMatchObject({ decision: 'unsupported', blockers: entry.blockers });
@@ -270,6 +273,24 @@ describe('可行性矩阵 ↔ 改判标准', () => {
     }
   });
 
+  it('豁免只给有未文档化依赖的平台，只豁免一台还没有报告的真机，模拟器不能豁免', () => {
+    for (const row of FIRST_TIER_ROWS.filter(candidate => candidate.waived.length > 0)) {
+      expect(row.undocumented.length, row.id).toBeGreaterThan(0);
+      expect(row.waived.length, row.id).toBe(1);
+      expect(['ios', 'android'], row.id).toEqual(expect.arrayContaining([...row.waived]));
+      expect(
+        row.waived.map(env => row.evidence[env as EvidenceEnvironment]),
+        row.id
+      ).toEqual(row.waived.map(() => null));
+    }
+  });
+
+  it('非第一档平台不写豁免', () => {
+    for (const row of FEASIBILITY_ROWS.filter(candidate => !isFirstTier(candidate))) {
+      expect(row.waived, row.id).toEqual([]);
+    }
+  });
+
   it('supported 平台没跑的真机逐个写进 caveats', () => {
     for (const row of FIRST_TIER_ROWS.filter(candidate => candidate.decision === 'supported')) {
       const absent = EVIDENCE_ENVIRONMENTS.filter(env => row.evidence[env] === null);
@@ -278,78 +299,95 @@ describe('可行性矩阵 ↔ 改判标准', () => {
   });
 });
 
-describe('支付宝 alipay（AC#17）', () => {
+describe('支付宝 alipay（阶段 C：带豁免改判 supported）', () => {
+  const row = FIRST_TIER_ROWS.find(candidate => candidate.id === 'alipay');
+
+  it('矩阵判 supported：iOS 与开发者工具有报告，Android 书面豁免并记 caveat', () => {
+    expect(row).toMatchObject({
+      decision: 'supported',
+      blockers: [],
+      waived: ['android'],
+      evidence: { devtools: 'aiao.us-211.alipay-probe/v7', ios: 'aiao.us-211.alipay-probe/v7', android: null }
+    });
+    expect(row?.caveats).toEqual(['android-unverified', 'quota-unobserved']);
+  });
+
   it('支付宝宿主检测的无文档能力与矩阵 undocumented 逐项一致，报错指向的章节真实存在', () => {
-    const row = FIRST_TIER_ROWS.find(candidate => candidate.id === 'alipay');
     const message = new AlipayUndocumentedCapabilityError('logic-layer-bigint', '探测').message;
     const section = /「(.+)」一节$/.exec(message)?.[1];
 
     expect(row?.undocumented).toEqual([...ALIPAY_UNDOCUMENTED_CAPABILITIES]);
-    expect(section).toBe(MINI_PROGRAM_UNSUPPORTED_PLATFORMS.alipay.section);
+    expect(section).toMatch(/^支付宝 `my` — supported/);
     expect(FEASIBILITY_MARKDOWN).toContain(`\n### ${String(section)}\n`);
   });
 
-  it('抛 MiniProgramUnsupportedPlatformError，带出矩阵阻断项与判定章节', () => {
-    const error = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
+  it('已登记、不在拒绝表里：平台判定与宿主路径都放行', () => {
+    expect(MINI_PROGRAM_PLATFORM_IDS).toContain('alipay');
+    expect(Object.hasOwn(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, 'alipay')).toBe(false);
+    expect(() => {
+      assertMiniProgramPlatformId('alipay');
+    }).not.toThrow();
+    expect(resolveMiniProgramHost({ host: createHost('alipay') }).platform).toBe('alipay');
+  });
+});
 
-    expect(error).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
-    // 阶段 C 之前 alipay 抛的是未知平台错误；子类保证已有的 instanceof 判断不失效
+describe('MiniProgramUnsupportedPlatformError', () => {
+  const entry = Object.freeze({
+    displayName: '某小程序',
+    blockers: Object.freeze(['missing-wasm-entry']),
+    reason: '找不到 WASM 入口',
+    section: '某平台 — unsupported'
+  });
+
+  it('文案带出判定理由、阻断项、已知平台与矩阵章节，继承未知平台错误', () => {
+    const error = new MiniProgramUnsupportedPlatformError('some', entry);
+
     expect(error).toBeInstanceOf(MiniProgramUnknownPlatformError);
-    const unsupported = error as MiniProgramUnsupportedPlatformError;
-    expect(unsupported.name).toBe('MiniProgramUnsupportedPlatformError');
-    expect(unsupported.platform).toBe('alipay');
-    expect(unsupported.knownPlatforms).toEqual(['wechat', 'douyin']);
-    expect(unsupported.blockers).toEqual(['devtools-unverified', 'ios-unverified', 'android-unverified']);
-    expect(unsupported.message).toBe(
-      '支付宝小程序（alipay）不支持：逻辑层的 WebAssembly 与安全随机源都没有文档承诺，' +
-        '要由正式 host 在开发者工具、iOS 与 Android 非调试真机上全部跑通，目前三端都没有合格报告。' +
-        '阻断项: devtools-unverified, ios-unverified, android-unverified；已知平台: wechat, douyin。' +
-        '判定理由与复议条件见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — unsupported」一节'
+    expect(error).toMatchObject({
+      name: 'MiniProgramUnsupportedPlatformError',
+      platform: 'some',
+      blockers: ['missing-wasm-entry'],
+      knownPlatforms: ['wechat', 'douyin', 'alipay']
+    });
+    expect(error.message).toBe(
+      '某小程序（some）不支持：找不到 WASM 入口。阻断项: missing-wasm-entry；已知平台: wechat, douyin, alipay。' +
+        '判定理由与复议条件见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「某平台 — unsupported」一节'
     );
   });
 
-  it('运行时预检、随机源准备与 VFS 都在碰宿主能力之前拒绝', async () => {
-    const host = createHost('alipay');
-
-    expect(() => assertMiniProgramRuntimeCapabilities({ host, moduleFactory, wasmRuntime })).toThrow(
-      MiniProgramUnsupportedPlatformError
-    );
-    await expect(prepareMiniProgramHostRuntime(host)).rejects.toThrow(MiniProgramUnsupportedPlatformError);
-    expect(() => createMiniProgramFileVFS({} as never, { host, databaseName: 'a.sqlite' })).toThrow(
-      MiniProgramUnsupportedPlatformError
-    );
-    expect(host.getFileSystemManager).not.toHaveBeenCalled();
-    expect(host.requestRandomValues).not.toHaveBeenCalled();
-  });
-
-  it('连接前失败：不加载 wasm，也不读微信全局', async () => {
-    const wx = { getFileSystemManager: vi.fn(), env: { USER_DATA_PATH: '/global-wx' } };
-    vi.stubGlobal('wx', wx);
-    const host = createHost('alipay');
-
-    await expect(createWaSqliteMiniProgramClient('alipay-db', { host, moduleFactory, wasmRuntime })).rejects.toThrow(
-      MiniProgramUnsupportedPlatformError
-    );
+  it('拒绝表里的平台在预检、随机源准备、VFS 与建客户端时都在碰宿主能力之前拒绝', async () => {
+    for (const id of Object.keys(MINI_PROGRAM_UNSUPPORTED_PLATFORMS)) {
+      const host = createHost(id);
+      expect(() => assertMiniProgramRuntimeCapabilities({ host, moduleFactory, wasmRuntime }), id).toThrow(
+        MiniProgramUnsupportedPlatformError
+      );
+      await expect(prepareMiniProgramHostRuntime(host), id).rejects.toThrow(MiniProgramUnsupportedPlatformError);
+      expect(() => createMiniProgramFileVFS({} as never, { host, databaseName: 'a.sqlite' }), id).toThrow(
+        MiniProgramUnsupportedPlatformError
+      );
+      await expect(
+        createWaSqliteMiniProgramClient(`${id}-db`, { host, moduleFactory, wasmRuntime }),
+        id
+      ).rejects.toThrow(MiniProgramUnsupportedPlatformError);
+      expect(host.getFileSystemManager, id).not.toHaveBeenCalled();
+      expect(host.requestRandomValues, id).not.toHaveBeenCalled();
+    }
     expect(moduleFactory).not.toHaveBeenCalled();
-    expect(wasmRuntime.instantiate).not.toHaveBeenCalled();
-    expect(host.getFileSystemManager).not.toHaveBeenCalled();
-    expect(wx.getFileSystemManager).not.toHaveBeenCalled();
   });
 });
 
 describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id', () => {
-  it('支付宝抛的错与宿主路径逐字一致', () => {
-    const direct = caught(() => {
-      assertMiniProgramPlatformId('alipay');
-    });
-    const viaHost = caught(() => resolveMiniProgramHost({ host: createHost('alipay') }));
+  it('拒绝表里的平台抛的错与宿主路径逐字一致', () => {
+    for (const [id, entry] of Object.entries(MINI_PROGRAM_UNSUPPORTED_PLATFORMS)) {
+      const direct = caught(() => {
+        assertMiniProgramPlatformId(id);
+      });
+      const viaHost = caught(() => resolveMiniProgramHost({ host: createHost(id) }));
 
-    expect(direct).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
-    expect(direct).toMatchObject({
-      platform: 'alipay',
-      blockers: ['devtools-unverified', 'ios-unverified', 'android-unverified']
-    });
-    expect((direct as Error).message).toBe((viaHost as Error).message);
+      expect(direct, id).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+      expect(direct, id).toMatchObject({ platform: id, blockers: entry.blockers });
+      expect((direct as Error).message, id).toBe((viaHost as Error).message);
+    }
   });
 
   it('已登记的平台 id 放行', () => {
@@ -381,7 +419,7 @@ describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id'
     );
     Object.defineProperty(Object, 'hasOwn', hasOwn);
 
-    expect(alipay).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+    expect(alipay).toBeUndefined();
     expect(swan).toBeInstanceOf(MiniProgramUnknownPlatformError);
     expect(swan).not.toBeInstanceOf(MiniProgramUnsupportedPlatformError);
   });

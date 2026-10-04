@@ -1,39 +1,36 @@
 /**
- * US-211 支付宝 host。能力名、存储布局、文件系统包装与运行时修补都取支付宝探针 v2–v6
+ * US-211 支付宝 host。能力名、存储布局、文件系统包装与运行时修补都取支付宝探针 v2–v7
  * （开发者工具模拟器 + iOS 真机）的实测结论，平台形态见 {@link createFakeAlipay}。
- *
- * 矩阵转 `supported` 之前 `alipay` 不登记：接入客户端时只把平台 id 换成 `wechat`，其余字段原样交给 adapter，
- * 与探针的接法一致。
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWaSqliteMiniProgramClient, type WaSqliteMiniProgramClient } from '../create-client.js';
 import { createWechatMiniProgramHost } from '../host.js';
-import { ALIPAY_FRAME_HEADER } from '../hosts/alipay-file-system.js';
 import type { MiniProgramAlipayApi } from '../hosts/alipay-api.js';
+import { ALIPAY_FRAME_HEADER } from '../hosts/alipay-file-system.js';
 import { createAlipayWasmRuntime } from '../hosts/alipay-wasm.js';
-import { createAlipayMiniProgramHost, type AlipayMiniProgramHost } from '../hosts/alipay.js';
+import { createAlipayMiniProgramHost } from '../hosts/alipay.js';
 import { createDouyinMiniProgramHost } from '../hosts/douyin.js';
 import type { MiniProgramHost, MiniProgramWasmRuntime } from '../mini-program.interface.js';
 import { MINI_PROGRAM_PLATFORM_IDS } from '../mini-program.interface.js';
 import { assertMiniProgramRuntimeCapabilities } from '../runtime-capabilities.js';
 import { prepareMiniProgramHostRuntime } from '../runtime-polyfills.js';
-import { createFakeAlipay, createFakeRandomWorker, FAKE_ALIPAY_USER_DATA_PATH, type FakeAlipay } from './fake-alipay.js';
+import {
+  createFakeAlipay,
+  createFakeRandomWorker,
+  FAKE_ALIPAY_USER_DATA_PATH,
+  type FakeAlipay
+} from './fake-alipay.js';
 import { createFakeDouyin } from './fake-douyin.js';
 import { QuotaFileSystem } from './quota-file-system.js';
 import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
-function alipayHost(my: MiniProgramAlipayApi, worker = createFakeRandomWorker()): AlipayMiniProgramHost {
+function alipayHost(my: MiniProgramAlipayApi, worker = createFakeRandomWorker()): MiniProgramHost {
   return createAlipayMiniProgramHost(my, { randomWorker: worker, webAssembly: WebAssembly });
-}
-
-/** 登记之前借 `wechat` 的 id 交给 adapter，只覆盖平台 id。 */
-function borrowWechatId(host: AlipayMiniProgramHost): MiniProgramHost {
-  return { ...host, platform: 'wechat' };
 }
 
 function clientOptions(fake: FakeAlipay) {
   return {
-    host: borrowWechatId(alipayHost(fake.my)),
+    host: alipayHost(fake.my),
     moduleFactory,
     wasmRuntime: createAlipayWasmRuntime(fake.my, WebAssembly)
   };
@@ -53,10 +50,10 @@ afterEach(async () => {
 });
 
 describe('createAlipayMiniProgramHost', () => {
-  it('平台 id 为 alipay 但尚未登记，能力名带 my. 前缀', () => {
+  it('平台 id 为已登记的 alipay，能力名带 my. 前缀', () => {
     const host = alipayHost(createFakeAlipay().my);
 
-    expect(MINI_PROGRAM_PLATFORM_IDS).not.toContain('alipay');
+    expect(MINI_PROGRAM_PLATFORM_IDS).toContain('alipay');
     expect(host).toMatchObject({
       platform: 'alipay',
       displayName: '支付宝小程序',
@@ -122,7 +119,7 @@ describe('支付宝随机源与运行时引导', () => {
     vi.stubGlobal('crypto', undefined);
     const worker = createFakeRandomWorker();
 
-    await prepareMiniProgramHostRuntime(borrowWechatId(alipayHost(createFakeAlipay().my, worker)), {
+    await prepareMiniProgramHostRuntime(alipayHost(createFakeAlipay().my, worker), {
       randomPoolSize: 16
     });
 
@@ -134,7 +131,7 @@ describe('支付宝随机源与运行时引导', () => {
     vi.stubGlobal('crypto', undefined);
     const host = alipayHost(createFakeAlipay().my, createFakeRandomWorker({ crypto: null }));
 
-    await expect(prepareMiniProgramHostRuntime(borrowWechatId(host), { randomPoolSize: 16 })).rejects.toMatchObject({
+    await expect(prepareMiniProgramHostRuntime(host, { randomPoolSize: 16 })).rejects.toMatchObject({
       capability: 'worker-crypto-random'
     });
   });
@@ -143,7 +140,7 @@ describe('支付宝随机源与运行时引导', () => {
     const worker = createFakeRandomWorker();
     const host = createAlipayMiniProgramHost(createFakeAlipay().my, { randomWorker: worker, webAssembly: undefined });
 
-    await expect(prepareMiniProgramHostRuntime(borrowWechatId(host))).rejects.toMatchObject({
+    await expect(prepareMiniProgramHostRuntime(host)).rejects.toMatchObject({
       capability: 'logic-layer-webassembly'
     });
     expect(worker.requests).toEqual([]);
@@ -188,7 +185,7 @@ describe('支付宝 host 接入客户端', () => {
       assertMiniProgramRuntimeCapabilities({
         moduleFactory,
         wasmRuntime: {} as MiniProgramWasmRuntime,
-        host: borrowWechatId(host)
+        host: host
       })
     ).toThrow(
       '支付宝小程序运行时缺少 RxDB 必需能力: WebAssembly.instantiate, my.getFileSystemManager, my.env.USER_DATA_PATH'
@@ -220,9 +217,9 @@ describe('支付宝 host 接入客户端', () => {
     const count = await reopened.execute('SELECT count(*) FROM blobs;');
 
     expect(String(failure)).toContain('database or disk is full');
-    expect(causeMessages(failure).some(message => message.includes('写入文件单个超过 10M 或者写入文件夹超过 50M'))).toBe(
-      true
-    );
+    expect(
+      causeMessages(failure).some(message => message.includes('写入文件单个超过 10M 或者写入文件夹超过 50M'))
+    ).toBe(true);
     expect(causeMessages(failure).some(message => message.includes('error 10028'))).toBe(true);
     expect(count.results[0].rows).toEqual([[1]]);
   });
@@ -231,7 +228,10 @@ describe('支付宝 host 接入客户端', () => {
 describe('微信、抖音与支付宝同进程', () => {
   it('三个宿主各写各的文件系统，布局互不影响', async () => {
     const wechatFiles = new QuotaFileSystem();
-    const wechat = createWechatMiniProgramHost({ env: { USER_DATA_PATH: '/wx' }, getFileSystemManager: () => wechatFiles });
+    const wechat = createWechatMiniProgramHost({
+      env: { USER_DATA_PATH: '/wx' },
+      getFileSystemManager: () => wechatFiles
+    });
     const { tt, fileSystem: douyinFiles } = createFakeDouyin();
     const alipay = createFakeAlipay();
 
@@ -264,3 +264,16 @@ function causeMessages(error: unknown): string[] {
   for (let current = error; current instanceof Error; current = current.cause) messages.push(current.message);
   return messages;
 }
+
+describe('支付宝 host 的导出', () => {
+  it('主入口与轻量 /runtime 入口都导出宿主与 wasm 运行时，是同一个函数', async () => {
+    const [main, runtime] = await Promise.all([import('../index.js'), import('../runtime.js')]);
+
+    expect(main.createAlipayMiniProgramHost).toBe(createAlipayMiniProgramHost);
+    expect(main.createAlipayWasmRuntime).toBe(createAlipayWasmRuntime);
+    expect(runtime.createAlipayMiniProgramHost).toBe(createAlipayMiniProgramHost);
+    // 预检要在引导前同步建 wasm 运行时，应用不必为它提前加载重的主入口
+    expect(runtime.createAlipayWasmRuntime).toBe(createAlipayWasmRuntime);
+    expect(runtime.ALIPAY_WASM_TEXT_COPY_SUFFIX).toBe('.base64.txt');
+  });
+});

@@ -55,16 +55,8 @@ export interface MiniProgramUnsupportedPlatform {
  * 包内共用，不从包入口导出。
  */
 export const MINI_PROGRAM_UNSUPPORTED_PLATFORMS: Readonly<Record<string, MiniProgramUnsupportedPlatform>> =
-  Object.freeze({
-    alipay: Object.freeze({
-      displayName: '支付宝小程序',
-      blockers: Object.freeze(['devtools-unverified', 'ios-unverified', 'android-unverified']),
-      reason:
-        '逻辑层的 WebAssembly 与安全随机源都没有文档承诺，' +
-        '要由正式 host 在开发者工具、iOS 与 Android 非调试真机上全部跑通，目前三端都没有合格报告',
-      section: '支付宝 `my` — unsupported'
-    })
-  });
+  // 支付宝 2026-10-04 改判 supported 后为空；百度、QQ 门 1 就不过、没写 host，按未知平台拒绝
+  Object.freeze({});
 
 /**
  * 传入的平台 id 被可行性矩阵判为 `unsupported`。
@@ -96,7 +88,7 @@ export function isMiniProgramPlatformId(value: unknown): value is MiniProgramPla
  * 判定平台 id，不需要宿主：已登记的放行，未登记的直接抛错。宿主路径（{@link resolveMiniProgramHost}、
  * 运行时预检、VFS）用的是同一个判定，所以报错逐字一致。
  *
- * 给还造不出宿主的调用方用，比如按构建平台分支的应用在支付宝构建里拿平台 id 直接走拒绝路径。
+ * 给还造不出宿主的调用方用，比如按构建平台分支的应用拿 Taro 平台名直接判定、未登记的走拒绝路径。
  *
  * @param value - 待判定的平台 id
  * @throws {@link MiniProgramUnsupportedPlatformError} 可行性矩阵判 `unsupported` 的平台，带出阻断项与判定章节

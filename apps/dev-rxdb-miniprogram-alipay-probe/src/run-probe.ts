@@ -63,7 +63,7 @@ export const WORKER_SCRIPT = 'workers/index.js';
 const WORKER_PROBE_BYTES = 16;
 
 const NOTES = [
-  "走 adapter 里的正式支付宝 host（createAlipayMiniProgramHost，源码引用、尚未从包入口导出）。支付宝已判 unsupported，不在 MINI_PROGRAM_PLATFORM_IDS 里，探针交给 adapter 公开 API 时用 { ...host, platform: 'wechat' } 只覆盖平台 id；平台 id 在 adapter 里只做登记校验。",
+  '走 adapter 包入口导出的正式支付宝 host（createAlipayMiniProgramHost），平台 id 为已登记的 alipay，原样交给 adapter 公开 API；支付宝判 supported（实验性，依赖未文档化能力，Android 未验证）。',
   '同步 FS 失败时返回错误对象而不抛：正式 host 的 FS 把它转成抛错、把错误码归一成 adapter VFS 正则认得的英文文案（平台原文挂在 cause 上），写入一律走「base64 串 + base64」，每个文件前垫 1 字节帧头（模拟器拒绝任何空写入，adapter VFS 建库却要写空文件）。fileSystem 探测测的就是交给 adapter 的这一层；rawFs 与 quotaAccounting 不经正式 host，记录的是平台原样（含空写入 error 2、写到不存在的父目录照样成功），大小都是落盘字节。',
   '引导时正式 host 的 prepareRuntime 给真实全局对象补缺的 BigInt（从 wasm 的 i64 返回值取回原生构造器）与 queueMicrotask（用 Promise 排微任务），已有的不动；runtimeSnapshot 对照引导前后记下补了哪些。模拟器两个都缺，iOS 只缺 queueMicrotask。',
   '逻辑层没有随机源：随机数经 Worker 的 crypto.getRandomValues 取（my.createWorker + useExperimentalWorker），Worker 脚本是包里的 alipay-random-worker.js（预编译 ES5）。worker 是经正式 host 取 16 字节的探测，random.worker 是按 64 KiB 与 1 MiB 直接取的结果。',
@@ -227,13 +227,11 @@ export async function runProbe(options: ProbeOptions): Promise<ProbeReport> {
   const opened = openWorker(my);
   try {
     const host = createAlipayMiniProgramHost(my, { randomWorker: opened.randomWorker, webAssembly: options.wasm });
-    // 支付宝登记之前，adapter 的平台断言只认 wechat / douyin；除平台 id 外原样交出
-    const adapterHost: MiniProgramHost = { ...host, platform: 'wechat' };
     const worker =
       opened.unavailable ??
       (await probe(async () => summarizeRandom(await host.requestRandomValues(WORKER_PROBE_BYTES))));
     const random = await runRandomExperiment(my, randomSource(worker, host.requestRandomValues));
-    const { prepare, runtimeSnapshot } = await prepareWithSnapshot(adapterHost);
+    const { prepare, runtimeSnapshot } = await prepareWithSnapshot(host);
     const wasm = await runWasmExperiment(my, options.wasm);
 
     const userDataPath = host.userDataPath;
@@ -254,7 +252,7 @@ export async function runProbe(options: ProbeOptions): Promise<ProbeReport> {
       options.quotaAccountingPlan ?? DEFAULT_QUOTA_ACCOUNTING_PLAN
     );
     const { coreLoad, core, coreRealmProbe } = await runCore(options, {
-      host: adapterHost,
+      host,
       fileSystem,
       databaseRoot: `${root}/db`,
       quotaPlan: options.quotaPlan ?? DEFAULT_QUOTA_PLAN

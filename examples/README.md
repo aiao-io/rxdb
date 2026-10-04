@@ -55,20 +55,20 @@ pnpm install
 
 原 `examples/taro-react-todo/` 已迁入 [apps/dev-rxdb-miniprogram](../apps/dev-rxdb-miniprogram/)，
 成为纳入 Nx 图的常规应用：依赖走 `workspace:*` 直连仓库源码，`lint` / `typecheck` / `build`
-三个 target 都进 CI。也就是说它**不再**属于本目录「手工验证、不受门禁保护」的范畴。
+三个 target 都进 CI（`build` 聚合 `build-weapp` / `build-tt` / `build-alipay`，一次产出三端）。也就是说它**不再**属于本目录「手工验证、不受门禁保护」的范畴。
 
 `@aiao/rxdb-adapter-miniprogram` 仍标记为实验性，各端的验证状态：
 
-| 端               | 入口                                                             | 状态                                                                                                                                                                                                                                                                                                 |
-| ---------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 微信（weapp）    | `pnpm nx build dev-rxdb-miniprogram` → `dist/`                   | 已验证：微信开发者工具走查由 `dev-rxdb-miniprogram-e2e:e2e-devtools` 手跑                                                                                                                                                                                                                            |
-| 抖音（tt）       | `pnpm nx run dev-rxdb-miniprogram:build-tt` → `dist-tt/`         | adapter 已在抖音开发者工具（基础库 4.27.0）与 iOS 真机（抖音 40.6.0 / 基础库 4.33.0）验证（spike v9）；**Android 未验证**；Taro tt 产物已在开发者工具 4.5.6 走查通过；iOS 真机上一版实测加载即失败（模块顶层 `TextEncoder`，见包 README「抖音」），已修，2026-10-02 iOS 真机走查通过；target 不进 CI |
-| 支付宝（alipay） | `pnpm nx run dev-rxdb-miniprogram:build-alipay` → `dist-alipay/` | 不支持，理由见[可行性矩阵](../requirements/stories/adapter/miniprogram-platform-feasibility.md)；adapter 在连接前抛 `MiniProgramUnsupportedPlatformError`。产物只走这条拒绝路径、不建库：2026-10-04 在支付宝开发者工具 3.10.15 模拟器里显示拒绝与判定原因；真机未走查；target 不进 CI                |
-| 百度 / QQ        | —                                                                | 不支持，理由见[可行性矩阵](../requirements/stories/adapter/miniprogram-platform-feasibility.md)；demo 的 `build:swan` / `build:qq` 脚本保留但没有宿主                                                                                                                                                |
+| 端               | 入口                                                             | 状态                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 微信（weapp）    | `pnpm nx run dev-rxdb-miniprogram:build-weapp` → `dist/`         | 已验证：微信开发者工具走查由 `dev-rxdb-miniprogram-e2e:e2e-devtools` 手跑                                                                                                                                                                                                                                                                                                                            |
+| 抖音（tt）       | `pnpm nx run dev-rxdb-miniprogram:build-tt` → `dist-tt/`         | adapter 已在抖音开发者工具（基础库 4.27.0）与 iOS 真机（抖音 40.6.0 / 基础库 4.33.0）验证（spike v9）；**Android 未验证**；Taro tt 产物已在开发者工具 4.5.6 走查通过；iOS 真机上一版实测加载即失败（模块顶层 `TextEncoder`，见包 README「抖音」），已修，2026-10-02 iOS 真机走查通过；构建随 `build` 进 CI                                                                                           |
+| 支付宝（alipay） | `pnpm nx run dev-rxdb-miniprogram:build-alipay` → `dist-alipay/` | adapter 2026-10-04 改判实验性支持（见[可行性矩阵](../requirements/stories/adapter/miniprogram-platform-feasibility.md)）；demo 已接支付宝宿主，2026-10-04 在开发者工具 3.10.15 模拟器走查通过（建库、验证完成，运行时能力 11/11，`BigInt` / `queueMicrotask` 由宿主补）；demo 未上真机，adapter 本身的 iOS 证据见 `apps/dev-rxdb-miniprogram-alipay-probe`，**Android 未验证**；构建随 `build` 进 CI |
+| 百度 / QQ        | —                                                                | 不支持，理由见[可行性矩阵](../requirements/stories/adapter/miniprogram-platform-feasibility.md)；demo 的 `build:swan` / `build:qq` 脚本保留但没有宿主                                                                                                                                                                                                                                                |
 
 `dist-tt/` 直接用抖音开发者工具打开。`project.tt.json` 的 appid 是占位的 `testAppId`，真实 AppID
 只在工具里改，**不要提交**。`dist-alipay/` 用支付宝小程序开发者工具打开；`project.alipay.json`（产物里是
 `mini.project.json`）不带 appid，真机预览 / 调试要关联的真实 AppID 同样只在工具里改，**不要提交**；它的
-`compileOptions.transpile` 不能删，原因见 `apps/dev-rxdb-miniprogram/project.json` 的 `// build-alipay`。能力边界见
+`compileOptions.transpile`（含跳过 Worker 转译的 `script.ignore`）不能删，原因见 `apps/dev-rxdb-miniprogram/project.json` 的 `// build-alipay`。能力边界见
 [兼容性矩阵](../website/docs/compatibility.md#aiaorxdb-adapter-miniprogram-的能力边界)。
-CI 覆盖到微信构建产物为止，**真机行为仍需用对应平台的开发者工具手工确认**。
+CI 覆盖到三端构建产物为止，**真机行为仍需用对应平台的开发者工具手工确认**。

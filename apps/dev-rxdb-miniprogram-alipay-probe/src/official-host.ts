@@ -1,14 +1,17 @@
 /**
- * @fileoverview 探针用的正式支付宝 host：直接引用 adapter 源码里的 `hosts/alipay*`。
+ * @fileoverview 探针用的正式支付宝 host：公开 API 走包入口，探针自查用的内部常量与工具按源码路径引用。
  *
- * 可行性矩阵转 `supported` 之前，这些模块不从包入口导出（见 `hosts/alipay.ts`），探针只能按源码路径引用；
- * 探针验的就是将来要导出的这份实现，不另抄一份。
+ * 支付宝 2026-10-04 改判 supported 后 host、wasm 运行时与类型都从包入口导出；帧头、指纹、FS 失败归一这些
+ * 不属于公开契约，探针要核对它们，只能按源码路径引用，不另抄一份。
  */
-/* eslint-disable @nx/enforce-module-boundaries -- 支付宝 host 转 supported 之前不从包入口导出，只能按源码路径引用 */
-export type {
-  AlipayRandomWorker,
-  AlipayStandardWasmApi
-} from '../../../packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.js';
+export {
+  ALIPAY_WASM_TEXT_COPY_SUFFIX,
+  createAlipayMiniProgramHost,
+  createAlipayWasmRuntime,
+  type AlipayRandomWorker,
+  type AlipayStandardWasmApi
+} from '@aiao/rxdb-adapter-miniprogram';
+/* eslint-disable @nx/enforce-module-boundaries -- 帧头、指纹、FS 失败归一是 host 内部实现，不进包入口；探针要逐项核对 */
 export {
   ALIPAY_FRAME_HEADER,
   createAlipayCodePackageReader,
@@ -18,13 +21,7 @@ export {
 export { ALIPAY_RANDOM_TIMEOUT_MS } from '../../../packages/rxdb-adapter-miniprogram/src/hosts/alipay-random.js';
 export {
   ALIPAY_WASM_FINGERPRINT,
-  ALIPAY_WASM_TEXT_COPY_SUFFIX,
-  createAlipayWasmRuntime,
   fingerprintWasm,
   readAlipayCodePackageWasm
 } from '../../../packages/rxdb-adapter-miniprogram/src/hosts/alipay-wasm.js';
-export {
-  createAlipayMiniProgramHost,
-  type AlipayMiniProgramHost
-} from '../../../packages/rxdb-adapter-miniprogram/src/hosts/alipay.js';
 /* eslint-enable @nx/enforce-module-boundaries */

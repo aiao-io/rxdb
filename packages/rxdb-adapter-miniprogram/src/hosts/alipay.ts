@@ -1,9 +1,8 @@
 /**
- * @fileoverview 支付宝 host：能力名、存储布局、文件系统包装与运行时修补都取 US-211 支付宝探针 v2–v6
+ * @fileoverview 支付宝 host：能力名、存储布局、文件系统包装与运行时修补都取 US-211 支付宝探针 v2–v7
  * （开发者工具模拟器 + iOS 真机）的实测结论。
  *
- * 可行性矩阵仍判 `unsupported`：转 `supported` 之前不登记平台 id、不从包入口导出，
- * 返回类型因此是 {@link AlipayMiniProgramHost} 而不是 `MiniProgramHost`。
+ * 依赖未文档化能力（见 `alipay-capability.ts`），Android 真机未验证：对外口径是实验性。
  */
 import { usableUserDataPath } from '../host.js';
 import type { MiniProgramFileLayout, MiniProgramHost, MiniProgramRuntimeGlobal } from '../mini-program.interface.js';
@@ -18,9 +17,6 @@ import { discoverAlipayRuntimeGlobal, prepareAlipayRuntimeGlobal } from './alipa
  * 整文件落盘让库大小受单文件上限卡死、每次落盘重写整个库，所以分块。
  */
 const ALIPAY_FILE_LAYOUT: MiniProgramFileLayout = Object.freeze({ kind: 'chunked', chunkBytes: 64 * 1024 });
-
-/** 平台 id 登记之前的支付宝宿主：除平台 id 外与 {@link MiniProgramHost} 同形。 */
-export type AlipayMiniProgramHost = Omit<MiniProgramHost, 'platform'> & { readonly platform: 'alipay' };
 
 /** {@link createAlipayMiniProgramHost} 的参数。 */
 export interface AlipayMiniProgramHostOptions {
@@ -44,7 +40,9 @@ export interface AlipayMiniProgramHostOptions {
   readonly runtimeGlobal?: MiniProgramRuntimeGlobal;
 }
 
-function runtimeGlobalSource(injected: MiniProgramRuntimeGlobal | undefined): () => MiniProgramRuntimeGlobal | undefined {
+function runtimeGlobalSource(
+  injected: MiniProgramRuntimeGlobal | undefined
+): () => MiniProgramRuntimeGlobal | undefined {
   if (injected !== undefined) return () => injected;
   let discovered: MiniProgramRuntimeGlobal | undefined;
   return () => {
@@ -70,7 +68,7 @@ function runtimeGlobalSource(injected: MiniProgramRuntimeGlobal | undefined): ()
 export function createAlipayMiniProgramHost(
   my: MiniProgramAlipayApi,
   options: AlipayMiniProgramHostOptions
-): AlipayMiniProgramHost {
+): MiniProgramHost {
   const readRuntimeGlobal = runtimeGlobalSource(options.runtimeGlobal);
   return {
     platform: 'alipay',
@@ -89,7 +87,9 @@ export function createAlipayMiniProgramHost(
     },
     fileLayout: ALIPAY_FILE_LAYOUT,
     getFileSystemManager: () =>
-      typeof my?.getFileSystemManager === 'function' ? createAlipayFileSystem(my.getFileSystemManager(), my) : undefined,
+      typeof my?.getFileSystemManager === 'function' ?
+        createAlipayFileSystem(my.getFileSystemManager(), my)
+      : undefined,
     requestRandomValues: createAlipayRandomSource(options.randomWorker),
     prepareRuntime: runtimeGlobal => prepareAlipayRuntimeGlobal(runtimeGlobal, options.webAssembly)
   };

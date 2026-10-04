@@ -1,7 +1,9 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。支付宝在可行性矩阵里是 unsupported，demo 只走 adapter 的拒绝路径（页面显示 MiniProgramUnsupportedPlatformError 与判定原因），不建库。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。它的 compileOptions.transpile 不能删（空对象就够）：开发者工具（编译器 0.108.16）见到它才用 babel 7（es2023）编译 JS，没有它走 babel 6（es6），Taro 运行时 taro.js 编译失败（CE1000.02 The keyword 'const' is reserved），模拟器起不来。",
+  "// build": "统一构建：`nx build dev-rxdb-miniprogram` 依次带起 build-weapp / build-tt / build-alipay 三个平台，各自缓存、各自输出目录（Taro 每次构建先清空 outputRoot）。只要一个平台就直接跑对应的 build-<平台>。三个平台共用 config/ 下的构建插件，平台差异只在 config/index.ts 的插件清单里。",
+  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。比另两个平台多三样（都在 config/ 里）：wasm 的 base64 副本与随机数 Worker（assets-vite-plugin.ts，app.config.ts 声明 workers）、模拟器里登记真实全局对象（realm-vite-plugin.ts）、RxDB 栈留在懒加载的 rxdb-lazy.js 等宿主 prepareRuntime 补完 BigInt（lazy-chunk-vite-plugin.ts）。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。它的 compileOptions.transpile 不能删：开发者工具（编译器 0.108.16）见到它才用 babel 7（es2023）编译 JS，没有它走 babel 6（es6），Taro 运行时 taro.js 编译失败（CE1000.02 The keyword 'const' is reserved），模拟器起不来；transpile.script.ignore 让 workers/ 原样进包（IDE 转译会注入依赖 Function('return this')() 的 core-js polyfill，Worker 里拿不到全局对象、一启动就崩；包里的 Worker 已是手写 ES5）。",
   "// build-tt": "抖音产物输出到 dist-tt/，用抖音开发者工具直接打开 dist-tt/。project.tt.json 的 appid 是占位的 testAppId，换真实 AppID 只在工具里或 dist-tt/project.config.json 里改，别提交。",
+  "// build-weapp": "微信产物输出到 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）。",
   "// lint": "Taro 的依赖树被 auto-install-peers 塞进一个 eslint 8.41（@eslint-community/eslint-utils 的 peer），它的 .bin 会盖住根上的 eslint 10，flat config 直接找不到。所以显式走根二进制，而不是 @nx/eslint/plugin 推断出的裸 `eslint .`。",
   "// serve": "微信小程序没有 dev server：`serve` 就是 watch 构建，产物仍在 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）即可热更。watch 模式下 NODE_ENV=development，@tarojs/plugin-framework-react 才会挂上 @vitejs/plugin-react，它把 `@babel/plugin-proposal-decorators` 以字符串形式交给 babel，由 babel 从 app 根解析——所以那个插件必须显式列进本项目 devDependencies，光靠 babel-preset-taro 的传递依赖在 pnpm 下解析不到。",
   "// targets": "to see all targets run: nx show project dev-rxdb-miniprogram --web",
@@ -11,7 +13,14 @@
   "tags": ["react-app", "miniprogram-app"],
   "targets": {
     "build": {
+      "executor": "nx:noop",
+      "dependsOn": ["build-weapp", "build-tt", "build-alipay"]
+    },
+    "build-weapp": {
       "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
       "outputs": ["{projectRoot}/dist"],
       "options": {
         "cwd": "apps/dev-rxdb-miniprogram",

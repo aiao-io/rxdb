@@ -43,7 +43,8 @@ const FNV_PRIME = 0x01_00_01_93;
  */
 export function fingerprintWasm(bytes: Uint8Array): AlipayWasmFingerprint {
   let hash = FNV_OFFSET_BASIS;
-  for (const byte of bytes) hash = Math.imul(hash ^ byte, FNV_PRIME);
+  // 下标循环：逻辑层按 es2018 打包，`for…of` 保留迭代器协议，iOS 真机每次打开库算 727 KiB 要 4–11 秒（v6 / v7 实测）；下标不越界，`?? 0` 只为过类型检查
+  for (let index = 0; index < bytes.length; index++) hash = Math.imul(hash ^ (bytes[index] ?? 0), FNV_PRIME);
   return { bytes: bytes.byteLength, fnv1a: hash >>> 0 };
 }
 

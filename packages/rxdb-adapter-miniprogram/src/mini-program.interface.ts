@@ -49,7 +49,7 @@ export interface MiniProgramDouyinApi {
  * 只有可行性矩阵判定 `supported` 且已实现 host 的平台才会进这张表；
  * 未登记的 id 一律按未知平台拒绝，不回退到微信全局。
  */
-export const MINI_PROGRAM_PLATFORM_IDS = Object.freeze(['wechat', 'douyin'] as const);
+export const MINI_PROGRAM_PLATFORM_IDS = Object.freeze(['wechat', 'douyin', 'alipay'] as const);
 
 /** 已登记的小程序平台 id。 */
 export type MiniProgramPlatformId = (typeof MINI_PROGRAM_PLATFORM_IDS)[number];
@@ -81,7 +81,8 @@ export type MiniProgramFileLayout =
  * 平台无关的小程序宿主：同步文件、用户数据目录、安全随机源与平台 id。
  *
  * 每个平台一个实现，禁止用「形状像 `wx`」的全局对象冒充别的平台。
- * 微信实现见 `createWechatMiniProgramHost(wx)`，抖音见 `createDouyinMiniProgramHost(tt)`。
+ * 微信实现见 `createWechatMiniProgramHost(wx)`，抖音见 `createDouyinMiniProgramHost(tt)`，
+ * 支付宝见 `createAlipayMiniProgramHost(my, options)`。
  */
 export interface MiniProgramHost {
   /** 平台 id，必须在 {@link MINI_PROGRAM_PLATFORM_IDS} 中。 */
@@ -131,7 +132,7 @@ export interface MiniProgramHost {
    */
   requestRandomValues(length: number): Promise<Uint8Array>;
   /**
-   * 引导运行时时、装通用 polyfill 之前调用一次，给宿主补齐平台特有的缺口或检测连接依赖的能力；微信、抖音不设。
+   * 引导运行时时、装通用 polyfill 之前调用一次，给宿主补齐平台特有的缺口或检测连接依赖的能力；微信、抖音不设，支付宝设。
    *
    * @remarks
    * 只许做保持语义的修补；做不到就 reject，引导随之失败，不许降级。

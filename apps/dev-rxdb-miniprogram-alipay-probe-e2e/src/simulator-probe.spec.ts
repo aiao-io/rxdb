@@ -77,7 +77,7 @@ test('引导：正式 host 在自己找到的全局对象上补 BigInt 与 queue
   });
   expect(report['prepare']).toMatchObject({
     ok: true,
-    value: { random: 'wechat', structuredClone: 'native', textEncoder: 'polyfill', textDecoder: 'polyfill' }
+    value: { random: 'alipay', structuredClone: 'native', textEncoder: 'polyfill', textDecoder: 'polyfill' }
   });
   expect(report['coreLoad']).toMatchObject({ ok: true });
 });

@@ -25,7 +25,7 @@ export const ALIPAY_UNDOCUMENTED_CAPABILITIES = Object.freeze([
 export type AlipayUndocumentedCapability = (typeof ALIPAY_UNDOCUMENTED_CAPABILITIES)[number];
 
 /** 矩阵里支付宝章节的标题原文。 */
-const ALIPAY_FEASIBILITY_SECTION = '支付宝 `my` — unsupported';
+const ALIPAY_FEASIBILITY_SECTION = '支付宝 `my` — supported（阶段 C 交付，依赖未文档化能力，Android 未验证）';
 
 /** 连接时发现支付宝宿主依赖的某项无文档能力不可用。 */
 export class AlipayUndocumentedCapabilityError extends Error {

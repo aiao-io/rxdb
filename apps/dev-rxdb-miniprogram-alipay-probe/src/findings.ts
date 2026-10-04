@@ -3,7 +3,7 @@
  *
  * 判定只针对「这一台设备、这一次运行」；矩阵按可行性矩阵的「改判标准」回填，只认正式 host 跑出的报告。
  * 证据不足一律给 `unknown`，不往 pass 上靠；唯一的例外是门 2 写明的：配额没撞到但经 SQLite 写满 30 MiB，
- * 用户目录判 pass 并带 caveat。走的是 adapter 里的正式 host（借 `wechat` 平台 id 交给 adapter）；
+ * 用户目录判 pass 并带 caveat。走的是 adapter 包入口导出的正式 host；
  * 只有开发者工具、iOS 预览、Android 预览三端都 pass 才算改判证据。
  */
 import type { CoreExperimentReport, DatabaseFile, QuotaReport } from './core-contract.js';

@@ -8,7 +8,7 @@ import { ALIPAY_RANDOM_TIMEOUT_MS, createAlipayRandomSource } from '../hosts/ali
 import { createFakeRandomWorker } from './fake-alipay.js';
 
 const FEASIBILITY_HINT =
-  '判定依据见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — unsupported」一节';
+  '判定依据见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — supported（阶段 C 交付，依赖未文档化能力，Android 未验证）」一节';
 
 /** 手动应答的 Worker：记下请求，由测试决定回什么。 */
 function manualWorker() {

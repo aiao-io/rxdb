@@ -6,6 +6,19 @@ export {
   createWechatMiniProgramHost,
   isMiniProgramPlatformId
 } from './host.js';
+export type {
+  AlipayRandomWorker,
+  AlipayStandardWasmApi,
+  MiniProgramAlipayApi,
+  MiniProgramAlipayRawFileSystem
+} from './hosts/alipay-api.js';
+export {
+  ALIPAY_UNDOCUMENTED_CAPABILITIES,
+  AlipayUndocumentedCapabilityError,
+  type AlipayUndocumentedCapability
+} from './hosts/alipay-capability.js';
+export { ALIPAY_WASM_TEXT_COPY_SUFFIX, createAlipayWasmRuntime } from './hosts/alipay-wasm.js';
+export { createAlipayMiniProgramHost, type AlipayMiniProgramHostOptions } from './hosts/alipay.js';
 export { createDouyinMiniProgramHost, type DouyinMiniProgramHostOptions } from './hosts/douyin.js';
 export type {
   MiniProgramDouyinApi,

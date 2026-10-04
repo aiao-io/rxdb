@@ -2,6 +2,7 @@
  * 支付宝代码包 wasm：按锁定版本的指纹选字节源（原文件或 base64 文本副本），交给逻辑层标准 `WebAssembly`。
  */
 import { describe, expect, it, vi } from 'vitest';
+import type { AlipayStandardWasmApi } from '../hosts/alipay-api.js';
 import { AlipayFsError } from '../hosts/alipay-file-system.js';
 import {
   ALIPAY_WASM_FINGERPRINT,
@@ -10,7 +11,6 @@ import {
   fingerprintWasm,
   readAlipayCodePackageWasm
 } from '../hosts/alipay-wasm.js';
-import type { AlipayStandardWasmApi } from '../hosts/alipay-api.js';
 import { createFakeAlipay } from './fake-alipay.js';
 import { wasmBytes } from './subframe-wasm-factory.js';
 

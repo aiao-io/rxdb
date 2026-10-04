@@ -60,10 +60,19 @@ interface DouyinMiniProgramApi {
   getRandomValues?(options: WechatRandomValuesOptions): unknown;
 }
 
+/** 支付宝全局 `my`：adapter 宿主用到的部分，外加建随机数 Worker。 */
+type AlipayDemoMiniProgramApi = import('@aiao/rxdb-adapter-miniprogram/runtime').MiniProgramAlipayApi & {
+  createWorker(
+    path: string,
+    options: { readonly useExperimentalWorker: boolean }
+  ): import('@aiao/rxdb-adapter-miniprogram/runtime').AlipayRandomWorker;
+};
+
 declare const wx: WechatMiniProgramApi;
 declare const WXWebAssembly: MiniProgramPlatformWasmRuntime;
 declare const tt: DouyinMiniProgramApi;
 declare const TTWebAssembly: MiniProgramPlatformWasmRuntime;
+declare const my: AlipayDemoMiniProgramApi;
 
 declare namespace NodeJS {
   interface ProcessEnv {

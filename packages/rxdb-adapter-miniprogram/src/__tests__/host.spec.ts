@@ -80,8 +80,8 @@ afterEach(() => {
 });
 
 describe('MiniProgramHost 平台 id', () => {
-  it('登记微信与抖音两个平台', () => {
-    expect(MINI_PROGRAM_PLATFORM_IDS).toEqual(['wechat', 'douyin']);
+  it('登记微信、抖音与支付宝三个平台', () => {
+    expect(MINI_PROGRAM_PLATFORM_IDS).toEqual(['wechat', 'douyin', 'alipay']);
   });
 
   it('平台表已冻结，JS 调用方无法往里塞 id 绕过门禁', () => {
@@ -104,9 +104,9 @@ describe('MiniProgramHost 平台 id', () => {
 
     expect(error).toBeInstanceOf(MiniProgramUnknownPlatformError);
     expect((error as MiniProgramUnknownPlatformError).platform).toBe('jd');
-    expect((error as MiniProgramUnknownPlatformError).knownPlatforms).toEqual(['wechat', 'douyin']);
+    expect((error as MiniProgramUnknownPlatformError).knownPlatforms).toEqual(['wechat', 'douyin', 'alipay']);
     expect((error as Error).message).toBe(
-      '未知小程序平台: jd；已知平台: wechat, douyin。' +
+      '未知小程序平台: jd；已知平台: wechat, douyin, alipay。' +
         '平台可行性结论见 requirements/stories/adapter/miniprogram-platform-feasibility.md'
     );
   });

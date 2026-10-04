@@ -55,12 +55,13 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     ({ report, fake } = await run({ ...SMALL_LIMITS, mode: 'ios' }));
   }, 60_000);
 
-  it('报告自带 v7 schema 与说明，写明走正式 host、只借用 wechat 平台 id', () => {
+  it('报告自带 v7 schema 与说明，写明走包入口导出的正式 host、平台 id 为 alipay', () => {
     expect(report.schema).toBe('aiao.us-211.alipay-probe/v7');
     expect(report.schema).toBe(PROBE_REPORT_SCHEMA);
     const notes = report.notes.join('\n');
     expect(notes).toContain('createAlipayMiniProgramHost');
-    expect(notes).toContain('wechat');
+    expect(notes).toContain('alipay');
+    expect(notes).not.toContain('wechat');
     expect(notes).toContain('alipay-random-worker.js');
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
   });

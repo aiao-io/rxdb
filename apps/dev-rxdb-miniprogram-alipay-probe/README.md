@@ -2,14 +2,14 @@
 
 一个打开即跑的支付宝小程序，用实验核对 [可行性矩阵](../../requirements/stories/adapter/miniprogram-platform-feasibility.md) 支付宝一节依赖的三处未文档化能力（逻辑层的 `WebAssembly`、Worker 里的 `crypto`、找回全局对象），并且像 [抖音 spike](../dev-rxdb-miniprogram-douyin-spike/README.md) 一样把 adapter 真正跑一遍：建库、写入、重开、写到撞配额。产出一份 JSON 报告，作为可行性矩阵改判的证据。
 
-v7 起探针走 adapter 包里的**正式支付宝 host**（`packages/rxdb-adapter-miniprogram/src/hosts/alipay.ts`，经 [official-host.ts](src/official-host.ts) 引用源码）。支付宝仍判 `unsupported`、不在 `MINI_PROGRAM_PLATFORM_IDS` 里，按可行性文档的维护规则，正式 host 转 `supported` 之前不登记、不导出；所以探针用 `{ ...host, platform: 'wechat' }` 只覆盖平台 id 交给 adapter（抖音 v9 的证据也是这样跑出的）。正式 host 补上的平台缺口：
+v7 起探针走 adapter 包里的**正式支付宝 host**（`packages/rxdb-adapter-miniprogram/src/hosts/alipay.ts`）。支付宝 2026-10-04 凭开发者工具与 iOS 真机的 v7 报告改判 `supported`（实验性，依赖未文档化能力；Android 由维护者书面豁免，待补真机报告），`alipay` 已登记，host 从包入口导出、原样交给 adapter。[official-host.ts](src/official-host.ts) 的公开 API 走包入口，帧头、指纹这些内部常量按源码路径引用、供探针核对。v7 报告的前两份（开发者工具、iOS）是在登记前用 `{ ...host, platform: 'wechat' }` 只覆盖平台 id 跑出的，host 实现与现在相同。正式 host 补上的平台缺口：
 
 - **FS 包装 + 分帧**：平台失败时返回错误对象、不抛，host 把它转成抛错，错误码归一成 adapter VFS 正则认得的文案，平台原文挂在 `cause` 上；写入一律走「base64 串 + `'base64'`」；每个用户文件垫 1 字节帧头，避开模拟器拒收空写入
 - **Worker 随机源**：逻辑层没有任何随机源，随机数从 adapter 包里预编译的 ES5 Worker（`alipay-random-worker.js`）的 `crypto.getRandomValues` 桥过来
 - **连接前补全局**：`prepareRuntime` 钩子在真实全局对象上补 `BigInt`（从 wasm i64 返回值取回原生构造器）与 `queueMicrotask`
 - **wasm 选源**：按锁定版本的指纹在 `.wasm` 原文件与 `.base64.txt` 文本副本之间选对得上的那份
 
-探针自己的 [alipay-fs.ts](src/alipay-fs.ts) 只是不分帧的辅助 FS，给清理实验目录、列库文件、测配额计费用，不交给 adapter。逻辑层 `WebAssembly`、Worker 里的 `crypto`、找回全局对象都是未文档化的行为，所以改判要三端（模拟器、iOS 预览、Android 预览）各一份 v7 报告。
+探针自己的 [alipay-fs.ts](src/alipay-fs.ts) 只是不分帧的辅助 FS，给清理实验目录、列库文件、测配额计费用，不交给 adapter。逻辑层 `WebAssembly`、Worker 里的 `crypto`、找回全局对象都是未文档化的行为，所以矩阵要三端（模拟器、iOS 预览、Android 预览）各一份 v7 报告；缺的那一端只能由维护者书面豁免，并记 caveat。
 
 ## 跑一次
 
@@ -129,13 +129,13 @@ iOS 真机调试 v5（2026-10-04，同一台设备，约 144 秒一轮）：超�
 
 v6（2026-10-04，实验 host 的最后一版）：模拟器约 128 秒、真机约 186 秒一轮，**两端五行全 pass**，用户目录都带 `quota-unobserved`。真机代码包二进制读与指纹逐字节一致（727646 字节），但这次比对耗时约 4.4 秒；真机上 `/wasm/add.wasm` 这种绝对路径也读得到，模拟器仍报 error 2。真机报告没有区分是真机调试还是预览。
 
+v7（2026-10-04，正式 host）：开发者工具与 iOS 真机（iPhone18,2 / iOS 26.6.2 / 支付宝 12.12.30.6000 / 基础库 2.10.42，扫码在真机上跑，非真机调试）**五行全 pass**，用户目录都带 `quota-unobserved`；真机一轮约 326 秒，比 v6 慢约 2.5 倍，主要耗在 wasm 指纹比对（之后已改成按下标循环，待重测）。矩阵据此改判 `supported`，`evidence.devtools` 与 `evidence.ios` 记 v7。
+
 尚待确认的：
 
-- **iOS 配额**：真机调试里经 SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB、文件夹 72 MiB 都没撞上，文档的 10M / 50M 没执行；有没有上限、在多大，现在的写入计划探不到，用户目录因此一直是 unknown
-- **Android 真机**：还没跑
-- **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，v6 真机报告没标明模式；要用 v7 在预览或体验版下再跑一份
-
-改判 `supported` 要用正式 host（v7 起已接上）在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针 v6 的 `findings` 已按这条判，下文 v3–v5 记录里的「用户目录 unknown」是旧判法。
+- **Android 真机**：还没跑。矩阵用维护者书面豁免（`waived: [android]`，caveat `android-unverified`）先改判；跑一份 v7 Android 预览、五行全 pass 后回填 `evidence.android`、撤掉豁免
+- **配额**：iOS 经 SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB、文件夹 72 MiB 都没撞上，文档的 10M / 50M 没执行；有没有上限、在多大，现在的写入计划探不到，用户目录因此按门 2 判 pass、带 `quota-unobserved`
+- **耗时**：指纹循环改动后在 iOS 真机重测一轮
 
 ## 本地测试
 

@@ -17,7 +17,7 @@ import { prepareMiniProgramHostRuntime } from '../runtime-polyfills.js';
 import { createFakeDouyin } from './fake-douyin.js';
 
 const FEASIBILITY_HINT =
-  '判定依据见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — unsupported」一节';
+  '判定依据见 requirements/stories/adapter/miniprogram-platform-feasibility.md 的「支付宝 `my` — supported（阶段 C 交付，依赖未文档化能力，Android 未验证）」一节';
 
 const GETTER_KEY = '__aiaoAlipayRuntimeGlobal';
 
@@ -210,9 +210,9 @@ describe('MiniProgramHost.prepareRuntime 钩子', () => {
 
   it('未登记的平台在调用钩子之前就被拒绝', async () => {
     const prepareRuntime = vi.fn(async () => undefined);
-    const host = { ...hookedHost(prepareRuntime), platform: 'alipay' } as unknown as MiniProgramHost;
+    const host = { ...hookedHost(prepareRuntime), platform: 'jd' } as unknown as MiniProgramHost;
 
-    await expect(prepareMiniProgramHostRuntime(host)).rejects.toThrow('支付宝小程序（alipay）不支持');
+    await expect(prepareMiniProgramHostRuntime(host)).rejects.toThrow('未知小程序平台: jd');
     expect(prepareRuntime).not.toHaveBeenCalled();
   });
 

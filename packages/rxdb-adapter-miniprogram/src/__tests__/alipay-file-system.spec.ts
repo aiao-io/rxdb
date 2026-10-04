@@ -4,6 +4,7 @@
  */
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import type { MiniProgramAlipayRawFileSystem } from '../hosts/alipay-api.js';
 import {
   ALIPAY_FRAME_HEADER,
   AlipayFsError,
@@ -11,7 +12,6 @@ import {
   createAlipayFileSystem,
   isAlipayFsFailure
 } from '../hosts/alipay-file-system.js';
-import type { MiniProgramAlipayRawFileSystem } from '../hosts/alipay-api.js';
 import { createFakeAlipay, FAKE_ALIPAY_USER_DATA_PATH } from './fake-alipay.js';
 import { wasmBytes } from './subframe-wasm-factory.js';
 
@@ -59,7 +59,15 @@ describe.each(['ios', 'simulator'] as const)('createAlipayFileSystem（%s 形态
     fileSystem.writeFileSync(`${ROOT}/a.bin`, Uint8Array.from([0x00, 0xff, 0x10, 0x80, 0x7f, 0x41]).buffer);
 
     expect(fake.writes.at(-1)).toEqual({ path: `${ROOT}/a.bin`, data: 'oQD/EIB/QQ==', encoding: 'base64' });
-    expect([...(fake.files.get(`${ROOT}/a.bin`) ?? [])]).toEqual([ALIPAY_FRAME_HEADER, 0, 0xff, 0x10, 0x80, 0x7f, 0x41]);
+    expect([...(fake.files.get(`${ROOT}/a.bin`) ?? [])]).toEqual([
+      ALIPAY_FRAME_HEADER,
+      0,
+      0xff,
+      0x10,
+      0x80,
+      0x7f,
+      0x41
+    ]);
     expect(fileSystem.readFileSync(`${ROOT}/a.bin`, 'base64')).toBe('AP8QgH9B');
   });
 

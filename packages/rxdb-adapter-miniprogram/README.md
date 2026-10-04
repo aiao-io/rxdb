@@ -1,17 +1,17 @@
 # @aiao/rxdb-adapter-miniprogram
 
-实验性的微信 / 抖音小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，
-用平台的 WASM 入口（`WXWebAssembly` / `TTWebAssembly`）加载同步版 wa-sqlite，并把数据库文件写入平台用户目录
-（`wx.env.USER_DATA_PATH` / `tt.getEnvInfoSync().common.USER_DATA_PATH`）。
+实验性的微信 / 抖音 / 支付宝小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，
+用平台的 WASM 入口（`WXWebAssembly` / `TTWebAssembly` / 支付宝逻辑层的 `WebAssembly`）加载同步版 wa-sqlite，并把数据库文件写入平台用户目录
+（`wx.env.USER_DATA_PATH` / `tt.getEnvInfoSync().common.USER_DATA_PATH` / `my.env.USER_DATA_PATH`）。
 
 ## 约束
 
-- 只支持微信与抖音小程序的逻辑层，不是通用“小程序”适配器。抖音在开发者工具与 iOS 真机上验证过，
-  **Android 真机未验证**；支付宝、百度、QQ 不支持。
+- 只支持微信、抖音与支付宝小程序的逻辑层，不是通用“小程序”适配器。抖音与支付宝都只在开发者工具与 iOS 真机上验证过，
+  **Android 真机未验证**；支付宝还依赖未文档化能力（见「支付宝」）。百度、QQ 不支持。
 - 只支持同步 `wa-sqlite.wasm`、单 JavaScript realm、单数据库连接。
 - VFS 使用 rollback journal，明确不支持 WAL、Worker、SharedWorker、跨页面并发连接。
 - VFS 会把整个数据库文件缓冲在内存中，当前只适合约 10 MB 内的兼容性验证。
-- 微信与抖音的文件 API 都没有提供 SQLite 所需的可靠 `fsync`、文件锁和原子重命名语义，本包不承诺崩溃恢复安全。
+- 三个平台的文件 API 都没有提供 SQLite 所需的可靠 `fsync`、文件锁和原子重命名语义，本包不承诺崩溃恢复安全。
 - 内存缓冲与平台配额是两回事。抖音用户目录总共约 10 MB（iOS 实测一次最多写入 9 MiB），库文件、`-journal`
   与回滚余量共用；写满时事务以 `SQLITE_FULL` 失败，已提交的数据重开仍在（见「宿主契约」）。
 
@@ -121,7 +121,7 @@ async function createDatabase() {
 在模块顶层执行 `'FinalizationRegistry' in globalThis`，所在 chunk 一加载就抛 TypeError；RxDB 核心的选主与
 `BroadcastChannel` 也读它。所以整份产物要在构建期把 `globalThis` 改指入口取到的真实全局对象，做到这一步后 adapter
 读到的 `globalThis` 就是它，不必再传 `runtimeGlobal`。Taro（Vite）的做法见 `apps/dev-rxdb-miniprogram` 的
-`config/rxdb-packages-vite-plugin.ts`（`douyinRealmVitePlugin`）与 `build-tt` target。两者都拿不到真实全局对象时引导直接报
+`config/realm-vite-plugin.ts`（`realmVitePlugin`，抖音与支付宝共用）与 `build-tt` / `build-alipay` target。两者都拿不到真实全局对象时引导直接报
 「请经 host.runtimeGlobal 注入」，不会猜。
 
 iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装。
@@ -130,6 +130,64 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 `... is not a function`。`@aiao/rxdb`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-encrypted`、`rxdb-plugin-storage`、
 `rxdb-plugin-working-tree` 已经全部改成首次使用时创建，各包的 `module-load-without-encoding.spec.ts` 把住每个发布入口；
 业务代码打进同一份产物时守同一条规矩。
+
+## 支付宝（实验性）
+
+支付宝依赖三处**未文档化**能力：逻辑层的标准 `WebAssembly`、Worker 里的 `crypto.getRandomValues`、找回真实全局对象。
+开发者工具与 iOS 真机验证过（US-211 支付宝探针 v7），**Android 真机未验证**，配额也没撞到过（`quota-unobserved`），
+平台改掉任一项未文档化行为时引导直接报 `AlipayUndocumentedCapabilityError`，不降级。
+
+代码包要放三样东西（esbuild 参考 `apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`，Taro（Vite）参考
+`apps/dev-rxdb-miniprogram` 的 `config/assets-vite-plugin.ts`）：
+
+```text
+@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js  →  workers/index.js（预编译 ES5，原样拷贝）
+@subframe7536/sqlite-wasm/wasm                          →  wa-sqlite/wa-sqlite.wasm
+同一份 wasm 的 base64 文本                               →  wa-sqlite/wa-sqlite.wasm.base64.txt
+```
+
+`app.json` 声明 `"workers": ["workers/index.js"]`；`mini.project.json` 配
+`"compileOptions": { "transpile": { "script": { "ignore": ["workers/**"] } } }`，否则 IDE 会给 Worker 换进
+跑不起来的 core-js。文本副本是给开发者工具模拟器的：它把代码包文件当 UTF-8 文本读，二进制被改写；wasm 运行时
+按锁定版本的指纹先读 `.wasm`、对不上再读副本，都对不上就抛错。
+
+模拟器逻辑层没有 `BigInt`，要等 `prepareMiniProgramHostRuntime` 补上。所以 RxDB 栈（`@aiao/rxdb`、adapter 主入口、rxjs）
+必须留在动态 `import()` 的 chunk 里，在引导之后才求值：es2018 产物里模块顶层的 `BigInt("…")` 一求值就抛错。
+打包器按引用数把它们拆进页面静态 `require` 的公共 chunk 时就会出这个问题，Taro 的 `manualChunks` 正是如此；
+Taro 示例用 `config/lazy-chunk-vite-plugin.ts` 把只经动态 `import()` 可达的模块并进单独的懒加载 chunk。
+
+```typescript
+async function createDatabase() {
+  const runtime = await import('@aiao/rxdb-adapter-miniprogram/runtime');
+  const randomWorker = my.createWorker('workers/index.js', { useExperimentalWorker: true });
+  // 逻辑层没有 WebAssembly 时读自由变量会抛 ReferenceError，先用 typeof 判
+  const webAssembly = typeof WebAssembly === 'undefined' ? undefined : WebAssembly;
+  const host = runtime.createAlipayMiniProgramHost(my, { randomWorker, webAssembly });
+  // 检查 WebAssembly、补 BigInt 与 queueMicrotask、经 Worker 取随机数
+  await runtime.prepareMiniProgramHostRuntime(host);
+
+  const [rxdbPackage, adapterPackage] = await Promise.all([
+    import('@aiao/rxdb'),
+    import('@aiao/rxdb-adapter-miniprogram')
+  ]);
+  const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
+  // webAssembly 为 undefined 时上面的引导已报 logic-layer-webassembly 缺失，到不了这里
+  const wasmRuntime = adapterPackage.createAlipayWasmRuntime(my, webAssembly!);
+  const database = new rxdbPackage.RxDB({/* 同微信 */});
+  database.adapter(
+    adapterPackage.ADAPTER_NAME,
+    db => new adapterPackage.RxDBAdapterWaSqliteMiniProgram(db, { moduleFactory, host, wasmRuntime })
+  );
+  return database;
+}
+```
+
+支付宝 host 的固定行为：
+
+- `fileLayout: { kind: 'chunked', chunkBytes: 65536 }`：只能整文件读写、单文件上限 10 MiB，整文件落盘会让库大小被单文件上限卡死。
+- 同步 FS 失败时返回错误对象而不抛：host 把它转成抛错，错误码 10022 / 10025 / 10028 归一成 VFS 认得的文案，平台原文挂在 `cause` 上。
+- 读写一律走 base64，每个用户文件前垫 1 字节帧头（模拟器拒绝任何空写入）；所以落盘格式与别的平台不同，平台之间本来就不共享数据目录。
+- 不传 `runtimeGlobal` 时，环境有 `globalThis` 就用它（iOS 真机），没有（开发者工具模拟器）就经 `Object.prototype` 上临时定义的 getter 找出来。
 
 ## 宿主契约
 
@@ -147,13 +205,14 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传，报错用它的 `wasmRuntimeName`）。
 所有宿主共享同一张单连接表，同一数据库文件的第二个连接一律拒绝。
 
-宿主还有三个可选字段，微信都不设，行为与不设时完全一致；抖音 host 设了全部三个（见「抖音」）：
+宿主还有四个可选字段，微信都不设，行为与不设时完全一致；抖音 host 设了前三个（见「抖音」），支付宝 host 设了 `runtimeGlobal`、`fileLayout` 与 `prepareRuntime`（见「支付宝」）：
 
 | 字段              | 缺省                  | 用途                                                                                                                                                                                                                                                                                |
 | ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `runtimeGlobal`   | 环境里的 `globalThis` | 运行时补丁写入、能力预检读取的真实全局对象。环境的 `globalThis` 不可用（如被页面包装函数遮蔽成 `undefined`）时由调用方在非严格代码里取到后注入。不是当前 realm 的全局对象时直接报「请经 host.runtimeGlobal 注入」，不回退、不猜；解析逻辑见 `resolveMiniProgramRuntimeGlobal(host)` |
 | `fileLayout`      | `{ kind: 'single' }`  | `chunked` 把逻辑文件 `P` 存成 `P.0`、`P.1`… 定长块，落盘只重写脏块；每个库另占 2×`chunkBytes` 的回滚余量（`<库>.rxdb-reserve`），撞配额时让出给回滚，`MiniProgramFileVFS.reserveHeld` 报告当前是否占着。两种布局互不兼容，声明 `chunked` 而目录里已有单文件库时直接拒绝，不迁移     |
 | `defaultWasmPath` | `DEFAULT_WASM_PATH`   | 未传 `wasmPath` 时加载的代码包内路径。相对路径按当前页面目录解析的平台要声明以 `/` 开头的代码包根路径                                                                                                                                                                               |
+| `prepareRuntime`  | 不调用                | `prepareMiniProgramHostRuntime` 在平台断言与解析真实全局对象之后、装 polyfill 之前调用，给平台补缺的全局或检测依赖的能力；reject 时引导失败、不申请随机数                                                                                                                           |
 
 `getMiniProgramRuntimeSources(runtimeGlobal?)` 按同样规则读来源：传了就读它，否则读环境的 `globalThis`。
 
@@ -164,10 +223,10 @@ wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传
 `structuredClone` 的 polyfill 只经自由变量引用内置构造函数，不读 `self` / `globalThis`，
 所以在全局对象被遮蔽的页面模块里克隆类型化数组、包装对象与 `Error` 同样可用；函数与 symbol 抛 `TypeError`。
 
-**目前登记的平台是 `wechat` 与 `douyin`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 在连接前失败，不会回退到 `wx`：
+**目前登记的平台是 `wechat`、`douyin` 与 `alipay`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 在连接前失败，不会回退到 `wx`：
 可行性矩阵判 `unsupported` 的平台抛 `MiniProgramUnsupportedPlatformError`（继承 `MiniProgramUnknownPlatformError`），
-`blockers` 与报错文案带出矩阵里的阻断项和判定章节——目前是 `alipay`（依赖未文档化能力，按改判标准还缺开发者工具、iOS、Android 三端的合格报告）；
-其余抛 `MiniProgramUnknownPlatformError`。这个契约的存在不代表支持支付宝、百度或 QQ 小程序；
+`blockers` 与报错文案带出矩阵里的阻断项和判定章节——支付宝 2026-10-04 改判 `supported` 后这张表为空；
+其余抛 `MiniProgramUnknownPlatformError`。这个契约的存在不代表支持百度或 QQ 小程序；
 各平台的可行性结论见
 [miniprogram-platform-feasibility.md](../../requirements/stories/adapter/miniprogram-platform-feasibility.md)。
 
@@ -180,7 +239,7 @@ glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和
 这两处分支在显式传 `locateFile` + `instantiateWasm` 时永远走不到，所以宿主构建把 glue 里的
 `import.meta.url` 替换成空串即可。Taro 示例的 `subframeSqliteWasmVitePlugin()`
 （见 [config/rxdb-packages-vite-plugin.ts](../../apps/dev-rxdb-miniprogram/config/rxdb-packages-vite-plugin.ts)）就做这件事，
-copy 规则见同目录的 [config/index.ts](../../apps/dev-rxdb-miniprogram/config/index.ts)。
+wasm 等运行时文件由同目录的 [config/assets-vite-plugin.ts](../../apps/dev-rxdb-miniprogram/config/assets-vite-plugin.ts) 发进产物。
 
 本包自身的构建把 `@subframe7536/sqlite-wasm` 保持在 external，不打进 `dist`——同理，
 一旦打进来 wasm 就会被内联。

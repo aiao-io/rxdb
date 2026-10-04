@@ -245,8 +245,8 @@ describe('dist 冒烟', () => {
     expect(report['wasm']).toMatchObject({
       sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'binary' } }
     });
-    // 逻辑层没有 crypto：引导经正式 host 的 Worker 随机源完成，来源标的是交给 adapter 的平台 id（暂借 wechat）
-    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'wechat' } });
+    // 逻辑层没有 crypto：引导经正式 host 的 Worker 随机源完成，来源标的是平台 id alipay
+    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'alipay' } });
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual(ALL_PASS);
     expect(findingEvidence(report, '持久化')).toContain('正式 host 补了 queueMicrotask');
@@ -304,7 +304,7 @@ describe('dist 冒烟', () => {
     expect(report['wasm']).toMatchObject({
       sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
     });
-    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'wechat' } });
+    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'alipay' } });
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual([
       expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass' }),

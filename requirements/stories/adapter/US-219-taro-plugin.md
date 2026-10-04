@@ -51,9 +51,9 @@ INVEST 检查清单:
 
    | 前提                           | demo 里的实现                    | 漏掉的后果（出处）                                                                                                                   |
    | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-   | wasm 拷进代码包根              | `copy.patterns` 一条             | `to` 不带 outputRoot 时 tt 产物落进 `dist-tt/dist/`（`config/index.ts` 注释）；完全漏掉则建库时找不到 wasm                           |
+   | wasm 拷进代码包根              | `miniProgramAssetsVitePlugin()`  | 原先的 `copy.patterns` 在 `to` 不带 outputRoot 时 tt 产物落进 `dist-tt/dist/`，现改 `emitFile`；完全漏掉则建库时找不到 wasm          |
    | 抹掉 glue 的 `import.meta.url` | `subframeSqliteWasmVitePlugin()` | 小程序没有 `import.meta`；vite 还会把 727 KB wasm 以 base64 内联，代码包多约 1 MB（adapter README「打包器注意事项」）                |
-   | 抖音产物绑定真实全局对象       | `douyinRealmVitePlugin()`        | 抖音模块里 `globalThis` 为 `undefined`，comlink 模块顶层 `'FinalizationRegistry' in globalThis` 一加载就 TypeError（README「抖音」） |
+   | 抖音产物绑定真实全局对象       | `realmVitePlugin('tt')`          | 抖音模块里 `globalThis` 为 `undefined`，comlink 模块顶层 `'FinalizationRegistry' in globalThis` 一加载就 TypeError（README「抖音」） |
 
    `build.target` **不算前提，插件跟随 Taro**：`@tarojs/vite-runner` 的 `taro:vite-mini-config` 插件写死 `target: 'es6'`，
    Taro 配置不暴露该项。es6 下 esbuild 把 RxDB 栈的 BigInt 字面量改写成 `BigInt("…")` 并告警，运行行为不变（adapter 本就要求原生
@@ -117,7 +117,7 @@ INVEST 检查清单:
 
 ### Out of Scope
 
-- 支付宝 / 百度 / QQ / 京东：可行性矩阵判 `unsupported` 或未登记，插件不为它们开任何构建路径（demo 的 `build-alipay` 拒绝路径仍由 app 自己配置）
+- 支付宝 / 百度 / QQ / 京东：可行性矩阵判 `unsupported` 或未登记，插件不为它们开任何构建路径（支付宝 2026-10-04 已改判 `supported`、demo 已接宿主，本条与 AC#6 待复议）
 - Taro H5 / RN / 鸿蒙：H5 应走 `rxdb-adapter-wa-sqlite` 等浏览器 adapter，不在本故事
 - Taro 3.x 与 4.2 以外的 4.x：不声明，等有人实测再放宽 peer 范围
 - `@aiao/rxdb-react` / `@aiao/rxdb-vue` 在 Taro 运行时里的 hook 兼容性：另立故事
@@ -139,11 +139,11 @@ INVEST 检查清单:
 | 2   | 同上，`outputRoot: 'dist-tt'`                                                                  | `taro build --type tt`                                                             | wasm 落在 `dist-tt/wa-sqlite/wa-sqlite.wasm`，不出现 `dist-tt/dist/`                                                                                                          | ⬜   |
 | 3   | 同 #1                                                                                          | 扫描产物所有 `.js`                                                                 | 不含 `import.meta`；不含 wasm 的 base64 内联（无 `AGFzbQ` 开头的长串）                                                                                                        | ⬜   |
 | 4   | 用户未设 target / 经 `compiler.vitePlugins` 自行覆盖 target                                    | 构建 weapp，与不装插件的同配置构建对比                                             | 两种情况下产物 target 都与不装插件时相同（插件不读不写 `build.target`）；未设时 BigInt 改写告警属预期，构建成功                                                               | ⬜   |
-| 5   | 同 #2                                                                                          | 构建 tt                                                                            | 与 demo 现行 `douyinRealmVitePlugin()` 产物等价：产物有 `rxdb-realm.js`，`app.js` 开头登记 realm，其余用到的 chunk 开头取 realm；`app.js` 带 `use strict` 时构建失败          | ⬜   |
+| 5   | 同 #2                                                                                          | 构建 tt                                                                            | 与 demo 现行 `realmVitePlugin('tt')` 产物等价：产物有 `rxdb-realm.js`，`app.js` 开头登记 realm，其余用到的 chunk 开头取 realm；`app.js` 带 `use strict` 时构建失败            | ⬜   |
 | 6   | `TARO_ENV` 为 `alipay` / `swan` / `qq` / `jd` / `h5` / `rn` / `harmony-hybrid`                 | 构建                                                                               | 构建期报错，列出支持的 `weapp` / `tt` 并指向 [可行性矩阵](./miniprogram-platform-feasibility.md)；不存在「什么都不做继续构建」的分支                                          | ⬜   |
 | 7   | `compiler: 'webpack5'`（或缺省即 webpack5）                                                    | 构建                                                                               | 构建期报错，说明只支持 vite 编译器                                                                                                                                            | ⬜   |
 | 8   | `plugins` 里本插件排在一个带异步 `modifyViteConfig` 的插件之后                                 | 构建 weapp                                                                         | #1～#3、#5 结果不变（证明走的是被 await 的 `modifyRunnerOpts`）                                                                                                               | ⬜   |
-| 9   | demo 改用插件                                                                                  | `pnpm nx run dev-rxdb-miniprogram:build` 与 `:build-tt`                            | 两个 target 绿；`config/rxdb-packages-vite-plugin.ts` 里被搬走的插件已删除；微信开发者工具与抖音开发者工具走查结果与改前一致（CRUD、重连、启动持久化自检全部 passed）         | ⬜   |
+| 9   | demo 改用插件                                                                                  | `pnpm nx run dev-rxdb-miniprogram:build-weapp` 与 `:build-tt`                      | 两个 target 绿；`config/rxdb-packages-vite-plugin.ts` 里被搬走的插件已删除；微信开发者工具与抖音开发者工具走查结果与改前一致（CRUD、重连、启动持久化自检全部 passed）         | ⬜   |
 | 10  | `local-registry` 起 verdaccio 并发布本仓库包；`taro init` 新建 React 与 Vue 两个 vite 模板项目 | 只经 npm 安装 `@aiao/rxdb`、adapter、`@aiao/rxdb-taro`，按 README 接入，构建 weapp | 两个项目在微信开发者工具里建库、读写、重开通过。若因类私有成员失败，插件补上对 `@aiao/*` 产物的转换并在技术笔记写明原因；若不需要，在技术笔记写明「npm 路径不需要」及复验方式 | ⬜   |
 | 11  | —                                                                                              | `pnpm nx run-many -t lint test build --projects=rxdb-taro`                         | 零警告；单测用伪 `ctx` 覆盖 #4、#6、#7 与钩子注册，覆盖率 ≥ 80%；公开导出全部有 TSDoc；adapter README 不再出现指向 `apps/` 的构建说明                                         | ⬜   |
 
@@ -177,14 +177,14 @@ INVEST 检查清单:
 
 ### 从 demo 搬什么、不搬什么
 
-| demo 里的东西                       | 去向                                                            |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `subframeSqliteWasmVitePlugin()`    | 搬进插件，逻辑不改                                              |
-| `rxdbBuildTargetVitePlugin()`       | 不搬，留在 demo：插件跟随 Taro 的 target（AC#4）                |
-| `douyinRealmVitePlugin()`           | 搬进插件，逻辑不改，只在 `TARO_ENV === 'tt'` 挂                 |
-| `copy.patterns` 的 wasm 规则        | 改成插件内 `emitFile`，消掉 outputRoot 前缀那个坑               |
-| `rxdbPackagesVitePlugin()`          | 先不搬：它只对 workspace link 生效。npm 路径要不要由 AC#10 决定 |
-| alipay 的 `es2018` target 与空 copy | 留在 demo：支付宝不在插件白名单，拒绝路径是 demo 自己的事       |
+| demo 里的东西                                                | 去向                                                            |
+| ------------------------------------------------------------ | --------------------------------------------------------------- |
+| `subframeSqliteWasmVitePlugin()`                             | 搬进插件，逻辑不改                                              |
+| `rxdbBuildTargetVitePlugin()`                                | 不搬，留在 demo：插件跟随 Taro 的 target（AC#4）                |
+| `realmVitePlugin()`                                          | 搬进插件，逻辑不改，只在 `TARO_ENV === 'tt'` 挂                 |
+| `miniProgramAssetsVitePlugin()`                              | 搬进插件（demo 已改 `emitFile`）                                |
+| `rxdbPackagesVitePlugin()`                                   | 先不搬：它只对 workspace link 生效。npm 路径要不要由 AC#10 决定 |
+| alipay 的 `es2018`、`lazyChunkVitePlugin()`、realm 与 Worker | 待复议：支付宝 2026-10-04 已改判 `supported`，demo 已接宿主     |
 
 ### 已知风险
 
