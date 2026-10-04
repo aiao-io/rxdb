@@ -102,7 +102,7 @@
 ## 全范围启动批新增意见
 
 - [RV-032](RV-032-vue-search-options-mutation.md)
-- [RV-033](RV-033-utils-queue-settlement-id-reuse.md)
+- RV-033（已修复，记录已删除）
 - [RV-034](RV-034-pglite-array-membership-semantics.md)
 - [RV-035](RV-035-strict-lint-review-gate.md)
 - [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
@@ -114,16 +114,16 @@
 本轮新增 5 个确认意见（1 P1 / 4 P2），不是只跑门禁或再写计划。
 
 - [RV-037：React OPFS 目录切换中的上传竞态](RV-037-react-opfs-navigation-upload-race.md)
-- [RV-038：备份回调同步抛错使调用方挂起](RV-038-backup-queue-synchronous-throw-hang.md)
-- [RV-039：仓储销毁异常导致适配器未关闭、实体未解绑](RV-039-repository-dispose-aborts-database-teardown.md)
-- [RV-040：Angular 模型真实 fixture 缺少数据库销毁](RV-040-angular-model-real-fixtures-leak-rxdb.md)
-- [RV-041：工作树公开 commit 的原请求幂等重试失败](RV-041-working-tree-public-commit-idempotency.md)
+- RV-038：备份回调同步抛错使调用方挂起（已修复，记录已删除）
+- RV-039：仓储销毁异常导致适配器未关闭、实体未解绑（已修复，记录已删除）
+- RV-040：Angular 模型真实 fixture 缺少数据库销毁（已修复，记录已删除）
+- RV-041：工作树公开 commit 的原请求幂等重试失败（已修复，记录已删除）
 
 [本批实际执行、对照与剩余项](follow-up-2026-10-03.md)。workspace C3 已单独核销；完整对象仍 0 个完成，不批量勾选其它专题。旧日志的 `.txt` 与摘要清单已补齐，使取证链接在提交后仍可交付。
 
 ## 2026-10-04：新一批实际边界评审
 
-- [RV-042：workspace 旧 install 结算污染新纪元](RV-042-workspace-install-epoch-settlement.md)
+- RV-042：workspace 旧 install 结算污染新纪元（已修复，记录已删除）
 - [RV-043：文件 fetch 早期拒绝未取消响应体](RV-043-storage-fetch-response-body-leak.md)
 - [RV-044：桌面逻辑路径别名覆盖另一记录的真实文件内容](RV-044-desktop-logical-path-alias-data-overwrite.md)
 

@@ -95,7 +95,7 @@ execution: in-progress
 | [`packages/rxdb-react`](packages/rxdb-react.md)                                             | 已启动，部分执行 | [实际记录](results/packages/rxdb-react.md)                       | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
 | [`packages/rxdb-test`](packages/rxdb-test.md)                                               | 已启动，部分执行 | [实际记录](results/packages/rxdb-test.md)                        | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
 | [`packages/rxdb-vue`](packages/rxdb-vue.md)                                                 | 已启动，部分执行 | [实际记录](results/packages/rxdb-vue.md)                         | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
-| [`packages/utils`](packages/utils.md)                                                       | 已启动，部分执行 | [实际记录](results/packages/utils.md)                            | [RV-033](RV-033-utils-queue-settlement-id-reuse.md)                                                                                                                                                       |
+| [`packages/utils`](packages/utils.md)                                                       | 已启动，部分执行 | [实际记录](results/packages/utils.md)                            | RV-033（已修复，记录已删除）                                                                                                                                                                              |
 | [`apps/dev-rxdb-angular`](apps/dev-rxdb-angular.md)                                         | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-angular.md)                     | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
 | [`apps/dev-rxdb-angular-e2e`](apps/dev-rxdb-angular-e2e.md)                                 | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-angular-e2e.md)                 | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
 | [`apps/dev-rxdb-electron`](apps/dev-rxdb-electron.md)                                       | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-electron.md)                    | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                        |
@@ -131,7 +131,7 @@ execution: in-progress
 - 7 个已存在的三框架包族实际解析 export / export type / export *；直接透传的共享类型未发现缺端，组件/原生 Props 差异不直接当功能缺失。[实际导出清单](evidence/2026-10-03/full-run/api-surfaces.json) 只证明入口表面，运行语义仍需逐项核对。
 - 小程序先只读检查 CLI/登录/服务端口，再实际执行当前仓库 demo 的 e2e-devtools：16 passed；没有修改 GUI 安全开关。DevTools 通过不外推到全部真机/其它小程序平台。
 - Supabase 原有实例来自另一个 checkout；本轮独立 project/容器/端口验证后仅清理自己创建的资源，原容器未初始化/删除。
-- 首批复验保持 Open，本轮新增红测试不排除。新意见：[RV-032](RV-032-vue-search-options-mutation.md)、[RV-033](RV-033-utils-queue-settlement-id-reuse.md)、[RV-034](RV-034-pglite-array-membership-semantics.md)、[RV-035](RV-035-strict-lint-review-gate.md)、[RV-036](RV-036-supabase-test-environment-cross-worktree.md)。
+- 首批复验保持 Open，本轮新增红测试不排除。新意见：[RV-032](RV-032-vue-search-options-mutation.md)、RV-033（已修复，记录已删除）、[RV-034](RV-034-pglite-array-membership-semantics.md)、[RV-035](RV-035-strict-lint-review-gate.md)、[RV-036](RV-036-supabase-test-environment-cross-worktree.md)。
 
 ### 下一步核销
 
@@ -165,10 +165,10 @@ execution: in-progress
 这批新增 **5 个确认问题（1 P1 / 4 P2）**，更新 11 个对象的实际记录，workspace C3 flush 专题核销。详见 [本批执行汇总](follow-up-2026-10-03.md)。
 
 - [RV-037：React OPFS 导航中上传旧目录](RV-037-react-opfs-navigation-upload-race.md)——真实浏览器 1 red / 1 对照通过。
-- [RV-038：备份任务同步抛错后挂起](RV-038-backup-queue-synchronous-throw-hang.md)——1 red / 2 对照通过。
-- [RV-039：仓储销毁异常中断全库拆卸](RV-039-repository-dispose-aborts-database-teardown.md)——2 red / 1 对照通过。
-- [RV-040：Angular 模型 fixture 共享 DB 泄漏](RV-040-angular-model-real-fixtures-leak-rxdb.md)——原合跑失败，临时副本显式 teardown 后 61 passed，原始测试未修。
-- [RV-041：公开 commit 幂等重试被过期凭据挡住](RV-041-working-tree-public-commit-idempotency.md)——SQLite-WASM / PGlite 各 1 red / 53 原对照通过。
+- RV-038：备份任务同步抛错后挂起（已修复，记录已删除）——1 red / 2 对照通过。
+- RV-039：仓储销毁异常中断全库拆卸（已修复，记录已删除）——2 red / 1 对照通过。
+- RV-040：Angular 模型 fixture 共享 DB 泄漏（已修复，记录已删除）——原合跑失败，临时副本显式 teardown 后 61 passed，原始测试未修。
+- RV-041：公开 commit 幂等重试被过期凭据挡住（已修复，记录已删除）——SQLite-WASM / PGlite 各 1 red / 53 原对照通过。
 
 原生命周期/事务/trusted-write 52 passed；workspace 96 单元/20 真实浏览器 passed。rxdb-angular 265、Tauri 343 独立复跑通过；model-angular 全包和 dev-angular 仍失败，前者组合根因有 cleanup 对照，后者 TestBed 顺序/身份未完整归因。旧全范围任务结果是历史测量面，新增红测试不被这些旧绿色数字覆盖。
 

@@ -325,12 +325,23 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     if (this.#installPromise && !this.#installFailed) return this.#installPromise;
     this.#installFailed = false;
     this.#restoring = true;
+    // RV-042：按 store 身份认领本次结算，与 `#restoreEntries()` 内部的身份判据
+    // （第 537/542 行）同一份依据。读取横跨一次纪元释放 + 重新 install 时，
+    // 这个旧 Promise 迟早会结算——可能在新纪元的恢复还没做完、甚至已经做完之后。
+    // 不认领的话，它的 catch/finally 会直接写 `#installFailed` / `#restoring` /
+    // `#restore_delete_intents` 这三个纪元级字段，而当时它们早已属于新纪元：
+    // 旧读取成功结算，会把新恢复窗口里刚收到的删除意图清空，新快照中已被用户删除的
+    // 草稿因此在旧快照里重新找到自己、被当作合法草稿恢复；旧读取失败结算，
+    // 又会把一次已经成功的新安装误标成失败，下一次 `install()` 因此多发一轮读取。
+    const store = this.#indexedDBStore;
+    const ownsCurrentEpoch = () => this.#indexedDBStore === store;
     const installPromise = this.#restoreEntries()
       .catch(reason => {
-        this.#installFailed = true;
+        if (ownsCurrentEpoch()) this.#installFailed = true;
         throw reason;
       })
       .finally(() => {
+        if (!ownsCurrentEpoch()) return;
         this.#restoring = this.#installFailed;
         if (!this.#installFailed) this.#restore_delete_intents.clear();
       });

@@ -33,6 +33,8 @@ import type { CommitChangeUnitContent } from '../commit/change-unit.js';
 import type { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
 import type { CommitWriteContext } from '../commit/commit-context.js';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
+import { deriveCommitOperationId, findCommitByOperationId } from '../commit/commit-idempotency.js';
+import type { Commit } from '../commit/commit.entity.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
 import { writeCommit, type WriteCommitOutcome } from '../commit/write-commit.js';
 import { readActiveBranchToken, readBranchEntries, readWorkingTreeStateRow } from './capture-runtime.js';
@@ -142,6 +144,34 @@ const toHeadConflict = async (
   return { kind: 'head_revision', expected: expectedHeadRevision, actual: ref.headRevision, branchId };
 };
 
+/**
+ * 按幂等键识别一次已经落库的重试（RV-041：US-305 场景 7，评审 commit.suite.ts 对应断言）。
+ *
+ * @remarks
+ * 只在 {@link findCommitConflict} 已经报出非 `activation_revision` 的冲突时调用——分支认错了
+ * 不认任何 `operationId`，必须直接落回下面的 CAS 拒绝（`runCommitWorkingTree` 的调用点保证这一点）。
+ *
+ * **不比对内容指纹，只比对 `message` / `author`。** `writeCommit()` 内部的指纹比对要靠
+ * `input.units`——而原请求重试时工作树早被第一次成功的提交清空，这里的 `units` 永远是空的，
+ * 拿它去比只会把一次货真价实的重放误判成「内容不符」。`message` / `author` 不依赖工作树
+ * 状态，足够挡住「同一个 operationId 被挪去提另一次不同内容的提交」这类调用方 bug——
+ * 这正是指纹比对通常负责的那一半，只是在没有 units 可用时退化成这两个字段。
+ *
+ * **没命中或两个字段有一个不符，原样返回 `undefined`**，调用点据此落回现有的严格冲突契约
+ * （RV-041 修复方案：「没有命中或 payload 不同仍按现有严格错误/冲突契约处理」）——这里不抛
+ * `CommitOperationMismatchError`，因为门面的冲突一向是返回值，不是异常。
+ */
+const findReplayedCommit = async (
+  executor: TransactionExecutor,
+  key: { branchGeneration: number; operationId: string; message: string; authorId: string }
+): Promise<Commit | undefined> => {
+  const derived = deriveCommitOperationId({ branchGeneration: key.branchGeneration, operationId: key.operationId });
+  const existing = await findCommitByOperationId(executor, derived);
+  if (!existing) return undefined;
+  if (existing.message !== key.message.trim() || existing.author !== key.authorId.trim()) return undefined;
+  return existing;
+};
+
 /** 提交落库之后，把事务内已读出来的两行同步到新值。 */
 const syncRowsAfterCommit = (
   ref: CommitBranchRef,
@@ -232,8 +262,10 @@ const finishCommit = async (executor: TransactionExecutor, input: FinishCommitIn
  *    看到的变更被写进 B 分支的历史。
  * 2. **损坏守卫先于 CAS**。反过来的话，一条已损坏的链上、凭据又恰好对得上的提交会直接
  *    落库，把新节点挂到一段自己都校验不过的历史后面（FR-051）。
- * 3. **三次比较全部先于任何写入**，任一不匹配即返回 {@link CommitConflict}，此时没有
- *    任何东西需要回滚——这正是它做成返回值而非异常的原因。
+ * 3. **三次比较全部先于任何写入**，任一不匹配即返回 {@link CommitConflict}——除了
+ *    **原请求重试**这一种（RV-041）：HEAD / 工作树 revision 不匹配、但 `operationId` 对应
+ *    一条已落库且 `message` / `author` 都对得上的 commit 时，直接回那条 commit，不再往下走。
+ *    `activation_revision` 不在这条例外里——分支都认错了就没有「重试」可言，原样落回冲突。
  * 4. **写 commit → 清条目 → 单条状态 UPDATE**，全在调用方那一个事务里。
  *
  * 干净分支上**抛 `empty_commit`** 而不是返回一个 `ok: true` 的空提交：空 commit 会在
@@ -270,6 +302,25 @@ export const runCommitWorkingTree = async (
     headRevision: ref.headRevision,
     workingTreeRevision: state.workingTreeRevision
   });
+  if (conflict && conflict.kind !== 'activation_revision') {
+    const replay = await findReplayedCommit(executor, {
+      branchGeneration: ref.generation,
+      operationId: options.operationId,
+      message,
+      authorId: options.authorId
+    });
+    if (replay) {
+      return {
+        result: {
+          ok: true,
+          commitId: replay.id,
+          changeSetCount: replay.changeSetCount,
+          headRevision: ref.headRevision
+        },
+        written: null
+      };
+    }
+  }
   if (conflict) return { result: { ok: false, conflict }, written: null };
 
   const entries = await readBranchEntries(executor, token.branchId);
