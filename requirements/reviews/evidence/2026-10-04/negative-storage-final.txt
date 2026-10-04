@@ -1,0 +1,109 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-storage:test --args=src/__tests__/review-fetch-response-cleanup.spec.ts src/__tests__/review-desktop-path-alias.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-fetch-response-cleanup.spec.ts src/__tests__/review-desktop-path-alias.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:98381) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-storage
+
+(node:98387) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 404 / MIME true 的早期拒绝不能留下后台下载
+REVIEW_FETCH_BODY {"status":404,"contentType":true,"observedResponses":1,"bodyLocked":false,"closed":false,"chunks":28}
+
+stdout | src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 200 / MIME false 的早期拒绝不能留下后台下载
+REVIEW_FETCH_BODY {"status":200,"contentType":false,"observedResponses":1,"bodyLocked":false,"closed":false,"chunks":26}
+
+ ❯ |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts (3 tests | 2 failed) 651ms
+     × HTTP 404 / MIME true 的早期拒绝不能留下后台下载 331ms
+     × HTTP 200 / MIME false 的早期拒绝不能留下后台下载 310ms
+     ✓ 对照：正常响应消费完毕后关闭，并写入正确文件内容 8ms
+(node:98405) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-desktop-path-alias.spec.ts > 评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 > ASCII 大小写：overwrite 只允许替换目标逻辑路径，不能修改另一记录
+REVIEW_NATIVE_ALIAS {"scenario":"ASCII 大小写","firstName":"a.txt","secondName":"A.txt","firstBytes":"second-replacement","secondBytes":"second-replacement","metadataRows":2,"diskNames":["a.txt"]}
+
+stdout | src/__tests__/review-desktop-path-alias.spec.ts > 评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 > Unicode 规范等价：overwrite 只允许替换目标逻辑路径，不能修改另一记录
+REVIEW_NATIVE_ALIAS {"scenario":"Unicode 规范等价","firstName":"café.txt","secondName":"café.txt","firstBytes":"second-replacement","secondBytes":"second-replacement","metadataRows":2,"diskNames":["café.txt"]}
+
+stdout | src/__tests__/review-desktop-path-alias.spec.ts > 评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 > 正常不同文件名对照：overwrite 只允许替换目标逻辑路径，不能修改另一记录
+REVIEW_NATIVE_ALIAS {"scenario":"正常不同文件名对照","firstName":"alpha.txt","secondName":"beta.txt","firstBytes":"first-original","secondBytes":"second-replacement","metadataRows":2,"diskNames":["alpha.txt","beta.txt"]}
+
+ ❯ |rxdb-plugin-storage| src/__tests__/review-desktop-path-alias.spec.ts (3 tests | 2 failed) 239ms
+     × ASCII 大小写：overwrite 只允许替换目标逻辑路径，不能修改另一记录 151ms
+     × Unicode 规范等价：overwrite 只允许替换目标逻辑路径，不能修改另一记录 56ms
+     ✓ 正常不同文件名对照：overwrite 只允许替换目标逻辑路径，不能修改另一记录 30ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-desktop-path-alias.spec.ts > 评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 > ASCII 大小写：overwrite 只允许替换目标逻辑路径，不能修改另一记录
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-desktop-path-alias.spec.ts > 评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 > Unicode 规范等价：overwrite 只允许替换目标逻辑路径，不能修改另一记录
+AssertionError: expected 'second-replacement' to be 'first-original' // Object.is equality
+
+Expected: "first-original"
+Received: "second-replacement"
+
+ ❯ src/__tests__/review-desktop-path-alias.spec.ts:70:26
+     68|       expect(metas).toHaveLength(2);
+     69|       expect(second.id).not.toBe(first.id);
+     70|       expect(firstBytes).toBe('first-original');
+       |                          ^
+     71|       expect(secondBytes).toBe('second-replacement');
+     72|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 404 / MIME true 的早期拒绝不能留下后台下载
+ FAIL  |rxdb-plugin-storage| src/__tests__/review-fetch-response-cleanup.spec.ts > 评审：fetch 在响应头阶段拒绝时必须关闭响应体 > HTTP 200 / MIME false 的早期拒绝不能留下后台下载
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ vi.waitFor.timeout src/__tests__/review-fetch-response-cleanup.spec.ts:76:60
+     74|       await service.destroy();
+     75|       try {
+     76|         await vi.waitFor(() => expect(remote.state.closed).toBe(true),…
+       |                                                            ^
+     77|       } finally {
+     78|         console.log('REVIEW_FETCH_BODY ' + JSON.stringify({ status, co…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 2 passed (6)
+   Start at  08:48:19
+   Duration  1.52s (transform 222ms, setup 0ms, import 435ms, tests 890ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-storage/junit.xml
+Warning: command "vitest src/__tests__/review-fetch-response-cleanup.spec.ts src/__tests__/review-desktop-path-alias.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-storage failed
+
+Failed tasks:
+
+- rxdb-plugin-storage:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.9s (1 task)
+  Recoverable time:  <1ms

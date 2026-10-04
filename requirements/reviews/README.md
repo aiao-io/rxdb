@@ -114,3 +114,11 @@
 - [RV-041：工作树公开 commit 的原请求幂等重试失败](RV-041-working-tree-public-commit-idempotency.md)
 
 [本批实际执行、对照与剩余项](follow-up-2026-10-03.md)。workspace C3 已单独核销；完整对象仍 0 个完成，不批量勾选其它专题。旧日志的 `.txt` 与摘要清单已补齐，使取证链接在提交后仍可交付。
+
+## 2026-10-04：新一批实际边界评审
+
+- [RV-042：workspace 旧 install 结算污染新纪元](RV-042-workspace-install-epoch-settlement.md)
+- [RV-043：文件 fetch 早期拒绝未取消响应体](RV-043-storage-fetch-response-body-leak.md)
+- [RV-044：桌面逻辑路径别名覆盖另一记录的真实文件内容](RV-044-desktop-logical-path-alias-data-overwrite.md)
+
+[本批实际专题、源码/运行证据与剩余项](execution-2026-10-04.md)。更新 7 个对象；replay 包级 C1 核销，应用授权不随之验收。全对象深审仍 0 个完成。

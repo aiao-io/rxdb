@@ -1,5 +1,5 @@
 {
+  "VITEST_BROWSER": "true",
   "exitCode": 1,
-  "log": "replay-persisted-consent.txt",
-  "VITEST_BROWSER": "true"
+  "log": "replay-persisted-consent.txt"
 }

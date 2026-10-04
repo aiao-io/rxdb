@@ -9,7 +9,9 @@ async function openResponse(status: number, contentType: boolean, complete: bool
   const server = createServer((_request, response) => {
     response.statusCode = status;
     if (contentType) response.setHeader('Content-Type', 'text/plain');
-    response.on('close', () => { state.closed = true; });
+    response.on('close', () => {
+      state.closed = true;
+    });
     if (complete) {
       response.end('normal body');
       return;
@@ -32,7 +34,7 @@ async function openResponse(status: number, contentType: boolean, complete: bool
     state,
     async close(): Promise<void> {
       server.closeAllConnections();
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())));
     }
   };
 }
@@ -70,12 +72,23 @@ describe('评审：fetch 在响应头阶段拒绝时必须关闭响应体', () =
     const controller = new AbortController();
     const { service } = createService();
     try {
-      await expect(service.fetch('remote.txt', { url: remote.url, signal: controller.signal })).rejects.toMatchObject({ name });
+      await expect(service.fetch('remote.txt', { url: remote.url, signal: controller.signal })).rejects.toMatchObject({
+        name
+      });
       await service.destroy();
       try {
         await vi.waitFor(() => expect(remote.state.closed).toBe(true), { timeout: 300, interval: 10 });
       } finally {
-        console.log('REVIEW_FETCH_BODY ' + JSON.stringify({ status, contentType, observedResponses: responses.length, bodyLocked: responses[0]?.body?.locked, ...remote.state }));
+        console.log(
+          'REVIEW_FETCH_BODY ' +
+            JSON.stringify({
+              status,
+              contentType,
+              observedResponses: responses.length,
+              bodyLocked: responses[0]?.body?.locked,
+              ...remote.state
+            })
+        );
       }
     } finally {
       controller.abort();

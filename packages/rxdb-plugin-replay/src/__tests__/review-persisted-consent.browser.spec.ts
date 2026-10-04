@@ -1,7 +1,7 @@
+import type { RxDB } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { userEvent } from 'vitest/browser';
-import type { RxDB } from '@aiao/rxdb';
 import { ReplayEventRecord } from '../entities.js';
 import { rxDBPluginReplay } from '../plugin.js';
 import { createAppDb, createRecordingDbFactory } from './fixtures/dbs.js';
@@ -48,9 +48,13 @@ describe('评审：真实 rrweb 与录制库的同意/脱敏边界', () => {
     expect(recording.created).toHaveLength(1);
     expect(recording.created[0]).not.toBe(app);
     const adapter = await firstValueFrom(recording.created[0]!.localAdapter$);
-    const rows = await adapter.transaction(executor => executor.getRepository(ReplayEventRecord).find({
-      where: { combinator: 'and', rules: [{ field: 'sessionId', operator: '=', value: sessionId }] }
-    }), false);
+    const rows = await adapter.transaction(
+      executor =>
+        executor.getRepository(ReplayEventRecord).find({
+          where: { combinator: 'and', rules: [{ field: 'sessionId', operator: '=', value: sessionId }] }
+        }),
+      false
+    );
     const persisted = JSON.stringify(rows.map(row => row.data));
     expect(persisted).not.toContain(SECRET);
     expect(persisted).toContain('*'.repeat(SECRET.length));
@@ -64,9 +68,13 @@ describe('评审：真实 rrweb 与录制库的同意/脱敏边界', () => {
     await userEvent.type(input, SECRET);
     await app.replay.stop();
     const adapter = await firstValueFrom(recording.created[0]!.localAdapter$);
-    const rows = await adapter.transaction(executor => executor.getRepository(ReplayEventRecord).find({
-      where: { combinator: 'and', rules: [{ field: 'sessionId', operator: '=', value: sessionId }] }
-    }), false);
+    const rows = await adapter.transaction(
+      executor =>
+        executor.getRepository(ReplayEventRecord).find({
+          where: { combinator: 'and', rules: [{ field: 'sessionId', operator: '=', value: sessionId }] }
+        }),
+      false
+    );
     expect(JSON.stringify(rows.map(row => row.data))).toContain(SECRET);
   });
 });

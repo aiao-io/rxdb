@@ -4,16 +4,15 @@
     "nx",
     "run-many",
     "-t",
-    "lint",
+    "typecheck",
     "--projects=rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay",
     "--parallel=1",
     "--excludeTaskDependencies",
     "--skipRemoteCache",
-    "--skipNxCache",
-    "--max-warnings=0"
+    "--skipNxCache"
   ],
-  "completedAt": "2026-10-04T04:15:38.933900+08:00",
-  "exitCode": 1,
-  "log": "new-probes-lint.txt",
-  "startedAt": "2026-10-04T04:15:33.265732+08:00"
+  "completedAt": "2026-10-04T08:48:13.406395+08:00",
+  "exitCode": 0,
+  "log": "quality-final-typecheck.txt",
+  "startedAt": "2026-10-04T08:48:07.760665+08:00"
 }

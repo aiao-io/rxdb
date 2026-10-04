@@ -9,8 +9,8 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 0,
-  "startedAt": "2026-10-04T03:33:17.673878+08:00",
   "completedAt": "2026-10-04T03:34:11.883778+08:00",
-  "log": "pglite-backup-boundaries.txt"
+  "exitCode": 0,
+  "log": "pglite-backup-boundaries.txt",
+  "startedAt": "2026-10-04T03:33:17.673878+08:00"
 }

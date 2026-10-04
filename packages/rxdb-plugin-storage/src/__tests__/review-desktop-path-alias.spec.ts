@@ -18,7 +18,7 @@ async function createNativeStorage() {
     postChange: () => undefined
   });
   const transport: DesktopHostTransport = {
-    request: payload => payload.kind.startsWith('file.') ? files.handle(payload) : sqlite.handle(payload),
+    request: payload => (payload.kind.startsWith('file.') ? files.handle(payload) : sqlite.handle(payload)),
     subscribe: () => () => undefined
   };
   const db = new RxDB({
@@ -27,7 +27,10 @@ async function createNativeStorage() {
     multiInstance: false,
     sync: { type: SyncType.None, local: { adapter: ELECTRON_ADAPTER_NAME } }
   });
-  db.adapter(ELECTRON_ADAPTER_NAME, rxdb => new RxDBAdapterElectron(rxdb, { transport, databaseName: 'review.sqlite3' }));
+  db.adapter(
+    ELECTRON_ADAPTER_NAME,
+    rxdb => new RxDBAdapterElectron(rxdb, { transport, databaseName: 'review.sqlite3' })
+  );
   db.use(rxDBPluginStorage, { rootDir: 'files', filesystem: createDesktopStorageFilesystem({ transport }) });
   try {
     await db.connect(ELECTRON_ADAPTER_NAME);
@@ -59,12 +62,26 @@ describe('评审：桌面物理路径不能让不同逻辑名覆盖同一个文�
     const native = await createNativeStorage();
     try {
       const first = await native.db.storage.upload(new File(['first-original'], firstName, { type: 'text/plain' }));
-      const second = await native.db.storage.upload(new File(['second-replacement'], secondName, { type: 'text/plain' }), { overwrite: true });
+      const second = await native.db.storage.upload(
+        new File(['second-replacement'], secondName, { type: 'text/plain' }),
+        { overwrite: true }
+      );
       const firstBytes = await (await native.db.storage.read(first.id)).text();
       const secondBytes = await (await native.db.storage.read(second.id)).text();
       const metas = await native.db.storage.listAllMetas();
       const diskNames = await readdir(join(native.workspace, 'rxdb-files', 'files'));
-      console.log('REVIEW_NATIVE_ALIAS ' + JSON.stringify({ scenario, firstName, secondName, firstBytes, secondBytes, metadataRows: metas.length, diskNames }));
+      console.log(
+        'REVIEW_NATIVE_ALIAS ' +
+          JSON.stringify({
+            scenario,
+            firstName,
+            secondName,
+            firstBytes,
+            secondBytes,
+            metadataRows: metas.length,
+            diskNames
+          })
+      );
       expect(metas).toHaveLength(2);
       expect(second.id).not.toBe(first.id);
       expect(firstBytes).toBe('first-original');

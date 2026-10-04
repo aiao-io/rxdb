@@ -1,0 +1,179 @@
+{
+  "baselineStart": "b01e35e9aedc58e61fb02a909ec98b4a119e82a2",
+  "closedTopicThisBatch": "rxdb-plugin-replay C1 (package consent/default input masking contract; app authorization out of package scope)",
+  "fullyReviewedObjects": 0,
+  "headAtFinalEvidence": "3f3696b88c9736d1708002f52e3d2e715636a425",
+  "newFindings": ["RV-042", "RV-043", "RV-044"],
+  "objectsStarted": 70,
+  "records": [
+    {
+      "name": "angular-original-after-observer",
+      "exitCode": 0,
+      "testSummary": "333 passed (333)",
+      "log": "angular-original-after-observer.txt",
+      "statusFile": "angular-original-after-observer-status.json"
+    },
+    {
+      "name": "angular-testbed-marker-reset-control",
+      "exitCode": 0,
+      "testSummary": "333 passed (333)",
+      "log": "angular-testbed-marker-reset-control.txt",
+      "statusFile": "angular-testbed-marker-reset-control-status.json"
+    },
+    {
+      "name": "angular-testbed-observe",
+      "exitCode": 0,
+      "testSummary": "333 passed (333)",
+      "log": "angular-testbed-observe.txt",
+      "statusFile": "angular-testbed-observe-status.json"
+    },
+    {
+      "name": "final-probes-lint",
+      "exitCode": 0,
+      "testSummary": null,
+      "log": "final-probes-lint.txt",
+      "statusFile": "final-probes-lint-status.json"
+    },
+    {
+      "name": "final-probes-typecheck",
+      "exitCode": 0,
+      "testSummary": null,
+      "log": "final-probes-typecheck.txt",
+      "statusFile": "final-probes-typecheck-status.json"
+    },
+    {
+      "name": "negative-storage-final",
+      "exitCode": 1,
+      "testSummary": "4 failed | 2 passed (6)",
+      "log": "negative-storage-final.txt",
+      "statusFile": "negative-storage-final-status.json"
+    },
+    {
+      "name": "negative-workspace-final",
+      "exitCode": 1,
+      "testSummary": "2 failed | 80 passed (82)",
+      "log": "negative-workspace-final.txt",
+      "statusFile": "negative-workspace-final-status.json"
+    },
+    {
+      "name": "new-probes-lint",
+      "exitCode": 1,
+      "testSummary": null,
+      "log": "new-probes-lint.txt",
+      "statusFile": "new-probes-lint-status.json"
+    },
+    {
+      "name": "new-probes-typecheck",
+      "exitCode": 1,
+      "testSummary": null,
+      "log": "new-probes-typecheck.txt",
+      "statusFile": "new-probes-typecheck-status.json"
+    },
+    {
+      "name": "pglite-backup-boundaries",
+      "exitCode": 0,
+      "testSummary": "50 passed (50)",
+      "log": "pglite-backup-boundaries.txt",
+      "statusFile": "pglite-backup-boundaries-status.json"
+    },
+    {
+      "name": "quality-final-lint",
+      "exitCode": 0,
+      "testSummary": null,
+      "log": "quality-final-lint.txt",
+      "statusFile": "quality-final-lint-status.json"
+    },
+    {
+      "name": "quality-final-typecheck",
+      "exitCode": 0,
+      "testSummary": null,
+      "log": "quality-final-typecheck.txt",
+      "statusFile": "quality-final-typecheck-status.json"
+    },
+    {
+      "name": "replay-consent-cold-cache",
+      "exitCode": 0,
+      "testSummary": "6 passed (6)",
+      "log": "replay-consent-cold-cache.txt",
+      "statusFile": "replay-consent-cold-cache-status.json"
+    },
+    {
+      "name": "replay-consent-final",
+      "exitCode": 0,
+      "testSummary": "6 passed (6)",
+      "log": "replay-consent-final.txt",
+      "statusFile": "replay-consent-final-status.json"
+    },
+    {
+      "name": "replay-consent-lifecycle-controls",
+      "exitCode": 0,
+      "testSummary": "45 passed (45)",
+      "log": "replay-consent-lifecycle-controls.txt",
+      "statusFile": "replay-consent-lifecycle-controls-status.json"
+    },
+    {
+      "name": "replay-masking-and-persistence",
+      "exitCode": 0,
+      "testSummary": "6 passed (6)",
+      "log": "replay-masking-and-persistence.txt",
+      "statusFile": "replay-masking-and-persistence-status.json"
+    },
+    {
+      "name": "replay-persisted-consent",
+      "exitCode": 1,
+      "testSummary": "closed successfully but something prevents the main process from exiting",
+      "log": "replay-persisted-consent.txt",
+      "statusFile": "replay-persisted-consent-status.json"
+    },
+    {
+      "name": "replay-persisted-consent-warm",
+      "exitCode": 0,
+      "testSummary": "2 passed (2)",
+      "log": "replay-persisted-consent-warm.txt",
+      "statusFile": "replay-persisted-consent-warm-status.json"
+    },
+    {
+      "name": "sqlite-backup-boundaries",
+      "exitCode": 0,
+      "testSummary": "117 passed | 21 skipped (138)",
+      "log": "sqlite-backup-boundaries.txt",
+      "statusFile": "sqlite-backup-boundaries-status.json"
+    },
+    {
+      "name": "storage-compensation-controls",
+      "exitCode": 0,
+      "testSummary": "137 passed (137)",
+      "log": "storage-compensation-controls.txt",
+      "statusFile": "storage-compensation-controls-status.json"
+    },
+    {
+      "name": "storage-fetch-response-cleanup",
+      "exitCode": 1,
+      "testSummary": "1 failed | 2 passed (3)",
+      "log": "storage-fetch-response-cleanup.txt",
+      "statusFile": "storage-fetch-response-cleanup-status.json"
+    },
+    {
+      "name": "storage-fetch-retained-response",
+      "exitCode": 1,
+      "testSummary": "2 failed | 1 passed (3)",
+      "log": "storage-fetch-retained-response.txt",
+      "statusFile": "storage-fetch-retained-response-status.json"
+    },
+    {
+      "name": "storage-native-path-alias",
+      "exitCode": 1,
+      "testSummary": "2 failed | 1 passed (3)",
+      "log": "storage-native-path-alias.txt",
+      "statusFile": "storage-native-path-alias-status.json"
+    },
+    {
+      "name": "workspace-install-epoch",
+      "exitCode": 1,
+      "testSummary": "2 failed | 80 passed (82)",
+      "log": "workspace-install-epoch.txt",
+      "statusFile": "workspace-install-epoch-status.json"
+    }
+  ],
+  "updatedObjectRecords": 7
+}

@@ -1452,35 +1452,38 @@ describe('评审：workspace 旧安装结果不能修改新纪元', () => {
     }
   });
 
-  it.each(['before-reinstall', 'after-reinstall'] as const)('旧读取在 %s 失败时不能使成功的新安装重新读取', async order => {
-    const oldRead = delayedEntries();
-    entriesMock.mockImplementationOnce(() => oldRead.promise);
-    const rxdb = createMockRxDB();
-    const { plugin, scope } = createScoped(rxdb, { autoSave: false });
-    const failure = new Error('obsolete IndexedDB read failed');
-    const obsolete = plugin.install(scope);
-    const obsoleteResult = obsolete.catch((error: unknown) => error);
-    await scope.dispose();
-    const nextScope = new LifecycleScope('review-workspace-next');
-    try {
-      if (order === 'before-reinstall') {
-        oldRead.reject(failure);
+  it.each(['before-reinstall', 'after-reinstall'] as const)(
+    '旧读取在 %s 失败时不能使成功的新安装重新读取',
+    async order => {
+      const oldRead = delayedEntries();
+      entriesMock.mockImplementationOnce(() => oldRead.promise);
+      const rxdb = createMockRxDB();
+      const { plugin, scope } = createScoped(rxdb, { autoSave: false });
+      const failure = new Error('obsolete IndexedDB read failed');
+      const obsolete = plugin.install(scope);
+      const obsoleteResult = obsolete.catch((error: unknown) => error);
+      await scope.dispose();
+      const nextScope = new LifecycleScope('review-workspace-next');
+      try {
+        if (order === 'before-reinstall') {
+          oldRead.reject(failure);
+          await obsoleteResult;
+        }
+        const current = plugin.install(nextScope);
+        await current;
+        if (order === 'after-reinstall') {
+          oldRead.reject(failure);
+          await obsoleteResult;
+        }
+        const repeat = plugin.install(nextScope);
+        await repeat;
+        expect(repeat).toBe(current);
+        expect(entriesMock).toHaveBeenCalledTimes(2);
+      } finally {
+        oldRead.resolve([]);
+        await nextScope.dispose();
         await obsoleteResult;
       }
-      const current = plugin.install(nextScope);
-      await current;
-      if (order === 'after-reinstall') {
-        oldRead.reject(failure);
-        await obsoleteResult;
-      }
-      const repeat = plugin.install(nextScope);
-      await repeat;
-      expect(repeat).toBe(current);
-      expect(entriesMock).toHaveBeenCalledTimes(2);
-    } finally {
-      oldRead.resolve([]);
-      await nextScope.dispose();
-      await obsoleteResult;
     }
-  });
+  );
 });

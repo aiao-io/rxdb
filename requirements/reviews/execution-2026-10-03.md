@@ -183,3 +183,7 @@ SQLite 第一次新 probe 运行没有重建 testing 产物，实际仍收集旧
 续执行的最终校验：新增测试涉及的 4 个项目（rxdb / workspace / working-tree / React E2E）严格零警告 lint 与 typecheck 均通过；两个核心负向 spec 合跑仍 **3 failed / 3 passed**，没有剔除失败换绿。
 
 [严格 lint](evidence/2026-10-03/follow-up/final-probes-lint.txt) · [类型校验](evidence/2026-10-03/follow-up/final-probes-typecheck.txt) · [核心红测试](evidence/2026-10-03/follow-up/final-core-red-probes.txt) · [本批状态汇总](evidence/2026-10-03/follow-up/round-results.json) · [输入版本/源码摘要](evidence/2026-10-03/follow-up/runtime-and-sources.json)。
+
+## 后续批次索引
+
+[2026-10-04 实际深审](execution-2026-10-04.md)：新增 RV-042/043/044（1 P1 / 2 P2），更新 7 个对象并核销 replay 的限定包级 C1；其它对象/专题继续，不改写本文件历史运行结果。

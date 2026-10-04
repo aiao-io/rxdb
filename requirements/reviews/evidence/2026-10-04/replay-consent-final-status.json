@@ -9,11 +9,11 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 0,
+  "completedAt": "2026-10-04T04:21:28.050439+08:00",
   "environment": {
     "VITEST_BROWSER": "true"
   },
-  "startedAt": "2026-10-04T04:21:19.878601+08:00",
-  "completedAt": "2026-10-04T04:21:28.050439+08:00",
-  "log": "replay-consent-final.txt"
+  "exitCode": 0,
+  "log": "replay-consent-final.txt",
+  "startedAt": "2026-10-04T04:21:19.878601+08:00"
 }

@@ -11,8 +11,8 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 1,
-  "startedAt": "2026-10-04T04:15:38.934532+08:00",
   "completedAt": "2026-10-04T04:15:48.675941+08:00",
-  "log": "new-probes-typecheck.txt"
+  "exitCode": 1,
+  "log": "new-probes-typecheck.txt",
+  "startedAt": "2026-10-04T04:15:38.934532+08:00"
 }

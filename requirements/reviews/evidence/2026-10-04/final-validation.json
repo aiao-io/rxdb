@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-04T08:58:27.038713+08:00",
+  "head": "3f3696b88c9736d1708002f52e3d2e715636a425",
+  "plans": 70,
+  "packageResults": 51,
+  "appResults": 19,
+  "criteriaTotal": 385,
+  "closedTopics": [
+    {
+      "plan": "requirements/reviews/packages/rxdb-plugin-replay.md",
+      "criterion": "C1",
+      "scope": "已核查（包级契约，应用授权另审）"
+    },
+    {
+      "plan": "requirements/reviews/packages/rxdb-plugin-workspace.md",
+      "criterion": "C3",
+      "scope": "已核查（本轮测量面，见执行记录）"
+    }
+  ],
+  "localLinksChecked": 3948,
+  "brokenLinks": [],
+  "ignoredReviewLinkTargets": [],
+  "sourceHashesChecked": 21,
+  "sourceHashMismatches": [],
+  "previousBatch31LogHashesPreserved": true,
+  "currentBatchEvidenceTextDigests": 28,
+  "temporaryDiagnosticsRemoved": true,
+  "businessChangesByAgent": false,
+  "testConfigChange": "VITEST_BROWSER-only optimizeDeps include for cold browser probe",
+  "agentModifiedGitIndex": false,
+  "newConfirmedReports": [
+    "RV-042",
+    "RV-043",
+    "RV-044"
+  ],
+  "formatCheck": {
+    "exitCode": 0,
+    "explicitFileCount": 54,
+    "log": "final-format-check.txt"
+  },
+  "gitDiffCheckExitCode": 0
+}

@@ -1,4 +1,5 @@
 {
+  "conclusion": "No marker/platform mismatch observed. Both diagnostic configurations and original configuration passed. Candidate marker-reset code was not triggered before setup in these measurements; no proven fix.",
   "observations": [
     {
       "mode": "observe",
@@ -16,6 +17,5 @@
       "beforeAnalogMarkerFalseAndPlatformFalse": 41,
       "markerTruePlatformFalse": 0
     }
-  ],
-  "conclusion": "No marker/platform mismatch observed. Both diagnostic configurations and original configuration passed. Candidate marker-reset code was not triggered before setup in these measurements; no proven fix."
+  ]
 }

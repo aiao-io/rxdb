@@ -1,0 +1,123 @@
+{
+  "baselineStart": "b01e35e9aedc58e61fb02a909ec98b4a119e82a2",
+  "headAtFinalEvidence": "3f3696b88c9736d1708002f52e3d2e715636a425",
+  "node": "v26.7.0",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "pnpm": "10.33.0",
+  "productionChangesOutsideReviewSpecsOrTestOnlyConfig": [],
+  "recordedAt": "2026-10-04T08:54:10.581852+08:00",
+  "sourceFingerprints": [
+    {
+      "path": "packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts",
+      "bytes": 39075,
+      "sha256": "da1a8a51ad599b7154335f789826311cb454e69a32806c135f780f0ddd82874c"
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts",
+      "bytes": 60905,
+      "sha256": "ad4a636aae96d5a44bb5282c510e73ba4fe4915822543b9f4b94dcc4cf4f53e3"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/storage.ops.ts",
+      "bytes": 11806,
+      "sha256": "3bc675321a7cbe646f0addf88ac9f25ba0f6e339160b23ccf7085f9759f68756"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/storage.service.ts",
+      "bytes": 37905,
+      "sha256": "21ff661b91503764c458db3b98657cfffefb109dc6f10e7cdd8bb806e83b43ee"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/path-lock.ts",
+      "bytes": 7273,
+      "sha256": "a06d45135302e90329470935d310a8536d59516822c1f47f99a16af50beebd95"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/desktop.ts",
+      "bytes": 25199,
+      "sha256": "2d6734708add68f0c980df713b72fabe32e5e43773a79df68ee038a3086bd43b"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/filesystem/physical-name.ts",
+      "bytes": 5317,
+      "sha256": "b16a3ea43826b58e7700575dc69954d3e0d129cffe8a36267c71ed9b516cc4da"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/__tests__/review-fetch-response-cleanup.spec.ts",
+      "bytes": 3713,
+      "sha256": "822e405f092f8154864bf28e27a04e8b1c9567002dc88c451b3bd4506b9c9764"
+    },
+    {
+      "path": "packages/rxdb-plugin-storage/src/__tests__/review-desktop-path-alias.spec.ts",
+      "bytes": 3608,
+      "sha256": "b626ef15789378e0b27da3f90b002787604f31ee9fbc1c5373a7030f01038d61"
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/electron-file-host.ts",
+      "bytes": 32317,
+      "sha256": "38d230bc99f8706f83adf69c5e4db9245a36bf5ada4a40f12be070cb9a74eeb2"
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/electron-sqlite-host.ts",
+      "bytes": 12332,
+      "sha256": "338ce05bfce3aea454e6f939cea07da58abeb2dfc942b91350c86ac2e7866f50"
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts",
+      "bytes": 33601,
+      "sha256": "9b0533ef885b002acaa53ccf09eb9eff444c7c0fe4b9932c530dd23adf4fca71"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts",
+      "bytes": 17387,
+      "sha256": "2375e8ab13c6afeff864d1825da7f7205a68b2d49c73accfa136585d662096a8"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-restore-fs.ts",
+      "bytes": 4026,
+      "sha256": "a38574eba1efc82d4ec1e3d50986a4f0162c3e1a5e59b9420757cfb437aed232"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/options.ts",
+      "bytes": 4815,
+      "sha256": "b975a0632d8b912423de85e587694f0bbe44c689aaf6efab11758008a72a5a8c"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/manager.ts",
+      "bytes": 12717,
+      "sha256": "24bc1d582819f78ac3db4d14d50868164dd0e8c4f438f44772c040f059cd762f"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/recorder.ts",
+      "bytes": 6537,
+      "sha256": "46f93c7358f8eba6e5864ddeddec0ccbdab86f6ed6dc25c876270fe5c1c51fb9"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/store.ts",
+      "bytes": 13725,
+      "sha256": "558e16061a1bd156331ddb6cf4681485a2b578298e57cd68b4f94ef86fbee41d"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts",
+      "bytes": 3350,
+      "sha256": "07373bc09031196d8059c0c27489465d34afe1c9198aef1886a8da37be94ffa6"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/vite.config.mts",
+      "bytes": 6060,
+      "sha256": "9d05aa94fd78701b4c975919dc86370d1965cc6f4b4be0ee8faebe5be6dc7343"
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/test-setup.ts",
+      "bytes": 167,
+      "sha256": "ca1b3c3257050d54b20f9d8d027333f9cca76b25fc68a72c68eef032aee34c9c"
+    }
+  ],
+  "userInterveningCommitsDoNotChangeBusinessImplementations": true,
+  "versions": {
+    "nx": "23.2.1",
+    "vite": "8.3.0",
+    "vitest": "4.1.11",
+    "@playwright/test": "1.63.0"
+  }
+}

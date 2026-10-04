@@ -11,9 +11,9 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 0,
-  "environment": {},
-  "startedAt": "2026-10-04T04:21:15.568921+08:00",
   "completedAt": "2026-10-04T04:21:19.878157+08:00",
-  "log": "final-probes-typecheck.txt"
+  "environment": {},
+  "exitCode": 0,
+  "log": "final-probes-typecheck.txt",
+  "startedAt": "2026-10-04T04:21:15.568921+08:00"
 }
