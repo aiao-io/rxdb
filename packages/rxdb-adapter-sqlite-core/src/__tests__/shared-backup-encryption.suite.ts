@@ -30,11 +30,12 @@ import {
 
 const SENTINEL = 'SENTINEL-plaintext-4b1d9e';
 
-const encoder = new TextEncoder();
+/** 随 `testing` 入口发布：import 时不构造编码器，与库代码同一条规矩（抖音 iOS 没有原生编码器）。 */
+let encoder: TextEncoder | undefined;
 
 /** 在字节里找子串（朴素匹配，归档几十 MB 也够快）。 */
 const containsBytes = (haystack: Uint8Array, text: string): boolean => {
-  const needle = encoder.encode(text);
+  const needle = (encoder ??= new TextEncoder()).encode(text);
   const first = needle[0];
   for (let index = haystack.indexOf(first); index !== -1; index = haystack.indexOf(first, index + 1)) {
     if (needle.every((byte, offset) => haystack[index + offset] === byte)) return true;

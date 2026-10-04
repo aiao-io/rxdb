@@ -47,7 +47,8 @@ const NON_STRING_ID_MARKER = 0xff;
 const NUMBER_ID_TAG = 0x6e;
 const BIGINT_ID_TAG = 0x62;
 const STRING_ID_TAG = 0x73;
-const AAD_V2_PREFIX = new TextEncoder().encode('aiao.aad.v2');
+/** AAD v2 的固定前缀字节。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let aadV2Prefix: Uint8Array | undefined;
 
 function concatBytes(...parts: ReadonlyArray<Uint8Array>): Uint8Array {
   const length = parts.reduce((total, part) => total + part.length, 0);
@@ -196,7 +197,7 @@ export function buildAAD(parts: {
 }): Uint8Array {
   const encoder = new TextEncoder();
   return concatBytes(
-    AAD_V2_PREFIX,
+    (aadV2Prefix ??= encoder.encode('aiao.aad.v2')),
     encodeLengthPrefixed(encoder.encode(parts.databaseNamespace)),
     encodeLengthPrefixed(encoder.encode(parts.entityNamespace)),
     encodeLengthPrefixed(encoder.encode(parts.tableName)),

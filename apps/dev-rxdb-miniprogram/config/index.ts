@@ -3,10 +3,20 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 import devConfig from './dev';
 import prodConfig from './prod';
 import {
+  douyinRealmVitePlugin,
   rxdbBuildTargetVitePlugin,
   rxdbPackagesVitePlugin,
   subframeSqliteWasmVitePlugin
 } from './rxdb-packages-vite-plugin';
+
+/**
+ * 各平台产物分开放（Taro 每次构建先清空 outputRoot，共用目录会互相抹掉）：
+ * 微信开发者工具打开本目录（`project.config.json` 指向 `dist/`），
+ * 抖音开发者工具直接打开 `dist-tt/`（Taro 把 `project.tt.json` 拷进去当 `project.config.json`），
+ * 支付宝小程序开发者工具直接打开 `dist-alipay/`（Taro 把 `project.alipay.json` 拷进去当 `mini.project.json`）。
+ */
+const outputRoot =
+  process.env.TARO_ENV === 'tt' || process.env.TARO_ENV === 'alipay' ? `dist-${process.env.TARO_ENV}` : 'dist';
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async merge => {
@@ -21,23 +31,33 @@ export default defineConfig<'vite'>(async merge => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    outputRoot,
     plugins: ['@tarojs/plugin-generator'],
     defineConstants: {},
     copy: {
-      patterns: [
-        {
-          // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
-          from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
-          to: 'dist/wa-sqlite/wa-sqlite.wasm'
-        }
-      ],
+      // 支付宝产物没有建库路径（`rxdb-demo.ts` 构建期摇掉），不带用不上的 wasm
+      patterns:
+        process.env.TARO_ENV === 'alipay' ?
+          []
+        : [
+            {
+              // wasm 与 glue 是一对，必须同出 `@subframe7536/sqlite-wasm`，混用会 LinkError。
+              // `to` 必须带上 outputRoot：Taro 只剥掉 `to` 开头的 outputRoot，写死 `dist/` 会让 tt 产物落进 `dist-tt/dist/`
+              from: 'node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite.wasm',
+              to: `${outputRoot}/wa-sqlite/wa-sqlite.wasm`
+            }
+          ],
       options: {}
     },
     framework: 'react',
     compiler: {
       type: 'vite',
-      vitePlugins: [rxdbPackagesVitePlugin(), subframeSqliteWasmVitePlugin(), rxdbBuildTargetVitePlugin()]
+      vitePlugins: [
+        rxdbPackagesVitePlugin(),
+        subframeSqliteWasmVitePlugin(),
+        rxdbBuildTargetVitePlugin(process.env.TARO_ENV === 'alipay' ? 'es2018' : 'es2020'),
+        ...(process.env.TARO_ENV === 'tt' ? [douyinRealmVitePlugin()] : [])
+      ]
     },
     mini: {
       postcss: {

@@ -162,8 +162,8 @@ export class BranchNotMaterializedError extends RxDBError {
  */
 const MATERIALIZATION_FINGERPRINT_DOMAIN = 'rxdb.working-tree.materialization.v1';
 
-/** 算指纹用的编码器；每次现 new 一个是白白的分配。 */
-const textEncoder = new TextEncoder();
+/** 算指纹用的编码器；每次现 new 一个是白白的分配。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let textEncoder: TextEncoder | undefined;
 
 /** 把一份 sync scope 折成落库的清单形状；顺序照抄配置，不排序也不去重。 */
 const scopeManifestOf = (syncScope: readonly string[]): Record<string, unknown> => ({ entities: [...syncScope] });
@@ -180,7 +180,7 @@ const materializationFingerprint = (
   syncScope: readonly string[]
 ): string =>
   sha256Hex(
-    textEncoder.encode(
+    (textEncoder ??= new TextEncoder()).encode(
       `${MATERIALIZATION_FINGERPRINT_DOMAIN} ${canonicalMaterializationJson(
         frozenRemoteWatermark
       )} ${canonicalMaterializationJson(scopeManifestOf(syncScope))}`

@@ -302,22 +302,30 @@ export class MiniProgramRxdbDemo {
 }
 
 export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferences): Promise<DemoOpenResult> {
+  // 建库路径只接了微信与抖音，其余平台在预检就被 adapter 拒绝，走不到这里。`TARO_ENV` 构建期是常量，这个分支让
+  // 支付宝构建把下面的 RxDB 栈整段摇掉：留着的话 Taro 会把它们并进页面静态 require 的 common.js / vendors.js，
+  // 模块顶层的 BigInt 在没有 BigInt 的支付宝模拟器里一加载就抛错，拒绝信息都显示不出来。
+  if (process.env.TARO_ENV !== 'weapp' && process.env.TARO_ENV !== 'tt') {
+    throw new Error(`demo 的建库路径只接了微信与抖音，当前构建平台 ${process.env.TARO_ENV}`);
+  }
   await releaseActiveDemo();
   const runtimePackage = await import('@aiao/rxdb-adapter-miniprogram/runtime');
-  await runtimePackage.prepareMiniProgramRuntime(runtime.wechat);
+  await runtimePackage.prepareMiniProgramHostRuntime(runtime.host);
 
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
-  // wasm 由 `config/index.ts` 的 copy 规则放到 `DEFAULT_WASM_PATH`。
+  // wasm 由 `config/index.ts` 的 copy 规则放到产物根的 `wa-sqlite/`，微信的 `DEFAULT_WASM_PATH` 与抖音 host 的绝对路径都指向它。
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,
-    wechat: runtime.wechat,
+    host: runtime.host,
     wasmRuntime: runtime.wasmRuntime
   });
   const missing = capabilities.filter(capability => !capability.available);
   if (missing.length > 0) {
-    throw new Error(`微信运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`);
+    throw new Error(
+      `${runtime.host.displayName}运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`
+    );
   }
 
   const entities = defineEntities(rxdb);
@@ -336,9 +344,8 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
     currentDatabase =>
       new adapterPackage.RxDBAdapterWaSqliteMiniProgram(currentDatabase, {
         moduleFactory,
-        wechat: runtime.wechat,
-        wasmRuntime: runtime.wasmRuntime,
-        wasmPath: adapterPackage.DEFAULT_WASM_PATH
+        host: runtime.host,
+        wasmRuntime: runtime.wasmRuntime
       })
   );
 

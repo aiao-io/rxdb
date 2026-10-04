@@ -1,4 +1,5 @@
 import type {
+  MiniProgramHost,
   MiniProgramWasmInstance,
   WaSqliteEmscriptenModule,
   WaSqliteMiniProgramOptions,
@@ -6,8 +7,20 @@ import type {
 } from './mini-program.interface.js';
 import { DEFAULT_WASM_PATH } from './mini-program.interface.js';
 
-/** 微信 WASM 运行时全局名，也是未指定运行时名称时报错里使用的名字。 */
-const WECHAT_WASM_RUNTIME_NAME = 'WXWebAssembly';
+/** 加载 wasm 用到的宿主字段。 */
+export type MiniProgramWasmHost = Pick<MiniProgramHost, 'wasmRuntimeName' | 'defaultWasmPath'>;
+
+/**
+ * 解析代码包内 wasm 路径：显式 `wasmPath` 优先，其次宿主默认值，最后 {@link DEFAULT_WASM_PATH}。
+ *
+ * @internal 加载与客户端身份比较共用，保证两边看到同一个路径
+ */
+export function resolveMiniProgramWasmPath(
+  options: Pick<WaSqliteMiniProgramOptions, 'wasmPath'>,
+  host: MiniProgramWasmHost
+): string {
+  return options.wasmPath ?? host.defaultWasmPath ?? DEFAULT_WASM_PATH;
+}
 
 /** 统一处理小程序 `instantiate`（如 `WXWebAssembly.instantiate`）可能返回的两种结构。 */
 function unwrapInstance(
@@ -21,13 +34,14 @@ function unwrapInstance(
  * 使用小程序 WASM 运行时加载同步 wa-sqlite Emscripten 模块。
  *
  * @param options - 模块工厂、wasm 路径与 WASM 运行时
- * @param wasmRuntimeName - 报错里显示的运行时名称，取自宿主的 `wasmRuntimeName`；默认 `WXWebAssembly`
+ * @param host - 宿主：`wasmRuntimeName` 用于报错，`defaultWasmPath` 在未传 `wasmPath` 时使用
  */
 export async function loadWaSqliteMiniProgramModule(
   options: Pick<WaSqliteMiniProgramOptions, 'moduleFactory' | 'wasmPath' | 'wasmRuntime'>,
-  wasmRuntimeName: string = WECHAT_WASM_RUNTIME_NAME
+  host: MiniProgramWasmHost
 ): Promise<WaSqliteEmscriptenModule> {
-  const wasmPath = options.wasmPath ?? DEFAULT_WASM_PATH;
+  const { wasmRuntimeName } = host;
+  const wasmPath = resolveMiniProgramWasmPath(options, host);
   let rejectInstantiation!: (reason: Error) => void;
   const instantiationFailure = new Promise<never>((_resolve, reject) => {
     rejectInstantiation = reject;

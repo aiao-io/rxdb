@@ -1,14 +1,14 @@
-import { deserialize, serialize } from '@ungap/structured-clone';
 import { assertMiniProgramHostPlatform, createWechatMiniProgramHost } from './host.js';
-import type { MiniProgramHost, MiniProgramWechatApi } from './mini-program.interface.js';
+import type { MiniProgramHost, MiniProgramRuntimeGlobal, MiniProgramWechatApi } from './mini-program.interface.js';
+import { resolveAmbientRuntimeGlobal, resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 import type { MiniProgramRuntimeSources } from './runtime-source.js';
-import { getMiniProgramRuntimeSources, markRuntimeSource } from './runtime-source.js';
+import { markRuntimeSource, readMiniProgramRuntimeSources } from './runtime-source.js';
+import { structuredClonePolyfill } from './structured-clone-polyfill.js';
 import { textDecoderPolyfill, textEncoderPolyfill } from './text-encoding-polyfills.js';
 
 export { getMiniProgramRuntimeSources } from './runtime-source.js';
 export type { MiniProgramRuntimeSource, MiniProgramRuntimeSources } from './runtime-source.js';
 
-const structuredClonePolyfill = <T>(value: T): T => deserialize<T>(serialize(value));
 const WEB_CRYPTO_MAX_REQUEST_BYTES = 65_536;
 
 /** 单次向平台申请随机数的最大字节数（取自 `wx.getRandomValues` 的上限）。 */
@@ -72,7 +72,12 @@ function acceptHostPool(host: MiniProgramHost, value: unknown, length: number, c
   return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
 }
 
-function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array, poolSize: number): void {
+function installSecureRandomPool(
+  host: MiniProgramHost,
+  runtimeGlobal: MiniProgramRuntimeGlobal,
+  initialPool: Uint8Array,
+  poolSize: number
+): void {
   let pool = initialPool;
   let offset = 0;
   let spare: Uint8Array | undefined;
@@ -150,14 +155,14 @@ function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array,
     return target;
   };
 
-  const cryptoApi = globalThis.crypto ?? ({} as Crypto);
+  const cryptoApi = runtimeGlobal.crypto ?? ({} as Crypto);
   Object.defineProperty(cryptoApi, 'getRandomValues', {
     configurable: true,
     value: getRandomValues,
     writable: true
   });
-  if (!globalThis.crypto) {
-    Object.defineProperty(globalThis, 'crypto', {
+  if (!runtimeGlobal.crypto) {
+    Object.defineProperty(runtimeGlobal, 'crypto', {
       configurable: true,
       value: cryptoApi,
       writable: true
@@ -166,41 +171,49 @@ function installSecureRandomPool(host: MiniProgramHost, initialPool: Uint8Array,
   markRuntimeSource(getRandomValues, host.platform);
 }
 
-/** 补齐小程序逻辑层缺失的同步运行时能力。 */
-export function installMiniProgramRuntimePolyfills(): void {
-  if (typeof globalThis.structuredClone !== 'function') {
-    Object.defineProperty(globalThis, 'structuredClone', {
+/**
+ * 补齐小程序逻辑层缺失的同步运行时能力。
+ *
+ * @param runtimeGlobal - 补丁写入的全局对象；缺省用环境里的 `globalThis`，见 `MiniProgramHost.runtimeGlobal`
+ */
+export function installMiniProgramRuntimePolyfills(runtimeGlobal?: MiniProgramRuntimeGlobal): void {
+  installPolyfills(resolveAmbientRuntimeGlobal(runtimeGlobal));
+}
+
+function installPolyfills(target: MiniProgramRuntimeGlobal): void {
+  if (typeof target.structuredClone !== 'function') {
+    Object.defineProperty(target, 'structuredClone', {
       configurable: true,
       value: structuredClonePolyfill,
       writable: true
     });
   }
-  if (typeof globalThis.TextEncoder !== 'function') {
-    Object.defineProperty(globalThis, 'TextEncoder', {
+  if (typeof target.TextEncoder !== 'function') {
+    Object.defineProperty(target, 'TextEncoder', {
       configurable: true,
       value: textEncoderPolyfill,
       writable: true
     });
   }
-  if (typeof globalThis.TextDecoder !== 'function') {
-    Object.defineProperty(globalThis, 'TextDecoder', {
+  if (typeof target.TextDecoder !== 'function') {
+    Object.defineProperty(target, 'TextDecoder', {
       configurable: true,
       value: textDecoderPolyfill,
       writable: true
     });
   }
-  const performanceApi = globalThis.performance;
+  const performanceApi = target.performance;
   if (typeof performanceApi?.now !== 'function') {
-    const target = performanceApi ?? ({} as Performance);
-    Object.defineProperty(target, 'now', {
+    const performanceTarget = performanceApi ?? ({} as Performance);
+    Object.defineProperty(performanceTarget, 'now', {
       configurable: true,
       value: performanceNowPolyfill,
       writable: true
     });
     if (!performanceApi) {
-      Object.defineProperty(globalThis, 'performance', {
+      Object.defineProperty(target, 'performance', {
         configurable: true,
-        value: target,
+        value: performanceTarget,
         writable: true
       });
     }
@@ -226,20 +239,31 @@ export async function prepareMiniProgramHostRuntime(
   options: PrepareMiniProgramRuntimeOptions = {}
 ): Promise<MiniProgramRuntimeSources> {
   assertMiniProgramHostPlatform(host);
-  installMiniProgramRuntimePolyfills();
-  if (getMiniProgramRuntimeSources().random === 'native') return getMiniProgramRuntimeSources();
+  const runtimeGlobal = resolveMiniProgramRuntimeGlobal(host);
+  installPolyfills(runtimeGlobal);
+  if (readMiniProgramRuntimeSources(runtimeGlobal).random === 'native')
+    return readMiniProgramRuntimeSources(runtimeGlobal);
   if (typeof host.requestRandomValues !== 'function') {
     throw new TypeError(`${host.displayName}宿主缺少 requestRandomValues`);
   }
   const poolSize = validateRandomPoolSize(options.randomPoolSize);
   const initialPool = acceptHostPool(host, await host.requestRandomValues(poolSize), poolSize);
-  installSecureRandomPool(host, initialPool, poolSize);
-  return getMiniProgramRuntimeSources();
+  installSecureRandomPool(host, runtimeGlobal, initialPool, poolSize);
+  return readMiniProgramRuntimeSources(runtimeGlobal);
 }
 
-/** 使用已引导的同步安全随机源填充视图。 */
-export function fillMiniProgramRandomValues<T extends ArrayBufferView<ArrayBuffer>>(target: T): T {
-  const cryptoApi = globalThis.crypto;
+/**
+ * 使用已引导的同步安全随机源填充视图。
+ *
+ * @param target - 待填充的视图
+ * @param runtimeGlobal - 引导时用的全局对象；缺省用环境里的 `globalThis`，见 `MiniProgramHost.runtimeGlobal`
+ * @returns `target` 本身
+ */
+export function fillMiniProgramRandomValues<T extends ArrayBufferView<ArrayBuffer>>(
+  target: T,
+  runtimeGlobal?: MiniProgramRuntimeGlobal
+): T {
+  const cryptoApi = resolveAmbientRuntimeGlobal(runtimeGlobal).crypto;
   if (typeof cryptoApi?.getRandomValues !== 'function') {
     throw new Error('小程序安全随机源尚未引导');
   }

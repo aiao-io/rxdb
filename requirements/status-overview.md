@@ -16,7 +16,7 @@
 | **合计**       | 96   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
 > **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
@@ -26,14 +26,18 @@
 
 ## 进行中（2 条）
 
-| Story                                                                                      | 当前进度                                                                                                                              |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`                                              |
-| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 已交付（trace 留失败尝试，开销上限经裁决改为 +33%）；B 实现中（第二连接 spike 已过），C 实现中（独立录制库 + 门面 `commits$`） |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；支付宝 / 百度 / QQ 已判 `unsupported`，阶段 C 已交支付宝拒绝路径（`MiniProgramUnsupportedPlatformError`），探针在模拟器与 iOS 真机调试复核后判定不变，百度 / QQ 待做 |
+| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 已交付（trace 留失败尝试，开销上限经裁决改为 +33%）；B 实现中（第二连接 spike 已过），C 实现中（独立录制库 + 门面 `commits$`）                                                                                                                                                                               |
 
 ## 待评审（0 条）
 
 当前没有待评审的故事。
+
+## 阻塞（0 条）
+
+当前没有阻塞的故事。
 
 ## 按 Epic 索引
 
@@ -84,7 +88,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
-- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付；阶段 B 已登记抖音（实验性，Android 未验证），支付宝 / 百度 / QQ 判 `unsupported`；阶段 C 支付宝拒绝路径已交（探针在模拟器与 iOS 真机调试复核），百度 / QQ 待做
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)

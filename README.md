@@ -119,7 +119,7 @@ const { value: todos, isLoading } = useFind(Todo, {
 一句话版本，细节与「哪些组合不支持」见 [能力矩阵](requirements/capability-matrix.md)：
 
 - **核心引擎**：装饰器实体 → DDL + 类型 + Repository；关系映射（含 M:N 中间表）、事务、变更追踪、跨 Tab 同步、树形实体、bigint / binary、远端 QueryCache 行缓存。
-- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信小程序**实验性**。
+- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信 / 抖音小程序**实验性**（抖音 Android 未验证）。
 - **插件**：图数据、全文搜索（FTS5 / pg tsvector，三端绑定）、文件存储（OPFS 与桌面目录）、工作区（NEW 草稿的本地缓存，刷新不丢未保存的新实体）。
 - **协作**：Git 式分支 / 合并 / 切换、撤销重做、Supabase 与 HTTP 同步、加密字段不进索引与历史。
 - **UI 与工具**：CodeMirror 6 编辑器三端组件、DevTools 面板 + Chrome 扩展 + Electron / Tauri 原生存储调试。
@@ -174,7 +174,7 @@ aiao/
 │   ├── rxdb-adapter-electron/       # Electron 适配器（node:sqlite 特权宿主）
 │   ├── rxdb-adapter-tauri/          # Tauri 适配器（Rust rusqlite 宿主，WebView 侧）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
-│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（仅微信，实验性）
+│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信 / 抖音，实验性）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
 │   ├── rxdb-adapter-supabase/       # Supabase 适配器
 │   ├── rxdb-adapter-http/           # HTTP 远程适配器（QueryCache + 条件请求 + SSE）
@@ -238,15 +238,16 @@ aiao/
 
 ### 进行中
 
-当前没有进行中的故事。本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，对外发布前还差一次桥接版本，见 [release-plan](requirements/release-plan.md)。
+- ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具与 iOS 真机，剩 Android 真机。支付宝 / 百度 / QQ 判不支持，支付宝在连接前抛 `MiniProgramUnsupportedPlatformError` 并带出判定理由
+
+本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，对外发布前还差一次桥接版本，见 [release-plan](requirements/release-plan.md)。
 
 ### 待办
 
-下一批可并行开工的能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐无硬前置可并行开-pr)：
+下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
 
 - ⬜ **实例级实体同步配置覆盖**（[US-026](requirements/stories/core/US-026-instance-sync-override.md)）— 初始化时按实体整体覆盖同步配置，收掉 HTTP demo 前后端两个实体类的重复
 - ⬜ **本地数据库一致性备份与恢复**（[US-217](requirements/stories/adapter/US-217-local-database-backup-restore.md)）— 按 PGlite、SQLite 共享层、桌面 host 分阶段交付
-- ⬜ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 先抽宿主契约与可行性矩阵，再按门禁放行支付宝 / 抖音 / 百度 / QQ
 
 ## 路线图
 

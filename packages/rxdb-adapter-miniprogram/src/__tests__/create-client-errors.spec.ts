@@ -19,7 +19,8 @@ vi.mock('wa-sqlite', async () => {
   return { ...actual, Factory: () => ({ vfs_register: (...args: [unknown, boolean]) => vfsRegister(...args) }) };
 });
 
-vi.mock('../loader.js', () => ({
+vi.mock('../loader.js', async () => ({
+  ...(await vi.importActual<typeof import('../loader.js')>('../loader.js')),
   loadWaSqliteMiniProgramModule: async () => ({}) as WaSqliteEmscriptenModule
 }));
 

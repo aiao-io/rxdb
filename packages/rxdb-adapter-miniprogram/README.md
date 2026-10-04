@@ -1,15 +1,19 @@
 # @aiao/rxdb-adapter-miniprogram
 
-实验性的微信小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，
-用 `WXWebAssembly` 加载同步版 wa-sqlite，并把数据库文件写入 `wx.env.USER_DATA_PATH`。
+实验性的微信 / 抖音小程序单连接 RxDB adapter。它复用 `rxdb-adapter-sqlite-core` 的仓库、事务、迁移和变更事件，
+用平台的 WASM 入口（`WXWebAssembly` / `TTWebAssembly`）加载同步版 wa-sqlite，并把数据库文件写入平台用户目录
+（`wx.env.USER_DATA_PATH` / `tt.getEnvInfoSync().common.USER_DATA_PATH`）。
 
 ## 约束
 
-- 仅支持微信小程序逻辑层，不是通用“小程序”适配器。
+- 只支持微信与抖音小程序的逻辑层，不是通用“小程序”适配器。抖音在开发者工具与 iOS 真机上验证过，
+  **Android 真机未验证**；支付宝、百度、QQ 不支持。
 - 只支持同步 `wa-sqlite.wasm`、单 JavaScript realm、单数据库连接。
 - VFS 使用 rollback journal，明确不支持 WAL、Worker、SharedWorker、跨页面并发连接。
 - VFS 会把整个数据库文件缓冲在内存中，当前只适合约 10 MB 内的兼容性验证。
-- 微信文件 API 没有提供 SQLite 所需的可靠 `fsync`、文件锁和原子重命名语义，本包不承诺崩溃恢复安全。
+- 微信与抖音的文件 API 都没有提供 SQLite 所需的可靠 `fsync`、文件锁和原子重命名语义，本包不承诺崩溃恢复安全。
+- 内存缓冲与平台配额是两回事。抖音用户目录总共约 10 MB（iOS 实测一次最多写入 9 MiB），库文件、`-journal`
+  与回滚余量共用；写满时事务以 `SQLITE_FULL` 失败，已提交的数据重开仍在（见「宿主契约」）。
 
 ## 使用
 
@@ -73,6 +77,60 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 `queueMicrotask`。
 `checkMiniProgramRuntimeCapabilities()` 可在连接前显示完整能力矩阵和能力来源。
 
+## 抖音
+
+抖音没有 `wechat` 那样的便利形状，一律经 `createDouyinMiniProgramHost(tt, options)` 注入 host：
+
+```typescript
+// 必须写在非严格模式的代码里（如打包产物的入口文件）：抖音页面模块里 globalThis 是 undefined，
+// 非严格函数的 this 才是真实全局对象
+const runtimeGlobal = (function (this: unknown) {
+  return this;
+})() as MiniProgramRuntimeGlobal;
+
+async function createDatabase() {
+  const runtime = await import('@aiao/rxdb-adapter-miniprogram/runtime');
+  const host = runtime.createDouyinMiniProgramHost(tt, { runtimeGlobal });
+  await runtime.prepareMiniProgramHostRuntime(host);
+
+  const [rxdbPackage, adapterPackage] = await Promise.all([
+    import('@aiao/rxdb'),
+    import('@aiao/rxdb-adapter-miniprogram')
+  ]);
+  const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
+  const database = new rxdbPackage.RxDB({/* 同微信 */});
+
+  // 只换 host 与 wasmRuntime；wasmPath 不传，走 host.defaultWasmPath
+  database.adapter(
+    adapterPackage.ADAPTER_NAME,
+    db => new adapterPackage.RxDBAdapterWaSqliteMiniProgram(db, { moduleFactory, host, wasmRuntime: TTWebAssembly })
+  );
+  return database;
+}
+```
+
+抖音 host 固定声明三件事，都来自开发者工具与 iOS 真机实测：
+
+- `fileLayout: { kind: 'chunked', chunkBytes: 65536 }`：抖音覆盖写已有文件时，旧文件在写成功前仍计入配额，
+  整文件落盘会让库上限只剩配额的一半，撞配额后回滚也没空间。
+- `defaultWasmPath: '/wa-sqlite/wa-sqlite.wasm'`：抖音按当前页面目录解析相对路径，只有代码包根的绝对路径
+  在任意页面都能加载。wasm 照样复制到代码包根的 `wa-sqlite/wa-sqlite.wasm`。
+- 随机源走 `tt.getRandomValues`，单次上限同样是 1 MiB，基础库按 2.87.0 起算（该版起文档才写明参数约束）。
+
+`runtimeGlobal` 只管得到 adapter。打进同一份产物的其他代码照样读自由的 `globalThis`：sqlite-core 依赖的 comlink
+在模块顶层执行 `'FinalizationRegistry' in globalThis`，所在 chunk 一加载就抛 TypeError；RxDB 核心的选主与
+`BroadcastChannel` 也读它。所以整份产物要在构建期把 `globalThis` 改指入口取到的真实全局对象，做到这一步后 adapter
+读到的 `globalThis` 就是它，不必再传 `runtimeGlobal`。Taro（Vite）的做法见 `apps/dev-rxdb-miniprogram` 的
+`config/rxdb-packages-vite-plugin.ts`（`douyinRealmVitePlugin`）与 `build-tt` target。两者都拿不到真实全局对象时引导直接报
+「请经 host.runtimeGlobal 注入」，不会猜。
+
+iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装。
+所以打进产物的代码**不能在模块顶层构造编码器**，要等第一次用到再建：iOS 真机实测，模块顶层的 `new TextEncoder()`
+让页面加载即报 `ReferenceError: Can't find variable: TextEncoder`，真机 `require` 吞掉错误后还会冒出次生的
+`... is not a function`。`@aiao/rxdb`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-encrypted`、`rxdb-plugin-storage`、
+`rxdb-plugin-working-tree` 已经全部改成首次使用时创建，各包的 `module-load-without-encoding.spec.ts` 把住每个发布入口；
+业务代码打进同一份产物时守同一条规矩。
+
 ## 宿主契约
 
 `wechat: wx` 是 `host: createWechatMiniProgramHost(wx)` 的便利形状，二者恰好传一个，都传或都不传
@@ -85,12 +143,32 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 空串目录一律按缺失处理。
 `MiniProgramHost` 把平台相关的部分收成一个注入点：平台 id、同步文件系统、用户数据目录、
 安全随机源，以及报错里使用的能力名。运行时引导对应 `prepareMiniProgramHostRuntime(host)`，
-文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`。
+文件 VFS 对应 `createMiniProgramFileVFS(module, { host, databaseName })`，
+wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传，报错用它的 `wasmRuntimeName`）。
 所有宿主共享同一张单连接表，同一数据库文件的第二个连接一律拒绝。
 
-**目前登记的平台只有 `wechat`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 会抛
-`MiniProgramUnknownPlatformError`，不会回退到 `wx`。这个契约的存在不代表支持支付宝、抖音、
-百度或 QQ 小程序；各平台的可行性结论见
+宿主还有三个可选字段，微信都不设，行为与不设时完全一致；抖音 host 设了全部三个（见「抖音」）：
+
+| 字段              | 缺省                  | 用途                                                                                                                                                                                                                                                                                |
+| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtimeGlobal`   | 环境里的 `globalThis` | 运行时补丁写入、能力预检读取的真实全局对象。环境的 `globalThis` 不可用（如被页面包装函数遮蔽成 `undefined`）时由调用方在非严格代码里取到后注入。不是当前 realm 的全局对象时直接报「请经 host.runtimeGlobal 注入」，不回退、不猜；解析逻辑见 `resolveMiniProgramRuntimeGlobal(host)` |
+| `fileLayout`      | `{ kind: 'single' }`  | `chunked` 把逻辑文件 `P` 存成 `P.0`、`P.1`… 定长块，落盘只重写脏块；每个库另占 2×`chunkBytes` 的回滚余量（`<库>.rxdb-reserve`），撞配额时让出给回滚，`MiniProgramFileVFS.reserveHeld` 报告当前是否占着。两种布局互不兼容，声明 `chunked` 而目录里已有单文件库时直接拒绝，不迁移     |
+| `defaultWasmPath` | `DEFAULT_WASM_PATH`   | 未传 `wasmPath` 时加载的代码包内路径。相对路径按当前页面目录解析的平台要声明以 `/` 开头的代码包根路径                                                                                                                                                                               |
+
+`getMiniProgramRuntimeSources(runtimeGlobal?)` 按同样规则读来源：传了就读它，否则读环境的 `globalThis`。
+
+用户数据目录写满时，事务以 `SQLITE_FULL`（13）失败，平台原文经 `cause` 链透传：
+`RxDBAdapterSqliteError` → SQLite 错误 → VFS 错误 → 平台原始错误（`errMsg` / `message`）。
+单文件布局撞配额后库的状态按「无崩溃恢复」处理。
+
+`structuredClone` 的 polyfill 只经自由变量引用内置构造函数，不读 `self` / `globalThis`，
+所以在全局对象被遮蔽的页面模块里克隆类型化数组、包装对象与 `Error` 同样可用；函数与 symbol 抛 `TypeError`。
+
+**目前登记的平台是 `wechat` 与 `douyin`**（`MINI_PROGRAM_PLATFORM_IDS`）。其他平台 id 在连接前失败，不会回退到 `wx`：
+可行性矩阵判 `unsupported` 的平台抛 `MiniProgramUnsupportedPlatformError`（继承 `MiniProgramUnknownPlatformError`），
+`blockers` 与报错文案带出矩阵里的阻断项和判定章节——目前是 `alipay`（依赖未文档化能力，按改判标准还缺开发者工具、iOS、Android 三端的合格报告）；
+其余抛 `MiniProgramUnknownPlatformError`。这个契约的存在不代表支持支付宝、百度或 QQ 小程序；
+各平台的可行性结论见
 [miniprogram-platform-feasibility.md](../../requirements/stories/adapter/miniprogram-platform-feasibility.md)。
 
 ## 打包器注意事项

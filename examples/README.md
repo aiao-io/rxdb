@@ -57,7 +57,15 @@ pnpm install
 成为纳入 Nx 图的常规应用：依赖走 `workspace:*` 直连仓库源码，`lint` / `typecheck` / `build`
 三个 target 都进 CI。也就是说它**不再**属于本目录「手工验证、不受门禁保护」的范畴。
 
-`@aiao/rxdb-adapter-miniprogram` 仍标记为实验性且**仅支持微信小程序逻辑层**，
-`build:weapp` 之外的多端命令未经验证；能力边界见
+`@aiao/rxdb-adapter-miniprogram` 仍标记为实验性，各端的验证状态：
+
+| 端                 | 入口                                                     | 状态                                                                                                                                                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 微信（weapp）      | `pnpm nx build dev-rxdb-miniprogram` → `dist/`           | 已验证：微信开发者工具走查由 `dev-rxdb-miniprogram-e2e:e2e-devtools` 手跑                                                                                                                                                                                                                            |
+| 抖音（tt）         | `pnpm nx run dev-rxdb-miniprogram:build-tt` → `dist-tt/` | adapter 已在抖音开发者工具（基础库 4.27.0）与 iOS 真机（抖音 40.6.0 / 基础库 4.33.0）验证（spike v9）；**Android 未验证**；Taro tt 产物已在开发者工具 4.5.6 走查通过；iOS 真机上一版实测加载即失败（模块顶层 `TextEncoder`，见包 README「抖音」），已修，2026-10-02 iOS 真机走查通过；target 不进 CI |
+| 支付宝 / 百度 / QQ | —                                                        | 不支持，理由见[可行性矩阵](../requirements/stories/adapter/miniprogram-platform-feasibility.md)；adapter 对 `alipay` 在连接前抛 `MiniProgramUnsupportedPlatformError`，demo 的 `build:alipay` / `build:swan` / `build:qq` 脚本保留但没有宿主                                                         |
+
+`dist-tt/` 直接用抖音开发者工具打开。`project.tt.json` 的 appid 是占位的 `testAppId`，真实 AppID
+只在工具里改，**不要提交**。能力边界见
 [兼容性矩阵](../website/docs/compatibility.md#aiaorxdb-adapter-miniprogram-的能力边界)。
-CI 覆盖到构建产物为止，**真机行为仍需用微信开发者工具打开 `dist/` 手工确认**。
+CI 覆盖到微信构建产物为止，**真机行为仍需用对应平台的开发者工具手工确认**。

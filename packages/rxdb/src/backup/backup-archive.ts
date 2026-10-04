@@ -49,8 +49,9 @@ export type RxDBBackupArchiveItem =
   | { readonly type: 'data'; readonly bytes: Uint8Array }
   | { readonly type: 'end'; readonly trailer: RxDBBackupTrailer };
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8', { fatal: true });
+/** 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let encoder: TextEncoder | undefined;
+let decoder: TextDecoder | undefined;
 
 const backupError = (code: RxDBBackupErrorCode, message: string, field?: string, cause?: unknown): RxDBBackupError =>
   new RxDBBackupError(code, message, { details: field === undefined ? {} : { field }, cause });
@@ -239,7 +240,7 @@ export class RxDBBackupArchiveWriter {
   }
 
   #json(value: unknown): Uint8Array {
-    const bytes = encoder.encode(JSON.stringify(value));
+    const bytes = (encoder ??= new TextEncoder()).encode(JSON.stringify(value));
     if (bytes.length > MAX_JSON_FRAME) throw this.#misuse('metadata frame exceeds 64 KiB');
     return bytes;
   }
@@ -251,7 +252,7 @@ export class RxDBBackupArchiveWriter {
 
 const parseJsonFrame = (payload: Uint8Array, field: string): unknown => {
   try {
-    return JSON.parse(decoder.decode(payload));
+    return JSON.parse((decoder ??= new TextDecoder('utf-8', { fatal: true })).decode(payload));
   } catch {
     throw corrupt(field, `Backup archive ${field} frame is not valid JSON`);
   }

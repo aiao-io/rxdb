@@ -1,4 +1,5 @@
 import { transformAsync } from '@babel/core';
+import { posix } from 'node:path';
 import type { Plugin } from 'vite';
 
 function isLinkedPackageDist(id: string): boolean {
@@ -55,12 +56,87 @@ export function subframeSqliteWasmVitePlugin(): Plugin {
   };
 }
 
-export function rxdbBuildTargetVitePlugin(): Plugin {
+/**
+ * 覆盖 Taro 默认的 `build.target: 'es6'`。RxDB 栈（核心、sqlite-core、wa-sqlite）模块顶层就有 BigInt 字面量，
+ * es2020 以下 esbuild 会把它们改写成 `BigInt("…")` 调用并告警，所以有建库路径的微信、抖音构建用 es2020。
+ *
+ * 支付宝构建用 es2018，这是实测过的组合：支付宝小程序开发者工具在 babel 7 档（`project.alipay.json` 的
+ * `compileOptions.transpile`，见 `project.json` 的 `// build-alipay`）下编译通过，更高的 target 没验证过；
+ * babel 6 档连 `?.`、`??`、省略 catch 绑定都报 CE1000.02 Unexpected token。它的产物里没有 RxDB 栈
+ * （`rxdb-demo.ts` 的建库路径构建期被摇掉，只走 adapter 的拒绝路径），没有要改写的 BigInt 字面量。
+ */
+export function rxdbBuildTargetVitePlugin(target: 'es2018' | 'es2020'): Plugin {
   return {
-    name: 'dev-rxdb-miniprogram:rxdb-es2020-target',
+    name: 'dev-rxdb-miniprogram:build-target',
     enforce: 'post',
     config() {
-      return { build: { target: 'es2020' } };
+      return { build: { target } };
+    }
+  };
+}
+
+/** 产物根目录下的真实全局对象登记模块，入口写、其余 chunk 读。 */
+const REALM_MODULE = 'rxdb-realm.js';
+/** 产物里替换 `globalThis` 的标识符；每个用到它的 chunk 开头声明。 */
+const REALM_BINDING = '__rxdbRealm';
+
+/** realm 判据同 adapter：对象字面量的原型就是它的 `Object.prototype`，不读任何可能被遮蔽的自由变量。 */
+const REALM_MODULE_SOURCE = `"use strict";
+let realm;
+exports.capture = function (value) {
+  if (typeof value !== "object" || value === null || typeof value.Object !== "function" || !value.Object.prototype.isPrototypeOf({})) {
+    throw new Error("入口 app.js 拿不到真实全局对象（非严格函数的 this 是 " + typeof value + "），抖音产物无法绑定 globalThis");
+  }
+  realm = value;
+};
+exports.realm = function () {
+  if (realm === undefined) throw new Error("${REALM_MODULE} 在入口登记之前被读取：检查 app.js 开头的登记语句");
+  return realm;
+};
+`;
+
+function realmRequestFrom(fileName: string): string {
+  const request = posix.relative(posix.dirname(fileName), REALM_MODULE);
+  return request.startsWith('.') ? request : `./${request}`;
+}
+
+/** 插在 `use strict` 指令之后，否则指令会失效。 */
+function bindRealm(code: string, fileName: string): string {
+  const declaration = `var ${REALM_BINDING}=require(${JSON.stringify(realmRequestFrom(fileName))}).realm();`;
+  const directive = /^\s*(["'])use strict\1;?/.exec(code);
+  if (!directive) return declaration + code;
+  return code.slice(0, directive[0].length) + declaration + code.slice(directive[0].length);
+}
+
+/**
+ * 抖音的模块里 `globalThis` 是 `undefined`（US-211 实验实测），第三方库照样在模块顶层读它
+ * （comlink 的 `'FinalizationRegistry' in globalThis`），RxDB 核心运行时也读，`host.runtimeGlobal` 只管得到 adapter。
+ *
+ * 所以抖音产物里所有自由的 `globalThis` 构建期改名为 {@link REALM_BINDING}：入口 `app.js` 是唯一的非严格 chunk，
+ * 它在最前面把非严格函数的 `this` 登记进 {@link REALM_MODULE}，其余 chunk 开头从那里取。入口带上 `use strict`、
+ * 或 `this` 不是真实全局对象时直接失败，不猜。
+ */
+export function douyinRealmVitePlugin(): Plugin {
+  return {
+    name: 'dev-rxdb-miniprogram:douyin-realm',
+    apply: 'build',
+    config() {
+      return { define: { globalThis: REALM_BINDING } };
+    },
+    generateBundle(_options, bundle) {
+      const app = bundle['app.js'];
+      if (app?.type !== 'chunk') {
+        this.error('产物里没有入口 app.js，无法登记真实全局对象');
+      }
+      if (/["']use strict["']/.test(app.code)) {
+        this.error('入口 app.js 带了 use strict，非严格函数的 this 拿不到真实全局对象');
+      }
+      for (const chunk of Object.values(bundle)) {
+        if (chunk === app || chunk.type !== 'chunk' || !chunk.code.includes(REALM_BINDING)) continue;
+        chunk.code = bindRealm(chunk.code, chunk.fileName);
+      }
+      app.code = `var ${REALM_BINDING}=function(){return this}();require("./${REALM_MODULE}").capture(${REALM_BINDING});${app.code}`;
+      this.emitFile({ type: 'asset', fileName: REALM_MODULE, source: REALM_MODULE_SOURCE });
     }
   };
 }

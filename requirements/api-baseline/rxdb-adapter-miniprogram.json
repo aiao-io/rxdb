@@ -6,11 +6,19 @@
         "kind": "value"
       },
       {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
         "name": "assertMiniProgramRuntimeCapabilities",
         "kind": "value"
       },
       {
         "name": "checkMiniProgramRuntimeCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "createDouyinMiniProgramHost",
         "kind": "value"
       },
       {
@@ -34,6 +42,10 @@
         "kind": "value"
       },
       {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
         "name": "isMiniProgramPlatformId",
         "kind": "value"
       },
@@ -48,6 +60,14 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
       },
       {
         "name": "MiniProgramFileSystemManager",
@@ -86,8 +106,20 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramRuntimeGlobal",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramUnknownPlatformError",
         "kind": "both"
+      },
+      {
+        "name": "MiniProgramUnsupportedPlatformError",
+        "kind": "both"
+      },
+      {
+        "name": "MiniProgramWasmHost",
+        "kind": "type"
       },
       {
         "name": "MiniProgramWasmInstance",
@@ -107,6 +139,10 @@
       },
       {
         "name": "resolveMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
         "kind": "value"
       },
       {
@@ -172,12 +208,24 @@
     ],
     "./runtime": [
       {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
+        "name": "createDouyinMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "createWechatMiniProgramHost",
         "kind": "value"
       },
       {
         "name": "DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE",
         "kind": "value"
+      },
+      {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
       },
       {
         "name": "fillMiniProgramRandomValues",
@@ -204,6 +252,14 @@
         "kind": "value"
       },
       {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramFileSystemManager",
         "kind": "type"
       },
@@ -228,6 +284,10 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramRuntimeGlobal",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramRuntimeSource",
         "kind": "type"
       },
@@ -237,6 +297,10 @@
       },
       {
         "name": "MiniProgramUnknownPlatformError",
+        "kind": "both"
+      },
+      {
+        "name": "MiniProgramUnsupportedPlatformError",
         "kind": "both"
       },
       {
@@ -254,6 +318,10 @@
       {
         "name": "PrepareMiniProgramRuntimeOptions",
         "kind": "type"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
+        "kind": "value"
       }
     ]
   }
