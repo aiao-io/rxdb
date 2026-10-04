@@ -145,3 +145,7 @@ tsconfig.tsbuildinfo
 # HTTP demo 后端的本地 SQLite 库（US-214 AC#1）。开发数据，不进版本库；
 # e2e 另用临时目录，见 apps/dev-rxdb-http-e2e。
 apps/dev-rxdb-http-server/.data/
+
+# RV-036：per-checkout 隔离 Supabase CI 环境的状态文件（supabase-ci-up.sh 生成，
+# 记录按本 checkout 路径派生的 compose project 名和动态分配到的 Kong 端口）。
+docker/.supabase-ci-state.*.env
