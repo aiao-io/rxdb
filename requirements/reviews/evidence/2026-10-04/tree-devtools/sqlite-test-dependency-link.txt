@@ -1,0 +1,60 @@
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 247, reused 0, downloaded 0, added 0
+Progress: resolved 1024, reused 0, downloaded 0, added 0
+Progress: resolved 3343, reused 0, downloaded 0, added 0
+Progress: resolved 3703, reused 0, downloaded 0, added 0
+ WARN  Request took 16541ms: https://registry.npmjs.org/react-is
+Progress: resolved 3704, reused 0, downloaded 0, added 0
+Progress: resolved 3714, reused 0, downloaded 0, added 0
+Progress: resolved 3715, reused 0, downloaded 0, added 0
+Progress: resolved 3729, reused 0, downloaded 0, added 0
+Progress: resolved 3741, reused 0, downloaded 0, added 0
+Progress: resolved 3750, reused 0, downloaded 0, added 0
+Progress: resolved 3753, reused 0, downloaded 0, added 0
+Progress: resolved 3756, reused 0, downloaded 0, added 0
+Progress: resolved 3757, reused 0, downloaded 0, added 0
+Progress: resolved 3761, reused 0, downloaded 0, added 0
+Progress: resolved 3762, reused 0, downloaded 0, added 0
+Progress: resolved 3765, reused 0, downloaded 0, added 0
+Progress: resolved 3766, reused 0, downloaded 0, added 0
+Progress: resolved 3769, reused 0, downloaded 0, added 0
+Progress: resolved 3790, reused 0, downloaded 0, added 0
+Progress: resolved 3793, reused 0, downloaded 0, added 0
+ WARN  22 deprecated subdependencies found: @faker-js/faker@5.5.3, @humanwhocodes/config-array@0.11.14, @humanwhocodes/object-schema@2.0.3, @swc/register@0.1.10, @types/sass@1.45.0, acorn-dynamic-import@4.0.0, boolean@3.2.0, core-js@2.6.12, crypto-js@4.2.0, eslint@8.41.0, geojson-linestring-dissolve@0.0.1, glob@10.5.0, glob@11.1.0, glob@7.2.3, inflight@1.0.6, phin@3.7.1, rimraf@2.6.3, rimraf@3.0.2, sourcemap-codec@1.4.8, text-encoding@0.6.4, whatwg-encoding@2.0.0, whatwg-encoding@3.1.1
+Progress: resolved 3793, reused 0, downloaded 0, added 0, done
+ WARN  Issues with peer dependencies found
+.
+├─┬ @nx/react 23.2.1
+│ ├── ✕ unmet peer express@^4.21.2: found 5.2.1
+│ └─┬ @babel/preset-react 7.29.7
+│   ├── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+│   ├─┬ @babel/plugin-transform-react-display-name 7.29.7
+│   │ └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+│   ├─┬ @babel/plugin-transform-react-jsx 7.29.7
+│   │ ├── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+│   │ └─┬ @babel/plugin-syntax-jsx 7.29.7
+│   │   └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+│   ├─┬ @babel/plugin-transform-react-jsx-development 7.29.7
+│   │ └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+│   └─┬ @babel/plugin-transform-react-pure-annotations 7.29.7
+│     └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.1
+├─┬ @nx/vue 23.2.1
+│ ├── ✕ unmet peer vue-router@^4.0.0: found 5.3.1
+│ └── ✕ unmet peer vue-tsc@^2.0.0: found 3.3.11
+├─┬ eslint-plugin-import 2.32.0
+│ └── ✕ unmet peer eslint@"^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9": found 10.11.0
+├─┬ eslint-plugin-jsx-a11y 6.10.2
+│ └── ✕ unmet peer eslint@"^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9": found 10.11.0
+├─┬ eslint-plugin-react 7.37.5
+│ └── ✕ unmet peer eslint@"^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7": found 10.11.0
+└─┬ @codecov/vite-plugin 2.0.1
+  └── ✕ unmet peer vite@"4.x || 5.x || 6.x": found 8.3.0
+.                                        |  +21 ++
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: @tarojs/cli@4.2.1.                                  │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 37.5s using pnpm v10.33.0

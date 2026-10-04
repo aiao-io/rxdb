@@ -1,0 +1,196 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-devtools:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:27572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools
+
+(node:27579) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/testing/conformance.spec.ts (80 tests) 1787ms
+     ✓ AC#12 MUST answer session_budget_exhausted rather than evict a tombstone  1176ms
+(node:27792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > MUST cancel a hung QUERY_ENTITY subscription and reply with a timeout error once the timeout elapses
+[RxDB DevTools Connector] Query error: Error: query timed out after 10000ms
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts:75:21
+    at callTimer (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:1773:25)
+    at doTickInner (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2444:30)
+    at doTick (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2525:21)
+    at Object.tick (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2533:21)
+    at FakeTimers.advanceTimersByTime (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3271:44)
+    at Object.advanceTimersByTime (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3509:13)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/connector.boundaries.spec.ts:1263:10
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+
+stderr | src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > MUST report the synchronous subscribe failure and clear the pending timeout
+[RxDB DevTools Connector] Query error: Error: subscribe exploded
+    at Object.<anonymous> (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/connector.boundaries.spec.ts:1285:17)
+    at Object.Mock [as subscribe] (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+spy@4.1.11/node_modules/@vitest/spy/dist/index.js:332:34)
+    at subscribeOnce (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts:88:33)
+    at DevToolsConnector.#handleQueryEntity (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:821:7)
+    at DevToolsConnector.#handleMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:499:14)
+    at DevToolsConnector.#handlePortMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:447:10)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:435:62
+    at Object.port.onmessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-transport.ts:105:49)
+    at Object.postMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/fixtures/devtools-channel.ts:46:13)
+    at sendToConnector (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/fixtures/devtools-channel.ts:110:14)
+
+ ✓ |rxdb-devtools| src/__tests__/connector.boundaries.spec.ts (75 tests) 375ms
+(node:27793) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/connector.spec.ts (51 tests) 345ms
+(node:27794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/snapshot.spec.ts (33 tests) 140ms
+(node:27796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/session.spec.ts (22 tests) 123ms
+(node:27797) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/transfer.spec.ts (23 tests) 108ms
+(node:27798) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/download.spec.ts (12 tests) 89ms
+(node:27799) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/panel-endpoint.spec.ts (21 tests) 41ms
+(node:27801) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/endpoint.spec.ts (38 tests) 35ms
+(node:27806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/native/native-snapshot-source.spec.ts (15 tests) 29ms
+(node:27807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/connector.v2-negotiation.spec.ts (21 tests) 24ms
+(node:27808) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/native/native-files-snapshot.spec.ts (9 tests) 22ms
+(node:27809) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/testing/fake-providers-snapshot.spec.ts (8 tests) 21ms
+(node:27810) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/testing/json-driver.spec.ts (16 tests) 19ms
+(node:27816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/rxdb-contract.spec.ts (10 tests) 10ms
+(node:28004) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/serializer.spec.ts (36 tests) 9ms
+(node:28005) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/native/native-files-provider.spec.ts (34 tests) 8ms
+(node:28006) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/browser/opfs-upload-wire.spec.ts (2 tests) 6ms
+(node:28007) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/rxdb/database-provider.spec.ts (14 tests) 7ms
+(node:28008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/wire.spec.ts (76 tests) 7ms
+(node:28009) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/negotiation-connector.spec.ts (16 tests) 6ms
+(node:28010) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/testing/fake-providers.spec.ts (34 tests) 6ms
+(node:28011) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/types.spec.ts (107 tests) 6ms
+(node:28012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/negotiation-panel.spec.ts (16 tests) 6ms
+(node:28014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/connector-providers.spec.ts (12 tests) 5ms
+(node:28015) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/browser/opfs-files-provider.spec.ts (15 tests) 5ms
+(node:28016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/clock.spec.ts (12 tests) 5ms
+(node:28017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/ids.spec.ts (12 tests) 5ms
+(node:28018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/base64.spec.ts (13 tests) 4ms
+(node:28019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/buffer.spec.ts (16 tests) 4ms
+(node:28020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/descriptor.spec.ts (19 tests) 4ms
+(node:28022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/authorization.spec.ts (13 tests) 4ms
+(node:28025) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/errors.spec.ts (16 tests) 4ms
+(node:28026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/provider/logical-path.spec.ts (9 tests) 3ms
+(node:28027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/connector-entity-info.spec.ts (6 tests) 3ms
+(node:28028) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/native/settings-provider.spec.ts (6 tests) 3ms
+(node:28029) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/serializer.envelope-contract.spec.ts (16 tests) 3ms
+(node:28030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/error-mapping.spec.ts (19 tests) 3ms
+(node:28034) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/guards.spec.ts (13 tests) 3ms
+(node:28040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/testing/error-fixtures.spec.ts (5 tests) 2ms
+(node:28041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/limits.spec.ts (9 tests) 2ms
+(node:28042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/v2/capability.spec.ts (6 tests) 2ms
+(node:28043) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/browser/settings-provider.spec.ts (4 tests) 2ms
+(node:28044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-devtools| src/__tests__/sequence.spec.ts (4 tests) 2ms
+
+ Test Files  44 passed (44)
+      Tests  994 passed (994)
+   Start at  09:09:43
+   Duration  14.77s (transform 1.28s, setup 0ms, import 2.16s, tests 3.30s, environment 5.66s)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/node_modules/.cache/test-results/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-devtools
+
+
+  Run duration:      15.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     15.2s (1 task)
+  Recoverable time:  <1ms

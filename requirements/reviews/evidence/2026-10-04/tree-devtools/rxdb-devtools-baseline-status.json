@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-devtools:test",
+    "--args=--run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-04T09:09:40.841560+08:00",
+  "completedAt": "2026-10-04T09:09:58.241827+08:00",
+  "log": "rxdb-devtools-baseline.txt"
+}

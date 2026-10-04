@@ -1628,4 +1628,38 @@ describe('DevToolsConnector boundaries', () => {
       expect(postMessageSpy).not.toHaveBeenCalledWith(expect.anything(), '*', expect.anything());
     });
   });
+
+  it.each(['self', 'changes'] as const)('评审：环引用位于 %s 时，查询仍应保留兄弟字段', field => {
+    class ReviewEntity {}
+    const circular: Record<string, unknown> = { id: 'review-cyclic', name: 'keep-sibling' };
+    circular[field] = field === 'changes' ? [circular] : circular;
+    const rxdb = createMockRxDB({
+      config: { entities: [ReviewEntity] },
+      entityManager: { getRepository: () => ({ find: () => ({
+        subscribe(callback: (data: unknown[]) => void) {
+          callback([circular]);
+          return { unsubscribe: () => undefined };
+        }
+      }) }) }
+    });
+    connector.init(rxdb, () => ({ name: 'ReviewEntity', namespace: 'public' }));
+    postMessageSpy.mockClear();
+    dispatchCommand('QUERY_ENTITY', { entityName: 'ReviewEntity' });
+    const payload = postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.payload as { data?: Record<string, unknown>[] };
+    expect(payload.data?.[0]?.['name']).toBe('keep-sibling');
+    expect(payload.data?.[0]?.['_error']).toBeUndefined();
+  });
+
+  it.each(['self', 'changes'] as const)('评审：环引用位于 %s 时，DevTools 监听不能向事件生产者抛异常', field => {
+    class ReviewEntity {}
+    const rxdb = createMockRxDB({ config: { entities: [ReviewEntity] } });
+    connector.init(rxdb, () => ({ name: 'ReviewEntity', namespace: 'public' }));
+    const patch: Record<string, unknown> = { id: 'review-event', name: 'keep-event-sibling' };
+    patch[field] = field === 'changes' ? [patch] : patch;
+    expect(() => rxdb.emit('ENTITY_LOCAL_UPDATE', {
+      type: 'ENTITY_LOCAL_UPDATE',
+      entities: [{ entity: 'ReviewEntity', namespace: 'public', patch }]
+    })).not.toThrow();
+  });
+
 });

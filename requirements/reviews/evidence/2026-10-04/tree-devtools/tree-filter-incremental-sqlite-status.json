@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-sqlite:test",
+    "--args=src/__tests__/review-tree-filter-incremental.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "startedAt": "2026-10-04T09:45:01.161101+08:00",
+  "completedAt": "2026-10-04T09:45:16.655046+08:00",
+  "log": "tree-filter-incremental-sqlite.txt"
+}
