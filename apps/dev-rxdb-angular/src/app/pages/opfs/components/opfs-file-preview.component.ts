@@ -94,6 +94,17 @@ export class OpfsFilePreviewComponent {
   private destroyRef = inject(DestroyRef);
   private loadingEntryPath: string | null = null;
   private currentEntryPath: string | null = null;
+  /**
+   * RV-057：预览加载纪元。
+   *
+   * @remarks
+   * `currentEntryPath` 只在 `previewFile()` 返回后被复核过一次；同路径重新打开、
+   * 或 Blob.text() 等更晚的异步阶段都不会再比对它——迟到的旧结果能直接盖掉
+   * 新预览已经写好的状态。这里改用单调递增的纪元号：每次真正发起新加载时
+   * 递增并快照，此后每个异步阶段结束、写状态之前都重新核对快照是否仍等于
+   * 当前纪元，不相等即视为已过期，不再写入任何 signal。
+   */
+  private loadEpoch = 0;
 
   // Signal inputs
   entry = input<OPFSFileEntry | null>(null);
@@ -122,6 +133,8 @@ export class OpfsFilePreviewComponent {
       this.currentEntryPath = entryPath;
 
       if (!currentEntry || currentEntry.kind === 'directory') {
+        // 让任何仍在进行中的加载过期——它的后续结果不再允许写入 signal
+        this.loadEpoch++;
         // 清理旧的 blob URL
         const oldContent = this.content();
         if (oldContent && oldContent.startsWith('blob:')) {
@@ -142,8 +155,9 @@ export class OpfsFilePreviewComponent {
       this.loadFileContent(currentEntry);
     });
 
-    // 组件销毁时清理 blob URL
+    // 组件销毁时清理 blob URL，并让任何仍在进行中的加载过期
     this.destroyRef.onDestroy(() => {
+      this.loadEpoch++;
       const content = this.content();
       if (content && content.startsWith('blob:')) {
         URL.revokeObjectURL(content);
@@ -152,6 +166,8 @@ export class OpfsFilePreviewComponent {
   }
 
   handleClose(): void {
+    // 关闭也让任何仍在进行中的加载过期
+    this.loadEpoch++;
     // 关闭时清理 blob URL
     const content = this.content();
     if (content && content.startsWith('blob:')) {
@@ -170,6 +186,11 @@ export class OpfsFilePreviewComponent {
       return;
     }
 
+    // RV-057：每次真正发起新加载都获得一个新纪元；同路径重新打开也会拿到
+    // 不同的纪元号，不再依赖路径字符串判断「是不是同一次打开」。
+    const epoch = ++this.loadEpoch;
+    const isCurrent = () => epoch === this.loadEpoch;
+
     this.loadingEntryPath = entryPath;
     this.loading.set(true);
 
@@ -185,9 +206,8 @@ export class OpfsFilePreviewComponent {
     try {
       const preview = await this.opfsService.previewFile(entry);
 
-      // 检查 entry 是否还是当前要加载的（可能在加载过程中被改变了）
-      if (this.currentEntryPath !== entryPath) {
-        // entry 已经变化，清理刚创建的 blob URL
+      // 第一个异步阶段结束：纪元已过期，清理刚创建的 blob URL 并放弃
+      if (!isCurrent()) {
         if (preview && preview.data instanceof Blob) {
           const url = URL.createObjectURL(preview.data);
           URL.revokeObjectURL(url);
@@ -203,6 +223,8 @@ export class OpfsFilePreviewComponent {
           if (type === 'unknown') {
             const file = new File([preview.data], entry.name);
             const isText = await isTextFile(file);
+            // 文本探测也是一个异步阶段，结束后同样要复核纪元
+            if (!isCurrent()) return;
             if (isText) {
               type = 'text';
             }
@@ -213,6 +235,9 @@ export class OpfsFilePreviewComponent {
           // 对于代码和文本文件，需要读取文本内容
           if (type === 'code' || type === 'text') {
             const text = await preview.data.text();
+            // RV-057：Blob.text() 才是真正迟到的那一步——不复核纪元就写入，
+            // 会把「新文件已经显示好的内容」覆盖成这份迟到的旧文本。
+            if (!isCurrent()) return;
             this.textContent.set(text);
             if (type === 'code') {
               const lang = getCodeLanguage(entry.name);
@@ -220,6 +245,10 @@ export class OpfsFilePreviewComponent {
             }
           } else if (type === 'image' || type === 'audio' || type === 'video') {
             const url = URL.createObjectURL(preview.data);
+            if (!isCurrent()) {
+              URL.revokeObjectURL(url);
+              return;
+            }
             this.content.set(url);
           } else {
             // unknown 且非文本，无法预览
@@ -247,6 +276,7 @@ export class OpfsFilePreviewComponent {
         this.textContent.set('');
       }
     } catch {
+      if (!isCurrent()) return;
       this.content.set(null);
       this.textContent.set('');
     } finally {

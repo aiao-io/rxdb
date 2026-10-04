@@ -102,7 +102,7 @@
 
 ## 全范围启动批新增意见
 
-- [RV-032](RV-032-vue-search-options-mutation.md)
+- RV-032（已修复，记录已删除）
 - RV-033（已修复，记录已删除）
 
 完整运行结果、未完成项与逐对象记录见 [实际执行台账](execution-2026-10-03.md)。
@@ -111,7 +111,7 @@
 
 本轮新增 5 个确认意见（1 P1 / 4 P2），不是只跑门禁或再写计划。
 
-- [RV-037：React OPFS 目录切换中的上传竞态](RV-037-react-opfs-navigation-upload-race.md)
+- RV-037：React OPFS 目录切换中的上传竞态（已修复，记录已删除）
 - RV-038：备份回调同步抛错使调用方挂起（已修复，记录已删除）
 - RV-039：仓储销毁异常导致适配器未关闭、实体未解绑（已修复，记录已删除）
 - RV-040：Angular 模型真实 fixture 缺少数据库销毁（已修复，记录已删除）
@@ -135,7 +135,7 @@
 ## 2026-10-04 第四批：生成器、图与小程序
 
 - [RV-050：图查询 NaN 深度假成功](RV-050-graph-nan-depth-silent-empty-result.md)
-- [RV-051：小程序卸载后的迟到引导未释放](RV-051-miniprogram-late-bootstrap-after-unload.md)
+- RV-051：小程序卸载后的迟到引导未释放（已修复，记录已删除）
 
 [本批实际源码/复验、测量限制与剩余项](execution-2026-10-04-generator-graph-miniprogram.md)：3 个 P2，更新 4 对象；Node 页回调接缝不冒充实际微信宿主。
 
@@ -155,6 +155,6 @@
 
 ## 2026-10-04 第七批：编辑器与三框架预览
 
-- [RV-056：同步语言异常漏上报，Vue 跳过只读初始化](RV-056-editor-sync-language-error-escapes.md)（P2）：三端原框架/CodeMirror 各 1 failed /1 passed。
-- [RV-057：迟到 Blob.text 把 A 内容写进 B 预览](RV-057-preview-late-blob-text-overwrites-current-file.md)（P2）：Angular/Vue 各 1 failed /1 passed，React 相同交错 2 passed。
+- RV-056：同步语言异常漏上报，Vue 跳过只读初始化（已修复，记录已删除）
+- RV-057：迟到 Blob.text 把 A 内容写进 B 预览（已修复，记录已删除）
 - [本轮七对象实际记录、覆盖率与剩余项](execution-2026-10-04-editor-frameworks.md)：四包 282 passed /3 failed，原 271 条保持通过；核心四指标 >80%，但不代验浏览器/IME或完整清单。业务未修，新红保留。

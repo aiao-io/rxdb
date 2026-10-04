@@ -48,6 +48,6 @@ Angular：共享 CodeMirror 文档/语言契约的框架组件。
 
 ## 2026-10-04：编辑器与预览第七批
 
-C1/C2/C3/C4 已追踪实际 CVA/OnChanges、外部事务 annotations、disabled 合并、request/view 守卫和 Destroy。确认 [RV-056](../../RV-056-editor-sync-language-error-escapes.md)：真实 LanguageDescription 的同步工厂异常逃出 TestBed 初始化，语言错误 output 没收到；rejection 对照通过。最终 **75 passed /1 failed**，原 74 条全部保留通过。未完成真实浏览器 IME/ShadowRoot/SSR、所有配置矩阵及发布消费。
+C1/C2/C3/C4 已追踪实际 CVA/OnChanges、外部事务 annotations、disabled 合并、request/view 守卫和 Destroy。确认 RV-056（已修复）：真实 LanguageDescription 的同步工厂异常逃出 TestBed 初始化，语言错误 output 没收到；rejection 对照通过。最终 **75 passed /1 failed**，原 74 条全部保留通过。未完成真实浏览器 IME/ShadowRoot/SSR、所有配置矩阵及发布消费。
 
 [本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。

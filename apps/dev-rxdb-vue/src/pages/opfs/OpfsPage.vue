@@ -89,6 +89,16 @@ let mouseUpListener: (() => void) | null = null;
 // Computed
 const dirCount = computed(() => opfs.entries.value.filter(e => e.kind === 'directory').length);
 const fileCount = computed(() => opfs.entries.value.filter(e => e.kind === 'file').length);
+/**
+ * RV-037：URL 对应的目标目录，与 `opfs.currentPath` 分开算。
+ *
+ * @remarks
+ * 目录切换时路由参数先同步更新，`opfs.currentPath` / 内部的 `currentHandle` 要等
+ * 异步读取完成才追上；上传、建目录这些写操作如果直接拿 `currentPath`，在目录切换
+ * 未完成的窗口期就会静默写进上一个目录。改成显式传这个路由派生值，和 Angular 的
+ * `routePath` signal、React 的同名变量同一处理。
+ */
+const routePath = computed(() => normalizeRoutePath(route.params.opfsPath));
 const pathSegments = computed(() => {
   const path = opfs.currentPath.value;
   if (!path || path === '/') return [];
@@ -201,7 +211,9 @@ async function handleUpload(files?: File[]) {
       });
       if (!shouldOverwrite) continue;
     }
-    await opfs.uploadFile(file);
+    // RV-037：显式传 routePath（URL 的目标目录），不落回 opfs.uploadFile 内部
+    // 还没追上的 currentPath —— 目录切换未完成时也只会写进 URL 对应的目录。
+    await opfs.uploadFile(file, routePath.value);
   }
   if (fileInputRef.value) fileInputRef.value.value = '';
 }
@@ -214,7 +226,8 @@ async function handleUploadFolder(files: File[]) {
   let failedCount = 0;
   for (const file of files) {
     const relativePath = file.webkitRelativePath || file.name;
-    const success = await opfs.uploadFileWithPath(file, relativePath);
+    // RV-037：同上，folder 上传也必须用 URL 对应的目标目录。
+    const success = await opfs.uploadFileWithPath(file, relativePath, routePath.value);
     if (success) successCount++;
     else failedCount++;
   }
@@ -231,7 +244,8 @@ function handleOverwriteResponse(confirm: boolean) {
 async function handleCreateFolder() {
   const name = newFolderName.value.trim();
   if (!name) return;
-  const success = await opfs.createDirectory(name);
+  // RV-037：建目录同样要落在 URL 对应的目标目录，不是 opfs.currentPath。
+  const success = await opfs.createDirectory(name, routePath.value);
   if (success) {
     showNewFolder.value = false;
     newFolderName.value = '';

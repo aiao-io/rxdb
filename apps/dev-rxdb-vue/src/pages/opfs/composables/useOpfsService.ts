@@ -137,9 +137,20 @@ export function useOpfsService() {
     }
   }
 
-  async function uploadFileWithPath(file: globalThis.File, relativePath: string): Promise<boolean> {
+  /**
+   * RV-037：目录切换未完成时，`currentHandle` 仍指向上一个目录。
+   * 传入 `targetPath` 时改走 {@link getDirectoryHandleByPath}（从根重新解析），
+   * 与 Angular / React 同一处理：目标目录尚未就绪时这里原生等待，不会提前拿到
+   * 旧句柄去写旧目录；不传时保留原有的「当前已加载目录」语义。
+   */
+  async function uploadFileWithPath(
+    file: globalThis.File,
+    relativePath: string,
+    targetPath?: string
+  ): Promise<boolean> {
     try {
-      if (!currentHandle) throw new Error('无法访问当前目录');
+      const currentDir = targetPath !== undefined ? await getDirectoryHandleByPath(targetPath) : currentHandle;
+      if (!currentDir) throw new Error('无法访问当前目录');
 
       const pathParts = relativePath.split('/').filter(Boolean);
       if (pathParts.length === 0) throw new Error('无效的文件路径');
@@ -147,7 +158,7 @@ export function useOpfsService() {
       const fileName = pathParts[pathParts.length - 1];
       const dirParts = pathParts.slice(0, -1);
 
-      let targetDir = currentHandle;
+      let targetDir = currentDir;
       for (const dirName of dirParts) {
         targetDir = await targetDir.getDirectoryHandle(dirName, { create: true });
       }

@@ -59,6 +59,15 @@ function capabilityStatus(capability: RuntimeCapability): string {
 
 export default function Index() {
   const demoRef = useRef<MiniProgramRxdbDemo>();
+  /**
+   * RV-051：页面是否已经 onUnload。
+   *
+   * @remarks
+   * 页面随时可能在 open() 的 await 期间卸载——此时 demoRef 仍为空，
+   * useUnload 那次 dispose 扑空。迟到的引导结果据此判断自己是否还被需要，
+   * 不需要也不应该用 Taro 生命周期回调本身代替归属判断。
+   */
+  const unloadedRef = useRef(false);
   const [phase, setPhase] = useState<DemoPhase>('checking');
   const [capabilities, setCapabilities] = useState<readonly RuntimeCapability[]>([]);
   const [checks, setChecks] = useState<readonly CheckView[]>(INITIAL_CHECKS);
@@ -94,6 +103,19 @@ export default function Index() {
     }
   }, []);
 
+  /**
+   * 释放当前持有的 demo（若有）。
+   *
+   * @remarks
+   * 读取后立即清空 `demoRef`，保证对同一个 demo 实例只 dispose 一次——
+   * 无论是 useUnload 先碰到它，还是迟到的引导结果后碰到它。
+   */
+  const releaseDemo = useCallback(() => {
+    const demo = demoRef.current;
+    demoRef.current = undefined;
+    if (demo) void demo.dispose();
+  }, []);
+
   const start = useCallback(async () => {
     const preflight = inspectMiniProgramRuntime();
     setCapabilities(preflight);
@@ -116,6 +138,13 @@ export default function Index() {
         current.map(check => (check.name === '跨启动持久化' ? { ...check, ...result.launchPersistence } : check))
       );
       setPhase('ready');
+      // RV-051：open() 的 await 期间页面可能已经 onUnload；那次 dispose 扑空是因为
+      // demoRef 当时还是空的。迟到的结果走到这里要先确认页面还在，不在就自己释放，
+      // 不再继续发起重连验证或占用这个 demo 实例。
+      if (unloadedRef.current) {
+        releaseDemo();
+        return;
+      }
       await verifyReconnect(result.demo);
     } catch (error) {
       setPhase('error');
@@ -123,14 +152,15 @@ export default function Index() {
     } finally {
       setBusy(false);
     }
-  }, [verifyReconnect]);
+  }, [verifyReconnect, releaseDemo]);
 
   useLoad(() => {
     void start();
   });
 
   useUnload(() => {
-    void demoRef.current?.dispose();
+    unloadedRef.current = true;
+    releaseDemo();
   });
 
   const runTodoOperation = useCallback(

@@ -80,7 +80,7 @@ execution: in-progress
 | [`packages/rxdb-plugin-search`](packages/rxdb-plugin-search.md)                             | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-search.md)               | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`packages/rxdb-plugin-search-angular`](packages/rxdb-plugin-search-angular.md)             | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-search-angular.md)       | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`packages/rxdb-plugin-search-react`](packages/rxdb-plugin-search-react.md)                 | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-search-react.md)         | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
-| [`packages/rxdb-plugin-search-vue`](packages/rxdb-plugin-search-vue.md)                     | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-search-vue.md)           | [RV-032](RV-032-vue-search-options-mutation.md)                                                                                                                                                    |
+| [`packages/rxdb-plugin-search-vue`](packages/rxdb-plugin-search-vue.md)                     | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-search-vue.md)           | RV-032（已修复）                                                                                                                                                                                   |
 | [`packages/rxdb-plugin-storage`](packages/rxdb-plugin-storage.md)                           | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-storage.md)              | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`packages/rxdb-plugin-sync`](packages/rxdb-plugin-sync.md)                                 | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-sync.md)                 | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`packages/rxdb-plugin-tree`](packages/rxdb-plugin-tree.md)                                 | 已启动，部分执行 | [实际记录](results/packages/rxdb-plugin-tree.md)                 | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
@@ -131,7 +131,7 @@ execution: in-progress
 - 7 个已存在的三框架包族实际解析 export / export type / export *；直接透传的共享类型未发现缺端，组件/原生 Props 差异不直接当功能缺失。[实际导出清单](evidence/2026-10-03/full-run/api-surfaces.json) 只证明入口表面，运行语义仍需逐项核对。
 - 小程序先只读检查 CLI/登录/服务端口，再实际执行当前仓库 demo 的 e2e-devtools：16 passed；没有修改 GUI 安全开关。DevTools 通过不外推到全部真机/其它小程序平台。
 - Supabase 原有实例来自另一个 checkout；本轮独立 project/容器/端口验证后仅清理自己创建的资源，原容器未初始化/删除。
-- 首批复验保持 Open，本轮新增红测试不排除。新意见：[RV-032](RV-032-vue-search-options-mutation.md)、RV-033（已修复，记录已删除）、RV-034（已修复，见 README 2026-10-05 清理记录）、RV-035（已修复）、RV-036（已修复）。
+- 首批复验保持 Open，本轮新增红测试不排除。新意见：RV-032（已修复）、RV-033（已修复，记录已删除）、RV-034（已修复，见 README 2026-10-05 清理记录）、RV-035（已修复）、RV-036（已修复）。
 
 ### 下一步核销
 
@@ -164,7 +164,7 @@ execution: in-progress
 
 这批新增 **5 个确认问题（1 P1 / 4 P2）**，更新 11 个对象的实际记录，workspace C3 flush 专题核销。详见 [本批执行汇总](follow-up-2026-10-03.md)。
 
-- [RV-037：React OPFS 导航中上传旧目录](RV-037-react-opfs-navigation-upload-race.md)——真实浏览器 1 red / 1 对照通过。
+- RV-037（已修复）：React OPFS 导航中上传旧目录——真实浏览器 1 red / 1 对照通过。
 - RV-038：备份任务同步抛错后挂起（已修复，记录已删除）——1 red / 2 对照通过。
 - RV-039：仓储销毁异常中断全库拆卸（已修复，记录已删除）——2 red / 1 对照通过。
 - RV-040：Angular 模型 fixture 共享 DB 泄漏（已修复，记录已删除）——原合跑失败，临时副本显式 teardown 后 61 passed，原始测试未修。
