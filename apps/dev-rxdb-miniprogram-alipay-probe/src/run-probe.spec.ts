@@ -1,15 +1,9 @@
-import {
-  createFakeAlipay,
-  FAKE_USER_DATA_PATH,
-  fakeWasmFingerprints,
-  wasmBytes,
-  type FakeAlipayOptions
-} from './__tests__/fake-alipay.js';
-import { FRAME_HEADER } from './alipay-fs.js';
+import { createFakeAlipay, FAKE_USER_DATA_PATH, wasmBytes, type FakeAlipayOptions } from './__tests__/fake-alipay.js';
 import type { ProbeCore } from './core-contract.js';
 import type { QuotaAccountingPlan } from './experiments/quota-accounting.js';
 import { buildFindings } from './findings.js';
-import { PROBE_REPORT_SCHEMA, runProbe, type ProbeReport } from './run-probe.js';
+import { ALIPAY_FRAME_HEADER, ALIPAY_RANDOM_TIMEOUT_MS } from './official-host.js';
+import { PROBE_REPORT_SCHEMA, runProbe, type ProbeOptions, type ProbeReport } from './run-probe.js';
 
 const MIB = 1024 * 1024;
 const PROBE_ROOT = `${FAKE_USER_DATA_PATH}/aiao-alipay-probe`;
@@ -37,12 +31,10 @@ async function run(
   const report = await runProbe({
     my: fake.my,
     wasm: fake.wasm,
-    wasmFingerprints: fakeWasmFingerprints,
     loadCore,
     freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
     quotaPlan,
-    quotaAccountingPlan: SMALL_ACCOUNTING,
-    workerTimeoutMs: 2000
+    quotaAccountingPlan: SMALL_ACCOUNTING
   });
   return { report, fake };
 }
@@ -63,12 +55,13 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     ({ report, fake } = await run({ ...SMALL_LIMITS, mode: 'ios' }));
   }, 60_000);
 
-  it('报告自带 schema 与说明，写明借用 wechat 平台 id 与 Worker 随机源', () => {
+  it('报告自带 v7 schema 与说明，写明走正式 host、只借用 wechat 平台 id', () => {
+    expect(report.schema).toBe('aiao.us-211.alipay-probe/v7');
     expect(report.schema).toBe(PROBE_REPORT_SCHEMA);
     const notes = report.notes.join('\n');
+    expect(notes).toContain('createAlipayMiniProgramHost');
     expect(notes).toContain('wechat');
-    expect(notes).toContain('Worker');
-    expect(notes).toContain('host.runtimeGlobal');
+    expect(notes).toContain('alipay-random-worker.js');
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
   });
 
@@ -80,21 +73,15 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     expect(report.environment.residue).toBe(false);
   });
 
-  it('Worker：MYWebAssembly 按绝对路径实例化 add.wasm，crypto 可取随机数', () => {
-    expect(report.worker).toMatchObject({
-      ok: true,
-      value: {
-        MYWebAssembly: { ok: true, value: { path: '/wasm/add.wasm', addResult: 5 } },
-        cryptoGetRandomValues: { ok: true, value: { length: 16 } }
-      }
-    });
+  it('Worker：包里的 alipay-random-worker.js 经正式 host 的随机源回了 16 字节', () => {
+    expect(report.worker).toMatchObject({ ok: true, value: { byteLength: 16, allZero: false } });
   });
 
-  it('运行时补丁：源码级跑在 Node 全局上，BigInt / queueMicrotask 都在，什么都不补', () => {
-    expect(report.runtimeRepairs).toEqual({
+  it('运行时快照：源码级跑在 Node 全局上，BigInt / queueMicrotask 都在，正式 host 什么都不补', () => {
+    expect(report.runtimeSnapshot).toEqual({
       ok: true,
       ms: expect.any(Number),
-      value: { target: 'globalThis', before: { BigInt: 'function', queueMicrotask: 'function' }, installed: [] }
+      value: { before: { BigInt: 'function', queueMicrotask: 'function' }, installed: [] }
     });
   });
 
@@ -107,10 +94,9 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     expect(report.prepare).toMatchObject({ ok: true });
   });
 
-  it('WASM：逻辑层标准 WebAssembly 实例化 add.wasm，代码包按相对路径可读', () => {
+  it('WASM：逻辑层有标准 WebAssembly，代码包按相对路径读到原样的 wa-sqlite.wasm', () => {
     expect(report.wasm.standardAvailable).toBe(true);
-    expect(report.wasm.add).toMatchObject({ ok: true, value: 5 });
-    expect(report.wasm.codePackageReads['wasm/add.wasm']).toMatchObject({ ok: true });
+    expect(report.wasm).not.toHaveProperty('add');
     const bytes = wasmBytes.byteLength;
     expect(report.wasm.codePackageBinary).toMatchObject({
       ok: true,
@@ -118,16 +104,15 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     });
   });
 
-  it('WASM：真机代码包没有文本副本，二进制读与构建指纹一致，adapter 的 wasm 直接读 .wasm 原文件', () => {
+  it('WASM：真机代码包没有文本副本，二进制读与锁定版本的指纹一致，adapter 的 wasm 直接读 .wasm 原文件', () => {
     expect(report.wasm.sources).toEqual({
-      'wasm/add.wasm': expect.objectContaining({ ok: true, value: 'binary' }),
       'wa-sqlite/wa-sqlite.wasm': expect.objectContaining({ ok: true, value: 'binary' })
     });
     expect(finding(report, 'WASM')).toMatchObject({
       verdict: 'pass',
       evidence: expect.stringContaining('字节来源：代码包里的 .wasm 原文件')
     });
-    expect(finding(report, 'WASM')?.evidence).toContain('与构建指纹一致');
+    expect(finding(report, 'WASM')?.evidence).toContain('与锁定版本的指纹一致');
   });
 
   it('裸 FS：只有 base64 串两端字节一致', () => {
@@ -142,7 +127,7 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
     expect(finding(report, '同步 FS')?.evidence).toContain('裸写空串成功、写到不存在的父目录返回 error 10022');
   });
 
-  it('包装层 + 分帧层 FS：全部探测符合 adapter VFS 的预期', () => {
+  it('正式 host 的 FS：全部探测符合 adapter VFS 的预期', () => {
     expect(report.fileSystem.probes.every(item => item.asExpected)).toBe(true);
   });
 
@@ -184,10 +169,10 @@ describe('runProbe：iOS 形态下全部实验跑通', () => {
 
 /**
  * 模拟器实测形态（v3b，2026-10-03）：空写入一律 error 2、父目录自动建出、单文件按 base64 串长计费。
- * 裸 FS 照实记下前两条；交给 adapter 与 FS 探测的都是分帧层（`frameUserFiles`），空文件也落得了盘。
+ * 裸 FS 照实记下前两条；交给 adapter 与 FS 探测的都是正式 host 的 FS（每个文件垫 1 字节帧头），空文件也落得了盘。
  * 逻辑层没有 realm / BigInt / queueMicrotask 那一半由 dist-smoke 用真实构建产物验。
  */
-describe('runProbe：模拟器形态下经分帧层建库', () => {
+describe('runProbe：模拟器形态下经正式 host 的分帧 FS 建库', () => {
   let report: ProbeReport;
   let fake: ReturnType<typeof createFakeAlipay>;
   let persistedChunk: Uint8Array | undefined;
@@ -206,12 +191,10 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     report = await runProbe({
       my: fake.my,
       wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints,
       loadCore: loadRealCore,
       freeGlobals: { my: 'object', MYWebAssembly: 'undefined', WebAssembly: 'object' },
       quotaPlan: SMALL_PLAN,
-      quotaAccountingPlan: SMALL_ACCOUNTING,
-      workerTimeoutMs: 2000
+      quotaAccountingPlan: SMALL_ACCOUNTING
     });
   }, 60_000);
 
@@ -233,7 +216,7 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     expect(report.rawFs.missingParentWrite).toMatchObject({ ok: true, value: { success: true } });
   });
 
-  it('包装层 + 分帧层 FS：空写入也落得了盘，全部探测符合 adapter VFS 的预期', () => {
+  it('正式 host 的 FS：空写入也落得了盘，全部探测符合 adapter VFS 的预期', () => {
     expect(report.fileSystem.probes.filter(item => !item.asExpected)).toEqual([]);
     expect(report.fileSystem.probes.find(item => item.op === 'writeFileSync(空 ArrayBuffer)')).toMatchObject({
       outcome: { ok: true, value: { base64: '' } }
@@ -245,13 +228,13 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     expect(report.quotaAccounting.fill).toMatchObject({ fileBytes: MIB / 2, scope: 'ancestor-or-user-dir' });
   });
 
-  it('持久化：经分帧层建库、关闭重开原样读回；落盘的块以分帧头开头，报告里的大小是逻辑字节', () => {
+  it('持久化：经分帧 FS 建库、关闭重开原样读回；落盘的块以帧头开头，报告里的大小是落盘字节', () => {
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.persistence).toMatchObject({ status: 'passed', integrity: 'ok' });
-    expect(persistedChunk?.[0]).toBe(FRAME_HEADER);
+    expect(persistedChunk?.[0]).toBe(ALIPAY_FRAME_HEADER);
     const chunk = core.persistence.files?.find(file => file.path.endsWith('.sqlite.0'));
-    expect(chunk?.size).toBe((persistedChunk?.byteLength ?? 0) - 1);
+    expect(chunk?.size).toBe(persistedChunk?.byteLength);
   });
 
   it('配额：撞到 10028 后报 SQLITE_FULL 并带平台原文，重开库仍完整', () => {
@@ -262,7 +245,7 @@ describe('runProbe：模拟器形态下经分帧层建库', () => {
     expect(core.quota.afterFailure?.reopenIntegrity).toMatchObject({ ok: true, value: 'ok' });
   });
 
-  it('findings：经实验 host 全部 pass，同步 FS 的证据里照实记着裸 FS 的两处平台差异', () => {
+  it('findings：经正式 host 全部 pass，同步 FS 的证据里照实记着裸 FS 的两处平台差异', () => {
     expect(report.findings.map(item => [item.matrixRow, item.verdict])).toEqual([
       ['WASM', 'pass'],
       ['同步 FS', 'pass'],
@@ -314,13 +297,7 @@ describe('runProbe：失败与边界', () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     fake.directories.add(PROBE_ROOT);
     fake.files.set(`${PROBE_ROOT}/stale.bin`, new Uint8Array(4));
-    const report = await runProbe({
-      my: fake.my,
-      wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints,
-      loadCore: skipCore,
-      freeGlobals: {}
-    });
+    const report = await runProbe({ my: fake.my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} });
     expect(report.workspace).toMatchObject({ ok: true, value: { root: PROBE_ROOT, removedLeftover: true } });
     expect(leftovers(fake)).toEqual([]);
   }, 60_000);
@@ -358,23 +335,15 @@ describe('runProbe：失败与边界', () => {
     expect(finding(report, '用户目录')?.evidence).toContain('裸写 11 MiB 成功');
   }, 60_000);
 
-  it('构建没记指纹：选源失败，adapter 打不开库，WASM 判 fail，不拿没校验的字节去实例化', async () => {
-    const fake = createFakeAlipay(SMALL_LIMITS);
-    const report = await runProbe({
-      my: fake.my,
-      wasm: fake.wasm,
-      wasmFingerprints: {},
-      loadCore: loadRealCore,
-      freeGlobals: {},
-      quotaPlan: SMALL_PLAN,
-      quotaAccountingPlan: SMALL_ACCOUNTING,
-      workerTimeoutMs: 2000
-    });
+  it('代码包里的 wasm 与锁定版本的指纹不符：选源失败，adapter 打不开库，WASM 判 fail，不拿改写过的字节去实例化', async () => {
+    const corrupted = Uint8Array.from(wasmBytes);
+    corrupted[corrupted.length - 1] ^= 0xff;
+    const { report } = await run({ ...SMALL_LIMITS, codePackageWasm: corrupted });
+    expect(report.wasm.codePackageBinary).toMatchObject({ ok: true, value: { bytesMatch: false } });
     expect(report.wasm.sources['wa-sqlite/wa-sqlite.wasm']).toMatchObject({
       ok: false,
-      error: { message: expect.stringContaining('记指纹') }
+      error: { message: expect.stringContaining('指纹') }
     });
-    expect(report.wasm.codePackageBinary).toMatchObject({ ok: false });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.persistence).toMatchObject({ status: 'failed' });
@@ -396,43 +365,50 @@ describe('runProbe：失败与边界', () => {
     expect(fake.liveWorkers()).toBe(0);
   }, 60_000);
 
-  it('Worker 里没有 crypto：随机源判 fail，并留下 Worker 的原始错误', async () => {
+  it('Worker 里没有 crypto：探测带回 Worker 的原始错误，随机源实验跳过、判 fail', async () => {
     const { report } = await run({ ...SMALL_LIMITS, withoutWorkerCrypto: true }, skipCore);
     expect(report.worker).toMatchObject({
-      ok: true,
-      value: { cryptoGetRandomValues: { skipped: expect.any(String) } }
+      ok: false,
+      error: { message: expect.stringContaining('Worker 里没有 crypto.getRandomValues') }
     });
-    expect(report.random.worker).toMatchObject({
-      '65536': { ok: false, error: { message: expect.stringContaining('crypto') } }
-    });
+    expect(report.random.worker).toEqual({ skipped: expect.stringContaining('crypto.getRandomValues') });
+    // Node 全局自带 crypto，引导不向 Worker 要随机数；随机源缺失时引导失败由 adapter 包的 alipay-host.spec 验
+    expect(report.prepare).toMatchObject({ ok: true, value: { random: 'native' } });
     expect(finding(report, '随机源')).toMatchObject({ verdict: 'fail' });
   }, 60_000);
 
-  it('Worker 不回消息：探测超时后丢弃 Worker，后续实验不再等它', async () => {
+  it('Worker 不回消息：探测等满正式 host 的超时，报「没有回复」，Worker 照样 terminate', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const terminate = vi.fn();
     const silent = { postMessage: vi.fn(), onMessage: vi.fn(), terminate };
-    const my = { ...fake.my, createWorker: () => silent };
-    const report = await runProbe({
-      my,
+    const options: ProbeOptions = {
+      my: { ...fake.my, createWorker: () => silent },
       wasm: fake.wasm,
-      wasmFingerprints: fakeWasmFingerprints,
       loadCore: skipCore,
-      freeGlobals: {},
-      workerTimeoutMs: 50
-    });
-    expect(report.worker).toMatchObject({ ok: false, error: { message: expect.stringContaining('没有回调') } });
-    expect(report.random.worker).toHaveProperty('skipped');
-    expect(silent.postMessage).toHaveBeenCalledTimes(1);
-    expect(terminate).toHaveBeenCalled();
+      freeGlobals: {}
+    };
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let settled = false;
+      const running = runProbe(options).finally(() => {
+        settled = true;
+      });
+      while (!settled) await vi.advanceTimersByTimeAsync(ALIPAY_RANDOM_TIMEOUT_MS / 10);
+      const report = await running;
+      expect(report.worker).toMatchObject({ ok: false, error: { message: expect.stringContaining('没有回复') } });
+      expect(report.random.worker).toHaveProperty('skipped');
+      expect(terminate).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   }, 60_000);
 
   it('USER_DATA_PATH 缺失：没有可写目录，整个实验抛错，Worker 照样 terminate', async () => {
     const fake = createFakeAlipay(SMALL_LIMITS);
     const my = { ...fake.my, env: {} };
-    await expect(
-      runProbe({ my, wasm: fake.wasm, wasmFingerprints: fakeWasmFingerprints, loadCore: skipCore, freeGlobals: {} })
-    ).rejects.toThrow('USER_DATA_PATH');
+    await expect(runProbe({ my, wasm: fake.wasm, loadCore: skipCore, freeGlobals: {} })).rejects.toThrow(
+      'USER_DATA_PATH'
+    );
     expect(fake.liveWorkers()).toBe(0);
   }, 60_000);
 });

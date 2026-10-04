@@ -28,6 +28,7 @@ export const DEFAULT_QUOTA_PLAN: QuotaPlan = { blobBytes: 512 * 1024, maxRows: 1
 /** 核心实验的输入。 */
 export interface CoreExperimentInput {
   readonly host: MiniProgramHost;
+  /** 探针自己的 FS（不分帧），只用来列库文件，报告里的大小是落盘字节；adapter 用的是 `host` 给的 FS。 */
   readonly fileSystem: AlipayProbeFileSystem;
   /** 不传 `wasmPath`：adapter 按默认路径取，核心包只记录实际加载的路径。 */
   readonly wasmRuntime: MiniProgramWasmRuntime;

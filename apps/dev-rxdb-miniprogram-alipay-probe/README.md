@@ -1,13 +1,15 @@
 # 支付宝小程序探针（US-211 阶段 C 验证实验）
 
-一个打开即跑的支付宝小程序，用实验核对 [可行性矩阵](../../requirements/stories/adapter/miniprogram-platform-feasibility.md) 支付宝一节依赖的三处未文档化能力（逻辑层的 `WebAssembly`、Worker 里的 `crypto`、找回全局对象），并且像 [抖音 spike](../dev-rxdb-miniprogram-douyin-spike/README.md) 一样把 adapter 真正跑一遍：建库、写入、重开、写到撞配额。产出一份 JSON 报告，用来设计正式 host。探针走的是实验 host，按 [改判标准](../../requirements/stories/adapter/miniprogram-platform-feasibility.md#改判标准) 它的报告不算门 3 的证据，矩阵只认正式 host 跑出的报告。
+一个打开即跑的支付宝小程序，用实验核对 [可行性矩阵](../../requirements/stories/adapter/miniprogram-platform-feasibility.md) 支付宝一节依赖的三处未文档化能力（逻辑层的 `WebAssembly`、Worker 里的 `crypto`、找回全局对象），并且像 [抖音 spike](../dev-rxdb-miniprogram-douyin-spike/README.md) 一样把 adapter 真正跑一遍：建库、写入、重开、写到撞配额。产出一份 JSON 报告，作为可行性矩阵改判的证据。
 
-支付宝已判 `unsupported`，不在 `MINI_PROGRAM_PLATFORM_IDS` 里。实验 host `createAlipayProbeHost`（[alipay-host.ts](src/alipay-host.ts)）借 `wechat` 平台 id 才能交给 adapter 的公开 API，并补上平台缺的两块：
+v7 起探针走 adapter 包里的**正式支付宝 host**（`packages/rxdb-adapter-miniprogram/src/hosts/alipay.ts`，经 [official-host.ts](src/official-host.ts) 引用源码）。支付宝仍判 `unsupported`、不在 `MINI_PROGRAM_PLATFORM_IDS` 里，按可行性文档的维护规则，正式 host 转 `supported` 之前不登记、不导出；所以探针用 `{ ...host, platform: 'wechat' }` 只覆盖平台 id 交给 adapter（抖音 v9 的证据也是这样跑出的）。正式 host 补上的平台缺口：
 
-- **FS 包装层**（[alipay-fs.ts](src/alipay-fs.ts)）：平台失败时返回错误对象、不抛，包装层把它转成抛错，把错误码归一成 adapter VFS 正则认得的英文文案，平台原文挂在 `cause` 上；写入一律走「base64 串 + `'base64'`」，只有这种写法两端字节都一致
-- **Worker 随机源**（[worker-protocol.ts](src/worker-protocol.ts)）：逻辑层没有任何随机源，随机数从 Worker 的 `crypto.getRandomValues` 桥过来
+- **FS 包装 + 分帧**：平台失败时返回错误对象、不抛，host 把它转成抛错，错误码归一成 adapter VFS 正则认得的文案，平台原文挂在 `cause` 上；写入一律走「base64 串 + `'base64'`」；每个用户文件垫 1 字节帧头，避开模拟器拒收空写入
+- **Worker 随机源**：逻辑层没有任何随机源，随机数从 adapter 包里预编译的 ES5 Worker（`alipay-random-worker.js`）的 `crypto.getRandomValues` 桥过来
+- **连接前补全局**：`prepareRuntime` 钩子在真实全局对象上补 `BigInt`（从 wasm i64 返回值取回原生构造器）与 `queueMicrotask`
+- **wasm 选源**：按锁定版本的指纹在 `.wasm` 原文件与 `.base64.txt` 文本副本之间选对得上的那份
 
-这两块都依赖未文档化的行为，所以报告的 pass 只说明「照这个形态写正式 host 可行」，**不说明** adapter 现状支持支付宝。
+探针自己的 [alipay-fs.ts](src/alipay-fs.ts) 只是不分帧的辅助 FS，给清理实验目录、列库文件、测配额计费用，不交给 adapter。逻辑层 `WebAssembly`、Worker 里的 `crypto`、找回全局对象都是未文档化的行为，所以改判要三端（模拟器、iOS 预览、Android 预览）各一份 v7 报告。
 
 ## 跑一次
 
@@ -16,10 +18,10 @@
    - 小程序开发者工具 →「打开项目」→ 选 `dist/`
    - 命令行：`open "antdevtool-tiny://open?path=$(python3 -c 'import urllib.parse,os;print(urllib.parse.quote(os.path.abspath("apps/dev-rxdb-miniprogram-alipay-probe/dist")))')"`，工具弹出预填好的「打开项目」，点「完 成」
 3. 首次打开会问是否信任该文件夹，选「我信任该文件夹」
-4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成（aiao.us-211.alipay-probe/v6），用时 …」。括号里不是下文「报告怎么读」的版本，说明 IDE 打开的是旧产物（例如另一个 clone 的 `dist/`）：真机调试与预览上传的都是 IDE 当前打开的目录，重新打开本目录的 `dist/` 再传
+4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成（aiao.us-211.alipay-probe/v7），用时 …」。括号里不是下文「报告怎么读」的版本，说明 IDE 打开的是旧产物（例如另一个 clone 的 `dist/`）：真机调试与预览上传的都是 IDE 当前打开的目录，重新打开本目录的 `dist/` 再传
 5. 点「复制报告」，或在控制台搜 `[alipay-probe] 报告`
 6. 真机调试、预览都要关联真实 AppID（在工具里改，别提交进 `static/`），模拟器不需要
-7. 模拟器、iOS 真机调试、iOS 预览、Android **各跑一份**，单份只代表那一台设备的那一次运行
+7. 模拟器、iOS 预览、Android 预览**各跑一份**（真机调试接着调试器，不算改判证据），单份只代表那一台设备的那一次运行
 
 ## 模拟器自动化
 
@@ -33,31 +35,32 @@
 - 每轮报告原样落盘到 `dev-rxdb-miniprogram-alipay-probe-e2e/test-output/simulator-report.json`
 - 真机没有自动化通道：支付宝没有公开的真机自动化 SDK，真机报告只能手动复制
 
-## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v6'`）
+## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v7'`）
 
 `findings` 是按矩阵行给出的本次判定（pass / fail / unknown），证据在它引用的字段里：
 
-| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`sources` 是每个 wasm 按构建指纹选到的字节来源（`binary` 原文件 / `textCopy` base64 文本副本），`codePackageBinary` 对比代码包二进制读与构建指纹；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                                                                                                                                                                                              |
-| 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（包装层 + 分帧层）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；抛错时 `vfsSaysMissing` / `vfsSaysExists` / `vfsSaysQuota` 是 adapter 各条正则的判定，超限写入 `writeFileSync(11 MiB)` 整块落盘（`statSync` 核对后即删）或抛错且 VFS 认成撞配额都算符合（v5 起；文档说会拦，iOS 实测不拦）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
-| 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）。经 SQLite 写满 30 MiB 仍没撞配额也判 pass，带 `caveat: 'quota-unobserved'`（v6 起，按可行性矩阵改判标准门 2；v5 及以前判 unknown）                                                                                                                                                                             |
-| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 矩阵行   | 看哪些字段                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| WASM     | `wasm`：`standardAvailable` 是逻辑层有没有标准 `WebAssembly`，`sources` 是正式 host 按锁定版本指纹给 wa-sqlite.wasm 选到的字节来源（`binary` 原文件 / `textCopy` base64 文本副本），`codePackageBinary` 对比代码包二进制读与锁定版本指纹。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                                                                                                                                                                                                                                                              |
+| 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（正式 host 的 `getFileSystemManager()`，包装 + 分帧）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；抛错时 `vfsSaysMissing` / `vfsSaysExists` / `vfsSaysQuota` 是 adapter 各条正则的判定，超限写入 `writeFileSync(11 MiB)` 整块落盘（`statSync` 核对后即删）或抛错且 VFS 认成撞配额都算符合（v5 起；文档说会拦，iOS 实测不拦）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
+| 随机源   | `worker`：经正式 host 的 `requestRandomValues` 取 16 字节的摘要；`random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 随机源的分块结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）。经 SQLite 写满 30 MiB 仍没撞配额也判 pass，带 `caveat: 'quota-unobserved'`（v6 起，按可行性矩阵改判标准门 2；v5 及以前判 unknown）                                                                                                                                                                                                                |
+| 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 其余字段：
 
 - `environment`：`systemInfo`、基础库版本、`USER_DATA_PATH`、`freeGlobals`（自由变量读到的全局 `typeof`）、`canIUse`
-- `realmProbe`：页面包与核心包构建 banner 找真实全局对象的记录，四条候选路 `sloppyThis` / `Function` / `global` / `objectPrototypeGetter` 的结果都在 `candidates` 里，`chosen` 是选中的那条，经 `host.runtimeGlobal` 交给 adapter。判据与抖音 spike 相同。`objectPrototypeGetter` 在 `Object.prototype` 上临时挂一个返回 `this` 的 getter、以自由变量读它，读完即删——自由变量查到全局对象的原型链上，getter 的 `this` 就是真实全局对象
-- `runtimeRepairs`：引导前实验 host 往真实全局对象上补的全局。缺 `BigInt` 时从 wasm 的 i64 返回值取回原生构造器（`Object(value).constructor`），缺 `queueMicrotask` 时用 `Promise` 排微任务；已有的不动，`BigInt` 取不回就什么都不装
+- `realmProbe`：页面包与核心包构建 banner 找真实全局对象的记录，四条候选路 `sloppyThis` / `Function` / `global` / `objectPrototypeGetter` 的结果都在 `candidates` 里，`chosen` 是选中的那条，只作环境对照，交给 adapter 的全局对象由正式 host 自己找。判据与抖音 spike 相同。`objectPrototypeGetter` 在 `Object.prototype` 上临时挂一个返回 `this` 的 getter、以自由变量读它，读完即删——自由变量查到全局对象的原型链上，getter 的 `this` 就是真实全局对象
+- `runtimeSnapshot`：引导前后对照真实全局对象，`before` 是引导前 `BigInt` / `queueMicrotask` 的 `typeof`，`installed` 是正式 host 的 `prepareRuntime` 补上的全局（v7 起，取代 v6 的 `runtimeRepairs`）
 - `coreLoad` / `core`：核心包由页面在 `prepare` 之后懒 `require`。`skipped` 时原因写在字符串里，其余实验照常出结果
 - `environment.residue` 为 `true` 说明同一 JS 上下文里之前跑过引导，快照不是平台原生状态；要重新编译（真机要把支付宝从后台划掉）再跑
 
 ## 构建细节
 
-- esbuild 从源码打三个包：页面包 `pages/index/index.js`、核心包 `probe-core.js`、Worker 包 `workers/index.js`。直接打源码，不依赖上游 build
+- esbuild 从源码打两个包：页面包 `pages/index/index.js`、核心包 `probe-core.js`。直接打源码，不依赖上游 build
+- Worker 包 `workers/index.js` 是 adapter 包导出的 `@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js` 原样拷贝；wa-sqlite.wasm 旁边写一份 `.base64.txt` 副本
 - **IDE 编译器只认到 es2018**：更新的语法会编译失败，症状是模拟器里没有逻辑层 frame
-- **Worker 包要自己降到 ES5**：IDE 对 Worker 走 babel + core-js 转译，注入的 polyfill 依赖 `Function('return this')()`，在 Worker 里拿不到全局对象，Worker 一启动就崩。构建用 swc 把 Worker 降到 ES5，`mini.project.json` 用 `compileOptions.transpile.script.ignore: ["workers/**"]` 让 IDE 跳过它
+- **Worker 包必须已经是 ES5**：IDE 对 Worker 走 babel + core-js 转译，注入的 polyfill 依赖 `Function('return this')()`，在 Worker 里拿不到全局对象，Worker 一启动就崩。adapter 包里的 Worker 是手写 ES5，`mini.project.json` 用 `compileOptions.transpile.script.ignore: ["workers/**"]` 让 IDE 跳过它
 
 ## 已知会卡住的地方
 
@@ -94,9 +97,9 @@
 
 1. **全局对象**：banner 的 `objectPrototypeGetter` 拿到真实全局对象；`runtimeRepairs` 在它上面补了 `BigInt` 与 `queueMicrotask`
 2. **空写入**：用户文件经分帧层（`frameUserFiles`）写，每个文件前垫 1 字节头，读与 stat 时剥掉，adapter 建库要写的空文件也有 1 字节可写
-3. **代码包二进制被改写**：构建在每个 `.wasm` 旁边放一份 `.base64.txt` 文本副本，base64 只含 ASCII，读回原样。v3 押的是 `.txt` 能进真机代码包，iOS 真机调试实测**押错了**（见下文 iOS v3），所以 v4 改成按构建指纹选源：构建给每个 wasm 记字节数 + FNV-1a 内嵌进页面包，实验 host 的 wasm 运行时先读 `.wasm` 原文件、与指纹对得上就用，对不上再读副本，两者都对不上就抛错（[`readCodePackageWasm`](src/alipay-host.ts)）。指纹只防平台改写、不防篡改
+3. **代码包二进制被改写**：构建在每个 `.wasm` 旁边放一份 `.base64.txt` 文本副本，base64 只含 ASCII，读回原样。v3 押的是 `.txt` 能进真机代码包，iOS 真机调试实测**押错了**（见下文 iOS v3），所以 v4 改成按构建指纹选源：构建给每个 wasm 记字节数 + FNV-1a 内嵌进页面包，实验 host 的 wasm 运行时先读 `.wasm` 原文件、与指纹对得上就用，对不上再读副本，两者都对不上就抛错。v7 起这套逻辑在 adapter 的 `readAlipayCodePackageWasm`，指纹改为锁定版本的常量。指纹只防平台改写、不防篡改
 
-findings：WASM pass、同步 FS pass（包装层 + 分帧层 9 条探测全部符合 VFS 预期；裸 FS 照实记着空写入 error 2、写到不存在的父目录照样成功、裸写只有 base64 串字节一致——adapter VFS 打开时先建根目录、库文件平铺其下，不会写进不存在的目录）、随机源 pass（经 Worker 桥接）、用户目录 unknown（写 120 × 512 KiB 没撞配额）、持久化 pass（关闭重开 3 行逐字一致，integrity ok）。这三处绕行都是实验 host 的做法，adapter 正式支持支付宝时要换成正式实现。
+findings：WASM pass、同步 FS pass（包装层 + 分帧层 9 条探测全部符合 VFS 预期；裸 FS 照实记着空写入 error 2、写到不存在的父目录照样成功、裸写只有 base64 串字节一致——adapter VFS 打开时先建根目录、库文件平铺其下，不会写进不存在的目录）、随机源 pass（经 Worker 桥接）、用户目录 unknown（写 120 × 512 KiB 没撞配额）、持久化 pass（关闭重开 3 行逐字一致，integrity ok）。这三处绕行 v7 起都搬进了 adapter 的正式支付宝 host。
 
 配额（模拟器 v3）：
 
@@ -124,19 +127,21 @@ iOS 真机调试 v4（同日、同一台设备，约 125 秒一轮）：**adapte
 
 iOS 真机调试 v5（2026-10-04，同一台设备，约 144 秒一轮）：超限写入实写 11 MiB、`statSync` 核对后删除，按新判法符合预期，**同步 FS 转 pass**；其余字段与 v4 逐项一致（只差电量、Worker 随机样本与文件时间戳）。findings：WASM / 同步 FS / 随机源 / 持久化 pass，用户目录 unknown
 
+v6（2026-10-04，实验 host 的最后一版）：模拟器约 128 秒、真机约 186 秒一轮，**两端五行全 pass**，用户目录都带 `quota-unobserved`。真机代码包二进制读与指纹逐字节一致（727646 字节），但这次比对耗时约 4.4 秒；真机上 `/wasm/add.wasm` 这种绝对路径也读得到，模拟器仍报 error 2。真机报告没有区分是真机调试还是预览。
+
 尚待确认的：
 
 - **iOS 配额**：真机调试里经 SQLite 写满 120 × 512 KiB、裸文件单文件 12 MiB、文件夹 72 MiB 都没撞上，文档的 10M / 50M 没执行；有没有上限、在多大，现在的写入计划探不到，用户目录因此一直是 unknown
 - **Android 真机**：还没跑
-- **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，预览模式下逻辑层的 `WebAssembly` 与 adapter 全流程都还没跑
+- **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，v6 真机报告没标明模式；要用 v7 在预览或体验版下再跑一份
 
-改判 `supported` 要按改判标准先写正式 host（实验 host 的处理全部搬进去、不按模拟器分支），再用它在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针 v6 的 `findings` 已按这条判，下文 v3–v5 记录里的「用户目录 unknown」是旧判法。
+改判 `supported` 要用正式 host（v7 起已接上）在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针 v6 的 `findings` 已按这条判，下文 v3–v5 记录里的「用户目录 unknown」是旧判法。
 
 ## 本地测试
 
 `pnpm nx test dev-rxdb-miniprogram-alipay-probe` 用的是 [Node 测试替身](src/__tests__/fake-alipay.ts)，**不是实验证据**。替身按实测建了 iOS 与模拟器两种 FS 形态：
 
-- `run-probe.spec.ts` 跑源码：两种形态都经分帧层跑通全部实验；替身按实测，iOS 形态代码包里没有 `.base64.txt`、wasm 读原文件，模拟器形态的代码包二进制读改写成 UTF-8 文本、wasm 读文本副本
-- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：iOS 形态实验 host 补上 `queueMicrotask` 后跑通；模拟器形态 `objectPrototypeGetter` 找回全局对象、补上 `BigInt` 与 `queueMicrotask` 后跑通；另外检查 Worker 包是 ES5、IDE 跳过它的配置在产物里、wasm 文本副本与原文件逐字节一致、页面包内嵌的指纹让两种形态各自选对字节来源、跑完的页面状态带着报告 schema
-- `experiments/fs-errors.spec.ts` 经包装层 + 分帧层跑超限写入的四种平台表现：按文档拦下（10028）、不拦（iOS 实测）、拦了但错误 VFS 认不出、报成功却只落一截，核对 v5 的判法
+- `run-probe.spec.ts` 跑源码：两种形态都经正式 host 跑通全部实验（Node 自带 `crypto`，这里的引导不会向 Worker 要随机数）；替身按实测，iOS 形态代码包里没有 `.base64.txt`、wasm 读原文件，模拟器形态的代码包二进制读改写成 UTF-8 文本、wasm 读文本副本
+- `dist-smoke.spec.ts` 把构建产物放进只有 ECMAScript 内置对象的 vm 上下文里跑，复现两端的全局形态：逻辑层没有 `crypto`，引导经 Worker 随机源完成：iOS 形态正式 host 补上 `queueMicrotask` 后跑通；模拟器形态正式 host 找回全局对象、补上 `BigInt` 与 `queueMicrotask` 后跑通；另外检查 Worker 包就是 adapter 包里的脚本原文、IDE 跳过它的配置在产物里、wasm 文本副本与原文件逐字节一致、两种形态各自选对字节来源、跑完的页面状态带着报告 schema
+- `experiments/fs-errors.spec.ts` 经正式 host 的 FS 跑超限写入的四种平台表现：按文档拦下（10028）、不拦（iOS 实测）、拦了但错误 VFS 认不出、报成功却只落一截，核对 v5 的判法
 - `vfs-classifiers.spec.ts` 逐字比对 adapter VFS 里的缺失 / 已存在 / 配额正则，免得报告里的判定与 adapter 实际判定脱节

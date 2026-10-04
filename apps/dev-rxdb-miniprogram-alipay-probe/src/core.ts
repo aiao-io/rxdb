@@ -1,8 +1,8 @@
 /**
  * @fileoverview 核心包入口：实验 ① 持久化、④ 配额，以及 adapter 的能力预检。
  *
- * 只走 adapter 的公开 API（`createWaSqliteMiniProgramClient` + 注入实验 host），与真实调用方的路径一致；
- * 差别只在 host 的 FS 包装层与 Worker 随机源（见 `alipay-host.ts`）。每一步失败都记下停在哪一步与原始错误，不重试。
+ * 只走 adapter 的公开 API（`createWaSqliteMiniProgramClient` + 注入正式支付宝 host），与真实调用方的路径一致；
+ * 差别只在 host 借了 `wechat` 平台 id（见 `run-probe.ts`）。每一步失败都记下停在哪一步与原始错误，不重试。
  */
 import {
   checkMiniProgramRuntimeCapabilities,

@@ -78,8 +78,3 @@ export interface StandardWasmApi {
     imports: WebAssembly.Imports
   ): Promise<{ readonly instance: { readonly exports: WebAssembly.Exports }; readonly module?: unknown }>;
 }
-
-/** Worker 里的 `MYWebAssembly`：文档写只能按代码包路径实例化。 */
-export interface AlipayWorkerWasmApi {
-  instantiate(path: string, imports: WebAssembly.Imports): Promise<unknown>;
-}

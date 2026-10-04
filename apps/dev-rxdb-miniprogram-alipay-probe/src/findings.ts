@@ -3,21 +3,20 @@
  *
  * 判定只针对「这一台设备、这一次运行」；矩阵按可行性矩阵的「改判标准」回填，只认正式 host 跑出的报告。
  * 证据不足一律给 `unknown`，不往 pass 上靠；唯一的例外是门 2 写明的：配额没撞到但经 SQLite 写满 30 MiB，
- * 用户目录判 pass 并带 caveat。走的是实验 host（FS 包装层 + Worker 随机源），
- * pass 说明「照这个形态写正式 host 可行」，不说明 adapter 现状支持支付宝，也不算改判证据。
+ * 用户目录判 pass 并带 caveat。走的是 adapter 里的正式 host（借 `wechat` 平台 id 交给 adapter）；
+ * 只有开发者工具、iOS 预览、Android 预览三端都 pass 才算改判证据。
  */
-import { isAlipayFsFailure } from './alipay-fs.js';
-import type { WasmByteSource } from './alipay-host.js';
 import type { CoreExperimentReport, DatabaseFile, QuotaReport } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import { OVER_SINGLE_FILE_OP, type FileSystemReport } from './experiments/fs-errors.js';
 import type { RawFsReport, RawWriteMode } from './experiments/fs-raw.js';
 import type { FolderLimitScope, QuotaAccountingReport } from './experiments/quota-accounting.js';
 import type { RandomReport } from './experiments/random.js';
-import type { WasmReport } from './experiments/wasm.js';
+import type { WasmByteSource, WasmReport } from './experiments/wasm.js';
+import { isAlipayFsFailure } from './official-host.js';
 import type { Probe, Skipped } from './probe.js';
-import type { RuntimeRepairs } from './runtime-repairs.js';
-import { VFS_QUOTA_EXCEEDED_PATTERN } from './vfs-classifiers.js';
+import type { RuntimeSnapshot } from './runtime-snapshot.js';
+import { ADAPTER_DEFAULT_WASM_PATH, VFS_QUOTA_EXCEEDED_PATTERN } from './vfs-classifiers.js';
 
 /** 可行性矩阵里支付宝列需要实验证据的行，顺序与矩阵一致。 */
 export const MATRIX_ROWS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化'] as const;
@@ -37,7 +36,7 @@ export interface Finding {
 /** 判定需要的报告片段。 */
 export interface FindingsInput {
   readonly random: RandomReport;
-  readonly runtimeRepairs: Probe<RuntimeRepairs>;
+  readonly runtimeSnapshot: Probe<RuntimeSnapshot>;
   readonly prepare: Probe<unknown>;
   readonly wasm: WasmReport;
   readonly rawFs: RawFsReport;
@@ -96,7 +95,7 @@ const WASM_SOURCE_TEXT: Readonly<Record<WasmByteSource, string>> = {
 function codePackageBinaryText({ codePackageBinary }: WasmReport): string {
   if (!codePackageBinary.ok) return `代码包二进制读取对比失败：${probeText(codePackageBinary)}`;
   const { binaryBytes, expectedBytes, bytesMatch } = codePackageBinary.value;
-  if (bytesMatch) return `代码包二进制读取与构建指纹一致（${String(expectedBytes)} 字节）`;
+  if (bytesMatch) return `代码包二进制读取与锁定版本的指纹一致（${String(expectedBytes)} 字节）`;
   return `代码包二进制读取被改写（${String(binaryBytes)} / ${String(expectedBytes)} 字节）`;
 }
 
@@ -116,19 +115,17 @@ function wasmFinding({ wasm, core }: FindingsInput): Finding {
   if (!isSkipped(core) && core.persistence.status === 'passed') {
     const evidence =
       `adapter 经逻辑层标准 WebAssembly 实例化 '${core.persistence.wasmPath}'` +
-      `（字节来源：${wasmSourceText(wasm, core.persistence.wasmPath)}，按构建指纹校验）` +
+      `（字节来源：${wasmSourceText(wasm, core.persistence.wasmPath)}，按锁定版本的指纹校验）` +
       `完成建库、读写、关闭重开；文档未写逻辑层有 WebAssembly；${codePackageBinaryText(wasm)}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }
-  if (!isSkipped(wasm.add) && wasm.add.ok && wasm.add.value === 5) {
-    return {
-      matrixRow: row,
-      verdict: 'unknown',
-      evidence: 'add.wasm 实例化成功，但 adapter 实例化未验证（核心实验未通过或未运行）'
-    };
+  const source = wasm.sources[ADAPTER_DEFAULT_WASM_PATH];
+  if (source?.ok) {
+    const evidence = `wasm 选源成功（${WASM_SOURCE_TEXT[source.value]}），但 adapter 实例化未验证（核心实验未通过或未运行）`;
+    return { matrixRow: row, verdict: 'unknown', evidence };
   }
-  const add = isSkipped(wasm.add) ? wasm.add.skipped : probeText(wasm.add);
-  return { matrixRow: row, verdict: 'fail', evidence: `add.wasm 实例化：${add}` };
+  const evidence = `'${ADAPTER_DEFAULT_WASM_PATH}' ${wasmSourceText(wasm, ADAPTER_DEFAULT_WASM_PATH)}；${codePackageBinaryText(wasm)}`;
+  return { matrixRow: row, verdict: 'fail', evidence };
 }
 
 const RAW_WRITE_MODES: readonly RawWriteMode[] = ['arrayBuffer', 'arrayBufferBinary', 'base64String', 'typedArray'];
@@ -153,7 +150,7 @@ function fileSystemFinding({ fileSystem, rawFs }: FindingsInput): Finding {
   const failing = fileSystem.probes.filter(item => !item.asExpected);
   if (failing.length === 0 && rawFs.writeModes.base64String.bytesMatch) {
     const evidence =
-      `经包装层与分帧层（失败返回值转抛错、错误码归一、只用 base64 串写、每个文件垫 1 字节头）${fileSystem.probes.length} 条探测` +
+      `经正式 host 的 FS（失败返回值转抛错、错误码归一、只用 base64 串写、每个文件垫 1 字节帧头）${fileSystem.probes.length} 条探测` +
       `全部符合 adapter VFS 的预期；${rawText}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }
@@ -275,18 +272,18 @@ function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): 
   return { matrixRow: row, verdict: passed ? 'pass' : 'fail', evidence };
 }
 
-function repairsText(repairs: Probe<RuntimeRepairs>): string {
-  if (!repairs.ok || repairs.value.installed.length === 0) return '';
-  return `；实验 host 补了 ${repairs.value.installed.join('、')}`;
+function repairsText(snapshot: Probe<RuntimeSnapshot>): string {
+  if (!snapshot.ok || snapshot.value.installed.length === 0) return '';
+  return `；正式 host 补了 ${snapshot.value.installed.join('、')}`;
 }
 
-function persistenceFinding({ core, runtimeRepairs }: FindingsInput): Finding {
+function persistenceFinding({ core, runtimeSnapshot }: FindingsInput): Finding {
   const row = '持久化';
   if (isSkipped(core)) return { matrixRow: row, verdict: 'unknown', evidence: `核心实验未运行：${core.skipped}` };
   const { persistence } = core;
   if (persistence.status === 'passed') {
     const files = (persistence.files ?? []).map(file => `${file.path} ${file.size} bytes`).join('、');
-    const evidence = `关闭重开后 ${persistence.reopenedRows?.length} 行逐字一致，integrity ok；文件：${files}${repairsText(runtimeRepairs)}`;
+    const evidence = `关闭重开后 ${persistence.reopenedRows?.length} 行逐字一致，integrity ok；文件：${files}${repairsText(runtimeSnapshot)}`;
     return { matrixRow: row, verdict: 'pass', evidence };
   }
   const failure = persistence.failure;

@@ -8,22 +8,23 @@
  * 「文件夹」按整个用户目录算（**推断**，实验要测的正是这一条）。代码包文件只认相对路径（模拟器实测）；
  * `simulator` 模式把代码包文件当 UTF-8 文本读，非法字节序列一律变成 `EF BF BD`（CDP 直调实测）；
  * `ios` 模式的代码包里没有 `.base64.txt` 文本副本（v3 探针 iOS 真机调试实测 10022）。
+ *
+ * Worker 在 `node:vm` 里跑 adapter 包里的 `alipay-random-worker.js` 原文件，全局只给平台注入的 `worker`
+ * 与 `crypto`（v2 探针实测 Worker 里没有 `my`），消息经结构化复制、`setTimeout` 投递。
  */
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { createContext, runInContext } from 'node:vm';
 import type {
   AlipayApi,
   AlipayFsFailure,
   AlipayRawFileSystem,
   AlipayStats,
   AlipayWorker,
-  AlipayWorkerWasmApi,
   StandardWasmApi
 } from '../alipay-api.js';
-import { WASM_TEXT_SUFFIX } from '../alipay-host.js';
-import { fingerprintWasm, type WasmFingerprints } from '../wasm-fingerprint.js';
-import { handleWorkerMessage, type WorkerEnvironment } from '../worker-protocol.js';
+import { ALIPAY_WASM_TEXT_COPY_SUFFIX } from '../official-host.js';
 
 /** 两端实测的用户目录。 */
 export const FAKE_USER_DATA_PATH = 'https://usr';
@@ -38,8 +39,14 @@ const adapterRequire = createRequire(
 /** 与 adapter 打包的 glue 同源的 wasm 字节。 */
 export const wasmBytes = Uint8Array.from(readFileSync(adapterRequire.resolve('@subframe7536/sqlite-wasm/wasm')));
 
-/** 探针代码包里的 `add(a, b)` 模块。 */
-export const addWasmBytes = Uint8Array.from(readFileSync(new URL('../../static/wasm/add.wasm', import.meta.url)));
+/** adapter 包里的 Worker 脚本原文，构建脚本原样拷进 `dist/workers/index.js`。 */
+export const randomWorkerScript = readFileSync(
+  adapterRequire.resolve('@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js'),
+  'utf8'
+);
+
+/** adapter 默认的代码包 wasm 路径。 */
+const WA_SQLITE_PATH = 'wa-sqlite/wa-sqlite.wasm';
 
 /** 替身的可调参数。 */
 export interface FakeAlipayOptions {
@@ -61,6 +68,8 @@ export interface FakeAlipayOptions {
   readonly withoutWorker?: boolean;
   /** Worker 里没有 `crypto.getRandomValues`。 */
   readonly withoutWorkerCrypto?: boolean;
+  /** 代码包里 `wa-sqlite/wa-sqlite.wasm` 的字节（文本副本随之生成），默认是锁定版本的原样字节。 */
+  readonly codePackageWasm?: Uint8Array;
 }
 
 /** 替身本体与可供断言的内部状态。 */
@@ -79,25 +88,12 @@ function textCopy(bytes: Uint8Array): Uint8Array {
   return Buffer.from(Buffer.from(bytes).toString('base64'));
 }
 
-/** 代码包里的 wasm，键是相对代码包根的路径。 */
-const CODE_PACKAGE_WASM: ReadonlyMap<string, Uint8Array> = new Map([
-  ['wasm/add.wasm', addWasmBytes],
-  ['wa-sqlite/wa-sqlite.wasm', wasmBytes]
-]);
-
-/** 构建脚本记下的指纹，与 `scripts/build.mjs` 同一算法、同一批文件。 */
-export const fakeWasmFingerprints: WasmFingerprints = Object.fromEntries(
-  [...CODE_PACKAGE_WASM].map(([path, bytes]) => [path, fingerprintWasm(bytes)])
-);
-
-/** 模拟器的代码包：构建脚本给每个 wasm 旁边放的 base64 文本副本都在。 */
-const SIMULATOR_CODE_PACKAGE: ReadonlyMap<string, Uint8Array> = new Map([
-  ...CODE_PACKAGE_WASM,
-  ...[...CODE_PACKAGE_WASM].map(([path, bytes]): [string, Uint8Array] => [
-    `${path}${WASM_TEXT_SUFFIX}`,
-    textCopy(bytes)
-  ])
-]);
+/** 代码包里的文件，键是相对代码包根的路径；模拟器的代码包里还有构建脚本放的 base64 文本副本。 */
+function codePackage(mode: 'ios' | 'simulator', wasm: Uint8Array): ReadonlyMap<string, Uint8Array> {
+  const files = new Map([[WA_SQLITE_PATH, wasm]]);
+  if (mode === 'simulator') files.set(`${WA_SQLITE_PATH}${ALIPAY_WASM_TEXT_COPY_SUFFIX}`, textCopy(wasm));
+  return files;
+}
 
 const SUCCESS = Object.freeze({ success: true });
 
@@ -123,6 +119,7 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
 
   constructor(
     private readonly mode: 'ios' | 'simulator',
+    private readonly codePackage: ReadonlyMap<string, Uint8Array>,
     private readonly fileLimitBytes: number,
     private readonly folderLimitBytes: number,
     private readonly folderLimitScope: 'user-dir' | 'direct-folder',
@@ -211,15 +208,14 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
     return { files: entries.map(entry => entry.slice(path.length + 1)), success: true };
   }
 
-  /** 按两端实测的字节语义把写入数据变成落盘字节；模拟器拒收 `Uint8Array` 时返回 `undefined`。 */
   private readCodePackage(path: string): Uint8Array | undefined {
-    if (this.mode === 'ios') return CODE_PACKAGE_WASM.get(path);
-    const bytes = SIMULATOR_CODE_PACKAGE.get(path);
-    if (!bytes) return undefined;
+    const bytes = this.codePackage.get(path);
+    if (!bytes || this.mode === 'ios') return bytes;
     // 模拟器按 UTF-8 解码再编码回来：非法序列变成 U+FFFD
     return Buffer.from(Buffer.from(bytes).toString('utf8'));
   }
 
+  /** 按两端实测的字节语义把写入数据变成落盘字节；模拟器拒收 `Uint8Array` 时返回 `undefined`。 */
   private encode(data: string | ArrayBuffer | Uint8Array, encoding?: string): Uint8Array | undefined {
     if (typeof data === 'string') return Uint8Array.from(Buffer.from(data, encoding === 'base64' ? 'base64' : 'utf8'));
     if (data instanceof Uint8Array) return this.mode === 'simulator' ? undefined : new Uint8Array(0);
@@ -246,47 +242,37 @@ class FakeRawFileSystem implements AlipayRawFileSystem {
   }
 }
 
-/** Worker 里的 `MYWebAssembly`：只认代码包根的绝对路径（两端实测 `/wasm/add.wasm` 可用）。 */
-function createWorkerWasm(): AlipayWorkerWasmApi {
-  return {
-    async instantiate(path, imports) {
-      const bytes = CODE_PACKAGE_WASM.get(path.replace(/^\//, ''));
-      if (!path.startsWith('/') || !bytes) throw new Error(`MYWebAssembly.instantiate:fail ${path} not found`);
-      return WebAssembly.instantiate(bytes, imports);
+interface WorkerGlobal {
+  postMessage(message: unknown): void;
+  onMessage(listener: (message: unknown) => void): void;
+}
+
+/**
+ * 在独立 realm 里跑包里的 Worker 脚本。消息双向结构化复制、经 `setTimeout` 投递，模拟跨线程分发；
+ * `terminate` 之后两个方向的消息都丢弃。
+ */
+function startWorker(options: FakeAlipayOptions, onTerminate: () => void): AlipayWorker {
+  let toLogic: ((message: unknown) => void) | undefined;
+  let toWorker: ((message: unknown) => void) | undefined;
+  let alive = true;
+  const deliver = (listener: ((message: unknown) => void) | undefined, message: unknown) => {
+    const copy: unknown = structuredClone(message);
+    setTimeout(() => {
+      if (alive) listener?.(copy);
+    }, 0);
+  };
+  const worker: WorkerGlobal = {
+    postMessage: message => deliver(toLogic, message),
+    onMessage: listener => {
+      toWorker = listener;
     }
   };
-}
-
-function createWorkerEnvironment(options: FakeAlipayOptions): WorkerEnvironment {
-  const crypto = options.withoutWorkerCrypto ? undefined : webcrypto;
+  const context = createContext(options.withoutWorkerCrypto ? { worker } : { worker, crypto: webcrypto });
+  runInContext(randomWorkerScript, context, { filename: 'workers/index.js' });
   return {
-    freeGlobals: {
-      my: 'undefined',
-      MYWebAssembly: 'object',
-      WebAssembly: options.mode === 'simulator' ? 'object' : 'undefined',
-      crypto: crypto ? 'object' : 'undefined'
-    },
-    MYWebAssembly: createWorkerWasm(),
-    crypto
-  };
-}
-
-/** 消息经 `setTimeout` 投递，模拟跨线程的异步分发；`terminate` 之后的消息丢弃。 */
-function createFakeWorker(environment: WorkerEnvironment, onTerminate: () => void): AlipayWorker {
-  let listener: ((message: unknown) => void) | undefined;
-  let alive = true;
-  return {
-    postMessage(message) {
-      // 结构化复制：真机跨线程传的是副本，替身也不许共享引用
-      const copy: unknown = structuredClone(message);
-      setTimeout(() => {
-        void handleWorkerMessage(copy, environment).then(response => {
-          if (alive) listener?.(structuredClone(response));
-        });
-      }, 0);
-    },
-    onMessage(next) {
-      listener = next;
+    postMessage: message => deliver(toWorker, message),
+    onMessage: listener => {
+      toLogic = listener;
     },
     terminate() {
       if (alive) onTerminate();
@@ -297,8 +283,10 @@ function createFakeWorker(environment: WorkerEnvironment, onTerminate: () => voi
 
 /** 造一个支付宝替身。 */
 export function createFakeAlipay(options: FakeAlipayOptions = {}): FakeAlipay {
+  const mode = options.mode ?? 'ios';
   const fileSystem = new FakeRawFileSystem(
-    options.mode ?? 'ios',
+    mode,
+    codePackage(mode, options.codePackageWasm ?? wasmBytes),
     options.fileLimitBytes ?? 10 * MIB,
     options.folderLimitBytes ?? 50 * MIB,
     options.folderLimitScope ?? 'user-dir',
@@ -320,11 +308,10 @@ export function createFakeAlipay(options: FakeAlipayOptions = {}): FakeAlipay {
     }
   };
   if (!options.withoutWorker) {
-    const environment = createWorkerEnvironment(options);
     Object.assign(my, {
       createWorker: () => {
         liveWorkers++;
-        return createFakeWorker(environment, () => liveWorkers--);
+        return startWorker(options, () => liveWorkers--);
       }
     });
   }

@@ -3,8 +3,9 @@
  *
  * 每次跑都停掉再启动编译（工具栏开关），从磁盘重读 dist/，等新一轮报告，再逐条对照。这些断言钉的是**模拟器**，
  * 不是真机：iOS 真机上 `globalThis` / `BigInt` 都在、能写空文件，结论见探针 README 的平台差异表。
- * 模拟器上 adapter 能跑通，靠的是实验 host 的三处绕行：Object.prototype getter 找回真实全局对象并补
- * `BigInt` / `queueMicrotask`、用户文件分帧避开空写入、wasm 从 base64 文本副本读。
+ * 模拟器上 adapter 能跑通，靠的是 adapter 里正式支付宝 host 的三处绕行：Object.prototype getter 找回真实全局对象并补
+ * `BigInt` / `queueMicrotask`、用户文件分帧避开空写入、wasm 从 base64 文本副本读。v7 起探针走正式 host，
+ * 上面 v3e 的形态断言照旧，Worker 与 WASM 两条按 v7 报告改写，待重跑确认。
  * 哪条变红就说明 IDE 升级或探针改动改变了模拟器形态，要回去更新 README 与可行性矩阵。
  */
 import { expect, test } from '@playwright/test';
@@ -33,8 +34,8 @@ test.beforeAll(async () => {
   }
 });
 
-test('报告是本工程的 v5 schema', () => {
-  expect(report.schema).toBe('aiao.us-211.alipay-probe/v6');
+test('报告是本工程的 v7 schema', () => {
+  expect(report.schema).toBe('aiao.us-211.alipay-probe/v7');
 });
 
 test('逻辑层：没有 globalThis / BigInt / queueMicrotask / crypto，标准 WebAssembly 在', () => {
@@ -69,14 +70,10 @@ test('realm 探测：严格模式下 this 是 undefined、Function 换成了别�
   });
 });
 
-test('引导：实验 host 在 banner 找到的全局对象上补 BigInt 与 queueMicrotask，prepare 与核心包加载都成功', () => {
-  expect(report['runtimeRepairs']).toMatchObject({
+test('引导：正式 host 在自己找到的全局对象上补 BigInt 与 queueMicrotask，prepare 与核心包加载都成功', () => {
+  expect(report['runtimeSnapshot']).toMatchObject({
     ok: true,
-    value: {
-      target: 'banner',
-      before: { BigInt: 'undefined', queueMicrotask: 'undefined' },
-      installed: ['BigInt', 'queueMicrotask']
-    }
+    value: { before: { BigInt: 'undefined', queueMicrotask: 'undefined' }, installed: ['BigInt', 'queueMicrotask'] }
   });
   expect(report['prepare']).toMatchObject({
     ok: true,
@@ -85,39 +82,16 @@ test('引导：实验 host 在 banner 找到的全局对象上补 BigInt 与 que
   expect(report['coreLoad']).toMatchObject({ ok: true });
 });
 
-test('Worker：经 swc 降到 ES5 后能跑；有 realm、MYWebAssembly 与 crypto，没有 my', () => {
-  expect(report['worker']).toMatchObject({
-    ok: true,
-    value: {
-      freeGlobals: {
-        my: 'undefined',
-        MYWebAssembly: 'object',
-        crypto: 'object',
-        BigInt: 'function',
-        globalThis: 'object'
-      },
-      MYWebAssembly: { ok: true, value: { path: '/wasm/add.wasm', addResult: 5 } },
-      cryptoGetRandomValues: { ok: true, value: { length: 16 } }
-    }
-  });
+test('Worker：adapter 包里的预编译 ES5 Worker 跑得起来，经正式 host 取回 16 字节随机数', () => {
+  expect(report['worker']).toMatchObject({ ok: true, value: { byteLength: 16, allZero: false } });
 });
 
-test('WASM：代码包只认相对路径，二进制读被当 UTF-8 文本改写、与构建指纹不符；wa-sqlite 改用文本副本，add.wasm 照样实例化', () => {
+test('WASM：二进制读被当 UTF-8 文本改写、与锁定版本指纹不符，正式 host 改用文本副本', () => {
   expect(report['wasm']).toMatchObject({
     standardAvailable: true,
-    codePackageReads: {
-      'wasm/add.wasm': { ok: true, value: 41 },
-      '/wasm/add.wasm': { ok: false, error: { cause: { codes: { error: 2 } } } },
-      // 磁盘上 727646 字节，非法 UTF-8 序列各变成 EF BF BD
-      'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 814_795 }
-    },
+    // 磁盘上 727646 字节，非法 UTF-8 序列各变成 EF BF BD
     codePackageBinary: { ok: true, value: { binaryBytes: 814_795, expectedBytes: 727_646, bytesMatch: false } },
-    sources: {
-      // add.wasm 的字节恰好都是合法 UTF-8，二进制读原样
-      'wasm/add.wasm': { ok: true, value: 'binary' },
-      'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' }
-    },
-    add: { ok: true, value: 5 }
+    sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
   });
 });
 

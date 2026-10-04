@@ -2,10 +2,10 @@
  * 构建产物冒烟：把 `dist/` 的三个包放进独立的 vm 上下文里跑。页面与核心包共用一个上下文，
  * 和逻辑层一样只有 ECMAScript 内置对象加上平台注入的 `my` / `Page` / `require` 与计时器——
  * 两端逻辑层都没有 `crypto`、`queueMicrotask`、`TextEncoder` / `TextDecoder`（v2 探针实测），这里也不给。
- * Worker 包另起一个上下文，只有 `worker` / `MYWebAssembly` / `crypto`，`my.createWorker` 接到它上面。
+ * Worker 包另起一个上下文，只有 `worker` / `crypto`，`my.createWorker` 接到它上面。
  *
- * 源码级测试（run-probe.spec.ts）跑在 Node 全局上，抓不到「打包后的模块顶层副作用」与
- * 「Worker 包的接线写错」这两类问题。
+ * 源码级测试（run-probe.spec.ts）跑在 Node 全局上，Node 自带 `crypto`，引导根本不会问 Worker 要随机数；
+ * 「打包后的模块顶层副作用」「正式 host 经 Worker 引导」「Worker 包拷错」只有这里抓得到。
  */
 import { transform } from 'esbuild';
 import { webcrypto } from 'node:crypto';
@@ -14,9 +14,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 import { buildProbe, CORE_REQUEST, coreInitErrorWrapper } from '../scripts/build.mjs';
-import { addWasmBytes, createFakeAlipay, wasmBytes } from './__tests__/fake-alipay.js';
+import { createFakeAlipay, randomWorkerScript, wasmBytes } from './__tests__/fake-alipay.js';
 import type { AlipayApi, AlipayWorker } from './alipay-api.js';
-import { WASM_TEXT_SUFFIX } from './alipay-host.js';
+import { ALIPAY_WASM_TEXT_COPY_SUFFIX } from './official-host.js';
 
 interface CapturedPage {
   data: { reportText: string; status: string };
@@ -96,13 +96,6 @@ function startDistWorker(workerCode: string, onTerminate: () => void): AlipayWor
     setTimeout,
     clearTimeout,
     crypto: webcrypto,
-    MYWebAssembly: {
-      // 只认代码包根的绝对路径（两端实测），字节直接从构建产物读，顺带核对 add.wasm 进了 dist
-      async instantiate(path: string, imports: WebAssembly.Imports) {
-        if (!path.startsWith('/')) throw new Error(`MYWebAssembly.instantiate:fail ${path} not found`);
-        return WebAssembly.instantiate(await readFile(join(outDir, path)), imports);
-      }
-    },
     worker: {
       onMessage(listener: (message: unknown) => void) {
         workerListener = listener;
@@ -138,8 +131,8 @@ interface DistRun {
 
 interface DistOptions {
   /**
-   * 给逻辑层补上宿主的 `queueMicrotask`。两端实测都没有，实验 host 会自己补（见 `runtimeRepairs`）；
-   * 打开它是对照实验：平台自带时实验 host 不该再动它。
+   * 给逻辑层补上宿主的 `queueMicrotask`。两端实测都没有，正式 host 会自己补（见 `runtimeSnapshot`）；
+   * 打开它是对照实验：平台自带时正式 host 不该再动它。
    */
   readonly hostQueueMicrotask?: boolean;
 }
@@ -196,12 +189,12 @@ const ALL_PASS = ['WASM', '同步 FS', '随机源', '用户目录', '持久化']
 );
 
 describe('dist 冒烟', () => {
-  it('页面包只以字面量路径引用核心包，Worker 包不含 adapter', async () => {
+  it('页面包只以字面量路径引用核心包，Worker 包就是 adapter 包里的预编译脚本原文', async () => {
     const pageCode = await readFile(join(outDir, 'pages/index/index.js'), 'utf8');
     const workerCode = await readFile(join(outDir, 'workers/index.js'), 'utf8');
     expect(pageCode).toContain(`require("${CORE_REQUEST}")`);
     expect(pageCode).not.toMatch(/createWaSqliteMiniProgramClient/);
-    expect(workerCode).not.toMatch(/createWaSqliteMiniProgramClient/);
+    expect(workerCode).toBe(randomWorkerScript);
   });
 
   it('Worker 包已经是 ES5：IDE 按 transpile.script.ignore 跳过它，并按 ES5 语法检查', async () => {
@@ -219,17 +212,12 @@ describe('dist 冒烟', () => {
     expect(lowered.code).toBe(asIs.code);
   });
 
-  it.each([
-    ['wa-sqlite/wa-sqlite.wasm', wasmBytes],
-    ['wasm/add.wasm', addWasmBytes]
-  ])(
-    '%s 与它的 base64 文本副本都在代码包里（副本给模拟器用，iOS 真机代码包会丢掉 .txt），副本解码后与原文件逐字节一致',
-    async (path, bytes) => {
-      expect((await readFile(join(outDir, path))).equals(bytes)).toBe(true);
-      const text = await readFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), 'utf8');
-      expect(Buffer.from(text, 'base64').equals(bytes)).toBe(true);
-    }
-  );
+  it('wa-sqlite.wasm 与它的 base64 文本副本都在代码包里（副本给模拟器用，iOS 真机代码包会丢掉 .txt），后缀与正式 host 一致、解码后逐字节相同', async () => {
+    const path = 'wa-sqlite/wa-sqlite.wasm';
+    expect((await readFile(join(outDir, path))).equals(wasmBytes)).toBe(true);
+    const text = await readFile(join(outDir, `${path}${ALIPAY_WASM_TEXT_COPY_SUFFIX}`), 'utf8');
+    expect(Buffer.from(text, 'base64').equals(wasmBytes)).toBe(true);
+  });
 
   it('构建包装把模块顶层错误挂到导出上，平台吞掉错误时导出照样带着原始错误', () => {
     const { banner, footer } = coreInitErrorWrapper();
@@ -242,38 +230,26 @@ describe('dist 冒烟', () => {
     expect(exports.initError).toMatchObject({ name: 'RangeError', message: '模块顶层出错' });
   });
 
-  it('iOS 形态：banner 只留记录、Worker 包接线正确；实验 host 补上 queueMicrotask 后跑通全部实验', async () => {
+  it('iOS 形态：banner 只留记录、Worker 包接线正确；正式 host 补上 queueMicrotask 后跑通全部实验', async () => {
     const { report, status, liveWorkers } = await runDist('ios');
     const untouched = { before: 'object', candidates: {}, chosen: null };
     expect(report['realmProbe']).toEqual({ page: untouched, core: untouched });
-    expect(report['worker']).toMatchObject({
-      ok: true,
-      value: {
-        freeGlobals: { my: 'undefined', MYWebAssembly: 'object', crypto: 'object' },
-        MYWebAssembly: { ok: true, value: { path: '/wasm/add.wasm', addResult: 5 } }
-      }
-    });
+    expect(report['worker']).toMatchObject({ ok: true, value: { byteLength: 16, allZero: false } });
     expect(report['environment']).toMatchObject({
       freeGlobals: { crypto: 'undefined', queueMicrotask: 'undefined', TextDecoder: 'undefined' }
     });
-    expect(report['runtimeRepairs']).toMatchObject({
+    expect(report['runtimeSnapshot']).toMatchObject({
       ok: true,
-      value: {
-        target: 'globalThis',
-        before: { BigInt: 'function', queueMicrotask: 'undefined' },
-        installed: ['queueMicrotask']
-      }
+      value: { before: { BigInt: 'function', queueMicrotask: 'undefined' }, installed: ['queueMicrotask'] }
     });
     expect(report['wasm']).toMatchObject({
-      sources: {
-        'wasm/add.wasm': { ok: true, value: 'binary' },
-        'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'binary' }
-      }
+      sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'binary' } }
     });
-    expect(report['prepare']).toMatchObject({ ok: true });
+    // 逻辑层没有 crypto：引导经正式 host 的 Worker 随机源完成，来源标的是交给 adapter 的平台 id（暂借 wechat）
+    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'wechat' } });
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual(ALL_PASS);
-    expect(findingEvidence(report, '持久化')).toContain('实验 host 补了 queueMicrotask');
+    expect(findingEvidence(report, '持久化')).toContain('正式 host 补了 queueMicrotask');
     // 真机上不复制报告也能看出跑的是哪一版：IDE 打开的若是旧产物，这里的 schema 就对不上
     expect(status).toContain(String(report['schema']));
     expect(liveWorkers).toBe(0);
@@ -321,18 +297,14 @@ describe('dist 冒烟', () => {
       core: { ...record, candidates: { ...record.candidates, objectPrototypeGetter: coreCandidate } }
     });
     expect(report['environment']).toMatchObject({ freeGlobals: { globalThis: 'undefined', BigInt: 'undefined' } });
-    expect(report['runtimeRepairs']).toMatchObject({
+    expect(report['runtimeSnapshot']).toMatchObject({
       ok: true,
-      value: {
-        target: 'banner',
-        before: { BigInt: 'undefined', queueMicrotask: 'undefined' },
-        installed: ['BigInt', 'queueMicrotask']
-      }
+      value: { before: { BigInt: 'undefined', queueMicrotask: 'undefined' }, installed: ['BigInt', 'queueMicrotask'] }
     });
     expect(report['wasm']).toMatchObject({
       sources: { 'wa-sqlite/wa-sqlite.wasm': { ok: true, value: 'textCopy' } }
     });
-    expect(report['prepare']).toMatchObject({ ok: true });
+    expect(report['prepare']).toMatchObject({ ok: true, value: { random: 'wechat' } });
     expect(report['coreLoad']).toMatchObject({ ok: true });
     expect(report['findings']).toEqual([
       expect.objectContaining({ matrixRow: 'WASM', verdict: 'pass' }),
@@ -342,17 +314,17 @@ describe('dist 冒烟', () => {
       expect.objectContaining({
         matrixRow: '持久化',
         verdict: 'pass',
-        evidence: expect.stringContaining('实验 host 补了 BigInt、queueMicrotask')
+        evidence: expect.stringContaining('正式 host 补了 BigInt、queueMicrotask')
       })
     ]);
     expect(liveWorkers).toBe(0);
   }, 120_000);
 
-  it('对照：平台自带 queueMicrotask 时实验 host 什么都不补', async () => {
+  it('对照：平台自带 queueMicrotask 时正式 host 什么都不补', async () => {
     const { report } = await runDist('ios', { hostQueueMicrotask: true });
-    expect(report['runtimeRepairs']).toMatchObject({ ok: true, value: { installed: [] } });
+    expect(report['runtimeSnapshot']).toMatchObject({ ok: true, value: { installed: [] } });
     expect(report['findings']).toEqual(ALL_PASS);
-    expect(findingEvidence(report, '持久化')).not.toContain('实验 host 补了');
+    expect(findingEvidence(report, '持久化')).not.toContain('正式 host 补了');
   }, 120_000);
 });
 

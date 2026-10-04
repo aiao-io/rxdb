@@ -1,11 +1,11 @@
 /**
- * @fileoverview 交给 adapter 的同步 FS（包装层 + 分帧层）：错误原文与 adapter VFS 判定的契合度。
+ * @fileoverview 交给 adapter 的同步 FS（正式 host 的 `getFileSystemManager()`）：错误原文与 adapter VFS 判定的契合度。
  *
- * adapter 的文件 VFS 靠正则识别「文件不存在」「目录已存在」与「撞配额」；包装层把支付宝的错误码归一成正则认得的文案，
- * 分帧层让空文件也有字节可写。这里逐个 VFS 实际会碰到的场景制造错误，记原文并给出判定；
+ * adapter 的文件 VFS 靠正则识别「文件不存在」「目录已存在」与「撞配额」；正式 host 把支付宝的错误码归一成正则认得的文案，
+ * 每个文件垫 1 字节帧头让空文件也有字节可写。这里逐个 VFS 实际会碰到的场景制造错误，记原文并给出判定；
  * VFS 碰不到的场景（例如写进不存在的目录：VFS 先建根目录、库文件平铺其下）不在这里判，平台原样由 rawFs 记录。
  */
-import type { AlipayProbeFileSystem } from '../alipay-fs.js';
+import type { MiniProgramFileSystemManager } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import { adapterErrorText, describeError } from '../describe-error.js';
 import type { Probe } from '../probe.js';
 import { VFS_MISSING_FILE_PATTERN, VFS_QUOTA_EXCEEDED_PATTERN, vfsSaysAlreadyExists } from '../vfs-classifiers.js';
@@ -25,7 +25,7 @@ export interface FsProbe {
   readonly outcome: Probe<unknown>;
 }
 
-/** 包装层 FS 实验的结果。 */
+/** 正式 host FS 实验的结果。 */
 export interface FileSystemReport {
   readonly directory: string;
   readonly probes: readonly FsProbe[];
@@ -87,7 +87,10 @@ function fsProbe(op: string, expectation: Expectation, task: () => unknown): FsP
   }
 }
 
-function roundTrip(fileSystem: AlipayProbeFileSystem, path: string): { base64: string; matches: boolean } {
+/** 按逻辑字节（不含帧头）报文件大小；正式 host 的 FS 没有 `statSync`。 */
+export type LogicalSize = (path: string) => number;
+
+function roundTrip(fileSystem: MiniProgramFileSystemManager, path: string): { base64: string; matches: boolean } {
   fileSystem.writeFileSync(path, Uint8Array.from(ROUND_TRIP_BYTES).buffer);
   const base64 = fileSystem.readFileSync(path, 'base64');
   fileSystem.unlinkSync(path);
@@ -95,7 +98,7 @@ function roundTrip(fileSystem: AlipayProbeFileSystem, path: string): { base64: s
   return { base64, matches: true };
 }
 
-function writeEmpty(fileSystem: AlipayProbeFileSystem, path: string): { base64: string } {
+function writeEmpty(fileSystem: MiniProgramFileSystemManager, path: string): { base64: string } {
   fileSystem.writeFileSync(path, new ArrayBuffer(0));
   const base64 = fileSystem.readFileSync(path, 'base64');
   fileSystem.unlinkSync(path);
@@ -107,9 +110,13 @@ function writeEmpty(fileSystem: AlipayProbeFileSystem, path: string): { base64: 
  * 超过文档单文件上限的一次写入。文档说会拦（10028），iOS 真机调试实测单文件 12 MiB 都写得进；
  * 对 adapter 而言两样都行：拦下时 VFS 报 `SQLITE_FULL`，没拦就得真落盘这么多字节，不能报成功却只写一截。
  */
-function writeOverLimit(fileSystem: AlipayProbeFileSystem, path: string): { written: number } {
+function writeOverLimit(
+  fileSystem: MiniProgramFileSystemManager,
+  logicalSize: LogicalSize,
+  path: string
+): { written: number } {
   fileSystem.writeFileSync(path, new ArrayBuffer(OVER_SINGLE_FILE_BYTES));
-  const written = fileSystem.statSync(path).size;
+  const written = logicalSize(path);
   // 先删再判：别让它占着配额干扰后面的实验
   fileSystem.unlinkSync(path);
   if (written !== OVER_SINGLE_FILE_BYTES)
@@ -117,8 +124,18 @@ function writeOverLimit(fileSystem: AlipayProbeFileSystem, path: string): { writ
   return { written };
 }
 
-/** 在 `directory`（调用方已建好的空目录）里逐条探测；`fileSystem` 传交给 adapter 的那一个。 */
-export function runFileSystemExperiment(fileSystem: AlipayProbeFileSystem, directory: string): FileSystemReport {
+/**
+ * 在 `directory`（调用方已建好的空目录）里逐条探测。
+ *
+ * @param fileSystem - 交给 adapter 的那一个，即正式 host 的 FS
+ * @param directory - 实验目录
+ * @param logicalSize - 读文件的逻辑大小，核对超限写入是否整块落盘
+ */
+export function runFileSystemExperiment(
+  fileSystem: MiniProgramFileSystemManager,
+  directory: string,
+  logicalSize: LogicalSize
+): FileSystemReport {
   const missing = `${directory}/missing.bin`;
   const probes: FsProbe[] = [
     fsProbe('accessSync(不存在的文件)', 'missing', () => fileSystem.accessSync(missing)),
@@ -132,7 +149,9 @@ export function runFileSystemExperiment(fileSystem: AlipayProbeFileSystem, direc
     ),
     // VFS 新建文件时先写一个空文件（`writeFileSync(create)`）
     fsProbe('writeFileSync(空 ArrayBuffer)', 'ok', () => writeEmpty(fileSystem, `${directory}/empty.bin`)),
-    fsProbe(OVER_SINGLE_FILE_OP, 'quota-or-ok', () => writeOverLimit(fileSystem, `${directory}/over-limit.bin`))
+    fsProbe(OVER_SINGLE_FILE_OP, 'quota-or-ok', () =>
+      writeOverLimit(fileSystem, logicalSize, `${directory}/over-limit.bin`)
+    )
   ];
   return { directory, probes };
 }

@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe('createAlipayRandomSource', () => {
-  it('超过 65536 字节时分块并发请求，拼成恰好 length 字节的新缓冲区', async () => {
+  it('超过 65536 字节时分块依次请求，拼成恰好 length 字节的新缓冲区', async () => {
     const worker = createFakeRandomWorker();
     const requestRandomValues = createAlipayRandomSource(worker);
     const first = await requestRandomValues(65_536 * 2 + 5);
@@ -42,6 +42,38 @@ describe('createAlipayRandomSource', () => {
     expect(first.byteLength).toBe(65_536 * 2 + 5);
     expect(new Set(first).size).toBeGreaterThan(200);
     expect(second.buffer).not.toBe(first.buffer);
+  });
+
+  it('Worker 串行处理：上一块回复之后才发下一块，并发调用也排队', async () => {
+    const { worker, requests, reply } = manualWorker();
+    const requestRandomValues = createAlipayRandomSource(worker);
+    const first = requestRandomValues(65_537);
+    const second = requestRandomValues(2);
+    await Promise.resolve();
+
+    expect(requests).toEqual([{ type: 'random', id: 0, length: 65_536 }]);
+    reply({ id: 0, ok: true, value: Array.from({ length: 65_536 }, () => 7) });
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]).toEqual({ type: 'random', id: 1, length: 1 });
+    reply({ id: 1, ok: true, value: [9] });
+    await vi.waitFor(() => expect(requests).toHaveLength(3));
+    reply({ id: 2, ok: true, value: [1, 2] });
+
+    await expect(first).resolves.toHaveLength(65_537);
+    await expect(second).resolves.toEqual(new Uint8Array([1, 2]));
+  });
+
+  it('超时只算单块往返：每块 9 秒回复、16 块共 144 秒也不超时（iOS 真机 1 MiB 实测 7.6 秒）', async () => {
+    vi.useFakeTimers();
+    const { worker, requests, reply } = manualWorker();
+    const pending = createAlipayRandomSource(worker)(1_048_576);
+    for (let index = 0; index < 16; index++) {
+      await vi.advanceTimersByTimeAsync(9_000);
+      expect(requests).toHaveLength(index + 1);
+      reply({ id: index, ok: true, value: Array.from({ length: 65_536 }, () => index) });
+    }
+
+    await expect(pending).resolves.toHaveLength(1_048_576);
   });
 
   it('length 为 0 时不发请求，返回空缓冲区', async () => {
@@ -93,29 +125,34 @@ describe('createAlipayRandomSource', () => {
   });
 
   it('回复的不是 length 个 0..255 的整数：reject，不把可疑字节交出去', async () => {
-    const { worker, reply } = manualWorker();
+    const { worker, requests, reply } = manualWorker();
     const pending = createAlipayRandomSource(worker)(4);
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
     reply({ id: 0, ok: true, value: [1, 2, 256, 3] });
 
     await expect(pending).rejects.toThrow('Worker 回复不合法：期望 4 个 0..255 的整数');
   });
 
-  it('对不上号的回复让全部待决请求失败', async () => {
-    const { worker, reply } = manualWorker();
+  it('对不上号的回复说明协议已乱：在途、排队与之后的请求都失败，不再发消息', async () => {
+    const { worker, requests, reply } = manualWorker();
     const requestRandomValues = createAlipayRandomSource(worker);
     const pending = [requestRandomValues(4), requestRandomValues(8)];
+    await Promise.resolve();
     reply({ id: 99, ok: true, value: [] });
 
-    for (const request of pending) {
+    for (const request of [...pending, requestRandomValues(1)]) {
       await expect(request).rejects.toThrow('Worker 回了对不上号的消息：{"id":99,"ok":true,"value":[]}');
     }
+    expect(requests).toHaveLength(1);
   });
 
   it('分块里有一块失败，整个请求 reject', async () => {
     const { worker, requests, reply } = manualWorker();
     const pending = createAlipayRandomSource(worker)(65_537);
-    reply({ id: requests[0].id, ok: true, value: Array.from({ length: 65_536 }, () => 7) });
-    reply({ id: requests[1].id, ok: false, error: 'QuotaExceededError' });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    reply({ id: 0, ok: true, value: Array.from({ length: 65_536 }, () => 7) });
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    reply({ id: 1, ok: false, error: 'QuotaExceededError' });
 
     await expect(pending).rejects.toThrow('Worker 回复失败：QuotaExceededError');
   });

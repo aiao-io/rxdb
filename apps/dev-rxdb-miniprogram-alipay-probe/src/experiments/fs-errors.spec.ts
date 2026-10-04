@@ -1,6 +1,7 @@
 import { createFakeAlipay, FAKE_USER_DATA_PATH, type FakeAlipayOptions } from '../__tests__/fake-alipay.js';
 import type { AlipayRawFileSystem } from '../alipay-api.js';
-import { frameUserFiles, wrapAlipayFileSystem } from '../alipay-fs.js';
+import { wrapAlipayFileSystem } from '../alipay-fs.js';
+import { createAlipayMiniProgramHost } from '../official-host.js';
 import { OVER_SINGLE_FILE_BYTES, OVER_SINGLE_FILE_OP, runFileSystemExperiment } from './fs-errors.js';
 
 const DIRECTORY = `${FAKE_USER_DATA_PATH}/fs`;
@@ -22,14 +23,23 @@ function onLargeWrite(
     : write(path, data, encoding);
 }
 
-/** 经包装层 + 分帧层（交给 adapter 的那一层）跑全部探测，取超限写入那条。 */
+const idleWorker = { postMessage: () => undefined, onMessage: () => undefined };
+
+/** 经正式 host 的 FS（交给 adapter 的那一层）跑全部探测，取超限写入那条；逻辑大小 = 落盘大小 − 1 字节帧头。 */
 function runOverLimit(options: FakeAlipayOptions, patch?: (raw: AlipayRawFileSystem) => void) {
   const fake = createFakeAlipay(options);
   const raw = fake.my.getFileSystemManager();
   patch?.(raw);
-  const framed = frameUserFiles(wrapAlipayFileSystem(raw, fake.my), fake.my);
+  // 假 `my` 每次返回同一个原始 FS，patch 对正式 host 同样生效
+  const host = createAlipayMiniProgramHost(fake.my, { randomWorker: idleWorker, webAssembly: undefined });
+  const framed = host.getFileSystemManager();
+  if (framed === undefined) throw new Error('正式 host 没给出 FS');
+  const unframed = wrapAlipayFileSystem(raw, fake.my);
   framed.mkdirSync(DIRECTORY, true);
-  const probe = runFileSystemExperiment(framed, DIRECTORY).probes.find(item => item.op === OVER_SINGLE_FILE_OP);
+  const logicalSize = (path: string) => unframed.statSync(path).size - 1;
+  const probe = runFileSystemExperiment(framed, DIRECTORY, logicalSize).probes.find(
+    item => item.op === OVER_SINGLE_FILE_OP
+  );
   const leftoverFiles = [...fake.files.keys()].filter(path => path.startsWith(`${DIRECTORY}/`));
   return { probe, leftoverFiles };
 }

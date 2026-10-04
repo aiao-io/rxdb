@@ -1,33 +1,29 @@
 /**
  * 把实验打成可直接用支付宝小程序开发者工具打开的小程序目录。
  *
- * - `pages/index/index.js`：页面包，只含不依赖核心的实验与 Worker 桥接。
+ * - `pages/index/index.js`：页面包，正式支付宝 host + 不依赖核心的实验。
  * - `probe-core.js`：核心包，adapter 主入口 + 持久化 / 配额实验，由页面懒 `require`。
- * - `workers/index.js`：Worker 包，提供随机源并探 `MYWebAssembly`（`app.json` 的 `workers` 已声明）。
- *   已降到 ES5，`mini.project.json` 让 IDE 跳过它（见 `lowerWorkerToEs5`）。
+ * - `workers/index.js`：adapter 包里预编译的 ES5 随机数 Worker（`alipay-random-worker.js`）原样拷贝；
+ *   `app.json` 的 `workers` 已声明，`mini.project.json` 让 IDE 跳过转译（IDE 的 babel 换入的 core-js
+ *   读自由变量 `Function`，Worker 里没有，模拟器实测 Worker 起不来）。
  * - `wa-sqlite/wa-sqlite.wasm`：与 adapter glue 同源的 wasm，即 adapter 默认的相对路径。
- * - `wasm/add.wasm`：探针自带的最小模块，随 `static/` 复制。
- * - 每个 `.wasm` 旁边一份 `.base64.txt` 文本副本：模拟器把代码包文件当 UTF-8 文本读，二进制会被改写，
- *   只能读副本；iOS 真机代码包里没有 `.txt`（v3 探针实测 10022），只能读原文件。
- * - 每个 `.wasm` 的指纹（字节数 + FNV-1a）经 `define` 内嵌进页面包，实验 host 的 wasm 运行时据此在原文件与副本
- *   之间选对得上的那份（见 `alipay-host.ts` 的 `readCodePackageWasm`）。
+ * - 旁边一份 `.base64.txt` 文本副本：模拟器把代码包文件当 UTF-8 文本读，二进制会被改写，只能读副本；
+ *   iOS 真机代码包里没有 `.txt`（v3 探针实测 10022），只能读原文件。正式 host 按 adapter 里锁定版本的指纹
+ *   在两者之间选对得上的那份（见 adapter 的 `readAlipayCodePackageWasm`）。
  *
  * 直接打源码（`@aiao/source` 条件），不依赖上游 build。
  *
  * 页面包与核心包顶部都有探测 banner：模拟器逻辑层的 `globalThis` 是 `undefined`（v2 探针实测），banner 找到
- * 真实全局对象就存进模块变量，页面包经 `host.runtimeGlobal` 注入 adapter；每条候选路的结果都记进报告。
+ * 真实全局对象就存进模块变量，供环境实验对照；交给 adapter 的全局对象由正式 host 自己找。每条候选路的结果都记进报告。
  * 核心包的探测记录同时充当「模块顶层跑完了」的绊线。
  *
  * 核心包另有一层 try/catch 包装（见 `coreInitErrorWrapper`），把模块顶层错误挂到导出上。
  */
-import { transform } from '@swc/core';
 import { build } from 'esbuild';
 import { copyFile, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// Node 的类型剥离直接加载 .ts：指纹算法与运行时共用一份
-import { fingerprintWasm } from '../src/wasm-fingerprint.ts';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 
@@ -48,9 +44,6 @@ export const RUNTIME_GLOBAL_VAR = '__aiaoSpikeRuntimeGlobal';
 /** `objectPrototypeGetter` 候选路在 `Object.prototype` 上临时定义的 getter 名。 */
 const REALM_GETTER_KEY = '__aiaoSpikeRealmGlobal';
 
-/** 页面包里代码包 wasm 指纹的自由变量名，与 `src/page.ts` 的 `declare const` 一致。 */
-export const WASM_FINGERPRINTS_VAR = '__aiaoSpikeWasmFingerprints';
-
 /** 核心包导出上挂模块顶层错误的键名，必须与 `src/core-contract.ts` 的 `ProbeCore.initError` 一致。 */
 export const CORE_INIT_ERROR_KEY = 'initError';
 
@@ -59,8 +52,8 @@ export const CORE_INIT_ERROR_KEY = 'initError';
  * `Function('return this')()`、`global`、`Object.prototype` 上的临时 getter（自由变量查找以全局对象为 receiver，
  * 支付宝模拟器只有这一条走得通，v3 探针实测）。判据与 adapter 的 `resolveMiniProgramRuntimeGlobal` 相同：
  * 对象字面量 `{}` 的原型就是候选对象的 `Object.prototype`，且不读任何自由变量（抖音的包装函数连
- * `Promise`、`Function` 也换掉了，支付宝沿用同一判据）。第一个满足的存进 `RUNTIME_GLOBAL_VAR`，页面包经 `host.runtimeGlobal`
- * 交给 adapter——这是 adapter 公开 API 的用法，banner 自己不改 `globalThis`。
+ * `Promise`、`Function` 也换掉了，支付宝沿用同一判据）。第一个满足的存进 `RUNTIME_GLOBAL_VAR`，环境实验拿它与正式 host 找到的
+ * 全局对象对照；banner 自己不改 `globalThis`。
  * 每条路的结果存进 `REALM_PROBE_VAR`；除了第四条路读完即删的 getter，不往任何全局对象上写。
  * @returns {string}
  */
@@ -134,7 +127,7 @@ export function coreInitErrorWrapper() {
   };
 }
 
-/** 三个包共用的 esbuild 选项。 */
+/** 页面包与核心包共用的 esbuild 选项。 */
 const SHARED_OPTIONS = {
   bundle: true,
   format: 'cjs',
@@ -161,44 +154,14 @@ const keepCoreExternal = {
   }
 };
 
-/**
- * IDE 编译 Worker 时套 webpack + babel，并按 `transform-runtime` 换入 core-js 2 的 `Promise` 等实现；
- * core-js 的 `$export` 读自由变量 `Function`，Worker 里没有，模块顶层抛 `ReferenceError`，Worker 起不来
- * （模拟器实测）。`compileOptions.transpile.script.ignore` 能让 IDE 跳过转译，但被跳过的文件按 ES5 做语法检查
- * （CE1024 The keyword 'const' is reserved），esbuild 又降不到 ES5，只能再过一遍 swc：
- * async 与生成器变成内联 helper，只依赖原生 `Promise` 与 `Symbol`。
- * @param {string} code esbuild 的 ES2018 输出
- * @returns {Promise<string>}
- */
-async function lowerWorkerToEs5(code) {
-  const result = await transform(code, {
-    isModule: false,
-    jsc: { parser: { syntax: 'ecmascript' }, target: 'es5', externalHelpers: false },
-    minify: false
-  });
-  return result.code;
-}
-
-/** 与 `src/alipay-host.ts` 的 `WASM_TEXT_SUFFIX` 一致；`dist-smoke.spec.ts` 核对两边对得上。 */
+/** 与 adapter 的 `ALIPAY_WASM_TEXT_COPY_SUFFIX` 一致；`dist-smoke.spec.ts` 核对两边对得上。 */
 const WASM_TEXT_SUFFIX = '.base64.txt';
 
-/** 代码包里的 wasm，相对代码包根；每个都写文本副本、记指纹。 */
-const WASM_FILES = ['wa-sqlite/wa-sqlite.wasm', 'wasm/add.wasm'];
+/** adapter 默认的 wasm 路径，相对代码包根。 */
+const WASM_PATH = 'wa-sqlite/wa-sqlite.wasm';
 
-/**
- * 给每个 wasm 写一份 base64 文本副本，返回每个 wasm 的指纹。
- * @param {string} outDir
- * @returns {Promise<Record<string, import('../src/wasm-fingerprint.ts').WasmFingerprint>>}
- */
-async function writeWasmTextCopies(outDir) {
-  const fingerprints = {};
-  for (const path of WASM_FILES) {
-    const bytes = await readFile(join(outDir, path));
-    await writeFile(join(outDir, `${path}${WASM_TEXT_SUFFIX}`), bytes.toString('base64'));
-    fingerprints[path] = fingerprintWasm(bytes);
-  }
-  return fingerprints;
-}
+/** adapter 包导出的 `./alipay-random-worker.js`。 */
+const RANDOM_WORKER_EXPORT = '@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js';
 
 /**
  * 构建到 `outDir`（默认 `dist/`），返回输出目录。
@@ -209,11 +172,11 @@ export async function buildProbe(outDir = join(projectRoot, 'dist')) {
   await rm(outDir, { recursive: true, force: true });
   await cp(join(projectRoot, 'static'), outDir, { recursive: true });
   await mkdir(join(outDir, 'wa-sqlite'), { recursive: true });
-  await copyFile(adapterRequire.resolve('@subframe7536/sqlite-wasm/wasm'), join(outDir, 'wa-sqlite/wa-sqlite.wasm'));
-  const wasmFingerprints = await writeWasmTextCopies(outDir);
+  const wasm = await readFile(adapterRequire.resolve('@subframe7536/sqlite-wasm/wasm'));
+  await writeFile(join(outDir, WASM_PATH), wasm);
+  await writeFile(join(outDir, `${WASM_PATH}${WASM_TEXT_SUFFIX}`), wasm.toString('base64'));
   await build({
     ...SHARED_OPTIONS,
-    define: { ...SHARED_OPTIONS.define, [WASM_FINGERPRINTS_VAR]: JSON.stringify(wasmFingerprints) },
     entryPoints: [join(projectRoot, 'src/page.ts')],
     outfile: join(outDir, 'pages/index/index.js'),
     banner: { js: realmProbeBanner() },
@@ -226,14 +189,8 @@ export async function buildProbe(outDir = join(projectRoot, 'dist')) {
     banner: { js: `${realmProbeBanner()}\n${coreInitErrorWrapper().banner}` },
     footer: { js: coreInitErrorWrapper().footer }
   });
-  // Worker 里有 crypto、MYWebAssembly 与自由变量 worker，不需要 realm banner
-  const worker = await build({
-    ...SHARED_OPTIONS,
-    entryPoints: [join(projectRoot, 'src/worker.ts')],
-    write: false
-  });
   await mkdir(join(outDir, 'workers'), { recursive: true });
-  await writeFile(join(outDir, 'workers/index.js'), await lowerWorkerToEs5(worker.outputFiles[0].text));
+  await copyFile(adapterRequire.resolve(RANDOM_WORKER_EXPORT), join(outDir, 'workers/index.js'));
   return outDir;
 }
 

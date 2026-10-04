@@ -49,20 +49,24 @@ function describeMessage(message: unknown): string {
 /**
  * 经 Worker 取随机数的 `requestRandomValues`。
  *
- * 建出来时就给 Worker 挂上消息监听；请求按 64 KiB 分块并发发出，每块单独超时，拼成恰好 `length` 字节的新缓冲区。
- * 对不上号的回复说明协议已乱，全部待决请求一起失败。
+ * 建出来时就给 Worker 挂上消息监听；请求按 64 KiB 分块，所有块（含并发调用的）排成一队依次发出，
+ * 上一块回复后才发下一块，拼成恰好 `length` 字节的新缓冲区。Worker 本来就串行处理，排队不增加总耗时，
+ * 却让每块的超时只算自己的往返：iOS 真机 1 MiB 要 7.6 秒（v6 实测），并发发出时后面的块会白白耗掉超时。
+ * 对不上号的回复说明协议已乱，在途、排队与之后的请求一律失败。
  *
  * @param worker - `my.createWorker` 返回的、跑着包内 `alipay-random-worker.js` 的 Worker
  */
 export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: number) => Promise<Uint8Array> {
   const pending = new Map<number, Pending>();
   let nextId = 0;
+  let queue: Promise<unknown> = Promise.resolve();
+  let broken: AlipayUndocumentedCapabilityError | undefined;
 
   worker.onMessage(message => {
     const entry = pending.get(field(message, 'id') as number);
     if (entry === undefined) {
-      const error = fail(`Worker 回了对不上号的消息：${describeMessage(message)}`);
-      for (const other of pending.values()) other.reject(error);
+      broken = fail(`Worker 回了对不上号的消息：${describeMessage(message)}`);
+      for (const other of pending.values()) other.reject(broken);
       return;
     }
     if (field(message, 'ok') !== true) {
@@ -76,7 +80,8 @@ export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: n
     }
   });
 
-  const requestChunk = (length: number): Promise<Uint8Array> => {
+  const postChunk = (length: number): Promise<Uint8Array> => {
+    if (broken !== undefined) return Promise.reject(broken);
     const id = nextId++;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const response = new Promise<Uint8Array>((resolve, reject) => {
@@ -94,6 +99,12 @@ export function createAlipayRandomSource(worker: AlipayRandomWorker): (length: n
       clearTimeout(timer);
       pending.delete(id);
     });
+  };
+
+  const requestChunk = (length: number): Promise<Uint8Array> => {
+    const response = queue.then(() => postChunk(length));
+    queue = response.catch(() => undefined);
+    return response;
   };
 
   return async length => {
