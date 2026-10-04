@@ -1,0 +1,56 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-graph:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:86770) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph
+
+1:58:19 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/graph-resource-limits.spec.ts (5 tests) 5875ms
+     ✓ 路径递归达到展开上限但尚未命中目标时仍返回截断标志  5682ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/graph-reactive-api.spec.ts (4 tests) 626ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/GraphRepository.spec.ts (46 tests) 243ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/graph-semantics.spec.ts (21 tests) 182ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/directed-weighted.spec.ts (18 tests) 106ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/GraphRepository.unit.spec.ts (6 tests) 105ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/add-edge-feature-guard.spec.ts (7 tests) 98ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/directed-unweighted.spec.ts (16 tests) 91ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/undirected-weighted.spec.ts (14 tests) 96ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/undirected-unweighted.spec.ts (12 tests) 78ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/find-paths-backfill.spec.ts (3 tests) 43ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/neighbor-row-guard.spec.ts (5 tests) 31ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/generator/GraphRepositoryGenerator.spec.ts (6 tests) 16ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/merge-query.spec.ts (8 tests) 2ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/undirected-direction-collapse.spec.ts (7 tests) 1ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/repository-registry-contract.spec.ts (2 tests) 0ms
+ ✓ |rxdb-plugin-graph (chromium)| src/__tests__/edge-filter-types.spec.ts (4 tests) 0ms
+
+ Test Files  17 passed (17)
+      Tests  184 passed (184)
+   Start at  13:58:19
+   Duration  10.56s (transform 0ms, setup 0ms, import 1.31s, tests 7.59s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-graph/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-plugin-graph
+
+
+  Run duration:      11.1s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     11.0s (1 task)
+  Recoverable time:  <1ms

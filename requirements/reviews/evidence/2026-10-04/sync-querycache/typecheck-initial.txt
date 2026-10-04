@@ -1,0 +1,59 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target typecheck for 2 projects and 8 tasks they depend on:
+
+- rxdb-plugin-sync
+- rxdb-plugin-querycache
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run utils:typecheck
+✔  nx run rxdb:build
+✔  nx run rxdb:typecheck
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-plugin-history:typecheck
+✔  nx run rxdb-plugin-sync:build
+✔  nx run rxdb-plugin-querycache:build
+
+> nx run rxdb-plugin-sync:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+src/__tests__/review-resume-outbox-result.spec.ts(46,18): error TS2352: Conversion of type '{ id: number; namespace: Lowercase<string>; entity: string; entityId: string; branchId: string; type: "INSERT"; remoteId: null; revertChangeId: null; patch: { title: string; }; inversePatch: null; createdAt: Date; updatedAt: Date; }' to type 'RxDBChange' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'branch$' is missing in type '{ id: number; namespace: Lowercase<string>; entity: string; entityId: string; branchId: string; type: "INSERT"; remoteId: null; revertChangeId: null; patch: { title: string; }; inversePatch: null; createdAt: Date; updatedAt: Date; }' but required in type 'RxDBChange'.
+src/__tests__/review-resume-outbox-result.spec.ts(89,42): error TS2345: Argument of type '{ type: SyncType; local: { adapter: string; }; remote: { adapter: string; }; }' is not assignable to parameter of type 'SyncOptions | undefined'.
+  Type '{ type: SyncType; local: { adapter: string; }; remote: { adapter: string; }; }' is not assignable to type 'SyncFull | SyncQueryCache | Remote | Local'.
+    Type '{ type: SyncType; local: { adapter: string; }; remote: { adapter: string; }; }' is not assignable to type 'Local'.
+      Types of property 'type' are incompatible.
+        Type 'SyncType' is not assignable to type 'SyncType.None'.
+Warning: command "tsc --build --emitDeclarationOnly" exited with non-zero status code
+✔  nx run rxdb-plugin-querycache:typecheck
+
+
+
+ NX   Running target typecheck for 2 projects and 8 tasks they depend on failed
+
+Failed tasks:
+
+- rxdb-plugin-sync:typecheck
+
+Output of 9 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-plugin-sync:typecheck
+
+  Run duration:      22.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     13.8s (5 tasks)
+  Recoverable time:  8.5s (38% of the run)

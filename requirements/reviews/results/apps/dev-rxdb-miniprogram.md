@@ -46,3 +46,11 @@ Taro 微信小程序演示，执行 runtime preflight 与单连接 RxDB Todo 流
 - [ ] C5 资源与测试缺口确认：核查 glue/wasm 拷贝、代码包大小、精确依赖与 React18/Taro 隔离；本目录未发现匹配命名的测试文件，需检查其它测试入口后判定缺口。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：生成器、图与小程序第四批深审
+
+🔴 C3 确认 [RV-051](../../RV-051-miniprogram-late-bootstrap-after-unload.md)：useUnload 只 dispose 当时已在 ref 的 demo，open 的迟到成功没有 page epoch/cancel check，旧回调继续写 ref/list/reconnect。
+
+[原页面 TypeScript 编译后执行的 Node 生命周期复验](../apps/dev-rxdb-miniprogram-e2e.md) **1 failed /1 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/mini-page-bootstrap-lifecycle.txt)。框架 hooks、preflight、demo/open 均是明确接缝，未进行真实 React/Taro 调度、微信 GUI/真机或 Native VFS 句柄泄漏量测；不把 target 名 e2e-devtools 当成真实宿主证明。
+
+人工沿 preflight→prepare runtime→load module→capability checks→connect→activeDemo→page ref、pendingDispose/pendingReconnect与onUnload读取。固定数据库名、页面重启 barrier 不等于当前 pending open 已取消。其它发布档位、真实随机能力与跨启动保存矩阵保留既有测量面，C1/C2/C4/C5 尚未整体核销。业务实现未改。

@@ -1,0 +1,22 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "test",
+    "--projects=dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+    "--parallel=1",
+    "--args=review-preview-text-epoch --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

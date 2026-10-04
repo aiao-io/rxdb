@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-client-generator:test",
+    "--args=src/__tests__/cli/review-new-output-alias-queue.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T15:15:17.662294+08:00",
+  "exitCode": 1,
+  "log": "final-generator-probe.txt",
+  "startedAt": "2026-10-04T15:15:13.067876+08:00"
+}

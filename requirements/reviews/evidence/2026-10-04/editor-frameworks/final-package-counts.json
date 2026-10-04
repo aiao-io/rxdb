@@ -1,0 +1,48 @@
+{
+  "code-editor": {
+    "tests": 107,
+    "failed": 0,
+    "passed": 107,
+    "skipped": [],
+    "failures": []
+  },
+  "code-editor-angular": {
+    "tests": 76,
+    "failed": 1,
+    "passed": 75,
+    "skipped": [],
+    "failures": [
+      {
+        "classname": "src/__tests__/review-language-sync-throw.spec.ts",
+        "name": "评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 > 同步 loader 异常不能逃出 Angular 初始化",
+        "time": "0.036204584"
+      }
+    ]
+  },
+  "code-editor-react": {
+    "tests": 34,
+    "failed": 1,
+    "passed": 33,
+    "skipped": [],
+    "failures": [
+      {
+        "classname": "src/__tests__/review-language-sync-throw.spec.tsx",
+        "name": "评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 > 同步 loader 异常不能让 React 编辑器卸载",
+        "time": "0.028011"
+      }
+    ]
+  },
+  "code-editor-vue": {
+    "tests": 68,
+    "failed": 1,
+    "passed": 67,
+    "skipped": [],
+    "failures": [
+      {
+        "classname": "src/__tests__/review-language-sync-throw.spec.ts",
+        "name": "评审复验：同步语言异常不能中断只读/禁用配置 > 同步 loader 异常须上报且保持 Vue 只读/禁用状态",
+        "time": "0.034994458"
+      }
+    ]
+  }
+}

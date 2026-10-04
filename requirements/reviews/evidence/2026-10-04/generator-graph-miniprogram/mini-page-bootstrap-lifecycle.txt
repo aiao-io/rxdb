@@ -1,0 +1,61 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-miniprogram-e2e:e2e-devtools --args=src/review-page-bootstrap-lifecycle.spec.ts --workers=1 --retries=0
+
+> node ../../node_modules/@playwright/test/cli.js test src/review-page-bootstrap-lifecycle.spec.ts --workers=1 --retries=0
+
+(node:7270) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+(node:7273) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+F(node:7274) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+·
+
+  1) src/review-page-bootstrap-lifecycle.spec.ts:51:5 › 评审：页面先 unload、引导后完成时，迟到的 demo 必须立即释放 ───────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      56 |   page.completeOpen();
+      57 |   await expect.poll(() => page.calls.list).toBeGreaterThan(0);
+    > 58 |   expect(page.calls.dispose).toBe(1);
+         |                              ^
+      59 |   expect(page.calls.reconnect).toBe(0);
+      60 | });
+      61 |
+        at /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/review-page-bootstrap-lifecycle.spec.ts:58:30
+
+    Error Context: test-output/playwright/output/review-page-bootstrap-life-4e20d-load、引导后完成时，迟到的-demo-必须立即释放/error-context.md
+
+  1 failed
+    src/review-page-bootstrap-lifecycle.spec.ts:51:5 › 评审：页面先 unload、引导后完成时，迟到的 demo 必须立即释放 ────────
+  1 passed (1.9s)
+Warning: command "node ../../node_modules/@playwright/test/cli.js test src/review-page-bootstrap-lifecycle.spec.ts --workers=1 --retries=0" exited with non-zero status code
+
+
+ NX   Running target e2e-devtools for project dev-rxdb-miniprogram-e2e failed
+
+Failed tasks:
+
+- dev-rxdb-miniprogram-e2e:e2e-devtools
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.8s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.7s (1 task)
+  Recoverable time:  <1ms

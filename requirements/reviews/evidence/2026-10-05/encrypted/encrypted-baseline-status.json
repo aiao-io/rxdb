@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-encrypted:test",
+    "--run",
+    "--coverage.enabled=false",
+    "--maxWorkers=1",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "clientDate": "2026-10-05"
+}

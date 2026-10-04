@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "code-editor-vue:test",
+    "--args=src/__tests__/review-language-sync-throw.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

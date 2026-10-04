@@ -1,0 +1,92 @@
+[
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "react",
+    "synchronous": true,
+    "escaped": "Error: 语言工厂初始化失败",
+    "reportCount": 0,
+    "editorAlive": false
+  },
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "react",
+    "synchronous": false,
+    "escaped": "undefined",
+    "reportCount": 1,
+    "editorAlive": true
+  },
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "angular",
+    "synchronous": true,
+    "escaped": "Error: 语言工厂初始化失败",
+    "reportCount": 0
+  },
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "angular",
+    "synchronous": false,
+    "escaped": "undefined",
+    "reportCount": 1
+  },
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "vue",
+    "synchronous": true,
+    "escapedCount": 1,
+    "reportCount": 0,
+    "readonly": false,
+    "contentEditable": "true"
+  },
+  {
+    "measurement": "REVIEW_EDITOR",
+    "framework": "vue",
+    "synchronous": false,
+    "escapedCount": 0,
+    "reportCount": 1,
+    "readonly": true,
+    "contentEditable": "false"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "angular",
+    "overlap": true,
+    "title": "b.txt",
+    "text": "old-A"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "angular",
+    "overlap": false,
+    "title": "b.txt",
+    "text": "new-B"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "vue",
+    "overlap": true,
+    "title": "b.txt",
+    "text": "old-A"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "vue",
+    "overlap": false,
+    "title": "b.txt",
+    "text": "new-B"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "react",
+    "overlap": true,
+    "title": "b.txt",
+    "text": "new-B"
+  },
+  {
+    "measurement": "REVIEW_PREVIEW",
+    "framework": "react",
+    "overlap": false,
+    "title": "b.txt",
+    "text": "new-B"
+  }
+]

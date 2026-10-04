@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-devtools-extension:test",
+    "--args=src/background/background-core.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T09:59:58.405681+08:00",
+  "environment": {},
+  "exitCode": 1,
+  "log": "extension-reinit-binding.txt",
+  "startedAt": "2026-10-04T09:59:48.709680+08:00"
+}

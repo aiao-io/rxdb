@@ -1,0 +1,38 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target test for 2 projects and 3 tasks they depend on:
+
+- rxdb-plugin-sync
+- rxdb-plugin-querycache
+
+With additional flags:
+  --coverage={"enabled":"false"}
+  --maxWorkers=1
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run utils:build
+✔  nx run rxdb:build
+✔  nx run rxdb-plugin-history:build
+✔  nx run rxdb-plugin-sync:test --coverage.enabled=false --maxWorkers=1
+✔  nx run rxdb-plugin-querycache:test --coverage.enabled=false --maxWorkers=1
+
+
+
+ NX   Successfully ran target test for 2 projects and 3 tasks they depend on
+
+
+Output of 5 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      15.8s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     12.2s (4 tasks)
+  Recoverable time:  3.6s (23% of the run)

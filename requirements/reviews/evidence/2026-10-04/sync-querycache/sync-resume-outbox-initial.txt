@@ -1,0 +1,92 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-sync:test --args=src/__tests__/review-resume-outbox-result.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-resume-outbox-result.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:90960) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-sync
+
+ ❯ |rxdb-plugin-sync (chromium)| src/__tests__/review-resume-outbox-result.spec.ts (3 tests | 2 failed) 8ms
+     × REST 403 被真实 flush 转成 failures 后，不应宣布成功并清除错误 6ms
+     × 网络失败被真实 flush 转成 failures 后，不应宣布成功 1ms
+     ✓ 对照：REST 写成功推进水位后，才允许宣布成功并清除旧错误 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-sync (chromium)| src/__tests__/review-resume-outbox-result.spec.ts > 评审复验：自动恢复必须消费 outbox 结构化失败 > REST 403 被真实 flush 转成 failures 后，不应宣布成功并清除错误
+AssertionError: expected null to be Error: Forbidden { status: 403 } // Object.is equality
+
+[32m- Expected:[39m
+Error {
+  "message": "Forbidden",
+  "status": 403,
+}
+
+[31m+ Received:[39m
+null
+
+ ❯ src/__tests__/review-resume-outbox-result.spec.ts:126:47
+    124|       expect(ctx.syncState.snapshot.pendingCount).toBe(1);
+    125|       expect(ctx.syncState.snapshot.syncing).toBe(false);
+    126|       expect(ctx.syncState.snapshot.lastError).toBe(failure);
+       |                                               ^
+    127|       expect(ctx.reportSuccess).not.toHaveBeenCalled();
+    128|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-plugin-sync (chromium)| src/__tests__/review-resume-outbox-result.spec.ts > 评审复验：自动恢复必须消费 outbox 结构化失败 > 网络失败被真实 flush 转成 failures 后，不应宣布成功
+AssertionError: expected null to be TypeError: Failed to fetch // Object.is equality
+
+[32m- Expected:[39m
+TypeError {
+  "message": "Failed to fetch",
+}
+
+[31m+ Received:[39m
+null
+
+ ❯ src/__tests__/review-resume-outbox-result.spec.ts:143:47
+    141|       expect(ctx.syncState.snapshot.pendingCount).toBe(1);
+    142|       expect(ctx.syncState.snapshot.online).toBe(false);
+    143|       expect(ctx.syncState.snapshot.lastError).toBe(failure);
+       |                                               ^
+    144|       expect(ctx.reportSuccess).not.toHaveBeenCalled();
+    145|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  16:08:31
+   Duration  945ms (transform 0ms, setup 0ms, import 300ms, tests 8ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-sync/junit.xml
+Warning: command "vitest src/__tests__/review-resume-outbox-result.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-sync failed
+
+Failed tasks:
+
+- rxdb-plugin-sync:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.4s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.3s (1 task)
+  Recoverable time:  <1ms

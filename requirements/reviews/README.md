@@ -122,3 +122,40 @@
 - [RV-044：桌面逻辑路径别名覆盖另一记录的真实文件内容](RV-044-desktop-logical-path-alias-data-overwrite.md)
 
 [本批实际专题、源码/运行证据与剩余项](execution-2026-10-04.md)。更新 7 个对象；replay 包级 C1 核销，应用授权不随之验收。全对象深审仍 0 个完成。
+
+## 2026-10-04 第三批：树与 DevTools
+
+- [RV-045：PGlite 树普通字段筛选歧义](RV-045-pglite-tree-scalar-filter-ambiguous-column.md)
+- [RV-046：过滤祖先后的树增量/SQL 漂移](RV-046-tree-filtered-ancestor-incremental-drift.md)
+- [RV-047：DevTools changes 环引用预处理溢出](RV-047-devtools-mask-circular-changes-overflow.md)
+- [RV-048：扩展 port 重 INIT 的旧 tab 映射残留](RV-048-extension-port-reinit-stale-tab-binding.md)
+
+[本批实际执行、取证限制与剩余项](execution-2026-10-04-tree-devtools.md)：4 个 P2、6 个对象记录更新，真实后端与模型/传输接缝严格区分。
+
+## 2026-10-04 第四批：生成器、图与小程序
+
+- [RV-049：首次输出父软链别名绕过队列](RV-049-generator-new-output-alias-queue-order.md)
+- [RV-050：图查询 NaN 深度假成功](RV-050-graph-nan-depth-silent-empty-result.md)
+- [RV-051：小程序卸载后的迟到引导未释放](RV-051-miniprogram-late-bootstrap-after-unload.md)
+
+[本批实际源码/复验、测量限制与剩余项](execution-2026-10-04-generator-graph-miniprogram.md)：3 个 P2，更新 4 对象；Node 页回调接缝不冒充实际微信宿主。
+
+## 2026-10-04 第五批：Sync 与 QueryCache
+
+- [RV-052：恢复回推忽略 outbox 结构化失败](RV-052-sync-resume-ignores-outbox-failures.md)
+- [RV-053：旧 pull 回滚已确认写／复活已删缓存](RV-053-querycache-late-pull-overwrites-confirmed-write.md)
+- [RV-054：共享 SWR 失败被记成已校验](RV-054-querycache-swr-dedup-failure-freshness.md)
+
+[本批实际核查、整包复跑与剩余项](execution-2026-10-04-sync-querycache.md)：新增 3 个 P2，更新两个包的专项和独立执行记录；最终两个整包 **650 passed /5 failed、无 skip**，红用例均为新确认意见，原 646 条仍通过。严格 lint/typecheck 通过；真实 Chromium＋明确适配器/响应接缝，不冒充外部服务或全仓完成。
+
+## 2026-10-04 第六批：真实 HTTP /文件 SQLite
+
+- 新增 [RV-055：outbox 旧修复覆盖新离线写](RV-055-outbox-late-repair-overwrites-new-offline-write.md)（P2），队列 B 仍在但 native SQLite 与公开查询已变回 R。
+- RV-052/053/054 补原参考服务/PGlite + 原 HTTP adapter + 文件 SQLite 证据；RV-053 明确收窄在线结论，origin-down 用户可见错误实测成立。
+- [本批实际执行与六对象记录](execution-2026-10-04-sync-http-sqlite.md)：原应用 55 条仍全过，新增 12 例为 5 failed /7 passed，最终 62 passed /5 failed，无 skip。严格 lint/typecheck 过，红测试与问题保留；不是 GUI、CORS 或全仓已完成。
+
+## 2026-10-04 第七批：编辑器与三框架预览
+
+- [RV-056：同步语言异常漏上报，Vue 跳过只读初始化](RV-056-editor-sync-language-error-escapes.md)（P2）：三端原框架/CodeMirror 各 1 failed /1 passed。
+- [RV-057：迟到 Blob.text 把 A 内容写进 B 预览](RV-057-preview-late-blob-text-overwrites-current-file.md)（P2）：Angular/Vue 各 1 failed /1 passed，React 相同交错 2 passed。
+- [本轮七对象实际记录、覆盖率与剩余项](execution-2026-10-04-editor-frameworks.md)：四包 282 passed /3 failed，原 271 条保持通过；核心四指标 >80%，但不代验浏览器/IME或完整清单。业务未修，新红保留。

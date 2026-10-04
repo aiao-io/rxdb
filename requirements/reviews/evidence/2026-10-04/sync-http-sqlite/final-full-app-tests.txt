@@ -1,0 +1,292 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-http-server:test --args=--run --coverage.enabled=false --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=../../requirements/reviews/evidence/2026-10-04/sync-http-sqlite/final-app-junit.xml
+
+> vitest --run --coverage.enabled=false --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=../../requirements/reviews/evidence/2026-10-04/sync-http-sqlite/final-app-junit.xml
+
+(node:43573) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server
+
+(node:43579) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053：实际 HTTP/PGlite 服务与文件 SQLite 的迟到响应 > 在线对照：旧 update 响应之后新查询能够重新收敛 SQLite 行
+REVIEW_HTTP_SQLITE {"scenario":"update","captured":[{"id":"11111111-1111-4111-8111-111111111111","title":"Pasta #000","status":"published","price":0,"tag":"sale","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2025-01-01T00:00:00.000Z"}],"cacheCommits":["local-stale","confirmed-new","Pasta #000","confirmed-new","confirmed-new"],"afterOriginalRead":"confirmed-new","sqliteTitle":"confirmed-new","remoteRows":[{"id":"11111111-1111-4111-8111-111111111111","title":"confirmed-new","status":"published","price":0,"tag":"sale","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2026-10-04T09:25:27.117Z"}]}
+
+stdout | src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053：实际 HTTP/PGlite 服务与文件 SQLite 的迟到响应 > 在线对照：旧 remove 响应之后新查询能够再次清理 SQLite 行
+REVIEW_HTTP_SQLITE {"scenario":"remove","captured":[{"id":"11111111-1111-4111-8111-111111111111","title":"Pasta #000","status":"published","price":0,"tag":"sale","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2025-01-01T00:00:00.000Z"}],"cacheCommits":["local-stale","Pasta #000"],"afterOriginalRead":null,"sqliteTitle":null,"remoteRows":[]}
+
+stdout | src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > update 后网络中断仍应保留确认的新 SQLite 值
+REVIEW_HTTP_SQLITE {"scenario":"update-origin-down","confirmedRemoteRows":[{"id":"11111111-1111-4111-8111-111111111111","title":"confirmed-new","status":"published","price":0,"tag":"sale","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2026-10-04T09:25:30.009Z"}],"cacheCommits":["local-stale","confirmed-new","Pasta #000"],"readOutcome":{"error":"NetworkOfflineError: NetworkOfflineError: fetch failed"},"sqliteTitle":"Pasta #000","offlineTitles":["Pasta #000"]}
+
+stdout | src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > remove 后网络中断仍不能从旧响应复活 SQLite 行
+REVIEW_HTTP_SQLITE {"scenario":"remove-origin-down","confirmedRemoteRows":[],"cacheCommits":["local-stale","Pasta #000"],"readOutcome":{"error":"NetworkOfflineError: NetworkOfflineError: fetch failed"},"sqliteTitle":"Pasta #000","offlineTitles":["Pasta #000"]}
+
+ ❯ |dev-rxdb-http-server| src/__tests__/review-querycache-http-sqlite.spec.ts (5 tests | 2 failed) 5089ms
+     ✓ 在线对照：旧 update 响应之后新查询能够重新收敛 SQLite 行  1322ms
+     ✓ 在线对照：旧 remove 响应之后新查询能够再次清理 SQLite 行  978ms
+     ✓ 对照：先完成实际查询再写入，新值保留在服务端与 SQLite  982ms
+     × update 后网络中断仍应保留确认的新 SQLite 值 918ms
+     × remove 后网络中断仍不能从旧响应复活 SQLite 行 888ms
+(node:43581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 两个分页消费者共享失败回源后，下一分页不能命中成功记忆
+REVIEW_HTTP_SQLITE {"scenario":"swr-2-401","metadataRequests":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":401,"body":"{\"error\":\"bad_request\",\"message\":\"Authorization header must look like 'Bearer <token>'\"}"}]}
+
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 对照：单消费者失败后下一分页重新回源
+REVIEW_HTTP_SQLITE {"scenario":"swr-1-401","metadataRequests":2,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":401,"body":"{\"error\":\"bad_request\",\"message\":\"Authorization header must look like 'Bearer <token>'\"}"},{"path":"/v1/recipes/metadata","method":"POST","status":200,"body":"[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"updatedAt\":\"2025-01-01T00:00:00.000Z\"}]"}]}
+
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 对照：共享回源成功时下一分页允许复用记忆
+REVIEW_HTTP_SQLITE {"scenario":"swr-2-success","metadataRequests":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":200,"body":"[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"updatedAt\":\"2025-01-01T00:00:00.000Z\"}]"}]}
+
+ ❯ |dev-rxdb-http-server| src/__tests__/review-swr-http-failure-memo.spec.ts (3 tests | 1 failed) 3626ms
+     × 两个分页消费者共享失败回源后，下一分页不能命中成功记忆 1755ms
+     ✓ 对照：单消费者失败后下一分页重新回源  928ms
+     ✓ 对照：共享回源成功时下一分页允许复用记忆  942ms
+(node:43582) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-auto-resume-http-failure.spec.ts > RV-052：实际参考服务拒绝鉴权后的自动恢复状态 > 服务端 401 留下真实 SQLite 待推写，不能宣布本轮成功
+REVIEW_HTTP_SQLITE {"scenario":"resume-401","state":{"online":true,"pendingCount":1,"syncing":false,"lastError":null,"lastConflict":null},"reportSuccessCalls":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":401,"body":"{\"error\":\"bad_request\",\"message\":\"Authorization header must look like 'Bearer <token>'\"}"}],"pendingCount":1}
+
+stdout | src/__tests__/review-auto-resume-http-failure.spec.ts > RV-052：实际参考服务拒绝鉴权后的自动恢复状态 > 对照：真实 HTTP 写入成功后才清除旧错及待推计数
+REVIEW_HTTP_SQLITE {"scenario":"resume-success","state":{"online":true,"pendingCount":0,"syncing":false,"lastError":null,"lastConflict":null},"reportSuccessCalls":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":200,"body":"[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"updatedAt\":\"2025-01-01T00:00:00.000Z\"}]"},{"path":"/v1/recipes/11111111-1111-4111-8111-111111111111","method":"PATCH","status":200,"body":"{\"id\":\"11111111-1111-4111-8111-111111111111\",\"title\":\"pending-offline-write\",\"status\":\"published\",\"price\":0,\"tag\":\"sale\",\"createdAt\":\"2025-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-10-04T09:25:37.499Z\"}"}],"pendingCount":0}
+
+ ❯ |dev-rxdb-http-server| src/__tests__/review-auto-resume-http-failure.spec.ts (2 tests | 1 failed) 2250ms
+     × 服务端 401 留下真实 SQLite 待推写，不能宣布本轮成功 1282ms
+     ✓ 对照：真实 HTTP 写入成功后才清除旧错及待推计数  967ms
+(node:43583) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-outbox-repair-new-write.spec.ts > 评审复验：outbox 接受远端旧判决不能覆盖本轮之后的新离线写 > KEEP_REMOTE 修复响应迟到时，保留新离线写与原生 SQLite 的对应投影
+REVIEW_HTTP_SQLITE {"scenario":"outbox-late-repair","result":{"repository":{"namespace":"public","entity":"ReviewHttpCacheRecipe"},"originalCount":1,"compacted":0,"replayed":0,"discarded":1,"noop":0,"watermark":1,"conflicts":["11111111-1111-4111-8111-111111111111"],"failures":[]},"changes":[{"id":1,"patch":{"title":"offline-A","updatedAt":"2026-10-04T09:25:39.104Z"},"createdAt":"2026-10-04T09:25:39.104Z"},{"id":2,"patch":{"title":"offline-B","updatedAt":"2026-10-04T09:25:39.134Z"},"createdAt":"2026-10-04T09:25:39.134Z"}],"pending":["11111111-1111-4111-8111-111111111111"],"sqliteTitle":"remote-winner","presentedTitle":"remote-winner","remoteRows":[{"id":"11111111-1111-4111-8111-111111111111","title":"remote-winner","status":"published","price":0,"tag":"sale","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2026-10-04T09:25:39.119Z"}]}
+
+ ❯ |dev-rxdb-http-server| src/__tests__/review-outbox-repair-new-write.spec.ts (2 tests | 1 failed) 2259ms
+     × KEEP_REMOTE 修复响应迟到时，保留新离线写与原生 SQLite 的对应投影 1299ms
+     ✓ 对照：旧修复已落地后再写 B，本地 B 和待推记录保持一致  960ms
+(node:43584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-http-server| src/__tests__/server.spec.ts (26 tests) 25394ms
+     ✓ 每一页都取满 limit，短页只出现在真正的末页  1238ms
+     ✓ 各页拼接起来无重复无遗漏，且跨页排序稳定  901ms
+     ✓ 逐页推进，末页缺省 nextPageToken 且不产生尾随空页  877ms
+     ✓ token 里的读取水位线挡住翻页途中新插入的行  845ms
+     ✓ 坏 token 回 400 而不是静默当作首页  832ms
+     ✓ create 采纳客户端给的 id，但时间戳仍由服务端定型  828ms
+     ✓ create 不带 id 时由服务端造一个  833ms
+     ✓ create 撞上已有 id 回 409，不覆盖已有行  810ms
+     ✓ update 重新定型 updatedAt 并返回完整行  823ms
+     ✓ delete 走 POST :entity/delete + { ids }，集合路径上没有 DELETE  838ms
+     ✓ findByIds 对不存在的 id 少返回几行，而不是 500  807ms
+     ✓ 回执带齐实体基类的非空字段：createdAt 与 updatedAt 都在，且 createdAt 不随 update 变  829ms
+     ✓ 内容未变回 304 且无 body，内容一变立刻回 200 + 新 ETag  829ms
+     ✓ reset 跑两遍读出的 250 行逐字节相同  2488ms
+     ✓ destroy 后重建同一 dataDir，写入的行仍在且种子不重灌  877ms
+     ✓ 过滤字段不在白名单时回 400，且不触达 SQL  832ms
+     ✓ where 嵌套 33 层回 400，而不是让引擎递归到栈溢出变成 500  823ms
+     ✓ where 嵌套 32 层仍在上限之内，照常查询  801ms
+     ✓ 带了 Authorization 但形状不对时回 401，完全不带则放行（AC#2 的五条 curl 里四条不带）  818ms
+     ✓ __control/fault 注入的非 2xx 仍然带跨源头，才不会被浏览器误判成网络故障  803ms
+     ✓ __control/offline 掐断传输（而不是回 5xx），关掉后恢复  882ms
+     ✓ __control/clear 清空数据但保留表，reset 还能把种子灌回来  1630ms
+     ✓ 请求正在等 body 时 reset 换掉句柄，这条请求不能吃 500  1684ms
+     ✓ version 与 isTableExisted 按协议返回  812ms
+     ✓ id 里含字面 % 时按 404 处理，不塌成 500——路径段只解一次码  807ms
+     ✓ id 里含 / 时经编码后能定位到行——解码次数与客户端的编码次数对齐  844ms
+(node:43988) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-http-server| src/__tests__/change-feed.spec.ts (18 tests) 18077ms
+     ✓ GET changes 回 200 且是 SSE 流  1176ms
+     ✓ 端点带跨源头——EventSource 是跨源连接，没有它连不上  903ms
+     ✓ 有活着的订阅时 close() 照样返回，不挂死  840ms
+     ✓ 新建一条 recipe → 订阅者收到通知  869ms
+     ✓ 改一条 recipe → 订阅者收到通知  858ms
+     ✓ 删一条 recipe → 订阅者收到通知  880ms
+     ✓ 两个订阅者都收到同一条写入的通知  848ms
+     ✓ 通知里的实体名是**客户端**实体名，不是资源路径  849ms
+     ✓ 载荷里没有行数据——只有实体名  852ms
+     ✓ 写入方带 x-client-id 时原样回显，载荷仍然只有这两个字段  855ms
+     ✓ 读端点不广播  992ms
+     ✓ 写入失败不广播  980ms
+     ✓ 清空数据 → 订阅者收到通知  895ms
+     ✓ 重置为种子 → 订阅者收到通知  1678ms
+     ✓ reset 的种子不逐行广播——250 行只派发一条通知（D7）  1843ms
+     ✓ 两个订阅者都收到同一次清空的通知  866ms
+     ✓ 带 x-client-id 时原样回显——发起方据此抑制自己的回声  877ms
+     ✓ 不碰数据的控制端点不广播  1015ms
+(node:44059) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-http-server| src/__tests__/rxdb-store.spec.ts (3 tests) 2749ms
+     ✓ 仓储绑定共享的 Recipe 类，领域模块不再导出第二个实体类  1114ms
+     ✓ 生效策略是实例覆盖的纯本地 pglite，不是装饰器上的 QueryCache  827ms
+     ✓ 实例覆盖不改写共享类的原声明  807ms
+(node:44060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |dev-rxdb-http-server| src/__tests__/error-mapping.spec.ts (8 tests) 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-auto-resume-http-failure.spec.ts > RV-052：实际参考服务拒绝鉴权后的自动恢复状态 > 服务端 401 留下真实 SQLite 待推写，不能宣布本轮成功
+AssertionError: expected null to match object { status: 401 }
+
+- Expected:
+{
+  "status": 401,
+}
+
++ Received:
+null
+
+ ❯ run src/__tests__/review-auto-resume-http-failure.spec.ts:35:36
+     33|       expect(ctx.proxy.exchanges.some(row => row.status === 401)).toBe…
+     34|       expect(await countQueryCacheOutbox(ctx.rxdb)).toBe(1);
+     35|       expect.soft(state.lastError).toMatchObject({ status: 401 });
+       |                                    ^
+     36|       expect.soft(success).not.toHaveBeenCalled();
+     37|     } else {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-auto-resume-http-failure.spec.ts > RV-052：实际参考服务拒绝鉴权后的自动恢复状态 > 服务端 401 留下真实 SQLite 待推写，不能宣布本轮成功
+AssertionError: expected "reportSuccess" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st reportSuccess call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ run src/__tests__/review-auto-resume-http-failure.spec.ts:36:32
+     34|       expect(await countQueryCacheOutbox(ctx.rxdb)).toBe(1);
+     35|       expect.soft(state.lastError).toMatchObject({ status: 401 });
+     36|       expect.soft(success).not.toHaveBeenCalled();
+       |                                ^
+     37|     } else {
+     38|       expect(await countQueryCacheOutbox(ctx.rxdb)).toBe(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-outbox-repair-new-write.spec.ts > 评审复验：outbox 接受远端旧判决不能覆盖本轮之后的新离线写 > KEEP_REMOTE 修复响应迟到时，保留新离线写与原生 SQLite 的对应投影
+AssertionError: expected 'remote-winner' to be 'offline-B' // Object.is equality
+
+Expected: "offline-B"
+Received: "remote-winner"
+
+ ❯ src/__tests__/review-outbox-repair-new-write.spec.ts:60:26
+     58|         })
+     59|       );
+     60|       expect.soft(title).toBe('offline-B');
+       |                          ^
+     61|       expect.soft(presented?.title).toBe('offline-B');
+     62|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-outbox-repair-new-write.spec.ts > 评审复验：outbox 接受远端旧判决不能覆盖本轮之后的新离线写 > KEEP_REMOTE 修复响应迟到时，保留新离线写与原生 SQLite 的对应投影
+AssertionError: expected 'remote-winner' to be 'offline-B' // Object.is equality
+
+Expected: "offline-B"
+Received: "remote-winner"
+
+ ❯ src/__tests__/review-outbox-repair-new-write.spec.ts:61:37
+     59|       );
+     60|       expect.soft(title).toBe('offline-B');
+     61|       expect.soft(presented?.title).toBe('offline-B');
+       |                                     ^
+     62|     } finally {
+     63|       gate.release();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > update 后网络中断仍应保留确认的新 SQLite 值
+AssertionError: expected 'Pasta #000' to be 'confirmed-new' // Object.is equality
+
+Expected: "confirmed-new"
+Received: "Pasta #000"
+
+ ❯ offlineProbe src/__tests__/review-querycache-http-sqlite.spec.ts:100:20
+     98|       })
+     99|     );
+    100|     expect(actual).toBe(expected);
+       |                    ^
+    101|   } finally {
+    102|     gate.release();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-querycache-http-sqlite.spec.ts > RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > remove 后网络中断仍不能从旧响应复活 SQLite 行
+AssertionError: expected 'Pasta #000' to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+"Pasta #000"
+
+ ❯ offlineProbe src/__tests__/review-querycache-http-sqlite.spec.ts:100:20
+     98|       })
+     99|     );
+    100|     expect(actual).toBe(expected);
+       |                    ^
+    101|   } finally {
+    102|     gate.release();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 两个分页消费者共享失败回源后，下一分页不能命中成功记忆
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ vi.waitFor.timeout src/__tests__/review-swr-http-failure-memo.spec.ts:36:53
+     34|     const requestCount = () => ctx.proxy.exchanges.filter(row => row.p…
+     35|     try {
+     36|       await vi.waitFor(() => expect(requestCount()).toBe(denyAuth ? 2 …
+       |                                                     ^
+     37|     } finally {
+     38|       console.info(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  4 failed | 4 passed (8)
+      Tests  5 failed | 62 passed (67)
+   Start at  17:25:24
+   Duration  63.22s (transform 1.23s, setup 0ms, import 3.00s, tests 59.45s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-04/sync-http-sqlite/final-app-junit.xml
+Warning: command "vitest --run --coverage.enabled=false --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=../../requirements/reviews/evidence/2026-10-04/sync-http-sqlite/final-app-junit.xml" exited with non-zero status code
+
+
+ NX   Running target test for project dev-rxdb-http-server failed
+
+Failed tasks:
+
+- dev-rxdb-http-server:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1m 3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1m 3s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Speed up or split the longest tasks on the critical path:
+        dev-rxdb-http-server:test    1m 3s

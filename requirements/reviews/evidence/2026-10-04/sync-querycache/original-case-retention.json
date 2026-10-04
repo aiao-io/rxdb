@@ -1,0 +1,14 @@
+{
+  "rxdb-plugin-sync": {
+    "baselineCaseCount": 449,
+    "uniqueBaselineCases": 449,
+    "missingOrNotPassing": [],
+    "allOriginalCasesRetainedAndPassed": true
+  },
+  "rxdb-plugin-querycache": {
+    "baselineCaseCount": 197,
+    "uniqueBaselineCases": 197,
+    "missingOrNotPassing": [],
+    "allOriginalCasesRetainedAndPassed": true
+  }
+}

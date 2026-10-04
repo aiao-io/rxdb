@@ -1,0 +1,78 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run dev-rxdb-http-server:test --args=src/__tests__/review-swr-http-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-swr-http-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:41794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server
+
+(node:41800) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 两个分页消费者共享失败回源后，下一分页不能命中成功记忆
+REVIEW_HTTP_SQLITE {"scenario":"swr-2-401","metadataRequests":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":401,"body":"{\"error\":\"bad_request\",\"message\":\"Authorization header must look like 'Bearer <token>'\"}"}]}
+
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 对照：单消费者失败后下一分页重新回源
+REVIEW_HTTP_SQLITE {"scenario":"swr-1-401","metadataRequests":2,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":401,"body":"{\"error\":\"bad_request\",\"message\":\"Authorization header must look like 'Bearer <token>'\"}"},{"path":"/v1/recipes/metadata","method":"POST","status":200,"body":"[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"updatedAt\":\"2025-01-01T00:00:00.000Z\"}]"}]}
+
+stdout | src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 对照：共享回源成功时下一分页允许复用记忆
+REVIEW_HTTP_SQLITE {"scenario":"swr-2-success","metadataRequests":1,"exchanges":[{"path":"/v1/recipes/metadata","method":"POST","status":200,"body":"[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"updatedAt\":\"2025-01-01T00:00:00.000Z\"}]"}]}
+
+ ❯ |dev-rxdb-http-server| src/__tests__/review-swr-http-failure-memo.spec.ts (3 tests | 1 failed) 3973ms
+     × 两个分页消费者共享失败回源后，下一分页不能命中成功记忆 2045ms
+     ✓ 对照：单消费者失败后下一分页重新回源  975ms
+     ✓ 对照：共享回源成功时下一分页允许复用记忆  952ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |dev-rxdb-http-server| src/__tests__/review-swr-http-failure-memo.spec.ts > RV-054：实际 HTTP 401 的共享 SWR 结算 > 两个分页消费者共享失败回源后，下一分页不能命中成功记忆
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ vi.waitFor.timeout src/__tests__/review-swr-http-failure-memo.spec.ts:50:65
+     48|       })
+     49|     );
+     50|     if (denyAuth) await vi.waitFor(() => expect(requestCount()).toBe(2…
+       |                                                                 ^
+     51|     else expect(actual).toBe(1);
+     52|     expect(ctx.proxy.errors).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  17:22:12
+   Duration  5.58s (transform 1.20s, setup 0ms, import 1.52s, tests 3.97s, environment 0ms)
+
+Warning: command "vitest src/__tests__/review-swr-http-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project dev-rxdb-http-server failed
+
+Failed tasks:
+
+- dev-rxdb-http-server:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      5.9s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     5.8s (1 task)
+  Recoverable time:  <1ms

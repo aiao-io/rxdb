@@ -46,3 +46,9 @@ Vue：共享 CodeMirror 文档/语言契约的框架组件。
 - [ ] C5 Vue 类型与 SFC 消费：核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：编辑器与预览第七批
+
+C1/C2/C3/C4 已追踪真实 mounted/watch/expose 与 request/view 代次。确认 [RV-056](../../RV-056-editor-sync-language-error-escapes.md)：同步异常不仅漏 language-error，还中断后续 readonly/disabled 初始化，createApp 的真实编辑区为 readOnly=false/contenteditable=true。最终 **67 passed /1 failed**，原 66 条全部保留通过。真实 CodeMirror 测量不使用原模拟 view spec 替代；浏览器输入/IME/独立 SFC 消费未全量完成。
+
+[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。

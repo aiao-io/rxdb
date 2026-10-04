@@ -1,5 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { rxDBPluginTree, type ITreeRepository, type FindTreeOptions } from '@aiao/rxdb-plugin-tree';
+import { rxDBPluginTree, type FindTreeOptions, type ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import { MenuSimple } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -30,7 +30,9 @@ beforeAll(async () => {
   tree = adapter.getRepository<typeof MenuSimple, ITreeRepository<typeof MenuSimple>>(MenuSimple);
 });
 
-afterAll(async () => { await db?.destroy(); });
+afterAll(async () => {
+  await db?.destroy();
+});
 
 const filtered = (entityId: MenuSimple['id']): FindTreeOptions<typeof MenuSimple> => ({
   entityId,

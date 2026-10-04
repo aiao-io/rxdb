@@ -1,0 +1,18 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "typecheck",
+    "--projects=rxdb-adapter-sqlite,rxdb-adapter-pglite,rxdb-devtools,rxdb-devtools-extension",
+    "--parallel=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T10:23:55.458344+08:00",
+  "exitCode": 1,
+  "log": "fixed-probes-typecheck.txt",
+  "startedAt": "2026-10-04T10:23:50.039883+08:00"
+}

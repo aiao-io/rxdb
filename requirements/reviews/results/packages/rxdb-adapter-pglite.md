@@ -103,3 +103,9 @@ execution: partial
 failure / memory / concurrency / roundtrip 四个 spec **50 passed**：[日志](../../evidence/2026-10-04/pglite-backup-boundaries.txt)。真实 PGlite / Chromium 的 memory + IndexedDB 路径，包含同目标两个恢复者、stage 期间拒绝连接、非空/忙/不兼容/损坏/取消、失败后清理与显式重试。不是所有 Worker/目录/桌面/强杀场景，也没有用这些绿色结果覆盖既有 RV-027/029/034。
 
 C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不给全对象通过评级。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+🔴 树普通字段筛选确认 [RV-045](../../RV-045-pglite-tree-scalar-filter-ambiguous-column.md)。PGlite alias 只处理 children.field，标准 title 条件在递归 self join 里未限定，四方法真实 SQL 报 42702。新增 **4 failed /2 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-scalar-filter-pglite.txt)，无筛选的两个对照正常。
+
+最初尝试订阅增量时初次快照已失败，日志有未处理 SQL error；它不是 RV-046 的 PGlite 漂移证据。后续改成直接 await repository 的六个明确断言，保留源探针快照和初次日志，不隐藏收集/前置错误。业务实现未修，已有 query/array/backup/commit 记录不覆盖这个新问题。

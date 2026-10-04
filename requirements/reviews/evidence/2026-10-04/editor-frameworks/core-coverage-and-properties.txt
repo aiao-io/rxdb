@@ -1,0 +1,70 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run code-editor:test --run --coverage.enabled=true --maxWorkers=1
+
+> vitest --run --coverage.enabled=true --maxWorkers=1
+
+(node:9916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/code-editor
+      Coverage enabled with v8
+
+(node:9922) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/index.spec.ts (55 tests) 69ms
+(node:9923) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/document-sync.spec.ts (15 tests) 3ms
+(node:9924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/language-resolution.spec.ts (11 tests) 3ms
+(node:9925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/review-document-change-properties.spec.ts (8 tests) 21ms
+(node:9926) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/accessibility.spec.ts (12 tests) 3ms
+(node:9927) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |code-editor| src/__tests__/language-error.spec.ts (6 tests) 3ms
+
+ Test Files  6 passed (6)
+      Tests  107 passed (107)
+   Start at  19:03:36
+   Duration  831ms (transform 50ms, setup 0ms, import 148ms, tests 102ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/code-editor/junit.xml
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+[32;1mAll files         [0m | [32;1m  99.13[0m | [32;1m   97.95[0m | [32;1m    100[0m | [32;1m    100[0m | [33;1m                 [0m 
+[32;1m languages.ts     [0m | [32;1m  98.59[0m | [32;1m    92.3[0m | [32;1m    100[0m | [32;1m    100[0m | [33;1m61               [0m 
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+[32;1mStatements   : 99.13% ( 114/115 )[0m
+[32;1mBranches     : 97.95% ( 48/49 )[0m
+[32;1mFunctions    : 100% ( 43/43 )[0m
+[32;1mLines        : 100% ( 85/85 )[0m
+================================================================================
+
+
+
+ NX   Successfully ran target test for project code-editor
+
+
+  Run duration:      1.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.3s (1 task)
+  Recoverable time:  <1ms

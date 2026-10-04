@@ -53,3 +53,9 @@ execution: partial
 - [真实 DevTools 16 passed](../../evidence/2026-10-03/full-run/miniprogram-e2e.txt)。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
+
+## 2026-10-04：生成器、图与小程序第四批深审
+
+新增 [review-page-bootstrap-lifecycle.spec.ts](../../../../apps/dev-rxdb-miniprogram-e2e/src/review-page-bootstrap-lifecycle.spec.ts) 使用 Playwright Node runner，不使用微信 fixture或浏览器：读取实际页面源、TypeScript CommonJS/JSX 转译、执行原 useLoad/useUnload 回调，在模块/hooks/demo 接缝控制 open 完成顺序。**1 failed /1 正常 ready→unload 对照 passed**，统一 [RV-051](../../RV-051-miniprogram-late-bootstrap-after-unload.md)。
+
+源码 start 未复制到测试中，未知 require 直接拒绝；测试结果只主张当前回调释放遗漏，不声称框架调度/开发者工具/真机已验证。原 e2e 与这两种测量面不能混算；历史 DevTools 16 passed 保留为历史。补真实快速 reLaunch/unload 窗口仍待执行。

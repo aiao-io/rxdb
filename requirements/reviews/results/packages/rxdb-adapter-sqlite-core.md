@@ -94,3 +94,15 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 四文件复验 **117 passed / 21 skipped**：[日志](../../evidence/2026-10-04/sqlite-backup-boundaries.txt)。运行面是 Chromium 的官方 SQLite-WASM oo1；“持久化”harness 用 memdb VFS 在同一 WASM 页面内保活，不是磁盘/OPFS 崩溃持久化证明。
 
 21 skip 按实际 harness 能力：强杀 worker、跨进程、WAL 及不适用的 engine/unsupported 档位等，不能折算为通过。真实磁盘强杀、所有下游 adapter/加密/全恢复矩阵仍待补证，C6 仅部分核销；既有查询红测试未解除。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+树查询联审读取 generate_tree_sql 的 metadata property/FK alias、where 在递归项的位置与 level 条件。普通 scalar alias 已限定 children，PGlite 的歧义不重复记成 sqlite-core 错误；SQL 遍历与插件 JS 增量不一致统一 [RV-046](../../RV-046-tree-filtered-ancestor-incremental-drift.md)。
+
+真实 SQLite 后端结果/公开 query task 对照 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。不能仅看共享 mock 断言或不传 where 的成功。本轮没有把递归保护常量删掉，也没有复验深度>1000/环形图全部行为，C3/C4 完整语义继续核查。
+
+## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
+
+C2 **部分执行**。原 upsertMany 的事务、触发器抑制、实体刷新和缓存事件真实运行，A/B 两条实际待推日志与裸缓存修复区分；旧修复提交覆盖 B 是 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，旧 query 在 origin-down 下覆盖确认写是 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)。串行 SQL 队列不等于跨网络窗口的实体意图保护。完整回滚/系统迁移/所有子后端矩阵没有核销。
+
+[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。

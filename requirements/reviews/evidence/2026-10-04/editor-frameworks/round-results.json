@@ -1,0 +1,339 @@
+{
+  "date": "2026-10-04",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "tasks": [
+    {
+      "id": "core-coverage-and-properties",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "code-editor:test",
+        "--run",
+        "--coverage.enabled=true",
+        "--maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "final-four-package-tests",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=code-editor,code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--coverage.enabled=false",
+        "--maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "final-preview-probes",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--args=review-preview-text-epoch --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "final-seven-lint",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=code-editor,code-editor-angular,code-editor-react,code-editor-vue,dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--max-warnings=0",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "final-seven-typecheck",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "typecheck",
+        "--projects=code-editor,code-editor-angular,code-editor-react,code-editor-vue,dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "four-packages-baseline",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=code-editor,code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--coverage.enabled=false",
+        "--maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "language-sync-throw-probes",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--args=src/__tests__/review-language-sync-throw.spec.* --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "preview-dependency-build",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "build",
+        "--projects=code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "preview-epoch-corrected-filter",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--args=review-preview-text-epoch --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "preview-epoch-probes",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--args=src/**/review-preview-text-epoch.spec.* --run --coverage.enabled=false --maxWorkers=1",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "seven-object-lint",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=code-editor,code-editor-angular,code-editor-react,code-editor-vue,dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue",
+        "--parallel=1",
+        "--max-warnings=0",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 0,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    },
+    {
+      "id": "vue-runtime-language-probe",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "code-editor-vue:test",
+        "--args=src/__tests__/review-language-sync-throw.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+        "--excludeTaskDependencies",
+        "--outputStyle=static",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "exitCode": 1,
+      "environment": {
+        "CI": "true",
+        "CODECOV_TOKEN": "",
+        "NX_DAEMON": "false"
+      }
+    }
+  ],
+  "findings": [
+    "RV-056",
+    "RV-057"
+  ],
+  "finalPackages": {
+    "code-editor": {
+      "tests": 107,
+      "failed": 0,
+      "passed": 107,
+      "skipped": [],
+      "failures": []
+    },
+    "code-editor-angular": {
+      "tests": 76,
+      "failed": 1,
+      "passed": 75,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-language-sync-throw.spec.ts",
+          "name": "评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 > 同步 loader 异常不能逃出 Angular 初始化",
+          "time": "0.036204584"
+        }
+      ]
+    },
+    "code-editor-react": {
+      "tests": 34,
+      "failed": 1,
+      "passed": 33,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-language-sync-throw.spec.tsx",
+          "name": "评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 > 同步 loader 异常不能让 React 编辑器卸载",
+          "time": "0.028011"
+        }
+      ]
+    },
+    "code-editor-vue": {
+      "tests": 68,
+      "failed": 1,
+      "passed": 67,
+      "skipped": [],
+      "failures": [
+        {
+          "classname": "src/__tests__/review-language-sync-throw.spec.ts",
+          "name": "评审复验：同步语言异常不能中断只读/禁用配置 > 同步 loader 异常须上报且保持 Vue 只读/禁用状态",
+          "time": "0.034994458"
+        }
+      ]
+    }
+  },
+  "previewCases": {
+    "angular": {
+      "failed": 1,
+      "passed": 1
+    },
+    "vue": {
+      "failed": 1,
+      "passed": 1
+    },
+    "react": {
+      "failed": 0,
+      "passed": 2
+    }
+  },
+  "wholeObjectsComplete": 0,
+  "newFullyClosedChecks": 0
+}

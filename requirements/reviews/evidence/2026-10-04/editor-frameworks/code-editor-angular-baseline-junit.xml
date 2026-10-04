@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="74" failures="0" errors="0" time="0.288973334">
+    <testsuite name="src/__tests__/code-editor.spec.ts" timestamp="2026-10-04T10:34:39.175Z" hostname="liuleideMacBook-Pro-4.local" tests="72" failures="0" errors="0" skipped="0" time="0.288580625">
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部同步保留光标位置" time="0.033417167">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部同步保留范围选区" time="0.005885583">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部同步不得进入 undo 历史" time="0.004608375">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 用户自己的编辑仍然进入 undo 历史" time="0.004291041">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部同步只改写变化区间" time="0.004711791">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 保留初始化前由 CVA 写入的值" time="0.004199041">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 把初始化前的 null CVA 值规整为空字符串" time="0.00382025">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部 value 更新不触发变更回调或事件" time="0.006103791">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 外部值与当前文档相同时不 dispatch" time="0.004078167">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 值同步 &gt; 用户变更只广播一次" time="0.004097708">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 只在 blur 时标记 touched" time="0.003085708">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 把裸 disabled 属性转换为不可编辑状态" time="0.002720458">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 把裸 readonly 属性转换为不可编辑状态" time="0.002343959">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 把裸 autoFocus 属性转换为自动聚焦" time="0.003401834">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; autoFocus 场景仍然广播首个 aoFocus" time="0.003112125">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 把 label / labelledBy / describedBy 写到真正承担 textbox role 的元素上" time="0.002430083">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 清空 label 时移除属性，而不是留一个空的 aria-label" time="0.002439959">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; disabled 输入 生效时把 disabled 语义告诉辅助技术，而不是只报 readonly" time="0.002547459">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; CVA setDisabledState 生效时把 disabled 语义告诉辅助技术，而不是只报 readonly" time="0.002950083">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; disabled 时跳过 autoFocus，键盘焦点不落进不可编辑的编辑器" time="0.002717166">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; readonly 时跳过 autoFocus，键盘焦点不落进不可编辑的编辑器" time="0.002302291">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 表单状态与焦点 &gt; 保留初始化前由 CVA 设置的 disabled 状态" time="0.002916333">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 只允许最后一次语言请求生效" time="0.002749458">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 切换到 plaintext 时清除语言并使旧请求失效" time="0.002458375">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 清空 languages 时清除语言并使旧请求失效" time="0.004284792">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 同一轮 language 与 languages 更新只加载一次" time="0.002486458">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 等价的新 languages 数组不重复加载当前语言" time="0.002278333">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; languages 换掉未选中的项时也不重复加载当前语言" time="0.002168417">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; languages 换掉当前选中的项时必须重新加载" time="0.002527584">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 异步语言加载 &gt; 销毁后语言请求完成也不 dispatch" time="0.002327958">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 语法高亮 &gt; @codemirror/view 全局只有一份实例" time="0.000206334">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 语法高亮 &gt; 渲染 SQL 关键字的高亮 token" time="0.054683917">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 语法高亮 &gt; plaintext 不产生任何高亮 token" time="0.004233542">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setup 与输入重配置 &gt; 切换 setup 时保留其他配置并实际应用新 setup" time="0.00544025">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setup 与输入重配置 &gt; 动态更新并清除可重配置输入" time="0.004952917">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setup 与输入重配置 &gt; 把显式 root 传给 EditorView" time="0.00359025">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 三端对称：默认值与错误信息 &gt; language 默认值与 React/Vue 一样是 sql" time="0.002973417">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 三端对称：默认值与错误信息 &gt; indentUnit 默认值与 React/Vue 一样是两个空格" time="0.002815167">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 三端对称：默认值与错误信息 &gt; 语言缺失与加载失败的日志与 React/Vue 逐字一致" time="0.005297208">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 命令式 handle（三端对称） &gt; 暴露 view / host / focus / blur" time="0.003127917">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 命令式 handle（三端对称） &gt; 销毁后 view 与 host 都是 null，与 React / Vue 一致" time="0.002421459">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 命令式 handle（三端对称） &gt; 未初始化时 focus / blur 是安全的空操作" time="0.001387208">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 样式、文档与公共类型 &gt; peer 声明的核心包下界不低于工作区版本" time="0.000486792">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 样式、文档与公共类型 &gt; 不覆盖 lineWrapping 并保留可见焦点环" time="0.000208333">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 样式、文档与公共类型 &gt; README 使用实际 standalone API 与 selector" time="0.001404042">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 样式、文档与公共类型 &gt; 导出稳定的 setup 与 theme 公共类型" time="0.000239709">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 公开成员边界 &gt; 不把表单回调与内部 signal 暴露为公开成员" time="0.002789292">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 公开成员边界 &gt; registerOnChange 注入的回调仍然生效" time="0.002772958">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; 公开成员边界 &gt; setDisabledState 仍然同步到编辑器" time="0.00255475">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; disabled 的两条来源 &gt; 表单 enable 不得推翻 disabled 输入" time="0.002983542">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; disabled 的两条来源 &gt; disabled 输入回落 false 不得丢掉表单侧的禁用" time="0.003073791">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; disabled 的两条来源 &gt; 两条来源都放开后才恢复可编辑" time="0.002625458">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; disabled 的两条来源 &gt; 禁用状态在一次事务内落地，插件观察不到中间态" time="0.002324917">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化后收到 &apos;number&apos; 抛 TypeError" time="0.002398125">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化后收到 &apos;object&apos; 抛 TypeError" time="0.002332125">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化后收到 &apos;array&apos; 抛 TypeError" time="0.002151708">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化后收到 &apos;boolean&apos; 抛 TypeError" time="0.00225025">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化前收到 &apos;number&apos; 抛同一个 TypeError" time="0.002946916">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化前收到 &apos;object&apos; 抛同一个 TypeError" time="0.001060583">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化前收到 &apos;array&apos; 抛同一个 TypeError" time="0.001090666">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 初始化前收到 &apos;boolean&apos; 抛同一个 TypeError" time="0.000776416">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; 错误信息指明包名，宿主能定位到是哪个控件" time="0.002447084">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; &apos;null&apos; 仍然规整成空串（既有契约）" time="0.002282375">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; writeValue 的类型校验 &gt; &apos;undefined&apos; 仍然规整成空串（既有契约）" time="0.002828">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setExtensions 只替换消费者扩展 &gt; 保留 setup、主题、只读、语言与变更回调" time="0.00349225">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setExtensions 只替换消费者扩展 &gt; 再次调用替换掉上一批消费者扩展" time="0.001765458">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; setExtensions 只替换消费者扩展 &gt; setup 变化不清掉消费者扩展" time="0.002645">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; aoLanguageError 结构化错误通道 &gt; 语言查不到时发出 not-found 载荷" time="0.0025205">
+            <system-err>
+[CodeEditor] Language &apos;nope&apos; not found.
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; aoLanguageError 结构化错误通道 &gt; load() rejected 时发出 load-failed 载荷并原样透传 cause" time="0.005516667">
+            <system-err>
+[CodeEditor] Failed to load language &apos;broken&apos;: Error: offline
+    at /Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/code-editor.spec.ts:968:23
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (&lt;anonymous&gt;)
+    at runWithCancel (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (&lt;anonymous&gt;)
+    at runWithTimeout (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; aoLanguageError 结构化错误通道 &gt; plaintext 与加载成功都不发事件" time="0.002325833">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; aoLanguageError 结构化错误通道 &gt; 过期请求的失败不发事件，只有最后一次请求能报告" time="0.002140209">
+        </testcase>
+        <testcase classname="src/__tests__/code-editor.spec.ts" name="CodeEditor &gt; aoLanguageError 结构化错误通道 &gt; 销毁后到达的失败不发事件" time="0.002017125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/index.spec.ts" timestamp="2026-10-04T10:34:39.179Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.000392709">
+        <testcase classname="src/__tests__/index.spec.ts" name="exports the component and stable public option types" time="0.00022275">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="does not leak the internal External annotation" time="0.000089666">
+        </testcase>
+    </testsuite>
+</testsuites>

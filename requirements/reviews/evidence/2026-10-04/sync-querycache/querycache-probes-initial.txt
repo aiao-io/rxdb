@@ -1,0 +1,125 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-querycache:test --args=src/__tests__/review-inflight-write-regression.spec.ts src/__tests__/review-swr-dedup-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-inflight-write-regression.spec.ts src/__tests__/review-swr-dedup-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:89696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-querycache
+
+ ❯ |rxdb-plugin-querycache (chromium)| src/__tests__/review-swr-dedup-failure-memo.spec.ts (3 tests | 3 failed) 18ms
+     × 两个不同分页查询共用一次失败回源，随后查询必须重新校验远端 14ms
+     × 对照：单个 SWR 查询回源失败后，不留下已校验记忆 2ms
+     × 对照：共享回源成功后，窗口内后续分页查询可以复用已校验记忆 1ms
+ ❯ |rxdb-plugin-querycache (chromium)| src/__tests__/review-inflight-write-regression.spec.ts (3 tests | 3 failed) 5ms
+     × 远端与本地 update 已确认后，迟到的旧 pull 不应覆盖新投影 3ms
+     × 远端与本地 remove 已确认后，迟到的旧 pull 不应复活已删行 1ms
+     × 对照：先让 pull 完成，再 update，不会回滚已确认新投影 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-inflight-write-regression.spec.ts > 评审复验：旧响应不能回滚已经确认的 QueryCache 写 > 远端与本地 update 已确认后，迟到的旧 pull 不应覆盖新投影
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-inflight-write-regression.spec.ts:24:6
+     22|       gate.release();
+     23|       await reading;
+     24|       await ctx.rxdb.destroy();
+       |      ^
+     25|     }
+     26|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-inflight-write-regression.spec.ts > 评审复验：旧响应不能回滚已经确认的 QueryCache 写 > 远端与本地 remove 已确认后，迟到的旧 pull 不应复活已删行
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-inflight-write-regression.spec.ts:44:6
+     42|       gate.release();
+     43|       await reading;
+     44|       await ctx.rxdb.destroy();
+       |      ^
+     45|     }
+     46|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-inflight-write-regression.spec.ts > 评审复验：旧响应不能回滚已经确认的 QueryCache 写 > 对照：先让 pull 完成，再 update，不会回滚已确认新投影
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-inflight-write-regression.spec.ts:60:6
+     58|       expect(ctx.localRows.get('a')?.title).toBe(NEW_ROW.title);
+     59|     } finally {
+     60|       await ctx.rxdb.destroy();
+       |      ^
+     61|     }
+     62|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-swr-dedup-failure-memo.spec.ts > 评审复验：SWR 去重不能把失败同步记成已校验 > 两个不同分页查询共用一次失败回源，随后查询必须重新校验远端
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-swr-dedup-failure-memo.spec.ts:27:6
+     25|     } finally {
+     26|       reply.complete();
+     27|       await ctx.rxdb.destroy();
+       |      ^
+     28|     }
+     29|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-swr-dedup-failure-memo.spec.ts > 评审复验：SWR 去重不能把失败同步记成已校验 > 对照：单个 SWR 查询回源失败后，不留下已校验记忆
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-swr-dedup-failure-memo.spec.ts:44:6
+     42|     } finally {
+     43|       reply.complete();
+     44|       await ctx.rxdb.destroy();
+       |      ^
+     45|     }
+     46|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  |rxdb-plugin-querycache (chromium)| src/__tests__/review-swr-dedup-failure-memo.spec.ts > 评审复验：SWR 去重不能把失败同步记成已校验 > 对照：共享回源成功后，窗口内后续分页查询可以复用已校验记忆
+TypeError: e.disconnect is not a function
+ ❯ src/__tests__/review-swr-dedup-failure-memo.spec.ts:61:6
+     59|     } finally {
+     60|       reply.complete();
+     61|       await ctx.rxdb.destroy();
+       |      ^
+     62|     }
+     63|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  6 failed (6)
+   Start at  16:06:43
+   Duration  1.45s (transform 0ms, setup 0ms, import 375ms, tests 23ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-querycache/junit.xml
+Warning: command "vitest src/__tests__/review-inflight-write-regression.spec.ts src/__tests__/review-swr-dedup-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-querycache failed
+
+Failed tasks:
+
+- rxdb-plugin-querycache:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.9s (1 task)
+  Recoverable time:  <1ms

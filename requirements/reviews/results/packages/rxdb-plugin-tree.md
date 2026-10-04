@@ -52,3 +52,11 @@ execution: partial
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
 
 四指标合并后已通过 80% 门禁，见 [合并门禁](../../evidence/2026-10-03/full-run/merged-coverage-gate.txt)；不代表全部 C 项完成。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+🔴 C2 确认 [RV-046](../../RV-046-tree-filtered-ancestor-incremental-drift.md)：where 截断了 SQL 遍历的中间祖先，JS merge 更新却把未知祖先当成可达，叶子只出现在增量中。真实 SQLite/RxDB 实体 save＋observable 与同库 SQL 比较 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
+
+Node 默认 target 只跑生成器，**4 passed**；实际浏览器 target **17 files /250 passed**：[运行时日志](../../evidence/2026-10-04/tree-devtools/tree-browser-baseline.txt)。这些既有 runtime 多为模型/合并接缝，不能替代真实 SQL 对照；新漂移不被 250 个绿掩盖。PGlite 初始查询又被 RV-045 阻断，未把该增量场景冒充两端均复现。
+
+人工检查 entity/TreeRepository/TreeHelper/merge_update、where/level 的规范化和递归 SQL。CTE 现有 1000 层保护不是无限递归，未把未测循环/深树风险直接报告成缺陷。C1 完整合法树/移动/失败原子性、其余 C2 组合与三框架仍待逐项核查；全对象不完成。

@@ -45,3 +45,9 @@ React：共享 CodeMirror 文档/语言契约的框架组件。
 - [ ] C5 React 类型与 render 边界：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：编辑器与预览第七批
+
+C1/C2/C3/C4 已追踪真实 EditorView/ref 所有权、StrictMode 视图 identity、callback refs、语言列表比较、effect compartments 和外部同步。确认 [RV-056](../../RV-056-editor-sync-language-error-escapes.md)：同步异常使 editor 卸载且不进 onLanguageError；rejection 对照维持 view。最终 **33 passed /1 failed**，原 32 条全部保留通过。未把默认语言/全部用户配置称为失败；浏览器 IME/真实输入及发布消费仍待完成。
+
+[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。

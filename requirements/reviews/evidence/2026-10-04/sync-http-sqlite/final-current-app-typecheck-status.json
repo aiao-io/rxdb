@@ -1,0 +1,18 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-http-server:typecheck",
+    "--excludeTaskDependencies",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

@@ -16,6 +16,21 @@
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-http/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-electron/tsconfig.lib.json"
     }
   ]
 }

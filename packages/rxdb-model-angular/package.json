@@ -37,11 +37,11 @@
     "@aiao/rxdb-angular": "*",
     "@aiao/rxdb-model": "*",
     "@aiao/rxdb-plugin-history": "*",
-    "@angular/cdk": "22.1.6",
-    "@angular/common": "22.1.6",
-    "@angular/core": "22.1.6",
-    "@angular/forms": "22.1.6",
-    "@angular/platform-browser": "22.1.6",
+    "@angular/cdk": "^22.1.6",
+    "@angular/common": "^22.1.6",
+    "@angular/core": "^22.1.6",
+    "@angular/forms": "^22.1.6",
+    "@angular/platform-browser": "^22.1.6",
     "@lucide/angular": "^1.47.0",
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2"
@@ -52,7 +52,7 @@
     "@aiao/rxdb-model": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "@angular/compiler": "22.1.6",
+    "@angular/compiler": "22.2.1",
     "vitest": "4.1.11"
   },
   "publishConfig": {

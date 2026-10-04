@@ -59,3 +59,13 @@ execution: partial
 该配置实际读取 built testing 子路径。新源码第一次未重建时未收集 probe；已 [登记该绿结果的限制](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-status.json)，重建后失败栈落到新产物断言。证明“无 Nx 缓存”仍不自动证明输入产物足够新。
 
 这是 Chromium / 当前 WASM 路径，不外推其它 VFS、平台或全部适配器行为；完整专项继续待核销。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+🔴 树 where 拓扑与增量的真实跨层对照确认 [RV-046](../../RV-046-tree-filtered-ancestor-incremental-drift.md)。本后端的标量字段 alias 正常，实际 SQL 按 where 截断 hidden-parent；公开 query task 却将叶子错误增入。官方 SQLite-WASM / Chromium，实际 ORM save 与原生树查询 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
+
+新增 spec 直接用 tree workspace 包。首次 0 tests 为该 consumer 未声明直接 devDependency，已按 link-workspace-packages 用 pnpm --save-dev/workspace:* 正式链接，没有补假 tsconfig paths：[链接日志](../../evidence/2026-10-04/tree-devtools/sqlite-test-dependency-link.txt) / [lock 语义范围](../../evidence/2026-10-04/tree-devtools/dependency-link-scope.json)。pnpm 顺便重算 website 两个 Docusaurus 的 debug peer key；版本 key 集合未新增/删除，不能谎称 lock 文本只改一条。未运行 approve-builds 或其它 lifecycle。
+
+该测试的类型导入初次写错类文件/导出名已修正测试本身，未把这类取证错误算产品缺陷。其它 C 项和所有宿主未完成。
+
+这次树查询是额外跨包联审，不据此核销本包 C3 的全部类型/事务最低场景。

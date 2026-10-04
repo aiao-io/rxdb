@@ -1,0 +1,48 @@
+{
+  "tests": 67,
+  "passed": 62,
+  "failed": 5,
+  "skipped": [],
+  "failures": [
+    {
+      "classname": "src/__tests__/review-auto-resume-http-failure.spec.ts",
+      "name": "RV-052：实际参考服务拒绝鉴权后的自动恢复状态 > 服务端 401 留下真实 SQLite 待推写，不能宣布本轮成功",
+      "time": "1.282406"
+    },
+    {
+      "classname": "src/__tests__/review-outbox-repair-new-write.spec.ts",
+      "name": "评审复验：outbox 接受远端旧判决不能覆盖本轮之后的新离线写 > KEEP_REMOTE 修复响应迟到时，保留新离线写与原生 SQLite 的对应投影",
+      "time": "1.299077542"
+    },
+    {
+      "classname": "src/__tests__/review-querycache-http-sqlite.spec.ts",
+      "name": "RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > update 后网络中断仍应保留确认的新 SQLite 值",
+      "time": "0.917919334"
+    },
+    {
+      "classname": "src/__tests__/review-querycache-http-sqlite.spec.ts",
+      "name": "RV-053 补证：写确认后 origin 停止，旧响应仍在代理缓冲区 > remove 后网络中断仍不能从旧响应复活 SQLite 行",
+      "time": "0.887554"
+    },
+    {
+      "classname": "src/__tests__/review-swr-http-failure-memo.spec.ts",
+      "name": "RV-054：实际 HTTP 401 的共享 SWR 结算 > 两个分页消费者共享失败回源后，下一分页不能命中成功记忆",
+      "time": "1.754891875"
+    }
+  ],
+  "originalTests": {
+    "passed": 55,
+    "allPassed": true,
+    "classes": [
+      "src/__tests__/change-feed.spec.ts",
+      "src/__tests__/error-mapping.spec.ts",
+      "src/__tests__/rxdb-store.spec.ts",
+      "src/__tests__/server.spec.ts"
+    ]
+  },
+  "newProbes": {
+    "tests": 12,
+    "failed": 5,
+    "passed": 7
+  }
+}

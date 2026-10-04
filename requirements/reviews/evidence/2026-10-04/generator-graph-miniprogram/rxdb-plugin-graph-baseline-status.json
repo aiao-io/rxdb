@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-graph:test",
+    "--args=--run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T13:58:30.258307+08:00",
+  "exitCode": 0,
+  "log": "rxdb-plugin-graph-baseline.txt",
+  "startedAt": "2026-10-04T13:58:16.492404+08:00"
+}

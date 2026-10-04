@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-04T13:49:28.333148+08:00",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "plans": 70,
+  "packageResults": 51,
+  "appResults": 19,
+  "criteriaTotal": 385,
+  "closedTopicCount": 2,
+  "localLinksChecked": 4026,
+  "brokenLinks": [],
+  "ignoredReviewLinkTargets": [],
+  "sourceHashesChecked": 17,
+  "sourceHashMismatches": [],
+  "evidenceTextFiles": 23,
+  "newConfirmedReports": [
+    "RV-045",
+    "RV-046",
+    "RV-047",
+    "RV-048"
+  ],
+  "businessEditsByReviewAgent": false,
+  "dependencyEditByReviewAgent": "SQLite test devDependency linked through pnpm; peer-key normalization disclosed",
+  "unrelatedUserDependencyEditsPreserved": true,
+  "gitIndexModifiedByReviewAgent": false,
+  "formatCheck": {
+    "exitCode": 0,
+    "explicitFileCount": 47,
+    "log": "final-format-check.txt"
+  },
+  "reviewScopedDiffCheckExitCode": 0
+}

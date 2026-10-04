@@ -1,0 +1,154 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target typecheck for 2 projects and 8 tasks they depend on:
+
+- rxdb-plugin-sync
+- rxdb-plugin-querycache
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run utils:build
+
+> vite build
+
+(node:96375) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.2 building client environment for production...
+transforming...
+[32m✓[0m 157 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1107ms.
+
+computing gzip size...
+[2mdist/[0m[36mindex.js  [0m[1;2m65.62 kB[0m[2m │ gzip: 21.00 kB[0m
+
+✓ built in 1.15s
+
+> nx run utils:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb:build
+
+> vite build
+
+(node:96391) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.2 building client environment for production...
+transforming...
+[32m✓[0m 318 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1809ms.
+
+computing gzip size...
+[2mdist/[0m[36mtesting.js                [0m[1;2m  2.75 kB[0m[2m │ gzip:  1.24 kB[0m
+[2mdist/[0m[36mQueryManager-O-R9OQqP.js  [0m[1;2m 41.67 kB[0m[2m │ gzip: 11.45 kB[0m
+[2mdist/[0m[36mindex.js                  [0m[1;2m188.03 kB[0m[2m │ gzip: 54.16 kB[0m
+
+✓ built in 1.86s
+
+> nx run rxdb:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-history:build
+
+> vite build
+
+(node:96407) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.2 building client environment for production...
+transforming...
+[32m✓[0m 23 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1282ms.
+
+computing gzip size...
+[2mdist/[0m[36mindex.js  [0m[1;2m43.82 kB[0m[2m │ gzip: 11.81 kB[0m
+
+✓ built in 1.31s
+
+> nx run rxdb-plugin-history:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-sync:build
+
+> vite build
+
+(node:96455) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.2 building client environment for production...
+transforming...
+[32m✓[0m 220 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1125ms.
+
+computing gzip size...
+[2mdist/[0m[36mindex.js  [0m[1;2m94.07 kB[0m[2m │ gzip: 24.42 kB[0m
+
+✓ built in 1.16s
+
+> nx run rxdb-plugin-querycache:build
+
+> vite build
+
+(node:96465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.2 building client environment for production...
+transforming...
+[32m✓[0m 198 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 854ms.
+
+computing gzip size...
+[2mdist/[0m[36mindex.js  [0m[1;2m39.21 kB[0m[2m │ gzip: 10.34 kB[0m
+
+✓ built in 874ms
+
+> nx run rxdb-plugin-sync:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-querycache:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+
+
+ NX   Successfully ran target typecheck for 2 projects and 8 tasks they depend on
+
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-plugin-sync:typecheck
+
+  Run duration:      17.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     10.2s (5 tasks)
+  Recoverable time:  7.1s (41% of the run)

@@ -1,0 +1,84 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 7 projects:
+
+- code-editor
+- code-editor-angular
+- code-editor-react
+- code-editor-vue
+- dev-rxdb-angular
+- dev-rxdb-react
+- dev-rxdb-vue
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run code-editor:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:11440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run code-editor-react:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:11447) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run code-editor-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0 --max-warnings=0
+
+(node:11453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run code-editor-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:11459) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run dev-rxdb-react:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+(node:11465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run dev-rxdb-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0 --max-warnings=0
+
+(node:11471) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run dev-rxdb-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0 --max-warnings=0
+
+(node:11494) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran target lint for 7 projects
+
+
+  Run duration:      14.4s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     5.3s (1 task)
+  Recoverable time:  9.1s (63% of the run)

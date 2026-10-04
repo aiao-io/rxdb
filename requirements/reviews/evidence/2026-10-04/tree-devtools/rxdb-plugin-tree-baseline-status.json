@@ -9,8 +9,8 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 0,
-  "startedAt": "2026-10-04T09:09:36.263337+08:00",
   "completedAt": "2026-10-04T09:09:40.841057+08:00",
-  "log": "rxdb-plugin-tree-baseline.txt"
+  "exitCode": 0,
+  "log": "rxdb-plugin-tree-baseline.txt",
+  "startedAt": "2026-10-04T09:09:36.263337+08:00"
 }

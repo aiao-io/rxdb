@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-client-generator:test",
+    "--args=src/__tests__/cli/review-new-output-alias-queue.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T14:35:53.344428+08:00",
+  "exitCode": 1,
+  "log": "generator-alias-queue-repaired.txt",
+  "startedAt": "2026-10-04T14:35:48.087500+08:00"
+}

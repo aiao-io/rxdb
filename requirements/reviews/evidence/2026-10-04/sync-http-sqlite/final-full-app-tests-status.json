@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-http-server:test",
+    "--args=--run --coverage.enabled=false --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=../../requirements/reviews/evidence/2026-10-04/sync-http-sqlite/final-app-junit.xml",
+    "--outputStyle=static",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

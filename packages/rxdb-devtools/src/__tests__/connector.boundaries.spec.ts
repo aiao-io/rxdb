@@ -1635,12 +1635,16 @@ describe('DevToolsConnector boundaries', () => {
     circular[field] = field === 'changes' ? [circular] : circular;
     const rxdb = createMockRxDB({
       config: { entities: [ReviewEntity] },
-      entityManager: { getRepository: () => ({ find: () => ({
-        subscribe(callback: (data: unknown[]) => void) {
-          callback([circular]);
-          return { unsubscribe: () => undefined };
-        }
-      }) }) }
+      entityManager: {
+        getRepository: () => ({
+          find: () => ({
+            subscribe(callback: (data: unknown[]) => void) {
+              callback([circular]);
+              return { unsubscribe: () => undefined };
+            }
+          })
+        })
+      }
     });
     connector.init(rxdb, () => ({ name: 'ReviewEntity', namespace: 'public' }));
     postMessageSpy.mockClear();
@@ -1656,10 +1660,11 @@ describe('DevToolsConnector boundaries', () => {
     connector.init(rxdb, () => ({ name: 'ReviewEntity', namespace: 'public' }));
     const patch: Record<string, unknown> = { id: 'review-event', name: 'keep-event-sibling' };
     patch[field] = field === 'changes' ? [patch] : patch;
-    expect(() => rxdb.emit('ENTITY_LOCAL_UPDATE', {
-      type: 'ENTITY_LOCAL_UPDATE',
-      entities: [{ entity: 'ReviewEntity', namespace: 'public', patch }]
-    })).not.toThrow();
+    expect(() =>
+      rxdb.emit('ENTITY_LOCAL_UPDATE', {
+        type: 'ENTITY_LOCAL_UPDATE',
+        entities: [{ entity: 'ReviewEntity', namespace: 'public', patch }]
+      })
+    ).not.toThrow();
   });
-
 });

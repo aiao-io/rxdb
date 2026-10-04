@@ -1,0 +1,146 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-devtools-extension:test --args=src/background/background-core.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/background/background-core.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:96905) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension
+
+(node:96905) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |rxdb-devtools-extension| src/background/background-core.spec.ts (25 tests | 2 failed) 118ms
+     ✓ connects a panel, sends PING, and forwards panel messages to its tab 3ms
+     ✓ ignores unrelated ports 0ms
+     ✓ forwards a page handshake without ever minting an ACK of its own 1ms
+     ✓ forwards only page-to-devtools content messages 0ms
+     ✓ drops the panel mapping after disconnect 0ms
+     ✓ keeps the newest panel when an older panel for the same tab disconnects 0ms
+     ✓ does not ping after the panel disconnects during script injection 0ms
+     ✓ deduplicates a pending activation for the same tab 0ms
+     ✓ reports injection failures without sending a ping 0ms
+     ✓ 把面板发出的 v2 下行帧转给页面 0ms
+     ✓ 把页面发出的 v2 上行帧转给面板 0ms
+     ✓ 转发 v2 握手，且绝不自造 HANDSHAKE_ACK 0ms
+     ✓ 面板 port 断开时，用该 tab 真实的 session 发一条 DISCONNECT 给页面 0ms
+     ✓ 没协商过 v2 的 tab 断开时不发讣告 0ms
+     ✓ 丢弃方向与链路相反的帧 0ms
+     ✓ 丢弃信封不成立的伪 v2 帧 0ms
+     ✓ v2 帧同样只走 INIT 绑定的 tab 0ms
+     ✓ 拒绝不符合协议的裸 INIT 0ms
+     ✓ 接受完整协议形态的 INIT 并建立连接 0ms
+     ✓ 路由只认 INIT 绑定的 tab，忽略消息自称的 tabId 0ms
+     ✓ 未 INIT 就发消息一律丢弃 0ms
+     ✓ 第二次 INIT 到 tab 7 时，非当前 tab 不得向面板推数据 53ms
+     × 第二次 INIT 到 tab 8 时，非当前 tab 不得向面板推数据 54ms
+     ✓ 第二次 INIT 到 tab 7 后 disconnect 必须撤销所有旧绑定 0ms
+     × 第二次 INIT 到 tab 8 后 disconnect 必须撤销所有旧绑定 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-devtools-extension| src/background/background-core.spec.ts > 评审：同一个 panel port 的 INIT 绑定必须单一并可清理 > 第二次 INIT 到 tab 8 时，非当前 tab 不得向面板推数据
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "direction": "page-to-devtools",
+        "payload": Object {
+          "data": Object {},
+          "eventType": "insert",
+          "id": "e1",
+          "sequence": 1,
+          "timestamp": 1,
+        },
+        "sequence": 1,
+        "source": "@aiao/rxdb-devtools",
+        "timestamp": 1,
+        "type": "EVENT",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/background/background-core.spec.ts:480:35
+    478|     panel.postMessage.mockClear();
+    479|     controller.receiveContent(devtoolsMessage(), otherTab);
+    480|     expect(panel.postMessage).not.toHaveBeenCalled();
+       |                                   ^
+    481|     controller.receiveContent(devtoolsMessage(), activeTab);
+    482|     expect(panel.postMessage).toHaveBeenCalledOnce();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-devtools-extension| src/background/background-core.spec.ts > 评审：同一个 panel port 的 INIT 绑定必须单一并可清理 > 第二次 INIT 到 tab 8 后 disconnect 必须撤销所有旧绑定
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "direction": "page-to-devtools",
+        "payload": Object {
+          "data": Object {},
+          "eventType": "insert",
+          "id": "e1",
+          "sequence": 1,
+          "timestamp": 1,
+        },
+        "sequence": 1,
+        "source": "@aiao/rxdb-devtools",
+        "timestamp": 1,
+        "type": "EVENT",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/background/background-core.spec.ts:499:35
+    497|     controller.receiveContent(devtoolsMessage(), 7);
+    498|     controller.receiveContent(devtoolsMessage(), 8);
+    499|     expect(panel.postMessage).not.toHaveBeenCalled();
+       |                                   ^
+    500|   });
+    501| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 23 passed (25)
+   Start at  09:59:57
+   Duration  1.14s (transform 283ms, setup 306ms, import 230ms, tests 118ms, environment 345ms)
+
+Warning: command "vitest src/background/background-core.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-devtools-extension failed
+
+Failed tasks:
+
+- rxdb-devtools-extension:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      5.5s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     5.5s (1 task)
+  Recoverable time:  <1ms

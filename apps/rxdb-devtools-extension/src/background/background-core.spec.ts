@@ -460,3 +460,47 @@ describe('createBackgroundController —— 协议正规化（P1-4）', () => {
     expect(sendToTab).not.toHaveBeenCalled();
   });
 });
+
+describe('评审：同一个 panel port 的 INIT 绑定必须单一并可清理', () => {
+  it.each([7, 8])('第二次 INIT 到 tab %i 时，非当前 tab 不得向面板推数据', async nextTab => {
+    const panel = createPort();
+    const sendToTab = vi.fn<(tabId: number, message: unknown) => Promise<unknown>>(async () => undefined);
+    const controller = createBackgroundController({ injectIntoTab: async () => undefined, sendToTab });
+    controller.connect(panel.port);
+    panel.emitMessage(initMessage(7));
+    panel.emitMessage(initMessage(nextTab));
+    panel.emitMessage(devtoolsMessage('INSPECT_DB', 'devtools-to-page'));
+    await vi.waitFor(() =>
+      expect(sendToTab.mock.calls.some(([, message]) => (message as { type?: string }).type === 'INSPECT_DB')).toBe(
+        true
+      )
+    );
+    const forwarded = sendToTab.mock.calls.filter(
+      ([, message]) => (message as { type?: string }).type === 'INSPECT_DB'
+    );
+    const activeTab = forwarded[forwarded.length - 1]![0];
+    const otherTab = activeTab === 7 ? 8 : 7;
+    panel.postMessage.mockClear();
+    controller.receiveContent(devtoolsMessage(), otherTab);
+    expect(panel.postMessage).not.toHaveBeenCalled();
+    controller.receiveContent(devtoolsMessage(), activeTab);
+    expect(panel.postMessage).toHaveBeenCalledOnce();
+    panel.disconnect();
+  });
+
+  it.each([7, 8])('第二次 INIT 到 tab %i 后 disconnect 必须撤销所有旧绑定', nextTab => {
+    const panel = createPort();
+    const controller = createBackgroundController({
+      injectIntoTab: async () => undefined,
+      sendToTab: async () => undefined
+    });
+    controller.connect(panel.port);
+    panel.emitMessage(initMessage(7));
+    panel.emitMessage(initMessage(nextTab));
+    panel.disconnect();
+    panel.postMessage.mockClear();
+    controller.receiveContent(devtoolsMessage(), 7);
+    controller.receiveContent(devtoolsMessage(), 8);
+    expect(panel.postMessage).not.toHaveBeenCalled();
+  });
+});

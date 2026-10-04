@@ -1,0 +1,17 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-http-server:lint",
+    "--max-warnings=0",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

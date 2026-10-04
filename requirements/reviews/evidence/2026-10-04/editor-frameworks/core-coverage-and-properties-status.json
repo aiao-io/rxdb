@@ -1,0 +1,20 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "code-editor:test",
+    "--run",
+    "--coverage.enabled=true",
+    "--maxWorkers=1",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

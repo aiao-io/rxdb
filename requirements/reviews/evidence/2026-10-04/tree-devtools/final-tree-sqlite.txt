@@ -1,0 +1,74 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-sqlite:test --args=src/__tests__/review-tree-filter-incremental.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/review-tree-filter-incremental.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:56835) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite
+
+11:25:32 AM [vite] (client) Re-optimizing dependencies because lockfile has changed
+stdout | src/__tests__/review-tree-filter-incremental.spec.ts > 评审：树筛选增量必须与实际递归 SQL 重查一致 > 父节点 hidden-parent 时，叶子变为匹配不能改变遍历筛选语义
+REVIEW_TREE_FILTER {"parentTitle":"hidden-parent","live":["visible-child","visible-root"],"sql":["visible-root"]}
+stdout | src/__tests__/review-tree-filter-incremental.spec.ts > 评审：树筛选增量必须与实际递归 SQL 重查一致 > 父节点 visible-parent 时，叶子变为匹配不能改变遍历筛选语义
+REVIEW_TREE_FILTER {"parentTitle":"visible-parent","live":["visible-child","visible-parent","visible-root"],"sql":["visible-child","visible-parent","visible-root"]}
+ ❯ |rxdb-adapter-sqlite (chromium)| src/__tests__/review-tree-filter-incremental.spec.ts (2 tests | 1 failed) 285ms
+     × 父节点 hidden-parent 时，叶子变为匹配不能改变遍历筛选语义 175ms
+     ✓ 父节点 visible-parent 时，叶子变为匹配不能改变遍历筛选语义 109ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-adapter-sqlite (chromium)| src/__tests__/review-tree-filter-incremental.spec.ts > 评审：树筛选增量必须与实际递归 SQL 重查一致 > 父节点 hidden-parent 时，叶子变为匹配不能改变遍历筛选语义
+AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[2m    "01a104f2-0b7b-7630-949b-a17ac66ce02f",[22m
+[31m+   "01a104f2-0b7f-718f-b779-962bcd65f890",[39m
+[2m  ][22m
+
+ ❯ src/__tests__/review-tree-filter-incremental.spec.ts:58:41
+     56|           JSON.stringify({ parentTitle, live: live.map(x => x.title).s…
+     57|       );
+     58|       expect(live.map(x => x.id).sort()).toEqual(sql.map(x => x.id).so…
+       |                                         ^
+     59|     } finally {
+     60|       unsubscribe();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  11:25:32
+   Duration  1.79s (transform 0ms, setup 0ms, import 478ms, tests 285ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-sqlite/junit.xml
+Warning: command "vitest src/__tests__/review-tree-filter-incremental.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-adapter-sqlite failed
+
+Failed tasks:
+
+- rxdb-adapter-sqlite:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.2s (1 task)
+  Recoverable time:  <1ms

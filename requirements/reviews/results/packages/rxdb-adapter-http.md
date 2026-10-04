@@ -85,3 +85,9 @@ QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变�
 - [ ] C6 CORS / 凭证 / 生产消费：审查 transport 凭证和日志边界，核查 server 配合而非只看 client 配置。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
+
+C1/C4/C5 **部分执行**。原 HTTP adapter、REST handlers、native fetch 对原应用/PGlite 发真实 metadata/by-ids/PATCH/删除请求，真实 401 映射和网络拒绝不是 Response 桩。失败状态的责任在 [RV-052](../../RV-052-sync-resume-ignores-outbox-failures.md)，缓存/共享结算在 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)/[RV-054](../../RV-054-querycache-swr-dedup-failure-freshness.md)，旧修复覆盖新写在 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)。没有因此给 HTTP adapter 四条重复意见。SSE/ETag/分页、CORS 和打包 consumer 未由本轮验收。
+
+[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。

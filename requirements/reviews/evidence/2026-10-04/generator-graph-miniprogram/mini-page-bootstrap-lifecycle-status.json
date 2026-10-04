@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "log": "mini-page-bootstrap-lifecycle.txt",
+  "testFace": "Compiled original page source; lifecycle/module seams; not WeChat DevTools"
+}

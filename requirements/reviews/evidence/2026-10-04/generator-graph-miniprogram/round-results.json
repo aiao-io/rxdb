@@ -1,0 +1,112 @@
+{
+  "fullObjectReviewsCompleted": 0,
+  "newFindings": ["RV-049", "RV-050", "RV-051"],
+  "records": [
+    {
+      "task": "final-generator-probe",
+      "exitCode": 1,
+      "counts": "1 failed | 1 passed (2)",
+      "log": "final-generator-probe.txt",
+      "statusFile": "final-generator-probe-status.json"
+    },
+    {
+      "task": "final-graph-probe",
+      "exitCode": 1,
+      "counts": "3 failed | 2 passed (5)",
+      "log": "final-graph-probe.txt",
+      "statusFile": "final-graph-probe-status.json"
+    },
+    {
+      "task": "final-lint",
+      "exitCode": 0,
+      "counts": null,
+      "log": "final-lint.txt",
+      "statusFile": "final-lint-status.json"
+    },
+    {
+      "task": "final-mini-lifecycle",
+      "exitCode": 1,
+      "counts": "1 failed /1 passed",
+      "log": "final-mini-lifecycle.txt",
+      "statusFile": "final-mini-lifecycle-status.json"
+    },
+    {
+      "task": "final-typecheck",
+      "exitCode": 0,
+      "counts": null,
+      "log": "final-typecheck.txt",
+      "statusFile": "final-typecheck-status.json"
+    },
+    {
+      "task": "generator-alias-queue-final",
+      "exitCode": 1,
+      "counts": "1 failed | 1 passed (2)",
+      "log": "generator-alias-queue-final.txt",
+      "statusFile": "generator-alias-queue-final-status.json"
+    },
+    {
+      "task": "generator-alias-queue-repaired",
+      "exitCode": 1,
+      "counts": "2 failed (2)",
+      "log": "generator-alias-queue-repaired.txt",
+      "statusFile": "generator-alias-queue-repaired-status.json"
+    },
+    {
+      "task": "generator-new-output-alias-queue",
+      "exitCode": 1,
+      "counts": "2 failed (2)",
+      "log": "generator-new-output-alias-queue.txt",
+      "statusFile": "generator-new-output-alias-queue-status.json"
+    },
+    {
+      "task": "graph-nan-depth-repaired",
+      "exitCode": 1,
+      "counts": "3 failed | 2 passed (5)",
+      "log": "graph-nan-depth-repaired.txt",
+      "statusFile": "graph-nan-depth-repaired-status.json"
+    },
+    {
+      "task": "graph-query-nan-depth",
+      "exitCode": 1,
+      "counts": "5 skipped (5)",
+      "log": "graph-query-nan-depth.txt",
+      "statusFile": "graph-query-nan-depth-status.json"
+    },
+    {
+      "task": "mini-page-bootstrap-lifecycle",
+      "exitCode": 1,
+      "counts": "1 failed /1 passed",
+      "log": "mini-page-bootstrap-lifecycle.txt",
+      "statusFile": "mini-page-bootstrap-lifecycle-status.json"
+    },
+    {
+      "task": "quality-lint",
+      "exitCode": 0,
+      "counts": null,
+      "log": "quality-lint.txt",
+      "statusFile": "quality-lint-status.json"
+    },
+    {
+      "task": "quality-typecheck",
+      "exitCode": 0,
+      "counts": null,
+      "log": "quality-typecheck.txt",
+      "statusFile": "quality-typecheck-status.json"
+    },
+    {
+      "task": "rxdb-client-generator-baseline",
+      "exitCode": 0,
+      "counts": "371 passed (371)",
+      "log": "rxdb-client-generator-baseline.txt",
+      "statusFile": "rxdb-client-generator-baseline-status.json"
+    },
+    {
+      "task": "rxdb-plugin-graph-baseline",
+      "exitCode": 0,
+      "counts": "184 passed (184)",
+      "log": "rxdb-plugin-graph-baseline.txt",
+      "statusFile": "rxdb-plugin-graph-baseline-status.json"
+    }
+  ],
+  "updatedObjectRecords": 4
+}

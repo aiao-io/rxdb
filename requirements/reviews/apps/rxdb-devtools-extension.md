@@ -45,14 +45,14 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                       | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                              | 状态   |
-| ---- | -------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 跨边界消息身份             | 按 inspected tab/frame/document/session 建模 background/content/port route，核查导航与重连身份更新。 | 错 tab/frame、页面伪造、session rotation、port 重连、未知消息；拒绝时不能写 DB/file。                | 待核查 |
-| C2   | manifest / CSP / 权限      | 审查 manifest 配置、host permissions、资源暴露和执行 inspected page 的入口。                         | 不支持 scheme、无权限页面、恶意导航、生产 CSP；最小权限，不借调试状态扩大访问。                      | 待核查 |
-| C3   | port 队列与生命周期        | 核查反压、超时、请求关联、disconnect 和 listener cleanup。                                           | 快速切 tab、慢页面、巨大消息、扩展 reload、重复 connect；不泄漏 port 或跨 session 晚到响应。         | 待核查 |
-| C4   | 面板与 provider capability | 对照 modules/rxdb-devtools-panel 与 rxdb-devtools descriptors，确认 UI 权限提示与实际拒绝一致。      | 只读 provider、危险 file/settings 操作、批量部分失败、敏感 snapshot；权限不能只靠禁用按钮。          | 待核查 |
-| C5   | 浏览器 / Electron 档位     | 核查 build-desktop-dev 与标准 extension build 的差异，以及 Chrome/Electron relay conformance。       | 真实 Chromium 扩展、Electron 加载、导航后重连、生产与开发资源；不以单一 chrome mock 宣称全宿主支持。 | 待核查 |
-| C6   | 测试可信度与产物           | 将 unit/conformance、extension E2E、packaged Electron 分开；核查测试 hook 与凭证/调试代码隔离。      | 真实 relay.spec 与安装后的 extension、冷启动、准备产物陈旧检测；不发布 fixture。                     | 待核查 |
+| 编号 | 专项                       | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                              | 状态                        |
+| ---- | -------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------- |
+| C1   | 跨边界消息身份             | 按 inspected tab/frame/document/session 建模 background/content/port route，核查导航与重连身份更新。 | 错 tab/frame、页面伪造、session rotation、port 重连、未知消息；拒绝时不能写 DB/file。                | 部分执行，绑定 RV-048       |
+| C2   | manifest / CSP / 权限      | 审查 manifest 配置、host permissions、资源暴露和执行 inspected page 的入口。                         | 不支持 scheme、无权限页面、恶意导航、生产 CSP；最小权限，不借调试状态扩大访问。                      | 待核查                      |
+| C3   | port 队列与生命周期        | 核查反压、超时、请求关联、disconnect 和 listener cleanup。                                           | 快速切 tab、慢页面、巨大消息、扩展 reload、重复 connect；不泄漏 port 或跨 session 晚到响应。         | 部分执行，旧映射释放 RV-048 |
+| C4   | 面板与 provider capability | 对照 modules/rxdb-devtools-panel 与 rxdb-devtools descriptors，确认 UI 权限提示与实际拒绝一致。      | 只读 provider、危险 file/settings 操作、批量部分失败、敏感 snapshot；权限不能只靠禁用按钮。          | 待核查                      |
+| C5   | 浏览器 / Electron 档位     | 核查 build-desktop-dev 与标准 extension build 的差异，以及 Chrome/Electron relay conformance。       | 真实 Chromium 扩展、Electron 加载、导航后重连、生产与开发资源；不以单一 chrome mock 宣称全宿主支持。 | 待核查                      |
+| C6   | 测试可信度与产物           | 将 unit/conformance、extension E2E、packaged Electron 分开；核查测试 hook 与凭证/调试代码隔离。      | 真实 relay.spec 与安装后的 extension、冷启动、准备产物陈旧检测；不发布 fixture。                     | 待核查                      |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -133,3 +133,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-devtools-extension:test --coverage --sk
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/apps/rxdb-devtools-extension.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+[本对象实际意见与源码/运行证据](../results/apps/rxdb-devtools-extension.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。

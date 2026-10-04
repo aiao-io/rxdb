@@ -1,0 +1,47 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target typecheck for 4 projects:
+
+- rxdb-adapter-sqlite
+- rxdb-adapter-pglite
+- rxdb-devtools
+- rxdb-devtools-extension
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+✔  nx run rxdb-devtools:typecheck
+✔  nx run rxdb-adapter-pglite:typecheck
+
+> nx run rxdb-adapter-sqlite:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+src/__tests__/review-tree-filter-incremental.spec.ts(4,40): error TS2307: Cannot find module '../RxDBAdapterSqlite.js' or its corresponding type declarations.
+src/__tests__/review-tree-filter-incremental.spec.ts(31,65): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/__tests__/review-tree-filter-incremental.spec.ts(39,123): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/__tests__/review-tree-filter-incremental.spec.ts(40,58): error TS7006: Parameter 'x' implicitly has an 'any' type.
+Warning: command "tsc --build --emitDeclarationOnly" exited with non-zero status code
+✔  nx run rxdb-devtools-extension:typecheck
+
+
+
+ NX   Running target typecheck for 4 projects failed
+
+Failed tasks:
+
+- rxdb-adapter-sqlite:typecheck
+
+Output of 3 successful tasks were not shown. Run with --verbose or --output-style=static to see it.
+
+  Run duration:      9.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.5s (1 task)
+  Recoverable time:  4.7s (51% of the run)

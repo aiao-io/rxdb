@@ -48,3 +48,9 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 - [ ] C5 打包与依赖：检查 CodeMirror 依赖边界、语言包按需加载和公开类型独立消费。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-04：编辑器与预览第七批
+
+C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved language identity、不可变错误载荷与 a11y/autofocus。新增固定种子 4,096 对文本及 Unicode/换行/NUL 边界复验，核心本轮 **107 passed**。四指标为 statements 99.13%、branches 97.95%、functions/lines 100%，80% 门禁通过。仍不把纯字符串性质当作真实浏览器 selection/IME 已完成；C1 保持部分执行，C5 独立发布消费未完成。语言异常属于封装的 [RV-056](../../RV-056-editor-sync-language-error-escapes.md)，不重复报成 core helper 缺陷。
+
+[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。

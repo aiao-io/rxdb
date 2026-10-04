@@ -1,0 +1,37 @@
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 254, reused 0, downloaded 0, added 0
+Progress: resolved 1068, reused 0, downloaded 0, added 0
+Progress: resolved 2140, reused 0, downloaded 0, added 0
+Progress: resolved 3823, reused 0, downloaded 0, added 0
+Progress: resolved 3847, reused 0, downloaded 0, added 0
+Progress: resolved 3851, reused 0, downloaded 0, added 0
+ WARN  46 deprecated subdependencies found: @faker-js/faker@5.5.3, @humanwhocodes/config-array@0.11.14, @humanwhocodes/object-schema@2.0.3, @swc/register@0.1.10, @types/sass@1.45.0, @yuku-codegen/binding-android-arm64@0.10.2, @yuku-codegen/binding-darwin-arm64@0.10.2, @yuku-codegen/binding-darwin-x64@0.10.2, @yuku-codegen/binding-freebsd-x64@0.10.2, @yuku-codegen/binding-linux-arm-gnu@0.10.2, @yuku-codegen/binding-linux-arm-musl@0.10.2, @yuku-codegen/binding-linux-arm64-gnu@0.10.2, @yuku-codegen/binding-linux-arm64-musl@0.10.2, @yuku-codegen/binding-linux-x64-gnu@0.10.2, @yuku-codegen/binding-linux-x64-musl@0.10.2, @yuku-codegen/binding-win32-arm64@0.10.2, @yuku-codegen/binding-win32-x64@0.10.2, @yuku-parser/binding-android-arm64@0.10.2, @yuku-parser/binding-darwin-arm64@0.10.2, @yuku-parser/binding-darwin-x64@0.10.2, @yuku-parser/binding-freebsd-x64@0.10.2, @yuku-parser/binding-linux-arm-gnu@0.10.2, @yuku-parser/binding-linux-arm-musl@0.10.2, @yuku-parser/binding-linux-arm64-gnu@0.10.2, @yuku-parser/binding-linux-arm64-musl@0.10.2, @yuku-parser/binding-linux-x64-gnu@0.10.2, @yuku-parser/binding-linux-x64-musl@0.10.2, @yuku-parser/binding-win32-arm64@0.10.2, @yuku-parser/binding-win32-x64@0.10.2, acorn-dynamic-import@4.0.0, boolean@3.2.0, core-js@2.6.12, crypto-js@4.2.0, eslint@8.41.0, geojson-linestring-dissolve@0.0.1, glob@10.5.0, glob@11.1.0, glob@7.2.3, inflight@1.0.6, phin@3.7.1, rimraf@2.6.3, rimraf@3.0.2, sourcemap-codec@1.4.8, text-encoding@0.6.4, whatwg-encoding@2.0.0, whatwg-encoding@3.1.1
+Progress: resolved 3851, reused 0, downloaded 0, added 0, done
+ WARN  Issues with peer dependencies found
+.
+├─┬ @nx/react 23.2.1
+│ └─┬ @babel/preset-react 7.29.7
+│   ├── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+│   ├─┬ @babel/plugin-transform-react-pure-annotations 7.29.7
+│   │ └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+│   ├─┬ @babel/plugin-transform-react-display-name 7.29.7
+│   │ └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+│   ├─┬ @babel/plugin-transform-react-jsx 7.29.7
+│   │ ├── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+│   │ └─┬ @babel/plugin-syntax-jsx 7.29.7
+│   │   └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+│   └─┬ @babel/plugin-transform-react-jsx-development 7.29.7
+│     └── ✕ unmet peer @babel/core@^7.0.0-0: found 8.0.5
+├─┬ @nx/vue 23.2.1
+│ ├── ✕ unmet peer vue-router@^4.0.0: found 5.3.1
+│ └── ✕ unmet peer vue-tsc@^2.0.0: found 3.3.12
+├─┬ eslint-plugin-import 2.32.0
+│ └── ✕ unmet peer eslint@"^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9": found 10.12.0
+├─┬ eslint-plugin-jsx-a11y 6.10.2
+│ └── ✕ unmet peer eslint@"^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9": found 10.12.0
+├─┬ eslint-plugin-react 7.37.5
+│ └── ✕ unmet peer eslint@"^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7": found 10.12.0
+└─┬ @codecov/vite-plugin 2.0.1
+  └── ✕ unmet peer vite@"4.x || 5.x || 6.x": found 8.3.2
+.                                        |  +26 +++
+Done in 9.7s using pnpm v10.34.6

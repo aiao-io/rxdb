@@ -1,0 +1,217 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-client-generator:test --args=--run --coverage.enabled=false --maxWorkers=1
+
+> vitest --run --coverage.enabled=false --maxWorkers=1
+
+(node:85826) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator
+
+(node:85837) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.edges.spec.ts (7 tests) 4055ms
+     ✓ rejects invalid JSON manifest  721ms
+     ✓ rejects manifest with wrong shape or duplicates  855ms
+     ✓ rejects manifest paths that escape the output directory  398ms
+     ✓ rejects an entity named index that would collide with the barrel  421ms
+     ✓ rejects an entity whose file name collides case-insensitively with the barrel  377ms
+     ✓ rejects two entities whose output files differ only by case  340ms
+     ✓ serializes concurrent builds for the same outDir  942ms
+(node:85859) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.spec.ts (5 tests) 2969ms
+     ✓ removes only stale manifest-owned files when output shape changes  1045ms
+     ✓ preserves handwritten getters in runtime and declaration outputs  432ms
+     ✓ rejects handwritten getters that collide with generated entity members  385ms
+     ✓ preserves cross-file inheritance metadata regardless of entity input order  394ms
+     ✓ keeps every generated entity when only part of the source switches to an import alias  711ms
+(node:85890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.atomic.spec.ts (5 tests) 2770ms
+     ✓ 大小写碰撞被拒绝时，输出目录必须零变化  947ms
+     ✓ 首次构建碰撞被拒绝时，不得留下半套文件  365ms
+     ✓ 写入中途失败时，既有产物与 manifest 都不变  727ms
+     ✓ 失败后不残留 staging 目录  378ms
+     ✓ 成功构建后不残留 staging 目录，manifest 也不含它  353ms
+(node:85939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/cli/repository-generators.spec.ts > CLI 在配置目录之外的 cwd 装载 repositoryGenerators（跨 cwd 集成测试） > 裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载
+✅ Generated 1 client(s) from /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-client-generator-outside-cwd-t6lhos/rxdb.config.ts
+
+ ✓ |rxdb-client-generator| src/__tests__/cli/repository-generators.spec.ts (15 tests) 2768ms
+     ✓ 声明生成器后，产物带上插件方法，基类元数据也由生成器补齐  786ms
+     ✓ 不声明生成器时，插件基类的元数据无人提供，分析阶段就拒绝  411ms
+     ✓ 不声明生成器时，即便实体不继承插件基类也 fail-closed，而不是产出缺方法的半成品  816ms
+     ✓ 与已注册生成器重名时拒绝，而不是静默顶替  340ms
+     ✓ 裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载  381ms
+(node:85973) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.edges.spec.ts (14 tests) 3523ms
+     ✓ supports TreeEntity and GraphEntity repository assignment  1230ms
+     ✓ rejects non-call entity decorator and wrong arg count  340ms
+     ✓ rejects computed property names and non-object metadata  343ms
+     ✓ clearGlobalProject allows reusing global project path  389ms
+(node:86555) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.symlink.spec.ts (4 tests) 2006ms
+     ✓ 生成文件位置是软链时，不得写穿到链接目标  552ms
+     ✓ manifest 是软链时，不得写穿到链接目标  378ms
+     ✓ 陈旧文件清理不得穿过软链目录删掉外部文件  369ms
+     ✓ 软链别名指向同一物理目录时，并发构建必须串行化  707ms
+(node:86560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/plugins/vite.integration.spec.ts (3 tests) 1978ms
+     ✓ generates before a first build resolves generated imports  591ms
+     ✓ rebuilds serially on consecutive entity changes and triggers full reload  1268ms
+(node:86571) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.fail-closed.spec.ts (6 tests) 1141ms
+     ✓ 实体全部失去装饰器时拒绝，并且不删除上次生成物  655ms
+     ✓ allowEmpty 显式开启时才允许生成空客户端  458ms
+(node:86572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_split_files.spec.ts (21 tests) 2886ms
+       ✓ entity without extends must still produce parseable .d.ts  563ms
+     ✓ single-file mode aggregates entities in the same namespace once  556ms
+     ✓ split-file mode aggregates entities in the same namespace once  584ms
+     ✓ split-file mode imports sibling entity and RuleGroup types  588ms
+     ✓ split-file barrel re-exports the class and StaticTypes without local import shadowing  577ms
+(node:86590) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.security.spec.ts (4 tests) 1119ms
+     ✓ never executes decorator metadata expressions  798ms
+(node:86591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_field_semantics.spec.ts (11 tests) 2550ms
+     ✓ 生成的运行时产物在 angular 编译档位下零诊断  456ms
+     ✓ 生成的运行时产物在 react 编译档位下零诊断  514ms
+     ✓ 生成的运行时产物在 vue 编译档位下零诊断  509ms
+     ✓ 同一份产物在三端编译档位下诊断完全一致  597ms
+     ✓ 语义键一旦塌缩成字符串，编译必须失败（防止上面的编译断言变成空转）  458ms
+(node:86602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/test-type-demo.spec.ts (1 test) 826ms
+     ✓ TypeDemo  825ms
+(node:86603) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_bigint_binary.spec.ts (4 tests) 1693ms
+     ✓ compiles get(1n), bigint rules and binary equality rules  559ms
+     ✓ keeps both many-to-many junction foreign keys as bigint  560ms
+     ✓ rejects string ids for bigint many-to-many junction foreign keys  559ms
+(node:86607) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_relations.spec.ts (7 tests) 1678ms
+     ✓ ONE_TO_MANY uses the related entity constructor type  558ms
+     ✓ MANY_TO_MANY uses the related entity constructor type  551ms
+     ✓ escapes multiline relation display names in generated JSDoc  555ms
+(node:86611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_key_value_integration.spec.ts (3 tests) 1138ms
+     ✓ escapes entity, property, and nested keyValue JSDoc  581ms
+     ✓ imports sibling keyValue interfaces referenced by relation rules in split mode  545ms
+(node:86614) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_static_members.spec.ts (1 test) 565ms
+     ✓ compiles the concrete Repository API against EntityBase static members  563ms
+(node:86616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_instance_methods.spec.ts (3 tests) 562ms
+     ✓ compiles generated declarations against the EntityBase member contract  547ms
+(node:86618) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_symbol_collisions.spec.ts (16 tests) 568ms
+     ✓ allows legal method overloads emitted by a repository plugin  552ms
+(node:86620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_security.spec.ts (12 tests) 567ms
+     ✓ quotes a safe hyphenated namespace in module augmentation  563ms
+(node:86625) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli.spec.ts (12 tests) 124ms
+(node:86629) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/ts-morph-browser.spec.ts (80 tests) 27ms
+(node:86630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_m2m_validation.spec.ts (5 tests) 15ms
+(node:86631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_js_file.spec.ts (9 tests) 16ms
+(node:86632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_declared_symbols.spec.ts (3 tests) 14ms
+(node:86633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_default_serialization.spec.ts (29 tests) 8ms
+(node:86634) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/find-files.spec.ts (3 tests) 5ms
+(node:86635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_rules_exists.spec.ts (17 tests) 7ms
+(node:86636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/RxDBClientGenerator.utils.spec.ts (29 tests) 7ms
+(node:86637) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_properties.spec.ts (9 tests) 4ms
+(node:86638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli/package-exports.spec.ts (2 tests) 2ms
+(node:86639) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_entity_rules.spec.ts (5 tests) 4ms
+(node:86640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/cli.empty-export.spec.ts (1 test) 4ms
+(node:86641) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/known_repository_generators.spec.ts (5 tests) 4ms
+(node:86642) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/plugins/vite.spec.ts (4 tests) 3ms
+(node:86643) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/api-docs.spec.ts (3 tests) 3ms
+(node:86645) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_metadata_key.spec.ts (4 tests) 3ms
+(node:86646) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/plugins/cli-shebang.spec.ts (4 tests) 2ms
+(node:86647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |rxdb-client-generator| src/__tests__/generator_utils.spec.ts (5 tests) 2ms
+
+ Test Files  38 passed (38)
+      Tests  371 passed (371)
+   Start at  13:57:30
+   Duration  46.01s (transform 466ms, setup 0ms, import 7.11s, tests 35.62s, environment 2ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-client-generator/junit.xml
+
+
+
+ NX   Successfully ran target test for project rxdb-client-generator
+
+
+  Run duration:      46.9s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     46.9s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Cache: drop --skip-nx-cache to restore unchanged tasks instantly.
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-client-generator:test    46.9s

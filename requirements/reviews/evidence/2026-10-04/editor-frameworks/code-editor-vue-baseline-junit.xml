@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="66" failures="0" errors="0" time="0.33197875">
+    <testsuite name="src/__tests__/CodeEditor.a11y.spec.ts" timestamp="2026-10-04T10:34:42.099Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.042541875">
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; 把 label / labelledBy / describedBy 写到真正承担 textbox role 的元素上" time="0.021911">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; 清空 label 时移除属性，而不是留一个空的 aria-label" time="0.004873625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; disabled 时把 disabled 语义告诉辅助技术，而不是只报 readonly" time="0.003694625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; disabled 时跳过 autoFocus，键盘焦点不落进不可编辑的编辑器" time="0.003042958">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; readonly 时跳过 autoFocus，键盘焦点不落进不可编辑的编辑器" time="0.004426083">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.a11y.spec.ts" name="CodeEditor 无障碍契约 &gt; 未禁用时 autoFocus 照常生效" time="0.003817542">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/CodeEditor.document-sync.spec.ts" timestamp="2026-10-04T10:34:42.100Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.040252292">
+        <testcase classname="src/__tests__/CodeEditor.document-sync.spec.ts" name="CodeEditor external value sync (real CodeMirror) &gt; keeps the caret position when an external value append arrives" time="0.02371875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.document-sync.spec.ts" name="CodeEditor external value sync (real CodeMirror) &gt; keeps a range selection intact across an external sync" time="0.004267209">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.document-sync.spec.ts" name="CodeEditor external value sync (real CodeMirror) &gt; keeps host-driven value sync out of the undo history" time="0.004305667">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.document-sync.spec.ts" name="CodeEditor external value sync (real CodeMirror) &gt; still records the user own edits in the undo history" time="0.003333167">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.document-sync.spec.ts" name="CodeEditor external value sync (real CodeMirror) &gt; rewrites only the changed span, leaving the common prefix and suffix untouched" time="0.00386425">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/CodeEditor.highlight.spec.ts" timestamp="2026-10-04T10:34:42.101Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.083107292">
+        <testcase classname="src/__tests__/CodeEditor.highlight.spec.ts" name="CodeEditor syntax highlighting (real CodeMirror) &gt; resolves a single @codemirror/view copy so language ViewPlugins stay live" time="0.000880542">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.highlight.spec.ts" name="CodeEditor syntax highlighting (real CodeMirror) &gt; renders highlighted tokens for SQL keywords" time="0.0763025">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.highlight.spec.ts" name="CodeEditor syntax highlighting (real CodeMirror) &gt; renders no highlighted tokens for plaintext" time="0.005176542">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/CodeEditor.language.spec.ts" timestamp="2026-10-04T10:34:42.101Z" hostname="liuleideMacBook-Pro-4.local" tests="9" failures="0" errors="0" skipped="0" time="0.052854125">
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language resolution (real CodeMirror) &gt; 等价的新 languages 数组不重复加载当前语言" time="0.023032334">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language resolution (real CodeMirror) &gt; languages 换掉未选中的项时也不重复加载当前语言" time="0.003846041">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language resolution (real CodeMirror) &gt; languages 换掉当前选中的项时必须重新加载" time="0.004182875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language resolution (real CodeMirror) &gt; language 改成解析结果相同的别名时不重复加载" time="0.003887041">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language errors (CEV-004) &gt; 语言查不到时发出 not-found 载荷，并保留日志与纯文本降级" time="0.004155292">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language errors (CEV-004) &gt; loader rejected 时发出 load-failed 载荷并原样透传 cause" time="0.005075625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language errors (CEV-004) &gt; 明确不高亮（空串 / plaintext / 空列表）不算错误" time="0.00269625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language errors (CEV-004) &gt; 过期请求的 rejection 既不发事件也不污染当前语言" time="0.00232125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.language.spec.ts" name="CodeEditor language errors (CEV-004) &gt; 卸载后到达的 rejection 不再发事件" time="0.002722416">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/CodeEditor.reconfigure.spec.ts" timestamp="2026-10-04T10:34:42.102Z" hostname="liuleideMacBook-Pro-4.local" tests="16" failures="0" errors="0" skipped="0" time="0.07465425">
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor readonly / editable (real facets) &gt; 默认既可编辑也非只读" time="0.021546125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor readonly / editable (real facets) &gt; readonly 让 state 只读且不可编辑" time="0.004448875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor readonly / editable (real facets) &gt; disabled 与 readonly 是两条独立来源，任一为真都不可编辑" time="0.004723666">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor readonly / editable (real facets) &gt; 只读时命令被拒绝、contentDOM 不再可编辑，宿主同步仍然生效" time="0.004984583">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; theme 切换真的换掉暗色主题而不是只记了一次调用" time="0.0031965">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; placeholder 在空文档上渲染出占位元素，清空后移除" time="0.005446125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; lineWrapping 切换真的改写 contentDOM 的类名" time="0.0027195">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; indentUnit 写进真实的 indentUnit facet" time="0.002349916">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; indentWithTab 只在开启时把 Tab 绑进 keymap" time="0.003115334">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; highlightWhitespace 真的给空格加上装饰" time="0.00368475">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor compartment reconfiguration (real facets) &gt; setup 切换换掉预设扩展，且不清掉其它 compartment" time="0.002423875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor async language loading (real compartment) &gt; load() resolve 之前语言 compartment 保持空" time="0.003483208">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor async language loading (real compartment) &gt; 后发的请求先返回时，迟到的旧结果不得覆盖它" time="0.00283175">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor async language loading (real compartment) &gt; 卸载后到达的 resolve 不再 dispatch 到已销毁的 view" time="0.002326833">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor imperative handle (CEA-009 三端对齐) &gt; 暴露 view / host / focus / blur，且 host 是 CodeMirror 挂载所在的元素" time="0.003945458">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.reconfigure.spec.ts" name="CodeEditor imperative handle (CEA-009 三端对齐) &gt; 卸载后 view 与 host 一起变为 null" time="0.002463167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/CodeEditor.spec.ts" timestamp="2026-10-04T10:34:42.103Z" hostname="liuleideMacBook-Pro-4.local" tests="23" failures="0" errors="0" skipped="0" time="0.035840583">
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 真实挂载时创建 EditorState 和 EditorView，并使用基础 setup" time="0.011646791">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 布局关键样式通过 EditorView.theme 内联注入，不依赖发布产物的 &lt;style scoped&gt; CSS" time="0.001614375">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 初始化时传递 root、minimal setup，并执行 autoFocus" time="0.001582334">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; indentUnit 默认两个空格，与 Angular / React 一致" time="0.001077875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; setup 为 null 时不加载预置扩展" time="0.001020625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 用户编辑触发 update:value 和 change，非文档事务不触发" time="0.00091">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 外部 value 同步更新文档但不反向 emit，相同值不 dispatch" time="0.001715541">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 动态 reconfigure setup、主题、访问状态和编辑体验配置" time="0.001969166">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 支持自定义 languages，并在列表变化时重新加载当前语言" time="0.001405084">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 空 languages 列表同步清空语言且不发起加载" time="0.002211167">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 语言为 &quot;&quot; 时同步清空语言扩展" time="0.000889375">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 语言为 &quot;plaintext&quot; 时同步清空语言扩展" time="0.000626541">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 未知语言报告错误并清空语言扩展" time="0.000783333">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 语言加载失败时报告错误并清空语言扩展" time="0.000890125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 快速切换语言时只有最后一次异步结果生效" time="0.00098625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 旧语言请求失败时不清空已生效的新语言" time="0.000848208">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 卸载销毁 EditorView，pending 语言加载完成后不再 dispatch" time="0.000579084">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 透传 focus 和 blur 事件" time="0.000685875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; defineExpose 暴露 view/host/focus/blur，命令式 API 与 React/Angular 对齐" time="0.000724">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 卸载后 defineExpose 的 view 与 host 一起变为 null" time="0.000602708">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 公开 Props 和 Emits 类型覆盖完整 API" time="0.00011025">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; README 和 package.json 不再要求消费者手动引入 CSS（布局关键样式已内联注入）" time="0.002012333">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.ts" name="CodeEditor Vue &gt; 自定义语言对象符合核心公开类型" time="0.000103792">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/index.spec.ts" timestamp="2026-10-04T10:34:42.105Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.002728333">
+        <testcase classname="src/__tests__/index.spec.ts" name="exports the component and stable public option types" time="0.00080825">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="公开接口的 TSDoc 门禁（CEV-006） &gt; CodeEditorProps 恰好有 17 个成员，且每个都有 TSDoc" time="0.000912709">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="公开接口的 TSDoc 门禁（CEV-006） &gt; CodeEditorEmits 恰好有 5 个成员，且每个都有 TSDoc" time="0.000165666">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="公开接口的 TSDoc 门禁（CEV-006） &gt; CodeEditorExpose 恰好有 4 个成员，且每个都有 TSDoc" time="0.000129625">
+        </testcase>
+    </testsuite>
+</testsuites>

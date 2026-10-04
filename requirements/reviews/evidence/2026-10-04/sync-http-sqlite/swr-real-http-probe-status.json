@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-http-server:test",
+    "--args=src/__tests__/review-swr-http-failure-memo.spec.ts --run --coverage.enabled=false --maxWorkers=1",
+    "--outputStyle=static",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 1,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

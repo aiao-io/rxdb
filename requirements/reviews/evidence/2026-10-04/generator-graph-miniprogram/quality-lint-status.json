@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "lint",
+    "--projects=rxdb-client-generator,rxdb-plugin-graph,dev-rxdb-miniprogram-e2e,dev-rxdb-miniprogram",
+    "--parallel=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--max-warnings=0"
+  ],
+  "completedAt": "2026-10-04T14:46:42.144799+08:00",
+  "exitCode": 0,
+  "log": "quality-lint.txt",
+  "startedAt": "2026-10-04T14:46:33.587572+08:00"
+}

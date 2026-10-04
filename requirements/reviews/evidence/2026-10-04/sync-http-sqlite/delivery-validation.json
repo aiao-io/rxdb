@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-04",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "plans": 70,
+  "executionRecords": 70,
+  "specializedChecks": 385,
+  "wholeObjectsComplete": 0,
+  "newFullyClosedChecks": 0,
+  "localMarkdownPathLinksChecked": 4249,
+  "brokenLocalPathLinks": [],
+  "unchangedProductionSources": 152,
+  "reproductionFingerprints": 5,
+  "infrastructureFingerprints": 4,
+  "formatAndScopedDiff": {
+    "formatExitCode": 0,
+    "scopedDiffCheckExitCode": 0,
+    "fileCount": 29,
+    "rawEvidenceAndUserLockNotFormatted": true
+  },
+  "tests": {
+    "passed": 62,
+    "failed": 5,
+    "skipped": 0,
+    "original55AllPassed": true
+  },
+  "strictSixProjectLint": "passed",
+  "appTypecheck": "passed",
+  "allEvidenceFilesTrackable": true,
+  "rawTextAttributesUnset": true,
+  "lockChangesOnlyAppImporter": true,
+  "linkCheckLimit": "Filesystem target existence, not remote URL or anchor validation."
+}

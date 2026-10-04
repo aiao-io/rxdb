@@ -1,0 +1,266 @@
+{
+  "date": "2026-10-04",
+  "artifacts": [
+    {
+      "file": "baseline-counts.json",
+      "bytes": 325,
+      "sha256": "654ea63740021556d2fc61b712604ff3a3d1b7e099d64a4a017db5de8706b6b0"
+    },
+    {
+      "file": "code-editor-angular-baseline-junit.xml",
+      "bytes": 17296,
+      "sha256": "a37e1b970449c99531e6cbace992f1845cdcda9f3290d83a612c61af79a265f1"
+    },
+    {
+      "file": "code-editor-angular-final-junit.xml",
+      "bytes": 19720,
+      "sha256": "cec8d843e27c48f5de92972901a3d1906f083262bab1b678e13669438d5d2d2b"
+    },
+    {
+      "file": "code-editor-angular-project.json",
+      "bytes": 3169,
+      "sha256": "bb21f1b46f5222a4f7ed27b29080841784776c255c9f480ebdc1f0a974add61d"
+    },
+    {
+      "file": "code-editor-baseline-junit.xml",
+      "bytes": 22379,
+      "sha256": "27a0fbd142efebe53ae1aa4a083c2ec542d03b48d154a676da503536e1b2ff3b"
+    },
+    {
+      "file": "code-editor-final-junit.xml",
+      "bytes": 24909,
+      "sha256": "69e6e06f992285e1e4e09996551af2c8e90dc7e1bc9a7907015216f8f65112c1"
+    },
+    {
+      "file": "code-editor-project.json",
+      "bytes": 4363,
+      "sha256": "14f09a9a8fa85d56a21d50da840c9c12105dcfb19a280001ddbbf37c15d978fa"
+    },
+    {
+      "file": "code-editor-react-baseline-junit.xml",
+      "bytes": 6756,
+      "sha256": "385c8b7d771d8ee46b8689957bdc584c4cef4da84bac24fed365de158985fcc9"
+    },
+    {
+      "file": "code-editor-react-final-junit.xml",
+      "bytes": 9486,
+      "sha256": "ac7d35f0430cef79b334f63c3f034e2c87fd1a81fac5719a678f1a25c372cbc7"
+    },
+    {
+      "file": "code-editor-react-project.json",
+      "bytes": 4447,
+      "sha256": "18dbafecbd46c6779ab6b00c7c4e33dddc6c37842f22bfdbb60797d4617df017"
+    },
+    {
+      "file": "code-editor-vue-baseline-junit.xml",
+      "bytes": 15894,
+      "sha256": "c4feef606437f99830506a24c046f17082a34ce79cb79b0a0164b8ba5cdfcd6d"
+    },
+    {
+      "file": "code-editor-vue-final-junit.xml",
+      "bytes": 19072,
+      "sha256": "e5aae0c29506ec426c66f4a9729675f5ce8c5723558c389ad9e5e9219819b5e8"
+    },
+    {
+      "file": "code-editor-vue-project.json",
+      "bytes": 4257,
+      "sha256": "5f83f35b2bf7e4d344e49aa4f0ab6691f30cab8e64360b7f856f5d2dcd6bde7f"
+    },
+    {
+      "file": "core-coverage-and-properties-status.json",
+      "bytes": 328,
+      "sha256": "c43e0216b6997d9d6b1ba929b6c8f565279e3bf30ad7ac50c95c3ef93518e5a3"
+    },
+    {
+      "file": "core-coverage-and-properties.txt",
+      "bytes": 3523,
+      "sha256": "a6292b2dc8ab01621f7365227505c31b5ea305aebfe4ff549aae2f529b100202"
+    },
+    {
+      "file": "core-coverage-final.json",
+      "bytes": 29874,
+      "sha256": "68b4c0a8b5bd3f7ff79688bbf7981d4a0fe4bd602d4c20cf387ab4bb6288cd5d"
+    },
+    {
+      "file": "core-coverage-summary.json",
+      "bytes": 2195,
+      "sha256": "fa987dea351ed6e1d43ba6797c166c432c0ad9e5f350f29af5d711a981752131"
+    },
+    {
+      "file": "delivery-validation.json",
+      "bytes": 1226,
+      "sha256": "d365267c9a1ac91185dd5c461afb7cbc7ddebb2b0a45c47968277433cca23423"
+    },
+    {
+      "file": "dev-rxdb-angular-project.json",
+      "bytes": 5287,
+      "sha256": "af9a4a676113aac59fd35744a99cc004342851fc9b7d9cf880cf32b80d9fed80"
+    },
+    {
+      "file": "dev-rxdb-react-project.json",
+      "bytes": 3872,
+      "sha256": "b3ce733a3d5f9ea0528229a227407cc8e4f9b4900609c7300faed2f1c753a8fe"
+    },
+    {
+      "file": "dev-rxdb-vue-project.json",
+      "bytes": 3684,
+      "sha256": "e69f6e3813bfbc5768cd618e577ab4801a142c64d79c412662827480c1ba2418"
+    },
+    {
+      "file": "edited-file-scope.json",
+      "bytes": 2017,
+      "sha256": "c8ca71b261eef83855cfa4cac12b57d4ca743d3e3602605a0dcc2824d754b055"
+    },
+    {
+      "file": "final-four-package-tests-status.json",
+      "bytes": 423,
+      "sha256": "8fefb72b4a4183784ca4cefdb30be231de452895c7e23f97eb6876d6d8874ffa"
+    },
+    {
+      "file": "final-four-package-tests.txt",
+      "bytes": 22781,
+      "sha256": "4c67b4c8588bd5d95c9c76d3092357ed0def02267c839cf0e2a679553bb1f3a7"
+    },
+    {
+      "file": "final-observations.json",
+      "bytes": 1888,
+      "sha256": "f4354e50a32b544e8b07723eff84f0abdf24df8c60de5dd60bb93e69f921866f"
+    },
+    {
+      "file": "final-package-counts.json",
+      "bytes": 1309,
+      "sha256": "1baffa2f1deb0d23d1652f9728eef0d4a0c61660f858b8de5b8ba5503c6f48d9"
+    },
+    {
+      "file": "final-preview-probes-status.json",
+      "bytes": 467,
+      "sha256": "211345066a0ac60c64183506765657d83532b898cbbd4b7c1aabc550bc43cb12"
+    },
+    {
+      "file": "final-preview-probes.txt",
+      "bytes": 7188,
+      "sha256": "b81834324d933d5669ceb9487e359606afe433d5cb78244c7fbbc71b85bdbc80"
+    },
+    {
+      "file": "final-seven-lint-status.json",
+      "bytes": 438,
+      "sha256": "7472ee68fd896f4293a2551f8ad7cb39867d5ed80bdf131c7030680262d3e4bc"
+    },
+    {
+      "file": "final-seven-lint.txt",
+      "bytes": 2447,
+      "sha256": "a0f755a4b19218fd1bae021b9576967e56459fe86bb71822b3e151800083ada9"
+    },
+    {
+      "file": "final-seven-typecheck-status.json",
+      "bytes": 452,
+      "sha256": "abc2c5f420aed582586cc5124eb4d004a68063646c37dc22a9d5b72fb602c0c5"
+    },
+    {
+      "file": "final-seven-typecheck.txt",
+      "bytes": 1508,
+      "sha256": "389dbd893b8cf5bc308f13adf1fbbf271f9fc2414974387a82166eb7ede07f5b"
+    },
+    {
+      "file": "format-check.txt",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "file": "format-status.json",
+      "bytes": 77,
+      "sha256": "c50d38ebbaa8a767e8f1c31362ba1dad69ee67c9e482f6770e395772e29c4790"
+    },
+    {
+      "file": "four-packages-baseline-status.json",
+      "bytes": 423,
+      "sha256": "d1293d21100cc74781b0f6adf1884094fde7690c1f2d4fa2bd2a7683a44b7338"
+    },
+    {
+      "file": "four-packages-baseline.txt",
+      "bytes": 9110,
+      "sha256": "7607c124264eb01db09627333e0b53d756064d0ca190d33783032614dfb8b48b"
+    },
+    {
+      "file": "language-sync-throw-probes-status.json",
+      "bytes": 498,
+      "sha256": "111ee217e6c2717b68ba23c080856c832626158ac3456f8443761f34414e3aa7"
+    },
+    {
+      "file": "language-sync-throw-probes.txt",
+      "bytes": 12867,
+      "sha256": "0807ce71ab378f8daee1f3bc238a829365ff755473fa51fa509844b04a0e0ea1"
+    },
+    {
+      "file": "original-case-retention.json",
+      "bytes": 409,
+      "sha256": "cb260fce2d611fc26b057966b26602fe48a8ec92114ebd6f93f690ee948796fd"
+    },
+    {
+      "file": "preview-dependency-build-status.json",
+      "bytes": 358,
+      "sha256": "eb0aae104ba9d97354d9c27fd17f648f30edcdb0aef90912303a5c230856158f"
+    },
+    {
+      "file": "preview-dependency-build.txt",
+      "bytes": 3655,
+      "sha256": "1fba4854252dd3298aadacf64ed82febcc5acdf4eed0634a404241291940809d"
+    },
+    {
+      "file": "preview-epoch-corrected-filter-status.json",
+      "bytes": 467,
+      "sha256": "211345066a0ac60c64183506765657d83532b898cbbd4b7c1aabc550bc43cb12"
+    },
+    {
+      "file": "preview-epoch-corrected-filter.txt",
+      "bytes": 8323,
+      "sha256": "73831c6abcc7b0881c29fcd07c34c9ef1a89142b2ffd9dffbae240b0fda6e48f"
+    },
+    {
+      "file": "preview-epoch-probes-status.json",
+      "bytes": 448,
+      "sha256": "8b99aea68c4eca57e43607179585bb53dfa6e29bb94afcf80561a8f7b0d5e18a"
+    },
+    {
+      "file": "preview-epoch-probes.txt",
+      "bytes": 51067,
+      "sha256": "4db5d8389ed007691dcd2a93998793072f010c545c62233e886c3f2b10b99479"
+    },
+    {
+      "file": "round-results.json",
+      "bytes": 8466,
+      "sha256": "2da031666457a9c5c31112dd323b931180d6e41744a8a05afd5a68ba81c11225"
+    },
+    {
+      "file": "runtime-and-sources.json",
+      "bytes": 20836,
+      "sha256": "f9d5b8e25dd2756c30b03a2cbc86ab7c8114e2be1ca5bc54a320d4b4b8490e64"
+    },
+    {
+      "file": "scoped-diff-check.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "seven-object-lint-status.json",
+      "bytes": 438,
+      "sha256": "7472ee68fd896f4293a2551f8ad7cb39867d5ed80bdf131c7030680262d3e4bc"
+    },
+    {
+      "file": "seven-object-lint.txt",
+      "bytes": 2447,
+      "sha256": "2ad30b6caa3b6ff186a0111af19e8d53aab1a7cab8bdadb61a0d6735fcf002ef"
+    },
+    {
+      "file": "vue-runtime-language-probe-status.json",
+      "bytes": 408,
+      "sha256": "162fcae68d906d259c4eaeef362fff83139bb655728cb9f0538ddb27446ffc26"
+    },
+    {
+      "file": "vue-runtime-language-probe.txt",
+      "bytes": 6798,
+      "sha256": "b03db6b570dfaeb91615924ccb7f035f3d2b5f98355e7ae04db93c729593d31b"
+    }
+  ],
+  "selfExcluded": true
+}

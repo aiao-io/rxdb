@@ -1,0 +1,78 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-client-generator:test --args=src/__tests__/cli/review-new-output-alias-queue.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/cli/review-new-output-alias-queue.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:29492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator
+
+(node:29500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/cli/review-new-output-alias-queue.spec.ts > 评审：首次输出目录的父软链别名必须共用构建队列 > 输出目录已存在=false 时，最后调用的构建必须最后发布
+REVIEW_GENERATOR_ALIAS {"existing":false,"completionOrder":["B","A"],"hasAlpha":true,"hasBeta":false}
+
+stdout | src/__tests__/cli/review-new-output-alias-queue.spec.ts > 评审：首次输出目录的父软链别名必须共用构建队列 > 输出目录已存在=true 时，最后调用的构建必须最后发布
+REVIEW_GENERATOR_ALIAS {"existing":true,"completionOrder":["A","B"],"hasAlpha":false,"hasBeta":true}
+
+ ❯ |rxdb-client-generator| src/__tests__/cli/review-new-output-alias-queue.spec.ts (2 tests | 1 failed) 2213ms
+     × 输出目录已存在=false 时，最后调用的构建必须最后发布 1114ms
+     ✓ 输出目录已存在=true 时，最后调用的构建必须最后发布  1098ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-client-generator| src/__tests__/cli/review-new-output-alias-queue.spec.ts > 评审：首次输出目录的父软链别名必须共用构建队列 > 输出目录已存在=false 时，最后调用的构建必须最后发布
+AssertionError: expected [ 'B', 'A' ] to deeply equal [ 'A', 'B' ]
+
+- Expected
++ Received
+
+  [
+-   "A",
+    "B",
++   "A",
+  ]
+
+ ❯ src/__tests__/cli/review-new-output-alias-queue.spec.ts:43:21
+     41|       const output = await readFile(join(outA, 'index.js'), 'utf8');
+     42|       console.log('REVIEW_GENERATOR_ALIAS ' + JSON.stringify({ existin…
+     43|       expect(order).toEqual(['A', 'B']);
+       |                     ^
+     44|       expect(output).toMatch(/\bBeta\b/);
+     45|       expect(output).not.toMatch(/\bAlpha\b/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  14:44:01
+   Duration  2.77s (transform 196ms, setup 0ms, import 455ms, tests 2.21s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-client-generator/junit.xml
+Warning: command "vitest src/__tests__/cli/review-new-output-alias-queue.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-client-generator failed
+
+Failed tasks:
+
+- rxdb-client-generator:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      3.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     3.2s (1 task)
+  Recoverable time:  <1ms

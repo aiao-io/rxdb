@@ -1,0 +1,191 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-devtools:test --args=src/__tests__/connector.boundaries.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+> vitest src/__tests__/connector.boundaries.spec.ts --run --coverage.enabled=false --maxWorkers=1
+
+(node:56904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools
+
+(node:56919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > MUST cancel a hung QUERY_ENTITY subscription and reply with a timeout error once the timeout elapses
+[RxDB DevTools Connector] Query error: Error: query timed out after 10000ms
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts:75:21
+    at callTimer (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:1773:25)
+    at doTickInner (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2444:30)
+    at doTick (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2525:21)
+    at Object.tick (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:2533:21)
+    at FakeTimers.advanceTimersByTime (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3271:44)
+    at Object.advanceTimersByTime (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_d0e3fc747d59b0efb9d822997c8bb63b/node_modules/vitest/dist/chunks/test.DNmyFkvJ.js:3509:13)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/connector.boundaries.spec.ts:1263:10
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+
+stderr | src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > MUST report the synchronous subscribe failure and clear the pending timeout
+[RxDB DevTools Connector] Query error: Error: subscribe exploded
+    at Object.<anonymous> (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/connector.boundaries.spec.ts:1285:17)
+    at Object.Mock [as subscribe] (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+spy@4.1.11/node_modules/@vitest/spy/dist/index.js:332:34)
+    at subscribeOnce (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts:88:33)
+    at DevToolsConnector.#handleQueryEntity (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:821:7)
+    at DevToolsConnector.#handleMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:499:14)
+    at DevToolsConnector.#handlePortMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:447:10)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:435:62
+    at Object.port.onmessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-transport.ts:105:49)
+    at Object.postMessage (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/fixtures/devtools-channel.ts:46:13)
+    at sendToConnector (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/__tests__/fixtures/devtools-channel.ts:110:14)
+
+ ❯ |rxdb-devtools| src/__tests__/connector.boundaries.spec.ts (79 tests | 2 failed) 356ms
+     ✓ MUST reject malformed envelopes before invoking a command handler 3ms
+     ✓ MUST reject explicit invalid query limit 0 without querying 1ms
+     ✓ MUST reject explicit invalid query limit -1 without querying 0ms
+     ✓ MUST reject explicit invalid query limit 1001 without querying 0ms
+     ✓ MUST reject explicit invalid query limit 1.5 without querying 0ms
+     ✓ MUST reject explicit invalid query limit NaN without querying 0ms
+     ✓ MUST reject explicit invalid query limit Infinity without querying 0ms
+     ✓ MUST reject explicit invalid query limit 10 without querying 0ms
+     ✓ MUST reject explicit invalid query limit null without querying 0ms
+     ✓ MUST reject explicit invalid query limit undefined without querying 0ms
+     ✓ MUST query with accepted limit undefined 2ms
+     ✓ MUST query with accepted limit 1 0ms
+     ✓ MUST query with accepted limit 1000 0ms
+     ✓ MUST handle a synchronous query Observable once and mask metadata-declared fields 1ms
+     ✓ MUST mask encrypted bigint/binary before applying the shared QUERY_ENTITY wire serializer 1ms
+       ✓ 事件遮罩必须使用事件自身 namespace 对应的加密字段集 1ms
+       ✓ QUERY_ENTITY 带 namespace 时必须命中对应 namespace 的仓库并在响应中回显身份 0ms
+       ✓ QUERY_ENTITY 未带 namespace 且名称有歧义时返回结构化错误，不得随意挑一个 0ms
+       ✓ init 之后注册的加密实体，其事件字段必须被遮罩 0ms
+       ✓ 被 splice 掉之后，该实体不再套用任何加密字段集 0ms
+     ✓ MUST mask encrypted fields in event entity patch, inversePatch, and data 0ms
+     ✓ MUST serialize history change values uniformly and redact the target entity fields first 0ms
+     ✓ MUST mask local, remote, and base using the CONFLICT_DETECTED conflict namespace 0ms
+     ✓ MUST mask local, remote, and base using the CONFLICT_PENDING conflict namespace 0ms
+     ✓ MUST serialize bigint/binary on both conflict sides without mutating either patch 0ms
+     ✓ MUST handle a synchronous branches Observable once 1ms
+     ✓ MUST fail fast on a different instance without polluting first-instance state 1ms
+     ✓ MUST retain instance, listeners, and helper after disconnect rejection so retry can succeed 1ms
+     ✓ MUST retain retry state after disconnect timeout 2ms
+     ✓ MUST retain retry state when forced release fails 1ms
+     ✓ MUST explicitly report forced success and clean up only after worker termination succeeds 0ms
+     ✓ MUST report truthful graceful and not-connected statuses in DISCONNECT_RXDB_RESULT 103ms
+     ✓ MUST force-release via sharedWorker port.close when disconnectAll fails 1ms
+     ✓ MUST fail force-release when adapter has neither worker nor sharedWorker 0ms
+     ✓ MUST ignore messages from a different origin 0ms
+     ✓ MUST drop buffered events on CLEAR so a later handshake ack flushes nothing 0ms
+     ✓ MUST keep the sequence monotonic across CLEAR 0ms
+     ✓ MUST skip entities whose metadata has no name 0ms
+     ✓ MUST reply when QUERY_ENTITY targets a missing entity name 0ms
+     ✓ MUST degrade only the cyclic node and keep sibling fields of a circular document 0ms
+     ✓ MUST fall back to an id-only record only when toJSON itself throws 0ms
+     ✓ MUST handle observer-style subscribe with next/error and non-record branch rows 0ms
+     ✓ MUST post empty BRANCHES when branch Observable errors asynchronously 51ms
+     ✓ MUST post empty BRANCHES when find throws synchronously 0ms
+     ✓ MUST run branch ops through versionManager and refresh branches afterwards 102ms
+     ✓ MUST refresh branches on SWITCH_BRANCH_COMMIT and on removes that touch the branch entity 1ms
+     ✓ MUST NOT refresh branches when a remove event carries 空 entities 列表 0ms
+     ✓ MUST NOT refresh branches when a remove event carries 与分支无关的实体 0ms
+     ✓ MUST NOT refresh branches when a remove event carries 同名但别的 namespace 0ms
+     ✓ MUST NOT refresh branches when a remove event carries 形状不合预期的元素 0ms
+     ✓ MUST NOT refresh branches when no branch entity is registered at all 0ms
+     ✓ MUST leave non-entity event payloads unmasked 0ms
+     ✓ MUST NOT postMessage ENTITY_DATA when an in-flight query Observable resolves after disconnect() 1ms
+     ✓ MUST cancel a hung QUERY_ENTITY subscription and reply with a timeout error once the timeout elapses 6ms
+     ✓ MUST report the synchronous subscribe failure and clear the pending timeout 2ms
+     ✓ MUST NOT query or broadcast branches for commit/remove events while not connected 1ms
+     ✓ MUST NOT start a second branch query while one is already in flight 51ms
+       ✓ MUST default to the full tier and announce it in the handshake 0ms
+       ✓ MUST announce the configured none tier 0ms
+       ✓ MUST announce the configured readonly tier 0ms
+       ✓ MUST announce the configured full tier 0ms
+       ✓ MUST answer readonly commands at the readonly tier 0ms
+       ✓ MUST silently drop the mutating command SWITCH_BRANCH at the readonly tier 0ms
+       ✓ MUST silently drop the mutating command CREATE_BRANCH at the readonly tier 0ms
+       ✓ MUST silently drop the mutating command DELETE_BRANCH at the readonly tier 0ms
+       ✓ MUST silently drop DISCONNECT_RXDB at the readonly tier 0ms
+       ✓ MUST drop readonly commands at the none tier while keeping the transport alive 0ms
+       ✓ MUST NOT subscribe, buffer or flush any event at the none tier 0ms
+       ✓ MUST drop data commands that arrive on the window bus instead of the private port 0ms
+       ✓ MUST share a single in-flight disconnect across overlapping callers 0ms
+       ✓ MUST release the latch after a failed disconnect so an explicit retry runs again 0ms
+       ✓ MUST short-circuit to not-connected once the instance is gone 0ms
+       ✓ MUST disable itself and warn once when the document has an opaque origin 0ms
+       ✓ MUST broadcast with a wildcard target only when opaque origin is explicitly allowed 0ms
+       ✓ MUST target the exact origin on a normal document 0ms
+     ✓ 评审：环引用位于 self 时，查询仍应保留兄弟字段 0ms
+     × 评审：环引用位于 changes 时，查询仍应保留兄弟字段 3ms
+     ✓ 评审：环引用位于 self 时，DevTools 监听不能向事件生产者抛异常 0ms
+     × 评审：环引用位于 changes 时，DevTools 监听不能向事件生产者抛异常 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-devtools| src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > 评审：环引用位于 changes 时，查询仍应保留兄弟字段
+AssertionError: expected undefined to be 'keep-sibling' // Object.is equality
+
+- Expected:
+"keep-sibling"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/connector.boundaries.spec.ts:1653:41
+    1651|     dispatchCommand('QUERY_ENTITY', { entityName: 'ReviewEntity' });
+    1652|     const payload = postedMessages(postMessageSpy, 'ENTITY_DATA')[0]?.…
+    1653|     expect(payload.data?.[0]?.['name']).toBe('keep-sibling');
+       |                                         ^
+    1654|     expect(payload.data?.[0]?.['_error']).toBeUndefined();
+    1655|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-devtools| src/__tests__/connector.boundaries.spec.ts > DevToolsConnector boundaries > 评审：环引用位于 changes 时，DevTools 监听不能向事件生产者抛异常
+AssertionError: expected [Function] to not throw an error but 'RangeError: Maximum call stack size e…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"RangeError: Maximum call stack size exceeded"
+
+ ❯ src/__tests__/connector.boundaries.spec.ts:1668:11
+    1666|         entities: [{ entity: 'ReviewEntity', namespace: 'public', patc…
+    1667|       })
+    1668|     ).not.toThrow();
+       |           ^
+    1669|   });
+    1670| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 77 passed (79)
+   Start at  11:25:45
+   Duration  847ms (transform 160ms, setup 0ms, import 201ms, tests 356ms, environment 194ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/node_modules/.cache/test-results/junit.xml
+Warning: command "vitest src/__tests__/connector.boundaries.spec.ts --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-devtools failed
+
+Failed tasks:
+
+- rxdb-devtools:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      4.7s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.7s (1 task)
+  Recoverable time:  <1ms

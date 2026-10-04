@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-04",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "reviewPlanCount": 70,
+  "executionRecordCount": 70,
+  "specializedChecks": 385,
+  "wholeObjectsComplete": 0,
+  "newFullyClosedChecks": 0,
+  "localMarkdownPathLinksChecked": 4320,
+  "brokenLocalPathLinks": [],
+  "sourceFingerprintsChecked": {
+    "initialSourceSha256": 64,
+    "additionalConsumerSourceSha256": 8,
+    "reproductionSha256": 7
+  },
+  "businessImplementationModified": false,
+  "packageTests": {
+    "passed": 282,
+    "failed": 3,
+    "skipped": 0,
+    "original271RetainedAndPassing": true
+  },
+  "previewProbes": {
+    "failed": 2,
+    "passed": 4,
+    "reactActWarnings": 0
+  },
+  "coreCoverage": {
+    "threshold": 80,
+    "sourceFileCount": 6,
+    "percentages": {
+      "statements": 99.13,
+      "branches": 97.95,
+      "functions": 100,
+      "lines": 100
+    },
+    "passed": true
+  },
+  "strictSevenObjectLint": "passed",
+  "sevenObjectTypecheck": "passed",
+  "formatAndScopedDiff": {
+    "formatExitCode": 0,
+    "scopedDiffCheckExitCode": 0,
+    "fileCount": 28
+  },
+  "allEvidenceFilesTrackable": true,
+  "rawTextAttributesUnset": true,
+  "linkCheckLimit": "Filesystem targets only, not remote URLs or anchors."
+}

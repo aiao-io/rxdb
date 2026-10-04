@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-04T15:29:24.612632+08:00",
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "plans": 70,
+  "packageResults": 51,
+  "appResults": 19,
+  "criteriaTotal": 385,
+  "closedTopicCount": 2,
+  "localLinksChecked": 4079,
+  "brokenLinks": [],
+  "ignoredReviewLinkTargets": [],
+  "sourceHashesChecked": 13,
+  "sourceHashMismatches": [],
+  "textEvidenceFiles": 16,
+  "businessImplementationEditsByAgent": false,
+  "unrelatedWorkingTreeChangesPreserved": true,
+  "gitIndexModifiedByAgent": false,
+  "newConfirmedReports": [
+    "RV-049",
+    "RV-050",
+    "RV-051"
+  ],
+  "miniRuntimeMeasurementFace": "Compiled actual page with module/lifecycle seams, not real React/Taro scheduling or native WeChat",
+  "formatCheck": {
+    "exitCode": 0,
+    "explicitFileCount": 35,
+    "log": "final-format-check.txt"
+  },
+  "reviewScopedDiffCheckExitCode": 0
+}

@@ -54,14 +54,14 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                                    | 最低复验场景 / 证据要求                                                               | 状态   |
-| ---- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------ |
-| C1   | 协议与信任边界         | 从 connector 到 transport/wire 核查版本、session、source、能力协商和消息严格校验。          | 伪造消息、旧 session、错版本、未知 provider、超大 payload；拒绝时无 DB/file 副作用。  | 待核查 |
-| C2   | 数据脱敏与序列化       | 审查 mask、entity info、snapshot、错误与日志，不让调试便利绕过敏感字段保护。                | 加密字段、循环值、BigInt/binary、巨大对象、错误 cause；输出有界且不带敏感明文。       | 待核查 |
-| C3   | 缓冲、序号与反压       | 核查 buffer/sequence、慢消费者、断开重连与订阅一次语义。                                    | 突发事件、序号缺口/重复、重连、订阅者中断；有限内存，能识别丢失而非静默假完整。       | 待核查 |
-| C4   | provider 权限与文件    | 逐项对照 browser/native/settings provider 的 descriptor、只读限制、logical path 与 limits。 | 路径穿越、超配额上传、危险设置写、缺能力、批操作部分失败；按公开拒绝语义处理。        | 待核查 |
-| C5   | 环境与生产隔离         | 对照 extension/Electron/Tauri 接线和开发态 gating，核查运行时包是否增加生产攻击面。         | 生产 build、未连接调试客户端、窗口关闭；特权接口不可被普通页面调用。                  | 待核查 |
-| C6   | 生命周期与 conformance | 核查 reconnect、provider 注册/注销、testing driver 与跨宿主 relay conformance。             | 数据库关闭重连、窗口导航/session rotation、host 退出；无孤儿 port/listener/文件句柄。 | 待核查 |
+| 编号 | 专项                   | 核查动作                                                                                    | 最低复验场景 / 证据要求                                                               | 状态                    |
+| ---- | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------- |
+| C1   | 协议与信任边界         | 从 connector 到 transport/wire 核查版本、session、source、能力协商和消息严格校验。          | 伪造消息、旧 session、错版本、未知 provider、超大 payload；拒绝时无 DB/file 副作用。  | 待核查                  |
+| C2   | 数据脱敏与序列化       | 审查 mask、entity info、snapshot、错误与日志，不让调试便利绕过敏感字段保护。                | 加密字段、循环值、BigInt/binary、巨大对象、错误 cause；输出有界且不带敏感明文。       | 部分执行，环引用 RV-047 |
+| C3   | 缓冲、序号与反压       | 核查 buffer/sequence、慢消费者、断开重连与订阅一次语义。                                    | 突发事件、序号缺口/重复、重连、订阅者中断；有限内存，能识别丢失而非静默假完整。       | 待核查                  |
+| C4   | provider 权限与文件    | 逐项对照 browser/native/settings provider 的 descriptor、只读限制、logical path 与 limits。 | 路径穿越、超配额上传、危险设置写、缺能力、批操作部分失败；按公开拒绝语义处理。        | 待核查                  |
+| C5   | 环境与生产隔离         | 对照 extension/Electron/Tauri 接线和开发态 gating，核查运行时包是否增加生产攻击面。         | 生产 build、未连接调试客户端、窗口关闭；特权接口不可被普通页面调用。                  | 待核查                  |
+| C6   | 生命周期与 conformance | 核查 reconnect、provider 注册/注销、testing driver 与跨宿主 relay conformance。             | 数据库关闭重连、窗口导航/session rotation、host 退出；无孤儿 port/listener/文件句柄。 | 待核查                  |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -143,3 +143,7 @@ pnpm audit:coverage --projects=rxdb-devtools
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-devtools.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-04：树查询与 DevTools 第三批深审
+
+[本对象实际意见与源码/运行证据](../results/packages/rxdb-devtools.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。

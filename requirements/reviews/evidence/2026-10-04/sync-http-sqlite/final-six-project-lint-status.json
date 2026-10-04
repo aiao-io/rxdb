@@ -1,0 +1,21 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "lint",
+    "--projects=dev-rxdb-http-server,rxdb-plugin-sync,rxdb-plugin-querycache,rxdb-adapter-http,rxdb-adapter-electron,rxdb-adapter-sqlite-core",
+    "--parallel=1",
+    "--max-warnings=0",
+    "--outputStyle=static",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "CI": "true",
+    "CODECOV_TOKEN": "",
+    "NX_DAEMON": "false"
+  }
+}

@@ -1,0 +1,99 @@
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-encrypted:test --args=review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1
+
+> vitest review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1
+
+(node:92344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted
+
+(node:92350) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | src/__tests__/review-aborted-initial-unlock.spec.ts > 评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > lock 发生在 provider 尚未返回时，取消的解锁不能初始化 singleton
+REVIEW_ENCRYPTED {"scenario":"cancel-before-provider","locked":true,"initialized":true}
+
+stdout | src/__tests__/review-aborted-initial-unlock.spec.ts > 评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > 取消 A 后开始首次解锁 B，B 不应被废弃 A 的 verifier 拒绝
+REVIEW_ENCRYPTED {"scenario":"cancel-A-then-B","code":"verifier_mismatch","locked":true}
+
+ ❯ |rxdb-adapter-encrypted| src/__tests__/review-aborted-initial-unlock.spec.ts (3 tests | 2 failed) 12ms
+     × lock 发生在 provider 尚未返回时，取消的解锁不能初始化 singleton 7ms
+     × 取消 A 后开始首次解锁 B，B 不应被废弃 A 的 verifier 拒绝 2ms
+     ✓ 对照：A 正常初始化后锁定，必须只接受 A，不允许 B 覆盖已有凭据 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-adapter-encrypted| src/__tests__/review-aborted-initial-unlock.spec.ts > 评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > lock 发生在 provider 尚未返回时，取消的解锁不能初始化 singleton
+AssertionError: expected { id: 'singleton', …(5) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "createdAt": 1791138751157,
+  "id": "singleton",
+  "kdf": "pbkdf2-sha256-600000",
+  "kid": "iV3X7_CkFVQ",
+  "salt": "DdGKlsYM942VsHxCMIY9Jw",
+  "verifier": "2|AGCM256|iV3X7_CkFVQ|ZdZ2-XYf9KeDJ4Zy|zYyDT1879vNKFkERBdwE1qn19tE|D_Oau1ZfqqNDtvmlgKy4zA",
+}
+
+ ❯ src/__tests__/review-aborted-initial-unlock.spec.ts:68:25
+     66|         JSON.stringify({ scenario: 'cancel-before-provider', locked: c…
+     67|       );
+     68|       expect(persisted).toBeNull();
+       |                         ^
+     69|     } finally {
+     70|       gate.release();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |rxdb-adapter-encrypted| src/__tests__/review-aborted-initial-unlock.spec.ts > 评审复验：首次解锁取消不能把废弃密钥变成数据库的持久凭据 > 取消 A 后开始首次解锁 B，B 不应被废弃 A 的 verifier 拒绝
+AssertionError: expected 'verifier_mismatch' to be 'resolved' // Object.is equality
+
+Expected: "resolved"
+Received: "verifier_mismatch"
+
+ ❯ src/__tests__/review-aborted-initial-unlock.spec.ts:98:27
+     96|         JSON.stringify({ scenario: 'cancel-A-then-B', code: result.cod…
+     97|       );
+     98|       expect(result.code).toBe('resolved');
+       |                           ^
+     99|       expect(ctx.ring.isLocked).toBe(false);
+    100|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  02:32:30
+   Duration  201ms (transform 35ms, setup 0ms, import 98ms, tests 12ms, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-adapter-encrypted/junit.xml
+Warning: command "vitest review-aborted-initial-unlock --run --coverage.enabled=false --maxWorkers=1" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-adapter-encrypted failed
+
+Failed tasks:
+
+- rxdb-adapter-encrypted:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      598ms
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     577ms (1 task)
+  Recoverable time:  <1ms

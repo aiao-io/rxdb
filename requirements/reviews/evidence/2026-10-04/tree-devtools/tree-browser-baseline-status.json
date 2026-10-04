@@ -1,0 +1,19 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-tree:test",
+    "--args=--run --coverage.enabled=false --maxWorkers=1",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache"
+  ],
+  "completedAt": "2026-10-04T10:00:05.419681+08:00",
+  "environment": {
+    "VITEST_BROWSER": "true"
+  },
+  "exitCode": 0,
+  "log": "tree-browser-baseline.txt",
+  "startedAt": "2026-10-04T09:59:58.406370+08:00"
+}

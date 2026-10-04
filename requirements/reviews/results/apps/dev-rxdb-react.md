@@ -57,3 +57,9 @@ React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作�
 🔴 [RV-037：目录切换中上传写入旧目录](../../RV-037-react-opfs-navigation-upload-race.md)。人工沿 route params→useOpfsRouteSync→readDirectory→currentPath→uploadFile 追踪，切换读取完成前 upload 仍使用旧路径。真实 Chromium / OPFS、实际上传按钮和 file chooser 复验 **1 failed / 1 passed**：[日志](../../evidence/2026-10-03/follow-up/react-opfs-real-upload.txt)、[磁盘内容/路由](../../evidence/2026-10-03/follow-up/react-opfs-disk-snapshot.json)。
 
 不是假 filesystem 验证，也不是“取消删除丢文件”。复验只延迟原生目录解析，真实写入仍落盘；正常等待目录的对照成功。完整 C3 / C6 仍待核查，未把 StrictMode、所有写入和全部路由包装成通过。
+
+## 2026-10-04：编辑器与预览第七批
+
+沿代码编辑器/Generator/OPFS 预览消费入口联审。与 [RV-057](../../RV-057-preview-late-blob-text-overwrites-current-file.md) 同序列，原预览按 entry.path 重建且每个 await 后检查 active，交错及顺序 **2 passed**，不凑 React 相同缺陷。初始化/切换已正确包在 act 中，未忽略警告；服务与 Blob.text 时序为接缝，不代验真实 OPFS/整个应用。编辑器扩展语言的跨包边界见 RV-056，实际 app 默认配置是否使用该自定义 loader 未由本轮验收。
+
+[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
