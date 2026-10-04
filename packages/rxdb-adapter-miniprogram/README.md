@@ -156,6 +156,17 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 打包器按引用数把它们拆进页面静态 `require` 的公共 chunk 时就会出这个问题，Taro 的 `manualChunks` 正是如此；
 Taro 示例用 `config/lazy-chunk-vite-plugin.ts` 把只经动态 `import()` 可达的模块并进单独的懒加载 chunk。
 
+开发者工具的「真机调试」不用原生引擎，而是用 Boatman（一个 JS 写的 JS 解释器）跑逻辑层。它提升 `var` 时不看标签语句（`label: {…}`）内部：
+这类 `var` 只有真执行到才登记进函数作用域。没执行到的那次调用里，对同名变量的赋值会写进外层闭包。React 18 的
+reconciler 正好踩中（`beginWork` 在 `e:{…}` 里 `var o`，把工厂闭包里的 `Symbol.for("react.element")` 写成元素对象），
+页面渲染时就抛 React #31。预览、体验版与模拟器都是原生引擎，不受影响。Taro 示例用 `config/labeled-var-hoist-vite-plugin.ts`
+在产物定稿时把这类 `var` 补声明到函数开头（ES 语义不变），其他应用要在真机调试里跑，同样需要这一步。
+
+Boatman 还有一处偏差：成员赋值 `o.x = v` 调完 setter 会再调一次 getter，拿 getter 的返回值当赋值表达式的值。
+实体类里的关系属性要写 `declare parent$: …`，不能写成 `parent$!: …` 字段：降级成 `this.parent$ = void 0` 后，构造时就会经过
+原型上的关系 accessor，Boatman 再去读 getter，这时实体状态还没挂上，报 `Target has no entity status`。`@aiao/rxdb`
+的系统实体已经按这个写法改好。
+
 ```typescript
 async function createDatabase() {
   const runtime = await import('@aiao/rxdb-adapter-miniprogram/runtime');

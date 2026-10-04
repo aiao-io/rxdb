@@ -2,6 +2,7 @@ import type { MiniProgramHost } from '@aiao/rxdb-adapter-miniprogram';
 import { Button, Checkbox, CheckboxGroup, Input, Label, Text, View } from '@tarojs/components';
 import { useLoad, useUnload } from '@tarojs/taro';
 import { useCallback, useRef, useState } from 'react';
+import { logFailure } from '../../debug-log';
 import {
   currentDemoRuntime,
   getMiniProgramRuntimeReferences,
@@ -96,6 +97,7 @@ export default function Index() {
       setTodos(await demo.listTodos());
       setOperation('数据库验证完成');
     } catch (error) {
+      logFailure('数据库验证', error);
       const detail = errorMessage(error);
       setChecks(current =>
         current.map(check => (check.name === '跨启动持久化' ? check : { ...check, status: 'failed', detail }))
@@ -109,6 +111,7 @@ export default function Index() {
     try {
       checked = preflight();
     } catch (error) {
+      logFailure('运行时预检', error);
       setPhase('error');
       setOperation(errorMessage(error));
       return;
@@ -137,6 +140,7 @@ export default function Index() {
       setPhase('ready');
       await verifyReconnect(result.demo);
     } catch (error) {
+      logFailure('初始化', error);
       setPhase('error');
       setOperation(errorMessage(error));
     } finally {
@@ -161,6 +165,7 @@ export default function Index() {
         setTodos(await action(demo));
         setOperation(message);
       } catch (error) {
+        logFailure('Todo 操作', error);
         setOperation(errorMessage(error));
       } finally {
         setBusy(false);

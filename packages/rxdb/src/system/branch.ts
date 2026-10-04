@@ -189,22 +189,22 @@ export class RxDBBranch {
   /**
    * 父分支
    */
-  parent$!: RelationEntityObservable<typeof RxDBBranch>;
+  declare parent$: RelationEntityObservable<typeof RxDBBranch>;
 
   /**
    * 变更
    */
-  changes$!: RelationEntitiesObservable<typeof RxDBChange>;
+  declare changes$: RelationEntitiesObservable<typeof RxDBChange>;
 
   /**
    * syncs - 此分支的 Repository 同步记录
    */
-  syncs$!: RelationEntitiesObservable<typeof RxDBSync>;
+  declare syncs$: RelationEntitiesObservable<typeof RxDBSync>;
 
   /**
    * 子分支
    */
-  children$!: RelationEntitiesObservable<typeof RxDBBranch>;
+  declare children$: RelationEntitiesObservable<typeof RxDBBranch>;
 
   /**
    * count 查询

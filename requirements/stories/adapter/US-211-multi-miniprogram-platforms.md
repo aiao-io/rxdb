@@ -179,6 +179,16 @@ INVEST 检查清单:
   `project.alipay.json` 的 `compileOptions.transpile` 不能删（空对象就够）：支付宝开发者工具（编译器 0.108.16）
   见到它才用 babel 7 编译 JS，没有它走 babel 6，Taro 运行时 `taro.js` 编译失败（CE1000.02）；
   构建 target 因此用 babel 7 档实测过的 es2018。
+  真机调试（Boatman 解释器）里 demo 起初渲染就抛 React #31：Boatman 提升 `var` 时不进标签语句，React reconciler
+  `beginWork` 在 `e:{…}` 里的 `var o` 没登记，`case 5` 的 `o=a.children` 写穿到工厂闭包的 `Symbol.for("react.element")`。
+  `config/labeled-var-hoist-vite-plugin.ts` 在 `generateBundle` 把标签语句里的 `var` 补声明到函数开头；本地用 Boatman
+  加载真机调试包复现，修前 #31、修后与原生一致（2026-10-04），iOS 真机调试待复测。
+  #31 修掉后，真机调试接着在连库时报 `Target has no entity status: it is not an attached RxDB entity`。原因是 Boatman
+  的成员赋值调完 setter 会再读 getter，而 `RxDBBranch` / `RxDBChange` 的关系属性写成了 `parent$!:` 字段。在 es2018
+  产物里，构造时会执行 `this.parent$ = void 0`，碰到原型上的关系 getter，而 STATUS 这时还没挂上。改成 `declare` 后修复
+  （`packages/rxdb/src/__tests__/system/system-relation-fields.spec.ts` 守住）。另外，define 语义下这些字段原本也会遮住
+  原型 getter。demo 会在控制台逐步打出 `[dev-rxdb-miniprogram] …` 步骤，失败时打出 stack 与 cause 链。本地 Boatman 跑通
+  连库、CRUD、重连（2026-10-04），iOS 真机调试待复测。
 - 拒绝路径跑在没核实过的宿主上，不能依赖宿主可能没有的内置，否则拒绝信息会被 `TypeError` 顶掉。
   `assertMiniProgramPlatformId` 原先用的 `Object.hasOwn` 是整个支付宝产物里唯一的 ES2022 内置，iOS 15.4 之前的
   JavaScriptCore 没有它，已换成 `Object.prototype.hasOwnProperty.call`。

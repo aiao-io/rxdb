@@ -1,5 +1,6 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
 import type { RxDBAdapterWaSqliteMiniProgram } from '@aiao/rxdb-adapter-miniprogram';
+import { logStep } from './debug-log';
 import type { MiniProgramRuntimeReferences, RuntimeCapability } from './runtime-preflight';
 
 type RxdbModule = typeof import('@aiao/rxdb');
@@ -302,14 +303,19 @@ export class MiniProgramRxdbDemo {
 }
 
 export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferences): Promise<DemoOpenResult> {
+  logStep('释放上一个 demo');
   await releaseActiveDemo();
+  logStep('引导运行时（补 TextEncoder / TextDecoder / queueMicrotask 等）');
   const runtimePackage = await import('@aiao/rxdb-adapter-miniprogram/runtime');
   await runtimePackage.prepareMiniProgramHostRuntime(runtime.host);
 
+  logStep('加载 RxDB 与 adapter');
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
   // wasm 由 `config/assets-vite-plugin.ts` 放到产物根的 `wa-sqlite/`，三个平台的宿主都指向它（支付宝另有 base64 副本）。
+  logStep('加载 wa-sqlite glue');
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
+  logStep('检测运行时能力');
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,
     host: runtime.host,
@@ -322,6 +328,7 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
     );
   }
 
+  logStep('创建 RxDB 实例');
   const entities = defineEntities(rxdb);
   const database = new rxdb.RxDB({
     dbName: 'dev-rxdb-miniprogram',
@@ -343,7 +350,9 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
       })
   );
 
+  logStep('连接数据库');
   const adapter = await database.connect(adapterPackage.ADAPTER_NAME);
+  logStep('读取 SQLite 版本与跨启动持久化记录');
   const demo = new MiniProgramRxdbDemo(database, entities, adapterPackage.ADAPTER_NAME);
   activeDemo = demo;
   return {
