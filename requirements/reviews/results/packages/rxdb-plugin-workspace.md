@@ -66,8 +66,8 @@ C3 的规定边界本批已核销；不等于 C2 install 失败/重装竞态、C
 
 ### C2：确认旧安装结算跨纪元污染
 
-🔴 [RV-042](../../RV-042-workspace-install-epoch-settlement.md)。人工检查 install catch/finally、releaseEpochState 与 restoreEntries 身份检查：缓存回填有 store guard，结算回调却不检查自己是否属于当前安装。新恢复的删除意图可被旧 finally 清掉；旧 catch 又可把成功的新安装标成失败。
+🟢 RV-042（已修复，记录已删除）：install catch/finally、releaseEpochState 与 restoreEntries 身份检查不一致——缓存回填有 store guard，结算回调却不检查自己是否属于当前安装；新恢复的删除意图可被旧 finally 清掉，旧 catch 又可把成功的新安装标成失败。修法：`install()` 在调用 `#restoreEntries()` 前捕获当次纪元的 `#indexedDBStore` 引用，catch/finally 结算时先比对该引用与当前 `#indexedDBStore`，不属于当前纪元则只让旧 Promise 按自己的结果结算给旧调用方，不再写 `#installFailed` / `#restoring` / `#restore_delete_intents`。
 
-[现有单元套件追加四种顺序复验](../../../../packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts)：新增 2 failed / 2 passed，单文件 2 failed / 80 passed。[日志](../../evidence/2026-10-04/workspace-install-epoch.txt)。插件与 LifecycleScope 为实际实现，IDB/read/event 为测试接缝，真实 IDB / connect 同场景仍待补证。
+[现有单元套件追加四种顺序复验](../../../../packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts)：修复后 82 passed（新增 4 例全绿）。
 
-上轮 C3 flush 的限定通过保留，不把它扩写成 C2→C3 全组合链路安全。本对象仍未审完，业务实现未修。
+上轮 C3 flush 的限定通过与本次 C2 修复一并成立；C4 全部跨页乱序、C5 全平台生命周期、真实 IDB / connect 同场景复验仍待补证，本对象仍未审完。

@@ -5,12 +5,21 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_DIR="$SCRIPT_DIR/sql"
+# 未显式隔离时退回 docker-compose.ci.yml 的默认 project 名，和它的
+# `name: ${SUPABASE_CI_PROJECT_NAME:-supabase-ci}` 保持一致。
+PROJECT_NAME="${SUPABASE_CI_PROJECT_NAME:-supabase-ci}"
 
 echo "📦 Initializing Supabase test database..."
 echo ""
 
-# 通过 docker exec 直接连接数据库容器，避免连接池问题
-#
+# RV-036：改用 `docker compose -p "$PROJECT_NAME" exec` + 服务名 `db`，而不是
+# 固定 `docker exec supabase-db`——后者是宿主机全局名字，多个 checkout 并行跑
+# 会直接撞车或初始化到别的 checkout 的库。compose exec 按 project 隔离，天然
+# 不会越界。
+compose() {
+  docker compose -p "$PROJECT_NAME" -f "$SCRIPT_DIR/docker-compose.ci.yml" "$@"
+}
+
 # `-v ON_ERROR_STOP=1` 不能省：psql 非交互读脚本时，默认遇到 SQL 错误只打一行到
 # stderr 就接着往下跑，最后照样 exit 0。少了它，`set -e` 形同虚设 —— 建表失败的
 # 数据库会带着 “✅ 初始化完成” 进入测试，报出来的是一堆莫名其妙的用例错误。
@@ -19,7 +28,7 @@ echo ""
 # 建触发器用的）。文件没了就该在这一步炸，而不是静默跳过、把问题推到后面。
 psql_file() {
   echo "📦 $2"
-  docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U "${3:-postgres}" -d postgres < "$SQL_DIR/$1" > /dev/null
+  compose exec -T db psql -v ON_ERROR_STOP=1 -U "${3:-postgres}" -d postgres < "$SQL_DIR/$1" > /dev/null
 }
 
 # 00 必须以 supabase_admin 执行：它要把 _realtime 的 owner 改成 supabase_admin，
@@ -37,7 +46,7 @@ psql_file 04-rxdb-utils-functions.sql 'Loading utility functions...'
 echo "✅ Database initialization complete!"
 echo ""
 echo "📊 Created tables:"
-docker exec supabase-db psql -U postgres -d postgres -c "
+compose exec -T db psql -U postgres -d postgres -c "
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'
   AND table_type = 'BASE TABLE'

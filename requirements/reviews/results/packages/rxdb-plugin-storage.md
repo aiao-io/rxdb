@@ -38,8 +38,6 @@ execution: partial
 | `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
 | `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
 
-当前确认意见：[RV-043](../../RV-043-storage-fetch-response-body-leak.md)、[RV-044](../../RV-044-desktop-logical-path-alias-data-overwrite.md)；全对象仍未审完。
-
 ### 尚未完成的专项
 
 以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
@@ -55,14 +53,6 @@ execution: partial
 四指标合并后已通过 80% 门禁，见 [合并门禁](../../evidence/2026-10-03/full-run/merged-coverage-gate.txt)；不代表全部 C 项完成。
 
 ## 2026-10-04：第二批实际深审
-
-### C2：真实磁盘路径别名覆盖数据
-
-🔴 **P1** [RV-044](../../RV-044-desktop-logical-path-alias-data-overwrite.md)：大小写与 NFC/NFD 两组不同逻辑名在本机原生卷共享文件。真实 RxDB / SQLite / Electron file host / 磁盘复验中，两条 metadata 对应一个文件，第一个 ID 也读到第二次上传内容。2 failed / 1 正常命名对照：[日志](../../evidence/2026-10-04/storage-native-path-alias.txt)。没有用假 metadata 或假 filesystem。
-
-### C3：响应体的早期拒绝没有归属
-
-🔴 [RV-043](../../RV-043-storage-fetch-response-body-leak.md)：真实 Node HTTP server 持续发数据，status/MIME 校验拒绝后未主动 cancel body，storage.destroy 完成后仍在下载。最终观测保留原始 Response 引用、网络仍是原生 fetch：2 failed / 1 对照。[日志](../../evidence/2026-10-04/storage-fetch-retained-response.txt)。未保留引用初版的不同测量结果同样保留，不混算、不宣称所有运行时必然无限下载。
 
 ### C1/C2/C3 已核查的补偿对照
 

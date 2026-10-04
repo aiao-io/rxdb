@@ -52,8 +52,4 @@ execution: partial
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 C1/C3 确认 [RV-048](../../RV-048-extension-port-reinit-stale-tab-binding.md)：同 port 完整 INIT7→INIT8 后留下旧 tab map，旧上行进入新面板；断开只清理最后 tab。新增 2 failed /2 同 tab 对照通过，background 单文件 **2 failed /23 passed**：[日志](../../evidence/2026-10-04/tree-devtools/extension-reinit-binding.txt)。实际 wire guards/controller，Chrome port/injection 是接缝，未冒充 Chrome GUI。
-
-阅读 bridge 的 origin/source/方向与私有端口分流、background 的 activation/identity guard/session 清理、PortService 的 INIT 发送和关闭。既有不同 port 替换守卫不等于同 port 重绑定安全。测试允许实现拒绝第二次绑定或正确切换，但不允许两个活动 tab 或断开后残留。
-
 Angular CLI best-practices 仍 Unexpected response type，仅发现范围外 Angular21 示例；本轮使用实际 Nx 配置，不改 Angular service/生产代码。manifest/CSP/真实 Chrome/Electron 档位与 provider 权限没有因这几个 unit 案例勾全完成。

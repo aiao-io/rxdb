@@ -37,8 +37,6 @@ Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 
 | `test`      | 独立 Supabase 环境通过        | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-036](../../RV-036-supabase-test-environment-cross-worktree.md)
-
 ### 尚未完成的专项
 
 以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：

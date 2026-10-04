@@ -334,17 +334,17 @@ defineExpose({
 <template>
   <!-- 触发按钮 -->
   <button
+    ref="trigger"
     class="select select-sm text-left"
     :popovertarget="uid"
     :style="{ 'min-width': minWidth }"
     aria-haspopup="tree"
-    ref="trigger"
     type="button"
   >
     <component
+      :is="selectedNode ? (typeIconMap[selectedNode.type] ?? defaultTypeIcon) : defaultTypeIcon"
       class="w-3.5 shrink-0"
       :class="selectedNode ? (typeColorMap[selectedNode.type] ?? defaultTypeColor) : defaultTypeColor"
-      :is="selectedNode ? (typeIconMap[selectedNode.type] ?? defaultTypeIcon) : defaultTypeIcon"
       :size="14"
     />
     <span class="min-w-0 grow truncate">{{ displayValue }}</span>
@@ -352,28 +352,28 @@ defineExpose({
 
   <!-- Popover 浮层 -->
   <div
-    class="bg-base-100 text-base-content rounded-box border-base-300 border shadow-xl"
     :id="uid"
+    ref="popoverEl"
+    class="bg-base-100 text-base-content rounded-box border-base-300 border shadow-xl"
     :style="{ 'min-width': minWidth }"
+    popover
+    tabindex="-1"
     @beforetoggle="onBeforeToggle"
     @keydown="onKeydown"
     @toggle="onToggle"
-    popover
-    ref="popoverEl"
-    tabindex="-1"
   >
     <!-- 过滤输入框 -->
     <div class="mb-1 p-1">
       <input
-        class="input input-sm w-full"
+        ref="filterInput"
         v-model="filterText"
+        class="input input-sm w-full"
         :aria-activedescendant="activeItemId ?? undefined"
         :aria-controls="listId"
         :aria-expanded="true"
         :aria-owns="listId"
         aria-autocomplete="list"
         placeholder="搜索字段..."
-        ref="filterInput"
         role="combobox"
         type="text"
       />
@@ -381,9 +381,9 @@ defineExpose({
 
     <!-- 树形列表 -->
     <ul
+      :id="listId"
       class="menu menu-sm max-h-60 w-full flex-nowrap overflow-y-auto px-2"
       :aria-label="placeholder"
-      :id="listId"
       role="tree"
     >
       <li
@@ -393,6 +393,7 @@ defineExpose({
         role="none"
       >
         <button
+          :id="`${uid}-item-${item.node.value}`"
           class="flex w-full items-center gap-1.5 text-left text-sm"
           :aria-expanded="item.isExpandable ? item.isExpanded : undefined"
           :aria-selected="!item.isExpandable ? item.node.value === selected : undefined"
@@ -401,21 +402,20 @@ defineExpose({
             'font-semibold': !item.isExpandable && item.node.value === selected,
             'menu-focus': _activeIdx === visibleItems.indexOf(item)
           }"
-          :id="`${uid}-item-${item.node.value}`"
-          @click="onItemClick(item)"
           role="treeitem"
           type="button"
+          @click="onItemClick(item)"
         >
           <component
+            :is="typeIconMap[item.node.type] ?? defaultTypeIcon"
             class="w-3.5 shrink-0"
             :class="typeColorMap[item.node.type] ?? defaultTypeColor"
-            :is="typeIconMap[item.node.type] ?? defaultTypeIcon"
             :size="14"
           />
           <span class="min-w-0 grow truncate">{{ item.node.displayName || item.node.label }}</span>
           <svg
-            class="text-primary h-3 w-3 shrink-0"
             v-if="!item.isExpandable && item.node.value === selected"
+            class="text-primary h-3 w-3 shrink-0"
             fill="none"
             stroke="currentColor"
             stroke-linecap="round"
@@ -429,16 +429,16 @@ defineExpose({
           <template v-if="item.isExpandable">
             <span class="shrink-0 text-xs opacity-40">{{ item.node.children!.length }}</span>
             <component
-              class="w-3.5 shrink-0 opacity-50"
               :is="item.isExpanded ? ChevronDownIcon : ChevronRightIcon"
+              class="w-3.5 shrink-0 opacity-50"
               :size="14"
             />
           </template>
         </button>
       </li>
       <li
-        class="px-3 py-1.5 text-sm opacity-50"
         v-if="visibleItems.length === 0"
+        class="px-3 py-1.5 text-sm opacity-50"
       >
         无匹配字段
       </li>

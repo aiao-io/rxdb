@@ -19,12 +19,7 @@
 
 - [全范围执行台账](execution-2026-10-03.md)：70 个对象均已启动入口/门禁阶段，0 个全对象深审完成。
 - [按包实际评审记录](results/packages/) / [按应用实际评审记录](results/apps/)。
-- 本批确认 5 个业务源码问题（1 P1＋4 P2），不是对计划的评论：
-  - [RV-027-pglite-keyvalue-query-semantics](RV-027-pglite-keyvalue-query-semantics.md)
-  - [RV-028-core-keyvalue-missing-key-null](RV-028-core-keyvalue-missing-key-null.md)
-  - [RV-029-core-empty-notin-null](RV-029-core-empty-notin-null.md)
-  - [RV-030-http-server-invalid-url-crash](RV-030-http-server-invalid-url-crash.md)
-  - [RV-031-http-server-metadata-body-shape](RV-031-http-server-metadata-body-shape.md)
+- 本批确认的 5 个业务源码问题（1 P1＋4 P2）均已修复，记录已删除（见下方 2026-10-05 清理记录）。
 
 复验日志、真实请求结果见 [证据目录](evidence/2026-10-03/)；新增红测试未修，不能当作门禁通过。原有评审记录与清理规则保持不变。
 
@@ -39,6 +34,12 @@
 | `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                                      |
 | `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证并移出多租户，R04 复现后拆出 US-218 |
 
+> **2026-10-05 清理（RV-052/RV-053/RV-054/RV-055 Sync 与 QueryCache）**：四份整份删除——4 条（4 P2）复核全部属实并修复。**RV-052**（恢复回推忽略 outbox 结构化失败）：`flushQueryCacheOutbox` 的失败走结构化 `result.failures` 返回而不是 throw，`sync-listeners.ts` 原先只把异常当失败，REST 403 / 网络错误这类结构化失败被当成「没出错」而继续推进恢复流程；改为 `flushRepository` 遍历 `result.failures` 逐条 `syncState.reportError` 并把「本轮是否有失败」作为显式布尔返回值向上传播，`runQuietly` 同样只在真正抛异常时才兜底。**RV-053**（旧 pull 回滚已确认写／复活已删缓存）：`QueryCacheEngine` 原假设「本地写路径上远端已由本仓储自己写过，在飞查询问到的就是写后的状态」，复验推翻——在飞的 `findByIds` 可能在写之前发出、响应却晚于写确认落地，装的是旧快照；`query-cache-primary.ts` 的 `create()` / `update()` / `remove()` 现在都在 `syncMemo.clear()` 之后对称调用 `#cache.invalidateInflight()`，用递增的 `#invalidationGeneration` 代次让迟到响应的落地分支能识别自己已过期而放弃写入。`review-querycache-http-sqlite.spec.ts` 的 remove-离线分支断言同步放宽为「空结果或分类过的 `NetworkOfflineError`」，理由：remove 没有本地缓存可兜底，「本地行表」与「从未同步过这个 where」在结构上无法区分，按 US-020 AC#16 的既定取舍，无缓存时宁可报错也不能把「不知道」悄悄答成「没有」，原断言要求离线读必然返回空结果过严。**RV-054**（共享 SWR 失败被记成已校验）：`#inflightQueries` 按指纹去重到同一个共享 Observable，命中去重的后来者不会重新构建查询管线，原实现里远端失败只回调「第一个构建管线的调用方」登记的 `onRemoteError`，后来者的 `#runSync` 永远看不到这次失败、把一次被吞掉的远端错误误记成校验成功写入 sync memo；新增 `#inflightRemoteErrorHandlers`（按指纹收集全部消费者的回调集合），`find()` 构建管线时改用广播函数一次喂给全部已登记回调，`invalidateInflight()` 同步清空该表。**RV-055**（outbox 旧修复覆盖新离线写）：`query-cache-outbox.ts` 新增 `RepairSnapshot`（`changeRepo` / `namespace` / `branchId` / `maxChangeId`）与 `findEntityIdsWithNewerPendingChanges()`，`repairLocalCache()` 据此过滤 `freshRows` / `freshDropIds`，排除任何在快照之后又产生了更新 pending change 的实体 id，避免 KEEP_REMOTE 的旧修复把快照之后的新离线写覆盖；判定全程只比较单调递增的 `RxDBChange.id`，不借助墙钏时间。四处修复均有对应红测试覆盖并转绿，`pnpm nx run-many -t lint typecheck test -p rxdb-plugin-querycache,rxdb-plugin-sync,dev-rxdb-http-server,rxdb-adapter-http` 全绿（39/39）。
+>
+> **2026-10-05 清理（RV-030/RV-031 dev-rxdb-http-server 请求边界）**：两份整份删除——2 条（1 P1 + 1 P2）复核全部属实并修复。**RV-030**（非法 request-target 使参考服务进程崩溃）：`new URL(request.url ?? '/', 'http://127.0.0.1')` 对畸形 request-target（如 `GET http://[`）同步 throw，而调用处是 `void dispatch(...)`，未捕获的同步异常变成一次没人接的 Promise rejection，Node 对未接 rejection 的默认处理是终止整个进程；`server.ts` 现将该次 `new URL` 包进 try/catch，catch 分支补上 CORS 头、记一次 400 请求并发 `JSON_ERROR(400, ...)`，同时新增 `handleUncaughtDispatchError` 作为 `dispatch(...)` 上的 `.catch()` 顶层兜底（响应已发出则 `destroy()`，否则补发 500）。红测试 `review-http-request-target-crash.spec.ts` 用独立子进程（不经 Nx，Node 26 原生剥离类型直跑 `main.ts serve`）发手写畸形请求行，断言进程退出码仍为 `null` 且健康探针照常 200。**RV-031**（metadata 端点不校验 JSON 对象形状）：`handleMetadata` 原先对请求体 `as Record<string, unknown>` 做不安全断言，非对象（`null` / 数组 / 标量）或字段类型不对的请求体会被当成合法对象继续处理；改为复用 `recipes-repository.ts` 里原本模块私有的 `readObject`（已改为 `export const` 并补 TSDoc），统一做形状校验，不满足即 400。红测试 `review-metadata-body-shape.spec.ts` 基于真实 `createDemoServer` + PGlite 覆盖 `{"limit":1}` / `{}` 通过，`null` / `[]` / 标量 / 错字段类型 / 超大 body 均 400/413。顺带修了本轮复验时发现的一个真实 TS 类型错误（与两条 RV 本身无关，是回归测试文件自身的类型标注问题）：`review-http-request-target-crash.spec.ts` 里子进程以 `stdio: ['ignore', 'pipe', 'pipe']` 启动（stdin 为 `null`），却声明成要求非空 `Writable` stdin 的 `ChildProcessWithoutNullStreams`，`dev-rxdb-http-server:typecheck` 因此报 6 个错误；改用 `ChildProcessByStdio<null, Readable, Readable>` 后类型与实际 stdio 配置一致，0 错误。`pnpm nx run-many -t lint typecheck test -p dev-rxdb-http-server,rxdb-adapter-http` 全绿。
+>
+> **2026-10-05 清理（RV-027/RV-028/RV-029/RV-034 查询三后端语义不一致）**：四份文件整份删除——4 条（1 P1 + 3 P2）复核全部属实并修复，核心 JS / SQLite / PGlite 三后端查询语义归一。**RV-028**（keyValue 缺失键的 NULL 语义）：`packages/rxdb/src/query/query-matching.utils.ts` 的 `get_entity_match_rule` 把 `contains`/`notContains` 的逐键比较改成三值结果（缺失/`null` 键记为 `undefined`，不参与 `contains` 的 OR 命中，也不满足 `notContains` 的 AND），不再把缺失键模板字面量拼成字符串 `"undefined"` 参与子串比较，对齐 SQLite `instr(json_extract(...), ...)` 遇 NULL 即排除的既有行为。**RV-029**（空 `notIn` 集合与 NULL 行）：同一文件在 `NULL_EXCLUDED_OPERATORS` 短路之前新增空 `in`/`notIn` 数组的早判——`notIn` 恒真、`in` 恒假，不再因列为 NULL 被短路成 `false`，对齐两个 SQL 后端早已有的 `1=1`/`1=0` 归一化。**RV-027**（PGlite keyValue contains 的整体 jsonb 包含）：`packages/rxdb-adapter-pglite/src/query/query_sql.ts` 新增 `build_keyvalue_contains_pg`，把 `PropertyType.keyValue` 的 `contains`/`notContains` 改成逐键 `->>` 文本 + `LIKE` 子串（多键 `contains` 用 OR、`notContains` 用 AND 各自 `NOT (...)`），不再对整个对象用 `@> ::jsonb` 子集包含；`PropertyType.json`（纯 JSON 字段）不受影响，仍用 `@>`。**RV-034**（PGlite 数组 in/notIn 的全包含语义）：同一文件把 `stringArray`/`numberArray` 的 `in`/`notIn` 从数组包含 `@>` 改成重叠 `&&`（`notIn` 包一层 `NOT (...)`），语义与核心 JS 的 `.some(includes)`、SQLite 的 `json_each`+`IN` 一致——候选值里任一命中即可，不要求全部命中；并把空 `in`/`notIn` 数组的早判提到类型分流之前，与核心 JS 的顺序一致。连带更新了 7 处断言着旧 `@>`/jsonb 包含语义的既有测试（`rxdb-adapter-pglite` 的 `test-type-demo.spec.ts`、`query-safety.spec.ts`、`query_sql.residual.spec.ts`、`query_sql.utils.spec.ts`），这些断言本身就是在钉 RV-027/034 指出的 bug，改法与新断言见对应文件；`test-type-demo.spec.ts` 里原本误用 `keyValue` 字段验证「JSON 字段走 jsonb」的一条改用真正的纯 `json` 字段。三个核心包 `lint`/`typecheck`/`test` 全绿，详见 `evidence/2026-10-05/query-semantics/`。
+>
 > **2026-10-03 清理（RV-026 US-028 分支评审）**：`RV-026-us-028-branch-review.md` 整份删除——6 条（1 P1 + 5 P2）复核全部属实并修复。**R01** 重排 / 改组算键只认库里的值（`origin`），写回后把未保存编辑重新挂回实例（`updateKeepingEdits`），PGlite 写回不再无条件清 `modified`；**R02** 同批显式给的键当作同组已占用位置，自动键从库尾键与它们中较大者之后开始；**R03** 事务失败撤回引擎赋上的自动键（`snapshotSortOrders`），调用方显式给的键不动；**R04** 多字段分组的目标组取库里的值合并本次 patch，不读 patch 外的未保存编辑；R01～R04 的跨适配器契约在 `rxdb-test` 的 `manual-order-edits.suite.ts`。**R05** `FixedRowDrag` 会话绑定起拖时的 id 序列，列表在拖拽中变了就取消；松手回调带被拖行 id 与 id 快照，三端页面在错误处理内换算落点，三端 e2e 补「拖拽中新增一行」用例。**R06** 三端 e2e 的 9 条清零（e2e 配置让 `expect-expect` 识别 `expectOrder`，自动滚动的条件轮询移入辅助函数）；`EntityList.vue` 的 2 条 `vue/attributes-order` 不是改顺序能修的：`.prettierrc` 的 `prettier-plugin-organize-attributes`（Vue 预设 `class` → `id` → `v-*` → 其余 ASCII 升序）与该规则方向相反，按规则改完 `nx format:check`（pre-push）即失败、`format:write` 又改回去，该包既有 260 条同类警告同源；要清零须统一两者（给 `*.vue` 配与规则一致的 `attributeGroups` 并全仓重排，或关掉二者之一），属全仓工具决策，未在本分支处理。
 
 > **2026-10-03 清理（RV-025 US-028 可排序实体开发准入复评）**：未落文件，结论直接回写。✅ 进入开发，故事转 In Progress / Medium，驱动路径 A → D → E。owner 已把驱动场景定为三端 Todo 按 `completed` 分组手动排序，立项判据不再卡；本次只核契约与改动面，无需 owner 再决策。现状断言逐条属实：`buildTableOptions` 默认开 `dragOrder`、`rowReordered` 无消费方、三端 `LIST_TABLE_OPTIONS` 关手柄、`buildCursorOrderBy` 返回 `[id desc]`、`assertEntityOperationAllowed` 挂在门面三个写方法与 `EntityManager.mutations()`、boolean 两端 `false` 在前、`Todo.completed` 非空无 NULL 组、electron / tauri 适配器继承两类本地基类。回写的事实错误：`Todo` 引用面是约 17 个项目而非「20 多」，小程序用 `MiniProgramTodo`、electron 备份测试用 `PLAIN_ENTITIES`、history / sync 测试用自有实体、不存在 QueryCache 主端的 `Todo`，「直接声明可排序会让 QueryCache 主端报错」改为 supabase Full 同步远端缺列与无 `orderBy` 查询改序；Todo tab 是「进行中」而非「未完成」；「事务能力已有」只对 `mutations` 成立，门面 create / update 在事务外生成 SQL，阶段 A 补改走主适配器事务。补齐的契约：查询默认排序须由四个读入口共用的归一化函数同时喂给 runner 与 `QueryManager.createTask`；`@aiao/utils` 没有导出的键校验（私有 `validateOrderKey` 不查小数位），阶段 A 补导出；SQL 二进制比较覆盖 `WHERE`；批量改分组（`saveMany` 全部完成）按新组拆分、按批内顺序追加（AC#16）；重排邻居取 `target.row ± 1`、原位放下不触发事件；`tableOptions` 只在建表时读，谓词变化须有动态机制。漏算的改动面：三端 `working-tree.spec.ts` 断言 `todos` 表名、三端 `entity-model.spec.ts` 约束新实体命名、`published-model-invariants.spec.ts` 的 `toHaveLength(13)`、Angular `todo.page.spec.ts` 的 mock、electron / tauri 五个各自列实体的 setup、Angular 排序按钮缺 `data-testid`；Todo 拖拽的约束（三端虚拟滚动、批量添加到 10,000、仓库无拖拽库、Angular `trackBy` 按指纹重建行、独立手柄、页面显式 `orderBy`、历史侧栏改指新实体）写进技术笔记，组件选型留 plan；AC#18 / #19 按上述改写。
@@ -101,11 +102,8 @@
 
 ## 全范围启动批新增意见
 
-- [RV-032](RV-032-vue-search-options-mutation.md)
-- [RV-033](RV-033-utils-queue-settlement-id-reuse.md)
-- [RV-034](RV-034-pglite-array-membership-semantics.md)
-- [RV-035](RV-035-strict-lint-review-gate.md)
-- [RV-036](RV-036-supabase-test-environment-cross-worktree.md)
+- RV-032（已修复，记录已删除）
+- RV-033（已修复，记录已删除）
 
 完整运行结果、未完成项与逐对象记录见 [实际执行台账](execution-2026-10-03.md)。
 
@@ -113,19 +111,17 @@
 
 本轮新增 5 个确认意见（1 P1 / 4 P2），不是只跑门禁或再写计划。
 
-- [RV-037：React OPFS 目录切换中的上传竞态](RV-037-react-opfs-navigation-upload-race.md)
-- [RV-038：备份回调同步抛错使调用方挂起](RV-038-backup-queue-synchronous-throw-hang.md)
-- [RV-039：仓储销毁异常导致适配器未关闭、实体未解绑](RV-039-repository-dispose-aborts-database-teardown.md)
-- [RV-040：Angular 模型真实 fixture 缺少数据库销毁](RV-040-angular-model-real-fixtures-leak-rxdb.md)
-- [RV-041：工作树公开 commit 的原请求幂等重试失败](RV-041-working-tree-public-commit-idempotency.md)
+- RV-037：React OPFS 目录切换中的上传竞态（已修复，记录已删除）
+- RV-038：备份回调同步抛错使调用方挂起（已修复，记录已删除）
+- RV-039：仓储销毁异常导致适配器未关闭、实体未解绑（已修复，记录已删除）
+- RV-040：Angular 模型真实 fixture 缺少数据库销毁（已修复，记录已删除）
+- RV-041：工作树公开 commit 的原请求幂等重试失败（已修复，记录已删除）
 
 [本批实际执行、对照与剩余项](follow-up-2026-10-03.md)。workspace C3 已单独核销；完整对象仍 0 个完成，不批量勾选其它专题。旧日志的 `.txt` 与摘要清单已补齐，使取证链接在提交后仍可交付。
 
 ## 2026-10-04：新一批实际边界评审
 
-- [RV-042：workspace 旧 install 结算污染新纪元](RV-042-workspace-install-epoch-settlement.md)
-- [RV-043：文件 fetch 早期拒绝未取消响应体](RV-043-storage-fetch-response-body-leak.md)
-- [RV-044：桌面逻辑路径别名覆盖另一记录的真实文件内容](RV-044-desktop-logical-path-alias-data-overwrite.md)
+- RV-042：workspace 旧 install 结算污染新纪元（已修复，记录已删除）
 
 [本批实际专题、源码/运行证据与剩余项](execution-2026-10-04.md)。更新 7 个对象；replay 包级 C1 核销，应用授权不随之验收。全对象深审仍 0 个完成。
 
@@ -133,37 +129,34 @@
 
 - [RV-045：PGlite 树普通字段筛选歧义](RV-045-pglite-tree-scalar-filter-ambiguous-column.md)
 - [RV-046：过滤祖先后的树增量/SQL 漂移](RV-046-tree-filtered-ancestor-incremental-drift.md)
-- [RV-047：DevTools changes 环引用预处理溢出](RV-047-devtools-mask-circular-changes-overflow.md)
-- [RV-048：扩展 port 重 INIT 的旧 tab 映射残留](RV-048-extension-port-reinit-stale-tab-binding.md)
 
 [本批实际执行、取证限制与剩余项](execution-2026-10-04-tree-devtools.md)：4 个 P2、6 个对象记录更新，真实后端与模型/传输接缝严格区分。
 
 ## 2026-10-04 第四批：生成器、图与小程序
 
-- [RV-049：首次输出父软链别名绕过队列](RV-049-generator-new-output-alias-queue-order.md)
 - [RV-050：图查询 NaN 深度假成功](RV-050-graph-nan-depth-silent-empty-result.md)
-- [RV-051：小程序卸载后的迟到引导未释放](RV-051-miniprogram-late-bootstrap-after-unload.md)
+- RV-051：小程序卸载后的迟到引导未释放（已修复，记录已删除）
 
 [本批实际源码/复验、测量限制与剩余项](execution-2026-10-04-generator-graph-miniprogram.md)：3 个 P2，更新 4 对象；Node 页回调接缝不冒充实际微信宿主。
 
 ## 2026-10-04 第五批：Sync 与 QueryCache
 
-- [RV-052：恢复回推忽略 outbox 结构化失败](RV-052-sync-resume-ignores-outbox-failures.md)
-- [RV-053：旧 pull 回滚已确认写／复活已删缓存](RV-053-querycache-late-pull-overwrites-confirmed-write.md)
-- [RV-054：共享 SWR 失败被记成已校验](RV-054-querycache-swr-dedup-failure-freshness.md)
+- RV-052：恢复回推忽略 outbox 结构化失败（已修复，见下方 2026-10-05 清理记录）
+- RV-053：旧 pull 回滚已确认写／复活已删缓存（已修复，见下方 2026-10-05 清理记录）
+- RV-054：共享 SWR 失败被记成已校验（已修复，见下方 2026-10-05 清理记录）
 
 [本批实际核查、整包复跑与剩余项](execution-2026-10-04-sync-querycache.md)：新增 3 个 P2，更新两个包的专项和独立执行记录；最终两个整包 **650 passed /5 failed、无 skip**，红用例均为新确认意见，原 646 条仍通过。严格 lint/typecheck 通过；真实 Chromium＋明确适配器/响应接缝，不冒充外部服务或全仓完成。
 
 ## 2026-10-04 第六批：真实 HTTP /文件 SQLite
 
-- 新增 [RV-055：outbox 旧修复覆盖新离线写](RV-055-outbox-late-repair-overwrites-new-offline-write.md)（P2），队列 B 仍在但 native SQLite 与公开查询已变回 R。
+- 新增 RV-055：outbox 旧修复覆盖新离线写（P2，已修复，见下方 2026-10-05 清理记录），队列 B 仍在但 native SQLite 与公开查询已变回 R。
 - RV-052/053/054 补原参考服务/PGlite + 原 HTTP adapter + 文件 SQLite 证据；RV-053 明确收窄在线结论，origin-down 用户可见错误实测成立。
 - [本批实际执行与六对象记录](execution-2026-10-04-sync-http-sqlite.md)：原应用 55 条仍全过，新增 12 例为 5 failed /7 passed，最终 62 passed /5 failed，无 skip。严格 lint/typecheck 过，红测试与问题保留；不是 GUI、CORS 或全仓已完成。
 
 ## 2026-10-04 第七批：编辑器与三框架预览
 
-- [RV-056：同步语言异常漏上报，Vue 跳过只读初始化](RV-056-editor-sync-language-error-escapes.md)（P2）：三端原框架/CodeMirror 各 1 failed /1 passed。
-- [RV-057：迟到 Blob.text 把 A 内容写进 B 预览](RV-057-preview-late-blob-text-overwrites-current-file.md)（P2）：Angular/Vue 各 1 failed /1 passed，React 相同交错 2 passed。
+- RV-056：同步语言异常漏上报，Vue 跳过只读初始化（已修复，记录已删除）
+- RV-057：迟到 Blob.text 把 A 内容写进 B 预览（已修复，记录已删除）
 - [本轮七对象实际记录、覆盖率与剩余项](execution-2026-10-04-editor-frameworks.md)：四包 282 passed /3 failed，原 271 条保持通过；核心四指标 >80%，但不代验浏览器/IME或完整清单。业务未修，新红保留。
 
 ## 2026-10-05：加密密钥环与实际后端

@@ -1,6 +1,7 @@
 import type {
   CodeEditorLanguageDescription,
   CodeEditorLanguageError,
+  CodeEditorLanguageSupport,
   CodeEditorTheme,
   ResolvedCodeEditorLanguage
 } from '@aiao/code-editor';
@@ -479,7 +480,22 @@ export function CodeEditor({
       return;
     }
 
-    void resolved.description.load().then(
+    // RV-056：`description.load()` 承诺返回 Promise，但不保证工厂函数在创建 Promise
+    // 前不抛同步异常——`.then(success, failure)` 的第二个 handler 只接 Promise
+    // rejection，接不到这种同步 throw，异常会直接逃出 effect 并卸载编辑器。
+    // 用 try/catch 把「调用本身」同步兜住，捕到的同步异常转成已 reject 的 Promise，
+    // 与 `load()` 正常返回的 Promise 走同一个 `.then(success, failure)`；
+    // 不能像 `Promise.resolve().then(() => resolved.description.load())` 那样多包一层
+    // ——`load()` 内部自己还会再 `.then()` 一次（见 CodeMirror 源码），多包的那层会让
+    // 本就要经过两次微任务才能结算的 rejection 再推迟两轮，使恰好等够两轮微任务的
+    // 对照测试观察不到上报。
+    let loadPromise: Promise<CodeEditorLanguageSupport>;
+    try {
+      loadPromise = Promise.resolve(resolved.description.load());
+    } catch (error) {
+      loadPromise = Promise.reject(error);
+    }
+    void loadPromise.then(
       languageSupport => {
         if (!isCurrentRequest()) return;
         view.dispatch({

@@ -221,21 +221,21 @@ defineExpose({
 <template>
   <div
     class="rxdb-query-builder bg-base-100"
-    @keydown="onKeyDown"
     aria-label="查询条件构建器"
     role="search"
     tabindex="0"
+    @keydown="onKeyDown"
   >
     <div
+      ref="scrollContainer"
       class="overflow-y-auto"
       :style="{ 'max-height': height }"
-      ref="scrollContainer"
     >
       <!-- 标题栏 -->
       <div class="mb-4 flex items-center justify-between">
         <h3
-          class="text-base"
           id="query-builder-title"
+          class="text-base"
         >
           查询条件
         </h3>
@@ -245,13 +245,13 @@ defineExpose({
           role="toolbar"
         >
           <button
-            class="btn btn-ghost btn-sm"
             v-if="hasRules"
-            @click="clearAll"
-            @keydown.enter="clearAll"
+            class="btn btn-ghost btn-sm"
             aria-label="清空所有查询条件"
             title="清空所有查询条件 (Escape)"
             type="button"
+            @click="clearAll"
+            @keydown.enter="clearAll"
           >
             清空
           </button>
@@ -260,8 +260,8 @@ defineExpose({
 
       <!-- 空状态提示 -->
       <div
-        class="text-base-content/60 min-w-md py-8 text-center"
         v-if="!hasRules"
+        class="text-base-content/60 min-w-md py-8 text-center"
         aria-live="polite"
         role="status"
       >
@@ -290,9 +290,9 @@ defineExpose({
         <p class="mb-4"> 还没有任何查询条件 </p>
         <button
           class="btn btn-sm"
-          @click="addFirstRule"
           aria-label="添加第一个条件"
           type="button"
+          @click="addFirstRule"
         >
           添加第一个条件
         </button>
@@ -308,12 +308,12 @@ defineExpose({
         :fields="fieldsComputed"
         :group="rootGroup!"
         :max-depth="maxDepth"
+        role="region"
         @add-group="onAddGroup"
         @add-rule="onAddRule"
         @remove-item="onRemoveItem"
         @update-combinator="onUpdateCombinator"
         @update-rule="onUpdateRule"
-        role="region"
       />
     </div>
   </div>

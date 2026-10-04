@@ -1249,16 +1249,25 @@ export class RxDB {
   async disconnectAll(): Promise<void> {
     for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
     const adapters = await Promise.all(this.#adapter_map.values());
-    // 插件须在适配器断开前销毁
-    await this.#shutdown();
+    // 插件须在适配器断开前销毁。#shutdown() 抛错（例如仓储销毁失败）不能让下面的
+    // 适配器断连被跳过——两段互相独立，保留首个错误，两段都跑完再统一抛出。
+    let firstError: unknown;
+    try {
+      await this.#shutdown();
+    } catch (error) {
+      firstError = error;
+    }
     try {
       await Promise.all(adapters.map(adapter => adapter.disconnect()));
+    } catch (error) {
+      firstError ??= error;
     } finally {
       // 同 disconnect：部分适配器 disconnect 失败也不能让全部缓存条目悬空。
       this.#adapter_map.clear();
       this.#connect_promise_map.clear();
       this.#clear_adapter_connected();
     }
+    if (firstError !== undefined) throw firstError;
   }
 
   /**
@@ -1591,7 +1600,16 @@ export class RxDB {
     await this.#release_connection_scope();
     // 清空 Repository 身份缓存：不清的话，断线重连后 getRepository() 仍会永久复用
     // 断连前那批缓存实例，携带的是断连时刻的陈旧实体状态。
-    this.entityManager.destroy();
+    //
+    // entityManager.destroy() 抛错（某个仓储销毁失败）不能让下面的状态复位段漏跑——
+    // 否则 #shutting_down 永久卡 true、适配器名与已连接集合不复位，拆卸期的错误反而
+    // 把实例锁死。错误留到收尾段之后再抛，调用方仍能看到原始异常。
+    let entityManagerError: unknown;
+    try {
+      this.entityManager.destroy();
+    } catch (error) {
+      entityManagerError = error;
+    }
     // 解绑适配器名：让 localAdapter$ / remoteAdapter$ 的去重环节看到一次变化，
     // 否则仍在订阅中的实时查询会一直复用已断开的适配器实例。`init()` 会重新填回名字。
     this.#local_adapter_sub.next('');
@@ -1606,6 +1624,7 @@ export class RxDB {
     this.#shutting_down = false;
     this.#clear_adapter_connected();
     this.#connected_sub.next(false);
+    if (entityManagerError !== undefined) throw entityManagerError;
   }
 
   /**

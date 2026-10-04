@@ -11,10 +11,10 @@ execution: partial
 
 ## 1. 已确认意见
 
-| 意见                                                               | 原实现复验                                                                                | 正常对照与范围                                                                     |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [RV-056](RV-056-editor-sync-language-error-escapes.md)             | 三端直接 load().then 漏同步 throw；Vue readonly/disabled 初始化也中断，真实编辑区仍可编辑 | 每端 1 failed /1 passed，真实 LanguageDescription/State/View；不是默认语言全部失败 |
-| [RV-057](RV-057-preview-late-blob-text-overwrites-current-file.md) | Angular/Vue 在 Blob.text 返回后缺归属检查，B 标题配 A 内容                                | Angular/Vue 各 1 failed /1 passed；React 同序列 2 passed；不是 OPFS 写坏           |
+| 意见             | 原实现复验                                                                                | 正常对照与范围                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| RV-056（已修复） | 三端直接 load().then 漏同步 throw；Vue readonly/disabled 初始化也中断，真实编辑区仍可编辑 | 每端 1 failed /1 passed，真实 LanguageDescription/State/View；不是默认语言全部失败 |
+| RV-057（已修复） | Angular/Vue 在 Blob.text 返回后缺归属检查，B 标题配 A 内容                                | Angular/Vue 各 1 failed /1 passed；React 同序列 2 passed；不是 OPFS 写坏           |
 
 三端同类 loader 根因只登记一个 RV，两个应用同类预览根因也只登记一个 RV。React 预览已有 key/active 守卫，保留反证，不为了“对称”硬报三端都错。
 

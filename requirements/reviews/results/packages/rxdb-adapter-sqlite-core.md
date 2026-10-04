@@ -23,8 +23,8 @@ execution: partial
 
 ## 2. 评审意见
 
-- [RV-028：keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义](../../RV-028-core-keyvalue-missing-key-null.md)
-- [RV-029：空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致](../../RV-029-core-empty-notin-null.md)
+- RV-028：keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义（已修复，见 README 2026-10-05 清理记录）
+- RV-029：空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致（已修复，见 README 2026-10-05 清理记录）
 
 ## 3. 动态证据与复验
 
@@ -68,7 +68,7 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 | `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-028](../../RV-028-core-keyvalue-missing-key-null.md)、[RV-029](../../RV-029-core-empty-notin-null.md)
+当前确认意见：RV-028/029（已修复，见 README 2026-10-05 清理记录）
 
 ### 尚未完成的专项
 
@@ -103,7 +103,7 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
-C2 **部分执行**。原 upsertMany 的事务、触发器抑制、实体刷新和缓存事件真实运行，A/B 两条实际待推日志与裸缓存修复区分；旧修复提交覆盖 B 是 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，旧 query 在 origin-down 下覆盖确认写是 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)。串行 SQL 队列不等于跨网络窗口的实体意图保护。完整回滚/系统迁移/所有子后端矩阵没有核销。
+C2 **部分执行**。原 upsertMany 的事务、触发器抑制、实体刷新和缓存事件真实运行，A/B 两条实际待推日志与裸缓存修复区分；旧修复提交覆盖 B 是 RV-055（已修复，见 README 2026-10-05 清理记录），旧 query 在 origin-down 下覆盖确认写是 RV-053（已修复，见 README 2026-10-05 清理记录）。串行 SQL 队列不等于跨网络窗口的实体意图保护。完整回滚/系统迁移/所有子后端矩阵没有核销。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 

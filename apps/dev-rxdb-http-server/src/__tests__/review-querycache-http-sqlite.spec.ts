@@ -84,7 +84,15 @@ const offlineProbe = async (operation: 'update' | 'remove') => {
     await ctx.stopOrigin();
     gate.release();
     const readOutcome = await reading;
-    const offlineRows = await firstValueFrom(ctx.repository.find({ where: ONE, offlineFallback: true }));
+    // remove 分支没有本地缓存可兜底：本地行表与「从未同步过这个 where」在结构上
+    // 无法区分（US-020 AC#16 的既定取舍——无缓存时宁可报错，不能把「不知道」悄悄
+    // 答成「没有」）。因此这里不能像 update 分支那样断言离线读必然成功，只能断言
+    // 它要么拿到正确的空结果，要么报的是分类过的 NetworkOfflineError ——
+    // 不能是旧值复活，也不能是别的错误。
+    const offlineOutcome = await firstValueFrom(ctx.repository.find({ where: ONE, offlineFallback: true })).then(
+      rows => ({ rows }),
+      error => ({ error: String(error) })
+    );
     const actual = ctx.readSqliteTitle();
     console.info(
       'REVIEW_HTTP_SQLITE',
@@ -94,10 +102,17 @@ const offlineProbe = async (operation: 'update' | 'remove') => {
         cacheCommits: ctx.cacheCommits,
         readOutcome,
         sqliteTitle: actual ?? null,
-        offlineTitles: offlineRows.map(row => row.title)
+        offlineOutcome
       })
     );
     expect(actual).toBe(expected);
+    if (operation === 'update') {
+      expect(offlineOutcome).toEqual({ rows: [expect.objectContaining({ title: 'confirmed-new' })] });
+    } else if ('rows' in offlineOutcome) {
+      expect(offlineOutcome.rows).toEqual([]);
+    } else {
+      expect(offlineOutcome.error).toContain('NetworkOfflineError');
+    }
   } finally {
     gate.release();
     if (reading) await reading;

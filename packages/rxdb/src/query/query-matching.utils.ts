@@ -200,6 +200,13 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
   const entityValue = get(entity, rule.field) as unknown;
   const { operator } = rule;
 
+  // 空 in/notIn 集合是两种 SQL 后端都已归一化成的恒假/恒真常量（sqlite-core `build_rule`、
+  // pglite `build_rule_pg` 的空数组分支），且不区分列是否为 NULL——必须在下面「非空集合下
+  // 的 NULL 短路」之前判定，否则 NULL 行会被短路成 false，与两个 SQL 后端的 '1=1' 反了（RV-029）。
+  if ((operator === 'in' || operator === 'notIn') && Array.isArray(rule.value) && rule.value.length === 0) {
+    return operator === 'notIn';
+  }
+
   if ((entityValue === null || entityValue === undefined) && NULL_EXCLUDED_OPERATORS.has(operator)) {
     return false;
   }
@@ -207,7 +214,7 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
   switch (operator) {
     case 'in':
     case 'notIn': {
-      // 类型守卫：这些操作符的规则一定有 value 属性
+      // 类型守卫：这些操作符的规则一定有 value 属性，且上面已经排除了空集合
       const value = rule.value as unknown[] & { includes: (candidate: unknown) => boolean };
       // entityValue 本身是数组时（stringArray/numberArray 属性），SQL 侧用 json_each 做逐元素
       // IN 匹配（数组与候选列表有交集即命中）；不能把整个数组当一个候选值做 includes——
@@ -227,19 +234,23 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case 'contains':
     case 'notContains': {
       const { value } = rule;
-      // keyValue 列：SQL 侧把对象规则值逐键展开成 json_extract(...) 做子串比较（contains 是 OR、
-      // notContains 是 AND，见 sqlite-core `handle_flatmap_contains`）。模板字符串会把两个对象都
-      // 转成 '[object Object]'，于是「theme=light 是否 contains theme=dark」恒判成命中。
-      // 这里按同一套语义逐键比对；非对象值仍走通用子串路径。
-      let contains: boolean;
+      // keyValue 列：SQL 侧把对象规则值逐键展开成 json_extract(...)/->>  做子串比较（contains 是
+      // OR、notContains 是 AND，见 sqlite-core `handle_flatmap_contains`、pglite
+      // `build_keyvalue_contains_pg`）。非对象值仍走通用子串路径。
       if (isObject(entityValue) && isObject(value) && !Array.isArray(entityValue) && !Array.isArray(value)) {
-        contains = Object.entries(value as Record<string, unknown>)
+        // 缺失键在 SQL 侧是 json_extract/->> 取出的 NULL，三值逻辑下是 UNKNOWN——
+        // 不能字符串化成字面 "undefined" 参与比较，否则 contains 会误判命中、notContains
+        // 会把"不确定"当成"确定不包含"而误判匹配（RV-028）。undefined 代表 UNKNOWN：
+        // 既不计入 contains 的 OR 命中，也不能满足 notContains 的 AND。
+        const perKey = Object.entries(value as Record<string, unknown>)
           .filter(([, v]) => v != null)
-          .map(([key, v]) => `${(entityValue as Record<string, unknown>)[key]}`.includes(`${v}`))
-          .some(Boolean);
-      } else {
-        contains = `${entityValue}`.includes(`${value}`);
+          .map(([key, v]): boolean | undefined => {
+            const entry = (entityValue as Record<string, unknown>)[key];
+            return entry === null || entry === undefined ? undefined : `${entry}`.includes(`${v}`);
+          });
+        return operator === 'contains' ? perKey.some(r => r === true) : perKey.every(r => r === false);
       }
+      const contains = `${entityValue}`.includes(`${value}`);
       return operator === 'contains' ? contains : !contains;
     }
     case 'startsWith':

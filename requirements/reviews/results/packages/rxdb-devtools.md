@@ -55,8 +55,6 @@ execution: partial
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 C2 确认 [RV-047](../../RV-047-devtools-mask-circular-changes-overflow.md)。maskEmbeddedChangeValue 在 changes 数组自引用上无限递归，发生在循环安全 serialize 之前；query 丢兄弟字段，event 监听向生产者抛 RangeError。新增 2 failed /2 self 环对照通过，boundary 单文件 **2 failed /77 passed**：[日志](../../evidence/2026-10-04/tree-devtools/devtools-circular-changes.txt)。实际 connector/预处理/序列化，RxDB 为项目接缝，不冒充持久化 JSON 环。
-
 先前整包实际 **44 files /994 passed**：[基线](../../evidence/2026-10-04/tree-devtools/rxdb-devtools-baseline.txt)。人工检查三层授权、session/envelope 路由、provider 请求结算、脱敏与 buffer 顺序；一个 endpoint 构造时铸 session、dispose 终态，因此“同 endpoint 新 session 复用 requestId 被旧结果抢占”的初始猜测没有成立，未生成无证据 RV。
 
 这不是完整协议/权限矩阵或真实全部宿主已审完。C1/C3/C4/C6 的其它输入和资源关闭组合继续；不以已有 conformance 绿覆盖新增 mask preprocessor 故障。

@@ -54,7 +54,7 @@ execution: partial
 
 ### 真实工作树公开提交链路
 
-使用实际官方 SQLite-WASM / Chromium，沿 shared conformance 的库工厂、插件安装、enable、实体 save 和公开 commit 复验。原共享套件 **53 passed**，新增公共 API 原请求重试断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-built.txt)。根因是公共插件命令顺序，不重复建立后端 SQL 缺陷，统一记 [RV-041](../../RV-041-working-tree-public-commit-idempotency.md)。
+使用实际官方 SQLite-WASM / Chromium，沿 shared conformance 的库工厂、插件安装、enable、实体 save 和公开 commit 复验。原共享套件 **53 passed**，新增公共 API 原请求重试断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-built.txt)。根因是公共插件命令顺序，不重复建立后端 SQL 缺陷，统一记 RV-041（已修复，记录已删除）。
 
 该配置实际读取 built testing 子路径。新源码第一次未重建时未收集 probe；已 [登记该绿结果的限制](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-status.json)，重建后失败栈落到新产物断言。证明“无 Nx 缓存”仍不自动证明输入产物足够新。
 

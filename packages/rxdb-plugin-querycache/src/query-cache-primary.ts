@@ -203,6 +203,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
         await this.#queueOffline(() => this.localRepository.create(entity))
       : this.#decodeRemote(created);
     this.syncMemo.clear();
+    // 推进查询引擎自己的作废代次（RV-053）：写之前已经发出、写之后才交付的在飞 pull/
+    // evictOrphans 据此判定自己已过期，落地前止步，不会把这次确认的写盖回旧快照。
+    this.#cache.invalidateInflight();
     return Object.assign(entity, settled);
   }
 
@@ -221,6 +224,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
         await this.#queueOffline(() => this.localRepository.update(entity, patch))
       : this.#decodeRemote(updated);
     this.syncMemo.clear();
+    // 见 create() 里的同一条注释（RV-053）：旧实现只清 syncMemo，没有推进引擎的落地代次，
+    // 迟到的旧 pull 响应落地时仍判定为当前代次，把刚确认的新值盖回旧值。
+    this.#cache.invalidateInflight();
     return Object.assign(entity, settled);
   }
 
@@ -237,6 +243,9 @@ export class QueryCachePrimaryRepository<T extends EntityType> implements IRepos
       await this.#queueOffline(() => this.localRepository.remove(entity));
     }
     this.syncMemo.clear();
+    // 见 create() 里的同一条注释（RV-053）：没有这一步，迟到的旧 pull 响应会把刚确认
+    // 删除的行重新 upsert 回本地缓存，造成已删行复活。
+    this.#cache.invalidateInflight();
     return entity;
   }
 

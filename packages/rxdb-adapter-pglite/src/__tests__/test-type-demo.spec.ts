@@ -10,8 +10,8 @@ describe('TypeDemo JSONB operators (PostgreSQL-specific)', () => {
     typeDemoMeta = getEntityMetadata(TypeDemo);
   });
 
-  describe('JSONB containment (@>)', () => {
-    it('keyValue contains object -> @> operator', () => {
+  describe('keyValue 逐键 LIKE 语义（RV-027：与核心 JS / SQLite 保持一致，而非 jsonb @> 子集包含）', () => {
+    it('keyValue contains object -> 按键 ->> text LIKE 比较，而非 @>', () => {
       const params: unknown[] = [];
       const where = buildRuleGroupPG(
         {
@@ -23,9 +23,11 @@ describe('TypeDemo JSONB operators (PostgreSQL-specific)', () => {
         typeDemoMeta
       );
 
-      expect(where).toContain(`@> $`);
-      expect(where).toContain(`::jsonb`);
-      expect(params.some((p: unknown) => typeof p === 'string' && JSON.parse(p).string === 'hello')).toBe(true);
+      expect(where).toContain(`->> 'string'`);
+      expect(where).toContain(`LIKE $`);
+      expect(where).not.toContain('@>');
+      expect(where).not.toContain('::jsonb');
+      expect(params.some((p: unknown) => typeof p === 'string' && p.includes('hello'))).toBe(true);
     });
 
     it('keyValue contains string value -> ->> text operator', () => {
@@ -44,7 +46,7 @@ describe('TypeDemo JSONB operators (PostgreSQL-specific)', () => {
       expect(params).toContain('hello');
     });
 
-    it('keyValue notContains object -> NOT (@>)', () => {
+    it('keyValue notContains object -> 每个键各自 NOT (... LIKE ...) 再 AND，而非 NOT (@>)', () => {
       const params: unknown[] = [];
       const where = buildRuleGroupPG(
         {
@@ -57,7 +59,8 @@ describe('TypeDemo JSONB operators (PostgreSQL-specific)', () => {
       );
 
       expect(where).toContain(`NOT`);
-      expect(where).toContain(`@>`);
+      expect(where).toContain(`LIKE`);
+      expect(where).not.toContain('@>');
     });
   });
 
@@ -108,10 +111,12 @@ describe('TypeDemo PostgreSQL-specific optimizations', () => {
   it('uses JSONB for JSON type fields', () => {
     const params: unknown[] = [];
     const typeDemoMeta = getEntityMetadata(TypeDemo);
+    // 注意：keyValue 字段（PropertyType.keyValue）走逐键 LIKE 比较（RV-027），
+    // 这里改用纯 json 字段（PropertyType.json）才是真正验证 jsonb @> 整体子集包含的用例。
     const where = buildRuleGroupPG(
       {
         combinator: 'and',
-        rules: [{ field: 'keyValue', operator: 'contains', value: { key: 'value' } }]
+        rules: [{ field: 'json', operator: 'contains', value: { key: 'value' } }]
       },
       params,
       new Map(),
@@ -408,8 +413,8 @@ describe('TypeDemo Field Operators - Full Coverage', () => {
     });
   });
 
-  describe('array fields (stringArray, numberArray)', () => {
-    it('stringArray in -> field @> $::text[]', () => {
+  describe('array fields (stringArray, numberArray) —  && 交集语义（RV-034：与核心 JS/SQLite 的「任一元素命中」一致，而非 @> 全包含）', () => {
+    it('stringArray in -> field && $::text[]', () => {
       const p: unknown[] = [];
       const w = buildRuleGroupPG(
         { combinator: 'and', rules: [{ field: 'stringArray', operator: 'in', value: ['a', 'b'] }] },
@@ -417,12 +422,13 @@ describe('TypeDemo Field Operators - Full Coverage', () => {
         new Map(),
         meta
       );
-      expect(w).toContain('@>');
+      expect(w).toContain('&&');
+      expect(w).not.toContain('@>');
       expect(w).toContain('text[]');
       expect(p.length).toBe(1);
       expect(Array.isArray(p[0])).toBe(true);
     });
-    it('numberArray notIn -> NOT field @> $::numeric[]', () => {
+    it('numberArray notIn -> NOT field && $::numeric[]', () => {
       const p: unknown[] = [];
       const w = buildRuleGroupPG(
         { combinator: 'and', rules: [{ field: 'numberArray', operator: 'notIn', value: [1, 2] }] },
@@ -431,7 +437,8 @@ describe('TypeDemo Field Operators - Full Coverage', () => {
         meta
       );
       expect(w.startsWith('NOT ')).toBe(true);
-      expect(w).toContain('@>');
+      expect(w).toContain('&&');
+      expect(w).not.toContain('@>');
       expect(w).toContain('numeric[]');
       expect(p.length).toBe(1);
       expect(Array.isArray(p[0])).toBe(true);

@@ -35,8 +35,6 @@ Vue：metadata 驱动的表单、详情、列表、表格、弹窗与查询构�
 | `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 | `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：[RV-035](../../RV-035-strict-lint-review-gate.md)
-
 ### 尚未完成的专项
 
 以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { ResolvedCodeEditorLanguage } from '@aiao/code-editor';
+import type { CodeEditorLanguageSupport, ResolvedCodeEditorLanguage } from '@aiao/code-editor';
 import {
   buildCodeEditorContentAttributes,
   codeEditorLanguageLoadFailed,
@@ -224,7 +224,24 @@ function updateLanguage() {
 
   // 解析结果里已经带着命中的 description —— 早先这里又 `findLanguageByName` 查了一遍，
   // 同一份查找逻辑跑两次，两处结果分叉时没有任何信号。
-  void resolved.description.load().then(
+  //
+  // RV-056：`description.load()` 承诺返回 Promise，但不保证工厂函数在创建 Promise
+  // 前不抛同步异常——`.then(success, failure)` 的第二个 handler 只接 Promise
+  // rejection，接不到这种同步 throw。`updateLanguage()` 在 `onMounted` 里是同步调用
+  // 的一环，异常会中断后面 updateReadonly/placeholder/indent 等访问状态初始化，
+  // 真实 createApp 的 errorHandler 才收到它。用 try/catch 把「调用本身」同步兜住，
+  // 捕到的同步异常转成已 reject 的 Promise，与 `load()` 正常返回的 Promise 走
+  // 同一个 `.then(success, failure)`，`updateLanguage()` 本身永远同步正常返回。
+  // 不能像 `Promise.resolve().then(() => resolved.description.load())` 那样多包一层
+  // ——`load()` 内部自己还会再 `.then()` 一次（见 CodeMirror 源码），多包的那层会让
+  // 本就要经过两次微任务才能结算的 rejection 再推迟两轮才报出去。
+  let loadPromise: Promise<CodeEditorLanguageSupport>;
+  try {
+    loadPromise = Promise.resolve(resolved.description.load());
+  } catch (error) {
+    loadPromise = Promise.reject(error);
+  }
+  void loadPromise.then(
     support => {
       if (!isCurrentLanguageRequest(request, view)) return;
       view.dispatch({ effects: languageConf.reconfigure(support.extension as Extension) });

@@ -17,10 +17,22 @@
       "parallelism": false,
       "options": {
         "cwd": "docker",
-        "command": "docker compose -f docker-compose.ci.yml up -d && ./init-db.sh"
+        "command": "./supabase-ci-up.sh"
       },
       "metadata": {
-        "description": "Start and initialize the CI Supabase test environment"
+        "description": "Start and initialize a checkout-isolated CI Supabase test environment (RV-036: unique compose project/container names + dynamic port, derived from this checkout's path)"
+      }
+    },
+    "test-env-down": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "parallelism": false,
+      "options": {
+        "cwd": "docker",
+        "command": "./supabase-ci-down.sh"
+      },
+      "metadata": {
+        "description": "Tear down only this checkout's isolated CI Supabase test environment (never touches other checkouts' containers)"
       }
     },
     "test": {
@@ -37,7 +49,7 @@
       "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-supabase"],
       "options": {
         "cwd": "packages/rxdb-adapter-supabase",
-        "command": "VITE_SUPABASE_URL=http://localhost:54331 VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') vitest"
+        "command": "VITE_SUPABASE_URL=$(../../docker/supabase-ci-url.sh) VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') vitest"
       },
       "metadata": {
         "technologies": ["vite", "vitest", "supabase"],

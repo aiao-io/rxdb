@@ -69,6 +69,6 @@ Angular 浏览器综合演示，验证核心、多个 SQLite 档位及 UI/插件
 
 ## 2026-10-04：编辑器与预览第七批
 
-沿代码编辑器/Generator/OPFS 预览消费入口联审，生成输出与预览 readonly，不把其猜成可编辑输出污染。确认 [RV-057](../../RV-057-preview-late-blob-text-overwrites-current-file.md)：previewFile 后的路径检查覆盖不到 Blob.text，显示 B 标题/A 文本；**1 failed /1 passed**。原组件、TestBed 与真实 Blob 参与，服务/文本交付是接缝；不是实际 OPFS/VFS 或整个应用已通过。
+沿代码编辑器/Generator/OPFS 预览消费入口联审，生成输出与预览 readonly，不把其猜成可编辑输出污染。确认 RV-057（已修复）：previewFile 后的路径检查覆盖不到 Blob.text，显示 B 标题/A 文本；**1 failed /1 passed**。原组件、TestBed 与真实 Blob 参与，服务/文本交付是接缝；不是实际 OPFS/VFS 或整个应用已通过。
 
 [本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。

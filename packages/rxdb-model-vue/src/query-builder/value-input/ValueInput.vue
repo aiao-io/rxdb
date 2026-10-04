@@ -281,18 +281,18 @@ defineExpose({
         class="input input-sm font-mono"
         :class="{ 'input-error': hasError || !!uuidError }"
         :value="currentValue as string"
-        @input="onUuidChange(($event.target as HTMLInputElement).value)"
         placeholder="输入 UUID"
         style="min-width: 16rem"
         type="text"
+        @input="onUuidChange(($event.target as HTMLInputElement).value)"
       />
     </div>
   </template>
   <template v-else-if="inputType === 'subquery'">
     <div class="subquery-container w-full">
       <span
-        class="text-base-content/50 px-2 text-sm italic"
         v-if="!relationFields || relationFields.length === 0"
+        class="text-base-content/50 px-2 text-sm italic"
         >存在/不存在（无子条件）</span
       >
       <SubqueryBuilder
@@ -304,19 +304,19 @@ defineExpose({
     </div>
   </template>
   <input
-    class="toggle toggle-sm"
     v-else-if="inputType === 'boolean'"
+    class="toggle toggle-sm"
     :checked="!!currentValue"
-    @change="onValueChange(($event.target as HTMLInputElement).checked)"
     type="checkbox"
+    @change="onValueChange(($event.target as HTMLInputElement).checked)"
   />
   <PopoverSelect
     v-else-if="inputType === 'enum'"
     :options="enumSelectOptions"
     :selected="currentValue == null ? '' : String(currentValue)"
-    @select-change="onEnumSelect"
     min-width="12rem"
     placeholder="选择值"
+    @select-change="onEnumSelect"
   />
   <div
     v-else-if="inputType === 'enum-array'"
@@ -326,9 +326,9 @@ defineExpose({
     <select
       class="select select-sm"
       :class="{ 'select-error': hasError }"
-      @change="onEnumArrayChange"
       multiple
       style="min-width: 12rem; min-height: 6rem"
+      @change="onEnumArrayChange"
     >
       <option
         v-for="opt in enumOptions"
@@ -341,8 +341,8 @@ defineExpose({
     </select>
   </div>
   <div
-    class="flex items-center gap-2"
     v-else-if="inputType === 'range' && fieldType === 'date'"
+    class="flex items-center gap-2"
     :class="{ 'tooltip-top': hasError, tooltip: hasError }"
     :data-tip="errorMessage || null"
   >
@@ -350,23 +350,23 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="dateRangeStart"
-      @change="onDateRangeStartChange(($event.target as HTMLInputElement).value)"
       style="width: 9rem"
       type="date"
+      @change="onDateRangeStartChange(($event.target as HTMLInputElement).value)"
     />
     <span class="text-base-content/50">至</span>
     <input
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="dateRangeEnd"
-      @change="onDateRangeEndChange(($event.target as HTMLInputElement).value)"
       style="width: 9rem"
       type="date"
+      @change="onDateRangeEndChange(($event.target as HTMLInputElement).value)"
     />
   </div>
   <div
-    class="flex items-center gap-2"
     v-else-if="inputType === 'range'"
+    class="flex items-center gap-2"
     :class="{ 'tooltip-top': hasError, tooltip: hasError }"
     :data-tip="errorMessage || null"
   >
@@ -374,20 +374,20 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="rangeMin ?? ''"
-      @input="onRangeMinChange(($event.target as HTMLInputElement).value)"
       placeholder="最小值"
       style="width: 7rem"
       type="number"
+      @input="onRangeMinChange(($event.target as HTMLInputElement).value)"
     />
     <span class="text-base-content/50">至</span>
     <input
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="rangeMax ?? ''"
-      @input="onRangeMaxChange(($event.target as HTMLInputElement).value)"
       placeholder="最大值"
       style="width: 7rem"
       type="number"
+      @input="onRangeMaxChange(($event.target as HTMLInputElement).value)"
     />
   </div>
   <div
@@ -399,9 +399,9 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="currentValue ?? ''"
-      @input="onNumberInputChange(($event.target as HTMLInputElement).value)"
       placeholder="输入数值"
       type="number"
+      @input="onNumberInputChange(($event.target as HTMLInputElement).value)"
     />
   </div>
   <div
@@ -413,9 +413,9 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="currentDateStr"
-      @change="onNativeDateChange(($event.target as HTMLInputElement).value)"
       style="width: 10rem"
       type="date"
+      @change="onNativeDateChange(($event.target as HTMLInputElement).value)"
     />
   </div>
   <div
@@ -427,10 +427,10 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="arrayInputValue"
-      @input="onArrayInputChange(($event.target as HTMLInputElement).value)"
       placeholder="输入多个值，用逗号分隔"
       style="width: 100%; min-width: 12rem"
       type="text"
+      @input="onArrayInputChange(($event.target as HTMLInputElement).value)"
     />
   </div>
   <div
@@ -442,10 +442,10 @@ defineExpose({
       class="input input-sm"
       :class="{ 'input-error': hasError }"
       :value="currentValue ?? ''"
-      @input="onValueChange(($event.target as HTMLInputElement).value)"
       placeholder="输入值"
       style="width: 100%; min-width: 12rem"
       type="text"
+      @input="onValueChange(($event.target as HTMLInputElement).value)"
     />
   </div>
 </template>
