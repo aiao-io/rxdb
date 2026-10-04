@@ -266,6 +266,7 @@
       "dev-rxdb-miniprogram>react": "^18.3.1",
       "dev-rxdb-miniprogram>react-dom": "^18.3.1",
       "vitest": "4.1.11",
+      "sass-embedded": "1.104.1",
       "@tarojs/helper>esbuild": "^0.25.12",
       "@tarojs/vite-runner>vite": "6.4.3",
       "@tarojs/plugin-framework-react>vite": "6.4.3",
