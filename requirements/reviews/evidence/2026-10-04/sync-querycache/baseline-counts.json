@@ -1,14 +1,14 @@
 {
-  "rxdb-plugin-sync": {
-    "tests": 449,
-    "failed": 0,
-    "skipped": [],
-    "suites": 33
-  },
   "rxdb-plugin-querycache": {
     "tests": 197,
     "failed": 0,
     "skipped": [],
     "suites": 12
+  },
+  "rxdb-plugin-sync": {
+    "tests": 449,
+    "failed": 0,
+    "skipped": [],
+    "suites": 33
   }
 }

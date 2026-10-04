@@ -1,1 +1,122 @@
-{"root":"packages/code-editor-angular","targets":{"typecheck":{"cache":true,"inputs":["production","^production",{"externalDependencies":["typescript"]}],"metadata":{"technologies":["typescript","typescript"],"description":"Runs type-checking for the project.","help":{"command":"pnpm exec tsc --build --help","example":{"args":["--force"]}}},"dependsOn":["^typecheck"],"syncGenerators":["@nx/js:typescript-sync"],"executor":"nx:run-commands","options":{"cwd":"packages/code-editor-angular","command":"tsc --build --emitDeclarationOnly"},"configurations":{},"parallelism":true},"build":{"cache":true,"dependsOn":["^build"],"inputs":["production","^production"],"executor":"@nx/angular:package","outputs":["{workspaceRoot}/dist/{projectRoot}"],"defaultConfiguration":"production","options":{"project":"packages/code-editor-angular/ng-package.json","tsConfig":"packages/code-editor-angular/tsconfig.lib.json"},"configurations":{"production":{"tsConfig":"packages/code-editor-angular/tsconfig.lib.prod.json"},"development":{}},"parallelism":true},"build-deps":{"dependsOn":["^build"],"configurations":{},"options":{},"parallelism":true,"executor":"nx:noop"},"watch-deps":{"continuous":true,"dependsOn":["build-deps"],"executor":"nx:run-commands","options":{"command":"pnpm exec nx watch --projects code-editor-angular --includeDependencies -- pnpm exec nx build-deps code-editor-angular"},"configurations":{},"parallelism":true},"lint":{"cache":true,"inputs":["default","^production"],"outputs":["{options.outputFile}"],"metadata":{"technologies":["eslint"],"description":"Runs ESLint on project","help":{"command":"pnpm exec eslint --help","example":{"options":{"max-warnings":0}}}},"executor":"nx:run-commands","options":{"cwd":"packages/code-editor-angular","command":"eslint ."},"configurations":{},"parallelism":true},"test":{"cache":true,"inputs":["default","^production"],"outputs":["{workspaceRoot}/coverage/packages/code-editor-angular"],"metadata":{"technologies":["vitest"],"description":"Run Vitest tests","help":{"command":"pnpm exec vitest --help","example":{"options":{"bail":1,"coverage":true}}}},"executor":"nx:run-commands","dependsOn":["^build"],"options":{"cwd":"packages/code-editor-angular","command":"vitest"},"configurations":{},"parallelism":true},"nx-release-publish":{"executor":"@nx/js:release-publish","dependsOn":["^nx-release-publish"],"options":{"packageRoot":"dist/packages/code-editor-angular"},"configurations":{},"parallelism":true}},"metadata":{"targetGroups":{},"description":"Angular integration for the Aiao CodeMirror 6 editor.","js":{"packageName":"@aiao/code-editor-angular","packageVersion":"0.0.26","isInPackageManagerWorkspaces":true}},"name":"code-editor-angular","tags":["npm:public","npm:aiao","npm:rxdb","npm:angular","npm:codemirror","npm:code-editor","npm:typescript","angular-lib"],"$schema":"../../node_modules/nx/schemas/project-schema.json","prefix":"ao","projectType":"library","release":{"version":{"manifestRootsToUpdate":["{projectRoot}","dist/{projectRoot}"],"currentVersionResolver":"git-tag","fallbackCurrentVersionResolver":"disk"}},"sourceRoot":"packages/code-editor-angular/src","implicitDependencies":[]}
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": [],
+  "metadata": {
+    "targetGroups": {},
+    "description": "Angular integration for the Aiao CodeMirror 6 editor.",
+    "js": {
+      "packageName": "@aiao/code-editor-angular",
+      "packageVersion": "0.0.26",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "code-editor-angular",
+  "prefix": "ao",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["{projectRoot}", "dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "root": "packages/code-editor-angular",
+  "sourceRoot": "packages/code-editor-angular/src",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:angular",
+    "npm:codemirror",
+    "npm:code-editor",
+    "npm:typescript",
+    "angular-lib"
+  ],
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": ["production", "^production", { "externalDependencies": ["typescript"] }],
+      "metadata": {
+        "technologies": ["typescript", "typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": { "command": "pnpm exec tsc --build --help", "example": { "args": ["--force"] } }
+      },
+      "dependsOn": ["^typecheck"],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "options": { "cwd": "packages/code-editor-angular", "command": "tsc --build --emitDeclarationOnly" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "project": "packages/code-editor-angular/ng-package.json",
+        "tsConfig": "packages/code-editor-angular/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "packages/code-editor-angular/tsconfig.lib.prod.json" },
+        "development": {}
+      },
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": ["^build"],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": ["build-deps"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects code-editor-angular --includeDependencies -- pnpm exec nx build-deps code-editor-angular"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": { "command": "pnpm exec eslint --help", "example": { "options": { "max-warnings": 0 } } }
+      },
+      "executor": "nx:run-commands",
+      "options": { "cwd": "packages/code-editor-angular", "command": "eslint ." },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/packages/code-editor-angular"],
+      "metadata": {
+        "technologies": ["vitest"],
+        "description": "Run Vitest tests",
+        "help": { "command": "pnpm exec vitest --help", "example": { "options": { "bail": 1, "coverage": true } } }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": { "cwd": "packages/code-editor-angular", "command": "vitest" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": ["^nx-release-publish"],
+      "options": { "packageRoot": "dist/packages/code-editor-angular" },
+      "configurations": {},
+      "parallelism": true
+    }
+  }
+}

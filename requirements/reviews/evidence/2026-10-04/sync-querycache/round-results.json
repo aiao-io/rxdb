@@ -1,16 +1,24 @@
 {
   "baselineHead": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "businessImplementationModified": false,
+  "coverageEnabled": false,
   "date": "2026-10-04",
   "environment": {
     "CI": "true",
     "CODECOV_TOKEN": "",
     "NX_DAEMON": "false"
   },
-  "noNxLocalOrRemoteCache": true,
-  "serial": true,
+  "finalSummary": {
+    "passed": 650,
+    "failed": 5,
+    "skipped": 0,
+    "allOriginal646TestsStillPassing": true
+  },
   "maxWorkers": 1,
-  "coverageEnabled": false,
+  "newFindings": ["RV-052", "RV-053", "RV-054"],
+  "noNxLocalOrRemoteCache": true,
   "runnerNote": "Some earlier zsh wrappers failed after Nx completed because status is readonly. Earlier outcomes come from preserved Nx/JUnit; final exit codes use non-reserved variables.",
+  "serial": true,
   "tasks": [
     {
       "id": "baseline",
@@ -117,17 +125,5 @@
         }
       }
     }
-  ],
-  "newFindings": [
-    "RV-052",
-    "RV-053",
-    "RV-054"
-  ],
-  "businessImplementationModified": false,
-  "finalSummary": {
-    "passed": 650,
-    "failed": 5,
-    "skipped": 0,
-    "allOriginal646TestsStillPassing": true
-  }
+  ]
 }

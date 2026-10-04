@@ -1,13 +1,4 @@
 {
-  "owned_test_project": "rxdb-review-2at2vd2p",
-  "owned_test_url": "http://localhost:57434",
-  "owned_container_names": [
-    "rxdb-review-2at2vd2p-supabase-db",
-    "rxdb-review-2at2vd2p-supabase-kong",
-    "rxdb-review-2at2vd2p-supabase-auth",
-    "rxdb-review-2at2vd2p-supabase-rest",
-    "rxdb-review-2at2vd2p-realtime-dev.supabase-realtime"
-  ],
   "existing_foreign_container": {
     "id": "dac3ffb09bd0b3459be54bd92ec02631521424cec565d70d13b454cdd835f7d0",
     "name": "/supabase-db",
@@ -25,5 +16,14 @@
       "com.docker.compose.version": "5.4.0"
     }
   },
-  "original_environment_modified": false
+  "original_environment_modified": false,
+  "owned_container_names": [
+    "rxdb-review-2at2vd2p-supabase-db",
+    "rxdb-review-2at2vd2p-supabase-kong",
+    "rxdb-review-2at2vd2p-supabase-auth",
+    "rxdb-review-2at2vd2p-supabase-rest",
+    "rxdb-review-2at2vd2p-realtime-dev.supabase-realtime"
+  ],
+  "owned_test_project": "rxdb-review-2at2vd2p",
+  "owned_test_url": "http://localhost:57434"
 }

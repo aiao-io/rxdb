@@ -1,5 +1,4 @@
 {
-  "date": "2026-10-04",
   "artifacts": [
     {
       "file": "app-probes-initial-lint-status.json",
@@ -242,5 +241,6 @@
       "sha256": "4243b16558376bb7abf20d0fea5d25fa0e440a06f54fe326401ffab8f6c836d1"
     }
   ],
+  "date": "2026-10-04",
   "selfExcluded": true
 }

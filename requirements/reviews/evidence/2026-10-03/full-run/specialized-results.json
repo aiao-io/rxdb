@@ -4,38 +4,38 @@
     "projects": 59,
     "exitCode": 0
   },
-  "test-browser": {
-    "target": "test-browser",
-    "projects": 6,
-    "exitCode": 0
-  },
-  "e2e": {
-    "target": "e2e",
-    "projects": 7,
-    "exitCode": 1
-  },
-  "tauri-smoke": {
-    "exitCode": 0
-  },
-  "tauri-conformance": {
-    "exitCode": 0
-  },
-  "coverage-acceptance": {
-    "exitCode": 1
-  },
   "core-coverage": {
     "exitCode": 1
   },
   "core-coverage-gate": {
     "exitCode": 0
   },
-  "miniprogram-e2e": {
-    "exitCode": 0
+  "coverage-acceptance": {
+    "exitCode": 1
+  },
+  "e2e": {
+    "target": "e2e",
+    "projects": 7,
+    "exitCode": 1
   },
   "lazy-backend-audit": {
     "exitCode": 0
   },
+  "miniprogram-e2e": {
+    "exitCode": 0
+  },
   "secrets-audit": {
+    "exitCode": 0
+  },
+  "tauri-conformance": {
+    "exitCode": 0
+  },
+  "tauri-smoke": {
+    "exitCode": 0
+  },
+  "test-browser": {
+    "target": "test-browser",
+    "projects": 6,
     "exitCode": 0
   }
 }

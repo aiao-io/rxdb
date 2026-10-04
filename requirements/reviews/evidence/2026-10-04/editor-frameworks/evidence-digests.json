@@ -1,5 +1,4 @@
 {
-  "date": "2026-10-04",
   "artifacts": [
     {
       "file": "baseline-counts.json",
@@ -262,5 +261,6 @@
       "sha256": "b03db6b570dfaeb91615924ccb7f035f3d2b5f98355e7ae04db93c729593d31b"
     }
   ],
+  "date": "2026-10-04",
   "selfExcluded": true
 }

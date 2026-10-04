@@ -9,10 +9,10 @@
     "--skipRemoteCache",
     "--skipNxCache"
   ],
-  "exitCode": 1,
   "environment": {
     "CI": "true",
     "CODECOV_TOKEN": "",
     "NX_DAEMON": "false"
-  }
+  },
+  "exitCode": 1
 }

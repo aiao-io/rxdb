@@ -1,5 +1,4 @@
 {
-  "reason": "Four temp workspaces created by early setupConflict fixture failures before its cleanup guard; explicit known test-only paths, no user files",
   "entries": [
     {
       "path": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-http-sqlite-I3DhGx",
@@ -25,5 +24,6 @@
       "openHandles": false,
       "removed": true
     }
-  ]
+  ],
+  "reason": "Four temp workspaces created by early setupConflict fixture failures before its cleanup guard; explicit known test-only paths, no user files"
 }

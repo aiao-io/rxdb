@@ -1,23 +1,4 @@
 {
-  "rxdb-plugin-sync": {
-    "tests": 452,
-    "passed": 450,
-    "failed": 2,
-    "skipped": [],
-    "failures": [
-      {
-        "classname": "src/__tests__/review-resume-outbox-result.spec.ts",
-        "name": "评审复验：自动恢复必须消费 outbox 结构化失败 > REST 403 被真实 flush 转成 failures 后，不应宣布成功并清除错误",
-        "time": "0.006935"
-      },
-      {
-        "classname": "src/__tests__/review-resume-outbox-result.spec.ts",
-        "name": "评审复验：自动恢复必须消费 outbox 结构化失败 > 网络失败被真实 flush 转成 failures 后，不应宣布成功",
-        "time": "0.001035"
-      }
-    ],
-    "suites": 34
-  },
   "rxdb-plugin-querycache": {
     "tests": 203,
     "passed": 200,
@@ -41,5 +22,24 @@
       }
     ],
     "suites": 14
+  },
+  "rxdb-plugin-sync": {
+    "tests": 452,
+    "passed": 450,
+    "failed": 2,
+    "skipped": [],
+    "failures": [
+      {
+        "classname": "src/__tests__/review-resume-outbox-result.spec.ts",
+        "name": "评审复验：自动恢复必须消费 outbox 结构化失败 > REST 403 被真实 flush 转成 failures 后，不应宣布成功并清除错误",
+        "time": "0.006935"
+      },
+      {
+        "classname": "src/__tests__/review-resume-outbox-result.spec.ts",
+        "name": "评审复验：自动恢复必须消费 outbox 结构化失败 > 网络失败被真实 flush 转成 failures 后，不应宣布成功",
+        "time": "0.001035"
+      }
+    ],
+    "suites": 34
   }
 }

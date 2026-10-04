@@ -1,1 +1,4 @@
-{"exitCode":0,"command":"nx run-many -t lint --projects=rxdb-plugin-sync,rxdb-plugin-querycache --parallel=1 --max-warnings=0 --outputStyle=static --skipRemoteCache --skipNxCache"}
+{
+  "command": "nx run-many -t lint --projects=rxdb-plugin-sync,rxdb-plugin-querycache --parallel=1 --max-warnings=0 --outputStyle=static --skipRemoteCache --skipNxCache",
+  "exitCode": 0
+}

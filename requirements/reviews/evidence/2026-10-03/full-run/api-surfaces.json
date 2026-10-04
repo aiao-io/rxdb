@@ -1,5 +1,1797 @@
 {
   "baseline": "3b3e449e10c6a587056a2ae947eddfd161834f97",
+  "families": [
+    {
+      "prefix": "rxdb-plugin-working-tree",
+      "sharedTypes": [],
+      "surfaces": [
+        {
+          "name": "rxdb-plugin-working-tree-angular",
+          "exports": [
+            {
+              "name": "useWorkingTree",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
+              "from": "./use-working-tree.js"
+            },
+            {
+              "name": "WorkingTreeResource",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
+              "from": "./use-working-tree.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-working-tree-react",
+          "exports": [
+            {
+              "name": "useWorkingTree",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-working-tree-react/src/index.ts",
+              "from": "./use-working-tree.js"
+            },
+            {
+              "name": "WorkingTreeResource",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-working-tree-react/src/index.ts",
+              "from": "./use-working-tree.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-working-tree-vue",
+          "exports": [
+            {
+              "name": "useWorkingTree",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+              "from": "./use-working-tree.js"
+            },
+            {
+              "name": "WorkingTreeResource",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+              "from": "./use-working-tree.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "rxdb-plugin-replay",
+      "sharedTypes": [
+        {
+          "name": "ReplayerCommitRestoreEvent",
+          "presence": [true, true, true]
+        }
+      ],
+      "surfaces": [
+        {
+          "name": "rxdb-plugin-replay-angular",
+          "exports": [
+            {
+              "name": "replayRestoreHint",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "ReplayerCommitRestoreEvent",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "ReplayerComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
+              "from": "./replayer.component.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-replay-react",
+          "exports": [
+            {
+              "name": "replayRestoreHint",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "ReplayerCommitRestoreEvent",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "Replayer",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
+              "from": "./replayer.js"
+            },
+            {
+              "name": "ReplayerProps",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
+              "from": "./replayer.js"
+            },
+            {
+              "name": "ReplayerRef",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
+              "from": "./replayer.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-replay-vue",
+          "exports": [
+            {
+              "name": "replayRestoreHint",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "ReplayerCommitRestoreEvent",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-replay"
+            },
+            {
+              "name": "Replayer",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
+              "from": "./replayer.js"
+            },
+            {
+              "name": "ReplayerRef",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
+              "from": "./replayer.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "rxdb-plugin-search",
+      "sharedTypes": [
+        {
+          "name": "SearchHandle",
+          "presence": [true, true, true]
+        },
+        {
+          "name": "SearchOptions",
+          "presence": [true, true, true]
+        },
+        {
+          "name": "SearchResult",
+          "presence": [true, true, true]
+        },
+        {
+          "name": "SearchState",
+          "presence": [true, true, true]
+        }
+      ],
+      "surfaces": [
+        {
+          "name": "rxdb-plugin-search-angular",
+          "exports": [
+            {
+              "name": "SearchExecutionError",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchHandle",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchOptions",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchResult",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchState",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "useSearch",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "./inject-search.js"
+            },
+            {
+              "name": "SearchSourceLike",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "./inject-search.js"
+            },
+            {
+              "name": "UseSearchReturn",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
+              "from": "./inject-search.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-search-react",
+          "exports": [
+            {
+              "name": "SearchExecutionError",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchHandle",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchOptions",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchResult",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchState",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "useSearch",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "./use-search.js"
+            },
+            {
+              "name": "SearchSourceLike",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "./use-search.js"
+            },
+            {
+              "name": "UseSearchReturn",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-react/src/index.ts",
+              "from": "./use-search.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-search-vue",
+          "exports": [
+            {
+              "name": "SearchExecutionError",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchHandle",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchOptions",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchResult",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "SearchState",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-search"
+            },
+            {
+              "name": "useSearch",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "./use-search.js"
+            },
+            {
+              "name": "SearchSourceLike",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "./use-search.js"
+            },
+            {
+              "name": "UseSearchReturn",
+              "kind": "type",
+              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
+              "from": "./use-search.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "rxdb-plugin-tree",
+      "sharedTypes": [],
+      "surfaces": [
+        {
+          "name": "rxdb-plugin-tree-angular",
+          "exports": [
+            {
+              "name": "useCountAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useCountDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
+              "from": "./use-tree.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-tree-react",
+          "exports": [
+            {
+              "name": "useCountAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useCountDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
+              "from": "./use-tree.js"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-plugin-tree-vue",
+          "exports": [
+            {
+              "name": "useCountAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useCountDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindAncestors",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
+              "from": "./use-tree.js"
+            },
+            {
+              "name": "useFindDescendants",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
+              "from": "./use-tree.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "code-editor",
+      "sharedTypes": [],
+      "surfaces": [
+        {
+          "name": "code-editor-angular",
+          "exports": [
+            {
+              "name": "CodeEditor",
+              "kind": "value-or-reexport",
+              "file": "packages/code-editor-angular/src/index.ts",
+              "from": "./code-editor"
+            },
+            {
+              "name": "CodeEditorSetup",
+              "kind": "type",
+              "file": "packages/code-editor-angular/src/index.ts",
+              "from": "./code-editor"
+            },
+            {
+              "name": "CodeEditorTheme",
+              "kind": "type",
+              "file": "packages/code-editor-angular/src/index.ts",
+              "from": "./code-editor"
+            }
+          ]
+        },
+        {
+          "name": "code-editor-react",
+          "exports": [
+            {
+              "name": "CodeEditor",
+              "kind": "value-or-reexport",
+              "file": "packages/code-editor-react/src/index.ts",
+              "from": "./CodeEditor.js"
+            },
+            {
+              "name": "CodeEditorHandle",
+              "kind": "type",
+              "file": "packages/code-editor-react/src/index.ts",
+              "from": "./CodeEditor.js"
+            },
+            {
+              "name": "CodeEditorProps",
+              "kind": "type",
+              "file": "packages/code-editor-react/src/index.ts",
+              "from": "./CodeEditor.js"
+            },
+            {
+              "name": "CodeEditorSetup",
+              "kind": "type",
+              "file": "packages/code-editor-react/src/index.ts",
+              "from": "./CodeEditor.js"
+            },
+            {
+              "name": "CodeEditorTheme",
+              "kind": "type",
+              "file": "packages/code-editor-react/src/index.ts",
+              "from": "./CodeEditor.js"
+            }
+          ]
+        },
+        {
+          "name": "code-editor-vue",
+          "exports": [
+            {
+              "name": "CodeEditorEmits",
+              "kind": "type",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./code-editor.types.js"
+            },
+            {
+              "name": "CodeEditorExpose",
+              "kind": "type",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./code-editor.types.js"
+            },
+            {
+              "name": "CodeEditorProps",
+              "kind": "type",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./code-editor.types.js"
+            },
+            {
+              "name": "CodeEditorSetup",
+              "kind": "type",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./code-editor.types.js"
+            },
+            {
+              "name": "CodeEditorTheme",
+              "kind": "type",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./code-editor.types.js"
+            },
+            {
+              "name": "CodeEditor",
+              "kind": "value-or-reexport",
+              "file": "packages/code-editor-vue/src/index.ts",
+              "from": "./CodeEditor.vue"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "rxdb-model",
+      "sharedTypes": [],
+      "surfaces": [
+        {
+          "name": "rxdb-model-angular",
+          "exports": [
+            {
+              "name": "cn",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "EntityDetailDialogData",
+              "kind": "type",
+              "file": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts"
+            },
+            {
+              "name": "EntityDetailComponent",
+              "kind": "runtime",
+              "file": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts"
+            },
+            {
+              "name": "EntityDialogComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/entity-dialog/index.ts",
+              "from": "./entity-dialog.component"
+            },
+            {
+              "name": "EntityFormComponent",
+              "kind": "runtime",
+              "file": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts"
+            },
+            {
+              "name": "EntityListComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/index.ts",
+              "from": "./entity-list/entity-list.component"
+            },
+            {
+              "name": "ENTITY_TABLE_CONFIG",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
+              "from": "./config"
+            },
+            {
+              "name": "EntityTableComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
+              "from": "./entity-table/entity-table.component"
+            },
+            {
+              "name": "QueryTableComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
+              "from": "./query-table/query-table.component"
+            },
+            {
+              "name": "*",
+              "kind": "external-star",
+              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "QueryBuilderComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder.component"
+            },
+            {
+              "name": "RxDBQueryOutput",
+              "kind": "type",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder.component"
+            },
+            {
+              "name": "FieldSelectorComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./field-selector/field-selector.component"
+            },
+            {
+              "name": "OperatorSelectorComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./operator-selector/operator-selector.component"
+            },
+            {
+              "name": "PopoverSelectComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./popover-select/popover-select.component"
+            },
+            {
+              "name": "QueryGroupComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./query-group/query-group.component"
+            },
+            {
+              "name": "QueryRuleComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./query-rule/query-rule.component"
+            },
+            {
+              "name": "SubqueryBuilderComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./subquery-builder/subquery-builder.component"
+            },
+            {
+              "name": "TreeItemDirective",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./tree-select/tree-select.component"
+            },
+            {
+              "name": "TreeSelectComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./tree-select/tree-select.component"
+            },
+            {
+              "name": "ValueInputComponent",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./value-input/value-input.component"
+            },
+            {
+              "name": "DEFAULT_QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./theme/default-query-builder-theme"
+            },
+            {
+              "name": "QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.token"
+            },
+            {
+              "name": "provideQueryBuilderTheme",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.token"
+            },
+            {
+              "name": "*",
+              "kind": "external-star",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "QueryBuilderTheme",
+              "kind": "type",
+              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.token"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-model-react",
+          "exports": [
+            {
+              "name": "cn",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "EntityDetail",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
+              "from": "./entity-detail.js"
+            },
+            {
+              "name": "EntityDetailDialogData",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
+              "from": "./entity-detail.js"
+            },
+            {
+              "name": "EntityDetailProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
+              "from": "./entity-detail.js"
+            },
+            {
+              "name": "EntityDialog",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-dialog/index.ts",
+              "from": "./entity-dialog.js"
+            },
+            {
+              "name": "EntityDialogProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-dialog/index.ts",
+              "from": "./entity-dialog.js"
+            },
+            {
+              "name": "EntityForm",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-form/index.ts",
+              "from": "./entity-form.js"
+            },
+            {
+              "name": "EntityFormProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-form/index.ts",
+              "from": "./entity-form.js"
+            },
+            {
+              "name": "EntityList",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/index.ts",
+              "from": "./entity-list/entity-list.js"
+            },
+            {
+              "name": "EntityInstance",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/index.ts",
+              "from": "./entity-list/entity-list.js"
+            },
+            {
+              "name": "EntityListProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/index.ts",
+              "from": "./entity-list/entity-list.js"
+            },
+            {
+              "name": "FilterQuery",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/index.ts",
+              "from": "./entity-list/entity-list.js"
+            },
+            {
+              "name": "ENTITY_TABLE_CONFIG",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./config.js"
+            },
+            {
+              "name": "EntityTableConfigProvider",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./config.js"
+            },
+            {
+              "name": "EntityTable",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./entity-table.js"
+            },
+            {
+              "name": "EntityTableHandle",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./entity-table.js"
+            },
+            {
+              "name": "EntityTableProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./entity-table.js"
+            },
+            {
+              "name": "QueryTable",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./query-table.js"
+            },
+            {
+              "name": "QueryTableHandle",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./query-table.js"
+            },
+            {
+              "name": "QueryTableProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
+              "from": "./query-table.js"
+            },
+            {
+              "name": "QueryBuilder",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder.js"
+            },
+            {
+              "name": "QueryBuilderProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder.js"
+            },
+            {
+              "name": "RxDBQueryOutput",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder.js"
+            },
+            {
+              "name": "FieldSelector",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./field-selector/field-selector.js"
+            },
+            {
+              "name": "FieldSelectorProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./field-selector/field-selector.js"
+            },
+            {
+              "name": "OperatorSelector",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./operator-selector/operator-selector.js"
+            },
+            {
+              "name": "OperatorSelectorProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./operator-selector/operator-selector.js"
+            },
+            {
+              "name": "PopoverSelect",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./popover-select/popover-select.js"
+            },
+            {
+              "name": "PopoverSelectOption",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./popover-select/popover-select.js"
+            },
+            {
+              "name": "PopoverSelectProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./popover-select/popover-select.js"
+            },
+            {
+              "name": "QueryDragDropHandler",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "QueryGroup",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "QueryDragDropState",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "QueryDropMode",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "QueryGroupProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "UIRuleGroup",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-group/query-group.js"
+            },
+            {
+              "name": "QueryRule",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-rule/query-rule.js"
+            },
+            {
+              "name": "QueryRuleProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-rule/query-rule.js"
+            },
+            {
+              "name": "UIRuleWithWhere",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./query-rule/query-rule.js"
+            },
+            {
+              "name": "SubqueryBuilder",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./subquery-builder/subquery-builder.js"
+            },
+            {
+              "name": "SubqueryBuilderProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./subquery-builder/subquery-builder.js"
+            },
+            {
+              "name": "TreeItemDirective",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./tree-select/tree-select.js"
+            },
+            {
+              "name": "TreeSelect",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./tree-select/tree-select.js"
+            },
+            {
+              "name": "TreeSelectProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./tree-select/tree-select.js"
+            },
+            {
+              "name": "ValueInput",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./value-input/value-input.js"
+            },
+            {
+              "name": "ValueInputProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./value-input/value-input.js"
+            },
+            {
+              "name": "DEFAULT_QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./theme/default-query-builder-theme.js"
+            },
+            {
+              "name": "QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.js"
+            },
+            {
+              "name": "QueryBuilderThemeProvider",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.js"
+            },
+            {
+              "name": "QueryBuilderTheme",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.js"
+            },
+            {
+              "name": "QueryBuilderThemeProviderProps",
+              "kind": "type",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme.js"
+            },
+            {
+              "name": "*",
+              "kind": "external-star",
+              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
+              "from": "@aiao/rxdb-model"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-model-vue",
+          "exports": [
+            {
+              "name": "cn",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "EntityDetailDialogData",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/entity-detail/index.ts",
+              "from": "./entity-detail-types"
+            },
+            {
+              "name": "EntityDetail",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-detail/index.ts",
+              "from": "./EntityDetail.vue"
+            },
+            {
+              "name": "EntityDialog",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-dialog/index.ts",
+              "from": "./EntityDialog.vue"
+            },
+            {
+              "name": "EntityForm",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-form/index.ts",
+              "from": "./EntityForm.vue"
+            },
+            {
+              "name": "EntityList",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/index.ts",
+              "from": "./entity-list/index"
+            },
+            {
+              "name": "ENTITY_TABLE_CONFIG",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
+              "from": "./config"
+            },
+            {
+              "name": "EntityTable",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
+              "from": "./EntityTable.vue"
+            },
+            {
+              "name": "QueryTable",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
+              "from": "./QueryTable.vue"
+            },
+            {
+              "name": "*",
+              "kind": "external-star",
+              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
+              "from": "@aiao/rxdb-model"
+            },
+            {
+              "name": "RxDBQueryOutput",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-builder/query-builder-types"
+            },
+            {
+              "name": "QueryBuilder",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-builder/QueryBuilder.vue"
+            },
+            {
+              "name": "FieldSelector",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./field-selector/FieldSelector.vue"
+            },
+            {
+              "name": "OperatorSelector",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./operator-selector/OperatorSelector.vue"
+            },
+            {
+              "name": "PopoverSelect",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./popover-select/PopoverSelect.vue"
+            },
+            {
+              "name": "QueryDragDropHandler",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/query-drag-drop"
+            },
+            {
+              "name": "calculateDropMode",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/query-drag-drop"
+            },
+            {
+              "name": "QueryDragDropState",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/query-drag-drop"
+            },
+            {
+              "name": "QueryDropMode",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/query-drag-drop"
+            },
+            {
+              "name": "UIRuleGroup",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/query-drag-drop"
+            },
+            {
+              "name": "QueryGroup",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-group/QueryGroup.vue"
+            },
+            {
+              "name": "QueryRule",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./query-rule/QueryRule.vue"
+            },
+            {
+              "name": "SubqueryBuilder",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./subquery-builder/SubqueryBuilder.vue"
+            },
+            {
+              "name": "TreeSelect",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./tree-select/TreeSelect.vue"
+            },
+            {
+              "name": "ValueInput",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./value-input/ValueInput.vue"
+            },
+            {
+              "name": "DEFAULT_QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./theme/default-query-builder-theme"
+            },
+            {
+              "name": "QUERY_BUILDER_THEME",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme"
+            },
+            {
+              "name": "provideQueryBuilderTheme",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme"
+            },
+            {
+              "name": "QueryBuilderTheme",
+              "kind": "type",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "./theme/query-builder-theme"
+            },
+            {
+              "name": "*",
+              "kind": "external-star",
+              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
+              "from": "@aiao/rxdb-model"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prefix": "rxdb",
+      "sharedTypes": [
+        {
+          "name": "GraphPath",
+          "presence": [true, true, true]
+        },
+        {
+          "name": "GraphQueryResult",
+          "presence": [true, true, true]
+        },
+        {
+          "name": "NeighborResult",
+          "presence": [true, true, true]
+        }
+      ],
+      "surfaces": [
+        {
+          "name": "rxdb-angular",
+          "exports": [
+            {
+              "name": "GraphPath",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "GraphQueryResult",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "NeighborResult",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "UseOptions",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "RxDBResource",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useRepositoryQuery",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useGet",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useFindOne",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useFindOneOrFail",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useFind",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useFindByCursor",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useFindAll",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useCount",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useGraphNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useCountNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "useGraphPaths",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/hooks.ts"
+            },
+            {
+              "name": "InfiniteScrollOptions",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/InfiniteScrollingList.ts"
+            },
+            {
+              "name": "InfiniteScrollingList",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/InfiniteScrollingList.ts"
+            },
+            {
+              "name": "RxDBEntityChangeDirective",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "./rxdb-change-detector.directive"
+            },
+            {
+              "name": "provideRxDB",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "./rxdb.provider"
+            },
+            {
+              "name": "useRxDB",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "./rxdb.provider"
+            },
+            {
+              "name": "useRxDBOptional",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "./rxdb.provider"
+            },
+            {
+              "name": "RxDBSource",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/index.ts",
+              "from": "./rxdb.provider"
+            },
+            {
+              "name": "ActionResource",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/use-action.ts"
+            },
+            {
+              "name": "useAction",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/use-action.ts"
+            },
+            {
+              "name": "InfiniteScrollResource",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/use-infinite-scroll.ts"
+            },
+            {
+              "name": "useInfiniteScroll",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/use-infinite-scroll.ts"
+            },
+            {
+              "name": "PersistedState",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/use-persisted-state.ts"
+            },
+            {
+              "name": "usePersistedState",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/use-persisted-state.ts"
+            },
+            {
+              "name": "NamespacedState",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/use-state.ts"
+            },
+            {
+              "name": "useState",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/use-state.ts"
+            },
+            {
+              "name": "SyncStateResource",
+              "kind": "type",
+              "file": "packages/rxdb-angular/src/use-sync-state.ts"
+            },
+            {
+              "name": "useSyncState",
+              "kind": "runtime",
+              "file": "packages/rxdb-angular/src/use-sync-state.ts"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-react",
+          "exports": [
+            {
+              "name": "GraphPath",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "GraphQueryResult",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "NeighborResult",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "RxDBResource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useRepositoryQuery",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useGet",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useFindOne",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useFindOneOrFail",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useFind",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useFindByCursor",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useFindAll",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useCount",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useGraphNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useCountNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "useGraphPaths",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/hooks.ts"
+            },
+            {
+              "name": "UseOptions",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/index.ts",
+              "from": "./query-options.js"
+            },
+            {
+              "name": "RxDBSource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "ProviderProps",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "RxDBProviderType",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "UseRxDB",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "UseRxDBOptional",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "RxDBProviderSet",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "makeRxDBProvider",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "RxDBProvider",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "useRxDB",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "useRxDBOptional",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/rxdb-react.tsx"
+            },
+            {
+              "name": "InfiniteScrollResource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/useInfiniteScroll.ts"
+            },
+            {
+              "name": "useInfiniteScroll",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/useInfiniteScroll.ts"
+            },
+            {
+              "name": "ActionResource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/use-action.ts"
+            },
+            {
+              "name": "useAction",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/use-action.ts"
+            },
+            {
+              "name": "PersistedState",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/use-persisted-state.ts"
+            },
+            {
+              "name": "usePersistedState",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/use-persisted-state.ts"
+            },
+            {
+              "name": "EntityChangeOptions",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/use-entity-change.ts"
+            },
+            {
+              "name": "EntityChangeResource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/use-entity-change.ts"
+            },
+            {
+              "name": "useEntityChange",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/use-entity-change.ts"
+            },
+            {
+              "name": "SyncStateResource",
+              "kind": "type",
+              "file": "packages/rxdb-react/src/use-sync-state.ts"
+            },
+            {
+              "name": "useSyncState",
+              "kind": "runtime",
+              "file": "packages/rxdb-react/src/use-sync-state.ts"
+            }
+          ]
+        },
+        {
+          "name": "rxdb-vue",
+          "exports": [
+            {
+              "name": "GraphPath",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "GraphQueryResult",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "NeighborResult",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/index.ts",
+              "from": "@aiao/rxdb-plugin-graph"
+            },
+            {
+              "name": "UseOptions",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "RxDBResource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useRepositoryQuery",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useGet",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useFindOne",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useFindOneOrFail",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useFind",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useFindByCursor",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useFindAll",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useCount",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useGraphNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useCountNeighbors",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "useGraphPaths",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/hooks.ts"
+            },
+            {
+              "name": "RxDBSource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "RxDBInput",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "RxDBRef",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "RxDBDependencyInjection",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "injectRxDB",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "injectRxDBRef",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "makeRxDBDependencyInjector",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "provideRxDB",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "useRxDB",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "useRxDBOptional",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "useRxDBRef",
+              "kind": "value-or-reexport",
+              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
+            },
+            {
+              "name": "InfiniteScrollResource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/useInfiniteScroll.ts"
+            },
+            {
+              "name": "useInfiniteScroll",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/useInfiniteScroll.ts"
+            },
+            {
+              "name": "ActionResource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/use-action.ts"
+            },
+            {
+              "name": "useAction",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/use-action.ts"
+            },
+            {
+              "name": "PersistedState",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/use-persisted-state.ts"
+            },
+            {
+              "name": "usePersistedState",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/use-persisted-state.ts"
+            },
+            {
+              "name": "EntityChangeOptions",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/use-entity-change.ts"
+            },
+            {
+              "name": "EntityChangeResource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/use-entity-change.ts"
+            },
+            {
+              "name": "useEntityChange",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/use-entity-change.ts"
+            },
+            {
+              "name": "SyncStateResource",
+              "kind": "type",
+              "file": "packages/rxdb-vue/src/use-sync-state.ts"
+            },
+            {
+              "name": "useSyncState",
+              "kind": "runtime",
+              "file": "packages/rxdb-vue/src/use-sync-state.ts"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "units": [
     {
       "name": "rxdb-plugin-working-tree-angular",
@@ -18,15 +1810,7 @@
           "from": "./use-working-tree.js"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-plugin-working-tree-react",
@@ -113,15 +1897,7 @@
           "from": "./replayer.component.js"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-plugin-search-angular",
@@ -176,15 +1952,7 @@
           "from": "./inject-search.js"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-adapter-miniprogram",
@@ -1835,15 +3603,7 @@
           "from": "./use-tree.js"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-plugin-working-tree",
@@ -2789,15 +4549,7 @@
       "name": "rxdb-devtools-extension-e2e",
       "root": "apps/rxdb-devtools-extension-e2e",
       "exports": [],
-      "targets": [
-        "e2e",
-        "e2e-ci",
-        "e2e-ci--merge-reports",
-        "e2e-ci--src/relay.spec.ts",
-        "lint",
-        "prepare",
-        "typecheck"
-      ]
+      "targets": ["e2e", "e2e-ci", "e2e-ci--merge-reports", "e2e-ci--src/relay.spec.ts", "lint", "prepare", "typecheck"]
     },
     {
       "name": "rxdb-adapter-encrypted",
@@ -4095,11 +5847,7 @@
       "name": "dev-rxdb-miniprogram-e2e",
       "root": "apps/dev-rxdb-miniprogram-e2e",
       "exports": [],
-      "targets": [
-        "e2e-devtools",
-        "lint",
-        "typecheck"
-      ]
+      "targets": ["e2e-devtools", "lint", "typecheck"]
     },
     {
       "name": "rxdb-plugin-tree-vue",
@@ -4167,15 +5915,7 @@
           "from": "./code-editor"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-adapter-pglite",
@@ -5734,15 +7474,7 @@
           "from": "./theme/query-builder-theme.token"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "rxdb-plugin-replay",
@@ -6971,16 +8703,7 @@
       "name": "dev-rxdb-http-server",
       "root": "apps/dev-rxdb-http-server",
       "exports": [],
-      "targets": [
-        "build-deps",
-        "lint",
-        "reset",
-        "seed",
-        "serve",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build-deps", "lint", "reset", "seed", "serve", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "dev-rxdb-miniprogram",
@@ -7699,12 +9422,7 @@
       "name": "dev-rxdb-tauri-e2e",
       "root": "apps/dev-rxdb-tauri-e2e",
       "exports": [],
-      "targets": [
-        "desktop-smoke",
-        "devtools-smoke",
-        "lint",
-        "typecheck"
-      ]
+      "targets": ["desktop-smoke", "devtools-smoke", "lint", "typecheck"]
     },
     {
       "name": "rxdb-model-vue",
@@ -9640,15 +11358,7 @@
           "file": "packages/rxdb-angular/src/use-sync-state.ts"
         }
       ],
-      "targets": [
-        "build",
-        "build-deps",
-        "lint",
-        "nx-release-publish",
-        "test",
-        "typecheck",
-        "watch-deps"
-      ]
+      "targets": ["build", "build-deps", "lint", "nx-release-publish", "test", "typecheck", "watch-deps"]
     },
     {
       "name": "code-editor",
@@ -15658,1830 +17368,6 @@
         "test",
         "typecheck",
         "watch-deps"
-      ]
-    }
-  ],
-  "families": [
-    {
-      "prefix": "rxdb-plugin-working-tree",
-      "sharedTypes": [],
-      "surfaces": [
-        {
-          "name": "rxdb-plugin-working-tree-angular",
-          "exports": [
-            {
-              "name": "useWorkingTree",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
-              "from": "./use-working-tree.js"
-            },
-            {
-              "name": "WorkingTreeResource",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
-              "from": "./use-working-tree.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-working-tree-react",
-          "exports": [
-            {
-              "name": "useWorkingTree",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-working-tree-react/src/index.ts",
-              "from": "./use-working-tree.js"
-            },
-            {
-              "name": "WorkingTreeResource",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-working-tree-react/src/index.ts",
-              "from": "./use-working-tree.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-working-tree-vue",
-          "exports": [
-            {
-              "name": "useWorkingTree",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
-              "from": "./use-working-tree.js"
-            },
-            {
-              "name": "WorkingTreeResource",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
-              "from": "./use-working-tree.js"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "rxdb-plugin-replay",
-      "sharedTypes": [
-        {
-          "name": "ReplayerCommitRestoreEvent",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        }
-      ],
-      "surfaces": [
-        {
-          "name": "rxdb-plugin-replay-angular",
-          "exports": [
-            {
-              "name": "replayRestoreHint",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "ReplayerCommitRestoreEvent",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "ReplayerComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-angular/src/index.ts",
-              "from": "./replayer.component.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-replay-react",
-          "exports": [
-            {
-              "name": "replayRestoreHint",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "ReplayerCommitRestoreEvent",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "Replayer",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
-              "from": "./replayer.js"
-            },
-            {
-              "name": "ReplayerProps",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
-              "from": "./replayer.js"
-            },
-            {
-              "name": "ReplayerRef",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-react/src/index.ts",
-              "from": "./replayer.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-replay-vue",
-          "exports": [
-            {
-              "name": "replayRestoreHint",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "ReplayerCommitRestoreEvent",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-replay"
-            },
-            {
-              "name": "Replayer",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
-              "from": "./replayer.js"
-            },
-            {
-              "name": "ReplayerRef",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-replay-vue/src/index.ts",
-              "from": "./replayer.js"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "rxdb-plugin-search",
-      "sharedTypes": [
-        {
-          "name": "SearchHandle",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        },
-        {
-          "name": "SearchOptions",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        },
-        {
-          "name": "SearchResult",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        },
-        {
-          "name": "SearchState",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        }
-      ],
-      "surfaces": [
-        {
-          "name": "rxdb-plugin-search-angular",
-          "exports": [
-            {
-              "name": "SearchExecutionError",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchHandle",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchOptions",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchResult",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchState",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "useSearch",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "./inject-search.js"
-            },
-            {
-              "name": "SearchSourceLike",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "./inject-search.js"
-            },
-            {
-              "name": "UseSearchReturn",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-angular/src/index.ts",
-              "from": "./inject-search.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-search-react",
-          "exports": [
-            {
-              "name": "SearchExecutionError",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchHandle",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchOptions",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchResult",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchState",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "useSearch",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "./use-search.js"
-            },
-            {
-              "name": "SearchSourceLike",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "./use-search.js"
-            },
-            {
-              "name": "UseSearchReturn",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-react/src/index.ts",
-              "from": "./use-search.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-search-vue",
-          "exports": [
-            {
-              "name": "SearchExecutionError",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchHandle",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchOptions",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchResult",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "SearchState",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-search"
-            },
-            {
-              "name": "useSearch",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "./use-search.js"
-            },
-            {
-              "name": "SearchSourceLike",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "./use-search.js"
-            },
-            {
-              "name": "UseSearchReturn",
-              "kind": "type",
-              "file": "packages/rxdb-plugin-search-vue/src/index.ts",
-              "from": "./use-search.js"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "rxdb-plugin-tree",
-      "sharedTypes": [],
-      "surfaces": [
-        {
-          "name": "rxdb-plugin-tree-angular",
-          "exports": [
-            {
-              "name": "useCountAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useCountDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-angular/src/index.ts",
-              "from": "./use-tree.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-tree-react",
-          "exports": [
-            {
-              "name": "useCountAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useCountDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-react/src/index.ts",
-              "from": "./use-tree.js"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-plugin-tree-vue",
-          "exports": [
-            {
-              "name": "useCountAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useCountDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindAncestors",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
-              "from": "./use-tree.js"
-            },
-            {
-              "name": "useFindDescendants",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-plugin-tree-vue/src/index.ts",
-              "from": "./use-tree.js"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "code-editor",
-      "sharedTypes": [],
-      "surfaces": [
-        {
-          "name": "code-editor-angular",
-          "exports": [
-            {
-              "name": "CodeEditor",
-              "kind": "value-or-reexport",
-              "file": "packages/code-editor-angular/src/index.ts",
-              "from": "./code-editor"
-            },
-            {
-              "name": "CodeEditorSetup",
-              "kind": "type",
-              "file": "packages/code-editor-angular/src/index.ts",
-              "from": "./code-editor"
-            },
-            {
-              "name": "CodeEditorTheme",
-              "kind": "type",
-              "file": "packages/code-editor-angular/src/index.ts",
-              "from": "./code-editor"
-            }
-          ]
-        },
-        {
-          "name": "code-editor-react",
-          "exports": [
-            {
-              "name": "CodeEditor",
-              "kind": "value-or-reexport",
-              "file": "packages/code-editor-react/src/index.ts",
-              "from": "./CodeEditor.js"
-            },
-            {
-              "name": "CodeEditorHandle",
-              "kind": "type",
-              "file": "packages/code-editor-react/src/index.ts",
-              "from": "./CodeEditor.js"
-            },
-            {
-              "name": "CodeEditorProps",
-              "kind": "type",
-              "file": "packages/code-editor-react/src/index.ts",
-              "from": "./CodeEditor.js"
-            },
-            {
-              "name": "CodeEditorSetup",
-              "kind": "type",
-              "file": "packages/code-editor-react/src/index.ts",
-              "from": "./CodeEditor.js"
-            },
-            {
-              "name": "CodeEditorTheme",
-              "kind": "type",
-              "file": "packages/code-editor-react/src/index.ts",
-              "from": "./CodeEditor.js"
-            }
-          ]
-        },
-        {
-          "name": "code-editor-vue",
-          "exports": [
-            {
-              "name": "CodeEditorEmits",
-              "kind": "type",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./code-editor.types.js"
-            },
-            {
-              "name": "CodeEditorExpose",
-              "kind": "type",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./code-editor.types.js"
-            },
-            {
-              "name": "CodeEditorProps",
-              "kind": "type",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./code-editor.types.js"
-            },
-            {
-              "name": "CodeEditorSetup",
-              "kind": "type",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./code-editor.types.js"
-            },
-            {
-              "name": "CodeEditorTheme",
-              "kind": "type",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./code-editor.types.js"
-            },
-            {
-              "name": "CodeEditor",
-              "kind": "value-or-reexport",
-              "file": "packages/code-editor-vue/src/index.ts",
-              "from": "./CodeEditor.vue"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "rxdb-model",
-      "sharedTypes": [],
-      "surfaces": [
-        {
-          "name": "rxdb-model-angular",
-          "exports": [
-            {
-              "name": "cn",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "EntityDetailDialogData",
-              "kind": "type",
-              "file": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts"
-            },
-            {
-              "name": "EntityDetailComponent",
-              "kind": "runtime",
-              "file": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts"
-            },
-            {
-              "name": "EntityDialogComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/entity-dialog/index.ts",
-              "from": "./entity-dialog.component"
-            },
-            {
-              "name": "EntityFormComponent",
-              "kind": "runtime",
-              "file": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts"
-            },
-            {
-              "name": "EntityListComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/index.ts",
-              "from": "./entity-list/entity-list.component"
-            },
-            {
-              "name": "ENTITY_TABLE_CONFIG",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
-              "from": "./config"
-            },
-            {
-              "name": "EntityTableComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
-              "from": "./entity-table/entity-table.component"
-            },
-            {
-              "name": "QueryTableComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
-              "from": "./query-table/query-table.component"
-            },
-            {
-              "name": "*",
-              "kind": "external-star",
-              "file": "packages/rxdb-model-angular/src/entity-table/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "QueryBuilderComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder.component"
-            },
-            {
-              "name": "RxDBQueryOutput",
-              "kind": "type",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder.component"
-            },
-            {
-              "name": "FieldSelectorComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./field-selector/field-selector.component"
-            },
-            {
-              "name": "OperatorSelectorComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./operator-selector/operator-selector.component"
-            },
-            {
-              "name": "PopoverSelectComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./popover-select/popover-select.component"
-            },
-            {
-              "name": "QueryGroupComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./query-group/query-group.component"
-            },
-            {
-              "name": "QueryRuleComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./query-rule/query-rule.component"
-            },
-            {
-              "name": "SubqueryBuilderComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./subquery-builder/subquery-builder.component"
-            },
-            {
-              "name": "TreeItemDirective",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./tree-select/tree-select.component"
-            },
-            {
-              "name": "TreeSelectComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./tree-select/tree-select.component"
-            },
-            {
-              "name": "ValueInputComponent",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./value-input/value-input.component"
-            },
-            {
-              "name": "DEFAULT_QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./theme/default-query-builder-theme"
-            },
-            {
-              "name": "QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.token"
-            },
-            {
-              "name": "provideQueryBuilderTheme",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.token"
-            },
-            {
-              "name": "*",
-              "kind": "external-star",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "QueryBuilderTheme",
-              "kind": "type",
-              "file": "packages/rxdb-model-angular/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.token"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-model-react",
-          "exports": [
-            {
-              "name": "cn",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "EntityDetail",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
-              "from": "./entity-detail.js"
-            },
-            {
-              "name": "EntityDetailDialogData",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
-              "from": "./entity-detail.js"
-            },
-            {
-              "name": "EntityDetailProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-detail/index.ts",
-              "from": "./entity-detail.js"
-            },
-            {
-              "name": "EntityDialog",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-dialog/index.ts",
-              "from": "./entity-dialog.js"
-            },
-            {
-              "name": "EntityDialogProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-dialog/index.ts",
-              "from": "./entity-dialog.js"
-            },
-            {
-              "name": "EntityForm",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-form/index.ts",
-              "from": "./entity-form.js"
-            },
-            {
-              "name": "EntityFormProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-form/index.ts",
-              "from": "./entity-form.js"
-            },
-            {
-              "name": "EntityList",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/index.ts",
-              "from": "./entity-list/entity-list.js"
-            },
-            {
-              "name": "EntityInstance",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/index.ts",
-              "from": "./entity-list/entity-list.js"
-            },
-            {
-              "name": "EntityListProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/index.ts",
-              "from": "./entity-list/entity-list.js"
-            },
-            {
-              "name": "FilterQuery",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/index.ts",
-              "from": "./entity-list/entity-list.js"
-            },
-            {
-              "name": "ENTITY_TABLE_CONFIG",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./config.js"
-            },
-            {
-              "name": "EntityTableConfigProvider",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./config.js"
-            },
-            {
-              "name": "EntityTable",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./entity-table.js"
-            },
-            {
-              "name": "EntityTableHandle",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./entity-table.js"
-            },
-            {
-              "name": "EntityTableProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./entity-table.js"
-            },
-            {
-              "name": "QueryTable",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./query-table.js"
-            },
-            {
-              "name": "QueryTableHandle",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./query-table.js"
-            },
-            {
-              "name": "QueryTableProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/entity-table/index.ts",
-              "from": "./query-table.js"
-            },
-            {
-              "name": "QueryBuilder",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder.js"
-            },
-            {
-              "name": "QueryBuilderProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder.js"
-            },
-            {
-              "name": "RxDBQueryOutput",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder.js"
-            },
-            {
-              "name": "FieldSelector",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./field-selector/field-selector.js"
-            },
-            {
-              "name": "FieldSelectorProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./field-selector/field-selector.js"
-            },
-            {
-              "name": "OperatorSelector",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./operator-selector/operator-selector.js"
-            },
-            {
-              "name": "OperatorSelectorProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./operator-selector/operator-selector.js"
-            },
-            {
-              "name": "PopoverSelect",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./popover-select/popover-select.js"
-            },
-            {
-              "name": "PopoverSelectOption",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./popover-select/popover-select.js"
-            },
-            {
-              "name": "PopoverSelectProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./popover-select/popover-select.js"
-            },
-            {
-              "name": "QueryDragDropHandler",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "QueryGroup",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "QueryDragDropState",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "QueryDropMode",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "QueryGroupProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "UIRuleGroup",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-group/query-group.js"
-            },
-            {
-              "name": "QueryRule",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-rule/query-rule.js"
-            },
-            {
-              "name": "QueryRuleProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-rule/query-rule.js"
-            },
-            {
-              "name": "UIRuleWithWhere",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./query-rule/query-rule.js"
-            },
-            {
-              "name": "SubqueryBuilder",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./subquery-builder/subquery-builder.js"
-            },
-            {
-              "name": "SubqueryBuilderProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./subquery-builder/subquery-builder.js"
-            },
-            {
-              "name": "TreeItemDirective",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./tree-select/tree-select.js"
-            },
-            {
-              "name": "TreeSelect",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./tree-select/tree-select.js"
-            },
-            {
-              "name": "TreeSelectProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./tree-select/tree-select.js"
-            },
-            {
-              "name": "ValueInput",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./value-input/value-input.js"
-            },
-            {
-              "name": "ValueInputProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./value-input/value-input.js"
-            },
-            {
-              "name": "DEFAULT_QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./theme/default-query-builder-theme.js"
-            },
-            {
-              "name": "QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.js"
-            },
-            {
-              "name": "QueryBuilderThemeProvider",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.js"
-            },
-            {
-              "name": "QueryBuilderTheme",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.js"
-            },
-            {
-              "name": "QueryBuilderThemeProviderProps",
-              "kind": "type",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme.js"
-            },
-            {
-              "name": "*",
-              "kind": "external-star",
-              "file": "packages/rxdb-model-react/src/query-builder/index.ts",
-              "from": "@aiao/rxdb-model"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-model-vue",
-          "exports": [
-            {
-              "name": "cn",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "EntityDetailDialogData",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/entity-detail/index.ts",
-              "from": "./entity-detail-types"
-            },
-            {
-              "name": "EntityDetail",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-detail/index.ts",
-              "from": "./EntityDetail.vue"
-            },
-            {
-              "name": "EntityDialog",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-dialog/index.ts",
-              "from": "./EntityDialog.vue"
-            },
-            {
-              "name": "EntityForm",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-form/index.ts",
-              "from": "./EntityForm.vue"
-            },
-            {
-              "name": "EntityList",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/index.ts",
-              "from": "./entity-list/index"
-            },
-            {
-              "name": "ENTITY_TABLE_CONFIG",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
-              "from": "./config"
-            },
-            {
-              "name": "EntityTable",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
-              "from": "./EntityTable.vue"
-            },
-            {
-              "name": "QueryTable",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
-              "from": "./QueryTable.vue"
-            },
-            {
-              "name": "*",
-              "kind": "external-star",
-              "file": "packages/rxdb-model-vue/src/entity-table/index.ts",
-              "from": "@aiao/rxdb-model"
-            },
-            {
-              "name": "RxDBQueryOutput",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-builder/query-builder-types"
-            },
-            {
-              "name": "QueryBuilder",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-builder/QueryBuilder.vue"
-            },
-            {
-              "name": "FieldSelector",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./field-selector/FieldSelector.vue"
-            },
-            {
-              "name": "OperatorSelector",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./operator-selector/OperatorSelector.vue"
-            },
-            {
-              "name": "PopoverSelect",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./popover-select/PopoverSelect.vue"
-            },
-            {
-              "name": "QueryDragDropHandler",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/query-drag-drop"
-            },
-            {
-              "name": "calculateDropMode",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/query-drag-drop"
-            },
-            {
-              "name": "QueryDragDropState",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/query-drag-drop"
-            },
-            {
-              "name": "QueryDropMode",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/query-drag-drop"
-            },
-            {
-              "name": "UIRuleGroup",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/query-drag-drop"
-            },
-            {
-              "name": "QueryGroup",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-group/QueryGroup.vue"
-            },
-            {
-              "name": "QueryRule",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./query-rule/QueryRule.vue"
-            },
-            {
-              "name": "SubqueryBuilder",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./subquery-builder/SubqueryBuilder.vue"
-            },
-            {
-              "name": "TreeSelect",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./tree-select/TreeSelect.vue"
-            },
-            {
-              "name": "ValueInput",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./value-input/ValueInput.vue"
-            },
-            {
-              "name": "DEFAULT_QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./theme/default-query-builder-theme"
-            },
-            {
-              "name": "QUERY_BUILDER_THEME",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme"
-            },
-            {
-              "name": "provideQueryBuilderTheme",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme"
-            },
-            {
-              "name": "QueryBuilderTheme",
-              "kind": "type",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "./theme/query-builder-theme"
-            },
-            {
-              "name": "*",
-              "kind": "external-star",
-              "file": "packages/rxdb-model-vue/src/query-builder/index.ts",
-              "from": "@aiao/rxdb-model"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "prefix": "rxdb",
-      "sharedTypes": [
-        {
-          "name": "GraphPath",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        },
-        {
-          "name": "GraphQueryResult",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        },
-        {
-          "name": "NeighborResult",
-          "presence": [
-            true,
-            true,
-            true
-          ]
-        }
-      ],
-      "surfaces": [
-        {
-          "name": "rxdb-angular",
-          "exports": [
-            {
-              "name": "GraphPath",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "GraphQueryResult",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "NeighborResult",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "UseOptions",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "RxDBResource",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useRepositoryQuery",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useGet",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useFindOne",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useFindOneOrFail",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useFind",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useFindByCursor",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useFindAll",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useCount",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useGraphNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useCountNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "useGraphPaths",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/hooks.ts"
-            },
-            {
-              "name": "InfiniteScrollOptions",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/InfiniteScrollingList.ts"
-            },
-            {
-              "name": "InfiniteScrollingList",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/InfiniteScrollingList.ts"
-            },
-            {
-              "name": "RxDBEntityChangeDirective",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "./rxdb-change-detector.directive"
-            },
-            {
-              "name": "provideRxDB",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "./rxdb.provider"
-            },
-            {
-              "name": "useRxDB",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "./rxdb.provider"
-            },
-            {
-              "name": "useRxDBOptional",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "./rxdb.provider"
-            },
-            {
-              "name": "RxDBSource",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/index.ts",
-              "from": "./rxdb.provider"
-            },
-            {
-              "name": "ActionResource",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/use-action.ts"
-            },
-            {
-              "name": "useAction",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/use-action.ts"
-            },
-            {
-              "name": "InfiniteScrollResource",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/use-infinite-scroll.ts"
-            },
-            {
-              "name": "useInfiniteScroll",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/use-infinite-scroll.ts"
-            },
-            {
-              "name": "PersistedState",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/use-persisted-state.ts"
-            },
-            {
-              "name": "usePersistedState",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/use-persisted-state.ts"
-            },
-            {
-              "name": "NamespacedState",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/use-state.ts"
-            },
-            {
-              "name": "useState",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/use-state.ts"
-            },
-            {
-              "name": "SyncStateResource",
-              "kind": "type",
-              "file": "packages/rxdb-angular/src/use-sync-state.ts"
-            },
-            {
-              "name": "useSyncState",
-              "kind": "runtime",
-              "file": "packages/rxdb-angular/src/use-sync-state.ts"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-react",
-          "exports": [
-            {
-              "name": "GraphPath",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "GraphQueryResult",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "NeighborResult",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "RxDBResource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useRepositoryQuery",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useGet",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useFindOne",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useFindOneOrFail",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useFind",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useFindByCursor",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useFindAll",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useCount",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useGraphNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useCountNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "useGraphPaths",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/hooks.ts"
-            },
-            {
-              "name": "UseOptions",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/index.ts",
-              "from": "./query-options.js"
-            },
-            {
-              "name": "RxDBSource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "ProviderProps",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "RxDBProviderType",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "UseRxDB",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "UseRxDBOptional",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "RxDBProviderSet",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "makeRxDBProvider",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "RxDBProvider",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "useRxDB",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "useRxDBOptional",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/rxdb-react.tsx"
-            },
-            {
-              "name": "InfiniteScrollResource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/useInfiniteScroll.ts"
-            },
-            {
-              "name": "useInfiniteScroll",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/useInfiniteScroll.ts"
-            },
-            {
-              "name": "ActionResource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/use-action.ts"
-            },
-            {
-              "name": "useAction",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/use-action.ts"
-            },
-            {
-              "name": "PersistedState",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/use-persisted-state.ts"
-            },
-            {
-              "name": "usePersistedState",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/use-persisted-state.ts"
-            },
-            {
-              "name": "EntityChangeOptions",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/use-entity-change.ts"
-            },
-            {
-              "name": "EntityChangeResource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/use-entity-change.ts"
-            },
-            {
-              "name": "useEntityChange",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/use-entity-change.ts"
-            },
-            {
-              "name": "SyncStateResource",
-              "kind": "type",
-              "file": "packages/rxdb-react/src/use-sync-state.ts"
-            },
-            {
-              "name": "useSyncState",
-              "kind": "runtime",
-              "file": "packages/rxdb-react/src/use-sync-state.ts"
-            }
-          ]
-        },
-        {
-          "name": "rxdb-vue",
-          "exports": [
-            {
-              "name": "GraphPath",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "GraphQueryResult",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "NeighborResult",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/index.ts",
-              "from": "@aiao/rxdb-plugin-graph"
-            },
-            {
-              "name": "UseOptions",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "RxDBResource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useRepositoryQuery",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useGet",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useFindOne",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useFindOneOrFail",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useFind",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useFindByCursor",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useFindAll",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useCount",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useGraphNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useCountNeighbors",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "useGraphPaths",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/hooks.ts"
-            },
-            {
-              "name": "RxDBSource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "RxDBInput",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "RxDBRef",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "RxDBDependencyInjection",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "injectRxDB",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "injectRxDBRef",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "makeRxDBDependencyInjector",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "provideRxDB",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "useRxDB",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "useRxDBOptional",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "useRxDBRef",
-              "kind": "value-or-reexport",
-              "file": "packages/rxdb-vue/src/rxdb-vue.ts"
-            },
-            {
-              "name": "InfiniteScrollResource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/useInfiniteScroll.ts"
-            },
-            {
-              "name": "useInfiniteScroll",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/useInfiniteScroll.ts"
-            },
-            {
-              "name": "ActionResource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/use-action.ts"
-            },
-            {
-              "name": "useAction",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/use-action.ts"
-            },
-            {
-              "name": "PersistedState",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/use-persisted-state.ts"
-            },
-            {
-              "name": "usePersistedState",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/use-persisted-state.ts"
-            },
-            {
-              "name": "EntityChangeOptions",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/use-entity-change.ts"
-            },
-            {
-              "name": "EntityChangeResource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/use-entity-change.ts"
-            },
-            {
-              "name": "useEntityChange",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/use-entity-change.ts"
-            },
-            {
-              "name": "SyncStateResource",
-              "kind": "type",
-              "file": "packages/rxdb-vue/src/use-sync-state.ts"
-            },
-            {
-              "name": "useSyncState",
-              "kind": "runtime",
-              "file": "packages/rxdb-vue/src/use-sync-state.ts"
-            }
-          ]
-        }
       ]
     }
   ]

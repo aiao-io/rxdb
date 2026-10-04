@@ -1,4 +1,5 @@
 {
+  "businessImplementationModified": false,
   "formatAndDiffPaths": [
     "requirements/reviews/RV-056-editor-sync-language-error-escapes.md",
     "requirements/reviews/RV-057-preview-late-blob-text-overwrites-current-file.md",
@@ -29,6 +30,5 @@
     "apps/dev-rxdb-react/src/app/pages/opfs/components/review-preview-text-epoch.spec.tsx",
     "apps/dev-rxdb-vue/src/pages/opfs/components/review-preview-text-epoch.spec.ts"
   ],
-  "rawEvidenceDirectory": "requirements/reviews/evidence/2026-10-04/editor-frameworks",
-  "businessImplementationModified": false
+  "rawEvidenceDirectory": "requirements/reviews/evidence/2026-10-04/editor-frameworks"
 }

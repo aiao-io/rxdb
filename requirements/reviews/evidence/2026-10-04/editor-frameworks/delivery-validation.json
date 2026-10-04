@@ -1,30 +1,7 @@
 {
-  "date": "2026-10-04",
-  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
-  "reviewPlanCount": 70,
-  "executionRecordCount": 70,
-  "specializedChecks": 385,
-  "wholeObjectsComplete": 0,
-  "newFullyClosedChecks": 0,
-  "localMarkdownPathLinksChecked": 4320,
+  "allEvidenceFilesTrackable": true,
   "brokenLocalPathLinks": [],
-  "sourceFingerprintsChecked": {
-    "initialSourceSha256": 64,
-    "additionalConsumerSourceSha256": 8,
-    "reproductionSha256": 7
-  },
   "businessImplementationModified": false,
-  "packageTests": {
-    "passed": 282,
-    "failed": 3,
-    "skipped": 0,
-    "original271RetainedAndPassing": true
-  },
-  "previewProbes": {
-    "failed": 2,
-    "passed": 4,
-    "reactActWarnings": 0
-  },
   "coreCoverage": {
     "threshold": 80,
     "sourceFileCount": 6,
@@ -36,14 +13,37 @@
     },
     "passed": true
   },
-  "strictSevenObjectLint": "passed",
-  "sevenObjectTypecheck": "passed",
+  "date": "2026-10-04",
+  "executionRecordCount": 70,
   "formatAndScopedDiff": {
     "formatExitCode": 0,
     "scopedDiffCheckExitCode": 0,
     "fileCount": 28
   },
-  "allEvidenceFilesTrackable": true,
+  "head": "8b29b549ac5758b2e31a6148b98b8c394754e918",
+  "linkCheckLimit": "Filesystem targets only, not remote URLs or anchors.",
+  "localMarkdownPathLinksChecked": 4320,
+  "newFullyClosedChecks": 0,
+  "packageTests": {
+    "passed": 282,
+    "failed": 3,
+    "skipped": 0,
+    "original271RetainedAndPassing": true
+  },
+  "previewProbes": {
+    "failed": 2,
+    "passed": 4,
+    "reactActWarnings": 0
+  },
   "rawTextAttributesUnset": true,
-  "linkCheckLimit": "Filesystem targets only, not remote URLs or anchors."
+  "reviewPlanCount": 70,
+  "sevenObjectTypecheck": "passed",
+  "sourceFingerprintsChecked": {
+    "initialSourceSha256": 64,
+    "additionalConsumerSourceSha256": 8,
+    "reproductionSha256": 7
+  },
+  "specializedChecks": 385,
+  "strictSevenObjectLint": "passed",
+  "wholeObjectsComplete": 0
 }

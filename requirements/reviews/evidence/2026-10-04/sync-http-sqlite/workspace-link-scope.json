@@ -1,11 +1,9 @@
 {
+  "discardedUnrelatedPnpmNormalization": true,
   "finalSemanticDifferences": {
-    "importers": [
-      "apps/dev-rxdb-http-server"
-    ],
+    "importers": ["apps/dev-rxdb-http-server"],
     "packages": [],
     "snapshots": []
   },
-  "discardedUnrelatedPnpmNormalization": true,
   "method": "Kept pnpm-generated app importer; preserved pre-existing working-tree lock content elsewhere. No manual package.json linking."
 }

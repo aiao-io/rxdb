@@ -1,7 +1,8 @@
 {
   "baseline": "3b3e449e10c6a587056a2ae947eddfd161834f97",
-  "scopeObjects": 70,
-  "startedObjects": 70,
+  "cargo": {
+    "exitCode": 0
+  },
   "fullyReviewedObjects": 0,
   "gateTargets": {
     "lint": {
@@ -291,7 +292,6 @@
     "testExitCode": 0,
     "isolated": true
   },
-  "cargo": {
-    "exitCode": 0
-  }
+  "scopeObjects": 70,
+  "startedObjects": 70
 }

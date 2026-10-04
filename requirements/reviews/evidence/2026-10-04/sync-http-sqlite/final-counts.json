@@ -1,8 +1,5 @@
 {
-  "tests": 67,
-  "passed": 62,
   "failed": 5,
-  "skipped": [],
   "failures": [
     {
       "classname": "src/__tests__/review-auto-resume-http-failure.spec.ts",
@@ -30,6 +27,11 @@
       "time": "1.754891875"
     }
   ],
+  "newProbes": {
+    "tests": 12,
+    "failed": 5,
+    "passed": 7
+  },
   "originalTests": {
     "passed": 55,
     "allPassed": true,
@@ -40,9 +42,7 @@
       "src/__tests__/server.spec.ts"
     ]
   },
-  "newProbes": {
-    "tests": 12,
-    "failed": 5,
-    "passed": 7
-  }
+  "passed": 62,
+  "skipped": [],
+  "tests": 67
 }

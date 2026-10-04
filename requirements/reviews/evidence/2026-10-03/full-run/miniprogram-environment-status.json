@@ -1,1 +1,6 @@
-{"phase": "readonly preflight", "exitCode": 0, "data_reset_executed": false, "note": "未修改 DevTools 安全开关或登录状态"}
+{
+  "data_reset_executed": false,
+  "exitCode": 0,
+  "note": "未修改 DevTools 安全开关或登录状态",
+  "phase": "readonly preflight"
+}

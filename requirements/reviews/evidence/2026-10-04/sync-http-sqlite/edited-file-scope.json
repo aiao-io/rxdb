@@ -1,4 +1,5 @@
 {
+  "evidenceDirectory": "requirements/reviews/evidence/2026-10-04/sync-http-sqlite",
   "formattedAndChecked": [
     "requirements/reviews/RV-055-outbox-late-repair-overwrites-new-offline-write.md",
     "requirements/reviews/execution-2026-10-04-sync-http-sqlite.md",
@@ -30,6 +31,5 @@
     "apps/dev-rxdb-http-server/tsconfig.app.json",
     "apps/dev-rxdb-http-server/tsconfig.spec.json"
   ],
-  "packageManagerLockDelta": "pnpm-lock.yaml",
-  "evidenceDirectory": "requirements/reviews/evidence/2026-10-04/sync-http-sqlite"
+  "packageManagerLockDelta": "pnpm-lock.yaml"
 }
