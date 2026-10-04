@@ -62,6 +62,6 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
-C1/C2/C6 **部分执行**。实际 Electron SQLite adapter/client/host 使用临时 node:sqlite 文件，native DatabaseSync 第二只只读连接直接核对已提交行；host 管道仍为进程内直连，不能当 Electron GUI/安全隔离/跨窗口/packaged 的证据。原生缓存旧提交与新写错位统一 [RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)/[RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，不归因 host 虚构结果。既有文件别名/备份意见和未完成矩阵保留。
+C1/C2/C6 **部分执行**。实际 Electron SQLite adapter/client/host 使用临时 node:sqlite 文件，native DatabaseSync 第二只只读连接直接核对已提交行；host 管道仍为进程内直连，不能当 Electron GUI/安全隔离/跨窗口/packaged 的证据。原生缓存旧提交与新写错位统一 RV-053（已修复，见 README 2026-10-05 清理记录）/RV-055（已修复，见 README 2026-10-05 清理记录），不归因 host 虚构结果。既有文件别名/备份意见和未完成矩阵保留。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。

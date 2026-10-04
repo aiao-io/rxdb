@@ -54,7 +54,7 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 [本批台账](../../execution-2026-10-04-sync-querycache.md)。当前仍为**部分执行**，不作全包完成评级。
 
-确认两条 P2：[RV-053：迟到旧 pull 回滚已确认写](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)、[RV-054：共享 SWR 失败被记成已校验](../../RV-054-querycache-swr-dedup-failure-freshness.md)。跨包状态问题另见 [RV-052](../../RV-052-sync-resume-ignores-outbox-failures.md)，不复制为第四条缺陷。
+确认两条 P2：RV-053：迟到旧 pull 回滚已确认写（已修复，见 README 2026-10-05 清理记录）、RV-054：共享 SWR 失败被记成已校验（已修复，见 README 2026-10-05 清理记录）。跨包状态问题另见 RV-052（已修复，见 README 2026-10-05 清理记录），不复制为第四条缺陷。
 
 | 专项                     | 本轮结论与证据                                                                        | 剩余边界                                                        |
 | ------------------------ | ------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -70,6 +70,6 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
-[RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md) 实测需要限定：在线新查询可收敛，origin 停止后的旧响应落地使离线读返回旧值/复活行；[RV-054](../../RV-054-querycache-swr-dedup-failure-freshness.md) 已补真实 HTTP 401→原共享回调→memo。出站新写保护另见 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，不重复登记。C1/C2/C3 **部分执行**；默认 1000ms 是测试客户端配置，Recipe 示例的 0ms 不受 RV-054 影响。scope/发布消费/Supabase 仍待补证。
+RV-053（已修复，见 README 2026-10-05 清理记录） 实测需要限定：在线新查询可收敛，origin 停止后的旧响应落地使离线读返回旧值/复活行；RV-054（已修复，见 README 2026-10-05 清理记录） 已补真实 HTTP 401→原共享回调→memo。出站新写保护另见 RV-055（已修复，见 README 2026-10-05 清理记录），不重复登记。C1/C2/C3 **部分执行**；默认 1000ms 是测试客户端配置，Recipe 示例的 0ms 不受 RV-054 影响。scope/发布消费/Supabase 仍待补证。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。

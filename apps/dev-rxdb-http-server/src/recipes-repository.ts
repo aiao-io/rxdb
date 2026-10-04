@@ -319,7 +319,15 @@ export const deleteRecipes = async (store: RxdbRecipeStore, ids: unknown): Promi
   }
 };
 
-const readObject = (value: unknown, operation: string): Record<string, unknown> => {
+/**
+ * 校验请求体是「JSON 对象」而不只是「合法 JSON」。
+ *
+ * @remarks
+ * `readJsonBody` 的返回类型只能是 `unknown`——JSON parse 成功不代表结构正确。
+ * `null` 与数组都是合法 JSON，但都不是本协议端点要求的参数对象；所有需要读字段的
+ * 入口（create/update/by-ids/metadata）必须经这一道边界，不能靠 TS 断言跳过。
+ */
+export const readObject = (value: unknown, operation: string): Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new HttpError(400, `Request body for '${operation}' must be a JSON object`);
   }

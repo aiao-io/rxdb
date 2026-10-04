@@ -29,8 +29,8 @@ execution: partial
 
 ## 2. 评审意见
 
-- [RV-030：非法 HTTP 请求目标能让参考服务进程退出](../../RV-030-http-server-invalid-url-crash.md)
-- [RV-031：metadata 接口未验证 JSON 对象形状，null 返回 500、数组被接受](../../RV-031-http-server-metadata-body-shape.md)
+- RV-030：非法 HTTP 请求目标能让参考服务进程退出（已修复，见 README 2026-10-05 清理记录）
+- RV-031：metadata 接口未验证 JSON 对象形状，null 返回 500、数组被接受（已修复，见 README 2026-10-05 清理记录）
 
 ## 3. 动态证据与复验
 
@@ -72,7 +72,7 @@ execution: partial
 | `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
 | `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
 
-当前确认意见：[RV-030](../../RV-030-http-server-invalid-url-crash.md)、[RV-031](../../RV-031-http-server-metadata-body-shape.md)
+当前确认意见：RV-030（已修复，见 README 2026-10-05 清理记录）、RV-031（已修复，见 README 2026-10-05 清理记录）
 
 ### 尚未完成的专项
 
@@ -89,6 +89,6 @@ execution: partial
 
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
-原四套端点/store/error/SSE **55 条均实际通过**；新增作为完整客户端后端的 12 例复验为 **5 failed /7 passed**。应用整套 **62 passed /5 failed /0 skipped**；五个红是上层 [RV-052](../../RV-052-sync-resume-ignores-outbox-failures.md)/[RV-053](../../RV-053-querycache-late-pull-overwrites-confirmed-write.md)/[RV-054](../../RV-054-querycache-swr-dedup-failure-freshness.md)/[RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)，不伪造服务本身新增四个根因。C2/C6 **部分执行**，鉴权仅 malformed Bearer 的既有 401，不验收真实身份认证/浏览器 CORS；新测试客户端 default memo 与 Recipe 示例 0ms 明确区分。增加五个 workspace devDeps、app/spec references 是测试基础设施，业务源码未改。
+原四套端点/store/error/SSE **55 条均实际通过**；新增作为完整客户端后端的 12 例复验为 **5 failed /7 passed**。应用整套 **62 passed /5 failed /0 skipped**；五个红是上层 RV-052（已修复，见 README 2026-10-05 清理记录）/RV-053（已修复，见 README 2026-10-05 清理记录）/RV-054（已修复，见 README 2026-10-05 清理记录）/RV-055（已修复，见 README 2026-10-05 清理记录），不伪造服务本身新增四个根因。C2/C6 **部分执行**，鉴权仅 malformed Bearer 的既有 401，不验收真实身份认证/浏览器 CORS；新测试客户端 default memo 与 Recipe 示例 0ms 明确区分。增加五个 workspace devDeps、app/spec references 是测试基础设施，业务源码未改。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。

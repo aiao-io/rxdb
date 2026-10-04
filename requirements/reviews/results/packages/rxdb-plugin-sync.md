@@ -56,7 +56,7 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 
 基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 [本批台账](../../execution-2026-10-04-sync-querycache.md)。当前仍为**部分执行**，不作全包完成评级。
 
-确认意见：[RV-052：自动恢复忽略结构化 failures](../../RV-052-sync-resume-ignores-outbox-failures.md)（P2）。原 outbox 与原监听器/SyncStateHub 实际运行，REST 403/网络失败后水位仍被保护，但错误被清空且宣布成功。不是待推写已经丢失。
+确认意见：RV-052：自动恢复忽略结构化 failures（已修复，见 README 2026-10-05 清理记录）（P2）。原 outbox 与原监听器/SyncStateHub 实际运行，REST 403/网络失败后水位仍被保护，但错误被清空且宣布成功。不是待推写已经丢失。
 
 | 专项                 | 本轮结论与证据                                                                    | 剩余边界                                                |
 | -------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -73,6 +73,6 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 
 ## 2026-10-04：真实 HTTP /文件 SQLite 第六批联审
 
-本轮补真实 metadata 401 的 RV-052；新增 [RV-055](../../RV-055-outbox-late-repair-overwrites-new-offline-write.md)：旧 KEEP_REMOTE repair 覆盖快照后 B，native SQLite 和公开查询均为 R，B 的日志及 pending=1 仍保留。C1/C5 **部分执行，有确认缺陷**，不将水位正确等同投影正确。restore/drop、多实体、branch 及重试继续。
+本轮补真实 metadata 401 的 RV-052；新增 RV-055（已修复，见 README 2026-10-05 清理记录）：旧 KEEP_REMOTE repair 覆盖快照后 B，native SQLite 和公开查询均为 R，B 的日志及 pending=1 仍保留。C1/C5 **部分执行，有确认缺陷**，不将水位正确等同投影正确。restore/drop、多实体、branch 及重试继续。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
