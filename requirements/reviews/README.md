@@ -19,9 +19,7 @@
 
 - [全范围执行台账](execution-2026-10-03.md)：70 个对象均已启动入口/门禁阶段，0 个全对象深审完成。
 - [按包实际评审记录](results/packages/) / [按应用实际评审记录](results/apps/)。
-- 本批确认 2 个业务源码问题（1 P1＋1 P2），不是对计划的评论：
-  - [RV-030-http-server-invalid-url-crash](RV-030-http-server-invalid-url-crash.md)
-  - [RV-031-http-server-metadata-body-shape](RV-031-http-server-metadata-body-shape.md)
+- 本批确认的 5 个业务源码问题（1 P1＋4 P2）均已修复，记录已删除（见下方 2026-10-05 清理记录）。
 
 复验日志、真实请求结果见 [证据目录](evidence/2026-10-03/)；新增红测试未修，不能当作门禁通过。原有评审记录与清理规则保持不变。
 
@@ -36,6 +34,10 @@
 | `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                                      |
 | `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证并移出多租户，R04 复现后拆出 US-218 |
 
+> **2026-10-05 清理（RV-052/RV-053/RV-054/RV-055 Sync 与 QueryCache）**：四份整份删除——4 条（4 P2）复核全部属实并修复。**RV-052**（恢复回推忽略 outbox 结构化失败）：`flushQueryCacheOutbox` 的失败走结构化 `result.failures` 返回而不是 throw，`sync-listeners.ts` 原先只把异常当失败，REST 403 / 网络错误这类结构化失败被当成「没出错」而继续推进恢复流程；改为 `flushRepository` 遍历 `result.failures` 逐条 `syncState.reportError` 并把「本轮是否有失败」作为显式布尔返回值向上传播，`runQuietly` 同样只在真正抛异常时才兜底。**RV-053**（旧 pull 回滚已确认写／复活已删缓存）：`QueryCacheEngine` 原假设「本地写路径上远端已由本仓储自己写过，在飞查询问到的就是写后的状态」，复验推翻——在飞的 `findByIds` 可能在写之前发出、响应却晚于写确认落地，装的是旧快照；`query-cache-primary.ts` 的 `create()` / `update()` / `remove()` 现在都在 `syncMemo.clear()` 之后对称调用 `#cache.invalidateInflight()`，用递增的 `#invalidationGeneration` 代次让迟到响应的落地分支能识别自己已过期而放弃写入。`review-querycache-http-sqlite.spec.ts` 的 remove-离线分支断言同步放宽为「空结果或分类过的 `NetworkOfflineError`」，理由：remove 没有本地缓存可兜底，「本地行表」与「从未同步过这个 where」在结构上无法区分，按 US-020 AC#16 的既定取舍，无缓存时宁可报错也不能把「不知道」悄悄答成「没有」，原断言要求离线读必然返回空结果过严。**RV-054**（共享 SWR 失败被记成已校验）：`#inflightQueries` 按指纹去重到同一个共享 Observable，命中去重的后来者不会重新构建查询管线，原实现里远端失败只回调「第一个构建管线的调用方」登记的 `onRemoteError`，后来者的 `#runSync` 永远看不到这次失败、把一次被吞掉的远端错误误记成校验成功写入 sync memo；新增 `#inflightRemoteErrorHandlers`（按指纹收集全部消费者的回调集合），`find()` 构建管线时改用广播函数一次喂给全部已登记回调，`invalidateInflight()` 同步清空该表。**RV-055**（outbox 旧修复覆盖新离线写）：`query-cache-outbox.ts` 新增 `RepairSnapshot`（`changeRepo` / `namespace` / `branchId` / `maxChangeId`）与 `findEntityIdsWithNewerPendingChanges()`，`repairLocalCache()` 据此过滤 `freshRows` / `freshDropIds`，排除任何在快照之后又产生了更新 pending change 的实体 id，避免 KEEP_REMOTE 的旧修复把快照之后的新离线写覆盖；判定全程只比较单调递增的 `RxDBChange.id`，不借助墙钏时间。四处修复均有对应红测试覆盖并转绿，`pnpm nx run-many -t lint typecheck test -p rxdb-plugin-querycache,rxdb-plugin-sync,dev-rxdb-http-server,rxdb-adapter-http` 全绿（39/39）。
+>
+> **2026-10-05 清理（RV-030/RV-031 dev-rxdb-http-server 请求边界）**：两份整份删除——2 条（1 P1 + 1 P2）复核全部属实并修复。**RV-030**（非法 request-target 使参考服务进程崩溃）：`new URL(request.url ?? '/', 'http://127.0.0.1')` 对畸形 request-target（如 `GET http://[`）同步 throw，而调用处是 `void dispatch(...)`，未捕获的同步异常变成一次没人接的 Promise rejection，Node 对未接 rejection 的默认处理是终止整个进程；`server.ts` 现将该次 `new URL` 包进 try/catch，catch 分支补上 CORS 头、记一次 400 请求并发 `JSON_ERROR(400, ...)`，同时新增 `handleUncaughtDispatchError` 作为 `dispatch(...)` 上的 `.catch()` 顶层兜底（响应已发出则 `destroy()`，否则补发 500）。红测试 `review-http-request-target-crash.spec.ts` 用独立子进程（不经 Nx，Node 26 原生剥离类型直跑 `main.ts serve`）发手写畸形请求行，断言进程退出码仍为 `null` 且健康探针照常 200。**RV-031**（metadata 端点不校验 JSON 对象形状）：`handleMetadata` 原先对请求体 `as Record<string, unknown>` 做不安全断言，非对象（`null` / 数组 / 标量）或字段类型不对的请求体会被当成合法对象继续处理；改为复用 `recipes-repository.ts` 里原本模块私有的 `readObject`（已改为 `export const` 并补 TSDoc），统一做形状校验，不满足即 400。红测试 `review-metadata-body-shape.spec.ts` 基于真实 `createDemoServer` + PGlite 覆盖 `{"limit":1}` / `{}` 通过，`null` / `[]` / 标量 / 错字段类型 / 超大 body 均 400/413。顺带修了本轮复验时发现的一个真实 TS 类型错误（与两条 RV 本身无关，是回归测试文件自身的类型标注问题）：`review-http-request-target-crash.spec.ts` 里子进程以 `stdio: ['ignore', 'pipe', 'pipe']` 启动（stdin 为 `null`），却声明成要求非空 `Writable` stdin 的 `ChildProcessWithoutNullStreams`，`dev-rxdb-http-server:typecheck` 因此报 6 个错误；改用 `ChildProcessByStdio<null, Readable, Readable>` 后类型与实际 stdio 配置一致，0 错误。`pnpm nx run-many -t lint typecheck test -p dev-rxdb-http-server,rxdb-adapter-http` 全绿。
+>
 > **2026-10-05 清理（RV-027/RV-028/RV-029/RV-034 查询三后端语义不一致）**：四份文件整份删除——4 条（1 P1 + 3 P2）复核全部属实并修复，核心 JS / SQLite / PGlite 三后端查询语义归一。**RV-028**（keyValue 缺失键的 NULL 语义）：`packages/rxdb/src/query/query-matching.utils.ts` 的 `get_entity_match_rule` 把 `contains`/`notContains` 的逐键比较改成三值结果（缺失/`null` 键记为 `undefined`，不参与 `contains` 的 OR 命中，也不满足 `notContains` 的 AND），不再把缺失键模板字面量拼成字符串 `"undefined"` 参与子串比较，对齐 SQLite `instr(json_extract(...), ...)` 遇 NULL 即排除的既有行为。**RV-029**（空 `notIn` 集合与 NULL 行）：同一文件在 `NULL_EXCLUDED_OPERATORS` 短路之前新增空 `in`/`notIn` 数组的早判——`notIn` 恒真、`in` 恒假，不再因列为 NULL 被短路成 `false`，对齐两个 SQL 后端早已有的 `1=1`/`1=0` 归一化。**RV-027**（PGlite keyValue contains 的整体 jsonb 包含）：`packages/rxdb-adapter-pglite/src/query/query_sql.ts` 新增 `build_keyvalue_contains_pg`，把 `PropertyType.keyValue` 的 `contains`/`notContains` 改成逐键 `->>` 文本 + `LIKE` 子串（多键 `contains` 用 OR、`notContains` 用 AND 各自 `NOT (...)`），不再对整个对象用 `@> ::jsonb` 子集包含；`PropertyType.json`（纯 JSON 字段）不受影响，仍用 `@>`。**RV-034**（PGlite 数组 in/notIn 的全包含语义）：同一文件把 `stringArray`/`numberArray` 的 `in`/`notIn` 从数组包含 `@>` 改成重叠 `&&`（`notIn` 包一层 `NOT (...)`），语义与核心 JS 的 `.some(includes)`、SQLite 的 `json_each`+`IN` 一致——候选值里任一命中即可，不要求全部命中；并把空 `in`/`notIn` 数组的早判提到类型分流之前，与核心 JS 的顺序一致。连带更新了 7 处断言着旧 `@>`/jsonb 包含语义的既有测试（`rxdb-adapter-pglite` 的 `test-type-demo.spec.ts`、`query-safety.spec.ts`、`query_sql.residual.spec.ts`、`query_sql.utils.spec.ts`），这些断言本身就是在钉 RV-027/034 指出的 bug，改法与新断言见对应文件；`test-type-demo.spec.ts` 里原本误用 `keyValue` 字段验证「JSON 字段走 jsonb」的一条改用真正的纯 `json` 字段。三个核心包 `lint`/`typecheck`/`test` 全绿，详见 `evidence/2026-10-05/query-semantics/`。
 >
 > **2026-10-03 清理（RV-026 US-028 分支评审）**：`RV-026-us-028-branch-review.md` 整份删除——6 条（1 P1 + 5 P2）复核全部属实并修复。**R01** 重排 / 改组算键只认库里的值（`origin`），写回后把未保存编辑重新挂回实例（`updateKeepingEdits`），PGlite 写回不再无条件清 `modified`；**R02** 同批显式给的键当作同组已占用位置，自动键从库尾键与它们中较大者之后开始；**R03** 事务失败撤回引擎赋上的自动键（`snapshotSortOrders`），调用方显式给的键不动；**R04** 多字段分组的目标组取库里的值合并本次 patch，不读 patch 外的未保存编辑；R01～R04 的跨适配器契约在 `rxdb-test` 的 `manual-order-edits.suite.ts`。**R05** `FixedRowDrag` 会话绑定起拖时的 id 序列，列表在拖拽中变了就取消；松手回调带被拖行 id 与 id 快照，三端页面在错误处理内换算落点，三端 e2e 补「拖拽中新增一行」用例。**R06** 三端 e2e 的 9 条清零（e2e 配置让 `expect-expect` 识别 `expectOrder`，自动滚动的条件轮询移入辅助函数）；`EntityList.vue` 的 2 条 `vue/attributes-order` 不是改顺序能修的：`.prettierrc` 的 `prettier-plugin-organize-attributes`（Vue 预设 `class` → `id` → `v-*` → 其余 ASCII 升序）与该规则方向相反，按规则改完 `nx format:check`（pre-push）即失败、`format:write` 又改回去，该包既有 260 条同类警告同源；要清零须统一两者（给 `*.vue` 配与规则一致的 `attributeGroups` 并全仓重排，或关掉二者之一），属全仓工具决策，未在本分支处理。
@@ -139,15 +141,15 @@
 
 ## 2026-10-04 第五批：Sync 与 QueryCache
 
-- [RV-052：恢复回推忽略 outbox 结构化失败](RV-052-sync-resume-ignores-outbox-failures.md)
-- [RV-053：旧 pull 回滚已确认写／复活已删缓存](RV-053-querycache-late-pull-overwrites-confirmed-write.md)
-- [RV-054：共享 SWR 失败被记成已校验](RV-054-querycache-swr-dedup-failure-freshness.md)
+- RV-052：恢复回推忽略 outbox 结构化失败（已修复，见下方 2026-10-05 清理记录）
+- RV-053：旧 pull 回滚已确认写／复活已删缓存（已修复，见下方 2026-10-05 清理记录）
+- RV-054：共享 SWR 失败被记成已校验（已修复，见下方 2026-10-05 清理记录）
 
 [本批实际核查、整包复跑与剩余项](execution-2026-10-04-sync-querycache.md)：新增 3 个 P2，更新两个包的专项和独立执行记录；最终两个整包 **650 passed /5 failed、无 skip**，红用例均为新确认意见，原 646 条仍通过。严格 lint/typecheck 通过；真实 Chromium＋明确适配器/响应接缝，不冒充外部服务或全仓完成。
 
 ## 2026-10-04 第六批：真实 HTTP /文件 SQLite
 
-- 新增 [RV-055：outbox 旧修复覆盖新离线写](RV-055-outbox-late-repair-overwrites-new-offline-write.md)（P2），队列 B 仍在但 native SQLite 与公开查询已变回 R。
+- 新增 RV-055：outbox 旧修复覆盖新离线写（P2，已修复，见下方 2026-10-05 清理记录），队列 B 仍在但 native SQLite 与公开查询已变回 R。
 - RV-052/053/054 补原参考服务/PGlite + 原 HTTP adapter + 文件 SQLite 证据；RV-053 明确收窄在线结论，origin-down 用户可见错误实测成立。
 - [本批实际执行与六对象记录](execution-2026-10-04-sync-http-sqlite.md)：原应用 55 条仍全过，新增 12 例为 5 failed /7 passed，最终 62 passed /5 failed，无 skip。严格 lint/typecheck 过，红测试与问题保留；不是 GUI、CORS 或全仓已完成。
 

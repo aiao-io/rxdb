@@ -13,13 +13,13 @@ execution: in-progress
 
 首批确认 5 个业务源码问题（1 P1＋4 P2）；启动批新增 Vue 搜索、队列 ID 复用、PGlite 数组语义、严格 lint 和 Supabase 环境隔离等 5 条意见。新增见 RV-032～RV-036，全部未修复；不要将质量门禁/环境问题冒充已验证业务数据破坏。
 
-| 意见                                                | 等级 | 实际结论                                                     |
-| --------------------------------------------------- | ---- | ------------------------------------------------------------ |
-| RV-027（已修复，见 README 2026-10-05 清理记录）     | P2   | PGlite keyValue contains 与核心/SQLite 查询语义不一致        |
-| RV-028（已修复，见 README 2026-10-05 清理记录）     | P2   | keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义       |
-| RV-029（已修复，见 README 2026-10-05 清理记录）     | P2   | 空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致         |
-| [RV-030](RV-030-http-server-invalid-url-crash.md)   | P1   | 非法 HTTP 请求目标能让参考服务进程退出                       |
-| [RV-031](RV-031-http-server-metadata-body-shape.md) | P2   | metadata 接口未验证 JSON 对象形状，null 返回 500、数组被接受 |
+| 意见                                            | 等级 | 实际结论                                                     |
+| ----------------------------------------------- | ---- | ------------------------------------------------------------ |
+| RV-027（已修复，见 README 2026-10-05 清理记录） | P2   | PGlite keyValue contains 与核心/SQLite 查询语义不一致        |
+| RV-028（已修复，见 README 2026-10-05 清理记录） | P2   | keyValue 缺失键被 JS 转成字符串，违反 SQLite NULL 语义       |
+| RV-029（已修复，见 README 2026-10-05 清理记录） | P2   | 空 notIn 集合在 NULL 行上的 JS 与两种 SQL 后端不一致         |
+| RV-030（已修复，见 README 2026-10-05 清理记录） | P1   | 非法 HTTP 请求目标能让参考服务进程退出                       |
+| RV-031（已修复，见 README 2026-10-05 清理记录） | P2   | metadata 接口未验证 JSON 对象形状，null 返回 500、数组被接受 |
 
 ## 已执行验证
 
@@ -102,7 +102,7 @@ execution: in-progress
 | [`apps/dev-rxdb-electron-e2e`](apps/dev-rxdb-electron-e2e.md)                               | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-electron-e2e.md)                | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`apps/dev-rxdb-http`](apps/dev-rxdb-http.md)                                               | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-http.md)                        | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`apps/dev-rxdb-http-e2e`](apps/dev-rxdb-http-e2e.md)                                       | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-http-e2e.md)                    | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
-| [`apps/dev-rxdb-http-server`](apps/dev-rxdb-http-server.md)                                 | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-http-server.md)                 | [RV-030](RV-030-http-server-invalid-url-crash.md)、[RV-031](RV-031-http-server-metadata-body-shape.md)                                                                                             |
+| [`apps/dev-rxdb-http-server`](apps/dev-rxdb-http-server.md)                                 | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-http-server.md)                 | RV-030（已修复，见 README 2026-10-05 清理记录）、RV-031（已修复，见 README 2026-10-05 清理记录）                                                                                                   |
 | [`apps/dev-rxdb-miniprogram`](apps/dev-rxdb-miniprogram.md)                                 | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-miniprogram.md)                 | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`apps/dev-rxdb-miniprogram-e2e`](apps/dev-rxdb-miniprogram-e2e.md)                         | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-miniprogram-e2e.md)             | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
 | [`apps/dev-rxdb-react`](apps/dev-rxdb-react.md)                                             | 已启动，部分执行 | [实际记录](results/apps/dev-rxdb-react.md)                       | 基线阶段无新增确认项，不代表无缺陷                                                                                                                                                                 |
