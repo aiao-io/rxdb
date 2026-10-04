@@ -104,8 +104,9 @@ export function isMiniProgramPlatformId(value: unknown): value is MiniProgramPla
  */
 export function assertMiniProgramPlatformId(value: unknown): asserts value is MiniProgramPlatformId {
   if (isMiniProgramPlatformId(value)) return;
-  // hasOwn 挡住 constructor / __proto__ 这类原型链上的键
-  if (typeof value === 'string' && Object.hasOwn(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, value)) {
+  // 只认自有键，挡住 constructor / __proto__ 这类原型链上的键。不用 Object.hasOwn：拒绝路径跑在没核实过的宿主上，
+  // iOS 15.4 之前的 JavaScriptCore 没有它，拒绝信息会被 TypeError 顶掉
+  if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(MINI_PROGRAM_UNSUPPORTED_PLATFORMS, value)) {
     throw new MiniProgramUnsupportedPlatformError(value, MINI_PROGRAM_UNSUPPORTED_PLATFORMS[value]);
   }
   throw new MiniProgramUnknownPlatformError(value);

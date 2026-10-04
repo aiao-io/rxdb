@@ -17,8 +17,11 @@ export interface QuotaPlan {
   readonly maxRows: number;
 }
 
-/** 真机默认计划：512 KiB × 40 = 20 MiB，按文档 10M 上限一定撞到。 */
-export const DEFAULT_QUOTA_PLAN: QuotaPlan = { blobBytes: 512 * 1024, maxRows: 40 };
+/**
+ * 真机默认计划：512 KiB × 60 = 30 MiB。按文档 10M 上限一定撞到；万一撞不到，也正好写满改判标准门 2
+ * 判 `quota-unobserved` 要求的量。
+ */
+export const DEFAULT_QUOTA_PLAN: QuotaPlan = { blobBytes: 512 * 1024, maxRows: 60 };
 
 /** 核心实验的输入。 */
 export interface CoreExperimentInput {

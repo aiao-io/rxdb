@@ -16,7 +16,7 @@
    - 小程序开发者工具 →「打开项目」→ 选 `dist/`
    - 命令行：`open "antdevtool-tiny://open?path=$(python3 -c 'import urllib.parse,os;print(urllib.parse.quote(os.path.abspath("apps/dev-rxdb-miniprogram-alipay-probe/dist")))')"`，工具弹出预填好的「打开项目」，点「完 成」
 3. 首次打开会问是否信任该文件夹，选「我信任该文件夹」
-4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成（aiao.us-211.alipay-probe/v5），用时 …」。括号里不是下文「报告怎么读」的版本，说明 IDE 打开的是旧产物（例如另一个 clone 的 `dist/`）：真机调试与预览上传的都是 IDE 当前打开的目录，重新打开本目录的 `dist/` 再传
+4. 页面打开就自动跑，配额实验要写几十 MiB，等状态变成「完成（aiao.us-211.alipay-probe/v6），用时 …」。括号里不是下文「报告怎么读」的版本，说明 IDE 打开的是旧产物（例如另一个 clone 的 `dist/`）：真机调试与预览上传的都是 IDE 当前打开的目录，重新打开本目录的 `dist/` 再传
 5. 点「复制报告」，或在控制台搜 `[alipay-probe] 报告`
 6. 真机调试、预览都要关联真实 AppID（在工具里改，别提交进 `static/`），模拟器不需要
 7. 模拟器、iOS 真机调试、iOS 预览、Android **各跑一份**，单份只代表那一台设备的那一次运行
@@ -33,7 +33,7 @@
 - 每轮报告原样落盘到 `dev-rxdb-miniprogram-alipay-probe-e2e/test-output/simulator-report.json`
 - 真机没有自动化通道：支付宝没有公开的真机自动化 SDK，真机报告只能手动复制
 
-## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v5'`）
+## 报告怎么读（`schema: 'aiao.us-211.alipay-probe/v6'`）
 
 `findings` 是按矩阵行给出的本次判定（pass / fail / unknown），证据在它引用的字段里：
 
@@ -42,7 +42,7 @@
 | WASM     | `wasm`：逻辑层标准 `WebAssembly` 实例化 `wasm/add.wasm` 的结果，`sources` 是每个 wasm 按构建指纹选到的字节来源（`binary` 原文件 / `textCopy` base64 文本副本），`codePackageBinary` 对比代码包二进制读与构建指纹；`worker.value.MYWebAssembly`：Worker 里文档化的入口。只有核心实验经 adapter 实例化 wa-sqlite 成功才判 pass                                                                                                                                                                                                                                              |
 | 同步 FS  | `fileSystem.probes`：交给 adapter 的那层 FS（包装层 + 分帧层）上的同步调用与 adapter VFS 预期逐条对照（`asExpected`），矩阵按它判；抛错时 `vfsSaysMissing` / `vfsSaysExists` / `vfsSaysQuota` 是 adapter 各条正则的判定，超限写入 `writeFileSync(11 MiB)` 整块落盘（`statSync` 核对后即删）或抛错且 VFS 认成撞配额都算符合（v5 起；文档说会拦，iOS 实测不拦）；`rawFs`：不经包装层，四种写入方式（`arrayBuffer`、带 `'binary'`、base64 串配 `'base64'`、`typedArray`）的写入 / 读回字节，外加空写入（`emptyWrite`）与写到不存在的父目录（`missingParentWrite`）的原始返回 |
 | 随机源   | `random`：逻辑层 `my.getRandomValues`、`crypto` 与 Worker 桥过来的原始结果；`prepare`：adapter 引导随机池是否成功                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）                                                                                                                                                                                                                                                                                                                 |
+| 用户目录 | `core.quota`：经 SQLite 写到撞配额，失败错误、重开后行数与 `integrity_check`；`quotaAccounting`：不经 SQLite 用裸文件测文档的 10028「单个超过 10M 或者文件夹超过 50M」——单文件能写多大（`largestSingleWriteBytes`），文件夹上限算在哪一级（`fill.scope`）。经 SQLite 写满 30 MiB 仍没撞配额也判 pass，带 `caveat: 'quota-unobserved'`（v6 起，按可行性矩阵改判标准门 2；v5 及以前判 unknown）                                                                                                                                                                             |
 | 持久化   | `core.persistence`：建库、写入、关闭、重开、读回、`integrity_check`、列出库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 其余字段：
@@ -130,7 +130,7 @@ iOS 真机调试 v5（2026-10-04，同一台设备，约 144 秒一轮）：超�
 - **Android 真机**：还没跑
 - **iOS 预览模式**：v2 到 v5 的 iOS 报告都是接着调试器跑的真机调试，预览模式下逻辑层的 `WebAssembly` 与 adapter 全流程都还没跑
 
-改判 `supported` 要按改判标准先写正式 host（实验 host 的处理全部搬进去、不按模拟器分支），再用它在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针的 `findings` 还按旧判法给 unknown。
+改判 `supported` 要按改判标准先写正式 host（实验 host 的处理全部搬进去、不按模拟器分支），再用它在模拟器、iOS 预览、Android 预览各跑一份、五行全 pass。iOS 那次经 SQLite 写了约 60 MiB 没撞配额，换成正式 host 重跑仍如此时，用户目录按门 2 判 pass、记 `quota-unobserved`；探针 v6 的 `findings` 已按这条判，下文 v3–v5 记录里的「用户目录 unknown」是旧判法。
 
 ## 本地测试
 

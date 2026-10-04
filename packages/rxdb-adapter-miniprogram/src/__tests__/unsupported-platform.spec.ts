@@ -359,6 +359,22 @@ describe('assertMiniProgramPlatformId：造不出宿主时直接判定平台 id'
     }
   });
 
+  it('宿主没有 Object.hasOwn 也照样判定：iOS 15.4 之前的 JavaScriptCore 没有它', () => {
+    const hasOwn = Object.getOwnPropertyDescriptor(Object, 'hasOwn');
+    if (!hasOwn) throw new Error('测试环境本身没有 Object.hasOwn');
+    Reflect.deleteProperty(Object, 'hasOwn');
+    const [alipay, swan] = ['alipay', 'swan'].map(value =>
+      caught(() => {
+        assertMiniProgramPlatformId(value);
+      })
+    );
+    Object.defineProperty(Object, 'hasOwn', hasOwn);
+
+    expect(alipay).toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+    expect(swan).toBeInstanceOf(MiniProgramUnknownPlatformError);
+    expect(swan).not.toBeInstanceOf(MiniProgramUnsupportedPlatformError);
+  });
+
   it('主入口与轻量 /runtime 入口导出的是同一个函数', async () => {
     const [main, runtime] = await Promise.all([import('../index.js'), import('../runtime.js')]);
 

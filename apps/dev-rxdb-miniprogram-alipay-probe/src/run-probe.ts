@@ -42,9 +42,10 @@ import { createWorkerBridge, type WorkerBridge, type WorkerProbeResult } from '.
 
 /**
  * 报告格式版本；字段语义变了就升版本号。v1 / v2 是改写成 TS 工程之前的手写探针；
- * v5 起超限写入按 adapter VFS 的视角判（整块落盘或撞配额都算对），并加了 `vfsSaysQuota`。
+ * v5 起超限写入按 adapter VFS 的视角判（整块落盘或撞配额都算对），并加了 `vfsSaysQuota`；
+ * v6 起配额没撞到但经 SQLite 写满 30 MiB 时用户目录判 pass，`findings` 带 `caveat: 'quota-unobserved'`。
  */
-export const PROBE_REPORT_SCHEMA = 'aiao.us-211.alipay-probe/v5';
+export const PROBE_REPORT_SCHEMA = 'aiao.us-211.alipay-probe/v6';
 
 /** 实验目录名，位于 `my.env.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const PROBE_DIRECTORY = 'aiao-alipay-probe';

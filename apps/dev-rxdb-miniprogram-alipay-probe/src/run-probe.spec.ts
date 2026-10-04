@@ -8,6 +8,7 @@ import {
 import { FRAME_HEADER } from './alipay-fs.js';
 import type { ProbeCore } from './core-contract.js';
 import type { QuotaAccountingPlan } from './experiments/quota-accounting.js';
+import { buildFindings } from './findings.js';
 import { PROBE_REPORT_SCHEMA, runProbe, type ProbeReport } from './run-probe.js';
 
 const MIB = 1024 * 1024;
@@ -324,15 +325,30 @@ describe('runProbe：失败与边界', () => {
     expect(leftovers(fake)).toEqual([]);
   }, 60_000);
 
-  it('配额没撞到时如实写「未触发」', async () => {
+  it('配额没撞到、写得不够 30 MiB：如实写「未触发」，判 unknown', async () => {
     const { report } = await run({}, loadRealCore, { blobBytes: 1024, maxRows: 3 });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.quota).toMatchObject({ status: 'not-triggered', insertedRows: 3 });
-    expect(finding(report, '用户目录')).toMatchObject({
-      verdict: 'unknown',
-      evidence: expect.stringContaining('未触发')
+    const userData = finding(report, '用户目录');
+    expect(userData).toMatchObject({ verdict: 'unknown', evidence: expect.stringContaining('未触发') });
+    expect(userData).not.toHaveProperty('caveat');
+  }, 60_000);
+
+  it('配额没撞到、经 SQLite 写满 30 MiB：按改判标准门 2 判 pass，记 caveat quota-unobserved', async () => {
+    const { report } = await run({}, loadRealCore, { blobBytes: 1024, maxRows: 3 });
+    const core = report.core;
+    if ('skipped' in core) throw new Error(core.skipped);
+    // 真跑 30 MiB 要近一分钟；判定只看写入计划与已提交行数，换成写满 30 MiB 的记录即可
+    const quota = { ...core.quota, plan: { blobBytes: MIB, maxRows: 30 }, insertedRows: 30 };
+    const findings = buildFindings({ ...report, core: { ...core, quota } });
+    expect(findings.find(item => item.matrixRow === '用户目录')).toMatchObject({
+      verdict: 'pass',
+      caveat: 'quota-unobserved',
+      evidence: expect.stringContaining('写入 30 MiB 未触发配额')
     });
+    const short = buildFindings({ ...report, core: { ...core, quota: { ...quota, insertedRows: 29 } } });
+    expect(short.find(item => item.matrixRow === '用户目录')).toMatchObject({ verdict: 'unknown' });
   }, 60_000);
 
   it('iOS 真机调试实测单文件不设上限：超限写入写得进也符合 VFS 预期，同步 FS 照样 pass', async () => {

@@ -1,5 +1,6 @@
 import { createFakeDouyin, FAKE_USER_DATA_PATH, type FakeDouyinOptions } from './__tests__/fake-douyin.js';
-import type { SpikeCore } from './core-contract.js';
+import { DEFAULT_QUOTA_PLAN, type SpikeCore } from './core-contract.js';
+import { buildFindings } from './findings.js';
 import { runSpike, SPIKE_REPORT_SCHEMA, type SpikeReport } from './run-spike.js';
 
 const SPIKE_ROOT = `${FAKE_USER_DATA_PATH}/aiao-douyin-spike`;
@@ -238,13 +239,35 @@ describe('runSpike：失败与边界', () => {
     expect(finding(report, '用户目录')?.evidence).toContain('覆盖写 6 MiB 失败（旧文件仍计入配额）');
   }, 60_000);
 
-  it('配额没撞到时如实写「未触发」', async () => {
+  it('配额没撞到、写得不够 30 MiB：如实写「未触发」，判 unknown', async () => {
     const { report } = await run({}, loadRealCore, { blobBytes: 1024, maxRows: 3 });
     const core = report.core;
     if ('skipped' in core) throw new Error(core.skipped);
     expect(core.quota).toMatchObject({ status: 'not-triggered', insertedRows: 3 });
-    expect(finding(report, '用户目录')?.evidence).toContain('未触发');
+    const userData = finding(report, '用户目录');
+    expect(userData).toMatchObject({ verdict: 'unknown', evidence: expect.stringContaining('未触发') });
+    expect(userData).not.toHaveProperty('caveat');
   }, 60_000);
+
+  it('配额没撞到、经 SQLite 写满 30 MiB：按改判标准门 2 判 pass，记 caveat quota-unobserved', async () => {
+    const { report } = await run({}, loadRealCore, { blobBytes: 1024, maxRows: 3 });
+    const core = report.core;
+    if ('skipped' in core) throw new Error(core.skipped);
+    // 真跑 30 MiB 要近一分钟；判定只看写入计划与已提交行数，换成写满 30 MiB 的记录即可
+    const quota = { ...core.quota, plan: { blobBytes: 1024 * 1024, maxRows: 30 }, insertedRows: 30 };
+    const findings = buildFindings({ ...report, core: { ...core, quota } });
+    expect(findings.find(item => item.matrixRow === '用户目录')).toMatchObject({
+      verdict: 'pass',
+      caveat: 'quota-unobserved',
+      evidence: expect.stringContaining('写入 30 MiB 未触发配额')
+    });
+    const short = buildFindings({ ...report, core: { ...core, quota: { ...quota, insertedRows: 29 } } });
+    expect(short.find(item => item.matrixRow === '用户目录')).toMatchObject({ verdict: 'unknown' });
+  }, 60_000);
+
+  it('默认写入计划够得着门 2 的 30 MiB：真机撞不到配额时才能判 quota-unobserved', () => {
+    expect(DEFAULT_QUOTA_PLAN.blobBytes * DEFAULT_QUOTA_PLAN.maxRows).toBeGreaterThanOrEqual(30 * 1024 * 1024);
+  });
 
   it('核心实验只认 host.defaultWasmPath，不采用路径探测的结果', async () => {
     const { report } = await run({ ...SMALL_QUOTA, acceptedWasmPaths: ['wa-sqlite/wa-sqlite.wasm'] });

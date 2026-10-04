@@ -27,8 +27,11 @@ import { probe, type Probe, type Skipped } from './probe.js';
 import { readProbedRuntimeGlobal, readRealmProbe, type RealmProbeReport } from './realm-probe.js';
 import { VFS_MISSING_FILE_PATTERN } from './vfs-classifiers.js';
 
-/** 报告格式版本；字段语义变了就升版本号。 */
-export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v9';
+/**
+ * 报告格式版本；字段语义变了就升版本号。v10 起配额没撞到但经 SQLite 写满 30 MiB 时用户目录判 pass，
+ * `findings` 带 `caveat: 'quota-unobserved'`，默认写入计划从 20 MiB 加到 30 MiB。
+ */
+export const SPIKE_REPORT_SCHEMA = 'aiao.us-211.douyin-spike/v10';
 
 /** 实验目录名，位于 `tt.getEnvInfoSync().common.USER_DATA_PATH` 之下，收尾整个删掉。 */
 export const SPIKE_DIRECTORY = 'aiao-douyin-spike';

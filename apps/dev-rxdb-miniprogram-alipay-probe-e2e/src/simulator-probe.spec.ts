@@ -34,7 +34,7 @@ test.beforeAll(async () => {
 });
 
 test('报告是本工程的 v5 schema', () => {
-  expect(report.schema).toBe('aiao.us-211.alipay-probe/v5');
+  expect(report.schema).toBe('aiao.us-211.alipay-probe/v6');
 });
 
 test('逻辑层：没有 globalThis / BigInt / queueMicrotask / crypto，标准 WebAssembly 在', () => {
@@ -153,14 +153,14 @@ test('核心实验：adapter 建库、读写、关闭重开逐字一致；写 12
   });
 });
 
-test('findings：WASM / 同步 FS / 随机源 / 持久化 pass，用户目录 unknown；收尾删干净', () => {
-  const findings = report['findings'] as { matrixRow: string; verdict: string }[];
-  expect(findings.map(item => [item.matrixRow, item.verdict])).toEqual([
-    ['WASM', 'pass'],
-    ['同步 FS', 'pass'],
-    ['随机源', 'pass'],
-    ['用户目录', 'unknown'],
-    ['持久化', 'pass']
+test('findings：五行 pass，用户目录写满 60 MiB 没撞配额、带 quota-unobserved；收尾删干净', () => {
+  const findings = report['findings'] as { matrixRow: string; verdict: string; caveat?: string }[];
+  expect(findings.map(item => [item.matrixRow, item.verdict, item.caveat])).toEqual([
+    ['WASM', 'pass', undefined],
+    ['同步 FS', 'pass', undefined],
+    ['随机源', 'pass', undefined],
+    ['用户目录', 'pass', 'quota-unobserved'],
+    ['持久化', 'pass', undefined]
   ]);
   expect(report['cleanup']).toMatchObject({ ok: true });
 });

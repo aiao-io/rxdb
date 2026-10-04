@@ -3,9 +3,10 @@
  *
  * 判定只针对「这一台设备、这一次运行」；矩阵按可行性矩阵的「改判标准」门 3 回填：
  * 开发者工具必须 pass，真机只认预览 / 体验版，没跑的真机记成 caveat。
- * 证据不足一律给 `unknown`，不往 pass 上靠。
+ * 证据不足一律给 `unknown`，不往 pass 上靠；唯一的例外是门 2 写明的：配额没撞到但经 SQLite 写满 30 MiB，
+ * 用户目录判 pass 并带 caveat。
  */
-import type { CoreExperimentReport, DatabaseFile } from './core-contract.js';
+import type { CoreExperimentReport, DatabaseFile, QuotaReport } from './core-contract.js';
 import type { DescribedError } from './describe-error.js';
 import type { FileSystemReport } from './experiments/fs-errors.js';
 import type { QuotaAccountingReport } from './experiments/quota-accounting.js';
@@ -25,6 +26,8 @@ export interface Finding {
   readonly matrixRow: MatrixRow;
   readonly verdict: 'pass' | 'fail' | 'unknown';
   readonly evidence: string;
+  /** pass 但仍有没观测到的范围；只有用户目录行会带，见可行性矩阵「改判标准」门 2。 */
+  readonly caveat?: 'quota-unobserved';
 }
 
 /** 判定需要的报告片段。 */
@@ -150,16 +153,32 @@ function chunkLayoutText(files: Probe<readonly DatabaseFile[]>, gaps: readonly s
   return gaps.length === 0 ? '块号连续' : `块号空洞：缺 ${gaps.join('、')}`;
 }
 
+/**
+ * 经 SQLite 写满这么多仍没撞配额，用户目录也判 pass 并记 caveat `quota-unobserved`：
+ * 取适配器约 10 MB 库上限的 3 倍，见可行性矩阵「改判标准」门 2。
+ */
+export const QUOTA_UNOBSERVED_MIN_BYTES = 30 * MIB;
+
+/** 配额没撞到：写满 {@link QUOTA_UNOBSERVED_MIN_BYTES} 判 pass 带 caveat，不够判 unknown。 */
+function unobservedQuotaFinding({ insertedRows, plan }: QuotaReport, rawText: string): Finding {
+  const row = '用户目录';
+  const writtenBytes = insertedRows * plan.blobBytes;
+  const written = `${insertedRows} × ${plan.blobBytes} bytes`;
+  if (writtenBytes < QUOTA_UNOBSERVED_MIN_BYTES) {
+    const evidence = `写入 ${written} 未触发配额，不到门 2 要求的 ${QUOTA_UNOBSERVED_MIN_BYTES / MIB} MiB；${rawText}`;
+    return { matrixRow: row, verdict: 'unknown', evidence };
+  }
+  const evidence = `写入 ${writtenBytes / MIB} MiB 未触发配额（${written}），按门 2 记 quota-unobserved；${rawText}`;
+  return { matrixRow: row, verdict: 'pass', caveat: 'quota-unobserved', evidence };
+}
+
 function userDataFinding({ core, fileSystem, quotaAccounting }: FindingsInput): Finding {
   const row = '用户目录';
   const rawWrite = fileSystem.probes.find(item => item.op === 'writeFileSync(11 MiB)');
   const rawText = `裸写 11 MiB ${probeText(rawWrite?.outcome)}；${accountingText(quotaAccounting)}`;
   if (isSkipped(core)) return { matrixRow: row, verdict: 'unknown', evidence: `数据库配额实验未运行；${rawText}` };
   const { quota } = core;
-  if (quota.status === 'not-triggered') {
-    const evidence = `写入 ${quota.insertedRows} × ${quota.plan.blobBytes} bytes 未触发配额；${rawText}`;
-    return { matrixRow: row, verdict: 'unknown', evidence };
-  }
+  if (quota.status === 'not-triggered') return unobservedQuotaFinding(quota, rawText);
   if (quota.status === 'failed' || !quota.failure || !quota.afterFailure) {
     return {
       matrixRow: row,
