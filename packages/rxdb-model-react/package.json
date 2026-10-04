@@ -52,7 +52,7 @@
     "@aiao/rxdb-react": "*",
     "@visactor/vtable": "~1.26.5",
     "lucide-react": "^1.47.0",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

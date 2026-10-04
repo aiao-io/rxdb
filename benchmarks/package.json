@@ -28,7 +28,7 @@
     "@modules/wujie": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "comlink": "^4.4.2",
-    "lucide-react": "^1.51.0",
+    "lucide-react": "^1.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "simple-statistics": "^7.12.1",

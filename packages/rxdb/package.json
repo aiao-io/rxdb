@@ -64,7 +64,7 @@
     "uuid": "^14.0.2"
   },
   "peerDependencies": {
-    "vitest": ">=4.0.0"
+    "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {
     "vitest": {
