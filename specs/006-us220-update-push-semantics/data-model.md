@@ -57,11 +57,12 @@ UPDATE … SET <出现的列> WHERE id = <id>      （调用方身份：UPDATE U
 ```
 
 `WITH CHECK` 不放行时 PostgreSQL 直接抛 42501（`new row violates row-level security policy`），不经过 ROW_COUNT 分支；
-它与「被拒」同码，`DETAIL` 不是本契约的 JSON 形状。**推断**这对客户端没有区别（今天只看 `message`；US-218 阶段 B 按 `code` 分类时两者同为
+它与「被拒」同码，`DETAIL` 不是本契约的 JSON 形状。**推断**这对客户端没有区别（今天只看 `message`；US-218 阶段 B 按 SQLSTATE 分类时两者同为
 「被拒」），由 `update-denied` 用例覆盖 `USING` 与 SELECT 两个子场景，`WITH CHECK` 子场景记为可选补充。
 
 ## 5. 状态与幂等
 
 - 本故事不引入新状态。重试语义沿用 `(clientId, localId)` 幂等键与 `apply_entity_operations`：纯重试批次不再执行任何实体操作，
   所以「第一次已成功、重试时行已被他人删除」不会误报 `RX001`。
-- 一批里部分行「已不存在」：整批回滚、整批失败（spec Edge Cases「部分已不存在」）；逐行回执是 US-218 阶段 B 的范围。
+- 一批里部分行「已不存在」：整批回滚、整批失败（spec Edge Cases「部分已不存在」）；逐行回执是 US-218 阶段 B 的范围，客户端显式传
+  `p_receipts = true` 才启用（[US-218 冻结项 F5](../007-us218-rls-push-integrity/plan.md)），不传时保持本节语义。

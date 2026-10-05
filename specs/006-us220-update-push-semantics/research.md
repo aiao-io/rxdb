@@ -2,8 +2,8 @@
 
 **Date**: 2026-10-05 | **Plan**: [plan.md](plan.md) | **Spec**: [spec.md](spec.md)
 
-决策编号 D1–D9。D1、D3、D4 是 spec 输入里「待 plan 定」的三项。D3、D4 与 US-218 阶段 A 共用，**本文件给出的是建议冻结值，
-须在 US-218 plan 里逐项核对一致后才算冻结**（roadmap 约束 16），见 [plan.md](plan.md)「跨 plan 冻结项」。
+决策编号 D1–D9。D1、D3、D4 是 spec 输入里「待 plan 定」的三项。D3、D4 与 US-218 阶段 A 共用，已与
+[US-218 plan](../007-us218-rls-push-integrity/plan.md) 逐项核对一致并**冻结**，见 [plan.md](plan.md)「跨 plan 冻结项」。
 
 ## D1 下发形状：`rxdb_mutations` 新增第 5 个参数 `p_updates`
 
@@ -71,7 +71,7 @@ UPDATE %I.%I AS t
 
 两者 `MESSAGE` 自带可读原因（今天 `classify_postgrest_error` 只保留 `message`，SQLSTATE 要到 US-218 阶段 B 才带到客户端），
 `DETAIL` 是一段 JSON：`{"op":"UPDATE","schema":…,"table":…,"entityId":…,"reason":"denied"|"gone"}`，供 US-218 阶段 B 按实体键做回执。
-`RX` 类登记在 [contracts/sqlstate-registry.md](contracts/sqlstate-registry.md)，US-218 若需要新的自定义码（如 AC#6 的配对违规）顺延 `RX002` 起。
+`RX` 类登记在 [contracts/sqlstate-registry.md](contracts/sqlstate-registry.md)，US-218 登记 `RX002`（AC#6 的配对违规），后续新码顺延。
 
 **Rationale**:
 

@@ -1,6 +1,6 @@
 # Contract: 存在性判定原语 `rxdb_existing_ids`（冻结项 F3，与 US-218 阶段 A 共用）
 
-**状态**: 建议冻结值，**须与 US-218 plan 交叉核对后一并冻结**（见 [plan.md](../plan.md)「跨 plan 冻结项」）。
+**状态**: 已冻结（已与 [US-218 plan](../../007-us218-rls-push-integrity/plan.md) 交叉核对，见 [plan.md](../plan.md)「跨 plan 冻结项」）。
 **落点**: `docker/sql/04-rxdb-utils-functions.sql`。
 **使用方**: US-220 `rxdb_batch_update`（单元素数组）；US-218 阶段 A 的 DELETE 判定（整批）。
 
@@ -74,7 +74,7 @@ SET search_path = pg_catalog, pg_temp;
 
 - 只回答「同步表里这些 id 是否存在」，不返回任何列值、行数以外的信息。
 - 参考部署里 `rxdb_change` 关着 RLS，同步表每行的 `beforeData` / `afterData` 本来就对 `anon` 可读，探针泄露的严格少于此。
-- US-218 阶段 C 收紧 `rxdb_change` 读权限后，探针是剩余的存在性通道：写进 `website/docs/adapters/supabase.md` 的已知限制，
+- US-218 阶段 C 的生产权限脚本只回收 `rxdb_change` 写权限（保留 `SELECT`）；在自行收紧日志读权限的部署里，探针是剩余的存在性通道：写进 `website/docs/adapters/supabase.md` 的已知限制，
   说明 id 不应承载敏感信息（UUID 主键不可枚举，自增或业务主键可被逐个探测）。
 - 非同步表（如 `auth.users`）一律 22023，不可探测。
 
@@ -82,5 +82,6 @@ SET search_path = pg_catalog, pg_temp;
 
 - **只在需要时调用**：UPDATE 仅在 `ROW_COUNT = 0` 时调；成功路径不调。
 - 调用方拿到结果后自行决定错误码（42501 / `RX001`），探针本身不抛业务错误。
-- US-218 阶段 A 对 DELETE：用 `DELETE … RETURNING id` 得到实际删掉的 id，未删掉的那部分再交给探针一次判定；存在 → 被拒，不存在 → 按 US-218
-  的规则处理（由 US-218 plan 定，须与本契约同时冻结）。
+- US-218 阶段 A 对 DELETE（[push-integrity §2](../../007-us218-rls-push-integrity/contracts/push-integrity.md)）：只在
+  `p_skip_sync = true` 时，`rxdb_batch_delete` 少删则对整组 id 调一次探针（同事务内已删的行对探针不存在）；返回非空 → 42501，
+  `DETAIL` 为 `{"op":"DELETE",…,"reason":"denied"}`；返回空 → 余下都是「已不存在」，幂等成功。`rxdb_batch_delete` 签名不变。

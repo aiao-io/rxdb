@@ -1,6 +1,6 @@
 # Contract: `rxdb_mutations` 与 `rxdb_batch_update`（冻结项 F1）
 
-**状态**: 建议冻结值，**须与 US-218 plan 交叉核对后一并冻结**（见 [plan.md](../plan.md)「跨 plan 冻结项」）。
+**状态**: 已冻结（已与 [US-218 plan](../../007-us218-rls-push-integrity/plan.md) 交叉核对，见 [plan.md](../plan.md)「跨 plan 冻结项」）。
 **落点**: `docker/sql/04-rxdb-utils-functions.sql`；客户端 `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`。
 
 ## 1. 签名
@@ -143,3 +143,6 @@ export interface MergeChangesPayload {
 | 新     | 新       | 本契约                                                                                                      |
 
 升级顺序：先执行新版 `04-rxdb-utils-functions.sql`，再升级客户端（`website/docs/migration/supabase-update-push.md`）。
+
+US-218 阶段 B 在本签名之上顺序追加第 6 个参数 `p_receipts boolean DEFAULT false` 并 DROP 本 5 参签名；本节组合表在那时由
+[US-218 rxdb-mutations-receipts §7](../../007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md) 取代。

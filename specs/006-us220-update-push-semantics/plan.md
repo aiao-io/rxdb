@@ -22,10 +22,10 @@
 
 `RxDBAdapterSupabase.mutations()`（仓库直写路径）不改，见「偏离与澄清」2。
 
-## 跨 plan 冻结项（须与 US-218 plan 交叉核对后一并冻结）
+## 跨 plan 冻结项（已与 US-218 plan 交叉核对，已冻结）
 
-下面三项由本 plan 给出取值。它们与 US-218 阶段 A / B 共用，**US-218 plan 完成并逐项核对一致后才算冻结**；核对中任何一方要改，
-两份 plan 与对应 contracts 同步改，再进 `/speckit-tasks`。
+下面三项由本 plan 给出取值，与 US-218 阶段 A / B 共用。已与 [US-218 plan](../007-us218-rls-push-integrity/plan.md)「跨 plan 冻结项」
+逐项核对一致，**已冻结**；进 `/speckit-tasks` 前不再改，任何一项要改，两份 plan 与对应 contracts 同步改。
 
 | #   | 冻结项                      | 本 plan 的取值                                                                                                                                                                                                                       | 契约                                                             | 依据 |
 | --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---- |
@@ -33,12 +33,15 @@
 | F2  | 「行已不存在」的 SQLSTATE   | `RX001`（新设 `RX` 类，PostgREST 映射 HTTP 400）；「被拒」用 42501；两者 `DETAIL` 为 `{"op","schema","table","entityId","reason"}` JSON；US-218 的新自定义码从 `RX002` 顺延                                                          | [contracts/sqlstate-registry.md](contracts/sqlstate-registry.md) | D3   |
 | F3  | 存在性判定原语（机制+签名） | `public.rxdb_existing_ids(p_table text, p_schema text, p_ids text[]) RETURNS text[]`，`SECURITY DEFINER`、`STABLE`、`SET search_path = pg_catalog, pg_temp`、`SET row_security = off`；只接受挂 `rxdb_sync_trigger` 的表，否则 22023 | [contracts/existence-probe.md](contracts/existence-probe.md)     | D4   |
 
-US-218 核对时重点看：
+核对结论：
 
-- F1：US-218 阶段 A 改 DELETE 时不再改 `rxdb_mutations` 的参数表（否则两边各删一次旧签名、各加一个参数会互相覆盖）；若 US-218 也要加参数，
-  两个故事合成一次签名变更。
-- F2：US-218 AC#13「5xx 一律可重试」与 `RX001` 落 400 一致；US-218 阶段 B 按 `DETAIL.reason` 区分「被拒」与「已不存在」，不靠解析 `MESSAGE`。
-- F3：US-218 阶段 A 的 DELETE 用同一个函数整批判定；阶段 C 收紧 `rxdb_change` 后探针仍可用（它不读日志）。
+- F1：US-218 阶段 A 只在函数体内加判定与校验，不改参数表。阶段 B 在本故事之上**顺序**追加第 6 个参数
+  `p_receipts boolean DEFAULT false` 并 DROP 5 参签名（[US-218 rxdb-mutations-receipts](../007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md)）；
+  本故事先合入。两者同版本发布时对外只有一次 4 → 6 参变更，迁移文档按发布合并。
+- F2：US-218 AC#13「5xx 一律可重试」与 `RX001` 落 400 一致；US-218 登记 `RX002`（推送不配对）；阶段 B 按 SQLSTATE 与
+  `DETAIL.reason` 归类（`RX001` → 已不存在，不重试），不靠解析 `MESSAGE`。
+- F3：US-218 阶段 A 的 DELETE 用同一个函数整组判定（删后探针，仅 `p_skip_sync = true`）；阶段 C 只回收 `rxdb_change` 写权限，
+  探针不读日志，不受影响。
 
 ## Technical Context
 
