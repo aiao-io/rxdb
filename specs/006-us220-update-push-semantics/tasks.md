@@ -43,8 +43,8 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 **Purpose**: 拿到基线，补齐开工前的范围登记
 
-- [X] T001 启动 CI Supabase 环境 `pnpm nx run rxdb-adapter-supabase:test-env`，执行 `bash 回归脚本`，记录既有 10 个用例的基线结果（含 `rls-filtered-delete` 当前状态，它属于 US-218，本故事不改其断言与状态），贴进 PR 描述草稿
-- [X] T002 [P] 在 `requirements/stories/adapter/US-220-supabase-update-push-semantics.md`「范围边界 → Out of Scope」补一条：`RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写，`options.update` 整实体进 `p_upserts`）不改，**推断**在 owner 型与共享编辑型 RLS 上同样命中症状 2、3；并在 `requirements/roadmap.md`「零散收尾项」登记待评估项「`mutations()` 直写路径的 UPDATE 语义」（plan「偏离与澄清」2、research D6）
+- [x] T001 启动 CI Supabase 环境 `pnpm nx run rxdb-adapter-supabase:test-env`，执行 `bash 回归脚本`，记录既有 10 个用例的基线结果（含 `rls-filtered-delete` 当前状态，它属于 US-218，本故事不改其断言与状态），贴进 PR 描述草稿
+- [x] T002 [P] 在 `requirements/stories/adapter/US-220-supabase-update-push-semantics.md`「范围边界 → Out of Scope」补一条：`RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写，`options.update` 整实体进 `p_upserts`）不改，**推断**在 owner 型与共享编辑型 RLS 上同样命中症状 2、3；并在 `requirements/roadmap.md`「零散收尾项」登记待评估项「`mutations()` 直写路径的 UPDATE 语义」（plan「偏离与澄清」2、research D6）
 
 ---
 
@@ -56,13 +56,13 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ### Tests（先红）
 
-- [X] T003 在回归 SQL 新增用例 `existence-probe`（函数 `test_existence_probe`，以 `anon` 执行），夹具：一张挂同步触发器、开 RLS（不 `FORCE`）且 SELECT 策略对 `anon` 不放行的表，一张 `uuid` 主键的同步表，一张不挂同步触发器的普通表。断言（[existence-probe §2、§3](contracts/existence-probe.md)）：
+- [x] T003 在回归 SQL 新增用例 `existence-probe`（函数 `test_existence_probe`，以 `anon` 执行），夹具：一张挂同步触发器、开 RLS（不 `FORCE`）且 SELECT 策略对 `anon` 不放行的表，一张 `uuid` 主键的同步表，一张不挂同步触发器的普通表。断言（[existence-probe §2、§3](contracts/existence-probe.md)）：
       ① 对调用方隐藏的行 → 在返回里；② 不存在的 id → 不在返回里；③ 空数组 → `'{}'`；④ `uuid` 表传大写 id → 返回传入的原样元素；
       ⑤ 非同步表 → `invalid_parameter_value`（22023），消息含 `schema.table`；⑥ 非法 uuid 文本 → 类型转换错误；
       ⑦ `pg_proc.prosecdef = true`、`provolatile = 's'`，`proconfig` 含 `search_path=pg_catalog, pg_temp` 与 `row_security=off`；
       ⑧ 在挂同名触发器 `rxdb_sync_trigger` 但 `tgfoid` 不是 `public.rxdb_log_change_trigger` 的表上 → 22023。
       按「固定写法」登记。跑单个用例确认红（函数不存在）
-- [X] T004 在 `test_existence_probe` 末尾加一个子断言：对 `FORCE ROW LEVEL SECURITY` 的同步表调用探针，记录结果——要么正确返回（`postgres` 有 `BYPASSRLS`），要么抛「query would be affected by row-level security policy」；两者都不得返回错误结论。实跑结果写回本文件 T004 下方的「验证记录」，用以确认或推翻 plan「偏离与澄清」4 的**推断**
+- [x] T004 在 `test_existence_probe` 末尾加一个子断言：对 `FORCE ROW LEVEL SECURITY` 的同步表调用探针，记录结果——要么正确返回（`postgres` 有 `BYPASSRLS`），要么抛「query would be affected by row-level security policy」；两者都不得返回错误结论。实跑结果写回本文件 T004 下方的「验证记录」，用以确认或推翻 plan「偏离与澄清」4 的**推断**
 
   验证记录（2026-10-05，本地 `supabase-db` 容器）：对开了 `FORCE ROW LEVEL SECURITY` 的同步表调用探针，正确返回 `{probe-forced-1}`，未报错。
   函数属主 `postgres` 带 `BYPASSRLS`，它压过 `FORCE`；plan「偏离与澄清」4 的**推断**在参考部署上成立。属主无 `BYPASSRLS` 的自建部署仍按
@@ -70,10 +70,10 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ### Implementation
 
-- [X] T005 在参考 SQL 新增内部 helper `public.rxdb_id_array_type(p_table text, p_schema text) RETURNS pg_catalog.regtype`（`LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = pg_catalog, pg_temp`），把 `rxdb_batch_delete` 中「从 `pg_attribute` 取 `id` 列类型及其数组类型」的逻辑原样搬入，保留两条错误 `Missing id column` 与 `Unsupported id type without array regtype`；`rxdb_batch_delete` 改调 helper；文件末尾 GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;`（[existence-probe §4](contracts/existence-probe.md)）
-- [X] T006 重载 SQL，单跑 `uuid`、`text-varchar`、`entity-id`、`rls-filtered-delete`，结果与 T001 基线一致（helper 抽取不改行为）
-- [X] T007 在参考 SQL 新增 `public.rxdb_existing_ids(p_table text, p_schema text, p_ids text[]) RETURNS text[]`（`LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp SET row_security = off`）：表名校验与 `rxdb_batch_delete` 同一条 `^[a-zA-Z_][a-zA-Z0-9_]*$`；表不存在 / `relkind` 不是 `r`、`p` / `pg_trigger` 中无 `tgname = 'rxdb_sync_trigger' AND tgfoid = 'public.rxdb_log_change_trigger'::regproc` → `RAISE … USING ERRCODE = 'invalid_parameter_value'`，消息含 `schema.table`；比较按 [existence-probe §3](contracts/existence-probe.md)（`unnest($1, $1::<数组类型>)`、返回原样元素、`COALESCE(result, '{}')`）；GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;`
-- [X] T008 重载 SQL，单跑 `existence-probe` 转绿；填写 T004 验证记录
+- [x] T005 在参考 SQL 新增内部 helper `public.rxdb_id_array_type(p_table text, p_schema text) RETURNS pg_catalog.regtype`（`LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = pg_catalog, pg_temp`），把 `rxdb_batch_delete` 中「从 `pg_attribute` 取 `id` 列类型及其数组类型」的逻辑原样搬入，保留两条错误 `Missing id column` 与 `Unsupported id type without array regtype`；`rxdb_batch_delete` 改调 helper；文件末尾 GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;`（[existence-probe §4](contracts/existence-probe.md)）
+- [x] T006 重载 SQL，单跑 `uuid`、`text-varchar`、`entity-id`、`rls-filtered-delete`，结果与 T001 基线一致（helper 抽取不改行为）
+- [x] T007 在参考 SQL 新增 `public.rxdb_existing_ids(p_table text, p_schema text, p_ids text[]) RETURNS text[]`（`LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp SET row_security = off`）：表名校验与 `rxdb_batch_delete` 同一条 `^[a-zA-Z_][a-zA-Z0-9_]*$`；表不存在 / `relkind` 不是 `r`、`p` / `pg_trigger` 中无 `tgname = 'rxdb_sync_trigger' AND tgfoid = 'public.rxdb_log_change_trigger'::regproc` → `RAISE … USING ERRCODE = 'invalid_parameter_value'`，消息含 `schema.table`；比较按 [existence-probe §3](contracts/existence-probe.md)（`unnest($1, $1::<数组类型>)`、返回原样元素、`COALESCE(result, '{}')`）；GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;`
+- [x] T008 重载 SQL，单跑 `existence-probe` 转绿；填写 T004 验证记录
 
 **Checkpoint**: 探针可用；既有用例结果与基线一致。
 
@@ -87,20 +87,20 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ### Tests（先红）
 
-- [X] T009 [P] [US1] 在回归 SQL 新增用例 `update-partial-columns`（`test_update_partial_columns`，以 `anon` 执行）：在 `public.todos` 预置一行（`title` 等 NOT NULL 列有值），以 `p_skip_sync = false`（触发器写日志）调用 `public.rxdb_mutations(p_updates => '[{"table":"todos","data":[{"id":…,"completed":true,"updatedBy":…}]}]')`，断言：`completed` 已变；`title` 及其他未下发列与调用前逐列相同；`rxdb_change` 新增恰好 1 条该 id 的 `UPDATE`；返回值 `updated = 1`；另含子断言「可空列显式 `null` → 该列被置 NULL」「只有 `id` 的行 → 成功、行值不变、日志新增 1 条 UPDATE」（[rxdb-mutations §2](contracts/rxdb-mutations.md)）。按「固定写法」登记，确认红（实现前报 `rxdb_mutations` 不接受 `p_updates`）
-- [X] T010 [P] [US1] 改写 `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts` 中 `mergeChanges decodes typed action keys before sending entity IDs to Supabase` 的载荷断言（改写不删除，FR-013）：新建只在 `p_upserts`、修改只在 `p_updates`；修改行为 `{ id, ...patch, updatedBy }`，不含 `createdBy`；新增用例：非 main 分支时 `p_upserts` / `p_updates` / `p_deletes` 均为 `[]`；`mergeChanges()` 的 `rpc('rxdb_mutations', …)` 参数含 `p_updates` 且 `p_skip_sync: true`；`mutations()` 的 RPC 参数**不含** `p_updates`。`pnpm nx test rxdb-adapter-supabase -- review-regressions` 确认红
-- [X] T011 [P] [US1] 新建 `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`（AC#6）：门控与夹具沿用 `sync-data-integrity.spec.ts`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 缺失则 skip）；客户端 A 新建 todo 并推送 → 客户端 B 拉取、只改 `completed` 并经常规推送路径（`mergeChanges`）推送 → A 拉取：`completed` 为新值、`title` 不变、B 的水位线已推进；用 `performance.now()` 记录 B 那一批推送耗时并 `console.info` 输出，同时断言 `< 100`（SC-006，宪法 IV 数据库操作预算）。确认红（23502）
-- [X] T012 [P] [US1] 在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 的 `Supabase remote sync` 下新增用例（AC#7）：新建待办 → 推送 → 勾选完成 → 推送 → 另开浏览器上下文拉取后显示已完成；拦截 `rxdb_mutations` 请求，断言勾选那次的实体出现在请求体 `p_updates` 而非 `p_upserts`。`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote` 确认红
+- [x] T009 [P] [US1] 在回归 SQL 新增用例 `update-partial-columns`（`test_update_partial_columns`，以 `anon` 执行）：在 `public.todos` 预置一行（`title` 等 NOT NULL 列有值），以 `p_skip_sync = false`（触发器写日志）调用 `public.rxdb_mutations(p_updates => '[{"table":"todos","data":[{"id":…,"completed":true,"updatedBy":…}]}]')`，断言：`completed` 已变；`title` 及其他未下发列与调用前逐列相同；`rxdb_change` 新增恰好 1 条该 id 的 `UPDATE`；返回值 `updated = 1`；另含子断言「可空列显式 `null` → 该列被置 NULL」「只有 `id` 的行 → 成功、行值不变、日志新增 1 条 UPDATE」（[rxdb-mutations §2](contracts/rxdb-mutations.md)）。按「固定写法」登记，确认红（实现前报 `rxdb_mutations` 不接受 `p_updates`）
+- [x] T010 [P] [US1] 改写 `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts` 中 `mergeChanges decodes typed action keys before sending entity IDs to Supabase` 的载荷断言（改写不删除，FR-013）：新建只在 `p_upserts`、修改只在 `p_updates`；修改行为 `{ id, ...patch, updatedBy }`，不含 `createdBy`；新增用例：非 main 分支时 `p_upserts` / `p_updates` / `p_deletes` 均为 `[]`；`mergeChanges()` 的 `rpc('rxdb_mutations', …)` 参数含 `p_updates` 且 `p_skip_sync: true`；`mutations()` 的 RPC 参数**不含** `p_updates`。`pnpm nx test rxdb-adapter-supabase -- review-regressions` 确认红
+- [x] T011 [P] [US1] 新建 `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`（AC#6）：门控与夹具沿用 `sync-data-integrity.spec.ts`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 缺失则 skip）；客户端 A 新建 todo 并推送 → 客户端 B 拉取、只改 `completed` 并经常规推送路径（`mergeChanges`）推送 → A 拉取：`completed` 为新值、`title` 不变、B 的水位线已推进；用 `performance.now()` 记录 B 那一批推送耗时并 `console.info` 输出，同时断言 `< 100`（SC-006，宪法 IV 数据库操作预算）。确认红（23502）
+- [x] T012 [P] [US1] 在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 的 `Supabase remote sync` 下新增用例（AC#7）：新建待办 → 推送 → 勾选完成 → 推送 → 另开浏览器上下文拉取后显示已完成；拦截 `rxdb_mutations` 请求，断言勾选那次的实体出现在请求体 `p_updates` 而非 `p_upserts`。`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote` 确认红
 
 ### Implementation
 
-- [X] T013 [US1] 在参考 SQL 新增 `public.rxdb_batch_update(p_table text, p_schema text DEFAULT 'public', p_data jsonb DEFAULT '[]'::jsonb) RETURNS int`（`LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, pg_temp`）：表名校验同 `rxdb_batch_upsert`；逐行执行 [rxdb-mutations §4](contracts/rxdb-mutations.md) 的 `UPDATE … SET <k> = (pg_catalog.jsonb_populate_record(null::<schema>.<table>, $1)).<k>, … WHERE t.id = (…).id`，只 `SET` 该行出现的非 `id` 键（`%I` 引用），只有 `id` 时 `SET id = t.id`；不带 `RETURNING`；累加 `ROW_COUNT` 并返回。零行分支留到 US3（T025）实现，本任务先不处理零行。GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;`
-- [X] T014 [US1] 在参考 SQL 改 `public.rxdb_mutations`（[rxdb-mutations §1、§3、§5](contracts/rxdb-mutations.md)）：在既有两条 DROP 后追加 `DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean);`；签名追加第 5 个参数 `p_updates jsonb DEFAULT '[]'::jsonb`；`apply_entity_operations` 分支内按 `p_upserts` → `p_updates`（逐组调 `rxdb_batch_update`，`schema` 缺省 `public`）→ `p_deletes` 执行；返回对象新增 `"updated"`（跳过实体操作时为 0）；GRANT 行改为 `public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb)`
-- [X] T015 [US1] 在回归 SQL 的 `test_rls_write_boundary` 中，把 `to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean)')` 改为 5 参签名，并把 `public.rxdb_batch_update(text,text,jsonb)` 加进「写 RPC 必须是 INVOKER」的检查列表；另加断言这几个 `to_regprocedure` 都不为 NULL（防止签名改了检查静默失效）
-- [X] T016 [US1] 重载 SQL，单跑 `update-partial-columns`、`rls-write-boundary`、`idempotent-retry` 转绿 / 保持绿
-- [X] T017 [US1] 在 `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts` 新增 `MergeChangesUpdatePayload { table; schema; data: Record<string, unknown>[] }`（带 TSDoc：「与 MergeChangesUpsertPayload 同形；data 每行只含 id + 本次修改的列 + updatedBy」），`MergeChangesPayload` 增加 `p_updates: MergeChangesUpdatePayload[]`；`build_merge_changes_payload()` 把 `actions.inserts` 放进 `p_upserts`、`actions.updates` 放进 `p_updates`（按表分组，行 `{ id, ...patch }`，有 `userId` 时加 `updatedBy`，不加 `createdBy`），非 main 分支三个写数组都为 `[]`；更新函数 TSDoc
-- [X] T018 [US1] 在 `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts` 的 `mergeChanges()` 中 `rpc('rxdb_mutations', …)` 增加 `p_updates: payload.p_updates`；`mutations()` 不改。T010 转绿
-- [X] T019 [US1] 跑 T011（`pnpm nx test rxdb-adapter-supabase -- update-push-semantics`）与 T012（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`）转绿；把 T011 输出的单批耗时记进 PR 描述（SC-006）
+- [x] T013 [US1] 在参考 SQL 新增 `public.rxdb_batch_update(p_table text, p_schema text DEFAULT 'public', p_data jsonb DEFAULT '[]'::jsonb) RETURNS int`（`LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, pg_temp`）：表名校验同 `rxdb_batch_upsert`；逐行执行 [rxdb-mutations §4](contracts/rxdb-mutations.md) 的 `UPDATE … SET <k> = (pg_catalog.jsonb_populate_record(null::<schema>.<table>, $1)).<k>, … WHERE t.id = (…).id`，只 `SET` 该行出现的非 `id` 键（`%I` 引用），只有 `id` 时 `SET id = t.id`；不带 `RETURNING`；累加 `ROW_COUNT` 并返回。零行分支留到 US3（T025）实现，本任务先不处理零行。GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;`
+- [x] T014 [US1] 在参考 SQL 改 `public.rxdb_mutations`（[rxdb-mutations §1、§3、§5](contracts/rxdb-mutations.md)）：在既有两条 DROP 后追加 `DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean);`；签名追加第 5 个参数 `p_updates jsonb DEFAULT '[]'::jsonb`；`apply_entity_operations` 分支内按 `p_upserts` → `p_updates`（逐组调 `rxdb_batch_update`，`schema` 缺省 `public`）→ `p_deletes` 执行；返回对象新增 `"updated"`（跳过实体操作时为 0）；GRANT 行改为 `public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb)`
+- [x] T015 [US1] 在回归 SQL 的 `test_rls_write_boundary` 中，把 `to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean)')` 改为 5 参签名，并把 `public.rxdb_batch_update(text,text,jsonb)` 加进「写 RPC 必须是 INVOKER」的检查列表；另加断言这几个 `to_regprocedure` 都不为 NULL（防止签名改了检查静默失效）
+- [x] T016 [US1] 重载 SQL，单跑 `update-partial-columns`、`rls-write-boundary`、`idempotent-retry` 转绿 / 保持绿
+- [x] T017 [US1] 在 `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts` 新增 `MergeChangesUpdatePayload { table; schema; data: Record<string, unknown>[] }`（带 TSDoc：「与 MergeChangesUpsertPayload 同形；data 每行只含 id + 本次修改的列 + updatedBy」），`MergeChangesPayload` 增加 `p_updates: MergeChangesUpdatePayload[]`；`build_merge_changes_payload()` 把 `actions.inserts` 放进 `p_upserts`、`actions.updates` 放进 `p_updates`（按表分组，行 `{ id, ...patch }`，有 `userId` 时加 `updatedBy`，不加 `createdBy`），非 main 分支三个写数组都为 `[]`；更新函数 TSDoc
+- [x] T018 [US1] 在 `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts` 的 `mergeChanges()` 中 `rpc('rxdb_mutations', …)` 增加 `p_updates: payload.p_updates`；`mutations()` 不改。T010 转绿
+- [x] T019 [US1] 跑 T011（`pnpm nx test rxdb-adapter-supabase -- update-push-semantics`）与 T012（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`）转绿；把 T011 输出的单批耗时记进 PR 描述（SC-006）
 
 **Checkpoint**: 参考 schema 上勾选 todo 的推送成功，双客户端与 e2e 通过。
 
@@ -114,12 +114,12 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ### Tests（先红，须在 T013 之前跑红，见 Dependencies）
 
-- [X] T020 [P] [US2] 在回归 SQL 新增夹具表 `rls_update_owner(id text PK, owner text NOT NULL, value text NOT NULL)`，开 RLS（不 `FORCE`），策略 `FOR ALL USING (owner = current_setting('rxdb_sql_regression.uid', true)) WITH CHECK (同上)`，挂同步触发器；新增用例 `update-owner-rls`（`test_update_owner_rls`，以 `anon` 执行）：uid 设为行主人，推送不含 `owner` 的 `p_updates`，断言成功、`value` 已变、`owner` 不变、日志新增 1 条 UPDATE。按「固定写法」登记；在 T013 之前跑，确认红为 42501（今日经 `p_upserts` 的症状 2）或签名不存在
-- [X] T021 [P] [US2] 在回归 SQL 新增夹具表 `rls_update_shared(id text PK, owner text NOT NULL, value text NOT NULL)`，开 RLS（不 `FORCE`），策略 SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true) WITH CHECK (true)`，挂同步触发器，预置一行属于他人；新增用例 `update-shared-edit`（`test_update_shared_edit`）：以另一 uid 推送不含 `owner` 的 `p_updates`，断言成功、`owner` 不变、日志新增 1 条 UPDATE。按「固定写法」登记，确认红
+- [x] T020 [P] [US2] 在回归 SQL 新增夹具表 `rls_update_owner(id text PK, owner text NOT NULL, value text NOT NULL)`，开 RLS（不 `FORCE`），策略 `FOR ALL USING (owner = current_setting('rxdb_sql_regression.uid', true)) WITH CHECK (同上)`，挂同步触发器；新增用例 `update-owner-rls`（`test_update_owner_rls`，以 `anon` 执行）：uid 设为行主人，推送不含 `owner` 的 `p_updates`，断言成功、`value` 已变、`owner` 不变、日志新增 1 条 UPDATE。按「固定写法」登记；在 T013 之前跑，确认红为 42501（今日经 `p_upserts` 的症状 2）或签名不存在
+- [x] T021 [P] [US2] 在回归 SQL 新增夹具表 `rls_update_shared(id text PK, owner text NOT NULL, value text NOT NULL)`，开 RLS（不 `FORCE`），策略 SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true) WITH CHECK (true)`，挂同步触发器，预置一行属于他人；新增用例 `update-shared-edit`（`test_update_shared_edit`）：以另一 uid 推送不含 `owner` 的 `p_updates`，断言成功、`owner` 不变、日志新增 1 条 UPDATE。按「固定写法」登记，确认红
 
 ### Implementation
 
-- [X] T022 [US2] 无新增实现（`rxdb_batch_update` 为 INVOKER 普通 UPDATE，已在 T013 交付）。重载 SQL，单跑 `update-owner-rls`、`update-shared-edit` 转绿；若不绿，修 T013 而不是改用例
+- [x] T022 [US2] 无新增实现（`rxdb_batch_update` 为 INVOKER 普通 UPDATE，已在 T013 交付）。重载 SQL，单跑 `update-owner-rls`、`update-shared-edit` 转绿；若不绿，修 T013 而不是改用例
 
 **Checkpoint**: 两种 RLS 形态上的误拒为 0（SC-002）。
 
@@ -133,16 +133,16 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ### Tests（先红）
 
-- [X] T023 [P] [US3] 在回归 SQL 新增用例 `update-denied`（`test_update_denied`，以 `anon` 执行），两个子场景各一张挂同步触发器、开 RLS（不 `FORCE`）的夹具表：
+- [x] T023 [P] [US3] 在回归 SQL 新增用例 `update-denied`（`test_update_denied`，以 `anon` 执行），两个子场景各一张挂同步触发器、开 RLS（不 `FORCE`）的夹具表：
       ① SELECT `USING (true)`、UPDATE `USING (owner = uid)`，改他人的行；② SELECT `USING (owner = uid)`、UPDATE `USING (true)`，改他人的行。
       每个子场景用 `BEGIN … EXCEPTION WHEN insufficient_privilege THEN GET STACKED DIAGNOSTICS … PG_EXCEPTION_DETAIL, MESSAGE_TEXT` 捕获，断言：SQLSTATE 为 42501；`MESSAGE_TEXT` 以 `rxdb: UPDATE denied by row-level security:` 开头；`DETAIL::jsonb` 恰含键 `op`/`schema`/`table`/`entityId`/`reason`，且 `op = 'UPDATE'`、`reason = 'denied'`；行未变；无新日志；可选子场景③ UPDATE `WITH CHECK (false)` → 42501（`DETAIL` 非 JSON，只断言 SQLSTATE）。
       按「固定写法」登记，确认红（实现前零行静默成功）
-- [X] T024 [P] [US3] 在回归 SQL 新增用例 `update-gone`（`test_update_gone`，以 `anon` 执行），两个子场景：① `public.todos`（有 NOT NULL 列）；② 一张挂同步触发器、除 `id` 外全部可空的夹具表。对不存在的 id 推送 `p_updates`，捕获 `SQLSTATE 'RX001'`，断言：`MESSAGE_TEXT` 以 `rxdb: UPDATE target row is gone:` 开头；`DETAIL::jsonb` 的 `op = 'UPDATE'`、`reason = 'gone'`、`entityId` 为传入 id；表中无该 id 的行；无新日志；另加子断言「同批一条 gone、一条正常 → 整批回滚，正常那条也未生效」。按「固定写法」登记，确认红
+- [x] T024 [P] [US3] 在回归 SQL 新增用例 `update-gone`（`test_update_gone`，以 `anon` 执行），两个子场景：① `public.todos`（有 NOT NULL 列）；② 一张挂同步触发器、除 `id` 外全部可空的夹具表。对不存在的 id 推送 `p_updates`，捕获 `SQLSTATE 'RX001'`，断言：`MESSAGE_TEXT` 以 `rxdb: UPDATE target row is gone:` 开头；`DETAIL::jsonb` 的 `op = 'UPDATE'`、`reason = 'gone'`、`entityId` 为传入 id；表中无该 id 的行；无新日志；另加子断言「同批一条 gone、一条正常 → 整批回滚，正常那条也未生效」。按「固定写法」登记，确认红
 
 ### Implementation
 
-- [X] T025 [US3] 在参考 SQL 的 `rxdb_batch_update` 中补零行分支（[rxdb-mutations §4](contracts/rxdb-mutations.md)、[sqlstate-registry §2](contracts/sqlstate-registry.md)）：`GET DIAGNOSTICS rc = ROW_COUNT`；`rc = 0` 时调 `public.rxdb_existing_ids(p_table, p_schema, ARRAY[行->>'id'])`：含该 id → `RAISE EXCEPTION USING ERRCODE = 'insufficient_privilege', MESSAGE = pg_catalog.format('rxdb: UPDATE denied by row-level security: %I.%I id=%s', p_schema, p_table, v_id), DETAIL = jsonb_build_object('op','UPDATE','schema',p_schema,'table',p_table,'entityId',v_id,'reason','denied')::text`；不含 → 同形，`ERRCODE = 'RX001'`、消息 `'rxdb: UPDATE target row is gone: %I.%I id=%s'`、`reason = 'gone'`；成功路径不调探针
-- [X] T026 [US3] 重载 SQL，单跑 `update-denied`、`update-gone` 转绿，并复跑 US1、US2 的三个用例保持绿
+- [x] T025 [US3] 在参考 SQL 的 `rxdb_batch_update` 中补零行分支（[rxdb-mutations §4](contracts/rxdb-mutations.md)、[sqlstate-registry §2](contracts/sqlstate-registry.md)）：`GET DIAGNOSTICS rc = ROW_COUNT`；`rc = 0` 时调 `public.rxdb_existing_ids(p_table, p_schema, ARRAY[行->>'id'])`：含该 id → `RAISE EXCEPTION USING ERRCODE = 'insufficient_privilege', MESSAGE = pg_catalog.format('rxdb: UPDATE denied by row-level security: %I.%I id=%s', p_schema, p_table, v_id), DETAIL = jsonb_build_object('op','UPDATE','schema',p_schema,'table',p_table,'entityId',v_id,'reason','denied')::text`；不含 → 同形，`ERRCODE = 'RX001'`、消息 `'rxdb: UPDATE target row is gone: %I.%I id=%s'`、`reason = 'gone'`；成功路径不调探针
+- [x] T026 [US3] 重载 SQL，单跑 `update-denied`、`update-gone` 转绿，并复跑 US1、US2 的三个用例保持绿
 
 **Checkpoint**: 静默零行成功与复活残缺行出现 0 次（SC-003、SC-004）。
 
@@ -154,8 +154,8 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 **Independent Test**: quickstart §1 全量。
 
-- [X] T027 [US4] 核对回归脚本 `CASES` 恰为 16 项（既有 10 = 9 条 + `rls-filtered-delete`（属于 US-218）；加 `existence-probe`、`update-partial-columns`、`update-owner-rls`、`update-shared-edit`、`update-denied`、`update-gone`），回归 SQL 分发区每个用例恰有一行
-- [X] T028 [US4] 重载 SQL 后执行 `bash 回归脚本`，15 个用例 `🟢 PASS`，`rls-filtered-delete` 保持红且结果与 T001 基线一致（属 US-218 阶段 A 修复）；完整输出贴进 PR 描述
+- [x] T027 [US4] 核对回归脚本 `CASES` 恰为 16 项（既有 10 = 9 条 + `rls-filtered-delete`（属于 US-218）；加 `existence-probe`、`update-partial-columns`、`update-owner-rls`、`update-shared-edit`、`update-denied`、`update-gone`），回归 SQL 分发区每个用例恰有一行
+- [x] T028 [US4] 重载 SQL 后执行 `bash 回归脚本`，15 个用例 `🟢 PASS`，`rls-filtered-delete` 保持红且结果与 T001 基线一致（属 US-218 阶段 A 修复）；完整输出贴进 PR 描述
 
 **Checkpoint**: AC#1～8 全部有实跑证据。
 
@@ -163,16 +163,17 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [X] T029 [P] 更新 `packages/rxdb-adapter-supabase/README.md`：`rxdb_mutations` 参数表加 `p_updates`；UPDATE 语义（只改出现的列、只受 UPDATE / SELECT 策略约束）；错误码 42501 / `RX001` 与 `DETAIL` 形状（链 [sqlstate-registry](contracts/sqlstate-registry.md) 的口径，不复制全表）
-- [X] T030 [P] 更新 `website/docs/adapters/supabase.md`：同 T029 的参数表、UPDATE 语义与错误码；「已知限制」加探针一条——在自行收紧 `rxdb_change` 读权限的部署里探针是剩余的存在性通道，id 不应承载敏感信息（UUID 主键不可枚举，自增或业务主键可被逐个探测）（[existence-probe §5](contracts/existence-probe.md)）
-- [X] T031 [P] 新建 `website/docs/migration/supabase-update-push.md`：升级顺序「先执行新版 `docker/sql/04-rxdb-utils-functions.sql`，再升级客户端」；新旧组合表（[rxdb-mutations §7](contracts/rxdb-mutations.md)）；新客户端连旧 SQL 的报错特征（`SupabaseDataError`，消息含 `PGRST202` / `Could not find the function public.rxdb_mutations`），本地变更仍待推送；在 `website/docs/migration/README.md` 与 `website/sidebars.ts`（`migration/supabase-network-errors` 之后）登记
-- [X] T032 版本组合抽查（quickstart §5，FR-011）：重载上一版本的参考 SQL（`git show main:docker/sql/04-rxdb-utils-functions.sql`），跑 T011，确认推送以 `SupabaseDataError` 失败、消息含 `PGRST202`、本地变更仍待推送；结果记进 PR 描述后重载新版 SQL
+- [x] T029 [P] 更新 `packages/rxdb-adapter-supabase/README.md`：`rxdb_mutations` 参数表加 `p_updates`；UPDATE 语义（只改出现的列、只受 UPDATE / SELECT 策略约束）；错误码 42501 / `RX001` 与 `DETAIL` 形状（链 [sqlstate-registry](contracts/sqlstate-registry.md) 的口径，不复制全表）
+- [x] T030 [P] 更新 `website/docs/adapters/supabase.md`：同 T029 的参数表、UPDATE 语义与错误码；「已知限制」加探针一条——在自行收紧 `rxdb_change` 读权限的部署里探针是剩余的存在性通道，id 不应承载敏感信息（UUID 主键不可枚举，自增或业务主键可被逐个探测）（[existence-probe §5](contracts/existence-probe.md)）
+- [x] T031 [P] 新建 `website/docs/migration/supabase-update-push.md`：升级顺序「先执行新版 `docker/sql/04-rxdb-utils-functions.sql`，再升级客户端」；新旧组合表（[rxdb-mutations §7](contracts/rxdb-mutations.md)）；新客户端连旧 SQL 的报错特征（`SupabaseDataError`，消息含 `PGRST202` / `Could not find the function public.rxdb_mutations`），本地变更仍待推送；在 `website/docs/migration/README.md` 与 `website/sidebars.ts`（`migration/supabase-network-errors` 之后）登记
+- [x] T032 版本组合抽查（quickstart §5，FR-011）：重载上一版本的参考 SQL（`git show main:docker/sql/04-rxdb-utils-functions.sql`），跑 T011，确认推送以 `SupabaseDataError` 失败、消息含 `PGRST202`、本地变更仍待推送；结果记进 PR 描述后重载新版 SQL
 
   结果：推送抛 `SupabaseDataError: Failed to merge changes: Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts) in the schema cache`；
   `PGRST202` 只在 HTTP 响应体的 `code` 里（curl 复核），`SupabaseDataError` 的消息不带码，迁移文档按消息识别；水位线未推进，本地变更仍待推送。新版 SQL 已重载
-- [X] T033 [P] 在 `requirements/roadmap.md`「零散收尾项」登记待评估项「SQL 安全回归接入 nx target / CI」（quickstart 末注）
-- [X] T034 门禁：`pnpm nx run-many -t lint test build --projects=rxdb-adapter-supabase` 与 `pnpm nx run rxdb-adapter-supabase:typecheck` 零警告通过；`pnpm nx test rxdb-adapter-supabase --coverage` 不低于 80%
-- [X] T035 更新 `requirements/stories/adapter/US-220-supabase-update-push-semantics.md` 验收表 AC#1～8 状态与「实现文件」，同步 `requirements/status-overview.md`；PR 描述汇总 T001 基线、T004 验证记录、T019 耗时、T028 回归输出、T032 版本组合结果
+
+- [x] T033 [P] 在 `requirements/roadmap.md`「零散收尾项」登记待评估项「SQL 安全回归接入 nx target / CI」（quickstart 末注）
+- [x] T034 门禁：`pnpm nx run-many -t lint test build --projects=rxdb-adapter-supabase` 与 `pnpm nx run rxdb-adapter-supabase:typecheck` 零警告通过；`pnpm nx test rxdb-adapter-supabase --coverage` 不低于 80%
+- [x] T035 更新 `requirements/stories/adapter/US-220-supabase-update-push-semantics.md` 验收表 AC#1～8 状态与「实现文件」，同步 `requirements/status-overview.md`；PR 描述汇总 T001 基线、T004 验证记录、T019 耗时、T028 回归输出、T032 版本组合结果
 
 ---
 
