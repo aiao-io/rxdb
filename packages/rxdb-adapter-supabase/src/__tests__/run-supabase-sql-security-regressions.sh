@@ -22,6 +22,10 @@ CASES=(
   update-shared-edit
   update-denied
   update-gone
+  delete-hidden-row
+  delete-gone
+  mixed-batch-rollback
+  push-integrity
 )
 failed=0
 

@@ -3,11 +3,13 @@ import {
   EntityBase,
   PropertyType,
   SyncStateHub,
+  compactChanges,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
+  type IRxDBChange,
   type RuleGroup,
   type RxDB,
   type RxDBMutationsMap
@@ -21,6 +23,7 @@ import { handleSupabaseChange } from '../handle_supabase_change.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 import type { SupabaseAdapterOptions } from '../supabase.interface.js';
+import type { MergeChangesPayload, MergeChangesUpsertPayload } from '../supabase.merge-changes.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
 
@@ -440,6 +443,65 @@ describe('supabase review regressions', () => {
         p_skip_sync: true
       })
     );
+  });
+
+  // US-218 阶段 A：远端配对校验（RX002）要求每个 main 日志键恰好对应一次业务写，且最后一条为 DELETE 的键才进 p_deletes。
+  // 这里按推送路径（compactChanges → mergeChanges）锁住客户端载荷满足这一点，保证正常推送不会被配对校验拒绝（SC-003）
+  it('mergeChanges pairs every main change key with exactly one entity write', async () => {
+    const rpc = vi.fn(async (_name: string, _params: MergeChangesPayload) => ({
+      data: { max_change_id: 5, change_id_mapping: [] },
+      error: null
+    }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const [x, y, z] = [
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555555',
+      '66666666-6666-4666-8666-666666666666'
+    ];
+    const change = (
+      id: number,
+      type: IRxDBChange['type'],
+      entityId: string,
+      inversePatch: Record<string, unknown> | null
+    ) =>
+      ({
+        id,
+        namespace: 'public',
+        entity: 'Todo',
+        entityId,
+        type,
+        branchId: 'main',
+        patch: type === 'DELETE' ? null : { title: `v${id}` },
+        inversePatch
+      }) as IRxDBChange;
+    const changes = [
+      change(1, 'UPDATE', x, { title: 'remote-x' }),
+      change(2, 'INSERT', y, null),
+      change(3, 'INSERT', z, null),
+      change(4, 'DELETE', x, { title: 'v1' }),
+      change(5, 'UPDATE', z, { title: 'v3' })
+    ];
+
+    await adapter.mergeChanges(compactChanges(changes), undefined, changes);
+
+    const payload = rpc.mock.calls[0]?.[1];
+    if (!payload) throw new Error('rxdb_mutations was not called');
+    const keyOf = (schema: unknown, table: unknown, id: unknown) => `${String(schema)}.${String(table)}.${String(id)}`;
+    const rowKeys = (groups: MergeChangesUpsertPayload[]) =>
+      groups.flatMap(group => group.data.map(row => keyOf(group.schema, group.table, row['id'])));
+    const deleteKeys = payload.p_deletes.flatMap(group => group.ids.map(id => keyOf(group.schema, group.table, id)));
+    const writeKeys = [...rowKeys(payload.p_upserts), ...rowKeys(payload.p_updates), ...deleteKeys];
+
+    const lastTypeByKey = new Map<string, unknown>();
+    for (const log of payload.p_changes.filter(log => log['branchId'] === 'main')) {
+      lastTypeByKey.set(keyOf(log['schema'], log['table'], log['entityId']), log['type']);
+    }
+    const lastDeleteKeys = [...lastTypeByKey].filter(([, type]) => type === 'DELETE').map(([key]) => key);
+
+    expect(new Set(writeKeys).size).toBe(writeKeys.length);
+    expect(new Set(writeKeys)).toEqual(new Set(lastTypeByKey.keys()));
+    expect(deleteKeys).toEqual(lastDeleteKeys);
+    expect(deleteKeys).toEqual([`public.todos.${x}`]);
   });
 
   it('mergeChanges leaves every entity write array empty on a non-main branch', async () => {

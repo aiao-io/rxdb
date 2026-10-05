@@ -122,6 +122,40 @@ SELECT public.rxdb_enable_sync_for_table('probe_hidden_ids', 'rxdb_sql_regressio
 SELECT public.rxdb_enable_sync_for_table('probe_uuid_ids', 'rxdb_sql_regression', 'ProbeUuid');
 SELECT public.rxdb_enable_sync_for_table('probe_forced_ids', 'rxdb_sql_regression', 'ProbeForced');
 
+-- 推送完整性（US-218 阶段 A）的夹具：删除零行判定要走探针，夹具表都挂同步触发器。
+-- 保留 FORCE ROW LEVEL SECURITY：探针属主 postgres 带 BYPASSRLS，FORCE 表上照样给出正确结论（006 tasks T004 验证记录）
+SELECT public.rxdb_enable_sync_for_table('rls_owned_ids', 'rxdb_sql_regression', 'RlsOwnedId');
+
+-- 读与删都仅本人：调用方既看不见也删不掉他人的行
+CREATE TABLE rxdb_sql_regression.rls_hidden_ids (
+  id text PRIMARY KEY,
+  owner text NOT NULL,
+  value text NOT NULL
+);
+
+ALTER TABLE rxdb_sql_regression.rls_hidden_ids ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rxdb_sql_regression.rls_hidden_ids FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY rls_hidden_select ON rxdb_sql_regression.rls_hidden_ids
+  FOR SELECT USING (owner = pg_catalog.current_setting('rxdb_sql_regression.uid', true));
+CREATE POLICY rls_hidden_delete ON rxdb_sql_regression.rls_hidden_ids
+  FOR DELETE USING (owner = pg_catalog.current_setting('rxdb_sql_regression.uid', true));
+
+INSERT INTO rxdb_sql_regression.rls_hidden_ids (id, owner, value)
+VALUES ('hidden-by-b', 'sql-owner-b', 'original');
+
+-- 不开 RLS 的同步表：可放行的新建 / 修改 / 删除都落在这里
+CREATE TABLE rxdb_sql_regression.push_open_ids (
+  id text PRIMARY KEY,
+  value text NOT NULL
+);
+
+INSERT INTO rxdb_sql_regression.push_open_ids (id, value)
+VALUES ('open-1', 'original'), ('open-deletable-1', 'original');
+
+SELECT public.rxdb_enable_sync_for_table('rls_hidden_ids', 'rxdb_sql_regression', 'RlsHiddenId');
+SELECT public.rxdb_enable_sync_for_table('push_open_ids', 'rxdb_sql_regression', 'PushOpen');
+
 -- UPDATE 推送语义（US-220）的夹具：owner 型 RLS、共享编辑型 RLS、三种被拒形态、全可空列表
 CREATE TABLE rxdb_sql_regression.rls_update_owner (
   id text PRIMARY KEY,
@@ -375,7 +409,8 @@ CREATE FUNCTION rxdb_sql_regression.assert_rejection_detail(
   p_reason text,
   p_schema text,
   p_table text,
-  p_entity_id text
+  p_entity_id text,
+  p_op text DEFAULT 'UPDATE'
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -390,12 +425,78 @@ BEGIN
     pg_catalog.format('rejection DETAIL must carry exactly op/schema/table/entityId/reason: %s', p_detail)
   );
   PERFORM rxdb_sql_regression.assert_true(
-    v_detail->>'op' = 'UPDATE'
+    v_detail->>'op' = p_op
       AND v_detail->>'reason' = p_reason
       AND v_detail->>'schema' = p_schema
       AND v_detail->>'table' = p_table
       AND v_detail->>'entityId' = p_entity_id,
-    pg_catalog.format('rejection DETAIL must describe %s.%s id=%s reason=%s: %s', p_schema, p_table, p_entity_id, p_reason, p_detail)
+    pg_catalog.format('rejection DETAIL must describe %s %s.%s id=%s reason=%s: %s', p_op, p_schema, p_table, p_entity_id, p_reason, p_detail)
+  );
+END;
+$$;
+
+-- 业务表内容 + rxdb_change 行数的指纹：被拒调用前后取一次，断言什么都没变
+CREATE FUNCTION rxdb_sql_regression.push_fingerprint(p_table text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_rows text;
+  v_changes bigint;
+BEGIN
+  EXECUTE pg_catalog.format(
+    'SELECT pg_catalog.string_agg(pg_catalog.to_jsonb(t)::text, %L ORDER BY t.id) FROM rxdb_sql_regression.%I AS t',
+    ',',
+    p_table
+  ) INTO v_rows;
+  SELECT pg_catalog.count(*) INTO v_changes FROM public.rxdb_change;
+  RETURN pg_catalog.format('%s|%s', v_changes, v_rows);
+END;
+$$;
+
+-- 推送一次不配对的调用：断言 RX002、MESSAGE 与 DETAIL 形状，且业务表与 rxdb_change 都不变
+CREATE FUNCTION rxdb_sql_regression.assert_integrity_violation(
+  p_label text,
+  p_upserts jsonb,
+  p_deletes jsonb,
+  p_changes jsonb,
+  p_skip_sync boolean,
+  p_updates jsonb,
+  p_reason text,
+  p_op text,
+  p_table text,
+  p_entity_id text,
+  p_schema text DEFAULT 'rxdb_sql_regression'
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_before text := rxdb_sql_regression.push_fingerprint('push_open_ids');
+  v_violated boolean := false;
+  v_message text;
+  v_detail text;
+BEGIN
+  BEGIN
+    PERFORM public.rxdb_mutations(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
+  EXCEPTION
+    WHEN SQLSTATE 'RX002' THEN
+      GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT, v_detail = PG_EXCEPTION_DETAIL;
+      v_violated := true;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(v_violated, pg_catalog.format('%s: must raise RX002', p_label));
+  PERFORM rxdb_sql_regression.assert_true(
+    v_message = pg_catalog.format('rxdb: push integrity violation (%s): %I.%I id=%s', p_reason, p_schema, p_table, p_entity_id),
+    pg_catalog.format('%s: unexpected message: %s', p_label, v_message)
+  );
+  PERFORM rxdb_sql_regression.assert_rejection_detail(v_detail, p_reason, p_schema, p_table, p_entity_id, p_op);
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.push_fingerprint('push_open_ids') = v_before,
+    pg_catalog.format('%s: rejected call must change neither business rows nor rxdb_change', p_label)
   );
 END;
 $$;
@@ -451,6 +552,7 @@ AS $$
 DECLARE
   mutation_result jsonb;
 BEGIN
+  -- 不带日志的直写走触发器模式（p_skip_sync = false）：显式日志模式下每条写都必须有配对日志（US-218 阶段 A）
   SELECT public.rxdb_mutations(
     '[
       {"schema":"rxdb_sql_regression","table":"text_ids","data":[{"id":"text-1","value":"text"}]},
@@ -458,7 +560,7 @@ BEGIN
     ]'::jsonb,
     '[]'::jsonb,
     '[]'::jsonb,
-    true
+    false
   ) INTO mutation_result;
 
   PERFORM rxdb_sql_regression.assert_true(
@@ -475,7 +577,7 @@ BEGIN
       {"schema":"rxdb_sql_regression","table":"varchar_ids","ids":["varchar-1"]}
     ]'::jsonb,
     '[]'::jsonb,
-    true
+    false
   ) INTO mutation_result;
 
   PERFORM rxdb_sql_regression.assert_true(
@@ -508,12 +610,15 @@ BEGIN
   DELETE FROM public.rxdb_change
   WHERE "clientId" = 'sql-security-regression-entity-id';
 
+  -- 显式日志模式下日志必须与写配对（US-218 阶段 A），这里带上同 id 的新建
   SELECT public.rxdb_mutations(
-    '[]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"text_ids","data":[{"id":"text-entity-1","value":"entity"}]}]'::jsonb,
     '[]'::jsonb,
     '[{
       "namespace":"rxdb_sql_regression",
       "entity":"TextEntity",
+      "schema":"rxdb_sql_regression",
+      "table":"text_ids",
       "entityId":"text-entity-1",
       "type":"INSERT",
       "patch":{"id":"text-entity-1"},
@@ -566,6 +671,8 @@ BEGIN
     '[{
       "namespace":"rxdb_sql_regression",
       "entity":"IdempotencyProbe",
+      "schema":"rxdb_sql_regression",
+      "table":"idempotency_probe",
       "entityId":"retry-1",
       "type":"INSERT",
       "patch":{"id":"retry-1","value":"first"},
@@ -586,6 +693,8 @@ BEGIN
     '[{
       "namespace":"rxdb_sql_regression",
       "entity":"IdempotencyProbe",
+      "schema":"rxdb_sql_regression",
+      "table":"idempotency_probe",
       "entityId":"retry-1",
       "type":"INSERT",
       "patch":{"id":"retry-1","value":"first"},
@@ -635,7 +744,7 @@ BEGIN
     }]'::jsonb,
     '[]'::jsonb,
     '[]'::jsonb,
-    true
+    false
   ) INTO mutation_result;
 
   PERFORM rxdb_sql_regression.assert_true(
@@ -655,7 +764,7 @@ BEGIN
       "ids":["11111111-1111-4111-8111-111111111111"]
     }]'::jsonb,
     '[]'::jsonb,
-    true
+    false
   ) INTO mutation_result;
 
   PERFORM rxdb_sql_regression.assert_true(
@@ -682,7 +791,7 @@ BEGIN
     }]'::jsonb,
     '[]'::jsonb,
     '[]'::jsonb,
-    true
+    false
   ) INTO mutation_result;
 
   PERFORM rxdb_sql_regression.assert_true(
@@ -780,7 +889,7 @@ BEGIN
       '[{"schema":"rxdb_sql_regression","table":"no_dml_ids","data":[{"id":"forbidden","value":"no grant"}]}]'::jsonb,
       '[]'::jsonb,
       '[]'::jsonb,
-      true
+      false
     );
   EXCEPTION
     WHEN insufficient_privilege THEN
@@ -792,7 +901,7 @@ BEGIN
       '[{"schema":"rxdb_sql_regression","table":"rls_denied_ids","data":[{"id":"forbidden","value":"denied by RLS"}]}]'::jsonb,
       '[]'::jsonb,
       '[]'::jsonb,
-      true
+      false
     );
   EXCEPTION
     WHEN insufficient_privilege THEN
@@ -821,12 +930,14 @@ SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   rls_rejected boolean := false;
+  error_detail text;
+  error_message text;
 BEGIN
   DELETE FROM public.rxdb_change
   WHERE "clientId" = 'sql-rls-filter-client';
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
-  -- 行对调用方可见，但 DELETE 的 USING 策略把它过滤掉：不抛错、零行生效
+  -- 行对调用方可见，但 DELETE 的 USING 策略把它过滤掉：普通 DELETE 静默零行，必须显式 42501
   BEGIN
     PERFORM public.rxdb_mutations(
       '[]'::jsonb,
@@ -846,9 +957,21 @@ BEGIN
     );
   EXCEPTION
     WHEN insufficient_privilege THEN
+      GET STACKED DIAGNOSTICS error_detail = PG_EXCEPTION_DETAIL, error_message = MESSAGE_TEXT;
       rls_rejected := true;
   END;
 
+  PERFORM rxdb_sql_regression.assert_true(
+    rls_rejected,
+    'rxdb_mutations must reject a visible row that RLS refuses to delete'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    error_message = 'rxdb: DELETE denied by row-level security: rxdb_sql_regression.rls_owned_ids id=owned-by-b',
+    pg_catalog.format('RLS-filtered delete message must be self-describing: %s', error_message)
+  );
+  PERFORM rxdb_sql_regression.assert_rejection_detail(
+    error_detail, 'denied', 'rxdb_sql_regression', 'rls_owned_ids', 'owned-by-b', 'DELETE'
+  );
   PERFORM rxdb_sql_regression.assert_true(
     EXISTS (SELECT 1 FROM rxdb_sql_regression.rls_owned_ids WHERE id = 'owned-by-b'),
     'RLS-filtered delete must leave the row in place'
@@ -857,9 +980,414 @@ BEGIN
     NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-rls-filter-client'),
     'rxdb_mutations must not log a DELETE that RLS filtered to zero rows'
   );
+END;
+$$;
+
+-- 行连 SELECT 都看不见、DELETE 也删不掉：调用方无从区分「不存在」与「被拒」，探针兜住判定
+CREATE FUNCTION rxdb_sql_regression.test_delete_hidden_row()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  rls_rejected boolean := false;
+  error_detail text;
+  error_message text;
+BEGIN
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      '[]'::jsonb,
+      '[{"schema":"rxdb_sql_regression","table":"rls_hidden_ids","ids":["hidden-by-b"]}]'::jsonb,
+      '[{
+        "namespace":"rxdb_sql_regression",
+        "entity":"RlsHiddenId",
+        "schema":"rxdb_sql_regression",
+        "table":"rls_hidden_ids",
+        "entityId":"hidden-by-b",
+        "type":"DELETE",
+        "inversePatch":{"id":"hidden-by-b","owner":"sql-owner-b","value":"original"},
+        "branchId":"main",
+        "clientId":"sql-hidden-delete-client",
+        "localId":740001
+      }]'::jsonb,
+      true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      GET STACKED DIAGNOSTICS error_detail = PG_EXCEPTION_DETAIL, error_message = MESSAGE_TEXT;
+      rls_rejected := true;
+  END;
+
   PERFORM rxdb_sql_regression.assert_true(
     rls_rejected,
-    'rxdb_mutations must reject a visible row that RLS refuses to delete'
+    'deleting a row hidden by RLS must raise 42501, not succeed silently'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    error_message = 'rxdb: DELETE denied by row-level security: rxdb_sql_regression.rls_hidden_ids id=hidden-by-b',
+    pg_catalog.format('hidden-row delete message must be self-describing: %s', error_message)
+  );
+  PERFORM rxdb_sql_regression.assert_rejection_detail(
+    error_detail, 'denied', 'rxdb_sql_regression', 'rls_hidden_ids', 'hidden-by-b', 'DELETE'
+  );
+END;
+$$;
+
+-- 调用方看不见 rls_hidden_ids 的行，事后核对放在 RESET ROLE 之后以属主身份执行
+CREATE FUNCTION rxdb_sql_regression.test_delete_hidden_row_verify()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.rls_hidden_ids WHERE id = 'hidden-by-b' AND value = 'original'),
+    'denied hidden-row delete must leave the row in place'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-hidden-delete-client'),
+    'denied hidden-row delete must not log'
+  );
+END;
+$$;
+
+-- 删除时行已不存在：幂等成功、日志照记；探针只接受同步表，非同步表零行仍是 22023
+CREATE FUNCTION rxdb_sql_regression.test_delete_gone()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  probe_rejected boolean := false;
+BEGIN
+  DELETE FROM public.rxdb_change
+  WHERE "clientId" = 'sql-delete-gone-client';
+
+  -- ① 整批都已不存在
+  mutation_result := public.rxdb_mutations(
+    '[]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","ids":["open-gone-1"]}]'::jsonb,
+    '[{
+      "namespace":"rxdb_sql_regression",
+      "entity":"PushOpen",
+      "schema":"rxdb_sql_regression",
+      "table":"push_open_ids",
+      "entityId":"open-gone-1",
+      "type":"DELETE",
+      "inversePatch":{"id":"open-gone-1","value":"gone"},
+      "branchId":"main",
+      "clientId":"sql-delete-gone-client",
+      "localId":750001
+    }]'::jsonb,
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(mutation_result->>'deleted' = '0', 'gone delete must report deleted = 0');
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-delete-gone-client') = 1,
+    'gone delete must still log the DELETE'
+  );
+
+  -- ② 一条真删、一条已不存在：部分零行同样幂等成功
+  mutation_result := public.rxdb_mutations(
+    '[]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","ids":["open-deletable-1","open-gone-2"]}]'::jsonb,
+    '[
+      {
+        "namespace":"rxdb_sql_regression",
+        "entity":"PushOpen",
+        "schema":"rxdb_sql_regression",
+        "table":"push_open_ids",
+        "entityId":"open-deletable-1",
+        "type":"DELETE",
+        "branchId":"main",
+        "clientId":"sql-delete-gone-client",
+        "localId":750002
+      },
+      {
+        "namespace":"rxdb_sql_regression",
+        "entity":"PushOpen",
+        "schema":"rxdb_sql_regression",
+        "table":"push_open_ids",
+        "entityId":"open-gone-2",
+        "type":"DELETE",
+        "inversePatch":{"id":"open-gone-2","value":"gone"},
+        "branchId":"main",
+        "clientId":"sql-delete-gone-client",
+        "localId":750003
+      }
+    ]'::jsonb,
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(mutation_result->>'deleted' = '1', 'partially gone delete must report deleted = 1');
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-deletable-1'),
+    'partially gone delete must still delete the existing row'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-delete-gone-client') = 3,
+    'partially gone delete must log both DELETEs'
+  );
+
+  -- ③ 非同步表上的零行删除：探针拒绝判定，整批失败
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      '[]'::jsonb,
+      '[{"schema":"rxdb_sql_regression","table":"text_ids","ids":["text-gone-1"]}]'::jsonb,
+      '[{
+        "namespace":"rxdb_sql_regression",
+        "entity":"TextEntity",
+        "schema":"rxdb_sql_regression",
+        "table":"text_ids",
+        "entityId":"text-gone-1",
+        "type":"DELETE",
+        "inversePatch":{"id":"text-gone-1","value":"gone"},
+        "branchId":"main",
+        "clientId":"sql-delete-gone-client",
+        "localId":750004
+      }]'::jsonb,
+      true
+    );
+  EXCEPTION
+    WHEN invalid_parameter_value THEN
+      probe_rejected := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    probe_rejected,
+    'zero-row delete on a non-sync table must raise 22023 from the existence probe'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-delete-gone-client' AND "localId" = 750004),
+    'probe-rejected delete must not log'
+  );
+END;
+$$;
+
+-- 同批一条被拒删除、一条可放行的新建：整批回滚，可放行的那条也不生效
+CREATE FUNCTION rxdb_sql_regression.test_mixed_batch_rollback()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  open_before text := rxdb_sql_regression.push_fingerprint('push_open_ids');
+  owned_before text := rxdb_sql_regression.push_fingerprint('rls_owned_ids');
+  rls_rejected boolean := false;
+BEGIN
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-mixed-1","value":"new"}]}]'::jsonb,
+      '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-b"]}]'::jsonb,
+      '[
+        {
+          "namespace":"rxdb_sql_regression",
+          "entity":"PushOpen",
+          "schema":"rxdb_sql_regression",
+          "table":"push_open_ids",
+          "entityId":"open-mixed-1",
+          "type":"INSERT",
+          "patch":{"id":"open-mixed-1","value":"new"},
+          "branchId":"main",
+          "clientId":"sql-mixed-batch-client",
+          "localId":760001
+        },
+        {
+          "namespace":"rxdb_sql_regression",
+          "entity":"RlsOwnedId",
+          "schema":"rxdb_sql_regression",
+          "table":"rls_owned_ids",
+          "entityId":"owned-by-b",
+          "type":"DELETE",
+          "branchId":"main",
+          "clientId":"sql-mixed-batch-client",
+          "localId":760002
+        }
+      ]'::jsonb,
+      true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      rls_rejected := true;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(rls_rejected, 'mixed batch with a denied delete must raise 42501');
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.push_fingerprint('push_open_ids') = open_before,
+    'mixed batch must roll back the allowed insert and every log'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.push_fingerprint('rls_owned_ids') = owned_before,
+    'mixed batch must leave the denied row in place'
+  );
+END;
+$$;
+
+-- push_open_ids 上的一条日志；patch / inversePatch 只为让快照有值，配对校验不读它们
+CREATE FUNCTION rxdb_sql_regression.push_log(
+  p_entity_id text,
+  p_type text,
+  p_local_id integer,
+  p_branch_id text DEFAULT 'main'
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'namespace', 'rxdb_sql_regression',
+    'entity', 'PushOpen',
+    'schema', 'rxdb_sql_regression',
+    'table', 'push_open_ids',
+    'entityId', p_entity_id,
+    'type', p_type,
+    'patch', CASE WHEN p_type = 'DELETE' THEN NULL ELSE pg_catalog.jsonb_build_object('id', p_entity_id, 'value', 'pushed') END,
+    'inversePatch', CASE WHEN p_type = 'INSERT' THEN NULL ELSE pg_catalog.jsonb_build_object('id', p_entity_id, 'value', 'original') END,
+    'branchId', p_branch_id,
+    'clientId', 'sql-push-integrity-client',
+    'localId', p_local_id
+  );
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.test_push_integrity()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  todo_id constant text := '22000000-0000-4000-8000-0000000000a1';
+BEGIN
+  DELETE FROM public.rxdb_change
+  WHERE "clientId" = 'sql-push-integrity-client';
+
+  -- ① 五种不配对各一例
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'explicit log in trigger mode',
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-int-1","value":"new"}]}]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('open-int-1', 'INSERT', 770001)),
+    false,
+    '[]'::jsonb,
+    'explicit_log_in_trigger_mode', 'INSERT', 'push_open_ids', 'open-int-1'
+  );
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'duplicate write',
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-int-2","value":"new"}]}]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","ids":["open-int-2"]}]'::jsonb,
+    pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('open-int-2', 'INSERT', 770002)),
+    true,
+    '[]'::jsonb,
+    'duplicate_write', 'DELETE', 'push_open_ids', 'open-int-2'
+  );
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'unpaired change',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('open-1', 'DELETE', 770003)),
+    true,
+    '[]'::jsonb,
+    'unpaired_change', 'DELETE', 'push_open_ids', 'open-1'
+  );
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'unpaired write',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb,
+    true,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-1","value":"changed"}]}]'::jsonb,
+    'unpaired_write', 'UPDATE', 'push_open_ids', 'open-1'
+  );
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'op mismatch',
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-int-3","value":"new"}]}]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.push_log('open-int-3', 'INSERT', 770004),
+      rxdb_sql_regression.push_log('open-int-3', 'DELETE', 770005)
+    ),
+    true,
+    '[]'::jsonb,
+    'op_mismatch', 'DELETE', 'push_open_ids', 'open-int-3'
+  );
+
+  -- ② 同时违反检查 3 与 4：按序报第一处
+  PERFORM rxdb_sql_regression.assert_integrity_violation(
+    'first violation wins',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('open-int-4', 'UPDATE', 770006)),
+    true,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-1","value":"changed"}]}]'::jsonb,
+    'unpaired_change', 'UPDATE', 'push_open_ids', 'open-int-4'
+  );
+
+  -- ③ 压缩：同一键三条 main 日志对应一次写
+  mutation_result := public.rxdb_mutations(
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-int-5","value":"compacted"}]}]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.push_log('open-int-5', 'INSERT', 770007),
+      rxdb_sql_regression.push_log('open-int-5', 'UPDATE', 770008),
+      rxdb_sql_regression.push_log('open-int-5', 'UPDATE', 770009)
+    ),
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(mutation_result->>'changes' = '3', 'compacted push must log all three changes');
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-int-5' AND value = 'compacted'),
+    'compacted push must apply the single write'
+  );
+
+  -- ④ 非 main 日志不参与配对
+  mutation_result := public.rxdb_mutations(
+    '[]'::jsonb,
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('open-1', 'UPDATE', 770010, 'feature-x')),
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(mutation_result->>'changes' = '1', 'non-main change must be logged without a write');
+
+  -- ⑤ 键归一：日志缺 schema 视为 public，缺 branchId 视为 main
+  mutation_result := public.rxdb_mutations(
+    pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'schema', 'public',
+      'table', 'todos',
+      'data', pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('id', todo_id, 'title', 'normalized'))
+    )),
+    '[]'::jsonb,
+    pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'namespace', 'public',
+      'entity', 'Todo',
+      'table', 'todos',
+      'entityId', todo_id,
+      'type', 'INSERT',
+      'patch', pg_catalog.jsonb_build_object('id', todo_id, 'title', 'normalized'),
+      'clientId', 'sql-push-integrity-client',
+      'localId', 770011
+    )),
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(mutation_result->>'changes' = '1', 'normalized key must pair the log with its write');
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM public.todos WHERE id = todo_id::uuid),
+    'normalized key push must apply the write'
+  );
+
+  -- ⑥ 触发器模式、无日志、不同键的两次写：只做重复写检查
+  mutation_result := public.rxdb_mutations(
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-int-6","value":"new"}]}]'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb,
+    false,
+    '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-1","value":"changed"}]}]'::jsonb
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    mutation_result->>'updated' = '1' AND pg_catalog.jsonb_array_length(mutation_result->'upserted') = 1,
+    'trigger-mode push without logs must apply both writes'
   );
 END;
 $$;
@@ -1221,6 +1749,7 @@ BEGIN
 END;
 $$;
 
+-- 同时覆盖 US-218 AC#3：显式日志模式下被拒的修改同样整批回滚，不留日志
 CREATE FUNCTION rxdb_sql_regression.test_update_denied()
 RETURNS void
 LANGUAGE plpgsql
@@ -1294,6 +1823,35 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     rxdb_sql_regression.value_as_owner('rls_update_denied_check', 'denied-check-1') = 'original',
     'UPDATE rejected by WITH CHECK must leave the row unchanged'
+  );
+
+  -- ④ 推送路径（p_skip_sync = true + 配对的 main 日志）：被拒同样 42501，日志随整批回滚
+  denied := false;
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_updates => '[{"schema":"rxdb_sql_regression","table":"rls_update_denied_using","data":[{"id":"denied-using-1","value":"changed"}]}]'::jsonb,
+      p_changes => '[{
+        "namespace":"rxdb_sql_regression",
+        "entity":"RlsUpdateDeniedUsing",
+        "schema":"rxdb_sql_regression",
+        "table":"rls_update_denied_using",
+        "entityId":"denied-using-1",
+        "type":"UPDATE",
+        "patch":{"value":"changed"},
+        "branchId":"main",
+        "clientId":"sql-update-denied-client",
+        "localId":780001
+      }]'::jsonb,
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      denied := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(denied, 'pushed UPDATE denied by RLS must raise 42501');
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-update-denied-client'),
+    'pushed UPDATE denied by RLS must not log'
   );
 END;
 $$;
@@ -1418,7 +1976,18 @@ SELECT rxdb_sql_regression.test_update_denied()
 WHERE :'test_case' IN ('all', 'update-denied');
 SELECT rxdb_sql_regression.test_update_gone()
 WHERE :'test_case' IN ('all', 'update-gone');
+SELECT rxdb_sql_regression.test_delete_hidden_row()
+WHERE :'test_case' IN ('all', 'delete-hidden-row');
+SELECT rxdb_sql_regression.test_delete_gone()
+WHERE :'test_case' IN ('all', 'delete-gone');
+SELECT rxdb_sql_regression.test_mixed_batch_rollback()
+WHERE :'test_case' IN ('all', 'mixed-batch-rollback');
+SELECT rxdb_sql_regression.test_push_integrity()
+WHERE :'test_case' IN ('all', 'push-integrity');
 RESET ROLE;
+
+SELECT rxdb_sql_regression.test_delete_hidden_row_verify()
+WHERE :'test_case' IN ('all', 'delete-hidden-row');
 
 SELECT rxdb_sql_regression.test_trigger_schema()
 WHERE :'test_case' IN ('all', 'trigger-schema');
