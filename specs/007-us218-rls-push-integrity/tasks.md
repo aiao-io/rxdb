@@ -189,7 +189,7 @@
 
 ### Tests（先红）
 
-- [ ] T020 [P] 在 `packages/rxdb/src/__tests__/system/migration.spec.ts` 把
+- [X] T020 [P] 在 `packages/rxdb/src/__tests__/system/migration.spec.ts` 把
       `expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(6)` 改为 `7`；在 `packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.spec.ts` 与
       `packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts` 各加：模式 6 的库升级后 `RxDBChange` 多出 `rejectedAt`、`rejection`
       两列，可空，旧行两列均为空；重复执行迁移不报错（FR-021）。确认红
@@ -204,9 +204,9 @@
 
 ### Implementation
 
-- [ ] T023 在 `packages/rxdb/src/system/change.ts` 的 `RxDBChange` 加两列，带 TSDoc：`rejectedAt`——「时间戳，可空」，默认 `null`；
+- [X] T023 在 `packages/rxdb/src/system/change.ts` 的 `RxDBChange` 加两列，带 TSDoc：`rejectedAt`——「时间戳，可空」，默认 `null`；
       `rejection`——「JSON，可空（RemoteChangeRejection）」，默认 `null`；与 `remoteId` 互斥（同一行最多其一非空，data-model §5）
-- [ ] T024 系统模式迁移：`packages/rxdb/src/system/migration.ts` 的 `RXDB_SYSTEM_SCHEMA_VERSION` 6 → 7；
+- [X] T024 系统模式迁移：`packages/rxdb/src/system/migration.ts` 的 `RXDB_SYSTEM_SCHEMA_VERSION` 6 → 7；
       `packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts` 的 `migrateSystemSchema` 照 `ensureBranchActiveKey` 的写法
       （`pragma_table_info` 判存在 + `ALTER TABLE ADD COLUMN`）补两列；`packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts` 同样补齐
       （`ADD COLUMN IF NOT EXISTS`）。T020 转绿

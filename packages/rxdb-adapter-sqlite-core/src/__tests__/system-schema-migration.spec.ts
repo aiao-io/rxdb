@@ -222,7 +222,7 @@ describe('SQLite system schema migration', () => {
     await adapter.migrateSystemSchema();
 
     const addColumns = state.sql.filter(sql =>
-      /^ALTER TABLE "rxdb_change" ADD COLUMN "(rejectedAt|rejection)"/.test(sql)
+      /^ALTER TABLE "rxdb\$rxdb_change" ADD COLUMN "(rejectedAt|rejection)"/.test(sql)
     );
     expect(addColumns).toHaveLength(2);
     for (const sql of addColumns) expect(sql).not.toMatch(/NOT NULL|DEFAULT/i);
@@ -232,14 +232,14 @@ describe('SQLite system schema migration', () => {
   it('两列已在、水位线仍停在模式 6 时重复迁移不报错也不重复加列', async () => {
     const { client, state } = createMigrationClient(
       [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`, RXDB_CHANGE_CODEC_WATERMARK],
-      ['rxdb_change.rejectedAt', 'rxdb_change.rejection']
+      ['rxdb$rxdb_change.rejectedAt', 'rxdb$rxdb_change.rejection']
     );
     const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
     await adapter.connect();
 
     await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
 
-    expect(state.sql.some(sql => sql.startsWith('ALTER TABLE "rxdb_change"'))).toBe(false);
+    expect(state.sql.some(sql => sql.startsWith('ALTER TABLE "rxdb$rxdb_change"'))).toBe(false);
     expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
   });
 });

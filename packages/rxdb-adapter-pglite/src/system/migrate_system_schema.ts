@@ -42,6 +42,44 @@ export interface SystemSchemaMigrationHost {
 }
 
 /**
+ * 系统模式 7 给 `RxDBChange` 补的两列，见 {@link ensureChangeRejectionColumns}
+ */
+const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
+
+/**
+ * 系统模式 7：给 `RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B 的推送回执）
+ *
+ * @remarks
+ * 与 sqlite 侧 `RxDBAdapterSqliteBase.ts` 的 `ensureChangeRejectionColumns` 逐语义对齐，改动
+ * 必须两端同改（不合一的理由同 {@link ensureBranchActiveKey}）。先探列再补，「列已在、水位线
+ * 仍停在 6」的库重跑一趟不报错。列类型走建表同一个 helper；两列都可空，旧行为 `null`，不回填。
+ */
+const ensureChangeRejectionColumns = async (
+  tx: Pick<IPGliteClient, 'query'>,
+  changeMetadata: EntityMetadata,
+  existingTables: ReadonlySet<string>
+): Promise<void> => {
+  if (!existingTables.has(`${changeMetadata.namespace}\u0000${changeMetadata.tableName}`)) return;
+
+  const changeTable = getTableNameByMetadata(changeMetadata);
+  for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
+    const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
+    if (!property) {
+      throw new RxdbAdapterPGliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
+    }
+    const columnResult = await tx.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
+      [changeMetadata.namespace, changeMetadata.tableName, property.columnName]
+    );
+    if (columnResult.rows.length > 0) continue;
+    await tx.query(
+      `ALTER TABLE ${changeTable} ADD COLUMN ${quoteIdentifier(property.columnName)} ${rxDBColumnTypeToPGliteType(property)}`
+    );
+  }
+};
+
+/**
  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
  *
  * @param tx - 迁移那个事务
@@ -273,6 +311,7 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         );
 
         await ensureBranchActiveKey(tx, branchMetadata, existingTables);
+        await ensureChangeRejectionColumns(tx, changeMetadata, existingTables);
 
         for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
           await tx.query(

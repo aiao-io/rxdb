@@ -171,6 +171,45 @@ const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
 };
 
 /**
+ * 系统模式 7 给 `RxDBChange` 补的两列，见 {@link ensureChangeRejectionColumns}
+ */
+const CHANGE_REJECTION_PROPERTY_NAMES = ['rejectedAt', 'rejection'] as const;
+
+/**
+ * 系统模式 7：给 `RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B 的推送回执）
+ *
+ * @remarks
+ * 与 PGlite 侧 `system/migrate_system_schema.ts` 的 `ensureChangeRejectionColumns` 逐语义对齐，
+ * 改动必须两端同改。与 {@link ensureBranchActiveKey} 一样先探列再补：SQLite 的
+ * `ADD COLUMN` 没有 `IF NOT EXISTS`，「列已在、水位线仍停在 6」的库重跑一趟必须不报错。
+ * 列类型走建表同一个 helper；两列都可空，旧行为 `null`，不回填。
+ */
+const ensureChangeRejectionColumns = async (client: SqliteClientLike): Promise<void> => {
+  const changeMetadata = getEntityMetadata(RxDBChange);
+  const changeTableName = get_table_name_by_metadata(changeMetadata);
+  const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+    changeTableName
+  ]);
+  if (!tableResult.results.some(result => result.rows.length > 0)) return;
+
+  const changeTable = quote_sql_identifier(changeTableName);
+  for (const propertyName of CHANGE_REJECTION_PROPERTY_NAMES) {
+    const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
+    if (!property) {
+      throw new RxDBAdapterSqliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
+    }
+    const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
+      changeTableName,
+      property.columnName
+    ]);
+    if (columnResult.results.some(result => result.rows.length > 0)) continue;
+    await client.execute(
+      `ALTER TABLE ${changeTable} ADD COLUMN ${quote_sql_identifier(property.columnName)} ${rxDBColumnTypeToSqliteType(property)}`
+    );
+  }
+};
+
+/**
  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
  *
  * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
@@ -865,6 +904,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           );
 
           await ensureBranchActiveKey(client);
+          await ensureChangeRejectionColumns(client);
 
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(
