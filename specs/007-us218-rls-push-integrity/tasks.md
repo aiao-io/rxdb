@@ -196,7 +196,7 @@
 - [X] T021 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts` 与 `transient-write-retry.spec.ts` 加断言：PostgREST 错误体
       `{code, message, details, hint}` 经 `executeRetryableWrite` / `classify_postgrest_error` 后，抛出的 `SupabaseDataError` 带只读 `code`、`details`；
       网络错误与 5xx 仍按既有重试语义处理、不变成 `SupabaseDataError`（FR-016、AC#13）。确认红
-- [ ] T022 [P] 在推送仓库测试加覆盖检查用例（FR-017、AC#14，[remote-merge-result §2](contracts/remote-merge-result.md)）：远端结果对本批 `sourceChanges`
+- [X] T022 [P] 在推送仓库测试加覆盖检查用例（FR-017、AC#14，[remote-merge-result §2](contracts/remote-merge-result.md)）：远端结果对本批 `sourceChanges`
       缺项 / 重复 / 多出未知 `localId` 各一例 → 本轮抛错、`lastPushedChangeId` 不动、本地无任何 `remoteId` 写入；把既有用例
       「远端返回非映射结果时仍推进水位线，但不保存本地变更」改写为「回执缺项时整轮失败、水位线不动」；再加一例：一批含已抵消的
       INSERT→DELETE 对与一条正常 UPDATE，远端只回那条 UPDATE 的结果 → 覆盖检查通过、水位线越过整批（抵消的变更不在 `sourceChanges`）；
@@ -210,23 +210,23 @@
       `packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts` 的 `migrateSystemSchema` 照 `ensureBranchActiveKey` 的写法
       （`pragma_table_info` 判存在 + `ALTER TABLE ADD COLUMN`）补两列；`packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts` 同样补齐
       （`ADD COLUMN IF NOT EXISTS`）。T020 转绿
-- [ ] T025 在 `packages/rxdb/src/rxdb-adapter.ts` 按 [remote-merge-result §1](contracts/remote-merge-result.md) 定义并导出 `RemoteMergeResult`、
+- [X] T025 在 `packages/rxdb/src/rxdb-adapter.ts` 按 [remote-merge-result §1](contracts/remote-merge-result.md) 定义并导出 `RemoteMergeResult`、
       `RemoteChangeResult`、`RemoteChangeRejection`、`RemoteEntityRef`（TSDoc 照契约），删除 `changeIdMapping`；文件中两处 `abstract mergeChanges`
       的返回类型都改为 `Promise<RemoteMergeResult>`；不传 `changes` 时约定 `results` 为空数组。确认 `packages/rxdb/src/index.ts` 导出新类型
-- [ ] T026 [P] `packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts` 的 `mergeChanges` 只把返回类型改为 `Promise<RemoteMergeResult>`，仍抛 `HttpChangelogUnsupportedError`
+- [X] T026 [P] `packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts` 的 `mergeChanges` 只把返回类型改为 `Promise<RemoteMergeResult>`，仍抛 `HttpChangelogUnsupportedError`
 - [X] T027 [P] 在 `packages/rxdb-adapter-supabase/src/errors.ts` 给 `SupabaseDataError` 加只读 `code?: string`、`details?: string`（TSDoc）；
       `packages/rxdb-adapter-supabase/src/postgrest-error.ts` 的 `classify_postgrest_error` 与适配器的 `executeRetryableWrite` 保留 `code` / `details` / `hint`。T021 转绿
-- [ ] T028 改推送仓库：删除 `getChangeIdMapping`；`mapRemoteIds` 只读 `status = 'applied'` 的结果；在写本地之前对本批 `sourceChanges` 做覆盖检查
+- [X] T028 改推送仓库：删除 `getChangeIdMapping`；`mapRemoteIds` 只读 `status = 'applied'` 的结果；在写本地之前对本批 `sourceChanges` 做覆盖检查
       （缺项 / 重复 / 多余 → 抛错，不写本地、不推进水位线）；`sourceChangesByLocalId` 不再用于扇出（无其它使用则删除）。`rejected` 结果的提交在 US3 实现。T022 转绿
-- [ ] T029 适配器的 `mergeChanges` 改为返回 `RemoteMergeResult`：本批每个源变更 `localId` 在 `change_id_mapping` 中 → `{localId, status: 'applied', remoteId}`；
+- [X] T029 适配器的 `mergeChanges` 改为返回 `RemoteMergeResult`：本批每个源变更 `localId` 在 `change_id_mapping` 中 → `{localId, status: 'applied', remoteId}`；
       不在 → 抛 `SupabaseDataError`（不再返回 `number | void`）。此时仍调 5 参 `rxdb_mutations`
-- [ ] T030 [P] 测试夹具按新契约迁移（[remote-merge-result §5](contracts/remote-merge-result.md)），每个文件的 mock 都返回 `{results: [...]}`：
+- [X] T030 [P] 测试夹具按新契约迁移（[remote-merge-result §5](contracts/remote-merge-result.md)），每个文件的 mock 都返回 `{results: [...]}`：
       `packages/rxdb-plugin-sync/src/__tests__/{push-repository,push-protocol,push-pull-protocol.integration}.spec.ts`、
       `packages/rxdb-plugin-sync/src/__tests__/contracts/push-repository.spec.ts`
-- [ ] T031 [P] 同上：`packages/rxdb-adapter-sqlite-wasm` 下的 `branch-materialization-sync.spec.ts`、`querycache-identity.spec.ts`
-- [ ] T032 [P] 同上：`packages/rxdb-adapter-supabase/src/__tests__/` 下 `transient-write-retry`、`review-regressions`、`pull-push-changes`、
+- [X] T031 [P] 同上：`packages/rxdb-adapter-sqlite-wasm` 下的 `branch-materialization-sync.spec.ts`、`querycache-identity.spec.ts`
+- [X] T032 [P] 同上：`packages/rxdb-adapter-supabase/src/__tests__/` 下 `transient-write-retry`、`review-regressions`、`pull-push-changes`、
       `filter-sync-snapshots`、`utils`、`repository-sync` 六个 spec；迁移完 `grep -rn changeIdMapping packages apps` 应只剩 SQL 返回字段 `change_id_mapping`
-- [ ] T033 检查点：`pnpm nx run-many -t test typecheck --projects=rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-adapter-http,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-adapter-pglite` 全绿
+- [X] T033 检查点：`pnpm nx run-many -t test typecheck --projects=rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-adapter-http,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-adapter-pglite` 全绿
 
 **Checkpoint**: 新契约就位，行为与 PR-A 相同（全部 applied 或整批失败）
 
