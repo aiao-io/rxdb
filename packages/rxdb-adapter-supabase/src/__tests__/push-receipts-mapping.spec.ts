@@ -1,19 +1,27 @@
 /**
- * @fileoverview US-218 阶段 B：`mergeChanges` 回执映射（T038）
+ * @fileoverview US-218 阶段 B：`mergeChanges` 回执映射（T038 / T051）
  *
  * 覆盖 [contracts/remote-merge-result.md](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md) §3
  * 与 [contracts/rxdb-mutations-receipts.md](../../../specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md) §5-6：
  * `mergeChanges` 如何把 `rxdb_mutations`（`p_receipts = true`）的回执（`change_id_mapping` + `entity_results`）
- * 翻译成 `RemoteMergeResult.results`。`dependsOn` 的表引用反查见 T051 补的用例。
+ * 翻译成 `RemoteMergeResult.results`，以及 `dependsOn` 的表引用如何反查回本地实体引用。
  *
  * 全程 mock `client.rpc`，不连远端。
  */
 
-import { compactChanges, type IRxDBChange, type RxDB } from '@aiao/rxdb';
+import { Entity, EntityBase, compactChanges, type IRxDBChange, type RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { describe, expect, it, vi } from 'vitest';
 import { SupabaseDataError } from '../errors.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+
+/** dependsOn 反查目标：与 Todo 同命名空间（`public`）的另一张表，用于验证跨实体反查 */
+@Entity({
+  name: 'Project',
+  tableName: 'projects',
+  properties: []
+})
+class Project extends EntityBase {}
 
 interface EntityMetadataFixture {
   namespace: string;
@@ -38,8 +46,9 @@ function createRxdb(entities: EntityMetadataFixture[]): RxDB {
 }
 
 const TODO_METADATA: EntityMetadataFixture = { namespace: 'public', name: 'Todo', tableName: 'todos' };
+const PROJECT_METADATA: EntityMetadataFixture = { namespace: 'public', name: 'Project', tableName: 'projects' };
 
-function createAdapter(entities: EntityMetadataFixture[] = [TODO_METADATA]) {
+function createAdapter(entities: EntityMetadataFixture[] = [TODO_METADATA, PROJECT_METADATA]) {
   const rpc = vi.fn();
   const rxdb = createRxdb(entities);
   const adapter = new RxDBAdapterSupabase(rxdb, { client: { rpc } as never });
@@ -262,5 +271,109 @@ describe('mergeChanges: PGRST202（旧 SQL，RPC 未升级）', () => {
 
     expect(failure).toBeInstanceOf(SupabaseDataError);
     expect(failure.code).toBe('PGRST202');
+  });
+});
+
+describe('mergeChanges: dependsOn 反查（T051）', () => {
+  it('dependsOn 为表引用 → 经 getEntityMetadataByTableName 反查成 RemoteEntityRef', async () => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({
+      data: {
+        max_change_id: 1,
+        change_id_mapping: [],
+        entity_results: [
+          {
+            schema: 'public',
+            table: 'todos',
+            entityId: 'todo-1',
+            op: 'INSERT',
+            status: 'rejected',
+            code: '23503',
+            reason: 'dependency',
+            message: 'fk violation',
+            dependsOn: { schema: 'public', table: 'projects', entityId: 'project-9' },
+            localIds: [1]
+          }
+        ]
+      },
+      error: null,
+      status: 200
+    });
+
+    const result = await callMergeChanges(adapter, [makeChange({ id: 1 })]);
+
+    expect(result.results).toEqual([
+      {
+        localId: 1,
+        status: 'rejected',
+        rejection: expect.objectContaining({
+          dependsOn: { namespace: 'public', entity: 'Project', entityId: 'project-9' }
+        })
+      }
+    ]);
+  });
+
+  it('dependsOn 为 {constraint} → 原样透传，不经反查', async () => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({
+      data: {
+        max_change_id: 1,
+        change_id_mapping: [],
+        entity_results: [
+          {
+            schema: 'public',
+            table: 'todos',
+            entityId: 'todo-1',
+            op: 'INSERT',
+            status: 'rejected',
+            code: '23503',
+            reason: 'dependency',
+            message: 'fk violation',
+            dependsOn: { constraint: 'todos_project_id_fkey' },
+            localIds: [1]
+          }
+        ]
+      },
+      error: null,
+      status: 200
+    });
+
+    const result = await callMergeChanges(adapter, [makeChange({ id: 1 })]);
+
+    expect(result.results).toEqual([
+      {
+        localId: 1,
+        status: 'rejected',
+        rejection: expect.objectContaining({ dependsOn: { constraint: 'todos_project_id_fkey' } })
+      }
+    ]);
+  });
+
+  it('dependsOn 表引用反查不到已注册实体 → 抛 SupabaseDataError（无 fallback 兜底）', async () => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({
+      data: {
+        max_change_id: 1,
+        change_id_mapping: [],
+        entity_results: [
+          {
+            schema: 'public',
+            table: 'unregistered_table',
+            entityId: 'todo-1',
+            op: 'INSERT',
+            status: 'rejected',
+            code: '23503',
+            reason: 'dependency',
+            message: 'fk violation',
+            dependsOn: { schema: 'public', table: 'unregistered_table', entityId: 'x-1' },
+            localIds: [1]
+          }
+        ]
+      },
+      error: null,
+      status: 200
+    });
+
+    await expect(callMergeChanges(adapter, [makeChange({ id: 1 })])).rejects.toThrow(SupabaseDataError);
   });
 });
