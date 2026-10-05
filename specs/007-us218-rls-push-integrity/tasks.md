@@ -345,11 +345,11 @@
 
 ### Tests（先红）
 
-- [ ] T057 [P] [US5] 新建共享夹具 `packages/rxdb-test/src/cross-framework-fixtures/sync-rejections.ts`（一份含 `denied` 与 `dependency` 两条的
+- [X] T057 [P] [US5] 新建共享夹具 `packages/rxdb-test/src/cross-framework-fixtures/sync-rejections.ts`（一份含 `denied` 与 `dependency` 两条的
       `readonly SyncRejection[]`，`dependency` 那条带 `dependsOn`），在 `packages/rxdb-test/src/cross-framework-fixtures/index.ts` 导出
-- [ ] T058 [P] [US5] `packages/rxdb/src/__tests__/sync-state.spec.ts`：初始 `lastRejections` 是冻结空数组且引用稳定；`reportRejections([])` 不改状态、不发事件；
+- [X] T058 [P] [US5] `packages/rxdb/src/__tests__/sync-state.spec.ts`：初始 `lastRejections` 是冻结空数组且引用稳定；`reportRejections([])` 不改状态、不发事件；
       非空时整体替换；之后一轮成功推送仍保留；下一次非空上报整体替换；`sameState` 按引用比较
-- [ ] T059 [P] [US5] 三框架绑定 spec 各加一条（用 T057 夹具）：hub 上报 → 绑定读到同一引用；成功一轮 → 仍保留；再上报 → 替换。文件：
+- [X] T059 [P] [US5] 三框架绑定 spec 各加一条（用 T057 夹具）：hub 上报 → 绑定读到同一引用；成功一轮 → 仍保留；再上报 → 替换。文件：
       `packages/rxdb-angular/src/__tests__/use-sync-state.spec.ts`（`Signal`）、`packages/rxdb-vue/src/__tests__/use-sync-state.spec.ts`（`ComputedRef`）、
       `packages/rxdb-react/src/__tests__/use-sync-state.spec.tsx`（透传字段）
 - [ ] T060 [P] [US5] 推送仓库测试：本地提交成功且本轮有被拒 → 调一次 `sm.rxdb.syncState.reportRejections`，每条 `SyncRejection` 字段为
@@ -368,11 +368,11 @@
 
 ### Implementation
 
-- [ ] T065 [US5] 在 `packages/rxdb/src/sync-state.ts` 按 [sync-rejections-api §1](contracts/sync-rejections-api.md) 定义并导出 `SyncRejectionReport`、
+- [X] T065 [US5] 在 `packages/rxdb/src/sync-state.ts` 按 [sync-rejections-api §1](contracts/sync-rejections-api.md) 定义并导出 `SyncRejectionReport`、
       `SyncRejection`（TSDoc 照契约），`SyncState` 加只读 `lastRejections`，`INITIAL_STATE.lastRejections` 为冻结空数组，`sameState` 按引用比较
       （照 `lastConflict` 的写法）；`SyncStateHub.reportRejections(rejections)`：空数组不改状态，非空整体替换。T058 转绿
 - [ ] T066 [US5] 推送仓库在本地提交成功后、本轮被拒非空时调用 `reportRejections`（data-model §7 步骤 4）。T060 转绿
-- [ ] T067 [US5] 三框架绑定：`packages/rxdb-angular` 的 `useSyncState()` 加 `lastRejections: Signal<readonly SyncRejection[]>`（`computed`）；
+- [X] T067 [US5] 三框架绑定：`packages/rxdb-angular` 的 `useSyncState()` 加 `lastRejections: Signal<readonly SyncRejection[]>`（`computed`）；
       `packages/rxdb-vue` 加 `lastRejections: ComputedRef<readonly SyncRejection[]>`；`packages/rxdb-react` 透传，在 `useSyncState` 的 TSDoc 里提及
       `lastRejections`。不新增函数。T059 转绿
 - [ ] T068 [US5] Demo 面板：Angular 新建 `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts`，挂到 `todo/todo.page.html`；React 新建
