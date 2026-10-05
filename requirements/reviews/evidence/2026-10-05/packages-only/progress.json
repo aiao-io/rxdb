@@ -43,11 +43,11 @@
       "textFiles": 14,
       "lines": 1732,
       "binaryFiles": 0,
-      "status": "queued",
-      "startedAt": null,
+      "status": "in-progress",
+      "startedAt": "2026-10-05T23:28:07.254155+08:00",
       "completedAt": null,
       "completionEvidence": null,
-      "worker": null,
+      "worker": "current-chat",
       "newInThisRun": false
     },
     "code-editor-vue": {
@@ -857,6 +857,12 @@
         "remaining": 35
       },
       "etaAtCompletion": "5小时46分钟–11小时31分钟"
+    },
+    {
+      "kind": "started",
+      "object": "code-editor-react",
+      "at": "2026-10-05T23:28:07.254155+08:00",
+      "worker": "current-chat"
     }
   ],
   "estimate": {
@@ -882,5 +888,5 @@
     "remainingLines": 555578,
     "computedAt": "2026-10-05T16:53:39.699016+08:00"
   },
-  "updatedAt": "2026-10-05T16:53:39.699016+08:00"
+  "updatedAt": "2026-10-05T23:28:07.254155+08:00"
 }

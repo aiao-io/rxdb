@@ -1,0 +1,171 @@
+[
+  {
+    "part": 1,
+    "ranges": {
+      "packages/code-editor-react/LICENSE": [
+        1,
+        21
+      ],
+      "packages/code-editor-react/README.md": [
+        1,
+        116
+      ],
+      "packages/code-editor-react/eslint.config.mjs": [
+        1,
+        21
+      ],
+      "packages/code-editor-react/package.json": [
+        1,
+        19
+      ]
+    }
+  },
+  {
+    "part": 2,
+    "ranges": {
+      "packages/code-editor-react/package.json": [
+        20,
+        66
+      ],
+      "packages/code-editor-react/project.json": [
+        1,
+        10
+      ],
+      "packages/code-editor-react/src/CodeEditor.tsx": [
+        1,
+        117
+      ]
+    }
+  },
+  {
+    "part": 3,
+    "ranges": {
+      "packages/code-editor-react/src/CodeEditor.tsx": [
+        118,
+        296
+      ]
+    }
+  },
+  {
+    "part": 4,
+    "ranges": {
+      "packages/code-editor-react/src/CodeEditor.tsx": [
+        297,
+        439
+      ]
+    }
+  },
+  {
+    "part": 5,
+    "ranges": {
+      "packages/code-editor-react/src/CodeEditor.tsx": [
+        440,
+        534
+      ],
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        1,
+        39
+      ]
+    }
+  },
+  {
+    "part": 6,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        40,
+        169
+      ]
+    }
+  },
+  {
+    "part": 7,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        170,
+        301
+      ]
+    }
+  },
+  {
+    "part": 8,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        302,
+        407
+      ]
+    }
+  },
+  {
+    "part": 9,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        408,
+        514
+      ]
+    }
+  },
+  {
+    "part": 10,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        515,
+        625
+      ]
+    }
+  },
+  {
+    "part": 11,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx": [
+        626,
+        682
+      ],
+      "packages/code-editor-react/src/__tests__/index.spec.ts": [
+        1,
+        13
+      ],
+      "packages/code-editor-react/src/__tests__/review-language-sync-throw.spec.tsx": [
+        1,
+        62
+      ]
+    }
+  },
+  {
+    "part": 12,
+    "ranges": {
+      "packages/code-editor-react/src/__tests__/review-language-sync-throw.spec.tsx": [
+        63,
+        65
+      ],
+      "packages/code-editor-react/src/index.ts": [
+        1,
+        23
+      ],
+      "packages/code-editor-react/tsconfig.json": [
+        1,
+        16
+      ],
+      "packages/code-editor-react/tsconfig.lib.json": [
+        1,
+        45
+      ],
+      "packages/code-editor-react/tsconfig.spec.json": [
+        1,
+        31
+      ],
+      "packages/code-editor-react/vite.config.mts": [
+        1,
+        77
+      ]
+    }
+  },
+  {
+    "part": 13,
+    "ranges": {
+      "packages/code-editor-react/vite.config.mts": [
+        78,
+        89
+      ]
+    }
+  }
+]
