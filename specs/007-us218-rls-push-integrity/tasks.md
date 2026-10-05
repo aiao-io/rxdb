@@ -355,15 +355,15 @@
 - [ ] T060 [P] [US5] 推送仓库测试：本地提交成功且本轮有被拒 → 调一次 `sm.rxdb.syncState.reportRejections`，每条 `SyncRejection` 字段为
       `namespace`、`entity`、`entityId`、`op`（取回执的合并后操作，不是源变更类型）、`code`、`reason`、`message`、`dependsOn?`、`at`、`changeIds`；
       本轮无被拒 → 不调用；提交失败 → 不调用（sync-rejections-api §2）
-- [ ] T061 [P] [US5] Angular demo 面板 spec `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.spec.ts`：hub 上报 T057 夹具后，面板以语义列表
+- [X] T061 [P] [US5] Angular demo 面板 spec `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.spec.ts`：hub 上报 T057 夹具后，面板以语义列表
       （`ul` / `li`）列出实体、操作、原因、消息；空列表时显示空态文字
-- [ ] T062 [P] [US5] React 面板 spec `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.spec.tsx` 与 Vue 面板 spec
+- [X] T062 [P] [US5] React 面板 spec `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.spec.tsx` 与 Vue 面板 spec
       `apps/dev-rxdb-vue/src/app/components/SyncRejectionsPanel.spec.ts`：同 T061，经 hub 渲染共享夹具（React 参照 `LoadingBar.spec.tsx`，
       Vue 用 `apps/dev-rxdb-vue/vitest.config.ts`）
 - [ ] T063 [US5] Supabase demo e2e：在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 加场景——上下文 A 新建待办并推送；上下文 B 拉取；
       A 删除并推送；B 勾选完成（走 `p_updates`）并推送 → B 的面板出现一条 `gone`（`RX001`）被拒。用 `gone` 而非 `denied` 的原因：参考 `todos`
       表关闭 RLS、demo 无登录（spec US5 已登记为批准的偏离）
-- [ ] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
+- [X] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
       照 `working-tree.a11y.spec.ts` 的写法：打开待办页，被拒面板空态可见，a11y 扫描无新增违规
 
 ### Implementation

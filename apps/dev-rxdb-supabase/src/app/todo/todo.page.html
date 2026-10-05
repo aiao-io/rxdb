@@ -245,6 +245,9 @@
       <div class="alert alert-error mx-auto mb-3 max-w-4xl py-2 text-sm">{{ $crudError() }}</div>
     }
 
+    <!-- US-218 AC#16：最近一轮被远端拒绝的推送 -->
+    <app-sync-rejections-panel />
+
     <!-- Todo List -->
     <!-- P2-3：原先 e2e 只能写 `cdk-virtual-scroll-viewport li`（拿 CDK 的实现细节当选择器）
          和 `input.todo-input`（页面级、不限定行）。补上 viewport 与行级 testid。 -->

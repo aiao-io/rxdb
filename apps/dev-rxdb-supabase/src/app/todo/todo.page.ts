@@ -32,11 +32,12 @@ import {
 import { HistorySidebarComponent } from '@modules/angular';
 import { getErrorMessage } from '../error-message';
 import { RemoteSyncState } from '../remote-sync-state';
+import { SyncRejectionsPanel } from '../sync-rejections-panel';
 import { createTodoBatchTitles, persistCompleted, persistCompletedBatch } from '../todo-interactions';
 
 @Component({
   selector: 'app-todo-page',
-  imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule, HistorySidebarComponent],
+  imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule, HistorySidebarComponent, SyncRejectionsPanel],
   templateUrl: './todo.page.html',
   styleUrls: ['./todo.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
