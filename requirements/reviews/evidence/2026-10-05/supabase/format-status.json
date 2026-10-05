@@ -66,8 +66,8 @@
     "requirements/reviews/results/packages/rxdb-adapter-wa-sqlite.md",
     "requirements/reviews/results/packages/rxdb-plugin-querycache.md"
   ],
-  "format-write": 0,
   "format-check": 0,
-  "scoped-working-diff": 0,
-  "scoped-staged-diff": 0
+  "format-write": 0,
+  "scoped-staged-diff": 0,
+  "scoped-working-diff": 0
 }
