@@ -10,6 +10,7 @@ import {
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ErrorHandler,
   InjectionToken,
   Input,
@@ -86,6 +87,19 @@ class MultiInstanceHost {}
 class RequiredInputHost {
   readonly source = input.required<SearchSourceLike>();
   readonly search = useSearch(this.source);
+}
+
+@Component({ standalone: true, template: '' })
+class RequiredSourcePlainOptionsHost {
+  readonly source = input.required<SearchSourceLike>();
+  readonly search = useSearch(this.source, { initialQuery: 'seed' });
+}
+
+@Component({ standalone: true, template: '' })
+class RequiredOptionsHost {
+  readonly source = input.required<SearchSourceLike>();
+  readonly options = input.required<SearchOptions>();
+  readonly search = useSearch(this.source, this.options);
 }
 
 const row = (id: string): SearchResult => ({
@@ -409,6 +423,64 @@ describe('第二轮评审：Angular 真实 SearchHandle 与生命周期', () => 
       const fixture = TestBed.createComponent(RequiredInputHost);
       fixture.componentRef.setInput('source', source.source);
       fixture.detectChanges();
+    }).not.toThrow();
+  });
+
+  /**
+   * RV-077 回归边界：必填 signal 输入「从未绑定就被销毁」。
+   *
+   * @remarks
+   * 与上一个用例互补——上一个验证「先创建后 setInput」不炸；这一个验证
+   * 反过来、整个生命周期都没有 setInput/detectChanges 时，`useSearch` 字段
+   * 初始化器里的 `readUnlessUnbound()` 识别 NG0950 后不安装 handle，
+   * `rebuildRef`/`queryEffectRef` 两个 `effect()` 的首次执行都排在下一次
+   * CD flush 之后——创建到销毁之间若从未触发 CD，它们根本不会跑，
+   * 不会在已销毁的注入上下文里读取信号，也没有 handle 可泄漏。
+   */
+  it('必填 source 推迟安装时，普通 options 的 initialQuery 仍作种子', () => {
+    const source = makeSource(async query => page(query));
+    const fixture = TestBed.createComponent(RequiredSourcePlainOptionsHost);
+    expect(fixture.componentInstance.search.query()).toBe('seed');
+    fixture.componentRef.setInput('source', source.source);
+    fixture.detectChanges();
+
+    expect(source.search).toHaveBeenCalledTimes(1);
+    expect(source.search).toHaveBeenCalledWith('seed', { initialQuery: 'seed' });
+    fixture.destroy();
+  });
+
+  it('必填 options 推迟安装时补种 initialQuery，但不覆盖安装前用户已写入的 query', () => {
+    const seeded = makeSource(async query => page(query));
+    const fixture = TestBed.createComponent(RequiredOptionsHost);
+    fixture.componentRef.setInput('source', seeded.source);
+    fixture.componentRef.setInput('options', { initialQuery: 'seed' });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.search.query()).toBe('seed');
+    expect(seeded.search).toHaveBeenCalledWith('seed', { initialQuery: 'seed' });
+    fixture.destroy();
+
+    const typed = makeSource(async query => page(query));
+    const typedFixture = TestBed.createComponent(RequiredOptionsHost);
+    typedFixture.componentInstance.search.query.set('typed');
+    typedFixture.componentRef.setInput('source', typed.source);
+    typedFixture.componentRef.setInput('options', { initialQuery: 'seed' });
+    typedFixture.detectChanges();
+    expect(typedFixture.componentInstance.search.query()).toBe('typed');
+    expect(typed.search).toHaveBeenCalledWith('typed', { initialQuery: 'seed' });
+    typedFixture.destroy();
+  });
+
+  it('读取 source signal 的非 NG0950 异常原样抛出，不当作「尚未绑定」吞掉', () => {
+    const broken = computed<SearchSourceLike>(() => {
+      throw new Error('source 计算失败');
+    });
+    expect(() => TestBed.runInInjectionContext(() => useSearch(broken))).toThrow('source 计算失败');
+  });
+
+  it('必填 source 从未绑定、组件创建后即销毁，不抛错也不残留 handle', () => {
+    expect(() => {
+      const fixture = TestBed.createComponent(RequiredInputHost);
+      fixture.destroy();
     }).not.toThrow();
   });
 });

@@ -89,3 +89,57 @@ describe('ReplayerComponent（Angular）', () => {
     expect(host?.parentElement).toBe(fixture.nativeElement);
   });
 });
+
+// RV-070 同根因：`afterNextRender` 与 React 的 passive effect 同一时序——都要等首帧渲染
+// 完才跑，而 `viewChild` 模板引用在渲染阶段就已经赋值，父组件能在 `afterNextRender`
+// 触发前就拿到这个实例调 `seek()`。TSDoc 第 109 行一直写着「加载完成前调用会记下目标
+// 时刻」，实现却是裸的 `this.#handle?.seek(timeMs)`——文档与实现早已分岔。
+describe('ReplayerComponent（Angular）加载前命令的公开契约（RV-070 回归）', () => {
+  it('创建后、渲染完成前调用 seek 仍在句柄建立后送达核心', async () => {
+    const current = spy.current;
+    if (!current) throw new Error('spy missing');
+    const fixture = TestBed.createComponent(ReplayerComponent);
+    fixture.componentRef.setInput('replay', {});
+    fixture.componentRef.setInput('sessionId', 's1');
+    // `afterNextRender` 要等这一帧渲染完才跑；这里特意抢在它前面调用
+    fixture.componentInstance.seek(500);
+    await fixture.whenStable();
+    expect(current.mounts).toHaveLength(1);
+    expect(current.argsOf('seek')).toEqual([[500]]);
+  });
+
+  it('销毁时仍只 destroy 一次，不受挂载前 seek 记忆影响', async () => {
+    const current = spy.current;
+    if (!current) throw new Error('spy missing');
+    const fixture = TestBed.createComponent(ReplayerComponent);
+    fixture.componentRef.setInput('replay', {});
+    fixture.componentRef.setInput('sessionId', 's1');
+    fixture.componentInstance.seek(500);
+    await fixture.whenStable();
+    expect(current.argsOf('destroy')).toHaveLength(0);
+    fixture.destroy();
+    expect(current.argsOf('destroy')).toHaveLength(1);
+  });
+
+  it('两个独立实例各自的挂载前 seek 意图互不影响', async () => {
+    const current = spy.current;
+    if (!current) throw new Error('spy missing');
+    const first = TestBed.createComponent(ReplayerComponent);
+    first.componentRef.setInput('replay', {});
+    first.componentRef.setInput('sessionId', 'session-first');
+    first.componentInstance.seek(100);
+
+    const second = TestBed.createComponent(ReplayerComponent);
+    second.componentRef.setInput('replay', {});
+    second.componentRef.setInput('sessionId', 'session-second');
+    second.componentInstance.seek(900);
+
+    await first.whenStable();
+    await second.whenStable();
+
+    expect(current.mounts).toHaveLength(2);
+    expect(current.argsOf('seek')).toEqual([[100], [900]]);
+    expect(current.mounts[0]?.options.sessionId).toBe('session-first');
+    expect(current.mounts[1]?.options.sessionId).toBe('session-second');
+  });
+});

@@ -206,4 +206,4 @@ SQLite 第一次新 probe 运行没有重建 testing 产物，实际仍收集旧
 
 ## 续评索引：2026-10-05 Supabase 与真实 QueryCache
 
-[本批执行台账](execution-2026-10-05-supabase.md)：新增 [RV-059](RV-059-supabase-bulk-delete-url-overflow.md)、[RV-060](RV-060-supabase-querycache-relation-metadata-missing.md)、[RV-061](RV-061-querycache-sqlite-nonpublic-namespace-target.md)（3 P2）；六对象计划/执行记录更新。真实 SDK/CI REST/wa-sqlite、47 应用单测、4 local +2 remote E2E，实际证据与剩余门禁分开；没有新增完整 C 核销，全对象深审仍为 0 个完成。
+[本批执行台账](execution-2026-10-05-supabase.md)：新增 RV-059、RV-060、RV-061（3 P2）；六对象计划/执行记录更新。真实 SDK/CI REST/wa-sqlite、47 应用单测、4 local +2 remote E2E，实际证据与剩余门禁分开；没有新增完整 C 核销，全对象深审仍为 0 个完成。

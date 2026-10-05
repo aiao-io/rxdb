@@ -34,7 +34,7 @@ rating: "🟡"
 
 ## 2. 问题去重：RV-070 保留 Open，不再新报
 
-既有记录：[RV-070：React 播放器首次 layout effect 的 seek 被丢弃](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-070-parallel-react-replayer-layout-seek.md)，P2。责任角色：**React Replay 维护者**。
+既有记录：RV-070：React 播放器首次 layout effect 的 seek 被丢弃，P2。责任角色：**React Replay 维护者**。
 
 **源码与公开承诺**：
 

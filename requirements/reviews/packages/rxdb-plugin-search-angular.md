@@ -223,4 +223,4 @@ pnpm audit:coverage --projects=rxdb-plugin-search-angular
 
 主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
 
-当轮确认意见：[RV-077](../RV-077-round2-angular-required-search.md)，公开输入边界与独立正确peer环境复验，不等于所有消费情形失败。
+当轮确认意见：RV-077，公开输入边界与独立正确peer环境复验，不等于所有消费情形失败。

@@ -1335,6 +1335,21 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(statements.some(sql => sql.includes('"shop:Todo"'))).toBe(false);
     });
 
+    it('QueryCache 写后维护实例缓存时按限定名称找实体类，不写死 public（RV-061）', async () => {
+      const client = createClient();
+      const rxdb = createMetadataRxdb('shop');
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(adapter.upsertMany('shop:Todo', [{ id: 'id-1', updatedAt: ISO_UPDATED }]));
+      await firstValueFrom(adapter.deleteByIds('shop:Todo', ['id-1']));
+
+      const lookups = vi.mocked(rxdb.schemaManager.getEntityType).mock.calls;
+      expect(lookups).toEqual([
+        ['Todo', 'shop'],
+        ['Todo', 'shop']
+      ]);
+    });
+
     it('getMetadataByIds 用自定义物理主键列，不写死字面量 id', async () => {
       const client = createClient({
         execute: vi.fn().mockResolvedValue(okResult('SELECT', [{ columns: ['todo_id', 'updated_at'], rows: [] }]))

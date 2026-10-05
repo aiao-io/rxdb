@@ -24,7 +24,7 @@ rating: "🟡"
 - scope 记载 head：`943c50cc85b4be3b0635f736a35a9659c3fe209a`。只沿用快照标识，实际阅读以当前逐文件 SHA 锁定，不自行执行 git 命令。
 - [scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope.json) 与 [resolved Nx 配置](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/resolved-project.json) 保持原冻结内容；[冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope-freeze.json)确认当前 12 文件 SHA、行数与其一致。resolved 全文先于包内 project.json 阅读，未将局部 targets 当完整配置。
 - 已全文先读旧 plan/results，原文分别保存在 [原计划](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-plan.md)、[原结果](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-results.md)。历史 partial 不删除，但不能继续冒充本次源码交付状态。
-- 已先读 [RV-070](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-070-parallel-react-replayer-layout-seek.md)并核对关键输入同 SHA；旧 early-seek 候选归并此既有 P2，不重复编号或再跑真实 iframe。
+- 已先读 RV-070并核对关键输入同 SHA；旧 early-seek 候选归并此既有 P2，不重复编号或再跑真实 iframe。
 
 ## 2. 全文阅读登记
 

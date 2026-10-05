@@ -123,7 +123,12 @@ export const generate_tree_sql = (
     if (isFindRoot) {
       select = 'count(*) AS count';
     } else {
-      select = '(count(*) - 1) AS count';
+      // 非根计数靠「减掉起点自己」得到后代/祖先数。起点不存在、或已被删除时递归 CTE 返回 0 行，
+      // 裸 `count(*) - 1` 会把 -1 交给调用方（RV-079）。
+      // 与 sqlite-core 同契约：节点不存在 ≡ 空集，用下界钳在 0 的写法而不是盲减 1。
+      // PostgreSQL 的 `max()` 是聚合函数、不接受两个标量参数（SQLite 的 `max(a,b)` 在这里行不通），
+      // 标量二元最大值用 `GREATEST`。
+      select = 'GREATEST(count(*) - 1, 0) AS count';
     }
   } else if (options.hasChildren) {
     select = `__children.*, EXISTS(SELECT 1 FROM ${table_name} __sub WHERE __sub."${parentColumnName}" = __children.id) AS "hasChildren"`;

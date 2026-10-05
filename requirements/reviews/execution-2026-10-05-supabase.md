@@ -4,11 +4,11 @@
 
 **执行中，新增 3 个 P2，均 Open；不修业务，不给全对象通过。** 本批基线 `b7edef590051c8842d4914e30e31475977dea6ac`，日期按客户端测量时间。六对象：rxdb-adapter-supabase、rxdb-adapter-sqlite-core、rxdb-adapter-wa-sqlite、rxdb-plugin-querycache、dev-rxdb-supabase、dev-rxdb-supabase-e2e。
 
-| 意见                                                              | 确认结果                                        | 实测边界                                                        |
-| ----------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------- |
-| [RV-059](RV-059-supabase-bulk-delete-url-overflow.md)             | 大批量删除 URL 超长，400 行仍在                 | 原 SDK/Chromium + CI Kong/PostgREST；80 成功，原生 414          |
-| [RV-060](RV-060-supabase-querycache-relation-metadata-missing.md) | metadata 丢失关系上下文，公开 QueryCache 也失败 | 真实 User/Order、exists/notExists、已落库对照                   |
-| [RV-061](RV-061-querycache-sqlite-nonpublic-namespace-target.md)  | 非 public 冷缓存写成裸 User 表                  | 原 wa-sqlite MemoryAsyncVFS/sqlite-core；shop$user 实际写入对照 |
+| 意见   | 确认结果                                        | 实测边界                                                        |
+| ------ | ----------------------------------------------- | --------------------------------------------------------------- |
+| RV-059 | 大批量删除 URL 超长，400 行仍在                 | 原 SDK/Chromium + CI Kong/PostgREST；80 成功，原生 414          |
+| RV-060 | metadata 丢失关系上下文，公开 QueryCache 也失败 | 真实 User/Order、exists/notExists、已落库对照                   |
+| RV-061 | 非 public 冷缓存写成裸 User 表                  | 原 wa-sqlite MemoryAsyncVFS/sqlite-core；shop$user 实际写入对照 |
 
 不重新登记已修旧问题；0 个全对象深审完成，没有新增完整 C 专题核销。评级只针对本轮已证实路径：**🔴 两条 Supabase 读/写边界和 SQLite QueryCache 身份映射需修；不能据此给整包其余能力下定论。**
 

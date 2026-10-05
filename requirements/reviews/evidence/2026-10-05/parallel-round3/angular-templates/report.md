@@ -39,7 +39,7 @@
 
 `TreeChild.ɵcmp.inputs.rootId=["rootId",1,null]`（AOT），JIT为`{}`。AOT与JIT使用同源消费者与相同真实tar。仅能建议将初版tree NG0303→NG0950归为该JIT编译/未绑定夹具边界；正确编译父绑定的本次路径未复现产品失败，**不等于tree所有路径正确**。
 
-search两条字段初始化红与既有 [RV-077](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-077-round2-angular-required-search.md)同根因，不新增RV。生命周期绿是合法调用时机/注入上下文对照，不是修改业务或README，不冲销RV-077。
+search两条字段初始化红与既有 RV-077同根因，不新增RV。生命周期绿是合法调用时机/注入上下文对照，不是修改业务或README，不冲销RV-077。
 
 ## 四、原日志与夹具陷阱保留
 

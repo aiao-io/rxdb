@@ -175,7 +175,7 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite-core
 
 **部分执行，未完成全对象深审。** 原 base adapter 的非 public QueryCache 目标解析失败，经实际 wa-sqlite 冷缓存复验；同表物理原语写入和读回成功。不外推其它宿主。
 
-确认意见：[RV-061](../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：RV-061。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 
@@ -200,7 +200,6 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite-core
 | C8  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/scripts/run-coverage-acceptance.mjs:15–27,52–69`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/encrypted-bigint-binary.spec.ts:1–5`                                                                               | 验收脚本列 core/wa-sqlite/sqlite/sqlite-wasm/sqliteai 五套、四浏览器 suite、四指标 80% 门槛；普通 test 不等于 acceptance 的 blob/合并验收。未重建 writer lease 或 rowsAffectedConformanceSuite。 | 未核销    | coverage-acceptance 未执行；合并/测量面完整重读与所有 conformance 调用点（含 Tauri）未穷举；不能用库存旧 coverage 过门槛。 |
 
 请求/动态日志与阅读记录均由 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters` 保留。三个新增回归的 late lint/typecheck、完整测量面/宿主/持久化及发布闭合按实际待证留阻断；主控统一追加后续结果，不在这里预支通过。
-
 
 ## PKG-sqlite-core packages-only checkpoint（2026-10-05，非完成）
 

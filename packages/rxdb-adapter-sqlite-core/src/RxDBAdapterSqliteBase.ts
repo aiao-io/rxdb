@@ -1201,7 +1201,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           .then(async ({ preImages, postImages }) => {
             // 先把实例刷成新值再发事件：事件的消费方（QueryManager）会顺着 id 去取实体，
             // 顺序反过来它取到的是尚未刷新的旧实例。
-            await this.#refreshQueryCacheEntities(entityName, ids);
+            await this.#refreshQueryCacheEntities(target, ids);
             if (target.metadata) dispatchQueryCacheUpsertEvents(this.rxdb, target.metadata, postImages, preImages);
           })
           .then(() => undefined)
@@ -1223,7 +1223,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         }, false).then(preImages => {
           // 行没了，缓存里那个实例还标着 local=true。不标 removed 的话，
           // 它会以「仍然存在」的姿态活在任何还持有引用的视图里（SQLC-033 同款）。
-          const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
+          const EntityType = this.#queryCacheEntityType(target);
           if (EntityType) remove_entity_ids_from_cache(this, EntityType, ids);
           if (target.metadata) dispatchQueryCacheRemoveEvents(this.rxdb, target.metadata, preImages);
         })
@@ -1442,8 +1442,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * 合并语义用 `mergeExternalChanges`：本地有未保存改动时保留改动、只更新 origin，
    * 与 `findByRowIds(forceRefresh)` 的外部变更合并保持一致。
    */
-  async #refreshQueryCacheEntities(entityName: string, ids: string[]): Promise<void> {
-    const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
+  async #refreshQueryCacheEntities(target: QueryCacheTarget, ids: string[]): Promise<void> {
+    const EntityType = this.#queryCacheEntityType(target);
     if (!EntityType) return;
     const cachedIds = ids.filter(id => this.rxdb.entityManager.hasEntityRef(EntityType, id));
     if (cachedIds.length === 0) return;
@@ -1498,6 +1498,15 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       tableName: get_table_name_by_metadata(metadata),
       columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
     };
+  }
+
+  /**
+   * 按 `#resolveQueryCacheTarget` 已解析的命名空间找实体类。直接拿 QueryCache 传入的
+   * `shop:Todo` 去 `public` 下查必然落空，写后的实例缓存维护会被静默跳过（RV-061）。
+   */
+  #queryCacheEntityType(target: QueryCacheTarget): EntityType | undefined {
+    if (!target.metadata) return undefined;
+    return this.rxdb.schemaManager.getEntityType(target.metadata.name, target.metadata.namespace);
   }
 
   #initEncryption(): void {

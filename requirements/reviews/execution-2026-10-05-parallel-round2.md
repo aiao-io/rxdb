@@ -42,6 +42,6 @@
 
 修正控制条件的独立tar场景：Vue搜索6例通过；React13例12通过、1真实options presence失败；Angular13例12通过、1真实README required-input失败。Angular构建工具的npm alias在新consumer扁平覆盖中曾有magic-string工具错误，原工具链复验后真正产品断言分开。录制器新增probe边界/跨文件mock、工作树Angular输入绑定和树Angular初版required TestBed尚有未证，不注册20个“产品缺陷”。
 
-当轮确认新增：[RV-076](RV-076-round2-react-options-presence.md)、[RV-077](RV-077-round2-angular-required-search.md)、[RV-078](RV-078-round2-utils-public-types.md)，均P2。第三方rrweb/rrdom声明错误、Vue NodeNext及readonly规则型输入另记能力/环境限制，不靠skipLibCheck/any伪造consumer通过。
+当轮确认新增：RV-076、RV-077、RV-078，均P2。第三方rrweb/rrdom声明错误、Vue NodeNext及readonly规则型输入另记能力/环境限制，不靠skipLibCheck/any伪造consumer通过。
 
 **今天的十任务源码评审及风险交接完成，不等于原全仓73对象全部验证/发布就绪。** 所有未证已有具体场景与主控责任，本台账未承诺未来设备/GUI结果；用户/外部正在修复别的业务代码，助手不修改这些实现或暂存区。

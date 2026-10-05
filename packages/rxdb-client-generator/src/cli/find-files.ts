@@ -14,6 +14,14 @@ export interface FindFilesOptions {
 }
 
 /**
+ * glob 魔法字符判定：`*`、`?`、字符类 `[...]`、花括号 `{...}`。
+ * 与 `plugins/vite.ts` 的 watch 根判定共用同一正则（RV-064）：
+ * 两处分别决定「是否当 glob 处理」与「watch 根落在字面前缀哪里」，
+ * 判定标准必须一致，否则生成器与 watch 会对同一模式得出不同语义。
+ */
+export const GLOB_MAGIC = /[*?[\]{}]/u;
+
+/**
  * 查找匹配的文件
  * @param filePaths - 文件路径数组，支持 glob 模式
  * @param options - 查找选项
@@ -23,7 +31,7 @@ export interface FindFilesOptions {
 export default async (filePaths: string[], options: FindFilesOptions = {}): Promise<string[]> => {
   const allFiles: string[] = [];
   for (const filePath of filePaths) {
-    if (!(filePath.includes('*') || filePath.includes('?'))) {
+    if (!GLOB_MAGIC.test(filePath)) {
       // 对于非 glob 路径，直接解析并规范化
       allFiles.push(normalize(resolve(filePath)));
       continue;

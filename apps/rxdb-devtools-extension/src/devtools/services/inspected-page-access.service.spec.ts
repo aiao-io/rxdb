@@ -209,6 +209,159 @@ describe('InspectedPageAccessService', () => {
     });
   });
 
+  // RV-072：requestAccess 对旧 origin 的 chrome.permissions.request 挂起期间，导航或销毁
+  // 必须让旧结果作废——不能覆盖当前页面状态，也不能在销毁后仍 activate 当前 tab。
+  describe('站点授权必须绑定当前导航与生命周期（RV-072）', () => {
+    const createDeferredAccess = () => {
+      const grant = (() => {
+        let resolve!: (value: boolean) => void;
+        let reject!: (reason: unknown) => void;
+        const promise = new Promise<boolean>((done, fail) => {
+          resolve = done;
+          reject = fail;
+        });
+        return { promise, resolve, reject };
+      })();
+      const activateTab = vi.fn();
+      const navigations = new Set<(url: string) => void>();
+      const containsImpl = vi.fn(async () => false);
+      vi.stubGlobal('chrome', {
+        permissions: {
+          contains: containsImpl,
+          request: vi.fn(() => grant.promise)
+        },
+        devtools: {
+          inspectedWindow: {
+            eval: (_code: string, callback: (result: string) => void) => callback('https://old.example/app')
+          },
+          network: {
+            onNavigated: {
+              addListener: (listener: (url: string) => void) => navigations.add(listener),
+              removeListener: (listener: (url: string) => void) => navigations.delete(listener)
+            }
+          }
+        }
+      } as unknown as typeof chrome);
+      TestBed.configureTestingModule({
+        providers: [
+          InspectedPageAccessService,
+          { provide: PortService, useValue: { activateTab, notifyNavigation: vi.fn() } }
+        ]
+      });
+      return { service: TestBed.inject(InspectedPageAccessService), grant, activateTab, navigations, containsImpl };
+    };
+
+    afterEach(() => {
+      TestBed.resetTestingModule();
+      vi.unstubAllGlobals();
+    });
+
+    it('对照：未导航的授权结果可激活当前 tab', async () => {
+      const { service, grant, activateTab } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      grant.resolve(true);
+      await expect(request).resolves.toBe(true);
+      expect(service.state()).toBe('granted');
+      expect(activateTab).toHaveBeenCalledOnce();
+    });
+
+    it('导航到不支持的页面后，旧 origin 授权不能将其改为 granted', async () => {
+      const { service, grant, activateTab, navigations } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      navigations.forEach(listener => listener('chrome://settings'));
+      expect(service.state()).toBe('unsupported');
+      grant.resolve(true);
+      await request;
+      expect.soft(service.state()).toBe('unsupported');
+      expect(activateTab).not.toHaveBeenCalled();
+    });
+
+    it('销毁后的旧授权不能重新激活 tab', async () => {
+      const { service, grant, activateTab } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      service.ngOnDestroy();
+      grant.resolve(true);
+      await request;
+      expect(activateTab).not.toHaveBeenCalled();
+    });
+
+    it('回归：拒绝访问时旧导航同样不能覆盖 unsupported 状态', async () => {
+      const { service, grant, activateTab, navigations } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      navigations.forEach(listener => listener('chrome://settings'));
+      grant.resolve(false);
+      await expect(request).resolves.toBe(false);
+      expect.soft(service.state()).toBe('unsupported');
+      expect(activateTab).not.toHaveBeenCalled();
+    });
+
+    it('回归：导航到同 origin 时 pattern 不变，旧请求的结果仍然生效', async () => {
+      const { service, grant, activateTab, navigations } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      // 同源内部跳转（同一 host，不同 path）：permissionPatternForUrl 的结果不变。
+      navigations.forEach(listener => listener('https://old.example/other-page'));
+      grant.resolve(true);
+      await expect(request).resolves.toBe(true);
+      expect(service.state()).toBe('granted');
+      expect(activateTab).toHaveBeenCalledOnce();
+    });
+
+    it('回归：request() reject 时不吞错，也不在失效后产生副作用', async () => {
+      const { service, grant, activateTab, navigations } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      const request = service.requestAccess();
+      navigations.forEach(listener => listener('chrome://settings'));
+      grant.reject(new Error('user dismissed permission prompt'));
+      await expect(request).rejects.toThrow('user dismissed permission prompt');
+      expect(activateTab).not.toHaveBeenCalled();
+    });
+
+    it('回归：refresh() 的 contains() 慢回时，其间的销毁不会让它事后 activate', async () => {
+      const activateTab = vi.fn();
+      const navigations = new Set<(url: string) => void>();
+      let resolveContains!: (granted: boolean) => void;
+      const containsPromise = new Promise<boolean>(resolve => {
+        resolveContains = resolve;
+      });
+      vi.stubGlobal('chrome', {
+        permissions: {
+          contains: vi.fn(() => containsPromise),
+          request: vi.fn(async () => true)
+        },
+        devtools: {
+          inspectedWindow: {
+            eval: (_code: string, callback: (result: string) => void) => callback('https://old.example/app')
+          },
+          network: {
+            onNavigated: {
+              addListener: (listener: (url: string) => void) => navigations.add(listener),
+              removeListener: (listener: (url: string) => void) => navigations.delete(listener)
+            }
+          }
+        }
+      } as unknown as typeof chrome);
+      TestBed.configureTestingModule({
+        providers: [
+          InspectedPageAccessService,
+          { provide: PortService, useValue: { activateTab, notifyNavigation: vi.fn() } }
+        ]
+      });
+      // 构造期触发的首次 refresh() 正卡在 contains() 上（见上面的 containsPromise）。
+      const service = TestBed.inject(InspectedPageAccessService);
+      service.ngOnDestroy();
+      resolveContains(true);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(activateTab).not.toHaveBeenCalled();
+      expect(service.state()).toBe('checking');
+    });
+  });
+
   // 面板只会调 token 上的 reloadInspectedPage()，`{}` 这个 Chrome 形参归本适配器所有。
   it('reloads the inspected page through the devtools API', () => {
     TestBed.inject(InspectedPageAccessService).reloadInspectedPage();

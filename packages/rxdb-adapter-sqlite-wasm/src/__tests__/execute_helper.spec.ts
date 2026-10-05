@@ -125,7 +125,7 @@ describe('executeHelper', () => {
     expect(calls).toEqual(['reset', 'bind']);
   });
 
-  it('在执行前拒绝带 bindings 的多语句 SQL', async () => {
+  it('在执行前拒绝带 bindings 的多语句 SQL，且两个 unscoped 句柄都被 finalize（RV-065）', async () => {
     const sqlite = createSqliteMock([
       { statement: 1, actionCodes: [SQLITE_UPDATE], changes: 1 },
       { statement: 2, actionCodes: [SQLITE_UPDATE], changes: 2 }
@@ -136,6 +136,54 @@ describe('executeHelper', () => {
     await expect(execution).rejects.toThrow('multi-statement SQL with bindings is not supported');
     expect(sqlite.bind_collection).not.toHaveBeenCalled();
     expect(sqlite.step).not.toHaveBeenCalled();
+    expect(sqlite.finalize).toHaveBeenCalledWith(1);
+    expect(sqlite.finalize).toHaveBeenCalledWith(2);
+  });
+
+  it('第二条语句 prepare 抛错仍释放第一条已取得的 unscoped statement（RV-065）', async () => {
+    // unscoped 枚举把 finalize 责任整体交给调用方：第二条 prepare 中途抛错，
+    // 枚举尚未正常结束，不会进入「多语句拒绝」或「单语句 finally」分支，
+    // 已经 yield 过的第一个句柄必须仍被回收，且原始 prepare 错误不能被掩盖。
+    const prepareError = new Error('second statement prepare failed');
+    const finalize = vi.fn<SQLiteAPI['finalize']>().mockResolvedValue(SQLITE_OK);
+    const sqlite = {
+      set_authorizer: vi.fn(),
+      finalize,
+      statements: async function* () {
+        yield 41;
+        throw prepareError;
+      }
+    } as unknown as SQLiteAPI;
+
+    await expect(executeHelper(sqlite, 1, 'SELECT ?; invalid SQL', [1])).rejects.toThrow(prepareError.message);
+    expect(finalize).toHaveBeenCalledExactlyOnceWith(41);
+  });
+
+  it('多语句拒绝时第一个句柄 finalize 失败不跳过第二个句柄，且不掩盖多语句拒绝错误（RV-065）', async () => {
+    const finalize = vi.fn<SQLiteAPI['finalize']>().mockRejectedValueOnce(new Error('finalize 1 failed')).mockResolvedValueOnce(SQLITE_OK);
+    const sqlite = {
+      set_authorizer: vi.fn(),
+      finalize,
+      statements: async function* () {
+        yield 1;
+        yield 2;
+      }
+    } as unknown as SQLiteAPI;
+
+    const execution = executeHelper(sqlite, 1, 'UPDATE a SET x=?; UPDATE b SET y=1;', [1]);
+
+    await expect(execution).rejects.toThrow('multi-statement SQL with bindings is not supported');
+    expect(finalize).toHaveBeenCalledWith(1);
+    expect(finalize).toHaveBeenCalledWith(2);
+  });
+
+  it('绑定单语句正常执行后 finalize 失败时仍会上抛（不静默吞掉清理失败）（RV-065）', async () => {
+    const sqlite = createSqliteMock([{ statement: 1, actionCodes: [SQLITE_UPDATE], changes: 1 }]);
+    vi.mocked(sqlite.finalize).mockRejectedValueOnce(new Error('finalize failed'));
+
+    const execution = executeHelper(sqlite, 1, 'UPDATE users SET active = 1 WHERE id = ?', [1]);
+
+    await expect(execution).rejects.toThrow('finalize failed');
   });
 
   it('保留返回列但无数据行的结果集', async () => {

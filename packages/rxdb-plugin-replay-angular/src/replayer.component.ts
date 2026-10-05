@@ -51,6 +51,12 @@ export class ReplayerComponent {
   readonly #mounted = signal(false);
   #handle: ReplayerHandle | undefined;
   #applied: ReplayerInputs | undefined;
+  // RV-070 同根因：`afterNextRender` 与 React 的 passive effect 同一时序——都要等首帧渲染
+  // 完才跑，`viewChild` 模板引用却在渲染阶段就已经赋值，父组件能在 `afterNextRender`
+  // 触发前就拿到这个实例调 `seek()`。之前的 `this.#handle?.seek(timeMs)` 对着还不存在的
+  // handle 可选调用，目标时刻直接丢了——与 TSDoc「加载完成前调用会记下目标时刻」的承诺
+  // 不符。这里记下「挂载前最新一次 seek 意图」，挂载时连同 handle 一起兑现。
+  #pendingSeek: number | undefined;
   // viewChild 不能用在 ES 私有字段上
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
 
@@ -74,6 +80,7 @@ export class ReplayerComponent {
         onTimeChange: timeMs => this.aoTimeChange.emit(timeMs),
         onCommitRestore: event => this.aoCommitRestore.emit(event)
       });
+      if (this.#pendingSeek !== undefined) this.#handle.seek(this.#pendingSeek);
       this.#mounted.set(true);
     });
 
@@ -108,6 +115,7 @@ export class ReplayerComponent {
 
   /** 跳到相对会话起点的 `timeMs`；加载完成前调用会记下目标时刻。 */
   seek(timeMs: number): void {
+    this.#pendingSeek = timeMs;
     this.#handle?.seek(timeMs);
   }
 

@@ -15,7 +15,7 @@ const drainMicrotasks = async (): Promise<void> => {
   for (let index = 0; index < 12; index += 1) await Promise.resolve();
 };
 
-describe('并行评审：取消待执行分页必须结算调用方', () => {
+describe('loadMore 结算语义：取消待执行分页必须结算调用方（RV-062 回归）', () => {
   it.each(['clear', 'destroy'] as const)('%s 不遗失同步订阅中排队的 loadMore Promise', async action => {
     const performSearch = vi.fn<PerformSearch>().mockResolvedValue({ results: [result], hasMore: true });
     const handle = createSearchHandle({ performSearch, initialQuery: 'first', refreshAuditMs: 0 });

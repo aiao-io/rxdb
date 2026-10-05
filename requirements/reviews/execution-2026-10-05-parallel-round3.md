@@ -43,7 +43,7 @@
 
 - Vue SFC正例已真实编译通过，26个指定诊断命中；deep readonly完整RuleGroup输入并无承诺，不立本wrapper缺陷；NodeNext归上游rxdb-vue，详 [Vue结算](results/packages/rxdb-plugin-tree-vue.md)。
 - cleanup共享suite关闭拒绝仍绿已实测；仅补强CORE-PENDING-3判别力缺口，未证明违约或物理泄漏，不立事务业务问题，详 [结算](evidence/2026-10-05/parallel-round3/cleanup-verdict/settlement.md)。
-- 主控真实树对照确认新增P2 [RV-079](RV-079-round3-pglite-empty-tree-count.md)：空/删除锚点计数-1；不是两条夹具失败或三个wrapper重复意见。三端runtime计数结果与独立SQL一致但契约错误，原红日志保留，不标整包或原C全绿。
+- 主控真实树对照确认新增P2 RV-079：空/删除锚点计数-1；不是两条夹具失败或三个wrapper重复意见。三端runtime计数结果与独立SQL一致但契约错误，原红日志保留，不标整包或原C全绿。
 
 本轮6任务均已交付关闭；现有必要未验不扩成无尽的全平台矩阵，仍按范围/责任单列。详见各对象R3段与 [四轴统计审计](progress-2026-10-05.md)。本轮复验未使原完整C核销数虚增，全仓仍有62个有效对象缺可靠全文范围交付。
 
