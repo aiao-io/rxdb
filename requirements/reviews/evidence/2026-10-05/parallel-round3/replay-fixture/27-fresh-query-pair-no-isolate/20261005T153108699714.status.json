@@ -1,0 +1,31 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:31:08.751531+08:00",
+  "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay-angular:test",
+    "replayer.component.spec.ts",
+    "review-round2-player-lifecycle.spec.ts",
+    "--run",
+    "--maxWorkers=1",
+    "--fileParallelism=false",
+    "--isolate=false",
+    "--coverage.enabled=false",
+    "--excludeTaskDependencies",
+    "--skipSync",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 0,
+  "elapsedSeconds": 21.925,
+  "scopedInputCount": 60,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/27-fresh-query-pair-no-isolate/20261005T153108699714.txt"
+}

@@ -1,0 +1,20 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:34:09.917380+08:00",
+  "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "command": [
+    "pnpm",
+    "exec",
+    "tsc",
+    "-p",
+    "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.probe-strict.json"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 0,
+  "elapsedSeconds": 10.134,
+  "scopedInputCount": 205,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-c/20261005T153409717710.txt"
+}

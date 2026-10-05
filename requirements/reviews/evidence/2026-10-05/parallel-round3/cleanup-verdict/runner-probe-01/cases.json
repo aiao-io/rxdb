@@ -1,0 +1,40 @@
+[
+  {
+    "ancestorTitles": [
+      "[probe-finally/rejected] C3 引导事务"
+    ],
+    "fullName": "[probe-finally/rejected] C3 引导事务 首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "status": "passed",
+    "title": "首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "duration": 33.51341699999989,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[probe-finally/rejected] C3 引导事务"
+    ],
+    "fullName": "[probe-finally/rejected] C3 引导事务 首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "status": "passed",
+    "title": "首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "duration": 6.1433750000001055,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[probe-finally/rejected] C3 引导事务"
+    ],
+    "fullName": "[probe-finally/rejected] C3 引导事务 末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "status": "failed",
+    "title": "末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "duration": 5.953083000000106,
+    "failureMessages": [
+      "Error: R3_CLOSE_REJECT:probe-finally/rejected:probe\n    at createClose (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts:83:19)\n    at Object.createBootstrapProbe (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts:172:19)\n    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/src/transaction/bootstrap.suite.ts:78:35\n    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)"
+    ],
+    "meta": {},
+    "tags": []
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "task": "R3-05",
+  "frozenAt": "2026-10-05T15:39:34.597744+08:00",
+  "status": "bounded evidence complete; contract/RV adjudication handed to controller",
+  "successfulBodyRejectedCleanupEvidenceClosed": true,
+  "mainRvConfirmed": false,
+  "newIndependentCandidates": 0,
+  "existingCandidate": "CORE-PENDING-3",
+  "originalSourceFileCount": 115,
+  "changedOriginalSources": [],
+  "specSha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "resultsAppendOnly": true,
+  "resultsSha256After": "1b15981de247eede3f251db7b9ec7dc20a8d09ea0fb3d7cda0f15e595b0840aa",
+  "additionalTestRunsAfterFreezeRequest": 0,
+  "pendingTestRuns": [],
+  "ownedWriteScope": [
+    "packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts",
+    "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict",
+    "requirements/reviews/results/packages/rxdb-test.md"
+  ]
+}

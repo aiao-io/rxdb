@@ -85,3 +85,13 @@ execution: partial
 下表不是再排一次计划：它记录已读实现、正常路径/反证、当前测试结果与确切缺口。**已闭环的是对应子面和门禁事实，不是未读的整 C。** 全对象收尾数仍为0；未完成条件主要是受控正文未全审、必要动态/真实消费或本包验收缺口。
 
 候选问题及最小修法/回归见 [4个待主控去重编号候选](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md)；不自分RV、不改现有报告。请求与已完成/待补测边界见 [原验证请求](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json)、[当前验证核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json)。
+
+
+## R3-05 · 2026-10-05 · cleanup verdict 有界补证结算
+
+- **补证冻结，不扩事务 suite/harness 组。** 最小成功 connect/query body 使用同一工厂：直接 afterEach await dispose 拒绝→失败；原 readiness 对应 body 成功、adapter.disconnect 与 factory.dispose 明确拒绝→仍通过。真实共享 runner exit 0，已补上旧 connect 故意失败 harness 无法证明的缺口。
+- 已执行：direct **1 pass / 1 fail，exit 1**；三个原共享 suite 正常/拒绝关闭对照 **22 pass / 0 fail，exit 0**，10 个 opened 数据库拒绝关闭；bootstrap probe **2 pass / 1 fail，exit 1**，finally 直接 await 不吞错误。所有 pending/todo=0，无 Vitest 注册 mock、无手工回调重放、无 skip/only/name 过滤。
+- **结算轴分开**：有界补证缺口闭合 1；只补强既有 CORE-PENDING-3，新增独立候选 0、主 RV 确认 0。三共享 hook 明确 best-effort，原 adapter 工厂还自行 catch disconnectAll；公开 C1/C2/C3 声明未明确要求 cleanup 失败令 conformance 红。是否违反 cleanup 契约交主控，不自编号。不能把成功体/失败关闭的实际假绿外推为真实后端泄漏或业务事务实现错误。
+- 边界仅三原 suite 的 opened 数据库 afterEach；不含 bootstrap probe finally，不核销整组、完整 C1/C2、覆盖率或全适配器收尾。不等待平台或全量门禁，无待跑测试。
+- 原 115 包文件 sourcehash 无变化。仅新增独占 spec / 证据、追加本节；新 spec strict 与 ESLint 零警告通过。全部测量使用指定共享锁，1 worker、CI、daemon false、skipRemoteCache/skipNxCache、排除任务依赖；不暂存提交。
+- [最小对照与 raw output 索引](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/settlement.md)；[冻结四用例和 trace](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/minimal-control.frozen.json)；[机器核对与测量状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/comparison.json)。

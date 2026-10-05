@@ -1,0 +1,75 @@
+{
+  "readFromCommit": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "content": {
+    "clientDate": "2026-10-05",
+    "recordedAt": "2026-10-05T15:22:38.336326+08:00",
+    "matrixCaseCount": 9,
+    "matrixExpectationsMet": true,
+    "matchedNegativeTargetCount": 26,
+    "negativeTargetCount": 26,
+    "serialLockInvocationCount": 16,
+    "allMeasurementsSerialLocked": true,
+    "changedInputsDuringMeasurements": [],
+    "sourceScopeHashChangesSinceStart": [],
+    "stagedDiffSha256Before": "f7acc6b41438590fd711c25438a3d2baa8a54a38f84a47e8a914a8f2d89dd52a",
+    "stagedDiffSha256After": "f7acc6b41438590fd711c25438a3d2baa8a54a38f84a47e8a914a8f2d89dd52a",
+    "sourceFixtureChecks": [
+      {
+        "file": "DocDepthRejected.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "InvalidInputs.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "InvalidParent.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "InvalidTemplate.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "ReadonlyRulesRejected.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "UpstreamOnly.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "Valid.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "ValidParent.vue",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "models.ts",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      },
+      {
+        "file": "versions.mjs",
+        "explicitAnyTokens": 0,
+        "suppressionDirectives": []
+      }
+    ],
+    "fixtureCopiesMatchFinalHashes": true,
+    "allLoadedDeclarationsMatchRealTar": true,
+    "workspaceSourcePathsLoaded": [],
+    "fullOriginalCClosedCount": 0,
+    "noNewNumberedReport": true
+  },
+  "note": "只读恢复收尾前已有测量摘要快照，不 checkout/reset/写暂存区。"
+}

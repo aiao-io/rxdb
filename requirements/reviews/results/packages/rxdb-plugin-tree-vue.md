@@ -249,14 +249,20 @@ task: R2-04
 
 ## R3-02：Vue tree SFC / readonly strict 消费结算（2026-10-05）
 
-**有界补证完成，不新增问题编号；原 C 最低场景不改，完整 C 仍 0/5，整体 partial。** 已核实真正 `.vue`、模板与跨 SFC props/emits；没有运行仓储/identity/lifecycle，不用 SFC 编译替代运行证据。
+**R3-02 有界 SFC 补证已交付，不新增问题编号、不扩矩阵、不修改 plan 或原 C 状态；主控最后统一核销。** 本对象 R2 的 13/13 全文阅读与 C1–C5 逐项意见交付已经完成，不能因为必要验证尚未全绿倒记为“未评审”。本轮核实真正 `.vue`、模板与跨 SFC props/emits；不把类型编译当作实际仓储/identity/lifecycle 验证。
+
+| 统计维度 | 本对象结算 |
+| --- | --- |
+| 全文阅读 / 逐 C 意见交付 | R2 原 13/13 受控文件全文阅读、C1–C5 意见与证据锚点已交付；R3 有界补证意见已交付。必要验证未绿不倒扣这项进度。 |
+| 专题证据核销 | 现有 9 项 SFC 正反/归属对照结算，26/26 目标诊断命中；给主控核销建议，不代改 plan/C 状态。 |
+| 发布验证 | 不标全绿：NodeNext 仍受上游 rxdb-vue 声明阻断；主控另通报真实 PGlite 同 fixture 三端删除锚点后 count=-1，上游问题待确认 RV079。 |
 
 ### R3 被测来源与执行边界
 
 - 四个被测包都是原独立 consumer 的 **0.0.26 真实 tar**，不是 source aliases 或工作区包软链。tar 507 个文件与已安装副本一致；编译实际加载 core/Vue/tree/tree-vue **104/8/11/2** 份声明，共 125 份，全部与 tar hash 一致，workspace packages 源路径 0。
 - 先查已有 `vue-tsc`：独立 consumer 已有 **3.3.12**，本轮没有安装。实际 Node **26.7.0** / TypeScript **6.0.3** / Vue **3.5.43** / RxJS **7.8.2** / language-core **3.3.12** / Volar TypeScript **2.4.28** / node types **26.6.4**，位置、版本、工具文件与 tar hash 全部保存在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/provenance.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/toolchain.json`。
 - `strict=true`、`skipLibCheck=false`、`strictTemplates=true`；真正 `vue-tsc --noEmit` 处理 `.vue`，不是 `tsc`/抽取 script。零自写 `any`/ts 抑制、零 type assertion 绕过、零 paths/手工软链。16 次调用全部使用指定 `/tmp/rxdb-review-round3-locked.py`、三个 scopes 的共享串行锁；只有一次轻量配置解析，不跑 Nx/build/unit/coverage。
-- 339 个 scopes 输入、HEAD、staged diff 首尾未变。最终消费代码及修订前代码都保存，不修改 R2 证据。本 results 原前缀完整保留，只追加本段。
+- 339 个 scopes 输入首尾未变，16 次测量起止 HEAD 都为原 `76a3848…`，编译测量结束时 staged diff 仍与初始一致。收尾只读审计观察到外部并行提交推进 HEAD 至 `72d3bde0303f819b2c88e7fe18130fa231806f1b`、暂存快照变化；不是测量输入漂移，本代理没有执行暂存/提交或撤销外部变化。最终消费代码及修订前代码都保存，不修改 R2 证据。本 results 原前缀完整保留，只追加本段。
 
 ### R3 具体正反例与退出状态
 
@@ -281,12 +287,18 @@ task: R2-04
 - **本 wrapper 确有一处 TSDoc 字段错配（文档候选，建议 P3）。** `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts:20` 和真实 tar `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/published/rxdb-plugin-tree-vue/dist/use-tree.d.ts:18` 写 `depth`；真实字段是 `level`，README 示例也用 `level`。`DocDepthRejected.vue:4` 照 TSDoc 传 `depth`，exit 2 / 唯一 TS2353，`level` 正例通过。归文档，不把正常拒绝未知字段宣称函数缺陷；本轮不改源码，不添加 depth fallback/alias。公开 README 没有 deep readonly 支持承诺，补充该限制只能列为说明改进。
 - **首轮夹具错误未隐藏。** 正例起初模板对自动解包 Ref 多取 `.value`，TS2339 / exit 2；readonly 与父组件反例也受该无关模板错误影响。两处消费模板修正为直接取 entityId，四项新唯一 lock name 重测达预期，没有改 hooks/声明/strict。首轮源码/版本/hash/失败日志留在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/attempt1/`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/matrix-exits.initial.json`；修订记录 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/consumer-revisions.json`。
 
-### 原 C 核销建议与保留缺口
+### 原 C 核销建议（不改状态，由主控统一）
 
-- **C1**：numeric/string id、level 编译子项补证；真实树仓储、缺插件、QueryCache 禁止、深树/lazy/SQL 未验，仍 partial。文档候选由主控去重。
-- **C3**：可核销 Vue 独立真实 tar 的 **Bundler strict consumer 编译子项**；不是三端同一真实 tree fixture/多实例实际仓储，整体仍 partial。
-- **C5**：真正 SFC 正反、模板字段/方法错误、跨组件 props/emits **参数**、readonly 支持/拒绝边界与 tar 声明映射可按 **Bundler + 默认 options 契约**核销；NodeNext 保留上游阻断，实体 identity/Vue proxy 运行断言未验，整体仍 partial。
+- **C1**：numeric/string id、level 编译子项已补证；本代理未运行真实树仓储、缺插件、QueryCache 禁止、深树/lazy/SQL。真实链路取主控当前证据，不能因静态消费通过标绿；文档候选交主控去重。
+- **C3**：建议核销 Vue 独立真实 tar 的 **Bundler strict consumer 编译子项**。主控已有同 fixture 三端真实链路测量，不再笼统写“主控未跑”；其 PGlite count=-1 失败按上游归属保留，不能作为全链路通过。C 状态由主控统一。
+- **C5**：建议将真正 SFC 正反、模板字段/方法错误、跨组件 props/emits **参数**、readonly 支持/拒绝边界与 tar 声明映射按 **Bundler + 默认 options 契约**核销；NodeNext 保留上游阻断，本代理没有实体 identity/Vue proxy 运行证据。不自行更新 C5 状态。
 - **C2/C4**：不运行移动/删除/全量一致性/参数换代/销毁/晚到/provider，原动态缺口不动；响应式来源“类型可消费”不等于依赖追踪与生命周期正确。
-- 额外未验边界：上游修复后 NodeNext、所有自定义 WhereType/生成槽位、emit 返回类型（Vue 生成 listener 目标可出现返回 any，但本轮没有使用它绕过 id 参数检查）、真实仓储/身份/代理、SSR/水合、重复构建确定性、其它工具版本。不要标全 C5 或全包通过。
+- 本代理额外未验边界：上游修复后 NodeNext、所有自定义 WhereType/生成槽位、emit 返回类型（Vue 生成 listener 目标可出现返回 any，但本轮没有使用它绕过 id 参数检查）、真实仓储/身份/代理、SSR/水合、重复构建确定性、其它工具版本。本代理未验不等于主控未执行；合并主控证据后由主控统一状态，不据此倒扣全文评审交付。
 
-完整证据入口：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/README.md`；结算与边界：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/measurement-summary.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/resolved-declarations.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。本轮仅写证据和本段，没有改业务、依赖、旧 tests、index 或暂存区。
+### 主控真实树链路通报（2026-10-05；非本代理新增测量）
+
+主控通报：真实 **PGlite、同 fixture、三端** 在删除查询锚点后测到 **count=-1**；已定位 PGlite 的 `count(*) - 1`，SQLite 对应路径已有 clamp 0，准备确认 **RV079**。本代理不扩矩阵、不另读/改实现、不新立该编号，也不把通报冒充亲跑证据。
+
+该失败归 **上游 PGlite count 实现 / tree 真实查询链路**，不转成 Vue tree wrapper 缺陷；SFC strict 消费通过与运行计数负值风险并存。真实 tree 链路不能标全绿，发布验证保持该风险；主控负责确认、去重和最终 C 状态。此前证据目录里的 C 数字与判定属于本代理先前审计快照，不覆盖主控最新的三维统计或最终状态。
+
+完整证据入口：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/README.md`；结算与边界：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/measurement-summary.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/resolved-declarations.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。本代理仅写证据和本段，没有改业务、依赖、旧 tests、index，没有执行暂存/提交；交付时的外部并行 Git 状态变化单独记录，未回退。

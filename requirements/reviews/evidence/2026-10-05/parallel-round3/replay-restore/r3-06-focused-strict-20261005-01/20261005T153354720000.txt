@@ -1,0 +1,35 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-replay:typecheck", "--excludeTaskDependencies", "--skipSync", "--skipRemoteCache", "--skipNxCache", "--output-style=static", "--command=tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:typecheck --command=tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit
+
+> tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit
+
+src/__tests__/review-parallel-restore.spec.ts(88,45): error TS2322: Type '{ field: "id"; operator: "="; value: string; }' is not assignable to type 'Rule<ConformanceNote, StringKey<ConformanceNote>, RuleValueDefault> | RuleGroupBase<ConformanceNote, StringKey<...>, Rule<...>>'.
+  Types of property 'value' are incompatible.
+    Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.
+Warning: command "tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit" exited with non-zero status code
+
+
+ NX   Running target typecheck for project rxdb-plugin-replay failed
+
+Failed tasks:
+
+- rxdb-plugin-replay:typecheck
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.2s (1 task)
+  Recoverable time:  <1ms

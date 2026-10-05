@@ -9,7 +9,7 @@
 - 四个被测包都是原独立 consumer 的 **0.0.26 真实 tar**，不是 source aliases 或工作区包软链。tar 507 个文件与已安装副本一致；编译实际加载 core/Vue/tree/tree-vue **104/8/11/2** 份声明，共 125 份，全部与 tar hash 一致，workspace packages 源路径 0。
 - 先查已有 `vue-tsc`：独立 consumer 已有 **3.3.12**，本轮没有安装。实际 Node **26.7.0** / TypeScript **6.0.3** / Vue **3.5.43** / RxJS **7.8.2** / language-core **3.3.12** / Volar TypeScript **2.4.28** / node types **26.6.4**，位置、版本、工具文件与 tar hash 全部保存在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/provenance.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/toolchain.json`。
 - `strict=true`、`skipLibCheck=false`、`strictTemplates=true`；真正 `vue-tsc --noEmit` 处理 `.vue`，不是 `tsc`/抽取 script。零自写 `any`/ts 抑制、零 type assertion 绕过、零 paths/手工软链。16 次调用全部使用指定 `/tmp/rxdb-review-round3-locked.py`、三个 scopes 的共享串行锁；只有一次轻量配置解析，不跑 Nx/build/unit/coverage。
-- 339 个 scopes 输入、HEAD、staged diff 首尾未变。最终消费代码及修订前代码都保存，不修改 R2 证据。本 results 原前缀完整保留，只追加本段。
+- 339 个 scopes 输入首尾未变，16 次测量起止 HEAD 都为原 `76a3848…`，编译测量结束时 staged diff 仍与初始一致。收尾只读审计观察到外部并行提交推进 HEAD 至 `72d3bde0303f819b2c88e7fe18130fa231806f1b`、暂存快照变化；不是测量输入漂移，本代理没有执行暂存/提交或撤销外部变化。最终消费代码及修订前代码都保存，不修改 R2 证据。本 results 原前缀完整保留，只追加本段。
 
 ### R3 具体正反例与退出状态
 
@@ -42,4 +42,4 @@
 - **C2/C4**：不运行移动/删除/全量一致性/参数换代/销毁/晚到/provider，原动态缺口不动；响应式来源“类型可消费”不等于依赖追踪与生命周期正确。
 - 额外未验边界：上游修复后 NodeNext、所有自定义 WhereType/生成槽位、emit 返回类型（Vue 生成 listener 目标可出现返回 any，但本轮没有使用它绕过 id 参数检查）、真实仓储/身份/代理、SSR/水合、重复构建确定性、其它工具版本。不要标全 C5 或全包通过。
 
-完整证据入口：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/README.md`；结算与边界：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/measurement-summary.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/resolved-declarations.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。本轮仅写证据和本段，没有改业务、依赖、旧 tests、index 或暂存区。
+完整证据入口：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/README.md`；结算与边界：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/measurement-summary.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/resolved-declarations.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。本代理仅写证据和本段，没有改业务、依赖、旧 tests、index，没有执行暂存/提交；交付时的外部并行 Git 状态变化单独记录，未回退。

@@ -1,0 +1,66 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-test:test", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--args=run src/__tests__/review-round3-cleanup-verdict.spec.ts --maxWorkers=1 --no-file-parallelism --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-test:test --args=run src/__tests__/review-round3-cleanup-verdict.spec.ts --maxWorkers=1 --no-file-parallelism --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json
+
+> vitest run src/__tests__/review-round3-cleanup-verdict.spec.ts --maxWorkers=1 --no-file-parallelism --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test
+
+stdout | src/__tests__/review-round3-cleanup-verdict.spec.ts
+R3_CLEANUP_VERDICT {"mode":"probe","traces":[{"factory":"probe-finally/rejected","kind":"database","expected":"resolved","events":["connect:fulfilled","adapter.disconnect:resolved","factory.dispose:resolved","model.destroy:fulfilled"],"disconnectCalls":1,"disposeCalls":1,"outcome":"resolved"},{"factory":"probe-finally/rejected","kind":"database","expected":"resolved","events":["connect:fulfilled","adapter.disconnect:resolved","factory.dispose:resolved","model.destroy:fulfilled"],"disconnectCalls":1,"disposeCalls":1,"outcome":"resolved"},{"factory":"probe-finally/rejected","kind":"probe","expected":"rejected","events":["createTables:expected-rejection","tableExists:false","tableExists:false","adapter.disconnect:rejected","factory.dispose:rejected"],"disconnectCalls":1,"disposeCalls":1,"outcome":"rejected"}]}
+
+ ❯ |rxdb-test| src/__tests__/review-round3-cleanup-verdict.spec.ts (3 tests | 1 failed) 50ms
+     ✓ 首装不执行任何 migration 的 up：建出来的表已是最新形态 34ms
+     ✓ 首装必须把每条 migration 的水位线写进 RxDBMigration 表 6ms
+     × 末尾初始写入失败时，业务表与 migration 表必须一并回滚 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-test| src/__tests__/review-round3-cleanup-verdict.spec.ts > [probe-finally/rejected] C3 引导事务 > 末尾初始写入失败时，业务表与 migration 表必须一并回滚
+Error: R3_CLOSE_REJECT:probe-finally/rejected:probe
+ ❯ createClose src/__tests__/review-round3-cleanup-verdict.spec.ts:83:19
+     81|   };
+     82|   traces.push(trace);
+     83|   const failure = new Error(`R3_CLOSE_REJECT:${factory}:${kind}`);
+       |                   ^
+     84|   const disconnect = async (): Promise<void> => {
+     85|     trace.disconnectCalls++;
+ ❯ Object.createBootstrapProbe src/__tests__/review-round3-cleanup-verdict.spec.ts:172:19
+ ❯ src/transaction/bootstrap.suite.ts:78:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  15:32:52
+   Duration  1.60s (transform 378ms, setup 0ms, import 707ms, tests 50ms, environment 621ms)
+
+JSON report written to /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json
+Warning: command "vitest run src/__tests__/review-round3-cleanup-verdict.spec.ts --maxWorkers=1 --no-file-parallelism --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-test failed
+
+Failed tasks:
+
+- rxdb-test:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.3s (1 task)
+  Recoverable time:  <1ms

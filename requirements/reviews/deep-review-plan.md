@@ -260,7 +260,7 @@ NX_DAEMON=false pnpm nx graph --print
 
 ## 7. 全计划完成条件
 
-- [ ] 50 个有效包、19 个应用和 1 个残留对象都有独立文档并与当前 inventory 一一对应，未遗漏 E2E/server/extension。
+- [ ] 50 个有效包、22 个应用和 1 个残留对象都有独立文档并与当前 inventory 一一对应，未遗漏 E2E/server/extension。
 - [ ] 每对象全部受控文件及 C 项都有证据结论，未验证/不适用有理由与补证/范围说明。
 - [ ] 三框架、SQLite 多宿主、HTTP/Supabase、DevTools 与 storage 等跨对象链路已双向核对。
 - [ ] 动态任务、隔离副作用、skip、失败/串行复跑、当轮覆盖率和发布产物来源可追踪，没有缓存/mocks/旧 dist 假绿。
@@ -273,7 +273,7 @@ NX_DAEMON=false pnpm nx graph --print
 - [能力矩阵](../capability-matrix.md)、[版本/兼容策略](../versioning-policy.md) 与各对象 API baseline。
 - [评审目录规则与已有记录](README.md)、[问题模板](review.template.md)。
 - 新增/删除/拆分对象、修改公开入口/支持档位或改变 Nx target 后，先同步该对象文档与本索引；未运行过的新基线不能沿用旧“通过”结论。
-- 实际进度以 [执行台账](execution-2026-10-03.md) 为准：70 个对象已启动入口/门禁阶段、0 个全对象深审完成；没有批量勾选清单。
+- 当前进度以 [四轴口径审计](progress-2026-10-05.md) 和 [逐对象状态](evidence/2026-10-05/parallel-round3/progress-audit.json) 为准：全文审阅/意见交付、专项证据闭合、修复/发布分别统计。2026-10-03 的70对象/0整对象闭环仅是历史起点，不再充当当前总进度。
 
 ### 最新续评
 

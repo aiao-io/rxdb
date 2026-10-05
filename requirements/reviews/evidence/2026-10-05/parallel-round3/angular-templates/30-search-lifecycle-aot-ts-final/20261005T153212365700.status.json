@@ -1,0 +1,19 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:32:12.397796+08:00",
+  "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "command": [
+    "node",
+    "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-parent-binding.mjs",
+    "search-lifecycle-aot",
+    "ts-final"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 0,
+  "elapsedSeconds": 1.488,
+  "scopedInputCount": 71,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/30-search-lifecycle-aot-ts-final/20261005T153212365700.txt"
+}

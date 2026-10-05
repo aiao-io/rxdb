@@ -1,0 +1,266 @@
+[
+  {
+    "ancestorTitles": [
+      "[shared-readiness/resolved] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/resolved] C1 就绪门 空库 + 配置了 migrations 时 connect() 必须完成，不得死锁",
+    "status": "passed",
+    "title": "空库 + 配置了 migrations 时 connect() 必须完成，不得死锁",
+    "duration": 112.49083399999972,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/resolved] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/resolved] C1 就绪门 connect() 尚未完成时并发发起的第二次 connect() 不得把引导锁死",
+    "status": "passed",
+    "title": "connect() 尚未完成时并发发起的第二次 connect() 不得把引导锁死",
+    "duration": 6.7902500000000146,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/resolved] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/resolved] C1 就绪门 引导完成后普通查询仍能正常入队执行",
+    "status": "passed",
+    "title": "引导完成后普通查询仍能正常入队执行",
+    "duration": 6.5189580000001115,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/resolved] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/resolved] C1 就绪门 引导期内发起的实体写入最终会完成，不会被队列永久滞留",
+    "status": "passed",
+    "title": "引导期内发起的实体写入最终会完成，不会被队列永久滞留",
+    "duration": 7.560249999999996,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/resolved] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/resolved] C3 引导事务 首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "status": "passed",
+    "title": "首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "duration": 4.9655830000001515,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/resolved] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/resolved] C3 引导事务 首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "status": "passed",
+    "title": "首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "duration": 1.9213749999998981,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/resolved] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/resolved] C3 引导事务 末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "status": "passed",
+    "title": "末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "duration": 6.545708000000104,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/resolved] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/resolved] C2 事务作用域 事务回滚不得吞掉窗口内的外部写入",
+    "status": "passed",
+    "title": "事务回滚不得吞掉窗口内的外部写入",
+    "duration": 407.51695900000004,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/resolved] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/resolved] C2 事务作用域 两个并发 transaction() 是两个独立事务，不得被合并",
+    "status": "passed",
+    "title": "两个并发 transaction() 是两个独立事务，不得被合并",
+    "duration": 2.732833000000028,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/resolved] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/resolved] C2 事务作用域 executor.run() 复用当前事务，不新开事务",
+    "status": "passed",
+    "title": "executor.run() 复用当前事务，不新开事务",
+    "duration": 2.3198750000001382,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/resolved] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/resolved] C2 事务作用域 executor 逃逸出事务体后再使用必须抛错",
+    "status": "passed",
+    "title": "executor 逃逸出事务体后再使用必须抛错",
+    "duration": 13.333250000000135,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/rejected] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/rejected] C1 就绪门 空库 + 配置了 migrations 时 connect() 必须完成，不得死锁",
+    "status": "passed",
+    "title": "空库 + 配置了 migrations 时 connect() 必须完成，不得死锁",
+    "duration": 3.7422080000001188,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/rejected] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/rejected] C1 就绪门 connect() 尚未完成时并发发起的第二次 connect() 不得把引导锁死",
+    "status": "passed",
+    "title": "connect() 尚未完成时并发发起的第二次 connect() 不得把引导锁死",
+    "duration": 2.3479169999995975,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/rejected] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/rejected] C1 就绪门 引导完成后普通查询仍能正常入队执行",
+    "status": "passed",
+    "title": "引导完成后普通查询仍能正常入队执行",
+    "duration": 2.3579169999998157,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-readiness/rejected] C1 就绪门"
+    ],
+    "fullName": "[shared-readiness/rejected] C1 就绪门 引导期内发起的实体写入最终会完成，不会被队列永久滞留",
+    "status": "passed",
+    "title": "引导期内发起的实体写入最终会完成，不会被队列永久滞留",
+    "duration": 1.512499999999818,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/rejected] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/rejected] C3 引导事务 首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "status": "passed",
+    "title": "首装不执行任何 migration 的 up：建出来的表已是最新形态",
+    "duration": 1.8873750000002474,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/rejected] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/rejected] C3 引导事务 首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "status": "passed",
+    "title": "首装必须把每条 migration 的水位线写进 RxDBMigration 表",
+    "duration": 1.1774580000001151,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-bootstrap/rejected] C3 引导事务"
+    ],
+    "fullName": "[shared-bootstrap/rejected] C3 引导事务 末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "status": "passed",
+    "title": "末尾初始写入失败时，业务表与 migration 表必须一并回滚",
+    "duration": 0.18458400000008623,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/rejected] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/rejected] C2 事务作用域 事务回滚不得吞掉窗口内的外部写入",
+    "status": "passed",
+    "title": "事务回滚不得吞掉窗口内的外部写入",
+    "duration": 403.89204100000006,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/rejected] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/rejected] C2 事务作用域 两个并发 transaction() 是两个独立事务，不得被合并",
+    "status": "passed",
+    "title": "两个并发 transaction() 是两个独立事务，不得被合并",
+    "duration": 0.9938750000001164,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/rejected] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/rejected] C2 事务作用域 executor.run() 复用当前事务，不新开事务",
+    "status": "passed",
+    "title": "executor.run() 复用当前事务，不新开事务",
+    "duration": 0.45679100000006656,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  },
+  {
+    "ancestorTitles": [
+      "[shared-isolation/rejected] C2 事务作用域"
+    ],
+    "fullName": "[shared-isolation/rejected] C2 事务作用域 executor 逃逸出事务体后再使用必须抛错",
+    "status": "passed",
+    "title": "executor 逃逸出事务体后再使用必须抛错",
+    "duration": 3.5028330000000096,
+    "failureMessages": [],
+    "meta": {},
+    "tags": []
+  }
+]

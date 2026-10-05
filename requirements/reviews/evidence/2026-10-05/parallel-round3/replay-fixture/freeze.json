@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-05",
+  "freezeReason": "用户要求立即冻结最小因果证据，不再扩 rrweb 或测试矩阵",
+  "frozenSpec": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+  "frozenSpecSha256": "aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd",
+  "originalSpecSha256": "47478ce39514355ef208742835603a1e6ef1296eabb499290ef83ceb54edc6fd",
+  "protectedPackageInputDrift": [
+    "packages/rxdb-plugin-replay/src/__tests__/review-parallel-restore.spec.ts"
+  ],
+  "consumerInputDrift": [],
+  "readingStatus": "主控统计：十包 153 文件全文阅读与逐 C 意见交付已完成；本补证不倒扣该统计",
+  "topicEvidenceStatus": "partial，最终 RAF 全局队列断言若红，按未归属夹具 pending，不登记产品缺陷",
+  "releaseValidationStatus": "未核销，严格声明与真实 rrweb/browser 场景不由本任务冒充通过",
+  "noBusinessOrDependencyOrOriginalSpecEdits": true,
+  "noGitWriteCommands": true
+}

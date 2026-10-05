@@ -1,0 +1,38 @@
+COMMAND: ["node", "../../node_modules/typescript/bin/tsc", "-p", "tsconfig.json"]
+CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real
+tree-real.spec.mts(21,16): error TS2322: Type 'string' is not assignable to type 'Capitalize<string>'.
+tree-real.spec.mts(36,53): error TS2345: Argument of type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type '() => never'.
+  Type '{ entityId: RxDBEntityId; level: number | undefined; }' provides no match for the signature '(): never'.
+tree-real.spec.mts(37,58): error TS2345: Argument of type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type '() => never'.
+  Type '{ entityId: RxDBEntityId; level: number | undefined; }' provides no match for the signature '(): never'.
+tree-real.spec.mts(38,49): error TS2345: Argument of type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type '() => never'.
+  Type '{ entityId: RxDBEntityId; level: number | undefined; }' provides no match for the signature '(): never'.
+tree-real.spec.mts(39,54): error TS2345: Argument of type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type '() => never'.
+  Type '{ entityId: RxDBEntityId; level: number | undefined; }' provides no match for the signature '(): never'.
+tree-real.spec.mts(44,59): error TS2322: Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(45,64): error TS2322: Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(46,55): error TS2322: Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(47,60): error TS2322: Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(51,49): error TS2345: Argument of type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type 'UseOptions<never>'.
+  Type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type '() => never'.
+    Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(52,54): error TS2345: Argument of type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type 'UseOptions<never>'.
+  Type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type '() => never'.
+    Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(53,45): error TS2345: Argument of type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type 'UseOptions<never>'.
+  Type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type '() => never'.
+    Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(54,50): error TS2345: Argument of type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to parameter of type 'UseOptions<never>'.
+  Type '() => { entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type '() => never'.
+    Type '{ entityId: RxDBEntityId; level: number | undefined; }' is not assignable to type 'never'.
+tree-real.spec.mts(82,95): error TS2322: Type '{ local: { adapter: string; }; type: SyncType; }' is not assignable to type 'SyncOptions'.
+  Type '{ local: { adapter: string; }; type: SyncType; }' is not assignable to type 'SyncFull | SyncFilter | SyncQueryCache | Remote | Local'.
+    Type '{ local: { adapter: string; }; type: SyncType; }' is not assignable to type 'Local'.
+      Types of property 'type' are incompatible.
+        Type 'SyncType' is not assignable to type 'SyncType.None'.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(250,14): error TS2503: Cannot find namespace 'Emscripten'.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(254,18): error TS2693: 'FS' only refers to a type, but is being used as a value here.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(256,16): error TS2503: Cannot find namespace 'Emscripten'.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(257,17): error TS2503: Cannot find namespace 'Emscripten'.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(262,36): error TS2304: Cannot find name 'EmscriptenModule'.
+../../node_modules/.pnpm/@electric-sql+pglite@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v_db8e72a988266b05b2a40c6e95644043/node_modules/@electric-sql/pglite/dist/pglite-BdeXTuy6.d.ts(276,14): error TS2503: Cannot find namespace 'Emscripten'.

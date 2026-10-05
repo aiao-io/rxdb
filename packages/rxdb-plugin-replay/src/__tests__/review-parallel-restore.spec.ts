@@ -22,7 +22,7 @@ const createApp = async (): Promise<RxDB> => {
   return db;
 };
 
-const createAndCommit = async (db: RxDB, title: string): Promise<{ commitId: string; noteId: string }> => {
+const createAndCommit = async (db: RxDB, title: string): Promise<{ commitId: string; noteId: ConformanceNote['id'] }> => {
   const note = db.entityManager.instantiate(ConformanceNote);
   note.title = title;
   note.body = null;
@@ -58,7 +58,9 @@ const contentOf = (entry: WorkingTreeDiffEntry) => ({
 const projectionOf = async (db: RxDB) => {
   const adapter = await firstValueFrom(db.localAdapter$);
   return adapter.transaction(async executor => {
-    const result = await executor.query(`SELECT "id", "title" FROM ${executor.tableRef(ConformanceNote)} ORDER BY "id"`);
+    const result = await executor.query(
+      `SELECT "id", "title" FROM ${executor.tableRef(ConformanceNote)} ORDER BY "id"`
+    );
     return result.rows.map(row => ({ id: row[0], title: row[1] }));
   }, false);
 };
@@ -181,18 +183,26 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     });
     expect(await db.workingTree.restoreSession()).toBeNull();
     expect((await db.workingTree.diff()).entries).toEqual([]);
-    expect(await db.workingTree.status()).toMatchObject({ clean: true, entryCount: 0, restoring: false, conflicted: false });
-    console.info('R3-06 restore evidence', JSON.stringify({
-      target,
-      projectionBefore,
-      replayResult: restored,
-      replayDiff: diff,
-      replayStatus: after,
-      directResult: direct,
-      directDiff,
-      directStatus,
-      exitStatus: await db.workingTree.status()
-    }));
+    expect(await db.workingTree.status()).toMatchObject({
+      clean: true,
+      entryCount: 0,
+      restoring: false,
+      conflicted: false
+    });
+    console.info(
+      'R3-06 restore evidence',
+      JSON.stringify({
+        target,
+        projectionBefore,
+        replayResult: restored,
+        replayDiff: diff,
+        replayStatus: after,
+        directResult: direct,
+        directDiff,
+        directStatus,
+        exitStatus: await db.workingTree.status()
+      })
+    );
   });
 
   it('不可达目标拒绝不改数据/HEAD，断开后公开入口明确拒绝', async () => {

@@ -1,0 +1,31 @@
+{
+  "startedAt": "2026-10-05T15:29:23.985539+08:00",
+  "lockedCommand": [
+    "python3",
+    "/tmp/rxdb-review-round3-locked.py",
+    "--name",
+    "cleanup-verdict/spec-strict-02",
+    "--scope",
+    "packages/rxdb-test",
+    "--",
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-test:typecheck",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--command=tsc --project ../../requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/spec-only.tsconfig.json"
+  ],
+  "env": {
+    "CI": "true",
+    "NX_DAEMON": "false",
+    "FORCE_COLOR": "0",
+    "CODECOV_TOKEN": ""
+  },
+  "spec": "packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts",
+  "specSha256Before": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "specSha256After": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "specChangedDuringMeasurement": false,
+  "exitCode": 0
+}

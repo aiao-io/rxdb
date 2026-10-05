@@ -11,13 +11,17 @@ import {
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  RequiredWorkingTreePanel,
-  RXDB_ENTRY,
-  WORKING_TREE_ENTRY,
-  WorkingTreeInputParent
-} from '../../../../requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/compiled/input-fixture.js';
 import { useWorkingTree } from '../index.js';
+
+type InputFixtureModule =
+  typeof import('../../../../requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/compiled/input-fixture.js');
+type RequiredPanelInstance = InstanceType<InputFixtureModule['RequiredWorkingTreePanel']>;
+type InputParentInstance = InstanceType<InputFixtureModule['WorkingTreeInputParent']>;
+
+const { RequiredWorkingTreePanel, RXDB_ENTRY, WORKING_TREE_ENTRY, WorkingTreeInputParent } =
+  await vi.importActual<InputFixtureModule>(
+    '../../../../requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/compiled/input-fixture.js'
+  );
 
 @Component({
   selector: 'r3-untransformed-plain-panel',
@@ -48,7 +52,7 @@ const rootElement = (element: unknown): HTMLElement => {
 const text = (element: unknown, name: string): string | null =>
   rootElement(element).querySelector(`[data-testid="${name}"]`)?.textContent ?? null;
 
-const panelOf = (fixture: ComponentFixture<WorkingTreeInputParent>): RequiredWorkingTreePanel => {
+const panelOf = (fixture: ComponentFixture<InputParentInstance>): RequiredPanelInstance => {
   const element = fixture.debugElement.query(By.directive(RequiredWorkingTreePanel));
   if (!element) throw new Error('父模板没有挂载工作树子组件');
   return element.injector.get(RequiredWorkingTreePanel);

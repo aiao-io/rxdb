@@ -1,0 +1,31 @@
+{
+  "startedAt": "2026-10-05T15:33:20.455232+08:00",
+  "lockedCommand": [
+    "python3",
+    "/tmp/rxdb-review-round3-locked.py",
+    "--name",
+    "cleanup-verdict/spec-lint-01",
+    "--scope",
+    "packages/rxdb-test",
+    "--",
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-test:lint",
+    "--excludeTaskDependencies",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--command=eslint src/__tests__/review-round3-cleanup-verdict.spec.ts --max-warnings=0"
+  ],
+  "env": {
+    "CI": "true",
+    "NX_DAEMON": "false",
+    "FORCE_COLOR": "0",
+    "CODECOV_TOKEN": ""
+  },
+  "spec": "packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts",
+  "specSha256Before": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "specSha256After": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "specChangedDuringMeasurement": false,
+  "exitCode": 0
+}

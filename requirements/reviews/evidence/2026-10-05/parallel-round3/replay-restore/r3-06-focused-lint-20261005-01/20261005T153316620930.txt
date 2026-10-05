@@ -1,0 +1,27 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-replay:lint", "--excludeTaskDependencies", "--skipSync", "--skipRemoteCache", "--skipNxCache", "--output-style=static", "--command=eslint src/__tests__/review-parallel-restore.spec.ts --max-warnings=0"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:lint --command=eslint src/__tests__/review-parallel-restore.spec.ts --max-warnings=0
+
+> eslint src/__tests__/review-parallel-restore.spec.ts --max-warnings=0
+
+
+
+
+ NX   Successfully ran target lint for project rxdb-plugin-replay
+
+
+  Run duration:      4.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.2s (1 task)
+  Recoverable time:  <1ms

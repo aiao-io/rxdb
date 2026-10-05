@@ -1,0 +1,68 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-working-tree-angular:test", "review-round3-input-component", "--run", "--maxWorkers=1", "--coverage.enabled=false", "--reporter=default", "--reporter=json", "--outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json", "--parallel=1", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--output-style=static"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-working-tree-angular:test review-round3-input-component --run --maxWorkers=1 --coverage.enabled=false --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json
+
+> vitest review-round3-input-component --run --maxWorkers=1 --coverage.enabled=false --reporter=default --reporter=json --outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular
+
+stderr | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > '纯 Angular 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM
+NG0303: Can't set value of the 'branchId' input on the 'UntransformedPlainPanel' component. Make sure that the 'branchId' property is declared as an input using the input() or model() function or the @Input() decorator.
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > '纯 Angular 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > '纯 Angular 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM","assertionCalls":7}
+
+stderr | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > '真实 useWorkingTree 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM
+NG0303: Can't set value of the 'branchId' input on the 'UntransformedWorkingTreePanel' component. Make sure that the 'branchId' property is declared as an input using the input() or model() function or the @Input() decorator.
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > '真实 useWorkingTree 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > '真实 useWorkingTree 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM","assertionCalls":7}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 真实编译的 required 输入未绑定时抛 NG0950，不伪造默认分支
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 真实编译的 required 输入未绑定时抛 NG0950，不伪造默认分支","assertionCalls":4}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 输入元数据真实编译后，同一个 setInput API 能更新 signal 与 OnPush DOM
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 输入元数据真实编译后，同一个 setInput API 能更新 signal 与 OnPush DOM","assertionCalls":6}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 父模板首帧绑定 required signal，真实 provider 与 hook 创建都不发 IO
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 父模板首帧绑定 required signal，真实 provider 与 hook 创建都不发 IO","assertionCalls":11}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 父 signal 来回更新真实输入和 DOM，不切库、不切分支、不重算旧 diff
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 父 signal 来回更新真实输入和 DOM，不切库、不切分支、不重算旧 diff","assertionCalls":11}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 真实模板点击把当前 required 输入送给命令，pending 与成功后的 status 自动刷新 DOM
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 真实模板点击把当前 required 输入送给命令，pending 与成功后的 status 自动刷新 DOM","assertionCalls":12}
+
+stdout | src/__tests__/review-round3-input-component.spec.ts > R3-04 required signal 输入与真实父模板归属 > 真实事件中的拒绝仍归调用方，错误 signal 刷新 DOM 且不假装已切分支
+R3_ASSERTIONS {"currentTestName":"R3-04 required signal 输入与真实父模板归属 > 真实事件中的拒绝仍归调用方，错误 signal 刷新 DOM 且不假装已切分支","assertionCalls":9}
+
+ ✓ |rxdb-plugin-working-tree-angular| src/__tests__/review-round3-input-component.spec.ts (8 tests) 168ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  15:34:32
+   Duration  3.67s (transform 2.25s, setup 235ms, import 2.64s, tests 168ms, environment 485ms)
+
+JSON report written to /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json
+
+
+
+ NX   Successfully ran target test for project rxdb-plugin-working-tree-angular
+
+
+  Run duration:      4.1s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     4.1s (1 task)
+  Recoverable time:  <1ms

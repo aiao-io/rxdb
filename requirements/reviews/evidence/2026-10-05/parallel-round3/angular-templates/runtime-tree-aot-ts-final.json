@@ -1,0 +1,138 @@
+{
+  "mode": "tree-aot",
+  "compiledFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.mjs",
+  "harnessSha256": "abdea7aff53c8c2bf09a709318caf3d611522d8c84485381e4f27c126c10ab0a",
+  "toolsSha256": "21e9989fd948c57c26c5e3000ceb58f62face06149a99c47588abebb91cd5546",
+  "compiledSha256": "421f120a470510e18f207242ce211b7ddfb633899e13cb75cdfaaa8dbedcc9df",
+  "domPackageEntry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/happy-dom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+_f2992d1449638deff249d09cb06b144b/node_modules/happy-dom/lib/index.js",
+  "inputMetadata": {
+    "TreeChild": {
+      "rootId": [
+        "rootId",
+        1,
+        null
+      ]
+    },
+    "FieldSourceSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ]
+    },
+    "FieldOptionsSearchChild": {
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    },
+    "LifecycleSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ],
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    }
+  },
+  "assertionCount": 14,
+  "assertions": [
+    "AOT parent binds required rootId=0 without setInput",
+    "AOT genuine signal input metadata includes rootId",
+    "findDescendants receives numeric zero and level one",
+    "findAncestors receives numeric zero and level one",
+    "countDescendants receives numeric zero and level one",
+    "countAncestors receives numeric zero and level one",
+    "four lazy wrapper queries have four live primary subscriptions",
+    "parent bound child renders loading",
+    "parent signal fast update reaches current rootId=2",
+    "late old query cannot overwrite current DOM",
+    "numeric output is received by parent template",
+    "empty response is rendered by bound child",
+    "query failure is rendered as alert",
+    "destroy releases all four primary subscriptions"
+  ],
+  "searchRecords": [],
+  "searchExecutions": [],
+  "treeCalls": {
+    "findDescendants": [
+      {
+        "entityId": 0,
+        "level": 1
+      },
+      {
+        "entityId": 2,
+        "level": 1
+      },
+      {
+        "entityId": 3,
+        "level": 1
+      },
+      {
+        "entityId": 4,
+        "level": 1
+      }
+    ],
+    "findAncestors": [
+      {
+        "entityId": 0,
+        "level": 1
+      },
+      {
+        "entityId": 2,
+        "level": 1
+      },
+      {
+        "entityId": 3,
+        "level": 1
+      },
+      {
+        "entityId": 4,
+        "level": 1
+      }
+    ],
+    "countDescendants": [
+      {
+        "entityId": 0,
+        "level": 1
+      },
+      {
+        "entityId": 2,
+        "level": 1
+      },
+      {
+        "entityId": 3,
+        "level": 1
+      },
+      {
+        "entityId": 4,
+        "level": 1
+      }
+    ],
+    "countAncestors": [
+      {
+        "entityId": 0,
+        "level": 1
+      },
+      {
+        "entityId": 2,
+        "level": 1
+      },
+      {
+        "entityId": 3,
+        "level": 1
+      },
+      {
+        "entityId": 4,
+        "level": 1
+      }
+    ]
+  },
+  "treeLiveSubscriptionsAfterCleanup": 0,
+  "exitCode": 0
+}

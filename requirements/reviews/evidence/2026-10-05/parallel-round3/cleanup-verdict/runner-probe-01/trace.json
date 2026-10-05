@@ -1,0 +1,48 @@
+{
+  "mode": "probe",
+  "traces": [
+    {
+      "factory": "probe-finally/rejected",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "probe-finally/rejected",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "probe-finally/rejected",
+      "kind": "probe",
+      "expected": "rejected",
+      "events": [
+        "createTables:expected-rejection",
+        "tableExists:false",
+        "tableExists:false",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-replay:typecheck", "--excludeTaskDependencies", "--skipSync", "--skipRemoteCache", "--skipNxCache", "--output-style=static", "--command=tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay:typecheck --command=tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit
+
+> tsc --project /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/probe-tsconfig.json --noEmit
+
+
+
+
+ NX   Successfully ran target typecheck for project rxdb-plugin-replay
+
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-plugin-replay:typecheck
+
+  Run duration:      1.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.5s (1 task)
+  Recoverable time:  <1ms

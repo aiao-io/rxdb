@@ -1,0 +1,233 @@
+{
+  "task": "R3-05 cleanup-verdict",
+  "clientDate": "2026-10-05",
+  "collectedAt": "2026-10-05T15:36:50.472921+08:00",
+  "spec": "packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts",
+  "specSha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+  "baselineHead": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtCollection": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "originalRxdbTestFileCount": 115,
+  "originalSourceDrift": [],
+  "inheritedEvidence": [
+    {
+      "path": "requirements/reviews/results/packages/rxdb-test.md",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/file-inspection.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes.txt",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes-input-sha256.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes-input-sha256.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/compiler-initial.txt",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/config.json",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": "AGENTS.md",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": ".agents/skills/nx-workspace/SKILL.md",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    },
+    {
+      "path": ".agents/skills/nx-run-tasks/SKILL.md",
+      "snapshotIntact": true,
+      "originalUnchangedBeforeSettlement": true
+    }
+  ],
+  "measurements": [
+    {
+      "label": "runner-direct-01",
+      "mode": "direct",
+      "exitCode": 1,
+      "success": false,
+      "passed": 1,
+      "failed": 1,
+      "pending": 0,
+      "todo": 0,
+      "databaseResources": 2,
+      "probeResources": 0,
+      "explicitlyRejectedDisposes": 1,
+      "rejectedDisposeFactories": [
+        "direct/rejected"
+      ],
+      "failureNames": [
+        "R3 direct/rejected 成功业务 body 后直接 await 同一 dispose"
+      ],
+      "bodyOperationEvents": {
+        "connect:fulfilled": 2,
+        "query:fulfilled": 2,
+        "save:fulfilled": 0,
+        "createTables:expected-rejection": 0,
+        "tableExists:false": 0
+      },
+      "specSha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-direct-01/20261005T153045042834.txt",
+      "traceLogLine": 22,
+      "vitestReport": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-direct-01/vitest.json",
+      "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-direct-01/20261005T153045042834.status.json"
+    },
+    {
+      "label": "runner-shared-01",
+      "mode": "shared",
+      "exitCode": 0,
+      "success": true,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0,
+      "todo": 0,
+      "databaseResources": 20,
+      "probeResources": 2,
+      "explicitlyRejectedDisposes": 10,
+      "rejectedDisposeFactories": [
+        "shared-readiness/rejected",
+        "shared-readiness/rejected",
+        "shared-readiness/rejected",
+        "shared-readiness/rejected",
+        "shared-bootstrap/rejected",
+        "shared-bootstrap/rejected",
+        "shared-isolation/rejected",
+        "shared-isolation/rejected",
+        "shared-isolation/rejected",
+        "shared-isolation/rejected"
+      ],
+      "failureNames": [],
+      "bodyOperationEvents": {
+        "connect:fulfilled": 22,
+        "query:fulfilled": 2,
+        "save:fulfilled": 4,
+        "createTables:expected-rejection": 2,
+        "tableExists:false": 4
+      },
+      "specSha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-shared-01/20261005T153136999424.txt",
+      "traceLogLine": 22,
+      "vitestReport": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-shared-01/vitest.json",
+      "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-shared-01/20261005T153136999424.status.json"
+    },
+    {
+      "label": "runner-probe-01",
+      "mode": "probe",
+      "exitCode": 1,
+      "success": false,
+      "passed": 2,
+      "failed": 1,
+      "pending": 0,
+      "todo": 0,
+      "databaseResources": 2,
+      "probeResources": 1,
+      "explicitlyRejectedDisposes": 1,
+      "rejectedDisposeFactories": [
+        "probe-finally/rejected"
+      ],
+      "failureNames": [
+        "[probe-finally/rejected] C3 引导事务 末尾初始写入失败时，业务表与 migration 表必须一并回滚"
+      ],
+      "bodyOperationEvents": {
+        "connect:fulfilled": 2,
+        "query:fulfilled": 0,
+        "save:fulfilled": 0,
+        "createTables:expected-rejection": 1,
+        "tableExists:false": 2
+      },
+      "specSha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/20261005T153243152799.txt",
+      "traceLogLine": 22,
+      "vitestReport": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/vitest.json",
+      "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/runner-probe-01/20261005T153243152799.status.json"
+    }
+  ],
+  "quality": [
+    {
+      "label": "spec-strict-01",
+      "exitCode": 1,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/spec-strict-01/20261005T152734613941.txt",
+      "changedInputsDuringMeasurement": []
+    },
+    {
+      "label": "spec-strict-02",
+      "exitCode": 0,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/spec-strict-02/20261005T152925854236.txt",
+      "changedInputsDuringMeasurement": []
+    },
+    {
+      "label": "spec-lint-01",
+      "exitCode": 0,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/spec-lint-01/20261005T153332345811.txt",
+      "changedInputsDuringMeasurement": []
+    }
+  ],
+  "verdict": {
+    "successfulBodyAndDisposeRejectionCanYieldGreen": true,
+    "realUnmockedVitestRegistrations": true,
+    "filteredOrSkippedCases": false,
+    "existingCandidate": "CORE-PENDING-3",
+    "newIndependentCandidates": 0,
+    "mainRvAssigned": false,
+    "candidateScope": "三个原事务共享 suite 的 opened 数据库 afterEach 对明确拒绝的 Promise 清理错误不可观测；不含 bootstrap probe finally、不证明具体后端关闭失败或物理泄漏。",
+    "contractDecision": "C1/C2/C3 业务契约与 cleanup 完整性不等价；现有 factory 自己也 best-effort。主控决定关闭失败是否必须使合规 runner 红，不能仅由 catch 推断业务事务实现错误。",
+    "newCoverageCredit": "成功业务 body + 明确 adapter.disconnect/factory.dispose 拒绝 + 真实 runner exit 的缺口已闭合；不核销完整 C1/C2、覆盖率或全适配器合规。"
+  }
+}

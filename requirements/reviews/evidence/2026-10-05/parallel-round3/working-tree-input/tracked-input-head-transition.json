@@ -1,0 +1,9 @@
+{
+  "addedTrackedPaths": [
+    "packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round3-input-component.spec.ts"
+  ],
+  "removedTrackedPaths": [],
+  "sharedTrackedChangedPaths": [],
+  "headNow": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "wholeIndexEntriesSha256Now": "f3bdd193ea4f779ea0d9a52878e773b8c42ed9d17803374a1865b6a2538e1862"
+}

@@ -1,0 +1,17 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:30:41.246124+08:00",
+  "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "command": [
+    "node",
+    "count-anchor.mjs"
+  ],
+  "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real",
+  "exitCode": 1,
+  "elapsedSeconds": 1.472,
+  "scopedInputCount": 586,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/tree-real/independent-count-anchor/20261005T153041127937.txt"
+}

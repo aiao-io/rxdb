@@ -1,0 +1,72 @@
+{
+  "task": "R3-02",
+  "status": "bounded-evidence-delivered",
+  "object": "rxdb-plugin-tree-vue",
+  "realTarVersion": "0.0.26",
+  "matrixExpectationsMet": true,
+  "negativeTargets": "26/26",
+  "verdicts": [
+    {
+      "subject": "默认 deep readonly RuleGroup",
+      "kind": "contract-limitation-not-confirmed-wrapper-defect",
+      "positive": "浅 readonly 完整 options/ref 容器、窄标量 deep readonly ref、computed/getter/mutable rules 的 SFC 通过",
+      "negative": "core/tree/UseOptions/四 wrapper 对 default mutable RuleGroup 一致拒绝，共 8 指定诊断",
+      "r2Correction": "原 full readonly valid 前提错误，原失败证据保留，不能宣称已支持 deep readonly 默认 rules"
+    },
+    {
+      "subject": "NodeNext",
+      "kind": "confirmed-upstream-declaration-blocker",
+      "owner": "rxdb-vue",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/published/rxdb-vue/dist/index.d.ts",
+      "lines": [
+        21,
+        25,
+        29,
+        34,
+        39,
+        44,
+        49
+      ],
+      "upstreamOnlyExit": 2,
+      "upstreamBundlerControlExit": 0,
+      "wrapperNodeNextExit": 2,
+      "wrapperCascades": "TS2305 来自上游根导出不可解析，不新建同因 wrapper 缺陷"
+    },
+    {
+      "subject": "depth / level TSDoc",
+      "kind": "confirmed-wrapper-documentation-mismatch-controller-dedup-pending",
+      "sourceFile": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+      "sourceLine": 20,
+      "publishedFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/published/rxdb-plugin-tree-vue/dist/use-tree.d.ts",
+      "publishedLine": 18,
+      "probeFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/consumer/DocDepthRejected.vue",
+      "probeLine": 4,
+      "exitCode": 2,
+      "diagnostic": "TS2353",
+      "suggestedPriority": "P3",
+      "notAFunctionBug": true
+    }
+  ],
+  "originalCRecommendations": {
+    "C1": "只补 id/level 编译子项，实际仓储/core 禁止组合/深树仍 partial",
+    "C2": "无新运行证据，不改原缺口",
+    "C3": "Vue 独立真实 tar Bundler strict 编译子项可核销，整体 partial",
+    "C4": "仅输入类型已证，依赖追踪/lifecycle/provider 仍未验",
+    "C5": "SFC/模板/props-emits 参数/readonly 边界/Bundler packed 类型可核销，NodeNext 上游阻断与 identity 运行未验，整体 partial"
+  },
+  "unverified": [
+    "上游修复后 NodeNext",
+    "全部自定义 WhereType/生成 static type 槽位",
+    "emit 返回类型",
+    "真实 TreeRepository/provider/缺插件/QueryCache 禁止/深树/SQL",
+    "跨父移动/删除/全量一致性/参数换代",
+    "实体 identity / Vue proxy",
+    "scope/unmount/晚到/多实例/SSR/hydration",
+    "重复构建确定性",
+    "其它工具版本"
+  ],
+  "fullOriginalCClosedCount": 0,
+  "issueNumberAllocated": false,
+  "controllerOwnsDeduplication": true,
+  "parallelGitStateAudit": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json"
+}

@@ -9,7 +9,7 @@
 - 先检查已有工具：工作区与独立 consumer 均已有 `vue-tsc 3.3.12`；本轮零安装。实际执行独立 consumer 的 `vue-tsc`，配套 TypeScript `6.0.3`、Vue `3.5.43`、RxJS `7.8.2`、`@vue/language-core 3.3.12`、`@volar/typescript 2.4.28`、`@types/node 26.6.4`、Node `26.7.0`。真实工具位置与 hash 见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/toolchain.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/provenance.json`。
 - 新夹具位于 `/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3`；所有业务 imports 使用公开包名，实体模型为普通消费端本地类，只有本地相对 imports。没有 workspace paths、源包 alias 或手工软链。现有 pnpm tar 安装链接未改。
 - 真实 `.vue` 的 `<script setup lang="ts">`、模板、跨 SFC props/emits 均由 `vue-tsc` 编译，不以 `tsc` 或提取 script 代替 SFC。每个配置 `strict=true`、`skipLibCheck=false`、`noEmit=true`、`vueCompilerOptions.strictTemplates=true`；自写消费代码零显式 `any`、零抑制指令、零断言绕过。
-- 16 次工具/编译调用全部走 `/tmp/rxdb-review-round3-locked.py` 的共享串行锁、指定三个 scopes，其中 14 次编译（9 初测 + 4 夹具修正复测 + 1 loaded-files），另 1 次版本读取、1 次配置解析。339 个 scope 输入在测量中及首尾无变化；HEAD 始终 `76a3848e2086f4617b80f7b1a1b896ef76e5719c`。
+- 16 次工具/编译调用全部走 `/tmp/rxdb-review-round3-locked.py` 的共享串行锁、指定三个 scopes，其中 14 次编译（9 初测 + 4 夹具修正复测 + 1 loaded-files），另 1 次版本读取、1 次配置解析。339 个 scope 输入在测量中及首尾无变化；16 次测量起止 HEAD 均为 `76a3848e2086f4617b80f7b1a1b896ef76e5719c`。收尾只读审计才观察到外部并行提交将 HEAD 推进至 `72d3bde0303f819b2c88e7fe18130fa231806f1b`，不是编译测量基线漂移。
 
 ## 最终编译矩阵
 
@@ -92,4 +92,4 @@
 python3 /tmp/rxdb-review-round3-locked.py --name vue-consumer/reproduce-new-unique-name --scope packages/rxdb-plugin-tree-vue --scope packages/rxdb-vue --scope packages/rxdb --cwd /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3 -- /Users/jimmy/.nvm/versions/node/v26.7.0/bin/node /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js --project tsconfig.valid-bundler.json --noEmit --pretty false
 ```
 
-写集合只有本证据目录与 results 新增 R3 结算段；业务/依赖/旧 tests/index/staging 未改。staged diff SHA 首尾为 `f7acc6b41438590fd711c25438a3d2baa8a54a38f84a47e8a914a8f2d89dd52a`，最终写边界与 result 原前缀检查见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。
+本代理写集合只有本证据目录与 results 新增 R3 结算段；没有改业务/依赖/旧 tests/index，没有执行 git add/reset/commit 等暂存或提交操作。编译测量结束审计时 staged diff SHA 仍为初始 `f7acc6b41438590fd711c25438a3d2baa8a54a38f84a47e8a914a8f2d89dd52a`；收尾并行提交/暂存导致该快照变化，因此不能宣称交付时全局暂存区不变，也没有撤销外部变化。最终写边界、当时 HEAD/暂存快照与 result 原前缀检查见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/write-fence.json`。

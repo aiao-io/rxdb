@@ -1,0 +1,48 @@
+COMMAND: ["node", "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-parent-binding.mjs", "search-lifecycle-aot", "ts-final"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+consumer frozen files=6662, changed=0
+[
+  {
+    "name": "@aiao/rxdb-plugin-tree-angular",
+    "entry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-plugin-tree-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4_549beb59da780bfd410e857afe043107/node_modules/@aiao/rxdb-plugin-tree-angular/fesm2022/aiao-rxdb-plugin-tree-angular.mjs",
+    "resolutions": {
+      "@aiao/rxdb": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_836a7980dcd24cc7ec2b1cac099df782/node_modules/@aiao/rxdb/dist/index.js",
+      "@aiao/rxdb-angular": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_4036732e05819c506c720512a3748a42/node_modules/@aiao/rxdb-angular/fesm2022/aiao-rxdb-angular.mjs",
+      "@angular/core": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/core.mjs",
+      "rxjs": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rxjs@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-_3a83c4ad857dec3b3d1eac6946f9bfda/node_modules/rxjs/dist/cjs/index.js"
+    }
+  },
+  {
+    "name": "@aiao/rxdb-plugin-search-angular",
+    "entry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-plugin-search-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7j_407093dff97702b769387bf61116b1a3/node_modules/@aiao/rxdb-plugin-search-angular/fesm2022/aiao-rxdb-plugin-search-angular.mjs",
+    "resolutions": {
+      "@aiao/rxdb": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_836a7980dcd24cc7ec2b1cac099df782/node_modules/@aiao/rxdb/dist/index.js",
+      "@aiao/rxdb-angular": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_4036732e05819c506c720512a3748a42/node_modules/@aiao/rxdb-angular/fesm2022/aiao-rxdb-angular.mjs",
+      "@angular/core": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/core.mjs",
+      "rxjs": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rxjs@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-_3a83c4ad857dec3b3d1eac6946f9bfda/node_modules/rxjs/dist/cjs/index.js"
+    }
+  },
+  {
+    "name": "@aiao/rxdb-angular",
+    "entry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_4036732e05819c506c720512a3748a42/node_modules/@aiao/rxdb-angular/fesm2022/aiao-rxdb-angular.mjs",
+    "resolutions": {
+      "@aiao/rxdb": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_836a7980dcd24cc7ec2b1cac099df782/node_modules/@aiao/rxdb/dist/index.js",
+      "@aiao/rxdb-angular": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_4036732e05819c506c720512a3748a42/node_modules/@aiao/rxdb-angular/fesm2022/aiao-rxdb-angular.mjs",
+      "@angular/core": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/core.mjs",
+      "rxjs": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rxjs@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-_3a83c4ad857dec3b3d1eac6946f9bfda/node_modules/rxjs/dist/cjs/index.js"
+    }
+  }
+]
+REAL_INPUT_METADATA {"TreeChild":{"rootId":["rootId",1,null]},"FieldSourceSearchChild":{"source":["source",1,null]},"FieldOptionsSearchChild":{"options":["options",1,null]},"LifecycleSearchChild":{"source":["source",1,null],"options":["options",1,null]}}
+PASS required source and options are available at ngOnInit
+PASS real SearchHandle receives bound seed/options
+PASS real handle has four observable subscriptions
+PASS DOM Event narrows to string and updates real query
+PASS bound required options change rebuilds current handle
+PASS rebuild retains current query instead of stale seed
+PASS rebuild releases old subscriptions and destroy once
+PASS controlled real handle execution error reaches alert
+PASS clear removes results and returns idle
+PASS destroy releases every real handle stream and callback
+consumer frozen files=6662, changed=0
+SUMMARY mode=search-lifecycle-aot assertions=10 exit=0 result=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-lifecycle-aot-ts-final.json

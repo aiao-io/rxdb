@@ -1,0 +1,53 @@
+{
+  "mode": "search-field-options-aot",
+  "compiledFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.mjs",
+  "harnessSha256": "abdea7aff53c8c2bf09a709318caf3d611522d8c84485381e4f27c126c10ab0a",
+  "toolsSha256": "21e9989fd948c57c26c5e3000ceb58f62face06149a99c47588abebb91cd5546",
+  "compiledSha256": "421f120a470510e18f207242ce211b7ddfb633899e13cb75cdfaaa8dbedcc9df",
+  "domPackageEntry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/happy-dom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+_f2992d1449638deff249d09cb06b144b/node_modules/happy-dom/lib/index.js",
+  "inputMetadata": {
+    "TreeChild": {
+      "rootId": [
+        "rootId",
+        1,
+        null
+      ]
+    },
+    "FieldSourceSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ]
+    },
+    "FieldOptionsSearchChild": {
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    },
+    "LifecycleSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ],
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    }
+  },
+  "assertionCount": 0,
+  "assertions": [],
+  "failure": {
+    "message": "NG0950: Input \"options\" is required but no value is available yet. Find more at https://v22.angular.dev/errors/NG0950",
+    "code": -950,
+    "stack": "Error: NG0950: Input \"options\" is required but no value is available yet. Find more at https://v22.angular.dev/errors/NG0950\n    at inputValueFn (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/core.mjs:37:13)\n    at readOptions (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-plugin-search-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7j_407093dff97702b769387bf61116b1a3/node_modules/@aiao/rxdb-plugin-search-angular/fesm2022/aiao-rxdb-plugin-search-angular.mjs:8:48)\n    at untracked (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/_untracked-chunk.mjs:95:12)\n    at untracked (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/_resource-chunk.mjs:101:10)\n    at useSearch (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+rxdb-plugin-search-angular@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7j_407093dff97702b769387bf61116b1a3/node_modules/@aiao/rxdb-plugin-search-angular/fesm2022/aiao-rxdb-plugin-search-angular.mjs:9:23)\n    at new FieldOptionsSearchChild (file:///Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.mjs:208:23)\n    at NodeInjectorFactory.FieldOptionsSearchChild_Factory [as factory] (file:///Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.mjs:210:95)\n    at getNodeInjectable (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:751:38)\n    at instantiateAllDirectives (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:5647:23)\n    at createDirectivesInstances (file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@angular+core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000g_76bac959566b1ec3203401fe64662bce/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:5504:3)"
+  },
+  "searchRecords": [],
+  "searchExecutions": [],
+  "exitCode": 1
+}

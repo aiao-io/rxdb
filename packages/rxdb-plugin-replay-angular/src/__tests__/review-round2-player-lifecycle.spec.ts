@@ -1,7 +1,8 @@
 /**
  * @fileoverview R2-10 的真实 Angular fixture 与核心播放器状态链补证。
  * @remarks
- * 不替换 mountReplayer；仅控制 ReplayManager 和 rrweb 边界，不证明真实录像、布局、键盘或原生 IME。
+ * 入口只转发真实核心源函数；组件用独立模块键，rrweb 按可解析的核心依赖路径受控。
+ * 父子门面分轮加载、同时存活，不证明同轮动态装载、真实录像、iframe 布局、键盘或原生 IME。
  */
 import {
   replayRestoreHint,
@@ -11,16 +12,16 @@ import {
   type ReplayState,
   type ReplayerCommitRestoreEvent
 } from '@aiao/rxdb-plugin-replay';
-import { Component, InjectionToken, destroyPlatform, inject, provideZonelessChangeDetection, signal } from '@angular/core';
+import { Component, InjectionToken, inject, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { of } from 'rxjs';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReplayerComponent } from '../replayer.component.js';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReplayerComponent as ReplayerInstance } from '../replayer.component.js';
 
 type eventWithTime = Awaited<ReturnType<ReplayManager['readEvents']>>[number];
-
-vi.hoisted(() => vi.resetModules());
+type RrwebClass = typeof import('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js').Replayer;
+type PlaybackContract = Pick<InstanceType<RrwebClass>, 'play' | 'pause' | 'destroy' | 'getMetaData' | 'getCurrentTime'>;
+type PlaybackListener = Parameters<InstanceType<RrwebClass>['on']>[1];
 
 vi.mock('@aiao/rxdb-plugin-replay', async () => {
   const { mountReplayer } = await import('../../../rxdb-plugin-replay/src/replayer/mount-replayer.js');
@@ -29,37 +30,57 @@ vi.mock('@aiao/rxdb-plugin-replay', async () => {
 });
 const boundary = vi.hoisted(() => {
   const instances: ControlledReplayer[] = [];
-  class ControlledReplayer {
+  class ControlledReplayer implements PlaybackContract {
     position = 0;
-    readonly play = vi.fn((offset: number) => {
-      this.position = offset - 1;
+    readonly play = vi.fn((offset = 0) => {
+      this.position = offset;
     });
     readonly pause = vi.fn((offset?: number) => {
-      if (offset !== undefined) this.position = offset - 1;
+      if (offset !== undefined) this.position = offset;
     });
     readonly destroy = vi.fn();
-    readonly on = vi.fn();
+    readonly listeners = new Map<string, PlaybackListener>();
+    readonly on = vi.fn((event: string, listener: PlaybackListener) => {
+      this.listeners.set(event, listener);
+      return this;
+    });
 
-    constructor(readonly events: eventWithTime[]) {
+    constructor(
+      readonly events: eventWithTime[],
+      readonly config: ConstructorParameters<RrwebClass>[1]
+    ) {
       instances.push(this);
     }
 
     getMetaData() {
-      return { startTime: 1_000, endTime: 2_000, totalTime: 1_000 };
+      const first = this.events[0];
+      const last = this.events.at(-1);
+      if (!first || !last) throw new Error('受控播放器要求非空事件');
+      return { startTime: first.timestamp, endTime: last.timestamp, totalTime: last.timestamp - first.timestamp };
     }
 
     getCurrentTime(): number {
       return this.position;
     }
+
+    finish(): void {
+      const listener = this.listeners.get('finish');
+      if (!listener) throw new Error('核心未注册 finish 监听器');
+      listener();
+    }
   }
   return { Replayer: ControlledReplayer, instances };
 });
 vi.mock('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js', () => ({ Replayer: boundary.Replayer }));
-vi.mock('rrweb', () => ({ Replayer: boundary.Replayer }));
+
+const { ReplayerComponent } = await vi.importActual<typeof import('../replayer.component.js')>(
+  '../replayer.component.ts?review-r3-real-core'
+);
 
 const events: eventWithTime[] = [
+  { type: 4, timestamp: 1_000, data: { href: 'https://review.invalid/', width: 800, height: 600 } },
   { type: 2, timestamp: 1_000, data: { node: { type: 0, id: 1, childNodes: [] }, initialOffset: { left: 0, top: 0 } } },
-  { type: 4, timestamp: 2_000, data: { href: 'https://review.invalid/', width: 800, height: 600 } }
+  { type: 5, timestamp: 2_000, data: { tag: 'review-end', payload: null } }
 ];
 const marker: ReplayCommitMarker = { seq: 99, timestamp: 1_500, commitId: 'commit-one', branchId: 'main' };
 const restored: ReplayRestoreResult = { ok: true, restoredCount: 2, sessionId: 'restore-one', workingTreeRevision: 3 };
@@ -90,7 +111,7 @@ const element = <T extends HTMLElement>(host: HTMLElement, selector: string): T 
   if (!node) throw new Error(`缺元素 ${selector}`);
   return node;
 };
-const state = (fixture: ComponentFixture<ReplayerComponent>) =>
+const state = (fixture: ComponentFixture<ReplayerInstance>) =>
   element(hostOf(fixture), '.rxdb-replayer').dataset['state'];
 const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 const mount = async (replay: ReplayManager, sessionId = 'session-one') => {
@@ -100,7 +121,13 @@ const mount = async (replay: ReplayManager, sessionId = 'session-one') => {
   await fixture.whenStable();
   return fixture;
 };
-const ready = (fixture: ComponentFixture<ReplayerComponent>) => vi.waitFor(() => expect(state(fixture)).toBe('ready'));
+const ready = (fixture: ComponentFixture<ReplayerInstance>) => vi.waitFor(() => expect(state(fixture)).toBe('ready'));
+
+const playerAt = (index: number) => {
+  const player = boundary.instances[index];
+  if (!player) throw new Error(`缺受控播放器 ${index}`);
+  return player;
+};
 
 const SOURCE = new InjectionToken<ReplayManager>('R2-10 父级门面');
 const createParentHost = (childSource: ReplayManager) => {
@@ -119,28 +146,25 @@ const createParentHost = (childSource: ReplayManager) => {
   }
   Component({
     imports: [ReplayerComponent, ChildReplayHost],
-    template: '<ao-replayer [replay]="replay" sessionId="parent-session" />@if (showChild()) { <review-replay-child /> }'
+    template:
+      '<ao-replayer [replay]="replay" sessionId="parent-session" />@if (showChild()) { <review-replay-child /> }'
   })(ParentReplayHost);
   return ParentReplayHost;
 };
 
 beforeEach(() => {
-  TestBed.resetTestEnvironment();
-  destroyPlatform();
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting(), {
-    teardown: { destroyAfterEach: true }
-  });
-  TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
   boundary.instances.length = 0;
 });
 
+afterEach(() => {
+  TestBed.resetTestingModule();
+  vi.restoreAllMocks();
+});
+
 afterAll(() => {
-  TestBed.resetTestEnvironment();
-  destroyPlatform();
+  TestBed.resetTestingModule();
   vi.doUnmock('@aiao/rxdb-plugin-replay');
   vi.doUnmock('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js');
-  vi.doUnmock('rrweb');
-  vi.resetModules();
 });
 
 describe('R2-10 Angular + 真实核心：加载与生命周期', () => {
@@ -151,6 +175,14 @@ describe('R2-10 Angular + 真实核心：加载与生命周期', () => {
     expect(core.mountReplayer).toBe(source.mountReplayer);
     expect(vi.isMockFunction(core.mountReplayer)).toBe(false);
     expect(rrweb.Replayer).toBe(boundary.Replayer);
+    const fixture = await mount(createReplay());
+    await ready(fixture);
+    expect(boundary.instances).toHaveLength(1);
+    expect(boundary.instances[0]?.config).toEqual({
+      root: element(hostOf(fixture), '.rxdb-replayer__stage'),
+      mouseTail: false,
+      showWarning: false
+    });
   });
   it('空 recording 与加载失败显示各自状态，不启动录制', async () => {
     const pending = Promise.withResolvers<eventWithTime[]>();
@@ -353,5 +385,134 @@ describe('R2-10 Angular + 真实核心：marker、恢复状态与取消', () => 
     expect(host.querySelector('.rxdb-replayer')).toBeNull();
     expect(boundary.instances).toHaveLength(1);
     expect(boundary.instances[0]?.destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('R3-03 真实核心：控制契约与代际取消', () => {
+  it('加载中的 play/pause 不启动，最后一次 seek 落位并按总时长夹紧', async () => {
+    const pending = Promise.withResolvers<eventWithTime[]>();
+    const fixture = await mount(createReplay({ readEvents: () => pending.promise }));
+    const time = vi.fn<(value: number) => void>();
+    fixture.componentInstance.aoTimeChange.subscribe(time);
+    fixture.componentInstance.play();
+    fixture.componentInstance.pause();
+    fixture.componentInstance.seek(-20);
+    fixture.componentInstance.seek(2_000);
+    expect(boundary.instances).toHaveLength(0);
+    expect(time).not.toHaveBeenCalled();
+    pending.resolve(events);
+    await ready(fixture);
+    const player = playerAt(0);
+    const timeline = element<HTMLInputElement>(hostOf(fixture), 'input[aria-label="Timeline"]');
+    expect(timeline.value).toBe('1000');
+    expect(player.pause).toHaveBeenLastCalledWith(1_001);
+    expect(time).toHaveBeenLastCalledWith(1_000);
+    fixture.componentInstance.seek(-20);
+    expect(player.pause).toHaveBeenLastCalledWith(1);
+    expect(timeline.value).toBe('0');
+    expect(time).toHaveBeenLastCalledWith(0);
+  });
+
+  it('相同输入和单改 initialTime 不重载，同轮 replay/session/initialTime 只产生新一代', async () => {
+    const replay = createReplay();
+    const fixture = await mount(replay);
+    const component = fixture.componentInstance;
+    await ready(fixture);
+    const first = playerAt(0);
+    fixture.componentRef.setInput('sessionId', 'session-one');
+    fixture.componentRef.setInput('replay', replay);
+    fixture.componentRef.setInput('initialTime', 300);
+    await fixture.whenStable();
+    expect(replay.readEvents).toHaveBeenCalledTimes(1);
+    expect(boundary.instances).toHaveLength(1);
+    expect(first.pause).toHaveBeenLastCalledWith(301);
+    const next = createReplay();
+    fixture.componentRef.setInput('replay', next);
+    fixture.componentRef.setInput('sessionId', 'next-session');
+    fixture.componentRef.setInput('initialTime', 600);
+    await fixture.whenStable();
+    await ready(fixture);
+    expect(fixture.componentInstance).toBe(component);
+    expect(next.readEvents).toHaveBeenCalledExactlyOnceWith('next-session');
+    expect(next.listCommitMarkers).toHaveBeenCalledExactlyOnceWith('next-session');
+    expect(first.destroy).toHaveBeenCalledTimes(1);
+    expect(boundary.instances).toHaveLength(2);
+    expect(playerAt(1).pause).toHaveBeenLastCalledWith(601);
+  });
+
+  it('真实 play/pause/tick/finish 切换控件，销毁取消帧且晚帧不再输出', async () => {
+    const fixture = await mount(createReplay());
+    await ready(fixture);
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
+      const id = ++frameId;
+      frames.set(id, callback);
+      return id;
+    });
+    const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(id => {
+      frames.delete(id);
+    });
+    const player = playerAt(0);
+    const time = vi.fn<(value: number) => void>();
+    fixture.componentInstance.aoTimeChange.subscribe(time);
+    const toggle = element<HTMLButtonElement>(hostOf(fixture), '.rxdb-replayer__toggle');
+    fixture.componentInstance.play();
+    expect(player.play).toHaveBeenLastCalledWith(1);
+    expect(time).toHaveBeenLastCalledWith(1);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(frames.size).toBe(1);
+    fixture.componentInstance.pause();
+    expect(player.pause).toHaveBeenLastCalledWith();
+    expect(cancel).toHaveBeenLastCalledWith(1);
+    expect(frames.size).toBe(0);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fixture.componentInstance.play();
+    const tick = frames.get(frameId);
+    if (!tick) throw new Error('缺播放帧');
+    frames.delete(frameId);
+    player.position = 700;
+    tick(16);
+    expect(time).toHaveBeenLastCalledWith(700);
+    player.finish();
+    expect(time).toHaveBeenLastCalledWith(1_000);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(frames.size).toBe(0);
+    fixture.componentInstance.play();
+    expect(player.play).toHaveBeenLastCalledWith(1);
+    const late = frames.get(frameId);
+    if (!late) throw new Error('缺待销毁帧');
+    fixture.destroy();
+    const count = time.mock.calls.length;
+    late(32);
+    fixture.componentInstance.play();
+    fixture.componentInstance.pause();
+    fixture.componentInstance.seek(500);
+    expect(time).toHaveBeenCalledTimes(count);
+    expect(player.destroy).toHaveBeenCalledTimes(1);
+    expect(frames.size).toBe(0);
+    expect(hostOf(fixture).querySelector('.rxdb-replayer')).toBeNull();
+  });
+
+  it('restore 在途换 replay 后，旧拒绝结果不更新新 DOM 或回调', async () => {
+    const pending = Promise.withResolvers<ReplayRestoreResult>();
+    const fixture = await mount(createReplay({ restoreToCommit: () => pending.promise }));
+    await ready(fixture);
+    const first = playerAt(0);
+    const output = vi.fn<(event: ReplayerCommitRestoreEvent) => void>();
+    fixture.componentInstance.aoCommitRestore.subscribe(output);
+    element<HTMLButtonElement>(hostOf(fixture), '[data-commit-id="commit-one"]').click();
+    expect(element(hostOf(fixture), '[role="status"]').textContent).toBe('Restoring…');
+    const next = createReplay();
+    fixture.componentRef.setInput('replay', next);
+    await fixture.whenStable();
+    await ready(fixture);
+    pending.reject(new Error('旧恢复失败'));
+    await settle();
+    expect(output).not.toHaveBeenCalled();
+    expect(first.destroy).toHaveBeenCalledTimes(1);
+    expect(playerAt(1).destroy).not.toHaveBeenCalled();
+    expect(element(hostOf(fixture), '[role="status"]').textContent).toBe('');
+    expect(state(fixture)).toBe('ready');
   });
 });

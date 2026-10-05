@@ -1,0 +1,323 @@
+{
+  "mode": "shared",
+  "traces": [
+    {
+      "factory": "shared-readiness/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-readiness/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-readiness/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "query:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-readiness/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "save:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-bootstrap/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-bootstrap/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-bootstrap/resolved",
+      "kind": "probe",
+      "expected": "resolved",
+      "events": [
+        "createTables:expected-rejection",
+        "tableExists:false",
+        "tableExists:false",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-isolation/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "save:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-isolation/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-isolation/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-isolation/resolved",
+      "kind": "database",
+      "expected": "resolved",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-readiness/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-readiness/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-readiness/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "query:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-readiness/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "save:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-bootstrap/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-bootstrap/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-bootstrap/rejected",
+      "kind": "probe",
+      "expected": "resolved",
+      "events": [
+        "createTables:expected-rejection",
+        "tableExists:false",
+        "tableExists:false",
+        "adapter.disconnect:resolved",
+        "factory.dispose:resolved"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "resolved"
+    },
+    {
+      "factory": "shared-isolation/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "save:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-isolation/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-isolation/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    },
+    {
+      "factory": "shared-isolation/rejected",
+      "kind": "database",
+      "expected": "rejected",
+      "events": [
+        "connect:fulfilled",
+        "adapter.disconnect:rejected",
+        "factory.dispose:rejected",
+        "model.destroy:fulfilled"
+      ],
+      "disconnectCalls": 1,
+      "disposeCalls": 1,
+      "outcome": "rejected"
+    }
+  ]
+}
