@@ -240,17 +240,17 @@
 
 ### Tests（先红）
 
-- [ ] T034 [US3] 在回归 SQL 新增用例 `receipts-partial`（AC#8、9）与 `receipts-fanout`（AC#10），期望照 quickstart B1：
+- [x] T034 [US3] 在回归 SQL 新增用例 `receipts-partial`（AC#8、9）与 `receipts-fanout`（AC#10），期望照 quickstart B1：
       `receipts-partial`——`p_receipts = true`，1 条被拒删除（`rls_owned_ids`）+ 2 条可放行新建 → 调用成功；`entity_results` 3 条，被拒那条
       `status = 'rejected'`、`code = '42501'`、`reason = 'denied'`、`localIds` 含其源变更；两条新建落库且在 `change_id_mapping`；被拒那条无日志。
       `receipts-fanout`——同一实体 3 条 main 源变更压成 1 次被拒写 → 该实体回执 `localIds` 含 3 个，3 条都无日志。单跑确认红（6 参签名不存在）
-- [ ] T035 [US3] 在回归 SQL 新增用例 `receipts-gone`（AC#13：修改已不存在的行 → `rejected`、`RX001`、`gone`）与 `receipts-unclassified`
+- [x] T035 [US3] 在回归 SQL 新增用例 `receipts-gone`（AC#13：修改已不存在的行 → `rejected`、`RX001`、`gone`）与 `receipts-unclassified`
       （AC#13：在带唯一约束的夹具表上制造 23505 → 整次调用失败，SQLSTATE 原样为 23505，两张表无变化）。确认红
-- [ ] T036 [US3] 在回归 SQL 新增用例 `receipts-idempotent`（AC#15，复用既有 `idempotency_effects` 夹具与 `count_idempotency_effect`）：同一批调两次 →
+- [x] T036 [US3] 在回归 SQL 新增用例 `receipts-idempotent`（AC#15，复用既有 `idempotency_effects` 夹具与 `count_idempotency_effect`）：同一批调两次 →
       第二次业务写副作用计数不变、`change_id_mapping` 远端 id 与首次相同；首次被拒的实体在放开策略后重试 → 变为 `applied`；
       `receipts-legacy`（FR-022：不传 `p_receipts`，任一条被拒 → 整批 42501，返回无 `entity_results`）；
       `receipts-many-groups`（70 个组各含 1 条被拒 → 调用成功，不报子事务溢出）。确认红
-- [ ] T037 [US3] 改回归 SQL 的 `test_rls_write_boundary`：把 006 T015 写入的 5 参签名改为 `public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)`，
+- [x] T037 [US3] 改回归 SQL 的 `test_rls_write_boundary`：把 006 T015 写入的 5 参签名改为 `public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)`，
       并断言 5 参 `to_regprocedure` 为 NULL（旧签名已删）、6 参不为 NULL、`prosecdef = false`。确认红
 - [ ] T038 [P] [US3] 新建 `packages/rxdb-adapter-supabase/src/__tests__/push-receipts-mapping.spec.ts`（mock `client.rpc`，不连远端）
       （[remote-merge-result §3](contracts/remote-merge-result.md)、[rxdb-mutations-receipts §6](contracts/rxdb-mutations-receipts.md)）：
@@ -264,7 +264,7 @@
       `get-repository-sync-status.spec.ts`、`pull-conflict-resolution.spec.ts`（`queryPendingLocalChanges`）、`pull-round.spec.ts`
       （`backfillOwnChangeRemoteIds`）、`query-cache-outbox.spec.ts`（两处查询各一条）、`cleanup-expired.spec.ts`，均在
       `packages/rxdb-plugin-sync/src/__tests__/`；`packages/rxdb-plugin-history/src/__tests__/HistoryManager.spec.ts` 对「`remoteId` 为空」的查询一条。确认红
-- [ ] T041 [US3] RLS 夹具表（真实链路用）：在 `docker/sql/03-business-tables.sql` 第 8 节之前新增 `public.rls_todos`（列同 `public.todos`，含 `"createdBy"`），
+- [x] T041 [US3] RLS 夹具表（真实链路用）：在 `docker/sql/03-business-tables.sql` 第 8 节之前新增 `public.rls_todos`（列同 `public.todos`，含 `"createdBy"`），
       `ENABLE ROW LEVEL SECURITY`（不 `FORCE`）；策略 SELECT `USING (true)`，INSERT `WITH CHECK ("createdBy" = auth.uid()::text)`，
       UPDATE / DELETE `USING ("createdBy" = auth.uid()::text)`；`rxdb_enable_sync_for_table('rls_todos', 'public', 'RlsTodo')`；
       `GRANT SELECT, INSERT, UPDATE, DELETE … TO anon, authenticated`；确认第 8 节「禁用 RLS」循环不会关掉它（必要时在循环里排除该表）。
@@ -278,7 +278,7 @@
 
 ### Implementation
 
-- [ ] T043 [US3] 参考 SQL：按 [rxdb-mutations-receipts §1～§5](contracts/rxdb-mutations-receipts.md) 改 `rxdb_mutations`——
+- [x] T043 [US3] 参考 SQL：按 [rxdb-mutations-receipts §1～§5](contracts/rxdb-mutations-receipts.md) 改 `rxdb_mutations`——
       `DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb)`；新 6 参签名第 6 参 `p_receipts boolean DEFAULT false`，
       `SECURITY INVOKER`，`SET search_path = pg_catalog, pg_temp`，`GRANT EXECUTE` 6 参签名给 `anon, authenticated`；流程：
       0 配对校验 → 1 快照 → 2 按 `clientId` 排序加 `pg_advisory_xact_lock(hashtext('rxdb_mutations:' || clientId))`，某实体 main 日志都已存在 → 跳过、计为 applied
@@ -287,7 +287,7 @@
       本任务归类 42501 → `denied`、`RX001` → `gone`；`WITH CHECK` 先于外键触发的 42501 归 `denied`；其它码不捕获。重放时 DELETE 零行判定逐 id 执行。
       返回 `{upserted, updated, deleted, changes, max_change_id, change_id_mapping, entity_results}`，`entity_results` 只在 `p_receipts = true` 时出现，
       元素形状 `{schema, table, entityId, op, status, code?, reason?, message?, localIds}`（`dependsOn` 在 US4）
-- [ ] T044 [US3] 重载 SQL；单跑 T034～T037 的用例全部转绿；`bash 回归脚本` 除 `receipts-dependency`（尚未新增）外全绿
+- [x] T044 [US3] 重载 SQL；单跑 T034～T037 的用例全部转绿；`bash 回归脚本` 除 `receipts-dependency`（尚未新增）外全绿
 - [ ] T045 [US3] 适配器：`mergeChanges` 传 `p_receipts: true`；`validateMergeResponse` 校验 `entity_results`；按回执构造 `RemoteChangeResult`
       （T029 的 applied 分支 + rejected 分支）；`rejection.entity` 由 `SchemaManager.getEntityMetadataByTableName(tableName, namespace)` 反查实体名；
       `mutations()` 不传 `p_receipts`。T038 转绿
@@ -311,7 +311,7 @@
 
 ### Tests（先红）
 
-- [ ] T049 [US4] 在回归 SQL 新增用例 `receipts-dependency`（AC#12）：夹具区建父子两张同步表（子表单列外键引用父表 `id`），父表 INSERT 策略不放行；
+- [x] T049 [US4] 在回归 SQL 新增用例 `receipts-dependency`（AC#12）：夹具区建父子两张同步表（子表单列外键引用父表 `id`），父表 INSERT 策略不放行；
       一次 `p_receipts = true` 调用含父新建、引用它的子新建、一条无关新建 → 调用成功；父 `denied`；子 `rejected`、`code = '23503'`、
       `reason = 'dependency'`、`dependsOn = {schema, table, entityId}` 指向父；无关新建 applied。再加一例多列外键 → `dependsOn = {constraint}`。确认红
 - [ ] T050 [P] [US4] 在推送仓库测试加（AC#11，[data-model §7](data-model.md)）：被拒实体远端有行 → 本地被覆盖为远端值（逐列相等）；远端无行 → 本地移除；
@@ -323,7 +323,7 @@
 
 ### Implementation
 
-- [ ] T053 [US4] 参考 SQL：重放时把 23503 归为 `dependency`，用 `GET STACKED DIAGNOSTICS` 取 `CONSTRAINT_NAME` / `SCHEMA_NAME` / `TABLE_NAME`，查
+- [x] T053 [US4] 参考 SQL：重放时把 23503 归为 `dependency`，用 `GET STACKED DIAGNOSTICS` 取 `CONSTRAINT_NAME` / `SCHEMA_NAME` / `TABLE_NAME`，查
       `pg_constraint`：单列外键（`conkey` 长度 1）→ 由 `confrelid` 与子行该列值给出 `dependsOn {schema, table, entityId}`；否则 `{constraint}`
       （[rxdb-mutations-receipts §3](contracts/rxdb-mutations-receipts.md)、research D9）。重载 SQL，`receipts-dependency` 转绿，`bash 回归脚本` 28 条全绿
 - [ ] T054 [US4] 适配器构造 `rejection.dependsOn`（T051 转绿）
