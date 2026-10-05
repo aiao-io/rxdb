@@ -1,0 +1,20 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// build": "US-211 阶段 C 的支付宝可行性实验工程，不发布；支付宝 2026-10-04 凭本探针 v7 改判 supported 并登记 alipay。结构与 dev-rxdb-miniprogram-douyin-spike 同构：esbuild 从源码打两个包——页面包（/runtime 引导 + 不依赖核心的实验）、核心包（adapter 主入口 + 持久化 / 配额实验，由页面在 prepare 之后懒 require）；Worker 包是 adapter 包里预编译的 ES5 随机数 Worker（alipay-random-worker.js）原样拷贝。交给 adapter 的是正式支付宝 host（createAlipayMiniProgramHost）。直接打源码，所以不依赖上游 build。",
+  "// targets": "to see all targets run: nx show project dev-rxdb-miniprogram-alipay-probe --web",
+  "name": "dev-rxdb-miniprogram-alipay-probe",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-miniprogram-alipay-probe/src",
+  "tags": ["miniprogram-app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": [],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
+        "command": "node scripts/build.mjs"
+      }
+    }
+  }
+}

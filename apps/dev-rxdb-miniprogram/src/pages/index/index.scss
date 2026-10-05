@@ -310,3 +310,83 @@
   font-size: 24px;
   text-align: center;
 }
+
+.benchmark-section .section-heading {
+  justify-content: flex-start;
+}
+
+.benchmark-section .section-meta {
+  margin-left: auto;
+}
+
+.benchmark-phase-running {
+  color: #4d6570;
+}
+
+.benchmark-phase-completed {
+  color: #08735e;
+}
+
+.benchmark-phase-failed {
+  color: #b23d32;
+}
+
+.benchmark-hint {
+  display: block;
+  color: #687571;
+  font-size: 22px;
+  line-height: 1.45;
+}
+
+.benchmark-suite {
+  margin-top: 12px;
+}
+
+.benchmark-suite-title {
+  display: block;
+  padding: 12px 0;
+  color: #263633;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.benchmark-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid #dde5e1;
+}
+
+.benchmark-copy {
+  min-width: 0;
+}
+
+.benchmark-name,
+.benchmark-detail {
+  display: block;
+}
+
+.benchmark-name {
+  color: #465652;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.benchmark-detail {
+  margin-top: 4px;
+  color: #687571;
+  font-size: 19px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.benchmark-value {
+  flex: 0 0 auto;
+  color: #0f7c67;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

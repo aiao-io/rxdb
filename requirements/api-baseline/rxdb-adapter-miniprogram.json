@@ -6,11 +6,55 @@
         "kind": "value"
       },
       {
+        "name": "ALIPAY_UNDOCUMENTED_CAPABILITIES",
+        "kind": "value"
+      },
+      {
+        "name": "ALIPAY_WASM_TEXT_COPY_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "AlipayMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayRandomWorker",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayStandardWasmApi",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapability",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
         "name": "assertMiniProgramRuntimeCapabilities",
         "kind": "value"
       },
       {
         "name": "checkMiniProgramRuntimeCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayWasmRuntime",
+        "kind": "value"
+      },
+      {
+        "name": "createDouyinMiniProgramHost",
         "kind": "value"
       },
       {
@@ -34,6 +78,10 @@
         "kind": "value"
       },
       {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
         "name": "isMiniProgramPlatformId",
         "kind": "value"
       },
@@ -48,6 +96,22 @@
       {
         "name": "MINI_PROGRAM_PLATFORM_IDS",
         "kind": "value"
+      },
+      {
+        "name": "MiniProgramAlipayApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramAlipayRawFileSystem",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
       },
       {
         "name": "MiniProgramFileSystemManager",
@@ -86,8 +150,20 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramRuntimeGlobal",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramUnknownPlatformError",
         "kind": "both"
+      },
+      {
+        "name": "MiniProgramUnsupportedPlatformError",
+        "kind": "both"
+      },
+      {
+        "name": "MiniProgramWasmHost",
+        "kind": "type"
       },
       {
         "name": "MiniProgramWasmInstance",
@@ -107,6 +183,10 @@
       },
       {
         "name": "resolveMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
         "kind": "value"
       },
       {
@@ -172,12 +252,60 @@
     ],
     "./runtime": [
       {
+        "name": "ALIPAY_UNDOCUMENTED_CAPABILITIES",
+        "kind": "value"
+      },
+      {
+        "name": "ALIPAY_WASM_TEXT_COPY_SUFFIX",
+        "kind": "value"
+      },
+      {
+        "name": "AlipayMiniProgramHostOptions",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayRandomWorker",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayStandardWasmApi",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapability",
+        "kind": "type"
+      },
+      {
+        "name": "AlipayUndocumentedCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "assertMiniProgramPlatformId",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayMiniProgramHost",
+        "kind": "value"
+      },
+      {
+        "name": "createAlipayWasmRuntime",
+        "kind": "value"
+      },
+      {
+        "name": "createDouyinMiniProgramHost",
+        "kind": "value"
+      },
+      {
         "name": "createWechatMiniProgramHost",
         "kind": "value"
       },
       {
         "name": "DEFAULT_MINI_PROGRAM_RANDOM_POOL_SIZE",
         "kind": "value"
+      },
+      {
+        "name": "DouyinMiniProgramHostOptions",
+        "kind": "type"
       },
       {
         "name": "fillMiniProgramRandomValues",
@@ -204,6 +332,22 @@
         "kind": "value"
       },
       {
+        "name": "MiniProgramAlipayApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramAlipayRawFileSystem",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramDouyinApi",
+        "kind": "type"
+      },
+      {
+        "name": "MiniProgramFileLayout",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramFileSystemManager",
         "kind": "type"
       },
@@ -228,6 +372,10 @@
         "kind": "type"
       },
       {
+        "name": "MiniProgramRuntimeGlobal",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramRuntimeSource",
         "kind": "type"
       },
@@ -237,6 +385,10 @@
       },
       {
         "name": "MiniProgramUnknownPlatformError",
+        "kind": "both"
+      },
+      {
+        "name": "MiniProgramUnsupportedPlatformError",
         "kind": "both"
       },
       {
@@ -254,6 +406,10 @@
       {
         "name": "PrepareMiniProgramRuntimeOptions",
         "kind": "type"
+      },
+      {
+        "name": "resolveMiniProgramRuntimeGlobal",
+        "kind": "value"
       }
     ]
   }

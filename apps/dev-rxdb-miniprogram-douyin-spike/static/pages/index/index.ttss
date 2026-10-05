@@ -1,0 +1,20 @@
+.page {
+  padding: 16px;
+}
+
+.status {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summary {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}

@@ -35,8 +35,8 @@ import { Commit } from './commit.entity.js';
  */
 const IDEMPOTENCY_DOMAIN = 'rxdb.commit.idempotency.v1';
 
-/** 只此一份，避免每次调用都新建。 */
-const textEncoder = new TextEncoder();
+/** 只此一份，避免每次调用都新建。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let textEncoder: TextEncoder | undefined;
 
 /** 幂等键的两个组成部分。 */
 export interface CommitIdempotencyKey {
@@ -72,7 +72,9 @@ export interface CommitIdempotencyKey {
  * （见 `sha256.ts` 的 fileoverview）。
  */
 export const deriveCommitOperationId = (key: CommitIdempotencyKey): string => {
-  const digest = sha256Hex(textEncoder.encode(`${IDEMPOTENCY_DOMAIN} ${key.branchGeneration} ${key.operationId}`));
+  const digest = sha256Hex(
+    (textEncoder ??= new TextEncoder()).encode(`${IDEMPOTENCY_DOMAIN} ${key.branchGeneration} ${key.operationId}`)
+  );
   const variant = ((parseInt(digest[16], 16) & 0x3) | 0x8).toString(16);
   return [
     digest.slice(0, 8),

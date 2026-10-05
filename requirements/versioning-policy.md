@@ -87,7 +87,7 @@
 
 | 能力                                                            | 为什么是实验性                                                                                       |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `@aiao/rxdb-adapter-miniprogram` 整包                           | 仅微信逻辑层、强制单连接、不保证崩溃恢复（US-209 的长期口径）                                        |
+| `@aiao/rxdb-adapter-miniprogram` 整包                           | 微信 / 抖音逻辑层（抖音 Android 未验证，US-211）、强制单连接、不保证崩溃恢复（US-209 的长期口径）    |
 | `@aiao/rxdb-adapter-http` 的 `changeFeed`（SSE 变更通知）       | 缺省关闭；协议只有参考后端一个实现                                                                   |
 | `@aiao/rxdb-plugin-search` 在 `wa-sqlite` / 小程序上的 FTS      | backend-registry 登记为 `unverified`，抛 `SearchUnsupportedAdapterError`，转正要重编 wasm 或真机实测 |
 | `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化 | `@experimental`，只有 `SyncType.QueryCache` 经 `getRepository` 的间接路径是稳定面                    |

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test",
+    "types": ["vitest/globals", "node"],
+    "rootDir": ".",
+    "tsBuildInfoFile": "../../dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test.tsbuildinfo"
+  },
+  "extends": "./tsconfig.json",
+  // dist-smoke.spec.ts 直接 import 构建脚本，不列进来 tsc 就报 TS6307
+  "include": ["src/**/*.ts", "scripts/*.mjs"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-miniprogram/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    }
+  ]
+}

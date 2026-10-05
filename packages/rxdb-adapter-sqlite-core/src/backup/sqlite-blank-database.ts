@@ -26,8 +26,26 @@ export const listSqliteObjects = async (executor: SqliteBackupExecutor): Promise
     .sort();
 };
 
-/** 只用来比较行字面量：windows-1252 把 256 个字节一一映射到不同字符，两份字节相同当且仅当解码结果相同。 */
-const bytewise = new TextDecoder('latin1');
+/** `String.fromCharCode` 一次接收的字节数，远低于各引擎的参数个数上限。 */
+const BYTEWISE_CHUNK = 0x2000;
+
+/**
+ * 把字节逐个映射成同码点字符，只用来比较行字面量。
+ *
+ * @remarks
+ * 256 个字节一一对应不同字符，两份字节相同当且仅当结果相同。不用 `TextDecoder('latin1')`：
+ * iOS 抖音没有原生 TextDecoder，小程序 polyfill 不认 latin1，模块顶层构造会让整个包加载即失败。
+ *
+ * @param bytes - 行字面量字节
+ * @returns 与字节等长的字符串
+ */
+export const bytewiseString = (bytes: Uint8Array): string => {
+  const parts: string[] = [];
+  for (let start = 0; start < bytes.length; start += BYTEWISE_CHUNK) {
+    parts.push(String.fromCharCode(...bytes.subarray(start, start + BYTEWISE_CHUNK)));
+  }
+  return parts.join('');
+};
 
 interface SqliteDatabaseShape {
   readonly plan: SqliteBackupPlan;
@@ -51,7 +69,7 @@ const readRows = async (executor: SqliteBackupExecutor, plan: SqliteBackupPlan):
   for (const dump of plan.dumps) {
     // LIMIT -1 表示不限行数
     const page = await selectSqliteRows(executor, dump.firstPageSql, [-1], 'io_error');
-    rows.push(page.map(row => bytewise.decode(sqliteRowLiteralBytes(row[0]))));
+    rows.push(page.map(row => bytewiseString(sqliteRowLiteralBytes(row[0]))));
   }
   return JSON.stringify(rows);
 };

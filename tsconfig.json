@@ -184,6 +184,15 @@
       "path": "./apps/dev-rxdb-miniprogram-e2e"
     },
     {
+      "path": "./apps/dev-rxdb-miniprogram-douyin-spike"
+    },
+    {
+      "path": "./apps/dev-rxdb-miniprogram-alipay-probe"
+    },
+    {
+      "path": "./apps/dev-rxdb-miniprogram-alipay-probe-e2e"
+    },
+    {
       "path": "./packages/rxdb-plugin-working-tree"
     },
     {

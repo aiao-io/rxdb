@@ -67,25 +67,76 @@ class CollatePlain extends EntityBase {}
 })
 class CollateShelf extends EntityBase {}
 
+@Entity({
+  name: 'CollateNaturalOwner',
+  properties: [{ name: 'id', type: PropertyType.string, primary: true }]
+})
+class CollateNaturalOwner {
+  id!: string;
+}
+
+@Entity({
+  name: 'CollateCountedOwner',
+  properties: [{ name: 'id', type: PropertyType.bigint, primary: true }]
+})
+class CollateCountedOwner {
+  id!: bigint;
+}
+
+@Entity({
+  name: 'CollateNaturalChild',
+  manualOrder: { groupBy: ['ownerId', 'counterId'] },
+  properties: [{ name: 'sortOrder', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'owner',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'CollateNaturalOwner',
+      mappedProperty: 'children',
+      nullable: true
+    },
+    {
+      name: 'counter',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'CollateCountedOwner',
+      mappedProperty: 'children',
+      nullable: true
+    }
+  ]
+})
+class CollateNaturalChild extends EntityBase {}
+
 const where = (operator: string, value: unknown, field = 'sortOrder'): RuleGroup =>
   ({ combinator: 'and', rules: [{ field, operator, value }] }) as RuleGroup;
 
 const ruleSql = (EntityType: typeof CollateCategory, rule: RuleGroup): string =>
   buildRuleGroupPG(rule, [], new Map(), getEntityMetadata(EntityType));
 
-const orderSql = (EntityType: typeof CollateCategory, orderBy: OrderBy[]): string => {
+const createAdapter = (): RxDBAdapterPGlite => {
   const rxdb = new RxDB({
     dbName: 'manual-order-collate',
-    entities: [CollateCategory, CollatePlain, CollateShelf],
+    entities: [
+      CollateCategory,
+      CollatePlain,
+      CollateShelf,
+      CollateNaturalOwner,
+      CollateCountedOwner,
+      CollateNaturalChild
+    ],
     sync: { local: { adapter: 'pglite' }, type: SyncType.None }
   });
   rxdb.schemaManager.init();
-  const adapter = new RxDBAdapterPGlite(rxdb, { store: 'memory' });
-  return generate_find_sql(adapter, getEntityMetadata(EntityType), {
+  return new RxDBAdapterPGlite(rxdb, { store: 'memory' });
+};
+
+const orderSql = (EntityType: typeof CollateCategory, orderBy: OrderBy[]): string =>
+  generate_find_sql(createAdapter(), getEntityMetadata(EntityType), {
     where: { combinator: 'and', rules: [] },
     orderBy
   }).sql;
-};
+
+const whereSql = (EntityType: typeof CollateCategory, rule: RuleGroup): string =>
+  generate_find_sql(createAdapter(), getEntityMetadata(EntityType), { where: rule }).sql;
 
 const findSql = (EntityType: typeof CollateCategory, field: string): string =>
   orderSql(EntityType, [
@@ -153,5 +204,43 @@ describe('US-028 阶段 D PGlite 分组字段 COLLATE "C"', () => {
 
   it('非分组的同名 string 字段不加', () => {
     expect(ruleSql(CollateShelf, where('<', 'm', 'title'))).toBe('"title" < $1');
+  });
+});
+
+describe('R04 PGlite 文本外键分组字段 COLLATE "C"', () => {
+  const childOrder: OrderBy[] = ['ownerId', 'counterId', 'sortOrder', 'id'].map(field => ({
+    field,
+    sort: 'asc' as const
+  }));
+
+  it('关联实体是 string 主键时，外键分组字段在默认排序里显式 COLLATE "C"，可空方向不变', () => {
+    const sql = orderSql(CollateNaturalChild, childOrder);
+    expect(sql).toContain('_."ownerId" COLLATE "C" ASC NULLS FIRST');
+    expect(sql).toContain('_."sortOrder" COLLATE "C" ASC');
+  });
+
+  it.each(['<', '<=', '>', '>='])('文本外键的游标区间比较 %s 带 COLLATE "C"', operator => {
+    expect(whereSql(CollateNaturalChild, where(operator, 'Zz', 'ownerId'))).toContain(
+      `"ownerId" COLLATE "C" ${operator} $1`
+    );
+  });
+
+  it('文本外键的 between 带 COLLATE "C"，等值与 null 判断不加', () => {
+    expect(whereSql(CollateNaturalChild, where('between', ['a', 'z'], 'ownerId'))).toContain(
+      '"ownerId" COLLATE "C" BETWEEN $1 AND $2'
+    );
+    expect(whereSql(CollateNaturalChild, where('=', 'a', 'ownerId'))).toContain('"ownerId" = $1');
+    expect(whereSql(CollateNaturalChild, where('=', null, 'ownerId'))).toContain('"ownerId" IS NULL');
+  });
+
+  it('bigint 主键的外键分组字段不加文本 collation', () => {
+    expect(orderSql(CollateNaturalChild, childOrder)).not.toContain('"counterId" COLLATE');
+    expect(whereSql(CollateNaturalChild, where('>', 1, 'counterId'))).not.toContain('COLLATE');
+  });
+
+  it('不给关联实体解析器时，外键分组字段的 collation 无从判定，直接报错而不是猜', () => {
+    expect(() => ruleSql(CollateNaturalChild, where('>', 'a', 'ownerId'))).toThrow(
+      'Foreign key "ownerId" needs an entity metadata resolver to decide its collation'
+    );
   });
 });

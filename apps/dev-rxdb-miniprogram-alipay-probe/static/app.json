@@ -1,0 +1,7 @@
+{
+  "pages": ["pages/index/index"],
+  "window": {
+    "defaultTitle": "aiao 支付宝探针"
+  },
+  "workers": ["workers/index.js"]
+}

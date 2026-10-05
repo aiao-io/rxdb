@@ -4,7 +4,7 @@ import type { SetOptional } from 'type-fest';
 import { getTableNameByMetadata, quoteIdentifier } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import type { FieldAlias } from './json_accessor.js';
-import { buildRuleGroupPG, GenerateSqlResult } from './query_sql.js';
+import { buildRuleGroupPG, GenerateSqlResult, metadata_resolver } from './query_sql.js';
 import { validateEncryptedQuery } from './validate-encrypted-query.js';
 
 /**
@@ -99,7 +99,14 @@ export const generate_tree_sql = (
     collectFieldAliases(rule_group);
 
     // 裸字段限定到递归成员 children：递归表 c 与它列同名，未限定会报 42702 列名歧义（RV-045）
-    const whereClause = buildRuleGroupPG(rule_group, params, fieldAliasMap, metadata, 'children');
+    const whereClause = buildRuleGroupPG(
+      rule_group,
+      params,
+      fieldAliasMap,
+      metadata,
+      'children',
+      metadata_resolver(adapter)
+    );
     if (whereClause) {
       children_where_conditions.push(whereClause);
     }

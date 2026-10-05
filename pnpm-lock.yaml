@@ -53,7 +53,7 @@ overrides:
 
 patchedDependencies:
   '@tarojs/vite-runner@4.2.1':
-    hash: 8b66a161b8e03eedf9e37c07179132664f7bc86b88a862222f9ea8eed7f7fb00
+    hash: e3069f3c9954f4b09ee3b31f078da2910f2f60cd012eacbb3a2adaa13cce49d0
     path: patches/@tarojs__vite-runner@4.2.1.patch
   typescript@6.0.3:
     hash: ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb
@@ -720,7 +720,7 @@ importers:
         version: 4.2.1(@swc/helpers@0.5.23)(@types/node@26.6.4)(babel-plugin-macros@3.1.0)
       '@tarojs/vite-runner':
         specifier: 4.2.1
-        version: 4.2.1(patch_hash=8b66a161b8e03eedf9e37c07179132664f7bc86b88a862222f9ea8eed7f7fb00)(@swc/helpers@0.5.23)(@tarojs/runtime@4.2.1)(@types/babel__core@7.20.5)(jiti@2.7.0)(postcss@8.5.28)(rollup@3.30.0)(terser@5.51.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))(vite@6.4.3(@types/node@26.6.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
+        version: 4.2.1(patch_hash=e3069f3c9954f4b09ee3b31f078da2910f2f60cd012eacbb3a2adaa13cce49d0)(@swc/helpers@0.5.23)(@tarojs/runtime@4.2.1)(@types/babel__core@7.20.5)(jiti@2.7.0)(postcss@8.5.28)(rollup@3.30.0)(terser@5.51.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))(vite@6.4.3(@types/node@26.6.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
       '@types/babel__core':
         specifier: 7.20.5
         version: 7.20.5
@@ -751,6 +751,8 @@ importers:
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@26.6.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0)
+
+  apps/dev-rxdb-miniprogram-alipay-probe-e2e: {}
 
   apps/dev-rxdb-miniprogram-e2e: {}
 
@@ -28516,7 +28518,7 @@ snapshots:
       vue: 3.5.43(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
       webpack: 5.110.3(@swc/core@1.3.96(@swc/helpers@0.5.23))(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)
 
-  '@tarojs/vite-runner@4.2.1(patch_hash=8b66a161b8e03eedf9e37c07179132664f7bc86b88a862222f9ea8eed7f7fb00)(@swc/helpers@0.5.23)(@tarojs/runtime@4.2.1)(@types/babel__core@7.20.5)(jiti@2.7.0)(postcss@8.5.28)(rollup@3.30.0)(terser@5.51.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))(vite@6.4.3(@types/node@26.6.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))':
+  '@tarojs/vite-runner@4.2.1(patch_hash=e3069f3c9954f4b09ee3b31f078da2910f2f60cd012eacbb3a2adaa13cce49d0)(@swc/helpers@0.5.23)(@tarojs/runtime@4.2.1)(@types/babel__core@7.20.5)(jiti@2.7.0)(postcss@8.5.28)(rollup@3.30.0)(terser@5.51.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))(vite@6.4.3(@types/node@26.6.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@babel/core': 7.29.7

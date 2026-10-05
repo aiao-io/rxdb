@@ -1,16 +1,19 @@
 import { errorMessage } from './error-message.js';
 import { assertMiniProgramHostPlatform, createWechatMiniProgramHost } from './host.js';
 import type {
+  MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramWechatApi,
   WaSqliteEmscriptenModule
 } from './mini-program.interface.js';
+import { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 import type { SQLiteVFS } from './wa-sqlite.interface.js';
 
 const SQLITE_OK = 0;
 const SQLITE_IOERR = 10;
 const SQLITE_NOTFOUND = 12;
+const SQLITE_FULL = 13;
 const SQLITE_CANTOPEN = 14;
 const SQLITE_IOERR_READ = 266;
 const SQLITE_IOERR_SHORT_READ = 522;
@@ -29,6 +32,7 @@ const SQLITE_OPEN_TEMP_DB = 0x00000200;
 const SQLITE_OPEN_TRANSIENT_DB = 0x00000400;
 const SQLITE_OPEN_TEMP_JOURNAL = 0x00001000;
 const SQLITE_OPEN_SUBJOURNAL = 0x00002000;
+const SQLITE_OPEN_MAIN_JOURNAL = 0x00000800;
 const SQLITE_OPEN_SUPER_JOURNAL = 0x00004000;
 
 const VFS_MAX_PATHNAME = 512;
@@ -36,10 +40,13 @@ const CANONICAL_FILENAME_PREFIX = 'rxdb-';
 const CANONICAL_FILENAME_PATTERN = /^(?:[a-zA-Z0-9._-]|%[0-9A-F]{2})*$/;
 const SAFE_FILENAME_CHARACTER_PATTERN = /^[a-zA-Z0-9._-]$/;
 const ACTIVE_DATABASES = new Set<string>();
+const SINGLE_FILE_LAYOUT: MiniProgramFileLayout = { kind: 'single' };
+/** 回滚余量文件的后缀，接在主库路径后面；不以 `.数字` 结尾，不会与任何块重名。 */
+const RESERVE_SUFFIX = '.rxdb-reserve';
 
-/** 从已引导的 `crypto.getRandomValues` 填充安全随机数。 */
+/** 从宿主全局对象上已引导的 `crypto.getRandomValues` 填充安全随机数。 */
 function fillSecureRandomValues(host: MiniProgramHost, target: Uint8Array<ArrayBuffer>): void {
-  const cryptoApi = globalThis.crypto;
+  const cryptoApi = resolveMiniProgramRuntimeGlobal(host).crypto;
   if (typeof cryptoApi?.getRandomValues !== 'function') {
     throw new Error(`${host.displayName}安全随机源尚未引导`);
   }
@@ -50,9 +57,27 @@ interface BufferedFile {
   readonly path: string;
   data: Uint8Array;
   dirty: boolean;
+  /** 块大小；单文件布局为 `Infinity`，任何位置都落在第 0 块。 */
+  readonly chunkBytes: number;
+  /** 写过、尚未落盘的块号。 */
+  readonly dirtyChunks: Set<number>;
+  /** 各块已落盘的字节数，按块号排列。 */
+  persistedChunkSizes: number[];
   readonly writable: boolean;
   deleteOnClose: boolean;
   main: boolean;
+}
+
+/** 逻辑文件到宿主文件的映射；单文件与分块两种布局各一个实现。 */
+interface FileStore {
+  /** 逻辑文件是否存在；缺失返回 false，其余错误原样抛出。 */
+  exists(path: string): boolean;
+  /** 存在则整份读入，`create` 为 true 时不存在则新建空文件。 */
+  open(path: string, create: boolean, writable: boolean): BufferedFile;
+  /** 把改动落盘；失败时已落盘的部分如实记账，剩余改动留待下次。 */
+  flush(file: BufferedFile): void;
+  /** 删除逻辑文件；本来就不存在不算错，其余错误原样抛出。 */
+  remove(path: string): void;
 }
 
 interface MiniProgramSQLiteVFS extends SQLiteVFS {
@@ -99,6 +124,13 @@ export interface MiniProgramFileVFS {
   readonly vfs: SQLiteVFS;
   readonly root: string;
   readonly lastError: Error | null;
+  /**
+   * 是否占着回滚余量。只有分块布局会占；单文件布局恒为 false。
+   *
+   * 新建主 journal 前占 2×`chunkBytes`，撞配额时让出给回滚。占不到（配额已满）不阻止打开，
+   * 但这时撞配额后的回滚可能没空间，调用方据此决定要不要先腾空间。
+   */
+  readonly reserveHeld: boolean;
   clear(): void;
 }
 
@@ -109,6 +141,32 @@ function isMissingFileError(error: unknown): boolean {
   return /no such|not exist|doesn['\u2019]?t exist|ENOENT|not found|\u4e0d\u5b58\u5728|\u627e\u4e0d\u5230/i.test(
     errorMessage(error)
   );
+}
+
+/** 「已存在」文案；先排除缺失类，`does not exist` 里的 exist 不算。 */
+function isAlreadyExistsError(error: unknown): boolean {
+  return !isMissingFileError(error) && /already exist|file exists|EEXIST|\u5df2\u5b58\u5728/i.test(errorMessage(error));
+}
+
+/**
+ * 落盘撞上存储配额。
+ *
+ * @remarks
+ * 只认文案：抖音实测 `writeFileSync:fail user dir saved file size limit exceeded`（模拟器与 iOS 一致），
+ * 微信文档 `the maximum size of the file storage limit is exceeded`。不按 errNo 判：抖音的 21103
+ * 同时表示 readFile 缺失。
+ */
+function isQuotaExceededError(error: unknown): boolean {
+  return /size limit exceeded|storage limit is exceeded/i.test(errorMessage(error));
+}
+
+/** 配额错误报 `SQLITE_FULL`，SQLite 据此回滚并把 13 交给调用方；其余报调用方给的 I/O 错误码。 */
+function failureCode(error: unknown, ioErrorCode: number): number {
+  return isQuotaExceededError(error) ? SQLITE_FULL : ioErrorCode;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
 }
 
 function writeInt64(module: WaSqliteEmscriptenModule, address: number, value: number): void {
@@ -175,17 +233,35 @@ function mkdirRecursive(fileSystem: MiniProgramFileSystemManager, directory: str
   try {
     fileSystem.mkdirSync(directory, true);
   } catch (error) {
-    if (!/exist|already/i.test(errorMessage(error))) throw error;
+    if (!isAlreadyExistsError(error)) throw error;
   }
 }
 
-function fileExists(fileSystem: MiniProgramFileSystemManager, path: string): boolean {
+/** 文件是否存在；缺失返回 false，其余错误原样抛出。 */
+function probeFile(fileSystem: MiniProgramFileSystemManager, path: string): boolean {
   try {
     fileSystem.accessSync(path);
     return true;
   } catch (error) {
     if (isMissingFileError(error)) return false;
+    throw error;
+  }
+}
+
+function fileExists(fileSystem: MiniProgramFileSystemManager, path: string): boolean {
+  try {
+    return probeFile(fileSystem, path);
+  } catch (error) {
     throw new Error(`accessSync ${path}: ${errorMessage(error)}`, { cause: error });
+  }
+}
+
+/** 删除文件；本来就不存在不算错，其余错误原样抛出。 */
+function unlinkIfExists(fileSystem: MiniProgramFileSystemManager, path: string): void {
+  try {
+    fileSystem.unlinkSync(path);
+  } catch (error) {
+    if (!isMissingFileError(error)) throw error;
   }
 }
 
@@ -222,37 +298,183 @@ function decodeBase64(text: string): Uint8Array {
   return result;
 }
 
-/** 打开文件（存在则读取，`create` 为 true 时不存在则创建）。 */
-function openBufferedFile(
-  fileSystem: MiniProgramFileSystemManager,
+function bufferedFile(
   path: string,
-  create: boolean,
-  writable: boolean
+  data: Uint8Array,
+  writable: boolean,
+  chunkBytes: number,
+  persistedChunkSizes: number[]
 ): BufferedFile {
-  if (fileExists(fileSystem, path)) {
-    let encoded: string;
-    try {
-      encoded = fileSystem.readFileSync(path, 'base64');
-    } catch (error) {
-      throw new Error(`readFileSync(base64): ${errorMessage(error)}`, { cause: error });
-    }
-    return { path, data: decodeBase64(encoded), dirty: false, writable, deleteOnClose: false, main: false };
-  }
-  if (!create) throw new Error(`file does not exist: ${path}`);
+  return {
+    path,
+    data,
+    dirty: false,
+    chunkBytes,
+    dirtyChunks: new Set(),
+    persistedChunkSizes,
+    writable,
+    deleteOnClose: false,
+    main: false
+  };
+}
 
+function readWholeFile(fileSystem: MiniProgramFileSystemManager, path: string): Uint8Array {
+  let encoded: string;
+  try {
+    encoded = fileSystem.readFileSync(path, 'base64');
+  } catch (error) {
+    throw new Error(`readFileSync(base64): ${errorMessage(error)}`, { cause: error });
+  }
+  return decodeBase64(encoded);
+}
+
+function createEmptyFile(fileSystem: MiniProgramFileSystemManager, path: string): void {
   try {
     fileSystem.writeFileSync(path, new ArrayBuffer(0));
   } catch (error) {
     throw new Error(`writeFileSync(create): ${errorMessage(error)}`, { cause: error });
   }
-  return { path, data: new Uint8Array(0), dirty: false, writable, deleteOnClose: false, main: false };
 }
 
-function flushFile(fileSystem: MiniProgramFileSystemManager, file: BufferedFile): void {
-  if (!file.dirty) return;
-  const copy = Uint8Array.from(file.data);
-  fileSystem.writeFileSync(file.path, copy.buffer);
-  file.dirty = false;
+function writeWholeFile(fileSystem: MiniProgramFileSystemManager, path: string, data: Uint8Array): void {
+  const copy = Uint8Array.from(data);
+  try {
+    fileSystem.writeFileSync(path, copy.buffer);
+  } catch (error) {
+    throw new Error(`writeFileSync ${path}: ${errorMessage(error)}`, { cause: error });
+  }
+}
+
+/** 单文件布局：一个逻辑文件一个宿主文件，整文件覆盖写。 */
+function createSingleFileStore(fileSystem: MiniProgramFileSystemManager): FileStore {
+  return {
+    exists: path => probeFile(fileSystem, path),
+    open(path, create, writable) {
+      if (fileExists(fileSystem, path)) {
+        const data = readWholeFile(fileSystem, path);
+        return bufferedFile(path, data, writable, Number.POSITIVE_INFINITY, [data.length]);
+      }
+      if (!create) throw new Error(`file does not exist: ${path}`);
+      createEmptyFile(fileSystem, path);
+      return bufferedFile(path, new Uint8Array(0), writable, Number.POSITIVE_INFINITY, [0]);
+    },
+    flush(file) {
+      if (!file.dirty) return;
+      writeWholeFile(fileSystem, file.path, file.data);
+      file.persistedChunkSizes = [file.data.length];
+      file.dirtyChunks.clear();
+      file.dirty = false;
+    },
+    remove: path => unlinkIfExists(fileSystem, path)
+  };
+}
+
+function chunkPath(path: string, index: number): string {
+  return `${path}.${index}`;
+}
+
+/** 从 `from` 号块起顺序探测，返回第一个缺失的块号。 */
+function probeChunkEnd(fileSystem: MiniProgramFileSystemManager, path: string, from: number): number {
+  let index = from;
+  while (fileExists(fileSystem, chunkPath(path, index))) index++;
+  return index;
+}
+
+/** 倒序删掉 `[from, end)` 号块：中途失败时剩下的块号仍连续。 */
+function removeChunksDescending(
+  fileSystem: MiniProgramFileSystemManager,
+  path: string,
+  from: number,
+  end: number
+): void {
+  for (let index = end - 1; index >= from; index--) unlinkIfExists(fileSystem, chunkPath(path, index));
+}
+
+function assertChunkIntact(path: string, index: number, size: number, chunkBytes: number, last: boolean): void {
+  if (size > chunkBytes || (!last && size !== chunkBytes)) {
+    throw new Error(
+      `分块文件损坏: ${chunkPath(path, index)} 有 ${size} 字节，块大小 ${chunkBytes}，${last ? '末块' : '非末块'}`
+    );
+  }
+}
+
+function loadChunkedFile(
+  fileSystem: MiniProgramFileSystemManager,
+  path: string,
+  writable: boolean,
+  chunkBytes: number
+): BufferedFile {
+  const end = probeChunkEnd(fileSystem, path, 0);
+  const chunks: Uint8Array[] = [];
+  for (let index = 0; index < end; index++) {
+    const chunk = readWholeFile(fileSystem, chunkPath(path, index));
+    assertChunkIntact(path, index, chunk.length, chunkBytes, index === end - 1);
+    chunks.push(chunk);
+  }
+  const data = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+  chunks.forEach((chunk, index) => data.set(chunk, index * chunkBytes));
+  return bufferedFile(
+    path,
+    data,
+    writable,
+    chunkBytes,
+    chunks.map(chunk => chunk.length)
+  );
+}
+
+/**
+ * 写一个块并记下落盘大小。新块写失败时宿主可能留下 0 字节文件（抖音模拟器 v9 实测撞配额即如此），
+ * 先按 0 记进已落盘块，截断才会删到它；不记的话它会落在块号空洞之后，日后库长回来就成了「非末块不满」。
+ */
+function writeChunk(
+  fileSystem: MiniProgramFileSystemManager,
+  file: BufferedFile,
+  index: number,
+  chunk: Uint8Array
+): void {
+  if (index >= file.persistedChunkSizes.length) file.persistedChunkSizes[index] = 0;
+  writeWholeFile(fileSystem, chunkPath(file.path, index), chunk);
+  file.persistedChunkSizes[index] = chunk.length;
+}
+
+/**
+ * 分块布局：逻辑文件 `P` 存成 `P.0`、`P.1`…，`P.0` 恒存在（可为空）充当存在标记。
+ *
+ * 块号恒连续、除末块外都是满块。截断先倒序删尾块再写，删除先删 `P.0` 再倒序删其余，
+ * 新建前清掉没有 `P.0` 的残块：中途崩溃时宿主上剩下的仍满足这两条，或者整个文件已消失。
+ */
+function createChunkedFileStore(fileSystem: MiniProgramFileSystemManager, chunkBytes: number): FileStore {
+  return {
+    exists: path => probeFile(fileSystem, chunkPath(path, 0)),
+    open(path, create, writable) {
+      if (fileExists(fileSystem, chunkPath(path, 0))) return loadChunkedFile(fileSystem, path, writable, chunkBytes);
+      if (!create) throw new Error(`file does not exist: ${path}`);
+      removeChunksDescending(fileSystem, path, 1, probeChunkEnd(fileSystem, path, 1));
+      createEmptyFile(fileSystem, chunkPath(path, 0));
+      return bufferedFile(path, new Uint8Array(0), writable, chunkBytes, [0]);
+    },
+    flush(file) {
+      if (!file.dirty) return;
+      const count = Math.max(1, Math.ceil(file.data.length / chunkBytes));
+      for (let index = file.persistedChunkSizes.length - 1; index >= count; index--) {
+        unlinkIfExists(fileSystem, chunkPath(file.path, index));
+        file.persistedChunkSizes.length = index;
+      }
+      for (let index = 0; index < count; index++) {
+        const chunk = file.data.subarray(index * chunkBytes, (index + 1) * chunkBytes);
+        if (!file.dirtyChunks.has(index) && file.persistedChunkSizes[index] === chunk.length) continue;
+        writeChunk(fileSystem, file, index, chunk);
+        file.dirtyChunks.delete(index);
+      }
+      file.dirtyChunks.clear();
+      file.dirty = false;
+    },
+    remove(path) {
+      const end = probeChunkEnd(fileSystem, path, 1);
+      unlinkIfExists(fileSystem, chunkPath(path, 0));
+      removeChunksDescending(fileSystem, path, 1, end);
+    }
+  };
 }
 
 function requireFile(files: Map<number, BufferedFile>, pointer: number): BufferedFile {
@@ -288,6 +510,13 @@ function writeFile(
     file.data = expanded;
   }
   file.data.set(module.HEAPU8.subarray(input, input + length), position);
+  markDirty(file, position, required);
+}
+
+/** 把字节区间 `[start, end)` 覆盖到的块标脏；内容变了就得重写，不能只看块长度。 */
+function markDirty(file: BufferedFile, start: number, end: number): void {
+  const lastChunk = Math.floor((end - 1) / file.chunkBytes);
+  for (let index = Math.floor(start / file.chunkBytes); index <= lastChunk; index++) file.dirtyChunks.add(index);
   file.dirty = true;
 }
 
@@ -296,8 +525,8 @@ function truncateFile(file: BufferedFile, size: number): void {
   if (size === file.data.length) return;
   const resized = new Uint8Array(size);
   resized.set(file.data.subarray(0, Math.min(size, file.data.length)));
+  markDirty(file, Math.min(size, file.data.length), Math.max(size, file.data.length));
   file.data = resized;
-  file.dirty = true;
 }
 
 /** 将 two 32-bit words 合并为一个 JS number。 */
@@ -317,6 +546,30 @@ function resolveFileSystem(options: MiniProgramFileVFSOptions): MiniProgramFileS
   throw new Error(`${options.host.displayName}缺少 ${options.host.capabilityNames.fileSystem}`);
 }
 
+/** 校验并补全存储布局；未知布局与非正整数块大小直接拒绝，不回退到单文件。 */
+function resolveFileLayout(host: MiniProgramHost): MiniProgramFileLayout {
+  const layout = host.fileLayout ?? SINGLE_FILE_LAYOUT;
+  if (layout.kind === 'single') return layout;
+  if (layout.kind !== 'chunked') {
+    throw new TypeError(
+      `${host.displayName}的 host.fileLayout.kind 未知: ${String((layout as { kind: unknown }).kind)}`
+    );
+  }
+  if (!Number.isInteger(layout.chunkBytes) || layout.chunkBytes <= 0) {
+    throw new TypeError(`${host.displayName}的 host.fileLayout.chunkBytes 必须是正整数: ${layout.chunkBytes}`);
+  }
+  return layout;
+}
+
+/**
+ * 存储布局的比较键：`single` 或 `chunked:<chunkBytes>`。
+ *
+ * @internal 供客户端身份比较，同一数据库的两次 init 布局不同即冲突。
+ */
+export function describeFileLayout(layout: MiniProgramFileLayout | undefined): string {
+  return layout === undefined || layout.kind === 'single' ? 'single' : `chunked:${layout.chunkBytes}`;
+}
+
 function resolveRoot(options: MiniProgramFileVFSOptions): string {
   if (options.root === '') throw new Error('数据库目录不能为空串');
   if (options.root !== undefined) return options.root;
@@ -332,6 +585,7 @@ function resolveRoot(options: MiniProgramFileVFSOptions): string {
  *
  * 整库缓冲在内存、落盘走 `writeFileSync`；所有宿主共享同一张模块级单连接表，
  * 同一数据库文件的第二个连接直接拒绝，不指望小程序提供文件锁。
+ * 存储布局由 `host.fileLayout` 决定，见 {@link MiniProgramFileLayout}。
  */
 export function createMiniProgramFileVFS(
   module: WaSqliteEmscriptenModule,
@@ -343,16 +597,81 @@ export function createMiniProgramFileVFS(
   const root = resolveRoot(options);
   const databaseName = basename(options.databaseName);
   const activeDatabase = makeFilePath(databaseName, root);
+  const layout = resolveFileLayout(host);
+  const store =
+    layout.kind === 'chunked' ?
+      createChunkedFileStore(fileSystem, layout.chunkBytes)
+    : createSingleFileStore(fileSystem);
+  const reservePath = layout.kind === 'chunked' ? `${activeDatabase}${RESERVE_SUFFIX}` : null;
+  const reserveBytes = layout.kind === 'chunked' ? 2 * layout.chunkBytes : 0;
   const files = new Map<number, BufferedFile>();
   let temporaryId = 0;
   let lastError: Error | null = null;
   let closed = false;
+  let reserveHeld = false;
 
   mkdirRecursive(fileSystem, root);
+  if (layout.kind === 'chunked' && fileExists(fileSystem, activeDatabase)) {
+    throw new Error(`${host.shortName}文件 VFS 声明了分块布局，但 ${activeDatabase} 是单文件布局`);
+  }
+  if (layout.kind === 'single' && fileExists(fileSystem, chunkPath(activeDatabase, 0))) {
+    throw new Error(`${host.shortName}文件 VFS 声明了单文件布局，但 ${activeDatabase} 是分块布局`);
+  }
   if (ACTIVE_DATABASES.has(activeDatabase)) {
     throw new Error(`${host.shortName}文件 VFS 不支持同一数据库的并发连接: ${activeDatabase}`);
   }
   ACTIVE_DATABASES.add(activeDatabase);
+
+  /**
+   * 占回滚余量；已有大小正确的余量文件直接认领，配额不够时不占，其余错误抛出。
+   * 写撞配额时宿主可能留下 0 字节文件（抖音模拟器 v9），删掉它，免得下次被当成余量认领。
+   */
+  const holdReserve = (path: string): void => {
+    if (reserveHeld) return;
+    if (fileExists(fileSystem, path) && readWholeFile(fileSystem, path).length === reserveBytes) {
+      reserveHeld = true;
+      return;
+    }
+    try {
+      fileSystem.writeFileSync(path, new ArrayBuffer(reserveBytes));
+      reserveHeld = true;
+    } catch (error) {
+      if (!isQuotaExceededError(error))
+        throw new Error(`writeFileSync ${path}: ${errorMessage(error)}`, { cause: error });
+      unlinkFailedReserve(path, error);
+    }
+  };
+
+  const unlinkFailedReserve = (path: string, failure: unknown): void => {
+    try {
+      unlinkIfExists(fileSystem, path);
+    } catch (error) {
+      throw new Error(`占回滚余量撞配额（${errorMessage(failure)}）后删除残留 ${path} 失败: ${errorMessage(error)}`, {
+        cause: error
+      });
+    }
+  };
+
+  /** 撞配额时让出余量给 SQLite 随后的回滚；让不出来也照报原错误，并把原因接在后面。 */
+  const releaseReserve = (failure: Error): Error => {
+    if (!reserveHeld || reservePath === null) return failure;
+    try {
+      unlinkIfExists(fileSystem, reservePath);
+      reserveHeld = false;
+      return failure;
+    } catch (error) {
+      return new Error(`${failure.message}；让出回滚余量 ${reservePath} 失败: ${errorMessage(error)}`, {
+        cause: failure
+      });
+    }
+  };
+
+  /** 落盘失败：配额错误报 `SQLITE_FULL` 并让出余量，其余报 `ioErrorCode`。 */
+  const flushFailure = (error: unknown, ioErrorCode: number): number => {
+    const code = failureCode(error, ioErrorCode);
+    lastError = code === SQLITE_FULL ? releaseReserve(toError(error)) : toError(error);
+    return code;
+  };
 
   const vfs: MiniProgramSQLiteVFS = {
     name: options.name ?? `${host.platform}-file`,
@@ -360,7 +679,7 @@ export function createMiniProgramFileVFS(
     close: () => {
       if (closed) return;
       try {
-        for (const file of files.values()) flushFile(fileSystem, file);
+        for (const file of files.values()) store.flush(file);
       } finally {
         files.clear();
         ACTIVE_DATABASES.delete(activeDatabase);
@@ -387,12 +706,11 @@ export function createMiniProgramFileVFS(
             SQLITE_OPEN_SUBJOURNAL |
             SQLITE_OPEN_SUPER_JOURNAL)
         );
-        const file = openBufferedFile(
-          fileSystem,
-          path,
-          !!(flags & SQLITE_OPEN_CREATE) || temporary,
-          !!(flags & SQLITE_OPEN_READWRITE)
-        );
+        stage = 'reserve';
+        // 已有热 journal 时不占：那点空间正是回滚要用的
+        if (reservePath !== null && flags & SQLITE_OPEN_MAIN_JOURNAL && !store.exists(path)) holdReserve(reservePath);
+        stage = 'open-file';
+        const file = store.open(path, !!(flags & SQLITE_OPEN_CREATE) || temporary, !!(flags & SQLITE_OPEN_READWRITE));
         stage = 'track-file';
         file.deleteOnClose = !!(flags & SQLITE_OPEN_DELETEONCLOSE) || temporary;
         file.main = !!(flags & SQLITE_OPEN_MAIN_DB);
@@ -407,29 +725,22 @@ export function createMiniProgramFileVFS(
           `xOpen stage=${stage} ${path || '(unknown path)'} flags=0x${(flags >>> 0).toString(16)}: ${errorMessage(error)}`,
           { cause: error }
         );
-        return SQLITE_CANTOPEN;
+        return failureCode(error, SQLITE_CANTOPEN);
       }
     },
 
     xClose(pFile) {
       const file = files.get(pFile);
       if (!file) return SQLITE_OK;
+      // SQLite 不看 xClose 的返回值，句柄无论成败都要释放：留在表里，vfs.close 会再落一次盘再抛一次。
+      // 没落下去的改动随之丢弃，与真实文件系统上写失败一致；日志与主库靠 SQLite 自己的回滚兜住
+      files.delete(pFile);
       try {
-        flushFile(fileSystem, file);
-        files.delete(pFile);
-        if (file.deleteOnClose) {
-          try {
-            fileSystem.unlinkSync(file.path);
-          } catch (error) {
-            if (isMissingFileError(error)) return SQLITE_OK;
-            lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
-            return SQLITE_IOERR_CLOSE;
-          }
-        }
+        if (file.deleteOnClose) store.remove(file.path);
+        else store.flush(file);
         return SQLITE_OK;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
-        return SQLITE_IOERR_CLOSE;
+        return flushFailure(error, SQLITE_IOERR_CLOSE);
       }
     },
 
@@ -446,7 +757,7 @@ export function createMiniProgramFileVFS(
         module.HEAPU8.fill(0, output + bytesRead, output + amount);
         return SQLITE_IOERR_SHORT_READ;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
+        lastError = toError(error);
         return SQLITE_IOERR_READ;
       }
     },
@@ -456,7 +767,7 @@ export function createMiniProgramFileVFS(
         writeFile(requireFile(files, pFile), module, input, amount, combineUint64(offsetLow, offsetHigh));
         return SQLITE_OK;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
+        lastError = toError(error);
         return SQLITE_IOERR_WRITE;
       }
     },
@@ -466,18 +777,17 @@ export function createMiniProgramFileVFS(
         truncateFile(requireFile(files, pFile), combineUint64(sizeLow, sizeHigh));
         return SQLITE_OK;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
+        lastError = toError(error);
         return SQLITE_IOERR_TRUNCATE;
       }
     },
 
     xSync(pFile) {
       try {
-        flushFile(fileSystem, requireFile(files, pFile));
+        store.flush(requireFile(files, pFile));
         return SQLITE_OK;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
-        return SQLITE_IOERR_WRITE;
+        return flushFailure(error, SQLITE_IOERR_WRITE);
       }
     },
 
@@ -486,7 +796,7 @@ export function createMiniProgramFileVFS(
         writeInt64(module, output, requireFile(files, pFile).data.length);
         return SQLITE_OK;
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
+        lastError = toError(error);
         return SQLITE_IOERR_FSTAT;
       }
     },
@@ -502,10 +812,9 @@ export function createMiniProgramFileVFS(
     xDelete(_pVfs, zName) {
       const path = makeFilePath(module.UTF8ToString(zName), root);
       try {
-        fileSystem.unlinkSync(path);
+        store.remove(path);
         return SQLITE_OK;
       } catch (error) {
-        if (isMissingFileError(error)) return SQLITE_OK;
         lastError = new Error(`xDelete ${path}: ${errorMessage(error)}`, { cause: error });
         return SQLITE_IOERR_DELETE;
       }
@@ -514,12 +823,10 @@ export function createMiniProgramFileVFS(
     xAccess(_pVfs, zName, _flags, output) {
       const path = makeFilePath(module.UTF8ToString(zName), root);
       try {
-        fileSystem.accessSync(path);
-        module.HEAP32[output >> 2] = 1;
+        module.HEAP32[output >> 2] = store.exists(path) ? 1 : 0;
         return SQLITE_OK;
       } catch (error) {
         module.HEAP32[output >> 2] = 0;
-        if (isMissingFileError(error)) return SQLITE_OK;
         lastError = new Error(`xAccess ${path}: ${errorMessage(error)}`, { cause: error });
         return SQLITE_IOERR_ACCESS;
       }
@@ -569,15 +876,16 @@ export function createMiniProgramFileVFS(
     get lastError() {
       return lastError;
     },
+    get reserveHeld() {
+      return reserveHeld;
+    },
     clear() {
       if (files.size > 0) throw new Error(`关闭数据库后才能清理${host.shortName} VFS 文件`);
-      for (const suffix of ['', '-journal', '-wal', '-shm']) {
-        try {
-          fileSystem.unlinkSync(makeFilePath(`${databaseName}${suffix}`, root));
-        } catch (error) {
-          if (!isMissingFileError(error)) throw error;
-        }
-      }
+      for (const suffix of ['', '-journal', '-wal', '-shm'])
+        store.remove(makeFilePath(`${databaseName}${suffix}`, root));
+      if (reservePath === null) return;
+      unlinkIfExists(fileSystem, reservePath);
+      reserveHeld = false;
     }
   };
 }
