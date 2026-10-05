@@ -326,7 +326,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 | `42501`  | `denied` | 行仍存在，但调用方的行级权限不允许修改       |
 | `RX001`  | `gone`   | 行已不存在（被删除），不会插入残缺行把它复活 |
 
-错误码口径见 [US-220 sqlstate-registry](../../specs/006-us220-update-push-semantics/contracts/sqlstate-registry.md)。从旧版本升级须先执行新版 SQL 再升级客户端，见 [迁移说明](../../website/docs/migration/supabase-update-push.md)。
+错误码口径见 [US-220 sqlstate-registry](https://github.com/aiao-io/rxdb/blob/main/specs/006-us220-update-push-semantics/contracts/sqlstate-registry.md)。从旧版本升级须先执行新版 SQL 再升级客户端，见 [迁移说明](https://rxdb.netlify.app/docs/migration/supabase-update-push)。
 
 ### Pull（`pullChanges` / `pullChangesBatch`）
 
