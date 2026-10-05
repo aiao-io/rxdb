@@ -37,8 +37,8 @@
     },
     {
       "file": "delivery-validation.json",
-      "bytes": 1873,
-      "sha256": "daf20bc95e22d87d98cdb602248cfc45a0d181ad9b3e9fc2213a2eb787c0325c"
+      "bytes": 2051,
+      "sha256": "7aee646ce504355e3ef169554d3fb4d22f8f8b8feacdeb65ea1628ad5d3184bd"
     },
     {
       "file": "e2e-local-status.json",
@@ -122,13 +122,13 @@
     },
     {
       "file": "format-status.json",
-      "bytes": 5334,
-      "sha256": "decd2346f4b328617336559a1ba03ad0d28e33d2831352bc15ffd4c1db392a7d"
+      "bytes": 5495,
+      "sha256": "82f51851038ecca06e8ab5951439163e51bfb8ca73dce6657c3a1a21dd5ccdc7"
     },
     {
       "file": "format-write.txt",
-      "bytes": 5815,
-      "sha256": "94ca52b35ab5eca5335e7ec02de477d42366fe520366060f967efae48935a04e"
+      "bytes": 5997,
+      "sha256": "ad12a65a6d47e8fdf9189c0621021874f40d6d18f63f11a13ca46c49515d6530"
     },
     {
       "file": "gateway-length-probe.json",
@@ -188,7 +188,7 @@
     {
       "file": "runtime-and-sources.json",
       "bytes": 26884,
-      "sha256": "f181d005280da6759dc6f03119219f9cbef8560b4bc1f1cf8bd608868b6222f4"
+      "sha256": "45131768d51cc437ba407e4d995384d3e3568e420b281a8df374cfeaa63e72db"
     },
     {
       "file": "scoped-staged-diff.txt",

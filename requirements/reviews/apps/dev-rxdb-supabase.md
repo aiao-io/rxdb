@@ -144,3 +144,5 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase:audit-secrets --skipRemote
 确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
+
+本轮当前 production build 留有 initial 1.33 MB > 1.00 MB 的预算警告；构建/凭证审计退出 0，不记成无警告构建。详见同批审计原日志，未擅自调高预算。

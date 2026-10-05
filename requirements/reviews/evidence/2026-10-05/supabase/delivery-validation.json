@@ -3,9 +3,9 @@
   "assistantBusinessImplementationChanges": false,
   "assistantIndexOrCommitOperations": false,
   "brokenLocalPathLinks": [],
-  "checkedAt": "2026-10-05T08:37:27.089435+08:00",
+  "checkedAt": "2026-10-05T08:42:49.919568+08:00",
   "clientDate": "2026-10-05",
-  "deliveryHead": "c72d0193e9872af03d828a9f3d7d740efffd5f00",
+  "deliveryHead": "c4e1a36b03d54c40500022707bf5021291adb5c7",
   "evidenceTrackable": true,
   "executionRecordCount": 70,
   "existingSpecTypecheck": {
@@ -41,10 +41,17 @@
     "scannedArtifacts": 44
   },
   "priorOriginalTestsRetained": 553,
+  "productionBuildBudgetWarning": {
+    "initialMB": 1.33,
+    "warningThresholdMB": 1.0,
+    "errorThresholdMB": 2.0,
+    "buildExitCode": 0,
+    "warningFreeBuild": false
+  },
   "rawTextAttributesUnset": true,
   "remoteE2EPassed": 2,
   "scopedFormatAndDiffCheck": {
-    "files": 65,
+    "files": 67,
     "allPassed": true
   },
   "sixObjectConfiguredTypecheck": "passed",

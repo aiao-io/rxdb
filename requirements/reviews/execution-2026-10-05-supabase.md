@@ -28,6 +28,8 @@
 | 原有 spec 独立类型检查     | 失败：三份旧 spec 共 9 条诊断                            | [日志](evidence/2026-10-05/supabase/existing-spec-types-delivery.txt)                                                                   |
 | 当前 build 后凭证审计      | 通过，独立重新构建后审计 44 个产物文件                   | [日志/状态 JSON](evidence/2026-10-05/supabase/app-post-build-credential-audit.txt)                                                      |
 
+当前 production build **仍有体积预算警告**：initial 1.33 MB 超过 1.00 MB warning 阈值（未触及 2 MB error 阈值），target 退出 0 不等于无警告构建。凭证审计的通过只证明本次 44 个产物扫描，不能抵消预算告警或 Realtime 告警。
+
 普通 adapter:typecheck 只检查 lib，不等同于 spec TS strict。新增复验以生成的 UserStaticTypes 校验关系条件，在 core 仓储泛型/unknown duck 的现有边界做显式类型转换；没有将关系条件替换为无效字段。取证脚本 [可重新生成临时 spec 配置并运行](evidence/2026-10-05/supabase/spec-type-probe.py) 保留配置体与命令，临时文件只在内容未被外部修改时删除。原有 9 条诊断未修改，也没有把失败 gate 写成全绿。
 
 所有主命令通过 pnpm/Nx，串行，禁本地/远端缓存，coverage 关闭。本批没有跳过依赖任务。E2E 不指定部署地址、不使用生产帐号；remote 子进程显式注入当前 checkout 隔离 CI URL/公开 anon fixture，优先于 serve-remote 会解析的根 .env，不能把这些无认证 demo 表算成 RLS 隔离验收。
