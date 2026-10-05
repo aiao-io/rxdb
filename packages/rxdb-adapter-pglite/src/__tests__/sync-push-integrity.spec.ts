@@ -260,12 +260,12 @@ const createDatabase = async (entities: EntityType[], script: RemoteScript): Pro
 
 const localRows = async <T extends EntityType>(database: RxDB, EntityClass: T): Promise<InstanceType<T>[]> => {
   const adapter = await database.getAdapter('pglite');
-  return adapter.getRepository(EntityClass).find({});
+  return adapter.getRepository(EntityClass).find({ where: { combinator: 'and', rules: [] } });
 };
 
 const localChanges = async (database: RxDB): Promise<RxDBChange[]> => {
   const adapter = await database.getAdapter('pglite');
-  return adapter.getRepository(RxDBChange).find({});
+  return adapter.getRepository(RxDBChange).find({ where: { combinator: 'and', rules: [] } });
 };
 
 /** 远端行：取本地实体的可枚举字段，模拟远端整行返回 */
@@ -329,7 +329,7 @@ describe('一次推送内多仓被拒清单汇总', () => {
     const result = await database.syncManager.push();
 
     expect(result.rejected).toBe(1);
-    expect(result.failures.map(failure => failure.repository.entity)).toEqual(['IntegrityBeta']);
+    expect(result.failures.map(failure => failure.repository?.entity)).toEqual(['IntegrityBeta']);
     expect(database.syncState.snapshot.lastRejections.map(rejection => rejection.entity)).toEqual(['IntegrityAlpha']);
   });
 });
