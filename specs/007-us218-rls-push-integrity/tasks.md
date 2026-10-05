@@ -393,8 +393,13 @@
 
 ## Phase 9: PR-B 收尾
 
-- [ ] T071 版本组合（FR-022，quickstart B5）：`receipts-legacy` 已覆盖「旧客户端 + 新 SQL」；另加载 US-220 版参考 SQL（`git show main:docker/sql/04-rxdb-utils-functions.sql`）
+- [x] T071 版本组合（FR-022，quickstart B5）：`receipts-legacy` 已覆盖「旧客户端 + 新 SQL」；另加载 US-220 版参考 SQL（`git show main:docker/sql/04-rxdb-utils-functions.sql`）
       后跑 `pnpm nx test rxdb-adapter-supabase -- push-receipts`，确认得到含 `PGRST202` 的 `SupabaseDataError`、本地变更仍待推；记录后重载新版 SQL
+      **执行记录（2026-10-05）**：US-220 尚未合入 main，参考 SQL 取自 `006-us220-update-push-semantics` 分支。两处偏离：其一，新签名多一个
+      `p_receipts`，`CREATE OR REPLACE` 只会新增重载，须先 `DROP FUNCTION` 新签名再加载；其二，`nx test` 依赖 `test-env`（会重跑
+      `init-db.sh` 覆盖成新版 SQL），须在包目录直接 `vitest run push-receipts.spec`。结果：远端返回 `PGRST202`（「Could not find the
+      function public.rxdb_mutations(… p_receipts …)」），客户端抛 `SupabaseDataError`；「本地变更仍待推」由 `push-repository.spec.ts`
+      「远端提交失败时抛出，且不推进同步水位线」覆盖。随后 `docker/init-db.sh` 重载新版 SQL
 - [x] T072 [P] API 基线：`pnpm audit:api-surface`，确认差异只有契约列出的新增 / 删除导出，然后 `pnpm audit:api-surface:update`；涉及
       `requirements/api-baseline/{rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-angular,rxdb-vue}.json`
       **执行记录（2026-10-05）**：差异只在 `rxdb.json`，新增 `RemoteChangeRejection`、`RemoteChangeResult`、`RemoteEntityRef`、
@@ -404,14 +409,21 @@
       系统模式 7、先升级 SQL 再升级客户端（research D17）；在 `website/docs/migration/README.md` 与 `website/sidebars.ts` 登记（FR-020）
 - [x] T074 [P] 核对 T018 的 `requirements/release-plan.md` 标注仍成立（A+B 同版本、`kind=migration`、须先有 `kind=bridge`）；`pnpm check-migration-release-gate`
       通过（门禁脚本不需要改）
-- [ ] T075 PR-B 门禁：`pnpm nx run-many -t lint test build typecheck --projects=tag:js-lib`、`pnpm audit:callsite-drift`、`pnpm audit:suite-callsites`、
+- [x] T075 PR-B 门禁：`pnpm nx run-many -t lint test build typecheck --projects=tag:js-lib`、`pnpm audit:callsite-drift`、`pnpm audit:suite-callsites`、
       `pnpm check-migration-release-gate`、`pnpm audit:api-surface`；改动包覆盖率 `rxdb` 与三框架绑定 ≥ 90%、其余 ≥ 80%（`pnpm nx test <project> --coverage`，口径同 `scripts/audit/coverage-check.mjs`）；`bash 回归脚本` 28 条全部
       `🟢 PASS`，输出贴进 PR-B 描述
+      **执行记录（2026-10-05）**：run-many 首轮 `rxdb-adapter-miniprogram` / `rxdb-adapter-sqlite-wasm` / `rxdb-adapter-electron` 三个 test 失败，
+      均与本阶段无关：miniprogram 是本地 `node_modules` 把 `@subframe7536/sqlite-wasm` 链到 1.4.0（`package.json` 锁 1.3.1），
+      `pnpm install --frozen-lockfile` 后恢复；sqlite-wasm（`worker-lifecycle`、备份）与 electron（PGlite 备份 / 就绪门）是并行负载下的超时，
+      三者 `--skip-nx-cache` 逐个复跑全绿。四个审计脚本退出码 0。覆盖率 12 个改动包全部达标（`coverage-check.mjs --check --projects=…`），
+      `rxdb-adapter-pglite` / `rxdb-angular` / `rxdb-plugin-sync` 三个「比上次低」仅为提示：未覆盖语句落在本阶段未改的文件，
+      pglite 新增的 `ensureChangeRejectionColumns` 只有「表不存在提前返回」与「元数据缺列抛错」两处守卫未覆盖（**推断**：基线为旧值）。
+      SQL 回归 28 / 28 `🟢 PASS`
 - [x] T090 [P] 推送路径基准（宪法 IV「`benchmarks/` 覆盖关键路径」）：新建 `benchmarks/push-receipts.bench.ts`，照 `non-encrypted-hot-path.bench.ts` 的写法
       （PGlite memory + `bench-stats.ts`），远端用返回逐条 `results` 的替身：基线批（100 条全部 applied）与含被拒批（100 条中 10 条 rejected，
       触发本地对齐）各测 `pushRepository` 本地提交耗时；在 `benchmarks/project.json` 加 `bench-push-receipts` target，README「Node 端回归 benchmark」登记。
       编号为追加（不重排既有编号），执行顺序在 T075 之前
-- [ ] T076 更新 US-218 故事文件验收表 AC#8～16 与「实现文件」，同步 `requirements/status-overview.md`；PR-B 描述汇总 T048 耗时、T071 版本组合、T075 门禁输出、T090 基准结果
+- [x] T076 更新 US-218 故事文件验收表 AC#8～16 与「实现文件」，同步 `requirements/status-overview.md`；PR-B 描述汇总 T048 耗时、T071 版本组合、T075 门禁输出、T090 基准结果
 
 **Checkpoint（PR-B 可合入，A+B 可发版）**
 
