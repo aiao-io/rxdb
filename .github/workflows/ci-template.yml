@@ -600,8 +600,12 @@ jobs:
       # run 31579171814 上复现：31 个包全部「本次无 summary，跳过」）。
       # 用 `coverage/**` 把根钉在 `coverage/`，包内路径才是 `packages/<pkg>/…`，
       # 也才容得下 `apps/` 与 `modules/` 两组。
+      #
+      # `matrix.coverage` 为 false 表示整条 lane 都是 `node --test` 一类不采集覆盖率的
+      # 项目（见 plan-test-lanes.mjs 的 NO_COVERAGE_PROJECTS），这时没有产物可传，
+      # 跳过上传；coverage job 用 pattern 下载，缺这一份 artifact 不报错。
       - name: Upload coverage
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.coverage }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           # 名字前缀 `coverage-lane-` 是有意的：coverage job 要按固定顺序叠加

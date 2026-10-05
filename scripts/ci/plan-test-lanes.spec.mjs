@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { LANE_COUNT, SUPABASE_PROJECTS, planTestLanes } from './plan-test-lanes.mjs';
+import { LANE_COUNT, NO_COVERAGE_PROJECTS, SUPABASE_PROJECTS, planTestLanes } from './plan-test-lanes.mjs';
 
 const cliPath = fileURLToPath(new URL('./plan-test-lanes.mjs', import.meta.url));
 
@@ -118,6 +118,36 @@ test('权重表里没有的项目照常调度，但必须报出来 —— 不能
 
   assert.ok(allProjects(result).includes('brand-new-package'));
   assert.deepEqual(unweighted, ['brand-new-package']);
+});
+
+test('整条 lane 都不采集覆盖率时标 coverage: false —— 上传步骤据此跳过，而不是找不到文件就红', () => {
+  // PR #89：只改了 website 的文档，affected 集合里 website 单独成 lane，`node --test` 不产覆盖率，
+  // 上传步骤的 if-no-files-found: error 必红，连带 coverage job 判「上游未全绿」。
+  const result = plan(['website'], { noCoverageProjects: ['website'] });
+
+  assert.deepEqual(
+    result.include.map(lane => [lane.projects, lane.coverage]),
+    [['website', false]]
+  );
+});
+
+test('lane 里只要混进一个采集覆盖率的项目就标 coverage: true —— 仍按 error 严格要求产物', () => {
+  const result = plan(['website', 'light'], { laneCount: 1, noCoverageProjects: ['website'] });
+
+  assert.deepEqual(
+    result.include.map(lane => [lane.projects, lane.coverage]),
+    [['light,website', true]]
+  );
+});
+
+test('Supabase lane 照常标 coverage: true', () => {
+  const result = plan(['rxdb-adapter-supabase'], { noCoverageProjects: ['website'] });
+
+  assert.equal(result.include[0].coverage, true);
+});
+
+test('真实常量：不采集覆盖率的项目只有 website', () => {
+  assert.deepEqual(NO_COVERAGE_PROJECTS, ['website']);
 });
 
 test('真实常量自洽：Supabase 项目非空、lane 数为正', () => {
