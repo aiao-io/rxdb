@@ -1,0 +1,47 @@
+COMMAND: pnpm nx run-many -t lint -p rxdb-adapter-supabase dev-rxdb-supabase dev-rxdb-supabase-e2e --max-warnings=0 --skipRemoteCache --skipNxCache --parallel=1 --output-style=static
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 3 projects:
+
+- rxdb-adapter-supabase
+- dev-rxdb-supabase
+- dev-rxdb-supabase-e2e
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-supabase:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run dev-rxdb-supabase:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run dev-rxdb-supabase-e2e:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+
+
+ NX   Successfully ran target lint for 3 projects
+
+
+  Run duration:      3.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.4s (1 task)
+  Recoverable time:  2.2s (60% of the run)

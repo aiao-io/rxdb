@@ -73,3 +73,11 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 RV-053（已修复，见 README 2026-10-05 清理记录） 实测需要限定：在线新查询可收敛，origin 停止后的旧响应落地使离线读返回旧值/复活行；RV-054（已修复，见 README 2026-10-05 清理记录） 已补真实 HTTP 401→原共享回调→memo。出站新写保护另见 RV-055（已修复，见 README 2026-10-05 清理记录），不重复登记。C1/C2/C3 **部分执行**；默认 1000ms 是测试客户端配置，Recipe 示例的 0ms 不受 RV-054 影响。scope/发布消费/Supabase 仍待补证。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** 原 engine/session/primary 与公开 EntityManager.findAll 路径，确认关系条件和 namespace 冷缓存两个接缝。历史 Sync/HTTP 测量不重写。
+
+确认意见：[RV-060](../../RV-060-supabase-querycache-relation-metadata-missing.md)、[RV-061](../../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

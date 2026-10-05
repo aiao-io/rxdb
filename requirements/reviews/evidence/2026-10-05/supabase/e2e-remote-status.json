@@ -1,0 +1,19 @@
+{
+  "cacheDisabled": true,
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "dev-rxdb-supabase-e2e:e2e-remote",
+    "--workers=1",
+    "--retries=0",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--parallel=1",
+    "--output-style=static"
+  ],
+  "elapsedSeconds": 98.01,
+  "exitCode": 0,
+  "headAtFinish": "b7edef590051c8842d4914e30e31475977dea6ac",
+  "startedAt": "2026-10-05T08:05:52.957660+08:00"
+}

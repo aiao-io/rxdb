@@ -1,0 +1,9 @@
+{
+  "exclude": ["src/__tests__/review-large-rest-writes.spec.ts", "src/__tests__/review-querycache-relations.spec.ts"],
+  "extends": "./tsconfig.spec.json",
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
+}

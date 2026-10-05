@@ -45,13 +45,13 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项            | 核查动作                                                                                              | 最低复验场景 / 证据要求                                                                          | 状态   |
-| ---- | --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------ |
-| C1   | 构建 / 运行配置 | 核查 runtime config、build env 固化、local/remote 模式和服务地址；不要用复用旧 server 掩盖错 bundle。 | 缺 URL/key、错环境、生产与本地 build、远端不可达；失败明确且配置不会串档。                       | 待核查 |
-| C2   | 凭证与 RLS 边界 | 审查客户端允许的 key、audit-secrets 和安全提示；与 adapter 和 SQL/RPC 部署联审。                      | 生产 bundle 不含 privileged key、跨身份读写拒绝、日志无凭证；audit-secrets 在当前 build 后执行。 | 待核查 |
-| C3   | 离线同步状态    | 追踪 todo 交互、sync task、Realtime 与 remote-sync-state，错误不只做状态提示。                        | 离线写后重连、重复 sync、冲突/拒绝、切 branch、重开 app；pending 与已确认状态准确。              | 待核查 |
-| C4   | 本地库与分支    | 核查 wa-sqlite Worker/SharedWorker、命名、branch manager 和两种 Todo 分页。                           | 多标签页、可空/同值游标、关闭重连、分支限制；对照 roadmap 已知边界，不扩承诺。                   | 待核查 |
-| C5   | 真实场景与隔离  | 将组件单测、默认 E2E 和 e2e-remote 证据分开，不把 remote skip 当远端通过。                            | 隔离 Supabase 帐号/schema、真实 remote-sync、错误提示与键盘操作；不向生产表写测试数据。          | 待核查 |
+| 编号 | 专项            | 核查动作                                                                                              | 最低复验场景 / 证据要求                                                                          | 状态                                 |
+| ---- | --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| C1   | 构建 / 运行配置 | 核查 runtime config、build env 固化、local/remote 模式和服务地址；不要用复用旧 server 掩盖错 bundle。 | 缺 URL/key、错环境、生产与本地 build、远端不可达；失败明确且配置不会串档。                       | 部分执行；local/remote 实际运行      |
+| C2   | 凭证与 RLS 边界 | 审查客户端允许的 key、audit-secrets 和安全提示；与 adapter 和 SQL/RPC 部署联审。                      | 生产 bundle 不含 privileged key、跨身份读写拒绝、日志无凭证；audit-secrets 在当前 build 后执行。 | 部分执行；当前 build 后审计          |
+| C3   | 离线同步状态    | 追踪 todo 交互、sync task、Realtime 与 remote-sync-state，错误不只做状态提示。                        | 离线写后重连、重复 sync、冲突/拒绝、切 branch、重开 app；pending 与已确认状态准确。              | 部分执行；真实远端跨 context 推/拉   |
+| C4   | 本地库与分支    | 核查 wa-sqlite Worker/SharedWorker、命名、branch manager 和两种 Todo 分页。                           | 多标签页、可空/同值游标、关闭重连、分支限制；对照 roadmap 已知边界，不扩承诺。                   | 部分执行；当前刷新/游标 E2E          |
+| C5   | 真实场景与隔离  | 将组件单测、默认 E2E 和 e2e-remote 证据分开，不把 remote skip 当远端通过。                            | 隔离 Supabase 帐号/schema、真实 remote-sync、错误提示与键盘操作；不向生产表写测试数据。          | 部分执行；47 单测 /4 local /2 remote |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -136,3 +136,11 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase:audit-secrets --skipRemote
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/apps/dev-rxdb-supabase.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** 47 条整套单测，4 条 local E2E，2 条 remote E2E 实际执行。本批没有新增应用独立缺陷；当前 Todo 是 Full 策略/公开 schema，不能把 adapter 原语和 shop QueryCache 缺陷冒称已复现 UI 故障。
+
+确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

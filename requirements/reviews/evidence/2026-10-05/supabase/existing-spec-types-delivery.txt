@@ -1,0 +1,67 @@
+COMMAND: pnpm nx exec -p rxdb-adapter-supabase --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/.review-existing-spec-types-delivery.json --noEmit --pretty false
+../rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts(58,70): error TS2345: Argument of type '{ combinator: "and"; rules: { field: string; operator: "="; value: boolean; }[]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    Type '{ field: string; operator: "="; value: boolean; }[]' is not assignable to type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+      Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+        Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+          Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never>'.
+            Types of property 'field' are incompatible.
+              Type 'string' is not assignable to type 'never'.
+../rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts(64,77): error TS2345: Argument of type '{ combinator: "and"; rules: { field: string; operator: "="; value: boolean; }[]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    Type '{ field: string; operator: "="; value: boolean; }[]' is not assignable to type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+      Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+        Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+          Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never>'.
+            Types of property 'field' are incompatible.
+              Type 'string' is not assignable to type 'never'.
+../rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts(70,76): error TS2345: Argument of type '{ combinator: "and"; rules: { field: string; operator: "="; value: boolean; }[]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    Type '{ field: string; operator: "="; value: boolean; }[]' is not assignable to type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+      Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+        Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+          Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never>'.
+            Types of property 'field' are incompatible.
+              Type 'string' is not assignable to type 'never'.
+../rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts(76,75): error TS2345: Argument of type '{ combinator: "and"; rules: { field: string; operator: "="; value: boolean; }[]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    Type '{ field: string; operator: "="; value: boolean; }[]' is not assignable to type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+      Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+        Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+          Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never>'.
+            Types of property 'field' are incompatible.
+              Type 'string' is not assignable to type 'never'.
+../rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts(120,69): error TS2345: Argument of type '{ combinator: "and"; rules: { field: string; operator: "="; value: boolean; }[]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    Type '{ field: string; operator: "="; value: boolean; }[]' is not assignable to type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+      Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+        Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+          Type '{ field: string; operator: "="; value: boolean; }' is not assignable to type 'RuleEqualNullable<unknown, never, never>'.
+            Types of property 'field' are incompatible.
+              Type 'string' is not assignable to type 'never'.
+../rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts(344,63): error TS2345: Argument of type '{ readonly combinator: "and"; readonly rules: readonly [{ readonly field: "status"; readonly operator: "="; readonly value: "active"; }]; }' is not assignable to parameter of type 'RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'rules' are incompatible.
+    The type 'readonly [{ readonly field: "status"; readonly operator: "="; readonly value: "active"; }]' is 'readonly' and cannot be assigned to the mutable type '(Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>)[]'.
+../rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts(603,15): error TS2322: Type '{ field: string; operator: "="; value: string; }' is not assignable to type 'Rule<unknown, never, RuleValueDefault> | RuleGroupBase<unknown, never, Rule<unknown, never, RuleValueDefault>>'.
+  Types of property 'field' are incompatible.
+    Type 'string' is not assignable to type 'undefined'.
+../rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts(1216,7): error TS2353: Object literal may only specify known properties, and 'rxdb' does not exist in type '{ adapter: RxDBAdapterSupabase; EntityType: typeof FakeTreeEntity; metadata: Pick<Readonly<EntityMetadataType>, "name" | "features" | "propertyMap">; }'.
+../rxdb-adapter-supabase/src/__tests__/zz-second-pass-probe.spec.ts(328,19): error TS2339: Property 'hello' does not exist on type 'never'.
+Error: Command failed: "pnpm" "exec" "tsc" "-p" "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/.review-existing-spec-types-delivery.json" "--noEmit" "--pretty" "false"
+    at genericNodeError (node:internal/errors:999:15)
+    at wrappedFn (node:internal/errors:544:14)
+    at checkExecSyncError (node:child_process:942:11)
+    at execSync (node:child_process:1014:15)
+    at /Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nx@23.2.1_@swc-node+register@1.12.1_@swc+core@1.16.13_@swc+helpers@0.5.23__@swc+types@0_6a0144d88c9a614f8968a195283578ae/node_modules/nx/dist/src/command-line/exec/exec.js:61:38
+    at Array.forEach (<anonymous>)
+    at runScriptAsNxTarget (/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nx@23.2.1_@swc-node+register@1.12.1_@swc+core@1.16.13_@swc+helpers@0.5.23__@swc+types@0_6a0144d88c9a614f8968a195283578ae/node_modules/nx/dist/src/command-line/exec/exec.js:59:19)
+    at Object.nxExecCommand (/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nx@23.2.1_@swc-node+register@1.12.1_@swc+core@1.16.13_@swc+helpers@0.5.23__@swc+types@0_6a0144d88c9a614f8968a195283578ae/node_modules/nx/dist/src/command-line/exec/exec.js:43:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.handler (/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nx@23.2.1_@swc-node+register@1.12.1_@swc+core@1.16.13_@swc+helpers@0.5.23__@swc+types@0_6a0144d88c9a614f8968a195283578ae/node_modules/nx/dist/src/command-line/exec/command-object.js:12:13) {
+  status: 2,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 28853,
+  stdout: null,
+  stderr: null
+}

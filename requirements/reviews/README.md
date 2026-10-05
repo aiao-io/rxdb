@@ -165,3 +165,7 @@
 
 - [RV-058：取消首次解锁仍提交废弃凭据](RV-058-cancelled-first-unlock-persists-abandoned-key.md)（P2，已修复，见上方 2026-10-05 清理记录；当日台账仍引用，记录暂留）
 - [当日实际台账与四包记录](execution-2026-10-05-encrypted.md)：原 encrypted 274 条全过，最终 275 passed /2 failed；Electron/PGlite 聚焦各 2 failed /1 passed，三项目严格 lint/typecheck 过。新红保留，未修业务/未提交，全仓仍未完成。
+
+## 续评索引：2026-10-05 Supabase 与真实 QueryCache
+
+[本批执行台账](execution-2026-10-05-supabase.md)：新增 [RV-059](RV-059-supabase-bulk-delete-url-overflow.md)、[RV-060](RV-060-supabase-querycache-relation-metadata-missing.md)、[RV-061](RV-061-querycache-sqlite-nonpublic-namespace-target.md)（3 P2）；六对象计划/执行记录更新。真实 SDK/CI REST/wa-sqlite、47 应用单测、4 local +2 remote E2E，实际证据与剩余门禁分开；没有新增完整 C 核销，全对象深审仍为 0 个完成。

@@ -51,13 +51,13 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                  | 核查动作                                                                              | 最低复验场景 / 证据要求                                                                 | 状态                                |
-| ---- | --------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------- |
-| C1   | 缓存身份与质量        | 核查查询键、entity/scope/branch 身份、缓存有效性和已缓存/完整结果的区别。             | 相同过滤不同库、分页部分缓存、规则改变、远端 invalidation；不可把部分结果称为完整命中。 | 部分执行；RV-054，真实 HTTP 补证    |
-| C2   | 离线读取与错误        | 追踪本地/远端 adapter 选择、网络状态和错误分类；仅允许契约明确的离线缓存行为。        | 离线有/无缓存、远端语法/鉴权错误、超时、旧响应；业务错误不能被缓存 fallback 掩盖。      | 部分执行；RV-053/054，在线/离线限定 |
-| C3   | 离线写入与 outbox     | 核查 primary adapter、entity manager 与 sync memo/outbox 对本地写、确认与失败的衔接。 | 写成功响应丢失、重试、删除后创建、进程重开、冲突拒绝；不丢写、不重复落库。              | 部分执行；RV-053/055，真实投影竞争  |
-| C4   | 插件 scope 与生命周期 | 审查 engine factory、inject、销毁与 reconnect，多库不能共享错误 memo。                | 同 EntityType 多库、热切换 scope、关闭中远端请求、必需插件缺失；明确拒绝和清理。        | 部分执行；未核销                    |
-| C5   | 公开能力收窄          | 对照现有 API baseline 与 Tree/Graph/主适配器的限制，不为满足评审给出隐式支持。        | 不支持的组合显式报错；本地与真实 HTTP/Supabase 的 production-path 场景均有证据。        | 部分执行；未核销                    |
+| 编号 | 专项                  | 核查动作                                                                              | 最低复验场景 / 证据要求                                                                 | 状态                               |
+| ---- | --------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------- |
+| C1   | 缓存身份与质量        | 核查查询键、entity/scope/branch 身份、缓存有效性和已缓存/完整结果的区别。             | 相同过滤不同库、分页部分缓存、规则改变、远端 invalidation；不可把部分结果称为完整命中。 | 部分执行；RV-061 namespace 身份    |
+| C2   | 离线读取与错误        | 追踪本地/远端 adapter 选择、网络状态和错误分类；仅允许契约明确的离线缓存行为。        | 离线有/无缓存、远端语法/鉴权错误、超时、旧响应；业务错误不能被缓存 fallback 掩盖。      | 部分执行；RV-060 合法关系错误      |
+| C3   | 离线写入与 outbox     | 核查 primary adapter、entity manager 与 sync memo/outbox 对本地写、确认与失败的衔接。 | 写成功响应丢失、重试、删除后创建、进程重开、冲突拒绝；不丢写、不重复落库。              | 部分执行；RV-053/055，真实投影竞争 |
+| C4   | 插件 scope 与生命周期 | 审查 engine factory、inject、销毁与 reconnect，多库不能共享错误 memo。                | 同 EntityType 多库、热切换 scope、关闭中远端请求、必需插件缺失；明确拒绝和清理。        | 部分执行；未核销                   |
+| C5   | 公开能力收窄          | 对照现有 API baseline 与 Tree/Graph/主适配器的限制，不为满足评审给出隐式支持。        | 不支持的组合显式报错；本地与真实 HTTP/Supabase 的 production-path 场景均有证据。        | 部分执行；真实 Supabase /wa-sqlite |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -145,3 +145,11 @@ pnpm audit:coverage --projects=rxdb-plugin-querycache
 ### 2026-10-04 第六批：真实后端联审
 
 [原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** 原 engine/session/primary 与公开 EntityManager.findAll 路径，确认关系条件和 namespace 冷缓存两个接缝。历史 Sync/HTTP 测量不重写。
+
+确认意见：[RV-060](../RV-060-supabase-querycache-relation-metadata-missing.md)、[RV-061](../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

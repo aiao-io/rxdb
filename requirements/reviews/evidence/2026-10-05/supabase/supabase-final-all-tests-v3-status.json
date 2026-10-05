@@ -1,0 +1,20 @@
+{
+  "cacheDisabled": true,
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-adapter-supabase:test",
+    "--run",
+    "--maxWorkers=1",
+    "--coverage.enabled=false",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--parallel=1",
+    "--output-style=static"
+  ],
+  "elapsedSeconds": 48.148,
+  "exitCode": 1,
+  "headAtFinish": "b7edef590051c8842d4914e30e31475977dea6ac",
+  "startedAt": "2026-10-05T08:03:45.652489+08:00"
+}

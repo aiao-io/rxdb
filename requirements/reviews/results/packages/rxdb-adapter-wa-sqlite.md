@@ -50,3 +50,11 @@ wa-sqlite 浏览器适配器及 client/loader，共享 SQLite 核心语义。
 - [ ] C5 备份传输与持久化：核查备份读取、Worker 传输、恢复目标、刷新后的数据归属。
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** Chromium/真实 Wasm/MemoryAsyncVFS，async/no-worker，验证 namespace 冷缓存与物理表正向对照。应用刷新路径另测，不冒充本包 OPFS/多写者验收。
+
+确认意见：[RV-061](../../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

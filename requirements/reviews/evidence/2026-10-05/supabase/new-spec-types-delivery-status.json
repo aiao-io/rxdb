@@ -1,0 +1,25 @@
+{
+  "command": [
+    "pnpm",
+    "nx",
+    "exec",
+    "-p",
+    "rxdb-adapter-supabase",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--",
+    "pnpm",
+    "exec",
+    "tsc",
+    "-p",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/.review-new-spec-types-delivery.json",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "diagnosticCount": 0,
+  "diagnosticFiles": [],
+  "exitCode": 0,
+  "recordedAt": "2026-10-05T08:14:34.900909+08:00",
+  "temporaryConfig": "Created next to original tsconfig.spec.json for standard type package resolution; removed only when unchanged. Config body saved separately."
+}

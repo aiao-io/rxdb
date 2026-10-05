@@ -1,0 +1,168 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": [],
+  "metadata": {},
+  "name": "dev-rxdb-supabase",
+  "prefix": "app",
+  "projectType": "application",
+  "root": "apps/dev-rxdb-supabase",
+  "sourceRoot": "apps/dev-rxdb-supabase/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": ["production", "^production", { "externalDependencies": ["typescript"] }],
+      "metadata": {
+        "technologies": ["typescript", "typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": { "command": "pnpm exec tsc --build --help", "example": { "args": ["--force"] } }
+      },
+      "dependsOn": ["^typecheck"],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "executor": "nx:run-commands",
+      "options": { "cwd": "apps/dev-rxdb-supabase", "command": "tsc --build --emitDeclarationOnly" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": ["^build"],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": ["build-deps"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects dev-rxdb-supabase --includeDependencies -- pnpm exec nx build-deps dev-rxdb-supabase"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": { "command": "pnpm exec eslint --help", "example": { "options": { "max-warnings": 0 } } }
+      },
+      "executor": "nx:run-commands",
+      "options": { "cwd": "apps/dev-rxdb-supabase", "command": "eslint ." },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-supabase"],
+      "metadata": {
+        "technologies": ["vitest"],
+        "description": "Run Vitest tests",
+        "help": { "command": "pnpm exec vitest --help", "example": { "options": { "bail": 1, "coverage": true } } }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": { "cwd": "apps/dev-rxdb-supabase", "command": "vitest" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "executor": "@angular/build:application",
+      "defaultConfiguration": "production",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": ["@supabase/postgrest-js", "ms"],
+        "assets": [
+          { "glob": "**/*", "input": "apps/dev-rxdb-supabase/public" },
+          { "glob": "**/*.wasm", "input": "./node_modules/wa-sqlite/dist", "output": "./wa-sqlite/" },
+          {
+            "glob": "**/pglite.{wasm,data}",
+            "input": "./node_modules/@electric-sql/pglite/dist",
+            "output": "./pglite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-supabase/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/dev-rxdb-supabase",
+        "polyfills": [],
+        "stylePreprocessorOptions": {
+          "sass": { "silenceDeprecations": ["color-functions", "global-builtin", "import"] }
+        },
+        "styles": ["apps/dev-rxdb-supabase/src/styles.scss"],
+        "tsConfig": "apps/dev-rxdb-supabase/tsconfig.app.json"
+      },
+      "configurations": {
+        "development": { "extractLicenses": false, "optimization": false, "sourceMap": true },
+        "production": {
+          "budgets": [
+            { "maximumError": "2mb", "maximumWarning": "1mb", "type": "initial" },
+            { "maximumError": "8kb", "maximumWarning": "4kb", "type": "anyComponentStyle" }
+          ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}"
+          },
+          "outputHashing": "all"
+        }
+      },
+      "parallelism": true
+    },
+    "audit-secrets": {
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs dist/apps/dev-rxdb-supabase/browser"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4203 },
+      "configurations": { "development": { "buildTarget": "dev-rxdb-supabase:build:development", "host": "0.0.0.0" } },
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "dev-rxdb-supabase:build",
+        "port": 4203,
+        "spa": true,
+        "staticFilePath": "dist/apps/dev-rxdb-supabase/browser",
+        "watch": false
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-e2e": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": { "port": 4203, "spa": true, "staticFilePath": "dist/apps/dev-rxdb-supabase/browser", "watch": false },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-local": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": { "command": "node apps/dev-rxdb-supabase/scripts/serve.mjs local" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-remote": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": { "command": "node apps/dev-rxdb-supabase/scripts/serve.mjs remote" },
+      "configurations": {},
+      "parallelism": true
+    }
+  }
+}

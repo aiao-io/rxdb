@@ -1,0 +1,222 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["dev-rxdb-supabase"],
+  "metadata": {
+    "targetGroups": {
+      "E2E (CI)": ["e2e-ci--src/home.spec.ts", "e2e-ci--src/remote-sync.spec.ts", "e2e-ci", "e2e-ci--merge-reports"]
+    },
+    "js": {
+      "packageName": "@aiao/dev-rxdb-supabase-e2e",
+      "packageVersion": "0.0.1",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "dev-rxdb-supabase-e2e",
+  "projectType": "application",
+  "root": "apps/dev-rxdb-supabase-e2e",
+  "sourceRoot": "apps/dev-rxdb-supabase-e2e/src",
+  "tags": ["npm:private"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/package.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/**/*.ts",
+        "{projectRoot}/**/*.js",
+        "{projectRoot}/playwright.config.ts",
+        "{projectRoot}/src/**/*.spec.ts",
+        "{projectRoot}/src/**/*.spec.js",
+        "{projectRoot}/src/**/*.test.ts",
+        "{projectRoot}/src/**/*.test.js",
+        "{projectRoot}/src/**/*.d.ts",
+        "!{projectRoot}/out-tsc/**/*",
+        "!{projectRoot}/test-output/**/*",
+        "!{projectRoot}/eslint.config.js",
+        "!{projectRoot}/eslint.config.mjs",
+        "!{projectRoot}/eslint.config.cjs",
+        { "dependentTasksOutputFiles": "**/*.{d.ts,d.cts,d.mts,tsbuildinfo}", "transitive": true },
+        { "fileset": "{projectRoot}/**/*.{d.ts,d.cts,d.mts}", "dependencies": true }
+      ],
+      "outputs": [
+        "{projectRoot}/out-tsc/playwright/**/*.{d.ts,d.cts,d.mts}",
+        "{projectRoot}/out-tsc/playwright/**/*.{d.ts,d.cts,d.mts}.map",
+        "{projectRoot}/out-tsc/playwright/tsconfig.tsbuildinfo"
+      ],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "metadata": {
+        "technologies": ["typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": { "command": "pnpm exec tsc --build --help", "example": { "args": ["--force"] } }
+      },
+      "executor": "nx:run-commands",
+      "options": { "cwd": "apps/dev-rxdb-supabase-e2e", "command": "tsc --build tsconfig.json --emitDeclarationOnly" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": { "command": "pnpm exec eslint --help", "example": { "options": { "max-warnings": 0 } } }
+      },
+      "executor": "nx:run-commands",
+      "options": { "cwd": "apps/dev-rxdb-supabase-e2e", "command": "eslint ." },
+      "configurations": {},
+      "parallelism": true
+    },
+    "e2e": {
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Runs Playwright Tests",
+        "help": { "command": "pnpm exec playwright test --help", "example": { "options": { "workers": 1 } } }
+      },
+      "parallelism": false,
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "json": "{workspaceRoot}/tsconfig.json", "fields": ["compilerOptions", "extends", "files", "include"] },
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": [
+        "{projectRoot}/test-output/playwright/output",
+        "{projectRoot}/test-output/playwright/report",
+        "{projectRoot}/test-output/playwright/blob-report"
+      ],
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-rxdb-supabase:build"],
+      "options": { "cwd": "apps/dev-rxdb-supabase-e2e", "command": "playwright test" },
+      "configurations": {}
+    },
+    "e2e-ci--src/home.spec.ts": {
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Runs Playwright Tests in src/home.spec.ts in CI",
+        "help": { "command": "pnpm exec playwright test --help", "example": { "options": { "workers": 1 } } }
+      },
+      "parallelism": false,
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "json": "{workspaceRoot}/tsconfig.json", "fields": ["compilerOptions", "extends", "files", "include"] },
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": [
+        "{projectRoot}/test-output/playwright/output/src-home-spec-ts",
+        "{projectRoot}/test-output/playwright/report/src-home-spec-ts",
+        "{projectRoot}/test-output/playwright/blob-report/src-home-spec-ts.zip"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-supabase-e2e",
+        "env": {
+          "PLAYWRIGHT_HTML_OUTPUT_DIR": "test-output/playwright/report/src-home-spec-ts",
+          "PLAYWRIGHT_HTML_REPORT": "test-output/playwright/report/src-home-spec-ts",
+          "PLAYWRIGHT_BLOB_OUTPUT_FILE": "test-output/playwright/blob-report/src-home-spec-ts.zip"
+        },
+        "command": "playwright test src/home.spec.ts --output=test-output/playwright/output/src-home-spec-ts"
+      },
+      "configurations": {}
+    },
+    "e2e-ci--src/remote-sync.spec.ts": {
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Runs Playwright Tests in src/remote-sync.spec.ts in CI",
+        "help": { "command": "pnpm exec playwright test --help", "example": { "options": { "workers": 1 } } }
+      },
+      "parallelism": false,
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "json": "{workspaceRoot}/tsconfig.json", "fields": ["compilerOptions", "extends", "files", "include"] },
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": [
+        "{projectRoot}/test-output/playwright/output/src-remote-sync-spec-ts",
+        "{projectRoot}/test-output/playwright/report/src-remote-sync-spec-ts",
+        "{projectRoot}/test-output/playwright/blob-report/src-remote-sync-spec-ts.zip"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-supabase-e2e",
+        "env": {
+          "PLAYWRIGHT_HTML_OUTPUT_DIR": "test-output/playwright/report/src-remote-sync-spec-ts",
+          "PLAYWRIGHT_HTML_REPORT": "test-output/playwright/report/src-remote-sync-spec-ts",
+          "PLAYWRIGHT_BLOB_OUTPUT_FILE": "test-output/playwright/blob-report/src-remote-sync-spec-ts.zip"
+        },
+        "command": "playwright test src/remote-sync.spec.ts --output=test-output/playwright/output/src-remote-sync-spec-ts"
+      },
+      "configurations": {}
+    },
+    "e2e-ci": {
+      "executor": "nx:noop",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "json": "{workspaceRoot}/tsconfig.json", "fields": ["compilerOptions", "extends", "files", "include"] },
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": [
+        "{projectRoot}/test-output/playwright/output",
+        "{projectRoot}/test-output/playwright/report",
+        "{projectRoot}/test-output/playwright/blob-report"
+      ],
+      "dependsOn": [
+        { "target": "e2e-ci--src/home.spec.ts", "params": "forward", "options": "forward" },
+        { "target": "e2e-ci--src/remote-sync.spec.ts", "params": "forward", "options": "forward" }
+      ],
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Runs Playwright Tests in CI",
+        "nonAtomizedTarget": "e2e",
+        "help": { "command": "pnpm exec playwright test --help", "example": { "options": { "workers": 1 } } }
+      },
+      "parallelism": false,
+      "configurations": {},
+      "options": {}
+    },
+    "e2e-ci--merge-reports": {
+      "executor": "@nx/playwright:merge-reports",
+      "continuous": false,
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "^{projectRoot}/tsconfig*.json",
+        { "json": "{workspaceRoot}/tsconfig.json", "fields": ["compilerOptions", "extends", "files", "include"] },
+        { "externalDependencies": ["@playwright/test"] }
+      ],
+      "outputs": ["{projectRoot}/test-output/playwright/report"],
+      "metadata": {
+        "technologies": ["playwright"],
+        "description": "Merges Playwright blob reports from atomized tasks to produce unified reports for the configured reporters."
+      },
+      "options": { "config": "playwright.config.ts", "expectedSuites": 2 },
+      "configurations": {},
+      "parallelism": true
+    },
+    "e2e-remote": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-rxdb-supabase:build"],
+      "options": {
+        "cwd": "apps/dev-rxdb-supabase-e2e",
+        "command": "REMOTE_E2E=true NX_DAEMON=false pnpm exec playwright test src/remote-sync.spec.ts"
+      },
+      "configurations": {},
+      "parallelism": true
+    }
+  }
+}

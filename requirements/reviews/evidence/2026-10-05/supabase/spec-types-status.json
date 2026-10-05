@@ -1,0 +1,25 @@
+{
+  "cacheDisabled": true,
+  "command": [
+    "pnpm",
+    "nx",
+    "exec",
+    "-p",
+    "rxdb-adapter-supabase",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--",
+    "pnpm",
+    "exec",
+    "tsc",
+    "-p",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/tsconfig.spec.json",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "elapsedSeconds": 7.723,
+  "exitCode": 1,
+  "headAtFinish": "b7edef590051c8842d4914e30e31475977dea6ac",
+  "startedAt": "2026-10-05T08:04:33.870708+08:00"
+}

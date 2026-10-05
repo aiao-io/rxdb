@@ -52,13 +52,13 @@ wa-sqlite 浏览器适配器及 client/loader，共享 SQLite 核心语义。
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项             | 核查动作                                                                           | 最低复验场景 / 证据要求                                                                 | 状态   |
-| ---- | ---------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| C1   | 装载与档位       | 核查 WASM/glue 来源、VFS/Worker/SharedWorker 选择与配置校验；显式区分支持矩阵。    | 资源 404、错 glue/wasm 组合、能力缺失、无安全上下文；明确失败，不回退到其他存储档位。   | 待核查 |
-| C2   | 异步语句生命周期 | 检查 execute helper、statement finalize、参数/结果映射和异步回调边界。             | prepare/step/finalize 各阶段失败、取消、空结果、BigInt/binary；无悬挂 statement。       | 待核查 |
-| C3   | 多 realm 与隔离  | 核查远程 client、广播/锁的数据库命名隔离与关闭顺序，不增加已移除 writer lease。    | 同名库双标签页、不同数据库、worker 重启、关闭中事务；真实浏览器验证隔离而非 mock 自证。 | 待核查 |
-| C4   | 共用契约与加密   | 对照 sqlite-core conformance 与 encrypted 测试调用点，检查业务层是否依赖后端特例。 | 事务回滚、分支物化、变更事件、加密 CRUD/tamper；行为与其它 SQLite 子后端一致。          | 待核查 |
-| C5   | 备份传输与持久化 | 核查备份读取、Worker 传输、恢复目标、刷新后的数据归属。                            | 二进制传输截断、恢复失败、页面重开、数据库关闭后恢复；失败不覆盖原库。                  | 待核查 |
+| 编号 | 专项             | 核查动作                                                                           | 最低复验场景 / 证据要求                                                                 | 状态                                          |
+| ---- | ---------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------- |
+| C1   | 装载与档位       | 核查 WASM/glue 来源、VFS/Worker/SharedWorker 选择与配置校验；显式区分支持矩阵。    | 资源 404、错 glue/wasm 组合、能力缺失、无安全上下文；明确失败，不回退到其他存储档位。   | 部分执行；MemoryAsyncVFS/async/no-worker 实装 |
+| C2   | 异步语句生命周期 | 检查 execute helper、statement finalize、参数/结果映射和异步回调边界。             | prepare/step/finalize 各阶段失败、取消、空结果、BigInt/binary；无悬挂 statement。       | 待核查                                        |
+| C3   | 多 realm 与隔离  | 核查远程 client、广播/锁的数据库命名隔离与关闭顺序，不增加已移除 writer lease。    | 同名库双标签页、不同数据库、worker 重启、关闭中事务；真实浏览器验证隔离而非 mock 自证。 | 待核查                                        |
+| C4   | 共用契约与加密   | 对照 sqlite-core conformance 与 encrypted 测试调用点，检查业务层是否依赖后端特例。 | 事务回滚、分支物化、变更事件、加密 CRUD/tamper；行为与其它 SQLite 子后端一致。          | 部分执行；RV-061 namespace 共用契约           |
+| C5   | 备份传输与持久化 | 核查备份读取、Worker 传输、恢复目标、刷新后的数据归属。                            | 二进制传输截断、恢复失败、页面重开、数据库关闭后恢复；失败不覆盖原库。                  | 待核查                                        |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -138,3 +138,11 @@ pnpm audit:coverage --projects=rxdb-adapter-wa-sqlite
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-adapter-wa-sqlite.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** Chromium/真实 Wasm/MemoryAsyncVFS，async/no-worker，验证 namespace 冷缓存与物理表正向对照。应用刷新路径另测，不冒充本包 OPFS/多写者验收。
+
+确认意见：[RV-061](../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

@@ -1,4 +1,5 @@
 {
+  "clientDate": "2026-10-05",
   "artifacts": [
     {
       "file": "cancelled-first-unlock-probe-status.json",
@@ -13,7 +14,7 @@
     {
       "file": "delivery-validation.json",
       "bytes": 1198,
-      "sha256": "931ee0a042dd16742b1e69b56118e286a8c251ef1fc6a740d8238c6c1800cde4"
+      "sha256": "ebc7ca8d4b3327f8af90475ff5a0fddc37b304a59a4cde2362b0081736f7671f"
     },
     {
       "file": "edited-file-scope.json",
@@ -122,8 +123,8 @@
     },
     {
       "file": "runtime-and-sources.json",
-      "bytes": 16024,
-      "sha256": "a3c4f0318b68acff4ccede1a316b3ee63915e17044627f6655ceb89dfb295211"
+      "bytes": 16056,
+      "sha256": "f25daf1e449aee2f5e477c9cf51e14ad0e2d3d25c06cab1fcd96cb552ee7d623"
     },
     {
       "file": "rxdb-adapter-electron-final-junit.xml",
@@ -156,6 +157,5 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "clientDate": "2026-10-05",
   "selfExcluded": true
 }

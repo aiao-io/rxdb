@@ -53,14 +53,14 @@ Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                 | 核查动作                                                                            | 最低复验场景 / 证据要求                                                                                  | 状态   |
-| ---- | -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 身份与 RLS           | 对照 entity_scope、RLS helpers、SQL/RPC、应用配置与 public/privileged key 边界。    | 匿名与受限用户、跨身份读写、scope 参数篡改、RPC 权限；不能用 service-role 绕过策略后称隔离通过。         | 待核查 |
-| C2   | PostgREST 与类型映射 | 审查规则嵌套、escaping、关系、transform 和 error mapping。                          | 特殊标识符、嵌套 AND/OR、null、BigInt/binary、未知列、PostgREST 错误；本地与远端语义可对照。             | 待核查 |
-| C3   | 批写、分支与 RPC     | 核查 mutations/merge changes 的原子性、幂等、主分支/其它分支的现有边界。            | 批次中途失败、重复调用、分支同步、main 之外变更；把已知限制对照 roadmap，不暗中扩承诺。                  | 待核查 |
-| C4   | 分页与实时失效       | 审查分页 token、Realtime 订阅建立/销毁和过期消息对 repository 的影响。              | 可空列、排序相同、断线重订阅、频道泄露、错 scope 通知；分页不丢行，状态不假绿。                          | 待核查 |
-| C5   | 真实环境测试         | 核查 test-env/Docker 的建表、权限、reset/seed 与测试帐号；mock 只能证明局部映射。   | 隔离 Supabase 全套 CRUD/query/branch/Realtimes；记录实际配置与跳过项，不使用生产帐号。                   | 待核查 |
-| C6   | 依赖与客户端安全     | 对照 peer exports、前端 bundle、日志和错误提示；核查凭证审计在应用 build 之后运行。 | 没有 privileged key 的生产包、独立 consumer、远端失败诊断；不把 npm 包 API 存在等同于服务端 RPC 已部署。 | 待核查 |
+| 编号 | 专项                 | 核查动作                                                                            | 最低复验场景 / 证据要求                                                                                  | 状态                              |
+| ---- | -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| C1   | 身份与 RLS           | 对照 entity_scope、RLS helpers、SQL/RPC、应用配置与 public/privileged key 边界。    | 匿名与受限用户、跨身份读写、scope 参数篡改、RPC 权限；不能用 service-role 绕过策略后称隔离通过。         | 待核查                            |
+| C2   | PostgREST 与类型映射 | 审查规则嵌套、escaping、关系、transform 和 error mapping。                          | 特殊标识符、嵌套 AND/OR、null、BigInt/binary、未知列、PostgREST 错误；本地与远端语义可对照。             | 部分执行；RV-060 关系元数据对照   |
+| C3   | 批写、分支与 RPC     | 核查 mutations/merge changes 的原子性、幂等、主分支/其它分支的现有边界。            | 批次中途失败、重复调用、分支同步、main 之外变更；把已知限制对照 roadmap，不暗中扩承诺。                  | 部分执行；RV-059 真实大批删除     |
+| C4   | 分页与实时失效       | 审查分页 token、Realtime 订阅建立/销毁和过期消息对 repository 的影响。              | 可空列、排序相同、断线重订阅、频道泄露、错 scope 通知；分页不丢行，状态不假绿。                          | 待核查                            |
+| C5   | 真实环境测试         | 核查 test-env/Docker 的建表、权限、reset/seed 与测试帐号；mock 只能证明局部映射。   | 隔离 Supabase 全套 CRUD/query/branch/Realtimes；记录实际配置与跳过项，不使用生产帐号。                   | 部分执行；隔离 CI /真实 REST 复验 |
+| C6   | 依赖与客户端安全     | 对照 peer exports、前端 bundle、日志和错误提示；核查凭证审计在应用 build 之后运行。 | 没有 privileged key 的生产包、独立 consumer、远端失败诊断；不把 npm 包 API 存在等同于服务端 RPC 已部署。 | 待核查                            |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -145,3 +145,11 @@ pnpm audit:coverage --projects=rxdb-adapter-supabase
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-adapter-supabase.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05：Supabase /真实 QueryCache 联审
+
+**部分执行，未完成全对象深审。** 实际 SDK/REST 与普通仓储/metadata 对照，确认两项；1100 行 upsert 截断猜测被否定。未通过 RLS/Realtime/发布消费完整专题。
+
+确认意见：[RV-059](../RV-059-supabase-bulk-delete-url-overflow.md)、[RV-060](../RV-060-supabase-querycache-relation-metadata-missing.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+
+尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。

@@ -1,0 +1,25 @@
+{
+  "cacheDisabled": true,
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "typecheck",
+    "-p",
+    "rxdb-adapter-supabase",
+    "rxdb-adapter-sqlite-core",
+    "rxdb-adapter-wa-sqlite",
+    "rxdb-plugin-querycache",
+    "dev-rxdb-supabase",
+    "dev-rxdb-supabase-e2e",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--parallel=1",
+    "--output-style=static"
+  ],
+  "elapsedSeconds": 127.788,
+  "exitCode": 0,
+  "headAtFinish": "451948331ae17ef523ad4fa16ba6d999bab81fb4",
+  "startedAt": "2026-10-05T08:16:12.757718+08:00"
+}

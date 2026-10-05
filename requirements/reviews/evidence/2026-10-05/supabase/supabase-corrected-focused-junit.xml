@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="8" failures="6" errors="0" time="2.09725">
+    <testsuite name="src/__tests__/review-large-rest-writes.spec.ts" timestamp="2026-10-04T23:53:58.705Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="1" errors="0" skipped="0" time="1.832445">
+        <testcase classname="src/__tests__/review-large-rest-writes.spec.ts" name="深审：真实 SDK / Kong / PostgREST 大批量写入 &gt; removeMany 应删除全部 80 个 UUID 实体" time="0.119265">
+            <system-out>
+REVIEW_LARGE_DELETE {&quot;count&quot;:80,&quot;deletionRequests&quot;:[{&quot;method&quot;:&quot;DELETE&quot;,&quot;urlLength&quot;:3176,&quot;status&quot;:200}],&quot;remaining&quot;:0,&quot;returned&quot;:80}
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-large-rest-writes.spec.ts" name="深审：真实 SDK / Kong / PostgREST 大批量写入 &gt; removeMany 应删除全部 400 个 UUID 实体" time="0.851035">
+            <system-out>
+REVIEW_LARGE_DELETE {&quot;count&quot;:400,&quot;deletionRequests&quot;:[{&quot;method&quot;:&quot;DELETE&quot;,&quot;urlLength&quot;:15656,&quot;status&quot;:0,&quot;transportError&quot;:&quot;Failed to fetch&quot;},{&quot;method&quot;:&quot;DELETE&quot;,&quot;urlLength&quot;:15656,&quot;status&quot;:0,&quot;transportError&quot;:&quot;Failed to fetch&quot;},{&quot;method&quot;:&quot;DELETE&quot;,&quot;urlLength&quot;:15656,&quot;status&quot;:0,&quot;transportError&quot;:&quot;Failed to fetch&quot;}],&quot;remaining&quot;:400,&quot;returned&quot;:0}
+            </system-out>
+            <failure message="expected NetworkOfflineError: NetworkOfflineError:… { originalError: Error: … } to be null" type="AssertionError">
+AssertionError: expected NetworkOfflineError: NetworkOfflineError:… { originalError: Error: … } to be null
+
+- Expected:
+null
+
++ Received:
+NetworkOfflineError {
+  &quot;message&quot;: &quot;NetworkOfflineError: Failed to delete: TypeError: Failed to fetch&quot;,
+  &quot;name&quot;: &quot;NetworkOfflineError&quot;,
+  &quot;originalError&quot;: Error {
+    &quot;message&quot;: &quot;Failed to delete: TypeError: Failed to fetch&quot;,
+  },
+}
+
+ ❯ src/__tests__/review-large-rest-writes.spec.ts:105:27
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-large-rest-writes.spec.ts" name="深审：真实 SDK / Kong / PostgREST 大批量写入 &gt; saveMany 单次写入 1100 行应返回完整的已写实体" time="0.85997">
+            <system-out>
+REVIEW_LARGE_UPSERT {&quot;submitted&quot;:1100,&quot;returned&quot;:1100,&quot;persisted&quot;:1100}
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-querycache-relations.spec.ts" timestamp="2026-10-04T23:53:58.707Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="5" errors="0" skipped="0" time="0.264805">
+        <testcase classname="src/__tests__/review-querycache-relations.spec.ts" name="深审：QueryCache 元数据和普通仓储的关系条件对照 &gt; 真实 wa-sqlite 缓存和 QueryCache 公开仓储可查询标量条件" time="0.00063">
+            <failure message="cachedDatabase.repository(...).findAll is not a function" type="TypeError">
+TypeError: cachedDatabase.repository(...).findAll is not a function
+ ❯ src/__tests__/review-querycache-relations.spec.ts:96:70
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-querycache-relations.spec.ts" name="深审：QueryCache 元数据和普通仓储的关系条件对照 &gt; QueryCache 公开 findAll 不应因合法 notExists 条件失去正常仓储能返回的行" time="0.055705">
+            <failure message="Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository" type="RxDBError">
+RxDBError: Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ transform_row_to_entity src/transform.ts:51:17
+ ❯ src/SupabaseRepository.ts:128:54
+ ❯ SupabaseRepository.find src/SupabaseRepository.ts:128:16
+ ❯ src/__tests__/review-querycache-relations.spec.ts:105:25
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-querycache-relations.spec.ts" name="深审：QueryCache 元数据和普通仓储的关系条件对照 &gt; 标量条件可在两条公开查询路径中得到相同主键" time="0.011415">
+            <failure message="Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository" type="RxDBError">
+RxDBError: Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ transform_row_to_entity src/transform.ts:51:17
+ ❯ src/SupabaseRepository.ts:128:54
+ ❯ SupabaseRepository.find src/SupabaseRepository.ts:128:16
+ ❯ src/__tests__/review-querycache-relations.spec.ts:112:17
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-querycache-relations.spec.ts" name="深审：QueryCache 元数据和普通仓储的关系条件对照 &gt; fetchMetadata 应支持普通仓储已支持的 exists 关系条件" time="0.015625">
+            <system-out>
+REVIEW_RELATION_QUERY {&quot;operator&quot;:&quot;exists&quot;,&quot;ordinaryRepositoryRows&quot;:0}
+            </system-out>
+            <system-err>
+[HistoryManager] pushableCount 的变更计数查询: [SupabaseDataError: Failed to fetch metadata: column rxdb_change.revertChangeId does not exist]
+            </system-err>
+            <failure message="Relation &apos;orders&apos; not found in &apos;unknown&apos;" type="Error">
+Error: Relation &apos;orders&apos; not found in &apos;unknown&apos;
+ ❯ apply_exists_rule src/rule_group_builder.ts:315:10
+ ❯ apply_rule src/rule_group_builder.ts:296:11
+ ❯ src/rule_group_builder.ts:266:10
+ ❯ apply_rule_group src/rule_group_builder.ts:262:27
+ ❯ src/RxDBAdapterSupabase.ts:595:17
+ ❯ select_all_pages src/pagination.ts:78:42
+ ❯ src/RxDBAdapterSupabase.ts:591:19
+ ❯ Observable._subscribe ../../node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/src/internal/observable/defer.ts:54:14
+ ❯ Observable._trySubscribe ../../node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/src/internal/Observable.ts:235:18
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-querycache-relations.spec.ts" name="深审：QueryCache 元数据和普通仓储的关系条件对照 &gt; fetchMetadata 应支持普通仓储已支持的 notExists 关系条件" time="0.0061199999">
+            <failure message="Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository" type="RxDBError">
+RxDBError: Entity &apos;User&apos; is registered with multiple RxDB instances; use rxdb.entityManager or repository
+ ❯ transform_row_to_entity src/transform.ts:51:17
+ ❯ src/SupabaseRepository.ts:128:54
+ ❯ SupabaseRepository.find src/SupabaseRepository.ts:128:16
+ ❯ src/__tests__/review-querycache-relations.spec.ts:125:17
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

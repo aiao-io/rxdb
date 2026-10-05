@@ -1,0 +1,83 @@
+[
+  {
+    "probe": "REVIEW_LARGE_DELETE",
+    "measurement": {
+      "count": 80,
+      "deletionRequests": [
+        {
+          "method": "DELETE",
+          "urlLength": 3176,
+          "status": 200
+        }
+      ],
+      "remaining": 0,
+      "returned": 80
+    }
+  },
+  {
+    "probe": "REVIEW_LARGE_DELETE",
+    "measurement": {
+      "count": 400,
+      "deletionRequests": [
+        {
+          "method": "DELETE",
+          "urlLength": 15656,
+          "status": 0,
+          "transportError": "Failed to fetch"
+        },
+        {
+          "method": "DELETE",
+          "urlLength": 15656,
+          "status": 0,
+          "transportError": "Failed to fetch"
+        },
+        {
+          "method": "DELETE",
+          "urlLength": 15656,
+          "status": 0,
+          "transportError": "Failed to fetch"
+        }
+      ],
+      "remaining": 400,
+      "returned": 0
+    }
+  },
+  {
+    "probe": "REVIEW_LARGE_UPSERT",
+    "measurement": {
+      "submitted": 1100,
+      "returned": 1100,
+      "persisted": 1100
+    }
+  },
+  {
+    "probe": "REVIEW_CACHE_NAMESPACE",
+    "measurement": {
+      "entity": "shop:User",
+      "physicalTable": "shop$user",
+      "remote": 2,
+      "local": 0
+    }
+  },
+  {
+    "probe": "REVIEW_CACHE_PHYSICAL_CONTROL",
+    "measurement": {
+      "physicalTable": "shop$user",
+      "rows": 2
+    }
+  },
+  {
+    "probe": "REVIEW_RELATION_QUERY",
+    "measurement": {
+      "operator": "exists",
+      "ordinaryRepositoryRows": 0
+    }
+  },
+  {
+    "probe": "REVIEW_RELATION_QUERY",
+    "measurement": {
+      "operator": "notExists",
+      "ordinaryRepositoryRows": 2
+    }
+  }
+]

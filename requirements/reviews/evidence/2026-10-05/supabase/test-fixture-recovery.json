@@ -1,0 +1,19 @@
+{
+  "cause": "An interim cleanup packed raw + encoded change IDs into a too-large URL. Corrected to bounded 25-row chunks; only our tagged fixtures recovered. Not a new product issue.",
+  "measurements": [
+    {
+      "table": "todos",
+      "scope": "Only our review-large-rest-* tagged fixtures",
+      "before": 1300,
+      "deleteStatus": 204,
+      "after": 0
+    },
+    {
+      "table": "rxdb_change",
+      "scope": "Only our review-large-rest-* tagged fixtures",
+      "before": 3160,
+      "deleteStatus": 204,
+      "after": 0
+    }
+  ]
+}
