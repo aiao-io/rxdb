@@ -2636,6 +2636,9 @@ BEGIN
   );
 
   -- 5. 触发器模式（p_skip_sync = false）新建 → 成功，触发器写日志 1 条
+  -- 整个回归在一个事务里：上面 p_skip_sync = true 的调用已把事务级 rxdb.sync_enabled 置为 'false'
+  -- （真实请求一次 RPC 一个事务，不受影响），这里恢复，让触发器生效
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
   PERFORM public.rxdb_mutations(
     p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"prod-grants-trigger-1","value":"new"}]}]'::jsonb,
     p_skip_sync => false

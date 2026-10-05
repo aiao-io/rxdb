@@ -682,6 +682,107 @@ END;
 $$;
 
 /**
+ * rxdb_insert_changes - 写 rxdb_change 的唯一入口（US-218 阶段 C，内部函数）
+ *
+ * SECURITY DEFINER：生产权限脚本撤销了客户端对 rxdb_change 的写权限，日志只能经由本函数落库。
+ * 只接受 rxdb_mutations 的调用：调用前它把事务级设置 rxdb.insert_changes 置为 'on'，本函数入口校验后立刻消费；
+ * 客户端直接调用时设置不是 'on'，抛 42501（PostgREST 不暴露 pg_catalog.set_config，客户端无法预置）。
+ * 写入按 ("clientId", "localId") 去重（ON CONFLICT DO NOTHING），重放不重复落库。
+ *
+ * @param p_changes 待写的 RxDBChange 记录（已由 rxdb_mutations 规范化并按原顺序筛好）
+ * @returns {changes: 新写条数, max_change_id, change_id_mapping: [{localId, remoteId}]}
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_insert_changes(p_changes jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  changes_count int := 0;
+  max_change_id bigint := NULL;
+  mapped_max_change_id bigint := NULL;
+  change_id_mapping jsonb := '[]'::jsonb;
+BEGIN
+  IF pg_catalog.current_setting('rxdb.insert_changes', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'insufficient_privilege',
+      MESSAGE = 'rxdb: rxdb_insert_changes may only be called by rxdb_mutations';
+  END IF;
+  -- 消费守卫：一次授权只够一次调用
+  PERFORM pg_catalog.set_config('rxdb.insert_changes', '', true);
+
+  WITH inserted AS (
+    INSERT INTO public.rxdb_change (
+      namespace, entity, "entityId", type, patch, "inversePatch",
+      "branchId", "clientId", "localId", "createdAt", "updatedAt",
+      "beforeData", "afterData", "snapshotComplete"
+    )
+    SELECT
+      c->>'namespace',
+      c->>'entity',
+      c->>'entityId',
+      c->>'type',
+      c->'patch',
+      c->'inversePatch',
+      COALESCE(c->>'branchId', 'main'),
+      c->>'clientId',
+      (c->>'localId')::integer,
+      COALESCE((c->>'createdAt')::timestamptz, pg_catalog.now()),
+      COALESCE((c->>'updatedAt')::timestamptz, pg_catalog.now()),
+      c->'beforeData',
+      c->'afterData',
+      COALESCE((c->>'snapshotComplete')::boolean, false)
+    FROM pg_catalog.jsonb_array_elements(p_changes) AS changes(c)
+    ON CONFLICT ("clientId", "localId")
+      WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL
+      DO NOTHING
+    RETURNING id
+  )
+  SELECT pg_catalog.count(*), pg_catalog.max(id)
+  INTO changes_count, max_change_id
+  FROM inserted;
+
+  WITH requested AS (
+    SELECT
+      c->>'clientId' AS client_id,
+      (c->>'localId')::integer AS local_id,
+      pg_catalog.min(ordinality) AS ordinality
+    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+    WHERE c->>'clientId' IS NOT NULL AND c->>'localId' IS NOT NULL
+    GROUP BY c->>'clientId', (c->>'localId')::integer
+  )
+  SELECT
+    COALESCE(
+      pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object('localId', requested.local_id, 'remoteId', remote.id)
+        ORDER BY requested.ordinality
+      ),
+      '[]'::jsonb
+    ),
+    pg_catalog.max(remote.id)
+  INTO change_id_mapping, mapped_max_change_id
+  FROM requested
+  JOIN public.rxdb_change AS remote
+    ON remote."clientId" = requested.client_id
+    AND remote."localId" = requested.local_id;
+
+  max_change_id := CASE
+    WHEN max_change_id IS NULL THEN mapped_max_change_id
+    WHEN mapped_max_change_id IS NULL THEN max_change_id
+    WHEN max_change_id > mapped_max_change_id THEN max_change_id
+    ELSE mapped_max_change_id
+  END;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'changes', changes_count,
+    'max_change_id', max_change_id,
+    'change_id_mapping', change_id_mapping
+  );
+END;
+$$;
+
+/**
  * rxdb_mutations - 事务性批量修改函数（US-218 阶段 B：逐实体回执）
  *
  * 在单个数据库事务中执行：
@@ -693,7 +794,7 @@ $$;
  *    p_receipts = true 时每组一个子事务；组失败且错误可归类（42501/RX001/23503）→
  *    回滚该组、组内逐实体各自子事务重放，每个实体各自 applied / rejected；
  *    p_receipts = false 时不开子事务，第一个错误原样上抛（全有或全无，等于阶段 A）
- * 4. 写 rxdb_change：按 p_changes 原顺序，只写 applied 实体的 main 日志与全部非 main 日志
+ * 4. 经 rxdb_insert_changes（SECURITY DEFINER）写 rxdb_change：按 p_changes 原顺序，只写 applied 实体的 main 日志与全部非 main 日志
  * 5. 返回；entity_results 只在 p_receipts = true 时出现，按载荷顺序排列
  *
  * @param p_upserts JSONB 数组，每个元素: {table, schema?, data: [...]}
@@ -729,7 +830,6 @@ DECLARE
   delete_count int := 0;
   changes_count int := 0;
   max_change_id bigint := NULL;
-  mapped_max_change_id bigint := NULL;
   change_id_mapping jsonb := '[]'::jsonb;
   normalized_changes jsonb := '[]'::jsonb;
   entity_states jsonb := '{}'::jsonb;
@@ -758,6 +858,7 @@ DECLARE
   v_group_ok boolean;
   v_group_result jsonb;
   v_changes_to_log jsonb;
+  v_log_result jsonb;
   v_entity_results jsonb;
 BEGIN
   -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
@@ -1011,68 +1112,14 @@ BEGIN
   WHERE COALESCE(c->>'branchId', 'main') != 'main'
      OR (v_entities->(c->>'rxdbEntityKey')->>'status') = 'applied';
 
+  -- 落库交给 rxdb_insert_changes（SECURITY DEFINER）：生产权限下调用方没有 rxdb_change 写权限（US-218 阶段 C）
   IF pg_catalog.jsonb_array_length(v_changes_to_log) > 0 THEN
-    WITH inserted AS (
-      INSERT INTO public.rxdb_change (
-        namespace, entity, "entityId", type, patch, "inversePatch",
-        "branchId", "clientId", "localId", "createdAt", "updatedAt",
-        "beforeData", "afterData", "snapshotComplete"
-      )
-      SELECT
-        c->>'namespace',
-        c->>'entity',
-        c->>'entityId',
-        c->>'type',
-        c->'patch',
-        c->'inversePatch',
-        COALESCE(c->>'branchId', 'main'),
-        c->>'clientId',
-        (c->>'localId')::integer,
-        COALESCE((c->>'createdAt')::timestamptz, pg_catalog.now()),
-        COALESCE((c->>'updatedAt')::timestamptz, pg_catalog.now()),
-        c->'beforeData',
-        c->'afterData',
-        COALESCE((c->>'snapshotComplete')::boolean, false)
-      FROM pg_catalog.jsonb_array_elements(v_changes_to_log) AS changes(c)
-      ON CONFLICT ("clientId", "localId")
-        WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL
-        DO NOTHING
-      RETURNING id
-    )
-    SELECT pg_catalog.count(*), pg_catalog.max(id)
-    INTO changes_count, max_change_id
-    FROM inserted;
-
-    WITH requested AS (
-      SELECT
-        c->>'clientId' AS client_id,
-        (c->>'localId')::integer AS local_id,
-        pg_catalog.min(ordinality) AS ordinality
-      FROM pg_catalog.jsonb_array_elements(v_changes_to_log) WITH ORDINALITY AS changes(c, ordinality)
-      WHERE c->>'clientId' IS NOT NULL AND c->>'localId' IS NOT NULL
-      GROUP BY c->>'clientId', (c->>'localId')::integer
-    )
-    SELECT
-      COALESCE(
-        pg_catalog.jsonb_agg(
-          pg_catalog.jsonb_build_object('localId', requested.local_id, 'remoteId', remote.id)
-          ORDER BY requested.ordinality
-        ),
-        '[]'::jsonb
-      ),
-      pg_catalog.max(remote.id)
-    INTO change_id_mapping, mapped_max_change_id
-    FROM requested
-    JOIN public.rxdb_change AS remote
-      ON remote."clientId" = requested.client_id
-      AND remote."localId" = requested.local_id;
-
-    max_change_id := CASE
-      WHEN max_change_id IS NULL THEN mapped_max_change_id
-      WHEN mapped_max_change_id IS NULL THEN max_change_id
-      WHEN max_change_id > mapped_max_change_id THEN max_change_id
-      ELSE mapped_max_change_id
-    END;
+    PERFORM pg_catalog.set_config('rxdb.insert_changes', 'on', true);
+    v_log_result := public.rxdb_insert_changes(v_changes_to_log);
+    PERFORM pg_catalog.set_config('rxdb.insert_changes', '', true);
+    changes_count := (v_log_result->>'changes')::int;
+    max_change_id := (v_log_result->>'max_change_id')::bigint;
+    change_id_mapping := v_log_result->'change_id_mapping';
   END IF;
 
   -- 5. 返回；entity_results 只在 p_receipts = true 时出现，按载荷顺序排列
@@ -1104,6 +1151,7 @@ GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb,
 GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_mutations_depends_on(text, text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_insert_changes(jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
