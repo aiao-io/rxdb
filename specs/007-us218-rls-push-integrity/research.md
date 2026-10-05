@@ -293,7 +293,7 @@ type RemoteChangeResult =
 
 ### D16 AC#16 的 demo 范围
 
-**决策**：三框架各有一处展示：`apps/dev-rxdb-supabase`（Angular，连真实 Supabase）显示 `lastRejections` 并以 e2e-remote 触发真实 RLS 拒绝；
+**决策**：三框架各有一处展示：`apps/dev-rxdb-supabase`（Angular，连真实 Supabase）显示 `lastRejections` 并以 e2e-remote 触发真实的远端拒绝（`gone`，见本节末）；
 `apps/dev-rxdb-react`、`apps/dev-rxdb-vue` 各加一个被拒列表面板，绑定 `useSyncState()`。React / Vue demo 今天不连远端、也不用
 `useSyncState`；定为在三端面板组件 spec 里用同一份 `SyncRejection` 夹具断言相同字段与文案，React / Vue e2e 只验空态与 a11y。
 否决「只在 e2e 构建启用的会拒绝的远端替身」：要给两个 demo 引入仅测试用的远端代码路径，收益只是重复已由组件 spec 覆盖的渲染。

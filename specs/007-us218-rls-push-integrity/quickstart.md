@@ -79,7 +79,7 @@ pnpm nx run dev-rxdb-react-e2e:e2e
 pnpm nx run dev-rxdb-vue-e2e:e2e
 ```
 
-期望：Supabase demo 触发真实 RLS 拒绝后面板列出被拒实体、操作与原因；React / Vue demo 面板空态可见、a11y 无新增违规；
+期望：Supabase demo 触发真实的远端拒绝（`gone`，`RX001`）后面板列出被拒实体、操作与原因；React / Vue demo 面板空态可见、a11y 无新增违规；
 三端面板组件 spec 用同一份夹具渲染出相同字段（spec US5「批准的偏离」）。
 
 ### B5. 版本组合（FR-022）
