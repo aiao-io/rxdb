@@ -42,8 +42,8 @@ const { lastRejections } = useSyncState();
     >
       <li
         class="flex flex-wrap gap-2 py-1"
-        :key="`${rejection.namespace}${rejection.entity}${rejection.entityId}`"
         v-for="rejection in lastRejections"
+        :key="`${rejection.namespace}${rejection.entity}${rejection.entityId}`"
       >
         <span class="font-medium">{{ rejection.entity }}</span>
         <span>{{ rejection.op }}</span>

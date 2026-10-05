@@ -262,9 +262,7 @@ describe('mergeChanges: PGRST202（旧 SQL，RPC 未升级）', () => {
       status: 404
     });
 
-    const failure: SupabaseDataError = await callMergeChanges(adapter, [makeChange({ id: 1 })]).catch(
-      error => error
-    );
+    const failure: SupabaseDataError = await callMergeChanges(adapter, [makeChange({ id: 1 })]).catch(error => error);
 
     expect(failure).toBeInstanceOf(SupabaseDataError);
     expect(failure.code).toBe('PGRST202');

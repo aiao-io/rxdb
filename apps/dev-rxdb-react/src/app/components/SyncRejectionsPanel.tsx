@@ -32,10 +32,9 @@ export default function SyncRejectionsPanel() {
       <h2 className='text-sm font-semibold' id='sync-rejections-title'>
         被拒的推送
       </h2>
-      {lastRejections.length === 0 ? (
+      {lastRejections.length === 0 ?
         <p className='text-base-content/70 text-sm'>最近没有被远端拒绝的推送</p>
-      ) : (
-        <ul className='divide-base-200 divide-y text-sm'>
+      : <ul className='divide-base-200 divide-y text-sm'>
           {lastRejections.map(rejection => (
             <li
               className='flex flex-wrap gap-2 py-1'
@@ -50,7 +49,7 @@ export default function SyncRejectionsPanel() {
             </li>
           ))}
         </ul>
-      )}
+      }
     </section>
   );
 }

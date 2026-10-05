@@ -395,9 +395,9 @@ describe('supabase review regressions', () => {
     const rpc = vi.fn();
     const adapter = createAdapter({ from, schema, rpc }, {}, [Todo]);
 
-    await expect(
-      adapter.mergeChanges({ inserts: new Map(), updates: new Map(), deletes: new Map() })
-    ).resolves.toEqual({ results: [] });
+    await expect(adapter.mergeChanges({ inserts: new Map(), updates: new Map(), deletes: new Map() })).resolves.toEqual(
+      { results: [] }
+    );
     await expect(adapter.pullChangesBatch([], 10)).resolves.toEqual([]);
     await expect(firstValueFrom(adapter.findByIds('Todo', []))).resolves.toEqual([]);
 
