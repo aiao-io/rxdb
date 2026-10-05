@@ -453,7 +453,7 @@ describe('supabase review regressions', () => {
   it('mergeChanges pairs every main change key with exactly one entity write', async () => {
     // 覆盖检查（US-218 FR-017）要求 change_id_mapping 覆盖传入的每个 localId，
     // 这里本批源变更的 id 固定是 1-5。
-    const rpc = vi.fn(async (_name: string, _params: MergeChangesPayload) => ({
+    const rpc = vi.fn<(name: string, params: MergeChangesPayload) => Promise<unknown>>(async () => ({
       data: {
         max_change_id: 5,
         change_id_mapping: [1, 2, 3, 4, 5].map(localId => ({ localId, remoteId: localId + 100 })),

@@ -606,9 +606,12 @@ const ALL_ACTION_KINDS: ReadonlySet<CompactedActionKind> = new Set<CompactedActi
 function compactPushEntriesByBranch(localChanges: RxDBChange[], branchIds: readonly string[]): CompactedPushEntry[] {
   const changesByBranch = new Map<string, RxDBChange[]>();
   for (const change of localChanges) {
-    const group = changesByBranch.get(change.branchId) ?? [];
+    const { branchId } = change;
+    // 查询按 branchId =/IN 过滤，NULL 分支的行进不来；走到这里说明查询与本函数的约定被打破
+    if (branchId === undefined) throw new RxDBError(`Internal error: unpushed change ${change.id} has no branchId`);
+    const group = changesByBranch.get(branchId) ?? [];
     group.push(change);
-    changesByBranch.set(change.branchId, group);
+    changesByBranch.set(branchId, group);
   }
   return [...branchIds].reverse().flatMap(branchId => {
     const changes = changesByBranch.get(branchId);
