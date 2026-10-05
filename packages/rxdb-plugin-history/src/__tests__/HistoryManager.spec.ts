@@ -413,6 +413,23 @@ describe('HistoryManager - Class Methods', () => {
     });
   });
 
+  // `pushableCountSub` 构造期订阅的那条「重算触发」查询：结果本身被丢弃，只用来在变化时
+  // 重新调用 `#updatePushableCount()`。真正的计数口径在 undo-redo-apply.ts 的
+  // `updatePushableCount()` 里（另有归属，不在本文件测），但这条触发查询本身也按
+  // `remoteId = null` 认「待推」，同样需要排除被拒变更，否则被拒变更一有风吹草动
+  // （比如同实体另一条变更改了分支）就会白触发一次重算。
+  describe('pushableCount 重算触发查询', () => {
+    it('待推送触发查询需排除已被拒绝的变更（rejectedAt 非空）', () => {
+      // 红：`HistoryManager.ts` 构造函数里的 `baseRules` 目前只有 `remoteId = null`，
+      // 还没有 `rejectedAt = null` 这条规则，所以此刻断言会在数组里找不到它而失败。
+      // beforeEach 里 `config.entities: []` 会让 `updatePushableCount()` 内部那次计数
+      // 查询提前 return，因此 `mockChangeRepository.count` 此刻只会被这条触发查询调用一次。
+      expect(mockChangeRepository.count).toHaveBeenCalledTimes(1);
+      const callOptions = mockChangeRepository.count.mock.calls[0]?.[0] as { where: { rules: unknown[] } };
+      expect(callOptions.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+    });
+  });
+
   describe('undo() 入口规则', () => {
     const createChange = (overrides: Partial<RxDBChange> = {}): RxDBChange =>
       ({

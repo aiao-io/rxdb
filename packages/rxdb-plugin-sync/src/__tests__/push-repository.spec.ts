@@ -430,6 +430,18 @@ describe('pushRepository', () => {
     expect(ruleValue(harness.changeFind.mock.calls[0]?.[0]?.where, 'namespace')).toBe('public');
   });
 
+  it('未推送查询必须排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`queryUnpushedChanges` 目前只按 `remoteId = null` 过滤，被拒变更的 remoteId
+    // 也一直是 null、永远不会再被推送——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const harness = createHarness({ currentWatermark: 41 });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const rules = harness.changeFind.mock.calls[0]?.[0]?.where?.rules;
+    expect(rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+  });
+
   it('多分支查询使用所有祖先分支的最小水位线', async () => {
     const harness = createHarness({
       currentBranchId: 'feature',

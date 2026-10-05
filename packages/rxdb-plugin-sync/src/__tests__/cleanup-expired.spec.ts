@@ -367,6 +367,23 @@ describe('cleanupExpired 数据安全', () => {
     expect(result.removedIds).toEqual(['b']);
   });
 
+  it('未推送变更候选查询需排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`rejectUnpushed` 目前只按 `remoteId = null` 过滤「还没推送」，被拒变更的
+    // remoteId 也一直是 null（且永远不会再被推送），会被误判成「还占着没推完」而继续
+    // 保护对应实体不被清理——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const harness = createHarness({
+      records: [{ id: 'a' }],
+      sync: createFilterSync(filter),
+      unpushedChanges: []
+    });
+
+    await cleanupExpired(harness.vm, 'public', 'Order');
+
+    const findOptions = harness.changeFind.mock.calls[0]?.[0] as { where: { rules: unknown[] } };
+    expect(findOptions.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+  });
+
   it('按主键运行时类型区分未推送变更', async () => {
     const harness = createHarness({
       records: [{ id: 1 }, { id: 1n }, { id: '1' }],

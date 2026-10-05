@@ -264,6 +264,26 @@ describe('getRepositorySyncStatus', () => {
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:StatusFull'], 'main');
   });
 
+  it('待推送查询必须排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`calculatePushableCount` 目前只按 `remoteId = null` 过滤，被拒变更的 remoteId
+    // 也一直是 null、永远不会再被推送——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const harness = createStatusHarness({
+      entities: [FullEntity],
+      syncRecords: [],
+      changes: [],
+      remoteResult: { count: 0, latestChangeId: 0 }
+    });
+
+    await getRepositorySyncStatus(harness.rxdb, 'public', 'StatusFull');
+
+    expect(harness.changeFind.mock.calls[0][0].where?.rules).toContainEqual({
+      field: 'rejectedAt',
+      operator: '=',
+      value: null
+    });
+  });
+
   it('pulls but never scans local changes for a remote-only entity', async () => {
     const harness = createStatusHarness({
       entities: [RemoteEntity],
