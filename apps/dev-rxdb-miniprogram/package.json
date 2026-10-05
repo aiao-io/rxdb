@@ -69,7 +69,7 @@
     "@tarojs/plugin-generator": "4.2.1",
     "@tarojs/vite-runner": "4.2.1",
     "@types/babel__core": "7.20.5",
-    "@types/minimatch": "^5",
+    "@types/minimatch": "^6",
     "@types/react": "^18.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "babel-preset-taro": "4.2.1",
