@@ -252,7 +252,7 @@
       `receipts-many-groups`（70 个组各含 1 条被拒 → 调用成功，不报子事务溢出）。确认红
 - [x] T037 [US3] 改回归 SQL 的 `test_rls_write_boundary`：把 006 T015 写入的 5 参签名改为 `public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)`，
       并断言 5 参 `to_regprocedure` 为 NULL（旧签名已删）、6 参不为 NULL、`prosecdef = false`。确认红
-- [ ] T038 [P] [US3] 新建 `packages/rxdb-adapter-supabase/src/__tests__/push-receipts-mapping.spec.ts`（mock `client.rpc`，不连远端）
+- [x] T038 [P] [US3] 新建 `packages/rxdb-adapter-supabase/src/__tests__/push-receipts-mapping.spec.ts`（mock `client.rpc`，不连远端）
       （[remote-merge-result §3](contracts/remote-merge-result.md)、[rxdb-mutations-receipts §6](contracts/rxdb-mutations-receipts.md)）：
       `mergeChanges` 传 `p_receipts: true`，`mutations()` 不传；`localId` 在 mapping → applied；在被拒实体 `localIds` → rejected，`rejection` 的
       `code` / `reason` / `message` / `entity` 照回执；两者都不在或都在 → `SupabaseDataError`；响应缺 `entity_results` 或形状不对 → `validateMergeResponse`
@@ -288,7 +288,7 @@
       返回 `{upserted, updated, deleted, changes, max_change_id, change_id_mapping, entity_results}`，`entity_results` 只在 `p_receipts = true` 时出现，
       元素形状 `{schema, table, entityId, op, status, code?, reason?, message?, localIds}`（`dependsOn` 在 US4）
 - [x] T044 [US3] 重载 SQL；单跑 T034～T037 的用例全部转绿；`bash 回归脚本` 除 `receipts-dependency`（尚未新增）外全绿
-- [ ] T045 [US3] 适配器：`mergeChanges` 传 `p_receipts: true`；`validateMergeResponse` 校验 `entity_results`；按回执构造 `RemoteChangeResult`
+- [x] T045 [US3] 适配器：`mergeChanges` 传 `p_receipts: true`；`validateMergeResponse` 校验 `entity_results`；按回执构造 `RemoteChangeResult`
       （T029 的 applied 分支 + rejected 分支）；`rejection.entity` 由 `SchemaManager.getEntityMetadataByTableName(tableName, namespace)` 反查实体名；
       `mutations()` 不传 `p_receipts`。T038 转绿
 - [x] T046 [US3] 推送仓库提交（data-model §7 的步骤 1、3 中的标记部分）：同一本地事务内 applied → `remoteId`，被拒实体的全部源变更 →
@@ -317,7 +317,7 @@
 - [x] T050 [P] [US4] 在推送仓库测试加（AC#11，[data-model §7](data-model.md)）：被拒实体远端有行 → 本地被覆盖为远端值（逐列相等）；远端无行 → 本地移除；
       对齐不生成 `RxDBChange`、不进撤销栈；被拒实体在本批之外还有更新的待推变更 → 不对齐；对被拒实体调远端 `findByIds` 失败 → 本轮不提交
       （无 `remoteId`、无被拒标记、水位线不动）。确认红
-- [ ] T051 [P] [US4] 在 `push-receipts-mapping.spec.ts` 加：回执 `dependsOn` 为表引用 → `RemoteEntityRef {namespace, entity, entityId}`（实体名经
+- [x] T051 [P] [US4] 在 `push-receipts-mapping.spec.ts` 加：回执 `dependsOn` 为表引用 → `RemoteEntityRef {namespace, entity, entityId}`（实体名经
       `getEntityMetadataByTableName` 反查）；为 `{constraint}` → 原样透传。确认红
 - [ ] T052 [US4] 在 `push-receipts.spec.ts` 的被拒删除场景后补 AC#11 断言：B 本地被删的那行恢复为远端值，B 的待推变更数与推送前被拒部分扣除后一致（对齐未产生新变更）。确认红
 
@@ -326,7 +326,7 @@
 - [x] T053 [US4] 参考 SQL：重放时把 23503 归为 `dependency`，用 `GET STACKED DIAGNOSTICS` 取 `CONSTRAINT_NAME` / `SCHEMA_NAME` / `TABLE_NAME`，查
       `pg_constraint`：单列外键（`conkey` 长度 1）→ 由 `confrelid` 与子行该列值给出 `dependsOn {schema, table, entityId}`；否则 `{constraint}`
       （[rxdb-mutations-receipts §3](contracts/rxdb-mutations-receipts.md)、research D9）。重载 SQL，`receipts-dependency` 转绿，`bash 回归脚本` 28 条全绿
-- [ ] T054 [US4] 适配器构造 `rejection.dependsOn`（T051 转绿）
+- [x] T054 [US4] 适配器构造 `rejection.dependsOn`（T051 转绿）
 - [x] T055 [US4] 推送仓库按 data-model §7 补齐提交：覆盖检查之后、本地事务之外对被拒实体调远端 `findByIds`（失败 → 不提交）；本地事务内在写被拒标记之后对齐：
       远端有行 → `upsertMany`，无行 → `deleteByIds`；关触发器、不写 `RxDBChange`、不进撤销栈；跳过本批之外有更新待推变更的实体。
       对齐写入用 `declareTrustedWrite(…, { intent: TrustedWriteIntent.remote_sync })`，并在 `packages/rxdb/src/trusted-write/trusted-write-intent.ts`
