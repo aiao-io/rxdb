@@ -43,6 +43,14 @@ CREATE TABLE rxdb_sql_regression.rls_denied_ids (
 ALTER TABLE rxdb_sql_regression.rls_denied_ids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rxdb_sql_regression.rls_denied_ids FORCE ROW LEVEL SECURITY;
 
+-- receipts-many-groups 需要能用 rxdb_existing_ids 探针区分 denied/gone，补同步触发器
+SELECT public.rxdb_enable_sync_for_table('rls_denied_ids', 'rxdb_sql_regression', 'RlsDenied');
+
+-- receipts-many-groups 夹具：70 行默认拒绝的记录，每组各删 1 行，验证不触发子事务层数问题
+INSERT INTO rxdb_sql_regression.rls_denied_ids (id, value)
+SELECT 'receipts-many-' || g, 'denied'
+FROM pg_catalog.generate_series(1, 70) AS g;
+
 CREATE TABLE rxdb_sql_regression.rls_owned_ids (
   id text PRIMARY KEY,
   owner text NOT NULL,
@@ -59,6 +67,10 @@ CREATE POLICY rls_owned_delete ON rxdb_sql_regression.rls_owned_ids
 
 INSERT INTO rxdb_sql_regression.rls_owned_ids (id, owner, value)
 VALUES ('owned-by-b', 'sql-owner-b', 'original');
+
+-- receipts-idempotent 第 2 部分专用：首次被拒、放开策略后重试变为 applied
+INSERT INTO rxdb_sql_regression.rls_owned_ids (id, owner, value)
+VALUES ('owned-by-receipts', 'sql-owner-receipts-denied', 'original');
 
 -- 存在性探针 rxdb_existing_ids 的夹具：调用方看不见的同步表、uuid 主键同步表、非同步表、同名伪触发器表、FORCE RLS 同步表
 CREATE TABLE rxdb_sql_regression.probe_hidden_ids (
@@ -288,6 +300,56 @@ $$;
 CREATE TRIGGER count_idempotency_effect
 AFTER INSERT OR UPDATE ON rxdb_sql_regression.idempotency_probe
 FOR EACH ROW EXECUTE FUNCTION rxdb_sql_regression.count_idempotency_effect();
+
+-- receipts-unclassified 夹具：唯一约束冲突触发不可归类的 23505，整批失败
+CREATE TABLE rxdb_sql_regression.unique_conflict_ids (
+  id text PRIMARY KEY,
+  unique_value text NOT NULL UNIQUE
+);
+
+INSERT INTO rxdb_sql_regression.unique_conflict_ids (id, unique_value)
+VALUES ('unique-conflict-seed', 'taken');
+
+-- receipts-dependency 夹具（单列外键）：父表 INSERT 策略拒绝一切新建，子表单列外键引用父表 id
+CREATE TABLE rxdb_sql_regression.receipts_parent_ids (
+  id text PRIMARY KEY,
+  value text NOT NULL
+);
+
+ALTER TABLE rxdb_sql_regression.receipts_parent_ids ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY receipts_parent_select ON rxdb_sql_regression.receipts_parent_ids
+  FOR SELECT USING (true);
+CREATE POLICY receipts_parent_insert ON rxdb_sql_regression.receipts_parent_ids
+  FOR INSERT WITH CHECK (false);
+
+CREATE TABLE rxdb_sql_regression.receipts_child_ids (
+  id text PRIMARY KEY,
+  "parentId" text NOT NULL REFERENCES rxdb_sql_regression.receipts_parent_ids (id),
+  value text NOT NULL
+);
+
+SELECT public.rxdb_enable_sync_for_table('receipts_parent_ids', 'rxdb_sql_regression', 'ReceiptsParent');
+SELECT public.rxdb_enable_sync_for_table('receipts_child_ids', 'rxdb_sql_regression', 'ReceiptsChild');
+
+-- receipts-dependency 夹具（多列外键）：复合主键父表 + 两列外键子表，解析不出单列父实体时回退 {constraint}
+CREATE TABLE rxdb_sql_regression.receipts_parent_multi_ids (
+  a text NOT NULL,
+  b text NOT NULL,
+  PRIMARY KEY (a, b)
+);
+
+CREATE TABLE rxdb_sql_regression.receipts_child_multi_ids (
+  id text PRIMARY KEY,
+  "parentA" text NOT NULL,
+  "parentB" text NOT NULL,
+  value text NOT NULL,
+  CONSTRAINT receipts_child_multi_parent_fk FOREIGN KEY ("parentA", "parentB")
+    REFERENCES rxdb_sql_regression.receipts_parent_multi_ids (a, b)
+);
+
+SELECT public.rxdb_enable_sync_for_table('receipts_parent_multi_ids', 'rxdb_sql_regression', 'ReceiptsParentMulti');
+SELECT public.rxdb_enable_sync_for_table('receipts_child_multi_ids', 'rxdb_sql_regression', 'ReceiptsChildMulti');
 
 CREATE TABLE public.rxdb_sql_trigger_probe (
   id varchar(64) PRIMARY KEY,
@@ -861,11 +923,13 @@ SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   unsafe_write_rpcs integer;
+  old_signature_gone boolean;
+  new_signature_invoker boolean;
   write_rpcs regprocedure[] := ARRAY[
     pg_catalog.to_regprocedure('public.rxdb_batch_upsert(text,text,jsonb)'),
     pg_catalog.to_regprocedure('public.rxdb_batch_update(text,text,jsonb)'),
     pg_catalog.to_regprocedure('public.rxdb_batch_delete(text,text,text[])'),
-    pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb)')
+    pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)')
   ];
   no_dml_blocked boolean := false;
   rls_blocked boolean := false;
@@ -875,6 +939,16 @@ BEGIN
     pg_catalog.array_position(write_rpcs, NULL) IS NULL,
     pg_catalog.format('every write RPC signature must resolve: %s', write_rpcs)
   );
+
+  -- US-218 阶段 B：旧 5 参签名必须已被 DROP，新 6 参签名必须存在且非 SECURITY DEFINER
+  old_signature_gone := pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb)') IS NULL;
+  SELECT pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)') IS NOT NULL
+    AND NOT p.prosecdef
+  INTO new_signature_invoker
+  FROM pg_catalog.pg_proc AS p
+  WHERE p.oid = pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)');
+  PERFORM rxdb_sql_regression.assert_true(old_signature_gone, 'the old 5-arg rxdb_mutations signature must be dropped');
+  PERFORM rxdb_sql_regression.assert_true(new_signature_invoker, 'the new 6-arg rxdb_mutations signature must exist and run as SECURITY INVOKER');
 
   SELECT pg_catalog.count(*)::integer
   INTO unsafe_write_rpcs
@@ -1961,6 +2035,540 @@ BEGIN
 END;
 $$;
 
+-- US-218 阶段 B：逐实体回执（contracts/rxdb-mutations-receipts.md）
+
+-- T034 (AC#8、9)：p_receipts = true，1 条被拒删除 + 2 条可放行新建
+CREATE FUNCTION rxdb_sql_regression.test_receipts_partial()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  entity_results jsonb;
+  rejected_entry jsonb;
+  applied_count integer;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-partial-client';
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  mutation_result := public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[
+      {"id":"open-receipts-1","value":"new"},
+      {"id":"open-receipts-2","value":"new"}
+    ]}]'::jsonb,
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-b"]}]'::jsonb,
+    p_changes => '[
+      {"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+       "entityId":"open-receipts-1","type":"INSERT","patch":{"id":"open-receipts-1","value":"new"},
+       "branchId":"main","clientId":"sql-receipts-partial-client","localId":800001},
+      {"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+       "entityId":"open-receipts-2","type":"INSERT","patch":{"id":"open-receipts-2","value":"new"},
+       "branchId":"main","clientId":"sql-receipts-partial-client","localId":800002},
+      {"namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+       "entityId":"owned-by-b","type":"DELETE",
+       "branchId":"main","clientId":"sql-receipts-partial-client","localId":800003}
+    ]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  entity_results := mutation_result->'entity_results';
+
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(entity_results) = 3,
+    pg_catalog.format('receipts-partial: entity_results must have 3 entries: %s', entity_results)
+  );
+
+  SELECT value INTO rejected_entry
+  FROM pg_catalog.jsonb_array_elements(entity_results) AS results(value)
+  WHERE value->>'entityId' = 'owned-by-b';
+
+  PERFORM rxdb_sql_regression.assert_true(
+    rejected_entry->>'status' = 'rejected'
+      AND rejected_entry->>'code' = '42501'
+      AND rejected_entry->>'reason' = 'denied',
+    pg_catalog.format('receipts-partial: denied delete must be rejected/42501/denied: %s', rejected_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rejected_entry->'localIds' = '[800003]'::jsonb,
+    pg_catalog.format('receipts-partial: rejected entity localIds must carry its source change: %s', rejected_entry)
+  );
+
+  SELECT pg_catalog.count(*)::integer INTO applied_count
+  FROM pg_catalog.jsonb_array_elements(entity_results) AS results(value)
+  WHERE value->>'status' = 'applied';
+  PERFORM rxdb_sql_regression.assert_true(applied_count = 2, 'receipts-partial: two inserts must be applied');
+
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-receipts-1')
+      AND EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-receipts-2'),
+    'receipts-partial: applied inserts must land in the business table'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.rls_owned_ids WHERE id = 'owned-by-b'),
+    'receipts-partial: denied delete must leave the row in place'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(mutation_result->'change_id_mapping') = 2,
+    pg_catalog.format('receipts-partial: only applied entities must map to remote ids: %s', mutation_result->'change_id_mapping')
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-partial-client' AND "localId" = 800003),
+    'receipts-partial: rejected entity must not log'
+  );
+END;
+$$;
+
+-- T034 (AC#10)：同一实体 3 条 main 源变更压成 1 次被拒写，回执 localIds 含 3 个
+CREATE FUNCTION rxdb_sql_regression.test_receipts_fanout()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  rejected_entry jsonb;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-fanout-client';
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  mutation_result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-b"]}]'::jsonb,
+    p_changes => '[
+      {"namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+       "entityId":"owned-by-b","type":"DELETE","branchId":"main","clientId":"sql-receipts-fanout-client","localId":810001},
+      {"namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+       "entityId":"owned-by-b","type":"DELETE","branchId":"main","clientId":"sql-receipts-fanout-client","localId":810002},
+      {"namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+       "entityId":"owned-by-b","type":"DELETE","branchId":"main","clientId":"sql-receipts-fanout-client","localId":810003}
+    ]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(mutation_result->'entity_results') = 1,
+    pg_catalog.format('receipts-fanout: one entity must produce one entity_results entry: %s', mutation_result->'entity_results')
+  );
+
+  rejected_entry := mutation_result->'entity_results'->0;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    rejected_entry->>'status' = 'rejected' AND rejected_entry->>'code' = '42501',
+    pg_catalog.format('receipts-fanout: denied delete must be rejected/42501: %s', rejected_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rejected_entry->'localIds' = '[810001, 810002, 810003]'::jsonb,
+    pg_catalog.format('receipts-fanout: localIds must carry all 3 fanned-out source changes: %s', rejected_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-fanout-client'),
+    'receipts-fanout: none of the 3 fanned-out logs must be written when rejected'
+  );
+END;
+$$;
+
+-- T049 (AC#12)：父新建被拒 + 子新建引用父 → 父 denied、子 dependency，dependsOn 指向父；同批无关实体生效
+CREATE FUNCTION rxdb_sql_regression.test_receipts_dependency()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  parent_entry jsonb;
+  child_entry jsonb;
+  unrelated_entry jsonb;
+  multi_entry jsonb;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" IN ('sql-receipts-dependency-client', 'sql-receipts-dependency-multi-client');
+
+  mutation_result := public.rxdb_mutations(
+    p_upserts => '[
+      {"schema":"rxdb_sql_regression","table":"receipts_parent_ids","data":[{"id":"receipts-dep-parent-1","value":"x"}]},
+      {"schema":"rxdb_sql_regression","table":"receipts_child_ids","data":[{"id":"receipts-dep-child-1","parentId":"receipts-dep-parent-1","value":"x"}]},
+      {"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-receipts-dep-1","value":"new"}]}
+    ]'::jsonb,
+    p_changes => '[
+      {"namespace":"rxdb_sql_regression","entity":"ReceiptsParent","schema":"rxdb_sql_regression","table":"receipts_parent_ids",
+       "entityId":"receipts-dep-parent-1","type":"INSERT","patch":{"id":"receipts-dep-parent-1","value":"x"},
+       "branchId":"main","clientId":"sql-receipts-dependency-client","localId":870001},
+      {"namespace":"rxdb_sql_regression","entity":"ReceiptsChild","schema":"rxdb_sql_regression","table":"receipts_child_ids",
+       "entityId":"receipts-dep-child-1","type":"INSERT","patch":{"id":"receipts-dep-child-1","parentId":"receipts-dep-parent-1","value":"x"},
+       "branchId":"main","clientId":"sql-receipts-dependency-client","localId":870002},
+      {"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+       "entityId":"open-receipts-dep-1","type":"INSERT","patch":{"id":"open-receipts-dep-1","value":"new"},
+       "branchId":"main","clientId":"sql-receipts-dependency-client","localId":870003}
+    ]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  SELECT value INTO parent_entry FROM pg_catalog.jsonb_array_elements(mutation_result->'entity_results') AS r(value)
+  WHERE value->>'entityId' = 'receipts-dep-parent-1';
+  SELECT value INTO child_entry FROM pg_catalog.jsonb_array_elements(mutation_result->'entity_results') AS r(value)
+  WHERE value->>'entityId' = 'receipts-dep-child-1';
+  SELECT value INTO unrelated_entry FROM pg_catalog.jsonb_array_elements(mutation_result->'entity_results') AS r(value)
+  WHERE value->>'entityId' = 'open-receipts-dep-1';
+
+  PERFORM rxdb_sql_regression.assert_true(
+    parent_entry->>'status' = 'rejected' AND parent_entry->>'code' = '42501' AND parent_entry->>'reason' = 'denied',
+    pg_catalog.format('receipts-dependency: parent insert must be denied: %s', parent_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    child_entry->>'status' = 'rejected' AND child_entry->>'code' = '23503' AND child_entry->>'reason' = 'dependency',
+    pg_catalog.format('receipts-dependency: child insert must be rejected as dependency: %s', child_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    child_entry->'dependsOn' = pg_catalog.jsonb_build_object(
+      'schema', 'rxdb_sql_regression', 'table', 'receipts_parent_ids', 'entityId', 'receipts-dep-parent-1'
+    ),
+    pg_catalog.format('receipts-dependency: dependsOn must point at the parent: %s', child_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    unrelated_entry->>'status' = 'applied',
+    pg_catalog.format('receipts-dependency: the unrelated insert must still apply: %s', unrelated_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-receipts-dep-1'),
+    'receipts-dependency: the unrelated insert must land'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.receipts_parent_ids WHERE id = 'receipts-dep-parent-1')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.receipts_child_ids WHERE id = 'receipts-dep-child-1'),
+    'receipts-dependency: denied parent and dependent child must not land'
+  );
+
+  -- 多列外键：解析不出单列父实体时回退 {constraint}
+  mutation_result := public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"receipts_child_multi_ids","data":[
+      {"id":"receipts-dep-child-multi-1","parentA":"missing-a","parentB":"missing-b","value":"x"}
+    ]}]'::jsonb,
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"ReceiptsChildMulti","schema":"rxdb_sql_regression","table":"receipts_child_multi_ids",
+      "entityId":"receipts-dep-child-multi-1","type":"INSERT",
+      "patch":{"id":"receipts-dep-child-multi-1","parentA":"missing-a","parentB":"missing-b","value":"x"},
+      "branchId":"main","clientId":"sql-receipts-dependency-multi-client","localId":870101}]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  multi_entry := mutation_result->'entity_results'->0;
+  PERFORM rxdb_sql_regression.assert_true(
+    multi_entry->>'status' = 'rejected' AND multi_entry->>'code' = '23503',
+    pg_catalog.format('receipts-dependency: multi-column FK violation must be rejected as dependency: %s', multi_entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    multi_entry->'dependsOn' = pg_catalog.jsonb_build_object('constraint', 'receipts_child_multi_parent_fk'),
+    pg_catalog.format('receipts-dependency: unresolved multi-column FK must fall back to {constraint}: %s', multi_entry)
+  );
+END;
+$$;
+
+-- T035 (AC#13)：修改已不存在的行 → rejected/RX001/gone
+CREATE FUNCTION rxdb_sql_regression.test_receipts_gone()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+  entry jsonb;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-gone-client';
+
+  mutation_result := public.rxdb_mutations(
+    p_updates => '[{"schema":"rxdb_sql_regression","table":"update_nullable_ids","data":[{"id":"nullable-receipts-gone","value":"gone"}]}]'::jsonb,
+    p_changes => '[{
+      "namespace":"rxdb_sql_regression","entity":"UpdateNullable","schema":"rxdb_sql_regression","table":"update_nullable_ids",
+      "entityId":"nullable-receipts-gone","type":"UPDATE","patch":{"value":"gone"},
+      "branchId":"main","clientId":"sql-receipts-gone-client","localId":820001
+    }]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  entry := mutation_result->'entity_results'->0;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    entry->>'status' = 'rejected' AND entry->>'code' = 'RX001' AND entry->>'reason' = 'gone',
+    pg_catalog.format('receipts-gone: missing row must be rejected/RX001/gone: %s', entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.update_nullable_ids WHERE id = 'nullable-receipts-gone'),
+    'receipts-gone: must not resurrect a partial row'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-gone-client'),
+    'receipts-gone: rejected entity must not log'
+  );
+END;
+$$;
+
+-- T035 (AC#13)：唯一约束冲突触发不可归类的 23505，整批失败、SQLSTATE 原样传播
+CREATE FUNCTION rxdb_sql_regression.test_receipts_unclassified()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  unclassified boolean := false;
+  caught_sqlstate text;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-unclassified-client';
+
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_upserts => '[{"schema":"rxdb_sql_regression","table":"unique_conflict_ids","data":[
+        {"id":"unique-conflict-new","unique_value":"taken"}
+      ]}]'::jsonb,
+      p_changes => '[{
+        "namespace":"rxdb_sql_regression","entity":"UniqueConflict","schema":"rxdb_sql_regression","table":"unique_conflict_ids",
+        "entityId":"unique-conflict-new","type":"INSERT","patch":{"id":"unique-conflict-new","unique_value":"taken"},
+        "branchId":"main","clientId":"sql-receipts-unclassified-client","localId":830001
+      }]'::jsonb,
+      p_skip_sync => true,
+      p_receipts => true
+    );
+  EXCEPTION
+    WHEN unique_violation THEN
+      GET STACKED DIAGNOSTICS caught_sqlstate = RETURNED_SQLSTATE;
+      unclassified := true;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(unclassified, 'receipts-unclassified: unique conflict must propagate uncaught');
+  PERFORM rxdb_sql_regression.assert_true(
+    caught_sqlstate = '23505',
+    pg_catalog.format('receipts-unclassified: SQLSTATE must pass through as 23505: %s', caught_sqlstate)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.unique_conflict_ids WHERE id = 'unique-conflict-new'),
+    'receipts-unclassified: the conflicting insert must not land'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-unclassified-client'),
+    'receipts-unclassified: a whole-batch failure must not log'
+  );
+END;
+$$;
+
+-- T036 (AC#15)：同一批调两次幂等；首次被拒的实体在放开策略后重试变为 applied
+CREATE FUNCTION rxdb_sql_regression.test_receipts_idempotent()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  first_result jsonb;
+  second_result jsonb;
+  first_remote_id bigint;
+  second_remote_id bigint;
+  effect_count_after integer;
+  entry jsonb;
+BEGIN
+  -- Part 1：同一批调两次，第二次不执行业务写，远端 id 相同
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-idempotent-client';
+  DELETE FROM rxdb_sql_regression.idempotency_probe;
+  UPDATE rxdb_sql_regression.idempotency_effects SET effect_count = 0 WHERE id = true;
+
+  first_result := public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"idempotency_probe","data":[{"id":"receipts-idempotent-1","value":"v1"}]}]'::jsonb,
+    p_changes => '[{
+      "namespace":"rxdb_sql_regression","entity":"IdempotencyProbe","schema":"rxdb_sql_regression","table":"idempotency_probe",
+      "entityId":"receipts-idempotent-1","type":"INSERT","patch":{"id":"receipts-idempotent-1","value":"v1"},
+      "branchId":"main","clientId":"sql-receipts-idempotent-client","localId":840001
+    }]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  second_result := public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"idempotency_probe","data":[{"id":"receipts-idempotent-1","value":"v1"}]}]'::jsonb,
+    p_changes => '[{
+      "namespace":"rxdb_sql_regression","entity":"IdempotencyProbe","schema":"rxdb_sql_regression","table":"idempotency_probe",
+      "entityId":"receipts-idempotent-1","type":"INSERT","patch":{"id":"receipts-idempotent-1","value":"v1"},
+      "branchId":"main","clientId":"sql-receipts-idempotent-client","localId":840001
+    }]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  SELECT (value->>'remoteId')::bigint INTO first_remote_id
+  FROM pg_catalog.jsonb_array_elements(first_result->'change_id_mapping') AS m(value)
+  WHERE value->>'localId' = '840001';
+  SELECT (value->>'remoteId')::bigint INTO second_remote_id
+  FROM pg_catalog.jsonb_array_elements(second_result->'change_id_mapping') AS m(value)
+  WHERE value->>'localId' = '840001';
+
+  SELECT effect_count INTO effect_count_after FROM rxdb_sql_regression.idempotency_effects WHERE id = true;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.idempotency_probe) = 1,
+    'receipts-idempotent: retry must not duplicate the business row'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    effect_count_after = 1,
+    pg_catalog.format('receipts-idempotent: retry must not re-fire side effects: %s', effect_count_after)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    first_remote_id IS NOT NULL AND first_remote_id = second_remote_id,
+    pg_catalog.format('receipts-idempotent: retry must return the same remote id: %s vs %s', first_remote_id, second_remote_id)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (second_result->'entity_results'->0)->>'status' = 'applied',
+    pg_catalog.format('receipts-idempotent: skipped retry must still report applied: %s', second_result->'entity_results'->0)
+  );
+
+  -- Part 2：首次被拒的实体在放开策略后重试变为 applied
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-idempotent-retry-client';
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  first_result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-receipts"]}]'::jsonb,
+    p_changes => '[{
+      "namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+      "entityId":"owned-by-receipts","type":"DELETE",
+      "branchId":"main","clientId":"sql-receipts-idempotent-retry-client","localId":840002
+    }]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  entry := first_result->'entity_results'->0;
+  PERFORM rxdb_sql_regression.assert_true(
+    entry->>'status' = 'rejected' AND entry->>'code' = '42501',
+    pg_catalog.format('receipts-idempotent: first attempt must be denied: %s', entry)
+  );
+
+  -- 放开策略：换成该行的属主身份重试（同一 clientId/localId）
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-receipts-denied', true);
+  second_result := public.rxdb_mutations(
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-receipts"]}]'::jsonb,
+    p_changes => '[{
+      "namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+      "entityId":"owned-by-receipts","type":"DELETE",
+      "branchId":"main","clientId":"sql-receipts-idempotent-retry-client","localId":840002
+    }]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  entry := second_result->'entity_results'->0;
+  PERFORM rxdb_sql_regression.assert_true(
+    entry->>'status' = 'applied',
+    pg_catalog.format('receipts-idempotent: retry after policy change must apply: %s', entry)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.rls_owned_ids WHERE id = 'owned-by-receipts'),
+    'receipts-idempotent: retried delete must actually remove the row'
+  );
+END;
+$$;
+
+-- T036 (FR-022)：不传 p_receipts 时任一条被拒整批 42501，无论成败都不带 entity_results
+CREATE FUNCTION rxdb_sql_regression.test_receipts_legacy()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  denied boolean := false;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-legacy-client';
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
+
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-receipts-legacy-1","value":"new"}]}]'::jsonb,
+      p_deletes => '[{"schema":"rxdb_sql_regression","table":"rls_owned_ids","ids":["owned-by-b"]}]'::jsonb,
+      p_changes => '[
+        {"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+         "entityId":"open-receipts-legacy-1","type":"INSERT","patch":{"id":"open-receipts-legacy-1","value":"new"},
+         "branchId":"main","clientId":"sql-receipts-legacy-client","localId":850001},
+        {"namespace":"rxdb_sql_regression","entity":"RlsOwnedId","schema":"rxdb_sql_regression","table":"rls_owned_ids",
+         "entityId":"owned-by-b","type":"DELETE",
+         "branchId":"main","clientId":"sql-receipts-legacy-client","localId":850002}
+      ]'::jsonb,
+      p_skip_sync => true
+      -- p_receipts 不传，默认 false
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      denied := true;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(denied, 'receipts-legacy: a rejection without p_receipts must raise 42501 for the whole batch');
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'open-receipts-legacy-1'),
+    'receipts-legacy: the whole batch must roll back, including the otherwise-applicable insert'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-legacy-client'),
+    'receipts-legacy: a whole-batch failure must not log anything'
+  );
+
+  -- 全部成功时也不带 entity_results
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-legacy-ok-client';
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT (public.rxdb_mutations(
+      p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-receipts-legacy-ok-1","value":"new"}]}]'::jsonb,
+      p_changes => '[{"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+        "entityId":"open-receipts-legacy-ok-1","type":"INSERT","patch":{"id":"open-receipts-legacy-ok-1","value":"new"},
+        "branchId":"main","clientId":"sql-receipts-legacy-ok-client","localId":850101}]'::jsonb,
+      p_skip_sync => true
+    ) ? 'entity_results'),
+    'receipts-legacy: a successful legacy call must not include entity_results'
+  );
+END;
+$$;
+
+-- 70 个组各含 1 条被拒：验证不触发子事务层数问题
+CREATE FUNCTION rxdb_sql_regression.test_receipts_many_groups()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  deletes jsonb := '[]'::jsonb;
+  changes jsonb := '[]'::jsonb;
+  mutation_result jsonb;
+  g integer;
+  rejected_count integer;
+BEGIN
+  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-many-groups-client';
+
+  FOR g IN 1..70 LOOP
+    deletes := deletes || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'schema', 'rxdb_sql_regression', 'table', 'rls_denied_ids',
+      'ids', pg_catalog.jsonb_build_array('receipts-many-' || g)
+    ));
+    changes := changes || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'namespace', 'rxdb_sql_regression', 'entity', 'RlsDenied',
+      'schema', 'rxdb_sql_regression', 'table', 'rls_denied_ids',
+      'entityId', 'receipts-many-' || g, 'type', 'DELETE',
+      'branchId', 'main', 'clientId', 'sql-receipts-many-groups-client', 'localId', 860000 + g
+    ));
+  END LOOP;
+
+  mutation_result := public.rxdb_mutations(
+    p_deletes => deletes,
+    p_changes => changes,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+
+  SELECT pg_catalog.count(*)::integer INTO rejected_count
+  FROM pg_catalog.jsonb_array_elements(mutation_result->'entity_results') AS results(value)
+  WHERE value->>'status' = 'rejected';
+
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(mutation_result->'entity_results') = 70,
+    pg_catalog.format('receipts-many-groups: must report 70 entities: %s', pg_catalog.jsonb_array_length(mutation_result->'entity_results'))
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rejected_count = 70,
+    pg_catalog.format('receipts-many-groups: 70 denied deletes across 70 groups must all be rejected: %s', rejected_count)
+  );
+END;
+$$;
+
 GRANT USAGE ON SCHEMA rxdb_sql_regression TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO anon;
@@ -2005,6 +2613,22 @@ SELECT rxdb_sql_regression.test_mixed_batch_rollback()
 WHERE :'test_case' IN ('all', 'mixed-batch-rollback');
 SELECT rxdb_sql_regression.test_push_integrity()
 WHERE :'test_case' IN ('all', 'push-integrity');
+SELECT rxdb_sql_regression.test_receipts_partial()
+WHERE :'test_case' IN ('all', 'receipts-partial');
+SELECT rxdb_sql_regression.test_receipts_fanout()
+WHERE :'test_case' IN ('all', 'receipts-fanout');
+SELECT rxdb_sql_regression.test_receipts_dependency()
+WHERE :'test_case' IN ('all', 'receipts-dependency');
+SELECT rxdb_sql_regression.test_receipts_gone()
+WHERE :'test_case' IN ('all', 'receipts-gone');
+SELECT rxdb_sql_regression.test_receipts_unclassified()
+WHERE :'test_case' IN ('all', 'receipts-unclassified');
+SELECT rxdb_sql_regression.test_receipts_idempotent()
+WHERE :'test_case' IN ('all', 'receipts-idempotent');
+SELECT rxdb_sql_regression.test_receipts_legacy()
+WHERE :'test_case' IN ('all', 'receipts-legacy');
+SELECT rxdb_sql_regression.test_receipts_many_groups()
+WHERE :'test_case' IN ('all', 'receipts-many-groups');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()

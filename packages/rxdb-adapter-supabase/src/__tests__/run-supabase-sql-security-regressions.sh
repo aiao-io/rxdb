@@ -26,6 +26,14 @@ CASES=(
   delete-gone
   mixed-batch-rollback
   push-integrity
+  receipts-partial
+  receipts-fanout
+  receipts-dependency
+  receipts-gone
+  receipts-unclassified
+  receipts-idempotent
+  receipts-legacy
+  receipts-many-groups
 )
 failed=0
 

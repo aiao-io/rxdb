@@ -542,6 +542,56 @@ BEGIN
   END LOOP;
 END $$;
 
+-- ============================================
+-- 9. US-218 RLS 回归夹具表（rls_todos）
+-- ============================================
+-- 真实 RLS 策略的 todos 镜像：仅用于 B3/B4 真实链路与 e2e 验证被拒推送回执；
+-- 不纳入第 8 节“禁用 RLS”范围，必须保持启用（非 FORCE）。
+CREATE TABLE IF NOT EXISTS public.rls_todos (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title varchar NOT NULL,
+    completed boolean DEFAULT false,
+    "createdAt" timestamptz(3) DEFAULT now(),
+    "updatedAt" timestamptz(3) DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar
+);
+
+CREATE INDEX IF NOT EXISTS idx_rls_todos_completed ON public.rls_todos(completed);
+CREATE INDEX IF NOT EXISTS idx_rls_todos_created_by ON public.rls_todos("createdBy");
+
+CREATE OR REPLACE TRIGGER update_rls_todos_updated_at
+  BEFORE UPDATE ON public.rls_todos
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE public.rls_todos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS rls_todos_select ON public.rls_todos;
+CREATE POLICY rls_todos_select ON public.rls_todos
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS rls_todos_insert ON public.rls_todos;
+CREATE POLICY rls_todos_insert ON public.rls_todos
+  FOR INSERT WITH CHECK ("createdBy" = auth.uid()::text);
+
+DROP POLICY IF EXISTS rls_todos_update ON public.rls_todos;
+CREATE POLICY rls_todos_update ON public.rls_todos
+  FOR UPDATE USING ("createdBy" = auth.uid()::text);
+
+DROP POLICY IF EXISTS rls_todos_delete ON public.rls_todos;
+CREATE POLICY rls_todos_delete ON public.rls_todos
+  FOR DELETE USING ("createdBy" = auth.uid()::text);
+
+DO $$
+BEGIN
+  IF pg_catalog.to_regprocedure('public.rxdb_enable_sync_for_table(text,text,text)') IS NOT NULL THEN
+    PERFORM public.rxdb_enable_sync_for_table('rls_todos', 'public', 'RlsTodo');
+  END IF;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.rls_todos TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.rls_todos TO authenticated;
+
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA shop TO anon;
