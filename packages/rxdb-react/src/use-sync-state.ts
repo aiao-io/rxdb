@@ -7,6 +7,8 @@ import { useRxDB } from './rxdb-react.js';
  *
  * @remarks
  * 字段与核心的 `SyncState` 一一对应，取值就是普通只读值，可以直接解构。
+ * 其中 `lastRejections` 是最近一轮有被拒的推送产生的被拒列表，不会被后续成功清空，
+ * 下一轮有被拒时整体替换。
  *
  * 状态没变时**引用稳定**（同一个对象跨 render 复用），因此可以安全地放进
  * `useEffect` / `useMemo` 的依赖数组。
