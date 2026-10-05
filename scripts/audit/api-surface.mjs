@@ -70,8 +70,10 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 新增一个既不在白名单、又没有源入口声明的子路径 → 门禁红（见 `resolveScanEntries()`）。
  * 反向也守：白名单登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
  *
- * 目前为空：`rxdb-adapter-miniprogram` 原先随包分发的 wa-sqlite glue + wasm 已改为
- * 直接依赖 `@subframe7536/sqlite-wasm`，资产不再经本仓库的 `exports` 暴露。
+ * `rxdb-adapter-miniprogram` 原先随包分发的 wa-sqlite glue + wasm 已改为直接依赖
+ * `@subframe7536/sqlite-wasm`，资产不再经本仓库的 `exports` 暴露；仅剩
+ * `./alipay-random-worker.js`：支付宝小程序 Worker 脚本，手写 ES5、无 import / export，
+ * 由应用作为 Worker 文件加载（协议见 `src/hosts/alipay-random.ts`），无 TS 导出表面。
  *
  * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  * 三个 model 绑定包的 CSS 资产入口同理：`rxdb-model-angular` / `rxdb-model-vue` 的
@@ -81,6 +83,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * @type {Map<string, string[]>}
  */
 const ASSET_SUBPATHS = new Map([
+  ['rxdb-adapter-miniprogram', ['./alipay-random-worker.js']],
   ['rxdb-model-angular', ['./tailwind.css']],
   ['rxdb-model-react', ['./index.css', './tailwind.css']],
   ['rxdb-model-vue', ['./tailwind.css']]

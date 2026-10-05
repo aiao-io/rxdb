@@ -679,7 +679,7 @@ export class RxDBChange implements IRxDBChange {
   /**
    * 所属分支
    */
-  branch$!: RelationEntityObservable<typeof RxDBBranch>;
+  declare branch$: RelationEntityObservable<typeof RxDBBranch>;
 
   /**
    * count 查询

@@ -4,8 +4,9 @@ import type {
   MiniProgramHostSelection,
   WaSqliteMiniProgramBaseOptions
 } from './mini-program.interface.js';
+import { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 import type { MiniProgramRuntimeSource } from './runtime-source.js';
-import { getMiniProgramRuntimeSources } from './runtime-source.js';
+import { readMiniProgramRuntimeSources } from './runtime-source.js';
 
 /** 小程序运行 RxDB 所需的一项能力。 */
 export interface MiniProgramRuntimeCapability {
@@ -36,21 +37,40 @@ function hasDatabaseDirectory(host: MiniProgramHost, options: MiniProgramRuntime
   return isUsableDirectory(host.userDataPath);
 }
 
+/** 文件 VFS 用到的全部同步方法。 */
+const FILE_SYSTEM_METHODS = ['accessSync', 'mkdirSync', 'readFileSync', 'unlinkSync', 'writeFileSync'] as const;
+
+/**
+ * 文件系统能力：入口拿不到时报入口本身；拿到了但缺方法时逐个报缺失的方法。
+ *
+ * 只认入口返回值会把缺方法的平台放进 VFS，到第一次读写才以 `TypeError` 暴露。
+ */
+function listFileSystemCapabilities(host: MiniProgramHost): readonly MiniProgramRuntimeCapability[] {
+  const name = host.capabilityNames.fileSystem;
+  const fileSystem: unknown = host.getFileSystemManager();
+  if (typeof fileSystem !== 'object' || fileSystem === null) return [{ name, available: false }];
+  const methods = fileSystem as Record<string, unknown>;
+  const missing = FILE_SYSTEM_METHODS.filter(method => typeof methods[method] !== 'function');
+  if (missing.length === 0) return [{ name, available: true }];
+  return missing.map(method => ({ name: `${name}().${method}`, available: false }));
+}
+
 /** 按已解析的宿主列能力矩阵；客户端连接时复用同一个宿主，不重复解析。 */
 export function listMiniProgramHostCapabilities(
   host: MiniProgramHost,
   options: MiniProgramRuntimeCapabilityOptions
 ): readonly MiniProgramRuntimeCapability[] {
-  const sources = getMiniProgramRuntimeSources();
+  const runtimeGlobal = resolveMiniProgramRuntimeGlobal(host);
+  const sources = readMiniProgramRuntimeSources(runtimeGlobal);
   return [
     { name: 'moduleFactory', available: typeof options.moduleFactory === 'function' },
     {
       name: `${host.wasmRuntimeName}.instantiate`,
       available: typeof options.wasmRuntime?.instantiate === 'function'
     },
-    { name: host.capabilityNames.fileSystem, available: !!host.getFileSystemManager() },
+    ...listFileSystemCapabilities(host),
     { name: host.capabilityNames.userDataPath, available: hasDatabaseDirectory(host, options) },
-    { name: 'BigInt', available: typeof globalThis.BigInt === 'function' },
+    { name: 'BigInt', available: typeof runtimeGlobal.BigInt === 'function' },
     { name: 'crypto.getRandomValues', available: sources.random !== 'missing', source: sources.random },
     {
       name: 'structuredClone',
@@ -60,7 +80,7 @@ export function listMiniProgramHostCapabilities(
     { name: 'TextEncoder', available: sources.textEncoder !== 'missing', source: sources.textEncoder },
     { name: 'TextDecoder', available: sources.textDecoder !== 'missing', source: sources.textDecoder },
     { name: 'performance.now', available: sources.performanceNow !== 'missing', source: sources.performanceNow },
-    { name: 'queueMicrotask', available: typeof globalThis.queueMicrotask === 'function' }
+    { name: 'queueMicrotask', available: typeof runtimeGlobal.queueMicrotask === 'function' }
   ];
 }
 

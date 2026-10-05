@@ -43,6 +43,7 @@ owner: jimmy
 - [US-210 Tauri 连接应用作用域 SQLite 文件](../stories/adapter/US-210-tauri-sqlite-local-database.md) — 桌面本地 SQLite 的 Tauri 半边：自写 Rust command 持有 `rusqlite::Connection`
 - [US-209 微信小程序 wa-sqlite 适配器](../stories/adapter/US-209-miniprogram-adapter.md) — 实验性平台扩展，仅微信逻辑层
 - [US-211 多端小程序宿主](../stories/adapter/US-211-multi-miniprogram-platforms.md) — US-209 的后续：抽 host 后按可行性门禁逐个放行非微信平台
+- [US-219 Taro 插件一行接入小程序 adapter 的构建配置](../stories/adapter/US-219-taro-plugin.md) — US-209 / US-211 的接入面：demo 里的构建前提搬进 `@aiao/rxdb-taro`，不扩大平台支持面
 - [US-504 Electron 本地文件存储](../stories/plugin/US-504-electron-local-file-storage.md) — 文件内容落 `userData/rxdb-files`，与桌面 SQLite 同一备份域；窄接口 `StorageFilesystem` + host 侧仲裁路径锁 + `StorageBackendError { code }`
 - [US-505 Tauri 本地文件存储](../stories/plugin/US-505-tauri-local-file-storage.md) — US-504 的 Tauri 半边；被 US-210 门禁的只有 AC#1 / #7，其余可独立交付
 - [US-020 将 QueryCache 接入统一 Repository](../stories/core/US-020-querycache-repository.md) — 让 `SyncType.QueryCache` 从空操作变成生产真；两阶段（接线 → 缓存质量）；不 inherit US-203 AC#6

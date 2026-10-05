@@ -171,8 +171,8 @@ export interface BranchMaterializationSource {
   settle(context: BranchMaterializationBarrierContext): Promise<void>;
 }
 
-/** 算指纹用的编码器；每次现 new 一个是白白的分配。 */
-const textEncoder = new TextEncoder();
+/** 算指纹用的编码器；每次现 new 一个是白白的分配。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let textEncoder: TextEncoder | undefined;
 
 /**
  * 把一个 JSON 值折成**键序无关**的字符串——物化协议两端共用的规范形。
@@ -228,4 +228,8 @@ const MATERIALIZATION_PAGE_FINGERPRINT_DOMAIN = 'rxdb.working-tree.materializati
  * ```
  */
 export const branchMaterializationPageFingerprint = (payload: Record<string, unknown>): string =>
-  sha256Hex(textEncoder.encode(`${MATERIALIZATION_PAGE_FINGERPRINT_DOMAIN} ${canonicalMaterializationJson(payload)}`));
+  sha256Hex(
+    (textEncoder ??= new TextEncoder()).encode(
+      `${MATERIALIZATION_PAGE_FINGERPRINT_DOMAIN} ${canonicalMaterializationJson(payload)}`
+    )
+  );

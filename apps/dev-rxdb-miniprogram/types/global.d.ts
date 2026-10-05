@@ -42,15 +42,37 @@ interface WechatWasmInstance {
   readonly exports: WebAssembly.Exports;
 }
 
-interface WechatWasmRuntime {
+interface MiniProgramPlatformWasmRuntime {
   instantiate(
     path: string,
     imports: WebAssembly.Imports
   ): Promise<WechatWasmInstance | { readonly instance: WechatWasmInstance; readonly module?: unknown }>;
 }
 
+/** 抖音全局 `tt` 里 adapter 用到的部分；用户目录走 `getEnvInfoSync`；读 `tt.env.USER_DATA_PATH` 开发者工具会报即将弃用。 */
+interface DouyinMiniProgramApi {
+  getEnvInfoSync(): {
+    readonly common: {
+      readonly USER_DATA_PATH: string;
+    };
+  };
+  getFileSystemManager(): WechatMiniProgramFileSystemManager;
+  getRandomValues?(options: WechatRandomValuesOptions): unknown;
+}
+
+/** 支付宝全局 `my`：adapter 宿主用到的部分，外加建随机数 Worker。 */
+type AlipayDemoMiniProgramApi = import('@aiao/rxdb-adapter-miniprogram/runtime').MiniProgramAlipayApi & {
+  createWorker(
+    path: string,
+    options: { readonly useExperimentalWorker: boolean }
+  ): import('@aiao/rxdb-adapter-miniprogram/runtime').AlipayRandomWorker;
+};
+
 declare const wx: WechatMiniProgramApi;
-declare const WXWebAssembly: WechatWasmRuntime;
+declare const WXWebAssembly: MiniProgramPlatformWasmRuntime;
+declare const tt: DouyinMiniProgramApi;
+declare const TTWebAssembly: MiniProgramPlatformWasmRuntime;
+declare const my: AlipayDemoMiniProgramApi;
 
 declare namespace NodeJS {
   interface ProcessEnv {

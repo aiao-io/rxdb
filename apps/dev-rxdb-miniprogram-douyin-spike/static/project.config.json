@@ -1,0 +1,11 @@
+{
+  "appid": "testAppId",
+  "douyinProjectType": "native",
+  "projectname": "aiao-douyin-spike",
+  "setting": {
+    "es6": false,
+    "minified": false,
+    "urlCheck": false,
+    "autoCompile": true
+  }
+}

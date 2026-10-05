@@ -1,5 +1,6 @@
 import { isMiniProgramPlatformId } from './host.js';
-import type { MiniProgramPlatformId } from './mini-program.interface.js';
+import type { MiniProgramPlatformId, MiniProgramRuntimeGlobal } from './mini-program.interface.js';
+import { resolveAmbientRuntimeGlobal } from './runtime-global.js';
 
 /**
  * 运行时能力来源的标记属性与读取逻辑。
@@ -35,19 +36,29 @@ function readRuntimeSource(value: unknown): MiniProgramRuntimeSource | undefined
   return source === 'polyfill' || isMiniProgramPlatformId(source) ? source : undefined;
 }
 
-/** 返回当前同步能力的实际来源。 */
-export function getMiniProgramRuntimeSources(): MiniProgramRuntimeSources {
-  const currentRandom = globalThis.crypto?.getRandomValues;
+/**
+ * 返回当前同步能力的实际来源。
+ *
+ * @param runtimeGlobal - 要检查的全局对象；缺省用环境里的 `globalThis`，见 `MiniProgramHost.runtimeGlobal`
+ * @returns 各项能力是原生、补丁、宿主随机源还是缺失
+ */
+export function getMiniProgramRuntimeSources(runtimeGlobal?: MiniProgramRuntimeGlobal): MiniProgramRuntimeSources {
+  return readMiniProgramRuntimeSources(resolveAmbientRuntimeGlobal(runtimeGlobal));
+}
+
+/** 按已解析的全局对象读来源；引导与预检已经解析过，不重复校验。 */
+export function readMiniProgramRuntimeSources(target: MiniProgramRuntimeGlobal): MiniProgramRuntimeSources {
+  const currentRandom = target.crypto?.getRandomValues;
   const randomSource = readRuntimeSource(currentRandom);
-  const structuredCloneSource = readRuntimeSource(globalThis.structuredClone);
-  const textEncoderSource = readRuntimeSource(globalThis.TextEncoder);
-  const textDecoderSource = readRuntimeSource(globalThis.TextDecoder);
-  const performanceNowSource = readRuntimeSource(globalThis.performance?.now);
+  const structuredCloneSource = readRuntimeSource(target.structuredClone);
+  const textEncoderSource = readRuntimeSource(target.TextEncoder);
+  const textDecoderSource = readRuntimeSource(target.TextDecoder);
+  const performanceNowSource = readRuntimeSource(target.performance?.now);
   return {
     random: typeof currentRandom !== 'function' ? 'missing' : (randomSource ?? 'native'),
-    structuredClone: typeof globalThis.structuredClone !== 'function' ? 'missing' : (structuredCloneSource ?? 'native'),
-    textEncoder: typeof globalThis.TextEncoder !== 'function' ? 'missing' : (textEncoderSource ?? 'native'),
-    textDecoder: typeof globalThis.TextDecoder !== 'function' ? 'missing' : (textDecoderSource ?? 'native'),
-    performanceNow: typeof globalThis.performance?.now !== 'function' ? 'missing' : (performanceNowSource ?? 'native')
+    structuredClone: typeof target.structuredClone !== 'function' ? 'missing' : (structuredCloneSource ?? 'native'),
+    textEncoder: typeof target.TextEncoder !== 'function' ? 'missing' : (textEncoderSource ?? 'native'),
+    textDecoder: typeof target.TextDecoder !== 'function' ? 'missing' : (textDecoderSource ?? 'native'),
+    performanceNow: typeof target.performance?.now !== 'function' ? 'missing' : (performanceNowSource ?? 'native')
   };
 }

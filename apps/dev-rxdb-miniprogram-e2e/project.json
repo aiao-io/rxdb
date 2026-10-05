@@ -10,7 +10,7 @@
   "targets": {
     "e2e-devtools": {
       "// executor": "不能靠 @nx/playwright 插件推断 target：插件只认 `targetName`（本仓是 e2e），推断出来的名字正好是要躲开的那个。nx.json 里已经把本项目从该插件排除，所以命令在这里显式写死。",
-      "dependsOn": ["dev-rxdb-miniprogram:build"],
+      "dependsOn": ["dev-rxdb-miniprogram:build-weapp"],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/dev-rxdb-miniprogram-e2e",
