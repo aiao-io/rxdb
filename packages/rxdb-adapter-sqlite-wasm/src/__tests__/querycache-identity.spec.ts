@@ -11,7 +11,7 @@
  * 实体配 `syncStaleTime: 0` 关掉 D13 的同步记忆 —— 每次 `find` 都完整跑一遍同步，
  * 本用例断言的正是那条完整链路，而记忆本身已在核心包按 AC#23 单测过。
  */
-import type { IRxDBAdapter, QueryCacheEntityMetadata, RemoteChange, RuleGroup } from '@aiao/rxdb';
+import type { IRxDBAdapter, QueryCacheEntityMetadata, RemoteChange, RemoteMergeResult, RuleGroup } from '@aiao/rxdb';
 import { Entity, EntityBase, getEntityStatus, PropertyType, RxDB, RxDBAdapterRemoteBase, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
@@ -135,7 +135,7 @@ class MemoryRemoteAdapter extends RxDBAdapterRemoteBase implements IRxDBAdapter 
     return Promise.reject(new Error('memory-remote: 本用例不做版本化同步'));
   }
 
-  mergeChanges(): Promise<number> {
+  mergeChanges(): Promise<RemoteMergeResult> {
     return Promise.reject(new Error('memory-remote: 本用例不做版本化同步'));
   }
 
