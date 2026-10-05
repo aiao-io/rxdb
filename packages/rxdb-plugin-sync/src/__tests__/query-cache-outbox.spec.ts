@@ -790,6 +790,7 @@ describe('countQueryCacheOutbox', () => {
       { field: 'branchId', operator: '=', value: BRANCH },
       { field: 'revertChangeId', operator: '=', value: null },
       { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
       {
         combinator: 'or',
         rules: [

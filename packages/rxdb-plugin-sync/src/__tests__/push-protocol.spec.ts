@@ -50,6 +50,7 @@ function createChange(
   change.patch = patch;
   change.inversePatch = inversePatch;
   change.remoteId = null;
+  change.rejectedAt = null;
   change.revertChangeId = null;
   change.createdAt = new Date(`2026-01-01T00:00:0${id}.000Z`);
   change.updatedAt = new Date(`2026-01-01T00:00:0${id}.000Z`);

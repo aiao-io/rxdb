@@ -405,6 +405,7 @@ describe('pushRepository', () => {
         rules: [
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'remoteId', operator: '=', value: null },
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'namespace', operator: '=', value: 'public' },
           { field: 'branchId', operator: '=', value: 'main' },
           { field: 'entity', operator: 'in', value: ['User'] },
@@ -459,6 +460,7 @@ describe('pushRepository', () => {
         rules: [
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'remoteId', operator: '=', value: null },
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'namespace', operator: '=', value: 'public' },
           { field: 'branchId', operator: 'in', value: ['feature', 'release', 'main'] },
           { field: 'entity', operator: 'in', value: ['User'] },
@@ -483,6 +485,7 @@ describe('pushRepository', () => {
     expect(findOptions.where.rules).toEqual([
       { field: 'revertChangeId', operator: '=', value: null },
       { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
       { field: 'namespace', operator: '=', value: 'public' },
       { field: 'branchId', operator: 'in', value: ['feature', 'release', 'main'] },
       { field: 'entity', operator: 'in', value: ['User'] }

@@ -224,6 +224,7 @@ describe('getRepositorySyncStatus', () => {
           { field: 'entity', operator: '=', value: 'StatusFull' },
           { field: 'branchId', operator: '=', value: 'feature' },
           { field: 'remoteId', operator: '=', value: null },
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'id', operator: '>', value: 10 }
         ]
@@ -259,6 +260,7 @@ describe('getRepositorySyncStatus', () => {
       { field: 'entity', operator: '=', value: 'StatusFull' },
       { field: 'branchId', operator: '=', value: 'main' },
       { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
       { field: 'revertChangeId', operator: '=', value: null }
     ]);
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:StatusFull'], 'main');

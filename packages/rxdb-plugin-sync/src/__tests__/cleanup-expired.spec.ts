@@ -30,6 +30,9 @@ interface CleanupHarnessOptions {
 
 type FindExpired = (options: { where: RuleGroup }) => Promise<CleanupRecord[]>;
 type MergeChanges = (actions: SwitchVersionActions, localChanges?: unknown, disableTriggers?: boolean) => Promise<void>;
+// 带上查询参数类型，使 `changeFind.mock.calls[0]?.[0]` 能在不转 unknown 的情况下
+// 取回 `{ where: RuleGroup }`，供「待推」查询条件的红用例做结构断言
+type ChangeFind = (options: { where: RuleGroup }) => Promise<{ entityId: RxDBEntityId }[]>;
 
 const createFilterSync = (filter: () => RuleGroup): SyncOptions => ({
   type: SyncType.Filter,
@@ -58,7 +61,7 @@ const createHarness = (options: CleanupHarnessOptions = {}) => {
   });
   const repository = { find };
   // RxDBChange 仓库单列：cleanup 必须先确认候选实体没有未推送变更
-  const changeFind = vi.fn(async () => options.unpushedChanges ?? []);
+  const changeFind = vi.fn<ChangeFind>(async () => options.unpushedChanges ?? []);
   const changeRepository = { find: changeFind };
   const getRepository = vi.fn((EntityType: unknown) => (EntityType === RxDBChange ? changeRepository : repository));
   const mergeChanges = vi.fn<MergeChanges>(async () => undefined);
@@ -380,8 +383,8 @@ describe('cleanupExpired 数据安全', () => {
 
     await cleanupExpired(harness.vm, 'public', 'Order');
 
-    const findOptions = harness.changeFind.mock.calls[0]?.[0] as { where: { rules: unknown[] } };
-    expect(findOptions.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+    const findOptions = harness.changeFind.mock.calls[0]?.[0];
+    expect(findOptions?.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
   });
 
   it('按主键运行时类型区分未推送变更', async () => {

@@ -86,7 +86,10 @@ export const backfillOwnChangeRemoteIds = async (
       combinator: 'and',
       rules: [
         { field: 'id', operator: 'in', value: mappableChanges.map(change => change.localId!) },
-        { field: 'remoteId', operator: '=', value: null }
+        { field: 'remoteId', operator: '=', value: null },
+        // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+        // 不该被本轮回填覆盖掉——覆盖了反而让 cleanupExpired 的保留窗口误判
+        { field: 'rejectedAt', operator: '=', value: null }
       ]
     }
   });

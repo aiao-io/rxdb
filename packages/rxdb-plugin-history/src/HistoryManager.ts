@@ -310,7 +310,11 @@ export class HistoryManager {
           const baseRules = [
             { field: 'branchId' as const, operator: '=' as const, value: branch!.id },
             { field: 'revertChangeId' as const, operator: '=' as const, value: null },
-            { field: 'remoteId' as const, operator: '=' as const, value: null }
+            { field: 'remoteId' as const, operator: '=' as const, value: null },
+            // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被
+            // 推送，必须和 remoteId = null 一起排除，否则无关的被拒变更一有风吹草动
+            // 就会白触发一次 pushableCount 重算
+            { field: 'rejectedAt' as const, operator: '=' as const, value: null }
           ];
           return changeRepository
             .count({

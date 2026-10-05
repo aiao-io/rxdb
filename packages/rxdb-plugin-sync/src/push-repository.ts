@@ -1262,6 +1262,9 @@ async function queryUnpushedChanges(
   const baseRules: RxDBChangeRuleGroup['rules'] = [
     { field: 'revertChangeId', operator: '=', value: null },
     { field: 'remoteId', operator: '=', value: null },
+    // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+    // 必须和 remoteId = null 一起排除，否则会被当成待推变更反复捞出来
+    { field: 'rejectedAt', operator: '=', value: null },
     // 实体名在不同 namespace 下可以重名，只按 entity 过滤会把别的 namespace 的
     // 变更一起捞出来错推，同时把对方的水位线推进导致后续漏推
     { field: 'namespace', operator: '=', value: namespace }
